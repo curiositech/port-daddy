@@ -8,6 +8,7 @@ import {
   getContextPathForSlot,
   getLegacyContextPath,
   readCurrentContext,
+  resolveContextSlot,
   writeCurrentContext,
 } from '../../cli/utils/current-context.js';
 
@@ -15,12 +16,16 @@ describe('current-context helper', () => {
   let projectDir;
   let originalSlot;
   let originalContextDir;
+  let originalCodexThreadId;
 
   beforeEach(() => {
     projectDir = mkdtempSync(join(tmpdir(), 'pd-current-context-'));
     originalSlot = process.env.PORT_DADDY_CONTEXT_SLOT;
     originalContextDir = process.env.PORT_DADDY_CONTEXT_DIR;
+    originalCodexThreadId = process.env.CODEX_THREAD_ID;
+    delete process.env.PORT_DADDY_CONTEXT_SLOT;
     delete process.env.PORT_DADDY_CONTEXT_DIR;
+    delete process.env.CODEX_THREAD_ID;
   });
 
   afterEach(() => {
@@ -28,6 +33,8 @@ describe('current-context helper', () => {
     else process.env.PORT_DADDY_CONTEXT_SLOT = originalSlot;
     if (originalContextDir === undefined) delete process.env.PORT_DADDY_CONTEXT_DIR;
     else process.env.PORT_DADDY_CONTEXT_DIR = originalContextDir;
+    if (originalCodexThreadId === undefined) delete process.env.CODEX_THREAD_ID;
+    else process.env.CODEX_THREAD_ID = originalCodexThreadId;
   });
 
   it('isolates context by slot while keeping a legacy pointer', () => {
@@ -81,6 +88,35 @@ describe('current-context helper', () => {
     process.env.PORT_DADDY_CONTEXT_SLOT = 'shell-a';
     expect(readCurrentContext(projectDir)?.sessionId).toBe('session-a');
     process.env.PORT_DADDY_CONTEXT_SLOT = legacySlot;
+    expect(readCurrentContext(projectDir)).toBeNull();
+  });
+
+  it('uses Codex thread identity as the stable non-interactive slot', () => {
+    delete process.env.PORT_DADDY_CONTEXT_SLOT;
+    process.env.CODEX_THREAD_ID = 'thread/with spaces';
+
+    writeCurrentContext({
+      agentId: 'agent-a',
+      sessionId: 'session-a',
+      purpose: 'non-interactive command',
+      identity: 'port-daddy',
+    }, projectDir);
+
+    expect(resolveContextSlot()).toBe('codex-thread-with-spaces');
+    expect(readCurrentContext(projectDir)?.sessionId).toBe('session-a');
+  });
+
+  it('does not reuse another ppid slot through the legacy pointer', () => {
+    delete process.env.PORT_DADDY_CONTEXT_SLOT;
+
+    writeCurrentContext({
+      agentId: 'agent-a',
+      sessionId: 'session-a',
+      purpose: 'non-interactive command',
+      identity: 'port-daddy',
+      contextSlot: 'ppid-previous-shell',
+    }, projectDir);
+
     expect(readCurrentContext(projectDir)).toBeNull();
   });
 

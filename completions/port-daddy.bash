@@ -106,7 +106,7 @@ _port_daddy() {
     # Briefing & History
     briefing history
     # Consolidated read/write (3.8.4)
-    say look sitrep pheromone ph advise preflight compass
+    say look sitrep pheromone ph advise preflight compass guard
     # Agent Inbox
     inbox
     # AI Agent Spawner + Watch
@@ -117,6 +117,10 @@ _port_daddy() {
     tuple
     # Semantic graph + episodic memory
     graph memory ideas
+    # Cartographer roadmap projection
+    roadmap
+    # Quorum (swarm consensus primitive)
+    quorum
     # System & Monitoring
     dashboard channels webhook webhooks metrics config health ports
     # Orchestration
@@ -128,7 +132,7 @@ _port_daddy() {
     # Project onboarding
     setup init
     # Daemon lifecycle
-    start stop restart install uninstall dev ci-gate mcp
+    start stop restart install uninstall dev daemon ci-gate mcp
     # Bonds / Wallets — FleetControl hardening
     wallet bond
     # Info
@@ -1614,6 +1618,36 @@ _port_daddy() {
       ;;
 
     # -----------------------------------------------------------------------
+    # guard  status|check|enable|disable|install  [files...]  [options]
+    # -----------------------------------------------------------------------
+    guard)
+      local guard_subcommands='status check enable disable install'
+      local subcmd=""
+      for (( i = 1; i < cword; i++ )); do
+        local w="${words[$i]}"
+        if [[ "$w" == "guard" ]]; then
+          if (( i + 1 < cword )); then
+            subcmd="${words[$((i+1))]}"
+          fi
+          break
+        fi
+      done
+
+      case "$prev" in
+        --mode)
+          COMPREPLY=( $(compgen -W "warn enforce off" -- "$cur") )
+          ;;
+        *)
+          if [[ -z "$subcmd" ]]; then
+            COMPREPLY=( $(compgen -W "$guard_subcommands" -- "$cur") )
+          else
+            _pd_opts '--mode --warn --enforce --off --staged --hook --json --quiet'
+          fi
+          ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
     # pheromone  spray|file|files|show|ls  [args]  [options]
     # -----------------------------------------------------------------------
     pheromone|ph)
@@ -1697,6 +1731,11 @@ _port_daddy() {
           ;;
         *) _pd_opts '' ;;
       esac
+      ;;
+
+    # roadmap  [options]
+    roadmap)
+      _pd_opts '--dir --root --projectDir --limit --no-excerpts --json --quiet'
       ;;
 
     # fleet  init|up|down|status|run|panic|unpanic|validate|prompt|help  [agent-name]

@@ -229,6 +229,7 @@
         "GET /actors/:param",
         "GET /actors/:param/inbox",
         "GET /actors/:param/inbox/stats",
+        "PUT /actors/:param/inbox/read-all",
         "POST /actors/:param/message"
       ],
       "completions": [
@@ -238,6 +239,19 @@
       "docs": {
         "readme": true,
         "sdk": true
+      }
+    },
+    "cartographer": {
+      "description": "Read-only Cartographer roadmap progress projection",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "GET /cartographer/roadmap-progress"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
       }
     },
     "inbox": {
@@ -638,6 +652,8 @@
         "GET /ping",
         "GET /sitrep",
         "GET /operator/actors",
+        "GET /operator/coordination-guard",
+        "POST /operator/coordination-guard",
         "POST /operator/open-file",
         "POST /operator/file-preview"
       ],
@@ -664,7 +680,8 @@
         "install",
         "uninstall",
         "dev",
-        "mcp"
+        "mcp",
+        "daemon"
       ],
       "sdk": [],
       "routes": [],
@@ -675,7 +692,8 @@
         "install",
         "uninstall",
         "dev",
-        "mcp"
+        "mcp",
+        "daemon"
       ],
       "docs": {
         "readme": true,
@@ -1000,6 +1018,7 @@
         "GET /fleet/prompt",
         "GET /fleet/config/:project",
         "PUT /fleet/config/:project",
+        "POST /fleet/config/:project/budget",
         "GET /fleet/models"
       ],
       "completions": [
@@ -1294,6 +1313,21 @@
         "sdk": false
       }
     },
+    "coordination_guard": {
+      "description": "Project-local enforcement controls requiring active Port Daddy sessions and matching file claims before commit",
+      "cli": [
+        "guard"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "guard"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
     "ideas": {
       "description": "Canonical ideation trove inspection and dedupe over docs/recovery/IDEAS-TROVE.md with optional local Spark/Spider residue",
       "cli": [
@@ -1303,6 +1337,42 @@
       "routes": [],
       "completions": [
         "ideas"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
+    "roadmap": {
+      "description": "Cartographer roadmap projection — `pd roadmap` CLI/completion surface paired with the routed `cartographer` feature so operators see Next Cuts + curated now + dogfood feedback in one terminal call",
+      "cli": [
+        "roadmap"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "roadmap"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "Routes for this feature live under the `cartographer` feature to avoid duplication"
+    },
+    "quorum": {
+      "description": "Tuple-backed propose/vote primitive for swarm decisions — agents propose roles, others vote, threshold-cross emits a `quorum:passed` tuple subscribers can react to",
+      "cli": [
+        "quorum"
+      ],
+      "sdk": [],
+      "routes": [
+        "POST /quorum/propose",
+        "POST /quorum/vote",
+        "GET /quorum/proposals",
+        "GET /quorum/proposals/:id"
+      ],
+      "completions": [
+        "quorum"
       ],
       "docs": {
         "readme": false,

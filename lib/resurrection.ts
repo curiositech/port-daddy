@@ -53,7 +53,24 @@ export interface ResurrectionEvents {
   'agent:resurrected': (agentId: string, newAgentId: string) => void;
 }
 
-export function createResurrection(db: Database.Database) {
+interface ResurrectionSessions {
+  getNotes(sessionId?: string | null, options?: { limit?: number }): {
+    success: boolean;
+    notes?: Array<{ content?: unknown }>;
+  };
+}
+
+interface ResurrectionDeps {
+  sessions?: ResurrectionSessions;
+  noteLimit?: number;
+}
+
+interface QueueMetadata {
+  lastHeartbeat?: number;
+  notes?: unknown;
+}
+
+export function createResurrection(db: Database.Database, deps: ResurrectionDeps = {}) {
   // Schema for resurrection queue
   db.exec(`
     CREATE TABLE IF NOT EXISTS resurrection_queue (
@@ -162,9 +179,56 @@ export function createResurrection(db: Database.Database) {
   // Legacy fixed thresholds (backward compat)
   const STALE_THRESHOLD = getStaleThreshold('ready');
   const DEAD_THRESHOLD = getDeadThreshold('ready');
+  const noteLimit = deps.noteLimit ?? 200;
+
+  function parseMetadata(metadata: string | null): QueueMetadata {
+    if (!metadata) return {};
+
+    try {
+      const parsed: unknown = JSON.parse(metadata);
+      if (parsed && typeof parsed === 'object') {
+        return parsed as QueueMetadata;
+      }
+    } catch {
+      // Corrupt metadata should not make salvage unusable.
+    }
+
+    return {};
+  }
+
+  function normalizeNotes(notes: unknown): string[] {
+    if (!Array.isArray(notes)) return [];
+    return notes
+      .filter((note) => note !== null && note !== undefined)
+      .map((note) => typeof note === 'string' ? note : String(note));
+  }
+
+  function notesForRow(row: ResurrectionQueueRow, metadata: QueueMetadata): string[] {
+    const fallback = normalizeNotes(metadata.notes);
+    if (!row.session_id || !deps.sessions) return fallback;
+
+    try {
+      const result = deps.sessions.getNotes(row.session_id, { limit: noteLimit });
+      if (!result.success || !Array.isArray(result.notes)) return fallback;
+
+      const liveNotes = result.notes
+        .map((note) => note.content)
+        .filter((content) => content !== null && content !== undefined)
+        .map((content) => typeof content === 'string' ? content : String(content));
+
+      return liveNotes.length > 0 ? liveNotes : fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  function applyLimit<T>(rows: T[], limit?: number): T[] {
+    if (!Number.isFinite(limit) || !limit || limit <= 0) return rows;
+    return rows.slice(0, Math.floor(limit));
+  }
 
   function formatQueueEntry(row: ResurrectionQueueRow): StaleAgent {
-    const metadata = row.metadata ? JSON.parse(row.metadata) : {};
+    const metadata = parseMetadata(row.metadata);
     return {
       id: row.agent_id,
       name: row.agent_name,
@@ -173,7 +237,7 @@ export function createResurrection(db: Database.Database) {
       lastHeartbeat: metadata.lastHeartbeat || 0,
       staleSince: row.detected_at,
       status: row.status as 'stale' | 'dead' | 'resurrecting',
-      notes: metadata.notes,
+      notes: notesForRow(row, metadata),
       identityProject: row.identity_project,
       identityStack: row.identity_stack,
       identityContext: row.identity_context,
@@ -259,7 +323,7 @@ export function createResurrection(db: Database.Database) {
      * Get pending resurrections
      * Filters by identity prefix if provided (project or project:stack)
      */
-    pending(options: { project?: string; stack?: string } = {}) {
+    pending(options: { project?: string; stack?: string; limit?: number } = {}) {
       let rows: ResurrectionQueueRow[];
 
       if (options.project?.includes('*') || options.stack?.includes('*')) {
@@ -273,11 +337,12 @@ export function createResurrection(db: Database.Database) {
       } else {
         rows = stmts.listPending.all() as ResurrectionQueueRow[];
       }
+      const limitedRows = applyLimit(rows, options.limit);
 
       return {
         success: true,
-        agents: rows.map(formatQueueEntry),
-        count: rows.length,
+        agents: limitedRows.map(formatQueueEntry),
+        count: limitedRows.length,
         filtered: !!options.project,
       };
     },
@@ -336,13 +401,14 @@ export function createResurrection(db: Database.Database) {
       stmts.updateStatus.run('resurrecting', Date.now(), agentId);
       emitter.emit('agent:resurrecting', formatQueueEntry(stmts.get.get(agentId) as ResurrectionQueueRow));
 
+      const metadata = parseMetadata(row.metadata);
       return {
         success: true,
         agent: formatQueueEntry(row),
         context: {
           sessionId: row.session_id,
           purpose: row.purpose,
-          notes: row.metadata ? JSON.parse(row.metadata).notes : [],
+          notes: notesForRow(row, metadata),
         },
       };
     },

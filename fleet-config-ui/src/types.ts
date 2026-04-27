@@ -112,6 +112,57 @@ export interface FilePreview {
   lines: FilePreviewLine[];
 }
 
+export type CoordinationGuardMode = 'off' | 'warn' | 'enforce';
+export type CoordinationGuardAction = 'status' | 'check' | 'enable' | 'install';
+
+export interface CoordinationGuardOwner {
+  sessionId?: string | null;
+  agentId?: string | null;
+  purpose?: string | null;
+  phase?: string | null;
+}
+
+export interface CoordinationGuardViolation {
+  code: string;
+  severity: 'warning' | 'critical';
+  message: string;
+  file?: string;
+  owners?: CoordinationGuardOwner[];
+}
+
+export interface CoordinationGuardStatus {
+  success: boolean;
+  name: string;
+  enabled: boolean;
+  mode: CoordinationGuardMode;
+  requireSession: boolean;
+  requireClaims: boolean;
+  configPath: string;
+  projectDir: string;
+}
+
+export interface CoordinationGuardCheck {
+  success: boolean;
+  passed: boolean;
+  shouldBlock: boolean;
+  mode: CoordinationGuardMode;
+  enabled: boolean;
+  files: string[];
+  agentId?: string | null;
+  sessionId?: string | null;
+  violations: CoordinationGuardViolation[];
+}
+
+export interface CoordinationGuardEnvelope {
+  success: boolean;
+  action?: CoordinationGuardAction;
+  project?: string | null;
+  projectDir: string;
+  status: CoordinationGuardStatus;
+  check?: CoordinationGuardCheck;
+  message?: string;
+}
+
 export interface ResolvedChannelTarget {
   logical: string;
   physical: string;
@@ -181,6 +232,41 @@ export interface MemoryStats {
   sourceTypes: number;
   episodeTypes: number;
   lastUpdated: number | null;
+}
+
+export interface RoadmapNextCut {
+  slug: string;
+  summary: string;
+}
+
+export type RoadmapFeedbackStatus = 'now' | 'backlog' | 'parked' | 'merge' | 'unknown';
+
+export interface RoadmapFeedbackEntry {
+  slug: string;
+  status: RoadmapFeedbackStatus;
+  surface: string | null;
+  hook: string | null;
+}
+
+export interface RoadmapProgress {
+  generatedAt: number;
+  sources: {
+    roadmapPath: string;
+    ideasTrovePath: string;
+    dogfoodFeedbackPath: string;
+    currentWorkPath: string;
+    cartographerStatusPath: string;
+  };
+  freshness: {
+    latestUpdateMs: number | null;
+    hoursSinceLastUpdate: number | null;
+  };
+  nextCuts: RoadmapNextCut[];
+  ideasNow: RoadmapFeedbackEntry[];
+  dogfoodFeedback: RoadmapFeedbackEntry[];
+  currentWorkExcerpt: string | null;
+  cartographerStatusExcerpt: string | null;
+  warnings: string[];
 }
 
 export type SemanticResolutionDecision = 'seeded' | 'auto' | 'review' | 'reject' | 'error';
@@ -256,6 +342,20 @@ export interface ProjectSummary {
   running?: boolean;
   configuredAgentCount?: number;
   configuredWatcherCount?: number;
+  operatorState?: 'running' | 'ready' | 'blocked' | 'service_only' | 'context_only' | 'missing';
+  operatorSummary?: string;
+  operatorNextAction?: string;
+  fleetConfigStatus?: 'ready' | 'missing_budget' | 'invalid' | 'missing';
+  budgetUsdPerDay?: number | null;
+  configError?: string | null;
+  configWarnings?: string[];
+  remediation?: {
+    action: 'start_fleet' | 'set_budget' | 'fix_yaml' | 'create_fleet' | 'run_scan';
+    title: string;
+    detail: string;
+    command?: string;
+    suggestedBudgetUsdPerDay?: number;
+  } | null;
 }
 
 export interface BackendInfo {

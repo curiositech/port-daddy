@@ -16,7 +16,36 @@ Project-specific shibboleths for proficient Port Daddy work. If you learn a new 
   - use `pd lock` / `pd with-lock` for scarce critical sections, generated artifacts, migrations, promotion, or other work that really must be exclusive
   - use tuples, inbox, pheromones, or other shared state when the task benefits from machine-readable coordination
 - Treat plain shell inspection without a Port Daddy session as insufficient for this repo unless you are doing truly trivial read-only work.
+- During active repo work, keep listening. Re-read live `pd notes`, `pd activity`, `pd sessions --all-worktrees`, and relevant file ownership before switching scope, before editing a contested surface, and after daemon/session restarts. A stale local plan is not coordination.
 - When handing work to another agent, give it the live Port Daddy identity/session anchor and tell it to coordinate through briefing, salvage, notes, claims/locks, and tuples instead of “being careful.”
+- If dogfooding exposes a Port Daddy bug, fix it while it is fresh when the slice is bounded and safe. If it is not bounded, leave a failing repro or exact evidence, a `pd note`, and a targeted actor message before switching away. Framework friction is product feedback and often product work, not an annoyance to route around.
+- If Port Daddy coordination primitives disagree with each other, for example active sessions exist but active-context lookup or file-claim commands say no active session, stop treating that as incidental CLI friction. Re-anchor safely, leave exact evidence in notes, and either fix the coordination bug immediately if bounded or file a targeted handoff before continuing feature work.
+- Use Coordination Guard when you need the convention enforced instead of merely documented. `pd guard install --mode enforce` installs a local pre-commit check that requires the committing shell to have an active Port Daddy session and matching file claims for staged files. Run `pd guard status` / `pd guard check --staged` to inspect it before enabling.
+
+## Ambient Collaboration
+
+- Do not force agents into constant direct chat. Default collaboration should be ambient and structured:
+  - publish scope, assumptions, touched files/symbols, validation, blockers, and handoffs through `pd note`
+  - use claims/regions for edit intent, tuples for machine-readable facts, scoped channels for event notifications, and actor inboxes for durable role ownership
+  - use pheromones/file heat for contention signals, not ordinary progress narration
+- Coordination means thinking about each other's goals, not merely avoiding file collisions. If another session's assumptions, API shape, release surface, runtime state, or product goal changes what you are doing, tell that agent or the relevant durable actor and adjust your plan.
+- Escalate to the user only for material inconsistencies:
+  - two active sessions appear to own or mutate the same scarce surface
+  - a UI/UX, planning, roadmap, docs, or skill decision in one slice conflicts with another slice
+  - a slice violates an implied operator goal even if it has no local bug
+  - security, auth, privacy, data-retention, trust-boundary, or API-shape assumptions diverge across slices
+  - one feature exposes raw text, unauthenticated data, weak tokens, or unreviewed side effects while adjacent work implies authenticated/secure API guarantees
+  - live daemon/runtime truth disagrees with source/docs/control-plane truth
+  - an agent is stale, orphaned, or marked active in one surface and dead in another
+  - a budget/spawn/readiness policy would activate more fleet work than the situation justifies
+- Think at the goal/invariant level, not just the bug level. If the user is building secure API surfaces in one thread, flag nearby raw or unauthenticated API work as a likely inconsistency even if the user did not explicitly ask whether that endpoint should be secured.
+- Durable actors own this escalation layer:
+  - Coxswain watches claims, locks, stale assets, and symbolic coordination
+  - Navigator/Cartographer watches roadmap, recovery-ledger, work-slice, and status-map drift
+  - Lookout watches docs, OpenAPI, skills, website, and product-truth drift
+  - Quartermaster watches spawn discipline, model/backend readiness, and spend
+- Use `coordination:inconsistency` as the worktree-scoped callout channel for operator-worthy conflicts. Routine progress belongs in notes, not that channel.
+- If the infrastructure cannot prove agents are talking, make that visible. “Active sessions” plus “zero live registered agents” is itself a coordination inconsistency, not a healthy fleet.
 
 ## Symbol And Region Claims
 

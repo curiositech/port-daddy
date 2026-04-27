@@ -2,6 +2,86 @@
 
 This document captures the ambitious, industry-defining vision for Port Daddy as the definitive "Agentic OS" Control Plane. It outlines "things for later" and serves as a living synthesis of conceptual ideas.
 
+## Inputs Into This Roadmap
+
+Three live streams feed this document. None of them is roadmap truth on its
+own — items are promoted up only after the curated index has them.
+
+| Stream | Raw drop site | Curated index | Promoted into |
+|---|---|---|---|
+| Spark / Spider research | `.spark/ideas/`, `.spider/connections/` | `docs/recovery/IDEAS-TROVE.md` | "Next Cuts (From Curated Trove)" below |
+| Agent dogfooding feedback | `.spark/feedback/` | `docs/recovery/DOGFOOD-FEEDBACK.md` | same — "Next Cuts" below |
+| Active execution | (none) | `docs/recovery/CURRENT-WORK.md` | sections 1–7 of this doc |
+
+Tooling: `pd ideas list|search|show` federates the trove plus live notes,
+tuples, and repo markdown. Run it before minting new backlog items.
+
+The dogfooding feedback channel is described in `CLAUDE.md` ("Dogfooding
+Feedback Channel"). Every agent working in this repo is invited to drop a
+file in `.spark/feedback/` whenever a Port Daddy primitive surprises them.
+The **Cartographer** fleet agent (declared in `pd-fleet.yml`, triggered on
+`git:committed`) owns the harvest into `DOGFOOD-FEEDBACK.md` and the
+promotion of `now`-status entries into the section directly below.
+
+## Next Cuts (From Curated Trove)
+
+Mirrored from `docs/recovery/IDEAS-TROVE.md` § Immediate Implementation
+Candidates. Keep this short and rotated — it is the "what we cut next"
+list, not the full backlog. When an item ships, move its line into the
+appropriate phase section below and delete it here.
+
+- **`cartographer-roadmap-progress-screen`** — FOMO killer. One
+  dashboard panel surfacing Next Cuts + open dogfood feedback +
+  curated trove `now` + velocity + closest-to-shipping. Cartographer
+  already maintains all the inputs.
+- **`coordination-guard-extended-enforcement`** — Coordination Guard
+  exists (`cli/commands/guard.ts`, modes `off|warn|enforce`) but only
+  fires on git pre-commit. Enable by default for repos with
+  `pd-fleet.yml`; extend to SessionStart + PreToolUse hooks so agents
+  can't edit without `pd begin` + claims.
+- **`crew-screen-roles-not-pids`** — Dashboard currently shows
+  agents-by-PID; operators think in *roles*. New Crew panel: each
+  fleet role with last-run / last-cost / currently-doing / blocked.
+- **`coordination-ticker-as-high-signal-feed`** — Surface
+  `coordination:inconsistency` as a live ticker on the dashboard with
+  severity coloring. The channel exists; the panel doesn't.
+- **`quorum-driven-dynamic-launch`** — Tuple-backed proposal/vote
+  primitive (`lib/quorum.ts` + 4 endpoints). Phase 2: auto-spawn
+  declared spawnable-on-quorum roles when threshold hits.
+- **`ipc-disconnect-instant-salvage`** — IPC drop is already a death
+  signal; treat IPC activity as implicit heartbeat and trigger immediate
+  salvage on disconnect instead of the 10–20 minute stale window.
+- **`forensic-context-windows`** — Attach recent correlation timeline
+  context to Arbiter violation records so violations narrate themselves
+  instead of being bare facts.
+- **`fleet-run-journal`** — Persist fleet run lifecycle into SQLite so
+  `pd fleet history` and briefings stop forgetting on restart.
+- **`tuple-driven-fleet`** — Tuple-triggered fleet agents, then IPC tuple
+  fast path. Most direct path from "fleet" to actual swarm task routing.
+- **`capability-discovery-dns-harbor`** — Turn existing DNS + harbor
+  capability data into real agent discovery; remove hard-coded peer
+  naming from delegation paths.
+
+Secondary backlog families (status `backlog`, see IDEAS-TROVE.md §
+Secondary Backlog Families for full lists):
+
+- Cost, forecasting, and shipping economics (budgets, forecasts, priced
+  changelog, work receipts, DORA from counters)
+- Briefings, inbox, and recovery handoffs (salvage briefings, review via
+  inbox, code-anchored notes, session ledger)
+- Pheromones, autonomic signals, and adaptive dispatch (auto-spray from
+  activity / health / fleet / Arbiter; pheromone-driven model escalation
+  and spawn gating)
+- Harbor, identity, and network surfaces (harbor-aware spawn inheritance,
+  capability-aware discovery, fleet agent network identity, worktree-aware
+  semantic identity)
+- Graph, merge, and predictive coordination (graph edges bootstrap,
+  intent tuples for conflict prevention, merge event bus, territory
+  classification, work estimation)
+- Operational gates, invariants, and runtime governance (preflight gates,
+  backend readiness pheromones, IPC capability bitmask, auditable lock
+  history)
+
 ## Core Philosophical Architecture
 
 - **Data Structures for Swarms:** Avoid monolithic, mistake-prone trees for writing overlapping diffs. Instead, lean into *event-sourcing* and *pub/sub messaging*. Agents communicate intentions, acquire distributed locks for exclusive resources, and rely on Git (via `lib/worktree.ts`) as the ultimate concurrent data store. 

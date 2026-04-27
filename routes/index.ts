@@ -44,6 +44,7 @@ import { mergeQueuePlugin } from './merge-queue.js';
 import { symbolsPlugin } from './symbols.js';
 import { operatorPlugin } from './operator.js';
 import { actorsPlugin } from './actors.js';
+import { cartographerPlugin } from './cartographer.js';
 import { graphPlugin } from './graph.js';
 import { memoryPlugin } from './memory.js';
 import { semanticPlugin } from './semantic.js';
@@ -52,6 +53,7 @@ import { walletsPlugin } from './wallets.js';
 import { panicPlugin } from './panic.js';
 import { budgetPlugin } from './budget.js';
 import { advisorPlugin } from './advisor.js';
+import { quorumPlugin } from './quorum.js';
 
 type AnyDeps = Record<string, unknown>;
 
@@ -98,6 +100,9 @@ export async function registerAllRoutes(
   await fastify.register(briefingPlugin, { deps } as any);
   await fastify.register(sitrepPlugin, { deps } as any);
   await fastify.register(actorsPlugin, { deps } as any);
+  await fastify.register(cartographerPlugin, {
+    deps: { daemonDir: (deps as any).repoRoot ?? (deps as any).__dirname ?? process.cwd() },
+  });
   await fastify.register(operatorPlugin, { deps } as any);
 
   // These have different option shapes
@@ -150,4 +155,10 @@ export async function registerAllRoutes(
 
   // Deterministic coordination suggestibility for humans and agents.
   await fastify.register(advisorPlugin, { deps } as any);
+
+  // Quorum primitive — tuple-backed proposals/votes for swarm decisions.
+  // Only mounts if a quorum dep was constructed (depends on tuple space).
+  if ((deps as any).quorum) {
+    await fastify.register(quorumPlugin, { deps } as any);
+  }
 }

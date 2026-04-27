@@ -19,12 +19,12 @@ function highlightBash(line: string): React.ReactNode {
 /** Color semantic identities: project:stack:context */
 function highlightIdentity(id: string): React.ReactNode {
   const parts = id.split(':')
-  const colors = ['var(--channel-scope)', 'var(--channel-topic)', 'var(--channel-qualifier)']
+  const colors = ['var(--code-channel-scope)', 'var(--code-channel-topic)', 'var(--code-channel-qualifier)']
   return (
     <>
       {parts.map((part, i) => (
         <React.Fragment key={i}>
-          {i > 0 && <span style={{ color: 'var(--text-muted)' }}>:</span>}
+          {i > 0 && <span style={{ color: 'var(--code-channel-sep)' }}>:</span>}
           <span style={{ color: colors[i] || colors[colors.length - 1], fontWeight: 600 }}>{part}</span>
         </React.Fragment>
       ))}
@@ -124,26 +124,26 @@ export function CodeBlock({ children, language, filename, className, copyable = 
   return (
     <div
       className={cn(
-        'code-block-wrapper relative max-w-full min-w-0 overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--code-bg)] shadow-[var(--shadow-flat)]',
+        'code-block-wrapper relative w-full max-w-full min-w-0 overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--code-bg)] shadow-[var(--shadow-flat)]',
         className,
       )}
     >
       {/* Compact header: dots + filename + copy */}
       <div
-        className="flex items-center gap-1.5 border-b-2 border-[var(--border-strong)] bg-[var(--code-header-bg)] px-3 py-2"
+        className="flex min-w-0 items-center gap-1.5 border-b-2 border-[var(--border-strong)] bg-[var(--code-header-bg)] px-3 py-2"
       >
         <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--code-dot-red)' }} aria-hidden="true" />
         <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--code-dot-amber)' }} aria-hidden="true" />
         <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--code-dot-green)' }} aria-hidden="true" />
         {(filename || language) && (
-          <span className="ml-2 text-[10px] font-mono uppercase tracking-wider text-[var(--code-comment)]">
+          <span className="ml-2 min-w-0 truncate text-[10px] font-mono uppercase tracking-wider text-[var(--code-comment)]">
             {filename || language}
           </span>
         )}
         {copyable && (
           <button
             onClick={handleCopy}
-            className="ml-auto flex h-7 min-w-7 items-center justify-center border border-[var(--border-default)] bg-[var(--surface-raised)] px-2 transition-colors duration-150 hover:bg-[var(--surface-base)] cursor-pointer"
+            className="ml-auto flex h-7 min-w-7 shrink-0 cursor-pointer items-center justify-center border border-[var(--border-default)] bg-[var(--surface-raised)] px-2 transition-colors duration-150 hover:bg-[var(--surface-base)]"
             aria-label={copied ? "Copied" : "Copy code"}
           >
             {copied ? <Check size={10} className="text-[var(--status-success)]" /> : <Copy size={10} className="text-[var(--text-primary)]" />}
@@ -154,7 +154,9 @@ export function CodeBlock({ children, language, filename, className, copyable = 
 
       {/* Code */}
       <pre
-        className="m-0 max-w-full overflow-x-auto bg-[var(--code-bg)] px-4 py-4 font-mono text-[14px] leading-[1.65]"
+        tabIndex={0}
+        aria-label={`${filename || language || 'Code sample'} scrollable code`}
+        className="m-0 w-full max-w-full min-w-0 overflow-x-auto bg-[var(--code-bg)] px-4 py-4 font-mono text-[14px] leading-[1.65]"
         style={{ color: 'var(--code-text)' }}
       >{
         language === 'bash' || language === 'shell' || !language

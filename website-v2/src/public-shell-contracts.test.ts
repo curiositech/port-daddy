@@ -148,6 +148,23 @@ describe('public shell contracts', () => {
     expect(docsSidebar).toContain('to="/whitepaper"')
   })
 
+  test('whitepaper page uses the current editorial layout instead of the old ceremonial hero', () => {
+    const whitepaper = read('./pages/whitepaper/index.tsx')
+
+    expect(whitepaper).toContain('Research dossier')
+    expect(whitepaper).toContain('The control-plane papers.')
+    expect(whitepaper).toContain('Available papers')
+    expect(whitepaper).toContain('Argument map')
+    expect(whitepaper).toContain('Reading order')
+    expect(whitepaper).toContain('signed local identity first')
+    expect(whitepaper).not.toContain('White Papers')
+    expect(whitepaper).not.toContain('Formal Foundations')
+    expect(whitepaper).not.toContain('How the Papers Relate')
+    expect(whitepaper).not.toContain('rounded-[28px]')
+    expect(whitepaper).not.toContain('shadow-inset')
+    expect(whitepaper).not.toContain('Anchor size')
+  })
+
   test('docs shell copy points to the public whitepaper without replacement-brand framing', () => {
     const appSource = read('./App.tsx')
     const docsOverview = read('./pages/docs/DocsOverview.tsx')
@@ -175,6 +192,9 @@ describe('public shell contracts', () => {
     expect(header).toContain("/whitepaper")
     expect(header).toContain('Port Daddy')
     expect(header).toContain('Mobile primary')
+    expect(header).toContain('!max-w-none')
+    expect(header).toContain('inline-flex shrink-0 items-center')
+    expect(header).not.toContain('absolute right-0 top-0 h-full w-3')
     expect(footer).toContain('/dashboard')
     expect(footer).toContain('/agents')
     expect(footer).toContain('/mcp')
@@ -433,7 +453,7 @@ describe('public shell contracts', () => {
     expect(primitives).toContain('DocsCodeBlock')
     expect(primitives).toContain('BracketAnchor')
     expect(primitives).toContain('BracketNavLink')
-    expect(primitives).toContain('NeumorphicTerminal')
+    expect(primitives).toContain('CommandTerminal')
     expect(primitives).toContain('SurfaceToneContext')
     expect(primitives).toContain('useSurfaceTone')
     expect(primitives).toContain('LandingSection')
@@ -467,7 +487,7 @@ describe('public shell contracts', () => {
 
   test('shared docs code wrapper delegates to the site primitive instead of forking another code surface', () => {
     const docsCodeBlock = read('./components/docs/DocsCodeBlock.tsx')
-    const terminal = read('./components/ui/NeumorphicTerminal.tsx')
+    const terminal = read('./components/ui/CommandTerminal.tsx')
 
     expect(docsCodeBlock).toContain("import { DocsCodeBlock as SiteDocsCodeBlock } from '@/components/site/primitives'")
     expect(docsCodeBlock).not.toContain("import { CodeBlock }")

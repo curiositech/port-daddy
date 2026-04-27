@@ -36,7 +36,7 @@ export const Default: Story = {
         <h3 style={{ margin: 0 }}>Default Card</h3>
       </CardHeader>
       <CardContent>
-        <p>The standard neumorphic raised card with soft shadows.</p>
+        <p>The standard raised card with tokenized elevation.</p>
       </CardContent>
     </Card>
   ),
@@ -87,7 +87,7 @@ export const Interactive: Story = {
         <h3 style={{ margin: 0 }}>Interactive Card</h3>
       </CardHeader>
       <CardContent>
-        <p>Hover to see the neumorphic depth change — shadow compresses on hover.</p>
+        <p>Hover to see the elevation state change as shadow compresses.</p>
       </CardContent>
     </Card>
   ),

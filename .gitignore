@@ -1,10 +1,6 @@
 # Dependencies
 node_modules/
 
-# Python bytecode
-__pycache__/
-*.pyc
-
 # Database
 *.db
 *.db-wal
@@ -24,6 +20,8 @@ __pycache__/
 # Build output
 dist/
 **/target/
+**/__pycache__/
+*.py[cod]
 
 # Test coverage
 coverage/

@@ -1495,6 +1495,56 @@ _pd_cmd_advise() {
     '*:files:_files'
 }
 
+_pd_cmd_guard() {
+  local -a guard_subcmds
+  guard_subcmds=(
+    'status:show Coordination Guard status'
+    'check:verify session and file-claim discipline'
+    'enable:write project config and enable guard checks'
+    'disable:turn guard checks off for this project'
+    'install:install or update the managed pre-commit hook'
+  )
+
+  _arguments -C \
+    '1:subcommand:->subcommand' \
+    '*::args:->args'
+
+  case "$state" in
+    subcommand)
+      _describe 'subcommand' guard_subcmds
+      ;;
+    args)
+      case "${words[2]}" in
+        check)
+          _arguments \
+            '--mode[override guard mode]:mode:(off warn enforce)' \
+            '--warn[warn instead of blocking]' \
+            '--enforce[block on violations]' \
+            '--off[disable this check]' \
+            '--staged[check staged files]' \
+            '--hook[format output for a git hook]' \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[suppress non-essential output]' \
+            '*:files:_files'
+          ;;
+        enable|install)
+          _arguments \
+            '--mode[guard mode]:mode:(warn enforce)' \
+            '--warn[warn instead of blocking]' \
+            '--enforce[block on violations]' \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[suppress non-essential output]'
+          ;;
+        status|disable)
+          _arguments \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[suppress non-essential output]'
+          ;;
+      esac
+      ;;
+  esac
+}
+
 _pd_cmd_pheromone() {
   local -a ph_subcmds
   ph_subcmds=(
@@ -1675,6 +1725,17 @@ _pd_cmd_ideas() {
   esac
 }
 
+_pd_cmd_roadmap() {
+  _arguments \
+    '--dir[project directory]:path:_files -/' \
+    '--root[project root]:path:_files -/' \
+    '--projectDir[project directory]:path:_files -/' \
+    '--limit[rows per section]:limit:' \
+    '--no-excerpts[hide current-work and Cartographer excerpts]' \
+    '(-j --json)'{-j,--json}'[output JSON]' \
+    '(-q --quiet)'{-q,--quiet}'[agent-readable section:slug output]'
+}
+
 _pd_cmd_inbox() {
   local -a inbox_subcmds
   inbox_subcmds=(
@@ -1799,6 +1860,7 @@ _port_daddy() {
     'advise:suggest coordination moves before editing'
     'preflight:alias for advise before risky work'
     'compass:maritime alias for advise'
+    'guard:enforce Port Daddy session and file-claim discipline'
     'pheromone:stigmergic coordination (spray, files, show, ls)'
     'ph:alias for pheromone'
     # Agent Inbox
@@ -1817,6 +1879,10 @@ _port_daddy() {
     'graph:inspect semantic graph edges and stats'
     'memory:inspect episodic memory entries and stats'
     'ideas:search the canonical ideas trove and local residue'
+    # Cartographer roadmap projection
+    'roadmap:show Cartographer-curated Next Cuts, ideas, and dogfood feedback'
+    # Quorum (swarm consensus primitive)
+    'quorum:propose, vote, list, or inspect swarm proposals'
     # System & Monitoring
     'dashboard:open web dashboard in browser'
     'channels:list pub/sub channels'
@@ -1851,6 +1917,7 @@ _port_daddy() {
     'dev:start daemon in development mode (foreground)'
     'ci-gate:exit non-zero if daemon is running stale code'
     'mcp:start MCP server for Claude Code / Claude Desktop (pd mcp install to configure)'
+    'daemon:daemon lifecycle subcommands (status, log, doctor)'
     'setup:install daemon, MCP, FleetBar, and initialize a project'
     'init:set up Port Daddy for this project (scan, fleet, MCP, git hook)'
     # Bonds / Wallets — FleetControl hardening
@@ -1952,12 +2019,14 @@ _port_daddy() {
         look)                   _pd_cmd_look ;;
         sitrep)                 _pd_cmd_sitrep ;;
         advise|preflight|compass) _pd_cmd_advise ;;
+        guard)                  _pd_cmd_guard ;;
         pheromone|ph)           _pd_cmd_pheromone ;;
         wallet)                 _pd_cmd_wallet ;;
         bond)                   _pd_cmd_bond ;;
         graph)                  _pd_cmd_graph ;;
         memory)                 _pd_cmd_memory ;;
         ideas)                  _pd_cmd_ideas ;;
+        roadmap)                _pd_cmd_roadmap ;;
         mcp)                _arguments '1:subcommand:(start install)' ;;
         version|help)       ;;
         *)                  ;;

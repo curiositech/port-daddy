@@ -17,7 +17,7 @@ export function IntegrationsPage() {
   return (
     <motion.div
       className="min-h-screen font-sans flex flex-col selection:bg-[var(--brand-primary)] selection:text-white"
-      style={{ background: 'var(--surface-base)', color: 'var(--text-primary)', paddingTop: 'var(--nav-height)' }}
+      style={{ background: 'var(--surface-base)', color: 'var(--text-primary)' }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
     >

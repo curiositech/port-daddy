@@ -103,21 +103,46 @@ describe('TutorialProgress.tsx stays in sync with tutorials.ts', () => {
   })
 })
 
-describe('TutorialsPage ICON_MAP covers all tutorials', () => {
-  it('every slug in tutorials.ts has a matching icon entry', () => {
+describe('tutorials index brand voice', () => {
+  const pageSource = readFileSync(
+    resolve(__dirname, '../pages/TutorialsPage.tsx'),
+    'utf-8'
+  )
+
+  it('uses the current control-plane positioning instead of retired academy metaphors', () => {
+    expect(pageSource).toContain('Operator training')
+    expect(pageSource).toContain('Learn the control-plane protocol.')
+    expect(pageSource).toContain('Product-truth curriculum')
+    expect(pageSource).not.toContain('Academy of Coordination')
+    expect(pageSource).not.toContain('Master the')
+    expect(pageSource).not.toContain('Swarm Logic')
+    expect(pageSource).not.toContain("import { Surface }")
+    expect(pageSource).not.toContain('Anchor')
+    expect(pageSource).not.toContain('shadow-inset')
+  })
+
+  it('keeps visible tutorial catalogue copy in one brand language', () => {
+    const visibleCopy = TUTORIALS
+      .flatMap(tutorial => [tutorial.title, tutorial.description, ...tutorial.tags])
+      .join(' ')
+    const normalizedCopy = visibleCopy.toLowerCase()
+
+    expect(normalizedCopy).toContain('control plane')
+    expect(visibleCopy).not.toMatch(/\b[Ss]warm\b/)
+    expect(visibleCopy).not.toContain('Pheromone Trails')
+    expect(visibleCopy).not.toContain('Harbor Tokens')
+    expect(visibleCopy).not.toContain('Multiplayer Localhost')
+    expect(visibleCopy).not.toContain('Spawn + Watch Pattern')
+  })
+
+  it('renders every canonical tutorial slug without maintaining a separate icon map', () => {
     const src = readFileSync(
       resolve(__dirname, '../pages/TutorialsPage.tsx'),
       'utf-8'
     )
-    const mapMatch = src.match(/const ICON_MAP[^{]*\{([^}]+)\}/)
-    expect(mapMatch).not.toBeNull()
 
-    const keys = [...mapMatch![1].matchAll(/'([^']+)'/g)].map(m => m[1])
-    const slugs = TUTORIALS.map(t => t.slug)
-
-    for (const slug of slugs) {
-      expect(keys).toContain(slug)
-    }
+    expect(src).toContain('TUTORIALS_DATA.map')
+    expect(src).not.toContain('const ICON_MAP')
   })
 })
 

@@ -35,6 +35,71 @@ struct FleetControlCenter: View {
         return store.projects.first(where: { $0.id == selectedProjectId })
     }
 
+    private var selectedCostProject: ProjectCostStatus? {
+        if let selectedProject {
+            return costStore.liveProjects.first(where: { $0.projectDir == selectedProject.projectDir })
+                ?? costStore.liveProjects.first(where: { $0.projectName == selectedProject.name })
+        }
+        return costStore.liveProjects.first(where: { $0.budgetUsdPerDay != nil })
+            ?? costStore.liveProjects.first
+    }
+
+    private var totalBudgetCap: Double? {
+        let total = costStore.liveProjects.compactMap(\.budgetUsdPerDay).reduce(0, +)
+        return total > 0 ? total : nil
+    }
+
+    private var budgetBadgeValue: String {
+        if let selectedProject, selectedProject.needsBudget {
+            return "needs cap"
+        }
+        if let selectedCostProject, let budget = selectedCostProject.budgetUsdPerDay {
+            return String(format: "$%.2f / $%.2f", selectedCostProject.totalUsd, budget)
+        }
+        if let selectedProject, let budget = selectedProject.budgetUsdPerDay {
+            return String(format: "$%.2f / $%.2f", 0, budget)
+        }
+        if selectedProject != nil {
+            return "no cap"
+        }
+        if let totalBudgetCap {
+            return String(format: "$%.2f / $%.2f", costStore.todaySpend, totalBudgetCap)
+        }
+        return String(format: "$%.2f", costStore.todaySpend)
+    }
+
+    private var budgetBadgeDetail: String {
+        if let selectedProject, selectedProject.needsBudget {
+            return selectedProject.operatorNextAction
+        }
+        if selectedCostProject?.budgetUsdPerDay != nil {
+            return "selected fleet daily cap"
+        }
+        if selectedProject?.budgetUsdPerDay != nil {
+            return "configured daily cap"
+        }
+        if selectedProject != nil {
+            return "selected fleet has no cap"
+        }
+        if let totalBudgetCap {
+            return String(format: "all live fleet caps total $%.2f/day", totalBudgetCap)
+        }
+        return "no live fleet budget cap"
+    }
+
+    private var budgetBadgeColor: Color {
+        if costStore.overBudgetProjectCount > 0 { return Fleet.Color.failure }
+        if costStore.nearBudgetProjectCount > 0 { return Fleet.Color.warning }
+        if selectedProject?.needsBudget == true { return Fleet.Color.warning }
+        if selectedProject != nil {
+            return selectedCostProject?.budgetUsdPerDay != nil || selectedProject?.budgetUsdPerDay != nil
+                ? Fleet.Color.healthy
+                : Fleet.Color.dormant
+        }
+        if totalBudgetCap != nil { return Fleet.Color.healthy }
+        return Fleet.Color.dormant
+    }
+
     private var selectedAgent: String? {
         get { selectedAgentStorage.isEmpty ? nil : selectedAgentStorage }
         nonmutating set { selectedAgentStorage = newValue ?? "" }
@@ -47,21 +112,30 @@ struct FleetControlCenter: View {
 
     private var fleetActionTitle: String {
         if let selectedProject {
-            return selectedProject.activeCount > 0 ? "Stop Fleet" : "Start Fleet"
+            if selectedProject.needsBudget { return "Set Budget" }
+            if selectedProject.remediation?.action == "fix_yaml" { return "Open YAML" }
+            if selectedProject.remediation?.action == "create_fleet" || selectedProject.remediation?.action == "run_scan" { return "Setup" }
+            return selectedProject.isRunning ? "Stop Fleet" : "Start Fleet"
         }
         return store.totalActive > 0 ? "Stop All" : "Start All"
     }
 
     private var fleetActionIcon: String {
         if let selectedProject {
-            return selectedProject.activeCount > 0 ? "stop.fill" : "play.fill"
+            if selectedProject.needsBudget { return "wallet.pass" }
+            if selectedProject.remediation?.action == "fix_yaml" { return "curlybraces" }
+            if selectedProject.remediation?.action == "create_fleet" || selectedProject.remediation?.action == "run_scan" { return "wrench.and.screwdriver" }
+            return selectedProject.isRunning ? "stop.fill" : "play.fill"
         }
         return store.totalActive > 0 ? "stop.fill" : "play.fill"
     }
 
     private var fleetActionColor: Color {
         if let selectedProject {
-            return selectedProject.activeCount > 0 ? Fleet.Color.failure : Fleet.Color.healthy
+            if selectedProject.needsBudget { return Fleet.Color.warning }
+            if selectedProject.remediation?.action == "fix_yaml" { return Fleet.Color.warning }
+            if selectedProject.remediation?.action == "create_fleet" || selectedProject.remediation?.action == "run_scan" { return Fleet.Color.active }
+            return selectedProject.isRunning ? Fleet.Color.failure : Fleet.Color.healthy
         }
         return store.totalActive > 0 ? Fleet.Color.failure : Fleet.Color.healthy
     }
@@ -131,7 +205,7 @@ struct FleetControlCenter: View {
     }
 
     private var topBar: some View {
-        VStack(spacing: Fleet.Space.s) {
+        VStack(spacing: Fleet.Space.xs) {
             HStack(spacing: Fleet.Space.m) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Fleet Control Center")
@@ -163,13 +237,9 @@ struct FleetControlCenter: View {
                         color: store.isDaemonRunning ? Fleet.Color.healthy : Fleet.Color.failure
                     )
                     statusBadge(
-                        title: "Spend",
-                        value: String(format: "$%.2f", costStore.todaySpend),
-                        color: costStore.overBudgetProjectCount > 0
-                            ? Fleet.Color.failure
-                            : costStore.nearBudgetProjectCount > 0
-                                ? Fleet.Color.warning
-                                : Fleet.Color.active
+                        title: "Budget",
+                        value: budgetBadgeValue,
+                        color: budgetBadgeColor
                     )
                     statusBadge(
                         title: "Agents",
@@ -183,92 +253,103 @@ struct FleetControlCenter: View {
                 daemonReportStrip(status: daemonStatus)
             }
 
-            HStack(spacing: Fleet.Space.m) {
-                projectMenu
-                surfaceStrip
-                Spacer(minLength: Fleet.Space.m)
+            if let selectedProject {
+                selectedProjectReadinessStrip(selectedProject)
             }
 
-            HStack(spacing: Fleet.Space.s) {
-                ActionPill(
-                    title: selectedTheme == "dark" ? "Light" : "Dark",
-                    systemImage: selectedTheme == "dark" ? "sun.max" : "moon",
-                    color: Fleet.Color.active
-                ) {
-                    selectedTheme = selectedTheme == "dark" ? "light" : "dark"
-                    reloadToken = UUID()
+            HStack(spacing: Fleet.Space.m) {
+                projectMenu
+                ScrollView(.horizontal, showsIndicators: false) {
+                    surfaceStrip
                 }
-
-                ActionPill(
-                    title: fleetActionTitle,
-                    systemImage: fleetActionIcon,
-                    color: fleetActionColor
-                ) {
-                    Task {
-                        if let selectedProject {
-                            if selectedProject.activeCount > 0 {
-                                await store.stopFleet(projectDir: selectedProject.projectDir)
-                            } else {
-                                await store.startFleet(projectDir: selectedProject.projectDir)
-                            }
-                        } else if store.totalActive > 0 {
-                            await store.stopFleet()
-                        } else {
-                            await store.startFleet()
-                        }
-                        reloadToken = UUID()
-                    }
-                }
-
-                ActionPill(
-                    title: store.isDaemonRunning ? "Reload" : "Start Daemon",
-                    systemImage: store.isDaemonRunning ? "arrow.clockwise" : "play.fill",
-                    color: store.isDaemonRunning ? Fleet.Color.active : Fleet.Color.healthy
-                ) {
-                    Task {
-                        if store.isDaemonRunning {
-                            await refreshAll()
-                            reloadToken = UUID()
-                        } else {
-                            store.startDaemon()
-                        }
-                    }
-                }
-
-                ActionPill(
-                    title: "Add Project",
-                    systemImage: "plus",
-                    color: Fleet.Color.healthy
-                ) {
-                    showingAddProject = true
-                }
-
-                ActionPill(
-                    title: "Browser",
-                    systemImage: "safari",
-                    color: Fleet.Color.warning,
-                    action: openInBrowser
-                )
-
                 Spacer(minLength: 0)
+                commandControls
             }
         }
         .padding(.horizontal, Fleet.Space.l)
-        .padding(.vertical, 10)
+        .padding(.vertical, 6)
         .sheet(isPresented: $showingAddProject) {
             FleetAddProjectSheet()
         }
     }
 
-    private func daemonReportStrip(status: DaemonStatusResponse) -> some View {
-        HStack(alignment: .top, spacing: Fleet.Space.s) {
-            daemonSummaryCard(status: status)
-            daemonBuildCard(status: status)
-            daemonHistoryCard(status: status)
+    private var commandControls: some View {
+        HStack(spacing: Fleet.Space.s) {
+            ActionPill(
+                title: selectedTheme == "dark" ? "Light" : "Dark",
+                systemImage: selectedTheme == "dark" ? "sun.max" : "moon",
+                color: Fleet.Color.active
+            ) {
+                selectedTheme = selectedTheme == "dark" ? "light" : "dark"
+                reloadToken = UUID()
+            }
+
+            ActionPill(
+                title: fleetActionTitle,
+                systemImage: fleetActionIcon,
+                color: fleetActionColor
+            ) {
+                Task {
+                    if let selectedProject {
+                        if selectedProject.needsBudget {
+                            await store.setFleetBudget(
+                                projectDir: selectedProject.projectDir,
+                                usdPerDay: selectedProject.suggestedBudgetUsdPerDay
+                            )
+                            await costStore.refresh()
+                        } else if selectedProject.remediation?.action == "fix_yaml" {
+                            selectedSurface = .yaml
+                        } else if selectedProject.remediation?.action == "create_fleet"
+                            || selectedProject.remediation?.action == "run_scan" {
+                            showingAddProject = true
+                        } else if selectedProject.isRunning {
+                            await store.stopFleet(projectDir: selectedProject.projectDir)
+                        } else {
+                            await store.startFleet(projectDir: selectedProject.projectDir)
+                        }
+                    } else if store.totalActive > 0 {
+                        await store.stopFleet()
+                    } else {
+                        await store.startFleet()
+                    }
+                    reloadToken = UUID()
+                }
+            }
+
+            ActionPill(
+                title: store.isDaemonRunning ? "Reload" : "Start Daemon",
+                systemImage: store.isDaemonRunning ? "arrow.clockwise" : "play.fill",
+                color: store.isDaemonRunning ? Fleet.Color.active : Fleet.Color.healthy
+            ) {
+                Task {
+                    if store.isDaemonRunning {
+                        await refreshAll()
+                        reloadToken = UUID()
+                    } else {
+                        store.startDaemon()
+                    }
+                }
+            }
+
+            ActionPill(
+                title: "Add Project",
+                systemImage: "plus",
+                color: Fleet.Color.healthy
+            ) {
+                showingAddProject = true
+            }
+
+            ActionPill(
+                title: "Browser",
+                systemImage: "safari",
+                color: Fleet.Color.warning,
+                action: openInBrowser
+            )
         }
+        .fixedSize(horizontal: true, vertical: false)
     }
 
-    private func daemonSummaryCard(status: DaemonStatusResponse) -> some View {
+    private func daemonReportStrip(status: DaemonStatusResponse) -> some View {
         let runtimeState = status.runtime?.state ?? "unknown"
         let runtimeColor: Color = {
             if status.runtime?.degraded == true { return Fleet.Color.warning }
@@ -276,142 +357,170 @@ struct FleetControlCenter: View {
             return Fleet.Color.failure
         }()
         let bosun = status.guardians?.bosun ?? status.guardians?.barnacle
-        let bosunColor: Color = {
-            guard let bosun else { return Fleet.Color.dormant }
-            switch bosun.state {
-            case "healthy":
-                return Fleet.Color.healthy
-            case "disabled":
-                return Fleet.Color.dormant
-            default:
-                return Fleet.Color.warning
-            }
-        }()
+        let daemon = status.daemon
+        let buildVersion = daemon?.version ?? status.version
+        let buildHash = daemon?.codeHash ?? "unknown"
+        let recentActivity = status.history?.recentActivity.first
+        let recentSpend = status.history?.recentSpend.first
+        let recentSpendProject = recentSpend?.projectName
+            ?? recentSpend?.projectDir.map { URL(fileURLWithPath: $0).lastPathComponent }
+        let recentSummary = recentActivity?.summary
+            ?? recentSpend.map { String(format: "$%.3f %@", $0.costUsd, $0.model) }
+            ?? "No recent signal"
+        let recentDetail = recentActivity?.agentId
+            ?? recentActivity?.type.lowercased()
+            ?? recentSpendProject
+            ?? "history quiet"
 
-        return daemonCard(title: "Daemon Truth") {
-            HStack(spacing: Fleet.Space.l) {
-                daemonMetric(label: "Runtime", value: runtimeState, color: runtimeColor)
-                daemonMetric(label: "Uptime", value: status.uptimeHuman, color: .primary)
-                daemonMetric(label: "Ports", value: "\(status.metrics?.activePorts ?? 0)", color: .primary)
-                daemonMetric(label: "Bosun", value: bosun?.reason ?? bosun?.state ?? "n/a", color: bosunColor)
-            }
+        return ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: Fleet.Space.xs) {
+                compactTruthMetric(
+                    icon: "checkmark.seal",
+                    title: "Live Truth",
+                    value: runtimeState,
+                    detail: bosun?.reason ?? bosun?.state ?? status.uptimeHuman,
+                    color: runtimeColor,
+                    width: 300
+                )
 
-            if let supervisor = status.guardians?.supervisor {
-                Text(supervisor.summary)
+                compactTruthMetric(
+                    icon: "shippingbox",
+                    title: "Build",
+                    value: buildVersion,
+                    detail: "\(buildHash) · pid \(status.pid)",
+                    color: Fleet.Color.active,
+                    width: 220
+                )
+
+                compactTruthMetric(
+                    icon: "wallet.pass",
+                    title: "Budget",
+                    value: budgetBadgeValue,
+                    detail: budgetBadgeDetail,
+                    color: budgetBadgeColor,
+                    width: 220
+                )
+
+                compactTruthMetric(
+                    icon: "waveform.path.ecg",
+                    title: "Recent",
+                    value: recentSummary,
+                    detail: recentDetail,
+                    color: recentSpend?.isEstimate == true ? Fleet.Color.warning : Fleet.Color.active,
+                    width: 300
+                )
+            }
+        }
+        .frame(height: 46)
+    }
+
+    private func selectedProjectReadinessStrip(_ project: FleetProject) -> some View {
+        HStack(spacing: Fleet.Space.s) {
+            Image(systemName: project.statusIcon)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(project.statusColor)
+                .frame(width: 18)
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: Fleet.Space.xs) {
+                    Text(project.statusLabel.uppercased())
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(project.statusColor)
+                    Text(project.operatorSummary)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                }
+                Text(project.operatorNextAction)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
-        }
-    }
 
-    private func daemonBuildCard(status: DaemonStatusResponse) -> some View {
-        let daemon = status.daemon
-        let buildVersion = daemon?.version ?? status.version
-        let buildHash = daemon?.codeHash ?? "unknown"
-        let installDir = daemon?.installDir ?? store.daemonURL
+            Spacer(minLength: Fleet.Space.m)
 
-        return daemonCard(title: "Build") {
-            HStack(spacing: Fleet.Space.l) {
-                daemonMetric(label: "Version", value: buildVersion, color: Fleet.Color.active)
-                daemonMetric(label: "Code hash", value: buildHash, color: .primary)
-                daemonMetric(label: "PID", value: "\(status.pid)", color: .primary)
-            }
-
-            Text(installDir)
-                .font(.system(.caption2, design: .monospaced))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-        }
-    }
-
-    private func daemonHistoryCard(status: DaemonStatusResponse) -> some View {
-        let history = status.history
-        let recentActivity = Array(history?.recentActivity.prefix(2) ?? [])
-        let recentSpend = Array(history?.recentSpend.prefix(2) ?? [])
-
-        return daemonCard(title: "Recent") {
-            if recentActivity.isEmpty && recentSpend.isEmpty {
-                Text("No recent daemon activity recorded")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else {
-                VStack(alignment: .leading, spacing: 6) {
-                    ForEach(recentActivity) { entry in
-                        daemonTimelineLine(
-                            summary: entry.summary,
-                            detail: entry.agentId ?? entry.type.lowercased(),
-                            timestampMs: entry.timestamp,
-                            color: Fleet.Color.active
-                        )
-                    }
-
-                    ForEach(recentSpend) { event in
-                        let scope = event.projectName
-                            ?? (event.projectDir.map { URL(fileURLWithPath: $0).lastPathComponent })
-                            ?? "unscoped"
-                        daemonTimelineLine(
-                            summary: String(format: "$%.3f %@", event.costUsd, event.model),
-                            detail: [scope, event.isEstimate ? "estimate" : nil].compactMap { $0 }.joined(separator: " · "),
-                            timestampMs: event.timestamp,
-                            color: event.isEstimate ? Fleet.Color.warning : Fleet.Color.healthy
-                        )
-                    }
-                }
+            HStack(spacing: Fleet.Space.xs) {
+                statusMiniChip(
+                    icon: "person.3",
+                    value: "\(project.configuredAgentCount)",
+                    detail: "agents",
+                    color: project.configuredAgentCount > 0 ? Fleet.Color.active : Fleet.Color.dormant
+                )
+                statusMiniChip(
+                    icon: "eye",
+                    value: "\(project.configuredWatcherCount)",
+                    detail: "watchers",
+                    color: project.configuredWatcherCount > 0 ? Fleet.Color.warning : Fleet.Color.dormant
+                )
+                statusMiniChip(
+                    icon: "wallet.pass",
+                    value: formatBudget(project.budgetUsdPerDay),
+                    detail: "cap",
+                    color: project.needsBudget ? Fleet.Color.warning : (project.budgetUsdPerDay == nil ? Fleet.Color.dormant : Fleet.Color.healthy)
+                )
             }
         }
-    }
-
-    private func daemonCard<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(title.uppercased())
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.secondary)
-            content()
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, Fleet.Space.m)
-        .padding(.vertical, Fleet.Space.s)
+        .padding(.vertical, 7)
+        .background(
+            project.statusColor.opacity(0.08),
+            in: RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous)
+                .stroke(project.statusColor.opacity(0.16), lineWidth: 1)
+        )
+    }
+
+    private func statusMiniChip(icon: String, value: String, detail: String, color: Color) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 9, weight: .semibold))
+            Text(value)
+                .font(.system(.caption2, design: .monospaced).weight(.semibold))
+            Text(detail)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .foregroundStyle(color)
+        .padding(.horizontal, Fleet.Space.s)
+        .padding(.vertical, 4)
+        .background(
+            Color.primary.opacity(0.04),
+            in: RoundedRectangle(cornerRadius: Fleet.Radius.small, style: .continuous)
+        )
+    }
+
+    private func compactTruthMetric(icon: String, title: String, value: String, detail: String, color: Color, width: CGFloat) -> some View {
+        HStack(alignment: .center, spacing: Fleet.Space.xs) {
+            Image(systemName: icon)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(color)
+                .frame(width: 16)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: Fleet.Space.xs) {
+                    Text(title.uppercased())
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                    Text(value)
+                        .font(.system(.caption, design: .monospaced).weight(.semibold))
+                        .foregroundStyle(color)
+                        .lineLimit(1)
+                }
+                Text(detail)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(width: width, height: 42, alignment: .leading)
+        .padding(.horizontal, Fleet.Space.s)
         .background(
             Fleet.Chrome.card,
             in: RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous)
         )
-    }
-
-    private func daemonMetric(label: String, value: String, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(label.uppercased())
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.secondary)
-            Text(value)
-                .font(.system(.caption, design: .monospaced).weight(.medium))
-                .foregroundStyle(color)
-        }
-    }
-
-    private func daemonTimelineLine(summary: String, detail: String, timestampMs: Double, color: Color) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: Fleet.Space.s) {
-            Circle()
-                .fill(color)
-                .frame(width: 6, height: 6)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(summary)
-                    .font(.caption)
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                HStack(spacing: 4) {
-                    if !detail.isEmpty {
-                        Text(detail)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                    Text(Date(timeIntervalSince1970: timestampMs / 1000), style: .relative)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                }
-            }
-        }
     }
 
     private var surfaceStrip: some View {
@@ -543,6 +652,11 @@ struct FleetControlCenter: View {
         )
     }
 
+    private func formatBudget(_ budget: Double?) -> String {
+        guard let budget else { return "none" }
+        return String(format: "$%.0f/d", budget)
+    }
+
     private var projectMenu: some View {
         Menu {
             Button {
@@ -557,13 +671,7 @@ struct FleetControlCenter: View {
                     Button {
                         chooseProject(project.id)
                     } label: {
-                        HStack {
-                            Image(systemName: project.id == selectedProjectId ? "checkmark.circle.fill" : "folder")
-                            Text(project.name)
-                            Spacer()
-                            Text("\(project.agents.count)")
-                                .foregroundStyle(.secondary)
-                        }
+                        projectMenuRow(project)
                     }
                 }
             }
@@ -595,6 +703,27 @@ struct FleetControlCenter: View {
         }
         .menuStyle(.borderlessButton)
         .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func projectMenuRow(_ project: FleetProject) -> some View {
+        HStack(spacing: Fleet.Space.s) {
+            Image(systemName: project.id == selectedProjectId ? "checkmark.circle.fill" : project.statusIcon)
+                .foregroundStyle(project.id == selectedProjectId ? Fleet.Color.active : project.statusColor)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(project.name)
+                Text(project.statusLabel)
+                    .font(.caption2)
+                    .foregroundStyle(project.statusColor)
+            }
+            Spacer()
+            VStack(alignment: .trailing, spacing: 2) {
+                Text("\(project.visibleAgentCount)")
+                    .font(.system(.caption, design: .monospaced))
+                Text(formatBudget(project.budgetUsdPerDay))
+                    .font(.caption2)
+                    .foregroundStyle(project.needsBudget ? Fleet.Color.warning : .secondary)
+            }
+        }
     }
 
     private func chooseProject(_ projectId: String?) {
@@ -695,7 +824,7 @@ private struct FleetAddProjectSheet: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Add Project To Port Daddy")
                         .font(.title3.weight(.semibold))
-                    Text("A project becomes real in the control center once it has a `pd-fleet.yml` and that fleet is started on this daemon.")
+                    Text("FleetBar uses the same project readiness model as the console: `.portdaddyrc` can manage services, and `pd-fleet.yml` manages agent fleets and budgets.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -710,7 +839,7 @@ private struct FleetAddProjectSheet: View {
                 Text("Recommended path")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
-                Text("1. Pick a repo folder.\n2. Run `pd init` there.\n3. Run `pd fleet up` in that repo.\n4. Reopen or reload Fleet Control Center.")
+                Text("1. Pick a repo folder.\n2. Run `pd init` there if service config is missing.\n3. Run `pd fleet init` for agents.\n4. Set `limits.budget_usd_per_day` before `pd fleet up`.")
                     .font(.body)
                     .foregroundStyle(.primary)
             }
@@ -745,7 +874,7 @@ private struct FleetAddProjectSheet: View {
                 }
             }
 
-            Text("Cold-start note: `pd fleet init` only writes the starter files. The project will not appear in the live fleet list until `pd fleet up` starts it on this daemon.")
+            Text("Cold-start note: projects with service-only config still belong in the picker. Agent launches stay blocked until the fleet YAML has a positive daily budget.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 

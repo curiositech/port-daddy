@@ -153,8 +153,10 @@ class CostStore: ObservableObject {
         todayTotals != nil || golden != nil || !liveProjects.isEmpty || !historicalBuckets.isEmpty
     }
 
-    init() {
+    init(autoStart: Bool = true) {
         self.baseURL = DaemonLocation.resolveBaseURL()
+
+        guard autoStart else { return }
 
         Task {
             await refresh()

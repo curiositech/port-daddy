@@ -1,9 +1,10 @@
 # Cartographer Status
 
-**Last updated:** 2026-04-26
-**Updated by:** Codex Compass advisor slice
-**HEAD:** `65f41df`
-**Previous HEAD:** `f45b751` — multiple new commits since last cartographer refresh
+**Last updated:** 2026-04-27
+**Updated by:** Codex promotion recovery closeout
+**HEAD:** `717f4f4`
+**Stable:** `40cf79d` — promoted from `main@717f4f4` and pushed to `origin/stable`
+**Previous HEAD:** `7b91e37` — Shipwright component review shots, before the guard/stale-visibility/promotion recovery stack landed
 
 ---
 
@@ -19,6 +20,27 @@ Active threads, ranked by commit recency:
 
 Newest committed truth since the last cartographer refresh:
 
+- `40cf79d` — stable promotion commit for `main@717f4f4`; pushed to `origin/stable`. Promotion gate passed `147/147` Jest suites, `5019` tests, `1` skip, then rebuilt/reinstalled the stable daemon.
+- `717f4f4` — promotion verification wait loops now use explicit `/bin/sleep` so daemon port/runtime verification actually waits instead of failing red after a healthy install.
+- `fccce3a` — actor inbox acknowledgement and salvage summary release surfaces are documented in OpenAPI and the Port Daddy skill/API reference.
+- `806bb8a` — Coordination Guard hooks now fail closed when `pd guard check` fails instead of printing ENFORCE errors and falling through to a later `exit 0`.
+- `41eb63f` — stale-work visibility improved: `pd salvage --summary`, encrypted salvage-note redaction, actor inbox mark-read route/CLI, parity surfaces, and docs recovery updates.
+- `b9ea3bb` / `8630817` — Shipwright view coverage and Coordination Guard hook checks landed from peer sessions.
+- `7a65e5d` — fleet launchability surfaces now expose backend/readiness blockers; `@anthropic-ai/sdk` is installed and Cartographer moved onto Claude Haiku with explicit status/health/preflight signals.
+- `7b91e37` — Shipwright component review shots are committed.
+- `28cbfe2` — FleetBar now surfaces project readiness.
+- `57b51ca` — tracked Python bytecode artifacts were removed.
+- `295854d` — stale fleet leases are reclaimed on daemon restart. Stable was
+  promoted from `main@295854d`, and the live daemon reports version `3.11.0`
+  from `/Users/erichowens/port-daddy-stable`.
+- `f689337` — Shipwright is now a real Fleet Control Center surface. The app
+  accepts `surface=shipwright`, renders an all-project fixture-backed workbench,
+  shows fixture labels instead of pretending daemon truth, and ships a rebuilt
+  `public/fleet-ui` bundle. Validation: Fleet UI lint/build, focused
+  ship-grammar test, browser smoke via Chromium CDP, and broad `npm test`
+  (`143/143` suites, `4981/4982` passing, `1` skip) are green.
+- `2cc9fee` — Fleet UI served bundle was rebuilt for the first Shipwright
+  grammar/API/fixture slice.
 - `f45b751` — CLI session/sugar/tuple typecheck debt is closed; `npm run typecheck` is green again.
 - `8cddbca` — git-sensitive channel discovery is committed.
 - `8236119` — curated workgroup-ai skills import is committed.
@@ -40,6 +62,86 @@ Current Compass advisor validation truth on 2026-04-26:
 - focused `sessions` + advisor/parity bundle is green at `572/572` tests after adding inactive-session claim regression coverage.
 - broad `npm test -- --no-coverage` reached green counts at `139/139` suites and `4919/4920` passing tests with `1` intentional skip, then hung after Jest's open-handle warning.
 - remaining caveat: the broad-run exit blocker is the integration harness daemon process tree (`jest -> tsx -> server.ts`) on files actively claimed by the Bosun session `session-c4cc1a46-77ba-4c72-85cf-9ce13637cc97`. Compass recorded tuple `5474`, inboxed `agent-e802a389`, and cleaned up its own hung PIDs rather than editing across that active claim.
+
+Stale-work visibility truth on 2026-04-27:
+
+- `pd salvage --project port-daddy --summary` now makes the salvage queue legible as non-live triage instead of a wall of zombie rows: status counts, age buckets, project scope, encrypted-note redaction counts, and active-work comparison commands.
+- Encrypted salvage notes are redacted in CLI output. Current post-promotion dogfood truth: 57 non-live `port-daddy` entries, 60 encrypted notes redacted, 6 entries under 2 hours, 44 from 2-24 hours, and 7 over 24 hours.
+- Actor inboxes now have an explicit acknowledgement route and CLI path: `PUT /actors/:id/inbox/read-all` and `pd actor <id> --inbox --mark-read`. The messages remain stored; only unread state changes.
+- Navigator inbox was read but not acknowledged. It currently has 6 unread messages; at least two are still meaningful roadmap/promotion coordination requests.
+- Validation: focused salvage/actor route tests passed, `npm run typecheck` passed, `git diff --check` passed, and source CLI dogfood for salvage summary and Navigator inbox reads succeeded.
+
+Promotion/hygiene truth on 2026-04-27:
+
+- Current `main` was pushed to origin at `89f17ac`; stable was promoted through `65f2b4e` after `./scripts/promote-stable.sh` passed `5025` tests with `0` failures.
+- Live daemon truth after that promotion: Port Daddy `3.11.0`, PID `13470`, health `ok`, runtime `nominal`, install dir `/Users/erichowens/port-daddy-stable`.
+- FleetBar was rebuilt, reinstalled, and launchd-kickstarted; live process PID `14267`.
+- Promotion exposed a build hygiene bug: `scripts/build-core.sh` built inside the tracked `core/harbor-card-rs/target/release/**` tree, leaving stable dirty after a successful promotion.
+- The fix now builds the Rust FFI core via an external Cargo target directory and copies only the resulting shared library into `dist/core`; a follow-up promotion passed the same `5025`-test gate and left the stable checkout clean at `418a1d0`.
+
+Historical promotion recovery truth on 2026-04-27:
+
+- The official promotion rerun was owned by the Harbormaster path under `pd with-lock stable-promotion`; the lock released after completion.
+- Remote `main` is `717f4f49bbb382851fe582b926ce88dc2f06b69f`; remote `stable` is `40cf79d9f5846986fc6ed8ed696061fd2268a856`.
+- Live daemon truth after promotion: Port Daddy `3.11.0`, code hash `ce3faf8fb34e`, install dir `/Users/erichowens/port-daddy-stable`, health `ok`, runtime `nominal`.
+- Stable checkout had generated Rust target dirt under `core/harbor-card-rs/target/release/**`; do not mistake that class of artifact for source work.
+- `pd sessions --active` and actor projections still disagree with `pd agents --active --json` after daemon restart. This is now an explicit Coxswain coordination debt item, not a private observation.
+
+Skill-governance truth on 2026-04-26:
+
+- The active Port Daddy skill repair session is
+  `session-a7366433-5e18-4deb-b78a-561b77163e23`.
+- `pd actor cartographer` now resolves live to the durable `navigator` actor,
+  which owns roadmap, recovery-ledger, work-slices, and cartographer-status.
+- The `port-daddy-cli` skill now tells agents to query `pd actor
+  cartographer`, `pd actor navigator --inbox*`, and `pd actor lookout
+  --message` for roadmap/what-next and skill/docs drift before trusting stale
+  prose.
+- `AGENTS.md` and the `port-daddy-cli` skill now define ambient collaboration:
+  agents should publish structured facts through notes, claims, tuples, scoped
+  channels, and actor inboxes; durable actors/watchers should escalate only
+  material inconsistencies instead of forcing constant peer chat.
+- The collaboration policy now covers implied operator goals, not just bugs:
+  security/auth/privacy/trust-boundary/API-shape drift, public product or UX
+  contradictions, and locally correct work that violates strong inferred
+  direction should be surfaced through `coordination:inconsistency`.
+- The `coordination:inconsistency` worktree channel and tuple `6213` capture
+  that operator-worthy callout policy for live tooling.
+- Tuple `6249` records the example policy that a raw text API can conflict with
+  adjacent authenticated secure API work even when no one explicitly asked
+  whether the raw endpoint should be secure.
+- A fresh live read showed the coordination gap directly: `pd sessions
+  --active` listed two active sessions, while `pd agents --active --json`
+  returned zero live registered agents and `/operator/actors` classified the
+  same sessions as stale/salvaged. That mismatch belongs in Coxswain/Lookout
+  follow-up work.
+- `tests/unit/port-daddy-skill-authority.test.js` now guards both first-party
+  metadata and this live actor consultation path.
+- `scripts/audit-skills.mjs` now records skill governance deterministically.
+  Current scan: 109 visible skills under `skills/` and `.codex/skills/`, 70
+  missing at least one of `license`, `allowed-tools`, or `metadata`, 4
+  first-party skills, and 19 imported-literature skills.
+- The validated user-level installed copy at
+  `/Users/erichowens/.agents/skills/port-daddy-cli/` was mirrored from the repo.
+  The workgroup `port-daddy` skill has now been adapted at
+  `/Users/erichowens/coding/workgroup-ai/skills/port-daddy/` without renaming
+  the package surface: the body is aligned with the current runbook, the
+  changelog records the merge, and references match the repo skill references.
+- Difference check: repo and user installed `port-daddy-cli` were already
+  identical at 729 lines; the workgroup copy was an older 409-line surface with
+  a 546-line diff, missing briefing/advise/ambient coordination/actor truth and
+  current backend/delegation guidance. Its API reference was stale by 755 diff
+  lines and its SDK reference by 49 diff lines.
+- Fleet Control Center did use coordination primitives generically through
+  actors, channels, tuples, graph, and memory, but not the new
+  `coordination:inconsistency` policy specifically. The web control plane now
+  renders project-level callouts for that channel; FleetBar native still needs a
+  dedicated popover alert if the operator wants the warning outside the embedded
+  web control plane.
+- Validation on the continuation session
+  `session-d50ed49e-60b5-4e0a-8387-50884f127176`: focused skill-governance tests
+  passed, `pd fleet validate` passed, `git diff --check` passed, and
+  `fleet-config-ui` production build passed with the known large-chunk warning.
 
 Actor-model reconciliation truth on 2026-04-23:
 

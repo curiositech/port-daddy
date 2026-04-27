@@ -58,6 +58,13 @@ async function writeNote(text: string, asAgent: string | undefined): Promise<Fan
     if (res.ok) {
       return { target: 'note', ok: true, detail: `session=${(data.sessionId as string) || '?'}` };
     }
+    if (data.code === 'AMBIGUOUS_ACTIVE_SESSION') {
+      return {
+        target: 'note',
+        ok: false,
+        error: 'multiple active sessions in this worktree; pass --as <agent-id> to disambiguate',
+      };
+    }
     return { target: 'note', ok: false, error: (data.error as string) || `HTTP ${res.status}` };
   } catch (e) {
     return { target: 'note', ok: false, error: (e as Error).message };
@@ -154,7 +161,7 @@ async function publishChannel(channel: string, text: string, sender: string | un
  */
 export async function handleSay(text: string | undefined, options: CLIOptions): Promise<void> {
   if (!text || typeof text !== 'string') {
-    ui.error('Usage: pd say "<text>" [--pin] [--heat <path>[=N]] [--broadcast <channel>]');
+    ui.error('Usage: pd say "<text>" [--pin] [--heat <path>[=N]] [--broadcast <channel>] [--as <agent-id>]');
     process.exit(1);
   }
 

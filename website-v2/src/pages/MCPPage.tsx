@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useState, type KeyboardEvent, type ReactNode } from 'react'
 import { motion, useScroll, useSpring } from 'framer-motion'
 import {
   Activity,
@@ -29,6 +29,8 @@ import {
   PanelTitle,
   SectionIntro,
   SurfacePanel,
+  SwissGrid,
+  SwissGridItem,
 } from '@/components/site/primitives'
 
 type Tone = 'paper' | 'blue' | 'lime'
@@ -330,6 +332,7 @@ function ToolCard({ tool, index }: { tool: MagicTool; index: number }) {
 
   return (
     <motion.article
+      className="min-w-0"
       initial={{ opacity: 0, y: 18 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '-80px' }}
@@ -359,11 +362,36 @@ function ToolCard({ tool, index }: { tool: MagicTool; index: number }) {
 function ChannelTabs() {
   const [active, setActive] = useState(CHANNEL_SURFACES[0].id)
   const surface = CHANNEL_SURFACES.find((item) => item.id === active) ?? CHANNEL_SURFACES[0]
+  const activeIndex = CHANNEL_SURFACES.findIndex((item) => item.id === active)
+  const focusTab = (index: number) => {
+    const next = CHANNEL_SURFACES[index]
+    if (!next) return
+    document.getElementById(`mcp-channel-tab-${next.id}`)?.focus()
+    setActive(next.id)
+  }
+  const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
+      event.preventDefault()
+      focusTab((index + 1) % CHANNEL_SURFACES.length)
+    }
+    if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
+      event.preventDefault()
+      focusTab((index - 1 + CHANNEL_SURFACES.length) % CHANNEL_SURFACES.length)
+    }
+    if (event.key === 'Home') {
+      event.preventDefault()
+      focusTab(0)
+    }
+    if (event.key === 'End') {
+      event.preventDefault()
+      focusTab(CHANNEL_SURFACES.length - 1)
+    }
+  }
 
   return (
-    <div className="grid gap-[var(--space-5)] lg:grid-cols-[18rem_minmax(0,1fr)]">
-      <div role="tablist" aria-label="Pub/sub access surface" className="grid gap-[var(--space-2)]">
-        {CHANNEL_SURFACES.map((item) => (
+    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-[var(--space-5)] lg:grid-cols-[18rem_minmax(0,1fr)]">
+      <div role="tablist" aria-label="Pub/sub access surface" aria-orientation="vertical" className="grid min-w-0 gap-[var(--space-2)]">
+        {CHANNEL_SURFACES.map((item, index) => (
           <button
             key={item.id}
             id={`mcp-channel-tab-${item.id}`}
@@ -371,8 +399,10 @@ function ChannelTabs() {
             role="tab"
             aria-selected={active === item.id}
             aria-controls={`mcp-channel-panel-${item.id}`}
+            tabIndex={activeIndex === index ? 0 : -1}
             onClick={() => setActive(item.id)}
-            className="group flex w-full items-center justify-between border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] px-[var(--space-4)] py-[var(--space-3)] text-left text-[var(--text-primary)] transition-colors aria-selected:bg-[var(--brand-primary)] aria-selected:text-[var(--brand-primary-foreground)]"
+            onKeyDown={(event) => handleKeyDown(event, index)}
+            className="group flex w-full items-center justify-between border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] px-[var(--space-4)] py-[var(--space-3)] text-left text-[var(--text-primary)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] aria-selected:bg-[var(--brand-primary)] aria-selected:text-[var(--brand-primary-foreground)]"
           >
             <span className="flex items-center gap-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)]">
               <item.icon aria-hidden="true" className="h-[var(--space-4)] w-[var(--space-4)]" />
@@ -382,7 +412,7 @@ function ChannelTabs() {
           </button>
         ))}
       </div>
-      <div id={`mcp-channel-panel-${surface.id}`} role="tabpanel" aria-labelledby={`mcp-channel-tab-${surface.id}`}>
+      <div id={`mcp-channel-panel-${surface.id}`} role="tabpanel" aria-labelledby={`mcp-channel-tab-${surface.id}`} className="min-w-0">
         <SurfacePanel className="space-y-[var(--panel-gap)]">
           <div className="space-y-[var(--space-2)]">
             <BracketLabel>{surface.label}</BracketLabel>
@@ -471,7 +501,7 @@ export default function McpPage() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen bg-[var(--surface-base)] pt-[var(--nav-height)] font-sans text-[var(--text-primary)]"
+      className="min-h-screen bg-[var(--surface-base)] font-sans text-[var(--text-primary)]"
     >
       <motion.div
         aria-hidden="true"
@@ -479,87 +509,105 @@ export default function McpPage() {
         style={{ scaleX }}
       />
 
-      <header className="border-b-2 border-[var(--border-strong)] bg-[var(--surface-base)]">
-        <PageContainer width="wide" className="grid gap-[var(--space-7)] py-[var(--section-space-y)] lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:items-end lg:py-[var(--space-10)]">
-          <div className="space-y-[var(--space-6)]">
-            <BracketLabel>Model Context Protocol</BracketLabel>
-            <div className="space-y-[var(--space-5)]">
-              <PanelTitle as="h1" size="hero" className="max-w-[12ch]">
-                A control plane your agents can actually use.
-              </PanelTitle>
-              <PanelBody className="max-w-[48rem]">
-                Port Daddy exposes sessions, ports, locks, pub/sub, salvage, fleets, and tuple space as MCP tools. Agents coordinate through the same daemon operators already use, instead of inventing invisible side channels.
-              </PanelBody>
-            </div>
-            <div className="flex flex-wrap gap-[var(--space-3)]">
-              <BracketLink to="/docs/mcp" tone="blue">
-                Read MCP docs
-              </BracketLink>
-              <BracketLink to="/docs/cli/fleet" tone="lime">
-                Inspect fleet CLI
-              </BracketLink>
-            </div>
-          </div>
+      <main id="main-content">
+        <header className="border-b-2 border-[var(--border-strong)] bg-[var(--surface-base)]">
+          <PageContainer width="wide" className="py-[var(--section-space-y)] lg:py-[var(--space-10)]">
+            <SwissGrid className="items-end">
+              <SwissGridItem span="wide" className="space-y-[var(--space-6)]">
+              <BracketLabel>Model Context Protocol</BracketLabel>
+              <div className="space-y-[var(--space-5)]">
+                <PanelTitle as="h1" size="hero" className="max-w-[12ch]">
+                  A control plane your agents can actually use.
+                </PanelTitle>
+                <PanelBody className="max-w-[48rem]">
+                  Port Daddy exposes sessions, ports, locks, pub/sub, salvage, fleets, and tuple space as MCP tools. Agents coordinate through the same daemon operators already use, instead of inventing invisible side channels.
+                </PanelBody>
+              </div>
+              <div className="flex flex-wrap gap-[var(--space-3)]">
+                <BracketLink to="/docs/mcp" tone="blue">
+                  Read MCP docs
+                </BracketLink>
+                <BracketLink to="/docs/cli/fleet" tone="lime">
+                  Inspect fleet CLI
+                </BracketLink>
+              </div>
+              </SwissGridItem>
 
-          <SurfacePanel tone="blue" className="space-y-[var(--panel-gap-loose)]">
-            <div className="space-y-[var(--space-2)]">
-              <PanelEyebrow tone="primary">Install surface</PanelEyebrow>
-              <PanelTitle as="p" size="display" tone="primary">
-                pd mcp install
-              </PanelTitle>
-              <PanelBody tone="primary" className="max-w-none">
-                One local daemon. MCP-compatible clients. Durable session truth.
-              </PanelBody>
-            </div>
-            <DocsCodeBlock
-              code={`pd install
+              <SwissGridItem span="narrow">
+                <SurfacePanel tone="blue" className="space-y-[var(--panel-gap-loose)]">
+                  <div className="space-y-[var(--space-2)]">
+                    <PanelEyebrow tone="primary">Install surface</PanelEyebrow>
+                    <PanelTitle as="p" size="display" tone="primary">
+                      pd mcp install
+                    </PanelTitle>
+                    <PanelBody tone="primary" className="max-w-none">
+                      One local daemon. MCP-compatible clients. Durable session truth.
+                    </PanelBody>
+                  </div>
+                  <DocsCodeBlock
+                    code={`pd install
 pd mcp install
 pd begin --identity myapp:agent --purpose "coordinate MCP work"`}
-              language="cli"
-              label="Setup"
-            />
-          </SurfacePanel>
-        </PageContainer>
-      </header>
+                    language="cli"
+                    label="Setup"
+                  />
+                </SurfacePanel>
+              </SwissGridItem>
+            </SwissGrid>
+          </PageContainer>
+        </header>
 
-      <SectionBand tone="raised">
-        <PageContainer width="wide" className="space-y-[var(--space-6)]">
-          <MetricStrip />
-          <RuntimeTable />
-        </PageContainer>
-      </SectionBand>
+        <SectionBand tone="raised">
+          <PageContainer width="wide" className="space-y-[var(--space-6)]">
+            <MetricStrip />
+            <RuntimeTable />
+          </PageContainer>
+        </SectionBand>
 
       <SectionBand id="tools">
-        <PageContainer width="wide" className="space-y-[var(--space-7)]">
-          <SectionIntro
-            eyebrow="High-level MCP tools"
-            title="Useful calls that carry Port Daddy authority."
-            description="The MCP surface does not expose a loose bag of shell wrappers. The important calls preserve identity, budget, files, session notes, and recovery semantics."
-            titleSize="display"
-          />
-          <div className="grid gap-[var(--space-5)] md:grid-cols-2 xl:grid-cols-3">
-            {MAGIC_TOOLS.map((tool, index) => (
-              <ToolCard key={tool.name} tool={tool} index={index} />
-            ))}
-          </div>
+        <PageContainer width="wide">
+          <SwissGrid>
+            <SwissGridItem span="rail">
+              <SectionIntro
+                eyebrow="High-level MCP tools"
+                title="Useful calls that carry Port Daddy authority."
+                description="The MCP surface does not expose a loose bag of shell wrappers. The important calls preserve identity, budget, files, session notes, and recovery semantics."
+                titleSize="display"
+              />
+            </SwissGridItem>
+            <SwissGridItem span="body">
+              <div className="grid gap-[var(--space-5)] md:grid-cols-2 xl:grid-cols-3">
+                {MAGIC_TOOLS.map((tool, index) => (
+                  <ToolCard key={tool.name} tool={tool} index={index} />
+                ))}
+              </div>
+            </SwissGridItem>
+          </SwissGrid>
         </PageContainer>
       </SectionBand>
 
       <SectionBand id="channels" tone="sunken">
-        <PageContainer width="wide" className="space-y-[var(--space-7)]">
-          <SectionIntro
-            eyebrow="Pub/Sub radio"
-            title="A channel is the same channel everywhere."
-            description="CLI hooks, MCP clients, SDK integrations, and REST/SSE consumers publish into the same scoped channel model. That keeps background fleets and interactive agents synchronized."
-            titleSize="display"
-          />
-          <ChannelTabs />
+        <PageContainer width="wide">
+          <SwissGrid>
+            <SwissGridItem span="rail">
+              <SectionIntro
+                eyebrow="Pub/Sub radio"
+                title="A channel is the same channel everywhere."
+                description="CLI hooks, MCP clients, SDK integrations, and REST/SSE consumers publish into the same scoped channel model. That keeps background fleets and interactive agents synchronized."
+                titleSize="display"
+              />
+            </SwissGridItem>
+            <SwissGridItem span="body">
+              <ChannelTabs />
+            </SwissGridItem>
+          </SwissGrid>
         </PageContainer>
       </SectionBand>
 
       <SectionBand id="fleet">
-        <PageContainer width="wide" className="grid gap-[var(--space-7)] lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-start">
-          <div className="space-y-[var(--section-intro-gap)]">
+        <PageContainer width="wide">
+          <SwissGrid className="items-start">
+            <SwissGridItem span="wide" className="space-y-[var(--section-intro-gap)]">
             <SectionIntro
               eyebrow="Fleet recovery"
               title="Respawn is a policy, not a hope."
@@ -567,11 +615,12 @@ pd begin --identity myapp:agent --purpose "coordinate MCP work"`}
               titleSize="display"
             />
             <LifecycleDiagram />
-          </div>
-          <SurfacePanel className="space-y-[var(--panel-gap)]">
-            <PanelEyebrow>pd-fleet.yml</PanelEyebrow>
-            <DocsCodeBlock
-              code={`fleet:
+            </SwissGridItem>
+            <SwissGridItem span="narrow">
+              <SurfacePanel className="space-y-[var(--panel-gap)]">
+                <PanelEyebrow>pd-fleet.yml</PanelEyebrow>
+                <DocsCodeBlock
+                  code={`fleet:
   name: myapp
   agents:
     qa:
@@ -590,16 +639,19 @@ pd begin --identity myapp:agent --purpose "coordinate MCP work"`}
       budget_usd_per_day: 1.00
       prompt: |
         Propose one codebase improvement.`}
-              language="text"
-              label="Fleet config"
-            />
-          </SurfacePanel>
+                  language="text"
+                  label="Fleet config"
+                />
+              </SurfacePanel>
+            </SwissGridItem>
+          </SwissGrid>
         </PageContainer>
       </SectionBand>
 
       <SectionBand id="memory" tone="raised">
-        <PageContainer width="wide" className="grid gap-[var(--space-7)] lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
-          <div className="space-y-[var(--section-intro-gap)]">
+        <PageContainer width="wide">
+          <SwissGrid className="items-start">
+            <SwissGridItem span="half" className="space-y-[var(--section-intro-gap)]">
             <SectionIntro
               eyebrow="Tuple space"
               title="Shared memory for parallel agents."
@@ -623,9 +675,10 @@ pd begin --identity myapp:agent --purpose "coordinate MCP work"`}
                 </SurfacePanel>
               ))}
             </div>
-          </div>
-          <DocsCodeBlock
-            code={`await tuple_out({
+            </SwissGridItem>
+            <SwissGridItem span="half">
+              <DocsCodeBlock
+                code={`await tuple_out({
   tuple: ["connection", "trie+pubsub=routing", "spider", 0.9],
   harbor: "myapp:fleet"
 })
@@ -639,46 +692,53 @@ const task = await tuple_in({
   pattern: ["task", "*", "pending"],
   harbor: "myapp:fleet"
 })`}
-            language="typescript"
-            label="Tuple coordination"
-          />
+                language="typescript"
+                label="Tuple coordination"
+              />
+            </SwissGridItem>
+          </SwissGrid>
         </PageContainer>
       </SectionBand>
 
       <SectionBand id="discovery">
         <PageContainer width="wide" className="space-y-[var(--space-7)]">
-          <div className="grid gap-[var(--space-7)] lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-            <SectionIntro
-              eyebrow="Tool discovery"
-              title="Small default surface, full system on demand."
-              description="Agents should not start every turn with an overwhelming tool list. The default surface stays tight, then specialized categories unlock only when the task needs them."
-              titleSize="display"
-            />
-            <EssentialTools />
-          </div>
+          <SwissGrid>
+            <SwissGridItem span="wide">
+              <SectionIntro
+                eyebrow="Tool discovery"
+                title="Small default surface, full system on demand."
+                description="Agents should not start every turn with an overwhelming tool list. The default surface stays tight, then specialized categories unlock only when the task needs them."
+                titleSize="display"
+              />
+            </SwissGridItem>
+            <SwissGridItem span="narrow">
+              <EssentialTools />
+            </SwissGridItem>
+          </SwissGrid>
           <DiscoverGrid />
         </PageContainer>
       </SectionBand>
 
-      <SectionBand tone="sunken">
-        <PageContainer className="space-y-[var(--space-6)] text-center">
-          <BracketLabel>Start coordinated</BracketLabel>
-          <PanelTitle as="h2" size="display" className="mx-auto max-w-[14ch]">
-            Give the next MCP client a real operating model.
-          </PanelTitle>
-          <PanelBody className="mx-auto max-w-[44rem]">
-            Install the daemon, wire the MCP server, start a session, and let agents use the same coordination primitives that the CLI and control plane already trust.
-          </PanelBody>
-          <div className="flex flex-wrap justify-center gap-[var(--space-3)]">
-            <BracketLink to="/docs/quickstart" tone="blue">
-              Quick start
-            </BracketLink>
-            <BracketLink to="/docs/mcp" tone="lime">
-              MCP reference
-            </BracketLink>
-          </div>
-        </PageContainer>
-      </SectionBand>
+        <SectionBand tone="sunken">
+          <PageContainer className="space-y-[var(--space-6)] text-center">
+            <BracketLabel>Start coordinated</BracketLabel>
+            <PanelTitle as="h2" size="display" className="mx-auto max-w-[14ch]">
+              Give the next MCP client a real operating model.
+            </PanelTitle>
+            <PanelBody className="mx-auto max-w-[44rem]">
+              Install the daemon, wire the MCP server, start a session, and let agents use the same coordination primitives that the CLI and control plane already trust.
+            </PanelBody>
+            <div className="flex flex-wrap justify-center gap-[var(--space-3)]">
+              <BracketLink to="/docs/quickstart" tone="blue">
+                Quick start
+              </BracketLink>
+              <BracketLink to="/docs/mcp" tone="lime">
+                MCP reference
+              </BracketLink>
+            </div>
+          </PageContainer>
+        </SectionBand>
+      </main>
 
       <Footer />
     </motion.div>

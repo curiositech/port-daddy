@@ -2,6 +2,7 @@ import { jest } from '@jest/globals';
 import Fastify from 'fastify';
 
 const mockReadFileSync = jest.fn();
+const mockWriteFileSync = jest.fn();
 const mockExistsSync = jest.fn();
 const mockStatSync = jest.fn();
 const mockLoadFleetConfig = jest.fn();
@@ -15,7 +16,7 @@ jest.unstable_mockModule('node:fs', () => ({
   readFileSync: mockReadFileSync,
   statSync: mockStatSync,
   unlinkSync: jest.fn(),
-  writeFileSync: jest.fn(),
+  writeFileSync: mockWriteFileSync,
 }));
 
 jest.unstable_mockModule('../../lib/fleet-engine.js', () => ({
@@ -146,6 +147,68 @@ describe('fleet routes project resolution', () => {
     expect(body.project).toBe('discovered');
     expect(body.projectDir).toBe('/repo/discovered');
     expect(body.path).toBe('/repo/discovered/pd-fleet.yml');
+
+    await app.close();
+  });
+
+  test('POST /fleet/config/:project/budget writes limits.budget_usd_per_day into stopped project YAML', async () => {
+    mockFindFleetConfigPath.mockReturnValue('/repo/stopped/pd-fleet.yml');
+    mockReadFileSync.mockReturnValue('fleet:\n  name: stopped\n  limits:\n    max_concurrent_spawns: 2\n  agents: []\n  watchers: []\n  channels: {}\n');
+    mockLoadFleetConfig.mockReturnValue({
+      name: 'stopped',
+      limits: { budgetUsdPerDay: 5 },
+      agents: [],
+      watchers: [],
+      channels: {},
+    });
+
+    const reload = jest.fn();
+    const app = Fastify();
+    await app.register(fleetPlugin, {
+      deps: {
+        fleetDaemon: {
+          reload,
+          getStatus() {
+            return {
+              running: true,
+              startedAt: Date.now(),
+              fleets: [],
+              totalAgents: 0,
+              totalWatchers: 0,
+            };
+          },
+        },
+        projects: {
+          get(id) {
+            return id === 'stopped-project' ? { id: 'stopped-project', root: '/repo/stopped' } : null;
+          },
+          getByPath() {
+            return null;
+          },
+        },
+        messaging: {
+          subscribe() {
+            return null;
+          },
+        },
+      },
+    });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/fleet/config/stopped-project/budget',
+      payload: { usdPerDay: 5 },
+    });
+    const body = res.json();
+
+    expect(res.statusCode).toBe(200);
+    expect(body).toMatchObject({ success: true, budgetUsdPerDay: 5 });
+    expect(mockWriteFileSync).toHaveBeenCalledWith(
+      '/repo/stopped/pd-fleet.yml',
+      expect.stringContaining('budget_usd_per_day: 5'),
+      'utf-8',
+    );
+    expect(reload).toHaveBeenCalled();
 
     await app.close();
   });

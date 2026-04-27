@@ -18,6 +18,7 @@ import http from 'node:http';
 
 const SERVER_PATH = join(import.meta.dirname, '../../server.ts');
 const TSX_PATH = join(import.meta.dirname, '../../node_modules/.bin/tsx');
+const SHUTDOWN_TIMEOUT_MS = 3000;
 
 /**
  * Start an ephemeral Port Daddy daemon for testing.
@@ -60,7 +61,7 @@ export async function startEphemeralDaemon(options = {}) {
       NODE_ENV: 'test'
     },
     stdio: ['ignore', 'pipe', process.env.DEBUG_TESTS ? 'inherit' : 'pipe'],
-    detached: false
+    detached: true
   });
 
   let stderr = '';
@@ -96,7 +97,7 @@ export async function startEphemeralDaemon(options = {}) {
   }
 
   if (!ready) {
-    child.kill('SIGTERM');
+    await terminateDaemonProcess(child);
     throw new Error(
       `Ephemeral daemon failed to start within ${startupTimeout}ms\n` +
       `socket: ${sockPath}\n` +
@@ -128,18 +129,7 @@ export async function startEphemeralDaemon(options = {}) {
      * Clean up: kill daemon, remove temp directory.
      */
     async cleanup() {
-      if (child.exitCode === null) {
-        child.kill('SIGTERM');
-        // Wait for clean exit
-        await Promise.race([
-          new Promise(resolve => child.on('exit', resolve)),
-          sleep(3000)
-        ]);
-        // Force kill if still alive
-        if (child.exitCode === null) {
-          child.kill('SIGKILL');
-        }
-      }
+      await terminateDaemonProcess(child);
 
       // Remove temp directory
       try {
@@ -227,4 +217,55 @@ function daemonRequest(sockPath, path, options = {}) {
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function signalProcessGroupOrPid(pid, signal) {
+  if (!pid) return;
+
+  try {
+    process.kill(-pid, signal);
+    return;
+  } catch {
+    // If a caller hands us an older non-detached process, fall back to PID.
+  }
+
+  try {
+    process.kill(pid, signal);
+  } catch {
+    // Already gone.
+  }
+}
+
+function processGroupOrPidAlive(pid) {
+  if (!pid) return false;
+
+  try {
+    process.kill(-pid, 0);
+    return true;
+  } catch {
+    // Fall back below.
+  }
+
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function terminateDaemonProcess(child) {
+  if (!child?.pid || (child.exitCode !== null && !processGroupOrPidAlive(child.pid))) {
+    return;
+  }
+
+  signalProcessGroupOrPid(child.pid, 'SIGTERM');
+  await Promise.race([
+    new Promise(resolve => child.once('exit', resolve)),
+    sleep(SHUTDOWN_TIMEOUT_MS),
+  ]);
+
+  if (processGroupOrPidAlive(child.pid)) {
+    signalProcessGroupOrPid(child.pid, 'SIGKILL');
+  }
 }

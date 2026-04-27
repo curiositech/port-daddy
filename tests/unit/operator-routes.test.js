@@ -180,6 +180,177 @@ describe('operator routes', () => {
     await app.close();
   });
 
+  test('GET /operator/coordination-guard returns guard status for a project', async () => {
+    const { app, register } = buildApp();
+    await register();
+
+    const projectDir = process.cwd();
+    mockSpawnSync.mockReturnValueOnce({
+      status: 0,
+      stdout: JSON.stringify({
+        success: true,
+        name: 'Coordination Guard',
+        enabled: true,
+        mode: 'enforce',
+        requireSession: true,
+        requireClaims: true,
+        configPath: path.join(projectDir, '.portdaddy/coordination-guard.json'),
+      }),
+      stderr: '',
+    });
+
+    const res = await app.inject({
+      method: 'GET',
+      url: `/operator/coordination-guard?projectDir=${encodeURIComponent(projectDir)}`,
+    });
+
+    expect(res.statusCode).toBe(200);
+    const payload = res.json();
+    expect(payload).toEqual(expect.objectContaining({
+      success: true,
+      projectDir,
+      status: expect.objectContaining({
+        mode: 'enforce',
+        projectDir,
+      }),
+    }));
+    expect(mockSpawnSync).toHaveBeenCalledWith('pd', [
+      'guard',
+      'status',
+      '--json',
+      '--dir',
+      projectDir,
+    ], expect.objectContaining({
+      cwd: projectDir,
+      encoding: 'utf8',
+    }));
+
+    await app.close();
+  });
+
+  test('POST /operator/coordination-guard returns blocking staged check results without HTTP failure', async () => {
+    const { app, register } = buildApp();
+    await register();
+
+    const projectDir = process.cwd();
+    mockSpawnSync
+      .mockReturnValueOnce({
+        status: 1,
+        stdout: JSON.stringify({
+          success: false,
+          passed: false,
+          shouldBlock: true,
+          mode: 'enforce',
+          enabled: true,
+          files: ['routes/operator.ts'],
+          agentId: 'agent-1',
+          sessionId: 'session-1',
+          violations: [{
+            code: 'unclaimed-file',
+            severity: 'critical',
+            file: 'routes/operator.ts',
+            message: 'routes/operator.ts is not claimed by the active Port Daddy session.',
+          }],
+        }),
+        stderr: '',
+      })
+      .mockReturnValueOnce({
+        status: 0,
+        stdout: JSON.stringify({
+          success: true,
+          name: 'Coordination Guard',
+          enabled: true,
+          mode: 'enforce',
+          requireSession: true,
+          requireClaims: true,
+          configPath: path.join(projectDir, '.portdaddy/coordination-guard.json'),
+        }),
+        stderr: '',
+      });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/operator/coordination-guard',
+      payload: {
+        action: 'check',
+        projectDir,
+        mode: 'enforce',
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const payload = res.json();
+    expect(payload.check).toEqual(expect.objectContaining({
+      shouldBlock: true,
+      violations: [expect.objectContaining({ code: 'unclaimed-file' })],
+    }));
+    expect(mockSpawnSync).toHaveBeenNthCalledWith(1, 'pd', [
+      'guard',
+      'check',
+      '--staged',
+      '--mode',
+      'enforce',
+      '--json',
+      '--dir',
+      projectDir,
+    ], expect.objectContaining({ cwd: projectDir }));
+
+    await app.close();
+  });
+
+  test('POST /operator/coordination-guard can install enforce mode and refresh status', async () => {
+    const { app, register } = buildApp();
+    await register();
+
+    const projectDir = process.cwd();
+    mockSpawnSync
+      .mockReturnValueOnce({
+        status: 0,
+        stdout: 'Coordination Guard installed\n',
+        stderr: '',
+      })
+      .mockReturnValueOnce({
+        status: 0,
+        stdout: JSON.stringify({
+          success: true,
+          name: 'Coordination Guard',
+          enabled: true,
+          mode: 'enforce',
+          requireSession: true,
+          requireClaims: true,
+          configPath: path.join(projectDir, '.portdaddy/coordination-guard.json'),
+        }),
+        stderr: '',
+      });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/operator/coordination-guard',
+      payload: {
+        action: 'install',
+        projectDir,
+        mode: 'enforce',
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual(expect.objectContaining({
+      success: true,
+      action: 'install',
+      status: expect.objectContaining({ mode: 'enforce' }),
+    }));
+    expect(mockSpawnSync).toHaveBeenNthCalledWith(1, 'pd', [
+      'guard',
+      'install',
+      '--mode',
+      'enforce',
+      '--dir',
+      projectDir,
+    ], expect.objectContaining({ cwd: projectDir }));
+
+    await app.close();
+  });
+
   test('GET /operator/actors does not call orphaned active sessions running', async () => {
     const now = Date.now();
     const { app, register } = buildApp({
@@ -281,6 +452,79 @@ describe('operator routes', () => {
           actorState: 'idle',
         }),
       ]);
+    } finally {
+      await app.close();
+      rmSync(projectDir, { recursive: true, force: true });
+    }
+  });
+
+  test('GET /operator/actors does not prune configured fleet names behind historical sessions', async () => {
+    const now = Date.now();
+    const projectDir = mkdtempSync(path.join(process.cwd(), 'tmp-pd-actor-priority-'));
+    writeFileSync(path.join(projectDir, 'pd-fleet.yml'), [
+      'fleet:',
+      '  name: demo',
+      '  agents:',
+      '    spark:',
+      '      backend: custom',
+      '      prompt: echo spark',
+      '    spider:',
+      '      backend: custom',
+      '      prompt: echo spider',
+      '',
+    ].join('\n'));
+
+    const { app, register } = buildApp({
+      projects: {
+        getByPath: jest.fn(() => ({ id: 'demo', root: projectDir })),
+      },
+      agents: {
+        list: jest.fn(() => ({ agents: [] })),
+      },
+      sessions: {
+        list: jest.fn(() => ({
+          sessions: Array.from({ length: 12 }, (_, index) => ({
+            id: `session-noisy-${index}`,
+            purpose: `Historical ad hoc session ${index}`,
+            status: 'completed',
+            agentId: `agent-noisy-${index}`,
+            updatedAt: now - index,
+            notes: [],
+          })),
+        })),
+        listAllActiveClaims: jest.fn(() => ({ claims: [] })),
+      },
+      resurrection: {
+        list: jest.fn(() => ({ agents: [] })),
+      },
+      spawner: {
+        list: jest.fn(() => []),
+      },
+      activityLog: {
+        getRecent: jest.fn(() => ({ entries: [] })),
+      },
+    });
+
+    try {
+      await register();
+
+      const res = await app.inject({
+        method: 'GET',
+        url: `/operator/actors?projectDir=${encodeURIComponent(projectDir)}&limit=3`,
+      });
+
+      expect(res.statusCode).toBe(200);
+      const payload = res.json();
+      expect(payload.actors.map((actor) => actor.label)).toEqual([
+        'spark',
+        'spider',
+        'agent-noisy-0',
+      ]);
+      expect(payload.actors[0]).toEqual(expect.objectContaining({
+        inboxTarget: 'spark',
+        isConfiguredFleetAgent: true,
+        actorState: 'idle',
+      }));
     } finally {
       await app.close();
       rmSync(projectDir, { recursive: true, force: true });

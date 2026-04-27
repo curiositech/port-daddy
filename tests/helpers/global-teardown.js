@@ -9,7 +9,9 @@ import { readFileSync, unlinkSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-const STATE_FILE = join(tmpdir(), 'port-daddy-test-state.json');
+const TEST_STATE_FILE_ENV = 'PORT_DADDY_TEST_STATE_FILE';
+const FALLBACK_STATE_FILE = join(tmpdir(), 'port-daddy-test-state.json');
+const SHUTDOWN_TIMEOUT_MS = 2000;
 const TEST_ENV = {
   sockPath: 'PORT_DADDY_TEST_SOCK',
   ipcPath: 'PORT_DADDY_TEST_IPC',
@@ -19,6 +21,12 @@ const TEST_ENV = {
   contextDir: 'PORT_DADDY_TEST_CONTEXT_DIR',
   pid: 'PORT_DADDY_TEST_PID'
 };
+
+function getStateFile() {
+  return process.env[TEST_STATE_FILE_ENV]
+    || globalThis.__PORT_DADDY_TEST_STATE_FILE__
+    || FALLBACK_STATE_FILE;
+}
 
 function getDaemonStateFromEnv() {
   const sockPath = process.env[TEST_ENV.sockPath];
@@ -44,10 +52,13 @@ function getDaemonStateFromEnv() {
 
 export default async function globalTeardown() {
   let state;
-  try {
-    state = JSON.parse(readFileSync(STATE_FILE, 'utf8'));
-  } catch {
-    state = getDaemonStateFromEnv();
+  state = getDaemonStateFromEnv();
+  if (!state) {
+    try {
+      state = JSON.parse(readFileSync(getStateFile(), 'utf8'));
+    } catch {
+      state = null;
+    }
   }
 
   if (!state) {
@@ -56,15 +67,7 @@ export default async function globalTeardown() {
 
   // Kill daemon by PID
   if (state.pid) {
-    try {
-      process.kill(state.pid, 'SIGTERM');
-      // Wait briefly for clean shutdown
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      // Force kill if still alive
-      try { process.kill(state.pid, 0); process.kill(state.pid, 'SIGKILL'); } catch { /* already dead */ }
-    } catch {
-      // Process already dead — that's fine
-    }
+    await terminateDaemonPid(state.pid);
   }
 
   // Remove temp directory (DB, socket)
@@ -73,5 +76,53 @@ export default async function globalTeardown() {
   }
 
   // Remove state file
-  try { unlinkSync(STATE_FILE); } catch { /* best effort */ }
+  try { unlinkSync(getStateFile()); } catch { /* best effort */ }
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function signalProcessGroupOrPid(pid, signal) {
+  if (!pid) return;
+
+  try {
+    process.kill(-pid, signal);
+    return;
+  } catch {
+    // Older state files may reference non-detached wrappers. Fall back to PID.
+  }
+
+  try {
+    process.kill(pid, signal);
+  } catch {
+    // Already gone.
+  }
+}
+
+function processGroupOrPidAlive(pid) {
+  if (!pid) return false;
+
+  try {
+    process.kill(-pid, 0);
+    return true;
+  } catch {
+    // Fall back below.
+  }
+
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function terminateDaemonPid(pid) {
+  signalProcessGroupOrPid(pid, 'SIGTERM');
+  await sleep(SHUTDOWN_TIMEOUT_MS);
+
+  if (processGroupOrPidAlive(pid)) {
+    signalProcessGroupOrPid(pid, 'SIGKILL');
+  }
 }

@@ -41,6 +41,8 @@ interface StatusCommandResponse {
   fleet?: {
     projects?: unknown[];
     totalAgents?: number;
+    totalLaunchableAgents?: number;
+    launchableAgents?: number;
   };
   guardians?: {
     bosun?: {
@@ -238,7 +240,16 @@ export async function handleStatus(): Promise<void> {
 
     if (data.fleet) {
       const projectCount = Array.isArray(data.fleet.projects) ? data.fleet.projects.length : 0;
-      console.log(`  Fleet: ${projectCount} project(s), ${data.fleet.totalAgents ?? 0} agent(s)`);
+      const totalAgents = data.fleet.totalAgents ?? 0;
+      const launchable = data.fleet.totalLaunchableAgents ?? data.fleet.launchableAgents;
+      const launchSuffix =
+        typeof launchable === 'number' && totalAgents > 0
+          ? `, ${launchable}/${totalAgents} launchable`
+          : '';
+      console.log(`  Fleet: ${projectCount} project(s), ${totalAgents} agent(s)${launchSuffix}`);
+      if (typeof launchable === 'number' && launchable === 0 && totalAgents > 0) {
+        console.log(`    ⚠ no launchable backend — fleet will arm but every spawn is policy-blocked`);
+      }
     }
 
     const bosun = data.guardians?.bosun;

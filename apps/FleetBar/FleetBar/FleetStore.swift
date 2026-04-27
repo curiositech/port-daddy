@@ -2,7 +2,38 @@ import SwiftUI
 import Combine
 import Darwin
 
+private extension String {
+    var nilIfEmpty: String? {
+        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+}
+
 // MARK: - Data Model
+
+enum ProjectOperatorState: String {
+    case running
+    case ready
+    case blocked
+    case serviceOnly = "service_only"
+    case contextOnly = "context_only"
+    case missing
+}
+
+enum FleetConfigStatus: String {
+    case ready
+    case missingBudget = "missing_budget"
+    case invalid
+    case missing
+}
+
+struct ProjectRemediation {
+    let action: String
+    let title: String
+    let detail: String
+    let command: String?
+    let suggestedBudgetUsdPerDay: Double?
+}
 
 struct FleetProject: Identifiable {
     let id: String  // projectDir
@@ -10,17 +41,105 @@ struct FleetProject: Identifiable {
     let projectDir: String
     var agents: [FleetAgent]
     var startedAt: Date?
+    var configuredAgentCount: Int = 0
+    var configuredWatcherCount: Int = 0
+    var operatorState: ProjectOperatorState = .missing
+    var operatorSummary: String = "No operator readiness has been reported yet."
+    var operatorNextAction: String = "Open the console for current project truth."
+    var fleetConfigStatus: FleetConfigStatus = .missing
+    var budgetUsdPerDay: Double?
+    var configError: String?
+    var configWarnings: [String] = []
+    var remediation: ProjectRemediation?
+    var signals: [String] = []
+    var sources: [String] = []
 
     var activeCount: Int { agents.filter { $0.status.isDeployed }.count }
     var idleCount: Int { agents.filter { $0.status == .idle || $0.status == .paused }.count }
     var failedCount: Int { agents.filter { $0.status == .failed }.count }
+    var visibleAgentCount: Int { max(agents.count, configuredAgentCount) }
+    var isRunning: Bool { operatorState == .running || activeCount > 0 }
+    var needsBudget: Bool { fleetConfigStatus == .missingBudget || remediation?.action == "set_budget" }
+
+    var suggestedBudgetUsdPerDay: Double {
+        remediation?.suggestedBudgetUsdPerDay ?? 5
+    }
+
+    var statusLabel: String {
+        switch operatorState {
+        case .running:
+            return "running"
+        case .ready:
+            return "ready"
+        case .blocked:
+            return fleetConfigStatus == .missingBudget ? "needs budget" : "blocked"
+        case .serviceOnly:
+            return "pd up config"
+        case .contextOnly:
+            return "context only"
+        case .missing:
+            return "not configured"
+        }
+    }
+
+    var statusIcon: String {
+        switch operatorState {
+        case .running:
+            return "dot.radiowaves.left.and.right"
+        case .ready:
+            return "checkmark.circle.fill"
+        case .blocked:
+            return fleetConfigStatus == .missingBudget ? "wallet.pass" : "exclamationmark.triangle.fill"
+        case .serviceOnly:
+            return "server.rack"
+        case .contextOnly:
+            return "doc.text.magnifyingglass"
+        case .missing:
+            return "questionmark.folder"
+        }
+    }
+
+    var statusColor: Color {
+        switch operatorState {
+        case .running:
+            return Fleet.Color.healthy
+        case .ready:
+            return Fleet.Color.active
+        case .blocked:
+            return Fleet.Color.warning
+        case .serviceOnly, .contextOnly:
+            return Fleet.Color.dormant
+        case .missing:
+            return Fleet.Color.failure
+        }
+    }
+
+    var sortRank: Int {
+        switch operatorState {
+        case .running:
+            return 0
+        case .blocked:
+            return 1
+        case .ready:
+            return 2
+        case .serviceOnly:
+            return 3
+        case .contextOnly:
+            return 4
+        case .missing:
+            return 5
+        }
+    }
 }
 
 struct FleetAgent: Identifiable {
     let id: String  // identity (project:fleet:agent)
     let name: String
     let type: AgentType  // scheduled, triggered, watcher
+    let isConfiguredFleetAgent: Bool
+    let inboxTarget: String?
     var status: AgentStatus
+    var statusReason: String?
     var queueDepth: Int
     var lastActivity: Date?
     var lastEvent: String?
@@ -29,10 +148,12 @@ struct FleetAgent: Identifiable {
 
     enum AgentType: String, Codable {
         case scheduled, triggered, watcher
+        case adhoc = "ad_hoc"
     }
 
     enum AgentStatus: String {
         case running, queued, armed, scheduled, paused, idle, failed, dead
+        case salvaged, orphanReconciled = "orphan_reconciled", historical
 
         var isDeployed: Bool {
             switch self {
@@ -42,6 +163,10 @@ struct FleetAgent: Identifiable {
                 return false
             }
         }
+    }
+
+    var canControl: Bool {
+        isConfiguredFleetAgent && type != .adhoc
     }
 }
 
@@ -68,8 +193,8 @@ struct RegisteredProjectResponse: Decodable {
     let root: String
     let type: String
     let serviceCount: Int
-    let lastScanned: String
-    let createdAt: String
+    let lastScanned: StringCodable?
+    let createdAt: StringCodable?
     let frameworks: [String]
     let signals: [String]?
     let sources: [String]?
@@ -77,6 +202,22 @@ struct RegisteredProjectResponse: Decodable {
     let running: Bool?
     let configuredAgentCount: Int?
     let configuredWatcherCount: Int?
+    let operatorState: String?
+    let operatorSummary: String?
+    let operatorNextAction: String?
+    let fleetConfigStatus: String?
+    let budgetUsdPerDay: Double?
+    let configError: String?
+    let configWarnings: [String]?
+    let remediation: ProjectRemediationResponse?
+}
+
+struct ProjectRemediationResponse: Decodable {
+    let action: String
+    let title: String
+    let detail: String
+    let command: String?
+    let suggestedBudgetUsdPerDay: Double?
 }
 
 struct FleetResponse: Decodable {
@@ -97,6 +238,41 @@ struct AgentResponse: Decodable {
     let paused: Bool
     let uptime: Double
     let queueDepth: Int?
+}
+
+struct OperatorActorsResponse: Decodable {
+    let success: Bool
+    let projectDir: String?
+    let project: String?
+    let actors: [OperatorActorResponse]
+    let count: Int
+}
+
+struct OperatorActorResponse: Decodable {
+    let id: String
+    let label: String
+    let purpose: String?
+    let identity: String?
+    let fleetAgentName: String?
+    let inboxTarget: String
+    let isConfiguredFleetAgent: Bool
+    let actorKind: ActorKind
+    let actorState: ActorState
+    let actorStateReason: String
+    let runtimeStatus: String?
+    let lastActivityAt: Double?
+    let lastSummary: String?
+    let recentFiles: [String]
+
+    enum ActorKind: String, Decodable {
+        case scheduled, triggered, watcher
+        case adHoc = "ad_hoc"
+    }
+
+    enum ActorState: String, Decodable {
+        case running, idle, salvaged, historical
+        case orphanReconciled = "orphan_reconciled"
+    }
 }
 
 struct DaemonStatusResponse: Decodable {
@@ -297,13 +473,16 @@ class FleetStore: ObservableObject {
 
     @Published var isStartingDaemon = false
 
-    var totalAgents: Int { projects.reduce(0) { $0 + $1.agents.count } }
+    var totalAgents: Int { projects.reduce(0) { $0 + $1.visibleAgentCount } }
     var totalActive: Int { projects.reduce(0) { $0 + $1.activeCount } }
     var totalFailed: Int { projects.reduce(0) { $0 + $1.failedCount } }
+    var projectsNeedingBudget: Int { projects.filter(\.needsBudget).count }
 
-    init() {
+    init(autoStart: Bool = true) {
         self.preferences = FleetBarPreferenceStore.load()
         self.baseURL = DaemonLocation.resolveBaseURL()
+
+        guard autoStart else { return }
 
         // Initial fetch + start SSE
         Task {
@@ -397,7 +576,10 @@ class FleetStore: ObservableObject {
                 daemonStatus = nil
             }
             applyStatus(status, registeredProjects: registeredProjects)
-            await enrichProjectsFromBriefings()
+            let actorEnriched = await enrichProjectsFromActors()
+            if !actorEnriched {
+                await enrichProjectsFromBriefings()
+            }
             lastRefresh = Date()
         } catch {
             isDaemonRunning = false
@@ -442,6 +624,32 @@ class FleetStore: ObservableObject {
         await refresh()
     }
 
+    func setFleetBudget(projectDir: String, usdPerDay: Double = 5) async {
+        guard let encodedProject = encodePathSegment(projectDir),
+              let url = URL(string: "\(baseURL)/fleet/config/\(encodedProject)/budget") else {
+            settingsMessage = "Could not prepare budget update"
+            return
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["usdPerDay": usdPerDay])
+
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+                settingsMessage = "Budget update failed"
+                await refresh()
+                return
+            }
+            settingsMessage = String(format: "Budget set to $%.2f/day", usdPerDay)
+        } catch {
+            settingsMessage = "Budget update failed"
+        }
+        await refresh()
+    }
+
     func runAgent(projectDir: String, agentName: String) async {
         guard let url = URL(string: "\(baseURL)/fleet/agent/run") else { return }
         var request = URLRequest(url: url)
@@ -473,6 +681,12 @@ class FleetStore: ObservableObject {
     }
 
     // MARK: - Local Helpers
+
+    private func encodePathSegment(_ value: String) -> String? {
+        var allowed = CharacterSet.urlPathAllowed
+        allowed.remove(charactersIn: "/")
+        return value.addingPercentEncoding(withAllowedCharacters: allowed)
+    }
 
     private func startLaunchAgentDaemon() -> Bool {
         let uid = String(getuid())
@@ -550,9 +764,89 @@ class FleetStore: ObservableObject {
 
     // MARK: - State Updates
 
+    private func projectMetadata(from registered: RegisteredProjectResponse?, fallbackRunning: Bool) -> (
+        configuredAgentCount: Int,
+        configuredWatcherCount: Int,
+        operatorState: ProjectOperatorState,
+        operatorSummary: String,
+        operatorNextAction: String,
+        fleetConfigStatus: FleetConfigStatus,
+        budgetUsdPerDay: Double?,
+        configError: String?,
+        configWarnings: [String],
+        remediation: ProjectRemediation?,
+        signals: [String],
+        sources: [String]
+    ) {
+        let operatorState = registered?.operatorState.flatMap(ProjectOperatorState.init(rawValue:))
+            ?? (fallbackRunning ? .running : .missing)
+        let fleetConfigStatus = registered?.fleetConfigStatus.flatMap(FleetConfigStatus.init(rawValue:))
+            ?? (fallbackRunning ? .ready : .missing)
+        let remediation = registered?.remediation.map {
+            ProjectRemediation(
+                action: $0.action,
+                title: $0.title,
+                detail: $0.detail,
+                command: $0.command,
+                suggestedBudgetUsdPerDay: $0.suggestedBudgetUsdPerDay
+            )
+        }
+
+        return (
+            configuredAgentCount: registered?.configuredAgentCount ?? 0,
+            configuredWatcherCount: registered?.configuredWatcherCount ?? 0,
+            operatorState: operatorState,
+            operatorSummary: registered?.operatorSummary ?? (fallbackRunning ? "Fleet is running on this daemon." : "No operator readiness has been reported yet."),
+            operatorNextAction: registered?.operatorNextAction ?? (fallbackRunning ? "Inspect the shared console." : "Open the console for current project truth."),
+            fleetConfigStatus: fleetConfigStatus,
+            budgetUsdPerDay: registered?.budgetUsdPerDay,
+            configError: registered?.configError,
+            configWarnings: registered?.configWarnings ?? [],
+            remediation: remediation,
+            signals: registered?.signals ?? [],
+            sources: registered?.sources ?? []
+        )
+    }
+
+    private func makeProject(
+        id: String,
+        name: String,
+        projectDir: String,
+        agents: [FleetAgent],
+        startedAt: Date?,
+        registered: RegisteredProjectResponse?,
+        fallbackRunning: Bool
+    ) -> FleetProject {
+        let metadata = projectMetadata(from: registered, fallbackRunning: fallbackRunning)
+        return FleetProject(
+            id: id,
+            name: name,
+            projectDir: projectDir,
+            agents: agents,
+            startedAt: startedAt,
+            configuredAgentCount: max(metadata.configuredAgentCount, agents.count),
+            configuredWatcherCount: metadata.configuredWatcherCount,
+            operatorState: fallbackRunning ? .running : metadata.operatorState,
+            operatorSummary: metadata.operatorSummary,
+            operatorNextAction: metadata.operatorNextAction,
+            fleetConfigStatus: metadata.fleetConfigStatus,
+            budgetUsdPerDay: metadata.budgetUsdPerDay,
+            configError: metadata.configError,
+            configWarnings: metadata.configWarnings,
+            remediation: metadata.remediation,
+            signals: metadata.signals,
+            sources: metadata.sources
+        )
+    }
+
     private func applyStatus(_ status: FleetStatusResponse, registeredProjects: [RegisteredProjectResponse] = []) {
+        var registeredByRoot: [String: RegisteredProjectResponse] = [:]
+        for project in registeredProjects {
+            registeredByRoot[project.root] = project
+        }
         var runningProjectsByDir: [String: FleetProject] = [:]
         for fleet in status.fleets {
+            let registered = registeredByRoot[fleet.projectDir]
             let agents = fleet.agents.map { agent in
                 // Preserve existing agent state (last event etc.) if we have it
                 let existing = projects
@@ -563,7 +857,10 @@ class FleetStore: ObservableObject {
                     id: "\(fleet.project):fleet:\(agent.name)",
                     name: agent.name,
                     type: FleetAgent.AgentType(rawValue: agent.type) ?? .triggered,
+                    isConfiguredFleetAgent: true,
+                    inboxTarget: agent.name,
                     status: FleetAgent.AgentStatus(rawValue: agent.status) ?? (agent.running ? .running : agent.paused ? .paused : .idle),
+                    statusReason: existing?.statusReason,
                     queueDepth: agent.queueDepth ?? 0,
                     lastActivity: existing?.lastActivity,
                     lastEvent: existing?.lastEvent,
@@ -571,26 +868,33 @@ class FleetStore: ObservableObject {
                     recentFiles: existing?.recentFiles ?? []
                 )
             }
-            runningProjectsByDir[fleet.projectDir] = FleetProject(
+            runningProjectsByDir[fleet.projectDir] = makeProject(
                 id: fleet.projectDir,
-                name: fleet.project,
+                name: registered?.displayName ?? fleet.project,
                 projectDir: fleet.projectDir,
                 agents: agents,
-                startedAt: Date(timeIntervalSince1970: fleet.startedAt / 1000)
+                startedAt: Date(timeIntervalSince1970: fleet.startedAt / 1000),
+                registered: registered,
+                fallbackRunning: true
             )
         }
         for registeredProject in registeredProjects {
             guard runningProjectsByDir[registeredProject.root] == nil else { continue }
-            runningProjectsByDir[registeredProject.root] = FleetProject(
+            runningProjectsByDir[registeredProject.root] = makeProject(
                 id: registeredProject.root,
                 name: registeredProject.displayName ?? registeredProject.id,
                 projectDir: registeredProject.root,
                 agents: [],
-                startedAt: nil
+                startedAt: nil,
+                registered: registeredProject,
+                fallbackRunning: false
             )
         }
         let newProjects = Array(runningProjectsByDir.values)
             .sorted { lhs, rhs in
+                if lhs.sortRank != rhs.sortRank {
+                    return lhs.sortRank < rhs.sortRank
+                }
                 let lhsStarted = lhs.startedAt?.timeIntervalSince1970 ?? 0
                 let rhsStarted = rhs.startedAt?.timeIntervalSince1970 ?? 0
                 if lhsStarted != rhsStarted {
@@ -647,6 +951,194 @@ class FleetStore: ObservableObject {
             expandedProjects.remove(id)
         } else {
             expandedProjects.insert(id)
+        }
+    }
+
+    /**
+     * Merge daemon actor-lens records into the FleetBar project list so
+     * configured idle actors, salvage state, and historical residue remain
+     * visible even when no live runtime body is registered.
+     *
+     * Example:
+     * - input: `/fleet` plus `/operator/actors?projectDir=...`
+     * - output: project rows that still show `spark` as salvaged or historical
+     */
+    private func enrichProjectsFromActors() async -> Bool {
+        guard isDaemonRunning, !projects.isEmpty else { return false }
+
+        var nextProjects = projects
+        var loadedAny = false
+        await withTaskGroup(of: (String, [OperatorActorResponse]?).self) { group in
+            for project in nextProjects {
+                group.addTask { [baseURL] in
+                    guard var components = URLComponents(string: "\(baseURL)/operator/actors") else {
+                        return (project.id, nil)
+                    }
+                    components.queryItems = [
+                        URLQueryItem(name: "projectDir", value: project.projectDir),
+                        URLQueryItem(name: "limit", value: "80"),
+                    ]
+                    guard let url = components.url else { return (project.id, nil) }
+                    do {
+                        let (data, response) = try await URLSession.shared.data(from: url)
+                        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+                            return (project.id, nil)
+                        }
+                        let envelope = try JSONDecoder().decode(OperatorActorsResponse.self, from: data)
+                        return (project.id, envelope.actors)
+                    } catch {
+                        return (project.id, nil)
+                    }
+                }
+            }
+
+            for await (projectId, actors) in group {
+                guard let projectIndex = nextProjects.firstIndex(where: { $0.id == projectId }),
+                      let actors else { continue }
+                loadedAny = true
+                mergeActorEntries(actors, into: &nextProjects[projectIndex])
+            }
+        }
+
+        if loadedAny {
+            projects = nextProjects
+        }
+        return loadedAny
+    }
+
+    /**
+     * Join logical actor records onto the current native project snapshot using
+     * the daemon inbox target or configured fleet name as the durable key.
+     *
+     * Example:
+     * - input: existing running `spark` row + historical `spark` actor record
+     * - output: one `spark` row carrying summary, files, and actor lifecycle
+     */
+    private func mergeActorEntries(_ actors: [OperatorActorResponse], into project: inout FleetProject) {
+        var mergedByKey = Dictionary(uniqueKeysWithValues: project.agents.map { (actorMergeKey(for: $0), $0) })
+
+        for actor in actors {
+            let key = actorMergeKey(for: actor)
+            let existing = mergedByKey[key]
+            let nextType = existing?.type ?? mapActorType(actor.actorKind)
+            let nextSummary = actor.lastSummary?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let nextFiles = actor.recentFiles.isEmpty
+                ? (existing?.recentFiles ?? [])
+                : Array(actor.recentFiles.prefix(4))
+            let agentName = actor.fleetAgentName?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+                ?? actor.label.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+                ?? actor.id
+
+            mergedByKey[key] = FleetAgent(
+                id: existing?.id ?? synthesizeAgentId(for: actor, projectName: project.name, fallbackName: agentName),
+                name: agentName,
+                type: nextType,
+                isConfiguredFleetAgent: actor.isConfiguredFleetAgent,
+                inboxTarget: actor.inboxTarget,
+                status: mapActorStatus(actor),
+                statusReason: actor.actorStateReason,
+                queueDepth: existing?.queueDepth ?? 0,
+                lastActivity: actor.lastActivityAt.map { Date(timeIntervalSince1970: $0 / 1000) } ?? existing?.lastActivity,
+                lastEvent: actor.runtimeStatus ?? actor.actorState.rawValue,
+                lastSummary: nextSummary?.nilIfEmpty ?? existing?.lastSummary,
+                recentFiles: nextFiles
+            )
+        }
+
+        project.agents = Array(mergedByKey.values)
+            .sorted { lhs, rhs in
+                switch (lhs.lastActivity, rhs.lastActivity) {
+                case let (left?, right?) where left != right:
+                    return left > right
+                case (.some, nil):
+                    return true
+                case (nil, .some):
+                    return false
+                default:
+                    return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+                }
+            }
+    }
+
+    private func actorMergeKey(for actor: OperatorActorResponse) -> String {
+        if let fleetAgentName = actor.fleetAgentName?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !fleetAgentName.isEmpty {
+            return fleetAgentName.lowercased()
+        }
+        return actor.inboxTarget.lowercased()
+    }
+
+    private func actorMergeKey(for agent: FleetAgent) -> String {
+        if let inboxTarget = agent.inboxTarget?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !inboxTarget.isEmpty {
+            return inboxTarget.lowercased()
+        }
+        return agent.name.lowercased()
+    }
+
+    private func synthesizeAgentId(for actor: OperatorActorResponse, projectName: String, fallbackName: String) -> String {
+        if let identity = actor.identity?.trimmingCharacters(in: .whitespacesAndNewlines), !identity.isEmpty {
+            return identity
+        }
+        if let fleetAgentName = actor.fleetAgentName?.trimmingCharacters(in: .whitespacesAndNewlines), !fleetAgentName.isEmpty {
+            return "\(projectName):fleet:\(fleetAgentName)"
+        }
+        return actor.id.isEmpty ? "\(projectName):actor:\(fallbackName)" : actor.id
+    }
+
+    private func mapActorType(_ kind: OperatorActorResponse.ActorKind) -> FleetAgent.AgentType {
+        switch kind {
+        case .scheduled:
+            return .scheduled
+        case .triggered:
+            return .triggered
+        case .watcher:
+            return .watcher
+        case .adHoc:
+            return .adhoc
+        }
+    }
+
+    /**
+     * Translate daemon actor lifecycle state into FleetBar-native status badges.
+     *
+     * Example:
+     * - input: `{ actorState: .salvaged, runtimeStatus: nil }`
+     * - output: `.salvaged`
+     */
+    private func mapActorStatus(_ actor: OperatorActorResponse) -> FleetAgent.AgentStatus {
+        switch actor.runtimeStatus?.lowercased() {
+        case "running":
+            return .running
+        case "queued":
+            return .queued
+        case "armed":
+            return .armed
+        case "scheduled":
+            return .scheduled
+        case "paused":
+            return .paused
+        case "failed":
+            return .failed
+        case "dead":
+            return .dead
+        case "idle":
+            return .idle
+        default:
+            break
+        }
+
+        switch actor.actorState {
+        case .running:
+            return .running
+        case .idle:
+            return .idle
+        case .salvaged:
+            return .salvaged
+        case .orphanReconciled:
+            return .orphanReconciled
+        case .historical:
+            return .historical
         }
     }
 

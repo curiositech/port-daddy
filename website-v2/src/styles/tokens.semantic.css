@@ -8,19 +8,21 @@
   --surface-glass: rgba(247, 243, 235, 0.92);
 
   --text-primary: #121212;
-  --text-secondary: #4d4a43;
-  --text-muted: #67645d;
+  --text-secondary: #403b34;
+  --text-muted: #47423a;
   --text-inverse: #fbf7ef;
 
-  --brand-primary: #0055ff;
+  --brand-primary: #003fb8;
+  --brand-primary-on-tint: #002d83;
   --brand-secondary: #1f1f1f;
   --brand-accent: #dfff00;
+  --brand-accent-on-tint: #3f4700;
   --brand-primary-foreground: #fbf7ef;
   --brand-primary-foreground-muted: #edf4ff;
   --brand-primary-foreground-subtle: #dfe9ff;
   --brand-accent-foreground: #121212;
-  --brand-accent-foreground-muted: #4a5300;
-  --brand-accent-foreground-subtle: #596100;
+  --brand-accent-foreground-muted: #121212;
+  --brand-accent-foreground-subtle: #121212;
 
   --interactive-hover: rgba(18, 18, 18, 0.05);
   --interactive-active: rgba(0, 85, 255, 0.12);
@@ -34,6 +36,10 @@
   --status-warning: #a66f00;
   --status-error: #bf2f2f;
   --status-info: #0055ff;
+  --status-success-on-tint: #1f5e31;
+  --status-warning-on-tint: #5b3900;
+  --status-error-on-tint: #5a0000;
+  --status-info-on-tint: var(--brand-primary-on-tint);
 
   --signal-charlie: var(--status-success);
   --signal-november: var(--status-error);
@@ -57,11 +63,11 @@
   --voice-over: var(--text-muted);
   --voice-out: var(--text-muted);
 
-  --shadow-raised: 5px 5px 0 var(--border-strong);
+  --shadow-raised: 3px 3px 0 var(--border-strong);
   --shadow-inset: inset 2px 2px 0 rgba(18, 18, 18, 0.12);
-  --shadow-sm: 3px 3px 0 var(--border-strong);
+  --shadow-sm: 2px 2px 0 var(--border-strong);
   --shadow-flat: 0 0 0 var(--border-strong);
-  --shadow-pressed: 2px 2px 0 var(--border-strong);
+  --shadow-pressed: 1px 1px 0 var(--border-strong);
 
   --code-bg: #12161f;
   --code-header-bg: #0d1118;
@@ -71,10 +77,14 @@
   --code-command: #edf1f9;
   --code-flag: #8dc4ff;
   --code-string: #e8ff37;
-  --code-output: #c4cee2;
-  --code-comment: #7f8aa2;
+  --code-output: #d4dced;
+  --code-comment: #c7d0e5;
   --code-line-number: #738099;
   --code-operator: #8fb0dd;
+  --code-channel-scope: #8dc4ff;
+  --code-channel-topic: #e8ff37;
+  --code-channel-qualifier: #a7ff8b;
+  --code-channel-sep: #c4cee2;
   --code-dot-red: #e55c5c;
   --code-dot-amber: #e0c04a;
   --code-dot-green: #62c47a;
@@ -94,14 +104,16 @@
   --text-inverse: #121212;
 
   --brand-primary: #7db4ff;
+  --brand-primary-on-tint: #dbeaff;
   --brand-secondary: #f5f3ed;
   --brand-accent: #dfff00;
+  --brand-accent-on-tint: #e8ff59;
   --brand-primary-foreground: #121212;
   --brand-primary-foreground-muted: #28364a;
   --brand-primary-foreground-subtle: #303d52;
   --brand-accent-foreground: #121212;
-  --brand-accent-foreground-muted: #4a5300;
-  --brand-accent-foreground-subtle: #596100;
+  --brand-accent-foreground-muted: #121212;
+  --brand-accent-foreground-subtle: #121212;
 
   --interactive-hover: rgba(245, 243, 237, 0.07);
   --interactive-active: rgba(125, 180, 255, 0.16);
@@ -115,12 +127,16 @@
   --status-warning: #f2be51;
   --status-error: #ff7d7d;
   --status-info: #7db4ff;
+  --status-success-on-tint: #adf3c2;
+  --status-warning-on-tint: #ffe0a0;
+  --status-error-on-tint: #ffc4c4;
+  --status-info-on-tint: var(--brand-primary-on-tint);
 
-  --shadow-raised: 6px 6px 0 var(--border-strong);
+  --shadow-raised: 3px 3px 0 var(--border-strong);
   --shadow-inset: inset 2px 2px 0 rgba(245, 243, 237, 0.12);
-  --shadow-sm: 3px 3px 0 var(--border-strong);
+  --shadow-sm: 2px 2px 0 var(--border-strong);
   --shadow-flat: 0 0 0 var(--border-strong);
-  --shadow-pressed: 2px 2px 0 var(--border-strong);
+  --shadow-pressed: 1px 1px 0 var(--border-strong);
 
   --code-bg: #0b0d11;
   --code-header-bg: #080a0e;
@@ -130,8 +146,12 @@
   --code-command: #f5f3ed;
   --code-flag: #8dc4ff;
   --code-string: #d8ff36;
-  --code-output: #c4cee2;
-  --code-comment: #7f8aa2;
+  --code-output: #d4dced;
+  --code-comment: #c7d0e5;
   --code-line-number: #7e8ba3;
   --code-operator: #95b8ff;
+  --code-channel-scope: #8dc4ff;
+  --code-channel-topic: #e8ff37;
+  --code-channel-qualifier: #a7ff8b;
+  --code-channel-sep: #c4cee2;
 }

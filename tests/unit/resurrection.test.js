@@ -157,6 +157,52 @@ describe('Resurrection Module', () => {
       const pending = resurrection.pending();
       expect(pending.agents[0].notes).toEqual(['Started task', 'Got stuck on auth']);
     });
+
+    it('should materialize session notes through the sessions API when available', () => {
+      const sessions = {
+        getNotes: jest.fn(() => ({
+          success: true,
+          notes: [
+            { content: 'Decrypted handoff' },
+            { content: 'Continue from the route tests' },
+          ],
+        })),
+      };
+      resurrection = createResurrection(db, { sessions });
+
+      resurrection.check({
+        id: 'agent-1',
+        name: 'Agent One',
+        sessionId: 'session-abc',
+        notes: [JSON.stringify({ iv: 'i', ct: 'ciphertext', tag: 't' })],
+        lastHeartbeat: Date.now() - (21 * 60 * 1000),
+      });
+
+      const pending = resurrection.pending();
+      expect(sessions.getNotes).toHaveBeenCalledWith('session-abc', { limit: 200 });
+      expect(pending.agents[0].notes).toEqual([
+        'Decrypted handoff',
+        'Continue from the route tests',
+      ]);
+    });
+
+    it('should keep metadata notes as a fallback when session notes cannot be loaded', () => {
+      const sessions = {
+        getNotes: jest.fn(() => ({ success: false, error: 'session not found' })),
+      };
+      resurrection = createResurrection(db, { sessions });
+
+      resurrection.check({
+        id: 'agent-1',
+        name: 'Agent One',
+        sessionId: 'session-missing',
+        notes: ['fallback salvage note'],
+        lastHeartbeat: Date.now() - (21 * 60 * 1000),
+      });
+
+      const pending = resurrection.pending();
+      expect(pending.agents[0].notes).toEqual(['fallback salvage note']);
+    });
   });
 
   // ======================================================================
@@ -230,6 +276,16 @@ describe('Resurrection Module', () => {
 
       const result = resurrection.pending();
       expect(result.count).toBe(0);
+    });
+
+    it('should respect limit parameter', () => {
+      for (let i = 0; i < 10; i++) {
+        queueDeadAgent(`agent-${i}`);
+      }
+
+      const result = resurrection.pending({ limit: 3 });
+      expect(result.count).toBe(3);
+      expect(result.agents).toHaveLength(3);
     });
   });
 
@@ -385,6 +441,31 @@ describe('Resurrection Module', () => {
       const row = db.prepare('SELECT resurrection_attempts FROM resurrection_queue WHERE agent_id = ?').get('dead-agent');
       expect(row).toBeDefined();
       expect(row.resurrection_attempts).toBeGreaterThanOrEqual(2);
+    });
+
+    it('should return decrypted session notes in claimed context when available', () => {
+      const sessions = {
+        getNotes: jest.fn(() => ({
+          success: true,
+          notes: [{ content: 'decrypted continuation note' }],
+        })),
+      };
+      resurrection = createResurrection(db, { sessions });
+      const encryptedFallback = JSON.stringify({ iv: 'i', ct: 'ciphertext', tag: 't' });
+
+      resurrection.check({
+        id: 'dead-agent',
+        name: 'Dead Agent',
+        purpose: 'recover encrypted notes',
+        sessionId: 'session-encrypted',
+        notes: [encryptedFallback],
+        lastHeartbeat: Date.now() - (21 * 60 * 1000),
+      });
+
+      const result = resurrection.claim('dead-agent');
+      expect(result.success).toBe(true);
+      expect(result.context.notes).toEqual(['decrypted continuation note']);
+      expect(result.agent.notes).toEqual(['decrypted continuation note']);
     });
   });
 

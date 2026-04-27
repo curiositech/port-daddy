@@ -1,9 +1,10 @@
 # Port Daddy Website Ideal Web App Rehab Plan
 
-Last updated: 2026-04-26
-Owner session: `session-1a8459c2-808f-4564-ab9d-c5be56fa86bb`
-Skill contract: `ideal-web-app-builder`
-Status: visual decision board approved; stabilization, token/performance, and MCP proof-route slices implemented
+Last updated: 2026-04-27
+Owner session: `session-a4b3a18d-1651-4d2b-b4ca-e83fb79b5ea3`
+Skill contract: `ideal-web-app-builder` plus `swiss-modern-website-design`
+Status: visual decision board approved; stabilization, token/performance, MCP proof-route, Swiss-modern grid-layer, Storybook state-matrix, MCP a11y, and public shell unification slices implemented
+SEO metadata/discovery and generated visual replacement slices implemented
 
 This is the on-disk source of truth for rehabilitating `website-v2` into a
 premium, stable, token-disciplined web app. Keep this file current before code
@@ -59,10 +60,12 @@ fanout. Do not let implementation outrun the visual decision board.
 
 | Gate | Result | Evidence |
 |---|---|---|
-| Build | Pass | 2026-04-26 latest: `npm run build` passes with no Vite chunk-size warning after route lazy loading and the MCP proof-route rebuild. Largest generated JS chunk is `Mermaid-NIUzfny0.js` at 491.12 kB minified / 136.66 kB gzip; `MCPPage-Cs0vR24E.js` is 18.62 kB minified / 6.08 kB gzip. |
-| Tests | Pass | 2026-04-26 latest: full `npm run test` passes at 7/7 files and 73/73 tests, including design-system contract coverage for token layering, route lazy loading, MCP primitive usage, and shrink-safe public primitives. |
-| Lint | Pass | 2026-04-26: `npm run lint` passes after excluding generated Storybook output, repairing fast-refresh export boundaries, removing React Compiler set-state-in-effect violations, and narrowing dashboard/viz/page types. |
-| Storybook build | Pass with warning | 2026-04-26: `npm run build-storybook` passes. Preview iframe remains large at 1,080.43 kB / 304.51 kB gzip and Storybook reports missing package metadata for `radix-ui`. |
+| Build | Pass | 2026-04-27 latest: `npm run build` passes after generated visual replacement. Largest generated JS chunk remains `Mermaid-JRtoNcsk.js` at 491.00 kB minified / 136.63 kB gzip. |
+| Tests | Pass | 2026-04-27 latest: full `npm run test` passes at 8/8 files and 83/83 tests, including design-system contract coverage plus route metadata, sitemap/robots/LLM discovery, generated social-image manifest coverage, and SPA document-head behavior. |
+| Lint | Pass | 2026-04-27: `npm run lint` passes after the generated visual replacement slice. |
+| Storybook build | Pass with warning | 2026-04-26: `npm run build-storybook` passes with the a11y addon configured through `wcag2aaa` plus `color-contrast-enhanced`. Preview iframe remains large at 1,087.59 kB / 307.00 kB gzip and Storybook reports missing package metadata for `radix-ui`. |
+| MCP a11y | Pass for proof route | 2026-04-26: `npm run test:a11y:mcp` passes against `/mcp` at desktop 1440x1200 and mobile 390x1200 with 0 axe violations, keyboard roving-tab checks, visible focus outline, and no horizontal overflow. Report: `docs/reports/website-rehab-a11y/mcp-a11y-report.json`. |
+| Public shell a11y | Pass for route matrix | 2026-04-26: `npm run test:a11y:shell` passes for `/`, `/docs`, `/mcp`, and `/blog` at desktop 1440x1200 and mobile 390x1200 with 0 axe violations, one shared shell header/footer/main, a visible skip link, and no horizontal overflow. Report: `docs/reports/website-rehab-a11y/public-shell-a11y-report.json`. |
 | Screenshot baseline | Captured | `docs/reports/website-rehab-screenshots/`. |
 
 ## Screenshot Baseline
@@ -75,8 +78,23 @@ fanout. Do not let implementation outrun the visual decision board.
 - MCP mobile: `docs/reports/website-rehab-screenshots/mcp-mobile.png`
 - MCP proof desktop: `docs/reports/website-rehab-screenshots/mcp-proof-desktop.png`
 - MCP proof mobile: `docs/reports/website-rehab-screenshots/mcp-proof-mobile.png`
+- MCP Swiss desktop: `docs/reports/website-rehab-screenshots/mcp-swiss-desktop.png`
+- MCP Swiss mobile: `docs/reports/website-rehab-screenshots/mcp-swiss-mobile.png`
+- MCP a11y desktop: `docs/reports/website-rehab-screenshots/mcp-a11y-desktop.png`
+- MCP a11y mobile: `docs/reports/website-rehab-screenshots/mcp-a11y-mobile.png`
 - Blog desktop: `docs/reports/website-rehab-screenshots/blog-desktop.png`
 - Blog mobile: `docs/reports/website-rehab-screenshots/blog-mobile.png`
+- Public shell route matrix:
+  - Home: `docs/reports/website-rehab-screenshots/shell-home-desktop.png`,
+    `docs/reports/website-rehab-screenshots/shell-home-mobile.png`
+  - Docs: `docs/reports/website-rehab-screenshots/shell-docs-desktop.png`,
+    `docs/reports/website-rehab-screenshots/shell-docs-mobile.png`
+  - MCP: `docs/reports/website-rehab-screenshots/shell-mcp-desktop.png`,
+    `docs/reports/website-rehab-screenshots/shell-mcp-mobile.png`
+  - Blog: `docs/reports/website-rehab-screenshots/shell-blog-desktop.png`,
+    `docs/reports/website-rehab-screenshots/shell-blog-mobile.png`
+- Generated visual replacement proof:
+  `docs/reports/website-rehab-screenshots/generated-hero-homepage.png`
 
 Visible diagnosis from the baseline:
 
@@ -91,11 +109,16 @@ Visible diagnosis from the baseline:
 - MCP mobile has severe contrast failure: hero paragraph text is nearly
   invisible on the light background and the headline overlap/weight reads
   unstable.
-- MCP proof screenshots now show the rebuilt route on shared primitives:
-  desktop uses the intended two-column proof layout, and mobile wraps without
-  page-level horizontal clipping. Full a11y/keyboard evidence still remains.
+- MCP proof and a11y screenshots now show the rebuilt route on shared
+  primitives: desktop uses the intended proof/grid layout, mobile wraps without
+  page-level horizontal clipping, and the MCP route has axe/keyboard/focus
+  evidence for the proof slice.
 - Blog and MCP carry many hardcoded style decisions and should be normalized
   after the system contract is approved.
+- The public shell route matrix now proves the shared header/footer/main
+  wrapper across home, docs, MCP, and blog at desktop and mobile sizes. The
+  next visible drift is page-internal typography/card cleanup, not shell
+  reachability or horizontal clipping.
 
 ## Visual Decision Review
 
@@ -146,6 +169,10 @@ professional, less shouty, and more stable:
 - TypeUI inspiration: `Refined` for typography discipline, `Paper` for docs
   tactility, `Perspective` for technical diagrams, and a very limited
   `Neobrutalism` inheritance only where it supports protocol seriousness.
+- Swiss-modern overlay: use International Typographic Style as the structural
+  discipline behind the signal-grade identity: 12-column composition, visible
+  alignment, typographic hierarchy, disciplined asymmetry, flatter surfaces,
+  and scarce accent use. This is not a grayscale redesign.
 - Brand posture: trustworthy local infrastructure, not mascot comedy and not
   a generic SaaS gradient.
 - Typography: replace global `font-black` defaults with role-specific weights;
@@ -176,7 +203,8 @@ Create or normalize these layers before page fanout:
 3. Component/application roles:
    - file target: `website-v2/src/styles/tokens.roles.css`
    - contains `--button-*`, `--badge-*`, `--panel-*`, `--docs-rail-*`,
-     `--hero-*`, `--code-*`, `--chart-*`, `--og-*`
+     `--hero-*`, `--code-*`, `--grid-*`, `--measure-*`, `--chart-*`,
+     `--og-*`
 
 Production React components should consume only role tokens or approved
 semantic utilities. Raw visual values are allowed only in source token files,
@@ -218,8 +246,9 @@ map.
 | Token files | source, semantic, and role tokens were interleaved | normalize | split token layers, keep compatibility aliases, add drift tests | completed for entrypoint and protected-module contract |
 | Route bundling | all route/page modules were statically imported into the app entry | normalize | lazy-load route modules and isolate heavy vendor families | completed for public routes |
 | MCP page | hardcoded provider colors, inline styles, mobile AAA failure | replace | rebuild on approved primitives and token roles | completed for first proof route |
-| Storybook | exists but state coverage is shallow | normalize | add component matrices and a11y addon after primitives stabilize | pending |
-| SEO/meta | app-wide defaults plus limited title/description hook; no per-route OG images | replace | route metadata registry, generated social images, sitemap/robots | pending |
+| Storybook | exists but state coverage is shallow | normalize | add component matrices and a11y addon after primitives stabilize | in progress; public primitive, base UI, and MCP route gates are wired |
+| Public shell | landing and docs used different shell/nav systems | normalize | route all public pages through `MainLayout`, shared `SiteHeader`, and shared footer re-export | completed for home/docs/MCP/blog matrix |
+| SEO/meta | app-wide defaults plus limited title/description hook; no per-route OG images | replace | route metadata registry, generated social images, sitemap/robots | completed for canonical routes and discovery artifacts |
 | PWA/favicons | minimal assets; no manifest discovered | add if approved | app.webmanifest, icon set, offline strategy decision | pending |
 | Observability | no Sentry/browser telemetry setup found | add if approved | privacy-first Sentry wrapper, release tags, scrub rules, dashboards | pending |
 | Legal/privacy | no complete terms/privacy route found | add | product-specific terms/privacy/support/security-contact pages | pending |
@@ -344,6 +373,322 @@ Remaining launch blockers after this slice:
 - SEO/OG/PWA/legal/privacy/observability remain future product-readiness work.
 - Mermaid remains near the default chunk warning threshold.
 
+### 2026-04-26 Swiss-Modern Grid Layer Slice
+
+Implemented after looking up and applying the local `swiss-modern-website-design`
+skill:
+
+- Ran the Swiss-modern frontend audit against `website-v2`. It reported the
+  expected drift: 219 literal color instances, 145 unique literal colors, 203
+  radius patterns, 121 shadow patterns, and 185 width patterns. This confirms
+  the remaining problem is broader than the MCP proof route.
+- Added source and role tokens for a stricter Swiss-modern layout layer:
+  `--layout-grid-columns`, `--layout-grid-gap`, `--layout-copy-measure`,
+  `--layout-caption-measure`, `--layout-meta-measure`, `--grid-*`, and
+  `--measure-*`.
+- Flattened the shared public elevation tokens from the earlier bolder
+  neobrutalist offsets toward a calmer editorial surface:
+  `--shadow-raised`, `--shadow-sm`, and `--shadow-pressed`.
+- Added shared `SwissGrid` and `SwissGridItem` primitives using a 12-column
+  desktop grid and single-column mobile collapse.
+- Updated the public primitive Storybook story to show the Swiss grid primitive
+  as the layout contract instead of another local grid.
+- Reworked the MCP proof route onto the Swiss grid:
+  - 7/5 hero composition for the page argument plus install proof panel
+  - 3/9 rail/body sections for tools and pub/sub
+  - 7/5 and 6/6 editorial proof sections for fleet and tuple space
+  - mobile remains single-column and shrink-safe
+- Captured proof screenshots:
+  - `docs/reports/website-rehab-screenshots/mcp-swiss-desktop.png`
+  - `docs/reports/website-rehab-screenshots/mcp-swiss-mobile.png`
+
+Validation on 2026-04-26 from `website-v2/`:
+
+- `npm run lint`: pass.
+- `npm run test -- src/design-system-contracts.test.ts`: 10/10 pass.
+- `npm run test`: 73/73 pass.
+- `npm run build`: pass with no chunk-size warning. Largest JS chunk is
+  `Mermaid-C7kUbfif.js` at 491.12 kB minified / 136.65 kB gzip; the MCP route
+  chunk is `MCPPage-BRPJpuq-.js` at 18.66 kB minified / 6.12 kB gzip.
+- `npm run build-storybook`: pass with the known large iframe chunk warning and
+  `radix-ui` package metadata warning.
+- Playwright screenshots at 1440x1200 and 390x1200: pass by manual inspection
+  for clearer desktop grid alignment, calmer surface depth, mobile wrapping,
+  and no page-level horizontal clipping.
+
+Remaining launch blockers after this slice:
+
+- The Swiss grid now exists as a primitive, but most legacy routes still use
+  arbitrary max-widths, radii, shadows, and page-local grids.
+- Accent discipline is improved only on the proof route; color-literal cleanup
+  remains broader product debt.
+- Storybook still needs state matrices and a11y-addon evidence, not just a
+  primitive example.
+
+### 2026-04-26 Storybook State Matrix and MCP A11y Slice
+
+Implemented after the Swiss-modern grid layer:
+
+- Added and enforced public primitive state-matrix coverage for shared layout,
+  panel tone, code, link, empty, and error states in Storybook.
+- Kept base UI state matrices for Button, Badge, Surface, and CodeBlock wired
+  into the design-system contract test so Storybook state coverage is a release
+  gate instead of a nice-to-have artifact.
+- Configured Storybook a11y to run axe through `wcag2aaa` plus
+  `color-contrast-enhanced`, matching the strict MCP route script instead of
+  stopping at AA labels.
+- Hardened the MCP pub/sub tabs with explicit vertical tablist orientation,
+  roving tab index, arrow-key navigation, Home/End navigation, visible focus,
+  and a contract test that prevents silent regression.
+- Re-ran the MCP Playwright/axe route gate and refreshed the a11y report:
+  `docs/reports/website-rehab-a11y/mcp-a11y-report.json`.
+
+Validation on 2026-04-26 from `website-v2/`:
+
+- `npm run lint`: pass.
+- `npm run test -- src/design-system-contracts.test.ts`: 11/11 pass.
+- `npm run test`: 7/7 files and 74/74 tests pass.
+- `npm run test:a11y:mcp`: pass with 0 desktop axe violations, 0 mobile axe
+  violations, 4 roving tabs, visible focus outline, and no horizontal overflow.
+- `npm run build`: pass with no chunk-size warning. Largest JS chunk is
+  `Mermaid-CMec62CS.js` at 491.12 kB minified / 136.65 kB gzip; the MCP route
+  chunk is `MCPPage-Cqgjlo-C.js` at 19.34 kB minified / 6.39 kB gzip.
+- `npm run build-storybook`: pass with the known large iframe chunk warning
+  and `radix-ui` package metadata warning. The built preview iframe is
+  1,087.59 kB minified / 307.00 kB gzip.
+
+Remaining launch blockers after this slice:
+
+- Storybook coverage is materially better, but still not complete across every
+  route composite, loading/error branch, and data-dense dashboard surface.
+- MCP proof-route a11y is evidenced. The public shell route matrix now has axe,
+  skip-link, structure, and overflow coverage, but reduced-motion and manual
+  screen-reader passes still remain.
+- SEO/OG/PWA/legal/privacy/observability and the claims ledger remain future
+  product-readiness work.
+
+### 2026-04-27 Generated Visual Replacement Slice
+
+Implemented after the user rejected the sailor/rounded visual direction and
+provided a Gemini API key:
+
+- Added `website-v2/scripts/generate-gemini-assets.mjs` plus
+  `npm run generate:visuals` and `npm run optimize:visuals`.
+- The generator reads `GEMINI_API_KEY` from the shell, repo-root `.env.local`,
+  or `website-v2/.env.local`; the key is never written to source or the
+  generated manifest.
+- Generated four Nano Banana / Gemini assets under
+  `website-v2/public/img/generated/`:
+  - `control-plane-hero.jpg` / `control-plane-hero.webp`
+  - `control-plane-og.jpg` / `control-plane-og.webp`
+  - `agent-runtime-map.jpg` / `agent-runtime-map.webp`
+  - `salvage-ledger.jpg` / `salvage-ledger.webp`
+- Added `website-v2/public/img/generated/manifest.json` with model, prompt,
+  optimization, and provenance metadata.
+- Optimized generated JPEGs through ImageMagick at quality 82 and generated
+  WebP variants through `cwebp` at quality 82. The visible home hero uses WebP
+  with a JPEG fallback; the default OG image remains JPEG for crawler/social
+  compatibility.
+- Replaced the homepage sailor hero with the generated control-plane schematic,
+  moved the responsive hero breakpoint to `min-[900px]` so the visual appears
+  in the in-app browser first viewport, and removed the unused
+  `website-v2/public/img/hero-portdaddy.png` asset.
+- Updated default social metadata and blog fallback imagery to use generated
+  assets rather than the retired sailor image or missing blog files.
+- Removed the most visible legacy wording and shape drift in the touched public
+  surfaces: hero pills, CTA banner copy/icon/radii, badge default shape, and
+  stale "neumorphic" comments in touched source/story files.
+- Added a regression test that the default social image is generated and the
+  retired sailor hero does not exist.
+- Browser proof:
+  `docs/reports/website-rehab-screenshots/generated-hero-homepage.png`.
+
+Validation on 2026-04-27 from `website-v2/`:
+
+- `npm run generate:visuals`: generated 4 assets with
+  `gemini-3.1-flash-image-preview`.
+- `npm run optimize:visuals`: optimized 4 generated assets.
+- `npm run generate:seo`: generated SEO artifacts for 182 canonical routes.
+- `npm run lint`: pass.
+- `npm run test`: 8/8 files and 83/83 tests pass.
+- `npm run build`: pass; largest generated JS chunk remains Mermaid at
+  491.00 kB minified / 136.63 kB gzip.
+- `npm run build-storybook`: pass with the known Storybook iframe size warning
+  and `radix-ui` package metadata warning.
+- root `npm test -- --no-coverage`: 153/153 suites passed, 5082/5083 tests
+  passed, 1 intentional skip; existing console noise included git-probe,
+  telemetry-bypass, keychain/plaintext fallback, and subscriber-error test
+  logs.
+- Browser verification: in-app browser loaded `http://127.0.0.1:3111/` and
+  showed the generated schematic in the first viewport.
+
+### 2026-04-27 Visual Metaphor Cleanup Slice
+
+Implemented after the generated-asset replacement commit to keep removing the
+old rounded/nautical visual system from production code:
+
+- Renamed the terminal wrapper from `NeumorphicTerminal` to
+  `CommandTerminal` and updated landing demos, docs primitives, examples, blog
+  posts, and public-shell contract tests.
+- Replaced the dashboard `SailorAgent` SVG with `AgentNodeMark`, a rectilinear
+  infrastructure glyph that keeps the live graph readable without mascot or
+  nautical imagery.
+- Replaced the live graph's central anchor icon with a network icon and reduced
+  agent node/status radii to design-system token radii.
+- Tightened homepage feature-card radius from `2xl` to `lg` so the public
+  landing surface keeps moving toward the Swiss-modern, low-rounding contract.
+- Cleaned the dashboard route's most obvious residue: removed the blurred
+  circular hero glow, replaced the dashboard anchor icon usage with network
+  iconography, and reduced dashboard panel/value/status radii from rounded
+  legacy shapes to smaller design-system tokens.
+- Eliminated the homepage feature-card icon tiles that read as neon yellow on
+  beige inset relief. Feature cards now use numbered Swiss panels, border
+  rules, category metadata, and no icon container.
+- Removed the matching neon sparkle treatment from the secondary CTA button so
+  the homepage no longer reintroduces the same yellow-on-beige cue one screen
+  later.
+- Removed the CTA's decorative inset icon block as well, rather than leaving
+  the same relief pattern with a different icon color.
+- Replaced the public shell's neon accent header strip and active-nav state
+  with brand-primary blue so the fixed chrome no longer reintroduces yellow
+  neon while reviewing the landing page.
+- Replaced the hero headline's one-off blue-to-error gradient on "fighting
+  each other" with a single brand-primary text token and added a contract test
+  to keep gradient text out of that headline.
+- Rebuilt the tutorials index around the current control-plane brand voice:
+  "Operator training" instead of academy framing, flat numbered curriculum
+  panels instead of inset icon cards, and tutorial catalogue copy that avoids
+  retired swarm/pheromone/harbor-token marketing names.
+- Production source no longer references `NeumorphicTerminal` or
+  `SailorAgent`; the remaining sailor wording in source is the explicit
+  retired-hero regression test.
+
+Validation on 2026-04-27 from `website-v2/`:
+
+- `npm run lint`: pass.
+- `npm run test`: 8/8 files and 83/83 tests pass.
+- `npm run build`: pass; largest generated JS chunk remains Mermaid at
+  491.00 kB minified / 136.63 kB gzip.
+- `npm run build-storybook`: pass with the known Storybook iframe size warning
+  and `radix-ui` package metadata warning.
+
+Remaining launch blockers after this slice:
+
+- Other route composites still carry large rounded panels, decorative blurred
+  circular glows, and legacy elevation density. Continue route-by-route rather
+  than sweeping every surface at once.
+- Public docs/tutorial content still uses the product term "harbor" where it
+  names real Port Daddy capability primitives. That is product vocabulary, not
+  the rejected sailor-photo visual direction.
+- PWA/favicons, legal/privacy/support/security-contact, observability,
+  Lighthouse/Web Vitals, reduced-motion, forced-colors, and manual
+  screen-reader evidence remain open.
+
+### 2026-04-27 SEO Metadata and Discovery Slice
+
+Implemented after the shared public shell slice:
+
+- Added `website-v2/src/data/siteMetadata.ts` as the canonical route metadata
+  registry for 182 indexable public URLs, drawing from existing source data for
+  tutorials, docs families, cookbook recipes, integrations, templates, and
+  blog posts.
+- Added route-specific document metadata through `DocumentMeta` and
+  `useDocumentMeta`, including title, description, canonical URL, robots,
+  Open Graph, Twitter card, article fields, tag metadata, and JSON-LD.
+- Added `scripts/generate-seo-artifacts.mjs` plus `npm run generate:seo`.
+  `npm run build` now runs `prebuild` to regenerate SEO artifacts before Vite
+  emits the production bundle.
+- Generated `website-v2/public/sitemap.xml` from indexable canonical routes.
+  The sitemap intentionally avoids `changefreq` and `priority`, matching
+  current Google guidance that those fields are ignored.
+- Generated `website-v2/public/robots.txt` with a single sitemap declaration.
+- Regenerated `website-v2/public/llms.txt` from the same metadata registry so
+  LLM discovery does not drift from public routes.
+- Marked canonical-alias pages such as `/docs/api/endpoints` as `noindex` when
+  they resolve to another canonical route.
+- Added `src/seo-metadata.test.tsx` to guard unique canonicals, existing social
+  image files, blog article metadata, sitemap/robots output, LLM discovery, and
+  SPA head mutation.
+
+Validation on 2026-04-27 from `website-v2/`:
+
+- `npm run generate:seo`: generated SEO artifacts for 182 canonical routes.
+- `npm run test -- src/seo-metadata.test.tsx`: 6/6 pass.
+- `npm run lint`: pass.
+- `npm run test`: 8/8 files and 82/82 tests pass.
+- `npm run build`: pass; `prebuild` regenerates SEO artifacts. Largest JS
+  chunk remains Mermaid at 491.00 kB minified / 136.64 kB gzip.
+
+Remaining launch blockers after this slice:
+
+- The SPA now updates route metadata at runtime, but a future prerender/static
+  export pass would make non-home route metadata available before JavaScript
+  executes.
+- Per-route OG image strategy is wired but not complete: pages without a
+  verified dedicated image intentionally fall back to the canonical hero image.
+- PWA/favicons, legal/privacy/support/security-contact, observability, claims
+  ledger, Lighthouse/Web Vitals, reduced-motion, forced-colors, and manual
+  screen-reader evidence remain open.
+- Mermaid and Storybook/axe payloads need a deeper route-level payload strategy.
+
+### 2026-04-26 Public Shell Unification Slice
+
+Implemented as the next bounded website slice:
+
+- Routed the landing app through `MainLayout` and the shared `SiteHeader`
+  instead of the legacy `components/landing/Nav` shell.
+- Replaced the old layout footer module with a re-export of `SiteFooter`, so
+  legacy routes and new public primitives now converge on the same footer
+  surface.
+- Added an always-present skip link, shell identity marker
+  `header[data-shell="site-header"]`, shared container sizing, desktop docs
+  search, mobile search trigger, active-route nav states, and focus-visible
+  treatment to `SiteHeader`.
+- Removed redundant route-level top padding from public routes that now sit
+  under the normal document-flow shell.
+- Added `SiteHeader` Storybook shell-frame and state-matrix stories that render
+  the header with the shared footer and tokenized page background.
+- Added `scripts/check-public-shell-a11y.mjs` and `npm run test:a11y:shell`.
+  The script audits `/`, `/docs`, `/mcp`, and `/blog` at desktop 1440x1200 and
+  mobile 390x1200, checks shell structure, first-tab skip-link focus,
+  horizontal overflow, screenshots, WCAG tags through AAA, and
+  `color-contrast-enhanced`.
+- Fixed route-matrix failures found by that script:
+  - `TerminalDemos` tab rail and terminal column now use shrink-safe
+    `minmax(0, 1fr)` layout instead of widening mobile pages.
+  - Code identity highlighting now uses code-specific channel tokens instead
+    of the brand blue on a dark terminal background.
+  - Badge variants now use high-contrast on-tint tokens.
+  - Accent foreground tokens were darkened for AAA contrast on lime surfaces.
+  - Dimmed `DocsCard` eyebrow opacity was removed.
+  - The blog page no longer uses raw color literals for feature badges.
+
+Validation on 2026-04-26 from `website-v2/`:
+
+- `npm run lint`: pass.
+- `npm run test -- src/design-system-contracts.test.ts`: 13/13 pass.
+- `npm run test`: 7/7 files and 76/76 tests pass.
+- `npm run test:a11y:shell`: pass with 0 axe violations across home/docs/MCP/
+  blog desktop and mobile, one shared shell header/footer/main per route, a
+  visible skip link, and no horizontal overflow.
+- `npm run test:a11y:mcp`: pass with 0 desktop and 0 mobile axe violations,
+  roving tab keyboard coverage, visible focus, and no horizontal overflow.
+- `npm run build`: pass with no chunk-size warning. Largest JS chunk remains
+  `Mermaid-BeyLxPjd.js` at 491.00 kB minified / 136.63 kB gzip.
+- `npm run build-storybook`: pass with the known large iframe chunk warning and
+  `radix-ui` package metadata warning.
+
+Remaining launch blockers after this slice:
+
+- The shell is unified, but many route-internal composites still use legacy
+  typography, arbitrary radii, inline style objects, and page-local layout
+  decisions.
+- Shell a11y is evidenced across the primary public route matrix, but manual
+  screen-reader, reduced-motion, forced-colors, Lighthouse, and Web Vitals
+  passes still need to run.
+- SEO/OG/PWA/legal/privacy/observability and the claims ledger remain future
+  product-readiness work.
+
 ## Sessions and Ownership
 
 | Session | Owner | Scope | Files | Status | Notes |
@@ -352,7 +697,10 @@ Remaining launch blockers after this slice:
 | `session-1a8459c2-808f-4564-ab9d-c5be56fa86bb` | Codex | tutorial/lint/build stabilization | tutorial/data/lint/viz/docs helper files | completed | committed as `5d29704` |
 | `session-c2085e79-36d0-4898-9cc5-90c4f60aef3a` | Codex | token contract and route chunking | token files, router entry, Vite config, contract tests | completed | lint/test/build green on 2026-04-26 |
 | `session-4174ea2d-db24-4af2-a2d4-d9be7421a26c` | Codex | rebuild MCP proof route | `MCPPage`, shared site/code primitives, contract tests, screenshots | completed | desktop/mobile proof screenshots captured on 2026-04-26 |
-| future 2 | worker swarm | primitives and Storybook state matrix | components/styles/stories | blocked | after MCP proof route identifies primitive gaps |
+| `session-d43caa83-9525-4a04-a1b4-57df1ef92916` | Codex | Swiss-modern grid layer | token files, shared primitives/stories, MCP route, screenshots | completed | Swiss skill audit run; lint/test/build/storybook green on 2026-04-26 |
+| `session-38334c91-8bed-45d4-85be-da069cd41648` | Codex | Storybook state matrix and MCP a11y hardening | Storybook preview, MCP route tabs, a11y script/report, contract tests | completed | lint/test/a11y/build/storybook green on 2026-04-26 |
+| `session-7d6f4ac6-5c47-401d-853b-804be7eecbd6` | Codex | SEO metadata and discovery | metadata registry, document head hook, sitemap, robots, llms, tests | completed | generate:seo/test/lint/build green on 2026-04-27 |
+| future 2 | worker swarm | remaining primitives and route-composite Storybook matrices | components/styles/stories | open | after MCP proof route identifies primitive gaps |
 | future 3 | worker swarm | route/page normalization | page dirs by route | blocked | disjoint write sets |
 | future 4 | reviewers | a11y/perf/security/privacy/product truth | read-mostly | blocked | adversarial gates |
 
@@ -366,9 +714,9 @@ Use only after the user approves the visual decision board.
 | ESLint hygiene worker | low | `website-v2/eslint.config.js`, narrow source files | exclude generated output and fix no-risk lint debt | `npm run lint` | completed locally |
 | Token auditor | low/read-only first | styles/components | produce raw value inventory and token split patch plan | drift report | completed locally for protected modules |
 | Performance chunk worker | low/mid | `main.tsx`, Vite config, heavy route components | split route bundles and heavy vendor families | build without chunk warning | completed locally |
-| Primitive worker | mid | `src/components/ui`, `src/components/site`, stories | normalize Button/Badge/Surface/CodeBlock | Storybook build + tests | started locally for shrink-safe public primitives; state matrix still blocked |
-| MCP page worker | mid | `src/pages/MCPPage.tsx`, related data/stories | rebuild MCP page on approved primitives | screenshots + a11y | completed locally for screenshots; a11y gate remains |
-| SEO/PWA worker | low/mid | metadata registry, public assets | add route metadata, manifest, favicons, OG generation plan | build + metadata tests | blocked |
+| Primitive worker | mid | `src/components/ui`, `src/components/site`, stories | normalize Button/Badge/Surface/CodeBlock/Grid | Storybook build + tests | started locally; base UI and public primitive state matrices now gated |
+| MCP page worker | mid | `src/pages/MCPPage.tsx`, related data/stories | rebuild MCP page on approved primitives | screenshots + a11y | completed locally for proof route; route-matrix a11y remains |
+| SEO/PWA worker | low/mid | metadata registry, public assets | add route metadata, manifest, favicons, OG generation plan | build + metadata tests | SEO metadata/discovery completed locally; PWA/favicons still open |
 | Observability/privacy worker | mid | Sentry wrapper, docs/legal | add privacy-first telemetry design | tests + privacy packet | blocked |
 | Adversarial reviewer | low/read-only | whole `website-v2` | falsify done claims | failure report first | blocked |
 
@@ -450,13 +798,14 @@ handoff with files changed and residual risks.
 | Gate | Command or method | Evidence | Status | Risk |
 |---|---|---|---|---|
 | Typecheck/build | `npm run build` | pass, no chunk warning in latest website build | pass | Mermaid chunk remains near threshold |
-| Unit tests | `npm run test` | 73/73 pass | pass | tests do not yet cover a11y/SEO/PWA/legal |
+| Unit tests | `npm run test` | 82/82 pass | pass | tests do not yet cover PWA/legal/observability |
 | Lint | `npm run lint` | pass | pass | raw-value enforcement is still scoped to protected modules |
-| Storybook | `npm run build-storybook` | pass, chunk warning | partial | coverage shallow |
-| Accessibility | axe/Storybook + Playwright + manual keyboard | MCP visual blocker repaired by screenshot, axe/keyboard not run | partial | non-visual a11y still unproven |
-| Mobile screenshots | Playwright screenshots | MCP proof mobile recaptured; baseline screenshots retained | partial | full route matrix still needed |
+| Storybook | `npm run build-storybook` | pass, chunk warning; a11y addon runs through `wcag2aaa` | partial | coverage still incomplete outside base/public primitives and MCP route |
+| Accessibility | axe/Storybook + Playwright + manual keyboard | MCP proof route and public shell route matrix pass automated axe/focus/overflow gates | partial | manual screen-reader and reduced-motion passes still unproven |
+| Public shell accessibility | `npm run test:a11y:shell` | home/docs/MCP/blog desktop+mobile route matrix passes with 0 axe violations and no horizontal overflow | pass | manual screen-reader and reduced-motion passes still needed |
+| Mobile screenshots | Playwright screenshots | MCP proof, Swiss mobile, and public shell route matrix recaptured | partial | remaining page-internal route surfaces still need visual review |
 | Performance | Vite bundle output, later Lighthouse/Web Vitals | route chunking eliminated Vite warning | partial | needs Lighthouse/Web Vitals and Mermaid follow-up |
-| SEO metadata | static scan | global defaults only | fail | weak route metadata |
+| SEO metadata | metadata tests + generated artifacts | route registry, SPA head tags, sitemap, robots, and llms.txt generated from one source | pass | prerender and dedicated OG image generation remain |
 | Observability | dependency/config scan | not found | fail | blind production |
 | Security/privacy | static inventory | incomplete | pending | data/headers unknown |
 | Dependency audit | `npm audit` | not run | pending | unknown |
@@ -478,31 +827,42 @@ handoff with files changed and residual risks.
    warning.
 5. Rebuild the MCP page as the first vertical slice because it has visible
    mobile contrast failure and high drift. Completed for the first proof route
-   on 2026-04-26; keep a11y/Storybook as follow-up gates.
-6. Normalize base primitives and Storybook state matrices around the MCP proof
-   route.
-7. Normalize docs shell/header/footer so marketing and docs feel like one
-   product.
-8. Normalize blog/editorial cards, route metadata, and OG image system.
-9. Add legal/privacy/support/security-contact pages and product claims ledger.
-10. Add observability, Web Vitals, analytics taxonomy, Sentry/privacy controls,
+   on 2026-04-26.
+6. Layer Swiss-modern structure into the design system: grid primitives,
+   measure tokens, flatter elevation, and proof-route migration. Completed for
+   the first grid slice on 2026-04-26; broader route migration remains.
+7. Normalize base primitives and Storybook state matrices around the MCP proof
+   route. Started and gated for base UI/public primitives on 2026-04-26; route
+   composites still remain.
+8. Normalize docs shell/header/footer so marketing and docs feel like one
+   product. Completed for the shared public shell on 2026-04-26; page-internal
+   route composites still remain.
+9. Normalize blog/editorial cards and dedicated OG image system. Route metadata
+   and discovery artifacts are completed for canonical public routes as of
+   2026-04-27.
+10. Add legal/privacy/support/security-contact pages and product claims ledger.
+11. Add observability, Web Vitals, analytics taxonomy, Sentry/privacy controls,
    PWA/favicons if approved.
-11. Run adversarial a11y/performance/security/product-truth review.
-12. Only then consider deleting legacy/quarantined UI code.
+12. Run adversarial a11y/performance/security/product-truth review.
+13. Only then consider deleting legacy/quarantined UI code.
 
 ## What Must Not Be Claimed Done Yet
 
-- The site is not production-complete: website lint, tests, and build are
-  green, but a11y, Storybook matrix, SEO, PWA, legal, observability, and route
-  visual proof work remain.
+- The site is not production-complete: website lint, tests, build, MCP a11y,
+  public shell a11y, and Storybook build are green, but complete Storybook
+  matrices, SEO, PWA, legal, observability, and route visual proof work remain.
 - The design system is not ideal yet: token layers now exist, but production
-  pages still include hardcoded visual values outside protected modules.
-- Accessibility is not acceptable yet: MCP mobile visual contrast/overflow has
-  proof screenshots, but focus, keyboard, axe, and screen-reader gates have not
-  run.
+  pages still include hardcoded visual values outside protected modules, and
+  most routes are not yet on the Swiss grid primitive.
+- Accessibility is improved, not done: MCP proof-route and public shell route
+  matrix axe/focus/overflow gates now pass, but manual screen-reader and
+  reduced-motion passes have not run.
 - Performance is improved, not done: the app build no longer warns, but
   Lighthouse/Web Vitals and Storybook bundle work remain.
-- SEO/social/PWA/legal/observability are incomplete.
+- SEO/social is improved, not done: canonical metadata, runtime head tags,
+  sitemap, robots, LLM discovery, and generated default visual assets now
+  exist, but prerendering, full route-specific OG image generation,
+  PWA/favicons, legal, and observability are incomplete.
 - The existing screenshots are a baseline, not an approval artifact.
 
 ## Change Log
@@ -512,3 +872,13 @@ handoff with files changed and residual risks.
 | 2026-04-24 | Created pessimistic rehab plan from ideal-web-app-builder intake | Prepare website stabilization handoff after skill commit/push |
 | 2026-04-26 | Recorded token split, route lazy loading, and no-warning build evidence | Keep the pessimistic plan aligned with the second website rehab slice |
 | 2026-04-26 | Recorded MCP proof-route rebuild, shared primitive overflow fix, screenshots, and 73/73 test evidence | Keep plan truth aligned after the first visual proof route |
+| 2026-04-26 | Added Swiss-modern grid-layer slice, audit findings, proof screenshots, and Storybook evidence | Keep plan truth aligned after layering the Swiss design skill into the system |
+| 2026-04-26 | Added Storybook state-matrix and MCP a11y evidence, including WCAG AAA axe tags and refreshed report | Keep plan truth aligned after hardening the component and route accessibility gates |
+| 2026-04-26 | Added shared public shell, shell route-matrix a11y gate, contrast-critical role tokens, and refreshed desktop/mobile screenshots | Keep plan truth aligned after unifying the website shell across home/docs/MCP/blog |
+| 2026-04-27 | Added SEO metadata/discovery slice, generated sitemap/robots/llms artifacts, and 82/82 test evidence | Keep plan truth aligned after centralizing route metadata and crawler/LLM discovery |
+| 2026-04-27 | Added Gemini/Nano Banana generated visual replacement slice, optimized assets, first-viewport browser proof, and 83/83 test evidence | Keep plan truth aligned after replacing the retired sailor hero and generated social fallbacks |
+| 2026-04-27 | Removed production `NeumorphicTerminal` and `SailorAgent` surfaces, added rectilinear command/agent primitives, and reran website gates | Keep plan truth aligned after retiring the most explicit old visual metaphors |
+| 2026-04-27 | Eliminated homepage neon/beige feature-card icon tiles, the matching CTA cue, and the neon header strip | Respond to live visual review feedback on the feature grid |
+| 2026-04-27 | Removed the one-off hero headline gradient from "fighting each other" and added a contract test | Keep first-viewport emphasis inside the existing brand token system |
+| 2026-04-27 | Rewrote the tutorials index and catalogue copy around operator training and control-plane protocol language | Remove inherited academy/swarm copy and make tutorials match the current brand |
+| 2026-04-27 | Rebuilt the whitepaper first viewport as an editorial research dossier, removed badge/icon ceremony, widened header navigation, and added desktop/mobile visual proof | Remove the old centered whitepaper template and keep the route inside the current Swiss public-shell direction |

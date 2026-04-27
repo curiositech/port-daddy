@@ -17,7 +17,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import { readFileSync, watch as fsWatch, type FSWatcher } from 'node:fs';
+import { watch as fsWatch, type FSWatcher } from 'node:fs';
 import { join, basename } from 'node:path';
 import {
   loadFleetConfig,
@@ -28,9 +28,69 @@ import {
   type FleetEvent,
   type FleetRunContext,
 } from './fleet-engine.js';
+import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
+import { loadEnvFiles } from './env-loader.js';
 import type { CostTracker } from './cost-tracker.js';
 import type { SemanticResolver } from './semantic-resolver.js';
 import type { TupleSpace } from './tuples.js';
+
+/**
+ * Categorize fleet agents by whether their declared backend/model is currently
+ * launchable under the fail-closed telemetry policy. Returns counts plus a list
+ * of (agent, reason) pairs for blocked agents so the warning log line tells
+ * operators *why* their fleet is silent.
+ */
+function summarizeLaunchability(config: FleetConfig): {
+  total: number;
+  launchable: number;
+  blocked: Array<{ agent: string; backend: string; reason: string }>;
+} {
+  let launchable = 0;
+  const blocked: Array<{ agent: string; backend: string; reason: string }> = [];
+  for (const agent of config.agents) {
+    if (!agent.backend) continue;
+    const policy = assessBackendTelemetryPolicy(agent.backend, agent.model ?? null);
+    if (policy.launchAllowed) {
+      launchable++;
+    } else {
+      blocked.push({
+        agent: agent.name,
+        backend: agent.backend,
+        reason: policy.summary,
+      });
+    }
+  }
+  return { total: config.agents.length, launchable, blocked };
+}
+
+function logLaunchability(logger: FleetDaemonDeps['logger'], project: string, config: FleetConfig): void {
+  const launchability = summarizeLaunchability(config);
+  logger.info('fleet_started', {
+    project,
+    agents: config.agents.length,
+    watchers: config.watchers.length,
+    launchable: launchability.launchable,
+  });
+  // If no agent in this fleet has a launchable backend under the
+  // current telemetry policy, the fleet will silently arm but
+  // refuse every spawn. Surface that loudly at startup so
+  // operators see the wall instead of walking into it.
+  if (launchability.launchable === 0 && launchability.total > 0) {
+    logger.warn('fleet_no_launchable_backend', {
+      project,
+      total: launchability.total,
+      blocked: launchability.blocked,
+      hint: 'Every agent is blocked by the fail-closed telemetry policy. See AGENTS.md (Operator-facing agent launches are fail-closed on telemetry).',
+    });
+  } else if (launchability.blocked.length > 0) {
+    logger.warn('fleet_partial_launchable', {
+      project,
+      launchable: launchability.launchable,
+      total: launchability.total,
+      blocked: launchability.blocked,
+    });
+  }
+}
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -129,10 +189,16 @@ export interface FleetDaemonStatus {
     watchers: number;
     channels: number;
     startedAt: number;
+    /** How many declared agents have a backend that passes the fail-closed telemetry policy. */
+    launchableAgents: number;
+    /** Per-agent block reason for any agent whose backend is currently policy-blocked. */
+    blockedAgents: Array<{ agent: string; backend: string; reason: string }>;
   }>;
   skipped: SkippedFleet[];
   totalAgents: number;
   totalWatchers: number;
+  /** Aggregate across all fleets — operators want a single yes/no signal in pd status. */
+  totalLaunchableAgents: number;
 }
 
 const FLEET_PROJECT_LEASE_TTL_MS = 30000;
@@ -140,45 +206,9 @@ const FLEET_PROJECT_LEASE_RENEW_MS = 10000;
 
 // ─── Env Loading ────────────────────────────────────────────────────────────
 
-/**
- * Load .env.local / .env files for API keys.
- * The daemon process may not have ANTHROPIC_API_KEY etc. in its launchd env,
- * so we load from the project directory and common locations.
- */
-function loadEnvFiles(projectDir: string): void {
-  const searchDirs = [
-    projectDir,
-    process.env.HOME || '',
-  ];
-
-  const fileNames = ['.env.local', '.env', '.port-daddy-env'];
-
-  for (const dir of searchDirs) {
-    if (!dir) continue;
-    for (const name of fileNames) {
-      try {
-        const lines = readFileSync(join(dir, name), 'utf-8').split('\n');
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed || trimmed.startsWith('#')) continue;
-          const eqIdx = trimmed.indexOf('=');
-          if (eqIdx === -1) continue;
-          const key = trimmed.slice(0, eqIdx).trim();
-          let val = trimmed.slice(eqIdx + 1).trim();
-          if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
-            val = val.slice(1, -1);
-          }
-          // Don't overwrite existing env vars (explicit launchd config takes priority)
-          if (!process.env[key]) {
-            process.env[key] = val;
-          }
-        }
-      } catch {
-        // Non-critical — file likely doesn't exist
-      }
-    }
-  }
-}
+// .env loading lives in lib/env-loader.ts so it can run from server.ts
+// before snapshotSensitiveEnv() — otherwise project-local API keys never
+// land in the secret cache.
 
 // ─── Factory ────────────────────────────────────────────────────────────────
 
@@ -360,6 +390,19 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
     return { success: true };
   }
 
+  function isStaleFleetLeaseHolder(holder: string | null): boolean {
+    if (!holder?.startsWith('fleetd:')) return false;
+    const pid = Number.parseInt(holder.split(':').at(-1) || '', 10);
+    if (!Number.isFinite(pid) || pid <= 0 || pid === process.pid) return false;
+
+    try {
+      process.kill(pid, 0);
+      return false;
+    } catch (error) {
+      return (error as NodeJS.ErrnoException).code === 'ESRCH';
+    }
+  }
+
   function stopManagedFleet(projectDir: string, options: { releaseLease?: boolean } = {}): boolean {
     const { releaseLease = true } = options;
     const managed = fleets.get(projectDir);
@@ -428,7 +471,7 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
 
   function acquireProjectLease(projectDir: string, projectName: string): { success: boolean; error?: string } {
     const lockName = getProjectLeaseName(projectDir);
-    const result = locks.acquire(lockName, {
+    let result = locks.acquire(lockName, {
       owner: daemonOwner,
       pid: process.pid,
       ttl: FLEET_PROJECT_LEASE_TTL_MS,
@@ -443,6 +486,37 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
 
     if (!result.success) {
       const holder = result.holder || null;
+      if (isStaleFleetLeaseHolder(holder)) {
+        logger.warn('fleet_project_stale_lease_reclaimed', {
+          project: projectName,
+          projectDir,
+          holder,
+        });
+        locks.release(lockName, { force: true });
+        result = locks.acquire(lockName, {
+          owner: daemonOwner,
+          pid: process.pid,
+          ttl: FLEET_PROJECT_LEASE_TTL_MS,
+          metadata: {
+            projectDir,
+            projectName,
+            daemonOwner,
+            daemonDir,
+            daemonPort: process.env.PORT_DADDY_PORT || process.env.PORT || null,
+          },
+        });
+        if (result.success) {
+          projectLeases.set(projectDir, {
+            lockName,
+            owner: daemonOwner,
+            projectDir,
+            projectName,
+          });
+          clearSkippedProject(projectDir);
+          startLeaseRenewal();
+          return { success: true };
+        }
+      }
       const reason = holder
         ? `fleet lease already held by ${holder}`
         : `fleet lease unavailable: ${result.error || 'unknown'}`;
@@ -654,11 +728,7 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
         updateLeaseName(dir, managed.projectName);
         watchConfig(dir); // Auto-reload on pd-fleet.yml change
         clearSkippedProject(dir);
-        logger.info('fleet_started', {
-          project: managed.projectName,
-          agents: managed.config.agents.length,
-          watchers: managed.config.watchers.length,
-        });
+        logLaunchability(logger, managed.projectName, managed.config);
       } else {
         releaseProjectLease(dir);
       }
@@ -742,6 +812,7 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
     updateLeaseName(projectDir, managed.projectName);
     watchConfig(projectDir);
     clearSkippedProject(projectDir);
+    logLaunchability(logger, managed.projectName, managed.config);
     if (!isRunning) {
       isRunning = true;
       startedAt = Date.now();
@@ -767,12 +838,15 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
     const fleetList = [];
     let totalAgents = 0;
     let totalWatchers = 0;
+    let totalLaunchableAgents = 0;
 
     for (const [, managed] of fleets) {
       const agentStatus = managed.runner.getStatus();
       const watcherCount = managed.config.watchers.length;
+      const launchability = summarizeLaunchability(managed.config);
       totalAgents += agentStatus.length;
       totalWatchers += watcherCount;
+      totalLaunchableAgents += launchability.launchable;
 
       fleetList.push({
         project: managed.projectName,
@@ -782,6 +856,8 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
         watchers: watcherCount,
         channels: Object.keys(managed.config.channels).length,
         startedAt: managed.startedAt,
+        launchableAgents: launchability.launchable,
+        blockedAgents: launchability.blocked,
       });
     }
 
@@ -792,6 +868,7 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
       skipped: [...skippedProjects.values()],
       totalAgents,
       totalWatchers,
+      totalLaunchableAgents,
     };
   }
 

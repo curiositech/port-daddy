@@ -9,7 +9,7 @@ import { Surface } from '@/components/ui/Surface'
 import {
   Users, Zap, MessageSquare,
   History,
-  Anchor, Radio, Search, Activity, Share2,
+  Network, Radio, Search, Activity, Share2,
   Shield, RefreshCw
 } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
@@ -58,7 +58,7 @@ function UnifiedTimeline() {
     : null
 
   return (
-    <Surface depth="raised" radius="2xl" padding="none" className="flex flex-col h-full overflow-hidden font-sans relative">
+    <Surface depth="raised" radius="lg" padding="none" className="flex flex-col h-full overflow-hidden font-sans relative">
 
       <Surface depth="inset" radius="none" padding="none" className="px-6 py-5 backdrop-blur-md flex items-center justify-between sticky top-0 z-10 font-sans">
 
@@ -72,10 +72,10 @@ function UnifiedTimeline() {
         <motion.div className="flex items-center gap-3 font-sans">
           <Badge variant="default" className="px-3 py-1 text-[8px] font-black uppercase tracking-widest">v3.7 protocol</Badge>
           <motion.div
-            className="flex items-center gap-2 px-3 py-1.5 rounded-full"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-[var(--radius-sm)]"
             style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-pressed)' }}
           >
-             <motion.div className={`w-2 h-2 rounded-full ${connected ? 'bg-[var(--status-success)] pulse-active' : 'bg-[var(--status-error)]'}`} />
+             <motion.div className={`w-2 h-2 rounded-[var(--radius-sm)] ${connected ? 'bg-[var(--status-success)] pulse-active' : 'bg-[var(--status-error)]'}`} />
              <motion.span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-muted)] font-sans">
                {liveStatusLabel}
              </motion.span>
@@ -98,10 +98,10 @@ function UnifiedTimeline() {
               className="flex items-start gap-4 group"
             >
                <motion.div className="pt-1 flex flex-col items-center gap-2 shrink-0">
-                  <Surface depth="inset" radius="xl" padding="none" className="w-8 h-8 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Surface depth="inset" radius="md" padding="none" className="w-8 h-8 flex items-center justify-center group-hover:scale-110 transition-transform">
 
                      {item.type === 'note' ? <MessageSquare size={14} className="text-[var(--brand-secondary)]" /> :
-                      item.type === 'port' ? <Anchor size={14} className="text-[var(--brand-secondary)]" /> :
+                      item.type === 'port' ? <Network size={14} className="text-[var(--brand-secondary)]" /> :
                       <Zap size={14} className="text-[var(--brand-accent)]" />}
                   </Surface>
                   <motion.div className="w-[1px] h-full bg-gradient-to-b from-[var(--text-muted)] to-transparent opacity-20" />
@@ -129,15 +129,20 @@ export function DashboardPage() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen flex flex-col pt-[var(--nav-height)] font-sans selection:bg-[var(--brand-primary)] selection:text-white"
+      className="min-h-screen flex flex-col font-sans selection:bg-[var(--brand-primary)] selection:text-white"
       style={{ background: 'var(--surface-base)' }}
     >
       {/* Hero Section */}
       <Surface depth="raised" radius="none" padding="none" className="py-14 px-6 sm:px-8 lg:px-10 relative overflow-hidden">
 
-        <motion.div
-          className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full blur-[140px] opacity-[0.08] pointer-events-none"
-          style={{ background: 'radial-gradient(circle, var(--brand-primary) 0%, transparent 70%)' }}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 h-full opacity-[0.12]"
+          style={{
+            backgroundImage:
+              'linear-gradient(90deg, var(--border-default) 1px, transparent 1px), linear-gradient(180deg, var(--border-default) 1px, transparent 1px)',
+            backgroundSize: '80px 80px',
+          }}
         />
 
         <motion.div className="max-w-7xl mx-auto flex flex-col items-center text-center gap-10 relative z-10">
@@ -168,22 +173,22 @@ export function DashboardPage() {
               {[
                 { label: 'Active Agents', value: stats?.activeAgents || '0', icon: Users, color: 'var(--brand-secondary)' },
                 { label: 'Harbors', value: stats?.activeHarbors || '0', icon: Shield, color: 'var(--brand-accent)' },
-                { label: 'Port Claims', value: stats?.activePorts || '0', icon: Anchor, color: 'var(--brand-secondary)' },
+                { label: 'Port Claims', value: stats?.activePorts || '0', icon: Network, color: 'var(--brand-secondary)' },
                 { label: 'Latency', value: latencyLabel, icon: Zap, color: 'var(--brand-accent)' }
               ].map((stat, i) => (
                 <Surface
                   key={i}
                   depth="raised"
-                  radius="2xl"
+                  radius="lg"
                   padding="none"
                   className="p-5 text-center space-y-2 group transition-all"
                 >
-                   <Surface depth="inset" radius="xl" padding="none" className="w-10 h-10 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                   <Surface depth="inset" radius="md" padding="none" className="w-10 h-10 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
                       <stat.icon size={20} style={{ color: stat.color }} />
                    </Surface>
                    {/* Inset value well */}
                    <motion.div
-                     className="text-3xl font-display font-black leading-none py-2 px-4 rounded-xl mx-auto inline-block"
+                     className="text-3xl font-display font-black leading-none py-2 px-4 rounded-[var(--radius-md)] mx-auto inline-block"
                      style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-pressed)' }}
                    >{stat.value}</motion.div>
                    <motion.div className="text-[8px] font-black uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>{stat.label}</motion.div>
@@ -199,16 +204,16 @@ export function DashboardPage() {
 
            {/* Left Column: Visual Graph */}
            <motion.div className="lg:col-span-8 space-y-5">
-              {/* 3D visualization wrapped in neumorphic surface */}
-              <Surface depth="raised" radius="2xl" padding="none" className="p-6 h-[600px] relative overflow-hidden group">
+              {/* 3D visualization wrapped in a tokenized elevation surface */}
+              <Surface depth="raised" radius="lg" padding="none" className="p-6 h-[600px] relative overflow-hidden group">
 
                  <motion.div className="absolute top-6 left-6 z-10 flex items-center gap-4">
                     <Badge variant="default" className="px-4 py-1.5 text-[10px] font-black uppercase tracking-widest">Network Topology</Badge>
                     <motion.div
-                      className="flex items-center gap-2 px-3 py-1 rounded-full backdrop-blur-md"
+                      className="flex items-center gap-2 px-3 py-1 rounded-[var(--radius-sm)] backdrop-blur-md"
                       style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-pressed)' }}
                     >
-                       <motion.div className="w-2 h-2 rounded-full bg-[var(--brand-secondary)] animate-pulse" />
+                       <motion.div className="w-2 h-2 rounded-[var(--radius-sm)] bg-[var(--brand-secondary)] animate-pulse" />
                        <motion.span className="text-[10px] font-bold text-[var(--text-muted)] uppercase">Force-Directed</motion.span>
                     </motion.div>
                  </motion.div>
@@ -217,18 +222,18 @@ export function DashboardPage() {
 
               {/* Control panels as raised surfaces */}
               <motion.div className="grid sm:grid-cols-2 gap-5">
-                 <Surface depth="raised" radius="2xl" padding="none" className="p-6 space-y-4 group transition-colors">
+                 <Surface depth="raised" radius="lg" padding="none" className="p-6 space-y-4 group transition-colors">
                     <motion.div className="flex items-center gap-4">
-                       <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
+                       <Surface depth="inset" radius="md" padding="none" className="w-12 h-12 flex items-center justify-center">
                           <Activity size={24} className="text-[var(--brand-secondary)]" />
                        </Surface>
                        <motion.h3 className="text-xl font-display font-black m-0">Harbor Health</motion.h3>
                     </motion.div>
                     <motion.p className="text-base m-0 leading-relaxed" style={{ color: 'var(--text-muted)' }}>Real-time verification of agent signatures and capability token expiry.</motion.p>
                  </Surface>
-                 <Surface depth="raised" radius="2xl" padding="none" className="p-6 space-y-4 group transition-colors">
+                 <Surface depth="raised" radius="lg" padding="none" className="p-6 space-y-4 group transition-colors">
                     <motion.div className="flex items-center gap-4">
-                       <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
+                       <Surface depth="inset" radius="md" padding="none" className="w-12 h-12 flex items-center justify-center">
                           <Search size={24} className="text-[var(--brand-accent)]" />
                        </Surface>
                        <motion.h3 className="text-xl font-display font-black m-0">Conflict Monitor</motion.h3>
@@ -245,7 +250,7 @@ export function DashboardPage() {
         </motion.div>
 
         {/* Vision Callout */}
-        <Surface depth="raised" radius="2xl" padding="none" className="mt-16 overflow-hidden">
+        <Surface depth="raised" radius="lg" padding="none" className="mt-16 overflow-hidden">
           <motion.div
             className="p-6 flex flex-col items-center text-center gap-5 relative"
             initial={{ opacity: 0, scale: 0.98 }}
@@ -271,7 +276,7 @@ export function DashboardPage() {
               ].map((item, i) => (
                 <motion.div
                   key={i}
-                  className="p-5 rounded-2xl flex flex-col items-center gap-4"
+                  className="p-5 rounded-[var(--radius-lg)] flex flex-col items-center gap-4"
                   style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-sm)' }}
                 >
                    <item.icon size={24} className="text-[var(--brand-primary)]" />

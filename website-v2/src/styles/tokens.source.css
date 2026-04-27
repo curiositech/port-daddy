@@ -98,6 +98,11 @@
   --layout-max-width-wide: 1440px;
   --layout-gutter: var(--space-5);
   --layout-gutter-lg: var(--space-6);
+  --layout-grid-columns: 12;
+  --layout-grid-gap: var(--space-5);
+  --layout-copy-measure: 62ch;
+  --layout-caption-measure: 34ch;
+  --layout-meta-measure: 24ch;
   --section-space-y: var(--space-8);
   --section-space-y-lg: var(--space-9);
   --section-intro-gap: var(--space-6);

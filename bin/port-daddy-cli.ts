@@ -69,7 +69,7 @@ import {
   // Diagnostics
   handleMetrics, handleConfigCmd, handleHealth, handlePorts, handleDashboard, handleDoctor, handleStatus, handleVersion, handleHints,
   // Daemon
-  handleDaemon, handleDev,
+  handleDaemon, handleDaemonCommand, handleDev,
   // Benchmarking
   handleBench,
   // Setup
@@ -94,6 +94,8 @@ import {
   handleTuple,
   // Semantic graph + episodic memory
   handleGraph, handleMemory, handleIdeas,
+  handleRoadmap,
+  handleQuorum,
   // Consolidated read/write verbs + sitrep + pheromone (3.8.4)
   handleSitrep, handleSay, handleLook, handlePheromone,
   // Coordination advisor / suggestibility
@@ -102,6 +104,8 @@ import {
   handleActors,
   // Tube — relay-independent conversational pipe (Track B1)
   handleTube,
+  // Coordination Guard enforcement controls
+  handleGuard,
 } from '../cli/commands/index.js';
 import { getDaemonTcpUrl, readDaemonPort, resolveDaemonTcpTarget } from '../shared/daemon-discovery.js';
 import { calculateRuntimeCodeHash } from '../shared/code-hash.js';
@@ -139,9 +143,9 @@ const TIER_2_COMMANDS: Set<string> = new Set([
   'agent', 'agents', 'actor', 'actors',
   'up', 'down', 'watch', 'swarm', 'fleet',
   'channels', 'webhook', 'webhooks', 'tunnel', 'dns', 'inbox',
-  'advise', 'preflight', 'compass',
+  'advise', 'preflight', 'compass', 'guard',
   'metrics', 'health', 'dashboard',
-  'bench', 'demo', 'tuple', 'sortie'
+  'bench', 'demo', 'tuple', 'sortie', 'roadmap'
 ]);
 
 /**
@@ -525,11 +529,14 @@ function buildHelp(): string {
     `  ${G}pd salvage${Z}               Pick up a dead agent's work`,
     `  ${G}pd actors${Z}                Inspect durable maritime actor souls`,
     `  ${G}pd advise${Z}                Suggest coordination moves before editing`,
+    `  ${G}pd guard${Z}                 Enforce session + file-claim discipline`,
     `  ${G}pd graph stats${Z}           Inspect semantic graph totals`,
     `  ${G}pd memory episodes${Z}       Inspect episodic memory`,
     `  ${G}pd ideas search${Z} "text"   Search ideas, notes, tuples, and repo markdown`,
+    `  ${G}pd roadmap${Z}               Show Cartographer's current roadmap projection`,
+    `  ${G}pd daemon list${Z}           Inspect named sidecar daemon profiles`,
     '',
-    `${D}pd help <topic> for details — topics: setup, sessions, locks, agents, actors, ports, messaging, dns, orchestration, sugar, semantic, advisor, ideas, tutorial${Z}`,
+    `${D}pd help <topic> for details — topics: setup, sessions, locks, agents, actors, ports, messaging, dns, orchestration, sugar, semantic, advisor, guard, ideas, roadmap, daemon, tutorial${Z}`,
     `${D}Dashboard: ${PORT_DADDY_URL}  •  Tutorial: pd learn${Z}`,
   );
 
@@ -675,6 +682,7 @@ Commands:
     --inbox                 Read recent actor mailbox messages
     --inbox-stats           Show actor mailbox depth
     --unread                With --inbox, only show unread messages
+    --mark-read             With --inbox, mark that actor mailbox read after printing
     --wake                  Try to hail the compatibility fleet body, if one exists
     -j, --json              Output as JSON
 
@@ -694,6 +702,7 @@ Examples:
   pd actor cartographer
   pd actor navigator --message "roadmap item needs evidence"
   pd actor navigator --inbox --unread
+  pd actor navigator --inbox --unread --mark-read
   pd actor coxswain --json`,
 
   ports: `Port Management \u2014 Claim, release, and query ports
@@ -908,6 +917,32 @@ Examples:
   pd preflight docs/recovery/CURRENT-WORK.md --tuples
   pd compass --task "handoff blocker to another agent" --channels`,
 
+  guard: `Coordination Guard \u2014 Enforce Port Daddy coordination discipline
+
+Commands:
+  guard status              Show active session, checked files, and violations
+  guard check [files...]    Verify current dirty files or explicit files
+    --staged                Check staged files only, for pre-commit hooks
+    --mode <mode>           off | warn | enforce
+    -j, --json              Machine-readable result
+
+  guard enable              Write project config in enforce mode
+    --mode <warn|enforce>   Select enforcement strength
+  guard disable             Turn checks off for this project
+  guard install             Install/update the managed pre-commit hook block
+    --mode <warn|enforce>   Default: enforce
+
+What it enforces:
+  - an active Port Daddy session exists
+  - changed files are claimed by the active session
+  - files claimed by another active session block in enforce mode
+
+Examples:
+  pd guard status
+  pd guard check --staged --mode enforce
+  pd guard enable --mode enforce
+  pd guard install --mode enforce`,
+
   ideas: `Ideas Search \u2014 Search canonical ideas plus live repo memory
 
 Commands:
@@ -933,6 +968,41 @@ Examples:
   pd ideas search "salvage disconnect" --include-raw
   pd ideas search "phase 3 parity debt" --sources markdown
   pd ideas show tuple-driven-fleet`,
+
+  roadmap: `Roadmap Projection \u2014 Cartographer-curated work for agents
+
+Commands:
+  roadmap                   Show Next Cuts, curated now items, and dogfood feedback
+    --dir <path>            Project directory (defaults to cwd)
+    --limit <n>             Limit rows per section (default: 8)
+    --no-excerpts           Hide CURRENT-WORK and Cartographer status excerpts
+    -q, --quiet             Print machine-readable section:slug lines
+    -j, --json              Output the raw Cartographer projection
+
+Examples:
+  pd roadmap
+  pd roadmap --limit 3 --no-excerpts
+  pd roadmap --dir /Users/you/coding/port-daddy --json`,
+
+  daemon: `Daemon Profiles \u2014 Named sidecar daemons beside the canonical daemon
+
+Commands:
+  daemon list                         List named sidecar profiles
+  daemon status <profile>             Show one profile's runtime, socket, DB, and URL
+  daemon start <profile>              Start an isolated profile
+    --port <port>                     Preferred TCP port (falls forward if busy)
+    --fleet                           Allow this profile to arm fleet runners
+    --fleetbar                        Allow this profile to launch FleetBar
+    --force                           Replace an unhealthy live PID for this profile
+  daemon stop <profile>               Stop a named profile
+    --force                           Escalate to SIGKILL if SIGTERM does not exit
+  daemon env <profile>                Print shell exports to target that profile
+
+Examples:
+  pd daemon start dev --port 9877
+  pd daemon list
+  eval "$(pd daemon env dev)"
+  pd daemon stop dev`,
 
   tutorial: `Interactive Tutorial \u2014 Learn Port Daddy step by step
 
@@ -966,14 +1036,15 @@ const ALL_COMMANDS: string[] = [
   'begin', 'done', 'whoami', 'with-lock', 'learn',
   'n', 'u', 'd',
   'dashboard', 'channels', 'webhook', 'webhooks', 'metrics', 'config', 'health', 'ports',
-  'start', 'stop', 'restart', 'status', 'install', 'uninstall', 'dev', 'ci-gate',
-  'doctor', 'diagnose', 'hints', 'mcp', 'version', 'help', 'bench', 'look', 'sitrep',
-  'advise', 'preflight', 'compass',
+  'start', 'stop', 'restart', 'status', 'install', 'uninstall', 'dev', 'daemon', 'ci-gate',
+  'doctor', 'diagnose', 'hints', 'mcp', 'version', 'help', 'bench', 'look', 'sitrep', 'roadmap',
+  'advise', 'preflight', 'compass', 'guard',
   'salvage', 'resurrection', 'changelog', 'tunnel',
   'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
   'b', 'w', 'who-owns', 'history', 'tutorial', 'files',
   'spawn', 'spawned', 'watch',
   'harbor', 'harbors', 'demo', 'fleet', 'tuple', 'sortie', 'graph', 'memory', 'ideas',
+  'quorum',
 ];
 
 /** Simple Levenshtein distance for short strings */
@@ -2077,6 +2148,10 @@ async function main(): Promise<void> {
         await handleDaemon('restart');
         break;
 
+      case 'daemon':
+        await handleDaemonCommand(positional, options);
+        break;
+
       case 'status':
         await handleStatus();
         break;
@@ -2338,6 +2413,10 @@ async function main(): Promise<void> {
         await handleAdvisor(positional, options);
         break;
 
+      case 'guard':
+        await handleGuard(positional, options);
+        break;
+
       case 'integration':
         await handleIntegration(positional[0], positional.slice(1), options);
         break;
@@ -2446,6 +2525,14 @@ async function main(): Promise<void> {
 
       case 'ideas':
         await handleIdeas(positional, options);
+        break;
+
+      case 'roadmap':
+        await handleRoadmap(options);
+        break;
+
+      case 'quorum':
+        await handleQuorum(positional, options);
         break;
 
       default: {

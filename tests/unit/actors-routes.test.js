@@ -165,6 +165,36 @@ describe('actor routes', () => {
     await app.close();
   });
 
+  test('PUT /actors/:id/inbox/read-all marks durable actor mailbox messages read', async () => {
+    const markAllRead = jest.fn(() => ({ success: true, marked: 5 }));
+    const { app, register } = buildApp({
+      agents: { list: () => ({ agents: [] }) },
+      sessions: { list: () => ({ sessions: [] }) },
+      resurrection: { list: () => ({ agents: [] }) },
+      agentInbox: {
+        stats: () => ({ success: true, total: 5, unread: 5 }),
+        markAllRead,
+      },
+    });
+    await register();
+
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/actors/cartographer/inbox/read-all',
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({
+      success: true,
+      actorId: 'navigator',
+      inboxTarget: 'actor:navigator',
+      marked: 5,
+    });
+    expect(markAllRead).toHaveBeenCalledWith('actor:navigator');
+
+    await app.close();
+  });
+
   test('POST /actors/:id/message queues to durable actor mailbox and can wake compatibility body', async () => {
     const inboxSend = jest.fn(() => ({ success: true, messageId: 42, agentId: 'actor:navigator' }));
     const hailAgent = jest.fn(async () => ({ success: true, project: 'port-daddy', agent: 'cartographer' }));

@@ -284,6 +284,60 @@ describe('createFleetDaemon', () => {
     ]);
   });
 
+  test('startProject() reclaims a stale fleet lease held by a dead daemon pid', () => {
+    const killSpy = jest.spyOn(process, 'kill').mockImplementation((pid, signal) => {
+      if (pid === 424242 && signal === 0) {
+        const error = new Error('no such process');
+        error.code = 'ESRCH';
+        throw error;
+      }
+      return true;
+    });
+    const acquire = jest.fn()
+      .mockReturnValueOnce({
+        success: false,
+        error: 'lock is held',
+        holder: 'fleetd:port-daddy-stable:unknown:424242',
+      })
+      .mockReturnValueOnce({ success: true });
+    const release = jest.fn(() => ({ success: true }));
+    const deps = makeDeps({
+      locks: {
+        acquire,
+        release,
+        extend: jest.fn(() => ({ success: true, expiresAt: Date.now() + 30000 })),
+        check: jest.fn(() => ({
+          success: true,
+          held: true,
+          owner: 'fleetd:port-daddy-stable:unknown:424242',
+        })),
+      },
+    });
+
+    try {
+      mockLoadFleetConfig.mockReturnValue(makeConfig('reclaimed-project'));
+      mockGetStatus.mockReturnValue([]);
+
+      const daemon = makeDaemon(deps);
+      expect(daemon.startProject('/test/reclaimed')).toEqual({ success: true });
+
+      expect(release).toHaveBeenCalledWith(expect.stringMatching(/^fleet:project:/), { force: true });
+      expect(acquire).toHaveBeenCalledTimes(2);
+      expect(deps.logger.warn).toHaveBeenCalledWith(
+        'fleet_project_stale_lease_reclaimed',
+        expect.objectContaining({
+          project: 'reclaimed',
+          projectDir: '/test/reclaimed',
+          holder: 'fleetd:port-daddy-stable:unknown:424242',
+        })
+      );
+      expect(daemon.getStatus().fleets).toHaveLength(1);
+      expect(daemon.getStatus().skipped).toHaveLength(0);
+    } finally {
+      killSpy.mockRestore();
+    }
+  });
+
   test('renewal reacquires a project lease if the lock row disappears without a new owner', () => {
     const setIntervalSpy = jest.spyOn(global, 'setInterval');
     let held = false;
@@ -431,6 +485,62 @@ describe('createFleetDaemon', () => {
       config,
       '/test/subset',
       expect.objectContaining({ initiallyPausedAgents: ['spark'] })
+    );
+  });
+
+  test('getStatus() exposes launchability and warns when a fleet has blocked backends', () => {
+    const deps = makeDeps();
+    const config = {
+      name: 'launch-project',
+      agents: [
+        {
+          name: 'cartographer',
+          backend: 'claude',
+          model: 'claude-haiku-4-5-20251001',
+          prompt: 'Map the repo',
+          trigger: 'git:committed',
+        },
+        {
+          name: 'local-dreamer',
+          backend: 'ollama',
+          model: 'qwen2.5-coder:7b',
+          prompt: 'Generate local ideas',
+          schedule: '*/30 * * * *',
+        },
+      ],
+      watchers: [],
+      channels: {},
+    };
+
+    mockLoadFleetConfig.mockReturnValue(config);
+    mockGetStatus.mockReturnValue([
+      { name: 'cartographer', type: 'triggered', status: 'armed', running: false, paused: false, uptime: 0 },
+      { name: 'local-dreamer', type: 'scheduled', status: 'armed', running: false, paused: false, uptime: 0 },
+    ]);
+
+    const daemon = makeDaemon(deps);
+    expect(daemon.startProject('/test/launch-project')).toEqual({ success: true });
+
+    const status = daemon.getStatus();
+    expect(status.totalAgents).toBe(2);
+    expect(status.totalLaunchableAgents).toBe(1);
+    expect(status.fleets[0]).toEqual(expect.objectContaining({
+      launchableAgents: 1,
+      blockedAgents: [
+        expect.objectContaining({
+          agent: 'local-dreamer',
+          backend: 'ollama',
+          reason: expect.stringContaining('blocked until'),
+        }),
+      ],
+    }));
+    expect(deps.logger.warn).toHaveBeenCalledWith(
+      'fleet_partial_launchable',
+      expect.objectContaining({
+        project: 'launch-project',
+        launchable: 1,
+        total: 2,
+      }),
     );
   });
 

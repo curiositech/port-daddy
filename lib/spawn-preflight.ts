@@ -156,7 +156,19 @@ export async function assessSpawnPreflight(
   if (dedupedAttempts.length === 0 || dedupedAttempts.every((attempt) => !attempt.backend)) {
     blockedReasons.push('No backend resolved for this launch.');
   } else if (dedupedAttempts.every((attempt) => attempt.readinessStatus === 'needs_setup')) {
-    blockedReasons.push('Every configured runtime attempt still needs setup.');
+    // Surface each blocked attempt with its actual reason. The fail-closed
+    // telemetry policy (lib/backend-telemetry-policy.ts, AGENTS.md) is the
+    // most common cause and looks identical to "missing setup" without this.
+    const detail = dedupedAttempts
+      .map((a) => {
+        const summary = (a.readinessSummary || 'needs_setup').trim();
+        const nextStep = a.readinessNextStep ? ` Next: ${a.readinessNextStep.trim()}` : '';
+        return `  • ${a.backend}${a.model ? `:${a.model}` : ''} — ${summary}${nextStep}`;
+      })
+      .join('\n');
+    blockedReasons.push(
+      `No launchable backend (every configured attempt is blocked at readiness):\n${detail}`,
+    );
   }
 
   if (budget?.overBudget) {

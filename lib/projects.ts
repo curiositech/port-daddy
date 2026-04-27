@@ -253,9 +253,26 @@ function discoverProjectRoots(searchRoots: string[], maxDepth: number, fresh = f
       return;
     }
 
-    for (const entry of entries) {
-      if (!entry.isDirectory() || SKIP_DISCOVERY_DIRS.has(entry.name)) continue;
-      walk(join(normalizedDir, entry.name), depth + 1);
+    const childDirs = entries
+      .filter((entry) => entry.isDirectory() && !SKIP_DISCOVERY_DIRS.has(entry.name))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    // Seed direct children before spending the bounded walk budget on deeper
+    // trees. This keeps late siblings like ~/coding/workgroup-ai visible even
+    // when earlier repos contain huge nested source trees.
+    const childProjectRoots = new Set<string>();
+    for (const entry of childDirs) {
+      const childDir = normalizeRoot(join(normalizedDir, entry.name));
+      const childSignals = detectProjectSignals(childDir);
+      if (childSignals.length === 0) continue;
+      remember(childDir, childSignals);
+      childProjectRoots.add(childDir);
+    }
+
+    for (const entry of childDirs) {
+      const childDir = normalizeRoot(join(normalizedDir, entry.name));
+      if (childProjectRoots.has(childDir)) continue;
+      walk(childDir, depth + 1);
     }
   }
 

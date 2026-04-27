@@ -1,6 +1,19 @@
 ---
 name: port-daddy-cli
-description: "Use Port Daddy to start and coordinate repo work on this machine. Default agent path: `pd status`, `pd briefing`, optional `pd salvage`, `pd begin`, `pd advise`, `pd note`, precise file/port/lock claims as needed, then `pd done`. Reach for tuples, inbox, pheromones, agents, sorties, and fleets only when the task specifically needs those advanced coordination surfaces."
+description: "Use Port Daddy to start and coordinate repo work on this machine. Default agent path: `pd status`, `pd briefing`, optional `pd salvage`, `pd begin`, `pd advise`, `pd note`, precise file/port/lock claims as needed, then `pd done`. For roadmap, what-next, recovery-map, or skill/docs drift work, consult live Navigator/Lookout actor surfaces before relying on stale files."
+license: FSL-1.1-MIT
+allowed-tools: Read,Bash,Grep,Glob
+metadata:
+  category: Coordination
+  tags: [port-daddy, coordination, agents, sessions, actors, skills]
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+  authorship:
+    maintainers: [port-daddy]
+  mirrors:
+    workgroup: /Users/erichowens/coding/workgroup-ai/skills/port-daddy
+    user: /Users/erichowens/.agents/skills/port-daddy-cli
 ---
 
 # Port Daddy CLI
@@ -36,7 +49,10 @@ pd note "Scope: <task>. Likely files: <paths>. Risks/blockers: <anything importa
 pd session files add <path>
 pd session files add <path> --symbol-path <ClassOrFunction.name>
 
-# 7. Do the work, test it, then leave the result and close cleanly.
+# 7. If this repo has Coordination Guard enabled, check before commit.
+pd guard check --staged
+
+# 8. Do the work, test it, then leave the result and close cleanly.
 pd note "Result: <what changed>. Validation: <commands run>. Remaining: <if any>."
 pd done "<short outcome>"
 ```
@@ -54,16 +70,116 @@ Use this table when the happy path reveals a specific need:
 | Inspect current session | `pd whoami` | Use when context is unclear or `pd begin` reports an active session. |
 | Explain scope or handoff | `pd note` | Human-readable truth; use this first. |
 | Decide coordination before editing | `pd advise` / `pd preflight` | Ask before risky edits or handoffs. |
+| Enforce coordination before commit | `pd guard` | Use `pd guard install --mode enforce` to require an active session plus file claims in any repo. |
 | Edit files safely | `pd session files add` | Prefer symbol claims when the target function/class is known. |
 | Run a dev server | `pd claim <project>:<service>:<context> -q` | Never hardcode a random port. |
 | Exclusive critical section | `pd with-lock <resource> -- <command>` | Use for migrations, promotion, generated artifacts, and non-mergeable work. |
-| Crash or abandoned work | `pd salvage --project <project>` | Read before restarting work someone may have half-finished. |
+| Crash or abandoned work | `pd salvage --project <project>` / `pd salvage --summary` | Read before restarting work someone may have half-finished; use summary mode when the queue is noisy. |
+| Roadmap or what-next truth | `pd actor cartographer` / `pd actor navigator --inbox` | Ask the durable roadmap actor; docs are evidence, not the actor. |
+| Skill/docs/API drift | `pd actor lookout --message` | Queue release-surface drift for the durable docs/skill owner. |
 | Machine-readable handoff | `pd tuple out ...` | Use only when another process/agent should query it. |
-| Direct message | `pd inbox send` or `pd actor <id> --message` | Use when you know the recipient. |
+| Direct message | `pd inbox send` or `pd actor <id> --message` | Use when you know the recipient; use `pd actor <id> --inbox --mark-read` only after the role mail has been processed. |
 | Catch up after time away | `pd look` / `pd sitrep` | Read recent activity instead of scraping logs manually. |
 | Delegate work | `pd agent`, `pd sortie`, or `pd fleet` | Only after budget/readiness and telemetry policy are clear. |
 | Service dependency ready/needed | `pd integration ready` / `pd integration needs` | Use when one service is waiting on another. |
 | Local service naming | DNS records through Port Daddy | Use when agents need stable local names instead of copied URLs. |
+
+## Ambient Peer Coordination
+
+The goal is not to make agents talk constantly. The goal is to make useful
+coordination emerge from shared facts, then escalate only material
+inconsistencies to the operator.
+
+Default behavior for every non-trivial slice:
+
+- publish scope, assumptions, intended files/symbols, validation, blockers, and
+  handoff evidence with `pd note`
+- fix bounded Port Daddy dogfood bugs when you discover them; if the fix is too
+  large, leave a failing reproduction or exact evidence, a `pd note`, and a
+  targeted actor message before switching away
+- claim the smallest realistic edit surface; prefer symbol/region claims for
+  code when available
+- emit tuples only for facts another process or actor should query
+- use scoped channels for event notifications, not prose conversations
+- use actor inboxes for durable role ownership, especially Navigator,
+  Coxswain, Lookout, Harbormaster, Sounder, Signalman, Breaker, Caulker, and
+  Quartermaster
+- mark durable actor inbox messages read only after their coordination content
+  has been incorporated into the roadmap, recovery ledger, or a live handoff
+- use pheromones/file heat for ambient contention, not ordinary status updates
+
+Coordination is not just collision avoidance. If another agent's assumptions,
+API shape, runtime state, release surface, or product goal changes the meaning
+of your work, tell that agent or the relevant durable actor and adjust. A local
+workaround for broken coordination is itself dogfood feedback; do not silently
+route around it and move on.
+
+Operator-worthy callouts:
+
+- overlapping or stale claims on the same scarce surface
+- incompatible UI/UX, roadmap, planning, skill, docs, or product-truth decisions
+- implied-goal contradictions, even when no local bug exists
+- security, auth, privacy, data-retention, trust-boundary, or API-shape drift
+- raw text or unauthenticated endpoints appearing beside work that implies a
+  secure authenticated API contract
+- live daemon/runtime truth disagreeing with source, docs, or control-plane truth
+- sessions marked active while their agent registry bodies are dead or missing
+- spawn/budget/readiness signals that would activate too much fleet work
+
+Use the worktree-scoped `coordination:inconsistency` channel for those
+operator-worthy conflicts. Routine progress stays in notes. If the daemon cannot
+prove live peer bodies, say that directly instead of pretending agents are
+coordinating.
+
+Think at the goal/invariant level, not only at the defect level. Example: if
+one slice is building an authenticated, secure API, and another slice adds a raw
+text API surface, flag the trust-boundary mismatch even if the raw endpoint was
+not explicitly requested as secure or insecure. The right question is whether
+the work still honors the operator's apparent product and security goals.
+
+## Roadmap, Skill, And Actor Truth
+
+For “what’s next,” roadmap, recovery-state, Cartographer/Navigator, or
+skill/docs drift questions, do not answer from memory or from
+`.cartographer/status.md` alone. Query the live durable actor surfaces first:
+
+```bash
+pd actors --project <project>
+pd actor cartographer --project <project>
+pd actor navigator --inbox-stats
+pd actor navigator --inbox --unread
+```
+
+`cartographer` is a compatibility alias for the durable `navigator` actor.
+Navigator owns roadmap, recovery-ledger, work-slice, and cartographer-status
+truth. Lookout owns docs, OpenAPI, skill, and product-truth drift.
+
+Use actor messages when the durable role should update or arbitrate:
+
+```bash
+pd actor navigator --message "Roadmap question: <specific evidence needed>"
+pd actor lookout --message "Skill/docs drift: <specific release surface>"
+```
+
+Mailbox delivery is durable but not an immediate answer. `--message` queues work
+to `actor:<id>`; `--wake` only tries to hail a compatible live fleet body if one
+exists. If no body responds, combine live Port Daddy state with the authority
+documents below and leave a `pd note` explaining the evidence and uncertainty.
+
+Authority order for this repo:
+
+1. Live Port Daddy state: `pd status`, `pd briefing`, `pd actors`, sessions,
+   claims, salvage, tuples, and promotion state.
+2. Source and tests in the current checkout.
+3. `docs/recovery/CURRENT-WORK.md` as the active execution ledger.
+4. `.cartographer/README.md` for Navigator policy and patch authority.
+5. `.cartographer/status.md` as the long-view projection; it may be stale.
+6. Roadmap, plan, and report documents as supporting evidence.
+
+For skill edits, treat this bundle as a release surface. Update
+`skills/port-daddy-cli/SKILL.md`, its references, tests, and changelog together,
+then mirror the validated result to the workgroup and user-level installed
+copies when filesystem permissions allow.
 
 ## MCP Equivalents
 
@@ -83,11 +199,16 @@ needed. Do not begin by browsing every available tool.
 - Use **notes** for human-readable scope, decisions, blockers, and validation.
 - Use **file claims** for advisory edit ownership. They warn and start a
   conversation; they are not hard locks.
+- Use **Coordination Guard** when convention is not enough. `pd guard enable
+  --mode enforce && pd guard install` writes a local `.portdaddy/` config and
+  pre-commit hook so commits require a live Port Daddy session and matching file
+  claims.
 - Use **symbol claims** for function/class-scoped code edits when the symbol
   index knows the file.
 - Use **locks** only for scarce, non-mergeable critical sections.
 - Use **tuples** when a fact needs to be machine-readable by other automation.
-- Use **inbox/actors** for targeted delivery to a known agent or durable role.
+- Use **inbox/actors** for targeted delivery to a known agent or durable role;
+  queued actor mail is coordination evidence, not proof the actor has acted.
 - Use **pheromones/file heat** for ambient contention signals, not normal status
   updates.
 - Use **agents/sorties/fleets** for delegation, not as a substitute for a clear
@@ -499,10 +620,14 @@ All runtime files live in `~/.port-daddy/` (not `/tmp/`). This eliminates symlin
 | `~/.port-daddy/daemon.ipc` | Binary IPC socket (agent hot path) |
 | `~/.port-daddy/daemon.pid` | PID file |
 | `~/.port-daddy/daemon.port` | TCP port file (dashboard discovery) |
+| `~/.port-daddy/instances/<profile>/` | Named sidecar daemon runtime dirs (`pd daemon start <profile>`) |
 | `~/.port-daddy/master.key` | AES-256-GCM master key for note encryption |
 | `~/.port-daddy/ui-preferences.json` | Shared UI preferences (FleetBar menu bar companion) |
 
 Override via environment variables: `PORT_DADDY_SOCK`, `PORT_DADDY_IPC`, `PORT_DADDY_PORT_FILE`.
+For an isolated named daemon, use `pd daemon env <profile>` instead of hand-writing
+paths; it exports the profile socket, IPC path, DB path, pid file, port file,
+and sidecar-safe fleet/FleetBar guards.
 
 ## CLI Quick Reference
 
@@ -563,6 +688,7 @@ Fleet rows are mailbox-driven now: if an agent is already running and more trigg
 | `pd arbiter status` | Invariant enforcement status |
 | `pd arbiter violations` | List recorded violations |
 | `pd dev start/stop/status` | Isolated dev daemon (port 9877) |
+| `pd daemon start/list/status/stop/env <profile>` | Named sidecar daemon profiles under `~/.port-daddy/instances/` |
 
 ## Decision Matrix: Which Tool When
 
@@ -576,6 +702,7 @@ Fleet rows are mailbox-driven now: if an agent is already running and more trigg
 | Direct message to a specific agent | `talk_to_agent` MCP tool or `pd inbox send` |
 | Background automation (terminal-attached) | `pd fleet init` + `pd fleet up` |
 | Background automation (always-on, survives terminal) | Place `pd-fleet.yml` in a repo with durable Port Daddy markers; daemon auto-starts it |
+| Need another daemon beside the canonical one | `pd daemon start <profile> --port <port>`, then `eval "$(pd daemon env <profile>)"` in shells that should target it |
 | Reload fleet after editing pd-fleet.yml | `PD_URL="\${PORT_DADDY_URL:-http://localhost:9876}"; curl -XPOST "$PD_URL/fleet/reload"` or `kill -HUP <daemon-pid>` |
 | Share knowledge across agents | `pd tuple out` / `pd tuple rd` |
 | Check whether Spark/Spider or the repo already had this idea | `pd ideas search "query" --include-raw` |

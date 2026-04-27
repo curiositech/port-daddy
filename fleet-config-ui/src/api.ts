@@ -18,12 +18,16 @@ import type {
   ActivityEntry,
   ChannelMessage,
   FilePreview,
+  CoordinationGuardAction,
+  CoordinationGuardEnvelope,
+  CoordinationGuardMode,
   StoryNote,
   TupleEntry,
   GraphEdge,
   GraphStats,
   Episode,
   MemoryStats,
+  RoadmapProgress,
   SemanticResolutionDecision,
   SemanticResolutionEvent,
   SemanticResolutionStats,
@@ -223,6 +227,29 @@ export async function fetchProjects(): Promise<ProjectSummary[]> {
   return payload.projects ?? [];
 }
 
+export async function fetchRoadmapProgress(projectDir?: string): Promise<RoadmapProgress> {
+  const params = new URLSearchParams();
+  if (projectDir) params.set('root', projectDir);
+  return get(`/cartographer/roadmap-progress${params.toString() ? `?${params}` : ''}`);
+}
+
+export async function fetchCoordinationGuard(projectDir: string): Promise<CoordinationGuardEnvelope> {
+  const params = new URLSearchParams({ projectDir });
+  return get(`/operator/coordination-guard?${params.toString()}`);
+}
+
+export async function runCoordinationGuardAction(input: {
+  projectDir: string;
+  action: CoordinationGuardAction;
+  mode?: Exclude<CoordinationGuardMode, 'off'>;
+}): Promise<CoordinationGuardEnvelope> {
+  return post('/operator/coordination-guard', {
+    projectDir: input.projectDir,
+    action: input.action,
+    mode: input.mode ?? 'enforce',
+  });
+}
+
 export async function fetchFleetConfig(project: string): Promise<{
   yaml: string;
   path: string;
@@ -240,6 +267,13 @@ export async function saveFleetConfig(project: string, yaml: string): Promise<{
   cycles: string[][];
 }> {
   return put(`/fleet/config/${encodeURIComponent(project)}`, { yaml });
+}
+
+export async function setFleetConfigBudget(project: string, usdPerDay: number): Promise<{
+  success: boolean;
+  budgetUsdPerDay: number;
+}> {
+  return post(`/fleet/config/${encodeURIComponent(project)}/budget`, { usdPerDay });
 }
 
 export async function startFleet(projectDir?: string, enabledAgents?: string[]): Promise<{ success: boolean }> {

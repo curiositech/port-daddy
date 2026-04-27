@@ -10,6 +10,25 @@ private struct RecentAgentHighlight: Identifiable {
     var id: String { "\(projectId)::\(agent.id)" }
 }
 
+private func agentStatusColor(_ status: FleetAgent.AgentStatus) -> Color {
+    switch status {
+    case .running:
+        return Fleet.Color.healthy
+    case .queued, .armed, .scheduled, .orphanReconciled:
+        return Fleet.Color.active
+    case .paused, .salvaged:
+        return Fleet.Color.warning
+    case .failed:
+        return Fleet.Color.failure
+    case .dead:
+        return Fleet.Color.dead
+    case .historical:
+        return Fleet.Color.dormant.opacity(0.8)
+    case .idle:
+        return Fleet.Color.dormant.opacity(0.45)
+    }
+}
+
 // MARK: - Main Popover
 
 struct FleetPopover: View {
@@ -50,6 +69,28 @@ struct FleetPopover: View {
         VStack(spacing: 0) {
             header
             Divider().opacity(0.5)
+            ScrollView {
+                VStack(spacing: 0) {
+                    popoverContent
+                }
+                .frame(maxWidth: .infinity, alignment: .top)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            Divider().opacity(0.5)
+            footer
+        }
+        .background(Fleet.Chrome.popoverBackground)
+        .preferredColorScheme(selectedThemeRaw == "light" ? .light : .dark)
+        .onAppear {
+            withAnimation(.smooth(duration: 0.4)) { appeared = true }
+            budgetStore.start()
+        }
+        .onDisappear { budgetStore.stop() }
+    }
+
+    @ViewBuilder
+    private var popoverContent: some View {
+        VStack(spacing: 0) {
             if !budgetStore.pendingKills.isEmpty {
                 budgetPauseBanner
                 Divider().opacity(0.5)
@@ -63,6 +104,8 @@ struct FleetPopover: View {
                 Divider().opacity(0.5)
             }
             if store.isDaemonRunning {
+                consoleStatusSection
+                Divider().opacity(0.5)
                 CostDashboard(store: costStore)
                 Divider().opacity(0.5)
             }
@@ -75,16 +118,7 @@ struct FleetPopover: View {
             } else {
                 projectList
             }
-            Divider().opacity(0.5)
-            footer
         }
-        .background(Fleet.Chrome.popoverBackground)
-        .preferredColorScheme(selectedThemeRaw == "light" ? .light : .dark)
-        .onAppear {
-            withAnimation(.smooth(duration: 0.4)) { appeared = true }
-            budgetStore.start()
-        }
-        .onDisappear { budgetStore.stop() }
     }
 
     private var defaultConsoleProject: String? {
@@ -124,6 +158,13 @@ struct FleetPopover: View {
         ])
     }
 
+    /// Renders one compact Daemon Report metric.
+    ///
+    /// Sample input:
+    /// `label: "Runtime", value: "nominal", color: Fleet.Color.healthy`
+    ///
+    /// Sample output:
+    /// A small uppercase label above a single-line monospaced value.
     private func daemonReportRow(label: String, value: String, color: Color = .primary) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label.uppercased())
@@ -133,6 +174,28 @@ struct FleetPopover: View {
                 .font(.system(.caption, design: .monospaced).weight(.medium))
                 .foregroundStyle(color)
                 .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Renders a full-width Daemon Report diagnostic that must remain legible.
+    ///
+    /// Sample input:
+    /// `label: "Bosun", value: "idle — daemon heartbeat writer active"`
+    ///
+    /// Sample output:
+    /// A full-width report row whose value wraps instead of truncating.
+    private func daemonReportDiagnostic(label: String, value: String, color: Color = .primary) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label.uppercased())
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.tertiary)
+            Text(value)
+                .font(.system(.caption, design: .monospaced).weight(.medium))
+                .foregroundStyle(color)
+                .lineLimit(nil)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -195,11 +258,13 @@ struct FleetPopover: View {
                 }
             }
 
-            HStack(spacing: Fleet.Space.m) {
-                daemonReportRow(label: "Runtime", value: status.runtime?.state ?? status.status, color: runtimeColor)
-                daemonReportRow(label: "Version", value: status.daemon?.version ?? status.version, color: Fleet.Color.active)
-                daemonReportRow(label: "Code hash", value: status.daemon?.codeHash ?? "unknown")
-                daemonReportRow(label: "Bosun", value: bosun?.reason ?? bosun?.state ?? "n/a", color: bosunColor)
+            VStack(alignment: .leading, spacing: Fleet.Space.s) {
+                HStack(spacing: Fleet.Space.m) {
+                    daemonReportRow(label: "Runtime", value: status.runtime?.state ?? status.status, color: runtimeColor)
+                    daemonReportRow(label: "Version", value: status.daemon?.version ?? status.version, color: Fleet.Color.active)
+                    daemonReportRow(label: "Code hash", value: status.daemon?.codeHash ?? "unknown")
+                }
+                daemonReportDiagnostic(label: "Bosun", value: bosun?.reason ?? bosun?.state ?? "n/a", color: bosunColor)
             }
 
             if !recentActivity.isEmpty {
@@ -286,7 +351,7 @@ struct FleetPopover: View {
                     VStack(alignment: .leading, spacing: 5) {
                         HStack(spacing: Fleet.Space.s) {
                             Circle()
-                                .fill(item.agent.status.isDeployed ? Fleet.Color.healthy : Fleet.Color.dormant.opacity(0.45))
+                                .fill(agentStatusColor(item.agent.status))
                                 .frame(width: 7, height: 7)
                             Text(item.agent.name)
                                 .font(.system(.caption, design: .monospaced).weight(.semibold))
@@ -407,20 +472,20 @@ struct FleetPopover: View {
 
                     Button {
                         Task {
-                            if store.projects.isEmpty {
+                            if store.totalActive == 0 {
                                 await store.startFleet()
                             } else {
                                 await store.stopFleet()
                             }
                         }
                     } label: {
-                        Image(systemName: store.projects.isEmpty ? "play.fill" : "stop.fill")
+                        Image(systemName: store.totalActive == 0 ? "play.fill" : "stop.fill")
                             .fontWeight(.medium)
-                            .foregroundStyle(store.projects.isEmpty ? Fleet.Color.healthy : Fleet.Color.failure)
+                            .foregroundStyle(store.totalActive == 0 ? Fleet.Color.healthy : Fleet.Color.failure)
                             .contentTransition(.symbolEffect(.replace))
                     }
                     .buttonStyle(.borderless)
-                    .help(store.projects.isEmpty ? "Start fleet" : "Stop fleet")
+                    .help(store.totalActive == 0 ? "Start fleet" : "Stop fleet")
                 }
             }
         }
@@ -437,9 +502,89 @@ struct FleetPopover: View {
     private var headerSubtitle: String {
         let active = store.totalActive
         let total  = store.totalAgents
+        if store.projectsNeedingBudget > 0 {
+            return "\(store.projectsNeedingBudget) need budget, \(active)/\(total) active"
+        }
         if active == 0 && total == 0 { return "No agents" }
         if active == 0 { return "\(total) idle" }
         return "\(active) active, \(total - active) idle"
+    }
+
+    private var consoleStatusSection: some View {
+        let budgetBlocked = store.projects.filter(\.needsBudget)
+        let readyStopped = store.projects.filter { $0.operatorState == .ready }
+
+        return VStack(alignment: .leading, spacing: Fleet.Space.s) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Console")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Text("Shared project readiness, budgets, and control-plane truth")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+                Spacer()
+                Button {
+                    openControlPlane(.flow)
+                } label: {
+                    Label("Open", systemImage: "macwindow")
+                        .font(.caption2.weight(.semibold))
+                }
+                .buttonStyle(.borderless)
+                .foregroundStyle(Fleet.Color.active)
+            }
+
+            HStack(spacing: Fleet.Space.s) {
+                ConsoleMetric(
+                    title: "projects",
+                    value: "\(store.projects.count)",
+                    color: Fleet.Color.active
+                )
+                ConsoleMetric(
+                    title: "budget",
+                    value: "\(budgetBlocked.count)",
+                    color: budgetBlocked.isEmpty ? Fleet.Color.healthy : Fleet.Color.warning
+                )
+                ConsoleMetric(
+                    title: "ready",
+                    value: "\(readyStopped.count)",
+                    color: readyStopped.isEmpty ? Fleet.Color.dormant : Fleet.Color.healthy
+                )
+                ConsoleMetric(
+                    title: "agents",
+                    value: "\(store.totalActive)/\(store.totalAgents)",
+                    color: store.totalActive > 0 ? Fleet.Color.healthy : Fleet.Color.dormant
+                )
+            }
+
+            if let blocker = budgetBlocked.first {
+                HStack(spacing: Fleet.Space.s) {
+                    Image(systemName: blocker.statusIcon)
+                        .foregroundStyle(blocker.statusColor)
+                    Text("\(blocker.name): \(blocker.operatorNextAction)")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                    Spacer()
+                    Button("Set $\(Int(blocker.suggestedBudgetUsdPerDay))/day") {
+                        Task {
+                            await store.setFleetBudget(
+                                projectDir: blocker.projectDir,
+                                usdPerDay: blocker.suggestedBudgetUsdPerDay
+                            )
+                            await costStore.refresh()
+                        }
+                    }
+                    .buttonStyle(.borderless)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(Fleet.Color.warning)
+                }
+            }
+        }
+        .padding(.horizontal, Fleet.Space.l)
+        .padding(.vertical, Fleet.Space.s)
+        .background(Fleet.Chrome.panel)
     }
 
     // MARK: - Empty State
@@ -505,8 +650,6 @@ struct FleetPopover: View {
 
     private var emptyState: some View {
         VStack(spacing: Fleet.Space.l) {
-            Spacer()
-
             Image(systemName: "sailboat")
                 .font(.system(size: 40, weight: .ultraLight))
                 .foregroundStyle(.quaternary)
@@ -553,51 +696,54 @@ struct FleetPopover: View {
                     .disabled(store.isStartingDaemon)
                 }
             }
-
-            Spacer()
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, minHeight: 220, alignment: .center)
+        .padding(.vertical, Fleet.Space.xl)
     }
 
     // MARK: - Project List
 
     private var projectList: some View {
-        ScrollView {
-            LazyVStack(spacing: 0) {
-                ForEach(Array(store.projects.enumerated()), id: \.element.id) { index, project in
-                    ProjectSection(
-                        project: project,
-                        isExpanded: store.expandedProjects.contains(project.id),
-                        onToggle: { withAnimation(Fleet.Motion.expandSpring) { store.toggleProject(project.id) } },
-                        onInspectAgent: { agentName in
-                            openControlPlane(.activity, project: project.id, agent: agentName)
-                        },
-                        onRunAgent: { agentName in
-                            Task { await store.runAgent(projectDir: project.projectDir, agentName: agentName) }
-                        },
-                        onPauseToggle: { agentName, isPaused in
-                            Task {
-                                if isPaused {
-                                    await store.resumeAgent(projectDir: project.projectDir, agentName: agentName)
-                                } else {
-                                    await store.pauseAgent(projectDir: project.projectDir, agentName: agentName)
-                                }
+        LazyVStack(spacing: 0) {
+            ForEach(Array(store.projects.enumerated()), id: \.element.id) { index, project in
+                ProjectSection(
+                    project: project,
+                    isExpanded: store.expandedProjects.contains(project.id),
+                    onToggle: { withAnimation(Fleet.Motion.expandSpring) { store.toggleProject(project.id) } },
+                    onOpenProject: {
+                        openControlPlane(.flow, project: project.id)
+                    },
+                    onRemediateProject: {
+                        handleProjectRemediation(project)
+                    },
+                    onInspectAgent: { agentName in
+                        openControlPlane(.activity, project: project.id, agent: agentName)
+                    },
+                    onRunAgent: { agentName in
+                        Task { await store.runAgent(projectDir: project.projectDir, agentName: agentName) }
+                    },
+                    onPauseToggle: { agentName, isPaused in
+                        Task {
+                            if isPaused {
+                                await store.resumeAgent(projectDir: project.projectDir, agentName: agentName)
+                            } else {
+                                await store.pauseAgent(projectDir: project.projectDir, agentName: agentName)
                             }
-                        },
-                        onOpenInEditor: { filePath in
-                            openAgentFileInEditor(projectDir: project.projectDir, filePath: filePath)
-                        },
-                        onRevealInFinder: { filePath in
-                            revealAgentFileInFinder(projectDir: project.projectDir, filePath: filePath)
                         }
-                    )
-                    .opacity(appeared ? 1 : 0)
-                    .offset(y: appeared ? 0 : 8)
-                    .animation(
-                        Fleet.Motion.expandSpring.delay(Double(index) * Fleet.Motion.sectionStagger),
-                        value: appeared
-                    )
-                }
+                    },
+                    onOpenInEditor: { filePath in
+                        openAgentFileInEditor(projectDir: project.projectDir, filePath: filePath)
+                    },
+                    onRevealInFinder: { filePath in
+                        revealAgentFileInFinder(projectDir: project.projectDir, filePath: filePath)
+                    }
+                )
+                .opacity(appeared ? 1 : 0)
+                .offset(y: appeared ? 0 : 8)
+                .animation(
+                    Fleet.Motion.expandSpring.delay(Double(index) * Fleet.Motion.sectionStagger),
+                    value: appeared
+                )
             }
         }
     }
@@ -661,6 +807,49 @@ struct FleetPopover: View {
         .padding(.vertical, Fleet.Space.s)
         .background(Fleet.Chrome.panel)
     }
+
+    private func handleProjectRemediation(_ project: FleetProject) {
+        switch project.remediation?.action {
+        case "set_budget":
+            Task {
+                await store.setFleetBudget(
+                    projectDir: project.projectDir,
+                    usdPerDay: project.suggestedBudgetUsdPerDay
+                )
+                await costStore.refresh()
+            }
+        case "start_fleet":
+            Task { await store.startFleet(projectDir: project.projectDir) }
+        case "fix_yaml":
+            openControlPlane(.yaml, project: project.id)
+        default:
+            openControlPlane(.flow, project: project.id)
+        }
+    }
+}
+
+private struct ConsoleMetric: View {
+    let title: String
+    let value: String
+    let color: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title.uppercased())
+                .font(.system(size: 8, weight: .semibold))
+                .foregroundStyle(.tertiary)
+            Text(value)
+                .font(.system(.caption, design: .monospaced).weight(.semibold))
+                .foregroundStyle(color)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, Fleet.Space.s)
+        .padding(.vertical, 6)
+        .background(
+            Fleet.Chrome.card,
+            in: RoundedRectangle(cornerRadius: Fleet.Radius.small, style: .continuous)
+        )
+    }
 }
 
 // MARK: - Project Section
@@ -669,6 +858,8 @@ struct ProjectSection: View {
     let project: FleetProject
     let isExpanded: Bool
     let onToggle: () -> Void
+    let onOpenProject: () -> Void
+    let onRemediateProject: () -> Void
     let onInspectAgent: (String) -> Void
     let onRunAgent: (String) -> Void
     let onPauseToggle: (String, Bool) -> Void
@@ -703,16 +894,21 @@ struct ProjectSection: View {
                         .animation(Fleet.Motion.snappy, value: isExpanded)
                         .frame(width: 12)
 
-                    // Folder — weight matches text
-                    Image(systemName: "folder.fill")
+                    Image(systemName: project.statusIcon)
                         .font(.system(size: 12))
                         .fontWeight(.medium)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(project.statusColor)
 
                     Text(project.name)
                         .font(.subheadline.weight(.medium))
 
                     Spacer()
+
+                    StatusTextCapsule(
+                        label: project.statusLabel,
+                        color: project.statusColor,
+                        icon: project.statusIcon
+                    )
 
                     // Status capsules — only appear when meaningful
                     if project.failedCount > 0 {
@@ -730,7 +926,7 @@ struct ProjectSection: View {
                         )
                     }
 
-                    Text("\(project.agents.count)")
+                    Text("\(project.visibleAgentCount)")
                         .font(.caption2)
                         .foregroundStyle(.quaternary)
                 }
@@ -742,29 +938,91 @@ struct ProjectSection: View {
 
             // Agent rows — staggered cascade
             if isExpanded {
-                ForEach(Array(orderedAgents.enumerated()), id: \.element.id) { index, agent in
-                    AgentRow(
-                        agent: agent,
-                        onInspect: { onInspectAgent(agent.name) },
-                        onRunAgent: { onRunAgent(agent.name) },
-                        onPauseToggle: { onPauseToggle(agent.name, agent.status == .paused) },
-                        onOpenInEditor: onOpenInEditor,
-                        onRevealInFinder: onRevealInFinder
-                    )
-                        .transition(
-                            .asymmetric(
-                                insertion: .opacity
-                                    .combined(with: .offset(y: -4))
-                                    .animation(
-                                        Fleet.Motion.expandSpring
-                                            .delay(Double(index) * Fleet.Motion.rowStagger)
-                                    ),
-                                removal: .opacity.animation(.smooth(duration: 0.12))
-                            )
+                ProjectReadinessRow(
+                    project: project,
+                    onOpenProject: onOpenProject,
+                    onRemediateProject: onRemediateProject
+                )
+
+                if orderedAgents.isEmpty {
+                    Text("No live agent rows yet")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, Fleet.Space.l)
+                        .padding(.bottom, Fleet.Space.s)
+                } else {
+                    ForEach(Array(orderedAgents.enumerated()), id: \.element.id) { index, agent in
+                        AgentRow(
+                            agent: agent,
+                            onInspect: { onInspectAgent(agent.name) },
+                            onRunAgent: { onRunAgent(agent.name) },
+                            onPauseToggle: { onPauseToggle(agent.name, agent.status == .paused) },
+                            onOpenInEditor: onOpenInEditor,
+                            onRevealInFinder: onRevealInFinder
                         )
+                            .transition(
+                                .asymmetric(
+                                    insertion: .opacity
+                                        .combined(with: .offset(y: -4))
+                                        .animation(
+                                            Fleet.Motion.expandSpring
+                                                .delay(Double(index) * Fleet.Motion.rowStagger)
+                                        ),
+                                    removal: .opacity.animation(.smooth(duration: 0.12))
+                                )
+                            )
+                    }
                 }
             }
         }
+    }
+}
+
+private struct ProjectReadinessRow: View {
+    let project: FleetProject
+    let onOpenProject: () -> Void
+    let onRemediateProject: () -> Void
+
+    var body: some View {
+        HStack(alignment: .top, spacing: Fleet.Space.s) {
+            Image(systemName: project.statusIcon)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(project.statusColor)
+                .frame(width: Fleet.Space.l)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(project.operatorSummary)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                Text(project.operatorNextAction)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(2)
+            }
+
+            Spacer(minLength: Fleet.Space.s)
+
+            Button {
+                onOpenProject()
+            } label: {
+                Image(systemName: "macwindow")
+            }
+            .buttonStyle(.borderless)
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(Fleet.Color.active)
+            .help("Open console")
+
+            if let remediation = project.remediation {
+                Button(remediation.title, action: onRemediateProject)
+                    .buttonStyle(.borderless)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(project.statusColor)
+            }
+        }
+        .padding(.horizontal, Fleet.Space.l)
+        .padding(.bottom, Fleet.Space.s)
     }
 }
 
@@ -823,19 +1081,30 @@ struct AgentRow: View {
                         .foregroundStyle(.quaternary)
                         .frame(width: 52, alignment: .trailing)
                 }
-                Button(agent.status == .paused ? "Resume" : "Pause", action: onPauseToggle)
-                    .buttonStyle(.borderless)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(agent.status == .paused ? Fleet.Color.healthy : Fleet.Color.warning)
-                Button("Run", action: onRunAgent)
-                    .buttonStyle(.borderless)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(Fleet.Color.active)
+                if agent.canControl {
+                    Button(agent.status == .paused ? "Resume" : "Pause", action: onPauseToggle)
+                        .buttonStyle(.borderless)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(agent.status == .paused ? Fleet.Color.healthy : Fleet.Color.warning)
+                    Button("Run", action: onRunAgent)
+                        .buttonStyle(.borderless)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(Fleet.Color.active)
+                }
             }
             if let lastSummary = agent.lastSummary, !lastSummary.isEmpty {
                 Text(lastSummary)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .padding(.leading, Fleet.Space.xl + Fleet.Space.xs + Fleet.Space.s + Fleet.Space.l)
+            }
+            if let statusReason = agent.statusReason,
+               !statusReason.isEmpty,
+               statusReason != agent.lastSummary {
+                Text(statusReason)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
                     .lineLimit(2)
                     .padding(.leading, Fleet.Space.xl + Fleet.Space.xs + Fleet.Space.s + Fleet.Space.l)
             }
@@ -888,6 +1157,21 @@ struct AgentRow: View {
             Image(systemName: "pause.circle.fill")
                 .font(.system(size: 9))
                 .foregroundStyle(Fleet.Color.warning)
+
+        case .salvaged:
+            Image(systemName: "wrench.and.screwdriver.fill")
+                .font(.system(size: 9))
+                .foregroundStyle(Fleet.Color.warning)
+
+        case .orphanReconciled:
+            Image(systemName: "arrow.triangle.2.circlepath.circle.fill")
+                .font(.system(size: 9))
+                .foregroundStyle(Fleet.Color.active)
+
+        case .historical:
+            Image(systemName: "clock.arrow.trianglehead.counterclockwise.rotate.90")
+                .font(.system(size: 9))
+                .foregroundStyle(Fleet.Color.dormant)
 
         case .idle:
             Circle()
@@ -964,6 +1248,10 @@ struct EventLabel: View {
         case "agent_paused":      return "paused"
         case "agent_resumed":     return "armed"
         case "watcher_triggered": return "fired"
+        case "salvaged":          return "salvaged"
+        case "orphan_reconciled": return "reconciled"
+        case "historical":        return "history"
+        case "idle":              return "idle"
         default: return event
         }
     }
@@ -976,12 +1264,38 @@ struct EventLabel: View {
         case "agent_paused":      return Fleet.Color.warning
         case "agent_resumed":     return Fleet.Color.active
         case "watcher_triggered": return Fleet.Color.warning
+        case "salvaged":          return Fleet.Color.warning
+        case "orphan_reconciled": return Fleet.Color.active
+        case "historical":        return Fleet.Color.dormant
+        case "idle":              return Fleet.Color.dormant
         default: return .secondary
         }
     }
 }
 
 // MARK: - Status Capsule
+
+struct StatusTextCapsule: View {
+    let label: String
+    let color: Color
+    let icon: String
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: icon)
+                .font(.system(size: 7))
+            Text(label)
+                .font(.system(.caption2, design: .rounded).weight(.medium))
+        }
+        .foregroundStyle(color)
+        .padding(.horizontal, Fleet.Space.xs + 2)
+        .padding(.vertical, 2)
+        .background(
+            color.opacity(0.08),
+            in: RoundedRectangle(cornerRadius: Fleet.Radius.small, style: .continuous)
+        )
+    }
+}
 
 struct StatusCapsule: View {
     let count: Int

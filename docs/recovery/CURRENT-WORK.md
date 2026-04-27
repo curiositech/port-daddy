@@ -1,6 +1,6 @@
 # Current Recovery Work
 
-Last updated: 2026-04-26
+Last updated: 2026-04-27
 Owner: Codex working session
 
 This is the active execution ledger. If a task is in flight, it belongs here before it belongs in chat.
@@ -78,6 +78,217 @@ The `agentsd.ai` public-site reset is now explicit repo work, not chat residue.
 - Future public-site work should preserve the current public surface unless a deliberate migration plan is approved and implemented.
 
 ## Current Thread
+
+### Port Daddy Website Generated Visual Replacement Slice (2026-04-27)
+
+Current coordination session: `session-a4b3a18d-1651-4d2b-b4ca-e83fb79b5ea3`.
+
+- This is the next bounded `ideal-web-app-builder` rehab slice after the SEO
+  metadata/discovery work. The user explicitly rejected the remaining sailor
+  photo / rounded visual direction and provided a Gemini API key for generated
+  content.
+- Added `website-v2/scripts/generate-gemini-assets.mjs`,
+  `npm run generate:visuals`, and `npm run optimize:visuals`. The generator
+  loads `GEMINI_API_KEY` from the shell, repo-root `.env.local`, or
+  `website-v2/.env.local`; secrets are not written to source or manifest.
+- Generated and optimized four Gemini/Nano Banana visual assets under
+  `website-v2/public/img/generated/` with manifest provenance:
+  `control-plane-hero`, `control-plane-og`, `agent-runtime-map`, and
+  `salvage-ledger`, each with JPEG plus WebP variants.
+- Replaced the homepage hero image with the generated control-plane schematic,
+  moved the hero two-column breakpoint to `min-[900px]` so the image appears in
+  the in-app browser first viewport, and deleted the retired
+  `website-v2/public/img/hero-portdaddy.png` asset.
+- Default social metadata now uses `/img/generated/control-plane-og.jpg`.
+  Blog fallback imagery now uses generated WebP page images instead of the
+  retired sailor image or missing blog hero files.
+- Touched legacy shape/copy surfaces were narrowed: hero chips and CTA buttons
+  use smaller token radii, the CTA banner no longer says "harbormaster" or
+  uses an anchor icon, `Badge` defaults are flatter and squared, and stale
+  "neumorphic" comments in touched files were renamed to tokenized elevation
+  language.
+- Regression coverage: `src/seo-metadata.test.tsx` now asserts the default
+  social image is generated and the retired sailor hero file is absent.
+- Browser proof:
+  `docs/reports/website-rehab-screenshots/generated-hero-homepage.png`.
+- Validation truth on 2026-04-27 from `website-v2/`:
+  - `npm run generate:visuals`: generated 4 assets with
+    `gemini-3.1-flash-image-preview`
+  - `npm run optimize:visuals`: optimized 4 generated assets
+  - `npm run generate:seo`: generated SEO artifacts for 182 canonical routes
+  - `npm run lint`: pass
+  - `npm run test`: 8/8 files and 83/83 tests pass
+  - `npm run build`: pass; largest generated JS chunk remains Mermaid at
+    491.00 kB minified / 136.63 kB gzip
+  - `npm run build-storybook`: pass with the known Storybook iframe-size and
+    `radix-ui` package metadata warnings
+  - root `npm test -- --no-coverage`: 153/153 suites passed, 5082/5083 tests
+    passed, 1 intentional skip; existing console noise included git-probe,
+    telemetry-bypass, keychain/plaintext fallback, and subscriber-error test
+    logs
+- Follow-on visual-metaphor cleanup: `NeumorphicTerminal` was renamed to
+  `CommandTerminal`, the dashboard `SailorAgent` SVG was replaced with a
+  rectilinear `AgentNodeMark`, and the live graph/home feature cards now use
+  tighter token radii. The dashboard route also no longer uses the blurred
+  circular hero glow, anchor iconography, or large rounded panel/status radii.
+  Production source no longer references the old terminal or sailor component
+  names.
+- Live visual review follow-up: the homepage feature-card icon tiles that read
+  as neon yellow on beige inset relief were removed. Feature cards now use
+  numbered Swiss panels with border rules and category metadata instead of icon
+  containers. The matching neon sparkle on the secondary CTA was also replaced
+  with a blue arrow and a flat bordered button treatment, and the CTA's
+  decorative inset icon block was removed. The fixed public shell header strip
+  and active nav state now use brand-primary blue instead of neon accent. The
+  hero headline's "fighting each other" emphasis also no longer uses a
+  blue-to-error gradient; it now uses the existing brand-primary token with a
+  contract test guarding against gradient text regression.
+- Tutorials index branding has also been rewritten: the first viewport now uses
+  "Operator training" and "Learn the control-plane protocol" instead of
+  "Academy of Coordination" / "Master the Swarm Logic"; the index cards are
+  flat numbered curriculum panels, and the catalogue titles/descriptions/tags
+  avoid the retired swarm/pheromone/harbor-token marketing language.
+- Whitepaper route branding has been rebuilt as an editorial research dossier:
+  the first viewport now uses "The control-plane papers.", flat paper-selection
+  controls, immediate paper metadata, and an argument-map/PDF layout instead of
+  the old centered "White Papers" badge, inset icon tile, rounded selector
+  cards, and large empty opening space. Header nav labels are also non-shrinking
+  and the decorative right-edge header strip was removed after mobile screenshot
+  proof showed it reading as a stray blue bar.
+- Browser proof:
+  `docs/reports/website-rehab-screenshots/whitepaper-first-viewport.png` and
+  `docs/reports/website-rehab-screenshots/whitepaper-mobile-first-viewport.png`.
+- Latest validation for this website route cleanup from `website-v2/`: `npm run
+  lint`, `npm run test` (8/8 files and 87/87 tests), `npm run build`, and
+  `git diff --check` all passed. The earlier Storybook pass still carries the
+  known iframe-size and `radix-ui` package metadata warnings.
+- Remaining website rehab work: route-specific OG image generation,
+  PWA/favicons, legal/privacy/support/security-contact pages, observability/Web
+  Vitals, claims ledger, broader rounded/glow route cleanup, and manual
+  reduced-motion/forced-colors/screen-reader proof.
+
+### Port Daddy Website SEO Metadata And Discovery Slice (2026-04-27)
+
+Current coordination session: `session-7d6f4ac6-5c47-401d-853b-804be7eecbd6`.
+
+- This is the next bounded `ideal-web-app-builder` rehab slice after the public
+  shell unification work.
+- The website now has a canonical source-backed metadata registry at
+  `website-v2/src/data/siteMetadata.ts` covering 182 indexable public URLs.
+  It draws from existing route/data truth for docs families, tutorials, blog
+  posts, integrations, cookbook recipes, and templates.
+- React Router now mounts `DocumentMeta`, which updates title, description,
+  canonical URL, robots, Open Graph, Twitter card, article fields, tags, and
+  JSON-LD on SPA navigation through the upgraded `useDocumentMeta` hook.
+- `npm run generate:seo` now writes `public/sitemap.xml`, `public/robots.txt`,
+  and `public/llms.txt` from that same registry. `npm run build` runs this as
+  `prebuild` so checked-in discovery artifacts are regenerated before the
+  production bundle.
+- SEO tests now enforce unique canonical URLs, existing social image files,
+  blog article metadata, generated sitemap/robots parity, LLM discovery
+  entrypoints, and real document-head mutation.
+- Validation truth on 2026-04-27 from `website-v2/`:
+  - `npm run generate:seo`: generated SEO artifacts for 182 canonical routes
+  - `npm run test -- src/seo-metadata.test.tsx`: 6/6 pass
+  - `npm run lint`: pass
+  - `npm run test`: 8/8 files and 82/82 tests pass
+  - `npm run build`: pass; largest JS chunk remains Mermaid at 491.00 kB
+    minified / 136.64 kB gzip
+- Remaining website rehab work: prerender/static metadata for non-home routes,
+  dedicated OG image generation beyond verified existing images, PWA/favicons,
+  legal/privacy/support/security-contact pages, observability/Web Vitals,
+  claims ledger, and manual reduced-motion/forced-colors/screen-reader proof.
+
+### Promotion And Build-Artifact Hygiene (2026-04-27)
+
+Current coordination session: `session-940abfb1-8d54-4058-a7c3-3515b3b921c7`.
+
+- Local `main` was pushed to origin at `89f17ac` (`Constrain FleetBar popover content`).
+- Canonical promotion via `./scripts/promote-stable.sh` passed `5025` tests with `0` failures and promoted stable through `65f2b4e` (`promote: main@89f17ac -> stable`).
+- Live daemon truth after promotion: Port Daddy `3.11.0`, PID `13470`, `/health` `ok`, runtime `nominal`, install dir `/Users/erichowens/port-daddy-stable`.
+- FleetBar was rebuilt, reinstalled, and launchd-kickstarted; the live FleetBar process is PID `14267`.
+- Promotion exposed a stable-hygiene bug: `scripts/build-core.sh` built inside the tracked `core/harbor-card-rs/target/release/**` tree, dirtying the stable checkout after a successful promotion.
+- The build script now builds the Rust FFI core through an external Cargo target directory (`PORT_DADDY_CORE_TARGET_DIR`, `CARGO_TARGET_DIR`, or a per-checkout temp path) before copying the shared library into `dist/core`.
+- A follow-up promotion passed the same `5025`-test gate and promoted stable through `418a1d0`; the stable checkout is clean after the corrected build path.
+
+### Promotion Recovery Closeout (2026-04-27)
+
+Current coordination session: `session-e5ab0dfb-dadc-4d26-acd7-b38431d17d1e`.
+
+- Stable promotion is complete and pushed after the guard parity, guard hook, stale-work visibility, release-surface docs, and promotion wait-loop slices landed.
+- Remote `main` is `717f4f49bbb382851fe582b926ce88dc2f06b69f` (`717f4f4` — promotion verification wait-loop hardening).
+- Remote `stable` is `40cf79d9f5846986fc6ed8ed696061fd2268a856` (`40cf79d` — `promote: main@717f4f4 -> stable`).
+- Official promotion validation passed through `./scripts/promote-stable.sh` under `pd with-lock stable-promotion`: `147/147` Jest suites passed, `5019` tests passed, `1` test skipped, then stable build/install/runtime verification completed.
+- Live daemon truth after promotion: `/version` reports Port Daddy `3.11.0`, code hash `ce3faf8fb34e`, PID `79768`, and install dir `/Users/erichowens/port-daddy-stable`; `/health` is `ok` with runtime `nominal`.
+- The stable-promotion lock released; the remaining lock is the daemon-owned fleet project lease for `/Users/erichowens/coding/port-daddy`.
+- Residual stable-checkout dirt remains under `core/harbor-card-rs/target/release/**`. Treat it as generated build residue from the stable checkout, not as source truth.
+- Coordination truth is still degraded: `pd sessions --active` lists active sessions while `pd agents --active --json` returns zero. This was broadcast on `coordination:inconsistency`, sent to Coxswain, and recorded as tuple `7450`.
+- The promotion state was recorded as tuple `7449`; Harbormaster was messaged that promotion was incomplete until stable included `717f4f4` and remote `stable` moved. That condition is now satisfied.
+
+### Stale Work Visibility And Actor Inbox Triage (2026-04-27)
+
+Current execution session: `session-3c9f287b-3b90-493e-b867-7dff73136071`.
+
+- This slice intentionally avoided the runtime/backend files that were active under the Claude SDK / cartographer launchability work.
+- `pd salvage --project port-daddy --summary` now exposes the stale/dead queue as non-live triage: status counts, age buckets, project scope, encrypted-note redaction count, and a direct comparison hint for `pd sessions --active` / `pd agents --active`.
+- Encrypted note blobs in salvage output are now redacted instead of flooding the terminal with ciphertext. The current dogfood read showed 54 non-live `port-daddy` entries, 40 encrypted notes redacted, 4 entries under 2 hours, 43 from 2-24 hours, and 7 over 24 hours.
+- Actor inbox triage now has an explicit acknowledgement path: `pd actor <id> --inbox --mark-read` calls `PUT /actors/:id/inbox/read-all` after printing messages. This marks messages read without deleting them.
+- The Navigator inbox was inspected but not acknowledged in this slice. It currently has 6 unread messages, including roadmap/promotion coordination requests that should stay durable until the responsible roadmap actor or operator intentionally marks them read.
+- Validation truth: `npm test -- tests/unit/salvage-visibility.test.js tests/unit/actors-routes.test.js --runInBand` passed 2 suites / 7 tests; `npm run typecheck` passed; `git diff --check` passed; source CLI dogfood for `pd salvage --summary`, `pd actor navigator --inbox-stats`, and `pd actor navigator --inbox --unread --limit 2` succeeded.
+- Follow-up dogfood after stable promotion showed `pd salvage --summary --project port-daddy` at 57 non-live queue entries, all pending: 6 under 2 hours, 44 from 2-24 hours, and 7 over 24 hours, with 60 encrypted notes redacted from CLI output.
+
+### Port Daddy Skill And Actor-Truth Repair (2026-04-26)
+
+Original execution session: `session-a7366433-5e18-4deb-b78a-561b77163e23`.
+Continuation merge/UI honesty session: `session-d50ed49e-60b5-4e0a-8387-50884f127176`.
+
+- The active request is to use `skill-architect` to repair the confusing/out-of-date agent skill and improve skill governance across the repo.
+- Live actor truth was verified: `pd actor cartographer` resolves to the durable `navigator` actor, whose mission covers roadmap, recovery-ledger, work-slices, and cartographer-status. `pd actor lookout` is the release-surface owner for docs/API/skills/product truth.
+- `pd actor --message` queues durable mailbox work; it is not an immediate answer. Agents still need to read live Port Daddy state and authority docs when no live body responds.
+- `skills/port-daddy-cli/SKILL.md` now has first-party metadata and an explicit roadmap/skill actor workflow before MCP/reference material.
+- `skills/port-daddy-cli/SKILL.md` and `AGENTS.md` now encode the ambient-collaboration policy: agents should publish structured scope/evidence; durable actors/watchers should call out material inconsistencies; no forced constant peer chat.
+- The policy now explicitly includes goal/invariant-level inconsistency detection: security/auth/privacy/trust-boundary/API-shape drift, product/UX direction mismatch, and strong inferred operator goals. Example: a raw text API should be flagged if adjacent work indicates authenticated secure API expectations, even when the raw endpoint is not locally broken.
+- Live coordination evidence exposed a gap worth fixing next: `/operator/actors` can show active sessions as stale/salvaged while `pd sessions --active` still lists them, and `pd agents --active` can return zero. That should be surfaced as a coordination inconsistency instead of leaving the operator to reconcile it manually.
+- A worktree-scoped `coordination:inconsistency` channel now exists. Tuple `6213` records the default policy for operator-worthy cross-agent conflicts, and tuple `6249` records implied-goal inconsistency detection.
+- `tests/unit/port-daddy-skill-authority.test.js` now guards first-party skill metadata and the live actor consultation path.
+- `skills/port-daddy-cli/CHANGELOG.md` records this skill-surface mutation.
+- `scripts/audit-skills.mjs` now provides deterministic JSON/Markdown governance scanning for every visible repo skill; current scan sees 109 skills, 70 missing at least one of `license`, `allowed-tools`, or `metadata`, 4 first-party skills, and 19 imported-literature skills.
+- `docs/reports/SKILL_GOVERNANCE_AUDIT_2026-04-26.md` records the broader audit and warns not to blindly rewrite imported/research skills.
+- The validated `port-daddy-cli` skill and references were mirrored into `/Users/erichowens/.agents/skills/port-daddy-cli/` so new agents can load the updated instructions.
+- The workgroup `port-daddy` skill has now received an adapted merge at `/Users/erichowens/coding/workgroup-ai/skills/port-daddy/`: it keeps the workgroup package name, gains the current repo/user runbook body, gets a changelog entry, and has references mirrored from `skills/port-daddy-cli/references/`.
+- Skill diff honesty: the repo and user installed `port-daddy-cli` skills were identical at 729 lines, while the workgroup `port-daddy` skill was an older 409-line surface with a 546-line diff against the repo copy; its API reference was also stale by 755 diff lines and its SDK reference by 49 diff lines.
+- UI honesty: Fleet Control Center already used the coordination substrate generically through actors, channels, tuples, graph, and memory views, but it did not first-class the new `coordination:inconsistency` layer. `fleet-config-ui` now surfaces project-level coordination inconsistency callouts from that channel and jumps the operator into the channel when opened. Native FleetBar still only benefits indirectly through the embedded control plane/actor lens; a native popover alert remains future work.
+- Validation truth: `npm test -- tests/unit/port-daddy-skill-authority.test.js tests/unit/skill-governance-audit.test.js --runInBand` passed 2 suites / 9 tests; `pd fleet validate` passed with no topology warnings; `git diff --check` passed; `npm run build` from `fleet-config-ui/` passed with the existing large-chunk warning.
+
+### Shipwright Fleet UI Surface (2026-04-26)
+
+Shipwright is now visible in the real Fleet Control Center instead of only in
+docs and previews. Current execution sessions: `session-07535f5d-ff36-45c0-8d0f-ce2cad1e5575`
+for the UI slice and `session-605add56-8e29-4c82-acb6-faa38566eaf0` for this
+status handoff.
+
+- `2cc9fee` rebuilt the served `public/fleet-ui` bundle after the Shipwright
+  grammar/API/fixture slice landed.
+- `f689337` adds a `Shipwright` top-level surface to `fleet-config-ui`, with an
+  all-project route at `/fleet-ui/?surface=shipwright` and project-scoped render
+  when a project is selected.
+- The first visible panel is fixture-backed by design until `/shipwright/*`
+  daemon routes exist. It renders Harbor survey truth, proposed agents with
+  deterministic ship thumbnails, simulation events, budget/escrow summaries,
+  and Shipwright chat copy with visible fixture labels.
+- Validation truth on 2026-04-26:
+  - `npm run lint` from `fleet-config-ui/`: green
+  - `npm run build` from `fleet-config-ui/`: green with the existing large
+    Fleet UI chunk warning
+  - `npm test -- tests/unit/ship-grammar.test.ts --runInBand`: 6/6 pass
+  - browser smoke via Vite + Chromium CDP: desktop and narrow viewport render
+    the Shipwright surface at `?surface=shipwright&daemon=http://127.0.0.1:9876`
+  - broad `npm test`: 143/143 suites pass, 4981/4982 tests pass, 1 intentional
+    skip
+- Remaining Shipwright UI work: split the monolithic panel into the planned
+  `HarborView`, `FocusView`, `SimulationView`, and `FleetControlView`; add
+  query-param subview state; wire real `/shipwright/*` daemon routes once they
+  exist; then promote the bundle through the normal stable path.
 
 ### Port Daddy Website Ideal-Web-App Rehab Handoff (2026-04-24)
 
@@ -186,6 +397,132 @@ Follow-on execution session: `session-4174ea2d-db24-4af2-a2d4-d9be7421a26c`.
   manual a11y evidence, SEO/OG/PWA/legal/privacy/observability, raw visual
   literals in legacy pages outside the protected contract, and a deeper
   Mermaid/diagram payload decision.
+
+### Port Daddy Website Swiss-Modern Grid Layer Slice (2026-04-26)
+
+Follow-on execution session: `session-d43caa83-9525-4a04-a1b4-57df1ef92916`.
+
+- The local `swiss-modern-website-design` skill was used as the design lens for
+  this slice. The implementation is an overlay on the Port Daddy identity, not
+  a grayscale replacement: keep paper/ink/blue/lime, but make the grid,
+  measure, typography, and surface depth stricter.
+- The Swiss-modern audit against `website-v2` reported remaining drift:
+  219 literal color instances, 145 unique literal colors, 203 radius patterns,
+  121 shadow patterns, and 185 width patterns.
+- Source and role tokens now include a formal grid/measure layer:
+  `--layout-grid-columns`, `--layout-grid-gap`, `--layout-copy-measure`,
+  `--layout-caption-measure`, `--layout-meta-measure`, `--grid-*`, and
+  `--measure-*`.
+- Shared elevation tokens are flatter (`--shadow-raised`, `--shadow-sm`, and
+  `--shadow-pressed`) so the public shell reads more like editorial
+  infrastructure and less like a stack of decorative cards.
+- `website-v2/src/components/site/primitives.tsx` now exports `SwissGrid` and
+  `SwissGridItem` for 12-column desktop composition with a mobile-safe
+  single-column collapse.
+- The public primitive Storybook story now demonstrates the Swiss grid contract.
+- `/mcp` now uses the Swiss grid for the proof route: 7/5 hero composition,
+  3/9 rail/body sections, and 6/6 or 7/5 proof sections while preserving mobile
+  wrapping.
+- Proof screenshots now exist at:
+  - `docs/reports/website-rehab-screenshots/mcp-swiss-desktop.png`
+  - `docs/reports/website-rehab-screenshots/mcp-swiss-mobile.png`
+- Validation truth on 2026-04-26 from `website-v2/`:
+  - `npm run lint`: green
+  - `npm run test -- src/design-system-contracts.test.ts`: 10/10 pass
+  - `npm run test`: 7/7 files and 73/73 tests pass
+  - `npm run build`: green with no chunk-size warning; largest JS chunk is
+    `Mermaid-C7kUbfif.js` at 491.12 kB minified / 136.65 kB gzip, and the MCP
+    route chunk is `MCPPage-BRPJpuq-.js` at 18.66 kB minified / 6.12 kB gzip
+  - `npm run build-storybook`: green with the known large iframe chunk warning
+    and `radix-ui` package metadata warning
+- Remaining website rehab blockers: broader route migration to the Swiss grid,
+  Storybook state matrix, axe/keyboard/manual a11y evidence, SEO/OG/PWA/legal/
+  privacy/observability, raw visual literals in legacy pages, and a deeper
+  Mermaid/diagram payload decision.
+
+### Port Daddy Website Storybook and MCP A11y Slice (2026-04-26)
+
+Follow-on execution session: `session-38334c91-8bed-45d4-85be-da069cd41648`.
+
+- Storybook a11y is now configured to run axe through `wcag2aaa` plus
+  `color-contrast-enhanced`, matching the stricter MCP route gate instead of
+  silently stopping its label at AA.
+- The public primitive Storybook matrix now participates in the design-system
+  contract alongside Button, Badge, Surface, CodeBlock, and the MCP route
+  story.
+- The MCP pub/sub tabs now declare vertical tablist orientation and are covered
+  by contract checks for roving tab index, ArrowDown/ArrowRight/Home/End
+  navigation, and visible focus.
+- Refreshed a11y evidence now lives at
+  `docs/reports/website-rehab-a11y/mcp-a11y-report.json`; it records 0 desktop
+  axe violations, 0 mobile axe violations, 4 tabs, visible focus outline, and
+  no horizontal overflow at 1440x1200 or 390x1200.
+- Validation truth on 2026-04-26 from `website-v2/`:
+  - `npm run lint`: green
+  - `npm run test -- src/design-system-contracts.test.ts`: 11/11 pass
+  - `npm run test`: 7/7 files and 74/74 tests pass
+  - `npm run test:a11y:mcp`: green with refreshed report/screenshots
+  - `npm run build`: green with no chunk-size warning; largest JS chunk is
+    `Mermaid-CMec62CS.js` at 491.12 kB minified / 136.65 kB gzip, and the MCP
+    route chunk is `MCPPage-Cqgjlo-C.js` at 19.34 kB minified / 6.39 kB gzip
+  - `npm run build-storybook`: green with the known large iframe chunk warning
+    and `radix-ui` package metadata warning; iframe is 1,087.59 kB minified /
+    307.00 kB gzip
+- Remaining website rehab blockers: route-wide a11y/manual screen-reader
+  evidence, route-composite Storybook matrices, SEO/OG/PWA/legal/privacy/
+  observability, raw visual literals in legacy pages, and a deeper
+  Mermaid/diagram payload decision.
+
+### Port Daddy Website Public Shell Unification Slice (2026-04-26)
+
+Follow-on execution session: `session-652f982e-46f1-404c-a6d2-417b1eb2e7f5`.
+
+- Home now renders through `MainLayout` and the shared `SiteHeader`; the old
+  `components/landing/Nav` shell was removed.
+- `components/layout/Footer.tsx` now re-exports `SiteFooter`, so older layout
+  callers converge on the shared footer primitive.
+- `SiteHeader` now carries the shared shell identity
+  `header[data-shell="site-header"]`, an always-present skip link, desktop docs
+  search, mobile search trigger, active route styling, tokenized focus
+  treatment, and shared `PageContainer` sizing.
+- Route-level top padding was removed from public pages that now sit beneath
+  the normal document-flow shell.
+- `TerminalDemos` was fixed for mobile shrink safety after the shell a11y gate
+  caught horizontal overflow in the tab rail and terminal column.
+- Contrast-critical token fixes landed in the system layer:
+  - code identity highlighting uses `--code-channel-*` tokens
+  - Badge variants use high-contrast on-tint tokens
+  - lime/accent foreground-muted tokens now satisfy the strict route gate
+  - dimmed `DocsCard` eyebrow opacity was removed
+  - `BlogPage` feature badges no longer use raw color literals
+- `scripts/check-public-shell-a11y.mjs` and `npm run test:a11y:shell` now
+  audit `/`, `/docs`, `/mcp`, and `/blog` at desktop and mobile sizes for shell
+  structure, visible first-tab skip-link focus, horizontal overflow, screenshots,
+  WCAG tags through AAA, and `color-contrast-enhanced`.
+- Refreshed shell evidence lives at
+  `docs/reports/website-rehab-a11y/public-shell-a11y-report.json` and:
+  - `docs/reports/website-rehab-screenshots/shell-home-desktop.png`
+  - `docs/reports/website-rehab-screenshots/shell-home-mobile.png`
+  - `docs/reports/website-rehab-screenshots/shell-docs-desktop.png`
+  - `docs/reports/website-rehab-screenshots/shell-docs-mobile.png`
+  - `docs/reports/website-rehab-screenshots/shell-mcp-desktop.png`
+  - `docs/reports/website-rehab-screenshots/shell-mcp-mobile.png`
+  - `docs/reports/website-rehab-screenshots/shell-blog-desktop.png`
+  - `docs/reports/website-rehab-screenshots/shell-blog-mobile.png`
+- Validation truth on 2026-04-26 from `website-v2/`:
+  - `npm run lint`: green
+  - `npm run test -- src/design-system-contracts.test.ts`: 13/13 pass
+  - `npm run test`: 7/7 files and 76/76 tests pass
+  - `npm run test:a11y:shell`: green with 0 axe violations and no horizontal
+    overflow across the four-route desktop/mobile matrix
+  - `npm run test:a11y:mcp`: green with refreshed report/screenshots
+  - `npm run build`: green with no chunk-size warning
+  - `npm run build-storybook`: green with the known large iframe chunk warning
+    and `radix-ui` package metadata warning
+- Remaining website rehab blockers: route-internal composite cleanup,
+  manual screen-reader/reduced-motion/forced-colors passes, route metadata and
+  OG images, PWA/favicons, legal/privacy/support pages, observability, claims
+  ledger, and deeper payload budgets.
 
 ### Cartographer / Navigator Maritime Actor Foundation (2026-04-26)
 

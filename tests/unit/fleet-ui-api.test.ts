@@ -97,4 +97,39 @@ describe('fleet-config-ui api', () => {
 
     expect(preview).toEqual(previewFixture);
   });
+
+  test('fetchRoadmapProgress resolves the selected project root', async () => {
+    global.fetch = jest.fn(async () => ({
+      ok: true,
+      headers: {
+        get: () => 'application/json',
+      },
+      json: async () => ({
+        generatedAt: 1,
+        sources: {
+          roadmapPath: '/repo/docs/ROADMAP.md',
+          ideasTrovePath: '/repo/docs/recovery/IDEAS-TROVE.md',
+          dogfoodFeedbackPath: '/repo/docs/recovery/DOGFOOD-FEEDBACK.md',
+          currentWorkPath: '/repo/docs/recovery/CURRENT-WORK.md',
+          cartographerStatusPath: '/repo/.cartographer/status.md',
+        },
+        freshness: { latestUpdateMs: 1, hoursSinceLastUpdate: 0.2 },
+        nextCuts: [{ slug: 'cartographer-roadmap-progress-screen', summary: 'Surface roadmap state.' }],
+        ideasNow: [],
+        dogfoodFeedback: [],
+        currentWorkExcerpt: null,
+        cartographerStatusExcerpt: null,
+        warnings: [],
+      }),
+    })) as typeof fetch;
+
+    const { fetchRoadmapProgress } = await import('../../fleet-config-ui/src/api.ts');
+    const progress = await fetchRoadmapProgress('/Users/test/port-daddy');
+
+    expect(progress.nextCuts[0]?.slug).toBe('cartographer-roadmap-progress-screen');
+    expect(global.fetch).toHaveBeenCalledWith(
+      'http://127.0.0.1:9876/cartographer/roadmap-progress?root=%2FUsers%2Ftest%2Fport-daddy',
+      expect.objectContaining({ method: 'GET' }),
+    );
+  });
 });

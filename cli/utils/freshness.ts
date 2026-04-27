@@ -9,6 +9,7 @@ const FRESHNESS_SKIP_COMMANDS = new Set([
   'status',
   'version',
   'dev',
+  'daemon',
   'ci-gate',
   'doctor',
   'diagnose',

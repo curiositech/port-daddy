@@ -277,6 +277,29 @@ describe('Projects Module', () => {
       expect(known.some((entry) => entry.root === nestedRoot)).toBe(false);
     });
 
+    it('seeds direct child project markers before deep crawls spend the discovery budget', () => {
+      const workspace = mkdtempSync(join(tmpdir(), 'pd-projects-budget-'));
+      const noisyRoot = join(workspace, 'aaa-noisy-repo');
+      const lateFleetRoot = join(workspace, 'zzz-workgroup-ai');
+      tempRoots.push(workspace);
+
+      mkdirSync(noisyRoot, { recursive: true });
+      mkdirSync(lateFleetRoot, { recursive: true });
+      for (let i = 0; i < 1600; i += 1) {
+        mkdirSync(join(noisyRoot, `package-${String(i).padStart(4, '0')}`), { recursive: true });
+      }
+      writeFileSync(join(lateFleetRoot, 'pd-fleet.yml'), 'name: workgroup-ai\nagents: []\nwatchers: []\nchannels: {}\n');
+
+      const known = projects.listKnown({
+        discoveryRoots: [workspace],
+        maxDepth: 2,
+        fresh: true,
+      });
+
+      expect(known.some((entry) => entry.root === lateFleetRoot)).toBe(true);
+      expect(known.find((entry) => entry.root === lateFleetRoot)?.signals).toContain('fleet');
+    });
+
     it('filters stale temp registrations that no longer have durable Port Daddy markers', () => {
       const workspace = mkdtempSync(join(tmpdir(), 'pd-projects-stale-'));
       const staleRoot = join(workspace, 'empty-project');

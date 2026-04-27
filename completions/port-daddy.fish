@@ -97,14 +97,14 @@ set -l __pd_commands \
     'agent' 'agents' 'actor' 'actors' 'swarm' 'log' 'activity' \
     'session' 'sessions' 'note' 'notes' \
     'salvage' 'resurrection' 'changelog' 'dns' 'files' 'who-owns' 'integration' 'briefing' 'history' 'inbox' \
-    'begin' 'b' 'done' 'whoami' 'w' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'watch' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' \
-    'say' 'look' 'sitrep' 'advise' 'preflight' 'compass' 'pheromone' 'ph' \
+    'begin' 'b' 'done' 'whoami' 'w' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'watch' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' 'roadmap' 'quorum' \
+    'say' 'look' 'sitrep' 'advise' 'preflight' 'compass' 'guard' 'pheromone' 'ph' \
     'wallet' 'bond' \
     'up' 'down' \
     'bench' 'demo' 'fleet' \
     'dashboard' 'channels' 'webhook' 'webhooks' 'metrics' 'config' 'health' 'ports' \
     'scan' 's' 'projects' 'p' 'doctor' 'diagnose' 'hints' \
-    'start' 'stop' 'restart' 'status' 'install' 'uninstall' 'dev' 'ci-gate' 'mcp' \
+    'start' 'stop' 'restart' 'status' 'install' 'uninstall' 'dev' 'daemon' 'ci-gate' 'mcp' \
     'setup' 'init' \
     'version' 'help'
 
@@ -172,6 +172,8 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a graph -d 'Inspect semantic graph edges and stats'
     complete -c $prog -n __pd_needs_command -a memory -d 'Inspect episodic memory entries and stats'
     complete -c $prog -n __pd_needs_command -a ideas -d 'Search ideas, notes, tuples, and repo markdown'
+    complete -c $prog -n __pd_needs_command -a roadmap -d 'Show Cartographer-curated Next Cuts and dogfood feedback'
+    complete -c $prog -n __pd_needs_command -a quorum -d 'Propose, vote, list, or inspect swarm proposals'
 
     # Agent Inbox
     complete -c $prog -n __pd_needs_command -a inbox -d 'Agent-to-agent direct messaging inbox'
@@ -222,6 +224,7 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a advise -d 'Suggest coordination moves before editing'
     complete -c $prog -n __pd_needs_command -a preflight -d 'Alias for advise before risky work'
     complete -c $prog -n __pd_needs_command -a compass -d 'Maritime alias for advise'
+    complete -c $prog -n __pd_needs_command -a guard -d 'Enforce Port Daddy session and file-claim discipline'
     complete -c $prog -n __pd_needs_command -a pheromone -d 'Stigmergic coordination (spray, files, show, ls)'
     complete -c $prog -n __pd_needs_command -a ph -d 'Alias for pheromone'
 
@@ -286,6 +289,14 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command advise preflight compass" -l projectRoot -r -d 'Project root'
     complete -c $prog -n "__pd_using_command advise preflight compass" -l channels -d 'Include channel suggestions'
     complete -c $prog -n "__pd_using_command advise preflight compass" -l tuples -d 'Include tuple suggestions'
+    # pd guard subcommands and flags
+    complete -c $prog -n "__pd_using_command guard" -x -a 'status check enable disable install' -d 'Subcommand'
+    complete -c $prog -n "__pd_using_command guard; and __fish_seen_subcommand_from check enable install" -l mode -x -a 'warn enforce off' -d 'Override guard mode'
+    complete -c $prog -n "__pd_using_command guard; and __fish_seen_subcommand_from check enable install" -l warn -d 'Warn instead of blocking'
+    complete -c $prog -n "__pd_using_command guard; and __fish_seen_subcommand_from check enable install" -l enforce -d 'Block on violations'
+    complete -c $prog -n "__pd_using_command guard; and __fish_seen_subcommand_from check" -l off -d 'Disable this check'
+    complete -c $prog -n "__pd_using_command guard; and __fish_seen_subcommand_from check" -l staged -d 'Check staged files'
+    complete -c $prog -n "__pd_using_command guard; and __fish_seen_subcommand_from check" -l hook -d 'Format output for a git hook'
 
     # pd actor/actors flags
     complete -c $prog -n "__pd_using_command actor actors" -l project -x -d 'Project filter'
@@ -350,6 +361,7 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a install -d 'Install as system service'
     complete -c $prog -n __pd_needs_command -a uninstall -d 'Uninstall system service'
     complete -c $prog -n __pd_needs_command -a dev -d 'Start daemon in foreground'
+    complete -c $prog -n __pd_needs_command -a daemon -d 'Daemon lifecycle subcommands (status, log, doctor)'
     complete -c $prog -n __pd_needs_command -a ci-gate -d 'Exit non-zero if daemon is stale'
     complete -c $prog -n __pd_needs_command -a mcp -d 'Start MCP server for Claude Code'
     complete -c $prog -n '__pd_is_cmd mcp' -a install -d 'Configure MCP for all detected AI editors'
@@ -757,4 +769,13 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command ideas; and __fish_seen_subcommand_from list search show" -l include-raw -d 'Include local .spark/.spider residue'
     complete -c $prog -n "__pd_using_command ideas" -s j -l json -d 'JSON output'
     complete -c $prog -n "__pd_using_command ideas" -s q -l quiet -d 'Suppress output'
+
+    # roadmap
+    complete -c $prog -n "__pd_using_command roadmap" -l dir -r -d 'Project directory'
+    complete -c $prog -n "__pd_using_command roadmap" -l root -r -d 'Project root'
+    complete -c $prog -n "__pd_using_command roadmap" -l projectDir -r -d 'Project directory'
+    complete -c $prog -n "__pd_using_command roadmap" -l limit -x -d 'Rows per section'
+    complete -c $prog -n "__pd_using_command roadmap" -l no-excerpts -d 'Hide current-work and Cartographer excerpts'
+    complete -c $prog -n "__pd_using_command roadmap" -s j -l json -d 'JSON output'
+    complete -c $prog -n "__pd_using_command roadmap" -s q -l quiet -d 'Agent-readable section:slug output'
 end
