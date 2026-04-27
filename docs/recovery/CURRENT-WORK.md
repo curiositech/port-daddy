@@ -79,6 +79,36 @@ The `agentsd.ai` public-site reset is now explicit repo work, not chat residue.
 
 ## Current Thread
 
+### Shipwright Fleet UI Surface (2026-04-26)
+
+Shipwright is now visible in the real Fleet Control Center instead of only in
+docs and previews. Current execution sessions: `session-07535f5d-ff36-45c0-8d0f-ce2cad1e5575`
+for the UI slice and `session-605add56-8e29-4c82-acb6-faa38566eaf0` for this
+status handoff.
+
+- `2cc9fee` rebuilt the served `public/fleet-ui` bundle after the Shipwright
+  grammar/API/fixture slice landed.
+- `f689337` adds a `Shipwright` top-level surface to `fleet-config-ui`, with an
+  all-project route at `/fleet-ui/?surface=shipwright` and project-scoped render
+  when a project is selected.
+- The first visible panel is fixture-backed by design until `/shipwright/*`
+  daemon routes exist. It renders Harbor survey truth, proposed agents with
+  deterministic ship thumbnails, simulation events, budget/escrow summaries,
+  and Shipwright chat copy with visible fixture labels.
+- Validation truth on 2026-04-26:
+  - `npm run lint` from `fleet-config-ui/`: green
+  - `npm run build` from `fleet-config-ui/`: green with the existing large
+    Fleet UI chunk warning
+  - `npm test -- tests/unit/ship-grammar.test.ts --runInBand`: 6/6 pass
+  - browser smoke via Vite + Chromium CDP: desktop and narrow viewport render
+    the Shipwright surface at `?surface=shipwright&daemon=http://127.0.0.1:9876`
+  - broad `npm test`: 143/143 suites pass, 4981/4982 tests pass, 1 intentional
+    skip
+- Remaining Shipwright UI work: split the monolithic panel into the planned
+  `HarborView`, `FocusView`, `SimulationView`, and `FleetControlView`; add
+  query-param subview state; wire real `/shipwright/*` daemon routes once they
+  exist; then promote the bundle through the normal stable path.
+
 ### Port Daddy Website Ideal-Web-App Rehab Handoff (2026-04-24)
 
 The active public-site thread is now an `ideal-web-app-builder` rehabilitation

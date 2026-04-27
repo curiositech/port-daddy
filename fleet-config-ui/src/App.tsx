@@ -14,6 +14,7 @@ import ActivityPanel from './components/ActivityPanel';
 import ActivityRail from './components/ActivityRail';
 import MemoryPanel from './components/MemoryPanel';
 import AgentsPanel from './components/AgentsPanel';
+import ShipwrightPanel from './shipwright/ShipwrightPanel';
 import { extractMentionedPaths } from './fileMentions';
 import {
   activityTouchedFiles,
@@ -38,8 +39,8 @@ import {
 } from './api';
 import type { ActivityEntry, FleetConfig, FleetEvent, ResolvedChannelTarget, StoryNote, TopologyValidation } from './types';
 
-type MainTab = 'Flow' | 'Agents' | 'Activity' | 'Channels' | 'Inbox' | 'Sorties' | 'Memory' | 'YAML';
-type ControlSurface = 'flow' | 'agents' | 'activity' | 'channels' | 'inbox' | 'sorties' | 'memory' | 'yaml';
+type MainTab = 'Flow' | 'Agents' | 'Activity' | 'Channels' | 'Inbox' | 'Sorties' | 'Memory' | 'Shipwright' | 'YAML';
+type ControlSurface = 'flow' | 'agents' | 'activity' | 'channels' | 'inbox' | 'sorties' | 'memory' | 'shipwright' | 'yaml';
 
 function canUseWindow(): boolean {
   return typeof window !== 'undefined';
@@ -52,6 +53,7 @@ function normalizeSurface(value: string | null): ControlSurface {
     case 'inbox':
     case 'sorties':
     case 'memory':
+    case 'shipwright':
     case 'yaml':
     case 'agents':
     case 'flow':
@@ -77,6 +79,8 @@ function surfaceToMainTab(surface: ControlSurface): MainTab {
       return 'Sorties';
     case 'memory':
       return 'Memory';
+    case 'shipwright':
+      return 'Shipwright';
     case 'yaml':
       return 'YAML';
     default:
@@ -91,6 +95,7 @@ function mainTabToSurface(activeTab: MainTab): ControlSurface {
   if (activeTab === 'Inbox') return 'inbox';
   if (activeTab === 'Sorties') return 'sorties';
   if (activeTab === 'Memory') return 'memory';
+  if (activeTab === 'Shipwright') return 'shipwright';
   if (activeTab === 'YAML') return 'yaml';
   return 'flow';
 }
@@ -881,8 +886,10 @@ export default function App() {
 
   const configAgentData = fleetConfig?.agents.find(a => a.name === configAgent);
   const daemonRunning = fleet.status?.running ?? false;
-  const surfaceTabs: MainTab[] = ['Flow', 'Agents', 'Activity', 'Channels', 'Inbox', 'Sorties', 'Memory', 'YAML'];
+  const surfaceTabs: MainTab[] = ['Flow', 'Agents', 'Activity', 'Channels', 'Inbox', 'Sorties', 'Memory', 'Shipwright', 'YAML'];
+  const allProjectSurfaceTabs: MainTab[] = ['Flow', 'Shipwright'];
   const showProjectSidebar = activeTab === 'Flow' && !embedded;
+  const visibleSurfaceTabs = selectedProjectId ? surfaceTabs : allProjectSurfaceTabs;
   const handleProjectRefresh = useCallback(() => {
     fleet.refresh();
     fleet.refreshFeeds();
@@ -922,8 +929,8 @@ export default function App() {
         onBack={selectedProjectId ? goHome : undefined}
       />
 
-      {selectedProjectId && !embedded && (
-        <TabBar tabs={surfaceTabs} active={activeTab} onChange={(tab) => setActiveTab(tab as MainTab)} />
+      {(selectedProjectId || activeTab === 'Shipwright') && !embedded && (
+        <TabBar tabs={visibleSurfaceTabs} active={activeTab} onChange={(tab) => setActiveTab(tab as MainTab)} />
       )}
 
       {selectedProject && !embedded && (
@@ -942,7 +949,9 @@ export default function App() {
       <AnimatePresence mode="wait">
         {!selectedProjectId ? (
           <motion.div key="all" className="flex-1 overflow-y-auto" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -20 }}>
-            {fleet.loading ? (
+            {activeTab === 'Shipwright' ? (
+              <ShipwrightPanel key="shipwright-all" />
+            ) : fleet.loading ? (
               <div className="flex items-center justify-center h-full opacity-30" style={{ color: 'var(--pd-text)' }}>Loading...</div>
             ) : fleet.error ? (
               <div className="flex items-center justify-center h-full text-sm" style={{ color: 'var(--pd-text)' }}>
@@ -1151,6 +1160,13 @@ export default function App() {
                         projectDir={selectedProjectId ?? undefined}
                         projectName={selectedProjectName ?? undefined}
                         harbor={fleetConfig?.harbor}
+                      />
+                    )}
+                    {activeTab === 'Shipwright' && (
+                      <ShipwrightPanel
+                        key={selectedProjectId ?? 'shipwright-all'}
+                        projectDir={selectedProjectId ?? undefined}
+                        projectName={selectedProjectName ?? undefined}
                       />
                     )}
                     {activeTab === 'YAML' && selectedProjectId && (
