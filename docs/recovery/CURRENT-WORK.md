@@ -79,6 +79,20 @@ The `agentsd.ai` public-site reset is now explicit repo work, not chat residue.
 
 ## Current Thread
 
+### Promotion Recovery Closeout (2026-04-27)
+
+Current coordination session: `session-e5ab0dfb-dadc-4d26-acd7-b38431d17d1e`.
+
+- Stable promotion is complete and pushed after the guard parity, guard hook, stale-work visibility, release-surface docs, and promotion wait-loop slices landed.
+- Remote `main` is `717f4f49bbb382851fe582b926ce88dc2f06b69f` (`717f4f4` — promotion verification wait-loop hardening).
+- Remote `stable` is `40cf79d9f5846986fc6ed8ed696061fd2268a856` (`40cf79d` — `promote: main@717f4f4 -> stable`).
+- Official promotion validation passed through `./scripts/promote-stable.sh` under `pd with-lock stable-promotion`: `147/147` Jest suites passed, `5019` tests passed, `1` test skipped, then stable build/install/runtime verification completed.
+- Live daemon truth after promotion: `/version` reports Port Daddy `3.11.0`, code hash `ce3faf8fb34e`, PID `79768`, and install dir `/Users/erichowens/port-daddy-stable`; `/health` is `ok` with runtime `nominal`.
+- The stable-promotion lock released; the remaining lock is the daemon-owned fleet project lease for `/Users/erichowens/coding/port-daddy`.
+- Residual stable-checkout dirt remains under `core/harbor-card-rs/target/release/**`. Treat it as generated build residue from the stable checkout, not as source truth.
+- Coordination truth is still degraded: `pd sessions --active` lists active sessions while `pd agents --active --json` returns zero. This was broadcast on `coordination:inconsistency`, sent to Coxswain, and recorded as tuple `7450`.
+- The promotion state was recorded as tuple `7449`; Harbormaster was messaged that promotion was incomplete until stable included `717f4f4` and remote `stable` moved. That condition is now satisfied.
+
 ### Stale Work Visibility And Actor Inbox Triage (2026-04-27)
 
 Current execution session: `session-3c9f287b-3b90-493e-b867-7dff73136071`.
@@ -89,6 +103,7 @@ Current execution session: `session-3c9f287b-3b90-493e-b867-7dff73136071`.
 - Actor inbox triage now has an explicit acknowledgement path: `pd actor <id> --inbox --mark-read` calls `PUT /actors/:id/inbox/read-all` after printing messages. This marks messages read without deleting them.
 - The Navigator inbox was inspected but not acknowledged in this slice. It currently has 6 unread messages, including roadmap/promotion coordination requests that should stay durable until the responsible roadmap actor or operator intentionally marks them read.
 - Validation truth: `npm test -- tests/unit/salvage-visibility.test.js tests/unit/actors-routes.test.js --runInBand` passed 2 suites / 7 tests; `npm run typecheck` passed; `git diff --check` passed; source CLI dogfood for `pd salvage --summary`, `pd actor navigator --inbox-stats`, and `pd actor navigator --inbox --unread --limit 2` succeeded.
+- Follow-up dogfood after stable promotion showed `pd salvage --summary --project port-daddy` at 57 non-live queue entries, all pending: 6 under 2 hours, 44 from 2-24 hours, and 7 over 24 hours, with 60 encrypted notes redacted from CLI output.
 
 ### Port Daddy Skill And Actor-Truth Repair (2026-04-26)
 
