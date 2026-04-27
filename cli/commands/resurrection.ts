@@ -25,6 +25,100 @@ interface StaleAgent {
   identityContext: string | null;
 }
 
+export interface SalvageTriageSummary {
+  total: number;
+  statuses: Record<string, number>;
+  ageBuckets: {
+    recent: number;
+    sameDay: number;
+    stale: number;
+  };
+  projects: Array<{ project: string; count: number }>;
+  encryptedNotes: number;
+}
+
+function parseEncryptedNote(note: string): boolean {
+  try {
+    const parsed = JSON.parse(note) as Record<string, unknown>;
+    return typeof parsed.iv === 'string' && typeof parsed.ct === 'string' && typeof parsed.tag === 'string';
+  } catch {
+    return false;
+  }
+}
+
+export function formatSalvageNote(note: string): string {
+  if (parseEncryptedNote(note)) {
+    return '[encrypted note redacted; use the original session context or keychain-backed tooling if the content is needed]';
+  }
+  return note;
+}
+
+export function summarizeSalvageAgents(agents: StaleAgent[], now: number = Date.now()): SalvageTriageSummary {
+  const statuses: Record<string, number> = {};
+  const projectCounts = new Map<string, number>();
+  const ageBuckets = { recent: 0, sameDay: 0, stale: 0 };
+  let encryptedNotes = 0;
+
+  for (const agent of agents) {
+    statuses[agent.status] = (statuses[agent.status] ?? 0) + 1;
+    const project = agent.identityProject || '(unknown project)';
+    projectCounts.set(project, (projectCounts.get(project) ?? 0) + 1);
+
+    const ageMs = Math.max(0, now - agent.staleSince);
+    if (ageMs < 2 * 60 * 60 * 1000) {
+      ageBuckets.recent++;
+    } else if (ageMs < 24 * 60 * 60 * 1000) {
+      ageBuckets.sameDay++;
+    } else {
+      ageBuckets.stale++;
+    }
+
+    encryptedNotes += (agent.notes ?? []).filter(parseEncryptedNote).length;
+  }
+
+  const projects = [...projectCounts.entries()]
+    .map(([project, count]) => ({ project, count }))
+    .sort((a, b) => b.count - a.count || a.project.localeCompare(b.project));
+
+  return {
+    total: agents.length,
+    statuses,
+    ageBuckets,
+    projects,
+    encryptedNotes,
+  };
+}
+
+function formatCount(name: string, count: number): string | null {
+  return count > 0 ? `${count} ${name}` : null;
+}
+
+function printSalvageTriage(summary: SalvageTriageSummary): void {
+  const statusLine = Object.entries(summary.statuses)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([status, count]) => `${count} ${status}`)
+    .join(', ');
+  const ageLine = [
+    formatCount('<2h', summary.ageBuckets.recent),
+    formatCount('2-24h', summary.ageBuckets.sameDay),
+    formatCount('>24h', summary.ageBuckets.stale),
+  ].filter(Boolean).join(', ');
+  const projectLine = summary.projects
+    .slice(0, 5)
+    .map(entry => `${entry.project}:${entry.count}`)
+    .join(', ');
+
+  console.log(`${ANSI.bold}Triage:${ANSI.reset} ${summary.total} non-live queue entr${summary.total === 1 ? 'y' : 'ies'}`);
+  if (statusLine) console.log(`  status: ${statusLine}`);
+  if (ageLine) console.log(`  age:    ${ageLine}`);
+  if (projectLine) console.log(`  scope:  ${projectLine}${summary.projects.length > 5 ? ', ...' : ''}`);
+  if (summary.encryptedNotes > 0) {
+    console.log(`  notes:  ${summary.encryptedNotes} encrypted note${summary.encryptedNotes === 1 ? '' : 's'} redacted from CLI output`);
+  }
+  console.log(`  active: compare with ${ANSI.fgCyan}pd sessions --active${ANSI.reset} and ${ANSI.fgCyan}pd agents --active${ANSI.reset}`);
+  console.log('');
+}
+
 /**
  * Handle `pd salvage` command
  * Lists agents pending resurrection with their context
@@ -47,6 +141,7 @@ export async function handleSalvage(subcommand: string | undefined, args: string
     console.error('  --stack <name>                  Further filter by stack (requires --project)');
     console.error('  --all                           Show ALL queue entries globally (use sparingly)');
     console.error('  --limit <n>                     Limit number of results');
+    console.error('  --summary                       Show only grouped stale/dead triage');
     console.error('');
     console.error('By default, salvage shows agents in the current project. Use --all for global view.');
     process.exit(0);
@@ -224,6 +319,13 @@ export async function handleSalvage(subcommand: string | undefined, args: string
       console.log(`${ANSI.fgGray}${'─'.repeat(60)}${ANSI.reset}`);
       console.log('');
 
+      const summary = summarizeSalvageAgents(agents);
+      printSalvageTriage(summary);
+
+      if (options.summary === true) {
+        return;
+      }
+
       for (const agent of agents) {
         const statusIcon = agent.status === 'dead' ? JOLLY_ROGER_COMPACT : agent.status === 'resurrecting' ? '↻' : '⚠';
         const ago = formatAge(Date.now() - agent.staleSince);
@@ -240,7 +342,8 @@ export async function handleSalvage(subcommand: string | undefined, args: string
         if (agent.notes?.length) {
           console.log('  Notes:');
           for (const note of agent.notes.slice(0, 3)) {
-            console.log(`    - ${note.slice(0, 60)}${note.length > 60 ? '...' : ''}`);
+            const formatted = formatSalvageNote(note);
+            console.log(`    - ${formatted.slice(0, 90)}${formatted.length > 90 ? '...' : ''}`);
           }
           if (agent.notes.length > 3) {
             console.log(`    ... and ${agent.notes.length - 3} more`);

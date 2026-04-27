@@ -676,6 +676,7 @@ Commands:
     --inbox                 Read recent actor mailbox messages
     --inbox-stats           Show actor mailbox depth
     --unread                With --inbox, only show unread messages
+    --mark-read             With --inbox, mark that actor mailbox read after printing
     --wake                  Try to hail the compatibility fleet body, if one exists
     -j, --json              Output as JSON
 
@@ -695,6 +696,7 @@ Examples:
   pd actor cartographer
   pd actor navigator --message "roadmap item needs evidence"
   pd actor navigator --inbox --unread
+  pd actor navigator --inbox --unread --mark-read
   pd actor coxswain --json`,
 
   ports: `Port Management \u2014 Claim, release, and query ports

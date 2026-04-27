@@ -1,9 +1,9 @@
 # Cartographer Status
 
-**Last updated:** 2026-04-26
-**Updated by:** Codex skill-governance slice
-**HEAD:** `295854d`
-**Previous HEAD:** `f689337` — daemon lease reclaim and skill-governance work now sit after the Shipwright Fleet UI slice
+**Last updated:** 2026-04-27
+**Updated by:** Codex stale-work visibility slice
+**HEAD:** `7b91e37`
+**Previous HEAD:** `295854d` — several promotion/UI cleanup commits landed before the current stale-work visibility slice
 
 ---
 
@@ -19,6 +19,9 @@ Active threads, ranked by commit recency:
 
 Newest committed truth since the last cartographer refresh:
 
+- `7b91e37` — Shipwright component review shots are committed.
+- `28cbfe2` — FleetBar now surfaces project readiness.
+- `57b51ca` — tracked Python bytecode artifacts were removed.
 - `295854d` — stale fleet leases are reclaimed on daemon restart. Stable was
   promoted from `main@295854d`, and the live daemon reports version `3.11.0`
   from `/Users/erichowens/port-daddy-stable`.
@@ -51,6 +54,14 @@ Current Compass advisor validation truth on 2026-04-26:
 - focused `sessions` + advisor/parity bundle is green at `572/572` tests after adding inactive-session claim regression coverage.
 - broad `npm test -- --no-coverage` reached green counts at `139/139` suites and `4919/4920` passing tests with `1` intentional skip, then hung after Jest's open-handle warning.
 - remaining caveat: the broad-run exit blocker is the integration harness daemon process tree (`jest -> tsx -> server.ts`) on files actively claimed by the Bosun session `session-c4cc1a46-77ba-4c72-85cf-9ce13637cc97`. Compass recorded tuple `5474`, inboxed `agent-e802a389`, and cleaned up its own hung PIDs rather than editing across that active claim.
+
+Stale-work visibility truth on 2026-04-27:
+
+- `pd salvage --project port-daddy --summary` now makes the salvage queue legible as non-live triage instead of a wall of zombie rows: status counts, age buckets, project scope, encrypted-note redaction counts, and active-work comparison commands.
+- Encrypted salvage notes are redacted in CLI output. Current dogfood truth: 54 non-live `port-daddy` entries, 40 encrypted notes redacted, 4 entries under 2 hours, 43 from 2-24 hours, and 7 over 24 hours.
+- Actor inboxes now have an explicit acknowledgement route and CLI path: `PUT /actors/:id/inbox/read-all` and `pd actor <id> --inbox --mark-read`. The messages remain stored; only unread state changes.
+- Navigator inbox was read but not acknowledged. It currently has 6 unread messages; at least two are still meaningful roadmap/promotion coordination requests.
+- Validation: focused salvage/actor route tests passed, `npm run typecheck` passed, `git diff --check` passed, and source CLI dogfood for salvage summary and Navigator inbox reads succeeded.
 
 Skill-governance truth on 2026-04-26:
 
