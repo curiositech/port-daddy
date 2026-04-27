@@ -5,12 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "npm run generate:seo",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "test": "vitest run",
+    "generate:seo": "tsx scripts/generate-seo-artifacts.mjs",
     "test:a11y:mcp": "node scripts/check-mcp-a11y.mjs",
     "test:a11y:shell": "node scripts/check-public-shell-a11y.mjs"
   },
@@ -62,6 +64,7 @@
     "playwright": "^1.58.2",
     "storybook": "^10.2.19",
     "tailwindcss": "^4.2.1",
+    "tsx": "^4.21.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.48.0",
     "vite": "^7.3.1",

@@ -79,6 +79,38 @@ The `agentsd.ai` public-site reset is now explicit repo work, not chat residue.
 
 ## Current Thread
 
+### Port Daddy Website SEO Metadata And Discovery Slice (2026-04-27)
+
+Current coordination session: `session-7d6f4ac6-5c47-401d-853b-804be7eecbd6`.
+
+- This is the next bounded `ideal-web-app-builder` rehab slice after the public
+  shell unification work.
+- The website now has a canonical source-backed metadata registry at
+  `website-v2/src/data/siteMetadata.ts` covering 182 indexable public URLs.
+  It draws from existing route/data truth for docs families, tutorials, blog
+  posts, integrations, cookbook recipes, and templates.
+- React Router now mounts `DocumentMeta`, which updates title, description,
+  canonical URL, robots, Open Graph, Twitter card, article fields, tags, and
+  JSON-LD on SPA navigation through the upgraded `useDocumentMeta` hook.
+- `npm run generate:seo` now writes `public/sitemap.xml`, `public/robots.txt`,
+  and `public/llms.txt` from that same registry. `npm run build` runs this as
+  `prebuild` so checked-in discovery artifacts are regenerated before the
+  production bundle.
+- SEO tests now enforce unique canonical URLs, existing social image files,
+  blog article metadata, generated sitemap/robots parity, LLM discovery
+  entrypoints, and real document-head mutation.
+- Validation truth on 2026-04-27 from `website-v2/`:
+  - `npm run generate:seo`: generated SEO artifacts for 182 canonical routes
+  - `npm run test -- src/seo-metadata.test.tsx`: 6/6 pass
+  - `npm run lint`: pass
+  - `npm run test`: 8/8 files and 82/82 tests pass
+  - `npm run build`: pass; largest JS chunk remains Mermaid at 491.00 kB
+    minified / 136.64 kB gzip
+- Remaining website rehab work: prerender/static metadata for non-home routes,
+  dedicated OG image generation beyond verified existing images, PWA/favicons,
+  legal/privacy/support/security-contact pages, observability/Web Vitals,
+  claims ledger, and manual reduced-motion/forced-colors/screen-reader proof.
+
 ### Promotion And Build-Artifact Hygiene (2026-04-27)
 
 Current coordination session: `session-940abfb1-8d54-4058-a7c3-3515b3b921c7`.
