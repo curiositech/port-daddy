@@ -114,12 +114,16 @@ function effectiveMode(config: CoordinationGuardConfig, options: CLIOptions = {}
 }
 
 function gitOutput(args: string[], cwd = process.cwd()): string[] {
-  const result = spawnSync('git', args, { cwd, encoding: 'utf8' });
-  if (result.status !== 0) return [];
-  return result.stdout
+  return gitText(args, cwd)
     .split(/\r?\n/)
     .map(line => line.trim())
     .filter(Boolean);
+}
+
+function gitText(args: string[], cwd = process.cwd()): string {
+  const result = spawnSync('git', args, { cwd, encoding: 'utf8' });
+  if (result.status !== 0) return '';
+  return result.stdout;
 }
 
 function gitRoot(cwd = process.cwd()): string | null {
@@ -128,12 +132,35 @@ function gitRoot(cwd = process.cwd()): string | null {
   return result.stdout.trim() || null;
 }
 
+function gitPath(path: string, cwd = process.cwd()): string | null {
+  const result = spawnSync('git', ['rev-parse', '--git-path', path], { cwd, encoding: 'utf8' });
+  if (result.status !== 0) return null;
+  const resolved = result.stdout.trim();
+  return resolved ? resolve(cwd, resolved) : null;
+}
+
 function stagedFiles(cwd = process.cwd()): string[] {
-  return gitOutput(['diff', '--cached', '--name-only', '--diff-filter=ACMR'], cwd);
+  return gitOutput(['diff', '--cached', '--name-only', '--diff-filter=ACMRDTU'], cwd);
 }
 
 function normalizeFiles(files: string[]): string[] {
   return Array.from(new Set(files.map(file => file.trim()).filter(Boolean)));
+}
+
+function dirtyFiles(cwd = process.cwd()): string[] {
+  const files: string[] = [];
+  for (const line of gitText(['status', '--porcelain=v1'], cwd).split(/\r?\n/)) {
+    if (!line.trim()) continue;
+    const rawPath = line.slice(3).trim();
+    if (!rawPath) continue;
+    if (rawPath.includes(' -> ')) {
+      const [from, to] = rawPath.split(' -> ');
+      files.push(from, to);
+    } else {
+      files.push(rawPath);
+    }
+  }
+  return normalizeFiles(files);
 }
 
 function guardHookBlock(): string {
@@ -141,8 +168,11 @@ function guardHookBlock(): string {
     HOOK_START,
     'if command -v pd >/dev/null 2>&1; then',
     '  pd guard check --staged --hook',
+    'elif command -v port-daddy >/dev/null 2>&1; then',
+    '  port-daddy guard check --staged --hook',
     'else',
-    '  echo "WARN: Port Daddy Coordination Guard skipped; pd command not found." >&2',
+    '  echo "Coordination Guard: pd command not found." >&2',
+    '  exit 1',
     'fi',
     HOOK_END,
   ].join('\n');
@@ -348,7 +378,11 @@ async function runCheck(positional: string[], options: CLIOptions): Promise<Guar
   const cwd = resolve(typeof options.dir === 'string' ? options.dir : process.cwd());
   const config = readGuardConfig(cwd);
   const mode = effectiveMode(config, options);
-  const files = normalizeFiles(options.staged || options.hook ? stagedFiles(cwd) : positional);
+  const files = normalizeFiles(options.staged || options.hook
+    ? stagedFiles(cwd)
+    : positional.length > 0
+      ? positional
+      : dirtyFiles(cwd));
   const context = await loadActiveContext(cwd);
   const ownersByFile = mode === 'off' || files.length === 0 ? {} : await loadOwners(files);
   return evaluateGuardFacts({
@@ -426,12 +460,16 @@ function installGuard(options: CLIOptions): void {
     writeGuardConfig(config, cwd);
   }
 
-  const hookPath = join(root, '.git', 'hooks', 'pre-commit');
+  const hookPath = gitPath('hooks/pre-commit', cwd);
+  if (!hookPath) {
+    ui.error('Could not resolve git pre-commit hook path.');
+    process.exit(1);
+  }
   const existing = existsSync(hookPath) ? readFileSync(hookPath, 'utf8') : '';
   mkdirSync(dirname(hookPath), { recursive: true });
   writeFileSync(hookPath, mergePreCommitHook(existing));
   chmodSync(hookPath, 0o755);
-  ui.success(`${COORDINATION_GUARD_NAME} installed in .git/hooks/pre-commit`);
+  ui.success(`${COORDINATION_GUARD_NAME} installed in ${hookPath}`);
   if (requestedMode === 'off') ui.warn('Guard hook is installed but local config is disabled.');
 }
 
