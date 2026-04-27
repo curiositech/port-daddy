@@ -149,26 +149,26 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 ## Tutorials
 
 - [Tutorials - Port Daddy](https://portdaddy.dev/tutorials): Follow hands-on Port Daddy tutorials from first install through sessions, DNS, tunnels, fleet YAML, messaging, and background agents.
-- [Spawn + Watch Pattern - Port Daddy](https://portdaddy.dev/tutorials/always-on): Combine pd spawn and pd watch to build agents that react to pub/sub signals automatically. Built-in backends: Ollama, Codex, Claude, Claude CLI, Gemini, and Aider.
-- [Live Dashboard - Port Daddy](https://portdaddy.dev/tutorials/dashboard): Visualize your swarm. Real-time panels for services, agents, sessions, locks, and system health.
-- [Debugging with Port Daddy](https://portdaddy.dev/tutorials/debugging): Use the activity log, session notes timeline, and pd diagnostics to track down what went wrong.
-- [DNS Resolver - Port Daddy](https://portdaddy.dev/tutorials/dns): Register human-readable names for services. Stop hardcoding ports -- resolve myapp-api everywhere.
-- [Fleet: Background Agents - Port Daddy](https://portdaddy.dev/tutorials/fleet): Declare your background agent fleet in YAML. Wire it to git commits. Watch QA, docs, and idea engines run automatically on every push.
-- [Getting Started - Port Daddy](https://portdaddy.dev/tutorials/getting-started): Install Port Daddy, claim your first port, and run the interactive pd learn tutorial. Zero to coordinating in 5 minutes.
-- [Harbor Tokens (Advisory) - Port Daddy](https://portdaddy.dev/tutorials/harbors): Create permission namespaces for agent teams. HMAC-signed tokens with TTLs. Enforcement is advisory in the current version.
-- [Inbox & Messaging - Port Daddy](https://portdaddy.dev/tutorials/inbox): Direct agent-to-agent messaging with inboxes, pub/sub channels, and SSE real-time subscriptions.
-- [Monorepo Mastery - Port Daddy](https://portdaddy.dev/tutorials/monorepo): Scan a monorepo, detect all services, assign ports in bulk, and orchestrate them with pd up / pd down.
-- [Multi-Agent Orchestration - Port Daddy](https://portdaddy.dev/tutorials/multi-agent): Coordinate two agents on the same project. File claims, conflict detection, pub/sub signals, and session notes.
-- [pd spawn: Launch Agent Fleets - Port Daddy](https://portdaddy.dev/tutorials/pd-spawn): Spawn Ollama, Codex, Claude, or Aider agents with Port Daddy coordination auto-wired. Sessions, heartbeats, notes, and salvage -- all automatic.
-- [Pheromone Trails - Port Daddy](https://portdaddy.dev/tutorials/pheromone): Agents leave decaying numeric signals on entities. Other agents sniff them for ambient awareness. No channels, no subscriptions -- just signals that fade.
-- [Reactive Pipelines - Port Daddy](https://portdaddy.dev/tutorials/pipelines): Build event-driven pipelines that chain pub/sub channels, watches, and spawned agents into automated workflows.
-- [Multiplayer Localhost - Port Daddy](https://portdaddy.dev/tutorials/remote-harbors): Connect multiple developers to a shared Port Daddy instance using remote harbors, tunnels, and DNS resolution.
-- [Semantic Identities: Why Names Matter - Port Daddy](https://portdaddy.dev/tutorials/semantic-identities): Learn the project:stack:context identity model behind deterministic ports, agent names, sessions, and wildcard queries.
-- [Session Phases - Port Daddy](https://portdaddy.dev/tutorials/session-phases): Drive agents through planning, coding, reviewing, and done with integration signals and phase-aware salvage.
-- [Sugar Commands - Port Daddy](https://portdaddy.dev/tutorials/sugar): pd begin, pd done, pd whoami, pd with-lock -- the high-level API that wraps all Port Daddy primitives.
-- [Activity Log Inspection - Port Daddy](https://portdaddy.dev/tutorials/time-travel): Query the append-only event timeline. Correlate infrastructure events with agent session notes to diagnose coordination failures.
-- [Tunnels - Port Daddy](https://portdaddy.dev/tutorials/tunnel): Expose local services to the internet instantly with pd tunnel. Works with ngrok, cloudflared, and localtunnel.
-- [Swarm Observation - Port Daddy](https://portdaddy.dev/tutorials/watch): Use pd watch to observe agent activity across channels and trigger automated responses to swarm events.
+- [Run Event-Triggered Agents - Port Daddy](https://portdaddy.dev/tutorials/always-on): Combine pd spawn and pd watch so agents react to channel events automatically across Ollama, Codex, Claude, Gemini, Aider, and custom backends.
+- [Read the Live Control Plane - Port Daddy](https://portdaddy.dev/tutorials/dashboard): Use the dashboard to inspect services, agents, sessions, locks, runtime health, and recent coordination evidence.
+- [Debug Coordination Failures - Port Daddy](https://portdaddy.dev/tutorials/debugging): Use activity, notes, ownership, diagnostics, and session history to find the exact point where work drifted.
+- [Resolve Services by Name - Port Daddy](https://portdaddy.dev/tutorials/dns): Register local service names so agents and scripts can discover endpoints without hardcoded port numbers.
+- [Run Background Fleets - Port Daddy](https://portdaddy.dev/tutorials/fleet): Declare background agents in YAML, bind them to project events, and keep QA, docs, and research work continuously inspectable.
+- [Start the Local Control Plane - Port Daddy](https://portdaddy.dev/tutorials/getting-started): Install the daemon, verify it is reachable, claim one stable identity, and run the first guided command path.
+- [Define Capability Boundaries - Port Daddy](https://portdaddy.dev/tutorials/harbors): Create advisory permission namespaces with signed tokens, TTLs, and explicit limits for risky agent work.
+- [Use Agent Inboxes - Port Daddy](https://portdaddy.dev/tutorials/inbox): Send direct handoffs, publish channel events, and subscribe to live SSE updates without losing attribution.
+- [Map a Monorepo - Port Daddy](https://portdaddy.dev/tutorials/monorepo): Scan a large repo, detect service boundaries, assign ports in bulk, and bring the local stack up and down cleanly.
+- [Coordinate Multiple Agents - Port Daddy](https://portdaddy.dev/tutorials/multi-agent): Run two agents on the same project with file claims, session notes, conflict visibility, and channel signals.
+- [pd spawn: Launch One-Shot Agents - Port Daddy](https://portdaddy.dev/tutorials/pd-spawn): Start a bounded agent job with sessions, heartbeats, notes, cost telemetry, and salvage wired around the backend.
+- [Use Ambient Attention Signals - Port Daddy](https://portdaddy.dev/tutorials/pheromone): Attach decaying numeric signals to files, sessions, or ideas so agents can prioritize work without extra chat traffic.
+- [Build Reactive Pipelines - Port Daddy](https://portdaddy.dev/tutorials/pipelines): Chain channels, watchers, locks, and spawned agents into event-driven workflows with clear ownership boundaries.
+- [Plan Remote Coordination - Port Daddy](https://portdaddy.dev/tutorials/remote-harbors): Separate what works today with tunnels and DNS from the roadmap for cross-machine daemon coordination.
+- [Design Semantic Identities - Port Daddy](https://portdaddy.dev/tutorials/semantic-identities): Use project:stack:context names so services, agents, sessions, and wildcard queries stay predictable across runs.
+- [Model Session Phases - Port Daddy](https://portdaddy.dev/tutorials/session-phases): Move work through planning, implementation, review, and done states with phase-aware recovery and handoff evidence.
+- [Use Operator Shortcuts - Port Daddy](https://portdaddy.dev/tutorials/sugar): Use pd begin, pd done, pd whoami, and pd with-lock as the daily command layer over the lower-level primitives.
+- [Inspect the Activity Ledger - Port Daddy](https://portdaddy.dev/tutorials/time-travel): Query the append-only event timeline. Correlate infrastructure events with agent session notes to diagnose coordination failures.
+- [Expose a Local Service - Port Daddy](https://portdaddy.dev/tutorials/tunnel): Publish a local service through pd tunnel with clear ownership, explicit provider choice, and a reversible path.
+- [Observe Runtime Channels - Port Daddy](https://portdaddy.dev/tutorials/watch): Use pd watch to follow channel activity, inspect event pressure, and trigger bounded responses from scripts or agents.
 
 ## Cookbook
 

@@ -143,10 +143,15 @@ Current coordination session: `session-a4b3a18d-1651-4d2b-b4ca-e83fb79b5ea3`.
   hero headline's "fighting each other" emphasis also no longer uses a
   blue-to-error gradient; it now uses the existing brand-primary token with a
   contract test guarding against gradient text regression.
-- Validation for that cleanup from `website-v2/`: `npm run lint`, `npm run
-  test` (8/8 files and 83/83 tests), `npm run build`, and `npm run
-  build-storybook` all passed. Storybook still prints the known iframe-size and
-  `radix-ui` package metadata warnings.
+- Tutorials index branding has also been rewritten: the first viewport now uses
+  "Operator training" and "Learn the control-plane protocol" instead of
+  "Academy of Coordination" / "Master the Swarm Logic"; the index cards are
+  flat numbered curriculum panels, and the catalogue titles/descriptions/tags
+  avoid the retired swarm/pheromone/harbor-token marketing language.
+- Latest validation for this website copy cleanup from `website-v2/`: `npm run
+  lint`, `npm run test` (8/8 files and 86/86 tests), `npm run build`, and
+  `git diff --check` all passed. The earlier Storybook pass still carries the
+  known iframe-size and `radix-ui` package metadata warnings.
 - Remaining website rehab work: route-specific OG image generation,
   PWA/favicons, legal/privacy/support/security-contact pages, observability/Web
   Vitals, claims ledger, broader rounded/glow route cleanup, and manual

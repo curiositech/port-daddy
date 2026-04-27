@@ -555,6 +555,10 @@ old rounded/nautical visual system from production code:
 - Replaced the hero headline's one-off blue-to-error gradient on "fighting
   each other" with a single brand-primary text token and added a contract test
   to keep gradient text out of that headline.
+- Rebuilt the tutorials index around the current control-plane brand voice:
+  "Operator training" instead of academy framing, flat numbered curriculum
+  panels instead of inset icon cards, and tutorial catalogue copy that avoids
+  retired swarm/pheromone/harbor-token marketing names.
 - Production source no longer references `NeumorphicTerminal` or
   `SailorAgent`; the remaining sailor wording in source is the explicit
   retired-hero regression test.
@@ -876,3 +880,4 @@ handoff with files changed and residual risks.
 | 2026-04-27 | Removed production `NeumorphicTerminal` and `SailorAgent` surfaces, added rectilinear command/agent primitives, and reran website gates | Keep plan truth aligned after retiring the most explicit old visual metaphors |
 | 2026-04-27 | Eliminated homepage neon/beige feature-card icon tiles, the matching CTA cue, and the neon header strip | Respond to live visual review feedback on the feature grid |
 | 2026-04-27 | Removed the one-off hero headline gradient from "fighting each other" and added a contract test | Keep first-viewport emphasis inside the existing brand token system |
+| 2026-04-27 | Rewrote the tutorials index and catalogue copy around operator training and control-plane protocol language | Remove inherited academy/swarm copy and make tutorials match the current brand |
