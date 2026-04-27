@@ -74,11 +74,11 @@ Use this table when the happy path reveals a specific need:
 | Edit files safely | `pd session files add` | Prefer symbol claims when the target function/class is known. |
 | Run a dev server | `pd claim <project>:<service>:<context> -q` | Never hardcode a random port. |
 | Exclusive critical section | `pd with-lock <resource> -- <command>` | Use for migrations, promotion, generated artifacts, and non-mergeable work. |
-| Crash or abandoned work | `pd salvage --project <project>` | Read before restarting work someone may have half-finished. |
+| Crash or abandoned work | `pd salvage --project <project>` / `pd salvage --summary` | Read before restarting work someone may have half-finished; use summary mode when the queue is noisy. |
 | Roadmap or what-next truth | `pd actor cartographer` / `pd actor navigator --inbox` | Ask the durable roadmap actor; docs are evidence, not the actor. |
 | Skill/docs/API drift | `pd actor lookout --message` | Queue release-surface drift for the durable docs/skill owner. |
 | Machine-readable handoff | `pd tuple out ...` | Use only when another process/agent should query it. |
-| Direct message | `pd inbox send` or `pd actor <id> --message` | Use when you know the recipient. |
+| Direct message | `pd inbox send` or `pd actor <id> --message` | Use when you know the recipient; use `pd actor <id> --inbox --mark-read` only after the role mail has been processed. |
 | Catch up after time away | `pd look` / `pd sitrep` | Read recent activity instead of scraping logs manually. |
 | Delegate work | `pd agent`, `pd sortie`, or `pd fleet` | Only after budget/readiness and telemetry policy are clear. |
 | Service dependency ready/needed | `pd integration ready` / `pd integration needs` | Use when one service is waiting on another. |
@@ -104,6 +104,8 @@ Default behavior for every non-trivial slice:
 - use actor inboxes for durable role ownership, especially Navigator,
   Coxswain, Lookout, Harbormaster, Sounder, Signalman, Breaker, Caulker, and
   Quartermaster
+- mark durable actor inbox messages read only after their coordination content
+  has been incorporated into the roadmap, recovery ledger, or a live handoff
 - use pheromones/file heat for ambient contention, not ordinary status updates
 
 Coordination is not just collision avoidance. If another agent's assumptions,
