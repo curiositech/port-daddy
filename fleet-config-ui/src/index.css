@@ -284,13 +284,16 @@ html[data-theme="light"] {
 }
 
 .pd-daemon-select {
-  min-width: 9rem;
+  min-width: 0;
+  max-width: min(48vw, 14rem);
   border: 0;
   background: transparent;
   color: var(--pd-text);
   font-size: 0.75rem;
   font-family: var(--pd-font-mono);
   outline: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .pd-daemon-select:hover {
