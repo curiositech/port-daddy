@@ -1,32 +1,38 @@
 import * as React from 'react'
 import { motion } from 'framer-motion'
 import {
-  FileText,
-  Download,
-  Shield,
   CheckCircle,
-  Lock,
-  Terminal,
-  Scale,
-  Handshake,
+  Download,
   Eye,
-  Anchor
+  FileText,
+  Handshake,
+  Lock,
+  Scale,
+  Shield,
+  Terminal,
+  type LucideIcon,
 } from 'lucide-react'
-import { Surface } from '@/components/ui/Surface'
-import { Button } from '@/components/ui/Button'
-import { Badge } from '@/components/ui/Badge'
+import { Footer } from '@/components/layout/Footer'
+import {
+  BracketLabel,
+  PageContainer,
+  PanelBody,
+  PanelEyebrow,
+  PanelTitle,
+} from '@/components/site/primitives'
 
 interface Paper {
   id: string
   title: string
   subtitle: string
+  thesis: string
   filename: string
   date: string
   pages: number
   sizeKb: number
-  badge: string
-  badgeVariant: 'red' | 'teal' | 'gold' | 'default'
-  highlights: Array<{ icon: typeof Shield; label: string; badgeVariant: 'red' | 'teal' | 'gold' | 'default' | 'success' }>
+  status: string
+  order: string
+  highlights: Array<{ icon: LucideIcon; label: string }>
   sections: Array<{ title: string; content: string }>
 }
 
@@ -34,329 +40,374 @@ const PAPERS: Paper[] = [
   {
     id: 'bonded-commons',
     title: 'The Bonded Commons',
-    subtitle: 'Pre-Transactional Trust Infrastructure for Multi-Agent Systems',
+    subtitle: 'Pre-transactional trust infrastructure for multi-agent systems',
+    thesis:
+      'Coordination fails when every agent has to negotiate trust from scratch. Port Daddy treats trust as shared infrastructure: visible claims, durable attribution, and funded accountability before work begins.',
     filename: 'agent-transactions-whitepaper',
     date: 'March 2026',
     pages: 16,
     sizeKb: 400,
-    badge: 'New',
-    badgeVariant: 'red',
+    status: 'Mechanism design',
+    order: '02',
     highlights: [
-      { icon: Scale, label: "Sen's Impossibility Applied", badgeVariant: 'gold' },
-      { icon: Handshake, label: 'Collateralized Contracts', badgeVariant: 'success' },
-      { icon: Eye, label: 'Immutable Attribution', badgeVariant: 'teal' },
-      { icon: Terminal, label: 'TLA+ Verified', badgeVariant: 'default' },
+      { icon: Scale, label: "Sen's impossibility applied" },
+      { icon: Handshake, label: 'Collateralized work contracts' },
+      { icon: Eye, label: 'Immutable evidence trails' },
+      { icon: Terminal, label: 'TLA+ model boundary' },
     ],
     sections: [
       {
-        title: 'The Trust Problem',
-        content: 'There will be no AI economy without trust, and trust cannot be earned peer-to-peer at every transaction. Multi-agent collaboration requires a commons authority that provides trust as infrastructure, not trust as ceremony.'
+        title: 'The trust problem',
+        content:
+          'Peer-to-peer promises do not scale to autonomous work. The paper frames a commons authority that records intent, scope, evidence, and accountability before coordination turns into conflict.',
       },
       {
-        title: 'Three Layers',
-        content: 'Structural prevention via capability tokens (walls, not laws). Immutable attribution via Merkle-chained evidence trails. Economic alignment via collateralized work contracts that pre-fund damage regardless of intent.'
+        title: 'Three layers',
+        content:
+          'Capability boundaries prevent broad damage, Merkle-chained attribution makes work inspectable, and collateralized contracts fund accountability without pretending that intent is observable.',
       },
       {
-        title: 'Why Advisory Claims',
-        content: "Grounded in Sen's Impossibility of a Paretian Liberal: enforced file allocation with private agent knowledge is provably suboptimal. The authority provides information, not allocation decisions."
+        title: 'Why advisory claims',
+        content:
+          "Strict allocation can be worse than conflict when private knowledge matters. The control plane should expose truthful coordination signals instead of pretending it can centrally know every agent's best move.",
       },
       {
-        title: 'The Open Problem',
-        content: 'Bond pricing: designing a function that makes defection expensive without pricing legitimate agents out of the commons. A mechanism design problem at the intersection of systems engineering and economics.'
-      }
-    ]
+        title: 'Open problem',
+        content:
+          'Bond pricing has to make defection expensive without pricing legitimate agents out of the commons. That is a product, economics, and systems-design problem, not a decorative token mechanic.',
+      },
+    ],
   },
   {
     id: 'anchor-protocol',
     title: 'The Anchor Protocol',
-    subtitle: 'A Formally Verified Control Plane for Local Agent Swarms',
+    subtitle: 'Formal verification for scoped identity and delegated authority',
+    thesis:
+      'Local agents need identities that survive process churn without turning localhost into a free-for-all. This paper specifies the cryptographic boundary for signed capability tokens and delegation chains.',
     filename: 'anchor-protocol-whitepaper',
     date: 'March 2026',
     pages: 12,
     sizeKb: 368,
-    badge: 'Foundation',
-    badgeVariant: 'teal',
+    status: 'Protocol foundation',
+    order: '01',
     highlights: [
-      { icon: Shield, label: 'ProVerif Verified', badgeVariant: 'success' },
-      { icon: Lock, label: 'Memory Safe (Rust)', badgeVariant: 'teal' },
-      { icon: CheckCircle, label: 'Constant-Time Crypto', badgeVariant: 'default' },
-      { icon: Terminal, label: 'Formal Methods', badgeVariant: 'gold' },
+      { icon: Shield, label: 'ProVerif agreement proof' },
+      { icon: Lock, label: 'Rust memory-safety path' },
+      { icon: CheckCircle, label: 'Constant-time comparison' },
+      { icon: Terminal, label: 'Formal methods appendix' },
     ],
     sections: [
       {
         title: 'Abstract',
-        content: 'Introduces the Anchor Protocol, a cryptographic and semantic identity framework. Details the evolution from symmetric MACs to asymmetric Ed25519 signatures and multi-hop delegation chains inspired by Macaroons.'
+        content:
+          'Defines the identity layer: signed cards, scoped capabilities, and attenuated delegation that let agents prove what they may do without inheriting broad ambient authority.',
       },
       {
-        title: 'The Local Swarm Problem',
-        content: 'Three critical threat vectors on localhost: port squatting, resource contention, and privilege escalation between concurrent agents.'
+        title: 'Local threat model',
+        content:
+          'Port squatting, resource contention, replay, and privilege confusion are treated as first-class localhost risks. The protocol separates semantic agent identity from ordinary process identity.',
       },
       {
-        title: 'Formal Verification',
-        content: "ProVerif symbolic analysis proves Injective Agreement: capabilities cannot be escalated and trust is perfectly transitive across delegation chains. Kani verifies memory safety and constant-time comparisons."
+        title: 'Verification strategy',
+        content:
+          'Symbolic analysis models authentication and delegation properties, while implementation-level checks focus on memory safety, signature verification, and constant-time comparisons.',
       },
       {
-        title: 'Implementation',
-        content: 'Rust-based core with Ed25519 signatures, constant-time cryptographic comparisons, and offline capability attenuation for multi-hop delegation without daemon round-trips.'
-      }
-    ]
-  }
+        title: 'Implementation boundary',
+        content:
+          'The daemon mediates runtime authority. The cryptographic core signs and verifies scoped claims, but it does not pretend to solve host-level isolation, process supervision, or user policy alone.',
+      },
+    ],
+  },
 ]
+
+const READING_ORDER = [
+  {
+    step: '01',
+    title: 'Protocol boundary',
+    body: 'Start with the Anchor Protocol when you need the identity, verification, and delegation argument.',
+  },
+  {
+    step: '02',
+    title: 'Commons governance',
+    body: 'Move to the Bonded Commons when you need the market and accountability layer above protocol identity.',
+  },
+  {
+    step: '03',
+    title: 'Product proof',
+    body: 'Compare both papers against the live daemon: sessions, claims, locks, salvage, and operator-visible evidence.',
+  },
+]
+
+function formatSize(sizeKb: number) {
+  return `${sizeKb} KB`
+}
+
+function paperUrl(paper: Paper) {
+  return `/whitepaper/${paper.filename}.pdf`
+}
 
 export default function WhitepaperPage() {
   const [activePaper, setActivePaper] = React.useState<string>(PAPERS[0].id)
   const [isLoading, setIsLoading] = React.useState(true)
 
-  const paper = PAPERS.find(p => p.id === activePaper)!
+  const paper = PAPERS.find((candidate) => candidate.id === activePaper) ?? PAPERS[0]
+  const totalPages = PAPERS.reduce((sum, candidate) => sum + candidate.pages, 0)
 
   return (
-    <div className="min-h-screen pt-20" style={{ background: 'var(--surface-base)' }}>
-      {/* Hero */}
-      <section className="py-16 px-6 sm:px-8 lg:px-10">
-        <div className="max-w-5xl mx-auto text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-            className="flex flex-col items-center gap-6"
-          >
-            <Badge variant="red" size="lg" className="px-6 py-2 text-[10px] font-black uppercase tracking-[0.2em]">
-              White Papers
-            </Badge>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="min-h-screen bg-[var(--surface-base)] font-sans selection:bg-[var(--brand-primary)] selection:text-[var(--brand-primary-foreground)]"
+    >
+      <main id="main-content">
+        <section className="border-b-2 border-[var(--border-strong)] py-[var(--space-7)] lg:py-[var(--space-8)]">
+          <PageContainer width="wide">
+            <div className="grid gap-[var(--space-7)] lg:grid-cols-[minmax(0,0.88fr)_minmax(22rem,0.42fr)] lg:items-start">
+              <div className="space-y-[var(--space-6)]">
+                <PanelEyebrow>Research dossier</PanelEyebrow>
+                <PanelTitle as="h1" size="hero" className="max-w-[12ch]">
+                  The control-plane papers.
+                </PanelTitle>
+                <PanelBody size="default" className="max-w-[48rem] text-[length:var(--text-lg)]">
+                  Two technical papers define the Port Daddy control-plane argument:
+                  signed local identity first, then commons governance for accountable
+                  multi-agent work.
+                </PanelBody>
 
-            <motion.div
-              className="w-20 h-20 rounded-[28px] flex items-center justify-center"
-              style={{
-                background: 'var(--surface-base)',
-                boxShadow: 'var(--shadow-inset)',
-              }}
-            >
-              <Anchor size={36} style={{ color: 'var(--brand-primary)' }} />
-            </motion.div>
-
-            <h1
-              className="text-4xl sm:text-5xl lg:text-6xl font-display font-black tracking-tighter leading-[0.9]"
-              style={{ color: 'var(--text-primary)' }}
-            >
-              Formal Foundations
-            </h1>
-
-            <p className="text-lg max-w-2xl mx-auto leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-              by <strong style={{ color: 'var(--text-primary)' }}>Erich Owens</strong> — Cryptographic identity,
-              commons governance, and collateralized coordination for multi-agent systems.
-            </p>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Paper Selector — radio cards */}
-      <section className="px-6 sm:px-8 lg:px-10 pb-10">
-        <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-6">
-          {PAPERS.map((p) => {
-            const isActive = activePaper === p.id
-            return (
-              <Surface
-                key={p.id}
-                depth={isActive ? 'inset' : 'raised'}
-                radius="2xl"
-                padding="lg"
-                interactive
-                className="text-left cursor-pointer"
-                onClick={() => { setActivePaper(p.id); setIsLoading(true) }}
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    {/* Radio indicator */}
-                    <div
-                      className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
-                      style={{
-                        border: `2px solid ${isActive ? 'var(--brand-primary)' : 'var(--text-muted)'}`,
-                      }}
-                    >
-                      {isActive && (
-                        <div className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--brand-primary)' }} />
-                      )}
+                <div className="grid gap-[var(--space-3)] border-y-2 border-[var(--border-strong)] py-[var(--space-4)] sm:grid-cols-3">
+                  {[
+                    { value: String(PAPERS.length).padStart(2, '0'), label: 'public papers' },
+                    { value: String(totalPages).padStart(2, '0'), label: 'review pages' },
+                    { value: 'PDF', label: 'canonical format' },
+                  ].map((stat) => (
+                    <div key={stat.label} className="space-y-[var(--space-1)]">
+                      <div className="font-mono text-[length:var(--text-xl)] font-black leading-none text-[var(--text-primary)]">
+                        {stat.value}
+                      </div>
+                      <div className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+                        {stat.label}
+                      </div>
                     </div>
-                    <Badge variant={p.badgeVariant} size="sm">{p.badge}</Badge>
+                  ))}
+                </div>
+
+                <p className="max-w-[44rem] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
+                  by <strong className="font-black text-[var(--text-primary)]">Erich Owens</strong> --
+                  cryptographic identity, advisory coordination, durable evidence, and
+                  collateral-backed work agreements for local agent systems.
+                </p>
+              </div>
+
+              <aside className="border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
+                <div className="border-b-2 border-[var(--border-strong)] p-[var(--space-4)]">
+                  <PanelEyebrow>Available papers</PanelEyebrow>
+                </div>
+                <div className="grid">
+                  {PAPERS.map((candidate) => {
+                    const selected = candidate.id === paper.id
+                    return (
+                      <button
+                        key={candidate.id}
+                        type="button"
+                        aria-pressed={selected}
+                        aria-controls="active-whitepaper-panel"
+                        onClick={() => {
+                          setActivePaper(candidate.id)
+                          setIsLoading(true)
+                        }}
+                        className={[
+                          'group grid grid-cols-[2.75rem,1fr] gap-[var(--space-3)] border-b-2 border-[var(--border-strong)] p-[var(--space-4)] text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] last:border-b-0',
+                          selected
+                            ? 'bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]'
+                            : 'bg-[var(--surface-base)] text-[var(--text-primary)] hover:bg-[var(--surface-strong)]',
+                        ].join(' ')}
+                      >
+                        <span
+                          className={[
+                            'font-mono text-[length:var(--text-xl)] font-black leading-none',
+                            selected ? 'text-[var(--brand-primary-foreground)]' : 'text-[var(--brand-primary)]',
+                          ].join(' ')}
+                        >
+                          {candidate.order}
+                        </span>
+                        <span className="min-w-0 space-y-[var(--space-2)]">
+                          <span
+                            className={[
+                              'block font-display text-[length:var(--type-panel-title-nav-size)] font-black leading-[var(--leading-nav)] tracking-[var(--tracking-display-nav)]',
+                              selected ? 'text-[var(--brand-primary-foreground)]' : 'text-[var(--text-primary)]',
+                            ].join(' ')}
+                          >
+                            {candidate.title}
+                          </span>
+                          <span
+                            className={[
+                              'block text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)]',
+                              selected ? 'text-[color:var(--brand-primary-foreground-muted)]' : 'text-[var(--text-secondary)]',
+                            ].join(' ')}
+                          >
+                            {candidate.subtitle}
+                          </span>
+                          <span
+                            className={[
+                              'block font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)]',
+                              selected ? 'text-[color:var(--brand-primary-foreground-subtle)]' : 'text-[var(--text-muted)]',
+                            ].join(' ')}
+                          >
+                            {candidate.date} / {candidate.pages} pages / {formatSize(candidate.sizeKb)}
+                          </span>
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </aside>
+            </div>
+          </PageContainer>
+        </section>
+
+        <section className="py-[var(--space-7)] lg:py-[var(--space-8)]">
+          <PageContainer width="wide">
+            <div className="grid gap-[var(--space-6)] lg:grid-cols-[minmax(0,0.66fr)_minmax(20rem,0.34fr)]">
+              <article id="active-whitepaper-panel" className="min-w-0 border-2 border-[var(--border-strong)] bg-[var(--surface-base)]">
+                <header className="grid gap-[var(--space-4)] border-b-2 border-[var(--border-strong)] p-[var(--space-5)] lg:grid-cols-[1fr_auto] lg:items-end">
+                  <div className="space-y-[var(--space-3)]">
+                    <BracketLabel>{paper.status}</BracketLabel>
+                    <div className="space-y-[var(--space-2)]">
+                      <PanelTitle as="h2" size="section" className="max-w-[14ch]">
+                        {paper.title}
+                      </PanelTitle>
+                      <PanelBody className="max-w-[48rem]">{paper.thesis}</PanelBody>
+                    </div>
                   </div>
-                  <FileText
-                    size={20}
-                    style={{ color: isActive ? 'var(--brand-primary)' : 'var(--text-muted)' }}
+
+                  <div className="flex flex-wrap gap-[var(--space-2)]">
+                    <a
+                      href={paperUrl(paper)}
+                      className="inline-flex items-center justify-center gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--text-primary)] px-[var(--space-4)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-inverse)] transition-colors hover:bg-[var(--brand-primary)] hover:text-[var(--brand-primary-foreground)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]"
+                      download
+                    >
+                      <Download aria-hidden="true" size={14} />
+                      Download
+                    </a>
+                    <a
+                      href={paperUrl(paper)}
+                      className="inline-flex items-center justify-center gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] px-[var(--space-4)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-strong)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]"
+                    >
+                      <FileText aria-hidden="true" size={14} />
+                      Open PDF
+                    </a>
+                  </div>
+                </header>
+
+                <div className="relative aspect-[1/1.34] min-h-[34rem] bg-[var(--surface-sunken)]">
+                  {isLoading ? (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-[var(--surface-sunken)]">
+                      <div className="grid gap-[var(--space-3)] text-center">
+                        <div
+                          className="mx-auto h-[var(--space-7)] w-[var(--space-7)] animate-spin border-2 border-[var(--border-default)] border-t-[color:var(--brand-primary)]"
+                          aria-hidden="true"
+                        />
+                        <span className="font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+                          Loading paper
+                        </span>
+                      </div>
+                    </div>
+                  ) : null}
+                  <iframe
+                    key={paper.id}
+                    src={`${paperUrl(paper)}#toolbar=1&navpanes=0`}
+                    className="h-full w-full"
+                    onLoad={() => setIsLoading(false)}
+                    title={`${paper.title} PDF`}
                   />
                 </div>
-                <h2
-                  className="text-xl font-bold tracking-tight mb-2"
-                  style={{ color: isActive ? 'var(--brand-primary)' : 'var(--text-primary)' }}
-                >
-                  {p.title}
-                </h2>
-                <p className="text-sm leading-relaxed mb-4" style={{ color: 'var(--text-muted)' }}>
-                  {p.subtitle}
-                </p>
-                <div className="flex items-center gap-4 text-xs" style={{ color: 'var(--text-muted)' }}>
-                  <span>{p.date}</span>
-                  <span>{p.pages} pages</span>
-                  <span>{p.sizeKb} KB</span>
-                </div>
-              </Surface>
-            )
-          })}
-        </div>
-      </section>
+              </article>
 
-      {/* Active Paper Badges */}
-      <section className="px-6 sm:px-8 lg:px-10 pb-10">
-        <div className="max-w-5xl mx-auto flex flex-wrap items-center justify-center gap-3">
-          {paper.highlights.map((h, i) => (
-            <motion.div
-              key={h.label}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: i * 0.06 }}
-            >
-              <Badge variant={h.badgeVariant} size="md" className="gap-1.5">
-                <h.icon size={12} />
-                {h.label}
-              </Badge>
-            </motion.div>
-          ))}
-        </div>
-      </section>
-
-      {/* Key Highlights */}
-      <section className="py-12 px-6 sm:px-8 lg:px-10">
-        <div className="max-w-5xl mx-auto">
-          <Surface depth="flat" radius="2xl" padding="lg">
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-              {paper.sections.map((section, i) => (
-                <motion.div
-                  key={`${paper.id}-${section.title}`}
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.08, duration: 0.5 }}
-                  className="space-y-3"
-                >
-                  <h3 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>
-                    {section.title}
-                  </h3>
-                  <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                    {section.content}
-                  </p>
-                </motion.div>
-              ))}
-            </div>
-          </Surface>
-        </div>
-      </section>
-
-      {/* PDF Viewer */}
-      <section className="py-12 px-6 sm:px-8 lg:px-10">
-        <div className="max-w-5xl mx-auto">
-          <Surface depth="raised" radius="2xl" padding="none" className="overflow-hidden">
-            {/* PDF Toolbar */}
-            <Surface depth="inset" radius="none" padding="none" className="flex items-center justify-between px-6 py-4">
-              <div className="flex items-center gap-3">
-                <FileText size={18} style={{ color: 'var(--brand-primary)' }} />
-                <span className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
-                  {paper.filename}.pdf
-                </span>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                  {paper.sizeKb} KB
-                </span>
-                <Button variant="primary" size="sm" asChild>
-                  <a href={`/whitepaper/${paper.filename}.pdf`} download>
-                    <Download size={14} />
-                    Download
-                  </a>
-                </Button>
-              </div>
-            </Surface>
-
-            {/* PDF Embed */}
-            <div className="relative aspect-[1/1.4] w-full" style={{ background: 'var(--surface-sunken)' }}>
-              {isLoading && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="flex flex-col items-center gap-4">
-                    <div
-                      className="w-8 h-8 rounded-full animate-spin"
-                      style={{
-                        border: '2px solid var(--border-default)',
-                        borderTopColor: 'var(--brand-primary)',
-                      }}
-                    />
-                    <span className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading PDF...</span>
+              <aside className="grid content-start gap-[var(--space-4)]">
+                <section className="border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-5)]">
+                  <div className="mb-[var(--space-4)] flex items-center justify-between gap-[var(--space-3)] border-b-2 border-[var(--border-strong)] pb-[var(--space-3)]">
+                    <PanelEyebrow>Argument map</PanelEyebrow>
+                    <span className="font-mono text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+                      {paper.order}/{PAPERS.length.toString().padStart(2, '0')}
+                    </span>
                   </div>
-                </div>
-              )}
-              <iframe
-                key={paper.id}
-                src={`/whitepaper/${paper.filename}.pdf#toolbar=1&navpanes=0`}
-                className="w-full h-full"
-                onLoad={() => setIsLoading(false)}
-                title={`${paper.title} Whitepaper`}
-              />
+                  <div className="grid gap-[var(--space-4)]">
+                    {paper.sections.map((section, index) => (
+                      <div key={`${paper.id}-${section.title}`} className="grid grid-cols-[2rem,1fr] gap-[var(--space-3)]">
+                        <span className="font-mono text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+                          {String(index + 1).padStart(2, '0')}
+                        </span>
+                        <div className="space-y-[var(--space-1)]">
+                          <h3 className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-primary)]">
+                            {section.title}
+                          </h3>
+                          <p className="text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
+                            {section.content}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+
+                <section className="border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-5)]">
+                  <PanelEyebrow className="mb-[var(--space-4)]">Verification signals</PanelEyebrow>
+                  <div className="grid gap-[var(--space-3)]">
+                    {paper.highlights.map((highlight) => (
+                      <div
+                        key={highlight.label}
+                        className="flex items-center gap-[var(--space-3)] border-t-2 border-[var(--border-default)] pt-[var(--space-3)] first:border-t-0 first:pt-0"
+                      >
+                        <highlight.icon aria-hidden="true" className="h-[var(--space-4)] w-[var(--space-4)] shrink-0 text-[var(--brand-primary)]" />
+                        <span className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-primary)]">
+                          {highlight.label}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              </aside>
             </div>
-          </Surface>
-        </div>
-      </section>
+          </PageContainer>
+        </section>
 
-      {/* How They Relate */}
-      <section className="py-16 px-6 sm:px-8 lg:px-10">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2
-            className="text-3xl font-display font-black tracking-tighter mb-10"
-            style={{ color: 'var(--text-primary)' }}
-          >
-            How the Papers Relate
-          </h2>
-          <div className="grid md:grid-cols-3 gap-6 items-center">
-            <Surface
-              depth={activePaper === 'anchor-protocol' ? 'inset' : 'raised'}
-              radius="xl"
-              padding="lg"
-              interactive
-              className="text-center cursor-pointer"
-              onClick={() => { setActivePaper('anchor-protocol'); setIsLoading(true); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
-            >
-              <Lock size={28} style={{ color: 'var(--brand-secondary)' }} className="mx-auto mb-3" />
-              <h3 className="font-bold mb-2" style={{ color: activePaper === 'anchor-protocol' ? 'var(--brand-primary)' : 'var(--text-primary)' }}>
-                Anchor Protocol
-              </h3>
-              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                The security foundation. Cryptographic identity, capability tokens, delegation chains.
-              </p>
-            </Surface>
+        <section className="border-t-2 border-[var(--border-strong)] py-[var(--space-7)] lg:py-[var(--space-8)]">
+          <PageContainer width="wide">
+            <div className="grid gap-[var(--space-6)] lg:grid-cols-[minmax(0,0.35fr)_minmax(0,0.65fr)]">
+              <div className="space-y-[var(--space-4)]">
+                <PanelEyebrow>Reading order</PanelEyebrow>
+                <PanelTitle as="h2" size="section" className="max-w-[11ch]">
+                  Read the system from proof to practice.
+                </PanelTitle>
+              </div>
 
-            <div className="flex items-center justify-center">
-              <span
-                className="text-lg font-display font-black tracking-tight"
-                style={{ color: 'var(--text-muted)' }}
-              >
-                builds on &rarr;
-              </span>
+              <div className="grid gap-[var(--space-3)]">
+                {READING_ORDER.map((item) => (
+                  <div
+                    key={item.step}
+                    className="grid gap-[var(--space-4)] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-4)] sm:grid-cols-[4rem,1fr]"
+                  >
+                    <div className="font-mono text-[length:var(--text-xl)] font-black leading-none text-[var(--brand-primary)]">
+                      {item.step}
+                    </div>
+                    <div className="space-y-[var(--space-1)]">
+                      <h3 className="font-display text-[length:var(--type-panel-title-nav-size)] font-black leading-[var(--leading-nav)] tracking-[var(--tracking-display-nav)] text-[var(--text-primary)]">
+                        {item.title}
+                      </h3>
+                      <p className="text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
+                        {item.body}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
+          </PageContainer>
+        </section>
+      </main>
 
-            <Surface
-              depth={activePaper === 'bonded-commons' ? 'inset' : 'raised'}
-              radius="xl"
-              padding="lg"
-              interactive
-              className="text-center cursor-pointer"
-              onClick={() => { setActivePaper('bonded-commons'); setIsLoading(true); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
-            >
-              <Scale size={28} style={{ color: 'var(--brand-primary)' }} className="mx-auto mb-3" />
-              <h3 className="font-bold mb-2" style={{ color: activePaper === 'bonded-commons' ? 'var(--brand-primary)' : 'var(--text-primary)' }}>
-                Bonded Commons
-              </h3>
-              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                The governance layer. Trust infrastructure, advisory coordination, collateralized contracts.
-              </p>
-            </Surface>
-          </div>
-        </div>
-      </section>
-    </div>
+      <Footer />
+    </motion.div>
   )
 }

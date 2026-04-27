@@ -31,8 +31,7 @@ export function SiteHeader() {
         data-shell="site-header"
         className="sticky top-0 z-50 border-b-2 border-[var(--border-strong)] bg-[var(--surface-base)] relative"
       >
-        <div className="absolute right-0 top-0 h-full w-3 bg-[var(--brand-primary)]" />
-        <PageContainer width="wide" className="flex items-center justify-between gap-[var(--space-5)] py-[var(--space-4)]">
+        <PageContainer width="wide" className="!max-w-none flex items-center justify-between gap-[var(--space-5)] py-[var(--space-4)]">
           <Link to="/" className="inline-flex min-w-0 items-center gap-[var(--space-3)] text-[var(--text-primary)]">
             <BrandMark />
             <div className="flex min-w-0 flex-col">
@@ -57,7 +56,7 @@ export function SiteHeader() {
                   end={item.end}
                   className={({ isActive }) =>
                     [
-                      'inline-flex items-center border-2 px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] uppercase tracking-[var(--tracking-meta)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]',
+                      'inline-flex shrink-0 items-center border-2 px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] uppercase tracking-[var(--tracking-meta)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]',
                       isActive
                         ? 'border-[var(--border-strong)] bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]'
                         : 'border-transparent text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]',
@@ -103,7 +102,7 @@ export function SiteHeader() {
           aria-label="Mobile primary"
           className="border-t-2 border-[var(--border-strong)] bg-[var(--surface-raised)] lg:hidden"
         >
-          <PageContainer width="wide" className="flex gap-[var(--space-2)] overflow-x-auto py-[var(--space-2)]">
+          <PageContainer width="wide" className="!max-w-none flex gap-[var(--space-2)] overflow-x-auto py-[var(--space-2)]">
             {NAV_ITEMS.map((item) => (
               <NavLink
                 key={`mobile-${item.href}`}

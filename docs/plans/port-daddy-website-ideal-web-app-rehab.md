@@ -881,3 +881,4 @@ handoff with files changed and residual risks.
 | 2026-04-27 | Eliminated homepage neon/beige feature-card icon tiles, the matching CTA cue, and the neon header strip | Respond to live visual review feedback on the feature grid |
 | 2026-04-27 | Removed the one-off hero headline gradient from "fighting each other" and added a contract test | Keep first-viewport emphasis inside the existing brand token system |
 | 2026-04-27 | Rewrote the tutorials index and catalogue copy around operator training and control-plane protocol language | Remove inherited academy/swarm copy and make tutorials match the current brand |
+| 2026-04-27 | Rebuilt the whitepaper first viewport as an editorial research dossier, removed badge/icon ceremony, widened header navigation, and added desktop/mobile visual proof | Remove the old centered whitepaper template and keep the route inside the current Swiss public-shell direction |

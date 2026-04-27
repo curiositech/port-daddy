@@ -148,8 +148,18 @@ Current coordination session: `session-a4b3a18d-1651-4d2b-b4ca-e83fb79b5ea3`.
   "Academy of Coordination" / "Master the Swarm Logic"; the index cards are
   flat numbered curriculum panels, and the catalogue titles/descriptions/tags
   avoid the retired swarm/pheromone/harbor-token marketing language.
-- Latest validation for this website copy cleanup from `website-v2/`: `npm run
-  lint`, `npm run test` (8/8 files and 86/86 tests), `npm run build`, and
+- Whitepaper route branding has been rebuilt as an editorial research dossier:
+  the first viewport now uses "The control-plane papers.", flat paper-selection
+  controls, immediate paper metadata, and an argument-map/PDF layout instead of
+  the old centered "White Papers" badge, inset icon tile, rounded selector
+  cards, and large empty opening space. Header nav labels are also non-shrinking
+  and the decorative right-edge header strip was removed after mobile screenshot
+  proof showed it reading as a stray blue bar.
+- Browser proof:
+  `docs/reports/website-rehab-screenshots/whitepaper-first-viewport.png` and
+  `docs/reports/website-rehab-screenshots/whitepaper-mobile-first-viewport.png`.
+- Latest validation for this website route cleanup from `website-v2/`: `npm run
+  lint`, `npm run test` (8/8 files and 87/87 tests), `npm run build`, and
   `git diff --check` all passed. The earlier Storybook pass still carries the
   known iframe-size and `radix-ui` package metadata warnings.
 - Remaining website rehab work: route-specific OG image generation,
