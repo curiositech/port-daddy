@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-04-27T01:44:07.372Z",
-  "targetUrl": "http://127.0.0.1:3110/mcp",
+  "generatedAt": "2026-04-27T03:39:28.312Z",
+  "targetUrl": "http://127.0.0.1:3113/mcp",
   "axe": {
     "standard": "wcag2a/wcag2aa/wcag21a/wcag21aa/wcag22aa/wcag2aaa plus color-contrast-enhanced",
     "desktopViolations": 0,

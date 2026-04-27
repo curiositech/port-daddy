@@ -178,7 +178,7 @@ struct FleetControlCenter: View {
     }
 
     private var topBar: some View {
-        VStack(spacing: Fleet.Space.s) {
+        VStack(spacing: Fleet.Space.xs) {
             HStack(spacing: Fleet.Space.m) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Fleet Control Center")
@@ -236,7 +236,7 @@ struct FleetControlCenter: View {
             }
         }
         .padding(.horizontal, Fleet.Space.l)
-        .padding(.vertical, 10)
+        .padding(.vertical, 6)
         .sheet(isPresented: $showingAddProject) {
             FleetAddProjectSheet()
         }
@@ -330,74 +330,78 @@ struct FleetControlCenter: View {
             ?? recentSpendProject
             ?? "history quiet"
 
-        return HStack(spacing: Fleet.Space.m) {
-            compactTruthMetric(
-                icon: "checkmark.seal",
-                title: "Live Truth",
-                value: runtimeState,
-                detail: bosun?.reason ?? bosun?.state ?? status.uptimeHuman,
-                color: runtimeColor
-            )
+        return ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: Fleet.Space.xs) {
+                compactTruthMetric(
+                    icon: "checkmark.seal",
+                    title: "Live Truth",
+                    value: runtimeState,
+                    detail: bosun?.reason ?? bosun?.state ?? status.uptimeHuman,
+                    color: runtimeColor,
+                    width: 300
+                )
 
-            Divider()
+                compactTruthMetric(
+                    icon: "shippingbox",
+                    title: "Build",
+                    value: buildVersion,
+                    detail: "\(buildHash) · pid \(status.pid)",
+                    color: Fleet.Color.active,
+                    width: 220
+                )
 
-            compactTruthMetric(
-                icon: "shippingbox",
-                title: "Build",
-                value: buildVersion,
-                detail: "\(buildHash) · pid \(status.pid)",
-                color: Fleet.Color.active
-            )
+                compactTruthMetric(
+                    icon: "wallet.pass",
+                    title: "Budget",
+                    value: budgetBadgeValue,
+                    detail: budgetBadgeDetail,
+                    color: budgetBadgeColor,
+                    width: 220
+                )
 
-            Divider()
-
-            compactTruthMetric(
-                icon: "wallet.pass",
-                title: "Budget",
-                value: budgetBadgeValue,
-                detail: budgetBadgeDetail,
-                color: budgetBadgeColor
-            )
-
-            Divider()
-
-            compactTruthMetric(
-                icon: "waveform.path.ecg",
-                title: "Recent",
-                value: recentSummary,
-                detail: recentDetail,
-                color: recentSpend?.isEstimate == true ? Fleet.Color.warning : Fleet.Color.active
-            )
+                compactTruthMetric(
+                    icon: "waveform.path.ecg",
+                    title: "Recent",
+                    value: recentSummary,
+                    detail: recentDetail,
+                    color: recentSpend?.isEstimate == true ? Fleet.Color.warning : Fleet.Color.active,
+                    width: 300
+                )
+            }
         }
-        .padding(.horizontal, Fleet.Space.m)
-        .padding(.vertical, 8)
-        .background(
-            Fleet.Chrome.card,
-            in: RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous)
-        )
+        .frame(height: 46)
     }
 
-    private func compactTruthMetric(icon: String, title: String, value: String, detail: String, color: Color) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: Fleet.Space.s) {
+    private func compactTruthMetric(icon: String, title: String, value: String, detail: String, color: Color, width: CGFloat) -> some View {
+        HStack(alignment: .center, spacing: Fleet.Space.xs) {
             Image(systemName: icon)
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(color)
                 .frame(width: 16)
             VStack(alignment: .leading, spacing: 2) {
-                Text(title.uppercased())
-                    .font(.system(size: 9, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                Text(value)
-                    .font(.system(.caption, design: .monospaced).weight(.semibold))
-                    .foregroundStyle(color)
-                    .lineLimit(1)
+                HStack(spacing: Fleet.Space.xs) {
+                    Text(title.uppercased())
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                    Text(value)
+                        .font(.system(.caption, design: .monospaced).weight(.semibold))
+                        .foregroundStyle(color)
+                        .lineLimit(1)
+                }
                 Text(detail)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+                    .truncationMode(.tail)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            Spacer(minLength: 0)
         }
+        .frame(width: width, height: 42, alignment: .leading)
+        .padding(.horizontal, Fleet.Space.s)
+        .background(
+            Fleet.Chrome.card,
+            in: RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous)
+        )
     }
 
     private var surfaceStrip: some View {

@@ -11,7 +11,7 @@ import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import { scanProject, buildConfigFromScan } from '../lib/scan.js';
 import { saveConfig } from '../lib/config.js';
 import type { PortDaddyRcConfig } from '../lib/config.js';
-import { loadFleetConfig } from '../lib/fleet-engine.js';
+import { loadFleetConfig, validateTopology } from '../lib/fleet-engine.js';
 
 interface ProjectEntry {
   id: string;
@@ -26,6 +26,29 @@ interface ProjectEntry {
   signals?: string[];
   sources?: string[];
   exists?: boolean;
+}
+
+type FleetConfigStatus = 'ready' | 'missing_budget' | 'invalid' | 'missing';
+type ProjectOperatorState = 'running' | 'ready' | 'blocked' | 'service_only' | 'context_only' | 'missing';
+type ProjectRemediationAction = 'start_fleet' | 'set_budget' | 'fix_yaml' | 'create_fleet' | 'run_scan';
+
+interface ProjectRemediation {
+  action: ProjectRemediationAction;
+  title: string;
+  detail: string;
+  command?: string;
+  suggestedBudgetUsdPerDay?: number;
+}
+
+interface ProjectReadiness {
+  operatorState: ProjectOperatorState;
+  operatorSummary: string;
+  operatorNextAction: string;
+  fleetConfigStatus: FleetConfigStatus;
+  budgetUsdPerDay: number | null;
+  configError: string | null;
+  configWarnings: string[];
+  remediation: ProjectRemediation | null;
 }
 
 interface ProjectsRouteDeps {
@@ -79,6 +102,152 @@ interface ProjectsRouteDeps {
 // =============================================================================
 export const projectsPlugin: FastifyPluginAsync<{ deps: ProjectsRouteDeps }> = async (fastify, opts) => {
   const { projects, metrics, logger, activityLog } = opts.deps;
+
+  function shellQuotePath(path: string): string {
+    return `'${path.replace(/'/g, `'\\''`)}'`;
+  }
+
+  function buildProjectReadiness(
+    project: ProjectEntry,
+    running: boolean,
+    config: ReturnType<typeof loadFleetConfig>,
+    configError: string | null,
+  ): ProjectReadiness {
+    const signals = project.signals ?? [];
+    const hasFleetSignal = signals.includes('fleet');
+    const hasServiceConfig = signals.includes('config');
+    const hasContext = signals.includes('context');
+    const budgetUsdPerDay = config?.limits?.budgetUsdPerDay ?? null;
+    const configWarnings = config ? validateTopology(config).warnings : [];
+    const cd = `cd ${shellQuotePath(project.root)}`;
+
+    if (configError) {
+      return {
+        operatorState: 'blocked',
+        operatorSummary: 'Fleet YAML is present but cannot be parsed.',
+        operatorNextAction: 'Fix pd-fleet.yml before starting this fleet.',
+        fleetConfigStatus: 'invalid',
+        budgetUsdPerDay,
+        configError,
+        configWarnings,
+        remediation: {
+          action: 'fix_yaml',
+          title: 'Fix fleet YAML',
+          detail: configError,
+          command: `${cd}\npd fleet validate`,
+        },
+      };
+    }
+
+    if (config && config.agents.length > 0 && budgetUsdPerDay === null) {
+      return {
+        operatorState: 'blocked',
+        operatorSummary: `${config.agents.length} agents configured, but launches fail closed without limits.budget_usd_per_day.`,
+        operatorNextAction: 'Set a positive daily budget, then start the fleet.',
+        fleetConfigStatus: 'missing_budget',
+        budgetUsdPerDay,
+        configError: null,
+        configWarnings,
+        remediation: {
+          action: 'set_budget',
+          title: 'Set $5/day budget',
+          detail: 'Adds limits.budget_usd_per_day: 5 to pd-fleet.yml so agent launches are allowed.',
+          command: `${cd}\n# Add under fleet.limits or limits:\n# budget_usd_per_day: 5\npd fleet validate\npd fleet up`,
+          suggestedBudgetUsdPerDay: 5,
+        },
+      };
+    }
+
+    if (config) {
+      return {
+        operatorState: running ? 'running' : 'ready',
+        operatorSummary: running
+          ? `${config.agents.length} configured agents are visible to the daemon.`
+          : `${config.agents.length} agents configured and budgeted; fleet is stopped.`,
+        operatorNextAction: running ? 'Inspect agents, channels, and recent work.' : 'Start this fleet on the current daemon.',
+        fleetConfigStatus: 'ready',
+        budgetUsdPerDay,
+        configError: null,
+        configWarnings,
+        remediation: running ? null : {
+          action: 'start_fleet',
+          title: 'Start fleet',
+          detail: 'Starts this pd-fleet.yml on the current daemon.',
+          command: `${cd}\npd fleet up`,
+        },
+      };
+    }
+
+    if (hasFleetSignal) {
+      return {
+        operatorState: 'blocked',
+        operatorSummary: 'Fleet marker exists, but no usable fleet config was loaded.',
+        operatorNextAction: 'Open pd-fleet.yml and validate it.',
+        fleetConfigStatus: 'invalid',
+        budgetUsdPerDay: null,
+        configError: 'pd-fleet.yml is empty or did not parse to a fleet object',
+        configWarnings,
+        remediation: {
+          action: 'fix_yaml',
+          title: 'Validate fleet YAML',
+          detail: 'Port Daddy found a fleet marker but could not load a usable config.',
+          command: `${cd}\npd fleet validate`,
+        },
+      };
+    }
+
+    if (hasServiceConfig) {
+      return {
+        operatorState: 'service_only',
+        operatorSummary: 'This repo has pd up service config, but no agent fleet yet.',
+        operatorNextAction: 'Create pd-fleet.yml when you want agent automation here.',
+        fleetConfigStatus: 'missing',
+        budgetUsdPerDay: null,
+        configError: null,
+        configWarnings,
+        remediation: {
+          action: 'create_fleet',
+          title: 'Create starter fleet',
+          detail: '.portdaddyrc remains useful for service orchestration; pd-fleet.yml is the agent control surface.',
+          command: `${cd}\npd fleet init\npd fleet up`,
+        },
+      };
+    }
+
+    if (hasContext) {
+      return {
+        operatorState: 'context_only',
+        operatorSummary: 'Only Port Daddy context state was found.',
+        operatorNextAction: 'Add .portdaddyrc or pd-fleet.yml to make this actionable.',
+        fleetConfigStatus: 'missing',
+        budgetUsdPerDay: null,
+        configError: null,
+        configWarnings,
+        remediation: {
+          action: 'run_scan',
+          title: 'Scan project',
+          detail: 'Generate .portdaddyrc service config first, or create pd-fleet.yml for agents.',
+          command: `${cd}\npd scan\npd fleet init`,
+        },
+      };
+    }
+
+    return {
+      operatorState: 'missing',
+      operatorSummary: 'No actionable Port Daddy config was found.',
+      operatorNextAction: 'Run pd scan or create pd-fleet.yml.',
+      fleetConfigStatus: 'missing',
+      budgetUsdPerDay: null,
+      configError: null,
+      configWarnings,
+      remediation: {
+        action: 'run_scan',
+        title: 'Initialize project',
+        detail: 'Create durable Port Daddy config so this repo can be managed.',
+        command: `${cd}\npd scan\npd fleet init`,
+      },
+    };
+  }
 
   function extractServiceRoots(): string[] {
     const servicesDep = opts.deps.services;
@@ -199,14 +368,19 @@ export const projectsPlugin: FastifyPluginAsync<{ deps: ProjectsRouteDeps }> = a
           });
 
       const runningRoots = new Set(runtimeRoots);
+      const readinessByRoot = new Map<string, ProjectReadiness>();
       const fleetConfigByRoot = new Map<string, ReturnType<typeof loadFleetConfig>>();
 
       for (const project of all) {
+        let config: ReturnType<typeof loadFleetConfig> = null;
+        let configError: string | null = null;
         try {
-          fleetConfigByRoot.set(project.root, loadFleetConfig(project.root));
-        } catch {
-          fleetConfigByRoot.set(project.root, null);
+          config = loadFleetConfig(project.root);
+        } catch (err) {
+          configError = (err as Error).message;
         }
+        fleetConfigByRoot.set(project.root, config);
+        readinessByRoot.set(project.root, buildProjectReadiness(project, runningRoots.has(project.root), config, configError));
       }
 
       return {
@@ -227,6 +401,7 @@ export const projectsPlugin: FastifyPluginAsync<{ deps: ProjectsRouteDeps }> = a
           running: runningRoots.has(p.root),
           configuredAgentCount: fleetConfigByRoot.get(p.root)?.agents.length ?? 0,
           configuredWatcherCount: fleetConfigByRoot.get(p.root)?.watchers.length ?? 0,
+          ...readinessByRoot.get(p.root),
         }))
       };
     } catch (error) {

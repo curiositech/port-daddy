@@ -256,6 +256,20 @@ export interface ProjectSummary {
   running?: boolean;
   configuredAgentCount?: number;
   configuredWatcherCount?: number;
+  operatorState?: 'running' | 'ready' | 'blocked' | 'service_only' | 'context_only' | 'missing';
+  operatorSummary?: string;
+  operatorNextAction?: string;
+  fleetConfigStatus?: 'ready' | 'missing_budget' | 'invalid' | 'missing';
+  budgetUsdPerDay?: number | null;
+  configError?: string | null;
+  configWarnings?: string[];
+  remediation?: {
+    action: 'start_fleet' | 'set_budget' | 'fix_yaml' | 'create_fleet' | 'run_scan';
+    title: string;
+    detail: string;
+    command?: string;
+    suggestedBudgetUsdPerDay?: number;
+  } | null;
 }
 
 export interface BackendInfo {

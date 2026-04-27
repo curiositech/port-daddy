@@ -998,6 +998,7 @@
         "GET /fleet/prompt",
         "GET /fleet/config/:project",
         "PUT /fleet/config/:project",
+        "POST /fleet/config/:project/budget",
         "GET /fleet/models"
       ],
       "completions": [

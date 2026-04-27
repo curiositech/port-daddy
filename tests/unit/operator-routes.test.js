@@ -287,6 +287,79 @@ describe('operator routes', () => {
     }
   });
 
+  test('GET /operator/actors does not prune configured fleet names behind historical sessions', async () => {
+    const now = Date.now();
+    const projectDir = mkdtempSync(path.join(process.cwd(), 'tmp-pd-actor-priority-'));
+    writeFileSync(path.join(projectDir, 'pd-fleet.yml'), [
+      'fleet:',
+      '  name: demo',
+      '  agents:',
+      '    spark:',
+      '      backend: custom',
+      '      prompt: echo spark',
+      '    spider:',
+      '      backend: custom',
+      '      prompt: echo spider',
+      '',
+    ].join('\n'));
+
+    const { app, register } = buildApp({
+      projects: {
+        getByPath: jest.fn(() => ({ id: 'demo', root: projectDir })),
+      },
+      agents: {
+        list: jest.fn(() => ({ agents: [] })),
+      },
+      sessions: {
+        list: jest.fn(() => ({
+          sessions: Array.from({ length: 12 }, (_, index) => ({
+            id: `session-noisy-${index}`,
+            purpose: `Historical ad hoc session ${index}`,
+            status: 'completed',
+            agentId: `agent-noisy-${index}`,
+            updatedAt: now - index,
+            notes: [],
+          })),
+        })),
+        listAllActiveClaims: jest.fn(() => ({ claims: [] })),
+      },
+      resurrection: {
+        list: jest.fn(() => ({ agents: [] })),
+      },
+      spawner: {
+        list: jest.fn(() => []),
+      },
+      activityLog: {
+        getRecent: jest.fn(() => ({ entries: [] })),
+      },
+    });
+
+    try {
+      await register();
+
+      const res = await app.inject({
+        method: 'GET',
+        url: `/operator/actors?projectDir=${encodeURIComponent(projectDir)}&limit=3`,
+      });
+
+      expect(res.statusCode).toBe(200);
+      const payload = res.json();
+      expect(payload.actors.map((actor) => actor.label)).toEqual([
+        'spark',
+        'spider',
+        'agent-noisy-0',
+      ]);
+      expect(payload.actors[0]).toEqual(expect.objectContaining({
+        inboxTarget: 'spark',
+        isConfiguredFleetAgent: true,
+        actorState: 'idle',
+      }));
+    } finally {
+      await app.close();
+      rmSync(projectDir, { recursive: true, force: true });
+    }
+  });
+
   test('GET /operator/actors filters prose slash phrases out of recent files', async () => {
     const now = Date.now();
     const { app, register } = buildApp({

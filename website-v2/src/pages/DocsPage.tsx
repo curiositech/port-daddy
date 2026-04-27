@@ -164,7 +164,7 @@ export default function DocsPage() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen flex flex-col pt-16 font-sans selection:bg-[var(--brand-primary)] selection:text-white"
+      className="min-h-screen flex flex-col font-sans selection:bg-[var(--brand-primary)] selection:text-white"
       style={{ background: 'var(--surface-base)' }}
     >
       <motion.div

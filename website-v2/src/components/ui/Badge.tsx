@@ -41,12 +41,12 @@ const variantStyles: Record<string, React.CSSProperties> = {
   default: {
     background: 'var(--surface-sunken)',
     boxShadow: 'var(--shadow-pressed)',
-    color: 'var(--text-secondary)',
+    color: 'var(--text-primary)',
   },
   red: {
-    background: 'color-mix(in srgb, var(--brand-primary) 15%, var(--surface-base))',
+    background: 'color-mix(in srgb, var(--status-error) 15%, var(--surface-base))',
     boxShadow: 'var(--shadow-pressed)',
-    color: 'var(--brand-primary)',
+    color: 'var(--status-error-on-tint)',
   },
   teal: {
     background: 'color-mix(in srgb, var(--brand-secondary) 15%, var(--surface-base))',
@@ -56,17 +56,17 @@ const variantStyles: Record<string, React.CSSProperties> = {
   gold: {
     background: 'color-mix(in srgb, var(--brand-accent) 20%, var(--surface-base))',
     boxShadow: 'var(--shadow-pressed)',
-    color: 'var(--brand-accent)',
+    color: 'var(--brand-accent-on-tint)',
   },
   success: {
     background: 'color-mix(in srgb, var(--status-success) 15%, var(--surface-base))',
     boxShadow: 'var(--shadow-pressed)',
-    color: 'var(--status-success)',
+    color: 'var(--status-success-on-tint)',
   },
   warning: {
     background: 'color-mix(in srgb, var(--status-warning) 15%, var(--surface-base))',
     boxShadow: 'var(--shadow-pressed)',
-    color: 'var(--status-warning)',
+    color: 'var(--status-warning-on-tint)',
   },
   outline: {
     background: 'transparent',

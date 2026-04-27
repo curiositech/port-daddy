@@ -11,12 +11,13 @@
  * POST   /fleet/bootstrap  — Create starter fleet files in a project and start it
  * POST   /fleet/reload     — Re-read all configs and restart changed fleets
  * POST   /fleet/register   — Register a project directory for fleet management
+ * POST   /fleet/config/:project/budget — Set limits.budget_usd_per_day
  * GET    /fleet/events     — SSE stream of all fleet lifecycle events
  */
 
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { basename } from 'node:path';
-import { parse as parseYaml } from 'yaml';
+import { isMap, parse as parseYaml, parseDocument } from 'yaml';
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import type { createFleetDaemon } from '../lib/fleet-daemon.js';
 import {
@@ -84,6 +85,28 @@ function buildResolvedChannels(config: FleetConfig, projectDir: string): Record<
   config.watchers.forEach((watcher) => add(watcher.trigger));
 
   return Object.fromEntries(resolved);
+}
+
+function setFleetYamlBudget(yaml: string, usdPerDay: number): string {
+  const doc = parseDocument(yaml);
+  if (doc.errors.length > 0) {
+    throw new Error(doc.errors.map((err) => err.message).join('; '));
+  }
+  if (!isMap(doc.contents)) {
+    throw new Error('Invalid YAML object');
+  }
+
+  const nestedFleet = doc.contents.get('fleet', true);
+  const target = isMap(nestedFleet) ? nestedFleet : doc.contents;
+  const limits = target.get('limits', true);
+
+  if (isMap(limits)) {
+    limits.set('budget_usd_per_day', usdPerDay);
+  } else {
+    target.set('limits' as any, { budget_usd_per_day: usdPerDay } as any);
+  }
+
+  return String(doc);
 }
 
 export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (fastify, opts) => {
@@ -356,6 +379,33 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
     const newParsed = loadFleetConfig(projectDir);
     const topology = newParsed ? validateTopology(newParsed) : null;
     return { success: true, topology };
+  });
+
+  // POST /fleet/config/:project/budget — set launch budget without hand-editing YAML
+  fastify.post('/fleet/config/:project/budget', async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = (request.body as { usdPerDay?: unknown }) || {};
+    const usdPerDay = typeof body.usdPerDay === 'number' ? body.usdPerDay : Number(body.usdPerDay);
+    if (!Number.isFinite(usdPerDay) || usdPerDay <= 0) {
+      reply.code(400);
+      return { success: false, error: 'usdPerDay must be a positive finite number' };
+    }
+
+    const resolved = resolveFleetConfig((request.params as { project: string }).project, reply);
+    if (!resolved) return;
+    const { projectDir, configPath } = resolved;
+
+    try {
+      const currentYaml = readFileSync(configPath, 'utf-8');
+      const nextYaml = setFleetYamlBudget(currentYaml, usdPerDay);
+      writeFileSync(configPath, nextYaml, 'utf-8');
+      fleetDaemon.reload();
+      const newParsed = loadFleetConfig(projectDir);
+      const topology = newParsed ? validateTopology(newParsed) : null;
+      return { success: true, budgetUsdPerDay: usdPerDay, topology };
+    } catch (err) {
+      reply.code(400);
+      return { success: false, error: (err as Error).message };
+    }
   });
 
   // Ollama model list — cached to avoid 2s timeout penalty when Ollama is down

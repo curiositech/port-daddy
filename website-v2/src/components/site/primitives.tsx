@@ -1191,7 +1191,6 @@ export function DocsCard({
             <div className="h-5 w-px bg-current/30" />
             <PanelEyebrow
               tone={tone === 'blue' ? 'primary' : tone === 'lime' ? 'accent' : 'default'}
-              className="opacity-80"
             >
               Docs
             </PanelEyebrow>

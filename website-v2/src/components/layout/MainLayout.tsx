@@ -1,10 +1,10 @@
 import { Outlet } from 'react-router-dom'
-import { Nav } from '@/components/landing/Nav'
+import { SiteHeader } from '@/components/site/SiteHeader'
 
 export function MainLayout() {
   return (
     <>
-      <Nav />
+      <SiteHeader />
       <Outlet />
     </>
   )

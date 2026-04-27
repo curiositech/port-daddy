@@ -216,7 +216,7 @@ export function BlogPostPage() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen bg-bg-base flex flex-col pt-[var(--nav-height)] font-sans selection:bg-brand-primary selection:text-text-inverse"
+      className="min-h-screen bg-bg-base flex flex-col font-sans selection:bg-brand-primary selection:text-text-inverse"
     >
       {/* Progress Bar */}
       <motion.div
