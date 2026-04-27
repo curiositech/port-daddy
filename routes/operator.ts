@@ -641,6 +641,36 @@ function deriveActorState(entry: MutableActorRecord): { actorState: OperatorActo
   return { actorState: 'idle', actorStateReason: 'Known actor with no current body and no recent salvage pressure.' };
 }
 
+const OPERATOR_ACTOR_STATE_ORDER: Record<OperatorActorState, number> = {
+  running: 0,
+  salvaged: 1,
+  orphan_reconciled: 2,
+  idle: 3,
+  historical: 4,
+};
+
+/**
+ * Keep configured fleet actors visible before noisy ad hoc history so Inbox
+ * targets like `spark` and `spider` cannot be sliced out by old sessions.
+ *
+ * Example:
+ * - input: `historical agent-123` and `idle spark`
+ * - output: `spark` sorts first
+ */
+function compareOperatorActors(left: OperatorActorRecord, right: OperatorActorRecord): number {
+  if (left.isConfiguredFleetAgent !== right.isConfiguredFleetAgent) {
+    return left.isConfiguredFleetAgent ? -1 : 1;
+  }
+
+  const stateDiff = OPERATOR_ACTOR_STATE_ORDER[left.actorState] - OPERATOR_ACTOR_STATE_ORDER[right.actorState];
+  if (stateDiff !== 0) return stateDiff;
+
+  const activityDiff = (right.lastActivityAt ?? 0) - (left.lastActivityAt ?? 0);
+  if (activityDiff !== 0) return activityDiff;
+
+  return left.label.localeCompare(right.label);
+}
+
 /**
  * Build the operator-facing actor lens for one project. This is the shared
  * truth both FleetBar and the control plane should render.
@@ -872,7 +902,7 @@ function buildOperatorActors(
         sessions: entry.sessions,
       };
     })
-    .sort((left, right) => (right.lastActivityAt ?? 0) - (left.lastActivityAt ?? 0))
+    .sort(compareOperatorActors)
     .slice(0, limit);
 
   const summary = finalized.reduce<Record<OperatorActorState, number>>((counts, actor) => {
