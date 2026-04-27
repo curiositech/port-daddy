@@ -139,7 +139,10 @@ Current coordination session: `session-a4b3a18d-1651-4d2b-b4ca-e83fb79b5ea3`.
   containers. The matching neon sparkle on the secondary CTA was also replaced
   with a blue arrow and a flat bordered button treatment, and the CTA's
   decorative inset icon block was removed. The fixed public shell header strip
-  and active nav state now use brand-primary blue instead of neon accent.
+  and active nav state now use brand-primary blue instead of neon accent. The
+  hero headline's "fighting each other" emphasis also no longer uses a
+  blue-to-error gradient; it now uses the existing brand-primary token with a
+  contract test guarding against gradient text regression.
 - Validation for that cleanup from `website-v2/`: `npm run lint`, `npm run
   test` (8/8 files and 83/83 tests), `npm run build`, and `npm run
   build-storybook` all passed. Storybook still prints the known iframe-size and

@@ -47,7 +47,7 @@ export function Hero() {
               title={
                 <>
                   Stop your agents from{' '}
-                  <span className="bg-gradient-to-r from-[var(--brand-primary)] to-[var(--status-error)] bg-clip-text text-transparent">
+                  <span className="text-[var(--brand-primary)]">
                     fighting each other.
                   </span>
                 </>

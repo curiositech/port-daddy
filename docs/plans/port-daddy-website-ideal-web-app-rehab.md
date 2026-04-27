@@ -552,6 +552,9 @@ old rounded/nautical visual system from production code:
 - Replaced the public shell's neon accent header strip and active-nav state
   with brand-primary blue so the fixed chrome no longer reintroduces yellow
   neon while reviewing the landing page.
+- Replaced the hero headline's one-off blue-to-error gradient on "fighting
+  each other" with a single brand-primary text token and added a contract test
+  to keep gradient text out of that headline.
 - Production source no longer references `NeumorphicTerminal` or
   `SailorAgent`; the remaining sailor wording in source is the explicit
   retired-hero regression test.
@@ -872,3 +875,4 @@ handoff with files changed and residual risks.
 | 2026-04-27 | Added Gemini/Nano Banana generated visual replacement slice, optimized assets, first-viewport browser proof, and 83/83 test evidence | Keep plan truth aligned after replacing the retired sailor hero and generated social fallbacks |
 | 2026-04-27 | Removed production `NeumorphicTerminal` and `SailorAgent` surfaces, added rectilinear command/agent primitives, and reran website gates | Keep plan truth aligned after retiring the most explicit old visual metaphors |
 | 2026-04-27 | Eliminated homepage neon/beige feature-card icon tiles, the matching CTA cue, and the neon header strip | Respond to live visual review feedback on the feature grid |
+| 2026-04-27 | Removed the one-off hero headline gradient from "fighting each other" and added a contract test | Keep first-viewport emphasis inside the existing brand token system |
