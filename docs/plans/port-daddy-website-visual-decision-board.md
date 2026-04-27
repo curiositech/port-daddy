@@ -1,7 +1,7 @@
 # Port Daddy Website Visual Decision Board
 
 Last updated: 2026-04-26
-Status: approved for first stabilization slice; Swiss-modern grid layer and MCP a11y/Storybook proof gates now added
+Status: approved for first stabilization slice; Swiss-modern grid layer, MCP a11y/Storybook proof gates, and public shell route-matrix proof now added
 Related plan: `docs/plans/port-daddy-website-ideal-web-app-rehab.md`
 
 The user approved moving forward from this board on 2026-04-26. Do not treat
@@ -19,6 +19,10 @@ visual, route, content, observability, or legal work.
 | MCP Swiss layer | `docs/reports/website-rehab-screenshots/mcp-swiss-desktop.png` | `docs/reports/website-rehab-screenshots/mcp-swiss-mobile.png` |
 | MCP a11y proof | `docs/reports/website-rehab-screenshots/mcp-a11y-desktop.png` | `docs/reports/website-rehab-screenshots/mcp-a11y-mobile.png` |
 | Blog | `docs/reports/website-rehab-screenshots/blog-desktop.png` | `docs/reports/website-rehab-screenshots/blog-mobile.png` |
+| Public shell home | `docs/reports/website-rehab-screenshots/shell-home-desktop.png` | `docs/reports/website-rehab-screenshots/shell-home-mobile.png` |
+| Public shell docs | `docs/reports/website-rehab-screenshots/shell-docs-desktop.png` | `docs/reports/website-rehab-screenshots/shell-docs-mobile.png` |
+| Public shell MCP | `docs/reports/website-rehab-screenshots/shell-mcp-desktop.png` | `docs/reports/website-rehab-screenshots/shell-mcp-mobile.png` |
+| Public shell blog | `docs/reports/website-rehab-screenshots/shell-blog-desktop.png` | `docs/reports/website-rehab-screenshots/shell-blog-mobile.png` |
 
 The home-mobile screenshot was retaken after an initial bad capture and now
 shows the expected Port Daddy route.
@@ -116,8 +120,8 @@ Approved and partly executed on 2026-04-26:
    - status: complete for the first MCP proof route slice
 4. Normalize Button, Badge, Surface, CodeBlock, SiteHeader, and Docs shell
    stories.
-   - status: started; base UI and public primitive state matrices are now
-     wired into Storybook and the design-system contract
+   - status: started; base UI, public primitive, and SiteHeader state matrices
+     are now wired into Storybook and the design-system contract
 5. Rebuild `/mcp` as the proof slice.
 6. Capture desktop/mobile screenshots and run a11y/perf gates before touching
    the next route.
@@ -136,6 +140,9 @@ Approved and partly executed on 2026-04-26:
 - Swiss-modern grid layer approved by follow-up request and applied to the MCP
   proof route with desktop/mobile screenshots.
 - MCP proof-route a11y and Storybook gates now have concrete evidence:
-  11/11 focused contract tests, 74/74 full website tests, Storybook build, and
-  `docs/reports/website-rehab-a11y/mcp-a11y-report.json`.
+- 13/13 focused contract tests, 76/76 full website tests, Storybook build,
+  `docs/reports/website-rehab-a11y/mcp-a11y-report.json`, and
+  `docs/reports/website-rehab-a11y/public-shell-a11y-report.json`.
+- Public shell unification now has desktop/mobile screenshots for home, docs,
+  MCP, and blog with 0 axe violations and no horizontal overflow.
 - Cheap subagent fanout approved for bounded write sets after the first slice.

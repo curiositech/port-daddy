@@ -3,7 +3,7 @@
 Last updated: 2026-04-26
 Owner session: `session-1a8459c2-808f-4564-ab9d-c5be56fa86bb`
 Skill contract: `ideal-web-app-builder` plus `swiss-modern-website-design`
-Status: visual decision board approved; stabilization, token/performance, MCP proof-route, Swiss-modern grid-layer, Storybook state-matrix, and MCP a11y slices implemented
+Status: visual decision board approved; stabilization, token/performance, MCP proof-route, Swiss-modern grid-layer, Storybook state-matrix, MCP a11y, and public shell unification slices implemented
 
 This is the on-disk source of truth for rehabilitating `website-v2` into a
 premium, stable, token-disciplined web app. Keep this file current before code
@@ -60,10 +60,11 @@ fanout. Do not let implementation outrun the visual decision board.
 | Gate | Result | Evidence |
 |---|---|---|
 | Build | Pass | 2026-04-26 latest: `npm run build` passes with no Vite chunk-size warning after route lazy loading, the MCP proof-route rebuild, the Swiss grid layer, and the a11y/Storybook gate alignment. Largest generated JS chunk is `Mermaid-CMec62CS.js` at 491.12 kB minified / 136.65 kB gzip; `MCPPage-Cqgjlo-C.js` is 19.34 kB minified / 6.39 kB gzip. |
-| Tests | Pass | 2026-04-26 latest: full `npm run test` passes at 7/7 files and 74/74 tests, including design-system contract coverage for token layering, route lazy loading, Swiss grid primitives, MCP primitive usage, Storybook a11y wiring, and shrink-safe public primitives. |
+| Tests | Pass | 2026-04-26 latest: full `npm run test` passes at 7/7 files and 76/76 tests, including design-system contract coverage for token layering, route lazy loading, Swiss grid primitives, MCP primitive usage, Storybook a11y wiring, shell unification, contrast-critical tokens, and shrink-safe public primitives. |
 | Lint | Pass | 2026-04-26: `npm run lint` passes after excluding generated Storybook output, repairing fast-refresh export boundaries, removing React Compiler set-state-in-effect violations, and narrowing dashboard/viz/page types. |
 | Storybook build | Pass with warning | 2026-04-26: `npm run build-storybook` passes with the a11y addon configured through `wcag2aaa` plus `color-contrast-enhanced`. Preview iframe remains large at 1,087.59 kB / 307.00 kB gzip and Storybook reports missing package metadata for `radix-ui`. |
 | MCP a11y | Pass for proof route | 2026-04-26: `npm run test:a11y:mcp` passes against `/mcp` at desktop 1440x1200 and mobile 390x1200 with 0 axe violations, keyboard roving-tab checks, visible focus outline, and no horizontal overflow. Report: `docs/reports/website-rehab-a11y/mcp-a11y-report.json`. |
+| Public shell a11y | Pass for route matrix | 2026-04-26: `npm run test:a11y:shell` passes for `/`, `/docs`, `/mcp`, and `/blog` at desktop 1440x1200 and mobile 390x1200 with 0 axe violations, one shared shell header/footer/main, a visible skip link, and no horizontal overflow. Report: `docs/reports/website-rehab-a11y/public-shell-a11y-report.json`. |
 | Screenshot baseline | Captured | `docs/reports/website-rehab-screenshots/`. |
 
 ## Screenshot Baseline
@@ -82,6 +83,15 @@ fanout. Do not let implementation outrun the visual decision board.
 - MCP a11y mobile: `docs/reports/website-rehab-screenshots/mcp-a11y-mobile.png`
 - Blog desktop: `docs/reports/website-rehab-screenshots/blog-desktop.png`
 - Blog mobile: `docs/reports/website-rehab-screenshots/blog-mobile.png`
+- Public shell route matrix:
+  - Home: `docs/reports/website-rehab-screenshots/shell-home-desktop.png`,
+    `docs/reports/website-rehab-screenshots/shell-home-mobile.png`
+  - Docs: `docs/reports/website-rehab-screenshots/shell-docs-desktop.png`,
+    `docs/reports/website-rehab-screenshots/shell-docs-mobile.png`
+  - MCP: `docs/reports/website-rehab-screenshots/shell-mcp-desktop.png`,
+    `docs/reports/website-rehab-screenshots/shell-mcp-mobile.png`
+  - Blog: `docs/reports/website-rehab-screenshots/shell-blog-desktop.png`,
+    `docs/reports/website-rehab-screenshots/shell-blog-mobile.png`
 
 Visible diagnosis from the baseline:
 
@@ -102,6 +112,10 @@ Visible diagnosis from the baseline:
   evidence for the proof slice.
 - Blog and MCP carry many hardcoded style decisions and should be normalized
   after the system contract is approved.
+- The public shell route matrix now proves the shared header/footer/main
+  wrapper across home, docs, MCP, and blog at desktop and mobile sizes. The
+  next visible drift is page-internal typography/card cleanup, not shell
+  reachability or horizontal clipping.
 
 ## Visual Decision Review
 
@@ -230,6 +244,7 @@ map.
 | Route bundling | all route/page modules were statically imported into the app entry | normalize | lazy-load route modules and isolate heavy vendor families | completed for public routes |
 | MCP page | hardcoded provider colors, inline styles, mobile AAA failure | replace | rebuild on approved primitives and token roles | completed for first proof route |
 | Storybook | exists but state coverage is shallow | normalize | add component matrices and a11y addon after primitives stabilize | in progress; public primitive, base UI, and MCP route gates are wired |
+| Public shell | landing and docs used different shell/nav systems | normalize | route all public pages through `MainLayout`, shared `SiteHeader`, and shared footer re-export | completed for home/docs/MCP/blog matrix |
 | SEO/meta | app-wide defaults plus limited title/description hook; no per-route OG images | replace | route metadata registry, generated social images, sitemap/robots | pending |
 | PWA/favicons | minimal assets; no manifest discovered | add if approved | app.webmanifest, icon set, offline strategy decision | pending |
 | Observability | no Sentry/browser telemetry setup found | add if approved | privacy-first Sentry wrapper, release tags, scrub rules, dashboards | pending |
@@ -443,11 +458,70 @@ Remaining launch blockers after this slice:
 
 - Storybook coverage is materially better, but still not complete across every
   route composite, loading/error branch, and data-dense dashboard surface.
-- MCP proof-route a11y is evidenced, but the rest of the public route matrix
-  still needs axe, keyboard, reduced-motion, and manual screen-reader passes.
+- MCP proof-route a11y is evidenced. The public shell route matrix now has axe,
+  skip-link, structure, and overflow coverage, but reduced-motion and manual
+  screen-reader passes still remain.
 - SEO/OG/PWA/legal/privacy/observability and the claims ledger remain future
   product-readiness work.
 - Mermaid and Storybook/axe payloads need a deeper route-level payload strategy.
+
+### 2026-04-26 Public Shell Unification Slice
+
+Implemented as the next bounded website slice:
+
+- Routed the landing app through `MainLayout` and the shared `SiteHeader`
+  instead of the legacy `components/landing/Nav` shell.
+- Replaced the old layout footer module with a re-export of `SiteFooter`, so
+  legacy routes and new public primitives now converge on the same footer
+  surface.
+- Added an always-present skip link, shell identity marker
+  `header[data-shell="site-header"]`, shared container sizing, desktop docs
+  search, mobile search trigger, active-route nav states, and focus-visible
+  treatment to `SiteHeader`.
+- Removed redundant route-level top padding from public routes that now sit
+  under the normal document-flow shell.
+- Added `SiteHeader` Storybook shell-frame and state-matrix stories that render
+  the header with the shared footer and tokenized page background.
+- Added `scripts/check-public-shell-a11y.mjs` and `npm run test:a11y:shell`.
+  The script audits `/`, `/docs`, `/mcp`, and `/blog` at desktop 1440x1200 and
+  mobile 390x1200, checks shell structure, first-tab skip-link focus,
+  horizontal overflow, screenshots, WCAG tags through AAA, and
+  `color-contrast-enhanced`.
+- Fixed route-matrix failures found by that script:
+  - `TerminalDemos` tab rail and terminal column now use shrink-safe
+    `minmax(0, 1fr)` layout instead of widening mobile pages.
+  - Code identity highlighting now uses code-specific channel tokens instead
+    of the brand blue on a dark terminal background.
+  - Badge variants now use high-contrast on-tint tokens.
+  - Accent foreground tokens were darkened for AAA contrast on lime surfaces.
+  - Dimmed `DocsCard` eyebrow opacity was removed.
+  - The blog page no longer uses raw color literals for feature badges.
+
+Validation on 2026-04-26 from `website-v2/`:
+
+- `npm run lint`: pass.
+- `npm run test -- src/design-system-contracts.test.ts`: 13/13 pass.
+- `npm run test`: 7/7 files and 76/76 tests pass.
+- `npm run test:a11y:shell`: pass with 0 axe violations across home/docs/MCP/
+  blog desktop and mobile, one shared shell header/footer/main per route, a
+  visible skip link, and no horizontal overflow.
+- `npm run test:a11y:mcp`: pass with 0 desktop and 0 mobile axe violations,
+  roving tab keyboard coverage, visible focus, and no horizontal overflow.
+- `npm run build`: pass with no chunk-size warning. Largest JS chunk remains
+  `Mermaid-BeyLxPjd.js` at 491.00 kB minified / 136.63 kB gzip.
+- `npm run build-storybook`: pass with the known large iframe chunk warning and
+  `radix-ui` package metadata warning.
+
+Remaining launch blockers after this slice:
+
+- The shell is unified, but many route-internal composites still use legacy
+  typography, arbitrary radii, inline style objects, and page-local layout
+  decisions.
+- Shell a11y is evidenced across the primary public route matrix, but manual
+  screen-reader, reduced-motion, forced-colors, Lighthouse, and Web Vitals
+  passes still need to run.
+- SEO/OG/PWA/legal/privacy/observability and the claims ledger remain future
+  product-readiness work.
 
 ## Sessions and Ownership
 
@@ -557,11 +631,12 @@ handoff with files changed and residual risks.
 | Gate | Command or method | Evidence | Status | Risk |
 |---|---|---|---|---|
 | Typecheck/build | `npm run build` | pass, no chunk warning in latest website build | pass | Mermaid chunk remains near threshold |
-| Unit tests | `npm run test` | 74/74 pass | pass | tests do not yet cover SEO/PWA/legal |
+| Unit tests | `npm run test` | 76/76 pass | pass | tests do not yet cover SEO/PWA/legal |
 | Lint | `npm run lint` | pass | pass | raw-value enforcement is still scoped to protected modules |
 | Storybook | `npm run build-storybook` | pass, chunk warning; a11y addon runs through `wcag2aaa` | partial | coverage still incomplete outside base/public primitives and MCP route |
-| Accessibility | axe/Storybook + Playwright + manual keyboard | MCP proof route passes `npm run test:a11y:mcp` with 0 violations | partial | route matrix and screen-reader passes still unproven |
-| Mobile screenshots | Playwright screenshots | MCP proof and Swiss mobile recaptured; baseline screenshots retained | partial | full route matrix still needed |
+| Accessibility | axe/Storybook + Playwright + manual keyboard | MCP proof route and public shell route matrix pass automated axe/focus/overflow gates | partial | manual screen-reader and reduced-motion passes still unproven |
+| Public shell accessibility | `npm run test:a11y:shell` | home/docs/MCP/blog desktop+mobile route matrix passes with 0 axe violations and no horizontal overflow | pass | manual screen-reader and reduced-motion passes still needed |
+| Mobile screenshots | Playwright screenshots | MCP proof, Swiss mobile, and public shell route matrix recaptured | partial | remaining page-internal route surfaces still need visual review |
 | Performance | Vite bundle output, later Lighthouse/Web Vitals | route chunking eliminated Vite warning | partial | needs Lighthouse/Web Vitals and Mermaid follow-up |
 | SEO metadata | static scan | global defaults only | fail | weak route metadata |
 | Observability | dependency/config scan | not found | fail | blind production |
@@ -593,7 +668,8 @@ handoff with files changed and residual risks.
    route. Started and gated for base UI/public primitives on 2026-04-26; route
    composites still remain.
 8. Normalize docs shell/header/footer so marketing and docs feel like one
-   product.
+   product. Completed for the shared public shell on 2026-04-26; page-internal
+   route composites still remain.
 9. Normalize blog/editorial cards, route metadata, and OG image system.
 10. Add legal/privacy/support/security-contact pages and product claims ledger.
 11. Add observability, Web Vitals, analytics taxonomy, Sentry/privacy controls,
@@ -604,14 +680,14 @@ handoff with files changed and residual risks.
 ## What Must Not Be Claimed Done Yet
 
 - The site is not production-complete: website lint, tests, build, MCP a11y,
-  and Storybook build are green, but full-route a11y, complete Storybook
+  public shell a11y, and Storybook build are green, but complete Storybook
   matrices, SEO, PWA, legal, observability, and route visual proof work remain.
 - The design system is not ideal yet: token layers now exist, but production
   pages still include hardcoded visual values outside protected modules, and
   most routes are not yet on the Swiss grid primitive.
-- Accessibility is improved, not done: MCP proof-route axe, keyboard, focus,
-  and overflow gates now pass, but the full route matrix and manual
-  screen-reader/reduced-motion passes have not run.
+- Accessibility is improved, not done: MCP proof-route and public shell route
+  matrix axe/focus/overflow gates now pass, but manual screen-reader and
+  reduced-motion passes have not run.
 - Performance is improved, not done: the app build no longer warns, but
   Lighthouse/Web Vitals and Storybook bundle work remain.
 - SEO/social/PWA/legal/observability are incomplete.
@@ -626,3 +702,4 @@ handoff with files changed and residual risks.
 | 2026-04-26 | Recorded MCP proof-route rebuild, shared primitive overflow fix, screenshots, and 73/73 test evidence | Keep plan truth aligned after the first visual proof route |
 | 2026-04-26 | Added Swiss-modern grid-layer slice, audit findings, proof screenshots, and Storybook evidence | Keep plan truth aligned after layering the Swiss design skill into the system |
 | 2026-04-26 | Added Storybook state-matrix and MCP a11y evidence, including WCAG AAA axe tags and refreshed report | Keep plan truth aligned after hardening the component and route accessibility gates |
+| 2026-04-26 | Added shared public shell, shell route-matrix a11y gate, contrast-critical role tokens, and refreshed desktop/mobile screenshots | Keep plan truth aligned after unifying the website shell across home/docs/MCP/blog |

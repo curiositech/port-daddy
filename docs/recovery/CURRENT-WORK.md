@@ -315,6 +315,57 @@ Follow-on execution session: `session-38334c91-8bed-45d4-85be-da069cd41648`.
   observability, raw visual literals in legacy pages, and a deeper
   Mermaid/diagram payload decision.
 
+### Port Daddy Website Public Shell Unification Slice (2026-04-26)
+
+Follow-on execution session: `session-652f982e-46f1-404c-a6d2-417b1eb2e7f5`.
+
+- Home now renders through `MainLayout` and the shared `SiteHeader`; the old
+  `components/landing/Nav` shell was removed.
+- `components/layout/Footer.tsx` now re-exports `SiteFooter`, so older layout
+  callers converge on the shared footer primitive.
+- `SiteHeader` now carries the shared shell identity
+  `header[data-shell="site-header"]`, an always-present skip link, desktop docs
+  search, mobile search trigger, active route styling, tokenized focus
+  treatment, and shared `PageContainer` sizing.
+- Route-level top padding was removed from public pages that now sit beneath
+  the normal document-flow shell.
+- `TerminalDemos` was fixed for mobile shrink safety after the shell a11y gate
+  caught horizontal overflow in the tab rail and terminal column.
+- Contrast-critical token fixes landed in the system layer:
+  - code identity highlighting uses `--code-channel-*` tokens
+  - Badge variants use high-contrast on-tint tokens
+  - lime/accent foreground-muted tokens now satisfy the strict route gate
+  - dimmed `DocsCard` eyebrow opacity was removed
+  - `BlogPage` feature badges no longer use raw color literals
+- `scripts/check-public-shell-a11y.mjs` and `npm run test:a11y:shell` now
+  audit `/`, `/docs`, `/mcp`, and `/blog` at desktop and mobile sizes for shell
+  structure, visible first-tab skip-link focus, horizontal overflow, screenshots,
+  WCAG tags through AAA, and `color-contrast-enhanced`.
+- Refreshed shell evidence lives at
+  `docs/reports/website-rehab-a11y/public-shell-a11y-report.json` and:
+  - `docs/reports/website-rehab-screenshots/shell-home-desktop.png`
+  - `docs/reports/website-rehab-screenshots/shell-home-mobile.png`
+  - `docs/reports/website-rehab-screenshots/shell-docs-desktop.png`
+  - `docs/reports/website-rehab-screenshots/shell-docs-mobile.png`
+  - `docs/reports/website-rehab-screenshots/shell-mcp-desktop.png`
+  - `docs/reports/website-rehab-screenshots/shell-mcp-mobile.png`
+  - `docs/reports/website-rehab-screenshots/shell-blog-desktop.png`
+  - `docs/reports/website-rehab-screenshots/shell-blog-mobile.png`
+- Validation truth on 2026-04-26 from `website-v2/`:
+  - `npm run lint`: green
+  - `npm run test -- src/design-system-contracts.test.ts`: 13/13 pass
+  - `npm run test`: 7/7 files and 76/76 tests pass
+  - `npm run test:a11y:shell`: green with 0 axe violations and no horizontal
+    overflow across the four-route desktop/mobile matrix
+  - `npm run test:a11y:mcp`: green with refreshed report/screenshots
+  - `npm run build`: green with no chunk-size warning
+  - `npm run build-storybook`: green with the known large iframe chunk warning
+    and `radix-ui` package metadata warning
+- Remaining website rehab blockers: route-internal composite cleanup,
+  manual screen-reader/reduced-motion/forced-colors passes, route metadata and
+  OG images, PWA/favicons, legal/privacy/support pages, observability, claims
+  ledger, and deeper payload budgets.
+
 ### Cartographer / Navigator Maritime Actor Foundation (2026-04-26)
 
 The current actor slice rebuilds the missing foundation that recovery docs had
