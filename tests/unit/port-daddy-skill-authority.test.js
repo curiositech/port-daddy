@@ -117,8 +117,11 @@ describe('Port Daddy skill authority', () => {
     expect(ambient).toContain('not to make agents talk constantly');
     expect(ambient).toContain('shared facts');
     expect(ambient).toContain('pd note');
+    expect(ambient).toContain('fix bounded Port Daddy dogfood bugs when you discover them');
+    expect(ambient).toContain('targeted actor message');
     expect(ambient).toContain('symbol/region claims');
     expect(ambient).toContain('coordination:inconsistency');
+    expect(ambient).toContain('not just collision avoidance');
     expect(ambient).toContain('Operator-worthy callouts');
     expect(ambient).toContain('implied-goal contradictions');
     expect(ambient).toContain('security, auth, privacy, data-retention, trust-boundary');

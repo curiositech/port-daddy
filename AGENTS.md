@@ -17,6 +17,7 @@ Project-specific shibboleths for proficient Port Daddy work. If you learn a new 
   - use tuples, inbox, pheromones, or other shared state when the task benefits from machine-readable coordination
 - Treat plain shell inspection without a Port Daddy session as insufficient for this repo unless you are doing truly trivial read-only work.
 - When handing work to another agent, give it the live Port Daddy identity/session anchor and tell it to coordinate through briefing, salvage, notes, claims/locks, and tuples instead of “being careful.”
+- If dogfooding exposes a Port Daddy bug, fix it while it is fresh when the slice is bounded and safe. If it is not bounded, leave a failing repro or exact evidence, a `pd note`, and a targeted actor message before switching away. Framework friction is product feedback and often product work, not an annoyance to route around.
 
 ## Ambient Collaboration
 
@@ -24,6 +25,7 @@ Project-specific shibboleths for proficient Port Daddy work. If you learn a new 
   - publish scope, assumptions, touched files/symbols, validation, blockers, and handoffs through `pd note`
   - use claims/regions for edit intent, tuples for machine-readable facts, scoped channels for event notifications, and actor inboxes for durable role ownership
   - use pheromones/file heat for contention signals, not ordinary progress narration
+- Coordination means thinking about each other's goals, not merely avoiding file collisions. If another session's assumptions, API shape, release surface, runtime state, or product goal changes what you are doing, tell that agent or the relevant durable actor and adjust your plan.
 - Escalate to the user only for material inconsistencies:
   - two active sessions appear to own or mutate the same scarce surface
   - a UI/UX, planning, roadmap, docs, or skill decision in one slice conflicts with another slice

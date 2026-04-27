@@ -90,6 +90,9 @@ Default behavior for every non-trivial slice:
 
 - publish scope, assumptions, intended files/symbols, validation, blockers, and
   handoff evidence with `pd note`
+- fix bounded Port Daddy dogfood bugs when you discover them; if the fix is too
+  large, leave a failing reproduction or exact evidence, a `pd note`, and a
+  targeted actor message before switching away
 - claim the smallest realistic edit surface; prefer symbol/region claims for
   code when available
 - emit tuples only for facts another process or actor should query
@@ -98,6 +101,12 @@ Default behavior for every non-trivial slice:
   Coxswain, Lookout, Harbormaster, Sounder, Signalman, Breaker, Caulker, and
   Quartermaster
 - use pheromones/file heat for ambient contention, not ordinary status updates
+
+Coordination is not just collision avoidance. If another agent's assumptions,
+API shape, runtime state, release surface, or product goal changes the meaning
+of your work, tell that agent or the relevant durable actor and adjust. A local
+workaround for broken coordination is itself dogfood feedback; do not silently
+route around it and move on.
 
 Operator-worthy callouts:
 
