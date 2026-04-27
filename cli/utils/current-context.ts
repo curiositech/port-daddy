@@ -18,6 +18,9 @@ export function resolveContextSlot(): string {
   const explicit = typeof process.env.PORT_DADDY_CONTEXT_SLOT === 'string' ? process.env.PORT_DADDY_CONTEXT_SLOT.trim() : '';
   if (explicit) return sanitizeSlot(explicit);
 
+  const codexThreadId = typeof process.env.CODEX_THREAD_ID === 'string' ? process.env.CODEX_THREAD_ID.trim() : '';
+  if (codexThreadId) return sanitizeSlot(`codex-${codexThreadId}`);
+
   const ttyCandidates = [process.stdin, process.stdout, process.stderr]
     .map((stream) => {
       const candidate = (stream as NodeJS.WriteStream & { path?: string }).isTTY ? (stream as NodeJS.WriteStream & { path?: string }).path : undefined;
@@ -30,6 +33,10 @@ export function resolveContextSlot(): string {
   if (termSessionId) return sanitizeSlot(`term-${termSessionId}`);
 
   return sanitizeSlot(`ppid-${process.ppid}`);
+}
+
+function canUseLegacyContextForSlot(legacy: CurrentContext, slot: string): boolean {
+  return !legacy.contextSlot || legacy.contextSlot === slot;
 }
 
 export function getContextDir(cwd: string = process.cwd()): string {
@@ -109,7 +116,7 @@ export function readCurrentContext(cwd: string = process.cwd()): CurrentContext 
   if (slotRecord) return slotRecord;
   const legacy = readContextFile(getLegacyContextPath(cwd));
   if (!legacy) return null;
-  if (legacy.contextSlot && legacy.contextSlot !== slot) return null;
+  if (!canUseLegacyContextForSlot(legacy, slot)) return null;
   return legacy;
 }
 
@@ -124,7 +131,13 @@ export function clearCurrentContext(cwd: string = process.cwd()): void {
   const legacy = readContextFile(legacyPath);
   if (!legacy) return;
 
-  if (legacy.contextSlot && legacy.contextSlot !== slot) return;
+  const clearLegacy = canUseLegacyContextForSlot(legacy, slot);
+  if (legacy.contextSlot && legacy.contextSlot !== slot) {
+    if (!clearLegacy) return;
+    try {
+      unlinkSync(getContextPathForSlot(legacy.contextSlot, cwd));
+    } catch {}
+  }
   if (!legacy.contextSlot && legacy.sessionId) {
     const fallback = listStoredContexts(cwd)[0];
     if (fallback) {
