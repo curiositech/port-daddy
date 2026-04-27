@@ -44,6 +44,7 @@ import { mergeQueuePlugin } from './merge-queue.js';
 import { symbolsPlugin } from './symbols.js';
 import { operatorPlugin } from './operator.js';
 import { actorsPlugin } from './actors.js';
+import { cartographerPlugin } from './cartographer.js';
 import { graphPlugin } from './graph.js';
 import { memoryPlugin } from './memory.js';
 import { semanticPlugin } from './semantic.js';
@@ -98,6 +99,9 @@ export async function registerAllRoutes(
   await fastify.register(briefingPlugin, { deps } as any);
   await fastify.register(sitrepPlugin, { deps } as any);
   await fastify.register(actorsPlugin, { deps } as any);
+  await fastify.register(cartographerPlugin, {
+    deps: { daemonDir: (deps as any).repoRoot ?? (deps as any).__dirname ?? process.cwd() },
+  });
   await fastify.register(operatorPlugin, { deps } as any);
 
   // These have different option shapes

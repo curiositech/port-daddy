@@ -239,6 +239,19 @@
         "sdk": true
       }
     },
+    "cartographer": {
+      "description": "Read-only Cartographer roadmap progress projection",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "GET /cartographer/roadmap-progress"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
     "inbox": {
       "description": "Agent inbox messaging",
       "cli": [
