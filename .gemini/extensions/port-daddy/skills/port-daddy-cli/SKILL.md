@@ -119,6 +119,7 @@ Pattern queries work with globs: `myapp:*` matches all services for myapp.
 | `port-daddy doctor` | Run diagnostic checks |
 | `port-daddy start` | Start daemon |
 | `port-daddy status` | Check daemon status |
+| `port-daddy daemon start/list/status/stop/env <profile>` | Manage named sidecar daemon profiles |
 | `port-daddy version` | Show version + code hash |
 
 ---

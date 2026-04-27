@@ -19,7 +19,7 @@ fleet:
   limits:
     max_concurrent_spawns: 2
     max_spawns_per_hour: 10
-    budget_usd_per_day: 5
+    budget_usd_per_day: 9.76
 
   agents:
     gardener:
@@ -406,17 +406,21 @@ fleet:
   watchers:
     notify-findings:
       trigger: qa:findings
-      exec: "echo 'QA found issues' | curl -s -X POST http://localhost:9877/notes -H 'Content-Type: application/json' -d '{\"content\":\"QA agent found issues — check qa:findings channel\",\"type\":\"warning\"}'"
+      exec: "echo 'QA found issues' | curl -s -X POST http://localhost:9877/notes -H
+        'Content-Type: application/json' -d '{\"content\":\"QA agent found
+        issues — check qa:findings channel\",\"type\":\"warning\"}'"
 
   channels:
     git:committed:
       description: "Fired after a successful commit"
-      consumers: [qa, test-hunter, simplifier]
+      consumers: [ qa, test-hunter, simplifier ]
 
     promotion:release-surfaces:
-      description: "Fired by promote-stable after tests pass and before stable merge; asks Lookout/Documentarian to sync README, website, SDK, CLI, tutorials, OpenAPI, MCP, and agent skill surfaces"
+      description: "Fired by promote-stable after tests pass and before stable merge;
+        asks Lookout/Documentarian to sync README, website, SDK, CLI, tutorials,
+        OpenAPI, MCP, and agent skill surfaces"
       external_producer: scripts/promote-stable.sh
-      consumers: [documentarian]
+      consumers: [ documentarian ]
 
     git:status:
       description: "Gardener reports on uncommitted changes"
@@ -426,10 +430,14 @@ fleet:
 
     qa:findings:
       description: "QA found bugs or issues"
-      consumers: [notify-findings]
+      consumers: [ notify-findings ]
 
     coordination:inconsistency:
-      description: "Operator-worthy cross-agent conflict channel for overlapping claims, stale active/dead signals, implied-goal drift, security/auth/privacy/trust-boundary/API-shape contradictions, planning drift, UI/UX contradictions, release-surface drift, and budget/spawn risks. Routine progress belongs in notes, not here."
+      description: "Operator-worthy cross-agent conflict channel for overlapping
+        claims, stale active/dead signals, implied-goal drift,
+        security/auth/privacy/trust-boundary/API-shape contradictions, planning
+        drift, UI/UX contradictions, release-surface drift, and budget/spawn
+        risks. Routine progress belongs in notes, not here."
       external_producer: agents/manual callouts
 
     spark:idea:
