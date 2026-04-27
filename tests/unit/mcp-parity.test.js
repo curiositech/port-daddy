@@ -240,6 +240,7 @@ const MCP_EXEMPT_FEATURES = new Set([
   'symbols',        // API-only symbol index; no CLI or MCP tools yet
   'semantic',       // Internal review/search surface for embedding joins; operator API/UI only for now
   'observability',  // Internal metrics/golden signals; admin API, not user-facing MCP
+  'resource_governance', // Operator UI read model; MCP wrapper deferred until enforcement controls exist
   'cartographer',   // Read-only roadmap projection; surfaced via `pd roadmap` CLI; MCP tool deferred until dashboards consume the endpoint
   'quorum',         // New propose/vote primitive; agents drive consensus via SDK calls in v1, MCP wrapper deferred to v4
 ]);

@@ -132,4 +132,43 @@ describe('fleet-config-ui api', () => {
       expect.objectContaining({ method: 'GET' }),
     );
   });
+
+  test('fetchResourceOverview passes project and cap context', async () => {
+    global.fetch = jest.fn(async () => ({
+      ok: true,
+      headers: {
+        get: () => 'application/json',
+      },
+      json: async () => ({
+        success: true,
+        generatedAt: 123,
+        buckets: [],
+        history: [],
+        policy: {
+          mode: 'observe',
+          userCap: 2,
+          suggestedConcurrentSpawns: 4,
+          safeToAskForMore: true,
+          escalation: {
+            recommended: true,
+            title: 'This computer looks comfortable enough to ask for more.',
+            body: 'Measured headroom supports asking first.',
+            suggestedCap: 4,
+          },
+        },
+      }),
+    })) as typeof fetch;
+
+    const { fetchResourceOverview } = await import('../../fleet-config-ui/src/api.ts');
+    const overview = await fetchResourceOverview({
+      projectDir: '/Users/test/port-daddy',
+      maxConcurrentSpawns: 2,
+    });
+
+    expect(overview.policy.suggestedConcurrentSpawns).toBe(4);
+    expect(global.fetch).toHaveBeenCalledWith(
+      'http://127.0.0.1:9876/resources/overview?projectDir=%2FUsers%2Ftest%2Fport-daddy&maxConcurrentSpawns=2',
+      expect.objectContaining({ method: 'GET' }),
+    );
+  });
 });

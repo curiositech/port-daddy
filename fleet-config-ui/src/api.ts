@@ -28,6 +28,7 @@ import type {
   Episode,
   MemoryStats,
   RoadmapProgress,
+  ResourceOverview,
   SemanticResolutionDecision,
   SemanticResolutionEvent,
   SemanticResolutionStats,
@@ -274,6 +275,18 @@ export async function setFleetConfigBudget(project: string, usdPerDay: number): 
   budgetUsdPerDay: number;
 }> {
   return post(`/fleet/config/${encodeURIComponent(project)}/budget`, { usdPerDay });
+}
+
+export async function fetchResourceOverview(opts: {
+  projectDir?: string;
+  maxConcurrentSpawns?: number;
+} = {}): Promise<ResourceOverview> {
+  const params = new URLSearchParams();
+  if (opts.projectDir) params.set('projectDir', opts.projectDir);
+  if (typeof opts.maxConcurrentSpawns === 'number' && Number.isFinite(opts.maxConcurrentSpawns) && opts.maxConcurrentSpawns > 0) {
+    params.set('maxConcurrentSpawns', String(Math.floor(opts.maxConcurrentSpawns)));
+  }
+  return get(`/resources/overview${params.toString() ? `?${params}` : ''}`);
 }
 
 export async function startFleet(projectDir?: string, enabledAgents?: string[]): Promise<{ success: boolean }> {
