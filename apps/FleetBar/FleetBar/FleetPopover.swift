@@ -69,6 +69,28 @@ struct FleetPopover: View {
         VStack(spacing: 0) {
             header
             Divider().opacity(0.5)
+            ScrollView {
+                VStack(spacing: 0) {
+                    popoverContent
+                }
+                .frame(maxWidth: .infinity, alignment: .top)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            Divider().opacity(0.5)
+            footer
+        }
+        .background(Fleet.Chrome.popoverBackground)
+        .preferredColorScheme(selectedThemeRaw == "light" ? .light : .dark)
+        .onAppear {
+            withAnimation(.smooth(duration: 0.4)) { appeared = true }
+            budgetStore.start()
+        }
+        .onDisappear { budgetStore.stop() }
+    }
+
+    @ViewBuilder
+    private var popoverContent: some View {
+        VStack(spacing: 0) {
             if !budgetStore.pendingKills.isEmpty {
                 budgetPauseBanner
                 Divider().opacity(0.5)
@@ -84,6 +106,8 @@ struct FleetPopover: View {
             if store.isDaemonRunning {
                 consoleStatusSection
                 Divider().opacity(0.5)
+                CostDashboard(store: costStore)
+                Divider().opacity(0.5)
             }
             if showingSettings {
                 settingsPanel
@@ -94,16 +118,7 @@ struct FleetPopover: View {
             } else {
                 projectList
             }
-            Divider().opacity(0.5)
-            footer
         }
-        .background(Fleet.Chrome.popoverBackground)
-        .preferredColorScheme(selectedThemeRaw == "light" ? .light : .dark)
-        .onAppear {
-            withAnimation(.smooth(duration: 0.4)) { appeared = true }
-            budgetStore.start()
-        }
-        .onDisappear { budgetStore.stop() }
     }
 
     private var defaultConsoleProject: String? {
@@ -661,48 +676,46 @@ struct FleetPopover: View {
     // MARK: - Project List
 
     private var projectList: some View {
-        ScrollView {
-            LazyVStack(spacing: 0) {
-                ForEach(Array(store.projects.enumerated()), id: \.element.id) { index, project in
-                    ProjectSection(
-                        project: project,
-                        isExpanded: store.expandedProjects.contains(project.id),
-                        onToggle: { withAnimation(Fleet.Motion.expandSpring) { store.toggleProject(project.id) } },
-                        onOpenProject: {
-                            openControlPlane(.flow, project: project.id)
-                        },
-                        onRemediateProject: {
-                            handleProjectRemediation(project)
-                        },
-                        onInspectAgent: { agentName in
-                            openControlPlane(.activity, project: project.id, agent: agentName)
-                        },
-                        onRunAgent: { agentName in
-                            Task { await store.runAgent(projectDir: project.projectDir, agentName: agentName) }
-                        },
-                        onPauseToggle: { agentName, isPaused in
-                            Task {
-                                if isPaused {
-                                    await store.resumeAgent(projectDir: project.projectDir, agentName: agentName)
-                                } else {
-                                    await store.pauseAgent(projectDir: project.projectDir, agentName: agentName)
-                                }
+        LazyVStack(spacing: 0) {
+            ForEach(Array(store.projects.enumerated()), id: \.element.id) { index, project in
+                ProjectSection(
+                    project: project,
+                    isExpanded: store.expandedProjects.contains(project.id),
+                    onToggle: { withAnimation(Fleet.Motion.expandSpring) { store.toggleProject(project.id) } },
+                    onOpenProject: {
+                        openControlPlane(.flow, project: project.id)
+                    },
+                    onRemediateProject: {
+                        handleProjectRemediation(project)
+                    },
+                    onInspectAgent: { agentName in
+                        openControlPlane(.activity, project: project.id, agent: agentName)
+                    },
+                    onRunAgent: { agentName in
+                        Task { await store.runAgent(projectDir: project.projectDir, agentName: agentName) }
+                    },
+                    onPauseToggle: { agentName, isPaused in
+                        Task {
+                            if isPaused {
+                                await store.resumeAgent(projectDir: project.projectDir, agentName: agentName)
+                            } else {
+                                await store.pauseAgent(projectDir: project.projectDir, agentName: agentName)
                             }
-                        },
-                        onOpenInEditor: { filePath in
-                            openAgentFileInEditor(projectDir: project.projectDir, filePath: filePath)
-                        },
-                        onRevealInFinder: { filePath in
-                            revealAgentFileInFinder(projectDir: project.projectDir, filePath: filePath)
                         }
-                    )
-                    .opacity(appeared ? 1 : 0)
-                    .offset(y: appeared ? 0 : 8)
-                    .animation(
-                        Fleet.Motion.expandSpring.delay(Double(index) * Fleet.Motion.sectionStagger),
-                        value: appeared
-                    )
-                }
+                    },
+                    onOpenInEditor: { filePath in
+                        openAgentFileInEditor(projectDir: project.projectDir, filePath: filePath)
+                    },
+                    onRevealInFinder: { filePath in
+                        revealAgentFileInFinder(projectDir: project.projectDir, filePath: filePath)
+                    }
+                )
+                .opacity(appeared ? 1 : 0)
+                .offset(y: appeared ? 0 : 8)
+                .animation(
+                    Fleet.Motion.expandSpring.delay(Double(index) * Fleet.Motion.sectionStagger),
+                    value: appeared
+                )
             }
         }
     }
