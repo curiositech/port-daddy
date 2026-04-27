@@ -5,6 +5,20 @@ All notable changes to Port Daddy will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Quorum primitive — tuple-backed propose / vote / list / show**. `lib/quorum.ts` + `routes/quorum.ts` expose `POST /quorum/propose`, `POST /quorum/vote`, `GET /quorum/proposals`, `GET /quorum/proposals/:id`. Threshold-cross emits an idempotent `quorum:passed` tuple subscribers (and a future fleet-daemon auto-spawner) can react to. `pd quorum {propose,vote,list,show}` is the CLI surface. Phase 2 auto-spawn intentionally deferred. Landed in commit `cea02e1` despite the misleading title there ("Fix FleetBar empty-state popover collapse" — an auto-generated message; the actual diff is the quorum + daemon profiles slice).
+- **Daemon profiles — named sidecar daemons**. `lib/daemon-profiles.ts` + `cli/commands/daemon.ts` + ADR-0024 add named sidecar daemon profiles beside the canonical daemon, with `PORT_DADDY_NO_FLEET` / `PORT_DADDY_NO_FLEETBAR` knobs so they cannot accidentally arm the same project fleet. Co-landed with the quorum slice.
+- **Cartographer roadmap-progress endpoint surfaced via `pd roadmap`** (already shipped in `7ba8d84` + `ca8ffad`; the parity glue + manifest entry landed in this slice). One read-only structured payload spanning `ROADMAP.md` Next Cuts, `IDEAS-TROVE.md` `now` entries, `DOGFOOD-FEEDBACK.md`, current-work and cartographer-status excerpts, and freshness metadata. Kills the four-files-to-open FOMO problem.
+- **Coordination Guard turned on for this repo** (`.portdaddy/coordination-guard.json`: `enabled: true, mode: enforce`). Pre-commit hook now blocks commits without an attached `pd begin` session.
+
+### Fixed
+- `lib/quorum.ts`: passed-tuple emission had inverted logic (`if (!status.passed)` skipped emit on threshold cross). Replaced with passed-check + idempotency lookup against existing `quorum:passed` tuples in the same harbor.
+
+### Changed
+- Parity surfaces aligned for the new features: `features.manifest.json` (added `roadmap`, `quorum`, and `daemon`), all three completion files (bash/zsh/fish), `ALL_COMMANDS`, `ROUTE_TO_CLI_MAP`, and `MCP_EXEMPT_FEATURES`. `cartographer` and `quorum` are MCP-exempt for now; wrappers will follow once dashboard panels consume the endpoints.
+
 ## [3.8.4] - 2026-04-20
 
 ### Added
