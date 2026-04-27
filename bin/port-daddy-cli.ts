@@ -104,6 +104,8 @@ import {
   handleActors,
   // Coordination Guard enforcement controls
   handleGuard,
+  // Tube — relay-independent conversational pipe (Track B1)
+  handleTube,
 } from '../cli/commands/index.js';
 import { getDaemonTcpUrl, readDaemonPort, resolveDaemonTcpTarget } from '../shared/daemon-discovery.js';
 import { calculateRuntimeCodeHash } from '../shared/code-hash.js';
@@ -137,7 +139,7 @@ const TIER_1_COMMANDS: Set<string> = new Set([
 ]);
 
 const TIER_2_COMMANDS: Set<string> = new Set([
-  'pub', 'publish', 'sub', 'subscribe', 'wait', 'broadcast', 'listen',
+  'pub', 'publish', 'sub', 'subscribe', 'wait', 'broadcast', 'listen', 'tube',
   'agent', 'agents', 'actor', 'actors',
   'up', 'down', 'watch', 'swarm', 'fleet',
   'channels', 'webhook', 'webhooks', 'tunnel', 'dns', 'inbox',
@@ -1026,7 +1028,7 @@ Run: pd learn`,
 
 const ALL_COMMANDS: string[] = [
   'claim', 'c', 'release', 'r', 'find', 'f', 'list', 'l', 'ps', 'url', 'env',
-  'pub', 'publish', 'broadcast', 'sub', 'subscribe', 'listen', 'wait', 'lock', 'unlock', 'locks',
+  'pub', 'publish', 'broadcast', 'sub', 'subscribe', 'listen', 'tube', 'wait', 'lock', 'unlock', 'locks',
   'up', 'down', 'setup', 'init', 'scan', 's', 'projects', 'p',
   'agent', 'agents', 'actor', 'actors', 'swarm', 'inbox', 'log', 'activity',
   'wallet', 'bond',
@@ -2016,6 +2018,11 @@ async function main(): Promise<void> {
       case 'subscribe':
       case 'listen':
         await handleSub(positional[0], options);
+        break;
+
+      // Track B1: relay-independent conversational pipe.
+      case 'tube':
+        await handleTube(positional[0], options);
         break;
 
       case 'wait':
