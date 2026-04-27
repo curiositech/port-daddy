@@ -83,6 +83,7 @@ import { createGraphEdges } from './lib/graph-edges.js';
 import { createEpisodicMemory } from './lib/episodic-memory.js';
 import { createSemanticResolver } from './lib/semantic-resolver.js';
 import { createBosunHeartbeat } from './lib/bosun-heartbeat.js';
+import { createResourceGovernance } from './lib/resource-governance.js';
 
 // Fastify route aggregator (Phase 3 — native Fastify plugins, no Express bridge)
 import { registerAllRoutes } from './routes/index.js';
@@ -334,6 +335,7 @@ const costTracker = createCostTracker(db, {
 });
 const spawner = createSpawner({ costTracker, counters, bonds, enforceTelemetryPolicy: true });
 spawnerRef = spawner;
+const resourceGovernance = createResourceGovernance({ repoRoot: REPO_ROOT, startedAt: STARTED_AT });
 
 function resolveArbiterStrictMode(value: string | undefined): boolean {
   if (value === undefined || value.trim() === '') return true;
@@ -664,7 +666,7 @@ await registerAllRoutes(
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar,
     harbors, sorties, orchestrator, correlationEngine, spawner, tuples, fleetDaemon,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, counters,
-    quorum,
+    quorum, resourceGovernance,
     bonds, budgetGuard, budgetPause,
     arbiter, bosunHeartbeat,
     VERSION, CODE_HASH, STARTED_AT, __dirname, repoRoot: REPO_ROOT,

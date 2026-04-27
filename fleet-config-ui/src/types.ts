@@ -6,6 +6,112 @@ export interface FleetLimits {
   budgetUsdPerDay?: number;
 }
 
+export type ResourceStatus = 'calm' | 'busy' | 'hot' | 'critical';
+export type ResourceConfidence = 'measured' | 'estimated' | 'partial';
+
+export interface ResourceSample {
+  ts: number;
+  memoryUsedRatio: number;
+  diskUsedRatio: number | null;
+  portDaddyRssBytes: number;
+  activeAgents: number;
+  activePorts: number;
+  rendererRssBytes: number;
+  localAiRssBytes: number;
+  dailySpendUsd: number;
+}
+
+export interface ResourceProcessRow {
+  pid: number;
+  ppid: number;
+  rssBytes: number;
+  cpuPercent: number;
+  command: string;
+  args: string;
+}
+
+export interface ResourceBucket {
+  id: 'memory' | 'disk' | 'port-daddy' | 'network' | 'rendering' | 'local-ai' | 'fleet';
+  label: string;
+  plainLabel: string;
+  value: number;
+  limit: number | null;
+  unit: 'bytes' | 'percent' | 'count' | 'usd' | 'cpu';
+  percent: number | null;
+  status: ResourceStatus;
+  confidence: ResourceConfidence;
+  summary: string;
+  includes: string[];
+}
+
+export interface ResourceOverview {
+  success: true;
+  generatedAt: number;
+  windowMs: number;
+  machine: {
+    platform: string;
+    arch: string;
+    cpuCount: number;
+    loadAverage1m: number | null;
+    uptimeMs: number;
+    memory: {
+      totalBytes: number;
+      freeBytes: number;
+      usedBytes: number;
+      usedRatio: number;
+      status: ResourceStatus;
+    };
+    disk: {
+      path: string;
+      totalBytes: number;
+      freeBytes: number;
+      usedBytes: number;
+      usedRatio: number;
+      status: ResourceStatus;
+    } | null;
+  };
+  portDaddy: {
+    pid: number;
+    uptimeMs: number;
+    rssBytes: number;
+    heapUsedBytes: number;
+    externalBytes: number;
+    cpuPercent: number | null;
+  };
+  processes: {
+    portDaddy: ResourceProcessRow[];
+    renderers: ResourceProcessRow[];
+    localAi: ResourceProcessRow[];
+    agentBackends: ResourceProcessRow[];
+  };
+  fleet: {
+    activeAgents: number;
+    totalAgents: number;
+    launchableAgents: number;
+    activePorts: number;
+    runningProjects: number;
+  };
+  cost: {
+    dailySpendUsd: number;
+    dailySpawnCount: number;
+    estimatedEvents: number;
+  };
+  buckets: ResourceBucket[];
+  history: ResourceSample[];
+  policy: {
+    mode: 'observe';
+    userCap: number | null;
+    suggestedConcurrentSpawns: number;
+    safeToAskForMore: boolean;
+    escalation: {
+      recommended: boolean;
+      title: string;
+      body: string;
+      suggestedCap: number;
+    };
+  };
+}
+
 export interface FleetAgent {
   name: string;
   schedule?: string;

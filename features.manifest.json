@@ -252,6 +252,19 @@
         "sdk": false
       }
     },
+    "resource_governance": {
+      "description": "Read-only resource governance overview for operator UI",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "GET /resources/overview"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
     "inbox": {
       "description": "Agent inbox messaging",
       "cli": [

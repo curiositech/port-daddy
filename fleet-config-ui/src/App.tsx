@@ -15,6 +15,7 @@ import ActivityRail from './components/ActivityRail';
 import MemoryPanel from './components/MemoryPanel';
 import AgentsPanel from './components/AgentsPanel';
 import RoadmapPanel from './components/RoadmapPanel';
+import ResourceGovernancePanel from './components/ResourceGovernancePanel';
 import ShipwrightPanel from './shipwright/ShipwrightPanel';
 import { extractMentionedPaths } from './fileMentions';
 import {
@@ -54,8 +55,8 @@ import type {
   TopologyValidation,
 } from './types';
 
-type MainTab = 'Flow' | 'Roadmap' | 'Agents' | 'Activity' | 'Channels' | 'Inbox' | 'Sorties' | 'Memory' | 'Shipwright' | 'YAML';
-type ControlSurface = 'flow' | 'roadmap' | 'agents' | 'activity' | 'channels' | 'inbox' | 'sorties' | 'memory' | 'shipwright' | 'yaml';
+type MainTab = 'Flow' | 'Roadmap' | 'Agents' | 'Resources' | 'Activity' | 'Channels' | 'Inbox' | 'Sorties' | 'Memory' | 'Shipwright' | 'YAML';
+type ControlSurface = 'flow' | 'roadmap' | 'agents' | 'resources' | 'activity' | 'channels' | 'inbox' | 'sorties' | 'memory' | 'shipwright' | 'yaml';
 
 function canUseWindow(): boolean {
   return typeof window !== 'undefined';
@@ -72,6 +73,7 @@ function normalizeSurface(value: string | null): ControlSurface {
     case 'shipwright':
     case 'yaml':
     case 'agents':
+    case 'resources':
     case 'flow':
       return value;
     default:
@@ -87,6 +89,8 @@ function surfaceToMainTab(surface: ControlSurface): MainTab {
       return 'Roadmap';
     case 'agents':
       return 'Agents';
+    case 'resources':
+      return 'Resources';
     case 'activity':
       return 'Activity';
     case 'channels':
@@ -108,6 +112,7 @@ function surfaceToMainTab(surface: ControlSurface): MainTab {
 
 function mainTabToSurface(activeTab: MainTab): ControlSurface {
   if (activeTab === 'Agents') return 'agents';
+  if (activeTab === 'Resources') return 'resources';
   if (activeTab === 'Roadmap') return 'roadmap';
   if (activeTab === 'Activity') return 'activity';
   if (activeTab === 'Channels') return 'channels';
@@ -1379,7 +1384,7 @@ export default function App() {
 
   const configAgentData = fleetConfig?.agents.find(a => a.name === configAgent);
   const daemonRunning = fleet.status?.running ?? false;
-  const surfaceTabs: MainTab[] = ['Flow', 'Roadmap', 'Agents', 'Activity', 'Channels', 'Inbox', 'Sorties', 'Memory', 'Shipwright', 'YAML'];
+  const surfaceTabs: MainTab[] = ['Flow', 'Roadmap', 'Agents', 'Resources', 'Activity', 'Channels', 'Inbox', 'Sorties', 'Memory', 'Shipwright', 'YAML'];
   const allProjectSurfaceTabs: MainTab[] = ['Flow', 'Shipwright'];
   const showProjectSidebar = activeTab === 'Flow' && !embedded;
   const visibleSurfaceTabs = selectedProjectId ? surfaceTabs : allProjectSurfaceTabs;
@@ -1687,6 +1692,13 @@ export default function App() {
                       <RoadmapPanel
                         projectDir={selectedProjectId ?? undefined}
                         projectName={selectedProjectName ?? undefined}
+                      />
+                    )}
+                    {activeTab === 'Resources' && (
+                      <ResourceGovernancePanel
+                        projectDir={selectedProjectId ?? undefined}
+                        limits={fleetConfig?.limits}
+                        onOpenYaml={() => setActiveTab('YAML')}
                       />
                     )}
                     {activeTab === 'Channels' && (
