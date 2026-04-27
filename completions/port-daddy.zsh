@@ -333,6 +333,21 @@ _pd_cmd_sub() {
     '1:channel:_pd_complete_channels'
 }
 
+_pd_cmd_tube() {
+  _arguments \
+    '--send[read stdin and post a top-level message]' \
+    '--reply[read stdin and post a reply]:parent message id:' \
+    '--since[resume listening from a message id]:message id:' \
+    '--limit[backfill cap when no cursor exists]:count:' \
+    '--once[do one poll-pass and exit]' \
+    '--no-history[ignore the on-disk listen cursor]' \
+    '--sender[sender agent ID]:agent ID:_pd_complete_agents' \
+    '(-j --json)'{-j,--json}'[JSON output]' \
+    '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+    '(-h --help)'{-h,--help}'[show help]' \
+    '1:channel:_pd_complete_channels'
+}
+
 _pd_cmd_wait() {
   _arguments \
     '--timeout[timeout in seconds]:seconds:' \
@@ -1794,6 +1809,7 @@ _port_daddy() {
     'sub:subscribe to a channel (streaming)'
     'subscribe:subscribe to a channel (alias for sub)'
     'listen:subscribe to a channel (alias for sub)'
+    'tube:conversational pipe over a channel (listen/send/reply via stdin)'
     'wait:wait until a service is claimed'
     'lock:acquire a distributed lock'
     'unlock:release a distributed lock'
@@ -1944,6 +1960,7 @@ _port_daddy() {
         dns)                _pd_cmd_dns ;;
         pub|publish|broadcast) _pd_cmd_pub ;;
         sub|subscribe|listen) _pd_cmd_sub ;;
+        tube)               _pd_cmd_tube ;;
         wait)               _pd_cmd_wait ;;
         lock)               _pd_cmd_lock ;;
         unlock)             _pd_cmd_unlock ;;

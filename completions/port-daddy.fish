@@ -93,7 +93,7 @@ complete -c pd -s V -l version -d 'Print version'
 # ---------------------------------------------------------------------------
 set -l __pd_commands \
     'claim' 'c' 'release' 'r' 'find' 'f' 'list' 'l' 'ps' 'services' 'url' 'env' 'tunnel' \
-    'pub' 'publish' 'broadcast' 'sub' 'subscribe' 'listen' 'wait' 'lock' 'unlock' 'locks' \
+    'pub' 'publish' 'broadcast' 'sub' 'subscribe' 'listen' 'tube' 'wait' 'lock' 'unlock' 'locks' \
     'agent' 'agents' 'actor' 'actors' 'swarm' 'log' 'activity' \
     'session' 'sessions' 'note' 'notes' \
     'salvage' 'resurrection' 'changelog' 'dns' 'files' 'who-owns' 'integration' 'briefing' 'history' 'inbox' \
@@ -133,6 +133,7 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a sub -d 'Subscribe to a channel'
     complete -c $prog -n __pd_needs_command -a subscribe -d 'Subscribe to a channel (alias)'
     complete -c $prog -n __pd_needs_command -a listen -d 'Subscribe to a channel (alias)'
+    complete -c $prog -n __pd_needs_command -a tube -d 'Conversational pipe over a channel (listen/send/reply)'
     complete -c $prog -n __pd_needs_command -a wait -d 'Wait until a service is claimed'
     complete -c $prog -n __pd_needs_command -a lock -d 'Acquire a distributed lock'
     complete -c $prog -n __pd_needs_command -a unlock -d 'Release a distributed lock'
@@ -459,6 +460,16 @@ for prog in port-daddy pd
 
     # sub / subscribe / listen
     complete -c $prog -n "__pd_using_command sub subscribe listen" -x -a '(__pd_channels)'
+
+    # tube — conversational pipe (listen/send/reply via stdin)
+    complete -c $prog -n "__pd_using_command tube" -l send -d 'Read stdin and post a top-level message'
+    complete -c $prog -n "__pd_using_command tube" -l reply -d 'Read stdin and post a reply' -x
+    complete -c $prog -n "__pd_using_command tube" -l since -d 'Resume listening from a message id' -x
+    complete -c $prog -n "__pd_using_command tube" -l limit -d 'Backfill cap when no cursor exists' -x
+    complete -c $prog -n "__pd_using_command tube" -l once -d 'Do one poll-pass and exit'
+    complete -c $prog -n "__pd_using_command tube" -l no-history -d 'Ignore the on-disk listen cursor'
+    complete -c $prog -n "__pd_using_command tube" -l sender -d 'Sender agent ID' -x -a '(__pd_agent_ids)'
+    complete -c $prog -n "__pd_using_command tube" -x -a '(__pd_channels)'
 
     # wait
     complete -c $prog -n "__pd_using_command wait" -l timeout -d 'Timeout in seconds' -x
