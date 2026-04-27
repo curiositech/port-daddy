@@ -5,7 +5,7 @@ import ReactMarkdown, { type Components } from 'react-markdown'
 import { blogPosts } from '@/data/blogData'
 import { Mermaid } from '@/components/ui/Mermaid'
 import { CodeBlock } from '@/components/ui/CodeBlock'
-import { NeumorphicTerminal } from '@/components/ui/NeumorphicTerminal'
+import { CommandTerminal } from '@/components/ui/CommandTerminal'
 import { Badge } from '@/components/ui/Badge'
 import { Surface } from '@/components/ui/Surface'
 import { BlogComments } from '@/components/blog/BlogComments'
@@ -29,7 +29,7 @@ const heroImages: Record<string, string> = {
 
 // ─── Directive system ─────────────────────────────────────────────────────
 // HTML comments in markdown declare how the NEXT code block should render:
-//   <!-- terminal -->           → NeumorphicTerminal (CLI input/output)
+//   <!-- terminal -->           -> CommandTerminal (CLI input/output)
 //   <!-- syllogism: FILENAME --> → Document card with filename header
 //   <!-- code -->               → CodeBlock (explicit, same as default)
 //   <!-- figure: CAPTION -->    → Mermaid diagram with caption text
@@ -169,7 +169,7 @@ export function BlogPostPage() {
         }
 
         if (directive?.type === 'terminal') {
-          return <NeumorphicTerminal code={text} language="bash" animate={false} />
+          return <CommandTerminal code={text} language="bash" animate={false} />
         }
 
         if (directive?.type === 'syllogism') {

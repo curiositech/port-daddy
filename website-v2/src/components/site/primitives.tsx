@@ -3,7 +3,7 @@ import { Link, NavLink } from 'react-router-dom'
 import { ArrowDown, ArrowRight, Box, Check, Copy, Cpu, Lock } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { CodeBlock } from '@/components/ui/CodeBlock'
-import { NeumorphicTerminal } from '@/components/ui/NeumorphicTerminal'
+import { CommandTerminal } from '@/components/ui/CommandTerminal'
 import { useTheme } from '@/lib/theme-context'
 import { cn } from '@/lib/utils'
 import type { AccentTone, CommercialTrack, ProofPanel, TruthState } from '@/data/publicSite'
@@ -882,7 +882,7 @@ export function DocsCodeBlock({
             {copied ? 'Copied' : 'Copy'}
           </Button>
         </div>
-        <NeumorphicTerminal
+        <CommandTerminal
           code={code}
           title={terminalLabel}
           language="bash"

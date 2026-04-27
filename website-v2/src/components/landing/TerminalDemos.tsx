@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Play, Square } from 'lucide-react'
-import { NeumorphicTerminal } from '@/components/ui/NeumorphicTerminal'
+import { CommandTerminal } from '@/components/ui/CommandTerminal'
 import { PageContainer, PanelBody, PanelTitle, SectionIntro } from '@/components/site/primitives'
 
 const DEMOS = [
@@ -165,7 +165,7 @@ export function TerminalDemos() {
             transition={{ duration: 0.3 }}
             className="min-w-0 max-w-full overflow-hidden"
           >
-            <NeumorphicTerminal
+            <CommandTerminal
               code={activeDemo.code}
               title={activeDemo.title}
               typewriterSpeed={15}

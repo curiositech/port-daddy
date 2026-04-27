@@ -522,11 +522,39 @@ Validation on 2026-04-27 from `website-v2/`:
 - Browser verification: in-app browser loaded `http://127.0.0.1:3111/` and
   showed the generated schematic in the first viewport.
 
+### 2026-04-27 Visual Metaphor Cleanup Slice
+
+Implemented after the generated-asset replacement commit to keep removing the
+old rounded/nautical visual system from production code:
+
+- Renamed the terminal wrapper from `NeumorphicTerminal` to
+  `CommandTerminal` and updated landing demos, docs primitives, examples, blog
+  posts, and public-shell contract tests.
+- Replaced the dashboard `SailorAgent` SVG with `AgentNodeMark`, a rectilinear
+  infrastructure glyph that keeps the live graph readable without mascot or
+  nautical imagery.
+- Replaced the live graph's central anchor icon with a network icon and reduced
+  agent node/status radii to design-system token radii.
+- Tightened homepage feature-card radius from `2xl` to `lg` so the public
+  landing surface keeps moving toward the Swiss-modern, low-rounding contract.
+- Production source no longer references `NeumorphicTerminal` or
+  `SailorAgent`; the remaining sailor wording in source is the explicit
+  retired-hero regression test.
+
+Validation on 2026-04-27 from `website-v2/`:
+
+- `npm run lint`: pass.
+- `npm run test`: 8/8 files and 83/83 tests pass.
+- `npm run build`: pass; largest generated JS chunk remains Mermaid at
+  491.00 kB minified / 136.63 kB gzip.
+- `npm run build-storybook`: pass with the known Storybook iframe size warning
+  and `radix-ui` package metadata warning.
+
 Remaining launch blockers after this slice:
 
-- The old `NeumorphicTerminal` and `SailorAgent` component names still exist
-  as compatibility surfaces; rename/remove them in a focused route-composite
-  cleanup rather than in this generated-asset slice.
+- Other route composites still carry large rounded panels, decorative blurred
+  circular glows, and legacy elevation density. Continue route-by-route rather
+  than sweeping every surface at once.
 - Public docs/tutorial content still uses the product term "harbor" where it
   names real Port Daddy capability primitives. That is product vocabulary, not
   the rejected sailor-photo visual direction.
@@ -827,3 +855,4 @@ handoff with files changed and residual risks.
 | 2026-04-26 | Added shared public shell, shell route-matrix a11y gate, contrast-critical role tokens, and refreshed desktop/mobile screenshots | Keep plan truth aligned after unifying the website shell across home/docs/MCP/blog |
 | 2026-04-27 | Added SEO metadata/discovery slice, generated sitemap/robots/llms artifacts, and 82/82 test evidence | Keep plan truth aligned after centralizing route metadata and crawler/LLM discovery |
 | 2026-04-27 | Added Gemini/Nano Banana generated visual replacement slice, optimized assets, first-viewport browser proof, and 83/83 test evidence | Keep plan truth aligned after replacing the retired sailor hero and generated social fallbacks |
+| 2026-04-27 | Removed production `NeumorphicTerminal` and `SailorAgent` surfaces, added rectilinear command/agent primitives, and reran website gates | Keep plan truth aligned after retiring the most explicit old visual metaphors |

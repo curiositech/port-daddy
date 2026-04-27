@@ -126,10 +126,18 @@ Current coordination session: `session-a4b3a18d-1651-4d2b-b4ca-e83fb79b5ea3`.
     passed, 1 intentional skip; existing console noise included git-probe,
     telemetry-bypass, keychain/plaintext fallback, and subscriber-error test
     logs
-- Remaining website rehab work: rename/remove compatibility surfaces such as
-  `NeumorphicTerminal` and `SailorAgent` in a focused composite cleanup,
-  route-specific OG image generation, PWA/favicons, legal/privacy/support/
-  security-contact pages, observability/Web Vitals, claims ledger, and manual
+- Follow-on visual-metaphor cleanup: `NeumorphicTerminal` was renamed to
+  `CommandTerminal`, the dashboard `SailorAgent` SVG was replaced with a
+  rectilinear `AgentNodeMark`, and the live graph/home feature cards now use
+  tighter token radii. Production source no longer references the old terminal
+  or sailor component names.
+- Validation for that cleanup from `website-v2/`: `npm run lint`, `npm run
+  test` (8/8 files and 83/83 tests), `npm run build`, and `npm run
+  build-storybook` all passed. Storybook still prints the known iframe-size and
+  `radix-ui` package metadata warnings.
+- Remaining website rehab work: route-specific OG image generation,
+  PWA/favicons, legal/privacy/support/security-contact pages, observability/Web
+  Vitals, claims ledger, broader rounded/glow route cleanup, and manual
   reduced-motion/forced-colors/screen-reader proof.
 
 ### Port Daddy Website SEO Metadata And Discovery Slice (2026-04-27)

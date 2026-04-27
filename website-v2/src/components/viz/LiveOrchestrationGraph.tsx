@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { motion } from 'framer-motion'
-import { SailorAgent } from './SailorAgent'
-import { Anchor, Cpu } from 'lucide-react'
+import { AgentNodeMark } from './AgentNodeMark'
+import { Cpu, Network } from 'lucide-react'
 
 interface OrchestrationService {
   id: string
@@ -103,13 +103,13 @@ export function LiveOrchestrationGraph({
 
       {/* Core Daemon Node */}
       <motion.div
-        className="absolute w-20 h-20 rounded-[24px] bg-[var(--interactive-active)] border-2 border-[var(--brand-primary)] flex items-center justify-center shadow-2xl z-20"
+        className="absolute w-20 h-20 rounded-[var(--radius-lg)] bg-[var(--interactive-active)] border-2 border-[var(--brand-primary)] flex items-center justify-center shadow-2xl z-20"
         style={{ left: cx - 40, top: cy - 40 }}
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
         transition={{ type: 'spring', stiffness: 260, damping: 20 }}
       >
-        <Anchor className="text-[var(--brand-primary)]" size={32} />
+        <Network className="text-[var(--brand-primary)]" size={32} />
         <motion.div className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap">
            <motion.span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40">pd-daemon</motion.span>
         </motion.div>
@@ -133,13 +133,13 @@ export function LiveOrchestrationGraph({
             onClick={() => onSelectAgent?.(agent.id)}
           >
             <motion.div className="relative">
-               <motion.div className={`w-16 h-16 rounded-full bg-[var(--surface-overlay)] border-2 flex items-center justify-center shadow-xl transition-colors duration-300 ${agent.status === 'active' ? 'border-[var(--brand-secondary)] bg-[var(--brand-secondary)]/5' : 'border-[var(--border-subtle)]'}`}>
-                  <SailorAgent size={32} />
+               <motion.div className={`w-16 h-16 rounded-[var(--radius-lg)] bg-[var(--surface-overlay)] border-2 flex items-center justify-center shadow-xl transition-colors duration-300 ${agent.status === 'active' ? 'border-[var(--brand-secondary)] bg-[var(--brand-secondary)]/5' : 'border-[var(--border-subtle)]'}`}>
+                  <AgentNodeMark size={34} status={agent.status} color={agent.status === 'active' ? 'var(--brand-secondary)' : 'var(--text-muted)'} />
                </motion.div>
                
                {agent.status === 'active' && (
                  <motion.div 
-                   className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[var(--brand-secondary)] border-2 border-[var(--surface-raised)]"
+                   className="absolute -top-1 -right-1 h-4 w-4 rounded-[var(--radius-sm)] bg-[var(--brand-secondary)] border-2 border-[var(--surface-raised)]"
                    animate={{ scale: [1, 1.2, 1] }}
                    transition={{ duration: 2, repeat: Infinity }}
                  />

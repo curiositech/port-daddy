@@ -51,7 +51,7 @@ export function Features() {
 
             return (
               <motion.div key={feature.id} variants={item}>
-                <Surface depth="raised" radius="2xl" padding="lg" interactive className="h-full">
+                <Surface depth="raised" radius="lg" padding="lg" interactive className="h-full">
                   <div className="relative space-y-[var(--space-4)]">
                     <Surface depth="inset" radius="md" padding="none" className="flex h-10 w-10 items-center justify-center">
                       <Icon size={18} className="text-[var(--brand-accent)]" />
