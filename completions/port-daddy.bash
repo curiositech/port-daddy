@@ -88,7 +88,7 @@ _port_daddy() {
     # Service management (+ single-letter aliases)
     claim c release r find f list l services ps status url env tunnel
     # Agent coordination
-    pub publish broadcast sub subscribe listen wait lock unlock locks
+    pub publish broadcast sub subscribe listen tube wait lock unlock locks
     # Agent registry
     agent agents actor actors swarm
     # Activity
@@ -444,6 +444,24 @@ _port_daddy() {
           fi
           ;;
         *) _pd_opts '' ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
+    # tube  <channel>  [--send | --reply=<id> | --since=<id> | --once | --no-history]
+    # -----------------------------------------------------------------------
+    tube)
+      case "$prev" in
+        tube)
+          if [[ "$cur" == -* ]]; then
+            _pd_opts '--send --reply --since --limit --once --no-history --json --quiet --sender'
+          else
+            local channels; channels="$(_pd_channels)"
+            # shellcheck disable=SC2207
+            COMPREPLY=( $(compgen -W "$channels" -- "$cur") )
+          fi
+          ;;
+        *) _pd_opts '--send --reply --since --limit --once --no-history --json --quiet --sender' ;;
       esac
       ;;
 
