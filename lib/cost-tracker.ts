@@ -23,6 +23,7 @@ import { randomBytes } from 'node:crypto';
 
 interface ModelRate {
   input: number;   // USD per 1M input tokens
+  cachedInput?: number; // USD per 1M cached input tokens
   output: number;  // USD per 1M output tokens
   label: string;
 }
@@ -35,6 +36,10 @@ const FALLBACK_MODEL_RATES: Record<string, ModelRate> = {
 // Keys are substrings — matched with .includes() against the model name.
 // List more-specific keys before less-specific ones.
 const MODEL_RATES: Array<[string, ModelRate]> = [
+  // OpenAI — GPT-5.4 / Codex
+  ['gpt-5.4-mini',          { input:  0.75, cachedInput: 0.075, output:  4.50, label: 'GPT-5.4 mini' }],
+  ['gpt-5.4',               { input:  2.50, cachedInput: 0.25,  output: 15.00, label: 'GPT-5.4' }],
+  ['gpt-5.3-codex',         { input:  1.75, cachedInput: 0.175, output: 14.00, label: 'GPT-5.3 Codex' }],
   // Anthropic — Opus
   ['claude-opus-4',           { input: 15.00, output: 75.00, label: 'Claude Opus 4' }],
   // Anthropic — Sonnet
@@ -97,6 +102,7 @@ export interface CostRecordOpts {
   spawnId?: string;
   /** Input token count — when provided with outputTokens, computes exact cost */
   inputTokens?: number;
+  cachedInputTokens?: number;
   outputTokens?: number;
 }
 
@@ -110,6 +116,7 @@ export interface CostEvent {
   identity: string | null;
   spawnId: string | null;
   inputTokens: number | null;
+  cachedInputTokens: number | null;
   outputTokens: number | null;
   costUsd: number;
   isEstimate: boolean;
@@ -172,9 +179,11 @@ function computeCost(
   model: string,
   inputTokens?: number,
   outputTokens?: number,
+  cachedInputTokens?: number,
 ): { costUsd: number; isEstimate: boolean } {
   const normalizedInput = normalizeTokenCount(inputTokens);
   const normalizedOutput = normalizeTokenCount(outputTokens);
+  const normalizedCachedInput = normalizeTokenCount(cachedInputTokens);
   const exactRate = findRate(model);
   const fallbackRate = findFallbackRate(backend, model);
   const knownRate = exactRate || fallbackRate;
@@ -183,7 +192,13 @@ function computeCost(
   // If we have token counts, use them exactly
   if (normalizedInput !== undefined && normalizedOutput !== undefined) {
     if (knownRate) {
-      const costUsd = (normalizedInput / 1_000_000) * knownRate.input + (normalizedOutput / 1_000_000) * knownRate.output;
+      const cachedInput = Math.min(normalizedCachedInput ?? 0, normalizedInput);
+      const uncachedInput = Math.max(0, normalizedInput - cachedInput);
+      const cachedInputRate = knownRate.cachedInput ?? knownRate.input;
+      const costUsd =
+        (uncachedInput / 1_000_000) * knownRate.input +
+        (cachedInput / 1_000_000) * cachedInputRate +
+        (normalizedOutput / 1_000_000) * knownRate.output;
       return { costUsd: +Math.max(0, costUsd).toFixed(6), isEstimate: !exactRate };
     }
   }
@@ -256,6 +271,7 @@ export function createCostTracker(db: Database, hooks: CostTrackerHooks = {}) {
       identity     TEXT,
       spawn_id     TEXT,
       input_tokens  INTEGER,
+      cached_input_tokens INTEGER,
       output_tokens INTEGER,
       cost_usd     REAL    NOT NULL DEFAULT 0,
       is_estimate  INTEGER NOT NULL DEFAULT 0
@@ -271,13 +287,16 @@ export function createCostTracker(db: Database, hooks: CostTrackerHooks = {}) {
   if (!existingColumns.has('project_dir')) {
     db.exec('ALTER TABLE cost_events ADD COLUMN project_dir TEXT;');
   }
+  if (!existingColumns.has('cached_input_tokens')) {
+    db.exec('ALTER TABLE cost_events ADD COLUMN cached_input_tokens INTEGER;');
+  }
   db.exec('CREATE INDEX IF NOT EXISTS idx_ce_project_dir ON cost_events(project_dir, ts);');
 
   const insertStmt = db.prepare(`
     INSERT INTO cost_events
       (id, ts, backend, model, project_name, project_dir, identity, spawn_id,
-       input_tokens, output_tokens, cost_usd, is_estimate)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       input_tokens, cached_input_tokens, output_tokens, cost_usd, is_estimate)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   /**
@@ -287,14 +306,14 @@ export function createCostTracker(db: Database, hooks: CostTrackerHooks = {}) {
   function record(opts: CostRecordOpts): CostEvent | null {
     try {
       const { costUsd, isEstimate } = computeCost(
-        opts.backend, opts.model, opts.inputTokens, opts.outputTokens,
+        opts.backend, opts.model, opts.inputTokens, opts.outputTokens, opts.cachedInputTokens,
       );
       const id = randomBytes(8).toString('hex');
       const ts = Date.now();
       insertStmt.run(
         id, ts, opts.backend, opts.model,
         opts.projectName ?? null, opts.projectDir ?? null, opts.identity ?? null, opts.spawnId ?? null,
-        opts.inputTokens ?? null, opts.outputTokens ?? null,
+        opts.inputTokens ?? null, opts.cachedInputTokens ?? null, opts.outputTokens ?? null,
         costUsd, isEstimate ? 1 : 0,
       );
 
@@ -333,7 +352,7 @@ export function createCostTracker(db: Database, hooks: CostTrackerHooks = {}) {
         backend: opts.backend, model: opts.model,
         projectName: opts.projectName ?? null, projectDir: opts.projectDir ?? null, identity: opts.identity ?? null,
         spawnId: opts.spawnId ?? null,
-        inputTokens: opts.inputTokens ?? null, outputTokens: opts.outputTokens ?? null,
+        inputTokens: opts.inputTokens ?? null, cachedInputTokens: opts.cachedInputTokens ?? null, outputTokens: opts.outputTokens ?? null,
         costUsd, isEstimate,
       };
     } catch {
@@ -432,7 +451,7 @@ export function createCostTracker(db: Database, hooks: CostTrackerHooks = {}) {
     interface RawEvent {
       id: string; ts: number; backend: string; model: string;
       project_name: string | null; project_dir: string | null; identity: string | null; spawn_id: string | null;
-      input_tokens: number | null; output_tokens: number | null;
+      input_tokens: number | null; cached_input_tokens: number | null; output_tokens: number | null;
       cost_usd: number; is_estimate: number;
     }
     const rows = db.prepare(`
@@ -441,7 +460,7 @@ export function createCostTracker(db: Database, hooks: CostTrackerHooks = {}) {
     return rows.map(r => ({
       id: r.id, ts: r.ts, backend: r.backend, model: r.model,
       projectName: r.project_name, projectDir: r.project_dir, identity: r.identity, spawnId: r.spawn_id,
-      inputTokens: r.input_tokens, outputTokens: r.output_tokens,
+      inputTokens: r.input_tokens, cachedInputTokens: r.cached_input_tokens, outputTokens: r.output_tokens,
       costUsd: r.cost_usd, isEstimate: r.is_estimate === 1,
     }));
   }

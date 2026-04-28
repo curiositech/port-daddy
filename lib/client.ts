@@ -3851,6 +3851,7 @@ interface SpawnResult {
   error: string | null;
   telemetry: {
     inputTokens: number;
+    cachedInputTokens?: number;
     outputTokens: number;
     costUsd: number;
     rateMode: 'exact';

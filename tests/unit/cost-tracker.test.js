@@ -44,6 +44,15 @@ describe('CostTracker', () => {
     expect(costUsd).toBeCloseTo(0.08, 4);
   });
 
+  test('computes exact Codex cost with cached input tokens', () => {
+    const { costUsd, isEstimate } = costTracker.computeCost(
+      'codex', 'gpt-5.4-mini', 10000, 2000, 4000
+    );
+
+    expect(isEstimate).toBe(false);
+    expect(costUsd).toBeCloseTo(0.0138, 6);
+  });
+
   test('uses model-aware estimate for aider without token counts', () => {
     const { costUsd, isEstimate } = costTracker.computeCost('aider', 'gpt-5');
     expect(isEstimate).toBe(true);
@@ -100,6 +109,33 @@ describe('CostTracker', () => {
     expect(backendSet.has('ollama')).toBe(true);
   });
 
+  test('record stores cached input tokens for exact Codex events', () => {
+    const event = costTracker.record({
+      backend: 'codex',
+      model: 'gpt-5.4-mini',
+      projectName: 'port-daddy',
+      inputTokens: 10000,
+      cachedInputTokens: 4000,
+      outputTokens: 2000,
+    });
+
+    expect(event).toEqual(expect.objectContaining({
+      backend: 'codex',
+      model: 'gpt-5.4-mini',
+      inputTokens: 10000,
+      cachedInputTokens: 4000,
+      outputTokens: 2000,
+      isEstimate: false,
+    }));
+    expect(event.costUsd).toBeCloseTo(0.0138, 6);
+
+    const [recent] = costTracker.recent(1);
+    expect(recent).toEqual(expect.objectContaining({
+      cachedInputTokens: 4000,
+      costUsd: event.costUsd,
+    }));
+  });
+
   test('migrates a legacy cost_events table that predates project_dir', () => {
     const legacyDb = createTestDb();
     legacyDb.exec(`
@@ -135,6 +171,9 @@ describe('CostTracker', () => {
     expect(migrated.summary({ projectDir: '/tmp/legacy-project' })).toHaveLength(1);
     expect(
       legacyDb.prepare('PRAGMA table_info(cost_events)').all().some((column) => column.name === 'project_dir')
+    ).toBe(true);
+    expect(
+      legacyDb.prepare('PRAGMA table_info(cost_events)').all().some((column) => column.name === 'cached_input_tokens')
     ).toBe(true);
 
     legacyDb.close();

@@ -115,7 +115,7 @@ describe('backend readiness', () => {
     expect(readiness.summary).toContain('blocked until exact token counts');
   });
 
-  test('keeps codex probe details while still blocking launch under telemetry policy', async () => {
+  test('keeps codex probe details and allows launch when exact telemetry is available', async () => {
     mockSpawnSync.mockImplementation((command, args) => ({
       status: command === 'which' && args[0] === 'codex' ? 0 : 1,
     }));
@@ -127,10 +127,27 @@ describe('backend readiness', () => {
     }));
     expect(readiness).toMatchObject({
       backend: 'codex',
+      status: 'manual_check',
+    });
+    expect(readiness.summary).toContain('Codex CLI binary found');
+    expect(readiness.summary).not.toContain('blocked until exact token counts');
+  });
+
+  test('blocks codex models without exact cost rates', async () => {
+    mockSpawnSync.mockImplementation((command, args) => ({
+      status: command === 'which' && args[0] === 'codex' ? 0 : 1,
+    }));
+
+    const readiness = await assessBackendReadiness('codex', {
+      model: 'gpt-mystery-model',
+    });
+
+    expect(readiness).toMatchObject({
+      backend: 'codex',
       status: 'needs_setup',
     });
     expect(readiness.summary).toContain('Codex CLI binary found');
-    expect(readiness.summary).toContain('blocked until exact token counts');
+    expect(readiness.summary).toContain('has no exact cost rate entry');
   });
 
   test('keeps ollama probe details while still blocking launch under telemetry policy', async () => {

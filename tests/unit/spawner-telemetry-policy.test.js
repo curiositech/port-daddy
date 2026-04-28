@@ -94,6 +94,7 @@ describe('spawner telemetry enforcement', () => {
         identity: opts.identity ?? null,
         spawnId: opts.spawnId ?? null,
         inputTokens: opts.inputTokens ?? null,
+        cachedInputTokens: opts.cachedInputTokens ?? null,
         outputTokens: opts.outputTokens ?? null,
         costUsd: 0.00216,
         isEstimate: false,
@@ -140,6 +141,73 @@ describe('spawner telemetry enforcement', () => {
       identity: 'port-daddy:qa:telemetry',
       inputTokens: 1200,
       outputTokens: 300,
+    }));
+  });
+
+  test('attaches cached-input telemetry to successful Codex launches under enforcement', async () => {
+    const costTracker = {
+      computeCost: jest.fn(() => ({ costUsd: 0.0138, isEstimate: false })),
+      record: jest.fn((opts) => ({
+        id: 'evt-codex-1',
+        ts: 1,
+        backend: opts.backend,
+        model: opts.model,
+        projectName: opts.projectName ?? null,
+        projectDir: opts.projectDir ?? null,
+        identity: opts.identity ?? null,
+        spawnId: opts.spawnId ?? null,
+        inputTokens: opts.inputTokens ?? null,
+        cachedInputTokens: opts.cachedInputTokens ?? null,
+        outputTokens: opts.outputTokens ?? null,
+        costUsd: 0.0138,
+        isEstimate: false,
+      })),
+    };
+    const spawner = createSpawner({
+      costTracker,
+      enforceTelemetryPolicy: true,
+      runnerOverrides: {
+        codex: jest.fn(async () => ({
+          output: 'done',
+          error: null,
+          inputTokens: 10000,
+          cachedInputTokens: 4000,
+          outputTokens: 2000,
+        })),
+      },
+    });
+
+    const result = await spawner.spawn({
+      backend: 'codex',
+      model: 'gpt-5.4-mini',
+      identity: 'port-daddy:fleet:cartographer',
+      task: 'Summarize salvage state',
+      workdir: '/tmp/port-daddy-codex-telemetry-test',
+    });
+
+    expect(result.status).toBe('completed');
+    expect(result.error).toBeNull();
+    expect(result.telemetry).toEqual({
+      inputTokens: 10000,
+      cachedInputTokens: 4000,
+      outputTokens: 2000,
+      costUsd: 0.0138,
+      rateMode: 'exact',
+    });
+    expect(costTracker.computeCost).toHaveBeenCalledWith(
+      'codex',
+      'gpt-5.4-mini',
+      10000,
+      2000,
+      4000,
+    );
+    expect(costTracker.record).toHaveBeenCalledWith(expect.objectContaining({
+      backend: 'codex',
+      model: 'gpt-5.4-mini',
+      identity: 'port-daddy:fleet:cartographer',
+      inputTokens: 10000,
+      cachedInputTokens: 4000,
+      outputTokens: 2000,
     }));
   });
 
