@@ -45,7 +45,9 @@ These are starting estimates. Re-score per real-world conditions.
 Run:
 
 ```
-python scripts/pki_decision.py < {"command":"pki.score","payload":{"options":["ACME","OIDC","WoT","Hybrid"]}}
+python scripts/pki_decision.py <<'JSON'
+{"kind":"request","version":"1","command":"pki.score","payload":{"options":["ACME","OIDC","WoT","Hybrid"]}}
+JSON
 ```
 
 The script:
@@ -55,13 +57,13 @@ The script:
 4. Returns ranked options + per-criterion narrative
 5. Flags ties and asks the deliberation set to break them
 
-Default-weight ranking (from above table):
-- **Hybrid: ~158**
-- **OIDC: ~144**
-- **ACME: ~136**
-- **WoT: ~117**
+Canonical default-weight ranking from `scripts/pki_decision.py`:
+- **OIDC: 153**
+- **Hybrid: 153**
+- **WoT: 141**
+- **ACME: 137**
 
-Hybrid wins under default weights, but the *gap* between Hybrid and OIDC is small enough that operational concerns can flip it. Run the deliberation.
+OIDC and Hybrid tie under default weights, so the matrix does not auto-decide. Apply the tie-breakers below and run the deliberation set. In the PR #5 deliberation, the tie-break favored OIDC-first because it is the reversible subset of Hybrid and keeps ACME additive.
 
 ## How to use the matrix in deliberation
 

@@ -53,12 +53,15 @@ Almost nothing new on the wire. The relay becomes a dumb pub/sub hub identified 
 WoT can complement ACME/OIDC even if not the primary:
 
 - **Disaster recovery**: if the relay is compromised, harbors with WoT-exchanged keys can re-establish a federation channel without trusting the relay.
-- **Air-gap mode**: official support for "WoT-only" deployments where no external CA/IdP is touched.
+- **Air-gap mode**: official support for self-hosted or harbor-local "WoT-only" deployments where no external CA/IdP is touched.
 - **Bootstrap**: ACME/OIDC give you a daemon identity; WoT gives you a *harbor membership*. These are different layers.
+
+For v0, WoT is deliberately **not** a managed/global identity-registry proof. A self-attested fingerprint is not sufficient proof under the relay threat model. The only acceptable v0 WoT enrollment is an explicit admin-approved fingerprint allowlist or signed pairing receipt, scoped to the self-hosted/harbor-local relay where that admin owns the trust decision.
 
 ## Anti-patterns
 
 - **TOFU-only with no fingerprint verification UX.** SSH gets away with this barely; we shouldn't repeat the mistake. If we ship WoT, we ship a fingerprint UX (QR codes, words list, Magic-Wormhole-style pairing).
+- **Self-attested fingerprints in a managed registry.** Logging `proof_method=wot` does not make a fingerprint trustworthy. Without an admin allowlist, pairing receipt, or key-transparency story, this violates the relay invariant that identity-registry updates require proof or explicit human approval.
 - **Shared-secret long-lived keys.** Anyone who's ever held the harbor key forever has access unless we layer Phase 3 attenuation on every export.
 - **No revocation story.** If we have WoT, we MUST have a way to nuke and re-key a harbor.
 
@@ -71,7 +74,8 @@ WoT can complement ACME/OIDC even if not the primary:
 
 ## Implementation effort estimate
 
-- v0 WoT-only mode: **~1 week** (key import/export CLI, fingerprint display, basic pairing)
+- v0 admin-approved harbor-local mode: **~0.5 week** (fingerprint allowlist or signed pairing receipt, visible fingerprint display, nuke-and-re-key docs)
+- v0 usable WoT-only mode: **~1 week** (key import/export CLI, fingerprint display, basic pairing)
 - v1 with Magic Wormhole pairing: **+1.5 weeks** (PAKE library + wormhole rendezvous server)
 - v2 with revocation broadcast: **+1 week** (revocation distribution problem is genuinely hard without a CA)
 
@@ -81,12 +85,13 @@ WoT tends to score: **highest on simplicity, air-gap, sovereignty; lowest on UX,
 
 ## My (the skill's) recommended composition
 
-WoT is **rarely the primary choice for v0**, but it should be **a supported deployment mode** (`--auth-mode=wot`) so that:
+WoT is **rarely the primary choice for v0**, but it should be **a supported self-hosted/harbor-local deployment mode** (`--auth-mode=wot`) so that:
 - Users who reject CAs/IdPs have a path
 - Air-gapped deployments are possible
 - The system's identity model degrades gracefully if external dependencies fail
+- Managed/global relay identity remains proof-backed until a later ADR adds stronger WoT proof, pairing, or key transparency
 
-In other words: don't bet the relay on WoT, but don't preclude it. Architectural neutrality on the bootstrap is cheap and the antagonist will bring this up.
+In other words: don't bet the relay on WoT, but don't preclude it. Architectural neutrality on the bootstrap is cheap only if v0 WoT cannot silently become "any fingerprint is identity truth."
 
 ## Reading list
 

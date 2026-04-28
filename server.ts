@@ -332,7 +332,7 @@ const costTracker = createCostTracker(db, {
     budgetPause.arm({ agentId, project, reason, spentTodayUsd, budgetUsdPerDay });
   },
 });
-const spawner = createSpawner({ costTracker, counters, bonds, enforceTelemetryPolicy: true });
+const spawner = createSpawner({ costTracker, counters, bonds, harbors, enforceTelemetryPolicy: true });
 spawnerRef = spawner;
 
 function resolveArbiterStrictMode(value: string | undefined): boolean {

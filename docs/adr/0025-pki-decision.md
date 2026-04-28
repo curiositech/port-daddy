@@ -43,12 +43,20 @@ A tie at this level means the matrix can't auto-decide; per `pki-decision-matrix
 
 **Adopt an OIDC-first hybrid**, phased:
 
-- **v0 primary identity bootstrap**: **OIDC**. Initially the GitHub Actions OIDC issuer; allow-list expandable in config. Used by both CI publishers and daemons. Daemon's first-time bootstrap exchanges an OIDC token (developer SSO via GitHub) for a PD card; subsequent bootstraps use the daemon's own Ed25519 key plus a refresh OIDC exchange when the card needs renewal.
-- **v0 escape hatch**: **`--auth-mode=wot`** for air-gapped or PKI-rejecting deployments. The relay accepts daemon Ed25519 fingerprints as identity without external attestation; harbor membership is the only authority.
+- **v0 primary identity bootstrap**: **OIDC**. Initially the GitHub Actions OIDC issuer for workload publishers; allow-list expandable in config. Daemon human bootstrap must use an explicit developer OIDC/device-login exchange before it becomes default-on. If that flow is not ready, daemon enrollment uses the admin-approved WoT path below while workload publishing still uses OIDC.
+- **v0 escape hatch**: **`--auth-mode=wot`** for self-hosted, harbor-local, air-gapped, or PKI-rejecting deployments. WoT is not accepted into the managed/global identity registry in v0. A relay only accepts an Ed25519 fingerprint after explicit admin approval through a configured allowlist or signed pairing receipt; a self-attested fingerprint plus a log line is not proof.
 - **v1 secondary identity bootstrap**: **ACME** (DNS-01 only) for daemons that want name-bound identity (`erichs.users.portdaddy.dev` or a user's own domain). Issued via a self-hosted `step-ca` ACME CA on the managed subdomain to avoid Let's Encrypt rate-limit dependency.
 - **v2**: self-hosted OIDC issuer support (Keycloak / Authentik / Dex) and bring-your-own-domain ACME with EAB binding to a PD account.
 
-Concretely: the relay's identity registry stores `(daemon_fingerprint, identifier, expiry, proof_method)` where `proof_method ∈ {oidc, acme, wot}`. All three are first-class from day one in the data model; **only the OIDC and WoT issuance paths ship in v0**.
+Concretely: the relay's identity registry stores `(daemon_fingerprint, identifier, proof_method, proof_metadata, exp, revoked_at)` where `proof_method ∈ {oidc, acme, wot}`. `proof_metadata` is proof-method-specific and must be able to store OIDC issuer/JTI/iat/audience data, ACME DNS identifier/issuer/account/renewal metadata, and WoT pairing or allowlist receipt data. All three proof methods are first-class from day one in the data model; **only OIDC exchange and self-hosted/harbor-local admin-approved WoT issuance ship in v0**.
+
+v0 acceptance requirements:
+
+- OIDC exchange is fail-closed: missing `aud`, wildcard `aud`, wrong `aud`, wrong `iss`, expired `exp`, invalid `nbf`, unknown issuer, unknown `repository_owner`, or ambiguous cap mapping rejects. v0 does not auto-create namespaces from unrecognized OIDC claims.
+- OIDC issuer recovery is normative, not optional: store `proof_issuer`, `proof_jti`, `proof_iat` or `minted_at`, and support revoke-all-by-issuer-and-time with the same ≤5s revocation broadcast target as card revocation.
+- JWKS fail-soft is availability-only. Disabled issuers or suspected key compromise bypass cached JWKS immediately.
+- WoT v0 is self-hosted/harbor-local only. Managed/global registry publication requires OIDC in v0, ACME in v1, or a later ADR that gives WoT a stronger proof and key-transparency story.
+- ACME remains a proof method bound to the daemon Ed25519 fingerprint. The X.509 certificate is proof metadata for name control; it is not the daemon-to-relay transport credential.
 
 Why OIDC-first beats Hybrid-from-day-one:
 
@@ -60,34 +68,38 @@ Why OIDC-first beats Hybrid-from-day-one:
 
 ## Deliberation Summary
 
-This skill (`pd-relay-zero-trust`) is deliberation-aware: PKI choice is supposed to fork a four-voice debate (proponent / pragmatic / antagonist / acme-specialist) before producing this ADR. **Honest disclosure**: in this session, two attempts to dispatch the four subagents as concurrent autonomous Agent calls timed out before producing structured opinions (idle-stream timeouts at 73 and 17 tool calls respectively). Rather than ship the ADR un-deliberated, the synthesis below is written by the calling agent (Claude) channeling the four roles from the canonical role prompts in `skills/pd-relay-zero-trust/agents/`. The verdicts are best-effort rather than independent; the next session should re-dispatch the four agents and revise this ADR if any voice raises a ship blocker not refuted here.
+This skill (`pd-relay-zero-trust`) is deliberation-aware: PKI choice forks a four-voice debate (proponent / pragmatic / antagonist / acme-specialist) before producing this ADR. The four roles were re-dispatched against this PR branch and each confirmed `pd-relay-zero-trust` as the governing skill. The synthesis below reflects those independent outputs rather than the earlier channeled draft.
 
 ### Proponent verdict (`agents/proponent.md`)
-**verdict**: accept-with-conditions. **confidence**: medium-high.
+**verdict**: accept-with-conditions. **confidence**: high.
 
 Top three reasons supporting OIDC-first hybrid:
 1. The matrix puts OIDC at 153, exactly tied with Hybrid; OIDC is the cheaper subset of Hybrid, so taking it first is a strict subset of the higher-scoring option.
-2. CI is named as the most likely first non-laptop publisher in the master plan; OIDC is the only candidate that scores 5 on C1 (CI/CD ergonomics) without ACME's 2.
-3. Phased rollout matches the "ship simple v0, layer features in v1" pattern already used by the relay architecture (single-region first, multi-region in v1).
+2. The OIDC-to-PD-card exchange is the key architecture: OIDC is bootstrap only, then PD cards carry short-lived capabilities, audience checks, and revocation.
+3. Deferring ACME is technically sound because ACME contributes name binding but also brings DNS API, CA, renewal, ARI, CAA, and EAB operations that are not needed for the first CI lane.
+
+Proponent conditions: update the stale matrix reference, make v0 OIDC acceptance conditions explicit, and clarify the WoT boundary so it is not over-sold.
 
 ### Pragmatic verdict (`agents/pragmatic.md`)
-**verdict**: accept. **confidence**: high.
+**verdict**: accept-with-conditions. **confidence**: high.
 
-Top three reasons:
-1. **Fastest shippable v0**: OIDC alone is ~1.5 weeks per `pki-options-oidc.md`; Hybrid is ~3.5 weeks. The master plan budgets relay v0 at Weeks 3-6; PKI cannot consume more than half.
-2. **Cleanly reversible**: the identity registry's `proof_method` enum is open. Adding ACME later changes one field's allowed values; no migration of existing identities.
-3. **Bus factor**: every developer has used OIDC. ACME implementation is two-week-payload of new ops surface (CA, DNS API integration, ARI scheduler). Don't add it to the critical path.
+Delivery cut:
+1. v0 includes GitHub Actions OIDC, method-tagged identity proofs, fail-closed OIDC verification, short-lived PD card issuance, a narrow self-hosted/harbor-local WoT escape hatch, and a real GitHub Actions integration test.
+2. v0 explicitly excludes ACME enrollment, BYO domains, self-hosted OIDC issuers, Google/GitLab OIDC beyond preserving config shape, and full WoT pairing UX.
+3. Estimated v0 remains roughly two weeks if WoT is kept to an admin-approved allowlist/pairing receipt. Full import/export, fingerprint display, and pairing UX is closer to the reference's one-week WoT estimate and should not be smuggled into a 0.25w line item.
+
+Pragmatic conditions: name the daemon bootstrap flow before implementation, reject unknown cap mappings by default, and reconcile the matrix-score drift.
 
 ### Antagonist verdict (`agents/antagonist.md`)
-**verdict**: accept-with-conditions. **confidence**: medium.
+**initial verdict**: reject. **confidence**: high. **blocker accepted and fixed in this revision**.
 
-Top three risks (channeled from `agents/antagonist.md`'s "assume bad-faith relay, hostile network, key compromise" framing):
+Top risks:
 
-1. **A8 (compromised PKI authority) under OIDC means GitHub OIDC**. If the GitHub Actions OIDC issuer is compromised or coerced, *all* CI publishers are momentarily untrustworthy. Mitigation: explicit issuer allowlist (config, not runtime), explicit `aud=relay.portdaddy.dev/<account>` per call, and a kill-switch that invalidates all OIDC-bootstrapped cards minted before timestamp T.
-2. **Vendor coupling**: GitHub down → CI lane down. Mitigation: ship support for `aud` accepting any of a configured set of issuers from day 1, even if only GitHub is allow-listed. Add GitLab and Google in v1 before declaring lock-in resolved.
-3. **OIDC confused-deputy via misconfigured `aud`**: Salt Labs has documented this exact CWE-345 pattern in deployed services. Mitigation: relay rejects any token whose `aud` is `["*"]`, missing, or matches a different relay's audience; all rejections logged at `warning`.
+1. **I8 blocker in the earlier draft**: the ADR said WoT required explicit out-of-band trust, but the implementation plan accepted self-attested fingerprints with no proof. This revision changes v0 WoT to admin-approved fingerprint allowlists or signed pairing receipts, scoped to self-hosted/harbor-local relays only.
+2. **A8 GitHub OIDC compromise or outage**: recovery needs issuer disablement, JWKS fail-soft bypass, bulk issuer/time-window revocation, affected-namespace notification, and JTI auditability.
+3. **I7 cap-mapping ambiguity**: unrecognized `repository_owner` or ambiguous issuer claims must reject by default; auto-creating namespaces would make the bootstrap allow-by-default.
 
-**ship_blocker**: on initial reading, antagonist would call this for the missing WoT escape hatch — air-gap and adversarial-research deployments cannot use OIDC at all, and the master plan does name "air-gap-friendly" as a property worth preserving (zero-trust foundations doc). **Refutation**: WoT escape hatch is in the v0 scope (`--auth-mode=wot`); the data model's `proof_method: "wot"` accommodates it; the air-gap user can run their relay self-hosted and bypass OIDC bootstrap entirely. The `--auth-mode=wot` config is a single boolean in v0, not a roadmap item.
+The antagonist also required that this ADR not advance from Proposed to Accepted until real cited deliberation outputs exist. That quality gate is now satisfied for the PR revision; the ADR status remains Proposed until normal project approval.
 
 ### ACME specialist input (`agents/acme-specialist.md`)
 The ACME path is correctly deferred to v1. When it lands, the recommendations from the role prompt apply:
@@ -97,29 +109,29 @@ The ACME path is correctly deferred to v1. When it lands, the recommendations fr
 - EAB binds ACME accounts to PD account model in v2
 - Run our own `step-ca` for `*.users.portdaddy.dev` to avoid Let's Encrypt rate-limit coupling; Let's Encrypt is fine for users bringing their own domain in v2
 
-The specialist explicitly *does not* recommend ACME for v0 over OIDC for the same operational-burden reasons the pragmatic voice flagged.
+The specialist explicitly *does not* recommend ACME for v0 over OIDC for the same operational-burden reasons the pragmatic voice flagged. The required v0 amendment is to keep ACME as an additive proof method keyed to the daemon Ed25519 fingerprint and reserve `proof_metadata` for DNS names, CA/account binding, ARI/renewal windows, CAA, EAB, and BYO-domain policy.
 
 ## Consequences
 
 **Positive**:
-- v0 ships with one well-understood identity bootstrap (OIDC) plus one no-CA escape hatch (WoT). Two failure modes, both well-trodden.
+- v0 ships with one well-understood workload identity bootstrap (OIDC) plus one no-CA self-hosted/harbor-local escape hatch (admin-approved WoT).
 - CI runners (GH Actions) get identity for free; no provisioning cost for adopters.
-- Developer human SSO is "log in with GitHub" — zero friction.
+- Developer daemon bootstrap can use GitHub-backed OIDC only after a concrete device/browser login exchange is implemented; until then, daemon enrollment uses the explicit admin-approved WoT lane.
 - Card lifecycle is bounded: OIDC tokens expire in minutes; PD cards minted from them inherit ≤1h expiry per Phase 2 contract.
 - Path to ACME (v1) and self-hosted OIDC issuers (v2) is documented and additive.
 - Identity registry data model accommodates all three proof methods from day 1.
 - Phase 3 attenuation (ADR forthcoming) composes over PD cards regardless of how they were bootstrapped, so PKI choice is decoupled from the attenuation layer.
 
 **Negative**:
-- v0 has a single-IdP dependency on GitHub. Outages cascade. Multi-issuer support is configured-but-empty until v1.
+- v0 has a single populated OIDC issuer dependency on GitHub. Outages block new workload exchanges after cached cards expire. Multi-issuer support is configured-but-empty until v1.
 - Daemons that want long-term name-bound identity (e.g., `dev.example.com`-bound) wait for v1 ACME.
-- Air-gap deployments must self-host the relay AND configure `--auth-mode=wot` AND distribute keypairs out-of-band — a real operational ask for that audience.
+- Air-gap deployments must self-host the relay, configure `--auth-mode=wot`, distribute keypairs out-of-band, and maintain an admin-approved fingerprint allowlist or pairing-receipt store — a real operational ask for that audience.
 - OIDC issuers rotate JWKS; relay must implement caching with bounded staleness (10-minute TTL, 1-hour fail-soft window per `pki-options-oidc.md`).
 - One more CWE-345 surface (`aud` validation) to get exactly right and audit.
 
 **Reversibility**:
 - **Cost to switch primary bootstrap later**: low. Add ACME issuance endpoint; existing OIDC daemons coexist. No DB migration; `proof_method` enum already supports both.
-- **Cost to revoke OIDC trust if compromised**: low. Allowlist is config; remove issuer; daemons fall back to their cached-card lifetime then must re-bootstrap via WoT or a different issuer.
+- **Cost to revoke OIDC trust if compromised**: medium. Allowlist is config, but the relay must disable stale JWKS acceptance, bulk revoke by issuer/time window, and force re-bootstrap through admin-approved WoT or a different issuer.
 - **Cost to add a new OIDC issuer**: low. Single config entry plus JWKS URL.
 - **Cost to remove WoT mode**: medium. Existing `--auth-mode=wot` deployments need migration path; we'd ship a deprecation window of one minor release.
 
@@ -137,13 +149,13 @@ Re-open this ADR if any of the following occur:
 
 | Step | Description | Estimate | Depends on |
 |------|-------------|---------:|------------|
-| 1 | Identity registry schema: `(fingerprint, identifier, proof_method, proof_metadata, exp, revoked_at)` | 0.25w | — |
-| 2 | OIDC verifier: JWKS fetch + cache + signature verify + `aud`/`exp`/`iss` checks | 0.5w | (1) |
-| 3 | OIDC → PD card exchange endpoint (`/v1/exchange`); claim → cap mapping; rate limits per issuer claim | 0.5w | (2) |
+| 1 | Identity registry schema: `(fingerprint, identifier, proof_method, proof_metadata, exp, revoked_at)` plus proof issuer/JTI/iat or minted-at metadata | 0.25w | — |
+| 2 | OIDC verifier: JWKS fetch + cache + signature verify + exact `aud`/`exp`/`iss`/`nbf` checks; disabled issuers bypass cached JWKS | 0.5w | (1) |
+| 3 | OIDC → PD card exchange endpoint (`/v1/exchange`); fail-closed claim → cap mapping; rate limits per issuer claim; issuer/time-window bulk revocation | 0.5w | (2) |
 | 4 | GitHub Actions OIDC integration test using a real GH Actions runner | 0.25w | (3) |
-| 5 | `--auth-mode=wot` mode: identity-registry path that accepts self-attested fingerprints with no proof; logs `proof_method=wot` | 0.25w | (1) |
+| 5 | `--auth-mode=wot` mode: self-hosted/harbor-local only; admin-approved fingerprint allowlist or signed pairing receipt; visible fingerprint verification and nuke-and-rekey documentation | 0.5w | (1) |
 | 6 | Documentation: relay deployment guide, OIDC setup walkthrough, WoT mode security warnings | 0.25w | (3), (5) |
-| **v0 total** | | **~2 weeks** | |
+| **v0 total** | | **~2.25 weeks** | |
 | 7 (v1) | `step-ca` ACME deployment for `*.users.portdaddy.dev`; ACME enrollment endpoint; daemon ACME client | 2w | v0 |
 | 8 (v1) | Multi-issuer OIDC: GitLab + Google issuer configs and integration tests | 0.5w | v0 |
 | 9 (v2) | Self-hosted OIDC issuer support: configurable issuer registry, docs, SSO walkthrough | 1w | v1 |
@@ -151,7 +163,7 @@ Re-open this ADR if any of the following occur:
 
 ## Migration
 
-There is no installed base of relay-bootstrapped daemons to migrate. New daemons enrolling against the v0 relay use OIDC by default. Air-gap deployments configure `--auth-mode=wot` at relay-install time. Existing local-only daemons (no relay) are unaffected by this ADR.
+There is no installed base of relay-bootstrapped daemons to migrate. New workload publishers enrolling against the v0 relay use OIDC by default. Daemon enrollment uses the explicit developer OIDC/device-login flow once implemented; otherwise daemon enrollment uses the admin-approved WoT lane. Air-gap deployments configure `--auth-mode=wot` at relay-install time and remain self-hosted/harbor-local in v0. Existing local-only daemons (no relay) are unaffected by this ADR.
 
 ## Threat-Model Invariant Mapping
 
@@ -164,11 +176,11 @@ This decision preserves or weakens these invariants from `references/threat-mode
 | I3 (stolen card bounded by exp/cap/aud) | **Preserved and strengthened.** OIDC tokens have minute-scale expiry; PD cards minted from them inherit ≤1h cap. |
 | I4 (attenuation never expands rights) | **Preserved.** Phase 3 verifier is unchanged. |
 | I5 (loss of relay does not lose past evidence) | **Preserved.** Chain anchoring is independent. |
-| I6 (revocation ≤5s) | **Preserved.** JTI revocation table broadcast unchanged. |
-| I7 (AuthN ≠ AuthZ) | **Preserved.** OIDC = AuthN; PD card cap[] = AuthZ; verified separately. |
-| I8 (identity registry update requires proof) | **Preserved.** OIDC token signature is the proof; WoT mode requires explicit out-of-band trust acknowledgement (logged). |
+| I6 (revocation ≤5s) | **Preserved with a new requirement.** Card revocation remains ≤5s, and OIDC issuer compromise recovery requires revoke-all-by-issuer-and-time with the same broadcast target. |
+| I7 (AuthN ≠ AuthZ) | **Preserved with a new requirement.** OIDC = AuthN; PD card cap[] = AuthZ; unrecognized or ambiguous claims reject instead of auto-creating namespaces. |
+| I8 (identity registry update requires proof) | **Preserved after revision.** OIDC token signature is proof; ACME DNS-01 will be proof; v0 WoT requires explicit admin allowlist or signed pairing receipt and is self-hosted/harbor-local only. |
 
-No invariants are weakened. Adversary A8 (compromised PKI authority) gains a new attack surface (the GitHub OIDC issuer) but loses none — pre-decision, the registry had no proof mechanism at all.
+No invariants are intentionally weakened after these acceptance conditions. Adversary A8 (compromised PKI authority) gains a new attack surface (the GitHub OIDC issuer), so the v0 implementation must ship issuer disablement, JTI auditability, cached-JWKS bypass on compromise, and bulk card revocation by issuer/time window.
 
 ## Related ADRs / References
 
@@ -185,9 +197,8 @@ No invariants are weakened. Adversary A8 (compromised PKI authority) gains a new
 
 ## Open Questions
 
-- What's the cap-mapping policy for unrecognized OIDC `repository_owner` claims? Reject (default), or auto-create a low-privilege namespace?
-- Should `--auth-mode=wot` deployments be allowed to publish PD cards into the global registry, or be sandboxed to their own self-hosted relay only?
 - For v1 ACME, do we mint the user's daemon identity on `<user>.users.portdaddy.dev` automatically at first daemon startup, or require explicit opt-in to "I want a name"?
 - Does the relay need to support OIDC token-binding (RFC 8471) at any point, or is short token lifetime sufficient?
+- What is the exact developer daemon OIDC/device-login UX, and does it ship in v0 or stay behind the admin-approved WoT lane until a follow-up?
 
 These do not block v0; capture as follow-ups in the next ADRs.
