@@ -1,0 +1,90 @@
+import { ArrowRight, CheckCircle2, KeyRound, ShipWheel } from 'lucide-react'
+import { COLD_START_STEPS } from '@/data/product'
+import {
+  CommandBlock,
+  PageContainer,
+  PanelBody,
+  PanelEyebrow,
+  PanelTitle,
+  SectionIntro,
+  SurfacePanel,
+  SwissGrid,
+  SwissGridItem,
+} from '@/components/site/primitives'
+
+export function ColdStartSection() {
+  return (
+    <section id="cold-start" className="border-t-2 border-[var(--border-strong)] bg-[var(--surface-raised)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+      <PageContainer width="wide">
+        <SwissGrid className="items-start">
+          <SwissGridItem span="wide">
+            <SectionIntro
+              eyebrow="Cold start"
+              title="New projects should enter through Shipwright."
+              description="The first-use path is intentionally concrete: install the local daemon, expose required backend keys, survey the repo, simulate a bounded starter fleet, and then operate from Flow instead of hand-editing YAML in the dark."
+              titleAs="h2"
+              titleSize="display"
+              titleClassName="max-w-[13ch]"
+              bodyClassName="max-w-[44rem]"
+            />
+          </SwissGridItem>
+          <SwissGridItem span="rail">
+            <SurfacePanel tone="blue" padding="compact" className="grid gap-[var(--space-3)]">
+              <PanelEyebrow tone="primary">Design rule</PanelEyebrow>
+              <PanelBody tone="primary" size="compact" className="max-w-none">
+                API keys, budget caps, model readiness, and project onboarding must be visible before an agent launch, not discovered after a failed sortie.
+              </PanelBody>
+            </SurfacePanel>
+          </SwissGridItem>
+        </SwissGrid>
+
+        <div className="mt-[var(--space-7)] grid gap-[var(--space-4)]">
+          {COLD_START_STEPS.map((step, index) => (
+            <article
+              key={step.id}
+              className="grid gap-[var(--space-4)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-4)] md:grid-cols-[5rem_minmax(0,1fr)_minmax(260px,0.8fr)] md:p-[var(--space-5)]"
+            >
+              <div className="flex items-start justify-between gap-[var(--space-3)] md:block">
+                <span className="font-mono text-[length:var(--type-panel-title-card-size)] font-black text-[var(--brand-primary)]">
+                  {String(index + 1).padStart(2, '0')}
+                </span>
+                <div className="mt-[var(--space-3)] hidden h-10 w-10 items-center justify-center border-2 border-[var(--border-strong)] md:inline-flex">
+                  {step.id === 'keys' ? <KeyRound size={18} /> : step.id === 'survey' || step.id === 'simulate' ? <ShipWheel size={18} /> : <CheckCircle2 size={18} />}
+                </div>
+              </div>
+
+              <div className="grid gap-[var(--space-3)]">
+                <PanelTitle as="h3" size="card" className="max-w-[18ch]">
+                  {step.title}
+                </PanelTitle>
+                <PanelBody className="max-w-[44rem]">
+                  {step.description}
+                </PanelBody>
+                <div className="inline-flex items-center gap-[var(--space-2)] text-[var(--brand-primary)]">
+                  <ArrowRight size={16} />
+                  <PanelEyebrow className="text-[var(--brand-primary)]">{step.appSurface}</PanelEyebrow>
+                </div>
+              </div>
+
+              {step.command ? (
+                <CommandBlock
+                  title={`Step ${index + 1}`}
+                  command={step.command}
+                  elevation="quiet"
+                  label="Copy"
+                />
+              ) : (
+                <SurfacePanel elevation="quiet" padding="compact" className="grid content-center">
+                  <PanelEyebrow>In app</PanelEyebrow>
+                  <PanelBody size="compact" className="mt-[var(--space-2)] max-w-none">
+                    No shell command should be needed here. The operator moves between Shipwright, Flow, Agents, Resources, and YAML.
+                  </PanelBody>
+                </SurfacePanel>
+              )}
+            </article>
+          ))}
+        </div>
+      </PageContainer>
+    </section>
+  )
+}
