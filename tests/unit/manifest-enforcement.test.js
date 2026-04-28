@@ -676,6 +676,9 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'graph_stats': 'graph',
       'memory_episodes': 'memory',
       'memory_stats': 'memory',
+      'drop_feedback': 'feedback',
+      'list_feedback': 'feedback',
+      'feedback_summary': 'feedback',
     };
 
     const unmapped = [];

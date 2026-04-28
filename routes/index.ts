@@ -55,6 +55,7 @@ import { budgetPlugin } from './budget.js';
 import { advisorPlugin } from './advisor.js';
 import { quorumPlugin } from './quorum.js';
 import { resourcesPlugin } from './resources.js';
+import { feedbackPlugin } from './feedback.js';
 
 type AnyDeps = Record<string, unknown>;
 
@@ -164,5 +165,11 @@ export async function registerAllRoutes(
   // Only mounts if a quorum dep was constructed (depends on tuple space).
   if ((deps as any).quorum) {
     await fastify.register(quorumPlugin, { deps } as any);
+  }
+
+  // Feedback — central agentic-feedback primitive (tuple-backed).
+  // Mounts when the feedback dep is present (depends on tuple space).
+  if ((deps as any).feedback) {
+    await fastify.register(feedbackPlugin, { deps } as any);
   }
 }

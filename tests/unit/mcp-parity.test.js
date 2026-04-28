@@ -221,6 +221,11 @@ const TOOL_FEATURE_MAP = {
   'graph_stats': 'graph',
   'memory_episodes': 'memory',
   'memory_stats': 'memory',
+
+  // Feedback (central agentic-feedback primitive)
+  'drop_feedback': 'feedback',
+  'list_feedback': 'feedback',
+  'feedback_summary': 'feedback',
 };
 
 /**
@@ -671,7 +676,7 @@ describe('MCP tiered tool loading', () => {
     'magic', 'session-lifecycle', 'advisor', 'ports', 'sessions', 'notes', 'locks',
     'messaging', 'agents', 'actors', 'inbox', 'webhooks', 'integration', 'dns', 'briefing',
     'tunnels', 'projects', 'changelog', 'activity', 'system', 'tuples', 'sorties',
-    'fleet-control', 'semantic',
+    'fleet-control', 'semantic', 'feedback',
   ];
 
   it('ESSENTIAL_TOOL_NAMES in server matches expected set', () => {

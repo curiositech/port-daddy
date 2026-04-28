@@ -78,6 +78,7 @@ import { createBonds } from './lib/bonds.js';
 import { createBudgetGuard } from './lib/budget-guard.js';
 import { createBudgetPause } from './lib/budget-pause.js';
 import { createQuorum } from './lib/quorum.js';
+import { createFeedback } from './lib/feedback.js';
 import { launchFleetBarIfEnabled } from './lib/fleetbar-launcher.js';
 import { createGraphEdges } from './lib/graph-edges.js';
 import { createEpisodicMemory } from './lib/episodic-memory.js';
@@ -259,6 +260,7 @@ const semanticResolver = createSemanticResolver(db, {
 });
 const episodicMemory = createEpisodicMemory(db, { tuples, graphEdges, semanticResolver });
 const quorum = createQuorum({ tuples });
+const feedback = createFeedback({ tuples });
 
 const services = createServices(db, { semanticIndex });
 const messaging = createMessaging(db);
@@ -333,7 +335,7 @@ const costTracker = createCostTracker(db, {
     budgetPause.arm({ agentId, project, reason, spentTodayUsd, budgetUsdPerDay });
   },
 });
-const spawner = createSpawner({ costTracker, counters, bonds, enforceTelemetryPolicy: true });
+const spawner = createSpawner({ costTracker, counters, bonds, harbors, enforceTelemetryPolicy: true });
 spawnerRef = spawner;
 const resourceGovernance = createResourceGovernance({ repoRoot: REPO_ROOT, startedAt: STARTED_AT });
 
@@ -666,7 +668,7 @@ await registerAllRoutes(
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar,
     harbors, sorties, orchestrator, correlationEngine, spawner, tuples, fleetDaemon,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, counters,
-    quorum, resourceGovernance,
+    quorum, resourceGovernance, feedback,
     bonds, budgetGuard, budgetPause,
     arbiter, bosunHeartbeat,
     VERSION, CODE_HASH, STARTED_AT, __dirname, repoRoot: REPO_ROOT,

@@ -219,7 +219,7 @@ function lowerHaystack(record: unknown): string {
     .join(' ');
 }
 
-function matchesActor(record: unknown, actor: MaritimeActorDefinition): boolean {
+function matchesActorEvidence(record: unknown, actor: MaritimeActorDefinition): boolean {
   const haystack = lowerHaystack(record);
   if (!haystack) return false;
   const needles = [
@@ -228,6 +228,23 @@ function matchesActor(record: unknown, actor: MaritimeActorDefinition): boolean 
     ...actor.aliases,
   ].filter((value): value is string => !!value);
   return needles.some(needle => haystack.includes(needle.toLowerCase()));
+}
+
+function matchesFleetBody(record: unknown, actor: MaritimeActorDefinition): boolean {
+  const fleetAgent = actor.compatibilityFleetAgent?.toLowerCase();
+  if (!fleetAgent) return false;
+
+  const stack = stringValue(field(record, 'identityStack'))?.toLowerCase();
+  const context = stringValue(field(record, 'identityContext'))?.toLowerCase();
+  if (stack === 'fleet' && context === fleetAgent) return true;
+
+  const identity = agentIdentity(record)?.toLowerCase();
+  if (!identity) return false;
+
+  const parts = identity.split(':').filter(Boolean);
+  return parts.length >= 3
+    && parts[parts.length - 2] === 'fleet'
+    && parts[parts.length - 1] === fleetAgent;
 }
 
 function toAgentSignal(agent: unknown): ActorAgentSignal {
@@ -298,9 +315,9 @@ export function listMaritimeActors(input: MaritimeActorsProjectionInput = {}): M
   const salvage = input.salvage ?? [];
 
   return MARITIME_ACTORS.map(actor => {
-    const liveBodies = agents.filter(agent => matchesActor(agent, actor)).map(toAgentSignal);
-    const recentSessions = sessions.filter(session => matchesActor(session, actor)).map(toSessionSignal);
-    const salvageSignals = salvage.filter(entry => matchesActor(entry, actor)).map(toSalvageSignal);
+    const liveBodies = agents.filter(agent => matchesFleetBody(agent, actor)).map(toAgentSignal);
+    const recentSessions = sessions.filter(session => matchesActorEvidence(session, actor)).map(toSessionSignal);
+    const salvageSignals = salvage.filter(entry => matchesActorEvidence(entry, actor)).map(toSalvageSignal);
     const state = leaseState(liveBodies, recentSessions, salvageSignals);
     const lastActivityAt = maxTimestamp([...liveBodies, ...recentSessions, ...salvageSignals]);
 

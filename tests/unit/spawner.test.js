@@ -294,6 +294,104 @@ describe('spawn — instrumentation', () => {
   });
 });
 
+describe('spawn — harbor bond admission', () => {
+  function makeBondDeps() {
+    return {
+      bonds: {
+        getBudget: jest.fn(() => 1),
+        escrow: jest.fn(() => ({ ok: true, id: 42 })),
+        markRunning: jest.fn(),
+        refund: jest.fn(),
+        slash: jest.fn(),
+      },
+      harbors: {
+        get: jest.fn(() => null),
+        create: jest.fn(() => ({ success: true, harbor: { name: 'myapp:fleet' } })),
+        enter: jest.fn(async () => ({ success: true, harbor: { name: 'myapp:fleet' } })),
+        leaveAll: jest.fn(() => 1),
+      },
+    };
+  }
+
+  test('admits spawned agents into the default project harbor before escrow', async () => {
+    const { bonds, harbors } = makeBondDeps();
+    const spawner = createSpawner({ bonds, harbors });
+    setupOllamaFetchMock('harbored');
+
+    const result = await spawner.spawn({
+      backend: 'ollama',
+      task: 'needs a harbor',
+      identity: 'myapp:api:test',
+    });
+
+    expect(result.status).toBe('completed');
+    expect(harbors.create).toHaveBeenCalledWith(
+      'myapp:fleet',
+      expect.objectContaining({
+        scope: 'myapp',
+        capabilities: ['spawn:agent'],
+      })
+    );
+    expect(harbors.enter).toHaveBeenCalledWith(
+      'myapp:fleet',
+      result.agentId,
+      expect.objectContaining({
+        identity: 'myapp:api:test',
+        capabilities: ['spawn:agent', 'backend:ollama'],
+      })
+    );
+    expect(bonds.escrow).toHaveBeenCalledWith(
+      expect.objectContaining({
+        project: 'myapp',
+        agentId: result.agentId,
+        bondUsd: 0.01,
+        harborName: 'myapp:fleet',
+      })
+    );
+    expect(harbors.enter.mock.invocationCallOrder[0]).toBeLessThan(
+      bonds.escrow.mock.invocationCallOrder[0]
+    );
+    expect(bonds.refund).toHaveBeenCalledWith(42);
+    expect(harbors.leaveAll).toHaveBeenCalledWith(result.agentId);
+  });
+
+  test('blocks before escrow when harbor admission fails', async () => {
+    const { bonds, harbors } = makeBondDeps();
+    harbors.enter.mockResolvedValueOnce({ success: false, error: 'not allowed' });
+    const spawner = createSpawner({ bonds, harbors });
+    setupOllamaFetchMock('should not run');
+
+    const result = await spawner.spawn({
+      backend: 'ollama',
+      task: 'blocked by harbor',
+      identity: 'myapp:api:test',
+    });
+
+    expect(result.status).toBe('failed');
+    expect(result.error).toContain("could not enter harbor 'myapp:fleet'");
+    expect(bonds.escrow).not.toHaveBeenCalled();
+  });
+
+  test('leaves the harbor if bond escrow fails after admission', async () => {
+    const { bonds, harbors } = makeBondDeps();
+    bonds.escrow.mockReturnValueOnce({ ok: false, reason: 'insufficient-balance' });
+    const spawner = createSpawner({ bonds, harbors });
+
+    const result = await spawner.spawn({
+      backend: 'ollama',
+      task: 'escrow fails after harbor admission',
+      identity: 'myapp:api:test',
+    });
+
+    const admittedAgentId = harbors.enter.mock.calls[0][1];
+    expect(result.status).toBe('failed');
+    expect(result.error).toContain('could not escrow');
+    expect(harbors.leaveAll).toHaveBeenCalledWith(admittedAgentId);
+    expect(bonds.refund).not.toHaveBeenCalled();
+    expect(bonds.slash).not.toHaveBeenCalled();
+  });
+});
+
 // =============================================================================
 // spawn — backend dispatch
 // =============================================================================

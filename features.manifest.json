@@ -1390,6 +1390,27 @@
         "sdk": false
       }
     },
+    "feedback": {
+      "description": "Central agentic-feedback primitive — agents drop structured findings; cartographer (or any subscriber) harvests them into the roadmap. Tuple-backed, harbor-scoped, severity-sorted",
+      "cli": [
+        "feedback"
+      ],
+      "sdk": [],
+      "routes": [
+        "POST /feedback",
+        "GET /feedback",
+        "GET /feedback/summary",
+        "GET /feedback/:id",
+        "POST /feedback/:id/harvest"
+      ],
+      "completions": [
+        "feedback"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
     "cost_tracker": {
       "description": "LLM cost recording per spawn \u2014 model pricing, project budgets, burn rate tracking",
       "cli": [],

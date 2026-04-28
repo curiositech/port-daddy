@@ -19,6 +19,7 @@ import { fileURLToPath } from 'node:url';
 import type { CostTracker } from './cost-tracker.js';
 import type { Counters } from './counters.js';
 import type { Bonds } from './bonds.js';
+import type { Harbors } from './harbors.js';
 import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
 import { getSecret } from './secret-env.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
@@ -86,6 +87,7 @@ export interface SpawnSpec {
   purpose?: string;    // human-readable task description
   task: string;        // the prompt / task
   bondUsd?: number;    // per-spawn bond; slashed on misbehavior, refunded on clean exit
+  harborName?: string; // optional override for bond-admission harbor
   files?: string[];    // for aider backend
   workdir?: string;
   env?: Record<string, string>;
@@ -142,6 +144,7 @@ interface SpawnerDeps {
   costTracker?: CostTracker;
   counters?: Counters;
   bonds?: Bonds;
+  harbors?: Harbors;
   enforceTelemetryPolicy?: boolean;
   telemetryBypassApproval?: TelemetryBypassApproval;
   runnerOverrides?: Partial<Record<SpawnSpec['backend'], (spec: SpawnSpec, model: string) => Promise<BackendRunResult>>>;
@@ -560,6 +563,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     costTracker,
     counters,
     bonds,
+    harbors,
     enforceTelemetryPolicy = true,
     telemetryBypassApproval,
     runnerOverrides = {},
@@ -670,6 +674,8 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     const agentId = `spawned-${randomBytes(6).toString('hex')}`;
     const startedAt = Date.now();
     const projectName = getProjectName(spec.identity);
+    const defaultHarborName = projectName ? `${projectName}:fleet` : undefined;
+    const harborName = spec.harborName || defaultHarborName;
     counters?.bump('spawn.started', dims);
 
     // Block until the project has a daily budget set. Without a budget,
@@ -692,6 +698,39 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     // the Ostrom "rule-monitoring" invariant: every running agent has a bond.
     const bondUsd = spec.bondUsd ?? DEFAULT_BOND_USD;
     let bondId: number | null = null;
+    let enteredHarborName: string | null = null;
+    if (harbors && projectName && bondUsd > 0) {
+      if (!harborName) {
+        counters?.bump('spawn.blocked', dims);
+        return blockedResult('Spawn blocked: harbor admission requires a project harbor name.');
+      }
+
+      const existingHarbor = harbors.get(harborName);
+      if (!existingHarbor) {
+        const created = harbors.create(harborName, {
+          scope: projectName,
+          capabilities: ['spawn:agent'],
+          channels: ['agents', 'spawn'],
+          agentPatterns: [`${projectName}:*`],
+          metadata: { owner: 'spawner', purpose: 'spawn bond admission' },
+        });
+        if (!created.success) {
+          counters?.bump('spawn.blocked', dims);
+          return blockedResult(`Spawn blocked: could not create harbor '${harborName}' (${created.error || 'unknown error'}).`);
+        }
+      }
+
+      const entered = await harbors.enter(harborName, agentId, {
+        identity: spec.identity,
+        capabilities: ['spawn:agent', `backend:${spec.backend}`],
+      });
+      if (!entered.success) {
+        counters?.bump('spawn.blocked', dims);
+        return blockedResult(`Spawn blocked: could not enter harbor '${harborName}' (${entered.error || 'unknown error'}).`);
+      }
+      enteredHarborName = harborName;
+    }
+
     if (bonds && projectName && bondUsd > 0) {
       try {
         const receipt = bonds.escrow({
@@ -699,9 +738,14 @@ export function createSpawner(deps: SpawnerDeps = {}) {
           agentId,
           archetype: spec.backend,
           bondUsd,
+          harborName: enteredHarborName ?? harborName,
         });
         if (!receipt || !receipt.ok) {
           counters?.bump('spawn.blocked', dims);
+          if (enteredHarborName && harbors) {
+            try { harbors.leaveAll(agentId); } catch {}
+            enteredHarborName = null;
+          }
           return blockedResult(
             `Spawn blocked: could not escrow $${bondUsd.toFixed(4)} bond for project '${projectName}' (${receipt?.reason || 'unknown'})`,
           );
@@ -709,6 +753,10 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         bondId = receipt.id ?? null;
       } catch (err) {
         counters?.bump('spawn.blocked', dims);
+        if (enteredHarborName && harbors) {
+          try { harbors.leaveAll(agentId); } catch {}
+          enteredHarborName = null;
+        }
         return blockedResult(`Spawn blocked: bond escrow threw — ${(err as Error).message}`);
       }
     }
@@ -858,6 +906,10 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       clearInterval(record.heartbeatInterval);
       record.heartbeatInterval = null;
     }
+    if (enteredHarborName && harbors) {
+      try { harbors.leaveAll(agentId); } catch {}
+      enteredHarborName = null;
+    }
 
     const doneNote = error ? `Failed: ${error.slice(0, 200)}` : `Completed: ${(output || '').slice(0, 200)}`;
     await pdCoordinate('/sugar/done', { agentId, note: doneNote });
@@ -934,6 +986,9 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       clearInterval(record.heartbeatInterval);
       record.heartbeatInterval = null;
     }
+    try {
+      harbors?.leaveAll(agentId);
+    } catch {}
 
     // Kill child process if present
     if (record.childProcess) {
