@@ -27,8 +27,35 @@ describe('backend telemetry policy', () => {
     }));
   });
 
+  test('allows Codex when the model has an exact rate entry', () => {
+    expect(
+      assessBackendTelemetryPolicy('codex', 'gpt-5.4-mini')
+    ).toEqual(expect.objectContaining({
+      backend: 'codex',
+      launchAllowed: true,
+      effectiveModel: 'gpt-5.4-mini',
+    }));
+
+    expect(
+      assessBackendTelemetryPolicy('codex', 'gpt-mystery-model')
+    ).toEqual(expect.objectContaining({
+      backend: 'codex',
+      launchAllowed: false,
+    }));
+  });
+
+  test('defaults Codex to the spend-aware exact-rate mini model when none is supplied', () => {
+    const policy = assessBackendTelemetryPolicy('codex');
+
+    expect(policy).toEqual(expect.objectContaining({
+      backend: 'codex',
+      launchAllowed: true,
+      effectiveModel: 'gpt-5.4-mini',
+    }));
+  });
+
   test('blocks opaque backends until exact telemetry exists', () => {
-    for (const backend of ['claude-cli', 'codex', 'gemini', 'cloudflare', 'ollama', 'aider', 'custom']) {
+    for (const backend of ['claude-cli', 'gemini', 'cloudflare', 'ollama', 'aider', 'custom']) {
       const policy = assessBackendTelemetryPolicy(backend);
       expect(policy.launchAllowed).toBe(false);
       expect(policy.summary).toContain('blocked');

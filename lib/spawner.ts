@@ -110,6 +110,7 @@ export interface SpawnResult {
 
 export interface SpawnTelemetry {
   inputTokens: number;
+  cachedInputTokens?: number;
   outputTokens: number;
   costUsd: number;
   rateMode: 'exact';
@@ -252,8 +253,15 @@ interface BackendRunResult {
   output: string;
   error: string | null;
   inputTokens?: number;
+  cachedInputTokens?: number;
   outputTokens?: number;
   childProcess?: ChildProcess | null;
+}
+
+interface CodexUsage {
+  inputTokens?: number;
+  cachedInputTokens?: number;
+  outputTokens?: number;
 }
 
 async function runOllama(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
@@ -419,6 +427,37 @@ function sanitizeCodexOutput(raw: string): string {
   return lines.join('\n').trim();
 }
 
+function parseCodexUsage(raw: string): CodexUsage {
+  let usage: CodexUsage = {};
+
+  for (const line of raw.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith('{')) continue;
+
+    try {
+      const event = JSON.parse(trimmed) as {
+        type?: unknown;
+        usage?: {
+          input_tokens?: unknown;
+          cached_input_tokens?: unknown;
+          output_tokens?: unknown;
+        };
+      };
+      if (event.type !== 'turn.completed' || !event.usage) continue;
+
+      usage = {
+        inputTokens: typeof event.usage.input_tokens === 'number' ? event.usage.input_tokens : undefined,
+        cachedInputTokens: typeof event.usage.cached_input_tokens === 'number' ? event.usage.cached_input_tokens : undefined,
+        outputTokens: typeof event.usage.output_tokens === 'number' ? event.usage.output_tokens : undefined,
+      };
+    } catch {
+      // runChild may append stderr to stdout; non-JSON lines are not usage.
+    }
+  }
+
+  return usage;
+}
+
 function runCodexCli(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
   const workspace = spec.workdir || process.cwd();
   const tempDir = mkdtempSync(join(tmpdir(), 'port-daddy-codex-'));
@@ -431,6 +470,7 @@ function runCodexCli(spec: SpawnSpec, model: string): Promise<BackendRunResult> 
     '-C', workspace,
     '--output-last-message', outputPath,
     '--model', model,
+    '--json',
     spec.task,
   ];
 
@@ -448,12 +488,13 @@ function runCodexCli(spec: SpawnSpec, model: string): Promise<BackendRunResult> 
     stdio: ['ignore', 'pipe', 'pipe'],
   }).then((result) => {
     try {
+      const usage = parseCodexUsage(result.output || '');
       const fileOutput = existsSync(outputPath) ? readFileSync(outputPath, 'utf-8').trim() : '';
       if (fileOutput) {
-        return { output: fileOutput, error: result.error };
+        return { output: fileOutput, error: result.error, ...usage };
       }
       const sanitized = sanitizeCodexOutput(result.output || '');
-      return { output: sanitized, error: result.error };
+      return { output: sanitized, error: result.error, ...usage };
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
@@ -849,6 +890,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
 
       if (!error && enforceTelemetryPolicy) {
         const inputTokens = result.inputTokens;
+        const cachedInputTokens = result.cachedInputTokens;
         const outputTokens = result.outputTokens;
 
         if (inputTokens === undefined || outputTokens === undefined) {
@@ -858,7 +900,9 @@ export function createSpawner(deps: SpawnerDeps = {}) {
           error = 'Exact telemetry required, but cost tracker is unavailable.';
           output = null;
         } else {
-          const computed = costTracker.computeCost(spec.backend, model, inputTokens, outputTokens);
+          const computed = cachedInputTokens === undefined
+            ? costTracker.computeCost(spec.backend, model, inputTokens, outputTokens)
+            : costTracker.computeCost(spec.backend, model, inputTokens, outputTokens, cachedInputTokens);
           if (computed.isEstimate) {
             error = `Exact telemetry required, but ${spec.backend} cost calculation fell back to an estimate.`;
             output = null;
@@ -874,6 +918,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
               identity: spec.identity,
               spawnId: agentId,
               inputTokens,
+              ...(cachedInputTokens === undefined ? {} : { cachedInputTokens }),
               outputTokens,
             });
 
@@ -883,6 +928,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
             } else {
               telemetry = {
                 inputTokens,
+                ...(cachedInputTokens === undefined ? {} : { cachedInputTokens }),
                 outputTokens,
                 costUsd: recorded.costUsd,
                 rateMode: 'exact',

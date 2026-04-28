@@ -1479,6 +1479,7 @@ describe('spawn — codex backend', () => {
         '--sandbox', 'workspace-write',
         '-C', '/tmp/port-daddy-codex-test',
         '--model', 'gpt-5.4-mini',
+        '--json',
         'Say exactly: Codex clean output',
       ]),
       expect.objectContaining({
@@ -1486,6 +1487,83 @@ describe('spawn — codex backend', () => {
         timeout: 300000,
       })
     );
+  });
+
+  test('parses codex --json usage and persists exact telemetry under enforcement', async () => {
+    const costTracker = {
+      computeCost: jest.fn(() => ({ costUsd: 0.0138, isEstimate: false })),
+      record: jest.fn((opts) => ({
+        id: 'evt-codex-json',
+        ts: 1,
+        backend: opts.backend,
+        model: opts.model,
+        projectName: opts.projectName ?? null,
+        projectDir: opts.projectDir ?? null,
+        identity: opts.identity ?? null,
+        spawnId: opts.spawnId ?? null,
+        inputTokens: opts.inputTokens ?? null,
+        cachedInputTokens: opts.cachedInputTokens ?? null,
+        outputTokens: opts.outputTokens ?? null,
+        costUsd: 0.0138,
+        isEstimate: false,
+      })),
+    };
+    const spawner = createSpawnerBase({
+      costTracker,
+      enforceTelemetryPolicy: true,
+    });
+
+    mockChildProcess.stdout.on.mockImplementation((event, cb) => {
+      if (event === 'data') {
+        cb(Buffer.from([
+          '{"type":"thread.started","thread_id":"thread-test"}',
+          '{"type":"turn.completed","usage":{"input_tokens":10000,"cached_input_tokens":4000,"output_tokens":2000}}',
+        ].join('\n')));
+      }
+    });
+    mockChildProcess.stderr.on.mockImplementation(() => {});
+    mockChildProcess.on.mockImplementation((event, cb) => {
+      if (event === 'close') {
+        const args = cpSpawn.mock.calls[0][1];
+        const outputPath = args[args.indexOf('--output-last-message') + 1];
+        mkdirSync(dirname(outputPath), { recursive: true });
+        writeFileSync(outputPath, 'Codex clean output');
+        Promise.resolve().then(() => cb(0));
+      }
+    });
+
+    const result = await spawner.spawn({
+      backend: 'codex',
+      task: 'Say exactly: Codex clean output',
+      identity: 'port-daddy:fleet:cartographer',
+      workdir: '/tmp/port-daddy-codex-test',
+    });
+
+    expect(result.status).toBe('completed');
+    expect(result.output).toBe('Codex clean output');
+    expect(result.telemetry).toEqual({
+      inputTokens: 10000,
+      cachedInputTokens: 4000,
+      outputTokens: 2000,
+      costUsd: 0.0138,
+      rateMode: 'exact',
+    });
+    expect(costTracker.computeCost).toHaveBeenCalledWith(
+      'codex',
+      'gpt-5.4-mini',
+      10000,
+      2000,
+      4000,
+    );
+    expect(costTracker.record).toHaveBeenCalledWith(expect.objectContaining({
+      backend: 'codex',
+      model: 'gpt-5.4-mini',
+      projectName: 'port-daddy',
+      identity: 'port-daddy:fleet:cartographer',
+      inputTokens: 10000,
+      cachedInputTokens: 4000,
+      outputTokens: 2000,
+    }));
   });
 });
 
