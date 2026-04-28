@@ -136,6 +136,9 @@ const ESSENTIAL_TOOL_NAMES = new Set([
   'catch_me_up',  // DEPRECATED 3.8.4 — alias for sitrep. Kept for back-compat.
   'spawn_agent',
   'run_sortie',
+  // Central agentic-feedback primitive — agents drop feedback while
+  // they work; cartographer harvests it into the roadmap.
+  'drop_feedback',
 ]);
 
 const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> = {
@@ -239,6 +242,10 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
   'semantic': {
     description: 'Semantic graph and episodic memory inspection — query graph edges, promoted handoffs, and project-level stats',
     tools: ['graph_edges', 'graph_stats', 'memory_episodes', 'memory_stats'],
+  },
+  'feedback': {
+    description: 'Agentic feedback primitive — drop structured findings about the project (or about Port Daddy itself); cartographer harvests them into the roadmap',
+    tools: ['drop_feedback', 'list_feedback', 'feedback_summary'],
   },
 };
 
@@ -2412,6 +2419,64 @@ const TOOLS = [
     },
   },
   {
+    name: 'drop_feedback',
+    description:
+      '[Essential] Drop structured feedback about a Port Daddy primitive ' +
+      'or about the project you are working on. Cartographer (or any ' +
+      'subscriber) harvests these into the roadmap. Use whenever a ' +
+      "primitive surprises you, doesn't behave as expected, or you " +
+      'notice a gap. The point: agentic feedback is how the code gets ' +
+      'better. Be terse — slug + summary is enough; surface/severity/' +
+      'hook/suggested are optional but useful. ' +
+      'Usage: drop_feedback({slug: "pd-say-flag-mismatch", summary: ' +
+      '"server expects --session/--agent, CLI says --as", surface: ' +
+      '"CLI", severity: "high", hook: "pd say --as ada", suggested: ' +
+      '"translate flag names server-side"})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        slug: { type: 'string', description: 'Short kebab-case identifier (unique-ish)' },
+        summary: { type: 'string', description: 'One-line description of the finding' },
+        surface: { type: 'string', description: 'Where you hit it: CLI, API, MCP, dashboard, fleet, ...' },
+        severity: { type: 'string', enum: ['low', 'medium', 'high', 'critical'], description: 'Default: medium' },
+        hook: { type: 'string', description: 'Concrete reproduction hook (command, payload, log line)' },
+        suggested: { type: 'string', description: 'Suggested direction or fix' },
+        project: { type: 'string', description: 'Project slug this feedback belongs to' },
+        harbor: { type: 'string', description: 'Harbor namespace for scoping (default: fleet)' },
+      },
+      required: ['slug', 'summary'],
+    },
+  },
+  {
+    name: 'list_feedback',
+    description:
+      '[Standard] List feedback entries. Filter by severity, surface, ' +
+      'or status (open/harvested). Returns severity-sorted entries.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        severity: { type: 'string', enum: ['low', 'medium', 'high', 'critical'] },
+        surface: { type: 'string' },
+        status: { type: 'string', enum: ['open', 'harvested', 'wontfix', 'all'] },
+        harbor: { type: 'string' },
+        limit: { type: 'number' },
+      },
+    },
+  },
+  {
+    name: 'feedback_summary',
+    description:
+      '[Standard] Summary counts of feedback grouped by severity and ' +
+      'surface. Useful for dashboards or for cartographer to decide ' +
+      'what to harvest next.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        harbor: { type: 'string' },
+      },
+    },
+  },
+  {
     name: 'pd_discover',
     description:
       '[Essential] List available Port Daddy tool categories and their tools. ' +
@@ -3567,6 +3632,43 @@ async function handleTool(
       if (args.project_dir) qs.set('projectDir', args.project_dir as string);
       if (args.project) qs.set('project', args.project as string);
       res = await GET(qs.toString() ? `/memory/stats?${qs.toString()}` : '/memory/stats');
+      break;
+    }
+
+    // ── Feedback (central agentic-feedback primitive) ──────────────
+    case 'drop_feedback': {
+      // The agent itself is the source unless the caller overrides it.
+      const body: Record<string, unknown> = {
+        slug: args.slug,
+        summary: args.summary,
+        droppedBy: (args.droppedBy as string) || (args.agent as string) || 'mcp',
+        source: 'mcp',
+      };
+      if (args.surface) body.surface = args.surface;
+      if (args.severity) body.severity = args.severity;
+      if (args.hook) body.hook = args.hook;
+      if (args.suggested) body.suggested = args.suggested;
+      if (args.project) body.project = args.project;
+      if (args.harbor) body.harbor = args.harbor;
+      res = await POST('/feedback', body);
+      break;
+    }
+
+    case 'list_feedback': {
+      const qs = new URLSearchParams();
+      if (args.severity) qs.set('severity', args.severity as string);
+      if (args.surface) qs.set('surface', args.surface as string);
+      if (args.status) qs.set('status', args.status as string);
+      if (args.harbor) qs.set('harbor', args.harbor as string);
+      if (args.limit) qs.set('limit', String(args.limit));
+      res = await GET(qs.toString() ? `/feedback?${qs.toString()}` : '/feedback');
+      break;
+    }
+
+    case 'feedback_summary': {
+      const qs = new URLSearchParams();
+      if (args.harbor) qs.set('harbor', args.harbor as string);
+      res = await GET(qs.toString() ? `/feedback/summary?${qs.toString()}` : '/feedback/summary');
       break;
     }
 

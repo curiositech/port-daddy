@@ -1867,6 +1867,8 @@ _port_daddy() {
     'roadmap:show Cartographer-curated Next Cuts, ideas, and dogfood feedback'
     # Quorum (swarm consensus primitive)
     'quorum:propose, vote, list, or inspect swarm proposals'
+    # Feedback (central agentic-feedback primitive)
+    'feedback:drop, list, show, or harvest structured agentic feedback'
     # System & Monitoring
     'dashboard:open web dashboard in browser'
     'channels:list pub/sub channels'

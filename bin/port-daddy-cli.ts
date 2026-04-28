@@ -96,6 +96,7 @@ import {
   handleGraph, handleMemory, handleIdeas,
   handleRoadmap,
   handleQuorum,
+  handleFeedback,
   // Consolidated read/write verbs + sitrep + pheromone (3.8.4)
   handleSitrep, handleSay, handleLook, handlePheromone,
   // Coordination advisor / suggestibility
@@ -1043,6 +1044,7 @@ const ALL_COMMANDS: string[] = [
   'spawn', 'spawned', 'watch',
   'harbor', 'harbors', 'demo', 'fleet', 'tuple', 'sortie', 'graph', 'memory', 'ideas',
   'quorum',
+  'feedback',
 ];
 
 /** Simple Levenshtein distance for short strings */
@@ -2526,6 +2528,10 @@ async function main(): Promise<void> {
 
       case 'quorum':
         await handleQuorum(positional, options);
+        break;
+
+      case 'feedback':
+        await handleFeedback(positional, options);
         break;
 
       default: {

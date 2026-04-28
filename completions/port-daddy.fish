@@ -97,7 +97,7 @@ set -l __pd_commands \
     'agent' 'agents' 'actor' 'actors' 'swarm' 'log' 'activity' \
     'session' 'sessions' 'note' 'notes' \
     'salvage' 'resurrection' 'changelog' 'dns' 'files' 'who-owns' 'integration' 'briefing' 'history' 'inbox' \
-    'begin' 'b' 'done' 'whoami' 'w' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'watch' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' 'roadmap' 'quorum' \
+    'begin' 'b' 'done' 'whoami' 'w' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'watch' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' 'roadmap' 'quorum' 'feedback' \
     'say' 'look' 'sitrep' 'advise' 'preflight' 'compass' 'guard' 'pheromone' 'ph' \
     'wallet' 'bond' \
     'up' 'down' \
@@ -173,6 +173,7 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a ideas -d 'Search ideas, notes, tuples, and repo markdown'
     complete -c $prog -n __pd_needs_command -a roadmap -d 'Show Cartographer-curated Next Cuts and dogfood feedback'
     complete -c $prog -n __pd_needs_command -a quorum -d 'Propose, vote, list, or inspect swarm proposals'
+    complete -c $prog -n __pd_needs_command -a feedback -d 'Drop, list, show, or harvest structured agentic feedback'
 
     # Agent Inbox
     complete -c $prog -n __pd_needs_command -a inbox -d 'Agent-to-agent direct messaging inbox'

@@ -121,6 +121,8 @@ _port_daddy() {
     roadmap
     # Quorum (swarm consensus primitive)
     quorum
+    # Feedback (central agentic-feedback primitive)
+    feedback
     # System & Monitoring
     dashboard channels webhook webhooks metrics config health ports
     # Orchestration
