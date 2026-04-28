@@ -2,12 +2,15 @@ import Foundation
 
 enum FleetControlSurface: String, CaseIterable, Identifiable {
     case flow
+    case roadmap
     case agents
+    case resources
     case activity
     case channels
     case inbox
     case sorties
     case memory
+    case shipwright
     case yaml
 
     var id: String { rawValue }
@@ -15,12 +18,15 @@ enum FleetControlSurface: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .flow: return "Flow"
+        case .roadmap: return "Roadmap"
         case .agents: return "Agents"
+        case .resources: return "Resources"
         case .activity: return "Activity"
         case .channels: return "Channels"
         case .inbox: return "Inbox"
         case .sorties: return "Sorties"
         case .memory: return "Memory"
+        case .shipwright: return "Shipwright"
         case .yaml: return "YAML"
         }
     }
@@ -28,12 +34,15 @@ enum FleetControlSurface: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .flow: return "point.3.connected.trianglepath.dotted"
+        case .roadmap: return "map"
         case .agents: return "person.3"
+        case .resources: return "gauge"
         case .activity: return "waveform.path.ecg"
         case .channels: return "dot.radiowaves.left.and.right"
         case .inbox: return "tray.full"
         case .sorties: return "paperplane"
         case .memory: return "square.stack.3d.up"
+        case .shipwright: return "hammer"
         case .yaml: return "curlybraces"
         }
     }

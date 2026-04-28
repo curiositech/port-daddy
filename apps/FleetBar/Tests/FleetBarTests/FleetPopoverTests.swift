@@ -5,6 +5,41 @@ import ViewInspector
 
 @MainActor
 final class FleetPopoverTests: XCTestCase {
+    func testNativeControlSurfacesMatchWebControlPlaneTabs() {
+        XCTAssertEqual(
+            FleetControlSurface.allCases.map(\.rawValue),
+            [
+                "flow",
+                "roadmap",
+                "agents",
+                "resources",
+                "activity",
+                "channels",
+                "inbox",
+                "sorties",
+                "memory",
+                "shipwright",
+                "yaml",
+            ]
+        )
+        XCTAssertEqual(
+            FleetControlSurface.allCases.map(\.title),
+            [
+                "Flow",
+                "Roadmap",
+                "Agents",
+                "Resources",
+                "Activity",
+                "Channels",
+                "Inbox",
+                "Sorties",
+                "Memory",
+                "Shipwright",
+                "YAML",
+            ]
+        )
+    }
+
     func testFooterControlsStayOutsideScrollView() throws {
         let store = FleetStore(autoStart: false)
         store.isDaemonRunning = true
