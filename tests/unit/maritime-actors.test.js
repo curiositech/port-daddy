@@ -65,6 +65,29 @@ describe('maritime actors', () => {
     expect(navigator?.evidence).toContain('compatibility fleet agent: cartographer');
   });
 
+  test('does not attach topical coordination sessions as live actor bodies', () => {
+    const navigator = getMaritimeActor('navigator', {
+      agents: [{
+        id: 'agent-fix',
+        identity: 'port-daddy:cartographer-body-fix',
+        purpose: 'Fix Cartographer live body matching',
+        lastHeartbeat: 300,
+        healthAssessment: { liveness: 'alive' },
+      }],
+      sessions: [{
+        id: 'session-fix',
+        status: 'active',
+        purpose: 'Fix Cartographer live body matching',
+        agentId: 'agent-fix',
+        updatedAt: 400,
+      }],
+    });
+
+    expect(navigator?.liveBodies).toHaveLength(0);
+    expect(navigator?.recentSessions).toHaveLength(1);
+    expect(navigator?.leaseState).toBe('detached');
+  });
+
   test('classifies actors without live bodies as dormant, detached, or recoverable', () => {
     expect(getMaritimeActor('coxswain')?.leaseState).toBe('dormant');
     expect(getMaritimeActor('coxswain', {
