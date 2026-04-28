@@ -1,5 +1,7 @@
 # PKI Decision Matrix
 
+> **Status (2026-04-27)**: This matrix was the deliberation input for **[ADR-0025 (Relay PKI Decision)](../../../docs/adr/0025-pki-decision.md)**. Default-weight scoring produced an exact tie (OIDC=153, Hybrid=153, WoT=141, ACME=137); the tie was broken by reversibility and master-plan timeline considerations in favor of an OIDC-first hybrid. The matrix is preserved here for re-scoring under future weight changes (see ADR-0025 §Trigger Conditions for Re-Decision).
+
 **Load when**: scoring PKI options against criteria; running `scripts/pki_decision.py`.
 
 ## Criteria and weights

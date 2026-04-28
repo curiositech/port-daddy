@@ -51,31 +51,37 @@ Realistic shape:
 
 ### Track A — Decisions (blockers)
 
-**A1. PKI choice (ADR-0025)**
+**A1. PKI choice (ADR-0025)** — ✅ **DECIDED 2026-04-27**
+Outcome: **OIDC-first hybrid, phased.** v0 ships OIDC (GitHub Actions issuer) + `--auth-mode=wot` escape hatch; v1 adds ACME (DNS-01 on a self-hosted `step-ca`); v2 adds self-hosted OIDC issuers + BYO-domain ACME. Default-weight scoring produced an exact tie (OIDC=153, Hybrid=153); tie broken by reversibility + master-plan timeline. See [`docs/adr/0025-pki-decision.md`](../adr/0025-pki-decision.md). Honest disclosure on deliberation pattern in §Deliberation Summary of the ADR.
 Owner: human-led deliberation using `skills/pd-relay-zero-trust`.
-Process:
+Process (executed):
 1. `python3 scripts/pki_decision.py --selftest` baseline scoring
 2. Dispatch `agents/proponent.md`, `agents/pragmatic.md`, `agents/antagonist.md`
 3. Consult `agents/acme-specialist.md` if ACME is in contention
 4. Synthesize into `templates/ADR-PKI-Decision.md` → `docs/adr/0025-pki-decision.md`
 Effort: ~1 deliberation session.
-Blocks: A4 (Relay v0). Does NOT block A2, A3, A5, A6.
+Blocks: C1/C2 (Relay v0). Does NOT block B1, B2, D, E2.
+Walkthrough: [`skills/pd-relay-zero-trust/examples/oidc-bootstrap-walkthrough.md`](../../skills/pd-relay-zero-trust/examples/oidc-bootstrap-walkthrough.md).
 
 ### Track B — Relay-independent primitives (parallel)
 
-**B1. `pd tube` CLI primitive**
+**B1. `pd tube` CLI primitive** — ✅ **SHIPPED 2026-04-27**
 Owner: dev.
 Output: `cli/commands/tube.ts`, `lib/tube.ts`, stdin-based `--reply`, history
 guard, tests.
-Effort: ~2-3 days.
-Independent of relay; works against local PD daemon today.
+Effort: ~2-3 days. Actual: one focused agent session.
+Surface (verified): `pd tube <channel> [--listen|--once|--since=<id>|--limit=N|--no-history|--send|--reply=<id>]`. JSON-line stdout, file-based history guard at `~/.port-daddy/tube-history-<safe-channel>.json`, atomic via tmp+rename. 26/26 unit tests pass. Wired into bash/zsh/fish completions and `features.manifest.json`.
+Independent of relay; works against local PD daemon today; envelope ships unchanged onto the future relay.
+Walkthrough: [`skills/pd-relay-zero-trust/examples/pd-tube-tutorial.md`](../../skills/pd-relay-zero-trust/examples/pd-tube-tutorial.md).
 
-**B2. Merkle event chain library**
+**B2. Merkle event chain library** — ✅ **SHIPPED 2026-04-27**
 Owner: dev.
 Output: `lib/merkle-chain.ts` (`next_hash`, `verify_chain`, `sign_head`,
 `verify_head`), golden vectors, cross-language compat doc.
-Effort: ~1 week.
+Effort: ~1 week. Actual: one focused agent session.
+540-line pure-function TS library using `node:crypto` Ed25519 (no new deps); 29/29 unit tests pass; byte-for-byte cross-language compatible with the Python reference scripts (`scripts/chain_verify.py`, `scripts/chain_anchor.py`) — verified end-to-end. Golden vectors at `tests/fixtures/merkle-chain-golden.json`. Cross-language compat doc at [`docs/merkle-chain-compat.md`](../merkle-chain-compat.md).
 Pure functions; lands before relay.
+Walkthrough: [`skills/pd-relay-zero-trust/examples/merkle-chain-typescript-tutorial.md`](../../skills/pd-relay-zero-trust/examples/merkle-chain-typescript-tutorial.md).
 
 **B3. Button-click HTML demo**
 Output: `examples/button-click-demo/` (HTML + README); recorded GIF deferred to
@@ -161,10 +167,41 @@ This session lands:
    notes that consolidation is a future decision in the rehab plan, marks the
    "Agentic Escrow" and "The Brig" patterns as planned not shipping.
 
-Everything in Tracks A-F is future work, sequenced and dependency-tracked.
+## Subsequent session (2026-04-27): Tracks A1, B1, B2 shipped
+
+In one parallel-agent session:
+
+5. ✅ **Track A1 — ADR-0025 (Relay PKI Decision)**: OIDC-first hybrid landed at
+   [`docs/adr/0025-pki-decision.md`](../adr/0025-pki-decision.md). Numbers
+   renumbered from 0021 → 0025 (cross-refs bumped throughout the skill) because
+   0021/0022/0023 were already taken by bosun-consolidation /
+   durable-actor-souls / cartographer-roadmap, and 0024 was claimed by
+   daemon-profiles mid-session.
+6. ✅ **Track B1 — `pd tube` CLI primitive**: shipped at `cli/commands/tube.ts`
+   + `lib/tube.ts` + 26 unit tests + completions wiring + manifest entry.
+7. ✅ **Track B2 — Merkle event chain library**: shipped at `lib/merkle-chain.ts`
+   + 29 unit tests + golden-vector fixture + cross-language compat doc at
+   `docs/merkle-chain-compat.md`. Verified byte-for-byte against the Python
+   reference scripts.
+8. ✅ **Long-form tutorials** for each: `examples/pd-tube-tutorial.md`,
+   `examples/merkle-chain-typescript-tutorial.md`,
+   `examples/oidc-bootstrap-walkthrough.md` — all under
+   `skills/pd-relay-zero-trust/examples/`.
+9. ✅ **Repo bug fix** discovered along the way: `lib/resolver.ts:setup()` was
+   refusing to modify ANY hosts file path under root, breaking three resolver
+   unit tests in CI sandboxes (which run as root) even when the test pointed
+   `hostsFilePath` at a tempfile. Scoped the root check to actual `/etc/hosts`.
+   Confirmed pre-existing on `origin/main` HEAD before fixing.
+
+Tracks B3 (button-click HTML demo), C1/C2 (Relay v0 ADR + impl), D1/D2
+(Publishers SDK), and E1/E2/E3 (Hardening) remain future work.
 
 ## Update log
 
 - 2026-04-26 — Plan opened; first session work landed; superseding earlier
   duplicate intake + decision board files (those were duplicates of the
   approved authoritative rehab plan).
+- 2026-04-27 — Tracks A1, B1, B2 shipped in one parallel-agent session, plus
+  long-form tutorials and the resolver root-check bug fix. PR #5 updated;
+  Copilot review (13 threads) responded to in a single PR comment per the
+  team's review-frugality convention.

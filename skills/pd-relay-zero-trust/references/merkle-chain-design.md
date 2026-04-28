@@ -1,5 +1,7 @@
 # Merkle-over-Events: Per-Publisher Chain Design
 
+> **Status (2026-04-27)**: The pure-function library this design specifies is **shipped** at [`lib/merkle-chain.ts`](../../../lib/merkle-chain.ts). Golden vectors live at [`tests/fixtures/merkle-chain-golden.json`](../../../tests/fixtures/merkle-chain-golden.json); cross-language compatibility with the Python reference scripts (`scripts/chain_verify.py`, `scripts/chain_anchor.py`) is documented at [`docs/merkle-chain-compat.md`](../../../docs/merkle-chain-compat.md). For a hands-on TypeScript walkthrough see [`examples/merkle-chain-typescript-tutorial.md`](../examples/merkle-chain-typescript-tutorial.md). This document remains the canonical design spec.
+
 **Load when**: specifying or implementing per-publisher event hash chains (the natural home for ADR-0014's primitive).
 
 ## What this gives us
@@ -143,11 +145,11 @@ See `float-plans-deferred.md`.
 ## Implementation order
 
 1. Schemas: `event-envelope.schema.json`, `merkle-chain-head.schema.json` ✅ (done)
-2. Pure functions in `lib/merkle-chain.ts`: `next_hash()`, `verify_chain()`, `sign_head()`, `verify_head()`. No I/O.
+2. Pure functions in `lib/merkle-chain.ts`: `next_hash()`, `verify_chain()`, `sign_head()`, `verify_head()`. No I/O. ✅ (shipped 2026-04-27, see `lib/merkle-chain.ts` + golden vectors at `tests/fixtures/merkle-chain-golden.json`; cross-language compat with Python reference verified, see `docs/merkle-chain-compat.md`)
 3. Storage hook in `lib/relay-store.ts`: persist envelopes ordered by (sender, seq).
 4. Subscriber helper in `lib/client.ts`: `subscribeWithVerify()` that streams + verifies + raises on break.
 5. Anchoring CLI: `pd anchor` writes head to DNS TXT or git commit.
-6. Tests: golden-vector tests for chain construction, mutation tests for tamper detection.
+6. Tests: golden-vector tests for chain construction, mutation tests for tamper detection. ✅ (29/29 in `tests/unit/merkle-chain.test.ts`)
 
 ## Anti-patterns
 
