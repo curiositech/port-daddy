@@ -29,6 +29,7 @@ coverage/
 # Environment
 .env
 .env.local
+.port-daddy-env
 
 # Internal: analysis, strategy, dev planning
 plans/
