@@ -297,7 +297,30 @@ describe('design system contracts', () => {
     expect(codeBlock).toContain('var(--code-channel-scope)')
     expect(codeBlock).toContain('var(--code-channel-sep)')
     expect(primitives).not.toContain('className="opacity-80"')
-    expect(blogPage).toContain('badgeMeta.background')
+    expect(blogPage).toContain('Engineering notes')
     expect(blogPage).not.toMatch(colorLiteral)
+  })
+
+  test('blog surfaces stay flat, square, and centralized around post hero metadata', () => {
+    const blogSources = [
+      read('./pages/BlogPage.tsx'),
+      read('./pages/BlogPostPage.tsx'),
+      read('./components/blog/BlogComments.tsx'),
+    ]
+    const joined = blogSources.join('\n')
+
+    expect(joined).not.toContain('const heroImages')
+    expect(joined).not.toContain('blur-[')
+    expect(joined).not.toContain('linear-gradient')
+    expect(joined).not.toContain('group-hover:scale')
+    expect(joined).not.toContain('sm:rounded')
+    expect(joined).not.toContain('rounded-[')
+    expect(joined).not.toContain('rounded-full')
+    expect(joined).not.toContain('radius="2xl"')
+    expect(joined).not.toContain('Anchor')
+    expect(joined).not.toContain('Ship')
+    expect(joined).not.toContain('Compass')
+    expect(joined).toContain('post.heroImage')
+    expect(joined).toContain('post.heroAlt')
   })
 })

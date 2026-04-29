@@ -132,9 +132,9 @@ export function CodeBlock({ children, language, filename, className, copyable = 
       <div
         className="flex min-w-0 items-center gap-1.5 border-b-2 border-[var(--border-strong)] bg-[var(--code-header-bg)] px-3 py-2"
       >
-        <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--code-dot-red)' }} aria-hidden="true" />
-        <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--code-dot-amber)' }} aria-hidden="true" />
-        <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--code-dot-green)' }} aria-hidden="true" />
+        <span className="h-1.5 w-1.5" style={{ background: 'var(--code-dot-red)' }} aria-hidden="true" />
+        <span className="h-1.5 w-1.5" style={{ background: 'var(--code-dot-amber)' }} aria-hidden="true" />
+        <span className="h-1.5 w-1.5" style={{ background: 'var(--code-dot-green)' }} aria-hidden="true" />
         {(filename || language) && (
           <span className="ml-2 min-w-0 truncate text-[10px] font-mono uppercase tracking-wider text-[var(--code-comment)]">
             {filename || language}

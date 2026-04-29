@@ -10,7 +10,7 @@ const projectRoot = resolve(websiteRoot, '..')
 const outputDir = resolve(websiteRoot, 'public/img/generated')
 const manifestPath = resolve(outputDir, 'manifest.json')
 const apiUrlBase = 'https://generativelanguage.googleapis.com/v1beta/models'
-const model = process.env.GEMINI_IMAGE_MODEL ?? 'gemini-3.1-flash-image-preview'
+const model = process.env.GEMINI_IMAGE_MODEL ?? 'gemini-2.5-flash-image'
 const jpegQuality = '82'
 const webpQuality = '82'
 
@@ -20,6 +20,7 @@ Port Daddy visual identity direction:
 - Visual language: Swiss-modern editorial infrastructure diagram, precise grid, crisp thin rules, architectural drawing discipline, tactile paper grain, deep ink, technical blue, restrained lime, quiet warm off-white.
 - Must not include people, sailors, boats, harbors, docks, nautical costumes, mascots, emojis, fake testimonials, readable brand logos, glossy stock-photo styling, bubbly extruded SaaS UI, pill-heavy dashboards, purple-blue gradients, or random surrealism.
 - Do not render visible words, letters, numbers, labels, headings, UI copy, brand marks, or fake code. Use abstract ticks, short lines, and geometric marks only.
+- If a module would normally need a label, leave it blank or represent it with non-letter geometric marks only. No Latin alphabet, pseudo text, interface labels, captions, chart labels, axis labels, or legible symbols anywhere.
 - Make it feel premium, serious, current, and operational.
 `.trim()
 
@@ -129,6 +130,111 @@ ${sharedDirection}
 Create a supporting editorial illustration for Shipwright designing a starter agent fleet for an arbitrary software repo.
 Composition: a repo survey map branching into proposed roles, model tiers, budget gates, trigger lanes, simulation traces, and a final YAML-like plan represented only as abstract line blocks.
 No readable text, no code, no file names, no people, no nautical imagery, no cartoon robots, no visible words, no letters, no numbers.
+`.trim(),
+  },
+  {
+    id: 'blog-control-plane-product',
+    filename: 'blog-control-plane-product.jpg',
+    aspectRatio: '16:9',
+    imageSize: '1K',
+    prompt: `
+${sharedDirection}
+
+Create a textless blog hero image about a local developer control plane as the product.
+Composition: a strict Swiss editorial diagram of a local control plane. Show project lanes, activity blocks, readiness gates, budget checks, and an operator viewport as rectilinear modules on a precise grid.
+Leave the left edge calm enough for cropping. Use hard ink rules, technical blue, restrained lime, and warm paper texture.
+No visible words, numbers, letters, labels, logos, humans, mascots, rounded app cards, or nautical imagery.
+`.trim(),
+  },
+  {
+    id: 'blog-fleet-designer-cold-start',
+    filename: 'blog-fleet-designer-cold-start.jpg',
+    aspectRatio: '16:9',
+    imageSize: '1K',
+    prompt: `
+${sharedDirection}
+
+Create a textless blog hero image about cold-start fleet design.
+Composition: a repo survey matrix turning into a proposed fleet plan through dependency checks, model tiers, budget gates, dry-run simulation lanes, and a human approval checkpoint. Keep everything abstract and geometric, with no readable UI.
+No visible words, numbers, letters, labels, logos, humans, mascots, rounded cards, or nautical imagery.
+`.trim(),
+  },
+  {
+    id: 'blog-pd-tube-event-reply',
+    filename: 'blog-pd-tube-event-reply.jpg',
+    aspectRatio: '16:9',
+    imageSize: '1K',
+    prompt: `
+${sharedDirection}
+
+Create a textless blog hero image about a local event-reply loop.
+Composition: a browser action block, a test result block, an editor-selection block, and a webhook block feeding a single local event channel. Show an agent terminal module returning threaded replies back to each origin. Use abstract linework only.
+No visible words, numbers, letters, labels, logos, humans, mascots, speech bubbles, rounded cards, or nautical imagery.
+`.trim(),
+  },
+  {
+    id: 'blog-telemetry-launch-gate',
+    filename: 'blog-telemetry-launch-gate.jpg',
+    aspectRatio: '16:9',
+    imageSize: '1K',
+    prompt: `
+${sharedDirection}
+
+Create a textless blog hero image about fail-closed agent launches.
+Composition: several backend lanes pass through three square checkpoints representing exact tokens, model rate, and persisted cost before reaching a launch boundary. Blocked lanes should be visually clear without using text.
+No visible words, numbers, letters, labels, logos, humans, mascots, security theater, rounded cards, or nautical imagery.
+`.trim(),
+  },
+  {
+    id: 'blog-map-truth',
+    filename: 'blog-map-truth.jpg',
+    aspectRatio: '16:9',
+    imageSize: '1K',
+    prompt: `
+${sharedDirection}
+
+Create a textless blog hero image about keeping roadmap and recovery state honest.
+Composition: commit fragments, recovery notes, session traces, current status lanes, and evidence markers converge into a single operator-readable map. Make the composition sober, editorial, and evidence-driven.
+No visible words, numbers, letters, labels, logos, humans, mascots, rounded cards, or nautical imagery.
+`.trim(),
+  },
+  {
+    id: 'blog-daemon-provenance',
+    filename: 'blog-daemon-provenance.jpg',
+    aspectRatio: '16:9',
+    imageSize: '1K',
+    prompt: `
+${sharedDirection}
+
+Create a textless blog hero image about daemon provenance.
+Composition: compare source checkout, installed runtime, socket client, TCP route, supervisor state, and browser bundle freshness as aligned technical strata. Show agreement and disagreement through crisp geometric marks, not text.
+No visible words, numbers, letters, labels, logos, humans, mascots, rounded cards, or nautical imagery.
+`.trim(),
+  },
+  {
+    id: 'blog-backend-readiness',
+    filename: 'blog-backend-readiness.jpg',
+    aspectRatio: '16:9',
+    imageSize: '1K',
+    prompt: `
+${sharedDirection}
+
+Create a textless blog hero image about backend readiness.
+Composition: a matrix of model backends, credentials, SDK packages, CLI login checks, model tiers, and telemetry policy. Some cells pass, some are blocked, all represented with abstract squares, ticks, and ruled lines.
+No visible words, numbers, letters, labels, logos, humans, mascots, rounded cards, or nautical imagery.
+`.trim(),
+  },
+  {
+    id: 'blog-coordination-guard-policy',
+    filename: 'blog-coordination-guard-policy.jpg',
+    aspectRatio: '16:9',
+    imageSize: '1K',
+    prompt: `
+${sharedDirection}
+
+Create a textless blog hero image about turning coordination claims into commit policy.
+Composition: staged file blocks, session identity, file-claim boundaries, lock gates, and a pre-commit decision boundary arranged as a Swiss compliance diagram. The image should feel precise and enforceable.
+No visible words, numbers, letters, labels, logos, humans, mascots, rounded cards, or nautical imagery.
 `.trim(),
   },
 ]
