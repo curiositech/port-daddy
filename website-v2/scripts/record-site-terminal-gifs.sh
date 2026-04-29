@@ -191,6 +191,27 @@ play_recording() {
       run_cmd "printf '{\"event\":\"webhook\"}' | pd tube webhook:local --send"
       run_cmd "pd tube webhook:local --once --no-history --limit=1"
       ;;
+    examples/leader-election)
+      intro
+      run_cmd "pd status"
+      run_cmd "npx tsx examples/leader-election/leader-election.ts --workers 4 --hold-ms 900 --ttl-ms 5000"
+      ;;
+    examples/ephemeral-ci-db)
+      intro
+      run_cmd "pd status"
+      run_cmd "GITHUB_RUN_ID=recording bash examples/ephemeral-ci-db/ephemeral-postgres.sh"
+      ;;
+    examples/p2p-webrtc)
+      intro
+      run_cmd "pd status"
+      run_cmd "npx tsx examples/p2p-webrtc/webrtc-signaling.ts --caller docs-caller --receiver docs-receiver"
+      ;;
+    examples/agent-topologies)
+      intro
+      run_cmd "pd status"
+      run_cmd "npx tsx examples/agent-topologies/topology-pubsub.ts"
+      run_cmd "pd channels | sed -n '1,12p'"
+      ;;
     docs/cli-overview)
       intro
       run_cmd "pd status"
@@ -257,6 +278,10 @@ if [[ "${1:-}" == "--all" || $# -eq 0 ]]; then
     examples/test-failure-to-agent \
     examples/editor-lightbulb-to-agent \
     examples/webhook-to-local-agent \
+    examples/leader-election \
+    examples/ephemeral-ci-db \
+    examples/p2p-webrtc \
+    examples/agent-topologies \
     docs/cli-overview \
     docs/pheromone; do
     record_one "$id"
