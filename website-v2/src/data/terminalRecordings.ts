@@ -138,6 +138,16 @@ const tutorialRecordings: Record<string, RecordingSpec> = {
       'This clip shows the control-plane checks behind the eleven primitives: status, briefing, and guard state before you lean on the rest of the system.',
     commands: ['pd status', 'pd briefing', 'pd guard status'],
   },
+  'pd-tube': {
+    title: 'Watch one channel carry a threaded agent handoff',
+    caption:
+      'This clip shows the core PD Tube contract: send a message, reply to the exact id, then read both rows back from durable channel history.',
+    commands: [
+      'printf "docs handoff ready" | pd tube docs:pd-tube-recording --send --sender docs',
+      'printf "reply with the checked-in cast and GIF" | pd tube docs:pd-tube-recording --reply=<id> --sender codex',
+      'pd tube docs:pd-tube-recording --once --no-history --limit=2',
+    ],
+  },
 }
 
 const exampleRecordings: Record<string, RecordingSpec> = {

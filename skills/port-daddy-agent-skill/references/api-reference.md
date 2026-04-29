@@ -811,10 +811,9 @@ List canonical durable maritime actors with projected live evidence from the
 agent registry, sessions, and salvage queue. Query params: `project`, `limit`.
 
 ### GET /actors/:id
-Read one actor by canonical id or alias. `cartographer` resolves to
-`navigator`; other canonical actors include `coxswain`, `signalman`,
-`harbormaster`, `sounder`, `lookout`, `breaker`, `caulker`, and
-`quartermaster`.
+Read one actor by canonical id or alias. `navigator` resolves to
+`cartographer`; other canonical actors include `coxswain`, `gardener`, `qa`,
+`test-hunter`, `documentarian`, `simplifier`, `spark`, and `spider`.
 
 ### GET /actors/:id/inbox
 Read recent messages queued to a durable actor mailbox. Query params:

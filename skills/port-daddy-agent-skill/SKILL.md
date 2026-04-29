@@ -126,6 +126,43 @@ When leaving durable evidence, prefer the bundled schemas:
 Use the templates under `templates/` when a note or handoff needs to be copied
 into another channel, actor inbox, or PR description.
 
+## CLI Quick Reference
+
+The agent surface uses semantic identities of shape `project:stack:context`
+(e.g. `port-daddy:cli:fix-flake`, `myapp:api:auth`). Same identity always
+hashes to the same port — port assignment is deterministic.
+
+```bash
+# Identity, status, salvage, briefing
+pd whoami                                # current session, agent, identity
+pd status                                # daemon health and uptime
+pd briefing                              # what's happening across the fleet
+pd salvage --project <project>           # recover dead-agent intent
+
+# Sessions & coordination
+pd begin "<task>" --identity <project>:<stack>:<context>
+pd note "Scope: ..."                     # durable progress evidence
+pd session files add <path>              # claim a file region
+pd done "<outcome>"                      # close + leave result note
+
+# Resources
+pd claim <project>:<stack>:<context>     # claim a deterministic port
+pd release <id>                          # release a claimed port
+pd with-lock <name> -- <command>         # run a command holding a named lock
+
+# DNS, integration signals, fleet awareness
+pd dns <name>                            # resolve DNS records for a service
+pd integration ready <signal>            # mark integration ready for downstream
+pd integration needs <signal>            # declare a missing integration
+pd sessions --all-worktrees              # cross-worktree session view
+```
+
+See `references/api-reference.md` for the full HTTP surface and
+`references/sdk-reference.md` for the JS/TS SDK. MCP tools mirror the CLI:
+`begin_session`, `end_session_full`, `whoami`, `claim_port`, `release_port`,
+`acquire_lock`, `add_note`, `pd_discover` are the equivalents agents use
+through the MCP protocol.
+
 ## Self-Check
 
 ```bash

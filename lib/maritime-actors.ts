@@ -1,17 +1,15 @@
-// Actor IDs are fleet agent names (1:1 with pd-fleet.yml's fleet.agents).
-// The maritime metaphor has been dropped — these are durable inboxes for the
-// fleet cast itself. Old maritime IDs (navigator, lookout, signalman, etc.)
-// remain as deprecated aliases so existing URLs / inbox addresses keep working
-// during the transition. Bodyless maritime roles (coxswain, sounder,
-// harbormaster, breaker, caulker, quartermaster) have no fleet body and have
-// been removed from the canonical roster — they were aspirational, not
-// load-bearing.
+// Actor IDs mostly follow fleet agent names, with standalone durable actors
+// where the operator contract names an owner that may not have a live body.
+// Old maritime IDs (navigator, lookout, signalman, etc.) remain as deprecated
+// aliases so existing URLs / inbox addresses keep working during the
+// transition.
 export type MaritimeActorId =
   | 'gardener'
   | 'qa'
   | 'test-hunter'
   | 'documentarian'
   | 'simplifier'
+  | 'coxswain'
   | 'cartographer'
   | 'spark'
   | 'spider';
@@ -127,6 +125,16 @@ export const MARITIME_ACTORS: readonly MaritimeActorDefinition[] = [
     aliases: ['shrink', 'reduce'],
     compatibilityFleetAgent: 'simplifier',
     mailbox: 'actor:simplifier',
+  },
+  {
+    id: 'coxswain',
+    label: 'Coxswain',
+    title: 'Claims, locks, and coordination ownership actor',
+    mission: 'Owns claims, locks, stale assets, symbolic coordination, and file/session contention so coordination conflicts have a durable mailbox.',
+    owns: ['claims', 'locks', 'file-ownership', 'stale-assets', 'symbolic-coordination', 'session-contention', 'coordination-conflicts'],
+    aliases: ['claim-owner', 'lock-owner', 'ownership', 'contention'],
+    compatibilityFleetAgent: null,
+    mailbox: 'actor:coxswain',
   },
   {
     id: 'cartographer',

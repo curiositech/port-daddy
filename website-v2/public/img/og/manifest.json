@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-29T19:08:47.567Z",
+  "generatedAt": "2026-04-29T21:01:47.805Z",
   "generator": "website-v2/scripts/generate-og-cards.mjs",
   "renderer": "website-v2/scripts/render-og-cards.py",
   "siteName": "Port Daddy",
@@ -316,6 +316,15 @@
       "sourceImage": "/img/generated/control-plane-og.jpg"
     },
     {
+      "image": "/img/og/docs-cli-roadmap.jpg",
+      "route": "/docs/cli/roadmap",
+      "title": "pd roadmap - Port Daddy",
+      "description": "Reference for pd roadmap, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
       "image": "/img/og/docs-cli-salvage-claim.jpg",
       "route": "/docs/cli/salvage-claim",
       "title": "pd salvage claim - Port Daddy",
@@ -374,6 +383,15 @@
       "route": "/docs/cli/status",
       "title": "pd status - Port Daddy",
       "description": "Reference for pd status, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-tube.jpg",
+      "route": "/docs/cli/tube",
+      "title": "pd tube - Port Daddy",
+      "description": "Reference for pd tube, including Port Daddy syntax, what the command does, and when to use it.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -518,6 +536,15 @@
       "route": "/docs/features/radio",
       "title": "Radio Messaging - Port Daddy",
       "description": "Learn the Port Daddy radio messaging feature, what problem it solves, and how to use it with agent work.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-features-relay-pki.jpg",
+      "route": "/docs/features/relay-pki",
+      "title": "Relay PKI - Port Daddy",
+      "description": "Learn the Port Daddy relay pki feature, what problem it solves, and how to use it with agent work.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -1475,6 +1502,15 @@
       "section": "tutorials",
       "sectionLabel": "Tutorial 13",
       "sourceImage": "/img/generated/virtual-actor-fleet.jpg"
+    },
+    {
+      "image": "/img/og/tutorials-pd-tube.jpg",
+      "route": "/tutorials/pd-tube",
+      "title": "Pipe Agent Conversations - Port Daddy",
+      "description": "Use PD Tube to send, read, reply, and resume channel conversations as clean JSON lines for scripts and agents.",
+      "section": "tutorials",
+      "sectionLabel": "Tutorial 21",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
     },
     {
       "image": "/img/og/tutorials-pheromone.jpg",

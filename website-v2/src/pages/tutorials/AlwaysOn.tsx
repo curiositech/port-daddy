@@ -1,141 +1,178 @@
 import { TutorialLayout } from "@/components/tutorials/TutorialLayout";
 import { CodeBlock } from "@/components/ui/CodeBlock";
+import { Badge } from "@/components/ui/Badge";
+import { Cpu, Zap, Terminal, RefreshCw, ArrowDown } from "lucide-react";
 import { Surface } from "@/components/ui/Surface";
 
 export function AlwaysOn() {
   return (
     <TutorialLayout
-      title="Run Event-Triggered Agents"
-      description="Combine pd spawn and pd watch so agents react to channel events automatically across Ollama, Codex, Claude, Gemini, Aider, and custom backends."
+      title="Always-On Avatars"
+      description="Most agents are ephemeral. Learn to deploy persistent background processes that maintain harbor-scoped state and respond to global swarm signals 24/7."
       number={12}
-      total={20}
-      level="Advanced"
-      readTime="15 min read"
-      prev={{ title: "Use Operator Shortcuts", href: "/tutorials/sugar" }}
-      next={{ title: "pd spawn: Launch One-Shot Agents", href: "/tutorials/pd-spawn" }}
+      total={21}
+      level="Intermediate"
+      readTime="10 min read"
+      prev={{ title: "Sugar Commands", href: "/tutorials/sugar" }}
+      next={{
+        title: "pd spawn: Launch Agent Fleets",
+        href: "/tutorials/pd-spawn",
+      }}
     >
-      <div className="space-y-[var(--section-space-y)]">
-        <section className="space-y-[var(--space-6)]">
-          <h2 className="m-0">The shipped pattern is watch plus spawn</h2>
-          <p>
-            Port Daddy does support recurring automation, but the durable shape
-            is not a magical immortal in-memory avatar. Today the common pattern
-            is simpler: a watcher stays connected to a project-scoped channel,
-            and each event launches a bounded agent job with{" "}
-            <code>pd spawn</code>.
-          </p>
-          <div className="border-y border-[var(--hairline)] py-[var(--space-4)]">
-            <div className="flex flex-col gap-[var(--space-3)] md:flex-row md:items-start md:gap-[var(--space-6)]">
-              <div className="min-w-0 flex-1">
-                <p className="m-0 font-black uppercase tracking-[0.18em] text-[length:var(--type-meta-size)] text-[var(--text-primary)]">
-                  <code>pd watch</code>
-                </p>
-                <p className="mt-[var(--space-2)] max-w-[18ch] text-[length:var(--type-panel-body-compact-size)] leading-[1.45] text-[var(--text-secondary)]">
-                  Listens for the project-scoped event.
-                </p>
-              </div>
-              <div className="text-[length:var(--type-meta-size)] font-black uppercase tracking-[0.18em] text-[var(--text-muted)]">
-                then
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="m-0 font-black uppercase tracking-[0.18em] text-[length:var(--type-meta-size)] text-[var(--text-primary)]">
-                  <code>pd spawn</code>
-                </p>
-                <p className="mt-[var(--space-2)] max-w-[20ch] text-[length:var(--type-panel-body-compact-size)] leading-[1.45] text-[var(--text-secondary)]">
-                  Launches one bounded agent run for that event.
-                </p>
-              </div>
-              <div className="text-[length:var(--type-meta-size)] font-black uppercase tracking-[0.18em] text-[var(--text-muted)]">
-                or
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="m-0 font-black uppercase tracking-[0.18em] text-[length:var(--type-meta-size)] text-[var(--text-primary)]">
-                  <code>pd fleet up</code>
-                </p>
-                <p className="mt-[var(--space-2)] max-w-[22ch] text-[length:var(--type-panel-body-compact-size)] leading-[1.45] text-[var(--text-secondary)]">
-                  Move the pattern into YAML when it should be daemon-visible and durable.
-                </p>
-              </div>
+      <div className="space-y-12">
+        {/* Intro Section */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10  border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] flex items-center justify-center">
+              <Cpu className="text-[var(--brand-secondary)]" size={20} />
             </div>
+            <h2 className="m-0">Beyond the Prompt</h2>
           </div>
-        </section>
-
-        <section className="space-y-[var(--space-6)]">
-          <h2 className="m-0">1. Launch a bounded agent from an event</h2>
           <p>
-            Keep the long-running piece narrow. Let the watcher notice the
-            event, then let the spawned job do the expensive reasoning.
+            An <strong>Always-On Avatar</strong> is an agent process that
+            doesn't terminate after a single task. It lives within a specific
+            Harbor, maintaining a persistent local context and listening to{" "}
+            <strong>Swarm Radio</strong> for instructions.
           </p>
-          <CodeBlock copyable={false} language="bash">
-            {`$ pd watch git:committed --exec ./scripts/review-last-commit.sh
-[watch] subscribed to project:port-daddy:git:committed
-[watch] waiting for next event...`}
-          </CodeBlock>
-          <CodeBlock copyable={false} language="bash">
-            {`#!/usr/bin/env bash
-set -euo pipefail
-
-pd spawn --backend codex --tier low --budget 0.20 \\
-  --identity my-app:fleet:reviewer \\
-  -- "Review the most recent commit and leave a note about regressions."
-
-# Expected daemon-visible result:
-# spawned agent-7f41c2b9 on codex:gpt-5.4-mini
-# session: session-my-app-fleet-reviewer-13e5f8ab
-# cost ceiling: $0.20`}
-          </CodeBlock>
-          <p>
-            That keeps every launch inspectable. The event is visible, the
-            spawned run has its own status and cost record, and failures are not
-            trapped in an invisible background shell.
+          <p className="text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)]">
+            <strong>Persistent State</strong> -- Avatars hold long-running
+            variables, database connections, and cache in-memory across multiple
+            user sessions.
+            <strong> Event Driven</strong> -- Instead of polling, Avatars wake
+            up instantly when a message hits a subscribed channel.
           </p>
         </section>
 
-        <section className="space-y-[var(--space-6)]">
-          <h2 className="m-0">2. Pick the right lifetime</h2>
+        {/* Step 1: Spawning */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10  border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] flex items-center justify-center">
+              <Zap className="text-[var(--brand-primary)]" size={20} />
+            </div>
+            <h2 className="m-0">1. Spawn a Background Agent</h2>
+          </div>
+
           <p>
-            If the automation is supposed to survive shell exits, dedupe bursts,
-            honor daily budgets, and stay legible in the control plane, move it
-            into the fleet layer instead of leaving it as a personal terminal
-            watcher.
+            Use <code>pd spawn</code> to launch the worker, then pair it with{" "}
+            <code>pd watch</code> or fleet triggers if you want the pattern to
+            stay reactive over time. Port Daddy supports multiple backends:
+            Ollama, Codex, Claude, Claude CLI, Gemini, Aider, and custom shell
+            commands.
           </p>
-          <Surface depth="flat" radius="none" padding="lg">
-            <div className="space-y-[var(--space-4)]">
-              <p className="m-0">
-                Use a shell watcher for local experiments and one-off
-                automations.
-              </p>
-              <p className="m-0">
-                Use <code>pd spawn</code> when you want exact backend, model,
-                identity, and budget control for one run.
-              </p>
-              <p className="m-0">
-                Use <code>pd fleet up</code> when the automation is part of the
-                project itself and other operators need to inspect it.
-              </p>
+
+          <CodeBlock copyable={false} language="bash">
+            {`$ pd spawn --backend claude \\
+    --identity infra:monitor \\
+    --purpose "Watch CI and auto-fix flakes" \\
+    -- "Review the test failures in src/auth/"`}
+          </CodeBlock>
+
+          <Surface
+            depth="flat"
+            radius="none"
+            padding="md"
+            className="border-l-4 border-[var(--brand-secondary)]"
+          >
+            <p
+              className="m-0 text-[length:var(--type-panel-body-compact-size)]"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              The avatar will immediately claim its semantic identity. Any other
+              agent claiming <code>infra:monitor</code> will get the same port
+              -- deterministic assignment means no conflicts.
+            </p>
+          </Surface>
+        </section>
+
+        {/* Step 2: Watching */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10  border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] flex items-center justify-center">
+              <Terminal className="text-[var(--brand-secondary)]" size={20} />
+            </div>
+            <h2 className="m-0">2. Wire the Trigger</h2>
+          </div>
+
+          <p>
+            Use <code>pd watch</code> to subscribe to a pub/sub channel and
+            execute a command whenever a message arrives. The message content is
+            available via environment variables.
+          </p>
+
+          <CodeBlock copyable={false} language="bash">
+            {`$ pd watch swarm:ci:failure \\
+    --exec "./scripts/auto-fix.sh"
+
+# Environment variables available in the script:
+# PD_MESSAGE        — full message JSON
+# PD_MESSAGE_CONTENT — message payload
+# PD_CHANNEL        — channel name
+# PD_TIMESTAMP      — event timestamp`}
+          </CodeBlock>
+
+          <Surface depth="raised" radius="none" className="p-5 space-y-3">
+            <p className="text-[length:var(--type-panel-body-compact-size)] font-black uppercase tracking-widest text-[var(--text-muted)] m-0">
+              The Coordination Loop
+            </p>
+            <div className="space-y-2">
+              <Surface
+                depth="flat"
+                radius="none"
+                padding="none"
+                className="flex items-center gap-3 p-3"
+              >
+                <Badge variant="default">Trigger</Badge>
+                <span className="text-[length:var(--type-panel-body-compact-size)] font-bold text-[var(--text-primary)]">
+                  Agent publishes to swarm:ci:failure
+                </span>
+              </Surface>
+              <div className="flex justify-center">
+                <ArrowDown size={14} className="text-[var(--text-muted)]" />
+              </div>
+              <Surface
+                depth="raised"
+                radius="none"
+                className="flex items-center gap-3 p-3"
+              >
+                <Badge variant="teal">Action</Badge>
+                <span className="text-[length:var(--type-panel-body-compact-size)] font-bold text-[var(--text-primary)]">
+                  pd watch runs the --exec script
+                </span>
+              </Surface>
+              <div className="flex justify-center">
+                <ArrowDown size={14} className="text-[var(--text-muted)]" />
+              </div>
+              <Surface
+                depth="flat"
+                radius="none"
+                padding="none"
+                className="flex items-center gap-3 p-3"
+              >
+                <Badge variant="default">Resolve</Badge>
+                <span className="text-[length:var(--type-panel-body-compact-size)] font-bold text-[var(--text-primary)]">
+                  Script publishes result back to Swarm Radio
+                </span>
+              </Surface>
             </div>
           </Surface>
         </section>
 
-        <section className="space-y-[var(--space-6)]">
-          <h2 className="m-0">3. Persist the result, not hidden process state</h2>
-          <p>
-            Recurring agent workflows should put their durable state in notes,
-            files, tuples, channels, or project records that Port Daddy can
-            surface later. That is what makes salvage, activity review, and
-            fleet inspection work.
+        {/* Self-Healing Callout */}
+        <Surface depth="raised" radius="none" className="p-6 space-y-4">
+          <div className="flex items-center gap-3">
+            <RefreshCw size={18} className="text-[var(--brand-secondary)]" />
+            <p className="text-[length:var(--type-meta-size)] font-black uppercase tracking-widest text-[var(--text-muted)] m-0">
+              Self-Healing Logic
+            </p>
+          </div>
+          <p className="m-0 text-[var(--text-secondary)]">
+            What if the Avatar itself crashes? Port Daddy's{" "}
+            <strong>Resurrection Queue</strong> holds the Avatar's harbor card
+            and last-known notes in escrow. When you spawn a replacement, it
+            automatically "inherits" the previous state and continues its watch.
+            SQLite-backed persistence ensures nothing is lost.
           </p>
-          <CodeBlock copyable={false} language="bash">
-            {`$ pd spawned
-agent-7f41c2b9  codex:gpt-5.4-mini  completed  cost=$0.07
-
-$ pd briefing
-Recent spawn: my-app:fleet:reviewer reviewed the latest commit and filed one regression note.
-
-$ pd notes --limit 10
-[note] agent-7f41c2b9: Flagged a missing auth redirect test in src/login.test.ts`}
-          </CodeBlock>
-        </section>
+        </Surface>
       </div>
     </TutorialLayout>
   );

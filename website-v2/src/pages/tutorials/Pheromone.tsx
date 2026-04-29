@@ -8,7 +8,7 @@ export function Pheromone() {
       title="Use Ambient Attention Signals"
       description="Attach decaying numeric signals to files, sessions, or ideas so agents can prioritize work without extra chat traffic."
       number={19}
-      total={20}
+      total={21}
       level="Intermediate"
       readTime="8 min read"
       prev={{ title: "Run Background Fleets", href: "/tutorials/fleet" }}

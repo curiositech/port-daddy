@@ -1,12 +1,19 @@
 import { describe, expect, test } from '@jest/globals';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+import { spawnSync } from 'node:child_process';
 import {
   DEFAULT_GUARD_CONFIG,
   evaluateGuardFacts,
   extractClaimPaths,
+  localGuardConfigPath,
   mergePostCommitHook,
   mergePreCommitHook,
   normalizeGuardConfig,
   ownerQueryPaths,
+  readGuardConfig,
+  sharedGuardConfigPath,
 } from '../../cli/commands/guard.js';
 
 describe('Coordination Guard', () => {
@@ -26,6 +33,62 @@ describe('Coordination Guard', () => {
       requireSession: false,
       requireClaims: DEFAULT_GUARD_CONFIG.requireClaims,
     }));
+  });
+
+  test('inherits guard policy from the shared git common dir', () => {
+    const repo = mkdtempSync(join(tmpdir(), 'pd-guard-shared-'));
+    try {
+      const init = spawnSync('git', ['init'], { cwd: repo, encoding: 'utf8' });
+      expect(init.status).toBe(0);
+
+      const sharedPath = sharedGuardConfigPath(repo);
+      expect(sharedPath).toBeTruthy();
+      mkdirSync(dirname(sharedPath), { recursive: true });
+      writeFileSync(sharedPath, JSON.stringify({
+        ...DEFAULT_GUARD_CONFIG,
+        enabled: true,
+        mode: 'enforce',
+      }));
+
+      expect(readGuardConfig(repo)).toEqual(expect.objectContaining({
+        enabled: true,
+        mode: 'enforce',
+      }));
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
+  });
+
+  test('shared guard policy wins over stale local worktree defaults', () => {
+    const repo = mkdtempSync(join(tmpdir(), 'pd-guard-shared-wins-'));
+    try {
+      const init = spawnSync('git', ['init'], { cwd: repo, encoding: 'utf8' });
+      expect(init.status).toBe(0);
+
+      const sharedPath = sharedGuardConfigPath(repo);
+      expect(sharedPath).toBeTruthy();
+      mkdirSync(dirname(sharedPath), { recursive: true });
+      writeFileSync(sharedPath, JSON.stringify({
+        ...DEFAULT_GUARD_CONFIG,
+        enabled: true,
+        mode: 'enforce',
+      }));
+
+      const localPath = localGuardConfigPath(repo);
+      mkdirSync(dirname(localPath), { recursive: true });
+      writeFileSync(localPath, JSON.stringify({
+        ...DEFAULT_GUARD_CONFIG,
+        enabled: false,
+        mode: 'warn',
+      }));
+
+      expect(readGuardConfig(repo)).toEqual(expect.objectContaining({
+        enabled: true,
+        mode: 'enforce',
+      }));
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
   });
 
   test('passes when active session owns every checked file', () => {

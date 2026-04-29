@@ -10,7 +10,7 @@ export function TimeTravel() {
       title="Activity Log Inspection"
       description="When multiple agents work on the same project, the hardest question is 'what happened first?' Learn to use Port Daddy's immutable activity log to reconstruct the sequence of events."
       number={14}
-      total={20}
+      total={21}
       level="Intermediate"
       readTime="8 min read"
       prev={{ title: "Budgeted One-Shot Agents", href: "/tutorials/pd-spawn" }}

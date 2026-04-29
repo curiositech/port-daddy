@@ -9,7 +9,7 @@ export function GettingStarted() {
       title="Install the Local Control Plane"
       description="Install the daemon, open FleetBar, join the project harbor, and verify the control plane before asking agents to work."
       number={2}
-      total={20}
+      total={21}
       level="Beginner"
       readTime="5 min read"
       prev={{ title: "Start Inside a Harbor", href: "/tutorials/harbors" }}

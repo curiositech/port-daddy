@@ -170,6 +170,7 @@ function tutorialSourceImage(slug: string) {
       return OG_SOURCE_IMAGES.salvageLedger
     case 'pipelines':
     case 'watch':
+    case 'pd-tube':
       return OG_SOURCE_IMAGES.agentRuntime
     default:
       return OG_SOURCE_IMAGES.controlPlane
@@ -344,6 +345,8 @@ const cliRoutes = [
   ['cli/fleet', 'pd fleet'],
   ['cli/init', 'pd init'],
   ['cli/mcp-install', 'pd mcp install'],
+  ['cli/roadmap', 'pd roadmap'],
+  ['cli/tube', 'pd tube'],
 ] as const
 
 const docsFeatureRoutes = [
@@ -361,6 +364,7 @@ const docsFeatureRoutes = [
   ['features/fleet', 'Fleet YAML'],
   ['features/tuples', 'Tuples'],
   ['features/arbiter', 'Arbiter'],
+  ['features/relay-pki', 'Relay PKI'],
 ] as const
 
 const sdkRoutes = [

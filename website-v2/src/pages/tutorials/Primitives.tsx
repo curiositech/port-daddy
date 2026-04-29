@@ -39,14 +39,17 @@ export function Primitives() {
       title="Walk the 11 Product Primitives"
       description="Use the Mac app, Fleet Control Center, Shipwright, and CLI checks to see where every public primitive lives."
       number={20}
-      total={20}
+      total={21}
       level="Beginner"
       readTime="12 min read"
       prev={{
         title: "Use Ambient Attention Signals",
         href: "/tutorials/pheromone",
       }}
-      next={undefined}
+      next={{
+        title: "Pipe Agent Conversations",
+        href: "/tutorials/pd-tube",
+      }}
     >
       <motion.div className="space-y-16">
         <section className="space-y-6">

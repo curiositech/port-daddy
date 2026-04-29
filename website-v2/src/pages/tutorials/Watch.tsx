@@ -8,7 +8,7 @@ export function Watch() {
       title="Observe Runtime Channels"
       description="Use pd watch to follow channel activity, inspect event pressure, and trigger bounded responses from scripts or agents."
       number={16}
-      total={20}
+      total={21}
       level="Intermediate"
       readTime="10 min read"
       prev={{ title: "Build Reactive Pipelines", href: "/tutorials/pipelines" }}
