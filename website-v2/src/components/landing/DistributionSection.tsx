@@ -14,8 +14,8 @@ import {
   SwissGridItem,
 } from '@/components/site/primitives'
 
-const primaryDownloadHref = '/downloads/PortDaddy-FleetBar-macOS-arm64-dev.zip'
-const checksumHref = '/downloads/PortDaddy-FleetBar-macOS-arm64-dev.zip.sha256'
+const primaryDownloadHref = '/downloads/PortDaddy-FleetBar-macOS-arm64.zip'
+const checksumHref = '/downloads/PortDaddy-FleetBar-macOS-arm64.zip.sha256'
 const manifestHref = '/downloads/fleetbar-preview-manifest.json'
 const fleetbarNativeShellScreenshots = {
   light: '/img/app-screens/fleetbar-native-shell-light.png',
@@ -24,7 +24,7 @@ const fleetbarNativeShellScreenshots = {
 
 const statusCopy = {
   available: 'Available',
-  'developer-preview': 'Developer preview',
+  'signed-build': 'Signed Mac build',
   'release-channel': 'Release channel',
 } as const
 
@@ -75,7 +75,7 @@ export function DistributionSection() {
             <figure className="mt-[var(--space-5)] block overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-base)]">
               <img
                 src={shellScreenshot}
-                alt="FleetBar macOS developer preview in a native window shell"
+                alt="FleetBar macOS app in a native window shell"
                 className="aspect-[16/9] w-full object-cover"
                 data-theme-screenshot={theme === 'dark' ? 'dark' : 'light'}
                 loading="lazy"

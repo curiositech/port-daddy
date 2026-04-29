@@ -76,11 +76,11 @@ brew install curiositech/tap/port-daddy
 # Via npm
 npm install -g port-daddy
 
-# Optional Mac menu-bar developer preview from the public site
-curl -LO https://portdaddy.dev/downloads/PortDaddy-FleetBar-macOS-arm64-dev.zip
-curl -LO https://portdaddy.dev/downloads/PortDaddy-FleetBar-macOS-arm64-dev.zip.sha256
-shasum -a 256 -c PortDaddy-FleetBar-macOS-arm64-dev.zip.sha256
-unzip PortDaddy-FleetBar-macOS-arm64-dev.zip
+# Optional signed Mac menu-bar app from the public site
+curl -LO https://portdaddy.dev/downloads/PortDaddy-FleetBar-macOS-arm64.zip
+curl -LO https://portdaddy.dev/downloads/PortDaddy-FleetBar-macOS-arm64.zip.sha256
+shasum -a 256 -c PortDaddy-FleetBar-macOS-arm64.zip.sha256
+unzip PortDaddy-FleetBar-macOS-arm64.zip
 ```
 
 ### 3. Verify
