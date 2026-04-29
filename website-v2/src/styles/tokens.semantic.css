@@ -6,6 +6,8 @@
   --surface-overlay: rgba(242, 238, 230, 0.95);
   --surface-sunken: #e0d9cb;
   --surface-glass: rgba(247, 243, 235, 0.92);
+  --scrim-backdrop: rgba(18, 18, 18, 0.62);
+  --media-scrim: color-mix(in srgb, var(--code-bg) 72%, transparent);
 
   --text-primary: #121212;
   --text-secondary: #403b34;
@@ -97,6 +99,8 @@
   --surface-overlay: rgba(16, 18, 22, 0.94);
   --surface-sunken: #0b0d11;
   --surface-glass: rgba(24, 28, 34, 0.9);
+  --scrim-backdrop: rgba(0, 0, 0, 0.68);
+  --media-scrim: color-mix(in srgb, var(--code-bg) 78%, transparent);
 
   --text-primary: #f5f3ed;
   --text-secondary: #d3cec2;

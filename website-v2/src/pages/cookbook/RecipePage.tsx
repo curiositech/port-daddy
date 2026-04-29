@@ -38,12 +38,12 @@ export function RecipePage() {
 
   return (
     <motion.div 
-      className="min-h-screen bg-[var(--surface-base)] flex flex-col font-sans selection:bg-[var(--brand-primary)] selection:text-white"
+      className="min-h-screen bg-[var(--surface-base)] flex flex-col font-sans selection:bg-[var(--brand-primary)] selection:text-[var(--brand-primary-foreground)]"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
     >
       <motion.div
-        className="fixed top-0 left-0 right-0 h-1 bg-[var(--brand-accent)] z-[100] origin-left shadow-[0_0_12px_rgba(251,191,36,0.5)]"
+        className="fixed top-0 left-0 right-0 h-1 bg-[var(--brand-accent)] z-[100] origin-left"
         style={{ scaleX, top: 'var(--nav-height)' }}
       />
 

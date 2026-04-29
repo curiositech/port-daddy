@@ -130,7 +130,7 @@ export function AgentCard({ agent }: AgentCardProps) {
         {/* Action Buttons (Mock) */}
         <motion.div className="flex gap-3 pt-2 font-sans">
           <motion.button 
-            className="flex-1 px-4 py-3 rounded-xl bg-[var(--interactive-hover)] border border-[var(--border-subtle)] text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[var(--brand-primary)] hover:text-white transition-all font-sans"
+            className="flex-1 px-4 py-3 rounded-xl bg-[var(--interactive-hover)] border border-[var(--border-subtle)] text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[var(--brand-primary)] hover:text-[var(--brand-primary-foreground)] transition-all font-sans"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >

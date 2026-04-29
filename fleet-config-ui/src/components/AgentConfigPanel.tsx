@@ -498,7 +498,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <label className="flex items-center gap-1.5 text-[11px] cursor-pointer" style={{ color: 'var(--pd-text)' }}>
-      <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} className="accent-red-600 w-3 h-3" />
+      <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} className="pd-checkbox w-3 h-3" />
       {label}
     </label>
   );

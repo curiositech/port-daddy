@@ -21,7 +21,7 @@ export function IntegrationPage() {
 
   return (
     <motion.div 
-      className="min-h-screen bg-[var(--surface-base)] flex flex-col font-sans selection:bg-[var(--brand-primary)] selection:text-white"
+      className="min-h-screen bg-[var(--surface-base)] flex flex-col font-sans selection:bg-[var(--brand-primary)] selection:text-[var(--brand-primary-foreground)]"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
     >

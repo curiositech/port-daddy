@@ -1,6 +1,12 @@
 import type { DitherPipelineProps } from './types';
 
-const DEFAULT_DITHER_PALETTE = ['#f2eee6', '#121212', '#bf2f2f', '#0055ff', '#dfff00'] as const;
+const DEFAULT_DITHER_PALETTE = [
+  'var(--pd-bg)',
+  'var(--pd-text)',
+  'var(--pd-accent)',
+  'var(--pd-success)',
+  'var(--pd-line)',
+] as const;
 
 /**
  * DitherPipeline - named boundary for bloom-then-Bayer postprocessing.
