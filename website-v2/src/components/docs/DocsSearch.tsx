@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { Search, X, FileText, Terminal, Code, Cpu, ChevronRight } from 'lucide-react'
 import { ALL_CATEGORIES } from '@/data/mcp'
-import { CLI_REFERENCE_GROUPS, SDK_REFERENCE_GROUPS, referenceAnchor } from '@/data/referenceCatalog'
+import { CLI_REFERENCE_ITEMS, SDK_REFERENCE_GROUPS, cliCommandHref, referenceAnchor } from '@/data/referenceCatalog'
 import { OPEN_DOCS_SEARCH_EVENT } from './docsSearchEvents'
 
 interface SearchResult {
@@ -34,19 +34,26 @@ const MCP_TOOL_SEARCH_RESULTS: SearchResult[] = ALL_CATEGORIES.flatMap((category
   return results
 })
 
-const CLI_COMMAND_SEARCH_RESULTS: SearchResult[] = CLI_REFERENCE_GROUPS.flatMap((group) =>
-  group.items.map((command) => ({
+const CLI_COMMAND_SEARCH_RESULTS: SearchResult[] = CLI_REFERENCE_ITEMS.flatMap((command) => [
+  {
     title: command.name,
-    href: command.href ?? `/docs/cli#${referenceAnchor(command.name)}`,
-    category: `CLI: ${group.title}`,
+    href: cliCommandHref(command),
+    category: `CLI: ${command.groupTitle}`,
     icon: Terminal,
     description: [
       command.description,
       command.aliases?.length ? `Aliases: ${command.aliases.join(', ')}` : '',
       command.flags?.length ? `Flags: ${command.flags.join(', ')}` : '',
     ].filter(Boolean).join(' '),
+  },
+  ...command.aliasRoutes.map((alias) => ({
+    title: alias.name,
+    href: alias.href,
+    category: `CLI alias: ${command.groupTitle}`,
+    icon: Terminal,
+    description: `${alias.name} is an alias for ${command.name}. ${command.description}`,
   })),
-)
+])
 
 const SDK_GROUP_SEARCH_RESULTS: SearchResult[] = SDK_REFERENCE_GROUPS.map((group) => ({
   title: `${group.title} SDK Methods`,

@@ -5,6 +5,7 @@ import {
   BracketLink,
   DocsNoteCard,
   PanelBody,
+  PanelEyebrow,
   PanelList,
   PanelTitle,
   SectionIntro,
@@ -24,6 +25,10 @@ interface CommandPageProps {
     description: string
     code: string
     output?: string
+  }>
+  apiSpec?: Array<{
+    label: string
+    value: string
   }>
   flags?: Array<{
     flag: string
@@ -48,6 +53,7 @@ export function CommandPage({
   version,
   syntax,
   examples,
+  apiSpec,
   flags,
   subcommands,
   usagePatterns,
@@ -96,6 +102,29 @@ export function CommandPage({
       >
         <CodeBlock code={syntax} />
       </DocsNoteCard>
+
+      {apiSpec?.length ? (
+        <DocsNoteCard
+          label="API spec"
+          title="Command contract"
+          elevation="quiet"
+          padding="compact"
+          titleSize="nav"
+        >
+          <div className="grid gap-[var(--space-3)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)] md:grid-cols-2">
+            {apiSpec.map((entry) => (
+              <SurfacePanel key={entry.label} elevation="quiet" padding="compact" className="space-y-[var(--space-1)]">
+                <PanelEyebrow className="max-w-none text-[var(--text-muted)]">
+                  {entry.label}
+                </PanelEyebrow>
+                <PanelBody size="compact" className="max-w-none font-mono text-[var(--text-primary)]">
+                  {entry.value}
+                </PanelBody>
+              </SurfacePanel>
+            ))}
+          </div>
+        </DocsNoteCard>
+      ) : null}
 
       <TerminalGif
         src={CLI_REFERENCE_RECORDING.gifSrc}

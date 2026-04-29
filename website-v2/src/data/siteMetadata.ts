@@ -2,6 +2,7 @@ import { BLUEPRINTS } from './blueprints'
 import { blogPostMetas as blogPosts, deprecatedBlogPosts } from './blogMetaData'
 import { docsFamilyRoutes, docsOverviewRoute, type DocsFamilyRoute } from './docs-routes'
 import { INTEGRATIONS } from './integrations'
+import { CLI_REFERENCE_ITEMS, cliCommandHref } from './referenceCatalog'
 import { TUTORIALS } from './tutorials'
 import { WHITE_PAPERS } from './whitePapers'
 
@@ -309,45 +310,15 @@ const docsGuideRoutes = [
   ['/docs/guides/protocol', 'Protocol Guide', 'Understand how Port Daddy handles ports, sessions, locks, messages, harbors, and salvage.'],
 ] as const
 
-const cliRoutes = [
+const cliRouteEntries: Array<readonly [string, string]> = [
   ['cli', 'CLI Overview'],
-  ['cli/claim', 'pd claim'],
-  ['cli/release', 'pd release'],
-  ['cli/find', 'pd find'],
-  ['cli/services', 'pd services'],
-  ['cli/scan', 'pd scan'],
-  ['cli/up', 'pd up'],
-  ['cli/down', 'pd down'],
-  ['cli/status', 'pd status'],
-  ['cli/begin', 'pd begin'],
-  ['cli/done', 'pd done'],
-  ['cli/whoami', 'pd whoami'],
-  ['cli/note', 'pd note'],
-  ['cli/notes', 'pd notes'],
-  ['cli/lock-acquire', 'pd lock acquire'],
-  ['cli/lock-release', 'pd lock release'],
-  ['cli/with-lock', 'pd with-lock'],
-  ['cli/msg', 'pd msg'],
-  ['cli/pub', 'pd pub'],
-  ['cli/watch', 'pd watch'],
-  ['cli/spawn', 'pd spawn'],
-  ['cli/spawned', 'pd spawned'],
-  ['cli/agent-register', 'pd agent register'],
-  ['cli/salvage', 'pd salvage'],
-  ['cli/salvage-claim', 'pd salvage claim'],
-  ['cli/dns', 'pd dns'],
-  ['cli/harbor-create', 'pd harbor create'],
-  ['cli/harbor-enter', 'pd harbor enter'],
-  ['cli/harbor-leave', 'pd harbor leave'],
-  ['cli/harbors', 'pd harbors'],
-  ['cli/tunnel', 'pd tunnel'],
-  ['cli/tunnel-stop', 'pd tunnel stop'],
-  ['cli/fleet', 'pd fleet'],
-  ['cli/init', 'pd init'],
-  ['cli/mcp-install', 'pd mcp install'],
-  ['cli/roadmap', 'pd roadmap'],
-  ['cli/tube', 'pd tube'],
-] as const
+  ...CLI_REFERENCE_ITEMS.flatMap((item) => [
+    [cliCommandHref(item).replace(/^\/docs\//, ''), item.name] as const,
+    ...item.aliasRoutes.map((alias) => [alias.href.replace(/^\/docs\//, ''), alias.name] as const),
+  ]),
+]
+
+const cliRoutes = Array.from(new Map<string, string>(cliRouteEntries).entries())
 
 const docsFeatureRoutes = [
   ['features/ports', 'Port Claims'],

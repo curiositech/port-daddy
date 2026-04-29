@@ -7,7 +7,8 @@
  * and that the version stamp bumped from v1.
  *
  * Why this matters: shim coverage is the structural enforcement of the
- * "Git Hygiene For Shared Trees" rule in skills/port-daddy-cli/SKILL.md.
+ * claim-aware git staging rule in
+ * skills/port-daddy-agent-skill/references/cli-reference.md.
  * If the script silently loses a verb, the next auto-stash incident
  * is invisible until it has already happened.
  */
