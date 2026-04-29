@@ -103,7 +103,10 @@ export async function registerAllRoutes(
   await fastify.register(sitrepPlugin, { deps } as any);
   await fastify.register(actorsPlugin, { deps } as any);
   await fastify.register(cartographerPlugin, {
-    deps: { daemonDir: (deps as any).repoRoot ?? (deps as any).__dirname ?? process.cwd() },
+    deps: {
+      daemonDir: (deps as any).repoRoot ?? (deps as any).__dirname ?? process.cwd(),
+      feedback: (deps as any).feedback,
+    },
   });
   await fastify.register(operatorPlugin, { deps } as any);
 

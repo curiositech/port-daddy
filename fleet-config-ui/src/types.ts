@@ -345,13 +345,35 @@ export interface RoadmapNextCut {
   summary: string;
 }
 
-export type RoadmapFeedbackStatus = 'now' | 'backlog' | 'parked' | 'merge' | 'unknown';
+export type RoadmapFeedbackStatus = 'now' | 'backlog' | 'parked' | 'merge' | 'unknown' | 'open' | 'harvested' | 'wontfix';
+export type RoadmapFeedbackSeverity = 'low' | 'medium' | 'high' | 'critical';
+export type RoadmapFeedbackSource = 'agent' | 'human' | 'mcp' | 'cli' | 'unknown';
 
 export interface RoadmapFeedbackEntry {
   slug: string;
   status: RoadmapFeedbackStatus;
   surface: string | null;
   hook: string | null;
+  summary?: string | null;
+  feedbackId?: string;
+  severity?: RoadmapFeedbackSeverity;
+  source?: RoadmapFeedbackSource;
+  suggested?: string | null;
+  droppedBy?: string | null;
+  project?: string | null;
+  harbor?: string | null;
+  at?: number | null;
+  harvestedAt?: number | null;
+  harvestedIntoSlug?: string | null;
+  provenance?: 'markdown' | 'tuple';
+}
+
+export interface RoadmapFeedbackSummary {
+  total: number;
+  open: number;
+  harvested: number;
+  bySeverity: Record<RoadmapFeedbackSeverity, number>;
+  bySurface: Record<string, number>;
 }
 
 export interface RoadmapProgress {
@@ -362,6 +384,8 @@ export interface RoadmapProgress {
     dogfoodFeedbackPath: string;
     currentWorkPath: string;
     cartographerStatusPath: string;
+    feedbackTupleHarbor?: string | null;
+    feedbackTupleStatus?: RoadmapFeedbackStatus | 'all';
   };
   freshness: {
     latestUpdateMs: number | null;
@@ -369,6 +393,8 @@ export interface RoadmapProgress {
   };
   nextCuts: RoadmapNextCut[];
   ideasNow: RoadmapFeedbackEntry[];
+  liveFeedback: RoadmapFeedbackEntry[];
+  feedbackSummary: RoadmapFeedbackSummary | null;
   dogfoodFeedback: RoadmapFeedbackEntry[];
   currentWorkExcerpt: string | null;
   cartographerStatusExcerpt: string | null;

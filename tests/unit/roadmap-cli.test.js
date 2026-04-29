@@ -26,6 +26,23 @@ const fixture = {
   freshness: { latestUpdateMs: 1, hoursSinceLastUpdate: 0.2 },
   nextCuts: [{ slug: 'cartographer-roadmap-progress-screen', summary: 'Surface roadmap state.' }],
   ideasNow: [{ slug: 'cartographer-roadmap-progress-screen', status: 'now', surface: 'Fleet UI', hook: 'one glance' }],
+  liveFeedback: [{
+    slug: 'cartographer-live-body-salvage-friction',
+    status: 'open',
+    surface: 'CLI',
+    hook: 'operator asks whether Cartographer can listen',
+    feedbackId: 'fb-1',
+    severity: 'high',
+    droppedBy: 'agent-dfdc92f3',
+    provenance: 'tuple',
+  }],
+  feedbackSummary: {
+    total: 1,
+    open: 1,
+    harvested: 0,
+    bySeverity: { low: 0, medium: 0, high: 1, critical: 0 },
+    bySurface: { CLI: 1 },
+  },
   dogfoodFeedback: [{ slug: 'coordination-ticker-as-high-signal-feed', status: 'backlog', surface: 'Fleet UI', hook: null }],
   currentWorkExcerpt: '# Current\nActive slice.',
   cartographerStatusExcerpt: '# Status\nNominal.',
@@ -73,7 +90,28 @@ describe('pd roadmap', () => {
     expect(console.log).toHaveBeenCalledWith([
       'next:cartographer-roadmap-progress-screen',
       'now:cartographer-roadmap-progress-screen',
+      'live:cartographer-live-body-salvage-friction',
       'feedback:coordination-ticker-as-high-signal-feed',
     ].join('\n'));
+  });
+
+  test('ack harvests live feedback from the roadmap surface', async () => {
+    pdFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true, entry: { feedbackId: 'fb-1', status: 'harvested' } }),
+    });
+
+    await handleRoadmap(['ack', 'fb-1'], { as: 'cartographer', into: 'cartographer-live-body-salvage-friction' });
+
+    expect(pdFetch).toHaveBeenCalledWith(
+      'http://127.0.0.1:9876/feedback/fb-1/harvest',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          harvestedBy: 'cartographer',
+          intoSlug: 'cartographer-live-body-salvage-friction',
+        }),
+      }),
+    );
   });
 });

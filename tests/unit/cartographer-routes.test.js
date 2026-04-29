@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from '@jest/globals';
+import { afterEach, describe, expect, jest, test } from '@jest/globals';
 import Fastify from 'fastify';
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -77,6 +77,62 @@ describe('cartographer routes', () => {
 
     expect(res.statusCode).toBe(200);
     expect(res.json().nextCuts[0].slug).toBe('requested-root');
+
+    await app.close();
+  });
+
+  test('GET /cartographer/roadmap-progress threads live feedback into the projection', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'pd-cartographer-feedback-'));
+    tempDirs.push(root);
+    writeProgressFixture(root, 'daemon-root');
+
+    const feedback = {
+      list: jest.fn(() => [
+        {
+          feedbackId: 'fb-1',
+          slug: 'cartographer-live-body-salvage-friction',
+          summary: 'Cartographer salvage friction should change roadmap truth.',
+          surface: 'CLI',
+          severity: 'high',
+          status: 'open',
+          source: 'agent',
+          suggested: null,
+          hook: 'operator asks whether Cartographer can listen',
+          droppedBy: 'agent-dfdc92f3',
+          project: 'port-daddy',
+          harbor: 'port-daddy:fleet',
+          at: 1,
+          harvestedAt: null,
+          harvestedIntoSlug: null,
+        },
+      ]),
+      summary: jest.fn(() => ({
+        total: 1,
+        open: 1,
+        harvested: 0,
+        bySeverity: { low: 0, medium: 0, high: 1, critical: 0 },
+        bySurface: { CLI: 1 },
+      })),
+    };
+
+    const app = Fastify();
+    await app.register(cartographerPlugin, { deps: { daemonDir: root, feedback } });
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/cartographer/roadmap-progress?feedbackHarbor=port-daddy%3Afleet&feedbackStatus=open',
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().liveFeedback[0]).toEqual(expect.objectContaining({
+      feedbackId: 'fb-1',
+      slug: 'cartographer-live-body-salvage-friction',
+      provenance: 'tuple',
+    }));
+    expect(feedback.list).toHaveBeenCalledWith(expect.objectContaining({
+      harbor: 'port-daddy:fleet',
+      status: 'open',
+    }));
 
     await app.close();
   });

@@ -27,6 +27,7 @@ import type {
   GraphStats,
   Episode,
   MemoryStats,
+  RoadmapFeedbackStatus,
   RoadmapProgress,
   ResourceOverview,
   SemanticResolutionDecision,
@@ -228,10 +229,28 @@ export async function fetchProjects(): Promise<ProjectSummary[]> {
   return payload.projects ?? [];
 }
 
-export async function fetchRoadmapProgress(projectDir?: string): Promise<RoadmapProgress> {
+export async function fetchRoadmapProgress(projectDir?: string, options: {
+  feedbackStatus?: RoadmapFeedbackStatus | 'all';
+  feedbackHarbor?: string;
+  feedbackLimit?: number;
+} = {}): Promise<RoadmapProgress> {
   const params = new URLSearchParams();
   if (projectDir) params.set('root', projectDir);
+  if (options.feedbackStatus) params.set('feedbackStatus', options.feedbackStatus);
+  if (options.feedbackHarbor) params.set('feedbackHarbor', options.feedbackHarbor);
+  if (options.feedbackLimit) params.set('feedbackLimit', String(options.feedbackLimit));
   return get(`/cartographer/roadmap-progress${params.toString() ? `?${params}` : ''}`);
+}
+
+export async function harvestRoadmapFeedback(input: {
+  feedbackId: string;
+  harvestedBy?: string;
+  intoSlug?: string;
+}): Promise<{ success: boolean; entry: RoadmapProgress['liveFeedback'][number] }> {
+  return post(`/feedback/${encodeURIComponent(input.feedbackId)}/harvest`, {
+    harvestedBy: input.harvestedBy ?? 'operator-control-plane',
+    intoSlug: input.intoSlug,
+  });
 }
 
 export async function fetchCoordinationGuard(projectDir: string): Promise<CoordinationGuardEnvelope> {

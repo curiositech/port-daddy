@@ -15,17 +15,52 @@
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { join, isAbsolute } from 'node:path';
 import { parse as parseYaml } from 'yaml';
+import type {
+  Feedback as LiveFeedback,
+  FeedbackEntry as LiveFeedbackEntry,
+  FeedbackSeverity,
+  FeedbackSource,
+  FeedbackStatus,
+} from './feedback.js';
 
 export interface NextCut {
   slug: string;
   summary: string;
 }
 
+export type RoadmapFeedbackStatus =
+  | 'now'
+  | 'backlog'
+  | 'parked'
+  | 'merge'
+  | 'unknown'
+  | FeedbackStatus;
+
 export interface FeedbackEntry {
   slug: string;
-  status: 'now' | 'backlog' | 'parked' | 'merge' | 'unknown';
+  status: RoadmapFeedbackStatus;
   surface: string | null;
   hook: string | null;
+  summary?: string | null;
+  feedbackId?: string;
+  severity?: FeedbackSeverity;
+  source?: FeedbackSource;
+  suggested?: string | null;
+  droppedBy?: string | null;
+  project?: string | null;
+  harbor?: string | null;
+  at?: number | null;
+  harvestedAt?: number | null;
+  harvestedIntoSlug?: string | null;
+  provenance?: 'markdown' | 'tuple';
+}
+
+export interface FeedbackSummary {
+  total: number;
+  open: number;
+  harvested: number;
+  bySeverity: Record<FeedbackSeverity, number>;
+  bySurface: Record<string, number>;
 }
 
 export interface RecentCommit {
@@ -41,6 +76,8 @@ export interface RoadmapProgress {
     dogfoodFeedbackPath: string;
     currentWorkPath: string;
     cartographerStatusPath: string;
+    feedbackTupleHarbor?: string | null;
+    feedbackTupleStatus?: FeedbackStatus | 'all';
   };
   freshness: {
     /** Latest mtime across the four cartographer-curated files (ms epoch). */
@@ -50,6 +87,8 @@ export interface RoadmapProgress {
   };
   nextCuts: NextCut[];
   ideasNow: FeedbackEntry[];
+  liveFeedback: FeedbackEntry[];
+  feedbackSummary: FeedbackSummary | null;
   dogfoodFeedback: FeedbackEntry[];
   currentWorkExcerpt: string | null;
   cartographerStatusExcerpt: string | null;
@@ -194,6 +233,14 @@ export interface RoadmapProgressInput {
   currentWorkMaxLines?: number;
   /** How many lines of .cartographer/status.md to surface. Default 60. */
   cartographerStatusMaxLines?: number;
+  /** Optional live feedback primitive. When present, roadmap truth includes tuple-backed feedback. */
+  feedback?: Pick<LiveFeedback, 'list' | 'summary'>;
+  /** Harbor scope for tuple-backed feedback. Omit to read all harbors. */
+  feedbackHarbor?: string;
+  /** Feedback status to surface in liveFeedback. Default: open. */
+  feedbackStatus?: FeedbackStatus | 'all';
+  /** Maximum live feedback rows to surface. Default 100. */
+  feedbackLimit?: number;
 }
 
 const DEFAULT_PATHS: Required<RoadmapProgressPaths> = {
@@ -253,6 +300,51 @@ export function loadCartographerConfig(rootDir: string): {
   return { paths: {}, configPath: null, warning: null };
 }
 
+function mapLiveFeedback(entry: LiveFeedbackEntry): FeedbackEntry {
+  return {
+    slug: entry.slug,
+    status: entry.status,
+    surface: entry.surface,
+    hook: entry.hook ?? entry.summary,
+    summary: entry.summary,
+    feedbackId: entry.feedbackId,
+    severity: entry.severity,
+    source: entry.source,
+    suggested: entry.suggested,
+    droppedBy: entry.droppedBy,
+    project: entry.project,
+    harbor: entry.harbor,
+    at: entry.at,
+    harvestedAt: entry.harvestedAt,
+    harvestedIntoSlug: entry.harvestedIntoSlug,
+    provenance: 'tuple',
+  };
+}
+
+function readLiveFeedback(input: RoadmapProgressInput, warnings: string[]): {
+  liveFeedback: FeedbackEntry[];
+  feedbackSummary: FeedbackSummary | null;
+} {
+  if (!input.feedback) {
+    return { liveFeedback: [], feedbackSummary: null };
+  }
+
+  try {
+    const liveFeedback = input.feedback.list({
+      harbor: input.feedbackHarbor,
+      status: input.feedbackStatus ?? 'open',
+      limit: input.feedbackLimit ?? 100,
+    }).map(mapLiveFeedback);
+    return {
+      liveFeedback,
+      feedbackSummary: input.feedback.summary(input.feedbackHarbor),
+    };
+  } catch (err) {
+    warnings.push(`live feedback tuples could not be read: ${err instanceof Error ? err.message : String(err)}`);
+    return { liveFeedback: [], feedbackSummary: null };
+  }
+}
+
 export function getRoadmapProgress(input: RoadmapProgressInput = {}): RoadmapProgress {
   const root = input.rootDir ?? process.cwd();
   const warnings: string[] = [];
@@ -286,6 +378,7 @@ export function getRoadmapProgress(input: RoadmapProgressInput = {}): RoadmapPro
   const nextCuts = roadmapText ? parseNextCuts(roadmapText) : [];
   const allIdeas = ideasText ? parseFeedbackEntries(ideasText) : [];
   const dogfoodFeedback = feedbackText ? parseFeedbackEntries(feedbackText) : [];
+  const { liveFeedback, feedbackSummary } = readLiveFeedback(input, warnings);
 
   const currentWorkExcerpt = currentWorkText
     ? trimToMaxLines(currentWorkText, input.currentWorkMaxLines ?? 60)
@@ -300,6 +393,7 @@ export function getRoadmapProgress(input: RoadmapProgressInput = {}): RoadmapPro
     safeMtime(dogfoodFeedbackPath),
     safeMtime(currentWorkPath),
     safeMtime(cartographerStatusPath),
+    ...liveFeedback.flatMap((entry) => [entry.at, entry.harvestedAt]),
   ].filter((v): v is number => typeof v === 'number');
   const latestUpdateMs = mtimes.length > 0 ? Math.max(...mtimes) : null;
   const hoursSinceLastUpdate =
@@ -313,6 +407,8 @@ export function getRoadmapProgress(input: RoadmapProgressInput = {}): RoadmapPro
       dogfoodFeedbackPath,
       currentWorkPath,
       cartographerStatusPath,
+      feedbackTupleHarbor: input.feedbackHarbor ?? null,
+      feedbackTupleStatus: input.feedbackStatus ?? 'open',
     },
     freshness: {
       latestUpdateMs,
@@ -320,6 +416,8 @@ export function getRoadmapProgress(input: RoadmapProgressInput = {}): RoadmapPro
     },
     nextCuts,
     ideasNow: allIdeas.filter((e) => e.status === 'now'),
+    liveFeedback,
+    feedbackSummary,
     dogfoodFeedback,
     currentWorkExcerpt,
     cartographerStatusExcerpt,
