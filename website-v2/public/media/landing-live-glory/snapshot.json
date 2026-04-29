@@ -1,27 +1,24 @@
 {
-  "generatedAt": "2026-04-29T16:35:32.914Z",
+  "generatedAt": "2026-04-29T17:04:29.080Z",
   "status": {
-    "activePorts": "23",
+    "activePorts": "22",
     "fleet": "1 project(s), 8 agent(s), 3/8 launchable",
     "runtime": "nominal",
-    "lastActivity": "9s ago",
+    "lastActivity": "26s ago",
     "launchable": "3/8"
   },
   "sessions": [
-    "Commit staged FleetBar ...",
-    "Deploy branch to main",
-    "Commit and push safe cu...",
-    "Commit guard shim and c...",
-    "tutorial shell cleanup",
-    "Commit local website an...",
-    "Normalize website safel...",
-    "Deploy branch to main"
+    "Finish merge validation...",
+    "Reconcile agents-flow g...",
+    "Add Tube Console and ca...",
+    "Reconcile codex/agents-...",
+    "Deploy agents flow bran..."
   ],
   "notes": [
-    "Claiming unowned AboutPage for same normalization pattern: remove blur-orb decoration, large rounded CTA/native buttons, and route-local visual styles where a shared Button/flat frame can do the job.",
-    "Second visual check: /templates also resolves to claimed AgentsPage and has mobile horizontal overflow in the top subnav/card frame. I normalized the unclaimed legacy TemplatesPage source, but visible /templates overflow must be handled by the AgentsPage owner or a later claimed slice.",
-    "Deploy proof: stable promotion completed at main@ecc5d9f; daemon PID 64764 serving /Users/erichowens/port-daddy-stable; /cartographer/roadmap-progress returns liveFeedback array and feedbackSummary from tuple primitive.",
-    "[handoff] Developer ID signing wired and verified for FleetBar preview package; notarization support is credential-gated via FLEETBAR_NOTARY_PROFILE.",
-    "Documented website deploy path. Local ignored CLAUDE.md now has full portdaddy.dev Cloudflare Pages commands and smoke checks. Tracked AGENTS.md now has the durable cross-agent deploy rule, committed and pushed to main as c4faf05 from clean worktree /tmp/port-daddy-docs-examples-nuke.Wt02gq. CLAUDE.md remains ignored by .gitignore by repo policy, so it is machine-local guidance."
+    "Main reconciliation slice landed: pushed 6a806c8 to origin/main with guard/git-shim/claim-watcher commits plus pd add test isolation. Validation: git diff --check origin/main..HEAD before push, focused claim-watcher/coordination-guard/resource-limits tests, typecheck, full npm test -- --no-coverage green (161 suites, 5227 passed, 1 skipped). Continuing comparison for remaining feature-branch website/content deltas.",
+    "Scope: finish merge of website/FleetBar/control-plane release branch toward main. Staging intentional remaining files only: Tube/Events panels, channel API/types, docs page normalization, landing render polish, and docs normalization proof screenshots. Validation plan: root typecheck, focused Jest runtime tests, fleet-config-ui build, website lint/test/build, guard, push feature and main, deploy.",
+    "[handoff] Committed, pushed, deployed, and verified agent skill + Skill/MCP + agents/templates release on main@7ce505c.",
+    "Release complete: clean integration branch codex/deploy-agents-skill-mcp-main fast-forwarded main to 7ce505c. Cloudflare Pages production active for 7ce505c. GitHub CI run 25122027194 passed after follow-up release-gate fix for pd add completions and skill authority tests. Live rendered routes verified earlier: /mcp, /agents/templates, /templates redirect.",
+    "Verification after DocsPage normalization: full website-v2 npm run lint passed, npm run build passed (SEO generated for 172 canonical routes; Vite built successfully), npm run test passed 9 files / 97 tests, and root git diff --check passed. Screenshots written under docs/reports/website-rehab-screenshots/2026-04-29-normalization/: docs-desktop/mobile for visible /docs and docs-old-desktop/mobile for the normalized legacy route. Temporary Vite proof server on 3122 was stopped and pd release website-normalization-vite completed. Remaining tree has many concurrent staged/unstaged changes outside this slice, so I did not stage or commit."
   ]
 }

@@ -2,6 +2,8 @@ import { jest } from '@jest/globals';
 
 const mockSpawnSync = jest.fn();
 const installedPackages = new Set(['@anthropic-ai/sdk', '@google/generative-ai']);
+const secretValues = new Map();
+const mockGetSecret = jest.fn((key) => secretValues.get(key));
 
 jest.unstable_mockModule('node:child_process', () => ({
   spawnSync: mockSpawnSync,
@@ -16,6 +18,10 @@ jest.unstable_mockModule('node:module', () => ({
   }),
 }));
 
+jest.unstable_mockModule('../../lib/secret-env.js', () => ({
+  getSecret: mockGetSecret,
+}));
+
 const { assessBackendReadiness } = await import('../../lib/backend-readiness.js');
 
 describe('backend readiness', () => {
@@ -26,6 +32,7 @@ describe('backend readiness', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    secretValues.clear();
     delete process.env.ANTHROPIC_API_KEY;
     delete process.env.GEMINI_API_KEY;
     delete process.env.CLOUDFLARE_ACCOUNT_ID;
@@ -50,12 +57,13 @@ describe('backend readiness', () => {
   });
 
   test('reports Claude SDK backend as ready when ANTHROPIC_API_KEY is present and the model has an exact rate', async () => {
-    process.env.ANTHROPIC_API_KEY = 'sk-test';
+    secretValues.set('ANTHROPIC_API_KEY', 'sk-test');
 
     const readiness = await assessBackendReadiness('claude', {
       model: 'claude-haiku-4-5-20251001',
     });
 
+    expect(mockGetSecret).toHaveBeenCalledWith('ANTHROPIC_API_KEY');
     expect(readiness).toMatchObject({
       backend: 'claude',
       status: 'ready',
@@ -67,10 +75,11 @@ describe('backend readiness', () => {
   });
 
   test('uses the shared exact-rate Claude default when no model is supplied', async () => {
-    process.env.ANTHROPIC_API_KEY = 'sk-test';
+    secretValues.set('ANTHROPIC_API_KEY', 'sk-test');
 
     const readiness = await assessBackendReadiness('claude');
 
+    expect(mockGetSecret).toHaveBeenCalledWith('ANTHROPIC_API_KEY');
     expect(readiness).toMatchObject({
       backend: 'claude',
       status: 'ready',
@@ -82,6 +91,8 @@ describe('backend readiness', () => {
   test('blocks Gemini backend behind the telemetry policy', async () => {
     const readiness = await assessBackendReadiness('gemini');
 
+    expect(mockGetSecret).toHaveBeenNthCalledWith(1, 'GEMINI_API_KEY');
+    expect(mockGetSecret).toHaveBeenNthCalledWith(2, 'GOOGLE_API_KEY');
     expect(readiness).toMatchObject({
       backend: 'gemini',
       status: 'needs_setup',
@@ -95,10 +106,13 @@ describe('backend readiness', () => {
 
   test('blocks Cloudflare backend even when credentials are present', async () => {
     process.env.CLOUDFLARE_ACCOUNT_ID = 'acct-123';
-    process.env.CLOUDFLARE_API_TOKEN = 'token-123';
+    secretValues.set('CLOUDFLARE_ACCOUNT_ID', 'acct-123');
+    secretValues.set('CLOUDFLARE_API_TOKEN', 'token-123');
 
     const readiness = await assessBackendReadiness('cloudflare');
 
+    expect(mockGetSecret).toHaveBeenCalledTimes(1);
+    expect(mockGetSecret).toHaveBeenCalledWith('CLOUDFLARE_API_TOKEN');
     expect(readiness).toMatchObject({
       backend: 'cloudflare',
       status: 'needs_setup',

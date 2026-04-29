@@ -152,7 +152,7 @@ export const CLI_REFERENCE_GROUPS: ReferenceGroup[] = [
       { name: 'pd graph edges|stats', description: 'Inspect semantic graph edges and aggregate graph counts.' },
       { name: 'pd memory episodes|stats', description: 'Inspect episodic memory entries and aggregate memory counts.' },
       { name: 'pd ideas list|search|show', description: 'Search curated ideas, local residue, notes, tuples, and repo markdown.' },
-      { name: 'pd roadmap', description: 'Print Cartographer curated next cuts, now items, dogfood feedback, and roadmap excerpts.' },
+      { name: 'pd roadmap', href: '/docs/cli/roadmap', description: 'Print Cartographer curated next cuts, now items, dogfood feedback, and roadmap excerpts.' },
       { name: 'pd feedback <command>', description: 'Drop or summarize structured agentic feedback for Cartographer.' },
       { name: 'pd pheromone <command>', description: 'Spray, read, list, or map numeric coordination signals over files and entities.', aliases: ['pd ph'] },
       { name: 'pd demo <name>', description: 'Run built-in demos for coordination primitives.' },

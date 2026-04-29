@@ -1,63 +1,56 @@
+#!/usr/bin/env npx tsx
 /**
- * Port Daddy SDK — DNS Service Discovery
+ * Port Daddy SDK DNS service discovery.
  *
- * Shows how services can discover each other by hostname
- * using Port Daddy's DNS records.
+ * Shows how services can register local names and discover each other through
+ * the current SDK instead of hardcoded daemon URLs.
  *
- * Run: npx tsx examples/dns/service-discovery.ts
+ * Run:
+ *   npx tsx examples/dns/service-discovery.ts
  */
 
-const BASE = 'http://localhost:9876';
+import { PortDaddy } from '../../lib/client.js';
 
-interface DnsRecord {
-  identity: string;
-  hostname: string;
-  port: number;
-}
+const pd = new PortDaddy({ agentId: `examples:dns:${process.pid}`, timeout: 10000 });
 
-async function main() {
-  console.log('=== DNS Service Discovery ===\n');
+const services = [
+  { identity: 'examples-shop:api', hostname: 'examples-shop-api.local', port: 3100 },
+  { identity: 'examples-shop:web', hostname: 'examples-shop-web.local', port: 3200 },
+  { identity: 'examples-shop:worker', hostname: 'examples-shop-worker.local', port: 3300 },
+];
 
-  // Register services with DNS
-  const services = [
-    { identity: 'shop:api', hostname: 'shop-api.local', port: 3100 },
-    { identity: 'shop:web', hostname: 'shop-web.local', port: 3200 },
-    { identity: 'shop:worker', hostname: 'shop-worker.local', port: 3300 },
-  ];
+async function main(): Promise<void> {
+  console.log('DNS service discovery');
+  console.log('---------------------');
 
-  for (const svc of services) {
-    const res = await fetch(`${BASE}/dns/${svc.identity}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ hostname: svc.hostname, port: svc.port }),
-    });
-    const data = await res.json();
-    console.log(`Registered: ${svc.identity} → ${svc.hostname}:${svc.port}`);
-  }
-
-  // Discover services by listing DNS records
-  console.log('\n--- Service Discovery ---');
-  const listRes = await fetch(`${BASE}/dns`);
-  const records: DnsRecord[] = await listRes.json();
-
-  for (const record of records) {
-    if (record.identity.startsWith('shop:')) {
-      console.log(`  ${record.identity}: ${record.hostname}:${record.port}`);
+  try {
+    for (const service of services) {
+      await pd.dnsRegister(service.identity, {
+        hostname: service.hostname,
+        port: service.port,
+      });
+      console.log(`registered ${service.identity} -> ${service.hostname}:${service.port}`);
     }
-  }
 
-  // Look up a specific service
-  console.log('\n--- Specific Lookup ---');
-  const apiRes = await fetch(`${BASE}/dns/shop:api`);
-  const apiRecord: DnsRecord = await apiRes.json();
-  console.log(`API endpoint: http://${apiRecord.hostname}:${apiRecord.port}`);
+    const records = await pd.dnsList({ pattern: 'examples-shop:*' });
+    console.log('');
+    console.log('discovered records');
+    for (const record of records.records) {
+      console.log(`  ${record.identity} -> ${record.hostname}:${record.port}`);
+    }
 
-  // Cleanup
-  console.log('\n--- Cleanup ---');
-  for (const svc of services) {
-    await fetch(`${BASE}/dns/${svc.identity}`, { method: 'DELETE' });
+    const api = await pd.dnsGet('examples-shop:api');
+    console.log('');
+    console.log(`api endpoint: http://${api.record.hostname}:${api.record.port}`);
+  } finally {
+    for (const service of services) {
+      await pd.dnsUnregister(service.identity).catch(() => undefined);
+    }
+    pd.destroyIpc();
   }
-  console.log('All DNS records removed.');
 }
 
-main().catch(console.error);
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message : error);
+  process.exit(1);
+});

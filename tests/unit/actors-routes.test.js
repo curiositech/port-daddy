@@ -11,7 +11,7 @@ function buildApp(deps = {}) {
 }
 
 describe('actor routes', () => {
-  test('GET /actors returns canonical maritime actors with projected evidence', async () => {
+  test('GET /actors returns canonical fleet actors with projected evidence', async () => {
     const { app, register } = buildApp({
       agents: {
         list: () => ({
@@ -107,7 +107,7 @@ describe('actor routes', () => {
       success: true,
       messages: [{
         id: 7,
-        agentId: 'actor:navigator',
+        agentId: 'actor:cartographer',
         from: 'agent-test',
         content: 'map this',
         contentType: 'text',

@@ -8,10 +8,12 @@ import {
   Copy,
   FileCog,
   Gauge,
+  KeyRound,
   Play,
   Radio,
   RefreshCw,
   ShieldCheck,
+  ShipWheel,
   WalletCards,
   Wrench,
 } from 'lucide-react';
@@ -53,6 +55,7 @@ interface Props {
   onStartProject?: (project: ProjectInfo) => void;
   onSetBudget?: (project: ProjectInfo, usdPerDay: number) => void;
   onOpenYaml?: (project: ProjectInfo) => void;
+  onOpenShipwright?: () => void;
 }
 
 interface AllProjectsProps {
@@ -90,8 +93,8 @@ interface EntranceAction {
 const ADD_PROJECT_COMMANDS = [
   {
     title: 'Full onboarding',
-    caption: 'Scaffold service config, starter fleet, hooks, and editor integration.',
-    command: 'cd <project-dir>\npd init',
+    caption: 'Install daemon/MCP/FleetBar wiring and register this repo for the control plane.',
+    command: 'pd setup --project <project-dir>',
   },
   {
     title: 'Starter fleet',
@@ -233,6 +236,260 @@ async function copyCommand(command: string): Promise<void> {
     return;
   }
   await navigator.clipboard.writeText(command);
+}
+
+function readinessLabel(status: BackendInfo['readinessStatus']): string {
+  if (status === 'ready') return 'ready';
+  if (status === 'manual_check') return 'check';
+  if (status === 'needs_setup') return 'setup';
+  return 'unknown';
+}
+
+function readinessStyle(status: BackendInfo['readinessStatus']): { backgroundColor: string; color: string; border: string } {
+  if (status === 'ready') {
+    return { backgroundColor: 'var(--pd-success-surface)', color: 'var(--pd-success)', border: '1px solid var(--pd-success-border)' };
+  }
+  if (status === 'manual_check') {
+    return { backgroundColor: 'var(--pd-warning-surface)', color: 'var(--pd-warning)', border: '1px solid var(--pd-warning-border)' };
+  }
+  if (status === 'needs_setup') {
+    return { backgroundColor: 'var(--pd-danger-surface)', color: 'var(--pd-danger)', border: '1px solid var(--pd-danger-border)' };
+  }
+  return { backgroundColor: 'var(--pd-bg)', color: 'var(--pd-muted)', border: '1px solid var(--pd-border)' };
+}
+
+function credentialKeysForBackend(backend: BackendInfo): string[] {
+  if (backend.credentialKeys?.length) return backend.credentialKeys;
+  if (backend.id === 'claude') return ['ANTHROPIC_API_KEY'];
+  if (backend.id === 'gemini') return ['GEMINI_API_KEY'];
+  if (backend.id === 'cloudflare') return ['CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_API_TOKEN'];
+  return [];
+}
+
+function credentialAlternatesForBackend(backend: BackendInfo): string[] {
+  if (backend.credentialAlternates?.length) return backend.credentialAlternates;
+  if (backend.id === 'gemini') return ['GOOGLE_API_KEY'];
+  if (backend.id === 'cloudflare') return ['CLOUDFLARE_API_KEY', 'CF_API_TOKEN', 'CF_ACCOUNT_ID'];
+  return [];
+}
+
+function setupCommandForBackend(backend: BackendInfo): string {
+  if (backend.setupCommand?.trim()) return backend.setupCommand.trim();
+  const credentialKeys = credentialKeysForBackend(backend);
+  if (credentialKeys.length) {
+    const body = credentialKeys.map((key) => `${key}=<paste-value>`).join('\\n');
+    return `printf '\\n${body}\\n' >> ~/.port-daddy-env\npd daemon restart`;
+  }
+  if (backend.id === 'claude-cli') return 'claude';
+  if (backend.id === 'codex') return 'codex exec "print ok"';
+  if (backend.id === 'ollama') return 'ollama serve';
+  if (backend.id === 'aider') return 'aider --help';
+  return 'pd fleet models';
+}
+
+function BackendReadinessPanel() {
+  const [backends, setBackends] = useState<BackendInfo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const models = await fetchModels();
+        if (cancelled) return;
+        setBackends(models);
+        const firstAction = models.find((backend) => backend.readinessStatus !== 'ready') ?? models[0] ?? null;
+        setSelectedId((current) => current ?? firstAction?.id ?? null);
+      } catch (err) {
+        if (!cancelled) setError((err as Error).message);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const selectedBackend = useMemo(() => {
+    return backends.find((backend) => backend.id === selectedId) ?? backends[0] ?? null;
+  }, [backends, selectedId]);
+
+  const needsAttention = backends.filter((backend) => backend.readinessStatus !== 'ready').length;
+  const readyCount = backends.length - needsAttention;
+  const setupCommand = selectedBackend ? setupCommandForBackend(selectedBackend) : 'pd fleet models';
+
+  return (
+    <section className="mb-6 rounded-lg border p-5" style={{ backgroundColor: 'var(--pd-surface)', borderColor: 'var(--pd-border)' }}>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <div className="inline-flex items-center gap-2 text-[10px] font-semibold tracking-[0.18em] uppercase" style={{ color: 'var(--pd-muted)' }}>
+            <KeyRound size={13} />
+            <span>Backend readiness</span>
+          </div>
+          <h2 className="mt-2 text-lg font-semibold" style={{ color: 'var(--pd-text)' }}>
+            Keys and local auth before launch
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed" style={{ color: 'var(--pd-muted)' }}>
+            Port Daddy loads credentials from <span style={{ color: 'var(--pd-text)' }}>~/.port-daddy-env</span>, project <span style={{ color: 'var(--pd-text)' }}>.env.local</span>, and project <span style={{ color: 'var(--pd-text)' }}>.env</span>. Restart the daemon after changing them.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <span className="rounded-full px-3 py-1 text-[11px] font-semibold" style={{ backgroundColor: 'var(--pd-success-surface)', color: 'var(--pd-success)', border: '1px solid var(--pd-success-border)' }}>
+            {readyCount} ready
+          </span>
+          <span className="rounded-full px-3 py-1 text-[11px] font-semibold" style={{ backgroundColor: needsAttention > 0 ? 'var(--pd-warning-surface)' : 'var(--pd-bg)', color: needsAttention > 0 ? 'var(--pd-warning)' : 'var(--pd-muted)', border: `1px solid ${needsAttention > 0 ? 'var(--pd-warning-border)' : 'var(--pd-border)'}` }}>
+            {needsAttention} need attention
+          </span>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="mt-4 inline-flex items-center gap-2 text-sm" style={{ color: 'var(--pd-muted)' }}>
+          <RefreshCw size={14} />
+          Checking backends...
+        </div>
+      ) : error ? (
+        <div className="mt-4 rounded-md border px-3 py-2 text-sm" style={{ backgroundColor: 'var(--pd-danger-surface)', borderColor: 'var(--pd-danger-border)', color: 'var(--pd-danger)' }}>
+          {error}
+        </div>
+      ) : (
+        <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.72fr)]">
+          <div className="grid gap-2">
+            {backends.map((backend) => (
+              (() => {
+                const credentialKeys = credentialKeysForBackend(backend);
+                const credentialAlternates = credentialAlternatesForBackend(backend);
+                return (
+              <button
+                key={backend.id}
+                type="button"
+                onClick={() => setSelectedId(backend.id)}
+                className="rounded-lg border px-3 py-3 text-left"
+                style={{
+                  backgroundColor: selectedBackend?.id === backend.id ? 'var(--pd-surface-2)' : 'var(--pd-bg)',
+                  borderColor: selectedBackend?.id === backend.id ? 'var(--pd-accent-border)' : 'var(--pd-border)',
+                }}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="font-semibold" style={{ color: 'var(--pd-text)' }}>{backend.name}</div>
+                  <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold" style={readinessStyle(backend.readinessStatus)}>
+                    {backend.readinessStatus === 'ready' ? <CheckCircle2 size={11} /> : <AlertTriangle size={11} />}
+                    {readinessLabel(backend.readinessStatus)}
+                  </span>
+                </div>
+                <p className="mt-1 text-xs leading-relaxed" style={{ color: 'var(--pd-muted)' }}>
+                  {backend.readinessSummary ?? 'No readiness probe returned a summary.'}
+                </p>
+                {(credentialKeys.length || credentialAlternates.length) ? (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {credentialKeys.map((key) => (
+                      <span key={`${backend.id}-${key}`} className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ backgroundColor: 'var(--pd-bg)', color: 'var(--pd-text)', border: '1px solid var(--pd-border)' }}>
+                        {key}
+                      </span>
+                    ))}
+                    {credentialAlternates.map((key) => (
+                      <span key={`${backend.id}-${key}`} className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ backgroundColor: 'var(--pd-accent-surface)', color: 'var(--pd-accent)', border: '1px solid var(--pd-accent-border)' }}>
+                        or {key}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+              </button>
+                );
+              })()
+            ))}
+          </div>
+
+          <div className="rounded-lg border p-4" style={{ backgroundColor: 'var(--pd-bg)', borderColor: 'var(--pd-border)' }}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-[10px] font-semibold tracking-[0.18em] uppercase" style={{ color: 'var(--pd-muted)' }}>
+                  Setup command
+                </div>
+                <div className="mt-1 text-sm font-semibold" style={{ color: 'var(--pd-text)' }}>
+                  {selectedBackend?.name ?? 'Backend probe'}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => copyCommand(setupCommand)}
+                className="inline-flex items-center gap-1.5 rounded-md px-3 py-1 text-[11px] font-semibold"
+                style={{ backgroundColor: 'var(--pd-accent-surface)', color: 'var(--pd-accent)', border: '1px solid var(--pd-accent-border)' }}
+              >
+                <Copy size={12} />
+                Copy
+              </button>
+            </div>
+            <pre
+              className="mt-3 overflow-x-auto rounded-md px-3 py-3 text-[11px] leading-relaxed"
+              style={{ backgroundColor: 'var(--pd-surface)', color: 'var(--pd-dim)', whiteSpace: 'pre-wrap' }}
+            >
+              {setupCommand}
+            </pre>
+            {selectedBackend?.readinessNextStep && (
+              <p className="mt-3 text-xs leading-relaxed" style={{ color: 'var(--pd-muted)' }}>
+                {selectedBackend.readinessNextStep}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function AgentConversationPanel({ onOpenShipwright }: { onOpenShipwright?: () => void }) {
+  return (
+    <section className="mb-6 rounded-lg border p-5" style={{ backgroundColor: 'var(--pd-surface)', borderColor: 'var(--pd-border)' }}>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <div className="inline-flex items-center gap-2 text-[10px] font-semibold tracking-[0.18em] uppercase" style={{ color: 'var(--pd-muted)' }}>
+            <Radio size={13} />
+            <span>Agent radio</span>
+          </div>
+          <h2 className="mt-2 text-lg font-semibold" style={{ color: 'var(--pd-text)' }}>
+            Agents can leave each other usable context
+          </h2>
+          <p className="mt-2 max-w-3xl text-sm leading-relaxed" style={{ color: 'var(--pd-muted)' }}>
+            The control plane is the shared room: notes preserve intent, file claims show where hands already are, channels carry live signals, actor inboxes route responsibilities, and salvage lets a new agent continue abandoned work.
+          </p>
+        </div>
+        {onOpenShipwright && (
+          <button
+            type="button"
+            onClick={onOpenShipwright}
+            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[11px] font-semibold"
+            style={{ backgroundColor: 'var(--pd-accent-surface)', color: 'var(--pd-accent)', border: '1px solid var(--pd-accent-border)' }}
+          >
+            <ShipWheel size={13} />
+            Start in Shipwright
+          </button>
+        )}
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-4">
+        {[
+          ['Notes', 'Durable progress and decisions'],
+          ['Claims', 'Visible edit ownership'],
+          ['Channels', 'Scoped live broadcasts'],
+          ['Actors', 'Messages to durable roles'],
+        ].map(([label, detail]) => (
+          <div key={label} className="rounded-lg border px-3 py-3" style={{ backgroundColor: 'var(--pd-bg)', borderColor: 'var(--pd-border)' }}>
+            <div className="text-sm font-semibold" style={{ color: 'var(--pd-text)' }}>{label}</div>
+            <div className="mt-1 text-xs leading-relaxed" style={{ color: 'var(--pd-muted)' }}>{detail}</div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 function ProjectActionButton({
@@ -767,6 +1024,11 @@ export function AllProjectsList({ projects, onSelect, onStartProject, onSetBudge
         </section>
       </div>
 
+      <div className="mt-6 grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(340px,0.85fr)]">
+        <BackendReadinessPanel />
+        <AgentConversationPanel onOpenShipwright={onOpenShipwright} />
+      </div>
+
       <div className="mt-4 flex flex-col gap-2">
         {priorityProjects.map((p, i) => {
           const activeCount = deployedCount(p);
@@ -860,6 +1122,17 @@ export function AllProjectsList({ projects, onSelect, onStartProject, onSetBudge
           <div className="rounded-full px-3 py-1 text-[11px] font-semibold" style={{ backgroundColor: 'var(--pd-success-surface)', color: 'var(--pd-success)' }}>
             Click to copy
           </div>
+          {onOpenShipwright && (
+            <button
+              type="button"
+              onClick={onOpenShipwright}
+              className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[11px] font-semibold"
+              style={{ backgroundColor: 'var(--pd-accent-surface)', color: 'var(--pd-accent)', border: '1px solid var(--pd-accent-border)' }}
+            >
+              <ShipWheel size={13} />
+              Open Shipwright
+            </button>
+          )}
         </div>
 
         <div className="mt-4 grid gap-3 md:grid-cols-2">

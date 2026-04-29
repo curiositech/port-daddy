@@ -142,12 +142,22 @@
         background: var(--terminal-muted);
       }
 
-      .terminal-body {
+      .terminal-lines {
+        position: absolute;
+        top: 44px;
+        right: 0;
+        bottom: 0;
+        left: 0;
         padding: 22px 24px;
+        color: var(--terminal-ink);
         font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
         font-size: 18px;
         line-height: 1.55;
-        white-space: pre-wrap;
+      }
+
+      .terminal-line {
+        min-height: 1.55em;
+        white-space: pre;
       }
 
       .prompt {
@@ -350,7 +360,7 @@
           <div class="window-dots"><span></span><span></span><span></span></div>
           <div>~/coding/port-daddy</div>
         </div>
-        <div class="terminal-body" id="terminalBody"></div>
+        <div class="terminal-lines" id="terminalLines"></div>
       </section>
 
       <section class="capture fleetbar-shell" id="fleetbar" aria-label="FleetBar menu bar app">
@@ -380,7 +390,7 @@
         <span class="surface-title">Resources</span>
         <img id="resourcesImage" alt="Fleet Control Center Resources" />
         <figcaption class="surface-copy">
-          <strong>Resources shows pressure.</strong>
+          <strong>Resources shows fleet pressure.</strong>
           <span>Memory, disk, local AI, daemon load, spend, and launch capacity stay visible before the fleet runs hotter.</span>
         </figcaption>
       </figure>
@@ -389,7 +399,7 @@
         <span class="surface-title">Agents</span>
         <img id="agentsImage" alt="Fleet Control Center Agents" />
         <figcaption class="surface-copy">
-          <strong>Agents ties work back to actors.</strong>
+          <strong>Agents ties signals back to actors.</strong>
           <span>Runtime bodies, salvage history, sessions, notes, inboxes, channels, and file claims meet on one page.</span>
         </figcaption>
       </figure>
@@ -429,7 +439,7 @@
       const state = { snapshot: defaultSnapshot }
       const terminal = document.getElementById('terminal')
       const chrome = document.getElementById('chrome')
-      const terminalBody = document.getElementById('terminalBody')
+      const terminalLines = document.getElementById('terminalLines')
       const fleetbar = document.getElementById('fleetbar')
       const flow = document.getElementById('flow')
       const resources = document.getElementById('resources')
@@ -453,6 +463,14 @@
       function short(text, max = 46) {
         if (!text) return 'Port Daddy agent'
         return text.length > max ? `${text.slice(0, max - 1)}...` : text
+      }
+
+      function escapeHtml(text) {
+        return String(text)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
       }
 
       function mediaAsset(name) {
@@ -481,7 +499,7 @@
         const { status } = state.snapshot
         topStatus.textContent = `daemon ${status.runtime || 'nominal'}`
         topbarImage.src = mediaAsset('topbar-crop')
-        fleetbarImage.src = mediaAsset(theme === 'dark' ? 'fleetbar-menu-captured' : 'fleetbar-menu-captured')
+        fleetbarImage.src = mediaAsset('fleetbar-menu-captured')
         flowImage.src = mediaAsset('live-flow-graph')
         resourcesImage.src = mediaAsset('live-resources')
         agentsImage.src = mediaAsset('live-agents-panel')
@@ -489,17 +507,28 @@
 
       function paintTerminal(t) {
         const { status, sessions } = state.snapshot
-        const rawLines = [
-          '<span class="prompt">$</span> pd status',
-          `<span class="terminal-muted">Port Daddy is running - ${status.runtime || 'nominal'}</span>`,
-          `<span class="terminal-muted">Fleet: ${status.fleet || `${sessions.length} agent(s) visible`}</span>`,
-          '<span class="prompt">$</span> pd notes --limit 6',
-          ...sessions.slice(0, 5).map((session, index) => `<span class="terminal-glow">agent-${String(index + 1).padStart(2, '0')}</span> ${short(session, 46)}`),
-          '<span class="prompt">$</span> open -a FleetBar',
+        const lines = [
+          { kind: 'command', text: 'pd status' },
+          { kind: 'muted', text: `Port Daddy is running - ${status.runtime || 'nominal'}` },
+          { kind: 'muted', text: `Fleet: ${status.fleet || `${sessions.length} agent(s) visible`}` },
+          { kind: 'command', text: 'pd notes --limit 6' },
+          ...sessions.slice(0, 5).map((session, index) => ({
+            kind: 'agent',
+            agent: `agent-${String(index + 1).padStart(2, '0')}`,
+            text: short(session, 46),
+          })),
+          { kind: 'command', text: 'open -a FleetBar' },
         ]
-        const joined = rawLines.join('\n')
-        const reveal = Math.floor(joined.length * smooth(0.12, 2.65, t))
-        terminalBody.innerHTML = joined.slice(0, reveal)
+        const visibleCount = Math.max(1, Math.ceil(lines.length * smooth(0.12, 2.65, t)))
+        terminalLines.innerHTML = lines.slice(0, visibleCount).map((line) => {
+          if (line.kind === 'command') {
+            return `<div class="terminal-line"><span class="prompt">$</span> ${escapeHtml(line.text)}</div>`
+          }
+          if (line.kind === 'agent') {
+            return `<div class="terminal-line"><span class="terminal-glow">${escapeHtml(line.agent)}</span> ${escapeHtml(line.text)}</div>`
+          }
+          return `<div class="terminal-line terminal-muted">${escapeHtml(line.text)}</div>`
+        }).join('')
       }
 
       function setTimeline(t) {
@@ -555,12 +584,17 @@
       window.renderFrame = renderFrame
       window.setSnapshot(defaultSnapshot)
 
-      Promise.all([
+      window.mediaReady = Promise.all([
         fleetbarImage.decode?.().catch(() => undefined) || Promise.resolve(),
         flowImage.decode?.().catch(() => undefined) || Promise.resolve(),
         resourcesImage.decode?.().catch(() => undefined) || Promise.resolve(),
         agentsImage.decode?.().catch(() => undefined) || Promise.resolve(),
-      ]).then(() => renderFrame(0))
+      ]).then(() => {
+        if (!manual) {
+          renderFrame(0)
+        }
+        return true
+      })
 
       if (!manual) {
         const started = performance.now()

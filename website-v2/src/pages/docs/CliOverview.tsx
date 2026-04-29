@@ -118,6 +118,7 @@ export default function CliOverview() {
           package version <code>{PORT_DADDY_VERSION}</code>. Commands like <code>pd tube</code>,
           <code>pd wallet</code>, <code>pd guard</code>, <code>pd roadmap</code>, and
           <code>pd actor</code> are first-class here even when they do not yet have individual pages.
+          Roadmap feedback has a dedicated detail page at <Link to="/docs/cli/roadmap">/docs/cli/roadmap</Link>.
         </p>
       </Surface>
 

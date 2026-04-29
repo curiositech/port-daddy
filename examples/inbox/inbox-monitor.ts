@@ -8,10 +8,8 @@
  *
  * The agent must already be registered with Port Daddy:
  *   pd agent register --agent <agent-id> --purpose "..."
- *
- * Set PORT_DADDY_URL to override the default http://localhost:9876.
  */
-import { PortDaddy } from 'port-daddy/client';
+import { PortDaddy } from '../../lib/client.js';
 
 const agentId = process.argv[2];
 if (!agentId) {
@@ -45,5 +43,5 @@ sub.on('error', (err) => {
 });
 
 sub.on('connected', () => {
-  console.log('📡 Connected to swarm radio. Waiting for messages...');
+  console.log('Connected to inbox stream. Waiting for messages...');
 });

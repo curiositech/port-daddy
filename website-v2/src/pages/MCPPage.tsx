@@ -724,6 +724,87 @@ bash skills/port-daddy-agent-skill/scripts/diagnose_port_daddy_agent_context.sh`
           </PageContainer>
         </SectionBand>
 
+        <SectionBand id="agent-skill">
+          <PageContainer width="wide">
+            <SwissGrid className="items-start">
+              <SwissGridItem span="rail">
+                <SectionIntro
+                  eyebrow="Agent skill"
+                  title="The instruction manual is now first-class."
+                  description="The skill is not hidden under the agent catalog. It is the operating manual for Port Daddy-aware agents, distributed with the binaries and mirrored into the tool-specific skill directories that agents actually read."
+                  titleSize="display"
+                />
+              </SwissGridItem>
+              <SwissGridItem span="body" className="space-y-[var(--panel-gap)]">
+                <div className="grid gap-[var(--panel-gap)] lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+                  <SurfacePanel tone="blue" className="space-y-[var(--panel-gap)]">
+                    <BracketLabel tone="primary" surface="blue">
+                      What ships
+                    </BracketLabel>
+                    <PanelTitle as="h2" size="card" tone="primary">
+                      A procedural field manual, not a thin prompt.
+                    </PanelTitle>
+                    <PanelBody tone="primary" className="max-w-none">
+                      Procedural knowledge is the repeatable operating know-how an agent uses under pressure, not
+                      just facts about a tool. WinDAGs lays out the distinction in{' '}
+                      <a
+                        href={PROCEDURAL_KNOWLEDGE_URL}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-semibold underline underline-offset-4"
+                      >
+                        why declarative knowledge is not enough
+                      </a>
+                      .
+                    </PanelBody>
+                    <div className="grid gap-[var(--space-2)]">
+                      {SKILL_BUNDLE_ITEMS.map(([name, body]) => (
+                        <div key={name} className="border-2 border-current bg-transparent p-[var(--space-3)]">
+                          <PanelTitle as="h3" size="nav" tone="primary">
+                            {name}
+                          </PanelTitle>
+                          <PanelBody size="compact" tone="primary" className="mt-[var(--space-1)] max-w-none">
+                            {body}
+                          </PanelBody>
+                        </div>
+                      ))}
+                    </div>
+                  </SurfacePanel>
+
+                  <SurfacePanel className="space-y-[var(--panel-gap)]">
+                    <BracketLabel>Install surfaces</BracketLabel>
+                    <PanelTitle as="h2" size="card">
+                      One doctrine, every agent runner.
+                    </PanelTitle>
+                    <PanelBody className="max-w-none">
+                      Port Daddy packages the source skill and mirrors it into the local skill locations so agents do not drift by client. The MCP server then exposes the same coordination primitives to those clients at runtime.
+                    </PanelBody>
+                    <div className="grid gap-[var(--space-2)]">
+                      {SKILL_INSTALL_SURFACES.map(([label, body]) => (
+                        <div key={label} className="grid gap-[var(--space-1)] border-2 border-[var(--border-default)] bg-[var(--surface-base)] p-[var(--space-3)]">
+                          <PanelEyebrow>{label}</PanelEyebrow>
+                          <PanelBody size="compact" className="max-w-none">
+                            {body}
+                          </PanelBody>
+                        </div>
+                      ))}
+                    </div>
+                    <DocsCodeBlock
+                      code={`pd status
+pd briefing
+pd mcp install
+python3 skills/port-daddy-agent-skill/scripts/validate_port_daddy_agent_skill.py skills/port-daddy-agent-skill
+bash skills/port-daddy-agent-skill/scripts/diagnose_port_daddy_agent_context.sh`}
+                      language="cli"
+                      label="Skill + MCP readiness"
+                    />
+                  </SurfacePanel>
+                </div>
+              </SwissGridItem>
+            </SwissGrid>
+          </PageContainer>
+        </SectionBand>
+
       <SectionBand id="tools">
         <PageContainer width="wide">
           <SwissGrid>

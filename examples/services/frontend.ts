@@ -1,119 +1,130 @@
 #!/usr/bin/env npx tsx
 /**
- * Example Frontend Server
+ * Example frontend service.
  *
- * A minimal static file server with live reload simulation.
- * Demonstrates frontend dev servers in orchestration.
+ * Claims its own service identity and discovers the API service through
+ * Port Daddy before rendering a small HTML client.
  *
- * Usage:
- *   PORT=3000 npx tsx frontend.ts
- *   # Or with Port Daddy:
- *   pd up demo-frontend
+ * Run:
+ *   npx tsx examples/services/frontend.ts
  */
 
-import http from 'http';
+import http from 'node:http';
+import { PortDaddy } from '../../lib/client.js';
 
-const PORT = parseInt(process.env.PORT || '3000', 10);
-const API_URL = process.env.API_URL || 'http://localhost:3001';
+const identity = process.env.PD_SERVICE_ID ?? 'examples:web';
+const apiIdentity = process.env.API_ID ?? 'examples:api';
+const requestedPort = process.env.PORT ? Number(process.env.PORT) : undefined;
+const pd = new PortDaddy({ agentId: `${identity}:server:${process.pid}`, timeout: 10000 });
 
-const html = `<!DOCTYPE html>
-<html>
+async function resolveApiUrl(): Promise<string> {
+  if (process.env.API_URL) return process.env.API_URL;
+
+  await pd.waitForService(apiIdentity, 3000);
+  const service = await pd.getService(apiIdentity);
+  return service.service.urls?.local ?? `http://127.0.0.1:${service.service.port}`;
+}
+
+function renderHtml(apiUrl: string): string {
+  return `<!DOCTYPE html>
+<html lang="en">
 <head>
-  <title>Port Daddy Demo</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Port Daddy Service Example</title>
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 600px; margin: 2rem auto; padding: 0 1rem; }
-    h1 { color: #1a365d; }
-    button { padding: 0.5rem 1rem; margin: 0.25rem; cursor: pointer; }
-    #items { margin-top: 1rem; }
-    .item { padding: 0.5rem; background: #f0f4f8; margin: 0.25rem 0; border-radius: 4px; }
+    body { font-family: system-ui, sans-serif; max-width: 680px; margin: 32px auto; padding: 0 16px; }
+    h1 { font-size: 24px; }
+    button { padding: 8px 12px; margin-right: 8px; }
+    .item { border: 1px solid #d0d7de; padding: 8px; margin: 8px 0; }
+    .error { color: #b42318; }
   </style>
 </head>
 <body>
-  <h1>Port Daddy Demo</h1>
-  <p>API: <code id="api-url">${API_URL}</code></p>
-  <div>
-    <button onclick="addItem()">Add Item</button>
-    <button onclick="refresh()">Refresh</button>
-  </div>
+  <h1>Port Daddy service example</h1>
+  <p>API: <code>${apiUrl}</code></p>
+  <button id="add">Add item</button>
+  <button id="refresh">Refresh</button>
   <div id="items">Loading...</div>
   <script>
-    const API = '${API_URL}';
+    const API = ${JSON.stringify(apiUrl)};
+    const items = document.getElementById('items');
 
     async function refresh() {
-      const container = document.getElementById('items');
       try {
-        const res = await fetch(API + '/items');
-        const data = await res.json();
-        container.replaceChildren(); // Clear safely
-        if (data.items.length === 0) {
-          const p = document.createElement('p');
-          p.textContent = 'No items yet. Click "Add Item" to create one.';
-          container.appendChild(p);
-        } else {
-          data.items.forEach(function(item) {
-            const div = document.createElement('div');
-            div.className = 'item';
-            div.textContent = item.name + ' (id: ' + item.id + ')';
-            container.appendChild(div);
-          });
+        const response = await fetch(API + '/items');
+        const data = await response.json();
+        items.replaceChildren();
+        if (!data.items.length) {
+          items.textContent = 'No items yet.';
+          return;
         }
-      } catch (e) {
-        container.replaceChildren();
-        const p = document.createElement('p');
-        p.style.color = 'red';
-        p.textContent = 'API unreachable';
-        container.appendChild(p);
+        for (const item of data.items) {
+          const div = document.createElement('div');
+          div.className = 'item';
+          div.textContent = item.name + ' (id: ' + item.id + ')';
+          items.appendChild(div);
+        }
+      } catch (error) {
+        items.innerHTML = '<p class="error">API unreachable</p>';
       }
     }
 
-    async function addItem() {
-      try {
-        await fetch(API + '/items', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: 'Item ' + Date.now() })
-        });
-        refresh();
-      } catch (e) {
-        alert('Failed to add item: ' + e.message);
-      }
-    }
-
+    document.getElementById('add').addEventListener('click', async () => {
+      await fetch(API + '/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'Item ' + Date.now() })
+      });
+      await refresh();
+    });
+    document.getElementById('refresh').addEventListener('click', refresh);
     refresh();
   </script>
 </body>
 </html>`;
+}
 
-const server = http.createServer((req, res) => {
-  if (req.url === '/health') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'healthy', uptime: process.uptime() }));
-    return;
+async function main(): Promise<void> {
+  const apiUrl = await resolveApiUrl();
+  const claim = await pd.claim(identity, {
+    port: requestedPort,
+    cwd: process.cwd(),
+    cmd: 'npx tsx examples/services/frontend.ts',
+    metadata: { example: 'services/frontend', apiIdentity },
+  });
+
+  const html = renderHtml(apiUrl);
+  const server = http.createServer((req, res) => {
+    if (req.url === '/health') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ status: 'healthy', apiUrl }));
+      return;
+    }
+
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    res.end(html);
+  });
+
+  server.listen(claim.port, '127.0.0.1', () => {
+    console.log(`[${identity}] listening on http://127.0.0.1:${claim.port}`);
+    console.log(`[${identity}] api ${apiUrl}`);
+  });
+
+  async function shutdown(signal: string): Promise<void> {
+    console.log(`[${identity}] ${signal}, shutting down`);
+    server.close(async () => {
+      await pd.release(identity).catch(() => undefined);
+      pd.destroyIpc();
+      process.exit(0);
+    });
   }
 
-  res.writeHead(200, { 'Content-Type': 'text/html' });
-  res.end(html);
-});
+  process.on('SIGTERM', () => void shutdown('SIGTERM'));
+  process.on('SIGINT', () => void shutdown('SIGINT'));
+}
 
-server.listen(PORT, () => {
-  console.log(`[frontend] Listening on port ${PORT}`);
-  console.log(`[frontend] Open: http://localhost:${PORT}`);
-  console.log(`[frontend] Health: http://localhost:${PORT}/health`);
-});
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('[frontend] SIGTERM received, shutting down...');
-  server.close(() => {
-    console.log('[frontend] Closed');
-    process.exit(0);
-  });
-});
-
-process.on('SIGINT', () => {
-  console.log('[frontend] SIGINT received, shutting down...');
-  server.close(() => {
-    console.log('[frontend] Closed');
-    process.exit(0);
-  });
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message : error);
+  process.exit(1);
 });

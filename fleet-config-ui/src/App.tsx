@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, CheckCircle2, FileCog, Gauge, ShieldCheck, Sun, Moon, Play, RefreshCw, Square, Users, WalletCards, Wifi } from 'lucide-react';
+import { Activity, CheckCircle2, FileCog, Gauge, ShieldCheck, ShipWheel, Sun, Moon, Play, RefreshCw, Square, Users, WalletCards, Wifi } from 'lucide-react';
 import { AllProjectsList } from './components/ProjectPicker';
 import ProjectPicker from './components/ProjectPicker';
 import AgentCard from './components/AgentCard';
@@ -16,6 +16,8 @@ import MemoryPanel from './components/MemoryPanel';
 import AgentsPanel from './components/AgentsPanel';
 import RoadmapPanel from './components/RoadmapPanel';
 import ResourceGovernancePanel from './components/ResourceGovernancePanel';
+import TubeConsolePanel from './components/TubeConsolePanel';
+import EventsRegistryPanel from './components/EventsRegistryPanel';
 import ShipwrightPanel from './shipwright/ShipwrightPanel';
 import { extractMentionedPaths } from './fileMentions';
 import {
@@ -55,8 +57,8 @@ import type {
   TopologyValidation,
 } from './types';
 
-type MainTab = 'Flow' | 'Roadmap' | 'Agents' | 'Resources' | 'Activity' | 'Channels' | 'Inbox' | 'Sorties' | 'Memory' | 'Shipwright' | 'YAML';
-type ControlSurface = 'flow' | 'roadmap' | 'agents' | 'resources' | 'activity' | 'channels' | 'inbox' | 'sorties' | 'memory' | 'shipwright' | 'yaml';
+type MainTab = 'Flow' | 'Roadmap' | 'Agents' | 'Resources' | 'Activity' | 'Channels' | 'Tube' | 'Events' | 'Inbox' | 'Sorties' | 'Memory' | 'Shipwright' | 'YAML';
+type ControlSurface = 'flow' | 'roadmap' | 'agents' | 'resources' | 'activity' | 'channels' | 'tube' | 'events' | 'inbox' | 'sorties' | 'memory' | 'shipwright' | 'yaml';
 
 function canUseWindow(): boolean {
   return typeof window !== 'undefined';
@@ -66,6 +68,8 @@ function normalizeSurface(value: string | null): ControlSurface {
   switch (value) {
     case 'activity':
     case 'channels':
+    case 'tube':
+    case 'events':
     case 'inbox':
     case 'sorties':
     case 'memory':
@@ -95,6 +99,10 @@ function surfaceToMainTab(surface: ControlSurface): MainTab {
       return 'Activity';
     case 'channels':
       return 'Channels';
+    case 'tube':
+      return 'Tube';
+    case 'events':
+      return 'Events';
     case 'inbox':
       return 'Inbox';
     case 'sorties':
@@ -116,6 +124,8 @@ function mainTabToSurface(activeTab: MainTab): ControlSurface {
   if (activeTab === 'Roadmap') return 'roadmap';
   if (activeTab === 'Activity') return 'activity';
   if (activeTab === 'Channels') return 'channels';
+  if (activeTab === 'Tube') return 'tube';
+  if (activeTab === 'Events') return 'events';
   if (activeTab === 'Inbox') return 'inbox';
   if (activeTab === 'Sorties') return 'sorties';
   if (activeTab === 'Memory') return 'memory';
@@ -361,10 +371,10 @@ function Header({
 
 function TabBar({ tabs, active, onChange }: { tabs: string[]; active: string; onChange: (t: string) => void }) {
   return (
-    <div className="flex gap-0.5 px-4 pt-2" style={{ borderBottom: '1px solid var(--pd-border)' }}>
+    <div className="flex gap-0.5 overflow-x-auto px-4 pt-2" style={{ borderBottom: '1px solid var(--pd-border)' }}>
       {tabs.map(t => (
         <button key={t} onClick={() => onChange(t)}
-          className="px-3 py-1.5 text-[11px] font-semibold tracking-wide rounded-t"
+          className="shrink-0 whitespace-nowrap px-3 py-1.5 text-[11px] font-semibold tracking-wide rounded-t"
           style={{
             backgroundColor: active === t ? 'var(--pd-surface)' : 'transparent',
             color: active === t ? 'var(--pd-text)' : 'var(--pd-muted)',
@@ -386,6 +396,7 @@ function ProjectControlStrip({
   onRefresh,
   onShowAgents,
   onEditYaml,
+  onOpenShipwright,
 }: {
   project: string;
   running: boolean;
@@ -395,6 +406,7 @@ function ProjectControlStrip({
   onRefresh: () => void;
   onShowAgents: () => void;
   onEditYaml: () => void;
+  onOpenShipwright: () => void;
 }) {
   return (
     <div
@@ -452,6 +464,14 @@ function ProjectControlStrip({
           <span>All agents</span>
         </button>
         <button
+          onClick={onOpenShipwright}
+          className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-semibold"
+          style={{ color: 'var(--pd-text)', border: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-bg)' }}
+        >
+          <ShipWheel size={13} />
+          <span>Shipwright</span>
+        </button>
+        <button
           onClick={onEditYaml}
           className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-semibold"
           style={{ color: 'var(--pd-text)', border: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-bg)' }}
@@ -504,6 +524,7 @@ function OperatorCockpitDeck({
   onRefresh,
   onShowAgents,
   onEditYaml,
+  onOpenShipwright,
   onSetBudget,
   onCoordinationGuardAction,
 }: {
@@ -526,6 +547,7 @@ function OperatorCockpitDeck({
   onRefresh: () => void;
   onShowAgents: () => void;
   onEditYaml: () => void;
+  onOpenShipwright: () => void;
   onSetBudget: (usdPerDay: number) => Promise<void>;
   onCoordinationGuardAction: (action: CoordinationGuardAction) => void;
 }) {
@@ -640,6 +662,14 @@ function OperatorCockpitDeck({
             >
               <Users size={13} />
               <span>Agents</span>
+            </button>
+            <button
+              onClick={onOpenShipwright}
+              className="inline-flex items-center justify-center gap-1.5 rounded-md px-2.5 py-2 text-[11px] font-semibold"
+              style={{ color: 'var(--pd-text)', border: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-surface)' }}
+            >
+              <ShipWheel size={13} />
+              <span>Shipwright</span>
             </button>
             <button
               onClick={onEditYaml}
@@ -1384,7 +1414,7 @@ export default function App() {
 
   const configAgentData = fleetConfig?.agents.find(a => a.name === configAgent);
   const daemonRunning = fleet.status?.running ?? false;
-  const surfaceTabs: MainTab[] = ['Flow', 'Roadmap', 'Agents', 'Resources', 'Activity', 'Channels', 'Inbox', 'Sorties', 'Memory', 'Shipwright', 'YAML'];
+  const surfaceTabs: MainTab[] = ['Flow', 'Roadmap', 'Agents', 'Resources', 'Activity', 'Channels', 'Tube', 'Events', 'Inbox', 'Sorties', 'Memory', 'Shipwright', 'YAML'];
   const allProjectSurfaceTabs: MainTab[] = ['Flow', 'Shipwright'];
   const showProjectSidebar = activeTab === 'Flow' && !embedded;
   const visibleSurfaceTabs = selectedProjectId ? surfaceTabs : allProjectSurfaceTabs;
@@ -1469,6 +1499,7 @@ export default function App() {
           onRefresh={handleProjectRefresh}
           onShowAgents={() => setActiveTab('Agents')}
           onEditYaml={() => setActiveTab('YAML')}
+          onOpenShipwright={() => setActiveTab('Shipwright')}
         />
       )}
 
@@ -1486,7 +1517,12 @@ export default function App() {
         {!selectedProjectId ? (
           <motion.div key="all" className="flex-1 overflow-y-auto" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -20 }}>
             {activeTab === 'Shipwright' ? (
-              <ShipwrightPanel key="shipwright-all" />
+              <ShipwrightPanel
+                key="shipwright-all"
+                onOpenFlow={() => setActiveTab('Flow')}
+                onOpenAgents={() => setActiveTab('Agents')}
+                onOpenYaml={() => setActiveTab('YAML')}
+              />
             ) : fleet.loading ? (
               <div className="flex items-center justify-center h-full opacity-30" style={{ color: 'var(--pd-text)' }}>Loading...</div>
             ) : fleet.error ? (
@@ -1580,6 +1616,7 @@ export default function App() {
                         onRefresh={handleProjectRefresh}
                         onShowAgents={() => setActiveTab('Agents')}
                         onEditYaml={() => setActiveTab('YAML')}
+                        onOpenShipwright={() => setActiveTab('Shipwright')}
                         onSetBudget={(usdPerDay) => (
                           selectedProject
                             ? handleSetProjectBudget(selectedProject.projectDir, usdPerDay, { showAlert: false })
@@ -1712,6 +1749,26 @@ export default function App() {
                         layout="page"
                       />
                     )}
+                    {activeTab === 'Tube' && (
+                      <TubeConsolePanel
+                        channels={channelTargets}
+                        selectedChannel={selectedChannel}
+                        projectDir={selectedProjectId ?? undefined}
+                        onChannelFocus={(channelName) => focusChannel(channelName)}
+                      />
+                    )}
+                    {activeTab === 'Events' && (
+                      <EventsRegistryPanel
+                        channels={channelTargets}
+                        fleetConfig={fleetConfig}
+                        projectDir={selectedProjectId ?? undefined}
+                        projectName={selectedProjectName ?? undefined}
+                        onOpenTube={(channelName) => {
+                          focusChannel(channelName);
+                          setActiveTab('Tube');
+                        }}
+                      />
+                    )}
                     {activeTab === 'Inbox' && (
                       <DMPanel
                         key={`${daemonUrl}:${selectedProjectId ?? 'all'}:inbox`}
@@ -1738,6 +1795,9 @@ export default function App() {
                         key={selectedProjectId ?? 'shipwright-all'}
                         projectDir={selectedProjectId ?? undefined}
                         projectName={selectedProjectName ?? undefined}
+                        onOpenFlow={() => setActiveTab('Flow')}
+                        onOpenAgents={() => setActiveTab('Agents')}
+                        onOpenYaml={() => setActiveTab('YAML')}
                       />
                     )}
                     {activeTab === 'YAML' && selectedProjectId && (

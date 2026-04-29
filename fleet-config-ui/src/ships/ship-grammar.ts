@@ -13,13 +13,13 @@
  */
 
 export const SHIP_PALETTE = [
-  '#bf2f2f',
-  '#0055ff',
-  '#dfff00',
-  '#121212',
+  'var(--pd-accent)',
+  'var(--pd-success)',
+  'var(--pd-line)',
+  'var(--pd-text)',
 ] as const;
 
-export const HULL_NEUTRAL = '#cfc9bb';
+export const HULL_NEUTRAL = 'var(--pd-border-2)';
 
 export const SHIP_SIGILS = [
   'chevron',

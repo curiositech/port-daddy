@@ -24,6 +24,15 @@ Port Daddy visual identity direction:
 - Make it feel premium, serious, current, and operational.
 `.trim()
 
+const sharedExampleDirection = `
+Port Daddy example artwork direction:
+- Subject: runnable local-first developer tools built on Port Daddy: browser buttons, terminal agents, test failures, editor selections, webhooks, locks, inboxes, CI services, and swarm topology traces.
+- Visual language: colorful Nano Banana editorial image, slightly photo-real and collage-like, tactile objects on a precise Swiss-modern grid, photographed paper cutouts, real desk materials, crisp shadows, cinematic product lighting, technical blue, signal green, coral, amber, and deep ink.
+- Make every image obviously about the specific example idea. Use recognizable objects and scenes, not generic abstract diagrams.
+- Do not include people, faces, hands, mascots, nautical objects, fake logos, product brand logos, readable words, readable code, captions, labels, numbers, or UI copy. If screens appear, make the marks abstract and illegible.
+- Avoid purple-blue gradient mush, bubbly SaaS clay, random surrealism, and icon-only illustrations. These should feel like photographed engineering artifacts and high-end editorial collages.
+`.trim()
+
 const assets = [
   {
     id: 'control-plane-hero',

@@ -1,74 +1,75 @@
 #!/usr/bin/env npx tsx
 /**
- * Example Worker Service
+ * Example worker service.
  *
- * A background worker that polls the API server and logs activity.
- * Demonstrates services that depend on other services.
+ * Waits for the API service through Port Daddy, then polls it.
  *
- * Usage:
- *   API_URL=http://localhost:3001 npx tsx worker.ts
- *   # Or with Port Daddy:
- *   pd up demo-worker
+ * Run:
+ *   npx tsx examples/services/worker.ts
  */
 
-const API_URL = process.env.API_URL || 'http://localhost:3001';
-const POLL_INTERVAL = parseInt(process.env.POLL_INTERVAL || '5000', 10);
+import { PortDaddy } from '../../lib/client.js';
+
+const identity = process.env.PD_SERVICE_ID ?? 'examples:worker';
+const apiIdentity = process.env.API_ID ?? 'examples:api';
+const pollInterval = Number(process.env.POLL_INTERVAL ?? 5000);
+const pd = new PortDaddy({ agentId: `${identity}:worker:${process.pid}`, timeout: 10000 });
 
 let running = true;
-let lastItemCount = 0;
+let lastCount = -1;
 
-async function poll() {
-  try {
-    const response = await fetch(`${API_URL}/items`);
-    if (!response.ok) {
-      console.log(`[worker] API returned ${response.status}`);
-      return;
-    }
+async function resolveApiUrl(): Promise<string> {
+  if (process.env.API_URL) return process.env.API_URL;
 
-    const data = await response.json();
-    const count = data.count;
+  await pd.waitForService(apiIdentity, 3000);
+  const service = await pd.getService(apiIdentity);
+  return service.service.urls?.local ?? `http://127.0.0.1:${service.service.port}`;
+}
 
-    if (count !== lastItemCount) {
-      if (count > lastItemCount) {
-        console.log(`[worker] ${count - lastItemCount} new item(s) added (total: ${count})`);
-      } else {
-        console.log(`[worker] ${lastItemCount - count} item(s) removed (total: ${count})`);
-      }
-      lastItemCount = count;
-    } else {
-      // Quiet heartbeat every 30 seconds
-      if (Date.now() % 30000 < POLL_INTERVAL) {
-        console.log(`[worker] Heartbeat - ${count} items`);
-      }
-    }
-  } catch (error) {
-    console.log(`[worker] API unreachable: ${(error as Error).message}`);
+async function poll(apiUrl: string): Promise<void> {
+  const response = await fetch(`${apiUrl}/items`);
+  if (!response.ok) {
+    console.log(`[${identity}] API returned ${response.status}`);
+    return;
+  }
+
+  const data = await response.json() as { count: number };
+  if (data.count !== lastCount) {
+    console.log(`[${identity}] item count ${data.count}`);
+    lastCount = data.count;
   }
 }
 
-async function main() {
-  console.log(`[worker] Starting...`);
-  console.log(`[worker] Polling ${API_URL} every ${POLL_INTERVAL}ms`);
+async function main(): Promise<void> {
+  const apiUrl = await resolveApiUrl();
+  await pd.claim(identity, {
+    cwd: process.cwd(),
+    cmd: 'npx tsx examples/services/worker.ts',
+    metadata: { example: 'services/worker', apiIdentity },
+  });
 
-  // Initial poll
-  await poll();
+  console.log(`[${identity}] polling ${apiUrl} every ${pollInterval}ms`);
 
-  // Poll loop
   while (running) {
-    await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL));
-    if (running) await poll();
+    await poll(apiUrl).catch((error) => {
+      console.log(`[${identity}] API unreachable: ${error instanceof Error ? error.message : String(error)}`);
+    });
+    await new Promise((resolve) => setTimeout(resolve, pollInterval));
   }
+
+  await pd.release(identity).catch(() => undefined);
+  pd.destroyIpc();
 }
 
-// Graceful shutdown
 process.on('SIGTERM', () => {
-  console.log('[worker] SIGTERM received, stopping...');
   running = false;
 });
 
 process.on('SIGINT', () => {
-  console.log('[worker] SIGINT received, stopping...');
   running = false;
 });
 
-main().catch(console.error);
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message : error);
+  process.exit(1);
+});

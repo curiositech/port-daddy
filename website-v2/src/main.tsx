@@ -6,6 +6,7 @@ import { DocumentMeta } from '@/components/layout/DocumentMeta'
 import { HashScroll } from '@/components/layout/HashScroll'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { RouteFallback } from '@/components/layout/RouteFallback'
+import { LegacyExampleRedirect } from '@/components/routing/LegacyExampleRedirect'
 import './index.css'
 
 function lazyNamed(loader: () => Promise<Record<string, unknown>>, exportName: string) {
@@ -28,8 +29,6 @@ const BlogPage = lazyNamed(() => import('@/pages/BlogPage'), 'BlogPage')
 const BlogPostPage = lazyNamed(() => import('@/pages/BlogPostPage'), 'BlogPostPage')
 const MacPreviewPage = lazyNamed(() => import('@/pages/MacPreviewPage'), 'MacPreviewPage')
 const AgentsPage = lazyNamed(() => import('@/pages/AgentsPage'), 'AgentsPage')
-const CookbookPage = lazyNamed(() => import('@/pages/cookbook/CookbookPage'), 'CookbookPage')
-const RecipePage = lazyNamed(() => import('@/pages/cookbook/RecipePage'), 'RecipePage')
 const IntegrationsPage = lazyNamed(() => import('@/pages/integrations/IntegrationsPage'), 'IntegrationsPage')
 const IntegrationPage = lazyNamed(() => import('@/pages/integrations/IntegrationPage'), 'IntegrationPage')
 
@@ -112,6 +111,7 @@ const TunnelStopCommand = lazy(() => import('@/pages/docs/cli/TunnelStopCommand'
 const FleetCommand = lazy(() => import('@/pages/docs/cli/FleetCommand'))
 const InitCommand = lazy(() => import('@/pages/docs/cli/InitCommand'))
 const McpInstallCommand = lazy(() => import('@/pages/docs/cli/McpInstallCommand'))
+const RoadmapCommand = lazy(() => import('@/pages/docs/cli/RoadmapCommand'))
 
 const SdkOverview = lazy(() => import('@/pages/docs/sdk'))
 const PortsSdk = lazy(() => import('@/pages/docs/sdk/Ports'))
@@ -211,8 +211,8 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/tutorials/pheromone" element={<Pheromone />} />
               <Route path="/tutorials/primitives" element={<Primitives />} />
 
-              <Route path="/cookbook" element={<CookbookPage />} />
-              <Route path="/cookbook/:id" element={<RecipePage />} />
+              <Route path="/cookbook" element={<LegacyExampleRedirect />} />
+              <Route path="/cookbook/:id" element={<LegacyExampleRedirect />} />
               <Route path="/integrations" element={<IntegrationsPage />} />
               <Route path="/integrations/:id" element={<IntegrationPage />} />
               <Route path="/templates/:id" element={<Navigate to="/agents/templates" replace />} />
@@ -266,6 +266,7 @@ createRoot(document.getElementById('root')!).render(
               <Route path="cli/fleet" element={<FleetCommand />} />
               <Route path="cli/init" element={<InitCommand />} />
               <Route path="cli/mcp-install" element={<McpInstallCommand />} />
+              <Route path="cli/roadmap" element={<RoadmapCommand />} />
 
               <Route path="features/ports" element={<PortsFeature />} />
               <Route path="features/radio" element={<RadioFeature />} />

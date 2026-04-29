@@ -16,7 +16,7 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 - [Skill + MCP for AI Agents - Port Daddy](https://portdaddy.dev/mcp): Use the Port Daddy agent skill and MCP server together: an instruction manual plus callable tools for sessions, claims, scoped channels, inboxes, readiness, salvage, fleets, and handoffs.
 - [Tutorials - Port Daddy](https://portdaddy.dev/tutorials): Follow hands-on Port Daddy tutorials from first install through sessions, DNS, tunnels, fleet YAML, messaging, and background agents.
 - [Integrations - Port Daddy](https://portdaddy.dev/integrations): Wire Port Daddy into Claude, Cursor, Windsurf, LangChain, CrewAI, Aider, Continue.dev, and other developer tooling.
-- [Cookbook - Port Daddy](https://portdaddy.dev/cookbook): Use tested Port Daddy recipes for distributed locks, WebRTC signaling, ephemeral CI databases, and multi-agent topologies.
+- [Executable Examples - Port Daddy](https://portdaddy.dev/examples): Run complete Port Daddy example programs for browser buttons, test reporters, editor commands, and webhook adapters that talk to local agents.
 - [Blog - Port Daddy](https://portdaddy.dev/blog): Read current Port Daddy field notes about FleetBar, Fleet Control Center, launch readiness, recovery maps, PD Tube, daemon provenance, and coordination policy.
 - [Whitepaper - Port Daddy](https://portdaddy.dev/whitepaper): Read the technical whitepaper behind Port Daddy: local-first agent coordination, signed identity, locks, sessions, and recoverable work.
 - [The Anchor Protocol - Port Daddy](https://portdaddy.dev/whitepaper/anchor-protocol): Read the Anchor Protocol paper inline with a guided explanation of scoped identity, delegation, verification, and why it matters for Port Daddy harbors.
@@ -170,13 +170,13 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 - [Expose a Local Service - Port Daddy](https://portdaddy.dev/tutorials/tunnel): Publish one harbor-owned service through pd tunnel with clear ownership, explicit provider choice, and a reversible path.
 - [Observe Runtime Channels - Port Daddy](https://portdaddy.dev/tutorials/watch): Use pd watch to follow channel activity, inspect event pressure, and trigger bounded responses from scripts or agents.
 
-## Cookbook
+## Examples
 
-- [Cookbook - Port Daddy](https://portdaddy.dev/cookbook): Use tested Port Daddy recipes for distributed locks, WebRTC signaling, ephemeral CI databases, and multi-agent topologies.
-- [Agent Archetypes & Topology - Port Daddy](https://portdaddy.dev/cookbook/agent-archetypes): Standard coordination patterns: The Arbiter, The Ring, and Star Topology.
-- [Ephemeral CI Database - Port Daddy](https://portdaddy.dev/cookbook/ephemeral-ci-db): Spin up an ephemeral PostgreSQL database for integration tests, isolated per CI runner.
-- [Leader Election - Port Daddy](https://portdaddy.dev/cookbook/leader-election): Elect a leader among multiple identical agents using Port Daddy distributed locks.
-- [P2P WebRTC Handshake - Port Daddy](https://portdaddy.dev/cookbook/p2p-webrtc): Establish a direct peer-to-peer WebRTC connection between two agents using Port Daddy Inboxes as the signaling server.
+- [Executable Examples - Port Daddy](https://portdaddy.dev/examples): Run complete Port Daddy example programs for browser buttons, test reporters, editor commands, and webhook adapters that talk to local agents.
+- [Build an editor lightbulb that asks the local agent - Port Daddy](https://portdaddy.dev/examples/editor-lightbulb-to-agent): Select code in a local page, publish the file and range to the agent, and render the explanation inline.
+- [Build a button-to-agent loop with PD Tube - Port Daddy](https://portdaddy.dev/examples/pd-tube-button-to-agent): Turn a plain HTML button into a local phone line to the agent session already running in your project.
+- [Build a test reporter that asks the agent for help - Port Daddy](https://portdaddy.dev/examples/test-failure-to-agent): Wrap a failing test command, publish the failure to the local agent, and print the diagnosis back in the terminal.
+- [Build a webhook adapter backed by your workstation - Port Daddy](https://portdaddy.dev/examples/webhook-to-local-agent): Accept Slack, Discord, Linear, or generic webhook JSON and route it to the local agent through PD Tube.
 
 ## Integrations
 

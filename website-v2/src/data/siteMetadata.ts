@@ -1,6 +1,5 @@
 import { BLUEPRINTS } from './blueprints'
 import { blogPosts, deprecatedBlogPosts } from './blogData'
-import { COOKBOOK_RECIPES } from './cookbook'
 import { docsFamilyRoutes, docsOverviewRoute, type DocsFamilyRoute } from './docs-routes'
 import { INTEGRATIONS } from './integrations'
 import { TUTORIALS } from './tutorials'
@@ -17,7 +16,6 @@ export type SiteMetadataSection =
   | 'product'
   | 'docs'
   | 'tutorials'
-  | 'cookbook'
   | 'integrations'
   | 'templates'
   | 'blog'
@@ -138,12 +136,6 @@ const productRoutes: SiteMetadata[] = [
     'Tutorials',
     'Follow hands-on Port Daddy tutorials from first install through sessions, DNS, tunnels, fleet YAML, messaging, and background agents.',
     { section: 'tutorials' },
-  ),
-  metadata(
-    '/cookbook',
-    'Cookbook',
-    'Use tested Port Daddy recipes for distributed locks, WebRTC signaling, ephemeral CI databases, and multi-agent topologies.',
-    { section: 'cookbook' },
   ),
   metadata(
     '/integrations',
@@ -326,11 +318,6 @@ const contentMetadata: SiteMetadata[] = [
   ...TUTORIALS.map((tutorial) =>
     metadata(tutorial.href, tutorial.title, tutorial.description, {
       section: 'tutorials',
-    }),
-  ),
-  ...COOKBOOK_RECIPES.map((recipe) =>
-    metadata(`/cookbook/${recipe.id}`, recipe.title, recipe.description, {
-      section: 'cookbook',
     }),
   ),
   ...INTEGRATIONS.map((integration) =>

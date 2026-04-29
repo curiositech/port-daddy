@@ -17,6 +17,10 @@ import type {
   SpawnPreflight,
   ActivityEntry,
   ChannelMessage,
+  ChannelDiscoveryEnvelope,
+  DeclaredChannel,
+  EnsureChannelInput,
+  EnsureChannelResult,
   FilePreview,
   CoordinationGuardAction,
   CoordinationGuardEnvelope,
@@ -438,8 +442,38 @@ export async function fetchModels(): Promise<BackendInfo[]> {
 
 // ─── Messaging ────────────────────────────────────────────────────────────────
 
-export async function publishMessage(channel: string, content: string, sender = 'fleet-ui'): Promise<unknown> {
-  return post(`/msg/${encodeURIComponent(channel)}`, { payload: content, sender });
+export async function publishMessage(channel: string, payload: unknown, sender = 'fleet-ui'): Promise<{ success?: boolean; id?: number; message?: string }> {
+  return post(`/msg/${encodeURIComponent(channel)}`, { payload, sender });
+}
+
+export async function discoverChannels(opts: {
+  projectDir?: string;
+  query?: string;
+  includeObserved?: boolean;
+} = {}): Promise<DeclaredChannel[]> {
+  const params = new URLSearchParams();
+  if (opts.projectDir) params.set('projectDir', opts.projectDir);
+  if (opts.query) params.set('q', opts.query);
+  if (opts.includeObserved) params.set('observed', 'true');
+  const data = await get<ChannelDiscoveryEnvelope>(`/channels/discover${params.toString() ? `?${params}` : ''}`);
+  return data.channels ?? [];
+}
+
+export async function ensureChannel(input: EnsureChannelInput): Promise<EnsureChannelResult> {
+  return post('/channels/ensure', input);
+}
+
+export async function resolveChannel(name: string, projectDir?: string): Promise<DeclaredChannel | null> {
+  const params = new URLSearchParams();
+  if (projectDir) params.set('projectDir', projectDir);
+  try {
+    const data = await get<{ success: boolean; channel?: DeclaredChannel }>(
+      `/channels/resolve/${encodeURIComponent(name)}${params.toString() ? `?${params}` : ''}`,
+    );
+    return data.channel ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -591,9 +625,11 @@ export async function fetchStories(limit = 40): Promise<StoryNote[]> {
   return data.notes ?? [];
 }
 
-export async function fetchChannelMessages(channel: string, limit = 30): Promise<ChannelMessage[]> {
+export async function fetchChannelMessages(channel: string, limit = 30, after?: number): Promise<ChannelMessage[]> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (typeof after === 'number' && Number.isFinite(after)) params.set('after', String(after));
   const data = await get<{ messages?: Array<{ id: number; payload: unknown; sender: string | null; createdAt: number }> }>(
-    `/msg/${encodeURIComponent(channel)}?limit=${limit}`
+    `/msg/${encodeURIComponent(channel)}?${params.toString()}`
   );
   return (data.messages ?? []).map((message) => ({
     ...message,

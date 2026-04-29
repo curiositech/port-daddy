@@ -117,11 +117,13 @@ async function renderTheme(theme, snapshot) {
   const sceneUrl = `${pathToFileURL(scenePath).href}?theme=${theme}&manual=1`
   await page.goto(sceneUrl, { waitUntil: 'load' })
   await page.evaluate((data) => window.setSnapshot(data), snapshot)
+  await page.evaluate(() => window.mediaReady)
 
   const frameCount = Math.round(durationSeconds * framesPerSecond)
   for (let frame = 0; frame <= frameCount; frame += 1) {
     const time = frame / framesPerSecond
     await page.evaluate((nextTime) => window.renderFrame(nextTime), time)
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)))
     await page.screenshot({
       path: path.join(tempDir, `frame-${String(frame).padStart(4, '0')}.png`),
       type: 'png',

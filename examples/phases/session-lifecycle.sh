@@ -1,82 +1,63 @@
 #!/usr/bin/env bash
-# Port Daddy — Session Phase Lifecycle
+# Port Daddy session lifecycle.
 #
-# Demonstrates:
-#   1. Starting a session
-#   2. Claiming files
-#   3. Advancing through all 6 phases
-#   4. Adding phase-appropriate notes
-#   5. Ending the session
+# Demonstrates the current CLI flow:
+#   1. start a session for an agent
+#   2. claim files
+#   3. move through phases
+#   4. add notes
+#   5. complete the session
 #
+# Run:
+#   bash examples/phases/session-lifecycle.sh
+
 set -euo pipefail
 
-BASE="http://localhost:9876"
-echo "=== Session Phase Lifecycle ==="
+AGENT_ID="${AGENT_ID:-examples-phase-$$}"
+SESSION_ID=""
+
+cleanup() {
+  if [[ -n "$SESSION_ID" ]]; then
+    pd session done "example cleanup" --agent "$AGENT_ID" -q >/dev/null 2>&1 || true
+  fi
+}
+trap cleanup EXIT
+
+echo "Session lifecycle"
+echo "-----------------"
+echo "Agent: $AGENT_ID"
 echo ""
 
-# Step 1: Register agent and start session
-echo "--- Register agent ---"
-AGENT_ID="phase-demo-$$"
-curl -s -X POST "$BASE/agents" \
-  -H 'Content-Type: application/json' \
-  -d "{\"id\": \"$AGENT_ID\", \"name\": \"Phase Demo\", \"type\": \"cli\"}" | jq .
+SESSION_ID="$(pd session start "Example session phase lifecycle" --agent "$AGENT_ID" -q)"
 
-echo ""
-echo "--- Start session ---"
-SESSION=$(curl -s -X POST "$BASE/sessions" \
-  -H 'Content-Type: application/json' \
-  -d "{\"agentId\": \"$AGENT_ID\", \"purpose\": \"Demo session phases\"}" | jq -r '.id')
-echo "Session: $SESSION"
+echo "Session: $SESSION_ID"
 
-# Step 2: Setup phase (default)
-echo ""
-echo "--- Phase: setup ---"
-curl -s -X POST "$BASE/sessions/$SESSION/notes" \
-  -H 'Content-Type: application/json' \
-  -d '{"content": "Reading context, claiming files", "type": "progress"}' | jq .
+if pd session files add examples/phases/session-lifecycle.sh --agent "$AGENT_ID" -q >/dev/null 2>&1; then
+  pd note "Read context and claimed the lifecycle example file" --session "$SESSION_ID" --type progress
+else
+  pd note "Read context; file claim skipped because another session already owns the example file" --session "$SESSION_ID" --type progress
+fi
 
-# Claim files
-curl -s -X POST "$BASE/sessions/$SESSION/files" \
-  -H 'Content-Type: application/json' \
-  -d '{"files": ["src/auth.ts", "src/middleware.ts"]}' | jq .
+for phase in planning in_progress testing reviewing; do
+  echo "Phase: $phase"
+  pd session phase "$SESSION_ID" "$phase" -q
 
-# Step 3: Advance through phases
-for phase in planning implementing testing reviewing cleanup; do
-  echo ""
-  echo "--- Phase: $phase ---"
-  curl -s -X PUT "$BASE/sessions/$SESSION" \
-    -H 'Content-Type: application/json' \
-    -d "{\"phase\": \"$phase\"}" | jq '.phase'
-
-  # Add phase-appropriate note
-  case $phase in
+  case "$phase" in
     planning)
-      NOTE="Decided on JWT approach for auth middleware" ;;
-    implementing)
-      NOTE="Wrote AuthService class and JWT middleware" ;;
+      NOTE="Plan: use CLI session primitives, not raw daemon HTTP." ;;
+    in_progress)
+      NOTE="Implementation: claim file, write notes, and advance phase." ;;
     testing)
-      NOTE="All 12 auth tests passing" ;;
+      NOTE="Testing: this script can run without jq or raw localhost URLs." ;;
     reviewing)
-      NOTE="Self-review complete, ready for merge" ;;
-    cleanup)
-      NOTE="Released file claims, updated docs" ;;
+      NOTE="Review: ready to complete and release claims." ;;
   esac
 
-  curl -s -X POST "$BASE/sessions/$SESSION/notes" \
-    -H 'Content-Type: application/json' \
-    -d "{\"content\": \"$NOTE\", \"type\": \"progress\"}" > /dev/null
-  echo "  Note: $NOTE"
+  pd note "$NOTE" --session "$SESSION_ID" --type progress
 done
 
-# Step 4: End session
-echo ""
-echo "--- End session ---"
-curl -s -X PUT "$BASE/sessions/$SESSION" \
-  -H 'Content-Type: application/json' \
-  -d '{"status": "completed"}' | jq '{id: .id, status: .status, phase: .phase}'
-
-# Step 5: Unregister agent
-curl -s -X DELETE "$BASE/agents/$AGENT_ID" | jq .
+pd session done "Session lifecycle example completed" --agent "$AGENT_ID"
+SESSION_ID=""
 
 echo ""
-echo "=== Done — Full lifecycle complete ==="
+echo "Done."
