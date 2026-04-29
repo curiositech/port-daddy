@@ -1,7 +1,6 @@
 import { ArrowRight, CheckCircle2, KeyRound, ShipWheel } from 'lucide-react'
 import { COLD_START_STEPS } from '@/data/product'
 import {
-  CommandBlock,
   PageContainer,
   PanelBody,
   PanelEyebrow,
@@ -83,22 +82,14 @@ export function ColdStartSection() {
                 </div>
               </div>
 
-              {step.command ? (
-                <CommandBlock
-                  title={`Step ${index + 1}`}
-                  command={step.command}
-                  elevation="quiet"
-                  label="CLI"
-                />
-              ) : (
-                <SurfacePanel elevation="quiet" padding="compact" className="grid content-center">
-                  <PanelEyebrow>In app</PanelEyebrow>
-                  <PanelBody size="compact" className="mt-[var(--space-2)] max-w-none">
-                    No shell command should be needed here. The operator moves between{' '}
-                    <RoleTerm role="shipwright">Shipwright</RoleTerm>, Flow, Agents, Resources, and YAML.
-                  </PanelBody>
-                </SurfacePanel>
-              )}
+              <SurfacePanel elevation="quiet" padding="compact" className="grid content-center gap-[var(--space-2)]">
+                <PanelEyebrow>App surface</PanelEyebrow>
+                <PanelBody size="compact" className="max-w-none">
+                  {step.appSurface} The terminal can execute setup work, but the human-facing
+                  cold-start path should stay in FleetBar, <RoleTerm role="shipwright">Shipwright</RoleTerm>,
+                  Flow, Agents, Resources, and YAML.
+                </PanelBody>
+              </SurfacePanel>
             </article>
           ))}
         </div>
