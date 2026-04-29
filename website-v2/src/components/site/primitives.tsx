@@ -676,7 +676,7 @@ export function LandingCommercialCard({
 }
 
 const surfaceElevationClass = {
-  raised: 'border-2 border-[var(--border-strong)] shadow-[var(--shadow-raised)]',
+  raised: 'border-2 border-[var(--border-strong)] shadow-none',
   quiet: 'border border-[var(--border-default)] shadow-none',
 } as const
 
@@ -1173,13 +1173,13 @@ export function DocsCard({
   const content = (
     <div
       className={cn(
-        'flex h-full flex-col justify-between gap-[var(--panel-gap-loose)] border-2 p-[var(--panel-padding)] shadow-[var(--shadow-raised)] transition-transform duration-150 group-hover:translate-x-[-2px] group-hover:translate-y-[-2px]',
+        'flex h-full flex-col justify-between gap-[var(--panel-gap-loose)] border-2 p-[var(--panel-padding)] shadow-none transition-colors duration-150',
         variant === 'nav'
           ? [
               'border border-[var(--border-default)] bg-[var(--surface-raised)] p-[var(--space-4)] text-[var(--text-primary)] shadow-none',
               active
                 ? interactive.active
-                : `hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-sm)] ${interactive.hover}`,
+                : `hover:border-[var(--border-strong)] ${interactive.hover}`,
             ]
           : ['border-[var(--border-strong)]', docsCardTone[tone]],
       )}

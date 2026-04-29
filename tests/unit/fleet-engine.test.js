@@ -208,6 +208,8 @@ test('BUG 3: array-style agents in YAML are silently dropped (zero agents loaded
   // BUG: 2 agents were declared but 0 are loaded because array format is ignored.
   // This must load agents, not silently discard them.
   expect(config.agents.length).toBe(2);
+  expect(config.agents.map((agent) => agent.name)).toEqual(['run-qa', 'run-docs']);
+  expect(config.agents.map((agent) => agent.name)).not.toContain('agent-1');
 });
 
 // ─── Bug 4: empty YAML → null → TypeError ────────────────────────────────────
@@ -491,6 +493,25 @@ test('runner exposes armed, paused, and running agent states truthfully', async 
       running: false,
     }),
   ]);
+});
+
+test('trigger watcher fallback invokes Port Daddy from the installed runtime, not the target repo', () => {
+  const config = makeConfig({ trigger: 'git:committed' });
+  const runner = createFleetRunner(config, '/tmp/plain-ruby-repo');
+
+  runner.startAgent(config.agents[0]);
+
+  expect(mockSpawn).toHaveBeenCalled();
+  const [command, args] = mockSpawn.mock.calls[0];
+  expect(command).toBe('pd');
+  expect(args).toEqual(expect.arrayContaining(['watch', '--exec']));
+  expect(args).not.toContain('tsx');
+  expect(args.join(' ')).not.toContain('/tmp/plain-ruby-repo/bin/port-daddy-cli.ts');
+
+  const execIndex = args.indexOf('--exec');
+  const execCommand = args[execIndex + 1];
+  expect(execCommand).toContain('"spawn"');
+  expect(execCommand).not.toContain('/tmp/plain-ruby-repo');
 });
 
 test('runner can deploy a subset by pausing unselected agents', async () => {

@@ -64,6 +64,7 @@ export async function handleBegin(
   const body: Record<string, unknown> = { purpose };
   if (identity) body.identity = identity;
   if (options.agent) body.agentId = options.agent;
+  if (options.name) body.name = options.name;
   if (options.type) body.type = options.type;
   if (options.force) body.force = true;
 
@@ -110,7 +111,9 @@ export async function handleBegin(
     return;
   }
 
-  ui.success(`Agent ${highlightChannel(data.agentId as string)} ready`);
+  const agentName = (data.agentName || data.name) as string | undefined;
+  const agentLabel = agentName ? `${agentName} (${data.agentId as string})` : (data.agentId as string);
+  ui.success(`Agent ${highlightChannel(agentLabel)} ready`);
   console.error(`  Session: ${data.sessionId}`);
   console.error(`  Purpose: ${purpose}`);
   if (identity) console.error(`  Identity: ${identity}`);
@@ -257,7 +260,8 @@ export async function handleWhoami(options: CLIOptions): Promise<void> {
   }
 
   console.error('');
-  console.error(`  Agent:    ${data.agentId}`);
+  const agentName = (data.agentName || data.name) as string | undefined;
+  console.error(`  Agent:    ${agentName ? `${agentName} (${data.agentId})` : data.agentId}`);
   console.error(`  Session:  ${data.sessionId}`);
   console.error(`  Purpose:  ${data.purpose}`);
   if (data.identity) console.error(`  Identity: ${data.identity}`);

@@ -127,7 +127,12 @@ npm run build:bosun:dist
 # ---------------------------------------------------------------------------
 # Step 9: Re-link (in case bin entries changed)
 # ---------------------------------------------------------------------------
-npm link 2>&1 | tail -1
+if ! LINK_LOG="$(npm link 2>&1)"; then
+  echo "${YELLOW}WARNING: npm link failed; continuing with direct stable daemon paths.${NC}"
+  printf '%s\n' "$LINK_LOG" | tail -8
+else
+  printf '%s\n' "$LINK_LOG" | tail -1
+fi
 
 # ---------------------------------------------------------------------------
 # Step 10: Reinstall service plists and restart daemon + Bosun

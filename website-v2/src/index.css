@@ -329,11 +329,11 @@ pre code {
   max-width: 100%;
 }
 
-/* Code blocks use tokenized inset contrast. */
+/* Code blocks use flat tokenized contrast. */
 .blog-article .code-block-wrapper {
   background: color-mix(in srgb, var(--surface-sunken) 100%, var(--text-primary) 8%) !important;
-  box-shadow: var(--shadow-inset) !important;
-  border: 1px solid var(--border-subtle);
+  box-shadow: none !important;
+  border: 2px solid var(--border-strong);
   margin: var(--space-6) 0;
 }
 
@@ -382,38 +382,24 @@ pre code {
   padding: 0 1.5rem;
 }
 
-/* ─── Neumorphic Utilities ────────────────────────────────────────────────── */
-/* Prefer the <Surface> component. These exist for edge cases. */
-.neu-raised {
-  background: var(--surface-raised);
-  box-shadow: var(--shadow-raised);
-  border-radius: var(--radius-xl);
-}
-
-.neu-inset {
-  background: var(--surface-sunken);
-  box-shadow: var(--shadow-inset);
-  border-radius: var(--radius-xl);
-}
-
-.neu-flat {
-  background: var(--surface-raised);
-  box-shadow: var(--shadow-flat);
-  border-radius: var(--radius-xl);
-}
-
-.neu-pressed {
-  background: var(--surface-sunken);
-  box-shadow: var(--shadow-pressed);
-  border-radius: var(--radius-xl);
-}
-
 /* ─── Glass (kept for compatibility, simplified) ──────────────────────────── */
 .glass {
   background: var(--bg-glass);
   backdrop-filter: blur(12px) saturate(160%);
   -webkit-backdrop-filter: blur(12px) saturate(160%);
   border: 1px solid var(--border-subtle);
+}
+
+/* Flat relief invariant: Tailwind shadow utilities may remain in old route code,
+   but public surfaces must render as framed planes, not raised or recessed UI. */
+:where([class*="shadow-"]) {
+  --tw-shadow: 0 0 #0000 !important;
+  --tw-shadow-colored: 0 0 #0000 !important;
+  box-shadow: none !important;
+}
+
+:where([class*="drop-shadow"]) {
+  filter: none !important;
 }
 
 /* ─── Accessibility ────────────────────────────────────────────────────────── */

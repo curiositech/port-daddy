@@ -108,11 +108,7 @@ export function TerminalReplay() {
 
   return (
     <Surface depth="raised" radius="2xl" padding="md">
-      {/* Recessed screen — thin bevel, no bg color */}
-      <div
-        className="rounded-[var(--radius-lg)] overflow-hidden"
-        style={{ boxShadow: 'inset 1px 1px 3px var(--neu-shadow), inset -1px -1px 3px var(--neu-highlight)' }}
-      >
+      <div className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--code-bg)]">
         {/* Terminal header */}
         <div
           className="flex items-center justify-between px-4 py-2"

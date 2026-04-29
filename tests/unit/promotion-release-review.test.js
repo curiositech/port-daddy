@@ -126,6 +126,14 @@ describe('promotion release-surface review', () => {
     expect(script).toMatch(/PORT_DADDY_PROMOTION_REVIEW_REQUIRED/);
   });
 
+  test('promote-stable treats global npm link as best-effort', () => {
+    const script = readFileSync(join(ROOT, 'scripts/promote-stable.sh'), 'utf8');
+
+    expect(script).toContain('npm link');
+    expect(script).toContain('WARNING: npm link failed');
+    expect(script).toContain('continuing with direct stable daemon paths');
+  });
+
   test('Port Daddy fleet wakes documentarian from promotion review with spawn controls', () => {
     const yaml = parseYaml(readFileSync(join(ROOT, 'pd-fleet.yml'), 'utf8'));
     const documentarian = yaml.fleet.agents.documentarian;

@@ -32,7 +32,7 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
   // POST /sugar/begin
   fastify.post('/sugar/begin', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { purpose, identity, agentId, type, files, force, metadata } = request.body as any;
+      const { purpose, identity, agentId, name, type, files, force, metadata } = request.body as any;
 
       if (!purpose || typeof purpose !== 'string') {
         reply.code(400);
@@ -47,6 +47,7 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         purpose,
         identity,
         agentId,
+        name,
         type,
         files,
         force,

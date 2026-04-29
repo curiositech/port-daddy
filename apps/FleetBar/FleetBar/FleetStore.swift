@@ -138,6 +138,7 @@ struct FleetAgent: Identifiable {
     let type: AgentType  // scheduled, triggered, watcher
     let isConfiguredFleetAgent: Bool
     let inboxTarget: String?
+    var purpose: String?
     var status: AgentStatus
     var statusReason: String?
     var queueDepth: Int
@@ -167,6 +168,23 @@ struct FleetAgent: Identifiable {
 
     var canControl: Bool {
         isConfiguredFleetAgent && type != .adhoc
+    }
+}
+
+enum FleetMenuBarTone: Equatable {
+    case dormant
+    case healthy
+    case warning
+
+    var color: Color {
+        switch self {
+        case .dormant:
+            return .secondary
+        case .healthy:
+            return Fleet.Color.healthy
+        case .warning:
+            return Fleet.Color.warning
+        }
     }
 }
 
@@ -457,18 +475,22 @@ class FleetStore: ObservableObject {
         guard isDaemonRunning else { return "sailboat" }
         let totalFailed = projects.reduce(0) { $0 + $1.failedCount }
         let totalActive = projects.reduce(0) { $0 + $1.activeCount }
-        if totalFailed > 0 { return "exclamationmark.triangle.fill" }
+        if totalFailed > 0 && totalActive > 0 { return "sailboat.fill" }
         if totalActive > 0 { return "sailboat.fill" }
         return "sailboat"
     }
 
-    var menuBarColor: Color {
-        guard isDaemonRunning else { return .secondary }
+    var menuBarTone: FleetMenuBarTone {
+        guard isDaemonRunning else { return .dormant }
         let totalFailed = projects.reduce(0) { $0 + $1.failedCount }
         let totalActive = projects.reduce(0) { $0 + $1.activeCount }
-        if totalFailed > 0 { return Fleet.Color.warning }
-        if totalActive > 0 { return Fleet.Color.healthy }
-        return .secondary
+        if totalFailed > 0 { return .warning }
+        if totalActive > 0 { return .healthy }
+        return .dormant
+    }
+
+    var menuBarColor: Color {
+        menuBarTone.color
     }
 
     @Published var isStartingDaemon = false
@@ -859,6 +881,7 @@ class FleetStore: ObservableObject {
                     type: FleetAgent.AgentType(rawValue: agent.type) ?? .triggered,
                     isConfiguredFleetAgent: true,
                     inboxTarget: agent.name,
+                    purpose: existing?.purpose,
                     status: FleetAgent.AgentStatus(rawValue: agent.status) ?? (agent.running ? .running : agent.paused ? .paused : .idle),
                     statusReason: existing?.statusReason,
                     queueDepth: agent.queueDepth ?? 0,
@@ -1022,6 +1045,7 @@ class FleetStore: ObservableObject {
             let existing = mergedByKey[key]
             let nextType = existing?.type ?? mapActorType(actor.actorKind)
             let nextSummary = actor.lastSummary?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let nextPurpose = actor.purpose?.trimmingCharacters(in: .whitespacesAndNewlines)
             let nextFiles = actor.recentFiles.isEmpty
                 ? (existing?.recentFiles ?? [])
                 : Array(actor.recentFiles.prefix(4))
@@ -1035,6 +1059,7 @@ class FleetStore: ObservableObject {
                 type: nextType,
                 isConfiguredFleetAgent: actor.isConfiguredFleetAgent,
                 inboxTarget: actor.inboxTarget,
+                purpose: nextPurpose?.nilIfEmpty ?? existing?.purpose,
                 status: mapActorStatus(actor),
                 statusReason: actor.actorStateReason,
                 queueDepth: existing?.queueDepth ?? 0,

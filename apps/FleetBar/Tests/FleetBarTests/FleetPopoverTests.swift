@@ -159,4 +159,110 @@ final class FleetPopoverTests: XCTestCase {
         let bosunStatus = try inspected.find(text: bosunReason)
         XCTAssertNil(try bosunStatus.lineLimit())
     }
+
+    func testMenuBarFailurePreservesBoatGlyphAndWarnsByColor() {
+        let store = FleetStore(autoStart: false)
+        store.isDaemonRunning = true
+        store.projects = [
+            project(agents: [
+                agent(name: "cartographer", status: .running),
+                agent(name: "test-hunter", status: .failed),
+            ]),
+        ]
+
+        XCTAssertEqual(store.menuBarIcon, "sailboat.fill")
+        XCTAssertEqual(store.menuBarTone, .warning)
+    }
+
+    func testMenuBarFailedIdleFleetStillPreservesBoatGlyph() {
+        let store = FleetStore(autoStart: false)
+        store.isDaemonRunning = true
+        store.projects = [
+            project(agents: [
+                agent(name: "test-hunter", status: .failed),
+            ]),
+        ]
+
+        XCTAssertEqual(store.menuBarIcon, "sailboat")
+        XCTAssertEqual(store.menuBarTone, .warning)
+    }
+
+    func testAgentRowShowsCodexTelemetryRecoveryHint() throws {
+        let reason = "Failed: Exact telemetry required, but codex did not return token counts."
+        let row = AgentRow(
+            agent: agent(name: "test-hunter", status: .failed, statusReason: reason),
+            onInspect: {},
+            onRunAgent: {},
+            onPauseToggle: {},
+            onOpenInEditor: { _ in },
+            onRevealInFinder: { _ in }
+        )
+
+        let inspected = try row.inspect()
+        let statusReason = try inspected.find(text: reason)
+        XCTAssertNil(try statusReason.lineLimit())
+        XCTAssertNoThrow(try inspected.find(text: "Next: run `codex exec --json \"print ok\"`; if usage appears, run this agent again. If usage is missing, fix Codex auth/CLI."))
+    }
+
+    func testAgentRowShowsSpawnQuotaRecoveryHint() throws {
+        let reason = "Failed: quota: hourly spawn limit (10/hr) reached"
+        let row = AgentRow(
+            agent: agent(name: "test-hunter", status: .failed, statusReason: reason),
+            onInspect: {},
+            onRunAgent: {},
+            onPauseToggle: {},
+            onOpenInEditor: { _ in },
+            onRevealInFinder: { _ in }
+        )
+
+        let inspected = try row.inspect()
+        XCTAssertNoThrow(try inspected.find(text: "Next: wait for the hourly spawn window to clear, then run this agent again."))
+    }
+
+    func testAgentRowShowsOneSentencePurpose() throws {
+        let purpose = "Run the test suite and write meaningful tests for uncovered paths."
+        let row = AgentRow(
+            agent: agent(name: "test-hunter", status: .armed, purpose: purpose),
+            onInspect: {},
+            onRunAgent: {},
+            onPauseToggle: {},
+            onOpenInEditor: { _ in },
+            onRevealInFinder: { _ in }
+        )
+
+        let inspected = try row.inspect()
+        XCTAssertNoThrow(try inspected.find(text: purpose))
+    }
+
+    private func project(agents: [FleetAgent]) -> FleetProject {
+        FleetProject(
+            id: "/tmp/port-daddy-test",
+            name: "port-daddy-test",
+            projectDir: "/tmp/port-daddy-test",
+            agents: agents
+        )
+    }
+
+    private func agent(
+        name: String,
+        status: FleetAgent.AgentStatus,
+        purpose: String? = nil,
+        statusReason: String? = nil
+    ) -> FleetAgent {
+        FleetAgent(
+            id: "port-daddy-test:fleet:\(name)",
+            name: name,
+            type: .triggered,
+            isConfiguredFleetAgent: true,
+            inboxTarget: nil,
+            purpose: purpose,
+            status: status,
+            statusReason: statusReason,
+            queueDepth: 0,
+            lastActivity: nil,
+            lastEvent: nil,
+            lastSummary: nil,
+            recentFiles: []
+        )
+    }
 }

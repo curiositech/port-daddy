@@ -8,6 +8,7 @@
 
 import { randomBytes } from 'crypto';
 import { parseIdentity } from './identity.js';
+import { cleanAgentDisplayName, deriveAgentDisplayName } from './agent-names.js';
 
 // =============================================================================
 // Types
@@ -45,6 +46,7 @@ interface SugarDeps {
 interface BeginOptions {
   purpose?: string;
   agentId?: string;
+  name?: string;
   identity?: string;
   type?: string;
   files?: string[];
@@ -91,6 +93,8 @@ export function createSugar(deps: SugarDeps) {
       agentId: typeof session.agentId === 'string' ? session.agentId : fallbackAgentId,
       sessionId,
       purpose: session.purpose as string,
+      agentName: cleanAgentDisplayName(agent?.name) || null,
+      name: cleanAgentDisplayName(agent?.name) || null,
       identity: typeof agent?.identity === 'string' ? agent.identity : null,
       phase: session.phase as string || 'in_progress',
       files: files
@@ -115,9 +119,17 @@ export function createSugar(deps: SugarDeps) {
 
     // Generate or use provided agent ID
     const agentId = options.agentId || `agent-${randomBytes(4).toString('hex')}`;
+    const name = deriveAgentDisplayName({
+      name: options.name,
+      purpose,
+      identity,
+      type,
+      fallback: agentId,
+    });
 
     // Step 1: Register the agent
     const registerOpts: Record<string, unknown> = {};
+    if (name) registerOpts.name = name;
     if (identity) registerOpts.identity = identity;
     if (purpose) registerOpts.purpose = purpose;
     if (type) registerOpts.type = type;
@@ -166,6 +178,8 @@ export function createSugar(deps: SugarDeps) {
       success: true,
       agentId,
       sessionId: sessionResult.id,
+      agentName: name,
+      name,
       identity: identity || null,
       purpose: purpose.trim(),
       agentRegistered: true,

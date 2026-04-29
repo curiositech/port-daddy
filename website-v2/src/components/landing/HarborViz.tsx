@@ -57,7 +57,6 @@ export function HarborViz() {
       <svg
         viewBox="0 0 440 440"
         className="w-full max-w-sm"
-        style={{ filter: 'drop-shadow(0 0 40px color-mix(in srgb, var(--brand-secondary) 15%, transparent))' }}
       >
         {/* Orbit ring */}
         <circle

@@ -155,13 +155,32 @@ Current coordination session: `session-a4b3a18d-1651-4d2b-b4ca-e83fb79b5ea3`.
   cards, and large empty opening space. Header nav labels are also non-shrinking
   and the decorative right-edge header strip was removed after mobile screenshot
   proof showed it reading as a stray blue bar.
+- Global relief enforcement has now moved into the shared system instead of
+  page-by-page cleanup: all `--shadow-*` semantic tokens resolve to `none`,
+  old `--shadow-neu-*` aliases and `.neu-*` utilities were removed, Surface,
+  Button, and site-panel primitives render as flat framed planes, and the public
+  stylesheet neutralizes legacy Tailwind `shadow-*` / `drop-shadow` utilities so
+  old route code cannot visually reintroduce raised, inset, or glow treatments.
+  The direct landing-page `neu-shadow`, brand glow, and SVG drop-shadow bypasses
+  were also removed.
 - Browser proof:
   `docs/reports/website-rehab-screenshots/whitepaper-first-viewport.png` and
   `docs/reports/website-rehab-screenshots/whitepaper-mobile-first-viewport.png`.
-- Latest validation for this website route cleanup from `website-v2/`: `npm run
-  lint`, `npm run test` (8/8 files and 87/87 tests), `npm run build`, and
-  `git diff --check` all passed. The earlier Storybook pass still carries the
-  known iframe-size and `radix-ui` package metadata warnings.
+- Relief browser proof:
+  `docs/reports/website-rehab-screenshots/flat-relief-home.png`,
+  `flat-relief-tutorials.png`, `flat-relief-whitepaper.png`,
+  `flat-relief-docs.png`, `flat-relief-dashboard.png`, `flat-relief-mcp.png`,
+  `flat-relief-roadmap.png`, `flat-relief-blog.png`,
+  `flat-relief-examples.png`, `flat-relief-integrations.png`,
+  `flat-relief-cookbook.png`, and `flat-relief-blueprints.png`.
+- Latest validation for this website route cleanup from `website-v2/`: focused
+  `npm run test -- src/design-system-contracts.test.ts
+  src/public-shell-contracts.test.ts` passes at 32/32 tests, full `npm run
+  lint`, `npm run test` (8/8 files and 87/87 tests), `npm run build`, and root
+  `git diff --check` all pass. Playwright route audit across twelve routes
+  reports every `--shadow-*` token as `none` with zero real box shadows and
+  zero drop shadows. The earlier Storybook pass still carries the known
+  iframe-size and `radix-ui` package metadata warnings.
 - Remaining website rehab work: route-specific OG image generation,
   PWA/favicons, legal/privacy/support/security-contact pages, observability/Web
   Vitals, claims ledger, broader rounded/glow route cleanup, and manual
