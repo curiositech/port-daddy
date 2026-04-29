@@ -433,7 +433,8 @@ const OPERATION_SCOPES: Record<string, OperationScope> = {
   'PUT /agents/:id/heartbeat': 'local',  // Replicated lazily
   'POST /sessions':        'consensus',
   'PUT /sessions/:id':     'consensus',
-  'POST /sessions/:id/notes': 'federated',  // Immutable, write-once
+  'POST /notes':           'federated',  // Immutable, write-once; sessionId in body when targeted
+  'POST /sessions/:id/notes': 'federated',  // Compatibility alias for POST /notes
   'POST /sessions/:id/files': 'consensus',  // Conflict detection
   'POST /msg/:channel':    'federated',
 
@@ -699,7 +700,7 @@ When a node is in the minority partition and cannot reach the leader, federated 
 CREATE TABLE IF NOT EXISTS mesh_write_queue (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
   method     TEXT NOT NULL,      -- 'POST', 'PUT', 'DELETE'
-  path       TEXT NOT NULL,      -- '/agents', '/sessions/abc/notes'
+  path       TEXT NOT NULL,      -- '/agents', '/notes'
   body       TEXT,               -- JSON request body
   queued_at  INTEGER NOT NULL,
   replayed   INTEGER DEFAULT 0,

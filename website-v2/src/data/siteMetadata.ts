@@ -7,9 +7,32 @@ import { WHITE_PAPERS } from './whitePapers'
 
 export const SITE_NAME = 'Port Daddy'
 export const SITE_ORIGIN = 'https://portdaddy.dev'
-export const DEFAULT_SITE_IMAGE = '/img/generated/control-plane-og.jpg'
 export const DEFAULT_SITE_DESCRIPTION =
   'Port Daddy is a local app and background service that helps AI coding agents share notes, claim work, avoid collisions, recover interrupted runs, and show what is happening on your machine.'
+
+export function ogImagePathForRoutePath(pathname: string) {
+  const slug = pathname
+    .split(/[?#]/)[0]
+    .replace(/^\/+|\/+$/g, '')
+    .replace(/[^a-z0-9]+/gi, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase()
+
+  return `/img/og/${slug || 'home'}.jpg`
+}
+
+export const DEFAULT_SITE_IMAGE = ogImagePathForRoutePath('/')
+
+export const OG_SOURCE_IMAGES = {
+  controlPlane: '/img/generated/control-plane-og.jpg',
+  agentRuntime: '/img/generated/agent-runtime-map.jpg',
+  virtualActors: '/img/generated/virtual-actor-fleet.jpg',
+  coordinationGuard: '/img/generated/coordination-guard.jpg',
+  fleetbarInstall: '/img/generated/fleetbar-install.jpg',
+  salvageLedger: '/img/generated/salvage-ledger.jpg',
+  shipwrightProposal: '/img/generated/shipwright-proposal.jpg',
+  exampleArchetypes: '/img/generated/example-agent-archetypes.jpg',
+} as const
 
 export type SiteMetadataSection =
   | 'home'
@@ -28,6 +51,8 @@ export interface SiteMetadata {
   title: string
   description: string
   image: string
+  ogSourceImage: string
+  ogSectionLabel?: string
   section: SiteMetadataSection
   index?: boolean
   publishedAt?: string
@@ -38,6 +63,118 @@ export interface SiteMetadata {
 export const blogHeroImages: Record<string, string> = Object.fromEntries(
   blogPosts.map((post) => [post.slug, post.heroImage]),
 )
+
+const exampleRouteMetadata = [
+  {
+    slug: 'pd-tube-button-to-agent',
+    title: 'Build a button-to-agent loop with PD Tube',
+    description: 'Turn a plain HTML button into a local phone line to the agent session already running in your project.',
+    sourceImage: '/img/generated/example-pd-tube-button-to-agent.jpg',
+    tags: ['tube', 'browser', 'agent loop', 'messages'],
+  },
+  {
+    slug: 'test-failure-to-agent',
+    title: 'Build a test reporter that asks the agent for help',
+    description: 'Wrap a failing test command, publish the failure to the local agent, and print the diagnosis back in the terminal.',
+    sourceImage: '/img/generated/example-test-failure-to-agent.jpg',
+    tags: ['tube', 'tests', 'reporter', 'terminal'],
+  },
+  {
+    slug: 'editor-lightbulb-to-agent',
+    title: 'Build an editor lightbulb that asks the local agent',
+    description: 'Select code in a local page, publish the file and range to the agent, and render the explanation inline.',
+    sourceImage: '/img/generated/example-editor-lightbulb-to-agent.jpg',
+    tags: ['tube', 'editor', 'selection', 'dev tools'],
+  },
+  {
+    slug: 'webhook-to-local-agent',
+    title: 'Build a webhook adapter backed by your workstation',
+    description: 'Accept Slack, Discord, Linear, or generic webhook JSON and route it to the local agent through PD Tube.',
+    sourceImage: '/img/generated/example-webhook-to-local-agent.jpg',
+    tags: ['tube', 'webhooks', 'bots', 'http'],
+  },
+  {
+    slug: 'leader-election',
+    title: 'Elect one leader from a local agent swarm',
+    description: 'Use Port Daddy locks and inboxes so one local agent becomes the coordinator while the rest remain safe followers.',
+    sourceImage: '/img/generated/example-leader-election.jpg',
+    tags: ['locks', 'coordination', 'agents', 'inboxes'],
+  },
+  {
+    slug: 'p2p-webrtc',
+    title: 'Build WebRTC signaling over agent inboxes',
+    description: 'Use durable Port Daddy inbox messages for offer-answer rendezvous before peers switch to a direct local link.',
+    sourceImage: '/img/generated/example-p2p-webrtc.jpg',
+    tags: ['inboxes', 'webrtc', 'signaling', 'messages'],
+  },
+  {
+    slug: 'ephemeral-ci-db',
+    title: 'Claim a collision-free port for an ephemeral CI database',
+    description: 'Give short-lived test databases clean local ports so CI helpers and agents do not collide on the same machine.',
+    sourceImage: '/img/generated/example-ephemeral-ci-db.jpg',
+    tags: ['ports', 'ci', 'database', 'tests'],
+  },
+  {
+    slug: 'agent-archetypes',
+    title: 'Sketch agent archetypes before you launch them',
+    description: 'Compare star, ring, arbiter, watchdog, and repair topologies before committing a fleet shape to YAML.',
+    sourceImage: '/img/generated/example-agent-archetypes.jpg',
+    tags: ['agents', 'fleet', 'topology', 'templates'],
+  },
+] as const
+
+const sectionLabels: Record<SiteMetadataSection, string> = {
+  home: 'Local Control Plane',
+  product: 'Product',
+  docs: 'Docs',
+  tutorials: 'Tutorial',
+  integrations: 'Integration',
+  templates: 'Agent Templates',
+  blog: 'Field Note',
+  whitepaper: 'Whitepaper',
+  legacy: 'Archive',
+}
+
+function sourceImageForRoute(path: string, section: SiteMetadataSection) {
+  if (path === '/mac-preview') return OG_SOURCE_IMAGES.fleetbarInstall
+  if (path === '/mcp' || path.startsWith('/docs/mcp')) return OG_SOURCE_IMAGES.agentRuntime
+  if (path.startsWith('/agents') || path.includes('fleet') || path.includes('spawn')) return OG_SOURCE_IMAGES.virtualActors
+  if (path.startsWith('/templates')) return OG_SOURCE_IMAGES.shipwrightProposal
+  if (path.includes('salvage') || path.includes('time-travel') || path.includes('timeline')) return OG_SOURCE_IMAGES.salvageLedger
+  if (path.includes('claim') || path.includes('lock') || path.includes('guard') || path.includes('arbiter')) {
+    return OG_SOURCE_IMAGES.coordinationGuard
+  }
+  if (path.includes('quickstart') || path.includes('get-started') || path.includes('install')) return OG_SOURCE_IMAGES.fleetbarInstall
+  if (path.startsWith('/integrations') || path.startsWith('/docs/sdk') || path.startsWith('/docs/api')) return OG_SOURCE_IMAGES.agentRuntime
+  if (path === '/examples') return OG_SOURCE_IMAGES.exampleArchetypes
+  if (section === 'tutorials') return tutorialSourceImage(path.split('/').at(-1) ?? '')
+  if (section === 'whitepaper') return OG_SOURCE_IMAGES.controlPlane
+  return OG_SOURCE_IMAGES.controlPlane
+}
+
+function tutorialSourceImage(slug: string) {
+  switch (slug) {
+    case 'getting-started':
+    case 'primitives':
+      return OG_SOURCE_IMAGES.fleetbarInstall
+    case 'multi-agent':
+    case 'inbox':
+    case 'always-on':
+    case 'pd-spawn':
+    case 'fleet':
+      return OG_SOURCE_IMAGES.virtualActors
+    case 'debugging':
+    case 'session-phases':
+    case 'time-travel':
+    case 'pheromone':
+      return OG_SOURCE_IMAGES.salvageLedger
+    case 'pipelines':
+    case 'watch':
+      return OG_SOURCE_IMAGES.agentRuntime
+    default:
+      return OG_SOURCE_IMAGES.controlPlane
+  }
+}
 
 function pageTitle(title: string) {
   if (title === SITE_NAME) return 'Port Daddy - Local Coordination for AI Coding Agents'
@@ -51,12 +188,16 @@ function metadata(
   description: string,
   options: Partial<Omit<SiteMetadata, 'path' | 'title' | 'description'>> = {},
 ): SiteMetadata {
+  const section = options.section ?? 'product'
+
   return {
     path,
     title: pageTitle(title),
     description,
-    image: DEFAULT_SITE_IMAGE,
-    section: 'product',
+    image: options.image ?? ogImagePathForRoutePath(path),
+    ogSourceImage: options.ogSourceImage ?? sourceImageForRoute(path, section),
+    ogSectionLabel: options.ogSectionLabel ?? sectionLabels[section],
+    section,
     ...options,
   }
 }
@@ -73,63 +214,61 @@ const productRoutes: SiteMetadata[] = [
     '/examples',
     'Executable Examples',
     'Run complete Port Daddy example programs for browser buttons, test reporters, editor commands, and webhook adapters that talk to local agents.',
+    { ogSourceImage: OG_SOURCE_IMAGES.exampleArchetypes, ogSectionLabel: 'Examples' },
   ),
-  metadata(
-    '/examples/pd-tube-button-to-agent',
-    'Build a button-to-agent loop with PD Tube',
-    'Turn a plain HTML button into a local phone line to the agent session already running in your project.',
-    { tags: ['tube', 'browser', 'agent loop', 'messages'] },
-  ),
-  metadata(
-    '/examples/test-failure-to-agent',
-    'Build a test reporter that asks the agent for help',
-    'Wrap a failing test command, publish the failure to the local agent, and print the diagnosis back in the terminal.',
-    { tags: ['tube', 'tests', 'reporter', 'terminal'] },
-  ),
-  metadata(
-    '/examples/editor-lightbulb-to-agent',
-    'Build an editor lightbulb that asks the local agent',
-    'Select code in a local page, publish the file and range to the agent, and render the explanation inline.',
-    { tags: ['tube', 'editor', 'selection', 'dev tools'] },
-  ),
-  metadata(
-    '/examples/webhook-to-local-agent',
-    'Build a webhook adapter backed by your workstation',
-    'Accept Slack, Discord, Linear, or generic webhook JSON and route it to the local agent through PD Tube.',
-    { tags: ['tube', 'webhooks', 'bots', 'http'] },
+  ...exampleRouteMetadata.map((example) =>
+    metadata(`/examples/${example.slug}`, example.title, example.description, {
+      ogSourceImage: example.sourceImage,
+      ogSectionLabel: 'Executable Example',
+      tags: [...example.tags],
+    }),
   ),
   metadata(
     '/mcp',
     'Skill + MCP for AI Agents',
     'Use the Port Daddy agent skill and MCP server together: an instruction manual plus callable tools for sessions, claims, scoped channels, inboxes, readiness, salvage, fleets, and handoffs.',
+    { ogSourceImage: OG_SOURCE_IMAGES.agentRuntime, ogSectionLabel: 'Skill + MCP' },
   ),
   metadata(
     '/mac-preview',
     'Mac Preview',
     'Download the signed FleetBar Mac build and see how the app exposes Fleet Control Center, Shipwright, resources, sorties, backend readiness, and agent communication.',
+    { ogSourceImage: OG_SOURCE_IMAGES.fleetbarInstall, ogSectionLabel: 'FleetBar' },
   ),
   metadata(
     '/templates',
     'Agent Fleet Templates (deprecated)',
     'The top-level template library has moved under Agents. Use /agents/templates for current Port Daddy fleet templates and reusable agent patterns.',
-    { section: 'templates', canonicalPath: '/agents/templates', index: false },
+    {
+      section: 'templates',
+      canonicalPath: '/agents/templates',
+      image: ogImagePathForRoutePath('/agents/templates'),
+      ogSourceImage: OG_SOURCE_IMAGES.shipwrightProposal,
+      index: false,
+    },
   ),
   metadata(
     '/agents',
     'Agent Roster',
     'Meet the Port Daddy agent roles that monitor health, salvage crashed work, document drift, coordinate projects, and inspect dependencies.',
+    { ogSourceImage: OG_SOURCE_IMAGES.virtualActors, ogSectionLabel: 'Agent Roster' },
   ),
   metadata(
     '/agents/templates',
     'Agent Templates',
     'Use the current Port Daddy agent templates: starter fleet YAML, always-on agents, CI repair loops, event-driven ops, remote harbors, research swarms, and secure messaging primitives.',
-    { section: 'templates' },
+    { section: 'templates', ogSourceImage: OG_SOURCE_IMAGES.shipwrightProposal },
   ),
   metadata(
     '/agents/agent-skill',
     'Agent Skill (moved)',
     'The Port Daddy agent skill now lives with the MCP server on the top-level Skill + MCP page.',
-    { canonicalPath: '/mcp', index: false },
+    {
+      canonicalPath: '/mcp',
+      image: ogImagePathForRoutePath('/mcp'),
+      ogSourceImage: OG_SOURCE_IMAGES.agentRuntime,
+      index: false,
+    },
   ),
   metadata(
     '/tutorials',
@@ -318,24 +457,29 @@ const contentMetadata: SiteMetadata[] = [
   ...TUTORIALS.map((tutorial) =>
     metadata(tutorial.href, tutorial.title, tutorial.description, {
       section: 'tutorials',
+      ogSourceImage: tutorialSourceImage(tutorial.slug),
+      ogSectionLabel: `Tutorial ${tutorial.number}`,
     }),
   ),
   ...INTEGRATIONS.map((integration) =>
     metadata(`/integrations/${integration.id}`, integration.name, integration.description, {
       section: 'integrations',
+      ogSourceImage: OG_SOURCE_IMAGES.agentRuntime,
     }),
   ),
   ...BLUEPRINTS.map((blueprint) =>
     metadata(`/templates/${blueprint.id}`, blueprint.title, blueprint.description, {
       section: 'templates',
       canonicalPath: '/agents/templates',
+      image: ogImagePathForRoutePath('/agents/templates'),
+      ogSourceImage: OG_SOURCE_IMAGES.shipwrightProposal,
       index: false,
     }),
   ),
   ...blogPosts.map((post) =>
     metadata(`/blog/${post.slug}`, post.title, post.excerpt, {
       section: 'blog',
-      image: post.heroImage,
+      ogSourceImage: post.heroImage,
       publishedAt: post.date,
       author: post.author,
       tags: post.tags,
@@ -346,7 +490,8 @@ const contentMetadata: SiteMetadata[] = [
     return metadata(`/blog/${post.slug}`, `${post.retiredLabel} (retired)`, post.reason, {
       section: 'blog',
       canonicalPath: replacement ? `/blog/${replacement.slug}` : '/blog',
-      image: replacement?.heroImage ?? DEFAULT_SITE_IMAGE,
+      image: replacement ? ogImagePathForRoutePath(`/blog/${replacement.slug}`) : DEFAULT_SITE_IMAGE,
+      ogSourceImage: replacement?.heroImage ?? OG_SOURCE_IMAGES.controlPlane,
       index: false,
     })
   }),
@@ -374,7 +519,13 @@ const docsRouteMetadata: SiteMetadata[] = [
     '/docs/api/endpoints',
     'API Endpoints',
     'Browse the Port Daddy endpoint reference for ports, sessions, locks, messages, harbors, fleet, and runtime status.',
-    { section: 'docs', canonicalPath: '/docs/api', index: false },
+    {
+      section: 'docs',
+      canonicalPath: '/docs/api',
+      image: ogImagePathForRoutePath('/docs/api'),
+      ogSourceImage: OG_SOURCE_IMAGES.agentRuntime,
+      index: false,
+    },
   ),
 ]
 
@@ -446,12 +597,16 @@ export function getRouteMetadata(pathname: string): SiteMetadata {
     return metadata(path, 'Docs', DEFAULT_SITE_DESCRIPTION, {
       section: 'docs',
       canonicalPath: '/docs',
+      image: ogImagePathForRoutePath('/docs'),
+      ogSourceImage: OG_SOURCE_IMAGES.controlPlane,
       index: false,
     })
   }
 
   return metadata(path, 'Port Daddy', DEFAULT_SITE_DESCRIPTION, {
     canonicalPath: '/',
+    image: DEFAULT_SITE_IMAGE,
+    ogSourceImage: OG_SOURCE_IMAGES.controlPlane,
     index: false,
   })
 }

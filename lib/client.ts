@@ -2375,6 +2375,7 @@ class PortDaddy {
       IpcAction.NOTE,
       {
         sessionId: options?.sessionId,
+        agentId: options?.agentId,
         content,
         type: options?.type,
       },
@@ -2382,14 +2383,9 @@ class PortDaddy {
     );
     if (ipcResult) return ipcResult;
 
-    if (options?.sessionId) {
-      return this._request('POST', `/sessions/${options.sessionId}/notes`, {
-        content,
-        type: options?.type,
-      }) as Promise<NoteResponse>;
-    }
     return this._request('POST', '/notes', {
       content,
+      sessionId: options?.sessionId,
       agentId: options?.agentId,
       type: options?.type,
     }) as Promise<NoteResponse>;

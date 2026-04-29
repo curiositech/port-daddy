@@ -31,7 +31,7 @@ describe('claim watcher', () => {
     watcher = createClaimWatcher({
       listClaims: () => claims,
       sendInbox: (agentId, content, options) => inboxCalls.push({ agentId, content, options }),
-      addNote: (sessionId, note) => noteCalls.push({ sessionId, note }),
+      writeNote: (sessionId, note) => noteCalls.push({ sessionId, note }),
       searchRoots: [dir],
       snapshotDir,
       intervalMs: 60_000, // we drive ticks manually

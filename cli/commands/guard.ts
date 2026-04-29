@@ -14,7 +14,19 @@ import type { CLIOptions } from '../types.js';
  * will touch, we just consult the daemon for any active claim that would
  * be steamrolled.
  */
-const DESTRUCTIVE_GIT_VERBS = new Set(['reset-hard', 'checkout-paths', 'clean-force', 'add-all']);
+const DESTRUCTIVE_GIT_VERBS = new Set([
+  'reset-hard',
+  'checkout-paths',
+  'clean-force',
+  'add-all',
+  // v2: extended after 2026-04-28 auto-stash incident on codex/pd-tube-tutorial.
+  // The shim intercepts these before the working tree is touched; the daemon
+  // evaluates active claims for any session and refuses if another session
+  // owns affected files in enforce mode.
+  'stash-push',
+  'cherry-pick',
+  'rebase',
+]);
 
 export const COORDINATION_GUARD_NAME = 'Coordination Guard';
 export const GUARD_CONFIG_RELATIVE_PATH = '.portdaddy/coordination-guard.json';
@@ -663,6 +675,7 @@ function printUsage(): void {
   console.log('  pd guard check --staged');
   console.log('  pd guard check src/file.ts');
   console.log('  pd guard check --git-verb reset-hard      # consult before destructive verbs');
+  console.log('  # also: checkout-paths, clean-force, add-all, stash-push, cherry-pick, rebase');
   console.log('  pd guard install --mode enforce           # pre-commit + post-commit hooks');
   console.log('  pd guard install-shim                     # ~/.port-daddy/bin/git wrapper');
   console.log('  pd guard uninstall-shim');

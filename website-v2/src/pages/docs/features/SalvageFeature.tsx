@@ -170,7 +170,7 @@ if (queue.length > 0) {
 }
 
 // Continue where the dead agent left off
-await pd.sessions.addNote(salvaged.sessionId, 'Resuming JWT refresh work')`}
+await pd.note('Resuming JWT refresh work', { sessionId: salvaged.sessionId })`}
         />
       </div>
 

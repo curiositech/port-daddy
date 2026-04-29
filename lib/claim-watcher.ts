@@ -36,8 +36,8 @@ export interface ClaimWatcherDeps {
   listClaims: () => Array<{ filePath: string; sessionId: string; agentId?: string | null }>;
   /** Sends a message to an agent's inbox. Best-effort. */
   sendInbox?: (agentId: string, content: unknown, options?: { from?: string; type?: string }) => unknown;
-  /** Adds a daemon note. Best-effort. */
-  addNote?: (sessionId: string, note: { content: string; type?: string }) => unknown;
+  /** Writes a daemon note. Best-effort. */
+  writeNote?: (sessionId: string, note: { content: string; type?: string }) => unknown;
   /** Roots used to resolve relative claim paths. The first root that contains the file wins. */
   searchRoots?: string[];
   /** Override for the snapshot directory. Default: ~/.port-daddy/snapshots */
@@ -208,9 +208,9 @@ export function createClaimWatcher(deps: ClaimWatcherDeps) {
         }
       }
 
-      if (deps.addNote) {
+      if (deps.writeNote) {
         try {
-          deps.addNote(current.sessionId, {
+          deps.writeNote(current.sessionId, {
             content: `claim-watcher: ${current.filePath} content hash changed mid-claim`,
             type: 'warning',
           });

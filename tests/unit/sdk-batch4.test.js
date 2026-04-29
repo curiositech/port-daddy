@@ -9,6 +9,7 @@
 
 import http from 'node:http';
 import Fastify from 'fastify';
+import { jest } from '@jest/globals';
 import { PortDaddy, PortDaddyError } from '../../lib/client.js';
 import { createTestDb, createMockLogger } from '../setup-unit.js';
 import { servicesPlugin } from '../../routes/services.js';
@@ -820,6 +821,26 @@ describe('Route error codes: sessions', () => {
 
     expect(res.statusCode).toBe(404);
     expect(res.json().code).toBe('SESSION_NOT_FOUND');
+  });
+
+  test('POST /sessions/:id/notes uses the canonical quick-note write path', async () => {
+    const session = await app.inject({ method: 'POST', url: '/sessions', payload: { purpose: 'test' } });
+    const sessionId = session.json().id;
+    const quickNote = jest.spyOn(sessionsMod, 'quickNote');
+    const addNote = jest.spyOn(sessionsMod, 'addNote');
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/sessions/${sessionId}/notes`,
+      payload: { content: 'hello from compat route', type: 'progress' },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(quickNote).toHaveBeenCalledWith('hello from compat route', expect.objectContaining({
+      sessionId,
+      type: 'progress',
+    }));
+    expect(addNote).not.toHaveBeenCalled();
   });
 
   test('POST /sessions/:id/files returns VALIDATION_ERROR for empty files', async () => {

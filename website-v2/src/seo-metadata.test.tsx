@@ -11,6 +11,8 @@ import {
   DEFAULT_SITE_IMAGE,
   getRouteMetadata,
   isIndexableRoute,
+  OG_SOURCE_IMAGES,
+  ogImagePathForRoutePath,
   siteMetadataRoutes,
 } from './data/siteMetadata'
 import { blogPosts, deprecatedBlogPosts } from './data/blogData'
@@ -47,22 +49,49 @@ describe('website SEO metadata', () => {
     expect(siteMetadataRoutes.every((route) => route.title.length >= 12)).toBe(true)
     expect(siteMetadataRoutes.every((route) => route.description.length >= 60)).toBe(true)
     expect(siteMetadataRoutes.every((route) => existsSync(resolve(publicDir, route.image.replace(/^\//, ''))))).toBe(true)
+    expect(siteMetadataRoutes.every((route) => existsSync(resolve(publicDir, route.ogSourceImage.replace(/^\//, ''))))).toBe(true)
   })
 
-  test('blog posts have route metadata, absolute social images, and article fields', () => {
+  test('indexable routes have branded route-level social cards', () => {
+    const indexableRoutes = siteMetadataRoutes.filter(isIndexableRoute)
+    const uniqueSocialImages = new Set(indexableRoutes.map((route) => route.image))
+
+    expect(DEFAULT_SITE_IMAGE).toBe('/img/og/home.jpg')
+    expect(uniqueSocialImages.size).toBe(indexableRoutes.length)
+    expect(indexableRoutes.every((route) => route.image.startsWith('/img/og/'))).toBe(true)
+    expect(indexableRoutes.every((route) => route.image === ogImagePathForRoutePath(route.path))).toBe(true)
+  })
+
+  test('blog posts have branded cards backed by their individual generated art', () => {
     for (const post of blogPosts) {
       const route = getRouteMetadata(`/blog/${post.slug}`)
 
       expect(route.section).toBe('blog')
       expect(route.title).toContain(post.title)
       expect(route.description).toBe(post.excerpt)
-      expect(route.image).toBe(post.heroImage)
-      expect(existsSync(resolve(publicDir, post.heroImage.replace(/^\//, '')))).toBe(true)
+      expect(route.image).toBe(ogImagePathForRoutePath(`/blog/${post.slug}`))
+      expect(route.ogSourceImage).toBe(post.heroImage)
+      expect(existsSync(resolve(publicDir, route.image.replace(/^\//, '')))).toBe(true)
+      expect(existsSync(resolve(publicDir, route.ogSourceImage.replace(/^\//, '')))).toBe(true)
       expect(route.publishedAt).toBe(post.date)
       expect(route.author).toBe(post.author)
-      expect(absoluteImageUrl(route.image)).toMatch(/^https:\/\/portdaddy\.dev\/img\//)
+      expect(absoluteImageUrl(route.image)).toMatch(/^https:\/\/portdaddy\.dev\/img\/og\//)
       expect(new Date(post.date).getTime()).toBeLessThanOrEqual(new Date('2026-04-29T23:59:59-07:00').getTime())
     }
+  })
+
+  test('example, tutorial, and docs pages carry subpage-specific social cards', () => {
+    const example = getRouteMetadata('/examples/leader-election')
+    const tutorial = getRouteMetadata('/tutorials/fleet')
+    const docs = getRouteMetadata('/docs/cli/begin')
+
+    expect(example.image).toBe('/img/og/examples-leader-election.jpg')
+    expect(example.ogSourceImage).toBe('/img/generated/example-leader-election.jpg')
+    expect(example.title).toContain('Elect one leader')
+    expect(tutorial.image).toBe('/img/og/tutorials-fleet.jpg')
+    expect(tutorial.ogSectionLabel).toBe('Tutorial 18')
+    expect(docs.image).toBe('/img/og/docs-cli-begin.jpg')
+    expect(docs.ogSourceImage).toBe(OG_SOURCE_IMAGES.controlPlane)
   })
 
   test('deprecated blog posts noindex and canonicalize to current replacements', () => {
@@ -83,8 +112,8 @@ describe('website SEO metadata', () => {
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
     const generatedFiles = manifest.generatedAssets.map((asset: { file: string }) => asset.file)
 
-    expect(DEFAULT_SITE_IMAGE).toBe('/img/generated/control-plane-og.jpg')
-    expect(generatedFiles).toContain(DEFAULT_SITE_IMAGE)
+    expect(generatedFiles).toContain(OG_SOURCE_IMAGES.controlPlane)
+    expect(existsSync(resolve(publicDir, DEFAULT_SITE_IMAGE.replace(/^\//, '')))).toBe(true)
     expect(existsSync(resolve(publicDir, 'img/hero-portdaddy.png'))).toBe(false)
   })
 
@@ -118,8 +147,8 @@ describe('website SEO metadata', () => {
 
     expect(document.querySelector<HTMLMetaElement>('meta[name="description"]')?.content).toContain('FleetBar opens the real Fleet Control Center')
     expect(document.querySelector<HTMLLinkElement>('link[rel="canonical"]')?.href).toBe('https://portdaddy.dev/blog/control-plane-is-the-product')
-    expect(document.querySelector<HTMLMetaElement>('meta[property="og:image"]')?.content).toBe('https://portdaddy.dev/img/generated/blog-control-plane-product.jpg')
-    expect(document.querySelector<HTMLMetaElement>('meta[name="twitter:image"]')?.content).toBe('https://portdaddy.dev/img/generated/blog-control-plane-product.jpg')
+    expect(document.querySelector<HTMLMetaElement>('meta[property="og:image"]')?.content).toBe('https://portdaddy.dev/img/og/blog-control-plane-is-the-product.jpg')
+    expect(document.querySelector<HTMLMetaElement>('meta[name="twitter:image"]')?.content).toBe('https://portdaddy.dev/img/og/blog-control-plane-is-the-product.jpg')
     expect(document.querySelector<HTMLMetaElement>('meta[name="robots"]')?.content).toBe('index,follow')
     expect(document.querySelector<HTMLMetaElement>('meta[property="article:published_time"]')?.content).toBe('2026-04-29')
     expect(document.querySelectorAll('meta[property="article:tag"]').length).toBeGreaterThan(0)
