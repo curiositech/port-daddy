@@ -87,7 +87,13 @@ Creating an "edited" note actually creates a new note version, with the old vers
 
 Notes are **append-only and immutable after creation**.
 
-The `session_notes` table has no `UPDATE` route. The API exposes `POST /sessions/:id/notes` (add a note) and `GET /sessions/:id/notes` (read notes). There is no `PUT` or `PATCH` for individual notes. There is no `DELETE /sessions/:id/notes/:noteId`.
+The `session_notes` table has no `UPDATE` route. The canonical write API is
+`POST /notes`; callers pass `sessionId` when they are targeting a known session,
+or omit it when they want the daemon to resolve the active session/quick-note
+context. `POST /sessions/:id/notes` remains a compatibility alias, but it
+funnels through the same `POST /notes`/`quickNote` path. The session read API is
+`GET /sessions/:id/notes`. There is no `PUT` or `PATCH` for individual notes.
+There is no `DELETE /sessions/:id/notes/:noteId`.
 
 The schema enforces this structurally:
 
@@ -125,7 +131,7 @@ The practical cost is low. If an agent makes a mistake in a note, it can write a
 
 ### Positive
 
-- The `addNote()` function in `lib/sessions.ts` is a simple `INSERT` — no conditional logic, no version management
+- The internal `addNote()` storage function in `lib/sessions.ts` is a simple `INSERT` — no conditional logic, no version management
 - Agents consuming notes via the resurrection system can trust them as reliable historical records
 - The CLAUDE.md documentation is clear and accurate: "Notes are immutable (append-only, never edited/deleted individually)"
 - Typed notes (`type: 'handoff'`, `type: 'progress'`) allow filtering by intent without requiring mutable content
@@ -137,5 +143,5 @@ The practical cost is low. If an agent makes a mistake in a note, it can write a
 
 ### Neutral
 
-- The `quickNote()` method in `lib/sessions.ts` creates an implicit session if none exists (useful for one-off notes from the CLI: `pd note "found the bug"`). The implicit session is also governed by the immutability rule — notes written to it are equally permanent.
+- The `quickNote()` method in `lib/sessions.ts` is the public write gate for `pd note`, SDK `pd.note()`, MCP `add_note`, IPC note writes, and the REST `POST /notes` route. It creates an implicit session if none exists (useful for one-off notes from the CLI: `pd note "found the bug"`). The implicit session is also governed by the immutability rule — notes written to it are equally permanent.
 - Session-level deletion (not note-level deletion) means that cleanup of old sessions via `sessions.cleanup()` — which removes completed/abandoned sessions older than 7 days — also removes their notes. This is the intended long-term retention policy.

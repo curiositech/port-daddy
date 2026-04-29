@@ -7,9 +7,9 @@ export default function AddNote() {
       description="Add a note to the current session. Notes are immutable — they are never edited or deleted."
       module="Sessions"
       version="3.11.0"
-      signature="note(text: string, options?: NoteOptions): Promise<Note>"
+      signature="note(content: string, options?: NoteOptions): Promise<Note>"
       params={[
-        { name: 'text', type: 'string', required: true, description: 'Note content' },
+        { name: 'content', type: 'string', required: true, description: 'Note content' },
         { name: 'options.type', type: 'NoteType', description: 'Type: progress | decision | milestone | warning (default: progress)' },
         { name: 'options.sessionId', type: 'string', description: 'Target session ID (default: current session)' },
         { name: 'options.agentId', type: 'string', description: 'Target agent ID when resolving an active session' },

@@ -6,20 +6,20 @@ export default function AddNoteTool() {
       command="add_note"
       description="Add a note to the current session. Notes are immutable — they are never edited or deleted."
       version="3.11.0"
-      syntax="add_note(text, options?)"
+      syntax="add_note({ content, type?, session_id? })"
       flags={[
-        { flag: 'text', description: 'Note content' },
+        { flag: 'content', description: 'Note content' },
         { flag: 'type', description: 'Note type: progress | decision | milestone | warning (default: progress)' },
-        { flag: 'session', description: 'Target session ID (default: current session)' },
+        { flag: 'session_id', description: 'Target session ID (default: current session or quick note)' },
       ]}
       usagePatterns={[
-        'add_note({ text: "Started JWT refactor" })',
-        'add_note({ text: "Auth updated", type: "milestone" })',
+        'add_note({ content: "Started JWT refactor" })',
+        'add_note({ content: "Auth updated", type: "milestone" })',
       ]}
       examples={[
         {
           description: 'Add a progress note',
-          code: 'add_note({ text: "Started JWT refactor" })',
+          code: 'add_note({ content: "Started JWT refactor" })',
           output: `{\n  "note_id": "note-001",\n  "session": "abc123",\n  "added": true\n}`
         },
         {
