@@ -72,10 +72,10 @@ export function Fleet() {
               >
                 Reactive
               </Badge>
-              <motion.p className="text-xs font-bold m-0">
+              <motion.p className="text-[length:var(--type-meta-size)] font-bold m-0">
                 Trigger on Events
               </motion.p>
-              <motion.p className="text-xs text-[var(--text-secondary)] m-0">
+              <motion.p className="text-[length:var(--type-meta-size)] text-[var(--text-secondary)] m-0">
                 Agents fire when messages hit pub/sub channels
               </motion.p>
             </Surface>
@@ -90,10 +90,10 @@ export function Fleet() {
               >
                 Scheduled
               </Badge>
-              <motion.p className="text-xs font-bold m-0">
+              <motion.p className="text-[length:var(--type-meta-size)] font-bold m-0">
                 Run on a Timer
               </motion.p>
-              <motion.p className="text-xs text-[var(--text-secondary)] m-0">
+              <motion.p className="text-[length:var(--type-meta-size)] text-[var(--text-secondary)] m-0">
                 Cron-style intervals for periodic work
               </motion.p>
             </Surface>
@@ -108,10 +108,10 @@ export function Fleet() {
               >
                 Chained
               </Badge>
-              <motion.p className="text-xs font-bold m-0">
+              <motion.p className="text-[length:var(--type-meta-size)] font-bold m-0">
                 Agents Talk to Agents
               </motion.p>
-              <motion.p className="text-xs text-[var(--text-secondary)] m-0">
+              <motion.p className="text-[length:var(--type-meta-size)] text-[var(--text-secondary)] m-0">
                 One agent&apos;s output triggers another
               </motion.p>
             </Surface>
@@ -199,10 +199,10 @@ export function Fleet() {
           </motion.ul>
 
           <Surface depth="raised" radius="none" className="p-6 space-y-3">
-            <motion.p className="text-sm font-bold m-0 text-[var(--brand-accent)]">
+            <motion.p className="text-[length:var(--type-panel-body-compact-size)] font-bold m-0 text-[var(--brand-accent)]">
               Template Variables
             </motion.p>
-            <motion.p className="text-xs text-[var(--text-secondary)] m-0">
+            <motion.p className="text-[length:var(--type-meta-size)] text-[var(--text-secondary)] m-0">
               <code>{"{project}"}</code> resolves to your directory name.{" "}
               <code>{"{branch}"}</code> is the current git branch.{" "}
               <code>{"{sha}"}</code> is the current commit hash. These resolve
@@ -258,10 +258,10 @@ exit 0`}</CodeBlock>
           </motion.p>
 
           <Surface depth="raised" radius="none" className="p-6 space-y-3">
-            <motion.p className="text-sm font-bold m-0 text-[var(--brand-accent)]">
+            <motion.p className="text-[length:var(--type-panel-body-compact-size)] font-bold m-0 text-[var(--brand-accent)]">
               What happens next?
             </motion.p>
-            <motion.p className="text-xs text-[var(--text-secondary)] m-0">
+            <motion.p className="text-[length:var(--type-meta-size)] text-[var(--text-secondary)] m-0">
               You commit. The hook publishes to <code>git:committed</code>. Port
               Daddy delivers the message to every agent with that trigger. Each
               agent spawns, does its job, and publishes its result. The whole
@@ -294,10 +294,10 @@ exit 0`}</CodeBlock>
               >
                 <Zap size={20} className="text-[var(--brand-secondary)]" />
               </Surface>
-              <motion.h3 className="text-lg font-display font-black m-0">
+              <motion.h3 className="text-[length:var(--type-panel-title-nav-size)] font-display font-black m-0">
                 Triggered Agents
               </motion.h3>
-              <motion.p className="text-sm text-[var(--text-secondary)] m-0">
+              <motion.p className="text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)] m-0">
                 Fire when a message arrives on their channel. Reactive. Good for
                 code review, docs updates, test coverage. Think event handlers.
               </motion.p>
@@ -315,10 +315,10 @@ exit 0`}</CodeBlock>
               >
                 <Clock size={20} className="text-[var(--brand-secondary)]" />
               </Surface>
-              <motion.h3 className="text-lg font-display font-black m-0">
+              <motion.h3 className="text-[length:var(--type-panel-title-nav-size)] font-display font-black m-0">
                 Scheduled Agents
               </motion.h3>
-              <motion.p className="text-sm text-[var(--text-secondary)] m-0">
+              <motion.p className="text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)] m-0">
                 Run on a cron interval. Steady. Good for health checks, idea
                 generation, cleanup. Think cron jobs with brains.
               </motion.p>
@@ -356,23 +356,23 @@ exit 0`}</CodeBlock>
           </motion.p>
 
           <Surface depth="raised" radius="none" className="p-8 space-y-4">
-            <motion.p className="text-sm font-bold m-0">
+            <motion.p className="text-[length:var(--type-panel-body-compact-size)] font-bold m-0">
               The Spark &amp; Spider Loop
             </motion.p>
             <motion.div className="space-y-3 pt-2">
-              <motion.div className="flex items-center gap-3 text-xs text-[var(--text-secondary)]">
+              <motion.div className="flex items-center gap-3 text-[length:var(--type-meta-size)] text-[var(--text-secondary)]">
                 <Badge variant="gold">Spark</Badge>
                 <span>proposes an idea every 30 min</span>
                 <ArrowRight size={14} className="flex-shrink-0" />
                 <code>spark:idea</code>
               </motion.div>
-              <motion.div className="flex items-center gap-3 text-xs text-[var(--text-secondary)]">
+              <motion.div className="flex items-center gap-3 text-[length:var(--type-meta-size)] text-[var(--text-secondary)]">
                 <Badge variant="default">Spider</Badge>
                 <span>triggers on that idea, finds connections</span>
                 <ArrowRight size={14} className="flex-shrink-0" />
                 <code>spider:connections</code>
               </motion.div>
-              <motion.div className="flex items-center gap-3 text-xs text-[var(--text-secondary)]">
+              <motion.div className="flex items-center gap-3 text-[length:var(--type-meta-size)] text-[var(--text-secondary)]">
                 <Badge variant="gold">Spark</Badge>
                 <span>reads Spider&apos;s files on next run</span>
                 <ArrowRight size={14} className="flex-shrink-0" />
@@ -415,10 +415,10 @@ pd fleet down     # Stop everything`}</CodeBlock>
           </motion.p>
 
           <Surface depth="raised" radius="none" className="p-6 space-y-3">
-            <motion.p className="text-sm font-bold m-0 text-[var(--brand-accent)]">
+            <motion.p className="text-[length:var(--type-panel-body-compact-size)] font-bold m-0 text-[var(--brand-accent)]">
               Menu Bar App
             </motion.p>
-            <motion.p className="text-xs text-[var(--text-secondary)] m-0">
+            <motion.p className="text-[length:var(--type-meta-size)] text-[var(--text-secondary)] m-0">
               Build the native macOS menu bar app from{" "}
               <code>apps/FleetBar</code>. One click in your menu bar opens the
               Fleet Control Center shell around the same daemon-backed
@@ -443,37 +443,37 @@ pd fleet down     # Stop everything`}</CodeBlock>
 
           <motion.div className="grid sm:grid-cols-2 gap-6">
             <Surface depth="raised" radius="none" className="p-6 space-y-3">
-              <motion.h3 className="text-sm font-bold m-0">
+              <motion.h3 className="text-[length:var(--type-panel-body-compact-size)] font-bold m-0">
                 DAG Validation
               </motion.h3>
-              <motion.p className="text-xs text-[var(--text-secondary)] m-0">
+              <motion.p className="text-[length:var(--type-meta-size)] text-[var(--text-secondary)] m-0">
                 Trigger graph checked for cycles before any agent starts. Loops
                 are caught at config time, not runtime.
               </motion.p>
             </Surface>
             <Surface depth="raised" radius="none" className="p-6 space-y-3">
-              <motion.h3 className="text-sm font-bold m-0">
+              <motion.h3 className="text-[length:var(--type-panel-body-compact-size)] font-bold m-0">
                 Singletons
               </motion.h3>
-              <motion.p className="text-xs text-[var(--text-secondary)] m-0">
+              <motion.p className="text-[length:var(--type-meta-size)] text-[var(--text-secondary)] m-0">
                 <code>singleton: true</code> ensures only one instance runs at a
                 time. No runaway duplicates.
               </motion.p>
             </Surface>
             <Surface depth="raised" radius="none" className="p-6 space-y-3">
-              <motion.h3 className="text-sm font-bold m-0">
+              <motion.h3 className="text-[length:var(--type-panel-body-compact-size)] font-bold m-0">
                 Scoped Tools
               </motion.h3>
-              <motion.p className="text-xs text-[var(--text-secondary)] m-0">
+              <motion.p className="text-[length:var(--type-meta-size)] text-[var(--text-secondary)] m-0">
                 <code>allowedTools</code> limits what each agent can do.
                 Read-only agents can&apos;t write. No ambient authority.
               </motion.p>
             </Surface>
             <Surface depth="raised" radius="none" className="p-6 space-y-3">
-              <motion.h3 className="text-sm font-bold m-0">
+              <motion.h3 className="text-[length:var(--type-panel-body-compact-size)] font-bold m-0">
                 Immutable Notes
               </motion.h3>
-              <motion.p className="text-xs text-[var(--text-secondary)] m-0">
+              <motion.p className="text-[length:var(--type-meta-size)] text-[var(--text-secondary)] m-0">
                 Every agent writes session notes that cannot be edited or
                 deleted. Evidence survives misbehavior.
               </motion.p>
@@ -484,10 +484,10 @@ pd fleet down     # Stop everything`}</CodeBlock>
         {/* Quick Start */}
         <section className="space-y-6">
           <Surface depth="raised" radius="none" className="p-8 space-y-4">
-            <motion.h3 className="text-lg font-display font-black m-0">
+            <motion.h3 className="text-[length:var(--type-panel-title-nav-size)] font-display font-black m-0">
               Quick Start
             </motion.h3>
-            <motion.ol className="space-y-2 text-sm text-[var(--text-secondary)]">
+            <motion.ol className="space-y-2 text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)]">
               <motion.li>
                 Create <code>pd-fleet.yml</code> at your project root
               </motion.li>

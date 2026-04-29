@@ -100,7 +100,7 @@ export function CommandPage({
       <TerminalGif
         src={CLI_REFERENCE_RECORDING.gifSrc}
         title={CLI_REFERENCE_RECORDING.title}
-        caption={`This command page is backed by the shared CLI recording gate. ${CLI_REFERENCE_RECORDING.caption}`}
+        caption="This clip gives the command page context, not just syntax: it shows the daemon health check, command discovery, and message-loop patterns these reference pages keep pointing back to."
       />
 
       {usagePatterns?.length ? (

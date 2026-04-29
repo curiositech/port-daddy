@@ -49,8 +49,7 @@ export function SemanticIdentities() {
           <motion.div className="grid sm:grid-cols-2 gap-6">
             <Surface depth="flat" radius="none" className="p-6 space-y-3">
               <motion.p
-                className="text-xs font-bold m-0 line-through"
-                style={{ color: "var(--text-muted)" }}
+                className="m-0 font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)] line-through"
               >
                 Without identities
               </motion.p>
@@ -60,8 +59,7 @@ PORT=3001 node worker.js
             </Surface>
             <Surface depth="raised" radius="none" className="p-6 space-y-3">
               <motion.p
-                className="text-xs font-bold m-0"
-                style={{ color: "var(--brand-primary)" }}
+                className="m-0 font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]"
               >
                 With identities
               </motion.p>
@@ -93,19 +91,16 @@ PORT=$(pd claim myapp:worker:main -q) node worker.js
           </motion.p>
 
           <Surface depth="raised" radius="none" className="p-8 overflow-x-auto">
-            <table className="w-full text-sm">
+            <table>
               <thead>
-                <tr style={{ color: "var(--text-muted)" }}>
-                  <th className="text-left pb-3 pr-4 font-semibold">Segment</th>
-                  <th className="text-left pb-3 pr-4 font-semibold">Meaning</th>
-                  <th className="text-left pb-3 font-semibold">Example</th>
+                <tr>
+                  <th>Segment</th>
+                  <th>Meaning</th>
+                  <th>Example</th>
                 </tr>
               </thead>
-              <tbody style={{ color: "var(--text-secondary)" }}>
-                <tr
-                  className="border-t"
-                  style={{ borderColor: "var(--border-subtle)" }}
-                >
+              <tbody>
+                <tr>
                   <td className="py-2 pr-4">
                     <code style={{ color: "var(--brand-primary)" }}>
                       project
@@ -117,10 +112,7 @@ PORT=$(pd claim myapp:worker:main -q) node worker.js
                     <code>bosun</code>
                   </td>
                 </tr>
-                <tr
-                  className="border-t"
-                  style={{ borderColor: "var(--border-subtle)" }}
-                >
+                <tr>
                   <td className="py-2 pr-4">
                     <code style={{ color: "var(--brand-secondary)" }}>
                       stack
@@ -132,10 +124,7 @@ PORT=$(pd claim myapp:worker:main -q) node worker.js
                     , <code>db</code>
                   </td>
                 </tr>
-                <tr
-                  className="border-t"
-                  style={{ borderColor: "var(--border-subtle)" }}
-                >
+                <tr>
                   <td className="py-2 pr-4">
                     <code style={{ color: "var(--brand-accent)" }}>
                       context
@@ -200,13 +189,13 @@ pd find 'myapp:*:feature-*'
 
           <Surface depth="flat" radius="none" className="p-6 space-y-3">
             <motion.p
-              className="text-sm font-bold m-0"
+              className="text-[length:var(--type-panel-body-compact-size)] font-bold m-0"
               style={{ color: "var(--brand-primary)" }}
             >
               Under the hood: the Semantic Trie
             </motion.p>
             <motion.p
-              className="text-xs m-0 leading-relaxed"
+              className="text-[length:var(--type-meta-size)] m-0 leading-relaxed"
               style={{ color: "var(--text-secondary)" }}
             >
               Port Daddy indexes every identity in an in-memory radix trie.
@@ -278,21 +267,18 @@ pd find 'myapp:*:feature-*'
                 className="p-4 flex items-start gap-4"
               >
                 <span
-                  className="text-xs font-bold shrink-0 w-16"
-                  style={{ color: "var(--brand-primary)" }}
+                  className="w-16 shrink-0 font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]"
                 >
                   {item.label}
                 </span>
                 <div className="flex-1 min-w-0">
                   <code
-                    className="text-xs"
-                    style={{ color: "var(--text-primary)" }}
+                    className="font-mono text-[length:var(--type-meta-size)] text-[var(--text-primary)]"
                   >
                     {item.example}
                   </code>
                   <p
-                    className="text-xs m-0 mt-1"
-                    style={{ color: "var(--text-muted)" }}
+                    className="m-0 mt-1 text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-muted)]"
                   >
                     {item.desc}
                   </p>
@@ -359,7 +345,7 @@ pd find 'myapp:api:*'
           </motion.div>
 
           <Surface depth="raised" radius="none" className="p-8 overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-[length:var(--type-panel-body-compact-size)]">
               <thead>
                 <tr style={{ color: "var(--text-muted)" }}>
                   <th className="text-left pb-3 pr-4 font-semibold">Pattern</th>
@@ -424,12 +410,11 @@ pd find 'myapp:api:*'
         {/* Summary */}
         <section>
           <Surface depth="raised" radius="none" className="p-8 space-y-4">
-            <motion.h3 className="text-lg font-display font-black m-0">
+            <motion.h3 className="m-0 font-display text-[length:var(--type-panel-title-nav-size)] font-black leading-[var(--leading-nav)] tracking-[var(--tracking-display-nav)] text-[var(--text-primary)]">
               The idea in one sentence
             </motion.h3>
             <motion.p
-              className="text-sm m-0 leading-relaxed"
-              style={{ color: "var(--text-secondary)" }}
+              className="m-0 text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]"
             >
               Name your services with <code>project:stack:context</code> and
               Port Daddy gives you deterministic ports, wildcard discovery,
