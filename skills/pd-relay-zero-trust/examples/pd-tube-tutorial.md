@@ -23,8 +23,10 @@ pd channels clear tutorial:foreign --raw-channel
 Most examples pass `--json`. That makes stdout one JSON object per line, which is what scripts and `jq` want.
 
 ### Visual rhythm for this tutorial
-This file is text-only by constraint, but it is written with GIF beats baked in. Each beat names a concrete animation that can be captured later with `vhs`,
-`asciinema`, `agg`, or a screen recorder. The commands are real; the GIF notes are production cues, not extra assets.
+This tutorial includes generated SVG visuals where a diagram beats another paragraph. Each asset is small, repo-native, and easy to replace later with a Nano
+Banana raster/GIF render using the same storyboard. The GIF beats below are production cues for that future animation pass.
+
+![Two terminals send and listen through pd tube](pd-tube-assets/two-terminal-hello.svg)
 
 > **GIF beat: two-terminal hello.** Left terminal starts `pd tube tutorial:hello --json` and sits quiet. Right terminal pipes `echo "hi from terminal B"` into
 > `--send`. The left terminal lights up with one JSON line. Freeze-frame on the shared `id`.
@@ -174,6 +176,9 @@ That guard catches the common mistake of typing `--send` without a pipe.
 
 ## 3. Threading and replies
 The daemon's message table does not model thread parents. Tube carries threading in its payload envelope. A top-level message is stored like this:
+
+![Threading lives inside the tube envelope](pd-tube-assets/thread-envelope.svg)
+
 ```json
 {
   "v": 1,
@@ -299,6 +304,9 @@ pd tube tutorial:foreign --once --no-history --json | jq 'select(.foreign != tru
 ## 4. History guard mechanics
 The history guard is a local cursor file. It is single-channel and single-machine. It is not synchronized across machines until a relay-backed mode exists. The
 default path is:
+
+![The tube history guard stores lastSeenId locally](pd-tube-assets/history-guard.svg)
+
 ```text
 ~/.port-daddy/tube-history-<safe-channel>.json
 ```
@@ -622,6 +630,8 @@ Tube does not validate body schemas. It transports a string body and optional re
 Track B1 exists because a phone or remote client eventually needs a way to "phone in" without opening inbound holes to the local daemon. You can rehearse that
 shape locally today.
 
+![A phone integration dry run over phone inbox](pd-tube-assets/phone-dry-run.svg)
+
 Pretend this command is the phone:
 ```bash
 jq -nc \
@@ -695,6 +705,9 @@ contract.
 ```
 The local daemon carries that envelope today. The future relay can carry the same envelope later. Scripts that use tube as a JSONL producer or stdin consumer
 should not need client-side rewrites when the relay backend appears. End references:
+
+![The same tube envelope can move through the future relay](pd-tube-assets/future-relay.svg)
+
 - [Relay architecture](../references/relay-architecture.md)
 - [Relay handshake trace](handshake-trace.md)
 - [Canonical tube behavior tests](../../../tests/unit/tube.test.ts)
