@@ -157,6 +157,7 @@ interface CodeBlockProps {
   filename?: string;
   className?: string;
   copyable?: boolean;
+  showHeaderLabel?: boolean;
 }
 
 export function CodeBlock({
@@ -165,8 +166,10 @@ export function CodeBlock({
   filename,
   className,
   copyable = true,
+  showHeaderLabel = true,
 }: CodeBlockProps) {
   const [copied, setCopied] = React.useState(false);
+  const headerLabel = filename || language;
 
   // Extract text content from children, handling JSX whitespace nodes
   const textContent = React.Children.toArray(children)
@@ -205,9 +208,9 @@ export function CodeBlock({
           style={{ background: "var(--code-dot-green)" }}
           aria-hidden="true"
         />
-        {(filename || language) && (
+        {showHeaderLabel && headerLabel && (
           <span className="ml-[var(--space-2)] min-w-0 truncate font-mono text-[length:var(--type-meta-size)] uppercase tracking-[var(--tracking-meta)] text-[var(--code-comment)]">
-            {filename || language}
+            {headerLabel}
           </span>
         )}
         {copyable && (

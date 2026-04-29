@@ -1,6 +1,5 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
-import { Check, ChevronRight } from "lucide-react";
 import { Surface } from "@/components/ui/Surface";
 import { TUTORIALS as CANONICAL_TUTORIALS } from "@/data/tutorials";
 
@@ -9,24 +8,13 @@ interface Tutorial {
   title: string;
   href: string;
   readTime: string;
-  level: "Beginner" | "Intermediate" | "Advanced";
 }
-
-const LEVEL_LABELS: Record<
-  (typeof CANONICAL_TUTORIALS)[number]["level"],
-  Tutorial["level"]
-> = {
-  beginner: "Beginner",
-  intermediate: "Intermediate",
-  advanced: "Advanced",
-};
 
 const TUTORIALS: Tutorial[] = CANONICAL_TUTORIALS.map((tutorial) => ({
   number: Number.parseInt(tutorial.number, 10),
   title: tutorial.title,
   href: tutorial.href,
   readTime: tutorial.time,
-  level: LEVEL_LABELS[tutorial.level],
 }));
 
 const TOTAL_TIME = TUTORIALS.reduce((acc, t) => acc + parseInt(t.readTime), 0); // ~133 minutes
@@ -101,11 +89,9 @@ export function TutorialProgress({
           </div>
         </div>
 
-        <ChevronRight
-          size={20}
-          className={`transition-transform ${isOpen ? "rotate-90" : ""}`}
-          aria-hidden="true"
-        />
+        <span className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+          {isOpen ? "Hide map" : "Open map"}
+        </span>
       </Surface>
 
       {/* Expanded Roadmap */}
@@ -155,7 +141,7 @@ export function TutorialProgress({
                             : {}
                       }
                     >
-                      {isCompleted ? <Check size={14} /> : tutorial.number}
+                      {isCompleted ? "Done" : tutorial.number}
                     </Surface>
 
                     {/* Tutorial info */}
@@ -175,21 +161,6 @@ export function TutorialProgress({
                         style={{ color: "var(--text-muted)" }}
                       >
                         {tutorial.readTime}
-                        <span style={{ color: "var(--border-default)" }}>
-                          &middot;
-                        </span>
-                        <span
-                          style={{
-                            color:
-                              tutorial.level === "Beginner"
-                                ? "var(--status-success)"
-                                : tutorial.level === "Intermediate"
-                                  ? "var(--status-warning)"
-                                  : "var(--brand-primary)",
-                          }}
-                        >
-                          {tutorial.level}
-                        </span>
                       </div>
                     </div>
 

@@ -1,27 +1,21 @@
 {
-  "generatedAt": "2026-04-29T07:53:11.585Z",
+  "generatedAt": "2026-04-29T15:58:03.587Z",
   "status": {
-    "activePorts": "19",
+    "activePorts": "21",
     "fleet": "1 project(s), 8 agent(s), 3/8 launchable",
     "runtime": "nominal",
-    "lastActivity": "4s ago",
+    "lastActivity": "13s ago",
     "launchable": "3/8"
   },
   "sessions": [
-    "Promote Skill + MCP to ...",
-    "Reframe tutorials aroun...",
-    "Commit and push recentl...",
-    "Finish /blog legibility...",
-    "Implement tuple-backed ...",
-    "Make FleetBar developer...",
-    "Add landing page synchr...",
-    "Rebuild Fleet Control C..."
+    "Apply Cartographer tupl...",
+    "website install CTA chr...",
+    "Normalize website safel...",
+    "commit push deploy curr...",
+    "Commit/push/deploy Cart...",
+    "website design-system s...",
+    "Commit, push, and deplo...",
+    "Deploy branch to main"
   ],
-  "notes": [
-    "Commit slice 3: stage only unclaimed integrations and whitepaper generated-image coverage. Avoiding MCPPage now claimed by top-level public-page session.",
-    "Scope: promote Skill + MCP into the top-level /mcp public surface, replace the /agents/agent-skill top link with Skill + MCP, redirect old /agents/agent-skill, keep /mcp stable for SEO/backcompat, update metadata/tests/SEO artifacts. Claimed MCPPage, AgentsPage, SiteHeader/Footer, main, siteMetadata, focused tests, sitemap/llms.",
-    "Tutorial normalization update: removed generic shared hero feature triplet, decorative GettingStarted lucide section plaques, old bullet-list next steps, and raw type/spacing classes from TutorialLayout/GettingStarted. Tightened TutorialProgress to a compact tokenized bar. Targeted tutorial ESLint passes; browser proof on /tutorials/getting-started confirms no old triplet, no article lists, no section icon plaques.",
-    "[handoff] Pushed quote-card readability commit 757a172 to main. Validation before push: clean-worktree website-v2 build passed after rebasing onto origin/main; Playwright desktop/mobile screenshots confirm normal header position and quote-card hierarchy. Note: earlier section-crop screenshot was misleading because sticky nav composited into the cropped element.",
-    "AGENTS push rejected because origin/main advanced again. Rebasing the clean temp worktree's single AGENTS commit onto latest origin/main before retry."
-  ]
+  "notes": []
 }

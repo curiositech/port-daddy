@@ -65,9 +65,9 @@ export function MacPreviewPage() {
               <SwissGridItem span="narrow">
                 <SurfacePanel elevation="quiet" padding="compact">
                   <CopyableCommandBlock
-                    label="Install FleetBar"
+                    label="Homebrew + setup"
                     command={heroInstallCommand}
-                    ariaLabel="Copy FleetBar install command"
+                    ariaLabel="Copy Homebrew and setup command"
                   />
                 </SurfacePanel>
               </SwissGridItem>

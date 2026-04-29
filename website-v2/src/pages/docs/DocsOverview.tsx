@@ -77,7 +77,7 @@ export default function DocsOverview() {
 
         <DocsNoteCard
           label="Reading path"
-          title="Install first. Read deeper when you need it."
+          title="Start here. Read deeper when you need it."
           elevation="quiet"
           padding="compact"
           titleSize="nav"

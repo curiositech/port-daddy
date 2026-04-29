@@ -80,7 +80,7 @@ describe('public shell contracts', () => {
           'BracketLink',
           'overviewOrder',
           'What Port Daddy Is And How To Use It',
-          'Install first. Read deeper when you need it.',
+          'Start here. Read deeper when you need it.',
         ],
         forbidden: [
           /text-\[11px\]/,

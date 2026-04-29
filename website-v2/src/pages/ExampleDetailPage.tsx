@@ -21,6 +21,18 @@ function sectionAnchor(text: string) {
     .replace(/^-+|-+$/g, '')
 }
 
+function exampleMetaLines(example: {
+  lastReviewed: string
+  time: string
+  files: string[]
+  commands: { title: string }[]
+}) {
+  return [
+    `Reviewed ${example.lastReviewed}. First run takes about ${example.time}.`,
+    `${example.files.length} source file${example.files.length === 1 ? '' : 's'} and ${example.commands.length} operator step${example.commands.length === 1 ? '' : 's'}. The publisher stays small; the live agent work happens in the repo terminal you already trust.`,
+  ]
+}
+
 export function ExampleDetailPage() {
   const { slug } = useParams<{ slug: string }>()
   const location = useLocation()
@@ -51,10 +63,7 @@ export function ExampleDetailPage() {
           eyebrow={example.eyebrow}
           title={example.title}
           summary={example.summary}
-          paragraphs={[
-            `Last reviewed ${example.lastReviewed}. Level: ${example.level}. Estimated time: ${example.time}.`,
-            `Tags: ${example.tags.join(', ')}.`,
-          ]}
+          paragraphs={exampleMetaLines(example)}
           aside={
             <DocsNoteCard label="Files in this example" elevation="quiet" padding="compact">
               <div className="grid gap-[var(--space-2)]">
@@ -123,7 +132,7 @@ export function ExampleDetailPage() {
               </PanelTitle>
               {example.commands.map((command) => (
                 <DocsNoteCard key={command.title} label="Command" title={command.title} tone="blue">
-                  <DocsCodeBlock code={command.command} language="cli" label={command.title} />
+                  <DocsCodeBlock code={command.command} language="cli" label={command.title} copyable={false} />
                   {command.notes?.length ? <PanelList items={command.notes} tone="primary" /> : null}
                 </DocsNoteCard>
               ))}
@@ -135,7 +144,7 @@ export function ExampleDetailPage() {
               </PanelTitle>
               {example.sourceFiles.map((file) => (
                 <article key={file.path} id={sectionAnchor(file.path)} className="scroll-mt-[calc(var(--space-10)+var(--space-6))]">
-                  <DocsCodeBlock code={file.code} language={file.language} label={file.path} />
+                  <DocsCodeBlock code={file.code} language={file.language} label={file.path} copyable={false} />
                 </article>
               ))}
             </section>

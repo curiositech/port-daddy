@@ -1357,9 +1357,15 @@ function YamlCodeBlock({ code, label }: { code: string; label: string }) {
     <div className="min-w-0 space-y-[var(--space-2)]">
       <div className="flex items-center justify-between gap-[var(--panel-gap-tight)]">
         <BracketLabel>{label}</BracketLabel>
-        <Button type="button" variant="secondary" size="sm" aria-label={`Copy ${label}`} onClick={handleCopy}>
+        <Button
+          type="button"
+          variant="secondary"
+          size="icon"
+          aria-label={`Copy ${label}`}
+          title={copied ? 'Copied' : 'Copy'}
+          onClick={handleCopy}
+        >
           {copied ? <Check size={14} /> : <Copy size={14} />}
-          {copied ? 'Copied' : 'Copy'}
         </Button>
       </div>
       <pre

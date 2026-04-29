@@ -3,36 +3,38 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Port Daddy Terminal FleetBar Console Capture</title>
+    <title>Port Daddy Landing Live Glory Capture</title>
     <style>
       :root {
-        --bg: #f4f0e8;
-        --ink: #17130f;
-        --muted: #675f53;
-        --line: #221a12;
-        --soft-line: rgba(34, 26, 18, 0.16);
-        --panel: #fffaf0;
-        --terminal: #17130f;
-        --terminal-ink: #f6eddc;
-        --terminal-muted: #cbbfa9;
-        --accent: #e64b2a;
-        --accent-2: #167f73;
-        --shadow: 12px 14px 0 rgba(23, 19, 15, 0.18);
+        --bg: #f8f3ea;
+        --ink: #17120d;
+        --muted: #6a6054;
+        --line: #241b13;
+        --soft-line: rgba(36, 27, 19, 0.16);
+        --panel: #fffaf2;
+        --terminal: #17120d;
+        --terminal-ink: #f8edda;
+        --terminal-muted: #c8bca7;
+        --accent: #e7532e;
+        --accent-2: #168171;
+        --accent-3: #5596e6;
+        --shadow: 12px 14px 0 rgba(23, 18, 13, 0.16);
       }
 
       :root[data-theme="dark"] {
         --bg: #11100e;
-        --ink: #f7efe1;
-        --muted: #b7ac9a;
-        --line: #f3e6cf;
-        --soft-line: rgba(243, 230, 207, 0.18);
-        --panel: #1d1a16;
+        --ink: #f8edda;
+        --muted: #b4aa9a;
+        --line: #eadcc5;
+        --soft-line: rgba(234, 220, 197, 0.18);
+        --panel: #1a1714;
         --terminal: #050505;
         --terminal-ink: #f8ead3;
-        --terminal-muted: #b9a98e;
-        --accent: #ff6846;
-        --accent-2: #41c4b1;
-        --shadow: 12px 14px 0 rgba(0, 0, 0, 0.42);
+        --terminal-muted: #b8a98f;
+        --accent: #ff6a45;
+        --accent-2: #4cc6af;
+        --accent-3: #66a7ff;
+        --shadow: 12px 14px 0 rgba(0, 0, 0, 0.44);
       }
 
       * {
@@ -55,28 +57,26 @@
         background:
           linear-gradient(90deg, var(--soft-line) 1px, transparent 1px),
           linear-gradient(0deg, var(--soft-line) 1px, transparent 1px),
-          radial-gradient(circle at 14% 18%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 32%),
-          radial-gradient(circle at 86% 8%, color-mix(in srgb, var(--accent-2) 12%, transparent), transparent 30%),
           var(--bg);
-        background-size: 64px 64px, 64px 64px, auto, auto, auto;
+        background-size: 64px 64px, 64px 64px, auto;
       }
 
-      .brand-strip {
+      .chrome {
         position: absolute;
-        left: 44px;
-        right: 44px;
-        top: 32px;
-        z-index: 40;
+        left: 46px;
+        right: 46px;
+        top: 30px;
+        z-index: 50;
         display: flex;
         align-items: center;
         justify-content: space-between;
         text-transform: uppercase;
-        letter-spacing: 0.16em;
+        letter-spacing: 0.15em;
         font-size: 12px;
         font-weight: 900;
       }
 
-      .monogram {
+      .mark {
         display: inline-grid;
         width: 42px;
         height: 42px;
@@ -87,7 +87,7 @@
         letter-spacing: 0;
       }
 
-      .status-pill {
+      .run-state {
         display: flex;
         align-items: center;
         gap: 10px;
@@ -96,7 +96,8 @@
         padding: 10px 14px;
       }
 
-      .status-dot {
+      .run-state::before {
+        content: "";
         width: 10px;
         height: 10px;
         background: var(--accent-2);
@@ -104,8 +105,8 @@
 
       .terminal {
         position: absolute;
-        left: 72px;
-        top: 126px;
+        left: 74px;
+        top: 128px;
         z-index: 10;
         width: 760px;
         height: 430px;
@@ -170,92 +171,189 @@
         will-change: transform, opacity;
       }
 
-      .capture img {
+      .fleetbar-shell {
+        left: 94px;
+        top: 78px;
+        z-index: 20;
+        width: 1092px;
+        height: 610px;
+        opacity: 0;
+        transform-origin: center;
+      }
+
+      .menu-bar {
+        display: flex;
+        align-items: center;
+        gap: 22px;
+        height: 44px;
+        padding: 0 20px;
+        border-bottom: 2px solid var(--line);
+        background: color-mix(in srgb, var(--panel) 92%, var(--ink));
+      }
+
+      :root[data-theme="dark"] .menu-bar {
+        background: #20201f;
+      }
+
+      .traffic {
+        display: flex;
+        gap: 8px;
+      }
+
+      .traffic span {
+        width: 12px;
+        height: 12px;
+        border-radius: 999px;
+      }
+
+      .traffic span:nth-child(1) { background: #f15f57; }
+      .traffic span:nth-child(2) { background: #f7c64b; }
+      .traffic span:nth-child(3) { background: #57c86b; }
+
+      .menubar-icon {
+        position: relative;
+        display: inline-grid;
+        width: 42px;
+        height: 30px;
+        place-items: center;
+        border-radius: 999px;
+        background: #5c7432;
+      }
+
+      .menubar-icon::before {
+        content: "";
+        width: 16px;
+        height: 20px;
+        border-left: 3px solid #fff7df;
+        border-bottom: 3px solid #fff7df;
+        transform: skewX(-18deg);
+      }
+
+      .menu-copy {
+        color: var(--muted);
+        font-weight: 800;
+        letter-spacing: 0.08em;
+      }
+
+      .popover-stage {
+        position: relative;
+        height: calc(100% - 44px);
+        background:
+          radial-gradient(circle at 18% 20%, color-mix(in srgb, var(--accent-2) 18%, transparent), transparent 32%),
+          linear-gradient(135deg, color-mix(in srgb, var(--panel) 72%, var(--bg)), var(--bg));
+      }
+
+      .popover-image {
+        position: absolute;
+        left: 82px;
+        top: 18px;
+        width: 430px;
+        height: 540px;
+        border: 2px solid color-mix(in srgb, var(--line) 72%, transparent);
+        border-radius: 0;
+        object-fit: cover;
+        object-position: top;
+        box-shadow: 10px 12px 0 rgba(0, 0, 0, 0.18);
+      }
+
+      .fleetbar-callout {
+        position: absolute;
+        left: 566px;
+        top: 112px;
+        right: 70px;
+        border: 2px solid var(--line);
+        background: var(--panel);
+        padding: 28px;
+      }
+
+      .fleetbar-callout strong {
         display: block;
+        font-size: 34px;
+        line-height: 0.98;
+        letter-spacing: 0;
+      }
+
+      .fleetbar-callout span {
+        display: block;
+        margin-top: 14px;
+        color: var(--muted);
+        font-size: 16px;
+        font-weight: 800;
+        line-height: 1.4;
+      }
+
+      .surface {
+        left: 50px;
+        top: 36px;
+        z-index: 30;
+        width: 1180px;
+        height: 650px;
+        opacity: 0;
+        transform-origin: center;
+      }
+
+      .surface img {
         width: 100%;
         height: 100%;
+        display: block;
         object-fit: cover;
-        object-position: left top;
+        object-position: top center;
       }
 
-      .fleetbar {
-        left: 135px;
-        top: 82px;
-        z-index: 20;
-        width: 1010px;
-        height: 600px;
-        opacity: 0;
-        transform-origin: center;
-      }
-
-      .console {
-        left: 112px;
-        top: 88px;
-        z-index: 30;
-        width: 1056px;
-        height: 594px;
-        opacity: 0;
-        transform-origin: center;
+      .surface-title {
+        position: absolute;
+        left: 18px;
+        top: 18px;
+        z-index: 2;
+        border: 2px solid var(--line);
+        background: var(--panel);
+        color: var(--ink);
+        padding: 10px 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+        font-size: 12px;
+        font-weight: 950;
       }
 
       .timeline {
         position: absolute;
         left: 64px;
         right: 64px;
-        bottom: 34px;
-        z-index: 45;
+        bottom: 28px;
+        z-index: 60;
         display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
+        grid-template-columns: repeat(4, 1fr);
         border: 2px solid var(--line);
         background: var(--panel);
       }
 
       .timeline-step {
         border-right: 2px solid var(--line);
-        padding: 12px 16px;
+        padding: 11px 14px;
+        font-size: 12px;
+        font-weight: 950;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
       }
 
       .timeline-step:last-child {
         border-right: 0;
       }
 
-      .timeline-step strong {
-        display: block;
-        font-size: 12px;
-        font-weight: 950;
-        text-transform: uppercase;
-        letter-spacing: 0.14em;
-      }
-
-      .timeline-step span {
-        display: block;
-        color: var(--muted);
-        font-size: 12px;
-        font-weight: 760;
-        margin-top: 4px;
-      }
-
       .timeline-step.active {
         background: var(--accent);
         color: #fff7eb;
-      }
-
-      .timeline-step.active span {
-        color: #ffe5d4;
       }
     </style>
   </head>
   <body>
     <main class="stage" id="stage">
-      <div class="brand-strip">
+      <div class="chrome" id="chrome">
         <div style="display: flex; align-items: center; gap: 14px;">
-          <span class="monogram">PD</span>
+          <span class="mark">PD</span>
           <span>Port Daddy live run</span>
         </div>
-        <div class="status-pill">
-          <span class="status-dot"></span>
-          <span id="topStatus">daemon nominal</span>
-        </div>
+        <div class="run-state" id="topStatus">daemon nominal</div>
       </div>
 
       <section class="terminal" id="terminal" aria-label="Terminal">
@@ -266,48 +364,56 @@
         <div class="terminal-body" id="terminalBody"></div>
       </section>
 
-      <figure class="capture fleetbar" id="fleetbar" aria-label="FleetBar capture">
-        <img id="fleetbarImage" alt="FleetBar native app shell" />
+      <section class="capture fleetbar-shell" id="fleetbar" aria-label="FleetBar menu bar app">
+        <div class="menu-bar">
+          <div class="traffic"><span></span><span></span><span></span></div>
+          <span class="menubar-icon" aria-hidden="true"></span>
+          <span class="menu-copy">FleetBar</span>
+          <span class="menu-copy">Flow</span>
+          <span class="menu-copy">Agents</span>
+        </div>
+        <div class="popover-stage">
+          <img class="popover-image" id="fleetbarImage" alt="FleetBar popover" />
+          <div class="fleetbar-callout">
+            <strong>Menu-bar command center.</strong>
+            <span>Daemon report, recent work, touched files, and the Console jump all live in the Mac surface.</span>
+          </div>
+        </div>
+      </section>
+
+      <figure class="capture surface" id="flow" aria-label="Fleet Control Center Flow">
+        <span class="surface-title">Flow</span>
+        <img id="flowImage" alt="Fleet Control Center Flow" />
       </figure>
 
-      <figure class="capture console" id="console" aria-label="Fleet Control Center capture">
-        <img id="consoleImage" alt="Fleet Control Center" />
+      <figure class="capture surface" id="agents" aria-label="Fleet Control Center Agents">
+        <span class="surface-title">Agents</span>
+        <img id="agentsImage" alt="Fleet Control Center Agents" />
       </figure>
 
       <div class="timeline">
-        <div class="timeline-step" id="stepTerminal">
-          <strong>Terminal</strong>
-          <span>Start with daemon truth.</span>
-        </div>
-        <div class="timeline-step" id="stepFleetbar">
-          <strong>FleetBar</strong>
-          <span>Open the Mac surface.</span>
-        </div>
-        <div class="timeline-step" id="stepConsole">
-          <strong>Console</strong>
-          <span>Inspect the fleet.</span>
-        </div>
+        <div class="timeline-step" id="stepTerminal">Terminal</div>
+        <div class="timeline-step" id="stepFleetbar">FleetBar</div>
+        <div class="timeline-step" id="stepFlow">Flow</div>
+        <div class="timeline-step" id="stepAgents">Agents</div>
       </div>
     </main>
 
     <script>
-      const DURATION = 9.2
+      const DURATION = 12.4
       const defaultSnapshot = {
         status: {
           activePorts: '21',
           fleet: '1 project, 8 agents, 3/8 launchable',
           runtime: 'nominal',
-          lastActivity: 'just now',
         },
         sessions: [
           'Landing live-glory video',
-          'Add real recorded GIFs',
-          'Move Templates under Agents',
           'Fleet agent: cartographer',
-          'Agentic social proof',
-          'Add example artwork',
-          'MCP hero spacing',
-          'Nano Banana imagery',
+          'QA agent found issues',
+          'Promote Fleet Control Center entrance',
+          'Render real FleetBar popover',
+          'Record Flow and Agents surfaces',
         ],
       }
 
@@ -318,11 +424,14 @@
 
       const state = { snapshot: defaultSnapshot }
       const terminal = document.getElementById('terminal')
+      const chrome = document.getElementById('chrome')
       const terminalBody = document.getElementById('terminalBody')
       const fleetbar = document.getElementById('fleetbar')
-      const consolePanel = document.getElementById('console')
+      const flow = document.getElementById('flow')
+      const agents = document.getElementById('agents')
       const fleetbarImage = document.getElementById('fleetbarImage')
-      const consoleImage = document.getElementById('consoleImage')
+      const flowImage = document.getElementById('flowImage')
+      const agentsImage = document.getElementById('agentsImage')
       const topStatus = document.getElementById('topStatus')
 
       function clamp(value, min = 0, max = 1) {
@@ -339,12 +448,8 @@
         return text.length > max ? `${text.slice(0, max - 1)}...` : text
       }
 
-      function assetFor(kind) {
-        const base = '../../public/img/app-screens'
-        if (kind === 'fleetbar') {
-          return `${base}/fleetbar-native-shell-${theme}.png`
-        }
-        return `${base}/fleet-flow-${theme}.png`
+      function mediaAsset(name) {
+        return `../../public/media/landing-live-glory/${name}-${theme}.png`
       }
 
       function normalizeSnapshot(snapshot) {
@@ -360,8 +465,9 @@
       function paintStatic() {
         const { status } = state.snapshot
         topStatus.textContent = `daemon ${status.runtime || 'nominal'}`
-        fleetbarImage.src = assetFor('fleetbar')
-        consoleImage.src = assetFor('console')
+        fleetbarImage.src = mediaAsset('fleetbar-popover')
+        flowImage.src = mediaAsset('live-flow')
+        agentsImage.src = mediaAsset('live-agents-panel')
       }
 
       function paintTerminal(t) {
@@ -370,40 +476,50 @@
           '<span class="prompt">$</span> pd status',
           `<span class="terminal-muted">Port Daddy is running - ${status.runtime || 'nominal'}</span>`,
           `<span class="terminal-muted">Fleet: ${status.fleet || `${sessions.length} agent(s) visible`}</span>`,
-          '<span class="prompt">$</span> pd sessions --all-worktrees',
-          ...sessions.slice(0, 5).map((session, index) => `<span class="terminal-glow">agent-${String(index + 1).padStart(2, '0')}</span> ${short(session, 46)} active`),
-          '<span class="prompt">$</span> open FleetBar',
+          '<span class="prompt">$</span> pd notes --limit 6',
+          ...sessions.slice(0, 5).map((session, index) => `<span class="terminal-glow">agent-${String(index + 1).padStart(2, '0')}</span> ${short(session, 46)}`),
+          '<span class="prompt">$</span> open -a FleetBar',
         ]
         const joined = rawLines.join('\n')
-        const reveal = Math.floor(joined.length * smooth(0.12, 2.75, t))
+        const reveal = Math.floor(joined.length * smooth(0.12, 2.65, t))
         terminalBody.innerHTML = joined.slice(0, reveal)
       }
 
       function setTimeline(t) {
         document.querySelectorAll('.timeline-step').forEach((step) => step.classList.remove('active'))
-        if (t < 3.1) document.getElementById('stepTerminal').classList.add('active')
-        else if (t < 5.7) document.getElementById('stepFleetbar').classList.add('active')
-        else document.getElementById('stepConsole').classList.add('active')
+        if (t < 3.05) document.getElementById('stepTerminal').classList.add('active')
+        else if (t < 5.75) document.getElementById('stepFleetbar').classList.add('active')
+        else if (t < 9.1) document.getElementById('stepFlow').classList.add('active')
+        else document.getElementById('stepAgents').classList.add('active')
+      }
+
+      function fadeInOut(t, start, end, outStart, outEnd) {
+        return smooth(start, end, t) * (1 - smooth(outStart, outEnd, t))
       }
 
       function renderFrame(time) {
         const t = ((time % DURATION) + DURATION) % DURATION
-        const fleetIn = smooth(2.55, 3.55, t)
-        const consoleIn = smooth(5.25, 6.25, t)
-        const terminalOut = smooth(3.0, 4.55, t)
-        const fleetOut = smooth(5.1, 6.35, t)
+        const terminalOut = smooth(3.0, 4.1, t)
+        const chromeOut = smooth(5.15, 5.85, t)
+        const fleetAlpha = fadeInOut(t, 2.65, 3.5, 5.15, 5.95)
+        const flowAlpha = fadeInOut(t, 5.55, 6.35, 8.75, 9.35)
+        const agentsAlpha = smooth(8.95, 9.75, t)
 
         paintTerminal(t)
         setTimeline(t)
 
-        terminal.style.opacity = String(1 - terminalOut * 0.72)
-        terminal.style.transform = `translate(${terminalOut * -54}px, ${terminalOut * 28}px) scale(${1 - terminalOut * 0.22})`
+        chrome.style.opacity = String(1 - chromeOut)
+        terminal.style.opacity = String(1 - terminalOut)
+        terminal.style.transform = `translate(${terminalOut * -58}px, ${terminalOut * 24}px) scale(${1 - terminalOut * 0.22})`
 
-        fleetbar.style.opacity = String(fleetIn * (1 - fleetOut * 0.82))
-        fleetbar.style.transform = `translate(${(1 - fleetIn) * 80 + fleetOut * -60}px, ${(1 - fleetIn) * 38 + fleetOut * -26}px) scale(${0.9 + fleetIn * 0.1 - fleetOut * 0.08})`
+        fleetbar.style.opacity = String(fleetAlpha)
+        fleetbar.style.transform = `translate(${(1 - smooth(2.65, 3.5, t)) * 82}px, ${(1 - smooth(2.65, 3.5, t)) * 26}px) scale(${0.94 + smooth(2.65, 3.5, t) * 0.06})`
 
-        consolePanel.style.opacity = String(consoleIn)
-        consolePanel.style.transform = `translate(${(1 - consoleIn) * 80}px, ${(1 - consoleIn) * 24}px) scale(${0.94 + consoleIn * 0.06})`
+        flow.style.opacity = String(flowAlpha)
+        flow.style.transform = `translate(${(1 - smooth(5.55, 6.35, t)) * 76}px, ${(1 - smooth(5.55, 6.35, t)) * 20}px) scale(${0.95 + smooth(5.55, 6.35, t) * 0.05})`
+
+        agents.style.opacity = String(agentsAlpha)
+        agents.style.transform = `translate(${(1 - agentsAlpha) * 76}px, ${(1 - agentsAlpha) * 20}px) scale(${0.95 + agentsAlpha * 0.05})`
 
         return true
       }
@@ -419,7 +535,8 @@
 
       Promise.all([
         fleetbarImage.decode?.().catch(() => undefined) || Promise.resolve(),
-        consoleImage.decode?.().catch(() => undefined) || Promise.resolve(),
+        flowImage.decode?.().catch(() => undefined) || Promise.resolve(),
+        agentsImage.decode?.().catch(() => undefined) || Promise.resolve(),
       ]).then(() => renderFrame(0))
 
       if (!manual) {

@@ -1,11 +1,9 @@
 import * as React from "react";
 import { motion, useScroll, useSpring } from "framer-motion";
 import { Link, useLocation } from "react-router-dom";
-import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { TutorialProgress } from "./TutorialProgress";
 import { ReorientationPanel } from "./ReorientationPanel";
-import { ChevronRight, ArrowLeft, ArrowRight } from "lucide-react";
 import { Footer } from "@/components/layout/Footer";
 import { useTutorialState } from "@/hooks/useTutorialState";
 import { useTutorialProgress } from "@/hooks/useTutorialProgress";
@@ -20,18 +18,21 @@ interface TutorialLayoutProps {
   description: string;
   number: number | string;
   total?: number | string;
-  level: "Beginner" | "Intermediate" | "Advanced";
+  level?: "Beginner" | "Intermediate" | "Advanced";
   readTime: string;
   children: React.ReactNode;
   prev?: { title: string; href: string };
   next?: { title: string; href: string };
 }
 
+function tutorialHeaderMeta(readTime: string) {
+  return `${readTime} read`;
+}
+
 export function TutorialLayout({
   title,
   description,
   number,
-  level,
   readTime,
   children,
   prev,
@@ -110,14 +111,14 @@ export function TutorialLayout({
             >
               Home
             </Link>
-            <ChevronRight size={12} aria-hidden="true" />
+            <span aria-hidden="true">/</span>
             <Link
               to="/tutorials"
               className="font-sans no-underline transition-colors hover:text-[var(--text-primary)]"
             >
               Academy
             </Link>
-            <ChevronRight size={12} aria-hidden="true" />
+            <span aria-hidden="true">/</span>
             <motion.span className="font-sans font-black text-[var(--brand-primary)]">
               Lesson {number}
             </motion.span>
@@ -144,20 +145,8 @@ export function TutorialLayout({
               <motion.span className="border border-[var(--border-default)] bg-[var(--surface-base)] px-[var(--space-3)] py-[var(--space-2)] text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
                 Lesson {number}
               </motion.span>
-              <Badge
-                variant={
-                  level === "Beginner"
-                    ? "teal"
-                    : level === "Intermediate"
-                      ? "gold"
-                      : "default"
-                }
-                className="px-[var(--space-3)] py-[var(--space-2)] text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)]"
-              >
-                {level}
-              </Badge>
               <motion.span className="border border-[var(--border-default)] bg-[var(--surface-base)] px-[var(--space-3)] py-[var(--space-2)] font-mono text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
-                {readTime}
+                {tutorialHeaderMeta(readTime)}
               </motion.span>
             </motion.div>
 
@@ -211,7 +200,6 @@ export function TutorialLayout({
                 whileHover={{ x: -8 }}
               >
                 <motion.span className="flex items-center gap-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)] transition-colors group-hover:text-[var(--brand-primary)]">
-                  <ArrowLeft size={14} />
                   Previous
                 </motion.span>
                 <motion.h4 className="m-[var(--space-0)] font-display text-[length:var(--type-panel-title-card-size)] font-black leading-[var(--leading-card)] text-[var(--text-primary)]">
@@ -231,7 +219,6 @@ export function TutorialLayout({
               >
                 <motion.span className="flex items-center justify-end gap-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
                   Next Up
-                  <ArrowRight size={14} />
                 </motion.span>
                 <motion.h4 className="m-[var(--space-0)] font-display text-[length:var(--type-panel-title-card-size)] font-black leading-[var(--leading-card)] text-[var(--text-primary)]">
                   {next.title}
@@ -240,12 +227,9 @@ export function TutorialLayout({
             </Link>
           ) : (
             <motion.div className="relative flex flex-col items-center gap-[var(--space-6)] overflow-hidden border-2 border-dashed border-[var(--brand-primary)] bg-[var(--surface-overlay)] p-[var(--space-5)] text-center sm:col-span-2 sm:p-[var(--space-7)] lg:p-[var(--space-8)]">
-              <Badge
-                variant="teal"
-                className="px-[var(--space-6)] py-[var(--space-2)] text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)]"
-              >
+              <span className="border border-[var(--border-strong)] bg-[var(--surface-base)] px-[var(--space-6)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
                 Certification Ready
-              </Badge>
+              </span>
               <motion.h3 className="m-[var(--space-0)] font-display text-[length:var(--type-section-title-size)] font-bold text-[var(--text-primary)]">
                 Mastery Achieved.
               </motion.h3>

@@ -1,10 +1,10 @@
 # Port Daddy Website Ideal Web App Rehab Plan
 
-Last updated: 2026-04-27
-Owner session: `session-a4b3a18d-1651-4d2b-b4ca-e83fb79b5ea3`
+Last updated: 2026-04-29
+Owner sessions: `session-a4b3a18d-1651-4d2b-b4ca-e83fb79b5ea3`, current continuation `session-e4d7c348-d233-4e9b-8dbf-5121dc939785`
 Skill contract: `ideal-web-app-builder` plus `swiss-modern-website-design`
 Status: visual decision board approved; stabilization, token/performance, MCP proof-route, Swiss-modern grid-layer, Storybook state-matrix, MCP a11y, and public shell unification slices implemented
-SEO metadata/discovery and generated visual replacement slices implemented
+SEO metadata/discovery, generated visual replacement, flat relief, and route-family normalization slices implemented/in progress
 
 This is the on-disk source of truth for rehabilitating `website-v2` into a
 premium, stable, token-disciplined web app. Keep this file current before code
@@ -622,6 +622,49 @@ Validation on 2026-04-29:
 - Screenshot proof was refreshed under
   `docs/reports/website-rehab-screenshots/flat-relief-*.png`.
 
+### 2026-04-29 Website Normalization Continuation Slice
+
+Started from live Port Daddy state instead of assuming the previous rehab work
+was current. Active deploy/commit sessions owned `SiteHeader` and landing
+media generation files, so this slice avoided those contested surfaces and
+claimed only the plan plus unowned template/integration route files.
+
+Current baseline from `website-v2/` before route edits:
+
+- `npm run build`: pass; generated SEO artifacts for 177 canonical routes;
+  largest generated JS chunk remains Mermaid at 491.00 kB minified /
+  136.63 kB gzip.
+- `npm run test`: pass at 9/9 files and 96/96 tests.
+- `npm run lint`: initially pass; later blocked by an unclaimed
+  `TutorialLayout` unused destructuring introduced by adjacent route cleanup,
+  then repaired without reverting the existing route changes.
+- `audit_web_app_contract.py website-v2`: still fails intentionally at 4694
+  errors and 102 warnings. This is the active normalization backlog, not a
+  gate that can honestly be closed in one pass.
+
+Implemented in this continuation:
+
+- Removed route-local `rounded-[60px]`, `rounded-[100px]`, `rounded-[56px]`,
+  `rounded-[48px]`, `rounded-[36px]`, and `rounded-[32px]` overrides from
+  `TemplatePage`, `IntegrationsPage`, and `IntegrationPage`.
+- Removed decorative radial blur-orb treatments and progress-bar glow shadows
+  from those routes.
+- Replaced the integration detail CTA's native `motion.button` with the shared
+  `Button` primitive.
+- Shifted visible copy on the integration/template route family from generic
+  "swarm" framing toward current Port Daddy fleet, agent, session, note,
+  claim, lock, and project-channel product language.
+
+Remaining after this continuation:
+
+- `docs/reports/website-global-design-system-audit-2026-04-29.md` remains the
+  best route map for the next slices: raw values, arbitrary utilities,
+  primitive bypasses, missing Storybook coverage, legal/privacy, favicons,
+  observability, and product-truth governance are still open.
+- The route family changed here still uses legacy page-local typography and
+  spacing utilities; it is flatter and truer, not fully migrated to the ideal
+  primitive hierarchy.
+
 ### 2026-04-27 SEO Metadata and Discovery Slice
 
 Implemented after the shared public shell slice:
@@ -738,6 +781,7 @@ Remaining launch blockers after this slice:
 | `session-d43caa83-9525-4a04-a1b4-57df1ef92916` | Codex | Swiss-modern grid layer | token files, shared primitives/stories, MCP route, screenshots | completed | Swiss skill audit run; lint/test/build/storybook green on 2026-04-26 |
 | `session-38334c91-8bed-45d4-85be-da069cd41648` | Codex | Storybook state matrix and MCP a11y hardening | Storybook preview, MCP route tabs, a11y script/report, contract tests | completed | lint/test/a11y/build/storybook green on 2026-04-26 |
 | `session-7d6f4ac6-5c47-401d-853b-804be7eecbd6` | Codex | SEO metadata and discovery | metadata registry, document head hook, sitemap, robots, llms, tests | completed | generate:seo/test/lint/build green on 2026-04-27 |
+| `session-e4d7c348-d233-4e9b-8dbf-5121dc939785` | Codex | safe website normalization continuation | rehab plan, unowned integration/template route family, lint blocker | in progress | avoids contested SiteHeader and landing media surfaces |
 | future 2 | worker swarm | remaining primitives and route-composite Storybook matrices | components/styles/stories | open | after MCP proof route identifies primitive gaps |
 | future 3 | worker swarm | route/page normalization | page dirs by route | blocked | disjoint write sets |
 | future 4 | reviewers | a11y/perf/security/privacy/product truth | read-mostly | blocked | adversarial gates |
@@ -836,7 +880,7 @@ handoff with files changed and residual risks.
 | Gate | Command or method | Evidence | Status | Risk |
 |---|---|---|---|---|
 | Typecheck/build | `npm run build` | pass, no chunk warning in latest website build | pass | Mermaid chunk remains near threshold |
-| Unit tests | `npm run test` | 82/82 pass | pass | tests do not yet cover PWA/legal/observability |
+| Unit tests | `npm run test` | 2026-04-29 continuation: 9/9 files and 96/96 tests pass | pass | tests do not yet cover PWA/legal/observability |
 | Lint | `npm run lint` | pass | pass | raw-value enforcement is still scoped to protected modules |
 | Storybook | `npm run build-storybook` | pass, chunk warning; a11y addon runs through `wcag2aaa` | partial | coverage still incomplete outside base/public primitives and MCP route |
 | Accessibility | axe/Storybook + Playwright + manual keyboard | MCP proof route and public shell route matrix pass automated axe/focus/overflow gates | partial | manual screen-reader and reduced-motion passes still unproven |
@@ -921,3 +965,4 @@ handoff with files changed and residual risks.
 | 2026-04-27 | Rewrote the tutorials index and catalogue copy around operator training and control-plane protocol language | Remove inherited academy/swarm copy and make tutorials match the current brand |
 | 2026-04-27 | Rebuilt the whitepaper first viewport as an editorial research dossier, removed badge/icon ceremony, widened header navigation, and added desktop/mobile visual proof | Remove the old centered whitepaper template and keep the route inside the current Swiss public-shell direction |
 | 2026-04-29 | Flattened the global relief system, neutralized legacy Tailwind shadow utilities, removed direct glow/drop-shadow bypasses, and added route-audit screenshot proof | Stop old route code from visually reintroducing raised, inset, or glowing treatments while route migration continues |
+| 2026-04-29 | Started route-family normalization continuation, updated live baseline gates, removed big radius/orb/glow drift from template and integration routes, and recorded the remaining audit backlog | Keep the full-site normalization honest while avoiding contested active website surfaces |

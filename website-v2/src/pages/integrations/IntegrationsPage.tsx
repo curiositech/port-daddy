@@ -23,14 +23,8 @@ export function IntegrationsPage() {
     >
       {/* Hero Section */}
       <Surface depth="raised" radius="none" padding="none" className="py-12 sm:py-24 px-4 sm:px-6 lg:px-10 relative overflow-hidden flex flex-col items-center justify-center text-center">
-
-        <motion.div
-          className="absolute top-0 right-0 w-[800px] h-[800px] rounded-full blur-[160px] opacity-[0.1] pointer-events-none"
-          style={{ background: 'radial-gradient(circle, var(--brand-primary) 0%, transparent 70%)' }}
-        />
-
         <div className="max-w-5xl mx-auto relative z-10 flex flex-col items-center gap-6 sm:gap-12">
-          <Badge variant="teal" className="px-6 sm:px-8 py-2 sm:py-3 text-[10px] font-black uppercase tracking-[0.25em]">The Swarm Ecosystem</Badge>
+          <Badge variant="teal" className="px-6 sm:px-8 py-2 sm:py-3 text-[10px] font-black uppercase tracking-[0.25em]">The Agent Ecosystem</Badge>
           <motion.h1
             className="text-3xl sm:text-6xl lg:text-8xl font-black tracking-tighter font-display leading-[0.85] m-0"
             initial={{ opacity: 0, y: 32 }}
@@ -82,10 +76,10 @@ export function IntegrationsPage() {
                 className="group"
               >
                 <Link to={`/integrations/${int.id}`} className="no-underline block h-full">
-                  <Surface depth="raised" radius="2xl" padding="none" className="h-full p-6 sm:p-8 lg:p-12 sm:rounded-[36px] lg:rounded-[56px] transition-all duration-300 flex flex-col items-center text-center gap-6 sm:gap-10">
+                  <Surface depth="raised" radius="2xl" padding="none" className="h-full p-6 sm:p-8 lg:p-12 transition-all duration-300 flex flex-col items-center text-center gap-6 sm:gap-10">
 
                     <div className="w-full flex flex-col items-center gap-4 sm:gap-6">
-                       <Surface depth="inset" radius="2xl" padding="none" className="w-14 h-14 sm:w-20 sm:h-20 sm:rounded-[32px] flex items-center justify-center group-hover:scale-110 transition-transform">
+                       <Surface depth="inset" radius="2xl" padding="none" className="w-14 h-14 sm:w-20 sm:h-20 flex items-center justify-center group-hover:scale-110 transition-transform">
 
                           <Icon size={24} className="text-[var(--brand-primary)] sm:hidden" />
                           <Icon size={32} className="text-[var(--brand-primary)] hidden sm:block" />
@@ -121,7 +115,7 @@ export function IntegrationsPage() {
         </motion.div>
 
         {/* Vision Callout */}
-        <Surface depth="raised" radius="2xl" padding="none" className="mt-16 sm:mt-24 sm:rounded-[60px] lg:rounded-[100px] overflow-hidden w-full">
+        <Surface depth="raised" radius="2xl" padding="none" className="mt-16 sm:mt-24 overflow-hidden w-full">
           <motion.div
             className="p-8 sm:p-16 lg:p-24 flex flex-col items-center text-center gap-8 sm:gap-16 relative"
             initial={{ opacity: 0, scale: 0.98 }}
@@ -139,7 +133,7 @@ export function IntegrationsPage() {
                 <span className="text-[var(--brand-accent)]">Global Scale.</span>
               </h3>
               <p className="text-base sm:text-2xl lg:text-3xl leading-relaxed text-[var(--text-secondary)] max-w-3xl">
-                Integrations in Port Daddy are not mere API wrappers. They are high-fidelity bridges that allow different agent families to communicate using a single, secure protocol. Build your swarm with Claude, monitor it with Gemini, and orchestrate it with CrewAI.
+                Integrations in Port Daddy are not mere API wrappers. They connect editor MCP clients, framework wrappers, and local daemon workflows to the same sessions, notes, claims, locks, and project-scoped channels.
               </p>
            </div>
 
@@ -155,10 +149,10 @@ export function IntegrationsPage() {
                   depth="inset"
                   radius="2xl"
                   padding="none"
-                  className="p-4 sm:p-10 sm:rounded-[48px] flex flex-col items-center gap-3 sm:gap-6 group transition-all"
+                  className="p-4 sm:p-10 flex flex-col items-center gap-3 sm:gap-6 group transition-all"
                 >
                    <div
-                     className="w-10 h-10 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform"
+                     className="w-10 h-10 sm:w-14 sm:h-14 flex items-center justify-center group-hover:scale-110 transition-transform"
                      style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-sm)' }}
                    >
                       <item.icon size={20} className="text-[var(--brand-primary)] sm:hidden" />

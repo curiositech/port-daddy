@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { ArrowRight, Download, FileText, Github, Terminal } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import {
-  CommandBlock,
+  CopyableCommandBlock,
   PageContainer,
   PanelBody,
   PanelEyebrow,
@@ -128,13 +128,12 @@ export function CTABanner() {
             <SurfacePanel elevation="quiet" padding="compact" className="grid gap-[var(--space-3)]">
               <div className="inline-flex items-center gap-[var(--space-2)]">
                 <Terminal size={16} />
-                <PanelEyebrow>Stable install</PanelEyebrow>
+                <PanelEyebrow>Terminal</PanelEyebrow>
               </div>
-              <CommandBlock
-                title="Install + setup"
+              <CopyableCommandBlock
+                label="Homebrew + setup"
                 command={'brew install curiositech/tap/port-daddy\npd setup --project ~/coding/my-app'}
-                elevation="quiet"
-                label="Copy"
+                ariaLabel="Copy Homebrew and setup command"
               />
             </SurfacePanel>
           </SwissGridItem>
