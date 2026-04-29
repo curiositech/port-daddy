@@ -94,6 +94,57 @@ describe('website SEO metadata', () => {
     expect(docs.ogSourceImage).toBe(OG_SOURCE_IMAGES.controlPlane)
   })
 
+  test('Tube, Relay PKI, and roadmap proof routes are indexable with generated route cards', () => {
+    const routes = [
+      {
+        path: '/tutorials/pd-tube',
+        image: '/img/og/tutorials-pd-tube.jpg',
+        title: 'Pipe Agent Conversations',
+        section: 'tutorials',
+        sourceImage: OG_SOURCE_IMAGES.agentRuntime,
+        label: 'Tutorial 21',
+      },
+      {
+        path: '/docs/cli/tube',
+        image: '/img/og/docs-cli-tube.jpg',
+        title: 'pd tube',
+        section: 'docs',
+        sourceImage: OG_SOURCE_IMAGES.controlPlane,
+        label: 'Docs',
+      },
+      {
+        path: '/docs/features/relay-pki',
+        image: '/img/og/docs-features-relay-pki.jpg',
+        title: 'Relay PKI',
+        section: 'docs',
+        sourceImage: OG_SOURCE_IMAGES.controlPlane,
+        label: 'Docs',
+      },
+      {
+        path: '/docs/cli/roadmap',
+        image: '/img/og/docs-cli-roadmap.jpg',
+        title: 'pd roadmap',
+        section: 'docs',
+        sourceImage: OG_SOURCE_IMAGES.controlPlane,
+        label: 'Docs',
+      },
+    ] as const
+
+    for (const expected of routes) {
+      const route = getRouteMetadata(expected.path)
+
+      expect(route.index).not.toBe(false)
+      expect(route.canonicalPath).toBeUndefined()
+      expect(route.path).toBe(expected.path)
+      expect(route.title).toContain(expected.title)
+      expect(route.section).toBe(expected.section)
+      expect(route.image).toBe(expected.image)
+      expect(route.ogSourceImage).toBe(expected.sourceImage)
+      expect(route.ogSectionLabel).toBe(expected.label)
+      expect(existsSync(resolve(publicDir, route.image.replace(/^\//, '')))).toBe(true)
+    }
+  })
+
   test('deprecated blog posts noindex and canonicalize to current replacements', () => {
     const slugs = new Set(blogPosts.map((post) => post.slug))
 

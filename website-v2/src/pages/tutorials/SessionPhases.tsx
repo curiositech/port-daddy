@@ -16,7 +16,7 @@ export function SessionPhases() {
       title="The Session State Machine"
       description="Coordination is a sequence of handoffs. Learn to drive agents through planning -> coding -> reviewing phases with auto-escrow and phase-aware salvage."
       number={9}
-      total={20}
+      total={21}
       level="Advanced"
       readTime="15 min read"
       prev={{ title: "Identity Discovery", href: "/tutorials/dns" }}

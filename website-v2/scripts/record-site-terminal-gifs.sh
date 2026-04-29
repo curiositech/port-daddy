@@ -90,6 +90,13 @@ play_recording() {
       run_cmd "pd briefing | sed -n '1,18p'"
       run_cmd "pd guard status"
       ;;
+    tutorials/pd-tube)
+      intro
+      run_cmd "printf 'docs handoff ready' | pd tube docs:pd-tube-recording --send --sender docs"
+      reply_to="$(pd tube docs:pd-tube-recording --once --json --no-history --limit=1 | python3 -c 'import json, sys; rows=[json.loads(line) for line in sys.stdin if line.strip()]; print(rows[-1].get("id", "") if rows else "")')"
+      run_cmd "printf 'reply with the checked-in cast and GIF' | pd tube docs:pd-tube-recording --reply=$reply_to --sender codex"
+      run_cmd "pd tube docs:pd-tube-recording --once --no-history --limit=2"
+      ;;
     tutorials/getting-started)
       intro
       run_cmd "pd status"
@@ -274,6 +281,7 @@ if [[ "${1:-}" == "--all" || $# -eq 0 ]]; then
     tutorials/watch \
     tutorials/remote-harbors \
     tutorials/fleet \
+    tutorials/pd-tube \
     examples/pd-tube-button-to-agent \
     examples/test-failure-to-agent \
     examples/editor-lightbulb-to-agent \

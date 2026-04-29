@@ -482,6 +482,8 @@ describe('public shell contracts', () => {
       'recover-a-dead-agent-session',
       'launch-and-inspect-a-sortie',
       'walk-the-eleven-primitives',
+      'pd-tube-agent-handoffs',
+      'relay-pki-boundary',
     ])
     expect(findDocsContentSection('reference-architectures')?.pages.map((page) => page.slug)).toEqual([
       'single-machine-control-plane',
@@ -500,6 +502,8 @@ describe('public shell contracts', () => {
     expect(findDocsContentPage('best-practices', 'onboarding-surfaces')?.truth).toBe('blocked')
     expect(findDocsContentPage('examples', 'exchange-state-through-tuples')).toBeUndefined()
     expect(findDocsContentPage('tutorials', 'launch-and-inspect-a-sortie')?.truth).toBe('source-backed')
+    expect(findDocsContentPage('tutorials', 'pd-tube-agent-handoffs')?.truth).toBe('source-backed')
+    expect(findDocsContentPage('tutorials', 'relay-pki-boundary')?.truth).toBe('source-backed')
     expect(findDocsContentPage('reference-architectures', 'delegation-surfaces')?.truth).toBe('source-backed')
     expect(findDocsContentPage('reference', 'daemon-http-surface')?.truth).toBe('source-backed')
   })
