@@ -6,6 +6,8 @@
   --surface-overlay: rgba(242, 238, 230, 0.95);
   --surface-sunken: #e0d9cb;
   --surface-glass: rgba(247, 243, 235, 0.92);
+  --scrim-backdrop: rgba(18, 18, 18, 0.62);
+  --media-scrim: color-mix(in srgb, var(--code-bg) 72%, transparent);
 
   --text-primary: #121212;
   --text-secondary: #403b34;
@@ -15,14 +17,14 @@
   --brand-primary: #003fb8;
   --brand-primary-on-tint: #002d83;
   --brand-secondary: #1f1f1f;
-  --brand-accent: #dfff00;
-  --brand-accent-on-tint: #3f4700;
+  --brand-accent: #006b5f;
+  --brand-accent-on-tint: #004a42;
   --brand-primary-foreground: #fbf7ef;
   --brand-primary-foreground-muted: #edf4ff;
   --brand-primary-foreground-subtle: #dfe9ff;
-  --brand-accent-foreground: #121212;
-  --brand-accent-foreground-muted: #121212;
-  --brand-accent-foreground-subtle: #121212;
+  --brand-accent-foreground: #fbf7ef;
+  --brand-accent-foreground-muted: #edf4ff;
+  --brand-accent-foreground-subtle: #dfe9ff;
 
   --interactive-hover: rgba(18, 18, 18, 0.05);
   --interactive-active: rgba(0, 85, 255, 0.12);
@@ -63,33 +65,27 @@
   --voice-over: var(--text-muted);
   --voice-out: var(--text-muted);
 
-  --neo-shadow-xs: 2px 2px 0 0 var(--border-strong);
-  --neo-shadow-control: 3px 3px 0 0 var(--border-strong);
-  --neo-shadow-card: 4px 4px 0 0 var(--border-strong);
-  --neo-shadow-pop: 6px 6px 0 0 var(--border-strong);
-  --neo-shadow-hero: 10px 10px 0 0 var(--border-strong);
-
-  --shadow-raised: var(--neo-shadow-card);
-  --shadow-inset: var(--neo-shadow-xs);
-  --shadow-sm: var(--neo-shadow-control);
+  --shadow-raised: none;
+  --shadow-inset: none;
+  --shadow-sm: none;
   --shadow-flat: none;
-  --shadow-pressed: var(--neo-shadow-xs);
+  --shadow-pressed: none;
 
   --code-bg: #12161f;
   --code-header-bg: #0d1118;
   --code-border: #121212;
   --code-text: #edf1f9;
-  --code-prompt: #a7ff8b;
+  --code-prompt: #8fd0a7;
   --code-command: #edf1f9;
   --code-flag: #8dc4ff;
-  --code-string: #e8ff37;
+  --code-string: #c4d6f2;
   --code-output: #d4dced;
   --code-comment: #c7d0e5;
   --code-line-number: #738099;
   --code-operator: #8fb0dd;
   --code-channel-scope: #8dc4ff;
-  --code-channel-topic: #e8ff37;
-  --code-channel-qualifier: #a7ff8b;
+  --code-channel-topic: #8fd0a7;
+  --code-channel-qualifier: #c4d6f2;
   --code-channel-sep: #c4cee2;
   --code-dot-red: #e55c5c;
   --code-dot-amber: #e0c04a;
@@ -103,6 +99,8 @@
   --surface-overlay: rgba(16, 18, 22, 0.94);
   --surface-sunken: #0b0d11;
   --surface-glass: rgba(24, 28, 34, 0.9);
+  --scrim-backdrop: rgba(0, 0, 0, 0.68);
+  --media-scrim: color-mix(in srgb, var(--code-bg) 78%, transparent);
 
   --text-primary: #f5f3ed;
   --text-secondary: #d3cec2;
@@ -112,8 +110,8 @@
   --brand-primary: #7db4ff;
   --brand-primary-on-tint: #dbeaff;
   --brand-secondary: #f5f3ed;
-  --brand-accent: #dfff00;
-  --brand-accent-on-tint: #e8ff59;
+  --brand-accent: #8fd0a7;
+  --brand-accent-on-tint: #bce8ca;
   --brand-primary-foreground: #121212;
   --brand-primary-foreground-muted: #28364a;
   --brand-primary-foreground-subtle: #303d52;
@@ -138,32 +136,26 @@
   --status-error-on-tint: #ffc4c4;
   --status-info-on-tint: var(--brand-primary-on-tint);
 
-  --neo-shadow-xs: 2px 2px 0 0 var(--border-strong);
-  --neo-shadow-control: 3px 3px 0 0 var(--border-strong);
-  --neo-shadow-card: 4px 4px 0 0 var(--border-strong);
-  --neo-shadow-pop: 6px 6px 0 0 var(--border-strong);
-  --neo-shadow-hero: 10px 10px 0 0 var(--border-strong);
-
-  --shadow-raised: var(--neo-shadow-card);
-  --shadow-inset: var(--neo-shadow-xs);
-  --shadow-sm: var(--neo-shadow-control);
+  --shadow-raised: none;
+  --shadow-inset: none;
+  --shadow-sm: none;
   --shadow-flat: none;
-  --shadow-pressed: var(--neo-shadow-xs);
+  --shadow-pressed: none;
 
   --code-bg: #0b0d11;
   --code-header-bg: #080a0e;
   --code-border: #f5f3ed;
   --code-text: #f5f3ed;
-  --code-prompt: #a7ff8b;
+  --code-prompt: #8fd0a7;
   --code-command: #f5f3ed;
   --code-flag: #8dc4ff;
-  --code-string: #d8ff36;
+  --code-string: #c4d6f2;
   --code-output: #d4dced;
   --code-comment: #c7d0e5;
   --code-line-number: #7e8ba3;
   --code-operator: #95b8ff;
   --code-channel-scope: #8dc4ff;
-  --code-channel-topic: #e8ff37;
-  --code-channel-qualifier: #a7ff8b;
+  --code-channel-topic: #8fd0a7;
+  --code-channel-qualifier: #c4d6f2;
   --code-channel-sep: #c4cee2;
 }

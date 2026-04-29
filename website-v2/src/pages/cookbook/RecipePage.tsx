@@ -38,12 +38,12 @@ export function RecipePage() {
 
   return (
     <motion.div 
-      className="min-h-screen bg-[var(--surface-base)] flex flex-col font-sans selection:bg-[var(--brand-primary)] selection:text-white"
+      className="min-h-screen bg-[var(--surface-base)] flex flex-col font-sans selection:bg-[var(--brand-primary)] selection:text-[var(--brand-primary-foreground)]"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
     >
       <motion.div
-        className="fixed top-0 left-0 right-0 h-1 bg-[var(--brand-accent)] z-[100] origin-left shadow-[0_0_12px_rgba(251,191,36,0.5)]"
+        className="fixed top-0 left-0 right-0 h-1 bg-[var(--brand-accent)] z-[100] origin-left"
         style={{ scaleX, top: 'var(--nav-height)' }}
       />
 
@@ -132,7 +132,7 @@ export function RecipePage() {
               <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest shadow-xl">State Verification</Badge>
               <motion.h3 className="text-4xl font-display font-black m-0" style={{ color: 'var(--text-primary)' }}>Pattern Soundness.</motion.h3>
               <motion.p className="text-xl max-w-xl text-[var(--text-secondary)]">
-                This recipe has been verified against the Port Daddy v3.7 state machine. We ensure that following these handoff steps results in a deterministic and resilient harbor state.
+                This recipe has been verified against the current Port Daddy state model. We ensure that following these handoff steps results in a deterministic and resilient harbor state.
               </motion.p>
               <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-accent)]">
                  <Activity size={14} className="animate-pulse" />

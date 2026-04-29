@@ -4,12 +4,13 @@ import { COOKBOOK_RECIPES } from './cookbook'
 import { docsFamilyRoutes, docsOverviewRoute, type DocsFamilyRoute } from './docs-routes'
 import { INTEGRATIONS } from './integrations'
 import { TUTORIALS } from './tutorials'
+import { WHITE_PAPERS } from './whitePapers'
 
 export const SITE_NAME = 'Port Daddy'
 export const SITE_ORIGIN = 'https://portdaddy.dev'
 export const DEFAULT_SITE_IMAGE = '/img/generated/control-plane-og.jpg'
 export const DEFAULT_SITE_DESCRIPTION =
-  'Port Daddy is a local-first coordination daemon for AI agents, dev servers, ports, sessions, locks, salvage, and operator-visible multi-agent workflows.'
+  'Port Daddy is a local communication substrate and Mac control plane for coding agents: shared notes, claims, channels, actor inboxes, readiness, budgets, and recoverable handoffs.'
 
 export type SiteMetadataSection =
   | 'home'
@@ -52,7 +53,7 @@ export const blogHeroImages: Record<string, string> = {
 }
 
 function pageTitle(title: string) {
-  if (title === SITE_NAME) return 'Port Daddy - Port Authority for AI Agents'
+  if (title === SITE_NAME) return 'Port Daddy - Local Communication Substrate for Coding Agents'
   if (title.endsWith(SITE_NAME)) return title
   return `${title} - ${SITE_NAME}`
 }
@@ -89,12 +90,12 @@ const productRoutes: SiteMetadata[] = [
   metadata(
     '/mcp',
     'MCP Server for AI Agents',
-    'Connect Claude, Cursor, Windsurf, and other MCP clients to Port Daddy tools for ports, sessions, locks, inboxes, and salvage.',
+    'Connect Claude, Cursor, Windsurf, and other MCP clients to Port Daddy tools for sessions, claims, scoped channels, inboxes, readiness, and salvage.',
   ),
   metadata(
-    '/roadmap',
-    'Roadmap',
-    'See the Port Daddy product direction for operator control planes, fleet orchestration, harbors, and recoverable multi-agent work.',
+    '/mac-preview',
+    'Mac Preview',
+    'Download the FleetBar developer preview and see how the Mac app exposes Fleet Control Center, Shipwright, resources, sorties, backend readiness, and agent communication.',
   ),
   metadata(
     '/templates',
@@ -136,6 +137,11 @@ const productRoutes: SiteMetadata[] = [
     'Whitepaper',
     'Read the Port Daddy protocol argument for local-first agent coordination, identity, authority, locks, sessions, and recoverable work.',
     { section: 'whitepaper' },
+  ),
+  ...WHITE_PAPERS.map((paper) =>
+    metadata(paper.readerHref, paper.title, paper.summary, {
+      section: 'whitepaper',
+    }),
   ),
 ]
 

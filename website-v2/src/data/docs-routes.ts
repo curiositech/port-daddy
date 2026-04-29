@@ -1,6 +1,8 @@
+import { PRODUCT_FEATURES } from './product'
+
 export type DocsTruthState = 'Live' | 'Roadmap'
 
-export type DocsAccentTone = 'paper' | 'blue' | 'lime'
+export type DocsAccentTone = 'paper' | 'blue' | 'accent'
 
 export interface DocsRouteModule {
   truth: DocsTruthState
@@ -30,6 +32,10 @@ export interface DocsFamilyRoute {
   path: string
   aliases?: string[]
 }
+
+const productPrimitiveBullets = PRODUCT_FEATURES.map(
+  (feature) => `${feature.title}: ${feature.description}`,
+)
 
 export const docsOverviewRoute: DocsFamilyRoute = {
   slug: 'overview',
@@ -106,13 +112,8 @@ export const docsFamilyRoutes: DocsFamilyRoute[] = [
     modules: [
       {
         truth: 'Live',
-        title: 'Core primitives',
-        bullets: [
-          'Sessions and notes for attribution and handoff',
-          'Locks for contested files or critical sections',
-          'Tuples and messaging for machine-readable coordination',
-          'Harbors for scoped ingress and identity-bound access',
-        ],
+        title: 'Eleven product primitives',
+        bullets: productPrimitiveBullets,
       },
       {
         truth: 'Live',
@@ -136,7 +137,7 @@ export const docsFamilyRoutes: DocsFamilyRoute[] = [
     slug: 'best-practices',
     title: 'Best Practices',
     summary: 'Operate Port Daddy honestly: verify runtime truth, coordinate explicitly, and promote with discipline.',
-    tone: 'lime',
+    tone: 'accent',
     path: '/docs/best-practices',
     aliases: ['best-practices', 'operations'],
     intro: [
@@ -175,12 +176,13 @@ export const docsFamilyRoutes: DocsFamilyRoute[] = [
   {
     slug: 'examples',
     title: 'Examples',
-    summary: 'Concrete repo-scale patterns for sessions, fleet hooks, salvage flows, and operator-visible coordination.',
+    summary:
+      'Guided examples that explain the runnable /examples code corpus: swarm state, tunnel sharing, service discovery, and operator-visible coordination.',
     tone: 'blue',
     path: '/docs/examples',
     aliases: ['examples'],
     intro: [
-      'Examples should show the daemon doing real work: multi-agent repo execution, fleet-triggered automation, and recoverable coordination under actual operator pressure.',
+      '/docs/examples is the guided reading path. /examples is the runnable code corpus. Keep both surfaces connected so examples explain the system and still run against the daemon.',
     ],
     modules: [
       {
@@ -214,7 +216,7 @@ export const docsFamilyRoutes: DocsFamilyRoute[] = [
     slug: 'tutorials',
     title: 'Tutorials',
     summary: 'Guided builds that take you from install to a working operator workflow.',
-    tone: 'lime',
+    tone: 'accent',
     path: '/docs/tutorials',
     aliases: ['tutorials', 'guides'],
     intro: [
@@ -238,6 +240,14 @@ export const docsFamilyRoutes: DocsFamilyRoute[] = [
           'How to recover when agents die mid-task',
           'How to route around collisions instead of discovering them after the fact',
         ],
+      },
+      {
+        truth: 'Live',
+        title: 'Primitive coverage',
+        body: [
+          'The tutorials now include a dedicated walkthrough for the exact eleven primitives on the home page and Mac app page.',
+        ],
+        bullets: productPrimitiveBullets,
       },
       {
         truth: 'Roadmap',

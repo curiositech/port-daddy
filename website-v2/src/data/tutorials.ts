@@ -200,4 +200,14 @@ export const TUTORIALS: Tutorial[] = [
     tags: ['signals', 'attention', 'priority'],
     href: '/tutorials/pheromone',
   },
+  {
+    slug: 'primitives',
+    number: '20',
+    title: 'Walk the 11 Product Primitives',
+    description: 'Use the Mac app, Fleet Control Center, Shipwright, and CLI checks to prove every public primitive has a concrete operator surface.',
+    level: 'beginner',
+    time: '12 min',
+    tags: ['mac app', 'shipwright', 'readiness'],
+    href: '/tutorials/primitives',
+  },
 ]

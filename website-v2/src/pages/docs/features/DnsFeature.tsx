@@ -56,17 +56,17 @@ export default function DnsFeature() {
         <DocsCodeBlock
           code={`# Register a service with a semantic name
 $ pd dns register myapp:api localhost:3001
-Service registered: myapp:api → localhost:3001
 
 # Another agent resolves the name
 $ pd dns lookup myapp:api
-localhost:3001
 
 # List all registered DNS entries
-$ pd dns list
-myapp:api        → localhost:3001   (2s ago)
-myapp:frontend   → localhost:3000   (5s ago)
-myapp:worker     → localhost:3002   (8s ago)`}
+$ pd dns list`}
+          output={`Service registered: myapp:api -> localhost:3001
+localhost:3001
+myapp:api        -> localhost:3001   2s ago
+myapp:frontend   -> localhost:3000   5s ago
+myapp:worker     -> localhost:3002   8s ago`}
         />
       </div>
 
@@ -105,20 +105,31 @@ myapp:worker     → localhost:3002   (8s ago)`}
           <div className="border-l-4 border-[var(--brand-primary)] pl-4">
             <code className="font-mono text-[var(--brand-primary)]">pd dns register &lt;name&gt; &lt;host:port&gt;</code>
             <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">Register a semantic name pointing to a host:port pair. Overwrites any existing entry.</p>
-            <DocsCodeBlock code={`$ pd dns register myapp:api localhost:3001`} />
+            <DocsCodeBlock
+              code={`$ pd dns register myapp:api localhost:3001`}
+              output={`Service registered: myapp:api -> localhost:3001`}
+            />
           </div>
 
           <div className="border-l-4 border-[var(--brand-primary)] pl-4">
             <code className="font-mono text-[var(--brand-primary)]">pd dns lookup &lt;name&gt;</code>
             <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">Resolve a name to its host:port. Returns the address or an error if not found.</p>
-            <DocsCodeBlock code={`$ pd dns lookup myapp:api --quiet
-localhost:3001`} />
+            <DocsCodeBlock
+              code={`$ pd dns lookup myapp:api --quiet`}
+              output={`localhost:3001`}
+            />
           </div>
 
           <div className="border-l-4 border-[var(--brand-primary)] pl-4">
             <code className="font-mono text-[var(--brand-primary)]">pd dns list</code>
             <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">List all registered DNS entries with names, addresses, and last-updated timestamps.</p>
-            <DocsCodeBlock code={`$ pd dns list --json`} />
+            <DocsCodeBlock
+              code={`$ pd dns list --json`}
+              output={`[
+  { "name": "myapp:api", "address": "localhost:3001", "updatedAgo": "2s" },
+  { "name": "myapp:frontend", "address": "localhost:3000", "updatedAgo": "5s" }
+]`}
+            />
           </div>
         </div>
       </div>

@@ -21,9 +21,10 @@ const TutorialsPage = lazyNamed(() => import('@/pages/TutorialsPage'), 'Tutorial
 const ExamplesPage = lazyNamed(() => import('@/pages/ExamplesPage'), 'ExamplesPage')
 const McpPage = lazy(() => import('@/pages/MCPPage'))
 const WhitepaperPage = lazy(() => import('@/pages/whitepaper'))
+const WhitepaperDetailPage = lazy(() => import('@/pages/whitepaper/PaperDetailPage'))
 const BlogPage = lazyNamed(() => import('@/pages/BlogPage'), 'BlogPage')
 const BlogPostPage = lazyNamed(() => import('@/pages/BlogPostPage'), 'BlogPostPage')
-const RoadmapPage = lazyNamed(() => import('@/pages/RoadmapPage'), 'RoadmapPage')
+const MacPreviewPage = lazyNamed(() => import('@/pages/MacPreviewPage'), 'MacPreviewPage')
 const TemplatesPage = lazyNamed(() => import('@/pages/TemplatesPage'), 'TemplatesPage')
 const AgentsPage = lazyNamed(() => import('@/pages/AgentsPage'), 'AgentsPage')
 const CookbookPage = lazyNamed(() => import('@/pages/cookbook/CookbookPage'), 'CookbookPage')
@@ -51,6 +52,7 @@ const Watch = lazyNamed(() => import('@/pages/tutorials/Watch'), 'Watch')
 const RemoteHarbors = lazyNamed(() => import('@/pages/tutorials/RemoteHarbors'), 'RemoteHarbors')
 const Fleet = lazyNamed(() => import('@/pages/tutorials/Fleet'), 'Fleet')
 const Pheromone = lazyNamed(() => import('@/pages/tutorials/Pheromone'), 'Pheromone')
+const Primitives = lazyNamed(() => import('@/pages/tutorials/Primitives'), 'Primitives')
 
 const ApiReference = lazy(() => import('@/pages/docs/ApiReference'))
 const DocsOverview = lazy(() => import('@/pages/docs/DocsOverview'))
@@ -177,9 +179,9 @@ createRoot(document.getElementById('root')!).render(
           <Routes>
             <Route element={<MainLayout />}>
               <Route path="/" element={<App />} />
+              <Route path="/mac-preview" element={<MacPreviewPage />} />
               <Route path="/examples" element={<ExamplesPage />} />
               <Route path="/mcp" element={<McpPage />} />
-              <Route path="/roadmap" element={<RoadmapPage />} />
               <Route path="/templates" element={<TemplatesPage />} />
               <Route path="/agents" element={<AgentsPage />} />
 
@@ -203,6 +205,7 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/tutorials/remote-harbors" element={<RemoteHarbors />} />
               <Route path="/tutorials/fleet" element={<Fleet />} />
               <Route path="/tutorials/pheromone" element={<Pheromone />} />
+              <Route path="/tutorials/primitives" element={<Primitives />} />
 
               <Route path="/cookbook" element={<CookbookPage />} />
               <Route path="/cookbook/:id" element={<RecipePage />} />
@@ -214,6 +217,7 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/blog/:slug" element={<BlogPostPage />} />
 
               <Route path="/whitepaper" element={<WhitepaperPage />} />
+              <Route path="/whitepaper/:paperSlug" element={<WhitepaperDetailPage />} />
             </Route>
 
             <Route path="/docs" element={<DocsLayout />}>

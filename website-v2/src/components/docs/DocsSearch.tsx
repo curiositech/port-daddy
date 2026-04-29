@@ -211,7 +211,7 @@ export function DocsSearch({ variant = 'full', className }: DocsSearchProps) {
         <div className="fixed inset-0 z-[200] flex items-start justify-center pt-[20vh] p-4">
           {/* Backdrop */}
           <div 
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            className="absolute inset-0 bg-bg-scrim"
             onClick={closeSearch}
           />
           

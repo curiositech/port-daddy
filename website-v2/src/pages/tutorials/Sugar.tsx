@@ -9,7 +9,7 @@ export function Sugar() {
       title="Sugar Commands"
       description="Coordination shouldn't be a chore. Learn to use Port Daddy's high-level wrappers to claim ports, acquire locks, and manage sessions with zero friction."
       number={10}
-      total={19}
+      total={20}
       level="Beginner"
       readTime="5 min read"
       prev={{ title: 'Inbox & Messaging', href: '/tutorials/inbox' }}

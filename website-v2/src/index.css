@@ -8,6 +8,8 @@
   --color-bg-surface: var(--bg-surface);
   --color-bg-overlay: var(--bg-overlay);
   --color-bg-glass: var(--bg-glass);
+  --color-bg-scrim: var(--bg-scrim);
+  --color-media-scrim: var(--bg-media-scrim);
 
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
@@ -151,36 +153,6 @@ p, li {
 a {
   text-decoration: none;
   transition: color 0.2s ease;
-}
-
-/* Neobrutalist accent utilities: hard offset shadows, no blur. */
-.neo-card {
-  box-shadow: var(--neo-shadow-card);
-}
-
-.neo-card-strong {
-  box-shadow: var(--neo-shadow-pop);
-}
-
-.neo-control {
-  box-shadow: var(--neo-shadow-control);
-}
-
-.neo-lift {
-  transition:
-    transform var(--duration-fast) var(--ease-out),
-    box-shadow var(--duration-fast) var(--ease-out),
-    background-color var(--duration-fast) var(--ease-out);
-}
-
-.neo-lift:hover {
-  box-shadow: var(--neo-shadow-pop);
-  transform: translate(-2px, -2px);
-}
-
-.neo-lift:active {
-  box-shadow: var(--neo-shadow-xs);
-  transform: translate(2px, 2px);
 }
 
 /* Inline code uses tokenized inset contrast, not a black-code default. */
@@ -415,8 +387,8 @@ pre code {
 /* ─── Glass (kept for compatibility, simplified) ──────────────────────────── */
 .glass {
   background: var(--bg-glass);
-  backdrop-filter: blur(12px) saturate(160%);
-  -webkit-backdrop-filter: blur(12px) saturate(160%);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border: 1px solid var(--border-subtle);
 }
 
@@ -430,6 +402,16 @@ pre code {
 
 :where([class*="drop-shadow"]) {
   filter: none !important;
+}
+
+/* Soft-glow invariant: visual depth comes from Swiss grid pressure, borders,
+   rules, and type scale. Legacy blur blobs stay inert. */
+:where([class^="blur-"], [class*=" blur-"], [class*=":blur-"], [class*="backdrop-blur"]) {
+  --tw-blur: blur(0) !important;
+  --tw-backdrop-blur: blur(0) !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 /* ─── Accessibility ────────────────────────────────────────────────────────── */

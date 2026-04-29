@@ -11,7 +11,7 @@ export function Fleet() {
       title="Fleet: Agents That Run While You Sleep"
       description="Declare your background agent fleet in YAML. Wire it to git commits. Watch QA, docs, and idea engines run automatically on every push."
       number={18}
-      total={19}
+      total={20}
       level="Intermediate"
       readTime="12 min read"
       prev={{ title: 'Multiplayer Localhost', href: '/tutorials/remote-harbors' }}
@@ -268,7 +268,7 @@ pd fleet status   # What's running?
 pd fleet down     # Stop everything`}</CodeBlock>
 
           <motion.p>
-            Open the Fleet Control Center or the daemon-served control plane at <code>/fleet-ui/</code> for the live control plane. That surface now carries Flow, Activity, Channels, Inbox, and Sorties in one shell instead of splitting truth across older one-off pages.
+            Open the Fleet Control Center or the daemon-served control plane at <code>/fleet-ui/</code> for the live dashboard. That surface now carries Flow, Activity, Channels, Inbox, and Sorties in one shell instead of splitting truth across older one-off pages.
           </motion.p>
 
           <Surface depth="raised" radius="2xl" className="p-6 space-y-3">

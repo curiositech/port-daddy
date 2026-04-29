@@ -10,7 +10,7 @@ export function MultiAgentOrchestration() {
       title="Multi-Agent Coordination"
       description="Two agents, one project, zero conflicts. File claims for ownership, pub/sub for communication, session notes for audit trails."
       number={3}
-      total={19}
+      total={20}
       level="Intermediate"
       readTime="8 min read"
       prev={{ title: 'Semantic Identities', href: '/tutorials/semantic-identities' }}

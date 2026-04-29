@@ -11,7 +11,7 @@ export function GettingStarted() {
       title="Getting Started"
       description="Install Port Daddy, start the daemon, and see how two AI agents coordinate on the same project without stepping on each other."
       number={1}
-      total={19}
+      total={20}
       level="Beginner"
       readTime="10 min read"
       next={{ title: 'Semantic Identities: Why Names Matter', href: '/tutorials/semantic-identities' }}

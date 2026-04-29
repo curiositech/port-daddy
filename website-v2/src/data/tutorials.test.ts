@@ -2,7 +2,7 @@
  * Tutorial data consistency tests.
  *
  * These catch the class of bugs introduced in c1fbbc9:
- *   - tutorials.ts reordered to 19 but individual pages kept stale number/total
+ *   - tutorials.ts reordered but individual pages kept stale number/total
  *   - TutorialProgress.tsx duplicated tutorials.ts with no enforcement
  *   - Orphaned tutorial files not listed in tutorials.ts
  */
@@ -33,6 +33,7 @@ const FILE_TO_SLUG: Record<string, string> = {
   'RemoteHarbors.tsx': 'remote-harbors',
   'Fleet.tsx': 'fleet',
   'Pheromone.tsx': 'pheromone',
+  'Primitives.tsx': 'primitives',
 }
 
 function tutorialForFile(file: string) {
@@ -146,7 +147,7 @@ describe('tutorials index brand voice', () => {
 })
 
 describe('individual tutorial pages have correct number and total', () => {
-  const totalExpected = TUTORIALS.length // 19
+  const totalExpected = TUTORIALS.length
 
   // Build slug -> expected number map
   const slugToNumber = new Map<string, number>()

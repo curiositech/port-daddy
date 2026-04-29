@@ -8,7 +8,7 @@ const buttonVariants = cva(
     'inline-flex items-center justify-center gap-2',
     'cursor-pointer select-none whitespace-nowrap border-2 border-[var(--border-strong)]',
     'font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)]',
-    'transition-all duration-[120ms]',
+    'transition-all duration-[180ms]',
     'disabled:pointer-events-none disabled:opacity-50',
     'focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]',
   ].join(' '),
@@ -41,28 +41,28 @@ const variantStyles: Record<string, {
   hover: React.CSSProperties
 }> = {
   primary: {
-    base: { background: 'var(--text-primary)', boxShadow: 'var(--neo-shadow-control)', transform: 'translate(0, 0)' },
-    hover: { background: 'var(--brand-primary)', boxShadow: 'var(--neo-shadow-pop)', transform: 'translate(-1px, -1px)' },
+    base: { background: 'var(--text-primary)', boxShadow: 'none' },
+    hover: { background: 'var(--brand-primary)', boxShadow: 'none' },
   },
   secondary: {
-    base: { background: 'var(--surface-raised)', boxShadow: 'var(--neo-shadow-control)', transform: 'translate(0, 0)' },
-    hover: { background: 'var(--surface-strong)', boxShadow: 'var(--neo-shadow-pop)', transform: 'translate(-1px, -1px)' },
+    base: { background: 'var(--surface-raised)', boxShadow: 'none' },
+    hover: { background: 'var(--surface-strong)', boxShadow: 'none' },
   },
   ghost: {
-    base: { background: 'transparent', boxShadow: 'none', borderColor: 'transparent', transform: 'translate(0, 0)' },
-    hover: { background: 'var(--surface-raised)', borderColor: 'var(--border-strong)', boxShadow: 'var(--neo-shadow-control)', transform: 'translate(-1px, -1px)' },
+    base: { background: 'transparent', boxShadow: 'none', borderColor: 'transparent' },
+    hover: { background: 'var(--surface-raised)', borderColor: 'var(--border-strong)', boxShadow: 'none' },
   },
   code: {
-    base: { background: 'transparent', boxShadow: 'var(--neo-shadow-xs)', borderColor: 'var(--code-comment)', transform: 'translate(0, 0)' },
-    hover: { background: 'var(--code-header-bg)', borderColor: 'var(--code-text)', boxShadow: 'var(--neo-shadow-control)', transform: 'translate(-1px, -1px)' },
+    base: { background: 'transparent', boxShadow: 'none', borderColor: 'var(--code-comment)' },
+    hover: { background: 'var(--code-header-bg)', borderColor: 'var(--code-text)', boxShadow: 'none' },
   },
   danger: {
-    base: { background: 'var(--status-error)', boxShadow: 'var(--neo-shadow-control)', transform: 'translate(0, 0)' },
-    hover: { background: 'var(--status-error)', boxShadow: 'var(--neo-shadow-pop)', transform: 'translate(-1px, -1px)' },
+    base: { background: 'var(--status-error)', boxShadow: 'none' },
+    hover: { background: 'var(--status-error)', boxShadow: 'none' },
   },
   outline: {
-    base: { background: 'var(--brand-accent)', boxShadow: 'var(--neo-shadow-control)', transform: 'translate(0, 0)' },
-    hover: { background: 'var(--brand-accent)', boxShadow: 'var(--neo-shadow-pop)', transform: 'translate(-1px, -1px)' },
+    base: { background: 'var(--brand-accent)', boxShadow: 'none' },
+    hover: { background: 'var(--brand-accent)', boxShadow: 'none' },
   },
 }
 
@@ -87,16 +87,6 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         }}
         onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => {
           Object.assign(e.currentTarget.style, styles.base)
-        }}
-        onMouseDown={(e: React.MouseEvent<HTMLButtonElement>) => {
-          Object.assign(e.currentTarget.style, {
-            ...styles.base,
-            boxShadow: 'var(--neo-shadow-xs)',
-            transform: 'translate(2px, 2px)',
-          })
-        }}
-        onMouseUp={(e: React.MouseEvent<HTMLButtonElement>) => {
-          Object.assign(e.currentTarget.style, { ...styles.base, ...styles.hover })
         }}
         {...props}
       />

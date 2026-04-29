@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { APP_SURFACES } from './data/product'
 import { docsFamilyOrder, docsOverviewRoute, docsFamilyRoutes, findDocsRouteByPath, findDocsRouteBySlug } from './data/docs-routes'
 import { docsFamilies, findDocsFamily } from './data/publicSite'
 import { docsContentSections, findDocsContentPage, findDocsContentSection } from './docs-content'
@@ -57,7 +58,17 @@ describe('public shell contracts', () => {
       },
       {
         path: './components/docs/DocsLayout.tsx',
-        required: ['DocsSidebar', 'Outlet', 'overflow-hidden', 'left-1/4', 'left-1/2', 'left-3/4'],
+        required: [
+          'DocsSidebar',
+          'Outlet',
+          'DocsFamilyNav',
+          'Docs family navigation',
+          'docsSidebarFamilies',
+          'overflow-hidden',
+          'left-1/4',
+          'left-1/2',
+          'left-3/4',
+        ],
         forbidden: [/gap-8/, /px-6 py-10/, /sm:px-8/, /lg:px-10 lg:py-12/],
       },
       {
@@ -96,6 +107,7 @@ describe('public shell contracts', () => {
           'findDocsContentPage',
           'What this page answers',
           'Section map',
+          'Route relationship',
           'scroll-mt-[calc(var(--space-10)+var(--space-6))]',
         ],
         forbidden: [
@@ -150,6 +162,7 @@ describe('public shell contracts', () => {
 
   test('whitepaper page uses the current editorial layout instead of the old ceremonial hero', () => {
     const whitepaper = read('./pages/whitepaper/index.tsx')
+    const paperData = read('./data/whitePapers.ts')
 
     expect(whitepaper).toContain('Research dossier')
     expect(whitepaper).toContain('The control-plane papers.')
@@ -157,12 +170,52 @@ describe('public shell contracts', () => {
     expect(whitepaper).toContain('Argument map')
     expect(whitepaper).toContain('Reading order')
     expect(whitepaper).toContain('signed local identity first')
+    expect(whitepaper).toContain('useSearchParams')
+    expect(whitepaper).toContain('Read guide')
+    expect(paperData.indexOf("id: 'anchor-protocol'")).toBeLessThan(paperData.indexOf("id: 'bonded-commons'"))
     expect(whitepaper).not.toContain('White Papers')
     expect(whitepaper).not.toContain('Formal Foundations')
     expect(whitepaper).not.toContain('How the Papers Relate')
     expect(whitepaper).not.toContain('rounded-[28px]')
     expect(whitepaper).not.toContain('shadow-inset')
     expect(whitepaper).not.toContain('Anchor size')
+  })
+
+  test('homepage keeps both public papers visible from the landing CTA', () => {
+    const cta = read('./components/landing/CTABanner.tsx')
+    const paperData = read('./data/whitePapers.ts')
+
+    expect(cta).toContain('WHITE_PAPERS')
+    expect(paperData).toContain('The Anchor Protocol')
+    expect(paperData).toContain('The Bonded Commons')
+    expect(cta).toContain('Read inline')
+    expect(cta).toContain('paper.readerHref')
+    expect(cta).toContain('paper.pdfPath')
+    expect(paperData).toContain('/whitepaper/anchor-protocol')
+    expect(paperData).toContain('/whitepaper/bonded-commons')
+    expect(paperData).toContain('/whitepaper/anchor-protocol-whitepaper.pdf')
+    expect(paperData).toContain('/whitepaper/agent-transactions-whitepaper.pdf')
+    expect(cta).toContain('Read both papers')
+    expect(cta).toContain('Coordination feedback')
+    expect(cta).toContain('Dogfood restore')
+  })
+
+  test('individual whitepaper pages explain value and embed PDFs inline', () => {
+    const mainSource = read('./main.tsx')
+    const detailPage = read('./pages/whitepaper/PaperDetailPage.tsx')
+    const metadata = read('./data/siteMetadata.ts')
+    const seo = read('../scripts/generate-seo-artifacts.mjs')
+
+    expect(mainSource).toContain('path="/whitepaper/:paperSlug"')
+    expect(detailPage).toContain('What this paper is saying')
+    expect(detailPage).toContain('Why this paper matters')
+    expect(detailPage).toContain('Future value')
+    expect(detailPage).toContain('Inline PDF reader')
+    expect(detailPage).toContain('<iframe')
+    expect(detailPage).toContain('paperPdfUrl(paper)')
+    expect(metadata).toContain('WHITE_PAPERS.map')
+    expect(seo).toContain('/whitepaper/anchor-protocol')
+    expect(seo).toContain('/whitepaper/bonded-commons')
   })
 
   test('docs shell copy points to the public whitepaper without replacement-brand framing', () => {
@@ -184,21 +237,25 @@ describe('public shell contracts', () => {
     const header = read('./components/site/SiteHeader.tsx')
     const footer = read('./components/site/SiteFooter.tsx')
 
-    expect(header).not.toContain('/dashboard')
+    expect(header).toContain('/mac-preview')
     expect(header).toContain('/examples')
+    expect(header).toContain('/agents')
     expect(header).toContain('/mcp')
     expect(header).toContain('/tutorials')
-    expect(header).toContain('/roadmap')
+    expect(header).not.toContain('/roadmap')
     expect(header).toContain("/whitepaper")
+    expect(header).toContain('Papers')
+    expect(header).not.toContain('/dashboard')
     expect(header).toContain('Port Daddy')
     expect(header).toContain('Mobile primary')
     expect(header).toContain('!max-w-none')
     expect(header).toContain('inline-flex shrink-0 items-center')
     expect(header).not.toContain('absolute right-0 top-0 h-full w-3')
     expect(footer).not.toContain('/dashboard')
+    expect(footer).toContain('/mac-preview')
     expect(footer).toContain('/agents')
     expect(footer).toContain('/mcp')
-    expect(footer).toContain('/roadmap')
+    expect(footer).not.toContain('/roadmap')
     expect(footer).toContain('/docs/get-started')
     expect(footer).toContain('/docs/cli')
     expect(footer).toContain('/docs/sdk')
@@ -223,22 +280,71 @@ describe('public shell contracts', () => {
     }
   })
 
+  test('Mac Preview has a top-level console gallery for every Fleet Control Center surface', () => {
+    const appSurfaceTitles = APP_SURFACES.map((surface) => surface.title)
+    const appSurfaceIds = APP_SURFACES.map((surface) => surface.id)
+    const macPreview = read('./pages/MacPreviewPage.tsx')
+    const showcase = read('./components/landing/MacAppShowcase.tsx')
+
+    expect(macPreview).toContain('Flow, Roadmap')
+    expect(showcase).toContain('Fleet Control Center gallery')
+    expect(appSurfaceTitles).toEqual(expect.arrayContaining([
+      'Flow',
+      'Agents',
+      'Roadmap',
+      'Resources',
+      'Activity',
+      'Channels',
+      'Inbox',
+      'Sorties',
+      'Memory',
+      'YAML',
+      'Shipwright Harbor',
+      'Shipwright Focus',
+      'Shipwright Simulation',
+      'Shipwright Control',
+    ]))
+    expect(appSurfaceIds).toEqual(expect.arrayContaining([
+      'fleet-flow',
+      'agents',
+      'roadmap',
+      'resources',
+      'activity',
+      'channels',
+      'inbox',
+      'sorties',
+      'memory',
+      'yaml',
+      'shipwright-harbor',
+      'shipwright-focus',
+      'shipwright-simulation',
+      'shipwright-control',
+    ]))
+    expect(appSurfaceIds).not.toContain('public-roadmap-page')
+  })
+
   test('docs overview and sidebar keep the broader public site reachable from the docs shell', () => {
     const docsOverview = read('./pages/docs/DocsOverview.tsx')
     const docsSidebar = read('./components/site/DocsSidebar.tsx')
 
     expect(docsOverview).toContain('Keep the rest of the site in play.')
     expect(docsOverview).not.toContain('/dashboard')
+    expect(docsOverview).toContain('/mac-preview')
     expect(docsOverview).toContain('/examples')
+    expect(docsOverview).toContain('/docs/examples guides. /examples runs.')
+    expect(docsOverview).toContain('/templates')
     expect(docsOverview).toContain('/mcp')
     expect(docsOverview).toContain('/agents')
-    expect(docsOverview).toContain('/roadmap')
+    expect(docsOverview).not.toContain('/roadmap')
     expect(docsSidebar).toContain('The rest of the website stays live.')
     expect(docsSidebar).not.toContain('/dashboard')
+    expect(docsSidebar).toContain('/mac-preview')
     expect(docsSidebar).toContain('/examples')
+    expect(docsSidebar).toContain('/docs/examples guides. /examples runs.')
+    expect(docsSidebar).toContain('/templates')
     expect(docsSidebar).toContain('/mcp')
     expect(docsSidebar).toContain('/agents')
-    expect(docsSidebar).toContain('/roadmap')
+    expect(docsSidebar).not.toContain('/roadmap')
   })
 
   test('docs families stay under /docs while the main router preserves the current site surface', () => {
@@ -262,9 +368,9 @@ describe('public shell contracts', () => {
     }
 
     for (const routePath of [
+      'path="/mac-preview"',
       'path="/examples"',
       'path="/mcp"',
-      'path="/roadmap"',
       'path="/templates"',
       'path="/agents"',
       'path="/tutorials"',
@@ -278,6 +384,9 @@ describe('public shell contracts', () => {
     ]) {
       expect(mainSource).toContain(routePath)
     }
+    expect(mainSource).not.toContain('path="/roadmap"')
+    expect(mainSource).not.toContain('path="/dashboard"')
+    expect(mainSource).not.toContain('path="/tutorials/dashboard"')
   })
 
   test('home page stays on the existing landing composition instead of the replacement shell', () => {
@@ -340,6 +449,7 @@ describe('public shell contracts', () => {
       'daemon-and-authority',
       'sessions-locks-and-tuples',
       'harbors-and-identity',
+      'eleven-product-primitives',
     ])
     expect(findDocsContentSection('best-practices')?.pages.map((page) => page.slug)).toEqual([
       'operator-loop',
@@ -353,10 +463,12 @@ describe('public shell contracts', () => {
       'exchange-state-through-tuples',
       'enter-a-harbor-and-pass-a-card',
     ])
+    expect(findDocsContentSection('examples')?.summary).toContain('/examples corpus')
     expect(findDocsContentSection('tutorials')?.pages.map((page) => page.slug)).toEqual([
       'bootstrap-a-project-fleet',
       'recover-a-dead-agent-session',
       'launch-and-inspect-a-sortie',
+      'walk-the-eleven-primitives',
     ])
     expect(findDocsContentSection('reference-architectures')?.pages.map((page) => page.slug)).toEqual([
       'single-machine-control-plane',
@@ -527,6 +639,7 @@ describe('public shell contracts', () => {
       './hooks/useDaemonData.ts',
       './hooks/useActivityStream.ts',
       './hooks/useTimeline.ts',
+      './hooks/useDashboardStats.ts',
       './hooks/useOrchestratorRules.ts',
       './components/viz/WorkflowsTable.tsx',
       './lib/daemon-client.ts',

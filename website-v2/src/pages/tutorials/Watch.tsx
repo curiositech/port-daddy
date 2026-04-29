@@ -10,7 +10,7 @@ export function Watch() {
       title="Swarm Observation"
       description="Coordination requires constant vigilance. Learn to use pd watch to monitor Swarm Radio channels and execute automated actions the moment a signal fires."
       number={16}
-      total={19}
+      total={20}
       level="Intermediate"
       readTime="10 min read"
       prev={{ title: 'Reactive Pipelines', href: '/tutorials/pipelines' }}
@@ -109,7 +109,7 @@ export function Watch() {
            <Badge variant="teal" className="px-4 py-1 text-[10px] font-black uppercase tracking-widest">Autonomous Maturity</Badge>
            <p className="text-lg font-bold m-0" style={{ color: 'var(--text-primary)' }}>Always Watching.</p>
            <p className="max-w-xl mx-auto opacity-70 m-0">
-             In Port Daddy v3.7, observation is a first-class citizen. Your swarm shouldn't just act--it should <strong>perceive</strong>. The watch command gives your infrastructure the eyes it needs to stay in sync with your agents.
+             Observation is a first-class citizen. Your swarm shouldn't just act--it should <strong>perceive</strong>. The watch command gives your infrastructure the eyes it needs to stay in sync with your agents.
            </p>
            <div className="flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-primary)]">
               <Shield size={14} />

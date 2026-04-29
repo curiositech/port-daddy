@@ -10,11 +10,11 @@ export function Pheromone() {
       title="Pheromone Trails: How Agents Leave Breadcrumbs"
       description="Ants don't talk. They leave chemical trails that decay over time. Your agents can do the same. Learn how pheromone signals create ambient awareness without direct communication."
       number={19}
-      total={19}
+      total={20}
       level="Intermediate"
       readTime="8 min read"
       prev={{ title: 'Fleet Agents', href: '/tutorials/fleet' }}
-      next={undefined}
+      next={{ title: 'Walk the 11 Product Primitives', href: '/tutorials/primitives' }}
     >
       <motion.div className="space-y-16">
         {/* Intro */}
@@ -137,7 +137,7 @@ curl http://localhost:9876/pheromone/files?path=src/lib/&depth=1
               <motion.p className="text-sm font-bold m-0">Conflict Detection</motion.p>
             </motion.div>
             <motion.p className="text-xs text-[var(--text-secondary)] m-0">
-              When <code>conflict: true</code>, two or more active sessions have claimed the same file. This is the advisory warning that someone else is working here. The Fleet control plane shows these as red CONFLICT badges in the heat map panel.
+              When <code>conflict: true</code>, two or more active sessions have claimed the same file. This is the advisory warning that someone else is working here. The dashboard shows these as red CONFLICT badges in the heat map panel.
             </motion.p>
           </Surface>
         </section>

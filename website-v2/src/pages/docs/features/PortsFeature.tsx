@@ -1,5 +1,5 @@
 import { Badge } from '@/components/ui/Badge'
-import { CodeBlock } from '@/components/ui/CodeBlock'
+import { DocsCodeBlock } from '@/components/docs/DocsCodeBlock'
 import { Link } from 'react-router-dom'
 import { ArrowRight, AlertCircle } from 'lucide-react'
 
@@ -52,13 +52,15 @@ export default function PortsFeature() {
           The same identity always gets the same port, across restarts, across machines.
         </p>
 
-        <CodeBlock language="bash">{`# Identity format: project:stack:context
+        <DocsCodeBlock
+          code={`# Identity format: project:stack:context
 $ pd claim myapp:api:main
-Port 3001 assigned to myapp:api:main
 
 # Same identity, same port — idempotent
-$ pd claim myapp:api:main
-Port 3001 assigned to myapp:api:main`}</CodeBlock>
+$ pd claim myapp:api:main`}
+          output={`Port 3001 assigned to myapp:api:main
+Port 3001 assigned to myapp:api:main`}
+        />
       </div>
 
       {/* Identity Format */}
@@ -95,28 +97,42 @@ Port 3001 assigned to myapp:api:main`}</CodeBlock>
           <div className="border-l-4 border-[var(--brand-primary)] pl-4">
             <code className="font-mono text-[var(--brand-primary)]">pd claim &lt;identity&gt;</code>
             <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">Claim a port for a service. Idempotent — returns the same port on repeat calls.</p>
-            <CodeBlock language="bash">{`$ pd claim myapp:api:main --json`}</CodeBlock>
+            <DocsCodeBlock
+              code={`$ pd claim myapp:api:main --json`}
+              output={`{
+  "identity": "myapp:api:main",
+  "port": 3001,
+  "status": "claimed"
+}`}
+            />
           </div>
 
           <div className="border-l-4 border-[var(--brand-primary)] pl-4">
             <code className="font-mono text-[var(--brand-primary)]">pd release &lt;identity&gt;</code>
             <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">Release a port claim. Safe to call even if the port is not claimed.</p>
-            <CodeBlock language="bash">{`$ pd release myapp:api:main`}</CodeBlock>
+            <DocsCodeBlock
+              code={`$ pd release myapp:api:main`}
+              output={`Released myapp:api:main from port 3001`}
+            />
           </div>
 
           <div className="border-l-4 border-[var(--brand-primary)] pl-4">
             <code className="font-mono text-[var(--brand-primary)]">pd find &lt;identity&gt;</code>
             <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">Look up the port assigned to an identity without claiming a new one.</p>
-            <CodeBlock language="bash">{`$ pd find myapp:api:main --quiet
-3001`}</CodeBlock>
+            <DocsCodeBlock
+              code={`$ pd find myapp:api:main --quiet`}
+              output={`3001`}
+            />
           </div>
 
           <div className="border-l-4 border-[var(--brand-primary)] pl-4">
             <code className="font-mono text-[var(--brand-primary)]">pd services</code>
             <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">List all active port claims with identity, port, and last-seen timestamp.</p>
-            <CodeBlock language="bash">{`$ pd services
-myapp:api:main 3001 5s ago
-myapp:frontend:main 3000 2s ago`}</CodeBlock>
+            <DocsCodeBlock
+              code={`$ pd services`}
+              output={`myapp:api:main       3001   5s ago
+myapp:frontend:main  3000   2s ago`}
+            />
           </div>
         </div>
       </div>
@@ -129,19 +145,23 @@ myapp:frontend:main 3000 2s ago`}</CodeBlock>
           framework signatures (package.json, Cargo.toml, etc.).
         </p>
 
-        <CodeBlock language="bash">{`$ pd scan ./services
-Found 4 services:
-    myapp:api → 3001 (express)
-    myapp:frontend → 3000 (vite)
-    myapp:jobs → 3002 (bullmq)
-    myapp:db-admin → 3003 (adminer)`}</CodeBlock>
+        <DocsCodeBlock
+          code={`$ pd scan ./services`}
+          output={`Found 4 services:
+  myapp:api       -> 3001   express
+  myapp:frontend  -> 3000   vite
+  myapp:jobs      -> 3002   bullmq
+  myapp:db-admin  -> 3003   adminer`}
+        />
       </div>
 
       {/* SDK Example */}
       <div className="space-y-3">
         <h2 className="text-lg font-semibold text-[var(--text-primary)]">SDK Usage</h2>
 
-        <CodeBlock language="typescript">{`import { PortDaddy } from 'port-daddy'
+        <DocsCodeBlock
+          language="typescript"
+          code={`import { PortDaddy } from 'port-daddy'
 
 const pd = new PortDaddy()
 
@@ -150,7 +170,9 @@ const port = await pd.claim('myapp:api:main')
 console.log(\`Server running on port \${port}\`)
 
 // Release when done
-await pd.release('myapp:api:main')`}</CodeBlock>
+await pd.release('myapp:api:main')`}
+          output={`Server running on port 3001`}
+        />
       </div>
 
       {/* Next */}

@@ -10,7 +10,7 @@ export function Inbox() {
       title="The Agent Inbox"
       description="Coordination requires communication. Learn to use Port Daddy's internal messaging system to send direct signals, broadcast events, and monitor agent heartbeats in real-time."
       number={9}
-      total={19}
+      total={20}
       level="Intermediate"
       readTime="10 min read"
       prev={{ title: 'Session Phases', href: '/tutorials/session-phases' }}
@@ -35,7 +35,7 @@ export function Inbox() {
             </p>
             <p className="text-sm text-[var(--text-secondary)] m-0">
               <Activity size={14} className="inline text-[var(--brand-accent)] mr-1" />
-              <strong>Radio Stream</strong> -- Subscribe to any inbox live via SSE to monitor agent progress in your terminal or control plane.
+              <strong>Radio Stream</strong> -- Subscribe to any inbox live via SSE to monitor agent progress in your terminal or dashboard.
             </p>
           </div>
         </section>
@@ -103,7 +103,7 @@ export function Inbox() {
         {/* Vision Callout */}
         <section className="p-6 text-center space-y-4">
           <p className="text-lg max-w-xl mx-auto text-[var(--text-secondary)]">
-            The inbox system is the foundation of <strong>Swarm Radio</strong>. In Port Daddy v3.7, we've moved beyond simple text logs to a structured, auditable communication mesh where every signal has an owner and a destination.
+            The inbox system is the foundation of <strong>Swarm Radio</strong>. Port Daddy has moved beyond simple text logs to a structured, auditable communication mesh where every signal has an owner and a destination.
           </p>
           <div className="flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-secondary)]">
             <Shield size={14} />

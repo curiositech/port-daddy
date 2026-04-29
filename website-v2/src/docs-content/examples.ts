@@ -4,7 +4,7 @@ export const examplesSection: DocsContentSection = {
   slug: 'examples',
   title: 'Examples',
   summary:
-    'Small, bounded patterns that prove the daemon on real repo work: locking a critical step, sharing tuple state, and passing a harbor card.',
+    'Guided pages for the runnable /examples corpus: locking critical work, sharing tuple-backed swarm state, passing harbor cards, and knowing when to jump into code.',
   pages: [
     {
       slug: 'protect-a-critical-command',
@@ -24,6 +24,7 @@ export const examplesSection: DocsContentSection = {
           paragraphs: [
             'Some commands stop being harmless as soon as more than one actor can run them. Database migrations, code generation, and release steps all fall into that category because the second invocation is not “just another shell command.” It is state corruption waiting to happen.',
             'This example keeps the pattern narrow on purpose. The value is not that Port Daddy can wrap a process. The value is that the control plane can turn a contested step into an explicit, auditable critical section instead of leaving collision prevention to etiquette.',
+            'The runnable version lives in /examples. Use the docs page to learn the shape, then run examples/locks/migration-guard.ts when you want to see two actors contend for the same lock.',
           ],
         },
         {
@@ -53,6 +54,10 @@ export const examplesSection: DocsContentSection = {
         },
       ],
       sources: [
+        {
+          path: 'examples/locks/migration-guard.ts',
+          rationale: 'Runnable code example that demonstrates two actors contending for the same migration lock.',
+        },
         {
           path: 'website-v2/src/data/docs.ts',
           rationale: 'CLI reference already documents `pd lock acquire`, `pd lock release`, and `pd with-lock`.',
@@ -85,6 +90,7 @@ export const examplesSection: DocsContentSection = {
           paragraphs: [
             'Tuples are for facts and tasks that another actor should be able to query without reverse-engineering prose. They matter when one agent discovers something, another needs to react, and you do not want the handoff to disappear into a terminal scrollback or a Slack-like message stream.',
             'The important property is not that tuple space is academically elegant. The important property is that it gives the daemon a typed coordination substrate with pattern matching, harbor scoping, and expiry behavior instead of forcing every workflow through bespoke event payloads.',
+            'The runnable /examples swarm board turns that idea into code: one actor publishes work items, another claims them, reviewers add observations, and the board reads the shared state back from the same harbor.',
           ],
         },
         {
@@ -115,6 +121,10 @@ export const examplesSection: DocsContentSection = {
         },
       ],
       sources: [
+        {
+          path: 'examples/swarm/coordination-board.ts',
+          rationale: 'Runnable swarm-coordination example that writes, claims, and reads tuple-backed work state.',
+        },
         {
           path: 'README.md',
           rationale: 'README documents tuple out/rd/in/scan as the shared swarm-memory surface.',
@@ -147,6 +157,7 @@ export const examplesSection: DocsContentSection = {
           paragraphs: [
             'Harbors exist so coordinated work can carry an explicit capability and namespace boundary. They group agents, bound messaging and tuple traffic, and give the daemon a concrete answer to “who belongs to this working set?”',
             'That is why this example stays grounded in entry and use. It does not try to smuggle in the whole future delegation story. The truthful current value is scoped admission plus a real harbor card returned by the live enter path.',
+            'When the code corpus is the better surface, /examples carries adjacent runnable patterns for PD Tube tunnel setup, service discovery, and agent workbench tools that can all use the same scoped boundary.',
           ],
         },
         {
@@ -178,6 +189,14 @@ export const examplesSection: DocsContentSection = {
         },
       ],
       sources: [
+        {
+          path: 'examples/tunnel/share-preview.ts',
+          rationale: 'Runnable PD Tube example for claiming a preview service and inspecting tunnel readiness.',
+        },
+        {
+          path: 'examples/devtools/agent-workbench.ts',
+          rationale: 'Runnable dev-tool example that reads daemon state and formats an operator workbench view.',
+        },
         {
           path: 'lib/harbor-tokens.ts',
           rationale: 'Harbor token issuance and verification code defines the active Phase 2 Ed25519 path and explicit legacy verifier.',

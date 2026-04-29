@@ -29,6 +29,14 @@ export class DaemonClientError extends Error {
 
 export interface DaemonFetchJsonOptions extends RequestInit, ResolveDaemonBaseUrlOptions {}
 
+export interface DashboardStats {
+  activeAgents: number
+  activeHarbors: number
+  activePorts: number
+  daemonVersion: string
+  fleetRunning: boolean
+}
+
 export interface OrchestratorRule {
   id: number
   name: string
@@ -36,6 +44,29 @@ export interface OrchestratorRule {
   action: string
   enabled: boolean
   payload?: Record<string, unknown> | null
+}
+
+interface HealthResponse {
+  version?: string
+  metrics?: {
+    activePorts?: number
+  }
+}
+
+interface FleetResponse {
+  running?: boolean
+  fleets?: Array<{
+    running?: boolean
+    agents?: Array<{
+      running?: boolean
+      paused?: boolean
+    }>
+  }>
+}
+
+interface HarborsResponse {
+  count?: number
+  harbors?: unknown[]
 }
 
 function normalizeError(error: unknown): DaemonClientError {
@@ -128,6 +159,31 @@ export function describeDaemonError(error: unknown): { kind: DaemonErrorKind; me
   }
 
   return { kind: normalized.kind, message: 'Daemon returned an unexpected payload' }
+}
+
+export async function fetchDashboardStats(): Promise<DashboardStats> {
+  const [health, fleet, harbors] = await Promise.all([
+    daemonFetchJson<HealthResponse>('/health'),
+    daemonFetchJson<FleetResponse>('/fleet'),
+    daemonFetchJson<HarborsResponse>('/harbors'),
+  ])
+
+  const fleetAgents =
+    fleet.fleets?.flatMap((item) => item.agents ?? []) ?? []
+
+  const activeAgents = fleetAgents.filter((agent) => agent.running || agent.paused).length
+  const activeHarbors = harbors.count ?? harbors.harbors?.length ?? 0
+  const activePorts = health.metrics?.activePorts ?? 0
+  const daemonVersion = health.version ?? 'unknown'
+  const fleetRunning = Boolean(fleet.running)
+
+  return {
+    activeAgents,
+    activeHarbors,
+    activePorts,
+    daemonVersion,
+    fleetRunning,
+  }
 }
 
 export async function fetchOrchestratorRules(): Promise<OrchestratorRule[]> {

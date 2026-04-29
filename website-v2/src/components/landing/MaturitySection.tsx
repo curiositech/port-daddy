@@ -42,7 +42,7 @@ const MATURITY_FEATURES = [
 export function MaturitySection() {
   return (
     <motion.section
-      className="py-16 lg:py-24 px-6 lg:px-8 relative overflow-hidden font-sans selection:bg-[var(--brand-primary)] selection:text-white"
+      className="py-16 lg:py-24 px-6 lg:px-8 relative overflow-hidden font-sans selection:bg-[var(--brand-primary)] selection:text-[var(--brand-primary-foreground)]"
       style={{ background: 'var(--surface-base)' }}
       initial={{ opacity: 0 }}
       whileInView={{ opacity: 1 }}

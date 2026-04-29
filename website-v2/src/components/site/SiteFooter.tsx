@@ -4,10 +4,10 @@ import { BrandMark } from './primitives'
 
 const SITE_LINKS = [
   { label: 'Home', href: '/' },
+  { label: 'Mac Preview', href: '/mac-preview' },
   { label: 'Examples', href: '/examples' },
   { label: 'Agents', href: '/agents' },
   { label: 'MCP', href: '/mcp' },
-  { label: 'Roadmap', href: '/roadmap' },
 ] as const
 
 const LEARN_LINKS = [
@@ -38,13 +38,14 @@ export function SiteFooter() {
                 Port Daddy
               </div>
               <div className="font-sans text-[length:var(--type-meta-size)] uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)]">
-                control plane for agent work
+                agent communication layer
               </div>
             </div>
           </div>
           <p className="max-w-[34rem] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
-            Port Daddy keeps multi-agent work legible with one daemon of record for sessions, shared state, harbor
-            flows, and operator-visible runtime truth. The docs shell should deepen the current site, not replace it.
+            Port Daddy gives coding agents a shared local substrate for notes, file claims, actor messages,
+            readiness, budgets, and recoverable handoffs. The Mac app and daemon make that ambient conversation
+            visible before work drifts.
           </p>
         </div>
 

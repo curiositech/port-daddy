@@ -14,10 +14,11 @@ export function DocsSidebar() {
     { title: 'REST API', href: '/docs/api' },
   ]
   const siteSurfaces = [
-    { title: 'Examples', href: '/examples' },
+    { title: 'Mac Preview', href: '/mac-preview' },
+    { title: 'Runnable examples', href: '/examples' },
+    { title: 'Templates', href: '/templates' },
     { title: 'MCP overview', href: '/mcp' },
     { title: 'Agents', href: '/agents' },
-    { title: 'Roadmap', href: '/roadmap' },
   ]
 
   return (
@@ -37,7 +38,7 @@ export function DocsSidebar() {
           <BracketLink to="/whitepaper" tone="blue" side="left">
             Whitepaper
           </BracketLink>
-          <BracketLink to="/docs/get-started" tone="lime" side="right">
+          <BracketLink to="/docs/get-started" tone="accent" side="right">
             Get started
           </BracketLink>
         </div>
@@ -56,7 +57,7 @@ export function DocsSidebar() {
             tutorials, reference architectures, and exact command or API surfaces.
           </PanelBody>
           <div className="flex flex-col gap-[var(--space-2)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
-            <BracketNavLink to="/docs" end tone="lime" side="left">
+            <BracketNavLink to="/docs" end tone="accent" side="left">
               Overview
             </BracketNavLink>
 
@@ -64,12 +65,33 @@ export function DocsSidebar() {
               <BracketNavLink
                 key={section.slug}
                 to={section.path}
-                tone={index % 2 === 0 ? 'blue' : 'lime'}
+                tone={index % 2 === 0 ? 'blue' : 'accent'}
                 side={index % 2 === 0 ? 'right' : 'left'}
               >
                 {section.title}
               </BracketNavLink>
             ))}
+          </div>
+        </DocsNoteCard>
+
+        <DocsNoteCard
+          label="Examples route split"
+          title="/docs/examples guides. /examples runs."
+          elevation="quiet"
+          padding="compact"
+          titleSize="nav"
+        >
+          <PanelBody size="compact" className="max-w-none">
+            The docs examples section is the guided reading path. The top-level examples route stays the runnable code
+            corpus for swarm coordination, PD Tube tunnel flows, and dev tools built on the daemon.
+          </PanelBody>
+          <div className="flex flex-col gap-[var(--space-2)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
+            <BracketNavLink to="/docs/examples" tone="blue" side="left">
+              Read the guide
+            </BracketNavLink>
+            <BracketNavLink to="/examples" tone="accent" side="right">
+              Open runnable examples
+            </BracketNavLink>
           </div>
         </DocsNoteCard>
 
@@ -89,7 +111,7 @@ export function DocsSidebar() {
               <BracketNavLink
                 key={surface.href}
                 to={surface.href}
-                tone={index % 2 === 0 ? 'blue' : 'lime'}
+                tone={index % 2 === 0 ? 'blue' : 'accent'}
                 side={index % 2 === 0 ? 'left' : 'right'}
               >
                 {surface.title}
@@ -106,15 +128,15 @@ export function DocsSidebar() {
           titleSize="nav"
         >
           <PanelBody size="compact" className="max-w-none">
-            Use the docs shell for deep reading, then jump back to examples, MCP overview, agent catalog, or roadmap
-            when the broader public site is the right surface.
+            Use the docs shell for deep reading, then jump back to the Mac preview, runnable examples, templates, MCP
+            overview, or agent catalog when the broader public site is the right surface.
           </PanelBody>
           <div className="flex flex-col gap-[var(--space-2)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
             {siteSurfaces.map((surface, index) => (
               <BracketNavLink
                 key={surface.href}
                 to={surface.href}
-                tone={index % 2 === 0 ? 'lime' : 'blue'}
+                tone={index % 2 === 0 ? 'accent' : 'blue'}
                 side={index % 2 === 0 ? 'left' : 'right'}
               >
                 {surface.title}
@@ -140,7 +162,7 @@ export function DocsSidebar() {
               <BracketNavLink
                 key={page.slug}
                 to={`${activeRoute.path}/${page.slug}`}
-                tone={index % 2 === 0 ? 'blue' : 'lime'}
+                tone={index % 2 === 0 ? 'blue' : 'accent'}
                 side={index % 2 === 0 ? 'right' : 'left'}
               >
                 {page.title}

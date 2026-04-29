@@ -153,7 +153,7 @@ export const DocsNotesAndAnchors: Story = {
           <BracketAnchor href="#install" side="left" tone="blue" active>
             Install
           </BracketAnchor>
-          <BracketAnchor href="#verify-runtime" side="right" tone="lime">
+          <BracketAnchor href="#verify-runtime" side="right" tone="accent">
             Verify runtime
           </BracketAnchor>
           <BracketAnchor href="#first-coordination-success" side="left" tone="blue">
@@ -243,7 +243,7 @@ export const StateMatrix: Story = {
                 Selected or high-emphasis state with foreground tokens.
               </PanelBody>
             </SurfacePanel>
-            <SurfacePanel tone="lime" className="space-y-[var(--space-3)]">
+            <SurfacePanel tone="accent" className="space-y-[var(--space-3)]">
               <PanelEyebrow tone="accent">Accent</PanelEyebrow>
               <PanelTitle as="h3" size="nav" tone="accent">Accent panel</PanelTitle>
               <PanelBody size="compact" tone="accent" className="max-w-none">
@@ -258,7 +258,7 @@ export const StateMatrix: Story = {
               <BracketAnchor href="#default" tone="blue" active>
                 Active anchor
               </BracketAnchor>
-              <BracketAnchor href="#secondary" tone="lime">
+              <BracketAnchor href="#secondary" tone="accent">
                 Secondary anchor
               </BracketAnchor>
               <BracketAnchor href="#quiet" side="left">

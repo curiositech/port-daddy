@@ -143,7 +143,7 @@ export function CommandPage({
               <BracketLink
                 key={subcommand.href}
                 to={subcommand.href}
-                tone={index % 2 === 0 ? 'blue' : 'lime'}
+                tone={index % 2 === 0 ? 'blue' : 'accent'}
                 side={index % 2 === 0 ? 'left' : 'right'}
               >
                 {subcommand.name}
@@ -193,7 +193,7 @@ export function CommandPage({
               <BracketLink
                 key={item.href}
                 to={item.href}
-                tone={index % 2 === 0 ? 'blue' : 'lime'}
+                tone={index % 2 === 0 ? 'blue' : 'accent'}
                 side={index % 2 === 0 ? 'left' : 'right'}
               >
                 {item.name}

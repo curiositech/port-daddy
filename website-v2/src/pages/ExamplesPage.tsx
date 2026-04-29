@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
 import { Surface } from '@/components/ui/Surface'
 import { CommandTerminal } from '@/components/ui/CommandTerminal'
-import { Sparkles, Shield, Layers, Anchor, Zap, Globe, Radio, Users, Search, type LucideIcon } from 'lucide-react'
+import { Shield, Layers, Anchor, Zap, Globe, Search, Network, Wrench, type LucideIcon } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
 
 interface Example {
@@ -11,6 +11,7 @@ interface Example {
   category: string
   difficulty: 'Beginner' | 'Intermediate' | 'Advanced'
   description: string
+  spotlight?: string
   what: string[]
   code: string[]
   icon: LucideIcon
@@ -19,135 +20,130 @@ interface Example {
 
 const EXAMPLES: Example[] = [
   {
-    id: 'multi-agent-coordination',
-    title: 'Multi-Agent Coordination',
-    category: 'Sessions',
-    difficulty: 'Beginner',
-    description: 'Register agents, claim files, and use sessions to coordinate work across multiple AI agents on the same project.',
+    id: 'swarm-coordination-board',
+    title: 'Swarm coordination board',
+    category: 'Swarm',
+    difficulty: 'Advanced',
+    description: 'Run a tuple-backed board where workers claim tasks, reviewers attach observations, and the operator reads the shared harbor state.',
     what: [
-      'Register agents with semantic identities',
-      'Claim files to prevent edit conflicts',
-      'Session notes create an immutable audit trail',
-      'Salvage picks up where crashed agents left off'
+      'Writes typed work items into tuple space',
+      'Claims tasks without reverse-engineering prose',
+      'Adds review facts other agents can query',
+      'Keeps the whole board scoped to one harbor'
     ],
     code: [
-      '# Start a coordinated session',
-      'pd begin --identity myapp:api --purpose "Build auth"',
+      '# Run the tuple-backed swarm board',
+      'PD_EXAMPLE_HARBOR=myapp:fleet \\',
+      '  npx tsx examples/swarm/coordination-board.ts',
       '',
-      '# Claim files you are working on',
-      'pd session files claim src/auth.ts src/routes.ts',
+      '# Inspect the shared state directly',
+      'pd tuple scan --harbor myapp:fleet',
       '',
-      '# Leave notes for other agents',
-      'pd note "Added JWT validation middleware"',
-      '',
-      '# End session when done',
-      'pd done'
+      '# Read only high-priority work items',
+      'pd tuple rd \'["task","*","*","high"]\' --harbor myapp:fleet'
     ],
-    icon: Users,
+    icon: Network,
     color: 'var(--brand-secondary)'
   },
   {
-    id: 'pub-sub-signaling',
-    title: 'Pub/Sub Swarm Radio',
-    category: 'Messaging',
+    id: 'pd-tube-preview-share',
+    title: 'PD Tube: localhost the fleet can find',
+    category: 'PD Tube',
     difficulty: 'Intermediate',
-    description: 'Use named radio channels for real-time inter-agent signaling. Publish events and subscribe to triggers across your swarm.',
+    spotlight: 'Your laptop preview stops being a private port number and becomes a named, revocable artifact humans can open and agents can discover.',
+    description: 'Start with a local dev server. PD Tube claims the service identity, picks an installed tunnel path, records the public URL on the daemon, writes a tuple for the swarm, and gives you one command to shut the door again.',
     what: [
-      'Publish structured messages to named channels',
-      'Subscribe via SSE for real-time delivery',
-      'pd watch triggers scripts on new messages',
-      'Channels are ephemeral and low-overhead'
+      'Turns localhost into a real review URL without port folklore',
+      'Names the preview so agents can discover it later',
+      'Writes `preview-url` swarm state instead of hiding the link in chat',
+      'Revokes the route by stopping the tunnel and releasing the identity'
     ],
     code: [
-      '# Publish a build result',
-      'pd pub build-results "tests passed, 42/42"',
+      '# Turn a dev server into a named fleet preview',
+      'npx tsx examples/tunnel/share-preview.ts start \\',
+      '  --identity demo:web --port 5174',
       '',
-      '# Watch channel and trigger script',
-      'pd watch build-results --exec "./deploy.sh"',
+      '# Humans can open it; agents can discover it',
+      'pd find demo:web',
+      'pd tuple rd \'["preview-url","demo:web","*","*"]\' \\',
+      '  --harbor examples',
       '',
-      '# Subscribe via SSE (programmatic)',
-      'curl -N http://localhost:9876/msg/build-results/subscribe'
+      '# Revoke the preview when the review is over',
+      'npx tsx examples/tunnel/share-preview.ts stop --identity demo:web'
     ],
-    icon: Radio,
+    icon: Globe,
     color: 'var(--brand-accent)'
   },
   {
-    id: 'spawn-agent-fleet',
-    title: 'Spawn Agent Fleets',
-    category: 'Orchestration',
-    difficulty: 'Advanced',
-    description: 'Launch AI agent fleets with Port Daddy coordination auto-wired. Sessions, heartbeats, notes, and salvage are all automatic.',
+    id: 'agent-workbench',
+    title: 'Agent workbench',
+    category: 'Dev tools',
+    difficulty: 'Intermediate',
+    description: 'Build a small operator tool on top of the SDK that reads sessions, locks, harbors, services, and active agents in one sweep.',
     what: [
-      'Spawn Ollama, Codex, Claude, Gemini, or Aider agents',
-      'Coordination (sessions, heartbeats) auto-wired',
-      'List and kill spawned agents from the CLI',
-      'Dead agents enter the salvage queue automatically'
+      'Shows what a daemon-backed tool can query',
+      'Supports human-readable and JSON output',
+      'Turns shared state into an operator dashboard seed',
+      'Keeps implementation compact enough to copy'
     ],
     code: [
-      '# Spawn an Ollama agent with coordination',
-      'pd spawn --backend ollama --model qwen2.5-coder:7b \\',
-      '  --identity myapp:coder --budget 0.50 -- "Fix the login bug"',
+      '# Print a compact terminal workbench',
+      'npx tsx examples/devtools/agent-workbench.ts',
       '',
-      '# List running agents',
-      'pd spawned',
+      '# Feed the same state into another UI',
+      'npx tsx examples/devtools/agent-workbench.ts --json',
       '',
-      '# Check for dead agents to salvage',
-      'pd salvage --project myapp'
+      '# Pair it with the guided docs at /docs/examples'
     ],
-    icon: Sparkles,
+    icon: Wrench,
     color: 'var(--brand-secondary)'
   },
   {
-    id: 'semantic-discovery',
-    title: 'Semantic DNS Discovery',
+    id: 'service-discovery-stack',
+    title: 'Service discovery stack',
     category: 'Discovery',
     difficulty: 'Beginner',
-    description: 'Claim semantic identities and resolve services by name instead of port number. No more hardcoding localhost:3000.',
+    description: 'Run an API, frontend, and worker that claim service identities and find each other through Port Daddy instead of fixed ports.',
     what: [
-      'Deterministic port hashing from identity strings',
-      'DNS resolution by semantic name',
-      'Zero reconfiguration when ports change',
-      'Works with pd claim or pd begin'
+      'API claims and releases its semantic service',
+      'Frontend resolves the API before proxying calls',
+      'Worker waits for the API instead of racing boot',
+      'All three scripts are dependency-free Node examples'
     ],
     code: [
-      '# Claim a semantic identity',
-      'pd claim myapp:api',
-      '# → Port 3847 assigned to myapp:api',
+      '# Terminal 1: start the API',
+      'PORT=43101 npx tsx examples/services/api-server.ts',
       '',
-      '# Resolve from another agent',
-      'pd find myapp:api',
-      '# → {"port": 3847, "identity": "myapp:api"}',
+      '# Terminal 2: start the frontend',
+      'PORT=43102 npx tsx examples/services/frontend.ts',
       '',
-      '# DNS lookup',
-      'pd dns lookup myapp:api'
+      '# Terminal 3: let the worker discover the API',
+      'npx tsx examples/services/worker.ts'
     ],
     icon: Search,
     color: 'var(--status-success)'
   },
   {
-    id: 'distributed-locks',
-    title: 'Distributed Locks',
+    id: 'migration-lock-guard',
+    title: 'Migration lock guard',
     category: 'Coordination',
     difficulty: 'Intermediate',
-    description: 'Use advisory locks to prevent concurrent access to shared resources. TTL-based auto-expiry prevents deadlocks from crashed agents.',
+    description: 'Show two actors contending for the same migration lock so one proceeds and the other exits with a useful operator message.',
     what: [
-      'Acquire named locks with configurable TTL',
-      'Locks auto-expire to prevent deadlocks',
-      'Extend TTL while holding the lock',
-      'pd with-lock wraps any command safely'
+      'Uses the current SDK withLock helper',
+      'Creates real sessions for competing actors',
+      'Leaves notes that explain what happened',
+      'Protects the scarce resource instead of relying on etiquette'
     ],
     code: [
-      '# Acquire a lock with 60s TTL',
-      'pd lock db-migration --ttl 60000',
+      '# Run the contention demo',
+      'npx tsx examples/locks/migration-guard.ts',
       '',
-      '# Run a command under lock (sugar)',
+      '# Use the same primitive in real work',
       'pd with-lock db-migration -- npm run migrate',
       '',
-      '# List active locks',
-      'pd locks',
-      '',
-      '# Release when done',
-      'pd unlock db-migration'
+      '# Inspect the session notes afterward',
+      'pd notes --limit 10'
     ],
     icon: Shield,
     color: 'var(--brand-accent)'
@@ -159,7 +155,7 @@ export function ExamplesPage() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen flex flex-col font-sans selection:bg-[var(--brand-primary)] selection:text-white"
+      className="min-h-screen flex flex-col font-sans selection:bg-[var(--brand-primary)] selection:text-[var(--brand-primary-foreground)]"
       style={{ background: 'var(--surface-base)' }}
     >
       {/* Hero Section */}
@@ -187,7 +183,7 @@ export function ExamplesPage() {
              animate={{ opacity: 1, y: 0 }}
              transition={{ duration: 0.8, delay: 0.1 }}
            >
-             Stop reinventing coordination. Use these production-grade patterns for multi-agent orchestration, discovery, and resilience.
+             Run the code, then read the guide. /examples is the runnable corpus; /docs/examples explains when each pattern belongs in real repo work.
            </motion.p>
         </div>
       </Surface>
@@ -226,6 +222,12 @@ export function ExamplesPage() {
                       </div>
                    </div>
 
+                   {ex.spotlight ? (
+                     <motion.p className="m-0 max-w-xl font-display text-2xl sm:text-3xl font-black leading-tight text-[var(--text-primary)]">
+                       {ex.spotlight}
+                     </motion.p>
+                   ) : null}
+
                    <motion.p className="text-xl sm:text-2xl leading-relaxed text-[var(--text-secondary)] m-0 max-w-xl">{ex.description}</motion.p>
 
                    <div className="grid sm:grid-cols-2 gap-4 w-full">
@@ -241,7 +243,7 @@ export function ExamplesPage() {
                 <div className="flex-1 w-full relative max-w-2xl">
                    <CommandTerminal
                      code={ex.code.map(line =>
-                       (line.startsWith('pd') || line.startsWith('curl')) ? `$ ${line}` :
+                       (line.startsWith('pd') || line.startsWith('npx') || line.startsWith('PORT=') || line.startsWith('PD_')) ? `$ ${line}` :
                        line.startsWith('#') ? line :
                        `  ${line}`
                      ).join('\n')}
@@ -273,7 +275,7 @@ export function ExamplesPage() {
                 <span className="text-[var(--brand-accent)]">We keep them from colliding.</span>
               </motion.h3>
               <motion.p className="text-xl sm:text-2xl leading-relaxed text-[var(--text-secondary)] max-w-3xl">
-                Port Daddy handles ports, locks, messaging, and crash recovery so your agents can focus on the task. These patterns show how real teams coordinate without stepping on each other.
+                Port Daddy handles ports, locks, messages, tuples, tunnels, sessions, and recovery so your agents can focus on the task. These patterns show the daemon as a tool-building substrate, not just another CLI.
               </motion.p>
            </div>
 
