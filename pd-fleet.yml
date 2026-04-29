@@ -166,7 +166,7 @@ fleet:
         - docs/DELEGATION-MODES.md and recovery docs when delegation/runtime
           behavior changes
 
-        SKILL — the Claude/agent skill at skills/port-daddy-cli/:
+        SKILL — the Claude/agent skill at skills/port-daddy-agent-skill/:
         - SKILL.md — the main skill file. Must reflect current features.
           If a new command, MCP tool, or concept was added, update:
           * The MCP Tools table (if new MCP tool)

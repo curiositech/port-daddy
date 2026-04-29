@@ -3114,7 +3114,7 @@ What `pd teach` does:
 
 This replaces the current manual `pd mcp install` workflow. One command, all agents.
 
-**The skill itself** (`skills/port-daddy-cli/SKILL.md`) already exists and is good.
+**The skill itself** (`skills/port-daddy-agent-skill/SKILL.md`) already exists and is good.
 It needs V4 updates:
 - Add harbor commands to the CLI mapping table
 - Add remote harbor workflow

@@ -3874,12 +3874,12 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
 
     // Search for skill in multiple locations. Order matters: prefer the
     // canonical deep skill (port-daddy-agent-skill) over the terse operator
-    // skill (port-daddy-cli) over the brew-installed share dir.
+    // skill (port-daddy-agent-skill) over the brew-installed share dir.
     const home = process.env.HOME || '';
     const candidates = [
       join(mcpDir, '..', 'skills', 'port-daddy-agent-skill', 'SKILL.md'),
       join(mcpDir, '..', 'skills', 'port-daddy', 'SKILL.md'),
-      join(mcpDir, '..', 'skills', 'port-daddy-cli', 'SKILL.md'),
+      join(mcpDir, '..', 'skills', 'port-daddy-agent-skill', 'SKILL.md'),
       join(home, '.claude', 'skills', 'port-daddy', 'SKILL.md'),
       join('/opt/homebrew/share/port-daddy/skills/port-daddy', 'SKILL.md'),
       join('/usr/local/share/port-daddy/skills/port-daddy', 'SKILL.md'),

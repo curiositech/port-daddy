@@ -21,7 +21,7 @@ describe('promotion release-surface review', () => {
       sourceSha: 'abc1234',
       stableSha: 'def5678',
       channel: 'promotion:release-surfaces',
-      changedFiles: ['lib/client.ts', 'skills/port-daddy-cli/SKILL.md'],
+      changedFiles: ['lib/client.ts', 'skills/port-daddy-agent-skill/SKILL.md'],
     });
 
     expect(payload.type).toBe('promotion.release_surfaces.review_requested');
@@ -34,9 +34,9 @@ describe('promotion release-surface review', () => {
       'website tutorials',
       'CLI help and completions',
       'SDK reference',
-      'skills/port-daddy-cli',
+      'skills/port-daddy-agent-skill',
     ]));
-    expect(payload.changedFiles).toEqual(['skills/port-daddy-cli/SKILL.md', 'lib/client.ts']);
+    expect(payload.changedFiles).toEqual(['skills/port-daddy-agent-skill/SKILL.md', 'lib/client.ts']);
     expect(payload.changedFileCount).toBe(2);
     expect(payload.changedFilesTruncated).toBe(false);
     expect(payload.ignoredChangedFileCount).toBe(0);
@@ -48,7 +48,7 @@ describe('promotion release-surface review', () => {
       'README.md',
       'core/pd-barnacle/target/release/pd-barnacle',
       'node_modules/pkg/index.js',
-      'skills/port-daddy-cli/SKILL.md',
+      'skills/port-daddy-agent-skill/SKILL.md',
       'website-v2/dist/assets/app.js',
     ], 1);
 

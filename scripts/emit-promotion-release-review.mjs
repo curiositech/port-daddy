@@ -38,7 +38,7 @@ const REVIEW_PRIORITY_PREFIXES = [
   'AGENTS.md',
   'docs/',
   'website-v2/',
-  'skills/port-daddy-cli/',
+  'skills/port-daddy-agent-skill/',
   'cli/',
   'bin/',
   'lib/',
@@ -60,7 +60,7 @@ export const RELEASE_SURFACES = [
   'CLI help and completions',
   'SDK reference',
   'MCP tools and instructions',
-  'skills/port-daddy-cli',
+  'skills/port-daddy-agent-skill',
   'AGENTS.md',
 ];
 

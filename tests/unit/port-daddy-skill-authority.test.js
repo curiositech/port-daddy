@@ -3,31 +3,28 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 describe('Port Daddy skill authority', () => {
-  test('the repo exposes only current first-party Port Daddy skill surfaces', () => {
+  test('the repo exposes one canonical first-party Port Daddy skill surface', () => {
     const skillsDir = join(process.cwd(), 'skills');
     const portDaddySkills = readdirSync(skillsDir)
       .filter((entry) => entry.startsWith('port-daddy'))
       .sort();
 
-    expect(portDaddySkills).toEqual(['port-daddy-agent-skill', 'port-daddy-cli']);
+    expect(portDaddySkills).toEqual(['port-daddy-agent-skill']);
     expect(existsSync(join(skillsDir, 'port-daddy', 'SKILL.md'))).toBe(false);
+    expect(existsSync(join(skillsDir, 'port-daddy-cli', 'SKILL.md'))).toBe(false);
     expect(existsSync(join(skillsDir, 'port-daddy-agent-skill', 'SKILL.md'))).toBe(true);
-    expect(existsSync(join(skillsDir, 'port-daddy-cli', 'SKILL.md'))).toBe(true);
   });
 
-  test('the authoritative skills declare matching canonical names', () => {
-    const cliSkill = readFileSync(join(process.cwd(), 'skills', 'port-daddy-cli', 'SKILL.md'), 'utf8');
-    const agentSkill = readFileSync(join(process.cwd(), 'skills', 'port-daddy-agent-skill', 'SKILL.md'), 'utf8');
+  test('the authoritative skill declares the canonical name', () => {
+    const skill = readFileSync(join(process.cwd(), 'skills', 'port-daddy-agent-skill', 'SKILL.md'), 'utf8');
 
-    expect(cliSkill).toContain('name: port-daddy-cli');
-    expect(agentSkill).toContain('name: port-daddy-agent-skill');
-    expect(cliSkill).not.toContain('name: port-daddy\n');
-    expect(agentSkill).not.toContain('name: port-daddy\n');
+    expect(skill).toContain('name: port-daddy-agent-skill');
+    expect(skill).not.toContain('name: port-daddy-cli');
   });
 
   test('the authoritative skill carries first-party governance metadata', () => {
-    const skillPath = join(process.cwd(), 'skills', 'port-daddy-cli', 'SKILL.md');
-    const changelogPath = join(process.cwd(), 'skills', 'port-daddy-cli', 'CHANGELOG.md');
+    const skillPath = join(process.cwd(), 'skills', 'port-daddy-agent-skill', 'SKILL.md');
+    const changelogPath = join(process.cwd(), 'skills', 'port-daddy-agent-skill', 'CHANGELOG.md');
     const contents = readFileSync(skillPath, 'utf8');
     const changelog = readFileSync(changelogPath, 'utf8');
 
@@ -37,13 +34,13 @@ describe('Port Daddy skill authority', () => {
     expect(contents).toContain('provenance:');
     expect(contents).toContain('authorship:');
     expect(contents).toContain('workgroup: /Users/erichowens/coding/workgroup-ai/skills/port-daddy');
-    expect(contents).toContain('user: /Users/erichowens/.agents/skills/port-daddy-cli');
+    expect(contents).toContain('user: /Users/erichowens/.agents/skills/port-daddy-agent-skill');
     expect(changelog).toContain('## 2026-04-26');
     expect(changelog).toContain('Navigator/Cartographer');
   });
 
   test('the skill starts with one idiomatic agent happy path before advanced surfaces', () => {
-    const skillPath = join(process.cwd(), 'skills', 'port-daddy-cli', 'SKILL.md');
+    const skillPath = join(process.cwd(), 'skills', 'port-daddy-agent-skill', 'SKILL.md');
     const contents = readFileSync(skillPath, 'utf8');
     const happyPathStart = contents.indexOf('## Default Agent Happy Path');
     const decisionTableStart = contents.indexOf('## Small Decision Table');
@@ -84,7 +81,7 @@ describe('Port Daddy skill authority', () => {
   });
 
   test('roadmap and skill-drift work is routed through live actor surfaces', () => {
-    const skillPath = join(process.cwd(), 'skills', 'port-daddy-cli', 'SKILL.md');
+    const skillPath = join(process.cwd(), 'skills', 'port-daddy-agent-skill', 'SKILL.md');
     const contents = readFileSync(skillPath, 'utf8');
     const actorTruthStart = contents.indexOf('## Roadmap, Skill, And Actor Truth');
     const mcpStart = contents.indexOf('## MCP Equivalents');
@@ -107,7 +104,7 @@ describe('Port Daddy skill authority', () => {
   });
 
   test('the skill teaches ambient coordination instead of forced agent chat', () => {
-    const skillPath = join(process.cwd(), 'skills', 'port-daddy-cli', 'SKILL.md');
+    const skillPath = join(process.cwd(), 'skills', 'port-daddy-agent-skill', 'SKILL.md');
     const contents = readFileSync(skillPath, 'utf8');
     const ambientStart = contents.indexOf('## Ambient Peer Coordination');
     const actorTruthStart = contents.indexOf('## Roadmap, Skill, And Actor Truth');

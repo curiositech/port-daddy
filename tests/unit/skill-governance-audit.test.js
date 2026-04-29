@@ -7,12 +7,12 @@ describe('skill governance audit', () => {
 
     expect(report.summary.total).toBeGreaterThan(100);
     expect(report.summary.missingGovernance).toBeGreaterThan(0);
-    expect(report.skills.some((skill) => skill.path === 'skills/port-daddy-cli/SKILL.md')).toBe(true);
+    expect(report.skills.some((skill) => skill.path === 'skills/port-daddy-agent-skill/SKILL.md')).toBe(true);
   });
 
   test('classifies the Port Daddy CLI skill as first-party and governance-complete', () => {
     const report = auditSkills();
-    const portDaddySkill = report.skills.find((skill) => skill.path === 'skills/port-daddy-cli/SKILL.md');
+    const portDaddySkill = report.skills.find((skill) => skill.path === 'skills/port-daddy-agent-skill/SKILL.md');
 
     expect(portDaddySkill).toEqual(expect.objectContaining({
       class: 'first-party',
