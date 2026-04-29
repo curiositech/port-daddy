@@ -322,6 +322,10 @@ interface CodexUsage {
   outputTokens?: number;
 }
 
+const CODEX_DAEMON_CONTEXT_ENV_KEYS = [
+  'CODEX_THREAD_ID',
+] as const;
+
 async function runOllama(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
   const res = await fetch('http://localhost:11434/api/chat', {
     method: 'POST',
@@ -520,6 +524,15 @@ function runCodexCli(spec: SpawnSpec, model: string, context?: BackendRunContext
   const workspace = spec.workdir || process.cwd();
   const tempDir = mkdtempSync(join(tmpdir(), 'port-daddy-codex-'));
   const outputPath = join(tempDir, 'last-message.txt');
+  const env: Record<string, string | undefined> = {
+    ...process.env,
+    ...loadDotenvOnce(),
+    ...(spec.env || {}),
+    OTEL_SDK_DISABLED: 'true',
+  };
+  for (const key of CODEX_DAEMON_CONTEXT_ENV_KEYS) {
+    delete env[key];
+  }
   const args = [
     'exec',
     '--skip-git-repo-check',
@@ -536,12 +549,7 @@ function runCodexCli(spec: SpawnSpec, model: string, context?: BackendRunContext
     cmd: 'codex',
     args,
     cwd: workspace,
-    env: {
-      ...process.env,
-      ...loadDotenvOnce(),
-      ...(spec.env || {}),
-      OTEL_SDK_DISABLED: 'true',
-    },
+    env,
     timeout: spec.timeout,
     stdio: ['ignore', 'pipe', 'pipe'],
     onChild: context?.onChildProcess,
