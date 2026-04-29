@@ -71,7 +71,7 @@ interface ChannelSurface {
 const PROOF_METRICS: ProofMetric[] = [
   { value: `${MCP_TOOL_TOTAL}`, label: 'MCP functions registered by the server', tone: 'blue' },
   { value: `${MCP_DEFAULT_TOOL_TOTAL}`, label: 'default tools before discovery', tone: 'accent' },
-  { value: '1', label: 'local daemon as the authority boundary', tone: 'paper' },
+  { value: '1', label: 'local daemon for shared state', tone: 'paper' },
 ]
 
 const RUNTIME_BACKENDS: RuntimeBackend[] = [
@@ -181,7 +181,7 @@ const CHANNEL_SURFACES: ChannelSurface[] = [
     code: `pd watch git:committed
 pd pub git:committed '{"sha":"abc123"}'
 pd watch git:committed --exec './fleet/qa.sh'`,
-    note: 'The shell surface is best for hooks, local scripts, and operator-visible recovery flows.',
+    note: 'The shell path is best for hooks, local scripts, and recovery flows you want to inspect later.',
   },
   {
     id: 'mcp',
@@ -194,7 +194,7 @@ await publish_message({
   channel: "git:committed",
   content: JSON.stringify({ sha: "abc123" })
 })`,
-    note: 'The MCP surface lets model clients chain coordination without shell parsing.',
+    note: 'The MCP path lets model clients chain coordination without shell parsing.',
   },
   {
     id: 'sdk',
@@ -208,7 +208,7 @@ const pd = new PortDaddy()
 for await (const msg of pd.subscribe("git:committed")) {
   console.log(msg.content)
 }`,
-    note: 'The SDK surface fits typed app integrations and long-running tools.',
+    note: 'The SDK path fits typed app integrations and long-running tools.',
   },
   {
     id: 'api',
@@ -220,7 +220,7 @@ curl http://localhost:9876/msg/git:committed/poll
 curl -X POST http://localhost:9876/msg/git:committed \\
   -H 'Content-Type: application/json' \\
   -d '{"content":{"sha":"abc123"}}'`,
-    note: 'The REST/SSE surface keeps non-TypeScript tools in the same coordination plane.',
+    note: 'The REST/SSE path keeps non-TypeScript tools connected to the same Port Daddy state.',
   },
 ]
 
@@ -334,7 +334,7 @@ function RuntimeTable() {
       <div className="grid border-b-2 border-[var(--border-strong)] bg-[var(--surface-strong)] px-[var(--space-4)] py-[var(--space-3)] text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)] sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.3fr)]">
         <span>Backend</span>
         <span className="hidden sm:block">Tier ladder</span>
-        <span className="hidden sm:block">Launch surface</span>
+        <span className="hidden sm:block">Launch path</span>
       </div>
       {RUNTIME_BACKENDS.map((backend) => (
         <div
@@ -419,7 +419,7 @@ function ChannelTabs() {
 
   return (
     <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-[var(--space-5)] lg:grid-cols-[18rem_minmax(0,1fr)]">
-      <div role="tablist" aria-label="Pub/sub access surface" aria-orientation="vertical" className="grid min-w-0 gap-[var(--space-2)]">
+      <div role="tablist" aria-label="Pub/sub access path" aria-orientation="vertical" className="grid min-w-0 gap-[var(--space-2)]">
         {CHANNEL_SURFACES.map((item, index) => (
           <button
             key={item.id}
@@ -527,8 +527,9 @@ function DiscoverGrid() {
             <div className="flex flex-wrap gap-[var(--space-1)]">
               {category.tools.map((tool) => (
                 <code
+                  id={tool}
                   key={tool}
-                  className="border border-[var(--border-subtle)] bg-[var(--surface-base)] px-[var(--space-2)] py-[var(--space-1)] font-mono text-[0.72rem] text-[var(--text-secondary)]"
+                  className="scroll-mt-24 border border-[var(--border-subtle)] bg-[var(--surface-base)] px-[var(--space-2)] py-[var(--space-1)] font-mono text-[0.72rem] text-[var(--text-secondary)]"
                 >
                   {tool}
                 </code>
@@ -559,32 +560,45 @@ export default function McpPage() {
 
       <main id="main-content">
         <header className="border-b-2 border-[var(--border-strong)] bg-[var(--surface-base)]">
-          <PageContainer width="wide" className="py-[var(--section-space-y)] lg:py-[var(--space-10)]">
-            <SwissGrid className="items-end">
+          <PageContainer
+            width="wide"
+            className="pb-[var(--space-8)] pt-[var(--section-space-y)] lg:pb-[var(--space-9)] lg:pt-[var(--space-8)]"
+          >
+            <SwissGrid className="items-start">
               <SwissGridItem span="wide" className="space-y-[var(--space-6)]">
-              <BracketLabel>Model Context Protocol</BracketLabel>
-              <div className="space-y-[var(--space-5)]">
-                <PanelTitle as="h1" size="hero" className="max-w-[12ch]">
-                  A control plane your agents can actually use.
-                </PanelTitle>
-                <PanelBody className="max-w-[48rem]">
-                  Port Daddy exposes sessions, ports, locks, pub/sub, salvage, fleets, and tuple space as MCP tools. Agents coordinate through the same daemon operators already use, instead of inventing invisible side channels.
-                </PanelBody>
-              </div>
-              <div className="flex flex-wrap gap-[var(--space-3)]">
-                <BracketLink to="/docs/mcp" tone="blue">
-                  Read MCP docs
-                </BracketLink>
-                <BracketLink to="/docs/cli/fleet" tone="accent">
-                  Inspect fleet CLI
-                </BracketLink>
-              </div>
+                <BracketLabel>Model Context Protocol</BracketLabel>
+                <div className="space-y-[var(--space-5)]">
+                  <PanelTitle as="h1" size="hero" className="max-w-[12ch]">
+                    MCP tools your agents can actually use.
+                  </PanelTitle>
+                  <PanelBody className="max-w-[48rem]">
+                    Port Daddy exposes sessions, ports, locks, pub/sub, salvage, fleets, and tuple space as MCP tools. Agents coordinate through the same local daemon and dashboard instead of inventing invisible side channels.
+                  </PanelBody>
+                </div>
+                <div className="flex flex-wrap gap-[var(--space-3)]">
+                  <BracketLink to="/docs/mcp" tone="blue">
+                    Read MCP docs
+                  </BracketLink>
+                  <BracketLink to="/docs/cli/fleet" tone="accent">
+                    Inspect fleet CLI
+                  </BracketLink>
+                </div>
               </SwissGridItem>
 
               <SwissGridItem span="narrow">
                 <SurfacePanel tone="blue" className="space-y-[var(--panel-gap-loose)]">
+                  <figure className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-base)]">
+                    <picture>
+                      <source srcSet="/img/generated/control-plane-og.webp" type="image/webp" />
+                      <img
+                        src="/img/generated/control-plane-og.jpg"
+                        alt="Generated Swiss-modern diagram of an MCP-connected local control plane with agent nodes, locks, ports, and recovery paths"
+                        className="block aspect-[16/9] w-full object-cover"
+                      />
+                    </picture>
+                  </figure>
                   <div className="space-y-[var(--space-2)]">
-                    <PanelEyebrow tone="primary">Install surface</PanelEyebrow>
+                    <PanelEyebrow tone="primary">Install path</PanelEyebrow>
                     <PanelTitle as="p" size="display" tone="primary">
                       pd mcp install
                     </PanelTitle>
@@ -618,8 +632,8 @@ pd begin --identity myapp:agent --purpose "coordinate MCP work"`}
             <SwissGridItem span="rail">
               <SectionIntro
                 eyebrow="High-level MCP tools"
-                title="Useful calls that carry Port Daddy authority."
-                description="The MCP surface does not expose a loose bag of shell wrappers. The important calls preserve identity, budget, files, session notes, and recovery semantics."
+                title="Useful calls that carry Port Daddy context."
+                description="The MCP tools are not a loose bag of shell wrappers. The important calls preserve identity, budget, files, session notes, and recovery semantics."
                 titleSize="display"
               />
             </SwissGridItem>
@@ -754,8 +768,8 @@ const task = await tuple_in({
             <SwissGridItem span="wide">
               <SectionIntro
                 eyebrow="Tool discovery"
-                title="Small default surface, full system on demand."
-                description="Agents should not start every turn with an overwhelming tool list. The default surface stays tight, then specialized categories unlock only when the task needs them."
+                title="Small default toolset, full system on demand."
+                description="Agents should not start every turn with an overwhelming tool list. The default set stays tight, then specialized categories unlock only when the task needs them."
                 titleSize="display"
               />
             </SwissGridItem>
@@ -771,10 +785,10 @@ const task = await tuple_in({
           <PageContainer className="space-y-[var(--space-6)] text-center">
             <PanelEyebrow>Start coordinated</PanelEyebrow>
             <PanelTitle as="h2" size="display" className="mx-auto max-w-[14ch]">
-              Give the next MCP client a real operating model.
+              Give the next MCP client a real coordination path.
             </PanelTitle>
             <PanelBody className="mx-auto max-w-[44rem]">
-              Install the daemon, wire the MCP server, start a session, and let agents use the same coordination primitives that the CLI and control plane already trust.
+              Install the daemon, wire the MCP server, start a session, and let agents use the same coordination features as the CLI and dashboard.
             </PanelBody>
             <div className="flex flex-wrap justify-center gap-[var(--space-3)]">
               <Link
