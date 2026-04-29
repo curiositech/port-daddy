@@ -107,6 +107,8 @@ import {
   handleTube,
   // Coordination Guard enforcement controls
   handleGuard,
+  // Claim-aware git add wrapper
+  handleAdd,
 } from '../cli/commands/index.js';
 import { getDaemonTcpUrl, readDaemonPort, resolveDaemonTcpTarget } from '../shared/daemon-discovery.js';
 import { calculateRuntimeCodeHash } from '../shared/code-hash.js';
@@ -2427,6 +2429,10 @@ async function main(): Promise<void> {
 
       case 'guard':
         await handleGuard(positional, options);
+        break;
+
+      case 'add':
+        await handleAdd(positional, options);
         break;
 
       case 'integration':

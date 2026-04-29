@@ -192,10 +192,10 @@ function CompressedNavMenu() {
                   end={item.end}
                   className={({ isActive }) =>
                     [
-                      "flex items-center justify-between gap-[var(--space-3)] border-2 px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]",
+                      "flex items-center justify-between gap-[var(--space-3)] border-2 px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]",
                       isActive
-                        ? "border-[var(--border-strong)] bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]"
-                        : "border-transparent text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-base)] hover:text-[var(--text-primary)]",
+                        ? "border-[var(--border-strong)] bg-[var(--brand-primary)] text-white"
+                        : "border-[var(--border-default)] bg-[var(--surface-base)] text-[var(--text-primary)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)]",
                     ].join(" ")
                   }
                 >
