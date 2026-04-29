@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
 import { Footer } from '@/components/layout/Footer'
 import { ArrowRight, Terminal, Shield, Radio, History, Anchor, Users } from 'lucide-react'
 
@@ -21,14 +22,8 @@ export function AboutPage() {
     >
       {/* Hero */}
       <motion.section
-        className="py-24 px-6 sm:px-8 lg:px-10 border-b relative overflow-hidden"
-        style={{ background: 'var(--surface-raised)', borderColor: 'var(--border-subtle)' }}
+        className="py-24 px-6 sm:px-8 lg:px-10 border-b border-[var(--border-subtle)] bg-[var(--surface-raised)] relative overflow-hidden"
       >
-        <motion.div
-          className="absolute top-0 right-0 w-[700px] h-[700px] rounded-full blur-[160px] opacity-[0.08] pointer-events-none"
-          style={{ background: 'radial-gradient(circle, var(--brand-primary) 0%, transparent 70%)' }}
-        />
-
         <motion.div className="max-w-3xl mx-auto relative z-10 flex flex-col items-center text-center gap-5">
           <Badge
             variant="teal"
@@ -63,10 +58,7 @@ export function AboutPage() {
           {/* Section 1: The Problem */}
           <motion.section className="space-y-5" {...fadeUp}>
             <div className="flex items-center gap-4">
-              <div
-                className="w-12 h-12 rounded-2xl flex items-center justify-center border"
-                style={{ background: 'var(--interactive-active)', borderColor: 'var(--border-subtle)' }}
-              >
+              <div className="w-12 h-12 flex items-center justify-center border border-[var(--border-subtle)] bg-[var(--interactive-active)]">
                 <Users className="text-[var(--brand-primary)]" size={24} />
               </div>
               <h2 className="text-2xl sm:text-3xl font-display font-black tracking-tight m-0 text-[var(--text-primary)]">
@@ -110,10 +102,7 @@ export function AboutPage() {
           {/* Section 2: What Port Daddy Does */}
           <motion.section className="space-y-5" {...fadeUp}>
             <div className="flex items-center gap-4">
-              <div
-                className="w-12 h-12 rounded-2xl flex items-center justify-center border"
-                style={{ background: 'var(--interactive-active)', borderColor: 'var(--border-subtle)' }}
-              >
+              <div className="w-12 h-12 flex items-center justify-center border border-[var(--border-subtle)] bg-[var(--interactive-active)]">
                 <Anchor className="text-[var(--brand-primary)]" size={24} />
               </div>
               <h2 className="text-2xl sm:text-3xl font-display font-black tracking-tight m-0 text-[var(--text-primary)]">
@@ -150,10 +139,7 @@ export function AboutPage() {
           {/* Section 3: How It Works, Step by Step */}
           <motion.section className="space-y-5" {...fadeUp}>
             <div className="flex items-center gap-4">
-              <div
-                className="w-12 h-12 rounded-2xl flex items-center justify-center border"
-                style={{ background: 'var(--interactive-active)', borderColor: 'var(--border-subtle)' }}
-              >
+              <div className="w-12 h-12 flex items-center justify-center border border-[var(--border-subtle)] bg-[var(--interactive-active)]">
                 <Terminal className="text-[var(--brand-primary)]" size={24} />
               </div>
               <h2 className="text-2xl sm:text-3xl font-display font-black tracking-tight m-0 text-[var(--text-primary)]">
@@ -202,10 +188,7 @@ export function AboutPage() {
           {/* Section 4: Core Concepts */}
           <motion.section className="space-y-5" {...fadeUp}>
             <div className="flex items-center gap-4">
-              <div
-                className="w-12 h-12 rounded-2xl flex items-center justify-center border"
-                style={{ background: 'var(--interactive-active)', borderColor: 'var(--border-subtle)' }}
-              >
+              <div className="w-12 h-12 flex items-center justify-center border border-[var(--border-subtle)] bg-[var(--interactive-active)]">
                 <Radio className="text-[var(--brand-primary)]" size={24} />
               </div>
               <h2 className="text-2xl sm:text-3xl font-display font-black tracking-tight m-0 text-[var(--text-primary)]">
@@ -254,10 +237,7 @@ export function AboutPage() {
           {/* Section 5: The Maritime Metaphor */}
           <motion.section className="space-y-5" {...fadeUp}>
             <div className="flex items-center gap-4">
-              <div
-                className="w-12 h-12 rounded-2xl flex items-center justify-center border"
-                style={{ background: 'var(--interactive-active)', borderColor: 'var(--border-subtle)' }}
-              >
+              <div className="w-12 h-12 flex items-center justify-center border border-[var(--border-subtle)] bg-[var(--interactive-active)]">
                 <History className="text-[var(--brand-primary)]" size={24} />
               </div>
               <h2 className="text-2xl sm:text-3xl font-display font-black tracking-tight m-0 text-[var(--text-primary)]">
@@ -293,10 +273,7 @@ export function AboutPage() {
           {/* Section 6: Who Is This For */}
           <motion.section className="space-y-5" {...fadeUp}>
             <div className="flex items-center gap-4">
-              <div
-                className="w-12 h-12 rounded-2xl flex items-center justify-center border"
-                style={{ background: 'var(--interactive-active)', borderColor: 'var(--border-subtle)' }}
-              >
+              <div className="w-12 h-12 flex items-center justify-center border border-[var(--border-subtle)] bg-[var(--interactive-active)]">
                 <Shield className="text-[var(--brand-primary)]" size={24} />
               </div>
               <h2 className="text-2xl sm:text-3xl font-display font-black tracking-tight m-0 text-[var(--text-primary)]">
@@ -326,7 +303,7 @@ export function AboutPage() {
 
           {/* CTA */}
           <motion.div
-            className="p-6 sm:p-8 rounded-[48px] border border-[var(--brand-primary)] bg-[var(--surface-raised)] flex flex-col items-center text-center gap-5"
+            className="p-6 sm:p-8 border border-[var(--brand-primary)] bg-[var(--surface-raised)] flex flex-col items-center text-center gap-5"
             {...fadeUp}
           >
             <h3 className="text-2xl sm:text-3xl font-display font-black m-0 text-[var(--text-primary)]">
@@ -337,17 +314,17 @@ export function AboutPage() {
               zero to a coordinated two-agent workflow in five minutes.
             </p>
             <div className="flex flex-wrap justify-center gap-4">
-              <Link to="/tutorials/getting-started" className="no-underline">
-                <button className="px-10 py-5 rounded-full bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)] font-black text-lg hover:scale-105 transition-transform flex items-center gap-2">
+              <Button asChild size="lg">
+                <Link to="/tutorials/getting-started">
                   Getting Started
                   <ArrowRight size={20} />
-                </button>
-              </Link>
-              <Link to="/docs" className="no-underline">
-                <button className="px-10 py-5 rounded-full bg-[var(--surface-overlay)] text-[var(--text-primary)] border-2 border-[var(--border-strong)] font-black text-lg hover:bg-[var(--interactive-hover)] transition-all">
+                </Link>
+              </Button>
+              <Button asChild size="lg" variant="secondary">
+                <Link to="/docs">
                   Read the Docs
-                </button>
-              </Link>
+                </Link>
+              </Button>
             </div>
           </motion.div>
         </article>
