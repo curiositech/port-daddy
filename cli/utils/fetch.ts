@@ -117,10 +117,48 @@ function shouldFallbackFromSocket(error: unknown): boolean {
 }
 
 /**
- * Drop-in replacement for fetch() that routes through Unix socket when available.
- * Returns an object matching the subset of the fetch Response API that the CLI uses.
+ * "The daemon isn't accepting connections right now." Distinct from
+ * `shouldFallbackFromSocket` (which also triggers on ECONNRESET / timeout
+ * — those can mean a hung-but-reachable daemon). Only ECONNREFUSED and
+ * ENOENT (socket file missing) mean "process is gone, wait for respawn."
  */
-export function pdFetch(urlOrPath: string, options: FetchOptions = {}): Promise<PdFetchResponse> {
+function isDaemonDownError(error: unknown): boolean {
+  const code = typeof error === 'object' && error && 'code' in error ? String((error as any).code) : '';
+  return code === 'ECONNREFUSED' || code === 'ENOENT';
+}
+
+/**
+ * Backoff for retrying after the daemon goes ECONNREFUSED. Sized for the
+ * launchd respawn window: clean SIGTERMs from `promote-stable.sh` cause
+ * ~1s of unavailability before `KeepAlive` brings the daemon back.
+ * Total budget ≈ 2.9s across 4 retries.
+ *
+ * Disable with `PORT_DADDY_NO_RETRY=1` (tests, debugging, pointing at a
+ * known-dead remote daemon).
+ */
+const DAEMON_RECONNECT_DELAYS_MS: readonly number[] = [200, 400, 800, 1500];
+
+function singleRequest(path: string, options: FetchOptions): Promise<PdFetchResponse> {
+  const target: ConnectionTarget = resolveTarget();
+  return requestTarget(target, path, options).catch((error: unknown) => {
+    if (!target.socketPath || process.env.PORT_DADDY_URL || !shouldFallbackFromSocket(error)) {
+      throw error;
+    }
+    const fallbackTarget: ConnectionTarget = {
+      host: LOOPBACK_TCP_HOST,
+      port: readDaemonPort(PORT_FILE),
+    };
+    return requestTarget(fallbackTarget, path, options);
+  });
+}
+
+/**
+ * Drop-in replacement for fetch() that routes through Unix socket when available.
+ * On ECONNREFUSED / ENOENT, retries with exponential backoff to absorb the
+ * launchd respawn window. Other errors (timeouts, 4xx/5xx, ECONNRESET) fail
+ * fast — those mean a different problem than "daemon temporarily down."
+ */
+export async function pdFetch(urlOrPath: string, options: FetchOptions = {}): Promise<PdFetchResponse> {
   // Extract just the path from a full URL or use as-is if already a path
   let path: string;
   if (urlOrPath.startsWith('/')) {
@@ -133,19 +171,23 @@ export function pdFetch(urlOrPath: string, options: FetchOptions = {}): Promise<
     }
   }
 
-  const target: ConnectionTarget = resolveTarget();
+  const noRetry = process.env.PORT_DADDY_NO_RETRY === '1';
+  const delays: readonly number[] = noRetry ? [] : DAEMON_RECONNECT_DELAYS_MS;
 
-  return requestTarget(target, path, options).catch((error: unknown) => {
-    if (!target.socketPath || process.env.PORT_DADDY_URL || !shouldFallbackFromSocket(error)) {
-      throw error;
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= delays.length; attempt += 1) {
+    try {
+      return await singleRequest(path, options);
+    } catch (error) {
+      lastError = error;
+      if (!isDaemonDownError(error) || attempt === delays.length) {
+        throw error;
+      }
+      await new Promise<void>((resolve) => setTimeout(resolve, delays[attempt]));
     }
-
-    const fallbackTarget: ConnectionTarget = {
-      host: LOOPBACK_TCP_HOST,
-      port: readDaemonPort(PORT_FILE),
-    };
-    return requestTarget(fallbackTarget, path, options);
-  });
+  }
+  // Unreachable — the loop either returns or throws — but TS needs the explicit throw.
+  throw lastError;
 }
 
 /**
