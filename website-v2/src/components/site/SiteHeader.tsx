@@ -31,14 +31,14 @@ export function SiteHeader() {
         data-shell="site-header"
         className="sticky top-0 z-50 border-b-2 border-[var(--border-strong)] bg-[var(--surface-base)] relative"
       >
-        <PageContainer width="wide" className="!max-w-none flex items-center justify-between gap-[var(--space-5)] py-[var(--space-4)]">
-          <Link to="/" className="inline-flex min-w-0 items-center gap-[var(--space-3)] text-[var(--text-primary)]">
-            <BrandMark />
+        <PageContainer width="wide" className="!max-w-none flex items-center justify-between gap-[var(--space-3)] py-[var(--space-4)] lg:gap-[var(--space-5)]">
+          <Link to="/" className="inline-flex min-w-0 flex-1 items-center gap-[var(--space-3)] text-[var(--text-primary)] xl:flex-none">
+            <BrandMark className="h-9 w-9 lg:h-11 lg:w-11" />
             <div className="flex min-w-0 flex-col">
               <span className="font-display text-[length:var(--text-lg)] font-black uppercase leading-none tracking-[var(--tracking-display-nav)]">
                 Port Daddy
               </span>
-              <span className="hidden max-w-[34ch] truncate font-sans text-[length:var(--type-meta-size)] uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)] sm:block">
+              <span className="hidden max-w-[34ch] truncate font-sans text-[length:var(--type-meta-size)] uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)] 2xl:block">
                 control plane docs and live surfaces
               </span>
             </div>
@@ -47,7 +47,7 @@ export function SiteHeader() {
           <div className="flex min-w-0 items-center gap-[var(--space-2)] sm:gap-[var(--space-3)]">
             <nav
               aria-label="Primary"
-              className="hidden items-center gap-[var(--space-2)] overflow-x-auto lg:flex"
+              className="hidden items-center gap-[var(--space-1)] overflow-x-auto xl:flex 2xl:gap-[var(--space-2)]"
             >
               {NAV_ITEMS.map((item) => (
                 <NavLink
@@ -56,7 +56,7 @@ export function SiteHeader() {
                   end={item.end}
                   className={({ isActive }) =>
                     [
-                      'inline-flex shrink-0 items-center border-2 px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] uppercase tracking-[var(--tracking-meta)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]',
+                      'inline-flex shrink-0 items-center border-2 px-[var(--space-2)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] uppercase tracking-[var(--tracking-meta)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] 2xl:px-[var(--space-3)]',
                       isActive
                         ? 'border-[var(--border-strong)] bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]'
                         : 'border-transparent text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)]',
@@ -68,7 +68,7 @@ export function SiteHeader() {
               ))}
             </nav>
 
-            <div className="hidden min-w-[12rem] md:block">
+            <div className="hidden min-w-[10rem] max-w-[18rem] md:block xl:max-w-[14rem] 2xl:max-w-[18rem]">
               <DocsSearch variant="compact" />
             </div>
 
@@ -100,7 +100,7 @@ export function SiteHeader() {
 
         <nav
           aria-label="Mobile primary"
-          className="border-t-2 border-[var(--border-strong)] bg-[var(--surface-raised)] lg:hidden"
+          className="border-t-2 border-[var(--border-strong)] bg-[var(--surface-raised)] xl:hidden"
         >
           <PageContainer width="wide" className="!max-w-none flex gap-[var(--space-2)] overflow-x-auto py-[var(--space-2)]">
             {NAV_ITEMS.map((item) => (
