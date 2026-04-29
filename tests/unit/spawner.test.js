@@ -922,7 +922,7 @@ describe('kill', () => {
     expect(body.note).toBe('Killed by spawner');
   });
 
-  test('kills child process when present (custom backend)', async () => {
+  test('kills child process while custom backend is still running', async () => {
     const spawner = createSpawner();
 
     // For custom backend: we need the child process to NOT resolve immediately
@@ -946,14 +946,8 @@ describe('kill', () => {
     expect(agents.length).toBe(1);
     expect(agents[0].status).toBe('running');
 
-    // Kill it — NOTE: record.childProcess is only set AFTER runCustom resolves,
-    // so kill() cannot reach the child process while it's still running.
-    // This is a KNOWN BUG (identified in audit). kill() marks the agent as killed
-    // but the actual OS process keeps running until it exits on its own.
     spawner.kill(agents[0].agentId);
-    // The child process kill is NOT called because record.childProcess is still null
-    // (the promise hasn't resolved to store it yet)
-    expect(mockChildProcess.kill).not.toHaveBeenCalled(); // documents the known bug
+    expect(mockChildProcess.kill).toHaveBeenCalledWith('SIGTERM');
 
     // Now resolve the child process so the spawn promise can complete
     const closeHandler = mockChildProcess.on.mock.calls.find(([event]) => event === 'close');
@@ -961,8 +955,9 @@ describe('kill', () => {
       closeHandler[1](null); // call close handler with null exit code
     }
 
-    // Clean up: let the promise settle (it may already be settled via kill)
-    await spawnPromise.catch(() => {}); // suppress any errors
+    const finalResult = await spawnPromise;
+    expect(finalResult.status).toBe('killed');
+    expect(finalResult.error).toBe('Killed by spawner');
   });
 });
 
@@ -1568,6 +1563,50 @@ describe('spawn — codex backend', () => {
       cachedInputTokens: 4000,
       outputTokens: 2000,
     }));
+  });
+
+  test('reports codex child timeout before telemetry enforcement', async () => {
+    jest.useFakeTimers();
+    const costTracker = {
+      computeCost: jest.fn(),
+      record: jest.fn(),
+    };
+    const spawner = createSpawnerBase({
+      costTracker,
+      enforceTelemetryPolicy: true,
+    });
+
+    let closeHandler;
+    mockChildProcess.stdout.on.mockImplementation((event, cb) => {
+      if (event === 'data') {
+        cb(Buffer.from('{"type":"thread.started","thread_id":"thread-test"}\n'));
+      }
+    });
+    mockChildProcess.stderr.on.mockImplementation(() => {});
+    mockChildProcess.on.mockImplementation((event, cb) => {
+      if (event === 'close') {
+        closeHandler = cb;
+      }
+    });
+
+    const promise = spawner.spawn({
+      backend: 'codex',
+      task: 'Slow Cartographer run',
+      timeout: 1000,
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+    await jest.advanceTimersByTimeAsync(1000);
+    expect(mockChildProcess.kill).toHaveBeenCalledWith('SIGTERM');
+    closeHandler(0);
+
+    const result = await promise;
+    expect(result.status).toBe('failed');
+    expect(result.error).toContain('codex timed out after 1000ms');
+    expect(result.error).not.toContain('did not return token counts');
+    expect(costTracker.computeCost).not.toHaveBeenCalled();
+    jest.useRealTimers();
   });
 });
 
