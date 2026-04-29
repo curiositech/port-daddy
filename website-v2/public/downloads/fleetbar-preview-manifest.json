@@ -4,12 +4,16 @@
   "platform": "macOS",
   "arch": "arm64",
   "artifact": "PortDaddy-FleetBar-macOS-arm64-dev.zip",
-  "sha256": "b586d230f6c1c33a16d44feacd7454fe05109de870e208324b8c4c951320bb03",
-  "sizeBytes": 674283,
-  "signature": "adhoc",
-  "developerIdSigned": false,
+  "sha256": "49f0f2e98c888101f063565bb6411cdb24d63ed9c76e944b8dd3b0722637bb45",
+  "sizeBytes": 670127,
+  "signature": "developer-id",
+  "developerIdSigned": true,
+  "signingIdentity": "Developer ID Application: Curiositech LLC (P5H9P59X2M)",
+  "teamIdentifier": "P5H9P59X2M",
   "notarized": false,
-  "releaseGate": "Developer ID Application certificate and notarization credentials",
+  "notarizationStatus": "not-submitted",
+  "notaryRequestId": null,
+  "releaseGate": "App Store Connect notarytool credentials and accepted notarization",
   "minimumMacOS": "14.0",
   "bundle": {
     "identifier": "ai.portdaddy.FleetBar",
@@ -18,7 +22,7 @@
   },
   "source": {
     "repository": "curiositech/port-daddy",
-    "commit": "d9fd0fd39a56c86830d79199bf3ea6a8f2f9b474",
+    "commit": "bcaa0455c4971f1e49c95b897cb84d220ee49ca2",
     "repoDirty": true,
     "fleetbarSourceDirty": false,
     "appPath": "apps/FleetBar",
@@ -26,5 +30,5 @@
     "buildCommand": "npm run package:fleetbar-preview"
   },
   "generatedBy": "scripts/package-fleetbar-preview.sh",
-  "generatedAt": "2026-04-29T07:55:03.292Z"
+  "generatedAt": "2026-04-29T16:31:55.714Z"
 }

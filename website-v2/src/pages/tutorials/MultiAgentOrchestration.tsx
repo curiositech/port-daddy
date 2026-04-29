@@ -59,7 +59,7 @@ export function MultiAgentOrchestration() {
             Before modifying files, claim them. Claims are advisory — they warn
             other agents about conflicts without hard-locking anything.
           </motion.p>
-          <CodeBlock language="bash">{`$ pd begin --identity myapp:refactor --purpose "Refactor auth middleware"
+          <CodeBlock copyable={false} language="bash">{`$ pd begin --identity myapp:refactor --purpose "Refactor auth middleware"
 $ pd session files claim src/middleware/*.ts src/routes/auth.ts
   Claimed 12 files. No conflicts.
 
@@ -95,7 +95,7 @@ $ pd session files claim src/middleware/auth.ts
             File claims handle ownership. Pub/sub handles communication. When
             Agent A finishes, it publishes a message. Agent B reacts instantly.
           </motion.p>
-          <CodeBlock language="bash">{`# Agent A finishes auth work and signals
+          <CodeBlock copyable={false} language="bash">{`# Agent A finishes auth work and signals
 $ pd pub myapp:events "auth-middleware-updated"
 
 # Agent B was watching that channel
@@ -131,7 +131,7 @@ $ pd watch myapp:events --exec "npm test"
             written, they can&apos;t be edited or deleted. If an agent crashes,
             its notes survive for the next agent to read.
           </motion.p>
-          <CodeBlock language="bash">{`$ pd note "Found SQL injection in token validation. Fixing."
+          <CodeBlock copyable={false} language="bash">{`$ pd note "Found SQL injection in token validation. Fixing."
 $ pd note "Replaced raw query with parameterized statement."
 $ pd note "All 14 tests pass. Ready for review."
 
@@ -148,7 +148,7 @@ $ pd notes --session session-a1b2c3d4
           <motion.p>
             Every multi-agent workflow follows the same four steps:
           </motion.p>
-          <CodeBlock language="bash">{`# 1. Start a session and claim files
+          <CodeBlock copyable={false} language="bash">{`# 1. Start a session and claim files
 $ pd begin --identity myapp:auth --purpose "Fix token validation"
 $ pd session files claim src/auth/*.ts
 

@@ -82,7 +82,7 @@ export function Pheromone() {
             its intensity:
           </motion.p>
 
-          <CodeBlock language="bash">{`# Mark a service as "hot" (being actively worked on)
+          <CodeBlock copyable={false} language="bash">{`# Mark a service as "hot" (being actively worked on)
 pd pheromone spray --table services --id myapp:api:main --key urgency --strength 0.8
 
 # Mark an agent's work quality
@@ -126,7 +126,7 @@ curl -X POST http://localhost:9876/pheromone/spray \\
             Fresh signals are strong.
           </motion.p>
 
-          <CodeBlock language="bash">{`# Read all pheromone values for an entity
+          <CodeBlock copyable={false} language="bash">{`# Read all pheromone values for an entity
 pd pheromone sniff --table services --id myapp:api:main
 
 # Response:
@@ -176,7 +176,7 @@ pd pheromone sniff --table services --id myapp:api:main
             are cold.
           </motion.p>
 
-          <CodeBlock language="bash">{`# See which files are hottest right now
+          <CodeBlock copyable={false} language="bash">{`# See which files are hottest right now
 curl http://localhost:9876/pheromone/files
 
 # Filter to a directory

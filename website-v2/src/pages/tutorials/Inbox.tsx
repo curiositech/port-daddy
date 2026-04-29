@@ -73,7 +73,7 @@ export function Inbox() {
             agent's inbox. You can send raw text or complex JSON objects.
           </p>
 
-          <CodeBlock language="bash">
+          <CodeBlock copyable={false} language="bash">
             {`$ pd pub swarm:analyst:main '{"task": "generate-report", "priority": "high"}'\n\n✓ Message routed to agent-7f3a.\n✓ Status: Received.`}
           </CodeBlock>
 
@@ -101,7 +101,7 @@ export function Inbox() {
             to open a real-time SSE stream of an inbox.
           </p>
 
-          <CodeBlock language="bash">
+          <CodeBlock copyable={false} language="bash">
             {`$ pd msg watch swarm:analyst:main\n\n[12:04:38] INCOMING: {"task": "generate-report"}\n[12:04:42] ACK: Processing started...`}
           </CodeBlock>
 

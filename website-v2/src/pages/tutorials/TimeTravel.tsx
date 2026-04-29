@@ -58,7 +58,7 @@ export function TimeTravel() {
             query the REST API directly for more control.
           </p>
 
-          <CodeBlock language="bash">
+          <CodeBlock copyable={false} language="bash">
             {`# View recent activity via CLI
 $ pd log
 

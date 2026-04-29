@@ -53,7 +53,7 @@ export function Sugar() {
             allowing all subsequent commands to "just work."
           </p>
 
-          <CodeBlock language="bash">
+          <CodeBlock copyable={false} language="bash">
             {`$ pd begin --identity swarm:analyst\\
     --purpose "Analyze log files"\\
     --files "logs/*.log"`}
@@ -90,7 +90,7 @@ export function Sugar() {
             its TTL.
           </p>
 
-          <CodeBlock language="bash">
+          <CodeBlock copyable={false} language="bash">
             {`$ pd with-lock db-migration -- npm run migrate\n\n✓ Lock acquired: db-migration\n✓ Running: npm run migrate...\n✓ Command complete. Lock released.`}
           </CodeBlock>
 

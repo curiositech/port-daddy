@@ -99,7 +99,7 @@ export function Pipelines() {
             via environment variables.
           </p>
 
-          <CodeBlock language="bash">
+          <CodeBlock copyable={false} language="bash">
             {`# Watch the "test:fail" channel, run a fix script on each message
 $ pd watch test:fail --exec ./scripts/auto-fix.sh
 
@@ -171,7 +171,7 @@ $ pd watch test:fail --exec ./scripts/auto-fix.sh
             </Surface>
           </div>
 
-          <CodeBlock language="bash">
+          <CodeBlock copyable={false} language="bash">
             {`# A complete reactive workflow in three terminals:
 
 # Terminal 1: Watcher spawns a reviewer when code is ready

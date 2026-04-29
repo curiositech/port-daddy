@@ -94,7 +94,7 @@ export function SessionPhases() {
             before beginning their own sub-tasks.
           </p>
 
-          <CodeBlock language="bash">
+          <CodeBlock copyable={false} language="bash">
             {`$ pd session phase coding\n\n✓ Session phase updated: planning -> coding\n✓ Broadcasted signal to 12 swarm radio subscribers.`}
           </CodeBlock>
 
@@ -130,7 +130,7 @@ export function SessionPhases() {
             to resume--checking for half-written files and uncommitted diffs.
           </p>
 
-          <CodeBlock language="bash">
+          <CodeBlock copyable={false} language="bash">
             {`$ pd salvage agent-7f3a\n\n✓ Preserved state found.\n✓ Phase: 'coding' detected.\n✓ Instruction: Checking local diffs before resuming...`}
           </CodeBlock>
 

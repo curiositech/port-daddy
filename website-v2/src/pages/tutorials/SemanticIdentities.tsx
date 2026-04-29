@@ -54,7 +54,7 @@ export function SemanticIdentities() {
               >
                 Without identities
               </motion.p>
-              <CodeBlock language="bash">{`PORT=3000 node server.js
+              <CodeBlock copyable={false} language="bash">{`PORT=3000 node server.js
 PORT=3001 node worker.js
 # Which is which? Who knows.`}</CodeBlock>
             </Surface>
@@ -65,7 +65,7 @@ PORT=3001 node worker.js
               >
                 With identities
               </motion.p>
-              <CodeBlock language="bash">{`PORT=$(pd claim myapp:api:main -q) node server.js
+              <CodeBlock copyable={false} language="bash">{`PORT=$(pd claim myapp:api:main -q) node server.js
 PORT=$(pd claim myapp:worker:main -q) node worker.js
 # Names describe what they are.`}</CodeBlock>
             </Surface>
@@ -156,7 +156,7 @@ PORT=$(pd claim myapp:worker:main -q) node worker.js
             specific.
           </motion.p>
 
-          <CodeBlock language="bash">{`pd claim myapp                    # Just a project
+          <CodeBlock copyable={false} language="bash">{`pd claim myapp                    # Just a project
 pd claim myapp:api                # Project + stack
 pd claim myapp:api:main           # Project + stack + context
 pd claim myapp:api:feature-auth   # Same stack, different branch`}</CodeBlock>
@@ -181,7 +181,7 @@ pd claim myapp:api:feature-auth   # Same stack, different branch`}</CodeBlock>
             structured, you can query across them with wildcards:
           </motion.p>
 
-          <CodeBlock language="bash">{`# Find everything in myapp
+          <CodeBlock copyable={false} language="bash">{`# Find everything in myapp
 pd find 'myapp:*'
 # → myapp:api:main (port 3100)
 # → myapp:frontend:main (port 3101)
@@ -322,7 +322,7 @@ pd find 'myapp:*:feature-*'
             automatically:
           </motion.p>
 
-          <CodeBlock language="bash">{`# Agent on main branch
+          <CodeBlock copyable={false} language="bash">{`# Agent on main branch
 pd claim myapp:api:main          # → port 3100
 
 # Agent on feature-auth branch (different port, no conflict)

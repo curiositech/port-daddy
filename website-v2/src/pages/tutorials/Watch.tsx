@@ -85,7 +85,7 @@ export function Watch() {
             automated test suite.
           </p>
 
-          <CodeBlock language="bash">
+          <CodeBlock copyable={false} language="bash">
             {`$ pd watch swarm:builds \\
     --exec "npm test" \\
     --filter "payload.status == 'ready'"`}

@@ -11,6 +11,10 @@ CHECKSUM_PATH="$ZIP_PATH.sha256"
 MANIFEST_PATH="$DOWNLOADS_DIR/fleetbar-preview-manifest.json"
 APP_INFO_PLIST_SRC="$FLEETBAR_DIR/FleetBar-Info.plist"
 ARCH="$(uname -m)"
+SIGNING_MODE="${FLEETBAR_SIGNING_MODE:-auto}"
+SIGNING_IDENTITY="${FLEETBAR_SIGNING_IDENTITY:-}"
+NOTARIZE="${FLEETBAR_NOTARIZE:-auto}"
+NOTARY_PROFILE="${FLEETBAR_NOTARY_PROFILE:-}"
 
 if [[ "$ARCH" != "arm64" ]]; then
   echo "FleetBar preview artifact is named for arm64; run this package script on Apple Silicon." >&2
@@ -45,6 +49,36 @@ if ! file "$RELEASE_BIN" | grep -q 'arm64'; then
   exit 1
 fi
 
+if [[ "$SIGNING_MODE" != "auto" && "$SIGNING_MODE" != "developer-id" && "$SIGNING_MODE" != "adhoc" ]]; then
+  echo "FLEETBAR_SIGNING_MODE must be auto, developer-id, or adhoc." >&2
+  exit 1
+fi
+
+detect_developer_id_identity() {
+  security find-identity -v -p codesigning 2>/dev/null \
+    | sed -n 's/.*"\(Developer ID Application:[^"]*\)".*/\1/p' \
+    | head -n 1
+}
+
+if [[ -z "$SIGNING_IDENTITY" ]]; then
+  SIGNING_IDENTITY="$(detect_developer_id_identity)"
+fi
+
+RESOLVED_SIGNING_MODE="$SIGNING_MODE"
+if [[ "$RESOLVED_SIGNING_MODE" == "auto" ]]; then
+  if [[ -n "$SIGNING_IDENTITY" ]]; then
+    RESOLVED_SIGNING_MODE="developer-id"
+  else
+    RESOLVED_SIGNING_MODE="adhoc"
+  fi
+fi
+
+if [[ "$RESOLVED_SIGNING_MODE" == "developer-id" && -z "$SIGNING_IDENTITY" ]]; then
+  echo "Developer ID signing requested, but no Developer ID Application identity was found." >&2
+  echo "Install the certificate or set FLEETBAR_SIGNING_IDENTITY." >&2
+  exit 1
+fi
+
 WORK_DIR="$(mktemp -d)"
 trap 'rm -rf "$WORK_DIR"' EXIT
 
@@ -60,7 +94,15 @@ cp "$RELEASE_BIN" "$APP_BIN"
 cp "$APP_INFO_PLIST_SRC" "$APP_CONTENTS/Info.plist"
 chmod +x "$APP_BIN"
 
-cat > "$PAYLOAD_DIR/README.txt" <<'README'
+SIGNATURE_LABEL="ad-hoc"
+DEVELOPER_ID_SIGNED="false"
+SIGNING_IDENTITY_FOR_MANIFEST=""
+TEAM_IDENTIFIER=""
+NOTARIZED="false"
+NOTARY_REQUEST_ID=""
+NOTARIZATION_STATUS="not-submitted"
+
+cat > "$PAYLOAD_DIR/README.txt" <<README
 Port Daddy FleetBar developer preview
 
 This archive contains FleetBar.app, the macOS menu-bar companion for Port Daddy.
@@ -68,17 +110,81 @@ It is built from apps/FleetBar in the Port Daddy repository by:
 
   npm run package:fleetbar-preview
 
-This developer preview is ad-hoc signed, not Developer ID signed or notarized.
-macOS may require Open Anyway in System Settings. The full daemon, CLI, MCP
-wiring, and project setup still come from the normal Port Daddy install path.
+The full daemon, CLI, MCP wiring, and project setup still come from the normal
+Port Daddy install path.
 README
 
-if command -v codesign >/dev/null 2>&1; then
-  codesign --force --sign - "$APP_BUNDLE" >/dev/null
-  codesign --verify --deep --strict "$APP_BUNDLE"
-else
-  echo "codesign not found; cannot produce the advertised ad-hoc signed preview." >&2
+if ! command -v codesign >/dev/null 2>&1; then
+  echo "codesign not found; cannot produce a signed preview." >&2
   exit 1
+fi
+
+if [[ "$RESOLVED_SIGNING_MODE" == "developer-id" ]]; then
+  echo "Signing FleetBar.app with Developer ID: $SIGNING_IDENTITY"
+  codesign --force --options runtime --timestamp --sign "$SIGNING_IDENTITY" "$APP_BUNDLE" >/dev/null
+  SIGNATURE_LABEL="developer-id"
+  DEVELOPER_ID_SIGNED="true"
+  SIGNING_IDENTITY_FOR_MANIFEST="$SIGNING_IDENTITY"
+else
+  echo "Signing FleetBar.app with ad-hoc identity."
+  codesign --force --sign - "$APP_BUNDLE" >/dev/null
+fi
+
+codesign --verify --deep --strict "$APP_BUNDLE"
+TEAM_IDENTIFIER="$(codesign -dv --verbose=4 "$APP_BUNDLE" 2>&1 | awk -F= '/TeamIdentifier=/ {print $2; exit}')"
+
+cat >> "$PAYLOAD_DIR/README.txt" <<README
+
+Signing: $SIGNATURE_LABEL
+Developer ID identity: ${SIGNING_IDENTITY_FOR_MANIFEST:-none}
+Team ID: ${TEAM_IDENTIFIER:-not set}
+Notarization: $NOTARIZATION_STATUS
+README
+
+if [[ "$NOTARIZE" == "1" || "$NOTARIZE" == "true" || ( "$NOTARIZE" == "auto" && -n "$NOTARY_PROFILE" ) ]]; then
+  if [[ "$RESOLVED_SIGNING_MODE" != "developer-id" ]]; then
+    echo "Notarization requires Developer ID signing." >&2
+    exit 1
+  fi
+  if [[ -z "$NOTARY_PROFILE" ]]; then
+    echo "Set FLEETBAR_NOTARY_PROFILE to a notarytool keychain profile before notarizing." >&2
+    echo "Create one with: xcrun notarytool store-credentials <profile-name>" >&2
+    exit 1
+  fi
+
+  NOTARY_ZIP="$WORK_DIR/fleetbar-notary-submit.zip"
+  NOTARY_OUTPUT="$WORK_DIR/notarytool-submit.json"
+  (
+    cd "$PAYLOAD_DIR"
+    ditto -c -k --norsrc . "$NOTARY_ZIP"
+  )
+
+  echo "Submitting FleetBar.app to Apple notarization with keychain profile: $NOTARY_PROFILE"
+  xcrun notarytool submit "$NOTARY_ZIP" \
+    --keychain-profile "$NOTARY_PROFILE" \
+    --wait \
+    --output-format json > "$NOTARY_OUTPUT"
+
+  NOTARIZATION_STATUS="$(node -e "const fs=require('node:fs'); const data=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); console.log(data.status || '')" "$NOTARY_OUTPUT")"
+  NOTARY_REQUEST_ID="$(node -e "const fs=require('node:fs'); const data=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); console.log(data.id || '')" "$NOTARY_OUTPUT")"
+
+  if [[ "$NOTARIZATION_STATUS" != "Accepted" ]]; then
+    echo "Notarization failed with status: $NOTARIZATION_STATUS" >&2
+    if [[ -n "$NOTARY_REQUEST_ID" ]]; then
+      echo "Inspect log with: xcrun notarytool log $NOTARY_REQUEST_ID --keychain-profile $NOTARY_PROFILE" >&2
+    fi
+    exit 1
+  fi
+
+  echo "Stapling notarization ticket to FleetBar.app..."
+  xcrun stapler staple "$APP_BUNDLE" >/dev/null
+  xcrun stapler validate "$APP_BUNDLE" >/dev/null
+  NOTARIZED="true"
+
+  cat >> "$PAYLOAD_DIR/README.txt" <<README
+Notary request ID: $NOTARY_REQUEST_ID
+Notarization result: $NOTARIZATION_STATUS
+README
 fi
 
 rm -f "$ZIP_PATH" "$CHECKSUM_PATH"
@@ -113,6 +219,13 @@ FLEETBAR_PREVIEW_ARCH="$ARCH" \
 FLEETBAR_PREVIEW_ARTIFACT="$ARTIFACT_NAME" \
 FLEETBAR_PREVIEW_SHA256="$SHA256" \
 FLEETBAR_PREVIEW_SIZE_BYTES="$ARTIFACT_SIZE_BYTES" \
+FLEETBAR_PREVIEW_SIGNATURE="$SIGNATURE_LABEL" \
+FLEETBAR_PREVIEW_DEVELOPER_ID_SIGNED="$DEVELOPER_ID_SIGNED" \
+FLEETBAR_PREVIEW_SIGNING_IDENTITY="$SIGNING_IDENTITY_FOR_MANIFEST" \
+FLEETBAR_PREVIEW_TEAM_IDENTIFIER="$TEAM_IDENTIFIER" \
+FLEETBAR_PREVIEW_NOTARIZED="$NOTARIZED" \
+FLEETBAR_PREVIEW_NOTARY_REQUEST_ID="$NOTARY_REQUEST_ID" \
+FLEETBAR_PREVIEW_NOTARIZATION_STATUS="$NOTARIZATION_STATUS" \
 FLEETBAR_PREVIEW_BUNDLE_IDENTIFIER="$BUNDLE_IDENTIFIER" \
 FLEETBAR_PREVIEW_BUNDLE_VERSION="$BUNDLE_VERSION" \
 FLEETBAR_PREVIEW_BUNDLE_SHORT_VERSION="$BUNDLE_SHORT_VERSION" \
@@ -131,10 +244,16 @@ const manifest = {
   artifact: process.env.FLEETBAR_PREVIEW_ARTIFACT,
   sha256: process.env.FLEETBAR_PREVIEW_SHA256,
   sizeBytes: Number(process.env.FLEETBAR_PREVIEW_SIZE_BYTES),
-  signature: 'adhoc',
-  developerIdSigned: false,
-  notarized: false,
-  releaseGate: 'Developer ID Application certificate and notarization credentials',
+  signature: process.env.FLEETBAR_PREVIEW_SIGNATURE,
+  developerIdSigned: process.env.FLEETBAR_PREVIEW_DEVELOPER_ID_SIGNED === 'true',
+  signingIdentity: process.env.FLEETBAR_PREVIEW_SIGNING_IDENTITY || null,
+  teamIdentifier: process.env.FLEETBAR_PREVIEW_TEAM_IDENTIFIER || null,
+  notarized: process.env.FLEETBAR_PREVIEW_NOTARIZED === 'true',
+  notarizationStatus: process.env.FLEETBAR_PREVIEW_NOTARIZATION_STATUS,
+  notaryRequestId: process.env.FLEETBAR_PREVIEW_NOTARY_REQUEST_ID || null,
+  releaseGate: process.env.FLEETBAR_PREVIEW_NOTARIZED === 'true'
+    ? null
+    : 'App Store Connect notarytool credentials and accepted notarization',
   minimumMacOS: '14.0',
   bundle: {
     identifier: process.env.FLEETBAR_PREVIEW_BUNDLE_IDENTIFIER,

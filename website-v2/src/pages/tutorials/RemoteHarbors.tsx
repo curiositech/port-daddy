@@ -97,7 +97,7 @@ export function RemoteHarbors() {
             invitation. This command does not exist yet.
           </p>
 
-          <CodeBlock language="bash">
+          <CodeBlock copyable={false} language="bash">
             {`# PLANNED SYNTAX — not yet implemented
 $ pd harbor discover --lighthouse global.portdaddy.dev \\
     --invite pd-inv-7f3a-9921
@@ -133,7 +133,7 @@ $ pd harbor discover --lighthouse global.portdaddy.dev \\
             blocks for external access:
           </p>
 
-          <CodeBlock language="bash">
+          <CodeBlock copyable={false} language="bash">
             {`# Expose a local service via tunnel (works today)
 pd tunnel myapp:api start --provider ngrok
 

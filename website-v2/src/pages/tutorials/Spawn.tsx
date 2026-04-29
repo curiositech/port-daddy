@@ -61,7 +61,7 @@ export function Spawn() {
             current usage.
           </p>
 
-          <CodeBlock language="bash">
+          <CodeBlock copyable={false} language="bash">
             {`$ pd spawn --backend codex \\
     --tier low \\
     --identity port-daddy:docs:spawn-sync \\
@@ -97,7 +97,7 @@ export function Spawn() {
             recently finished.
           </p>
 
-          <CodeBlock language="bash">
+          <CodeBlock copyable={false} language="bash">
             {`$ pd spawned
 AGENT ID            BACKEND   MODEL                    STATUS      AGE
 ────────────────────────────────────────────────────────────────────────
@@ -109,7 +109,7 @@ spawned-8a2f0c1c    codex      gpt-5.4-mini           completed   12s`}
             starts with a bounded working set instead of wandering the repo.
           </p>
 
-          <CodeBlock language="bash">
+          <CodeBlock copyable={false} language="bash">
             {`$ pd spawn --backend aider \\
     --identity port-daddy:ui:fleetbar \\
     --budget 1.25 \\

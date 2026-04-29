@@ -138,7 +138,7 @@ export function Fleet() {
             it, and what it does.
           </motion.p>
 
-          <CodeBlock language="bash">{`fleet:
+          <CodeBlock copyable={false} language="bash">{`fleet:
   name: my-project
   harbor: "{project}:fleet"    # Shared identity for all fleet agents
 
@@ -232,7 +232,7 @@ export function Fleet() {
             runs automatically after every <code>git commit</code>.
           </motion.p>
 
-          <CodeBlock language="bash">{`#!/usr/bin/env zsh
+          <CodeBlock copyable={false} language="bash">{`#!/usr/bin/env zsh
 # Fire-and-forget: publish commit info to Port Daddy
 PD_URL="\${PORT_DADDY_URL:-http://localhost:9876}"  # Use pd status if yours differs
 
@@ -301,7 +301,7 @@ exit 0`}</CodeBlock>
                 Fire when a message arrives on their channel. Reactive. Good for
                 code review, docs updates, test coverage. Think event handlers.
               </motion.p>
-              <CodeBlock language="yaml">{`qa:
+              <CodeBlock copyable={false} language="yaml">{`qa:
   trigger: git:committed
   backend: ollama
   model: qwen2.5-coder:7b`}</CodeBlock>
@@ -322,7 +322,7 @@ exit 0`}</CodeBlock>
                 Run on a cron interval. Steady. Good for health checks, idea
                 generation, cleanup. Think cron jobs with brains.
               </motion.p>
-              <CodeBlock language="yaml">{`gardener:
+              <CodeBlock copyable={false} language="yaml">{`gardener:
   schedule: "*/10 * * * *"
   backend: custom`}</CodeBlock>
             </Surface>
@@ -403,7 +403,7 @@ exit 0`}</CodeBlock>
             <motion.h2 className="m-0">5. See What They Did</motion.h2>
           </motion.div>
 
-          <CodeBlock language="bash">{`pd fleet up       # Start the fleet
+          <CodeBlock copyable={false} language="bash">{`pd fleet up       # Start the fleet
 pd fleet status   # What's running?
 pd fleet down     # Stop everything`}</CodeBlock>
 

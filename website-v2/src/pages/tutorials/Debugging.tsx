@@ -41,7 +41,7 @@ export function Debugging() {
             the best.
           </p>
 
-          <CodeBlock language="bash">
+          <CodeBlock copyable={false} language="bash">
             {`$ lsof -i :3100\nCOMMAND   PID   USER   FD   TYPE   DEVICE   NAME\nnode    48291  erich   23u  IPv6   0x1a2b   *:3100`}
           </CodeBlock>
 
@@ -66,7 +66,7 @@ export function Debugging() {
             command tells you exactly who owns the port.
           </p>
 
-          <CodeBlock language="bash">
+          <CodeBlock copyable={false} language="bash">
             {`$ pd find :3100\n\n✓ Match Found:\n  - Identity:  payment-stack:api:main\n  - PID:       48291\n  - Started:   2 hours ago\n  - Status:    Healthy (200 OK)`}
           </CodeBlock>
 
@@ -105,14 +105,14 @@ export function Debugging() {
             shutdown before forcefully reclaiming the port.
           </p>
 
-          <CodeBlock language="bash">
+          <CodeBlock copyable={false} language="bash">
             {`$ pd release :3100 --force\n\n✓ Sending SIGTERM to PID 48291...\n✓ Process terminated.\n✓ Port 3100 is now free for reclamation.`}
           </CodeBlock>
 
           <p className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] m-0">
             Advanced Diagnostics
           </p>
-          <CodeBlock language="bash">{`$ pd health --all`}</CodeBlock>
+          <CodeBlock copyable={false} language="bash">{`$ pd health --all`}</CodeBlock>
           <div className="space-y-1">
             <div className="flex items-center justify-between text-xs font-mono text-[var(--text-secondary)]">
               <span>myapp:api</span>

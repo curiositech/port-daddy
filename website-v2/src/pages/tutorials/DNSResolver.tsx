@@ -66,7 +66,7 @@ export function DNSResolver() {
             that points to it.
           </p>
 
-          <CodeBlock language="bash">
+          <CodeBlock copyable={false} language="bash">
             {`# Step 1: Claim a port for your service\n$ pd claim my-swarm:api\n\n✓ Port 3102 assigned to my-swarm:api\n\n# Step 2: Register a DNS hostname\n$ pd dns register --hostname auth.pd.local --port 3102 --service my-swarm:api\n\n✓ DNS Registered: auth.pd.local -> localhost:3102`}
           </CodeBlock>
 
@@ -95,7 +95,7 @@ export function DNSResolver() {
             dynamic APIs.
           </p>
 
-          <CodeBlock language="bash">
+          <CodeBlock copyable={false} language="bash">
             {`# Resolve a hostname to a port\n$ pd dns lookup auth.pd.local\n\nlocalhost:3102\n\n# List all registered DNS records\n$ pd dns list\n\n# Check DNS system status\n$ pd dns status`}
           </CodeBlock>
 

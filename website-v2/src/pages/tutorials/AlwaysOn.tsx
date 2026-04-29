@@ -60,7 +60,7 @@ export function AlwaysOn() {
             commands.
           </p>
 
-          <CodeBlock language="bash">
+          <CodeBlock copyable={false} language="bash">
             {`$ pd spawn --backend claude \\
     --identity infra:monitor \\
     --purpose "Watch CI and auto-fix flakes" \\
@@ -99,7 +99,7 @@ export function AlwaysOn() {
             available via environment variables.
           </p>
 
-          <CodeBlock language="bash">
+          <CodeBlock copyable={false} language="bash">
             {`$ pd watch swarm:ci:failure \\
     --exec "./scripts/auto-fix.sh"
 

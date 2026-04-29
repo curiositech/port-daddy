@@ -56,7 +56,7 @@ export function Primitives() {
             one to the Mac app, the daemon, or a command you can run today, so
             the website is not asking visitors to believe in invisible features.
           </motion.p>
-          <CodeBlock language="bash">{`pd setup --project ~/coding/my-app
+          <CodeBlock copyable={false} language="bash">{`pd setup --project ~/coding/my-app
 pd status
 pd briefing
 pd fleet models
@@ -94,7 +94,7 @@ pd guard status`}</CodeBlock>
                       <motion.p className="m-0">{step.body}</motion.p>
                     </div>
                   </div>
-                  <CodeBlock language="bash">{step.command}</CodeBlock>
+                  <CodeBlock copyable={false} language="bash">{step.command}</CodeBlock>
                 </Surface>
               );
             })}
@@ -127,7 +127,7 @@ pd guard status`}</CodeBlock>
                       {feature.title}
                     </motion.h3>
                     <motion.p className="m-0">{feature.description}</motion.p>
-                    <CodeBlock language="bash">{feature.cli}</CodeBlock>
+                    <CodeBlock copyable={false} language="bash">{feature.cli}</CodeBlock>
                   </div>
                 </div>
               </Surface>
@@ -146,7 +146,7 @@ pd guard status`}</CodeBlock>
             Inbox, notes, claims, tuples, and salvage should make agent-to-agent
             communication visible instead of buried in one terminal transcript.
           </motion.p>
-          <CodeBlock language="bash">{`open "http://127.0.0.1:9876/fleet-ui/?surface=shipwright"
+          <CodeBlock copyable={false} language="bash">{`open "http://127.0.0.1:9876/fleet-ui/?surface=shipwright"
 pd fleet up
 pd sortie "Check docs drift and summarize product-truth gaps" --budget 0.50`}</CodeBlock>
         </section>

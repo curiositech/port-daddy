@@ -635,7 +635,7 @@ export const DISTRIBUTION_OPTIONS = [
   {
     id: 'mac-binary',
     title: 'Mac developer preview',
-    description: 'A source-backed FleetBar.app ZIP for Apple Silicon developers. The artifact is generated from apps/FleetBar by npm run package:fleetbar-preview, ad-hoc signed, and fenced as a developer preview until Developer ID signing and notarization land.',
+    description: 'A source-backed FleetBar.app ZIP for Apple Silicon developers. The artifact is generated from apps/FleetBar by npm run package:fleetbar-preview, signed with the Curiositech Developer ID certificate when available, and fenced as a developer preview until notarization lands.',
     command: 'curl -LO https://portdaddy.dev/downloads/PortDaddy-FleetBar-macOS-arm64-dev.zip\ncurl -LO https://portdaddy.dev/downloads/PortDaddy-FleetBar-macOS-arm64-dev.zip.sha256\nshasum -a 256 -c PortDaddy-FleetBar-macOS-arm64-dev.zip.sha256',
     status: 'developer-preview',
   },

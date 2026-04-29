@@ -74,7 +74,7 @@ export function Tunnel() {
             First, check which tunnel providers are installed on your system.
           </p>
 
-          <CodeBlock language="bash">
+          <CodeBlock copyable={false} language="bash">
             {
               "$ curl http://localhost:9876/tunnel/providers\n\n# Returns list of available providers (ngrok, cloudflare, localtunnel)"
             }
@@ -105,7 +105,7 @@ export function Tunnel() {
             wraps your local port in a public URL.
           </p>
 
-          <CodeBlock language="bash">
+          <CodeBlock copyable={false} language="bash">
             {
               '# Start a tunnel using ngrok for a claimed service\n$ curl -X POST http://localhost:9876/tunnel/myapp:api \\\n    -H "Content-Type: application/json" \\\n    -d \'{"provider": "ngrok"}\'\n\n# Response:\n# { "url": "https://abc123.ngrok.io", "provider": "ngrok", "port": 3102 }\n\n# Check tunnel status\n$ curl http://localhost:9876/tunnel/myapp:api\n\n# List all active tunnels\n$ curl http://localhost:9876/tunnels\n\n# Stop a tunnel\n$ curl -X DELETE http://localhost:9876/tunnel/myapp:api'
             }

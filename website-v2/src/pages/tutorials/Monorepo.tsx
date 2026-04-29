@@ -82,7 +82,7 @@ export function Monorepo() {
             the box.
           </p>
 
-          <CodeBlock language="bash">
+          <CodeBlock copyable={false} language="bash">
             {`$ pd scan ./services\n\n✓ Found 12 services in 1.4s\n  - services/auth (Next.js)\n  - services/api (Express)\n  - services/worker (Go)`}
           </CodeBlock>
 
@@ -109,7 +109,7 @@ export function Monorepo() {
             order, assigning atomic ports and wiring up the internal DNS.
           </p>
 
-          <CodeBlock language="bash">
+          <CodeBlock copyable={false} language="bash">
             {`$ pd up\n\n[payment-stack] Starting 12 services...\n✓ [auth]   Started on port 3101\n✓ [api]    Started on port 3102\n✓ [worker] Started on port 3103\n\nMesh health: 100% (All services responding)`}
           </CodeBlock>
 

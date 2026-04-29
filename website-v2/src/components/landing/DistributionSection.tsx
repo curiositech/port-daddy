@@ -97,10 +97,10 @@ export function DistributionSection() {
                   <div className="inline-flex items-start gap-[var(--space-2)] border-t border-[color:var(--brand-primary-foreground-subtle)] pt-[var(--space-3)]">
                     <ShieldAlert className="mt-0.5 shrink-0" size={16} />
                     <PanelBody tone="primary" size="compact" className="max-w-none">
-                      The preview is rebuilt by scripts/package-fleetbar-preview.sh, ad-hoc signed,
-                      checksummed, and described by the public manifest. The next release gate is a
-                      Developer ID Application certificate plus notarization, so macOS may require
-                      Open Anyway until that artifact is regenerated.
+                      The preview is rebuilt by scripts/package-fleetbar-preview.sh, Developer ID
+                      signed when the Curiositech certificate is present, checksummed, and described
+                      by the public manifest. The remaining release gate is accepted notarization,
+                      so macOS may still require Open Anyway until that artifact is regenerated.
                     </PanelBody>
                   </div>
                 </div>

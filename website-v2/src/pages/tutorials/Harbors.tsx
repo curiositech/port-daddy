@@ -80,7 +80,7 @@ export function Harbors() {
             humans, specific enough for automation, and stable across sessions.
           </p>
 
-          <CodeBlock language="bash">
+          <CodeBlock copyable={false} language="bash">
             {`$ pd harbor create my-app:main
 
 Created harbor: my-app:main
@@ -133,7 +133,7 @@ Scope:  project coordination`}
             identity, a purpose, and a place to read handoffs.
           </p>
 
-          <CodeBlock language="bash">
+          <CodeBlock copyable={false} language="bash">
             {`$ pd begin "Add password reset flow" \\
     --identity my-app:codex:auth \\
     --files src/auth/reset.ts
@@ -154,7 +154,7 @@ Note added to session-8a31`}
             human session instead of living in an isolated transcript.
           </p>
 
-          <CodeBlock language="bash">
+          <CodeBlock copyable={false} language="bash">
             {`$ pd spawn --backend claude --model claude-haiku-4-5 \\
     --harbor my-app:main \\
     --budget 0.50 \\
@@ -185,7 +185,7 @@ Note added to session-8a31`}
             does not need to edit files, create tunnels, or run migrations.
           </p>
 
-          <CodeBlock language="bash">
+          <CodeBlock copyable={false} language="bash">
             {`$ pd harbor create my-app:security-review \\
     --cap "code:read,notes:write" \\
     --ttl 2h

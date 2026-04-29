@@ -62,7 +62,7 @@ export function GettingStarted() {
               className="space-y-[var(--space-3)] p-[var(--space-6)]"
             >
               <Badge variant="teal">npm (recommended)</Badge>
-              <CodeBlock language="bash">{`npm install -g port-daddy`}</CodeBlock>
+              <CodeBlock copyable={false} language="bash">{`npm install -g port-daddy`}</CodeBlock>
             </Surface>
             <Surface
               depth="raised"
@@ -70,7 +70,7 @@ export function GettingStarted() {
               className="space-y-[var(--space-3)] p-[var(--space-6)]"
             >
               <Badge variant="default">From source</Badge>
-              <CodeBlock language="bash">{`git clone https://github.com/curiositech/port-daddy.git
+              <CodeBlock copyable={false} language="bash">{`git clone https://github.com/curiositech/port-daddy.git
 cd port-daddy
 npm install
 npm link`}</CodeBlock>
@@ -83,7 +83,7 @@ npm link`}</CodeBlock>
             className="space-y-[var(--space-4)] p-[var(--space-8)]"
           >
             <Badge variant="default">Verification</Badge>
-            <CodeBlock language="bash">{`pd start
+            <CodeBlock copyable={false} language="bash">{`pd start
 pd harbor enter my-app:main
 open -a FleetBar`}</CodeBlock>
             <motion.p className="mb-[var(--space-0)] text-[length:var(--type-small-size)] text-[var(--text-muted)]">
@@ -105,7 +105,7 @@ open -a FleetBar`}</CodeBlock>
             make the work visible to the other agents on the project.
           </motion.p>
 
-          <CodeBlock language="bash">{`$ pd status
+          <CodeBlock copyable={false} language="bash">{`$ pd status
 Port Daddy is running
 Runtime: nominal
 Fleet: 1 project(s), 8 agent(s)
@@ -136,7 +136,7 @@ No active blockers. Start a session before editing.`}</CodeBlock>
             record another agent needs if the first one crashes.
           </motion.p>
 
-          <CodeBlock language="bash">{`$ pd begin --identity myapp:api --purpose "Building auth endpoints"
+          <CodeBlock copyable={false} language="bash">{`$ pd begin --identity myapp:api --purpose "Building auth endpoints"
   Session started: session-a1b2c3d4
   Agent registered with heartbeat
 
