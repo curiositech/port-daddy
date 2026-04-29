@@ -1,0 +1,63 @@
+# Port Daddy fleet starter — copy to <your-project>/pd-fleet.yml and edit.
+# Run: scripts/fleet-validate.sh after edits, then `pd fleet up` (or POST /fleet/register).
+# Schema: ../schemas/pd-fleet.schema.{json,md}
+
+fleet:
+  # MUST equal basename(projectDir). Renaming the dir without updating
+  # this field silently breaks every git:committed-triggered agent.
+  name: REPLACE-WITH-BASENAME-OF-PROJECT-DIR
+
+  harbor: "{project}:fleet"
+
+  limits:
+    max_concurrent_spawns: 2
+    max_spawns_per_hour: 20
+    # Required if any agent uses a paid backend.
+    budget_usd_per_day: 5
+
+  defaults:
+    backend: claude-cli
+    model: claude-sonnet-4-6
+
+  agents:
+    # Reactive QA on every commit.
+    qa:
+      trigger: git:committed
+      identity: "{project}:fleet:qa"
+      respawn: true
+      max_respawns: 3
+      cooldown_ms: 30000
+      dedupe_window_ms: 5000
+      allowedTools: "Read,Grep,Glob,Bash(npm test*)"
+      prompt: |
+        Review the most recent commit. Run `npm test` if a test script exists.
+        For each bug or smell: `pd note --type finding "<one-line summary>"`.
+        If clean, write `pd note --type progress "QA clean."` and exit 0.
+      on_success: publish qa:clean
+      on_failure: publish qa:findings
+
+    # Cron-paced cartographer that maintains the roadmap.
+    cartographer:
+      schedule: "*/30 * * * *"
+      identity: "{project}:fleet:cartographer"
+      respawn: true
+      max_respawns: 3
+      backend: ollama
+      model: qwen2.5-coder:7b
+      prompt: |
+        Read .spark/feedback/, docs/recovery/DOGFOOD-FEEDBACK.md, and recent
+        `pd notes --type finding`. Promote anything that is now actionable
+        into docs/ROADMAP.md. Do not edit raw feedback files.
+
+  # Optional but strongly recommended once you have ≥3 agents.
+  channels:
+    git:committed:
+      description: "Fired by the post-commit hook"
+      consumers: [qa]
+      external_producer: true
+    qa:clean:
+      description: "QA passed — downstream agents can run"
+      consumers: []
+    qa:findings:
+      description: "QA found issues — humans + cartographer should look"
+      consumers: [cartographer]

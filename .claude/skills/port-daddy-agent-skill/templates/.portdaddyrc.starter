@@ -1,0 +1,26 @@
+# Per-project Port Daddy preferences. Drop at project root as `.portdaddyrc`.
+# All fields optional. See ../references/portdaddyrc-spec.md for the full grammar.
+
+# Default identity for `pd begin` when --identity isn't passed.
+default_identity = "{project}:dev:main"
+
+# What to consider an "active session" timeout (minutes).
+session_timeout_minutes = 60
+
+# Auto-claim files matching these globs on `pd begin`.
+auto_claim_globs = [
+  "src/**/*.ts",
+]
+
+# Skip pd-fleet.yml auto-discovery for this project.
+fleet_disabled = false
+
+# Send messages to this Slack incoming-webhook on coordination:inconsistency.
+# (Optional; leave empty to disable.)
+inconsistency_webhook = ""
+
+# Pheromone defaults
+pheromone_default_strength = 0.7
+
+# Salvage hint — show this many lines of the dead agent's last notes.
+salvage_note_preview_lines = 12
