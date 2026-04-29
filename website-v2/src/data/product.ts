@@ -49,7 +49,7 @@ export interface DistributionOption {
   title: string;
   description: string;
   command: string;
-  status: 'available' | 'developer-preview' | 'release-channel';
+  status: 'available' | 'signed-build' | 'release-channel';
 }
 
 export const PRODUCT_FEATURES = [
@@ -634,10 +634,10 @@ export const COLD_START_STEPS = [
 export const DISTRIBUTION_OPTIONS = [
   {
     id: 'mac-binary',
-    title: 'Mac developer preview',
-    description: 'A source-backed FleetBar.app ZIP for Apple Silicon developers. The artifact is generated from apps/FleetBar by npm run package:fleetbar-preview, signed with the Curiositech Developer ID certificate when available, and fenced as a developer preview until notarization lands.',
-    command: 'curl -LO https://portdaddy.dev/downloads/PortDaddy-FleetBar-macOS-arm64-dev.zip\ncurl -LO https://portdaddy.dev/downloads/PortDaddy-FleetBar-macOS-arm64-dev.zip.sha256\nshasum -a 256 -c PortDaddy-FleetBar-macOS-arm64-dev.zip.sha256',
-    status: 'developer-preview',
+    title: 'Signed Mac build',
+    description: 'A source-backed FleetBar.app ZIP for Apple Silicon developers. The artifact is generated from apps/FleetBar by npm run package:fleetbar-preview and signed with the Curiositech Developer ID certificate when that certificate is present on the release machine.',
+    command: 'curl -LO https://portdaddy.dev/downloads/PortDaddy-FleetBar-macOS-arm64.zip\ncurl -LO https://portdaddy.dev/downloads/PortDaddy-FleetBar-macOS-arm64.zip.sha256\nshasum -a 256 -c PortDaddy-FleetBar-macOS-arm64.zip.sha256',
+    status: 'signed-build',
   },
   {
     id: 'brew',

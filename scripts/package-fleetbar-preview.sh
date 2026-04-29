@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 FLEETBAR_DIR="$REPO_ROOT/apps/FleetBar"
 DOWNLOADS_DIR="$REPO_ROOT/website-v2/public/downloads"
-ARTIFACT_NAME="PortDaddy-FleetBar-macOS-arm64-dev.zip"
+ARTIFACT_NAME="PortDaddy-FleetBar-macOS-arm64.zip"
 ZIP_PATH="$DOWNLOADS_DIR/$ARTIFACT_NAME"
 CHECKSUM_PATH="$ZIP_PATH.sha256"
 MANIFEST_PATH="$DOWNLOADS_DIR/fleetbar-preview-manifest.json"
@@ -103,7 +103,7 @@ NOTARY_REQUEST_ID=""
 NOTARIZATION_STATUS="not-submitted"
 
 cat > "$PAYLOAD_DIR/README.txt" <<README
-Port Daddy FleetBar developer preview
+Port Daddy FleetBar signed Mac build
 
 This archive contains FleetBar.app, the macOS menu-bar companion for Port Daddy.
 It is built from apps/FleetBar in the Port Daddy repository by:
@@ -213,7 +213,7 @@ BUNDLE_SHORT_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionS
 ARTIFACT_SIZE_BYTES="$(wc -c < "$ZIP_PATH" | tr -d ' ')"
 
 FLEETBAR_PREVIEW_NAME="Port Daddy FleetBar" \
-FLEETBAR_PREVIEW_CHANNEL="developer-preview" \
+FLEETBAR_PREVIEW_CHANNEL="signed-mac-build" \
 FLEETBAR_PREVIEW_PLATFORM="macOS" \
 FLEETBAR_PREVIEW_ARCH="$ARCH" \
 FLEETBAR_PREVIEW_ARTIFACT="$ARTIFACT_NAME" \
@@ -253,7 +253,7 @@ const manifest = {
   notaryRequestId: process.env.FLEETBAR_PREVIEW_NOTARY_REQUEST_ID || null,
   releaseGate: process.env.FLEETBAR_PREVIEW_NOTARIZED === 'true'
     ? null
-    : 'App Store Connect notarytool credentials and accepted notarization',
+    : 'Apple notarization ticket not yet stapled; Developer ID signing is present when developerIdSigned is true',
   minimumMacOS: '14.0',
   bundle: {
     identifier: process.env.FLEETBAR_PREVIEW_BUNDLE_IDENTIFIER,

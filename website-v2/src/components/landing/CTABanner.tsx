@@ -27,7 +27,7 @@ export function CTABanner() {
         <SwissGrid className="items-end">
           <SwissGridItem span="wide">
             <div className="space-y-[var(--space-4)]">
-              <PanelEyebrow>Developer preview</PanelEyebrow>
+              <PanelEyebrow>Signed Mac build</PanelEyebrow>
               <PanelTitle as="h2" size="display" className="max-w-[13ch]">
                 Install the agent communication layer, then open it from FleetBar.
               </PanelTitle>
@@ -103,7 +103,7 @@ export function CTABanner() {
               </div>
               <div className="flex flex-wrap gap-[var(--space-3)]">
                 <Button asChild variant="primary" size="lg">
-                  <a href="/downloads/PortDaddy-FleetBar-macOS-arm64-dev.zip" download>
+                  <a href="/downloads/PortDaddy-FleetBar-macOS-arm64.zip" download>
                     <Download size={16} />
                     FleetBar preview
                   </a>
