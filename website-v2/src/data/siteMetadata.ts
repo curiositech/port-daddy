@@ -4,6 +4,7 @@ import { COOKBOOK_RECIPES } from './cookbook'
 import { docsFamilyRoutes, docsOverviewRoute, type DocsFamilyRoute } from './docs-routes'
 import { INTEGRATIONS } from './integrations'
 import { TUTORIALS } from './tutorials'
+import { WHITE_PAPERS } from './whitePapers'
 
 export const SITE_NAME = 'Port Daddy'
 export const SITE_ORIGIN = 'https://portdaddy.dev'
@@ -142,6 +143,11 @@ const productRoutes: SiteMetadata[] = [
     'Whitepaper',
     'Read the Port Daddy protocol argument for local-first agent coordination, identity, authority, locks, sessions, and recoverable work.',
     { section: 'whitepaper' },
+  ),
+  ...WHITE_PAPERS.map((paper) =>
+    metadata(paper.readerHref, paper.title, paper.summary, {
+      section: 'whitepaper',
+    }),
   ),
 ]
 

@@ -13,7 +13,7 @@ const NAV_ITEMS = [
   { label: 'MCP', href: '/mcp', end: false },
   { label: 'Tutorials', href: '/tutorials', end: false },
   { label: 'Roadmap', href: '/roadmap', end: false },
-  { label: 'Whitepaper', href: '/whitepaper', end: false },
+  { label: 'Papers', href: '/whitepaper', end: false },
 ] as const
 
 export function SiteHeader() {

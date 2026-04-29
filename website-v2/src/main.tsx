@@ -22,6 +22,7 @@ const ExamplesPage = lazyNamed(() => import('@/pages/ExamplesPage'), 'ExamplesPa
 const McpPage = lazy(() => import('@/pages/MCPPage'))
 const WhitepaperPage = lazy(() => import('@/pages/whitepaper'))
 const DashboardPage = lazyNamed(() => import('@/pages/DashboardPage'), 'DashboardPage')
+const WhitepaperDetailPage = lazy(() => import('@/pages/whitepaper/PaperDetailPage'))
 const BlogPage = lazyNamed(() => import('@/pages/BlogPage'), 'BlogPage')
 const BlogPostPage = lazyNamed(() => import('@/pages/BlogPostPage'), 'BlogPostPage')
 const RoadmapPage = lazyNamed(() => import('@/pages/RoadmapPage'), 'RoadmapPage')
@@ -218,6 +219,7 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/blog/:slug" element={<BlogPostPage />} />
 
               <Route path="/whitepaper" element={<WhitepaperPage />} />
+              <Route path="/whitepaper/:paperSlug" element={<WhitepaperDetailPage />} />
             </Route>
 
             <Route path="/docs" element={<DocsLayout />}>

@@ -20,6 +20,8 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 - [Cookbook - Port Daddy](https://portdaddy.dev/cookbook): Use tested Port Daddy recipes for distributed locks, WebRTC signaling, ephemeral CI databases, and multi-agent topologies.
 - [Blog - Port Daddy](https://portdaddy.dev/blog): Read practical Port Daddy essays about multi-agent coordination, port collisions, salvage, locks, fleets, and local-first operator tooling.
 - [Whitepaper - Port Daddy](https://portdaddy.dev/whitepaper): Read the Port Daddy protocol argument for local-first agent coordination, identity, authority, locks, sessions, and recoverable work.
+- [The Anchor Protocol - Port Daddy](https://portdaddy.dev/whitepaper/anchor-protocol): Read the Anchor Protocol paper inline with a guided explanation of scoped identity, delegation, verification, and why it matters for Port Daddy harbors.
+- [The Bonded Commons - Port Daddy](https://portdaddy.dev/whitepaper/bonded-commons): Read the Bonded Commons paper inline with a guided explanation of evidence trails, advisory claims, collateralized work, and the future agent economy Port Daddy can support.
 
 ## Docs
 
@@ -213,6 +215,12 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 - [Spark and Spider: How Two AI Agents Generate Ideas While I Sleep - Port Daddy](https://portdaddy.dev/blog/spark-and-spider-the-creative-engine): Spark proposes ideas. Spider finds connections between features via formal syllogisms. Together they form a creative engine that runs in the background and compounds knowledge over time.
 - [The Port Collision That Ate My Saturday - Port Daddy](https://portdaddy.dev/blog/the-port-collision-that-ate-my-saturday): Next.js on 3000, FastAPI on 3000, a second AI agent on 3000. Ninety minutes debugging phantom CORS errors before realizing the port was just taken.
 - [Zero to Multi-Agent in 5 Minutes - Port Daddy](https://portdaddy.dev/blog/zero-to-multi-agent-in-5-minutes): Two commands. That is the entire coordination protocol. pd begin, pd done, and everything between is tracked, recoverable, and queryable.
+
+## White Papers
+
+- [Whitepaper - Port Daddy](https://portdaddy.dev/whitepaper): Read the Port Daddy protocol argument for local-first agent coordination, identity, authority, locks, sessions, and recoverable work.
+- [The Anchor Protocol - Port Daddy](https://portdaddy.dev/whitepaper/anchor-protocol): Read the Anchor Protocol paper inline with a guided explanation of scoped identity, delegation, verification, and why it matters for Port Daddy harbors.
+- [The Bonded Commons - Port Daddy](https://portdaddy.dev/whitepaper/bonded-commons): Read the Bonded Commons paper inline with a guided explanation of evidence trails, advisory claims, collateralized work, and the future agent economy Port Daddy can support.
 
 ## Repository
 
