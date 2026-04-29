@@ -41,28 +41,28 @@ const variantStyles: Record<string, {
   hover: React.CSSProperties
 }> = {
   primary: {
-    base: { background: 'var(--text-primary)', boxShadow: 'var(--shadow-sm)' },
-    hover: { boxShadow: 'var(--shadow-flat)', transform: 'translate(3px, 3px)' },
+    base: { background: 'var(--text-primary)', boxShadow: 'none' },
+    hover: { background: 'var(--brand-primary)', boxShadow: 'none' },
   },
   secondary: {
-    base: { background: 'var(--surface-raised)', boxShadow: 'var(--shadow-sm)' },
-    hover: { boxShadow: 'var(--shadow-flat)', transform: 'translate(3px, 3px)' },
+    base: { background: 'var(--surface-raised)', boxShadow: 'none' },
+    hover: { background: 'var(--surface-strong)', boxShadow: 'none' },
   },
   ghost: {
     base: { background: 'transparent', boxShadow: 'none', borderColor: 'transparent' },
-    hover: { background: 'var(--surface-raised)', borderColor: 'var(--border-strong)', boxShadow: 'var(--shadow-sm)' },
+    hover: { background: 'var(--surface-raised)', borderColor: 'var(--border-strong)', boxShadow: 'none' },
   },
   code: {
     base: { background: 'transparent', boxShadow: 'none', borderColor: 'var(--code-comment)' },
     hover: { background: 'var(--code-header-bg)', borderColor: 'var(--code-text)', boxShadow: 'none' },
   },
   danger: {
-    base: { background: 'var(--status-error)', boxShadow: 'var(--shadow-sm)' },
-    hover: { boxShadow: 'var(--shadow-flat)', transform: 'translate(3px, 3px)' },
+    base: { background: 'var(--status-error)', boxShadow: 'none' },
+    hover: { background: 'var(--status-error)', boxShadow: 'none' },
   },
   outline: {
-    base: { background: 'var(--brand-accent)', boxShadow: 'var(--shadow-sm)' },
-    hover: { boxShadow: 'var(--shadow-flat)', transform: 'translate(3px, 3px)' },
+    base: { background: 'var(--brand-accent)', boxShadow: 'none' },
+    hover: { background: 'var(--brand-accent)', boxShadow: 'none' },
   },
 }
 

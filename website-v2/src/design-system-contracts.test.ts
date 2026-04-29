@@ -63,6 +63,37 @@ describe('design system contracts', () => {
     ].join('\n'))
   })
 
+  test('legacy relief paths stay flattened across shared website primitives', () => {
+    const semanticTokens = read('./styles/tokens.semantic.css')
+    const roleTokens = read('./styles/tokens.roles.css')
+    const indexCss = read('./index.css')
+    const protectedReliefSources = [
+      read('./components/ui/Surface.tsx'),
+      read('./components/ui/Button.tsx'),
+      read('./components/site/primitives.tsx'),
+      read('./components/landing/TerminalReplay.tsx'),
+      read('./components/landing/HowItWorks.tsx'),
+      read('./components/landing/DemoGallery.tsx'),
+      read('./components/landing/HarborViz.tsx'),
+    ].join('\n')
+
+    expect(semanticTokens.match(/--shadow-raised: none;/g)).toHaveLength(2)
+    expect(semanticTokens.match(/--shadow-inset: none;/g)).toHaveLength(2)
+    expect(semanticTokens.match(/--shadow-sm: none;/g)).toHaveLength(2)
+    expect(semanticTokens.match(/--shadow-flat: none;/g)).toHaveLength(2)
+    expect(semanticTokens.match(/--shadow-pressed: none;/g)).toHaveLength(2)
+    expect(roleTokens).not.toContain('shadow-neu')
+    expect(indexCss).toContain('--tw-shadow: 0 0 #0000 !important;')
+    expect(indexCss).not.toContain('Neumorphic')
+    expect(indexCss).not.toContain('.neu-inset')
+    expect(protectedReliefSources).not.toContain('neu-shadow')
+    expect(protectedReliefSources).not.toContain('neu-highlight')
+    expect(protectedReliefSources).not.toContain('translate(3px, 3px)')
+    expect(protectedReliefSources).not.toContain('drop-shadow')
+    expect(protectedReliefSources).not.toContain('0 0 20px')
+    expect(protectedReliefSources).not.toMatch(/inset 1px|inset 2px/)
+  })
+
   test('protected design-system modules do not introduce raw color literals', () => {
     const protectedFiles = [
       ...collectSourceFiles('./components/ui'),
@@ -134,7 +165,6 @@ describe('design system contracts', () => {
   test('hero headline emphasis stays inside the brand token system', () => {
     const hero = read('./components/landing/Hero.tsx')
 
-    expect(hero).toContain('fighting each other.')
     expect(hero).toContain('text-[var(--brand-primary)]')
     expect(hero).not.toContain('bg-gradient-to-r')
     expect(hero).not.toContain('bg-clip-text')

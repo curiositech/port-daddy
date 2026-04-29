@@ -148,7 +148,7 @@ export function DemoGallery() {
                 transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
                 className="space-y-12 w-full flex flex-col items-center"
               >
-                {/* Video display with inset frame */}
+                {/* Video display with flat frame */}
                 <div
                   className="relative rounded-[var(--radius-4xl)] overflow-hidden group w-full aspect-video flex items-center justify-center"
                   style={{
@@ -164,7 +164,7 @@ export function DemoGallery() {
                    />
                    <div className="absolute bottom-12 left-12 right-12 z-20 flex justify-between items-center">
                       <div className="flex items-center gap-5">
-                         <div className="w-4 h-4 rounded-full" style={{ background: 'var(--brand-primary)', boxShadow: '0 0 20px var(--brand-primary)' }} />
+                         <div className="w-4 h-4 rounded-full border border-[var(--text-inverse)]" style={{ background: 'var(--brand-primary)' }} />
                          <span className="text-[11px] font-black uppercase tracking-[0.3em]" style={{ color: 'var(--text-inverse)' }}>Live Swarm Execution</span>
                       </div>
                       <ExternalLink size={20} style={{ color: 'var(--text-inverse)', opacity: 0.6 }} />

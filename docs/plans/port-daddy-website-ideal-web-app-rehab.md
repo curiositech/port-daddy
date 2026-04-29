@@ -584,6 +584,44 @@ Remaining launch blockers after this slice:
   Lighthouse/Web Vitals, reduced-motion, forced-colors, and manual
   screen-reader evidence remain open.
 
+### 2026-04-29 Global Flat Relief Enforcement Slice
+
+Implemented after live review showed inset/raised relief recurring across
+routes despite earlier page-local cleanup:
+
+- Changed light and dark semantic shadow tokens so `--shadow-raised`,
+  `--shadow-inset`, `--shadow-sm`, `--shadow-flat`, and `--shadow-pressed`
+  all resolve to `none`.
+- Removed the old `--shadow-neu-*` role aliases and the `.neu-*` global
+  utilities.
+- Reworked `Surface`, `Button`, and shared site-panel primitives so depth and
+  interaction states are flat framed planes, not raised or pressed controls.
+- Added a public stylesheet invariant that neutralizes legacy Tailwind
+  `shadow-*` and `drop-shadow` utilities. This prevents old route code from
+  visually reintroducing relief while deeper route migration continues.
+- Removed direct landing-page bypasses: `neu-shadow` / `neu-highlight` inset
+  styles, the brand-primary glow dot, and the SVG drop-shadow in the harbor
+  visualization.
+- Coordinated through Port Daddy with the active dashboard-removal and
+  PD Tube/PKI sessions. This slice intentionally avoided the other agents'
+  route/content files and left `/dashboard` route-local cleanup to the active
+  stale-dashboard removal session.
+
+Validation on 2026-04-29:
+
+- Focused contract gate from `website-v2/`: `npm run test --
+  src/design-system-contracts.test.ts src/public-shell-contracts.test.ts`
+  passed at 32/32 tests.
+- Full website gates from `website-v2/`: `npm run lint`, `npm run test`
+  (8/8 files and 87/87 tests), and `npm run build` passed.
+- Root `git diff --check` passed.
+- Playwright route audit on the live Vite server at `http://127.0.0.1:3111/`
+  covered home, tutorials, whitepaper, docs, dashboard, MCP, roadmap, blog,
+  examples, integrations, cookbook, and blueprints. Every route reported all
+  shadow tokens as `none`, zero real box shadows, and zero drop shadows.
+- Screenshot proof was refreshed under
+  `docs/reports/website-rehab-screenshots/flat-relief-*.png`.
+
 ### 2026-04-27 SEO Metadata and Discovery Slice
 
 Implemented after the shared public shell slice:
@@ -882,3 +920,4 @@ handoff with files changed and residual risks.
 | 2026-04-27 | Removed the one-off hero headline gradient from "fighting each other" and added a contract test | Keep first-viewport emphasis inside the existing brand token system |
 | 2026-04-27 | Rewrote the tutorials index and catalogue copy around operator training and control-plane protocol language | Remove inherited academy/swarm copy and make tutorials match the current brand |
 | 2026-04-27 | Rebuilt the whitepaper first viewport as an editorial research dossier, removed badge/icon ceremony, widened header navigation, and added desktop/mobile visual proof | Remove the old centered whitepaper template and keep the route inside the current Swiss public-shell direction |
+| 2026-04-29 | Flattened the global relief system, neutralized legacy Tailwind shadow utilities, removed direct glow/drop-shadow bypasses, and added route-audit screenshot proof | Stop old route code from visually reintroducing raised, inset, or glowing treatments while route migration continues |

@@ -3,19 +3,19 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
 /**
- * Surface — the legacy tokenized elevation container.
+ * Surface - the legacy tokenized surface container.
  * New public-site sections should prefer the primitives in components/site.
- * Three depth levels: raised (default), flat, inset.
+ * Depth now controls flat surface contrast, never recessed or raised relief.
  */
 const surfaceVariants = cva(
   'transition-all duration-[var(--duration-normal)]',
   {
     variants: {
       depth: {
-        raised: '',   // Extruded from the page — cards, panels
-        flat: '',     // Level with page — subtle presence
-        inset: '',    // Pressed into the page — inputs, code blocks
-        floating: '', // Above everything — modals, tooltips
+        raised: '',
+        flat: '',
+        inset: '',
+        floating: '',
       },
       radius: {
         none: 'rounded-none',
@@ -49,32 +49,36 @@ const surfaceVariants = cva(
   }
 )
 
-// Depth -> inline style map using design-system elevation tokens.
+// Depth -> flat framed surfaces using design-system tokens.
 const depthStyles: Record<string, React.CSSProperties> = {
   raised: {
     background: 'var(--surface-raised)',
-    boxShadow: 'var(--shadow-raised)',
+    border: '2px solid var(--border-strong)',
+    boxShadow: 'none',
   },
   flat: {
     background: 'var(--surface-raised)',
-    boxShadow: 'var(--shadow-flat)',
+    border: '1px solid var(--border-default)',
+    boxShadow: 'none',
   },
   inset: {
     background: 'var(--surface-sunken)',
-    boxShadow: 'var(--shadow-inset)',
+    border: '1px solid var(--border-default)',
+    boxShadow: 'none',
   },
   floating: {
     background: 'var(--surface-raised)',
-    boxShadow: 'var(--shadow-raised)',
+    border: '2px solid var(--border-strong)',
+    boxShadow: 'none',
     zIndex: 50,
   },
 }
 
 const interactiveHoverStyles: Record<string, React.CSSProperties> = {
-  raised: { boxShadow: 'var(--shadow-flat)' },
-  flat: { boxShadow: 'var(--shadow-pressed)' },
-  inset: {},
-  floating: { boxShadow: 'var(--shadow-sm)' },
+  raised: { background: 'var(--surface-strong)', boxShadow: 'none' },
+  flat: { background: 'var(--surface-strong)', boxShadow: 'none' },
+  inset: { background: 'var(--surface-raised)', boxShadow: 'none' },
+  floating: { background: 'var(--surface-strong)', boxShadow: 'none' },
 }
 
 interface SurfaceProps

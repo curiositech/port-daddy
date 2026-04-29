@@ -99,8 +99,7 @@ export function HowItWorks() {
             >
               <div className="space-y-12 w-full flex flex-col items-center">
                 <div className="flex items-center justify-between w-full max-w-[280px]">
-                   {/* Icon in inset circle */}
-                   <Surface depth="inset" radius="3xl" padding="none" className="w-24 h-24 flex items-center justify-center transition-all duration-500 group-hover:scale-110">
+                   <Surface depth="inset" radius="none" padding="none" className="w-24 h-24 flex items-center justify-center transition-colors duration-500">
                      <step.icon size={48} style={{ color: 'var(--brand-accent)' }} />
                    </Surface>
                    {/* Step number */}
@@ -114,11 +113,7 @@ export function HowItWorks() {
                   {step.description}
                 </p>
 
-                {/* Code snippet — thin bevel, no bg */}
-                <div
-                  className="w-full px-3 py-3 sm:px-6 sm:py-4 rounded-[var(--radius-2xl)] font-mono text-sm leading-relaxed relative overflow-hidden text-left"
-                  style={{ boxShadow: 'inset 1px 1px 3px var(--neu-shadow), inset -1px -1px 3px var(--neu-highlight)' }}
-                >
+                <div className="w-full border-2 border-[var(--border-strong)] bg-[var(--code-bg)] px-3 py-3 font-mono text-sm leading-relaxed relative overflow-hidden text-left sm:px-6 sm:py-4">
                    <div className="absolute top-0 right-0 p-6 opacity-10">
                       <Terminal size={20} style={{ color: 'var(--text-muted)' }} />
                    </div>
