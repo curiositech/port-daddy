@@ -90,7 +90,7 @@ Use these only when the task actually needs them:
   migrations, and release packaging.
 - FleetBar and Fleet Control Center for operator-visible truth.
 
-## CLI Quick Reference
+## CLI Documentation Contract
 
 The CLI reference lives in this skill and the website docs; nothing should
 require a separate `port-daddy-cli` skill. The source-backed website page
@@ -256,7 +256,7 @@ into another channel, actor inbox, or PR description.
 
 The agent surface uses semantic identities of shape `project:stack:context`
 (e.g. `port-daddy:cli:fix-flake`, `myapp:api:auth`). Same identity always
-hashes to the same port — port assignment is deterministic.
+hashes to the same port - port assignment is deterministic.
 
 ```bash
 # Identity, status, salvage, briefing
