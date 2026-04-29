@@ -520,6 +520,30 @@ function parseCodexUsage(raw: string): CodexUsage {
   return usage;
 }
 
+function parseCodexError(raw: string): string | null {
+  for (const line of raw.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith('{')) continue;
+
+    try {
+      const event = JSON.parse(trimmed) as {
+        type?: unknown;
+        message?: unknown;
+        error?: { message?: unknown };
+      };
+      if (event.type === 'error' && typeof event.message === 'string') {
+        return event.message;
+      }
+      if (event.type === 'turn.failed' && typeof event.error?.message === 'string') {
+        return event.error.message;
+      }
+    } catch {
+      // Non-JSON stdout lines are not Codex structured errors.
+    }
+  }
+  return null;
+}
+
 function runCodexCli(spec: SpawnSpec, model: string, context?: BackendRunContext): Promise<BackendRunResult> {
   const workspace = spec.workdir || process.cwd();
   const tempDir = mkdtempSync(join(tmpdir(), 'port-daddy-codex-'));
@@ -556,12 +580,14 @@ function runCodexCli(spec: SpawnSpec, model: string, context?: BackendRunContext
   }).then((result) => {
     try {
       const usage = parseCodexUsage(result.output || '');
+      const structuredError = parseCodexError(result.output || '');
+      const error = structuredError ? `Codex CLI failed: ${structuredError}` : result.error;
       const fileOutput = existsSync(outputPath) ? readFileSync(outputPath, 'utf-8').trim() : '';
       if (fileOutput) {
-        return { output: fileOutput, error: result.error, ...usage };
+        return { output: fileOutput, error, ...usage };
       }
       const sanitized = sanitizeCodexOutput(result.output || '');
-      return { output: sanitized, error: result.error, ...usage };
+      return { output: sanitized, error, ...usage };
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
