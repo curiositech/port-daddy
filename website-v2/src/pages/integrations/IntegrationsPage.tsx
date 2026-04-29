@@ -48,6 +48,22 @@ export function IntegrationsPage() {
           >
             Port Daddy is the universal coordination layer. Native integrations for the world's most powerful LLMs and agentic frameworks.
           </motion.p>
+
+          <motion.figure
+            className="w-full max-w-4xl overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-base)]"
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.18 }}
+          >
+            <picture>
+              <source srcSet="/img/generated/control-plane-og.webp" type="image/webp" />
+              <img
+                src="/img/generated/control-plane-og.jpg"
+                alt="Generated Swiss-modern diagram of agent nodes, port marks, lock checkpoints, and recovery lanes around one control plane"
+                className="block aspect-[16/7] w-full object-cover"
+              />
+            </picture>
+          </motion.figure>
         </div>
       </Surface>
 
