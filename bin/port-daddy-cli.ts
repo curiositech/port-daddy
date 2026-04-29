@@ -1054,7 +1054,7 @@ const ALL_COMMANDS: string[] = [
   'advise', 'preflight', 'compass', 'guard',
   'salvage', 'resurrection', 'changelog', 'tunnel',
   'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
-  'b', 'w', 'who-owns', 'history', 'tutorial', 'files',
+  'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add',
   'spawn', 'spawned', 'watch',
   'harbor', 'harbors', 'demo', 'fleet', 'tuple', 'sortie', 'graph', 'memory', 'ideas',
   'quorum',

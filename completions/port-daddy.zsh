@@ -1841,9 +1841,11 @@ _port_daddy() {
     # Changelog
     'changelog:hierarchical changelog with identity-based rollup'
     # File Claims & Integration
+    'add:claim-aware git add wrapper'
     'files:list all active file claims across sessions'
     'who-owns:check who has claimed a specific file path'
     'integration:manage integration signals (ready/needs/list)'
+    'add:stage files through the coordination claim filter'
     # Sugar (compound commands)
     'begin:begin a work session (register agent + start session)'
     'b:begin a work session (alias for begin)'

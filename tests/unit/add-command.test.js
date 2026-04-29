@@ -11,6 +11,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
+const CONTEXT_ENV_KEYS = [
+  'PORT_DADDY_CONTEXT_DIR',
+  'PORT_DADDY_CONTEXT_SLOT',
+  'CODEX_THREAD_ID',
+  'TERM_SESSION_ID',
+];
+
 function makeRepo() {
   const dir = mkdtempSync(join(tmpdir(), 'pd-add-test-'));
   spawnSync('git', ['init', '-q'], { cwd: dir });
@@ -62,14 +69,21 @@ function captureStdout(fn) {
 
 describe('pd add wrapper', () => {
   let dir;
+  let savedContextEnv;
 
   beforeEach(() => {
     jest.resetModules();
+    savedContextEnv = Object.fromEntries(CONTEXT_ENV_KEYS.map((key) => [key, process.env[key]]));
+    for (const key of CONTEXT_ENV_KEYS) delete process.env[key];
     dir = makeRepo();
   });
 
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true });
+    for (const key of CONTEXT_ENV_KEYS) {
+      if (savedContextEnv[key] === undefined) delete process.env[key];
+      else process.env[key] = savedContextEnv[key];
+    }
   });
 
   test('expands -A into the universe of modified + untracked paths and stages all when nothing is claimed', async () => {

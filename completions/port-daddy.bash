@@ -100,7 +100,7 @@ _port_daddy() {
     # DNS
     dns
     # File Claims & Integration
-    files who-owns integration
+    files add who-owns integration
     # Sugar (compound commands)
     begin b done whoami w with-lock n u d learn tutorial
     # Briefing & History

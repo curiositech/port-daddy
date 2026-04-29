@@ -805,6 +805,13 @@ bash skills/port-daddy-agent-skill/scripts/diagnose_port_daddy_agent_context.sh`
           </PageContainer>
         </SectionBand>
 
+        <SectionBand tone="raised">
+          <PageContainer width="wide" className="space-y-[var(--space-6)]">
+            <MetricStrip />
+            <RuntimeTable />
+          </PageContainer>
+        </SectionBand>
+
       <SectionBand id="tools">
         <PageContainer width="wide">
           <SwissGrid>
