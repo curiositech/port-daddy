@@ -10,7 +10,7 @@ export function Harbors() {
       title="Start Inside a Harbor"
       description="A harbor is the named project boundary where agents, sessions, notes, claims, channels, services, and recovery records belong."
       number={1}
-      total={20}
+      total={21}
       level="Advanced"
       readTime="12 min read"
       next={{

@@ -9,7 +9,7 @@ export function DNSResolver() {
       title="Identity Discovery"
       description="Stop hardcoding addresses. Resolve harbor-local services by semantic identity across your local control plane."
       number={8}
-      total={20}
+      total={21}
       level="Intermediate"
       readTime="8 min read"
       prev={{ title: "Expose a Harbor Service", href: "/tutorials/tunnel" }}

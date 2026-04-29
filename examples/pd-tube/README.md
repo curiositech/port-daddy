@@ -1,72 +1,57 @@
-# PD Tube Button-To-Agent Example
+# PD Tube Examples
 
-This example turns a plain browser button into a direct line to a running agent
-terminal through Port Daddy's message tube.
+`pd tube` is a small conversation pipe over Port Daddy channels. It is useful
+when an agent, page, or script needs a durable, threaded handoff without parsing
+a human chat transcript.
 
-The point is not a JavaScript SDK. The browser only uses `fetch()` against the
-daemon message endpoint. The agent side only uses the CLI:
+## Browser Button To Agent
+
+The simplest product shape is a plain browser button that publishes JSON to the
+daemon message endpoint. The agent side only needs a terminal:
 
 ```bash
 pd tube ui:clicks
 ```
 
 When the page publishes a click, `pd tube` prints the event in the agent's
-terminal. The agent does normal repo work, then replies by piping text back into
+terminal. The agent can do normal repo work, then reply by piping text back into
 the same tube:
 
 ```bash
-printf '%s\n' "Deployed to staging. CI is green." | pd tube ui:clicks --reply 123 --sender claude-code
+printf '%s\n' "Deployed to staging. CI is green." \
+  | pd tube ui:clicks --reply 123 --sender claude-code
 ```
 
 The browser watches the same channel, matches `inReplyTo: 123`, and renders the
 agent response inline.
 
-## Run It
+## Run The Proof Demo
 
-1. Start the daemon:
+From the repo root:
 
-   ```bash
-   pd start
-   ```
+```bash
+examples/pd-tube/demo.sh
+```
 
-2. Open the local HTML file in a browser:
+The script uses the live daemon and posts to `port-daddy:demo:tube`. It sends a
+top-level message, replies to that message, then reads the channel back as JSON
+lines.
 
-   ```bash
-   open examples/pd-tube/button-to-agent.html
-   ```
+## Recordings
 
-3. In Claude Code, Codex, Cursor, Aider, or any terminal-running agent session,
-   listen once:
+The same script is used by the recording artifacts:
 
-   ```bash
-   pd tube ui:clicks
-   ```
+- `demos/pd-tube/pd-tube-real-output.cast`
+- `demos/pd-tube/pd-tube-real-output.gif`
+- `demos/pd-tube/pd-tube-real-output.tape`
+- `demos/pd-tube/pd-tube-vhs.gif`
 
-4. Click a button in the page. The agent terminal will receive a message body
-   with the button, user, timestamp, and app-side correlation id.
+Regenerate them with:
 
-5. Reply with the emitted message id:
+```bash
+asciinema rec --overwrite -c "examples/pd-tube/demo.sh" demos/pd-tube/pd-tube-real-output.cast
+agg demos/pd-tube/pd-tube-real-output.cast demos/pd-tube/pd-tube-real-output.gif
+vhs demos/pd-tube/pd-tube-real-output.tape
+```
 
-   ```bash
-   printf '%s\n' "I handled it." | pd tube ui:clicks --reply <message-id> --sender claude-code
-   ```
-
-## Why This Is Interesting
-
-Any process that can POST JSON can now summon the local agent session the
-developer already has open. That means an editor extension, test reporter,
-browser extension, Slack adapter, Stream Deck action, notebook cell, or local
-app can become an agent-facing control without building an MCP server, hosted
-webhook bridge, websocket backend, or custom loop.
-
-Port Daddy supplies the cheap local substrate:
-
-- a daemon-owned message channel
-- a CLI loop agents can run
-- threaded replies through `inReplyTo`
-- stable local inspection after the browser tab closes
-
-The example is intentionally tiny on the publisher side because that is the
-product point: the browser is not "integrated with Claude." It only speaks
-Port Daddy. The agent runtime can be swapped as long as it can run shell
-commands.
+The commands intentionally hit the daemon instead of echoing canned output.

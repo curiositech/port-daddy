@@ -49,6 +49,7 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 - [pd notes - Port Daddy](https://portdaddy.dev/docs/cli/notes): Reference for pd notes, including Port Daddy syntax, what the command does, and when to use it.
 - [pd pub - Port Daddy](https://portdaddy.dev/docs/cli/pub): Reference for pd pub, including Port Daddy syntax, what the command does, and when to use it.
 - [pd release - Port Daddy](https://portdaddy.dev/docs/cli/release): Reference for pd release, including Port Daddy syntax, what the command does, and when to use it.
+- [pd roadmap - Port Daddy](https://portdaddy.dev/docs/cli/roadmap): Reference for pd roadmap, including Port Daddy syntax, what the command does, and when to use it.
 - [pd salvage - Port Daddy](https://portdaddy.dev/docs/cli/salvage): Reference for pd salvage, including Port Daddy syntax, what the command does, and when to use it.
 - [pd salvage claim - Port Daddy](https://portdaddy.dev/docs/cli/salvage-claim): Reference for pd salvage claim, including Port Daddy syntax, what the command does, and when to use it.
 - [pd scan - Port Daddy](https://portdaddy.dev/docs/cli/scan): Reference for pd scan, including Port Daddy syntax, what the command does, and when to use it.
@@ -56,6 +57,7 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 - [pd spawn - Port Daddy](https://portdaddy.dev/docs/cli/spawn): Reference for pd spawn, including Port Daddy syntax, what the command does, and when to use it.
 - [pd spawned - Port Daddy](https://portdaddy.dev/docs/cli/spawned): Reference for pd spawned, including Port Daddy syntax, what the command does, and when to use it.
 - [pd status - Port Daddy](https://portdaddy.dev/docs/cli/status): Reference for pd status, including Port Daddy syntax, what the command does, and when to use it.
+- [pd tube - Port Daddy](https://portdaddy.dev/docs/cli/tube): Reference for pd tube, including Port Daddy syntax, what the command does, and when to use it.
 - [pd tunnel - Port Daddy](https://portdaddy.dev/docs/cli/tunnel): Reference for pd tunnel, including Port Daddy syntax, what the command does, and when to use it.
 - [pd tunnel stop - Port Daddy](https://portdaddy.dev/docs/cli/tunnel-stop): Reference for pd tunnel stop, including Port Daddy syntax, what the command does, and when to use it.
 - [pd up - Port Daddy](https://portdaddy.dev/docs/cli/up): Reference for pd up, including Port Daddy syntax, what the command does, and when to use it.
@@ -71,6 +73,7 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 - [Pheromone Trails - Port Daddy](https://portdaddy.dev/docs/features/pheromone): Learn the Port Daddy pheromone trails feature, what problem it solves, and how to use it with agent work.
 - [Port Claims - Port Daddy](https://portdaddy.dev/docs/features/ports): Learn the Port Daddy port claims feature, what problem it solves, and how to use it with agent work.
 - [Radio Messaging - Port Daddy](https://portdaddy.dev/docs/features/radio): Learn the Port Daddy radio messaging feature, what problem it solves, and how to use it with agent work.
+- [Relay PKI - Port Daddy](https://portdaddy.dev/docs/features/relay-pki): Learn the Port Daddy relay pki feature, what problem it solves, and how to use it with agent work.
 - [Remote Coordination - Port Daddy](https://portdaddy.dev/docs/features/remote): Learn the Port Daddy remote coordination feature, what problem it solves, and how to use it with agent work.
 - [Salvage - Port Daddy](https://portdaddy.dev/docs/features/salvage): Learn the Port Daddy salvage feature, what problem it solves, and how to use it with agent work.
 - [Sessions - Port Daddy](https://portdaddy.dev/docs/features/sessions): Learn the Port Daddy sessions feature, what problem it solves, and how to use it with agent work.
@@ -159,6 +162,7 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 - [Map a Monorepo - Port Daddy](https://portdaddy.dev/tutorials/monorepo): Scan a large repo, detect service boundaries, register them in the harbor, and bring the local stack up and down cleanly.
 - [Coordinate Multiple Agents - Port Daddy](https://portdaddy.dev/tutorials/multi-agent): Run two agents in the same harbor with file claims, session notes, conflict visibility, and channel signals.
 - [pd spawn: Launch One-Shot Agents - Port Daddy](https://portdaddy.dev/tutorials/pd-spawn): Start a bounded agent job with sessions, heartbeats, notes, cost telemetry, and salvage wired around the backend.
+- [Pipe Agent Conversations - Port Daddy](https://portdaddy.dev/tutorials/pd-tube): Use PD Tube to send, read, reply, and resume channel conversations as clean JSON lines for scripts and agents.
 - [Use Ambient Attention Signals - Port Daddy](https://portdaddy.dev/tutorials/pheromone): Attach decaying numeric signals to files, sessions, or ideas so agents can prioritize work without extra chat traffic.
 - [Build Reactive Pipelines - Port Daddy](https://portdaddy.dev/tutorials/pipelines): Chain channels, watchers, locks, and spawned agents into event-driven workflows with clear ownership boundaries.
 - [Walk the 11 Product Primitives - Port Daddy](https://portdaddy.dev/tutorials/primitives): Use the Mac app, Fleet Control Center, Shipwright, and CLI checks to see where every public primitive lives.

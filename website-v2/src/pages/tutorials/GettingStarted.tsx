@@ -11,7 +11,7 @@ export function GettingStarted() {
       title="Install the Local Control Plane"
       description="Install Port Daddy, open FleetBar, enter the project harbor, and verify the daemon before agents start work."
       number={2}
-      total={20}
+      total={21}
       level="Beginner"
       readTime="10 min read"
       prev={{
