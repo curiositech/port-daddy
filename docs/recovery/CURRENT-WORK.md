@@ -99,7 +99,7 @@ The `agentsd.ai` public-site reset is now explicit repo work, not chat residue.
   - Dirty worktree snapshots are pushed for root recordings, FCC, PR5
     Tube/PKI UI docs, OG branded social cards, and salvage-autostash
     screenshot proofs.
-  - Reachability sweep preserved seven local-only branch tips under
+  - Reachability sweep preserved eight local-only branch tips under
     `codex/worktree-preserve-20260429-*`.
   - Recovery ledger: `docs/recovery/STASH-WORKTREE-HARVEST-2026-04-29.md`.
 - 2026-04-29 cartographer map refresh:
