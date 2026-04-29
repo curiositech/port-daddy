@@ -6,8 +6,9 @@ import {
   DocsNoteCard,
   PanelBody,
   PanelList,
+  PanelTitle,
 } from '@/components/site/primitives'
-import { EXAMPLE_DOCS } from '@/data/examples'
+import { FEATURED_EXAMPLE, SECONDARY_EXAMPLES } from '@/data/examples'
 
 export function ExamplesPage() {
   return (
@@ -15,21 +16,21 @@ export function ExamplesPage() {
       <main id="main-content" className="mx-auto grid w-full max-w-[var(--layout-max-width-wide)] gap-[var(--space-6)] px-[var(--space-5)] py-[var(--space-6)] lg:px-[var(--space-6)]">
         <DocsHero
           eyebrow="Examples"
-          title="Build local tools that talk to your agents."
-          summary="Run complete Port Daddy examples for browser buttons, incident rooms, handoff inboxes, edit guards, migration runners, service discovery, and recoverable work logs."
+          title="Build tools that can reach your local agent."
+          summary="These are complete executable examples for the thing Port Daddy makes newly easy: a browser, test runner, editor command, or webhook can summon the agent session already running in your repo."
           paragraphs={[
-            'Port Daddy gives local scripts, web pages, and coding agents the same shared substrate: messages, locks, sessions, notes, service names, and file claims.',
-            'Pick the tool you want to build, run its example, then copy the pattern into an editor extension, test reporter, browser page, CI hook, or agent prompt.',
+            'PD Tube is the flagship primitive. It turns local events into a blocking CLI loop with threaded replies, so the publisher stays tiny and the agent runtime stays swappable.',
+            'Pick the tool you want to build, run the source in /examples, then copy the publisher shape into your editor extension, test reporter, browser page, bot adapter, or local control panel.',
           ]}
           aside={
-            <DocsNoteCard label="Start" title="Pick the tool you need." elevation="quiet" padding="compact" titleSize="nav">
+            <DocsNoteCard label="Start" title="Start with the phone line." elevation="quiet" padding="compact" titleSize="nav">
               <PanelBody size="compact" className="max-w-none">
-                Want a button that reaches Claude Code or ChatGPT? Start with PD Tube. Want fewer file collisions?
-                Start with the edit guard. Want safe database changes? Start with the migration runner.
+                If you only read one example, read PD Tube. It is the shape the other examples copy:
+                publish one local event, let the agent act, then render the threaded reply.
               </PanelBody>
               <div className="flex flex-wrap gap-[var(--panel-gap-tight)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
-                <BracketLink to="/docs/examples" tone="blue" side="left">
-                  Read docs/examples
+                <BracketLink to={`/examples/${FEATURED_EXAMPLE.slug}`} tone="blue" side="left">
+                  Open PD Tube
                 </BracketLink>
                 <BracketLink to="/docs/cli" tone="accent" side="right">
                   CLI reference
@@ -39,12 +40,53 @@ export function ExamplesPage() {
           }
         />
 
+        <section aria-label="Featured PD Tube example">
+          <DocsNoteCard
+            label={`${FEATURED_EXAMPLE.eyebrow} / flagship`}
+            title={FEATURED_EXAMPLE.title}
+            elevation="quiet"
+          >
+            <div className="grid gap-[var(--panel-gap)] lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.42fr)]">
+              <div className="space-y-[var(--space-3)]">
+                <PanelTitle as="h2" size="card">
+                  {FEATURED_EXAMPLE.summary}
+                </PanelTitle>
+                <PanelBody className="max-w-[64rem] text-[var(--text-secondary)]">
+                  {FEATURED_EXAMPLE.whyItMatters}
+                </PanelBody>
+                <div className="flex flex-wrap gap-[var(--panel-gap-tight)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
+                  <BracketLink to={`/examples/${FEATURED_EXAMPLE.slug}`} tone="blue" side="left">
+                    Open full source
+                  </BracketLink>
+                  <BracketLink to={`/examples/${FEATURED_EXAMPLE.slug}#source`} tone="accent" side="right">
+                    Jump to source
+                  </BracketLink>
+                </div>
+              </div>
+
+              <div className="space-y-[var(--panel-gap-tight)]">
+                <BracketLabel side="right">What it builds</BracketLabel>
+                <PanelBody size="compact" className="max-w-none">
+                  {FEATURED_EXAMPLE.builds}
+                </PanelBody>
+                <PanelList
+                  items={[
+                    `${FEATURED_EXAMPLE.time} guided read`,
+                    `${FEATURED_EXAMPLE.sourceFiles.length} full source files`,
+                    `${FEATURED_EXAMPLE.commands.length} runnable commands`,
+                  ]}
+                />
+              </div>
+            </div>
+          </DocsNoteCard>
+        </section>
+
         <section className="grid gap-[var(--panel-gap)] lg:grid-cols-12" aria-labelledby="examples-list">
           <div className="lg:col-span-4">
-            <DocsNoteCard label="Catalogue" title="Choose by what you want to build." elevation="quiet" padding="compact" titleSize="nav">
+            <DocsNoteCard label="Catalogue" title="More tools built from the same primitive." elevation="quiet" padding="compact" titleSize="nav">
               <PanelBody size="compact" className="max-w-none">
-                Each page shows the command to run, the files involved, the daemon state it creates, the full source,
-                and the product pattern you can reuse in your own tool.
+                The rest of the catalogue is deliberately narrow: publishers a developer would actually ship.
+                Each page keeps the full source visible and explains how to turn it into product code.
               </PanelBody>
             </DocsNoteCard>
           </div>
@@ -53,7 +95,7 @@ export function ExamplesPage() {
             <h2 id="examples-list" className="sr-only">
               Example catalogue
             </h2>
-            {EXAMPLE_DOCS.map((example, index) => (
+            {SECONDARY_EXAMPLES.map((example, index) => (
               <DocsNoteCard
                 key={example.slug}
                 label={`${example.eyebrow} / ${example.level}`}
@@ -65,6 +107,9 @@ export function ExamplesPage() {
                 <div className="space-y-[var(--space-2)]">
                   <PanelBody className="max-w-[58rem]">{example.summary}</PanelBody>
                   <PanelBody className="max-w-[58rem] text-[var(--text-secondary)]">{example.surveyPlain}</PanelBody>
+                  <PanelBody size="compact" className="max-w-[58rem] text-[var(--text-secondary)]">
+                    Builds: {example.builds}
+                  </PanelBody>
                 </div>
 
                 <div className="grid gap-[var(--panel-gap)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)] md:grid-cols-[minmax(0,1fr)_minmax(16rem,0.42fr)]">

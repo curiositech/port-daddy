@@ -430,25 +430,16 @@
     <loc>https://portdaddy.dev/examples</loc>
   </url>
   <url>
-    <loc>https://portdaddy.dev/examples/dns-service-discovery</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/examples/durable-inbox-lifecycle</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/examples/file-edit-guard</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/examples/migration-lock-guard</loc>
+    <loc>https://portdaddy.dev/examples/editor-lightbulb-to-agent</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/examples/pd-tube-button-to-agent</loc>
   </url>
   <url>
-    <loc>https://portdaddy.dev/examples/session-phase-lifecycle</loc>
+    <loc>https://portdaddy.dev/examples/test-failure-to-agent</loc>
   </url>
   <url>
-    <loc>https://portdaddy.dev/examples/war-room-incident</loc>
+    <loc>https://portdaddy.dev/examples/webhook-to-local-agent</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/integrations</loc>

@@ -69,6 +69,13 @@ export function ExampleDetailPage() {
 
         <div className="grid gap-[var(--space-6)] xl:grid-cols-[minmax(0,1fr)_var(--docs-rail-width)]">
           <div className="space-y-[var(--space-5)]">
+            <DocsNoteCard label="What this builds" title={example.builds} elevation="quiet">
+              <div className="space-y-[var(--panel-gap-tight)]">
+                <PanelBody className="max-w-[60rem]">{example.surveyPlain}</PanelBody>
+                <PanelBody className="max-w-[60rem] text-[var(--text-secondary)]">{example.whyItMatters}</PanelBody>
+              </div>
+            </DocsNoteCard>
+
             <DocsNoteCard label="Prerequisites" title="Before you run it." elevation="quiet">
               <PanelList items={example.prerequisites} />
             </DocsNoteCard>
