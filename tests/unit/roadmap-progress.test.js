@@ -100,11 +100,69 @@ describe('roadmap progress parser', () => {
 
     expect(progress.nextCuts).toHaveLength(1);
     expect(progress.ideasNow.map((entry) => entry.slug)).toEqual(['cartographer-roadmap-progress-screen']);
+    expect(progress.liveFeedback).toEqual([]);
+    expect(progress.feedbackSummary).toBeNull();
     expect(progress.dogfoodFeedback.map((entry) => entry.slug)).toEqual(['coordination-ticker-as-high-signal-feed']);
     expect(progress.currentWorkExcerpt).toContain('Active slice.');
     expect(progress.cartographerStatusExcerpt).toContain('Nominal.');
     expect(progress.warnings).toEqual([]);
     expect(progress.freshness.latestUpdateMs).toEqual(expect.any(Number));
+  });
+
+  test('getRoadmapProgress surfaces live tuple-backed feedback', () => {
+    const root = mkdtempSync(join(tmpdir(), 'pd-roadmap-live-feedback-'));
+    tempDirs.push(root);
+    mkdirSync(join(root, 'docs', 'recovery'), { recursive: true });
+    mkdirSync(join(root, '.cartographer'), { recursive: true });
+    writeFileSync(join(root, 'docs', 'ROADMAP.md'), `# Roadmap\n\n## Next Cuts\n`);
+    writeFileSync(join(root, 'docs', 'recovery', 'IDEAS-TROVE.md'), '# Ideas\n');
+    writeFileSync(join(root, 'docs', 'recovery', 'DOGFOOD-FEEDBACK.md'), '# Feedback\n');
+    writeFileSync(join(root, 'docs', 'recovery', 'CURRENT-WORK.md'), '# Current\n');
+    writeFileSync(join(root, '.cartographer', 'status.md'), '# Status\n');
+
+    const feedback = {
+      list: () => [
+        {
+          feedbackId: 'fb-1',
+          slug: 'cartographer-live-body-salvage-friction',
+          summary: 'Cartographer wake/salvage feedback should affect roadmap truth.',
+          surface: 'CLI',
+          severity: 'high',
+          status: 'open',
+          source: 'agent',
+          suggested: 'Expose the live tuple feedback queue in roadmap progress.',
+          hook: 'operator asks whether Cartographer can listen',
+          droppedBy: 'agent-dfdc92f3',
+          project: 'port-daddy',
+          harbor: 'port-daddy:fleet',
+          at: 1_700_000_000_000,
+          harvestedAt: null,
+          harvestedIntoSlug: null,
+        },
+      ],
+      summary: () => ({
+        total: 1,
+        open: 1,
+        harvested: 0,
+        bySeverity: { low: 0, medium: 0, high: 1, critical: 0 },
+        bySurface: { CLI: 1 },
+      }),
+    };
+
+    const progress = getRoadmapProgress({ rootDir: root, feedback, feedbackHarbor: 'port-daddy:fleet' });
+
+    expect(progress.liveFeedback).toEqual([
+      expect.objectContaining({
+        feedbackId: 'fb-1',
+        slug: 'cartographer-live-body-salvage-friction',
+        status: 'open',
+        severity: 'high',
+        provenance: 'tuple',
+      }),
+    ]);
+    expect(progress.feedbackSummary?.open).toBe(1);
+    expect(progress.sources.feedbackTupleHarbor).toBe('port-daddy:fleet');
+    expect(progress.freshness.latestUpdateMs).toBeGreaterThanOrEqual(1_700_000_000_000);
   });
 
   test('getRoadmapProgress respects .cartographer/config.yml path overrides', () => {

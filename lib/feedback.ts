@@ -73,6 +73,7 @@ export interface FeedbackEntry {
   harbor: string;
   at: number;
   harvestedAt: number | null;
+  harvestedIntoSlug: string | null;
 }
 
 export interface DropFeedbackInput {
@@ -109,6 +110,12 @@ export interface FeedbackDeps {
   now?: () => number;
 }
 
+interface HarvestState {
+  harvestedBy: string | null;
+  harvestedAt: number | null;
+  intoSlug: string | null;
+}
+
 const SEVERITIES: FeedbackSeverity[] = ['low', 'medium', 'high', 'critical'];
 const STATUSES: FeedbackStatus[] = ['open', 'harvested', 'wontfix'];
 const SOURCES: FeedbackSource[] = ['agent', 'human', 'mcp', 'cli', 'unknown'];
@@ -130,6 +137,30 @@ function asEnum<T extends string>(value: string | undefined, allowed: T[], fallb
 export function createFeedback(deps: FeedbackDeps) {
   const { tuples } = deps;
   const now = deps.now ?? (() => Date.now());
+
+  function normalizeEntry(data: unknown): FeedbackEntry | null {
+    if (!data || typeof data !== 'object') return null;
+    const entry = data as FeedbackEntry;
+    return {
+      ...entry,
+      surface: entry.surface ?? null,
+      suggested: entry.suggested ?? null,
+      hook: entry.hook ?? null,
+      project: entry.project ?? null,
+      harvestedAt: typeof entry.harvestedAt === 'number' ? entry.harvestedAt : null,
+      harvestedIntoSlug: entry.harvestedIntoSlug ?? null,
+    };
+  }
+
+  function applyHarvestState(entry: FeedbackEntry, state: HarvestState | undefined): FeedbackEntry {
+    if (!state) return entry;
+    return {
+      ...entry,
+      status: 'harvested',
+      harvestedAt: state.harvestedAt ?? entry.harvestedAt,
+      harvestedIntoSlug: state.intoSlug ?? entry.harvestedIntoSlug,
+    };
+  }
 
   function drop(input: DropFeedbackInput): FeedbackEntry {
     if (!input.slug || typeof input.slug !== 'string') {
@@ -162,6 +193,7 @@ export function createFeedback(deps: FeedbackDeps) {
       harbor,
       at,
       harvestedAt: null,
+      harvestedIntoSlug: null,
     };
 
     tuples.out(['feedback:dropped', feedbackId, entry], {
@@ -176,19 +208,24 @@ export function createFeedback(deps: FeedbackDeps) {
   function findEntry(feedbackId: string, harbor?: string): FeedbackEntry | null {
     const matches = tuples.rd(['feedback:dropped', feedbackId, '*'], { harbor, limit: 1 });
     if (matches.length === 0) return null;
-    const data = matches[0].fields[2];
-    if (!data || typeof data !== 'object') return null;
-    return data as FeedbackEntry;
+    return normalizeEntry(matches[0].fields[2]);
   }
 
-  function listHarvested(harbor?: string): Set<string> {
+  function listHarvested(harbor?: string): Map<string, HarvestState> {
     const matches = tuples.rd(['feedback:harvested', '*', '*'], { harbor, limit: 10000 });
-    const ids = new Set<string>();
+    const states = new Map<string, HarvestState>();
     for (const row of matches) {
       const id = row.fields[1];
-      if (typeof id === 'string') ids.add(id);
+      if (typeof id !== 'string' || states.has(id)) continue;
+      const data = row.fields[2];
+      const payload = data && typeof data === 'object' ? data as Record<string, unknown> : {};
+      states.set(id, {
+        harvestedBy: typeof payload.harvestedBy === 'string' ? payload.harvestedBy : null,
+        harvestedAt: typeof payload.harvestedAt === 'number' ? payload.harvestedAt : null,
+        intoSlug: typeof payload.intoSlug === 'string' ? payload.intoSlug : null,
+      });
     }
-    return ids;
+    return states;
   }
 
   function list(options: ListFeedbackOptions = {}): FeedbackEntry[] {
@@ -196,18 +233,15 @@ export function createFeedback(deps: FeedbackDeps) {
     const limit = options.limit ?? 100;
     const matches = tuples.rd(['feedback:dropped', '*', '*'], { harbor, limit: 10000 });
 
-    const harvestedIds = listHarvested(harbor);
+    const harvested = listHarvested(harbor);
 
     const entries: FeedbackEntry[] = [];
     for (const row of matches) {
-      const data = row.fields[2];
-      if (!data || typeof data !== 'object') continue;
-      const entry = data as FeedbackEntry;
+      const entry = normalizeEntry(row.fields[2]);
+      if (!entry) continue;
       // Reflect harvest state from the harvested-tuple side so we don't
       // need to mutate the original drop tuple (tuples are immutable).
-      const effective: FeedbackEntry = harvestedIds.has(entry.feedbackId)
-        ? { ...entry, status: 'harvested' }
-        : entry;
+      const effective = applyHarvestState(entry, harvested.get(entry.feedbackId));
 
       if (options.status && options.status !== 'all' && effective.status !== options.status) {
         continue;
@@ -228,11 +262,8 @@ export function createFeedback(deps: FeedbackDeps) {
   function get(feedbackId: string, harbor?: string): FeedbackEntry | null {
     const entry = findEntry(feedbackId, harbor);
     if (!entry) return null;
-    const harvestedIds = listHarvested(harbor);
-    if (harvestedIds.has(feedbackId)) {
-      return { ...entry, status: 'harvested' };
-    }
-    return entry;
+    const harvested = listHarvested(harbor);
+    return applyHarvestState(entry, harvested.get(feedbackId));
   }
 
   function harvest(input: HarvestInput): FeedbackEntry {
@@ -259,7 +290,7 @@ export function createFeedback(deps: FeedbackDeps) {
       ],
       { harbor: entry.harbor, writtenBy: input.harvestedBy },
     );
-    return { ...entry, status: 'harvested', harvestedAt: at };
+    return { ...entry, status: 'harvested', harvestedAt: at, harvestedIntoSlug: input.intoSlug ?? null };
   }
 
   function summary(harbor?: string): {

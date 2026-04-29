@@ -22,6 +22,7 @@
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
+import type { Feedback, FeedbackStatus } from '../lib/feedback.js';
 import { getRoadmapProgress } from '../lib/roadmap-progress.js';
 
 interface CartographerDeps {
@@ -30,6 +31,19 @@ interface CartographerDeps {
    * roadmap files from when the request omits `root`.
    */
   daemonDir: string;
+  feedback?: Pick<Feedback, 'list' | 'summary'>;
+}
+
+const FEEDBACK_STATUSES = new Set<FeedbackStatus | 'all'>(['open', 'harvested', 'wontfix', 'all']);
+
+function asString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function asPositiveInt(value: unknown): number | undefined {
+  if (value === undefined || value === null || value === '') return undefined;
+  const parsed = Number.parseInt(String(value), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
 }
 
 export const cartographerPlugin: FastifyPluginAsync<{ deps: CartographerDeps }> = async (
@@ -40,10 +54,22 @@ export const cartographerPlugin: FastifyPluginAsync<{ deps: CartographerDeps }> 
 
   fastify.get('/cartographer/roadmap-progress', async (request: FastifyRequest, reply: FastifyReply) => {
     const q = request.query as Record<string, unknown>;
-    const rootDir = typeof q.root === 'string' && q.root.length > 0 ? q.root : deps.daemonDir;
+    const rootDir = asString(q.root) ?? deps.daemonDir;
+    const feedbackHarbor = asString(q.feedbackHarbor);
+    const feedbackStatusRaw = asString(q.feedbackStatus);
+    const feedbackStatus = feedbackStatusRaw && FEEDBACK_STATUSES.has(feedbackStatusRaw as FeedbackStatus | 'all')
+      ? feedbackStatusRaw as FeedbackStatus | 'all'
+      : undefined;
+    const feedbackLimit = asPositiveInt(q.feedbackLimit);
 
     try {
-      const progress = getRoadmapProgress({ rootDir });
+      const progress = getRoadmapProgress({
+        rootDir,
+        feedback: deps.feedback,
+        feedbackHarbor,
+        feedbackStatus,
+        feedbackLimit,
+      });
       return progress;
     } catch (error) {
       reply.code(500);
