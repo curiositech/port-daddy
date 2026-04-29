@@ -1,5 +1,5 @@
 import { BLUEPRINTS } from './blueprints'
-import { blogPosts, deprecatedBlogPosts } from './blogData'
+import { blogPostMetas as blogPosts, deprecatedBlogPosts } from './blogMetaData'
 import { docsFamilyRoutes, docsOverviewRoute, type DocsFamilyRoute } from './docs-routes'
 import { INTEGRATIONS } from './integrations'
 import { TUTORIALS } from './tutorials'
