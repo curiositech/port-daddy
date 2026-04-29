@@ -322,6 +322,14 @@
     .badge-danger { background: rgba(205, 43, 49, 0.15); color: #e05555; }
     .badge-info { background: rgba(0, 102, 204, 0.15); color: var(--info); }
     .badge-muted { background: rgba(255,255,255,0.05); color: var(--text-muted); }
+    .sev-critical { background: rgba(205, 43, 49, 0.25); color: #ff6b6b; }
+    .sev-high { background: rgba(229, 160, 0, 0.20); color: var(--warning); }
+    .sev-medium { background: rgba(0, 102, 204, 0.18); color: var(--info); }
+    .sev-low { background: rgba(255,255,255,0.05); color: var(--text-muted); }
+    .roadmap-meta .fresh { color: var(--success, #6dd194); }
+    .roadmap-meta .stale-mid { color: var(--warning); }
+    .roadmap-meta .stale-bad { color: var(--danger, #e05555); }
+    .roadmap-meta .warn { color: var(--warning); }
 
     /* ── Two Column Layout ── */
     .two-col {
@@ -869,6 +877,11 @@
         <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-activity"/></svg></span>
         <span class="nav-label">Activity</span>
       </div>
+      <div class="nav-item" data-panel="roadmap" tabindex="0" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-list"/></svg></span>
+        <span class="nav-label">Roadmap</span>
+        <span class="nav-badge" id="badge-roadmap">0</span>
+      </div>
       <div class="nav-item" data-panel="salvage" tabindex="0" role="tab">
         <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"/></svg></span>
         <span class="nav-label">Salvage</span>
@@ -1031,6 +1044,15 @@
       </div>
 
       <!-- Salvage Panel -->
+      <!-- Roadmap Panel: cartographer's curated state + open agent feedback -->
+      <div class="panel" id="panel-roadmap">
+        <div class="panel-header">
+          <div class="panel-title">Roadmap &amp; Feedback</div>
+          <div class="panel-actions"><button class="cmd-btn" onclick="refreshRoadmap()">Refresh</button></div>
+        </div>
+        <div id="roadmap-content"></div>
+      </div>
+
       <div class="panel" id="panel-salvage">
         <div class="panel-header">
           <div class="panel-title">Salvage Queue</div>
@@ -1157,7 +1179,7 @@
       var fn = {
         overview: refreshDashboard, services: refreshServices, agents: refreshAgents,
         sessions: refreshSessions, locks: refreshLocks, channels: refreshChannels,
-        activity: refreshActivity, salvage: refreshSalvage, briefing: refreshBriefing,
+        activity: refreshActivity, roadmap: refreshRoadmap, salvage: refreshSalvage, briefing: refreshBriefing,
         budget: refreshBudget,
         webhooks: refreshWebhooks, projects: refreshProjects, changelog: refreshChangelog,
         config: refreshConfig
@@ -1736,6 +1758,97 @@
       window.addEventListener('DOMContentLoaded', startBudgetSubscriptions);
     }
 
+    /* ── Roadmap & Feedback (FOMO killer) ── */
+    function severityRank(s) { return ({ critical: 3, high: 2, medium: 1, low: 0 })[s] || 0; }
+    function severityClass(s) { return 'sev-' + (s || 'low'); }
+
+    async function refreshRoadmap() {
+      var roadmap = await apiFetch('/cartographer/roadmap-progress');
+      var feedback = await apiFetch('/feedback?status=open&limit=100');
+      var fbList = feedback ? (feedback.feedback || []) : [];
+      var openCount = fbList.length;
+      var nextCuts = roadmap ? (roadmap.nextCuts || []) : [];
+      var ideasNow = roadmap ? (roadmap.ideasNow || []) : [];
+      var dogfood = roadmap ? (roadmap.dogfoodFeedback || []) : [];
+      var freshness = roadmap && roadmap.freshness ? roadmap.freshness : null;
+      var warnings = roadmap ? (roadmap.warnings || []) : [];
+      var badge = document.getElementById('badge-roadmap');
+      if (badge) badge.textContent = String(openCount);
+
+      var hours = freshness && freshness.hoursSinceLastUpdate;
+      var staleClass = hours == null ? '' : (hours < 1 ? 'fresh' : (hours < 24 ? 'stale-mid' : 'stale-bad'));
+      var freshLine = hours == null
+        ? '<span class="muted">cartographer has not yet written</span>'
+        : ('<span class="' + staleClass + '">map updated ' + hours + 'h ago</span>');
+
+      var html = '<div class="roadmap-meta" style="margin-bottom:14px;font-size:12px">' + freshLine;
+      if (warnings.length) html += ' · <span class="warn">' + warnings.length + ' warning(s)</span>';
+      html += '</div>';
+
+      // Open Feedback (severity-sorted)
+      html += '<div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:8px">Open Feedback (' + openCount + ')</div>';
+      if (!fbList.length) {
+        html += '<div class="empty-state" style="margin-bottom:18px"><p>No open feedback. <code>pd feedback drop</code> to add some.</p></div>';
+      } else {
+        fbList.sort(function(a, b) { return severityRank(b.severity) - severityRank(a.severity); });
+        html += '<div class="table-wrap" style="margin-bottom:18px"><table><thead><tr><th>Severity</th><th>Slug</th><th>Surface</th><th>Summary</th><th>Source</th><th></th></tr></thead><tbody>';
+        fbList.forEach(function(e) {
+          html += '<tr><td><span class="badge ' + severityClass(e.severity) + '">' + escHtml(e.severity || 'low') + '</span></td>' +
+            '<td><code>' + escHtml(e.slug) + '</code></td>' +
+            '<td>' + escHtml(e.surface || '—') + '</td>' +
+            '<td>' + escHtml(e.summary || '') + '</td>' +
+            '<td>' + escHtml(e.source || 'unknown') + '</td>' +
+            '<td><button class="btn-sm" onclick="harvestFeedbackEntry(\'' + escHtml(e.feedbackId) + '\')">Harvest</button></td></tr>';
+        });
+        html += '</tbody></table></div>';
+      }
+
+      // Next Cuts
+      html += '<div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:8px">Next Cuts (' + nextCuts.length + ')</div>';
+      if (!nextCuts.length) {
+        html += '<div class="empty-state" style="margin-bottom:18px"><p>Cartographer has not promoted any "Next Cuts" yet.</p></div>';
+      } else {
+        html += '<div style="margin-bottom:18px">';
+        nextCuts.forEach(function(c) {
+          html += '<div style="padding:8px 12px;border-left:3px solid var(--accent);background:var(--surface-subtle);margin-bottom:6px;border-radius:4px">' +
+            '<div style="font-family:monospace;font-size:12px;color:var(--accent);margin-bottom:2px">' + escHtml(c.slug) + '</div>' +
+            '<div style="font-size:13px">' + escHtml(c.summary) + '</div></div>';
+        });
+        html += '</div>';
+      }
+
+      // Curated `now` from IDEAS-TROVE.md
+      if (ideasNow.length) {
+        html += '<div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:8px">Curated · status now (' + ideasNow.length + ')</div>';
+        html += '<ul style="margin-bottom:18px">';
+        ideasNow.forEach(function(i) {
+          html += '<li><code>' + escHtml(i.slug) + '</code>' + (i.surface ? ' · ' + escHtml(i.surface) : '') + (i.hook ? ' — ' + escHtml(i.hook) : '') + '</li>';
+        });
+        html += '</ul>';
+      }
+
+      // Dogfood file feedback (legacy stream)
+      if (dogfood.length) {
+        html += '<div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:8px">Dogfood file stream (' + dogfood.length + ')</div>';
+        html += '<ul>';
+        dogfood.slice(0, 20).forEach(function(d) {
+          html += '<li><code>' + escHtml(d.slug) + '</code> · ' + escHtml(d.status) + (d.surface ? ' · ' + escHtml(d.surface) : '') + '</li>';
+        });
+        html += '</ul>';
+      }
+
+      setHtml('roadmap-content', html);
+    }
+
+    async function harvestFeedbackEntry(id) {
+      var notes = prompt('Harvest notes (optional):');
+      var body = JSON.stringify({ harvestedBy: 'dashboard', notes: notes || undefined });
+      await fetch(API + '/feedback/' + encodeURIComponent(id) + '/harvest', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body
+      });
+      toast('Harvested'); refreshRoadmap();
+    }
+
     async function refreshSalvage() {
       var data = await apiFetch('/salvage/pending');
       var agents = data ? (data.agents || data.pending || []) : [];
@@ -1992,7 +2105,7 @@
           var fn = {
             services: refreshServices, agents: refreshAgents, sessions: refreshSessions,
             locks: refreshLocks, channels: refreshChannels,
-            activity: refreshActivity, salvage: refreshSalvage,
+            activity: refreshActivity, roadmap: refreshRoadmap, salvage: refreshSalvage,
             webhooks: refreshWebhooks, projects: refreshProjects, changelog: refreshChangelog
           };
           if (fn[p]) fn[p]();
