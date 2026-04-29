@@ -13,7 +13,7 @@ const repoDir = path.resolve(websiteDir, '..')
 const outputDir = path.join(websiteDir, 'public/media/landing-live-glory')
 const scenePath = path.join(sceneDir, 'scene.html')
 
-const durationSeconds = 12.4
+const durationSeconds = 15.6
 const framesPerSecond = 18
 const width = 1280
 const height = 720

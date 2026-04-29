@@ -1,21 +1,27 @@
 {
-  "generatedAt": "2026-04-29T15:58:03.587Z",
+  "generatedAt": "2026-04-29T16:35:32.914Z",
   "status": {
-    "activePorts": "21",
+    "activePorts": "23",
     "fleet": "1 project(s), 8 agent(s), 3/8 launchable",
     "runtime": "nominal",
-    "lastActivity": "13s ago",
+    "lastActivity": "9s ago",
     "launchable": "3/8"
   },
   "sessions": [
-    "Apply Cartographer tupl...",
-    "website install CTA chr...",
+    "Commit staged FleetBar ...",
+    "Deploy branch to main",
+    "Commit and push safe cu...",
+    "Commit guard shim and c...",
+    "tutorial shell cleanup",
+    "Commit local website an...",
     "Normalize website safel...",
-    "commit push deploy curr...",
-    "Commit/push/deploy Cart...",
-    "website design-system s...",
-    "Commit, push, and deplo...",
     "Deploy branch to main"
   ],
-  "notes": []
+  "notes": [
+    "Claiming unowned AboutPage for same normalization pattern: remove blur-orb decoration, large rounded CTA/native buttons, and route-local visual styles where a shared Button/flat frame can do the job.",
+    "Second visual check: /templates also resolves to claimed AgentsPage and has mobile horizontal overflow in the top subnav/card frame. I normalized the unclaimed legacy TemplatesPage source, but visible /templates overflow must be handled by the AgentsPage owner or a later claimed slice.",
+    "Deploy proof: stable promotion completed at main@ecc5d9f; daemon PID 64764 serving /Users/erichowens/port-daddy-stable; /cartographer/roadmap-progress returns liveFeedback array and feedbackSummary from tuple primitive.",
+    "[handoff] Developer ID signing wired and verified for FleetBar preview package; notarization support is credential-gated via FLEETBAR_NOTARY_PROFILE.",
+    "Documented website deploy path. Local ignored CLAUDE.md now has full portdaddy.dev Cloudflare Pages commands and smoke checks. Tracked AGENTS.md now has the durable cross-agent deploy rule, committed and pushed to main as c4faf05 from clean worktree /tmp/port-daddy-docs-examples-nuke.Wt02gq. CLAUDE.md remains ignored by .gitignore by repo policy, so it is machine-local guidance."
+  ]
 }

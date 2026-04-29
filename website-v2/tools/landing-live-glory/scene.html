@@ -182,62 +182,22 @@
       }
 
       .menu-bar {
-        display: flex;
-        align-items: center;
-        gap: 22px;
-        height: 44px;
-        padding: 0 20px;
+        height: 70px;
         border-bottom: 2px solid var(--line);
-        background: color-mix(in srgb, var(--panel) 92%, var(--ink));
+        background: #15110f;
       }
 
-      :root[data-theme="dark"] .menu-bar {
-        background: #20201f;
-      }
-
-      .traffic {
-        display: flex;
-        gap: 8px;
-      }
-
-      .traffic span {
-        width: 12px;
-        height: 12px;
-        border-radius: 999px;
-      }
-
-      .traffic span:nth-child(1) { background: #f15f57; }
-      .traffic span:nth-child(2) { background: #f7c64b; }
-      .traffic span:nth-child(3) { background: #57c86b; }
-
-      .menubar-icon {
-        position: relative;
-        display: inline-grid;
-        width: 42px;
-        height: 30px;
-        place-items: center;
-        border-radius: 999px;
-        background: #5c7432;
-      }
-
-      .menubar-icon::before {
-        content: "";
-        width: 16px;
-        height: 20px;
-        border-left: 3px solid #fff7df;
-        border-bottom: 3px solid #fff7df;
-        transform: skewX(-18deg);
-      }
-
-      .menu-copy {
-        color: var(--muted);
-        font-weight: 800;
-        letter-spacing: 0.08em;
+      .menu-bar img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center top;
       }
 
       .popover-stage {
         position: relative;
-        height: calc(100% - 44px);
+        height: calc(100% - 70px);
         background:
           radial-gradient(circle at 18% 20%, color-mix(in srgb, var(--accent-2) 18%, transparent), transparent 32%),
           linear-gradient(135deg, color-mix(in srgb, var(--panel) 72%, var(--bg)), var(--bg));
@@ -245,10 +205,10 @@
 
       .popover-image {
         position: absolute;
-        left: 82px;
+        left: 72px;
         top: 18px;
         width: 430px;
-        height: 540px;
+        height: 516px;
         border: 2px solid color-mix(in srgb, var(--line) 72%, transparent);
         border-radius: 0;
         object-fit: cover;
@@ -259,7 +219,7 @@
       .fleetbar-callout {
         position: absolute;
         left: 566px;
-        top: 112px;
+        top: 92px;
         right: 70px;
         border: 2px solid var(--line);
         background: var(--panel);
@@ -280,6 +240,35 @@
         font-size: 16px;
         font-weight: 800;
         line-height: 1.4;
+      }
+
+      .surface-copy {
+        position: absolute;
+        left: 18px;
+        right: 18px;
+        bottom: 72px;
+        z-index: 3;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        border: 2px solid var(--line);
+        background: var(--panel);
+        color: var(--ink);
+        padding: 13px 16px;
+      }
+
+      .surface-copy strong {
+        display: block;
+        font-size: 15px;
+        line-height: 1.15;
+      }
+
+      .surface-copy span {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 780;
+        line-height: 1.35;
       }
 
       .surface {
@@ -322,7 +311,7 @@
         bottom: 28px;
         z-index: 60;
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(5, 1fr);
         border: 2px solid var(--line);
         background: var(--panel);
       }
@@ -367,16 +356,13 @@
       <section class="capture fleetbar-shell" id="fleetbar" aria-label="FleetBar menu bar app">
         <div class="menu-bar">
           <div class="traffic"><span></span><span></span><span></span></div>
-          <span class="menubar-icon" aria-hidden="true"></span>
-          <span class="menu-copy">FleetBar</span>
-          <span class="menu-copy">Flow</span>
-          <span class="menu-copy">Agents</span>
+          <img id="topbarImage" alt="macOS menu bar with FleetBar icon" />
         </div>
         <div class="popover-stage">
           <img class="popover-image" id="fleetbarImage" alt="FleetBar popover" />
           <div class="fleetbar-callout">
-            <strong>Menu-bar command center.</strong>
-            <span>Daemon report, recent work, touched files, and the Console jump all live in the Mac surface.</span>
+            <strong>FleetBar</strong>
+            <span>Menu-bar app for daemon health, recent agent work, touched files, and the Console jump.</span>
           </div>
         </div>
       </section>
@@ -384,23 +370,41 @@
       <figure class="capture surface" id="flow" aria-label="Fleet Control Center Flow">
         <span class="surface-title">Flow</span>
         <img id="flowImage" alt="Fleet Control Center Flow" />
+        <figcaption class="surface-copy">
+          <strong>Flow maps triggers and publishes.</strong>
+          <span>The graph shows which agents listen, what they emit, and where work moves next.</span>
+        </figcaption>
+      </figure>
+
+      <figure class="capture surface" id="resources" aria-label="Fleet Control Center Resources">
+        <span class="surface-title">Resources</span>
+        <img id="resourcesImage" alt="Fleet Control Center Resources" />
+        <figcaption class="surface-copy">
+          <strong>Resources shows pressure.</strong>
+          <span>Memory, disk, local AI, daemon load, spend, and launch capacity stay visible before the fleet runs hotter.</span>
+        </figcaption>
       </figure>
 
       <figure class="capture surface" id="agents" aria-label="Fleet Control Center Agents">
         <span class="surface-title">Agents</span>
         <img id="agentsImage" alt="Fleet Control Center Agents" />
+        <figcaption class="surface-copy">
+          <strong>Agents ties work back to actors.</strong>
+          <span>Runtime bodies, salvage history, sessions, notes, inboxes, channels, and file claims meet on one page.</span>
+        </figcaption>
       </figure>
 
       <div class="timeline">
         <div class="timeline-step" id="stepTerminal">Terminal</div>
         <div class="timeline-step" id="stepFleetbar">FleetBar</div>
         <div class="timeline-step" id="stepFlow">Flow</div>
+        <div class="timeline-step" id="stepResources">Resources</div>
         <div class="timeline-step" id="stepAgents">Agents</div>
       </div>
     </main>
 
     <script>
-      const DURATION = 12.4
+      const DURATION = 15.6
       const defaultSnapshot = {
         status: {
           activePorts: '21',
@@ -428,9 +432,12 @@
       const terminalBody = document.getElementById('terminalBody')
       const fleetbar = document.getElementById('fleetbar')
       const flow = document.getElementById('flow')
+      const resources = document.getElementById('resources')
       const agents = document.getElementById('agents')
+      const topbarImage = document.getElementById('topbarImage')
       const fleetbarImage = document.getElementById('fleetbarImage')
       const flowImage = document.getElementById('flowImage')
+      const resourcesImage = document.getElementById('resourcesImage')
       const agentsImage = document.getElementById('agentsImage')
       const topStatus = document.getElementById('topStatus')
 
@@ -449,7 +456,15 @@
       }
 
       function mediaAsset(name) {
-        return `../../public/media/landing-live-glory/${name}-${theme}.png`
+        const themed = new Set([
+          'live-flow-graph',
+          'live-resources',
+          'live-agents-panel',
+        ])
+        if (themed.has(name)) {
+          return `../../public/media/landing-live-glory/${name}-${theme}.png`
+        }
+        return `../../public/media/landing-live-glory/${name}.png`
       }
 
       function normalizeSnapshot(snapshot) {
@@ -465,8 +480,10 @@
       function paintStatic() {
         const { status } = state.snapshot
         topStatus.textContent = `daemon ${status.runtime || 'nominal'}`
-        fleetbarImage.src = mediaAsset('fleetbar-popover')
-        flowImage.src = mediaAsset('live-flow')
+        topbarImage.src = mediaAsset('topbar-crop')
+        fleetbarImage.src = mediaAsset(theme === 'dark' ? 'fleetbar-menu-captured' : 'fleetbar-menu-captured')
+        flowImage.src = mediaAsset('live-flow-graph')
+        resourcesImage.src = mediaAsset('live-resources')
         agentsImage.src = mediaAsset('live-agents-panel')
       }
 
@@ -489,7 +506,8 @@
         document.querySelectorAll('.timeline-step').forEach((step) => step.classList.remove('active'))
         if (t < 3.05) document.getElementById('stepTerminal').classList.add('active')
         else if (t < 5.75) document.getElementById('stepFleetbar').classList.add('active')
-        else if (t < 9.1) document.getElementById('stepFlow').classList.add('active')
+        else if (t < 8.45) document.getElementById('stepFlow').classList.add('active')
+        else if (t < 11.9) document.getElementById('stepResources').classList.add('active')
         else document.getElementById('stepAgents').classList.add('active')
       }
 
@@ -502,8 +520,9 @@
         const terminalOut = smooth(3.0, 4.1, t)
         const chromeOut = smooth(5.15, 5.85, t)
         const fleetAlpha = fadeInOut(t, 2.65, 3.5, 5.15, 5.95)
-        const flowAlpha = fadeInOut(t, 5.55, 6.35, 8.75, 9.35)
-        const agentsAlpha = smooth(8.95, 9.75, t)
+        const flowAlpha = fadeInOut(t, 5.55, 6.35, 8.15, 8.75)
+        const resourcesAlpha = fadeInOut(t, 8.35, 9.15, 11.55, 12.15)
+        const agentsAlpha = smooth(11.8, 12.6, t)
 
         paintTerminal(t)
         setTimeline(t)
@@ -517,6 +536,9 @@
 
         flow.style.opacity = String(flowAlpha)
         flow.style.transform = `translate(${(1 - smooth(5.55, 6.35, t)) * 76}px, ${(1 - smooth(5.55, 6.35, t)) * 20}px) scale(${0.95 + smooth(5.55, 6.35, t) * 0.05})`
+
+        resources.style.opacity = String(resourcesAlpha)
+        resources.style.transform = `translate(${(1 - smooth(8.35, 9.15, t)) * 76}px, ${(1 - smooth(8.35, 9.15, t)) * 20}px) scale(${0.95 + smooth(8.35, 9.15, t) * 0.05})`
 
         agents.style.opacity = String(agentsAlpha)
         agents.style.transform = `translate(${(1 - agentsAlpha) * 76}px, ${(1 - agentsAlpha) * 20}px) scale(${0.95 + agentsAlpha * 0.05})`
@@ -536,6 +558,7 @@
       Promise.all([
         fleetbarImage.decode?.().catch(() => undefined) || Promise.resolve(),
         flowImage.decode?.().catch(() => undefined) || Promise.resolve(),
+        resourcesImage.decode?.().catch(() => undefined) || Promise.resolve(),
         agentsImage.decode?.().catch(() => undefined) || Promise.resolve(),
       ]).then(() => renderFrame(0))
 
