@@ -10,6 +10,7 @@ ZIP_PATH="$DOWNLOADS_DIR/$ARTIFACT_NAME"
 CHECKSUM_PATH="$ZIP_PATH.sha256"
 MANIFEST_PATH="$DOWNLOADS_DIR/fleetbar-preview-manifest.json"
 APP_INFO_PLIST_SRC="$FLEETBAR_DIR/FleetBar-Info.plist"
+APP_ICON_SRC="$FLEETBAR_DIR/FleetBar/Resources/FleetBarIcon.icns"
 ARCH="$(uname -m)"
 SIGNING_MODE="${FLEETBAR_SIGNING_MODE:-auto}"
 SIGNING_IDENTITY="${FLEETBAR_SIGNING_IDENTITY:-}"
@@ -23,6 +24,12 @@ fi
 
 if [[ ! -f "$APP_INFO_PLIST_SRC" ]]; then
   echo "Missing FleetBar app metadata: $APP_INFO_PLIST_SRC" >&2
+  exit 1
+fi
+
+if [[ ! -f "$APP_ICON_SRC" ]]; then
+  echo "Missing FleetBar app icon: $APP_ICON_SRC" >&2
+  echo "Regenerate it with: bash scripts/generate-fleetbar-icon.sh" >&2
   exit 1
 fi
 
@@ -92,6 +99,7 @@ APP_BIN="$APP_MACOS/FleetBar"
 mkdir -p "$APP_MACOS" "$APP_RESOURCES"
 cp "$RELEASE_BIN" "$APP_BIN"
 cp "$APP_INFO_PLIST_SRC" "$APP_CONTENTS/Info.plist"
+cp "$APP_ICON_SRC" "$APP_RESOURCES/FleetBarIcon.icns"
 chmod +x "$APP_BIN"
 
 SIGNATURE_LABEL="ad-hoc"

@@ -8,6 +8,7 @@ OUT_DIR="${1:-"$ROOT_DIR/website-v2/public/downloads"}"
 ARCH="${PORT_DADDY_FLEETBAR_ARCH:-$(uname -m)}"
 ZIP_NAME="${PORT_DADDY_FLEETBAR_ZIP:-PortDaddy-FleetBar-macOS-${ARCH}.zip}"
 APP_NAME="FleetBar.app"
+APP_ICON_SRC="$FLEETBAR_DIR/FleetBar/Resources/FleetBarIcon.icns"
 TMP_DIR="$(mktemp -d)"
 
 cleanup() {
@@ -29,6 +30,12 @@ if [[ ! -f "$FLEETBAR_DIR/FleetBar-Info.plist" ]]; then
   exit 1
 fi
 
+if [[ ! -f "$APP_ICON_SRC" ]]; then
+  echo "FleetBar app icon missing: $APP_ICON_SRC" >&2
+  echo "Regenerate it with: bash scripts/generate-fleetbar-icon.sh" >&2
+  exit 1
+fi
+
 APP_BUNDLE="$TMP_DIR/$APP_NAME"
 APP_CONTENTS="$APP_BUNDLE/Contents"
 APP_MACOS="$APP_CONTENTS/MacOS"
@@ -37,6 +44,7 @@ APP_RESOURCES="$APP_CONTENTS/Resources"
 mkdir -p "$APP_MACOS" "$APP_RESOURCES" "$OUT_DIR"
 cp "$RELEASE_BIN" "$APP_MACOS/FleetBar"
 cp "$FLEETBAR_DIR/FleetBar-Info.plist" "$APP_CONTENTS/Info.plist"
+cp "$APP_ICON_SRC" "$APP_RESOURCES/FleetBarIcon.icns"
 chmod +x "$APP_MACOS/FleetBar"
 
 ZIP_PATH="$OUT_DIR/$ZIP_NAME"
