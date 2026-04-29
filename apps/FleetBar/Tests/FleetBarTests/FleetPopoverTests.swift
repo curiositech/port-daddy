@@ -159,4 +159,57 @@ final class FleetPopoverTests: XCTestCase {
         let bosunStatus = try inspected.find(text: bosunReason)
         XCTAssertNil(try bosunStatus.lineLimit())
     }
+
+    func testMenuBarFailurePreservesBoatGlyphAndWarnsByColor() {
+        let store = FleetStore(autoStart: false)
+        store.isDaemonRunning = true
+        store.projects = [
+            project(agents: [
+                agent(name: "cartographer", status: .running),
+                agent(name: "test-hunter", status: .failed),
+            ]),
+        ]
+
+        XCTAssertEqual(store.menuBarIcon, "sailboat.fill")
+        XCTAssertEqual(store.menuBarTone, .warning)
+    }
+
+    func testMenuBarFailedIdleFleetStillPreservesBoatGlyph() {
+        let store = FleetStore(autoStart: false)
+        store.isDaemonRunning = true
+        store.projects = [
+            project(agents: [
+                agent(name: "test-hunter", status: .failed),
+            ]),
+        ]
+
+        XCTAssertEqual(store.menuBarIcon, "sailboat")
+        XCTAssertEqual(store.menuBarTone, .warning)
+    }
+
+    private func project(agents: [FleetAgent]) -> FleetProject {
+        FleetProject(
+            id: "/tmp/port-daddy-test",
+            name: "port-daddy-test",
+            projectDir: "/tmp/port-daddy-test",
+            agents: agents
+        )
+    }
+
+    private func agent(name: String, status: FleetAgent.AgentStatus) -> FleetAgent {
+        FleetAgent(
+            id: "port-daddy-test:fleet:\(name)",
+            name: name,
+            type: .triggered,
+            isConfiguredFleetAgent: true,
+            inboxTarget: nil,
+            status: status,
+            statusReason: nil,
+            queueDepth: 0,
+            lastActivity: nil,
+            lastEvent: nil,
+            lastSummary: nil,
+            recentFiles: []
+        )
+    }
 }
