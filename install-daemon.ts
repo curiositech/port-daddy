@@ -31,6 +31,11 @@ const BOSUN_SOURCE_BINARY: string = join(__dirname, 'core', 'pd-bosun', 'target'
 const BOSUN_BINARY_PATH: string = existsSync(BOSUN_DIST_BINARY) ? BOSUN_DIST_BINARY : BOSUN_SOURCE_BINARY;
 const BOSUN_LOG_PATH: string = join(__dirname, 'pd-bosun.log');
 const BOSUN_ERROR_LOG_PATH: string = join(__dirname, 'pd-bosun-error.log');
+const DARWIN_OPERATOR_TOOL_PATHS = [
+  '/Applications/Codex.app/Contents/Resources',
+  '/opt/homebrew/bin',
+];
+const SYSTEM_TOOL_PATHS = ['/usr/local/bin', '/usr/bin', '/bin', '/usr/sbin', '/sbin'];
 
 // macOS paths
 const PLIST_LABEL: string = 'com.portdaddy.daemon';
@@ -100,6 +105,15 @@ function runCommand(command: string, args: string[], options: Record<string, unk
   };
 }
 
+function servicePath(...requiredDirs: string[]): string {
+  const platformToolPaths = PLATFORM === 'darwin' ? DARWIN_OPERATOR_TOOL_PATHS : [];
+  return [...new Set([
+    ...requiredDirs,
+    ...platformToolPaths,
+    ...SYSTEM_TOOL_PATHS,
+  ].filter(Boolean))].join(':');
+}
+
 // =============================================================================
 // macOS: LaunchAgent plist
 // =============================================================================
@@ -139,7 +153,7 @@ function generatePlist(): string {
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
-        <string>${dirname(TSX_PATH)}:${dirname(NODE_PATH)}:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <string>${servicePath(dirname(TSX_PATH), dirname(NODE_PATH))}</string>
     </dict>
 </dict>
 </plist>`;
@@ -180,7 +194,7 @@ function generateBosunPlist(): string {
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
-        <string>${dirname(BOSUN_BINARY_PATH)}:${dirname(NODE_PATH)}:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <string>${servicePath(dirname(BOSUN_BINARY_PATH), dirname(NODE_PATH))}</string>
     </dict>
 </dict>
 </plist>`;
@@ -305,7 +319,7 @@ Restart=on-failure
 RestartSec=5
 StandardOutput=append:${LOG_PATH}
 StandardError=append:${ERROR_LOG_PATH}
-Environment=PATH=${dirname(TSX_PATH)}:${dirname(NODE_PATH)}:/usr/local/bin:/usr/bin:/bin
+Environment=PATH=${servicePath(dirname(TSX_PATH), dirname(NODE_PATH))}
 
 [Install]
 WantedBy=default.target
@@ -325,7 +339,7 @@ Restart=always
 RestartSec=5
 StandardOutput=append:${BOSUN_LOG_PATH}
 StandardError=append:${BOSUN_ERROR_LOG_PATH}
-Environment=PATH=${dirname(BOSUN_BINARY_PATH)}:${dirname(NODE_PATH)}:/usr/local/bin:/usr/bin:/bin
+Environment=PATH=${servicePath(dirname(BOSUN_BINARY_PATH), dirname(NODE_PATH))}
 
 [Install]
 WantedBy=default.target
