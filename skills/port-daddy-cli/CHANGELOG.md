@@ -1,5 +1,9 @@
 # Port Daddy CLI Skill Changelog
 
+## 2026-04-29
+
+- Expanded Lookout/Documentarian release-surface ownership to include README, docs, website, Mac app/FleetBar documentation, SDK/CLI/MCP/OpenAPI references, and the agent skill.
+
 ## 2026-04-26
 
 - Added first-party skill metadata, license, allowed-tool declaration, and mirror locations.
