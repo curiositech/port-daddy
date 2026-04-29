@@ -2,6 +2,7 @@ import { describe, expect, test } from '@jest/globals';
 import {
   DEFAULT_GUARD_CONFIG,
   evaluateGuardFacts,
+  mergePostCommitHook,
   mergePreCommitHook,
   normalizeGuardConfig,
   ownerQueryPaths,
@@ -167,6 +168,45 @@ describe('Coordination Guard', () => {
     expect(merged).not.toMatch(/^\s*port-daddy guard check --staged --hook$/m);
     // Only one managed block — replacement, not duplication.
     const startMarkers = merged.match(/# >>> Port Daddy Coordination Guard/g) ?? [];
+    expect(startMarkers).toHaveLength(1);
+  });
+
+  test('merges post-commit hook as a non-blocking audit path', () => {
+    const existing = [
+      '#!/usr/bin/env zsh',
+      'echo post commit work',
+      '',
+    ].join('\n');
+
+    const merged = mergePostCommitHook(existing);
+
+    expect(merged).toContain('Port Daddy Coordination Guard');
+    expect(merged).toContain('pd guard check --post-commit --hook || true');
+    expect(merged).toContain('port-daddy guard check --post-commit --hook || true');
+    expect(merged).not.toContain('pd guard check --post-commit --hook || exit $?');
+  });
+
+  test('post-commit hook never blocks (cherry-pick / rebase / revert audit path)', () => {
+    // git's post-commit hook fires on `commit`, `cherry-pick`, `rebase`,
+    // `revert`, and `merge --no-ff` — the only enforcement path for the
+    // commit-creation operations that bypass pre-commit. Per git docs,
+    // post-commit's exit code is ignored ("cannot affect the outcome").
+    // So the block must trail with `|| true` so any non-zero from
+    // `pd guard check` does not surface as a hook script failure.
+    const merged = mergePostCommitHook('');
+    expect(merged).toMatch(/pd guard check --post-commit --hook \|\| true/);
+    expect(merged).not.toMatch(/pd guard check --post-commit --hook(?!\s*\|\|)/);
+    // No `exit 1` after the call — informational only.
+    const guardSection = merged.split('# >>> Port Daddy Coordination Guard')[1] || '';
+    expect(guardSection).not.toMatch(/^\s*exit 1\s*$/m);
+  });
+
+  test('mergePostCommitHook replaces an existing managed post-commit block in place', () => {
+    // Same idempotency contract pre-commit has: re-running `pd guard
+    // install` must not duplicate the post-commit block.
+    const initial = mergePostCommitHook('');
+    const reapplied = mergePostCommitHook(initial);
+    const startMarkers = reapplied.match(/# >>> Port Daddy Coordination Guard/g) ?? [];
     expect(startMarkers).toHaveLength(1);
   });
 });
