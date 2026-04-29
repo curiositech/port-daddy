@@ -17,7 +17,7 @@
  * payload as a single readable artifact and lets us version it.
  */
 
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
 
@@ -131,7 +131,6 @@ export function uninstallGitShim(): { removed: boolean; path: string } {
   if (!existsSync(SHIM_GIT_PATH)) return { removed: false, path: SHIM_GIT_PATH };
   // Remove the shim file. Keep the directory in case other shims live there.
   try {
-    const { unlinkSync } = require('node:fs') as typeof import('node:fs');
     unlinkSync(SHIM_GIT_PATH);
   } catch {
     // Ignore — best effort.

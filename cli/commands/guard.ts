@@ -472,21 +472,30 @@ function printCheckResult(result: GuardCheckResult, options: CLIOptions): void {
   }
 }
 
+export function extractClaimPaths(data: Record<string, unknown>): string[] {
+  const files = Array.isArray(data.claims)
+    ? data.claims
+    : Array.isArray(data.files)
+      ? data.files
+      : [];
+  const paths = new Set<string>();
+  for (const entry of files) {
+    if (entry && typeof entry === 'object') {
+      const record = entry as Record<string, unknown>;
+      const path = record.filePath ?? record.file_path ?? record.path;
+      if (typeof path === 'string' && path.trim()) paths.add(path.trim());
+    }
+  }
+  return Array.from(paths);
+}
+
 async function loadAllActiveClaims(): Promise<string[]> {
   // Pulls every file currently claimed by an active session. Used by the
   // git-shim path: a destructive verb implicates the whole working tree,
   // so the universe of "things at risk" is the union of active claims.
   try {
     const data = await fetchJson('/files');
-    const files = Array.isArray(data.files) ? data.files : [];
-    const paths = new Set<string>();
-    for (const entry of files) {
-      if (entry && typeof entry === 'object') {
-        const path = (entry as Record<string, unknown>).path;
-        if (typeof path === 'string' && path.trim()) paths.add(path.trim());
-      }
-    }
-    return Array.from(paths);
+    return extractClaimPaths(data);
   } catch {
     return [];
   }
