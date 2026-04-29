@@ -37,6 +37,12 @@ export interface ExampleSection {
   paragraphs: string[]
 }
 
+export interface ExampleVisual {
+  src: string
+  webpSrc?: string
+  alt: string
+}
+
 export interface ExampleDoc {
   slug: string
   title: string
@@ -49,6 +55,7 @@ export interface ExampleDoc {
   whyItMatters: string
   lastReviewed: string
   tags: string[]
+  visual: ExampleVisual
   prerequisites: string[]
   files: string[]
   commands: ExampleCommand[]
@@ -57,6 +64,49 @@ export interface ExampleDoc {
   adapt: string[]
   related: Array<{ title: string; href: string }>
 }
+
+const EXAMPLE_VISUALS = {
+  'pd-tube-button-to-agent': {
+    src: '/img/generated/example-pd-tube-button-to-agent.jpg',
+    webpSrc: '/img/generated/example-pd-tube-button-to-agent.webp',
+    alt: 'A physical green button connected by a glowing message tube to a local terminal.',
+  },
+  'test-failure-to-agent': {
+    src: '/img/generated/example-test-failure-to-agent.jpg',
+    webpSrc: '/img/generated/example-test-failure-to-agent.webp',
+    alt: 'A red failed-test signal and diagnostic cable feeding a local agent terminal.',
+  },
+  'editor-lightbulb-to-agent': {
+    src: '/img/generated/example-editor-lightbulb-to-agent.jpg',
+    webpSrc: '/img/generated/example-editor-lightbulb-to-agent.webp',
+    alt: 'An editor selection connected through a bright lightbulb command to a local agent.',
+  },
+  'webhook-to-local-agent': {
+    src: '/img/generated/example-webhook-to-local-agent.jpg',
+    webpSrc: '/img/generated/example-webhook-to-local-agent.webp',
+    alt: 'A local workstation switchboard routing webhook cards into an agent terminal.',
+  },
+  'leader-election': {
+    src: '/img/generated/example-leader-election.jpg',
+    webpSrc: '/img/generated/example-leader-election.webp',
+    alt: 'Small agent modules racing for one illuminated lock that marks the elected leader.',
+  },
+  'p2p-webrtc': {
+    src: '/img/generated/example-p2p-webrtc.jpg',
+    webpSrc: '/img/generated/example-p2p-webrtc.webp',
+    alt: 'Two local agent terminals exchange inbox packets before opening a direct peer link.',
+  },
+  'ephemeral-ci-db': {
+    src: '/img/generated/example-ephemeral-ci-db.jpg',
+    webpSrc: '/img/generated/example-ephemeral-ci-db.webp',
+    alt: 'A temporary database container plugged into a single clean CI port socket.',
+  },
+  'agent-archetypes': {
+    src: '/img/generated/example-agent-archetypes.jpg',
+    webpSrc: '/img/generated/example-agent-archetypes.webp',
+    alt: 'A physical topology board showing star, ring, and arbiter message traces.',
+  },
+} satisfies Record<string, ExampleVisual>
 
 export const EXAMPLE_DOCS: ExampleDoc[] = [
   {
@@ -75,6 +125,7 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
       'This is the lede: the app does not integrate with Claude, OpenAI, MCP, or a hosted webhook. It posts JSON to the local daemon, and the terminal agent already sitting in the repo becomes the worker.',
     lastReviewed: '2026-04-29',
     tags: ['tube', 'browser', 'agent loop', 'messages'],
+    visual: EXAMPLE_VISUALS['pd-tube-button-to-agent'],
     prerequisites: [
       'A running Port Daddy daemon.',
       'A browser that can open a local HTML file.',
@@ -166,6 +217,7 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
       'A test runner is already the moment a developer wants help. This example turns that failure into a structured local event instead of copying logs into chat.',
     lastReviewed: '2026-04-29',
     tags: ['tube', 'tests', 'reporter', 'terminal'],
+    visual: EXAMPLE_VISUALS['test-failure-to-agent'],
     prerequisites: [
       'A running Port Daddy daemon.',
       'tsx for the TypeScript reporter.',
@@ -257,6 +309,7 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
       'Editor integrations often get heavy because they try to host or authenticate the agent. This one only publishes a local event and lets the already-running agent do the work.',
     lastReviewed: '2026-04-29',
     tags: ['tube', 'editor', 'selection', 'dev tools'],
+    visual: EXAMPLE_VISUALS['editor-lightbulb-to-agent'],
     prerequisites: [
       'A running Port Daddy daemon.',
       'A browser that can open a local HTML file.',
@@ -334,6 +387,7 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
       'Most bot demos hide the hard part behind cloud infrastructure. This one shows the small local bridge: POST JSON in, pd tube event out, threaded answer back to the caller.',
     lastReviewed: '2026-04-29',
     tags: ['tube', 'webhooks', 'bots', 'http'],
+    visual: EXAMPLE_VISUALS['webhook-to-local-agent'],
     prerequisites: [
       'A running Port Daddy daemon.',
       'tsx for the local HTTP adapter.',
@@ -425,6 +479,7 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
       'A swarm should not need bespoke leader code per worker. Port Daddy locks let every worker run the same path while the daemon decides who owns the critical section right now.',
     lastReviewed: '2026-04-29',
     tags: ['locks', 'swarm', 'coordination', 'resilience'],
+    visual: EXAMPLE_VISUALS['leader-election'],
     prerequisites: [
       'A running Port Daddy daemon.',
       'tsx for the TypeScript swarm simulation.',
@@ -502,6 +557,7 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
       'High-bandwidth streams should not flow through the coordination daemon. Port Daddy can authorize and record the handshake while WebRTC, WebTransport, or another peer path carries the heavy data.',
     lastReviewed: '2026-04-29',
     tags: ['inbox', 'webrtc', 'signaling', 'p2p'],
+    visual: EXAMPLE_VISUALS['p2p-webrtc'],
     prerequisites: [
       'A running Port Daddy daemon.',
       'tsx for the TypeScript signaling demo.',
@@ -579,6 +635,7 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
       'Port collisions are boring until they waste an afternoon. A semantic claim lets the same CI run get the same port, different runs get different ports, and cleanup release the identity.',
     lastReviewed: '2026-04-29',
     tags: ['ports', 'ci', 'postgres', 'testing'],
+    visual: EXAMPLE_VISUALS['ephemeral-ci-db'],
     prerequisites: [
       'A running Port Daddy daemon.',
       'bash and the pd CLI.',
@@ -656,6 +713,7 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
       'A topology diagram is not enough. Port Daddy makes each transition a message that an operator, watcher, or another agent can inspect after the orchestrator exits.',
     lastReviewed: '2026-04-29',
     tags: ['swarm', 'pubsub', 'arbiter', 'topology'],
+    visual: EXAMPLE_VISUALS['agent-archetypes'],
     prerequisites: [
       'A running Port Daddy daemon.',
       'tsx for the topology publisher.',

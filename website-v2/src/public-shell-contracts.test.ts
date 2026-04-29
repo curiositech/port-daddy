@@ -164,7 +164,7 @@ describe('public shell contracts', () => {
     const paperData = read('./data/whitePapers.ts')
 
     expect(whitepaper).toContain('Research dossier')
-    expect(whitepaper).toContain('The control-plane papers.')
+    expect(whitepaper).toContain('The Port Daddy papers.')
     expect(whitepaper).toContain('Available papers')
     expect(whitepaper).toContain('Argument map')
     expect(whitepaper).toContain('Reading order')

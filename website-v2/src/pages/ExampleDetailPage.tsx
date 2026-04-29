@@ -1,5 +1,6 @@
 import { Navigate, useLocation, useParams } from 'react-router-dom'
 import { Footer } from '@/components/layout/Footer'
+import { ExampleArtwork } from '@/components/examples/ExampleArtwork'
 import {
   BracketAnchor,
   BracketLink,
@@ -67,6 +68,10 @@ export function ExampleDetailPage() {
             </DocsNoteCard>
           }
         />
+
+        <section aria-label={`${example.title} artwork`}>
+          <ExampleArtwork example={example} priority variant="hero" />
+        </section>
 
         <div className="grid gap-[var(--space-6)] xl:grid-cols-[minmax(0,1fr)_var(--docs-rail-width)]">
           <div className="space-y-[var(--space-5)]">

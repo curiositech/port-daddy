@@ -1,4 +1,5 @@
 import { Footer } from '@/components/layout/Footer'
+import { ExampleArtwork } from '@/components/examples/ExampleArtwork'
 import {
   BracketLink,
   BracketLabel,
@@ -91,7 +92,7 @@ export function ExamplesPage() {
             title={FEATURED_EXAMPLE.title}
             elevation="quiet"
           >
-            <div className="grid gap-[var(--panel-gap)] lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.42fr)]">
+            <div className="grid gap-[var(--panel-gap)] lg:grid-cols-[minmax(0,1fr)_minmax(24rem,0.56fr)]">
               <div className="space-y-[var(--space-3)]">
                 <PanelTitle as="h2" size="card">
                   {FEATURED_EXAMPLE.summary}
@@ -110,6 +111,7 @@ export function ExamplesPage() {
               </div>
 
               <div className="space-y-[var(--panel-gap-tight)]">
+                <ExampleArtwork example={FEATURED_EXAMPLE} priority className="mb-[var(--panel-gap)]" />
                 <BracketLabel side="right">What it builds</BracketLabel>
                 <PanelBody size="compact" className="max-w-none">
                   {FEATURED_EXAMPLE.builds}
@@ -194,12 +196,15 @@ export function ExamplesPage() {
                 elevation="quiet"
                 padding="compact"
               >
-                <div className="space-y-[var(--space-2)]">
-                  <PanelBody className="max-w-[58rem]">{example.summary}</PanelBody>
-                  <PanelBody className="max-w-[58rem] text-[var(--text-secondary)]">{example.surveyPlain}</PanelBody>
-                  <PanelBody size="compact" className="max-w-[58rem] text-[var(--text-secondary)]">
-                    Builds: {example.builds}
-                  </PanelBody>
+                <div className="grid gap-[var(--panel-gap)] md:grid-cols-[minmax(20rem,0.48fr)_minmax(0,1fr)]">
+                  <ExampleArtwork example={example} />
+                  <div className="space-y-[var(--space-2)]">
+                    <PanelBody className="max-w-[58rem]">{example.summary}</PanelBody>
+                    <PanelBody className="max-w-[58rem] text-[var(--text-secondary)]">{example.surveyPlain}</PanelBody>
+                    <PanelBody size="compact" className="max-w-[58rem] text-[var(--text-secondary)]">
+                      Builds: {example.builds}
+                    </PanelBody>
+                  </div>
                 </div>
 
                 <div className="grid gap-[var(--panel-gap)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)] md:grid-cols-[minmax(0,1fr)_minmax(16rem,0.42fr)]">
