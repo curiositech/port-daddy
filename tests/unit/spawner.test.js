@@ -808,16 +808,20 @@ describe('list', () => {
 
     const spawnResult = await spawner.spawn({
       backend: 'ollama',
+      name: 'API Test Runner',
       task: 'test',
       identity: 'myapp:api:test',
       purpose: 'Testing the spawner',
     });
+
+    expect(spawnResult.name).toBe('API Test Runner');
 
     const agents = spawner.list();
     expect(agents.length).toBe(1);
     expect(agents[0]).toEqual(
       expect.objectContaining({
         agentId: spawnResult.agentId,
+        name: 'API Test Runner',
         backend: 'ollama',
         model: 'llama3.1:8b',
         status: 'completed',

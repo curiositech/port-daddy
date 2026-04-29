@@ -23,6 +23,7 @@ import type { Harbors } from './harbors.js';
 import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
 import { getSecret } from './secret-env.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
+import { deriveAgentDisplayName } from './agent-names.js';
 
 // ─── Load .env.local for spawned agents ─────────────────────────────────────
 // The daemon runs via launchd which has no shell env. Spawned agents need
@@ -81,6 +82,7 @@ function loadDotenvOnce(): Record<string, string> {
 
 export interface SpawnSpec {
   backend: 'ollama' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'codex' | 'aider' | 'custom';
+  name?: string;        // human-readable display name
   model?: string;
   modelTier?: 'low' | 'mid' | 'high';
   identity?: string;   // PD semantic identity: project:stack:context
@@ -98,6 +100,7 @@ export interface SpawnSpec {
 
 export interface SpawnResult {
   agentId: string;
+  name?: string;
   backend: SpawnSpec['backend'];
   model: string;
   status: 'running' | 'completed' | 'failed' | 'killed';
@@ -118,6 +121,7 @@ export interface SpawnTelemetry {
 
 export interface SpawnedAgent {
   agentId: string;
+  name: string;
   backend: SpawnSpec['backend'];
   model: string;
   status: 'running' | 'completed' | 'failed' | 'killed';
@@ -717,6 +721,13 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     const projectName = getProjectName(spec.identity);
     const defaultHarborName = projectName ? `${projectName}:fleet` : undefined;
     const harborName = spec.harborName || defaultHarborName;
+    const displayName = deriveAgentDisplayName({
+      name: spec.name,
+      purpose: spec.purpose,
+      identity: spec.identity,
+      backend: spec.backend,
+      fallback: agentId,
+    });
     counters?.bump('spawn.started', dims);
 
     // Block until the project has a daily budget set. Without a budget,
@@ -805,6 +816,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     // Register agent record (running)
     const record: AgentRecord = {
       agentId,
+      name: displayName,
       backend: spec.backend,
       model,
       status: 'running',
@@ -837,6 +849,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
 
     await pdCoordinate('/agents', {
       id: agentId,
+      name: displayName,
       identity: spec.identity || null,
       purpose: spec.purpose || spec.task.slice(0, 80),
       metadata: coordinationMetadata,
@@ -845,6 +858,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     // PD coordination: start session
     await pdCoordinate('/sugar/begin', {
       agentId,
+      name: displayName,
       identity: spec.identity || null,
       purpose: spec.purpose || spec.task.slice(0, 80),
       metadata: coordinationMetadata,
@@ -992,6 +1006,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
 
     return {
       agentId,
+      name: displayName,
       backend: spec.backend,
       model,
       status,
@@ -1010,6 +1025,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     cleanupStaleAgents();
     return Array.from(agents.values()).map((r) => ({
       agentId: r.agentId,
+      name: r.name,
       backend: r.backend,
       model: r.model,
       status: r.status,

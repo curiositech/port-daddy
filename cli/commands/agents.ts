@@ -127,6 +127,7 @@ async function runAgentAutopilot(task: string, options: CLIOptions): Promise<voi
   }
 
   const purpose = (options.purpose as string) || task;
+  const name = (options.name as string) || purpose;
   const identity = (options.identity as string) || autoIdentityFromPackageJson() || undefined;
   const allowedTools = options.allowedTools as string | undefined;
   const timeout = options.timeout ? parseInt(options.timeout as string, 10) : undefined;
@@ -159,6 +160,7 @@ async function runAgentAutopilot(task: string, options: CLIOptions): Promise<voi
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       purpose,
+      name,
       identity,
       agentId: options.agent,
       type: 'pd-agent',
@@ -194,6 +196,7 @@ async function runAgentAutopilot(task: string, options: CLIOptions): Promise<voi
         backend: runtime.backend,
         model: runtime.model,
         modelTier: runtime.modelTier,
+        name,
         identity,
         purpose: `pd agent: ${purpose.slice(0, 120)}`,
         task,
@@ -236,8 +239,8 @@ async function runAgentAutopilot(task: string, options: CLIOptions): Promise<voi
     if (failed) ui.error(`pd agent failed: ${String(spawnData.error || 'unknown failure')}`);
     else ui.success('pd agent completed');
     console.error(`  Session: ${sessionId}`);
-    console.error(`  Agent: ${sessionAgentId}`);
-    if (spawnData.agentId) console.error(`  Spawned: ${spawnData.agentId as string}`);
+    console.error(`  Agent: ${beginData.agentName || beginData.name || sessionAgentId}${sessionAgentId ? ` (${sessionAgentId})` : ''}`);
+    if (spawnData.agentId) console.error(`  Spawned: ${spawnData.name || spawnData.agentId}${spawnData.name ? ` (${spawnData.agentId as string})` : ''}`);
     if (spawnData.output && typeof spawnData.output === 'string') {
       console.error('');
       console.error('--- Output ---');

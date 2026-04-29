@@ -612,6 +612,7 @@ Register agent + start session atomically. Rolls back agent registration on fail
 | `purpose` | string | yes | What you're working on |
 | `identity` | string | no | Semantic identity (auto-detected from package.json) |
 | `agentId` | string | no | Agent ID (auto-generated if not provided) |
+| `name` | string | no | Human-readable display name stored beside the technical agent ID |
 | `type` | string | no | Agent type (e.g., 'claude-code') |
 | `files` | string[] | no | Files to claim |
 | `force` | boolean | no | Force file claims even if conflicts |
@@ -621,6 +622,7 @@ Register agent + start session atomically. Rolls back agent registration on fail
 {
   "success": true,
   "agentId": "agent-a1b2c3d4",
+  "agentName": "Auth Repair Lead",
   "sessionId": "session-uuid",
   "identity": "myapp:api",
   "purpose": "Implementing auth",
@@ -666,6 +668,7 @@ Show current agent and session context.
   "success": true,
   "active": true,
   "agentId": "agent-a1b2c3d4",
+  "agentName": "Auth Repair Lead",
   "sessionId": "session-uuid",
   "purpose": "Implementing auth",
   "identity": "myapp:api",
@@ -933,6 +936,7 @@ At the moment, the operator-facing launchable path is the Claude SDK backend wit
 | `modelTier` | string | no | Tier hint: `low`, `mid`, `high` |
 | `identity` | string | yes | Semantic identity (`project:stack:context`) |
 | `budgetUsd` | number | yes | Positive spend ceiling for this launch |
+| `name` | string | no | Human-readable display name for the spawned agent |
 | `purpose` | string | no | Human-readable task description |
 | `task` | string | yes | The task/prompt for the agent |
 | `allowedTools` | string | no | Comma-separated tool list (claude-cli backend only) |
@@ -941,7 +945,7 @@ At the moment, the operator-facing launchable path is the Claude SDK backend wit
 | `timeout` | number | no | Timeout in milliseconds |
 
 **Response (success):**
-- includes normal spawn fields plus `telemetry: { inputTokens, outputTokens, costUsd, rateMode }`
+- includes normal spawn fields, `name` when available, plus `telemetry: { inputTokens, outputTokens, costUsd, rateMode }`
 - `rateMode` is currently `exact` for accepted launches
 
 **Response (precondition failure):**

@@ -66,6 +66,7 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
     try {
       const {
         backend,
+        name,
         model,
         modelTier,
         identity,
@@ -150,6 +151,7 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
 
       if (model && typeof model === 'string') spec.model = model;
       else if (preflight.attempts[0]?.model) spec.model = preflight.attempts[0].model;
+      if (name && typeof name === 'string') spec.name = name;
       if (typeof modelTier === 'string') spec.modelTier = modelTier as FleetModelTier;
       else if (preflight.attempts[0]?.modelTier) spec.modelTier = preflight.attempts[0].modelTier as FleetModelTier;
       if (identity && typeof identity === 'string') spec.identity = identity;

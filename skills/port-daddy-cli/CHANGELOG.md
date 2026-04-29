@@ -1,5 +1,11 @@
 # Port Daddy CLI Skill Changelog
 
+## 2026-04-29
+
+- Documented project-agnostic fleet execution: `pd-fleet.yml` can live in arbitrary repos without requiring target-repo Port Daddy source files or `tsx`.
+- Documented readable agent display names for `pd begin`, `pd agent`, `/sugar/begin`, `/spawn`, and fleet-triggered spawns while keeping technical IDs stable.
+- Added Coordination Guard to the quick command table as the enforceable commit-time coordination path.
+
 ## 2026-04-26
 
 - Added first-party skill metadata, license, allowed-tool declaration, and mirror locations.

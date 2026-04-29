@@ -6,6 +6,11 @@ const mockAssessBackendReadiness = jest.fn(async (backend) => ({
   status: backend === 'claude-cli' ? 'manual_check' : 'ready',
   summary: `${backend} summary`,
   nextStep: backend === 'claude-cli' ? 'Run claude once interactively.' : undefined,
+  credentialKeys: backend === 'claude' ? ['ANTHROPIC_API_KEY'] : [],
+  credentialAlternates: backend === 'gemini' ? ['GOOGLE_API_KEY'] : [],
+  setupCommand: backend === 'claude' ? "printf '\\nANTHROPIC_API_KEY=<paste-value>\\n' >> ~/.port-daddy-env\npd daemon restart" : `setup ${backend}`,
+  setupFiles: backend === 'claude' ? ['~/.port-daddy-env', '.env.local', '.env'] : [],
+  restartRequired: backend === 'claude',
 }));
 
 jest.unstable_mockModule('../../lib/backend-readiness.js', () => ({
@@ -63,6 +68,17 @@ describe('fleet routes /fleet/models', () => {
         modelTiers: { low: 'gpt-5.4-mini', mid: 'gpt-5.3-codex', high: 'gpt-5.4' },
         readinessStatus: 'ready',
         readinessSummary: 'codex summary',
+        setupCommand: 'setup codex',
+      }),
+      expect.objectContaining({
+        id: 'claude',
+        credentialKeys: ['ANTHROPIC_API_KEY'],
+        setupFiles: ['~/.port-daddy-env', '.env.local', '.env'],
+        restartRequired: true,
+      }),
+      expect.objectContaining({
+        id: 'gemini',
+        credentialAlternates: ['GOOGLE_API_KEY'],
       }),
       expect.objectContaining({
         id: 'ollama',
