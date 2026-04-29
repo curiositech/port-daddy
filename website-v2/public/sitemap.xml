@@ -16,9 +16,6 @@
     <loc>https://portdaddy.dev/blog/backend-readiness-is-dependency-truth</loc>
   </url>
   <url>
-    <loc>https://portdaddy.dev/blog/cartographer-navigator-map-truth</loc>
-  </url>
-  <url>
     <loc>https://portdaddy.dev/blog/control-plane-is-the-product</loc>
   </url>
   <url>
@@ -29,6 +26,9 @@
   </url>
   <url>
     <loc>https://portdaddy.dev/blog/pd-tube-event-reply-loop</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/blog/recovery-roadmap-map-truth</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/blog/running-is-not-current</loc>
