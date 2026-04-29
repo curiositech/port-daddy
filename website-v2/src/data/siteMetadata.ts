@@ -106,7 +106,7 @@ const productRoutes: SiteMetadata[] = [
   metadata(
     '/mac-preview',
     'Mac Preview',
-    'Download the FleetBar developer preview and see how the Mac app exposes Fleet Control Center, Shipwright, resources, sorties, backend readiness, and agent communication.',
+    'Download the signed FleetBar Mac build and see how the app exposes Fleet Control Center, Shipwright, resources, sorties, backend readiness, and agent communication.',
   ),
   metadata(
     '/templates',

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Build a zipped FleetBar.app developer preview artifact.
+# Build a zipped FleetBar.app local artifact.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 FLEETBAR_DIR="$ROOT_DIR/apps/FleetBar"
 OUT_DIR="${1:-"$ROOT_DIR/website-v2/public/downloads"}"
 ARCH="${PORT_DADDY_FLEETBAR_ARCH:-$(uname -m)}"
-ZIP_NAME="${PORT_DADDY_FLEETBAR_ZIP:-PortDaddy-FleetBar-macOS-${ARCH}-dev.zip}"
+ZIP_NAME="${PORT_DADDY_FLEETBAR_ZIP:-PortDaddy-FleetBar-macOS-${ARCH}.zip}"
 APP_NAME="FleetBar.app"
 TMP_DIR="$(mktemp -d)"
 
@@ -54,7 +54,7 @@ printf '%s  %s\n' "$SHA" "$ZIP_NAME" > "$ZIP_PATH.sha256"
 cat > "$OUT_DIR/fleetbar-preview-manifest.json" <<JSON
 {
   "name": "Port Daddy FleetBar",
-  "channel": "developer-preview",
+  "channel": "local-build",
   "platform": "macOS",
   "arch": "$ARCH",
   "artifact": "$ZIP_NAME",

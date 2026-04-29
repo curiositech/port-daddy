@@ -40,7 +40,7 @@ export function MacPreviewPage() {
                   </PanelBody>
                   <div className="flex flex-wrap gap-[var(--space-3)]">
                     <Button asChild variant="primary" size="lg">
-                      <a href="/downloads/PortDaddy-FleetBar-macOS-arm64-dev.zip" download>
+                      <a href="/downloads/PortDaddy-FleetBar-macOS-arm64.zip" download>
                         <Download size={16} />
                         Download FleetBar
                         <ArrowRight size={16} />
