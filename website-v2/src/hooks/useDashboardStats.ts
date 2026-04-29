@@ -44,4 +44,3 @@ export function useDashboardStats(interval = 5000) {
 
   return { stats, loading, error, errorKind }
 }
-

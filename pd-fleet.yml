@@ -34,6 +34,14 @@ fleet:
       trigger: git:committed
       backend: ollama
       model: qwen2.5-coder:7b
+      # Don't carpet-bomb on a flurry of commits. 15min floor matches the
+      # user's "trigger every X but no more than every 15 minutes" rule.
+      cooldown_ms: 900000
+      dedupe_window_ms: 1800000
+      fallbacks:
+        - backend: ollama
+          model: qwen2.5-coder:14b
+        - backend: claude-cli
       singleton: true
       allowedTools: "Read,Grep,Glob,Bash(npm test*)"
       prompt: |
@@ -81,6 +89,13 @@ fleet:
       trigger: git:committed
       backend: codex
       model: gpt-5.4-mini
+      cooldown_ms: 900000
+      dedupe_window_ms: 1800000
+      # If Codex credits are out, slide to local Ollama, then claude-cli OAuth.
+      fallbacks:
+        - backend: ollama
+          model: qwen2.5-coder:14b
+        - backend: claude-cli
       singleton: true
       allowedTools: "Read,Grep,Glob,Write,Bash(npm test*)"
       prompt: |
@@ -122,6 +137,10 @@ fleet:
       dedupe_window_ms: 43200000
       backoff_base_ms: 300000
       backoff_max_ms: 3600000
+      fallbacks:
+        - backend: ollama
+          model: qwen2.5-coder:14b
+        - backend: claude-cli
       allowedTools: "Read,Grep,Glob,Write,Edit"
       prompt: |
         You are Lookout / Documentarian. Promotion just passed the
@@ -133,8 +152,9 @@ fleet:
         candidate. Do not broaden into unrelated cleanup. Do not spawn
         other agents unless the operator explicitly escalates.
 
-        You maintain ALL documentation for Port Daddy — both the daemon
-        docs and the website.
+        You maintain ALL release-surface documentation for Port Daddy:
+        daemon docs, README, CLI/SDK/MCP/OpenAPI references, website content,
+        the FleetBar macOS app story, and the distributed agent skill.
 
         DAEMON DOCS — check these match the actual code:
         - CLAUDE.md (architecture, API table, key patterns)
@@ -142,6 +162,9 @@ fleet:
         - CHANGELOG.md (version history)
         - features.manifest.json (parity enforcement)
         - docs/sdk.md (SDK reference)
+        - docs/openapi.yaml (HTTP API contract)
+        - docs/DELEGATION-MODES.md and recovery docs when delegation/runtime
+          behavior changes
 
         SKILL — the Claude/agent skill at skills/port-daddy-cli/:
         - SKILL.md — the main skill file. Must reflect current features.
@@ -165,6 +188,14 @@ fleet:
         - landing + product data: components/landing/*.tsx, data/product.ts,
           data/tutorials.ts, data/hero-copy.ts
 
+        MAC APP / FLEETBAR DOCS:
+        - README install/download instructions and screenshots
+        - website Mac app, FleetBar, download, and cold-start sections
+        - apps/FleetBar user-facing behavior that changes setup, readiness,
+          project switching, touched-file actions, or control-plane embedding
+        - docs/reports or product-proof artifacts that website/README copy
+          relies on
+
         For new features that have daemon code but no website docs:
         1. Check if a CLI command page exists for the feature
         2. Check if the feature appears in the docs sidebar (DocsLayout.tsx)
@@ -179,13 +210,16 @@ fleet:
         - The daemon defaults to localhost:9876, but docs should mention discovery
           through pd status / PORT_DADDY_URL instead of pretending 9876 is universal
 
-        Code is truth. Docs follow. Skill follows docs. Website follows docs.
+        Code and live product behavior are truth. Docs follow. Skill follows
+        docs. Website and Mac app copy follow docs. README stays usable for a
+        new operator.
         If every release surface is already current, report CLEAN with
         the source SHA and the surfaces checked.
 
         Coordination posture:
         - Lookout should not force agents to talk.
-        - Detect contradictions across docs, skill, website, OpenAPI, CLI help,
+        - Detect contradictions across docs, README, skill, website, OpenAPI,
+          CLI help, SDK/MCP references, FleetBar/macOS app UX,
           FleetBar/control-plane UX, API auth/security posture, trust
           boundaries, product language, and active recovery notes.
         - Publish only material release-surface inconsistencies to
@@ -196,6 +230,12 @@ fleet:
       trigger: git:committed
       backend: codex
       model: gpt-5.4-mini
+      cooldown_ms: 900000
+      dedupe_window_ms: 1800000
+      fallbacks:
+        - backend: ollama
+          model: qwen2.5-coder:14b
+        - backend: claude-cli
       singleton: true
       worktree: true
       allowedTools: "Read,Grep,Glob,Edit,Bash(npm test*)"
@@ -221,7 +261,11 @@ fleet:
       model: gpt-5.4-mini
       timeout: 900000
       singleton: true
-      allowedTools: "Read,Grep,Glob,Write"
+      fallbacks:
+        - backend: ollama
+          model: qwen2.5-coder:14b
+        - backend: claude-cli
+      allowedTools: "Read,Grep,Glob,Write,Bash(pd feedback*),Bash(pd ideas*)"
       prompt: |
         You are the Cartographer — you maintain the map between what
         we've planned, what we've built, and what remains.
@@ -242,6 +286,12 @@ fleet:
         12. .spark/ideas/ and .spider/connections/ — research exhaust
             (read-only; Spark/Spider own the dedupe; you only promote
             from IDEAS-TROVE.md, never from raw files).
+        13. `pd feedback list --status open --json` — daemon-mediated
+            agent feedback (the new structured surface; complements the
+            file-based .spark/feedback/ stream). Treat this as authoritative
+            for entries dropped by agents/MCP/CLI in the last 30 days.
+            If the command is unavailable (older daemon), fall back to
+            the .spark/feedback/ harvest only — do not crash.
 
         Then update docs/V4-UNIFIED-ROADMAP.md:
         - Move items from "NEXT" to "COMPLETE" if they were committed
@@ -260,6 +310,23 @@ fleet:
           and add a `roadmap:` backref on the curated entry.
         - Leave raw .spark/feedback/*.md files in place as provenance.
           Never edit another agent's raw drop.
+
+        Auto-promote daemon feedback (`pd feedback`):
+        - Run `pd feedback list --status open --json` to pull structured
+          drops. Each entry has feedbackId, severity, status, surface,
+          summary, source, droppedAt.
+        - For every `severity: critical` or `severity: high` entry, mint
+          (or extend) the matching slug in DOGFOOD-FEEDBACK.md with
+          `status: now` and a "via pd feedback" provenance pointer that
+          includes the feedbackId. Add a "Next Cuts" line in ROADMAP.md.
+        - For `medium`, mint at `status: backlog` (skip if already covered).
+        - For `low`, append a one-line bullet to the curated entry's
+          provenance only — don't mint new slugs.
+        - After promoting an entry, run
+          `pd feedback harvest <feedbackId> --notes "promoted to ROADMAP.md as <slug>"`
+          so the daemon record reflects the harvest.
+        - If `pd feedback` is unavailable, skip this block entirely; do
+          not abort the rest of the cartographer pass.
 
         Also maintain docs/recovery/CURRENT-WORK.md and .cartographer/status.md with:
         - Current phase (which phase has the most active work)
@@ -292,6 +359,8 @@ fleet:
       backend: ollama
       model: qwen2.5-coder:14b
       singleton: true
+      fallbacks:
+        - backend: claude-cli
       allowedTools: "Read,Grep,Glob,Write,Bash(pd ideas*)"
       prompt: |
         You are Spark, the idea engine for Port Daddy.
@@ -340,6 +409,8 @@ fleet:
       backend: ollama
       model: qwen2.5-coder:14b
       singleton: true
+      fallbacks:
+        - backend: claude-cli
       allowedTools: "Read,Grep,Glob,Write,Bash(pd ideas*)"
       prompt: |
         You are Spider, the connection engine for Port Daddy.
@@ -405,11 +476,21 @@ fleet:
       identity: "{project}:fleet:spider"
 
   watchers:
+    # 9876, not 9877. Was a port typo that silently dropped every qa:findings.
     notify-findings:
       trigger: qa:findings
-      exec: "echo 'QA found issues' | curl -s -X POST http://localhost:9877/notes -H
-        'Content-Type: application/json' -d '{\"content\":\"QA agent found
-        issues — check qa:findings channel\",\"type\":\"warning\"}'"
+      exec: "curl -fsS -X POST http://localhost:9876/notes
+        -H 'Content-Type: application/json'
+        -d '{\"content\":\"QA agent found issues — check qa:findings channel\",\"type\":\"warning\"}'
+        > /dev/null 2>&1 || true"
+
+    # Append every coordination:inconsistency event to a recovery doc so the
+    # operator has a single durable place to scan cross-agent conflicts.
+    coordination-log:
+      trigger: coordination:inconsistency
+      exec: "mkdir -p docs/recovery &&
+        printf '\\n## %s\\n\\n```\\n%s\\n```\\n' \"$(date -u '+%Y-%m-%dT%H:%M:%SZ')\" \"${PD_MESSAGE_CONTENT:-${PD_MESSAGE:-empty}}\"
+        >> docs/recovery/COORDINATION-LOG.md"
 
   channels:
     git:committed:
@@ -418,13 +499,14 @@ fleet:
 
     promotion:release-surfaces:
       description: "Fired by promote-stable after tests pass and before stable merge;
-        asks Lookout/Documentarian to sync README, website, SDK, CLI, tutorials,
-        OpenAPI, MCP, and agent skill surfaces"
+        asks Lookout/Documentarian to sync README, docs, website, Mac app/FleetBar
+        docs, SDK, CLI, tutorials, OpenAPI, MCP, and agent skill surfaces"
       external_producer: scripts/promote-stable.sh
       consumers: [ documentarian ]
 
     git:status:
-      description: "Gardener reports on uncommitted changes"
+      description: "Gardener reports on uncommitted changes (no live consumers;
+        operator-readable for ad-hoc dashboard / debugging)"
 
     qa:clean:
       description: "QA found no issues"
@@ -440,9 +522,12 @@ fleet:
         drift, UI/UX contradictions, release-surface drift, and budget/spawn
         risks. Routine progress belongs in notes, not here."
       external_producer: agents/manual callouts
+      consumers: [ coordination-log ]
 
     spark:idea:
       description: "Spark proposed a new feature idea"
+      consumers: [ spider ]
 
     spider:connections:
-      description: "Spider found new combinatorial possibilities between features"
+      description: "Spider found new combinatorial possibilities between features
+        (cartographer harvests on its 30-min schedule, no live trigger consumer)"

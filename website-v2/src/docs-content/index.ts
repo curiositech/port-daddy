@@ -1,7 +1,6 @@
 import { getStartedSection } from './getStarted'
 import { bestPracticesSection } from './bestPractices'
 import { conceptsSection } from './concepts'
-import { examplesSection } from './examples'
 import { tutorialsSection } from './tutorials'
 import { referenceArchitecturesSection } from './referenceArchitectures'
 import { referenceSection } from './reference'
@@ -10,7 +9,6 @@ export {
   getStartedSection,
   bestPracticesSection,
   conceptsSection,
-  examplesSection,
   tutorialsSection,
   referenceArchitecturesSection,
   referenceSection,
@@ -27,7 +25,6 @@ export const docsContentSections = [
   getStartedSection,
   conceptsSection,
   bestPracticesSection,
-  examplesSection,
   tutorialsSection,
   referenceArchitecturesSection,
   referenceSection,

@@ -76,7 +76,7 @@ Use this table when the happy path reveals a specific need:
 | Exclusive critical section | `pd with-lock <resource> -- <command>` | Use for migrations, promotion, generated artifacts, and non-mergeable work. |
 | Crash or abandoned work | `pd salvage --project <project>` / `pd salvage --summary` | Read before restarting work someone may have half-finished; use summary mode when the queue is noisy. |
 | Roadmap or what-next truth | `pd actor cartographer` / `pd actor navigator --inbox` | Ask the durable roadmap actor; docs are evidence, not the actor. |
-| Skill/docs/API drift | `pd actor lookout --message` | Queue release-surface drift for the durable docs/skill owner. |
+| Skill/docs/API drift | `pd actor lookout --message` | Queue release-surface drift for the durable docs/README/website/Mac-app/skill owner. |
 | Machine-readable handoff | `pd tuple out ...` | Use only when another process/agent should query it. |
 | Direct message | `pd inbox send` or `pd actor <id> --message` | Use when you know the recipient; use `pd actor <id> --inbox --mark-read` only after the role mail has been processed. |
 | Catch up after time away | `pd look` / `pd sitrep` | Read recent activity instead of scraping logs manually. |
@@ -152,7 +152,8 @@ pd actor navigator --inbox --unread
 
 `cartographer` is a compatibility alias for the durable `navigator` actor.
 Navigator owns roadmap, recovery-ledger, work-slice, and cartographer-status
-truth. Lookout owns docs, OpenAPI, skill, and product-truth drift.
+truth. Lookout owns docs, README, OpenAPI, SDK/MCP/CLI references, website,
+Mac app/FleetBar documentation, skill, and product-truth drift.
 
 Use actor messages when the durable role should update or arbitrate:
 
@@ -213,6 +214,39 @@ needed. Do not begin by browsing every available tool.
   updates.
 - Use **agents/sorties/fleets** for delegation, not as a substitute for a clear
   local session.
+
+## Git Hygiene For Shared Trees
+
+The shared working tree is a coordination surface, not a private workspace.
+Multiple sessions can have uncommitted edits and untracked files in it at any
+moment. The failure mode is silent: an agent stashes another session's WIP,
+commits over a clean-looking HEAD, and the next agent fetches `origin` and
+"reverts" the hidden work without knowing it existed.
+
+- **Never `git stash` to clear another session's WIP before your commit.**
+  Auto-stashing hides other agents' work from `git status`. The next agent
+  sees a clean HEAD, starts from `origin`, and produces the "agents keep
+  reverting" UX. The work isn't lost — it's hidden — but recovery costs more
+  than the original commit. If the tree has WIP you didn't put there, use a
+  worktree.
+- **Use a `git worktree` when any other Port Daddy session has uncommitted or
+  claimed files in your working set.** Check `pd files` and `git status`
+  before every write op. Pattern: `git worktree add ../<repo>-<task> -b
+  <branch> origin/<base>` → edit → commit → push → merge or hand off.
+- **Rebase on `origin/<branch>` immediately before each commit.** Stale HEAD
+  is the most common source of agent merge conflicts. Fetch is cheap.
+- **Push after every commit.** Small commits, frequent pushes, fast
+  convergence. Origin is the only durable surface — local stash and local
+  commits can be reset away by another agent.
+- **Never bypass the `pre-commit` Coordination Guard.** If guard blocks you,
+  the block is information: another session owns those files. Switch to a
+  worktree, `pd salvage claim` the dead session that holds the claim, or
+  coordinate via note/actor message. Don't `--no-verify`; don't write a
+  commit-body line announcing the bypass.
+- **Convergence is via push + merge-queue, not via tree-stomping.** The
+  merge-queue (`/merge/*` routes, default-FIFO orchestrator plugin) is the
+  mechanism for combining parallel work. Stash-and-commit on a shared tree
+  is the anti-pattern that necessitated this section.
 
 ## Advanced Surfaces
 
@@ -359,7 +393,7 @@ curl "$PD_URL/fleet/events"       # SSE lifecycle stream
 
 The starter fleet includes: **QA** (bug hunting), **Documentarian / Lookout** (promotion-time release-surface sync), **Cartographer** (roadmap tracking), **Spark** (idea generation), **Spider** (cross-feature connections).
 
-For Port Daddy's own repo, `./scripts/promote-stable.sh` emits a `promotion:release-surfaces` tuple and pub/sub signal after tests pass and before the stable merge. Documentarian listens there, with singleton/cooldown/dedupe/backoff controls, so README, website docs/tutorials, SDK/CLI references, OpenAPI/MCP, and this skill are checked at the moment they become operator-facing truth instead of on every low-signal commit.
+For Port Daddy's own repo, `./scripts/promote-stable.sh` emits a `promotion:release-surfaces` tuple and pub/sub signal after tests pass and before the stable merge. Documentarian listens there, with singleton/cooldown/dedupe/backoff controls, so README, docs, website docs/tutorials, Mac app/FleetBar install and product copy, SDK/CLI references, OpenAPI/MCP, and this skill are checked at the moment they become operator-facing truth instead of on every low-signal commit.
 
 `pd fleet status` now surfaces backend readiness and sandbox-sensitive local execution hints so users can see install/auth/permission blockers before a fleet run fails.
 

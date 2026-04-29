@@ -10,7 +10,7 @@ const projectRoot = resolve(websiteRoot, '..')
 const outputDir = resolve(websiteRoot, 'public/img/generated')
 const manifestPath = resolve(outputDir, 'manifest.json')
 const apiUrlBase = 'https://generativelanguage.googleapis.com/v1beta/models'
-const model = process.env.GEMINI_IMAGE_MODEL ?? 'gemini-3.1-flash-image-preview'
+const model = process.env.GEMINI_IMAGE_MODEL ?? 'gemini-2.5-flash-image'
 const jpegQuality = '82'
 const webpQuality = '82'
 
@@ -20,7 +20,17 @@ Port Daddy visual identity direction:
 - Visual language: Swiss-modern editorial infrastructure diagram, precise grid, crisp thin rules, architectural drawing discipline, tactile paper grain, deep ink, technical blue, restrained lime, quiet warm off-white.
 - Must not include people, sailors, boats, harbors, docks, nautical costumes, mascots, emojis, fake testimonials, readable brand logos, glossy stock-photo styling, bubbly extruded SaaS UI, pill-heavy dashboards, purple-blue gradients, or random surrealism.
 - Do not render visible words, letters, numbers, labels, headings, UI copy, brand marks, or fake code. Use abstract ticks, short lines, and geometric marks only.
+- If a module would normally need a label, leave it blank or represent it with non-letter geometric marks only. No Latin alphabet, pseudo text, interface labels, captions, chart labels, axis labels, or legible symbols anywhere.
 - Make it feel premium, serious, current, and operational.
+`.trim()
+
+const sharedExampleDirection = `
+Port Daddy example artwork direction:
+- Subject: runnable local-first developer tools built on Port Daddy: browser buttons, terminal agents, test failures, editor selections, webhooks, locks, inboxes, CI services, and swarm topology traces.
+- Visual language: colorful Nano Banana editorial image, slightly photo-real and collage-like, tactile objects on a precise Swiss-modern grid, photographed paper cutouts, real desk materials, crisp shadows, cinematic product lighting, technical blue, signal green, coral, amber, and deep ink.
+- Make every image obviously about the specific example idea. Use recognizable objects and scenes, not generic abstract diagrams.
+- Do not include people, faces, hands, mascots, nautical objects, fake logos, product brand logos, readable words, readable code, captions, labels, numbers, or UI copy. If screens appear, make the marks abstract and illegible.
+- Avoid purple-blue gradient mush, bubbly SaaS clay, random surrealism, and icon-only illustrations. These should feel like photographed engineering artifacts and high-end editorial collages.
 `.trim()
 
 const assets = [
@@ -129,6 +139,223 @@ ${sharedDirection}
 Create a supporting editorial illustration for Shipwright designing a starter agent fleet for an arbitrary software repo.
 Composition: a repo survey map branching into proposed roles, model tiers, budget gates, trigger lanes, simulation traces, and a final YAML-like plan represented only as abstract line blocks.
 No readable text, no code, no file names, no people, no nautical imagery, no cartoon robots, no visible words, no letters, no numbers.
+`.trim(),
+  },
+  {
+    id: 'example-pd-tube-button-to-agent',
+    filename: 'example-pd-tube-button-to-agent.jpg',
+    aspectRatio: '16:9',
+    imageSize: '1K',
+    prompt: `
+${sharedExampleDirection}
+
+Create artwork for an executable example called "Build a button-to-agent loop with PD Tube".
+Scene: a tactile localhost control button on a workbench is connected by a glowing translucent message tube to an open terminal window on a developer workstation. Small reply cards travel back through the same tube. The button should feel physical and clickable; the terminal should be recognizable but contain only abstract unreadable marks.
+Composition: dynamic diagonal from button to terminal, rich color accents, paper collage layers, shallow depth of field, crisp shadows, premium editorial product photography.
+No visible words, letters, numbers, brand logos, people, hands, faces, nautical objects, or readable UI.
+`.trim(),
+  },
+  {
+    id: 'example-test-failure-to-agent',
+    filename: 'example-test-failure-to-agent.jpg',
+    aspectRatio: '16:9',
+    imageSize: '1K',
+    prompt: `
+${sharedExampleDirection}
+
+Create artwork for an executable example called "Build a test reporter that asks the agent for help".
+Scene: a red failed-test signal lamp, a crumpled terminal printout with unreadable red and white marks, and a small diagnostic relay cable leading into an agent terminal module. Make it clear that a failed test has become a structured work request.
+Composition: close-up collage on a dark desk, red failure light balanced with blue-green repair signals, realistic paper texture, small glass magnifier, tight engineering mood.
+No readable text, words, code, numbers, people, hands, logos, or cartoon robots.
+`.trim(),
+  },
+  {
+    id: 'example-editor-lightbulb-to-agent',
+    filename: 'example-editor-lightbulb-to-agent.jpg',
+    aspectRatio: '16:9',
+    imageSize: '1K',
+    prompt: `
+${sharedExampleDirection}
+
+Create artwork for an executable example called "Build an editor lightbulb that asks the local agent".
+Scene: a code editor window represented by abstract unreadable line blocks, a bright yellow lightbulb command hovering beside a highlighted selection, and a cable or beam carrying the selection into a local terminal-agent module.
+Composition: colorful but precise editorial collage, paper cutout editor panels, warm light from the bulb, blue selection glow, clean grid, tactile desk surface.
+No readable words, letters, numbers, actual code, product logos, people, hands, or faces.
+`.trim(),
+  },
+  {
+    id: 'example-webhook-to-local-agent',
+    filename: 'example-webhook-to-local-agent.jpg',
+    aspectRatio: '16:9',
+    imageSize: '1K',
+    prompt: `
+${sharedExampleDirection}
+
+Create artwork for an executable example called "Build a webhook adapter backed by your workstation".
+Scene: a local workstation acting like a compact switchboard. Generic colored incoming webhook cards from chat, issue tracker, and bot systems plug into a localhost adapter box, then route into a terminal-agent module.
+Composition: collage of cables, colored cards, tiny server box, desk switchboard, strong depth and shadows, obviously local and developer-tool oriented.
+No readable words, letters, numbers, brand logos such as Slack, Discord, Linear, GitHub, people, faces, hands, or fake UI text.
+`.trim(),
+  },
+  {
+    id: 'example-leader-election',
+    filename: 'example-leader-election.jpg',
+    aspectRatio: '16:9',
+    imageSize: '1K',
+    prompt: `
+${sharedExampleDirection}
+
+Create artwork for an executable example called "Elect one leader from a local agent swarm".
+Scene: several identical small agent modules on a tabletop race toward a single brass lock and coordinator token. Exactly one module is lit signal green and holds the lock; the others are paused as followers.
+Composition: photoreal miniature engineering diorama, colorful wires, strict grid shadows, dramatic but clear single-winner focus, no anthropomorphic characters.
+No readable text, numbers, letters, people, hands, faces, logos, crowns with writing, nautical objects, or cartoon robots.
+`.trim(),
+  },
+  {
+    id: 'example-p2p-webrtc',
+    filename: 'example-p2p-webrtc.jpg',
+    aspectRatio: '16:9',
+    imageSize: '1K',
+    prompt: `
+${sharedExampleDirection}
+
+Create artwork for an executable example called "Build WebRTC signaling over agent inboxes".
+Scene: two local agent terminals exchange small envelope-like signaling packets through durable inbox trays, then a brighter direct peer-to-peer beam connects them above the inbox path. Make offer-answer-rendezvous legible through objects, not text.
+Composition: split-screen desk collage, two machines, two inbox trays, colored packet cards, one direct luminous connection, technical and precise.
+No readable words, code, letters, numbers, brand logos, people, hands, faces, or cartoon robots.
+`.trim(),
+  },
+  {
+    id: 'example-ephemeral-ci-db',
+    filename: 'example-ephemeral-ci-db.jpg',
+    aspectRatio: '16:9',
+    imageSize: '1K',
+    prompt: `
+${sharedExampleDirection}
+
+Create artwork for an executable example called "Claim a collision-free port for an ephemeral CI database".
+Scene: a temporary database container on a CI workbench plugs into one clean colored port socket while other nearby port sockets stay unoccupied. The database should feel like a portable test service with a stable cable label shape but no readable label.
+Composition: photoreal technical collage, miniature container, database cylinder, clean cable routing, amber and green status lights, local testing bench.
+No Docker logo, Postgres logo, readable text, letters, numbers, code, people, hands, faces, or fake UI.
+`.trim(),
+  },
+  {
+    id: 'example-agent-archetypes',
+    filename: 'example-agent-archetypes.jpg',
+    aspectRatio: '16:9',
+    imageSize: '1K',
+    prompt: `
+${sharedExampleDirection}
+
+Create artwork for an executable example called "Publish an agent topology trace".
+Scene: a tabletop pinboard or wallboard showing three physical topology models: a star network, a ring handoff loop, and an arbiter gate. Colored thread and small event cards show messages moving between agent nodes.
+Composition: high-end editorial collage, bright colored pins, paper layers, precise geometric topology, obvious event traces, crisp shadows.
+No readable words, labels, letters, numbers, people, hands, faces, logos, nautical objects, or cartoon robots.
+`.trim(),
+  },
+  {
+    id: 'blog-control-plane-product',
+    filename: 'blog-control-plane-product.jpg',
+    aspectRatio: '16:9',
+    imageSize: '1K',
+    prompt: `
+${sharedDirection}
+
+Create a textless blog hero image about a local developer control plane as the product.
+Composition: a strict Swiss editorial diagram of a local control plane. Show project lanes, activity blocks, readiness gates, budget checks, and an operator viewport as rectilinear modules on a precise grid.
+Leave the left edge calm enough for cropping. Use hard ink rules, technical blue, restrained lime, and warm paper texture.
+No visible words, numbers, letters, labels, logos, humans, mascots, rounded app cards, or nautical imagery.
+`.trim(),
+  },
+  {
+    id: 'blog-fleet-designer-cold-start',
+    filename: 'blog-fleet-designer-cold-start.jpg',
+    aspectRatio: '16:9',
+    imageSize: '1K',
+    prompt: `
+${sharedDirection}
+
+Create a textless blog hero image about cold-start fleet design.
+Composition: a repo survey matrix turning into a proposed fleet plan through dependency checks, model tiers, budget gates, dry-run simulation lanes, and a human approval checkpoint. Keep everything abstract and geometric, with no readable UI.
+No visible words, numbers, letters, labels, logos, humans, mascots, rounded cards, or nautical imagery.
+`.trim(),
+  },
+  {
+    id: 'blog-pd-tube-event-reply',
+    filename: 'blog-pd-tube-event-reply.jpg',
+    aspectRatio: '16:9',
+    imageSize: '1K',
+    prompt: `
+${sharedDirection}
+
+Create a textless blog hero image about a local event-reply loop.
+Composition: a browser action block, a test result block, an editor-selection block, and a webhook block feeding a single local event channel. Show an agent terminal module returning threaded replies back to each origin. Use abstract linework only.
+No visible words, numbers, letters, labels, logos, humans, mascots, speech bubbles, rounded cards, or nautical imagery.
+`.trim(),
+  },
+  {
+    id: 'blog-telemetry-launch-gate',
+    filename: 'blog-telemetry-launch-gate.jpg',
+    aspectRatio: '16:9',
+    imageSize: '1K',
+    prompt: `
+${sharedDirection}
+
+Create a textless blog hero image about fail-closed agent launches.
+Composition: several backend lanes pass through three square checkpoints representing exact tokens, model rate, and persisted cost before reaching a launch boundary. Blocked lanes should be visually clear without using text.
+No visible words, numbers, letters, labels, logos, humans, mascots, security theater, rounded cards, or nautical imagery.
+`.trim(),
+  },
+  {
+    id: 'blog-map-truth',
+    filename: 'blog-map-truth.jpg',
+    aspectRatio: '16:9',
+    imageSize: '1K',
+    prompt: `
+${sharedDirection}
+
+Create a textless blog hero image about keeping roadmap and recovery state honest.
+Composition: commit fragments, recovery notes, session traces, current status lanes, and evidence markers converge into a single operator-readable map. Make the composition sober, editorial, and evidence-driven.
+No visible words, numbers, letters, labels, logos, humans, mascots, rounded cards, or nautical imagery.
+`.trim(),
+  },
+  {
+    id: 'blog-daemon-provenance',
+    filename: 'blog-daemon-provenance.jpg',
+    aspectRatio: '16:9',
+    imageSize: '1K',
+    prompt: `
+${sharedDirection}
+
+Create a textless blog hero image about daemon provenance.
+Composition: compare source checkout, installed runtime, socket client, TCP route, supervisor state, and browser bundle freshness as aligned technical strata. Show agreement and disagreement through crisp geometric marks, not text.
+No visible words, numbers, letters, labels, logos, humans, mascots, rounded cards, or nautical imagery.
+`.trim(),
+  },
+  {
+    id: 'blog-backend-readiness',
+    filename: 'blog-backend-readiness.jpg',
+    aspectRatio: '16:9',
+    imageSize: '1K',
+    prompt: `
+${sharedDirection}
+
+Create a textless blog hero image about backend readiness.
+Composition: a matrix of model backends, credentials, SDK packages, CLI login checks, model tiers, and telemetry policy. Some cells pass, some are blocked, all represented with abstract squares, ticks, and ruled lines.
+No visible words, numbers, letters, labels, logos, humans, mascots, rounded cards, or nautical imagery.
+`.trim(),
+  },
+  {
+    id: 'blog-coordination-guard-policy',
+    filename: 'blog-coordination-guard-policy.jpg',
+    aspectRatio: '16:9',
+    imageSize: '1K',
+    prompt: `
+${sharedDirection}
+
+Create a textless blog hero image about turning coordination claims into commit policy.
+Composition: staged file blocks, session identity, file-claim boundaries, lock gates, and a pre-commit decision boundary arranged as a Swiss compliance diagram. The image should feel precise and enforceable.
+No visible words, numbers, letters, labels, logos, humans, mascots, rounded cards, or nautical imagery.
 `.trim(),
   },
 ]

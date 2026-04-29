@@ -1,9 +1,15 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { KeyRound, Play, Radar, Square } from 'lucide-react'
+import { Cpu, KeyRound, Play, Radar, Square } from 'lucide-react'
 import { CommandTerminal } from '@/components/ui/CommandTerminal'
 import { PageContainer, PanelBody, PanelTitle, SectionIntro } from '@/components/site/primitives'
 import { RoleTerm } from '@/components/site/RoleTerm'
+import { ALL_CATEGORIES, MCP_TOOL_TOTAL } from '@/data/mcp'
+
+const mcpCatalogText = ALL_CATEGORIES.map((category) => {
+  const tools = category.tools.map((tool) => `  - ${tool}`).join('\n')
+  return `${category.label} (${category.tools.length})\n${tools}`
+}).join('\n\n')
 
 const MAC_APP_DEMOS = [
   {
@@ -41,6 +47,15 @@ $ pd setup --project ~/coding/my-app
 # FleetBar opens the same control plane the daemon serves
 $ open "http://127.0.0.1:9876/fleet-ui/?surface=flow"
   Fleet Control Center ready`,
+  },
+  {
+    id: 'mcp-tools',
+    title: 'MCP Tools',
+    description: `${MCP_TOOL_TOTAL} functions visible`,
+    code: `# Port Daddy MCP exposes the full local coordination surface.
+# Default mode starts small; pd_discover reveals these categories and functions.
+
+${mcpCatalogText}`,
   },
   {
     id: 'keys',
@@ -135,6 +150,8 @@ export function MacWorkflowDemos() {
                 <div className="flex items-center gap-2">
                   {activeDemo.id === demo.id ? (
                     <Play size={14} className="text-[var(--brand-primary)]" fill="var(--brand-primary)" />
+                  ) : demo.id === 'mcp-tools' ? (
+                    <Cpu size={14} className="text-[var(--text-muted)]" />
                   ) : demo.id === 'keys' ? (
                     <KeyRound size={14} className="text-[var(--text-muted)]" />
                   ) : demo.id === 'sortie' ? (
@@ -165,6 +182,7 @@ export function MacWorkflowDemos() {
             <CommandTerminal
               code={activeDemo.code}
               title={activeDemo.title}
+              animate={activeDemo.id !== 'mcp-tools'}
               typewriterSpeed={12}
             />
           </motion.div>

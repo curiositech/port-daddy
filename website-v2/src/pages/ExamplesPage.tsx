@@ -1,308 +1,251 @@
-import { motion } from 'framer-motion'
-import { Badge } from '@/components/ui/Badge'
-import { Surface } from '@/components/ui/Surface'
-import { CommandTerminal } from '@/components/ui/CommandTerminal'
-import { Shield, Layers, Anchor, Zap, Globe, Search, Network, Wrench, type LucideIcon } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
+import { ExampleArtwork } from '@/components/examples/ExampleArtwork'
+import {
+  BracketLink,
+  BracketLabel,
+  DocsHero,
+  DocsNoteCard,
+  PanelBody,
+  PanelList,
+  PanelTitle,
+} from '@/components/site/primitives'
+import { FEATURED_EXAMPLE, SECONDARY_EXAMPLES } from '@/data/examples'
 
-interface Example {
-  id: string
-  title: string
-  category: string
-  difficulty: 'Beginner' | 'Intermediate' | 'Advanced'
-  description: string
-  spotlight?: string
-  what: string[]
-  code: string[]
-  icon: LucideIcon
-  color: string
-}
-
-const EXAMPLES: Example[] = [
+const broaderBuildIdeas = [
   {
-    id: 'swarm-coordination-board',
-    title: 'Swarm coordination board',
-    category: 'Swarm',
-    difficulty: 'Advanced',
-    description: 'Run a tuple-backed board where workers claim tasks, reviewers attach observations, and the operator reads the shared harbor state.',
-    what: [
-      'Writes typed work items into tuple space',
-      'Claims tasks without reverse-engineering prose',
-      'Adds review facts other agents can query',
-      'Keeps the whole board scoped to one harbor'
-    ],
-    code: [
-      '# Run the tuple-backed swarm board',
-      'PD_EXAMPLE_HARBOR=myapp:fleet \\',
-      '  npx tsx examples/swarm/coordination-board.ts',
-      '',
-      '# Inspect the shared state directly',
-      'pd tuple scan --harbor myapp:fleet',
-      '',
-      '# Read only high-priority work items',
-      'pd tuple rd \'["task","*","*","high"]\' --harbor myapp:fleet'
-    ],
-    icon: Network,
-    color: 'var(--brand-secondary)'
+    label: 'Edit guard',
+    title: 'Build a file and symbol collision guard',
+    body: 'Use sessions, file claims, and locks so agents can check ownership before editing hot files or generated artifacts.',
+    href: '/docs/features/sessions',
+    cta: 'Sessions and claims',
   },
   {
-    id: 'pd-tube-preview-share',
-    title: 'PD Tube: localhost the fleet can find',
-    category: 'PD Tube',
-    difficulty: 'Intermediate',
-    spotlight: 'Your laptop preview stops being a private port number and becomes a named, revocable artifact humans can open and agents can discover.',
-    description: 'Start with a local dev server. PD Tube claims the service identity, picks an installed tunnel path, records the public URL on the daemon, writes a tuple for the swarm, and gives you one command to shut the door again.',
-    what: [
-      'Turns localhost into a real review URL without port folklore',
-      'Names the preview so agents can discover it later',
-      'Writes `preview-url` swarm state instead of hiding the link in chat',
-      'Revokes the route by stopping the tunnel and releasing the identity'
-    ],
-    code: [
-      '# Turn a dev server into a named fleet preview',
-      'npx tsx examples/tunnel/share-preview.ts start \\',
-      '  --identity demo:web --port 5174',
-      '',
-      '# Humans can open it; agents can discover it',
-      'pd find demo:web',
-      'pd tuple rd \'["preview-url","demo:web","*","*"]\' \\',
-      '  --harbor examples',
-      '',
-      '# Revoke the preview when the review is over',
-      'npx tsx examples/tunnel/share-preview.ts stop --identity demo:web'
-    ],
-    icon: Globe,
-    color: 'var(--brand-accent)'
+    label: 'Inbox',
+    title: 'Build a durable handoff queue',
+    body: 'Give agents unread work items, direct messages, owner-specific queues, and a trail that survives closed terminals.',
+    href: '/tutorials/inbox',
+    cta: 'Inbox tutorial',
   },
   {
-    id: 'agent-workbench',
-    title: 'Agent workbench',
-    category: 'Dev tools',
-    difficulty: 'Intermediate',
-    description: 'Build a small operator tool on top of the SDK that reads sessions, locks, harbors, services, and active agents in one sweep.',
-    what: [
-      'Shows what a daemon-backed tool can query',
-      'Supports human-readable and JSON output',
-      'Turns shared state into an operator dashboard seed',
-      'Keeps implementation compact enough to copy'
-    ],
-    code: [
-      '# Print a compact terminal workbench',
-      'npx tsx examples/devtools/agent-workbench.ts',
-      '',
-      '# Feed the same state into another UI',
-      'npx tsx examples/devtools/agent-workbench.ts --json',
-      '',
-      '# Pair it with the guided docs at /docs/examples'
-    ],
-    icon: Wrench,
-    color: 'var(--brand-secondary)'
+    label: 'Service discovery',
+    title: 'Build semantic lookup for local stacks',
+    body: 'Let agents resolve names like myapp:api or docs:preview instead of guessing which localhost port is live today.',
+    href: '/tutorials/dns',
+    cta: 'DNS tutorial',
   },
   {
-    id: 'service-discovery-stack',
-    title: 'Service discovery stack',
-    category: 'Discovery',
-    difficulty: 'Beginner',
-    description: 'Run an API, frontend, and worker that claim service identities and find each other through Port Daddy instead of fixed ports.',
-    what: [
-      'API claims and releases its semantic service',
-      'Frontend resolves the API before proxying calls',
-      'Worker waits for the API instead of racing boot',
-      'All three scripts are dependency-free Node examples'
-    ],
-    code: [
-      '# Terminal 1: start the API',
-      'PORT=43101 npx tsx examples/services/api-server.ts',
-      '',
-      '# Terminal 2: start the frontend',
-      'PORT=43102 npx tsx examples/services/frontend.ts',
-      '',
-      '# Terminal 3: let the worker discover the API',
-      'npx tsx examples/services/worker.ts'
-    ],
-    icon: Search,
-    color: 'var(--status-success)'
+    label: 'Readiness',
+    title: 'Build a backend readiness cockpit',
+    body: 'Show which agent backends are actually launchable: keys, SDKs, model rates, budgets, and daemon target all in one place.',
+    href: '/docs/get-started',
+    cta: 'Get started',
   },
   {
-    id: 'migration-lock-guard',
-    title: 'Migration lock guard',
-    category: 'Coordination',
-    difficulty: 'Intermediate',
-    description: 'Show two actors contending for the same migration lock so one proceeds and the other exits with a useful operator message.',
-    what: [
-      'Uses the current SDK withLock helper',
-      'Creates real sessions for competing actors',
-      'Leaves notes that explain what happened',
-      'Protects the scarce resource instead of relying on etiquette'
-    ],
-    code: [
-      '# Run the contention demo',
-      'npx tsx examples/locks/migration-guard.ts',
-      '',
-      '# Use the same primitive in real work',
-      'pd with-lock db-migration -- npm run migrate',
-      '',
-      '# Inspect the session notes afterward',
-      'pd notes --limit 10'
-    ],
-    icon: Shield,
-    color: 'var(--brand-accent)'
-  }
+    label: 'Lockbox',
+    title: 'Build a one-at-a-time promotion runner',
+    body: 'Wrap migrations, deploys, notarization, generated files, and release promotion so only one agent can enter the critical section.',
+    href: '/docs/cli/with-lock',
+    cta: 'with-lock',
+  },
+  {
+    label: 'Fleet cockpit',
+    title: 'Build an eval and agent-run control plane',
+    body: 'Track launches, evidence, touched files, costs, failures, handoffs, and recovery state across a local fleet of coding agents.',
+    href: '/agents',
+    cta: 'Agents surface',
+  },
 ]
 
 export function ExamplesPage() {
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="min-h-screen flex flex-col font-sans selection:bg-[var(--brand-primary)] selection:text-[var(--brand-primary-foreground)]"
-      style={{ background: 'var(--surface-base)' }}
-    >
-      {/* Hero Section */}
-      <Surface depth="raised" radius="none" padding="none" className="py-14 px-6 sm:px-8 lg:px-10 relative overflow-hidden flex flex-col items-center justify-center text-center">
-
-        <motion.div
-          className="absolute top-0 right-0 w-[800px] h-[800px] rounded-full blur-[160px] opacity-[0.1] pointer-events-none"
-          style={{ background: 'radial-gradient(circle, var(--brand-primary) 0%, transparent 70%)' }}
+    <div className="min-h-screen bg-[var(--surface-base)] selection:bg-[var(--brand-primary)] selection:text-[var(--brand-primary-foreground)]">
+      <main id="main-content" className="mx-auto grid w-full max-w-[var(--layout-max-width-wide)] gap-[var(--space-6)] px-[var(--space-5)] py-[var(--space-6)] lg:px-[var(--space-6)]">
+        <DocsHero
+          eyebrow="Examples"
+          title="Build tools that can reach your local agent."
+          summary="These are complete executable examples for the things Port Daddy makes newly easy: local tools can summon agents, agents can coordinate through shared primitives, and support services can stop colliding."
+          paragraphs={[
+            'PD Tube is the flagship primitive. It turns local events into a blocking CLI loop with threaded replies, so the publisher stays tiny and the agent runtime stays swappable.',
+            'Pick the system you want to build, run the source in /examples, then copy the shape into your editor extension, test reporter, browser page, bot adapter, CI harness, swarm runner, or local control panel.',
+          ]}
+          aside={
+            <DocsNoteCard label="Start" title="Start with the phone line." elevation="quiet" padding="compact" titleSize="nav">
+              <PanelBody size="compact" className="max-w-none">
+                If you only read one example, read PD Tube. It is the shape the other examples copy:
+                publish one local event, let the agent act, then render the threaded reply.
+              </PanelBody>
+              <div className="flex flex-wrap gap-[var(--panel-gap-tight)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
+                <BracketLink to={`/examples/${FEATURED_EXAMPLE.slug}`} tone="blue" side="left">
+                  Open PD Tube
+                </BracketLink>
+                <BracketLink to="/docs/cli" tone="accent" side="right">
+                  CLI reference
+                </BracketLink>
+              </div>
+            </DocsNoteCard>
+          }
         />
 
-        <div className="max-w-5xl mx-auto relative z-10 flex flex-col items-center gap-5">
-           <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-[0.25em]">The Coordination Library</Badge>
-           <motion.h1
-             className="text-4xl sm:text-6xl font-black tracking-tighter font-display leading-[0.85] m-0 text-[var(--text-primary)]"
-             initial={{ opacity: 0, y: 32 }}
-             animate={{ opacity: 1, y: 0 }}
-             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-           >
-             Proven <br />
-             <span className="text-[var(--brand-primary)]">Patterns.</span>
-           </motion.h1>
-           <motion.p
-             className="text-xl sm:text-2xl max-w-4xl leading-relaxed text-[var(--text-secondary)] font-medium"
-             initial={{ opacity: 0, y: 20 }}
-             animate={{ opacity: 1, y: 0 }}
-             transition={{ duration: 0.8, delay: 0.1 }}
-           >
-             Run the code, then read the guide. /examples is the runnable corpus; /docs/examples explains when each pattern belongs in real repo work.
-           </motion.p>
-        </div>
-      </Surface>
-
-      {/* Examples Grid */}
-      <motion.main id="main-content" className="flex-1 py-12 px-6 sm:px-8 lg:px-10 max-w-7xl mx-auto w-full font-sans flex flex-col items-center">
-        <div className="grid gap-5 w-full">
-          {EXAMPLES.map((ex, i) => (
-            <motion.div
-              key={ex.id}
-              initial={{ opacity: 0, y: 48 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.7, delay: i * 0.05, ease: [0.16, 1, 0.3, 1] }}
-              className="group"
-            >
-              <Surface depth="raised" radius="2xl" padding="none" className="p-6 transition-all duration-500 flex flex-col lg:flex-row gap-5 items-center">
-
-                <div className="flex-1 space-y-5 flex flex-col items-center lg:items-start text-center lg:text-left">
-                   <div className="flex flex-col lg:flex-row items-center gap-5">
-                      <motion.div
-                        className="w-24 h-24 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 duration-500"
-                        style={{ background: `${ex.color}10`, boxShadow: 'var(--shadow-inset)' }}
-                      >
-                        <ex.icon size={48} style={{ color: ex.color }} />
-                      </motion.div>
-                      <div className="space-y-3 flex flex-col items-center lg:items-start">
-                         <div className="flex items-center gap-4">
-                            <Badge variant="default" className="text-[10px] font-black uppercase tracking-widest px-4 py-1.5">
-                               <span className="text-[var(--text-primary)]">{ex.category}</span>
-                            </Badge>
-                            <div className="h-1 w-1 rounded-full" style={{ background: 'var(--text-muted)' }} />
-                            <motion.span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">{ex.difficulty}</motion.span>
-                         </div>
-                         <motion.h2 className="m-0 text-2xl sm:text-4xl font-display font-black tracking-tight leading-tight text-[var(--text-primary)]">{ex.title}</motion.h2>
-                      </div>
-                   </div>
-
-                   {ex.spotlight ? (
-                     <motion.p className="m-0 max-w-xl font-display text-2xl sm:text-3xl font-black leading-tight text-[var(--text-primary)]">
-                       {ex.spotlight}
-                     </motion.p>
-                   ) : null}
-
-                   <motion.p className="text-xl sm:text-2xl leading-relaxed text-[var(--text-secondary)] m-0 max-w-xl">{ex.description}</motion.p>
-
-                   <div className="grid sm:grid-cols-2 gap-4 w-full">
-                      {ex.what.map((point, j) => (
-                        <motion.div key={j} className="flex items-start gap-4 group/item">
-                           <div className="mt-2 w-2 h-2 rounded-full shrink-0 group-hover/item:scale-150 transition-transform" style={{ background: ex.color }} />
-                           <motion.p className="text-base text-[var(--text-secondary)] m-0 leading-relaxed font-bold group-hover/item:text-[var(--text-primary)] transition-colors">{point}</motion.p>
-                        </motion.div>
-                      ))}
-                   </div>
-                </div>
-
-                <div className="flex-1 w-full relative max-w-2xl">
-                   <CommandTerminal
-                     code={ex.code.map(line =>
-                       (line.startsWith('pd') || line.startsWith('npx') || line.startsWith('PORT=') || line.startsWith('PD_')) ? `$ ${line}` :
-                       line.startsWith('#') ? line :
-                       `  ${line}`
-                     ).join('\n')}
-                     title={ex.title}
-                     typewriterSpeed={0}
-                   />
-                </div>
-              </Surface>
-            </motion.div>
-          ))}
-        </div>
-
-        {/* Vision Callout */}
-        <Surface depth="raised" radius="2xl" padding="none" className="mt-14 overflow-hidden w-full mx-auto">
-          <motion.div
-            className="p-6 flex flex-col items-center text-center gap-5 relative"
-            initial={{ opacity: 0, scale: 0.98 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
+        <section aria-label="Featured PD Tube example">
+          <DocsNoteCard
+            label={`${FEATURED_EXAMPLE.eyebrow} / flagship`}
+            title={FEATURED_EXAMPLE.title}
+            elevation="quiet"
           >
-           <div className="absolute top-0 right-0 p-10 opacity-[0.02] pointer-events-none">
-              <Layers size={800} />
-           </div>
+            <div className="grid gap-[var(--panel-gap)] lg:grid-cols-[minmax(0,1fr)_minmax(24rem,0.56fr)]">
+              <div className="space-y-[var(--space-3)]">
+                <PanelTitle as="h2" size="card">
+                  {FEATURED_EXAMPLE.summary}
+                </PanelTitle>
+                <PanelBody className="max-w-[64rem] text-[var(--text-secondary)]">
+                  {FEATURED_EXAMPLE.whyItMatters}
+                </PanelBody>
+                <div className="flex flex-wrap gap-[var(--panel-gap-tight)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
+                  <BracketLink to={`/examples/${FEATURED_EXAMPLE.slug}`} tone="blue" side="left">
+                    Open full source
+                  </BracketLink>
+                  <BracketLink to={`/examples/${FEATURED_EXAMPLE.slug}#source`} tone="accent" side="right">
+                    Jump to source
+                  </BracketLink>
+                </div>
+              </div>
 
-           <div className="max-w-4xl relative z-10 space-y-6 flex flex-col items-center">
-              <Badge variant="gold" className="px-6 py-2 text-[11px] font-black uppercase tracking-widest">Infrastructure, Not Orchestration</Badge>
-              <motion.h3 className="text-2xl sm:text-4xl font-display font-black tracking-tight leading-[0.95] m-0 text-[var(--text-primary)]">
-                You write the agents. <br />
-                <span className="text-[var(--brand-accent)]">We keep them from colliding.</span>
-              </motion.h3>
-              <motion.p className="text-xl sm:text-2xl leading-relaxed text-[var(--text-secondary)] max-w-3xl">
-                Port Daddy handles ports, locks, messages, tuples, tunnels, sessions, and recovery so your agents can focus on the task. These patterns show the daemon as a tool-building substrate, not just another CLI.
-              </motion.p>
-           </div>
+              <div className="space-y-[var(--panel-gap-tight)]">
+                <ExampleArtwork example={FEATURED_EXAMPLE} priority className="mb-[var(--panel-gap)]" />
+                <BracketLabel side="right">What it builds</BracketLabel>
+                <PanelBody size="compact" className="max-w-none">
+                  {FEATURED_EXAMPLE.builds}
+                </PanelBody>
+                <PanelList
+                  items={[
+                    `${FEATURED_EXAMPLE.time} guided read`,
+                    `${FEATURED_EXAMPLE.sourceFiles.length} full source files`,
+                    `${FEATURED_EXAMPLE.commands.length} runnable commands`,
+                  ]}
+                />
+              </div>
+            </div>
+          </DocsNoteCard>
+        </section>
 
-           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full max-w-6xl relative z-10">
-              {[
-                { title: 'Atomic Identity', icon: Anchor },
-                { title: 'Swarm Radio', icon: Zap },
-                { title: 'Harbor Scopes', icon: Shield },
-                { title: 'P2P Tunneling', icon: Globe }
-              ].map((item, i) => (
-                <motion.div
-                  key={i}
-                  className="p-6 rounded-2xl flex flex-col items-center gap-4 group transition-all"
-                  style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-sm)' }}
-                >
-                   <Surface depth="inset" radius="2xl" padding="none" className="w-14 h-14 flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <item.icon size={28} className="text-[var(--brand-primary)]" />
-                   </Surface>
-                   <motion.span className="text-[10px] font-black uppercase tracking-[0.25em] text-[var(--text-muted)] group-hover:text-[var(--text-primary)] transition-colors text-center">{item.title}</motion.span>
-                </motion.div>
-              ))}
-           </div>
-          </motion.div>
-        </Surface>
-      </motion.main>
+        <section aria-label="More Port Daddy build ideas" className="grid gap-[var(--panel-gap)] lg:grid-cols-12">
+          <div className="lg:col-span-5">
+            <DocsNoteCard
+              label="Beyond PD Tube"
+              title="Port Daddy is also a substrate for agent infrastructure."
+              elevation="quiet"
+            >
+              <PanelTitle as="h2" size="card">
+                More things AI engineers can build.
+              </PanelTitle>
+              <PanelBody className="max-w-[42rem] text-[var(--text-secondary)]">
+                Tube is the best first demo because it makes agent contact obvious. The rest of Port Daddy is for the
+                local infrastructure around serious agent work: ownership, readiness, service identity, recovery, and
+                operator proof.
+              </PanelBody>
+            </DocsNoteCard>
+          </div>
+
+          <div className="grid gap-[var(--panel-gap)] md:grid-cols-2 lg:col-span-7">
+            {broaderBuildIdeas.map((idea, index) => (
+              <DocsNoteCard
+                key={idea.title}
+                label={idea.label}
+                title={idea.title}
+                titleSize="nav"
+                elevation="quiet"
+                padding="compact"
+              >
+                <PanelBody size="compact" className="max-w-none">
+                  {idea.body}
+                </PanelBody>
+                <div className="border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap-tight)]">
+                  <BracketLink
+                    to={idea.href}
+                    tone={index % 2 === 0 ? 'blue' : 'accent'}
+                    side={index % 2 === 0 ? 'left' : 'right'}
+                  >
+                    {idea.cta}
+                  </BracketLink>
+                </div>
+              </DocsNoteCard>
+            ))}
+          </div>
+        </section>
+
+        <section className="grid gap-[var(--panel-gap)] lg:grid-cols-12" aria-labelledby="examples-list">
+          <div className="lg:col-span-4">
+            <DocsNoteCard label="Executable catalogue" title="Source-backed examples you can run today." elevation="quiet" padding="compact" titleSize="nav">
+              <PanelBody size="compact" className="max-w-none">
+                The runnable source is the product: each page keeps the full code visible and explains how to turn it
+                into product code.
+              </PanelBody>
+            </DocsNoteCard>
+          </div>
+
+          <div className="grid gap-[var(--panel-gap)] lg:col-span-8">
+            <h2 id="examples-list" className="sr-only">
+              Example catalogue
+            </h2>
+            {SECONDARY_EXAMPLES.map((example, index) => (
+              <DocsNoteCard
+                key={example.slug}
+                label={`${example.eyebrow} / ${example.level}`}
+                title={example.title}
+                titleSize="card"
+                elevation="quiet"
+                padding="compact"
+              >
+                <div className="grid gap-[var(--panel-gap)] md:grid-cols-[minmax(20rem,0.48fr)_minmax(0,1fr)]">
+                  <ExampleArtwork example={example} />
+                  <div className="space-y-[var(--space-2)]">
+                    <PanelBody className="max-w-[58rem]">{example.summary}</PanelBody>
+                    <PanelBody className="max-w-[58rem] text-[var(--text-secondary)]">{example.surveyPlain}</PanelBody>
+                    <PanelBody size="compact" className="max-w-[58rem] text-[var(--text-secondary)]">
+                      Builds: {example.builds}
+                    </PanelBody>
+                  </div>
+                </div>
+
+                <div className="grid gap-[var(--panel-gap)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)] md:grid-cols-[minmax(0,1fr)_minmax(16rem,0.42fr)]">
+                  <div className="space-y-[var(--panel-gap-tight)]">
+                    <BracketLabel side={index % 2 === 0 ? 'left' : 'right'}>Files</BracketLabel>
+                    <div className="grid gap-[var(--space-2)]">
+                      {example.files.map((file) => (
+                        <code
+                          key={file}
+                          className="block min-w-0 border border-[var(--border-default)] bg-[var(--surface-raised)] px-[var(--space-3)] py-[var(--space-2)] font-mono text-[length:var(--type-meta-size)] text-[var(--text-primary)]"
+                        >
+                          {file}
+                        </code>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-[var(--panel-gap-tight)]">
+                    <BracketLabel side={index % 2 === 0 ? 'right' : 'left'}>What you get</BracketLabel>
+                    <PanelList
+                      items={[
+                        `${example.time} guided read`,
+                        `${example.sourceFiles.length} full source file${example.sourceFiles.length === 1 ? '' : 's'}`,
+                        `${example.commands.length} runnable command${example.commands.length === 1 ? '' : 's'}`,
+                      ]}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-[var(--panel-gap-tight)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
+                  <BracketLink to={`/examples/${example.slug}`} tone={index % 2 === 0 ? 'blue' : 'accent'} side="left">
+                    Open full example
+                  </BracketLink>
+                </div>
+              </DocsNoteCard>
+            ))}
+          </div>
+        </section>
+      </main>
 
       <Footer />
-    </motion.div>
+    </div>
   )
 }

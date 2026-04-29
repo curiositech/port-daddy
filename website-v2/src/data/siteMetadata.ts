@@ -1,6 +1,5 @@
 import { BLUEPRINTS } from './blueprints'
-import { blogPosts } from './blogData'
-import { COOKBOOK_RECIPES } from './cookbook'
+import { blogPosts, deprecatedBlogPosts } from './blogData'
 import { docsFamilyRoutes, docsOverviewRoute, type DocsFamilyRoute } from './docs-routes'
 import { INTEGRATIONS } from './integrations'
 import { TUTORIALS } from './tutorials'
@@ -17,7 +16,6 @@ export type SiteMetadataSection =
   | 'product'
   | 'docs'
   | 'tutorials'
-  | 'cookbook'
   | 'integrations'
   | 'templates'
   | 'blog'
@@ -37,20 +35,9 @@ export interface SiteMetadata {
   tags?: string[]
 }
 
-export const blogHeroImages: Record<string, string> = {
-  'zero-to-multi-agent-in-5-minutes': '/img/blog/zero-to-multi-agent-hero.png',
-  'the-port-collision-that-ate-my-saturday': '/img/blog/port-collision-hero.png',
-  'dead-agents-tell-tales': '/img/blog/dead-agents-hero.png',
-  'distributed-locks-two-agents-one-migration': '/img/blog/distributed-locks-hero.png',
-  'four-agents-zero-clobber': '/img/blog/four-agents-hero.png',
-  'pubsub-self-healing-test-pipeline': '/img/blog/pub-sub-hero.png',
-  'fleet-agents-as-infrastructure': '/img/blog/fleet-management-hero.png',
-  'spark-and-spider-the-creative-engine': '/img/blog/spark-spider-hero.png',
-  'formal-verification-anchor-protocol': DEFAULT_SITE_IMAGE,
-  'port-daddy-for-teams': DEFAULT_SITE_IMAGE,
-  'claude-code-port-daddy-integration': DEFAULT_SITE_IMAGE,
-  'performance-at-scale': DEFAULT_SITE_IMAGE,
-}
+export const blogHeroImages: Record<string, string> = Object.fromEntries(
+  blogPosts.map((post) => [post.slug, post.heroImage]),
+)
 
 function pageTitle(title: string) {
   if (title === SITE_NAME) return 'Port Daddy - Local Communication Substrate for Coding Agents'
@@ -84,8 +71,56 @@ const productRoutes: SiteMetadata[] = [
   metadata('/', SITE_NAME, DEFAULT_SITE_DESCRIPTION, { section: 'home' }),
   metadata(
     '/examples',
-    'Coordination Examples',
-    'Study concrete Port Daddy workflows for multi-agent repos, session notes, file claims, salvage, and event-driven automation.',
+    'Executable Examples',
+    'Run complete Port Daddy example programs for local agent tools, swarms, inbox signaling, CI services, and topology traces.',
+  ),
+  metadata(
+    '/examples/pd-tube-button-to-agent',
+    'Build a button-to-agent loop with PD Tube',
+    'Turn a plain HTML button into a local phone line to the agent session already running in your project.',
+    { tags: ['tube', 'browser', 'agent loop', 'messages'] },
+  ),
+  metadata(
+    '/examples/test-failure-to-agent',
+    'Build a test reporter that asks the agent for help',
+    'Wrap a failing test command, publish the failure to the local agent, and print the diagnosis back in the terminal.',
+    { tags: ['tube', 'tests', 'reporter', 'terminal'] },
+  ),
+  metadata(
+    '/examples/editor-lightbulb-to-agent',
+    'Build an editor lightbulb that asks the local agent',
+    'Select code in a local page, publish the file and range to the agent, and render the explanation inline.',
+    { tags: ['tube', 'editor', 'selection', 'dev tools'] },
+  ),
+  metadata(
+    '/examples/webhook-to-local-agent',
+    'Build a webhook adapter backed by your workstation',
+    'Accept Slack, Discord, Linear, or generic webhook JSON and route it to the local agent through PD Tube.',
+    { tags: ['tube', 'webhooks', 'bots', 'http'] },
+  ),
+  metadata(
+    '/examples/leader-election',
+    'Elect one leader from a local agent swarm',
+    'Run identical workers that race for one Port Daddy lock so exactly one becomes the coordinator.',
+    { tags: ['locks', 'swarm', 'coordination', 'resilience'] },
+  ),
+  metadata(
+    '/examples/p2p-webrtc',
+    'Build WebRTC signaling over agent inboxes',
+    'Use durable Port Daddy inboxes to exchange offer and answer messages before two agents open a direct peer channel.',
+    { tags: ['inbox', 'webrtc', 'signaling', 'p2p'] },
+  ),
+  metadata(
+    '/examples/ephemeral-ci-db',
+    'Claim a collision-free port for an ephemeral CI database',
+    'Wrap a Postgres test database so parallel CI jobs get stable semantic ports instead of fighting over 5432.',
+    { tags: ['ports', 'ci', 'postgres', 'testing'] },
+  ),
+  metadata(
+    '/examples/agent-archetypes',
+    'Publish an agent topology trace',
+    'Turn star, ring, and arbiter coordination patterns into concrete Port Daddy channel events.',
+    { tags: ['swarm', 'pubsub', 'arbiter', 'topology'] },
   ),
   metadata(
     '/mcp',
@@ -115,12 +150,6 @@ const productRoutes: SiteMetadata[] = [
     { section: 'tutorials' },
   ),
   metadata(
-    '/cookbook',
-    'Cookbook',
-    'Use tested Port Daddy recipes for distributed locks, WebRTC signaling, ephemeral CI databases, and multi-agent topologies.',
-    { section: 'cookbook' },
-  ),
-  metadata(
     '/integrations',
     'Integrations',
     'Wire Port Daddy into Claude, Cursor, Windsurf, LangChain, CrewAI, Aider, Continue.dev, and other developer tooling.',
@@ -129,7 +158,7 @@ const productRoutes: SiteMetadata[] = [
   metadata(
     '/blog',
     'Blog',
-    'Read practical Port Daddy essays about multi-agent coordination, port collisions, salvage, locks, fleets, and local-first operator tooling.',
+    'Read current Port Daddy field notes about FleetBar, Fleet Control Center, launch readiness, recovery maps, PD Tube, daemon provenance, and coordination policy.',
     { section: 'blog' },
   ),
   metadata(
@@ -303,11 +332,6 @@ const contentMetadata: SiteMetadata[] = [
       section: 'tutorials',
     }),
   ),
-  ...COOKBOOK_RECIPES.map((recipe) =>
-    metadata(`/cookbook/${recipe.id}`, recipe.title, recipe.description, {
-      section: 'cookbook',
-    }),
-  ),
   ...INTEGRATIONS.map((integration) =>
     metadata(`/integrations/${integration.id}`, integration.name, integration.description, {
       section: 'integrations',
@@ -321,12 +345,21 @@ const contentMetadata: SiteMetadata[] = [
   ...blogPosts.map((post) =>
     metadata(`/blog/${post.slug}`, post.title, post.excerpt, {
       section: 'blog',
-      image: blogHeroImages[post.slug] ?? DEFAULT_SITE_IMAGE,
+      image: post.heroImage,
       publishedAt: post.date,
       author: post.author,
       tags: post.tags,
     }),
   ),
+  ...deprecatedBlogPosts.map((post) => {
+    const replacement = blogPosts.find((candidate) => candidate.slug === post.replacementSlug)
+    return metadata(`/blog/${post.slug}`, `${post.retiredLabel} (retired)`, post.reason, {
+      section: 'blog',
+      canonicalPath: replacement ? `/blog/${replacement.slug}` : '/blog',
+      image: replacement?.heroImage ?? DEFAULT_SITE_IMAGE,
+      index: false,
+    })
+  }),
 ]
 
 const docsRouteMetadata: SiteMetadata[] = [

@@ -11,7 +11,7 @@ function buildApp(deps = {}) {
 }
 
 describe('actor routes', () => {
-  test('GET /actors returns canonical maritime actors with projected evidence', async () => {
+  test('GET /actors returns canonical fleet actors with projected evidence', async () => {
     const { app, register } = buildApp({
       agents: {
         list: () => ({
@@ -41,8 +41,8 @@ describe('actor routes', () => {
       agentInbox: {
         stats: (agentId) => ({
           success: true,
-          total: agentId === 'actor:navigator' ? 2 : 0,
-          unread: agentId === 'actor:navigator' ? 1 : 0,
+          total: agentId === 'actor:cartographer' ? 2 : 0,
+          unread: agentId === 'actor:cartographer' ? 1 : 0,
         }),
         MAX_INBOX_MESSAGES: 1000,
       },
@@ -57,15 +57,15 @@ describe('actor routes', () => {
     expect(res.statusCode).toBe(200);
     const payload = res.json();
     expect(payload.success).toBe(true);
-    expect(payload.count).toBe(9);
-    const navigator = payload.actors.find((actor) => actor.id === 'navigator');
-    expect(navigator).toEqual(expect.objectContaining({
-      label: 'Navigator',
+    expect(payload.count).toBe(8);
+    const cartographer = payload.actors.find((actor) => actor.id === 'cartographer');
+    expect(cartographer).toEqual(expect.objectContaining({
+      label: 'Cartographer',
       leaseState: 'attached',
       compatibilityFleetAgent: 'cartographer',
       mailboxStats: { total: 2, unread: 1, max: 1000 },
     }));
-    expect(navigator.liveBodies).toHaveLength(1);
+    expect(cartographer.liveBodies).toHaveLength(1);
 
     await app.close();
   });
@@ -85,8 +85,8 @@ describe('actor routes', () => {
     expect(aliasRes.statusCode).toBe(200);
     expect(aliasRes.json()).toEqual(expect.objectContaining({
       success: true,
-      resolvedId: 'navigator',
-      actor: expect.objectContaining({ id: 'navigator' }),
+      resolvedId: 'cartographer',
+      actor: expect.objectContaining({ id: 'cartographer' }),
     }));
 
     const missingRes = await app.inject({
@@ -107,7 +107,7 @@ describe('actor routes', () => {
       success: true,
       messages: [{
         id: 7,
-        agentId: 'actor:navigator',
+        agentId: 'actor:cartographer',
         from: 'agent-test',
         content: 'map this',
         contentType: 'text',
@@ -137,11 +137,11 @@ describe('actor routes', () => {
     expect(inboxRes.statusCode).toBe(200);
     expect(inboxRes.json()).toEqual(expect.objectContaining({
       success: true,
-      actorId: 'navigator',
-      inboxTarget: 'actor:navigator',
+      actorId: 'cartographer',
+      inboxTarget: 'actor:cartographer',
       count: 1,
     }));
-    expect(listInbox).toHaveBeenCalledWith('actor:navigator', {
+    expect(listInbox).toHaveBeenCalledWith('actor:cartographer', {
       unreadOnly: true,
       limit: 5,
       since: 100,
@@ -154,13 +154,13 @@ describe('actor routes', () => {
     expect(statsRes.statusCode).toBe(200);
     expect(statsRes.json()).toEqual({
       success: true,
-      actorId: 'navigator',
-      inboxTarget: 'actor:navigator',
+      actorId: 'cartographer',
+      inboxTarget: 'actor:cartographer',
       total: 3,
       unread: 1,
       max: 1000,
     });
-    expect(inboxStats).toHaveBeenCalledWith('actor:navigator');
+    expect(inboxStats).toHaveBeenCalledWith('actor:cartographer');
 
     await app.close();
   });
@@ -186,17 +186,17 @@ describe('actor routes', () => {
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({
       success: true,
-      actorId: 'navigator',
-      inboxTarget: 'actor:navigator',
+      actorId: 'cartographer',
+      inboxTarget: 'actor:cartographer',
       marked: 5,
     });
-    expect(markAllRead).toHaveBeenCalledWith('actor:navigator');
+    expect(markAllRead).toHaveBeenCalledWith('actor:cartographer');
 
     await app.close();
   });
 
   test('POST /actors/:id/message queues to durable actor mailbox and can wake compatibility body', async () => {
-    const inboxSend = jest.fn(() => ({ success: true, messageId: 42, agentId: 'actor:navigator' }));
+    const inboxSend = jest.fn(() => ({ success: true, messageId: 42, agentId: 'actor:cartographer' }));
     const hailAgent = jest.fn(async () => ({ success: true, project: 'port-daddy', agent: 'cartographer' }));
     const { app, register } = buildApp({
       agents: { list: () => ({ agents: [] }) },
@@ -221,13 +221,13 @@ describe('actor routes', () => {
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual(expect.objectContaining({
       success: true,
-      actorId: 'navigator',
-      inboxTarget: 'actor:navigator',
+      actorId: 'cartographer',
+      inboxTarget: 'actor:cartographer',
       messageId: 42,
       delivered: true,
       woke: true,
     }));
-    expect(inboxSend).toHaveBeenCalledWith('actor:navigator', 'roadmap item needs evidence', {
+    expect(inboxSend).toHaveBeenCalledWith('actor:cartographer', 'roadmap item needs evidence', {
       from: 'agent-test',
       type: 'actor.message',
     });

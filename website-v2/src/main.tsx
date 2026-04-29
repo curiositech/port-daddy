@@ -1,8 +1,9 @@
 import { StrictMode, Suspense, lazy, type ComponentType } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router-dom'
 import { ThemeProvider } from '@/lib/theme'
 import { DocumentMeta } from '@/components/layout/DocumentMeta'
+import { HashScroll } from '@/components/layout/HashScroll'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { RouteFallback } from '@/components/layout/RouteFallback'
 import './index.css'
@@ -19,6 +20,7 @@ const DocsLayout = lazyNamed(() => import('@/components/docs/DocsLayout'), 'Docs
 const DocsPage = lazy(() => import('@/pages/DocsPage'))
 const TutorialsPage = lazyNamed(() => import('@/pages/TutorialsPage'), 'TutorialsPage')
 const ExamplesPage = lazyNamed(() => import('@/pages/ExamplesPage'), 'ExamplesPage')
+const ExampleDetailPage = lazyNamed(() => import('@/pages/ExampleDetailPage'), 'ExampleDetailPage')
 const McpPage = lazy(() => import('@/pages/MCPPage'))
 const WhitepaperPage = lazy(() => import('@/pages/whitepaper'))
 const WhitepaperDetailPage = lazy(() => import('@/pages/whitepaper/PaperDetailPage'))
@@ -27,8 +29,6 @@ const BlogPostPage = lazyNamed(() => import('@/pages/BlogPostPage'), 'BlogPostPa
 const MacPreviewPage = lazyNamed(() => import('@/pages/MacPreviewPage'), 'MacPreviewPage')
 const TemplatesPage = lazyNamed(() => import('@/pages/TemplatesPage'), 'TemplatesPage')
 const AgentsPage = lazyNamed(() => import('@/pages/AgentsPage'), 'AgentsPage')
-const CookbookPage = lazyNamed(() => import('@/pages/cookbook/CookbookPage'), 'CookbookPage')
-const RecipePage = lazyNamed(() => import('@/pages/cookbook/RecipePage'), 'RecipePage')
 const IntegrationsPage = lazyNamed(() => import('@/pages/integrations/IntegrationsPage'), 'IntegrationsPage')
 const IntegrationPage = lazyNamed(() => import('@/pages/integrations/IntegrationPage'), 'IntegrationPage')
 const TemplatePage = lazyNamed(() => import('@/pages/blueprints/TemplatePage'), 'TemplatePage')
@@ -170,17 +170,24 @@ const TunnelTool = lazy(() => import('@/pages/docs/mcp/TunnelTool'))
 const TunnelStopTool = lazy(() => import('@/pages/docs/mcp/TunnelStopTool'))
 const WatchTool = lazy(() => import('@/pages/docs/mcp/WatchTool'))
 
+function LegacyExampleRedirect() {
+  const { id } = useParams<{ id?: string }>()
+  return <Navigate to={id ? `/examples/${id}` : '/examples'} replace />
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ThemeProvider>
       <BrowserRouter>
         <DocumentMeta />
+        <HashScroll />
         <Suspense fallback={<RouteFallback />}>
           <Routes>
             <Route element={<MainLayout />}>
               <Route path="/" element={<App />} />
               <Route path="/mac-preview" element={<MacPreviewPage />} />
               <Route path="/examples" element={<ExamplesPage />} />
+              <Route path="/examples/:slug" element={<ExampleDetailPage />} />
               <Route path="/mcp" element={<McpPage />} />
               <Route path="/templates" element={<TemplatesPage />} />
               <Route path="/agents" element={<AgentsPage />} />
@@ -207,8 +214,8 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/tutorials/pheromone" element={<Pheromone />} />
               <Route path="/tutorials/primitives" element={<Primitives />} />
 
-              <Route path="/cookbook" element={<CookbookPage />} />
-              <Route path="/cookbook/:id" element={<RecipePage />} />
+              <Route path="/cookbook" element={<LegacyExampleRedirect />} />
+              <Route path="/cookbook/:id" element={<LegacyExampleRedirect />} />
               <Route path="/integrations" element={<IntegrationsPage />} />
               <Route path="/integrations/:id" element={<IntegrationPage />} />
               <Route path="/templates/:id" element={<TemplatePage />} />
@@ -343,6 +350,7 @@ createRoot(document.getElementById('root')!).render(
               <Route path="api" element={<ApiReference />} />
               <Route path="api/endpoints" element={<ApiReference />} />
 
+              <Route path="examples/*" element={<Navigate to="/examples" replace />} />
               <Route path=":sectionSlug/*" element={<DocsSectionPage />} />
               <Route path="*" element={<Navigate to="/docs" replace />} />
             </Route>

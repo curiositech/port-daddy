@@ -14,8 +14,6 @@ import {
   PanelTitle,
   SectionIntro,
   SurfacePanel,
-  SwissGrid,
-  SwissGridItem,
 } from '@/components/site/primitives'
 import { RoleTerm } from '@/components/site/RoleTerm'
 
@@ -229,9 +227,9 @@ export function MacAppShowcase() {
   return (
     <section id="mac-app" className="border-t-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
       <PageContainer width="wide">
-        <SwissGrid className="items-start">
-          <SwissGridItem span="narrow">
-            <div className="sticky top-28 space-y-[var(--space-5)]">
+        <div className="grid gap-[var(--space-7)]">
+          <div className="grid gap-[var(--space-5)] border-b-2 border-[var(--border-strong)] pb-[var(--space-6)] lg:grid-cols-12 lg:items-end">
+            <div className="lg:col-span-5">
               <SectionIntro
                 eyebrow="Mac app"
                 title="FleetBar is the front door to the substrate."
@@ -246,9 +244,11 @@ export function MacAppShowcase() {
                 }
                 titleAs="h2"
                 titleSize="display"
-                titleClassName="max-w-[12ch]"
+                titleClassName="max-w-[14ch]"
               />
-              <SurfacePanel elevation="quiet" padding="compact" className="grid gap-[var(--space-2)]">
+            </div>
+            <div className="grid gap-[var(--space-4)] md:grid-cols-[minmax(0,1fr)_minmax(18rem,0.8fr)] lg:col-span-7">
+              <SurfacePanel elevation="quiet" padding="compact" className="grid gap-[var(--space-2)] self-start">
                 <PanelEyebrow>Current distribution stance</PanelEyebrow>
                 <PanelBody size="compact" className="max-w-none">
                   Homebrew and npm remain the install path for Port Daddy. The website now also hosts a Mac developer-preview FleetBar app bundle while the signed release channel matures.
@@ -269,28 +269,24 @@ export function MacAppShowcase() {
                 </PanelBody>
               </figure>
             </div>
-          </SwissGridItem>
+          </div>
 
-          <SwissGridItem span="wide">
-            <div className="grid gap-[var(--space-6)]">
-              <div className="grid">
-                {MAC_APP_CAPABILITIES.map((capability, index) => (
-                  <CapabilityRow capability={capability} index={index} key={capability.id} />
-                ))}
-              </div>
+          <div className="grid gap-[var(--space-5)] lg:grid-cols-2">
+            {MAC_APP_CAPABILITIES.map((capability, index) => (
+              <CapabilityRow capability={capability} index={index} key={capability.id} />
+            ))}
+          </div>
 
-              <div className="grid gap-[var(--space-4)] lg:grid-cols-12">
-                <div className="lg:col-span-12">
-                  <PanelEyebrow>Fleet Control Center gallery</PanelEyebrow>
-                </div>
-                <SurfaceTile appSurface={firstSurface} featured />
-                {surfaces.map((appSurface) => (
-                  <SurfaceTile appSurface={appSurface} key={appSurface.id} />
-                ))}
-              </div>
+          <div className="grid gap-[var(--space-4)] lg:grid-cols-12">
+            <div className="lg:col-span-12">
+              <PanelEyebrow>Fleet Control Center gallery</PanelEyebrow>
             </div>
-          </SwissGridItem>
-        </SwissGrid>
+            <SurfaceTile appSurface={firstSurface} featured />
+            {surfaces.map((appSurface) => (
+              <SurfaceTile appSurface={appSurface} key={appSurface.id} />
+            ))}
+          </div>
+        </div>
       </PageContainer>
     </section>
   )

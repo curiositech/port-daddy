@@ -55,7 +55,7 @@ pd done "Auth complete"
 - [Multi-Agent Coordination](#-multi-agent-coordination)
 - [The Dashboard (HUD)](#-the-dashboard-hud)
 - [Configuration](#-configuration)
-- [Patterns & Cookbook](#-patterns--cookbook)
+- [Executable Examples](#-executable-examples)
 - [Development & Testing](#-development--testing)
 - [V4 Roadmap: The Wild West](#-v4-roadmap-the-wild-west)
 - [License](#-license)
@@ -163,6 +163,26 @@ pd pub swarm:general \
 ```
 
 Declared channels are git-sensitive by default. A branch-scoped channel resolves differently across worktrees/feature branches, which stops unrelated branches from accidentally sharing the same coordination bus. `pd pub`, `pd sub`, `pd watch`, and `pd channels clear` all auto-resolve declared logical names against the current worktree. Use `--raw-channel` only when you intentionally want the literal channel string without resolution.
+
+### `pd tube` — Conversational Pipe (with History Guard)
+
+For one-line conversations between two agents (or between scripts and agents), `pd tube` adds a thin envelope and a per-channel cursor so listeners don't re-emit messages they already processed:
+
+```bash
+# Listen — JSON-line per message on stdout; cursor persisted to disk
+pd tube agent:notes
+
+# One-shot drain (resume from where you left off, then exit)
+pd tube agent:notes --once | jq -r '.body'
+
+# Send (stdin to EOF)
+echo "shipped the fix in commit abc123" | pd tube agent:notes --send
+
+# Reply to a specific message (threading via inReplyTo)
+echo "looks good — merging" | pd tube agent:notes --reply=42
+```
+
+History guard lives at `~/.port-daddy/tube-history-<safe-channel>.json` (atomic via tmp+rename); `--no-history` ignores it; `--since=<id>` overrides it. Composes with `pd pub` / `pd sub` for cases where you want raw fan-out without the envelope. Hands-on tutorial: [`skills/pd-relay-zero-trust/examples/pd-tube-tutorial.md`](skills/pd-relay-zero-trust/examples/pd-tube-tutorial.md).
 
 ### Integration & Signaling
 Automate agent handoffs using `pd integration` and `pd wait`:
@@ -288,7 +308,7 @@ Use the right surface for the job:
 
 Canonical operator explanation: [docs/DELEGATION-MODES.md](docs/DELEGATION-MODES.md)
 
-For Port Daddy itself, promotion is the high-signal docs boundary. `./scripts/promote-stable.sh` emits a `promotion:release-surfaces` tuple and pub/sub signal after tests pass and before the stable merge, so the fleet Documentarian/Lookout reviews README, website docs/tutorials, SDK/CLI references, OpenAPI/MCP surfaces, and the distributed agent skill when those surfaces are about to become live operator truth.
+For Port Daddy itself, promotion is the high-signal docs boundary. `./scripts/promote-stable.sh` emits a `promotion:release-surfaces` tuple and pub/sub signal after tests pass and before the stable merge, so the fleet Documentarian/Lookout reviews README, docs, website docs/tutorials, Mac app/FleetBar install and product copy, SDK/CLI references, OpenAPI/MCP surfaces, and the distributed agent skill when those surfaces are about to become live operator truth.
 
 ```bash
 # Preferred single-agent delegation
@@ -624,16 +644,18 @@ Commit this to your repo so every developer gets the same deterministic port map
 
 ---
 
-## 📖 Patterns & Cookbook
+## 📖 Executable Examples
 
 | Pattern | Goal |
 |---------|------|
-| **Leader Election** | Use locks to appoint a single master agent in a worker swarm. |
-| **P2P Handshake** | Use inboxes as signaling servers to establish high-bandwidth WebRTC tunnels. |
-| **Agentic Escrow** | Hold lock-backed payouts until an Arbiter agent verifies work quality. |
-| **The Brig** | Automatically isolate or salvage agents who deviate from their manifest. |
+| **Leader Election** | Use locks to appoint a single master agent in a worker swarm. (`/examples/leader-election`) |
+| **P2P Handshake** | Use inboxes as signaling servers to establish high-bandwidth WebRTC tunnels. (`/examples/p2p-webrtc`) |
+| **Ephemeral CI Database** | Claim a stable semantic port for a per-run test database. (`/examples/ephemeral-ci-db`) |
+| **Agent Topologies** | Publish star, ring, and arbiter topology events into inspectable channels. (`/examples/agent-archetypes`) |
+| **Agentic Escrow** | Hold lock-backed payouts until an Arbiter agent verifies work quality. *(planned — see `docs/plans/PHONE-INTEGRATION-MASTER-PLAN.md`)* |
+| **The Brig** | Automatically isolate or salvage agents who deviate from their manifest. *(planned — see `docs/plans/PHONE-INTEGRATION-MASTER-PLAN.md`)* |
 
-*See `/cookbook` on the local dashboard for full code examples.*
+The public site uses **`/examples`** as the single source-backed catalogue for runnable patterns.
 
 ---
 

@@ -287,11 +287,11 @@ export async function handleActors(positional: string[], options: CLIOptions): P
   }
 
   if (actors.length === 0) {
-    ui.info('No maritime actors found');
+    ui.info('No fleet actors found');
     return;
   }
 
-  console.log('Maritime actors');
-  console.log('---------------');
+  console.log('Fleet actors');
+  console.log('------------');
   printActors(actors);
 }

@@ -1,13 +1,20 @@
+// Actor IDs are fleet agent names (1:1 with pd-fleet.yml's fleet.agents).
+// The maritime metaphor has been dropped — these are durable inboxes for the
+// fleet cast itself. Old maritime IDs (navigator, lookout, signalman, etc.)
+// remain as deprecated aliases so existing URLs / inbox addresses keep working
+// during the transition. Bodyless maritime roles (coxswain, sounder,
+// harbormaster, breaker, caulker, quartermaster) have no fleet body and have
+// been removed from the canonical roster — they were aspirational, not
+// load-bearing.
 export type MaritimeActorId =
-  | 'navigator'
-  | 'coxswain'
-  | 'signalman'
-  | 'harbormaster'
-  | 'sounder'
-  | 'lookout'
-  | 'breaker'
-  | 'caulker'
-  | 'quartermaster';
+  | 'gardener'
+  | 'qa'
+  | 'test-hunter'
+  | 'documentarian'
+  | 'simplifier'
+  | 'cartographer'
+  | 'spark'
+  | 'spider';
 
 export type MaritimeActorLeaseState = 'attached' | 'recoverable' | 'detached' | 'dormant';
 
@@ -72,94 +79,84 @@ export interface MaritimeActorsProjectionInput {
 
 export const MARITIME_ACTORS: readonly MaritimeActorDefinition[] = [
   {
-    id: 'navigator',
-    label: 'Navigator',
-    title: 'Roadmap and recovery-map actor',
-    mission: 'Maintains roadmap state, recovery ledgers, work-slice evidence, supersession edges, and cartographer projections.',
-    owns: ['roadmap', 'recovery-ledger', 'work-slices', 'cartographer-status'],
-    aliases: ['cartographer', 'roadmap', 'mapmaker'],
-    compatibilityFleetAgent: 'cartographer',
-    mailbox: 'actor:navigator',
+    id: 'gardener',
+    label: 'Gardener',
+    title: 'Working-tree hygiene actor',
+    mission: 'Reports on uncommitted changes and surfaces drift between working tree and committed state.',
+    owns: ['working-tree', 'uncommitted', 'git-status'],
+    aliases: ['tree', 'wip'],
+    compatibilityFleetAgent: 'gardener',
+    mailbox: 'actor:gardener',
   },
   {
-    id: 'coxswain',
-    label: 'Coxswain',
-    title: 'Claims, locks, and stale-asset coordination actor',
-    mission: 'Coordinates file/symbol claims, lock ownership, stale assets, mutation evidence, and reclaim affordances.',
-    owns: ['claims', 'locks', 'stale-assets', 'symbol-coordination'],
-    aliases: ['claims', 'locks', 'coordination'],
-    compatibilityFleetAgent: null,
-    mailbox: 'actor:coxswain',
-  },
-  {
-    id: 'signalman',
-    label: 'Signalman',
+    id: 'qa',
+    label: 'QA',
     title: 'Validation and evidence actor',
     mission: 'Tracks test runs, validation evidence, signal quality, teardown warnings, and promotion proof.',
     owns: ['tests', 'validation', 'evidence', 'signals'],
-    aliases: ['qa', 'validation', 'evidence'],
+    aliases: ['signalman', 'validation', 'evidence'],
     compatibilityFleetAgent: 'qa',
-    mailbox: 'actor:signalman',
+    mailbox: 'actor:qa',
   },
   {
-    id: 'harbormaster',
-    label: 'Harbormaster',
-    title: 'Promotion, daemon freshness, and runtime-truth actor',
-    mission: 'Owns promotion readiness, daemon freshness, stable checkout cleanliness, launchd truth, and runtime provenance.',
-    owns: ['promotion', 'daemon-freshness', 'stable-checkout', 'runtime-truth'],
-    aliases: ['promotion', 'release', 'daemon'],
-    compatibilityFleetAgent: null,
-    mailbox: 'actor:harbormaster',
+    id: 'test-hunter',
+    label: 'Test Hunter',
+    title: 'Coverage gap and test-quality actor',
+    mission: 'Hunts modules below coverage thresholds, writes meaningful tests against the actual contract, and flags tautologies / mock echoes.',
+    owns: ['coverage', 'test-quality', 'test-debt'],
+    aliases: ['hunter', 'coverage'],
+    compatibilityFleetAgent: 'test-hunter',
+    mailbox: 'actor:test-hunter',
   },
   {
-    id: 'sounder',
-    label: 'Sounder',
-    title: 'Tuple, graph, memory, and semantic-depth actor',
-    mission: 'Maintains tuple-first coordination, graph edges, episodic memory, semantic term joins, and synonym review queues.',
-    owns: ['tuples', 'graph', 'memory', 'semantic-collapse'],
-    aliases: ['graph', 'memory', 'semantic', 'synonymy'],
-    compatibilityFleetAgent: null,
-    mailbox: 'actor:sounder',
-  },
-  {
-    id: 'lookout',
-    label: 'Lookout',
+    id: 'documentarian',
+    label: 'Documentarian',
     title: 'Docs, API, skill, and product-truth actor',
     mission: 'Watches route, manifest, OpenAPI, CLI, MCP, website, and skill drift before product truth splits.',
     owns: ['docs', 'openapi', 'skills', 'manifest', 'website-truth'],
-    aliases: ['documentarian', 'docs', 'drift'],
+    aliases: ['lookout', 'docs', 'drift'],
     compatibilityFleetAgent: 'documentarian',
-    mailbox: 'actor:lookout',
+    mailbox: 'actor:documentarian',
   },
   {
-    id: 'breaker',
-    label: 'Breaker',
-    title: 'Failure propagation and circuit-breaker actor',
-    mission: 'Models cascading failure, retry storms, circuit states, failure-propagation maps, and forensic windows.',
-    owns: ['failure-propagation', 'circuit-breakers', 'retry-storms', 'forensics'],
-    aliases: ['resilience', 'circuit-breaker', 'failure'],
-    compatibilityFleetAgent: null,
-    mailbox: 'actor:breaker',
+    id: 'simplifier',
+    label: 'Simplifier',
+    title: 'Complexity-reduction actor',
+    mission: 'Removes unnecessary code, prefers deletion over addition, verifies behavior is preserved by the test suite.',
+    owns: ['complexity', 'deletion', 'refactor'],
+    aliases: ['shrink', 'reduce'],
+    compatibilityFleetAgent: 'simplifier',
+    mailbox: 'actor:simplifier',
   },
   {
-    id: 'caulker',
-    label: 'Caulker',
-    title: 'Robustness repair and leak-sealing actor',
-    mission: 'Repairs robustness leaks: teardown debt, orphan cleanup, timeout hygiene, IPC leaks, and brittle fallbacks.',
-    owns: ['robustness', 'teardown', 'timeouts', 'cleanup'],
-    aliases: ['repair', 'hardening', 'leaks'],
-    compatibilityFleetAgent: null,
-    mailbox: 'actor:caulker',
+    id: 'cartographer',
+    label: 'Cartographer',
+    title: 'Roadmap, recovery, and feedback-harvest actor',
+    mission: 'Maintains roadmap state, recovery ledgers, work-slice evidence, supersession edges, and harvests dogfood feedback.',
+    owns: ['roadmap', 'recovery-ledger', 'work-slices', 'cartographer-status', 'feedback-harvest'],
+    aliases: ['navigator', 'roadmap', 'mapmaker'],
+    compatibilityFleetAgent: 'cartographer',
+    mailbox: 'actor:cartographer',
   },
   {
-    id: 'quartermaster',
-    label: 'Quartermaster',
-    title: 'Cost, spawn discipline, backend, and resource-policy actor',
-    mission: 'Governs budgets, spawn ceilings, backend/model policy, fleet activation pressure, and resource accounting.',
-    owns: ['costs', 'budgets', 'spawn-discipline', 'backend-policy'],
-    aliases: ['cost', 'budget', 'resources', 'spawn-discipline'],
-    compatibilityFleetAgent: null,
-    mailbox: 'actor:quartermaster',
+    id: 'spark',
+    label: 'Spark',
+    title: 'Idea-generation actor',
+    mission: 'Proposes concrete improvements after deduping against the canonical idea trove.',
+    owns: ['ideas', 'proposals', 'novelty-gate'],
+    aliases: ['ideator', 'proposer'],
+    compatibilityFleetAgent: 'spark',
+    mailbox: 'actor:spark',
+  },
+  {
+    id: 'spider',
+    label: 'Spider',
+    title: 'Combinatorial-connection actor',
+    mission: 'Finds new capabilities implied by combinations of existing features, in syllogism form.',
+    owns: ['connections', 'syllogisms', 'feature-combinations'],
+    aliases: ['weaver', 'connector'],
+    compatibilityFleetAgent: 'spider',
+    mailbox: 'actor:spider',
   },
 ] as const;
 

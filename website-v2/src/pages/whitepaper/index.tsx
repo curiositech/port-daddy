@@ -64,11 +64,11 @@ export default function WhitepaperPage() {
               <div className="space-y-[var(--space-6)]">
                 <PanelEyebrow>Research dossier</PanelEyebrow>
                 <PanelTitle as="h1" size="hero" className="max-w-[12ch]">
-                  The control-plane papers.
+                  The Port Daddy papers.
                 </PanelTitle>
                 <PanelBody size="default" className="max-w-[48rem] text-[length:var(--text-lg)]">
-                  Two technical papers define the Port Daddy control-plane argument:
-                  signed local identity first, then commons governance for accountable
+                  Two technical papers explain the deeper Port Daddy design:
+                  signed local identity first, then shared accountability for
                   multi-agent work.
                 </PanelBody>
 
@@ -97,6 +97,16 @@ export default function WhitepaperPage() {
               </div>
 
               <aside className="border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
+                <figure className="border-b-2 border-[var(--border-strong)] bg-[var(--surface-base)]">
+                  <picture>
+                    <source srcSet="/img/generated/control-plane-og.webp" type="image/webp" />
+                    <img
+                      src="/img/generated/control-plane-og.jpg"
+                      alt="Generated Swiss-modern control-plane diagram with agent nodes, lock checkpoints, and a recovery ledger path"
+                      className="block aspect-[16/9] w-full object-cover"
+                    />
+                  </picture>
+                </figure>
                 <div className="border-b-2 border-[var(--border-strong)] p-[var(--space-4)]">
                   <PanelEyebrow>Available papers</PanelEyebrow>
                 </div>
