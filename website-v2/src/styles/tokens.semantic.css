@@ -63,11 +63,17 @@
   --voice-over: var(--text-muted);
   --voice-out: var(--text-muted);
 
-  --shadow-raised: none;
-  --shadow-inset: none;
-  --shadow-sm: none;
+  --neo-shadow-xs: 2px 2px 0 0 var(--border-strong);
+  --neo-shadow-control: 3px 3px 0 0 var(--border-strong);
+  --neo-shadow-card: 4px 4px 0 0 var(--border-strong);
+  --neo-shadow-pop: 6px 6px 0 0 var(--border-strong);
+  --neo-shadow-hero: 10px 10px 0 0 var(--border-strong);
+
+  --shadow-raised: var(--neo-shadow-card);
+  --shadow-inset: var(--neo-shadow-xs);
+  --shadow-sm: var(--neo-shadow-control);
   --shadow-flat: none;
-  --shadow-pressed: none;
+  --shadow-pressed: var(--neo-shadow-xs);
 
   --code-bg: #12161f;
   --code-header-bg: #0d1118;
@@ -132,11 +138,17 @@
   --status-error-on-tint: #ffc4c4;
   --status-info-on-tint: var(--brand-primary-on-tint);
 
-  --shadow-raised: none;
-  --shadow-inset: none;
-  --shadow-sm: none;
+  --neo-shadow-xs: 2px 2px 0 0 var(--border-strong);
+  --neo-shadow-control: 3px 3px 0 0 var(--border-strong);
+  --neo-shadow-card: 4px 4px 0 0 var(--border-strong);
+  --neo-shadow-pop: 6px 6px 0 0 var(--border-strong);
+  --neo-shadow-hero: 10px 10px 0 0 var(--border-strong);
+
+  --shadow-raised: var(--neo-shadow-card);
+  --shadow-inset: var(--neo-shadow-xs);
+  --shadow-sm: var(--neo-shadow-control);
   --shadow-flat: none;
-  --shadow-pressed: none;
+  --shadow-pressed: var(--neo-shadow-xs);
 
   --code-bg: #0b0d11;
   --code-header-bg: #080a0e;

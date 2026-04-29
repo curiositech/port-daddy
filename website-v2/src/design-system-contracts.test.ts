@@ -63,7 +63,7 @@ describe('design system contracts', () => {
     ].join('\n'))
   })
 
-  test('legacy relief paths stay flattened across shared website primitives', () => {
+  test('legacy relief paths stay replaced by hard neobrutalist offsets', () => {
     const semanticTokens = read('./styles/tokens.semantic.css')
     const roleTokens = read('./styles/tokens.roles.css')
     const indexCss = read('./index.css')
@@ -76,14 +76,19 @@ describe('design system contracts', () => {
       read('./components/landing/DemoGallery.tsx'),
       read('./components/landing/HarborViz.tsx'),
     ].join('\n')
+    const count = (source: string, pattern: RegExp) => source.match(pattern)?.length ?? 0
 
-    expect(semanticTokens.match(/--shadow-raised: none;/g)).toHaveLength(2)
-    expect(semanticTokens.match(/--shadow-inset: none;/g)).toHaveLength(2)
-    expect(semanticTokens.match(/--shadow-sm: none;/g)).toHaveLength(2)
-    expect(semanticTokens.match(/--shadow-flat: none;/g)).toHaveLength(2)
-    expect(semanticTokens.match(/--shadow-pressed: none;/g)).toHaveLength(2)
+    expect(count(semanticTokens, /--neo-shadow-xs: 2px 2px 0 0 var\(--border-strong\);/g)).toBe(2)
+    expect(count(semanticTokens, /--neo-shadow-control: 3px 3px 0 0 var\(--border-strong\);/g)).toBe(2)
+    expect(count(semanticTokens, /--neo-shadow-card: 4px 4px 0 0 var\(--border-strong\);/g)).toBe(2)
+    expect(count(semanticTokens, /--shadow-raised: var\(--neo-shadow-card\);/g)).toBe(2)
+    expect(count(semanticTokens, /--shadow-inset: var\(--neo-shadow-xs\);/g)).toBe(2)
+    expect(count(semanticTokens, /--shadow-sm: var\(--neo-shadow-control\);/g)).toBe(2)
+    expect(count(semanticTokens, /--shadow-flat: none;/g)).toBe(2)
+    expect(count(semanticTokens, /--shadow-pressed: var\(--neo-shadow-xs\);/g)).toBe(2)
     expect(roleTokens).not.toContain('shadow-neu')
     expect(indexCss).toContain('--tw-shadow: 0 0 #0000 !important;')
+    expect(indexCss).toContain('.neo-lift')
     expect(indexCss).not.toContain('Neumorphic')
     expect(indexCss).not.toContain('.neu-inset')
     expect(protectedReliefSources).not.toContain('neu-shadow')

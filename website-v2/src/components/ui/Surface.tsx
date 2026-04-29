@@ -54,7 +54,8 @@ const depthStyles: Record<string, React.CSSProperties> = {
   raised: {
     background: 'var(--surface-raised)',
     border: '2px solid var(--border-strong)',
-    boxShadow: 'none',
+    boxShadow: 'var(--neo-shadow-card)',
+    transform: 'translate(0, 0)',
   },
   flat: {
     background: 'var(--surface-raised)',
@@ -64,21 +65,22 @@ const depthStyles: Record<string, React.CSSProperties> = {
   inset: {
     background: 'var(--surface-sunken)',
     border: '1px solid var(--border-default)',
-    boxShadow: 'none',
+    boxShadow: 'var(--neo-shadow-xs)',
   },
   floating: {
     background: 'var(--surface-raised)',
     border: '2px solid var(--border-strong)',
-    boxShadow: 'none',
+    boxShadow: 'var(--neo-shadow-pop)',
+    transform: 'translate(0, 0)',
     zIndex: 50,
   },
 }
 
 const interactiveHoverStyles: Record<string, React.CSSProperties> = {
-  raised: { background: 'var(--surface-strong)', boxShadow: 'none' },
+  raised: { background: 'var(--surface-strong)', boxShadow: 'var(--neo-shadow-pop)', transform: 'translate(-2px, -2px)' },
   flat: { background: 'var(--surface-strong)', boxShadow: 'none' },
   inset: { background: 'var(--surface-raised)', boxShadow: 'none' },
-  floating: { background: 'var(--surface-strong)', boxShadow: 'none' },
+  floating: { background: 'var(--surface-strong)', boxShadow: 'var(--neo-shadow-hero)', transform: 'translate(-2px, -2px)' },
 }
 
 interface SurfaceProps

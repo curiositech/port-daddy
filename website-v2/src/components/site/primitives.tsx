@@ -106,7 +106,7 @@ export function BrandMark({ className }: { className?: string }) {
     <div
       aria-hidden="true"
       className={cn(
-        'inline-flex h-10 w-10 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-2)]',
+        'neo-control inline-flex h-10 w-10 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-2)]',
         className,
       )}
     >
@@ -676,7 +676,7 @@ export function LandingCommercialCard({
 }
 
 const surfaceElevationClass = {
-  raised: 'border-2 border-[var(--border-strong)] shadow-none',
+  raised: 'neo-card border-2 border-[var(--border-strong)]',
   quiet: 'border border-[var(--border-default)] shadow-none',
 } as const
 

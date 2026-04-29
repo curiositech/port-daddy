@@ -34,7 +34,7 @@ function CapabilityRow({
         <span className="font-mono text-[length:var(--type-panel-title-nav-size)] font-black text-[var(--brand-primary)]">
           {capability.label}
         </span>
-        <span className="inline-flex h-10 w-10 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--text-primary)]">
+        <span className="neo-control inline-flex h-10 w-10 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--text-primary)]">
           <Icon size={18} />
         </span>
       </div>
@@ -57,7 +57,7 @@ function SurfaceTile({ appSurface, featured = false }: { appSurface: AppSurface;
   return (
     <article
       className={[
-        'min-w-0 border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]',
+        'neo-card min-w-0 border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]',
         featured ? 'lg:col-span-8' : 'lg:col-span-4',
       ].join(' ')}
     >
@@ -72,7 +72,7 @@ function SurfaceTile({ appSurface, featured = false }: { appSurface: AppSurface;
           <span className="font-mono text-[10px] font-black uppercase tracking-[0.22em] text-[var(--text-secondary)]">
             {appSurface.surface}
           </span>
-          <span className="h-3 w-3 border-2 border-[var(--border-strong)] bg-[var(--brand-primary)]" aria-hidden="true" />
+          <span className="neo-control h-3 w-3 border-2 border-[var(--border-strong)] bg-[var(--brand-accent)]" aria-hidden="true" />
         </div>
         <PanelTitle as="p" size={featured ? 'card' : 'nav'} className="max-w-[14ch]">
           {appSurface.title}
@@ -107,7 +107,7 @@ export function MacAppShowcase() {
                 titleSize="display"
                 titleClassName="max-w-[12ch]"
               />
-              <SurfacePanel elevation="quiet" padding="compact" className="grid gap-[var(--space-2)]">
+              <SurfacePanel elevation="quiet" padding="compact" className="neo-card grid gap-[var(--space-2)]">
                 <PanelEyebrow>Current distribution stance</PanelEyebrow>
                 <PanelBody size="compact" className="max-w-none">
                   Homebrew and npm remain the install path for Port Daddy. The website now also hosts a Mac developer-preview FleetBar app bundle while the signed release channel matures.
