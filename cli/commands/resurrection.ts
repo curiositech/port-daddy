@@ -18,7 +18,7 @@ interface StaleAgent {
   sessionId: string | null;
   lastHeartbeat: number;
   staleSince: number;
-  status: 'stale' | 'dead' | 'resurrecting';
+  status: 'pending' | 'stale' | 'dead' | 'resurrecting';
   notes?: string[];
   identityProject: string | null;
   identityStack: string | null;
@@ -67,6 +67,11 @@ export interface SalvageTriagePlan {
   summary: SalvageTriageSummary;
   buckets: SalvageTriageBucket[];
   nextActions: string[];
+}
+
+export interface SalvageNextSelection {
+  bucket: Pick<SalvageTriageBucket, 'id' | 'title' | 'action' | 'count'>;
+  item: SalvageTriageEntry;
 }
 
 function parseEncryptedNote(note: string): boolean {
@@ -152,6 +157,8 @@ const TRIAGE_BUCKET_META: Record<SalvageTriageBucketId, { title: string; action:
 const completionPattern = /\b(committed|pushed|promoted|promotion complete|completed|validation|validated|tests? passed|typecheck passed|green)\b/i;
 const blockerPattern = /\b(blocked|blocker|not committed|uncommitted|dirty|failed|failing|todo|next|starting|continuing|in progress|wip|needs?)\b/i;
 const testNoisePattern = /(^|:)test(:|$)|stale-whoami|stale-note|demo-scripts-test|recovered from stale context/i;
+const DEFAULT_NEXT_BUCKETS: SalvageTriageBucketId[] = ['resume-now', 'archive-later'];
+const ALL_TRIAGE_BUCKETS = Object.keys(TRIAGE_BUCKET_META) as SalvageTriageBucketId[];
 
 function previewText(value: string | null | undefined): string | null {
   const normalized = value?.replace(/\s+/g, ' ').trim();
@@ -252,6 +259,31 @@ export function triageSalvageAgents(agents: StaleAgent[], now: number = Date.now
   };
 }
 
+export function selectNextSalvageWork(
+  plan: SalvageTriagePlan,
+  preferredBucket?: SalvageTriageBucketId,
+): SalvageNextSelection | null {
+  const bucketOrder = preferredBucket ? [preferredBucket] : DEFAULT_NEXT_BUCKETS;
+
+  for (const bucketId of bucketOrder) {
+    const bucket = plan.buckets.find(candidate => candidate.id === bucketId);
+    const item = bucket?.agents[0];
+    if (bucket && item) {
+      return {
+        bucket: {
+          id: bucket.id,
+          title: bucket.title,
+          action: bucket.action,
+          count: bucket.count,
+        },
+        item,
+      };
+    }
+  }
+
+  return null;
+}
+
 function formatCount(name: string, count: number): string | null {
   return count > 0 ? `${count} ${name}` : null;
 }
@@ -316,6 +348,49 @@ function printSalvageTriagePlan(plan: SalvageTriagePlan, options: CLIOptions): v
   }
 }
 
+function parseBucketOption(value: unknown): SalvageTriageBucketId | undefined {
+  if (typeof value !== 'string') return undefined;
+  if ((ALL_TRIAGE_BUCKETS as string[]).includes(value)) return value as SalvageTriageBucketId;
+  return undefined;
+}
+
+function bucketScopeLabel(bucketId: SalvageTriageBucketId | undefined): string {
+  return bucketId ?? DEFAULT_NEXT_BUCKETS.join('/');
+}
+
+function printSalvageNext(selection: SalvageNextSelection, plan: SalvageTriagePlan): void {
+  const entry = selection.item;
+  const age = formatAge(entry.ageMs);
+  console.log(`${ANSI.bold}Next salvage work${ANSI.reset}`);
+  console.log(`  Bucket: ${selection.bucket.title} (${selection.bucket.count})`);
+  console.log(`  Action: ${selection.bucket.action}`);
+  console.log(`  Agent:  ${entry.name} (${entry.status}, ${age})`);
+  if (entry.identity) console.log(`  Scope:  ${ANSI.fgCyan}${entry.identity}${ANSI.reset}`);
+  console.log(`  Reason: ${entry.reason}`);
+  if (entry.evidence) console.log(`  Evidence: ${entry.evidence}`);
+  console.log(`  Next:   ${ANSI.fgCyan}${entry.command}${ANSI.reset}`);
+  console.log('');
+  console.log(`${ANSI.bold}Queue state${ANSI.reset}`);
+  console.log(`  Total: ${plan.summary.total}`);
+  console.log(`  Default pull buckets: ${DEFAULT_NEXT_BUCKETS.join(', ')}`);
+  console.log(`  Inspect all buckets: ${ANSI.fgCyan}pd salvage triage --json${ANSI.reset}`);
+}
+
+async function claimSalvageAgent(agentId: string, options: CLIOptions): Promise<Record<string, unknown>> {
+  const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/salvage/claim/${encodeURIComponent(agentId)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ newAgentId: options.agent || `cli-${process.pid}` })
+  });
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error((data.error as string) || 'Failed to claim agent');
+  }
+
+  return data as Record<string, unknown>;
+}
+
 /**
  * Handle `pd salvage` command
  * Lists agents pending resurrection with their context
@@ -329,6 +404,7 @@ export async function handleSalvage(subcommand: string | undefined, args: string
     console.error('Subcommands:');
     console.error('  (none)                          Show agents awaiting salvage (filtered by --project)');
     console.error('  triage                          Cluster salvage queue into action buckets');
+    console.error('  next                            Print one bounded work item for an idle agent');
     console.error('  claim <agent-id>                Claim an agent\'s work');
     console.error('  complete <old-id> <new-id>      Mark salvage complete');
     console.error('  abandon <agent-id>              Return agent to queue');
@@ -340,12 +416,95 @@ export async function handleSalvage(subcommand: string | undefined, args: string
     console.error('  --all                           Show ALL queue entries globally (use sparingly)');
     console.error('  --limit <n>                     Limit number of results');
     console.error('  --summary                       Show only grouped stale/dead triage');
+    console.error('  --bucket <id>                   With next: pull a specific triage bucket');
+    console.error('  --claim                         With next: claim a claimable item immediately');
     console.error('');
     console.error('By default, salvage shows agents in the current project. Use --all for global view.');
     process.exit(0);
   }
 
   switch (subcommand) {
+    case 'next': {
+      const endpoint = options.all ? '/salvage' : '/salvage/pending';
+      const params = new URLSearchParams();
+      if (options.project) params.append('project', options.project as string);
+      if (options.stack) params.append('stack', options.stack as string);
+
+      const requestedBucket = options.bucket === undefined ? undefined : parseBucketOption(options.bucket);
+      if (options.bucket !== undefined && !requestedBucket) {
+        ui.error(`Unknown salvage bucket "${String(options.bucket)}". Use one of: ${ALL_TRIAGE_BUCKETS.join(', ')}`);
+        process.exit(1);
+      }
+
+      const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}${endpoint}${params.toString() ? '?' + params : ''}`);
+      const data = await res.json();
+
+      if (!res.ok) {
+        ui.error((data.error as string) || 'Failed to inspect salvage queue');
+        process.exit(1);
+      }
+
+      const agents = data.agents as StaleAgent[];
+      const plan = triageSalvageAgents(agents);
+      const selection = selectNextSalvageWork(plan, requestedBucket);
+
+      if (!selection) {
+        const payload = {
+          success: true,
+          bucket: requestedBucket ?? null,
+          item: null,
+          command: null,
+          summary: plan.summary,
+          nextActions: plan.nextActions,
+        };
+        if (isJson(options)) {
+          console.log(JSON.stringify(payload, null, 2));
+          return;
+        }
+        if (!isQuiet(options)) {
+          ui.info(`No salvage work available in ${bucketScopeLabel(requestedBucket)}.`);
+          console.log(`Inspect the full queue with ${ANSI.fgCyan}pd salvage triage --project ${options.project || '<project>'}${ANSI.reset}`);
+        }
+        return;
+      }
+
+      const claimRequested = options.claim === true;
+      if (claimRequested && !selection.item.command.startsWith('pd salvage claim ')) {
+        ui.error(`Selected ${selection.bucket.id} item is not claimable. Run: ${selection.item.command}`);
+        process.exit(1);
+      }
+
+      let claim: Record<string, unknown> | null = null;
+      if (claimRequested) {
+        try {
+          claim = await claimSalvageAgent(selection.item.id, options);
+        } catch (error) {
+          ui.error(error instanceof Error ? error.message : 'Failed to claim agent');
+          process.exit(1);
+        }
+      }
+
+      if (isJson(options)) {
+        console.log(JSON.stringify({
+          success: true,
+          bucket: selection.bucket,
+          item: selection.item,
+          command: selection.item.command,
+          claimed: claimRequested,
+          claim,
+          summary: plan.summary,
+          nextActions: plan.nextActions,
+        }, null, 2));
+        return;
+      }
+
+      printSalvageNext(selection, plan);
+      if (claim) {
+        ui.success(`Claimed ${selection.item.id} for salvage`);
+      }
+      break;
+    }
+
     case 'triage': {
       const endpoint = options.all ? '/salvage' : '/salvage/pending';
       const params = new URLSearchParams();
@@ -384,15 +543,11 @@ export async function handleSalvage(subcommand: string | undefined, args: string
         process.exit(1);
       }
 
-      const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/salvage/claim/${encodeURIComponent(agentId)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ newAgentId: options.agent || `cli-${process.pid}` })
-      });
-      const data = await res.json();
-
-      if (!res.ok) {
-        ui.error((data.error as string) || 'Failed to claim agent');
+      let data: Record<string, unknown>;
+      try {
+        data = await claimSalvageAgent(agentId, options);
+      } catch (error) {
+        ui.error(error instanceof Error ? error.message : 'Failed to claim agent');
         process.exit(1);
       }
 

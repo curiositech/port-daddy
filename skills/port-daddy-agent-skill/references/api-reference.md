@@ -530,6 +530,19 @@ Clusters entries into `resume-now`, `verify-dismiss`, `test-noise`,
 `no-evidence`, and `archive-later`. Use `--json` to feed future idle-agent
 queue pullers; use `--limit <n>` to control printed examples per bucket.
 
+### CLI: `pd salvage next`
+Local CLI synthesis over the same salvage endpoints that returns exactly one
+bounded queue item for an idle agent. By default it pulls from `resume-now`,
+then `archive-later`, and deliberately skips cleanup-only buckets so idle agents
+do not spend capacity on low-value dismissal chores unless directed.
+
+Useful flags:
+- `--project <name>` and `--stack <name>` scope the queue.
+- `--bucket <id>` pulls from one explicit bucket, including cleanup buckets.
+- `--claim --agent <id>` claims a claimable item immediately after selection.
+- `--json` returns `{ bucket, item, command, claimed, claim, summary }` for
+  machine-driven loops.
+
 ---
 
 ## Notes (Quick Notes)

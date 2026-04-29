@@ -1,6 +1,7 @@
 import { describe, expect, test } from '@jest/globals';
 import {
   formatSalvageNote,
+  selectNextSalvageWork,
   summarizeSalvageAgents,
   triageSalvageAgents,
 } from '../../cli/commands/resurrection.js';
@@ -29,7 +30,7 @@ describe('salvage CLI visibility helpers', () => {
         sessionId: null,
         lastHeartbeat: now - 60_000,
         staleSince: now - 60_000,
-        status: 'stale',
+        status: 'pending',
         notes: [],
         identityProject: 'port-daddy',
         identityStack: null,
@@ -65,7 +66,7 @@ describe('salvage CLI visibility helpers', () => {
 
     expect(summarizeSalvageAgents(agents, now)).toEqual({
       total: 3,
-      statuses: { stale: 1, dead: 2 },
+      statuses: { pending: 1, dead: 2 },
       ageBuckets: { recent: 1, sameDay: 1, stale: 1 },
       projects: [
         { project: 'port-daddy', count: 2 },
@@ -159,5 +160,66 @@ describe('salvage CLI visibility helpers', () => {
     expect(plan.buckets.find(bucket => bucket.id === 'verify-dismiss').agents[0].command).toBe('pd salvage dismiss landed');
     expect(plan.buckets.find(bucket => bucket.id === 'test-noise').agents[0].command).toBe('pd salvage dismiss stale-test');
     expect(plan.nextActions.join(' ')).toContain('--json');
+  });
+
+  test('selects one bounded item for idle-agent queue pulls', () => {
+    const now = 1_000_000_000;
+    const baseAgent = {
+      name: 'agent',
+      purpose: null,
+      sessionId: null,
+      lastHeartbeat: now - 48 * 60 * 60 * 1000,
+      staleSince: now - 48 * 60 * 60 * 1000,
+      status: 'dead',
+      notes: [],
+      identityProject: 'port-daddy',
+      identityStack: null,
+      identityContext: null,
+    };
+    const plan = triageSalvageAgents([
+      {
+        ...baseAgent,
+        id: 'landed',
+        notes: ['Committed and pushed abc123. Validation passed.'],
+      },
+      {
+        ...baseAgent,
+        id: 'ambiguous',
+        purpose: 'Inspect old roadmap note',
+        notes: ['Looked at recovery queue.'],
+      },
+      {
+        ...baseAgent,
+        id: 'recent',
+        lastHeartbeat: now - 30_000,
+        staleSince: now - 30_000,
+      },
+    ], now);
+
+    expect(selectNextSalvageWork(plan).item.id).toBe('recent');
+    expect(selectNextSalvageWork(plan, 'archive-later').item.id).toBe('ambiguous');
+    expect(selectNextSalvageWork(plan, 'verify-dismiss').item.command).toBe('pd salvage dismiss landed');
+  });
+
+  test('does not spend default idle-agent pulls on cleanup-only buckets', () => {
+    const now = 1_000_000_000;
+    const plan = triageSalvageAgents([
+      {
+        id: 'landed',
+        name: 'landed',
+        purpose: null,
+        sessionId: 'session-landed',
+        lastHeartbeat: now - 48 * 60 * 60 * 1000,
+        staleSince: now - 48 * 60 * 60 * 1000,
+        status: 'dead',
+        notes: ['Committed and pushed abc123. Validation passed.'],
+        identityProject: 'port-daddy',
+        identityStack: 'runtime',
+        identityContext: null,
+      },
+    ], now);
+
+    expect(selectNextSalvageWork(plan)).toBeNull();
+    expect(selectNextSalvageWork(plan, 'verify-dismiss').item.id).toBe('landed');
   });
 });

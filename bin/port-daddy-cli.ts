@@ -756,6 +756,11 @@ Commands:
   salvage triage           Cluster queue into resume / verify-dismiss / test-noise buckets
     --json                 Machine-readable queue for future idle-agent pull loops
 
+  salvage next             Print one bounded queue item for an idle agent
+    --bucket <id>          Pull a specific bucket instead of resume-now/archive-later
+    --claim                Claim the selected claimable item immediately
+    --json                 Machine-readable single-item queue pull
+
   salvage claim <id>       Claim a dead agent's work to continue
 
 Examples:
@@ -764,6 +769,7 @@ Examples:
   pd agents --active --json
   pd salvage --project myapp
   pd salvage triage --project myapp
+  pd salvage next --project myapp --json
   pd salvage claim dead-agent-99`,
 
   actors: `Maritime Actors \u2014 Durable coordination souls and live body signals
