@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, Download, MonitorCog, Terminal } from 'lucide-react'
+import { ArrowRight, Check, Copy, Download, MonitorCog, Terminal } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { MacAppShowcase } from '@/components/landing/MacAppShowcase'
 import { ColdStartSection } from '@/components/landing/ColdStartSection'
@@ -7,7 +8,6 @@ import { DistributionSection } from '@/components/landing/DistributionSection'
 import { MacWorkflowDemos } from '@/components/landing/MacWorkflowDemos'
 import { Footer } from '@/components/layout/Footer'
 import {
-  CommandBlock,
   PageContainer,
   PanelBody,
   PanelEyebrow,
@@ -16,6 +16,50 @@ import {
   SwissGrid,
   SwissGridItem,
 } from '@/components/site/primitives'
+
+const heroInstallCommand = 'brew install curiositech/tap/port-daddy\npd setup --project ~/coding/my-app'
+
+function HeroInstallPanel() {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(heroInstallCommand)
+    setCopied(true)
+    window.setTimeout(() => setCopied(false), 1800)
+  }
+
+  return (
+    <SurfacePanel elevation="quiet" padding="compact" className="grid gap-[var(--space-3)]">
+      <div className="flex items-center justify-between gap-[var(--space-3)]">
+        <PanelEyebrow>Install FleetBar</PanelEyebrow>
+        <Button type="button" variant="secondary" size="sm" aria-label="Copy FleetBar install command" onClick={handleCopy}>
+          {copied ? <Check size={14} /> : <Copy size={14} />}
+          {copied ? 'Copied' : 'Copy'}
+        </Button>
+      </div>
+      <div
+        className="min-w-0 overflow-hidden border-2 border-[var(--border-strong)] px-[var(--space-3)] py-[var(--space-3)] font-mono text-[13px] leading-[1.65]"
+        style={{ background: 'var(--code-bg)', color: 'var(--code-text)' }}
+        aria-label="FleetBar install command"
+      >
+        <code
+          className="block"
+          style={{
+            background: 'transparent',
+            border: 0,
+            borderRadius: 0,
+            color: 'inherit',
+            overflowWrap: 'anywhere',
+            padding: 0,
+            whiteSpace: 'pre-wrap',
+          }}
+        >
+          {heroInstallCommand}
+        </code>
+      </div>
+    </SurfacePanel>
+  )
+}
 
 export function MacPreviewPage() {
   return (
@@ -60,16 +104,8 @@ export function MacPreviewPage() {
                 </div>
               </SwissGridItem>
 
-              <SwissGridItem span="rail">
-                <SurfacePanel elevation="quiet" padding="compact" className="grid gap-[var(--space-3)]">
-                  <PanelEyebrow>Stable install</PanelEyebrow>
-                  <CommandBlock
-                    title="Install + open"
-                    command={'brew install curiositech/tap/port-daddy\npd setup --project ~/coding/my-app'}
-                    elevation="quiet"
-                    hideLabel
-                  />
-                </SurfacePanel>
+              <SwissGridItem span="narrow">
+                <HeroInstallPanel />
               </SwissGridItem>
             </SwissGrid>
           </PageContainer>
