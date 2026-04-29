@@ -40,6 +40,7 @@ excluded.
 | `/private/tmp/port-daddy-pr5-ui` | `codex/worktree-snapshot-20260429-pr5-ui` | `afd2796` | PD Tube and relay PKI docs, demos, tutorial routes, and website tutorial wiring |
 | `/private/tmp/port-daddy-og-branded` | `codex/worktree-snapshot-20260429-og-branded` | `096e0cf` | Branded route OG card generator and generated image set at the moment of snapshot |
 | `/private/tmp/port-daddy-og-branded` | `codex/og-branded-social-cards` | `dcb02f6` | Active worktree commit for the same OG-card patch, pushed under its working branch name |
+| `/Users/erichowens/coding/port-daddy-salvage-autostash` | `codex/worktree-snapshot-20260429-salvage-autostash-screenshots` | `0263363` | Untracked MCP/Mac preview screenshot proof files |
 
 The two OG-card commits have the same stable patch-id but different commit hashes
 because the active worktree committed while the snapshot pass was running. Both
@@ -60,7 +61,7 @@ were pushed so neither hash is stranded.
 | `codex/reconcile-stable-runtime-fixes` | Already ancestor of `origin/main`; upstream was gone but no unique work remained. |
 | `codex/pr-5-pki-deliberation` | Already ancestor of `origin/main`; no additional preservation branch needed. |
 | `codex/pr-5-pki-ui-docs` | Dirty worktree content preserved in `codex/worktree-snapshot-20260429-pr5-ui`. |
-| `salvage/auto-stash-2026-04-28T2309` | Remote branch already exists; local untracked screenshots remain a lower-priority follow-up. |
+| `salvage/auto-stash-2026-04-28T2309` | Remote branch already exists; untracked screenshots preserved in `codex/worktree-snapshot-20260429-salvage-autostash-screenshots`. |
 
 ## Follow-Up Queue
 

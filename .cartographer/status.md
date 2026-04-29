@@ -33,7 +33,7 @@ The latest committed work still maps overwhelmingly to the Recovery Roadmap (`do
 
 - Recovery ledger added at `docs/recovery/STASH-WORKTREE-HARVEST-2026-04-29.md`.
 - New stash snapshots are pushed as `codex/stash-exact-20260429-19-*` and `codex/stash-exact-20260429-20-*`; the local stash stack was left intact.
-- Dirty worktree snapshots are pushed for root website recordings, FCC control-plane assets, PR5 Tube/PKI docs and UI work, and OG branded route cards.
+- Dirty worktree snapshots are pushed for root website recordings, FCC control-plane assets, PR5 Tube/PKI docs and UI work, OG branded route cards, and salvage-autostash screenshot proofs.
 - Local-only unique branch tips `d729dba`, `1579dee`, `bc310cf`, `d143501`, `acddf1c`, `3f9f142`, and `52f13f3` are preserved on explicit `codex/worktree-preserve-20260429-*` branches.
 - Patch-equivalent or already-absorbed worktrees were not replayed onto main; integration still needs deliberate review per the ledger follow-up queue.
 
