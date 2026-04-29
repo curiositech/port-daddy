@@ -134,6 +134,17 @@ h1 { margin: 0; color: var(--text-primary); line-height: 1.1; }
 h2 { margin: 0; color: var(--text-primary); line-height: 1.2; }
 h3 { margin: 0; color: var(--text-primary); line-height: 1.3; }
 
+@layer utilities {
+  .tracking-tight,
+  .tracking-tighter {
+    letter-spacing: 0 !important;
+  }
+
+  .prose-headings\:tracking-tight :where(h1, h2, h3, h4, h5, h6) {
+    letter-spacing: 0 !important;
+  }
+}
+
 p, li {
   margin: 0;
   max-width: 75ch; /* Prevent overly long lines */

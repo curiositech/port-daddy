@@ -1,8 +1,37 @@
 /* Signal Tower Design System
-   Bold, systematic, high-contrast. Pure neutral palette with signal flag color strips.
-   Typography: Space Grotesk (headlines), Inter (body), Geist Mono (code) */
+   Bold, systematic, high-contrast. Pure neutral palette with signal flag color strips. */
 
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap');
+@font-face {
+  font-family: "Radnika";
+  src: url("/fonts/radnika/Radnika-Regular.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Radnika";
+  src: url("/fonts/radnika/Radnika-Medium.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Radnika";
+  src: url("/fonts/radnika/Radnika-Bold.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Radnika";
+  src: url("/fonts/radnika/Radnika-Black.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+}
 
 :root {
   --bg: #FAFAFA;
@@ -15,9 +44,9 @@
   --amber: #E5A000;
   --red: #CD2B31;
   --purple: #6E56CF;
-  --font-display: 'Space Grotesk', system-ui, sans-serif;
-  --font-body: 'Inter', system-ui, sans-serif;
-  --font-mono: 'Geist Mono', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+  --font-display: "Radnika", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-body: "Radnika", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
   --radius: 8px;
   --shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
@@ -63,8 +92,8 @@ body {
 }
 
 h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 600; }
-h1 { font-size: 2.5rem; letter-spacing: -0.03em; }
-h2 { font-size: 1.75rem; letter-spacing: -0.02em; }
+h1 { font-size: 2.5rem; letter-spacing: 0; }
+h2 { font-size: 1.75rem; letter-spacing: 0; }
 h3 { font-size: 1.25rem; }
 
 a { color: var(--blue); text-decoration: none; }
@@ -211,7 +240,7 @@ pre code {
   font-family: var(--font-display);
   font-size: 2.5rem; font-weight: 700;
   line-height: 1.15; margin-bottom: 1rem;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
 }
 .page-hero p {
   font-size: 1.1rem; color: var(--text-muted);
@@ -294,7 +323,7 @@ pre code {
   font-family: var(--font-display);
   font-size: 1.75rem; font-weight: 600;
   margin-top: 3rem; margin-bottom: 1rem; padding-top: 1rem;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
 }
 .article h2:first-child { margin-top: 0; }
 .article h3 {
@@ -416,7 +445,7 @@ pre code {
 }
 .section-title {
   font-family: var(--font-display); font-size: 2.25rem; font-weight: 600;
-  margin-bottom: 1rem; letter-spacing: -0.02em;
+  margin-bottom: 1rem; letter-spacing: 0;
 }
 .section-subtitle { color: var(--text-muted); font-size: 1.05rem; }
 
