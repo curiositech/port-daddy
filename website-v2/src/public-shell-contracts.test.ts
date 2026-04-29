@@ -107,7 +107,6 @@ describe('public shell contracts', () => {
           'findDocsContentPage',
           'What this page answers',
           'Section map',
-          'Route relationship',
           'scroll-mt-[calc(var(--space-10)+var(--space-6))]',
         ],
         forbidden: [
@@ -376,6 +375,7 @@ describe('public shell contracts', () => {
       'path="/blog"',
       'path="/whitepaper"',
       'path="cli"',
+      'path="cli/roadmap"',
       'path="sdk"',
       'path="mcp"',
       'path="api"',
@@ -387,6 +387,20 @@ describe('public shell contracts', () => {
     expect(mainSource).not.toContain('path="/roadmap"')
     expect(mainSource).not.toContain('path="/dashboard"')
     expect(mainSource).not.toContain('path="/tutorials/dashboard"')
+  })
+
+  test('public docs expose live roadmap feedback without resurrecting the retired roadmap page', () => {
+    const cliOverview = read('./pages/docs/CliOverview.tsx')
+    const roadmapCommand = read('./pages/docs/cli/RoadmapCommand.tsx')
+    const mainSource = read('./main.tsx')
+
+    expect(mainSource).toContain('path="cli/roadmap"')
+    expect(mainSource).not.toContain('path="/roadmap"')
+    expect(cliOverview).toContain('/docs/cli/roadmap')
+    expect(roadmapCommand).toContain('pd roadmap ack <feedbackId>')
+    expect(roadmapCommand).toContain('--feedback-status <status>')
+    expect(roadmapCommand).toContain('tuple-backed feedback primitive')
+    expect(roadmapCommand).toContain('Fleet Control Center')
   })
 
   test('home page stays on the existing landing composition instead of the replacement shell', () => {
