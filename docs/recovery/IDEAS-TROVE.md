@@ -1,6 +1,6 @@
 # Ideas Trove
 
-Last updated: 2026-04-11
+Last updated: 2026-04-29
 
 This is the canonical ideation index and curated backlog for Port Daddy.
 
@@ -34,35 +34,26 @@ Status meanings used here:
 - `merge`
   - duplicate family; do not mint new standalone backlog items for this again
 
+## Recently Shipped
+
+### `cartographer-roadmap-progress-screen`
+
+- status: `shipped`
+- why it mattered:
+  - the FOMO-killer is now real: the roadmap-progress screen and central feedback API landed in-tree, so operators no longer need to open four files to see what is pending
+  - cartographer already maintains all of this; the missing piece was a single screen that surfaced it at a glance every dashboard open
+- shipped via:
+  - `7ba8d84`
+  - `8fcf93e`
+  - `4807cb5`
+  - `bd4fc6f`
+- provenance:
+  - `.spark/feedback/2026-04-26-fomo-eradication-slice.md`
+
 ## Immediate Implementation Candidates
 
 These are the highest-signal ideas from the corpus and should shape the next
 runtime cuts.
-
-### `cartographer-roadmap-progress-screen`
-
-- status: `now`
-- why it matters:
-  - the FOMO-killer. Right now ideas land in IDEAS-TROVE.md /
-    DOGFOOD-FEEDBACK.md / ROADMAP.md "Next Cuts" and feel buried —
-    operator has to remember to open four files to know what's pending
-  - cartographer already maintains all of this; what's missing is a
-    single screen that surfaces it at a glance every dashboard open
-- next cut:
-  - add a "Roadmap Progress" panel to `public/index.html` (or a new
-    dedicated page) showing in one view:
-    `Next Cuts` (from `docs/ROADMAP.md`), open dogfood feedback (from
-    `DOGFOOD-FEEDBACK.md`), curated trove `now` items, `CURRENT-WORK.md`,
-    velocity (commits/day last 7d), and the top 3 closest-to-shipping +
-    top 3 blocked items (Cartographer already computes these for
-    `.cartographer/status.md`)
-  - server-side: a `/cartographer/roadmap-progress` endpoint that
-    parses the markdown sources and returns structured JSON, so the
-    panel doesn't fetch raw markdown from the client
-- provenance:
-  - operator request 2026-04-26 ("Can cartographer have a screen of just
-    roadmap progress showing backlog, bugs, future ideas, future define
-    roadmap...?")
 
 ### `coordination-guard-extended-enforcement`
 
@@ -88,6 +79,9 @@ runtime cuts.
   - operator question 2026-04-26 ("We have 'Coordination Guard', by
     the way, is that the enforcement you want?") → yes, this is the
     right primitive; just extend its reach
+  - `.spark/feedback/2026-04-26-coordination-guard-stale-hook-silent-fail.md`
+  - `.spark/feedback/2026-04-28-coordination-guard-bypassed-by-cherry-pick.md`
+  - `.spark/feedback/2026-04-28-claims-steamrolled-by-git-reset-hard.md`
 
 ### `crew-screen-roles-not-pids`
 
@@ -258,6 +252,8 @@ them.
 - representative provenance:
   - `.spark/ideas/2026-04-05-fleet-cost-fence.md`
   - `.spark/ideas/2026-04-05-pd-cost-cli-command.md`
+  - `.spark/feedback/2026-04-26-claude-sdk-wired-final-gate-is-wallet.md`
+  - `.spark/feedback/2026-04-26-pd-say-error-mismatch-and-policy-walls.md`
   - `.spark/ideas/spider-2026-04-06-fleet-cost-forecast.md`
   - `.spark/ideas/spider-2026-04-06-priced-changelog-drafts.md`
   - `.spark/ideas/spider-fleet-work-receipts.md`
@@ -276,6 +272,7 @@ them.
   - `.spark/ideas/spider-2026-04-05-review-protocol-via-inbox.md`
   - `.spark/ideas/spider-2026-04-06-code-anchored-notes.md`
   - `.spark/ideas/2026-03-31-session-ledger.md`
+  - `.spark/feedback/2026-04-28-session-drops-on-cwd-reset.md`
 
 ### Pheromones, Autonomic Signals, And Adaptive Dispatch
 
@@ -334,8 +331,12 @@ them.
   - `.spark/ideas/spider-2026-04-07-operational-health-gate.md`
   - `.spark/ideas/spider-2026-04-07-operational-preflight-gate.md`
   - `.spark/ideas/spider-2026-04-07-backend-readiness-pheromones.md`
+  - `.spark/feedback/2026-04-26-cartographer-cadence-investigation.md`
+  - `.spark/feedback/2026-04-27-stable-blocks-dogfooding-new-routes.md`
   - `.spark/ideas/spider-2026-04-07-ipc-capability-bitmask.md`
   - `.spark/ideas/spider-2026-04-07-auditable-lock-history.md`
+  - `.spark/feedback/2026-04-26-cartographer-cadence-investigation.md`
+  - `.spark/feedback/2026-04-27-stable-blocks-dogfooding-new-routes.md`
 
 ## Duplicate Families To Collapse
 
