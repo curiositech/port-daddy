@@ -4,6 +4,8 @@ import { basename, join } from 'node:path';
 export interface CurrentContext {
   agentId: string;
   sessionId: string;
+  agentName?: string | null;
+  sessionName?: string | null;
   purpose?: string;
   identity?: string | null;
   startedAt?: number;

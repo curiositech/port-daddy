@@ -68,6 +68,12 @@ export function slugifyAgentName(value: unknown, fallback = 'fleet-agent'): stri
   return slug || fallback;
 }
 
+export function buildHumanReadableId(prefix: string, label: unknown, suffix: string, fallback = 'work'): string {
+  const safePrefix = slugifyAgentName(prefix, 'id');
+  const safeLabel = slugifyAgentName(label, fallback);
+  return `${safePrefix}-${safeLabel}-${suffix}`;
+}
+
 export function deriveFleetAgentName(input: {
   name?: string | null;
   identity?: string | null;
