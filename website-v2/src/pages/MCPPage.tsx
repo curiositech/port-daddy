@@ -527,8 +527,9 @@ function DiscoverGrid() {
             <div className="flex flex-wrap gap-[var(--space-1)]">
               {category.tools.map((tool) => (
                 <code
+                  id={tool}
                   key={tool}
-                  className="border border-[var(--border-subtle)] bg-[var(--surface-base)] px-[var(--space-2)] py-[var(--space-1)] font-mono text-[0.72rem] text-[var(--text-secondary)]"
+                  className="scroll-mt-24 border border-[var(--border-subtle)] bg-[var(--surface-base)] px-[var(--space-2)] py-[var(--space-1)] font-mono text-[0.72rem] text-[var(--text-secondary)]"
                 >
                   {tool}
                 </code>

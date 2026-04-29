@@ -2,6 +2,7 @@ import * as React from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { Search, X, FileText, Terminal, Code, Cpu, ChevronRight } from 'lucide-react'
+import { ALL_CATEGORIES } from '@/data/mcp'
 import { OPEN_DOCS_SEARCH_EVENT } from './docsSearchEvents'
 
 interface SearchResult {
@@ -11,6 +12,26 @@ interface SearchResult {
   description?: string
   icon: typeof FileText
 }
+
+const seenMcpTools = new Set<string>()
+const MCP_TOOL_SEARCH_RESULTS: SearchResult[] = ALL_CATEGORIES.flatMap((category) => {
+  const results: SearchResult[] = []
+
+  for (const tool of category.tools) {
+    if (seenMcpTools.has(tool)) continue
+    seenMcpTools.add(tool)
+
+    results.push({
+      title: tool,
+      href: `/docs/mcp#${tool}`,
+      category: `MCP: ${category.label}`,
+      icon: Cpu,
+      description: `${category.description} Function in the ${category.label} MCP category.`,
+    })
+  }
+
+  return results
+})
 
 // Search index - all documentation pages
 const SEARCH_INDEX: SearchResult[] = [
@@ -75,10 +96,7 @@ const SEARCH_INDEX: SearchResult[] = [
   
   // MCP
   { title: 'MCP Overview', href: '/docs/mcp', category: 'MCP', icon: Cpu, description: 'Model Context Protocol integration' },
-  { title: 'claim_port', href: '/docs/mcp/claim-port', category: 'MCP', icon: Cpu, description: 'MCP tool for claiming ports' },
-  { title: 'release_port', href: '/docs/mcp/release-port', category: 'MCP', icon: Cpu, description: 'MCP tool for releasing ports' },
-  { title: 'find_port', href: '/docs/mcp/find-port', category: 'MCP', icon: Cpu, description: 'MCP tool for finding ports' },
-  { title: 'begin_session', href: '/docs/mcp/begin-session', category: 'MCP', icon: Cpu, description: 'MCP tool for starting sessions' },
+  ...MCP_TOOL_SEARCH_RESULTS,
   
   // Features
   { title: 'Atomic Ports', href: '/docs/features/ports', category: 'Features', icon: FileText, description: 'Port management system' },
@@ -137,7 +155,7 @@ export function DocsSearch({ variant = 'full', className }: DocsSearchProps) {
       item.title.toLowerCase().includes(lowerQuery) ||
       item.description?.toLowerCase().includes(lowerQuery) ||
       item.category.toLowerCase().includes(lowerQuery)
-    ).slice(0, 8) // Limit to 8 results
+    ).slice(0, lowerQuery.includes('mcp') ? 160 : 24)
     
     setResults(filtered)
     setSelectedIndex(0)
