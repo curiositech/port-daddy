@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-29T07:37:40.458Z",
+  "generatedAt": "2026-04-29T20:42:01.724Z",
   "generator": "website-v2/scripts/generate-gemini-assets.mjs",
   "source": "Google Gemini API Nano Banana image generation",
   "docs": "https://ai.google.dev/gemini-api/docs/image-generation",
@@ -255,6 +255,17 @@
       "prompt": "Port Daddy visual identity direction:\n- Subject: local-first AI agent coordination, daemon runtime, ports, locks, sessions, notes, salvage, budget gates, and recovery flows.\n- Visual language: Swiss-modern editorial infrastructure diagram, precise grid, crisp thin rules, architectural drawing discipline, tactile paper grain, deep ink, technical blue, restrained lime, quiet warm off-white.\n- Must not include people, sailors, boats, harbors, docks, nautical costumes, mascots, emojis, fake testimonials, readable brand logos, glossy stock-photo styling, bubbly extruded SaaS UI, pill-heavy dashboards, purple-blue gradients, or random surrealism.\n- Do not render visible words, letters, numbers, labels, headings, UI copy, brand marks, or fake code. Use abstract ticks, short lines, and geometric marks only.\n- Make it feel premium, serious, current, and operational.\n\nCreate a supporting editorial illustration for installing a Mac menu-bar control plane.\nComposition: a restrained Mac desktop silhouette, a small menu-bar control glyph, a packaged app artifact, a Homebrew-style install rail, and a local daemon spine connecting to project folders. It should look like reliable developer infrastructure.\nNo readable UI text, no Apple logo, no fake product logo, no people, no stock laptop glamor, no visible words, no letters, no numbers.",
       "jpegQuality": 82,
       "webpFile": "/img/generated/fleetbar-install.webp",
+      "webpQuality": 82
+    },
+    {
+      "id": "harbors-signed-access",
+      "file": "/img/generated/harbors-signed-access.png",
+      "mimeType": "image/png",
+      "aspectRatio": "16:9",
+      "imageSize": "1K",
+      "model": "gemini-2.5-flash-image",
+      "prompt": "Port Daddy visual identity direction:\n- Subject: local-first AI agent coordination, daemon runtime, ports, locks, sessions, notes, salvage, budget gates, and recovery flows.\n- Visual language: Swiss-modern editorial infrastructure diagram, precise grid, crisp thin rules, architectural drawing discipline, tactile paper grain, deep ink, technical blue, restrained lime, quiet warm off-white.\n- Must not include people, sailors, boats, harbors, docks, nautical costumes, mascots, emojis, fake testimonials, readable brand logos, glossy stock-photo styling, bubbly extruded SaaS UI, pill-heavy dashboards, purple-blue gradients, or random surrealism.\n- Do not render visible words, letters, numbers, labels, headings, UI copy, brand marks, or fake code. Use abstract ticks, short lines, and geometric marks only.\n- If a module would normally need a label, leave it blank or represent it with non-letter geometric marks only. No Latin alphabet, pseudo text, interface labels, captions, chart labels, axis labels, or legible symbols anywhere.\n- Make it feel premium, serious, current, and operational.\n\nCreate a completely wordless Swiss-modern architectural security print.\nComposition: nested rectangular zones, blank paper modules, sealed geometric packets, thin verification paths, dot-matrix texture fields, small checkpoint squares, and one strong central boundary shape. It should suggest scoped authority and signed access through structure only, like a museum-quality technical print, not a labeled diagram.\nUse hard ink rules, technical blue, restrained lime, warm paper grain, precise alignment, and crisp shadows. Every panel must be blank. Every packet must be blank. Every module must be blank. Abstract dots, short ticks, and non-language geometric marks are allowed.\nTypography prohibition: absolutely no words, no pseudo-words, no letters, no numbers, no code, no captions, no chart labels, no UI copy, no alphabet-like marks, no handwriting, no tiny labels, no readable or semi-readable text anywhere. Avoid any glyph that resembles Latin text.\nNo nautical imagery: no water, boats, docks, flags, lighthouses, sailors, maps, coastlines, cargo, or maritime motifs. No people, keys as cartoon objects, padlock clip art, shields as generic icons, police/security theater, fake UI screenshots, logos, or brand marks.",
+      "webpFile": "/img/generated/harbors-signed-access.webp",
       "webpQuality": 82
     },
     {
