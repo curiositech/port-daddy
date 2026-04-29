@@ -5,32 +5,44 @@ import {
   resolveMaritimeActorId,
 } from '../../lib/maritime-actors.js';
 
-describe('maritime actors', () => {
-  test('defines the canonical durable actor roster', () => {
+describe('fleet actors (formerly maritime)', () => {
+  test('defines the canonical durable actor roster (1:1 with fleet agents)', () => {
     const actors = listMaritimeActors();
 
     expect(actors.map(actor => actor.id)).toEqual([
-      'navigator',
-      'coxswain',
-      'signalman',
-      'harbormaster',
-      'sounder',
-      'lookout',
-      'breaker',
-      'caulker',
-      'quartermaster',
+      'gardener',
+      'qa',
+      'test-hunter',
+      'documentarian',
+      'simplifier',
+      'cartographer',
+      'spark',
+      'spider',
     ]);
-    expect(actors.every(actor => actor.inboxTarget.startsWith('actor:'))).toBe(true);
+    // Mailboxes are addressed by fleet name, not maritime metaphor.
+    expect(actors.every(actor => actor.inboxTarget === `actor:${actor.id}`)).toBe(true);
   });
 
-  test('resolves compatibility aliases without creating duplicate souls', () => {
-    expect(resolveMaritimeActorId('cartographer')).toBe('navigator');
-    expect(resolveMaritimeActorId('documentarian')).toBe('lookout');
-    expect(resolveMaritimeActorId('qa')).toBe('signalman');
+  test('resolves deprecated maritime aliases to the fleet-name canonical id', () => {
+    expect(resolveMaritimeActorId('navigator')).toBe('cartographer');
+    expect(resolveMaritimeActorId('lookout')).toBe('documentarian');
+    expect(resolveMaritimeActorId('signalman')).toBe('qa');
+    // Identity is identity.
+    expect(resolveMaritimeActorId('cartographer')).toBe('cartographer');
+    expect(resolveMaritimeActorId('qa')).toBe('qa');
   });
 
-  test('projects live body, session, and salvage evidence onto actor souls', () => {
-    const navigator = getMaritimeActor('navigator', {
+  test('drops bodyless maritime metaphor roles from the canonical roster', () => {
+    expect(resolveMaritimeActorId('coxswain')).toBeNull();
+    expect(resolveMaritimeActorId('harbormaster')).toBeNull();
+    expect(resolveMaritimeActorId('sounder')).toBeNull();
+    expect(resolveMaritimeActorId('breaker')).toBeNull();
+    expect(resolveMaritimeActorId('caulker')).toBeNull();
+    expect(resolveMaritimeActorId('quartermaster')).toBeNull();
+  });
+
+  test('projects live body, session, and salvage evidence onto cartographer', () => {
+    const cartographer = getMaritimeActor('cartographer', {
       agents: [{
         id: 'agent-cartographer',
         identity: 'port-daddy:fleet:cartographer',
@@ -54,19 +66,19 @@ describe('maritime actors', () => {
       }],
     });
 
-    expect(navigator).toEqual(expect.objectContaining({
-      id: 'navigator',
+    expect(cartographer).toEqual(expect.objectContaining({
+      id: 'cartographer',
       leaseState: 'attached',
       lastActivityAt: 200,
     }));
-    expect(navigator?.liveBodies).toHaveLength(1);
-    expect(navigator?.recentSessions).toHaveLength(1);
-    expect(navigator?.salvage).toHaveLength(1);
-    expect(navigator?.evidence).toContain('compatibility fleet agent: cartographer');
+    expect(cartographer?.liveBodies).toHaveLength(1);
+    expect(cartographer?.recentSessions).toHaveLength(1);
+    expect(cartographer?.salvage).toHaveLength(1);
+    expect(cartographer?.evidence).toContain('compatibility fleet agent: cartographer');
   });
 
   test('does not attach topical coordination sessions as live actor bodies', () => {
-    const navigator = getMaritimeActor('navigator', {
+    const cartographer = getMaritimeActor('cartographer', {
       agents: [{
         id: 'agent-fix',
         identity: 'port-daddy:cartographer-body-fix',
@@ -83,18 +95,18 @@ describe('maritime actors', () => {
       }],
     });
 
-    expect(navigator?.liveBodies).toHaveLength(0);
-    expect(navigator?.recentSessions).toHaveLength(1);
-    expect(navigator?.leaseState).toBe('detached');
+    expect(cartographer?.liveBodies).toHaveLength(0);
+    expect(cartographer?.recentSessions).toHaveLength(1);
+    expect(cartographer?.leaseState).toBe('detached');
   });
 
   test('classifies actors without live bodies as dormant, detached, or recoverable', () => {
-    expect(getMaritimeActor('coxswain')?.leaseState).toBe('dormant');
-    expect(getMaritimeActor('coxswain', {
-      sessions: [{ id: 'session-locks', purpose: 'coxswain lock review', status: 'completed' }],
+    expect(getMaritimeActor('spark')?.leaseState).toBe('dormant');
+    expect(getMaritimeActor('spark', {
+      sessions: [{ id: 'session-spark', purpose: 'spark idea review', status: 'completed' }],
     })?.leaseState).toBe('detached');
-    expect(getMaritimeActor('coxswain', {
-      salvage: [{ id: 'agent-claims', purpose: 'coxswain stale asset pass', status: 'pending' }],
+    expect(getMaritimeActor('spark', {
+      salvage: [{ id: 'agent-spark-dead', purpose: 'spark crashed mid-idea', status: 'pending' }],
     })?.leaseState).toBe('recoverable');
   });
 });
