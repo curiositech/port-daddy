@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import {
@@ -14,6 +14,12 @@ import {
 import { DocsCodeBlock as CodeBlock } from './DocsCodeBlock'
 import { TerminalGif } from '@/components/site/TerminalGif'
 import { CLI_REFERENCE_RECORDING } from '@/data/terminalRecordings'
+import { CLI_REFERENCE_ITEMS, cliCommandHref, type CliReferenceItem } from '@/data/referenceCatalog'
+
+type ApiSpecEntry = {
+  label: string
+  value: string
+}
 
 interface CommandPageProps {
   command: string
@@ -26,10 +32,7 @@ interface CommandPageProps {
     code: string
     output?: string
   }>
-  apiSpec?: Array<{
-    label: string
-    value: string
-  }>
+  apiSpec?: ApiSpecEntry[]
   flags?: Array<{
     flag: string
     description: string
@@ -46,6 +49,60 @@ interface CommandPageProps {
   }>
 }
 
+function normalizeRoute(route: string): string {
+  const [path] = route.split(/[?#]/)
+  return (path || '/').replace(/\/+$/, '') || '/'
+}
+
+function normalizeCommand(command: string): string {
+  return command.trim().replace(/\s+/g, ' ')
+}
+
+function commandLooksEquivalent(a: string, b: string): boolean {
+  const left = normalizeCommand(a)
+  const right = normalizeCommand(b)
+  return left === right || left.replace(/^pd\s+/, '') === right.replace(/^pd\s+/, '')
+}
+
+function findCatalogItem(command: string, pathname: string): CliReferenceItem | undefined {
+  const route = normalizeRoute(pathname)
+  return CLI_REFERENCE_ITEMS.find((item) => {
+    if (normalizeRoute(item.href) === route) return true
+    if (commandLooksEquivalent(item.name, command)) return true
+    return item.aliasRoutes.some((alias) => normalizeRoute(alias.href) === route || commandLooksEquivalent(alias.name, command))
+  })
+}
+
+function apiSpecFromCatalog(command: string, pathname: string, item: CliReferenceItem): ApiSpecEntry[] {
+  const route = normalizeRoute(pathname)
+  const matchedAlias = item.aliasRoutes.find(
+    (alias) => normalizeRoute(alias.href) === route || commandLooksEquivalent(alias.name, command),
+  )
+
+  return [
+    { label: 'Documented command', value: command },
+    { label: 'Canonical command', value: item.name },
+    { label: 'Reference route', value: matchedAlias?.href ?? cliCommandHref(item) },
+    { label: 'Reference group', value: item.groupTitle },
+    { label: 'Source', value: item.groupSource },
+    { label: 'Aliases', value: item.aliasRoutes.length ? item.aliasRoutes.map((alias) => alias.name).join(', ') : 'none' },
+    { label: 'Output mode', value: item.flags?.includes('--json') ? 'human display plus --json machine output' : 'human display with command-specific state changes' },
+    { label: 'Page type', value: item.generated ? 'generated API spec from the source-backed catalog' : 'hand-authored detail page with catalog-backed API spec' },
+  ]
+}
+
+function fallbackApiSpec(command: string, pathname: string): ApiSpecEntry[] {
+  return [
+    { label: 'Documented command', value: command },
+    { label: 'Reference route', value: normalizeRoute(pathname) },
+    { label: 'Reference group', value: 'Hand-authored CLI detail page' },
+    { label: 'Source', value: 'website-v2/src/pages/docs/cli' },
+    { label: 'Aliases', value: 'none listed in source-backed catalog' },
+    { label: 'Output mode', value: 'human display with command-specific state changes' },
+    { label: 'Page type', value: 'hand-authored detail page' },
+  ]
+}
+
 export function CommandPage({
   command,
   shortFlag,
@@ -59,6 +116,14 @@ export function CommandPage({
   usagePatterns,
   seeAlso,
 }: CommandPageProps) {
+  const location = useLocation()
+  const catalogItem = findCatalogItem(command, location.pathname)
+  const resolvedApiSpec = apiSpec?.length
+    ? apiSpec
+    : catalogItem
+      ? apiSpecFromCatalog(command, location.pathname, catalogItem)
+      : fallbackApiSpec(command, location.pathname)
+
   return (
     <div className="space-y-[var(--space-7)]">
       <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
@@ -103,7 +168,7 @@ export function CommandPage({
         <CodeBlock code={syntax} />
       </DocsNoteCard>
 
-      {apiSpec?.length ? (
+      {resolvedApiSpec.length ? (
         <DocsNoteCard
           label="API spec"
           title="Command contract"
@@ -112,7 +177,7 @@ export function CommandPage({
           titleSize="nav"
         >
           <div className="grid gap-[var(--space-3)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)] md:grid-cols-2">
-            {apiSpec.map((entry) => (
+            {resolvedApiSpec.map((entry) => (
               <SurfacePanel key={entry.label} elevation="quiet" padding="compact" className="space-y-[var(--space-1)]">
                 <PanelEyebrow className="max-w-none text-[var(--text-muted)]">
                   {entry.label}
