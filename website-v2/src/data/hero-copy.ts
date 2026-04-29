@@ -2,14 +2,14 @@
  * Hero section copy for the Port Daddy marketing website.
  *
  * Historical hero copy kept for older experiments. The current public homepage
- * leads with Port Daddy as the local communication substrate for coding agents.
+ * leads with Port Daddy as the local coordination layer for coding agents.
  */
 
 export const HERO_COPY = {
   headline: 'The Local Communication Layer\nFor Coding Agents.',
 
   subheadline:
-    'Port Daddy is a local daemon and Mac control plane where coding agents share notes, claims, actor messages, readiness, budgets, and recoverable handoffs.',
+    'Port Daddy is a local app and daemon where coding agents share notes, claims, messages, readiness, budgets, and recoverable handoffs.',
 
   description:
     'One local daemon, usually on localhost:9876. Install it once, and Claude Code, Codex, Cursor, Gemini CLI, Aider, and Ollama can coordinate through shared state backed by a single SQLite database.',

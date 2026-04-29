@@ -5,7 +5,7 @@ export default function MsgCommand() {
     <CommandPage
       command="msg"
       description="Pub/sub messaging via Swarm Radio."
-      version="3.8.3"
+      version="3.11.0"
       syntax="pd msg <channel> <subcommand>"
       subcommands={[
         { name: 'publish <payload>', description: 'Publish a message to a channel', href: '/docs/cli/msg-publish' },

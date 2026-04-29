@@ -5,7 +5,7 @@ export default function TunnelStopTool() {
     <CommandPage
       command="tunnel_stop"
       description="Stop an active tunnel."
-      version="3.8.3"
+      version="3.11.0"
       syntax="tunnel_stop(identity)"
       flags={[
         { flag: 'identity', description: 'Service identity whose tunnel to stop' },

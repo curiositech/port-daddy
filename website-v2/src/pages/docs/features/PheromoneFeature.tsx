@@ -2,6 +2,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Link } from 'react-router-dom'
 import { ArrowRight, AlertCircle } from 'lucide-react'
 import { DocsCodeBlock } from '@/components/docs/DocsCodeBlock'
+import { TerminalGif } from '@/components/site/TerminalGif'
 
 export default function PheromoneFeature() {
   return (
@@ -87,6 +88,12 @@ curl http://localhost:9876/pheromone`}
   {"table":"services","id":"myapp:api:main","pheromones":{"focus":0.618}},
   {"table":"sessions","id":"sess_abc123","pheromones":{"review":0.41}}
 ]}`}
+        />
+
+        <TerminalGif
+          src="/gifs/docs/pheromone.gif"
+          title="Real CLI recording: pheromone reference"
+          caption="The docs recording uses the same local daemon as the page: spray a session signal, show the decayed value, then inspect file heat."
         />
       </div>
 

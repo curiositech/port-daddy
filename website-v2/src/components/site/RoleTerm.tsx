@@ -36,13 +36,13 @@ const ROLE_DEFINITIONS: Record<string, RoleDefinition> = {
     name: 'Lookout',
     category: 'Platform actor',
     short: 'Watches product truth drift.',
-    detail: 'Checks docs, OpenAPI, CLI help, website, skills, and control-plane copy against the live product.',
+    detail: 'Checks docs, OpenAPI, CLI help, website, skills, and dashboard copy against the live product.',
   },
   documentarian: {
     name: 'Documentarian',
     category: 'Fleet template / Lookout body',
     short: 'Keeps docs in sync after release gates.',
-    detail: 'Updates release surfaces when source truth changes: README, docs, SDK, OpenAPI, website, and skills.',
+    detail: 'Updates release materials when source behavior changes: README, docs, SDK, OpenAPI, website, and skills.',
   },
   quartermaster: {
     name: 'Quartermaster',

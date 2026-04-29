@@ -5,7 +5,7 @@ export default function HarborCreateCommand() {
     <CommandPage
       command="pd harbor create"
       description="Create a permission namespace for a group of agents. Agents inside a harbor receive a signed JWT that proves what they are allowed to do. Harbors provide scoped, time-bound capabilities for secure multi-agent workflows."
-      version="3.8.3"
+      version="3.11.0"
       syntax="pd harbor create <name> [flags]"
       flags={[
         { flag: '--cap <scopes>', description: 'Comma-separated capability scopes' },

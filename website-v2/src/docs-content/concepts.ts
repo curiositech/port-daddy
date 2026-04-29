@@ -9,53 +9,53 @@ export const conceptsSection: DocsContentSection = {
   slug: 'concepts',
   title: 'Concepts',
   summary:
-    'Learn the operating model behind agent identity, coordination, shared state, and harbor-based access.',
+    'Learn the ideas behind sessions, notes, locks, file claims, harbors, fleets, and recovery.',
   pages: [
     {
       slug: 'daemon-and-authority',
-      title: 'Daemon and Authority',
+      title: 'Why There Is A Daemon',
       summary:
-        'Why Port Daddy is a control plane, what the daemon owns, and why authority has to be separated from execution.',
+        'Why Port Daddy runs a local service and what that service keeps track of.',
       truth: 'source-backed',
       goals: [
-        'Understand why the daemon exists.',
-        'Understand what belongs in the authority layer.',
-        'Understand why execution and coordination are split.',
+        'Understand why Port Daddy needs one local service.',
+        'Understand which state the daemon tracks.',
+        'Understand why agents should share state instead of each keeping private memory.',
       ],
       blocks: [
         {
           type: 'paragraph',
           title: 'Why the daemon exists',
           paragraphs: [
-            'Once more than one actor is touching the same repo or machine, execution alone is not enough. Someone has to own identity, coordination, shared state, and the operator-visible truth about what is happening. In Port Daddy, that owner is the daemon.',
-            'This is the core concept behind the product. Agents run tasks. The daemon keeps the shared story coherent. That split is what lets notes, locks, sessions, harbors, and recovery flow through one authority instead of dissolving into local process guesswork.',
+            'Once more than one agent is touching the same repo or machine, private terminal memory is not enough. Port Daddy needs one local service that can remember sessions, notes, locks, ports, files, and recovery state.',
+            'Agents still do the coding work. The daemon keeps the shared state those agents need so their work does not dissolve into scattered logs and half-remembered handoffs.',
           ],
         },
         {
           type: 'checklist',
           items: [
             'Agents execute tasks.',
-            'The daemon owns identity, coordination, and shared state.',
-            'Operator surfaces are only useful when they report daemon truth.',
+            'The daemon stores sessions, notes, locks, ports, claims, harbors, and recovery state.',
+            'The CLI, dashboard, and MCP tools all read that same state.',
           ],
         },
         {
           type: 'paragraph',
-          title: 'Why authority must be separate from execution',
+          title: 'Why shared state is separate from execution',
           paragraphs: [
-            'If execution processes are allowed to self-author the shared state, every crash, respawn, port collision, and handoff turns into a trust problem. A control plane solves that by placing shared coordination behind a runtime that is not the task process itself.',
-            'That is why the daemon matters even in local-first use. It gives the machine one place where operator truth can accumulate and survive.',
+            'If every agent keeps its own private record, every crash, respawn, port collision, and handoff becomes harder to recover from.',
+            'The daemon gives the machine one durable place where coordination state can survive after an individual tool exits.',
           ],
         },
       ],
       sources: [
         {
           path: 'AGENTS.md',
-          rationale: 'The repo rules repeatedly treat the daemon as the authority surface for runtime truth.',
+          rationale: 'The repo rules define the daemon-backed coordination flow.',
         },
         {
           path: 'website-v2/src/data/publicSite.ts',
-          rationale: 'The public shell already frames the daemon as the authority layer above agent execution.',
+          rationale: 'The public shell describes the daemon, CLI, and dashboard as the local product.',
         },
       ],
     },
@@ -75,16 +75,16 @@ export const conceptsSection: DocsContentSection = {
           type: 'paragraph',
           title: 'Sessions make work attributable',
           paragraphs: [
-            'A session is the basic unit of attributable work in Port Daddy. It ties identity, purpose, notes, and lifecycle together so another operator or agent can understand what happened without reverse-engineering a terminal transcript.',
-            'That makes sessions much more than a convenience wrapper. They are the continuity layer that keeps work visible before, during, and after execution.',
+            'A session is the basic unit of attributable work in Port Daddy. It ties identity, purpose, notes, and lifecycle together so another person or agent can understand what happened without reverse-engineering a terminal transcript.',
+            'That makes sessions more than a convenience wrapper. They are the trail that keeps work visible before, during, and after execution.',
           ],
         },
         {
           type: 'paragraph',
           title: 'Locks and tuples solve different problems',
           paragraphs: [
-            'Locks are for contested files and critical sections. They are the blunt but necessary answer when two actors could collide on the same resource. Tuples solve a different problem: they publish machine-readable coordination state that other agents, hooks, or surfaces can react to programmatically.',
-            'In other words, locks serialize. Tuples communicate. Both matter if the daemon is going to feel like a real control plane instead of an event log with branding.',
+            'Locks are for contested files and critical sections. They are the blunt but necessary answer when two actors could collide on the same resource. Tuples solve a different problem: they publish machine-readable coordination state that other agents, hooks, or tools can react to programmatically.',
+            'In other words, locks stop collisions. Tuples share structured facts. Both help agents coordinate without relying on one giant chat transcript.',
           ],
         },
         {
@@ -111,7 +111,7 @@ export const conceptsSection: DocsContentSection = {
       slug: 'harbors-and-identity',
       title: 'Harbors and Identity',
       summary:
-        'How harbor admission, signed cards, and scoped entry fit into the control-plane model.',
+        'How protected work areas and signed entry cards fit into Port Daddy.',
       truth: 'source-backed',
       goals: [
         'Understand what a harbor is.',
@@ -123,8 +123,8 @@ export const conceptsSection: DocsContentSection = {
           type: 'paragraph',
           title: 'What a harbor is',
           paragraphs: [
-            'A harbor is the scoped entry point into a protected area of work. It gives the daemon a way to admit an actor, issue identity material, and keep that admission tied to the control-plane model instead of treating every local process as equally trusted.',
-            'Harbors matter because they connect the product story to the protocol story. They are where signed cards, scoped access, and operator-visible entry meet.',
+            'A harbor is a protected area of work. It gives Port Daddy a way to admit an agent, issue a signed card, and keep that access scoped instead of treating every local process as equally trusted.',
+            'Most users can start with sessions, notes, and locks. Harbors matter when work needs clearer boundaries around who can enter and what they can do.',
           ],
         },
         {
@@ -132,15 +132,15 @@ export const conceptsSection: DocsContentSection = {
           title: 'Why scoped identity matters',
           paragraphs: [
             'Ambient local trust breaks down quickly once multiple agents, hooks, and background processes start touching the same machine. Harbor admission makes trust explicit and scoped instead of accidental.',
-            'That is the practical reason the whitepaper matters. The cryptographic work is not an academic appendix. It is what allows the daemon to issue, verify, and reason about scoped identity in a way that survives more than one process.',
+            'That is the practical reason the whitepaper matters. The cryptographic work supports signed entry cards that can survive more than one process and still be checked later.',
           ],
         },
         {
           type: 'callout',
           tone: 'info',
-          title: 'Harbors connect the runtime story to the paper story',
+          title: 'Harbors are where the deeper security story starts',
           body:
-            'If you want to understand why the protocol exists at all, start with harbors. They are where the product’s runtime authority and the whitepaper’s identity argument meet.',
+            'If you want to understand the whitepaper, start with harbors. They are the product feature that turns signed identity into something a local agent workflow can use.',
         },
       ],
       sources: [
@@ -150,7 +150,7 @@ export const conceptsSection: DocsContentSection = {
         },
         {
           path: 'docs/reports/PORT_DADDY_ANCHOR_WHITEPAPER.md',
-          rationale: 'The whitepaper explains the harbor protocol boundary and current phase truth.',
+          rationale: 'The whitepaper explains the signed harbor-card model.',
         },
       ],
     },
@@ -158,20 +158,20 @@ export const conceptsSection: DocsContentSection = {
       slug: 'eleven-product-primitives',
       title: 'Eleven Product Primitives',
       summary:
-        'How the home-page primitives map to the Mac app, daemon authority, and the real operator loop.',
+        'How the home-page feature cards map to the Mac app, CLI, and dashboard.',
       truth: 'source-backed',
       goals: [
         'Name the eleven public product primitives.',
-        'Understand which primitives are Mac app surfaces.',
-        'Understand which primitives are daemon coordination surfaces.',
+        'Understand which primitives appear in the Mac app.',
+        'Understand which primitives are CLI or daemon-backed features.',
       ],
       blocks: [
         {
           type: 'paragraph',
           title: 'The primitive list is the product map',
           paragraphs: [
-            'The eleven primitives on the public site are not decorative feature cards. They are the quickest map from a visitor question to a real surface: FleetBar, Fleet Control Center, Shipwright, sorties, resources, backend readiness, agent radio, enforced coordination, Coordination Guard, harbors, and salvage.',
-            'That is also the shortest answer to what Port Daddy is: a local communication substrate and Mac control plane that makes shared agent work visible, attributable, recoverable, and governable.',
+            'The eleven primitives on the public site are not decorative feature cards. They are the quickest map from a visitor question to a real feature: FleetBar, Fleet Control Center, Shipwright, sorties, resources, backend readiness, agent communication, file claims, Coordination Guard, harbors, and salvage.',
+            'Together, they answer the basic product question: Port Daddy is a local app and service that makes shared agent work visible, attributable, and recoverable.',
           ],
         },
         {
@@ -180,10 +180,10 @@ export const conceptsSection: DocsContentSection = {
         },
         {
           type: 'paragraph',
-          title: 'Mac app surfaces and daemon primitives are one system',
+          title: 'The Mac app and daemon work together',
           paragraphs: [
-            'FleetBar and Fleet Control Center are the Mac-facing surfaces. The daemon-backed primitives underneath are what make those surfaces more than a launcher: sessions, notes, channels, inboxes, claims, tuples, guard checks, harbors, backend readiness, budgets, and salvage state.',
-            'Shipwright connects those layers during cold start. It surveys a repo, proposes a starter fleet, simulates risk and budget, then hands the operator back to Flow, Agents, YAML, and Resources inside the same control plane.',
+            'FleetBar and Fleet Control Center are the Mac-facing parts. The daemon-backed features underneath are sessions, notes, channels, inboxes, claims, tuples, guard checks, harbors, backend readiness, budgets, and salvage state.',
+            'Shipwright connects those layers during cold start. It surveys a repo, proposes a starter fleet, simulates risk and budget, then sends you back to Flow, Agents, YAML, and Resources.',
           ],
         },
       ],

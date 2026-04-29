@@ -6,7 +6,7 @@ export default function Watch() {
       function="watch"
       description="Subscribe to a channel and run a callback on every message. Uses SSE for real-time delivery. Auto-reconnects on disconnect. This is the always-on agent primitive."
       module="Messaging"
-      version="3.8.3"
+      version="3.11.0"
       signature="watch(channel: string, callback: (msg: Message) => void | Promise<void>, options?: WatchOptions): Promise<Watcher>"
       params={[
         { name: 'channel', type: 'string', required: true, description: 'Channel to watch' },

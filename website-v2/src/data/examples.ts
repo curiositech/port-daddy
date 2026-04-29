@@ -1,18 +1,11 @@
 import pdTubeButtonHtml from '../../../examples/pd-tube/button-to-agent.html?raw'
 import pdTubeReadme from '../../../examples/pd-tube/README.md?raw'
-import warRoomReadme from '../../../examples/war-room/README.md?raw'
-import warRoomRun from '../../../examples/war-room/run.sh?raw'
-import inboxReadme from '../../../examples/inbox/README.md?raw'
-import inboxAgentDm from '../../../examples/inbox/agent-dm.sh?raw'
-import inboxMonitor from '../../../examples/inbox/inbox-monitor.ts?raw'
-import fileEditGuard from '../../../examples/coordination/file-edit-guard.ts?raw'
-import agentProtocol from '../../../examples/coordination/agent-protocol.ts?raw'
-import coordinationReadme from '../../../examples/coordination/README.md?raw'
-import migrationGuard from '../../../examples/locks/migration-guard.ts?raw'
-import serviceDiscovery from '../../../examples/dns/service-discovery.ts?raw'
-import dnsReadme from '../../../examples/dns/README.md?raw'
-import sessionLifecycle from '../../../examples/phases/session-lifecycle.sh?raw'
-import phasesReadme from '../../../examples/phases/README.md?raw'
+import testReporterReadme from '../../../examples/test-reporter/README.md?raw'
+import testReporterSource from '../../../examples/test-reporter/test-failure-to-agent.ts?raw'
+import editorLightbulbReadme from '../../../examples/editor-lightbulb/README.md?raw'
+import editorLightbulbHtml from '../../../examples/editor-lightbulb/explain-selection.html?raw'
+import webhookAdapterReadme from '../../../examples/webhook-adapter/README.md?raw'
+import webhookAdapterSource from '../../../examples/webhook-adapter/local-webhook-to-agent.ts?raw'
 
 export type ExampleLevel = 'Beginner' | 'Intermediate' | 'Advanced'
 export type ExampleLanguage = 'cli' | 'text' | 'typescript'
@@ -44,6 +37,8 @@ export interface ExampleDoc {
   time: string
   summary: string
   surveyPlain: string
+  builds: string
+  whyItMatters: string
   lastReviewed: string
   tags: string[]
   prerequisites: string[]
@@ -66,6 +61,10 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
       'Turn a plain HTML button into a local phone line to the agent session already running in your project.',
     surveyPlain:
       'Connect a localhost website button, or anything else you want, to a live Claude Code or ChatGPT session.',
+    builds:
+      'A browser page with three buttons that publish work requests into Port Daddy and render the local agent reply inline.',
+    whyItMatters:
+      'This is the lede: the app does not integrate with Claude, OpenAI, MCP, or a hosted webhook. It posts JSON to the local daemon, and the terminal agent already sitting in the repo becomes the worker.',
     lastReviewed: '2026-04-29',
     tags: ['tube', 'browser', 'agent loop', 'messages'],
     prerequisites: [
@@ -86,45 +85,45 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
       {
         title: 'Open the publisher',
         command: '$ open examples/pd-tube/button-to-agent.html',
-        notes: ['No SDK, no MCP server, no hosted webhook. The page uses fetch against the local daemon.'],
+        notes: ['No SDK, no MCP server, no hosted callback. The page uses plain fetch against the local daemon.'],
       },
       {
         title: 'Start the agent side',
         command: '$ pd tube ui:clicks',
-        notes: ['Leave this running in Claude Code, Codex, Cursor, Aider, or any terminal-backed agent.'],
+        notes: ['Leave this running in Claude Code, ChatGPT, Codex, Cursor, Aider, or any terminal-backed agent.'],
       },
       {
         title: 'Reply to an event',
-        command: "$ printf '%s\\n' \"I handled it.\" | pd tube ui:clicks --reply <message-id> --sender claude-code",
+        command: "$ printf '%s\\n' \"Deployed to staging. CI is green.\" | pd tube ui:clicks --reply <message-id> --sender claude-code",
         notes: ['The browser watches the same channel and renders replies whose envelope has inReplyTo set.'],
       },
     ],
     sections: [
       {
-        id: 'overview',
-        label: 'Overview',
-        title: 'The local app does not integrate with Claude. It integrates with Port Daddy.',
+        id: 'what-you-build',
+        label: 'What you build',
+        title: 'A real local control that can summon the coding agent already in the repo.',
         paragraphs: [
-          'The browser publishes a JSON event to ui:clicks. The agent terminal is blocked in pd tube ui:clicks. When the event arrives, the agent sees the payload and handles the work in the same repo context it already has.',
-          'The response travels back through the same channel as a threaded tube message. The browser matches the daemon message id through inReplyTo and renders the response inline.',
+          'The page has ordinary HTML buttons: deploy staging, run tests, summarize PR. Each click posts a tube envelope to ui:clicks and remembers the daemon message id.',
+          'The agent is blocked in pd tube ui:clicks. When the event arrives, the terminal prints the payload plus the exact reply command. The agent does normal repo work, then posts a threaded reply that the browser renders.',
         ],
       },
       {
         id: 'why-it-matters',
         label: 'Why it matters',
-        title: 'Any process that can POST JSON can summon the local agent session.',
+        title: 'Any process that can POST JSON can now reach the local agent session.',
         paragraphs: [
-          'That is the useful primitive. Editor extensions, test reporters, browser extensions, notebook cells, chat adapters, local dev tools, and physical buttons can all become agent-facing controls without owning an agent runtime.',
+          'That is the primitive. Editor extensions, test reporters, browser extensions, notebook cells, chat adapters, local admin panels, and physical buttons can all become agent-facing controls without owning an agent runtime.',
           'The agent side stays CLI-first because CLI-in-a-loop is the interoperability layer every local coding agent already understands.',
         ],
       },
       {
         id: 'message-shape',
         label: 'Protocol shape',
-        title: 'The browser publishes a tube envelope and waits for a correlated reply.',
+        title: 'The browser publishes one envelope and waits for a correlated reply.',
         paragraphs: [
           'The daemon message row supplies the durable id. The tube envelope supplies the body and optional inReplyTo. This keeps threading cheap without requiring the publisher to speak a large protocol.',
-          'The publisher is intentionally boring JavaScript. The product value is not a fancy SDK; it is a stable local substrate that lets ordinary tools reach the live agent.',
+          'The publisher is intentionally boring JavaScript. The product value is a stable local substrate that lets ordinary tools reach the live agent.',
         ],
       },
     ],
@@ -138,440 +137,274 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
       'Keep the agent runtime swappable: anything that can run pd tube can service the event stream.',
     ],
     related: [
-      { title: 'pd pub reference', href: '/docs/cli/pub' },
+      { title: 'Messaging reference', href: '/docs/cli/pub' },
       { title: 'Messaging MCP tool', href: '/docs/mcp/publish-message' },
       { title: 'Inbox tutorial', href: '/tutorials/inbox' },
     ],
   },
   {
-    slug: 'war-room-incident',
-    title: 'Build a local incident war room for agents',
-    eyebrow: 'Swarm coordination',
-    level: 'Advanced',
+    slug: 'test-failure-to-agent',
+    title: 'Build a test reporter that asks the agent for help',
+    eyebrow: 'Test runner',
+    level: 'Intermediate',
     time: '20 min',
     summary:
-      'Create a shared incident channel where specialist agents post findings, hand off work, and leave a durable report.',
+      'Wrap a failing test command, publish the failure to the local agent, and print the diagnosis back in the terminal.',
     surveyPlain:
-      'Use this to build a triage tool that keeps agent investigation notes in one place.',
+      'Turn red tests into a direct prompt for the agent that already has the repo open.',
+    builds:
+      'A TypeScript reporter you can run around npm test, Vitest, Jest, pytest, Playwright, or a pre-commit check.',
+    whyItMatters:
+      'A test runner is already the moment a developer wants help. This example turns that failure into a structured local event instead of copying logs into chat.',
     lastReviewed: '2026-04-29',
-    tags: ['agents', 'notes', 'channels', 'incident'],
+    tags: ['tube', 'tests', 'reporter', 'terminal'],
     prerequisites: [
       'A running Port Daddy daemon.',
-      'The pd CLI on PATH.',
-      'A terminal that can run shell scripts from the repo root.',
+      'tsx for the TypeScript reporter.',
+      'An agent terminal that can run pd tube dev:test-failed.',
     ],
     files: [
-      'examples/war-room/run.sh',
-      'examples/war-room/README.md',
+      'examples/test-reporter/test-failure-to-agent.ts',
+      'examples/test-reporter/README.md',
     ],
     commands: [
       {
-        title: 'Run the simulation',
-        command: '$ ./examples/war-room/run.sh',
-        notes: ['The script registers three agents, publishes findings, writes notes, and signs them off.'],
+        title: 'Start the agent side',
+        command: '$ pd tube dev:test-failed',
+        notes: ['Leave this running in the coding agent that should investigate failures.'],
       },
       {
-        title: 'Inspect the trail',
-        command: '$ pd notes --limit 20\n$ pd msg get bridge:warroom:incident\n$ pd agents',
-        notes: ['The notes and channel messages are the durable incident report. Agents should be gone after cleanup.'],
+        title: 'Run the built-in failing demo',
+        command: '$ npx tsx examples/test-reporter/test-failure-to-agent.ts',
+        notes: ['The default command fails on purpose so you can see the tube event immediately.'],
+      },
+      {
+        title: 'Wrap a real test command',
+        command: '$ npx tsx examples/test-reporter/test-failure-to-agent.ts -- npm test -- --runInBand',
+        notes: ['Anything after -- is executed as the test command and captured if it fails.'],
+      },
+      {
+        title: 'Use non-blocking mode for hooks',
+        command: '$ npx tsx examples/test-reporter/test-failure-to-agent.ts --no-wait -- npm test',
+        notes: ['This publishes the failure and exits with the failing command status.'],
       },
     ],
     sections: [
       {
-        id: 'overview',
-        label: 'Overview',
-        title: 'This builds the shared room agents use during an incident.',
+        id: 'what-you-build',
+        label: 'What you build',
+        title: 'A local reporter that turns failures into agent work requests.',
         paragraphs: [
-          'The incident lead, database investigator, and log analyst each get a semantic identity. They publish discoveries to the same incident channel and leave durable notes as they narrow the root cause.',
-          'The thing to copy is the room: one named channel, clear agent roles, durable findings, and a final report that survives after the terminals close.',
+          'The script runs a command, streams stdout and stderr like a normal terminal wrapper, and only publishes to Port Daddy when the command fails.',
+          'The published event includes cwd, command, exit code, stdout, stderr, and the exact ask: investigate this failure in the current repo and reply with cause, changed files, and the next command.',
         ],
       },
       {
-        id: 'flow',
-        label: 'Flow',
-        title: 'Join, publish, narrow, resolve, sign off.',
+        id: 'loop',
+        label: 'The loop',
+        title: 'The test runner does not need to know which agent runtime you use.',
         paragraphs: [
-          'Act 1 registers the agents. Act 2 publishes the initial report and early evidence. Act 3 correlates the failure with a deployment. Act 4 records the fix. Act 5 leaves the operator with a reviewable trail.',
-          'The cleanup trap matters. A good example proves that agents do not leak after the demo exits.',
+          'The reporter posts to dev:test-failed. Claude Code, ChatGPT, Codex, Cursor, Aider, or another shell-running agent can sit in pd tube dev:test-failed and service the same event stream.',
+          'That separation is the point. Test tools publish events. Agents consume events. Port Daddy is the local bus in the middle.',
         ],
       },
       {
-        id: 'operator-proof',
-        label: 'Operator proof',
-        title: 'The observable result is not the colorful script output.',
+        id: 'product-version',
+        label: 'Product version',
+        title: 'A real reporter would call the same publish function from inside the test framework.',
         paragraphs: [
-          'The proof is in pd notes, pd msg get, and pd agents. Those commands show the durable coordination state the daemon retained and the live-agent state it cleaned up.',
-        ],
-      },
-    ],
-    sourceFiles: [
-      { path: 'examples/war-room/run.sh', language: 'text', code: warRoomRun },
-      { path: 'examples/war-room/README.md', language: 'text', code: warRoomReadme },
-    ],
-    adapt: [
-      'Swap the scripted findings for real agent tasks: log search, git bisect, failing-test analysis, or deploy inspection.',
-      'Use one channel per incident or workstream so subscribers can join by convention.',
-      'Keep the sign-off path in a trap or finally block so dead demo agents do not pollute fleet truth.',
-    ],
-    related: [
-      { title: 'Multi-agent tutorial', href: '/tutorials/multi-agent' },
-      { title: 'Notes reference', href: '/docs/cli/notes' },
-      { title: 'Activity ledger tutorial', href: '/tutorials/time-travel' },
-    ],
-  },
-  {
-    slug: 'durable-inbox-lifecycle',
-    title: 'Build an agent handoff inbox',
-    eyebrow: 'Inbox',
-    level: 'Beginner',
-    time: '14 min',
-    summary:
-      'Create a direct-message inbox where agents can receive assigned work, track unread handoffs, and mark items done.',
-    surveyPlain: 'Send one agent a message that stays unread until someone handles it.',
-    lastReviewed: '2026-04-29',
-    tags: ['inbox', 'handoff', 'SSE', 'agents'],
-    prerequisites: [
-      'A running Port Daddy daemon.',
-      'curl and python3 for the shell lifecycle script.',
-      'tsx if you want to run the live inbox monitor.',
-    ],
-    files: [
-      'examples/inbox/agent-dm.sh',
-      'examples/inbox/inbox-monitor.ts',
-      'examples/inbox/README.md',
-    ],
-    commands: [
-      {
-        title: 'Run the full lifecycle',
-        command: '$ bash examples/inbox/agent-dm.sh',
-        notes: ['The script exercises register, send, stats, list, mark-read, clear, and unregister.'],
-      },
-      {
-        title: 'Run a live monitor',
-        command: '$ npx tsx examples/inbox/inbox-monitor.ts bob',
-        notes: ['Use this pattern for an operator pane, status tail, or agent-local notification feed.'],
-      },
-    ],
-    sections: [
-      {
-        id: 'overview',
-        label: 'Overview',
-        title: 'This builds the private handoff queue for one agent.',
-        paragraphs: [
-          'Use pub/sub when many subscribers should hear an event. Use the inbox when one specific agent needs a handoff, blocker, or result and you need unread/read state.',
-          'The shell script keeps the lifecycle explicit so the semantics are inspectable rather than hidden behind a framework.',
-        ],
-      },
-      {
-        id: 'state',
-        label: 'State model',
-        title: 'The important thing is the transition, not the POST.',
-        paragraphs: [
-          'The example sends one message and then reads the stats before and after the message is marked read and cleared. That makes the inbox useful for tooling because the unread count means something concrete.',
-        ],
-      },
-      {
-        id: 'monitor',
-        label: 'Monitor',
-        title: 'The TypeScript monitor is the seed of a real dev tool.',
-        paragraphs: [
-          'The monitor subscribes to inbox events, prints messages with attribution, and marks them read after receipt. That same shape can power an editor panel or native menu-bar surface.',
+          'The example is a wrapper so it is easy to run, but the function boundary is the important part: publishTube(body) is the piece a Jest reporter, Vitest plugin, pytest hook, or Playwright reporter would reuse.',
+          'You can choose whether to block for an answer, return immediately, or surface the reply in a desktop notification, editor panel, or CI annotation.',
         ],
       },
     ],
     sourceFiles: [
-      { path: 'examples/inbox/agent-dm.sh', language: 'text', code: inboxAgentDm },
-      { path: 'examples/inbox/inbox-monitor.ts', language: 'typescript', code: inboxMonitor },
-      { path: 'examples/inbox/README.md', language: 'text', code: inboxReadme },
+      { path: 'examples/test-reporter/test-failure-to-agent.ts', language: 'typescript', code: testReporterSource },
+      { path: 'examples/test-reporter/README.md', language: 'text', code: testReporterReadme },
     ],
     adapt: [
-      'Use inbox messages for handoffs that have an owner.',
-      'Use unread counts for UI badges and operator review queues.',
-      'Pair inbox monitors with session notes so ephemeral notifications still leave durable context.',
+      'Move publishTube into a Jest, Vitest, pytest, or Playwright reporter hook.',
+      'Use one channel per project or test suite when several repos are running locally.',
+      'Keep --no-wait mode for hooks that must preserve the original test command exit code.',
     ],
     related: [
-      { title: 'Inbox tutorial', href: '/tutorials/inbox' },
-      { title: 'Agent register CLI', href: '/docs/cli/agent-register' },
+      { title: 'Messaging reference', href: '/docs/cli/pub' },
+      { title: 'Testing practice', href: '/docs/best-practices/testing-and-promotion' },
       { title: 'MCP add-note tool', href: '/docs/mcp/add-note' },
     ],
   },
   {
-    slug: 'file-edit-guard',
-    title: 'Build a file edit guard for local agents',
-    eyebrow: 'Dev tool',
-    level: 'Intermediate',
-    time: '22 min',
-    summary:
-      'Use Port Daddy locks, messages, and notes to build a guard that agents run before editing contested files.',
-    surveyPlain: 'Before an agent edits a file, it checks whether another agent is already working there.',
-    lastReviewed: '2026-04-29',
-    tags: ['locks', 'file claims', 'dev tools', 'coordination'],
-    prerequisites: [
-      'A running Port Daddy daemon.',
-      'tsx for the TypeScript scripts.',
-      'An AGENT_ID environment variable if you want stable attribution.',
-    ],
-    files: [
-      'examples/coordination/file-edit-guard.ts',
-      'examples/coordination/agent-protocol.ts',
-      'examples/coordination/README.md',
-    ],
-    commands: [
-      {
-        title: 'Claim before editing',
-        command: '$ AGENT_ID=agent-a npx tsx examples/coordination/file-edit-guard.ts claim src/auth.ts "Add auth check"',
-        notes: ['The guard acquires a lock and publishes a claim message.'],
-      },
-      {
-        title: 'Check contention',
-        command: '$ AGENT_ID=agent-b npx tsx examples/coordination/file-edit-guard.ts status src/auth.ts',
-        notes: ['Another agent can inspect live ownership instead of guessing from chat.'],
-      },
-      {
-        title: 'Release when done',
-        command: '$ AGENT_ID=agent-a npx tsx examples/coordination/file-edit-guard.ts release src/auth.ts',
-        notes: ['Release publishes a channel event and records a durable note.'],
-      },
-    ],
-    sections: [
-      {
-        id: 'overview',
-        label: 'Overview',
-        title: 'This is the kind of dev tool Port Daddy should make boring to build.',
-        paragraphs: [
-          'The script is not a toy wrapper around one CLI command. It composes a file-specific channel, a lock name, status inspection, release behavior, and durable notes into a workflow agents can actually follow.',
-          'That composition is what the examples section should teach: Port Daddy is a substrate for building local tools around agent work.',
-        ],
-      },
-      {
-        id: 'protocol',
-        label: 'Protocol',
-        title: 'Channel names are the discovery mechanism.',
-        paragraphs: [
-          'The file path becomes a predictable channel. Agents do not need a central registry to know where to watch for claims and releases. They need a naming convention that stays stable across tools.',
-        ],
-      },
-      {
-        id: 'guardrail',
-        label: 'Guardrail',
-        title: 'The lock is stronger than etiquette, and the note is stronger than memory.',
-        paragraphs: [
-          'The lock protects the scarce resource. The channel explains what is happening now. The note records what happened after the script exits. The example is useful because it uses all three surfaces deliberately.',
-        ],
-      },
-    ],
-    sourceFiles: [
-      { path: 'examples/coordination/file-edit-guard.ts', language: 'typescript', code: fileEditGuard },
-      { path: 'examples/coordination/agent-protocol.ts', language: 'typescript', code: agentProtocol },
-      { path: 'examples/coordination/README.md', language: 'text', code: coordinationReadme },
-    ],
-    adapt: [
-      'Replace whole-file lock names with symbol or region claims when the symbol index knows the file.',
-      'Put the status command behind editor CodeLens, pre-edit hooks, or agent startup prompts.',
-      'Keep release idempotent and noisy enough that stale ownership can be diagnosed later.',
-    ],
-    related: [
-      { title: 'Locks reference', href: '/docs/cli/lock-acquire' },
-      { title: 'Sessions and file claims', href: '/docs/features/sessions' },
-      { title: 'Coordination discipline', href: '/docs/best-practices/coordination-discipline' },
-    ],
-  },
-  {
-    slug: 'migration-lock-guard',
-    title: 'Build a one-at-a-time database migration runner',
-    eyebrow: 'Locks',
-    level: 'Intermediate',
-    time: '12 min',
-    summary:
-      'Use a Port Daddy lock so only one agent or script can run a database migration, schema write, or release step at a time.',
-    surveyPlain:
-      'When a second process tries the same dangerous step, it gets a clear skip message instead of touching the database.',
-    lastReviewed: '2026-04-29',
-    tags: ['locks', 'critical section', 'migrations'],
-    prerequisites: [
-      'A running Port Daddy daemon.',
-      'tsx for the TypeScript script.',
-      'A willingness to treat migrations as scarce infrastructure, not a social convention.',
-    ],
-    files: ['examples/locks/migration-guard.ts'],
-    commands: [
-      {
-        title: 'Run the contention demo',
-        command: '$ npx tsx examples/locks/migration-guard.ts',
-        notes: ['Two actors attempt the same migration. One runs. The other exits with an operator-readable message.'],
-      },
-      {
-        title: 'Use the same shape for real work',
-        command: '$ pd with-lock db-migrations -- npm run migrate',
-        notes: ['The example explains the primitive; with-lock is the ergonomic daily command.'],
-      },
-    ],
-    sections: [
-      {
-        id: 'overview',
-        label: 'Overview',
-        title: 'This builds a guardrail around work that must not run twice.',
-        paragraphs: [
-          'Use this pattern when two terminals, hooks, or agents might both try to change shared infrastructure. The finished artifact is a small runner you can put around migrations, deploy promotions, generated files, or any command that should only have one owner.',
-          'The important part is the losing path. The second process gets an operator-readable skip message instead of guessing, waiting forever, or touching the same database state.',
-        ],
-      },
-      {
-        id: 'critical-section',
-        label: 'Critical section',
-        title: 'Wrap only the dangerous command.',
-        paragraphs: [
-          'The script acquires db-migrations, runs the simulated migration inside try/finally, and releases the lock even if the command fails. Copy that shape around npm run migrate, prisma migrate deploy, terraform apply, or release promotion.',
-        ],
-      },
-    ],
-    sourceFiles: [
-      { path: 'examples/locks/migration-guard.ts', language: 'typescript', code: migrationGuard },
-    ],
-    adapt: [
-      'Use named locks for migrations, generated artifacts, release promotion, schema writes, and external side effects.',
-      'Keep the protected region small so ordinary parallel work can keep moving.',
-      'Make the losing path explicit. Operators should know whether work skipped, queued, or failed.',
-    ],
-    related: [
-      { title: 'With-lock CLI', href: '/docs/cli/with-lock' },
-      { title: 'Testing and promotion practice', href: '/docs/best-practices/testing-and-promotion' },
-    ],
-  },
-  {
-    slug: 'dns-service-discovery',
-    title: 'Build semantic service discovery for local tools',
-    eyebrow: 'Discovery',
-    level: 'Intermediate',
+    slug: 'editor-lightbulb-to-agent',
+    title: 'Build an editor lightbulb that asks the local agent',
+    eyebrow: 'Editor extension',
+    level: 'Beginner',
     time: '16 min',
     summary:
-      "Let agents and dev tools ask for shop:api, docs:preview, or worker:queue instead of hardcoding today's port.",
-    surveyPlain: 'Give a service a name, then ask Port Daddy where it is running.',
+      'Select code in a local page, publish the file and range to the agent, and render the explanation inline.',
+    surveyPlain:
+      'This is the useful core of a VS Code or JetBrains extension without extension packaging.',
+    builds:
+      'A browser-based editor mock that sends selected code to editor:explain and waits for the local agent reply.',
+    whyItMatters:
+      'Editor integrations often get heavy because they try to host or authenticate the agent. This one only publishes a local event and lets the already-running agent do the work.',
     lastReviewed: '2026-04-29',
-    tags: ['dns', 'services', 'semantic identity'],
+    tags: ['tube', 'editor', 'selection', 'dev tools'],
     prerequisites: [
       'A running Port Daddy daemon.',
-      'tsx for the TypeScript script.',
-      'Optional sudo access only for the /etc/hosts resolver script, not for the service-discovery example.',
+      'A browser that can open a local HTML file.',
+      'An agent terminal listening on editor:explain.',
     ],
     files: [
-      'examples/dns/service-discovery.ts',
-      'examples/dns/README.md',
+      'examples/editor-lightbulb/explain-selection.html',
+      'examples/editor-lightbulb/README.md',
     ],
     commands: [
       {
-        title: 'Run the discovery pass',
-        command: '$ npx tsx examples/dns/service-discovery.ts',
-        notes: ['The script registers shop services, lists them, looks up shop:api, and removes the records.'],
+        title: 'Start the agent side',
+        command: '$ pd tube editor:explain',
+        notes: ['The agent receives selected code plus file/range context.'],
       },
       {
-        title: 'Inspect DNS state',
-        command: '$ pd dns list',
-        notes: ['Run this while adapting the example to see what service identities are currently registered.'],
+        title: 'Open the lightbulb publisher',
+        command: '$ open examples/editor-lightbulb/explain-selection.html',
+        notes: ['Edit the file, range, and selected code fields, then press the button.'],
+      },
+      {
+        title: 'Reply with an explanation',
+        command: "$ printf '%s\\n' \"This helper normalizes daemon URLs before fetch.\" | pd tube editor:explain --reply <message-id>",
+        notes: ['The browser renders the threaded reply inline.'],
       },
     ],
     sections: [
       {
-        id: 'overview',
-        label: 'Overview',
-        title: 'This builds the lookup table local tools use instead of guessing ports.',
+        id: 'what-you-build',
+        label: 'What you build',
+        title: 'A working sketch of the editor command developers actually want.',
         paragraphs: [
-          'Agents should not have to remember that the API happens to be on 3100 today. They should resolve shop:api and let the daemon answer with the current endpoint.',
-          'The example keeps registration and cleanup together so the service namespace remains believable after the demo exits.',
+          'The page collects a file path, a line range, and selected code. Pressing the button publishes a selection.explain event to editor:explain and waits for an inReplyTo response.',
+          'The agent can use the real project checkout to answer. It is not a detached chatbot guessing from a pasted snippet.',
         ],
       },
       {
-        id: 'lookup',
-        label: 'Lookup',
-        title: 'List broadly, resolve specifically.',
+        id: 'extension-shape',
+        label: 'Extension shape',
+        title: 'The HTML is standing in for a VS Code, JetBrains, or browser-extension publisher.',
         paragraphs: [
-          'The script first lists all DNS records and filters the shop namespace. Then it performs a specific lookup for shop:api. Those are the two tool shapes most dev tools need: overview and direct resolution.',
+          'The extension version would replace the textarea with editor.selection, activeTextEditor.document.fileName, and range metadata. The Port Daddy part stays the same.',
+          'That makes the SDK question smaller: publishers need convenient helpers, but the agent side can stay CLI-only.',
         ],
       },
     ],
     sourceFiles: [
-      { path: 'examples/dns/service-discovery.ts', language: 'typescript', code: serviceDiscovery },
-      { path: 'examples/dns/README.md', language: 'text', code: dnsReadme },
+      { path: 'examples/editor-lightbulb/explain-selection.html', language: 'text', code: editorLightbulbHtml },
+      { path: 'examples/editor-lightbulb/README.md', language: 'text', code: editorLightbulbReadme },
     ],
     adapt: [
-      'Use project-prefixed service identities so duplicate local stacks do not collide.',
-      'Resolve dependencies at startup instead of hardcoding localhost ports.',
-      'Clean up records in test fixtures and demo scripts so stale names do not become false truth.',
+      'Replace the textarea with VS Code, JetBrains, browser-extension, or Neovim selection APIs.',
+      'Send file path and range metadata so the agent can inspect neighboring code before answering.',
+      'Render replies as inline comments, hover cards, diagnostics, or a side panel.',
     ],
     related: [
-      { title: 'DNS tutorial', href: '/tutorials/dns' },
-      { title: 'pd dns reference', href: '/docs/cli/dns' },
-      { title: 'More discovery examples', href: '/docs/features/dns' },
+      { title: 'Messaging reference', href: '/docs/cli/pub' },
+      { title: 'Semantic identities', href: '/tutorials/semantic-identities' },
+      { title: 'MCP tools', href: '/docs/mcp' },
     ],
   },
   {
-    slug: 'session-phase-lifecycle',
-    title: 'Build a recoverable agent work log',
-    eyebrow: 'Sessions',
-    level: 'Beginner',
-    time: '15 min',
+    slug: 'webhook-to-local-agent',
+    title: 'Build a webhook adapter backed by your workstation',
+    eyebrow: 'Bot adapter',
+    level: 'Advanced',
+    time: '24 min',
     summary:
-      'Use sessions, file claims, phases, and notes to leave a durable trail for one piece of agent work.',
+      'Accept Slack, Discord, Linear, or generic webhook JSON and route it to the local agent through PD Tube.',
     surveyPlain:
-      'If an agent disappears, the next agent can see what it was doing, which files it touched, and what happened last.',
+      'Your actual workstation becomes the bot backend, with full repo access and no hosted agent service.',
+    builds:
+      'A local HTTP server with /webhook, /slack, /discord, and /linear endpoints that publish to chat:mentions and optionally wait for a reply.',
+    whyItMatters:
+      'Most bot demos hide the hard part behind cloud infrastructure. This one shows the small local bridge: POST JSON in, pd tube event out, threaded answer back to the caller.',
     lastReviewed: '2026-04-29',
-    tags: ['sessions', 'phases', 'file claims', 'notes'],
+    tags: ['tube', 'webhooks', 'bots', 'http'],
     prerequisites: [
       'A running Port Daddy daemon.',
-      'curl and jq for the shell script.',
-      'A clean mental model that session state is product state, not chat state.',
+      'tsx for the local HTTP adapter.',
+      'An agent terminal listening on chat:mentions.',
     ],
     files: [
-      'examples/phases/session-lifecycle.sh',
-      'examples/phases/README.md',
+      'examples/webhook-adapter/local-webhook-to-agent.ts',
+      'examples/webhook-adapter/README.md',
     ],
     commands: [
       {
-        title: 'Run the lifecycle',
-        command: '$ bash examples/phases/session-lifecycle.sh',
-        notes: ['The script registers an agent, creates a session, claims files, advances phases, notes progress, and completes.'],
+        title: 'Start the agent side',
+        command: '$ pd tube chat:mentions',
+        notes: ['The agent receives webhook payloads as local work requests.'],
       },
       {
-        title: 'Inspect recent sessions',
-        command: '$ pd notes --limit 10\n$ pd sessions --all --limit 5',
-        notes: ['The post-run proof is the phase-aware trail left in daemon state.'],
+        title: 'Start the adapter',
+        command: '$ npx tsx examples/webhook-adapter/local-webhook-to-agent.ts',
+        notes: ['The server listens on 127.0.0.1:8787 by default.'],
+      },
+      {
+        title: 'Send a webhook',
+        command: "$ curl -sS http://127.0.0.1:8787/webhook -H 'Content-Type: application/json' -d '{\"source\":\"linear\",\"issue\":\"PD-42\",\"text\":\"Can you inspect the release check?\"}'",
+        notes: ['The adapter publishes the JSON into chat:mentions and waits for the agent reply.'],
+      },
+      {
+        title: 'Fire and forget',
+        command: "$ curl -sS 'http://127.0.0.1:8787/webhook?wait=0' -H 'Content-Type: application/json' -d '{\"source\":\"slack\",\"text\":\"Please inspect the current branch\"}'",
+        notes: ['Use wait=0 when the upstream bot should acknowledge quickly and receive the answer elsewhere.'],
       },
     ],
     sections: [
       {
-        id: 'overview',
-        label: 'Overview',
-        title: 'This builds the handoff record for a long-running agent task.',
+        id: 'what-you-build',
+        label: 'What you build',
+        title: 'A local bot backend whose worker is the agent terminal.',
         paragraphs: [
-          'The script starts a job, claims files, moves through planning, implementation, testing, review, cleanup, and completion, then leaves notes at each step.',
-          'The output is not a dashboard widget. It is recoverable daemon state: the thing another agent reads when the first agent crashes, loses context, or hands off the work.',
+          'The HTTP server accepts webhook-shaped JSON, wraps it in a webhook.mention event, publishes to chat:mentions, and tells the caller which message id was created.',
+          'If wait=0 is not set, the adapter waits up to two minutes for the agent to reply through pd tube and returns that answer as JSON.',
         ],
       },
       {
-        id: 'claims',
-        label: 'File claims',
-        title: 'File claims show what the agent intended to edit.',
+        id: 'why-local',
+        label: 'Why local',
+        title: 'The bot does not need cloud agent infrastructure to be useful.',
         paragraphs: [
-          'The script claims two files during setup so other agents can see the work area before touching the same files. In a real workflow, that claim would become narrower as symbol-level edit intent becomes clear.',
+          'A Slack or Linear adapter can be thin because the developer already has the expensive context locally: repo checkout, shell, credentials, tests, and the active coding agent session.',
+          'Port Daddy gives the webhook a neutral event bus and gives the agent a one-line loop.',
+        ],
+      },
+      {
+        id: 'security-boundary',
+        label: 'Security boundary',
+        title: 'The example is local-first on purpose.',
+        paragraphs: [
+          'The server binds to 127.0.0.1 and does not implement Slack or Linear signature verification. That keeps the executable example focused on the PD shape.',
+          'A real adapter should verify upstream signatures, authorize channels, redact sensitive payloads, and decide whether replies are synchronous or pushed back through the upstream API.',
         ],
       },
     ],
     sourceFiles: [
-      { path: 'examples/phases/session-lifecycle.sh', language: 'text', code: sessionLifecycle },
-      { path: 'examples/phases/README.md', language: 'text', code: phasesReadme },
+      { path: 'examples/webhook-adapter/local-webhook-to-agent.ts', language: 'typescript', code: webhookAdapterSource },
+      { path: 'examples/webhook-adapter/README.md', language: 'text', code: webhookAdapterReadme },
     ],
     adapt: [
-      'Use phase notes as recovery checkpoints before long test runs, risky edits, or context handoffs.',
-      'Keep the cleanup phase explicit. Release claims, summarize validation, and make the next owner obvious.',
-      'Have agents read the current session before starting adjacent work.',
+      'Add Slack, Discord, Linear, GitHub, or Jira signature verification before exposing the adapter beyond localhost.',
+      'Use per-source channels like slack:mentions or linear:assigned if the agent should triage streams separately.',
+      'Return immediately with wait=0 when the upstream platform requires fast acknowledgements.',
     ],
     related: [
-      { title: 'Session phases tutorial', href: '/tutorials/session-phases' },
-      { title: 'pd begin reference', href: '/docs/cli/begin' },
-      { title: 'pd done reference', href: '/docs/cli/done' },
+      { title: 'Messaging reference', href: '/docs/cli/pub' },
+      { title: 'Agent inbox tutorial', href: '/tutorials/inbox' },
+      { title: 'MCP overview', href: '/docs/mcp' },
     ],
   },
 ]
+
+export const FEATURED_EXAMPLE = EXAMPLE_DOCS[0]
+export const SECONDARY_EXAMPLES = EXAMPLE_DOCS.slice(1)
 
 export function findExampleDoc(slug: string | undefined): ExampleDoc | undefined {
   return EXAMPLE_DOCS.find((example) => example.slug === slug)

@@ -1,8 +1,16 @@
-import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
-import { CodeBlock } from '@/components/ui/CodeBlock'
-import { Badge } from '@/components/ui/Badge'
-import { Zap, Terminal, Shield, Layers, RefreshCw, ArrowDown, Radio } from 'lucide-react'
-import { Surface } from '@/components/ui/Surface'
+import { TutorialLayout } from "@/components/tutorials/TutorialLayout";
+import { CodeBlock } from "@/components/ui/CodeBlock";
+import { Badge } from "@/components/ui/Badge";
+import {
+  Zap,
+  Terminal,
+  Shield,
+  Layers,
+  RefreshCw,
+  ArrowDown,
+  Radio,
+} from "lucide-react";
+import { Surface } from "@/components/ui/Surface";
 
 export function Pipelines() {
   return (
@@ -13,35 +21,65 @@ export function Pipelines() {
       total={20}
       level="Advanced"
       readTime="10 min read"
-      prev={{ title: 'Activity Log Inspection', href: '/tutorials/time-travel' }}
-      next={{ title: 'Swarm Observation', href: '/tutorials/watch' }}
+      prev={{
+        title: "Activity Log Inspection",
+        href: "/tutorials/time-travel",
+      }}
+      next={{ title: "Swarm Observation", href: "/tutorials/watch" }}
     >
       <div className="space-y-12">
         {/* Planned Feature Notice */}
-        <p className="m-0 text-sm border-l-4 border-[var(--brand-accent)] pl-4" style={{ color: 'var(--text-secondary)' }}>
-          <Badge variant="gold" className="px-3 py-0.5 text-[10px] font-black uppercase tracking-widest mr-2">Coming in v4</Badge>
-          Declarative reactive pipelines (channel-to-action rules managed by the orchestrator) are planned for v4. Today, you can achieve similar results with <code>pd watch</code> and <code>pd spawn</code>, which are shipping now.
+        <p
+          className="m-0 text-sm border-l-4 border-[var(--brand-accent)] pl-4"
+          style={{ color: "var(--text-secondary)" }}
+        >
+          <Badge
+            variant="gold"
+            className="px-3 py-0.5 text-[10px] font-black uppercase tracking-widest mr-2"
+          >
+            Coming in v4
+          </Badge>
+          Declarative reactive pipelines (channel-to-action rules managed by the
+          orchestrator) are planned for v4. Today, you can achieve similar
+          results with <code>pd watch</code> and <code>pd spawn</code>, which
+          are shipping now.
         </p>
 
         {/* Intro Section */}
         <section className="space-y-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 flex items-center justify-center rounded-xl" style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-pressed)' }}>
+            <div className="w-10 h-10 flex items-center justify-center  border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
               <Layers className="text-[var(--brand-primary)]" size={20} />
             </div>
             <h2 className="m-0">Reactive Workflows Today</h2>
           </div>
           <p>
-            Port Daddy's pub/sub channels, <code>pd watch</code>, and <code>pd spawn</code> give you the building blocks for event-driven agent workflows right now. An agent publishes a message, a watcher picks it up, and a script or new agent responds.
+            Port Daddy's pub/sub channels, <code>pd watch</code>, and{" "}
+            <code>pd spawn</code> give you the building blocks for event-driven
+            agent workflows right now. An agent publishes a message, a watcher
+            picks it up, and a script or new agent responds.
           </p>
           <div className="space-y-3 pt-2">
             <div className="flex items-start gap-3">
-              <Zap size={18} className="text-[var(--brand-secondary)] mt-0.5 shrink-0" />
-              <p className="m-0 text-sm"><strong>pd watch</strong> -- Subscribe to any pub/sub channel via SSE. Run a script whenever a message arrives.</p>
+              <Zap
+                size={18}
+                className="text-[var(--brand-secondary)] mt-0.5 shrink-0"
+              />
+              <p className="m-0 text-sm">
+                <strong>pd watch</strong> -- Subscribe to any pub/sub channel
+                via SSE. Run a script whenever a message arrives.
+              </p>
             </div>
             <div className="flex items-start gap-3">
-              <RefreshCw size={18} className="text-[var(--brand-accent)] mt-0.5 shrink-0" />
-              <p className="m-0 text-sm"><strong>pd spawn</strong> -- Launch AI agents (ollama, claude, aider, gemini, or custom) with full Port Daddy coordination wired in.</p>
+              <RefreshCw
+                size={18}
+                className="text-[var(--brand-accent)] mt-0.5 shrink-0"
+              />
+              <p className="m-0 text-sm">
+                <strong>pd spawn</strong> -- Launch AI agents (ollama, claude,
+                aider, gemini, or custom) with full Port Daddy coordination
+                wired in.
+              </p>
             </div>
           </div>
         </section>
@@ -49,14 +87,16 @@ export function Pipelines() {
         {/* Step 1: pd watch */}
         <section className="space-y-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 flex items-center justify-center rounded-xl" style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-pressed)' }}>
+            <div className="w-10 h-10 flex items-center justify-center  border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
               <Radio className="text-[var(--brand-secondary)]" size={20} />
             </div>
             <h2 className="m-0">1. Watch a Channel</h2>
           </div>
 
           <p>
-            Use <code>pd watch</code> to subscribe to a pub/sub channel and run a script every time a message arrives. The message content is passed via environment variables.
+            Use <code>pd watch</code> to subscribe to a pub/sub channel and run
+            a script every time a message arrives. The message content is passed
+            via environment variables.
           </p>
 
           <CodeBlock language="bash">
@@ -70,38 +110,63 @@ $ pd watch test:fail --exec ./scripts/auto-fix.sh
 #   PD_TIMESTAMP       — ISO timestamp`}
           </CodeBlock>
 
-          <p className="m-0 text-sm border-l-4 border-[var(--brand-secondary)] pl-4" style={{ color: 'var(--text-secondary)' }}>
-            <code>pd watch</code> uses SSE with automatic reconnection. It stays running in the background, reacting to every message on the channel.
+          <p
+            className="m-0 text-sm border-l-4 border-[var(--brand-secondary)] pl-4"
+            style={{ color: "var(--text-secondary)" }}
+          >
+            <code>pd watch</code> uses SSE with automatic reconnection. It stays
+            running in the background, reacting to every message on the channel.
           </p>
         </section>
 
         {/* Step 2: Combining watch + spawn */}
         <section className="space-y-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 flex items-center justify-center rounded-xl" style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-pressed)' }}>
+            <div className="w-10 h-10 flex items-center justify-center  border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
               <Terminal className="text-[var(--brand-accent)]" size={20} />
             </div>
             <h2 className="m-0">2. Chain Watch + Spawn</h2>
           </div>
 
           <p>
-            Combine <code>pd watch</code> with <code>pd spawn</code> to create reactive agent chains. When one agent finishes and publishes a signal, a watcher can spawn the next agent in the pipeline.
+            Combine <code>pd watch</code> with <code>pd spawn</code> to create
+            reactive agent chains. When one agent finishes and publishes a
+            signal, a watcher can spawn the next agent in the pipeline.
           </p>
 
           <div className="space-y-3">
-            <Surface depth="raised" radius="xl" className="flex items-center gap-3 p-4">
-              <Badge variant="teal" className="shrink-0">Step 1</Badge>
+            <Surface
+              depth="raised"
+              radius="none"
+              className="flex items-center gap-3 p-4"
+            >
+              <Badge variant="teal" className="shrink-0">
+                Step 1
+              </Badge>
               <div className="flex-1">
                 <p className="font-bold m-0 text-sm">Agent publishes result</p>
-                <code className="text-[10px]">pd pub task:ready "auth module complete"</code>
+                <code className="text-[10px]">
+                  pd pub task:ready "auth module complete"
+                </code>
               </div>
             </Surface>
-            <div className="flex justify-center"><ArrowDown size={14} className="opacity-20" /></div>
-            <Surface depth="raised" radius="xl" className="flex items-center gap-3 p-4">
-              <Badge variant="teal" className="shrink-0">Step 2</Badge>
+            <div className="flex justify-center">
+              <ArrowDown size={14} className="text-[var(--text-muted)]" />
+            </div>
+            <Surface
+              depth="raised"
+              radius="none"
+              className="flex items-center gap-3 p-4"
+            >
+              <Badge variant="teal" className="shrink-0">
+                Step 2
+              </Badge>
               <div className="flex-1">
                 <p className="font-bold m-0 text-sm">Watcher triggers spawn</p>
-                <code className="text-[10px]">pd watch task:ready --exec 'pd spawn --backend aider -- "Review $PD_MESSAGE_CONTENT"'</code>
+                <code className="text-[10px]">
+                  pd watch task:ready --exec 'pd spawn --backend aider --
+                  "Review $PD_MESSAGE_CONTENT"'
+                </code>
               </div>
             </Surface>
           </div>
@@ -121,18 +186,36 @@ pd pub code:ready "src/auth/login.ts"`}
         </section>
 
         {/* Roadmap Callout */}
-        <Surface depth="raised" radius="2xl" className="p-6 text-center space-y-4 relative overflow-hidden">
-           <Badge variant="gold" className="px-4 py-1 text-[10px] font-black uppercase tracking-widest">v4 Roadmap</Badge>
-           <p className="text-lg font-bold m-0" style={{ color: 'var(--text-primary)' }}>Declarative Pipelines.</p>
-           <p className="max-w-xl mx-auto text-[var(--text-secondary)] m-0">
-             In v4, you will be able to define pipeline rules declaratively -- mapping channels to actions in a configuration file. The orchestrator will manage health checks and prevent runaway spawning. Until then, <code>pd watch</code> and <code>pd spawn</code> give you the same reactive power with shell scripts.
-           </p>
-           <div className="flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-primary)]">
-              <Shield size={14} />
-              Available Today: pd watch + pd spawn
-           </div>
+        <Surface
+          depth="raised"
+          radius="none"
+          className="p-6 text-center space-y-4 relative overflow-hidden"
+        >
+          <Badge
+            variant="gold"
+            className="px-4 py-1 text-[10px] font-black uppercase tracking-widest"
+          >
+            v4 Roadmap
+          </Badge>
+          <p
+            className="text-lg font-bold m-0"
+            style={{ color: "var(--text-primary)" }}
+          >
+            Declarative Pipelines.
+          </p>
+          <p className="max-w-xl mx-auto text-[var(--text-secondary)] m-0">
+            In v4, you will be able to define pipeline rules declaratively --
+            mapping channels to actions in a configuration file. The
+            orchestrator will manage health checks and prevent runaway spawning.
+            Until then, <code>pd watch</code> and <code>pd spawn</code> give you
+            the same reactive power with shell scripts.
+          </p>
+          <div className="flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-primary)]">
+            <Shield size={14} />
+            Available Today: pd watch + pd spawn
+          </div>
         </Surface>
       </div>
     </TutorialLayout>
-  )
+  );
 }

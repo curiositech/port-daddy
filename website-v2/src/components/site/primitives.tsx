@@ -34,7 +34,7 @@ const surfaceBracketTone: Record<AccentTone, string> = {
 const SurfaceToneContext = createContext<AccentTone>('paper')
 
 const panelEyebrowClass =
-  'font-sans text-[length:var(--type-meta-size)] font-medium uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)]'
+  'font-sans text-[length:var(--type-meta-size)] font-medium uppercase tracking-[var(--tracking-meta)]'
 
 const panelTitleSize = {
   hero: 'text-[length:var(--type-hero-size)] leading-[var(--leading-display-tight)] tracking-[var(--tracking-display-tight)]',
@@ -155,6 +155,7 @@ export function PanelTitle({
   as,
   children,
   className,
+  id,
   size = 'card',
   tone = 'default',
   caps = false,
@@ -162,6 +163,7 @@ export function PanelTitle({
   as?: ElementType
   children: ReactNode
   className?: string
+  id?: string
   size?: keyof typeof panelTitleSize
   tone?: 'default' | 'primary' | 'accent'
   caps?: boolean
@@ -177,6 +179,7 @@ export function PanelTitle({
   return (
     <Component
       data-slot="panel-title"
+      id={id}
       className={cn(
         'font-display font-black',
         caps ? 'uppercase' : 'normal-case',
@@ -908,6 +911,68 @@ export function DocsCodeBlock({
       </CodeBlock>
       <span className="sr-only" aria-live="polite">
         {copied ? `${terminalLabel} copied to clipboard` : ''}
+      </span>
+    </div>
+  )
+}
+
+export function CopyableCommandBlock({
+  command,
+  label = 'Command',
+  copyLabel = 'Copy',
+  copiedLabel = 'Copied',
+  ariaLabel,
+  className,
+}: {
+  command: string
+  label?: string
+  copyLabel?: string
+  copiedLabel?: string
+  ariaLabel?: string
+  className?: string
+}) {
+  const [copied, setCopied] = useState(false)
+  const surface = useSurfaceTone()
+  const labelTone = panelToneForAccent(surface)
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(command)
+    setCopied(true)
+    window.setTimeout(() => setCopied(false), 1800)
+  }
+
+  return (
+    <div className={cn('grid min-w-0 gap-[var(--space-2)]', className)}>
+      <div className="flex items-center justify-between gap-[var(--space-3)]">
+        <PanelEyebrow tone={labelTone} className="max-w-none">
+          {label}
+        </PanelEyebrow>
+        <Button type="button" variant="secondary" size="sm" aria-label={ariaLabel ?? `Copy ${label}`} onClick={handleCopy}>
+          {copied ? <Check size={14} /> : <Copy size={14} />}
+          {copied ? copiedLabel : copyLabel}
+        </Button>
+      </div>
+      <div
+        className="min-w-0 overflow-hidden border-2 border-[var(--border-strong)] px-[var(--space-3)] py-[var(--space-3)] font-mono text-[13px] leading-[1.65]"
+        style={{ background: 'var(--code-bg)', color: 'var(--code-text)' }}
+      >
+        <code
+          className="block"
+          style={{
+            background: 'transparent',
+            border: 0,
+            borderRadius: 0,
+            color: 'inherit',
+            overflowWrap: 'anywhere',
+            padding: 0,
+            whiteSpace: 'pre-wrap',
+          }}
+        >
+          {command}
+        </code>
+      </div>
+      <span className="sr-only" aria-live="polite">
+        {copied ? `${label} copied to clipboard` : ''}
       </span>
     </div>
   )

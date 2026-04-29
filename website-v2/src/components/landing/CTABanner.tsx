@@ -34,8 +34,8 @@ export function CTABanner() {
               <PanelBody className="max-w-[42rem]">
                 Port Daddy is still open-source infrastructure. The difference now is that the Mac
                 app, Fleet Control Center, <RoleTerm role="shipwright">Shipwright</RoleTerm>,{' '}
-                <RoleTerm role="sortie">sorties</RoleTerm>, resource governance, backend readiness,
-                and agent-to-agent handoffs are the product surface, not a hidden terminal story.
+                <RoleTerm role="sortie">sorties</RoleTerm>, resource controls, backend readiness,
+                and agent-to-agent handoffs are visible product features, not a hidden terminal story.
               </PanelBody>
               <div className="grid gap-[var(--space-3)] md:grid-cols-2">
                 {WHITE_PAPERS.map((paper) => (

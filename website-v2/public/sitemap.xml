@@ -7,43 +7,34 @@
     <loc>https://portdaddy.dev/agents</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/agents/templates</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/blog</loc>
   </url>
   <url>
-    <loc>https://portdaddy.dev/blog/claude-code-port-daddy-integration</loc>
+    <loc>https://portdaddy.dev/blog/backend-readiness-is-dependency-truth</loc>
   </url>
   <url>
-    <loc>https://portdaddy.dev/blog/dead-agents-tell-tales</loc>
+    <loc>https://portdaddy.dev/blog/cartographer-navigator-map-truth</loc>
   </url>
   <url>
-    <loc>https://portdaddy.dev/blog/distributed-locks-two-agents-one-migration</loc>
+    <loc>https://portdaddy.dev/blog/control-plane-is-the-product</loc>
   </url>
   <url>
-    <loc>https://portdaddy.dev/blog/fleet-agents-as-infrastructure</loc>
+    <loc>https://portdaddy.dev/blog/coordination-guard-claims-into-policy</loc>
   </url>
   <url>
-    <loc>https://portdaddy.dev/blog/formal-verification-anchor-protocol</loc>
+    <loc>https://portdaddy.dev/blog/fleet-designer-cold-start</loc>
   </url>
   <url>
-    <loc>https://portdaddy.dev/blog/four-agents-zero-clobber</loc>
+    <loc>https://portdaddy.dev/blog/pd-tube-event-reply-loop</loc>
   </url>
   <url>
-    <loc>https://portdaddy.dev/blog/performance-at-scale</loc>
+    <loc>https://portdaddy.dev/blog/running-is-not-current</loc>
   </url>
   <url>
-    <loc>https://portdaddy.dev/blog/port-daddy-for-teams</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/blog/pubsub-self-healing-test-pipeline</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/blog/spark-and-spider-the-creative-engine</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/blog/the-port-collision-that-ate-my-saturday</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/blog/zero-to-multi-agent-in-5-minutes</loc>
+    <loc>https://portdaddy.dev/blog/telemetry-is-a-launch-gate</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/cookbook</loc>
@@ -176,9 +167,6 @@
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/concepts</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/docs/examples</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/features/arbiter</loc>
@@ -430,25 +418,16 @@
     <loc>https://portdaddy.dev/examples</loc>
   </url>
   <url>
-    <loc>https://portdaddy.dev/examples/dns-service-discovery</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/examples/durable-inbox-lifecycle</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/examples/file-edit-guard</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/examples/migration-lock-guard</loc>
+    <loc>https://portdaddy.dev/examples/editor-lightbulb-to-agent</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/examples/pd-tube-button-to-agent</loc>
   </url>
   <url>
-    <loc>https://portdaddy.dev/examples/session-phase-lifecycle</loc>
+    <loc>https://portdaddy.dev/examples/test-failure-to-agent</loc>
   </url>
   <url>
-    <loc>https://portdaddy.dev/examples/war-room-incident</loc>
+    <loc>https://portdaddy.dev/examples/webhook-to-local-agent</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/integrations</loc>
@@ -479,24 +458,6 @@
   </url>
   <url>
     <loc>https://portdaddy.dev/mcp</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/templates</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/templates/agent-swarm-starter</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/templates/ai-ci-pipeline</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/templates/monorepo-dev-server</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/templates/swarm-researcher</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/templates/webhook-relay</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/tutorials</loc>

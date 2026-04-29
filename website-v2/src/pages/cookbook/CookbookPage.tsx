@@ -1,164 +1,102 @@
-import { motion } from 'framer-motion'
-import { Badge } from '@/components/ui/Badge'
-import { Surface } from '@/components/ui/Surface'
-import { Link } from 'react-router-dom'
-import { Book, Shield, Activity, Zap, MessageSquare, UserMinus, ChevronRight, Share2, Anchor, Cpu, Search, RefreshCw, Layers, type LucideIcon } from 'lucide-react'
-import { COOKBOOK_RECIPES } from '@/data/cookbook'
-import { Footer } from '@/components/layout/Footer'
+import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
+import { COOKBOOK_RECIPES } from "@/data/cookbook";
+import { Footer } from "@/components/layout/Footer";
 
-const ICON_MAP: Record<string, LucideIcon> = {
-  Shield,
-  Activity,
-  Zap,
-  MessageSquare,
-  UserMinus,
-  Share2,
-  Anchor,
-  Cpu,
-  Search,
-  RefreshCw,
-  Layers
-}
+const CATEGORY_LABELS = {
+  coordination: "Coordination",
+  scaling: "Scaling",
+  resilience: "Resilience",
+  security: "Security",
+} as const;
 
 export function CookbookPage() {
   return (
     <motion.div
-      className="min-h-screen font-sans flex flex-col selection:bg-[var(--brand-primary)] selection:text-[var(--brand-primary-foreground)]"
-      style={{ background: 'var(--surface-base)', color: 'var(--text-primary)' }}
+      className="flex min-h-screen flex-col bg-[var(--surface-base)] font-sans text-[var(--text-primary)] selection:bg-[var(--brand-primary)] selection:text-[var(--brand-primary-foreground)]"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
     >
-      {/* Hero Section */}
-      <Surface depth="raised" radius="none" padding="none" className="py-12 sm:py-20 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+      <header className="border-b-2 border-[var(--border-strong)] bg-[var(--surface-raised)] px-[var(--space-4)] py-[var(--section-space-y)] sm:px-[var(--space-6)] lg:px-[var(--space-8)]">
+        <div className="mx-auto grid max-w-7xl gap-[var(--space-6)] lg:grid-cols-[minmax(0,0.9fr)_minmax(18rem,0.45fr)] lg:items-end">
+          <div>
+            <h1 className="m-[var(--space-0)] max-w-[12ch] font-display text-[length:var(--type-hero-size)] font-black leading-[var(--leading-display-tight)] tracking-[var(--tracking-display-tight)]">
+              Port Daddy Cookbook
+            </h1>
+            <p className="mt-[var(--space-5)] max-w-[46rem] text-[length:var(--type-panel-body-size)] leading-[var(--leading-body)] text-[var(--text-secondary)]">
+              Concrete coordination recipes for agent work: locks, inboxes,
+              ports, salvage, topology, and handoff state that survives beyond a
+              terminal tab.
+            </p>
+          </div>
+          <div className="border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-5)]">
+            <p className="m-[var(--space-0)] font-display text-[length:var(--type-panel-title-card-size)] font-black leading-[var(--leading-card)]">
+              Use a recipe when the team already knows the primitive and needs
+              the failure mode nailed down.
+            </p>
+          </div>
+        </div>
+      </header>
 
-        <motion.div
-          className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full blur-[140px] opacity-[0.1] pointer-events-none"
-          style={{ background: 'radial-gradient(circle, var(--brand-accent) 0%, transparent 70%)' }}
-        />
-
-        <motion.div className="max-w-7xl mx-auto text-center flex flex-col items-center gap-6 sm:gap-10 relative z-10">
-          <Badge variant="gold" className="px-4 sm:px-6 py-2 text-[10px] font-black uppercase tracking-[0.25em]">Orchestration Patterns</Badge>
-          <motion.h1
-            className="text-3xl sm:text-6xl lg:text-8xl font-black tracking-tighter font-display leading-[0.9]"
-            initial={{ opacity: 0, y: 32 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          >
-            The <br />
-            <motion.span className="text-[var(--brand-accent)]">Cookbook.</motion.span>
-          </motion.h1>
-          <motion.p
-            className="text-base sm:text-2xl lg:text-3xl max-w-3xl leading-relaxed text-[var(--text-secondary)] font-medium"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.1 }}
-          >
-            Don't build from scratch. Use these battle-tested recipes for coordinating autonomous agent swarms at scale.
-          </motion.p>
-        </motion.div>
-      </Surface>
-
-      {/* Grid Section */}
-      <motion.main id="main-content" className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-12 sm:py-20 font-sans">
-        <motion.div className="grid sm:grid-cols-2 gap-6 sm:gap-8 lg:gap-12">
-          {COOKBOOK_RECIPES.map((recipe, i) => {
-            const Icon = ICON_MAP[recipe.icon] || Book
-            return (
-              <motion.div
-                key={recipe.id}
-                initial={{ opacity: 0, y: 24 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: i * 0.05 }}
-                className="group"
+      <main
+        id="main-content"
+        className="mx-auto w-full max-w-7xl flex-1 px-[var(--space-4)] py-[var(--section-space-y)] font-sans sm:px-[var(--space-6)] lg:px-[var(--space-8)]"
+      >
+        <div className="grid gap-[var(--space-5)] sm:grid-cols-2">
+          {COOKBOOK_RECIPES.map((recipe, i) => (
+            <motion.article
+              key={recipe.id}
+              initial={{ opacity: 0, y: 18 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.45, delay: i * 0.03 }}
+              className="group border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] transition-colors hover:bg-[var(--interactive-hover)]"
+            >
+              <Link
+                to={`/cookbook/${recipe.id}`}
+                className="grid h-full gap-[var(--space-5)] p-[var(--space-5)] no-underline sm:p-[var(--space-6)]"
               >
-                <Link to={`/cookbook/${recipe.id}`} className="no-underline block h-full">
-                  <Surface depth="raised" radius="2xl" padding="none" className="h-full p-6 sm:p-8 lg:p-12 sm:rounded-[40px] lg:rounded-[56px] transition-all duration-300 flex flex-col items-start gap-6 sm:gap-10">
+                <div className="flex items-center justify-between gap-[var(--space-4)] border-b-2 border-[var(--border-strong)] pb-[var(--space-3)]">
+                  <span className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+                    {CATEGORY_LABELS[recipe.category]}
+                  </span>
+                  <span className="font-mono text-[length:var(--type-meta-size)] uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                </div>
 
-                    <div className="w-full flex justify-between items-start">
-                       <Surface depth="inset" radius="2xl" padding="none" className="w-14 h-14 sm:w-20 sm:h-20 sm:rounded-[32px] flex items-center justify-center group-hover:scale-110 transition-transform">
+                <div className="grid gap-[var(--space-3)]">
+                  <h2 className="m-[var(--space-0)] font-display text-[length:var(--type-panel-title-card-size)] font-black leading-[var(--leading-card)] tracking-[var(--tracking-display-card)] text-[var(--text-primary)]">
+                    {recipe.title}
+                  </h2>
+                  <p className="m-[var(--space-0)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
+                    {recipe.description}
+                  </p>
+                </div>
 
-                          <Icon size={28} className="text-[var(--brand-accent)] sm:hidden" />
-                          <Icon size={40} className="text-[var(--brand-accent)] hidden sm:block" />
-                       </Surface>
-                       <Badge variant={recipe.difficulty === 'advanced' ? 'default' : 'teal'} className="text-[8px] font-black uppercase tracking-widest px-3 py-1">
-                          {recipe.difficulty}
-                       </Badge>
-                    </div>
+                <span className="self-end font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+                  Open recipe
+                </span>
+              </Link>
+            </motion.article>
+          ))}
+        </div>
 
-                    <div className="space-y-3 sm:space-y-4 flex-1">
-                      <h3 className="m-0 text-xl sm:text-3xl lg:text-4xl font-display font-black leading-tight text-[var(--text-primary)] group-hover:text-[var(--brand-accent)] transition-colors">
-                        {recipe.title}
-                      </h3>
-                      <p className="m-0 text-sm sm:text-lg lg:text-xl leading-relaxed text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors">
-                        {recipe.description}
-                      </p>
-                    </div>
-
-                    <div className="w-full flex items-center justify-between pt-4 sm:pt-8" style={{ borderTop: '1px solid var(--border-subtle)' }}>
-                       <div className="flex items-center gap-2 sm:gap-3">
-                          <div className="w-2 h-2 rounded-full bg-[var(--status-success)] pulse-active" />
-                          <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] group-hover:text-[var(--text-secondary)]">Verified Recipe</span>
-                       </div>
-                       <div className="flex items-center gap-2 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-[var(--brand-accent)] group-hover:gap-4 transition-all">
-                          Read Pattern
-                          <ChevronRight size={14} />
-                       </div>
-                    </div>
-                  </Surface>
-                </Link>
-              </motion.div>
-            )
-          })}
-        </motion.div>
-
-        {/* Vision Callout */}
-        <Surface depth="raised" radius="2xl" padding="none" className="mt-16 sm:mt-32 sm:rounded-[48px] lg:rounded-[80px] overflow-hidden">
-          <motion.div
-            className="p-8 sm:p-14 lg:p-20 flex flex-col items-center text-center gap-8 sm:gap-12 relative"
-            initial={{ opacity: 0, scale: 0.98 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-          >
-           <div className="absolute top-0 right-0 p-10 opacity-[0.02] pointer-events-none">
-              <RefreshCw size={600} />
-           </div>
-
-           <div className="space-y-4 sm:space-y-6 max-w-3xl relative z-10 flex flex-col items-center">
-              <Badge variant="teal" className="px-4 sm:px-6 py-2 text-[10px] font-black uppercase tracking-widest">High-Fidelity Swarms</Badge>
-              <h3 className="text-2xl sm:text-4xl lg:text-7xl font-display font-black tracking-tight leading-[0.95]" style={{ color: 'var(--text-primary)' }}>
-                Soundness by <span className="text-[var(--brand-secondary)]">Pattern.</span>
-              </h3>
-              <p className="text-base sm:text-xl lg:text-2xl leading-relaxed text-[var(--text-secondary)]">
-                The Cookbook isn't just a list of commands—it's a library of <strong>proven state machines</strong>. Every recipe is designed to converge your swarm on a result while maintaining the absolute integrity of your harbor.
-              </p>
-           </div>
-
-           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-8 w-full max-w-5xl">
-              {[
-                { label: 'Self-Healing', icon: RefreshCw },
-                { label: 'Always-On', icon: Cpu },
-                { label: 'Atomic Locks', icon: Anchor },
-                { label: 'Secure Radio', icon: Zap }
-              ].map((item, i) => (
-                <Surface
-                  key={i}
-                  depth="inset"
-                  radius="2xl"
-                  padding="none"
-                  className="p-4 sm:p-8 sm:rounded-[40px] flex flex-col items-center gap-3 sm:gap-4"
-                >
-                   <item.icon size={20} className="text-[var(--brand-accent)] sm:hidden" />
-                   <item.icon size={24} className="text-[var(--brand-accent)] hidden sm:block" />
-                   <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">{item.label}</span>
-                </Surface>
-              ))}
-           </div>
-          </motion.div>
-        </Surface>
-      </motion.main>
+        <section className="mt-[var(--section-space-y)] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-6)] sm:p-[var(--space-8)]">
+          <div className="grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,0.75fr)_minmax(0,1fr)] lg:items-start">
+            <h2 className="m-[var(--space-0)] font-display text-[length:var(--type-panel-title-display-size)] font-black leading-[var(--leading-display)] tracking-[var(--tracking-display-tight)]">
+              Recipes are contracts, not vibes.
+            </h2>
+            <p className="m-[var(--space-0)] text-[length:var(--type-panel-body-size)] leading-[var(--leading-body)] text-[var(--text-secondary)]">
+              Each cookbook entry should explain the coordination invariant, the
+              Port Daddy primitive that enforces it, and the recovery behavior
+              when an agent crashes or another process races the same resource.
+            </p>
+          </div>
+        </section>
+      </main>
 
       <Footer />
     </motion.div>
-  )
+  );
 }

@@ -5,7 +5,7 @@ export default function ScanServicesTool() {
     <CommandPage
       command="scan_services"
       description="Deep-scan a directory for services. Detects 60+ frameworks and assigns ports."
-      version="3.8.3"
+      version="3.11.0"
       syntax="scan_services(dir, options?)"
       flags={[
         { flag: 'dir', description: 'Directory to scan (default: current directory)' },

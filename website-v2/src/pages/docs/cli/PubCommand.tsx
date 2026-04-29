@@ -6,7 +6,7 @@ export default function PubCommand() {
       command="pd pub"
       shortFlag="pd msg <channel> publish"
       description="Publish a message to a pub/sub channel. All subscribers receive it in real-time. This is the core messaging primitive for agent coordination, enabling event-driven workflows between agents."
-      version="3.8.3"
+      version="3.11.0"
       syntax="pd msg <channel> publish <payload>"
       usagePatterns={[
         'pd msg build:done publish \'{...}\'',

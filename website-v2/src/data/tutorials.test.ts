@@ -111,7 +111,7 @@ describe('tutorials index brand voice', () => {
 
   it('uses the current control-plane positioning instead of retired academy metaphors', () => {
     expect(pageSource).toContain('Operator training')
-    expect(pageSource).toContain('Learn the control-plane protocol.')
+    expect(pageSource).toContain('Start in the harbor. Then coordinate agents.')
     expect(pageSource).toContain('Product-truth curriculum')
     expect(pageSource).not.toContain('Academy of Coordination')
     expect(pageSource).not.toContain('Master the')
@@ -127,6 +127,8 @@ describe('tutorials index brand voice', () => {
       .join(' ')
     const normalizedCopy = visibleCopy.toLowerCase()
 
+    expect(normalizedCopy).toContain('agent')
+    expect(normalizedCopy).toContain('harbor')
     expect(normalizedCopy).toContain('control plane')
     expect(visibleCopy).not.toMatch(/\b[Ss]warm\b/)
     expect(visibleCopy).not.toContain('Pheromone Trails')

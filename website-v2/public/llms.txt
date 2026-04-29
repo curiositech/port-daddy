@@ -7,169 +7,167 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 
 ## Primary Entry Points
 
-- [Port Daddy - Local Communication Substrate for Coding Agents](https://portdaddy.dev/): Port Daddy is a local communication substrate and Mac control plane for coding agents: shared notes, claims, channels, actor inboxes, readiness, budgets, and recoverable handoffs.
-- [Docs Overview - Port Daddy](https://portdaddy.dev/docs): Start with the papers, install the daemon, then move into the model, operating practice, and reference.
-- [Quickstart - Port Daddy](https://portdaddy.dev/docs/quickstart): Install Port Daddy, verify the daemon, claim a port, and start the first coordinated operator workflow.
-- [Get Started - Port Daddy](https://portdaddy.dev/docs/get-started): Install the daemon, verify the live control plane, and run the first operator loop that reflects reality.
-- [Best Practices - Port Daddy](https://portdaddy.dev/docs/best-practices): Operate Port Daddy honestly: verify runtime truth, coordinate explicitly, and promote with discipline.
-- [API Reference - Port Daddy](https://portdaddy.dev/docs/api): Inspect Port Daddy daemon API routes, request shapes, response contracts, and the operator workflows they support.
-- [MCP Server for AI Agents - Port Daddy](https://portdaddy.dev/mcp): Connect Claude, Cursor, Windsurf, and other MCP clients to Port Daddy tools for sessions, claims, scoped channels, inboxes, readiness, and salvage.
+- [Port Daddy - Local Coordination for AI Coding Agents](https://portdaddy.dev/): Port Daddy is a local app and background service that helps AI coding agents share notes, claim work, avoid collisions, recover interrupted runs, and show what is happening on your machine.
+- [Docs Overview - Port Daddy](https://portdaddy.dev/docs): Start here, learn what Port Daddy does, install it, then jump to runnable examples or reference.
+- [Quickstart - Port Daddy](https://portdaddy.dev/docs/quickstart): Install Port Daddy, check the local service, claim a port, and start the first coordinated agent task.
+- [Get Started - Port Daddy](https://portdaddy.dev/docs/get-started): Install Port Daddy, check that it is running, and try your first coordinated agent task.
+- [Best Practices - Port Daddy](https://portdaddy.dev/docs/best-practices): Keep agent work visible, avoid collisions, recover interrupted runs, and promote changes safely.
+- [API Reference - Port Daddy](https://portdaddy.dev/docs/api): Inspect Port Daddy API routes, request shapes, response contracts, and the workflows they support.
+- [Skill + MCP for AI Agents - Port Daddy](https://portdaddy.dev/mcp): Use the Port Daddy agent skill and MCP server together: an instruction manual plus callable tools for sessions, claims, scoped channels, inboxes, readiness, salvage, fleets, and handoffs.
 - [Tutorials - Port Daddy](https://portdaddy.dev/tutorials): Follow hands-on Port Daddy tutorials from first install through sessions, DNS, tunnels, fleet YAML, messaging, and background agents.
 - [Integrations - Port Daddy](https://portdaddy.dev/integrations): Wire Port Daddy into Claude, Cursor, Windsurf, LangChain, CrewAI, Aider, Continue.dev, and other developer tooling.
-- [Agent Fleet Templates - Port Daddy](https://portdaddy.dev/templates): Start from production-ready Port Daddy templates for CI repair loops, research swarms, monorepos, webhooks, and agent teams.
 - [Cookbook - Port Daddy](https://portdaddy.dev/cookbook): Use tested Port Daddy recipes for distributed locks, WebRTC signaling, ephemeral CI databases, and multi-agent topologies.
-- [Blog - Port Daddy](https://portdaddy.dev/blog): Read practical Port Daddy essays about multi-agent coordination, port collisions, salvage, locks, fleets, and local-first operator tooling.
-- [Whitepaper - Port Daddy](https://portdaddy.dev/whitepaper): Read the Port Daddy protocol argument for local-first agent coordination, identity, authority, locks, sessions, and recoverable work.
+- [Blog - Port Daddy](https://portdaddy.dev/blog): Read current Port Daddy field notes about FleetBar, Fleet Control Center, launch readiness, recovery maps, PD Tube, daemon provenance, and coordination policy.
+- [Whitepaper - Port Daddy](https://portdaddy.dev/whitepaper): Read the technical whitepaper behind Port Daddy: local-first agent coordination, signed identity, locks, sessions, and recoverable work.
 - [The Anchor Protocol - Port Daddy](https://portdaddy.dev/whitepaper/anchor-protocol): Read the Anchor Protocol paper inline with a guided explanation of scoped identity, delegation, verification, and why it matters for Port Daddy harbors.
 - [The Bonded Commons - Port Daddy](https://portdaddy.dev/whitepaper/bonded-commons): Read the Bonded Commons paper inline with a guided explanation of evidence trails, advisory claims, collateralized work, and the future agent economy Port Daddy can support.
 
 ## Docs
 
-- [Docs Overview - Port Daddy](https://portdaddy.dev/docs): Start with the papers, install the daemon, then move into the model, operating practice, and reference.
-- [API Reference - Port Daddy](https://portdaddy.dev/docs/api): Inspect Port Daddy daemon API routes, request shapes, response contracts, and the operator workflows they support.
-- [Best Practices - Port Daddy](https://portdaddy.dev/docs/best-practices): Operate Port Daddy honestly: verify runtime truth, coordinate explicitly, and promote with discipline.
-- [CLI Overview - Port Daddy](https://portdaddy.dev/docs/cli): Reference for CLI Overview, including Port Daddy syntax, operator intent, and coordinated local-agent workflow usage.
-- [pd agent register - Port Daddy](https://portdaddy.dev/docs/cli/agent-register): Reference for pd agent register, including Port Daddy syntax, operator intent, and coordinated local-agent workflow usage.
-- [pd begin - Port Daddy](https://portdaddy.dev/docs/cli/begin): Reference for pd begin, including Port Daddy syntax, operator intent, and coordinated local-agent workflow usage.
-- [pd claim - Port Daddy](https://portdaddy.dev/docs/cli/claim): Reference for pd claim, including Port Daddy syntax, operator intent, and coordinated local-agent workflow usage.
-- [pd dns - Port Daddy](https://portdaddy.dev/docs/cli/dns): Reference for pd dns, including Port Daddy syntax, operator intent, and coordinated local-agent workflow usage.
-- [pd done - Port Daddy](https://portdaddy.dev/docs/cli/done): Reference for pd done, including Port Daddy syntax, operator intent, and coordinated local-agent workflow usage.
-- [pd down - Port Daddy](https://portdaddy.dev/docs/cli/down): Reference for pd down, including Port Daddy syntax, operator intent, and coordinated local-agent workflow usage.
-- [pd find - Port Daddy](https://portdaddy.dev/docs/cli/find): Reference for pd find, including Port Daddy syntax, operator intent, and coordinated local-agent workflow usage.
-- [pd fleet - Port Daddy](https://portdaddy.dev/docs/cli/fleet): Reference for pd fleet, including Port Daddy syntax, operator intent, and coordinated local-agent workflow usage.
-- [pd harbor create - Port Daddy](https://portdaddy.dev/docs/cli/harbor-create): Reference for pd harbor create, including Port Daddy syntax, operator intent, and coordinated local-agent workflow usage.
-- [pd harbor enter - Port Daddy](https://portdaddy.dev/docs/cli/harbor-enter): Reference for pd harbor enter, including Port Daddy syntax, operator intent, and coordinated local-agent workflow usage.
-- [pd harbor leave - Port Daddy](https://portdaddy.dev/docs/cli/harbor-leave): Reference for pd harbor leave, including Port Daddy syntax, operator intent, and coordinated local-agent workflow usage.
-- [pd harbors - Port Daddy](https://portdaddy.dev/docs/cli/harbors): Reference for pd harbors, including Port Daddy syntax, operator intent, and coordinated local-agent workflow usage.
-- [pd init - Port Daddy](https://portdaddy.dev/docs/cli/init): Reference for pd init, including Port Daddy syntax, operator intent, and coordinated local-agent workflow usage.
-- [pd lock acquire - Port Daddy](https://portdaddy.dev/docs/cli/lock-acquire): Reference for pd lock acquire, including Port Daddy syntax, operator intent, and coordinated local-agent workflow usage.
-- [pd lock release - Port Daddy](https://portdaddy.dev/docs/cli/lock-release): Reference for pd lock release, including Port Daddy syntax, operator intent, and coordinated local-agent workflow usage.
-- [pd mcp install - Port Daddy](https://portdaddy.dev/docs/cli/mcp-install): Reference for pd mcp install, including Port Daddy syntax, operator intent, and coordinated local-agent workflow usage.
-- [pd msg - Port Daddy](https://portdaddy.dev/docs/cli/msg): Reference for pd msg, including Port Daddy syntax, operator intent, and coordinated local-agent workflow usage.
-- [pd note - Port Daddy](https://portdaddy.dev/docs/cli/note): Reference for pd note, including Port Daddy syntax, operator intent, and coordinated local-agent workflow usage.
-- [pd notes - Port Daddy](https://portdaddy.dev/docs/cli/notes): Reference for pd notes, including Port Daddy syntax, operator intent, and coordinated local-agent workflow usage.
-- [pd pub - Port Daddy](https://portdaddy.dev/docs/cli/pub): Reference for pd pub, including Port Daddy syntax, operator intent, and coordinated local-agent workflow usage.
-- [pd release - Port Daddy](https://portdaddy.dev/docs/cli/release): Reference for pd release, including Port Daddy syntax, operator intent, and coordinated local-agent workflow usage.
-- [pd salvage - Port Daddy](https://portdaddy.dev/docs/cli/salvage): Reference for pd salvage, including Port Daddy syntax, operator intent, and coordinated local-agent workflow usage.
-- [pd salvage claim - Port Daddy](https://portdaddy.dev/docs/cli/salvage-claim): Reference for pd salvage claim, including Port Daddy syntax, operator intent, and coordinated local-agent workflow usage.
-- [pd scan - Port Daddy](https://portdaddy.dev/docs/cli/scan): Reference for pd scan, including Port Daddy syntax, operator intent, and coordinated local-agent workflow usage.
-- [pd services - Port Daddy](https://portdaddy.dev/docs/cli/services): Reference for pd services, including Port Daddy syntax, operator intent, and coordinated local-agent workflow usage.
-- [pd spawn - Port Daddy](https://portdaddy.dev/docs/cli/spawn): Reference for pd spawn, including Port Daddy syntax, operator intent, and coordinated local-agent workflow usage.
-- [pd spawned - Port Daddy](https://portdaddy.dev/docs/cli/spawned): Reference for pd spawned, including Port Daddy syntax, operator intent, and coordinated local-agent workflow usage.
-- [pd status - Port Daddy](https://portdaddy.dev/docs/cli/status): Reference for pd status, including Port Daddy syntax, operator intent, and coordinated local-agent workflow usage.
-- [pd tunnel - Port Daddy](https://portdaddy.dev/docs/cli/tunnel): Reference for pd tunnel, including Port Daddy syntax, operator intent, and coordinated local-agent workflow usage.
-- [pd tunnel stop - Port Daddy](https://portdaddy.dev/docs/cli/tunnel-stop): Reference for pd tunnel stop, including Port Daddy syntax, operator intent, and coordinated local-agent workflow usage.
-- [pd up - Port Daddy](https://portdaddy.dev/docs/cli/up): Reference for pd up, including Port Daddy syntax, operator intent, and coordinated local-agent workflow usage.
-- [pd watch - Port Daddy](https://portdaddy.dev/docs/cli/watch): Reference for pd watch, including Port Daddy syntax, operator intent, and coordinated local-agent workflow usage.
-- [pd whoami - Port Daddy](https://portdaddy.dev/docs/cli/whoami): Reference for pd whoami, including Port Daddy syntax, operator intent, and coordinated local-agent workflow usage.
-- [pd with-lock - Port Daddy](https://portdaddy.dev/docs/cli/with-lock): Reference for pd with-lock, including Port Daddy syntax, operator intent, and coordinated local-agent workflow usage.
-- [Concepts - Port Daddy](https://portdaddy.dev/docs/concepts): Understand the model behind agent identity, coordination, shared state, and operator authority.
-- [Examples - Port Daddy](https://portdaddy.dev/docs/examples): Guided examples that explain the runnable /examples code corpus: swarm state, tunnel sharing, service discovery, and operator-visible coordination.
-- [Arbiter - Port Daddy](https://portdaddy.dev/docs/features/arbiter): Learn the Port Daddy arbiter feature, what operator problem it solves, and how it fits the coordination model.
-- [Agent Avatars - Port Daddy](https://portdaddy.dev/docs/features/avatars): Learn the Port Daddy agent avatars feature, what operator problem it solves, and how it fits the coordination model.
-- [DNS Resolver - Port Daddy](https://portdaddy.dev/docs/features/dns): Learn the Port Daddy dns resolver feature, what operator problem it solves, and how it fits the coordination model.
-- [Fleet YAML - Port Daddy](https://portdaddy.dev/docs/features/fleet): Learn the Port Daddy fleet yaml feature, what operator problem it solves, and how it fits the coordination model.
-- [Harbors - Port Daddy](https://portdaddy.dev/docs/features/harbors): Learn the Port Daddy harbors feature, what operator problem it solves, and how it fits the coordination model.
-- [Pheromone Trails - Port Daddy](https://portdaddy.dev/docs/features/pheromone): Learn the Port Daddy pheromone trails feature, what operator problem it solves, and how it fits the coordination model.
-- [Port Claims - Port Daddy](https://portdaddy.dev/docs/features/ports): Learn the Port Daddy port claims feature, what operator problem it solves, and how it fits the coordination model.
-- [Radio Messaging - Port Daddy](https://portdaddy.dev/docs/features/radio): Learn the Port Daddy radio messaging feature, what operator problem it solves, and how it fits the coordination model.
-- [Remote Coordination - Port Daddy](https://portdaddy.dev/docs/features/remote): Learn the Port Daddy remote coordination feature, what operator problem it solves, and how it fits the coordination model.
-- [Salvage - Port Daddy](https://portdaddy.dev/docs/features/salvage): Learn the Port Daddy salvage feature, what operator problem it solves, and how it fits the coordination model.
-- [Sessions - Port Daddy](https://portdaddy.dev/docs/features/sessions): Learn the Port Daddy sessions feature, what operator problem it solves, and how it fits the coordination model.
-- [Timeline - Port Daddy](https://portdaddy.dev/docs/features/timeline): Learn the Port Daddy timeline feature, what operator problem it solves, and how it fits the coordination model.
-- [Tunnels - Port Daddy](https://portdaddy.dev/docs/features/tunnels): Learn the Port Daddy tunnels feature, what operator problem it solves, and how it fits the coordination model.
-- [Tuples - Port Daddy](https://portdaddy.dev/docs/features/tuples): Learn the Port Daddy tuples feature, what operator problem it solves, and how it fits the coordination model.
-- [Get Started - Port Daddy](https://portdaddy.dev/docs/get-started): Install the daemon, verify the live control plane, and run the first operator loop that reflects reality.
-- [Prompting Agents - Port Daddy](https://portdaddy.dev/docs/guides/prompting-agents): Prompt agents to coordinate with Port Daddy sessions, notes, file claims, and shared runtime truth.
-- [Protocol Guide - Port Daddy](https://portdaddy.dev/docs/guides/protocol): Understand the Port Daddy protocol boundaries for ports, sessions, locks, messages, harbors, and salvage.
-- [Template Guide - Port Daddy](https://portdaddy.dev/docs/guides/templates): Adapt Port Daddy fleet templates for recurring project work, background agents, hooks, and operator review.
-- [MCP Overview - Port Daddy](https://portdaddy.dev/docs/mcp): Use the Port Daddy MCP Overview route for MCP clients, agent-safe tool calls, and model-facing coordination workflows.
-- [MCP Acquire Lock Tool - Port Daddy](https://portdaddy.dev/docs/mcp/acquire-lock): Use the Port Daddy MCP Acquire Lock Tool route for MCP clients, agent-safe tool calls, and model-facing coordination workflows.
-- [MCP Add Note Tool - Port Daddy](https://portdaddy.dev/docs/mcp/add-note): Use the Port Daddy MCP Add Note Tool route for MCP clients, agent-safe tool calls, and model-facing coordination workflows.
-- [MCP Begin Session Tool - Port Daddy](https://portdaddy.dev/docs/mcp/begin-session): Use the Port Daddy MCP Begin Session Tool route for MCP clients, agent-safe tool calls, and model-facing coordination workflows.
-- [MCP Claim Port Tool - Port Daddy](https://portdaddy.dev/docs/mcp/claim-port): Use the Port Daddy MCP Claim Port Tool route for MCP clients, agent-safe tool calls, and model-facing coordination workflows.
-- [Claude MCP Setup - Port Daddy](https://portdaddy.dev/docs/mcp/claude): Use the Port Daddy Claude MCP Setup route for MCP clients, agent-safe tool calls, and model-facing coordination workflows.
-- [MCP Create Harbor Tool - Port Daddy](https://portdaddy.dev/docs/mcp/create-harbor): Use the Port Daddy MCP Create Harbor Tool route for MCP clients, agent-safe tool calls, and model-facing coordination workflows.
-- [Cursor MCP Setup - Port Daddy](https://portdaddy.dev/docs/mcp/cursor): Use the Port Daddy Cursor MCP Setup route for MCP clients, agent-safe tool calls, and model-facing coordination workflows.
-- [Custom MCP Clients - Port Daddy](https://portdaddy.dev/docs/mcp/custom): Use the Port Daddy Custom MCP Clients route for MCP clients, agent-safe tool calls, and model-facing coordination workflows.
-- [MCP DNS Register Tool - Port Daddy](https://portdaddy.dev/docs/mcp/dns-register): Use the Port Daddy MCP DNS Register Tool route for MCP clients, agent-safe tool calls, and model-facing coordination workflows.
-- [MCP DNS Resolve Tool - Port Daddy](https://portdaddy.dev/docs/mcp/dns-resolve): Use the Port Daddy MCP DNS Resolve Tool route for MCP clients, agent-safe tool calls, and model-facing coordination workflows.
-- [MCP Done Session Tool - Port Daddy](https://portdaddy.dev/docs/mcp/done-session): Use the Port Daddy MCP Done Session Tool route for MCP clients, agent-safe tool calls, and model-facing coordination workflows.
-- [MCP Down Tool - Port Daddy](https://portdaddy.dev/docs/mcp/down): Use the Port Daddy MCP Down Tool route for MCP clients, agent-safe tool calls, and model-facing coordination workflows.
-- [MCP Find Port Tool - Port Daddy](https://portdaddy.dev/docs/mcp/find-port): Use the Port Daddy MCP Find Port Tool route for MCP clients, agent-safe tool calls, and model-facing coordination workflows.
-- [MCP Leave Harbor Tool - Port Daddy](https://portdaddy.dev/docs/mcp/leave-harbor): Use the Port Daddy MCP Leave Harbor Tool route for MCP clients, agent-safe tool calls, and model-facing coordination workflows.
-- [MCP List Harbors Tool - Port Daddy](https://portdaddy.dev/docs/mcp/list-harbors): Use the Port Daddy MCP List Harbors Tool route for MCP clients, agent-safe tool calls, and model-facing coordination workflows.
-- [MCP List Notes Tool - Port Daddy](https://portdaddy.dev/docs/mcp/list-notes): Use the Port Daddy MCP List Notes Tool route for MCP clients, agent-safe tool calls, and model-facing coordination workflows.
-- [MCP List Services Tool - Port Daddy](https://portdaddy.dev/docs/mcp/list-services): Use the Port Daddy MCP List Services Tool route for MCP clients, agent-safe tool calls, and model-facing coordination workflows.
-- [MCP List Spawned Tool - Port Daddy](https://portdaddy.dev/docs/mcp/list-spawned): Use the Port Daddy MCP List Spawned Tool route for MCP clients, agent-safe tool calls, and model-facing coordination workflows.
-- [MCP Publish Message Tool - Port Daddy](https://portdaddy.dev/docs/mcp/publish-message): Use the Port Daddy MCP Publish Message Tool route for MCP clients, agent-safe tool calls, and model-facing coordination workflows.
-- [MCP Release Port Tool - Port Daddy](https://portdaddy.dev/docs/mcp/release-port): Use the Port Daddy MCP Release Port Tool route for MCP clients, agent-safe tool calls, and model-facing coordination workflows.
-- [MCP Salvage Tool - Port Daddy](https://portdaddy.dev/docs/mcp/salvage): Use the Port Daddy MCP Salvage Tool route for MCP clients, agent-safe tool calls, and model-facing coordination workflows.
-- [MCP Salvage Claim Tool - Port Daddy](https://portdaddy.dev/docs/mcp/salvage-claim): Use the Port Daddy MCP Salvage Claim Tool route for MCP clients, agent-safe tool calls, and model-facing coordination workflows.
-- [MCP Scan Services Tool - Port Daddy](https://portdaddy.dev/docs/mcp/scan-services): Use the Port Daddy MCP Scan Services Tool route for MCP clients, agent-safe tool calls, and model-facing coordination workflows.
-- [MCP Spawn Agent Tool - Port Daddy](https://portdaddy.dev/docs/mcp/spawn-agent): Use the Port Daddy MCP Spawn Agent Tool route for MCP clients, agent-safe tool calls, and model-facing coordination workflows.
-- [MCP Status Tool - Port Daddy](https://portdaddy.dev/docs/mcp/status): Use the Port Daddy MCP Status Tool route for MCP clients, agent-safe tool calls, and model-facing coordination workflows.
-- [MCP Subscribe Tool - Port Daddy](https://portdaddy.dev/docs/mcp/subscribe): Use the Port Daddy MCP Subscribe Tool route for MCP clients, agent-safe tool calls, and model-facing coordination workflows.
-- [MCP Tunnel Tool - Port Daddy](https://portdaddy.dev/docs/mcp/tunnel): Use the Port Daddy MCP Tunnel Tool route for MCP clients, agent-safe tool calls, and model-facing coordination workflows.
-- [MCP Tunnel Stop Tool - Port Daddy](https://portdaddy.dev/docs/mcp/tunnel-stop): Use the Port Daddy MCP Tunnel Stop Tool route for MCP clients, agent-safe tool calls, and model-facing coordination workflows.
-- [MCP Up Tool - Port Daddy](https://portdaddy.dev/docs/mcp/up): Use the Port Daddy MCP Up Tool route for MCP clients, agent-safe tool calls, and model-facing coordination workflows.
-- [MCP Watch Tool - Port Daddy](https://portdaddy.dev/docs/mcp/watch): Use the Port Daddy MCP Watch Tool route for MCP clients, agent-safe tool calls, and model-facing coordination workflows.
-- [Windsurf MCP Setup - Port Daddy](https://portdaddy.dev/docs/mcp/windsurf): Use the Port Daddy Windsurf MCP Setup route for MCP clients, agent-safe tool calls, and model-facing coordination workflows.
-- [Quickstart - Port Daddy](https://portdaddy.dev/docs/quickstart): Install Port Daddy, verify the daemon, claim a port, and start the first coordinated operator workflow.
-- [Reference - Port Daddy](https://portdaddy.dev/docs/reference): CLI, API, config, and operator surface reference for the parts that matter.
-- [Reference Architectures - Port Daddy](https://portdaddy.dev/docs/reference-architectures): Canonical system layouts for the daemon, harbors, fleet surfaces, and the trust boundary.
-- [SDK Overview - Port Daddy](https://portdaddy.dev/docs/sdk): Use the Port Daddy SDK Overview surface from typed client code with sessions, locks, ports, and agent coordination primitives.
-- [SDK Add Note - Port Daddy](https://portdaddy.dev/docs/sdk/add-note): Use the Port Daddy SDK Add Note surface from typed client code with sessions, locks, ports, and agent coordination primitives.
-- [SDK DNS Register - Port Daddy](https://portdaddy.dev/docs/sdk/dns-register): Use the Port Daddy SDK DNS Register surface from typed client code with sessions, locks, ports, and agent coordination primitives.
-- [SDK DNS Resolve - Port Daddy](https://portdaddy.dev/docs/sdk/dns-resolve): Use the Port Daddy SDK DNS Resolve surface from typed client code with sessions, locks, ports, and agent coordination primitives.
-- [SDK Done Session - Port Daddy](https://portdaddy.dev/docs/sdk/done-session): Use the Port Daddy SDK Done Session surface from typed client code with sessions, locks, ports, and agent coordination primitives.
-- [SDK Down - Port Daddy](https://portdaddy.dev/docs/sdk/down): Use the Port Daddy SDK Down surface from typed client code with sessions, locks, ports, and agent coordination primitives.
-- [SDK Harbors - Port Daddy](https://portdaddy.dev/docs/sdk/harbors): Use the Port Daddy SDK Harbors surface from typed client code with sessions, locks, ports, and agent coordination primitives.
-- [SDK Leave Harbor - Port Daddy](https://portdaddy.dev/docs/sdk/leave-harbor): Use the Port Daddy SDK Leave Harbor surface from typed client code with sessions, locks, ports, and agent coordination primitives.
-- [SDK List Harbors - Port Daddy](https://portdaddy.dev/docs/sdk/list-harbors): Use the Port Daddy SDK List Harbors surface from typed client code with sessions, locks, ports, and agent coordination primitives.
-- [SDK List Notes - Port Daddy](https://portdaddy.dev/docs/sdk/list-notes): Use the Port Daddy SDK List Notes surface from typed client code with sessions, locks, ports, and agent coordination primitives.
-- [SDK List Spawned - Port Daddy](https://portdaddy.dev/docs/sdk/list-spawned): Use the Port Daddy SDK List Spawned surface from typed client code with sessions, locks, ports, and agent coordination primitives.
-- [SDK Locks - Port Daddy](https://portdaddy.dev/docs/sdk/locks): Use the Port Daddy SDK Locks surface from typed client code with sessions, locks, ports, and agent coordination primitives.
-- [SDK Ports - Port Daddy](https://portdaddy.dev/docs/sdk/ports): Use the Port Daddy SDK Ports surface from typed client code with sessions, locks, ports, and agent coordination primitives.
-- [SDK Register Agent - Port Daddy](https://portdaddy.dev/docs/sdk/register-agent): Use the Port Daddy SDK Register Agent surface from typed client code with sessions, locks, ports, and agent coordination primitives.
-- [SDK Release Lock - Port Daddy](https://portdaddy.dev/docs/sdk/release-lock): Use the Port Daddy SDK Release Lock surface from typed client code with sessions, locks, ports, and agent coordination primitives.
-- [SDK Salvage - Port Daddy](https://portdaddy.dev/docs/sdk/salvage): Use the Port Daddy SDK Salvage surface from typed client code with sessions, locks, ports, and agent coordination primitives.
-- [SDK Salvage Claim - Port Daddy](https://portdaddy.dev/docs/sdk/salvage-claim): Use the Port Daddy SDK Salvage Claim surface from typed client code with sessions, locks, ports, and agent coordination primitives.
-- [SDK Scan Services - Port Daddy](https://portdaddy.dev/docs/sdk/scan-services): Use the Port Daddy SDK Scan Services surface from typed client code with sessions, locks, ports, and agent coordination primitives.
-- [SDK Sessions - Port Daddy](https://portdaddy.dev/docs/sdk/sessions): Use the Port Daddy SDK Sessions surface from typed client code with sessions, locks, ports, and agent coordination primitives.
-- [SDK Spawn - Port Daddy](https://portdaddy.dev/docs/sdk/spawn): Use the Port Daddy SDK Spawn surface from typed client code with sessions, locks, ports, and agent coordination primitives.
-- [SDK Status - Port Daddy](https://portdaddy.dev/docs/sdk/status): Use the Port Daddy SDK Status surface from typed client code with sessions, locks, ports, and agent coordination primitives.
-- [SDK Subscribe - Port Daddy](https://portdaddy.dev/docs/sdk/subscribe): Use the Port Daddy SDK Subscribe surface from typed client code with sessions, locks, ports, and agent coordination primitives.
-- [SDK Tunnel - Port Daddy](https://portdaddy.dev/docs/sdk/tunnel): Use the Port Daddy SDK Tunnel surface from typed client code with sessions, locks, ports, and agent coordination primitives.
-- [SDK Tunnel Stop - Port Daddy](https://portdaddy.dev/docs/sdk/tunnel-stop): Use the Port Daddy SDK Tunnel Stop surface from typed client code with sessions, locks, ports, and agent coordination primitives.
-- [SDK Up - Port Daddy](https://portdaddy.dev/docs/sdk/up): Use the Port Daddy SDK Up surface from typed client code with sessions, locks, ports, and agent coordination primitives.
-- [SDK Watch - Port Daddy](https://portdaddy.dev/docs/sdk/watch): Use the Port Daddy SDK Watch surface from typed client code with sessions, locks, ports, and agent coordination primitives.
-- [SDK Whoami - Port Daddy](https://portdaddy.dev/docs/sdk/whoami): Use the Port Daddy SDK Whoami surface from typed client code with sessions, locks, ports, and agent coordination primitives.
-- [SDK With Lock - Port Daddy](https://portdaddy.dev/docs/sdk/with-lock): Use the Port Daddy SDK With Lock surface from typed client code with sessions, locks, ports, and agent coordination primitives.
-- [Tutorials - Port Daddy](https://portdaddy.dev/docs/tutorials): Guided builds that take you from install to a working operator workflow.
+- [Docs Overview - Port Daddy](https://portdaddy.dev/docs): Start here, learn what Port Daddy does, install it, then jump to runnable examples or reference.
+- [API Reference - Port Daddy](https://portdaddy.dev/docs/api): Inspect Port Daddy API routes, request shapes, response contracts, and the workflows they support.
+- [Best Practices - Port Daddy](https://portdaddy.dev/docs/best-practices): Keep agent work visible, avoid collisions, recover interrupted runs, and promote changes safely.
+- [CLI Overview - Port Daddy](https://portdaddy.dev/docs/cli): Reference for CLI Overview, including Port Daddy syntax, what the command does, and when to use it.
+- [pd agent register - Port Daddy](https://portdaddy.dev/docs/cli/agent-register): Reference for pd agent register, including Port Daddy syntax, what the command does, and when to use it.
+- [pd begin - Port Daddy](https://portdaddy.dev/docs/cli/begin): Reference for pd begin, including Port Daddy syntax, what the command does, and when to use it.
+- [pd claim - Port Daddy](https://portdaddy.dev/docs/cli/claim): Reference for pd claim, including Port Daddy syntax, what the command does, and when to use it.
+- [pd dns - Port Daddy](https://portdaddy.dev/docs/cli/dns): Reference for pd dns, including Port Daddy syntax, what the command does, and when to use it.
+- [pd done - Port Daddy](https://portdaddy.dev/docs/cli/done): Reference for pd done, including Port Daddy syntax, what the command does, and when to use it.
+- [pd down - Port Daddy](https://portdaddy.dev/docs/cli/down): Reference for pd down, including Port Daddy syntax, what the command does, and when to use it.
+- [pd find - Port Daddy](https://portdaddy.dev/docs/cli/find): Reference for pd find, including Port Daddy syntax, what the command does, and when to use it.
+- [pd fleet - Port Daddy](https://portdaddy.dev/docs/cli/fleet): Reference for pd fleet, including Port Daddy syntax, what the command does, and when to use it.
+- [pd harbor create - Port Daddy](https://portdaddy.dev/docs/cli/harbor-create): Reference for pd harbor create, including Port Daddy syntax, what the command does, and when to use it.
+- [pd harbor enter - Port Daddy](https://portdaddy.dev/docs/cli/harbor-enter): Reference for pd harbor enter, including Port Daddy syntax, what the command does, and when to use it.
+- [pd harbor leave - Port Daddy](https://portdaddy.dev/docs/cli/harbor-leave): Reference for pd harbor leave, including Port Daddy syntax, what the command does, and when to use it.
+- [pd harbors - Port Daddy](https://portdaddy.dev/docs/cli/harbors): Reference for pd harbors, including Port Daddy syntax, what the command does, and when to use it.
+- [pd init - Port Daddy](https://portdaddy.dev/docs/cli/init): Reference for pd init, including Port Daddy syntax, what the command does, and when to use it.
+- [pd lock acquire - Port Daddy](https://portdaddy.dev/docs/cli/lock-acquire): Reference for pd lock acquire, including Port Daddy syntax, what the command does, and when to use it.
+- [pd lock release - Port Daddy](https://portdaddy.dev/docs/cli/lock-release): Reference for pd lock release, including Port Daddy syntax, what the command does, and when to use it.
+- [pd mcp install - Port Daddy](https://portdaddy.dev/docs/cli/mcp-install): Reference for pd mcp install, including Port Daddy syntax, what the command does, and when to use it.
+- [pd msg - Port Daddy](https://portdaddy.dev/docs/cli/msg): Reference for pd msg, including Port Daddy syntax, what the command does, and when to use it.
+- [pd note - Port Daddy](https://portdaddy.dev/docs/cli/note): Reference for pd note, including Port Daddy syntax, what the command does, and when to use it.
+- [pd notes - Port Daddy](https://portdaddy.dev/docs/cli/notes): Reference for pd notes, including Port Daddy syntax, what the command does, and when to use it.
+- [pd pub - Port Daddy](https://portdaddy.dev/docs/cli/pub): Reference for pd pub, including Port Daddy syntax, what the command does, and when to use it.
+- [pd release - Port Daddy](https://portdaddy.dev/docs/cli/release): Reference for pd release, including Port Daddy syntax, what the command does, and when to use it.
+- [pd salvage - Port Daddy](https://portdaddy.dev/docs/cli/salvage): Reference for pd salvage, including Port Daddy syntax, what the command does, and when to use it.
+- [pd salvage claim - Port Daddy](https://portdaddy.dev/docs/cli/salvage-claim): Reference for pd salvage claim, including Port Daddy syntax, what the command does, and when to use it.
+- [pd scan - Port Daddy](https://portdaddy.dev/docs/cli/scan): Reference for pd scan, including Port Daddy syntax, what the command does, and when to use it.
+- [pd services - Port Daddy](https://portdaddy.dev/docs/cli/services): Reference for pd services, including Port Daddy syntax, what the command does, and when to use it.
+- [pd spawn - Port Daddy](https://portdaddy.dev/docs/cli/spawn): Reference for pd spawn, including Port Daddy syntax, what the command does, and when to use it.
+- [pd spawned - Port Daddy](https://portdaddy.dev/docs/cli/spawned): Reference for pd spawned, including Port Daddy syntax, what the command does, and when to use it.
+- [pd status - Port Daddy](https://portdaddy.dev/docs/cli/status): Reference for pd status, including Port Daddy syntax, what the command does, and when to use it.
+- [pd tunnel - Port Daddy](https://portdaddy.dev/docs/cli/tunnel): Reference for pd tunnel, including Port Daddy syntax, what the command does, and when to use it.
+- [pd tunnel stop - Port Daddy](https://portdaddy.dev/docs/cli/tunnel-stop): Reference for pd tunnel stop, including Port Daddy syntax, what the command does, and when to use it.
+- [pd up - Port Daddy](https://portdaddy.dev/docs/cli/up): Reference for pd up, including Port Daddy syntax, what the command does, and when to use it.
+- [pd watch - Port Daddy](https://portdaddy.dev/docs/cli/watch): Reference for pd watch, including Port Daddy syntax, what the command does, and when to use it.
+- [pd whoami - Port Daddy](https://portdaddy.dev/docs/cli/whoami): Reference for pd whoami, including Port Daddy syntax, what the command does, and when to use it.
+- [pd with-lock - Port Daddy](https://portdaddy.dev/docs/cli/with-lock): Reference for pd with-lock, including Port Daddy syntax, what the command does, and when to use it.
+- [Concepts - Port Daddy](https://portdaddy.dev/docs/concepts): Learn the ideas behind sessions, notes, file claims, locks, ports, fleets, and recovery.
+- [Arbiter - Port Daddy](https://portdaddy.dev/docs/features/arbiter): Learn the Port Daddy arbiter feature, what problem it solves, and how to use it with agent work.
+- [Agent Avatars - Port Daddy](https://portdaddy.dev/docs/features/avatars): Learn the Port Daddy agent avatars feature, what problem it solves, and how to use it with agent work.
+- [DNS Resolver - Port Daddy](https://portdaddy.dev/docs/features/dns): Learn the Port Daddy dns resolver feature, what problem it solves, and how to use it with agent work.
+- [Fleet YAML - Port Daddy](https://portdaddy.dev/docs/features/fleet): Learn the Port Daddy fleet yaml feature, what problem it solves, and how to use it with agent work.
+- [Harbors - Port Daddy](https://portdaddy.dev/docs/features/harbors): Learn the Port Daddy harbors feature, what problem it solves, and how to use it with agent work.
+- [Pheromone Trails - Port Daddy](https://portdaddy.dev/docs/features/pheromone): Learn the Port Daddy pheromone trails feature, what problem it solves, and how to use it with agent work.
+- [Port Claims - Port Daddy](https://portdaddy.dev/docs/features/ports): Learn the Port Daddy port claims feature, what problem it solves, and how to use it with agent work.
+- [Radio Messaging - Port Daddy](https://portdaddy.dev/docs/features/radio): Learn the Port Daddy radio messaging feature, what problem it solves, and how to use it with agent work.
+- [Remote Coordination - Port Daddy](https://portdaddy.dev/docs/features/remote): Learn the Port Daddy remote coordination feature, what problem it solves, and how to use it with agent work.
+- [Salvage - Port Daddy](https://portdaddy.dev/docs/features/salvage): Learn the Port Daddy salvage feature, what problem it solves, and how to use it with agent work.
+- [Sessions - Port Daddy](https://portdaddy.dev/docs/features/sessions): Learn the Port Daddy sessions feature, what problem it solves, and how to use it with agent work.
+- [Timeline - Port Daddy](https://portdaddy.dev/docs/features/timeline): Learn the Port Daddy timeline feature, what problem it solves, and how to use it with agent work.
+- [Tunnels - Port Daddy](https://portdaddy.dev/docs/features/tunnels): Learn the Port Daddy tunnels feature, what problem it solves, and how to use it with agent work.
+- [Tuples - Port Daddy](https://portdaddy.dev/docs/features/tuples): Learn the Port Daddy tuples feature, what problem it solves, and how to use it with agent work.
+- [Get Started - Port Daddy](https://portdaddy.dev/docs/get-started): Install Port Daddy, check that it is running, and try your first coordinated agent task.
+- [Prompting Agents - Port Daddy](https://portdaddy.dev/docs/guides/prompting-agents): Prompt agents to use Port Daddy sessions, notes, file claims, and shared status.
+- [Protocol Guide - Port Daddy](https://portdaddy.dev/docs/guides/protocol): Understand how Port Daddy handles ports, sessions, locks, messages, harbors, and salvage.
+- [Template Guide - Port Daddy](https://portdaddy.dev/docs/guides/templates): Adapt Port Daddy fleet templates for recurring project work, background agents, hooks, and review.
+- [MCP Overview - Port Daddy](https://portdaddy.dev/docs/mcp): Use MCP Overview with MCP clients so agents can work through Port Daddy safely.
+- [MCP Acquire Lock Tool - Port Daddy](https://portdaddy.dev/docs/mcp/acquire-lock): Use MCP Acquire Lock Tool with MCP clients so agents can work through Port Daddy safely.
+- [MCP Add Note Tool - Port Daddy](https://portdaddy.dev/docs/mcp/add-note): Use MCP Add Note Tool with MCP clients so agents can work through Port Daddy safely.
+- [MCP Begin Session Tool - Port Daddy](https://portdaddy.dev/docs/mcp/begin-session): Use MCP Begin Session Tool with MCP clients so agents can work through Port Daddy safely.
+- [MCP Claim Port Tool - Port Daddy](https://portdaddy.dev/docs/mcp/claim-port): Use MCP Claim Port Tool with MCP clients so agents can work through Port Daddy safely.
+- [Claude MCP Setup - Port Daddy](https://portdaddy.dev/docs/mcp/claude): Use Claude MCP Setup with MCP clients so agents can work through Port Daddy safely.
+- [MCP Create Harbor Tool - Port Daddy](https://portdaddy.dev/docs/mcp/create-harbor): Use MCP Create Harbor Tool with MCP clients so agents can work through Port Daddy safely.
+- [Cursor MCP Setup - Port Daddy](https://portdaddy.dev/docs/mcp/cursor): Use Cursor MCP Setup with MCP clients so agents can work through Port Daddy safely.
+- [Custom MCP Clients - Port Daddy](https://portdaddy.dev/docs/mcp/custom): Use Custom MCP Clients with MCP clients so agents can work through Port Daddy safely.
+- [MCP DNS Register Tool - Port Daddy](https://portdaddy.dev/docs/mcp/dns-register): Use MCP DNS Register Tool with MCP clients so agents can work through Port Daddy safely.
+- [MCP DNS Resolve Tool - Port Daddy](https://portdaddy.dev/docs/mcp/dns-resolve): Use MCP DNS Resolve Tool with MCP clients so agents can work through Port Daddy safely.
+- [MCP Done Session Tool - Port Daddy](https://portdaddy.dev/docs/mcp/done-session): Use MCP Done Session Tool with MCP clients so agents can work through Port Daddy safely.
+- [MCP Down Tool - Port Daddy](https://portdaddy.dev/docs/mcp/down): Use MCP Down Tool with MCP clients so agents can work through Port Daddy safely.
+- [MCP Find Port Tool - Port Daddy](https://portdaddy.dev/docs/mcp/find-port): Use MCP Find Port Tool with MCP clients so agents can work through Port Daddy safely.
+- [MCP Leave Harbor Tool - Port Daddy](https://portdaddy.dev/docs/mcp/leave-harbor): Use MCP Leave Harbor Tool with MCP clients so agents can work through Port Daddy safely.
+- [MCP List Harbors Tool - Port Daddy](https://portdaddy.dev/docs/mcp/list-harbors): Use MCP List Harbors Tool with MCP clients so agents can work through Port Daddy safely.
+- [MCP List Notes Tool - Port Daddy](https://portdaddy.dev/docs/mcp/list-notes): Use MCP List Notes Tool with MCP clients so agents can work through Port Daddy safely.
+- [MCP List Services Tool - Port Daddy](https://portdaddy.dev/docs/mcp/list-services): Use MCP List Services Tool with MCP clients so agents can work through Port Daddy safely.
+- [MCP List Spawned Tool - Port Daddy](https://portdaddy.dev/docs/mcp/list-spawned): Use MCP List Spawned Tool with MCP clients so agents can work through Port Daddy safely.
+- [MCP Publish Message Tool - Port Daddy](https://portdaddy.dev/docs/mcp/publish-message): Use MCP Publish Message Tool with MCP clients so agents can work through Port Daddy safely.
+- [MCP Release Port Tool - Port Daddy](https://portdaddy.dev/docs/mcp/release-port): Use MCP Release Port Tool with MCP clients so agents can work through Port Daddy safely.
+- [MCP Salvage Tool - Port Daddy](https://portdaddy.dev/docs/mcp/salvage): Use MCP Salvage Tool with MCP clients so agents can work through Port Daddy safely.
+- [MCP Salvage Claim Tool - Port Daddy](https://portdaddy.dev/docs/mcp/salvage-claim): Use MCP Salvage Claim Tool with MCP clients so agents can work through Port Daddy safely.
+- [MCP Scan Services Tool - Port Daddy](https://portdaddy.dev/docs/mcp/scan-services): Use MCP Scan Services Tool with MCP clients so agents can work through Port Daddy safely.
+- [MCP Spawn Agent Tool - Port Daddy](https://portdaddy.dev/docs/mcp/spawn-agent): Use MCP Spawn Agent Tool with MCP clients so agents can work through Port Daddy safely.
+- [MCP Status Tool - Port Daddy](https://portdaddy.dev/docs/mcp/status): Use MCP Status Tool with MCP clients so agents can work through Port Daddy safely.
+- [MCP Subscribe Tool - Port Daddy](https://portdaddy.dev/docs/mcp/subscribe): Use MCP Subscribe Tool with MCP clients so agents can work through Port Daddy safely.
+- [MCP Tunnel Tool - Port Daddy](https://portdaddy.dev/docs/mcp/tunnel): Use MCP Tunnel Tool with MCP clients so agents can work through Port Daddy safely.
+- [MCP Tunnel Stop Tool - Port Daddy](https://portdaddy.dev/docs/mcp/tunnel-stop): Use MCP Tunnel Stop Tool with MCP clients so agents can work through Port Daddy safely.
+- [MCP Up Tool - Port Daddy](https://portdaddy.dev/docs/mcp/up): Use MCP Up Tool with MCP clients so agents can work through Port Daddy safely.
+- [MCP Watch Tool - Port Daddy](https://portdaddy.dev/docs/mcp/watch): Use MCP Watch Tool with MCP clients so agents can work through Port Daddy safely.
+- [Windsurf MCP Setup - Port Daddy](https://portdaddy.dev/docs/mcp/windsurf): Use Windsurf MCP Setup with MCP clients so agents can work through Port Daddy safely.
+- [Quickstart - Port Daddy](https://portdaddy.dev/docs/quickstart): Install Port Daddy, check the local service, claim a port, and start the first coordinated agent task.
+- [Reference - Port Daddy](https://portdaddy.dev/docs/reference): CLI, API, SDK, MCP, configuration, and dashboard reference for the live daemon.
+- [Reference Architectures - Port Daddy](https://portdaddy.dev/docs/reference-architectures): Example layouts for the daemon, dashboard, fleets, harbors, and team workflows.
+- [SDK Overview - Port Daddy](https://portdaddy.dev/docs/sdk): Use SDK Overview from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.
+- [SDK Add Note - Port Daddy](https://portdaddy.dev/docs/sdk/add-note): Use SDK Add Note from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.
+- [SDK DNS Register - Port Daddy](https://portdaddy.dev/docs/sdk/dns-register): Use SDK DNS Register from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.
+- [SDK DNS Resolve - Port Daddy](https://portdaddy.dev/docs/sdk/dns-resolve): Use SDK DNS Resolve from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.
+- [SDK Done Session - Port Daddy](https://portdaddy.dev/docs/sdk/done-session): Use SDK Done Session from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.
+- [SDK Down - Port Daddy](https://portdaddy.dev/docs/sdk/down): Use SDK Down from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.
+- [SDK Harbors - Port Daddy](https://portdaddy.dev/docs/sdk/harbors): Use SDK Harbors from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.
+- [SDK Leave Harbor - Port Daddy](https://portdaddy.dev/docs/sdk/leave-harbor): Use SDK Leave Harbor from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.
+- [SDK List Harbors - Port Daddy](https://portdaddy.dev/docs/sdk/list-harbors): Use SDK List Harbors from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.
+- [SDK List Notes - Port Daddy](https://portdaddy.dev/docs/sdk/list-notes): Use SDK List Notes from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.
+- [SDK List Spawned - Port Daddy](https://portdaddy.dev/docs/sdk/list-spawned): Use SDK List Spawned from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.
+- [SDK Locks - Port Daddy](https://portdaddy.dev/docs/sdk/locks): Use SDK Locks from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.
+- [SDK Ports - Port Daddy](https://portdaddy.dev/docs/sdk/ports): Use SDK Ports from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.
+- [SDK Register Agent - Port Daddy](https://portdaddy.dev/docs/sdk/register-agent): Use SDK Register Agent from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.
+- [SDK Release Lock - Port Daddy](https://portdaddy.dev/docs/sdk/release-lock): Use SDK Release Lock from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.
+- [SDK Salvage - Port Daddy](https://portdaddy.dev/docs/sdk/salvage): Use SDK Salvage from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.
+- [SDK Salvage Claim - Port Daddy](https://portdaddy.dev/docs/sdk/salvage-claim): Use SDK Salvage Claim from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.
+- [SDK Scan Services - Port Daddy](https://portdaddy.dev/docs/sdk/scan-services): Use SDK Scan Services from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.
+- [SDK Sessions - Port Daddy](https://portdaddy.dev/docs/sdk/sessions): Use SDK Sessions from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.
+- [SDK Spawn - Port Daddy](https://portdaddy.dev/docs/sdk/spawn): Use SDK Spawn from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.
+- [SDK Status - Port Daddy](https://portdaddy.dev/docs/sdk/status): Use SDK Status from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.
+- [SDK Subscribe - Port Daddy](https://portdaddy.dev/docs/sdk/subscribe): Use SDK Subscribe from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.
+- [SDK Tunnel - Port Daddy](https://portdaddy.dev/docs/sdk/tunnel): Use SDK Tunnel from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.
+- [SDK Tunnel Stop - Port Daddy](https://portdaddy.dev/docs/sdk/tunnel-stop): Use SDK Tunnel Stop from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.
+- [SDK Up - Port Daddy](https://portdaddy.dev/docs/sdk/up): Use SDK Up from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.
+- [SDK Watch - Port Daddy](https://portdaddy.dev/docs/sdk/watch): Use SDK Watch from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.
+- [SDK Whoami - Port Daddy](https://portdaddy.dev/docs/sdk/whoami): Use SDK Whoami from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.
+- [SDK With Lock - Port Daddy](https://portdaddy.dev/docs/sdk/with-lock): Use SDK With Lock from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.
+- [Tutorials - Port Daddy](https://portdaddy.dev/docs/tutorials): Step-by-step walkthroughs that take you from install to useful agent workflows.
 
 ## Tutorials
 
 - [Tutorials - Port Daddy](https://portdaddy.dev/tutorials): Follow hands-on Port Daddy tutorials from first install through sessions, DNS, tunnels, fleet YAML, messaging, and background agents.
 - [Run Event-Triggered Agents - Port Daddy](https://portdaddy.dev/tutorials/always-on): Combine pd spawn and pd watch so agents react to channel events automatically across Ollama, Codex, Claude, Gemini, Aider, and custom backends.
-- [Debug Coordination Failures - Port Daddy](https://portdaddy.dev/tutorials/debugging): Use activity, notes, ownership, diagnostics, and session history to find the exact point where work drifted.
-- [Resolve Services by Name - Port Daddy](https://portdaddy.dev/tutorials/dns): Register local service names so agents and scripts can discover endpoints without hardcoded port numbers.
+- [Debug Coordination Failures - Port Daddy](https://portdaddy.dev/tutorials/debugging): Use harbor activity, notes, ownership, diagnostics, and session history to find the exact point where work drifted.
+- [Resolve Services by Name - Port Daddy](https://portdaddy.dev/tutorials/dns): Register harbor-local service names so agents and scripts can discover endpoints without hardcoded addresses.
 - [Run Background Fleets - Port Daddy](https://portdaddy.dev/tutorials/fleet): Declare background agents in YAML, bind them to project events, and keep QA, docs, and research work continuously inspectable.
-- [Start the Local Control Plane - Port Daddy](https://portdaddy.dev/tutorials/getting-started): Install the daemon, verify it is reachable, claim one stable identity, and run the first guided command path.
-- [Define Capability Boundaries - Port Daddy](https://portdaddy.dev/tutorials/harbors): Create advisory permission namespaces with signed tokens, TTLs, and explicit limits for risky agent work.
+- [Install the Local Control Plane - Port Daddy](https://portdaddy.dev/tutorials/getting-started): Install the daemon, open FleetBar, join the project harbor, and verify the control plane before asking agents to work.
+- [Start Inside a Harbor - Port Daddy](https://portdaddy.dev/tutorials/harbors): Create the project boundary first, then run agents, sessions, ports, channels, and recovery inside a named permission scope.
 - [Use Agent Inboxes - Port Daddy](https://portdaddy.dev/tutorials/inbox): Send direct handoffs, publish channel events, and subscribe to live SSE updates without losing attribution.
-- [Map a Monorepo - Port Daddy](https://portdaddy.dev/tutorials/monorepo): Scan a large repo, detect service boundaries, assign ports in bulk, and bring the local stack up and down cleanly.
-- [Coordinate Multiple Agents - Port Daddy](https://portdaddy.dev/tutorials/multi-agent): Run two agents on the same project with file claims, session notes, conflict visibility, and channel signals.
+- [Map a Monorepo - Port Daddy](https://portdaddy.dev/tutorials/monorepo): Scan a large repo, detect service boundaries, register them in the harbor, and bring the local stack up and down cleanly.
+- [Coordinate Multiple Agents - Port Daddy](https://portdaddy.dev/tutorials/multi-agent): Run two agents in the same harbor with file claims, session notes, conflict visibility, and channel signals.
 - [pd spawn: Launch One-Shot Agents - Port Daddy](https://portdaddy.dev/tutorials/pd-spawn): Start a bounded agent job with sessions, heartbeats, notes, cost telemetry, and salvage wired around the backend.
 - [Use Ambient Attention Signals - Port Daddy](https://portdaddy.dev/tutorials/pheromone): Attach decaying numeric signals to files, sessions, or ideas so agents can prioritize work without extra chat traffic.
 - [Build Reactive Pipelines - Port Daddy](https://portdaddy.dev/tutorials/pipelines): Chain channels, watchers, locks, and spawned agents into event-driven workflows with clear ownership boundaries.
-- [Walk the 11 Product Primitives - Port Daddy](https://portdaddy.dev/tutorials/primitives): Use the Mac app, Fleet Control Center, Shipwright, and CLI checks to prove every public primitive has a concrete operator surface.
+- [Walk the 11 Product Primitives - Port Daddy](https://portdaddy.dev/tutorials/primitives): Use the Mac app, Fleet Control Center, Shipwright, and CLI checks to see where every public primitive lives.
 - [Plan Remote Coordination - Port Daddy](https://portdaddy.dev/tutorials/remote-harbors): Separate what works today with tunnels and DNS from the roadmap for cross-machine daemon coordination.
-- [Design Semantic Identities - Port Daddy](https://portdaddy.dev/tutorials/semantic-identities): Use project:stack:context names so services, agents, sessions, and wildcard queries stay predictable across runs.
+- [Name Work Inside the Harbor - Port Daddy](https://portdaddy.dev/tutorials/semantic-identities): Use project:stack:context names so services, agents, sessions, channels, and wildcard queries stay predictable across runs.
 - [Model Session Phases - Port Daddy](https://portdaddy.dev/tutorials/session-phases): Move work through planning, implementation, review, and done states with phase-aware recovery and handoff evidence.
 - [Use Operator Shortcuts - Port Daddy](https://portdaddy.dev/tutorials/sugar): Use pd begin, pd done, pd whoami, and pd with-lock as the daily command layer over the lower-level primitives.
 - [Inspect the Activity Ledger - Port Daddy](https://portdaddy.dev/tutorials/time-travel): Query the append-only event timeline. Correlate infrastructure events with agent session notes to diagnose coordination failures.
-- [Expose a Local Service - Port Daddy](https://portdaddy.dev/tutorials/tunnel): Publish a local service through pd tunnel with clear ownership, explicit provider choice, and a reversible path.
+- [Expose a Local Service - Port Daddy](https://portdaddy.dev/tutorials/tunnel): Publish one harbor-owned service through pd tunnel with clear ownership, explicit provider choice, and a reversible path.
 - [Observe Runtime Channels - Port Daddy](https://portdaddy.dev/tutorials/watch): Use pd watch to follow channel activity, inspect event pressure, and trigger bounded responses from scripts or agents.
 
 ## Cookbook
@@ -193,32 +191,23 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 
 ## Templates
 
-- [Agent Fleet Templates - Port Daddy](https://portdaddy.dev/templates): Start from production-ready Port Daddy templates for CI repair loops, research swarms, monorepos, webhooks, and agent teams.
-- [Agent Swarm Starter - Port Daddy](https://portdaddy.dev/templates/agent-swarm-starter): Multi-agent coordination template with sessions, pub/sub messaging, file claims, and automatic salvage for crashed agents.
-- [Self-Healing CI/CD - Port Daddy](https://portdaddy.dev/templates/ai-ci-pipeline): A build pipeline that automatically spawns Debugger agents to fix broken tests in background harbors.
-- [Monorepo Dev Server - Port Daddy](https://portdaddy.dev/templates/monorepo-dev-server): Multi-service local development with automatic port assignment, DNS resolution, and orchestrated startup across all workspace packages.
-- [Research Triad - Port Daddy](https://portdaddy.dev/templates/swarm-researcher): Coordinated web scraping, synthesis, and reporting agents using distributed locks and shared memory.
-- [Webhook Relay - Port Daddy](https://portdaddy.dev/templates/webhook-relay): Tunnel plus webhook forwarding setup that exposes local services and relays external events to pub/sub channels for agent consumption.
+- [Agent Templates - Port Daddy](https://portdaddy.dev/agents/templates): Use the current Port Daddy agent templates: starter fleet YAML, always-on agents, CI repair loops, event-driven ops, remote harbors, research swarms, and secure messaging primitives.
 
 ## Blog
 
-- [Blog - Port Daddy](https://portdaddy.dev/blog): Read practical Port Daddy essays about multi-agent coordination, port collisions, salvage, locks, fleets, and local-first operator tooling.
-- [Getting Claude Code to Use Port Daddy Automatically - Port Daddy](https://portdaddy.dev/blog/claude-code-port-daddy-integration): Your agents coordinate without you typing pd commands. A CLAUDE.md snippet, an MCP server, and a pre-commit hook -- that is the entire integration.
-- [Dead Agents Tell Tales: Resurrecting Crashed AI Work - Port Daddy](https://portdaddy.dev/blog/dead-agents-tell-tales): Your AI agent was 80% through a massive refactor when it hit the context window limit. All that work, all those decisions, all that context — gone. Unless you have a salvage queue.
-- [Distributed Locks: How I Stopped Two Agents From Running Migrations at the Same Time - Port Daddy](https://portdaddy.dev/blog/distributed-locks-two-agents-one-migration): Two agents. One database. Half a migration applied. The other half? Syntax error from a partially-applied schema. Distributed locks would have prevented the whole thing.
-- [Fleet Management: Declare Your AI Agents Like Infrastructure - Port Daddy](https://portdaddy.dev/blog/fleet-agents-as-infrastructure): 441 orphaned sessions. That's what I found after a weekend of manually managing AI agents. Fleet YAML turns agent swarms into declarative infrastructure -- like docker-compose for your AI workforce.
-- [Math vs Chaos: How We Proved the Anchor Protocol Is Indestructible - Port Daddy](https://portdaddy.dev/blog/formal-verification-anchor-protocol): We used ProVerif to mathematically prove the secrecy and authentication properties of our new multi-hop identity protocol. Here is how we did it.
-- [I Let 4 AI Agents Edit My Codebase Simultaneously. Here's How None of Them Clobbered Each Other. - Port Daddy](https://portdaddy.dev/blog/four-agents-zero-clobber): Four agents, one repo, zero merge conflicts. File claims don't enforce locks -- they broadcast intent. And that turns out to be exactly right.
-- [Performance at Scale: What Happens at 50 Agents - Port Daddy](https://portdaddy.dev/blog/performance-at-scale): Here are the actual numbers. pd begin at 2ms P50. SQLite WAL mode handling 50 concurrent writers. Memory at 42MB base. Decide for yourself.
-- [Port Daddy for Teams: The 30-Minute Rollout - Port Daddy](https://portdaddy.dev/blog/port-daddy-for-teams): Five developers, twelve AI agents, one daemon. Here is how to roll out Port Daddy to a team in 30 minutes and finally answer the question: can I see what every agent is doing without asking?
-- [Pub/Sub for Your Dev Environment: How I Built a Self-Healing Test Pipeline - Port Daddy](https://portdaddy.dev/blog/pubsub-self-healing-test-pipeline): You are not a message bus. Stop manually telling Agent B that Agent A finished. Port Daddy's pub/sub turns your dev environment into an event-driven system.
-- [Spark and Spider: How Two AI Agents Generate Ideas While I Sleep - Port Daddy](https://portdaddy.dev/blog/spark-and-spider-the-creative-engine): Spark proposes ideas. Spider finds connections between features via formal syllogisms. Together they form a creative engine that runs in the background and compounds knowledge over time.
-- [The Port Collision That Ate My Saturday - Port Daddy](https://portdaddy.dev/blog/the-port-collision-that-ate-my-saturday): Next.js on 3000, FastAPI on 3000, a second AI agent on 3000. Ninety minutes debugging phantom CORS errors before realizing the port was just taken.
-- [Zero to Multi-Agent in 5 Minutes - Port Daddy](https://portdaddy.dev/blog/zero-to-multi-agent-in-5-minutes): Two commands. That is the entire coordination protocol. pd begin, pd done, and everything between is tracked, recoverable, and queryable.
+- [Blog - Port Daddy](https://portdaddy.dev/blog): Read current Port Daddy field notes about FleetBar, Fleet Control Center, launch readiness, recovery maps, PD Tube, daemon provenance, and coordination policy.
+- [Backend Readiness Is Dependency Truth - Port Daddy](https://portdaddy.dev/blog/backend-readiness-is-dependency-truth): A model backend is ready only when credentials, packages, CLI auth, model catalog, and telemetry policy all agree.
+- [Keeping The Map Honest - Port Daddy](https://portdaddy.dev/blog/cartographer-navigator-map-truth): Roadmaps, recovery docs, session notes, and live daemon state drift unless one surface reconciles them into an operator-readable map.
+- [The Control Plane Is the Product - Port Daddy](https://portdaddy.dev/blog/control-plane-is-the-product): The website caught up to the app: FleetBar opens the real Fleet Control Center, readiness is visible before launch, and the public story is now about operator truth instead of decorative metaphor.
+- [Coordination Guard Turns Claims Into Policy - Port Daddy](https://portdaddy.dev/blog/coordination-guard-claims-into-policy): Notes and file claims are useful as shared facts. Coordination Guard makes them matter at commit time.
+- [Cold Start Without Surprise Launches - Port Daddy](https://portdaddy.dev/blog/fleet-designer-cold-start): A good first-run flow should inspect the repo, expose missing credentials, simulate the fleet, and keep the human in control before any agent starts spending money.
+- [PD Tube Turns UI Events Into Agent Work - Port Daddy](https://portdaddy.dev/blog/pd-tube-event-reply-loop): PD Tube is the small event-reply loop underneath button-to-agent examples, test reporters, editor lightbulbs, and webhook adapters.
+- [Running Is Not The Same As Current - Port Daddy](https://portdaddy.dev/blog/running-is-not-current): A daemon can be alive, reachable, and still serving the wrong checkout. Runtime provenance has to be visible before you trust UI or CLI behavior.
+- [Telemetry Is A Launch Gate - Port Daddy](https://portdaddy.dev/blog/telemetry-is-a-launch-gate): Operator-facing launches should not succeed unless the backend can prove exact tokens, exact rates, and persisted nonzero cost.
 
 ## White Papers
 
-- [Whitepaper - Port Daddy](https://portdaddy.dev/whitepaper): Read the Port Daddy protocol argument for local-first agent coordination, identity, authority, locks, sessions, and recoverable work.
+- [Whitepaper - Port Daddy](https://portdaddy.dev/whitepaper): Read the technical whitepaper behind Port Daddy: local-first agent coordination, signed identity, locks, sessions, and recoverable work.
 - [The Anchor Protocol - Port Daddy](https://portdaddy.dev/whitepaper/anchor-protocol): Read the Anchor Protocol paper inline with a guided explanation of scoped identity, delegation, verification, and why it matters for Port Daddy harbors.
 - [The Bonded Commons - Port Daddy](https://portdaddy.dev/whitepaper/bonded-commons): Read the Bonded Commons paper inline with a guided explanation of evidence trails, advisory claims, collateralized work, and the future agent economy Port Daddy can support.
 

@@ -16,8 +16,8 @@ export function DocsSidebar() {
   const siteSurfaces = [
     { title: 'Mac Preview', href: '/mac-preview' },
     { title: 'Runnable examples', href: '/examples' },
-    { title: 'Templates', href: '/templates' },
-    { title: 'MCP overview', href: '/mcp' },
+    { title: 'Templates', href: '/agents/templates' },
+    { title: 'Skill + MCP', href: '/mcp' },
     { title: 'Agents', href: '/agents' },
   ]
 
@@ -25,14 +25,14 @@ export function DocsSidebar() {
     <aside className="space-y-[var(--panel-gap)] lg:sticky lg:top-24">
       <DocsNoteCard
         label="Start here"
-        title="Protocol first."
+        title="Start with the basics."
         elevation="quiet"
         padding="compact"
         titleSize="nav"
       >
         <PanelBody size="compact" className="max-w-none">
-          Start with the whitepaper and the trust boundary. Once that frame is clear, install the daemon, verify the
-          live runtime, and move into the model, operating practice, and reference material as your questions sharpen.
+          Install Port Daddy, check that it is running, and try the first session loop. The whitepaper is available
+          when you want the deeper security and design background.
         </PanelBody>
         <div className="flex flex-wrap gap-[var(--space-2)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
           <BracketLink to="/whitepaper" tone="blue" side="left">
@@ -53,8 +53,8 @@ export function DocsSidebar() {
           titleSize="nav"
         >
           <PanelBody size="compact" className="max-w-none">
-            The docs split by job: protocol and trust boundary, installation, concepts, operator practice, examples,
-            tutorials, reference architectures, and exact command or API surfaces.
+            The docs split by job: installation, concepts, daily habits, tutorials, reference architectures, and exact
+            command or API pages. Runnable examples live at /examples.
           </PanelBody>
           <div className="flex flex-col gap-[var(--space-2)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
             <BracketNavLink to="/docs" end tone="accent" side="left">
@@ -75,28 +75,7 @@ export function DocsSidebar() {
         </DocsNoteCard>
 
         <DocsNoteCard
-          label="Examples route split"
-          title="/docs/examples guides. /examples runs."
-          elevation="quiet"
-          padding="compact"
-          titleSize="nav"
-        >
-          <PanelBody size="compact" className="max-w-none">
-            The docs examples section is the guided reading path. The top-level examples route stays the runnable code
-            corpus for swarm coordination, PD Tube tunnel flows, and dev tools built on the daemon.
-          </PanelBody>
-          <div className="flex flex-col gap-[var(--space-2)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
-            <BracketNavLink to="/docs/examples" tone="blue" side="left">
-              Read the guide
-            </BracketNavLink>
-            <BracketNavLink to="/examples" tone="accent" side="right">
-              Open runnable examples
-            </BracketNavLink>
-          </div>
-        </DocsNoteCard>
-
-        <DocsNoteCard
-          label="Reference surfaces"
+          label="Reference pages"
           title="Jump straight to the exact interface."
           elevation="quiet"
           padding="compact"
@@ -104,7 +83,7 @@ export function DocsSidebar() {
         >
           <PanelBody size="compact" className="max-w-none">
             The newer docs families improve reading order. The existing CLI, SDK, MCP, and API pages still matter when
-            you need exact interfaces and the old website surface preserved.
+            you need exact interfaces and older reference pages preserved.
           </PanelBody>
           <div className="flex flex-col gap-[var(--space-2)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
             {referenceSurfaces.map((surface, index) => (
@@ -128,8 +107,8 @@ export function DocsSidebar() {
           titleSize="nav"
         >
           <PanelBody size="compact" className="max-w-none">
-            Use the docs shell for deep reading, then jump back to the Mac preview, runnable examples, templates, MCP
-            overview, or agent catalog when the broader public site is the right surface.
+            Use the docs shell for deep reading, then jump back to the Mac preview, runnable examples, agent templates,
+            Skill + MCP, or agent catalog when the broader public site is the right place.
           </PanelBody>
           <div className="flex flex-col gap-[var(--space-2)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
             {siteSurfaces.map((surface, index) => (

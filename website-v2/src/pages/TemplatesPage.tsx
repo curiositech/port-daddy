@@ -122,6 +122,22 @@ export function TemplatesPage() {
           </motion.p>
         </header>
 
+        <motion.figure
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="mb-16 overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]"
+        >
+          <picture>
+            <source srcSet="/img/generated/virtual-actor-fleet.webp" type="image/webp" />
+            <img
+              src="/img/generated/virtual-actor-fleet.jpg"
+              alt="Generated Swiss-modern diagram of durable agent identities, temporary runtime leases, trigger lanes, and budget gates"
+              className="block aspect-[16/7] w-full object-cover"
+            />
+          </picture>
+        </motion.figure>
+
         {/* Quick Start */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}

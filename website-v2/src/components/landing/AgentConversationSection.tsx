@@ -80,7 +80,7 @@ export function AgentConversationSection() {
               <SectionIntro
                 eyebrow="Steerability layer"
                 title="Agents coordinate through observable state."
-                description="Port Daddy is the communication substrate ordinary orchestration does not give you: agents leave durable state for other agents they may never meet. Notes, claims, scoped channels, actor inboxes, and salvage records make the work inspectable instead of making the human relay every message."
+                description="Port Daddy gives ordinary orchestration a shared memory layer: agents leave durable state for other agents they may never meet. Notes, claims, scoped channels, actor inboxes, and salvage records make the work inspectable instead of making the human relay every message."
                 titleAs="h2"
                 titleSize="display"
                 titleClassName="max-w-[12ch]"
@@ -88,7 +88,7 @@ export function AgentConversationSection() {
               <SurfacePanel tone="blue" padding="compact" elevation="quiet">
                 <PanelEyebrow tone="primary">Steerability in practice</PanelEyebrow>
                 <PanelBody tone="primary" size="compact" className="mt-[var(--space-2)] max-w-none">
-                  Shared memory, shared warnings, durable roles, telemetry, resource pressure, and recoverable handoffs stay visible to the operator.
+                  Shared memory, shared warnings, durable roles, telemetry, resource pressure, and recoverable handoffs stay visible in the app.
                 </PanelBody>
               </SurfacePanel>
             </div>

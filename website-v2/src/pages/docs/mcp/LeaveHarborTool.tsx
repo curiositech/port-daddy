@@ -5,7 +5,7 @@ export default function LeaveHarborTool() {
     <CommandPage
       command="leave_harbor"
       description="Leave a harbor. Burns the JTI identifier so the token cannot be reused."
-      version="3.8.3"
+      version="3.11.0"
       syntax="leave_harbor(name)"
       flags={[
         { flag: 'name', description: 'Harbor name to leave' },

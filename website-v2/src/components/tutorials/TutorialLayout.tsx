@@ -1,28 +1,30 @@
-import * as React from 'react'
-import { motion, useScroll, useSpring } from 'framer-motion'
-import { Link, useLocation } from 'react-router-dom'
-import { Badge } from '@/components/ui/Badge'
-import { Button } from '@/components/ui/Button'
-import { TutorialProgress } from './TutorialProgress'
-import { ReorientationPanel } from './ReorientationPanel'
-import { Clock, BookOpen, ChevronRight, Home, Layout, ArrowLeft, ArrowRight, Zap, Shield, Globe, Share2 } from 'lucide-react'
-import { Footer } from '@/components/layout/Footer'
-import { useTutorialState } from '@/hooks/useTutorialState'
-import { useTutorialProgress } from '@/hooks/useTutorialProgress'
+import * as React from "react";
+import { motion, useScroll, useSpring } from "framer-motion";
+import { Link, useLocation } from "react-router-dom";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { TutorialProgress } from "./TutorialProgress";
+import { ReorientationPanel } from "./ReorientationPanel";
+import { ChevronRight, ArrowLeft, ArrowRight } from "lucide-react";
+import { Footer } from "@/components/layout/Footer";
+import { useTutorialState } from "@/hooks/useTutorialState";
+import { useTutorialProgress } from "@/hooks/useTutorialProgress";
+import { TerminalGif } from "@/components/site/TerminalGif";
+import { findTerminalRecording } from "@/data/terminalRecordings";
 
 // Nav height matches the h-16 (4rem / 64px) used in Nav.tsx
-const NAV_HEIGHT = '4rem'
+const NAV_HEIGHT = "4rem";
 
 interface TutorialLayoutProps {
-  title: string
-  description: string
-  number: number | string
-  total?: number | string
-  level: 'Beginner' | 'Intermediate' | 'Advanced'
-  readTime: string
-  children: React.ReactNode
-  prev?: { title: string; href: string }
-  next?: { title: string; href: string }
+  title: string;
+  description: string;
+  number: number | string;
+  total?: number | string;
+  level: "Beginner" | "Intermediate" | "Advanced";
+  readTime: string;
+  children: React.ReactNode;
+  prev?: { title: string; href: string };
+  next?: { title: string; href: string };
 }
 
 export function TutorialLayout({
@@ -33,104 +35,100 @@ export function TutorialLayout({
   readTime,
   children,
   prev,
-  next
+  next,
 }: TutorialLayoutProps) {
-  const { scrollYProgress } = useScroll()
+  const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, {
     stiffness: 100,
     damping: 30,
-    restDelta: 0.001
-  })
-  
-  const { markComplete } = useTutorialProgress()
-  const [showProgress, setShowProgress] = React.useState(false)
-  const location = useLocation()
+    restDelta: 0.001,
+  });
 
-  const numericNumber = typeof number === 'string' ? parseInt(number, 10) : number
-  const { hasReturned, dismissReturn } = useTutorialState(numericNumber)
+  const { markComplete } = useTutorialProgress();
+  const [showProgress, setShowProgress] = React.useState(false);
+  const location = useLocation();
+  const recording = findTerminalRecording(location.pathname);
+
+  const numericNumber =
+    typeof number === "string" ? parseInt(number, 10) : number;
+  const { hasReturned, dismissReturn } = useTutorialState(numericNumber);
 
   // Scroll to top when navigating between tutorials
   React.useEffect(() => {
-    window.scrollTo(0, 0)
-  }, [location.pathname])
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
 
   // Mark as complete when reaching bottom
   React.useEffect(() => {
     const handleScroll = () => {
-      const scrolled = window.scrollY + window.innerHeight
-      const height = document.documentElement.scrollHeight
+      const scrolled = window.scrollY + window.innerHeight;
+      const height = document.documentElement.scrollHeight;
       if (scrolled >= height - 200) {
-        markComplete(numericNumber)
+        markComplete(numericNumber);
       }
-    }
+    };
 
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [numericNumber, markComplete])
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [numericNumber, markComplete]);
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       className="min-h-screen font-sans flex flex-col selection:bg-[var(--brand-primary)] selection:text-[var(--brand-primary-foreground)]"
-      style={{ background: 'var(--surface-base)', color: 'var(--text-primary)', paddingTop: NAV_HEIGHT }}
+      style={{
+        background: "var(--surface-base)",
+        color: "var(--text-primary)",
+        paddingTop: NAV_HEIGHT,
+      }}
     >
       {/* Progress Bar */}
       <motion.div
-        className="fixed top-0 left-0 right-0 h-1 bg-[var(--brand-primary)] z-[100] origin-left shadow-[0_0_12px_rgba(58,173,173,0.5)]"
+        className="fixed left-0 right-0 top-0 z-[100] h-1 origin-left bg-[var(--brand-primary)]"
         style={{ scaleX, top: NAV_HEIGHT }}
       />
 
       {/* Hero Section */}
-      <motion.section
-        className="py-10 sm:py-16 lg:py-20 px-4 sm:px-6 lg:px-8 border-b relative overflow-hidden shrink-0"
-        style={{ background: 'var(--surface-raised)', borderColor: 'var(--border-subtle)' }}
-      >
-        {/* Abstract background shapes */}
-        <motion.div 
-          className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full blur-[140px] opacity-[0.12] pointer-events-none" 
-          style={{ background: 'radial-gradient(circle, var(--brand-primary) 0%, transparent 70%)' }} 
-          animate={{ scale: [1, 1.1, 1], x: [0, 20, 0] }}
-          transition={{ duration: 15, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        <motion.div 
-          className="absolute bottom-[-10%] left-[-5%] w-[400px] h-[400px] rounded-full blur-[100px] opacity-[0.08] pointer-events-none" 
-          style={{ background: 'radial-gradient(circle, var(--brand-accent) 0%, transparent 70%)' }} 
-          animate={{ scale: [1, 1.2, 1], x: [0, -30, 0] }}
-          transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        
+      <motion.section className="relative shrink-0 overflow-hidden border-b-2 border-[var(--border-strong)] bg-[var(--surface-raised)] px-[var(--space-4)] py-[var(--section-space-y)] sm:px-[var(--space-6)] lg:px-[var(--space-8)]">
         <motion.div className="max-w-4xl mx-auto relative z-10 text-center flex flex-col items-center">
           {/* Reorientation Panel for returning users */}
           {hasReturned && (
-            <ReorientationPanel 
-              tutorialNumber={typeof number === 'string' ? parseInt(number, 10) : number}
+            <ReorientationPanel
+              tutorialNumber={
+                typeof number === "string" ? parseInt(number, 10) : number
+              }
               tutorialTitle={title}
               onDismiss={dismissReturn}
             />
           )}
-          
-          <motion.nav className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.25em] mb-6 font-sans" style={{ color: 'var(--text-muted)' }}>
-            <Link to="/" className="hover:text-[var(--text-primary)] transition-all no-underline flex items-center gap-1.5 font-sans group">
-              <Home size={12} className="group-hover:scale-110 transition-transform" />
+
+          <motion.nav className="mb-[var(--space-5)] flex items-center gap-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+            <Link
+              to="/"
+              className="font-sans no-underline transition-colors hover:text-[var(--text-primary)]"
+            >
               Home
             </Link>
-            <ChevronRight size={12} className="opacity-50" />
-            <Link to="/tutorials" className="hover:text-[var(--text-primary)] transition-all no-underline flex items-center gap-1.5 font-sans group">
-              <BookOpen size={12} className="group-hover:scale-110 transition-transform" />
+            <ChevronRight size={12} aria-hidden="true" />
+            <Link
+              to="/tutorials"
+              className="font-sans no-underline transition-colors hover:text-[var(--text-primary)]"
+            >
               Academy
             </Link>
-            <ChevronRight size={12} className="opacity-50" />
-            <motion.span style={{ color: 'var(--brand-primary)' }} className="flex items-center gap-1.5 font-sans font-black">
-              <Layout size={12} />
+            <ChevronRight size={12} aria-hidden="true" />
+            <motion.span className="font-sans font-black text-[var(--brand-primary)]">
               Lesson {number}
             </motion.span>
           </motion.nav>
-          
+
           {/* Tutorial Progress Tracker */}
-          <div className="mb-8">
-            <TutorialProgress 
-              currentNumber={typeof number === 'string' ? parseInt(number, 10) : number}
+          <div className="mb-[var(--space-6)] w-full">
+            <TutorialProgress
+              currentNumber={
+                typeof number === "string" ? parseInt(number, 10) : number
+              }
               isOpen={showProgress}
               onToggle={() => setShowProgress(!showProgress)}
             />
@@ -142,113 +140,124 @@ export function TutorialLayout({
             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
             className="flex flex-col items-center"
           >
-            <motion.div className="flex items-center gap-5 mb-10 font-sans">
-              <Badge variant={level === 'Beginner' ? 'teal' : level === 'Intermediate' ? 'gold' : 'default'} className="px-5 py-2 text-[11px] font-black uppercase tracking-widest shadow-xl shadow-[var(--brand-primary)]/5">
+            <motion.div className="mb-[var(--space-6)] flex flex-wrap items-center justify-center gap-[var(--space-3)] font-sans">
+              <motion.span className="border border-[var(--border-default)] bg-[var(--surface-base)] px-[var(--space-3)] py-[var(--space-2)] text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+                Lesson {number}
+              </motion.span>
+              <Badge
+                variant={
+                  level === "Beginner"
+                    ? "teal"
+                    : level === "Intermediate"
+                      ? "gold"
+                      : "default"
+                }
+                className="px-[var(--space-3)] py-[var(--space-2)] text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)]"
+              >
                 {level}
               </Badge>
-              <motion.div className="h-[1px] w-12 bg-[var(--border-strong)] opacity-40" />
-              <motion.div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] font-mono">
-                <Clock size={14} className="text-[var(--brand-primary)]" />
+              <motion.span className="border border-[var(--border-default)] bg-[var(--surface-base)] px-[var(--space-3)] py-[var(--space-2)] font-mono text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
                 {readTime}
-              </motion.div>
+              </motion.span>
             </motion.div>
 
-            <motion.h1 className="text-4xl sm:text-6xl lg:text-8xl font-bold mb-10 tracking-tighter font-display" style={{ color: 'var(--text-primary)', lineHeight: 0.95 }}>
+            <motion.h1 className="mb-[var(--space-6)] font-display text-[length:var(--type-hero-size)] font-black leading-[var(--leading-display-tight)] tracking-[var(--tracking-display-tight)] text-[var(--text-primary)]">
               {title}
             </motion.h1>
-            <motion.p className="text-xl sm:text-2xl max-w-3xl leading-relaxed mb-14 mx-auto font-sans" style={{ color: 'var(--text-secondary)' }}>
+            <motion.p className="mx-auto max-w-3xl font-sans text-[length:var(--type-panel-body-size)] leading-[var(--leading-body)] text-[var(--text-secondary)]">
               {description}
             </motion.p>
-
-            <motion.div className="flex flex-wrap items-center justify-center gap-10 font-sans text-[var(--text-muted)]">
-               <motion.div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em]">
-                 <Zap size={14} className="text-[var(--brand-accent)]" />
-                 Instant Port
-               </motion.div>
-               <motion.div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em]">
-                 <Shield size={14} className="text-[var(--brand-secondary)]" />
-                 Secure DNS
-               </motion.div>
-               <motion.div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em]">
-                 <Share2 size={14} className="text-[var(--brand-secondary)]" />
-                 Pub/Sub Radio
-               </motion.div>
-            </motion.div>
+            {recording ? (
+              <TerminalGif
+                src={recording.gifSrc}
+                title={recording.title}
+                caption={recording.caption}
+                className="mt-[var(--space-7)] w-full max-w-4xl text-left"
+              />
+            ) : null}
           </motion.div>
         </motion.div>
       </motion.section>
 
       {/* Main Content Area */}
-      <motion.main id="main-content" className="flex-1 max-w-4xl mx-auto w-full px-6 sm:px-8 lg:px-10 py-24 font-sans relative">
-        <motion.article 
+      <motion.main
+        id="main-content"
+        className="relative mx-auto w-full max-w-4xl flex-1 px-[var(--space-4)] py-[var(--section-space-y)] font-sans sm:px-[var(--space-6)] lg:px-[var(--space-8)]"
+      >
+        <motion.article
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.2 }}
-          className="prose prose-invert prose-lg max-w-none 
+          className="tutorial-article prose prose-lg max-w-none
             prose-headings:font-display prose-headings:font-bold prose-headings:tracking-tight prose-headings:text-[var(--text-primary)]
-            prose-h2:text-4xl prose-h2:mt-24 prose-h2:mb-10 prose-h2:pb-4 prose-h2:border-b prose-h2:border-[var(--border-subtle)]
-            prose-h3:text-2xl prose-h3:mt-16 prose-h3:mb-6
-            prose-p:text-[var(--text-secondary)] prose-p:leading-relaxed prose-p:mb-8 prose-p:text-xl
-            prose-code:text-[var(--brand-primary)] prose-code:bg-[var(--interactive-active)] prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none prose-code:font-mono prose-code:font-bold
+            prose-h2:mt-[var(--section-space-y)] prose-h2:mb-[var(--space-6)] prose-h2:border-b prose-h2:border-[var(--border-subtle)] prose-h2:pb-[var(--space-3)] prose-h2:text-[length:var(--type-section-title-size)]
+            prose-h3:mt-[var(--space-8)] prose-h3:mb-[var(--space-4)] prose-h3:text-[length:var(--type-panel-title-card-size)]
+            prose-p:mb-[var(--space-5)] prose-p:text-[length:var(--type-panel-body-size)] prose-p:leading-[var(--leading-body)] prose-p:text-[var(--text-secondary)]
+            prose-code:bg-[var(--interactive-active)] prose-code:px-[var(--space-1)] prose-code:py-[var(--space-1)] prose-code:font-mono prose-code:font-bold prose-code:text-[var(--brand-primary)] prose-code:before:content-none prose-code:after:content-none
             prose-strong:text-[var(--text-primary)] prose-strong:font-black
-            prose-ul:list-disc prose-ul:pl-8 prose-ul:mb-10 prose-ul:space-y-4
-            prose-li:text-[var(--text-secondary)] prose-li:text-lg
-            prose-blockquote:border-l-4 prose-blockquote:border-[var(--brand-primary)] prose-blockquote:bg-[var(--surface-raised)] prose-blockquote:py-4 prose-blockquote:px-8 prose-blockquote:rounded-r-2xl prose-blockquote:italic"
+            prose-ul:mb-[var(--space-6)] prose-ul:list-disc prose-ul:space-y-[var(--space-3)] prose-ul:pl-[var(--space-6)]
+            prose-li:text-[length:var(--type-panel-body-size)] prose-li:text-[var(--text-secondary)]
+            prose-blockquote:border-l-4 prose-blockquote:border-[var(--brand-primary)] prose-blockquote:bg-[var(--surface-raised)] prose-blockquote:px-[var(--space-6)] prose-blockquote:py-[var(--space-4)] prose-blockquote:italic"
         >
           {children}
         </motion.article>
 
         {/* Lessons Navigation */}
-        <motion.nav 
-          className="mt-32 pt-16 border-t grid sm:grid-cols-2 gap-8 font-sans mb-16"
-          style={{ borderColor: 'var(--border-subtle)' }}
-        >
+        <motion.nav className="mb-[var(--space-8)] mt-[var(--section-space-y)] grid gap-[var(--space-5)] border-t-2 border-[var(--border-strong)] pt-[var(--space-6)] font-sans sm:grid-cols-2">
           {prev ? (
             <Link to={prev.href} className="group no-underline block">
-              <motion.div 
-                className="h-full p-5 sm:p-8 lg:p-10 rounded-[40px] border transition-all duration-300 hover:border-[var(--brand-primary)] hover:bg-[var(--interactive-hover)] flex flex-col items-start gap-4"
-                style={{ borderColor: 'var(--border-subtle)', background: 'var(--surface-raised)' }}
+              <motion.div
+                className="flex h-full flex-col items-start gap-[var(--space-4)] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-5)] transition-colors duration-200 hover:bg-[var(--interactive-hover)] sm:p-[var(--space-6)] lg:p-[var(--space-7)]"
                 whileHover={{ x: -8 }}
               >
-                <motion.span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.25em] text-[var(--text-muted)] font-sans group-hover:text-[var(--brand-primary)] transition-all">
+                <motion.span className="flex items-center gap-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)] transition-colors group-hover:text-[var(--brand-primary)]">
                   <ArrowLeft size={14} />
                   Previous
                 </motion.span>
-                <motion.h4 className="m-0 text-2xl font-display font-bold leading-tight" style={{ color: 'var(--text-primary)' }}>{prev.title}</motion.h4>
-              </motion.div>
-            </Link>
-          ) : <motion.div />}
-
-          {next ? (
-            <Link to={next.href} className="group no-underline block">
-              <motion.div 
-                className="h-full p-5 sm:p-8 lg:p-10 rounded-[40px] border-2 transition-all duration-300 hover:bg-[var(--interactive-hover)] flex flex-col items-end text-right gap-4"
-                style={{ borderColor: 'var(--brand-primary)', background: 'var(--surface-raised)' }}
-                whileHover={{ x: 8 }}
-              >
-                <motion.span className="flex items-center justify-end gap-2 text-[11px] font-black uppercase tracking-[0.25em] font-sans text-[var(--brand-primary)]">
-                  Next Up
-                  <ArrowRight size={14} />
-                </motion.span>
-                <motion.h4 className="m-0 text-2xl font-display font-bold leading-tight" style={{ color: 'var(--text-primary)' }}>{next.title}</motion.h4>
+                <motion.h4 className="m-[var(--space-0)] font-display text-[length:var(--type-panel-title-card-size)] font-black leading-[var(--leading-card)] text-[var(--text-primary)]">
+                  {prev.title}
+                </motion.h4>
               </motion.div>
             </Link>
           ) : (
-            <motion.div 
-              className="sm:col-span-2 p-6 sm:p-10 lg:p-16 rounded-3xl sm:rounded-[40px] lg:rounded-[60px] border border-dashed flex flex-col items-center text-center gap-8 relative overflow-hidden"
-              style={{ borderColor: 'var(--brand-primary)', background: 'var(--surface-overlay)' }}
-            >
-              <motion.div 
-                className="absolute inset-0 opacity-[0.03] pointer-events-none"
-                animate={{ rotate: 360 }}
-                transition={{ duration: 60, repeat: Infinity, ease: 'linear' }}
+            <motion.div />
+          )}
+
+          {next ? (
+            <Link to={next.href} className="group no-underline block">
+              <motion.div
+                className="flex h-full flex-col items-end gap-[var(--space-4)] border-2 border-[var(--brand-primary)] bg-[var(--surface-raised)] p-[var(--space-5)] text-right transition-colors duration-200 hover:bg-[var(--interactive-hover)] sm:p-[var(--space-6)] lg:p-[var(--space-7)]"
+                whileHover={{ x: 8 }}
               >
-                <Globe size={600} />
+                <motion.span className="flex items-center justify-end gap-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+                  Next Up
+                  <ArrowRight size={14} />
+                </motion.span>
+                <motion.h4 className="m-[var(--space-0)] font-display text-[length:var(--type-panel-title-card-size)] font-black leading-[var(--leading-card)] text-[var(--text-primary)]">
+                  {next.title}
+                </motion.h4>
               </motion.div>
-              <Badge variant="teal" className="px-6 py-2 text-[11px] font-black uppercase tracking-widest">Certification Ready</Badge>
-              <motion.h3 className="text-5xl font-bold font-display m-0" style={{ color: 'var(--text-primary)' }}>Mastery Achieved.</motion.h3>
-              <motion.p className="text-xl max-w-xl font-sans text-[var(--text-secondary)]">You've completed the core coordination series. Your harbor is ready for deployment.</motion.p>
-              <Button size="lg" className="px-12 py-8 rounded-full text-lg font-black tracking-wide" onClick={() => window.location.href = '/docs'}>
+            </Link>
+          ) : (
+            <motion.div className="relative flex flex-col items-center gap-[var(--space-6)] overflow-hidden border-2 border-dashed border-[var(--brand-primary)] bg-[var(--surface-overlay)] p-[var(--space-5)] text-center sm:col-span-2 sm:p-[var(--space-7)] lg:p-[var(--space-8)]">
+              <Badge
+                variant="teal"
+                className="px-[var(--space-6)] py-[var(--space-2)] text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)]"
+              >
+                Certification Ready
+              </Badge>
+              <motion.h3 className="m-[var(--space-0)] font-display text-[length:var(--type-section-title-size)] font-bold text-[var(--text-primary)]">
+                Mastery Achieved.
+              </motion.h3>
+              <motion.p className="max-w-xl font-sans text-[length:var(--type-panel-body-size)] text-[var(--text-secondary)]">
+                You've completed the core coordination series. Your harbor is
+                ready for deployment.
+              </motion.p>
+              <Button
+                size="lg"
+                className="px-[var(--space-6)] py-[var(--space-4)] text-[length:var(--type-panel-body-size)] font-black tracking-[var(--tracking-meta)]"
+                onClick={() => (window.location.href = "/docs")}
+              >
                 EXPLORE THE SDK REFERENCE
               </Button>
             </motion.div>
@@ -258,5 +267,5 @@ export function TutorialLayout({
 
       <Footer />
     </motion.div>
-  )
+  );
 }

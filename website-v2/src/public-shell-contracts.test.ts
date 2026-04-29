@@ -79,8 +79,8 @@ describe('public shell contracts', () => {
           'DocsNoteCard',
           'BracketLink',
           'overviewOrder',
-          'Read the protocol. Bring up the daemon. Learn the operating model.',
-          'Trust boundary first. Workflows second.',
+          'What Port Daddy Is And How To Use It',
+          'Install first. Read deeper when you need it.',
         ],
         forbidden: [
           /text-\[11px\]/,
@@ -107,7 +107,6 @@ describe('public shell contracts', () => {
           'findDocsContentPage',
           'What this page answers',
           'Section map',
-          'Route relationship',
           'scroll-mt-[calc(var(--space-10)+var(--space-6))]',
         ],
         forbidden: [
@@ -165,7 +164,7 @@ describe('public shell contracts', () => {
     const paperData = read('./data/whitePapers.ts')
 
     expect(whitepaper).toContain('Research dossier')
-    expect(whitepaper).toContain('The control-plane papers.')
+    expect(whitepaper).toContain('The Port Daddy papers.')
     expect(whitepaper).toContain('Available papers')
     expect(whitepaper).toContain('Argument map')
     expect(whitepaper).toContain('Reading order')
@@ -225,8 +224,8 @@ describe('public shell contracts', () => {
     const header = read('./components/site/SiteHeader.tsx')
 
     expect(docsOverview).toContain("href: '/whitepaper'")
-    expect(docsOverview).toContain('Start with the papers and get started.')
-    expect(docsSidebar).toContain('Protocol first.')
+    expect(docsOverview).toContain('Start with Get Started if you are installing Port Daddy for the first time.')
+    expect(docsSidebar).toContain('Start with the basics.')
     expect(docsSidebar).toContain('Whitepaper')
     expect(header).toContain('Port Daddy')
     expect(header).not.toContain('agentsd')
@@ -241,13 +240,15 @@ describe('public shell contracts', () => {
     expect(header).toContain('/examples')
     expect(header).toContain('/agents')
     expect(header).toContain('/mcp')
+    expect(header).toContain('Skill + MCP')
+    expect(header).not.toContain('/agents/agent-skill')
     expect(header).toContain('/tutorials')
     expect(header).not.toContain('/roadmap')
     expect(header).toContain("/whitepaper")
     expect(header).toContain('Papers')
     expect(header).not.toContain('/dashboard')
     expect(header).toContain('Port Daddy')
-    expect(header).toContain('Mobile primary')
+    expect(header).toContain('Compressed primary navigation')
     expect(header).toContain('!max-w-none')
     expect(header).toContain('inline-flex shrink-0 items-center')
     expect(header).not.toContain('absolute right-0 top-0 h-full w-3')
@@ -255,6 +256,7 @@ describe('public shell contracts', () => {
     expect(footer).toContain('/mac-preview')
     expect(footer).toContain('/agents')
     expect(footer).toContain('/mcp')
+    expect(footer).toContain('Skill + MCP')
     expect(footer).not.toContain('/roadmap')
     expect(footer).toContain('/docs/get-started')
     expect(footer).toContain('/docs/cli')
@@ -331,8 +333,8 @@ describe('public shell contracts', () => {
     expect(docsOverview).not.toContain('/dashboard')
     expect(docsOverview).toContain('/mac-preview')
     expect(docsOverview).toContain('/examples')
-    expect(docsOverview).toContain('/docs/examples guides. /examples runs.')
-    expect(docsOverview).toContain('/templates')
+    expect(docsOverview).not.toContain('/docs/examples')
+    expect(docsOverview).toContain('/agents/templates')
     expect(docsOverview).toContain('/mcp')
     expect(docsOverview).toContain('/agents')
     expect(docsOverview).not.toContain('/roadmap')
@@ -340,8 +342,8 @@ describe('public shell contracts', () => {
     expect(docsSidebar).not.toContain('/dashboard')
     expect(docsSidebar).toContain('/mac-preview')
     expect(docsSidebar).toContain('/examples')
-    expect(docsSidebar).toContain('/docs/examples guides. /examples runs.')
-    expect(docsSidebar).toContain('/templates')
+    expect(docsSidebar).not.toContain('/docs/examples')
+    expect(docsSidebar).toContain('/agents/templates')
     expect(docsSidebar).toContain('/mcp')
     expect(docsSidebar).toContain('/agents')
     expect(docsSidebar).not.toContain('/roadmap')
@@ -355,7 +357,6 @@ describe('public shell contracts', () => {
       'get-started',
       'concepts',
       'best-practices',
-      'examples',
       'tutorials',
       'reference-architectures',
       'reference',
@@ -371,7 +372,9 @@ describe('public shell contracts', () => {
       'path="/mac-preview"',
       'path="/examples"',
       'path="/mcp"',
+      'path="/agents/agent-skill"',
       'path="/templates"',
+      'path="/agents/:section"',
       'path="/agents"',
       'path="/tutorials"',
       'path="/blog"',
@@ -380,6 +383,7 @@ describe('public shell contracts', () => {
       'path="sdk"',
       'path="mcp"',
       'path="api"',
+      'path="examples/*"',
       'path=":sectionSlug/*"',
     ]) {
       expect(mainSource).toContain(routePath)
@@ -406,16 +410,16 @@ describe('public shell contracts', () => {
     expect(findDocsRouteBySlug('operations')?.slug).toBe('best-practices')
     expect(findDocsRouteBySlug('architecture')?.slug).toBe('reference-architectures')
     expect(findDocsRouteBySlug('guides')?.slug).toBe('tutorials')
+    expect(findDocsRouteBySlug('examples')).toBeUndefined()
     expect(findDocsRouteBySlug('security')).toBeUndefined()
     expect(findDocsRouteByPath('/docs')?.slug).toBe('overview')
     expect(findDocsRouteByPath('/docs/reference-architectures/harbor-bootstrap')?.slug).toBe('reference-architectures')
-    expect(findDocsRouteByPath('/docs/examples/fleet/salvage')?.slug).toBe('examples')
+    expect(findDocsRouteByPath('/docs/examples/fleet/salvage')).toBeUndefined()
     expect(findDocsFamily('guides')?.title).toBe('Tutorials')
     expect(docsFamilies.map((section) => section.slug)).toEqual([
       'get-started',
       'concepts',
       'best-practices',
-      'examples',
       'tutorials',
       'reference-architectures',
       'reference',
@@ -427,7 +431,6 @@ describe('public shell contracts', () => {
       'get-started',
       'concepts',
       'best-practices',
-      'examples',
       'tutorials',
       'reference-architectures',
       'reference',
@@ -458,12 +461,7 @@ describe('public shell contracts', () => {
       'testing-and-promotion',
       'onboarding-surfaces',
     ])
-    expect(findDocsContentSection('examples')?.pages.map((page) => page.slug)).toEqual([
-      'protect-a-critical-command',
-      'exchange-state-through-tuples',
-      'enter-a-harbor-and-pass-a-card',
-    ])
-    expect(findDocsContentSection('examples')?.summary).toContain('/examples corpus')
+    expect(findDocsContentSection('examples')).toBeUndefined()
     expect(findDocsContentSection('tutorials')?.pages.map((page) => page.slug)).toEqual([
       'bootstrap-a-project-fleet',
       'recover-a-dead-agent-session',
@@ -477,13 +475,15 @@ describe('public shell contracts', () => {
     ])
     expect(findDocsContentSection('reference')?.pages.map((page) => page.slug)).toEqual([
       'core-cli-commands',
+      'typescript-sdk-surface',
+      'mcp-tool-surface',
       'daemon-http-surface',
       'harbor-capabilities-and-scopes',
     ])
     expect(findDocsContentPage('get-started', 'install')?.truth).toBe('source-backed')
     expect(findDocsContentPage('concepts', 'harbors-and-identity')?.truth).toBe('source-backed')
     expect(findDocsContentPage('best-practices', 'onboarding-surfaces')?.truth).toBe('blocked')
-    expect(findDocsContentPage('examples', 'exchange-state-through-tuples')?.truth).toBe('source-backed')
+    expect(findDocsContentPage('examples', 'exchange-state-through-tuples')).toBeUndefined()
     expect(findDocsContentPage('tutorials', 'launch-and-inspect-a-sortie')?.truth).toBe('source-backed')
     expect(findDocsContentPage('reference-architectures', 'delegation-surfaces')?.truth).toBe('source-backed')
     expect(findDocsContentPage('reference', 'daemon-http-surface')?.truth).toBe('source-backed')
@@ -606,7 +606,7 @@ describe('public shell contracts', () => {
     expect(terminal).toContain('copyable={copyable}')
   })
 
-  test('public docs copy does not leak maintainer-process language into operator-facing pages', () => {
+  test('public docs copy does not leak maintainer-process language into user-facing pages', () => {
     const sources = [
       read('./components/site/DocsSidebar.tsx'),
       read('./pages/docs/DocsOverview.tsx'),
@@ -627,6 +627,8 @@ describe('public shell contracts', () => {
       'Why this page says this',
       'Evidence in the repo',
       'public install path',
+      'Read the protocol. Bring up the daemon. Learn the operating model.',
+      'Trust boundary first. Workflows second.',
     ]
 
     for (const phrase of forbiddenPhrases) {

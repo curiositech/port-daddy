@@ -5,7 +5,7 @@ export default function AcquireLockTool() {
     <CommandPage
       command="acquire_lock"
       description="Acquire a distributed lock to prevent conflicts in multi-agent environments. Use locks when multiple agents might modify the same files or resources. Lock is automatically released when TTL expires."
-      version="3.8.3"
+      version="3.11.0"
       syntax="acquire_lock(name, options?)"
       flags={[
         { flag: 'name', description: 'Unique name for this lock (required)' },

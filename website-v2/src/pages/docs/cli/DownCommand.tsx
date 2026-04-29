@@ -6,7 +6,7 @@ export default function DownCommand() {
       command="down"
       shortFlag="d"
       description="Stop all running services in the current project."
-      version="3.8.3"
+      version="3.11.0"
       syntax="pd down"
       usagePatterns={[
         'pd down',

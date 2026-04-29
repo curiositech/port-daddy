@@ -4,26 +4,26 @@ export const getStartedSection: DocsContentSection = {
   slug: 'get-started',
   title: 'Get Started',
   summary:
-    'Install the daemon, verify the live runtime, and complete a first coordination loop using commands that already exist today.',
+    'Install Port Daddy, confirm it is running, and try the first agent coordination loop.',
   pages: [
     {
       slug: 'install',
       title: 'Install',
       summary:
-        'Install the daemon, bring up the control plane, and start working with agent operations from one command path.',
+        'Install the local Port Daddy service, CLI, and dashboard entry points.',
       truth: 'source-backed',
       goals: [
-        'Install the daemon cleanly.',
-        'Bring up the control plane without detouring through setup trivia.',
-        'Understand what becomes available after install.',
+        'Install Port Daddy cleanly.',
+        'Know which pieces setup adds to your machine.',
+        'Open the dashboard or CLI with confidence after setup.',
       ],
       blocks: [
         {
           type: 'paragraph',
-          title: 'Install the daemon of record',
+          title: 'Install Port Daddy locally',
           paragraphs: [
-            'Install the daemon that becomes the system of record for agent work on your machine. This path gives you the CLI, the runtime, and the control plane in one move.',
-            'The point of the install is not merely to add another binary. It is to put one authority in charge of agent identity, coordination, shared state, and operator visibility before the repo gets noisy.',
+            'Port Daddy runs locally on your machine. Setup installs the background service, the CLI, and the pieces that let the dashboard and agent tools read the same coordination state.',
+            'After setup, you can see active sessions, leave notes, claim files, inspect ports, and recover interrupted agent work from one place.',
           ],
         },
         {
@@ -31,24 +31,24 @@ export const getStartedSection: DocsContentSection = {
           title: 'Install Port Daddy',
           command: 'brew install curiositech/tap/port-daddy && pd setup',
           notes: [
-            'Use this when you want the full daemon and control-plane setup on your machine.',
-            'After setup, you have one runtime for identity, coordination, and operator visibility.',
+            'Use this when you want the normal local Port Daddy setup.',
+            'After setup, use `pd status` to confirm the service is running.',
           ],
         },
         {
           type: 'checklist',
           items: [
-            'Daemon runtime for agent identity, shared state, and coordination.',
-            'CLI entry point for sessions, locks, notes, harbors, and fleet commands.',
-            'Control-plane surface for inspecting and operating active work.',
+            'A local service that stores session, note, lock, port, and fleet state.',
+            'A CLI entry point for everyday commands such as sessions, notes, locks, and salvage.',
+            'A dashboard path for seeing active agent work.',
           ],
         },
         {
           type: 'paragraph',
           title: 'What success looks like',
           paragraphs: [
-            'A successful install leaves you with one runtime you can interrogate, one CLI you can trust, and one control plane you can open without wondering which checkout or stale daemon you are actually talking to.',
-            'From there, the rest of the docs stop being theory. You can verify the runtime, start a session, leave notes, and watch the daemon keep operator truth attached to the work.',
+            'A successful install gives you a CLI that answers, a local service that reports healthy status, and a dashboard you can open.',
+            'From there, the docs get practical: verify the service, start a session, leave a note, and see the work show up where another agent or future you can find it.',
           ],
         },
       ],
@@ -63,11 +63,11 @@ export const getStartedSection: DocsContentSection = {
         },
         {
           path: 'docs/recovery/UNIFIED-ROADMAP.md',
-          rationale: 'The roadmap treats `pd setup` as the direction for operator onboarding.',
+          rationale: 'The roadmap treats `pd setup` as the direction for first-run onboarding.',
         },
         {
           path: 'README.md',
-          rationale: 'The README documents install and setup behavior from the operator side.',
+          rationale: 'The README documents install and setup behavior for users.',
         },
       ],
     },
@@ -75,38 +75,38 @@ export const getStartedSection: DocsContentSection = {
       slug: 'verify-runtime',
       title: 'Verify Runtime',
       summary:
-        'Check the live daemon, then separately verify the socket, TCP path, and shell shim before trusting the runtime.',
+        'Check that the CLI, dashboard, and background service are all talking to the same running Port Daddy install.',
       truth: 'source-backed',
       goals: [
-        'Confirm that the daemon you are talking to is really the live one.',
-        'Check both the socket path and the browser/TCP path.',
-        'Catch stale shims or stale runtime state before they waste your time.',
+        'Confirm that Port Daddy is running.',
+        'Check both CLI and browser access.',
+        'Catch stale installs before you debug the wrong thing.',
       ],
       blocks: [
         {
           type: 'paragraph',
-          title: 'Verify the runtime before you trust it',
+          title: 'Verify the running app before you debug',
           paragraphs: [
-            'Check the runtime before you trust it. The CLI can look healthy over the Unix socket while browser or FleetBar consumers are still pointed at stale TCP state, and the shell shim can still target the wrong install.',
-            'This is why Port Daddy treats runtime discovery as operator work. If the daemon, TCP path, and shell shim disagree, the problem is not cosmetic. It means your surfaces are no longer telling one coherent story about the machine.',
+            'If Port Daddy looks wrong, first make sure you are talking to the running install you think you are. The CLI, browser dashboard, and shell command can drift if an old daemon or shim is still around.',
+            'These checks keep you from chasing a missing feature or broken page when the real problem is simply that an older process is serving the app.',
           ],
         },
         {
           type: 'command',
-          title: 'Operator baseline',
+          title: 'Basic status check',
           command: 'pd status\npd briefing\npd salvage',
           notes: [
-            'Use these three commands before local archaeology in active repo work.',
-            'Briefing and salvage are normal operator moves, not panic buttons.',
+            'Use these commands before digging through a busy repo.',
+            'Briefing and salvage show current context and abandoned work.',
           ],
         },
         {
           type: 'command',
-          title: 'Canonical runtime checks',
+          title: 'Check the local install',
           command:
             'port-daddy status\nlaunchctl print gui/501/com.portdaddy.daemon\ncurl -sS "$(cat ~/.port-daddy/daemon.port 2>/dev/null | sed \'s#^#http://localhost:#\')/fleet"\nwhich port-daddy',
           notes: [
-            'Use these when surfaces disagree or the daemon feels stale.',
+            'Use these when the CLI, FleetBar, or browser dashboard disagree.',
             'Do not assume the current checkout is the live runtime just because local source changed.',
           ],
         },
@@ -115,25 +115,25 @@ export const getStartedSection: DocsContentSection = {
           tone: 'info',
           title: 'Do not trust the default port blindly',
           body:
-            'Port Daddy prefers `9876`, but the correct move is to discover the live daemon instead of hardcoding the port and hoping it is right.',
+            'Port Daddy usually uses `9876`, but the safer move is to ask the running install where it is listening.',
         },
         {
           type: 'paragraph',
           title: 'What this protects you from',
           paragraphs: [
-            'These checks keep you from debugging the wrong daemon, trusting a stale shell shim, or believing a UI surface that is no longer attached to the live process.',
-            'That may sound operationally fussy, but it is exactly what lets the control plane stay credible once agents, hooks, and multiple checkouts start competing for authority.',
+            'These checks keep you from debugging the wrong daemon, trusting a stale shell shim, or believing a browser page that is no longer attached to the current process.',
+            'Once the CLI and dashboard agree, the rest of your Port Daddy troubleshooting gets much simpler.',
           ],
         },
       ],
       sources: [
         {
           path: 'AGENTS.md',
-          rationale: 'Canonical runtime section defines the verification commands and the socket-versus-TCP distinction.',
+          rationale: 'Runtime section defines the verification commands and the socket-versus-TCP distinction.',
         },
         {
           path: 'docs/recovery/CURRENT-WORK.md',
-          rationale: 'Recovery ledger explicitly calls out divergence between Unix-socket truth and browser/TCP truth.',
+          rationale: 'Recovery notes call out divergence between Unix-socket status and browser/TCP status.',
         },
         {
           path: 'README.md',
@@ -145,11 +145,11 @@ export const getStartedSection: DocsContentSection = {
       slug: 'first-coordination-success',
       title: 'First Coordination Success',
       summary:
-        'Prove the control plane is doing useful work by completing a real session loop and checking the current local context.',
+        'Try the basic session loop so you can see Port Daddy record useful work.',
       truth: 'source-backed',
       goals: [
         'Start a session with identity and purpose.',
-        'Leave a note that other operators and agents can actually use.',
+        'Leave a note that other people and agents can actually use.',
         'Confirm the current context, then end the session cleanly.',
       ],
       blocks: [
@@ -158,7 +158,7 @@ export const getStartedSection: DocsContentSection = {
           title: 'Complete the first real loop',
           paragraphs: [
             'The fastest way to feel Port Daddy doing real work is the session loop: start with `pd begin`, leave a note, confirm context with `pd whoami`, and close with `pd done`.',
-            'This is the moment where the product stops being a daemon with a nice story and becomes operating infrastructure. Identity, notes, and finish state all become shared context that other agents and future operators can actually use.',
+            'This gives the work a name, a purpose, a note trail, and a clean ending. That is the basic shape other agents and future you can understand later.',
           ],
         },
         {
@@ -176,7 +176,7 @@ export const getStartedSection: DocsContentSection = {
           command: 'pd note "Auth middleware updated — JWT shape changed" --type milestone',
           notes: [
             'Notes are immutable session evidence.',
-            'If scope is ambiguous, the CLI docs say to pass explicit targeting instead of relying on implicit lookup.',
+            'If scope is ambiguous, pass explicit targeting instead of relying on implicit lookup.',
           ],
         },
         {
@@ -194,15 +194,15 @@ export const getStartedSection: DocsContentSection = {
           command: 'pd salvage\npd salvage claim <agentId>',
           notes: [
             'Salvage is the recovery path when a session dies mid-task.',
-            'Keep salvage framed as part of the normal coordination model, not as an exotic edge case.',
+            'Keep salvage framed as a normal recovery path, not as an exotic edge case.',
           ],
         },
         {
           type: 'paragraph',
           title: 'Why this matters',
           paragraphs: [
-            'A first coordination success is not about typing four commands. It is about proving that the daemon can carry intent, evidence, and recovery state across real work.',
-            'If that loop feels clean, the rest of the system makes sense. If it does not, the product has not earned the rest of your trust yet.',
+            'A first coordination success is not about typing four commands. It is about proving that Port Daddy can preserve intent, notes, and recovery state across real work.',
+            'If that loop feels clean, the rest of the system makes more sense. If it does not, fix the basics before adding fleets or background agents.',
           ],
         },
       ],
@@ -225,7 +225,7 @@ export const getStartedSection: DocsContentSection = {
       slug: 'stale-daemon-cli-runtime',
       title: 'Troubleshoot Stale Daemon, CLI, and Runtime Drift',
       summary:
-        'When source, daemon, and UI disagree, trust the live process checks and rebuild/relaunch discipline instead of hand-waving the mismatch away.',
+        'When code, CLI, and UI disagree, check which Port Daddy process is actually running.',
       truth: 'source-backed',
       goals: [
         'Distinguish stale daemon from stale CLI shim from stale UI client.',
@@ -235,19 +235,19 @@ export const getStartedSection: DocsContentSection = {
       blocks: [
         {
           type: 'paragraph',
-          title: 'Source truth is not operator truth',
+          title: 'Local code is not always the running app',
           paragraphs: [
-            'When source, daemon, and UI disagree, the live process wins. Current source only becomes operator truth after rebuild and relaunch.',
-            'That rule prevents a lot of wasted time. It stops you from chasing imaginary missing features when the real problem is stale dist output, a stale daemon, or a shell shim that still points to another install root.',
+            'Changing source files does not automatically update the daemon, CLI bundle, or browser UI that is already running.',
+            'That rule prevents a lot of wasted time. It stops you from chasing imaginary missing features when the real problem is stale build output, an old daemon, or a shell command pointing at another install.',
           ],
         },
         {
           type: 'checklist',
           items: [
             'If a command exists in source but the installed CLI gets `Not Found`, suspect stale `dist/` or a stale daemon first.',
-            'If the control plane or FleetBar looks wrong, verify the TCP path separately from socket-based CLI health.',
+            'If the dashboard or FleetBar looks wrong, verify the browser path separately from CLI health.',
             'If `which port-daddy` points at the wrong checkout, fix the shell shim story before trusting command behavior.',
-            'After runtime-serving code changes, rebuild and relaunch before treating any dogfood result as operator truth.',
+            'After runtime-serving code changes, rebuild and relaunch before trusting the result.',
           ],
         },
         {
@@ -264,14 +264,14 @@ export const getStartedSection: DocsContentSection = {
           tone: 'warning',
           title: 'When the runtime story splits, trust the live process',
           body:
-            'If the daemon, the CLI, and the UI disagree, treat the live process checks as the authority. Rebuild and relaunch before you decide the feature is missing.',
+            'If the daemon, CLI, and UI disagree, check the live process first. Rebuild and relaunch before you decide the feature is missing.',
         },
         {
           type: 'paragraph',
           title: 'The discipline behind the rule',
           paragraphs: [
-            'This repo has enough moving parts that runtime drift is not a rare accident. It is a normal failure mode. Good operator habits have to assume that and verify accordingly.',
-            'Once the runtime is aligned again, everything else becomes simpler: the CLI, the browser surface, the docs, and the control plane all snap back to one shared truth.',
+            'This repo has enough moving parts that stale runtime state is not rare. Good debugging starts by checking what is actually running.',
+            'Once the running install is aligned again, the CLI, browser UI, and docs are much easier to trust.',
           ],
         },
       ],
@@ -282,7 +282,7 @@ export const getStartedSection: DocsContentSection = {
         },
         {
           path: 'docs/recovery/CURRENT-WORK.md',
-          rationale: 'Recovery notes document the stale-runtime failure modes and operator-truth rules.',
+          rationale: 'Recovery notes document stale runtime failure modes and verification rules.',
         },
       ],
     },

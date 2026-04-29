@@ -186,6 +186,15 @@ pre code {
   color: inherit !important;
 }
 
+/* Tutorial pages should read like docs, not a dashboard of repeated icon tiles. */
+.tutorial-article section > div:first-child:has(> h2) {
+  display: block;
+}
+
+.tutorial-article section > div:first-child:has(> h2) > div:first-child {
+  display: none !important;
+}
+
 /* ─── Blog Article Typography ──────────────────────────────────────────────── */
 /* Uses the design system spacing rules directly (see SPACING RULES below).
  * Component overrides in BlogPostPage.tsx handle STRUCTURAL rendering only
@@ -205,7 +214,7 @@ pre code {
   font-weight: 900;
   font-size: var(--text-2xl);                   /* text-2xl sm:text-3xl per design system */
   line-height: 1.2;                              /* h2 line-height from design system */
-  letter-spacing: -0.015em;
+  letter-spacing: 0;
   color: var(--text-primary);
   margin-top: var(--blog-section-break);        /* 80px — section break */
   margin-bottom: var(--space-3);                /* mb-3 per design system */
@@ -218,7 +227,7 @@ pre code {
   font-weight: 800;
   font-size: var(--text-xl);
   line-height: 1.3;                              /* h3 line-height from design system */
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
   color: var(--text-primary);
   margin-top: var(--blog-subsection-break);     /* 48px — sub-section break */
   margin-bottom: var(--space-2);                /* mb-2 per design system */
@@ -266,13 +275,13 @@ pre code {
 
 /* Blockquotes */
 .blog-article blockquote {
-  border-left: 4px solid var(--brand-primary);
-  background: var(--surface-raised);
-  box-shadow: var(--shadow-flat);
+  border-left: 2px solid var(--border-strong);
+  background: transparent;
+  box-shadow: none;
   padding: var(--space-3) var(--space-5);
   margin: var(--space-6) 0;
-  border-radius: 0 var(--radius-xl) var(--radius-xl) 0;
-  font-style: italic;
+  border-radius: 0;
+  font-style: normal;
 }
 .blog-article blockquote p:last-child { margin-bottom: 0; }
 
@@ -290,7 +299,7 @@ pre code {
   margin: var(--space-6) 0;
   font-size: var(--text-sm);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-xl);
+  border-radius: 0;
   overflow: hidden;
 }
 .blog-article th {
@@ -318,25 +327,45 @@ pre code {
   margin: var(--space-8) 0;
 }
 .blog-article figcaption {
-  text-align: center;
+  text-align: left;
   font-size: var(--text-sm);
   color: var(--text-muted);
   margin-top: var(--space-3);
-  font-style: italic;
+  font-style: normal;
 }
 
 /* Images */
 .blog-article img {
-  border-radius: var(--radius-xl);
+  border-radius: 0;
   max-width: 100%;
+}
+
+.blog-article code:not(pre code) {
+  border-radius: 0;
+  box-shadow: none;
 }
 
 /* Code blocks use flat tokenized contrast. */
 .blog-article .code-block-wrapper {
-  background: color-mix(in srgb, var(--surface-sunken) 100%, var(--text-primary) 8%) !important;
+  background: var(--code-bg) !important;
   box-shadow: none !important;
   border: 2px solid var(--border-strong);
   margin: var(--space-6) 0;
+}
+
+.blog-article .code-block-wrapper > div:first-child {
+  background: var(--code-header-bg) !important;
+}
+
+.blog-article .code-block-wrapper pre {
+  background: var(--code-bg) !important;
+  color: var(--code-text) !important;
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+.blog-article .code-block-wrapper .rounded-full {
+  border-radius: 0 !important;
 }
 
 /* ─── Design System: Spacing & Layout ─────────────────────────────────────── */

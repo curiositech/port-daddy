@@ -11,6 +11,8 @@ import {
   SurfacePanel,
 } from '@/components/site/primitives'
 import { DocsCodeBlock as CodeBlock } from './DocsCodeBlock'
+import { TerminalGif } from '@/components/site/TerminalGif'
+import { CLI_REFERENCE_RECORDING } from '@/data/terminalRecordings'
 
 interface CommandPageProps {
   command: string
@@ -94,6 +96,12 @@ export function CommandPage({
       >
         <CodeBlock code={syntax} />
       </DocsNoteCard>
+
+      <TerminalGif
+        src={CLI_REFERENCE_RECORDING.gifSrc}
+        title={CLI_REFERENCE_RECORDING.title}
+        caption={`This command page is backed by the shared CLI recording gate. ${CLI_REFERENCE_RECORDING.caption}`}
+      />
 
       {usagePatterns?.length ? (
         <DocsNoteCard

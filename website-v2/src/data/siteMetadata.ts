@@ -1,5 +1,5 @@
 import { BLUEPRINTS } from './blueprints'
-import { blogPosts } from './blogData'
+import { blogPosts, deprecatedBlogPosts } from './blogData'
 import { COOKBOOK_RECIPES } from './cookbook'
 import { docsFamilyRoutes, docsOverviewRoute, type DocsFamilyRoute } from './docs-routes'
 import { INTEGRATIONS } from './integrations'
@@ -10,7 +10,7 @@ export const SITE_NAME = 'Port Daddy'
 export const SITE_ORIGIN = 'https://portdaddy.dev'
 export const DEFAULT_SITE_IMAGE = '/img/generated/control-plane-og.jpg'
 export const DEFAULT_SITE_DESCRIPTION =
-  'Port Daddy is a local communication substrate and Mac control plane for coding agents: shared notes, claims, channels, actor inboxes, readiness, budgets, and recoverable handoffs.'
+  'Port Daddy is a local app and background service that helps AI coding agents share notes, claim work, avoid collisions, recover interrupted runs, and show what is happening on your machine.'
 
 export type SiteMetadataSection =
   | 'home'
@@ -37,23 +37,12 @@ export interface SiteMetadata {
   tags?: string[]
 }
 
-export const blogHeroImages: Record<string, string> = {
-  'zero-to-multi-agent-in-5-minutes': '/img/blog/zero-to-multi-agent-hero.png',
-  'the-port-collision-that-ate-my-saturday': '/img/blog/port-collision-hero.png',
-  'dead-agents-tell-tales': '/img/blog/dead-agents-hero.png',
-  'distributed-locks-two-agents-one-migration': '/img/blog/distributed-locks-hero.png',
-  'four-agents-zero-clobber': '/img/blog/four-agents-hero.png',
-  'pubsub-self-healing-test-pipeline': '/img/blog/pub-sub-hero.png',
-  'fleet-agents-as-infrastructure': '/img/blog/fleet-management-hero.png',
-  'spark-and-spider-the-creative-engine': '/img/blog/spark-spider-hero.png',
-  'formal-verification-anchor-protocol': DEFAULT_SITE_IMAGE,
-  'port-daddy-for-teams': DEFAULT_SITE_IMAGE,
-  'claude-code-port-daddy-integration': DEFAULT_SITE_IMAGE,
-  'performance-at-scale': DEFAULT_SITE_IMAGE,
-}
+export const blogHeroImages: Record<string, string> = Object.fromEntries(
+  blogPosts.map((post) => [post.slug, post.heroImage]),
+)
 
 function pageTitle(title: string) {
-  if (title === SITE_NAME) return 'Port Daddy - Local Communication Substrate for Coding Agents'
+  if (title === SITE_NAME) return 'Port Daddy - Local Coordination for AI Coding Agents'
   if (title.endsWith(SITE_NAME)) return title
   return `${title} - ${SITE_NAME}`
 }
@@ -85,7 +74,7 @@ const productRoutes: SiteMetadata[] = [
   metadata(
     '/examples',
     'Executable Examples',
-    'Run full Port Daddy example programs with dedicated pages for prerequisites, commands, source code, explanation, and adaptation notes.',
+    'Run complete Port Daddy example programs for browser buttons, test reporters, editor commands, and webhook adapters that talk to local agents.',
   ),
   metadata(
     '/examples/pd-tube-button-to-agent',
@@ -94,45 +83,27 @@ const productRoutes: SiteMetadata[] = [
     { tags: ['tube', 'browser', 'agent loop', 'messages'] },
   ),
   metadata(
-    '/examples/war-room-incident',
-    'Run a multi-agent incident war room',
-    'Simulate three agents investigating one production incident through sessions, notes, and a shared channel.',
-    { tags: ['agents', 'notes', 'channels', 'incident'] },
+    '/examples/test-failure-to-agent',
+    'Build a test reporter that asks the agent for help',
+    'Wrap a failing test command, publish the failure to the local agent, and print the diagnosis back in the terminal.',
+    { tags: ['tube', 'tests', 'reporter', 'terminal'] },
   ),
   metadata(
-    '/examples/durable-inbox-lifecycle',
-    'Send durable direct messages between agents',
-    'Register two agents, send a targeted handoff, inspect unread state, mark it read, clear it, and clean up.',
-    { tags: ['inbox', 'handoff', 'SSE', 'agents'] },
+    '/examples/editor-lightbulb-to-agent',
+    'Build an editor lightbulb that asks the local agent',
+    'Select code in a local page, publish the file and range to the agent, and render the explanation inline.',
+    { tags: ['tube', 'editor', 'selection', 'dev tools'] },
   ),
   metadata(
-    '/examples/file-edit-guard',
-    'Build a file edit guard for local agents',
-    'Use Port Daddy locks, messages, and notes to build a guard that agents run before editing contested files.',
-    { tags: ['locks', 'file claims', 'dev tools', 'coordination'] },
-  ),
-  metadata(
-    '/examples/migration-lock-guard',
-    'Protect a migration with one lock',
-    'Simulate two agents racing for one migration resource and prove only one enters the critical section.',
-    { tags: ['locks', 'critical section', 'migrations'] },
-  ),
-  metadata(
-    '/examples/dns-service-discovery',
-    'Resolve services by semantic name',
-    'Register service records, list a namespace, look up the API endpoint, and clean up the records.',
-    { tags: ['dns', 'services', 'semantic identity'] },
-  ),
-  metadata(
-    '/examples/session-phase-lifecycle',
-    'Model a full session phase lifecycle',
-    'Start a session, claim files, move through phases, leave phase notes, complete the session, and unregister the agent.',
-    { tags: ['sessions', 'phases', 'file claims', 'notes'] },
+    '/examples/webhook-to-local-agent',
+    'Build a webhook adapter backed by your workstation',
+    'Accept Slack, Discord, Linear, or generic webhook JSON and route it to the local agent through PD Tube.',
+    { tags: ['tube', 'webhooks', 'bots', 'http'] },
   ),
   metadata(
     '/mcp',
-    'MCP Server for AI Agents',
-    'Connect Claude, Cursor, Windsurf, and other MCP clients to Port Daddy tools for sessions, claims, scoped channels, inboxes, readiness, and salvage.',
+    'Skill + MCP for AI Agents',
+    'Use the Port Daddy agent skill and MCP server together: an instruction manual plus callable tools for sessions, claims, scoped channels, inboxes, readiness, salvage, fleets, and handoffs.',
   ),
   metadata(
     '/mac-preview',
@@ -141,14 +112,26 @@ const productRoutes: SiteMetadata[] = [
   ),
   metadata(
     '/templates',
-    'Agent Fleet Templates',
-    'Start from production-ready Port Daddy templates for CI repair loops, research swarms, monorepos, webhooks, and agent teams.',
-    { section: 'templates' },
+    'Agent Fleet Templates (deprecated)',
+    'The top-level template library has moved under Agents. Use /agents/templates for current Port Daddy fleet templates and reusable agent patterns.',
+    { section: 'templates', canonicalPath: '/agents/templates', index: false },
   ),
   metadata(
     '/agents',
     'Agent Roster',
     'Meet the Port Daddy agent roles that monitor health, salvage crashed work, document drift, coordinate projects, and inspect dependencies.',
+  ),
+  metadata(
+    '/agents/templates',
+    'Agent Templates',
+    'Use the current Port Daddy agent templates: starter fleet YAML, always-on agents, CI repair loops, event-driven ops, remote harbors, research swarms, and secure messaging primitives.',
+    { section: 'templates' },
+  ),
+  metadata(
+    '/agents/agent-skill',
+    'Agent Skill (moved)',
+    'The Port Daddy agent skill now lives with the MCP server on the top-level Skill + MCP page.',
+    { canonicalPath: '/mcp', index: false },
   ),
   metadata(
     '/tutorials',
@@ -171,13 +154,13 @@ const productRoutes: SiteMetadata[] = [
   metadata(
     '/blog',
     'Blog',
-    'Read practical Port Daddy essays about multi-agent coordination, port collisions, salvage, locks, fleets, and local-first operator tooling.',
+    'Read current Port Daddy field notes about FleetBar, Fleet Control Center, launch readiness, recovery maps, PD Tube, daemon provenance, and coordination policy.',
     { section: 'blog' },
   ),
   metadata(
     '/whitepaper',
     'Whitepaper',
-    'Read the Port Daddy protocol argument for local-first agent coordination, identity, authority, locks, sessions, and recoverable work.',
+    'Read the technical whitepaper behind Port Daddy: local-first agent coordination, signed identity, locks, sessions, and recoverable work.',
     { section: 'whitepaper' },
   ),
   ...WHITE_PAPERS.map((paper) =>
@@ -188,10 +171,10 @@ const productRoutes: SiteMetadata[] = [
 ]
 
 const docsGuideRoutes = [
-  ['/docs/quickstart', 'Quickstart', 'Install Port Daddy, verify the daemon, claim a port, and start the first coordinated operator workflow.'],
-  ['/docs/guides/prompting-agents', 'Prompting Agents', 'Prompt agents to coordinate with Port Daddy sessions, notes, file claims, and shared runtime truth.'],
-  ['/docs/guides/templates', 'Template Guide', 'Adapt Port Daddy fleet templates for recurring project work, background agents, hooks, and operator review.'],
-  ['/docs/guides/protocol', 'Protocol Guide', 'Understand the Port Daddy protocol boundaries for ports, sessions, locks, messages, harbors, and salvage.'],
+  ['/docs/quickstart', 'Quickstart', 'Install Port Daddy, check the local service, claim a port, and start the first coordinated agent task.'],
+  ['/docs/guides/prompting-agents', 'Prompting Agents', 'Prompt agents to use Port Daddy sessions, notes, file claims, and shared status.'],
+  ['/docs/guides/templates', 'Template Guide', 'Adapt Port Daddy fleet templates for recurring project work, background agents, hooks, and review.'],
+  ['/docs/guides/protocol', 'Protocol Guide', 'Understand how Port Daddy handles ports, sessions, locks, messages, harbors, and salvage.'],
 ] as const
 
 const cliRoutes = [
@@ -316,25 +299,25 @@ const mcpRoutes = [
 ] as const
 
 const docsCommandMetadata = cliRoutes.map(([path, title]) =>
-  metadata(`/docs/${path}`, title, `Reference for ${title}, including Port Daddy syntax, operator intent, and coordinated local-agent workflow usage.`, {
+  metadata(`/docs/${path}`, title, `Reference for ${title}, including Port Daddy syntax, what the command does, and when to use it.`, {
     section: 'docs',
   }),
 )
 
 const docsFeatureMetadata = docsFeatureRoutes.map(([path, title]) =>
-  metadata(`/docs/${path}`, title, `Learn the Port Daddy ${title.toLowerCase()} feature, what operator problem it solves, and how it fits the coordination model.`, {
+  metadata(`/docs/${path}`, title, `Learn the Port Daddy ${title.toLowerCase()} feature, what problem it solves, and how to use it with agent work.`, {
     section: 'docs',
   }),
 )
 
 const sdkMetadata = sdkRoutes.map(([path, title]) =>
-  metadata(`/docs/${path}`, title, `Use the Port Daddy ${title} surface from typed client code with sessions, locks, ports, and agent coordination primitives.`, {
+  metadata(`/docs/${path}`, title, `Use ${title} from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.`, {
     section: 'docs',
   }),
 )
 
 const mcpMetadata = mcpRoutes.map(([path, title]) =>
-  metadata(`/docs/${path}`, title, `Use the Port Daddy ${title} route for MCP clients, agent-safe tool calls, and model-facing coordination workflows.`, {
+  metadata(`/docs/${path}`, title, `Use ${title} with MCP clients so agents can work through Port Daddy safely.`, {
     section: 'docs',
   }),
 )
@@ -358,17 +341,28 @@ const contentMetadata: SiteMetadata[] = [
   ...BLUEPRINTS.map((blueprint) =>
     metadata(`/templates/${blueprint.id}`, blueprint.title, blueprint.description, {
       section: 'templates',
+      canonicalPath: '/agents/templates',
+      index: false,
     }),
   ),
   ...blogPosts.map((post) =>
     metadata(`/blog/${post.slug}`, post.title, post.excerpt, {
       section: 'blog',
-      image: blogHeroImages[post.slug] ?? DEFAULT_SITE_IMAGE,
+      image: post.heroImage,
       publishedAt: post.date,
       author: post.author,
       tags: post.tags,
     }),
   ),
+  ...deprecatedBlogPosts.map((post) => {
+    const replacement = blogPosts.find((candidate) => candidate.slug === post.replacementSlug)
+    return metadata(`/blog/${post.slug}`, `${post.retiredLabel} (retired)`, post.reason, {
+      section: 'blog',
+      canonicalPath: replacement ? `/blog/${replacement.slug}` : '/blog',
+      image: replacement?.heroImage ?? DEFAULT_SITE_IMAGE,
+      index: false,
+    })
+  }),
 ]
 
 const docsRouteMetadata: SiteMetadata[] = [
@@ -386,7 +380,7 @@ const docsRouteMetadata: SiteMetadata[] = [
   metadata(
     '/docs/api',
     'API Reference',
-    'Inspect Port Daddy daemon API routes, request shapes, response contracts, and the operator workflows they support.',
+    'Inspect Port Daddy API routes, request shapes, response contracts, and the workflows they support.',
     { section: 'docs' },
   ),
   metadata(

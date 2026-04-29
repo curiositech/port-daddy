@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Port Daddy Terminal FleetBar Console Capture</title>
+    <style>
+      :root {
+        --bg: #f4f0e8;
+        --ink: #17130f;
+        --muted: #675f53;
+        --line: #221a12;
+        --soft-line: rgba(34, 26, 18, 0.16);
+        --panel: #fffaf0;
+        --terminal: #17130f;
+        --terminal-ink: #f6eddc;
+        --terminal-muted: #cbbfa9;
+        --accent: #e64b2a;
+        --accent-2: #167f73;
+        --shadow: 12px 14px 0 rgba(23, 19, 15, 0.18);
+      }
+
+      :root[data-theme="dark"] {
+        --bg: #11100e;
+        --ink: #f7efe1;
+        --muted: #b7ac9a;
+        --line: #f3e6cf;
+        --soft-line: rgba(243, 230, 207, 0.18);
+        --panel: #1d1a16;
+        --terminal: #050505;
+        --terminal-ink: #f8ead3;
+        --terminal-muted: #b9a98e;
+        --accent: #ff6846;
+        --accent-2: #41c4b1;
+        --shadow: 12px 14px 0 rgba(0, 0, 0, 0.42);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      .stage {
+        position: relative;
+        width: 1280px;
+        height: 720px;
+        overflow: hidden;
+        background:
+          linear-gradient(90deg, var(--soft-line) 1px, transparent 1px),
+          linear-gradient(0deg, var(--soft-line) 1px, transparent 1px),
+          radial-gradient(circle at 14% 18%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 32%),
+          radial-gradient(circle at 86% 8%, color-mix(in srgb, var(--accent-2) 12%, transparent), transparent 30%),
+          var(--bg);
+        background-size: 64px 64px, 64px 64px, auto, auto, auto;
+      }
+
+      .brand-strip {
+        position: absolute;
+        left: 44px;
+        right: 44px;
+        top: 32px;
+        z-index: 40;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .monogram {
+        display: inline-grid;
+        width: 42px;
+        height: 42px;
+        place-items: center;
+        border: 2px solid var(--line);
+        background: var(--accent);
+        color: #fff7eb;
+        letter-spacing: 0;
+      }
+
+      .status-pill {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border: 2px solid var(--line);
+        background: var(--panel);
+        padding: 10px 14px;
+      }
+
+      .status-dot {
+        width: 10px;
+        height: 10px;
+        background: var(--accent-2);
+      }
+
+      .terminal {
+        position: absolute;
+        left: 72px;
+        top: 126px;
+        z-index: 10;
+        width: 760px;
+        height: 430px;
+        border: 2px solid var(--line);
+        background: var(--terminal);
+        color: var(--terminal-ink);
+        box-shadow: var(--shadow);
+        transform-origin: top left;
+        will-change: transform, opacity;
+      }
+
+      .terminal-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 44px;
+        border-bottom: 2px solid color-mix(in srgb, var(--terminal-ink) 20%, transparent);
+        padding: 0 18px;
+        color: var(--terminal-muted);
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+        font-size: 12px;
+      }
+
+      .window-dots {
+        display: flex;
+        gap: 8px;
+      }
+
+      .window-dots span {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: var(--terminal-muted);
+      }
+
+      .terminal-body {
+        padding: 22px 24px;
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+        font-size: 18px;
+        line-height: 1.55;
+        white-space: pre-wrap;
+      }
+
+      .prompt {
+        color: var(--accent-2);
+      }
+
+      .terminal-muted {
+        color: var(--terminal-muted);
+      }
+
+      .terminal-glow {
+        color: #e8b35e;
+      }
+
+      .capture {
+        position: absolute;
+        overflow: hidden;
+        border: 2px solid var(--line);
+        background: var(--panel);
+        box-shadow: var(--shadow);
+        will-change: transform, opacity;
+      }
+
+      .capture img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: left top;
+      }
+
+      .fleetbar {
+        left: 135px;
+        top: 82px;
+        z-index: 20;
+        width: 1010px;
+        height: 600px;
+        opacity: 0;
+        transform-origin: center;
+      }
+
+      .console {
+        left: 112px;
+        top: 88px;
+        z-index: 30;
+        width: 1056px;
+        height: 594px;
+        opacity: 0;
+        transform-origin: center;
+      }
+
+      .timeline {
+        position: absolute;
+        left: 64px;
+        right: 64px;
+        bottom: 34px;
+        z-index: 45;
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        border: 2px solid var(--line);
+        background: var(--panel);
+      }
+
+      .timeline-step {
+        border-right: 2px solid var(--line);
+        padding: 12px 16px;
+      }
+
+      .timeline-step:last-child {
+        border-right: 0;
+      }
+
+      .timeline-step strong {
+        display: block;
+        font-size: 12px;
+        font-weight: 950;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+      }
+
+      .timeline-step span {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 760;
+        margin-top: 4px;
+      }
+
+      .timeline-step.active {
+        background: var(--accent);
+        color: #fff7eb;
+      }
+
+      .timeline-step.active span {
+        color: #ffe5d4;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="stage" id="stage">
+      <div class="brand-strip">
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <span class="monogram">PD</span>
+          <span>Port Daddy live run</span>
+        </div>
+        <div class="status-pill">
+          <span class="status-dot"></span>
+          <span id="topStatus">daemon nominal</span>
+        </div>
+      </div>
+
+      <section class="terminal" id="terminal" aria-label="Terminal">
+        <div class="terminal-top">
+          <div class="window-dots"><span></span><span></span><span></span></div>
+          <div>~/coding/port-daddy</div>
+        </div>
+        <div class="terminal-body" id="terminalBody"></div>
+      </section>
+
+      <figure class="capture fleetbar" id="fleetbar" aria-label="FleetBar capture">
+        <img id="fleetbarImage" alt="FleetBar native app shell" />
+      </figure>
+
+      <figure class="capture console" id="console" aria-label="Fleet Control Center capture">
+        <img id="consoleImage" alt="Fleet Control Center" />
+      </figure>
+
+      <div class="timeline">
+        <div class="timeline-step" id="stepTerminal">
+          <strong>Terminal</strong>
+          <span>Start with daemon truth.</span>
+        </div>
+        <div class="timeline-step" id="stepFleetbar">
+          <strong>FleetBar</strong>
+          <span>Open the Mac surface.</span>
+        </div>
+        <div class="timeline-step" id="stepConsole">
+          <strong>Console</strong>
+          <span>Inspect the fleet.</span>
+        </div>
+      </div>
+    </main>
+
+    <script>
+      const DURATION = 9.2
+      const defaultSnapshot = {
+        status: {
+          activePorts: '21',
+          fleet: '1 project, 8 agents, 3/8 launchable',
+          runtime: 'nominal',
+          lastActivity: 'just now',
+        },
+        sessions: [
+          'Landing live-glory video',
+          'Add real recorded GIFs',
+          'Move Templates under Agents',
+          'Fleet agent: cartographer',
+          'Agentic social proof',
+          'Add example artwork',
+          'MCP hero spacing',
+          'Nano Banana imagery',
+        ],
+      }
+
+      const params = new URLSearchParams(window.location.search)
+      const theme = params.get('theme') === 'dark' ? 'dark' : 'light'
+      const manual = params.get('manual') === '1'
+      document.documentElement.dataset.theme = theme
+
+      const state = { snapshot: defaultSnapshot }
+      const terminal = document.getElementById('terminal')
+      const terminalBody = document.getElementById('terminalBody')
+      const fleetbar = document.getElementById('fleetbar')
+      const consolePanel = document.getElementById('console')
+      const fleetbarImage = document.getElementById('fleetbarImage')
+      const consoleImage = document.getElementById('consoleImage')
+      const topStatus = document.getElementById('topStatus')
+
+      function clamp(value, min = 0, max = 1) {
+        return Math.max(min, Math.min(max, value))
+      }
+
+      function smooth(edge0, edge1, x) {
+        const v = clamp((x - edge0) / (edge1 - edge0))
+        return v * v * (3 - 2 * v)
+      }
+
+      function short(text, max = 46) {
+        if (!text) return 'Port Daddy agent'
+        return text.length > max ? `${text.slice(0, max - 1)}...` : text
+      }
+
+      function assetFor(kind) {
+        const base = '../../public/img/app-screens'
+        if (kind === 'fleetbar') {
+          return `${base}/fleetbar-native-shell-${theme}.png`
+        }
+        return `${base}/fleet-flow-${theme}.png`
+      }
+
+      function normalizeSnapshot(snapshot) {
+        const sessions = Array.isArray(snapshot.sessions) && snapshot.sessions.length
+          ? snapshot.sessions
+          : defaultSnapshot.sessions
+        return {
+          status: { ...defaultSnapshot.status, ...(snapshot.status || {}) },
+          sessions: sessions.slice(0, 8),
+        }
+      }
+
+      function paintStatic() {
+        const { status } = state.snapshot
+        topStatus.textContent = `daemon ${status.runtime || 'nominal'}`
+        fleetbarImage.src = assetFor('fleetbar')
+        consoleImage.src = assetFor('console')
+      }
+
+      function paintTerminal(t) {
+        const { status, sessions } = state.snapshot
+        const rawLines = [
+          '<span class="prompt">$</span> pd status',
+          `<span class="terminal-muted">Port Daddy is running - ${status.runtime || 'nominal'}</span>`,
+          `<span class="terminal-muted">Fleet: ${status.fleet || `${sessions.length} agent(s) visible`}</span>`,
+          '<span class="prompt">$</span> pd sessions --all-worktrees',
+          ...sessions.slice(0, 5).map((session, index) => `<span class="terminal-glow">agent-${String(index + 1).padStart(2, '0')}</span> ${short(session, 46)} active`),
+          '<span class="prompt">$</span> open FleetBar',
+        ]
+        const joined = rawLines.join('\n')
+        const reveal = Math.floor(joined.length * smooth(0.12, 2.75, t))
+        terminalBody.innerHTML = joined.slice(0, reveal)
+      }
+
+      function setTimeline(t) {
+        document.querySelectorAll('.timeline-step').forEach((step) => step.classList.remove('active'))
+        if (t < 3.1) document.getElementById('stepTerminal').classList.add('active')
+        else if (t < 5.7) document.getElementById('stepFleetbar').classList.add('active')
+        else document.getElementById('stepConsole').classList.add('active')
+      }
+
+      function renderFrame(time) {
+        const t = ((time % DURATION) + DURATION) % DURATION
+        const fleetIn = smooth(2.55, 3.55, t)
+        const consoleIn = smooth(5.25, 6.25, t)
+        const terminalOut = smooth(3.0, 4.55, t)
+        const fleetOut = smooth(5.1, 6.35, t)
+
+        paintTerminal(t)
+        setTimeline(t)
+
+        terminal.style.opacity = String(1 - terminalOut * 0.72)
+        terminal.style.transform = `translate(${terminalOut * -54}px, ${terminalOut * 28}px) scale(${1 - terminalOut * 0.22})`
+
+        fleetbar.style.opacity = String(fleetIn * (1 - fleetOut * 0.82))
+        fleetbar.style.transform = `translate(${(1 - fleetIn) * 80 + fleetOut * -60}px, ${(1 - fleetIn) * 38 + fleetOut * -26}px) scale(${0.9 + fleetIn * 0.1 - fleetOut * 0.08})`
+
+        consolePanel.style.opacity = String(consoleIn)
+        consolePanel.style.transform = `translate(${(1 - consoleIn) * 80}px, ${(1 - consoleIn) * 24}px) scale(${0.94 + consoleIn * 0.06})`
+
+        return true
+      }
+
+      window.setSnapshot = (snapshot) => {
+        state.snapshot = normalizeSnapshot(snapshot || defaultSnapshot)
+        paintStatic()
+        renderFrame(0)
+      }
+
+      window.renderFrame = renderFrame
+      window.setSnapshot(defaultSnapshot)
+
+      Promise.all([
+        fleetbarImage.decode?.().catch(() => undefined) || Promise.resolve(),
+        consoleImage.decode?.().catch(() => undefined) || Promise.resolve(),
+      ]).then(() => renderFrame(0))
+
+      if (!manual) {
+        const started = performance.now()
+        function tick() {
+          renderFrame((performance.now() - started) / 1000)
+          requestAnimationFrame(tick)
+        }
+        requestAnimationFrame(tick)
+      }
+    </script>
+  </body>
+</html>

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
 import { PageContainer, SectionIntro } from '@/components/site/primitives'
 import { ArrowRight, Download, Terminal } from 'lucide-react'
+import { LiveGloryVideo } from './LiveGloryVideo'
 
 export function Hero() {
   return (
@@ -42,7 +43,7 @@ export function Hero() {
               eyebrow="What is Port Daddy?"
               title={
                 <>
-                  The local communication substrate for{' '}
+                  The local coordination layer for{' '}
                   <span className="text-[var(--brand-primary)]">
                     coding agents.
                   </span>
@@ -84,7 +85,7 @@ export function Hero() {
                   <ArrowRight size={16} />
                 </Link>
               </Button>
-              <Link to="/tutorials/getting-started">
+              <Link to="/docs">
                 <Button variant="ghost" size="lg" className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">
                   <Terminal size={16} />
                   Technical docs
@@ -93,29 +94,13 @@ export function Hero() {
             </div>
           </motion.div>
 
-          {/* Right -- Hero Illustration */}
+          {/* Right -- synchronized light/dark capture */}
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.2, ease: 'easeOut' as const }}
           >
-            <figure
-              className="overflow-hidden rounded-[var(--radius-md)] border"
-              style={{
-                background: 'var(--surface-raised)',
-                borderColor: 'var(--border-subtle)',
-                boxShadow: 'var(--shadow-sm)',
-              }}
-            >
-              <picture>
-                <source srcSet="/img/generated/control-plane-hero.webp" type="image/webp" />
-                <img
-                  src="/img/generated/control-plane-hero.jpg"
-                  alt="Port Daddy control-plane visualization showing agent sessions, claims, locks, budgets, and recovery flows"
-                  className="block aspect-[16/9] h-auto w-full object-cover"
-                />
-              </picture>
-            </figure>
+            <LiveGloryVideo />
           </motion.div>
         </div>
       </PageContainer>

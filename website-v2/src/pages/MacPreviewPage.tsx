@@ -1,6 +1,5 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, Check, Copy, Download, MonitorCog, Terminal } from 'lucide-react'
+import { ArrowRight, Download, MonitorCog, Terminal } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { MacAppShowcase } from '@/components/landing/MacAppShowcase'
 import { ColdStartSection } from '@/components/landing/ColdStartSection'
@@ -8,6 +7,7 @@ import { DistributionSection } from '@/components/landing/DistributionSection'
 import { MacWorkflowDemos } from '@/components/landing/MacWorkflowDemos'
 import { Footer } from '@/components/layout/Footer'
 import {
+  CopyableCommandBlock,
   PageContainer,
   PanelBody,
   PanelEyebrow,
@@ -19,55 +19,13 @@ import {
 
 const heroInstallCommand = 'brew install curiositech/tap/port-daddy\npd setup --project ~/coding/my-app'
 
-function HeroInstallPanel() {
-  const [copied, setCopied] = useState(false)
-
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(heroInstallCommand)
-    setCopied(true)
-    window.setTimeout(() => setCopied(false), 1800)
-  }
-
-  return (
-    <SurfacePanel elevation="quiet" padding="compact" className="grid gap-[var(--space-3)]">
-      <div className="flex items-center justify-between gap-[var(--space-3)]">
-        <PanelEyebrow>Install FleetBar</PanelEyebrow>
-        <Button type="button" variant="secondary" size="sm" aria-label="Copy FleetBar install command" onClick={handleCopy}>
-          {copied ? <Check size={14} /> : <Copy size={14} />}
-          {copied ? 'Copied' : 'Copy'}
-        </Button>
-      </div>
-      <div
-        className="min-w-0 overflow-hidden border-2 border-[var(--border-strong)] px-[var(--space-3)] py-[var(--space-3)] font-mono text-[13px] leading-[1.65]"
-        style={{ background: 'var(--code-bg)', color: 'var(--code-text)' }}
-        aria-label="FleetBar install command"
-      >
-        <code
-          className="block"
-          style={{
-            background: 'transparent',
-            border: 0,
-            borderRadius: 0,
-            color: 'inherit',
-            overflowWrap: 'anywhere',
-            padding: 0,
-            whiteSpace: 'pre-wrap',
-          }}
-        >
-          {heroInstallCommand}
-        </code>
-      </div>
-    </SurfacePanel>
-  )
-}
-
 export function MacPreviewPage() {
   return (
     <div className="min-h-screen bg-[var(--surface-base)] selection:bg-[var(--brand-primary)] selection:text-[var(--brand-primary-foreground)]">
       <main id="main-content">
         <section className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
           <PageContainer width="wide">
-            <SwissGrid className="items-end">
+            <SwissGrid className="items-center">
               <SwissGridItem span="wide">
                 <div className="space-y-[var(--space-5)]">
                   <PanelEyebrow>Mac Preview</PanelEyebrow>
@@ -105,7 +63,13 @@ export function MacPreviewPage() {
               </SwissGridItem>
 
               <SwissGridItem span="narrow">
-                <HeroInstallPanel />
+                <SurfacePanel elevation="quiet" padding="compact">
+                  <CopyableCommandBlock
+                    label="Install FleetBar"
+                    command={heroInstallCommand}
+                    ariaLabel="Copy FleetBar install command"
+                  />
+                </SurfacePanel>
               </SwissGridItem>
             </SwissGrid>
           </PageContainer>

@@ -1,148 +1,171 @@
-import { motion, useScroll, useSpring } from 'framer-motion'
-import { useParams, Link, Navigate } from 'react-router-dom'
-import { Badge } from '@/components/ui/Badge'
-import { COOKBOOK_RECIPES } from '@/data/cookbook'
-import { ChevronLeft, Shield, Activity, Zap, MessageSquare, UserMinus, Network, Share2, Anchor, Cpu, Search, RefreshCw, Layers, BookOpen, type LucideIcon } from 'lucide-react'
-import ReactMarkdown from 'react-markdown'
-import { Footer } from '@/components/layout/Footer'
+import { motion, useScroll, useSpring } from "framer-motion";
+import { Link, Navigate, useParams } from "react-router-dom";
+import ReactMarkdown from "react-markdown";
+import { CodeBlock } from "@/components/ui/CodeBlock";
+import { COOKBOOK_RECIPES } from "@/data/cookbook";
+import { Footer } from "@/components/layout/Footer";
 
-const ICON_MAP: Record<string, LucideIcon> = {
-  Shield,
-  Activity,
-  Zap,
-  MessageSquare,
-  UserMinus,
-  Network,
-  Share2,
-  Anchor,
-  Cpu,
-  Search,
-  RefreshCw,
-  Layers
-}
+const CATEGORY_LABELS = {
+  coordination: "Coordination",
+  scaling: "Scaling",
+  resilience: "Resilience",
+  security: "Security",
+} as const;
 
 export function RecipePage() {
   const { id } = useParams<{ id: string }>();
-  const recipe = COOKBOOK_RECIPES.find(r => r.id === id);
-  const { scrollYProgress } = useScroll()
-  
+  const recipe = COOKBOOK_RECIPES.find((r) => r.id === id);
+  const { scrollYProgress } = useScroll();
+
   const scaleX = useSpring(scrollYProgress, {
     stiffness: 100,
     damping: 30,
-    restDelta: 0.001
-  })
+    restDelta: 0.001,
+  });
 
   if (!recipe) return <Navigate to="/cookbook" replace />;
 
-  const Icon = ICON_MAP[recipe.icon] || Zap;
-
   return (
-    <motion.div 
-      className="min-h-screen bg-[var(--surface-base)] flex flex-col font-sans selection:bg-[var(--brand-primary)] selection:text-[var(--brand-primary-foreground)]"
+    <motion.div
+      className="flex min-h-screen flex-col bg-[var(--surface-base)] font-sans text-[var(--text-primary)] selection:bg-[var(--brand-primary)] selection:text-[var(--brand-primary-foreground)]"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
     >
       <motion.div
-        className="fixed top-0 left-0 right-0 h-1 bg-[var(--brand-accent)] z-[100] origin-left"
-        style={{ scaleX, top: 'var(--nav-height)' }}
+        className="fixed left-0 right-0 top-0 z-[100] h-1 origin-left bg-[var(--brand-primary)]"
+        style={{ scaleX, top: "var(--nav-height)" }}
       />
 
-      {/* Hero Section */}
-      <motion.header 
-        className="py-20 px-6 sm:px-8 lg:px-10 border-b relative overflow-hidden" 
-        style={{ background: 'var(--surface-raised)', borderColor: 'var(--border-subtle)' }}
+      <header className="border-b-2 border-[var(--border-strong)] bg-[var(--surface-raised)] px-[var(--space-4)] py-[var(--section-space-y)] sm:px-[var(--space-6)] lg:px-[var(--space-8)]">
+        <div className="mx-auto grid max-w-4xl gap-[var(--space-6)]">
+          <Link
+            to="/cookbook"
+            className="w-fit font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)] no-underline transition-colors hover:text-[var(--brand-primary)]"
+          >
+            Back to cookbook
+          </Link>
+
+          <div className="grid gap-[var(--space-4)]">
+            <div className="flex flex-wrap items-center gap-[var(--space-3)]">
+              <span className="border border-[var(--border-default)] bg-[var(--surface-base)] px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+                {CATEGORY_LABELS[recipe.category]}
+              </span>
+              <span className="border border-[var(--border-default)] bg-[var(--surface-base)] px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+                Cookbook recipe
+              </span>
+            </div>
+
+            <motion.h1
+              className="m-[var(--space-0)] font-display text-[length:var(--type-hero-size)] font-black leading-[var(--leading-display-tight)] tracking-[var(--tracking-display-tight)]"
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+            >
+              {recipe.title}
+            </motion.h1>
+
+            <motion.p
+              className="m-[var(--space-0)] max-w-3xl text-[length:var(--type-panel-body-size)] leading-[var(--leading-body)] text-[var(--text-secondary)]"
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.08 }}
+            >
+              {recipe.description}
+            </motion.p>
+          </div>
+        </div>
+      </header>
+
+      <main
+        id="main-content"
+        className="mx-auto w-full max-w-4xl flex-1 px-[var(--space-4)] py-[var(--section-space-y)] font-sans sm:px-[var(--space-6)] lg:px-[var(--space-8)]"
       >
-        <motion.div 
-          className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full blur-[140px] opacity-[0.08] pointer-events-none" 
-          style={{ background: 'radial-gradient(circle, var(--brand-accent) 0%, transparent 70%)' }} 
-        />
-        
-        <motion.div className="max-w-4xl mx-auto relative z-10 flex flex-col items-center text-center gap-10">
-           <Link to="/cookbook" className="no-underline group">
-              <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] text-[var(--text-muted)] group-hover:text-[var(--brand-accent)] transition-all">
-                 <ChevronLeft size={14} className="group-hover:-translate-x-1 transition-transform" />
-                 Back to Cookbook
-              </motion.div>
-           </Link>
+        <motion.article
+          className="grid gap-[var(--space-7)]"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.12 }}
+        >
+          <ReactMarkdown
+            components={{
+              h2({ children }) {
+                return (
+                  <h2 className="m-[var(--space-0)] border-b-2 border-[var(--border-strong)] pb-[var(--space-3)] font-display text-[length:var(--type-section-title-size)] font-black leading-[var(--leading-display)] tracking-[var(--tracking-display-tight)] text-[var(--text-primary)]">
+                    {children}
+                  </h2>
+                );
+              },
+              h3({ children }) {
+                return (
+                  <h3 className="m-[var(--space-0)] font-display text-[length:var(--type-panel-title-card-size)] font-black leading-[var(--leading-card)] tracking-[var(--tracking-display-card)] text-[var(--text-primary)]">
+                    {children}
+                  </h3>
+                );
+              },
+              p({ children }) {
+                return (
+                  <p className="m-[var(--space-0)] text-[length:var(--type-panel-body-size)] leading-[var(--leading-body)] text-[var(--text-secondary)]">
+                    {children}
+                  </p>
+                );
+              },
+              ul({ children }) {
+                return (
+                  <ul className="m-[var(--space-0)] grid gap-[var(--space-3)] border-l-4 border-[var(--brand-primary)] pl-[var(--space-5)] text-[length:var(--type-panel-body-size)] leading-[var(--leading-body)] text-[var(--text-secondary)]">
+                    {children}
+                  </ul>
+                );
+              },
+              li({ children }) {
+                return <li className="pl-[var(--space-1)]">{children}</li>;
+              },
+              strong({ children }) {
+                return (
+                  <strong className="font-black text-[var(--text-primary)]">
+                    {children}
+                  </strong>
+                );
+              },
+              code({ className, children, ...props }) {
+                const match = /language-(\w+)/.exec(className || "");
+                const code = String(children).replace(/\n$/, "");
 
-           <motion.div className="flex items-center gap-6">
-              <motion.div className="w-24 h-24 rounded-[32px] bg-[var(--surface-overlay)] flex items-center justify-center border border-[var(--brand-accent)] shadow-2xl shadow-[var(--brand-accent)]/10">
-                 <Icon size={48} className="text-[var(--brand-accent)]" />
-              </motion.div>
-           </motion.div>
+                if (!className) {
+                  return (
+                    <code
+                      className="bg-[var(--interactive-active)] px-[var(--space-1)] py-[var(--space-1)] font-mono font-bold text-[var(--brand-primary)]"
+                      {...props}
+                    >
+                      {children}
+                    </code>
+                  );
+                }
 
-           <motion.div className="space-y-4">
-              <Badge variant={recipe.difficulty === 'advanced' ? 'default' : 'teal'} className="px-4 py-1.5 text-[8px] font-black uppercase tracking-widest">{recipe.difficulty} Pattern</Badge>
-              <motion.h1 
-                className="text-5xl sm:text-7xl font-black tracking-tighter font-display leading-[1.05]"
-                initial={{ opacity: 0, y: 24 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-              >
-                {recipe.title}
-              </motion.h1>
-           </motion.div>
+                return (
+                  <CodeBlock language={match?.[1] ?? "bash"} copyable={false}>
+                    {code}
+                  </CodeBlock>
+                );
+              },
+            }}
+          >
+            {recipe.body}
+          </ReactMarkdown>
+        </motion.article>
 
-           <motion.p 
-             className="text-2xl leading-relaxed text-[var(--text-secondary)] font-medium max-w-2xl"
-             initial={{ opacity: 0, y: 20 }}
-             animate={{ opacity: 1, y: 0 }}
-             transition={{ duration: 0.8, delay: 0.1 }}
-           >
-             {recipe.description}
-           </motion.p>
-        </motion.div>
-      </motion.header>
-
-      {/* Main Content */}
-      <motion.main id="main-content" className="flex-1 py-24 px-6 sm:px-8 lg:px-10 max-w-4xl mx-auto w-full font-sans">
-        <motion.div className="space-y-24">
-           
-           {/* Detailed Pattern */}
-           <section className="space-y-12">
-              <motion.div className="flex items-center gap-4 border-b border-[var(--border-subtle)] pb-8">
-                 <motion.div className="w-10 h-10 rounded-xl bg-[var(--brand-accent)]/10 flex items-center justify-center border border-[var(--brand-accent)]/20">
-                    <BookOpen size={20} className="text-[var(--brand-accent)]" />
-                 </motion.div>
-                 <motion.h2 className="text-3xl font-display font-black m-0">The Coordination Recipe</motion.h2>
-              </motion.div>
-              
-              <motion.article 
-                className="prose prose-invert prose-lg max-w-none 
-                  prose-headings:font-display prose-headings:font-black prose-headings:tracking-tight
-                  prose-p:text-xl prose-p:leading-relaxed prose-p:text-[var(--text-secondary)]
-                  prose-strong:text-[var(--text-primary)] prose-strong:font-black
-                  prose-code:text-[var(--brand-accent)] prose-code:bg-[var(--surface-overlay)] prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:font-bold prose-code:before:content-none prose-code:after:content-none"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.7, delay: 0.2 }}
-              >
-                <ReactMarkdown>{recipe.body}</ReactMarkdown>
-              </motion.article>
-           </section>
-
-           {/* Implementation Note */}
-           <motion.div 
-             className="p-16 rounded-[60px] border border-dashed border-[var(--brand-accent)] bg-[var(--surface-overlay)] flex flex-col items-center text-center gap-8 relative overflow-hidden"
-             whileHover={{ scale: 1.01 }}
-           >
-              <motion.div className="absolute top-0 right-0 p-10 opacity-[0.03] pointer-events-none">
-                 <Shield size={400} />
-              </motion.div>
-              <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest shadow-xl">State Verification</Badge>
-              <motion.h3 className="text-4xl font-display font-black m-0" style={{ color: 'var(--text-primary)' }}>Pattern Soundness.</motion.h3>
-              <motion.p className="text-xl max-w-xl text-[var(--text-secondary)]">
-                This recipe has been verified against the current Port Daddy state model. We ensure that following these handoff steps results in a deterministic and resilient harbor state.
-              </motion.p>
-              <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-accent)]">
-                 <Activity size={14} className="animate-pulse" />
-                 Swarm Radio Protocol v4 Active
-              </motion.div>
-           </motion.div>
-        </motion.div>
-      </motion.main>
+        <section className="mt-[var(--section-space-y)] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-6)]">
+          <h2 className="m-[var(--space-0)] font-display text-[length:var(--type-panel-title-card-size)] font-black leading-[var(--leading-card)] text-[var(--text-primary)]">
+            Recovery invariant
+          </h2>
+          <p className="mt-[var(--space-3)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
+            A cookbook recipe is only useful if another agent can inspect the
+            same state afterward. Prefer commands that leave notes, claims,
+            locks, inbox messages, or salvage evidence in Port Daddy.
+          </p>
+        </section>
+      </main>
 
       <Footer />
     </motion.div>
-  )
+  );
 }
