@@ -112,7 +112,8 @@ export function Debugging() {
           <p className="text-[length:var(--type-meta-size)] font-black uppercase tracking-widest text-[var(--text-muted)] m-0">
             Advanced Diagnostics
           </p>
-          <CodeBlock copyable={false} language="bash">{`$ pd health --all`}</CodeBlock>
+          <CodeBlock copyable={false} language="bash">{`$ pd health --all
+# Expected result: service health rows show which registered processes are healthy and which probe failed.`}</CodeBlock>
           <div className="space-y-1">
             <div className="flex items-center justify-between text-[length:var(--type-meta-size)] font-mono text-[var(--text-secondary)]">
               <span>myapp:api</span>

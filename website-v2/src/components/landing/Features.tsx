@@ -109,6 +109,18 @@ function FeatureDetailDialog({
                     : 'The app surface is the human-facing entrance; agents can still write the underlying coordination state through Port Daddy primitives.'}
                 </PanelBody>
               </div>
+              <div className="grid gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)]">
+                <PanelEyebrow>Concrete command</PanelEyebrow>
+                <code className="block overflow-x-auto whitespace-pre-wrap break-words font-mono text-[11px] font-black leading-[1.45] text-[var(--text-primary)]">
+                  {feature.cli}
+                </code>
+                <Button asChild variant="secondary" size="sm">
+                  <Link to={feature.href}>
+                    Open surface
+                    <ArrowUpRight size={15} />
+                  </Link>
+                </Button>
+              </div>
             </div>
 
             <div className="grid content-start gap-[var(--space-5)] p-[var(--space-4)]">
@@ -258,9 +270,9 @@ export function Features() {
       <PageContainer width="wide">
         <div className="mb-[var(--space-7)] grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,0.9fr)_minmax(18rem,0.55fr)] lg:items-end">
           <SectionIntro
-            eyebrow="Primitives"
-            title="Everything your agents need to cooperate."
-            description="The full eleven-primitives map is back. Every card shows the product or generated art up front, then opens into the deeper workflow, outcomes, and links."
+            eyebrow="Features"
+            title="Every primitive has a product surface."
+            description="The full feature map is back. FleetBar, Fleet Control Center, PD Tube, relay PKI, events, inboxes, resources, and guardrails all open into concrete commands, outcomes, and docs links."
             titleAs="h2"
             className="max-w-[46rem]"
             titleClassName="max-w-[14ch]"
@@ -269,7 +281,7 @@ export function Features() {
           <div className="grid border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-4)]">
             <PanelEyebrow>Feature atlas</PanelEyebrow>
             <PanelBody className="mt-[var(--space-2)] max-w-none">
-              FleetBar and the control plane lead because they are the human surfaces. The remaining cards keep the primitive map complete without burying the artwork.
+              FleetBar and the control plane lead because they are the human surfaces. The remaining cards keep the primitive map complete while still showing the command or route an operator can actually use.
             </PanelBody>
           </div>
         </div>

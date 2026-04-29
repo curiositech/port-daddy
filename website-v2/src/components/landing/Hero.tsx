@@ -1,58 +1,42 @@
 import { Link } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
 import { PageContainer, SectionIntro } from '@/components/site/primitives'
-import { ArrowRight, Download, MonitorCog, RadioTower, ShieldCheck, Terminal } from 'lucide-react'
-
-const heroProof = [
-  {
-    label: 'Human surface',
-    title: 'FleetBar opens the console',
-    detail: 'People see daemon health, project state, guard posture, backend readiness, and recent work in the app.',
-    icon: MonitorCog,
-  },
-  {
-    label: 'Agent surface',
-    title: 'CLI writes durable facts',
-    detail: 'Agents begin sessions, leave notes, claim files, publish warnings, and finish with context another process can read.',
-    icon: Terminal,
-  },
-  {
-    label: 'Safety surface',
-    title: 'Guard makes it policy',
-    detail: 'The console exposes coordination state for people; the commit hook enforces claims when code crosses into history.',
-    icon: ShieldCheck,
-  },
-] as const
+import { ArrowRight, Download, RadioTower, Terminal } from 'lucide-react'
+import { LiveGloryVideo } from './LiveGloryVideo'
 
 export function Hero() {
   return (
-    <section className="relative overflow-hidden py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
-      <div
-        className="pointer-events-none absolute inset-0 opacity-[0.03]"
-        style={{
-          backgroundImage: 'radial-gradient(circle, var(--text-muted) 1px, transparent 1px)',
-          backgroundSize: '24px 24px',
-        }}
-      />
+    <section className="relative flex items-center overflow-hidden py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+      {/* Swiss-grid field for the infrastructure diagram. */}
+      <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{
+        backgroundImage: 'radial-gradient(circle, var(--text-muted) 1px, transparent 1px)',
+        backgroundSize: '24px 24px',
+      }} />
 
-      <PageContainer width="wide" className="relative z-10">
-        <div className="grid items-center gap-[var(--space-6)] min-[960px]:grid-cols-[minmax(20rem,0.88fr)_minmax(0,1.12fr)] min-[960px]:gap-[var(--space-7)]">
-          <div className="space-y-[var(--space-5)]">
+      <PageContainer className="relative z-10">
+        <div className="grid items-center gap-[var(--space-6)] min-[900px]:grid-cols-[minmax(18rem,0.72fr)_minmax(38rem,1.38fr)] min-[900px]:gap-[var(--space-7)]">
+          {/* Left -- Copy */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6, ease: 'easeOut' as const }}
+            className="space-y-[var(--space-5)]"
+          >
             <Link to="/mac-preview" className="no-underline">
-              <div
-                className="mb-[var(--space-4)] inline-flex max-w-[42rem] items-center gap-2 border px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-[var(--interactive-hover)]"
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] px-3 py-1.5 text-xs font-semibold mb-4 cursor-pointer"
                 style={{
                   background: 'color-mix(in srgb, var(--brand-primary) 12%, transparent)',
-                  borderColor: 'color-mix(in srgb, var(--brand-primary) 25%, transparent)',
+                  border: '1px solid color-mix(in srgb, var(--brand-primary) 25%, transparent)',
                   color: 'var(--brand-primary)',
                 }}
               >
                 <span>New</span>
-                <span style={{ color: 'var(--text-secondary)' }}>
-                  FleetBar and Fleet Control Center now expose agent radio, handoffs, resources, and launch readiness.
-                </span>
+                <span style={{ color: 'var(--text-secondary)' }}>Agent radio, handoffs, resources, and launch readiness are visible in the app</span>
                 <ArrowRight size={12} />
-              </div>
+              </motion.div>
             </Link>
 
             <SectionIntro
@@ -68,19 +52,20 @@ export function Hero() {
               description="Port Daddy is the layer under your coding agents: a shared place for notes, work ownership, warnings, actor messages, readiness, budgets, and recoverable handoffs. Schedulers decide what runs. Port Daddy makes what agents know, touch, spend, and hand off inspectable."
               titleAs="h1"
               titleSize="hero"
-              titleClassName="max-w-[13ch]"
-              bodyClassName="max-w-[37rem]"
+              titleClassName="max-w-[14ch]"
+              bodyClassName="max-w-[34rem]"
             />
 
-            <div className="flex max-w-[37rem] flex-wrap gap-2">
+            {/* Feature pills */}
+            <div className="flex max-w-[34rem] flex-wrap gap-2">
               {[
-                'FleetBar for humans',
-                'CLI primitives for agents',
+                'Agent-to-agent radio',
                 'Recoverable handoffs',
+                'Operator-visible truth',
               ].map((label) => (
                 <span
                   key={label}
-                  className="border px-3 py-1 text-xs font-semibold"
+                  className="rounded-[var(--radius-sm)] px-3 py-1 text-xs font-semibold"
                   style={{
                     background: 'color-mix(in srgb, var(--brand-secondary) 10%, transparent)',
                     border: '1px solid color-mix(in srgb, var(--brand-secondary) 20%, transparent)',
@@ -107,14 +92,16 @@ export function Hero() {
                 </Button>
               </Link>
             </div>
-          </div>
+          </motion.div>
 
-          <div className="relative">
-            <picture
-              aria-hidden="true"
-              className="pointer-events-none absolute -right-[4%] -top-[14%] hidden h-[50%] w-[70%] overflow-hidden border opacity-30 min-[960px]:block dark:opacity-25"
-              style={{ borderColor: 'var(--border-subtle)' }}
-            >
+          {/* Right -- synchronized light/dark capture */}
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.2, ease: 'easeOut' as const }}
+            className="relative min-[900px]:-mr-[clamp(2rem,5vw,5.5rem)] min-[900px]:ml-[-0.5rem]"
+          >
+            <picture aria-hidden="true" className="pointer-events-none absolute -right-[6%] -top-[18%] hidden h-[56%] w-[76%] overflow-hidden border opacity-35 min-[900px]:block dark:opacity-25" style={{ borderColor: 'var(--border-subtle)' }}>
               <source srcSet="/img/generated/agent-runtime-map.webp" type="image/webp" />
               <img
                 alt=""
@@ -126,16 +113,7 @@ export function Hero() {
               />
             </picture>
             <div className="relative z-10">
-              <picture className="block overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] shadow-[var(--shadow-sm)]">
-                <source srcSet="/img/app-screens/fleet-flow-dark.png" media="(prefers-color-scheme: dark)" />
-                <img
-                  src="/img/app-screens/fleet-flow-light.png"
-                  alt="Fleet Control Center showing agent coordination state"
-                  className="aspect-[16/9] w-full object-cover object-left-top"
-                  loading="eager"
-                  fetchPriority="high"
-                />
-              </picture>
+              <LiveGloryVideo />
               <div className="mt-[var(--space-3)] grid gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)] sm:grid-cols-[auto_minmax(0,1fr)]">
                 <span className="inline-flex h-10 w-10 items-center justify-center border-2 border-[var(--border-strong)] text-[var(--brand-primary)]">
                   <RadioTower size={18} />
@@ -145,32 +123,7 @@ export function Hero() {
                 </p>
               </div>
             </div>
-          </div>
-        </div>
-
-        <div className="mt-[var(--space-7)] grid border-2 border-[var(--border-strong)] bg-[var(--surface-base)] md:grid-cols-3">
-          {heroProof.map((item, index) => (
-            <div
-              key={item.title}
-              className={[
-                'grid gap-[var(--space-3)] p-[var(--space-4)]',
-                index < heroProof.length - 1 ? 'border-b-2 border-[var(--border-strong)] md:border-b-0 md:border-r-2' : '',
-              ].join(' ')}
-            >
-              <div className="flex items-center justify-between gap-[var(--space-3)]">
-                <span className="font-sans text-[length:var(--type-meta-size)] font-medium uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)]">
-                  {item.label}
-                </span>
-                <item.icon className="h-5 w-5 text-[var(--brand-primary)]" />
-              </div>
-              <h2 className="font-display text-[length:var(--type-panel-title-nav-size)] font-black leading-[var(--leading-nav)] text-[var(--text-primary)]">
-                {item.title}
-              </h2>
-              <p className="max-w-none text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
-                {item.detail}
-              </p>
-            </div>
-          ))}
+          </motion.div>
         </div>
       </PageContainer>
     </section>

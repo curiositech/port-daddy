@@ -66,7 +66,8 @@ export function Sugar() {
           <CodeBlock copyable={false} language="bash">
             {`pd begin "Review flaky auth tests" \\
   --identity my-app:test-hunter \\
-  --files tests/auth/login.test.ts`}
+  --files tests/auth/login.test.ts
+SUCCESS: Agent Review flaky auth tests ready and tests/auth/login.test.ts claimed.`}
           </CodeBlock>
           <p>
             After that, commands such as <code>pd note</code>,{" "}
@@ -84,7 +85,8 @@ export function Sugar() {
           <CodeBlock copyable={false} language="bash">
             {`pd whoami
 
-pd note "Running the auth suite before editing login flow"`}
+pd note "Running the auth suite before editing login flow"
+# Expected result: whoami shows the active session, then the note is recorded on that session.`}
           </CodeBlock>
           <Surface depth="flat" radius="none" padding="lg">
             <p className="m-0">
@@ -103,7 +105,8 @@ pd note "Running the auth suite before editing login flow"`}
             one owner while it runs.
           </p>
           <CodeBlock copyable={false} language="bash">
-            {`pd with-lock db-migrations npm run migrate`}
+            {`pd with-lock db-migrations npm run migrate
+# Expected result: the migration command runs while the db-migrations lock is held, then releases it.`}
           </CodeBlock>
           <p>
             If the command exits or crashes, Port Daddy still cleans up the
@@ -122,7 +125,8 @@ pd note "Running the auth suite before editing login flow"`}
           <CodeBlock copyable={false} language="bash">
             {`pd done "Auth test fixes landed with notes and claims released"
 
-pd salvage`}
+pd salvage
+# Expected result: the finished session is absent from active work and salvage has no stranded copy.`}
           </CodeBlock>
         </section>
       </div>

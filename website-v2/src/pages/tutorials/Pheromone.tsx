@@ -38,7 +38,8 @@ export function Pheromone() {
           <CodeBlock copyable={false} language="bash">
             {`pd pheromone spray services myapp:api:main urgency 0.8
 pd pheromone spray agents reviewer-42 quality 0.95
-pd pheromone file src/auth/login.ts 0.7`}
+pd pheromone file src/auth/login.ts 0.7
+SUCCESS: pheromone signals recorded for service, agent, and file targets.`}
           </CodeBlock>
           <Surface depth="flat" radius="none" padding="lg">
             <p className="m-0">
@@ -56,7 +57,8 @@ pd pheromone file src/auth/login.ts 0.7`}
           </p>
           <CodeBlock copyable={false} language="bash">
             {`pd pheromone show services myapp:api:main
-pd pheromone ls`}
+pd pheromone ls
+# Expected result: current decayed strength and the hottest active signals are listed.`}
           </CodeBlock>
           <p>
             This is good for ambient triage: which service is under pressure,
@@ -74,7 +76,8 @@ pd pheromone ls`}
           </p>
           <CodeBlock copyable={false} language="bash">
             {`pd pheromone files
-pd pheromone files --path src/auth --depth 2`}
+pd pheromone files --path src/auth --depth 2
+# Expected result: file heat rows include path, score, and conflict status when claims overlap.`}
           </CodeBlock>
           <div className="grid gap-[var(--space-4)] md:grid-cols-2">
             <Surface depth="raised" radius="none" padding="lg">

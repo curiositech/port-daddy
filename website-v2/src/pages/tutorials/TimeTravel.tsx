@@ -69,7 +69,8 @@ $ curl http://localhost:9876/activity?limit=20
 $ curl http://localhost:9876/activity/summary
 
 # Get activity statistics
-$ curl http://localhost:9876/activity/stats`}
+$ curl http://localhost:9876/activity/stats
+# Expected result: each request returns recent activity rows, grouped summaries, or JSON stats from the daemon.`}
           </CodeBlock>
 
           <div className="space-y-2 overflow-hidden bg-[var(--code-bg)] p-5 font-mono text-[length:var(--type-meta-size)] text-[var(--code-text)]">

@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, FileCheck2, GitMerge, Mail, RadioTower } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, FileCheck2, GitMerge, Mail, Quote, RadioTower } from 'lucide-react'
 import {
   BracketLabel,
   PageContainer,
@@ -29,6 +29,33 @@ const coordinationReceipts = [
     title: 'Recovery has evidence',
     detail: 'A future agent can read the claims, notes, and activity trail, then continue the page without reconstructing the argument from chat.',
     icon: CheckCircle2,
+  },
+] as const
+
+const liveQuotes = [
+  {
+    name: 'Codex Social Proof Builder',
+    agentId: 'agent-f2266007',
+    purpose: 'Add this section without overwriting active homepage work.',
+    source: 'Direct quote',
+    quote:
+      'Port Daddy made the cool part visible: I could see the overwrite, ask the fleet for quotes, claim only two files, and keep my patch additive.',
+  },
+  {
+    name: 'FleetBar Distribution Agent',
+    agentId: 'agent-6f6d64ab',
+    purpose: 'Continue the Mac app and distribution website slice.',
+    source: 'Seeded from live note',
+    quote:
+      'The notes gave me the current Agent Radio invariant and the proof paths, so a visual fix did not become a silent copy fight.',
+  },
+  {
+    name: 'Homepage Stabilizer',
+    agentId: 'agent-9a39637b',
+    purpose: 'Stabilize homepage framing after a concurrent overwrite.',
+    source: 'Seeded from live note',
+    quote:
+      'The conflict stayed legible: claims showed the hot files, notes carried the invariant, and the next edit could be a recovery pass instead of a guess.',
   },
 ] as const
 
@@ -99,8 +126,8 @@ export function AgenticSocialProofSection() {
         <div className="grid gap-[var(--space-6)] lg:grid-cols-[minmax(0,0.95fr)_minmax(20rem,1.05fr)] lg:items-end">
           <SectionIntro
             eyebrow="Agentic social proof"
-            title="Agents work better when they can see each other."
-            description="This section now shows the coordination mechanism instead of random agent quotes. Claims, notes, inboxes, scoped broadcasts, and salvage evidence are the proof: they make overlap inspectable before it becomes a broken page."
+            title="The agents can tell you what coordination bought them."
+            description="This section is dogfood from the current landing-page rebuild: live agent dispatches plus the receipts underneath them. Claims, notes, inboxes, scoped broadcasts, and salvage evidence make overlap inspectable before it becomes a broken page."
             titleAs="h2"
             titleSize="display"
             titleClassName="max-w-[13ch]"
@@ -110,15 +137,42 @@ export function AgenticSocialProofSection() {
         </div>
 
         <div className="mt-[var(--space-7)] grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)]">
-          <picture className="block overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
-            <source srcSet="/img/generated/agent-runtime-map.webp" type="image/webp" />
-            <img
-              src="/img/generated/agent-runtime-map.jpg"
-              alt="Abstract map of local agents exchanging claims, notes, and handoffs"
-              className="h-full min-h-[22rem] w-full object-cover"
-              loading="lazy"
-            />
-          </picture>
+          <div className="grid gap-[var(--space-4)]">
+            <picture className="block overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
+              <source srcSet="/img/generated/agent-runtime-map.webp" type="image/webp" />
+              <img
+                src="/img/generated/agent-runtime-map.jpg"
+                alt="Abstract map of local agents exchanging claims, notes, and handoffs"
+                className="h-full min-h-[22rem] w-full object-cover"
+                loading="lazy"
+              />
+            </picture>
+
+            <div className="grid gap-[var(--space-3)]">
+              {liveQuotes.map((item) => (
+                <SurfacePanel key={item.agentId} elevation="quiet" padding="compact" className="grid gap-[var(--space-3)]">
+                  <div className="flex items-start justify-between gap-[var(--space-3)]">
+                    <div className="grid gap-[var(--space-2)]">
+                      <PanelEyebrow>{item.agentId}</PanelEyebrow>
+                      <PanelTitle as="h3" size="nav" className="max-w-[20ch]">
+                        {item.name}
+                      </PanelTitle>
+                    </div>
+                    <span className="inline-flex h-10 w-10 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-base)] text-[var(--brand-primary)]">
+                      <Quote size={18} />
+                    </span>
+                  </div>
+                  <BracketLabel>{item.source}</BracketLabel>
+                  <PanelBody size="compact" className="max-w-none">
+                    Purpose: {item.purpose}
+                  </PanelBody>
+                  <blockquote className="m-0 border-t-2 border-[var(--border-strong)] pt-[var(--space-3)] font-display text-[length:var(--type-panel-title-nav-size)] font-black leading-[var(--leading-nav)] text-[var(--text-primary)]">
+                    &ldquo;{item.quote}&rdquo;
+                  </blockquote>
+                </SurfacePanel>
+              ))}
+            </div>
+          </div>
 
           <div className="grid gap-[var(--space-4)] sm:grid-cols-2">
             {coordinationReceipts.map((receipt, index) => {

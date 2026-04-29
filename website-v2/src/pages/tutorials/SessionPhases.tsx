@@ -49,7 +49,8 @@ export function SessionPhases() {
           <CodeBlock copyable={false} language="bash">
             {`pd session phase session-a1b2c3d4 in_progress
 pd session phase session-a1b2c3d4 testing
-pd session phase session-a1b2c3d4 reviewing`}
+pd session phase session-a1b2c3d4 reviewing
+# Expected result: the session timeline records each phase transition in order.`}
           </CodeBlock>
           <p>
             Keep the change paired with notes. A phase without a note tells the
@@ -69,7 +70,8 @@ pd session phase session-a1b2c3d4 reviewing`}
 pd session phase session-a1b2c3d4 testing
 
 pd note "Auth suite green. Ready for review."
-pd session phase session-a1b2c3d4 reviewing`}
+pd session phase session-a1b2c3d4 reviewing
+# Expected result: notes explain why the session moved to testing and then reviewing.`}
           </CodeBlock>
         </section>
 
@@ -83,7 +85,8 @@ pd session phase session-a1b2c3d4 reviewing`}
           <CodeBlock copyable={false} language="bash">
             {`pd salvage
 pd briefing
-pd whoami`}
+pd whoami
+# Expected result: recovery surfaces show the previous phase before you decide the next action.`}
           </CodeBlock>
           <Surface depth="flat" radius="none" padding="lg">
             <p className="m-0">

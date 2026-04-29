@@ -9,20 +9,36 @@ const tutorialFiles = fs
 
 const commandPattern = /\bpd\s+[a-z]/;
 const outputHints = [
-  /^\$/,
   /^\[.+\]/,
+  /^✓\s+/,
+  /^→\s+/,
   /^SUCCESS:/,
   /^ERROR:/,
+  /^INFO:/,
+  /^WARN:/,
   /^session:/i,
   /^agent[-:]/i,
   /^Recent /,
   /^Port Daddy /,
-  /^#\s*Expected /i,
-  /^#\s*Result/i,
+  /^Watching /,
+  /^Waiting /,
+  /^Message sent /,
+  /^localhost:/,
+  /^Claimed /,
+  /^CONFLICT:/,
+  /^Holder session:/,
+  /^AGENT ID\b/,
+  /^spawned[-\w]*\b/,
+  /^#\s*(Expected|Result|Output|Daemon-visible|Example output)/i,
+  /^#\s*→/,
 ];
 
 function looksLikeOutput(line) {
   return outputHints.some((pattern) => pattern.test(line));
+}
+
+function normalizeBlock(block) {
+  return block.replace(/\\n/g, "\n");
 }
 
 function extractBashBlocks(source) {
@@ -44,7 +60,7 @@ for (const fileName of tutorialFiles) {
   const blocks = extractBashBlocks(source);
 
   blocks.forEach((block, index) => {
-    const lines = block
+    const lines = normalizeBlock(block)
       .split("\n")
       .map((line) => line.trim())
       .filter(Boolean);

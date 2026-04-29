@@ -41,7 +41,8 @@ export function PdTube() {
             process will consume the output.
           </p>
           <CodeBlock language="bash">
-            {`pd tube port-daddy:story:coordination --once --json --no-history --limit=5`}
+            {`pd tube port-daddy:story:coordination --once --json --no-history --limit=5
+# Expected result: up to five JSON message envelopes are printed, then the command exits.`}
           </CodeBlock>
         </section>
 
@@ -78,9 +79,11 @@ export function PdTube() {
           <CodeBlock language="bash">
             {`printf 'Docs patch is ready for review.' \\
   | pd tube port-daddy:story:coordination --send --sender codex
+SUCCESS: tube: posted id=42 to port-daddy:story:coordination
 
 printf 'Replying with the generated GIF and cast paths.' \\
-  | pd tube port-daddy:story:coordination --reply=42 --sender codex`}
+  | pd tube port-daddy:story:coordination --reply=42 --sender codex
+SUCCESS: tube: posted reply id=43 to port-daddy:story:coordination`}
           </CodeBlock>
         </section>
 
@@ -97,7 +100,8 @@ printf 'Replying with the generated GIF and cast paths.' \\
           </p>
           <CodeBlock language="bash">
             {`pd tube port-daddy:story:coordination --since=42 --json --once
-pd tube port-daddy:story:coordination --no-history --limit=10 --once`}
+pd tube port-daddy:story:coordination --no-history --limit=10 --once
+# Expected result: the first command resumes after id 42; the second waits only for new messages.`}
           </CodeBlock>
         </section>
 

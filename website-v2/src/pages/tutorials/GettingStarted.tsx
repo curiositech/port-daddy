@@ -65,7 +65,9 @@ npm link`}
           <CodeBlock copyable={false} language="bash">
             {`pd start
 pd status
-pd briefing`}
+pd briefing
+Port Daddy is running
+SUCCESS: Briefing generated: .portdaddy/briefing.md`}
           </CodeBlock>
           <Surface depth="flat" radius="none" padding="lg">
             <p className="m-0">
@@ -88,7 +90,8 @@ pd briefing`}
 
 pd begin "Bootstrap auth service" --identity my-app:api
 pd harbor enter my-app:main
-pd whoami`}
+pd whoami
+# Expected result: the active agent identity is my-app:api inside harbor my-app:main.`}
           </CodeBlock>
           <p>
             If you want to inspect the harbor itself, use{" "}
@@ -104,7 +107,8 @@ pd whoami`}
           </p>
           <CodeBlock copyable={false} language="bash">
             {`pd note "Bootstrap complete. Harbor is ready for auth work."
-pd done "Initial setup complete"`}
+pd done "Initial setup complete"
+# Expected result: note recorded, session completed, active context cleared.`}
           </CodeBlock>
         </section>
 

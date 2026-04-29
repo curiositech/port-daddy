@@ -136,13 +136,16 @@ $ pd harbor discover --lighthouse global.portdaddy.dev \\
           <CodeBlock copyable={false} language="bash">
             {`# Expose a local service via tunnel (works today)
 pd tunnel myapp:api start --provider ngrok
+SUCCESS: tunnel started for myapp:api
 
 # Local DNS for service discovery (works today)
 pd dns create myapp-api.local --port 3000
+SUCCESS: DNS record myapp-api.local -> localhost:3000
 
 # Pub/sub messaging between local agents (works today)
 pd pub deploy:events "build-complete"
-pd watch deploy:events --exec ./notify.sh`}
+pd watch deploy:events --exec ./notify.sh
+Watching deploy:events...`}
           </CodeBlock>
 
           <div className="flex items-center justify-center gap-8 py-4">

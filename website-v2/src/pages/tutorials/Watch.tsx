@@ -38,7 +38,8 @@ export function Watch() {
             side effect.
           </p>
           <CodeBlock copyable={false} language="bash">
-            {`pd watch git:committed --exec ./scripts/run-tests.sh`}
+            {`pd watch git:committed --exec ./scripts/run-tests.sh
+Watching git:committed...`}
           </CodeBlock>
           <Surface depth="flat" radius="none" padding="lg">
             <p className="m-0">
@@ -60,7 +61,8 @@ export function Watch() {
   --exec "./scripts/post-findings.sh" \\
   --max-concurrent 1 \\
   --timeout 10000 \\
-  --min-interval 5000`}
+  --min-interval 5000
+Watching qa:findings...`}
           </CodeBlock>
           <p>
             Use <code>--once</code> when you want one delivery and then an
@@ -83,7 +85,8 @@ set -euo pipefail
 echo "channel: $PD_CHANNEL"
 echo "content: $PD_MESSAGE_CONTENT"
 
-pd note "watcher handled message from $PD_CHANNEL"`}
+pd note "watcher handled message from $PD_CHANNEL"
+# Expected result: the script prints the channel/content and records one session note.`}
           </CodeBlock>
           <div className="grid gap-[var(--space-4)] md:grid-cols-2">
             <Surface depth="raised" radius="none" padding="lg">
