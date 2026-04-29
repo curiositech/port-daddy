@@ -815,7 +815,7 @@ export function DocsNoteCard({
   elevation = 'raised',
   padding = 'default',
 }: {
-  label: string
+  label?: string
   title?: string
   tone?: AccentTone
   className?: string
@@ -834,9 +834,11 @@ export function DocsNoteCard({
       padding={padding}
       className={cn('space-y-[var(--panel-gap)]', className)}
     >
-      <BracketLabel tone={panelTone} surface={tone} className="self-start">
-        {label}
-      </BracketLabel>
+      {label ? (
+        <BracketLabel tone={panelTone} surface={tone} className="self-start">
+          {label}
+        </BracketLabel>
+      ) : null}
       {title ? (
         <PanelTitle size={titleSize} tone={panelTone} className={titleClassName}>
           {title}
@@ -916,6 +918,7 @@ export function CommandBlock({
   command,
   truth,
   label,
+  hideLabel = false,
   tone = 'paper',
   elevation = 'raised',
   description,
@@ -924,13 +927,14 @@ export function CommandBlock({
   command: string
   truth?: TruthState
   label?: string
+  hideLabel?: boolean
   tone?: AccentTone
   elevation?: keyof typeof surfaceElevationClass
   description?: ReactNode
 }) {
   return (
     <DocsNoteCard
-      label={label ?? (truth ? truth : 'Command')}
+      label={hideLabel ? undefined : label ?? (truth ? truth : 'Command')}
       title={title}
       tone={tone}
       elevation={elevation}

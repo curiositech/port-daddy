@@ -67,7 +67,7 @@ export function MacPreviewPage() {
                     title="Install + open"
                     command={'brew install curiositech/tap/port-daddy\npd setup --project ~/coding/my-app'}
                     elevation="quiet"
-                    label="Copy"
+                    hideLabel
                   />
                 </SurfacePanel>
               </SwissGridItem>
