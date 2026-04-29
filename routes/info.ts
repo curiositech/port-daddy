@@ -128,7 +128,6 @@ export const infoPlugin: FastifyPluginAsync<{ deps: InfoRouteDeps }> = async (fa
         ...metrics,
         activePorts: active_ports,
         memoryRSS: process.memoryUsage().rss,
-        avgResponseMs: 0.85,
       },
       fleet: fleet ? {
         running: fleet.running,

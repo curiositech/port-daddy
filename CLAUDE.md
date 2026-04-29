@@ -565,3 +565,28 @@ When an agent dies, other agents in the same project should be notified.
 | `/fleet/reload` | POST | Re-read all pd-fleet.yml configs and restart changed fleets |
 | `/fleet/register` | POST | Register a project directory for daemon fleet management (body: `{ projectDir }`) |
 | `/fleet/events` | GET | SSE stream of all fleet lifecycle events (`fleet:events` channel) |
+| **Tuples** | | |
+| `/tuples` | POST | Write a tuple (body: `{ tuple, harbor?, writtenBy?, ttl? }`) |
+| `/tuples` | GET | Read tuples by pattern (query: `pattern`, `harbor`, `limit`) |
+| `/tuples` | DELETE | Take (destructive read) tuples matching a pattern |
+| `/tuples/scan` | GET | List all tuples in a harbor |
+| `/tuples/count` | GET | Count tuples matching a pattern |
+| **Merge Queue** | | |
+| `/merge/submit` | POST | Submit a branch for merging |
+| `/merge/queue` | GET | List merge queue entries |
+| `/merge/queue/:id` | GET | Get a specific queue entry |
+| `/merge/queue/reorder` | POST | Reorder queue entries |
+| `/merge/execute/:id` | POST | Execute a merge |
+| `/merge/queue/:id` | DELETE | Remove entry from queue |
+| `/merge/predict` | GET | Predict merge conflicts |
+| `/merge/inspect/:id` | POST | Inspect a merge entry |
+| `/merge/stats` | GET | Merge queue statistics |
+| `/merge/plugins` | GET | List available orchestrator plugins |
+| `/merge/plugins/active` | PUT | Set the active orchestrator plugin |
+| **Symbols** | | |
+| `/symbols/parse` | POST | Parse and index symbols from a file |
+| `/symbols/stats` | GET | Symbol index statistics |
+| `/symbols` | GET | List indexed symbols |
+| `/symbols/file/*` | GET | Get symbols for a specific file |
+| `/dependencies` | GET | Symbol dependency graph |
+| `/conflicts/predict` | POST | Predict symbol-level merge conflicts |

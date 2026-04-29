@@ -111,11 +111,11 @@ interface FleetYamlRoot {
     name?: string;
     harbor?: string;
     limits?: FleetYamlLimits;
-    agents?: Record<string, FleetYamlAgent> | FleetYamlAgent[];
+    agents?: Record<string, FleetYamlAgent>;
     watchers?: Record<string, FleetYamlWatcher>;
     channels?: Record<string, FleetYamlChannel>;
   };
-  agents?: Record<string, FleetYamlAgent> | FleetYamlAgent[];
+  agents?: Record<string, FleetYamlAgent>;
   watchers?: Record<string, FleetYamlWatcher>;
   channels?: Record<string, FleetYamlChannel>;
 }
@@ -710,7 +710,6 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     ensureHarbor().then(() => {
       for (const agent of config.agents) {
         startAgent(agent);
-        if (agent.identity) enrollInHarbor(agent.identity);
       }
       for (const watcher of config.watchers) {
         startWatcher(watcher);

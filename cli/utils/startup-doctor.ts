@@ -80,23 +80,6 @@ export function isSocketStale(): boolean {
   if (!existsSync(SOCK_PATH)) return false;
 
   try {
-    // Try connecting to the socket
-    const net = require('node:net') as typeof import('node:net');
-    const connected = new Promise<boolean>((resolve) => {
-      const client = net.createConnection({ path: SOCK_PATH }, () => {
-        client.destroy();
-        resolve(true);
-      });
-      client.on('error', () => resolve(false));
-      // Don't wait forever
-      client.setTimeout(1000, () => {
-        client.destroy();
-        resolve(false);
-      });
-    });
-
-    // Synchronous check: if the socket file exists but is very old, it's likely stale
-    // This is a heuristic; the async check is more reliable but we need sync for the flow
     const stat = statSync(SOCK_PATH);
     const ageMs = Date.now() - stat.mtimeMs;
     // If the socket hasn't been touched in over 24 hours, it's very likely stale
