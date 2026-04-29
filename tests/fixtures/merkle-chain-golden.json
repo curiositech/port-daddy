@@ -1,0 +1,323 @@
+{
+  "_comment": "Golden vectors for lib/merkle-chain.ts. Regenerate with the Python reference scripts in skills/pd-relay-zero-trust/scripts/.",
+  "cases": {
+    "empty": {
+      "events": [],
+      "verify": {
+        "events_walked": 0,
+        "first_break": null,
+        "ok": true,
+        "tip_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "tip_seq": -1
+      }
+    },
+    "equivocation": {
+      "_note": "two signed heads at tip_seq=4 with different tip_hash. Each verifies on its own; consumers compare them and detect the fork.",
+      "head_a": {
+        "alg": "EdDSA",
+        "anchors": [],
+        "channel": null,
+        "issued_at": 1700000000,
+        "kid": "4cb5abf6ad79fbf5abbccafcc269d85cd2651ed4b885b5869f241aedf0a5ba29",
+        "sender": "abc123",
+        "sig": "1a38f6329b1233ce78c38aeaa7f71e7779dc109aef25323fb2f907f712a61d43d4d42af0c1cca674e651132e4ba78d0312d12a80c4f84d5881a8142fc2bb2d07",
+        "tip_hash": "8b0035aef9d33190d118dd1f7c59ea5f38a291b6b48a15124e5b96945ebe91ae",
+        "tip_seq": 4,
+        "v": 1
+      },
+      "head_a_signed_message": "{\"anchors\":[],\"channel\":null,\"issued_at\":1700000000,\"sender\":\"abc123\",\"tip_hash\":\"8b0035aef9d33190d118dd1f7c59ea5f38a291b6b48a15124e5b96945ebe91ae\",\"tip_seq\":4,\"v\":1}",
+      "head_b": {
+        "alg": "EdDSA",
+        "anchors": [],
+        "channel": null,
+        "issued_at": 1700000000,
+        "kid": "4cb5abf6ad79fbf5abbccafcc269d85cd2651ed4b885b5869f241aedf0a5ba29",
+        "sender": "abc123",
+        "sig": "45c1303b4583b58a74c50e28a06148a6ae299c4fc382ce54bbf947f3692d5c22a3001bc8c51db236c6e02b4fff3e0ed15acea5055310603792156a129359ce04",
+        "tip_hash": "000035aef9d33190d118dd1f7c59ea5f38a291b6b48a15124e5b96945ebe91ae",
+        "tip_seq": 4,
+        "v": 1
+      }
+    },
+    "five": {
+      "canonical_ciphertext_event0": "{\"alg\":\"AES-256-GCM\",\"ct\":\"payload-0\",\"iv\":\"AAAA\",\"tag\":\"BBBB\",\"wrap\":\"CCCC\"}",
+      "events": [
+        {
+          "alg": "EdDSA",
+          "channel": "br:abcd:swarm:general",
+          "ciphertext": {
+            "alg": "AES-256-GCM",
+            "ct": "payload-0",
+            "iv": "AAAA",
+            "tag": "BBBB",
+            "wrap": "CCCC"
+          },
+          "iat": 1700000000,
+          "kid": "abc123",
+          "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+          "sender": "abc123",
+          "seq": 0,
+          "sig": "(skipped)",
+          "this_hash": "711e1e74ac6f64f5aebb76e258c0e737cb0d67841deacb024b83422e28cbb419",
+          "v": 1
+        },
+        {
+          "alg": "EdDSA",
+          "channel": "br:abcd:swarm:general",
+          "ciphertext": {
+            "alg": "AES-256-GCM",
+            "ct": "payload-1",
+            "iv": "AAAA",
+            "tag": "BBBB",
+            "wrap": "CCCC"
+          },
+          "iat": 1700000000,
+          "kid": "abc123",
+          "prev_hash": "711e1e74ac6f64f5aebb76e258c0e737cb0d67841deacb024b83422e28cbb419",
+          "sender": "abc123",
+          "seq": 1,
+          "sig": "(skipped)",
+          "this_hash": "3a8f68cd57db7059c3e1adf42ee58f7ec01273bec2f12b73b4555cc3045cb337",
+          "v": 1
+        },
+        {
+          "alg": "EdDSA",
+          "channel": "br:abcd:swarm:general",
+          "ciphertext": {
+            "alg": "AES-256-GCM",
+            "ct": "payload-2",
+            "iv": "AAAA",
+            "tag": "BBBB",
+            "wrap": "CCCC"
+          },
+          "iat": 1700000000,
+          "kid": "abc123",
+          "prev_hash": "3a8f68cd57db7059c3e1adf42ee58f7ec01273bec2f12b73b4555cc3045cb337",
+          "sender": "abc123",
+          "seq": 2,
+          "sig": "(skipped)",
+          "this_hash": "41801b34642968cf7d6978f1da6b895ae0e55c660f7e444e9e2c3c6a5d08a23d",
+          "v": 1
+        },
+        {
+          "alg": "EdDSA",
+          "channel": "br:abcd:swarm:general",
+          "ciphertext": {
+            "alg": "AES-256-GCM",
+            "ct": "payload-3",
+            "iv": "AAAA",
+            "tag": "BBBB",
+            "wrap": "CCCC"
+          },
+          "iat": 1700000000,
+          "kid": "abc123",
+          "prev_hash": "41801b34642968cf7d6978f1da6b895ae0e55c660f7e444e9e2c3c6a5d08a23d",
+          "sender": "abc123",
+          "seq": 3,
+          "sig": "(skipped)",
+          "this_hash": "570e25753895ec7d6746bce9de94ec5325e28a75268993996af092baa0e457a0",
+          "v": 1
+        },
+        {
+          "alg": "EdDSA",
+          "channel": "br:abcd:swarm:general",
+          "ciphertext": {
+            "alg": "AES-256-GCM",
+            "ct": "payload-4",
+            "iv": "AAAA",
+            "tag": "BBBB",
+            "wrap": "CCCC"
+          },
+          "iat": 1700000000,
+          "kid": "abc123",
+          "prev_hash": "570e25753895ec7d6746bce9de94ec5325e28a75268993996af092baa0e457a0",
+          "sender": "abc123",
+          "seq": 4,
+          "sig": "(skipped)",
+          "this_hash": "8b0035aef9d33190d118dd1f7c59ea5f38a291b6b48a15124e5b96945ebe91ae",
+          "v": 1
+        }
+      ],
+      "verify": {
+        "events_walked": 5,
+        "first_break": null,
+        "ok": true,
+        "tip_hash": "8b0035aef9d33190d118dd1f7c59ea5f38a291b6b48a15124e5b96945ebe91ae",
+        "tip_seq": 4
+      }
+    },
+    "sign_head_round_trip": {
+      "_note": "Single canonical signed head used in cross-language compat tests.",
+      "input": {
+        "anchors": [],
+        "channel": null,
+        "issued_at": 1700000000,
+        "sender": "abc123",
+        "tip_hash": "8b0035aef9d33190d118dd1f7c59ea5f38a291b6b48a15124e5b96945ebe91ae",
+        "tip_seq": 4
+      },
+      "output": {
+        "alg": "EdDSA",
+        "anchors": [],
+        "channel": null,
+        "issued_at": 1700000000,
+        "kid": "4cb5abf6ad79fbf5abbccafcc269d85cd2651ed4b885b5869f241aedf0a5ba29",
+        "sender": "abc123",
+        "sig": "1a38f6329b1233ce78c38aeaa7f71e7779dc109aef25323fb2f907f712a61d43d4d42af0c1cca674e651132e4ba78d0312d12a80c4f84d5881a8142fc2bb2d07",
+        "tip_hash": "8b0035aef9d33190d118dd1f7c59ea5f38a291b6b48a15124e5b96945ebe91ae",
+        "tip_seq": 4,
+        "v": 1
+      }
+    },
+    "single": {
+      "events": [
+        {
+          "alg": "EdDSA",
+          "channel": "br:abcd:swarm:general",
+          "ciphertext": {
+            "alg": "AES-256-GCM",
+            "ct": "payload-0",
+            "iv": "AAAA",
+            "tag": "BBBB",
+            "wrap": "CCCC"
+          },
+          "iat": 1700000000,
+          "kid": "abc123",
+          "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+          "sender": "abc123",
+          "seq": 0,
+          "sig": "(skipped)",
+          "this_hash": "711e1e74ac6f64f5aebb76e258c0e737cb0d67841deacb024b83422e28cbb419",
+          "v": 1
+        }
+      ],
+      "verify": {
+        "events_walked": 1,
+        "first_break": null,
+        "ok": true,
+        "tip_hash": "711e1e74ac6f64f5aebb76e258c0e737cb0d67841deacb024b83422e28cbb419",
+        "tip_seq": 0
+      }
+    },
+    "tampered": {
+      "_note": "event[2].ciphertext.ct mutated; verifier must report this_hash_mismatch at seq=2",
+      "events": [
+        {
+          "alg": "EdDSA",
+          "channel": "br:abcd:swarm:general",
+          "ciphertext": {
+            "alg": "AES-256-GCM",
+            "ct": "payload-0",
+            "iv": "AAAA",
+            "tag": "BBBB",
+            "wrap": "CCCC"
+          },
+          "iat": 1700000000,
+          "kid": "abc123",
+          "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+          "sender": "abc123",
+          "seq": 0,
+          "sig": "(skipped)",
+          "this_hash": "711e1e74ac6f64f5aebb76e258c0e737cb0d67841deacb024b83422e28cbb419",
+          "v": 1
+        },
+        {
+          "alg": "EdDSA",
+          "channel": "br:abcd:swarm:general",
+          "ciphertext": {
+            "alg": "AES-256-GCM",
+            "ct": "payload-1",
+            "iv": "AAAA",
+            "tag": "BBBB",
+            "wrap": "CCCC"
+          },
+          "iat": 1700000000,
+          "kid": "abc123",
+          "prev_hash": "711e1e74ac6f64f5aebb76e258c0e737cb0d67841deacb024b83422e28cbb419",
+          "sender": "abc123",
+          "seq": 1,
+          "sig": "(skipped)",
+          "this_hash": "3a8f68cd57db7059c3e1adf42ee58f7ec01273bec2f12b73b4555cc3045cb337",
+          "v": 1
+        },
+        {
+          "alg": "EdDSA",
+          "channel": "br:abcd:swarm:general",
+          "ciphertext": {
+            "alg": "AES-256-GCM",
+            "ct": "tampered",
+            "iv": "AAAA",
+            "tag": "BBBB",
+            "wrap": "CCCC"
+          },
+          "iat": 1700000000,
+          "kid": "abc123",
+          "prev_hash": "3a8f68cd57db7059c3e1adf42ee58f7ec01273bec2f12b73b4555cc3045cb337",
+          "sender": "abc123",
+          "seq": 2,
+          "sig": "(skipped)",
+          "this_hash": "41801b34642968cf7d6978f1da6b895ae0e55c660f7e444e9e2c3c6a5d08a23d",
+          "v": 1
+        },
+        {
+          "alg": "EdDSA",
+          "channel": "br:abcd:swarm:general",
+          "ciphertext": {
+            "alg": "AES-256-GCM",
+            "ct": "payload-3",
+            "iv": "AAAA",
+            "tag": "BBBB",
+            "wrap": "CCCC"
+          },
+          "iat": 1700000000,
+          "kid": "abc123",
+          "prev_hash": "41801b34642968cf7d6978f1da6b895ae0e55c660f7e444e9e2c3c6a5d08a23d",
+          "sender": "abc123",
+          "seq": 3,
+          "sig": "(skipped)",
+          "this_hash": "570e25753895ec7d6746bce9de94ec5325e28a75268993996af092baa0e457a0",
+          "v": 1
+        },
+        {
+          "alg": "EdDSA",
+          "channel": "br:abcd:swarm:general",
+          "ciphertext": {
+            "alg": "AES-256-GCM",
+            "ct": "payload-4",
+            "iv": "AAAA",
+            "tag": "BBBB",
+            "wrap": "CCCC"
+          },
+          "iat": 1700000000,
+          "kid": "abc123",
+          "prev_hash": "570e25753895ec7d6746bce9de94ec5325e28a75268993996af092baa0e457a0",
+          "sender": "abc123",
+          "seq": 4,
+          "sig": "(skipped)",
+          "this_hash": "8b0035aef9d33190d118dd1f7c59ea5f38a291b6b48a15124e5b96945ebe91ae",
+          "v": 1
+        }
+      ],
+      "verify": {
+        "events_walked": 2,
+        "first_break": {
+          "expected": "d02e6b80a847108275024f7be57c6c4bd8a64f52cbe5c5a786ea9a73ebae1e0f",
+          "got": "41801b34642968cf7d6978f1da6b895ae0e55c660f7e444e9e2c3c6a5d08a23d",
+          "reason": "this_hash_mismatch",
+          "seq": 2
+        },
+        "ok": false,
+        "tip_hash": "3a8f68cd57db7059c3e1adf42ee58f7ec01273bec2f12b73b4555cc3045cb337",
+        "tip_seq": 1
+      }
+    }
+  },
+  "meta": {
+    "canonical_json_rule": "sorted keys, no whitespace, ensure_ascii=False (matches Python _envelope.canonical_json)",
+    "ed25519": {
+      "public_key_hex": "4cb5abf6ad79fbf5abbccafcc269d85cd2651ed4b885b5869f241aedf0a5ba29",
+      "seed_hex": "0000000000000000000000000000000000000000000000000000000000000001"
+    },
+    "sha256_hash_input_format": "utf8(prev_hash) || utf8(sender) || utf8(channel) || utf8(str(seq)) || utf8(str(iat)) || utf8(canonical_json(ciphertext))"
+  }
+}

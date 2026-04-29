@@ -84,6 +84,8 @@ describe('design system contracts', () => {
     expect(semanticTokens.match(/--shadow-pressed: none;/g)).toHaveLength(2)
     expect(roleTokens).not.toContain('shadow-neu')
     expect(indexCss).toContain('--tw-shadow: 0 0 #0000 !important;')
+    expect(indexCss).toContain('--tw-blur: blur(0) !important;')
+    expect(indexCss).toContain('backdrop-filter: none !important;')
     expect(indexCss).not.toContain('Neumorphic')
     expect(indexCss).not.toContain('.neu-inset')
     expect(protectedReliefSources).not.toContain('neu-shadow')

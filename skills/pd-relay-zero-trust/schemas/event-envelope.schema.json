@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://port-daddy.dev/schemas/pd-relay-zero-trust/event-envelope.json",
+  "title": "Event Envelope (Wire Format)",
+  "description": "Single event as it transits the relay. The relay sees: sender fingerprint, channel, prev_hash, this_hash, sig, ciphertext blob and its size. The relay does NOT see plaintext.",
+  "type": "object",
+  "required": ["v", "sender", "channel", "seq", "prev_hash", "this_hash", "iat", "ciphertext", "alg", "sig", "kid"],
+  "properties": {
+    "v": {"const": 1},
+    "sender": {"type": "string", "description": "Publisher fingerprint (hash of Ed25519 public key)"},
+    "channel": {"type": "string", "description": "Harbor-fingerprint-prefixed channel, e.g. 'br:abcd:swarm:general'"},
+    "seq": {"type": "integer", "minimum": 0, "description": "Per-publisher monotonic sequence"},
+    "prev_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$", "description": "SHA-256 of the previous envelope's this_hash; all-zeros for seq=0"},
+    "this_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$", "description": "SHA-256(prev_hash || sender || channel || seq || iat || ciphertext)"},
+    "iat": {"type": "integer", "description": "Publisher's unix timestamp; relay ALSO records its own arrival timestamp"},
+    "ciphertext": {
+      "type": "object",
+      "required": ["alg", "iv", "ct", "tag", "wrap"],
+      "properties": {
+        "alg": {"const": "AES-256-GCM"},
+        "iv": {"type": "string", "description": "Base64 96-bit IV"},
+        "ct": {"type": "string", "description": "Base64 ciphertext"},
+        "tag": {"type": "string", "description": "Base64 GCM tag (128 bits)"},
+        "wrap": {"type": "string", "description": "Wrapped per-channel symmetric key under harbor key (base64)"}
+      },
+      "additionalProperties": false
+    },
+    "alg": {"const": "EdDSA"},
+    "sig": {"type": "string", "description": "Ed25519 over this_hash by the publisher key"},
+    "kid": {"type": "string", "description": "Publisher key id (== sender)"},
+    "card": {
+      "description": "The bearer's harbor card or attenuated chain. Relay verifies before accepting publish.",
+      "oneOf": [
+        {"$ref": "https://port-daddy.dev/schemas/pd-relay-zero-trust/harbor-card.json"},
+        {"$ref": "https://port-daddy.dev/schemas/pd-relay-zero-trust/attenuated-card.json"}
+      ]
+    }
+  },
+  "additionalProperties": false
+}

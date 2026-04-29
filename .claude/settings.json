@@ -1,4 +1,47 @@
 {
-  "hooks": {
-  }
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Skill",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git branch:*)",
+      "Bash(git fetch:*)",
+      "Bash(git pull:*)",
+      "Bash(git rebase:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git checkout:*)",
+      "Bash(git stash:*)",
+      "Bash(git remote:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(git rev-list:*)",
+      "Bash(git ls-files:*)",
+      "Bash(git config --get:*)",
+      "Bash(git check-ignore:*)",
+      "Bash(npm install)",
+      "Bash(npm install:*)",
+      "Bash(npm run:*)",
+      "Bash(npm test:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx vitest:*)",
+      "Bash(node:*)",
+      "Bash(python3:*)",
+      "Bash(pd:*)",
+      "Bash(curl:*)",
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(cat:*)",
+      "Bash(wc:*)",
+      "Bash(chmod:*)",
+      "Bash(mkdir:*)",
+      "Bash(rm:*)"
+    ]
+  },
+  "hooks": {}
 }

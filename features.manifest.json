@@ -138,6 +138,7 @@
         "subscribe",
         "broadcast",
         "listen",
+        "tube",
         "channels"
       ],
       "sdk": [
@@ -170,6 +171,7 @@
         "subscribe",
         "broadcast",
         "listen",
+        "tube",
         "channels"
       ],
       "docs": {
