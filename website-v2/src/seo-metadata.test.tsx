@@ -13,7 +13,7 @@ import {
   isIndexableRoute,
   siteMetadataRoutes,
 } from './data/siteMetadata'
-import { blogPosts } from './data/blogData'
+import { blogPosts, deprecatedBlogPosts } from './data/blogData'
 import { useDocumentMeta } from './lib/useDocumentMeta'
 
 function read(relativePath: string) {
@@ -56,13 +56,29 @@ describe('website SEO metadata', () => {
       expect(route.section).toBe('blog')
       expect(route.title).toContain(post.title)
       expect(route.description).toBe(post.excerpt)
+      expect(route.image).toBe(post.heroImage)
+      expect(existsSync(resolve(publicDir, post.heroImage.replace(/^\//, '')))).toBe(true)
       expect(route.publishedAt).toBe(post.date)
       expect(route.author).toBe(post.author)
       expect(absoluteImageUrl(route.image)).toMatch(/^https:\/\/portdaddy\.dev\/img\//)
+      expect(new Date(post.date).getTime()).toBeLessThanOrEqual(new Date('2026-04-29T23:59:59-07:00').getTime())
     }
   })
 
-  test('default social image is generated and does not fall back to the retired sailor hero', () => {
+  test('deprecated blog posts noindex and canonicalize to current replacements', () => {
+    const slugs = new Set(blogPosts.map((post) => post.slug))
+
+    for (const post of deprecatedBlogPosts) {
+      const route = getRouteMetadata(`/blog/${post.slug}`)
+
+      expect(slugs.has(post.replacementSlug)).toBe(true)
+      expect(route.index).toBe(false)
+      expect(route.canonicalPath).toBe(`/blog/${post.replacementSlug}`)
+      expect(canonicalUrlForRoute(route)).toBe(`https://portdaddy.dev/blog/${post.replacementSlug}`)
+    }
+  })
+
+  test('default social image is generated and does not fall back to the retired legacy hero', () => {
     const manifestPath = resolve(publicDir, 'img/generated/manifest.json')
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
     const generatedFiles = manifest.generatedAssets.map((asset: { file: string }) => asset.file)
@@ -94,18 +110,18 @@ describe('website SEO metadata', () => {
   })
 
   test('SPA document metadata updates canonical, social, robots, and article tags', async () => {
-    render(<MetaProbe path="/blog/dead-agents-tell-tales" />)
+    render(<MetaProbe path="/blog/control-plane-is-the-product" />)
 
     await waitFor(() => {
-      expect(document.title).toContain('Dead Agents Tell Tales')
+      expect(document.title).toContain('The Control Plane Is the Product')
     })
 
-    expect(document.querySelector<HTMLMetaElement>('meta[name="description"]')?.content).toContain('salvage queue')
-    expect(document.querySelector<HTMLLinkElement>('link[rel="canonical"]')?.href).toBe('https://portdaddy.dev/blog/dead-agents-tell-tales')
-    expect(document.querySelector<HTMLMetaElement>('meta[property="og:image"]')?.content).toBe('https://portdaddy.dev/img/blog/dead-agents-hero.png')
-    expect(document.querySelector<HTMLMetaElement>('meta[name="twitter:image"]')?.content).toBe('https://portdaddy.dev/img/blog/dead-agents-hero.png')
+    expect(document.querySelector<HTMLMetaElement>('meta[name="description"]')?.content).toContain('FleetBar opens the real Fleet Control Center')
+    expect(document.querySelector<HTMLLinkElement>('link[rel="canonical"]')?.href).toBe('https://portdaddy.dev/blog/control-plane-is-the-product')
+    expect(document.querySelector<HTMLMetaElement>('meta[property="og:image"]')?.content).toBe('https://portdaddy.dev/img/generated/blog-control-plane-product.jpg')
+    expect(document.querySelector<HTMLMetaElement>('meta[name="twitter:image"]')?.content).toBe('https://portdaddy.dev/img/generated/blog-control-plane-product.jpg')
     expect(document.querySelector<HTMLMetaElement>('meta[name="robots"]')?.content).toBe('index,follow')
-    expect(document.querySelector<HTMLMetaElement>('meta[property="article:published_time"]')?.content).toBe('2026-04-21')
+    expect(document.querySelector<HTMLMetaElement>('meta[property="article:published_time"]')?.content).toBe('2026-04-29')
     expect(document.querySelectorAll('meta[property="article:tag"]').length).toBeGreaterThan(0)
     expect(document.querySelector<HTMLScriptElement>('script[data-site-metadata="json-ld"]')?.textContent).toContain('"@type":"Article"')
   })

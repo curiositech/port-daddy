@@ -10,40 +10,28 @@
     <loc>https://portdaddy.dev/blog</loc>
   </url>
   <url>
-    <loc>https://portdaddy.dev/blog/claude-code-port-daddy-integration</loc>
+    <loc>https://portdaddy.dev/blog/backend-readiness-is-dependency-truth</loc>
   </url>
   <url>
-    <loc>https://portdaddy.dev/blog/dead-agents-tell-tales</loc>
+    <loc>https://portdaddy.dev/blog/cartographer-navigator-map-truth</loc>
   </url>
   <url>
-    <loc>https://portdaddy.dev/blog/distributed-locks-two-agents-one-migration</loc>
+    <loc>https://portdaddy.dev/blog/control-plane-is-the-product</loc>
   </url>
   <url>
-    <loc>https://portdaddy.dev/blog/fleet-agents-as-infrastructure</loc>
+    <loc>https://portdaddy.dev/blog/coordination-guard-claims-into-policy</loc>
   </url>
   <url>
-    <loc>https://portdaddy.dev/blog/formal-verification-anchor-protocol</loc>
+    <loc>https://portdaddy.dev/blog/fleet-designer-cold-start</loc>
   </url>
   <url>
-    <loc>https://portdaddy.dev/blog/four-agents-zero-clobber</loc>
+    <loc>https://portdaddy.dev/blog/pd-tube-event-reply-loop</loc>
   </url>
   <url>
-    <loc>https://portdaddy.dev/blog/performance-at-scale</loc>
+    <loc>https://portdaddy.dev/blog/running-is-not-current</loc>
   </url>
   <url>
-    <loc>https://portdaddy.dev/blog/port-daddy-for-teams</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/blog/pubsub-self-healing-test-pipeline</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/blog/spark-and-spider-the-creative-engine</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/blog/the-port-collision-that-ate-my-saturday</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/blog/zero-to-multi-agent-in-5-minutes</loc>
+    <loc>https://portdaddy.dev/blog/telemetry-is-a-launch-gate</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs</loc>
