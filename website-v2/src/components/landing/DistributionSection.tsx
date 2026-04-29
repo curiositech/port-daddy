@@ -1,9 +1,9 @@
-import { Download, Github, PackageCheck, ShieldAlert, Terminal } from 'lucide-react'
+import { useState } from 'react'
+import { Check, Copy, Download, Github, PackageCheck, ShieldAlert, Terminal } from 'lucide-react'
 import { DISTRIBUTION_OPTIONS } from '@/data/product'
 import { Button } from '@/components/ui/Button'
 import { useTheme } from '@/lib/theme-context'
 import {
-  CommandBlock,
   PageContainer,
   PanelBody,
   PanelEyebrow,
@@ -26,6 +26,53 @@ const statusCopy = {
   'developer-preview': 'Developer preview',
   'release-channel': 'Release channel',
 } as const
+
+function DistributionCommand({
+  command,
+  eyebrowTone = 'default',
+}: {
+  command: string
+  eyebrowTone?: 'default' | 'primary'
+}) {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(command)
+    setCopied(true)
+    window.setTimeout(() => setCopied(false), 1800)
+  }
+
+  return (
+    <div className="grid gap-[var(--space-2)]">
+      <div className="flex items-center justify-between gap-[var(--space-3)]">
+        <PanelEyebrow tone={eyebrowTone}>Command</PanelEyebrow>
+        <Button type="button" variant="secondary" size="sm" aria-label="Copy command" onClick={handleCopy}>
+          {copied ? <Check size={14} /> : <Copy size={14} />}
+          {copied ? 'Copied' : 'Copy'}
+        </Button>
+      </div>
+      <div
+        className="min-w-0 overflow-hidden border-2 border-[var(--border-strong)] px-[var(--space-3)] py-[var(--space-3)] font-mono text-[13px] leading-[1.65]"
+        style={{ background: 'var(--code-bg)', color: 'var(--code-text)' }}
+      >
+        <code
+          className="block"
+          style={{
+            background: 'transparent',
+            border: 0,
+            borderRadius: 0,
+            color: 'inherit',
+            overflowWrap: 'anywhere',
+            padding: 0,
+            whiteSpace: 'pre-wrap',
+          }}
+        >
+          {command}
+        </code>
+      </div>
+    </div>
+  )
+}
 
 export function DistributionSection() {
   const primary = DISTRIBUTION_OPTIONS[0]
@@ -94,13 +141,7 @@ export function DistributionSection() {
                     </PanelBody>
                   </div>
                 </div>
-                <CommandBlock
-                  title="Mac preview"
-                  command={primary.command}
-                  tone="blue"
-                  elevation="quiet"
-                  label="Terminal"
-                />
+                <DistributionCommand command={primary.command} eyebrowTone="primary" />
               </SurfacePanel>
 
               <div className="grid gap-[var(--space-4)] md:grid-cols-3">
@@ -118,12 +159,7 @@ export function DistributionSection() {
                     <PanelBody size="compact" className="max-w-none">
                       {option.description}
                     </PanelBody>
-                    <CommandBlock
-                      title={option.title}
-                      command={option.command}
-                      elevation="quiet"
-                      label="Copy"
-                    />
+                    <DistributionCommand command={option.command} />
                   </SurfacePanel>
                 ))}
               </div>
