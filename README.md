@@ -236,9 +236,9 @@ one-line `summary` suitable for shell prompts. `pd advise` / `pd preflight`
 returns deterministic recommendations with evidence and executable actions:
 session/context integrity, active claims, symbol freshness, stale salvage,
 declared channels, tuple-worthy facts, and true lock candidates.
-`pd actors` shows durable maritime actor souls such as Navigator, Coxswain,
-Signalman, Harbormaster, Sounder, Lookout, Breaker, Caulker, and
-Quartermaster; `pd actor cartographer` resolves to Navigator for compatibility.
+`pd actors` shows durable actor souls such as Coxswain, Gardener, QA/Signalman,
+Test Hunter, Documentarian/Lookout, Simplifier, Cartographer/Navigator, Spark,
+and Spider; `pd actor navigator` resolves to Cartographer for compatibility.
 `pd actor <id> --message` queues to the durable actor mailbox without granting a
 dormant actor live mutation authority; `--inbox` and `--inbox-stats` expose
 queued mailbox state separately from live-body wake status.

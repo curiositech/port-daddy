@@ -6,7 +6,7 @@ import {
 } from '../../lib/maritime-actors.js';
 
 describe('fleet actors (formerly maritime)', () => {
-  test('defines the canonical durable actor roster (1:1 with fleet agents)', () => {
+  test('defines the canonical durable actor roster', () => {
     const actors = listMaritimeActors();
 
     expect(actors.map(actor => actor.id)).toEqual([
@@ -15,6 +15,7 @@ describe('fleet actors (formerly maritime)', () => {
       'test-hunter',
       'documentarian',
       'simplifier',
+      'coxswain',
       'cartographer',
       'spark',
       'spider',
@@ -27,13 +28,30 @@ describe('fleet actors (formerly maritime)', () => {
     expect(resolveMaritimeActorId('navigator')).toBe('cartographer');
     expect(resolveMaritimeActorId('lookout')).toBe('documentarian');
     expect(resolveMaritimeActorId('signalman')).toBe('qa');
+    expect(resolveMaritimeActorId('claim-owner')).toBe('coxswain');
     // Identity is identity.
+    expect(resolveMaritimeActorId('coxswain')).toBe('coxswain');
     expect(resolveMaritimeActorId('cartographer')).toBe('cartographer');
     expect(resolveMaritimeActorId('qa')).toBe('qa');
   });
 
-  test('drops bodyless maritime metaphor roles from the canonical roster', () => {
-    expect(resolveMaritimeActorId('coxswain')).toBeNull();
+  test('keeps Coxswain as the standalone coordination owner without inventing the rest of the future roster', () => {
+    const coxswain = getMaritimeActor('coxswain');
+
+    expect(coxswain).toEqual(expect.objectContaining({
+      id: 'coxswain',
+      label: 'Coxswain',
+      inboxTarget: 'actor:coxswain',
+      compatibilityFleetAgent: null,
+      leaseState: 'dormant',
+    }));
+    expect(coxswain?.owns).toEqual(expect.arrayContaining([
+      'claims',
+      'locks',
+      'stale-assets',
+      'symbolic-coordination',
+      'session-contention',
+    ]));
     expect(resolveMaritimeActorId('harbormaster')).toBeNull();
     expect(resolveMaritimeActorId('sounder')).toBeNull();
     expect(resolveMaritimeActorId('breaker')).toBeNull();

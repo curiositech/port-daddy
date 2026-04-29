@@ -157,13 +157,13 @@ List agents. Options: `activeOnly`. Returns `{ agents, count }`.
 
 ## Maritime Actors
 
-Durable maritime actors are stable role identities such as `navigator`, `coxswain`, `signalman`, `harbormaster`, `sounder`, `lookout`, `breaker`, `caulker`, and `quartermaster`. They can have zero, one, or many live agent bodies attached. Messages target actor mailboxes like `actor:navigator`, so the work item survives body churn.
+Durable maritime actors are stable role identities such as `coxswain`, `gardener`, `qa`/`signalman`, `test-hunter`, `documentarian`/`lookout`, `simplifier`, `cartographer`/`navigator`, `spark`, and `spider`. They can have zero, one, or many live agent bodies attached. Messages target actor mailboxes like `actor:coxswain`, so the work item survives body churn.
 
 ### `pd.listActors(options?)`
 List actor projections. Options: `project`, `limit`. Returns `{ actors, count }`.
 
 ### `pd.getActor(idOrAlias, options?)`
-Get one actor by canonical ID or compatibility alias. Options: `project`. For example, `cartographer` resolves to `navigator`.
+Get one actor by canonical ID or compatibility alias. Options: `project`. For example, `navigator` resolves to `cartographer`.
 
 ### `pd.messageActor(idOrAlias, content, options?)`
 Send a mailbox message to an actor. Options: `from`, `type`, `project`, `wake`.
