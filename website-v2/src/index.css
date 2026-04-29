@@ -153,6 +153,36 @@ a {
   transition: color 0.2s ease;
 }
 
+/* Neobrutalist accent utilities: hard offset shadows, no blur. */
+.neo-card {
+  box-shadow: var(--neo-shadow-card);
+}
+
+.neo-card-strong {
+  box-shadow: var(--neo-shadow-pop);
+}
+
+.neo-control {
+  box-shadow: var(--neo-shadow-control);
+}
+
+.neo-lift {
+  transition:
+    transform var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out);
+}
+
+.neo-lift:hover {
+  box-shadow: var(--neo-shadow-pop);
+  transform: translate(-2px, -2px);
+}
+
+.neo-lift:active {
+  box-shadow: var(--neo-shadow-xs);
+  transform: translate(2px, 2px);
+}
+
 /* Inline code uses tokenized inset contrast, not a black-code default. */
 code:not(pre code) {
   display: inline-flex;

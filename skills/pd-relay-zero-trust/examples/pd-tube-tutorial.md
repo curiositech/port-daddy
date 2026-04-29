@@ -22,6 +22,25 @@ pd channels clear tutorial:foreign --raw-channel
 ```
 Most examples pass `--json`. That makes stdout one JSON object per line, which is what scripts and `jq` want.
 
+### Visual rhythm for this tutorial
+This file is text-only by constraint, but it is written with GIF beats baked in. Each beat names a concrete animation that can be captured later with `vhs`,
+`asciinema`, `agg`, or a screen recorder. The commands are real; the GIF notes are production cues, not extra assets.
+
+> **GIF beat: two-terminal hello.** Left terminal starts `pd tube tutorial:hello --json` and sits quiet. Right terminal pipes `echo "hi from terminal B"` into
+> `--send`. The left terminal lights up with one JSON line. Freeze-frame on the shared `id`.
+
+> **GIF beat: cursor file.** A listener prints `one` and `two`; a second pane runs `jq . ~/.port-daddy/tube-history-tutorial_history.json`; the `lastSeenId`
+> increments. Restart the listener and show silence.
+
+> **GIF beat: thread reply.** Parent message appears, reply message appears with `inReplyTo`, then a curl pane shows the full daemon payload envelope. Use a
+> color highlight around `kind: "tube.msg"`.
+
+> **GIF beat: future relay.** Same `tube.msg` envelope slides from local daemon to relay to another daemon. The important caption is: "same envelope, different
+> transport."
+
+Keep those beats in mind as you read. They are also useful acceptance criteria: if a future animated version cannot show the behavior clearly, the prose is
+probably hiding something.
+
 ## 1. Setup
 You need a working Port Daddy checkout, the `pd` CLI on `PATH`, and a running local daemon. You also need a shell that can pipe stdin into commands. Check the
 CLI first:
@@ -76,6 +95,22 @@ rm -f ~/.port-daddy/tube-history-tutorial_threads.json
 rm -f ~/.port-daddy/tube-history-tutorial_history.json
 ```
 Those files are explained in section 4.
+
+Setup is also where you decide how isolated you want the demo to be. For most local use, the canonical daemon is fine. If you are filming or testing in a shared
+workspace, a named daemon profile can keep the demo from colliding with another operator's channels:
+```bash
+pd daemon start tube-demo --port 9877
+eval "$(pd daemon env tube-demo)"
+pd status
+```
+When you are done:
+```bash
+pd daemon stop tube-demo
+```
+Named profiles are optional. The tutorial commands work with the canonical daemon, and the examples below assume that default unless explicitly noted.
+
+> **GIF beat: clean room setup.** Show `pd daemon start tube-demo --port 9877`, then `eval "$(pd daemon env tube-demo)"`, then `pd status`. Put a tiny label in
+> the corner: "isolated demo daemon, same CLI."
 
 ## 2. One-shot send and listen
 Open two terminals. Terminal A will listen. Terminal B will send. In Terminal A, start a JSON-lines listener:
@@ -136,6 +171,28 @@ Interactive TTY stdin also fails instead of hanging:
 ERROR: tube: --send / --reply needs a body on stdin (pipe one in, e.g. `echo hi | pd tube ...`)
 ```
 That guard catches the common mistake of typing `--send` without a pipe.
+
+For a slightly richer first demo, send several bodies and watch that each becomes its own daemon message:
+```bash
+printf 'alpha\n' | pd tube tutorial:hello --send --sender terminal-b --json
+printf 'bravo\n' | pd tube tutorial:hello --send --sender terminal-b --json
+printf 'charlie\n' | pd tube tutorial:hello --send --sender terminal-b --json
+```
+Then drain a bounded replay:
+```bash
+pd tube tutorial:hello --once --no-history --limit=3 --json | jq -r '[.id, .sender, .body] | @tsv'
+```
+Example output:
+```text
+31070	terminal-b	alpha
+31071	terminal-b	bravo
+31072	terminal-b	charlie
+```
+This is the core mental model: tube is not a chat UI. It is a clean pipe. You can make a chat UI, a bot handoff, a phone bridge, or a CI notifier on top of it
+because the underlying primitive is just "message in, JSON line out."
+
+> **GIF beat: pipe anatomy.** Animate stdin as a thin line entering `pd tube --send`, the daemon minting id `31070`, and the listener emitting JSONL. End with
+> `jq -r .body` peeling the body back out.
 
 ## 3. Threading and replies
 The daemon's message table does not model thread parents. Tube carries threading in its payload envelope. A top-level message is stored like this:
@@ -260,6 +317,35 @@ custom JSON. Filter if you only want tube messages:
 ```bash
 pd tube tutorial:foreign --once --no-history --json | jq 'select(.foreign != true)'
 ```
+
+You can build a minimal threaded transcript with `jq` alone:
+```bash
+pd tube tutorial:threads --once --no-history --json \
+  | jq -r 'if has("inReplyTo") then "  reply to \(.inReplyTo): \(.body)" else "root \(.id): \(.body)" end'
+```
+Example output:
+```text
+root 31054: first threaded note
+  reply to 31054: reply from bob
+```
+That display is intentionally client-side. Tube transports the relationship; your tool decides how to render it.
+
+Replies can form deeper trees if your consumer wants them:
+```bash
+printf 'second-level reply\n' | pd tube tutorial:threads --reply=31055 --sender cara --json
+pd tube tutorial:threads --once --no-history --json | jq -c '{id, inReplyTo, body}'
+```
+Example output:
+```json
+{"id":31054,"body":"first threaded note"}
+{"id":31055,"inReplyTo":31054,"body":"reply from bob"}
+{"id":31080,"inReplyTo":31055,"body":"second-level reply"}
+```
+There is still no daemon-enforced tree. If you need tree integrity, check that each `inReplyTo` points to a message you have seen. If you need cross-channel
+threads, include the channel in your own body schema.
+
+> **GIF beat: reply graph.** Show three JSONL lines turning into a tiny tree: `31054 -> 31055 -> 31080`. Then fade back to the raw envelope to reinforce that
+> the CLI did not invent hidden daemon state.
 
 ## 4. History guard mechanics
 The history guard is a local cursor file. It is single-channel and single-machine. It is not synchronized across machines until a relay-backed mode exists. The
