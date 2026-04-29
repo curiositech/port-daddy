@@ -288,7 +288,7 @@ Use the right surface for the job:
 
 Canonical operator explanation: [docs/DELEGATION-MODES.md](docs/DELEGATION-MODES.md)
 
-For Port Daddy itself, promotion is the high-signal docs boundary. `./scripts/promote-stable.sh` emits a `promotion:release-surfaces` tuple and pub/sub signal after tests pass and before the stable merge, so the fleet Documentarian/Lookout reviews README, website docs/tutorials, SDK/CLI references, OpenAPI/MCP surfaces, and the distributed agent skill when those surfaces are about to become live operator truth.
+For Port Daddy itself, promotion is the high-signal docs boundary. `./scripts/promote-stable.sh` emits a `promotion:release-surfaces` tuple and pub/sub signal after tests pass and before the stable merge, so the fleet Documentarian/Lookout reviews README, docs, website docs/tutorials, Mac app/FleetBar install and product copy, SDK/CLI references, OpenAPI/MCP surfaces, and the distributed agent skill when those surfaces are about to become live operator truth.
 
 ```bash
 # Preferred single-agent delegation

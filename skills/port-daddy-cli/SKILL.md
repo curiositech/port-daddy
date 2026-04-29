@@ -76,7 +76,7 @@ Use this table when the happy path reveals a specific need:
 | Exclusive critical section | `pd with-lock <resource> -- <command>` | Use for migrations, promotion, generated artifacts, and non-mergeable work. |
 | Crash or abandoned work | `pd salvage --project <project>` / `pd salvage --summary` | Read before restarting work someone may have half-finished; use summary mode when the queue is noisy. |
 | Roadmap or what-next truth | `pd actor cartographer` / `pd actor navigator --inbox` | Ask the durable roadmap actor; docs are evidence, not the actor. |
-| Skill/docs/API drift | `pd actor lookout --message` | Queue release-surface drift for the durable docs/skill owner. |
+| Skill/docs/API drift | `pd actor lookout --message` | Queue release-surface drift for the durable docs/README/website/Mac-app/skill owner. |
 | Machine-readable handoff | `pd tuple out ...` | Use only when another process/agent should query it. |
 | Direct message | `pd inbox send` or `pd actor <id> --message` | Use when you know the recipient; use `pd actor <id> --inbox --mark-read` only after the role mail has been processed. |
 | Catch up after time away | `pd look` / `pd sitrep` | Read recent activity instead of scraping logs manually. |
@@ -152,7 +152,8 @@ pd actor navigator --inbox --unread
 
 `cartographer` is a compatibility alias for the durable `navigator` actor.
 Navigator owns roadmap, recovery-ledger, work-slice, and cartographer-status
-truth. Lookout owns docs, OpenAPI, skill, and product-truth drift.
+truth. Lookout owns docs, README, OpenAPI, SDK/MCP/CLI references, website,
+Mac app/FleetBar documentation, skill, and product-truth drift.
 
 Use actor messages when the durable role should update or arbitrate:
 
@@ -359,7 +360,7 @@ curl "$PD_URL/fleet/events"       # SSE lifecycle stream
 
 The starter fleet includes: **QA** (bug hunting), **Documentarian / Lookout** (promotion-time release-surface sync), **Cartographer** (roadmap tracking), **Spark** (idea generation), **Spider** (cross-feature connections).
 
-For Port Daddy's own repo, `./scripts/promote-stable.sh` emits a `promotion:release-surfaces` tuple and pub/sub signal after tests pass and before the stable merge. Documentarian listens there, with singleton/cooldown/dedupe/backoff controls, so README, website docs/tutorials, SDK/CLI references, OpenAPI/MCP, and this skill are checked at the moment they become operator-facing truth instead of on every low-signal commit.
+For Port Daddy's own repo, `./scripts/promote-stable.sh` emits a `promotion:release-surfaces` tuple and pub/sub signal after tests pass and before the stable merge. Documentarian listens there, with singleton/cooldown/dedupe/backoff controls, so README, docs, website docs/tutorials, Mac app/FleetBar install and product copy, SDK/CLI references, OpenAPI/MCP, and this skill are checked at the moment they become operator-facing truth instead of on every low-signal commit.
 
 `pd fleet status` now surfaces backend readiness and sandbox-sensitive local execution hints so users can see install/auth/permission blockers before a fleet run fails.
 
