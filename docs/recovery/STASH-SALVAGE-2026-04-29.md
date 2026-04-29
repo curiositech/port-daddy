@@ -33,11 +33,11 @@ some stale or generated residue, so review the status notes before replaying the
 | --- | --- | --- | --- |
 | 0 | `codex/stash-exact-20260429-00-stable-dirty` | `ae646b4` | Tests forward-integrated; roadmap docs preserved only |
 | 1 | `codex/stash-exact-20260429-01-promotion-hold-port-daddy-agent-skill-mirrors-2026-04-29` | `4a0b70c` | Superseded by richer agent-skill mirrors already on `origin/main` |
-| 2 | `codex/stash-exact-20260429-02-promotion-hold-readable-id-wip-2026-04-29` | `7dd6563` | Mixed readable-ID and website WIP; preserve exact branch, do not replay wholesale |
-| 3 | `codex/stash-exact-20260429-03-promotion-blocking-cli-test-2026-04-29` | `586ece6` | CLI test slice plus unrelated website generated assets; review selectively |
-| 4 | `codex/stash-exact-20260429-04-promotion-blocking-sugar-test-2026-04-29` | `5c03ef3` | Sugar test slice plus unrelated website generated assets; review selectively |
-| 5 | `codex/stash-exact-20260429-05-promotion-blocking-readable-session-test-2026-04-29` | `31f34f9` | Session test slice plus unrelated website generated assets; review selectively |
-| 6 | `codex/stash-exact-20260429-06-promotion-blocking-readable-id-tests-2026-04-29` | `763307c` | Readable-ID tests plus unrelated website generated assets; review selectively |
+| 2 | `codex/stash-exact-20260429-02-promotion-hold-readable-id-wip-2026-04-29` | `7dd6563` | Readable-ID source/tests verified absorbed by `origin/main`; website residue preserved only |
+| 3 | `codex/stash-exact-20260429-03-promotion-blocking-cli-test-2026-04-29` | `586ece6` | CLI test work verified absorbed; replay would delete newer CLI coverage |
+| 4 | `codex/stash-exact-20260429-04-promotion-blocking-sugar-test-2026-04-29` | `5c03ef3` | Sugar test work verified absorbed by `origin/main` |
+| 5 | `codex/stash-exact-20260429-05-promotion-blocking-readable-session-test-2026-04-29` | `31f34f9` | Session test work verified absorbed by `origin/main` |
+| 6 | `codex/stash-exact-20260429-06-promotion-blocking-readable-id-tests-2026-04-29` | `763307c` | Readable-ID test work verified absorbed by `origin/main` |
 | 7 | `codex/stash-exact-20260429-07-promotion-blocking-source-2026-04-29` | `6b8a79c` | Cartographer tuple feedback source is already present on `origin/main`; replay would regress newer UI API/types |
 | 8 | `codex/stash-exact-20260429-08-scratch-pngs-before-closing-pd-tube-branch` | `78baf67` | Scratch screenshots only; preserved, not promotable as-is |
 | 9 | `codex/stash-exact-20260429-09-auto-stash-other-agents-wip-while-committing-hashscroll-` | `7e611c3` | Mixed runtime and website WIP; needs feature-level review before replay |
@@ -53,9 +53,7 @@ some stale or generated residue, so review the status notes before replaying the
 
 ## Next Review Order
 
-1. Inspect stash 3-6 test deltas against `origin/main`; recover only assertions
-   that still cover live behavior and are not already represented by current tests.
-2. Inspect stash 9, 11, and 13 in a website worktree with the current dirty
+1. Inspect stash 9, 11, and 13 in a website worktree with the current dirty
    website branch in mind; do not replay screenshots or generated assets blindly.
-3. Treat stash 14, 15, 17, and 18 as archaeology unless a current bug points back
+2. Treat stash 14, 15, 17, and 18 as archaeology unless a current bug points back
    to a specific hunk.
