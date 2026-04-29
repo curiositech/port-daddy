@@ -57,7 +57,7 @@ were pushed so neither hash is stranded.
 | `codex/tube-events-console-ui-pre-main-refresh` | Unique local commit `acddf1c` was pushed to `codex/worktree-preserve-20260429-tube-events-console-pre-main`. |
 | `worktree-agent-a5ff0f82` | Unique local commit `3f9f142` was pushed to `codex/worktree-preserve-20260429-fleet-spawn-dogfood`. |
 | `worktree-agent-a7bdac05` | Unique local commit `52f13f3` was pushed to `codex/worktree-preserve-20260429-salvage-panel-dashboard`. |
-| `codex/mcp-mac-preview-visibility` | Patch-equivalent to `origin/main`; upstream was gone but no unique patch remained. |
+| `codex/mcp-mac-preview-visibility` | Patch-equivalent to `origin/main`, but exact local commit `24e7df4` was still preserved in `codex/worktree-preserve-20260429-mcp-mac-preview-visibility`. |
 | `codex/reconcile-stable-runtime-fixes` | Already ancestor of `origin/main`; upstream was gone but no unique work remained. |
 | `codex/pr-5-pki-deliberation` | Already ancestor of `origin/main`; no additional preservation branch needed. |
 | `codex/pr-5-pki-ui-docs` | Dirty worktree content preserved in `codex/worktree-snapshot-20260429-pr5-ui`. |
