@@ -28,11 +28,9 @@ const WhitepaperDetailPage = lazy(() => import('@/pages/whitepaper/PaperDetailPa
 const BlogPage = lazyNamed(() => import('@/pages/BlogPage'), 'BlogPage')
 const BlogPostPage = lazyNamed(() => import('@/pages/BlogPostPage'), 'BlogPostPage')
 const MacPreviewPage = lazyNamed(() => import('@/pages/MacPreviewPage'), 'MacPreviewPage')
-const TemplatesPage = lazyNamed(() => import('@/pages/TemplatesPage'), 'TemplatesPage')
 const AgentsPage = lazyNamed(() => import('@/pages/AgentsPage'), 'AgentsPage')
 const IntegrationsPage = lazyNamed(() => import('@/pages/integrations/IntegrationsPage'), 'IntegrationsPage')
 const IntegrationPage = lazyNamed(() => import('@/pages/integrations/IntegrationPage'), 'IntegrationPage')
-const TemplatePage = lazyNamed(() => import('@/pages/blueprints/TemplatePage'), 'TemplatePage')
 
 const GettingStarted = lazyNamed(() => import('@/pages/tutorials/GettingStarted'), 'GettingStarted')
 const SemanticIdentities = lazyNamed(() => import('@/pages/tutorials/SemanticIdentities'), 'SemanticIdentities')
