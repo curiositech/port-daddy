@@ -24,14 +24,14 @@ export default function AddNoteTool() {
         },
         {
           description: 'Add a milestone',
-          code: 'add_note({ text: "Auth middleware updated", type: "milestone" })',
+          code: 'add_note({ content: "Auth middleware updated", type: "milestone" })',
           output: `{\n  "note_id": "note-002",\n  "type": "milestone",\n  "added": true\n}`
         },
       ]}
       seeAlso={[
         { name: 'list_notes', href: '/docs/mcp/list-notes' },
         { name: 'begin_session', href: '/docs/mcp/begin-session' },
-        { name: 'SDK: addNote()', href: '/docs/sdk/add-note' },
+        { name: 'SDK: note()', href: '/docs/sdk/add-note' },
       ]}
     />
   )

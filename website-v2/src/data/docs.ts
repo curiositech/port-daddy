@@ -329,7 +329,7 @@ export const ENDPOINTS: Endpoint[] = [
   { method: 'GET',    path: '/sessions/:id',            description: 'Get session details',                          group: 'Sessions' },
   { method: 'PUT',    path: '/sessions/:id',            description: 'Update session (phase, status, purpose)',      group: 'Sessions' },
   { method: 'DELETE', path: '/sessions/:id',            description: 'Delete session (cascades to notes)',           group: 'Sessions' },
-  { method: 'POST',   path: '/sessions/:id/notes',      description: 'Add a note to a session',                     group: 'Sessions' },
+  { method: 'POST',   path: '/sessions/:id/notes',      description: 'Compatibility alias for POST /notes with sessionId', group: 'Sessions' },
   { method: 'GET',    path: '/sessions/:id/notes',      description: 'Get all notes for a session',                  group: 'Sessions' },
   { method: 'POST',   path: '/sessions/:id/files',      description: 'Claim files in a session',                    group: 'Sessions' },
   { method: 'DELETE', path: '/sessions/:id/files',      description: 'Release file claims',                         group: 'Sessions' },

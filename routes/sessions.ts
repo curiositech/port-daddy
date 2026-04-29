@@ -6,7 +6,7 @@
  * GET    /sessions/:id            - Get session details
  * PUT    /sessions/:id            - End or abandon a session
  * DELETE /sessions/:id            - Delete session + cascade notes
- * POST   /sessions/:id/notes      - Add a note to a session
+ * POST   /sessions/:id/notes      - Add a note to a session (compat alias for /notes)
  * GET    /sessions/:id/notes      - Get notes for a session
  * POST   /sessions/:id/files      - Claim files for a session
  * DELETE /sessions/:id/files      - Release files from a session
@@ -29,9 +29,6 @@ interface SessionsRouteDeps {
     }): Record<string, unknown>;
     abandon(sessionId: string): Record<string, unknown>;
     remove(sessionId: string): Record<string, unknown>;
-    addNote(sessionId: string, content: string, options?: {
-      type?: string;
-    }): Record<string, unknown>;
     quickNote(content: string, options?: {
       sessionId?: string | null;
       agentId?: string | null;
@@ -93,6 +90,59 @@ interface SessionsRouteDeps {
 export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = async (fastify, opts) => {
   const { deps } = opts;
   const { sessions, metrics, logger, activityLog } = deps;
+
+  const noteWriteStatus = (result: Record<string, unknown>) => {
+    switch (result.code) {
+      case 'SESSION_NOT_FOUND':
+        return 404;
+      case 'SESSION_NOT_ACTIVE':
+      case 'AMBIGUOUS_ACTIVE_SESSION':
+      case 'NOTES_LIMIT_EXCEEDED':
+        return 409;
+      default:
+        return 400;
+    }
+  };
+
+  const writeNote = (
+    request: FastifyRequest,
+    reply: FastifyReply,
+    routeSessionId: string | null,
+  ) => {
+    const { content, sessionId: bodySessionId, agentId, type } = request.body as any;
+
+    if (!content || typeof content !== 'string') {
+      reply.code(400);
+      return {
+        success: false,
+        error: 'content must be a non-empty string',
+        code: 'VALIDATION_ERROR'
+      };
+    }
+
+    const sessionId = routeSessionId ?? bodySessionId;
+    const result = sessions.quickNote(content, { sessionId, agentId, type });
+
+    if (!result.success) {
+      reply.code(noteWriteStatus(result));
+      return result;
+    }
+
+    logger.info('session_note_added', {
+      noteId: result.noteId,
+      sessionId: result.sessionId,
+      type: type || 'note'
+    });
+
+    if (activityLog?.log) {
+      activityLog.log('session_note', {
+        details: `Note added to session ${result.sessionId}`,
+        metadata: { noteId: result.noteId as number, sessionId: result.sessionId as string, type: type || 'note' }
+      });
+    }
+
+    return result;
+  };
 
   // POST /sessions - Start a session
   fastify.post('/sessions', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -329,43 +379,12 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     }
   });
 
-  // POST /sessions/:id/notes - Add a note to a session
+  // POST /sessions/:id/notes - Compatibility alias for the canonical /notes write path
   fastify.post('/sessions/:id/notes', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const sessionIdParam = (request.params as any).id;
       const sessionId = typeof sessionIdParam === 'string' ? sessionIdParam : sessionIdParam[0];
-      const { content, type } = request.body as any;
-
-      if (!content || typeof content !== 'string') {
-        reply.code(400);
-        return {
-          success: false,
-          error: 'content must be a non-empty string',
-          code: 'VALIDATION_ERROR'
-        };
-      }
-
-      const result = sessions.addNote(sessionId, content, { type });
-
-      if (!result.success) {
-        reply.code(404);
-        return { ...result, code: 'SESSION_NOT_FOUND' };
-      }
-
-      logger.info('session_note_added', {
-        sessionId,
-        noteId: result.noteId,
-        type: type || 'note'
-      });
-
-      if (activityLog?.log) {
-        activityLog.log('session_note', {
-          details: `Note added to session ${sessionId}`,
-          metadata: { sessionId, noteId: result.noteId as number, type: type || 'note' }
-        });
-      }
-
-      return result;
+      return writeNote(request, reply, sessionId);
 
     } catch (error) {
       metrics.errors++;
@@ -570,44 +589,10 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     }
   });
 
-  // POST /notes - Quick note (auto-creates session if needed)
+  // POST /notes - Canonical note write path
   fastify.post('/notes', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { content, sessionId, agentId, type } = request.body as any;
-
-      if (!content || typeof content !== 'string') {
-        reply.code(400);
-        return {
-          success: false,
-          error: 'content must be a non-empty string',
-          code: 'VALIDATION_ERROR'
-        };
-      }
-
-      const result = sessions.quickNote(content, { sessionId, agentId, type });
-
-      if (!result.success) {
-        const code = result.code === 'SESSION_NOT_FOUND' ? 404
-          : result.code === 'SESSION_NOT_ACTIVE' || result.code === 'AMBIGUOUS_ACTIVE_SESSION' ? 409
-          : 400;
-        reply.code(code);
-        return result;
-      }
-
-      logger.info('quick_note_added', {
-        noteId: result.noteId,
-        sessionId: result.sessionId,
-        type: type || 'note'
-      });
-
-      if (activityLog?.log) {
-        activityLog.log('session_note', {
-          details: 'Quick note added',
-          metadata: { noteId: result.noteId as number, sessionId: result.sessionId as string, type: type || 'note' }
-        });
-      }
-
-      return result;
+      return writeNote(request, reply, null);
 
     } catch (error) {
       metrics.errors++;

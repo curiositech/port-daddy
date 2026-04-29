@@ -326,7 +326,7 @@ const { agentId, sessionId } = await pd.begin({
 })
 
 // Work...
-await pd.addNote('Created ThemeProvider skeleton')
+await pd.note('Created ThemeProvider skeleton', { sessionId })
 
 // Check context
 const ctx = await pd.whoami(agentId)

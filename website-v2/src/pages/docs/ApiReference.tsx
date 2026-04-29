@@ -238,7 +238,7 @@ const ENDPOINTS: Endpoint[] = [
     group: 'Sessions & Notes',
     method: 'POST',
     path: '/sessions/:id/notes',
-    description: 'Add an immutable note to a session.',
+    description: 'Compatibility alias for POST /notes with sessionId. Adds an immutable note to a session.',
     requestBody: `{
   "content": "Found a race condition in the auth flow",
   "type": "progress"

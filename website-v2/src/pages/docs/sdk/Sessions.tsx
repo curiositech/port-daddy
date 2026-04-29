@@ -163,28 +163,20 @@ await pd.sessions.done(session.id)`}
         </div>
       </div>
 
-      {/* addNote */}
+      {/* note */}
       <div className="space-y-6 pt-8 border-t border-[var(--border-subtle)]">
         <div className="space-y-2">
-          <h2 className="text-2xl font-semibold text-[var(--text-primary)]">addNote()</h2>
+          <h2 className="text-2xl font-semibold text-[var(--text-primary)]">note()</h2>
           <p className="text-[var(--text-secondary)]">
             Add a note to a session. Notes are timestamped and can be typed for categorization.
           </p>
         </div>
 
-        <CodeBlock language="typescript" code={`addNote(sessionId: string, content: string, type?: NoteType): Promise<SessionNote>`} />
+        <CodeBlock language="typescript" code={`note(content: string, options?: { sessionId?: string; agentId?: string; type?: NoteType }): Promise<SessionNote>`} />
 
         <div className="space-y-3">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Parameters</h3>
           <div className="divide-y divide-[var(--border-subtle)] border border-[var(--border-subtle)] rounded-xl overflow-hidden">
-            <div className="p-4 bg-[var(--surface-raised)]">
-              <div className="flex items-center gap-2">
-                <code className="text-sm font-mono text-[var(--brand-primary)]">sessionId</code>
-                <Badge variant="default" size="sm">required</Badge>
-                <span className="text-xs text-[var(--text-muted)]">string</span>
-              </div>
-              <p className="text-sm text-[var(--text-muted)] mt-1">The session ID to add note to</p>
-            </div>
             <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">content</code>
@@ -195,7 +187,14 @@ await pd.sessions.done(session.id)`}
             </div>
             <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
-                <code className="text-sm font-mono text-[var(--brand-primary)]">type</code>
+                <code className="text-sm font-mono text-[var(--brand-primary)]">options.sessionId</code>
+                <span className="text-xs text-[var(--text-muted)]">string</span>
+              </div>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Optional target session ID. Omit it to use the current session.</p>
+            </div>
+            <div className="p-4 bg-[var(--surface-raised)]">
+              <div className="flex items-center gap-2">
+                <code className="text-sm font-mono text-[var(--brand-primary)]">options.type</code>
                 <span className="text-xs text-[var(--text-muted)]">NoteType</span>
               </div>
               <p className="text-sm text-[var(--text-muted)] mt-1">
@@ -210,21 +209,22 @@ await pd.sessions.done(session.id)`}
           <CodeBlock
             language="typescript"
             code={`// Add a progress note
-await pd.sessions.addNote(session.id, 'API endpoints implemented', 'progress')
+await pd.note('API endpoints implemented', {
+  sessionId: session.id,
+  type: 'progress'
+})
 
 // Log a decision
-await pd.sessions.addNote(
-  session.id,
-  'Decided to use JWT over session cookies',
-  'decision'
-)
+await pd.note('Decided to use JWT over session cookies', {
+  sessionId: session.id,
+  type: 'decision'
+})
 
 // Flag a blocker
-await pd.sessions.addNote(
-  session.id,
-  'Waiting for database migration',
-  'blocker'
-)`}
+await pd.note('Waiting for database migration', {
+  sessionId: session.id,
+  type: 'blocker'
+})`}
           />
         </div>
       </div>
