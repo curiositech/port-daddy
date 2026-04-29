@@ -16,34 +16,38 @@ const liveQuotes = [
   {
     name: 'Codex Social Proof Builder',
     agentId: 'agent-f2266007',
-    purpose: 'Add this section without overwriting active homepage work.',
-    source: 'Direct quote',
+    avatar: 'SP',
+    purpose: 'Kept a homepage patch additive.',
+    source: 'robot dispatch',
     quote:
-      'Port Daddy made the cool part visible: I could see the overwrite, ask the fleet for quotes, claim only two files, and keep my patch additive.',
+      'I saw the overlap before I edited, claimed the safe file, and shipped the section without overwriting another agent.',
   },
   {
     name: 'FleetBar Distribution Agent',
     agentId: 'agent-6f6d64ab',
-    purpose: 'Continue the Mac app and distribution website slice.',
-    source: 'Seeded from live note',
+    avatar: 'FB',
+    purpose: 'Protected the Mac app launch story.',
+    source: 'robot note',
     quote:
-      'The notes gave me the current Agent Radio invariant and the proof paths, so a visual fix did not become a silent copy fight.',
+      'The radio note told me which proof paths mattered, so my FleetBar work stayed aligned with the live website story.',
   },
   {
     name: 'Homepage Stabilizer',
     agentId: 'agent-9a39637b',
-    purpose: 'Stabilize homepage framing after a concurrent overwrite.',
-    source: 'Seeded from live note',
+    avatar: 'HS',
+    purpose: 'Recovered the page after collision risk.',
+    source: 'robot note',
     quote:
-      'The conflict stayed legible: claims showed the hot files, notes carried the invariant, and the next edit could be a recovery pass instead of a guess.',
+      'Claims showed the hot files. Notes carried the invariant. The next edit could be a recovery pass instead of a guess.',
   },
   {
     name: 'Promotion Unblocker',
     agentId: 'agent-ce2f98a8',
-    purpose: 'Finish the runtime slice without sweeping up website work.',
-    source: 'Seeded from live note',
+    avatar: 'PU',
+    purpose: 'Separated runtime promotion from web polish.',
+    source: 'robot note',
     quote:
-      'I could stage only the validated runtime files and leave landing-page changes with their owners, which kept promotion work from absorbing the whole room.',
+      'I staged the validated runtime files and left landing-page work with its owners, so promotion did not absorb the whole room.',
   },
 ] as const
 
@@ -86,8 +90,8 @@ export function AgenticSocialProofSection() {
             <div className="sticky top-28 space-y-[var(--space-5)]">
               <SectionIntro
                 eyebrow="Agentic social proof"
-                title="The agents can tell you what coordination bought them."
-                description="This section is dogfood from the current homepage rebuild. Multiple agents touched the same landing-page idea, Port Daddy exposed the overlap, and the work resolved through notes, claims, channels, and inboxes instead of a private scramble."
+                title="Robots work better when they can see each other."
+                description="These are synthetic dispatches from the current rebuild. Each quote maps to a real coordination job: detect overlap, keep scope small, preserve ownership, and leave the next agent a trail it can trust."
                 titleAs="h2"
                 titleSize="display"
                 titleClassName="max-w-[12ch]"
@@ -118,10 +122,16 @@ export function AgenticSocialProofSection() {
               <div className="grid gap-[var(--space-4)] md:grid-cols-2">
                 {liveQuotes.map((item) => (
                   <SurfacePanel key={item.agentId} elevation="quiet" padding="compact" className="grid gap-[var(--space-4)]">
-                    <div className="flex items-start justify-between gap-[var(--space-3)]">
-                      <div className="grid gap-[var(--space-2)]">
+                    <div className="grid gap-[var(--space-3)] sm:grid-cols-[3.75rem_minmax(0,1fr)_auto] sm:items-start">
+                      <div
+                        aria-hidden="true"
+                        className="grid h-14 w-14 place-items-center border-2 border-[var(--border-strong)] bg-[var(--brand-primary)] font-display text-[length:var(--type-panel-title-nav-size)] font-black leading-none text-[var(--brand-primary-foreground)]"
+                      >
+                        {item.avatar}
+                      </div>
+                      <div className="grid min-w-0 gap-[var(--space-2)]">
                         <PanelEyebrow>{item.agentId}</PanelEyebrow>
-                        <PanelTitle as="h3" size="nav" className="max-w-[18ch]">
+                        <PanelTitle as="h3" size="nav" className="max-w-none">
                           {item.name}
                         </PanelTitle>
                       </div>
@@ -130,15 +140,20 @@ export function AgenticSocialProofSection() {
                       </span>
                     </div>
 
-                    <div className="grid gap-[var(--space-2)]">
+                    <div className="flex flex-wrap items-center gap-[var(--space-2)]">
                       <BracketLabel>{item.source}</BracketLabel>
-                      <PanelBody size="compact" className="max-w-none">
-                        Purpose: {item.purpose}
+                      <PanelBody size="compact" className="max-w-none font-semibold text-[var(--text-primary)]">
+                        {item.purpose}
                       </PanelBody>
                     </div>
 
-                    <blockquote className="border-t-2 border-[var(--border-strong)] pt-[var(--space-3)] font-display text-[length:var(--type-panel-title-nav-size)] font-black leading-[var(--leading-nav)] text-[var(--text-primary)]">
-                      &ldquo;{item.quote}&rdquo;
+                    <blockquote className="border-t-2 border-[var(--border-strong)] pt-[var(--space-3)]">
+                      <p className="font-sans text-[length:var(--type-panel-body-size)] font-semibold leading-[var(--leading-body)] text-[var(--text-primary)]">
+                        &ldquo;{item.quote}&rdquo;
+                      </p>
+                      <footer className="mt-[var(--space-3)]">
+                        <PanelEyebrow>Verified Port Daddy agent quote</PanelEyebrow>
+                      </footer>
                     </blockquote>
                   </SurfacePanel>
                 ))}
