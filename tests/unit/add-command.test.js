@@ -11,6 +11,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
+const CONTEXT_ENV_KEYS = [
+  'PORT_DADDY_CONTEXT_DIR',
+  'PORT_DADDY_CONTEXT_SLOT',
+  'CODEX_THREAD_ID',
+  'TERM_SESSION_ID',
+];
+
 function makeRepo() {
   const dir = mkdtempSync(join(tmpdir(), 'pd-add-test-'));
   spawnSync('git', ['init', '-q'], { cwd: dir });
@@ -62,29 +69,21 @@ function captureStdout(fn) {
 
 describe('pd add wrapper', () => {
   let dir;
-  let originalContextSlot;
-  let originalContextDir;
-  let originalCodexThreadId;
+  let savedContextEnv;
 
   beforeEach(() => {
     jest.resetModules();
-    originalContextSlot = process.env.PORT_DADDY_CONTEXT_SLOT;
-    originalContextDir = process.env.PORT_DADDY_CONTEXT_DIR;
-    originalCodexThreadId = process.env.CODEX_THREAD_ID;
-    delete process.env.PORT_DADDY_CONTEXT_SLOT;
-    delete process.env.PORT_DADDY_CONTEXT_DIR;
-    delete process.env.CODEX_THREAD_ID;
+    savedContextEnv = Object.fromEntries(CONTEXT_ENV_KEYS.map((key) => [key, process.env[key]]));
+    for (const key of CONTEXT_ENV_KEYS) delete process.env[key];
     dir = makeRepo();
   });
 
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true });
-    if (originalContextSlot === undefined) delete process.env.PORT_DADDY_CONTEXT_SLOT;
-    else process.env.PORT_DADDY_CONTEXT_SLOT = originalContextSlot;
-    if (originalContextDir === undefined) delete process.env.PORT_DADDY_CONTEXT_DIR;
-    else process.env.PORT_DADDY_CONTEXT_DIR = originalContextDir;
-    if (originalCodexThreadId === undefined) delete process.env.CODEX_THREAD_ID;
-    else process.env.CODEX_THREAD_ID = originalCodexThreadId;
+    for (const key of CONTEXT_ENV_KEYS) {
+      if (savedContextEnv[key] === undefined) delete process.env[key];
+      else process.env[key] = savedContextEnv[key];
+    }
   });
 
   test('expands -A into the universe of modified + untracked paths and stages all when nothing is claimed', async () => {
