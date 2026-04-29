@@ -5,7 +5,7 @@
  * current project when it looks like a real project directory.
  */
 
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync, symlinkSync, lstatSync, unlinkSync, readlinkSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { homedir, platform } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -110,6 +110,69 @@ async function ensureDaemonInstalledAndRunning(): Promise<boolean> {
   return false;
 }
 
+/**
+ * Symlink the bundled agent skill into ~/.claude/skills/port-daddy/.
+ *
+ * Source priority:
+ *   1. Homebrew install: $(brew --prefix)/share/port-daddy/skills/port-daddy
+ *   2. Repo checkout: PROJECT_ROOT/skills/port-daddy-agent-skill
+ *
+ * Idempotent: replaces an existing symlink to a different target, leaves a
+ * matching symlink alone, and refuses to overwrite a real directory.
+ */
+function installAgentSkillSymlink(): boolean {
+  const candidates: string[] = [];
+
+  // 1. Homebrew prefix
+  const brew = spawnSync('brew', ['--prefix'], { encoding: 'utf8' });
+  if (brew.status === 0) {
+    const prefix = brew.stdout.trim();
+    candidates.push(join(prefix, 'share', 'port-daddy', 'skills', 'port-daddy'));
+  }
+
+  // 2. Repo-local fallback (so dev installs work without brew)
+  candidates.push(join(PROJECT_ROOT, 'skills', 'port-daddy-agent-skill'));
+
+  const source = candidates.find((p) => existsSync(join(p, 'SKILL.md')));
+  if (!source) {
+    ui.warn(`Skill source not found in any of: ${candidates.join(', ')}`);
+    return false;
+  }
+
+  const target = join(homedir(), '.claude', 'skills', 'port-daddy');
+  const targetDir = dirname(target);
+  if (!existsSync(targetDir)) {
+    mkdirSync(targetDir, { recursive: true });
+  }
+
+  if (existsSync(target) || lstatSyncSafe(target)) {
+    const stat = lstatSyncSafe(target);
+    if (stat?.isSymbolicLink()) {
+      const current = readlinkSync(target);
+      if (current === source) {
+        ui.info(`Skill symlink already points at ${source}`);
+        return true;
+      }
+      unlinkSync(target);
+    } else {
+      ui.warn(`${target} exists and is not a symlink — leaving alone`);
+      return false;
+    }
+  }
+
+  symlinkSync(source, target, 'dir');
+  ui.info(`Linked ~/.claude/skills/port-daddy → ${source}`);
+  return true;
+}
+
+function lstatSyncSafe(p: string) {
+  try {
+    return lstatSync(p);
+  } catch {
+    return null;
+  }
+}
+
 function installFleetBarIfEnabled(skipFleetBar: boolean): boolean {
   if (skipFleetBar) {
     ui.info('Skipping FleetBar (--no-fleetbar)');
@@ -193,6 +256,12 @@ export async function handleSetup(options: Record<string, unknown>): Promise<voi
   }
 
   installFleetBarIfEnabled(!!options['no-fleetbar']);
+
+  if (!options['no-skill']) {
+    installAgentSkillSymlink();
+  } else {
+    ui.info('Skipping agent skill symlink (--no-skill)');
+  }
 
   const explicitProject = typeof options.project === 'string' ? options.project : undefined;
   if (explicitProject && !existsSync(resolve(explicitProject))) {
