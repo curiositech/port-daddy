@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PD Tube Button-To-Agent</title>
+  <style>
+    :root {
+      color-scheme: dark light;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0f1217;
+      color: #f5f2e9;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 32px;
+    }
+
+    main {
+      width: min(840px, 100%);
+      border: 2px solid #f5f2e9;
+      background: #171b22;
+      padding: 28px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(2rem, 7vw, 4.8rem);
+      line-height: 0.9;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    p {
+      max-width: 68ch;
+      color: #d8d3c7;
+      font-size: 1rem;
+      line-height: 1.6;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      color: #b8b1a2;
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    input {
+      border: 1px solid #5b6170;
+      background: #0b0e13;
+      color: #f5f2e9;
+      padding: 10px 12px;
+      font: inherit;
+    }
+
+    .grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      margin: 24px 0;
+    }
+
+    button {
+      border: 2px solid #f5f2e9;
+      background: #8db8ff;
+      color: #0b0e13;
+      padding: 14px 16px;
+      font: inherit;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #a9e5bb;
+    }
+
+    pre {
+      min-height: 180px;
+      overflow-x: auto;
+      border: 1px solid #5b6170;
+      background: #080a0d;
+      color: #d6deff;
+      padding: 16px;
+      white-space: pre-wrap;
+      line-height: 1.55;
+    }
+
+    code {
+      color: #a9e5bb;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Button to agent</h1>
+    <p>
+      Run <code>pd tube ui:clicks</code> in an agent terminal, then click a
+      button. This page publishes a tube event, polls for a threaded reply, and
+      renders the response when the agent posts it back.
+    </p>
+
+    <label>
+      Daemon URL
+      <input id="daemon" value="http://127.0.0.1:9876">
+    </label>
+
+    <div class="grid">
+      <button data-action="deploy-staging">Deploy staging</button>
+      <button data-action="run-tests">Run tests</button>
+      <button data-action="summarize-pr">Summarize PR</button>
+    </div>
+
+    <pre id="log">Waiting. Start an agent with:
+$ pd tube ui:clicks
+</pre>
+  </main>
+
+  <script>
+    const CHANNEL = 'ui:clicks';
+    const TUBE_KIND = 'tube.msg';
+    const log = document.getElementById('log');
+    const daemonInput = document.getElementById('daemon');
+
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    function daemonUrl() {
+      return daemonInput.value.replace(/\/+$/, '');
+    }
+
+    function channelUrl() {
+      return `${daemonUrl()}/msg/${encodeURIComponent(CHANNEL)}`;
+    }
+
+    function append(line) {
+      log.textContent = `${log.textContent.trimEnd()}\n${line}`;
+    }
+
+    function tubeEnvelope(body, inReplyTo) {
+      const envelope = { v: 1, kind: TUBE_KIND, body };
+      if (inReplyTo) envelope.inReplyTo = inReplyTo;
+      return envelope;
+    }
+
+    async function publishClick(action) {
+      const appEventId = crypto.randomUUID();
+      const event = {
+        appEventId,
+        action,
+        user: 'local-demo',
+        at: new Date().toISOString(),
+      };
+
+      const res = await fetch(channelUrl(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sender: 'web-demo',
+          payload: tubeEnvelope(JSON.stringify(event, null, 2)),
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Publish failed: HTTP ${res.status}`);
+      }
+
+      const posted = await res.json();
+      return { daemonMessageId: posted.id, appEventId, event };
+    }
+
+    async function readMessages(after) {
+      const res = await fetch(`${channelUrl()}?after=${after}`);
+      if (!res.ok) {
+        throw new Error(`Poll failed: HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      return Array.isArray(data.messages) ? data.messages : [];
+    }
+
+    function decodeTubePayload(message) {
+      const payload = message.payload;
+      if (!payload || typeof payload !== 'object') return null;
+      if (payload.kind !== TUBE_KIND) return null;
+      return payload;
+    }
+
+    async function waitForReply(parentId) {
+      let cursor = parentId;
+      const deadline = Date.now() + 120000;
+
+      while (Date.now() < deadline) {
+        const messages = await readMessages(cursor);
+        for (const message of messages) {
+          cursor = Math.max(cursor, message.id);
+          const payload = decodeTubePayload(message);
+          if (payload && payload.inReplyTo === parentId) {
+            return { message, payload };
+          }
+        }
+        await sleep(900);
+      }
+
+      throw new Error('Timed out waiting for agent reply');
+    }
+
+    async function handleClick(action) {
+      log.textContent = `Publishing ${action} to ${CHANNEL}...`;
+
+      const { daemonMessageId, event } = await publishClick(action);
+      append('');
+      append(`Event id: ${daemonMessageId}`);
+      append('Agent sees the event in:');
+      append(`$ pd tube ${CHANNEL}`);
+      append('');
+      append('Reply from the agent with:');
+      append(`$ printf '%s\\n' "Handled ${action}" | pd tube ${CHANNEL} --reply ${daemonMessageId} --sender claude-code`);
+      append('');
+      append('Payload:');
+      append(JSON.stringify(event, null, 2));
+      append('');
+      append('Waiting for threaded reply...');
+
+      const reply = await waitForReply(daemonMessageId);
+      append('');
+      append(`Reply ${reply.message.id} from ${reply.message.sender || 'unknown'}:`);
+      append(reply.payload.body);
+    }
+
+    document.querySelectorAll('button[data-action]').forEach((button) => {
+      button.addEventListener('click', () => {
+        handleClick(button.dataset.action).catch((error) => {
+          append('');
+          append(`Error: ${error.message}`);
+        });
+      });
+    });
+  </script>
+</body>
+</html>
