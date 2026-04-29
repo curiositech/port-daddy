@@ -1727,10 +1727,17 @@ _pd_cmd_ideas() {
 
 _pd_cmd_roadmap() {
   _arguments \
+    '1:subcommand:(ack harvest)' \
+    '2:feedback id:' \
     '--dir[project directory]:path:_files -/' \
     '--root[project root]:path:_files -/' \
     '--projectDir[project directory]:path:_files -/' \
     '--limit[rows per section]:limit:' \
+    '--feedback-status[live tuple feedback status]:(open harvested wontfix all)' \
+    '--feedback-harbor[harbor scope for live feedback]:harbor:' \
+    '--feedback-limit[max live feedback rows]:limit:' \
+    '--as[harvester agent id]:agent id:' \
+    '--into[roadmap slug the feedback was folded into]:slug:' \
     '--no-excerpts[hide current-work and Cartographer excerpts]' \
     '(-j --json)'{-j,--json}'[output JSON]' \
     '(-q --quiet)'{-q,--quiet}'[agent-readable section:slug output]'

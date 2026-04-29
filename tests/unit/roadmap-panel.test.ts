@@ -21,6 +21,16 @@ function makeProgress(overrides: Partial<RoadmapProgress> = {}): RoadmapProgress
     ideasNow: [
       { slug: 'cartographer-roadmap-progress-screen', status: 'now', surface: 'Fleet UI', hook: 'one glance' },
     ],
+    liveFeedback: [
+      { slug: 'cartographer-live-body-salvage-friction', status: 'open', surface: 'CLI', hook: 'wake path is opaque', feedbackId: 'fb-1', severity: 'high', provenance: 'tuple' },
+    ],
+    feedbackSummary: {
+      total: 1,
+      open: 1,
+      harvested: 0,
+      bySeverity: { low: 0, medium: 0, high: 1, critical: 0 },
+      bySurface: { CLI: 1 },
+    },
     dogfoodFeedback: [
       { slug: 'coordination-ticker-as-high-signal-feed', status: 'backlog', surface: 'Fleet UI', hook: null },
     ],
@@ -33,7 +43,7 @@ function makeProgress(overrides: Partial<RoadmapProgress> = {}): RoadmapProgress
 
 describe('RoadmapPanel helpers', () => {
   test('summarizeRoadmapProgress gives operators the section counts', () => {
-    expect(summarizeRoadmapProgress(makeProgress())).toBe('2 next cuts, 1 now, 1 feedback');
+    expect(summarizeRoadmapProgress(makeProgress())).toBe('2 next cuts, 1 now, 1 live feedback, 1 curated');
   });
 
   test('summarizeRoadmapProgress handles unloaded state', () => {

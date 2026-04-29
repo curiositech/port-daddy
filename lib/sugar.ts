@@ -8,7 +8,7 @@
 
 import { randomBytes } from 'crypto';
 import { parseIdentity } from './identity.js';
-import { cleanAgentDisplayName, deriveAgentDisplayName } from './agent-names.js';
+import { buildHumanReadableId, cleanAgentDisplayName, deriveAgentDisplayName } from './agent-names.js';
 
 // =============================================================================
 // Types
@@ -93,6 +93,7 @@ export function createSugar(deps: SugarDeps) {
       agentId: typeof session.agentId === 'string' ? session.agentId : fallbackAgentId,
       sessionId,
       purpose: session.purpose as string,
+      sessionName: deriveAgentDisplayName({ purpose: session.purpose as string, fallback: 'Port Daddy Session' }),
       agentName: cleanAgentDisplayName(agent?.name) || null,
       name: cleanAgentDisplayName(agent?.name) || null,
       identity: typeof agent?.identity === 'string' ? agent.identity : null,
@@ -117,15 +118,23 @@ export function createSugar(deps: SugarDeps) {
       return { success: false, error: 'purpose is required' };
     }
 
-    // Generate or use provided agent ID
-    const agentId = options.agentId || `agent-${randomBytes(4).toString('hex')}`;
     const name = deriveAgentDisplayName({
       name: options.name,
       purpose,
       identity,
       type,
-      fallback: agentId,
+      fallback: 'Port Daddy Agent',
     });
+    const sessionName = deriveAgentDisplayName({
+      name: options.name,
+      purpose,
+      identity,
+      type,
+      fallback: 'Port Daddy Session',
+    });
+    // Generate or use provided agent ID. The suffix keeps the stable machine key
+    // unique; the slug keeps `pd begin` output readable to humans.
+    const agentId = options.agentId || buildHumanReadableId('agent', name, randomBytes(4).toString('hex'), 'work');
 
     // Step 1: Register the agent
     const registerOpts: Record<string, unknown> = {};
@@ -179,6 +188,7 @@ export function createSugar(deps: SugarDeps) {
       agentId,
       sessionId: sessionResult.id,
       agentName: name,
+      sessionName,
       name,
       identity: identity || null,
       purpose: purpose.trim(),

@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
 
-import type { RoadmapProgress, FeedbackEntry } from '../../lib/roadmap-progress.js';
+import type { RoadmapProgress, FeedbackEntry, RoadmapFeedbackStatus } from '../../lib/roadmap-progress.js';
 import { CLIOptions, isJson, isQuiet } from '../types.js';
 import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
@@ -33,12 +33,21 @@ function formatAge(hours: number | null): string {
 function printFeedbackEntry(entry: FeedbackEntry): void {
   const bits: string[] = [entry.status];
   if (entry.surface) bits.push(entry.surface);
+  if (entry.severity) bits.push(entry.severity);
   console.log(`  - ${entry.slug} [${bits.join('; ')}]`);
-  if (entry.hook) console.log(`    ${entry.hook}`);
+  if (entry.hook ?? entry.summary) console.log(`    ${entry.hook ?? entry.summary}`);
+  if (entry.feedbackId) console.log(`    id=${entry.feedbackId.slice(0, 8)} by=${entry.droppedBy ?? 'unknown'}`);
 }
 
-export async function fetchRoadmapProgress(projectDir: string): Promise<RoadmapProgress> {
+export async function fetchRoadmapProgress(projectDir: string, options: {
+  feedbackStatus?: RoadmapFeedbackStatus | 'all';
+  feedbackHarbor?: string;
+  feedbackLimit?: number;
+} = {}): Promise<RoadmapProgress> {
   const params = new URLSearchParams({ root: projectDir });
+  if (options.feedbackStatus) params.set('feedbackStatus', options.feedbackStatus);
+  if (options.feedbackHarbor) params.set('feedbackHarbor', options.feedbackHarbor);
+  if (options.feedbackLimit) params.set('feedbackLimit', String(options.feedbackLimit));
   const res = await pdFetch(`${PORT_DADDY_URL}/cartographer/roadmap-progress?${params.toString()}`);
   const data = (await res.json()) as unknown as RoadmapProgress & { error?: string };
 
@@ -49,13 +58,61 @@ export async function fetchRoadmapProgress(projectDir: string): Promise<RoadmapP
   return data;
 }
 
-export async function handleRoadmap(options: CLIOptions): Promise<void> {
+async function harvestRoadmapFeedback(feedbackId: string, options: CLIOptions): Promise<void> {
+  const harvestedBy = readOption(options, 'as', 'harvestedBy', 'agent') ?? 'operator-cli';
+  const intoSlug = readOption(options, 'into', 'intoSlug');
+  const res = await pdFetch(`${PORT_DADDY_URL}/feedback/${encodeURIComponent(feedbackId)}/harvest`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ harvestedBy, intoSlug }),
+  });
+  const data = await res.json().catch(() => ({})) as { error?: string; entry?: unknown };
+  if (!res.ok) {
+    throw new Error(data.error || 'Failed to harvest feedback');
+  }
+  if (isJson(options)) {
+    console.log(JSON.stringify(data.entry, null, 2));
+    return;
+  }
+  if (!isQuiet(options)) {
+    console.log(`Acked ${feedbackId}${intoSlug ? ` into ${intoSlug}` : ''}`);
+  }
+}
+
+export async function handleRoadmap(argsOrOptions: string[] | CLIOptions, maybeOptions?: CLIOptions): Promise<void> {
+  const args = Array.isArray(argsOrOptions) ? argsOrOptions : [];
+  const options = Array.isArray(argsOrOptions) ? (maybeOptions ?? {}) : argsOrOptions;
+
+  const sub = args[0];
+  if (sub === 'ack' || sub === 'harvest') {
+    const feedbackId = args[1] || readOption(options, 'id', 'feedbackId');
+    if (!feedbackId) {
+      ui.error('Usage: pd roadmap ack <feedbackId> [--as <agentId>] [--into <roadmap-slug>]');
+      process.exit(1);
+    }
+    try {
+      await harvestRoadmapFeedback(feedbackId, options);
+    } catch (error) {
+      ui.error(error instanceof Error ? error.message : 'Failed to harvest feedback');
+      process.exit(1);
+    }
+    return;
+  }
+
   const projectDir = resolve(readOption(options, 'dir', 'root', 'projectDir') || process.cwd());
   const limit = parseLimit(options.limit, 8);
+  const feedbackStatus = readOption(options, 'feedback-status', 'feedbackStatus') as RoadmapFeedbackStatus | 'all' | undefined;
+  const feedbackHarbor = readOption(options, 'feedback-harbor', 'feedbackHarbor', 'harbor');
+  const feedbackLimitValue = options['feedback-limit'] ?? options.feedbackLimit;
+  const feedbackLimit = feedbackLimitValue === undefined ? undefined : parseLimit(feedbackLimitValue, 100);
 
   let progress: RoadmapProgress;
   try {
-    progress = await fetchRoadmapProgress(projectDir);
+    progress = await fetchRoadmapProgress(projectDir, {
+      feedbackStatus,
+      feedbackHarbor,
+      feedbackLimit,
+    });
   } catch (error) {
     ui.error(error instanceof Error ? error.message : 'Failed to fetch Cartographer roadmap progress');
     process.exit(1);
@@ -68,12 +125,14 @@ export async function handleRoadmap(options: CLIOptions): Promise<void> {
 
   const nextCuts = progress.nextCuts.slice(0, limit);
   const ideasNow = progress.ideasNow.slice(0, limit);
+  const liveFeedback = progress.liveFeedback.slice(0, limit);
   const feedback = progress.dogfoodFeedback.slice(0, limit);
 
   if (isQuiet(options)) {
     const rows = [
       ...nextCuts.map((entry) => `next:${entry.slug}`),
       ...ideasNow.map((entry) => `now:${entry.slug}`),
+      ...liveFeedback.map((entry) => `live:${entry.slug}`),
       ...feedback.map((entry) => `feedback:${entry.slug}`),
     ];
     console.log(rows.join('\n'));
@@ -81,7 +140,8 @@ export async function handleRoadmap(options: CLIOptions): Promise<void> {
   }
 
   console.log('');
-  console.log(`ROADMAP · ${progress.nextCuts.length} next cuts · ${progress.ideasNow.length} now · ${progress.dogfoodFeedback.length} feedback · ${formatAge(progress.freshness.hoursSinceLastUpdate)}`);
+  const openFeedback = progress.feedbackSummary?.open ?? progress.liveFeedback.length;
+  console.log(`ROADMAP · ${progress.nextCuts.length} next cuts · ${progress.ideasNow.length} now · ${openFeedback} live feedback · ${progress.dogfoodFeedback.length} curated · ${formatAge(progress.freshness.hoursSinceLastUpdate)}`);
   console.log('-'.repeat(80));
   console.log(ui.dim(`source: ${projectDir}`));
 
@@ -108,6 +168,14 @@ export async function handleRoadmap(options: CLIOptions): Promise<void> {
     console.log(ui.dim('  (none surfaced)'));
   } else {
     for (const entry of ideasNow) printFeedbackEntry(entry);
+  }
+
+  console.log('');
+  console.log('Live feedback:');
+  if (liveFeedback.length === 0) {
+    console.log(ui.dim('  (none surfaced)'));
+  } else {
+    for (const entry of liveFeedback) printFeedbackEntry(entry);
   }
 
   console.log('');

@@ -111,9 +111,12 @@ describe('harvest', () => {
     });
     expect(harvested.status).toBe('harvested');
     expect(harvested.harvestedAt).toBe(dropped.at + 2000);
+    expect(harvested.harvestedIntoSlug).toBe('s-promoted');
 
     const fresh = feedback.get(dropped.feedbackId);
     expect(fresh?.status).toBe('harvested');
+    expect(fresh?.harvestedAt).toBe(dropped.at + 2000);
+    expect(fresh?.harvestedIntoSlug).toBe('s-promoted');
 
     // Status filter sees the new state.
     const open = feedback.list({ status: 'open' });

@@ -96,6 +96,8 @@ export async function handleBegin(
   writeCurrentContext({
     agentId: data.agentId as string,
     sessionId: data.sessionId as string,
+    agentName: ((data.agentName || data.name) as string | undefined) || null,
+    sessionName: (data.sessionName as string | undefined) || null,
     purpose,
     identity: (data.identity as string) || null,
     startedAt: Date.now(),
@@ -113,8 +115,10 @@ export async function handleBegin(
 
   const agentName = (data.agentName || data.name) as string | undefined;
   const agentLabel = agentName ? `${agentName} (${data.agentId as string})` : (data.agentId as string);
+  const sessionName = data.sessionName as string | undefined;
+  const sessionLabel = sessionName ? `${sessionName} (${data.sessionId as string})` : (data.sessionId as string);
   ui.success(`Agent ${highlightChannel(agentLabel)} ready`);
-  console.error(`  Session: ${data.sessionId}`);
+  console.error(`  Session: ${sessionLabel}`);
   console.error(`  Purpose: ${purpose}`);
   if (identity) console.error(`  Identity: ${identity}`);
   if (data.fileClaims) {
@@ -236,6 +240,8 @@ export async function handleWhoami(options: CLIOptions): Promise<void> {
     data.localContext = {
       agentId: ctx.agentId,
       sessionId: ctx.sessionId,
+      agentName: ctx.agentName ?? null,
+      sessionName: ctx.sessionName ?? null,
       startedAt: ctx.startedAt,
       purpose: ctx.purpose,
       identity: ctx.identity ?? null,
@@ -260,9 +266,10 @@ export async function handleWhoami(options: CLIOptions): Promise<void> {
   }
 
   console.error('');
-  const agentName = (data.agentName || data.name) as string | undefined;
+  const agentName = (data.agentName || data.name || ctx?.agentName) as string | undefined;
+  const sessionName = (data.sessionName || ctx?.sessionName) as string | undefined;
   console.error(`  Agent:    ${agentName ? `${agentName} (${data.agentId})` : data.agentId}`);
-  console.error(`  Session:  ${data.sessionId}`);
+  console.error(`  Session:  ${sessionName ? `${sessionName} (${data.sessionId})` : data.sessionId}`);
   console.error(`  Purpose:  ${data.purpose}`);
   if (data.identity) console.error(`  Identity: ${data.identity}`);
   console.error(`  Phase:    ${data.phase}`);

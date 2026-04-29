@@ -7,10 +7,11 @@
  */
 
 import type Database from 'better-sqlite3';
-import { randomUUID } from 'crypto';
+import { randomBytes } from 'crypto';
 import { ActivityType } from './activity.js';
 import { getWorktreeId } from './worktree.js';
 import { patternToSql } from './identity.js';
+import { buildHumanReadableId } from './agent-names.js';
 import type { NoteEncryption } from './note-encryption.js';
 import type { SemanticIndex } from './semantic-index.js';
 import type { EpisodicMemory } from './episodic-memory.js';
@@ -592,8 +593,8 @@ export function createSessions(
     }
   }
 
-  function generateSessionId(): string {
-    return 'session-' + randomUUID();
+  function generateSessionId(purpose?: string): string {
+    return buildHumanReadableId('session', purpose, randomBytes(6).toString('hex'), 'work');
   }
 
   function formatSession(row: SessionRow) {
@@ -784,7 +785,7 @@ export function createSessions(
     }
 
     const now = Date.now();
-    const id = generateSessionId();
+    const id = generateSessionId(trimmedPurpose);
     const {
       agentId = null,
       worktreeId = null,

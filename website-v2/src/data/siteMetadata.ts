@@ -1,5 +1,5 @@
 import { BLUEPRINTS } from './blueprints'
-import { blogPosts } from './blogData'
+import { blogPosts, deprecatedBlogPosts } from './blogData'
 import { COOKBOOK_RECIPES } from './cookbook'
 import { docsFamilyRoutes, docsOverviewRoute, type DocsFamilyRoute } from './docs-routes'
 import { INTEGRATIONS } from './integrations'
@@ -37,20 +37,9 @@ export interface SiteMetadata {
   tags?: string[]
 }
 
-export const blogHeroImages: Record<string, string> = {
-  'zero-to-multi-agent-in-5-minutes': '/img/blog/zero-to-multi-agent-hero.png',
-  'the-port-collision-that-ate-my-saturday': '/img/blog/port-collision-hero.png',
-  'dead-agents-tell-tales': '/img/blog/dead-agents-hero.png',
-  'distributed-locks-two-agents-one-migration': '/img/blog/distributed-locks-hero.png',
-  'four-agents-zero-clobber': '/img/blog/four-agents-hero.png',
-  'pubsub-self-healing-test-pipeline': '/img/blog/pub-sub-hero.png',
-  'fleet-agents-as-infrastructure': '/img/blog/fleet-management-hero.png',
-  'spark-and-spider-the-creative-engine': '/img/blog/spark-spider-hero.png',
-  'formal-verification-anchor-protocol': DEFAULT_SITE_IMAGE,
-  'port-daddy-for-teams': DEFAULT_SITE_IMAGE,
-  'claude-code-port-daddy-integration': DEFAULT_SITE_IMAGE,
-  'performance-at-scale': DEFAULT_SITE_IMAGE,
-}
+export const blogHeroImages: Record<string, string> = Object.fromEntries(
+  blogPosts.map((post) => [post.slug, post.heroImage]),
+)
 
 function pageTitle(title: string) {
   if (title === SITE_NAME) return 'Port Daddy - Local Communication Substrate for Coding Agents'
@@ -171,7 +160,7 @@ const productRoutes: SiteMetadata[] = [
   metadata(
     '/blog',
     'Blog',
-    'Read practical Port Daddy essays about multi-agent coordination, port collisions, salvage, locks, fleets, and local-first operator tooling.',
+    'Read current Port Daddy field notes about FleetBar, Fleet Control Center, launch readiness, recovery maps, PD Tube, daemon provenance, and coordination policy.',
     { section: 'blog' },
   ),
   metadata(
@@ -363,12 +352,21 @@ const contentMetadata: SiteMetadata[] = [
   ...blogPosts.map((post) =>
     metadata(`/blog/${post.slug}`, post.title, post.excerpt, {
       section: 'blog',
-      image: blogHeroImages[post.slug] ?? DEFAULT_SITE_IMAGE,
+      image: post.heroImage,
       publishedAt: post.date,
       author: post.author,
       tags: post.tags,
     }),
   ),
+  ...deprecatedBlogPosts.map((post) => {
+    const replacement = blogPosts.find((candidate) => candidate.slug === post.replacementSlug)
+    return metadata(`/blog/${post.slug}`, `${post.retiredLabel} (retired)`, post.reason, {
+      section: 'blog',
+      canonicalPath: replacement ? `/blog/${replacement.slug}` : '/blog',
+      image: replacement?.heroImage ?? DEFAULT_SITE_IMAGE,
+      index: false,
+    })
+  }),
 ]
 
 const docsRouteMetadata: SiteMetadata[] = [

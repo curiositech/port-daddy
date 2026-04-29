@@ -24,8 +24,7 @@ interface BlogCommentsProps {
 // ── Helpers ─────────────────────────────────────────────────
 
 /**
- * Signal flag palette for deterministic avatar colors.
- * Each entry maps to a CSS custom property from the harbor heritage tokens.
+ * Deterministic avatar colors. Comments stay flat and square on the blog surface.
  */
 const SIGNAL_FLAG_COLORS = [
   { bg: "var(--signal-charlie)", text: "var(--text-inverse)" },
@@ -88,7 +87,7 @@ function renderMd(text: string): string {
 
 /**
  * DOM-based HTML sanitizer. Whitelist: STRONG, EM, CODE, PRE, A, BR, #text.
- * Strips all attributes except href/rel/target on anchors.
+ * Strips all attributes except href/rel/target on links.
  * This runs client-side only; on the server it returns raw HTML.
  */
 function sanitize(html: string): string {
@@ -140,7 +139,7 @@ function Avatar({ name }: { name: string }) {
   const initial = name.charAt(0).toUpperCase();
   return (
     <div
-      className="w-8 h-8 flex-shrink-0 rounded-full flex items-center justify-center text-sm font-semibold select-none"
+      className="w-8 h-8 flex-shrink-0 border-2 border-[var(--border-strong)] flex items-center justify-center text-sm font-semibold select-none"
       style={{ backgroundColor: c.bg, color: c.text }}
       aria-hidden="true"
     >
@@ -189,7 +188,7 @@ function CommentCard({
 
         {/* Body — sanitized markdown output */}
         <div
-          className="text-sm leading-relaxed [&_a]:underline [&_a]:text-[var(--brand-secondary)] [&_code]:rounded [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-xs [&_code]:bg-[var(--surface-sunken)] [&_pre]:rounded-lg [&_pre]:p-3 [&_pre]:my-2 [&_pre]:bg-[var(--surface-sunken)] [&_pre]:overflow-x-auto"
+          className="text-sm leading-relaxed [&_a]:underline [&_a]:text-[var(--brand-secondary)] [&_code]:border [&_code]:border-[var(--border-subtle)] [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-xs [&_code]:bg-[var(--surface-sunken)] [&_pre]:border [&_pre]:border-[var(--border-default)] [&_pre]:p-3 [&_pre]:my-2 [&_pre]:bg-[var(--surface-sunken)] [&_pre]:overflow-x-auto"
           style={{ color: "var(--text-primary)" }}
           dangerouslySetInnerHTML={{ __html: html }}
         />
@@ -240,14 +239,14 @@ function CommentCard({
 
   if (isReply) {
     return (
-      <Surface depth="inset" radius="xl" padding="sm">
+      <Surface depth="inset" radius="none" padding="sm">
         {cardContent}
       </Surface>
     );
   }
 
   return (
-    <Surface depth="flat" radius="xl" padding="md">
+    <Surface depth="flat" radius="none" padding="md">
       {cardContent}
 
       {/* Replies */}
@@ -344,7 +343,7 @@ function CommentForm({
         >
           Name
         </label>
-        <Surface depth="inset" radius="lg" padding="none" className="max-w-xs">
+        <Surface depth="inset" radius="none" padding="none" className="max-w-xs">
           <input
             type="text"
             value={name}
@@ -370,7 +369,7 @@ function CommentForm({
         >
           Comment
         </label>
-        <Surface depth="inset" radius="lg" padding="none">
+        <Surface depth="inset" radius="none" padding="none">
           <textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
@@ -406,19 +405,18 @@ function CommentForm({
         <button
           type="submit"
           disabled={submitting}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          className="inline-flex items-center gap-1.5 border-2 border-[var(--border-strong)] px-4 py-2 text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           style={{
             background: "var(--brand-primary)",
             color: "var(--text-inverse)",
-            boxShadow: "var(--shadow-sm)",
           }}
           onMouseEnter={(e) => {
             if (!submitting) {
-              e.currentTarget.style.boxShadow = "var(--shadow-flat)";
+              e.currentTarget.style.background = "var(--text-primary)";
             }
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.boxShadow = "var(--shadow-sm)";
+            e.currentTarget.style.background = "var(--brand-primary)";
           }}
         >
           {submitting ? (
@@ -432,7 +430,7 @@ function CommentForm({
           <button
             type="button"
             onClick={onCancel}
-            className="px-3 py-2 rounded-xl text-xs font-medium transition-colors"
+            className="px-3 py-2 text-xs font-medium transition-colors"
             style={{ color: "var(--text-muted)" }}
             onMouseEnter={(e) => {
               e.currentTarget.style.color = "var(--text-primary)";
@@ -455,10 +453,9 @@ export function JumpToDiscussion({ count }: { count?: number }) {
   return (
     <a
       href="#comments"
-      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all"
+      className="inline-flex items-center gap-1.5 border border-[var(--border-default)] px-3 py-1 text-xs font-semibold transition-all"
       style={{
         background: "var(--surface-sunken)",
-        boxShadow: "var(--shadow-pressed)",
         color: "var(--text-secondary)",
       }}
     >
@@ -582,10 +579,10 @@ export function BlogComments({ slug }: BlogCommentsProps) {
       {/* Intersection Observer sentinel */}
       <div ref={sentinelRef} />
 
-      <Surface depth="raised" radius="2xl" padding="none">
+      <Surface depth="raised" radius="none" padding="none">
         {/* Header */}
         <div
-          className="flex items-center justify-between px-6 py-4 rounded-t-2xl"
+          className="flex items-center justify-between px-6 py-4"
           style={{
             borderBottom: "1px solid var(--border-subtle)",
           }}
@@ -628,7 +625,7 @@ export function BlogComments({ slug }: BlogCommentsProps) {
             <>
               {/* Comment list */}
               {topLevel.length === 0 ? (
-                <Surface depth="inset" radius="xl" padding="md" className="mb-6">
+                <Surface depth="inset" radius="none" padding="md" className="mb-6">
                   <p
                     className="text-sm text-center"
                     style={{ color: "var(--text-muted)" }}
@@ -665,7 +662,7 @@ export function BlogComments({ slug }: BlogCommentsProps) {
                 >
                   Leave a comment
                 </h3>
-                <Surface depth="raised" radius="xl" padding="md">
+                <Surface depth="raised" radius="none" padding="md">
                   <CommentForm
                     onSubmit={(name, body) => handlePost(name, body)}
                   />
