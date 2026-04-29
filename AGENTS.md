@@ -166,6 +166,8 @@ Project-specific shibboleths for proficient Port Daddy work. If you learn a new 
 
 - When adding or refreshing website, docs, blog, examples, tutorial, or launch pages, include Nano Banana/Gemini-generated imagery by default to keep the page visually alive. Treat generated images as product-supporting assets: they should clarify the real Port Daddy workflow, not replace screenshots, CLI proof, or live product truth.
 - Reuse existing prompt sheets, generated assets, optimization scripts, and visual-review artifacts before inventing a new image pipeline. If new imagery is needed, leave the prompt/source path and optimized outputs discoverable in the repo.
+- The public website deploy target is Cloudflare Pages project `port-daddy`, serving `port-daddy.pages.dev` and `portdaddy.dev`. Build with `npm --prefix website-v2 run build`, then deploy from `website-v2/` with `npx wrangler pages deploy dist --project-name port-daddy --branch main --commit-hash "$(git rev-parse HEAD)" --commit-message "$(git log -1 --pretty=%s)"`.
+- Deploy from a clean checkout or clean temporary worktree. If `origin/main` moved after your local website commit, deploy latest `origin/main` unless the user explicitly requested a specific commit. After deploy, smoke `https://portdaddy.dev/...` and at least one changed asset/page; for visual work, verify with Playwright or the in-app browser instead of trusting Wrangler success alone.
 
 ## Current Gotchas
 
