@@ -973,17 +973,25 @@ Examples:
   roadmap: `Roadmap Projection \u2014 Cartographer-curated work for agents
 
 Commands:
-  roadmap                   Show Next Cuts, curated now items, and dogfood feedback
+  roadmap                   Show Next Cuts, curated now items, live feedback, and dogfood feedback
     --dir <path>            Project directory (defaults to cwd)
     --limit <n>             Limit rows per section (default: 8)
+    --feedback-status <s>   Live tuple feedback status: open|harvested|wontfix|all
+    --feedback-harbor <h>   Harbor scope for live tuple feedback
+    --feedback-limit <n>    Max live feedback rows to fetch
     --no-excerpts           Hide CURRENT-WORK and Cartographer status excerpts
     -q, --quiet             Print machine-readable section:slug lines
     -j, --json              Output the raw Cartographer projection
 
+  roadmap ack <feedbackId>  Harvest/ack live feedback through the feedback primitive
+    --as <agentId>          Harvester id (default: operator-cli)
+    --into <roadmap-slug>   Roadmap slug the feedback was folded into
+
 Examples:
   pd roadmap
   pd roadmap --limit 3 --no-excerpts
-  pd roadmap --dir /Users/you/coding/port-daddy --json`,
+  pd roadmap --dir /Users/you/coding/port-daddy --json
+  pd roadmap ack 5a8e37de --as cartographer --into coordination-guard`,
 
   daemon: `Daemon Profiles \u2014 Named sidecar daemons beside the canonical daemon
 
@@ -2530,7 +2538,7 @@ async function main(): Promise<void> {
         break;
 
       case 'roadmap':
-        await handleRoadmap(options);
+        await handleRoadmap(positional, options);
         break;
 
       case 'quorum':
