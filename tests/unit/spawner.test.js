@@ -1509,6 +1509,33 @@ describe('spawn — codex backend', () => {
     }
   });
 
+  test('surfaces structured codex --json errors ahead of noisy stderr', async () => {
+    const spawner = createSpawner();
+    mockChildProcess.stdout.on.mockImplementation((event, cb) => {
+      if (event === 'data') {
+        cb(Buffer.from([
+          '{"type":"thread.started","thread_id":"thread-test"}',
+          '{"type":"error","message":"You have hit your usage limit."}',
+          '{"type":"turn.failed","error":{"message":"You have hit your usage limit."}}',
+        ].join('\n')));
+      }
+    });
+    mockChildProcess.stderr.on.mockImplementation((event, cb) => {
+      if (event === 'data') cb(Buffer.from('failed to load skill noisy warning'));
+    });
+    mockChildProcess.on.mockImplementation((event, cb) => {
+      if (event === 'close') Promise.resolve().then(() => cb(1));
+    });
+
+    const result = await spawner.spawn({
+      backend: 'codex',
+      task: 'test usage limit',
+    });
+
+    expect(result.status).toBe('failed');
+    expect(result.error).toBe('Codex CLI failed: You have hit your usage limit.');
+  });
+
   test('parses codex --json usage and persists exact telemetry under enforcement', async () => {
     const costTracker = {
       computeCost: jest.fn(() => ({ costUsd: 0.0138, isEstimate: false })),
