@@ -67,7 +67,7 @@ export function MacPreviewPage() {
       <main id="main-content">
         <section className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
           <PageContainer width="wide">
-            <SwissGrid className="items-end">
+            <SwissGrid className="items-center">
               <SwissGridItem span="wide">
                 <div className="space-y-[var(--space-5)]">
                   <PanelEyebrow>Mac Preview</PanelEyebrow>

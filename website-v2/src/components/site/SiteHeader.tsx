@@ -71,7 +71,7 @@ export function SiteHeader() {
         data-shell="site-header"
         className="sticky top-0 z-50 border-b-2 border-[var(--border-strong)] bg-[var(--surface-base)] relative"
       >
-        <PageContainer width="wide" className="!max-w-none flex items-center justify-between gap-[var(--space-5)] py-[var(--space-4)]">
+        <PageContainer width="wide" className="!max-w-none grid items-center gap-[var(--space-4)] py-[var(--space-4)] lg:grid-cols-[minmax(13rem,1fr)_auto_minmax(13rem,1fr)]">
           <Link to="/" className="inline-flex shrink-0 items-center gap-[var(--space-3)] text-[var(--text-primary)]">
             <BrandMark />
             <div className="flex flex-col">
@@ -84,19 +84,19 @@ export function SiteHeader() {
             </div>
           </Link>
 
-          <div className="flex min-w-0 items-center gap-[var(--space-2)] sm:gap-[var(--space-3)]">
-            <nav
-              aria-label="Primary"
-              className="hidden items-center gap-[var(--space-2)] overflow-x-auto lg:flex"
-            >
-              {NAV_ITEMS.map((item) => (
-                <PrimaryNavItem
-                  key={item.href}
-                  item={item}
-                />
-              ))}
-            </nav>
+          <nav
+            aria-label="Primary"
+            className="hidden min-w-0 items-center justify-center gap-[var(--space-2)] overflow-x-auto lg:flex"
+          >
+            {NAV_ITEMS.map((item) => (
+              <PrimaryNavItem
+                key={item.href}
+                item={item}
+              />
+            ))}
+          </nav>
 
+          <div className="flex min-w-0 items-center justify-end gap-[var(--space-2)] sm:gap-[var(--space-3)]">
             <div className="hidden min-w-[12rem] md:block">
               <DocsSearch variant="compact" />
             </div>

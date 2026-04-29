@@ -157,7 +157,7 @@ $ pd mcp install --global
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
                 {category.tools.map(tool => (
-                  <code key={tool} className="text-xs px-2 py-1 rounded bg-[var(--code-bg)] text-[var(--text-muted)] font-mono">
+                  <code id={tool} key={tool} className="scroll-mt-24 text-xs px-2 py-1 rounded bg-[var(--code-bg)] text-[var(--text-muted)] font-mono">
                     {tool}
                   </code>
                 ))}
