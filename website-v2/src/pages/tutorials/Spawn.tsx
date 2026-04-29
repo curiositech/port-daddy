@@ -36,7 +36,7 @@ export function Spawn() {
             className="border-l-4 border-[var(--brand-primary)]"
           >
             <p
-              className="m-0 text-sm"
+              className="m-0 text-[length:var(--type-panel-body-compact-size)]"
               style={{ color: "var(--text-secondary)" }}
             >
               Reach for <strong>pd agent</strong> when you want a higher-level
@@ -73,7 +73,7 @@ export function Spawn() {
             <div className="flex items-start gap-3">
               <Wallet size={16} className="mt-0.5 text-[var(--brand-accent)]" />
               <p
-                className="m-0 text-sm"
+                className="m-0 text-[length:var(--type-panel-body-compact-size)]"
                 style={{ color: "var(--text-secondary)" }}
               >
                 The ceiling is not decorative. Launch preflight checks readiness
@@ -104,7 +104,7 @@ AGENT ID            BACKEND   MODEL                    STATUS      AGE
 spawned-8a2f0c1c    codex      gpt-5.4-mini           completed   12s`}
           </CodeBlock>
 
-          <p className="text-sm text-[var(--text-secondary)]">
+          <p className="text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)]">
             For an aider-backed launch, pass focused files so the spawned worker
             starts with a bounded working set instead of wandering the repo.
           </p>

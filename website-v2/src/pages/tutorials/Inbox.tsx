@@ -40,7 +40,7 @@ export function Inbox() {
             instructions or status updates from other members of the harbor.
           </p>
           <div className="space-y-3 pt-2">
-            <p className="text-sm text-[var(--text-secondary)] m-0">
+            <p className="text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)] m-0">
               <Send
                 size={14}
                 className="inline text-[var(--brand-secondary)] mr-1"
@@ -48,7 +48,7 @@ export function Inbox() {
               <strong>Direct Signals</strong> -- Send targeted JSON payloads to
               a specific agent identity without broadcasting to the whole mesh.
             </p>
-            <p className="text-sm text-[var(--text-secondary)] m-0">
+            <p className="text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)] m-0">
               <Activity
                 size={14}
                 className="inline text-[var(--brand-accent)] mr-1"
@@ -78,7 +78,7 @@ export function Inbox() {
           </CodeBlock>
 
           <p
-            className="m-0 text-sm border-l-4 border-[var(--brand-secondary)] pl-4"
+            className="m-0 text-[length:var(--type-panel-body-compact-size)] border-l-4 border-[var(--brand-secondary)] pl-4"
             style={{ color: "var(--text-secondary)" }}
           >
             The daemon ensures that the message is delivered even if the agent
@@ -106,10 +106,10 @@ export function Inbox() {
           </CodeBlock>
 
           <Surface depth="flat" radius="none" className="p-5 space-y-3">
-            <p className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] m-0">
+            <p className="text-[length:var(--type-meta-size)] font-black uppercase tracking-widest text-[var(--text-muted)] m-0">
               The Inter-Agent Bridge
             </p>
-            <div className="flex items-center justify-between text-xs font-mono gap-4">
+            <div className="flex items-center justify-between text-[length:var(--type-meta-size)] font-mono gap-4">
               <span>
                 <Badge variant="teal" className="mr-2">
                   alpha
@@ -142,7 +142,7 @@ export function Inbox() {
 
         {/* Vision Callout */}
         <section className="p-6 text-center space-y-4">
-          <p className="text-lg max-w-xl mx-auto text-[var(--text-secondary)]">
+          <p className="text-[length:var(--type-panel-title-nav-size)] max-w-xl mx-auto text-[var(--text-secondary)]">
             The inbox system is the foundation of <strong>Swarm Radio</strong>.
             Port Daddy has moved beyond simple text logs to a structured,
             auditable communication mesh where every signal has an owner and a

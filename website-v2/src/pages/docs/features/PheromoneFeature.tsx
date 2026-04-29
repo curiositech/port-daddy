@@ -92,8 +92,8 @@ curl http://localhost:9876/pheromone`}
 
         <TerminalGif
           src="/gifs/docs/pheromone.gif"
-          title="Real CLI recording: pheromone reference"
-          caption="The docs recording uses the same local daemon as the page: spray a session signal, show the decayed value, then inspect file heat."
+          title="Watch a signal decay and show up as file heat"
+          caption="This clip shows the actual pheromone loop from the page: spray a signal, read it back, then inspect which files the fleet is treating as hot."
         />
       </div>
 

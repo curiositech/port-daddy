@@ -32,7 +32,7 @@ export function DNSResolver() {
             numbers.
           </p>
           <div className="space-y-3 pt-2">
-            <p className="text-sm text-[var(--text-secondary)] m-0">
+            <p className="text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)] m-0">
               <Zap
                 size={14}
                 className="inline text-[var(--brand-secondary)] mr-1"
@@ -40,7 +40,7 @@ export function DNSResolver() {
               <strong>Zero Config</strong> -- Port Daddy automatically updates
               your system hosts file or provides a local DNS server.
             </p>
-            <p className="text-sm text-[var(--text-secondary)] m-0">
+            <p className="text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)] m-0">
               <Anchor
                 size={14}
                 className="inline text-[var(--brand-secondary)] mr-1"
@@ -71,7 +71,7 @@ export function DNSResolver() {
           </CodeBlock>
 
           <p
-            className="m-0 text-sm border-l-4 border-[var(--brand-secondary)] pl-4"
+            className="m-0 text-[length:var(--type-panel-body-compact-size)] border-l-4 border-[var(--brand-secondary)] pl-4"
             style={{ color: "var(--text-secondary)" }}
           >
             The daemon manages DNS records in SQLite. Use{" "}
@@ -104,10 +104,10 @@ export function DNSResolver() {
             radius="none"
             className="space-y-[var(--space-3)] p-[var(--space-5)]"
           >
-            <p className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] m-0">
+            <p className="text-[length:var(--type-meta-size)] font-black uppercase tracking-widest text-[var(--text-muted)] m-0">
               Real-time Resolution
             </p>
-            <div className="flex items-center justify-between text-xs font-mono">
+            <div className="flex items-center justify-between text-[length:var(--type-meta-size)] font-mono">
               <span>
                 <span className="text-[10px] font-black uppercase text-[var(--text-muted)] mr-2">
                   Identity
@@ -128,7 +128,7 @@ export function DNSResolver() {
 
         {/* Vision Callout */}
         <section className="p-6 text-center space-y-4">
-          <p className="text-lg max-w-xl mx-auto text-[var(--text-secondary)]">
+          <p className="text-[length:var(--type-panel-title-nav-size)] max-w-xl mx-auto text-[var(--text-secondary)]">
             Port Daddy decouples address from identity. Your agents no longer
             hardcode port numbers -- they register semantic hostnames, and the
             daemon handles the resolution.
