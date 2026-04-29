@@ -51,6 +51,11 @@ were pushed so neither hash is stranded.
 | --- | --- |
 | `codex/agentic-social-proof` | Unique local commit `d729dba` was pushed to `codex/worktree-preserve-20260429-agentic-social-proof`. |
 | `codex/anthropic-homepage-framing` | Unique local commit `1579dee` was pushed to `codex/worktree-preserve-20260429-anthropic-homepage-framing`. |
+| `claude/port-daddy-v4-feedback-C1yJr` | Unique local commit `bc310cf` was pushed to `codex/worktree-preserve-20260429-claude-v4-feedback-log`. |
+| `claude/review-website-v2-MX6jT` | Unique local tip `d143501` was pushed to `codex/worktree-preserve-20260429-website-review-anchor-claims`. |
+| `codex/tube-events-console-ui-pre-main-refresh` | Unique local commit `acddf1c` was pushed to `codex/worktree-preserve-20260429-tube-events-console-pre-main`. |
+| `worktree-agent-a5ff0f82` | Unique local commit `3f9f142` was pushed to `codex/worktree-preserve-20260429-fleet-spawn-dogfood`. |
+| `worktree-agent-a7bdac05` | Unique local commit `52f13f3` was pushed to `codex/worktree-preserve-20260429-salvage-panel-dashboard`. |
 | `codex/mcp-mac-preview-visibility` | Patch-equivalent to `origin/main`; upstream was gone but no unique patch remained. |
 | `codex/reconcile-stable-runtime-fixes` | Already ancestor of `origin/main`; upstream was gone but no unique work remained. |
 | `codex/pr-5-pki-deliberation` | Already ancestor of `origin/main`; no additional preservation branch needed. |
