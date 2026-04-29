@@ -1,5 +1,4 @@
 import { Badge } from '@/components/ui/Badge'
-import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Link } from 'react-router-dom'
 import { ArrowRight, AlertCircle } from 'lucide-react'
 import { DocsCodeBlock } from '@/components/docs/DocsCodeBlock'
@@ -63,18 +62,18 @@ export default function TunnelsFeature() {
         <DocsCodeBlock
           code={`# Expose a service via ngrok
 $ pd tunnel start myapp:api --provider ngrok
-Tunnel ready: https://abc123.ngrok.io → localhost:3001
 
 # Check which providers are installed
 $ pd tunnel providers
-ngrok         installed  (v3.5.0)
-cloudflared   installed  (v2024.1.2)
-localtunnel   not found
 
 # List all active tunnels
-$ pd tunnel list
-myapp:api   → https://abc123.ngrok.io   (ngrok, 5m uptime)
-myapp:web   → https://def456.ngrok.io   (ngrok, 2m uptime)`}
+$ pd tunnel list`}
+          output={`Tunnel ready: https://abc123.ngrok.io -> localhost:3001
+ngrok         installed   v3.5.0
+cloudflared   installed   v2024.1.2
+localtunnel   not found
+myapp:api   -> https://abc123.ngrok.io   ngrok   5m uptime
+myapp:web   -> https://def456.ngrok.io   ngrok   2m uptime`}
         />
       </div>
 
@@ -114,25 +113,46 @@ myapp:web   → https://def456.ngrok.io   (ngrok, 2m uptime)`}
           <div className="border-l-4 border-[var(--brand-primary)] pl-4">
             <code className="font-mono text-[var(--brand-primary)]">pd tunnel start &lt;identity&gt; --provider &lt;name&gt;</code>
             <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">Start a tunnel for a claimed service. Auto-selects provider if not specified.</p>
-            <CodeBlock language="bash">{`$ pd tunnel start myapp:api --provider ngrok`}</CodeBlock>
+            <DocsCodeBlock
+              code={`$ pd tunnel start myapp:api --provider ngrok`}
+              output={`Tunnel ready: https://abc123.ngrok.io -> localhost:3001`}
+            />
           </div>
 
           <div className="border-l-4 border-[var(--brand-primary)] pl-4">
             <code className="font-mono text-[var(--brand-primary)]">pd tunnel stop &lt;identity&gt;</code>
             <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">Tear down the tunnel for a service. Also happens automatically when the port is released.</p>
-            <CodeBlock language="bash">{`$ pd tunnel stop myapp:api`}</CodeBlock>
+            <DocsCodeBlock
+              code={`$ pd tunnel stop myapp:api`}
+              output={`Tunnel stopped for myapp:api`}
+            />
           </div>
 
           <div className="border-l-4 border-[var(--brand-primary)] pl-4">
             <code className="font-mono text-[var(--brand-primary)]">pd tunnel list</code>
             <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">List all active tunnels with public URLs, providers, and uptime.</p>
-            <CodeBlock language="bash">{`$ pd tunnel list --json`}</CodeBlock>
+            <DocsCodeBlock
+              code={`$ pd tunnel list --json`}
+              output={`[
+  {
+    "identity": "myapp:api",
+    "url": "https://abc123.ngrok.io",
+    "provider": "ngrok",
+    "uptime": "5m"
+  }
+]`}
+            />
           </div>
 
           <div className="border-l-4 border-[var(--brand-primary)] pl-4">
             <code className="font-mono text-[var(--brand-primary)]">pd tunnel providers</code>
             <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">Check which tunnel provider CLIs are installed on the system.</p>
-            <CodeBlock language="bash">{`$ pd tunnel providers`}</CodeBlock>
+            <DocsCodeBlock
+              code={`$ pd tunnel providers`}
+              output={`ngrok         installed   v3.5.0
+cloudflared   installed   v2024.1.2
+localtunnel   not found`}
+            />
           </div>
         </div>
       </div>
@@ -159,6 +179,8 @@ tunnels.forEach(t => console.log(\`\${t.identity} → \${t.url}\`))
 
 // Stop a tunnel
 await pd.tunnel.stop('myapp:api')`}
+          output={`Public URL: https://abc123.ngrok.io
+myapp:api -> https://abc123.ngrok.io`}
         />
       </div>
 

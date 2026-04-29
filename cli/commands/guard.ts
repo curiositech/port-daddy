@@ -143,6 +143,18 @@ function stagedFiles(cwd = process.cwd()): string[] {
   return gitOutput(['diff', '--cached', '--name-only', '--diff-filter=ACMRDTU'], cwd);
 }
 
+/**
+ * Files modified in a commit. Used by the post-commit hook so that
+ * commits made via `git cherry-pick`, `git rebase`, `git revert`, or
+ * `git merge` (none of which fire pre-commit) still get audited.
+ */
+function commitFiles(ref: string, cwd = process.cwd()): string[] {
+  return gitOutput(
+    ['show', '--name-only', '--no-renames', '--diff-filter=ACMRDTU', '--pretty=format:', ref],
+    cwd,
+  );
+}
+
 function normalizeFiles(files: string[]): string[] {
   return Array.from(new Set(files.map(file => file.trim()).filter(Boolean)));
 }
@@ -217,15 +229,39 @@ function guardHookBlock(): string {
   ].join('\n');
 }
 
-export function mergePreCommitHook(existing: string): string {
-  const block = guardHookBlock();
+/**
+ * The post-commit guard block. Git invokes post-commit on `commit`,
+ * `cherry-pick`, `rebase`, `revert`, and `merge --no-ff` — every path
+ * that creates a commit. post-commit's exit code is *informational*
+ * (git ignores it), so this block:
+ *   - prints loudly when a commit was made without coordination
+ *   - never blocks (post-commit can't), but the violation is recorded
+ *     by `pd guard check --post-commit` in the daemon log so the
+ *     operator can see what slipped through pre-commit
+ *
+ * This is the only enforcement path for cherry-pick/rebase/revert,
+ * which silently bypass pre-commit hooks in git's sequencer.
+ */
+function guardPostCommitBlock(): string {
+  return [
+    HOOK_START,
+    'if command -v pd >/dev/null 2>&1; then',
+    '  pd guard check --post-commit --hook || true',
+    'elif command -v port-daddy >/dev/null 2>&1; then',
+    '  port-daddy guard check --post-commit --hook || true',
+    'fi',
+    HOOK_END,
+  ].join('\n');
+}
+
+function mergeHookBlock(existing: string, block: string, defaultShebang = '#!/usr/bin/env sh'): string {
   const markerPattern = new RegExp(`${HOOK_START}[\\s\\S]*?${HOOK_END}`, 'm');
   if (markerPattern.test(existing)) {
     return existing.replace(markerPattern, block);
   }
 
   const normalized = existing.trimEnd();
-  if (!normalized) return `#!/usr/bin/env sh\n\n${block}\n`;
+  if (!normalized) return `${defaultShebang}\n\n${block}\n`;
 
   const exitMatch = normalized.match(/\nexit 0\s*$/);
   if (exitMatch?.index != null) {
@@ -233,6 +269,14 @@ export function mergePreCommitHook(existing: string): string {
   }
 
   return `${normalized}\n\n${block}\n`;
+}
+
+export function mergePreCommitHook(existing: string): string {
+  return mergeHookBlock(existing, guardHookBlock());
+}
+
+export function mergePostCommitHook(existing: string): string {
+  return mergeHookBlock(existing, guardPostCommitBlock());
 }
 
 export function evaluateGuardFacts(input: {
@@ -422,11 +466,15 @@ async function runCheck(positional: string[], options: CLIOptions): Promise<Guar
   const cwd = resolve(typeof options.dir === 'string' ? options.dir : process.cwd());
   const config = readGuardConfig(cwd);
   const mode = effectiveMode(config, options);
-  const files = normalizeFiles(options.staged || options.hook
-    ? stagedFiles(cwd)
-    : positional.length > 0
-      ? positional
-      : dirtyFiles(cwd));
+  const postCommit = Boolean(options['post-commit']);
+  const commitRef = typeof options.commit === 'string' && options.commit.length > 0 ? options.commit : 'HEAD';
+  const files = normalizeFiles(postCommit
+    ? commitFiles(commitRef, cwd)
+    : options.staged || options.hook
+      ? stagedFiles(cwd)
+      : positional.length > 0
+        ? positional
+        : dirtyFiles(cwd));
   const context = await loadActiveContext(cwd);
   const root = gitRoot(cwd) ?? cwd;
   const ownersByFile = mode === 'off' || files.length === 0 ? {} : await loadOwners(files, root);
@@ -494,7 +542,7 @@ function installGuard(options: CLIOptions): void {
   const cwd = resolve(typeof options.dir === 'string' ? options.dir : process.cwd());
   const root = gitRoot(cwd);
   if (!root) {
-    ui.error('Not inside a git repository; cannot install pre-commit hook.');
+    ui.error('Not inside a git repository; cannot install guard hooks.');
     process.exit(1);
   }
 
@@ -505,17 +553,27 @@ function installGuard(options: CLIOptions): void {
     writeGuardConfig(config, cwd);
   }
 
-  const hookPath = gitPath('hooks/pre-commit', cwd);
-  if (!hookPath) {
-    ui.error('Could not resolve git pre-commit hook path.');
-    process.exit(1);
+  const hooks: Array<{ name: string; merge: (existing: string) => string }> = [
+    { name: 'pre-commit', merge: mergePreCommitHook },
+    // post-commit is the only enforcement path for cherry-pick / rebase /
+    // revert, since git's sequencer skips pre-commit on those.
+    { name: 'post-commit', merge: mergePostCommitHook },
+  ];
+
+  for (const hook of hooks) {
+    const hookPath = gitPath(`hooks/${hook.name}`, cwd);
+    if (!hookPath) {
+      ui.error(`Could not resolve git ${hook.name} hook path.`);
+      process.exit(1);
+    }
+    const existing = existsSync(hookPath) ? readFileSync(hookPath, 'utf8') : '';
+    mkdirSync(dirname(hookPath), { recursive: true });
+    writeFileSync(hookPath, hook.merge(existing));
+    chmodSync(hookPath, 0o755);
+    ui.success(`${COORDINATION_GUARD_NAME} installed in ${hookPath}`);
   }
-  const existing = existsSync(hookPath) ? readFileSync(hookPath, 'utf8') : '';
-  mkdirSync(dirname(hookPath), { recursive: true });
-  writeFileSync(hookPath, mergePreCommitHook(existing));
-  chmodSync(hookPath, 0o755);
-  ui.success(`${COORDINATION_GUARD_NAME} installed in ${hookPath}`);
-  if (requestedMode === 'off') ui.warn('Guard hook is installed but local config is disabled.');
+
+  if (requestedMode === 'off') ui.warn('Guard hooks are installed but local config is disabled.');
 }
 
 function printUsage(): void {

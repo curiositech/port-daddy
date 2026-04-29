@@ -21,7 +21,7 @@ export function TemplatePage() {
 
   return (
     <motion.div 
-      className="min-h-screen bg-[var(--surface-base)] flex flex-col font-sans selection:bg-[var(--brand-primary)] selection:text-white"
+      className="min-h-screen bg-[var(--surface-base)] flex flex-col font-sans selection:bg-[var(--brand-primary)] selection:text-[var(--brand-primary-foreground)]"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
     >
@@ -153,7 +153,7 @@ export function TemplatePage() {
               </motion.p>
               <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-primary)]">
                  <Activity size={14} className="animate-pulse" />
-                 Port Daddy v3.7
+                 Current Port Daddy
               </motion.div>
            </motion.div>
         </motion.div>

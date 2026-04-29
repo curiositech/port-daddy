@@ -19,7 +19,7 @@ export function Features() {
         <SectionIntro
           eyebrow="Primitives"
           title="Everything your agents need to cooperate."
-          description="Ten primitives that turn a collection of scripts into a production-grade autonomous system. Each one is a single CLI command."
+          description="Eleven primitives that turn a collection of scripts into a production-grade autonomous system. Each one maps to a command, app surface, or operator workflow."
           titleAs="h2"
           className="mb-[var(--space-7)] max-w-[46rem]"
           titleClassName="max-w-[14ch]"

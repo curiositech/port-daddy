@@ -1,5 +1,7 @@
 # PKI Option: Web-of-Trust / Cross-Certification / TOFU
 
+> **Status (2026-04-27)**: Input to **[ADR-0025 (Relay PKI Decision)](../../../docs/adr/0025-pki-decision.md)** which adopted WoT as the **v0 escape hatch** (`--auth-mode=wot`) for air-gapped and PKI-rejecting deployments, with OIDC as the primary bootstrap. This document is preserved as the option analysis; the data model accommodates WoT-bound identities (`proof_method: "wot"`) from day 1.
+
 **Load when**: WoT is a candidate (least likely for v0, but matters for the antagonist's argument).
 
 ## Summary

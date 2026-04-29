@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 560" role="img" aria-labelledby="title desc">
+  <title id="title">pd tube thread envelope</title>
+  <desc id="desc">A root tube message and reply are represented as JSON envelopes with the inReplyTo field.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#111827"/>
+      <stop offset="100%" stop-color="#281c35"/>
+    </linearGradient>
+    <style>
+      .title { fill:#f1f8ff; font:700 28px ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .muted { fill:#94a8bd; font:500 18px ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .code { fill:#d8f7ea; font:500 21px ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .card { fill:#0d1624; stroke:#516c8a; stroke-width:2; }
+      .node { fill:#18263a; stroke:#52f2b8; stroke-width:4; }
+      .reply { fill:#241d35; stroke:#ffcf5a; stroke-width:4; }
+      .edge { fill:none; stroke:#ffcf5a; stroke-width:7; stroke-linecap:round; stroke-dasharray:14 12; animation:dash 1s linear infinite; }
+      @keyframes dash { to { stroke-dashoffset:-26; } }
+    </style>
+  </defs>
+  <rect width="1200" height="560" fill="url(#bg)"/>
+  <text x="58" y="62" class="title">Threading lives in the tube envelope</text>
+  <g transform="translate(68 120)">
+    <rect class="card" width="470" height="330" rx="20"/>
+    <text x="28" y="52" class="muted">root payload</text>
+    <text x="28" y="96" class="code">{</text>
+    <text x="54" y="128" class="code">"v": 1,</text>
+    <text x="54" y="160" class="code">"kind": "tube.msg",</text>
+    <text x="54" y="192" class="code">"body": "first threaded note"</text>
+    <text x="28" y="224" class="code">}</text>
+  </g>
+  <g transform="translate(662 120)">
+    <rect class="card" width="470" height="330" rx="20"/>
+    <text x="28" y="52" class="muted">reply payload</text>
+    <text x="28" y="96" class="code">{</text>
+    <text x="54" y="128" class="code">"v": 1,</text>
+    <text x="54" y="160" class="code">"kind": "tube.msg",</text>
+    <text x="54" y="192" class="code">"body": "reply from bob",</text>
+    <text x="54" y="224" class="code">"inReplyTo": 31054</text>
+    <text x="28" y="256" class="code">}</text>
+  </g>
+  <circle class="node" cx="372" cy="490" r="34"/><text x="333" y="498" class="code">31054</text>
+  <circle class="reply" cx="828" cy="490" r="34"/><text x="789" y="498" class="code">31055</text>
+  <path class="edge" d="M795 490 C660 452 540 452 405 490"/>
+  <text x="430" y="530" class="muted">The daemon stores rows. Tube carries parentage in JSON.</text>
+</svg>

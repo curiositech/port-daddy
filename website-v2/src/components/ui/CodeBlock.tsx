@@ -155,8 +155,8 @@ export function CodeBlock({ children, language, filename, className, copyable = 
       {/* Code */}
       <pre
         tabIndex={0}
-        aria-label={`${filename || language || 'Code sample'} scrollable code`}
-        className="m-0 w-full max-w-full min-w-0 overflow-x-auto bg-[var(--code-bg)] px-4 py-4 font-mono text-[14px] leading-[1.65]"
+        aria-label={`${filename || language || 'Code sample'} code`}
+        className="m-0 w-full max-w-full min-w-0 overflow-x-hidden whitespace-pre-wrap break-words bg-[var(--code-bg)] px-4 py-4 font-mono text-[14px] leading-[1.65] [overflow-wrap:anywhere]"
         style={{ color: 'var(--code-text)' }}
       >{
         language === 'bash' || language === 'shell' || !language

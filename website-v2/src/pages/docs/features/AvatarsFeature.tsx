@@ -165,7 +165,7 @@ spider:
         </div>
         <Link
           to="/tutorials/fleet"
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--brand-primary)] text-white font-medium transition-colors"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)] font-medium transition-colors"
         >
           Read Tutorial
           <ArrowRight size={16} />

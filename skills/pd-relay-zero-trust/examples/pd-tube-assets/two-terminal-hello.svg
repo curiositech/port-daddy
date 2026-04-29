@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 560" role="img" aria-labelledby="title desc">
+  <title id="title">pd tube two terminal hello flow</title>
+  <desc id="desc">Two terminals connected through the local Port Daddy daemon. The sender posts a message and the listener emits one JSON line.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#07131f"/>
+      <stop offset="48%" stop-color="#132233"/>
+      <stop offset="100%" stop-color="#221a35"/>
+    </linearGradient>
+    <linearGradient id="pulse" x1="0" x2="1">
+      <stop offset="0%" stop-color="#52f2b8"/>
+      <stop offset="100%" stop-color="#ffcf5a"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#000" flood-opacity=".35"/>
+    </filter>
+    <style>
+      .panel { fill:#101827; stroke:#35506b; stroke-width:2; filter:url(#shadow); }
+      .bar { fill:#18263a; }
+      .dot-red { fill:#ff6b6b; }
+      .dot-yellow { fill:#ffd166; }
+      .dot-green { fill:#58d68d; }
+      .label { fill:#d7e7f5; font:700 24px ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .code { fill:#a9f5d0; font:500 21px ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .muted { fill:#7f96ad; font:500 18px ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .daemon { fill:#172b20; stroke:#52f2b8; stroke-width:3; filter:url(#shadow); }
+      .arrow { fill:none; stroke:url(#pulse); stroke-width:7; stroke-linecap:round; stroke-dasharray:18 18; animation:dash 1.2s linear infinite; }
+      .packet { fill:#ffcf5a; animation:move 2.4s ease-in-out infinite; }
+      @keyframes dash { to { stroke-dashoffset:-36; } }
+      @keyframes move {
+        0%, 20% { transform:translate(0,0); opacity:0; }
+        38% { transform:translate(245px,0); opacity:1; }
+        70% { transform:translate(520px,0); opacity:1; }
+        100% { transform:translate(770px,0); opacity:0; }
+      }
+    </style>
+  </defs>
+  <rect width="1200" height="560" fill="url(#bg)"/>
+  <text x="60" y="58" class="label">Two-terminal hello: stdin becomes one JSON line</text>
+
+  <g transform="translate(58 120)">
+    <rect class="panel" width="430" height="300" rx="18"/>
+    <rect class="bar" width="430" height="42" rx="18"/>
+    <circle class="dot-red" cx="28" cy="21" r="7"/><circle class="dot-yellow" cx="52" cy="21" r="7"/><circle class="dot-green" cx="76" cy="21" r="7"/>
+    <text x="26" y="82" class="muted">Terminal A - listener</text>
+    <text x="26" y="126" class="code">$ pd tube tutorial:hello --json</text>
+    <text x="26" y="178" class="muted">waiting...</text>
+    <text x="26" y="232" class="code">{"id":31052,</text>
+    <text x="26" y="262" class="code"> "body":"hi from terminal B"}</text>
+  </g>
+
+  <g transform="translate(712 120)">
+    <rect class="panel" width="430" height="300" rx="18"/>
+    <rect class="bar" width="430" height="42" rx="18"/>
+    <circle class="dot-red" cx="28" cy="21" r="7"/><circle class="dot-yellow" cx="52" cy="21" r="7"/><circle class="dot-green" cx="76" cy="21" r="7"/>
+    <text x="26" y="82" class="muted">Terminal B - sender</text>
+    <text x="26" y="126" class="code">$ echo "hi from terminal B" \</text>
+    <text x="26" y="156" class="code">  | pd tube tutorial:hello --send</text>
+    <text x="26" y="214" class="code">{"ok":true,"id":31052}</text>
+  </g>
+
+  <g transform="translate(515 210)">
+    <rect class="daemon" width="170" height="120" rx="28"/>
+    <text x="35" y="52" class="label">PD</text>
+    <text x="31" y="84" class="muted">/msg/:channel</text>
+  </g>
+
+  <path class="arrow" d="M712 270 C650 270 640 270 685 270"/>
+  <path class="arrow" d="M515 270 C455 270 500 270 488 270"/>
+  <circle class="packet" cx="250" cy="270" r="12"/>
+  <text x="436" y="470" class="muted">The daemon mints the id. Tube prints clean JSONL.</text>
+</svg>

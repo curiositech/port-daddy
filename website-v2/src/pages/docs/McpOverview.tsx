@@ -2,6 +2,7 @@ import { Badge } from '@/components/ui/Badge'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Cpu, Terminal, Code, ExternalLink, Check } from 'lucide-react'
+import { ALL_CATEGORIES, MCP_DEFAULT_TOOL_TOTAL, MCP_TOOL_TOTAL } from '@/data/mcp'
 
 const MCP_SERVERS = [
   {
@@ -9,7 +10,7 @@ const MCP_SERVERS = [
     description: 'Native integration with Claude Code CLI. Install and use Port Daddy tools directly in your Claude sessions.',
     href: '/docs/mcp/claude',
     icon: Terminal,
-    setup: 'npx -y firecrawl-cli@latest init --all --browser',
+    setup: 'pd mcp install',
     features: ['Tool discovery', 'Automatic context', 'Session management']
   },
   {
@@ -30,49 +31,6 @@ const MCP_SERVERS = [
   }
 ]
 
-const TOOLS = [
-  {
-    name: 'claim_port',
-    description: 'Claim a stable port for a service identity',
-    parameters: ['identity: string', 'project?: string', 'stack?: string']
-  },
-  {
-    name: 'release_port',
-    description: 'Release a previously claimed port',
-    parameters: ['identity: string']
-  },
-  {
-    name: 'find_port',
-    description: 'Find the port assigned to an identity',
-    parameters: ['identity: string']
-  },
-  {
-    name: 'list_services',
-    description: 'List all active service claims',
-    parameters: ['project?: string']
-  },
-  {
-    name: 'begin_session',
-    description: 'Start a new agent session',
-    parameters: ['identity: string', 'purpose?: string']
-  },
-  {
-    name: 'publish_message',
-    description: 'Publish a message to a Swarm Radio channel',
-    parameters: ['channel: string', 'message: string']
-  },
-  {
-    name: 'acquire_lock',
-    description: 'Acquire a distributed lock',
-    parameters: ['name: string', 'ttl?: number']
-  },
-  {
-    name: 'create_harbor',
-    description: 'Create a permission namespace',
-    parameters: ['name: string', 'capabilities?: string[]']
-  }
-]
-
 export default function McpOverview() {
   return (
     <div className="space-y-8">
@@ -80,7 +38,7 @@ export default function McpOverview() {
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           <Badge variant="teal">Integration</Badge>
-          <Badge variant="gold">New in v3.7</Badge>
+          <Badge variant="gold">Current</Badge>
         </div>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Model Context Protocol
@@ -181,22 +139,26 @@ $ pd mcp install --global
         <p className="text-[var(--text-secondary)]">
           These tools are exposed to any MCP-compatible client:
         </p>
-        <div className="grid gap-3">
-          {TOOLS.map(tool => (
+        <p className="text-sm text-[var(--text-muted)]">
+          Default mode exposes {MCP_DEFAULT_TOOL_TOTAL} essential functions. Full mode and <code className="font-mono">pd_discover</code> cover all {MCP_TOOL_TOTAL} registered functions below.
+        </p>
+        <div className="grid gap-4">
+          {ALL_CATEGORIES.map(category => (
             <div 
-              key={tool.name}
+              key={category.id}
               className="p-4 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]"
             >
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <code className="text-[var(--brand-primary)] font-mono font-medium">{tool.name}</code>
-                  <p className="text-sm text-[var(--text-muted)] mt-1">{tool.description}</p>
+                  <h3 className="font-semibold text-[var(--text-primary)]">{category.label}</h3>
+                  <p className="text-sm text-[var(--text-muted)] mt-1">{category.description}</p>
                 </div>
+                <Badge variant="teal">{category.tools.length} tools</Badge>
               </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {tool.parameters.map(param => (
-                  <code key={param} className="text-xs px-2 py-1 rounded bg-[var(--code-bg)] text-[var(--text-muted)] font-mono">
-                    {param}
+              <div className="mt-4 flex flex-wrap gap-2">
+                {category.tools.map(tool => (
+                  <code key={tool} className="text-xs px-2 py-1 rounded bg-[var(--code-bg)] text-[var(--text-muted)] font-mono">
+                    {tool}
                   </code>
                 ))}
               </div>

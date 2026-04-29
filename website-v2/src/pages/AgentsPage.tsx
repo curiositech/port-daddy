@@ -1,335 +1,579 @@
-import { motion } from 'framer-motion'
-import { Link } from 'react-router-dom'
-import { Badge } from '@/components/ui/Badge'
-import { Surface } from '@/components/ui/Surface'
-import { CodeBlock } from '@/components/ui/CodeBlock'
-import { ArrowRight, Terminal, Clock, Zap } from 'lucide-react'
+import {
+  Activity,
+  ArrowRight,
+  BookOpen,
+  Boxes,
+  CheckCircle2,
+  Clock,
+  Code2,
+  Compass,
+  FileCheck2,
+  FileLock2,
+  FileText,
+  GitBranch,
+  Hammer,
+  Lightbulb,
+  Lock,
+  Map,
+  Radio,
+  Route,
+  ShieldCheck,
+  Sparkles,
+  Terminal,
+  Wallet,
+  Wrench,
+  Zap,
+  type LucideIcon,
+} from 'lucide-react'
+import {
+  BracketLabel,
+  BracketLink,
+  DocsCodeBlock,
+  PageContainer,
+  PanelBody,
+  PanelEyebrow,
+  PanelTitle,
+  SurfacePanel,
+  SwissGrid,
+  SwissGridItem,
+} from '@/components/site/primitives'
+import { RoleTerm } from '@/components/site/RoleTerm'
 
-const AGENTS = [
+type Concept = {
+  label: string
+  title: string
+  body: string
+  icon: LucideIcon
+  tone: 'paper' | 'blue' | 'accent'
+}
+
+type ActorRole = {
+  name: string
+  roleKey: string
+  label: string
+  body: string
+  icon: LucideIcon
+}
+
+type FleetAgent = {
+  name: string
+  roleKey: string
+  wakes: string
+  work: string
+  runtime: string
+  icon: LucideIcon
+}
+
+type OneOff = {
+  title: string
+  roleKey?: string
+  label: string
+  body: string
+  command: string
+  icon: LucideIcon
+}
+
+const CONCEPTS: Concept[] = [
   {
-    name: 'QA',
-    slug: 'qa',
-    tagline: 'Adversarial reviewer',
-    pitch: 'Reviews every commit for bugs and edge cases. Writes failing tests that expose problems before they reach production.',
-    how: 'Reads the diff, identifies risk surfaces, generates test cases.',
-    trigger: 'git:committed',
-    triggerType: 'event' as const,
-    color: '#e74c3c',
-    badge: 'starter' as const,
+    label: 'Actor',
+    title: 'Stable identity',
+    body: 'A durable role with an address, inbox, history, and ownership. It can be dormant, recoverable, or attached to a live body.',
+    icon: Boxes,
+    tone: 'blue',
   },
   {
-    name: 'Documentarian',
-    slug: 'documentarian',
-    tagline: 'Docs that match the code',
-    pitch: 'Checks README, CHANGELOG, and API docs against actual source code. Updates anything stale. Code is truth; docs follow.',
-    how: 'Diffs code against docs. Finds stale references and missing features. Edits in place.',
-    trigger: 'git:committed',
-    triggerType: 'event' as const,
-    color: '#3498db',
-    badge: 'starter' as const,
+    label: 'Body lease',
+    title: 'Temporary authority',
+    body: 'A running agent process gets a lease while its heartbeat is fresh. Stale bodies lose authority without erasing the actor.',
+    icon: Lock,
+    tone: 'paper',
   },
   {
-    name: 'Cartographer',
-    slug: 'cartographer',
-    tagline: 'Roadmap keeper',
-    pitch: 'Tracks planned vs built. Flags stale items, measures velocity, reports where energy actually goes vs where you said it would.',
-    how: 'Reads git log and roadmap. Moves items to "complete." Flags 2+ week gaps.',
-    trigger: 'git:committed',
-    triggerType: 'event' as const,
-    color: '#2ecc71',
-    badge: 'starter' as const,
+    label: 'Fleet',
+    title: 'Always-on repo team',
+    body: 'A pd-fleet.yml declares agents, triggers, schedules, budgets, backoff, and singleton rules for one project.',
+    icon: Radio,
+    tone: 'accent',
   },
   {
-    name: 'Spark',
-    slug: 'spark',
-    tagline: 'Idea engine',
-    pitch: 'Proposes one concrete improvement every 30 minutes. Reads Spider\'s connections and turns them into buildable proposals.',
-    how: 'Scans codebase and roadmap. Reads .spider/connections/. Saves proposals to .spark/ideas/.',
-    trigger: '*/30 * * * *',
-    triggerType: 'cron' as const,
-    color: '#f0a500',
-    badge: 'starter' as const,
-  },
-  {
-    name: 'Spider',
-    slug: 'spider',
-    tagline: 'Connection finder',
-    pitch: 'Discovers combinations of existing features that create new capabilities. "We have X AND Y, THEREFORE Z is now possible."',
-    how: 'Reads feature manifest, module headers, git log. Outputs formal syllogisms.',
-    trigger: 'spark:idea',
-    triggerType: 'event' as const,
-    color: '#9b59b6',
-    badge: 'starter' as const,
-  },
-  {
-    name: 'Health Monitor',
-    slug: 'health-monitor',
-    tagline: 'Watchdog',
-    pitch: 'Checks service health every 5 minutes. Sprays pheromone signals so other agents back off when the system is stressed.',
-    how: 'Calls health endpoint. Maps latency to a 0-1 signal. Other agents sniff before expensive ops.',
-    trigger: '*/5 * * * *',
-    triggerType: 'cron' as const,
-    color: '#e74c3c',
-    badge: 'always-on' as const,
-  },
-  {
-    name: 'Session Reaper',
-    slug: 'session-reaper',
-    tagline: 'Zombie hunter',
-    pitch: 'Finds sessions active for hours without notes. Flags them as abandoned so humans or other agents can reclaim the work.',
-    how: 'Queries active sessions. Compares creation time to note count.',
-    trigger: '0 * * * *',
-    triggerType: 'cron' as const,
-    color: '#7f8c8d',
-    badge: 'always-on' as const,
-  },
-  {
-    name: 'Dep Watcher',
-    slug: 'dep-watcher',
-    tagline: 'Security auditor',
-    pitch: 'Runs dependency audits daily. Reports vulnerabilities, major version bumps, and deprecation notices.',
-    how: 'Runs npm outdated and npm audit. Saves timestamped reports.',
-    trigger: '0 9 * * *',
-    triggerType: 'cron' as const,
-    color: '#e67e22',
-    badge: 'always-on' as const,
+    label: 'Sortie',
+    title: 'One tracked mission',
+    body: 'A scoped run with a goal, backend, model, budget ceiling, event log, result, and project harbor.',
+    icon: Route,
+    tone: 'paper',
   },
 ]
 
+const ACTOR_ROLES: ActorRole[] = [
+  {
+    name: 'Shipwright',
+    roleKey: 'shipwright',
+    label: 'Fleet architect',
+    body: 'Surveys a repo, proposes an agent fleet, rehearses cost and trigger behavior, and turns setup into a guided control-plane flow.',
+    icon: Hammer,
+  },
+  {
+    name: 'Navigator / Cartographer',
+    roleKey: 'navigator',
+    label: 'Roadmap truth',
+    body: 'Keeps roadmap, recovery, current work, and product direction aligned with what actually shipped.',
+    icon: Map,
+  },
+  {
+    name: 'Coxswain',
+    roleKey: 'coxswain',
+    label: 'Claims and locks',
+    body: 'Watches file claims, symbol ownership, locks, stale assets, and coordination friction before agents collide.',
+    icon: FileLock2,
+  },
+  {
+    name: 'Lookout / Documentarian',
+    roleKey: 'lookout',
+    label: 'Product truth',
+    body: 'Finds drift across docs, OpenAPI, CLI help, skills, website copy, and the live control plane.',
+    icon: BookOpen,
+  },
+  {
+    name: 'Quartermaster',
+    roleKey: 'quartermaster',
+    label: 'Budgets and backends',
+    body: 'Owns spend ceilings, model tiers, backend readiness, spawn pressure, and resource policy.',
+    icon: Wallet,
+  },
+  {
+    name: 'Signalman / QA',
+    roleKey: 'signalman',
+    label: 'Evidence and validation',
+    body: 'Tracks tests, validation proof, teardown warnings, and whether findings are actionable.',
+    icon: FileCheck2,
+  },
+  {
+    name: 'Harbormaster',
+    roleKey: 'harbormaster',
+    label: 'Runtime truth',
+    body: 'Checks promotion readiness, daemon freshness, stable checkout cleanliness, and live provenance.',
+    icon: ShieldCheck,
+  },
+  {
+    name: 'Sounder',
+    roleKey: 'sounder',
+    label: 'Memory and tuples',
+    body: 'Maintains tuple-first coordination, graph edges, episodic memory, and semantic joins.',
+    icon: Activity,
+  },
+  {
+    name: 'Breaker',
+    roleKey: 'breaker',
+    label: 'Failure paths',
+    body: 'Models cascading failures, retry storms, circuit states, and forensic windows.',
+    icon: Zap,
+  },
+  {
+    name: 'Caulker',
+    roleKey: 'caulker',
+    label: 'Robustness repair',
+    body: 'Closes teardown leaks, timeout debt, orphan cleanup, IPC rough edges, and brittle fallbacks.',
+    icon: Wrench,
+  },
+]
+
+const FLEET_AGENTS: FleetAgent[] = [
+  {
+    name: 'gardener',
+    roleKey: 'gardener',
+    wakes: 'every 10 min',
+    work: 'Reports clean or dirty git status so the rest of the fleet knows the ground truth.',
+    runtime: 'custom shell',
+    icon: GitBranch,
+  },
+  {
+    name: 'qa',
+    roleKey: 'qa',
+    wakes: 'git:committed',
+    work: 'Reviews the commit and hunts for real bugs, weak tests, missing negative paths, and coverage theater.',
+    runtime: 'Ollama',
+    icon: CheckCircle2,
+  },
+  {
+    name: 'test-hunter',
+    roleKey: 'test-hunter',
+    wakes: 'git:committed',
+    work: 'Adds meaningful tests for low-coverage paths and proves they fail against no-op code.',
+    runtime: 'Codex mini',
+    icon: FileCheck2,
+  },
+  {
+    name: 'documentarian',
+    roleKey: 'documentarian',
+    wakes: 'promotion gate',
+    work: 'Syncs README, docs, SDK, OpenAPI, website, and the Port Daddy skill after a candidate is release-ready.',
+    runtime: 'Ollama',
+    icon: FileText,
+  },
+  {
+    name: 'simplifier',
+    roleKey: 'simplifier',
+    wakes: 'git:committed',
+    work: 'Removes needless complexity without changing behavior, then verifies the patch.',
+    runtime: 'Codex mini',
+    icon: Code2,
+  },
+  {
+    name: 'cartographer',
+    roleKey: 'cartographer',
+    wakes: 'every 30 min',
+    work: 'Updates roadmap state, harvests dogfood feedback, and marks what is built, blocked, or drifting.',
+    runtime: 'Codex mini',
+    icon: Compass,
+  },
+  {
+    name: 'spark',
+    roleKey: 'spark',
+    wakes: 'every 30 min',
+    work: 'Proposes one concrete improvement only after deduping against the idea trove.',
+    runtime: 'Ollama',
+    icon: Sparkles,
+  },
+  {
+    name: 'spider',
+    roleKey: 'spider',
+    wakes: 'spark:idea + 2h',
+    work: 'Finds non-obvious connections between existing features and emits scoped implementation sketches.',
+    runtime: 'Ollama',
+    icon: Lightbulb,
+  },
+]
+
+const ONE_OFFS: OneOff[] = [
+  {
+    title: 'Sortie',
+    roleKey: 'sortie',
+    label: 'Tracked mission',
+    body: 'Best when you have one explicit goal, a budget ceiling, and want status, logs, result, and residual risk tied to one mission id.',
+    command: 'pd sortie run "Investigate flaky auth tests" --backend codex --budget 2',
+    icon: Route,
+  },
+  {
+    title: 'pd agent',
+    label: 'Ad hoc delegation',
+    body: 'Best when you want Port Daddy to open a scoped session, launch one worker, and close the loop without adding a recurring fleet member.',
+    command: 'pd agent "Review this branch for launch blockers"',
+    icon: Terminal,
+  },
+  {
+    title: 'pd spawn',
+    label: 'Low-level launch',
+    body: 'Best when you need exact backend, model, tools, timeout, identity, or harbor control and want to own the coordination wrapper yourself.',
+    command: 'pd spawn --backend codex --model gpt-5.4-mini -- "Inspect src/auth"',
+    icon: Code2,
+  },
+]
+
+const fleetSnippet = `cd ~/my-repo
+pd setup
+pd fleet init
+pd fleet up
+
+# Commit normally. The hook publishes git:committed.
+git commit -m "ship a small slice"`
+
+const sortieSnippet = `pd sortie run "Investigate flaky auth tests and patch if safe" \\
+  --backend codex \\
+  --model gpt-5.4-mini \\
+  --budget 2 \\
+  --expected "Root cause, patch, and residual risk"`
+
+const actorSnippet = `pd actors
+pd actors navigator --inbox --unread
+pd actors coxswain --message "Need claim check before editing routes/fleet.ts"
+pd actors lookout --message "Website copy changed; check product truth" --wake`
+
+function IconBlock({ icon: Icon }: { icon: LucideIcon }) {
+  return (
+    <div className="flex h-[var(--space-7)] w-[var(--space-7)] items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--text-primary)]">
+      <Icon className="h-[var(--space-4)] w-[var(--space-4)]" strokeWidth={2.25} />
+    </div>
+  )
+}
+
 export function AgentsPage() {
   return (
-    <div className="min-h-screen pt-28 pb-24" style={{ background: 'var(--surface-base)' }}>
-      <div className="max-w-5xl mx-auto px-6 lg:px-8">
+    <main className="min-h-screen bg-[var(--surface-base)] pt-24 text-[var(--text-primary)]">
+      <section className="border-b-2 border-[var(--border-strong)] py-[var(--space-8)] lg:py-[var(--space-9)]">
+        <PageContainer width="wide">
+          <SwissGrid className="items-center gap-y-[var(--space-7)]">
+            <SwissGridItem span="narrow" className="space-y-[var(--space-6)]">
+              <BracketLabel>Agents</BracketLabel>
+              <div className="space-y-[var(--space-4)]">
+                <PanelTitle as="h1" size="hero" className="max-w-[11ch]">
+                  Virtual actors for real repo work.
+                </PanelTitle>
+                <PanelBody className="max-w-[38rem]">
+                  Port Daddy no longer treats an agent as a disposable chat run. It separates the
+                  durable role from the live process, then lets you run recurring fleets or scoped
+                  sorties against your own repositories.
+                </PanelBody>
+              </div>
+              <div className="flex flex-wrap gap-[var(--space-3)]">
+                <BracketLink to="/tutorials/fleet">
+                  <span className="inline-flex items-center gap-[var(--space-2)]">
+                    Create a fleet
+                    <ArrowRight className="h-[var(--space-3)] w-[var(--space-3)]" strokeWidth={2.25} />
+                  </span>
+                </BracketLink>
+                <BracketLink to="/docs/cli/fleet" tone="accent">
+                  <span className="inline-flex items-center gap-[var(--space-2)]">
+                    Fleet CLI
+                    <Terminal className="h-[var(--space-3)] w-[var(--space-3)]" strokeWidth={2.25} />
+                  </span>
+                </BracketLink>
+              </div>
+            </SwissGridItem>
 
-        {/* Header */}
-        <header className="mb-12 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-4"
-            style={{
-              background: 'color-mix(in srgb, var(--brand-primary) 12%, transparent)',
-              border: '1px solid color-mix(in srgb, var(--brand-primary) 25%, transparent)',
-              color: 'var(--brand-primary)',
-            }}
-          >
-            <Terminal size={12} />
-            pd fleet init
-          </motion.div>
-          <motion.h1
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-4xl sm:text-5xl font-display font-black tracking-tighter mb-4"
-            style={{ color: 'var(--text-primary)' }}
-          >
-            You commit. They work.
-          </motion.h1>
-          <motion.p
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="text-base max-w-xl mx-auto leading-relaxed"
-            style={{ color: 'var(--text-secondary)' }}
-          >
-            Imagine pushing code and walking away. By the time you make coffee, a QA agent has reviewed your commit, a documentarian has updated your README, and a cartographer has checked off a roadmap item. All in the background, all declared in one YAML file.
-          </motion.p>
-        </header>
+            <SwissGridItem span="wide">
+              <figure className="m-0 overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
+                <picture>
+                  <source srcSet="/img/generated/virtual-actor-fleet.webp" type="image/webp" />
+                  <img
+                    src="/img/generated/virtual-actor-fleet.jpg"
+                    alt="Abstract system map of durable actor identities, temporary live body leases, fleet triggers, and sortie paths"
+                    className="aspect-[16/9] w-full object-cover"
+                    loading="eager"
+                  />
+                </picture>
+              </figure>
+            </SwissGridItem>
+          </SwissGrid>
+        </PageContainer>
+      </section>
 
-        {/* How It Works */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="mb-16"
-        >
-          <Surface depth="raised" radius="2xl" padding="lg" className="space-y-6">
-            <h2 className="text-xl font-display font-black m-0" style={{ color: 'var(--text-primary)' }}>
-              How it works
-            </h2>
-            <p className="text-sm leading-relaxed m-0" style={{ color: 'var(--text-secondary)' }}>
-              A fleet is a YAML file at your project root. Each agent has a <strong>trigger</strong> (a pub/sub channel or cron schedule), a <strong>backend</strong> (Ollama, Codex, Claude CLI, or any shell command), and a <strong>prompt</strong>. You define the agents. Port Daddy runs them.
-            </p>
-
-            <div className="grid sm:grid-cols-3 gap-4">
-              <Surface depth="inset" radius="lg" padding="md" className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Zap size={14} style={{ color: 'var(--brand-primary)' }} />
-                  <p className="text-xs font-bold m-0" style={{ color: 'var(--text-primary)' }}>Event-triggered</p>
-                </div>
-                <p className="text-xs m-0" style={{ color: 'var(--text-secondary)' }}>
-                  Fires when a message hits a pub/sub channel. Wire a git post-commit hook to <code>git:committed</code> and agents react to every push.
-                </p>
-              </Surface>
-              <Surface depth="inset" radius="lg" padding="md" className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Clock size={14} style={{ color: 'var(--brand-primary)' }} />
-                  <p className="text-xs font-bold m-0" style={{ color: 'var(--text-primary)' }}>Cron-scheduled</p>
-                </div>
-                <p className="text-xs m-0" style={{ color: 'var(--text-secondary)' }}>
-                  Runs on a timer. Every 10 minutes, every hour, once a day. Good for health checks, cleanup, and creative ideation.
-                </p>
-              </Surface>
-              <Surface depth="inset" radius="lg" padding="md" className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <ArrowRight size={14} style={{ color: 'var(--brand-primary)' }} />
-                  <p className="text-xs font-bold m-0" style={{ color: 'var(--text-primary)' }}>Chained</p>
-                </div>
-                <p className="text-xs m-0" style={{ color: 'var(--text-secondary)' }}>
-                  One agent&apos;s output triggers another. QA publishes to <code>qa:findings</code>; a notifier agent reacts. Ideas compound.
-                </p>
-              </Surface>
-            </div>
-
-            <p className="text-sm leading-relaxed m-0" style={{ color: 'var(--text-secondary)' }}>
-              The agents below are <strong>examples that ship with Port Daddy</strong>. You can use them as-is, modify their prompts, or define entirely new agents. Any trigger, custom shell commands, and the current built-in runtimes: Ollama, Codex, Claude, Claude CLI, Gemini, Aider, and custom.
-            </p>
-
-            <CodeBlock language="bash">{`# Example: your own custom agent
-# pd-fleet.yml
-fleet:
-  agents:
-    my-linter:
-      trigger: git:committed
-      backend: custom                   # Any shell command
-      prompt: "npx eslint --fix ."
-      on_success: publish lint:clean
-
-    my-reviewer:
-      schedule: "0 */4 * * *"           # Every 4 hours
-      backend: codex                    # Higher-signal code worker
-      model: gpt-5.4-mini
-      prompt: |
-        Find code smells in src/. Suggest fixes.`}</CodeBlock>
-          </Surface>
-        </motion.div>
-
-        {/* Agent grid */}
-        <div className="flex flex-wrap justify-center gap-4 mb-16">
-          {AGENTS.map((agent) => (
-            <a
-              key={agent.slug}
-              href={`#${agent.slug}`}
-              className="flex flex-col items-center gap-2 group no-underline"
-            >
-              <Surface depth="raised" radius="xl" padding="none" className="w-16 h-16 overflow-hidden transition-all group-hover:shadow-[var(--shadow-sm)]">
-                <img
-                  src={`/img/agents/${agent.slug}.png`}
-                  alt={agent.name}
-                  className="w-full h-full object-cover"
-                />
-              </Surface>
-              <span className="text-[11px] font-bold" style={{ color: agent.color }}>{agent.name}</span>
-            </a>
-          ))}
-        </div>
-
-        {/* Agent Cards — compact horizontal layout */}
-        <div className="space-y-4">
-          {AGENTS.map((agent, i) => (
-            <motion.div
-              key={agent.slug}
-              id={agent.slug}
-              initial={{ opacity: 0, y: 12 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.03 }}
-              viewport={{ once: true }}
-            >
-              <Surface depth="raised" radius="xl" padding="none" className="overflow-hidden">
-                <div className="flex items-stretch">
-                  {/* Small image accent */}
-                  <div className="w-28 sm:w-36 flex-shrink-0 relative overflow-hidden hidden sm:block">
-                    <img
-                      src={`/img/agents/${agent.slug}.png`}
-                      alt={agent.name}
-                      className="absolute inset-0 w-full h-full object-cover"
-                      loading="lazy"
-                    />
+      <section className="border-b-2 border-[var(--border-strong)] py-[var(--space-8)] lg:py-[var(--space-9)]">
+        <PageContainer width="wide">
+          <div className="mb-[var(--space-6)] max-w-[48rem] space-y-[var(--space-3)]">
+            <BracketLabel>Twenty-second model</BracketLabel>
+            <PanelTitle as="h2" size="display">
+              Four words explain the system.
+            </PanelTitle>
+          </div>
+          <div className="grid gap-[var(--panel-gap)] md:grid-cols-2 xl:grid-cols-4">
+            {CONCEPTS.map((concept) => {
+              const panelTone = concept.tone === 'blue' ? 'primary' : concept.tone === 'accent' ? 'accent' : 'default'
+              const Icon = concept.icon
+              return (
+                <SurfacePanel key={concept.label} tone={concept.tone} className="space-y-[var(--panel-gap)]">
+                  <div className="flex items-center justify-between gap-[var(--panel-gap)]">
+                    <BracketLabel tone={panelTone} surface={concept.tone}>
+                      {concept.label}
+                    </BracketLabel>
+                    <Icon className="h-[var(--space-5)] w-[var(--space-5)]" strokeWidth={2.25} />
                   </div>
+                  <PanelTitle as="h3" size="nav" tone={panelTone}>
+                    {concept.title}
+                  </PanelTitle>
+                  <PanelBody
+                    size="compact"
+                    tone={concept.tone === 'blue' ? 'primary' : concept.tone === 'accent' ? 'accent' : 'default'}
+                    className="max-w-none"
+                  >
+                    {concept.body}
+                  </PanelBody>
+                </SurfacePanel>
+              )
+            })}
+          </div>
+        </PageContainer>
+      </section>
 
-                  {/* Content */}
-                  <div className="flex-1 p-5 sm:p-6 space-y-3">
-                    <div className="flex items-center gap-3 flex-wrap">
-                      {/* Mobile-only small image */}
-                      <div className="w-10 h-10 rounded-lg overflow-hidden sm:hidden flex-shrink-0">
-                        <img src={`/img/agents/${agent.slug}.png`} alt="" className="w-full h-full object-cover" />
-                      </div>
-                      <h2 className="text-lg font-display font-black m-0" style={{ color: 'var(--text-primary)' }}>
-                        {agent.name}
-                      </h2>
-                      <span className="text-xs font-semibold" style={{ color: agent.color }}>
-                        {agent.tagline}
-                      </span>
-                      <Badge variant={agent.badge === 'starter' ? 'teal' : 'gold'} size="sm">{agent.badge}</Badge>
-                      <div className="ml-auto flex items-center gap-1.5 text-[10px] font-mono px-2 py-0.5 rounded-full"
-                        style={{
-                          background: 'color-mix(in srgb, var(--text-muted) 10%, transparent)',
-                          color: 'var(--text-muted)',
-                        }}
-                      >
-                        {agent.triggerType === 'event' ? <Zap size={10} /> : <Clock size={10} />}
-                        <code>{agent.trigger}</code>
+      <section className="border-b-2 border-[var(--border-strong)] py-[var(--space-8)] lg:py-[var(--space-9)]">
+        <PageContainer width="wide">
+          <SwissGrid className="gap-y-[var(--space-6)]">
+            <SwissGridItem span="rail" className="space-y-[var(--space-4)]">
+              <BracketLabel>Platform actors</BracketLabel>
+              <PanelTitle as="h2" size="display">
+                Always-on actors are the control plane.
+              </PanelTitle>
+              <PanelBody>
+                These are not starter templates. They are named responsibility areas with inboxes
+                and history, so a project can keep coordination, spend, runtime truth, and docs
+                drift addressable across sessions.
+              </PanelBody>
+            </SwissGridItem>
+            <SwissGridItem span="body">
+              <div className="grid gap-[var(--panel-gap)] md:grid-cols-2">
+                {ACTOR_ROLES.map((role) => (
+                  <SurfacePanel key={role.name} elevation="quiet" className="space-y-[var(--panel-gap)]">
+                    <div className="flex items-start gap-[var(--panel-gap)]">
+                      <IconBlock icon={role.icon} />
+                      <div className="min-w-0 space-y-[var(--space-1)]">
+                        <PanelEyebrow>{role.label}</PanelEyebrow>
+                        <PanelTitle as="h3" size="nav">
+                          <RoleTerm role={role.roleKey}>{role.name}</RoleTerm>
+                        </PanelTitle>
                       </div>
                     </div>
+                    <PanelBody size="compact" className="max-w-none">
+                      {role.body}
+                    </PanelBody>
+                  </SurfacePanel>
+                ))}
+              </div>
+            </SwissGridItem>
+          </SwissGrid>
+        </PageContainer>
+      </section>
 
-                    <p className="text-sm leading-relaxed m-0" style={{ color: 'var(--text-secondary)' }}>
-                      {agent.pitch}
-                    </p>
-
-                    <p className="text-xs m-0" style={{ color: 'var(--text-muted)' }}>
-                      <strong style={{ color: 'var(--text-secondary)' }}>How:</strong> {agent.how}
-                    </p>
+      <section className="border-b-2 border-[var(--border-strong)] py-[var(--space-8)] lg:py-[var(--space-9)]">
+        <PageContainer width="wide">
+          <div className="mb-[var(--space-6)] max-w-[52rem] space-y-[var(--space-3)]">
+            <BracketLabel>Common fleet templates</BracketLabel>
+            <PanelTitle as="h2" size="display">
+              These are reusable repo agents.
+            </PanelTitle>
+            <PanelBody>
+              These live in pd-fleet.yml. Install the ones that match the repo's needs, tune the
+              prompts, and let triggers or schedules wake them.
+            </PanelBody>
+          </div>
+          <div className="border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
+            {FLEET_AGENTS.map((agent, index) => {
+              const Icon = agent.icon
+              return (
+                <div
+                  key={agent.name}
+                  className={[
+                    'grid gap-[var(--panel-gap)] p-[var(--panel-padding)] md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,2fr)_minmax(0,0.9fr)] md:items-start',
+                    index < FLEET_AGENTS.length - 1 ? 'border-b-2 border-[var(--border-strong)]' : '',
+                  ].join(' ')}
+                >
+                  <div className="flex items-center gap-[var(--space-3)]">
+                    <IconBlock icon={Icon} />
+                    <PanelTitle as="h3" size="nav">
+                      <RoleTerm role={agent.roleKey}>{agent.name}</RoleTerm>
+                    </PanelTitle>
+                  </div>
+                  <div>
+                    <PanelEyebrow>Wakes</PanelEyebrow>
+                    <PanelBody size="compact" className="mt-[var(--space-1)] max-w-none">
+                      {agent.wakes}
+                    </PanelBody>
+                  </div>
+                  <div>
+                    <PanelEyebrow>Work</PanelEyebrow>
+                    <PanelBody size="compact" className="mt-[var(--space-1)] max-w-none">
+                      {agent.work}
+                    </PanelBody>
+                  </div>
+                  <div>
+                    <PanelEyebrow>Runtime</PanelEyebrow>
+                    <PanelBody size="compact" className="mt-[var(--space-1)] max-w-none">
+                      {agent.runtime}
+                    </PanelBody>
                   </div>
                 </div>
-              </Surface>
-            </motion.div>
-          ))}
-        </div>
+              )
+            })}
+          </div>
+        </PageContainer>
+      </section>
 
-        {/* Quick Start */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="mt-16"
-        >
-          <Surface depth="raised" radius="2xl" padding="lg" className="space-y-5">
-            <h2 className="text-xl font-display font-black m-0" style={{ color: 'var(--text-primary)' }}>
-              Add them to any project in 10 seconds
-            </h2>
-            <CodeBlock language="bash">{`cd ~/my-project
-pd fleet init          # Creates pd-fleet.yml + git hook
-pd fleet up            # Starts the fleet
-git commit -m "test"   # All triggered agents fire`}</CodeBlock>
-            <p className="text-xs m-0" style={{ color: 'var(--text-muted)' }}>
-              The git hook publishes to <code>git:committed</code> on every commit. Fleet agents with that trigger fire automatically. Scheduled agents run on their cron. All output goes to <code>.spark/</code>, <code>.spider/</code>, <code>.cartographer/</code>.
-            </p>
-            <div className="flex gap-3 pt-1">
-              <Link to="/tutorials/fleet">
-                <motion.span
-                  whileHover={{ scale: 1.02 }}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer"
-                  style={{ background: 'var(--brand-primary)', color: 'var(--text-inverse)' }}
-                >
-                  Fleet Tutorial <ArrowRight size={14} />
-                </motion.span>
-              </Link>
-              <Link to="/templates">
-                <motion.span
-                  whileHover={{ scale: 1.02 }}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer"
-                  style={{
-                    background: 'color-mix(in srgb, var(--brand-primary) 12%, transparent)',
-                    color: 'var(--brand-primary)',
-                    border: '1px solid color-mix(in srgb, var(--brand-primary) 25%, transparent)',
-                  }}
-                >
-                  YAML Templates <ArrowRight size={14} />
-                </motion.span>
-              </Link>
-            </div>
-          </Surface>
-        </motion.div>
-      </div>
-    </div>
+      <section className="border-b-2 border-[var(--border-strong)] py-[var(--space-8)] lg:py-[var(--space-9)]">
+        <PageContainer width="wide">
+          <SwissGrid className="gap-y-[var(--space-6)]">
+            <SwissGridItem span="rail" className="space-y-[var(--space-4)]">
+              <BracketLabel>One-offs</BracketLabel>
+              <PanelTitle as="h2" size="display">
+                Missions are separate from always-on work.
+              </PanelTitle>
+              <PanelBody>
+                Use these when the task has a finish line. They should not become hidden
+                background automation unless you promote the pattern into a fleet template.
+              </PanelBody>
+            </SwissGridItem>
+            <SwissGridItem span="body">
+              <div className="grid gap-[var(--panel-gap)] lg:grid-cols-3">
+                {ONE_OFFS.map((item) => (
+                  <SurfacePanel key={item.title} className="space-y-[var(--panel-gap)]">
+                    <div className="flex items-start gap-[var(--panel-gap)]">
+                      <IconBlock icon={item.icon} />
+                      <div className="min-w-0 space-y-[var(--space-1)]">
+                        <PanelEyebrow>{item.label}</PanelEyebrow>
+                        <PanelTitle as="h3" size="nav">
+                          {item.roleKey ? <RoleTerm role={item.roleKey}>{item.title}</RoleTerm> : item.title}
+                        </PanelTitle>
+                      </div>
+                    </div>
+                    <PanelBody size="compact" className="max-w-none">
+                      {item.body}
+                    </PanelBody>
+                    <div className="block min-w-0 whitespace-pre-wrap break-words border border-[var(--border-default)] bg-[color:var(--surface-sunken)] px-[var(--space-3)] py-[var(--space-2)] font-mono text-[11px] font-semibold leading-relaxed text-[var(--brand-primary)] [overflow-wrap:anywhere]">
+                      {item.command}
+                    </div>
+                  </SurfacePanel>
+                ))}
+              </div>
+            </SwissGridItem>
+          </SwissGrid>
+        </PageContainer>
+      </section>
+
+      <section className="py-[var(--space-8)] lg:py-[var(--space-9)]">
+        <PageContainer width="wide">
+          <SwissGrid className="gap-y-[var(--space-6)]">
+            <SwissGridItem span="rail" className="space-y-[var(--space-4)]">
+              <BracketLabel>Use it</BracketLabel>
+              <PanelTitle as="h2" size="display">
+                Start recurring work or launch one mission.
+              </PanelTitle>
+              <PanelBody>
+                Fleets are for work that should keep happening. Sorties are for a specific scoped
+                goal. Actors give those runs durable addresses and inboxes.
+              </PanelBody>
+            </SwissGridItem>
+            <SwissGridItem span="body">
+              <div className="grid gap-[var(--panel-gap)] lg:grid-cols-3">
+                <SurfacePanel className="space-y-[var(--panel-gap)]">
+                  <div className="flex items-center gap-[var(--panel-gap)]">
+                    <IconBlock icon={Clock} />
+                    <PanelTitle as="h3" size="nav">
+                      Create a repo fleet
+                    </PanelTitle>
+                  </div>
+                  <PanelBody size="compact" className="max-w-none">
+                    Add the starter YAML and hook, then let scheduled and triggered agents run.
+                  </PanelBody>
+                  <DocsCodeBlock code={fleetSnippet} language="cli" label="Fleet setup" />
+                </SurfacePanel>
+
+                <SurfacePanel className="space-y-[var(--panel-gap)]">
+                  <div className="flex items-center gap-[var(--panel-gap)]">
+                    <IconBlock icon={Terminal} />
+                    <PanelTitle as="h3" size="nav">
+                      Run a sortie
+                    </PanelTitle>
+                  </div>
+                  <PanelBody size="compact" className="max-w-none">
+                    Give one mission a budget, runtime, result expectation, and durable event log.
+                  </PanelBody>
+                  <DocsCodeBlock code={sortieSnippet} language="cli" label="Sortie" />
+                </SurfacePanel>
+
+                <SurfacePanel className="space-y-[var(--panel-gap)]">
+                  <div className="flex items-center gap-[var(--panel-gap)]">
+                    <IconBlock icon={ArrowRight} />
+                    <PanelTitle as="h3" size="nav">
+                      Address actors
+                    </PanelTitle>
+                  </div>
+                  <PanelBody size="compact" className="max-w-none">
+                    Send work to stable roles instead of guessing which live process is present.
+                  </PanelBody>
+                  <DocsCodeBlock code={actorSnippet} language="cli" label="Actor inboxes" />
+                </SurfacePanel>
+              </div>
+            </SwissGridItem>
+          </SwissGrid>
+        </PageContainer>
+      </section>
+    </main>
   )
 }

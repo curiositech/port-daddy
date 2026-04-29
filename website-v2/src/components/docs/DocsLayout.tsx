@@ -2,6 +2,45 @@ import { Outlet } from 'react-router-dom'
 import { SiteFooter } from '@/components/site/SiteFooter'
 import { DocsSidebar } from '@/components/site/DocsSidebar'
 import { SiteHeader } from '@/components/site/SiteHeader'
+import { BracketNavLink } from '@/components/site/primitives'
+import { docsSidebarFamilies } from '@/data/publicSite'
+
+function DocsFamilyNav() {
+  const items = [
+    { title: 'Overview', path: '/docs', tone: 'accent' as const, end: true },
+    ...docsSidebarFamilies.map((section, index) => ({
+      title: section.title,
+      path: section.path,
+      tone: index % 2 === 0 ? ('blue' as const) : ('accent' as const),
+      end: false,
+    })),
+  ]
+
+  return (
+    <nav
+      aria-label="Docs family navigation"
+      className="relative z-10 border-b-2 border-[var(--border-strong)] bg-[var(--surface-raised)]"
+    >
+      <div className="mx-auto flex max-w-[1440px] items-center gap-[var(--space-2)] overflow-x-auto px-[var(--space-5)] py-[var(--space-3)] lg:px-[var(--space-6)]">
+        <span className="hidden shrink-0 border-r-2 border-[var(--border-strong)] pr-[var(--space-3)] text-xs font-semibold uppercase text-[var(--text-muted)] sm:inline-flex">
+          Docs
+        </span>
+        {items.map((item) => (
+          <BracketNavLink
+            key={item.path}
+            to={item.path}
+            end={item.end}
+            tone={item.tone}
+            side="both"
+            className="shrink-0"
+          >
+            {item.title}
+          </BracketNavLink>
+        ))}
+      </div>
+    </nav>
+  )
+}
 
 export function DocsLayout() {
   return (
@@ -17,6 +56,8 @@ export function DocsLayout() {
           <div className="absolute inset-y-0 left-1/2 border-l border-[var(--border-strong)]/16" />
           <div className="absolute inset-y-0 left-3/4 border-l border-[var(--border-strong)]/16" />
         </div>
+
+        <DocsFamilyNav />
 
         <div className="relative mx-auto grid max-w-[1440px] grid-cols-1 gap-[var(--space-6)] px-[var(--space-5)] py-[var(--space-6)] lg:grid-cols-12 lg:px-[var(--space-6)] lg:py-[var(--space-7)]">
           <div className="lg:col-span-4 lg:self-start xl:col-span-3">

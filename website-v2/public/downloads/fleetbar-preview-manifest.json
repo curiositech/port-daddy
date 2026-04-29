@@ -1,0 +1,10 @@
+{
+  "name": "Port Daddy FleetBar",
+  "channel": "developer-preview",
+  "platform": "macOS",
+  "arch": "arm64",
+  "artifact": "PortDaddy-FleetBar-macOS-arm64-dev.zip",
+  "sha256": "d4b4178b10b12ff8df5bae00c747ff8b670b8a7feb0123c03193abab1663fbca",
+  "unsigned": true,
+  "generatedAt": "2026-04-29T00:30:49Z"
+}

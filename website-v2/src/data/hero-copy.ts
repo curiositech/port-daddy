@@ -1,25 +1,23 @@
 /**
  * Hero section copy for the Port Daddy marketing website.
  *
- * The previous headline ("Infrastructure for the Agent Economy") was vague
- * corporate-speak that told newcomers nothing about what Port Daddy actually
- * does. This copy leads with the concrete pain point (port conflicts, file
- * overwrites, agent chaos) and only then introduces Port Daddy as the fix.
+ * Historical hero copy kept for older experiments. The current public homepage
+ * leads with Port Daddy as the local communication substrate for coding agents.
  */
 
 export const HERO_COPY = {
-  headline: 'Stop Your AI Agents\nFrom Fighting Each Other.',
+  headline: 'The Local Communication Layer\nFor Coding Agents.',
 
   subheadline:
-    'Port Daddy is a local daemon that gives every AI coding agent its own port, its own workspace, and a shared radio channel -- so they coordinate instead of collide.',
+    'Port Daddy is a local daemon and Mac control plane where coding agents share notes, claims, actor messages, readiness, budgets, and recoverable handoffs.',
 
   description:
-    'One local daemon, usually on localhost:9876. Install it once, and Claude Code, Codex, Cursor, Gemini CLI, Aider, and Ollama can all run in the same monorepo without stepping on each other. Deterministic ports, file-level claims, real-time messaging, and automatic crash recovery -- all backed by a single SQLite database.',
+    'One local daemon, usually on localhost:9876. Install it once, and Claude Code, Codex, Cursor, Gemini CLI, Aider, and Ollama can coordinate through shared state backed by a single SQLite database.',
 
   featureHighlights: [
     {
-      label: 'Zero Port Conflicts',
-      text: 'Semantic identities like myapp:api always resolve to the same port. No more EADDRINUSE at 2 AM.',
+      label: 'Shared State',
+      text: 'Notes, file claims, actor messages, tuple cells, and scoped channels give every agent the same operating picture.',
     },
     {
       label: 'Agent Coordination',

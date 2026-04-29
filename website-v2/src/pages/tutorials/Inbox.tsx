@@ -103,7 +103,7 @@ export function Inbox() {
         {/* Vision Callout */}
         <section className="p-6 text-center space-y-4">
           <p className="text-lg max-w-xl mx-auto text-[var(--text-secondary)]">
-            The inbox system is the foundation of <strong>Swarm Radio</strong>. In Port Daddy v3.7, we've moved beyond simple text logs to a structured, auditable communication mesh where every signal has an owner and a destination.
+            The inbox system is the foundation of <strong>Swarm Radio</strong>. Port Daddy has moved beyond simple text logs to a structured, auditable communication mesh where every signal has an owner and a destination.
           </p>
           <div className="flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-secondary)]">
             <Shield size={14} />

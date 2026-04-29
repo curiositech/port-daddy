@@ -17,7 +17,7 @@ export function AboutPage() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen bg-[var(--surface-base)] flex flex-col font-sans selection:bg-[var(--brand-primary)] selection:text-white"
+      className="min-h-screen bg-[var(--surface-base)] flex flex-col font-sans selection:bg-[var(--brand-primary)] selection:text-[var(--brand-primary-foreground)]"
     >
       {/* Hero */}
       <motion.section
@@ -338,7 +338,7 @@ export function AboutPage() {
             </p>
             <div className="flex flex-wrap justify-center gap-4">
               <Link to="/tutorials/getting-started" className="no-underline">
-                <button className="px-10 py-5 rounded-full bg-[var(--brand-primary)] text-white font-black text-lg hover:scale-105 transition-transform flex items-center gap-2">
+                <button className="px-10 py-5 rounded-full bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)] font-black text-lg hover:scale-105 transition-transform flex items-center gap-2">
                   Getting Started
                   <ArrowRight size={20} />
                 </button>

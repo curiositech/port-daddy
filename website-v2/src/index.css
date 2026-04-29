@@ -8,6 +8,8 @@
   --color-bg-surface: var(--bg-surface);
   --color-bg-overlay: var(--bg-overlay);
   --color-bg-glass: var(--bg-glass);
+  --color-bg-scrim: var(--bg-scrim);
+  --color-media-scrim: var(--bg-media-scrim);
 
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);

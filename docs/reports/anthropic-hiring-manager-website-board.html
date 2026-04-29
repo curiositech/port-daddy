@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Port Daddy Website Direction - Anthropic Hiring Manager</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #111318;
+      --muted: #4f5967;
+      --paper: #f7f5ef;
+      --panel: #ffffff;
+      --line: #181b22;
+      --blue: #2458d3;
+      --lime: #b7e35a;
+      --red: #b64032;
+      --soft: #e7e2d8;
+      --code: #101820;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.45;
+    }
+
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 24px 64px;
+    }
+
+    header {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
+      gap: 24px;
+      align-items: stretch;
+      border-bottom: 3px solid var(--line);
+      padding-bottom: 28px;
+    }
+
+    h1, h2, h3, p { margin: 0; }
+
+    h1 {
+      max-width: 900px;
+      font-size: clamp(42px, 7vw, 84px);
+      line-height: 0.92;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    h2 {
+      font-size: clamp(26px, 3vw, 42px);
+      line-height: 1;
+      text-transform: uppercase;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      font-size: 18px;
+      line-height: 1.1;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+
+    .eyebrow {
+      display: inline-block;
+      margin-bottom: 18px;
+      border: 2px solid var(--line);
+      background: var(--lime);
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .lead {
+      max-width: 620px;
+      margin-top: 22px;
+      color: var(--muted);
+      font-size: 20px;
+    }
+
+    .proof {
+      display: grid;
+      gap: 16px;
+      border: 3px solid var(--line);
+      background: var(--panel);
+      padding: 18px;
+    }
+
+    .meter {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 10px;
+      align-items: center;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+    }
+
+    .bar {
+      height: 18px;
+      border: 2px solid var(--line);
+      background: linear-gradient(90deg, var(--blue) var(--fill), var(--soft) 0);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 18px;
+      margin-top: 28px;
+    }
+
+    .card {
+      min-height: 180px;
+      border: 2px solid var(--line);
+      background: var(--panel);
+      padding: 18px;
+    }
+
+    .span-4 { grid-column: span 4; }
+    .span-6 { grid-column: span 6; }
+    .span-8 { grid-column: span 8; }
+    .span-12 { grid-column: span 12; }
+
+    .card p,
+    li {
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .card h3 + p,
+    .card h3 + ul,
+    .card h2 + p {
+      margin-top: 12px;
+    }
+
+    ul {
+      margin: 12px 0 0;
+      padding-left: 20px;
+    }
+
+    .directive {
+      border-left: 12px solid var(--blue);
+    }
+
+    .warning {
+      border-left: 12px solid var(--red);
+    }
+
+    .code {
+      margin-top: 14px;
+      overflow-x: auto;
+      background: var(--code);
+      color: #e8f0ff;
+      padding: 14px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 13px;
+      white-space: pre-wrap;
+    }
+
+    .tag {
+      display: inline-flex;
+      margin: 0 6px 6px 0;
+      border: 2px solid var(--line);
+      padding: 4px 8px;
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    a { color: var(--blue); font-weight: 800; }
+
+    @media (max-width: 860px) {
+      header { grid-template-columns: 1fr; }
+      .span-4, .span-6, .span-8, .span-12 { grid-column: 1 / -1; }
+      main { padding: 28px 16px 48px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <section>
+        <span class="eyebrow">North star</span>
+        <h1>A local control plane for steerable coding agents.</h1>
+        <p class="lead">
+          The website should make Port Daddy feel like serious infrastructure:
+          a way to observe, constrain, recover, and govern multi-agent coding
+          work before it turns into unreviewed commits.
+        </p>
+      </section>
+      <aside class="proof" aria-label="Audience fit proof">
+        <h3>Anthropic-reader fit</h3>
+        <div class="meter"><span>Reliability</span><div class="bar" style="--fill: 88%"></div></div>
+        <div class="meter"><span>Interpretability</span><div class="bar" style="--fill: 82%"></div></div>
+        <div class="meter"><span>Steerability</span><div class="bar" style="--fill: 86%"></div></div>
+        <div class="meter"><span>Evidence</span><div class="bar" style="--fill: 74%"></div></div>
+        <p>
+          Acceptance test: in one minute, a technical hiring manager should see
+          judgment, safety taste, systems thinking, and proof.
+        </p>
+      </aside>
+    </header>
+
+    <section class="grid" aria-label="Direction">
+      <article class="card span-6 directive">
+        <h2>Tell The Thesis</h2>
+        <p>
+          Agents do not need more hype. They need shared state, accountable
+          handoffs, budget limits, file ownership, failure recovery, and
+          operator-visible evidence.
+        </p>
+        <div class="code">Headline direction:
+A local control plane for steerable coding agents.</div>
+      </article>
+
+      <article class="card span-6 warning">
+        <h2>Cut The Hype</h2>
+        <p>
+          Reframe "agent subjective experience" as observable context:
+          what an agent can know, claim, publish, recover, and hand off.
+          That is more defensible and more interesting.
+        </p>
+      </article>
+
+      <article class="card span-4">
+        <h3>Mac App Slice</h3>
+        <p>
+          FleetBar is not the story by itself. It is proof that the control
+          plane has a real operator surface.
+        </p>
+        <div class="tag">FleetBar</div><div class="tag">Readiness</div><div class="tag">Resources</div>
+      </article>
+
+      <article class="card span-4">
+        <h3>Dashboard Cleanup</h3>
+        <p>
+          Remove stale routes that make the product look abandoned. Tests should
+          enforce the current route map, not nostalgia for old demos.
+        </p>
+        <div class="tag">Routes</div><div class="tag">SEO</div><div class="tag">Docs</div>
+      </article>
+
+      <article class="card span-4">
+        <h3>PR5 Docs</h3>
+        <p>
+          PD Tube and PKI should read as secure, inspectable relay
+          infrastructure, not feature confetti.
+        </p>
+        <div class="tag">Trust</div><div class="tag">PKI</div><div class="tag">Audit</div>
+      </article>
+
+      <article class="card span-8">
+        <h2>Copy Rubric</h2>
+        <ul>
+          <li>Does the claim show how agent work becomes observable?</li>
+          <li>Does it show how autonomy is constrained, steered, or recovered?</li>
+          <li>Does it point to a real UI, command, route, test, or artifact?</li>
+          <li>Would a serious AI safety or systems engineering reader trust it?</li>
+        </ul>
+      </article>
+
+      <article class="card span-4">
+        <h2>Visual Rubric</h2>
+        <p>
+          Flat Swiss-modern control-lab density. Strong rules, clear hierarchy,
+          real diagrams, readable code, and proof near claims.
+        </p>
+      </article>
+
+      <article class="card span-12">
+        <h2>First Minute Checklist</h2>
+        <ul>
+          <li>Hero states the problem: steerable coding agents need a local control plane.</li>
+          <li>Hero proof shows sessions, claims, locks, budgets, resources, and handoffs.</li>
+          <li>Navigation favors docs, examples, install, safety/governance, and product proof.</li>
+          <li>No stale dashboard routes or old marketing language survive.</li>
+          <li>No anthropomorphic claim outruns observable system behavior.</li>
+        </ul>
+      </article>
+    </section>
+  </main>
+</body>
+</html>
