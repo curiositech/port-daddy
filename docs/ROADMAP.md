@@ -23,6 +23,10 @@ The **Cartographer** fleet agent (declared in `pd-fleet.yml`, triggered on
 `git:committed`) owns the harvest into `DOGFOOD-FEEDBACK.md` and the
 promotion of `now`-status entries into the section directly below.
 
+The cartographer roadmap-progress screen and central feedback pipe are
+already shipped, so the "Next Cuts" list below is the remaining backlog
+rather than the old four-file FOMO check.
+
 ## Next Cuts (From Curated Trove)
 
 Mirrored from `docs/recovery/IDEAS-TROVE.md` § Immediate Implementation
@@ -30,15 +34,17 @@ Candidates. Keep this short and rotated — it is the "what we cut next"
 list, not the full backlog. When an item ships, move its line into the
 appropriate phase section below and delete it here.
 
-- **`cartographer-roadmap-progress-screen`** — FOMO killer. One
-  dashboard panel surfacing Next Cuts + open dogfood feedback +
-  curated trove `now` + velocity + closest-to-shipping. Cartographer
-  already maintains all the inputs.
 - **`coordination-guard-extended-enforcement`** — Coordination Guard
   exists (`cli/commands/guard.ts`, modes `off|warn|enforce`) but only
   fires on git pre-commit. Enable by default for repos with
   `pd-fleet.yml`; extend to SessionStart + PreToolUse hooks so agents
-  can't edit without `pd begin` + claims.
+  can't edit without `pd begin` + claims. Also cover destructive git
+  verbs (`git add -A`, `git reset --hard`, `git cherry-pick`) so claims
+  can't be bulldozed by closeout flows.
+- **`claim-preserving-git-safety`** — Advisory file claims can still be
+  steamrolled by `git add -A`, `git reset --hard`, and `git cherry-pick`.
+  Add a safe `pd add` path plus destructive-git guardrails that consult
+  claims before they bulldoze another session's edits.
 - **`crew-screen-roles-not-pids`** — Dashboard currently shows
   agents-by-PID; operators think in *roles*. New Crew panel: each
   fleet role with last-run / last-cost / currently-doing / blocked.
@@ -56,6 +62,13 @@ appropriate phase section below and delete it here.
   instead of being bare facts.
 - **`fleet-run-journal`** — Persist fleet run lifecycle into SQLite so
   `pd fleet history` and briefings stop forgetting on restart.
+- **`session-context-cwd-reset`** — `pd begin` / `pd note` / `pd
+  whoami` lose the active session when shell cwd resets between Bash
+  calls; recover by agent id or a home-scoped current-session file.
+- **`fleet-launchability-and-cadence`** — Cartographer can be wired but
+  still blocked by cadence routing, slug drift, and the wallet /
+  telemetry wall; surface `launchable` vs `blocked` truth in `pd
+  status` and spawn/preflight output.
 - **`tuple-driven-fleet`** — Tuple-triggered fleet agents, then IPC tuple
   fast path. Most direct path from "fleet" to actual swarm task routing.
 - **`capability-discovery-dns-harbor`** — Turn existing DNS + harbor
@@ -64,23 +77,6 @@ appropriate phase section below and delete it here.
 
 Secondary backlog families (status `backlog`, see IDEAS-TROVE.md §
 Secondary Backlog Families for full lists):
-
-- Cost, forecasting, and shipping economics (budgets, forecasts, priced
-  changelog, work receipts, DORA from counters)
-- Briefings, inbox, and recovery handoffs (salvage briefings, review via
-  inbox, code-anchored notes, session ledger)
-- Pheromones, autonomic signals, and adaptive dispatch (auto-spray from
-  activity / health / fleet / Arbiter; pheromone-driven model escalation
-  and spawn gating)
-- Harbor, identity, and network surfaces (harbor-aware spawn inheritance,
-  capability-aware discovery, fleet agent network identity, worktree-aware
-  semantic identity)
-- Graph, merge, and predictive coordination (graph edges bootstrap,
-  intent tuples for conflict prevention, merge event bus, territory
-  classification, work estimation)
-- Operational gates, invariants, and runtime governance (preflight gates,
-  backend readiness pheromones, IPC capability bitmask, auditable lock
-  history)
 
 ## Core Philosophical Architecture
 

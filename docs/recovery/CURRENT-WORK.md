@@ -1,9 +1,23 @@
 # Current Recovery Work
 
-Last updated: 2026-04-27
+Last updated: 2026-04-29
 Owner: Codex working session
 
 This is the active execution ledger. If a task is in flight, it belongs here before it belongs in chat.
+
+## Cartographer Snapshot
+
+- Current phase: Recovery Track dominates; within V4, Phase 3 is the hottest mapped phase.
+- Velocity: 174 commits in the last 7 days = 24.9/day.
+- Closest to completion:
+  - `claim-preserving-git-safety`
+  - `fleet-launchability-and-cadence`
+  - `coordination-guard-extended-enforcement`
+- Blocked or drifting:
+  - Phase 5 network / remote harbors
+  - Phase 6 connectors / coaching
+  - Phase 4E `pd self-test --adversarial` / 4F Windows IPC
+- Open dogfood now: 3 slugs (`claim-preserving-git-safety`, `fleet-launchability-and-cadence`, `session-context-cwd-reset`)
 
 ## Active Side Thread
 
@@ -78,6 +92,58 @@ The `agentsd.ai` public-site reset is now explicit repo work, not chat residue.
 - Future public-site work should preserve the current public surface unless a deliberate migration plan is approved and implemented.
 
 ## Current Thread
+
+- 2026-04-29 cartographer map refresh:
+  - `cartographer-roadmap-progress-screen` is now shipped via `7ba8d84`, `8fcf93e`, `4807cb5`, and `bd4fc6f`.
+  - Closeout commits now pushed on `codex/agents-flow-guard-readable-ids`: `5f01294` (Agents pages + readable IDs), `eac3fc3` (live roadmap feedback), `4dba2a3` (Port Daddy agent skill bundle), and `629de64` (website content/proof media + FleetBar preview package metadata).
+  - `pd feedback list --status open --json` still fails on this daemon (`connect EPERM`), so the raw `.spark/feedback/` harvest remained the fallback source of truth for this pass.
+  - No new dogfood slugs were minted; the raw drops were already represented in `DOGFOOD-FEEDBACK.md` or `IDEAS-TROVE.md`.
+  - `9e7d458` landed after the previous pass; the latest burst is maritime-layer hardening, website/release polish, and examples/navigation cleanup, so those commits are recorded as unplanned work below.
+
+## Recovery Radar
+
+- Current phase: Recovery Track dominates; among V4 lanes, Phase 3 is the hottest mapped phase, Phase 2 is the closest to closure, and Phase 1 remains in-tree but not fully promoted.
+- Velocity: 174 commits in the last 7 days = 24.9/day.
+- Closest to completion:
+  - `claim-preserving-git-safety`
+  - `fleet-launchability-and-cadence`
+  - `coordination-guard-extended-enforcement`
+- Blocked or drifting:
+  - Phase 5 network / remote harbors
+  - Phase 6 connectors / coaching
+  - Phase 4E `pd self-test --adversarial` / 4F Windows IPC
+- Open dogfood now: 3 slugs (`claim-preserving-git-safety`, `fleet-launchability-and-cadence`, `session-context-cwd-reset`)
+
+## Recovery Radar
+
+- Current phase: Recovery Track dominates; among V4 lanes, Phase 1 is still the busiest sidecar because graph / claim / symbolPath truth is actively moving.
+- Velocity: 173 commits in the trailing 7-day window (2026-04-22 to 2026-04-28), 24.7/day.
+- Closest to completion:
+  - Port Daddy Website Generated Visual Replacement Slice
+  - Port Daddy Website SEO Metadata And Discovery Slice
+  - Shipwright Fleet UI Surface
+- Blocked or drifting:
+  - Phase 1 — Unified Edge Table / authority sync
+  - Phase 2 — The Economy / economist follow-up
+  - Phase 4A — Bun binary
+- Open dogfood now: 2 entries — `fleet-launchability-and-cadence`, `session-context-cwd-reset`
+
+### Cartographer Map Refresh (2026-04-28)
+
+Current coordination session: `docs/ROADMAP.md`, `docs/V4-UNIFIED-ROADMAP.md`,
+`docs/recovery/DOGFOOD-FEEDBACK.md`, and `.cartographer/status.md`.
+
+- Reconciled the V4 roadmap, public roadmap, and cartographer status against
+  the latest commit stream so the map matches the build instead of the stale
+  March snapshot.
+- `pd feedback list --status open --json` was unavailable on this daemon socket
+  (`connect EPERM`), so the raw `.spark/feedback/` harvest was the source of
+  truth for this pass.
+- Promoted `claim-preserving-git-safety`, `fleet-launchability-and-cadence`,
+  and `session-context-cwd-reset` into `docs/ROADMAP.md`;
+  `feedback-route-stable-gap` stayed backlog.
+- Folded duplicate guard and roadmap-progress feedback back into
+  `IDEAS-TROVE.md` provenance pointers instead of minting parallel slugs.
 
 ### Port Daddy Website Generated Visual Replacement Slice (2026-04-27)
 
@@ -943,6 +1009,12 @@ This is the normalized remaining-slice inventory as of 2026-04-24. It supersedes
    - project file claims and attempted claims into graph edges
    - teach the advisor section-anchor claims for hot coordination docs
    - keep recommendations deterministic, evidence-backed, and executable
+8. Add claim-preserving destructive-git guardrails:
+   - `git add -A`, `git reset --hard`, and cherry-pick should not
+     steamroll active claims
+   - provide a safe `pd add` / stage wrapper that excludes claimed paths
+   - surface bulldozed claims as a coordination callout instead of a
+     silent revert
 
 ### E. Sounder: Tuple, Graph, Memory, And Semantic Collapse
 
@@ -1004,6 +1076,11 @@ This is the normalized remaining-slice inventory as of 2026-04-24. It supersedes
    - high: `gpt-5.4`
 7. Keep all-backend tier truth consistent across daemon, CLI, SDK, MCP, fleet model catalog, readiness, and UI.
 8. Keep telemetry fail-closed: no operator launch is acceptable without exact token counts, exact nonzero model rate, and persisted exact nonzero cost unless there is explicit HITL bypass metadata.
+9. Surface fleet launchability truth in `pd status` / FleetBar:
+   - show skipped registrations, launchability blockers, and wallet
+     gates before the operator has to inspect raw JSON
+   - keep cartographer cadence visible so a "healthy" fleet cannot hide
+     the reason nothing actually ran
 
 ### H. Harbormaster: Promotion, Distribution, Daemon Freshness, And Runtime Truth
 

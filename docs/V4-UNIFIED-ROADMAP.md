@@ -3,8 +3,8 @@
 Canonical note: this file remains valuable historical context, but the active recovery authority now lives in `docs/recovery/README.md` and `docs/recovery/UNIFIED-ROADMAP.md`.
 
 **Author:** Erich Owens
-**Last Updated:** 2026-04-05
-**Status:** Active — Phase 0 complete, Phase 4 partially complete (Fastify ✅, Trie ✅, Binary IPC ✅, Backpressure ⚡, Bun binary ⚡), Phase 3 largely done (fleet, pheromone, Fleet Live Dashboard all shipped). **Recovery Track 1 CLOSED** (`8744e14`, 2026-04-06) — `cost-tracker`, `counters`, and the full `/metrics/*` observability surface are now committed and released as v3.8.3. The observability trifecta is complete. FleetBar unified with the real fleet control plane (`a41f18f`, `e82f096`) — the menu bar app now shells `fleet-config-ui` via WebView instead of maintaining a shadow dashboard. Fleet runtime readiness checks, backend fallbacks, and spawn preflight enforcement committed (`3b818d2`, `71fc446`, `0cc5e6`). ~16 untracked + ~34 modified/deleted files remain uncommitted (down from 76). HEAD: `e82f096`.
+**Last Updated:** 2026-04-29
+**Status:** Active — Phase 0 complete, Phase 4 partially complete (Fastify ✅, Trie ✅, Binary IPC ✅, Backpressure ⚡, Bun binary ⚡), Phase 3 largely done (fleet, pheromone, Fleet Live Dashboard all shipped). **Recovery Track 1 CLOSED** (`8744e14`, 2026-04-06) — `cost-tracker`, `counters`, and the full `/metrics/*` observability surface are now committed and released as v3.8.3. The observability trifecta is complete. FleetBar unified with the real fleet control plane (`a41f18f`, `e82f096`) — the menu bar app now shells `fleet-config-ui` via WebView instead of maintaining a shadow dashboard. Fleet runtime readiness checks, backend fallbacks, and spawn preflight enforcement committed (`3b818d2`, `71fc446`, `0cc5e6`). Cartographer roadmap-progress and feedback surfaces now exist in-tree (`7ba8d84`, `8fcf93e`, `4807cb5`, `bd4fc6f`, `eac3fc3`). Recent commits are mostly unplanned website / release-surface / phone-integration work, plus maritime actor / launchability hardening, and Phase 5/6 are stale. HEAD: `629de64`.
 
 This document synthesizes all V4 planning documents into a single sequenced roadmap. Nothing from the original documents has been discarded — ideas that aren't yet sequenced are preserved in the Appendix.
 
@@ -31,7 +31,10 @@ The formal foundation for this thesis is the **Bonded Commons** paper (Owens, 20
 | Rust core (Kani-verified, FFI) | Deployed | `core/harbor-card-rs/` → `dist/core/libharbor_card_rs.dylib` |
 | Arbiter (6 invariant rules) | Deployed | `lib/arbiter.ts`, `routes/arbiter.ts`, wired in `server.ts` |
 | Note encryption (envelope) | Deployed | `lib/note-encryption.ts`, integrated in `lib/sessions.ts` |
-| Bosun watchdog (Rust) | In progress | daemon writes `~/.port-daddy/heartbeat`; `core/pd-bosun/` supervises filesystem heartbeat and replaces legacy Barnacle |
+| Merkle event chain library | Deployed | `lib/merkle-chain.ts`, `tests/fixtures/merkle-chain-golden.json`, `docs/merkle-chain-compat.md` |
+| Relay PKI decision (ADR-0025) | Decided | `docs/adr/0025-pki-decision.md` |
+| `pd-relay-zero-trust` skill | Built | `skills/pd-relay-zero-trust/` |
+| Bosun watchdog / Bosun supervisor (Rust) | Deployed | daemon writes `~/.port-daddy/heartbeat`; `core/pd-bosun/` and `dist/core/pd-bosun` supervise filesystem heartbeat and replace legacy Barnacle — release landed in `b074370` / `a94872c` and the Barnacle runtime path was removed in `7e16880` |
 | 10 formal skills | Built | `~/.claude/skills/{mechanism-design,tlaplus,political-philosophy,...}` |
 | Stable branch workflow | Active | `~/port-daddy-stable/` worktree |
 | Fleet agents | Running | 8 agents: gardener, qa, test-gap-hunter, etc. |
@@ -39,9 +42,11 @@ The formal foundation for this thesis is the **Bonded Commons** paper (Owens, 20
 
 ---
 
-## Phase 1: The Semantic Graph [NEXT — IMPLEMENTED IN TREE, AUTHORITY SYNC REMAINS]
+## Phase 1: The Semantic Graph [IMPLEMENTED IN TREE, AUTHORITY SYNC REMAINS]
 
 > **Current repo truth — 2026-04-10:** `graph_edges` is implemented in-tree via `lib/graph-edges.ts`, `routes/graph.ts`, `tests/unit/graph-edges.test.js`, and MCP `graph_edges` / `graph_stats` surfaces. The symbol index, orchestrator registry, and merge queue are already wired into `server.ts`. The remaining Phase 1 risk is authority drift: stable promotion, docs, and operator/runtime truth still need to agree on what already exists.
+>
+> **Cartographer — 2026-04-28:** `a8b310e` now harvests `symbolPath` region claim support and `e3ea67e` adds a semantic alias resolve diagnostic. The graph / claim discovery path is moving, but the authoritative Phase 1 story is still split between committed runtime, uncommitted graph/memory slices, and doc authority drift.
 
 *The nervous system. Agents navigate relationships, not flat registries.*
 
@@ -87,6 +92,10 @@ Force-directed graph view in the dashboard. Heat map overlay for contested files
 > **Cartographer — 2026-04-05:** The cost-tracker landed (`0169b17`). `lib/cost-tracker.ts` (319 lines): per-spawn LLM cost recording with model pricing tables, project-scoped budget checks, burn rate tracking. `routes/observability.ts` (162 lines): 6 Fastify endpoints — `/metrics/golden` (RED signals), `/metrics/cost`, `/metrics/cost/recent`, `/metrics/cost/budget/:project`, `/metrics/counters`, `/metrics/counters/top`. `tests/unit/cost-tracker.test.js` (165 lines). Fleet engine gained budget integration — `budget_usd_per_day` in `pd-fleet.yml` now enforced at spawn time. CLAUDE.md, README, SKILL.md, and API reference all updated in the same commit. **This is the first concrete Phase 2 code to ship.** It's accounting infrastructure, not the economy itself — but the economy needs accounting.
 >
 > **Cartographer — 2026-04-06:** `lib/counters.ts` committed in `8744e14` — the **observability trifecta is now complete** (cost-tracker + counters + observability routes). All `/metrics/*` endpoints are populated with real data. FleetBar's CostDashboard + CostStore are wired to these endpoints (committed in `a41f18f`). Fleet budget gates now actively stop spawns when `budget_usd_per_day` is exceeded. Spawn preflight enforcement (`3b818d2`, `71fc446`) requires positive budget ceiling + semantic identity before any agent launch. **Recovery Track 1 is closed.** The accounting infrastructure is production-ready. The pricing function π still requires the economist — but there's now a full cost data pipeline to calibrate against. Thomas Youle (Indiana U) proposed insurer-agent auction 2026-03-30 — no follow-up in 7 days. Unblocked path: ship real cost data to Youle.
+>
+> **Cartographer — 2026-04-28:** `lib/counters.ts` and the observability trifecta remain complete, but the pricing function and wallet path are still blocked on economist / operator follow-up. No new Phase 2 commit landed in this burst; the infrastructure is ready while the economics remain effectively stale.
+
+> **Cartographer — 2026-04-28:** Track 1b.2/1b.3 landed in-tree: pause-and-ask on budget breach, wallet top-up / raise flows, and dashboard/FleetBar budget UI. The economics stack now has a real operator-money gate, but the pricing function π still needs the economist.
 
 *Float Plans, Anchors, Credits, Quality Gates. The Bonded Commons made concrete.*
 
@@ -212,7 +221,7 @@ Visual fleet management, watch hooks with message history, spawn agent form, fle
 
 *The kernel upgrade. Hardened for production workloads.*
 
-### 4A. Bun/Fastify Migration [FASTIFY SHIPPED v3.8.1, BUN BINARY IN PROGRESS]
+### 4A. Bun/Fastify Migration [FASTIFY SHIPPED v3.8.1, BUN BINARY STALE — no commits since 2026-04-01]
 
 Replace Express with Fastify on Bun for 20,000+ req/sec. Single-file binary compilation via `bun build --compile`.
 
@@ -238,11 +247,11 @@ Socket-level backpressure when SQLite WAL commits lag. Forces agents to pause ra
 
 > **Cartographer — 2026-03-31:** IPC write-queue + drain event backpressure shipped (`3b81580`). When write queue exceeds threshold, new writes pause until the socket drains — this prevents agent output from bloating daemon RAM when the client is slow. The roadmap item specified "SQLite WAL commits lag" as the trigger — that specific coupling is not yet implemented. HTTP-level backpressure has zero commits. Partial credit: the IPC path (which is the hot path for high-frequency agents) is protected.
 
-### 4E. `pd self-test --adversarial`
+### 4E. `pd self-test --adversarial` [STALE — no commits since 2026-03-31] [STALE — no commits since 2026-03-31]
 
 Ships with the daemon. Runs the chaos test suite from V4-TEST-SUITE.md against the live instance. Outputs a "Nautical Seaworthiness Report."
 
-### 4F. Hardened Windows IPC
+### 4F. Hardened Windows IPC [STALE — no commits since 2026-03-31] [STALE — no commits since 2026-03-31]
 
 Named Pipes with explicit DACLs (SDDL). `PIPE_REJECT_REMOTE_CLIENTS` to prevent NTLM relay attacks.
 
@@ -250,7 +259,7 @@ Named Pipes with explicit DACLs (SDDL). `PIPE_REJECT_REMOTE_CLIENTS` to prevent 
 
 ---
 
-## Phase 5: The Network
+## Phase 5: The Network [STALE — no commits in 2+ weeks]
 
 *From local Leviathan to distributed commons.*
 
@@ -278,7 +287,7 @@ Public task registry. Agents bid on Float Plans. 15% coordination fee on cross-h
 
 ---
 
-## Phase 6: Life Integration
+## Phase 6: Life Integration [STALE — no commits in 2+ weeks]
 
 *Connectors, coaching agents, the personal OS.*
 
@@ -385,6 +394,11 @@ From `v4_thoughts.md`: Run TLC on the BondedCommons spec with concrete parameter
 | Website neumorphic design system overhaul | many commits 2026-03-25–26 | Design debt. The website had fictional content and inconsistent styling. Full CVA token system + Harbor Heritage palette. |
 | Spark fleet agent (idea engine) | `6a68547`, fleet YAML | Emerged from the fleet work. Spark runs every 30 min, generates ideas, publishes to `spark:idea` channel. |
 | Cartographer fleet agent (this agent) | `a930413`, `a8f3710`, fleet YAML | Emerged from needing automated roadmap tracking. The agent writes this file. |
+| **Maritime actor foundation + launchability truth** | `9e7d458`, `e33d53d`, `e53737d`, `ee1caf7`, `bd36b5c`, `2645880`, `28cbfe2`, `7a65e5d`, `a1dc622` | Durable actor names, readiness surfacing, and FleetBar/project truth were all shaped by recovery reality, not the original V4 phase list. |
+| **Cartographer roadmap-progress + feedback ingest + quorum primitive** | `7ba8d84`, `8fcf93e`, `4807cb5`, `bd4fc6f`, `cea02e1`, `d5c05aa` | Operator-truth and coordination hardening landed because the map needed a single screen, a live feedback pipe, and quorum before the fleet looked healthy. |
+| **PD Tube tutorial + browser example + release-surface docs** | `79ceec9`, `73c471f`, `af84f24`, `fa6b66e`, `6a37bd3`, `e9b57b3` | Phone-integration and tutorial work escaped the V4 plan and got pulled forward by release-surface dogfooding. |
+| **Website distribution / Mac Preview / MCP polish** | `0718477`, `3214576`, `8c65932`, `f94769a`, `b5c0e41`, `3c34c1d`, `11be921`, `3752aef`, `9311394`, `78b5cd4`, `629de64` | Public website, preview, and download-path polish were urgent product truth work, not a scheduled V4 phase. |
+| **Website shell navigation + examples toolability** | `5db90d7`, `adcc608` | SPA hash-anchor navigation and examples-as-buildable-tools cleanup were release-surface polish, not a scheduled V4 phase. |
 | Tuple Space (`lib/tuples.ts`) — Linda-style shared coordination | `8cfce3f`, `305e063`, `f6acdbf` | Emerged from fleet coordination needs. Gives agents a shared scratchpad: `out/rd/take` with wildcard pattern matching, harbor scoping, TTL. 24 unit tests. Fully wired: CLI, SDK, MCP, completions. Not in any phase — new primitive. |
 | 7 Magic MCP Tools (vibe coder suite) | `26c4ed2` | `fleet_init`, `fleet_status`, `swarm_awareness`, `catch_me_up`, `acquire_lock`, `add_note`, `pd_discover`. UX-driven: one-call answers to "what's happening here?" Emerged from dogfooding the MCP during fleet work. |
 | Auto-respawn for fleet agents | `1081e65` | Fleet agents were dying silently. Auto-respawn in `fleet-engine.ts` restarts crashed agents; singleton mode prevents duplicate spawns. Not planned — discovered from operating the fleet. |
@@ -394,6 +408,8 @@ From `v4_thoughts.md`: Run TLC on the BondedCommons spec with concrete parameter
 | **OpenAPI 3.1 specification** (`docs/openapi.yaml`) — 96 paths, 125 operations | listed in [Unreleased] | Single source of truth for the HTTP API. Not in any roadmap phase. Emerged from SDK documentation maintenance. |
 | **Drop-in fleet templates + `pd fleet init`** | `1e70137`, `91c40af` | Pre-built fleet YAML templates for any project type. `pd fleet init` creates a starter fleet. Not in the original 3A spec — emerged from making fleet approachable for projects that aren't Port Daddy itself. |
 | **VHS CI demo workflow** (`.github/workflows/`) | `d85e30d` | Automated terminal recording with VHS + ffmpeg + daemon startup. Not in roadmap. Closest roadmap item is Appendix A12 (Asciinema Demo Engine) — different toolchain, same intent. |
+| **Coordination Guard hardening** | `d5c05aa`, `5d5805e`, `806bb8a`, `69e01f1`, `da84cbf`, `68753a9`, `5f01294` | Hook enforcement, fail-closed behavior, coordination-guard controls, git-hygiene guidance, and public explanation were strengthened outside the V4 phase structure. |
+| **Website distribution / Mac Preview / MCP polish** | `0718477`, `3214576`, `8c65932` | Distribution commands, preview surfaces, and docs polish remain website / operator-surface work, not V4 phase work. |
 | **`pd mcp install` + `pd init`** — onboarding CLI commands | `370d775` | 21 unit tests. `pd init` scaffolds a project for PD coordination; `pd mcp install` adds PD to Claude Code's MCP config. Distribution/onboarding — adjacent to A13 but broader. |
 | **Blog content engine + 3 articles** | `966313d`, `9cee0e2` | Maritime signal flag SVG components. Blog article redesign with directive system. Content marketing — no roadmap phase. |
 | **Curiositech rebranding** | `2a4fc5f` | MCP skill discovery, brand rename. Marketing/identity work. |
