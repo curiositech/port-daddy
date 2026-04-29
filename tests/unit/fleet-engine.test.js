@@ -55,6 +55,14 @@ const DAEMON_URL = getDaemonTcpUrl();
 
 /** Returns a minimal valid FleetConfig for runner tests */
 function makeConfig(agentOverrides = {}) {
+  // Accept legacy `trigger:` shorthand from tests by normalizing to triggers[].
+  const overrides = { ...agentOverrides };
+  if (overrides.trigger !== undefined) {
+    if (overrides.triggers === undefined) {
+      overrides.triggers = overrides.trigger ? [overrides.trigger] : undefined;
+    }
+    delete overrides.trigger;
+  }
   return {
     name: 'test-fleet',
     limits: {
@@ -66,10 +74,10 @@ function makeConfig(agentOverrides = {}) {
         backend: 'claude-cli',
         prompt: 'Do something',
         schedule: undefined,
-        trigger: undefined,
+        triggers: undefined,
         worktree: false,
         singleton: false,
-        ...agentOverrides,
+        ...overrides,
       },
     ],
     watchers: [],
@@ -232,7 +240,7 @@ test('parses canonical fleet budget field as budgetUsdPerDay', () => {
       budget_usd_per_day: 7.5,
     },
     agents: {
-      qa: { backend: 'claude-cli', prompt: 'Run qa', trigger: 'git:committed' },
+      qa: { backend: 'claude-cli', prompt: 'Run qa', triggers: ['git:committed'] },
     },
   }));
 
@@ -302,7 +310,7 @@ test('uses env runtime defaults when agent backend/model are omitted', () => {
   mockReadFileSync.mockReturnValue(JSON.stringify({
     name: 'env-backed-fleet',
     agents: {
-      scout: { prompt: 'Scan the repo', trigger: 'git:committed' },
+      scout: { prompt: 'Scan the repo', triggers: ['git:committed'] },
     },
   }));
 
@@ -459,7 +467,7 @@ test('singleton agents reject overlapping hail while a run is active', async () 
 });
 
 test('runner exposes armed, paused, and running agent states truthfully', async () => {
-  const config = makeConfig({ trigger: 'git:committed' });
+  const config = makeConfig({ triggers: ['git:committed'] });
   const runner = createFleetRunner(config, '/tmp/proj');
 
   runner.startAgent(config.agents[0]);
@@ -497,8 +505,8 @@ test('runner can deploy a subset by pausing unselected agents', async () => {
   const config = {
     ...makeConfig(),
     agents: [
-      { name: 'qa', backend: 'claude-cli', prompt: 'Review code', trigger: 'git:committed' },
-      { name: 'docs', backend: 'claude-cli', prompt: 'Write docs', trigger: 'git:committed' },
+      { name: 'qa', backend: 'claude-cli', prompt: 'Review code', triggers: ['git:committed'] },
+      { name: 'docs', backend: 'claude-cli', prompt: 'Write docs', triggers: ['git:committed'] },
     ],
   };
 
@@ -752,7 +760,7 @@ test('global: channels bypass project scoping for shared fanout', async () => {
 
 test('BUG A: stopAll must call watchHandle to unsubscribe in-process triggers', () => {
   const unsubscribe = jest.fn();
-  const config = makeConfig({ trigger: 'test:channel' });
+  const config = makeConfig({ triggers: ['test:channel'] });
 
   const runner = createFleetRunner(config, '/tmp/proj', {
     messaging: {
@@ -930,7 +938,7 @@ describe('validateTopology', () => {
       name: 'test',
       agents: [
         { name: 'spark', schedule: '*/30 * * * *', backend: 'claude-cli', prompt: 'idea', onSuccess: 'publish spark:idea' },
-        { name: 'spider', trigger: 'spark:idea', backend: 'claude-cli', prompt: 'connect', onSuccess: 'publish spider:connections' },
+        { name: 'spider', triggers: ['spark:idea'], backend: 'claude-cli', prompt: 'connect', onSuccess: 'publish spider:connections' },
       ],
       watchers: [],
       channels: { 'spark:idea': { description: 'Spark ideas' }, 'spider:connections': { description: 'Spider connections' } },
@@ -945,8 +953,8 @@ describe('validateTopology', () => {
     const config = {
       name: 'test',
       agents: [
-        { name: 'a', trigger: 'ch-b', backend: 'claude-cli', prompt: 'x', onSuccess: 'publish ch-a' },
-        { name: 'b', trigger: 'ch-a', backend: 'claude-cli', prompt: 'y', onSuccess: 'publish ch-b' },
+        { name: 'a', triggers: ['ch-b'], backend: 'claude-cli', prompt: 'x', onSuccess: 'publish ch-a' },
+        { name: 'b', triggers: ['ch-a'], backend: 'claude-cli', prompt: 'y', onSuccess: 'publish ch-b' },
       ],
       watchers: [],
       channels: { 'ch-a': { description: 'A output' }, 'ch-b': { description: 'B output' } },
@@ -961,9 +969,9 @@ describe('validateTopology', () => {
     const config = {
       name: 'test',
       agents: [
-        { name: 'a', trigger: 'ch-c', backend: 'claude-cli', prompt: 'x', onSuccess: 'publish ch-a' },
-        { name: 'b', trigger: 'ch-a', backend: 'claude-cli', prompt: 'y', onSuccess: 'publish ch-b' },
-        { name: 'c', trigger: 'ch-b', backend: 'claude-cli', prompt: 'z', onSuccess: 'publish ch-c' },
+        { name: 'a', triggers: ['ch-c'], backend: 'claude-cli', prompt: 'x', onSuccess: 'publish ch-a' },
+        { name: 'b', triggers: ['ch-a'], backend: 'claude-cli', prompt: 'y', onSuccess: 'publish ch-b' },
+        { name: 'c', triggers: ['ch-b'], backend: 'claude-cli', prompt: 'z', onSuccess: 'publish ch-c' },
       ],
       watchers: [],
       channels: { 'ch-a': { description: '' }, 'ch-b': { description: '' }, 'ch-c': { description: '' } },
@@ -979,9 +987,9 @@ describe('validateTopology', () => {
       name: 'test',
       agents: [
         { name: 'trigger', schedule: '*/10 * * * *', backend: 'custom', prompt: 'x', onSuccess: 'publish event' },
-        { name: 'a', trigger: 'event', backend: 'claude-cli', prompt: 'x' },
-        { name: 'b', trigger: 'event', backend: 'claude-cli', prompt: 'y' },
-        { name: 'c', trigger: 'event', backend: 'claude-cli', prompt: 'z' },
+        { name: 'a', triggers: ['event'], backend: 'claude-cli', prompt: 'x' },
+        { name: 'b', triggers: ['event'], backend: 'claude-cli', prompt: 'y' },
+        { name: 'c', triggers: ['event'], backend: 'claude-cli', prompt: 'z' },
       ],
       watchers: [],
       channels: { 'event': { description: 'Trigger event' } },
@@ -996,7 +1004,7 @@ describe('validateTopology', () => {
     const config = {
       name: 'test',
       agents: [
-        { name: 'a', trigger: 'orphan', backend: 'claude-cli', prompt: 'x' },
+        { name: 'a', triggers: ['orphan'], backend: 'claude-cli', prompt: 'x' },
       ],
       watchers: [],
       channels: { 'orphan': { description: 'No one publishes here' } },
@@ -1012,7 +1020,7 @@ describe('validateTopology', () => {
     const config = {
       name: 'test',
       agents: [
-        { name: 'documentarian', trigger: 'promotion:release-surfaces', backend: 'ollama', prompt: 'x' },
+        { name: 'documentarian', triggers: ['promotion:release-surfaces'], backend: 'ollama', prompt: 'x' },
       ],
       watchers: [],
       channels: {
@@ -1032,7 +1040,7 @@ describe('validateTopology', () => {
     const config = {
       name: 'test',
       agents: [
-        { name: 'self', trigger: 'self:out', backend: 'claude-cli', prompt: 'x', onSuccess: 'publish self:out' },
+        { name: 'self', triggers: ['self:out'], backend: 'claude-cli', prompt: 'x', onSuccess: 'publish self:out' },
       ],
       watchers: [],
       channels: { 'self:out': { description: 'Self-loop' } },
@@ -1163,7 +1171,7 @@ test('trigger dedupe suppresses identical messages inside the dedupe window', as
 
   const onEvent = jest.fn();
   const config = {
-    ...makeConfig({ trigger: 'spark:idea', dedupeWindowMs: 300000 }),
+    ...makeConfig({ triggers: ['spark:idea'], dedupeWindowMs: 300000 }),
     limits: { budgetUsdPerDay: 5 },
   };
 
@@ -1213,7 +1221,7 @@ test('rapid trigger bursts collapse into one pending mailbox run while active', 
   });
 
   const config = {
-    ...makeConfig({ trigger: 'spark:idea' }),
+    ...makeConfig({ triggers: ['spark:idea'] }),
     limits: { budgetUsdPerDay: 5 },
   };
 

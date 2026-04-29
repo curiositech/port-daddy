@@ -109,13 +109,14 @@ describe('tutorials index brand voice', () => {
     'utf-8'
   )
 
-  it('uses the current control-plane positioning instead of retired academy metaphors', () => {
-    expect(pageSource).toContain('Operator training')
-    expect(pageSource).toContain('Learn the control-plane protocol.')
+  it('uses the current product walkthrough positioning instead of retired academy metaphors', () => {
+    expect(pageSource).toContain('Tutorials')
+    expect(pageSource).toContain('Learn Port Daddy by doing.')
     expect(pageSource).toContain('Product-truth curriculum')
     expect(pageSource).not.toContain('Academy of Coordination')
     expect(pageSource).not.toContain('Master the')
     expect(pageSource).not.toContain('Swarm Logic')
+    expect(pageSource).not.toContain('Learn the control-plane protocol.')
     expect(pageSource).not.toContain("import { Surface }")
     expect(pageSource).not.toContain('Anchor')
     expect(pageSource).not.toContain('shadow-inset')
@@ -127,7 +128,7 @@ describe('tutorials index brand voice', () => {
       .join(' ')
     const normalizedCopy = visibleCopy.toLowerCase()
 
-    expect(normalizedCopy).toContain('control plane')
+    expect(normalizedCopy).toContain('port daddy')
     expect(visibleCopy).not.toMatch(/\b[Ss]warm\b/)
     expect(visibleCopy).not.toContain('Pheromone Trails')
     expect(visibleCopy).not.toContain('Harbor Tokens')

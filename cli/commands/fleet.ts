@@ -240,7 +240,7 @@ async function fleetUp(): Promise<void> {
     }));
 
     for (const agent of config.agents) {
-      const mode = agent.schedule ? `schedule: ${agent.schedule}` : `trigger: ${agent.trigger}`;
+      const mode = agent.schedule ? `schedule: ${agent.schedule}` : `triggers: ${(agent.triggers || []).join(', ') || '(none)'}`;
       ui.success(`  ${agent.name} (${agent.backend}) — ${mode}`);
     }
     for (const watcher of config.watchers) {
@@ -319,7 +319,7 @@ async function fleetStatus(): Promise<void> {
   } else {
     for (const agent of config.agents) {
       const runtime = resolveFleetAgentRuntime(agent);
-      const mode = agent.schedule ? `schedule ${agent.schedule}` : `trigger ${agent.trigger}`;
+      const mode = agent.schedule ? `schedule ${agent.schedule}` : `triggers ${(agent.triggers || []).join(', ') || '(none)'}`;
       const backend = runtime.backend || 'MISSING';
       const model = runtime.model || (backend === 'claude-cli' ? 'CLI default' : runtime.modelTier ? `${runtime.modelTier} tier (unmapped)` : 'backend default');
       const fallbacks = (agent.fallbacks || []).map((fallback) => {
@@ -831,7 +831,7 @@ export async function handleFleet(positional: string[], _options: Record<string,
       if (config) {
         console.log(`Agents in pd-fleet.yml (${config.agents.length}):`);
         for (const a of config.agents) {
-          const mode = a.schedule ? `schedule: ${a.schedule}` : `trigger: ${a.trigger}`;
+          const mode = a.schedule ? `schedule: ${a.schedule}` : `triggers: ${(a.triggers || []).join(', ') || '(none)'}`;
           const runtime = resolveFleetAgentRuntime(a);
           const backend = runtime.backend || 'MISSING';
           const model = runtime.model || (backend === 'claude-cli' ? 'CLI default' : runtime.modelTier ? `${runtime.modelTier} tier` : 'backend default');

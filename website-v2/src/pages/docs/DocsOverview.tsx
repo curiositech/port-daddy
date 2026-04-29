@@ -35,13 +35,13 @@ export default function DocsOverview() {
     .filter((section): section is NonNullable<typeof section> => Boolean(section))
 
   const readingPath = [
-    { title: 'Whitepaper', href: '/whitepaper', tone: 'blue' as const },
     { title: 'Get started', href: '/docs/get-started', tone: 'accent' as const },
-    { title: 'Concepts', href: '/docs/concepts', tone: 'blue' as const },
-    { title: 'Best practices', href: '/docs/best-practices', tone: 'accent' as const },
     { title: 'Examples', href: '/docs/examples', tone: 'blue' as const },
     { title: 'Tutorials', href: '/docs/tutorials', tone: 'accent' as const },
+    { title: 'Concepts', href: '/docs/concepts', tone: 'blue' as const },
+    { title: 'Best practices', href: '/docs/best-practices', tone: 'accent' as const },
     { title: 'Reference', href: '/docs/reference', tone: 'blue' as const },
+    { title: 'Whitepaper', href: '/whitepaper', tone: 'blue' as const },
   ]
   const referenceSurfaces = [
     { title: 'CLI reference', href: '/docs/cli' },
@@ -61,11 +61,11 @@ export default function DocsOverview() {
     <div className="space-y-[var(--space-6)]">
       <DocsHero
         eyebrow="Documentation"
-        title="Read the protocol. Bring up the daemon. Learn the operating model."
-        summary="These docs are for engineers evaluating whether Port Daddy can keep real multi-agent repo work legible, governable, and worth trusting."
+        title="What Port Daddy is and how to use it."
+        summary="Port Daddy is a local app for coordinating AI coding agents. It shows who is working, what files and ports they own, what happened recently, and how to recover work when a run stops."
         paragraphs={[
-          'Start with the whitepaper if you need the trust boundary, the governance argument, and the line between cryptographic guarantees and host-level reality.',
-          'Move into get started once you want a live daemon on your machine. From there, use concepts and best practices to understand the model and the operator loop, then drop into examples, tutorials, reference architectures, and reference when you need exact workflows or surfaces.',
+          'These pages explain the basics first: install the app, start the daemon, open the dashboard, and run your first coordinated task.',
+          'After that, use Examples and Tutorials for runnable walkthroughs, Best practices for day-to-day habits, Concepts for the model, and Reference for exact commands, APIs, and configuration.',
         ]}
       />
 
@@ -79,14 +79,14 @@ export default function DocsOverview() {
 
         <DocsNoteCard
           label="Reading path"
-          title="Trust boundary first. Workflows second."
+          title="Start here, then jump to what you need."
           elevation="quiet"
           padding="compact"
           titleSize="nav"
         >
           <PanelBody size="compact" className="max-w-none">
-            Start with the papers and get started. After that, choose the section that matches the job in front of you
-            instead of reading the docs like a linear manual.
+            New to Port Daddy? Start with Get started. It walks through installation, runtime checks, and the first
+            coordination loop on your machine.
           </PanelBody>
           <div className="flex flex-wrap gap-[var(--panel-gap-tight)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
             {readingPath.map((item, index) => (
@@ -101,42 +101,42 @@ export default function DocsOverview() {
             ))}
           </div>
           <PanelBody size="compact" className="max-w-none">
-            Concepts explains the model. Best practices explains the operator discipline. Examples and tutorials show
-            concrete flows. Reference architectures and reference document the exact surfaces that matter in active use.
+            Use Examples and Tutorials when you want to see it work. Use Concepts and Best practices when you need the
+            why. Use Reference when you need the exact command, API, or configuration field.
           </PanelBody>
         </DocsNoteCard>
       </div>
 
       <DocsNoteCard
-        label="Examples route split"
-        title="/docs/examples guides. /examples runs."
+        label="Proof path"
+        title="Read the pattern. Run the code. See the daemon state."
         elevation="quiet"
         padding="compact"
       >
         <PanelBody size="compact" className="max-w-none">
-          Use /docs/examples for the explanatory path through coordination patterns. Use /examples for the
-          source-backed code gallery: swarm coordination, PD Tube tunnel inspection, service discovery, inbox flows,
-          locks, phases, and dev tools built on top of the daemon.
+          Want to see Port Daddy doing real work? The examples cover agent handoffs, file claims, tunnel sharing,
+          service discovery, inbox workflows, locks, phases, and small tools built on top of the local control plane.
         </PanelBody>
         <div className="flex flex-wrap gap-[var(--panel-gap-tight)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
           <BracketNavLink to="/docs/examples" tone="blue" side="left">
-            Read /docs/examples
+            Understand the patterns
           </BracketNavLink>
           <BracketNavLink to="/examples" tone="accent" side="right">
-            Open /examples
+            Inspect runnable code
           </BracketNavLink>
         </div>
       </DocsNoteCard>
 
       <DocsNoteCard
         label="Reference surfaces"
-        title="Keep the exact interfaces one click away."
+        title="Need the API? Jump straight to it."
         elevation="quiet"
         padding="compact"
       >
         <PanelBody size="compact" className="max-w-none">
-          The family-based docs improve reading order, but the existing CLI, SDK, MCP, and API references are still
-          part of the working site and should stay easy to reach while the docs shell gets better.
+          Once the concept is clear, serious users need the contract: CLI commands, SDK calls, MCP tools, and REST
+          endpoints. These references stay close because Port Daddy should be usable from a terminal, an app, an agent,
+          or another local developer tool.
         </PanelBody>
         <div className="flex flex-wrap gap-[var(--panel-gap-tight)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
           {referenceSurfaces.map((surface, index) => (

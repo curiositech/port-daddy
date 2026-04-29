@@ -82,15 +82,15 @@ export const PRODUCT_FEATURES = [
   {
     id: 'backend-readiness',
     title: 'Backend readiness',
-    description: 'Operator-facing readiness tells you which backends need API keys, CLI login, model access, dependency installation, telemetry parity, or manual confirmation.',
+    description: 'Shows which agent backends need API keys, CLI login, model access, dependencies, telemetry support, or manual approval before launch.',
     category: 'observability',
     cli: 'pd fleet models',
     status: 'new'
   },
   {
     id: 'agent-radio',
-    title: 'Agent communication substrate',
-    description: 'Notes, scoped channels, actor inboxes, claims, tuples, and salvage records give agents durable ways to talk without sharing one chat window.',
+    title: 'Agent communication',
+    description: 'Notes, channels, inboxes, claims, tuples, and salvage records let agents leave durable updates without sharing one chat window.',
     category: 'coordination',
     cli: 'pd note "handoff ready"',
     status: 'core'
@@ -113,8 +113,8 @@ export const PRODUCT_FEATURES = [
   },
   {
     id: 'harbors',
-    title: 'Harbors and verified core',
-    description: 'Named authority boundaries, note encryption, Ed25519 harbor-card verification, and proof-backed protocol work sit underneath the local daemon.',
+    title: 'Harbors and security',
+    description: 'Harbors give protected work areas signed entry cards, encrypted notes, and a verified security core for higher-trust workflows.',
     category: 'security',
     cli: 'pd harbor create <name>',
     status: 'new'
@@ -250,8 +250,8 @@ export const APP_SURFACES = [
 export const COLD_START_STEPS = [
   {
     id: 'install',
-    title: 'Install the local control plane',
-    description: 'Install the daemon, MCP wiring, FleetBar, and project markers with one command. FleetBar becomes the Mac entrance; the daemon remains the source of truth.',
+    title: 'Install Port Daddy locally',
+    description: 'Install the daemon, MCP wiring, FleetBar, and project markers with one command. FleetBar becomes the Mac entrance for seeing active agent work.',
     command: 'brew install curiositech/tap/port-daddy\npd setup --project ~/coding/my-app',
     appSurface: 'FleetBar opens the daemon-served Fleet Control Center.',
   },

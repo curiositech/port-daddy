@@ -47,9 +47,9 @@ export const heroInstall = {
 }
 
 export const heroSellingPoints = [
-  'Keep harbor identity, shared state, locks, and session history under one daemon of record.',
-  'Replace invisible shell state with operator-visible coordination surfaces and live runtime truth.',
-  'Evaluate the security story through the whitepaper and verified core, not vendor promises.',
+  'See active agents, claimed files, locks, ports, and session history in one local app.',
+  'Give Claude Code, Codex, Cursor, Gemini CLI, Aider, and Ollama shared notes instead of separate terminal memory.',
+  'Use the whitepaper and security docs when you want the deeper implementation story.',
 ] as const
 
 export const proofPanels: ProofPanel[] = [
@@ -100,15 +100,15 @@ export const proofStats = [
 export const architectureNarrative = [
   {
     label: 'Agent layer',
-    text: 'Agents execute tasks. They are not trusted to own shared coordination state by themselves.',
+    text: 'Agents do the coding work in your editor, terminal, or background fleet.',
   },
   {
     label: 'Daemon control plane',
-    text: 'The daemon owns identity, locks, sessions, harbors, and the operator surfaces that keep multi-agent work legible.',
+    text: 'Port Daddy keeps the shared notes, locks, sessions, ports, and handoffs those agents need.',
   },
   {
-    label: 'Verified core',
-    text: 'The cryptographic core sits underneath the daemon and gives the control plane a defensible security boundary.',
+    label: 'Security core',
+    text: 'Signed harbor cards and the verified Rust core support protected workflows when you need them.',
   },
 ] as const
 
@@ -118,13 +118,13 @@ export const commercialTracks: CommercialTrack[] = [
     name: 'Open Core',
     subtitle: 'Local daemon + verified runtime',
     description:
-      'Install the daemon locally, coordinate agent work, and keep the core protocol transparent. This is the adoption path.',
+      'Install Port Daddy locally, coordinate agent work, and keep the important moving parts inspectable.',
     tone: 'blue',
     badge: 'Free',
     bullets: [
-      'Daemon, CLI, and core coordination primitives',
+      'Daemon, CLI, and core coordination tools',
       'Local sessions, locks, notes, and harbor flows',
-      'Verification-backed security story',
+      'Security notes and verification artifacts',
     ],
   },
   {
@@ -138,7 +138,7 @@ export const commercialTracks: CommercialTrack[] = [
     bullets: [
       'Fleet history and cross-machine visibility',
       'Violation context, telemetry, and reviewable evidence',
-      'A control surface built for more than one laptop',
+      'A shared view built for more than one laptop',
     ],
   },
   {
@@ -152,7 +152,7 @@ export const commercialTracks: CommercialTrack[] = [
     bullets: [
       'Audit export and policy enforcement',
       'Hardware-backed key management surfaces',
-      'Commercial support around serious agent operations',
+      'Commercial support for team agent operations',
     ],
   },
 ] as const

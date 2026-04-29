@@ -78,7 +78,7 @@ function buildResolvedChannels(config: FleetConfig, projectDir: string): Record<
 
   Object.keys(config.channels ?? {}).forEach(add);
   config.agents.forEach((agent) => {
-    add(agent.trigger);
+    (agent.triggers || []).forEach((trigger) => add(trigger));
     add(extractPublishedChannel(agent.onSuccess));
     add(extractPublishedChannel(agent.onFailure));
   });

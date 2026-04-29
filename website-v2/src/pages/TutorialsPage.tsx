@@ -49,14 +49,13 @@ export function TutorialsPage() {
         <PageContainer width="wide">
           <div className="grid gap-[var(--space-8)] lg:grid-cols-[minmax(0,0.95fr)_minmax(18rem,0.45fr)] lg:items-end">
             <div className="space-y-[var(--space-6)]">
-              <PanelEyebrow>Operator training</PanelEyebrow>
+              <PanelEyebrow>Tutorials</PanelEyebrow>
               <PanelTitle as="h1" size="hero" className="max-w-[12ch]">
-                Learn the control-plane protocol.
+                Learn Port Daddy by doing.
               </PanelTitle>
               <PanelBody size="default" className="max-w-[42rem] text-[length:var(--text-lg)]">
-                A practical route through Port Daddy: claim stable identities, coordinate
-                sessions, publish runtime signals, launch background agents, and recover
-                work when a run fails.
+                Follow practical walkthroughs for installing Port Daddy, coordinating a repo,
+                launching background agents, and recovering work when a run fails.
               </PanelBody>
             </div>
 

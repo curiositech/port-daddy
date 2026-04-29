@@ -79,8 +79,8 @@ describe('public shell contracts', () => {
           'DocsNoteCard',
           'BracketLink',
           'overviewOrder',
-          'Read the protocol. Bring up the daemon. Learn the operating model.',
-          'Trust boundary first. Workflows second.',
+          'What Port Daddy is and how to use it.',
+          'Start here, then jump to what you need.',
         ],
         forbidden: [
           /text-\[11px\]/,
@@ -107,7 +107,7 @@ describe('public shell contracts', () => {
           'findDocsContentPage',
           'What this page answers',
           'Section map',
-          'Route relationship',
+          'Proof path',
           'scroll-mt-[calc(var(--space-10)+var(--space-6))]',
         ],
         forbidden: [
@@ -218,15 +218,16 @@ describe('public shell contracts', () => {
     expect(seo).toContain('/whitepaper/bonded-commons')
   })
 
-  test('docs shell copy points to the public whitepaper without replacement-brand framing', () => {
+  test('docs shell copy explains Port Daddy first without replacement-brand framing', () => {
     const appSource = read('./App.tsx')
     const docsOverview = read('./pages/docs/DocsOverview.tsx')
     const docsSidebar = read('./components/site/DocsSidebar.tsx')
     const header = read('./components/site/SiteHeader.tsx')
 
     expect(docsOverview).toContain("href: '/whitepaper'")
-    expect(docsOverview).toContain('Start with the papers and get started.')
-    expect(docsSidebar).toContain('Protocol first.')
+    expect(docsOverview).toContain('What Port Daddy is and how to use it.')
+    expect(docsOverview).toContain('Port Daddy is a local app for coordinating AI coding agents.')
+    expect(docsSidebar).toContain('New to Port Daddy?')
     expect(docsSidebar).toContain('Whitepaper')
     expect(header).toContain('Port Daddy')
     expect(header).not.toContain('agentsd')
@@ -331,7 +332,7 @@ describe('public shell contracts', () => {
     expect(docsOverview).not.toContain('/dashboard')
     expect(docsOverview).toContain('/mac-preview')
     expect(docsOverview).toContain('/examples')
-    expect(docsOverview).toContain('/docs/examples guides. /examples runs.')
+    expect(docsOverview).toContain('Read the pattern. Run the code. See the daemon state.')
     expect(docsOverview).toContain('/templates')
     expect(docsOverview).toContain('/mcp')
     expect(docsOverview).toContain('/agents')
@@ -340,7 +341,7 @@ describe('public shell contracts', () => {
     expect(docsSidebar).not.toContain('/dashboard')
     expect(docsSidebar).toContain('/mac-preview')
     expect(docsSidebar).toContain('/examples')
-    expect(docsSidebar).toContain('/docs/examples guides. /examples runs.')
+    expect(docsSidebar).toContain('From explanation to evidence.')
     expect(docsSidebar).toContain('/templates')
     expect(docsSidebar).toContain('/mcp')
     expect(docsSidebar).toContain('/agents')

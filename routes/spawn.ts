@@ -22,7 +22,7 @@ interface SpawnRouteDeps {
   };
 }
 
-const VALID_BACKENDS = new Set(['ollama', 'claude', 'claude-cli', 'gemini', 'cloudflare', 'codex', 'aider', 'custom']);
+const VALID_BACKENDS = new Set(['ollama', 'claude', 'claude-cli', 'gemini', 'cloudflare', 'codex', 'aider', 'custom', 'tube']);
 
 
 // ==========================================================================
@@ -78,12 +78,15 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
         allowedTools,
         maxTokens,
         budgetUsd: rawBudgetUsd,
+        tubeChannel,
+        tubeTimeoutMs,
+        tubeRole,
       } = request.body as any;
 
       if (!backend || typeof backend !== 'string') {
         reply.code(400); return {
           success: false,
-          error: 'backend is required. Valid values: ollama, claude, claude-cli, gemini, cloudflare, codex, aider, custom',
+          error: 'backend is required. Valid values: ollama, claude, claude-cli, gemini, cloudflare, codex, aider, custom, tube',
           code: 'VALIDATION_ERROR',
         };
       }
@@ -160,6 +163,9 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
       if (timeout && typeof timeout === 'number') spec.timeout = timeout;
       if (allowedTools && typeof allowedTools === 'string') spec.allowedTools = allowedTools;
       if (maxTokens && typeof maxTokens === 'number') spec.maxTokens = maxTokens;
+      if (tubeChannel && typeof tubeChannel === 'string') spec.tubeChannel = tubeChannel;
+      if (tubeTimeoutMs && typeof tubeTimeoutMs === 'number') spec.tubeTimeoutMs = tubeTimeoutMs;
+      if (tubeRole && typeof tubeRole === 'string') spec.tubeRole = tubeRole;
 
       logger.info('spawn_start', {
         backend,

@@ -268,13 +268,15 @@ pd fleet status   # What's running?
 pd fleet down     # Stop everything`}</CodeBlock>
 
           <motion.p>
-            Open the Fleet Control Center or the daemon-served control plane at <code>/fleet-ui/</code> for the live dashboard. That surface now carries Flow, Activity, Channels, Inbox, and Sorties in one shell instead of splitting truth across older one-off pages.
+            Open Fleet Control Center at <code>/fleet-ui/</code> for the live dashboard. It brings Flow, Activity,
+            Channels, Inbox, and Sorties into one place instead of scattering status across older pages.
           </motion.p>
 
           <Surface depth="raised" radius="2xl" className="p-6 space-y-3">
             <motion.p className="text-sm font-bold m-0 text-[var(--brand-accent)]">Menu Bar App</motion.p>
             <motion.p className="text-xs text-[var(--text-secondary)] m-0">
-              Build the native macOS menu bar app from <code>apps/FleetBar</code>. One click in your menu bar opens the Fleet Control Center shell around the same daemon-backed control plane.
+              Build the native macOS menu bar app from <code>apps/FleetBar</code>. One click in your menu bar opens
+              the same Fleet Control Center view.
             </motion.p>
           </Surface>
         </section>

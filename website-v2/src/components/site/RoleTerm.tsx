@@ -65,7 +65,7 @@ const ROLE_DEFINITIONS: Record<string, RoleDefinition> = {
   harbormaster: {
     name: 'Harbormaster',
     category: 'Platform actor',
-    short: 'Owns runtime and promotion truth.',
+    short: 'Checks runtime and promotion state.',
     detail: 'Checks daemon freshness, stable checkout cleanliness, promotion readiness, and launch provenance.',
   },
   sounder: {

@@ -712,7 +712,7 @@ function truncateText(text: string | null | undefined, maxLength = 220): string 
  */
 function classifyConfiguredActor(agent: ConfiguredFleetAgent): OperatorActorKind {
   if (agent.schedule) return 'scheduled';
-  if (agent.trigger || agent.triggerTuple) return 'triggered';
+  if ((agent.triggers && agent.triggers.length > 0) || agent.triggerTuple) return 'triggered';
   return 'triggered';
 }
 
