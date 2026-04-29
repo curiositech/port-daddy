@@ -1151,6 +1151,7 @@ interface WhoamiResponse {
   agentName?: string | null;
   name?: string | null;
   sessionId?: string;
+  sessionName?: string | null;
   purpose?: string;
   identity?: string | null;
   phase?: string;
@@ -3715,6 +3716,7 @@ interface WhoamiSugarResponse {
   agentName?: string | null;
   name?: string | null;
   sessionId?: string;
+  sessionName?: string | null;
   purpose?: string;
   identity?: string | null;
   phase?: string;
@@ -3726,6 +3728,8 @@ interface WhoamiSugarResponse {
   localContext?: {
     agentId: string;
     sessionId: string;
+    agentName?: string | null;
+    sessionName?: string | null;
     startedAt?: number;
     purpose?: string;
     identity?: string | null;

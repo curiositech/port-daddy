@@ -37,6 +37,10 @@ describe('sugar.begin', () => {
     expect(result.success).toBe(true);
     expect(result.agentId).toBeTruthy();
     expect(result.sessionId).toBeTruthy();
+    expect(result.agentId).toMatch(/^agent-implement-sugar-commands-[a-f0-9]{8}$/);
+    expect(result.sessionId).toMatch(/^session-implement-sugar-commands-[a-f0-9]{12}$/);
+    expect(result.agentName).toBe('Implement sugar commands');
+    expect(result.sessionName).toBe('Implement sugar commands');
     expect(result.agentRegistered).toBe(true);
     expect(result.sessionStarted).toBe(true);
     expect(result.identity).toBe('port-daddy:cli:sugar');
@@ -61,8 +65,10 @@ describe('sugar.begin', () => {
     const result = sugar.begin({ purpose: 'Test auto-ID' });
 
     expect(result.success).toBe(true);
-    expect(result.agentId).toMatch(/^agent-[a-f0-9]{8}$/);
+    expect(result.agentId).toMatch(/^agent-test-auto-id-[a-f0-9]{8}$/);
     expect(result.agentName).toBe('Test auto-ID');
+    expect(result.sessionId).toMatch(/^session-test-auto-id-[a-f0-9]{12}$/);
+    expect(result.sessionName).toBe('Test auto-ID');
   });
 
   test('stores a readable agent name while keeping the technical ID', () => {
@@ -75,8 +81,9 @@ describe('sugar.begin', () => {
     });
 
     expect(result.success).toBe(true);
-    expect(result.agentId).toMatch(/^agent-[a-f0-9]{8}$/);
+    expect(result.agentId).toMatch(/^agent-auth-repair-lead-[a-f0-9]{8}$/);
     expect(result.agentName).toBe('Auth Repair Lead');
+    expect(result.sessionName).toBe('Auth Repair Lead');
 
     const agentInfo = agents.get(result.agentId);
     expect(agentInfo.agent.name).toBe('Auth Repair Lead');
