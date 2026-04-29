@@ -6,6 +6,8 @@ interface TerminalGifProps {
   mediaClassName?: string;
 }
 
+const RECORDING_ASSET_VERSION = "2026-04-29-clean-recordings-2";
+
 export function TerminalGif({
   src,
   title,
@@ -13,6 +15,10 @@ export function TerminalGif({
   className = "",
   mediaClassName = "",
 }: TerminalGifProps) {
+  const resolvedSrc = src.includes("?")
+    ? `${src}&v=${RECORDING_ASSET_VERSION}`
+    : `${src}?v=${RECORDING_ASSET_VERSION}`;
+
   return (
     <figure
       className={`not-prose overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--code-bg)] ${className}`}
@@ -30,13 +36,16 @@ export function TerminalGif({
           className="h-1.5 w-1.5 bg-[var(--code-dot-green)]"
           aria-hidden="true"
         />
-        <figcaption className="ml-[var(--space-2)] min-w-0 truncate font-mono text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--code-comment)]">
+        <figcaption
+          data-terminal-title
+          className="ml-[var(--space-2)] min-w-0 truncate font-mono text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--code-comment)]"
+        >
           {title}
         </figcaption>
       </div>
       <div className="overflow-hidden bg-[var(--code-bg)]">
         <img
-          src={src}
+          src={resolvedSrc}
           alt={caption}
           loading="lazy"
           className={`block h-[clamp(22rem,44vw,38rem)] w-full bg-[var(--code-bg)] object-cover object-top ${mediaClassName}`}

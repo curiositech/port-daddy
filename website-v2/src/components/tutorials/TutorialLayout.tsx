@@ -26,7 +26,8 @@ interface TutorialLayoutProps {
 }
 
 function tutorialHeaderMeta(readTime: string) {
-  return `${readTime} read`;
+  const normalizedReadTime = readTime.replace(/\s*read\s*$/i, "").trim();
+  return `${normalizedReadTime} reading time`;
 }
 
 export function TutorialLayout({
@@ -145,7 +146,7 @@ export function TutorialLayout({
               <motion.span className="border border-[var(--border-default)] bg-[var(--surface-base)] px-[var(--space-3)] py-[var(--space-2)] text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
                 Lesson {number}
               </motion.span>
-              <motion.span className="border border-[var(--border-default)] bg-[var(--surface-base)] px-[var(--space-3)] py-[var(--space-2)] font-mono text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+              <motion.span className="border border-[var(--border-default)] bg-[var(--surface-base)] px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
                 {tutorialHeaderMeta(readTime)}
               </motion.span>
             </motion.div>
