@@ -721,7 +721,7 @@ const task = await tuple_in({
 
         <SectionBand tone="sunken">
           <PageContainer className="space-y-[var(--space-6)] text-center">
-            <BracketLabel>Start coordinated</BracketLabel>
+            <PanelEyebrow>Start coordinated</PanelEyebrow>
             <PanelTitle as="h2" size="display" className="mx-auto max-w-[14ch]">
               Give the next MCP client a real operating model.
             </PanelTitle>
