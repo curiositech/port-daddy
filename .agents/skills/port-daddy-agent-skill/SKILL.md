@@ -48,7 +48,13 @@ pd begin "<bounded task>"
 pd advise <likely-path> --task "<plain-language task>"
 pd note "Scope: <files>. Assumptions: <truth>. Validation: <commands>."
 pd session files add <path>
+pd guard status
+pd guard install --mode enforce  # if this repo should enforce claims and the guard is not already enforcing
 # work
+git fetch origin
+git rebase origin/main           # use origin/master only when that remote branch actually exists
+pd sessions --all-worktrees
+pd notes --limit 20
 pd guard check --staged
 pd note "Result: <change>. Validation: <evidence>. Remaining: <risk>."
 pd done "<short outcome>"
@@ -69,6 +75,7 @@ ambiguous handoffs, and local green checks that do not match the installed app.
 | A fact should be machine-queryable | Emit a tuple or schema-shaped handoff, not prose only. |
 | A scarce resource is involved | Use a lock for promotion, migrations, generated assets, or release packaging. |
 | A release surface changed | Update docs, README, website, skill, and package/export metadata in the same coherent slice. |
+| You are about to commit, push, or deploy | Fetch the canonical remote branch, rebase/merge current work onto it, re-read live sessions/notes/activity, and run `pd guard check --staged`. Do not publish stale-base work. |
 
 ## Procedural Cues
 
@@ -84,6 +91,12 @@ ambiguous handoffs, and local green checks that do not match the installed app.
   is not visually verified.
 - If two agents disagree about product shape, publish the conflict to
   `coordination:inconsistency` instead of smoothing it away.
+- If the user has to remind you to coordinate, the process has already failed:
+  pull against the canonical branch, read the live fleet, leave a Port Daddy
+  note, and make the durable instruction stronger before continuing.
+- If Coordination Guard is absent or only advisory in a repo that expects
+  enforced claims, run `pd guard install --mode enforce` or leave an explicit
+  blocker note with the exact failure.
 
 ## FleetBar And Console Proof
 
