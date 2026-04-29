@@ -22,6 +22,11 @@ const LEVEL_CLASS: Record<string, string> = {
   advanced: 'bg-[var(--border-strong)] text-[var(--text-inverse)]',
 }
 
+const META_TEXT_CLASS =
+  'font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)]'
+const META_MONO_CLASS =
+  'font-mono text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)]'
+
 const TRACKS = [
   {
     label: 'Runtime basics',
@@ -42,8 +47,7 @@ export function TutorialsPage() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen flex flex-col font-sans"
-      style={{ background: 'var(--surface-base)' }}
+      className="min-h-screen flex flex-col bg-[var(--surface-base)] font-sans"
     >
       <section className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
         <PageContainer width="wide">
@@ -71,7 +75,7 @@ export function TutorialsPage() {
                     <div className="font-mono text-[length:var(--text-xl)] font-black leading-none text-[var(--text-primary)]">
                       {stat.value}
                     </div>
-                    <div className="font-sans text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                    <div className={`${META_TEXT_CLASS} text-[var(--text-muted)]`}>
                       {stat.label}
                     </div>
                   </div>
@@ -81,11 +85,11 @@ export function TutorialsPage() {
               <div className="mt-[var(--space-4)] space-y-[var(--space-4)]">
                 {TRACKS.map((track, index) => (
                   <div key={track.label} className="grid grid-cols-[2rem,1fr] gap-[var(--space-3)]">
-                    <div className="font-mono text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-primary)]">
+                    <div className={`${META_MONO_CLASS} text-[var(--brand-primary)]`}>
                       {String(index + 1).padStart(2, '0')}
                     </div>
                     <div>
-                      <div className="font-sans text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-primary)]">
+                      <div className={`${META_TEXT_CLASS} text-[var(--text-primary)]`}>
                         {track.label}
                       </div>
                       <p className="mt-[var(--space-1)] text-sm leading-relaxed text-[var(--text-secondary)]">
@@ -114,11 +118,11 @@ export function TutorialsPage() {
               >
                 <Link to={tutorial.href} className="flex h-full flex-col gap-[var(--space-4)] p-[var(--space-5)] text-[var(--text-primary)]">
                   <div className="flex items-center justify-between border-b-2 border-[var(--border-strong)] pb-[var(--space-3)]">
-                    <span className="font-mono text-[10px] font-black uppercase tracking-[0.24em] text-[var(--text-primary)]">
+                    <span className={`${META_MONO_CLASS} text-[var(--text-primary)]`}>
                       {tutorial.number}
                     </span>
                     <span
-                      className={`border-2 border-[var(--border-strong)] px-[var(--space-2)] py-[var(--space-1)] font-sans text-[10px] font-black uppercase tracking-[0.18em] ${LEVEL_CLASS[tutorial.level]}`}
+                      className={`border-2 border-[var(--border-strong)] px-[var(--space-2)] py-[var(--space-1)] ${META_TEXT_CLASS} ${LEVEL_CLASS[tutorial.level]}`}
                     >
                       {LEVEL_LABEL[tutorial.level]}
                     </span>
@@ -137,7 +141,7 @@ export function TutorialsPage() {
                     {tutorial.tags.map((tag) => (
                       <span
                         key={tag}
-                        className="border border-[var(--border-default)] px-[var(--space-2)] py-[var(--space-1)] font-sans text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]"
+                        className="border border-[var(--border-default)] px-[var(--space-2)] py-[var(--space-1)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]"
                       >
                         {tag}
                       </span>
@@ -147,11 +151,11 @@ export function TutorialsPage() {
                   <div className="flex items-center justify-between border-t-2 border-[var(--border-strong)] pt-[var(--space-3)]">
                     <div className="flex items-center gap-[var(--space-2)] text-[var(--text-muted)]">
                       <Clock size={14} />
-                      <span className="font-sans text-[10px] font-black uppercase tracking-[0.18em]">
+                      <span className={META_TEXT_CLASS}>
                         {tutorial.time}
                       </span>
                     </div>
-                    <span className="inline-flex items-center gap-[var(--space-2)] font-sans text-[10px] font-black uppercase tracking-[0.18em] text-[var(--brand-primary)]">
+                    <span className={`inline-flex items-center gap-[var(--space-2)] ${META_TEXT_CLASS} text-[var(--brand-primary)]`}>
                       Open lesson
                       <ArrowRight size={14} />
                     </span>
@@ -180,7 +184,7 @@ export function TutorialsPage() {
                 {['Current command names', 'Visible runtime evidence', 'Explicit roadmap boundaries'].map((item) => (
                   <div
                     key={item}
-                    className="border-2 border-[var(--border-strong)] bg-[var(--surface-base)] px-[var(--space-4)] py-[var(--space-3)] font-sans text-[11px] font-black uppercase tracking-[0.18em] text-[var(--text-primary)]"
+                    className={`border-2 border-[var(--border-strong)] bg-[var(--surface-base)] px-[var(--space-4)] py-[var(--space-3)] ${META_TEXT_CLASS} text-[var(--text-primary)]`}
                   >
                     {item}
                   </div>
