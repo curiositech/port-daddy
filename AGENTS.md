@@ -21,6 +21,8 @@ Project-specific shibboleths for proficient Port Daddy work. If you learn a new 
 - If dogfooding exposes a Port Daddy bug, fix it while it is fresh when the slice is bounded and safe. If it is not bounded, leave a failing repro or exact evidence, a `pd note`, and a targeted actor message before switching away. Framework friction is product feedback and often product work, not an annoyance to route around.
 - If Port Daddy coordination primitives disagree with each other, for example active sessions exist but active-context lookup or file-claim commands say no active session, stop treating that as incidental CLI friction. Re-anchor safely, leave exact evidence in notes, and either fix the coordination bug immediately if bounded or file a targeted handoff before continuing feature work.
 - Use Coordination Guard when you need the convention enforced instead of merely documented. `pd guard install --mode enforce` installs a local pre-commit check that requires the committing shell to have an active Port Daddy session and matching file claims for staged files. Run `pd guard status` / `pd guard check --staged` to inspect it before enabling.
+- Before every commit, push, or deploy, fetch and pull against the canonical remote branch. This repo uses `origin/main`; use `origin/master` only in a repository that actually has `origin/master`. Re-read live coordination (`pd sessions --all-worktrees`, `pd notes --limit 20`, relevant activity/claims) before publishing — if another agent moved the branch or owns the surface, rebase/merge and adjust instead of pushing stale work.
+- Durable handoffs go into Port Daddy notes, actor inboxes, tuples, or scoped channels. Chat-only coordination is not enough.
 
 ## Ambient Collaboration
 
