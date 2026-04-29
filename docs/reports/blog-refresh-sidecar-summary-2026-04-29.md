@@ -10,6 +10,15 @@ Scope: `website-v2` `/blog` index, article pages, blog metadata, generated blog 
 - Editing/design sidecar: pushed the blog toward flat Swiss-modern editorial layout, square borders, centralized hero metadata, and visible retired-thread handling.
 - Image sidecar: generated visual directions for new Nano Banana assets and rejected the prior metaphor set.
 
+## Response Reconciliation
+
+- Centralize hero metadata: implemented with `heroImage` and `heroAlt` on `BlogPost`; page rendering and SEO now consume post metadata instead of local hero maps.
+- Hide future-dated and stale articles: implemented with `deprecatedBlogPosts`, retired-thread display, replacement links, noindex metadata, and old-slug redirects.
+- Replace the article slate: implemented with current posts for the control plane, fleet cold start, PD Tube, telemetry, map truth, daemon provenance, backend readiness, and Coordination Guard.
+- Remove maritime/soft UI: implemented by removing old icon imports, rounded blog surfaces, ambient effects, hover image scaling, and local marketing-terminal blocks.
+- Prove design contracts: implemented focused tests for generated hero existence, current dates, deprecated canonical targets, and blog flatness/square regressions.
+- Preserve sidecar provenance without committing stale drafts: replaced the rough prompt/draft reports with this final summary after the implementation changed shape.
+
 ## Final Blog Slate
 
 - The Control Plane Is the Product
