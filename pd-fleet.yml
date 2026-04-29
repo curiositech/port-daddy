@@ -220,7 +220,7 @@ fleet:
       backend: codex
       model: gpt-5.4-mini
       singleton: true
-      allowedTools: "Read,Grep,Glob,Write"
+      allowedTools: "Read,Grep,Glob,Write,Bash(pd feedback*),Bash(pd ideas*)"
       prompt: |
         You are the Cartographer — you maintain the map between what
         we've planned, what we've built, and what remains.
@@ -241,6 +241,12 @@ fleet:
         12. .spark/ideas/ and .spider/connections/ — research exhaust
             (read-only; Spark/Spider own the dedupe; you only promote
             from IDEAS-TROVE.md, never from raw files).
+        13. `pd feedback list --status open --json` — daemon-mediated
+            agent feedback (the new structured surface; complements the
+            file-based .spark/feedback/ stream). Treat this as authoritative
+            for entries dropped by agents/MCP/CLI in the last 30 days.
+            If the command is unavailable (older daemon), fall back to
+            the .spark/feedback/ harvest only — do not crash.
 
         Then update docs/V4-UNIFIED-ROADMAP.md:
         - Move items from "NEXT" to "COMPLETE" if they were committed
@@ -259,6 +265,23 @@ fleet:
           and add a `roadmap:` backref on the curated entry.
         - Leave raw .spark/feedback/*.md files in place as provenance.
           Never edit another agent's raw drop.
+
+        Auto-promote daemon feedback (`pd feedback`):
+        - Run `pd feedback list --status open --json` to pull structured
+          drops. Each entry has feedbackId, severity, status, surface,
+          summary, source, droppedAt.
+        - For every `severity: critical` or `severity: high` entry, mint
+          (or extend) the matching slug in DOGFOOD-FEEDBACK.md with
+          `status: now` and a "via pd feedback" provenance pointer that
+          includes the feedbackId. Add a "Next Cuts" line in ROADMAP.md.
+        - For `medium`, mint at `status: backlog` (skip if already covered).
+        - For `low`, append a one-line bullet to the curated entry's
+          provenance only — don't mint new slugs.
+        - After promoting an entry, run
+          `pd feedback harvest <feedbackId> --notes "promoted to ROADMAP.md as <slug>"`
+          so the daemon record reflects the harvest.
+        - If `pd feedback` is unavailable, skip this block entirely; do
+          not abort the rest of the cartographer pass.
 
         Also maintain docs/recovery/CURRENT-WORK.md and .cartographer/status.md with:
         - Current phase (which phase has the most active work)
