@@ -84,8 +84,8 @@ const productRoutes: SiteMetadata[] = [
   metadata('/', SITE_NAME, DEFAULT_SITE_DESCRIPTION, { section: 'home' }),
   metadata(
     '/examples',
-    'Executable Examples',
-    'Run full Port Daddy example programs with dedicated pages for prerequisites, commands, source code, explanation, and adaptation notes.',
+    'Build Local Agent Tools',
+    'Run complete Port Daddy examples for browser buttons, incident rooms, handoff inboxes, edit guards, migration runners, service discovery, and recoverable work logs.',
   ),
   metadata(
     '/examples/pd-tube-button-to-agent',
@@ -95,14 +95,14 @@ const productRoutes: SiteMetadata[] = [
   ),
   metadata(
     '/examples/war-room-incident',
-    'Run a multi-agent incident war room',
-    'Simulate three agents investigating one production incident through sessions, notes, and a shared channel.',
+    'Build a local incident war room for agents',
+    'Create a shared incident channel where specialist agents post findings, hand off work, and leave a durable report.',
     { tags: ['agents', 'notes', 'channels', 'incident'] },
   ),
   metadata(
     '/examples/durable-inbox-lifecycle',
-    'Send durable direct messages between agents',
-    'Register two agents, send a targeted handoff, inspect unread state, mark it read, clear it, and clean up.',
+    'Build an agent handoff inbox',
+    'Create a direct-message inbox where agents can receive assigned work, track unread handoffs, and mark items done.',
     { tags: ['inbox', 'handoff', 'SSE', 'agents'] },
   ),
   metadata(
@@ -113,20 +113,20 @@ const productRoutes: SiteMetadata[] = [
   ),
   metadata(
     '/examples/migration-lock-guard',
-    'Protect a migration with one lock',
-    'Simulate two agents racing for one migration resource and prove only one enters the critical section.',
+    'Build a one-at-a-time database migration runner',
+    'Use a Port Daddy lock so only one agent or script can run a database migration, schema write, or release step at a time.',
     { tags: ['locks', 'critical section', 'migrations'] },
   ),
   metadata(
     '/examples/dns-service-discovery',
-    'Resolve services by semantic name',
-    'Register service records, list a namespace, look up the API endpoint, and clean up the records.',
+    'Build semantic service discovery for local tools',
+    "Let agents and dev tools ask for shop:api, docs:preview, or worker:queue instead of hardcoding today's port.",
     { tags: ['dns', 'services', 'semantic identity'] },
   ),
   metadata(
     '/examples/session-phase-lifecycle',
-    'Model a full session phase lifecycle',
-    'Start a session, claim files, move through phases, leave phase notes, complete the session, and unregister the agent.',
+    'Build a recoverable agent work log',
+    'Use sessions, file claims, phases, and notes to leave a durable trail for one piece of agent work.',
     { tags: ['sessions', 'phases', 'file claims', 'notes'] },
   ),
   metadata(

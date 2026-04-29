@@ -198,64 +198,64 @@ export const bestPracticesSection: DocsContentSection = {
       slug: 'testing-and-promotion',
       title: 'Testing and Promotion Discipline',
       summary:
-        'Green tests are necessary but not sufficient, and stable promotion should run through the script instead of improvised operator rituals.',
+        'Use the test gate, promote through the supported script, and verify the Port Daddy app a user actually opens.',
       truth: 'source-backed',
       goals: [
-        'Use the repo’s minimum health gate honestly.',
-        'Keep test and promotion claims tied to source truth.',
-        'Avoid ad hoc stable-promotion behavior.',
+        'Run the documented test gate before claiming release readiness.',
+        'Use the promotion script so install, daemon, and UI assets move together.',
+        'Verify the promoted Port Daddy app from the surfaces users actually open.',
       ],
       blocks: [
         {
           type: 'paragraph',
-          title: 'Do not confuse green with done',
+          title: 'Test the change, then test the installed app',
           paragraphs: [
-            'A green test run is necessary. It is not enough. Promotion, runtime alignment, and operator-visible behavior still need to be checked honestly.',
-            'This page exists because too much drift in systems like this hides behind “tests passed” while the stable daemon, shell shim, or UI still tell a different story.',
+            'Tests tell you whether the checkout is healthy. Promotion decides what users will actually run. Treat those as separate checks so a fixed bug does not stay trapped in an unpromoted build.',
+            'For Port Daddy contributors, that means running the repo gate, using the supported promotion script, and opening the installed app or control plane before calling the release ready.',
           ],
         },
         {
           type: 'command',
-          title: 'Minimum health gate',
+          title: 'Test gate',
           command: 'npm test',
           notes: [
-            'This is the repo-wide minimum gate before broad health claims.',
-            'A green exit code is still incomplete if worker-exit warnings remain.',
+            'Run focused tests while iterating, then use this as the broad gate before release claims.',
+            'If Jest reports worker-exit warnings, chase them before treating the run as clean.',
           ],
         },
         {
           type: 'command',
-          title: 'Promotion path',
+          title: 'Promote the supported way',
           command: './scripts/promote-stable.sh',
           notes: [
-            'Use the script first when the task is to promote the daemon.',
-            'Do not hand-roll launchctl promotion flows when the script exists.',
+            'This script rebuilds and restarts the stable install.',
+            'Report the script’s blocker instead of improvising a launchd sequence.',
           ],
         },
         {
           type: 'callout',
-          tone: 'warning',
-          title: 'Do not mistake green tests for operational truth',
+          tone: 'info',
+          title: 'Verify what users will open',
           body:
-            'Run the full test suite, then check the daemon and promotion path with the same honesty. A green test run does not prove the runtime, the shell shim, or the stable install are aligned.',
+            'After promotion, open the CLI status and the web or FleetBar surface from the promoted daemon. The release is ready when the installed app and browser UI both show the change you tested.',
         },
         {
           type: 'paragraph',
-          title: 'What disciplined promotion buys you',
+          title: 'What this gives users',
           paragraphs: [
-            'A disciplined promotion path gives the operator one canonical daemon, one known install root, and one runtime story that can be debugged coherently.',
-            'That is worth protecting. Once stable and dogfood drift apart, every user-facing fix becomes harder to trust.',
+            'The payoff is simple: the person who launches Port Daddy gets the same behavior the contributor just tested.',
+            'Promotion discipline prevents users from seeing an old daemon, stale UI bundle, or missing command after the code has already been fixed.',
           ],
         },
       ],
       sources: [
         {
-          path: 'AGENTS.md',
-          rationale: 'Promotion script rule and testing discipline are defined here.',
+          path: 'package.json',
+          rationale: 'Defines the repo test script used as the broad health gate.',
         },
         {
-          path: 'docs/recovery/CURRENT-WORK.md',
-          rationale: 'Recovery ledger repeatedly distinguishes green tests from complete operator truth.',
+          path: 'scripts/promote-stable.sh',
+          rationale: 'Canonical promotion entry point for the stable install.',
         },
       ],
     },

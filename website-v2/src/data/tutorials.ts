@@ -13,8 +13,8 @@ export const TUTORIALS: Tutorial[] = [
   {
     slug: 'getting-started',
     number: '01',
-    title: 'Start the Local Control Plane',
-    description: 'Install the daemon, verify it is reachable, claim one stable identity, and run the first guided command path.',
+    title: 'Start Port Daddy Locally',
+    description: 'Install Port Daddy, verify it is reachable, claim one stable identity, and run the first guided command path.',
     level: 'beginner',
     time: '5 min',
     tags: ['install', 'identity', 'daemon'],

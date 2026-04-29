@@ -264,20 +264,20 @@ export default function DocsSectionPage() {
         <div className="space-y-[var(--panel-gap)]">
           {route.slug === 'examples' ? (
             <DocsNoteCard
-              label="Route relationship"
-              title="/docs/examples guides. /examples runs."
+              label="Proof path"
+              title="Understand the pattern, then inspect the code."
               elevation="quiet"
               padding="compact"
               titleSize="nav"
             >
               <PanelBody size="compact" className="max-w-none">
-                This docs section explains when to use each pattern and why it matters. The top-level examples route is
-                the runnable gallery backed by files in the repo, including swarm coordination, PD Tube tunnel flows,
-                and daemon-powered dev tools.
+                Use this guide to learn what problem each coordination pattern solves, what tradeoffs it makes, and
+                what a good implementation looks like. Then open the runnable examples to inspect the actual files,
+                commands, and daemon output.
               </PanelBody>
               <div className="flex flex-wrap gap-[var(--panel-gap-tight)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
                 <BracketNavLink to="/examples" tone="accent" side="right">
-                  Open runnable examples
+                  Inspect runnable code
                 </BracketNavLink>
               </div>
             </DocsNoteCard>

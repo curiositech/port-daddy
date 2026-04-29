@@ -29,13 +29,12 @@ export function CTABanner() {
             <div className="space-y-[var(--space-4)]">
               <PanelEyebrow>Developer preview</PanelEyebrow>
               <PanelTitle as="h2" size="display" className="max-w-[13ch]">
-                Install the agent communication layer, then open it from FleetBar.
+                Install Port Daddy, then open FleetBar to see your agents.
               </PanelTitle>
               <PanelBody className="max-w-[42rem]">
-                Port Daddy is still open-source infrastructure. The difference now is that the Mac
-                app, Fleet Control Center, <RoleTerm role="shipwright">Shipwright</RoleTerm>,{' '}
-                <RoleTerm role="sortie">sorties</RoleTerm>, resource governance, backend readiness,
-                and agent-to-agent handoffs are the product surface, not a hidden terminal story.
+                The Mac app and Fleet Control Center turn agent work into something you can inspect:
+                active agents, handoffs, backend readiness, budgets, and setup flows like{' '}
+                <RoleTerm role="shipwright">Shipwright</RoleTerm> and <RoleTerm role="sortie">sorties</RoleTerm>.
               </PanelBody>
               <div className="grid gap-[var(--space-3)] md:grid-cols-2">
                 {WHITE_PAPERS.map((paper) => (

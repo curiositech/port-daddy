@@ -1,5 +1,6 @@
 import { useState, type KeyboardEvent, type ReactNode } from 'react'
 import { motion, useScroll, useSpring } from 'framer-motion'
+import { Link } from 'react-router-dom'
 import {
   Activity,
   Anchor,
@@ -19,6 +20,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
+import { ALL_CATEGORIES, MCP_DEFAULT_TOOL_TOTAL, MCP_TOOL_TOTAL } from '@/data/mcp'
 import {
   BracketLabel,
   BracketLink,
@@ -67,8 +69,8 @@ interface ChannelSurface {
 }
 
 const PROOF_METRICS: ProofMetric[] = [
-  { value: '60+', label: 'coordination tools exposed through MCP', tone: 'blue' },
-  { value: '8', label: 'essential tools loaded by default', tone: 'accent' },
+  { value: `${MCP_TOOL_TOTAL}`, label: 'MCP functions registered by the server', tone: 'blue' },
+  { value: `${MCP_DEFAULT_TOOL_TOTAL}`, label: 'default tools before discovery', tone: 'accent' },
   { value: '1', label: 'local daemon as the authority boundary', tone: 'paper' },
 ]
 
@@ -225,24 +227,51 @@ curl -X POST http://localhost:9876/msg/git:committed \\
 const ESSENTIAL_TOOLS = [
   ['begin_session', 'Register identity, claim files, and start a recoverable session.'],
   ['end_session_full', 'Release files, close the session, and unregister the agent.'],
+  ['whoami', 'Confirm the current agent, session, notes, and file claims.'],
+  ['coordination_preflight', 'Check context, claims, symbols, salvage, tuples, channels, and locks before edits.'],
   ['claim_port', 'Get a deterministic port for a semantic identity.'],
+  ['release_port', 'Release a semantic port claim.'],
   ['add_note', 'Append durable context to the session ledger.'],
   ['acquire_lock', 'Hold a TTL-protected distributed lock for critical sections.'],
   ['list_services', 'Inspect active service registrations and owners.'],
+  ['fleet_init', 'Create a coordinated project fleet.'],
   ['swarm_awareness', 'Check live agents, sessions, file claims, and salvage.'],
-  ['catch_me_up', 'Summarize what happened since the last active context.'],
+  ['sitrep', 'Summarize what happened since the last active context.'],
+  ['catch_me_up', 'Back-compatible alias for sitrep.'],
+  ['spawn_agent', 'Launch a background agent with identity, budget, and heartbeat tracking.'],
+  ['run_sortie', 'Launch and track a sortie mission record.'],
+  ['drop_feedback', 'Record structured feedback for Cartographer to harvest.'],
+  ['pd_discover', 'List categories, counts, names, and full schemas for more tools.'],
 ] as const
 
-const DISCOVER_CATEGORIES = [
-  { id: 'sessions', label: 'Session lifecycle', count: 6, icon: Activity },
-  { id: 'ports', label: 'Port management', count: 5, icon: Anchor },
-  { id: 'radio', label: 'Pub/Sub radio', count: 4, icon: Radio },
-  { id: 'agents', label: 'Fleet agents', count: 8, icon: Cpu },
-  { id: 'locks', label: 'Locks', count: 3, icon: Database },
-  { id: 'tuples', label: 'Tuple space', count: 5, icon: Layers },
-  { id: 'dns', label: 'Local DNS', count: 4, icon: Globe },
-  { id: 'salvage', label: 'Salvage', count: 4, icon: LifeBuoy },
-] as const
+const CATEGORY_ICONS: Record<string, LucideIcon> = {
+  magic: Cpu,
+  'session-lifecycle': Activity,
+  advisor: Search,
+  discovery: Search,
+  ports: Anchor,
+  sessions: Activity,
+  notes: Terminal,
+  locks: Database,
+  messaging: Radio,
+  agents: Users,
+  actors: Users,
+  inbox: Terminal,
+  webhooks: Globe,
+  integration: Layers,
+  dns: Globe,
+  briefing: LifeBuoy,
+  tunnels: Globe,
+  projects: Layers,
+  changelog: GitBranch,
+  activity: Activity,
+  sorties: Bot,
+  system: Database,
+  tuples: Layers,
+  'fleet-control': Cpu,
+  semantic: GitBranch,
+  feedback: LifeBuoy,
+}
 
 function SectionBand({
   id,
@@ -455,7 +484,44 @@ function LifecycleDiagram() {
   )
 }
 
-function EssentialTools() {
+function DiscoverGrid() {
+  return (
+    <div className="grid gap-[var(--space-3)] md:grid-cols-2 xl:grid-cols-3">
+      {ALL_CATEGORIES.map((category) => {
+        const Icon = CATEGORY_ICONS[category.id] ?? Cpu
+
+        return (
+          <SurfacePanel key={category.id} padding="compact" elevation="quiet" className="space-y-[var(--space-3)]">
+            <div className="flex items-start justify-between gap-[var(--space-3)]">
+              <div className="flex min-w-0 items-center gap-[var(--space-2)]">
+                <Icon aria-hidden="true" className="h-[var(--space-5)] w-[var(--space-5)] shrink-0 text-[var(--brand-primary)]" />
+                <PanelTitle as="h3" size="nav">
+                  {category.label}
+                </PanelTitle>
+              </div>
+              <PanelEyebrow className="shrink-0">{category.tools.length} tools</PanelEyebrow>
+            </div>
+            <PanelBody size="compact" className="max-w-none">
+              {category.description}
+            </PanelBody>
+            <div className="flex flex-wrap gap-[var(--space-1)]">
+              {category.tools.map((tool) => (
+                <code
+                  key={tool}
+                  className="border border-[var(--border-subtle)] bg-[var(--surface-base)] px-[var(--space-2)] py-[var(--space-1)] font-mono text-[0.72rem] text-[var(--text-secondary)]"
+                >
+                  {tool}
+                </code>
+              ))}
+            </div>
+          </SurfacePanel>
+        )
+      })}
+    </div>
+  )
+}
+
+function DefaultToolList() {
   return (
     <div className="grid gap-[var(--space-3)] md:grid-cols-2">
       {ESSENTIAL_TOOLS.map(([name, description]) => (
@@ -468,24 +534,6 @@ function EssentialTools() {
             <PanelBody size="compact" className="mt-[var(--space-1)] max-w-none">
               {description}
             </PanelBody>
-          </div>
-        </SurfacePanel>
-      ))}
-    </div>
-  )
-}
-
-function DiscoverGrid() {
-  return (
-    <div className="grid gap-[var(--space-3)] sm:grid-cols-2 lg:grid-cols-4">
-      {DISCOVER_CATEGORIES.map((category) => (
-        <SurfacePanel key={category.id} padding="compact" elevation="quiet" className="space-y-[var(--space-3)]">
-          <category.icon aria-hidden="true" className="h-[var(--space-5)] w-[var(--space-5)] text-[var(--brand-primary)]" />
-          <div>
-            <PanelTitle as="h3" size="nav">
-              {category.label}
-            </PanelTitle>
-            <PanelEyebrow className="mt-[var(--space-1)]">{category.count} tools</PanelEyebrow>
           </div>
         </SurfacePanel>
       ))}
@@ -712,7 +760,7 @@ const task = await tuple_in({
               />
             </SwissGridItem>
             <SwissGridItem span="narrow">
-              <EssentialTools />
+              <DefaultToolList />
             </SwissGridItem>
           </SwissGrid>
           <DiscoverGrid />
@@ -729,12 +777,18 @@ const task = await tuple_in({
               Install the daemon, wire the MCP server, start a session, and let agents use the same coordination primitives that the CLI and control plane already trust.
             </PanelBody>
             <div className="flex flex-wrap justify-center gap-[var(--space-3)]">
-              <BracketLink to="/docs/quickstart" tone="blue">
+              <Link
+                to="/docs/quickstart"
+                className="inline-flex min-h-[calc(var(--space-6)+var(--space-1))] items-center border-2 border-[var(--border-strong)] bg-[var(--brand-primary)] px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary-foreground)] transition-colors hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]"
+              >
                 Quick start
-              </BracketLink>
-              <BracketLink to="/docs/mcp" tone="accent">
+              </Link>
+              <Link
+                to="/docs/mcp"
+                className="inline-flex min-h-[calc(var(--space-6)+var(--space-1))] items-center border-2 border-[var(--border-strong)] bg-[var(--brand-accent)] px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--brand-accent-foreground)] transition-colors hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]"
+              >
                 MCP reference
-              </BracketLink>
+              </Link>
             </div>
           </PageContainer>
         </SectionBand>

@@ -18,7 +18,7 @@ export const INTEGRATIONS: Integration[] = [
     status: 'official',
     category: 'LLM',
     details: [
-      'Deep MCP (Model Context Protocol) integration for token-efficient coordination.',
+      'Port Daddy tools are available inside Claude Code through MCP.',
       'Progressive disclosure: Claude only sees essential tools until pd_discover() is called.',
       'Session management: begin_session, end_session_full, whoami, and add_note tools built in.'
     ],

@@ -26,9 +26,15 @@ import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 export interface FleetAgent {
   name: string;
   schedule?: string;       // cron syntax
-  trigger?: string;        // channel name
+  /**
+   * Channel(s) the agent subscribes to. YAML accepts either a single string
+   * or an array; both normalize to this list. The agent fires on any of them.
+   */
+  triggers?: string[];
+  /** Back-compatible in-memory config shape. Prefer `triggers` for new code. */
+  trigger?: string | string[];
   triggerTuple?: unknown[]; // tuple pattern in harbor-scoped tuple space
-  backend: string;         // ollama, claude, claude-cli, codex, custom
+  backend: string;         // ollama, claude, claude-cli, codex, custom, tube
   model?: string;
   modelTier?: FleetModelTier;
   prompt: string;
@@ -47,6 +53,24 @@ export interface FleetAgent {
   backoffBaseMs?: number;
   backoffMaxMs?: number;
   backoffMultiplier?: number;
+  /**
+   * Glob patterns matched against the trigger payload's `files` field
+   * (comma-separated list from the post-commit hook). If provided and a
+   * triggered run delivers a payload with `files`, the agent only fires
+   * when at least one path matches a glob. No filter / no payload = fire.
+   */
+  pathFilter?: string[];
+  /** Tube backend config (only meaningful when backend === 'tube'). */
+  tube?: FleetTubeConfig;
+}
+
+export interface FleetTubeConfig {
+  /** Channel to publish prompts on and listen for replies. */
+  channel: string;
+  /** How long to wait for a reply before treating as failure. Default: 600_000 (10m). */
+  timeoutMs?: number;
+  /** Optional human-readable role; included in the envelope so listeners know who's asking. */
+  role?: string;
 }
 
 export interface FleetWatcher {
@@ -133,8 +157,12 @@ interface AgentActivationState {
 interface FleetYamlAgent {
   name?: string;
   schedule?: string;
-  trigger?: string;
+  trigger?: string | string[];
   trigger_tuple?: unknown[];
+  path_filter?: string[];
+  tube_channel?: string;
+  tube_timeout_ms?: number;
+  tube_role?: string;
   backend?: string;
   model?: string;
   model_tier?: string;
@@ -346,6 +374,129 @@ export function resolveFleetAgentRuntime(agent: Pick<FleetAgent, 'backend' | 'mo
   };
 }
 
+/**
+ * Build the de-duplicated list of channel triggers an agent subscribes to.
+ * YAML accepts `trigger:` (single string) or `triggers:` (array); both
+ * normalize to `agent.triggers: string[]` here.
+ */
+export function resolveAgentTriggerList(agent: Pick<FleetAgent, 'trigger' | 'triggers'>): string[] {
+  const out: string[] = [];
+  for (const t of parseTriggers(agent.trigger)) {
+    if (t && !out.includes(t)) out.push(t);
+  }
+  for (const t of agent.triggers || []) {
+    if (t && !out.includes(t)) out.push(t);
+  }
+  return out;
+}
+
+function hasChannelTriggers(agent: Pick<FleetAgent, 'trigger' | 'triggers'>): boolean {
+  return resolveAgentTriggerList(agent).length > 0;
+}
+
+function parseTriggers(raw: string | string[] | undefined): string[] {
+  if (typeof raw === 'string') {
+    const cleaned = cleanEnvValue(raw);
+    return cleaned ? [cleaned] : [];
+  }
+  if (Array.isArray(raw)) {
+    const out: string[] = [];
+    for (const entry of raw) {
+      if (typeof entry !== 'string') continue;
+      const cleaned = cleanEnvValue(entry);
+      if (cleaned && !out.includes(cleaned)) out.push(cleaned);
+    }
+    return out;
+  }
+  return [];
+}
+
+function parsePathFilter(raw: string[] | undefined): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const out: string[] = [];
+  for (const entry of raw) {
+    if (typeof entry !== 'string') continue;
+    const cleaned = entry.trim();
+    if (cleaned) out.push(cleaned);
+  }
+  return out.length > 0 ? out : undefined;
+}
+
+function parseTubeConfig(s: FleetYamlAgent): FleetTubeConfig | undefined {
+  const channel = cleanEnvValue(s.tube_channel);
+  if (!channel) return undefined;
+  const timeoutMs = normalizePositiveMs(s.tube_timeout_ms);
+  const role = cleanEnvValue(s.tube_role);
+  return {
+    channel,
+    timeoutMs: timeoutMs ?? undefined,
+    role: role || undefined,
+  };
+}
+
+/**
+ * Convert a glob like "docs/**" / "*.md" / "website-v2/src/**" into a regex.
+ * Supports `**` (any path), `*` (any non-slash run), `?` (single non-slash char).
+ * Other regex metacharacters are escaped.
+ */
+function compileGlob(glob: string): RegExp {
+  let out = '';
+  for (let i = 0; i < glob.length; i++) {
+    const c = glob[i];
+    if (c === '*') {
+      if (glob[i + 1] === '*') {
+        out += '.*';
+        i++;
+      } else {
+        out += '[^/]*';
+      }
+    } else if (c === '?') {
+      out += '[^/]';
+    } else if ('.+^$()|{}[]\\'.includes(c)) {
+      out += '\\' + c;
+    } else {
+      out += c;
+    }
+  }
+  return new RegExp('^' + out + '$');
+}
+
+/**
+ * Decide whether an agent's path_filter allows firing for a given trigger payload.
+ * Returns true (allow fire) if:
+ *   - no path_filter is configured, OR
+ *   - the payload doesn't carry a `files` field (we can't make a negative
+ *     judgment, so we let it through), OR
+ *   - any changed path matches at least one glob.
+ */
+export function pathFilterAllows(filter: string[] | undefined, message: unknown): boolean {
+  if (!filter || filter.length === 0) return true;
+  const files = extractChangedFiles(message);
+  if (files.length === 0) return true; // no file list — fire (best effort)
+  const regexes = filter.map(compileGlob);
+  for (const file of files) {
+    for (const rx of regexes) {
+      if (rx.test(file)) return true;
+    }
+  }
+  return false;
+}
+
+function extractChangedFiles(message: unknown): string[] {
+  if (!message || typeof message !== 'object') return [];
+  const m = message as Record<string, unknown>;
+  const candidate = (m.payload && typeof m.payload === 'object')
+    ? (m.payload as Record<string, unknown>).files
+    : m.files;
+  if (typeof candidate === 'string') {
+    return candidate.split(',').map((p) => p.trim()).filter(Boolean);
+  }
+  if (Array.isArray(candidate)) {
+    return candidate.filter((p): p is string => typeof p === 'string').map((p) => p.trim()).filter(Boolean);
+  }
+  return [];
+}
+
 function parseFallbacks(fallbacks: FleetYamlRuntimeTarget[] | undefined): FleetRuntimeTarget[] | undefined {
   if (!Array.isArray(fallbacks) || fallbacks.length === 0) return undefined;
   const parsed = fallbacks
@@ -399,10 +550,12 @@ export function loadFleetConfig(projectDir: string): FleetConfig | null {
         model: s.model,
         modelTier: parseModelTier(s.model_tier),
       } as Pick<FleetAgent, 'backend' | 'model' | 'modelTier'>);
+      const triggers = parseTriggers(s.trigger);
+      const tube = parseTubeConfig(s);
       agents.push({
         name,
         schedule: s.schedule,
-        trigger: s.trigger,
+        triggers: triggers.length > 0 ? triggers : undefined,
         triggerTuple: Array.isArray(s.trigger_tuple) ? s.trigger_tuple : undefined,
         backend: runtime.backend || '',
         model: runtime.model,
@@ -423,6 +576,8 @@ export function loadFleetConfig(projectDir: string): FleetConfig | null {
       backoffBaseMs: normalizePositiveMs(s.backoff_base_ms),
       backoffMaxMs: normalizePositiveMs(s.backoff_max_ms),
       backoffMultiplier: normalizeBackoffMultiplier(s.backoff_multiplier),
+      pathFilter: parsePathFilter(s.path_filter),
+      tube,
       });
   };
   if (rawAgents && typeof rawAgents === 'object' && !Array.isArray(rawAgents)) {
@@ -509,10 +664,10 @@ export function validateTopology(config: FleetConfig): TopologyValidation {
       }
     }
 
-    // Agent consumes via trigger
-    if (agent.trigger) {
-      if (!consumerOf.has(agent.trigger)) consumerOf.set(agent.trigger, []);
-      consumerOf.get(agent.trigger)!.push(agent.name);
+    // Agent consumes via one or more triggers
+    for (const triggerName of resolveAgentTriggerList(agent)) {
+      if (!consumerOf.has(triggerName)) consumerOf.set(triggerName, []);
+      consumerOf.get(triggerName)!.push(agent.name);
     }
   }
 
@@ -858,10 +1013,11 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
   function startAgent(agent: FleetAgent): void {
     if (pausedAgents.has(agent.name)) return;
     if (running.has(agent.name)) return; // already running
+    const allTriggers = resolveAgentTriggerList(agent);
 
     const record: RunningAgent = {
       name: agent.name,
-      type: agent.schedule ? 'scheduled' : (agent.trigger || agent.triggerTuple) ? 'triggered' : 'manual',
+      type: agent.schedule ? 'scheduled' : (allTriggers.length > 0 || agent.triggerTuple) ? 'triggered' : 'manual',
       startedAt: Date.now(),
     };
     const cleanupHandles: Array<() => void> = [];
@@ -874,30 +1030,32 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       record.interval = setInterval(() => { void requestAgentRun(agent, { source: 'schedule' }); }, intervalMs);
     }
 
-    if (agent.trigger) {
-      const physicalTriggerChannel = resolveChannel(agent.trigger);
-      // Prefer in-process subscriptions so trigger payload survives into the spawned task.
-      const unsubscribe = options?.messaging?.subscribe(physicalTriggerChannel, (message: unknown) => {
-        void requestAgentRun(agent, contextFromMessage(agent.trigger!, message));
-      });
-
-      if (unsubscribe) {
-        cleanupHandles.push(unsubscribe);
-      } else {
-        // Fallback for standalone CLI/testing contexts.
-        const watchProc = spawn('npx', [
-          'tsx', join(projectDir, 'bin', 'port-daddy-cli.ts'),
-          'watch', physicalTriggerChannel,
-          '--exec', buildSpawnCommand(agent),
-        ], {
-          cwd: projectDir,
-          env: { ...process.env, PD_URL: getFleetDaemonUrl() },
-          stdio: 'pipe',
-          detached: true,
+    if (allTriggers.length > 0) {
+      const fallbackProcs: ChildProcess[] = [];
+      for (const triggerName of allTriggers) {
+        const physicalTriggerChannel = resolveChannel(triggerName);
+        const unsubscribe = options?.messaging?.subscribe(physicalTriggerChannel, (message: unknown) => {
+          void requestAgentRun(agent, contextFromMessage(triggerName, message));
         });
-        watchProc.unref();
-        record.process = watchProc;
+        if (unsubscribe) {
+          cleanupHandles.push(unsubscribe);
+        } else {
+          // Fallback for standalone CLI/testing contexts.
+          const watchProc = spawn('npx', [
+            'tsx', join(projectDir, 'bin', 'port-daddy-cli.ts'),
+            'watch', physicalTriggerChannel,
+            '--exec', buildSpawnCommand(agent),
+          ], {
+            cwd: projectDir,
+            env: { ...process.env, PD_URL: getFleetDaemonUrl() },
+            stdio: 'pipe',
+            detached: true,
+          });
+          watchProc.unref();
+          fallbackProcs.push(watchProc);
+        }
       }
+      if (fallbackProcs.length > 0) record.process = fallbackProcs[0];
     }
 
     if (options?.tuples) {
@@ -947,7 +1105,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       };
     }
 
-    if (!agent.schedule && !agent.trigger && !agent.triggerTuple) {
+    if (!agent.schedule && allTriggers.length === 0 && !agent.triggerTuple) {
       void requestAgentRun(agent, { source: 'manual' });
     }
 
@@ -1130,6 +1288,11 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     if (runtime.model) body.model = runtime.model;
     if (agent.timeout) body.timeout = agent.timeout;
     if (agent.allowedTools) body.allowedTools = agent.allowedTools;
+    if (runtime.backend === 'tube' && agent.tube?.channel) {
+      body.tubeChannel = agent.tube.channel;
+      if (agent.tube.timeoutMs) body.tubeTimeoutMs = agent.tube.timeoutMs;
+      if (agent.tube.role) body.tubeRole = agent.tube.role;
+    }
 
     let res: Response;
     try {
@@ -1386,6 +1549,23 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       emit({
         type: 'agent_failed', agent: agent.name, identity, project,
         timestamp: now, details: { error, dedupeWindowMs: agent.dedupeWindowMs },
+      });
+      return { success: false, error };
+    }
+
+    // path_filter: only fire on triggered runs whose payload's `files` field
+    // intersects the configured glob set. Scheduled / manual / tuple runs and
+    // payloads with no file list are exempt (best-effort fire-through).
+    if (
+      agent.pathFilter
+      && agent.pathFilter.length > 0
+      && context?.source === 'trigger'
+      && !pathFilterAllows(agent.pathFilter, context.message)
+    ) {
+      const error = 'path_filter excluded this trigger payload';
+      emit({
+        type: 'agent_failed', agent: agent.name, identity, project,
+        timestamp: now, details: { error, pathFilter: agent.pathFilter },
       });
       return { success: false, error };
     }
@@ -1736,11 +1916,11 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       } else if (paused) {
         status = 'paused';
       } else if (record) {
-        status = agent.schedule ? 'scheduled' : (agent.trigger || agent.triggerTuple) ? 'armed' : 'idle';
+        status = agent.schedule ? 'scheduled' : (hasChannelTriggers(agent) || agent.triggerTuple) ? 'armed' : 'idle';
       }
       return {
         name: agent.name,
-        type: agent.schedule ? 'scheduled' : (agent.trigger || agent.triggerTuple) ? 'triggered' : 'manual',
+        type: agent.schedule ? 'scheduled' : (hasChannelTriggers(agent) || agent.triggerTuple) ? 'triggered' : 'manual',
         status,
         running: activeRun,
         paused,

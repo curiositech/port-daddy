@@ -81,7 +81,7 @@ export const LayoutPrimitives: Story = {
           <SectionIntro
             eyebrow="Layout primitives"
             title="One grid system. One section-intro system."
-            description="These primitives anchor the preserved landing and the newer docs shell to the same spacing, width, and typography decisions."
+            description="These primitives keep the public site, docs, and product pages on the same spacing, width, and typography system."
             titleClassName="max-w-[14ch]"
           />
         </SwissGridItem>

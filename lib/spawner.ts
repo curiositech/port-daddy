@@ -80,7 +80,7 @@ function loadDotenvOnce(): Record<string, string> {
 // =============================================================================
 
 export interface SpawnSpec {
-  backend: 'ollama' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'codex' | 'aider' | 'custom';
+  backend: 'ollama' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'codex' | 'aider' | 'custom' | 'tube';
   model?: string;
   modelTier?: 'low' | 'mid' | 'high';
   identity?: string;   // PD semantic identity: project:stack:context
@@ -94,6 +94,12 @@ export interface SpawnSpec {
   timeout?: number;    // ms, default 300000
   allowedTools?: string;  // for claude-cli backend: tool permission string
   maxTokens?: number;     // for claude/claude-cli backends
+  /** Tube backend: channel to publish prompts on and listen for replies. */
+  tubeChannel?: string;
+  /** Tube backend: how long to wait for a reply (ms). Default 600_000. */
+  tubeTimeoutMs?: number;
+  /** Tube backend: optional role label included in the outgoing envelope. */
+  tubeRole?: string;
 }
 
 export interface SpawnResult {
@@ -545,6 +551,85 @@ function runCustom(spec: SpawnSpec): Promise<BackendRunResult> {
   }));
 }
 
+/**
+ * `tube` backend — publish the prompt to a Port Daddy channel as a tube
+ * envelope, then poll for a reply that targets it via `inReplyTo`. Designed
+ * for "human-in-the-loop" or "operator-as-backend" flows where the reply
+ * comes from a subscribed Claude Code session, a teammate's `pd tube`, or
+ * any process that listens on the channel and answers in tube format.
+ *
+ * Returns the reply body as the agent's output. Times out cleanly so the
+ * caller's fallback chain can pick the next attempt.
+ */
+async function runTube(spec: SpawnSpec): Promise<BackendRunResult> {
+  if (!spec.tubeChannel || typeof spec.tubeChannel !== 'string' || !spec.tubeChannel.trim()) {
+    return { output: '', error: 'tube backend requires tubeChannel (set tube_channel: in YAML)' };
+  }
+  const channel = spec.tubeChannel.trim();
+  const timeoutMs = typeof spec.tubeTimeoutMs === 'number' && spec.tubeTimeoutMs > 0
+    ? spec.tubeTimeoutMs
+    : 600_000;
+  const role = spec.tubeRole?.trim() || (spec.identity ? `agent:${spec.identity}` : 'agent');
+  const baseUrl = getDaemonTcpUrl(process.env.PORT_DADDY_URL);
+
+  const promptBody = `[${role}] ${spec.task}`;
+  let publishedId: number;
+  try {
+    const publishRes = await fetch(`${baseUrl}/msg/${encodeURIComponent(channel)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        payload: { v: 1, kind: 'tube.msg', body: promptBody },
+      }),
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!publishRes.ok) {
+      return { output: '', error: `tube publish failed: HTTP ${publishRes.status}` };
+    }
+    const data = await publishRes.json() as { id?: number };
+    if (typeof data.id !== 'number') {
+      return { output: '', error: 'tube publish: daemon returned no id' };
+    }
+    publishedId = data.id;
+  } catch (err) {
+    return { output: '', error: `tube publish error: ${(err as Error).message}` };
+  }
+
+  const deadline = Date.now() + timeoutMs;
+  const pollIntervalMs = 2_000;
+  let cursor = publishedId;
+
+  while (Date.now() < deadline) {
+    try {
+      const res = await fetch(`${baseUrl}/msg/${encodeURIComponent(channel)}?after=${cursor}&limit=20`, {
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (res.ok) {
+        const body = await res.json() as { messages?: Array<{ id: number; payload: unknown }> };
+        const msgs = body.messages || [];
+        for (const m of msgs) {
+          if (m.id > cursor) cursor = m.id;
+          const p = m.payload;
+          if (!p || typeof p !== 'object') continue;
+          const env = p as Record<string, unknown>;
+          if (env.kind !== 'tube.msg') continue;
+          if (env.inReplyTo !== publishedId) continue;
+          const replyBody = typeof env.body === 'string' ? env.body : '';
+          return { output: replyBody, error: null };
+        }
+      }
+    } catch {
+      // transient — retry until deadline
+    }
+    await new Promise((r) => setTimeout(r, pollIntervalMs));
+  }
+
+  return {
+    output: '',
+    error: `tube backend timed out after ${Math.round(timeoutMs / 1000)}s waiting for reply to message ${publishedId} on ${channel}`,
+  };
+}
+
 function runClaudeCli(spec: SpawnSpec): Promise<BackendRunResult> {
   const args = ['-p', spec.task];
   if (spec.model) {
@@ -590,6 +675,7 @@ const DEFAULT_MODELS: Record<SpawnSpec['backend'], string> = {
   codex: 'gpt-5.4-mini',
   aider: 'aider',   // aider manages its own model selection
   custom: 'custom',
+  tube: 'tube',     // tube has no model — relays through a channel
 };
 
 // =============================================================================
@@ -876,6 +962,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
           case 'claude-cli': result = await runClaudeCli(spec); break;
           case 'aider':     result = await runAider(spec, model); break;
           case 'custom':    result = await runCustom(spec); break;
+          case 'tube':      result = await runTube(spec); break;
           default:
             result = { output: '', error: `Unknown backend: ${String(spec.backend)}` };
         }
