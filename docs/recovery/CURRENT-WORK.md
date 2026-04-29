@@ -1,9 +1,23 @@
 # Current Recovery Work
 
-Last updated: 2026-04-27
+Last updated: 2026-04-28
 Owner: Codex working session
 
 This is the active execution ledger. If a task is in flight, it belongs here before it belongs in chat.
+
+## Map State
+
+- Current phase: Recovery Track 2/3 dominates; FleetBar/control-plane truth, salvage visibility, and website rehab are the hottest active threads. V4 Phase 1 graph authority and Phase 4 Bun binary remain the long poles.
+- Velocity: 155 commits in the last 7 days (2026-04-22 through 2026-04-28), 22.1 commits/day.
+- Top 3 closest to completion:
+  - FleetBar/control-plane project truth after promotion.
+  - Website rehab stabilization, especially generated visuals, SEO, and whitepaper/tutorial copy cleanup.
+  - Stale-work visibility and actor inbox triage.
+- Top 3 blocked or drifting:
+  - Phase 1 unified edge table / graph authority.
+  - Phase 4A Bun binary distribution.
+  - Sortie launch end-to-end / Claude SDK readiness reset path.
+- Open dogfood-feedback `now` entries: 0 (no raw `.spark/feedback/` files in this checkout).
 
 ## Active Side Thread
 
@@ -78,6 +92,15 @@ The `agentsd.ai` public-site reset is now explicit repo work, not chat residue.
 - Future public-site work should preserve the current public surface unless a deliberate migration plan is approved and implemented.
 
 ## Current Thread
+
+### Port Daddy Cartographer Telemetry, Body Matching, And Env Hygiene Follow-Up (2026-04-28)
+
+Current coordination session: `session-3ebd0594-4a94-4864-83ee-d0f15fa3ccae`.
+
+- `a8ca8e5` enabled Codex telemetry for Cartographer.
+- `10179d2` tightened Cartographer body matching.
+- `b0c0c09` now ignores the daemon local env file.
+- This is a small operator-truth hardening slice that keeps the cartographer session, stable identity, and daemon env hygiene honest while the broader recovery and website threads continue.
 
 ### Port Daddy Website Generated Visual Replacement Slice (2026-04-27)
 

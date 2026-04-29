@@ -1,6 +1,6 @@
 # Dogfood Feedback — Curated Harvest
 
-Last updated: 2026-04-26
+Last updated: 2026-04-28
 
 This file is the curated harvest of agent dogfooding feedback for Port Daddy.
 
@@ -60,6 +60,9 @@ surface. Spark/Spider do not touch this lane — they own
 _No curated entries yet. Spark fleet (`fleet/spark.sh`) and the human in
 the chair will populate this on the next harvest pass over
 `.spark/feedback/`._
+
+_2026-04-28 harvest note: no new raw files were present in `.spark/feedback/`
+in this checkout, so there was nothing to dedupe or promote._
 
 ## Cross-refs into the roadmap
 

@@ -33,12 +33,16 @@ appropriate phase section below and delete it here.
 - **`cartographer-roadmap-progress-screen`** — FOMO killer. One
   dashboard panel surfacing Next Cuts + open dogfood feedback +
   curated trove `now` + velocity + closest-to-shipping. Cartographer
-  already maintains all the inputs.
+  already maintains all the inputs, and the backend/CLI/UI plumbing
+  now ships in `7ba8d84`, `ca8ffad`, and `b29b005`; the remaining cut
+  is the always-visible screen/panel shell.
 - **`coordination-guard-extended-enforcement`** — Coordination Guard
   exists (`cli/commands/guard.ts`, modes `off|warn|enforce`) but only
   fires on git pre-commit. Enable by default for repos with
   `pd-fleet.yml`; extend to SessionStart + PreToolUse hooks so agents
-  can't edit without `pd begin` + claims.
+  can't edit without `pd begin` + claims. Core enforce-mode, console
+  controls, hook hardening, and workflow docs are already committed;
+  the remaining cut is the broader hook coverage.
 - **`crew-screen-roles-not-pids`** — Dashboard currently shows
   agents-by-PID; operators think in *roles*. New Crew panel: each
   fleet role with last-run / last-cost / currently-doing / blocked.
@@ -46,8 +50,9 @@ appropriate phase section below and delete it here.
   `coordination:inconsistency` as a live ticker on the dashboard with
   severity coloring. The channel exists; the panel doesn't.
 - **`quorum-driven-dynamic-launch`** — Tuple-backed proposal/vote
-  primitive (`lib/quorum.ts` + 4 endpoints). Phase 2: auto-spawn
-  declared spawnable-on-quorum roles when threshold hits.
+  primitive (`lib/quorum.ts` + 4 endpoints). Phase 1 is now shipped in
+  `cea02e1`; Phase 2 still wants auto-spawn for declared
+  spawnable-on-quorum roles when threshold hits.
 - **`ipc-disconnect-instant-salvage`** — IPC drop is already a death
   signal; treat IPC activity as implicit heartbeat and trigger immediate
   salvage on disconnect instead of the 10–20 minute stale window.
