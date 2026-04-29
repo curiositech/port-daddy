@@ -50,7 +50,7 @@ export function Watch() {
                 size={18}
                 className="text-[var(--brand-secondary)] mt-0.5 shrink-0"
               />
-              <p className="m-0 text-sm">
+              <p className="m-0 text-[length:var(--type-panel-body-compact-size)]">
                 <strong>Sub-50ms Reaction</strong> -- The moment an agent
                 publishes a note or a message, your watcher script is spawned by
                 the daemon.
@@ -61,7 +61,7 @@ export function Watch() {
                 size={18}
                 className="text-[var(--brand-secondary)] mt-0.5 shrink-0"
               />
-              <p className="m-0 text-sm">
+              <p className="m-0 text-[length:var(--type-panel-body-compact-size)]">
                 <strong>Scriptable Swarms</strong> -- Use any local binary or
                 shell script as a reactive "agent" that handles infrastructure
                 tasks.
@@ -92,7 +92,7 @@ export function Watch() {
           </CodeBlock>
 
           <p
-            className="m-0 text-sm border-l-4 border-[var(--brand-secondary)] pl-4"
+            className="m-0 text-[length:var(--type-panel-body-compact-size)] border-l-4 border-[var(--brand-secondary)] pl-4"
             style={{ color: "var(--text-secondary)" }}
           >
             Watchers run in the background. The daemon maintains the connection
@@ -125,7 +125,7 @@ export function Watch() {
             >
               <div className="flex items-center gap-3">
                 <div className="w-2 h-2  bg-[var(--brand-secondary)]" />
-                <span className="text-sm font-bold">
+                <span className="text-[length:var(--type-panel-body-compact-size)] font-bold">
                   Agent 'coder' publishes "fix-done"
                 </span>
               </div>
@@ -141,7 +141,7 @@ export function Watch() {
             >
               <div className="flex items-center gap-3">
                 <Terminal size={14} className="text-[var(--brand-primary)]" />
-                <span className="text-sm font-bold text-[var(--brand-primary)]">
+                <span className="text-[length:var(--type-panel-body-compact-size)] font-bold text-[var(--brand-primary)]">
                   Watcher triggers './run-ci.sh'
                 </span>
               </div>
@@ -158,7 +158,7 @@ export function Watch() {
             >
               <div className="flex items-center gap-3">
                 <RefreshCw size={14} className="text-[var(--text-muted)]" />
-                <span className="text-sm font-bold text-[var(--text-primary)]">
+                <span className="text-[length:var(--type-panel-body-compact-size)] font-bold text-[var(--text-primary)]">
                   CI publishes "tests-pass" to Swarm Radio
                 </span>
               </div>
@@ -180,7 +180,7 @@ export function Watch() {
             Autonomous Maturity
           </Badge>
           <p
-            className="text-lg font-bold m-0"
+            className="text-[length:var(--type-panel-title-nav-size)] font-bold m-0"
             style={{ color: "var(--text-primary)" }}
           >
             Always Watching.

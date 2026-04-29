@@ -10,3 +10,11 @@ Load only the file that matches the decision in front of you.
   history or dropping intent.
 - `distribution-and-installation.md`: how this skill ships with Port Daddy
   binaries and mirrors into tool-specific installs.
+- `api-reference.md`: full HTTP API reference for the daemon (every endpoint
+  with curl examples and response shapes).
+- `sdk-reference.md`: JavaScript/TypeScript SDK methods, typed responses,
+  and usage patterns.
+- `multi-agent-patterns.md`: coordination recipes (handoff, file partition,
+  symbol claims, salvage takeover, fleet roles).
+- `portdaddyrc-spec.md`: `.portdaddyrc` configuration schema and resolution
+  order.

@@ -30,7 +30,7 @@ export function Pipelines() {
       <div className="space-y-12">
         {/* Planned Feature Notice */}
         <p
-          className="m-0 text-sm border-l-4 border-[var(--brand-accent)] pl-4"
+          className="m-0 text-[length:var(--type-panel-body-compact-size)] border-l-4 border-[var(--brand-accent)] pl-4"
           style={{ color: "var(--text-secondary)" }}
         >
           <Badge
@@ -65,7 +65,7 @@ export function Pipelines() {
                 size={18}
                 className="text-[var(--brand-secondary)] mt-0.5 shrink-0"
               />
-              <p className="m-0 text-sm">
+              <p className="m-0 text-[length:var(--type-panel-body-compact-size)]">
                 <strong>pd watch</strong> -- Subscribe to any pub/sub channel
                 via SSE. Run a script whenever a message arrives.
               </p>
@@ -75,7 +75,7 @@ export function Pipelines() {
                 size={18}
                 className="text-[var(--brand-accent)] mt-0.5 shrink-0"
               />
-              <p className="m-0 text-sm">
+              <p className="m-0 text-[length:var(--type-panel-body-compact-size)]">
                 <strong>pd spawn</strong> -- Launch AI agents (ollama, claude,
                 aider, gemini, or custom) with full Port Daddy coordination
                 wired in.
@@ -111,7 +111,7 @@ $ pd watch test:fail --exec ./scripts/auto-fix.sh
           </CodeBlock>
 
           <p
-            className="m-0 text-sm border-l-4 border-[var(--brand-secondary)] pl-4"
+            className="m-0 text-[length:var(--type-panel-body-compact-size)] border-l-4 border-[var(--brand-secondary)] pl-4"
             style={{ color: "var(--text-secondary)" }}
           >
             <code>pd watch</code> uses SSE with automatic reconnection. It stays
@@ -144,7 +144,7 @@ $ pd watch test:fail --exec ./scripts/auto-fix.sh
                 Step 1
               </Badge>
               <div className="flex-1">
-                <p className="font-bold m-0 text-sm">Agent publishes result</p>
+                <p className="font-bold m-0 text-[length:var(--type-panel-body-compact-size)]">Agent publishes result</p>
                 <code className="text-[10px]">
                   pd pub task:ready "auth module complete"
                 </code>
@@ -162,7 +162,7 @@ $ pd watch test:fail --exec ./scripts/auto-fix.sh
                 Step 2
               </Badge>
               <div className="flex-1">
-                <p className="font-bold m-0 text-sm">Watcher triggers spawn</p>
+                <p className="font-bold m-0 text-[length:var(--type-panel-body-compact-size)]">Watcher triggers spawn</p>
                 <code className="text-[10px]">
                   pd watch task:ready --exec 'pd spawn --backend aider --
                   "Review $PD_MESSAGE_CONTENT"'
@@ -198,7 +198,7 @@ pd pub code:ready "src/auth/login.ts"`}
             v4 Roadmap
           </Badge>
           <p
-            className="text-lg font-bold m-0"
+            className="text-[length:var(--type-panel-title-nav-size)] font-bold m-0"
             style={{ color: "var(--text-primary)" }}
           >
             Declarative Pipelines.
