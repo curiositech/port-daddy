@@ -1712,6 +1712,7 @@ export default function App() {
                           name: agent.name,
                           purpose: agent.prompt,
                         })) ?? []}
+                        channels={channelTargets}
                         channelEvents={channelLogEvents}
                         activity={filteredActivity}
                         stories={filteredStories}

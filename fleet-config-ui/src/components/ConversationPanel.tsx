@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { GitBranch, Inbox, MessageSquareText, RadioTower, RefreshCw, Route, Send, Waypoints } from 'lucide-react';
-import type { ActivityEntry, InboxMessage, StoryNote } from '../types';
+import { Archive, Clock3, Database, GitBranch, Inbox, MessageSquareText, RadioTower, RefreshCw, Route, Send, Waypoints } from 'lucide-react';
+import type { ActivityEntry, ChannelMessage, InboxMessage, ResolvedChannelTarget, StoryNote } from '../types';
 import { agentColor } from '../types';
 import { summarizeActivityEntry } from '../activityFeed';
-import { fetchAgentInbox, fetchOperatorActors } from '../api';
+import { fetchActivity, fetchAgentInbox, fetchChannelMessages, fetchOperatorActors, fetchStories } from '../api';
 import type { ChannelEvent } from './ChannelLog';
 
 interface AgentSummary {
@@ -45,6 +45,7 @@ interface Props {
   projectDir?: string;
   projectName?: string | null;
   agents: AgentSummary[];
+  channels: ResolvedChannelTarget[];
   channelEvents: ChannelEvent[];
   activity: ActivityEntry[];
   stories: StoryNote[];
@@ -52,6 +53,20 @@ interface Props {
   onSelectAgent?: (agentName: string | null) => void;
   onOpenChannel?: (channelName: string) => void;
 }
+
+type HistoryWindow = 'live' | 'hour' | 'day' | 'week';
+
+const historyWindowOptions: Array<{
+  id: HistoryWindow;
+  label: string;
+  description: string;
+  milliseconds: number | null;
+}> = [
+  { id: 'live', label: 'Live', description: 'current tail', milliseconds: null },
+  { id: 'hour', label: '1h', description: 'last hour', milliseconds: 60 * 60 * 1000 },
+  { id: 'day', label: 'Today', description: 'last 24 hours', milliseconds: 24 * 60 * 60 * 1000 },
+  { id: 'week', label: '7d', description: 'last 7 days', milliseconds: 7 * 24 * 60 * 60 * 1000 },
+];
 
 function relativeTime(timestamp: number): string {
   if (!timestamp) return 'unknown';
@@ -72,6 +87,50 @@ function shortTime(timestamp: number): string {
 
 function cleanContent(value: string): string {
   return value.trim().replace(/\s+/g, ' ');
+}
+
+function historySince(windowId: HistoryWindow): number | undefined {
+  const option = historyWindowOptions.find((item) => item.id === windowId);
+  return option?.milliseconds ? Date.now() - option.milliseconds : undefined;
+}
+
+function historyWindowLabel(windowId: HistoryWindow): string {
+  return historyWindowOptions.find((item) => item.id === windowId)?.description ?? 'current tail';
+}
+
+function summarizeChannelPayload(payload: unknown): string {
+  if (typeof payload === 'string') return payload;
+  if (payload && typeof payload === 'object') {
+    const record = payload as Record<string, unknown>;
+    for (const key of ['message', 'content', 'summary', 'text', 'details']) {
+      if (typeof record[key] === 'string' && record[key].trim()) return record[key];
+    }
+  }
+  try {
+    return JSON.stringify(payload);
+  } catch {
+    return String(payload ?? '');
+  }
+}
+
+function projectTextMatches(values: unknown[], projectName?: string | null, projectDir?: string): boolean {
+  const needles = [projectName, projectDir]
+    .filter((value): value is string => !!value && value.trim().length > 0)
+    .map((value) => value.toLowerCase());
+  if (needles.length === 0) return true;
+  const haystack = values
+    .map((value) => {
+      if (typeof value === 'string') return value;
+      if (value == null) return '';
+      try {
+        return JSON.stringify(value);
+      } catch {
+        return String(value);
+      }
+    })
+    .join(' ')
+    .toLowerCase();
+  return needles.some((needle) => haystack.includes(needle));
 }
 
 function participantLabel(value: string): string {
@@ -113,6 +172,20 @@ function storySpeaker(story: StoryNote, agents: AgentSummary[]): string {
   if (story.agentId) return story.agentId;
   const haystack = `${story.sessionPurpose ?? ''} ${story.content}`;
   return detectMentionedAgents(haystack, agents)[0] ?? 'session';
+}
+
+function archivedChannelEvent(message: ChannelMessage, channel: ResolvedChannelTarget, agents: AgentSummary[]): ChannelEvent {
+  const content = summarizeChannelPayload(message.payload);
+  return {
+    id: `archive-channel-${message.physicalChannel ?? channel.physical}-${message.id}`,
+    ts: shortTime(message.createdAt),
+    timestamp: message.createdAt,
+    channel: channel.logical,
+    publisher: message.sender?.trim() || 'system',
+    outcome: content.toLowerCase().includes('inconsistency') || content.toLowerCase().includes('conflict') ? 'findings' : 'clean',
+    message: content,
+    triggered: detectMentionedAgents(content, agents),
+  };
 }
 
 function participantColor(name: string, agentNames: Set<string>): string {
@@ -168,6 +241,7 @@ export default function ConversationPanel({
   projectDir,
   projectName,
   agents,
+  channels,
   channelEvents,
   activity,
   stories,
@@ -180,8 +254,19 @@ export default function ConversationPanel({
   const [inboxError, setInboxError] = useState<string | null>(null);
   const [lastInboxLoadAt, setLastInboxLoadAt] = useState<number | null>(null);
   const [focusedKind, setFocusedKind] = useState<ConversationItem['kind'] | 'all'>('all');
+  const [historyWindow, setHistoryWindow] = useState<HistoryWindow>('live');
+  const [historyActivity, setHistoryActivity] = useState<ActivityEntry[]>([]);
+  const [historyStories, setHistoryStories] = useState<StoryNote[]>([]);
+  const [historyChannelEvents, setHistoryChannelEvents] = useState<ChannelEvent[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [lastHistoryLoadAt, setLastHistoryLoadAt] = useState<number | null>(null);
+  const [historyRefreshNonce, setHistoryRefreshNonce] = useState(0);
 
   const agentNames = useMemo(() => new Set(agents.map((agent) => agent.name)), [agents]);
+  const agentHistoryKey = useMemo(() => agents.map((agent) => agent.name).sort().join('\n'), [agents]);
+  const archiveMode = historyWindow !== 'live';
+  const activeHistorySince = useMemo(() => historySince(historyWindow), [historyWindow]);
 
   useEffect(() => {
     let cancelled = false;
@@ -202,7 +287,10 @@ export default function ConversationPanel({
           .sort((left, right) => (right.lastActivityAt ?? 0) - (left.lastActivityAt ?? 0))
           .slice(0, 12);
         const messageGroups = await Promise.all(targets.map(async (actor) => {
-          const messages = await fetchAgentInbox(actor.inboxTarget, { limit: 5 });
+          const messages = await fetchAgentInbox(actor.inboxTarget, {
+            limit: archiveMode ? 30 : 5,
+            since: activeHistorySince,
+          });
           return messages.map((message) => ({
             message,
             targetLabel: actor.label || actor.fleetAgentName || actor.id,
@@ -221,16 +309,95 @@ export default function ConversationPanel({
     }
 
     void loadInboxMessages();
-    timer = window.setInterval(() => void loadInboxMessages(), 10000);
+    if (!archiveMode) {
+      timer = window.setInterval(() => void loadInboxMessages(), 10000);
+    }
 
     return () => {
       cancelled = true;
       if (timer !== null) window.clearInterval(timer);
     };
-  }, [daemonKey, projectDir, projectName]);
+  }, [activeHistorySince, archiveMode, daemonKey, projectDir, projectName]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadHistory() {
+      if (!archiveMode || !activeHistorySince) {
+        setHistoryActivity([]);
+        setHistoryStories([]);
+        setHistoryChannelEvents([]);
+        setHistoryError(null);
+        setLastHistoryLoadAt(null);
+        return;
+      }
+
+      setHistoryLoading(true);
+      setHistoryError(null);
+      try {
+        const channelTargets = channels.slice(0, 28);
+        const historyAgents = agentHistoryKey
+          .split('\n')
+          .filter(Boolean)
+          .map((name) => ({ name }));
+        const [activityHistory, storyHistory, channelGroups] = await Promise.all([
+          fetchActivity({ limit: 900, since: activeHistorySince }),
+          fetchStories({ limit: 320, since: activeHistorySince }),
+          Promise.all(channelTargets.map(async (channel) => {
+            const messages = await fetchChannelMessages(channel.physical, { limit: 260 });
+            return messages
+              .filter((message) => message.createdAt >= activeHistorySince)
+              .map((message) => archivedChannelEvent({
+                ...message,
+                physicalChannel: channel.physical,
+              }, channel, historyAgents));
+          })),
+        ]);
+
+        if (!cancelled) {
+          setHistoryActivity(activityHistory);
+          setHistoryStories(storyHistory);
+          setHistoryChannelEvents(channelGroups.flat().sort((left, right) => (right.timestamp ?? 0) - (left.timestamp ?? 0)).slice(0, 420));
+          setLastHistoryLoadAt(Date.now());
+        }
+      } catch (error) {
+        if (!cancelled) setHistoryError((error as Error).message);
+      } finally {
+        if (!cancelled) setHistoryLoading(false);
+      }
+    }
+
+    void loadHistory();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeHistorySince, agentHistoryKey, archiveMode, channels, daemonKey, historyRefreshNonce]);
+
+  const activeActivity = useMemo(() => {
+    const source = archiveMode ? historyActivity : activity;
+    if (!archiveMode) return source;
+    return source.filter((entry) => projectTextMatches(
+      [entry.agentId, entry.targetId, entry.details, entry.metadata],
+      projectName,
+      projectDir,
+    ));
+  }, [activity, archiveMode, historyActivity, projectDir, projectName]);
+
+  const activeStories = useMemo(() => {
+    const source = archiveMode ? historyStories : stories;
+    if (!archiveMode) return source;
+    return source.filter((story) => projectTextMatches(
+      [story.sessionId, story.sessionPurpose, story.agentId, story.identityProject, story.content],
+      projectName,
+      projectDir,
+    ));
+  }, [archiveMode, historyStories, projectDir, projectName, stories]);
+
+  const activeChannelEvents = archiveMode ? historyChannelEvents : channelEvents;
 
   const conversations = useMemo<ConversationItem[]>(() => {
-    const channelItems: ConversationItem[] = channelEvents.map((event) => {
+    const channelItems: ConversationItem[] = activeChannelEvents.map((event) => {
       const targets = event.triggered.length > 0 ? event.triggered : [`#${event.channel}`];
       const participants = [event.publisher, ...event.triggered].filter((value) => value && value !== 'system');
       return {
@@ -247,7 +414,7 @@ export default function ConversationPanel({
       };
     });
 
-    const noteItems: ConversationItem[] = stories.map((story) => {
+    const noteItems: ConversationItem[] = activeStories.map((story) => {
       const from = storySpeaker(story, agents);
       const mentioned = detectMentionedAgents(story.content, agents).filter((name) => name !== from);
       const participants = [...new Set([from, ...mentioned].filter((value) => value !== 'session'))];
@@ -282,7 +449,7 @@ export default function ConversationPanel({
       };
     });
 
-    const activityItems: ConversationItem[] = activity
+    const activityItems: ConversationItem[] = activeActivity
       .filter((entry) => entry.type === 'message.publish')
       .map((entry) => {
         const summary = summarizeActivityEntry(entry);
@@ -305,7 +472,7 @@ export default function ConversationPanel({
       .filter((item) => item.content.trim().length > 0)
       .sort((left, right) => right.timestamp - left.timestamp)
       .slice(0, 220);
-  }, [activity, agentNames, agents, channelEvents, inboxMessages, stories]);
+  }, [activeActivity, activeChannelEvents, activeStories, agentNames, agents, inboxMessages]);
 
   const filteredConversations = useMemo(() => {
     return conversations.filter((item) => {
@@ -333,32 +500,74 @@ export default function ConversationPanel({
   }, [agents, conversations]);
 
   const maxEdgeCount = Math.max(1, ...edges.map((edge) => edge.count));
+  const feedStatusText = archiveMode
+    ? (historyError ?? inboxError ?? (historyLoading ? 'loading archive' : (lastHistoryLoadAt ? `archive ${shortTime(lastHistoryLoadAt)}` : 'archive ready')))
+    : (inboxError ?? (lastInboxLoadAt ? `inbox ${shortTime(lastInboxLoadAt)}` : 'loading inbox'));
+  const feedHasError = !!(archiveMode ? (historyError || inboxError) : inboxError);
+  const feedBusy = archiveMode ? (historyLoading || inboxLoading) : inboxLoading;
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <div className="flex flex-wrap items-start justify-between gap-3 px-5 py-4" style={{ borderBottom: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-surface)' }}>
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-[10px] font-semibold tracking-wider" style={{ color: 'var(--pd-dim)' }}>
-            <MessageSquareText size={13} />
-            <span>LIVE AGENT CONVERSATIONS</span>
+            {archiveMode ? <Archive size={13} /> : <MessageSquareText size={13} />}
+            <span>{archiveMode ? 'AGENT CONVERSATION ARCHIVE' : 'LIVE AGENT CONVERSATIONS'}</span>
           </div>
           <div className="mt-1 text-lg font-semibold" style={{ color: 'var(--pd-text)' }}>
             Notes, inboxes, and channel broadcasts in one operator view
           </div>
           <div className="mt-1 max-w-4xl text-xs leading-relaxed" style={{ color: 'var(--pd-muted)' }}>
-            This is the visual layer for the coordination story: who spoke, where it was published, which agents were addressed, and which conflicts became operator-worthy callouts.
+            {archiveMode
+              ? `Replaying persisted daemon records from ${historyWindowLabel(historyWindow)}: activity range, session notes, inboxes, and channel message tables.`
+              : 'This is the visual layer for the coordination story: who spoke, where it was published, which agents were addressed, and which conflicts became operator-worthy callouts.'}
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full px-2 py-1 text-[10px] font-semibold" style={{ backgroundColor: 'var(--pd-bg)', color: 'var(--pd-muted)', border: '1px solid var(--pd-border)' }}>
-            {filteredConversations.length}/{conversations.length} visible
-          </span>
-          <span className="rounded-full px-2 py-1 text-[10px] font-semibold" style={{ backgroundColor: 'var(--pd-success-surface)', color: 'var(--pd-success)', border: '1px solid var(--pd-success-border)' }}>
-            {directCount} inbox
-          </span>
-          <span className="rounded-full px-2 py-1 text-[10px] font-semibold" style={{ backgroundColor: calloutCount > 0 ? 'var(--pd-accent-surface)' : 'var(--pd-bg)', color: calloutCount > 0 ? 'var(--pd-accent)' : 'var(--pd-muted)', border: `1px solid ${calloutCount > 0 ? 'var(--pd-accent-border)' : 'var(--pd-border)'}` }}>
-            {calloutCount} callouts
-          </span>
+        <div className="flex max-w-full flex-col items-start gap-2 sm:items-end">
+          <div className="flex max-w-full flex-wrap items-center gap-1.5 rounded-lg p-1" style={{ backgroundColor: 'var(--pd-bg)', border: '1px solid var(--pd-border)' }}>
+            {historyWindowOptions.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                title={option.description}
+                onClick={() => setHistoryWindow(option.id)}
+                className="rounded-md px-2.5 py-1 text-[10px] font-semibold"
+                style={{
+                  backgroundColor: historyWindow === option.id ? 'var(--pd-accent-surface)' : 'transparent',
+                  color: historyWindow === option.id ? 'var(--pd-accent)' : 'var(--pd-muted)',
+                  border: `1px solid ${historyWindow === option.id ? 'var(--pd-accent-border)' : 'transparent'}`,
+                }}
+              >
+                {option.label}
+              </button>
+            ))}
+            {archiveMode ? (
+              <button
+                type="button"
+                title="Reload archive replay"
+                onClick={() => setHistoryRefreshNonce((value) => value + 1)}
+                className="inline-flex h-6 w-6 items-center justify-center rounded-md"
+                style={{ color: 'var(--pd-muted)', border: '1px solid var(--pd-border)' }}
+              >
+                <RefreshCw size={12} className={historyLoading ? 'animate-spin' : ''} />
+              </button>
+            ) : null}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold" style={{ backgroundColor: archiveMode ? 'var(--pd-accent-surface)' : 'var(--pd-bg)', color: archiveMode ? 'var(--pd-accent)' : 'var(--pd-muted)', border: `1px solid ${archiveMode ? 'var(--pd-accent-border)' : 'var(--pd-border)'}` }}>
+              {archiveMode ? <Database size={11} /> : <Clock3 size={11} />}
+              {archiveMode ? 'persisted replay' : 'live tail'}
+            </span>
+            <span className="rounded-full px-2 py-1 text-[10px] font-semibold" style={{ backgroundColor: 'var(--pd-bg)', color: 'var(--pd-muted)', border: '1px solid var(--pd-border)' }}>
+              {filteredConversations.length}/{conversations.length} visible
+            </span>
+            <span className="rounded-full px-2 py-1 text-[10px] font-semibold" style={{ backgroundColor: 'var(--pd-success-surface)', color: 'var(--pd-success)', border: '1px solid var(--pd-success-border)' }}>
+              {directCount} inbox
+            </span>
+            <span className="rounded-full px-2 py-1 text-[10px] font-semibold" style={{ backgroundColor: calloutCount > 0 ? 'var(--pd-accent-surface)' : 'var(--pd-bg)', color: calloutCount > 0 ? 'var(--pd-accent)' : 'var(--pd-muted)', border: `1px solid ${calloutCount > 0 ? 'var(--pd-accent-border)' : 'var(--pd-border)'}` }}>
+              {calloutCount} callouts
+            </span>
+          </div>
         </div>
       </div>
 
@@ -508,12 +717,12 @@ export default function ConversationPanel({
             <div>
               <div className="pd-kicker">Transcript</div>
               <div className="mt-1 text-sm font-semibold" style={{ color: 'var(--pd-text)' }}>
-                Latest meaningful exchanges
+                {archiveMode ? 'Archived meaningful exchanges' : 'Latest meaningful exchanges'}
               </div>
             </div>
-            <div className="flex items-center gap-1.5 text-[10px] font-mono" style={{ color: inboxError ? 'var(--pd-accent)' : 'var(--pd-dim)' }}>
-              <RefreshCw size={12} className={inboxLoading ? 'animate-spin' : ''} />
-              <span>{inboxError ?? (lastInboxLoadAt ? `inbox ${shortTime(lastInboxLoadAt)}` : 'loading inbox')}</span>
+            <div className="flex items-center gap-1.5 text-[10px] font-mono" style={{ color: feedHasError ? 'var(--pd-accent)' : 'var(--pd-dim)' }}>
+              <RefreshCw size={12} className={feedBusy ? 'animate-spin' : ''} />
+              <span>{feedStatusText}</span>
             </div>
           </div>
 

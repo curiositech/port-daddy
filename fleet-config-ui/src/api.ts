@@ -562,19 +562,55 @@ export async function fetchOperatorActors(opts: {
   return data.actors ?? [];
 }
 
-export async function fetchActivity(limit = 200): Promise<ActivityEntry[]> {
-  const data = await get<{ entries?: ActivityEntry[]; activity?: ActivityEntry[] }>(`/activity?limit=${limit}`);
+type LimitOrWindow = number | {
+  limit?: number;
+  since?: number;
+  end?: number;
+  after?: number;
+};
+
+function normalizeLimitWindow(input: LimitOrWindow | undefined, fallbackLimit: number): {
+  limit: number;
+  since?: number;
+  end?: number;
+  after?: number;
+} {
+  if (typeof input === 'number') return { limit: input };
+  return {
+    limit: input?.limit ?? fallbackLimit,
+    since: input?.since,
+    end: input?.end,
+    after: input?.after,
+  };
+}
+
+export async function fetchActivity(input: LimitOrWindow = 200): Promise<ActivityEntry[]> {
+  const opts = normalizeLimitWindow(input, 200);
+  const params = new URLSearchParams({ limit: String(opts.limit) });
+  if (opts.since) {
+    params.set('start', String(opts.since));
+    if (opts.end) params.set('end', String(opts.end));
+    const data = await get<{ entries?: ActivityEntry[]; activity?: ActivityEntry[] }>(`/activity/range?${params.toString()}`);
+    return data.entries ?? data.activity ?? [];
+  }
+  const data = await get<{ entries?: ActivityEntry[]; activity?: ActivityEntry[] }>(`/activity?${params.toString()}`);
   return data.entries ?? data.activity ?? [];
 }
 
-export async function fetchStories(limit = 40): Promise<StoryNote[]> {
-  const data = await get<{ notes?: StoryNote[] }>(`/notes?limit=${limit}`);
+export async function fetchStories(input: LimitOrWindow = 40): Promise<StoryNote[]> {
+  const opts = normalizeLimitWindow(input, 40);
+  const params = new URLSearchParams({ limit: String(opts.limit) });
+  if (opts.since) params.set('since', String(opts.since));
+  const data = await get<{ notes?: StoryNote[] }>(`/notes?${params.toString()}`);
   return data.notes ?? [];
 }
 
-export async function fetchChannelMessages(channel: string, limit = 30): Promise<ChannelMessage[]> {
+export async function fetchChannelMessages(channel: string, input: LimitOrWindow = 30): Promise<ChannelMessage[]> {
+  const opts = normalizeLimitWindow(input, 30);
+  const params = new URLSearchParams({ limit: String(opts.limit) });
+  if (opts.after) params.set('after', String(opts.after));
   const data = await get<{ messages?: Array<{ id: number; payload: unknown; sender: string | null; createdAt: number }> }>(
-    `/msg/${encodeURIComponent(channel)}?limit=${limit}`
+    `/msg/${encodeURIComponent(channel)}?${params.toString()}`
   );
   return (data.messages ?? []).map((message) => ({
     ...message,
