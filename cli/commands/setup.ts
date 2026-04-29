@@ -18,7 +18,23 @@ import { handleInit } from './init.js';
 import { handleMcpInstall } from './mcp-install.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const PROJECT_ROOT = join(__dirname, '..', '..');
+// Walk up from __dirname looking for the repo marker (Formula/port-daddy.rb
+// or skills/port-daddy-agent-skill/). Handles both source layout
+// (cli/commands/setup.ts → ../..) and compiled layout
+// (dist/cli/commands/setup.js → ../../.., since dist/ also contains a
+// package.json from npm install).
+function findProjectRoot(start: string): string {
+  let dir = start;
+  for (let i = 0; i < 8; i++) {
+    if (existsSync(join(dir, 'Formula', 'port-daddy.rb'))) return dir;
+    if (existsSync(join(dir, 'skills', 'port-daddy-agent-skill', 'SKILL.md'))) return dir;
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return join(start, '..', '..');
+}
+const PROJECT_ROOT = findProjectRoot(__dirname);
 const TSX_BIN = join(PROJECT_ROOT, 'node_modules', '.bin', 'tsx');
 const INSTALL_DAEMON_SCRIPT = join(PROJECT_ROOT, 'install-daemon.ts');
 const FLEETBAR_INSTALL_SCRIPT = join(PROJECT_ROOT, 'apps', 'FleetBar', 'install.sh');
@@ -111,57 +127,97 @@ async function ensureDaemonInstalledAndRunning(): Promise<boolean> {
 }
 
 /**
- * Symlink the bundled agent skill into ~/.claude/skills/port-daddy/.
+ * Resolve the canonical agent skill source directory.
  *
  * Source priority:
  *   1. Homebrew install: $(brew --prefix)/share/port-daddy/skills/port-daddy
  *   2. Repo checkout: PROJECT_ROOT/skills/port-daddy-agent-skill
- *
- * Idempotent: replaces an existing symlink to a different target, leaves a
- * matching symlink alone, and refuses to overwrite a real directory.
  */
-function installAgentSkillSymlink(): boolean {
+function resolveSkillSource(): string | null {
   const candidates: string[] = [];
 
-  // 1. Homebrew prefix
   const brew = spawnSync('brew', ['--prefix'], { encoding: 'utf8' });
   if (brew.status === 0) {
     const prefix = brew.stdout.trim();
     candidates.push(join(prefix, 'share', 'port-daddy', 'skills', 'port-daddy'));
   }
-
-  // 2. Repo-local fallback (so dev installs work without brew)
   candidates.push(join(PROJECT_ROOT, 'skills', 'port-daddy-agent-skill'));
 
-  const source = candidates.find((p) => existsSync(join(p, 'SKILL.md')));
+  return candidates.find((p) => existsSync(join(p, 'SKILL.md'))) ?? null;
+}
+
+/**
+ * Each LLM runtime watches a different directory for skill / instruction
+ * files. We symlink the same canonical source into all of them so every
+ * runtime sees the same content with no copy drift. Brew updates the source;
+ * every link follows automatically.
+ *
+ * Returns true if at least one runtime got linked. Per-runtime failures are
+ * logged but do not abort.
+ */
+function installAgentSkillSymlink(): boolean {
+  const source = resolveSkillSource();
   if (!source) {
-    ui.warn(`Skill source not found in any of: ${candidates.join(', ')}`);
+    ui.warn('Skill source not found in brew prefix or repo checkout');
     return false;
   }
 
-  const target = join(homedir(), '.claude', 'skills', 'port-daddy');
-  const targetDir = dirname(target);
-  if (!existsSync(targetDir)) {
-    mkdirSync(targetDir, { recursive: true });
-  }
+  const home = homedir();
+  const targets: { path: string; runtime: string; mode: 'dir' | 'file' }[] = [
+    // Claude Code — per-user skills directory.
+    { path: join(home, '.claude', 'skills', 'port-daddy'), runtime: 'Claude Code', mode: 'dir' },
+    // Claude Desktop also reads from ~/.claude/skills/ on macOS.
+    // (Same dir, already covered above.)
+    // Windsurf — Codeium agent runtime.
+    { path: join(home, '.codeium', 'windsurf', 'skills', 'port-daddy'), runtime: 'Windsurf', mode: 'dir' },
+    // Continue — VS Code extension; uses .continue prompts dir.
+    { path: join(home, '.continue', 'prompts', 'port-daddy'), runtime: 'Continue', mode: 'dir' },
+    // Cline / Roo — Claude-Dev-style extensions read from this dir.
+    { path: join(home, '.config', 'cline', 'skills', 'port-daddy'), runtime: 'Cline', mode: 'dir' },
+    // Gemini CLI — extensions live here.
+    { path: join(home, '.gemini', 'extensions', 'port-daddy', 'skills', 'port-daddy'), runtime: 'Gemini CLI', mode: 'dir' },
+    // Cursor — single-file rule format. Different layout: surface the SKILL.md
+    // itself as ~/.cursor/rules/port-daddy.md so Cursor picks it up.
+    { path: join(home, '.cursor', 'rules', 'port-daddy.md'), runtime: 'Cursor', mode: 'file' },
+  ];
 
-  if (existsSync(target) || lstatSyncSafe(target)) {
-    const stat = lstatSyncSafe(target);
-    if (stat?.isSymbolicLink()) {
-      const current = readlinkSync(target);
-      if (current === source) {
-        ui.info(`Skill symlink already points at ${source}`);
-        return true;
+  let linkedCount = 0;
+  for (const { path: target, runtime, mode } of targets) {
+    const linkSource = mode === 'file' ? join(source, 'SKILL.md') : source;
+    const targetDir = dirname(target);
+
+    try {
+      if (!existsSync(targetDir)) {
+        mkdirSync(targetDir, { recursive: true });
       }
-      unlinkSync(target);
-    } else {
-      ui.warn(`${target} exists and is not a symlink — leaving alone`);
-      return false;
+      const stat = lstatSyncSafe(target);
+      if (stat) {
+        if (stat.isSymbolicLink()) {
+          const current = readlinkSync(target);
+          if (current === linkSource) {
+            ui.info(`${runtime}: already linked`);
+            linkedCount++;
+            continue;
+          }
+          unlinkSync(target);
+        } else {
+          ui.warn(`${runtime}: ${target} exists and is not a symlink — skipping`);
+          continue;
+        }
+      }
+      symlinkSync(linkSource, target, mode === 'file' ? 'file' : 'dir');
+      ui.info(`${runtime}: linked ${target} → ${linkSource}`);
+      linkedCount++;
+    } catch (err) {
+      ui.warn(`${runtime}: ${(err as Error).message}`);
     }
   }
 
-  symlinkSync(source, target, 'dir');
-  ui.info(`Linked ~/.claude/skills/port-daddy → ${source}`);
+  if (linkedCount === 0) {
+    ui.warn('No runtimes received the skill symlink');
+    return false;
+  }
+  ui.info(`Skill installed for ${linkedCount} runtime(s). brew upgrade port-daddy will refresh all of them.`);
   return true;
 }
 
