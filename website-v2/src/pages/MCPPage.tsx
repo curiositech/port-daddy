@@ -74,6 +74,8 @@ const PROOF_METRICS: ProofMetric[] = [
   { value: '1', label: 'local daemon for shared state', tone: 'paper' },
 ]
 
+const PROCEDURAL_KNOWLEDGE_URL = 'https://windags.ai/blog/why-declarative-knowledge-isnt-enough'
+
 const RUNTIME_BACKENDS: RuntimeBackend[] = [
   { name: 'Codex', tier: 'low / mid / high', surface: 'codex exec backend' },
   { name: 'Claude SDK', tier: 'haiku / sonnet / opus', surface: 'exact telemetry path' },
@@ -224,6 +226,23 @@ curl -X POST http://localhost:9876/msg/git:committed \\
   },
 ]
 
+const SKILL_BUNDLE_ITEMS = [
+  ['SKILL.md', 'The lean operating loop: status, briefing, session, note, claims, validation, handoff.'],
+  ['references/', 'Procedural doctrine for coordination theory, FleetBar proof, salvage, distribution, and install surfaces.'],
+  ['diagrams/', 'Flowchart, sequence, and lifecycle diagrams that make multi-agent coordination teachable.'],
+  ['schemas/', 'Machine-checkable coordination notes, agent handoffs, and validation reports.'],
+  ['scripts/', 'Validators and context diagnostics so agents can prove the skill is installed and usable.'],
+  ['examples/', 'Concrete builds that connect buttons, tests, webhooks, FleetBar, and the local console.'],
+] as const
+
+const SKILL_INSTALL_SURFACES = [
+  ['Package', 'skills/port-daddy-agent-skill ships beside the Port Daddy binaries.'],
+  ['Codex', '.codex/skills/port-daddy-agent-skill mirrors the same operating manual.'],
+  ['Claude', '.claude/skills/port-daddy-agent-skill keeps Claude Code on the same doctrine.'],
+  ['Agents', '.agents/skills/port-daddy-agent-skill gives AGENTS-aware tools the same contract.'],
+  ['Gemini', '.gemini/extensions/port-daddy/skills/port-daddy-agent-skill keeps extension installs aligned.'],
+] as const
+
 const ESSENTIAL_TOOLS = [
   ['begin_session', 'Register identity, claim files, and start a recoverable session.'],
   ['end_session_full', 'Release files, close the session, and unregister the agent.'],
@@ -356,17 +375,11 @@ function RuntimeTable() {
   )
 }
 
-function ToolCard({ tool, index }: { tool: MagicTool; index: number }) {
+function ToolCard({ tool }: { tool: MagicTool }) {
   const panelTone = tool.tone === 'blue' ? 'primary' : tool.tone === 'accent' ? 'accent' : 'default'
 
   return (
-    <motion.article
-      className="min-w-0"
-      initial={{ opacity: 0, y: 18 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-80px' }}
-      transition={{ delay: index * 0.04, duration: 0.32 }}
-    >
+    <article className="min-w-0">
       <SurfacePanel tone={tool.tone} className="flex h-full flex-col gap-[var(--panel-gap)]">
         <div className="flex items-start gap-[var(--panel-gap-tight)]">
           <div className="flex h-[var(--space-7)] w-[var(--space-7)] shrink-0 items-center justify-center border-2 border-current">
@@ -384,7 +397,7 @@ function ToolCard({ tool, index }: { tool: MagicTool; index: number }) {
         </PanelBody>
         <DocsCodeBlock code={tool.example} language="typescript" label={tool.tagline} />
       </SurfacePanel>
-    </motion.article>
+    </article>
   )
 }
 
@@ -566,21 +579,24 @@ export default function McpPage() {
           >
             <SwissGrid className="items-start">
               <SwissGridItem span="wide" className="space-y-[var(--space-6)]">
-                <BracketLabel>Model Context Protocol</BracketLabel>
+                <BracketLabel>Skill + MCP</BracketLabel>
                 <div className="space-y-[var(--space-5)]">
                   <PanelTitle as="h1" size="hero" className="max-w-[12ch]">
-                    MCP tools your agents can actually use.
+                    The manual and the tool socket for serious agent coordination.
                   </PanelTitle>
                   <PanelBody className="max-w-[48rem]">
-                    Port Daddy exposes sessions, ports, locks, pub/sub, salvage, fleets, and tuple space as MCP tools. Agents coordinate through the same local daemon and dashboard instead of inventing invisible side channels.
+                    The Port Daddy agent skill teaches agents how to work together. The MCP server gives them the tools to do it: sessions, ports, claims, locks, notes, pub/sub, salvage, fleets, and tuple space wired through the same local daemon and console.
+                  </PanelBody>
+                  <PanelBody className="max-w-[48rem]">
+                    Think of it as the instruction manual plus the control cable. The skill explains when to publish intent, claim a file, lock a critical section, inspect FleetBar, or leave a schema-shaped handoff. MCP makes those moves callable from Claude, Cursor, Windsurf, Codex-adjacent tools, and any client that speaks the protocol.
                   </PanelBody>
                 </div>
                 <div className="flex flex-wrap gap-[var(--space-3)]">
                   <BracketLink to="/docs/mcp" tone="blue">
                     Read MCP docs
                   </BracketLink>
-                  <BracketLink to="/docs/cli/fleet" tone="accent">
-                    Inspect fleet CLI
+                  <BracketLink to="/docs/guides/prompting-agents" tone="accent">
+                    Prompt agents
                   </BracketLink>
                 </div>
               </SwissGridItem>
@@ -609,7 +625,8 @@ export default function McpPage() {
                   <DocsCodeBlock
                     code={`pd install
 pd mcp install
-pd begin --identity myapp:agent --purpose "coordinate MCP work"`}
+python3 skills/port-daddy-agent-skill/scripts/validate_port_daddy_agent_skill.py skills/port-daddy-agent-skill
+pd begin --identity myapp:agent --purpose "coordinate through Skill + MCP"`}
                     language="cli"
                     label="Setup"
                   />
@@ -626,6 +643,87 @@ pd begin --identity myapp:agent --purpose "coordinate MCP work"`}
           </PageContainer>
         </SectionBand>
 
+        <SectionBand id="agent-skill">
+          <PageContainer width="wide">
+            <SwissGrid className="items-start">
+              <SwissGridItem span="rail">
+                <SectionIntro
+                  eyebrow="Agent skill"
+                  title="The instruction manual is now first-class."
+                  description="The skill is not hidden under the agent catalog. It is the operating manual for Port Daddy-aware agents, distributed with the binaries and mirrored into the tool-specific skill directories that agents actually read."
+                  titleSize="display"
+                />
+              </SwissGridItem>
+              <SwissGridItem span="body" className="space-y-[var(--panel-gap)]">
+                <div className="grid gap-[var(--panel-gap)] lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+                  <SurfacePanel tone="blue" className="space-y-[var(--panel-gap)]">
+                    <BracketLabel tone="primary" surface="blue">
+                      What ships
+                    </BracketLabel>
+                    <PanelTitle as="h2" size="card" tone="primary">
+                      A procedural field manual, not a thin prompt.
+                    </PanelTitle>
+                    <PanelBody tone="primary" className="max-w-none">
+                      Procedural knowledge is the repeatable operating know-how an agent uses under pressure, not
+                      just facts about a tool. WinDAGs lays out the distinction in{' '}
+                      <a
+                        href={PROCEDURAL_KNOWLEDGE_URL}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-semibold underline underline-offset-4"
+                      >
+                        why declarative knowledge is not enough
+                      </a>
+                      .
+                    </PanelBody>
+                    <div className="grid gap-[var(--space-2)]">
+                      {SKILL_BUNDLE_ITEMS.map(([name, body]) => (
+                        <div key={name} className="border-2 border-current bg-transparent p-[var(--space-3)]">
+                          <PanelTitle as="h3" size="nav" tone="primary">
+                            {name}
+                          </PanelTitle>
+                          <PanelBody size="compact" tone="primary" className="mt-[var(--space-1)] max-w-none">
+                            {body}
+                          </PanelBody>
+                        </div>
+                      ))}
+                    </div>
+                  </SurfacePanel>
+
+                  <SurfacePanel className="space-y-[var(--panel-gap)]">
+                    <BracketLabel>Install surfaces</BracketLabel>
+                    <PanelTitle as="h2" size="card">
+                      One doctrine, every agent runner.
+                    </PanelTitle>
+                    <PanelBody className="max-w-none">
+                      Port Daddy packages the source skill and mirrors it into the local skill locations so agents do not drift by client. The MCP server then exposes the same coordination primitives to those clients at runtime.
+                    </PanelBody>
+                    <div className="grid gap-[var(--space-2)]">
+                      {SKILL_INSTALL_SURFACES.map(([label, body]) => (
+                        <div key={label} className="grid gap-[var(--space-1)] border-2 border-[var(--border-default)] bg-[var(--surface-base)] p-[var(--space-3)]">
+                          <PanelEyebrow>{label}</PanelEyebrow>
+                          <PanelBody size="compact" className="max-w-none">
+                            {body}
+                          </PanelBody>
+                        </div>
+                      ))}
+                    </div>
+                    <DocsCodeBlock
+                      code={`pd status
+pd briefing
+pd mcp install
+python3 skills/port-daddy-agent-skill/scripts/validate_port_daddy_agent_skill.py skills/port-daddy-agent-skill
+bash skills/port-daddy-agent-skill/scripts/diagnose_port_daddy_agent_context.sh`}
+                      language="cli"
+                      label="Skill + MCP readiness"
+                    />
+                  </SurfacePanel>
+                </div>
+              </SwissGridItem>
+            </SwissGrid>
+          </PageContainer>
+        </SectionBand>
+
       <SectionBand id="tools">
         <PageContainer width="wide">
           <SwissGrid>
@@ -639,8 +737,8 @@ pd begin --identity myapp:agent --purpose "coordinate MCP work"`}
             </SwissGridItem>
             <SwissGridItem span="body">
               <div className="grid gap-[var(--space-5)] md:grid-cols-2 xl:grid-cols-3">
-                {MAGIC_TOOLS.map((tool, index) => (
-                  <ToolCard key={tool.name} tool={tool} index={index} />
+                {MAGIC_TOOLS.map((tool) => (
+                  <ToolCard key={tool.name} tool={tool} />
                 ))}
               </div>
             </SwissGridItem>

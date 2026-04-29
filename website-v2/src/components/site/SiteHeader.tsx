@@ -11,7 +11,7 @@ const NAV_ITEMS = [
   { label: 'Docs', href: '/docs', end: false },
   { label: 'Examples', href: '/examples', end: false },
   { label: 'Agents', href: '/agents', end: false },
-  { label: 'MCP', href: '/mcp', end: false },
+  { label: 'Skill + MCP', href: '/mcp', end: false },
   { label: 'Tutorials', href: '/tutorials', end: false, className: 'hidden 2xl:inline-flex' },
   { label: 'Papers', href: '/whitepaper', end: false },
 ] as const

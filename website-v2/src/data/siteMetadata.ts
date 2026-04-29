@@ -124,8 +124,8 @@ const productRoutes: SiteMetadata[] = [
   ),
   metadata(
     '/mcp',
-    'MCP Server for AI Agents',
-    'Connect Claude, Cursor, Windsurf, and other MCP clients to Port Daddy tools for sessions, claims, scoped channels, inboxes, readiness, and salvage.',
+    'Skill + MCP for AI Agents',
+    'Give agents both the procedural Port Daddy operating manual and the MCP tools for sessions, claims, scoped channels, inboxes, readiness, and salvage.',
   ),
   metadata(
     '/mac-preview',
@@ -134,14 +134,26 @@ const productRoutes: SiteMetadata[] = [
   ),
   metadata(
     '/templates',
-    'Agent Fleet Templates',
-    'Start from production-ready Port Daddy templates for CI repair loops, research swarms, monorepos, webhooks, and agent teams.',
+    'Agent Templates (moved)',
+    'Templates now live under the Agents system at /agents/templates.',
+    { section: 'templates', canonicalPath: '/agents/templates', index: false },
+  ),
+  metadata(
+    '/agents/templates',
+    'Agent Templates',
+    'Use the current Port Daddy agent templates: starter fleet YAML, always-on agents, CI repair loops, event-driven ops, remote harbors, research swarms, and secure messaging primitives.',
     { section: 'templates' },
   ),
   metadata(
     '/agents',
     'Agent Roster',
     'Meet the Port Daddy agent roles that monitor health, salvage crashed work, document drift, coordinate projects, and inspect dependencies.',
+  ),
+  metadata(
+    '/agents/agent-skill',
+    'Agent Skill (moved)',
+    'The Port Daddy agent skill now lives with the MCP server on the top-level Skill + MCP page.',
+    { canonicalPath: '/mcp', index: false },
   ),
   metadata(
     '/tutorials',
@@ -340,6 +352,8 @@ const contentMetadata: SiteMetadata[] = [
   ...BLUEPRINTS.map((blueprint) =>
     metadata(`/templates/${blueprint.id}`, blueprint.title, blueprint.description, {
       section: 'templates',
+      canonicalPath: '/agents/templates',
+      index: false,
     }),
   ),
   ...blogPosts.map((post) =>

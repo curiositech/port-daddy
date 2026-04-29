@@ -240,6 +240,7 @@ describe('public shell contracts', () => {
     expect(header).toContain('/examples')
     expect(header).toContain('/agents')
     expect(header).toContain('/mcp')
+    expect(header).toContain('Skill + MCP')
     expect(header).toContain('/tutorials')
     expect(header).not.toContain('/roadmap')
     expect(header).toContain("/whitepaper")
@@ -254,6 +255,7 @@ describe('public shell contracts', () => {
     expect(footer).toContain('/mac-preview')
     expect(footer).toContain('/agents')
     expect(footer).toContain('/mcp')
+    expect(footer).toContain('Skill + MCP')
     expect(footer).not.toContain('/roadmap')
     expect(footer).toContain('/docs/get-started')
     expect(footer).toContain('/docs/cli')
@@ -331,7 +333,7 @@ describe('public shell contracts', () => {
     expect(docsOverview).toContain('/mac-preview')
     expect(docsOverview).toContain('/examples')
     expect(docsOverview).not.toContain('/docs/examples')
-    expect(docsOverview).toContain('/templates')
+    expect(docsOverview).toContain('/agents/templates')
     expect(docsOverview).toContain('/mcp')
     expect(docsOverview).toContain('/agents')
     expect(docsOverview).not.toContain('/roadmap')
@@ -340,7 +342,7 @@ describe('public shell contracts', () => {
     expect(docsSidebar).toContain('/mac-preview')
     expect(docsSidebar).toContain('/examples')
     expect(docsSidebar).not.toContain('/docs/examples')
-    expect(docsSidebar).toContain('/templates')
+    expect(docsSidebar).toContain('/agents/templates')
     expect(docsSidebar).toContain('/mcp')
     expect(docsSidebar).toContain('/agents')
     expect(docsSidebar).not.toContain('/roadmap')
@@ -369,7 +371,9 @@ describe('public shell contracts', () => {
       'path="/mac-preview"',
       'path="/examples"',
       'path="/mcp"',
+      'path="/agents/agent-skill"',
       'path="/templates"',
+      'path="/agents/:section"',
       'path="/agents"',
       'path="/tutorials"',
       'path="/blog"',

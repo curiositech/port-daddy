@@ -50,8 +50,8 @@ export default function DocsOverview() {
   const siteSurfaces = [
     { title: 'Mac Preview', href: '/mac-preview' },
     { title: 'Runnable examples', href: '/examples' },
-    { title: 'Templates', href: '/templates' },
-    { title: 'MCP overview', href: '/mcp' },
+    { title: 'Templates', href: '/agents/templates' },
+    { title: 'Skill + MCP', href: '/mcp' },
     { title: 'Agents', href: '/agents' },
   ]
 

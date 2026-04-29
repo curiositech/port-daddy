@@ -186,8 +186,10 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/examples" element={<ExamplesPage />} />
               <Route path="/examples/:slug" element={<ExampleDetailPage />} />
               <Route path="/mcp" element={<McpPage />} />
-              <Route path="/templates" element={<TemplatesPage />} />
+              <Route path="/templates" element={<Navigate to="/agents/templates" replace />} />
               <Route path="/agents" element={<AgentsPage />} />
+              <Route path="/agents/agent-skill" element={<Navigate to="/mcp" replace />} />
+              <Route path="/agents/:section" element={<AgentsPage />} />
 
               <Route path="/tutorials" element={<TutorialsPage />} />
               <Route path="/tutorials/getting-started" element={<GettingStarted />} />
@@ -215,7 +217,7 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/cookbook/:id" element={<LegacyExampleRedirect />} />
               <Route path="/integrations" element={<IntegrationsPage />} />
               <Route path="/integrations/:id" element={<IntegrationPage />} />
-              <Route path="/templates/:id" element={<TemplatePage />} />
+              <Route path="/templates/:id" element={<Navigate to="/agents/templates" replace />} />
 
               <Route path="/blog" element={<BlogPage />} />
               <Route path="/blog/:slug" element={<BlogPostPage />} />
