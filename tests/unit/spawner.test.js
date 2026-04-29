@@ -1488,6 +1488,27 @@ describe('spawn — codex backend', () => {
     );
   });
 
+  test('does not pass ambient Codex thread context into daemon-spawned codex exec', async () => {
+    const originalThreadId = process.env.CODEX_THREAD_ID;
+    process.env.CODEX_THREAD_ID = 'stale-thread-from-parent';
+    try {
+      const spawner = createSpawner();
+      resolveChildProcess(0, 'Codex clean output');
+
+      await spawner.spawn({
+        backend: 'codex',
+        task: 'Say exactly: Codex clean output',
+      });
+
+      const options = cpSpawn.mock.calls[0][2];
+      expect(options.env.CODEX_THREAD_ID).toBeUndefined();
+      expect(options.env.OTEL_SDK_DISABLED).toBe('true');
+    } finally {
+      if (originalThreadId === undefined) delete process.env.CODEX_THREAD_ID;
+      else process.env.CODEX_THREAD_ID = originalThreadId;
+    }
+  });
+
   test('parses codex --json usage and persists exact telemetry under enforcement', async () => {
     const costTracker = {
       computeCost: jest.fn(() => ({ costUsd: 0.0138, isEstimate: false })),
