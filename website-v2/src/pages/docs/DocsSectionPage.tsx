@@ -262,27 +262,6 @@ export default function DocsSectionPage() {
 
       {contentSection ? (
         <div className="space-y-[var(--panel-gap)]">
-          {route.slug === 'examples' ? (
-            <DocsNoteCard
-              label="Route relationship"
-              title="/docs/examples guides. /examples runs."
-              elevation="quiet"
-              padding="compact"
-              titleSize="nav"
-            >
-              <PanelBody size="compact" className="max-w-none">
-                This docs section explains when to use each pattern and why it matters. The top-level examples route is
-                the runnable gallery backed by files in the repo, including swarm coordination, PD Tube tunnel flows,
-                and daemon-powered dev tools.
-              </PanelBody>
-              <div className="flex flex-wrap gap-[var(--panel-gap-tight)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
-                <BracketNavLink to="/examples" tone="accent" side="right">
-                  Open runnable examples
-                </BracketNavLink>
-              </div>
-            </DocsNoteCard>
-          ) : null}
-
           <DocsNoteCard
             label="Section map"
             title="Start with the question in front of you."

@@ -106,20 +106,17 @@ export default function DocsOverview() {
       </div>
 
       <DocsNoteCard
-        label="Examples route split"
-        title="/docs/examples guides. /examples runs."
+        label="Examples route"
+        title="/examples is the runnable path."
         elevation="quiet"
         padding="compact"
       >
         <PanelBody size="compact" className="max-w-none">
-          Use /docs/examples for the explanatory path through coordination patterns. Use /examples for the
-          source-backed code gallery: swarm coordination, PD Tube tunnel inspection, service discovery, inbox flows,
-          locks, phases, and dev tools built on top of the daemon.
+          Examples are source-backed working code, so they live outside the docs shell. Use the top-level route for
+          swarm coordination, PD Tube tunnel inspection, service discovery, inbox flows, locks, phases, and dev tools
+          built on top of the daemon.
         </PanelBody>
         <div className="flex flex-wrap gap-[var(--panel-gap-tight)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
-          <BracketNavLink to="/docs/examples" tone="blue" side="left">
-            Read /docs/examples
-          </BracketNavLink>
           <BracketNavLink to="/examples" tone="accent" side="right">
             Open /examples
           </BracketNavLink>

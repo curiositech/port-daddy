@@ -1,11 +1,12 @@
 import { StrictMode, Suspense, lazy, type ComponentType } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { ThemeProvider } from '@/lib/theme'
 import { DocumentMeta } from '@/components/layout/DocumentMeta'
 import { HashScroll } from '@/components/layout/HashScroll'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { RouteFallback } from '@/components/layout/RouteFallback'
+import { LegacyExampleRedirect } from '@/components/routing/LegacyExampleRedirect'
 import './index.css'
 
 function lazyNamed(loader: () => Promise<Record<string, unknown>>, exportName: string) {
@@ -169,11 +170,6 @@ const StatusTool = lazy(() => import('@/pages/docs/mcp/StatusTool'))
 const TunnelTool = lazy(() => import('@/pages/docs/mcp/TunnelTool'))
 const TunnelStopTool = lazy(() => import('@/pages/docs/mcp/TunnelStopTool'))
 const WatchTool = lazy(() => import('@/pages/docs/mcp/WatchTool'))
-
-function LegacyExampleRedirect() {
-  const { id } = useParams<{ id?: string }>()
-  return <Navigate to={id ? `/examples/${id}` : '/examples'} replace />
-}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

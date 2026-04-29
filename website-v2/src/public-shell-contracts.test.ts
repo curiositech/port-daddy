@@ -107,7 +107,6 @@ describe('public shell contracts', () => {
           'findDocsContentPage',
           'What this page answers',
           'Section map',
-          'Route relationship',
           'scroll-mt-[calc(var(--space-10)+var(--space-6))]',
         ],
         forbidden: [
