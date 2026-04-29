@@ -254,6 +254,16 @@ commits over a clean-looking HEAD, and the next agent fetches `origin` and
   mechanism for combining parallel work. Stash-and-commit on a shared tree
   is the anti-pattern that necessitated this section.
 
+These rules are also enforced structurally by the **git shim** (`pd guard
+install-shim` writes `~/.port-daddy/bin/git`; prepend it on PATH). When
+guard mode is `enforce`, the shim refuses destructive verbs that would
+touch files claimed by another active session: `git reset --hard`, `git
+checkout -- <path>`, `git clean -fd`, `git add -A`, `git stash`/`stash
+push`/`stash save`, `git cherry-pick`, and `git rebase`. Mid-flow controls
+(`--continue`/`--abort`/`--skip`) and restorative stash subcommands
+(`pop`/`apply`/`drop`/`list`/`show`) pass through. Emergency bypass:
+`PD_SHIM_OFF=1 git ...` — log the reason in `pd note` afterwards.
+
 ## Advanced Surfaces
 
 The rest of this file is reference material. Read it only when the happy path or
