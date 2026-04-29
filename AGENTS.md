@@ -162,6 +162,11 @@ Project-specific shibboleths for proficient Port Daddy work. If you learn a new 
 - Successful launch flows must preserve the operator’s chosen backend/model in the draft UI. If the launch fails, surface the daemon’s real error inline instead of collapsing to a generic HTTP status.
 - Backend readiness must verify dependencies too, not only env/auth. Do not claim Claude SDK is ready unless `@anthropic-ai/sdk` is actually installed, and do not claim Gemini is ready unless `@google/generative-ai` exists.
 
+## Website And Public Content
+
+- When adding or refreshing website, docs, blog, examples, tutorial, or launch pages, include Nano Banana/Gemini-generated imagery by default to keep the page visually alive. Treat generated images as product-supporting assets: they should clarify the real Port Daddy workflow, not replace screenshots, CLI proof, or live product truth.
+- Reuse existing prompt sheets, generated assets, optimization scripts, and visual-review artifacts before inventing a new image pipeline. If new imagery is needed, leave the prompt/source path and optimized outputs discoverable in the repo.
+
 ## Current Gotchas
 
 - If multiple Port Daddy checkouts exist, duplicate fleet names can make project selection and routing look broken unless everything keys by `projectDir`.
