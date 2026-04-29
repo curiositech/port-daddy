@@ -22,6 +22,25 @@ pd channels clear tutorial:foreign --raw-channel
 ```
 Most examples pass `--json`. That makes stdout one JSON object per line, which is what scripts and `jq` want.
 
+### Visual rhythm for this tutorial
+This file is text-only by constraint, but it is written with GIF beats baked in. Each beat names a concrete animation that can be captured later with `vhs`,
+`asciinema`, `agg`, or a screen recorder. The commands are real; the GIF notes are production cues, not extra assets.
+
+> **GIF beat: two-terminal hello.** Left terminal starts `pd tube tutorial:hello --json` and sits quiet. Right terminal pipes `echo "hi from terminal B"` into
+> `--send`. The left terminal lights up with one JSON line. Freeze-frame on the shared `id`.
+
+> **GIF beat: cursor file.** A listener prints `one` and `two`; a second pane runs `jq . ~/.port-daddy/tube-history-tutorial_history.json`; the `lastSeenId`
+> increments. Restart the listener and show silence.
+
+> **GIF beat: thread reply.** Parent message appears, reply message appears with `inReplyTo`, then a curl pane shows the full daemon payload envelope. Use a
+> color highlight around `kind: "tube.msg"`.
+
+> **GIF beat: future relay.** Same `tube.msg` envelope slides from local daemon to relay to another daemon. The important caption is: "same envelope, different
+> transport."
+
+Keep those beats in mind as you read. They are also useful acceptance criteria: if a future animated version cannot show the behavior clearly, the prose is
+probably hiding something.
+
 ## 1. Setup
 You need a working Port Daddy checkout, the `pd` CLI on `PATH`, and a running local daemon. You also need a shell that can pipe stdin into commands. Check the
 CLI first:
@@ -76,6 +95,22 @@ rm -f ~/.port-daddy/tube-history-tutorial_threads.json
 rm -f ~/.port-daddy/tube-history-tutorial_history.json
 ```
 Those files are explained in section 4.
+
+Setup is also where you decide how isolated you want the demo to be. For most local use, the canonical daemon is fine. If you are filming or testing in a shared
+workspace, a named daemon profile can keep the demo from colliding with another operator's channels:
+```bash
+pd daemon start tube-demo --port 9877
+eval "$(pd daemon env tube-demo)"
+pd status
+```
+When you are done:
+```bash
+pd daemon stop tube-demo
+```
+Named profiles are optional. The tutorial commands work with the canonical daemon, and the examples below assume that default unless explicitly noted.
+
+> **GIF beat: clean room setup.** Show `pd daemon start tube-demo --port 9877`, then `eval "$(pd daemon env tube-demo)"`, then `pd status`. Put a tiny label in
+> the corner: "isolated demo daemon, same CLI."
 
 ## 2. One-shot send and listen
 Open two terminals. Terminal A will listen. Terminal B will send. In Terminal A, start a JSON-lines listener:
@@ -383,6 +418,41 @@ The guard is defense in depth. The daemon should honor `after=`. Tube still filt
 returns overlapping windows. Treat the built-in cursor as convenience state, not a durable job ledger. If a bot must prove exactly-once processing, store the
 processed id in that bot's own state.
 
+Here is the decision table:
+
+| Situation | Command shape | Cursor read? | Cursor written? |
+|---|---|---:|---:|
+| Normal listener | `pd tube ch --json` | yes | yes |
+| One-shot worker | `pd tube ch --once --json` | yes | yes |
+| Replay without side effects | `pd tube ch --once --no-history --json` | no | no |
+| Resume from copied id | `pd tube ch --once --since=31056 --json` | no | yes |
+| Resume from copied id without touching local guard | `pd tube ch --once --since=31056 --no-history --json` | no | no |
+
+The cursor file is deliberately readable:
+```json
+{"lastSeenId":31058,"updatedAt":1777437498492}
+```
+That makes it easy to debug. It also means you can delete it when you want a fresh listener:
+```bash
+rm ~/.port-daddy/tube-history-tutorial_history.json
+```
+Do not edit it while a long-running listener is active. You can create confusing races where the process writes its in-memory cursor after your manual edit.
+
+For a video or workshop, one reliable demo is:
+```bash
+pd channels clear tutorial:history --raw-channel
+rm -f ~/.port-daddy/tube-history-tutorial_history.json
+printf 'red\nblue\ngreen\n' | while read -r color; do
+  printf '%s\n' "$color" | pd tube tutorial:history --send --sender palette --json
+done
+pd tube tutorial:history --once --json
+pd tube tutorial:history --once --json
+pd tube tutorial:history --once --no-history --limit=3 --json
+```
+The first listen prints three colors. The second prints nothing. The replay prints three again. That sequence teaches the whole guard in under 20 seconds.
+
+> **GIF beat: three colors.** Use colored terminal text for `red`, `blue`, and `green`; then show the second listener producing silence. Silence is the punchline.
+
 ## 5. Composition patterns
 Tube composes well because it reads stdin, writes JSON lines, and exits cleanly in `--once` mode.
 
@@ -415,6 +485,14 @@ Use a small limit when first attaching to a noisy channel:
 ```bash
 pd tube ci:test-failed --once --limit=10 --json
 ```
+Exciting variant: make the CI bot reply to the failure once a human acknowledges it.
+```bash
+FAIL_ID="$(pd tube ci:test-failed --once --json | head -1 | jq -r '.id // empty')"
+printf 'acknowledged; rerunning shard 3\n' | pd tube ci:test-failed --reply="$FAIL_ID" --sender release-captain --json
+```
+If you script this for real, handle the empty `FAIL_ID` case. The snippet is intentionally short to show the thread shape, not production error handling.
+
+> **GIF beat: CI flare.** Failure message enters from CI, notification pops, human sends an acknowledgement reply, the thread line gains `inReplyTo`.
 
 ### Recipe 2: Conversation log
 Record a channel as JSONL:
@@ -446,6 +524,23 @@ Replay the last ten without touching the live cursor:
 ```bash
 pd tube debug:agent-thoughts --once --no-history --limit=10 --json
 ```
+To make a readable daily log:
+```bash
+jq -r '
+  (.createdAt / 1000 | strftime("%H:%M:%S")) as $t |
+  "\($t) [\(.sender // "-")] \(.body)"
+' thoughts.jsonl > thoughts-readable.txt
+```
+To split roots from replies:
+```bash
+jq -c 'select(has("inReplyTo") | not)' thoughts.jsonl > thoughts-roots.jsonl
+jq -c 'select(has("inReplyTo"))' thoughts.jsonl > thoughts-replies.jsonl
+```
+This recipe is useful for agent debugging because it does not require a dashboard. A process can leave trace thoughts, another process can tail them, and a
+human can archive the JSONL as evidence.
+
+> **GIF beat: transcript darkroom.** Raw JSONL scrolls on the left. `jq -r` turns it into timestamped readable lines on the right. Then replies peel off into
+> a second file.
 
 ### Recipe 3: Two-bot pipe
 Bot A reads issue requests from `issues:triage`. Bot A replies on that channel for human context. Bot A also publishes clean actions to `issues:triage:answers`.
@@ -522,6 +617,57 @@ pd tube issues:triage:answers --once --json \
   | jq -r '.body | fromjson | [.issue, .action] | @tsv'
 ```
 Tube does not validate body schemas. It transports a string body and optional reply id. Schema discipline belongs to the bots using the channel.
+
+### Recipe 4: Phone-integration dry run
+Track B1 exists because a phone or remote client eventually needs a way to "phone in" without opening inbound holes to the local daemon. You can rehearse that
+shape locally today.
+
+Pretend this command is the phone:
+```bash
+jq -nc \
+  --arg from "phone" \
+  --arg intent "summarize-fleet" \
+  --arg text "What changed in the last hour?" \
+  '{from:$from, intent:$intent, text:$text}' \
+  | pd tube phone:inbox --send --sender phone-simulator --json
+```
+Pretend this command is the local daemon-side assistant:
+```bash
+pd tube phone:inbox --once --json \
+  | jq -r '.body | fromjson | "intent=\(.intent) text=\(.text)"'
+```
+Example output:
+```text
+intent=summarize-fleet text=What changed in the last hour?
+```
+Then reply:
+```bash
+printf 'Fleet changed: pd tube tutorial landed, website sessions still active.\n' \
+  | pd tube phone:inbox --reply=32100 --sender local-assistant --json
+```
+Today, both sides are local. In the relay future, the envelope is the same and the transport changes. That is why `pd tube` is worth learning before the relay
+exists.
+
+> **GIF beat: phone without phone.** A fake phone JSON body enters `phone:inbox`, a local assistant parses it, and the reply returns on the same thread. End
+> with a translucent relay cloud appearing between the same two envelopes.
+
+### Recipe 5: Human escalation lane
+Tube is also a good "small red button" for human escalation. A bot can publish one plain sentence:
+```bash
+printf 'Need human decision: should orphan replies be rejected at the client layer?\n' \
+  | pd tube human:review --send --sender design-bot --json
+```
+A human can keep a tiny review queue:
+```bash
+pd tube human:review --once --json | jq -r '"#\(.id) \(.body)"'
+```
+And then reply:
+```bash
+printf 'Decision: keep transport permissive; validate parent existence in higher-level tools.\n' \
+  | pd tube human:review --reply=32210 --sender human --json
+```
+The pattern is intentionally low ceremony. You do not need to create an issue, launch a UI, or invent a mailbox schema for every tiny decision. Use the tube
+when a channel plus a thread id is enough.
 
 ## Closer: pitfalls, troubleshooting, and relay composition
 Common pitfalls:
