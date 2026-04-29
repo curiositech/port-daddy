@@ -2695,13 +2695,9 @@ async function handleTool(
     case 'add_note': {
       const body: Record<string, unknown> = { content: args.content };
       if (args.type) body.type = args.type;
+      if (args.session_id) body.sessionId = args.session_id;
 
-      if (args.session_id) {
-        res = await POST(`/sessions/${args.session_id}/notes`, body);
-      } else {
-        // Quick note — server auto-creates session if needed
-        res = await POST('/notes', body);
-      }
+      res = await POST('/notes', body);
       break;
     }
 

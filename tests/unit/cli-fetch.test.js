@@ -98,4 +98,105 @@ describe('cli/utils/fetch pdFetch', () => {
     expect(mockRequest).toHaveBeenCalledTimes(1);
     expect(mockRequest.mock.calls[0][0]).toMatchObject({ socketPath: expect.any(String) });
   });
+
+  test('retries on ECONNREFUSED until daemon respawns (the launchd-respawn-window fix)', async () => {
+    // Simulate a clean SIGTERM-then-respawn: first 2 attempts ECONNREFUSED
+    // (daemon down + socket gone), 3rd succeeds. Without retry the user
+    // sees "daemon not running"; with retry they see nothing.
+    mockExistsSync.mockReturnValue(false); // socket gone — TCP-only path
+    let attemptCount = 0;
+    mockRequest.mockImplementation((options, callback) => {
+      const req = new EventEmitter();
+      req.write = jest.fn();
+      req.destroy = jest.fn();
+      req.setTimeout = jest.fn();
+      req.end = () => {
+        attemptCount += 1;
+        if (attemptCount <= 2) {
+          queueMicrotask(() => {
+            const error = new Error('connect ECONNREFUSED 127.0.0.1:9876');
+            error.code = 'ECONNREFUSED';
+            req.emit('error', error);
+          });
+          return;
+        }
+        callback(makeSuccessResponse({ ok: true, attempt: attemptCount }));
+      };
+      return req;
+    });
+
+    const response = await pdFetch('/health');
+    expect(await response.json()).toEqual({ ok: true, attempt: 3 });
+    expect(attemptCount).toBe(3);
+  });
+
+  test('gives up after the retry budget if daemon never comes back', async () => {
+    mockExistsSync.mockReturnValue(false);
+    mockRequest.mockImplementation((options) => {
+      const req = new EventEmitter();
+      req.write = jest.fn();
+      req.destroy = jest.fn();
+      req.setTimeout = jest.fn();
+      req.end = () => {
+        queueMicrotask(() => {
+          const error = new Error('connect ECONNREFUSED');
+          error.code = 'ECONNREFUSED';
+          req.emit('error', error);
+        });
+      };
+      return req;
+    });
+
+    await expect(pdFetch('/health')).rejects.toMatchObject({ code: 'ECONNREFUSED' });
+    // Budget = 5 attempts (1 initial + 4 retries: 200/400/800/1500ms).
+    expect(mockRequest).toHaveBeenCalledTimes(5);
+  }, 10000);
+
+  test('does not retry on non-disconnect errors', async () => {
+    // Timeout / 5xx / EPERM are NOT launchd respawn windows — fail fast.
+    mockExistsSync.mockReturnValue(false);
+    mockRequest.mockImplementation((options) => {
+      const req = new EventEmitter();
+      req.write = jest.fn();
+      req.destroy = jest.fn();
+      req.setTimeout = jest.fn();
+      req.end = () => {
+        queueMicrotask(() => {
+          const error = new Error('socket hang up');
+          error.code = 'ECONNRESET';
+          req.emit('error', error);
+        });
+      };
+      return req;
+    });
+
+    await expect(pdFetch('/health')).rejects.toMatchObject({ code: 'ECONNRESET' });
+    expect(mockRequest).toHaveBeenCalledTimes(1);
+  });
+
+  test('PORT_DADDY_NO_RETRY=1 disables the retry loop', async () => {
+    process.env.PORT_DADDY_NO_RETRY = '1';
+    mockExistsSync.mockReturnValue(false);
+    mockRequest.mockImplementation(() => {
+      const req = new EventEmitter();
+      req.write = jest.fn();
+      req.destroy = jest.fn();
+      req.setTimeout = jest.fn();
+      req.end = () => {
+        queueMicrotask(() => {
+          const error = new Error('refused');
+          error.code = 'ECONNREFUSED';
+          req.emit('error', error);
+        });
+      };
+      return req;
+    });
+
+    try {
+      await expect(pdFetch('/health')).rejects.toMatchObject({ code: 'ECONNREFUSED' });
+      expect(mockRequest).toHaveBeenCalledTimes(1);
+    } finally {
+      delete process.env.PORT_DADDY_NO_RETRY;
+    }
+  });
 });

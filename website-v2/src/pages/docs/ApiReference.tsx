@@ -238,7 +238,7 @@ const ENDPOINTS: Endpoint[] = [
     group: 'Sessions & Notes',
     method: 'POST',
     path: '/sessions/:id/notes',
-    description: 'Add an immutable note to a session.',
+    description: 'Compatibility alias for POST /notes with sessionId. Adds an immutable note to a session.',
     requestBody: `{
   "content": "Found a race condition in the auth flow",
   "type": "progress"
@@ -277,12 +277,13 @@ const ENDPOINTS: Endpoint[] = [
     group: 'Sessions & Notes',
     method: 'POST',
     path: '/notes',
-    description: 'Quick note -- auto-creates an implicit session if none exists.',
+    description: 'Canonical note write path. Pass sessionId to target a session, or omit it for active-session / quick-note resolution.',
     curl: `$ curl -X POST ${BASE}/notes \\
   -H "Content-Type: application/json" \\
-  -d '{"content": "Discovered memory leak in parser", "type": "warning"}'`,
+  -d '{"content": "Discovered memory leak in parser", "sessionId": "sess_abc123", "type": "warning"}'`,
     requestBody: `{
   "content": "Discovered memory leak",
+  "sessionId": "sess_abc123",
   "agentId": "agent-1",
   "type": "warning"
 }`,

@@ -854,6 +854,7 @@ describe('IPC fast paths', () => {
       'session.note',
       expect.objectContaining({
         sessionId: 'sess-123',
+        agentId: undefined,
         content: 'progress update',
         type: 'progress',
       }),
@@ -861,6 +862,30 @@ describe('IPC fast paths', () => {
     );
     expect(receivedRequests).toHaveLength(0);
     expect(result.sessionId).toBe('sess-123');
+  });
+
+  test('note falls back to the quick-note route even with an explicit session', async () => {
+    pd._requestViaIpc = jest.fn().mockResolvedValue(null);
+    queueResponse({
+      success: true,
+      sessionId: 'session-readable-work-abc123',
+      noteId: 12,
+    });
+
+    const result = await pd.note('progress update', {
+      sessionId: 'session-readable-work-abc123',
+      agentId: 'agent-readable-work-def456',
+      type: 'progress',
+    });
+
+    expect(receivedRequests[0].url).toBe('/notes');
+    expect(receivedRequests[0].body).toEqual({
+      content: 'progress update',
+      sessionId: 'session-readable-work-abc123',
+      agentId: 'agent-readable-work-def456',
+      type: 'progress',
+    });
+    expect(result.sessionId).toBe('session-readable-work-abc123');
   });
 
   test('done falls back to HTTP when IPC is unavailable', async () => {

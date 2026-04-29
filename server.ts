@@ -296,7 +296,7 @@ const claimWatcher = createClaimWatcher({
     }));
   },
   sendInbox: (agentId, content, options) => agentInbox.send(agentId, content, options),
-  addNote: (sessionId, note) => sessions.addNote(sessionId, note.content, { type: note.type }),
+  writeNote: (sessionId, note) => sessions.quickNote(note.content, { sessionId, type: note.type }),
   searchRoots: [process.cwd()],
   log: (msg, meta) => logger.info(msg, meta),
 });

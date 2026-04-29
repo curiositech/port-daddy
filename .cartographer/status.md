@@ -1,10 +1,10 @@
 # Cartographer Status
 
 **Last updated:** 2026-04-29
-**Updated by:** Codex commit-and-push closeout
-**HEAD:** `629de64`
-**Stable:** `40cf79d` — promoted from `main@717f4f4` and pushed to `origin/stable`
-**Previous HEAD:** `a1dc622` — `pd-fleet.yml` hardened with fallbacks, throttles, and watcher fixes before the latest maritime / website polish burst
+**Updated by:** Codex stash/worktree harvest closeout
+**HEAD:** `87fd030`
+**Stable:** `930f8ca` — promoted from `main@a42a6f4` and pushed to `origin/stable`
+**Previous HEAD:** `629de64` — website content, proof media, terminal recordings, examples, and FleetBar preview package metadata
 
 ---
 
@@ -28,6 +28,14 @@ The latest committed work still maps overwhelmingly to the Recovery Roadmap (`do
   - Phase 6 connectors / coaching
   - Phase 4E `pd self-test --adversarial` / 4F Windows IPC
 - Open dogfood now: 3 slugs (`claim-preserving-git-safety`, `fleet-launchability-and-cadence`, `session-context-cwd-reset`)
+
+### Stash And Worktree Harvest (2026-04-29)
+
+- Recovery ledger added at `docs/recovery/STASH-WORKTREE-HARVEST-2026-04-29.md`.
+- New stash snapshots are pushed as `codex/stash-exact-20260429-19-*` and `codex/stash-exact-20260429-20-*`; the local stash stack was left intact.
+- Dirty worktree snapshots are pushed for root website recordings, FCC control-plane assets, PR5 Tube/PKI docs and UI work, OG branded route cards, and salvage-autostash screenshot proofs.
+- Local-only branch tips `d729dba`, `1579dee`, `bc310cf`, `d143501`, `acddf1c`, `3f9f142`, `52f13f3`, and patch-equivalent `24e7df4` are preserved on explicit `codex/worktree-preserve-20260429-*` branches.
+- Patch-equivalent or already-absorbed worktrees were not replayed onto main; integration still needs deliberate review per the ledger follow-up queue.
 
 ### Cartographer Refresh (2026-04-29)
 

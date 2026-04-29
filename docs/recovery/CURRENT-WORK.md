@@ -93,6 +93,15 @@ The `agentsd.ai` public-site reset is now explicit repo work, not chat residue.
 
 ## Current Thread
 
+- 2026-04-29 stash/worktree harvest:
+  - New stash recovery branches `codex/stash-exact-20260429-19-*` and
+    `codex/stash-exact-20260429-20-*` are pushed.
+  - Dirty worktree snapshots are pushed for root recordings, FCC, PR5
+    Tube/PKI UI docs, OG branded social cards, and salvage-autostash
+    screenshot proofs.
+  - Reachability sweep preserved eight local-only branch tips under
+    `codex/worktree-preserve-20260429-*`.
+  - Recovery ledger: `docs/recovery/STASH-WORKTREE-HARVEST-2026-04-29.md`.
 - 2026-04-29 cartographer map refresh:
   - `cartographer-roadmap-progress-screen` is now shipped via `7ba8d84`, `8fcf93e`, `4807cb5`, and `bd4fc6f`.
   - Closeout commits now pushed on `codex/agents-flow-guard-readable-ids`: `5f01294` (Agents pages + readable IDs), `eac3fc3` (live roadmap feedback), `4dba2a3` (Port Daddy agent skill bundle), and `629de64` (website content/proof media + FleetBar preview package metadata).

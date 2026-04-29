@@ -529,7 +529,9 @@ Trigger the reaper to move dead agents (stale heartbeats) into the salvage queue
 ## Notes (Quick Notes)
 
 ### POST /notes
-Add a quick note (creates implicit session if none exists).
+Canonical note write path. Add `sessionId` to target a known session, or omit it
+to let the daemon resolve active session context / create an implicit quick-note
+session.
 
 **Body:**
 | Field | Type | Required | Description |
@@ -537,6 +539,11 @@ Add a quick note (creates implicit session if none exists).
 | `content` | string | yes | Note content |
 | `type` | string | no | Note type: progress, decision, blocker, question, handoff, general |
 | `agentId` | string | no | Agent ID |
+| `sessionId` | string | no | Target session ID |
+
+### POST /sessions/:id/notes
+Compatibility alias for `POST /notes` with `sessionId`. Prefer `POST /notes`
+for new clients so CLI, SDK, MCP, IPC, and REST all share the same path.
 
 ### GET /notes
 Get recent notes across all sessions.

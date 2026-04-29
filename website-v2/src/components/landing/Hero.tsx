@@ -2,24 +2,25 @@ import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { PageContainer, SectionIntro } from '@/components/site/primitives'
 import { ArrowRight, Download, MonitorCog, RadioTower, ShieldCheck, Terminal } from 'lucide-react'
+import { LiveGloryVideo } from './LiveGloryVideo'
 
 const heroProof = [
   {
     label: 'Human surface',
-    title: 'FleetBar opens the real console',
-    detail: 'Check the daemon, selected project, guard state, backend readiness, and recent work before another agent runs.',
+    title: 'FleetBar opens the console',
+    detail: 'People see daemon health, project state, guard posture, backend readiness, and recent work in the app.',
     icon: MonitorCog,
   },
   {
     label: 'Agent surface',
     title: 'CLI writes durable facts',
-    detail: 'Agents begin sessions, leave notes, claim files, publish warnings, and finish with a trail the next process can read.',
+    detail: 'Agents begin sessions, leave notes, claim files, publish warnings, and finish with context another process can read.',
     icon: Terminal,
   },
   {
     label: 'Safety surface',
-    title: 'Guard turns intent into policy',
-    detail: 'The console exposes guard state for people; the commit hook enforces claims when code crosses into history.',
+    title: 'Guard makes it policy',
+    detail: 'The console exposes coordination state for people; the commit hook enforces claims when code crosses into history.',
     icon: ShieldCheck,
   },
 ] as const
@@ -27,14 +28,16 @@ const heroProof = [
 export function Hero() {
   return (
     <section className="relative overflow-hidden py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
-      {/* Swiss-grid field for the infrastructure diagram. */}
-      <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{
-        backgroundImage: 'radial-gradient(circle, var(--text-muted) 1px, transparent 1px)',
-        backgroundSize: '24px 24px',
-      }} />
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.03]"
+        style={{
+          backgroundImage: 'radial-gradient(circle, var(--text-muted) 1px, transparent 1px)',
+          backgroundSize: '24px 24px',
+        }}
+      />
 
       <PageContainer width="wide" className="relative z-10">
-        <div className="grid items-center gap-[var(--space-6)] min-[960px]:grid-cols-[minmax(19rem,0.84fr)_minmax(0,1.16fr)] min-[960px]:gap-[var(--space-7)]">
+        <div className="grid items-center gap-[var(--space-6)] min-[960px]:grid-cols-[minmax(20rem,0.88fr)_minmax(0,1.12fr)] min-[960px]:gap-[var(--space-7)]">
           <div className="space-y-[var(--space-5)]">
             <Link to="/mac-preview" className="no-underline">
               <div
@@ -46,7 +49,9 @@ export function Hero() {
                 }}
               >
                 <span>New</span>
-                <span style={{ color: 'var(--text-secondary)' }}>FleetBar and Fleet Control Center now expose agent radio, handoffs, resources, and launch readiness.</span>
+                <span style={{ color: 'var(--text-secondary)' }}>
+                  FleetBar and Fleet Control Center now expose agent radio, handoffs, resources, and launch readiness.
+                </span>
                 <ArrowRight size={12} />
               </div>
             </Link>
@@ -106,7 +111,11 @@ export function Hero() {
           </div>
 
           <div className="relative">
-            <picture aria-hidden="true" className="pointer-events-none absolute -right-[4%] -top-[14%] hidden h-[50%] w-[70%] overflow-hidden border opacity-30 min-[960px]:block dark:opacity-25" style={{ borderColor: 'var(--border-subtle)' }}>
+            <picture
+              aria-hidden="true"
+              className="pointer-events-none absolute -right-[4%] -top-[14%] hidden h-[50%] w-[70%] overflow-hidden border opacity-30 min-[960px]:block dark:opacity-25"
+              style={{ borderColor: 'var(--border-subtle)' }}
+            >
               <source srcSet="/img/generated/agent-runtime-map.webp" type="image/webp" />
               <img
                 alt=""
@@ -118,21 +127,8 @@ export function Hero() {
               />
             </picture>
             <div className="relative z-10">
-              <figure className="grid gap-[var(--space-3)]">
-                <div className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] shadow-[var(--shadow-sm)]">
-                  <img
-                    src="/media/landing-live-glory/port-daddy-live-glory-light-poster.jpg"
-                    alt="Fleet Control Center showing Shipwright and FleetBar workflow evidence"
-                    className="aspect-[16/9] w-full object-cover dark:hidden"
-                  />
-                  <img
-                    src="/media/landing-live-glory/port-daddy-live-glory-dark-poster.jpg"
-                    alt="Fleet Control Center showing Shipwright and FleetBar workflow evidence"
-                    className="hidden aspect-[16/9] w-full object-cover dark:block"
-                  />
-                </div>
-              </figure>
-              <div className="grid gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)] sm:grid-cols-[auto_minmax(0,1fr)]">
+              <LiveGloryVideo />
+              <div className="mt-[var(--space-3)] grid gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)] sm:grid-cols-[auto_minmax(0,1fr)]">
                 <span className="inline-flex h-10 w-10 items-center justify-center border-2 border-[var(--border-strong)] text-[var(--brand-primary)]">
                   <RadioTower size={18} />
                 </span>

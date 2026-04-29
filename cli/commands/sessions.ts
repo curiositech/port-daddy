@@ -775,10 +775,13 @@ export async function handleNote(content: string | undefined, options: CLIOption
 
   if (!sessionId && !explicitAgentId && current?.sessionId) {
     try {
-      const details = await pd.sessionDetails(current.sessionId);
-      if (details?.success) {
-        sessionId = current.sessionId;
-        agentId = current.agentId || undefined;
+      const whoami = await pd.whoami({
+        agentId: current.agentId || pd.agentId,
+        sessionId: current.sessionId,
+      });
+      if (whoami?.active && whoami.sessionId) {
+        sessionId = whoami.sessionId;
+        agentId = whoami.agentId || current.agentId || undefined;
       }
     } catch {
       // Ignore stale local context and fail closed below if no explicit scope exists.
@@ -787,9 +790,10 @@ export async function handleNote(content: string | undefined, options: CLIOption
 
   if (!sessionId && !agentId && current?.agentId) {
     try {
-      const whoami = await pd.whoami(current.agentId);
+      const whoami = await pd.whoami({ agentId: current.agentId });
       if (whoami?.active) {
-        agentId = current.agentId;
+        sessionId = whoami.sessionId || undefined;
+        agentId = whoami.agentId || current.agentId;
       }
     } catch {
       // Ignore stale local context and fall through to the server-side closed-fail path.

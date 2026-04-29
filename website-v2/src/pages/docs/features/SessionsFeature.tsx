@@ -185,8 +185,8 @@ const session = await pd.sessions.begin({
 })
 
 // Add notes as you work
-await pd.sessions.addNote(session.id, 'Added refresh endpoint')
-await pd.sessions.addNote(session.id, 'Updated auth middleware')
+await pd.note('Added refresh endpoint', { sessionId: session.id })
+await pd.note('Updated auth middleware', { sessionId: session.id })
 
 // Complete the session
 await pd.sessions.done(session.id)`}

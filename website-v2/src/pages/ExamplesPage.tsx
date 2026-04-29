@@ -1,4 +1,5 @@
 import { Footer } from '@/components/layout/Footer'
+import { ExampleArtwork } from '@/components/examples/ExampleArtwork'
 import {
   BracketLink,
   BracketLabel,
@@ -68,24 +69,28 @@ export function ExamplesPage() {
             'Pick the tool you want to build, run the source in /examples, then copy the publisher shape into your editor extension, test reporter, browser page, bot adapter, or local control panel.',
           ]}
           aside={
-            <DocsNoteCard label="Start" title="Start with the phone line." elevation="quiet" padding="compact" titleSize="nav">
-              <PanelBody size="compact" className="max-w-none">
-                If you only read one example, read PD Tube. It is the shape the other examples copy:
-                publish one local event, let the agent act, then render the threaded reply.
-              </PanelBody>
-              <div className="flex flex-wrap gap-[var(--panel-gap-tight)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
-                <BracketLink to={`/examples/${FEATURED_EXAMPLE.slug}`} tone="blue" side="left">
-                  Open PD Tube
-                </BracketLink>
-                <BracketLink to="/docs/cli" tone="accent" side="right">
-                  CLI reference
-                </BracketLink>
-              </div>
-            </DocsNoteCard>
+            <div className="grid gap-[var(--panel-gap)]">
+              <ExampleArtwork example={FEATURED_EXAMPLE} priority variant="hero" />
+              <DocsNoteCard label="Start" title="Start with the phone line." elevation="quiet" padding="compact" titleSize="nav">
+                <PanelBody size="compact" className="max-w-none">
+                  If you only read one example, read PD Tube. It is the shape the other examples copy:
+                  publish one local event, let the agent act, then render the threaded reply.
+                </PanelBody>
+                <div className="flex flex-wrap gap-[var(--panel-gap-tight)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
+                  <BracketLink to={`/examples/${FEATURED_EXAMPLE.slug}`} tone="blue" side="left">
+                    Open PD Tube
+                  </BracketLink>
+                  <BracketLink to="/docs/cli" tone="accent" side="right">
+                    CLI reference
+                  </BracketLink>
+                </div>
+              </DocsNoteCard>
+            </div>
           }
         />
 
-        <section aria-label="Featured PD Tube example">
+        <section aria-label="Featured PD Tube example" className="grid gap-[var(--panel-gap)] xl:grid-cols-[minmax(20rem,0.42fr)_minmax(0,1fr)]">
+          <ExampleArtwork example={FEATURED_EXAMPLE} className="xl:h-full xl:[&_img]:h-full xl:[&_img]:aspect-auto" />
           <DocsNoteCard
             label={`${FEATURED_EXAMPLE.eyebrow} / flagship`}
             title={FEATURED_EXAMPLE.title}
@@ -194,12 +199,15 @@ export function ExamplesPage() {
                 elevation="quiet"
                 padding="compact"
               >
-                <div className="space-y-[var(--space-2)]">
-                  <PanelBody className="max-w-[58rem]">{example.summary}</PanelBody>
-                  <PanelBody className="max-w-[58rem] text-[var(--text-secondary)]">{example.surveyPlain}</PanelBody>
-                  <PanelBody size="compact" className="max-w-[58rem] text-[var(--text-secondary)]">
-                    Builds: {example.builds}
-                  </PanelBody>
+                <div className="grid gap-[var(--panel-gap)] md:grid-cols-[minmax(13rem,0.36fr)_minmax(0,1fr)]">
+                  <ExampleArtwork example={example} />
+                  <div className="space-y-[var(--space-2)]">
+                    <PanelBody className="max-w-[58rem]">{example.summary}</PanelBody>
+                    <PanelBody className="max-w-[58rem] text-[var(--text-secondary)]">{example.surveyPlain}</PanelBody>
+                    <PanelBody size="compact" className="max-w-[58rem] text-[var(--text-secondary)]">
+                      Builds: {example.builds}
+                    </PanelBody>
+                  </div>
                 </div>
 
                 <div className="grid gap-[var(--panel-gap)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)] md:grid-cols-[minmax(0,1fr)_minmax(16rem,0.42fr)]">
