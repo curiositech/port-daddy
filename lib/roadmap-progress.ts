@@ -13,7 +13,8 @@
  */
 
 import { readFileSync, existsSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, isAbsolute } from 'node:path';
+import { parse as parseYaml } from 'yaml';
 
 export interface NextCut {
   slug: string;
@@ -171,32 +172,116 @@ function trimToMaxLines(text: string, maxLines: number): string {
   return lines.slice(0, maxLines).join('\n') + '\n…';
 }
 
+/**
+ * Per-path overrides — let consumers point cartographer at non-default
+ * locations without monkey-patching. Each value is resolved against
+ * `rootDir` if relative, otherwise used as-is.
+ */
+export interface RoadmapProgressPaths {
+  roadmap?: string;
+  ideasTrove?: string;
+  dogfoodFeedback?: string;
+  currentWork?: string;
+  cartographerStatus?: string;
+}
+
 export interface RoadmapProgressInput {
   /** Repository root — defaults to process.cwd(). */
   rootDir?: string;
+  /** Explicit per-file overrides. Win over config file + defaults. */
+  paths?: RoadmapProgressPaths;
   /** How many lines of CURRENT-WORK.md to surface. Default 60. */
   currentWorkMaxLines?: number;
   /** How many lines of .cartographer/status.md to surface. Default 60. */
   cartographerStatusMaxLines?: number;
 }
 
+const DEFAULT_PATHS: Required<RoadmapProgressPaths> = {
+  roadmap: 'docs/ROADMAP.md',
+  ideasTrove: 'docs/recovery/IDEAS-TROVE.md',
+  dogfoodFeedback: 'docs/recovery/DOGFOOD-FEEDBACK.md',
+  currentWork: 'docs/recovery/CURRENT-WORK.md',
+  cartographerStatus: '.cartographer/status.md',
+};
+
+const CONFIG_CANDIDATES = [
+  '.cartographer/config.yml',
+  '.cartographer/config.yaml',
+  '.cartographer/config.json',
+];
+
+function resolvePath(root: string, p: string): string {
+  return isAbsolute(p) ? p : join(root, p);
+}
+
+/**
+ * Read `.cartographer/config.{yml,yaml,json}` if present. Recognized
+ * keys (all optional): `paths.roadmap`, `paths.ideas_trove` /
+ * `paths.ideasTrove`, `paths.dogfood_feedback` / `paths.dogfoodFeedback`,
+ * `paths.current_work` / `paths.currentWork`, `paths.cartographer_status`
+ * / `paths.cartographerStatus`. Both snake and camel keys are accepted
+ * since YAML communities differ.
+ */
+export function loadCartographerConfig(rootDir: string): {
+  paths: RoadmapProgressPaths;
+  configPath: string | null;
+  warning: string | null;
+} {
+  for (const rel of CONFIG_CANDIDATES) {
+    const abs = join(rootDir, rel);
+    if (!existsSync(abs)) continue;
+    try {
+      const raw = readFileSync(abs, 'utf-8');
+      const parsed = rel.endsWith('.json') ? JSON.parse(raw) : parseYaml(raw);
+      const p = (parsed && typeof parsed === 'object' && (parsed as any).paths) || {};
+      const paths: RoadmapProgressPaths = {
+        roadmap: typeof p.roadmap === 'string' ? p.roadmap : undefined,
+        ideasTrove: typeof p.ideas_trove === 'string' ? p.ideas_trove : (typeof p.ideasTrove === 'string' ? p.ideasTrove : undefined),
+        dogfoodFeedback: typeof p.dogfood_feedback === 'string' ? p.dogfood_feedback : (typeof p.dogfoodFeedback === 'string' ? p.dogfoodFeedback : undefined),
+        currentWork: typeof p.current_work === 'string' ? p.current_work : (typeof p.currentWork === 'string' ? p.currentWork : undefined),
+        cartographerStatus: typeof p.cartographer_status === 'string' ? p.cartographer_status : (typeof p.cartographerStatus === 'string' ? p.cartographerStatus : undefined),
+      };
+      return { paths, configPath: abs, warning: null };
+    } catch (err) {
+      return {
+        paths: {},
+        configPath: abs,
+        warning: `${rel} could not be parsed: ${err instanceof Error ? err.message : String(err)}`,
+      };
+    }
+  }
+  return { paths: {}, configPath: null, warning: null };
+}
+
 export function getRoadmapProgress(input: RoadmapProgressInput = {}): RoadmapProgress {
   const root = input.rootDir ?? process.cwd();
-  const roadmapPath = join(root, 'docs/ROADMAP.md');
-  const ideasTrovePath = join(root, 'docs/recovery/IDEAS-TROVE.md');
-  const dogfoodFeedbackPath = join(root, 'docs/recovery/DOGFOOD-FEEDBACK.md');
-  const currentWorkPath = join(root, 'docs/recovery/CURRENT-WORK.md');
-  const cartographerStatusPath = join(root, '.cartographer/status.md');
-
   const warnings: string[] = [];
+
+  const cfg = loadCartographerConfig(root);
+  if (cfg.warning) warnings.push(cfg.warning);
+
+  const merged: Required<RoadmapProgressPaths> = {
+    roadmap: input.paths?.roadmap ?? cfg.paths.roadmap ?? DEFAULT_PATHS.roadmap,
+    ideasTrove: input.paths?.ideasTrove ?? cfg.paths.ideasTrove ?? DEFAULT_PATHS.ideasTrove,
+    dogfoodFeedback: input.paths?.dogfoodFeedback ?? cfg.paths.dogfoodFeedback ?? DEFAULT_PATHS.dogfoodFeedback,
+    currentWork: input.paths?.currentWork ?? cfg.paths.currentWork ?? DEFAULT_PATHS.currentWork,
+    cartographerStatus: input.paths?.cartographerStatus ?? cfg.paths.cartographerStatus ?? DEFAULT_PATHS.cartographerStatus,
+  };
+
+  const roadmapPath = resolvePath(root, merged.roadmap);
+  const ideasTrovePath = resolvePath(root, merged.ideasTrove);
+  const dogfoodFeedbackPath = resolvePath(root, merged.dogfoodFeedback);
+  const currentWorkPath = resolvePath(root, merged.currentWork);
+  const cartographerStatusPath = resolvePath(root, merged.cartographerStatus);
+
   const roadmapText = readSafe(roadmapPath);
   const ideasText = readSafe(ideasTrovePath);
   const feedbackText = readSafe(dogfoodFeedbackPath);
   const currentWorkText = readSafe(currentWorkPath);
   const cartographerStatusText = readSafe(cartographerStatusPath);
 
-  if (!roadmapText) warnings.push(`docs/ROADMAP.md not found at ${roadmapPath}`);
-  if (!ideasText) warnings.push(`docs/recovery/IDEAS-TROVE.md not found at ${ideasTrovePath}`);
+  if (!roadmapText) warnings.push(`roadmap not found at ${roadmapPath}`);
+  if (!ideasText) warnings.push(`ideas trove not found at ${ideasTrovePath}`);
 
   const nextCuts = roadmapText ? parseNextCuts(roadmapText) : [];
   const allIdeas = ideasText ? parseFeedbackEntries(ideasText) : [];
