@@ -31,7 +31,7 @@ export const GIT_SHIM_CONTENT = `#!/usr/bin/env bash
 # add -A, stash push/save, cherry-pick, rebase) and consults the Port Daddy
 # coordination guard before letting the underlying git touch the working
 # tree. stash-push is the verb that produced the auto-stash anti-pattern
-# documented in skills/port-daddy-cli/SKILL.md "Git Hygiene For Shared Trees".
+# documented in skills/port-daddy-agent-skill/references/cli-reference.md.
 #
 # Activate by prepending ~/.port-daddy/bin to PATH. Disable temporarily
 # with PD_SHIM_OFF=1.

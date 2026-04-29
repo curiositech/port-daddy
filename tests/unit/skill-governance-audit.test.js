@@ -10,7 +10,7 @@ describe('skill governance audit', () => {
     expect(report.skills.some((skill) => skill.path === 'skills/port-daddy-agent-skill/SKILL.md')).toBe(true);
   });
 
-  test('classifies the Port Daddy CLI skill as first-party and governance-complete', () => {
+  test('classifies the Port Daddy agent skill as first-party and governance-complete', () => {
     const report = auditSkills();
     const portDaddySkill = report.skills.find((skill) => skill.path === 'skills/port-daddy-agent-skill/SKILL.md');
 

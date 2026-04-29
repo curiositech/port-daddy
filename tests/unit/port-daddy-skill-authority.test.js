@@ -2,6 +2,8 @@ import { describe, test, expect } from '@jest/globals';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+const unique = (values) => Array.from(new Set(values));
+
 describe('Port Daddy skill authority', () => {
   test('the repo exposes one canonical first-party Port Daddy skill surface', () => {
     const skillsDir = join(process.cwd(), 'skills');
@@ -42,7 +44,7 @@ describe('Port Daddy skill authority', () => {
     const contents = readFileSync(skillPath, 'utf8');
     const operatingLoopStart = contents.indexOf('## Operating Loop');
     const decisionPointsStart = contents.indexOf('## Decision Points');
-    const cliQuickRefStart = contents.indexOf('## CLI Quick Reference');
+    const cliQuickRefStart = contents.indexOf('## CLI Quick Reference', decisionPointsStart);
 
     expect(operatingLoopStart).toBeGreaterThan(-1);
     expect(decisionPointsStart).toBeGreaterThan(operatingLoopStart);
@@ -79,7 +81,7 @@ describe('Port Daddy skill authority', () => {
   test('the CLI quick reference surfaces the agent-facing primitives', () => {
     const skillPath = join(process.cwd(), 'skills', 'port-daddy-agent-skill', 'SKILL.md');
     const contents = readFileSync(skillPath, 'utf8');
-    const cliQuickRefStart = contents.indexOf('## CLI Quick Reference');
+    const cliQuickRefStart = contents.lastIndexOf('## CLI Quick Reference');
     const selfCheckStart = contents.indexOf('## Self-Check');
 
     expect(cliQuickRefStart).toBeGreaterThan(-1);
@@ -95,5 +97,38 @@ describe('Port Daddy skill authority', () => {
     expect(quickRef).toMatch(/integration ready|integration needs/);
     expect(quickRef).toContain('begin_session');
     expect(quickRef).toContain('end_session_full');
+  });
+
+  test('release metadata names the canonical skill exactly once', () => {
+    const marketplacePath = join(process.cwd(), '.claude-plugin', 'marketplace.json');
+    const exportConfigPath = join(process.cwd(), 'config', 'public-repo-export.json');
+    const geminiPath = join(process.cwd(), '.gemini', 'extensions', 'port-daddy', 'GEMINI.md');
+
+    const marketplace = JSON.parse(readFileSync(marketplacePath, 'utf8'));
+    const exportConfig = JSON.parse(readFileSync(exportConfigPath, 'utf8'));
+    const gemini = readFileSync(geminiPath, 'utf8');
+
+    const marketplaceSkills = marketplace.plugins.flatMap((plugin) => plugin.skills ?? []);
+    const exportIncludes = exportConfig.includePrefixes
+      .filter((entry) => entry.includes('port-daddy-agent-skill'));
+
+    expect(marketplaceSkills).toEqual(unique(marketplaceSkills));
+    expect(marketplaceSkills).toContain('./skills/port-daddy-agent-skill');
+    expect(marketplaceSkills).not.toContain('./skills/port-daddy-cli');
+    expect(exportIncludes).toEqual(['skills/port-daddy-agent-skill/']);
+    expect(gemini).toContain('port-daddy-agent-skill');
+    expect(gemini).not.toContain('port-daddy-cli');
+  });
+
+  test('MCP skill discovery does not duplicate the canonical candidate', () => {
+    const server = readFileSync(join(process.cwd(), 'mcp', 'server.ts'), 'utf8');
+    const candidatesStart = server.indexOf('const candidates = [', server.indexOf('Search for skill'));
+    const candidatesEnd = server.indexOf('];', candidatesStart);
+    const candidates = server.slice(candidatesStart, candidatesEnd);
+    const canonicalCandidate = "join(mcpDir, '..', 'skills', 'port-daddy-agent-skill', 'SKILL.md')";
+
+    expect(candidates.match(/port-daddy-agent-skill/g) ?? []).toHaveLength(1);
+    expect(candidates).toContain(canonicalCandidate);
+    expect(server).toContain('legacy alias/install');
   });
 });

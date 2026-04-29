@@ -85,12 +85,12 @@ export function Hero() {
                   <ArrowRight size={16} />
                 </Link>
               </Button>
-              <Link to="/docs">
-                <Button variant="ghost" size="lg" className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">
+              <Button asChild variant="ghost" size="lg" className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">
+                <Link to="/docs/">
                   <Terminal size={16} />
-                  Technical docs
-                </Button>
-              </Link>
+                  Technical Docs
+                </Link>
+              </Button>
             </div>
           </motion.div>
 

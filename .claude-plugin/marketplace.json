@@ -6,7 +6,6 @@
       "name": "port-daddy",
       "source": ".",
       "skills": [
-        "./skills/port-daddy-agent-skill",
         "./skills/port-daddy-agent-skill"
       ]
     }
