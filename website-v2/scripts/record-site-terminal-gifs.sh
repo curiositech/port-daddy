@@ -122,8 +122,9 @@ play_recording() {
       ;;
     tutorials/inbox)
       intro
-      run_cmd "printf 'inbox handoff' | pd tube docs:inbox-recording --send"
-      run_cmd "pd tube docs:inbox-recording --once --no-history --limit=1"
+      run_cmd "node \"$ROOT_DIR/bin/port-daddy-cli.js\" inbox clear --agent QA-REVIEWER"
+      run_cmd "AGENT_ID=RELEASE-LEAD pd inbox send QA-REVIEWER \"Review migration 0142 on staging before release.\""
+      run_cmd "pd inbox --agent QA-REVIEWER --unread --limit 1"
       ;;
     tutorials/harbors)
       intro

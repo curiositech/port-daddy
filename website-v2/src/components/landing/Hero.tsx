@@ -2,7 +2,6 @@ import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { PageContainer, SectionIntro } from '@/components/site/primitives'
 import { ArrowRight, Download, MonitorCog, RadioTower, ShieldCheck, Terminal } from 'lucide-react'
-import { LiveGloryVideo } from './LiveGloryVideo'
 
 const heroProof = [
   {
@@ -127,7 +126,16 @@ export function Hero() {
               />
             </picture>
             <div className="relative z-10">
-              <LiveGloryVideo />
+              <picture className="block overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] shadow-[var(--shadow-sm)]">
+                <source srcSet="/img/app-screens/fleet-flow-dark.png" media="(prefers-color-scheme: dark)" />
+                <img
+                  src="/img/app-screens/fleet-flow-light.png"
+                  alt="Fleet Control Center showing agent coordination state"
+                  className="aspect-[16/9] w-full object-cover object-left-top"
+                  loading="eager"
+                  fetchPriority="high"
+                />
+              </picture>
               <div className="mt-[var(--space-3)] grid gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)] sm:grid-cols-[auto_minmax(0,1fr)]">
                 <span className="inline-flex h-10 w-10 items-center justify-center border-2 border-[var(--border-strong)] text-[var(--brand-primary)]">
                   <RadioTower size={18} />

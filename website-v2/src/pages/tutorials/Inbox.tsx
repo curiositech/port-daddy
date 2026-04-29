@@ -1,157 +1,253 @@
 import { TutorialLayout } from "@/components/tutorials/TutorialLayout";
 import { CodeBlock } from "@/components/ui/CodeBlock";
-import { Badge } from "@/components/ui/Badge";
-import {
-  Zap,
-  Terminal,
-  Shield,
-  Mail,
-  Send,
-  Activity,
-  ArrowRight,
-} from "lucide-react";
 import { Surface } from "@/components/ui/Surface";
 
 export function Inbox() {
   return (
     <TutorialLayout
-      title="The Agent Inbox"
-      description="Coordination requires communication. Learn to use Port Daddy's internal messaging system to send direct signals, broadcast events, and monitor agent heartbeats in real-time."
+      title="Use Agent Inboxes"
+      description="Separate the human control layer from the agent execution layer, send a durable handoff to one named agent, and keep direct coordination readable instead of burying it in logs."
       number={10}
       total={20}
-      level="Intermediate"
-      readTime="10 min read"
-      prev={{ title: "Session Phases", href: "/tutorials/session-phases" }}
-      next={{ title: "Sugar Commands", href: "/tutorials/sugar" }}
+      level="Advanced"
+      readTime="10 min"
+      prev={{ title: "Model Session Phases", href: "/tutorials/session-phases" }}
+      next={{ title: "Use Operator Shortcuts", href: "/tutorials/sugar" }}
     >
-      <div className="space-y-12">
-        {/* Concept Section */}
-        <section className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 flex items-center justify-center  border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
-              <Mail className="text-[var(--brand-secondary)]" size={20} />
-            </div>
-            <h2 className="m-0">Beyond Stdout</h2>
-          </div>
+      <div className="space-y-[var(--space-8)]">
+        <section className="space-y-[var(--space-4)]">
           <p>
-            In a multi-agent swarm, logs are noisy and hard to parse. Port Daddy
-            provides every agent with a dedicated <strong>Inbox</strong> -- a
-            structured messaging endpoint where it can receive direct
-            instructions or status updates from other members of the harbor.
+            This page only makes sense if we keep two layers separate. A{" "}
+            <strong>human operator</strong> decides who should own the next
+            task. A <strong>named agent</strong> receives that assignment in its
+            own durable lane and works from there. The inbox is that lane.
           </p>
-          <div className="space-y-3 pt-2">
-            <p className="text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)] m-0">
-              <Send
-                size={14}
-                className="inline text-[var(--brand-secondary)] mr-1"
-              />
-              <strong>Direct Signals</strong> -- Send targeted JSON payloads to
-              a specific agent identity without broadcasting to the whole mesh.
-            </p>
-            <p className="text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)] m-0">
-              <Activity
-                size={14}
-                className="inline text-[var(--brand-accent)] mr-1"
-              />
-              <strong>Radio Stream</strong> -- Subscribe to any inbox live via
-              SSE to monitor agent progress in your terminal or dashboard.
-            </p>
-          </div>
-        </section>
 
-        {/* Step 1: Sending */}
-        <section className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 flex items-center justify-center  border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
-              <Zap className="text-[var(--brand-primary)]" size={20} />
+          <Surface depth="raised" radius="none" padding="lg">
+            <div className="grid gap-[var(--space-4)] md:grid-cols-2">
+              <div className="space-y-[var(--space-2)]">
+                <p className="m-0 font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+                  Human Control Layer
+                </p>
+                <p className="m-0 text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)]">
+                  A release lead, reviewer, or operator chooses the next owner,
+                  sends the assignment, and inspects whether the handoff landed.
+                </p>
+              </div>
+              <div className="space-y-[var(--space-2)]">
+                <p className="m-0 font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+                  Agent Execution Layer
+                </p>
+                <p className="m-0 text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)]">
+                  The receiving agent watches its own inbox, reads the message,
+                  and carries the task forward. That inbox belongs to one agent,
+                  not the whole fleet.
+                </p>
+              </div>
             </div>
-            <h2 className="m-0">1. Send a Signal</h2>
-          </div>
+          </Surface>
 
-          <p>
-            Use the <code>msg send</code> command to route a message to an
-            agent's inbox. You can send raw text or complex JSON objects.
-          </p>
+          <Surface depth="flat" radius="none" padding="lg">
+            <div className="space-y-[var(--space-4)]">
+              <div>
+                <p className="m-0 font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+                  Human Layer In The Console UI
+                </p>
+                <p className="mb-0 mt-[var(--space-2)] text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)]">
+                  These are real Port Daddy console surfaces. The operator
+                  entrance is where a human sees launch blockers and next
+                  actions; the Fleet Flow surface is where a human inspects the
+                  running system after assigning work.
+                </p>
+              </div>
 
-          <CodeBlock copyable={false} language="bash">
-            {`$ pd pub swarm:analyst:main '{"task": "generate-report", "priority": "high"}'\n\n✓ Message routed to agent-7f3a.\n✓ Status: Received.`}
-          </CodeBlock>
+              <div className="grid gap-[var(--space-4)] lg:grid-cols-2">
+                <figure className="m-0 space-y-[var(--space-2)]">
+                  <img
+                    src="/img/tutorial-human-layer-control-center.png"
+                    alt="Real Fleet Control Center operator entrance from the local Port Daddy daemon, showing budget envelope, readiness, project queue, and next actions."
+                    className="block w-full border-2 border-[var(--border-strong)]"
+                    loading="lazy"
+                  />
+                  <figcaption className="font-sans text-[length:var(--type-small-size)] leading-[var(--leading-body-compact)] text-[var(--text-muted)]">
+                    Human control layer: the real daemon-served operator
+                    entrance, captured from the local Fleet Control Center.
+                  </figcaption>
+                </figure>
 
-          <p
-            className="m-0 text-[length:var(--type-panel-body-compact-size)] border-l-4 border-[var(--brand-secondary)] pl-4"
-            style={{ color: "var(--text-secondary)" }}
-          >
-            The daemon ensures that the message is delivered even if the agent
-            is currently busy, acting as a high-fidelity buffer between
-            processes.
-          </p>
-        </section>
-
-        {/* Step 2: Watching */}
-        <section className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 flex items-center justify-center  border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
-              <Terminal className="text-[var(--brand-secondary)]" size={20} />
+                <figure className="m-0 space-y-[var(--space-2)]">
+                  <img
+                    src="/img/app-screens/fleet-flow-light.png"
+                    alt="Real Fleet Flow console view showing project and agent activity inside Port Daddy's control plane."
+                    className="block w-full border-2 border-[var(--border-strong)]"
+                    loading="lazy"
+                  />
+                  <figcaption className="font-sans text-[length:var(--type-small-size)] leading-[var(--leading-body-compact)] text-[var(--text-muted)]">
+                    Human control layer: Fleet Flow gives the operator the live
+                    system view after the handoff is assigned.
+                  </figcaption>
+                </figure>
+              </div>
             </div>
-            <h2 className="m-0">2. Watch the Stream</h2>
-          </div>
+          </Surface>
 
-          <p>
-            Want to see what an agent is receiving? Use <code>msg watch</code>{" "}
-            to open a real-time SSE stream of an inbox.
-          </p>
-
-          <CodeBlock copyable={false} language="bash">
-            {`$ pd msg watch swarm:analyst:main\n\n[12:04:38] INCOMING: {"task": "generate-report"}\n[12:04:42] ACK: Processing started...`}
-          </CodeBlock>
-
-          <Surface depth="flat" radius="none" className="p-5 space-y-3">
-            <p className="text-[length:var(--type-meta-size)] font-black uppercase tracking-widest text-[var(--text-muted)] m-0">
-              The Inter-Agent Bridge
-            </p>
-            <div className="flex items-center justify-between text-[length:var(--type-meta-size)] font-mono gap-4">
-              <span>
-                <Badge variant="teal" className="mr-2">
-                  alpha
-                </Badge>
-                <code className="text-[var(--text-muted)]">pd pub...</code>
-              </span>
-              <ArrowRight
-                size={14}
-                className="text-[var(--brand-primary)] shrink-0"
-              />
-              <span>
-                <Badge variant="gold" className="mr-2">
-                  Daemon
-                </Badge>
-                <code className="text-[var(--text-muted)]">Queue</code>
-              </span>
-              <ArrowRight
-                size={14}
-                className="text-[var(--text-muted)] shrink-0"
-              />
-              <span>
-                <Badge variant="default" className="mr-2">
-                  beta
-                </Badge>
-                <code className="text-[var(--text-muted)]">pd sub...</code>
-              </span>
+          <Surface depth="flat" radius="none" padding="lg">
+            <div className="grid gap-[var(--space-4)] md:grid-cols-2">
+              <div className="space-y-[var(--space-2)]">
+                <p className="m-0 font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+                  Use Inbox When
+                </p>
+                <ul className="m-0 space-y-[var(--space-2)] pl-[var(--space-5)]">
+                  <li>one agent owns the next move</li>
+                  <li>the handoff should persist until read</li>
+                  <li>the sender identity should stay attached</li>
+                </ul>
+              </div>
+              <div className="space-y-[var(--space-2)]">
+                <p className="m-0 font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+                  Use Pub/Sub Instead
+                </p>
+                <ul className="m-0 space-y-[var(--space-2)] pl-[var(--space-5)]">
+                  <li>many listeners should react</li>
+                  <li>the signal is broadcast, not assigned</li>
+                  <li>you are driving a watcher or workflow chain</li>
+                </ul>
+              </div>
             </div>
           </Surface>
         </section>
 
-        {/* Vision Callout */}
-        <section className="p-6 text-center space-y-4">
-          <p className="text-[length:var(--type-panel-title-nav-size)] max-w-xl mx-auto text-[var(--text-secondary)]">
-            The inbox system is the foundation of <strong>Swarm Radio</strong>.
-            Port Daddy has moved beyond simple text logs to a structured,
-            auditable communication mesh where every signal has an owner and a
-            destination.
+        <section className="space-y-[var(--space-4)]">
+          <h2 className="m-0">1. Start The Agent-Owned Receiver</h2>
+          <p>
+            Begin on the <strong>agent layer</strong>. In the receiving
+            terminal, watch the QA agent&apos;s inbox. This is the dedicated
+            lane where a direct assignment should appear.
           </p>
-          <div className="flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-secondary)]">
-            <Shield size={14} />
-            SQLite-Backed Persistence
-          </div>
+          <CodeBlock copyable={false} language="bash">
+            {`# Terminal B — QA agent
+$ pd inbox watch --agent QA-REVIEWER
+
+Watching inbox for agent QA-REVIEWER...
+Waiting for unread messages...`}
+          </CodeBlock>
+          <p>
+            This terminal belongs to the named agent. It is not a generic
+            operator monitor and not a broadcast channel listener.
+          </p>
+        </section>
+
+        <section className="space-y-[var(--space-4)]">
+          <h2 className="m-0">2. Send The Handoff From The Human Layer</h2>
+          <p>
+            Switch to the <strong>human control layer</strong>. The release lead
+            decides that QA owns the next step and sends one direct message to
+            that agent. In the CLI today, the sender identity comes from the
+            current agent context or the <code>AGENT_ID</code> environment
+            variable.
+          </p>
+          <CodeBlock copyable={false} language="bash">
+            {`# Terminal A — release lead
+$ AGENT_ID=RELEASE-LEAD pd inbox send QA-REVIEWER \
+  "Check migration 0142 on staging before release. Focus on lock ordering and rollback."
+
+Message sent to QA-REVIEWER`}
+          </CodeBlock>
+          <p>
+            This is the point of the inbox: one sender, one owner, one durable
+            assignment.
+          </p>
+        </section>
+
+        <section className="space-y-[var(--space-4)]">
+          <h2 className="m-0">3. Confirm What The Agent Sees</h2>
+          <p>
+            Back in the <strong>agent layer</strong>, the watcher receives the
+            handoff with attribution. The agent can now act without scraping a
+            shared log or guessing who asked.
+          </p>
+          <CodeBlock copyable={false} language="bash">
+            {`# Terminal B — QA agent
+Watching inbox for agent QA-REVIEWER...
+
+[12:04:38] <RELEASE-LEAD> Check migration 0142 on staging before release. Focus on...
+Check migration 0142 on staging before release. Focus on lock ordering and rollback.`}
+          </CodeBlock>
+
+          <Surface depth="flat" radius="none" padding="lg">
+            <p className="m-0 font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+              What This Solves
+            </p>
+            <div className="mt-[var(--space-3)] grid gap-[var(--space-3)] md:grid-cols-3">
+              <p className="m-0 text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)]">
+                The human layer makes ownership explicit instead of tossing work
+                into shared noise.
+              </p>
+              <p className="m-0 text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)]">
+                The agent layer gets a durable, attributable instruction instead
+                of a vague event stream.
+              </p>
+              <p className="m-0 text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)]">
+                The handoff survives long enough to be read, resumed, or audited
+                later.
+              </p>
+            </div>
+          </Surface>
+        </section>
+
+        <section className="space-y-[var(--space-4)]">
+          <h2 className="m-0">4. Keep Inbox And Channels Separate</h2>
+          <p>
+            The inbox is not a shared bus. If one agent owns the work, send to
+            the inbox. If several listeners should react, publish to a channel.
+          </p>
+          <CodeBlock copyable={false} language="bash">
+            {`# Human assigns work to one agent
+AGENT_ID=RELEASE-LEAD pd inbox send QA-REVIEWER "Review the staging migration"
+
+# System broadcasts a shared event
+pd pub release:staging '{"event":"migration-ready","build":"0142"}'`}
+          </CodeBlock>
+          <p>
+            Humans assign through inboxes. Shared runtime events flow through
+            channels. If those two layers blur together, the coordination model
+            stops making sense.
+          </p>
+        </section>
+
+        <section className="space-y-[var(--space-4)]">
+          <h2 className="m-0">5. Extend The Pattern</h2>
+          <p>
+            This same split works for review requests, salvage recovery,
+            operator escalation, and CI handoffs. A human or control-plane
+            surface decides who owns the work. The named agent receives it in a
+            durable lane.
+          </p>
+          <Surface depth="raised" radius="none" padding="lg">
+            <div className="grid gap-[var(--space-4)] md:grid-cols-2">
+              <div>
+                <p className="m-0 font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+                  Good Inbox Cases
+                </p>
+                <ul className="mb-0 mt-[var(--space-3)] space-y-[var(--space-2)] pl-[var(--space-5)]">
+                  <li>review requests</li>
+                  <li>salvage handoffs</li>
+                  <li>operator escalation to one agent</li>
+                  <li>task results that need a named owner</li>
+                </ul>
+              </div>
+              <div>
+                <p className="m-0 font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+                  Next Step
+                </p>
+                <p className="mb-0 mt-[var(--space-3)] text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)]">
+                  Pair inboxes with session phases and notes so the assignment,
+                  the work state, and the completion trail stay attached to the
+                  same agent owner.
+                </p>
+              </div>
+            </div>
+          </Surface>
         </section>
       </div>
     </TutorialLayout>

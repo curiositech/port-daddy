@@ -116,9 +116,9 @@ export function TerminalDemos() {
     <section id="demos" className="relative py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
       <PageContainer>
         <SectionIntro
-          eyebrow="See it in action"
+          eyebrow="Agent CLI proof"
           title="Real commands. Real output."
-          description="Every command runs against a live Port Daddy daemon. What you see is what you get."
+          description="The CLI is for agents, scripts, and developers validating the substrate. Humans should start in FleetBar or Fleet Control Center; this section shows the daemon evidence underneath those app surfaces."
           titleAs="h2"
           className="mb-[var(--space-7)] max-w-[46rem]"
           titleClassName="max-w-[12ch]"
@@ -168,7 +168,7 @@ export function TerminalDemos() {
             <CommandTerminal
               code={activeDemo.code}
               title={activeDemo.title}
-              typewriterSpeed={15}
+              animate={false}
             />
           </motion.div>
         </div>

@@ -4,17 +4,64 @@ import { motion } from 'framer-motion'
 import { ArrowUpRight, Maximize2, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
-import { BracketLabel, PageContainer, PanelBody, PanelTitle, SectionIntro } from '@/components/site/primitives'
+import { BracketLabel, PageContainer, PanelBody, PanelEyebrow, PanelTitle, SectionIntro } from '@/components/site/primitives'
 import { PRODUCT_FEATURES, type Feature } from '@/data/product'
 
 const container = {
   hidden: {},
-  show: { transition: { staggerChildren: 0.06 } }
+  show: { transition: { staggerChildren: 0.04 } },
 }
 
 const item = {
-  hidden: { opacity: 0, y: 16 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'easeOut' as const } }
+  hidden: { opacity: 0, y: 12 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.32, ease: 'easeOut' as const } },
+}
+
+const wideFeatureIds = new Set(['fleetbar', 'fleet-control'])
+
+function getDarkImageSrc(src: string) {
+  return src.includes('-light.')
+    ? src.replace('-light.', '-dark.')
+    : null
+}
+
+function FeatureArt({
+  feature,
+  wide = false,
+}: {
+  feature: Feature
+  wide?: boolean
+}) {
+  const darkSrc = getDarkImageSrc(feature.image.src)
+
+  return (
+    <div className="relative h-full min-h-[11rem] overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
+      <img
+        src={feature.image.src}
+        alt={feature.image.alt}
+        className={[
+          'h-full w-full object-cover',
+          wide ? 'object-left-top' : 'object-center',
+          darkSrc ? 'dark:hidden' : '',
+        ].join(' ')}
+        loading="lazy"
+      />
+      {darkSrc ? (
+        <img
+          src={darkSrc}
+          alt={feature.image.alt}
+          className={[
+            'hidden h-full w-full object-cover dark:block',
+            wide ? 'object-left-top' : 'object-center',
+          ].join(' ')}
+          loading="lazy"
+        />
+      ) : null}
+      <div className="absolute bottom-0 left-0 border-r-2 border-t-2 border-[var(--border-strong)] bg-[var(--surface-base)] px-2 py-1 font-mono text-[10px] font-black uppercase tracking-[0.14em] text-[var(--brand-primary)]">
+        {feature.status}
+      </div>
+    </div>
+  )
 }
 
 function FeatureDetailDialog({
@@ -48,23 +95,19 @@ function FeatureDetailDialog({
 
           <div className="grid lg:grid-cols-[minmax(0,1.1fr)_minmax(20rem,0.9fr)]">
             <div className="grid gap-[var(--space-4)] border-b-2 border-[var(--border-strong)] p-[var(--space-4)] lg:border-b-0 lg:border-r-2">
-              <img
-                src={feature.image.src}
-                alt={feature.image.alt}
-                className="aspect-[16/10] w-full border-2 border-[var(--border-strong)] bg-[var(--surface-base)] object-cover object-left-top"
-                loading="lazy"
-              />
+              <FeatureArt feature={feature} wide />
               <Dialog.Description asChild>
                 <PanelBody className="max-w-none">
                   {feature.detail}
                 </PanelBody>
               </Dialog.Description>
-              <div
-                className="flex items-center gap-2 border-2 border-[var(--border-strong)] px-3 py-2 font-mono text-xs"
-                style={{ background: 'var(--code-bg)' }}
-              >
-                <span className="select-none text-[var(--code-prompt)]">$</span>
-                <span className="text-[var(--code-text)]">{feature.cli}</span>
+              <div className="grid gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)]">
+                <PanelEyebrow>Primary surface</PanelEyebrow>
+                <PanelBody size="compact" className="max-w-none">
+                  {feature.href.startsWith('/docs')
+                    ? 'The docs explain the workflow; the app and daemon keep the same primitive inspectable during live work.'
+                    : 'The app surface is the human-facing entrance; agents can still write the underlying coordination state through Port Daddy primitives.'}
+                </PanelBody>
               </div>
             </div>
 
@@ -115,6 +158,83 @@ function FeatureDetailDialog({
   )
 }
 
+function FeatureCard({
+  feature,
+  index,
+  onSelect,
+}: {
+  feature: Feature
+  index: number
+  onSelect: (feature: Feature) => void
+}) {
+  const isWide = wideFeatureIds.has(feature.id)
+
+  const handleKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      onSelect(feature)
+    }
+  }
+
+  return (
+    <motion.div
+      variants={item}
+      className={isWide ? 'sm:col-span-2 lg:col-span-3' : 'sm:col-span-1 lg:col-span-2'}
+    >
+      <article
+        aria-haspopup="dialog"
+        aria-label={`${feature.title}: open detailed information`}
+        className={[
+          'group h-full cursor-pointer border-2 border-[var(--border-strong)] bg-[var(--surface-base)] transition-colors hover:bg-[var(--surface-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-base)]',
+          isWide ? 'grid gap-[var(--space-4)] p-[var(--space-4)] lg:grid-cols-[minmax(0,0.92fr)_minmax(14rem,1.08fr)]' : 'grid grid-rows-[12rem_minmax(0,1fr)] gap-[var(--space-4)] p-[var(--space-4)]',
+        ].join(' ')}
+        onClick={() => onSelect(feature)}
+        onKeyDown={handleKeyDown}
+        role="button"
+        tabIndex={0}
+      >
+        {isWide ? null : <FeatureArt feature={feature} />}
+
+        <div className="relative flex h-full flex-col gap-[var(--space-4)]">
+          <div className="flex items-center justify-between border-b-2 border-[var(--border-strong)] pb-[var(--space-3)]">
+            <span className="font-mono text-[10px] font-black uppercase tracking-[0.22em] text-[var(--text-primary)]">
+              {String(index + 1).padStart(2, '0')}
+            </span>
+            <span className="border-l-2 border-[var(--border-strong)] pl-[var(--space-3)] font-sans text-[10px] font-black uppercase tracking-[0.22em] text-[var(--text-secondary)]">
+              {feature.category}
+            </span>
+          </div>
+          <PanelTitle as="h3" size={isWide ? 'card' : 'nav'} className="max-w-none">
+            {feature.title}
+          </PanelTitle>
+
+          <PanelBody size="compact" className="max-w-none flex-1">
+            {feature.description}
+          </PanelBody>
+
+          <div className="grid gap-[var(--space-2)] border-t-2 border-[var(--border-default)] pt-[var(--space-3)]">
+            <PanelEyebrow>What it unlocks</PanelEyebrow>
+            <PanelBody size="compact" className="max-w-none">
+              {feature.outcomes[0]}
+            </PanelBody>
+          </div>
+
+          <div className="mt-auto flex items-center justify-between border-t-2 border-[var(--border-strong)] pt-[var(--space-3)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+            <span>Open full card</span>
+            <Maximize2
+              size={16}
+              aria-hidden="true"
+              className="transition-transform group-hover:scale-110"
+            />
+          </div>
+        </div>
+
+        {isWide ? <FeatureArt feature={feature} wide /> : null}
+      </article>
+    </motion.div>
+  )
+}
+
 export function Features() {
   const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null)
 
@@ -135,82 +255,39 @@ export function Features() {
 
   return (
     <section id="features" className="relative py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
-      <PageContainer>
-        <SectionIntro
-          eyebrow="Primitives"
-          title="Everything your agents need to cooperate."
-          description="Eleven primitives that turn a collection of scripts into a production-grade autonomous system. Each one maps to a command, app surface, or operator workflow."
-          titleAs="h2"
-          className="mb-[var(--space-7)] max-w-[46rem]"
-          titleClassName="max-w-[14ch]"
-          bodyClassName="max-w-[38rem]"
-        />
+      <PageContainer width="wide">
+        <div className="mb-[var(--space-7)] grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,0.9fr)_minmax(18rem,0.55fr)] lg:items-end">
+          <SectionIntro
+            eyebrow="Primitives"
+            title="Everything your agents need to cooperate."
+            description="The full eleven-primitives map is back. Every card shows the product or generated art up front, then opens into the deeper workflow, outcomes, and links."
+            titleAs="h2"
+            className="max-w-[46rem]"
+            titleClassName="max-w-[14ch]"
+            bodyClassName="max-w-[39rem]"
+          />
+          <div className="grid border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-4)]">
+            <PanelEyebrow>Feature atlas</PanelEyebrow>
+            <PanelBody className="mt-[var(--space-2)] max-w-none">
+              FleetBar and the control plane lead because they are the human surfaces. The remaining cards keep the primitive map complete without burying the artwork.
+            </PanelBody>
+          </div>
+        </div>
 
-        {/* Feature Grid */}
         <motion.div
-          className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6"
+          className="grid gap-5 sm:grid-cols-2 lg:grid-cols-6"
           variants={container}
           initial="hidden"
           animate="show"
         >
-          {PRODUCT_FEATURES.map((feature, index) => {
-            const handleKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault()
-                setSelectedFeature(feature)
-              }
-            }
-
-            return (
-              <motion.div key={feature.id} variants={item}>
-                <article
-                  aria-haspopup="dialog"
-                  aria-label={`${feature.title}: open detailed information`}
-                  className="group h-full cursor-pointer border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-5)] transition-colors hover:bg-[var(--surface-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-base)]"
-                  onClick={() => setSelectedFeature(feature)}
-                  onKeyDown={handleKeyDown}
-                  role="button"
-                  tabIndex={0}
-                >
-                  <div className="relative flex h-full flex-col gap-[var(--space-4)]">
-                    <div className="flex items-center justify-between border-b-2 border-[var(--border-strong)] pb-[var(--space-3)]">
-                      <span className="font-mono text-[10px] font-black uppercase tracking-[0.22em] text-[var(--text-primary)]">
-                        {String(index + 1).padStart(2, '0')}
-                      </span>
-                      <span className="border-l-2 border-[var(--border-strong)] pl-[var(--space-3)] font-sans text-[10px] font-black uppercase tracking-[0.22em] text-[var(--text-secondary)]">
-                        {feature.category}
-                      </span>
-                    </div>
-                    <PanelTitle as="h3" size="nav" className="max-w-none">
-                      {feature.title}
-                    </PanelTitle>
-
-                    <PanelBody size="compact" className="max-w-none flex-1">
-                      {feature.description}
-                    </PanelBody>
-
-                    {/* CLI snippet */}
-                    <div
-                      className="flex items-center gap-2 border-2 border-[var(--border-strong)] px-3 py-2 font-mono text-xs"
-                      style={{ background: 'var(--code-bg)' }}
-                    >
-                      <span className="text-[var(--code-prompt)] select-none">$</span>
-                      <span className="text-[var(--code-text)]">{feature.cli}</span>
-                    </div>
-
-                    <div className="mt-auto flex items-center justify-between border-t-2 border-[var(--border-strong)] pt-[var(--space-3)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
-                      <span>Open full card</span>
-                      <Maximize2
-                        size={16}
-                        aria-hidden="true"
-                        className="transition-transform group-hover:scale-110"
-                      />
-                    </div>
-                  </div>
-                </article>
-              </motion.div>
-            )
-          })}
+          {PRODUCT_FEATURES.map((feature, index) => (
+            <FeatureCard
+              key={feature.id}
+              feature={feature}
+              index={index}
+              onSelect={setSelectedFeature}
+            />
+          ))}
         </motion.div>
       </PageContainer>
       {selectedFeature ? (
