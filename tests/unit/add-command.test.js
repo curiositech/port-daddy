@@ -62,14 +62,29 @@ function captureStdout(fn) {
 
 describe('pd add wrapper', () => {
   let dir;
+  let originalContextSlot;
+  let originalContextDir;
+  let originalCodexThreadId;
 
   beforeEach(() => {
     jest.resetModules();
+    originalContextSlot = process.env.PORT_DADDY_CONTEXT_SLOT;
+    originalContextDir = process.env.PORT_DADDY_CONTEXT_DIR;
+    originalCodexThreadId = process.env.CODEX_THREAD_ID;
+    delete process.env.PORT_DADDY_CONTEXT_SLOT;
+    delete process.env.PORT_DADDY_CONTEXT_DIR;
+    delete process.env.CODEX_THREAD_ID;
     dir = makeRepo();
   });
 
   afterEach(() => {
     rmSync(dir, { recursive: true, force: true });
+    if (originalContextSlot === undefined) delete process.env.PORT_DADDY_CONTEXT_SLOT;
+    else process.env.PORT_DADDY_CONTEXT_SLOT = originalContextSlot;
+    if (originalContextDir === undefined) delete process.env.PORT_DADDY_CONTEXT_DIR;
+    else process.env.PORT_DADDY_CONTEXT_DIR = originalContextDir;
+    if (originalCodexThreadId === undefined) delete process.env.CODEX_THREAD_ID;
+    else process.env.CODEX_THREAD_ID = originalCodexThreadId;
   });
 
   test('expands -A into the universe of modified + untracked paths and stages all when nothing is claimed', async () => {
