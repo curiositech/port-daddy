@@ -193,6 +193,21 @@ export const CLI_COMMANDS: CliCommand[] = [
     example: 'pd watch build:done --exec ./scripts/deploy.sh',
     output: 'Watching build:done...\n  → Message received: {"sha":"abc123"}\n  → Running ./scripts/deploy.sh\n  → Exit 0',
   },
+  {
+    group: 'Messaging',
+    cmd: 'pd tube <channel>',
+    description: 'Open a durable conversation pipe over a message channel. Listen as JSON lines, send from stdin, reply by message id, and resume from an explicit cursor.',
+    flags: [
+      '--send           Read stdin and publish a top-level tube message',
+      '--reply <id>     Read stdin and publish a threaded reply',
+      '--once           Perform one read pass and exit',
+      '--since <id>     Emit only messages after this id',
+      '--json           Emit JSON lines',
+      '--no-history     Do not read or update the local cursor file',
+    ],
+    example: 'printf "ready" | pd tube myapp:handoff --send --sender qa',
+    output: 'tube: posted id=42 to myapp:handoff',
+  },
   // Agents
   {
     group: 'Agents',

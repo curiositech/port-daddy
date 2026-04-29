@@ -10,7 +10,7 @@ export function Dashboard() {
       title="Live Dashboard"
       description="Coordination is hard to visualize in a terminal. The Port Daddy dashboard gives you real-time panels for services, agents, sessions, locks, and system health."
       number={14}
-      total={20}
+      total={21}
       level="Beginner"
       readTime="5 min read"
       prev={{ title: 'Harbor Tokens (Advisory)', href: '/tutorials/harbors' }}

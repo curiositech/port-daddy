@@ -53,6 +53,7 @@ const Watch = lazyNamed(() => import('@/pages/tutorials/Watch'), 'Watch')
 const RemoteHarbors = lazyNamed(() => import('@/pages/tutorials/RemoteHarbors'), 'RemoteHarbors')
 const Fleet = lazyNamed(() => import('@/pages/tutorials/Fleet'), 'Fleet')
 const Pheromone = lazyNamed(() => import('@/pages/tutorials/Pheromone'), 'Pheromone')
+const PdTube = lazyNamed(() => import('@/pages/tutorials/PdTube'), 'PdTube')
 
 const ApiReference = lazy(() => import('@/pages/docs/ApiReference'))
 const DocsOverview = lazy(() => import('@/pages/docs/DocsOverview'))
@@ -74,6 +75,7 @@ const PheromoneFeature = lazy(() => import('@/pages/docs/features/PheromoneFeatu
 const FleetFeature = lazy(() => import('@/pages/docs/features/FleetFeature'))
 const TuplesFeature = lazy(() => import('@/pages/docs/features/TuplesFeature'))
 const ArbiterFeature = lazy(() => import('@/pages/docs/features/ArbiterFeature'))
+const RelayPkiFeature = lazy(() => import('@/pages/docs/features/RelayPkiFeature'))
 const PromptingAgents = lazy(() => import('@/pages/docs/guides/PromptingAgents'))
 const TemplatesGuide = lazy(() => import('@/pages/docs/guides/TemplatesGuide'))
 const ProtocolGuide = lazy(() => import('@/pages/docs/guides/ProtocolGuide'))
@@ -112,6 +114,7 @@ const TunnelStopCommand = lazy(() => import('@/pages/docs/cli/TunnelStopCommand'
 const FleetCommand = lazy(() => import('@/pages/docs/cli/FleetCommand'))
 const InitCommand = lazy(() => import('@/pages/docs/cli/InitCommand'))
 const McpInstallCommand = lazy(() => import('@/pages/docs/cli/McpInstallCommand'))
+const TubeCommand = lazy(() => import('@/pages/docs/cli/TubeCommand'))
 
 const SdkOverview = lazy(() => import('@/pages/docs/sdk'))
 const PortsSdk = lazy(() => import('@/pages/docs/sdk/Ports'))
@@ -207,6 +210,7 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/tutorials/remote-harbors" element={<RemoteHarbors />} />
               <Route path="/tutorials/fleet" element={<Fleet />} />
               <Route path="/tutorials/pheromone" element={<Pheromone />} />
+              <Route path="/tutorials/pd-tube" element={<PdTube />} />
 
               <Route path="/cookbook" element={<CookbookPage />} />
               <Route path="/cookbook/:id" element={<RecipePage />} />
@@ -262,6 +266,7 @@ createRoot(document.getElementById('root')!).render(
               <Route path="cli/fleet" element={<FleetCommand />} />
               <Route path="cli/init" element={<InitCommand />} />
               <Route path="cli/mcp-install" element={<McpInstallCommand />} />
+              <Route path="cli/tube" element={<TubeCommand />} />
 
               <Route path="features/ports" element={<PortsFeature />} />
               <Route path="features/radio" element={<RadioFeature />} />
@@ -277,6 +282,7 @@ createRoot(document.getElementById('root')!).render(
               <Route path="features/fleet" element={<FleetFeature />} />
               <Route path="features/tuples" element={<TuplesFeature />} />
               <Route path="features/arbiter" element={<ArbiterFeature />} />
+              <Route path="features/relay-pki" element={<RelayPkiFeature />} />
 
               <Route path="sdk" element={<SdkOverview />} />
               <Route path="sdk/ports" element={<PortsSdk />} />

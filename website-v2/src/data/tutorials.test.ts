@@ -34,6 +34,7 @@ const FILE_TO_SLUG: Record<string, string> = {
   'RemoteHarbors.tsx': 'remote-harbors',
   'Fleet.tsx': 'fleet',
   'Pheromone.tsx': 'pheromone',
+  'PdTube.tsx': 'pd-tube',
 }
 
 function tutorialForFile(file: string) {
@@ -147,7 +148,7 @@ describe('tutorials index brand voice', () => {
 })
 
 describe('individual tutorial pages have correct number and total', () => {
-  const totalExpected = TUTORIALS.length // 19
+  const totalExpected = TUTORIALS.length
 
   // Build slug -> expected number map
   const slugToNumber = new Map<string, number>()

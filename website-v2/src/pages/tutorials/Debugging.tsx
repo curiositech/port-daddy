@@ -9,7 +9,7 @@ export function Debugging() {
       title="Conflict Detection"
       description="Turn 2am EADDRINUSE nightmares into 5-second diagnoses. Learn to use Port Daddy's registry to find, identify, and resolve infrastructure collisions."
       number={5}
-      total={20}
+      total={21}
       level="Intermediate"
       readTime="14 min read"
       prev={{ title: 'Monorepo Mastery', href: '/tutorials/monorepo' }}

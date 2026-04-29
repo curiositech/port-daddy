@@ -192,5 +192,113 @@ export const tutorialsSection: DocsContentSection = {
         },
       ],
     },
+    {
+      slug: 'pd-tube-agent-handoffs',
+      title: 'PD Tube Agent Handoffs',
+      summary:
+        'Send, reply, and resume a daemon-backed channel conversation, then inspect the same output as a terminal recording.',
+      truth: 'source-backed',
+      goals: [
+        'Use PD Tube for durable threaded handoffs.',
+        'Prove the output came from the live daemon.',
+        'Regenerate the checked-in cast and GIF artifacts.',
+      ],
+      blocks: [
+        {
+          type: 'paragraph',
+          title: 'Coordination should be visible while it happens',
+          paragraphs: [
+            'The strongest Port Daddy demo is not a polished final summary. It is the operator seeing agents inspect live sessions, check file ownership, message an overlapping worker, and publish proof through a shared channel before edits collide.',
+            'PD Tube gives that story a tiny command surface. It wraps a daemon channel in a thread-aware envelope and emits clean JSON lines so humans, scripts, and agents can read the same trail.',
+          ],
+        },
+        {
+          type: 'command',
+          title: 'Run the live proof script',
+          command:
+            'examples/pd-tube/demo.sh\nasciinema rec --overwrite -q -c "examples/pd-tube/demo.sh" demos/pd-tube/pd-tube-real-output.cast\nagg demos/pd-tube/pd-tube-real-output.cast demos/pd-tube/pd-tube-real-output.gif\nvhs demos/pd-tube/pd-tube-real-output.tape',
+          notes: [
+            'The script posts two real messages to `port-daddy:demo:tube`.',
+            'The second message replies to the first id.',
+            'The readback command proves both rows came from live daemon channel history.',
+          ],
+        },
+        {
+          type: 'checklist',
+          items: [
+            'Use `--send` and `--reply` with stdin so scripts cannot accidentally hang on a missing message body.',
+            'Use `--once --json` for deterministic automation.',
+            'Use `--since` for explicit cursors, and `--no-history` only when recording or testing.',
+          ],
+        },
+      ],
+      sources: [
+        {
+          path: 'cli/commands/tube.ts',
+          rationale: 'CLI implementation defines listen, send, reply, cursor, and JSON behavior.',
+        },
+        {
+          path: 'lib/tube.ts',
+          rationale: 'Core tube module defines the envelope, decoding, history guard, send, reply, and listen operations.',
+        },
+        {
+          path: 'demos/pd-tube/pd-tube-real-output.cast',
+          rationale: 'Asciinema artifact records real daemon-backed output from the demo script.',
+        },
+      ],
+    },
+    {
+      slug: 'relay-pki-boundary',
+      title: 'Relay PKI Boundary',
+      summary:
+        'Reproduce the ADR-0025 PKI score, then read the v0 security boundary for OIDC, ACME, and Web-of-Trust.',
+      truth: 'source-backed',
+      goals: [
+        'Reproduce the canonical PKI decision score.',
+        'Understand why OIDC-first won the v0 lane.',
+        'Keep Web-of-Trust out of the managed global registry.',
+      ],
+      blocks: [
+        {
+          type: 'paragraph',
+          title: 'The relay identity layer is deliberately narrow',
+          paragraphs: [
+            'ADR-0025 picks an OIDC-first relay bootstrap because it is reversible, fast enough for relay v0, and already matches CI workload identity. ACME stays in the data model as a proof method, but it does not become the daemon transport credential.',
+            'Web-of-Trust remains valid for self-hosted or air-gapped operators, but only with explicit admin-approved fingerprints or signed pairing receipts. A self-attested fingerprint plus a log line is not accepted into the managed registry.',
+          ],
+        },
+        {
+          type: 'command',
+          title: 'Run the decision matrix',
+          command:
+            'python3 skills/pd-relay-zero-trust/scripts/pki_decision.py <<\'JSON\'\n{"kind":"request","version":"1","command":"pki.score","payload":{"options":["ACME","OIDC","WoT","Hybrid"]}}\nJSON',
+          notes: [
+            'OIDC and Hybrid tie at 153.',
+            'The tie-break favors the smaller reversible v0: OIDC first, ACME reserved, WoT local only.',
+          ],
+        },
+        {
+          type: 'callout',
+          tone: 'warning',
+          title: 'WoT v0 is not a managed identity shortcut',
+          body:
+            'Managed relay identity must not accept arbitrary self-attested fingerprints. WoT v0 is self-hosted and harbor-local, with an admin allowlist or signed pairing receipt.',
+        },
+      ],
+      sources: [
+        {
+          path: 'docs/adr/0025-pki-decision.md',
+          rationale: 'ADR-0025 is the accepted relay PKI decision and v0 boundary.',
+        },
+        {
+          path: 'skills/pd-relay-zero-trust/references/pki-decision-matrix.md',
+          rationale: 'Decision matrix documents the canonical score and tie behavior.',
+        },
+        {
+          path: 'skills/pd-relay-zero-trust/references/pki-options-web-of-trust.md',
+          rationale: 'WoT reference defines the self-hosted/admin-approved boundary.',
+        },
+      ],
+    },
   ],
 }

@@ -10,7 +10,7 @@ export function SemanticIdentities() {
       title="Semantic Identities: Why Names Matter"
       description="Every service, agent, and session in Port Daddy has a name in project:stack:context format. This isn't a convention — it's a data structure. Here's why it matters and how to use it."
       number={2}
-      total={20}
+      total={21}
       level="Beginner"
       readTime="8 min read"
       prev={{ title: 'Getting Started', href: '/tutorials/getting-started' }}

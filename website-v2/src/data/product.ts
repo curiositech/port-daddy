@@ -104,12 +104,28 @@ export const PRODUCT_FEATURES = [
     status: 'core'
   },
   {
+    id: 'pd-tube',
+    title: 'PD Tube',
+    description: 'A conversational pipe over Port Daddy channels. Listen, send, reply, resume from cursors, and bridge agent handoffs through clean JSON lines.',
+    category: 'coordination',
+    cli: 'pd tube <channel> --send',
+    status: 'new'
+  },
+  {
     id: 'harbors',
     title: 'Harbors and verified core',
     description: 'Named authority boundaries, note encryption, Ed25519 harbor-card verification, and proof-backed protocol work sit underneath the local daemon.',
     category: 'security',
     cli: 'pd harbor create <name>',
     status: 'new'
+  },
+  {
+    id: 'relay-pki',
+    title: 'Relay PKI',
+    description: 'OIDC-first relay identity with admin-approved local Web-of-Trust fallback. The relay routes ciphertext while daemon fingerprints stay auditable.',
+    category: 'security',
+    cli: 'python skills/pd-relay-zero-trust/scripts/pki_decision.py',
+    status: 'preview'
   },
   {
     id: 'self-healing',
