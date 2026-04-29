@@ -11,12 +11,6 @@ install_pd_shim() {
   export -f pd
 }
 
-ensure_recording_session() {
-  if ! pd whoami >/dev/null 2>&1; then
-    pd begin --identity docs:website-recording --purpose "Website terminal recording" >/dev/null 2>&1 || true
-  fi
-}
-
 type_cmd() {
   local text="$1"
   local i
@@ -97,11 +91,10 @@ play_recording() {
       run_cmd "pd services | sed -n '1,12p'"
       ;;
     tutorials/multi-agent)
-      ensure_recording_session
       intro "Tutorial" "Multi-agent coordination"
       run_cmd "pd status"
-      run_cmd "pd note \"recording multi-agent tutorial proof\""
-      run_cmd "pd notes --limit 5"
+      run_cmd "pd pub docs:multi-agent-recording '{\"surface\":\"tutorial\",\"event\":\"handoff\"}' --raw-channel"
+      run_cmd "pd tube docs:multi-agent-recording --once --no-history --limit=1"
       ;;
     tutorials/debugging)
       intro "Tutorial" "Debugging"
