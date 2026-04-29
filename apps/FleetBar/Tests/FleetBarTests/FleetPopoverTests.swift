@@ -187,6 +187,38 @@ final class FleetPopoverTests: XCTestCase {
         XCTAssertEqual(store.menuBarTone, .warning)
     }
 
+    func testAgentRowShowsCodexTelemetryRecoveryHint() throws {
+        let reason = "Failed: Exact telemetry required, but codex did not return token counts."
+        let row = AgentRow(
+            agent: agent(name: "test-hunter", status: .failed, statusReason: reason),
+            onInspect: {},
+            onRunAgent: {},
+            onPauseToggle: {},
+            onOpenInEditor: { _ in },
+            onRevealInFinder: { _ in }
+        )
+
+        let inspected = try row.inspect()
+        let statusReason = try inspected.find(text: reason)
+        XCTAssertNil(try statusReason.lineLimit())
+        XCTAssertNoThrow(try inspected.find(text: "Next: run `codex exec --json \"print ok\"`; if usage appears, run this agent again. If usage is missing, fix Codex auth/CLI."))
+    }
+
+    func testAgentRowShowsSpawnQuotaRecoveryHint() throws {
+        let reason = "Failed: quota: hourly spawn limit (10/hr) reached"
+        let row = AgentRow(
+            agent: agent(name: "test-hunter", status: .failed, statusReason: reason),
+            onInspect: {},
+            onRunAgent: {},
+            onPauseToggle: {},
+            onOpenInEditor: { _ in },
+            onRevealInFinder: { _ in }
+        )
+
+        let inspected = try row.inspect()
+        XCTAssertNoThrow(try inspected.find(text: "Next: wait for the hourly spawn window to clear, then run this agent again."))
+    }
+
     private func project(agents: [FleetAgent]) -> FleetProject {
         FleetProject(
             id: "/tmp/port-daddy-test",
@@ -196,7 +228,11 @@ final class FleetPopoverTests: XCTestCase {
         )
     }
 
-    private func agent(name: String, status: FleetAgent.AgentStatus) -> FleetAgent {
+    private func agent(
+        name: String,
+        status: FleetAgent.AgentStatus,
+        statusReason: String? = nil
+    ) -> FleetAgent {
         FleetAgent(
             id: "port-daddy-test:fleet:\(name)",
             name: name,
@@ -204,7 +240,7 @@ final class FleetPopoverTests: XCTestCase {
             isConfiguredFleetAgent: true,
             inboxTarget: nil,
             status: status,
-            statusReason: nil,
+            statusReason: statusReason,
             queueDepth: 0,
             lastActivity: nil,
             lastEvent: nil,
