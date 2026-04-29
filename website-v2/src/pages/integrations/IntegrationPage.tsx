@@ -74,6 +74,22 @@ export function IntegrationPage() {
            >
              {integration.description}
            </motion.p>
+
+           <motion.figure
+             className="w-full max-w-3xl overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-base)]"
+             initial={{ opacity: 0, y: 18 }}
+             animate={{ opacity: 1, y: 0 }}
+             transition={{ duration: 0.8, delay: 0.16 }}
+           >
+             <picture>
+               <source srcSet="/img/generated/agent-runtime-map.webp" type="image/webp" />
+               <img
+                 src="/img/generated/agent-runtime-map.jpg"
+                 alt="Generated Swiss-modern runtime map of backend lanes, watchdog checks, queue pressure, budget gates, and escalation routes"
+                 className="block aspect-[16/7] w-full object-cover"
+               />
+             </picture>
+           </motion.figure>
         </motion.div>
       </motion.header>
 
