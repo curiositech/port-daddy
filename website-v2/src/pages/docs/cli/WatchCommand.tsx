@@ -67,7 +67,6 @@ export default function WatchCommand() {
       ]}
       seeAlso={[
         { name: 'pd pub', href: '/docs/cli/pub' },
-        { name: 'pd msg <channel> get', href: '/docs/cli/msg-get' },
         { name: 'pd channels', href: '/docs/cli/channels' },
         { name: 'pd spawn', href: '/docs/cli/spawn' },
       ]}

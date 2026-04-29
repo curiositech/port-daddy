@@ -441,6 +441,14 @@ _pd_cmd_agents() {
     '(-h --help)'{-h,--help}'[show help]'
 }
 
+_pd_cmd_actors() {
+  _arguments \
+    '1:actor:(navigator coxswain signalman harbormaster sounder lookout breaker caulker quartermaster)' \
+    '(-j --json)'{-j,--json}'[JSON output]' \
+    '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+    '(-h --help)'{-h,--help}'[show help]'
+}
+
 _pd_cmd_log() {
   _arguments \
     '--limit[max entries to return]:count:' \
@@ -1712,6 +1720,8 @@ _port_daddy() {
     'agent:manage an agent (register/heartbeat/unregister)'
     'agents:list registered agents'
     'swarm:list registered agents (alias for agents)'
+    'actor:show a maritime actor'
+    'actors:list maritime actors'
     # Activity
     'log:tail the activity log'
     'activity:show activity summary or stats'
@@ -1849,6 +1859,7 @@ _port_daddy() {
         locks)              _pd_cmd_locks ;;
         agent)              _pd_cmd_agent ;;
         agents|swarm)        _pd_cmd_agents ;;
+        actor|actors)        _pd_cmd_actors ;;
         log)                _pd_cmd_log ;;
         activity)           _pd_cmd_activity ;;
         session)            _pd_cmd_session ;;

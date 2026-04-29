@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<installer-gui-script minSpecVersion="2">
+    <title>Port Daddy</title>
+    <organization>com.portdaddy</organization>
+    <domains enable_localSystem="false" enable_currentUserHome="true"/>
+    <options customize="never" require-scripts="true" rootVolumeOnly="false" hostArchitectures="arm64,x86_64"/>
+
+    <welcome file="welcome.html" mime-type="text/html"/>
+    <license file="LICENSE.txt"/>
+    <conclusion file="conclusion.html" mime-type="text/html"/>
+
+    <pkg-ref id="com.portdaddy.core"/>
+    <pkg-ref id="com.portdaddy.fleetbar"/>
+
+    <choices-outline>
+        <line choice="default">
+            <line choice="com.portdaddy.core"/>
+            <line choice="com.portdaddy.fleetbar"/>
+        </line>
+    </choices-outline>
+
+    <choice id="default"/>
+    <choice id="com.portdaddy.core" visible="false">
+        <pkg-ref id="com.portdaddy.core"/>
+    </choice>
+    <choice id="com.portdaddy.fleetbar" visible="false">
+        <pkg-ref id="com.portdaddy.fleetbar"/>
+    </choice>
+
+    <pkg-ref id="com.portdaddy.core" version="@VERSION@" onConclusion="none">core.pkg</pkg-ref>
+    <pkg-ref id="com.portdaddy.fleetbar" version="@VERSION@" onConclusion="none">fleetbar.pkg</pkg-ref>
+</installer-gui-script>

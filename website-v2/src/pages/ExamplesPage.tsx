@@ -73,14 +73,14 @@ const EXAMPLES: Example[] = [
   },
   {
     id: 'spawn-agent-fleet',
-    title: 'Spawn Agent Fleets',
+    title: 'Spawn a One-Shot Agent',
     category: 'Orchestration',
     difficulty: 'Advanced',
-    description: 'Launch AI agent fleets with Port Daddy coordination auto-wired. Sessions, heartbeats, notes, and salvage are all automatic.',
+    description: 'Launch one AI agent run with Port Daddy coordination auto-wired. Use fleets when the work should stay resident.',
     what: [
-      'Spawn Ollama, Codex, Claude, Gemini, or Aider agents',
+      'Spawn Ollama, Codex, Claude, Gemini, or Aider runs',
       'Coordination (sessions, heartbeats) auto-wired',
-      'List and kill spawned agents from the CLI',
+      'List and kill spawned runs from the CLI',
       'Dead agents enter the salvage queue automatically'
     ],
     code: [

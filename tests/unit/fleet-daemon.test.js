@@ -61,6 +61,7 @@ jest.unstable_mockModule('node:child_process', () => ({
 // ─── Import after mocks ────────────────────────────────────────────────────
 
 const { createFleetDaemon } = await import('../../lib/fleet-daemon.js');
+const { projectScopedGitChannel } = await import('../../lib/fleet-channels.js');
 const createdDaemons = [];
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -157,6 +158,12 @@ function makeConfig(name = 'test-project') {
     watchers: [{ name: 'notify', trigger: 'qa:findings', exec: 'echo findings' }],
     channels: { 'git:committed': { description: 'Post-commit' } },
   };
+}
+
+async function flushMicrotasks(count = 5) {
+  for (let i = 0; i < count; i++) {
+    await Promise.resolve();
+  }
 }
 
 beforeEach(() => {
@@ -432,6 +439,75 @@ describe('createFleetDaemon', () => {
       '/test/subset',
       expect.objectContaining({ initiallyPausedAgents: ['spark'] })
     );
+  });
+
+  test('startProject() refreshes symbols from project-scoped git commit payloads', async () => {
+    jest.useFakeTimers();
+    try {
+      const symbolIndex = {
+        parseFile: jest.fn(() => ({ filePath: '', symbols: 1, dependencies: 0, skipped: false })),
+      };
+      const deps = makeDeps({ symbolIndex });
+      const config = makeConfig('symbols-project');
+      mockLoadFleetConfig.mockReturnValue(config);
+      mockGetStatus.mockReturnValue([]);
+
+      const daemon = makeDaemon(deps);
+      expect(daemon.startProject('/test/symbols')).toEqual({ success: true });
+
+      const hookChannel = projectScopedGitChannel('/test/symbols');
+      const fleetChannel = projectScopedGitChannel('/test/symbols', 'symbols-project');
+      const subscription = deps.messaging.subscribe.mock.calls.find((call) => call[0] === hookChannel);
+      expect(deps.messaging.subscribe).toHaveBeenCalledWith(fleetChannel, expect.any(Function));
+      expect(subscription).toBeDefined();
+
+      subscription[1]({
+        id: 1,
+        channel: hookChannel,
+        payload: {
+          files: 'src/a.ts, README.md, lib/b.py, node_modules/pkg/index.ts, ../outside.ts',
+        },
+        contentType: 'json',
+      });
+
+      await jest.advanceTimersByTimeAsync(500);
+      await flushMicrotasks();
+
+      expect(symbolIndex.parseFile).toHaveBeenCalledWith(join('/test/symbols', 'src/a.ts'));
+      expect(symbolIndex.parseFile).toHaveBeenCalledWith(join('/test/symbols', 'lib/b.py'));
+      expect(symbolIndex.parseFile).toHaveBeenCalledTimes(2);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test('startProject() refreshes symbols from source file watcher events', async () => {
+    jest.useFakeTimers();
+    try {
+      const symbolIndex = {
+        parseFile: jest.fn(() => ({ filePath: '', symbols: 1, dependencies: 0, skipped: false })),
+      };
+      const deps = makeDeps({ symbolIndex });
+      mockLoadFleetConfig.mockReturnValue(makeConfig('watch-project'));
+      mockGetStatus.mockReturnValue([]);
+
+      const daemon = makeDaemon(deps);
+      expect(daemon.startProject('/test/watch')).toEqual({ success: true });
+
+      const sourceWatch = mockFsWatch.mock.calls.find((call) => call[0] === '/test/watch');
+      expect(sourceWatch).toBeDefined();
+
+      sourceWatch[2]('change', 'src/changed.ts');
+      sourceWatch[2]('change', 'dist/generated.ts');
+
+      await jest.advanceTimersByTimeAsync(500);
+      await flushMicrotasks();
+
+      expect(symbolIndex.parseFile).toHaveBeenCalledWith(join('/test/watch', 'src/changed.ts'));
+      expect(symbolIndex.parseFile).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   test('startProject() rejects if already running', () => {

@@ -1,176 +1,132 @@
 import * as React from 'react'
 
-interface Props {
+interface GlyphProps {
   size?: number
   className?: string
   style?: React.CSSProperties
+  title?: string
 }
 
-/**
- * Port Daddy — full character mark.
- * Captain's peak cap, strong face, hands gripping the crossguard of
- * an ethernet-cable anchor (RJ45 plug where the ring normally lives).
- */
-export function PortDaddyMark({ size = 120, className, style }: Props) {
-  return (
-    <svg
-      width={size}
-      height={Math.round(size * 1.25)}
-      viewBox="0 0 120 150"
-      fill="none"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      style={style}
-    >
-      {/* ══════════════════════════════
-          CAPTAIN'S PEAK CAP
-          ══════════════════════════════ */}
-      {/* Crown */}
-      <path d="M40 24 Q40 5 60 3 Q80 5 80 24" strokeWidth="2.4" />
-      {/* Crown seam line */}
-      <line x1="40" y1="22" x2="80" y2="22" strokeWidth="1.4" />
-      {/* Peak brim */}
-      <path d="M31 24 Q60 30 89 24" strokeWidth="2.2" />
-      {/* Brim underside peak (left side only) */}
-      <path d="M31 24 Q44 27 55 24" strokeWidth="1.2" />
-      {/* Badge — tiny anchor emblem on crown front */}
-      <circle cx="60" cy="13" r="3.5" strokeWidth="1.4" />
-      <line x1="60" y1="9.5" x2="60" y2="16.5" strokeWidth="1.4" />
-      <line x1="57" y1="12.5" x2="63" y2="12.5" strokeWidth="1.4" />
-      <path d="M57.5 16.5 Q57.5 18.5 60 18.5 Q62.5 18.5 62.5 16.5" strokeWidth="1.1" />
-
-      {/* ══════════════════════════════
-          FACE
-          ══════════════════════════════ */}
-      {/* Jaw / face outline */}
-      <path
-        d="M40 27 Q33 36 33 45 Q35 56 60 63 Q85 56 87 45 Q87 36 80 27"
-        strokeWidth="2.4"
-      />
-      {/* Left brow — strong, confident arch */}
-      <path d="M41 37 Q50 32 58 36" strokeWidth="2.1" />
-      {/* Right brow */}
-      <path d="M62 36 Q70 32 79 37" strokeWidth="2.1" />
-      {/* Left eye lid */}
-      <path d="M43 43 Q50 39 57 43" strokeWidth="1.8" />
-      <circle cx="50" cy="43.5" r="1.5" fill="currentColor" stroke="none" />
-      {/* Right eye lid */}
-      <path d="M63 43 Q70 39 77 43" strokeWidth="1.8" />
-      <circle cx="70" cy="43.5" r="1.5" fill="currentColor" stroke="none" />
-      {/* Nose — straight, defined */}
-      <path d="M60 47 L58 53 Q60 55 62 53 L60 47" strokeWidth="1.5" />
-      {/* Mouth — closed, slight upward set */}
-      <path d="M50 58 Q60 63 70 58" strokeWidth="1.9" />
-
-      {/* ══════════════════════════════
-          NECK
-          ══════════════════════════════ */}
-      <line x1="54" y1="63" x2="53" y2="71" strokeWidth="2.2" />
-      <line x1="66" y1="63" x2="67" y2="71" strokeWidth="2.2" />
-
-      {/* ══════════════════════════════
-          PEACOAT — collar, lapels, shoulders
-          ══════════════════════════════ */}
-      {/* Left shoulder sweep */}
-      <path d="M53 71 Q33 73 24 85 Q22 91 24 100" strokeWidth="2" />
-      {/* Right shoulder sweep */}
-      <path d="M67 71 Q87 73 96 85 Q98 91 96 100" strokeWidth="2" />
-      {/* Left lapel */}
-      <path d="M53 71 L46 83 L60 92" strokeWidth="1.9" />
-      {/* Right lapel */}
-      <path d="M67 71 L74 83 L60 92" strokeWidth="1.9" />
-      {/* Button at chest */}
-      <circle cx="60" cy="96" r="2.2" fill="currentColor" stroke="none" />
-
-      {/* Left hand grips crossguard */}
-      <path d="M24 100 Q22 104 26 105 L30 105" strokeWidth="1.8" />
-      {/* Right hand */}
-      <path d="M96 100 Q98 104 94 105 L90 105" strokeWidth="1.8" />
-
-      {/* ══════════════════════════════
-          ETHERNET ANCHOR
-          (drawn last so it sits in front)
-          ══════════════════════════════ */}
-
-      {/* RJ45 PLUG — replaces the traditional anchor ring */}
-      <rect x="44" y="68" width="32" height="19" rx="2.5" strokeWidth="2.2" />
-      {/* Locking tab below plug body */}
-      <path d="M47 87 Q47 92 49 92 L71 92 Q73 92 73 87" strokeWidth="1.6" />
-      {/* 8 conductor pins inside plug */}
-      <line x1="47.5" y1="70.5" x2="47.5" y2="82" strokeWidth="1" />
-      <line x1="49.9" y1="70.5" x2="49.9" y2="82" strokeWidth="1" />
-      <line x1="52.3" y1="70.5" x2="52.3" y2="82" strokeWidth="1" />
-      <line x1="54.7" y1="70.5" x2="54.7" y2="82" strokeWidth="1" />
-      <line x1="57.1" y1="70.5" x2="57.1" y2="82" strokeWidth="1" />
-      <line x1="59.5" y1="70.5" x2="59.5" y2="82" strokeWidth="1" />
-      <line x1="61.9" y1="70.5" x2="61.9" y2="82" strokeWidth="1" />
-      <line x1="64.3" y1="70.5" x2="64.3" y2="82" strokeWidth="1" />
-
-      {/* SHANK — cable from plug tab to arms */}
-      <line x1="60" y1="92" x2="60" y2="120" strokeWidth="2.4" />
-
-      {/* CROSSGUARD — horizontal bar, hands grip here */}
-      <line x1="22" y1="105" x2="98" y2="105" strokeWidth="2.4" />
-      <circle cx="22" cy="105" r="3.2" fill="currentColor" stroke="none" />
-      <circle cx="98" cy="105" r="3.2" fill="currentColor" stroke="none" />
-
-      {/* ARMS — curve from shank bottom to flukes */}
-      <path d="M60 120 Q40 124 29 143" strokeWidth="2.2" />
-      <path d="M60 120 Q80 124 91 143" strokeWidth="2.2" />
-
-      {/* LEFT FLUKE */}
-      <path d="M29 143 Q18 137 20 127 Q24 119 35 127" strokeWidth="2.1" />
-      {/* RIGHT FLUKE */}
-      <path d="M91 143 Q102 137 100 127 Q96 119 85 127" strokeWidth="2.1" />
-    </svg>
-  )
+interface BaseGlyphProps extends GlyphProps {
+  viewBox: string
+  children: React.ReactNode
 }
 
-/**
- * Simplified anchor-only version for small contexts (nav, favicon).
- * Same ethernet-anchor design, no character body.
- */
-export function PortDaddyAnchor({ size = 20, className, style }: Props) {
+function BaseGlyph({ size = 20, className, style, title, viewBox, children }: BaseGlyphProps) {
   return (
     <svg
       width={size}
       height={size}
-      viewBox="0 0 40 48"
+      viewBox={viewBox}
       fill="none"
       stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
+      strokeLinecap="square"
+      strokeLinejoin="miter"
       className={className}
       style={style}
+      role={title ? 'img' : 'presentation'}
+      aria-hidden={title ? undefined : 'true'}
     >
-      {/* RJ45 plug */}
-      <rect x="12" y="0" width="16" height="10" rx="1.5" strokeWidth="2" />
-      {/* Tab */}
-      <path d="M14 10 Q14 13 15 13 L25 13 Q26 13 26 10" strokeWidth="1.3" />
-      {/* 4 conductor lines (simplified at small size) */}
-      <line x1="14.5" y1="2" x2="14.5" y2="7.5" strokeWidth="0.9" />
-      <line x1="17.2" y1="2" x2="17.2" y2="7.5" strokeWidth="0.9" />
-      <line x1="19.9" y1="2" x2="19.9" y2="7.5" strokeWidth="0.9" />
-      <line x1="22.6" y1="2" x2="22.6" y2="7.5" strokeWidth="0.9" />
-      <line x1="25.3" y1="2" x2="25.3" y2="7.5" strokeWidth="0.9" />
-
-      {/* Shank */}
-      <line x1="20" y1="13" x2="20" y2="30" strokeWidth="2" />
-
-      {/* Crossguard */}
-      <line x1="5" y1="20" x2="35" y2="20" strokeWidth="2" />
-      <circle cx="5" cy="20" r="2" fill="currentColor" stroke="none" />
-      <circle cx="35" cy="20" r="2" fill="currentColor" stroke="none" />
-
-      {/* Arms */}
-      <path d="M20 30 Q12 32 8 42" strokeWidth="2" />
-      <path d="M20 30 Q28 32 32 42" strokeWidth="2" />
-
-      {/* Flukes */}
-      <path d="M8 42 Q3 39 4 33 Q7 29 13 33" strokeWidth="1.8" />
-      <path d="M32 42 Q37 39 36 33 Q33 29 27 33" strokeWidth="1.8" />
+      {title ? <title>{title}</title> : null}
+      {children}
     </svg>
+  )
+}
+
+export function HarborGlyph({ size = 20, className, style, title = 'Harbor' }: GlyphProps) {
+  return (
+    <BaseGlyph size={size} className={className} style={style} title={title} viewBox="0 0 32 32">
+      <path d="M6 7V25H12" strokeWidth="2.25" />
+      <path d="M26 7V25H20" strokeWidth="2.25" />
+      <line x1="12" y1="25" x2="20" y2="25" strokeWidth="2.25" />
+      <line x1="16" y1="9" x2="16" y2="21" strokeWidth="2.25" />
+      <line x1="11.5" y1="13" x2="20.5" y2="13" strokeWidth="2.25" />
+      <path d="M16 21C14.1 21.5 12.7 22.9 11.8 25" strokeWidth="2" />
+      <path d="M16 21C17.9 21.5 19.3 22.9 20.2 25" strokeWidth="2" />
+    </BaseGlyph>
+  )
+}
+
+export function FleetGlyph({ size = 20, className, style, title = 'Fleet' }: GlyphProps) {
+  return (
+    <BaseGlyph size={size} className={className} style={style} title={title} viewBox="0 0 32 32">
+      <rect x="3.5" y="20.5" width="8" height="8" strokeWidth="2.25" />
+      <rect x="20.5" y="20.5" width="8" height="8" strokeWidth="2.25" />
+      <rect x="12" y="4" width="8" height="8" strokeWidth="2.25" />
+      <line x1="16" y1="12" x2="16" y2="18" strokeWidth="2.25" />
+      <line x1="7.5" y1="20.5" x2="16" y2="18" strokeWidth="2.25" />
+      <line x1="24.5" y1="20.5" x2="16" y2="18" strokeWidth="2.25" />
+    </BaseGlyph>
+  )
+}
+
+export function SortieGlyph({ size = 20, className, style, title = 'Sortie' }: GlyphProps) {
+  return (
+    <BaseGlyph size={size} className={className} style={style} title={title} viewBox="0 0 32 32">
+      <path d="M6 7V25H16" strokeWidth="2.25" />
+      <path d="M12 20L25 7" strokeWidth="2.25" />
+      <path d="M18 7H25V14" strokeWidth="2.25" />
+    </BaseGlyph>
+  )
+}
+
+export function SpiderGlyph({ size = 20, className, style, title = 'Spider' }: GlyphProps) {
+  return (
+    <BaseGlyph size={size} className={className} style={style} title={title} viewBox="0 0 32 32">
+      <circle cx="16" cy="16" r="3.5" strokeWidth="2.25" />
+      <circle cx="16" cy="5" r="1.75" fill="currentColor" stroke="none" />
+      <circle cx="25.5" cy="10" r="1.75" fill="currentColor" stroke="none" />
+      <circle cx="26" cy="22.5" r="1.75" fill="currentColor" stroke="none" />
+      <circle cx="16" cy="27" r="1.75" fill="currentColor" stroke="none" />
+      <circle cx="6" cy="22.5" r="1.75" fill="currentColor" stroke="none" />
+      <circle cx="6.5" cy="10" r="1.75" fill="currentColor" stroke="none" />
+      <line x1="16" y1="12.5" x2="16" y2="6.75" strokeWidth="2.25" />
+      <line x1="19" y1="13.5" x2="24" y2="10.75" strokeWidth="2.25" />
+      <line x1="19" y1="18.5" x2="24.25" y2="21.25" strokeWidth="2.25" />
+      <line x1="16" y1="19.5" x2="16" y2="25.25" strokeWidth="2.25" />
+      <line x1="13" y1="18.5" x2="7.75" y2="21.25" strokeWidth="2.25" />
+      <line x1="13" y1="13.5" x2="8" y2="10.75" strokeWidth="2.25" />
+    </BaseGlyph>
+  )
+}
+
+export function CartographerGlyph({ size = 20, className, style, title = 'Cartographer' }: GlyphProps) {
+  return (
+    <BaseGlyph size={size} className={className} style={style} title={title} viewBox="0 0 32 32">
+      <path d="M5 7L12 4L20 7L27 4V25L20 28L12 25L5 28V7Z" strokeWidth="2.25" />
+      <line x1="12" y1="4.5" x2="12" y2="25" strokeWidth="2.25" />
+      <line x1="20" y1="7" x2="20" y2="27.5" strokeWidth="2.25" />
+      <path d="M9 22C11 18 13.6 16.2 16.1 15.6C18.4 15 20.5 12.5 23 9.5" strokeWidth="2" />
+      <circle cx="9" cy="22" r="1.5" fill="currentColor" stroke="none" />
+      <circle cx="16" cy="15.5" r="1.5" fill="currentColor" stroke="none" />
+      <circle cx="23" cy="9.5" r="1.5" fill="currentColor" stroke="none" />
+    </BaseGlyph>
+  )
+}
+
+export function ControlPlaneGlyph({ size = 20, className, style, title = 'Control plane' }: GlyphProps) {
+  return (
+    <BaseGlyph size={size} className={className} style={style} title={title} viewBox="0 0 32 32">
+      <rect x="4.5" y="5.5" width="23" height="21" strokeWidth="2.25" />
+      <line x1="10.5" y1="5.5" x2="10.5" y2="26.5" strokeWidth="2.25" />
+      <line x1="10.5" y1="12.5" x2="27.5" y2="12.5" strokeWidth="2.25" />
+      <line x1="14" y1="18" x2="24" y2="18" strokeWidth="2.25" />
+      <line x1="14" y1="22" x2="21" y2="22" strokeWidth="2.25" />
+      <rect x="6.25" y="8" width="2.5" height="2.5" fill="currentColor" stroke="none" />
+    </BaseGlyph>
+  )
+}
+
+export function DaemonGlyph({ size = 20, className, style, title = 'Daemon' }: GlyphProps) {
+  return (
+    <BaseGlyph size={size} className={className} style={style} title={title} viewBox="0 0 32 32">
+      <rect x="5.5" y="5.5" width="21" height="21" strokeWidth="2.25" />
+      <rect x="21" y="4" width="5" height="5" fill="currentColor" stroke="none" />
+      <rect x="12" y="9.5" width="8" height="4.5" strokeWidth="2" />
+      <line x1="16" y1="14" x2="16" y2="21" strokeWidth="2" />
+      <line x1="10.5" y1="17" x2="21.5" y2="17" strokeWidth="2" />
+      <path d="M16 21C13.9 21.4 12.4 22.8 11.6 25" strokeWidth="2" />
+      <path d="M16 21C18.1 21.4 19.6 22.8 20.4 25" strokeWidth="2" />
+    </BaseGlyph>
   )
 }

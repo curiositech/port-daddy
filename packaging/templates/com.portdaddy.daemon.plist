@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Template: postinstall script substitutes @HOME@ with the installing user's home -->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.portdaddy.daemon</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/libexec/portdaddy/daemon</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+        <key>Crashed</key>
+        <true/>
+    </dict>
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+    <key>StandardOutPath</key>
+    <string>@HOME@/Library/Logs/PortDaddy/daemon.log</string>
+    <key>StandardErrorPath</key>
+    <string>@HOME@/Library/Logs/PortDaddy/daemon.err.log</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+</dict>
+</plist>

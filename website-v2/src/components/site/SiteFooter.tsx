@@ -1,20 +1,21 @@
 import { Link } from 'react-router-dom'
 import { Github } from 'lucide-react'
-import { BrandMark } from './primitives'
+import { BrandWordmark } from './primitives'
 
 const SITE_LINKS = [
   { label: 'Home', href: '/' },
-  { label: 'Dashboard', href: '/dashboard' },
-  { label: 'Examples', href: '/examples' },
-  { label: 'Agents', href: '/agents' },
+  { label: 'Examples', href: '/docs/examples' },
+  { label: 'Fleet tutorial', href: '/tutorials/fleet' },
   { label: 'MCP', href: '/mcp' },
   { label: 'Roadmap', href: '/roadmap' },
+  { label: 'Blog', href: '/blog' },
 ] as const
 
 const LEARN_LINKS = [
   { label: 'Docs', href: '/docs' },
   { label: 'Tutorials', href: '/tutorials' },
   { label: 'Templates', href: '/templates' },
+  { label: 'Fleet agents', href: '/tutorials/fleet' },
   { label: 'Blog', href: '/blog' },
 ] as const
 
@@ -32,16 +33,8 @@ export function SiteFooter() {
     <footer className="border-t-2 border-[var(--border-strong)] bg-[var(--surface-strong)]">
       <div className="mx-auto grid max-w-[1440px] grid-cols-1 gap-[var(--space-6)] px-[var(--space-5)] py-[var(--space-6)] lg:grid-cols-12 lg:px-[var(--space-6)]">
         <div className="space-y-[var(--space-4)] lg:col-span-5">
-          <div className="inline-flex items-center gap-[var(--space-3)]">
-            <BrandMark />
-            <div className="space-y-[var(--space-1)]">
-              <div className="font-display text-[length:var(--text-lg)] font-black uppercase tracking-[var(--tracking-display-nav)] text-[var(--text-primary)]">
-                Port Daddy
-              </div>
-              <div className="font-sans text-[length:var(--type-meta-size)] uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)]">
-                control plane for agent work
-              </div>
-            </div>
+          <div className="inline-flex items-center">
+            <BrandWordmark title="Port Daddy" subtitle="control plane for agent work" />
           </div>
           <p className="max-w-[34rem] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
             Port Daddy keeps multi-agent work legible with one daemon of record for sessions, shared state, harbor

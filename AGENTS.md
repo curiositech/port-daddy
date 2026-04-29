@@ -102,6 +102,18 @@ Project-specific shibboleths for proficient Port Daddy work. If you learn a new 
 - Project-scoped Activity filtering must include `story.agentId`; if you only filter note text and `identityProject`, valid handoffs will disappear from the timeline.
 - Session lifecycle activity is also structured data. `session.start`, `session.end`, `session.note`, `file.claim`, `file.release`, and sugar begin/done events should stamp `agentId`, `targetId`, and `identityProject` so briefing/FleetBar/UI do not have to reverse-engineer scope from prose.
 
+## Actor Model
+
+- Read `docs/adr/0022-durable-actor-souls-and-body-leases.md` before changing agent lifecycle, cleanup, salvage, inbox, IPC auth, Arbiter lock/session invariants, FleetBar agent lists, or Fleet Control Center agent views.
+- Do not "fix" disappearing agent history by simply stopping `agents` row deletion. Agent-row deletion currently carries cleanup and authorization meaning; the migration needs explicit body leases/incarnation state first.
+- The target model is durable actor souls plus ephemeral body leases:
+  - souls keep identity, mailbox, archetype, belief state, history, and addressability
+  - body leases carry heartbeat, PID/process/transport attachment, incarnation, and authority for protected operations
+- `/agents` should remain the live-body compatibility view until callers are migrated. `/actors` should become durable identity truth.
+- `pd done`, spawner cleanup, and stale cleanup should eventually detach or revoke body leases, not delete souls.
+- IPC protected actions, lock ownership, session mutation, merge submission, and salvage claims should validate a live lease or delegated token; actor existence alone is not authority.
+- Inbox messages should be understood as actor-scoped and queueable for dormant actors. Waking a live body is a separate delivery result.
+
 ## Operator UX Expectations
 
 - Top-level tabs must behave like top-level pages. Do not hide a selected tab's main content inside a collapsed lower panel.

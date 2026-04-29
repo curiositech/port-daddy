@@ -31,7 +31,7 @@ const REPLAY_SCRIPT: ReplayStep[] = [
   { type: 'command', text: 'pd session files add session-9c2b src/components/LoginForm.tsx' },
   { type: 'output', text: '✓ Claimed · no conflicts (different files)' },
   { type: 'blank', text: '' },
-  { type: 'command', text: 'pd msg myapp:events publish "auth-api ready"' },
+  { type: 'command', text: 'pd pub myapp:events "auth-api ready"' },
   { type: 'output', text: '✓ Published → 1 subscriber notified' },
   { type: 'blank', text: '' },
   { type: 'comment', text: '# Agent 1 receives the signal and wraps up' },

@@ -59,7 +59,9 @@ Formal proofs guarantee behavior *if* the software acts according to the model. 
 * **Enforcement:** The Arbiter subscribes to all `ActivityLog` events. If an agent attempts to claim a port that belongs to a different PID (violating the Anti-Squatting rule), or attempts to lock a resource without the verified capability subset, the Arbiter immediately revokes the agent's Harbor Card and triggers a "Man Overboard" system halt.
 
 ## 5. Conclusion
-The Anchor Protocol elevates local multi-agent development from a state of "hope-based security" to "math-based security." By combining symbolic protocol proofs (ProVerif), memory-safe implementation proofs (Kani), and runtime ambient enforcement (The Arbiter), Port Daddy provides a formally verified control plane capable of safely orchestrating the next generation of autonomous AI swarms.
+The Anchor Protocol elevates local multi-agent development from a state of "hope-based security" to "math-based security" — for the adversaries it actually defends against. By combining symbolic protocol proofs (ProVerif), memory-safe implementation proofs (Kani), and runtime ambient enforcement (The Arbiter), Port Daddy provides a formally verified control plane capable of safely orchestrating autonomous AI swarms against network adversaries and cross-user attackers.
+
+**What the "math-based security" claim does not cover.** The formal proofs and the runtime Arbiter assume the daemon's signing key is secret. Until v3.8.3 the key sat as plaintext PEM in a SQLite row any same-user process could read; from v3.8.4 onward it lives in the macOS Keychain, with the DB row sanitized on first boot. Same-user code-execution adversaries remain a distinct threat class — mitigated by OS-mediated key custody now and by hardware-backed keys in a future release. The proofs hold *conditional* on the key-secrecy assumption. See `docs/shipwright/SECURITY-ASSESSMENT.md` for the full threat model and the active mitigation roadmap.
 
 ## References
 1. Blanchet, B. (2016). *ProVerif: Cryptographic Protocol Verifier*. INRIA.

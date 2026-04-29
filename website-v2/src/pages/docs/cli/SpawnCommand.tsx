@@ -14,9 +14,6 @@ export default function SpawnCommand() {
         { flag: '--identity <id>', description: 'Semantic identity in project:stack:context form. If omitted, pd tries to derive it from package.json.' },
         { flag: '--budget <usd>', description: 'Required spend ceiling for this launch. Must be positive.' },
         { flag: '--purpose <text>', description: 'Short human-readable label for the run.' },
-        { flag: '--files <path>', description: 'File list for aider-backed runs. Repeat as needed.' },
-        { flag: '--workdir <dir>', description: 'Working directory override.' },
-        { flag: '--timeout <ms>', description: 'Execution timeout in milliseconds.' },
         { flag: '--allowedTools <str>', description: 'Tool permission string for claude-cli.' },
         { flag: '--maxTokens <n>', description: 'Optional token ceiling for claude or claude-cli launches.' },
         { flag: '-j, --json', description: 'Emit JSON instead of terminal UI.' },
@@ -24,7 +21,7 @@ export default function SpawnCommand() {
       ]}
       usagePatterns={[
         'pd spawn --backend codex --tier low --identity myapp:docs:sync --budget 0.75 -- "Rewrite the API docs"',
-        'pd spawn --backend aider --identity myapp:web:refactor --budget 1.25 --files src/App.tsx -- "Refactor the dashboard shell"',
+        'pd spawn --backend aider --identity myapp:web:refactor --budget 1.25 -- "Only edit src/App.tsx. Refactor the dashboard shell."',
         'pd spawn --backend gemini --model gemini-2.5-flash --identity myapp:qa:review --budget 0.50 -- "Review the last commit for regressions"',
       ]}
       examples={[
@@ -44,13 +41,11 @@ export default function SpawnCommand() {
 Updated website spawn docs to require identity + budget and reflect current backends.`
         },
         {
-          description: 'Use aider on specific files',
+          description: 'Keep Aider bounded in the task text',
           code: `pd spawn --backend aider \\
   --identity port-daddy:ui:fleetbar \\
   --budget 1.25 \\
-  --files apps/FleetBar/FleetBar/CostStore.swift \\
-  --files apps/FleetBar/FleetBar/CostDashboard.swift \\
-  -- "Use real fleet ceilings instead of a fake visual budget reference"`,
+  -- "Only edit apps/FleetBar/FleetBar/CostStore.swift and apps/FleetBar/FleetBar/CostDashboard.swift. Use real fleet ceilings instead of a fake visual budget reference."`,
         },
         {
           description: 'Auto-detect identity from package.json',

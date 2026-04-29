@@ -70,6 +70,33 @@ Use the richer coordination primitives when they actually add value:
 
 Do not rely on “I’ll just be careful” when another agent is active. In Port Daddy, legible shared state is the whole point.
 
+## Actor Model Direction
+
+Current v3.8.4 agent lifecycle APIs still expose "registered agents" and
+`pd done` / `end_session_full` still behave as session-end plus unregister
+compatibility operations. Do not build new lifecycle semantics around that as a
+durable truth.
+
+The target architecture is recorded in
+`docs/adr/0022-durable-actor-souls-and-body-leases.md`:
+
+- durable actor souls keep identity, mailbox, archetype, history, and
+  addressability
+- ephemeral body leases carry heartbeat, process/transport attachment,
+  incarnation, and protected-operation authority
+- `/agents` remains the live-body compatibility view until callers migrate
+- `/actors` now exposes the first maritime actor projection surface
+  (`Navigator`, `Coxswain`, `Signalman`, `Harbormaster`, `Sounder`, `Lookout`,
+  `Breaker`, `Caulker`, `Quartermaster`)
+- salvage should become adoption or recovery of a dead/revoked body lease, not
+  resurrection of a deleted identity
+- inbox messages should be actor-scoped and queueable for dormant actors; waking
+  a live body is a separate delivery result
+
+Important implementation rule: do not "fix" disappearing agent history by simply
+stopping `agents` row deletion. Agent-row deletion currently drives cleanup and
+authorization behavior, so lease/incarnation state must land first.
+
 ## Consolidated Verbs (3.8.4) — `pd say` and `pd look`
 
 In 3.8.4 we collapsed the CLI veneer. When you want to leave a finding, use

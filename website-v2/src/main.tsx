@@ -8,16 +8,12 @@ import { DocsLayout } from '@/components/docs/DocsLayout'
 // Pages
 import App from './App.tsx'
 import { TutorialsPage } from '@/pages/TutorialsPage'
-import DocsPage from '@/pages/DocsPage'
-import { ExamplesPage } from '@/pages/ExamplesPage'
 import MCPPage from '@/pages/MCPPage'
 import WhitepaperPage from '@/pages/whitepaper'
-import { DashboardPage } from '@/pages/DashboardPage'
 import { BlogPage } from '@/pages/BlogPage'
 import { BlogPostPage } from '@/pages/BlogPostPage'
 import { RoadmapPage } from '@/pages/RoadmapPage'
 import { TemplatesPage } from '@/pages/TemplatesPage'
-import { AgentsPage } from '@/pages/AgentsPage'
 
 // Documentation Pages
 import ApiReference from '@/pages/docs/ApiReference'
@@ -61,8 +57,8 @@ import NotesCommand from '@/pages/docs/cli/NotesCommand'
 import LockAcquireCommand from '@/pages/docs/cli/LockAcquireCommand'
 import LockReleaseCommand from '@/pages/docs/cli/LockReleaseCommand'
 import WithLockCommand from '@/pages/docs/cli/WithLockCommand'
-import MsgCommand from '@/pages/docs/cli/MsgCommand'
 import PubCommand from '@/pages/docs/cli/PubCommand'
+import ChannelsCommand from '@/pages/docs/cli/ChannelsCommand'
 import WatchCommand from '@/pages/docs/cli/WatchCommand'
 import SpawnCommand from '@/pages/docs/cli/SpawnCommand'
 import SpawnedCommand from '@/pages/docs/cli/SpawnedCommand'
@@ -185,16 +181,16 @@ createRoot(document.getElementById('root')!).render(
         <Routes>
           <Route element={<MainLayout />}>
             <Route path="/" element={<App />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/examples" element={<ExamplesPage />} />
+            <Route path="/dashboard" element={<Navigate to="/tutorials/dashboard" replace />} />
+            <Route path="/examples" element={<Navigate to="/docs/examples" replace />} />
             <Route path="/mcp" element={<MCPPage />} />
             <Route path="/roadmap" element={<RoadmapPage />} />
             <Route path="/templates" element={<TemplatesPage />} />
-            <Route path="/agents" element={<AgentsPage />} />
+            <Route path="/agents" element={<Navigate to="/tutorials/fleet" replace />} />
 
             <Route path="/tutorials" element={<TutorialsPage />} />
             <Route path="/tutorials/getting-started" element={<Tutorials.GettingStarted />} />
-            <Route path="/tutorials/semantic-identities" element={<Tutorials.SemanticIdentities />} />
+            <Route path="/tutorials/semantic-identities" element={<Navigate to="/tutorials/dns" replace />} />
             <Route path="/tutorials/multi-agent" element={<Tutorials.MultiAgentOrchestration />} />
             <Route path="/tutorials/monorepo" element={<Tutorials.Monorepo />} />
             <Route path="/tutorials/debugging" element={<Tutorials.Debugging />} />
@@ -250,8 +246,9 @@ createRoot(document.getElementById('root')!).render(
             <Route path="cli/lock-acquire" element={<LockAcquireCommand />} />
             <Route path="cli/lock-release" element={<LockReleaseCommand />} />
             <Route path="cli/with-lock" element={<WithLockCommand />} />
-            <Route path="cli/msg" element={<MsgCommand />} />
+            <Route path="cli/msg" element={<Navigate to="/docs/cli/pub" replace />} />
             <Route path="cli/pub" element={<PubCommand />} />
+            <Route path="cli/channels" element={<ChannelsCommand />} />
             <Route path="cli/watch" element={<WatchCommand />} />
             <Route path="cli/spawn" element={<SpawnCommand />} />
             <Route path="cli/spawned" element={<SpawnedCommand />} />
@@ -353,7 +350,7 @@ createRoot(document.getElementById('root')!).render(
             <Route path="*" element={<Navigate to="/docs" replace />} />
           </Route>
 
-          <Route path="/docs-old" element={<DocsPage />} />
+          <Route path="/docs-old" element={<Navigate to="/docs" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

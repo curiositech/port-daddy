@@ -169,18 +169,25 @@ export const CLI_COMMANDS: CliCommand[] = [
   // Messaging
   {
     group: 'Messaging',
-    cmd: 'pd msg <channel> publish <payload>',
+    cmd: 'pd pub <channel> <message>',
     description: 'Publish a message to a pub/sub channel. All subscribers receive it.',
-    example: "pd msg build:done publish '{\"sha\": \"abc123\"}'",
-    output: 'Published to build:done',
+    example: "pd pub build:done '{\"sha\":\"abc123\"}'",
+    output: '[ok] Published to build:done (id: 421)',
   },
   {
     group: 'Messaging',
-    cmd: 'pd msg <channel> get',
-    description: 'Get all messages currently in a channel.',
-    flags: ['--limit <n>   Max messages to return'],
-    example: 'pd msg build:done get',
-    output: '[{"sha":"abc123","timestamp":"2026-03-10T..."}]',
+    cmd: 'pd sub <channel>',
+    description: 'Subscribe to a real-time channel stream over SSE.',
+    flags: ['-j, --json   Emit raw JSON messages'],
+    example: 'pd sub build:done -j',
+    output: '{"sender":"CLI","signal":"report","payload":{"sha":"abc123"}}',
+  },
+  {
+    group: 'Messaging',
+    cmd: 'pd channels',
+    description: 'List active channels or resolve declared logical channels to physical daemon channels.',
+    example: 'pd channels describe git:committed',
+    output: 'logical: git:committed\nphysical: project:port-daddy:fe53192e21fe:git:committed',
   },
   {
     group: 'Messaging',

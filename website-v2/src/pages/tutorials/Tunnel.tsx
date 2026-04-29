@@ -7,12 +7,12 @@ export function Tunnel() {
     <TutorialLayout
       title="Tunnels"
       description="Expose local services to the internet instantly. Port Daddy wraps ngrok, cloudflared, and localtunnel to create public URLs for any claimed service."
-      number="05"
-      total={14}
+      number={5}
+      total={19}
       level="Beginner"
       readTime="6 min read"
-      prev={{ title: 'Agent Spawning', href: '/tutorials/always-on' }}
-      next={{ title: 'Activity Log', href: '/tutorials/time-travel' }}
+      prev={{ title: 'Debugging with Port Daddy', href: '/tutorials/debugging' }}
+      next={{ title: 'DNS Resolver', href: '/tutorials/dns' }}
     >
       <div className="space-y-12">
         {/* Concept Section */}

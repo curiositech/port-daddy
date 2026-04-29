@@ -1,113 +1,85 @@
 import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
 import { CodeBlock } from '@/components/ui/CodeBlock'
-import { Badge } from '@/components/ui/Badge'
-import { Zap, Terminal, Shield, Mail, Send, Activity, ArrowRight } from 'lucide-react'
-import { Surface } from '@/components/ui/Surface'
 
 export function Inbox() {
   return (
     <TutorialLayout
       title="The Agent Inbox"
-      description="Coordination requires communication. Learn to use Port Daddy's internal messaging system to send direct signals, broadcast events, and monitor agent heartbeats in real-time."
-      number={10}
-      total={16}
+      description="Use Port Daddy channels for shared signals and registered-agent inboxes for direct messages. Publish, subscribe, and inspect the path without inventing a side protocol."
+      number={8}
+      total={19}
       level="Intermediate"
       readTime="10 min read"
-      prev={{ title: 'Identity Discovery', href: '/tutorials/dns' }}
-      next={{ title: 'pd spawn: Agent Fleets', href: '/tutorials/pd-spawn' }}
+      prev={{ title: 'Session Phases', href: '/tutorials/session-phases' }}
+      next={{ title: 'Sugar Commands', href: '/tutorials/sugar' }}
     >
-      <div className="space-y-12">
-        {/* Concept Section */}
-        <section className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-[var(--surface-inset)]">
-              <Mail className="text-[var(--brand-secondary)]" size={20} />
-            </div>
-            <h2 className="m-0">Beyond Stdout</h2>
-          </div>
-          <p>
-            In a multi-agent swarm, logs are noisy and hard to parse. Port Daddy provides every agent with a dedicated <strong>Inbox</strong> -- a structured messaging endpoint where it can receive direct instructions or status updates from other members of the harbor.
-          </p>
-          <div className="space-y-3 pt-2">
-            <p className="text-sm text-[var(--text-secondary)] m-0">
-              <Send size={14} className="inline text-[var(--brand-secondary)] mr-1" />
-              <strong>Direct Signals</strong> -- Send targeted JSON payloads to a specific agent identity without broadcasting to the whole mesh.
+      <div className="space-y-[var(--space-7)]">
+        <section className="space-y-[var(--space-4)]">
+          <div className="max-w-[52rem] border-t-2 border-[var(--border-strong)] pt-[var(--space-4)]">
+            <p className="m-0 text-[11px] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+              Channel first
             </p>
-            <p className="text-sm text-[var(--text-secondary)] m-0">
-              <Activity size={14} className="inline text-[var(--brand-accent)] mr-1" />
-              <strong>Radio Stream</strong> -- Subscribe to any inbox live via SSE to monitor agent progress in your terminal or dashboard.
-            </p>
-          </div>
-        </section>
-
-        {/* Step 1: Sending */}
-        <section className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-[var(--surface-inset)]">
-              <Zap className="text-[var(--brand-primary)]" size={20} />
-            </div>
-            <h2 className="m-0">1. Send a Signal</h2>
+            <h2 className="!m-0 !mt-[var(--space-2)] !border-t-0 !pt-0">Broadcast when the audience is a role</h2>
           </div>
 
           <p>
-            Use the <code>msg send</code> command to route a message to an agent's inbox. You can send raw text or complex JSON objects.
+            Use <code>pd pub</code> for events any interested worker can consume: review requested, build complete, docs changed, release blocked. The channel name is the contract. The payload is ordinary text or JSON.
           </p>
 
           <CodeBlock language="bash">
-            {`$ pd pub swarm:analyst:main '{"task": "generate-report", "priority": "high"}'\n\n✓ Message routed to agent-7f3a.\n✓ Status: Received.`}
+            {`$ pd pub swarm:analyst:main '{"task":"summarize","source":"docs/tutorials"}'\n[ok] Published to swarm:analyst:main (id: 421)`}
           </CodeBlock>
 
-          <p className="m-0 text-sm border-l-4 border-[var(--brand-secondary)] pl-4" style={{ color: 'var(--text-secondary)' }}>
-            The daemon ensures that the message is delivered even if the agent is currently busy, acting as a high-fidelity buffer between processes.
-          </p>
-        </section>
-
-        {/* Step 2: Watching */}
-        <section className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-[var(--surface-inset)]">
-              <Terminal className="text-[var(--brand-secondary)]" size={20} />
-            </div>
-            <h2 className="m-0">2. Watch the Stream</h2>
-          </div>
-
           <p>
-            Want to see what an agent is receiving? Use <code>msg watch</code> to open a real-time SSE stream of an inbox.
+            Subscribe with <code>pd sub</code> when you want to watch that channel live. Use JSON output when another tool or agent will parse the stream.
           </p>
 
           <CodeBlock language="bash">
-            {`$ pd msg watch swarm:analyst:main\n\n[12:04:38] INCOMING: {"task": "generate-report"}\n[12:04:42] ACK: Processing started...`}
+            {`$ pd sub swarm:analyst:main -j\n{"sender":"CLI","signal":"report","payload":{"task":"summarize","source":"docs/tutorials"}}`}
           </CodeBlock>
-
-          <Surface depth="inset" radius="xl" className="p-5 space-y-3">
-            <p className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] m-0">The Inter-Agent Bridge</p>
-            <div className="flex items-center justify-between text-xs font-mono gap-4">
-              <span>
-                <Badge variant="teal" className="mr-2">alpha</Badge>
-                <code className="text-[var(--text-muted)]">pd pub...</code>
-              </span>
-              <ArrowRight size={14} className="text-[var(--brand-primary)] shrink-0" />
-              <span>
-                <Badge variant="gold" className="mr-2">Daemon</Badge>
-                <code className="text-[var(--text-muted)]">Queue</code>
-              </span>
-              <ArrowRight size={14} className="opacity-40 shrink-0" />
-              <span className="opacity-60">
-                <Badge variant="default" className="mr-2">beta</Badge>
-                <code className="text-[var(--text-muted)]">pd sub...</code>
-              </span>
-            </div>
-          </Surface>
         </section>
 
-        {/* Vision Callout */}
-        <section className="p-6 text-center space-y-4">
-          <p className="text-lg max-w-xl mx-auto text-[var(--text-secondary)]">
-            The inbox system is the foundation of <strong>Swarm Radio</strong>. In Port Daddy v3.7, we've moved beyond simple text logs to a structured, auditable communication mesh where every signal has an owner and a destination.
+        <section className="space-y-[var(--space-4)]">
+          <div className="max-w-[52rem] border-t-2 border-[var(--border-strong)] pt-[var(--space-4)]">
+            <p className="m-0 text-[11px] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+              Direct inbox
+            </p>
+            <h2 className="!m-0 !mt-[var(--space-2)] !border-t-0 !pt-0">Message a known registered agent</h2>
+          </div>
+
+          <p>
+            Use <code>pd inbox</code> when the target is a specific registered agent. This is not a replacement for pub/sub. It is a direct mailbox for an agent id.
           </p>
-          <div className="flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-secondary)]">
-            <Shield size={14} />
-            SQLite-Backed Persistence
+
+          <CodeBlock language="bash">
+            {`$ pd inbox send agent-7f3a "Please review the spawn tutorial examples."\nMessage sent to agent-7f3a\n\n$ pd inbox list --agent agent-7f3a\n[unread] [12:04:38] <cli-18472> Please review the spawn tutorial examples.`}
+          </CodeBlock>
+        </section>
+
+        <section className="max-w-[52rem] border-2 border-[var(--border-strong)] shadow-[var(--shadow-flat)]">
+          <div className="border-b-2 border-[var(--border-strong)] px-[var(--space-4)] py-[var(--space-3)]">
+            <p className="m-0 text-[11px] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+              Operator map
+            </p>
+            <h2 className="!m-0 !mt-[var(--space-1)] !border-t-0 !pt-0 text-[1.35rem]">Which surface should I use?</h2>
+          </div>
+
+          <div className="divide-y-2 divide-[var(--border-strong)]">
+            {[
+              ['Broadcast', 'pd pub <channel> <payload>', 'For role or workflow events. Any subscriber can react.'],
+              ['Subscribe', 'pd sub <channel>', 'For live inspection or simple stream consumers.'],
+              ['Direct message', 'pd inbox send <agent-id> <message>', 'For a known registered agent id, not a topic.'],
+            ].map(([label, command, description]) => (
+              <div key={label} className="grid gap-[var(--space-2)] px-[var(--space-4)] py-[var(--space-3)] sm:grid-cols-[9rem_minmax(0,1fr)]">
+                <p className="m-0 text-[11px] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+                  {label}
+                </p>
+                <div className="space-y-[var(--space-1)]">
+                  <code>{command}</code>
+                  <p className="m-0 text-sm text-[var(--text-secondary)]">{description}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </section>
       </div>

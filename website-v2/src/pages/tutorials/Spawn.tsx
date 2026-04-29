@@ -1,7 +1,5 @@
 import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
 import { CodeBlock } from '@/components/ui/CodeBlock'
-import { Surface } from '@/components/ui/Surface'
-import { Rocket, Shield, Wallet, Compass } from 'lucide-react'
 
 export function Spawn() {
   return (
@@ -9,38 +7,25 @@ export function Spawn() {
       title="Budgeted One-Shot Agents"
       description="Use pd spawn when you want direct daemon-backed execution with explicit identity, explicit cost ceiling, and no long-lived fleet wiring."
       number={11}
-      total={16}
+      total={19}
       level="Intermediate"
       readTime="10 min read"
-      prev={{ title: 'Agent Inbox', href: '/tutorials/inbox' }}
-      next={{ title: 'Cryptographic Harbors', href: '/tutorials/harbors' }}
+      prev={{ title: 'Spawn + Watch Pattern', href: '/tutorials/always-on' }}
+      next={{ title: 'Harbor Tokens (Advisory)', href: '/tutorials/harbors' }}
     >
-      <div className="space-y-12">
-        <section className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[var(--surface-sunken)] flex items-center justify-center">
-              <Rocket className="text-[var(--brand-primary)]" size={20} />
-            </div>
-            <h2 className="m-0">When to Use pd spawn</h2>
-          </div>
+      <div className="space-y-[var(--space-7)]">
+        <section>
+          <h2>When to use pd spawn</h2>
           <p>
-            <code>pd spawn</code> is the direct launch surface for a single one-shot agent. Use it when you already know the backend you want and you want the daemon to run the job with the normal Port Daddy coordination plumbing around it.
+            <code>pd spawn</code> is still the direct launch command. It is the low-level primitive for a single daemon-backed run: choose a backend, set an identity, set a positive budget ceiling, and pass one task after <code>--</code>.
           </p>
-          <Surface depth="flat" radius="xl" padding="md" className="border-l-4 border-[var(--brand-primary)]">
-            <p className="m-0 text-sm" style={{ color: 'var(--text-secondary)' }}>
-              Reach for <strong>pd agent</strong> when you want a higher-level autopilot. Reach for <strong>fleet</strong> when the work should stay resident and trigger over time.
-            </p>
-          </Surface>
+          <p>
+            Use <code>pd agent</code> for the higher-level ad hoc wrapper. Use <code>pd fleet</code> when work should stay resident, react to triggers, and respawn over time.
+          </p>
         </section>
 
-        <section className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[var(--surface-sunken)] flex items-center justify-center">
-              <Shield className="text-[var(--brand-secondary)]" size={20} />
-            </div>
-            <h2 className="m-0">1. Identity and Budget Are Required</h2>
-          </div>
-
+        <section>
+          <h2>1. Launch with identity and budget</h2>
           <p>
             Port Daddy now refuses unbudgeted or unattributed launches. Every one-shot run needs a semantic identity so spend lands on a project and a positive ceiling so the launch can be preflighted against current usage.
           </p>
@@ -52,25 +37,10 @@ export function Spawn() {
     --budget 0.75 \\
     -- "Rewrite the website spawn docs so they match the daemon contract"`}
           </CodeBlock>
-
-          <Surface depth="raised" radius="xl" padding="md">
-            <div className="flex items-start gap-3">
-              <Wallet size={16} className="mt-0.5 text-[var(--brand-accent)]" />
-              <p className="m-0 text-sm" style={{ color: 'var(--text-secondary)' }}>
-                The ceiling is not decorative. Launch preflight checks readiness and current project spend before the daemon accepts the run.
-              </p>
-            </div>
-          </Surface>
         </section>
 
-        <section className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[var(--surface-sunken)] flex items-center justify-center">
-              <Compass className="text-[var(--brand-accent)]" size={20} />
-            </div>
-            <h2 className="m-0">2. Inspect the Run</h2>
-          </div>
-
+        <section>
+          <h2>2. Inspect the run</h2>
           <p>
             <code>pd spawn</code> returns the actual run result, and <code>pd spawned</code> lets you inspect what is still active or recently finished.
           </p>
@@ -81,18 +51,19 @@ AGENT ID            BACKEND   MODEL                    STATUS      AGE
 ────────────────────────────────────────────────────────────────────────
 spawned-8a2f0c1c    codex      gpt-5.4-mini           completed   12s`}
           </CodeBlock>
+        </section>
 
-          <p className="text-sm text-[var(--text-secondary)]">
-            For an aider-backed launch, pass focused files so the spawned worker starts with a bounded working set instead of wandering the repo.
+        <section>
+          <h2>3. Keep the task bounded</h2>
+          <p>
+            The current <code>pd spawn</code> surface does not expose file-scoping flags. If you need an Aider or Codex run to stay narrow, put the files and expected exit condition in the task itself.
           </p>
 
           <CodeBlock language="bash">
             {`$ pd spawn --backend aider \\
     --identity port-daddy:ui:fleetbar \\
     --budget 1.25 \\
-    --files apps/FleetBar/FleetBar/CostStore.swift \\
-    --files apps/FleetBar/FleetBar/CostDashboard.swift \\
-    -- "Use real fleet ceilings instead of a fake visual budget reference"`}
+    -- "Only edit apps/FleetBar/FleetBar/CostStore.swift and apps/FleetBar/FleetBar/CostDashboard.swift. Use real fleet ceilings instead of a fake visual budget reference."`}
           </CodeBlock>
         </section>
       </div>

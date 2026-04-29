@@ -9,12 +9,12 @@ export function MultiAgentOrchestration() {
     <TutorialLayout
       title="Multi-Agent Coordination"
       description="Two agents, one project, zero conflicts. File claims for ownership, pub/sub for communication, session notes for audit trails."
-      number={3}
+      number={2}
       total={19}
       level="Intermediate"
       readTime="8 min read"
-      prev={{ title: 'Semantic Identities', href: '/tutorials/semantic-identities' }}
-      next={{ title: 'Monorepo', href: '/tutorials/monorepo' }}
+      prev={{ title: 'Getting Started', href: '/tutorials/getting-started' }}
+      next={{ title: 'Monorepo Mastery', href: '/tutorials/monorepo' }}
     >
       <motion.div className="space-y-12">
 

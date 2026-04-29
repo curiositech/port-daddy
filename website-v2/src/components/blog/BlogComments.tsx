@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useId } from "react";
 import { MessageCircle, Heart, Reply, Send, Loader2 } from "lucide-react";
 import { Surface } from "@/components/ui/Surface";
 import { Badge } from "@/components/ui/Badge";
@@ -30,10 +30,10 @@ interface BlogCommentsProps {
 const SIGNAL_FLAG_COLORS = [
   { bg: "var(--signal-charlie)", text: "var(--text-inverse)" },
   { bg: "var(--signal-kilo)", text: "var(--text-inverse)" },
-  { bg: "var(--signal-uniform)", text: "var(--text-inverse)" },
+  { bg: "var(--surface-strong)", text: "var(--text-primary)" },
   { bg: "var(--signal-victor)", text: "var(--text-inverse)" },
   { bg: "var(--brand-secondary)", text: "var(--text-inverse)" },
-  { bg: "var(--brand-accent)", text: "var(--text-inverse)" },
+  { bg: "var(--brand-accent)", text: "var(--brand-accent-foreground)" },
   { bg: "var(--signal-lima)", text: "var(--text-inverse)" },
 ] as const;
 
@@ -295,6 +295,10 @@ function CommentForm({
   onCancel?: () => void;
   compact?: boolean;
 }) {
+  const nameId = useId();
+  const bodyId = useId();
+  const bodyHelpId = useId();
+  const errorId = useId();
   const [name, setName] = useState("");
   const [body, setBody] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -339,6 +343,7 @@ function CommentForm({
       {/* Name field */}
       <div className={compact ? "mb-2" : "mb-3"}>
         <label
+          htmlFor={nameId}
           className="block mb-1 text-xs font-semibold uppercase tracking-wider"
           style={{ color: "var(--text-muted)" }}
         >
@@ -346,6 +351,8 @@ function CommentForm({
         </label>
         <Surface depth="inset" radius="lg" padding="none" className="max-w-xs">
           <input
+            id={nameId}
+            name="authorName"
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -353,6 +360,7 @@ function CommentForm({
             placeholder="Your name"
             className="w-full px-3 py-1.5 text-sm bg-transparent outline-none"
             style={{ color: "var(--text-primary)" }}
+            aria-invalid={error && !name.trim() ? "true" : "false"}
           />
         </Surface>
       </div>
@@ -365,6 +373,7 @@ function CommentForm({
       {/* Body */}
       <div className={compact ? "mb-2" : "mb-3"}>
         <label
+          htmlFor={bodyId}
           className="block mb-1 text-xs font-semibold uppercase tracking-wider"
           style={{ color: "var(--text-muted)" }}
         >
@@ -372,6 +381,8 @@ function CommentForm({
         </label>
         <Surface depth="inset" radius="lg" padding="none">
           <textarea
+            id={bodyId}
+            name="commentBody"
             value={body}
             onChange={(e) => setBody(e.target.value)}
             maxLength={3000}
@@ -382,9 +393,12 @@ function CommentForm({
               color: "var(--text-primary)",
               minHeight: compact ? "60px" : "80px",
             }}
+            aria-describedby={error ? `${bodyHelpId} ${errorId}` : bodyHelpId}
+            aria-invalid={error && (!body.trim() || body.trim().length < 3) ? "true" : "false"}
           />
         </Surface>
         <p
+          id={bodyHelpId}
           className="text-xs mt-1"
           style={{ color: "var(--text-muted)" }}
         >
@@ -394,6 +408,8 @@ function CommentForm({
 
       {error && (
         <p
+          id={errorId}
+          role="alert"
           className="text-xs mb-2 font-medium"
           style={{ color: "var(--status-error)" }}
         >

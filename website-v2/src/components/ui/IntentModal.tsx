@@ -33,7 +33,7 @@ const INTENTS = [
     title: 'Just exploring',
     description: 'See what agent-native infrastructure looks like',
     action: 'View Examples',
-    href: '/examples',
+    href: '/docs/examples',
     primary: false,
   },
 ]

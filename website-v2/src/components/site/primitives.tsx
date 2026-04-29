@@ -3,8 +3,6 @@ import { Link, NavLink } from 'react-router-dom'
 import { ArrowDown, ArrowRight, Box, Check, Copy, Cpu, Lock } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { CodeBlock } from '@/components/ui/CodeBlock'
-import { NeumorphicTerminal } from '@/components/ui/NeumorphicTerminal'
-import { useTheme } from '@/lib/theme'
 import { cn } from '@/lib/utils'
 import type { AccentTone, CommercialTrack, ProofPanel, TruthState } from '@/data/publicSite'
 
@@ -99,22 +97,21 @@ function useSurfaceTone(explicitTone?: AccentTone) {
   return explicitTone ?? inheritedTone
 }
 
-export function BrandMark({ className }: { className?: string }) {
-  const { theme } = useTheme()
-
+export function BrandWordmark({
+  title = 'Port Daddy',
+  subtitle = 'Single-daemon control plane',
+  className,
+}: {
+  title?: string
+  subtitle?: string
+  className?: string
+}) {
   return (
-    <div
-      aria-hidden="true"
-      className={cn(
-        'inline-flex h-10 w-10 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-2)]',
-        className,
-      )}
-    >
-      <img
-        src={theme === 'dark' ? '/pd_logo_darkmode.svg' : '/pd_logo.svg'}
-        alt=""
-        className="h-5 w-auto"
-      />
+    <div className={cn('space-y-[2px]', className)}>
+      <div className="font-display text-[length:var(--type-panel-title-nav-size)] font-black tracking-[var(--tracking-display-nav)] text-[var(--text-primary)]">
+        {title}
+      </div>
+      <PanelEyebrow>{subtitle}</PanelEyebrow>
     </div>
   )
 }
@@ -806,6 +803,40 @@ export function DocsNoteCard({
   )
 }
 
+export function TerminalSurface({
+  code,
+  title,
+  className,
+}: {
+  code: string
+  title: string
+  className?: string
+}) {
+  const surface = useSurfaceTone()
+  const accentIndicatorClass =
+    surface === 'lime' ? 'bg-[var(--brand-accent)]' : 'bg-[var(--brand-primary)]'
+
+  return (
+    <div
+      className={cn(
+        'overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--code-bg)] text-[var(--code-text)]',
+        className,
+      )}
+    >
+      <div className="flex items-center justify-between gap-[var(--panel-gap-tight)] border-b border-[var(--code-border)] px-[var(--space-3)] py-[var(--space-2)]">
+        <div className="flex items-center gap-[var(--space-2)]">
+          <span className={cn('h-[10px] w-[10px] border border-black/30', accentIndicatorClass)} aria-hidden="true" />
+          <PanelEyebrow className="text-[var(--code-prompt)]">{title}</PanelEyebrow>
+        </div>
+      </div>
+
+      <pre className="overflow-x-auto px-[var(--space-4)] py-[var(--space-4)] text-xs leading-6 text-[var(--code-text)]">
+        <code>{code}</code>
+      </pre>
+    </div>
+  )
+}
+
 export function DocsCodeBlock({
   code,
   language = 'cli',
@@ -837,13 +868,7 @@ export function DocsCodeBlock({
             {copied ? 'Copied' : 'Copy'}
           </Button>
         </div>
-        <NeumorphicTerminal
-          code={code}
-          title={terminalLabel}
-          language="bash"
-          animate={false}
-          copyable={false}
-        />
+        <TerminalSurface code={code} title={terminalLabel} />
         <span className="sr-only" aria-live="polite">
           {copied ? `${terminalLabel} copied to clipboard` : ''}
         </span>

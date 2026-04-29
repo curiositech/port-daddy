@@ -1,13 +1,29 @@
-import React from 'react'
 import { Link } from 'react-router-dom'
-import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { blogPosts } from '@/data/blogData'
 import { Badge } from '@/components/ui/Badge'
 import { Surface } from '@/components/ui/Surface'
 import { Button } from '@/components/ui/Button'
-import { Calendar, User, ArrowRight, Terminal, Copy, Check, Anchor, Ship, Compass, Shield, Zap, BookOpen, Package, Code, Activity } from 'lucide-react'
+import {
+  Activity,
+  Anchor,
+  ArrowRight,
+  BookOpen,
+  Calendar,
+  Compass,
+  Shield,
+  Ship,
+  Terminal,
+  User,
+} from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
+import {
+  BracketLabel,
+  DocsCodeBlock,
+  PanelBody,
+  PanelTitle,
+  SurfacePanel,
+} from '@/components/site/primitives'
 
 // Hero image mapping — matches blog slug to generated Ideogram hero
 const heroImages: Record<string, string> = {
@@ -41,150 +57,115 @@ const tagVariant = (tag: string): 'teal' | 'red' | 'gold' | 'default' | 'success
   return map[tag] || 'default'
 }
 
-// Install method tabs
-interface InstallTab {
-  id: string
-  label: string
-  cmd: string
+interface SetupStep {
+  step: string
+  title: string
   description: string
-  icon: React.ReactNode
-  featured?: boolean
+  tone?: 'paper' | 'blue' | 'lime'
+  commands: { label: string; code: string }[]
 }
 
-const installTabs: InstallTab[] = [
+const shortcutCommand = {
+  title: 'Shortcut if you want the full bootstrap',
+  description:
+    'Use `pd init` when you want Port Daddy to detect the repo, start the daemon if needed, wire supported MCP clients, and offer fleet bootstrap in one pass.',
+  code: 'pd init',
+}
+
+const setupSteps: SetupStep[] = [
   {
-    id: 'init',
-    label: 'pd init',
-    cmd: 'pd init',
-    description: 'One command: detects your stack, configures MCP in every AI editor, installs a fleet, and adds a git hook that fires agents on every commit.',
-    icon: <Zap size={14} />,
-    featured: true,
+    step: '01',
+    title: 'Install Port Daddy',
+    description:
+      'Pick one install path. Package manager first, then every editor and script talks to the same local daemon.',
+    commands: [
+      { label: 'Homebrew', code: 'brew install curiositech/tap/port-daddy' },
+      { label: 'npm', code: 'npm install -g port-daddy' },
+    ],
   },
   {
-    id: 'brew',
-    label: 'Homebrew',
-    cmd: 'brew install curiositech/tap/port-daddy && pd status',
-    description: 'Install the always-on daemon. Auto-starts on login via launchd. Survives terminal close.',
-    icon: <Package size={14} />,
+    step: '02',
+    title: 'Start the daemon',
+    description:
+      'Bring up the control plane once, then verify the runtime answered before you wire editors or claim ports.',
+    commands: [{ label: 'Daemon', code: 'pd start\npd status' }],
   },
   {
-    id: 'mcp',
-    label: 'MCP',
-    cmd: 'pd mcp install',
-    description: '44 tools wired into Claude Code. Sessions, salvage, pub/sub, locks, fleet — all from your editor.',
-    icon: <Terminal size={14} />,
+    step: '03',
+    title: 'Wire MCP clients',
+    description:
+      'Let Port Daddy detect installed editors and write the MCP server configuration for them.',
+    tone: 'blue',
+    commands: [{ label: 'MCP', code: 'pd mcp install --list\npd mcp install' }],
   },
   {
-    id: 'npx',
-    label: 'npx',
-    cmd: 'npx port-daddy claim myapp:api -q',
-    description: 'Zero install. Claim a port by identity. Daemon auto-starts if not running.',
-    icon: <Code size={14} />,
+    step: '04',
+    title: 'Optional fleet bootstrap',
+    description:
+      'Once the daemon and MCP are live, generate a background fleet and its git-triggered operator loop.',
+    tone: 'lime',
+    commands: [{ label: 'Fleet', code: 'pd fleet init' }],
   },
 ]
 
-function TypewriterText({ text, speed = 40 }: { text: string; speed?: number }) {
-  const [displayed, setDisplayed] = useState('')
-  const [idx, setIdx] = useState(0)
-
-  useEffect(() => {
-    setDisplayed('')
-    setIdx(0)
-  }, [text])
-
-  useEffect(() => {
-    if (idx < text.length) {
-      const t = setTimeout(() => {
-        setDisplayed(prev => prev + text[idx])
-        setIdx(prev => prev + 1)
-      }, speed)
-      return () => clearTimeout(t)
-    }
-  }, [idx, text, speed])
-
-  return <span>{displayed}<span className="animate-pulse opacity-60">▋</span></span>
-}
-
-function InstallTerminal() {
-  const [activeId, setActiveId] = useState('init')
-  const [copied, setCopied] = useState(false)
-  const tab = installTabs.find(t => t.id === activeId) ?? installTabs[0]
-
-  function copy() {
-    navigator.clipboard.writeText(tab.cmd)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
+function SetupCard({ step }: { step: SetupStep }) {
+  const tone = step.tone ?? 'paper'
+  const panelTone = tone === 'blue' ? 'primary' : tone === 'lime' ? 'accent' : 'default'
+  const bodyTone = tone === 'blue' ? 'primary' : tone === 'lime' ? 'accent' : 'default'
 
   return (
-    <Surface depth="raised" radius="2xl" padding="none" className="overflow-hidden w-full max-w-2xl">
-      {/* Tab bar */}
-      <div className="flex items-center gap-1 px-3 pt-3 pb-0" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-        {installTabs.map(t => (
-          <button
-            key={t.id}
-            onClick={() => setActiveId(t.id)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-t-lg text-[11px] font-bold uppercase tracking-widest transition-all relative"
-            style={{
-              color: activeId === t.id
-                ? (t.featured ? 'var(--brand-secondary)' : 'var(--brand-primary)')
-                : 'var(--text-muted)',
-              background: activeId === t.id ? 'var(--surface-overlay)' : 'transparent',
-              borderBottom: activeId === t.id
-                ? `2px solid ${t.featured ? 'var(--brand-secondary)' : 'var(--brand-primary)'}`
-                : '2px solid transparent',
-            }}
-          >
-            {t.icon}
-            {t.label}
-            {t.featured && activeId !== t.id && (
-              <span className="ml-1 px-1 py-0.5 rounded text-[8px] font-black uppercase"
-                style={{ background: 'rgba(204,61,46,0.15)', color: 'var(--brand-secondary)' }}>
-                new
-              </span>
-            )}
-          </button>
+    <SurfacePanel tone={tone} padding="compact" className="flex h-full flex-col gap-[var(--panel-gap)]">
+      <div className="space-y-[var(--space-2)] border-b-2 border-current/15 pb-[var(--space-3)]">
+        <BracketLabel tone={panelTone} surface={tone} className="self-start">
+          Step {step.step}
+        </BracketLabel>
+        <PanelTitle as="h3" size="card" tone={panelTone} className="max-w-[14ch]">
+          {step.title}
+        </PanelTitle>
+      </div>
+
+      <PanelBody tone={bodyTone} size="compact" className="max-w-none">
+        {step.description}
+      </PanelBody>
+
+      <div className={`grid gap-[var(--space-3)] ${step.commands.length > 1 ? 'md:grid-cols-2' : ''}`}>
+        {step.commands.map((command) => (
+          <div key={command.label} className="space-y-[var(--space-2)]">
+            <BracketLabel tone={panelTone} surface={tone} className="self-start">
+              {command.label}
+            </BracketLabel>
+            <DocsCodeBlock code={command.code} language="cli" label={command.label} />
+          </div>
         ))}
       </div>
+    </SurfacePanel>
+  )
+}
 
-      {/* Command area */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={activeId}
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -6 }}
-          transition={{ duration: 0.18 }}
-          className="px-5 py-5 flex items-center justify-between gap-3"
-          style={{ background: 'var(--surface-overlay)' }}
-        >
-          <div className="flex items-center gap-3 font-mono text-sm overflow-x-auto">
-            <span className="text-[var(--brand-primary)] select-none shrink-0">$</span>
-            <span className="text-[var(--text-primary)] whitespace-nowrap">
-              <TypewriterText text={tab.cmd} speed={35} />
-            </span>
-          </div>
-          <button
-            onClick={copy}
-            className="shrink-0 p-1.5 rounded-lg transition-all hover:scale-110"
-            style={{ background: 'var(--surface-raised)', boxShadow: 'var(--shadow-sm)' }}
-            title="Copy"
-          >
-            {copied
-              ? <Check size={14} className="text-[var(--status-success)]" />
-              : <Copy size={14} className="text-[var(--text-muted)]" />}
-          </button>
-        </motion.div>
-      </AnimatePresence>
+function SetupSequencePanel() {
+  return (
+    <div className="w-full max-w-[72rem] space-y-[var(--space-4)]">
+      <SurfacePanel tone="blue" className="space-y-[var(--panel-gap)]">
+        <div className="space-y-[var(--space-2)]">
+          <BracketLabel tone="primary" surface="blue" className="self-start">
+            Shortcut
+          </BracketLabel>
+          <PanelTitle as="h2" size="card" tone="primary" className="max-w-[14ch]">
+            {shortcutCommand.title}
+          </PanelTitle>
+          <PanelBody tone="primary" size="compact" className="max-w-none">
+            {shortcutCommand.description}
+          </PanelBody>
+        </div>
+        <DocsCodeBlock code={shortcutCommand.code} language="cli" label="pd init" />
+      </SurfacePanel>
 
-      {/* Description */}
-      <div className="px-5 py-3 flex items-start gap-2" style={{ borderTop: '1px solid var(--border-subtle)' }}>
-        <span style={{ color: tab.featured ? 'var(--brand-secondary)' : 'var(--brand-primary)' }} className="mt-0.5 shrink-0">
-          {tab.icon}
-        </span>
-        <p className="text-[11px] text-[var(--text-muted)] m-0 font-medium leading-relaxed">{tab.description}</p>
+      <div className="grid gap-[var(--space-4)] lg:grid-cols-2">
+        {setupSteps.map((step) => (
+          <SetupCard key={step.step} step={step} />
+        ))}
       </div>
-    </Surface>
+    </div>
   )
 }
 
@@ -327,57 +308,52 @@ function ArticleCard({ post, index }: { post: typeof blogPosts[0]; index: number
 // Feature cards — the six superpowers
 const entryPoints = [
   {
-    icon: Terminal,
-    title: 'Port Manager',
-    description: 'Deterministic port assignment by semantic identity. `myapp:api` always gets the same port. No conflicts, no config.',
+    icon: Anchor,
+    title: 'Deterministic ports',
+    description: 'Claim stable local ports by semantic identity and stop debugging collisions that were really routing mistakes.',
     cmd: 'pd claim myapp:api',
     accent: 'primary' as const,
   },
   {
-    icon: Ship,
-    title: 'Always-On Fleet',
-    description: '8 agents running while you sleep. Gardener prunes dead code. QA hunts regressions. Spark invents. Declared in YAML, never babysit.',
-    cmd: 'pd fleet up',
+    icon: Activity,
+    title: 'Session ledger',
+    description: 'Wrap work in begin, note, and done so every handoff, recovery, and audit trail stays attached to a real session.',
+    cmd: 'pd begin --identity myapp:api',
     accent: 'secondary' as const,
-    badge: 'fleet',
   },
   {
-    icon: Activity,
-    title: 'Pheromone Trails',
-    description: 'Stigmergic coordination. Agents leave chemical signals on files and sessions. Hot paths pulse. Cold paths fade. Your codebase thinks.',
-    cmd: 'pd pheromone spray',
+    icon: Terminal,
+    title: 'MCP wiring',
+    description: 'Put the real Port Daddy tools into Claude Code, Cursor, and Windsurf instead of narrating coordination in chat.',
+    cmd: 'pd mcp install',
     accent: 'primary' as const,
     badge: 'new',
   },
   {
     icon: Shield,
-    title: 'Formally Verified',
-    description: 'The Arbiter enforces TLA+ invariants at runtime. Cryptographic sessions proven in ProVerif. White papers. No hand-waving.',
-    cmd: 'pd arbiter status',
+    title: 'Harbor gates',
+    description: 'Use harbor-scoped access and cards when local coordination needs real boundaries instead of hand-wavy trust.',
+    cmd: 'pd harbors',
     accent: 'secondary' as const,
-    badge: 'security',
   },
   {
     icon: Compass,
-    title: 'Agent Salvage',
-    description: 'Dead agents leave immutable notes. New agents claim their sessions. Zero context lost — ever. The work always continues.',
+    title: 'Salvage and recovery',
+    description: 'When an agent dies, the session residue stays queryable so the next operator can pick up work without guessing.',
     cmd: 'pd salvage --project myapp',
     accent: 'primary' as const,
   },
   {
-    icon: Anchor,
-    title: 'MCP Integration',
-    description: '44 tools wired into Claude Code, Cursor, Windsurf. Sessions, salvage, fleet, locks — from inside the chat, no terminal.',
-    cmd: 'pd mcp install',
-    accent: 'primary' as const,
+    icon: Ship,
+    title: 'Fleet triggers',
+    description: 'Turn repo events into repeatable background work with pd-fleet.yml and a daemon that actually owns the loop.',
+    cmd: 'pd fleet init',
+    accent: 'secondary' as const,
   },
 ]
 
-// Badge labels for feature cards
 const featureBadgeLabel: Record<string, { label: string; color: string }> = {
-  new: { label: 'New', color: 'var(--brand-primary)' },
-  fleet: { label: 'Fleet', color: '#C4851A' },
-  security: { label: 'Proven', color: 'var(--brand-secondary)' },
+  new: { label: 'Operator', color: 'var(--brand-primary)' },
 }
 
 export function BlogPage() {
@@ -391,24 +367,8 @@ export function BlogPage() {
     >
       {/* ===== HERO + FEATURES ===== */}
       <Surface depth="raised" radius="none" padding="none" className="pb-16 sm:pb-20 px-4 sm:px-6 lg:px-10 relative overflow-hidden">
-
-        {/* Background: ambient blobs */}
-        <div
-          className="absolute top-[-80px] right-[-80px] w-[700px] h-[700px] rounded-full blur-[180px] opacity-[0.07] pointer-events-none"
-          style={{ background: 'radial-gradient(circle, var(--brand-primary) 0%, transparent 70%)' }}
-        />
-        <div
-          className="absolute bottom-[-40px] left-[-80px] w-[500px] h-[500px] rounded-full blur-[140px] opacity-[0.05] pointer-events-none"
-          style={{ background: 'radial-gradient(circle, var(--brand-secondary) 0%, transparent 70%)' }}
-        />
-        {/* Subtle dot grid */}
-        <div
-          className="absolute inset-0 opacity-[0.025] pointer-events-none"
-          style={{
-            backgroundImage: 'radial-gradient(circle, var(--text-primary) 1px, transparent 1px)',
-            backgroundSize: '28px 28px',
-          }}
-        />
+        <div className="pointer-events-none absolute left-[var(--space-5)] top-[var(--space-6)] h-24 w-24 border-2 border-[var(--border-strong)] bg-[var(--brand-primary)]" />
+        <div className="pointer-events-none absolute bottom-[var(--space-6)] right-[var(--space-5)] h-16 w-16 border-2 border-[var(--border-strong)] bg-[var(--brand-accent)]" />
 
         {/* Upper hero: copy + terminal */}
         <div className="max-w-5xl mx-auto pt-14 sm:pt-20 relative z-10 flex flex-col items-center text-center gap-5">
@@ -418,14 +378,14 @@ export function BlogPage() {
             <Badge variant="teal" className="px-4 py-1.5 text-[9px] font-black uppercase tracking-[0.25em]">
               Engineering Log
             </Badge>
-            <Badge variant="red" className="px-4 py-1.5 text-[9px] font-black uppercase tracking-[0.25em]">
-              Pheromones
-            </Badge>
             <Badge variant="gold" className="px-4 py-1.5 text-[9px] font-black uppercase tracking-[0.25em]">
-              Fleet v2
+              Local-first
             </Badge>
             <Badge variant="default" className="px-4 py-1.5 text-[9px] font-black uppercase tracking-[0.25em]">
-              ProVerif Security
+              Single daemon
+            </Badge>
+            <Badge variant="teal" className="px-4 py-1.5 text-[9px] font-black uppercase tracking-[0.25em]">
+              Operator workflow
             </Badge>
           </div>
 
@@ -435,10 +395,8 @@ export function BlogPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
           >
-            Agents that{' '}
-            <span className="text-[var(--brand-primary)]">coordinate.</span>
-            {' '}Daemons that{' '}
-            <span className="text-[var(--brand-secondary)]">never sleep.</span>
+            Operator notes from the{' '}
+            <span className="text-[var(--brand-primary)]">control plane.</span>
           </motion.h1>
 
           <motion.p
@@ -447,19 +405,19 @@ export function BlogPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.1 }}
           >
-            8 fleet agents working while you're offline. Pheromone trails connecting what would have been coincidences.
-            Cryptographic session security proven on paper. Dead agents that leave notes.{' '}
-            <span className="font-semibold text-[var(--text-primary)]">One command to wire it all.</span>
+            Read how Port Daddy handles ports, sessions, salvage, harbor flows, and MCP wiring in
+            the open. Start the daemon, wire the tools, and use the same operator loop the docs
+            describe.
           </motion.p>
 
-          {/* Install terminal */}
+          {/* Setup sequence */}
           <motion.div
             className="w-full flex justify-center pt-1"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
           >
-            <InstallTerminal />
+            <SetupSequencePanel />
           </motion.div>
         </div>
 
@@ -468,7 +426,7 @@ export function BlogPage() {
           <div className="flex items-center gap-4">
             <div className="h-px flex-1" style={{ background: 'var(--border-subtle)' }} />
             <span className="text-[9px] font-black uppercase tracking-[0.3em]" style={{ color: 'var(--text-muted)' }}>
-              One daemon · Six superpowers
+              Six real operator surfaces
             </span>
             <div className="h-px flex-1" style={{ background: 'var(--border-subtle)' }} />
           </div>

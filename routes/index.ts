@@ -17,6 +17,7 @@ import { servicesPlugin } from './services.js';
 import { messagingPlugin } from './messaging.js';
 import { locksPlugin } from './locks.js';
 import { agentsPlugin } from './agents.js';
+import { actorsPlugin } from './actors.js';
 import { activityPlugin } from './activity.js';
 import { webhooksPlugin } from './webhooks.js';
 import { configPlugin } from './config.js';
@@ -78,6 +79,7 @@ export async function registerAllRoutes(
   await fastify.register(messagingPlugin, { deps } as any);
   await fastify.register(locksPlugin, { deps } as any);
   await fastify.register(agentsPlugin, { deps } as any);
+  await fastify.register(actorsPlugin, { deps } as any);
   await fastify.register(activityPlugin, { deps } as any);
   await fastify.register(webhooksPlugin, { deps } as any);
   await fastify.register(configPlugin, { deps } as any);

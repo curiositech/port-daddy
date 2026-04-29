@@ -3,14 +3,15 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
 /**
- * Badge — neumorphic inset pill for status, categories, and labels.
- * Uses semantic tokens from the harbor heritage design system.
+ * Badge — legacy compatibility wrapper for status, category, and label chips.
+ * Old pages still call Badge directly, so keep the API stable but map it onto
+ * the hard-edged public shell instead of the earlier soft pill treatment.
  */
 const badgeVariants = cva(
   [
     'inline-flex w-fit shrink-0 items-center justify-center gap-1',
-    'rounded-full text-xs font-semibold uppercase tracking-wider',
-    'whitespace-nowrap transition-all duration-200',
+    'rounded-none font-sans text-xs font-semibold uppercase leading-none tracking-[var(--tracking-meta)]',
+    'whitespace-nowrap transition-[background-color,color,box-shadow] duration-200',
     '[&>svg]:pointer-events-none [&>svg]:size-3',
   ].join(' '),
   {
@@ -37,40 +38,42 @@ const badgeVariants = cva(
   }
 )
 
+const hardFrame = '0 0 0 2px var(--border-strong)'
+
 const variantStyles: Record<string, React.CSSProperties> = {
   default: {
-    background: 'var(--surface-sunken)',
-    boxShadow: 'var(--shadow-pressed)',
+    background: 'color-mix(in srgb, var(--surface-raised) 72%, var(--surface-strong))',
+    boxShadow: hardFrame,
     color: 'var(--text-secondary)',
   },
   red: {
-    background: 'color-mix(in srgb, var(--brand-primary) 15%, var(--surface-base))',
-    boxShadow: 'var(--shadow-pressed)',
-    color: 'var(--brand-primary)',
+    background: 'color-mix(in srgb, var(--status-error) 84%, var(--surface-raised))',
+    boxShadow: hardFrame,
+    color: 'var(--text-inverse)',
   },
   teal: {
-    background: 'color-mix(in srgb, var(--brand-secondary) 15%, var(--surface-base))',
-    boxShadow: 'var(--shadow-pressed)',
-    color: 'var(--brand-secondary)',
+    background: 'var(--brand-primary)',
+    boxShadow: hardFrame,
+    color: 'var(--brand-primary-foreground)',
   },
   gold: {
-    background: 'color-mix(in srgb, var(--brand-accent) 20%, var(--surface-base))',
-    boxShadow: 'var(--shadow-pressed)',
-    color: 'var(--brand-accent)',
+    background: 'var(--brand-accent)',
+    boxShadow: hardFrame,
+    color: 'var(--brand-accent-foreground-muted)',
   },
   success: {
-    background: 'color-mix(in srgb, var(--status-success) 15%, var(--surface-base))',
-    boxShadow: 'var(--shadow-pressed)',
-    color: 'var(--status-success)',
+    background: 'color-mix(in srgb, var(--status-success) 84%, var(--surface-raised))',
+    boxShadow: hardFrame,
+    color: 'var(--text-inverse)',
   },
   warning: {
-    background: 'color-mix(in srgb, var(--status-warning) 15%, var(--surface-base))',
-    boxShadow: 'var(--shadow-pressed)',
-    color: 'var(--status-warning)',
+    background: 'color-mix(in srgb, var(--status-warning) 72%, var(--surface-raised))',
+    boxShadow: hardFrame,
+    color: 'var(--text-primary)',
   },
   outline: {
     background: 'transparent',
-    border: '1px solid var(--border-default)',
+    boxShadow: hardFrame,
     color: 'var(--text-secondary)',
   },
 }

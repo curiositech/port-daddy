@@ -9,12 +9,12 @@ export function Watch() {
     <TutorialLayout
       title="Swarm Observation"
       description="Coordination requires constant vigilance. Learn to use pd watch to monitor Swarm Radio channels and execute automated actions the moment a signal fires."
-      number={14}
-      total={16}
+      number={16}
+      total={19}
       level="Intermediate"
       readTime="10 min read"
-      prev={{ title: 'pd spawn: Agent Fleets', href: '/tutorials/pd-spawn' }}
-      next={{ title: 'The Session State Machine', href: '/tutorials/session-phases' }}
+      prev={{ title: 'Reactive Pipelines', href: '/tutorials/pipelines' }}
+      next={{ title: 'Multiplayer Localhost', href: '/tutorials/remote-harbors' }}
     >
       <div className="space-y-12">
         {/* Intro Section */}

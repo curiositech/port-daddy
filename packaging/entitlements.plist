@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Hardened runtime baseline for Developer ID notarization.
+         Not sandboxed: daemon needs local socket access and arbitrary
+         process spawning (agent backends). -->
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <false/>
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+    <key>com.apple.security.cs.allow-dyld-environment-variables</key>
+    <true/>
+    <!-- Node.js native modules (better-sqlite3 etc.) -->
+    <key>com.apple.security.cs.disable-executable-page-protection</key>
+    <false/>
+</dict>
+</plist>

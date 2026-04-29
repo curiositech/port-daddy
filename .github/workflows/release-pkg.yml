@@ -1,0 +1,102 @@
+name: Release signed macOS pkg
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+jobs:
+  build-pkg:
+    runs-on: macos-14
+    timeout-minutes: 45
+    # Scaffolding — the full signing path activates once signing identities
+    # are loaded into the repo secrets (see packaging/README.md). Without
+    # secrets, we produce an unsigned smoke-test pkg and skip notarization.
+    steps:
+      - name: Check signing secrets
+        id: secrets
+        env:
+          APP_SIGN_ID: ${{ secrets.APPLE_APP_SIGN_ID }}
+          PKG_SIGN_ID: ${{ secrets.APPLE_PKG_SIGN_ID }}
+        run: |
+          if [ -z "$APP_SIGN_ID" ] || [ -z "$PKG_SIGN_ID" ]; then
+            echo "signing=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Signing secrets not configured — building unsigned pkg for smoke test only."
+          else
+            echo "signing=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Import signing certificates
+        if: steps.secrets.outputs.signing == 'true'
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.APPLE_CERTIFICATES_P12 }}
+          p12-password: ${{ secrets.APPLE_CERTIFICATES_P12_PASSWORD }}
+
+      - name: Configure notarytool profile
+        if: steps.secrets.outputs.signing == 'true'
+        env:
+          NOTARY_ISSUER: ${{ secrets.APPLE_NOTARY_ISSUER }}
+          NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          NOTARY_KEY:    ${{ secrets.APPLE_NOTARY_KEY }}
+        run: |
+          printf '%s' "$NOTARY_KEY" > /tmp/AuthKey.p8
+          xcrun notarytool store-credentials portdaddy-notary \
+            --key /tmp/AuthKey.p8 \
+            --key-id "$NOTARY_KEY_ID" \
+            --issuer "$NOTARY_ISSUER"
+
+      - name: Build FleetBar.app
+        env:
+          APP_SIGN_ID: ${{ secrets.APPLE_APP_SIGN_ID }}
+          TEAM_ID:     ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -d apps/FleetBar ]; then
+            xcodebuild -project apps/FleetBar/FleetBar.xcodeproj \
+              -scheme FleetBar -configuration Release \
+              CODE_SIGN_IDENTITY="$APP_SIGN_ID" \
+              CODE_SIGN_STYLE=Manual \
+              DEVELOPMENT_TEAM="$TEAM_ID" \
+              build
+          else
+            echo "::notice::apps/FleetBar not present — skipping"
+          fi
+
+      - name: Build pkg (signed)
+        if: steps.secrets.outputs.signing == 'true'
+        env:
+          APP_SIGN_ID: ${{ secrets.APPLE_APP_SIGN_ID }}
+          PKG_SIGN_ID: ${{ secrets.APPLE_PKG_SIGN_ID }}
+        run: |
+          ./packaging/build-pkg.sh \
+            --sign "$APP_SIGN_ID" \
+            --pkg-sign "$PKG_SIGN_ID" \
+            --notarize-profile portdaddy-notary
+
+      - name: Build pkg (unsigned smoke test)
+        if: steps.secrets.outputs.signing != 'true'
+        run: ./packaging/build-pkg.sh --unsigned --skip-fleetbar
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PortDaddy-pkg
+          path: dist/pkg/PortDaddy-*.pkg
+          if-no-files-found: error
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/v') && steps.secrets.outputs.signing == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/pkg/PortDaddy-*.pkg

@@ -1153,17 +1153,22 @@ export default function ApiReference() {
       {/* Search & Filter */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
+          <label htmlFor="api-reference-search" className="sr-only">
+            Search endpoints
+          </label>
           <Search
             size={16}
             className="absolute left-3 top-1/2 -translate-y-1/2"
             style={{ color: 'var(--text-muted)' }}
           />
           <input
+            id="api-reference-search"
             type="text"
             placeholder="Search endpoints..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-2 rounded-lg focus:outline-none"
+            aria-label="Search endpoints"
             style={{
               background: 'var(--surface-raised)',
               border: '1px solid var(--border-subtle)',

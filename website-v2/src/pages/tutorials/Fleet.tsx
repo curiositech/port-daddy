@@ -1,9 +1,50 @@
-import { motion } from 'framer-motion'
+import { ArrowRight } from 'lucide-react'
 import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
-import { CodeBlock } from '@/components/ui/CodeBlock'
-import { Badge } from '@/components/ui/Badge'
-import { Surface } from '@/components/ui/Surface'
-import { Bot, GitCommit, Clock, Radio, Eye, Zap, Shield, FileText, ArrowRight } from 'lucide-react'
+import {
+  BracketLink,
+  DocsCodeBlock,
+  DocsNoteCard,
+  PanelBody,
+  PanelTitle,
+  SurfacePanel,
+} from '@/components/site/primitives'
+
+const fleetModes = [
+  {
+    label: 'Reactive',
+    title: 'Trigger on events',
+    description: 'Agents wake up when messages arrive on named pub/sub channels.',
+  },
+  {
+    label: 'Scheduled',
+    title: 'Run on a timer',
+    description: 'Cron-style intervals handle steady background work without extra scripting.',
+  },
+  {
+    label: 'Chained',
+    title: 'Agents talk to agents',
+    description: 'One agent can publish a result that becomes another agent’s starting gun.',
+  },
+] as const
+
+const guardrails = [
+  {
+    label: 'DAG validation',
+    text: 'The trigger graph is checked for cycles before any agent starts, so bad chains fail at config time.',
+  },
+  {
+    label: 'Singletons',
+    text: '`singleton: true` prevents duplicate runs when the same trigger lands again mid-flight.',
+  },
+  {
+    label: 'Scoped tools',
+    text: '`allowedTools` limits what each agent can do so read-only jobs cannot silently mutate the repo.',
+  },
+  {
+    label: 'Immutable notes',
+    text: 'Session notes survive crashes and misbehavior, giving operators an audit trail instead of vibes.',
+  },
+] as const
 
 export function Fleet() {
   return (
@@ -17,63 +58,47 @@ export function Fleet() {
       prev={{ title: 'Multiplayer Localhost', href: '/tutorials/remote-harbors' }}
       next={{ title: 'Pheromone Trails', href: '/tutorials/pheromone' }}
     >
-      <motion.div className="space-y-16">
-        {/* Intro */}
-        <section className="space-y-6">
-          <motion.div className="flex items-center gap-4 mb-8">
-            <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
-              <Bot className="text-[var(--brand-accent)]" size={24} />
-            </Surface>
-            <motion.h2 className="m-0">Why a Fleet?</motion.h2>
-          </motion.div>
-          <motion.p>
-            You commit code. Then you wait. Someone has to review it, update the docs, check test coverage, keep the roadmap honest. What if agents did all of that the moment you pushed?
-          </motion.p>
-          <motion.p>
-            A <strong>fleet</strong> is a set of background AI agents declared in a YAML file. Each agent has a job, a trigger, and a communication channel. When something happens &mdash; a git commit, a timer, a message from another agent &mdash; the right agents wake up and do their work.
-          </motion.p>
-          <motion.p>
-            No cron scripts. No CI/CD pipelines. One YAML file. Your agents run while you sleep.
-          </motion.p>
-          <motion.div className="grid sm:grid-cols-3 gap-6 pt-4">
-            <Surface depth="raised" radius="2xl" className="p-6 text-center space-y-3">
-              <Badge variant="teal" className="text-[8px] font-black uppercase tracking-widest">Reactive</Badge>
-              <motion.p className="text-xs font-bold m-0">Trigger on Events</motion.p>
-              <motion.p className="text-xs text-[var(--text-secondary)] m-0">Agents fire when messages hit pub/sub channels</motion.p>
-            </Surface>
-            <Surface depth="raised" radius="2xl" className="p-6 text-center space-y-3">
-              <Badge variant="gold" className="text-[8px] font-black uppercase tracking-widest">Scheduled</Badge>
-              <motion.p className="text-xs font-bold m-0">Run on a Timer</motion.p>
-              <motion.p className="text-xs text-[var(--text-secondary)] m-0">Cron-style intervals for periodic work</motion.p>
-            </Surface>
-            <Surface depth="raised" radius="2xl" className="p-6 text-center space-y-3">
-              <Badge variant="red" className="text-[8px] font-black uppercase tracking-widest">Chained</Badge>
-              <motion.p className="text-xs font-bold m-0">Agents Talk to Agents</motion.p>
-              <motion.p className="text-xs text-[var(--text-secondary)] m-0">One agent&apos;s output triggers another</motion.p>
-            </Surface>
-          </motion.div>
-        </section>
+      <section>
+        <h2>Why a Fleet?</h2>
+        <p>
+          You commit code. Then you wait. Someone has to review it, update the docs, check test
+          coverage, and keep the roadmap honest. A fleet moves that work from human memory into a
+          daemon-backed system.
+        </p>
+        <p>
+          A <strong>fleet</strong> is a set of background AI agents declared in a YAML file. Each
+          agent has a job, a trigger, and a communication channel. When something happens, the right
+          agents wake up and do their work.
+        </p>
+        <p>No cron scripts. No CI glue. One local manifest, one control plane, and visible runs.</p>
 
-        {/* Step 1: Writing Your Fleet YAML */}
-        <section className="space-y-8">
-          <motion.div className="flex items-center gap-4">
-            <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
-              <FileText className="text-[var(--brand-primary)]" size={24} />
-            </Surface>
-            <motion.h2 className="m-0">1. Write Your Fleet YAML</motion.h2>
-          </motion.div>
+        <div className="not-prose grid gap-[var(--space-4)] lg:grid-cols-3">
+          {fleetModes.map((mode) => (
+            <DocsNoteCard key={mode.label} label={mode.label} title={mode.title} titleSize="nav">
+              <PanelBody size="compact" className="max-w-none">
+                {mode.description}
+              </PanelBody>
+            </DocsNoteCard>
+          ))}
+        </div>
+      </section>
 
-          <motion.p>
-            Create a file called <code>pd-fleet.yml</code> at your project root. This is the manifest &mdash; it declares every agent, what triggers it, and what it does.
-          </motion.p>
+      <section>
+        <h2>1. Write Your Fleet YAML</h2>
+        <p>
+          Create <code>pd-fleet.yml</code> at your project root. This manifest declares the agents,
+          how they wake up, and where their outputs flow next.
+        </p>
 
-          <CodeBlock language="bash">{`fleet:
+        <div className="not-prose">
+          <DocsCodeBlock
+            code={`fleet:
   name: my-project
-  harbor: "{project}:fleet"    # Shared identity for all fleet agents
+  harbor: "{project}:fleet"
 
   agents:
     qa:
-      trigger: git:committed             # Fires when someone commits
+      trigger: git:committed
       backend: ollama
       model: qwen2.5-coder:7b
       prompt: |
@@ -85,7 +110,7 @@ export function Fleet() {
       identity: "{project}:fleet:qa"
 
     docs:
-      trigger: git:committed             # Same trigger, different job
+      trigger: git:committed
       backend: codex
       model: gpt-5.4-mini
       prompt: |
@@ -93,7 +118,7 @@ export function Fleet() {
       identity: "{project}:fleet:docs"
 
     gardener:
-      schedule: "*/10 * * * *"           # Every 10 minutes
+      schedule: "*/10 * * * *"
       backend: custom
       prompt: "git status --porcelain"
       on_success: publish git:status
@@ -108,41 +133,52 @@ export function Fleet() {
       description: "QA found no issues"
 
     qa:findings:
-      description: "QA found bugs"`}</CodeBlock>
+      description: "QA found bugs"`}
+            language="text"
+            label="pd-fleet.yml"
+          />
+        </div>
 
-          <motion.p>
-            Three things to notice:
-          </motion.p>
-          <motion.ul className="space-y-2 text-[var(--text-secondary)]">
-            <motion.li><strong>Triggers</strong> are pub/sub channel names. When a message appears on <code>git:committed</code>, both <code>qa</code> and <code>docs</code> fire simultaneously.</motion.li>
-            <motion.li><strong>Schedules</strong> are cron expressions. The gardener runs every 10 minutes regardless of what else happens.</motion.li>
-            <motion.li><strong>Channels</strong> declare the communication topology. Agents publish results; other agents or watchers consume them.</motion.li>
-          </motion.ul>
+        <p>Three things to notice:</p>
+        <ul>
+          <li>
+            <strong>Triggers</strong> are pub/sub channel names. When a message appears on{' '}
+            <code>git:committed</code>, both <code>qa</code> and <code>docs</code> fire.
+          </li>
+          <li>
+            <strong>Schedules</strong> are cron expressions. The gardener runs every 10 minutes even
+            if nobody commits.
+          </li>
+          <li>
+            <strong>Channels</strong> define the communication topology. Agents publish results and
+            other agents consume them.
+          </li>
+        </ul>
 
-          <Surface depth="raised" radius="2xl" className="p-6 space-y-3">
-            <motion.p className="text-sm font-bold m-0 text-[var(--brand-accent)]">Template Variables</motion.p>
-            <motion.p className="text-xs text-[var(--text-secondary)] m-0">
-              <code>{'{project}'}</code> resolves to your directory name. <code>{'{branch}'}</code> is the current git branch. <code>{'{sha}'}</code> is the current commit hash. These resolve when the fleet starts, so each agent gets an identity scoped to your project.
-            </motion.p>
-          </Surface>
-        </section>
+        <div className="not-prose mt-[var(--space-4)]">
+          <DocsNoteCard label="Template variables" title="Scoped at fleet startup" titleSize="nav">
+            <PanelBody size="compact" className="max-w-none">
+              <code>{'{project}'}</code> resolves to your directory name. <code>{'{branch}'}</code>{' '}
+              becomes the current git branch, and <code>{'{sha}'}</code> the current commit hash.
+              Those values bind when the fleet starts so every agent gets a stable identity scoped to
+              this project.
+            </PanelBody>
+          </DocsNoteCard>
+        </div>
+      </section>
 
-        {/* Step 2: Wire Git */}
-        <section className="space-y-8">
-          <motion.div className="flex items-center gap-4">
-            <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
-              <GitCommit className="text-[var(--brand-secondary)]" size={24} />
-            </Surface>
-            <motion.h2 className="m-0">2. Wire Git to the Fleet</motion.h2>
-          </motion.div>
+      <section>
+        <h2>2. Wire Git to the Fleet</h2>
+        <p>
+          The fleet triggers on <code>git:committed</code>, so you need one local hook that
+          publishes commit metadata after every successful commit.
+        </p>
 
-          <motion.p>
-            The fleet triggers on <code>git:committed</code>, but who publishes to that channel? You do &mdash; with a git post-commit hook. This runs automatically after every <code>git commit</code>.
-          </motion.p>
-
-          <CodeBlock language="bash">{`#!/usr/bin/env zsh
+        <div className="not-prose">
+          <DocsCodeBlock
+            code={`#!/usr/bin/env zsh
 # Fire-and-forget: publish commit info to Port Daddy
-PD_URL="\${PORT_DADDY_URL:-http://localhost:9876}"  # Use pd status if yours differs
+PD_URL="\${PORT_DADDY_URL:-http://localhost:9876}"
 
 SHA=$(git rev-parse --short HEAD)
 MSG=$(git log -1 --pretty=%s)
@@ -156,180 +192,195 @@ curl -s -X POST "\${PD_URL}/msg/git:committed" \\
   --connect-timeout 2 --max-time 3 \\
   >/dev/null 2>&1 &
 
-exit 0`}</CodeBlock>
+exit 0`}
+            language="text"
+            label="post-commit hook"
+          />
+        </div>
 
-          <motion.p>
-            Save this to <code>.git/hooks/post-commit</code> and run <code>chmod +x</code> on it. The <code>curl</code> runs in the background &mdash; your commit completes instantly. The fleet wakes up behind the scenes.
-          </motion.p>
+        <p>
+          Save that to <code>.git/hooks/post-commit</code> and make it executable. The publish call
+          runs in the background, so your commit stays fast while the fleet wakes up behind the
+          scenes.
+        </p>
 
-          <Surface depth="raised" radius="2xl" className="p-6 space-y-3">
-            <motion.p className="text-sm font-bold m-0 text-[var(--brand-accent)]">What happens next?</motion.p>
-            <motion.p className="text-xs text-[var(--text-secondary)] m-0">
-              You commit. The hook publishes to <code>git:committed</code>. Port Daddy delivers the message to every agent with that trigger. Each agent spawns, does its job, and publishes its result. The whole thing takes seconds to start, and you never had to think about it.
-            </motion.p>
-          </Surface>
-        </section>
+        <div className="not-prose mt-[var(--space-4)]">
+          <DocsNoteCard label="Flow" title="What happens next?" titleSize="nav">
+            <PanelBody size="compact" className="max-w-none">
+              You commit. The hook publishes to <code>git:committed</code>. Port Daddy fans that
+              message out to every matching agent. Each agent runs, records its session notes, and
+              publishes whatever comes next.
+            </PanelBody>
+          </DocsNoteCard>
+        </div>
+      </section>
 
-        {/* Step 3: Triggers vs Schedules */}
-        <section className="space-y-8">
-          <motion.div className="flex items-center gap-4">
-            <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
-              <Clock className="text-[var(--brand-primary)]" size={24} />
-            </Surface>
-            <motion.h2 className="m-0">3. Triggers vs. Schedules</motion.h2>
-          </motion.div>
+      <section>
+        <h2>3. Triggers vs. Schedules</h2>
+        <p>
+          A useful fleet mixes reactive agents and periodic agents. One responds to events; the
+          other keeps the system warm when the repo is quiet.
+        </p>
 
-          <motion.div className="grid sm:grid-cols-2 gap-8">
-            <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
-              <Surface depth="inset" radius="xl" padding="none" className="w-10 h-10 flex items-center justify-center">
-                <Zap size={20} className="text-[var(--brand-secondary)]" />
-              </Surface>
-              <motion.h3 className="text-lg font-display font-black m-0">Triggered Agents</motion.h3>
-              <motion.p className="text-sm text-[var(--text-secondary)] m-0">
-                Fire when a message arrives on their channel. Reactive. Good for code review, docs updates, test coverage. Think event handlers.
-              </motion.p>
-              <CodeBlock language="yaml">{`qa:
+        <div className="not-prose grid gap-[var(--space-4)] xl:grid-cols-2">
+          <DocsNoteCard label="Triggered" title="Triggered agents" titleSize="nav">
+            <PanelBody size="compact" className="max-w-none">
+              Fire when a message arrives on their channel. Use them for code review, docs updates,
+              test coverage, and other event-driven work.
+            </PanelBody>
+            <DocsCodeBlock
+              code={`qa:
   trigger: git:committed
   backend: ollama
-  model: qwen2.5-coder:7b`}</CodeBlock>
-            </Surface>
-            <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
-              <Surface depth="inset" radius="xl" padding="none" className="w-10 h-10 flex items-center justify-center">
-                <Clock size={20} className="text-[var(--brand-secondary)]" />
-              </Surface>
-              <motion.h3 className="text-lg font-display font-black m-0">Scheduled Agents</motion.h3>
-              <motion.p className="text-sm text-[var(--text-secondary)] m-0">
-                Run on a cron interval. Steady. Good for health checks, idea generation, cleanup. Think cron jobs with brains.
-              </motion.p>
-              <CodeBlock language="yaml">{`gardener:
+  model: qwen2.5-coder:7b`}
+              language="text"
+              label="triggered agent"
+            />
+          </DocsNoteCard>
+
+          <DocsNoteCard label="Scheduled" title="Scheduled agents" titleSize="nav">
+            <PanelBody size="compact" className="max-w-none">
+              Run on a cron interval. Use them for health checks, cleanup, indexing, and idea
+              generation that should keep happening even when nobody commits.
+            </PanelBody>
+            <DocsCodeBlock
+              code={`gardener:
   schedule: "*/10 * * * *"
-  backend: custom`}</CodeBlock>
-            </Surface>
-          </motion.div>
+  backend: custom`}
+              language="text"
+              label="scheduled agent"
+            />
+          </DocsNoteCard>
+        </div>
 
-          <motion.p>
-            An agent can have both. Spider runs every 2 hours <em>and</em> triggers when Spark publishes an idea.
-          </motion.p>
-        </section>
+        <p>
+          An agent can have both. Spark can wake up every 30 minutes and Spider can still trigger
+          whenever Spark publishes a new idea.
+        </p>
+      </section>
 
-        {/* Step 4: Agent Dialogue */}
-        <section className="space-y-8">
-          <motion.div className="flex items-center gap-4">
-            <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
-              <Radio className="text-[var(--brand-accent)]" size={24} />
-            </Surface>
-            <motion.h2 className="m-0">4. Agents That Talk to Each Other</motion.h2>
-          </motion.div>
+      <section>
+        <h2>4. Agents That Talk to Each Other</h2>
+        <p>The real leverage shows up when one agent’s output becomes another agent’s trigger.</p>
 
-          <motion.p>
-            The real magic: one agent&apos;s output becomes another agent&apos;s trigger.
-          </motion.p>
+        <div className="not-prose grid gap-[var(--space-4)] xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)] xl:items-stretch">
+          <DocsNoteCard label="Spark" title="Proposes an idea" titleSize="nav">
+            <PanelBody size="compact" className="max-w-none">
+              Runs on a timer and publishes an idea to <code>spark:idea</code>.
+            </PanelBody>
+          </DocsNoteCard>
 
-          <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
-            <motion.p className="text-sm font-bold m-0">The Spark &amp; Spider Loop</motion.p>
-            <motion.div className="space-y-3 pt-2">
-              <motion.div className="flex items-center gap-3 text-xs text-[var(--text-secondary)]">
-                <Badge variant="gold">Spark</Badge>
-                <span>proposes an idea every 30 min</span>
-                <ArrowRight size={14} className="flex-shrink-0" />
-                <code>spark:idea</code>
-              </motion.div>
-              <motion.div className="flex items-center gap-3 text-xs text-[var(--text-secondary)]">
-                <Badge variant="default">Spider</Badge>
-                <span>triggers on that idea, finds connections</span>
-                <ArrowRight size={14} className="flex-shrink-0" />
-                <code>spider:connections</code>
-              </motion.div>
-              <motion.div className="flex items-center gap-3 text-xs text-[var(--text-secondary)]">
-                <Badge variant="gold">Spark</Badge>
-                <span>reads Spider&apos;s files on next run</span>
-                <ArrowRight size={14} className="flex-shrink-0" />
-                <span>proposes implementations</span>
-              </motion.div>
-            </motion.div>
-          </Surface>
+          <div className="hidden items-center justify-center xl:flex">
+            <ArrowRight className="h-[var(--space-5)] w-[var(--space-5)] text-[var(--text-secondary)]" />
+          </div>
 
-          <motion.p>
-            Notice the asymmetry: Spider <em>triggers</em> on Spark&apos;s channel, but Spark only <em>reads</em> Spider&apos;s output files. This prevents infinite loops. Port Daddy validates your trigger graph is a DAG before any agent starts.
-          </motion.p>
-        </section>
+          <DocsNoteCard label="Spider" title="Finds the connections" titleSize="nav">
+            <PanelBody size="compact" className="max-w-none">
+              Triggers on <code>spark:idea</code>, reads the repo, and publishes its findings to{' '}
+              <code>spider:connections</code>.
+            </PanelBody>
+          </DocsNoteCard>
 
-        {/* Step 5: Monitoring */}
-        <section className="space-y-8">
-          <motion.div className="flex items-center gap-4">
-            <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
-              <Eye className="text-[var(--brand-secondary)]" size={24} />
-            </Surface>
-            <motion.h2 className="m-0">5. See What They Did</motion.h2>
-          </motion.div>
+          <div className="hidden items-center justify-center xl:flex">
+            <ArrowRight className="h-[var(--space-5)] w-[var(--space-5)] text-[var(--text-secondary)]" />
+          </div>
 
-          <CodeBlock language="bash">{`pd fleet up       # Start the fleet
-pd fleet status   # What's running?
-pd fleet down     # Stop everything`}</CodeBlock>
+          <DocsNoteCard label="Spark" title="Reads the artifact on the next pass" titleSize="nav">
+            <PanelBody size="compact" className="max-w-none">
+              Spark does not trigger on Spider directly. It reads Spider’s files on its next run,
+              which avoids accidental infinite loops.
+            </PanelBody>
+          </DocsNoteCard>
+        </div>
 
-          <motion.p>
-            Open the Fleet Control Center or the daemon-served control plane at <code>/fleet-ui/</code> for the live dashboard. That surface now carries Flow, Activity, Channels, Inbox, and Sorties in one shell instead of splitting truth across older one-off pages.
-          </motion.p>
+        <p>
+          That asymmetry matters. Spider <em>triggers</em> on Spark’s channel, but Spark only{' '}
+          <em>reads</em> Spider’s output files. Port Daddy validates the trigger graph as a DAG
+          before the fleet starts.
+        </p>
+      </section>
 
-          <Surface depth="raised" radius="2xl" className="p-6 space-y-3">
-            <motion.p className="text-sm font-bold m-0 text-[var(--brand-accent)]">Menu Bar App</motion.p>
-            <motion.p className="text-xs text-[var(--text-secondary)] m-0">
-              Build the native macOS menu bar app from <code>apps/FleetBar</code>. One click in your menu bar opens the Fleet Control Center shell around the same daemon-backed control plane.
-            </motion.p>
-          </Surface>
-        </section>
+      <section>
+        <h2>5. See What They Did</h2>
+        <p>
+          Fleet runs are only useful if you can inspect them. The daemon gives you both shell status
+          and a browser control plane against the same live runtime.
+        </p>
 
-        {/* Step 6: Safety */}
-        <section className="space-y-8">
-          <motion.div className="flex items-center gap-4">
-            <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
-              <Shield className="text-[var(--brand-primary)]" size={24} />
-            </Surface>
-            <motion.h2 className="m-0">6. Guardrails</motion.h2>
-          </motion.div>
+        <div className="not-prose">
+          <DocsCodeBlock
+            code={`pd fleet up
+pd fleet status
+pd fleet down`}
+            language="cli"
+            label="fleet commands"
+          />
+        </div>
 
-          <motion.div className="grid sm:grid-cols-2 gap-6">
-            <Surface depth="raised" radius="2xl" className="p-6 space-y-3">
-              <motion.h3 className="text-sm font-bold m-0">DAG Validation</motion.h3>
-              <motion.p className="text-xs text-[var(--text-secondary)] m-0">
-                Trigger graph checked for cycles before any agent starts. Loops are caught at config time, not runtime.
-              </motion.p>
-            </Surface>
-            <Surface depth="raised" radius="2xl" className="p-6 space-y-3">
-              <motion.h3 className="text-sm font-bold m-0">Singletons</motion.h3>
-              <motion.p className="text-xs text-[var(--text-secondary)] m-0">
-                <code>singleton: true</code> ensures only one instance runs at a time. No runaway duplicates.
-              </motion.p>
-            </Surface>
-            <Surface depth="raised" radius="2xl" className="p-6 space-y-3">
-              <motion.h3 className="text-sm font-bold m-0">Scoped Tools</motion.h3>
-              <motion.p className="text-xs text-[var(--text-secondary)] m-0">
-                <code>allowedTools</code> limits what each agent can do. Read-only agents can&apos;t write. No ambient authority.
-              </motion.p>
-            </Surface>
-            <Surface depth="raised" radius="2xl" className="p-6 space-y-3">
-              <motion.h3 className="text-sm font-bold m-0">Immutable Notes</motion.h3>
-              <motion.p className="text-xs text-[var(--text-secondary)] m-0">
-                Every agent writes session notes that cannot be edited or deleted. Evidence survives misbehavior.
-              </motion.p>
-            </Surface>
-          </motion.div>
-        </section>
+        <p>
+          Open the Fleet Control Center or the daemon-served control plane at <code>/fleet-ui/</code>{' '}
+          to inspect Flow, Activity, Channels, Inbox, and Sorties in one shell instead of hopping
+          between one-off tools.
+        </p>
 
-        {/* Quick Start */}
-        <section className="space-y-6">
-          <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
-            <motion.h3 className="text-lg font-display font-black m-0">Quick Start</motion.h3>
-            <motion.ol className="space-y-2 text-sm text-[var(--text-secondary)]">
-              <motion.li>Create <code>pd-fleet.yml</code> at your project root</motion.li>
-              <motion.li>Add a post-commit hook that publishes to <code>git:committed</code></motion.li>
-              <motion.li>Run <code>pd fleet up</code></motion.li>
-              <motion.li>Commit something. Watch the agents fire.</motion.li>
-              <motion.li>Open the Fleet Control Center or <code>/fleet-ui/</code> to see what they did</motion.li>
-            </motion.ol>
-          </Surface>
-        </section>
-      </motion.div>
+        <div className="not-prose mt-[var(--space-4)]">
+          <DocsNoteCard label="FleetBar" title="Native menu bar shell" titleSize="nav">
+            <PanelBody size="compact" className="max-w-none">
+              Build the macOS menu bar app from <code>apps/FleetBar</code>. It opens the same
+              daemon-backed control plane without introducing a second truth source.
+            </PanelBody>
+          </DocsNoteCard>
+        </div>
+      </section>
+
+      <section>
+        <h2>6. Guardrails</h2>
+        <p>
+          Background agents need operator-grade boundaries. The fleet model bakes those checks into
+          startup and execution instead of trusting every prompt.
+        </p>
+
+        <div className="not-prose grid gap-[var(--space-4)] md:grid-cols-2">
+          {guardrails.map((item) => (
+            <DocsNoteCard key={item.label} label={item.label} title={item.label} titleSize="nav">
+              <PanelBody size="compact" className="max-w-none">
+                {item.text}
+              </PanelBody>
+            </DocsNoteCard>
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <h2>Quick Start</h2>
+        <p>If you want the shortest path from zero to a working fleet, do this in order:</p>
+
+        <div className="not-prose">
+          <SurfacePanel className="space-y-[var(--space-4)]">
+            <PanelTitle as="h3" size="nav" className="max-w-none">
+              Fleet launch checklist
+            </PanelTitle>
+            <ol className="ml-[var(--space-4)] space-y-[var(--space-3)] font-sans text-[length:var(--type-panel-body-size)] leading-[var(--leading-body)] text-[var(--text-secondary)]">
+              <li>Create <code>pd-fleet.yml</code> at your project root.</li>
+              <li>Add a post-commit hook that publishes to <code>git:committed</code>.</li>
+              <li>Run <code>pd fleet up</code>.</li>
+              <li>Commit something and watch the agents fire.</li>
+              <li>Open the Fleet Control Center or <code>/fleet-ui/</code> to inspect the run.</li>
+            </ol>
+          </SurfacePanel>
+        </div>
+      </section>
+
+      <section>
+        <h2>What&apos;s Next</h2>
+        <p>Fleet makes the background system legible. The next lesson explains the ambient signals that let fleets coordinate without constant direct messaging.</p>
+
+        <div className="not-prose flex flex-wrap gap-[var(--space-3)]">
+          <BracketLink to="/tutorials/pheromone">Pheromone Trails</BracketLink>
+          <BracketLink to="/tutorials/session-phases">Session Phases</BracketLink>
+          <BracketLink to="/tutorials/remote-harbors">Multiplayer Localhost</BracketLink>
+        </div>
+      </section>
     </TutorialLayout>
   )
 }

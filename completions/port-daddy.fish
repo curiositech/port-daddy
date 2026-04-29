@@ -94,7 +94,7 @@ complete -c pd -s V -l version -d 'Print version'
 set -l __pd_commands \
     'claim' 'c' 'release' 'r' 'find' 'f' 'list' 'l' 'ps' 'services' 'url' 'env' 'tunnel' \
     'pub' 'publish' 'broadcast' 'sub' 'subscribe' 'listen' 'wait' 'lock' 'unlock' 'locks' \
-    'agent' 'agents' 'swarm' 'log' 'activity' \
+    'agent' 'agents' 'swarm' 'actor' 'actors' 'log' 'activity' \
     'session' 'sessions' 'note' 'notes' \
     'salvage' 'resurrection' 'changelog' 'dns' 'files' 'who-owns' 'integration' 'briefing' 'history' 'inbox' \
     'begin' 'b' 'done' 'whoami' 'w' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'watch' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' \
@@ -142,6 +142,8 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a agent -d 'Manage an agent'
     complete -c $prog -n __pd_needs_command -a agents -d 'List registered agents'
     complete -c $prog -n __pd_needs_command -a swarm -d 'List registered agents (alias)'
+    complete -c $prog -n __pd_needs_command -a actor -d 'Show a maritime actor'
+    complete -c $prog -n __pd_needs_command -a actors -d 'List maritime actors'
 
     # Activity
     complete -c $prog -n __pd_needs_command -a log -d 'Tail the activity log'
@@ -443,6 +445,9 @@ for prog in port-daddy pd
 
     # agents
     complete -c $prog -n "__pd_using_command agents" -l active -d 'Show only active agents'
+
+    # actors
+    complete -c $prog -n "__pd_using_command actor actors" -x -a 'navigator coxswain signalman harbormaster sounder lookout breaker caulker quartermaster'
 
     # log
     complete -c $prog -n "__pd_using_command log" -l limit -d 'Max entries' -x

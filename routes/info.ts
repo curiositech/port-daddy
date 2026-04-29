@@ -167,24 +167,28 @@ function buildRecentHistory(deps: InfoRouteDeps) {
 }
 
 function buildGuardianSummary(deps: InfoRouteDeps) {
+  // ADR-0021: the watchdog is called Bosun. `barnacle` kept as deprecated alias
+  // for one release cycle; prefer `bosun` in new clients.
+  const bosunStatus = deps.barnacle?.getStatus() ?? {
+    monitoredUrl: 'http://localhost:9875/health',
+    binaryPath: '',
+    binaryExists: false,
+    enabled: false,
+    state: 'disabled',
+    reason: 'not installed (optional)',
+    lastCheckAt: null,
+    lastHealthyAt: null,
+    lastFailureAt: null,
+    lastResurrectedAt: null,
+    failureCount: 0,
+  };
   return {
     supervisor: {
       state: 'launchctl_preferred',
       summary: 'launchctl is the authoritative daemon supervisor on macOS',
     },
-    barnacle: deps.barnacle?.getStatus() ?? {
-      monitoredUrl: 'http://localhost:9875/health',
-      binaryPath: '',
-      binaryExists: false,
-      enabled: false,
-      state: 'disabled',
-      reason: 'barnacle watcher unavailable',
-      lastCheckAt: null,
-      lastHealthyAt: null,
-      lastFailureAt: null,
-      lastResurrectedAt: null,
-      failureCount: 0,
-    },
+    bosun: bosunStatus,
+    barnacle: bosunStatus,
   };
 }
 

@@ -355,6 +355,7 @@ const fleetDaemon = createFleetDaemon({
   daemonDir: __dirname,
   costTracker,
   locks,
+  symbolIndex,
 });
 
 // Wire resurrection events (identical to server.ts)

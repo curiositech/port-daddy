@@ -1,14 +1,14 @@
-import { forwardRef } from 'react'
+import { forwardRef, type CSSProperties, type HTMLAttributes } from 'react'
 import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
 /**
- * Surface — the fundamental neumorphic container.
- * Every visible area on the page is a Surface.
- * Three depth levels: raised (default), flat, inset.
+ * Surface — legacy compatibility wrapper for older page sections.
+ * Keep the public API stable while remapping depth semantics onto the
+ * hard-edged public shell so older pages stop rendering as soft chrome.
  */
 const surfaceVariants = cva(
-  'transition-all duration-[var(--duration-normal)]',
+  'will-change-transform transition-[transform,box-shadow,background-color] duration-[var(--duration-normal)]',
   {
     variants: {
       depth: {
@@ -49,52 +49,73 @@ const surfaceVariants = cva(
   }
 )
 
-// Depth → inline style map (CSS custom properties for neumorphic shadows)
-const depthStyles: Record<string, React.CSSProperties> = {
+const hardFrame = '0 0 0 2px var(--border-strong)'
+
+// Depth → inline style map for the legacy Surface API.
+const depthStyles: Record<string, CSSProperties> = {
   raised: {
     background: 'var(--surface-raised)',
-    boxShadow: 'var(--shadow-raised)',
+    boxShadow: `${hardFrame}, var(--shadow-raised)`,
+    transform: 'translate(0, 0)',
   },
   flat: {
     background: 'var(--surface-raised)',
-    boxShadow: 'var(--shadow-flat)',
+    boxShadow: `${hardFrame}, var(--shadow-flat)`,
+    transform: 'translate(0, 0)',
   },
   inset: {
-    background: 'var(--surface-sunken)',
-    boxShadow: 'var(--shadow-inset)',
+    background: 'color-mix(in srgb, var(--surface-strong) 72%, var(--surface-raised))',
+    boxShadow: `${hardFrame}, var(--shadow-pressed)`,
+    transform: 'translate(0, 0)',
   },
   floating: {
     background: 'var(--surface-raised)',
-    boxShadow: 'var(--shadow-raised)',
+    boxShadow: `${hardFrame}, 8px 8px 0 var(--border-strong)`,
     zIndex: 50,
+    position: 'relative',
+    transform: 'translate(0, 0)',
   },
 }
 
-const interactiveHoverStyles: Record<string, React.CSSProperties> = {
-  raised: { boxShadow: 'var(--shadow-flat)' },
-  flat: { boxShadow: 'var(--shadow-pressed)' },
-  inset: {},
-  floating: { boxShadow: 'var(--shadow-sm)' },
+const interactiveHoverStyles: Record<string, CSSProperties> = {
+  raised: {
+    boxShadow: `${hardFrame}, var(--shadow-flat)`,
+    transform: 'translate(5px, 5px)',
+  },
+  flat: {
+    boxShadow: `${hardFrame}, var(--shadow-sm)`,
+    transform: 'translate(-3px, -3px)',
+  },
+  inset: {
+    background: 'var(--surface-raised)',
+    boxShadow: `${hardFrame}, var(--shadow-flat)`,
+    transform: 'translate(-2px, -2px)',
+  },
+  floating: {
+    boxShadow: `${hardFrame}, var(--shadow-raised)`,
+    transform: 'translate(3px, 3px)',
+  },
 }
 
 interface SurfaceProps
-  extends React.HTMLAttributes<HTMLDivElement>,
+  extends HTMLAttributes<HTMLDivElement>,
     VariantProps<typeof surfaceVariants> {}
 
 const Surface = forwardRef<HTMLDivElement, SurfaceProps>(
   ({ depth = 'raised', radius, padding, interactive, className, style, onMouseEnter, onMouseLeave, ...props }, ref) => {
     const d = depth ?? 'raised'
+    const baseStyles = { ...depthStyles[d], ...style }
     return (
       <div
         ref={ref}
         className={cn(surfaceVariants({ depth, radius, padding, interactive }), className)}
-        style={{ ...depthStyles[d], ...style }}
+        style={baseStyles}
         onMouseEnter={(e) => {
-          if (interactive) Object.assign(e.currentTarget.style, interactiveHoverStyles[d])
+          if (interactive) Object.assign(e.currentTarget.style, { ...baseStyles, ...interactiveHoverStyles[d] })
           onMouseEnter?.(e)
         }}
         onMouseLeave={(e) => {
-          if (interactive) Object.assign(e.currentTarget.style, depthStyles[d])
+          if (interactive) Object.assign(e.currentTarget.style, baseStyles)
           onMouseLeave?.(e)
         }}
         {...props}

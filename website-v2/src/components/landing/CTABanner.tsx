@@ -1,118 +1,111 @@
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Anchor, Github, Terminal, Sparkles } from 'lucide-react'
-import { Badge } from '@/components/ui/Badge'
-import { Surface } from '@/components/ui/Surface'
+import { Github, Sparkles, Terminal } from 'lucide-react'
+import { Button } from '@/components/ui/Button'
+import {
+  BracketLabel,
+  PageContainer,
+  PanelBody,
+  PanelEyebrow,
+  PanelTitle,
+  SurfacePanel,
+} from '@/components/site/primitives'
+
+const INSTALL_OPTIONS = [
+  {
+    label: 'npm',
+    command: 'npm install -g port-daddy',
+    tone: 'paper' as const,
+  },
+  {
+    label: 'brew',
+    command: 'brew install curiositech/tap/port-daddy',
+    tone: 'lime' as const,
+  },
+]
 
 export function CTABanner() {
   return (
-    <motion.section
-      className="py-16 lg:py-24 px-6 lg:px-8 relative overflow-hidden font-sans flex flex-col items-center text-center"
-      style={{ background: 'var(--surface-base)' }}
-      initial={{ opacity: 0 }}
-      whileInView={{ opacity: 1 }}
-      viewport={{ once: true }}
-    >
-      {/* Background glow effects */}
-      <motion.div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background: 'linear-gradient(180deg, var(--surface-base) 0%, var(--surface-overlay) 50%, var(--surface-base) 100%)',
-        }}
-      />
+    <section className="border-y-2 border-[var(--border-strong)] bg-[var(--surface-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+      <PageContainer width="wide">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5, ease: 'easeOut' as const }}
+        >
+          <SurfacePanel className="grid gap-[var(--space-7)] lg:grid-cols-[minmax(0,1.05fr)_minmax(22rem,0.95fr)]">
+            <div className="space-y-[var(--panel-gap-loose)]">
+              <div className="space-y-[var(--panel-gap)]">
+                <BracketLabel>Departure</BracketLabel>
+                <div className="space-y-[var(--space-3)]">
+                  <PanelTitle as="h2" size="display" className="max-w-[11ch]">
+                    Give your agents a real harbormaster.
+                  </PanelTitle>
+                  <PanelBody className="max-w-[36rem]">
+                    Port Daddy stays local-first, open source, and brutally legible. Install it,
+                    bring up the daemon, and give your agents shared operational truth.
+                  </PanelBody>
+                </div>
+              </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 32 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-        className="relative max-w-5xl mx-auto text-center flex flex-col items-center gap-8"
-      >
-        <motion.div className="flex flex-col items-center gap-6">
-           <Badge variant="teal" className="px-8 py-3 text-[11px] font-black uppercase tracking-[0.25em]">The Departure</Badge>
-           {/* Anchor icon in inset circle */}
-           <Surface depth="inset" radius="3xl" padding="none" className="w-24 h-24 flex items-center justify-center">
-              <motion.div
-                animate={{ y: [0, -12, 0] }}
-                transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-              >
-                <Anchor style={{ color: 'var(--brand-primary)' }} size={48} />
-              </motion.div>
-           </Surface>
+              <div className="flex flex-wrap items-center gap-[var(--space-3)]">
+                <Button asChild variant="primary" size="lg">
+                  <a
+                    href="https://github.com/curiositech/port-daddy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Github size={16} />
+                    Star on GitHub
+                  </a>
+                </Button>
+                <Button asChild variant="secondary" size="lg">
+                  <Link to="/tutorials/getting-started">
+                    <Sparkles size={16} />
+                    Read the docs
+                  </Link>
+                </Button>
+              </div>
+            </div>
+
+            <div className="grid gap-[var(--space-4)]">
+              {INSTALL_OPTIONS.map((option) => (
+                <div
+                  key={option.label}
+                  className="space-y-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-4)]"
+                >
+                  <PanelEyebrow>{option.label}</PanelEyebrow>
+                  <div
+                    className="flex items-center gap-[var(--space-2)] border-2 border-[var(--code-border)] bg-[var(--code-bg)] px-[var(--space-3)] py-[var(--space-3)] font-mono text-xs text-[var(--code-text)]"
+                  >
+                    <Terminal
+                      size={16}
+                      className={option.tone === 'lime' ? 'text-[#dfff00]' : 'text-[var(--code-prompt)]'}
+                    />
+                    <span>{option.command}</span>
+                  </div>
+                </div>
+              ))}
+
+              <div className="grid gap-[var(--space-3)] border-t-2 border-[var(--border-default)] pt-[var(--space-4)] sm:grid-cols-2">
+                <div className="space-y-[var(--space-1)]">
+                  <PanelEyebrow>License</PanelEyebrow>
+                  <PanelTitle as="p" size="nav" className="max-w-none">
+                    MIT / Open source
+                  </PanelTitle>
+                </div>
+                <div className="space-y-[var(--space-1)]">
+                  <PanelEyebrow>Deployment model</PanelEyebrow>
+                  <PanelTitle as="p" size="nav" className="max-w-none">
+                    Single daemon / local-first
+                  </PanelTitle>
+                </div>
+              </div>
+            </div>
+          </SurfacePanel>
         </motion.div>
-
-        <motion.div className="space-y-6 flex flex-col items-center">
-           <motion.h2 className="text-2xl sm:text-4xl lg:text-6xl font-display font-black tracking-tighter leading-[0.85] m-0" style={{ color: 'var(--text-primary)' }}>
-             Your agents deserve a <br />
-             <motion.span style={{ color: 'var(--brand-primary)' }}>harbormaster.</motion.span>
-           </motion.h2>
-
-        <p className="text-base sm:text-lg text-[var(--text-secondary)] max-w-xl mx-auto mb-6 sm:mb-10 px-4">
-          Port Daddy is open-source and installs in seconds. Start building your autonomous organization today.
-        </p>
-
-        <motion.div className="flex flex-col sm:flex-row flex-wrap gap-4 sm:gap-6 justify-center items-center pt-4 w-full sm:w-auto">
-          {/* Primary CTA */}
-          <motion.button
-            className="w-full sm:w-auto px-8 sm:px-16 py-4 sm:py-8 rounded-full font-black text-base sm:text-2xl flex items-center justify-center gap-3 sm:gap-4 transition-all"
-            style={{
-              background: 'var(--brand-primary)',
-              color: 'var(--text-inverse)',
-              boxShadow: 'var(--shadow-sm)',
-              border: 'none',
-              cursor: 'pointer',
-            }}
-            whileHover={{ scale: 1.05, y: -6, boxShadow: 'var(--shadow-raised)' }}
-            whileTap={{ scale: 0.95, boxShadow: 'var(--shadow-pressed)' }}
-            onClick={() => window.open('https://github.com/curiositech/port-daddy', '_blank')}
-          >
-            <Github size={22} />
-            STAR ON GITHUB
-          </motion.button>
-
-          {/* Secondary CTA */}
-          <Link to="/tutorials/getting-started" className="no-underline w-full sm:w-auto">
-            <motion.button
-              className="w-full sm:w-auto px-8 sm:px-16 py-4 sm:py-8 rounded-full font-black text-base sm:text-2xl flex items-center justify-center gap-3 sm:gap-4 transition-all"
-              style={{
-                background: 'var(--surface-raised)',
-                color: 'var(--text-primary)',
-                boxShadow: 'var(--shadow-sm)',
-                border: 'none',
-                cursor: 'pointer',
-              }}
-              whileHover={{ scale: 1.05, y: -6, boxShadow: 'var(--shadow-flat)' }}
-              whileTap={{ scale: 0.95, boxShadow: 'var(--shadow-pressed)' }}
-            >
-              <Sparkles size={22} style={{ color: 'var(--brand-accent)' }} />
-              LEARN THE PROTOCOL
-            </motion.button>
-          </Link>
-        </motion.div>
-
-        <motion.div className="pt-16 flex flex-col items-center gap-6">
-           {/* Install command in inset terminal */}
-           <div className="flex flex-col sm:flex-row gap-4 sm:gap-8 items-center">
-             <motion.div
-               className="flex items-center gap-3 sm:gap-4 px-4 sm:px-8 py-3 sm:py-4 rounded-full font-mono text-[11px] sm:text-xs font-black uppercase tracking-widest"
-               style={{ color: 'var(--text-muted)' }}
-             >
-                <Terminal size={18} style={{ color: 'var(--brand-primary)' }} />
-                npm install -g port-daddy
-             </motion.div>
-             <span className="text-[var(--text-muted)] opacity-30 hidden sm:block">or</span>
-             <motion.div
-               className="flex items-center gap-3 sm:gap-4 px-4 sm:px-8 py-3 sm:py-4 rounded-full font-mono text-[11px] sm:text-xs font-black uppercase tracking-widest"
-               style={{ color: 'var(--text-muted)' }}
-             >
-                <Terminal size={18} style={{ color: 'var(--brand-primary)' }} />
-                brew install curiositech/tap/port-daddy
-             </motion.div>
-           </div>
-           <motion.p className="text-[11px] font-black uppercase tracking-[0.3em] m-0" style={{ color: 'var(--text-muted)', opacity: 0.5 }}>Free · Open Source · MIT License</motion.p>
-        </motion.div>
-        </motion.div>
-      </motion.div>
-    </motion.section>
+      </PageContainer>
+    </section>
   )
 }

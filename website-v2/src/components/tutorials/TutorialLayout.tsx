@@ -1,16 +1,22 @@
 import * as React from 'react'
 import { motion, useScroll, useSpring } from 'framer-motion'
 import { Link, useLocation } from 'react-router-dom'
-import { Badge } from '@/components/ui/Badge'
-import { Button } from '@/components/ui/Button'
+import { ArrowLeft, ArrowRight, Clock, Trophy } from 'lucide-react'
+import { Footer } from '@/components/layout/Footer'
 import { TutorialProgress, useTutorialProgress } from './TutorialProgress'
 import { ReorientationPanel } from './ReorientationPanel'
-import { Clock, BookOpen, ChevronRight, Home, Layout, ArrowLeft, ArrowRight, Zap, Shield, Globe, Share2 } from 'lucide-react'
-import { Footer } from '@/components/layout/Footer'
 import { useTutorialState } from '@/hooks/useTutorialState'
+import {
+  BracketLabel,
+  BracketLink,
+  PageContainer,
+  PanelBody,
+  PanelEyebrow,
+  PanelTitle,
+  SurfacePanel,
+} from '@/components/site/primitives'
 
-// Nav height matches the h-16 (4rem / 64px) used in Nav.tsx
-const NAV_HEIGHT = '4rem'
+const NAV_HEIGHT = '76px'
 
 interface TutorialLayoutProps {
   title: string
@@ -24,6 +30,12 @@ interface TutorialLayoutProps {
   next?: { title: string; href: string }
 }
 
+function levelTone(level: TutorialLayoutProps['level']) {
+  if (level === 'Beginner') return 'accent'
+  if (level === 'Intermediate') return 'default'
+  return 'primary'
+}
+
 export function TutorialLayout({
   title,
   description,
@@ -32,28 +44,27 @@ export function TutorialLayout({
   readTime,
   children,
   prev,
-  next
+  next,
 }: TutorialLayoutProps) {
   const { scrollYProgress } = useScroll()
   const scaleX = useSpring(scrollYProgress, {
     stiffness: 100,
     damping: 30,
-    restDelta: 0.001
+    restDelta: 0.001,
   })
-  
+
   const { markComplete } = useTutorialProgress()
   const [showProgress, setShowProgress] = React.useState(false)
   const location = useLocation()
 
-  const numericNumber = typeof number === 'string' ? parseInt(number, 10) : number
+  const numericNumber = typeof number === 'string' ? Number.parseInt(number, 10) : number
   const { hasReturned, dismissReturn } = useTutorialState(numericNumber)
+  const tone = levelTone(level)
 
-  // Scroll to top when navigating between tutorials
   React.useEffect(() => {
     window.scrollTo(0, 0)
   }, [location.pathname])
 
-  // Mark as complete when reaching bottom
   React.useEffect(() => {
     const handleScroll = () => {
       const scrolled = window.scrollY + window.innerHeight
@@ -68,194 +79,137 @@ export function TutorialLayout({
   }, [numericNumber, markComplete])
 
   return (
-    <motion.div 
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="min-h-screen font-sans flex flex-col selection:bg-[var(--brand-primary)] selection:text-white" 
+    <div
+      className="flex min-h-screen flex-col selection:bg-[var(--brand-primary)] selection:text-white"
       style={{ background: 'var(--surface-base)', color: 'var(--text-primary)', paddingTop: NAV_HEIGHT }}
     >
-      {/* Progress Bar */}
       <motion.div
-        className="fixed top-0 left-0 right-0 h-1 bg-[var(--brand-primary)] z-[100] origin-left shadow-[0_0_12px_rgba(58,173,173,0.5)]"
+        className="fixed left-0 right-0 z-[95] h-[3px] origin-left bg-[var(--brand-primary)]"
         style={{ scaleX, top: NAV_HEIGHT }}
       />
 
-      {/* Hero Section */}
-      <motion.section
-        className="py-10 sm:py-16 lg:py-20 px-4 sm:px-6 lg:px-8 border-b relative overflow-hidden shrink-0"
-        style={{ background: 'var(--surface-raised)', borderColor: 'var(--border-subtle)' }}
-      >
-        {/* Abstract background shapes */}
-        <motion.div 
-          className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full blur-[140px] opacity-[0.12] pointer-events-none" 
-          style={{ background: 'radial-gradient(circle, var(--brand-primary) 0%, transparent 70%)' }} 
-          animate={{ scale: [1, 1.1, 1], x: [0, 20, 0] }}
-          transition={{ duration: 15, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        <motion.div 
-          className="absolute bottom-[-10%] left-[-5%] w-[400px] h-[400px] rounded-full blur-[100px] opacity-[0.08] pointer-events-none" 
-          style={{ background: 'radial-gradient(circle, var(--brand-accent) 0%, transparent 70%)' }} 
-          animate={{ scale: [1, 1.2, 1], x: [0, -30, 0] }}
-          transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        
-        <motion.div className="max-w-4xl mx-auto relative z-10 text-center flex flex-col items-center">
-          {/* Reorientation Panel for returning users */}
-          {hasReturned && (
-            <ReorientationPanel 
-              tutorialNumber={typeof number === 'string' ? parseInt(number, 10) : number}
-              tutorialTitle={title}
-              onDismiss={dismissReturn}
-            />
-          )}
-          
-          <motion.nav className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.25em] mb-6 font-sans" style={{ color: 'var(--text-muted)' }}>
-            <Link to="/" className="hover:text-[var(--text-primary)] transition-all no-underline flex items-center gap-1.5 font-sans group">
-              <Home size={12} className="group-hover:scale-110 transition-transform" />
+      <section className="border-b-2 border-[var(--border-strong)] py-[var(--space-5)] lg:py-[var(--space-6)]">
+        <PageContainer width="wide" className="space-y-[var(--space-5)]">
+          {hasReturned ? (
+            <div className="max-w-[44rem]">
+              <ReorientationPanel
+                tutorialNumber={numericNumber}
+                tutorialTitle={title}
+                onDismiss={dismissReturn}
+              />
+            </div>
+          ) : null}
+
+          <div className="flex flex-wrap items-center gap-[var(--space-2)]">
+            <BracketLink to="/" tone="blue">
               Home
-            </Link>
-            <ChevronRight size={12} className="opacity-50" />
-            <Link to="/tutorials" className="hover:text-[var(--text-primary)] transition-all no-underline flex items-center gap-1.5 font-sans group">
-              <BookOpen size={12} className="group-hover:scale-110 transition-transform" />
+            </BracketLink>
+            <BracketLink to="/tutorials" tone="blue">
               Academy
-            </Link>
-            <ChevronRight size={12} className="opacity-50" />
-            <motion.span style={{ color: 'var(--brand-primary)' }} className="flex items-center gap-1.5 font-sans font-black">
-              <Layout size={12} />
+            </BracketLink>
+            <BracketLabel className="border-[var(--border-strong)] bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]">
               Lesson {number}
-            </motion.span>
-          </motion.nav>
-          
-          {/* Tutorial Progress Tracker */}
-          <div className="mb-8">
-            <TutorialProgress 
-              currentNumber={typeof number === 'string' ? parseInt(number, 10) : number}
-              isOpen={showProgress}
-              onToggle={() => setShowProgress(!showProgress)}
-            />
+            </BracketLabel>
           </div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 32 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-            className="flex flex-col items-center"
-          >
-            <motion.div className="flex items-center gap-5 mb-10 font-sans">
-              <Badge variant={level === 'Beginner' ? 'teal' : level === 'Intermediate' ? 'gold' : 'default'} className="px-5 py-2 text-[11px] font-black uppercase tracking-widest shadow-xl shadow-[var(--brand-primary)]/5">
-                {level}
-              </Badge>
-              <motion.div className="h-[1px] w-12 bg-[var(--border-strong)] opacity-40" />
-              <motion.div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] font-mono">
-                <Clock size={14} className="text-[var(--brand-primary)]" />
-                {readTime}
-              </motion.div>
-            </motion.div>
+          <div className="grid gap-[var(--space-6)] xl:grid-cols-[minmax(0,0.96fr)_minmax(20rem,0.64fr)] xl:items-start">
+            <div className="space-y-[var(--space-4)]">
+              <div className="flex flex-wrap items-center gap-[var(--space-3)]">
+                <BracketLabel tone={tone}>{level}</BracketLabel>
+                <PanelEyebrow>
+                  <Clock size={12} className="mr-[var(--space-1)] inline-block" />
+                  {readTime}
+                </PanelEyebrow>
+              </div>
 
-            <motion.h1 className="text-4xl sm:text-6xl lg:text-8xl font-bold mb-10 tracking-tighter font-display" style={{ color: 'var(--text-primary)', lineHeight: 0.95 }}>
-              {title}
-            </motion.h1>
-            <motion.p className="text-xl sm:text-2xl max-w-3xl leading-relaxed mb-14 mx-auto font-sans" style={{ color: 'var(--text-secondary)' }}>
-              {description}
-            </motion.p>
+              <div className="space-y-[var(--space-3)]">
+                <PanelTitle as="h1" size="section" className="max-w-[12ch]">
+                  {title}
+                </PanelTitle>
+                <PanelBody className="max-w-[38rem]">{description}</PanelBody>
+              </div>
+            </div>
 
-            <motion.div className="flex flex-wrap items-center justify-center gap-10 font-sans text-[var(--text-muted)]">
-               <motion.div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em]">
-                 <Zap size={14} className="text-[var(--brand-accent)]" />
-                 Instant Port
-               </motion.div>
-               <motion.div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em]">
-                 <Shield size={14} className="text-[var(--brand-secondary)]" />
-                 Secure DNS
-               </motion.div>
-               <motion.div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em]">
-                 <Share2 size={14} className="text-[var(--brand-secondary)]" />
-                 Pub/Sub Radio
-               </motion.div>
-            </motion.div>
-          </motion.div>
-        </motion.div>
-      </motion.section>
+            <TutorialProgress
+              currentNumber={numericNumber}
+              isOpen={showProgress}
+              onToggle={() => setShowProgress((open) => !open)}
+            />
+          </div>
+        </PageContainer>
+      </section>
 
-      {/* Main Content Area */}
-      <motion.main id="main-content" className="flex-1 max-w-4xl mx-auto w-full px-6 sm:px-8 lg:px-10 py-24 font-sans relative">
-        <motion.article 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.2 }}
-          className="prose prose-invert prose-lg max-w-none 
-            prose-headings:font-display prose-headings:font-bold prose-headings:tracking-tight prose-headings:text-[var(--text-primary)]
-            prose-h2:text-4xl prose-h2:mt-24 prose-h2:mb-10 prose-h2:pb-4 prose-h2:border-b prose-h2:border-[var(--border-subtle)]
-            prose-h3:text-2xl prose-h3:mt-16 prose-h3:mb-6
-            prose-p:text-[var(--text-secondary)] prose-p:leading-relaxed prose-p:mb-8 prose-p:text-xl
-            prose-code:text-[var(--brand-primary)] prose-code:bg-[var(--interactive-active)] prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none prose-code:font-mono prose-code:font-bold
-            prose-strong:text-[var(--text-primary)] prose-strong:font-black
-            prose-ul:list-disc prose-ul:pl-8 prose-ul:mb-10 prose-ul:space-y-4
-            prose-li:text-[var(--text-secondary)] prose-li:text-lg
-            prose-blockquote:border-l-4 prose-blockquote:border-[var(--brand-primary)] prose-blockquote:bg-[var(--surface-raised)] prose-blockquote:py-4 prose-blockquote:px-8 prose-blockquote:rounded-r-2xl prose-blockquote:italic"
-        >
-          {children}
-        </motion.article>
-
-        {/* Lessons Navigation */}
-        <motion.nav 
-          className="mt-32 pt-16 border-t grid sm:grid-cols-2 gap-8 font-sans mb-16"
-          style={{ borderColor: 'var(--border-subtle)' }}
-        >
-          {prev ? (
-            <Link to={prev.href} className="group no-underline block">
-              <motion.div 
-                className="h-full p-5 sm:p-8 lg:p-10 rounded-[40px] border transition-all duration-300 hover:border-[var(--brand-primary)] hover:bg-[var(--interactive-hover)] flex flex-col items-start gap-4"
-                style={{ borderColor: 'var(--border-subtle)', background: 'var(--surface-raised)' }}
-                whileHover={{ x: -8 }}
-              >
-                <motion.span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.25em] text-[var(--text-muted)] font-sans group-hover:text-[var(--brand-primary)] transition-all">
-                  <ArrowLeft size={14} />
-                  Previous
-                </motion.span>
-                <motion.h4 className="m-0 text-2xl font-display font-bold leading-tight" style={{ color: 'var(--text-primary)' }}>{prev.title}</motion.h4>
-              </motion.div>
-            </Link>
-          ) : <motion.div />}
-
-          {next ? (
-            <Link to={next.href} className="group no-underline block">
-              <motion.div 
-                className="h-full p-5 sm:p-8 lg:p-10 rounded-[40px] border-2 transition-all duration-300 hover:bg-[var(--interactive-hover)] flex flex-col items-end text-right gap-4"
-                style={{ borderColor: 'var(--brand-primary)', background: 'var(--surface-raised)' }}
-                whileHover={{ x: 8 }}
-              >
-                <motion.span className="flex items-center justify-end gap-2 text-[11px] font-black uppercase tracking-[0.25em] font-sans text-[var(--brand-primary)]">
-                  Next Up
-                  <ArrowRight size={14} />
-                </motion.span>
-                <motion.h4 className="m-0 text-2xl font-display font-bold leading-tight" style={{ color: 'var(--text-primary)' }}>{next.title}</motion.h4>
-              </motion.div>
-            </Link>
-          ) : (
-            <motion.div 
-              className="sm:col-span-2 p-6 sm:p-10 lg:p-16 rounded-3xl sm:rounded-[40px] lg:rounded-[60px] border border-dashed flex flex-col items-center text-center gap-8 relative overflow-hidden"
-              style={{ borderColor: 'var(--brand-primary)', background: 'var(--surface-overlay)' }}
+      <main id="main-content" className="flex-1 py-[var(--space-6)] lg:py-[var(--space-7)]">
+        <PageContainer width="wide">
+          <div className="mx-auto w-full max-w-[94rem]">
+            <article
+              className="prose max-w-none
+              prose-headings:font-display prose-headings:font-black prose-headings:tracking-[var(--tracking-display-tight)] prose-headings:text-[var(--text-primary)]
+              prose-h2:mt-[var(--space-7)] prose-h2:mb-[var(--space-3)] prose-h2:border-t-2 prose-h2:border-[var(--border-strong)] prose-h2:pt-[var(--space-4)] prose-h2:text-[length:var(--type-panel-title-card-size)] prose-h2:leading-[var(--leading-card)]
+              prose-h3:mt-[var(--space-5)] prose-h3:mb-[var(--space-2)] prose-h3:text-[length:var(--type-panel-title-nav-size)]
+              prose-p:my-[var(--space-4)] prose-p:max-w-[52rem] prose-p:text-[length:var(--type-panel-body-size)] prose-p:leading-[var(--leading-body)] prose-p:text-[var(--text-primary)]
+              prose-strong:font-bold prose-strong:text-[var(--text-primary)]
+              prose-ul:my-[var(--space-4)] prose-ul:max-w-[52rem] prose-ul:space-y-[var(--space-3)] prose-ul:pl-[var(--space-5)]
+              prose-ol:my-[var(--space-4)] prose-ol:max-w-[52rem] prose-ol:pl-[var(--space-5)]
+              prose-li:text-[length:var(--type-panel-body-size)] prose-li:leading-[var(--leading-body)] prose-li:text-[var(--text-primary)]
+              prose-code:rounded-none prose-code:bg-[var(--surface-strong)] prose-code:px-[var(--space-1)] prose-code:py-[2px] prose-code:font-mono prose-code:text-[var(--brand-primary)] prose-code:before:content-none prose-code:after:content-none
+              prose-a:text-[var(--brand-primary)] prose-a:no-underline hover:prose-a:text-[var(--text-primary)]
+              prose-blockquote:my-[var(--space-5)] prose-blockquote:max-w-[52rem] prose-blockquote:border-l-2 prose-blockquote:border-[var(--brand-primary)] prose-blockquote:bg-transparent prose-blockquote:px-[var(--space-4)] prose-blockquote:py-0 prose-blockquote:italic prose-blockquote:text-[var(--text-primary)]
+              [&_.code-block-wrapper]:my-[var(--space-5)] [&_.code-block-wrapper]:max-w-[52rem] [&_.code-block-wrapper]:shadow-[var(--shadow-flat)]
+              [&_.not-prose_.code-block-wrapper]:max-w-none"
             >
-              <motion.div 
-                className="absolute inset-0 opacity-[0.03] pointer-events-none"
-                animate={{ rotate: 360 }}
-                transition={{ duration: 60, repeat: Infinity, ease: 'linear' }}
-              >
-                <Globe size={600} />
-              </motion.div>
-              <Badge variant="teal" className="px-6 py-2 text-[11px] font-black uppercase tracking-widest">Certification Ready</Badge>
-              <motion.h3 className="text-5xl font-bold font-display m-0" style={{ color: 'var(--text-primary)' }}>Mastery Achieved.</motion.h3>
-              <motion.p className="text-xl max-w-xl font-sans text-[var(--text-secondary)]">You've completed the core coordination series. Your harbor is ready for deployment.</motion.p>
-              <Button size="lg" className="px-12 py-8 rounded-full text-lg font-black tracking-wide" onClick={() => window.location.href = '/docs'}>
-                EXPLORE THE SDK REFERENCE
-              </Button>
-            </motion.div>
-          )}
-        </motion.nav>
-      </motion.main>
+              {children}
+            </article>
+
+            <nav className="mt-[var(--space-9)] grid gap-[var(--space-4)] border-t-2 border-[var(--border-strong)] pt-[var(--space-6)] md:grid-cols-2">
+              {prev ? (
+                <Link to={prev.href} className="block no-underline">
+                  <SurfacePanel elevation="quiet" padding="compact" className="h-full space-y-[var(--space-3)] hover:bg-[var(--interactive-hover)]">
+                    <PanelEyebrow>
+                      <ArrowLeft size={12} className="mr-[var(--space-1)] inline-block" />
+                      Previous
+                    </PanelEyebrow>
+                    <PanelTitle as="h4" size="nav" className="max-w-none">
+                      {prev.title}
+                    </PanelTitle>
+                  </SurfacePanel>
+                </Link>
+              ) : (
+                <div />
+              )}
+
+              {next ? (
+                <Link to={next.href} className="block no-underline">
+                  <SurfacePanel tone="blue" padding="compact" className="h-full space-y-[var(--space-3)]">
+                    <PanelEyebrow tone="primary">
+                      Next
+                      <ArrowRight size={12} className="ml-[var(--space-1)] inline-block" />
+                    </PanelEyebrow>
+                    <PanelTitle as="h4" size="nav" tone="primary" className="max-w-none">
+                      {next.title}
+                    </PanelTitle>
+                  </SurfacePanel>
+                </Link>
+              ) : (
+                <SurfacePanel tone="lime" padding="compact" className="md:col-span-2 space-y-[var(--space-3)]">
+                  <div className="flex items-center gap-[var(--space-2)]">
+                    <Trophy size={18} className="text-[var(--brand-accent-foreground)]" />
+                    <PanelEyebrow tone="accent">Series complete</PanelEyebrow>
+                  </div>
+                  <PanelTitle as="h4" size="nav" tone="accent" className="max-w-none">
+                    Mastery achieved
+                  </PanelTitle>
+                  <PanelBody tone="accent" size="compact" className="max-w-[34rem]">
+                    You completed the core lesson sequence and can move into the broader docs and operator surfaces.
+                  </PanelBody>
+                </SurfacePanel>
+              )}
+            </nav>
+          </div>
+        </PageContainer>
+      </main>
 
       <Footer />
-    </motion.div>
+    </div>
   )
 }

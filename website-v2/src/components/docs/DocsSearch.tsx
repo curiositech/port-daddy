@@ -41,8 +41,8 @@ const SEARCH_INDEX: SearchResult[] = [
   { title: 'pd with-lock', href: '/docs/cli/with-lock', category: 'CLI', icon: Terminal, description: 'Run command with lock' },
   
   // CLI - Messaging
-  { title: 'pd msg', href: '/docs/cli/msg', category: 'CLI', icon: Terminal, description: 'Messaging commands' },
-  { title: 'pd pub', href: '/docs/cli/pub', category: 'CLI', icon: Terminal, description: 'Publish a message' },
+  { title: 'pd pub / pd sub', href: '/docs/cli/pub', category: 'CLI', icon: Terminal, description: 'Publish or subscribe to a channel' },
+  { title: 'pd channels', href: '/docs/cli/channels', category: 'CLI', icon: Terminal, description: 'List and resolve channels' },
   { title: 'pd watch', href: '/docs/cli/watch', category: 'CLI', icon: Terminal, description: 'Watch a channel' },
   
   // CLI - Agents
@@ -111,19 +111,32 @@ export function DocsSearch({ variant = 'full', className }: DocsSearchProps) {
   const [query, setQuery] = React.useState('')
   const [results, setResults] = React.useState<SearchResult[]>([])
   const [selectedIndex, setSelectedIndex] = React.useState(0)
+  const triggerRef = React.useRef<HTMLButtonElement>(null)
+  const dialogRef = React.useRef<HTMLDivElement>(null)
   const inputRef = React.useRef<HTMLInputElement>(null)
+  const lastActiveElementRef = React.useRef<HTMLElement | null>(null)
+  const dialogId = React.useId()
+  const dialogTitleId = React.useId()
+  const dialogDescriptionId = React.useId()
+  const searchInputId = React.useId()
   const shortcut = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform)
     ? '⌘K'
     : 'Ctrl K'
 
   const openSearch = React.useCallback(() => {
+    lastActiveElementRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : triggerRef.current
     setIsOpen(true)
-    setTimeout(() => inputRef.current?.focus(), 100)
   }, [])
 
   const closeSearch = React.useCallback(() => {
     setIsOpen(false)
     setQuery('')
+    setResults([])
+    setSelectedIndex(0)
+    window.setTimeout(() => {
+      lastActiveElementRef.current?.focus()
+    }, 0)
   }, [])
 
   // Filter results based on query
@@ -185,6 +198,57 @@ export function DocsSearch({ variant = 'full', className }: DocsSearchProps) {
     return () => window.removeEventListener(OPEN_EVENT, handleOpen)
   }, [openSearch])
 
+  React.useEffect(() => {
+    if (!isOpen) {
+      return
+    }
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const focusTimer = window.setTimeout(() => inputRef.current?.focus(), 0)
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.clearTimeout(focusTimer)
+    }
+  }, [isOpen])
+
+  React.useEffect(() => {
+    if (!isOpen) {
+      return
+    }
+
+    const handleTabTrap = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab' || !dialogRef.current) {
+        return
+      }
+
+      const focusable = Array.from(
+        dialogRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+      ).filter((element) => !element.getAttribute('aria-hidden'))
+
+      if (focusable.length === 0) {
+        return
+      }
+
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener('keydown', handleTabTrap)
+    return () => document.removeEventListener('keydown', handleTabTrap)
+  }, [isOpen])
+
   // Group results by category
   const groupedResults = results.reduce((acc, result) => {
     if (!acc[result.category]) acc[result.category] = []
@@ -196,9 +260,14 @@ export function DocsSearch({ variant = 'full', className }: DocsSearchProps) {
     <>
       {/* Search Trigger Button */}
       <button
+        ref={triggerRef}
+        type="button"
         data-search-trigger
         onClick={openSearch}
         className={`flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--surface-overlay)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] transition-all text-sm ${variant === 'full' ? 'w-full' : 'w-[min(36vw,280px)]'} ${className ?? ''}`}
+        aria-haspopup="dialog"
+        aria-expanded={isOpen}
+        aria-controls={dialogId}
       >
         <Search size={16} />
         <span className="flex-1 text-left">{variant === 'full' ? 'Search documentation...' : 'Search docs...'}</span>
@@ -214,32 +283,63 @@ export function DocsSearch({ variant = 'full', className }: DocsSearchProps) {
           <div 
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             onClick={closeSearch}
+            aria-hidden="true"
           />
           
           {/* Search Panel */}
-          <div className="relative w-full max-w-xl bg-[var(--surface-raised)] rounded-2xl border border-[var(--border-subtle)] shadow-[var(--shadow-xl)] overflow-hidden">
+          <div
+            id={dialogId}
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={dialogTitleId}
+            aria-describedby={dialogDescriptionId}
+            className="relative w-full max-w-xl bg-[var(--surface-raised)] rounded-2xl border border-[var(--border-subtle)] shadow-[var(--shadow-xl)] overflow-hidden"
+          >
+            <h2 id={dialogTitleId} className="sr-only">
+              Search documentation
+            </h2>
+            <p id={dialogDescriptionId} className="sr-only">
+              Search commands, guides, features, and API pages. Use the arrow keys to move through
+              results and press Enter to open the selected page.
+            </p>
             {/* Search Input */}
             <div className="flex items-center gap-3 px-4 py-4 border-b border-[var(--border-subtle)]">
               <Search size={20} className="text-[var(--text-muted)]" />
+              <label htmlFor={searchInputId} className="sr-only">
+                Search documentation
+              </label>
               <input
+                id={searchInputId}
                 ref={inputRef}
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search docs, commands, or concepts..."
                 className="flex-1 bg-transparent text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none text-base"
+                aria-describedby={dialogDescriptionId}
               />
               {query && (
                 <button
+                  type="button"
                   onClick={() => {
                     setQuery('')
                     inputRef.current?.focus()
                   }}
                   className="p-1 rounded hover:bg-[var(--interactive-hover)] text-[var(--text-muted)]"
+                  aria-label="Clear search query"
                 >
-                  <X size={16} />
+                  Clear
                 </button>
               )}
+              <button
+                type="button"
+                onClick={closeSearch}
+                className="p-1 rounded hover:bg-[var(--interactive-hover)] text-[var(--text-muted)]"
+                aria-label="Close search"
+              >
+                <X size={16} />
+              </button>
               <kbd className="hidden sm:inline-block px-2 py-1 text-xs font-mono bg-[var(--surface-base)] rounded border border-[var(--border-subtle)] text-[var(--text-muted)]">
                 ESC
               </kbd>
@@ -262,6 +362,7 @@ export function DocsSearch({ variant = 'full', className }: DocsSearchProps) {
                         const Icon = item.icon
                         return (
                           <button
+                            type="button"
                             key={item.href}
                             onClick={() => {
                               navigate(item.href)
@@ -291,6 +392,7 @@ export function DocsSearch({ variant = 'full', className }: DocsSearchProps) {
                         
                         return (
                           <button
+                            type="button"
                             key={item.href}
                             onClick={() => {
                               navigate(item.href)

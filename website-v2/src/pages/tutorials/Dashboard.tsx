@@ -1,125 +1,211 @@
+import { CartographerGlyph, ControlPlaneGlyph, FleetGlyph, SpiderGlyph } from '@/components/PortDaddyMark'
+import { ControlPlaneShowcase } from '@/components/landing/ControlPlaneShowcase'
 import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
-import { CodeBlock } from '@/components/ui/CodeBlock'
-import { Badge } from '@/components/ui/Badge'
-import { Surface } from '@/components/ui/Surface'
-import { Layout, Activity, Zap, Terminal, Share2 } from 'lucide-react'
+import {
+  BracketLink,
+  CommandBlock,
+  DocsCodeBlock,
+  DocsNoteCard,
+  PanelBody,
+  PanelEyebrow,
+  PanelTitle,
+  SurfacePanel,
+} from '@/components/site/primitives'
+
+const inspectionLenses = [
+  {
+    label: 'Sessions',
+    title: 'Who started what',
+    body: 'Each run should resolve to a concrete session with an owner, a purpose, and a trail you can resume.',
+  },
+  {
+    label: 'Notes',
+    title: 'What they believed',
+    body: 'Session notes are the operator-grade narrative. They expose intent, assumptions, and handoffs without forcing you to read raw logs first.',
+  },
+  {
+    label: 'Files',
+    title: 'What changed',
+    body: 'Touched-file lists make the chronology actionable. They let you jump straight from an event to the code or docs that moved.',
+  },
+  {
+    label: 'Channels',
+    title: 'Why the next agent woke up',
+    body: 'Channel activity ties the whole swarm together. You can see the trigger, the fan-out, and the next run without guessing.',
+  },
+] as const
 
 export function Dashboard() {
   return (
     <TutorialLayout
-      title="Live Dashboard"
-      description="Coordination is hard to visualize in a terminal. The Port Daddy dashboard gives you real-time panels for services, agents, sessions, locks, and system health."
-      number={8}
-      total={16}
+      title="Control Plane + FleetBar"
+      description="The browser control plane and FleetBar should tell the same daemon-backed story: which agents are running, what they noted, what files they touched, and which channel caused the next move."
+      number={13}
+      total={19}
       level="Beginner"
-      readTime="5 min read"
-      prev={{ title: 'Activity Log', href: '/tutorials/time-travel' }}
-      next={{ title: 'Identity Discovery', href: '/tutorials/dns' }}
+      readTime="7 min read"
+      prev={{ title: 'Harbor Tokens (Advisory)', href: '/tutorials/harbors' }}
+      next={{ title: 'Activity Log Inspection', href: '/tutorials/time-travel' }}
     >
-      <div className="space-y-12">
-        {/* Intro Section */}
-        <section className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 flex items-center justify-center rounded-xl" style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-pressed)' }}>
-              <Layout className="text-[var(--brand-primary)]" size={20} />
+      <section>
+        <h2>1. Open the real local surface</h2>
+        <p>
+          Port Daddy serves its operator UI from the daemon you are actually running. The public site can
+          preview the shape of those surfaces, but the real sessions, notes, channels, and file mutations
+          still come from your local daemon.
+        </p>
+
+        <div className="not-prose grid gap-[var(--space-4)] xl:grid-cols-3">
+          <CommandBlock
+            title="Check the daemon URL"
+            label="Step 1"
+            command="pd status"
+            description="Confirm the daemon is up and read the URL or port it is serving locally."
+          />
+          <CommandBlock
+            title="Open the control plane"
+            label="Step 2"
+            command="open <daemon-url>/fleet-ui/"
+            description="Use the daemon URL from pd status and open the operator UI against that live runtime."
+          />
+          <CommandBlock
+            title="Install FleetBar"
+            label="Optional"
+            command="./apps/FleetBar/install.sh"
+            description="Use the native menu bar shell when you want a persistent operator view without leaving your editor."
+          />
+        </div>
+      </section>
+
+      <section>
+        <h2>2. Two shells, one runtime</h2>
+        <p>
+          The browser control plane and FleetBar are not separate products. They are two views onto the
+          same daemon. Use the browser when you need width, and FleetBar when you need fast situational
+          awareness while coding.
+        </p>
+
+        <div className="not-prose grid gap-[var(--space-4)] xl:grid-cols-3">
+          <DocsNoteCard label="Browser" title="Wide operator canvas" titleSize="nav">
+            <PanelBody size="compact" className="max-w-none">
+              Best for flow graphs, deeper chronology, inbox triage, and project-to-project switching.
+            </PanelBody>
+          </DocsNoteCard>
+
+          <DocsNoteCard label="FleetBar" title="Fast interrupt surface" titleSize="nav">
+            <PanelBody size="compact" className="max-w-none">
+              Best for glanceable run state, recent notes, touched files, and deciding whether you need to intervene.
+            </PanelBody>
+          </DocsNoteCard>
+
+          <DocsNoteCard label="Sample data" title="Preview first, trust localhost second" titleSize="nav">
+            <PanelBody size="compact" className="max-w-none">
+              The examples below are illustrative so you can understand the layout. Your actual swarm state still comes from the daemon on your machine.
+            </PanelBody>
+          </DocsNoteCard>
+        </div>
+      </section>
+
+      <section>
+        <h2>3. What a busy operator surface should look like</h2>
+        <p>
+          A healthy Port Daddy surface does not stop at “three agents active.” It shows which backend is
+          running, what triggered the work, what the agent wrote down, and which file or channel to inspect next.
+        </p>
+
+        <div className="not-prose">
+          <ControlPlaneShowcase variant="tutorial" />
+        </div>
+      </section>
+
+      <section>
+        <h2>4. What the operator needs to answer at a glance</h2>
+        <p>
+          If the control plane cannot answer these questions without hunting through logs, it is not done yet.
+        </p>
+
+        <div className="not-prose grid gap-[var(--space-4)] md:grid-cols-2 xl:grid-cols-4">
+          {inspectionLenses.map((item) => (
+            <DocsNoteCard key={item.label} label={item.label} title={item.title} titleSize="nav">
+              <PanelBody size="compact" className="max-w-none">
+                {item.body}
+              </PanelBody>
+            </DocsNoteCard>
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <h2>5. CLI and UI should reinforce each other</h2>
+        <p>
+          The screen is for scanning. The CLI is for verification, scripting, and recovery. You should be able
+          to move between them without re-learning the runtime.
+        </p>
+
+        <div className="not-prose grid gap-[var(--space-4)] xl:grid-cols-[minmax(0,0.82fr)_minmax(18rem,0.58fr)]">
+          <DocsCodeBlock
+            code={`$ pd status
+$ pd briefing
+$ pd fleet status
+$ open <daemon-url>/fleet-ui/
+
+# Check the operator UI, then recover or intervene from the CLI
+$ pd salvage
+$ pd note "Picked up the docs follow-up from qa:findings"`}
+            language="cli"
+            label="Operator loop"
+          />
+
+          <SurfacePanel className="space-y-[var(--space-4)]">
+            <div className="flex items-center gap-[var(--space-3)]">
+              <div className="flex h-10 w-10 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
+                <ControlPlaneGlyph size={20} className="text-[var(--brand-primary)]" />
+              </div>
+              <div className="space-y-[var(--space-1)]">
+                <PanelEyebrow>Operator loop</PanelEyebrow>
+                <PanelTitle as="h3" size="nav" className="max-w-none">
+                  Verify. Scan. Intervene.
+                </PanelTitle>
+              </div>
             </div>
-            <h2 className="m-0">The Dashboard</h2>
-          </div>
-          <p>
-            The <strong>Port Daddy Dashboard</strong> is a single-page web UI served directly by the daemon. It gives you real-time panels showing services, agents, sessions, locks, messaging, DNS, activity, salvage queue, and system health -- all auto-refreshing.
-          </p>
-          <div className="space-y-3 pt-2">
-            <div className="flex items-start gap-3">
-              <Share2 size={18} className="text-[var(--brand-secondary)] mt-0.5 shrink-0" />
-              <p className="m-0 text-sm"><strong>15 Live Panels</strong> -- Services, Agents, Sessions, Locks, Messaging, DNS, Activity, Salvage, Integration, Briefing, Sugar Context, Ports, Projects, Health, and Notes.</p>
+
+            <div className="space-y-[var(--space-3)]">
+              <div className="flex items-start gap-[var(--space-3)]">
+                <FleetGlyph size={16} className="mt-[2px] text-[var(--brand-primary)]" />
+                <PanelBody size="compact" className="max-w-none">
+                  Roster view tells you which backend is running and whether the next pass is active, queued, or watching.
+                </PanelBody>
+              </div>
+              <div className="flex items-start gap-[var(--space-3)]">
+                <CartographerGlyph size={16} className="mt-[2px] text-[var(--brand-primary)]" />
+                <PanelBody size="compact" className="max-w-none">
+                  Chronology view ties session notes to concrete file mutations instead of leaving you in log archaeology.
+                </PanelBody>
+              </div>
+              <div className="flex items-start gap-[var(--space-3)]">
+                <SpiderGlyph size={16} className="mt-[2px] text-[var(--brand-primary)]" />
+                <PanelBody size="compact" className="max-w-none">
+                  Channel activity reveals why the next agent woke up and whether the swarm is behaving as intended.
+                </PanelBody>
+              </div>
             </div>
-            <div className="flex items-start gap-3">
-              <Activity size={18} className="text-[var(--brand-accent)] mt-0.5 shrink-0" />
-              <p className="m-0 text-sm"><strong>SSE Real-Time Updates</strong> -- The dashboard subscribes to Server-Sent Events at <code>/dashboard/events</code> for live updates without polling.</p>
-            </div>
-          </div>
-        </section>
+          </SurfacePanel>
+        </div>
+      </section>
 
-        {/* Step 1: Launching */}
-        <section className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 flex items-center justify-center rounded-xl" style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-pressed)' }}>
-              <Zap className="text-[var(--brand-primary)]" size={20} />
-            </div>
-            <h2 className="m-0">1. Open the Dashboard</h2>
-          </div>
+      <section>
+        <h2>What&apos;s next</h2>
+        <p>
+          Once you can see the operator story clearly, the next skill is reading it backward. The activity log
+          lesson goes deeper into reconstructing what happened and why.
+        </p>
 
-          <p>
-            The dashboard is served automatically by the daemon. Just open the daemon URL in your browser -- no separate command needed.
-          </p>
-
-          <CodeBlock language="bash">
-            {`# The daemon runs on port 9876 by default\nopen http://localhost:9876\n\n# Or check the status to see the URL\n$ pd status\nPort Daddy daemon is running on http://localhost:9876`}
-          </CodeBlock>
-
-          <p className="m-0 text-sm border-l-4 border-[var(--brand-secondary)] pl-4" style={{ color: 'var(--text-secondary)' }}>
-            The dashboard uses <strong>Server-Sent Events</strong> for real-time updates. New port claims, session notes, and agent heartbeats appear on your screen within milliseconds.
-          </p>
-        </section>
-
-        {/* Step 2: Interaction */}
-        <section className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 flex items-center justify-center rounded-xl" style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-pressed)' }}>
-              <Terminal className="text-[var(--brand-secondary)]" size={20} />
-            </div>
-            <h2 className="m-0">2. Real-time Intervention</h2>
-          </div>
-
-          <p>
-            The dashboard isn't just for observation. You can inspect lock contention, view session note timelines, and monitor agent heartbeats directly from the interface.
-          </p>
-
-          <Surface depth="raised" radius="2xl" className="p-5 space-y-4 relative overflow-hidden">
-             <p className="text-[10px] font-black uppercase tracking-widest opacity-40 m-0">Visual Telemetry</p>
-
-             <div className="space-y-4">
-                <Surface depth="inset" radius="xl" padding="none" className="p-4 space-y-3">
-                   <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase text-[var(--text-muted)]">Lock Status</span>
-                      <Badge variant="gold">Contested</Badge>
-                   </div>
-                   <p className="text-xs font-bold m-0">db-migration-lock</p>
-                   <div
-                     className="h-1 w-full rounded-full overflow-hidden"
-                     style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-pressed)' }}
-                   >
-                      <div className="h-full bg-[var(--brand-accent)] w-2/5" />
-                   </div>
-                </Surface>
-                <Surface depth="inset" radius="xl" padding="none" className="p-4 space-y-3">
-                   <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase text-[var(--text-muted)]">Radio Traffic</span>
-                      <Badge variant="teal">High</Badge>
-                   </div>
-                   <div className="flex items-end gap-1 h-6">
-                      {[1,2,3,4,5,6].map(i => (
-                        <div
-                          key={i}
-                          className="flex-1 bg-[var(--brand-primary)] rounded-t-sm"
-                          style={{ height: [10, 24, 15, 20, 10, 18][i-1] }}
-                        />
-                      ))}
-                   </div>
-                </Surface>
-             </div>
-          </Surface>
-        </section>
-
-        {/* Vision Callout */}
-        <Surface depth="raised" radius="2xl" className="p-6 text-center space-y-4 relative overflow-hidden">
-           <Badge variant="teal" className="px-4 py-1 text-[10px] font-black uppercase tracking-widest">Visual Maturity</Badge>
-           <p className="text-lg font-bold m-0" style={{ color: 'var(--text-primary)' }}>See Your Swarm.</p>
-           <p className="max-w-xl mx-auto text-[var(--text-secondary)] m-0">
-             Multi-agent coordination is often a "black box." The dashboard turns that box transparent, allowing you to debug complex social dynamics between agents just as easily as you debug code.
-           </p>
-        </Surface>
-      </div>
+        <div className="not-prose flex flex-wrap gap-[var(--space-3)]">
+          <BracketLink to="/tutorials/time-travel">Activity Log Inspection</BracketLink>
+          <BracketLink to="/tutorials/fleet">Fleet Agents</BracketLink>
+          <BracketLink to="/docs/get-started">Get started docs</BracketLink>
+        </div>
+      </section>
     </TutorialLayout>
   )
 }

@@ -1,8 +1,16 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Play, Square } from 'lucide-react'
-import { NeumorphicTerminal } from '@/components/ui/NeumorphicTerminal'
-import { PageContainer, PanelBody, PanelTitle, SectionIntro } from '@/components/site/primitives'
+import {
+  PageContainer,
+  PanelBody,
+  PanelEyebrow,
+  PanelTitle,
+  SectionIntro,
+  SurfacePanel,
+  TerminalSurface,
+} from '@/components/site/primitives'
+import { cn } from '@/lib/utils'
 
 const DEMOS = [
   {
@@ -113,62 +121,61 @@ export function TerminalDemos() {
   const [activeDemo, setActiveDemo] = useState(DEMOS[0])
 
   return (
-    <section id="demos" className="relative py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
-      <PageContainer>
+    <section className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+      <PageContainer width="wide">
         <SectionIntro
           eyebrow="See it in action"
           title="Real commands. Real output."
-          description="Every command runs against a live Port Daddy daemon. What you see is what you get."
+          description="The terminal stays evidence, not decoration. Pick a workflow and read the operating sequence directly."
           titleAs="h2"
-          className="mb-[var(--space-7)] max-w-[46rem]"
+          className="mb-[var(--space-7)] max-w-[44rem]"
           titleClassName="max-w-[12ch]"
-          bodyClassName="max-w-[36rem]"
+          bodyClassName="max-w-[34rem]"
         />
 
-        <div className="grid lg:grid-cols-[240px,1fr] gap-4 sm:gap-6">
-          {/* Tabs */}
-          <div className="flex lg:flex-col gap-2 overflow-x-auto pb-2 lg:pb-0 -mx-2 px-2 lg:mx-0 lg:px-0">
-            {DEMOS.map((demo) => (
-              <button
-                key={demo.id}
-                onClick={() => setActiveDemo(demo)}
-                className="text-left px-4 py-3 rounded-[var(--radius-lg)] transition-all duration-200 cursor-pointer shrink-0 lg:shrink"
-                style={{
-                  background: activeDemo.id === demo.id ? 'var(--surface-overlay)' : 'transparent',
-                  boxShadow: activeDemo.id === demo.id ? 'var(--shadow-inset)' : 'none',
-                }}
-              >
-                <div className="flex items-center gap-2">
-                  {activeDemo.id === demo.id ? (
-                    <Play size={14} className="text-[var(--brand-primary)]" fill="var(--brand-primary)" />
-                  ) : (
-                    <Square size={14} className="text-[var(--text-muted)]" />
+        <div className="grid gap-[var(--space-4)] xl:grid-cols-[280px_minmax(0,1fr)]">
+          <SurfacePanel elevation="quiet" padding="compact" className="flex flex-col gap-0">
+            {DEMOS.map((demo, index) => {
+              const active = activeDemo.id === demo.id
+
+              return (
+                <button
+                  key={demo.id}
+                  type="button"
+                  onClick={() => setActiveDemo(demo)}
+                  className={cn(
+                    'flex cursor-pointer flex-col items-start gap-[var(--space-2)] border-t border-[var(--border-default)] px-[var(--space-3)] py-[var(--space-4)] text-left first:border-t-0',
+                    active ? 'bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]' : 'bg-transparent hover:bg-[var(--interactive-hover)]',
                   )}
-                  <PanelTitle as="span" size="nav" className={`max-w-none text-[1rem] ${
-                    activeDemo.id === demo.id ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]'
-                  }`}>
+                >
+                  <div className="flex items-center gap-[var(--space-2)]">
+                    {active ? (
+                      <Play size={14} className="text-[var(--brand-primary-foreground)]" fill="currentColor" />
+                    ) : (
+                      <Square size={14} className="text-[var(--text-muted)]" />
+                    )}
+                    <PanelEyebrow tone={active ? 'primary' : 'default'}>
+                      {String(index + 1).padStart(2, '0')}
+                    </PanelEyebrow>
+                  </div>
+                  <PanelTitle as="span" size="nav" tone={active ? 'primary' : 'default'} className="max-w-none">
                     {demo.title}
                   </PanelTitle>
-                </div>
-                <PanelBody size="compact" className="ml-[22px] mt-[var(--space-1)] max-w-none text-[0.875rem]">
-                  {demo.description}
-                </PanelBody>
-              </button>
-            ))}
-          </div>
+                  <PanelBody size="compact" tone={active ? 'primary' : 'default'} className="max-w-none">
+                    {demo.description}
+                  </PanelBody>
+                </button>
+              )
+            })}
+          </SurfacePanel>
 
-          {/* Terminal */}
           <motion.div
             key={activeDemo.id}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
+            transition={{ duration: 0.25, ease: 'easeOut' as const }}
           >
-            <NeumorphicTerminal
-              code={activeDemo.code}
-              title={activeDemo.title}
-              typewriterSpeed={15}
-            />
+            <TerminalSurface code={activeDemo.code} title={activeDemo.title} />
           </motion.div>
         </div>
       </PageContainer>

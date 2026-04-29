@@ -50,7 +50,7 @@ import {
   // Sessions
   handleSession, handleSessions, handleNote, handleNotes,
   // Agents & Resurrection
-  handleAgent, handleAgents,
+  handleAgent, handleAgents, handleActors,
   handleSalvage,
   // Changelog
   handleChangelog,
@@ -130,7 +130,7 @@ const TIER_1_COMMANDS: Set<string> = new Set([
 
 const TIER_2_COMMANDS: Set<string> = new Set([
   'pub', 'publish', 'sub', 'subscribe', 'wait', 'broadcast', 'listen',
-  'agent', 'agents',
+  'agent', 'agents', 'actor', 'actors',
   'up', 'down', 'watch', 'swarm', 'fleet',
   'channels', 'webhook', 'webhooks', 'tunnel', 'dns', 'inbox',
   'metrics', 'health', 'dashboard',
@@ -896,7 +896,7 @@ const ALL_COMMANDS: string[] = [
   'claim', 'c', 'release', 'r', 'find', 'f', 'list', 'l', 'ps', 'url', 'env',
   'pub', 'publish', 'broadcast', 'sub', 'subscribe', 'listen', 'wait', 'lock', 'unlock', 'locks',
   'up', 'down', 'setup', 'init', 'scan', 's', 'projects', 'p',
-  'agent', 'agents', 'swarm', 'inbox', 'log', 'activity',
+  'agent', 'agents', 'actor', 'actors', 'swarm', 'inbox', 'log', 'activity',
   'session', 'sessions', 'note', 'notes', 'say',
   'begin', 'done', 'whoami', 'with-lock', 'learn',
   'n', 'u', 'd',
@@ -1939,6 +1939,11 @@ async function main(): Promise<void> {
       case 'agents':
       case 'swarm':
         await handleAgents(options);
+        break;
+
+      case 'actor':
+      case 'actors':
+        await handleActors(positional[0], positional.slice(1), options);
         break;
 
       // Self-healing / resurrection

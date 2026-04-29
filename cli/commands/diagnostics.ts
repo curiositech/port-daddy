@@ -21,6 +21,42 @@ import * as ui from '../utils/ui.js';
 // __dirname equivalent for ESM
 const __dirname = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
 
+interface StatusCommandResponse {
+  version?: string;
+  pid?: number;
+  uptimeSeconds?: number;
+  uptimeHuman?: string;
+  active_ports?: number;
+  daemon?: {
+    version?: string;
+    codeHash?: string;
+  };
+  metrics?: {
+    activePorts?: number;
+  };
+  runtime?: {
+    state?: string;
+    degraded?: boolean;
+  };
+  fleet?: {
+    projects?: unknown[];
+    totalAgents?: number;
+  };
+  guardians?: {
+    bosun?: {
+      state?: string;
+      reason?: string;
+    };
+    barnacle?: {
+      state?: string;
+      reason?: string;
+    };
+  };
+  history?: {
+    lastActivityAt?: number;
+  };
+}
+
 function getLocalCodeHash(): string {
   return calculateRuntimeCodeHash(join(__dirname, '..', '..'));
 }
@@ -185,7 +221,7 @@ export async function handleDashboard(opts: { web?: boolean } = {}): Promise<voi
 export async function handleStatus(): Promise<void> {
   try {
     const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/status`);
-    const data = await res.json();
+    const data = await res.json() as StatusCommandResponse;
 
     console.log(`Port Daddy is running`);
     const buildVersion = data.daemon?.version || data.version;
@@ -205,10 +241,18 @@ export async function handleStatus(): Promise<void> {
       console.log(`  Fleet: ${projectCount} project(s), ${data.fleet.totalAgents ?? 0} agent(s)`);
     }
 
-    if (data.guardians?.barnacle) {
-      const barnacle = data.guardians.barnacle;
-      const barnacleReason = barnacle.reason ? ` — ${barnacle.reason}` : '';
-      console.log(`  Barnacle: ${barnacle.state}${barnacleReason}`);
+    // ADR-0021: the watchdog is called Bosun. Old `barnacle` key kept as alias
+    // for one release cycle. Reason string normalized so clean installs don't
+    // look broken.
+    const bosun = data.guardians?.bosun ?? data.guardians?.barnacle;
+    if (bosun) {
+      const state = bosun.state === 'disabled' && bosun.reason?.includes('missing')
+        ? 'not installed (optional)'
+        : bosun.state;
+      const reason = bosun.reason && !bosun.reason.includes('missing')
+        ? ` — ${bosun.reason}`
+        : '';
+      console.log(`  Bosun: ${state}${reason}`);
     }
 
     if (data.history?.lastActivityAt) {

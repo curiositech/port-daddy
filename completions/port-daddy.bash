@@ -90,7 +90,7 @@ _port_daddy() {
     # Agent coordination
     pub publish broadcast sub subscribe listen wait lock unlock locks
     # Agent registry
-    agent agents swarm
+    agent agents swarm actor actors
     # Activity
     log activity
     # Sessions & Notes
@@ -603,6 +603,13 @@ _port_daddy() {
     # -----------------------------------------------------------------------
     agents|swarm)
       _pd_opts '--active'
+      ;;
+
+    # -----------------------------------------------------------------------
+    # actors  [name] [--json]
+    # -----------------------------------------------------------------------
+    actor|actors)
+      COMPREPLY=( $(compgen -W "navigator coxswain signalman harbormaster sounder lookout breaker caulker quartermaster --json --quiet" -- "$cur") )
       ;;
 
     # -----------------------------------------------------------------------

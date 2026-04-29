@@ -8,12 +8,12 @@ export function SessionPhases() {
     <TutorialLayout
       title="The Session State Machine"
       description="Coordination is a sequence of handoffs. Learn to drive agents through planning -> coding -> reviewing phases with auto-escrow and phase-aware salvage."
-      number={13}
-      total={16}
+      number={7}
+      total={19}
       level="Advanced"
       readTime="15 min read"
-      prev={{ title: 'Sugar Commands', href: '/tutorials/sugar' }}
-      next={{ title: 'Debugging', href: '/tutorials/debugging' }}
+      prev={{ title: 'DNS Resolver', href: '/tutorials/dns' }}
+      next={{ title: 'Inbox & Messaging', href: '/tutorials/inbox' }}
     >
       <div className="space-y-12">
         {/* Intro Section */}

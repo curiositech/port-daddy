@@ -9,11 +9,12 @@ export function RemoteHarbors() {
     <TutorialLayout
       title="Multiplayer Localhost"
       description="The swarm doesn't stop at your machine. Learn to link Port Daddy daemons across the global mesh to coordinate with remote agent clusters and GPU-powered harbors."
-      number={16}
-      total={16}
+      number={17}
+      total={19}
       level="Advanced"
       readTime="15 min read"
-      prev={{ title: 'The Session State Machine', href: '/tutorials/session-phases' }}
+      prev={{ title: 'Swarm Observation', href: '/tutorials/watch' }}
+      next={{ title: 'Fleet: Background Agents', href: '/tutorials/fleet' }}
     >
       <div className="space-y-12">
         {/* Coming in v4 Banner */}

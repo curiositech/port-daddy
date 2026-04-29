@@ -1,8 +1,10 @@
 import * as React from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { useTheme } from '@/lib/theme'
-import { Sun, Moon, Github, Menu, X, ChevronDown, BookOpen, GraduationCap, LayoutGrid, Bot } from 'lucide-react'
+import { Github, Menu, Moon, Sun, X, ChevronDown, BookOpen, GraduationCap, LayoutGrid, Bot } from 'lucide-react'
+import { Button } from '@/components/ui/Button'
 import { DocsSearch, openDocsSearch } from '@/components/docs/DocsSearch'
+import { useTheme } from '@/lib/theme'
+import { BrandWordmark, PageContainer, PanelEyebrow, SurfacePanel } from '@/components/site/primitives'
 
 interface NavItem {
   label: string
@@ -17,7 +19,6 @@ interface NavSection {
   items?: NavItem[]
 }
 
-// Simplified navigation structure (3 main items instead of 8)
 const NAV_STRUCTURE: NavSection[] = [
   {
     label: 'Get Started',
@@ -26,28 +27,28 @@ const NAV_STRUCTURE: NavSection[] = [
       {
         label: 'Tutorials',
         href: '/tutorials',
-        description: 'Step-by-step guides for beginners',
-        icon: GraduationCap
+        description: 'Step-by-step guides for first install and first fleet.',
+        icon: GraduationCap,
       },
       {
         label: 'Fleet Agents',
-        href: '/agents',
-        description: 'Meet the 8 agent archetypes',
-        icon: Bot
+        href: '/tutorials/fleet',
+        description: 'Meet the built-in agent archetypes and their roles.',
+        icon: Bot,
       },
       {
         label: 'Prompting Guide',
         href: '/docs/guides/prompting-agents',
-        description: 'Write reliable prompts for coordinated agents',
-        icon: LayoutGrid
+        description: 'Write reliable prompts for coordinated agents.',
+        icon: LayoutGrid,
       },
       {
         label: 'Template Quickstarts',
         href: '/docs/guides/templates',
-        description: 'Starter fleets for common workflows',
-        icon: BookOpen
+        description: 'Starter fleets for common workflows.',
+        icon: BookOpen,
       },
-    ]
+    ],
   },
   {
     label: 'Documentation',
@@ -56,28 +57,28 @@ const NAV_STRUCTURE: NavSection[] = [
       {
         label: 'CLI Reference',
         href: '/docs/cli',
-        description: 'Command-line interface docs',
-        icon: BookOpen
+        description: 'Command-line interface docs.',
+        icon: BookOpen,
       },
       {
         label: 'TypeScript SDK',
         href: '/docs/sdk',
-        description: 'Programmatic API reference',
-        icon: BookOpen
+        description: 'Programmatic API reference.',
+        icon: BookOpen,
       },
       {
         label: 'MCP Tools',
         href: '/docs/mcp',
-        description: 'AI assistant integrations',
-        icon: BookOpen
+        description: 'Assistant integrations and tooling.',
+        icon: BookOpen,
       },
       {
         label: 'Whitepaper',
         href: '/whitepaper',
-        description: 'Technical specification',
-        icon: BookOpen
+        description: 'Technical specification.',
+        icon: BookOpen,
       },
-    ]
+    ],
   },
   {
     label: 'Community',
@@ -86,24 +87,73 @@ const NAV_STRUCTURE: NavSection[] = [
       {
         label: 'Blog',
         href: '/blog',
-        description: 'Engineering insights & updates',
-        icon: BookOpen
+        description: 'Engineering notes and release updates.',
+        icon: BookOpen,
       },
       {
         label: 'Roadmap',
         href: '/roadmap',
-        description: 'Upcoming features',
-        icon: LayoutGrid
+        description: 'What is shipping next.',
+        icon: LayoutGrid,
       },
       {
         label: 'GitHub',
         href: 'https://github.com/curiositech/port-daddy',
-        description: 'Source code & issues',
+        description: 'Source, issues, and discussions.',
         icon: Github,
       },
-    ]
+    ],
   },
 ]
+
+function DropdownItem({ item, onSelect }: { item: NavItem; onSelect: () => void }) {
+  const Icon = item.icon ?? BookOpen
+  const isExternal = item.href.startsWith('http')
+
+  if (isExternal) {
+    return (
+      <a
+        href={item.href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block border-t border-[var(--border-default)] px-[var(--space-3)] py-[var(--space-3)] no-underline first:border-t-0 hover:bg-[var(--interactive-hover)]"
+        onClick={onSelect}
+      >
+        <div className="flex items-start gap-[var(--space-3)]">
+          <Icon size={18} className="mt-[2px] text-[var(--brand-primary)]" />
+          <div className="space-y-[var(--space-1)]">
+            <PanelEyebrow className="text-[var(--text-primary)]">{item.label}</PanelEyebrow>
+            {item.description ? (
+              <p className="m-0 text-sm leading-[1.55] text-[var(--text-secondary)]">
+                {item.description}
+              </p>
+            ) : null}
+          </div>
+        </div>
+      </a>
+    )
+  }
+
+  return (
+    <Link
+      to={item.href}
+      className="block border-t border-[var(--border-default)] px-[var(--space-3)] py-[var(--space-3)] no-underline first:border-t-0 hover:bg-[var(--interactive-hover)]"
+      onClick={onSelect}
+    >
+      <div className="flex items-start gap-[var(--space-3)]">
+        <Icon size={18} className="mt-[2px] text-[var(--brand-primary)]" />
+        <div className="space-y-[var(--space-1)]">
+          <PanelEyebrow className="text-[var(--text-primary)]">{item.label}</PanelEyebrow>
+          {item.description ? (
+            <p className="m-0 text-sm leading-[1.55] text-[var(--text-secondary)]">
+              {item.description}
+            </p>
+          ) : null}
+        </div>
+      </div>
+    </Link>
+  )
+}
 
 function DropdownNav({ section }: { section: NavSection }) {
   const [isOpen, setIsOpen] = React.useState(false)
@@ -118,112 +168,62 @@ function DropdownNav({ section }: { section: NavSection }) {
     }
   }
 
-  const scheduleClose = (delay = 150) => {
+  const scheduleClose = (delay = 140) => {
     closeTimeoutRef.current = setTimeout(() => {
       setIsOpen(false)
     }, delay)
   }
 
-  const handleMouseEnter = () => {
-    cancelClose()
-    setIsOpen(true)
-  }
-
-  const handleMouseLeave = () => {
-    scheduleClose()
-  }
-
-  const handleFocus = () => {
-    cancelClose()
-    setIsOpen(true)
-  }
-
-  const handleBlur = () => {
-    // Delay so that clicking/tabbing to a child element cancels the close
-    scheduleClose(150)
-  }
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape' && isOpen) {
-      setIsOpen(false)
-    }
-  }
-
-  // Clean up timeout on unmount
   React.useEffect(() => {
-    return () => {
-      cancelClose()
-    }
+    return () => cancelClose()
   }, [])
 
   return (
     <div
       className="relative"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      onFocus={handleFocus}
-      onBlur={handleBlur}
-      onKeyDown={handleKeyDown}
+      onMouseEnter={() => {
+        cancelClose()
+        setIsOpen(true)
+      }}
+      onMouseLeave={() => scheduleClose()}
+      onFocus={() => {
+        cancelClose()
+        setIsOpen(true)
+      }}
+      onBlur={() => scheduleClose()}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') {
+          setIsOpen(false)
+        }
+      }}
     >
       <Link
         to={section.href}
-        className={`flex items-center gap-1 px-3 py-1.5 rounded-[var(--radius-sm)] text-sm font-medium transition-all ${
+        className={`inline-flex min-h-[calc(var(--space-6)+var(--space-1))] items-center gap-[var(--space-1)] border-b-2 px-0 py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] no-underline transition-colors ${
           isActive
-            ? 'text-[var(--brand-primary)]'
-            : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+            ? 'border-[var(--border-strong)] text-[var(--text-primary)]'
+            : 'border-transparent text-[var(--text-secondary)] hover:border-[var(--border-default)] hover:text-[var(--text-primary)]'
         }`}
-        style={isActive ? { boxShadow: 'var(--shadow-pressed)' } : undefined}
-        aria-expanded={isOpen}
-        aria-haspopup="true"
       >
         {section.label}
-        {section.items && <ChevronDown size={14} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />}
+        {section.items ? (
+          <ChevronDown
+            size={14}
+            aria-hidden="true"
+            className={`transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          />
+        ) : null}
       </Link>
 
-      {section.items && isOpen && (
-        <>
-          {/* Invisible bridge between trigger and dropdown to prevent close on gap crossing */}
-          <div className="absolute top-full left-0 w-full h-2" />
-          <div className="absolute top-full left-0 pt-2 w-64 z-50">
-            <div
-              className="rounded-[var(--radius-lg)] py-2"
-              role="menu"
-              style={{
-                background: 'var(--surface-raised)',
-                boxShadow: 'var(--shadow-raised)',
-              }}
-            >
-              {section.items.map((item) => {
-                const Icon = item.icon || BookOpen
-                const isExternal = item.href.startsWith('http')
-                return (
-                  <Link
-                    key={item.label}
-                    to={item.href}
-                    target={isExternal ? '_blank' : undefined}
-                    rel={isExternal ? 'noopener noreferrer' : undefined}
-                    className="flex items-start gap-3 px-4 py-3 hover:bg-[var(--interactive-hover)] transition-colors"
-                    role="menuitem"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    <Icon size={18} className="text-[var(--text-muted)] mt-0.5" />
-                    <div>
-                      <div className="text-sm font-medium text-[var(--text-primary)]">
-                        {item.label}
-                      </div>
-                      {item.description && (
-                        <div className="text-xs text-[var(--text-muted)] mt-0.5">
-                          {item.description}
-                        </div>
-                      )}
-                    </div>
-                  </Link>
-                )
-              })}
-            </div>
-          </div>
-        </>
-      )}
+      {section.items && isOpen ? (
+        <div className="absolute left-0 top-full z-50 w-[19rem] pt-[var(--space-2)]">
+          <SurfacePanel padding="compact" className="space-y-0">
+            {section.items.map((item) => (
+              <DropdownItem key={item.label} item={item} onSelect={() => setIsOpen(false)} />
+            ))}
+          </SurfacePanel>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -238,55 +238,38 @@ export function Nav() {
     const handleScroll = () => {
       setScrolled(window.scrollY > 20)
     }
+
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
   return (
     <>
-      {/* Skip Link for Accessibility */}
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[200] focus:px-4 focus:py-2 focus:bg-[var(--brand-primary)] focus:text-[var(--text-inverse)] focus:rounded-lg focus:font-medium"
-        style={{ boxShadow: 'var(--shadow-raised)' }}
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[200] focus:border-2 focus:border-[var(--border-strong)] focus:bg-[var(--brand-primary)] focus:px-4 focus:py-2 focus:font-semibold focus:text-[var(--text-inverse)]"
       >
         Skip to main content
       </a>
+
       <nav
-        className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-300 ${
-          scrolled
-            ? 'bg-[var(--surface-base)]/80 backdrop-blur-xl'
-            : 'bg-transparent'
+        className={`fixed left-0 right-0 top-0 z-[100] border-b-2 border-[var(--border-strong)] transition-colors duration-300 ${
+          scrolled ? 'bg-[color:var(--surface-overlay)] backdrop-blur-md' : 'bg-[color:var(--surface-overlay)]'
         }`}
-        style={scrolled ? { boxShadow: 'var(--shadow-flat)' } : undefined}
       >
-        <div className="max-w-[1200px] mx-auto px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo */}
-            <Link to="/" className="flex items-center gap-2.5 no-underline group">
-              <div
-                className="w-8 h-8 rounded-[var(--radius-sm)] bg-[var(--brand-primary)] flex items-center justify-center"
-                style={{ boxShadow: 'var(--shadow-sm)' }}
-              >
-                <img
-                  src={theme === 'dark' ? '/pd_logo_darkmode.svg' : '/pd_logo.svg'}
-                  alt="Port Daddy"
-                  className="h-5 w-auto"
-                />
-              </div>
-              <span className="font-semibold text-lg tracking-tight text-[var(--text-primary)]">
-                Port Daddy
-              </span>
+        <PageContainer width="wide">
+          <div className="flex min-h-[76px] items-center justify-between gap-[var(--space-4)]">
+            <Link to="/" className="flex items-center gap-[var(--space-3)] no-underline">
+              <BrandWordmark title="Port Daddy" subtitle="Single-daemon control plane" />
             </Link>
 
-            {/* Desktop Navigation */}
-            <div className="hidden lg:flex items-center gap-1">
+            <div className="hidden items-center gap-[var(--space-4)] lg:flex">
               <Link
                 to="/"
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors no-underline ${
+                className={`inline-flex min-h-[calc(var(--space-6)+var(--space-1))] items-center border-b-2 px-0 py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] no-underline transition-colors ${
                   location.pathname === '/'
-                    ? 'text-[var(--text-primary)]'
-                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                    ? 'border-[var(--border-strong)] text-[var(--text-primary)]'
+                    : 'border-transparent text-[var(--text-secondary)] hover:border-[var(--border-default)] hover:text-[var(--text-primary)]'
                 }`}
               >
                 Home
@@ -296,124 +279,124 @@ export function Nav() {
               ))}
             </div>
 
-            {/* Actions */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-[var(--space-2)]">
               <div className="hidden md:block">
                 <DocsSearch variant="compact" />
               </div>
 
-              <button
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon"
+                className="md:hidden"
                 onClick={openDocsSearch}
-                className="md:hidden w-11 h-11 rounded-full flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-all"
-                style={{ boxShadow: 'var(--shadow-inset)' }}
                 aria-label="Search documentation"
               >
                 <BookOpen size={16} />
-              </button>
+              </Button>
 
-              <button
-                onClick={toggle}
-                className="w-11 h-11 rounded-full flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-all"
-                style={{ boxShadow: 'var(--shadow-inset)' }}
-                aria-label="Toggle theme"
-              >
+              <Button type="button" variant="secondary" size="icon" onClick={toggle} aria-label="Toggle theme">
                 {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
-              </button>
+              </Button>
 
-              <a
-                href="https://github.com/curiositech/port-daddy"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-[var(--radius-sm)] text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all"
-              >
-                <Github size={18} />
-                <span>Star</span>
-              </a>
+              <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
+                <a href="https://github.com/curiositech/port-daddy" target="_blank" rel="noopener noreferrer">
+                  <Github size={16} />
+                  Star
+                </a>
+              </Button>
 
-              <Link
-                to="/tutorials/getting-started"
-                className="hidden sm:flex items-center px-4 py-2 rounded-[var(--radius-sm)] bg-[var(--brand-primary)] text-[var(--text-inverse)] text-sm font-semibold transition-all hover:opacity-90"
-                style={{ boxShadow: 'var(--shadow-sm)' }}
-                onMouseDown={(e) => {
-                  (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-flat)'
-                }}
-                onMouseUp={(e) => {
-                  (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-sm)'
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-sm)'
-                }}
-              >
-                Get Started
-              </Link>
+              <Button asChild variant="primary" size="sm" className="hidden sm:inline-flex">
+                <Link to="/tutorials/getting-started">Get Started</Link>
+              </Button>
 
-              <button
-                className="lg:hidden w-11 h-11 flex items-center justify-center rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-all"
-                onClick={() => setMobileOpen(!mobileOpen)}
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon"
+                className="lg:hidden"
+                onClick={() => setMobileOpen((open) => !open)}
                 aria-label="Toggle menu"
+                aria-expanded={mobileOpen}
+                aria-controls="site-mobile-menu"
               >
-                {mobileOpen ? <X size={20} /> : <Menu size={20} />}
-              </button>
+                {mobileOpen ? <X size={18} /> : <Menu size={18} />}
+              </Button>
             </div>
           </div>
-        </div>
+        </PageContainer>
 
-        {/* Mobile Menu - Raised neumorphic panel */}
-        {mobileOpen && (
+        {mobileOpen ? (
           <div
-            className="lg:hidden max-h-[80vh] overflow-y-auto"
-            style={{
-              background: 'var(--surface-raised)',
-              boxShadow: 'var(--shadow-raised)',
-            }}
+            id="site-mobile-menu"
+            className="border-t-2 border-[var(--border-strong)] bg-[var(--surface-raised)] lg:hidden"
             onKeyDown={(e) => {
               if (e.key === 'Escape') setMobileOpen(false)
             }}
           >
-            <div className="px-6 py-4 space-y-6">
-              {NAV_STRUCTURE.map((section) => (
-                <div key={section.label}>
-                  <Link
-                    to={section.href}
-                    className="block text-sm font-semibold text-[var(--text-primary)] mb-2"
-                    onClick={() => setMobileOpen(false)}
-                  >
-                    {section.label}
-                  </Link>
-                  {section.items && (
-                    <div className="space-y-1 pl-4">
-                      {section.items.map((item) => {
-                        const isExternal = item.href.startsWith('http')
-                        return (
-                          <Link
-                            key={item.label}
-                            to={item.href}
-                            target={isExternal ? '_blank' : undefined}
-                            rel={isExternal ? 'noopener noreferrer' : undefined}
-                            className="block py-3 min-h-[44px] text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
-                            onClick={() => setMobileOpen(false)}
-                          >
-                            {item.label}
-                          </Link>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-              ))}
-              <div className="pt-4">
+            <PageContainer width="wide" className="space-y-[var(--space-6)] py-[var(--space-5)]">
+              <div className="space-y-[var(--space-3)]">
                 <Link
-                  to="/tutorials/getting-started"
-                  className="block w-full text-center px-4 py-3 rounded-[var(--radius-sm)] bg-[var(--brand-primary)] text-[var(--text-inverse)] font-semibold"
-                  style={{ boxShadow: 'var(--shadow-sm)' }}
+                  to="/"
+                  className="block border-b-2 border-[var(--border-default)] pb-[var(--space-3)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-primary)] no-underline"
                   onClick={() => setMobileOpen(false)}
                 >
+                  Home
+                </Link>
+                {NAV_STRUCTURE.map((section) => (
+                  <div key={section.label} className="space-y-[var(--space-2)] border-b-2 border-[var(--border-default)] pb-[var(--space-3)]">
+                    <Link
+                      to={section.href}
+                      className="block font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-primary)] no-underline"
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      {section.label}
+                    </Link>
+                    {section.items ? (
+                      <div className="space-y-[var(--space-2)]">
+                        {section.items.map((item) => {
+                          const isExternal = item.href.startsWith('http')
+
+                          if (isExternal) {
+                            return (
+                              <a
+                                key={item.label}
+                                href={item.href}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block py-[var(--space-2)] text-sm leading-[1.55] text-[var(--text-secondary)] no-underline"
+                                onClick={() => setMobileOpen(false)}
+                              >
+                                {item.label}
+                              </a>
+                            )
+                          }
+
+                          return (
+                            <Link
+                              key={item.label}
+                              to={item.href}
+                              className="block py-[var(--space-2)] text-sm leading-[1.55] text-[var(--text-secondary)] no-underline"
+                              onClick={() => setMobileOpen(false)}
+                            >
+                              {item.label}
+                            </Link>
+                          )
+                        })}
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+
+              <Button asChild variant="primary" size="lg" className="w-full">
+                <Link to="/tutorials/getting-started" onClick={() => setMobileOpen(false)}>
                   Get Started
                 </Link>
-              </div>
-            </div>
+              </Button>
+            </PageContainer>
           </div>
-        )}
+        ) : null}
       </nav>
     </>
   )

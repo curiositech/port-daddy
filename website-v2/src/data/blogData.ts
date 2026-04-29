@@ -1102,8 +1102,8 @@ You can inspect the pipeline state at any time:
 # What channels are active?
 $ pd channels
 
-# What messages have been published?
-$ pd msg tests:failed
+# Watch new failure messages as JSON
+$ pd sub tests:failed -j
 
 # Who's running right now?
 $ pd agents

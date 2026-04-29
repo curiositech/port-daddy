@@ -113,11 +113,11 @@ export const TUTORIALS: Tutorial[] = [
   {
     slug: 'pd-spawn',
     number: '11',
-    title: 'pd spawn: Launch Agent Fleets',
-    description: 'Spawn Ollama, Codex, Claude, or Aider agents with Port Daddy coordination auto-wired. Sessions, heartbeats, notes, and salvage -- all automatic.',
+    title: 'pd spawn: One-Shot Agents',
+    description: 'Launch one daemon-backed agent run with an explicit backend, identity, and budget ceiling. Use fleet when work should stay resident.',
     level: 'advanced',
-    time: '15 min',
-    tags: ['spawn', 'ollama', 'fleet', 'orchestration'],
+    time: '10 min',
+    tags: ['spawn', 'codex', 'budget', 'delegation'],
     href: '/tutorials/pd-spawn',
   },
   {
@@ -133,11 +133,11 @@ export const TUTORIALS: Tutorial[] = [
   {
     slug: 'dashboard',
     number: '13',
-    title: 'Live Dashboard',
-    description: 'Visualize your swarm. Real-time panels for services, agents, sessions, locks, and system health.',
+    title: 'Control Plane + FleetBar',
+    description: 'Preview the daemon-backed operator surfaces that expose active agents, session notes, touched files, and channel chronology.',
     level: 'beginner',
-    time: '5 min',
-    tags: ['dashboard', 'visualization', 'health'],
+    time: '7 min',
+    tags: ['dashboard', 'fleetbar', 'activity'],
     href: '/tutorials/dashboard',
   },
   {

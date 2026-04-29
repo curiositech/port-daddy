@@ -50,11 +50,11 @@ export default function DocsOverview() {
     { title: 'REST API', href: '/docs/api' },
   ]
   const siteSurfaces = [
-    { title: 'Dashboard', href: '/dashboard' },
-    { title: 'Examples', href: '/examples' },
+    { title: 'Home', href: '/' },
     { title: 'MCP overview', href: '/mcp' },
-    { title: 'Agents', href: '/agents' },
+    { title: 'Fleet tutorial', href: '/tutorials/fleet' },
     { title: 'Roadmap', href: '/roadmap' },
+    { title: 'Blog', href: '/blog' },
   ]
 
   return (
@@ -138,8 +138,8 @@ export default function DocsOverview() {
         padding="compact"
       >
         <PanelBody size="compact" className="max-w-none">
-          The docs shell is for sustained reading. The dashboard, examples, MCP overview, agent catalog, and roadmap
-          still matter when you are navigating the working product rather than a linear documentation path.
+          The docs shell is for sustained reading. The homepage, the MCP overview, the fleet tutorial, the roadmap,
+          and the blog still matter when you are navigating the broader project rather than a linear documentation path.
         </PanelBody>
         <div className="flex flex-wrap gap-[var(--panel-gap-tight)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
           {siteSurfaces.map((surface, index) => (

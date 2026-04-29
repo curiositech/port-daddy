@@ -204,6 +204,38 @@ Visual fleet management, watch hooks with message history, spawn agent form, fle
 
 **Deliverable:** Agents run continuously, learn across sessions, and are managed declaratively.
 
+### 3E. Actor Plane and Body Leases [PROPOSED 2026-04-23]
+
+ADR-0022 (`docs/adr/0022-durable-actor-souls-and-body-leases.md`) turns the
+Shipwright actor model into a repo-wide runtime migration:
+
+- durable actor souls keep identity, mailbox, archetype, belief state, history,
+  and operator-visible addressability
+- ephemeral body leases carry heartbeat, process/transport attachment,
+  incarnation, and protected-operation authority
+- `/agents` remains the live-body compatibility view while `/actors` becomes
+  durable identity truth
+- salvage becomes adoption/recovery of a dead or revoked body lease attached to
+  a soul, not reconstruction of a deleted identity
+- project, fleet, agent, harbor, sortie, and trigger keys become mailbox-owning
+  actors so cooldown, dedupe, backoff, singleton, and budget policy have one
+  scheduling home
+
+Roadmap order:
+
+1. Add additive `/actors` read/message surfaces.
+2. Add lease/incarnation state before changing stale cleanup or `pd done`.
+3. Move IPC auth, locks, session mutation, merge submission, and salvage claims
+   onto live-lease authority while preserving soul attribution.
+4. Update Fleet Control Center and FleetBar to separate durable actor identity,
+   live deployment state, and salvage/recovery state.
+5. Update SDK/OpenAPI/site docs and tests that still equate "registered agent"
+   with "exists" or "can receive messages."
+
+**Do not implement this as a blind "stop deleting agent rows" change.** Agent
+row deletion currently carries cleanup and authorization meaning; lease state
+must land first.
+
 ---
 
 ## Phase 4: Resilience & Performance [PARTIALLY SHIPPED — 4B/4C complete, 4A half (Fastify ✅, Bun ⚡), 4D half (IPC ✅), 4E/4F remain]
@@ -417,3 +449,66 @@ From `v4_thoughts.md`: Run TLC on the BondedCommons spec with concrete parameter
 | **Setup onboarding + help discoverability** | `0cc5e6` | `pd setup` improvements — help discoverability, onboarding flow polish. Maps to Recovery 3.8.3 onboarding criteria. |
 | **FleetBar unified with fleet-config-ui** | `a41f18f` | FleetBar menu bar app now shells the real `/fleet-ui/` web surface via `FleetControlCenter` WebView. Eliminates the shadow native dashboard. Maps to Recovery Track 2. |
 | **FleetBar control plane hardening** | `e82f096` | Hardens FleetBar control plane entrypoints — security/robustness for the unified WebView surface. Maps to Recovery Track 2. |
+
+---
+
+## Phase 5: Distribution & Bosun Consolidation [OPEN — started 2026-04-20]
+
+*Ship the thing. Apple Developer ID + one name for the watchdog.*
+
+**Why now:** User is enrolled in the Apple Developer Program. The product has
+two install paths (brew, unsigned manual) and a confusing "Barnacle: disabled"
+status line that reads as broken. Distribution story + naming story can be
+fixed in the same push. ADR-0021 is the naming authority; `packaging/`,
+`docs/DISTRIBUTION.md`, and `.github/workflows/release-pkg.yml` are the
+distribution scaffolding.
+
+### 5A. Bosun naming consolidation (ADR-0021)
+
+| Task | Status | Notes |
+|---|---|---|
+| ADR-0021 drafted | Done | `docs/adr/0021-bosun-consolidation.md` |
+| `pd status` label: Barnacle → Bosun | Done | `cli/commands/diagnostics.ts`, `lib/barnacle-client.ts` |
+| `/status` JSON: add `guardians.bosun` alongside `guardians.barnacle` | Done | `routes/info.ts` — both keys present for one release cycle |
+| Delete `bin/watchdog.ts` + `daemon:watch` npm script | TODO | Superseded by launchd + Bosun |
+| Rename `core/pd-barnacle/` → `core/pd-bosun/` | TODO | Rust crate + Cargo refs + test imports |
+| Implement V4 Bosun (filesystem heartbeat, one-way) per ADR-0015 | TODO | Fresh Rust crate, not a rename of pd-barnacle |
+| Remove `core/pd-barnacle/` and `lib/barnacle-client.ts` | TODO | After V4 Bosun ships and one release cycle passes |
+| Remove `guardians.barnacle` deprecated alias | TODO | One release after V4 Bosun |
+| Update FleetBar + website + CLAUDE.md terminology sweep | TODO | Search/replace Barnacle → Bosun (user-facing only) |
+
+### 5B. Signed pkg installer
+
+| Task | Status | Notes |
+|---|---|---|
+| `packaging/` scaffolding (build script, plists, distribution.xml, entitlements) | Done | `packaging/build-pkg.sh`, templates for both launch agents |
+| `docs/DISTRIBUTION.md` | Done | Channels, secrets, build instructions |
+| `.github/workflows/release-pkg.yml` | Done | Builds unsigned smoke-test pkg without secrets; signs + notarizes with secrets |
+| Decide Node runtime packaging | **BLOCKER** | Options: bundle Node, SEA, Bun compile. Blocks first real pkg release. |
+| Load Apple signing certs into GitHub secrets | TODO | Needs Developer ID Application + Installer certs, team ID, notary key |
+| First unsigned smoke-test release | TODO | Verifies layout; good for a dry run |
+| First signed + notarized release | TODO | `v3.8.4` or `v3.9.0` candidate |
+| Landing-page "Download for Mac" button | TODO | Points at signed pkg URL |
+| Pkg postinstall: detect Homebrew install, refuse | TODO | Prevents double-install |
+| FleetBar entitlements review | TODO | Hardened runtime only, no App Sandbox (daemon socket access) |
+| Sparkle integration for FleetBar | Later | EdDSA key + appcast — not v1 |
+| Universal binary (arm64 + x86_64) | TODO | Xcode build setting + test on both archs |
+
+### 5C. Homebrew tap parity with pkg
+
+| Task | Status | Notes |
+|---|---|---|
+| Tap installs same version as pkg | TODO | Version bumps must go to both channels |
+| `pd --channel` reports install origin (brew vs pkg) | Nice-to-have | Helps support triage |
+| FleetBar cask parity with pkg | TODO | Currently the cask installs FleetBar separately |
+
+### 5D. MCP distribution
+
+`pd mcp install` (already shipped) stays the canonical MCP wiring mechanism.
+Deliberately not bundled into the pkg so MCP client churn is decoupled from
+our release cadence. Followups:
+
+| Task | Status | Notes |
+|---|---|---|
+| `pd mcp install` first-launch prompt in FleetBar | TODO | Gentle nudge, not modal |
+| `pd mcp doctor` — detect wired clients, report config drift | TODO | |

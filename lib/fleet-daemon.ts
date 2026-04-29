@@ -18,7 +18,7 @@
 
 import { createHash } from 'node:crypto';
 import { readFileSync, watch as fsWatch, type FSWatcher } from 'node:fs';
-import { join, basename } from 'node:path';
+import { join, basename, extname, isAbsolute, relative, resolve } from 'node:path';
 import {
   loadFleetConfig,
   createFleetRunner,
@@ -30,6 +30,8 @@ import {
 } from './fleet-engine.js';
 import type { CostTracker } from './cost-tracker.js';
 import type { SemanticResolver } from './semantic-resolver.js';
+import { projectScopedGitChannel } from './fleet-channels.js';
+import type { SymbolIndex } from './symbol-index.js';
 import type { TupleSpace } from './tuples.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -46,6 +48,8 @@ export interface FleetDaemonDeps {
   };
   tuples?: Pick<TupleSpace, 'out' | 'take' | 'count'>;
   semanticResolver?: Pick<SemanticResolver, 'observeAliases'>;
+  /** Tree-sitter symbol index to refresh from fleet-owned project events */
+  symbolIndex?: Pick<SymbolIndex, 'parseFile'>;
   /** Winston logger */
   logger: {
     info(msg: string, meta?: Record<string, unknown>): void;
@@ -137,6 +141,19 @@ export interface FleetDaemonStatus {
 
 const FLEET_PROJECT_LEASE_TTL_MS = 30000;
 const FLEET_PROJECT_LEASE_RENEW_MS = 10000;
+const SYMBOL_REFRESH_DEBOUNCE_MS = 500;
+const SYMBOL_REFRESH_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.py']);
+const SYMBOL_REFRESH_EXCLUDED_SEGMENTS = new Set([
+  'node_modules',
+  'dist',
+  'build',
+  '.git',
+  'coverage',
+  '__pycache__',
+  '.next',
+  '.nuxt',
+  'vendor',
+]);
 
 // ─── Env Loading ────────────────────────────────────────────────────────────
 
@@ -183,9 +200,13 @@ function loadEnvFiles(projectDir: string): void {
 // ─── Factory ────────────────────────────────────────────────────────────────
 
 export function createFleetDaemon(deps: FleetDaemonDeps) {
-  const { projects, messaging, logger, daemonDir, costTracker, locks, tuples, semanticResolver } = deps;
+  const { projects, messaging, logger, daemonDir, costTracker, locks, tuples, semanticResolver, symbolIndex } = deps;
   const fleets = new Map<string, ManagedFleet>();
   const configWatchers = new Map<string, FSWatcher>();
+  const sourceWatchers = new Map<string, FSWatcher>();
+  const symbolRefreshSubscriptions = new Map<string, Array<{ channel: string; unsubscribe: () => void }>>();
+  const symbolRefreshTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  const symbolRefreshPending = new Map<string, Set<string>>();
   const projectLeases = new Map<string, FleetProjectLease>();
   const projectPausedAgents = new Map<string, Set<string>>();
   const skippedProjects = new Map<string, SkippedFleet>();
@@ -303,11 +324,254 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
     }
   }
 
+  function extractMessagePayload(message: unknown): unknown {
+    if (message && typeof message === 'object' && 'payload' in message) {
+      return (message as { payload?: unknown }).payload;
+    }
+    return message;
+  }
+
+  function normalizeFilesField(value: unknown): string[] {
+    if (!value) return [];
+    if (Array.isArray(value)) {
+      return value.flatMap((entry) => normalizeFilesField(entry));
+    }
+    if (typeof value !== 'string') return [];
+    return value
+      .split(/[\n,]+/g)
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .map((part) => {
+        const tabParts = part.split('\t').map((item) => item.trim()).filter(Boolean);
+        return tabParts.length > 1 ? tabParts[tabParts.length - 1] : part;
+      });
+  }
+
+  function extractChangedFiles(message: unknown): string[] {
+    let payload = extractMessagePayload(message);
+    if (typeof payload === 'string') {
+      const trimmed = payload.trim();
+      if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+        try {
+          payload = JSON.parse(trimmed);
+        } catch {
+          return normalizeFilesField(payload);
+        }
+      }
+    }
+
+    if (Array.isArray(payload)) {
+      return normalizeFilesField(payload);
+    }
+
+    if (payload && typeof payload === 'object') {
+      const record = payload as Record<string, unknown>;
+      return [
+        ...normalizeFilesField(record.files),
+        ...normalizeFilesField(record.changedFiles),
+        ...normalizeFilesField(record.changed_files),
+        ...normalizeFilesField(record.paths),
+        ...normalizeFilesField(record.path),
+        ...normalizeFilesField(record.file),
+      ];
+    }
+
+    return normalizeFilesField(payload);
+  }
+
+  function normalizeSymbolRefreshFile(projectDir: string, filePath: string): string | null {
+    const trimmed = filePath.trim();
+    if (!trimmed) return null;
+    const absPath = isAbsolute(trimmed) ? resolve(trimmed) : resolve(projectDir, trimmed);
+    const relPath = relative(projectDir, absPath);
+    if (!relPath || relPath.startsWith('..') || isAbsolute(relPath)) return null;
+
+    const segments = relPath.split(/[\\/]+/g);
+    if (segments.some((segment) => SYMBOL_REFRESH_EXCLUDED_SEGMENTS.has(segment))) return null;
+    if (!SYMBOL_REFRESH_EXTENSIONS.has(extname(absPath).toLowerCase())) return null;
+    return absPath;
+  }
+
+  function normalizeSymbolRefreshFiles(projectDir: string, files: string[]): string[] {
+    const normalized = new Set<string>();
+    for (const file of files) {
+      const absPath = normalizeSymbolRefreshFile(projectDir, file);
+      if (absPath) normalized.add(absPath);
+    }
+    return [...normalized];
+  }
+
+  function queueSymbolRefresh(
+    projectDir: string,
+    files: string[],
+    meta: { source: string; channel?: string },
+  ): string[] {
+    if (!symbolIndex) return [];
+    const normalized = normalizeSymbolRefreshFiles(projectDir, files);
+    if (normalized.length === 0) return [];
+
+    let pending = symbolRefreshPending.get(projectDir);
+    if (!pending) {
+      pending = new Set<string>();
+      symbolRefreshPending.set(projectDir, pending);
+    }
+    for (const file of normalized) pending.add(file);
+
+    const existingTimer = symbolRefreshTimers.get(projectDir);
+    if (existingTimer) clearTimeout(existingTimer);
+
+    const timer = setTimeout(() => {
+      symbolRefreshTimers.delete(projectDir);
+      const batch = [...(symbolRefreshPending.get(projectDir) ?? new Set<string>())];
+      symbolRefreshPending.delete(projectDir);
+      if (batch.length === 0) return;
+
+      void refreshSymbols(projectDir, batch, meta);
+    }, SYMBOL_REFRESH_DEBOUNCE_MS);
+    timer.unref?.();
+    symbolRefreshTimers.set(projectDir, timer);
+
+    return normalized;
+  }
+
+  async function refreshSymbols(
+    projectDir: string,
+    files: string[],
+    meta: { source: string; channel?: string },
+  ): Promise<void> {
+    if (!symbolIndex) return;
+
+    let parsed = 0;
+    let skipped = 0;
+    let failed = 0;
+
+    for (const file of files) {
+      try {
+        const result = await symbolIndex.parseFile(file);
+        if (result.error) {
+          failed++;
+          logger.warn('symbol_refresh_file_failed', {
+            projectDir,
+            file,
+            source: meta.source,
+            error: result.error,
+          });
+        } else if (result.skipped) {
+          skipped++;
+        } else {
+          parsed++;
+        }
+      } catch (err) {
+        failed++;
+        logger.warn('symbol_refresh_file_failed', {
+          projectDir,
+          file,
+          source: meta.source,
+          error: (err as Error).message,
+        });
+      }
+    }
+
+    logger.info('symbol_refresh_completed', {
+      projectDir,
+      source: meta.source,
+      channel: meta.channel,
+      files: files.length,
+      parsed,
+      skipped,
+      failed,
+    });
+  }
+
+  function watchSymbolEvents(projectDir: string, projectName: string): void {
+    if (!symbolIndex) return;
+
+    const channels = [...new Set([
+      projectScopedGitChannel(projectDir, projectName),
+      projectScopedGitChannel(projectDir),
+    ])];
+    const existing = symbolRefreshSubscriptions.get(projectDir);
+    if (existing && existing.length === channels.length && channels.every((channel) => (
+      existing.some((subscription) => subscription.channel === channel)
+    ))) {
+      return;
+    }
+    if (existing) {
+      for (const subscription of existing) {
+        try { subscription.unsubscribe(); } catch {}
+      }
+      symbolRefreshSubscriptions.delete(projectDir);
+    }
+
+    const subscriptions: Array<{ channel: string; unsubscribe: () => void }> = [];
+    for (const channel of channels) {
+      const unsubscribe = messaging.subscribe(channel, (message: unknown) => {
+        queueSymbolRefresh(projectDir, extractChangedFiles(message), {
+          source: 'git:committed',
+          channel,
+        });
+      });
+
+      if (!unsubscribe) {
+        logger.warn('symbol_refresh_subscription_failed', { projectDir, projectName, channel });
+        continue;
+      }
+
+      subscriptions.push({ channel, unsubscribe });
+    }
+
+    if (subscriptions.length > 0) {
+      symbolRefreshSubscriptions.set(projectDir, subscriptions);
+      logger.info('symbol_refresh_subscribed', {
+        projectDir,
+        projectName,
+        channels: subscriptions.map((subscription) => subscription.channel),
+      });
+    }
+  }
+
+  function watchSourceChanges(projectDir: string): void {
+    if (!symbolIndex || sourceWatchers.has(projectDir)) return;
+
+    try {
+      const watcher = fsWatch(projectDir, { recursive: true }, (_eventType, fileName) => {
+        if (!fileName) return;
+        queueSymbolRefresh(projectDir, [String(fileName)], { source: 'fs.watch' });
+      });
+      sourceWatchers.set(projectDir, watcher);
+    } catch (err) {
+      logger.warn('symbol_refresh_watch_failed', {
+        projectDir,
+        error: (err as Error).message,
+      });
+    }
+  }
+
   function unwatchProject(projectDir: string): void {
-    const watcher = configWatchers.get(projectDir);
-    if (!watcher) return;
-    try { watcher.close(); } catch {}
-    configWatchers.delete(projectDir);
+    const configWatcher = configWatchers.get(projectDir);
+    if (configWatcher) {
+      try { configWatcher.close(); } catch {}
+      configWatchers.delete(projectDir);
+    }
+
+    const sourceWatcher = sourceWatchers.get(projectDir);
+    if (sourceWatcher) {
+      try { sourceWatcher.close(); } catch {}
+      sourceWatchers.delete(projectDir);
+    }
+
+    const subscription = symbolRefreshSubscriptions.get(projectDir);
+    if (subscription) {
+      for (const entry of subscription) {
+        try { entry.unsubscribe(); } catch {}
+      }
+      symbolRefreshSubscriptions.delete(projectDir);
+    }
+
+    const timer = symbolRefreshTimers.get(projectDir);
+    if (timer) clearTimeout(timer);
+    symbolRefreshTimers.delete(projectDir);
+    symbolRefreshPending.delete(projectDir);
   }
 
   function releaseProjectLease(projectDir: string): void {
@@ -593,6 +857,8 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
             managed.runner.startAll();
             fleets.set(projectDir, managed);
             updateLeaseName(projectDir, managed.projectName);
+            watchSymbolEvents(projectDir, managed.projectName);
+            watchSourceChanges(projectDir);
             clearSkippedProject(projectDir);
             logger.info('fleet_reloaded', {
               project: managed.projectName,
@@ -628,6 +894,21 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
       try { watcher.close(); } catch {}
     }
     configWatchers.clear();
+    for (const [, watcher] of sourceWatchers) {
+      try { watcher.close(); } catch {}
+    }
+    sourceWatchers.clear();
+    for (const [, subscriptions] of symbolRefreshSubscriptions) {
+      for (const subscription of subscriptions) {
+        try { subscription.unsubscribe(); } catch {}
+      }
+    }
+    symbolRefreshSubscriptions.clear();
+    for (const [, timer] of symbolRefreshTimers) {
+      clearTimeout(timer);
+    }
+    symbolRefreshTimers.clear();
+    symbolRefreshPending.clear();
   }
 
   // ─── Public API ─────────────────────────────────────────────────────────
@@ -653,6 +934,8 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
         fleets.set(dir, managed);
         updateLeaseName(dir, managed.projectName);
         watchConfig(dir); // Auto-reload on pd-fleet.yml change
+        watchSymbolEvents(dir, managed.projectName);
+        watchSourceChanges(dir);
         clearSkippedProject(dir);
         logger.info('fleet_started', {
           project: managed.projectName,
@@ -741,6 +1024,8 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
     fleets.set(projectDir, managed);
     updateLeaseName(projectDir, managed.projectName);
     watchConfig(projectDir);
+    watchSymbolEvents(projectDir, managed.projectName);
+    watchSourceChanges(projectDir);
     clearSkippedProject(projectDir);
     if (!isRunning) {
       isRunning = true;

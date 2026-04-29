@@ -40,6 +40,8 @@ describe('design system contracts', () => {
 
     expect(primitives).toContain('export function PageContainer')
     expect(primitives).toContain('export function SectionIntro')
+    expect(primitives).toContain('export function BrandWordmark')
+    expect(primitives).not.toContain('<img')
     expect(primitives).toContain("max-w-[var(--layout-max-width)]")
     expect(primitives).toContain("max-w-[var(--layout-max-width-wide)]")
     expect(primitives).toContain('px-[var(--layout-gutter)]')
@@ -51,11 +53,129 @@ describe('design system contracts', () => {
     const hero = read('./components/landing/Hero.tsx')
     const features = read('./components/landing/Features.tsx')
     const demos = read('./components/landing/TerminalDemos.tsx')
+    const cta = read('./components/landing/CTABanner.tsx')
+    const showcase = read('./components/landing/ControlPlaneShowcase.tsx')
+
+    for (const source of [hero, features, demos, cta]) {
+      expect(source).toContain('PageContainer')
+    }
 
     for (const source of [hero, features, demos]) {
-      expect(source).toContain('PageContainer')
       expect(source).toContain('SectionIntro')
     }
+
+    expect(showcase).toContain('SurfacePanel')
+    expect(showcase).toContain('BracketLabel')
+    expect(showcase).toContain('Single-daemon control plane')
+  })
+
+  test('active landing shell stays on the Swiss/editorial primitives instead of ad hoc soft chrome', () => {
+    const hero = read('./components/landing/Hero.tsx')
+    const features = read('./components/landing/Features.tsx')
+    const demos = read('./components/landing/TerminalDemos.tsx')
+    const cta = read('./components/landing/CTABanner.tsx')
+    const nav = read('./components/landing/Nav.tsx')
+    const footer = read('./components/layout/Footer.tsx')
+    const siteFooter = read('./components/site/SiteFooter.tsx')
+    const showcase = read('./components/landing/ControlPlaneShowcase.tsx')
+
+    expect(hero).toContain('hero-portdaddy.png')
+    expect(hero).toContain('SurfacePanel')
+    expect(hero).toContain('LandingStatsStrip')
+    expect(hero).not.toContain('bg-gradient-to-r')
+
+    expect(showcase).toContain('SurfacePanel')
+    expect(showcase).toContain('Representative local runtime')
+    expect(showcase).not.toContain('force-directed')
+
+    expect(features).toContain('SurfacePanel')
+    expect(features).toContain('BracketLabel')
+    expect(features).not.toContain("import { Surface }")
+
+    expect(demos).toContain('SurfacePanel')
+    expect(demos).not.toContain('rounded-[var(--radius-lg)]')
+
+    expect(cta).toContain('SurfacePanel')
+    expect(cta).not.toContain('rounded-full')
+
+    expect(nav).toContain('BrandWordmark')
+    expect(nav).toContain('PageContainer')
+    expect(nav).not.toContain('BrandMark')
+    expect(nav).not.toContain('rounded-full')
+
+    expect(footer).toContain('SiteFooter')
+    expect(siteFooter).toContain('BrandWordmark')
+    expect(siteFooter).not.toContain('BrandMark')
+    expect(siteFooter).not.toContain('rounded-full')
+  })
+
+  test('tutorial shell and active getting-started lesson stay on shared public primitives', () => {
+    const tutorialLayout = read('./components/tutorials/TutorialLayout.tsx')
+    const tutorialProgress = read('./components/tutorials/TutorialProgress.tsx')
+    const reorientationPanel = read('./components/tutorials/ReorientationPanel.tsx')
+    const gettingStarted = read('./pages/tutorials/GettingStarted.tsx')
+    const fleet = read('./pages/tutorials/Fleet.tsx')
+    const dashboard = read('./pages/tutorials/Dashboard.tsx')
+
+    expect(tutorialLayout).toContain('PageContainer')
+    expect(tutorialLayout).toContain('BracketLink')
+    expect(tutorialLayout).toContain('SurfacePanel')
+    expect(tutorialLayout).toContain('max-w-[94rem]')
+    expect(tutorialLayout).toContain('prose-p:max-w-[52rem]')
+    expect(tutorialLayout).toContain('prose-p:text-[var(--text-primary)]')
+    expect(tutorialLayout).not.toContain('rounded-[40px]')
+    expect(tutorialLayout).not.toContain('blur-[140px]')
+    expect(tutorialLayout).not.toContain("import { Badge }")
+
+    expect(tutorialProgress).toContain('SurfacePanel')
+    expect(tutorialProgress).toContain('BracketLabel')
+    expect(tutorialProgress).not.toContain("import { Surface }")
+
+    expect(reorientationPanel).toContain('SurfacePanel')
+    expect(reorientationPanel).not.toContain('rounded-xl')
+
+    expect(gettingStarted).toContain('CommandBlock')
+    expect(gettingStarted).toContain('DocsCodeBlock')
+    expect(gettingStarted).toContain('DocsNoteCard')
+    expect(gettingStarted).toContain('xl:grid-cols-2')
+    expect(gettingStarted).not.toContain("import { Surface }")
+    expect(gettingStarted).not.toContain("import { Badge }")
+
+    expect(fleet).toContain('DocsNoteCard')
+    expect(fleet).toContain('DocsCodeBlock')
+    expect(fleet).toContain('SurfacePanel')
+    expect(fleet).toContain('BracketLink')
+    expect(fleet).not.toContain("import { Surface }")
+    expect(fleet).not.toContain("import { Badge }")
+    expect(fleet).not.toContain('text-xs text-[var(--text-secondary)]')
+
+    expect(dashboard).toContain('CommandBlock')
+    expect(dashboard).toContain('DocsCodeBlock')
+    expect(dashboard).toContain('DocsNoteCard')
+    expect(dashboard).toContain('SurfacePanel')
+    expect(dashboard).toContain('BracketLink')
+    expect(dashboard).not.toContain("import { Surface }")
+    expect(dashboard).not.toContain("import { Badge }")
+    expect(dashboard).not.toContain("import { CodeBlock }")
+  })
+
+  test('dashboard route redirects to the tutorial preview instead of maintaining a second hosted shell', () => {
+    const main = read('./main.tsx')
+    const dashboard = read('./pages/tutorials/Dashboard.tsx')
+    const hero = read('./components/landing/Hero.tsx')
+    const showcase = read('./components/landing/ControlPlaneShowcase.tsx')
+
+    expect(main).toContain('<Navigate to="/tutorials/dashboard" replace />')
+    expect(main).not.toContain('DashboardPage')
+    expect(hero).toContain('hero-portdaddy.png')
+    expect(hero).not.toContain('ControlPlaneShowcase')
+    expect(dashboard).toContain('ControlPlaneShowcase')
+    expect(showcase).toContain('Representative local runtime')
+    expect(showcase).toContain('Needs-attention view')
+    expect(showcase).toContain('Session notes and mutations')
+    expect(dashboard).not.toContain('useDashboardStats')
+    expect(dashboard).not.toContain('useActivityStream')
+    expect(dashboard).not.toContain('useTimeline')
   })
 
   test('legacy docs detail generators consume shared website primitives instead of ad hoc surface composition', () => {

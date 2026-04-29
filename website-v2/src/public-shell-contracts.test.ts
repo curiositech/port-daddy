@@ -167,26 +167,29 @@ describe('public shell contracts', () => {
     const header = read('./components/site/SiteHeader.tsx')
     const footer = read('./components/site/SiteFooter.tsx')
 
-    expect(header).toContain('/dashboard')
-    expect(header).toContain('/examples')
+    expect(header).toContain('/docs/examples')
     expect(header).toContain('/mcp')
     expect(header).toContain('/tutorials')
     expect(header).toContain('/roadmap')
     expect(header).toContain("/whitepaper")
     expect(header).toContain('Port Daddy')
     expect(header).toContain('Mobile primary')
-    expect(footer).toContain('/dashboard')
-    expect(footer).toContain('/agents')
+    expect(footer).toContain('/tutorials/fleet')
     expect(footer).toContain('/mcp')
     expect(footer).toContain('/roadmap')
+    expect(footer).toContain('/blog')
     expect(footer).toContain('/docs/get-started')
     expect(footer).toContain('/docs/cli')
     expect(footer).toContain('/docs/sdk')
     expect(footer).toContain('/docs/mcp')
     expect(footer).toContain('/docs/api')
     expect(footer).toContain('/whitepaper')
-    expect(footer).toContain('/examples')
+    expect(footer).toContain('/docs/examples')
     expect(footer).toContain('/tutorials')
+    expect(header).not.toContain('/agents')
+    expect(header).not.toContain('/dashboard')
+    expect(footer).not.toContain('/agents')
+    expect(footer).not.toContain('/dashboard')
 
     const forbidden = [
       /text-\[11px\]/,
@@ -203,28 +206,86 @@ describe('public shell contracts', () => {
     }
   })
 
+  test('interactive accessibility contracts stay explicit in the shared shells', () => {
+    const header = read('./components/site/SiteHeader.tsx')
+    const nav = read('./components/landing/Nav.tsx')
+    const docsSearch = read('./components/docs/DocsSearch.tsx')
+    const apiReference = read('./pages/docs/ApiReference.tsx')
+    const blogComments = read('./components/blog/BlogComments.tsx')
+    const badge = read('./components/ui/Badge.tsx')
+
+    expect(header).toContain('href="#main-content"')
+    expect(nav).toContain('href="#main-content"')
+    expect(nav).toContain('aria-expanded={mobileOpen}')
+    expect(nav).toContain('aria-controls="site-mobile-menu"')
+    expect(nav).not.toContain('role="menu"')
+    expect(nav).not.toContain('role="menuitem"')
+
+    expect(docsSearch).toContain('role="dialog"')
+    expect(docsSearch).toContain('aria-modal="true"')
+    expect(docsSearch).toContain('aria-labelledby={dialogTitleId}')
+    expect(docsSearch).toContain('aria-describedby={dialogDescriptionId}')
+    expect(docsSearch).toContain('htmlFor={searchInputId}')
+    expect(docsSearch).toContain('lastActiveElementRef')
+
+    expect(apiReference).toContain('htmlFor="api-reference-search"')
+    expect(apiReference).toContain('aria-label="Search endpoints"')
+
+    expect(blogComments).toContain('htmlFor={nameId}')
+    expect(blogComments).toContain('htmlFor={bodyId}')
+    expect(blogComments).toContain('role="alert"')
+
+    expect(badge).not.toContain("color: 'var(--brand-accent)'")
+    expect(badge).not.toContain("color: 'var(--status-warning)'")
+    expect(badge).not.toContain("color: 'var(--status-success)'")
+    expect(badge).toContain("color: 'var(--brand-accent-foreground-muted)'")
+  })
+
   test('docs overview and sidebar keep the broader public site reachable from the docs shell', () => {
     const docsOverview = read('./pages/docs/DocsOverview.tsx')
     const docsSidebar = read('./components/site/DocsSidebar.tsx')
 
     expect(docsOverview).toContain('Keep the rest of the site in play.')
-    expect(docsOverview).toContain('/dashboard')
-    expect(docsOverview).toContain('/examples')
     expect(docsOverview).toContain('/mcp')
-    expect(docsOverview).toContain('/agents')
+    expect(docsOverview).toContain('/tutorials/fleet')
     expect(docsOverview).toContain('/roadmap')
+    expect(docsOverview).toContain('/blog')
     expect(docsSidebar).toContain('The rest of the website stays live.')
-    expect(docsSidebar).toContain('/dashboard')
-    expect(docsSidebar).toContain('/examples')
     expect(docsSidebar).toContain('/mcp')
-    expect(docsSidebar).toContain('/agents')
+    expect(docsSidebar).toContain('/tutorials/fleet')
     expect(docsSidebar).toContain('/roadmap')
+    expect(docsSidebar).toContain('/blog')
+    expect(docsOverview).not.toContain('/agents')
+    expect(docsSidebar).not.toContain('/agents')
+    expect(docsOverview).not.toContain('/dashboard')
+    expect(docsSidebar).not.toContain('/dashboard')
+  })
+
+  test('dashboard route forwards to the tutorial preview and the tutorial keeps the website truthful', () => {
+    const mainSource = read('./main.tsx')
+    const dashboardTutorial = read('./pages/tutorials/Dashboard.tsx')
+    const showcase = read('./components/landing/ControlPlaneShowcase.tsx')
+
+    expect(mainSource).toContain('<Navigate to="/tutorials/dashboard" replace />')
+    expect(mainSource).not.toContain('DashboardPage')
+    expect(dashboardTutorial).toContain('ControlPlaneShowcase')
+    expect(dashboardTutorial).toContain('The public site can')
+    expect(showcase).toContain('Representative local runtime')
+    expect(showcase).toContain('Needs-attention view')
+    expect(showcase).toContain('Session notes and mutations')
+    expect(dashboardTutorial).not.toContain('useDashboardStats')
+    expect(dashboardTutorial).not.toContain('useActivityStream')
+    expect(dashboardTutorial).not.toContain('useTimeline')
+    expect(dashboardTutorial).not.toContain('Force-Directed')
+    expect(dashboardTutorial).not.toContain('v3.7 protocol')
   })
 
   test('docs families stay under /docs while the main router preserves the current site surface', () => {
     const mainSource = read('./main.tsx')
 
     expect(docsOverviewRoute.path).toBe('/docs')
+    expect(mainSource).toContain('<Navigate to="/docs/examples" replace />')
+    expect(mainSource).toContain('<Navigate to="/tutorials/fleet" replace />')
     expect(docsFamilyOrder).toEqual([
       'get-started',
       'concepts',
@@ -433,7 +494,7 @@ describe('public shell contracts', () => {
     expect(primitives).toContain('DocsCodeBlock')
     expect(primitives).toContain('BracketAnchor')
     expect(primitives).toContain('BracketNavLink')
-    expect(primitives).toContain('NeumorphicTerminal')
+    expect(primitives).toContain('TerminalSurface')
     expect(primitives).toContain('SurfaceToneContext')
     expect(primitives).toContain('useSurfaceTone')
     expect(primitives).toContain('LandingSection')

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- ADR-0021: Bosun is the watchdog. Pending V4 implementation — this template
+     is scaffolding for when core/pd-bosun/ lands. Until then, postinstall
+     skips loading this plist (see build-pkg.sh BOSUN_ENABLED flag). -->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.portdaddy.bosun</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/libexec/portdaddy/bosun</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
+    <key>StandardOutPath</key>
+    <string>@HOME@/Library/Logs/PortDaddy/bosun.log</string>
+    <key>StandardErrorPath</key>
+    <string>@HOME@/Library/Logs/PortDaddy/bosun.err.log</string>
+</dict>
+</plist>

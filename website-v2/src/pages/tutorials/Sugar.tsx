@@ -8,12 +8,12 @@ export function Sugar() {
     <TutorialLayout
       title="Sugar Commands"
       description="Coordination shouldn't be a chore. Learn to use Port Daddy's high-level wrappers to claim ports, acquire locks, and manage sessions with zero friction."
-      number={12}
-      total={16}
+      number={9}
+      total={19}
       level="Beginner"
       readTime="5 min read"
-      prev={{ title: 'The Agent Inbox', href: '/tutorials/inbox' }}
-      next={{ title: 'pd spawn: Agent Fleets', href: '/tutorials/pd-spawn' }}
+      prev={{ title: 'Inbox & Messaging', href: '/tutorials/inbox' }}
+      next={{ title: 'Spawn + Watch Pattern', href: '/tutorials/always-on' }}
     >
       <div className="space-y-12">
         {/* Intro Section */}

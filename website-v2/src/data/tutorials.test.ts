@@ -13,6 +13,33 @@ import { TUTORIALS } from './tutorials'
 
 const TUTORIALS_DIR = resolve(__dirname, '../pages/tutorials')
 
+const TUTORIAL_FILE_TO_SLUG: Record<string, string> = {
+  'GettingStarted.tsx': 'getting-started',
+  'MultiAgentOrchestration.tsx': 'multi-agent',
+  'Monorepo.tsx': 'monorepo',
+  'Debugging.tsx': 'debugging',
+  'Tunnel.tsx': 'tunnel',
+  'DNSResolver.tsx': 'dns',
+  'SessionPhases.tsx': 'session-phases',
+  'Inbox.tsx': 'inbox',
+  'Sugar.tsx': 'sugar',
+  'AlwaysOn.tsx': 'always-on',
+  'Spawn.tsx': 'pd-spawn',
+  'Harbors.tsx': 'harbors',
+  'Dashboard.tsx': 'dashboard',
+  'TimeTravel.tsx': 'time-travel',
+  'Pipelines.tsx': 'pipelines',
+  'Watch.tsx': 'watch',
+  'RemoteHarbors.tsx': 'remote-harbors',
+  'Fleet.tsx': 'fleet',
+  'Pheromone.tsx': 'pheromone',
+}
+
+function tutorialForFile(filePath: string) {
+  const slug = TUTORIAL_FILE_TO_SLUG[basename(filePath)]
+  return slug ? TUTORIALS.find(t => t.slug === slug) : undefined
+}
+
 // Read TutorialProgress.tsx and extract its hardcoded array
 function parseTutorialProgressArray(): { number: number; title: string; href: string }[] {
   const src = readFileSync(
@@ -135,29 +162,7 @@ describe('individual tutorial pages have correct number and total', () => {
 
   // Map every known tutorial file to its slug for number-prop checking.
   // This replaces the hardcoded 5-file list so ALL pages are verified.
-  const fileToSlug: Record<string, string> = {
-    'GettingStarted.tsx': 'getting-started',
-    'MultiAgentOrchestration.tsx': 'multi-agent',
-    'Monorepo.tsx': 'monorepo',
-    'Debugging.tsx': 'debugging',
-    'Tunnel.tsx': 'tunnel',
-    'DNSResolver.tsx': 'dns',
-    'SessionPhases.tsx': 'session-phases',
-    'Inbox.tsx': 'inbox',
-    'Sugar.tsx': 'sugar',
-    'AlwaysOn.tsx': 'always-on',
-    'Spawn.tsx': 'pd-spawn',
-    'Harbors.tsx': 'harbors',
-    'Dashboard.tsx': 'dashboard',
-    'TimeTravel.tsx': 'time-travel',
-    'Pipelines.tsx': 'pipelines',
-    'Watch.tsx': 'watch',
-    'RemoteHarbors.tsx': 'remote-harbors',
-    'Fleet.tsx': 'fleet',
-    'Pheromone.tsx': 'pheromone',
-  }
-
-  for (const [fileName, slug] of Object.entries(fileToSlug)) {
+  for (const [fileName, slug] of Object.entries(TUTORIAL_FILE_TO_SLUG)) {
     it(`${fileName} number matches tutorials.ts canonical ordering`, () => {
       const filePath = resolve(TUTORIALS_DIR, fileName)
       const { number } = extractProps(filePath)
@@ -210,14 +215,7 @@ describe('prev/next navigation chain is consistent', () => {
     for (const file of tutorialFiles) {
       const { prev, next } = extractNavLinks(file)
       // Derive this file's tutorial href from the slug
-      const slugMatch = readFileSync(file, 'utf-8').match(/href:\s*'(\/tutorials\/[^']+)'/)
-      // Also try to find via title matching
-      const titleMatch = readFileSync(file, 'utf-8').match(/title="([^"]+)"/)
-      const tutorial = TUTORIALS.find(t => {
-        const fileBase = basename(file, '.tsx').toLowerCase().replace(/-/g, '')
-        const slugNorm = t.slug.replace(/-/g, '')
-        return fileBase === slugNorm || fileBase.includes(slugNorm) || slugNorm.includes(fileBase)
-      })
+      const tutorial = tutorialForFile(file)
       if (tutorial) {
         navMap.set(tutorial.href, {
           prev: prev?.href ?? null,
@@ -247,11 +245,7 @@ describe('prev/next navigation chain is consistent', () => {
     const nextMap = new Map<string, string>()
     for (const file of tutorialFiles) {
       const { next } = extractNavLinks(file)
-      const tutorial = TUTORIALS.find(t => {
-        const fileBase = basename(file, '.tsx').toLowerCase().replace(/-/g, '')
-        const slugNorm = t.slug.replace(/-/g, '')
-        return fileBase === slugNorm || fileBase.includes(slugNorm) || slugNorm.includes(fileBase)
-      })
+      const tutorial = tutorialForFile(file)
       if (tutorial && next) {
         nextMap.set(tutorial.href, next.href)
       }

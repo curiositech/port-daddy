@@ -42,8 +42,8 @@ const GROUPS = [
     title: 'Messaging',
     description: 'Pub/sub channels for inter-agent communication.',
     commands: [
-      { name: 'pd pub', href: '/docs/cli/pub', description: 'Publish a message to a channel' },
-      { name: 'pd msg', href: '/docs/cli/msg', description: 'Messaging commands' },
+      { name: 'pd pub / pd sub', href: '/docs/cli/pub', description: 'Publish to or subscribe from a channel' },
+      { name: 'pd channels', href: '/docs/cli/channels', description: 'List, declare, and resolve channels' },
       { name: 'pd watch', href: '/docs/cli/watch', description: 'Watch a channel with --exec' },
     ]
   },

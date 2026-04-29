@@ -1,836 +1,571 @@
-
-import { useState } from 'react'
-import { motion, useScroll, useSpring } from 'framer-motion'
-import { Badge } from '@/components/ui/Badge'
-import { Surface } from '@/components/ui/Surface'
-import { CodeBlock } from '@/components/ui/CodeBlock'
-import { Footer } from '@/components/layout/Footer'
+import { motion } from 'framer-motion'
+import { Link } from 'react-router-dom'
 import {
-  Terminal, Zap, Users, MessageSquare, Anchor,
-  Activity, Database, Cpu, Search, Radio, GitBranch,
-  ArrowRight, CheckCircle, Download, Layers, Globe
+  Activity,
+  Anchor,
+  ArrowRight,
+  ArrowUpRight,
+  Bot,
+  Boxes,
+  Cable,
+  Cpu,
+  FileText,
+  Globe,
+  Inbox,
+  Lock,
+  Radio,
+  ScrollText,
+  Sparkles,
+  Webhook,
+  Workflow,
 } from 'lucide-react'
+import { Footer } from '@/components/layout/Footer'
+import { ALL_CATEGORIES, ESSENTIAL_TOOLS } from '@/data/mcp'
+import {
+  BracketLabel,
+  LandingStatsStrip,
+  PageContainer,
+  PanelBody,
+  PanelEyebrow,
+  PanelTitle,
+  SurfacePanel,
+  TerminalSurface,
+} from '@/components/site/primitives'
+import { cn } from '@/lib/utils'
 
-/* -------------------------------------------------------------------------- */
-/*  Data                                                                        */
-/* -------------------------------------------------------------------------- */
+type AccentTone = 'paper' | 'blue' | 'lime'
 
-const RUNTIME_BACKENDS = [
-  { name: 'Codex', color: '#0F7B6C' },
-  { name: 'Claude', color: '#CC785C' },
-  { name: 'Claude CLI', color: '#E38D6B' },
-  { name: 'Gemini', color: '#4285F4' },
-  { name: 'Ollama', color: '#3AADAD' },
-  { name: 'Aider', color: '#A78BFA' },
-  { name: 'Custom shell', color: '#6B7280' },
-]
-
-const MAGIC_TOOLS = [
-  {
-    name: 'fleet_init',
-    tagline: 'One call deploys your entire agent fleet.',
-    icon: Cpu,
-    color: 'var(--brand-primary)',
-    description: 'Creates pd-fleet.yml, installs the git commit hook, and starts background agents — all from a single MCP call.',
-    example: `// One tool call. Fleet running in 10 seconds.
-await fleet_init({
-  project: "myapp",
-  agents: ["qa", "documentarian", "cartographer"]
-})
-// → git hook installed
-// → 3 agents listening for git:committed`,
-  },
-  {
-    name: 'swarm_awareness',
-    tagline: 'Who else is working here right now?',
-    icon: Users,
-    color: 'var(--brand-secondary)',
-    description: 'A single call returns active agents, open sessions, file claims, and recently dead agents that need salvage.',
-    example: `const { agents, sessions, fileClaims, deadAgents } =
-  await swarm_awareness({ project: "myapp" })
-// → "spider (myapp:fleet:spider) — active 2m ago"
-// → "qa claimed: src/auth/*.ts"
-// → "1 dead agent needs salvage"`,
-  },
-  {
-    name: 'catch_me_up',
-    tagline: 'What happened while I was away?',
-    icon: Activity,
-    color: 'var(--brand-primary)',
-    description: 'Reconstructs swarm activity since a given timestamp — notes, commits, agent events, and any salvageable work.',
-    example: `const briefing = await catch_me_up({
-  since: "1h",
-  project: "myapp"
-})
-// → "QA agent ran on 3 commits. 2 bugs filed."
-// → "Documentarian updated 4 pages."
-// → "spider found: trie+pubsub=routing (0.9 conf)"`,
-  },
-  {
-    name: 'spawn_agent',
-    tagline: 'Launch a background AI with one call.',
-    icon: Radio,
-    color: 'var(--brand-secondary)',
-    description: 'Spawns an AI agent with full PD coordination — registration, heartbeat, session, and salvage on crash. Uses one of the built-in runtimes or the custom shell backend.',
-    example: `await spawn_agent({
-  backend: "codex",
-  model_tier: "low",
-  budget_usd: 0.5,
-  purpose: "Review auth changes for CVEs",
-  identity: "myapp:security:scan"
-})
-// → agent registered + heartbeating
-// → session started, notes immutable
-// → auto-salvage if it dies`,
-  },
-  {
-    name: 'file_heat',
-    tagline: 'Which files are agents fighting over?',
-    icon: GitBranch,
-    color: 'var(--brand-primary)',
-    description: 'Returns a heat map of file contention based on pheromone trail strength and active file claims.',
-    example: `const heat = await file_heat({ project: "myapp" })
-// → "src/auth/middleware.ts — 0.87 (3 agents)"
-// → "src/routes/login.ts   — 0.62 (2 agents)"
-// → "src/db/schema.ts      — 0.21 (1 agent)"`,
-  },
-  {
-    name: 'fleet_status',
-    tagline: 'What is the fleet doing right now?',
-    icon: Search,
-    color: 'var(--brand-secondary)',
-    description: 'Full fleet snapshot: agent health, last run timestamps, recent notes, trigger channels, and respawn counts.',
-    example: `const status = await fleet_status({ harbor: "myapp:fleet" })
-// → "qa: running | last commit: 4m ago | 0 respawns"
-// → "spark: idle  | next cron: 22m | 0 respawns"
-// → "spider: running | connections found: 7 | 1 respawn"`,
-  },
-]
-
-const PUBSUB_SURFACES = [
-  {
-    id: 'cli',
-    label: 'CLI',
-    icon: Terminal,
-    subscribe: `# Subscribe (blocks, streams events)
-pd watch git:committed
-
-# Publish
-pd pub git:committed '{"sha":"abc123"}'
-
-# Auto-trigger a script on each message
-pd watch git:committed --exec './fleet/qa.sh'`,
-    note: 'Works in any shell. Great for composing with grep, jq, or custom scripts.',
-  },
-  {
-    id: 'mcp',
-    label: 'MCP',
-    icon: Cpu,
-    subscribe: `// Subscribe (returns next message)
-await subscribe({ channel: "git:committed" })
-
-// Publish
-await publish_message({
-  channel: "git:committed",
-  content: JSON.stringify({ sha: "abc123" })
-})`,
-    note: 'Perfect for agents that chain: QA publishes to qa:findings, notifier reacts.',
-  },
-  {
-    id: 'sdk',
-    label: 'SDK',
-    icon: Layers,
-    subscribe: `import { PortDaddy } from 'port-daddy'
-const pd = new PortDaddy()
-
-// Subscribe (SSE stream)
-for await (const msg of pd.subscribe('git:committed')) {
-  console.log(msg.content)
+interface SetupCardBlock {
+  label: string
+  code: string
 }
 
-// Publish
-await pd.publish('git:committed', { sha: 'abc123' })`,
-    note: 'Full TypeScript types. Async iterators for streaming. Promise-based publish.',
+interface SetupCardLink {
+  label: string
+  href: string
+}
+
+interface SetupCardDefinition {
+  step: string
+  title: string
+  description: string
+  href: string
+  hrefLabel: string
+  tone: AccentTone
+  blocks: SetupCardBlock[]
+  links?: SetupCardLink[]
+}
+
+const heroStats = [
+  { value: String(ESSENTIAL_TOOLS.length), label: 'tools loaded first', tone: 'paper' as const },
+  { value: String(ALL_CATEGORIES.length), label: 'discoverable modules', tone: 'blue' as const },
+  { value: '1 daemon', label: 'local control plane', tone: 'lime' as const },
+] as const
+
+const setupCards: SetupCardDefinition[] = [
+  {
+    step: 'Step 01',
+    title: 'Install Port Daddy',
+    description: 'Pick one install path. After that, every MCP client talks to the same local daemon.',
+    href: '/tutorials/getting-started',
+    hrefLabel: 'Open getting started',
+    tone: 'paper' as AccentTone,
+    blocks: [
+      { label: 'Homebrew', code: 'brew install curiositech/tap/port-daddy' },
+      { label: 'npm', code: 'npm install -g port-daddy' },
+    ],
   },
   {
-    id: 'api',
-    label: 'REST API',
-    icon: Globe,
-    subscribe: `# Subscribe (SSE stream)
-curl -N http://localhost:9876/msg/git:committed/subscribe
-
-# Long-poll (waits for next message, then returns)
-curl http://localhost:9876/msg/git:committed/poll
-
-# Publish
-curl -X POST http://localhost:9876/msg/git:committed \\
-  -H 'Content-Type: application/json' \\
-  -d '{"content":{"sha":"abc123"}}'`,
-    note: 'Standard SSE. Works from any language, any runtime, any agent.',
+    step: 'Step 02',
+    title: 'Start the daemon',
+    description: 'Bring up the control plane once, then verify the runtime answered before you wire any editors.',
+    href: '/docs/cli/init',
+    hrefLabel: 'See init flow',
+    tone: 'paper' as AccentTone,
+    blocks: [{ label: 'Daemon', code: 'pd start\npd status' }],
   },
-]
+  {
+    step: 'Step 03',
+    title: 'Wire MCP clients',
+    description: 'Have Port Daddy detect installed editors and write the MCP server config for them.',
+    href: '/docs/cli/mcp-install',
+    hrefLabel: 'Read MCP install docs',
+    tone: 'blue' as AccentTone,
+    blocks: [{ label: 'MCP install', code: 'pd mcp install --list\npd mcp install' }],
+    links: [
+      { label: 'Claude Code', href: '/docs/mcp/claude' },
+      { label: 'Cursor', href: '/docs/mcp/cursor' },
+      { label: 'Windsurf', href: '/docs/mcp/windsurf' },
+    ],
+  },
+  {
+    step: 'Optional',
+    title: 'Bootstrap a fleet later',
+    description: 'Once the MCP is live, generate a background agent fleet and its git-triggered operator loop.',
+    href: '/docs/cli/fleet',
+    hrefLabel: 'Read fleet docs',
+    tone: 'lime' as AccentTone,
+    blocks: [{ label: 'Fleet', code: 'pd fleet init' }],
+  },
+] as const
 
-const ESSENTIAL_TOOLS = [
-  { name: 'begin_session', desc: 'Register identity, claim files, start session — atomically.' },
-  { name: 'end_session_full', desc: 'Release files, end session, unregister agent.' },
-  { name: 'claim_port', desc: 'Deterministic port assignment for your semantic identity.' },
-  { name: 'add_note', desc: 'Append to the immutable swarm ledger.' },
-  { name: 'acquire_lock', desc: 'Distributed lock with TTL and auto-release.' },
-  { name: 'list_services', desc: 'Query all registered services and their ports.' },
-  { name: 'swarm_awareness', desc: 'Who is working here? Agents, sessions, dead agents.' },
-  { name: 'catch_me_up', desc: 'What happened since I was last here?' },
-]
+const categoryMeta = {
+  'session-lifecycle': { icon: Sparkles, href: '/docs/mcp/begin-session' },
+  ports: { icon: Anchor, href: '/docs/mcp/claim-port' },
+  sessions: { icon: Workflow, href: '/docs/mcp/begin-session' },
+  notes: { icon: FileText, href: '/docs/mcp/add-note' },
+  locks: { icon: Lock, href: '/docs/mcp/acquire-lock' },
+  messaging: { icon: Radio, href: '/docs/mcp/publish-message' },
+  agents: { icon: Bot, href: '/docs/mcp/spawn-agent' },
+  inbox: { icon: Inbox, href: '/docs/mcp' },
+  webhooks: { icon: Webhook, href: '/docs/mcp' },
+  integration: { icon: Cable, href: '/docs/mcp' },
+  dns: { icon: Globe, href: '/docs/mcp/dns-register' },
+  briefing: { icon: ScrollText, href: '/docs/mcp' },
+  tunnels: { icon: Cable, href: '/docs/mcp/tunnel' },
+  projects: { icon: Boxes, href: '/docs/mcp' },
+  changelog: { icon: FileText, href: '/docs/mcp' },
+  activity: { icon: Activity, href: '/docs/mcp' },
+  system: { icon: Cpu, href: '/docs/mcp/status' },
+} as const
 
-const DISCOVER_CATEGORIES = [
-  { id: 'session-lifecycle', label: 'Session Lifecycle', count: 6, icon: Activity },
-  { id: 'ports', label: 'Port Management', count: 5, icon: Anchor },
-  { id: 'messaging', label: 'Pub/Sub Radio', count: 4, icon: Radio },
-  { id: 'agents', label: 'Fleet & Agents', count: 8, icon: Cpu },
-  { id: 'locks', label: 'Distributed Locks', count: 3, icon: Database },
-  { id: 'tuples', label: 'Tuple Space', count: 5, icon: Layers },
-  { id: 'dns', label: 'Local DNS', count: 4, icon: Globe },
-  { id: 'tunnels', label: 'Tunnels', count: 3, icon: Zap },
-]
+const operatorPrompts = [
+  {
+    label: 'Bootstrap',
+    title: 'Stand up the background layer',
+    description: 'Have the MCP create the fleet artifact and install the repo hook instead of narrating the idea of doing it.',
+    prompt:
+      'Set up a background QA, docs, and reviewer fleet for this repo.\nWrite pd-fleet.yml and install the git commit hook.',
+    href: '/docs/cli/fleet',
+    hrefLabel: 'Open fleet docs',
+    modules: ['Fleet & Agents', 'Messaging', 'Projects'],
+    tone: 'blue' as AccentTone,
+  },
+  {
+    label: 'Awareness',
+    title: 'See who is already working here',
+    description: 'Use the MCP to surface active agents, open sessions, file claims, and recent notes before you edit.',
+    prompt:
+      'Show me active agents, open sessions, recent notes, and file claims for this repo.\nTell me what needs salvage before I start.',
+    href: '/docs/mcp/begin-session',
+    hrefLabel: 'Open session docs',
+    modules: ['Session Lifecycle', 'Agents', 'Notes'],
+    tone: 'paper' as AccentTone,
+  },
+  {
+    label: 'Recovery',
+    title: 'Catch up after lost context',
+    description: 'The public page should show what the MCP is good at: reconstructing state, not pretending to be raw RPC syntax.',
+    prompt:
+      'Catch me up on what happened in this repo since this morning:\ncommits, notes, agent events, and anything salvageable.',
+    href: '/docs/mcp/salvage',
+    hrefLabel: 'Open salvage docs',
+    modules: ['Agents', 'Briefing', 'Notes'],
+    tone: 'paper' as AccentTone,
+  },
+  {
+    label: 'Infrastructure',
+    title: 'Claim stable local services',
+    description: 'Ask for deterministic ports, DNS registration, and collision handling in one operator request.',
+    prompt:
+      'Claim a stable port for myapp:api:main, register myapp-api.local,\nand tell me which service already owns it if the claim collides.',
+    href: '/docs/mcp/claim-port',
+    hrefLabel: 'Open port docs',
+    modules: ['Ports', 'DNS', 'Locks'],
+    tone: 'lime' as AccentTone,
+  },
+] as const
 
-/* -------------------------------------------------------------------------- */
-/*  Sub-components                                                              */
-/* -------------------------------------------------------------------------- */
+function SetupCard({
+  card,
+}: {
+  card: SetupCardDefinition
+}) {
+  const panelTone = card.tone === 'blue' ? 'primary' : card.tone === 'lime' ? 'accent' : 'default'
 
-function LLMStrip() {
   return (
-    <div
-      className="border-y py-5 px-6 overflow-hidden relative"
-      style={{ borderColor: 'var(--border-subtle)', background: 'var(--surface-sunken)' }}
-    >
-      <p className="text-center text-[10px] font-black uppercase tracking-[0.3em] mb-4"
-        style={{ color: 'var(--text-muted)' }}>
-        Current built-in runtimes
-      </p>
-      <div className="flex items-center justify-center gap-6 flex-wrap">
-        {RUNTIME_BACKENDS.map((llm) => (
-          <span
-            key={llm.name}
-            className="text-sm font-black px-4 py-2 rounded-xl"
-            style={{
-              background: `${llm.color}12`,
-              border: `1px solid ${llm.color}30`,
-              color: llm.color,
-            }}
-          >
-            {llm.name}
-          </span>
+    <SurfacePanel tone={card.tone} className="flex h-full flex-col gap-[var(--panel-gap)]">
+      <div className="flex items-start justify-between gap-[var(--space-3)] border-b-2 border-current/15 pb-[var(--space-3)]">
+        <div className="space-y-[var(--space-1)]">
+          <BracketLabel tone={panelTone} surface={card.tone} className="self-start">
+            {card.step}
+          </BracketLabel>
+          <PanelTitle as="h2" size="card" tone={panelTone} className="max-w-[14ch]">
+            {card.title}
+          </PanelTitle>
+        </div>
+      </div>
+
+      <PanelBody tone={card.tone === 'paper' ? 'default' : card.tone === 'blue' ? 'primary' : 'accent'} size="compact" className="max-w-none">
+        {card.description}
+      </PanelBody>
+
+      <div
+        className={cn(
+          'grid gap-[var(--space-3)]',
+          card.blocks.length > 1 ? 'sm:grid-cols-2' : 'grid-cols-1',
+        )}
+      >
+        {card.blocks.map((block) => (
+          <div key={block.label} className="space-y-[var(--space-2)]">
+            <BracketLabel tone={panelTone} surface={card.tone} className="self-start">
+              {block.label}
+            </BracketLabel>
+            <TerminalSurface code={block.code} title={block.label} />
+          </div>
         ))}
       </div>
+
+      {card.links ? (
+        <div className="flex flex-wrap gap-[var(--space-2)] border-t-2 border-current/15 pt-[var(--space-3)]">
+          {card.links.map((link) => (
+            <Link key={link.href} to={link.href} className="no-underline">
+              <BracketLabel tone={panelTone} surface={card.tone}>
+                {link.label}
+              </BracketLabel>
+            </Link>
+          ))}
+        </div>
+      ) : null}
+
+      <Link
+        to={card.href}
+        className="mt-auto inline-flex items-center gap-[var(--space-2)] no-underline"
+      >
+        <PanelEyebrow tone={panelTone}>{card.hrefLabel}</PanelEyebrow>
+        <ArrowUpRight
+          size={14}
+          className={card.tone === 'blue'
+            ? 'text-[var(--brand-primary-foreground)]'
+            : card.tone === 'lime'
+              ? 'text-[var(--brand-accent-foreground)]'
+              : 'text-[var(--brand-primary)]'}
+        />
+      </Link>
+    </SurfacePanel>
+  )
+}
+
+function EssentialToolRow({
+  name,
+  description,
+  index,
+}: {
+  name: string
+  description: string
+  index: number
+}) {
+  return (
+    <div
+      className={cn(
+        'grid gap-[var(--space-2)] py-[var(--space-3)] md:grid-cols-[minmax(0,11rem)_minmax(0,1fr)] md:items-start',
+        index > 0 ? 'border-t-2 border-[color:var(--brand-primary-foreground-subtle)]' : '',
+      )}
+    >
+      <PanelEyebrow tone="primary" className="text-[var(--brand-primary-foreground)]">
+        {name}
+      </PanelEyebrow>
+      <PanelBody tone="primary" size="compact" className="max-w-none">
+        {description}
+      </PanelBody>
     </div>
   )
 }
 
-function MagicToolCard({ tool, index }: { tool: typeof MAGIC_TOOLS[0], index: number }) {
+function CategoryCard({
+  category,
+  index,
+}: {
+  category: (typeof ALL_CATEGORIES)[number]
+  index: number
+}) {
+  const meta = categoryMeta[category.id as keyof typeof categoryMeta]
+  const Icon = meta?.icon ?? Cpu
+  const href = meta?.href ?? '/docs/mcp'
+  const accentTone: AccentTone = index % 6 === 0 ? 'blue' : index % 6 === 3 ? 'lime' : 'paper'
+  const panelTone =
+    accentTone === 'blue' ? 'primary' : accentTone === 'lime' ? 'accent' : 'default'
+  const toolPreview = category.tools.slice(0, 3)
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 24 }}
+    <motion.article
+      initial={{ opacity: 0, y: 12 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ delay: index * 0.05, duration: 0.5 }}
+      viewport={{ once: true, amount: 0.15 }}
+      transition={{ duration: 0.28, delay: index * 0.015, ease: 'easeOut' }}
+      className="h-full"
     >
-      <Surface depth="raised" radius="2xl" padding="none"
-        className="p-6 flex flex-col gap-5 h-full group transition-all">
-        <div className="flex items-start gap-4">
-          <Surface depth="inset" radius="xl" padding="none"
-            className="w-12 h-12 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform"
-            style={{ background: `${tool.color}12` }}>
-            <tool.icon size={24} style={{ color: tool.color }} />
-          </Surface>
-          <div>
-            <code className="text-lg font-black font-mono" style={{ color: tool.color }}>
-              {tool.name}
-            </code>
-            <p className="text-sm font-semibold mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-              {tool.tagline}
-            </p>
-          </div>
-        </div>
-        <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-          {tool.description}
-        </p>
-        <CodeBlock language="typescript">{tool.example}</CodeBlock>
-      </Surface>
-    </motion.div>
-  )
-}
-
-function PubSubSection() {
-  const [active, setActive] = useState('cli')
-  const surface = PUBSUB_SURFACES.find(s => s.id === active)!
-
-  return (
-    <section className="py-20 px-6 lg:px-12">
-      <div className="max-w-5xl mx-auto">
-        <div className="text-center mb-12">
-          <Badge variant="teal" className="mb-4 px-5 py-2 text-[10px] font-black uppercase tracking-widest">
-            Pub/Sub
-          </Badge>
-          <h2 className="text-3xl sm:text-4xl font-black tracking-tighter mb-4"
-            style={{ color: 'var(--text-primary)' }}>
-            The same channel.<br />
-            <span style={{ color: 'var(--brand-primary)' }}>Every surface.</span>
-          </h2>
-          <p className="text-lg max-w-2xl mx-auto" style={{ color: 'var(--text-secondary)' }}>
-            A message published from the CLI lands in the MCP, the SDK, and the REST API simultaneously.
-            Pick whichever surface your agent can reach.
-          </p>
-        </div>
-
-        {/* Tab Bar */}
-        <div className="flex gap-2 justify-center mb-6">
-          {PUBSUB_SURFACES.map(s => (
-            <button
-              key={s.id}
-              onClick={() => setActive(s.id)}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-black transition-all"
-              style={{
-                background: active === s.id ? 'var(--brand-primary)' : 'var(--surface-raised)',
-                color: active === s.id ? '#fff' : 'var(--text-secondary)',
-                boxShadow: active === s.id ? 'var(--shadow-md)' : 'var(--shadow-sm)',
-                border: `1px solid ${active === s.id ? 'var(--brand-primary)' : 'var(--border-subtle)'}`,
-              }}
-            >
-              <s.icon size={14} />
-              {s.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Content */}
-        <motion.div
-          key={active}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25 }}
+      <Link to={href} className="block h-full no-underline">
+        <SurfacePanel
+          tone={accentTone}
+          padding="compact"
+          className="flex h-full flex-col gap-[var(--panel-gap)] transition-transform duration-150 hover:-translate-y-1"
         >
-          <Surface depth="raised" radius="2xl" padding="none" className="overflow-hidden">
-            <div className="p-6">
-              <CodeBlock language="bash">{surface.subscribe}</CodeBlock>
-              <p className="text-xs font-semibold mt-4 px-1" style={{ color: 'var(--text-muted)' }}>
-                {surface.note}
-              </p>
+          <div className="flex items-start justify-between gap-[var(--space-3)] border-b-2 border-current/15 pb-[var(--space-3)]">
+            <div className="space-y-[var(--space-1)]">
+              <BracketLabel tone={panelTone} surface={accentTone} className="self-start">
+                {category.tools.length} tools
+              </BracketLabel>
+              <PanelTitle as="h3" size="nav" tone={panelTone}>
+                {category.label}
+              </PanelTitle>
             </div>
-          </Surface>
-        </motion.div>
-
-        {/* Trigger hint */}
-        <Surface depth="inset" radius="xl" padding="none"
-          className="mt-6 p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-          <Zap size={20} className="shrink-0" style={{ color: 'var(--brand-primary)' }} />
-          <div>
-            <p className="text-sm font-black mb-1" style={{ color: 'var(--text-primary)' }}>
-              git commit → fleet fires automatically
-            </p>
-            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-              Install the post-commit hook and every commit publishes to <code
-                className="font-mono px-1 py-0.5 rounded"
-                style={{ background: 'var(--surface-base)', color: 'var(--brand-primary)' }}>
-                git:committed
-              </code>. QA, docs, and cartographer agents subscribe and run in parallel.
-            </p>
+            <Icon
+              size={18}
+              className={accentTone === 'blue'
+                ? 'text-[var(--brand-primary-foreground)]'
+                : accentTone === 'lime'
+                  ? 'text-[var(--brand-accent-foreground)]'
+                  : 'text-[var(--brand-primary)]'}
+            />
           </div>
-          <code className="text-xs font-black font-mono whitespace-nowrap px-3 py-1.5 rounded-lg"
-            style={{ background: 'var(--surface-base)', color: 'var(--brand-primary)', border: '1px solid var(--border-subtle)' }}>
-            pd fleet init
-          </code>
-        </Surface>
-      </div>
-    </section>
+
+          <PanelBody
+            tone={accentTone === 'paper' ? 'default' : accentTone === 'blue' ? 'primary' : 'accent'}
+            size="compact"
+            className="max-w-none"
+          >
+            {category.description}
+          </PanelBody>
+
+          <div className="mt-auto flex flex-wrap gap-[var(--space-2)] border-t-2 border-current/15 pt-[var(--space-3)]">
+            {toolPreview.map((tool) => (
+              <BracketLabel key={tool} tone={panelTone} surface={accentTone}>
+                {tool}
+              </BracketLabel>
+            ))}
+          </div>
+        </SurfacePanel>
+      </Link>
+    </motion.article>
   )
 }
 
-function RespawnSection() {
+function PromptCard({
+  prompt,
+}: {
+  prompt: (typeof operatorPrompts)[number]
+}) {
+  const panelTone =
+    prompt.tone === 'blue' ? 'primary' : prompt.tone === 'lime' ? 'accent' : 'default'
+
   return (
-    <section className="py-20 px-6 lg:px-12"
-      style={{ background: 'var(--surface-raised)' }}>
-      <div className="max-w-5xl mx-auto">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
-          <div>
-            <Badge variant="default" className="mb-4 px-5 py-2 text-[10px] font-black uppercase tracking-widest"
-              style={{ background: 'var(--surface-sunken)', color: 'var(--text-primary)' }}>
-              Auto-Respawn
-            </Badge>
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tighter mb-5"
-              style={{ color: 'var(--text-primary)' }}>
-              Background agents<br />
-              <span style={{ color: 'var(--brand-primary)' }}>that never die.</span>
-            </h2>
-            <p className="text-lg mb-6" style={{ color: 'var(--text-secondary)' }}>
-              Fleet agents with <code className="font-mono text-sm px-1.5 py-0.5 rounded"
-                style={{ background: 'var(--surface-sunken)', color: 'var(--brand-primary)' }}>
-                respawn: true
-              </code> automatically recover from crashes. Port Daddy subscribes to the resurrection
-              channel, claims the dead agent's salvage context, and re-launches with the same
-              identity.
-            </p>
-            <div className="space-y-3">
-              {[
-                'Crash detected via heartbeat gap',
-                'Session context preserved in salvage queue',
-                'Circuit breaker after max_respawns',
-                'New agent inherits dead agent\'s notes',
-              ].map((item, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <CheckCircle size={16} style={{ color: 'var(--brand-primary)' }} className="shrink-0" />
-                  <span className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>{item}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <CodeBlock language="yaml">{`# pd-fleet.yml
-fleet:
-  name: myapp
-  agents:
-    qa:
-      trigger: git:committed
-      backend: ollama
-      model: qwen2.5-coder:7b
-      respawn: true        # Auto-restart on death
-      max_respawns: 3      # Circuit breaker
-      prompt: |
-        Review the last commit. Find bugs.
-
-    spark:
-      schedule: "*/30 * * * *"
-      backend: codex
-      model: gpt-5.4-mini
-      respawn: true
-      prompt: |
-        Propose one codebase improvement.`}
-            </CodeBlock>
-
-            <Surface depth="inset" radius="xl" padding="none" className="p-4">
-              <p className="text-[10px] font-black uppercase tracking-widest mb-3"
-                style={{ color: 'var(--text-muted)' }}>
-                Respawn lifecycle
-              </p>
-              <div className="flex items-center gap-2 text-xs font-mono overflow-x-auto">
-                {['running', '→', 'crash', '→', 'salvage', '→', 'respawn', '→', 'running'].map((step, i) => (
-                  <span key={i}
-                    className="px-2 py-1 rounded-lg whitespace-nowrap"
-                    style={{
-                      background: step === '→' ? 'transparent' : 'var(--surface-raised)',
-                      color: step === 'running' ? 'var(--brand-primary)' :
-                        step === 'crash' ? 'var(--status-error)' :
-                          step === 'salvage' ? 'var(--brand-secondary)' :
-                            step === 'respawn' ? 'var(--status-warning)' :
-                              'var(--text-muted)',
-                      border: step === '→' ? 'none' : '1px solid var(--border-subtle)',
-                    }}>
-                    {step}
-                  </span>
-                ))}
-              </div>
-            </Surface>
-          </div>
-        </div>
+    <SurfacePanel tone={prompt.tone} className="flex h-full flex-col gap-[var(--panel-gap)]">
+      <div className="space-y-[var(--space-2)]">
+        <BracketLabel tone={panelTone} surface={prompt.tone} className="self-start">
+          {prompt.label}
+        </BracketLabel>
+        <PanelTitle as="h3" size="card" tone={panelTone} className="max-w-[14ch]">
+          {prompt.title}
+        </PanelTitle>
+        <PanelBody
+          tone={prompt.tone === 'paper' ? 'default' : prompt.tone === 'blue' ? 'primary' : 'accent'}
+          size="compact"
+          className="max-w-none"
+        >
+          {prompt.description}
+        </PanelBody>
       </div>
-    </section>
+
+      <TerminalSurface code={prompt.prompt} title="Ask in Claude Code" />
+
+      <div className="flex flex-wrap gap-[var(--space-2)]">
+        {prompt.modules.map((module) => (
+          <BracketLabel key={module} tone={panelTone} surface={prompt.tone}>
+            {module}
+          </BracketLabel>
+        ))}
+      </div>
+
+      <Link to={prompt.href} className="mt-auto inline-flex items-center gap-[var(--space-2)] no-underline">
+        <PanelEyebrow tone={panelTone}>{prompt.hrefLabel}</PanelEyebrow>
+        <ArrowRight
+          size={14}
+          className={prompt.tone === 'blue'
+            ? 'text-[var(--brand-primary-foreground)]'
+            : prompt.tone === 'lime'
+              ? 'text-[var(--brand-accent-foreground)]'
+              : 'text-[var(--brand-primary)]'}
+        />
+      </Link>
+    </SurfacePanel>
   )
 }
-
-function TupleSection() {
-  return (
-    <section className="py-20 px-6 lg:px-12">
-      <div className="max-w-5xl mx-auto">
-        <div className="grid lg:grid-cols-2 gap-12 items-start">
-          <div>
-            <Badge variant="teal" className="mb-4 px-5 py-2 text-[10px] font-black uppercase tracking-widest">
-              Tuple Space
-            </Badge>
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tighter mb-5"
-              style={{ color: 'var(--text-primary)' }}>
-              Shared memory<br />
-              <span style={{ color: 'var(--brand-primary)' }}>for swarms.</span>
-            </h2>
-            <p className="text-lg mb-4" style={{ color: 'var(--text-secondary)' }}>
-              Based on Linda (Gelernter, 1985). Agents write typed tuples to a shared space.
-              Other agents query by pattern. Harbor-scoped so your fleet's knowledge stays
-              isolated from other fleets.
-            </p>
-            <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
-              Spider writes connections. Spark reads high-confidence ones. QA writes bug
-              findings. You read them all. The tuple space is the swarm's working memory.
-            </p>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { op: 'tuple_out', desc: 'Write a tuple' },
-                { op: 'tuple_rd', desc: 'Read without removing' },
-                { op: 'tuple_in', desc: 'Take + remove' },
-                { op: 'tuple_scan', desc: 'List all tuples' },
-                { op: 'tuple_count', desc: 'Count by pattern' },
-                { op: 'pd tuple', desc: 'CLI access' },
-              ].map(item => (
-                <Surface key={item.op} depth="inset" radius="lg" padding="none"
-                  className="p-3 text-center">
-                  <code className="text-[11px] font-black font-mono block mb-1"
-                    style={{ color: 'var(--brand-primary)' }}>
-                    {item.op}
-                  </code>
-                  <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                    {item.desc}
-                  </span>
-                </Surface>
-              ))}
-            </div>
-          </div>
-          <CodeBlock language="typescript">{`// Spider (fleet agent) writes a discovery
-await tuple_out({
-  tuple: ["connection", "trie+pubsub=routing", "spider", 0.9],
-  harbor: "myapp:fleet"
-})
-
-// Spark reads connections with confidence > 0.7
-const finds = await tuple_rd({
-  pattern: ["connection", "*", "*", ">0.7"],
-  harbor: "myapp:fleet"
-})
-// → [["connection","trie+pubsub=routing","spider",0.9]]
-
-// QA claims and removes a pending task
-const task = await tuple_in({
-  pattern: ["task", "*", "pending"],
-  harbor: "myapp:fleet"
-})
-
-// CLI access
-// pd tuple out '["bug","null-deref","qa",0.95]'
-// pd tuple rd  '["bug","*","*",">0.8"]'
-// pd tuple scan --harbor myapp:fleet`}
-          </CodeBlock>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-function ProgressiveDisclosure() {
-  return (
-    <section className="py-20 px-6 lg:px-12"
-      style={{ background: 'var(--surface-sunken)' }}>
-      <div className="max-w-5xl mx-auto">
-        <div className="text-center mb-12">
-          <Badge variant="default" className="mb-4 px-5 py-2 text-[10px] font-black uppercase tracking-widest"
-            style={{ background: 'var(--surface-raised)', color: 'var(--text-primary)' }}>
-            Agent Experience
-          </Badge>
-          <h2 className="text-3xl sm:text-4xl font-black tracking-tighter mb-4"
-            style={{ color: 'var(--text-primary)' }}>
-            8 tools by default.<br />
-            <span style={{ color: 'var(--brand-primary)' }}>60+ when you need them.</span>
-          </h2>
-          <p className="text-lg max-w-2xl mx-auto" style={{ color: 'var(--text-secondary)' }}>
-            Agents shouldn't be overwhelmed by tool lists. Port Daddy exposes 8 essential tools
-            by default and lets agents unlock categories on demand.
-          </p>
-        </div>
-
-        <div className="grid lg:grid-cols-[1fr,auto,1fr] gap-8 items-start">
-          {/* Essential 8 */}
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-widest mb-4"
-              style={{ color: 'var(--text-muted)' }}>
-              Always loaded
-            </p>
-            <div className="space-y-2">
-              {ESSENTIAL_TOOLS.map(tool => (
-                <Surface key={tool.name} depth="raised" radius="xl" padding="none"
-                  className="p-4 flex items-start gap-3">
-                  <CheckCircle size={14} className="mt-0.5 shrink-0"
-                    style={{ color: 'var(--brand-primary)' }} />
-                  <div>
-                    <code className="text-sm font-black font-mono"
-                      style={{ color: 'var(--brand-primary)' }}>
-                      {tool.name}
-                    </code>
-                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                      {tool.desc}
-                    </p>
-                  </div>
-                </Surface>
-              ))}
-            </div>
-          </div>
-
-          {/* Arrow */}
-          <div className="hidden lg:flex flex-col items-center pt-16 gap-3">
-            <div className="w-px h-24" style={{ background: 'var(--border-subtle)' }} />
-            <Surface depth="raised" radius="xl" padding="none"
-              className="px-4 py-2 text-center">
-              <code className="text-xs font-black font-mono"
-                style={{ color: 'var(--brand-primary)' }}>
-                pd_discover
-              </code>
-            </Surface>
-            <ArrowRight size={20} style={{ color: 'var(--brand-primary)' }} />
-            <div className="w-px h-24" style={{ background: 'var(--border-subtle)' }} />
-          </div>
-
-          {/* Categories */}
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-widest mb-4"
-              style={{ color: 'var(--text-muted)' }}>
-              Unlocked on demand
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              {DISCOVER_CATEGORIES.map(cat => (
-                <Surface key={cat.id} depth="raised" radius="xl" padding="none"
-                  className="p-4 group transition-all">
-                  <div className="flex items-center gap-2 mb-1">
-                    <cat.icon size={14} style={{ color: 'var(--brand-primary)' }} className="opacity-60 group-hover:opacity-100 transition-opacity" />
-                    <span className="text-xs font-black"
-                      style={{ color: 'var(--text-primary)' }}>
-                      {cat.label}
-                    </span>
-                  </div>
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md"
-                    style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>
-                    {cat.count} tools
-                  </span>
-                </Surface>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-function InstallSection() {
-  return (
-    <section className="py-20 px-6 lg:px-12"
-      style={{ background: 'var(--surface-raised)' }}>
-      <div className="max-w-3xl mx-auto text-center">
-        <Badge variant="teal" className="mb-4 px-5 py-2 text-[10px] font-black uppercase tracking-widest">
-          Get Started
-        </Badge>
-        <h2 className="text-3xl sm:text-4xl font-black tracking-tighter mb-4"
-          style={{ color: 'var(--text-primary)' }}>
-          Three commands.
-        </h2>
-        <p className="text-lg mb-10" style={{ color: 'var(--text-secondary)' }}>
-          Install the daemon, wire up MCP, and start coordinating.
-        </p>
-
-        <div className="space-y-4">
-          {[
-            { step: '1', label: 'Install', cmd: 'brew install port-daddy  # or: npm install -g port-daddy', icon: Download },
-            { step: '2', label: 'Start + wire MCP', cmd: 'pd start && pd mcp install', icon: Terminal },
-            { step: '3', label: 'Initialize fleet (optional)', cmd: 'pd fleet init', icon: Cpu },
-          ].map(({ step, label, cmd, icon: Icon }) => (
-            <motion.div
-              key={step}
-              initial={{ opacity: 0, x: -16 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: Number(step) * 0.1 }}
-            >
-              <Surface depth="raised" radius="2xl" padding="none"
-                className="p-5 flex items-center gap-5">
-                <Surface depth="inset" radius="xl" padding="none"
-                  className="w-10 h-10 flex items-center justify-center shrink-0">
-                  <span className="text-base font-black" style={{ color: 'var(--brand-primary)' }}>
-                    {step}
-                  </span>
-                </Surface>
-                <div className="flex-1 text-left">
-                  <p className="text-xs font-black uppercase tracking-widest mb-1"
-                    style={{ color: 'var(--text-muted)' }}>
-                    {label}
-                  </p>
-                  <code className="text-sm font-mono font-black"
-                    style={{ color: 'var(--text-primary)' }}>
-                    $ {cmd}
-                  </code>
-                </div>
-                <Icon size={18} style={{ color: 'var(--brand-primary)' }} className="shrink-0 opacity-40" />
-              </Surface>
-            </motion.div>
-          ))}
-        </div>
-
-        <p className="mt-8 text-xs" style={{ color: 'var(--text-muted)' }}>
-          Supports Claude Code, Cursor, and Continue.dev.
-          Works on macOS and Linux. Node 18+ required.
-        </p>
-      </div>
-    </section>
-  )
-}
-
-/* -------------------------------------------------------------------------- */
-/*  Page                                                                        */
-/* -------------------------------------------------------------------------- */
 
 export default function McpPage() {
-  const { scrollYProgress } = useScroll()
-  const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 })
-
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen flex flex-col pt-[var(--nav-height)] font-sans"
+      className="flex min-h-screen flex-col"
       style={{ background: 'var(--surface-base)' }}
     >
-      {/* Progress bar */}
-      <motion.div
-        className="fixed top-0 left-0 right-0 h-[3px] z-[100] origin-left"
-        style={{ scaleX, top: 'var(--nav-height)', background: 'var(--brand-primary)' }}
-      />
-
-      {/* ------------------------------------------------------------------ */}
-      {/* Hero                                                                 */}
-      {/* ------------------------------------------------------------------ */}
-      <section className="relative py-20 sm:py-28 px-6 lg:px-12 overflow-hidden">
-        {/* Background glow */}
-        <div className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full blur-[120px] opacity-[0.06] pointer-events-none"
-          style={{ background: 'radial-gradient(circle, var(--brand-primary), transparent 70%)' }} />
-
-        <div className="max-w-4xl mx-auto text-center relative z-10">
-          <Badge variant="teal" className="mb-6 px-6 py-2.5 text-[10px] font-black uppercase tracking-[0.3em]">
-            Model Context Protocol
-          </Badge>
-
-          <motion.h1
-            className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tighter leading-[0.9] mb-6"
-            style={{ color: 'var(--text-primary)' }}
-            initial={{ opacity: 0, y: 32 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+      <main className="flex-1">
+        <section className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+          <PageContainer
+            width="wide"
+            className="grid gap-[var(--space-6)] xl:grid-cols-[minmax(0,1.02fr)_minmax(26rem,0.98fr)] xl:items-start"
           >
-            One handshake.
-            <br />
-            <span style={{ color: 'var(--brand-primary)' }}>Infinite coordination.</span>
-          </motion.h1>
+            <div className="space-y-[var(--space-5)]">
+              <BracketLabel>MCP operator surface</BracketLabel>
 
-          <motion.p
-            className="text-xl sm:text-2xl max-w-3xl mx-auto leading-relaxed mb-10"
-            style={{ color: 'var(--text-secondary)' }}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.1 }}
-          >
-            One install gives your AI agents 60+ production-grade coordination tools —
-            background fleets, auto-respawn, shared memory, and real-time pub/sub.
-            Works with every LLM.
-          </motion.p>
-
-          <motion.div
-            className="inline-flex flex-col sm:flex-row items-center gap-4"
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-          >
-            <Surface depth="raised" radius="2xl" padding="none"
-              className="flex items-center gap-4 px-8 py-5 group">
-              <Terminal size={24} style={{ color: 'var(--brand-primary)' }} />
-              <code className="text-xl font-black font-mono"
-                style={{ color: 'var(--text-primary)' }}>
-                pd mcp install
-              </code>
-              <span className="hidden sm:block text-xs font-black uppercase tracking-widest"
-                style={{ color: 'var(--text-muted)' }}>
-                One command
-              </span>
-            </Surface>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* LLM compatibility strip */}
-      <LLMStrip />
-
-      {/* ------------------------------------------------------------------ */}
-      {/* Magic Tools                                                          */}
-      {/* ------------------------------------------------------------------ */}
-      <section className="py-20 px-6 lg:px-12">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <Badge variant="default" className="mb-4 px-5 py-2 text-[10px] font-black uppercase tracking-widest"
-              style={{ background: 'var(--surface-raised)', color: 'var(--text-primary)' }}>
-              Magic Tools
-            </Badge>
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tighter mb-4"
-              style={{ color: 'var(--text-primary)' }}>
-              High-level primitives<br />
-              <span style={{ color: 'var(--brand-primary)' }}>for vibe coders.</span>
-            </h2>
-            <p className="text-lg max-w-2xl mx-auto" style={{ color: 'var(--text-secondary)' }}>
-              These tools do a lot in one call. You don't need to know the internals —
-              just call the right magic tool and Port Daddy handles the orchestration.
-            </p>
-          </div>
-
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {MAGIC_TOOLS.map((tool, i) => (
-              <MagicToolCard key={tool.name} tool={tool} index={i} />
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Pub/Sub section */}
-      <PubSubSection />
-
-      {/* Auto-respawn section */}
-      <RespawnSection />
-
-      {/* Tuple space section */}
-      <TupleSection />
-
-      {/* Progressive disclosure */}
-      <ProgressiveDisclosure />
-
-      {/* Install */}
-      <InstallSection />
-
-      {/* Final CTA */}
-      <section className="py-20 px-6 lg:px-12">
-        <div className="max-w-3xl mx-auto">
-          <Surface depth="raised" radius="2xl" padding="none"
-            className="p-10 text-center overflow-hidden relative">
-            <div className="absolute top-0 right-0 opacity-[0.03] pointer-events-none">
-              <MessageSquare size={400} />
-            </div>
-            <div className="relative z-10">
-              <h2 className="text-3xl sm:text-4xl font-black tracking-tighter mb-4"
-                style={{ color: 'var(--text-primary)' }}>
-                Your agents are ready.
-              </h2>
-              <p className="text-lg mb-8" style={{ color: 'var(--text-secondary)' }}>
-                Schedule background agents for anything. Auto-respawn on crash.
-                Leave notes that survive context resets. Works with every LLM.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                <Surface depth="raised" radius="xl" padding="none"
-                  className="flex items-center gap-3 px-6 py-3">
-                  <code className="text-base font-black font-mono"
-                    style={{ color: 'var(--brand-primary)' }}>
-                    brew install port-daddy
-                  </code>
-                </Surface>
-                <a
-                  href="/docs/mcp"
-                  className="flex items-center gap-2 text-sm font-black no-underline"
-                  style={{ color: 'var(--text-muted)' }}
-                >
-                  Read the MCP docs
-                  <ArrowRight size={14} />
-                </a>
+              <div className="space-y-[var(--space-3)]">
+                <PanelTitle as="h1" size="hero" className="max-w-[8ch]">
+                  Install once. Wire every agent.
+                </PanelTitle>
+                <div className="inline-flex border-2 border-[var(--border-strong)] bg-[var(--brand-primary)] px-[var(--space-3)] py-[var(--space-2)]">
+                  <PanelTitle as="p" size="section" tone="primary" className="max-w-none">
+                    One daemon. Shared tools. Real operator flow.
+                  </PanelTitle>
+                </div>
               </div>
+
+              <PanelBody className="max-w-[46rem]">
+                The MCP page should teach the actual sequence: install Port Daddy, start the
+                daemon, let it configure your editors, then move into ports, sessions, notes,
+                locks, and fleets. No fake RPC theater, no made-up dashboard syntax.
+              </PanelBody>
+
+              <LandingStatsStrip stats={heroStats} />
             </div>
-          </Surface>
-        </div>
-      </section>
+
+            <div className="grid gap-[var(--space-4)] md:grid-cols-2">
+              {setupCards.map((card) => (
+                <SetupCard key={card.title} card={card} />
+              ))}
+            </div>
+          </PageContainer>
+        </section>
+
+        <section className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+          <PageContainer width="wide" className="space-y-[var(--space-6)]">
+            <div className="max-w-[46rem] space-y-[var(--space-3)]">
+              <BracketLabel>Discoverable modules</BracketLabel>
+              <PanelTitle as="h2" size="display" className="max-w-[12ch]">
+                Start small. Open more only when the repo needs it.
+              </PanelTitle>
+              <PanelBody className="max-w-[44rem]">
+                Port Daddy should not dump the entire tool catalog into every client session. It
+                loads the operator basics first, then the rest becomes discoverable through
+                category-specific docs and tool families.
+              </PanelBody>
+            </div>
+
+            <div className="grid gap-[var(--space-4)] xl:grid-cols-[minmax(0,1.06fr)_minmax(0,0.94fr)]">
+              <SurfacePanel tone="blue" className="space-y-[var(--panel-gap)]">
+                <BracketLabel tone="primary" surface="blue" className="self-start">
+                  Loaded first
+                </BracketLabel>
+                <PanelTitle as="h3" size="card" tone="primary" className="max-w-[13ch]">
+                  Eight tools cover the operator basics before discovery expands the surface.
+                </PanelTitle>
+                <PanelBody tone="primary" size="compact" className="max-w-none">
+                  Sessions, notes, ports, locks, salvage, and first-contact awareness belong in
+                  the initial working set. Everything else should feel unlockable, not dumped.
+                </PanelBody>
+                <div className="grid gap-[var(--space-1)]">
+                  {ESSENTIAL_TOOLS.map((tool, index) => (
+                    <EssentialToolRow
+                      key={tool.name}
+                      name={tool.name}
+                      description={tool.description}
+                      index={index}
+                    />
+                  ))}
+                </div>
+              </SurfacePanel>
+
+              <SurfacePanel tone="lime" className="space-y-[var(--panel-gap)]">
+                <BracketLabel tone="accent" surface="lime" className="self-start">
+                  Operator rule
+                </BracketLabel>
+                <PanelTitle as="h3" size="card" tone="accent" className="max-w-[13ch]">
+                  Categories should open documentation, not sit there as dead decorative boxes.
+                </PanelTitle>
+                <PanelBody tone="accent" size="compact" className="max-w-none">
+                  Each family below is clickable. The public site should make the surface legible
+                  and explorable without inventing fake wire formats or pseudo-client syntax.
+                </PanelBody>
+                <div className="grid gap-[var(--space-3)] sm:grid-cols-2">
+                  <TerminalSurface
+                    title="Install flow"
+                    code={'Install Port Daddy.\nStart the daemon.\nRun pd mcp install.\nThen browse the tool families below.'}
+                  />
+                  <TerminalSurface
+                    title="Public promise"
+                    code={'Real docs links.\nReal tool names.\nNo fake telemetry.\nNo pretend MCP call syntax.'}
+                  />
+                </div>
+              </SurfacePanel>
+            </div>
+
+            <div className="grid gap-[var(--space-4)] md:grid-cols-2 xl:grid-cols-4">
+              {ALL_CATEGORIES.map((category, index) => (
+                <CategoryCard key={category.id} category={category} index={index} />
+              ))}
+            </div>
+          </PageContainer>
+        </section>
+
+        <section className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+          <PageContainer width="wide" className="space-y-[var(--space-6)]">
+            <div className="max-w-[44rem] space-y-[var(--space-3)]">
+              <BracketLabel>Prompt patterns</BracketLabel>
+              <PanelTitle as="h2" size="display" className="max-w-[14ch]">
+                What you actually ask the MCP to do.
+              </PanelTitle>
+              <PanelBody className="max-w-[44rem]">
+                These are operator prompts, not pretend SDK calls. They match how MCP-equipped
+                clients are actually used in Claude Code, Cursor, and similar environments.
+              </PanelBody>
+            </div>
+
+            <div className="grid gap-[var(--space-4)] xl:grid-cols-2">
+              {operatorPrompts.map((prompt) => (
+                <PromptCard key={prompt.title} prompt={prompt} />
+              ))}
+            </div>
+          </PageContainer>
+        </section>
+
+        <section className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+          <PageContainer width="wide" className="grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+            <div className="space-y-[var(--space-3)]">
+              <BracketLabel>Next move</BracketLabel>
+              <PanelTitle as="h2" size="display" className="max-w-[13ch]">
+                Install the server. Open the docs. Use the real thing.
+              </PanelTitle>
+              <PanelBody className="max-w-[42rem]">
+                The public page should get operators to the live surface fast: install, wire MCP,
+                inspect the module docs, and move into tutorials or fleet setup only when the
+                local control plane is already real.
+              </PanelBody>
+            </div>
+
+            <div className="flex flex-wrap gap-[var(--space-3)]">
+              <Link to="/docs/cli/mcp-install" className="no-underline">
+                <SurfacePanel tone="blue" padding="compact" className="min-w-[15rem]">
+                  <BracketLabel tone="primary" surface="blue">
+                    CLI
+                  </BracketLabel>
+                  <PanelTitle as="p" size="nav" tone="primary" className="mt-[var(--space-2)] max-w-none">
+                    Open MCP install docs
+                  </PanelTitle>
+                </SurfacePanel>
+              </Link>
+
+              <Link to="/docs/mcp" className="no-underline">
+                <SurfacePanel tone="paper" padding="compact" className="min-w-[15rem]">
+                  <BracketLabel>Reference</BracketLabel>
+                  <PanelTitle as="p" size="nav" className="mt-[var(--space-2)] max-w-none">
+                    Browse all MCP docs
+                  </PanelTitle>
+                </SurfacePanel>
+              </Link>
+            </div>
+          </PageContainer>
+        </section>
+      </main>
 
       <Footer />
     </motion.div>

@@ -1,9 +1,11 @@
-import { motion } from 'framer-motion'
 import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
-import { CodeBlock } from '@/components/ui/CodeBlock'
-import { Badge } from '@/components/ui/Badge'
-import { Surface } from '@/components/ui/Surface'
-import { Terminal, Users, Cpu, Globe } from 'lucide-react'
+import {
+  BracketLink,
+  CommandBlock,
+  DocsCodeBlock,
+  DocsNoteCard,
+  PanelBody,
+} from '@/components/site/primitives'
 
 export function GettingStarted() {
   return (
@@ -11,78 +13,75 @@ export function GettingStarted() {
       title="Getting Started"
       description="Install Port Daddy, start the daemon, and see how two AI agents coordinate on the same project without stepping on each other."
       number={1}
-      total={16}
+      total={19}
       level="Beginner"
       readTime="10 min read"
       next={{ title: 'Multi-Agent Orchestration', href: '/tutorials/multi-agent' }}
     >
-      <motion.div className="space-y-16">
-        {/* What is Port Daddy */}
-        <section className="space-y-6">
-          <motion.div className="flex items-center gap-4 mb-4">
-            <motion.div className="w-12 h-12 rounded-2xl bg-[var(--interactive-active)] flex items-center justify-center border border-[var(--border-subtle)]">
-              <Users className="text-[var(--brand-primary)]" size={24} />
-            </motion.div>
-            <motion.h2 className="m-0">What is Port Daddy?</motion.h2>
-          </motion.div>
-          <motion.p>
-            You've built an agent. It works. But then you build a second one. Suddenly, you're managing port conflicts, broken DNS, and manual environment variables.
-            <strong> Port Daddy was built to solve the "Second Agent Problem."</strong>
-          </motion.p>
-          <motion.p>
-            Port Daddy is a local daemon that solves this. It runs on <code>localhost:9876</code> and provides the low-level coordination primitives that your agents need: <strong>port assignment</strong> so services never collide, <strong>file claims</strong> so agents know who is working on what, <strong>pub/sub messaging</strong> so agents can signal each other, and <strong>session notes</strong> so context survives agent crashes.
-          </motion.p>
-          <motion.p>
-            Port Daddy is not a high-level orchestration framework like CrewAI or LangGraph. It is the coordination kernel that sits underneath whatever agent framework you use. Think of it as the operating system for your agent swarm.
-          </motion.p>
-        </section>
+      <section>
+        <h2>What is Port Daddy?</h2>
+        <p>
+          You built one agent and it worked. Then you built a second one and the coordination debt
+          showed up immediately: port collisions, broken DNS assumptions, and shell conventions that
+          no longer scale.
+        </p>
+        <p>
+          <strong>Port Daddy solves the second-agent problem.</strong> It runs as a local daemon and
+          provides the shared coordination primitives your agents need: deterministic port assignment,
+          file claims, pub/sub messaging, session notes, and salvage when an agent dies mid-task.
+        </p>
+        <p>
+          Port Daddy is not the orchestration framework itself. It is the local control plane that
+          sits underneath whatever agent framework or runtime you already use.
+        </p>
+      </section>
 
-        {/* Installation */}
-        <section className="space-y-8">
-          <motion.div className="flex items-center gap-4">
-            <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
-              <Terminal className="text-[var(--brand-primary)]" size={24} />
-            </Surface>
-            <motion.h2 className="m-0">1. Install</motion.h2>
-          </motion.div>
+      <section>
+        <h2>1. Install</h2>
 
-          <div className="space-y-4">
-            <Surface depth="raised" radius="2xl" className="p-6 space-y-3">
-              <Badge variant="teal">npm (recommended)</Badge>
-              <CodeBlock language="bash">{`npm install -g port-daddy`}</CodeBlock>
-            </Surface>
-            <Surface depth="raised" radius="2xl" className="p-6 space-y-3">
-              <Badge variant="default">From source</Badge>
-              <CodeBlock language="bash">{`git clone https://github.com/curiositech/port-daddy.git
+        <div className="not-prose grid gap-[var(--space-4)] md:grid-cols-2">
+          <CommandBlock
+            title="npm"
+            label="Recommended"
+            command="npm install -g port-daddy"
+            tone="paper"
+            description="Use the package manager path when you want the fastest local install."
+          />
+
+          <CommandBlock
+            title="from source"
+            label="Source"
+            command={`git clone https://github.com/curiositech/port-daddy.git
 cd port-daddy
 npm install
-npm link`}</CodeBlock>
-            </Surface>
-          </div>
+npm link`}
+            tone="paper"
+            description="Use the source path when you need to hack on the daemon or CLI directly."
+          />
+        </div>
 
-          <Surface depth="raised" radius="2xl" className="p-8 space-y-4">
-            <Badge variant="default">Verification</Badge>
-            <CodeBlock language="bash">{`pd start`}</CodeBlock>
-            <motion.p className="text-sm mb-0" style={{ color: 'var(--text-muted)' }}>
-              The daemon is now listening on <code>localhost:9876</code>. It is your swarm's lighthouse.
-            </motion.p>
-          </Surface>
-        </section>
+        <div className="not-prose mt-[var(--space-4)]">
+          <DocsNoteCard label="Verification" title="Start the daemon" titleSize="nav">
+            <DocsCodeBlock code="pd start" language="cli" label="Start daemon" />
+            <PanelBody size="compact" className="max-w-none">
+              The daemon now listens on <code>localhost:9876</code> and becomes the local control
+              authority for your agents.
+            </PanelBody>
+          </DocsNoteCard>
+        </div>
+      </section>
 
-        {/* Semantic Tokens */}
-        <section className="space-y-8">
-          <motion.div className="flex items-center gap-4">
-            <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
-              <Cpu className="text-[var(--brand-accent)]" size={24} />
-            </Surface>
-            <motion.h2 className="m-0">2. Claim Your Identity</motion.h2>
-          </motion.div>
+      <div className="grid gap-[var(--space-6)] xl:grid-cols-2 xl:items-start">
+        <section>
+          <h2>2. Claim Your Identity</h2>
+          <p>
+            Stop thinking in raw port numbers. Name services as <code>project:stack:context</code> and
+            let the daemon assign the same port every time.
+          </p>
 
-          <motion.p>
-            Forget port numbers. Name your services with <code>project:stack:context</code>. Port Daddy assigns the same port every time — the name IS the port.
-          </motion.p>
-
-          <CodeBlock language="bash">{`$ pd claim myapp:api:main
+          <div className="not-prose">
+            <DocsCodeBlock
+              code={`$ pd claim myapp:api:main
   Port 3100 assigned to myapp:api:main
 
 $ pd claim myapp:frontend:main
@@ -90,27 +89,29 @@ $ pd claim myapp:frontend:main
 
 $ pd find 'myapp:*'
   myapp:api:main       → localhost:3100
-  myapp:frontend:main  → localhost:3101`}</CodeBlock>
+  myapp:frontend:main  → localhost:3101`}
+              language="cli"
+              label="Semantic identity"
+            />
+          </div>
 
-          <motion.p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-            The three segments — <strong>project</strong>, <strong>stack</strong>, <strong>context</strong> — let you query across services with wildcards. <code>pd find &apos;myapp:*&apos;</code> returns everything in the project. <code>pd find &apos;*:api:*&apos;</code> returns every API across all projects.
-          </motion.p>
+          <p>
+            The segments let you query by project, stack, or context. <code>pd find &apos;myapp:*&apos;</code>
+            returns everything in the project. <code>pd find &apos;*:api:*&apos;</code> returns every
+            API across projects.
+          </p>
         </section>
 
-        {/* Start a Session */}
-        <section className="space-y-6">
-          <motion.div className="flex items-center gap-4">
-            <Surface depth="inset" radius="2xl" padding="none" className="w-12 h-12 flex items-center justify-center">
-              <Globe className="text-[var(--brand-secondary)]" size={24} />
-            </Surface>
-            <motion.h2 className="m-0">3. Start a Session</motion.h2>
-          </motion.div>
+        <section>
+          <h2>3. Start a Session</h2>
+          <p>
+            Sessions track what each agent is doing. They preserve notes, claims, and timestamps so
+            another agent can recover the work if the first one crashes.
+          </p>
 
-          <motion.p>
-            Sessions track what each agent is doing. They hold notes, file claims, and timestamps — everything needed to recover if an agent crashes.
-          </motion.p>
-
-          <CodeBlock language="bash">{`$ pd begin --identity myapp:api --purpose "Building auth endpoints"
+          <div className="not-prose">
+            <DocsCodeBlock
+              code={`$ pd begin --identity myapp:api --purpose "Building auth endpoints"
   Session started: session-a1b2c3d4
   Agent registered with heartbeat
 
@@ -118,23 +119,32 @@ $ pd note "Implementing JWT validation for /login"
   Note added to session
 
 $ pd done
-  Session completed. Notes preserved.`}</CodeBlock>
+  Session completed. Notes preserved.`}
+              language="cli"
+              label="Session lifecycle"
+            />
+          </div>
 
-          <motion.p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-            If an agent crashes instead of calling <code>pd done</code>, its session enters the salvage queue. Another agent can pick up the work with <code>pd salvage claim</code>.
-          </motion.p>
+          <p>
+            If an agent dies instead of calling <code>pd done</code>, the session moves into salvage.
+            Another agent can continue the same thread with <code>pd salvage claim</code>.
+          </p>
         </section>
+      </div>
 
-        {/* What's Next */}
-        <section className="space-y-4">
-          <motion.h2 className="m-0">What&apos;s Next</motion.h2>
-          <motion.ul className="space-y-2" style={{ color: 'var(--text-secondary)' }}>
-            <motion.li><a href="/tutorials/semantic-identities" style={{ color: 'var(--brand-primary)' }}>Semantic Identities</a> — deep dive into the naming system and wildcard queries</motion.li>
-            <motion.li><a href="/tutorials/multi-agent" style={{ color: 'var(--brand-primary)' }}>Multi-Agent Orchestration</a> — coordinate two agents on the same project</motion.li>
-            <motion.li><a href="/tutorials/fleet" style={{ color: 'var(--brand-primary)' }}>Fleet Agents</a> — background agents that fire on every commit</motion.li>
-          </motion.ul>
-        </section>
-      </motion.div>
+      <section>
+        <h2>What&apos;s Next</h2>
+        <p>
+          Keep moving through the coordination model instead of treating this lesson as a one-off
+          install checklist.
+        </p>
+
+        <div className="not-prose flex flex-wrap gap-[var(--space-3)]">
+          <BracketLink to="/tutorials/dns">DNS Resolver</BracketLink>
+          <BracketLink to="/tutorials/multi-agent">Multi-Agent Orchestration</BracketLink>
+          <BracketLink to="/tutorials/fleet">Fleet Agents</BracketLink>
+        </div>
+      </section>
     </TutorialLayout>
   )
 }

@@ -25,6 +25,8 @@ tags:
     description: Session lifecycle, notes, and file claims
   - name: agents
     description: Agent registry, heartbeats, and inbox
+  - name: actors
+    description: Durable maritime actor projections and live body/fleet compatibility status
   - name: locks
     description: Distributed locking with TTL and ownership
   - name: messaging
@@ -1449,6 +1451,66 @@ paths:
   # ===========================================================================
   # AGENTS
   # ===========================================================================
+  /actors:
+    get:
+      tags: [actors]
+      summary: List maritime actors
+      description: >
+        Returns Port Daddy's canonical maritime actor roster with any live body
+        or compatibility fleet status that can be projected from current daemon
+        state. This is the first additive actor-soul read surface; `/agents`
+        remains the live body compatibility view.
+      operationId: listActors
+      responses:
+        '200':
+          description: Maritime actors
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  actors:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MaritimeActor'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /actors/{id}:
+    get:
+      tags: [actors]
+      summary: Get a maritime actor
+      description: >
+        Returns one maritime actor by canonical name, identity, or compatibility
+        legacy name. For example, `cartographer` currently resolves to
+        `navigator`.
+      operationId: getActor
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Actor id, name, identity, or legacy compatibility name
+      responses:
+        '200':
+          description: Maritime actor
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  actor:
+                    $ref: '#/components/schemas/MaritimeActor'
+        '404':
+          description: Actor not found
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /agents:
     post:
       tags: [agents]
@@ -4662,6 +4724,81 @@ components:
           type: string
         createdAt:
           type: string
+
+    MaritimeActor:
+      type: object
+      properties:
+        id:
+          type: string
+          enum: [navigator, coxswain, signalman, harbormaster, sounder, lookout, breaker, caulker, quartermaster]
+        name:
+          type: string
+        identity:
+          type: string
+          description: Durable actor identity
+        mission:
+          type: string
+        responsibilities:
+          type: array
+          items:
+            type: string
+        eventSources:
+          type: array
+          items:
+            type: string
+        outputs:
+          type: array
+          items:
+            type: string
+        compatibility:
+          type: object
+          properties:
+            fleetAgent:
+              type: string
+              nullable: true
+            legacyNames:
+              type: array
+              items:
+                type: string
+        body:
+          type: object
+          properties:
+            state:
+              type: string
+              enum: [attached, detached, stale, dead]
+            liveAgentId:
+              type: string
+              nullable: true
+            liveness:
+              type: string
+              enum: [alive, stale, dead]
+              nullable: true
+            lastHeartbeat:
+              type: integer
+              nullable: true
+        fleet:
+          type: object
+          properties:
+            configured:
+              type: boolean
+            project:
+              type: string
+              nullable: true
+            projectDir:
+              type: string
+              nullable: true
+            agent:
+              type: string
+              nullable: true
+            status:
+              type: string
+              nullable: true
+            running:
+              type: boolean
+              nullable: true
+            paused:
+              type: boolean
+              nullable: true
 
     StaleAgent:
       type: object

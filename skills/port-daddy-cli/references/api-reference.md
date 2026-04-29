@@ -219,6 +219,23 @@ List all locks. Optional query param: `owner`.
 
 ## Agents (Registry)
 
+Compatibility note: this v3.8.4 surface is the live agent/body registry. The
+actor-model target in `docs/adr/0022-durable-actor-souls-and-body-leases.md`
+splits durable actor souls from ephemeral body leases. `/actors` now exposes the
+first maritime actor projection surface; `/agents` remains the live-body view
+while callers migrate.
+
+### GET /actors
+List canonical maritime actors with projected live-body and compatibility fleet
+status.
+
+Current roster: `navigator`, `coxswain`, `signalman`, `harbormaster`,
+`sounder`, `lookout`, `breaker`, `caulker`, `quartermaster`.
+
+### GET /actors/:id
+Get one maritime actor by canonical id, identity, or compatibility legacy name.
+For example, `cartographer` resolves to `navigator`.
+
 ### POST /agents
 Register an agent.
 
@@ -241,7 +258,9 @@ Response includes `salvageHint` if dead agents exist in the same project.
 Send a heartbeat to keep registration alive.
 
 ### DELETE /agents/:id
-Unregister an agent.
+Unregister an agent in the current compatibility model. Do not treat this as
+the desired long-term deletion of actor history; future lifecycle cleanup should
+detach or revoke a body lease.
 
 ### GET /agents/:id
 Get info about an agent.
@@ -251,6 +270,9 @@ List all agents. Optional query param: `active=true`.
 
 ### POST /agents/:id/inbox
 Send a message to an agent's inbox. Body: `{ content, from?, type? }`.
+Current storage is keyed by agent id and can queue messages even when no live
+registry row exists; future docs should describe this as actor-scoped mailbox
+delivery with wake status reported separately.
 
 ### GET /agents/:id/inbox
 Read inbox messages. Query: `?unread=true&limit=50`.

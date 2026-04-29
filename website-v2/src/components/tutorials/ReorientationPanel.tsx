@@ -1,6 +1,8 @@
 import * as React from 'react'
 import { Link } from 'react-router-dom'
-import { X, RotateCcw, Play, Map } from 'lucide-react'
+import { Map, Play, RotateCcw, X } from 'lucide-react'
+import { Button } from '@/components/ui/Button'
+import { PanelBody, PanelEyebrow, PanelTitle, SurfacePanel } from '@/components/site/primitives'
 
 interface ReorientationPanelProps {
   tutorialNumber: number
@@ -8,70 +10,80 @@ interface ReorientationPanelProps {
   onDismiss: () => void
 }
 
-export function ReorientationPanel({ tutorialNumber, tutorialTitle, onDismiss }: ReorientationPanelProps) {
+export function ReorientationPanel({
+  tutorialNumber,
+  tutorialTitle,
+  onDismiss,
+}: ReorientationPanelProps) {
   const [dismissed, setDismissed] = React.useState(false)
-  
+
   if (dismissed) return null
-  
+
   return (
-    <div className="mb-8 p-4 rounded-xl bg-[var(--brand-primary)]/10 border border-[var(--brand-primary)]/30">
-      <div className="flex items-start gap-4">
-        <div className="w-10 h-10 rounded-lg bg-[var(--brand-primary)]/20 flex items-center justify-center shrink-0">
-          <RotateCcw size={20} className="text-[var(--brand-primary)]" />
-        </div>
-        
-        <div className="flex-1">
-          <div className="flex items-center justify-between mb-1">
-            <h3 className="font-semibold text-[var(--text-primary)]">
-              Welcome back!
-            </h3>
-            <button
-              onClick={() => {
-                setDismissed(true)
-                onDismiss()
-              }}
-              className="p-1 rounded hover:bg-[var(--interactive-hover)] text-[var(--text-muted)]"
-              aria-label="Dismiss"
-            >
-              <X size={16} />
-            </button>
+    <SurfacePanel padding="compact" className="mb-[var(--space-4)] max-w-[52rem] space-y-[var(--space-3)]">
+      <div className="flex items-start justify-between gap-[var(--space-3)]">
+        <div className="flex items-start gap-[var(--space-3)]">
+          <div className="flex h-9 w-9 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--brand-primary)]">
+            <RotateCcw size={16} />
           </div>
-          
-          <p className="text-sm text-[var(--text-secondary)] mb-3">
-            You were reading <strong className="text-[var(--text-primary)]">{tutorialTitle}</strong> (Lesson {tutorialNumber} of 16)
-          </p>
-          
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => {
-                setDismissed(true)
-                onDismiss()
-                // Scroll to where they left off (or top if first visit)
-                const savedPosition = localStorage.getItem(`pd-tutorial-${tutorialNumber}-scroll`)
-                if (savedPosition) {
-                  window.scrollTo({ top: parseInt(savedPosition), behavior: 'smooth' })
-                }
-              }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--brand-primary)] text-[var(--text-inverse)] text-sm font-medium hover:bg-[var(--brand-primary)] transition-colors"
-            >
-              <Play size={14} />
-              Continue where I left off
-            </button>
-            
-            <Link
-              to="/tutorials"
-              onClick={() => {
-                setDismissed(true)
-                onDismiss()
-              }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--surface-raised)] text-[var(--text-secondary)] text-sm font-medium hover:bg-[var(--interactive-hover)] transition-colors"
-            >
-              <Map size={14} />
-              Browse all tutorials
-            </Link>
+          <div className="space-y-[var(--space-1)]">
+            <PanelEyebrow>Welcome back</PanelEyebrow>
+            <PanelTitle as="h3" size="nav" className="max-w-none">
+              Resume lesson {tutorialNumber}
+            </PanelTitle>
           </div>
         </div>
+
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => {
+            setDismissed(true)
+            onDismiss()
+          }}
+          aria-label="Dismiss"
+        >
+          <X size={16} />
+        </Button>
       </div>
-    </div>
+
+      <PanelBody size="compact" className="max-w-[40rem]">
+        You were reading <strong>{tutorialTitle}</strong> and can continue from your saved position
+        or jump back to the tutorial index.
+      </PanelBody>
+
+      <div className="flex flex-wrap items-center gap-[var(--space-3)]">
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={() => {
+            setDismissed(true)
+            onDismiss()
+            const savedPosition = localStorage.getItem(`pd-tutorial-${tutorialNumber}-scroll`)
+            if (savedPosition) {
+              window.scrollTo({ top: Number.parseInt(savedPosition, 10), behavior: 'smooth' })
+            }
+          }}
+        >
+          <Play size={14} />
+          Continue
+        </Button>
+
+        <Button asChild variant="ghost" size="sm">
+          <Link
+            to="/tutorials"
+            onClick={() => {
+              setDismissed(true)
+              onDismiss()
+            }}
+          >
+            <Map size={14} />
+            Browse lessons
+          </Link>
+        </Button>
+      </div>
+    </SurfacePanel>
   )
 }
