@@ -43,6 +43,7 @@ export interface IpcRouterDeps {
     remove: (id: string) => unknown;
     list: (options?: Record<string, unknown>) => unknown;
     addNote: (sessionId: string, content: string, options?: Record<string, unknown>) => unknown;
+    quickNote?: (content: string, options?: Record<string, unknown>) => unknown;
     claimFiles: (sessionId: string, paths: string[], options?: Record<string, unknown>) => unknown;
     releaseFiles: (sessionId: string, paths: string[], options?: Record<string, unknown>) => unknown;
   };
@@ -187,12 +188,31 @@ export function createIpcRouter(deps: IpcRouterDeps) {
     return deps.sugar?.whoami(p) ?? { success: false, error: 'sugar_not_available' };
   });
 
-  handlers.set(IpcAction.NOTE, (p) => {
-    return deps.sessions.addNote(
-      String(p.sessionId),
-      String(p.content),
-      p,
-    );
+  handlers.set(IpcAction.NOTE, (p, conn) => {
+    const sessionId = typeof p.sessionId === 'string' && p.sessionId.trim()
+      ? p.sessionId.trim()
+      : null;
+    const agentId = typeof p.agentId === 'string' && p.agentId.trim()
+      ? p.agentId.trim()
+      : (conn.agentId || null);
+
+    if (deps.sessions.quickNote) {
+      return deps.sessions.quickNote(String(p.content ?? ''), {
+        ...p,
+        sessionId,
+        agentId,
+      });
+    }
+
+    if (!sessionId) {
+      return {
+        success: false,
+        error: 'no active session found; run pd begin or pass --session/--agent',
+        code: 'NO_ACTIVE_SESSION_SCOPE',
+      };
+    }
+
+    return deps.sessions.addNote(sessionId, String(p.content ?? ''), { ...p, agentId });
   });
 
   handlers.set(IpcAction.FILES_CLAIM, (p) => {

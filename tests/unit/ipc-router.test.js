@@ -25,6 +25,7 @@ function createMockDeps() {
       remove: jest.fn((id) => ({ success: true, id, removed: true })),
       list: jest.fn((opts) => ({ success: true, sessions: [], count: 0, ...opts })),
       addNote: jest.fn((sid, content) => ({ sessionId: sid, content, added: true })),
+      quickNote: jest.fn((content, opts) => ({ success: true, sessionId: opts?.sessionId || 'sess-quick', agentId: opts?.agentId, content, added: true })),
       claimFiles: jest.fn((sid, paths) => ({ sessionId: sid, paths, claimed: true })),
       releaseFiles: jest.fn((sid, paths) => ({ sessionId: sid, paths, released: true })),
     },
@@ -204,7 +205,7 @@ describe('IPC Router', () => {
     expect(deps.pheromones.spray).toHaveBeenCalledWith('agents', 'a1', 'busy', 0.8);
   });
 
-  test('session.note passes sessionId and content', () => {
+  test('session.note uses quickNote so session and agent resolution stay canonical', () => {
     const deps = createMockDeps();
     const router = createIpcRouter(deps);
     const replies = [];
@@ -215,7 +216,29 @@ describe('IPC Router', () => {
       (f) => replies.push(f),
     );
 
-    expect(deps.sessions.addNote).toHaveBeenCalledWith('sess-123', 'progress update', expect.any(Object));
+    expect(deps.sessions.quickNote).toHaveBeenCalledWith('progress update', expect.objectContaining({
+      sessionId: 'sess-123',
+      agentId: 'registered-x',
+    }));
+    expect(deps.sessions.addNote).not.toHaveBeenCalled();
+    expect(replies[0].type).toBe(Performative.INFORM_DONE);
+  });
+
+  test('session.note without sessionId resolves through quickNote with connection agent', () => {
+    const deps = createMockDeps();
+    const router = createIpcRouter(deps);
+    const replies = [];
+
+    router.handleFrame(
+      { type: Performative.REQUEST, convId: 21, payload: { action: IpcAction.NOTE, content: 'agent scoped note' } },
+      mockConn('registered-x'),
+      (f) => replies.push(f),
+    );
+
+    expect(deps.sessions.quickNote).toHaveBeenCalledWith('agent scoped note', expect.objectContaining({
+      sessionId: null,
+      agentId: 'registered-x',
+    }));
     expect(replies[0].type).toBe(Performative.INFORM_DONE);
   });
 
