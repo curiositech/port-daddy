@@ -314,13 +314,14 @@
         bottom: auto;
         left: auto;
         z-index: 3;
-        width: 600px;
-        min-height: 246px;
+        width: fit-content;
+        min-width: 380px;
+        max-width: 460px;
         border: 4px solid var(--line);
         background: var(--panel);
         color: var(--ink);
-        box-shadow: inset 12px 0 0 var(--accent);
-        padding: 34px 38px;
+        box-shadow: inset 10px 0 0 var(--accent);
+        padding: 28px 30px 28px 38px;
       }
 
       .surface-copy.pos-bottom-left {
@@ -341,20 +342,20 @@
       .surface-copy strong {
         display: block;
         max-width: 11ch;
-        font-size: 44px;
-        line-height: 0.96;
+        font-size: 42px;
+        line-height: 0.98;
         letter-spacing: 0;
         font-variation-settings: "opsz" var(--radnika-opsz-display);
       }
 
       .surface-copy span {
         display: block;
-        margin-top: 24px;
-        max-width: 23ch;
+        margin-top: 20px;
+        max-width: 19ch;
         color: var(--muted);
-        font-size: 25px;
+        font-size: 23px;
         font-weight: 700;
-        line-height: 1.14;
+        line-height: 1.16;
       }
 
       .surface {
@@ -460,8 +461,8 @@
         <span class="surface-title">Shipwright</span>
         <img id="shipwrightImage" alt="Fleet Control Center Shipwright" />
         <figcaption class="surface-copy pos-bottom-right">
-          <strong>Shipwright turns repo shape into a fleet.</strong>
-          <span>It surveys the daemon, proposes agents, budgets the run, and gives the operator a plan before launch.</span>
+          <strong>Shipwright builds the fleet.</strong>
+          <span>Proposes agents, budgets the run, and keeps launch choices visible.</span>
         </figcaption>
       </figure>
 
@@ -469,8 +470,8 @@
         <span class="surface-title">Roadmap</span>
         <img id="roadmapImage" alt="Fleet Control Center Roadmap" />
         <figcaption class="surface-copy pos-top-right">
-          <strong>Roadmap keeps the next cuts honest.</strong>
-          <span>Cartographer pulls current work, recovery notes, and feedback into ranked work the fleet can act on.</span>
+          <strong>Roadmap ranks the next cuts.</strong>
+          <span>Turns notes, recovery docs, and feedback into prioritized work.</span>
         </figcaption>
       </figure>
 
@@ -478,8 +479,8 @@
         <span class="surface-title">Sorties</span>
         <img id="sortiesImage" alt="Fleet Control Center Sorties" />
         <figcaption class="surface-copy pos-top-right">
-          <strong>Sorties make missions spend-aware.</strong>
-          <span>Draft a bounded mission, preview the roster, set approvals, and launch without losing operator control.</span>
+          <strong>Sorties keep launches bounded.</strong>
+          <span>Preview roster, approvals, budget, and launch path before work starts.</span>
         </figcaption>
       </figure>
 
@@ -488,7 +489,7 @@
         <img id="flowImage" alt="Fleet Control Center Flow" />
         <figcaption class="surface-copy pos-bottom-right">
           <strong>Flow shows who wakes whom.</strong>
-          <span>The graph shows which agents listen, what they emit, and where work moves next.</span>
+          <span>Shows listeners, triggers, publishes, and where work moves next.</span>
         </figcaption>
       </figure>
 
@@ -497,7 +498,7 @@
         <img id="resourcesImage" alt="Fleet Control Center Resources" />
         <figcaption class="surface-copy pos-bottom-right">
           <strong>Resources shows fleet pressure.</strong>
-          <span>Memory, disk, local AI, daemon load, spend, and launch capacity stay visible before the fleet runs hotter.</span>
+          <span>Shows daemon load, memory, spend, and launch capacity.</span>
         </figcaption>
       </figure>
 
@@ -505,8 +506,8 @@
         <span class="surface-title">Agents</span>
         <img id="agentsImage" alt="Fleet Control Center Agents" />
         <figcaption class="surface-copy pos-top-right">
-          <strong>Agents ties signals back to actors.</strong>
-          <span>Runtime bodies, salvage history, sessions, notes, inboxes, channels, and file claims meet on one page.</span>
+          <strong>Agents ties signals to actors.</strong>
+          <span>Connects runtime bodies, notes, claims, inboxes, and handoffs.</span>
         </figcaption>
       </figure>
 
