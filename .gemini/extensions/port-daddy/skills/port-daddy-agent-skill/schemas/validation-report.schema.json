@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/validation-report.schema.json",
+  "title": "Port Daddy Validation Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["commands", "visualProof", "status"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["passed", "failed", "blocked", "partial"]
+    },
+    "commands": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["command", "status"],
+        "properties": {
+          "command": { "type": "string", "minLength": 1 },
+          "status": { "type": "string", "enum": ["passed", "failed", "blocked", "not-run"] },
+          "importantOutput": { "type": "string" }
+        }
+      }
+    },
+    "visualProof": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["pathOrUrl", "whatItProves"],
+        "properties": {
+          "pathOrUrl": { "type": "string", "minLength": 1 },
+          "whatItProves": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "residualRisk": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}

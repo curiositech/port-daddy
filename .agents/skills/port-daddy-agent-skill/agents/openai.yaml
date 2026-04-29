@@ -1,0 +1,17 @@
+name: port-daddy-agent-skill
+display_name: Port Daddy Agent Skill
+description: Instruction manual for agents coordinating through Port Daddy sessions, claims, notes, locks, FleetBar, Fleet Control Center, schemas, and recoverable handoffs.
+icon: route
+tags:
+  - port-daddy
+  - multi-agent
+  - coordination
+  - fleetbar
+  - handoff
+entrypoint: SKILL.md
+recommended_context:
+  - references/coordination-theory.md
+  - references/fleetbar-and-console.md
+  - examples/build-now.md
+quality_gates:
+  - scripts/validate_port_daddy_agent_skill.py

@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://portdaddy.dev/schemas/agent-handoff.schema.json",
+  "title": "Port Daddy Agent Handoff",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["result", "changedFiles", "validation", "remainingRisk"],
+  "properties": {
+    "result": {
+      "type": "string",
+      "minLength": 1
+    },
+    "changedFiles": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "validation": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["command", "status"],
+        "properties": {
+          "command": { "type": "string", "minLength": 1 },
+          "status": { "type": "string", "enum": ["passed", "failed", "blocked", "not-run"] },
+          "notes": { "type": "string" }
+        }
+      }
+    },
+    "remainingRisk": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "followUpOwner": {
+      "type": "string"
+    }
+  }
+}
