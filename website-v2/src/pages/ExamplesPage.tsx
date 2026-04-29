@@ -10,6 +10,51 @@ import {
 } from '@/components/site/primitives'
 import { FEATURED_EXAMPLE, SECONDARY_EXAMPLES } from '@/data/examples'
 
+const broaderBuildIdeas = [
+  {
+    label: 'Edit guard',
+    title: 'Build a file and symbol collision guard',
+    body: 'Use sessions, file claims, and locks so agents can check ownership before editing hot files or generated artifacts.',
+    href: '/docs/features/sessions',
+    cta: 'Sessions and claims',
+  },
+  {
+    label: 'Inbox',
+    title: 'Build a durable handoff queue',
+    body: 'Give agents unread work items, direct messages, owner-specific queues, and a trail that survives closed terminals.',
+    href: '/tutorials/inbox',
+    cta: 'Inbox tutorial',
+  },
+  {
+    label: 'Service discovery',
+    title: 'Build semantic lookup for local stacks',
+    body: 'Let agents resolve names like myapp:api or docs:preview instead of guessing which localhost port is live today.',
+    href: '/tutorials/dns',
+    cta: 'DNS tutorial',
+  },
+  {
+    label: 'Readiness',
+    title: 'Build a backend readiness cockpit',
+    body: 'Show which agent backends are actually launchable: keys, SDKs, model rates, budgets, and daemon target all in one place.',
+    href: '/docs/get-started',
+    cta: 'Get started',
+  },
+  {
+    label: 'Lockbox',
+    title: 'Build a one-at-a-time promotion runner',
+    body: 'Wrap migrations, deploys, notarization, generated files, and release promotion so only one agent can enter the critical section.',
+    href: '/docs/cli/with-lock',
+    cta: 'with-lock',
+  },
+  {
+    label: 'Fleet cockpit',
+    title: 'Build an eval and agent-run control plane',
+    body: 'Track launches, evidence, touched files, costs, failures, handoffs, and recovery state across a local fleet of coding agents.',
+    href: '/agents',
+    cta: 'Agents surface',
+  },
+]
+
 export function ExamplesPage() {
   return (
     <div className="min-h-screen bg-[var(--surface-base)] selection:bg-[var(--brand-primary)] selection:text-[var(--brand-primary-foreground)]">
@@ -81,9 +126,54 @@ export function ExamplesPage() {
           </DocsNoteCard>
         </section>
 
+        <section aria-label="More Port Daddy build ideas" className="grid gap-[var(--panel-gap)] lg:grid-cols-12">
+          <div className="lg:col-span-5">
+            <DocsNoteCard
+              label="Beyond PD Tube"
+              title="Port Daddy is also a substrate for agent infrastructure."
+              elevation="quiet"
+            >
+              <PanelTitle as="h2" size="card">
+                More things AI engineers can build.
+              </PanelTitle>
+              <PanelBody className="max-w-[42rem] text-[var(--text-secondary)]">
+                Tube is the best first demo because it makes agent contact obvious. The rest of Port Daddy is for the
+                local infrastructure around serious agent work: ownership, readiness, service identity, recovery, and
+                operator proof.
+              </PanelBody>
+            </DocsNoteCard>
+          </div>
+
+          <div className="grid gap-[var(--panel-gap)] md:grid-cols-2 lg:col-span-7">
+            {broaderBuildIdeas.map((idea, index) => (
+              <DocsNoteCard
+                key={idea.title}
+                label={idea.label}
+                title={idea.title}
+                titleSize="nav"
+                elevation="quiet"
+                padding="compact"
+              >
+                <PanelBody size="compact" className="max-w-none">
+                  {idea.body}
+                </PanelBody>
+                <div className="border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap-tight)]">
+                  <BracketLink
+                    to={idea.href}
+                    tone={index % 2 === 0 ? 'blue' : 'accent'}
+                    side={index % 2 === 0 ? 'left' : 'right'}
+                  >
+                    {idea.cta}
+                  </BracketLink>
+                </div>
+              </DocsNoteCard>
+            ))}
+          </div>
+        </section>
+
         <section className="grid gap-[var(--panel-gap)] lg:grid-cols-12" aria-labelledby="examples-list">
           <div className="lg:col-span-4">
-            <DocsNoteCard label="Catalogue" title="More tools built from the same primitive." elevation="quiet" padding="compact" titleSize="nav">
+            <DocsNoteCard label="Executable catalogue" title="Source-backed examples you can run today." elevation="quiet" padding="compact" titleSize="nav">
               <PanelBody size="compact" className="max-w-none">
                 The rest of the catalogue is deliberately narrow: publishers a developer would actually ship.
                 Each page keeps the full source visible and explains how to turn it into product code.
