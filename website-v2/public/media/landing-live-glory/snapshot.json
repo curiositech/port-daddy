@@ -1,24 +1,23 @@
 {
-  "generatedAt": "2026-04-29T17:04:29.080Z",
+  "generatedAt": "2026-04-29T17:25:12.535Z",
   "status": {
     "activePorts": "22",
     "fleet": "1 project(s), 8 agent(s), 3/8 launchable",
     "runtime": "nominal",
-    "lastActivity": "26s ago",
+    "lastActivity": "19s ago",
     "launchable": "3/8"
   },
   "sessions": [
-    "Finish merge validation...",
-    "Reconcile agents-flow g...",
-    "Add Tube Console and ca...",
-    "Reconcile codex/agents-...",
-    "Deploy agents flow bran..."
+    "Fix CI terminal recordi...",
+    "commit signed FleetBar ...",
+    "Finalize signed FleetBa...",
+    "expand landing live-glo..."
   ],
   "notes": [
-    "Main reconciliation slice landed: pushed 6a806c8 to origin/main with guard/git-shim/claim-watcher commits plus pd add test isolation. Validation: git diff --check origin/main..HEAD before push, focused claim-watcher/coordination-guard/resource-limits tests, typecheck, full npm test -- --no-coverage green (161 suites, 5227 passed, 1 skipped). Continuing comparison for remaining feature-branch website/content deltas.",
-    "Scope: finish merge of website/FleetBar/control-plane release branch toward main. Staging intentional remaining files only: Tube/Events panels, channel API/types, docs page normalization, landing render polish, and docs normalization proof screenshots. Validation plan: root typecheck, focused Jest runtime tests, fleet-config-ui build, website lint/test/build, guard, push feature and main, deploy.",
-    "[handoff] Committed, pushed, deployed, and verified agent skill + Skill/MCP + agents/templates release on main@7ce505c.",
-    "Release complete: clean integration branch codex/deploy-agents-skill-mcp-main fast-forwarded main to 7ce505c. Cloudflare Pages production active for 7ce505c. GitHub CI run 25122027194 passed after follow-up release-gate fix for pd add completions and skill authority tests. Live rendered routes verified earlier: /mcp, /agents/templates, /templates redirect.",
-    "Verification after DocsPage normalization: full website-v2 npm run lint passed, npm run build passed (SEO generated for 172 canonical routes; Vite built successfully), npm run test passed 9 files / 97 tests, and root git diff --check passed. Screenshots written under docs/reports/website-rehab-screenshots/2026-04-29-normalization/: docs-desktop/mobile for visible /docs and docs-old-desktop/mobile for the normalized legacy route. Temporary Vite proof server on 3122 was stopped and pd release website-normalization-vite completed. Remaining tree has many concurrent staged/unstaged changes outside this slice, so I did not stage or commit."
+    "Pushed 6474df2 Fix website recording pd shim in CI. Local validation: record-agent --play daemon-runtime had no command-not-found; npm --prefix website-v2 run test:gifs passed. Watching main CI for the recording job.",
+    "Investigating current main CI failure in website-terminal-recordings: recorder emits command-not-found because scripts type pd but CI has no global pd binary. Claiming recording scripts to add local CLI shim.",
+    "Scope: take over staged signed FleetBar download artifact slice from prior note, without touching live-glory tmp screenshots. Files: README.md, scripts/package-fleetbar*.sh, website-v2 public downloads manifest/checksums/zip, landing CTA/distribution/product metadata/MacPreview copy. Plan: claim files, validate checksum/codesign/copy/build, commit, rebase/push.",
+    "Follow-up after deploy: removing stale developer-preview language from FleetBar distribution. Regenerated signed Developer ID ZIP as PortDaddy-FleetBar-macOS-arm64.zip, verified codesign authority Curiositech LLC / team P5H9P59X2M, and staged old -dev artifact removal. Validation: root typecheck, website test/build/lint, codesign verify, rg no developer-preview copy.",
+    "Current main CI 25123098868 failed only in website-terminal-recordings cheap reviewer: regenerated casts contain command-not-found across all tutorial/example/docs/agents casts. I am investigating CI recording PATH/command resolution in temp worktree, not touching dirty primary checkout."
   ]
 }

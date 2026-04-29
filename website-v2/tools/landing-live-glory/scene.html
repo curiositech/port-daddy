@@ -321,18 +321,19 @@
         bottom: 28px;
         z-index: 60;
         display: grid;
-        grid-template-columns: repeat(5, 1fr);
+        grid-template-columns: repeat(8, minmax(0, 1fr));
         border: 2px solid var(--line);
         background: var(--panel);
       }
 
       .timeline-step {
         border-right: 2px solid var(--line);
-        padding: 11px 14px;
-        font-size: 12px;
+        padding: 10px 8px;
+        font-size: 10px;
         font-weight: 950;
-        letter-spacing: 0.14em;
+        letter-spacing: 0.1em;
         text-transform: uppercase;
+        white-space: nowrap;
       }
 
       .timeline-step:last-child {
@@ -377,11 +378,38 @@
         </div>
       </section>
 
+      <figure class="capture surface" id="shipwright" aria-label="Fleet Control Center Shipwright">
+        <span class="surface-title">Shipwright</span>
+        <img id="shipwrightImage" alt="Fleet Control Center Shipwright" />
+        <figcaption class="surface-copy">
+          <strong>Shipwright turns repo shape into a fleet.</strong>
+          <span>It surveys the daemon, proposes agents, budgets the run, and gives the operator a plan before launch.</span>
+        </figcaption>
+      </figure>
+
+      <figure class="capture surface" id="roadmap" aria-label="Fleet Control Center Roadmap">
+        <span class="surface-title">Roadmap</span>
+        <img id="roadmapImage" alt="Fleet Control Center Roadmap" />
+        <figcaption class="surface-copy">
+          <strong>Roadmap keeps the next cuts honest.</strong>
+          <span>Cartographer pulls current work, recovery notes, and feedback into ranked work the fleet can act on.</span>
+        </figcaption>
+      </figure>
+
+      <figure class="capture surface" id="sorties" aria-label="Fleet Control Center Sorties">
+        <span class="surface-title">Sorties</span>
+        <img id="sortiesImage" alt="Fleet Control Center Sorties" />
+        <figcaption class="surface-copy">
+          <strong>Sorties make missions spend-aware.</strong>
+          <span>Draft a bounded mission, preview the roster, set approvals, and launch without losing operator control.</span>
+        </figcaption>
+      </figure>
+
       <figure class="capture surface" id="flow" aria-label="Fleet Control Center Flow">
         <span class="surface-title">Flow</span>
         <img id="flowImage" alt="Fleet Control Center Flow" />
         <figcaption class="surface-copy">
-          <strong>Flow maps triggers and publishes.</strong>
+          <strong>Flow shows who wakes whom.</strong>
           <span>The graph shows which agents listen, what they emit, and where work moves next.</span>
         </figcaption>
       </figure>
@@ -407,6 +435,9 @@
       <div class="timeline">
         <div class="timeline-step" id="stepTerminal">Terminal</div>
         <div class="timeline-step" id="stepFleetbar">FleetBar</div>
+        <div class="timeline-step" id="stepShipwright">Shipwright</div>
+        <div class="timeline-step" id="stepRoadmap">Roadmap</div>
+        <div class="timeline-step" id="stepSorties">Sorties</div>
         <div class="timeline-step" id="stepFlow">Flow</div>
         <div class="timeline-step" id="stepResources">Resources</div>
         <div class="timeline-step" id="stepAgents">Agents</div>
@@ -414,7 +445,7 @@
     </main>
 
     <script>
-      const DURATION = 15.6
+      const DURATION = 21.6
       const defaultSnapshot = {
         status: {
           activePorts: '21',
@@ -441,11 +472,17 @@
       const chrome = document.getElementById('chrome')
       const terminalLines = document.getElementById('terminalLines')
       const fleetbar = document.getElementById('fleetbar')
+      const shipwright = document.getElementById('shipwright')
+      const roadmap = document.getElementById('roadmap')
+      const sorties = document.getElementById('sorties')
       const flow = document.getElementById('flow')
       const resources = document.getElementById('resources')
       const agents = document.getElementById('agents')
       const topbarImage = document.getElementById('topbarImage')
       const fleetbarImage = document.getElementById('fleetbarImage')
+      const shipwrightImage = document.getElementById('shipwrightImage')
+      const roadmapImage = document.getElementById('roadmapImage')
+      const sortiesImage = document.getElementById('sortiesImage')
       const flowImage = document.getElementById('flowImage')
       const resourcesImage = document.getElementById('resourcesImage')
       const agentsImage = document.getElementById('agentsImage')
@@ -475,6 +512,9 @@
 
       function mediaAsset(name) {
         const themed = new Set([
+          'live-shipwright-focus',
+          'live-roadmap',
+          'live-sorties',
           'live-flow-graph',
           'live-resources',
           'live-agents-panel',
@@ -500,6 +540,9 @@
         topStatus.textContent = `daemon ${status.runtime || 'nominal'}`
         topbarImage.src = mediaAsset('topbar-crop')
         fleetbarImage.src = mediaAsset('fleetbar-menu-captured')
+        shipwrightImage.src = mediaAsset('live-shipwright-focus')
+        roadmapImage.src = mediaAsset('live-roadmap')
+        sortiesImage.src = mediaAsset('live-sorties')
         flowImage.src = mediaAsset('live-flow-graph')
         resourcesImage.src = mediaAsset('live-resources')
         agentsImage.src = mediaAsset('live-agents-panel')
@@ -535,8 +578,11 @@
         document.querySelectorAll('.timeline-step').forEach((step) => step.classList.remove('active'))
         if (t < 3.05) document.getElementById('stepTerminal').classList.add('active')
         else if (t < 5.75) document.getElementById('stepFleetbar').classList.add('active')
-        else if (t < 8.45) document.getElementById('stepFlow').classList.add('active')
-        else if (t < 11.9) document.getElementById('stepResources').classList.add('active')
+        else if (t < 8.45) document.getElementById('stepShipwright').classList.add('active')
+        else if (t < 11.05) document.getElementById('stepRoadmap').classList.add('active')
+        else if (t < 13.65) document.getElementById('stepSorties').classList.add('active')
+        else if (t < 16.25) document.getElementById('stepFlow').classList.add('active')
+        else if (t < 18.85) document.getElementById('stepResources').classList.add('active')
         else document.getElementById('stepAgents').classList.add('active')
       }
 
@@ -549,9 +595,12 @@
         const terminalOut = smooth(3.0, 4.1, t)
         const chromeOut = smooth(5.15, 5.85, t)
         const fleetAlpha = fadeInOut(t, 2.65, 3.5, 5.15, 5.95)
-        const flowAlpha = fadeInOut(t, 5.55, 6.35, 8.15, 8.75)
-        const resourcesAlpha = fadeInOut(t, 8.35, 9.15, 11.55, 12.15)
-        const agentsAlpha = smooth(11.8, 12.6, t)
+        const shipwrightAlpha = fadeInOut(t, 5.55, 6.35, 8.05, 8.75)
+        const roadmapAlpha = fadeInOut(t, 8.3, 9.1, 10.75, 11.45)
+        const sortiesAlpha = fadeInOut(t, 11.05, 11.85, 13.35, 14.05)
+        const flowAlpha = fadeInOut(t, 13.65, 14.45, 16.0, 16.7)
+        const resourcesAlpha = fadeInOut(t, 16.25, 17.05, 18.55, 19.25)
+        const agentsAlpha = smooth(18.85, 19.65, t)
 
         paintTerminal(t)
         setTimeline(t)
@@ -563,11 +612,20 @@
         fleetbar.style.opacity = String(fleetAlpha)
         fleetbar.style.transform = `translate(${(1 - smooth(2.65, 3.5, t)) * 82}px, ${(1 - smooth(2.65, 3.5, t)) * 26}px) scale(${0.94 + smooth(2.65, 3.5, t) * 0.06})`
 
+        shipwright.style.opacity = String(shipwrightAlpha)
+        shipwright.style.transform = `translate(${(1 - smooth(5.55, 6.35, t)) * 76}px, ${(1 - smooth(5.55, 6.35, t)) * 20}px) scale(${0.95 + smooth(5.55, 6.35, t) * 0.05})`
+
+        roadmap.style.opacity = String(roadmapAlpha)
+        roadmap.style.transform = `translate(${(1 - smooth(8.3, 9.1, t)) * 76}px, ${(1 - smooth(8.3, 9.1, t)) * 20}px) scale(${0.95 + smooth(8.3, 9.1, t) * 0.05})`
+
+        sorties.style.opacity = String(sortiesAlpha)
+        sorties.style.transform = `translate(${(1 - smooth(11.05, 11.85, t)) * 76}px, ${(1 - smooth(11.05, 11.85, t)) * 20}px) scale(${0.95 + smooth(11.05, 11.85, t) * 0.05})`
+
         flow.style.opacity = String(flowAlpha)
-        flow.style.transform = `translate(${(1 - smooth(5.55, 6.35, t)) * 76}px, ${(1 - smooth(5.55, 6.35, t)) * 20}px) scale(${0.95 + smooth(5.55, 6.35, t) * 0.05})`
+        flow.style.transform = `translate(${(1 - smooth(13.65, 14.45, t)) * 76}px, ${(1 - smooth(13.65, 14.45, t)) * 20}px) scale(${0.95 + smooth(13.65, 14.45, t) * 0.05})`
 
         resources.style.opacity = String(resourcesAlpha)
-        resources.style.transform = `translate(${(1 - smooth(8.35, 9.15, t)) * 76}px, ${(1 - smooth(8.35, 9.15, t)) * 20}px) scale(${0.95 + smooth(8.35, 9.15, t) * 0.05})`
+        resources.style.transform = `translate(${(1 - smooth(16.25, 17.05, t)) * 76}px, ${(1 - smooth(16.25, 17.05, t)) * 20}px) scale(${0.95 + smooth(16.25, 17.05, t) * 0.05})`
 
         agents.style.opacity = String(agentsAlpha)
         agents.style.transform = `translate(${(1 - agentsAlpha) * 76}px, ${(1 - agentsAlpha) * 20}px) scale(${0.95 + agentsAlpha * 0.05})`
@@ -585,7 +643,11 @@
       window.setSnapshot(defaultSnapshot)
 
       window.mediaReady = Promise.all([
+        topbarImage.decode?.().catch(() => undefined) || Promise.resolve(),
         fleetbarImage.decode?.().catch(() => undefined) || Promise.resolve(),
+        shipwrightImage.decode?.().catch(() => undefined) || Promise.resolve(),
+        roadmapImage.decode?.().catch(() => undefined) || Promise.resolve(),
+        sortiesImage.decode?.().catch(() => undefined) || Promise.resolve(),
         flowImage.decode?.().catch(() => undefined) || Promise.resolve(),
         resourcesImage.decode?.().catch(() => undefined) || Promise.resolve(),
         agentsImage.decode?.().catch(() => undefined) || Promise.resolve(),

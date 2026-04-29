@@ -13,10 +13,11 @@ const repoDir = path.resolve(websiteDir, '..')
 const outputDir = path.join(websiteDir, 'public/media/landing-live-glory')
 const scenePath = path.join(sceneDir, 'scene.html')
 
-const durationSeconds = 15.6
+const durationSeconds = 21.6
 const framesPerSecond = 18
 const width = 1280
 const height = 720
+const posterAtSeconds = 6.9
 
 function runPd(args) {
   try {
@@ -136,7 +137,7 @@ async function renderTheme(theme, snapshot) {
   const mp4Path = path.join(outputDir, `port-daddy-live-glory-${theme}.mp4`)
   const posterPath = path.join(outputDir, `port-daddy-live-glory-${theme}-poster.jpg`)
   const inputPattern = path.join(tempDir, 'frame-%04d.png')
-  const posterFrame = path.join(tempDir, `frame-${String(Math.round(6.6 * framesPerSecond)).padStart(4, '0')}.png`)
+  const posterFrame = path.join(tempDir, `frame-${String(Math.round(posterAtSeconds * framesPerSecond)).padStart(4, '0')}.png`)
 
   runFfmpeg([
     '-y',
