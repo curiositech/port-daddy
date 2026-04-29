@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://port-daddy.dev/schemas/pd-relay-zero-trust/relay-handshake.json",
+  "title": "Relay Handshake",
+  "description": "Daemon-initiated outbound handshake to the relay. Two messages: ClientHello (daemon -> relay), ServerHello (relay -> daemon). After ServerHello, the same TLS+SSE channel is used for publish/subscribe streams.",
+  "type": "object",
+  "oneOf": [
+    {"$ref": "#/$defs/ClientHello"},
+    {"$ref": "#/$defs/ServerHello"}
+  ],
+  "$defs": {
+    "ClientHello": {
+      "type": "object",
+      "required": ["msg", "v", "daemon", "card", "subscriptions", "nonce_c", "alg", "sig", "kid"],
+      "properties": {
+        "msg": {"const": "client_hello"},
+        "v": {"const": 1},
+        "daemon": {
+          "type": "object",
+          "required": ["fingerprint", "version", "harbors"],
+          "properties": {
+            "fingerprint": {"type": "string"},
+            "version": {"type": "string"},
+            "harbors": {"type": "array", "items": {"type": "string"}, "description": "Harbor fingerprints this daemon will operate under"}
+          }
+        },
+        "card": {"$ref": "https://port-daddy.dev/schemas/pd-relay-zero-trust/harbor-card.json"},
+        "subscriptions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["channel"],
+            "properties": {
+              "channel": {"type": "string"},
+              "from_seq": {"type": "integer", "minimum": 0, "description": "Resume sequence; 0 = from latest"},
+              "from_chain_head": {"type": "string", "description": "tip_hash to verify continuity from"}
+            }
+          }
+        },
+        "nonce_c": {"type": "string", "description": "Base64 16-byte client nonce"},
+        "alg": {"const": "EdDSA"},
+        "sig": {"type": "string", "description": "Ed25519 over (msg || nonce_c || canonical(card))"},
+        "kid": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "ServerHello": {
+      "type": "object",
+      "required": ["msg", "v", "relay", "session", "nonce_c", "nonce_s", "accepted_subs", "alg", "sig", "kid"],
+      "properties": {
+        "msg": {"const": "server_hello"},
+        "v": {"const": 1},
+        "relay": {
+          "type": "object",
+          "required": ["fingerprint", "name"],
+          "properties": {
+            "fingerprint": {"type": "string", "description": "Relay's published Ed25519 fingerprint"},
+            "name": {"type": "string", "description": "Operator-set relay identity, e.g. 'relay.portdaddy.dev'"},
+            "policy_url": {"type": "string", "format": "uri"}
+          }
+        },
+        "session": {
+          "type": "object",
+          "required": ["id", "exp"],
+          "properties": {
+            "id": {"type": "string"},
+            "exp": {"type": "integer"}
+          }
+        },
+        "nonce_c": {"type": "string", "description": "Echo of client nonce; binds this response to that ClientHello"},
+        "nonce_s": {"type": "string"},
+        "accepted_subs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["channel", "tip_seq", "tip_hash"],
+            "properties": {
+              "channel": {"type": "string"},
+              "tip_seq": {"type": "integer"},
+              "tip_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+            }
+          }
+        },
+        "rejected_subs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["channel", "reason"],
+            "properties": {
+              "channel": {"type": "string"},
+              "reason": {"type": "string", "enum": ["card_capability_missing", "channel_unknown", "namespace_forbidden", "rate_limited"]}
+            }
+          }
+        },
+        "alg": {"const": "EdDSA"},
+        "sig": {"type": "string", "description": "Ed25519 over (msg || nonce_c || nonce_s || canonical(session))"},
+        "kid": {"type": "string"}
+      },
+      "additionalProperties": false
+    }
+  }
+}

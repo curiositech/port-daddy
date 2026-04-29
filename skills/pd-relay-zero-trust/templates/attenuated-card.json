@@ -1,0 +1,42 @@
+{
+  "_comment": "Reference Phase 3 attenuated chain. Daemon issues a broad card, GitHub Action attenuates to one channel for 10 minutes. Verifier confirms leaf caps subset of root caps.",
+  "version": "phase3.1",
+  "root": {
+    "iss": "3a4bc4f7e1a8d6b219a0c0f8b6ea7e8c91823f4d6e2a1b9c8f0e1d2c3b4a5968",
+    "sub": "myapp:fleet",
+    "aud": ["relay.portdaddy.dev"],
+    "iat": 1714060800,
+    "exp": 1714064400,
+    "jti": "card-2025-04-25-fleet-001",
+    "harbor": {
+      "fingerprint": "9f1d8a7b6e5d4c3b2a1908f7e6d5c4b3a29180f7e6d5c4b3a29180f7e6d5c488",
+      "scope": "project"
+    },
+    "cap": [
+      {
+        "op": "pubsub",
+        "channel": "9f1d...c488:myapp:*",
+        "rate_per_min": 120,
+        "max_payload_bytes": 131072
+      }
+    ],
+    "alg": "EdDSA",
+    "kid": "3a4bc4f7e1a8d6b219a0c0f8b6ea7e8c91823f4d6e2a1b9c8f0e1d2c3b4a5968"
+  },
+  "caveats": [
+    {
+      "hop": 1,
+      "constraint": {
+        "exp_max": 1714061400,
+        "channels_allow": ["9f1d...c488:myapp:ci:pr-opened"],
+        "ops_allow": ["pub"],
+        "rate_per_min_max": 5,
+        "max_payload_bytes_max": 8192,
+        "audience_restrict": ["relay.portdaddy.dev"],
+        "delegation_allowed": false
+      },
+      "sig": "PLACEHOLDER_SIG_OVER(prev_chain_hash || canonical(constraint))",
+      "kid": "EPHEMERAL_GH_ACTION_ED25519_PUBKEY_HEX"
+    }
+  ]
+}

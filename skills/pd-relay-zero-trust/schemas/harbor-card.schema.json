@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://port-daddy.dev/schemas/pd-relay-zero-trust/harbor-card.json",
+  "title": "Harbor Card (Phase 2)",
+  "description": "Ed25519-signed JWT issued by a daemon (root CA per Anchor Protocol §2.2). Used as proof-of-bearer when a daemon connects outbound to the relay or when an agent acts within a harbor.",
+  "type": "object",
+  "required": ["iss", "sub", "aud", "iat", "exp", "jti", "harbor", "cap", "alg", "kid"],
+  "properties": {
+    "iss": {"type": "string", "description": "Daemon fingerprint (hash of Ed25519 public key)"},
+    "sub": {"type": "string", "description": "Bearer identity (agent id, e.g. 'myapp:api')"},
+    "aud": {"type": "array", "items": {"type": "string"}, "minItems": 1, "description": "Audience: 'relay', 'local', or specific relay URL"},
+    "iat": {"type": "integer", "description": "Issued-at (unix seconds)"},
+    "exp": {"type": "integer", "description": "Expiry (unix seconds); short for relay use (<= 3600)"},
+    "jti": {"type": "string", "description": "Unique token id; appears in revocation list if revoked"},
+    "harbor": {
+      "type": "object",
+      "required": ["fingerprint", "scope"],
+      "properties": {
+        "fingerprint": {"type": "string", "description": "SHA-256 of the harbor's Ed25519 public key (lowercase hex)"},
+        "scope": {"type": "string", "enum": ["branch", "project", "user", "device"]}
+      }
+    },
+    "cap": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["op", "channel"],
+        "properties": {
+          "op": {"type": "string", "enum": ["pub", "sub", "pubsub"]},
+          "channel": {"type": "string", "description": "Channel pattern; supports * suffix for prefix match"},
+          "rate_per_min": {"type": "integer", "minimum": 1},
+          "max_payload_bytes": {"type": "integer", "minimum": 1}
+        },
+        "additionalProperties": false
+      }
+    },
+    "lhb": {"type": "integer", "description": "Last-heartbeat-by; relay drops connection if exceeded"},
+    "alg": {"const": "EdDSA"},
+    "kid": {"type": "string", "description": "Key id (daemon fingerprint or sub-key id)"}
+  },
+  "additionalProperties": false
+}
