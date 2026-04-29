@@ -350,7 +350,7 @@ export const CONFIG_EXAMPLES = [
   {
     label: 'Gemini CLI',
     file: '.gemini/extensions/port-daddy/GEMINI.md',
-    code: `gemini install npx -g port-daddy\n\nOr create a native extension with:\n- MCP Server: "npx port-daddy mcp"\n- Skill: "port-daddy-cli"`,
+    code: `gemini install npx -g port-daddy\n\nOr create a native extension with:\n- MCP Server: "npx port-daddy mcp"\n- Skill: "port-daddy"`,
   },
   {
     label: 'Claude Code',

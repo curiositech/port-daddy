@@ -314,8 +314,8 @@ export const PRODUCT_FEATURES = [
     cli: 'pd harbor create <name>',
     href: '/docs/features/harbors',
     image: {
-      src: '/img/blog/harbors-hero.png',
-      alt: 'Harbor security illustration for scoped agent authority',
+      src: '/img/generated/harbors-signed-access.webp',
+      alt: 'Swiss-modern security architecture diagram for scoped agent authority and signed access',
     },
     detail: 'Harbors are named boundaries for agent work. The security story is concrete: capability namespaces, note encryption, Ed25519 harbor-card verification, and proof-backed analysis sit underneath the daemon.',
     outcomes: [

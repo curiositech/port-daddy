@@ -6,7 +6,7 @@ allowed-tools: Read,Bash,Grep,Glob,Edit,Write
 metadata:
   category: Coordination
   tags: [port-daddy, multi-agent, coordination, fleetbar, claims, salvage, handoff, schemas]
-  pairs-with: [port-daddy-cli, skill-architect, next-move]
+  pairs-with: [port-daddy, skill-architect, next-move]
   provenance:
     kind: first-party
     owners: [port-daddy]

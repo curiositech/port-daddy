@@ -187,7 +187,7 @@ export function configurePlatform(platform: McpPlatform): { success: boolean; er
 // ─── Skill Installation ────────────────────────────────────────────────────
 
 function installSkill(home = DEFAULT_HOME): string | null {
-  const skillSrc = join(PROJECT_ROOT, 'skills', 'port-daddy-cli', 'SKILL.md');
+  const skillSrc = join(PROJECT_ROOT, 'skills', 'port-daddy-agent-skill', 'SKILL.md');
   const skillDst = join(home, '.port-daddy', 'skills', 'SKILL.md');
 
   if (!existsSync(skillSrc)) {

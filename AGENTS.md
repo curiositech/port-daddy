@@ -22,6 +22,7 @@ Project-specific shibboleths for proficient Port Daddy work. If you learn a new 
 - If dogfooding exposes a Port Daddy bug, fix it while it is fresh when the slice is bounded and safe. If it is not bounded, leave a failing repro or exact evidence, a `pd note`, and a targeted actor message before switching away. Framework friction is product feedback and often product work, not an annoyance to route around.
 - If Port Daddy coordination primitives disagree with each other, for example active sessions exist but active-context lookup or file-claim commands say no active session, stop treating that as incidental CLI friction. Re-anchor safely, leave exact evidence in notes, and either fix the coordination bug immediately if bounded or file a targeted handoff before continuing feature work.
 - Coordination Guard is expected in enforce mode for this repo. If `pd guard status` is missing, advisory, or stale, run `pd guard install --mode enforce` before editing toward a commit. Before every commit, push, or deploy, fetch the canonical remote branch, rebase or merge current work onto it (`origin/main` here; `origin/master` only when that remote branch exists), re-read `pd sessions --all-worktrees`, `pd notes --limit 20`, activity, and relevant ownership, then run `pd guard check --staged`.
+- Durable handoffs go into Port Daddy notes, actor inboxes, tuples, or scoped channels. Chat-only coordination is not enough.
 
 ## Ambient Collaboration
 
@@ -112,7 +113,7 @@ Project-specific shibboleths for proficient Port Daddy work. If you learn a new 
   - `docs/recovery/PD-AGENT-SORTIE-PLAN.md` for mission/sortie behavior
   - `docs/DELEGATION-MODES.md` for spawn vs agent vs sortie vs fleet vs harbor
   - if source/docs promise a command or surface and the build does not have it, treat that as a drift bug to fix instead of silently redefining the product
-- `skills/port-daddy-cli/SKILL.md` and `skills/port-daddy-cli/references/api-reference.md` are release surfaces, not optional afterthoughts. If Port Daddy’s CLI, SDK, MCP, delegation model, website story, Mac app/FleetBar behavior, README install flow, or operator workflows change, update those skill docs and the matching docs/website/README surface in the same slice.
+- `skills/port-daddy-agent-skill/SKILL.md` and `skills/port-daddy-agent-skill/references/api-reference.md` are release surfaces, not optional afterthoughts. If Port Daddy’s CLI, SDK, MCP, delegation model, website story, Mac app/FleetBar behavior, README install flow, or operator workflows change, update those skill docs and the matching docs/website/README surface in the same slice.
 - `pd agent` is a thin ad hoc wrapper over `/sugar/begin` + `/spawn` + `/sugar/done`, not a sortie object. Treat its UI presence as a manual job/run unless the launch explicitly came from the sortie workflow.
 - Operator-facing agent launches are fail-closed on telemetry now. Do not treat a run as acceptable unless Port Daddy can attach exact token counts, an exact nonzero model rate, and a persisted exact nonzero cost record to the completed launch.
 - `createSpawner()` defaults telemetry enforcement on. Any code that opts out with `enforceTelemetryPolicy: false` must attach explicit HITL confirmation metadata; a silent bypass is a policy violation.

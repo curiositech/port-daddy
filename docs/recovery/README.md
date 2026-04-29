@@ -38,7 +38,7 @@ are not backlog authority on their own.
 1. One canonical preferred user-facing daemon port: `9876`, but runtime code must discover the actual live daemon instead of assuming that port is always available.
 2. One native companion: `apps/FleetBar`.
 3. One deep web control plane: `fleet-config-ui`.
-4. One Port Daddy skill source: `skills/port-daddy-cli/SKILL.md`.
+4. One Port Daddy skill source: `skills/port-daddy-agent-skill/SKILL.md`.
 5. Raw Spark and Spider output may stay on disk locally, but the curated trove is the authoritative ideation surface and duplicate raw files should be merged there instead of promoted blindly.
 6. Website/distribution work cannot keep preempting core daemon, fleet, and observability work indefinitely.
 7. Fleet ownership is singleton per project even if multiple daemons are running; a second daemon may discover a fleet config, but it must not start that project fleet.

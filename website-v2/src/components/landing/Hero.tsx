@@ -105,6 +105,9 @@ export function Hero() {
               <source srcSet="/img/generated/agent-runtime-map.webp" type="image/webp" />
               <img
                 alt=""
+                loading="lazy"
+                decoding="async"
+                fetchPriority="low"
                 className="h-full w-full object-cover"
                 src="/img/generated/agent-runtime-map.jpg"
               />

@@ -84,7 +84,7 @@ jobs:
 
       - name: Validate skill metadata
         run: |
-          test -f skills/port-daddy-cli/SKILL.md && echo "SKILL.md exists" || exit 1
+          test -f skills/port-daddy-agent-skill/SKILL.md && echo "SKILL.md exists" || exit 1
           test -f .claude-plugin/plugin.json && echo "plugin.json exists" || exit 1
           node -e "JSON.parse(require('fs').readFileSync('.claude-plugin/plugin.json'))" && echo "plugin.json is valid JSON" || exit 1
 

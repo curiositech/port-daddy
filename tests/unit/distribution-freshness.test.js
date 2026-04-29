@@ -10,7 +10,7 @@
  *   2. mcp/server.ts         — MCP server version + instructions
  *   3. .claude-plugin/plugin.json — Claude plugin version
  *   4. mcp-server.json       — Static MCP discovery manifest
- *   5. skills/port-daddy-cli/SKILL.md — Distributed agentic skill
+ *   5. skills/port-daddy-agent-skill/SKILL.md — Distributed agentic skill
  *   6. skills/.../references/ — API reference, SDK reference
  *   7. README.md             — npm README
  *
@@ -60,10 +60,10 @@ beforeAll(() => {
   mcpServerSource = readFile('mcp/server.ts');
   pluginJson = readJSON('.claude-plugin/plugin.json');
   mcpManifest = readJSON('mcp-server.json');
-  skillContent = readFile('skills/port-daddy-cli/SKILL.md');
+  skillContent = readFile('skills/port-daddy-agent-skill/SKILL.md');
   dashboardContent = readFile('public/index.html');
-  apiReference = readFile('skills/port-daddy-cli/references/api-reference.md');
-  sdkReference = readFile('skills/port-daddy-cli/references/sdk-reference.md');
+  apiReference = readFile('skills/port-daddy-agent-skill/references/api-reference.md');
+  sdkReference = readFile('skills/port-daddy-agent-skill/references/sdk-reference.md');
   readmeContent = readFile('README.md');
   featuresManifest = readJSON('features.manifest.json');
 });
