@@ -599,8 +599,8 @@ const TOOLS = [
   {
     name: 'claim_files',
     description:
-      '[Standard] Claim files for the active session (advisory locking). ' +
-      'Other agents can see which files are claimed to avoid conflicts.',
+      '[Standard] Claim whole files or symbol/line regions for the active session (advisory locking). ' +
+      'Prefer regions with symbolPath for function-scoped code edits.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -610,13 +610,28 @@ const TOOLS = [
           items: { type: 'string' },
           description: 'File paths to claim (whole file)',
         },
+        regions: {
+          type: 'array',
+          description: 'Optional function/line regions to claim instead of whole files',
+          items: {
+            type: 'object',
+            properties: {
+              path: { type: 'string', description: 'File path for the region' },
+              symbolPath: { type: 'string', description: 'Canonical tree-sitter symbol path' },
+              startLine: { type: 'number', description: '1-indexed start line fallback' },
+              endLine: { type: 'number', description: '1-indexed end line fallback' },
+              symbol: { type: 'string', description: 'Human-readable symbol label fallback' },
+            },
+          },
+        },
+        force: { type: 'boolean', description: 'Claim despite conflicts' },
       },
-      required: ['session_id', 'paths'],
+      required: ['session_id'],
     },
   },
   {
     name: 'release_files',
-    description: '[Standard] Release specific file claims from a session.',
+    description: '[Standard] Release whole-file or symbol/line region claims from a session.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -629,8 +644,21 @@ const TOOLS = [
           items: { type: 'string' },
           description: 'File paths to release',
         },
+        regions: {
+          type: 'array',
+          description: 'Optional function/line regions to release',
+          items: {
+            type: 'object',
+            properties: {
+              path: { type: 'string', description: 'File path for the region' },
+              symbolPath: { type: 'string', description: 'Canonical tree-sitter symbol path' },
+              startLine: { type: 'number', description: '1-indexed start line fallback' },
+              endLine: { type: 'number', description: '1-indexed end line fallback' },
+            },
+          },
+        },
       },
-      required: ['session_id', 'files'],
+      required: ['session_id'],
     },
   },
 
@@ -656,7 +684,7 @@ const TOOLS = [
   // ── File Claims ────────────────────────────────────────────────────
   {
     name: 'list_file_claims',
-    description: '[Standard] List all file claims across all active sessions. Supports wildcard patterns for path, symbol, agent, and purpose.',
+    description: '[Standard] List all file claims across all active sessions. Supports wildcard patterns for path, symbol, symbolPath, agent, and purpose.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -667,6 +695,10 @@ const TOOLS = [
         symbol: {
           type: 'string',
           description: 'Filter by symbol pattern (e.g. "handle*")',
+        },
+        symbolPath: {
+          type: 'string',
+          description: 'Filter by canonical symbolPath pattern (e.g. "AuthService.*")',
         },
         agent: {
           type: 'string',
@@ -681,13 +713,14 @@ const TOOLS = [
   },
   {
     name: 'who_owns_file',
-    description: '[Standard] Check which session/agent owns a specific file. Optionally filter by line range.',
+    description: '[Standard] Check which session/agent owns a specific file. Optionally filter by line range or symbolPath.',
     inputSchema: {
       type: 'object' as const,
       properties: {
         path: { type: 'string', description: 'File path to look up' },
         startLine: { type: 'number', description: 'Optional: start of line range to check (1-indexed)' },
         endLine: { type: 'number', description: 'Optional: end of line range to check (1-indexed)' },
+        symbolPath: { type: 'string', description: 'Optional: canonical tree-sitter symbol path to check' },
       },
       required: ['path'],
     },
@@ -2451,14 +2484,17 @@ async function handleTool(
 
     case 'claim_files': {
       res = await POST(`/sessions/${args.session_id}/files`, {
-        files: args.paths,
+        files: args.paths ?? [],
+        regions: args.regions,
+        force: args.force,
       });
       break;
     }
 
     case 'release_files': {
       res = await DELETE(`/sessions/${encodeURIComponent(args.session_id as string)}/files`, {
-        files: args.files,
+        files: args.files ?? [],
+        regions: args.regions,
       });
       break;
     }
@@ -2476,6 +2512,7 @@ async function handleTool(
       const params = new URLSearchParams();
       if (args.path) params.set('path', args.path as string);
       if (args.symbol) params.set('symbol', args.symbol as string);
+      if (args.symbolPath) params.set('symbolPath', args.symbolPath as string);
       if (args.agent) params.set('agent', args.agent as string);
       if (args.purpose) params.set('purpose', args.purpose as string);
       const qs = params.toString() ? `?${params.toString()}` : '';
@@ -2487,6 +2524,7 @@ async function handleTool(
       let whoOwnsUrl = `/files/who-owns?path=${encodeURIComponent(args.path as string)}`;
       if (args.startLine) whoOwnsUrl += `&startLine=${args.startLine}`;
       if (args.endLine) whoOwnsUrl += `&endLine=${args.endLine}`;
+      if (args.symbolPath) whoOwnsUrl += `&symbolPath=${encodeURIComponent(args.symbolPath as string)}`;
       res = await GET(whoOwnsUrl);
       break;
     }
