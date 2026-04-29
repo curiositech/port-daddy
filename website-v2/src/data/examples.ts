@@ -43,6 +43,13 @@ export interface ExampleVisual {
   alt: string
 }
 
+export interface ExampleUiScreenshot {
+  src: string
+  alt: string
+  title: string
+  caption: string
+}
+
 export interface ExampleDoc {
   slug: string
   title: string
@@ -56,6 +63,7 @@ export interface ExampleDoc {
   lastReviewed: string
   tags: string[]
   visual: ExampleVisual
+  uiScreenshots?: ExampleUiScreenshot[]
   prerequisites: string[]
   files: string[]
   commands: ExampleCommand[]
@@ -126,6 +134,15 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
     lastReviewed: '2026-04-29',
     tags: ['tube', 'browser', 'agent loop', 'messages'],
     visual: EXAMPLE_VISUALS['pd-tube-button-to-agent'],
+    uiScreenshots: [
+      {
+        src: '/img/examples/pd-tube-button-to-agent-ui.png',
+        alt: 'Screenshot of the PD Tube button-to-agent HTML demo with daemon URL, three action buttons, and the waiting tube command.',
+        title: 'The local button publisher.',
+        caption:
+          'This is the actual HTML file in examples/pd-tube: three browser buttons, one daemon URL, and a log that tells the operator to keep an agent blocked in pd tube ui:clicks.',
+      },
+    ],
     prerequisites: [
       'A running Port Daddy daemon.',
       'A browser that can open a local HTML file.',
@@ -310,6 +327,15 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
     lastReviewed: '2026-04-29',
     tags: ['tube', 'editor', 'selection', 'dev tools'],
     visual: EXAMPLE_VISUALS['editor-lightbulb-to-agent'],
+    uiScreenshots: [
+      {
+        src: '/img/examples/editor-lightbulb-to-agent-ui.png',
+        alt: 'Screenshot of the editor lightbulb HTML demo with daemon URL, file path, range, selected code, and an ask-agent button.',
+        title: 'The extension-shaped publisher.',
+        caption:
+          'This is the actual HTML file in examples/editor-lightbulb: a file/range/code selection form that publishes the selected snippet to editor:explain.',
+      },
+    ],
     prerequisites: [
       'A running Port Daddy daemon.',
       'A browser that can open a local HTML file.',
