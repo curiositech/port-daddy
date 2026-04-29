@@ -17,6 +17,12 @@ const item = {
   show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'easeOut' as const } }
 }
 
+const statusLabel: Record<Feature['status'], string> = {
+  core: 'Core surface',
+  new: 'Live surface',
+  preview: 'Preview surface',
+}
+
 function FeatureDetailDialog({
   feature,
   onClose,
@@ -59,12 +65,9 @@ function FeatureDetailDialog({
                   {feature.detail}
                 </PanelBody>
               </Dialog.Description>
-              <div
-                className="flex items-center gap-2 border-2 border-[var(--border-strong)] px-3 py-2 font-mono text-xs"
-                style={{ background: 'var(--code-bg)' }}
-              >
-                <span className="select-none text-[var(--code-prompt)]">$</span>
-                <span className="text-[var(--code-text)]">{feature.cli}</span>
+              <div className="flex items-center justify-between gap-3 border-2 border-[var(--border-strong)] bg-[var(--surface-base)] px-3 py-2 font-sans text-xs font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+                <span>{statusLabel[feature.status]}</span>
+                <span className="text-[var(--text-secondary)]">{feature.category}</span>
               </div>
             </div>
 
@@ -139,7 +142,7 @@ export function Features() {
         <SectionIntro
           eyebrow="Primitives"
           title="Everything your agents need to cooperate."
-          description="Eleven primitives that turn a collection of scripts into a production-grade autonomous system. Each one maps to a command, app surface, or operator workflow."
+          description="Eleven primitives that turn a collection of scripts into a production-grade autonomous system. On the homepage they appear as app surfaces and operator workflows; command details belong in docs and recorded terminal proof."
           titleAs="h2"
           className="mb-[var(--space-7)] max-w-[46rem]"
           titleClassName="max-w-[14ch]"
@@ -189,13 +192,9 @@ export function Features() {
                       {feature.description}
                     </PanelBody>
 
-                    {/* CLI snippet */}
-                    <div
-                      className="flex items-center gap-2 border-2 border-[var(--border-strong)] px-3 py-2 font-mono text-xs"
-                      style={{ background: 'var(--code-bg)' }}
-                    >
-                      <span className="text-[var(--code-prompt)] select-none">$</span>
-                      <span className="text-[var(--code-text)]">{feature.cli}</span>
+                    <div className="flex items-center justify-between gap-3 border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] px-3 py-2 font-sans text-xs font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+                      <span>{statusLabel[feature.status]}</span>
+                      <span className="text-[var(--text-secondary)]">{feature.category}</span>
                     </div>
 
                     <div className="mt-auto flex items-center justify-between border-t-2 border-[var(--border-strong)] pt-[var(--space-3)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">

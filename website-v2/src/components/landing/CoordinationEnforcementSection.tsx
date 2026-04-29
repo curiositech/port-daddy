@@ -1,7 +1,6 @@
-import { CheckCircle2, FileCheck2, GitCommit, LockKeyhole, NotebookTabs } from 'lucide-react'
+import { CheckCircle2, FileCheck2, GitCommit, LockKeyhole, MonitorCheck, NotebookTabs } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import {
-  CommandBlock,
   PageContainer,
   PanelBody,
   PanelEyebrow,
@@ -15,17 +14,22 @@ import {
 const outcomes = [
   {
     title: 'Every change has an owner',
-    detail: 'Agents begin a session, claim intended files or symbols, and leave notes before their local plan drifts from the repo.',
+    detail: 'Agents work in terminals, claim intended files or symbols, and leave notes before their local plan drifts from the repo.',
     icon: NotebookTabs,
   },
   {
-    title: 'Commits can fail closed',
-    detail: 'Coordination Guard checks staged files against active Port Daddy sessions and claims before a commit crosses the line.',
+    title: 'Humans steer from the app',
+    detail: 'FleetBar and Fleet Control Center show project state, readiness, agents, resources, and recovery without making the operator parse shell ceremony.',
+    icon: MonitorCheck,
+  },
+  {
+    title: 'Terminal proof includes output',
+    detail: 'When the website shows a terminal, it should show the command and the daemon response, not a stack of inputs pretending to be evidence.',
     icon: GitCommit,
   },
   {
     title: 'Recovery keeps the context',
-    detail: 'If an agent dies, salvage preserves purpose, notes, claimed files, and handoff evidence for the next body.',
+    detail: 'If an agent dies, salvage preserves purpose, notes, claimed files, and handoff evidence for the next agent.',
     icon: FileCheck2,
   },
 ] as const
@@ -35,11 +39,11 @@ export function CoordinationEnforcementSection() {
     <section id="coordination-enforcement" className="border-t-2 border-[var(--border-strong)] bg-[var(--surface-raised)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
       <PageContainer width="wide">
         <SwissGrid className="items-start">
-          <SwissGridItem span="wide">
+          <SwissGridItem span="narrow">
             <SectionIntro
-              eyebrow="Banner capability"
-              title="Enforce agent coordination before the commit."
-              description="Port Daddy is not just a dashboard. It gives every repo a coordination contract: sessions for intent, file claims for edit boundaries, locks for scarce work, tuples for shared facts, and a guard that can block uncoordinated commits."
+              eyebrow="Operator control"
+              title="Agents use the terminal. Humans use the GUI."
+              description="Port Daddy gives each repo a coordination contract, but the public homepage should not ask a human to admire a command checklist. The app surface is where operators see readiness, claims, live agents, resources, handoffs, and recovery state."
               titleAs="h2"
               titleSize="display"
               titleClassName="max-w-[13ch]"
@@ -61,13 +65,32 @@ export function CoordinationEnforcementSection() {
             </div>
           </SwissGridItem>
 
-          <SwissGridItem span="rail">
-            <CommandBlock
-              title="Guarded change"
-              command={'pd begin "ship the auth fix"\npd session files add src/auth.ts\npd guard install --mode enforce\npd guard check --staged'}
-              elevation="quiet"
-              label="Terminal"
-            />
+          <SwissGridItem span="wide">
+            <SurfacePanel elevation="quiet" padding="compact" className="grid gap-[var(--space-4)]">
+              <div className="grid gap-[var(--space-3)] sm:grid-cols-[3rem_minmax(0,1fr)] sm:items-start">
+                <span className="inline-flex h-11 w-11 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-base)] text-[var(--brand-primary)]">
+                  <MonitorCheck size={18} />
+                </span>
+                <div className="grid gap-[var(--space-2)]">
+                  <PanelEyebrow>FleetBar and Fleet Control Center</PanelEyebrow>
+                  <PanelTitle as="h3" size="nav" className="max-w-none">
+                    The human view is the live control plane.
+                  </PanelTitle>
+                  <PanelBody size="compact" className="max-w-none">
+                    Use terminal evidence for agent work. Use the GUI for operator judgment.
+                  </PanelBody>
+                </div>
+              </div>
+              <picture className="block overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-base)]">
+                <source srcSet="/img/app-screens/fleet-flow-dark.png" media="(prefers-color-scheme: dark)" />
+                <img
+                  src="/img/app-screens/fleet-flow-light.png"
+                  alt="Fleet Control Center showing live agent coordination in the GUI"
+                  className="aspect-[16/10] w-full object-cover object-left-top"
+                  loading="lazy"
+                />
+              </picture>
+            </SurfacePanel>
           </SwissGridItem>
         </SwissGrid>
 

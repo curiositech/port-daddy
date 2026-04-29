@@ -1,8 +1,7 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, Download, FileText, Github, Terminal } from 'lucide-react'
+import { ArrowRight, Download, FileText, Github, MonitorCheck } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import {
-  CopyableCommandBlock,
   PageContainer,
   PanelBody,
   PanelEyebrow,
@@ -127,14 +126,21 @@ export function CTABanner() {
           <SwissGridItem span="rail">
             <SurfacePanel elevation="quiet" padding="compact" className="grid gap-[var(--space-3)]">
               <div className="inline-flex items-center gap-[var(--space-2)]">
-                <Terminal size={16} />
-                <PanelEyebrow>Terminal</PanelEyebrow>
+                <MonitorCheck size={16} />
+                <PanelEyebrow>Mac app</PanelEyebrow>
               </div>
-              <CopyableCommandBlock
-                label="Homebrew + setup"
-                command={'brew install curiositech/tap/port-daddy\npd setup --project ~/coding/my-app'}
-                ariaLabel="Copy Homebrew and setup command"
-              />
+              <picture className="block overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-base)]">
+                <source srcSet="/img/app-screens/fleetbar-native-shell-dark.png" media="(prefers-color-scheme: dark)" />
+                <img
+                  src="/img/app-screens/fleetbar-native-shell-light.png"
+                  alt="FleetBar macOS shell showing the Fleet Control Center"
+                  className="aspect-[4/3] w-full object-cover object-left-top"
+                  loading="lazy"
+                />
+              </picture>
+              <PanelBody size="compact" className="max-w-none">
+                Open FleetBar for daemon health, project selection, agents, resources, and handoffs. Keep terminal commands in agent workflows and docs where output is visible.
+              </PanelBody>
             </SurfacePanel>
           </SwissGridItem>
         </SwissGrid>
