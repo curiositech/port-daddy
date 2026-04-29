@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, CheckCircle2, FileCog, Gauge, ShieldCheck, Sun, Moon, Play, RefreshCw, Square, Users, WalletCards, Wifi } from 'lucide-react';
+import { Activity, CheckCircle2, FileCog, Gauge, MessageSquareText, ShieldCheck, Sun, Moon, Play, RefreshCw, Square, Users, WalletCards, Wifi } from 'lucide-react';
 import { AllProjectsList } from './components/ProjectPicker';
 import ProjectPicker from './components/ProjectPicker';
 import AgentCard from './components/AgentCard';
@@ -8,6 +8,7 @@ import AgentConfigPanel from './components/AgentConfigPanel';
 import FlowGraph from './components/FlowGraph';
 import ChannelLog, { type ChannelEvent } from './components/ChannelLog';
 import DMPanel from './components/DMPanel';
+import ConversationPanel from './components/ConversationPanel';
 import SortiePanel from './components/SortiePanel';
 import YAMLEditor from './components/YAMLEditor';
 import ActivityPanel from './components/ActivityPanel';
@@ -55,8 +56,8 @@ import type {
   TopologyValidation,
 } from './types';
 
-type MainTab = 'Flow' | 'Roadmap' | 'Agents' | 'Resources' | 'Activity' | 'Channels' | 'Inbox' | 'Sorties' | 'Memory' | 'Shipwright' | 'YAML';
-type ControlSurface = 'flow' | 'roadmap' | 'agents' | 'resources' | 'activity' | 'channels' | 'inbox' | 'sorties' | 'memory' | 'shipwright' | 'yaml';
+type MainTab = 'Flow' | 'Conversations' | 'Roadmap' | 'Agents' | 'Resources' | 'Activity' | 'Channels' | 'Inbox' | 'Sorties' | 'Memory' | 'Shipwright' | 'YAML';
+type ControlSurface = 'flow' | 'conversations' | 'roadmap' | 'agents' | 'resources' | 'activity' | 'channels' | 'inbox' | 'sorties' | 'memory' | 'shipwright' | 'yaml';
 
 function canUseWindow(): boolean {
   return typeof window !== 'undefined';
@@ -65,6 +66,7 @@ function canUseWindow(): boolean {
 function normalizeSurface(value: string | null): ControlSurface {
   switch (value) {
     case 'activity':
+    case 'conversations':
     case 'channels':
     case 'inbox':
     case 'sorties':
@@ -87,6 +89,8 @@ function surfaceToMainTab(surface: ControlSurface): MainTab {
       return 'Flow';
     case 'roadmap':
       return 'Roadmap';
+    case 'conversations':
+      return 'Conversations';
     case 'agents':
       return 'Agents';
     case 'resources':
@@ -112,6 +116,7 @@ function surfaceToMainTab(surface: ControlSurface): MainTab {
 
 function mainTabToSurface(activeTab: MainTab): ControlSurface {
   if (activeTab === 'Agents') return 'agents';
+  if (activeTab === 'Conversations') return 'conversations';
   if (activeTab === 'Resources') return 'resources';
   if (activeTab === 'Roadmap') return 'roadmap';
   if (activeTab === 'Activity') return 'activity';
@@ -493,6 +498,7 @@ function OperatorCockpitDeck({
   noteCount,
   mutationFileCount,
   eventCount,
+  conversationCount,
   selectedAgent,
   selectedChannel,
   coordinationGuard,
@@ -504,6 +510,7 @@ function OperatorCockpitDeck({
   onRefresh,
   onShowAgents,
   onEditYaml,
+  onShowConversations,
   onSetBudget,
   onCoordinationGuardAction,
 }: {
@@ -515,6 +522,7 @@ function OperatorCockpitDeck({
   noteCount: number;
   mutationFileCount: number;
   eventCount: number;
+  conversationCount: number;
   selectedAgent: string | null;
   selectedChannel: string | null;
   coordinationGuard: CoordinationGuardStatus | null;
@@ -526,6 +534,7 @@ function OperatorCockpitDeck({
   onRefresh: () => void;
   onShowAgents: () => void;
   onEditYaml: () => void;
+  onShowConversations: () => void;
   onSetBudget: (usdPerDay: number) => Promise<void>;
   onCoordinationGuardAction: (action: CoordinationGuardAction) => void;
 }) {
@@ -799,6 +808,20 @@ function OperatorCockpitDeck({
             <CheckCircle2 size={11} />
             <span>{eventCount} meaningful live signals after filtering</span>
           </div>
+          <button
+            type="button"
+            onClick={onShowConversations}
+            className="mt-3 flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-[11px] font-semibold"
+            style={{ backgroundColor: 'var(--pd-surface)', color: 'var(--pd-text)', border: '1px solid var(--pd-border)' }}
+          >
+            <span className="inline-flex items-center gap-1.5">
+              <MessageSquareText size={13} />
+              Live conversation graph
+            </span>
+            <span className="font-mono" style={{ color: 'var(--pd-accent)' }}>
+              {conversationCount}
+            </span>
+          </button>
         </div>
       </div>
     </div>
@@ -1236,6 +1259,7 @@ export default function App() {
         return {
           id: `msg-${message.channel}-${message.id}`,
           ts: new Date(message.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+          timestamp: message.createdAt,
           channel: message.channel,
           publisher: message.sender ?? 'system',
           outcome: ((message.channel.includes('findings') || message.channel.includes('alert') || isCoordinationInconsistencyChannel(message.channel) || summary.toLowerCase().includes('error'))
@@ -1253,6 +1277,11 @@ export default function App() {
   const coordinationCallouts = useMemo(
     () => channelLogEvents.filter((event) => isCoordinationInconsistencyChannel(event.channel)),
     [channelLogEvents],
+  );
+
+  const flowConversationCount = useMemo(
+    () => channelLogEvents.length + filteredStories.filter(isMeaningfulStory).length,
+    [channelLogEvents, filteredStories],
   );
 
   const resetSelection = (projectId: string | null = null) => {
@@ -1384,7 +1413,7 @@ export default function App() {
 
   const configAgentData = fleetConfig?.agents.find(a => a.name === configAgent);
   const daemonRunning = fleet.status?.running ?? false;
-  const surfaceTabs: MainTab[] = ['Flow', 'Roadmap', 'Agents', 'Resources', 'Activity', 'Channels', 'Inbox', 'Sorties', 'Memory', 'Shipwright', 'YAML'];
+  const surfaceTabs: MainTab[] = ['Flow', 'Conversations', 'Roadmap', 'Agents', 'Resources', 'Activity', 'Channels', 'Inbox', 'Sorties', 'Memory', 'Shipwright', 'YAML'];
   const allProjectSurfaceTabs: MainTab[] = ['Flow', 'Shipwright'];
   const showProjectSidebar = activeTab === 'Flow' && !embedded;
   const visibleSurfaceTabs = selectedProjectId ? surfaceTabs : allProjectSurfaceTabs;
@@ -1565,6 +1594,7 @@ export default function App() {
                         noteCount={flowNoteCount}
                         mutationFileCount={flowMutationFileCount}
                         eventCount={flowEventCount}
+                        conversationCount={flowConversationCount}
                         selectedAgent={selectedAgent}
                         selectedChannel={selectedChannel}
                         coordinationGuard={coordinationGuard}
@@ -1579,6 +1609,7 @@ export default function App() {
                         onRefresh={handleProjectRefresh}
                         onShowAgents={() => setActiveTab('Agents')}
                         onEditYaml={() => setActiveTab('YAML')}
+                        onShowConversations={() => setActiveTab('Conversations')}
                         onSetBudget={(usdPerDay) => (
                           selectedProject
                             ? handleSetProjectBudget(selectedProject.projectDir, usdPerDay, { showAlert: false })
@@ -1670,6 +1701,26 @@ export default function App() {
                         agentSignals={agentActivitySignals}
                         projectDir={selectedProjectId ?? undefined}
                         onSelectAgent={focusAgent}
+                      />
+                    )}
+                    {activeTab === 'Conversations' && (
+                      <ConversationPanel
+                        daemonKey={`${daemonUrl}:${selectedProjectId ?? 'all'}`}
+                        projectName={selectedProjectName}
+                        projectDir={selectedProjectId ?? undefined}
+                        agents={fleetConfig?.agents.map((agent) => ({
+                          name: agent.name,
+                          purpose: agent.prompt,
+                        })) ?? []}
+                        channelEvents={channelLogEvents}
+                        activity={filteredActivity}
+                        stories={filteredStories}
+                        selectedAgent={selectedAgent}
+                        onSelectAgent={focusAgent}
+                        onOpenChannel={(channelName) => {
+                          setActiveTab('Channels');
+                          focusChannel(channelName);
+                        }}
                       />
                     )}
                     {activeTab === 'Agents' && (

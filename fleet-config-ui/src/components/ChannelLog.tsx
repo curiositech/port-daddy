@@ -7,6 +7,7 @@ import FileActionLinks from './FileActionLinks';
 export interface ChannelEvent {
   id: string;
   ts: string;
+  timestamp?: number;
   channel: string;
   publisher: string;
   outcome: 'clean' | 'findings';
