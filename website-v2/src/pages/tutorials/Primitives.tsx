@@ -85,7 +85,7 @@ pd guard status`}</CodeBlock>
                       <Icon className="text-[var(--brand-primary)]" size={22} />
                     </Surface>
                     <div className="space-y-2">
-                      <p className="m-0 font-mono text-xs font-black uppercase tracking-[0.22em] text-[var(--brand-primary)]">
+                      <p className="m-0 font-mono text-[length:var(--type-meta-size)] font-black uppercase tracking-[0.22em] text-[var(--brand-primary)]">
                         {String(index + 1).padStart(2, "0")}
                       </p>
                       <motion.h3 className="m-0 text-2xl">
@@ -119,7 +119,7 @@ pd guard status`}</CodeBlock>
                 className="p-6 space-y-4"
               >
                 <div className="grid gap-3 md:grid-cols-[4rem_1fr]">
-                  <div className="font-mono text-lg font-black text-[var(--brand-primary)]">
+                  <div className="font-mono text-[length:var(--type-panel-title-nav-size)] font-black text-[var(--brand-primary)]">
                     {String(index + 1).padStart(2, "0")}
                   </div>
                   <div className="space-y-2">

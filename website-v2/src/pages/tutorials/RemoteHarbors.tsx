@@ -27,7 +27,7 @@ export function RemoteHarbors() {
       <div className="space-y-12">
         {/* Coming in v4 Banner */}
         <p
-          className="m-0 text-sm border-l-4 border-[var(--brand-accent)] pl-4"
+          className="m-0 text-[length:var(--type-panel-body-compact-size)] border-l-4 border-[var(--brand-accent)] pl-4"
           style={{ color: "var(--text-secondary)" }}
         >
           <Badge
@@ -63,7 +63,7 @@ export function RemoteHarbors() {
                 size={18}
                 className="text-[var(--brand-secondary)] mt-0.5 shrink-0"
               />
-              <p className="m-0 text-sm">
+              <p className="m-0 text-[length:var(--type-panel-body-compact-size)]">
                 <strong>Cross-Machine Sync</strong> -- Planned: discovery nodes
                 that negotiate secure, encrypted handshakes between daemons
                 behind firewalls.
@@ -74,7 +74,7 @@ export function RemoteHarbors() {
                 size={18}
                 className="text-[var(--brand-accent)] mt-0.5 shrink-0"
               />
-              <p className="m-0 text-sm">
+              <p className="m-0 text-[length:var(--type-panel-body-compact-size)]">
                 <strong>Compute Routing</strong> -- Planned: route intensive
                 agent tasks to remote harbors with more powerful hardware.
               </p>
@@ -109,7 +109,7 @@ $ pd harbor discover --lighthouse global.portdaddy.dev \\
           </CodeBlock>
 
           <p
-            className="m-0 text-sm border-l-4 border-[var(--brand-secondary)] pl-4"
+            className="m-0 text-[length:var(--type-panel-body-compact-size)] border-l-4 border-[var(--brand-secondary)] pl-4"
             style={{ color: "var(--text-secondary)" }}
           >
             The design calls for end-to-end encrypted communication between
@@ -183,7 +183,7 @@ pd watch deploy:events --exec ./notify.sh`}
             Coming in v4
           </Badge>
           <p
-            className="text-lg font-bold m-0"
+            className="text-[length:var(--type-panel-title-nav-size)] font-bold m-0"
             style={{ color: "var(--text-primary)" }}
           >
             Global Intelligence.

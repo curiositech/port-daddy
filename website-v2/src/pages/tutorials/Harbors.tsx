@@ -54,7 +54,7 @@ export function Harbors() {
             className="border-l-4 border-[var(--brand-secondary)]"
           >
             <p
-              className="m-0 text-sm"
+              className="m-0 text-[length:var(--type-panel-body-compact-size)]"
               style={{ color: "var(--text-secondary)" }}
             >
               <strong>Operator Rule:</strong> if another agent should be able
@@ -103,14 +103,14 @@ Scope:  project coordination`}
           <div className="space-y-3">
             <div className="p-4  border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
               <Badge variant="teal">Capability: code:read</Badge>
-              <p className="text-sm m-0 mt-2 leading-relaxed text-[var(--text-secondary)]">
+              <p className="text-[length:var(--type-panel-body-compact-size)] m-0 mt-2 leading-relaxed text-[var(--text-secondary)]">
                 Sessions, notes, file claims, locks, channels, services, and
                 recovery records are recorded against the same named boundary.
               </p>
             </div>
             <div className="p-4  border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
               <Badge variant="gold">Capability: notes:write</Badge>
-              <p className="text-sm m-0 mt-2 leading-relaxed text-[var(--text-secondary)]">
+              <p className="text-[length:var(--type-panel-body-compact-size)] m-0 mt-2 leading-relaxed text-[var(--text-secondary)]">
                 Risky work can use narrower capabilities and TTLs without
                 changing the normal everyday harbor flow.
               </p>
@@ -214,7 +214,7 @@ Token JTI burned — cannot be reused.`}
             className="border-l-4 border-[var(--brand-secondary)]"
           >
             <p
-              className="m-0 text-sm"
+              className="m-0 text-[length:var(--type-panel-body-compact-size)]"
               style={{ color: "var(--text-secondary)" }}
             >
               <strong>Common Pitfall:</strong> treating harbors as an advanced
@@ -243,7 +243,7 @@ Token JTI burned — cannot be reused.`}
               <p className="font-bold text-[var(--text-primary)] m-0 mb-1">
                 Sessions and notes
               </p>
-              <p className="text-sm m-0 text-[var(--text-secondary)]">
+              <p className="text-[length:var(--type-panel-body-compact-size)] m-0 text-[var(--text-secondary)]">
                 Every agent gets a live session, a purpose, progress notes, and
                 salvage evidence another agent can read later.
               </p>
@@ -252,7 +252,7 @@ Token JTI burned — cannot be reused.`}
               <p className="font-bold text-[var(--text-primary)] m-0 mb-1">
                 Files, locks, and services
               </p>
-              <p className="text-sm m-0 text-[var(--text-secondary)]">
+              <p className="text-[length:var(--type-panel-body-compact-size)] m-0 text-[var(--text-secondary)]">
                 File claims, locks, service names, tunnels, and runtime records
                 stay scoped to the project boundary.
               </p>
@@ -261,7 +261,7 @@ Token JTI burned — cannot be reused.`}
               <p className="font-bold text-[var(--text-primary)] m-0 mb-1">
                 Channels and inboxes
               </p>
-              <p className="text-sm m-0 text-[var(--text-secondary)]">
+              <p className="text-[length:var(--type-panel-body-compact-size)] m-0 text-[var(--text-secondary)]">
                 Agents can publish events, send direct handoffs, and inspect
                 unread work without sharing one terminal.
               </p>
@@ -270,7 +270,7 @@ Token JTI burned — cannot be reused.`}
               <p className="font-bold text-[var(--text-primary)] m-0 mb-1">
                 Fleets and spawned jobs
               </p>
-              <p className="text-sm m-0 text-[var(--text-secondary)]">
+              <p className="text-[length:var(--type-panel-body-compact-size)] m-0 text-[var(--text-secondary)]">
                 Background agents, one-shot jobs, budgets, model readiness, and
                 recovery history become visible in the same control plane.
               </p>
@@ -288,7 +288,7 @@ Token JTI burned — cannot be reused.`}
         <Surface depth="raised" radius="none" className="p-6 space-y-4">
           <div className="flex items-center gap-3">
             <Zap size={18} className="text-[var(--brand-primary)]" />
-            <p className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] m-0">
+            <p className="text-[length:var(--type-meta-size)] font-black uppercase tracking-widest text-[var(--text-muted)] m-0">
               Implementation Detail
             </p>
           </div>

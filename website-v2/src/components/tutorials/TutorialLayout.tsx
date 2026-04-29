@@ -92,7 +92,7 @@ export function TutorialLayout({
 
       {/* Hero Section */}
       <motion.section className="relative shrink-0 overflow-hidden border-b-2 border-[var(--border-strong)] bg-[var(--surface-raised)] px-[var(--space-4)] py-[var(--section-space-y)] sm:px-[var(--space-6)] lg:px-[var(--space-8)]">
-        <motion.div className="max-w-4xl mx-auto relative z-10 text-center flex flex-col items-center">
+        <motion.div className="mx-auto max-w-6xl relative z-10 text-center flex flex-col items-center">
           {/* Reorientation Panel for returning users */}
           {hasReturned && (
             <ReorientationPanel
@@ -161,7 +161,7 @@ export function TutorialLayout({
                 src={recording.gifSrc}
                 title={recording.title}
                 caption={recording.caption}
-                className="mt-[var(--space-7)] w-full max-w-4xl text-left"
+                className="mt-[var(--space-7)] w-full max-w-6xl text-left"
               />
             ) : null}
           </motion.div>
@@ -186,6 +186,10 @@ export function TutorialLayout({
             prose-strong:text-[var(--text-primary)] prose-strong:font-black
             prose-ul:mb-[var(--space-6)] prose-ul:list-disc prose-ul:space-y-[var(--space-3)] prose-ul:pl-[var(--space-6)]
             prose-li:text-[length:var(--type-panel-body-size)] prose-li:text-[var(--text-secondary)]
+            prose-table:my-[var(--space-6)] prose-table:w-full prose-table:border-collapse prose-table:font-sans prose-table:text-[length:var(--type-panel-body-compact-size)]
+            prose-thead:border-b prose-thead:border-[var(--border-subtle)]
+            prose-th:pb-[var(--space-3)] prose-th:pr-[var(--space-4)] prose-th:text-left prose-th:font-sans prose-th:text-[length:var(--type-meta-size)] prose-th:font-black prose-th:uppercase prose-th:tracking-[var(--tracking-meta)] prose-th:text-[var(--text-muted)]
+            prose-td:border-t prose-td:border-[var(--border-subtle)] prose-td:py-[var(--space-3)] prose-td:pr-[var(--space-4)] prose-td:align-top prose-td:text-[length:var(--type-panel-body-compact-size)] prose-td:leading-[var(--leading-body-compact)] prose-td:text-[var(--text-secondary)]
             prose-blockquote:border-l-4 prose-blockquote:border-[var(--brand-primary)] prose-blockquote:bg-[var(--surface-raised)] prose-blockquote:px-[var(--space-6)] prose-blockquote:py-[var(--space-4)] prose-blockquote:italic"
         >
           {children}
