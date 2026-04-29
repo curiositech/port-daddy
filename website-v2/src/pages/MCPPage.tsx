@@ -636,13 +636,6 @@ pd begin --identity myapp:agent --purpose "coordinate through Skill + MCP"`}
           </PageContainer>
         </header>
 
-        <SectionBand tone="raised">
-          <PageContainer width="wide" className="space-y-[var(--space-6)]">
-            <MetricStrip />
-            <RuntimeTable />
-          </PageContainer>
-        </SectionBand>
-
         <SectionBand id="agent-skill">
           <PageContainer width="wide">
             <SwissGrid className="items-start">
@@ -721,6 +714,13 @@ bash skills/port-daddy-agent-skill/scripts/diagnose_port_daddy_agent_context.sh`
                 </div>
               </SwissGridItem>
             </SwissGrid>
+          </PageContainer>
+        </SectionBand>
+
+        <SectionBand tone="raised">
+          <PageContainer width="wide" className="space-y-[var(--space-6)]">
+            <MetricStrip />
+            <RuntimeTable />
           </PageContainer>
         </SectionBand>
 
