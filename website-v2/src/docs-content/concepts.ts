@@ -1,4 +1,9 @@
+import { PRODUCT_FEATURES } from '@/data/product'
 import type { DocsContentSection } from './types'
+
+const productPrimitiveItems = PRODUCT_FEATURES.map(
+  (feature) => `${feature.title}: ${feature.description}`,
+)
 
 export const conceptsSection: DocsContentSection = {
   slug: 'concepts',
@@ -146,6 +151,50 @@ export const conceptsSection: DocsContentSection = {
         {
           path: 'docs/reports/PORT_DADDY_ANCHOR_WHITEPAPER.md',
           rationale: 'The whitepaper explains the harbor protocol boundary and current phase truth.',
+        },
+      ],
+    },
+    {
+      slug: 'eleven-product-primitives',
+      title: 'Eleven Product Primitives',
+      summary:
+        'How the home-page primitives map to the Mac app, daemon authority, and the real operator loop.',
+      truth: 'source-backed',
+      goals: [
+        'Name the eleven public product primitives.',
+        'Understand which primitives are Mac app surfaces.',
+        'Understand which primitives are daemon coordination surfaces.',
+      ],
+      blocks: [
+        {
+          type: 'paragraph',
+          title: 'The primitive list is the product map',
+          paragraphs: [
+            'The eleven primitives on the public site are not decorative feature cards. They are the quickest map from a visitor question to a real surface: FleetBar, Fleet Control Center, Shipwright, sorties, resources, backend readiness, agent radio, enforced coordination, Coordination Guard, harbors, and salvage.',
+            'That is also the shortest answer to what Port Daddy is: a local communication substrate and Mac control plane that makes shared agent work visible, attributable, recoverable, and governable.',
+          ],
+        },
+        {
+          type: 'checklist',
+          items: productPrimitiveItems,
+        },
+        {
+          type: 'paragraph',
+          title: 'Mac app surfaces and daemon primitives are one system',
+          paragraphs: [
+            'FleetBar and Fleet Control Center are the Mac-facing surfaces. The daemon-backed primitives underneath are what make those surfaces more than a launcher: sessions, notes, channels, inboxes, claims, tuples, guard checks, harbors, backend readiness, budgets, and salvage state.',
+            'Shipwright connects those layers during cold start. It surveys a repo, proposes a starter fleet, simulates risk and budget, then hands the operator back to Flow, Agents, YAML, and Resources inside the same control plane.',
+          ],
+        },
+      ],
+      sources: [
+        {
+          path: 'website-v2/src/data/product.ts',
+          rationale: 'Public product data defines the eleven primitives used by the home page and Mac preview.',
+        },
+        {
+          path: 'website-v2/src/components/landing/MacAppShowcase.tsx',
+          rationale: 'Mac app showcase maps those primitives to FleetBar and Fleet Control Center screenshots.',
         },
       ],
     },

@@ -57,7 +57,17 @@ describe('public shell contracts', () => {
       },
       {
         path: './components/docs/DocsLayout.tsx',
-        required: ['DocsSidebar', 'Outlet', 'overflow-hidden', 'left-1/4', 'left-1/2', 'left-3/4'],
+        required: [
+          'DocsSidebar',
+          'Outlet',
+          'DocsFamilyNav',
+          'Docs family navigation',
+          'docsSidebarFamilies',
+          'overflow-hidden',
+          'left-1/4',
+          'left-1/2',
+          'left-3/4',
+        ],
         forbidden: [/gap-8/, /px-6 py-10/, /sm:px-8/, /lg:px-10 lg:py-12/],
       },
       {
@@ -96,6 +106,7 @@ describe('public shell contracts', () => {
           'findDocsContentPage',
           'What this page answers',
           'Section map',
+          'Route relationship',
           'scroll-mt-[calc(var(--space-10)+var(--space-6))]',
         ],
         forbidden: [
@@ -225,22 +236,25 @@ describe('public shell contracts', () => {
     const header = read('./components/site/SiteHeader.tsx')
     const footer = read('./components/site/SiteFooter.tsx')
 
-    expect(header).toContain('/dashboard')
+    expect(header).toContain('/mac-preview')
     expect(header).toContain('/examples')
+    expect(header).toContain('/agents')
     expect(header).toContain('/mcp')
     expect(header).toContain('/tutorials')
-    expect(header).toContain('/roadmap')
+    expect(header).not.toContain('/roadmap')
     expect(header).toContain("/whitepaper")
     expect(header).toContain('Papers')
+    expect(header).not.toContain('/dashboard')
     expect(header).toContain('Port Daddy')
     expect(header).toContain('Mobile primary')
     expect(header).toContain('!max-w-none')
     expect(header).toContain('inline-flex shrink-0 items-center')
     expect(header).not.toContain('absolute right-0 top-0 h-full w-3')
-    expect(footer).toContain('/dashboard')
+    expect(footer).not.toContain('/dashboard')
+    expect(footer).toContain('/mac-preview')
     expect(footer).toContain('/agents')
     expect(footer).toContain('/mcp')
-    expect(footer).toContain('/roadmap')
+    expect(footer).not.toContain('/roadmap')
     expect(footer).toContain('/docs/get-started')
     expect(footer).toContain('/docs/cli')
     expect(footer).toContain('/docs/sdk')
@@ -270,17 +284,23 @@ describe('public shell contracts', () => {
     const docsSidebar = read('./components/site/DocsSidebar.tsx')
 
     expect(docsOverview).toContain('Keep the rest of the site in play.')
-    expect(docsOverview).toContain('/dashboard')
+    expect(docsOverview).not.toContain('/dashboard')
+    expect(docsOverview).toContain('/mac-preview')
     expect(docsOverview).toContain('/examples')
+    expect(docsOverview).toContain('/docs/examples guides. /examples runs.')
+    expect(docsOverview).toContain('/templates')
     expect(docsOverview).toContain('/mcp')
     expect(docsOverview).toContain('/agents')
-    expect(docsOverview).toContain('/roadmap')
+    expect(docsOverview).not.toContain('/roadmap')
     expect(docsSidebar).toContain('The rest of the website stays live.')
-    expect(docsSidebar).toContain('/dashboard')
+    expect(docsSidebar).not.toContain('/dashboard')
+    expect(docsSidebar).toContain('/mac-preview')
     expect(docsSidebar).toContain('/examples')
+    expect(docsSidebar).toContain('/docs/examples guides. /examples runs.')
+    expect(docsSidebar).toContain('/templates')
     expect(docsSidebar).toContain('/mcp')
     expect(docsSidebar).toContain('/agents')
-    expect(docsSidebar).toContain('/roadmap')
+    expect(docsSidebar).not.toContain('/roadmap')
   })
 
   test('docs families stay under /docs while the main router preserves the current site surface', () => {
@@ -304,10 +324,9 @@ describe('public shell contracts', () => {
     }
 
     for (const routePath of [
-      'path="/dashboard"',
+      'path="/mac-preview"',
       'path="/examples"',
       'path="/mcp"',
-      'path="/roadmap"',
       'path="/templates"',
       'path="/agents"',
       'path="/tutorials"',
@@ -321,6 +340,9 @@ describe('public shell contracts', () => {
     ]) {
       expect(mainSource).toContain(routePath)
     }
+    expect(mainSource).not.toContain('path="/roadmap"')
+    expect(mainSource).not.toContain('path="/dashboard"')
+    expect(mainSource).not.toContain('path="/tutorials/dashboard"')
   })
 
   test('home page stays on the existing landing composition instead of the replacement shell', () => {
@@ -383,6 +405,7 @@ describe('public shell contracts', () => {
       'daemon-and-authority',
       'sessions-locks-and-tuples',
       'harbors-and-identity',
+      'eleven-product-primitives',
     ])
     expect(findDocsContentSection('best-practices')?.pages.map((page) => page.slug)).toEqual([
       'operator-loop',
@@ -396,10 +419,12 @@ describe('public shell contracts', () => {
       'exchange-state-through-tuples',
       'enter-a-harbor-and-pass-a-card',
     ])
+    expect(findDocsContentSection('examples')?.summary).toContain('/examples corpus')
     expect(findDocsContentSection('tutorials')?.pages.map((page) => page.slug)).toEqual([
       'bootstrap-a-project-fleet',
       'recover-a-dead-agent-session',
       'launch-and-inspect-a-sortie',
+      'walk-the-eleven-primitives',
     ])
     expect(findDocsContentSection('reference-architectures')?.pages.map((page) => page.slug)).toEqual([
       'single-machine-control-plane',

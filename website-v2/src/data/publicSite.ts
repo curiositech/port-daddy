@@ -8,7 +8,7 @@ import {
 
 export type TruthState = 'Live' | 'Roadmap'
 
-export type AccentTone = 'paper' | 'blue' | 'lime'
+export type AccentTone = 'paper' | 'blue' | 'accent'
 
 export interface DocModule {
   truth: TruthState
@@ -94,7 +94,7 @@ export const proofPanels: ProofPanel[] = [
 export const proofStats = [
   { value: 'Ed25519', label: 'active harbor issuance', tone: 'paper' as const },
   { value: 'Explicit', label: 'legacy HS256 path', tone: 'blue' as const },
-  { value: 'Open core', label: 'runtime business model', tone: 'lime' as const },
+  { value: 'Open core', label: 'runtime business model', tone: 'accent' as const },
 ] as const
 
 export const architectureNarrative = [
@@ -147,7 +147,7 @@ export const commercialTracks: CommercialTrack[] = [
     subtitle: 'Audit, key custody, and policy',
     description:
       'For organizations with compliance, security, or procurement pressure, the value is stronger control, stronger custody, and better evidence.',
-    tone: 'lime',
+    tone: 'accent',
     badge: 'Enterprise',
     bullets: [
       'Audit export and policy enforcement',

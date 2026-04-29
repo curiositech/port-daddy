@@ -17,7 +17,7 @@ import { findDocsContentPage, findDocsContentSection } from '@/docs-content'
 import type { ContentBlock, DocsContentPage } from '@/docs-content'
 
 function pageTone(page: DocsContentPage) {
-  return page.truth === 'source-backed' ? 'blue' : 'lime'
+  return page.truth === 'source-backed' ? 'blue' : 'accent'
 }
 
 function blockLabel(block: ContentBlock) {
@@ -111,7 +111,7 @@ function renderContentBlock(block: ContentBlock, index: number) {
       return (
         <DocsNoteCard
           key={`callout-${index}`}
-          tone={block.tone === 'warning' ? 'lime' : 'paper'}
+          tone={block.tone === 'warning' ? 'accent' : 'paper'}
           label={label}
           title={block.title}
         >
@@ -211,7 +211,7 @@ export default function DocsSectionPage() {
                     key={id}
                     href={`#${id}`}
                     side={index % 2 === 0 ? 'left' : 'right'}
-                    tone={index % 2 === 0 ? 'blue' : 'lime'}
+                    tone={index % 2 === 0 ? 'blue' : 'accent'}
                     active={activeAnchor === id}
                   >
                     {heading}
@@ -236,7 +236,7 @@ export default function DocsSectionPage() {
                     <BracketNavLink
                       key={page.slug}
                       to={`${route.path}/${page.slug}`}
-                      tone={index % 2 === 0 ? 'blue' : 'lime'}
+                      tone={index % 2 === 0 ? 'blue' : 'accent'}
                       side={index % 2 === 0 ? 'left' : 'right'}
                     >
                       {page.title}
@@ -262,6 +262,27 @@ export default function DocsSectionPage() {
 
       {contentSection ? (
         <div className="space-y-[var(--panel-gap)]">
+          {route.slug === 'examples' ? (
+            <DocsNoteCard
+              label="Route relationship"
+              title="/docs/examples guides. /examples runs."
+              elevation="quiet"
+              padding="compact"
+              titleSize="nav"
+            >
+              <PanelBody size="compact" className="max-w-none">
+                This docs section explains when to use each pattern and why it matters. The top-level examples route is
+                the runnable gallery backed by files in the repo, including swarm coordination, PD Tube tunnel flows,
+                and daemon-powered dev tools.
+              </PanelBody>
+              <div className="flex flex-wrap gap-[var(--panel-gap-tight)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
+                <BracketNavLink to="/examples" tone="accent" side="right">
+                  Open runnable examples
+                </BracketNavLink>
+              </div>
+            </DocsNoteCard>
+          ) : null}
+
           <DocsNoteCard
             label="Section map"
             title="Start with the question in front of you."
@@ -297,7 +318,7 @@ export default function DocsSectionPage() {
           body={section.modules[0].body}
           bullets={section.modules[0].bullets}
           code={section.modules[0].code}
-          tone={section.modules[0].truth === 'Roadmap' ? 'lime' : section.tone}
+          tone={section.modules[0].truth === 'Roadmap' ? 'accent' : section.tone}
           featured
         />
       ) : null}
@@ -311,7 +332,7 @@ export default function DocsSectionPage() {
             body={module.body}
             bullets={module.bullets}
             code={module.code}
-            tone={module.truth === 'Roadmap' ? 'lime' : index % 2 === 0 ? 'paper' : 'blue'}
+            tone={module.truth === 'Roadmap' ? 'accent' : index % 2 === 0 ? 'paper' : 'blue'}
           />
         ))}
       </div>

@@ -22,7 +22,7 @@ export function Hero() {
             transition={{ duration: 0.6, ease: 'easeOut' as const }}
             className="space-y-[var(--space-5)]"
           >
-            <a href="#mac-app" className="no-underline">
+            <Link to="/mac-preview" className="no-underline">
               <motion.div
                 whileHover={{ scale: 1.02 }}
                 className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] px-3 py-1.5 text-xs font-semibold mb-4 cursor-pointer"
@@ -36,7 +36,7 @@ export function Hero() {
                 <span style={{ color: 'var(--text-secondary)' }}>Agent radio, handoffs, resources, and launch readiness are visible in the app</span>
                 <ArrowRight size={12} />
               </motion.div>
-            </a>
+            </Link>
 
             <SectionIntro
               eyebrow="What is Port Daddy?"
@@ -78,11 +78,11 @@ export function Hero() {
 
             <div className="flex flex-wrap items-center gap-[var(--space-3)]">
               <Button asChild variant="primary" size="lg">
-                <a href="#download">
+                <Link to="/mac-preview#download">
                   <Download size={16} />
                   Download Mac preview
                   <ArrowRight size={16} />
-                </a>
+                </Link>
               </Button>
               <Link to="/tutorials/getting-started">
                 <Button variant="ghost" size="lg" className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">

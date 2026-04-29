@@ -473,6 +473,11 @@ export interface BackendInfo {
   readinessStatus?: 'ready' | 'needs_setup' | 'manual_check' | 'unknown';
   readinessSummary?: string;
   readinessNextStep?: string;
+  credentialKeys?: string[];
+  credentialAlternates?: string[];
+  setupCommand?: string;
+  setupFiles?: string[];
+  restartRequired?: boolean;
 }
 
 export interface RegistryAgent {
@@ -618,6 +623,11 @@ export interface SpawnPreflight {
     readinessStatus: 'ready' | 'needs_setup' | 'manual_check' | 'unknown';
     readinessSummary: string;
     readinessNextStep?: string;
+    credentialKeys?: string[];
+    credentialAlternates?: string[];
+    setupCommand?: string;
+    setupFiles?: string[];
+    restartRequired?: boolean;
   }>;
   projectName: string | null;
   budget: {

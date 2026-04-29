@@ -1,196 +1,68 @@
-# Multi-Agent Coordination Patterns
+# Coordination Patterns
 
-This isn't a demo. It's the actual protocol for agent coordination.
+Port Daddy coordination is a small set of durable primitives:
 
-## The Problem
+| Primitive | CLI | SDK | Use it for |
+| --- | --- | --- | --- |
+| Sessions | `pd begin`, `pd done`, `pd session files add` | `begin()`, `done()`, `claimFiles()` | Work identity, notes, file claims, attribution |
+| Channels | `pd channels ensure`, `pd pub`, `pd sub` | `ensureChannel()`, `publish()`, `subscribe()` | Broadcast events and discoveries |
+| Tuple space | `pd tuple out`, `pd tuple rd`, `pd tuple in` | `tupleOut()`, `tupleRd()`, `tupleIn()` | Shared queryable state for swarms |
+| Locks | `pd lock`, `pd with-lock` | `withLock()` | Critical sections that must be exclusive |
+| Notes | `pd note`, `pd notes` | `note()`, `notes()` | Durable human-readable trail |
+| Inbox | `pd inbox send` | `inboxSend()` | Targeted handoffs to one agent |
 
-Multiple agents working on the same codebase need to:
-1. **Find each other** — How does Agent B know Agent A exists?
-2. **Share discoveries** — How does Agent A's finding reach Agent B?
-3. **Avoid conflicts** — How do they not step on each other's work?
-4. **Converge** — How do they know when a problem is solved?
+## Recommended Pattern
 
-## The Protocol
-
-### 1. Channel Naming Convention
-
-Agents find each other through predictable channel names:
-
-```
-{scope}:{topic}:{qualifier}
-
-Examples:
-  project:myapp:changes      # All changes in myapp
-  bug:JIRA-123:war-room      # Debugging session for a specific bug
-  file:src/api/users.ts:edits # Edits to a specific file
-  agent:agent-xyz:inbox      # Direct messages to an agent
-```
-
-**The convention IS the discovery mechanism.** If you're working on bug JIRA-123, you subscribe to `bug:JIRA-123:war-room`. No registry lookup needed.
-
-### 2. Message Schema
-
-Every message follows this structure:
+Use sessions for identity, channels for live notification, tuples for durable
+coordination state, and locks only around the short critical section.
 
 ```typescript
-interface AgentMessage {
-  // Who sent this?
-  agent: string;           // Agent identifier
+import { PortDaddy } from '../../lib/client.js';
 
-  // What type of message?
-  type: 'status' | 'finding' | 'question' | 'answer' | 'claim' | 'release' | 'done';
+const pd = new PortDaddy({ agentId: 'agent-scout' });
+const { sessionId } = await pd.begin('Investigate flaky checkout test', {
+  identity: 'myapp:test:checkout-flake',
+  files: ['tests/checkout.test.ts'],
+});
 
-  // Human-readable summary
-  message: string;
+await pd.ensureChannel('myapp:checkout-flake', {
+  scope: 'worktree',
+  projectDir: process.cwd(),
+});
 
-  // Structured payload (type-specific)
-  data?: Record<string, unknown>;
+await pd.tupleOut(['finding', 'checkout-flake', { file: 'checkout.test.ts' }], {
+  harbor: 'myapp',
+  writtenBy: 'agent-scout',
+  ttlMs: 30 * 60 * 1000,
+});
 
-  // For threading/correlation
-  replyTo?: string;        // Message ID being responded to
+await pd.publish('myapp:checkout-flake', {
+  agent: 'agent-scout',
+  type: 'finding',
+  message: 'The flaky assertion depends on stale localStorage state.',
+  ts: Date.now(),
+});
 
-  // Timestamp (Unix ms)
-  ts: number;
-}
+await pd.done('Published checkout flake finding', { sessionId });
 ```
 
-### 3. Coordination Primitives
-
-Port Daddy provides three primitives. Everything else is convention.
-
-| Primitive | CLI | SDK | Purpose |
-|-----------|-----|-----|---------|
-| **Pub/Sub** | `pd pub`, `pd sub` | `pd.publish()`, `pd.subscribe()` | Broadcast discoveries |
-| **Locks** | `pd lock`, `pd unlock` | `pd.lock()`, `pd.unlock()` | Exclusive access to resources |
-| **Notes** | `pd note`, `pd notes` | `pd.note()`, `pd.notes()` | Persistent memory |
-
-### 4. Pattern: Join → Work → Share → Done
+## Runnable Examples
 
 ```bash
-# 1. JOIN: Subscribe to the coordination channel
-pd sub "bug:JIRA-123:war-room" &
+# Complete tuple-backed swarm board.
+npx tsx examples/swarm/coordination-board.ts
 
-# 2. ANNOUNCE: Let others know you're here
-pd pub "bug:JIRA-123:war-room" '{
-  "agent": "'"$AGENT_ID"'",
-  "type": "status",
-  "message": "Joining war room - I will search git history",
-  "ts": '"$(date +%s000)"'
-}'
+# File edit coordination helper.
+npx tsx examples/coordination/file-edit-guard.ts status examples/README.md
 
-# 3. CLAIM: Lock resources you need exclusive access to
-pd lock "bug:JIRA-123:git-bisect" -t 300000
-
-# 4. WORK: Do your analysis...
-RESULT=$(git bisect ...)
-
-# 5. SHARE: Publish findings
-pd pub "bug:JIRA-123:war-room" '{
-  "agent": "'"$AGENT_ID"'",
-  "type": "finding",
-  "message": "Bug introduced in commit abc123",
-  "data": {"commit": "abc123", "date": "2024-01-15"},
-  "ts": '"$(date +%s000)"'
-}'
-
-# 6. RELEASE: Unlock resources
-pd unlock "bug:JIRA-123:git-bisect"
-
-# 7. RECORD: Save to permanent memory
-pd note "Bug JIRA-123: Introduced in commit abc123 on 2024-01-15"
+# Typed helper you can import into your own scripts.
+npx tsx -e "import { createCoordinator } from './examples/coordination/agent-protocol.ts'; console.log(createCoordinator('demo-agent').id)"
 ```
 
-## Real Examples
+## When To Pick What
 
-### Example 1: File Edit Coordination
-
-Two agents want to edit the same file. Here's how they coordinate:
-
-```bash
-# Agent A starts editing
-pd pub "file:src/api/users.ts:edits" '{
-  "agent": "agent-a",
-  "type": "claim",
-  "message": "Editing lines 40-60 to add null check",
-  "data": {"lines": [40, 60], "intent": "null-check"},
-  "ts": '"$(date +%s000)"'
-}'
-
-# Agent B sees the claim and waits (or works on different lines)
-pd sub "file:src/api/users.ts:edits" | jq -r 'select(.type == "claim")'
-
-# Agent A finishes
-pd pub "file:src/api/users.ts:edits" '{
-  "agent": "agent-a",
-  "type": "release",
-  "message": "Done editing lines 40-60",
-  "ts": '"$(date +%s000)"'
-}'
-```
-
-### Example 2: Parallel Investigation
-
-Three agents investigate a bug. Each subscribes to the same channel and publishes findings:
-
-```bash
-# All agents subscribe
-pd sub "bug:JIRA-123:war-room" | while read msg; do
-  type=$(echo "$msg" | jq -r '.type')
-  agent=$(echo "$msg" | jq -r '.agent')
-
-  # React to other agents' findings
-  if [[ "$type" == "finding" && "$agent" != "$MY_ID" ]]; then
-    # Maybe this finding helps me narrow my search
-    echo "Got finding from $agent: $(echo "$msg" | jq -r '.message')"
-  fi
-
-  # Check for convergence
-  if [[ "$type" == "done" ]]; then
-    echo "Solution found by $agent"
-    break
-  fi
-done
-```
-
-### Example 3: Request/Response
-
-Agent A needs help from Agent B:
-
-```bash
-# Agent A asks a question
-MSG_ID="q-$(date +%s)"
-pd pub "project:myapp:help" '{
-  "agent": "agent-a",
-  "type": "question",
-  "message": "What is the auth middleware doing at line 42?",
-  "data": {"file": "src/middleware/auth.ts", "line": 42, "msgId": "'"$MSG_ID"'"},
-  "ts": '"$(date +%s000)"'
-}'
-
-# Agent B sees the question and answers
-pd pub "project:myapp:help" '{
-  "agent": "agent-b",
-  "type": "answer",
-  "message": "Line 42 validates JWT expiry. It throws if token is expired.",
-  "replyTo": "'"$MSG_ID"'",
-  "ts": '"$(date +%s000)"'
-}'
-```
-
-## What's Reusable
-
-The **protocol** is reusable, not the agents themselves. Any agent that follows this protocol can coordinate with any other agent:
-
-1. **Subscribe to predictable channels** based on what you're working on
-2. **Publish structured messages** using the AgentMessage schema
-3. **Use locks** for exclusive access
-4. **Use notes** for persistent memory
-
-The actual analysis logic (git bisect, code search, etc.) is up to each agent. Port Daddy just provides the coordination infrastructure.
-
-## What You Learn
-
-1. **Coordination is a solved problem** — You don't need custom protocols or file-based locking
-2. **Channel naming is discovery** — Predictable names mean agents find each other automatically
-3. **Structured messages enable composition** — Any agent can consume any other agent's findings
-4. **The primitives are simple** — pub/sub, locks, notes. Everything else is convention.
+- Use `pd session files add` or `claimFiles()` for edit intent.
+- Use `pd tuple out` when another agent or tool should query the fact later.
+- Use `pd pub` for "wake up and look at this" signals.
+- Use `pd lock` / `withLock()` only while performing a non-mergeable action.
+- Use inboxes for direct handoffs to a known agent or durable role.

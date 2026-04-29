@@ -61,9 +61,6 @@
     <loc>https://portdaddy.dev/cookbook/p2p-webrtc</loc>
   </url>
   <url>
-    <loc>https://portdaddy.dev/dashboard</loc>
-  </url>
-  <url>
     <loc>https://portdaddy.dev/docs</loc>
   </url>
   <url>
@@ -457,10 +454,10 @@
     <loc>https://portdaddy.dev/integrations/windsurf</loc>
   </url>
   <url>
-    <loc>https://portdaddy.dev/mcp</loc>
+    <loc>https://portdaddy.dev/mac-preview</loc>
   </url>
   <url>
-    <loc>https://portdaddy.dev/roadmap</loc>
+    <loc>https://portdaddy.dev/mcp</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/templates</loc>
@@ -485,9 +482,6 @@
   </url>
   <url>
     <loc>https://portdaddy.dev/tutorials/always-on</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/tutorials/dashboard</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/tutorials/debugging</loc>
@@ -521,6 +515,9 @@
   </url>
   <url>
     <loc>https://portdaddy.dev/tutorials/pipelines</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/tutorials/primitives</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/tutorials/remote-harbors</loc>

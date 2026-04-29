@@ -11,6 +11,7 @@ import {
   SwissGrid,
   SwissGridItem,
 } from '@/components/site/primitives'
+import { RoleTerm } from '@/components/site/RoleTerm'
 import { WHITE_PAPERS } from '@/data/whitePapers'
 
 const COORDINATION_FEEDBACK = [
@@ -31,7 +32,10 @@ export function CTABanner() {
                 Install the agent communication layer, then open it from FleetBar.
               </PanelTitle>
               <PanelBody className="max-w-[42rem]">
-                Port Daddy is still open-source infrastructure. The difference now is that the Mac app, Fleet Control Center, Shipwright, sorties, resource governance, backend readiness, and agent-to-agent handoffs are the product surface, not a hidden terminal story.
+                Port Daddy is still open-source infrastructure. The difference now is that the Mac
+                app, Fleet Control Center, <RoleTerm role="shipwright">Shipwright</RoleTerm>,{' '}
+                <RoleTerm role="sortie">sorties</RoleTerm>, resource governance, backend readiness,
+                and agent-to-agent handoffs are the product surface, not a hidden terminal story.
               </PanelBody>
               <div className="grid gap-[var(--space-3)] md:grid-cols-2">
                 {WHITE_PAPERS.map((paper) => (

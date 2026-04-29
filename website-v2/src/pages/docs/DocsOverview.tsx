@@ -36,11 +36,11 @@ export default function DocsOverview() {
 
   const readingPath = [
     { title: 'Whitepaper', href: '/whitepaper', tone: 'blue' as const },
-    { title: 'Get started', href: '/docs/get-started', tone: 'lime' as const },
+    { title: 'Get started', href: '/docs/get-started', tone: 'accent' as const },
     { title: 'Concepts', href: '/docs/concepts', tone: 'blue' as const },
-    { title: 'Best practices', href: '/docs/best-practices', tone: 'lime' as const },
+    { title: 'Best practices', href: '/docs/best-practices', tone: 'accent' as const },
     { title: 'Examples', href: '/docs/examples', tone: 'blue' as const },
-    { title: 'Tutorials', href: '/docs/tutorials', tone: 'lime' as const },
+    { title: 'Tutorials', href: '/docs/tutorials', tone: 'accent' as const },
     { title: 'Reference', href: '/docs/reference', tone: 'blue' as const },
   ]
   const referenceSurfaces = [
@@ -50,11 +50,11 @@ export default function DocsOverview() {
     { title: 'REST API', href: '/docs/api' },
   ]
   const siteSurfaces = [
-    { title: 'Dashboard', href: '/dashboard' },
-    { title: 'Examples', href: '/examples' },
+    { title: 'Mac Preview', href: '/mac-preview' },
+    { title: 'Runnable examples', href: '/examples' },
+    { title: 'Templates', href: '/templates' },
     { title: 'MCP overview', href: '/mcp' },
     { title: 'Agents', href: '/agents' },
-    { title: 'Roadmap', href: '/roadmap' },
   ]
 
   return (
@@ -108,6 +108,27 @@ export default function DocsOverview() {
       </div>
 
       <DocsNoteCard
+        label="Examples route split"
+        title="/docs/examples guides. /examples runs."
+        elevation="quiet"
+        padding="compact"
+      >
+        <PanelBody size="compact" className="max-w-none">
+          Use /docs/examples for the explanatory path through coordination patterns. Use /examples for the
+          source-backed code gallery: swarm coordination, PD Tube tunnel inspection, service discovery, inbox flows,
+          locks, phases, and dev tools built on top of the daemon.
+        </PanelBody>
+        <div className="flex flex-wrap gap-[var(--panel-gap-tight)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
+          <BracketNavLink to="/docs/examples" tone="blue" side="left">
+            Read /docs/examples
+          </BracketNavLink>
+          <BracketNavLink to="/examples" tone="accent" side="right">
+            Open /examples
+          </BracketNavLink>
+        </div>
+      </DocsNoteCard>
+
+      <DocsNoteCard
         label="Reference surfaces"
         title="Keep the exact interfaces one click away."
         elevation="quiet"
@@ -122,7 +143,7 @@ export default function DocsOverview() {
             <BracketNavLink
               key={surface.href}
               to={surface.href}
-              tone={index % 2 === 0 ? 'blue' : 'lime'}
+              tone={index % 2 === 0 ? 'blue' : 'accent'}
               side={index % 2 === 0 ? 'left' : 'right'}
             >
               {surface.title}
@@ -138,15 +159,15 @@ export default function DocsOverview() {
         padding="compact"
       >
         <PanelBody size="compact" className="max-w-none">
-          The docs shell is for sustained reading. The dashboard, examples, MCP overview, agent catalog, and roadmap
-          still matter when you are navigating the working product rather than a linear documentation path.
+          The docs shell is for sustained reading. The Mac preview, runnable examples, templates, MCP overview, and
+          agent catalog still matter when you are navigating the working product rather than a linear documentation path.
         </PanelBody>
         <div className="flex flex-wrap gap-[var(--panel-gap-tight)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
           {siteSurfaces.map((surface, index) => (
             <BracketNavLink
               key={surface.href}
               to={surface.href}
-              tone={index % 2 === 0 ? 'lime' : 'blue'}
+              tone={index % 2 === 0 ? 'accent' : 'blue'}
               side={index % 2 === 0 ? 'left' : 'right'}
             >
               {surface.title}

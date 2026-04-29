@@ -11,6 +11,7 @@ import {
   SwissGrid,
   SwissGridItem,
 } from '@/components/site/primitives'
+import { RoleTerm } from '@/components/site/RoleTerm'
 
 export function ColdStartSection() {
   return (
@@ -20,8 +21,15 @@ export function ColdStartSection() {
           <SwissGridItem span="wide">
             <SectionIntro
               eyebrow="Cold start"
-              title="New projects should enter through Shipwright."
-              description="The first-use path is intentionally concrete: install the local daemon, expose required backend keys, survey the repo, simulate a bounded starter fleet, and then operate from Flow instead of hand-editing YAML in the dark."
+              title="New projects should enter through a fleet architect."
+              description={
+                <>
+                  The first-use path is intentionally concrete: install the local daemon, expose
+                  required backend keys, let <RoleTerm role="shipwright">Shipwright</RoleTerm> survey
+                  the repo, simulate a bounded starter fleet, and then operate from Flow instead of
+                  hand-editing YAML in the dark.
+                </>
+              }
               titleAs="h2"
               titleSize="display"
               titleClassName="max-w-[13ch]"
@@ -86,7 +94,8 @@ export function ColdStartSection() {
                 <SurfacePanel elevation="quiet" padding="compact" className="grid content-center">
                   <PanelEyebrow>In app</PanelEyebrow>
                   <PanelBody size="compact" className="mt-[var(--space-2)] max-w-none">
-                    No shell command should be needed here. The operator moves between Shipwright, Flow, Agents, Resources, and YAML.
+                    No shell command should be needed here. The operator moves between{' '}
+                    <RoleTerm role="shipwright">Shipwright</RoleTerm>, Flow, Agents, Resources, and YAML.
                   </PanelBody>
                 </SurfacePanel>
               )}

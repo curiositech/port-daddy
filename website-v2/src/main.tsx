@@ -21,11 +21,10 @@ const TutorialsPage = lazyNamed(() => import('@/pages/TutorialsPage'), 'Tutorial
 const ExamplesPage = lazyNamed(() => import('@/pages/ExamplesPage'), 'ExamplesPage')
 const McpPage = lazy(() => import('@/pages/MCPPage'))
 const WhitepaperPage = lazy(() => import('@/pages/whitepaper'))
-const DashboardPage = lazyNamed(() => import('@/pages/DashboardPage'), 'DashboardPage')
 const WhitepaperDetailPage = lazy(() => import('@/pages/whitepaper/PaperDetailPage'))
 const BlogPage = lazyNamed(() => import('@/pages/BlogPage'), 'BlogPage')
 const BlogPostPage = lazyNamed(() => import('@/pages/BlogPostPage'), 'BlogPostPage')
-const RoadmapPage = lazyNamed(() => import('@/pages/RoadmapPage'), 'RoadmapPage')
+const MacPreviewPage = lazyNamed(() => import('@/pages/MacPreviewPage'), 'MacPreviewPage')
 const TemplatesPage = lazyNamed(() => import('@/pages/TemplatesPage'), 'TemplatesPage')
 const AgentsPage = lazyNamed(() => import('@/pages/AgentsPage'), 'AgentsPage')
 const CookbookPage = lazyNamed(() => import('@/pages/cookbook/CookbookPage'), 'CookbookPage')
@@ -47,13 +46,13 @@ const Sugar = lazyNamed(() => import('@/pages/tutorials/Sugar'), 'Sugar')
 const AlwaysOn = lazyNamed(() => import('@/pages/tutorials/AlwaysOn'), 'AlwaysOn')
 const Spawn = lazyNamed(() => import('@/pages/tutorials/Spawn'), 'Spawn')
 const Harbors = lazyNamed(() => import('@/pages/tutorials/Harbors'), 'Harbors')
-const TutorialDashboard = lazyNamed(() => import('@/pages/tutorials/Dashboard'), 'Dashboard')
 const TimeTravel = lazyNamed(() => import('@/pages/tutorials/TimeTravel'), 'TimeTravel')
 const Pipelines = lazyNamed(() => import('@/pages/tutorials/Pipelines'), 'Pipelines')
 const Watch = lazyNamed(() => import('@/pages/tutorials/Watch'), 'Watch')
 const RemoteHarbors = lazyNamed(() => import('@/pages/tutorials/RemoteHarbors'), 'RemoteHarbors')
 const Fleet = lazyNamed(() => import('@/pages/tutorials/Fleet'), 'Fleet')
 const Pheromone = lazyNamed(() => import('@/pages/tutorials/Pheromone'), 'Pheromone')
+const Primitives = lazyNamed(() => import('@/pages/tutorials/Primitives'), 'Primitives')
 
 const ApiReference = lazy(() => import('@/pages/docs/ApiReference'))
 const DocsOverview = lazy(() => import('@/pages/docs/DocsOverview'))
@@ -180,10 +179,9 @@ createRoot(document.getElementById('root')!).render(
           <Routes>
             <Route element={<MainLayout />}>
               <Route path="/" element={<App />} />
-              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/mac-preview" element={<MacPreviewPage />} />
               <Route path="/examples" element={<ExamplesPage />} />
               <Route path="/mcp" element={<McpPage />} />
-              <Route path="/roadmap" element={<RoadmapPage />} />
               <Route path="/templates" element={<TemplatesPage />} />
               <Route path="/agents" element={<AgentsPage />} />
 
@@ -201,13 +199,13 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/tutorials/always-on" element={<AlwaysOn />} />
               <Route path="/tutorials/pd-spawn" element={<Spawn />} />
               <Route path="/tutorials/harbors" element={<Harbors />} />
-              <Route path="/tutorials/dashboard" element={<TutorialDashboard />} />
               <Route path="/tutorials/time-travel" element={<TimeTravel />} />
               <Route path="/tutorials/pipelines" element={<Pipelines />} />
               <Route path="/tutorials/watch" element={<Watch />} />
               <Route path="/tutorials/remote-harbors" element={<RemoteHarbors />} />
               <Route path="/tutorials/fleet" element={<Fleet />} />
               <Route path="/tutorials/pheromone" element={<Pheromone />} />
+              <Route path="/tutorials/primitives" element={<Primitives />} />
 
               <Route path="/cookbook" element={<CookbookPage />} />
               <Route path="/cookbook/:id" element={<RecipePage />} />

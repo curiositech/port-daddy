@@ -80,7 +80,7 @@ export default function McpOverview() {
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           <Badge variant="teal">Integration</Badge>
-          <Badge variant="gold">New in v3.7</Badge>
+          <Badge variant="gold">Current</Badge>
         </div>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Model Context Protocol

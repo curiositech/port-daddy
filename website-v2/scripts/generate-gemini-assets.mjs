@@ -65,6 +65,21 @@ No people, no boats, no cartoon robots, no speech bubbles, no fake UI screenshot
 `.trim(),
   },
   {
+    id: 'virtual-actor-fleet',
+    filename: 'virtual-actor-fleet.jpg',
+    aspectRatio: '16:9',
+    imageSize: '2K',
+    prompt: `
+${sharedDirection}
+
+Create a hero image for a website page explaining Port Daddy agents.
+Composition: an abstract Swiss-modern system map with three clear horizontal bands. Top band: stable geometric cores with mailbox-like glyphs for durable virtual actor identities. Middle band: smaller active modules attached to those cores for temporary live body leases. Bottom band: trigger lanes, budget gates, and short mission paths for repo fleets and one-off sorties.
+Include many distinct role nodes as unlabeled glyphs only: map, claim, docs, budget, validation, failure, repair, idea, connection, and fleet-architecture motifs. Use icons, blocks, ticks, lines, gates, and small abstract symbols instead of any typography.
+Leave a calm negative-space band on the left third for page copy. Use hard ink rules, restrained technical blue, quiet warm paper, one lime accent, precise alignment, and high legibility.
+Absolutely no visible language: no words, no labels, no headings, no captions, no letters, no numbers, no fake code, no typographic marks. No portraits, no people, no cartoon robots, no nautical objects, no fake UI screenshots, no mascot art.
+`.trim(),
+  },
+  {
     id: 'salvage-ledger',
     filename: 'salvage-ledger.jpg',
     aspectRatio: '16:9',

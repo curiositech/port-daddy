@@ -16,19 +16,19 @@ const truthTone: Record<TruthState, string> = {
 const docsCardTone: Record<AccentTone, string> = {
   paper: 'bg-[var(--surface-raised)] text-[var(--text-primary)]',
   blue: 'bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]',
-  lime: 'bg-[var(--brand-accent)] text-[var(--brand-accent-foreground)]',
+  accent: 'bg-[var(--brand-accent)] text-[var(--brand-accent-foreground)]',
 }
 
 const panelToneMap: Record<AccentTone, 'default' | 'primary' | 'accent'> = {
   paper: 'default',
   blue: 'primary',
-  lime: 'accent',
+  accent: 'accent',
 }
 
 const surfaceBracketTone: Record<AccentTone, string> = {
   paper: 'border-[var(--border-default)] text-[var(--text-secondary)]',
   blue: 'border-[color:var(--brand-primary-foreground-subtle)] text-[var(--brand-primary-foreground)]',
-  lime: 'border-[color:var(--brand-accent-foreground-muted)] text-[var(--brand-accent-foreground)]',
+  accent: 'border-[color:var(--brand-accent-foreground-muted)] text-[var(--brand-accent-foreground)]',
 }
 
 const SurfaceToneContext = createContext<AccentTone>('paper')
@@ -62,7 +62,7 @@ const panelBodyTone = {
 const surfaceBodyTone: Record<AccentTone, keyof typeof panelBodyTone> = {
   paper: 'default',
   blue: 'primary',
-  lime: 'accent',
+  accent: 'accent',
 }
 
 const navTone = {
@@ -73,7 +73,7 @@ const navTone = {
     bracket:
       'border-[color:var(--brand-primary-foreground-subtle)] text-[var(--brand-primary-foreground)]',
   },
-  lime: {
+  accent: {
     active: 'border-[var(--border-strong)] bg-[var(--brand-accent)] text-[var(--brand-accent-foreground)]',
     hover: 'hover:border-[var(--border-strong)] hover:bg-[var(--brand-accent)] hover:text-[var(--brand-accent-foreground)]',
     body: 'text-[color:var(--brand-accent-foreground-muted)]',
@@ -85,7 +85,7 @@ const navTone = {
 const landingStatTone = {
   paper: 'bg-[var(--surface-raised)] text-[var(--text-primary)]',
   blue: 'bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]',
-  lime: 'bg-[var(--brand-accent)] text-[var(--brand-accent-foreground)]',
+  accent: 'bg-[var(--brand-accent)] text-[var(--brand-accent-foreground)]',
 } as const
 
 type DocsCodeLanguage = 'cli' | 'text' | 'typescript'
@@ -103,19 +103,15 @@ export function BrandMark({ className }: { className?: string }) {
   const { theme } = useTheme()
 
   return (
-    <div
+    <img
       aria-hidden="true"
+      src={theme === 'dark' ? '/pd_logo_darkmode.svg' : '/pd_logo.svg'}
+      alt=""
       className={cn(
-        'inline-flex h-10 w-10 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-2)]',
+        'h-11 w-11 shrink-0',
         className,
       )}
-    >
-      <img
-        src={theme === 'dark' ? '/pd_logo_darkmode.svg' : '/pd_logo.svg'}
-        alt=""
-        className="h-5 w-auto"
-      />
-    </div>
+    />
   )
 }
 
@@ -474,13 +470,13 @@ export function LandingStatsStrip({
           <PanelTitle
             as="p"
             size="card"
-            tone={stat.tone === 'blue' ? 'primary' : stat.tone === 'lime' ? 'accent' : 'default'}
+            tone={stat.tone === 'blue' ? 'primary' : stat.tone === 'accent' ? 'accent' : 'default'}
             className="normal-case"
           >
             {stat.value}
           </PanelTitle>
           <PanelEyebrow
-            tone={stat.tone === 'blue' ? 'primary' : stat.tone === 'lime' ? 'accent' : 'default'}
+            tone={stat.tone === 'blue' ? 'primary' : stat.tone === 'accent' ? 'accent' : 'default'}
             className="mt-[var(--space-2)]"
           >
             {stat.label}
@@ -659,7 +655,7 @@ export function LandingCommercialCard({
                 'mt-[2px] h-[var(--space-3)] w-[var(--space-3)] flex-none',
                 track.tone === 'blue'
                   ? 'text-[var(--brand-primary-foreground)]'
-                  : track.tone === 'lime'
+                  : track.tone === 'accent'
                     ? 'text-[var(--brand-accent-foreground)]'
                     : 'text-[var(--brand-primary)]',
               )}
@@ -768,7 +764,7 @@ export function BracketAnchor({
   href: string
   children: ReactNode
   side?: 'left' | 'right' | 'both'
-  tone?: 'blue' | 'lime'
+  tone?: 'blue' | 'accent'
   active?: boolean
   className?: string
   surface?: AccentTone
@@ -962,7 +958,7 @@ export function BracketLink({
   to: string
   children: ReactNode
   side?: 'left' | 'right' | 'both'
-  tone?: 'blue' | 'lime'
+  tone?: 'blue' | 'accent'
   className?: string
   surface?: AccentTone
 }) {
@@ -1006,7 +1002,7 @@ export function BracketNavLink({
   to: string
   children: ReactNode
   side?: 'left' | 'right' | 'both'
-  tone?: 'blue' | 'lime'
+  tone?: 'blue' | 'accent'
   className?: string
   surface?: AccentTone
   end?: boolean
@@ -1103,7 +1099,7 @@ export function DocsModulePanel({
   const explicitTitleToneClass =
     tone === 'blue'
       ? '!text-[var(--brand-primary-foreground)]'
-      : tone === 'lime'
+      : tone === 'accent'
         ? '!text-[var(--brand-accent-foreground)]'
         : ''
 
@@ -1157,7 +1153,7 @@ export function DocsCard({
   tone?: AccentTone
   variant?: 'feature' | 'nav'
   active?: boolean
-  highlightTone?: 'blue' | 'lime'
+  highlightTone?: 'blue' | 'accent'
   bracketSide?: 'left' | 'right' | 'both'
   linked?: boolean
   className?: string
@@ -1190,7 +1186,7 @@ export function DocsCard({
             <div className="font-sans text-xl font-black">{kicker}</div>
             <div className="h-5 w-px bg-current/30" />
             <PanelEyebrow
-              tone={tone === 'blue' ? 'primary' : tone === 'lime' ? 'accent' : 'default'}
+              tone={tone === 'blue' ? 'primary' : tone === 'accent' ? 'accent' : 'default'}
             >
               Docs
             </PanelEyebrow>
@@ -1212,7 +1208,7 @@ export function DocsCard({
           <PanelTitle
             as="h3"
             size="nav"
-            tone={tone === 'blue' ? 'primary' : tone === 'lime' ? 'accent' : 'default'}
+            tone={tone === 'blue' ? 'primary' : tone === 'accent' ? 'accent' : 'default'}
           >
             {title}
           </PanelTitle>
@@ -1236,7 +1232,7 @@ export function DocsCard({
             'inline-flex items-center gap-2 font-sans text-[length:var(--type-meta-size)] font-medium uppercase tracking-[var(--tracking-meta)]',
             tone === 'blue'
               ? 'text-[color:var(--brand-primary-foreground-subtle)] group-hover:text-[var(--brand-primary-foreground)]'
-              : tone === 'lime'
+              : tone === 'accent'
                 ? 'text-[color:var(--brand-accent-foreground-subtle)] group-hover:text-[var(--brand-accent-foreground)]'
                 : 'text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]',
           )}

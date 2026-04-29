@@ -132,7 +132,7 @@ export function RecipePage() {
               <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest shadow-xl">State Verification</Badge>
               <motion.h3 className="text-4xl font-display font-black m-0" style={{ color: 'var(--text-primary)' }}>Pattern Soundness.</motion.h3>
               <motion.p className="text-xl max-w-xl text-[var(--text-secondary)]">
-                This recipe has been verified against the Port Daddy v3.7 state machine. We ensure that following these handoff steps results in a deterministic and resilient harbor state.
+                This recipe has been verified against the current Port Daddy state model. We ensure that following these handoff steps results in a deterministic and resilient harbor state.
               </motion.p>
               <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-accent)]">
                  <Activity size={14} className="animate-pulse" />

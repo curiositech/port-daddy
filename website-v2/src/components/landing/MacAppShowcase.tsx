@@ -5,6 +5,7 @@ import {
   type AppSurface,
   type MacAppCapability,
 } from '@/data/product'
+import { useTheme } from '@/lib/theme-context'
 import {
   BracketLabel,
   PageContainer,
@@ -16,15 +17,69 @@ import {
   SwissGrid,
   SwissGridItem,
 } from '@/components/site/primitives'
+import { RoleTerm } from '@/components/site/RoleTerm'
 
 const capabilityIcons = [MonitorCog, RadioTower, ShieldCheck, WalletCards] as const
-const surfaceScreenshots: Record<string, string> = {
-  'fleet-flow': '/img/app-screens/fleet-flow.png',
-  resources: '/img/app-screens/resources.png',
-  sorties: '/img/app-screens/sorties.png',
-  'shipwright-harbor': '/img/app-screens/shipwright-harbor.png',
-  'shipwright-focus': '/img/app-screens/shipwright-focus.png',
-  'shipwright-control': '/img/app-screens/shipwright-control.png',
+type ThemedScreenshot = {
+  light: string
+  dark: string
+}
+
+const fleetbarNativeShellScreenshots: ThemedScreenshot = {
+  light: '/img/app-screens/fleetbar-native-shell-light.png',
+  dark: '/img/app-screens/fleetbar-native-shell-dark.png',
+}
+
+const surfaceScreenshots: Record<string, ThemedScreenshot> = {
+  'fleet-flow': {
+    light: '/img/app-screens/fleet-flow-light.png',
+    dark: '/img/app-screens/fleet-flow-dark.png',
+  },
+  resources: {
+    light: '/img/app-screens/resources-light.png',
+    dark: '/img/app-screens/resources-dark.png',
+  },
+  sorties: {
+    light: '/img/app-screens/sorties-light.png',
+    dark: '/img/app-screens/sorties-dark.png',
+  },
+  'shipwright-harbor': {
+    light: '/img/app-screens/shipwright-harbor-light.png',
+    dark: '/img/app-screens/shipwright-harbor-dark.png',
+  },
+  'shipwright-focus': {
+    light: '/img/app-screens/shipwright-focus-light.png',
+    dark: '/img/app-screens/shipwright-focus-dark.png',
+  },
+  'shipwright-control': {
+    light: '/img/app-screens/shipwright-control-light.png',
+    dark: '/img/app-screens/shipwright-control-dark.png',
+  },
+}
+
+function ThemeLockedScreenshot({
+  screenshots,
+  alt,
+  className,
+  loading = 'lazy',
+}: {
+  screenshots: ThemedScreenshot
+  alt: string
+  className?: string
+  loading?: 'eager' | 'lazy'
+}) {
+  const { theme } = useTheme()
+  const themeKey = theme === 'dark' ? 'dark' : 'light'
+
+  return (
+    <img
+      src={screenshots[themeKey]}
+      alt={alt}
+      className={className}
+      data-theme-screenshot={themeKey}
+      loading={loading}
+    />
+  )
 }
 
 function CapabilityRow({
@@ -61,6 +116,21 @@ function CapabilityRow({
   )
 }
 
+function SurfaceTitle({ title }: { title: string }) {
+  if (title.startsWith('Shipwright')) {
+    return (
+      <>
+        <RoleTerm role="shipwright">Shipwright</RoleTerm>
+        {title.slice('Shipwright'.length)}
+      </>
+    )
+  }
+  if (title === 'Sorties') {
+    return <RoleTerm role="sortie">Sorties</RoleTerm>
+  }
+  return <>{title}</>
+}
+
 function SurfaceTile({ appSurface, featured = false }: { appSurface: AppSurface; featured?: boolean }) {
   const screenshot = surfaceScreenshots[appSurface.id]
 
@@ -73,13 +143,19 @@ function SurfaceTile({ appSurface, featured = false }: { appSurface: AppSurface;
     >
       <div className="border-b-2 border-[var(--border-strong)] p-[var(--space-3)]">
         <div className="flex flex-wrap items-center justify-between gap-[var(--space-2)]">
-          <PanelEyebrow>{appSurface.surface}</PanelEyebrow>
+          <PanelEyebrow>
+            {appSurface.surface === 'Shipwright' ? (
+              <RoleTerm role="shipwright">Shipwright</RoleTerm>
+            ) : (
+              appSurface.surface
+            )}
+          </PanelEyebrow>
           <BracketLabel>{appSurface.id}</BracketLabel>
         </div>
       </div>
       {screenshot ? (
-        <img
-          src={screenshot}
+        <ThemeLockedScreenshot
+          screenshots={screenshot}
           alt={`${appSurface.title} screenshot from ${appSurface.surface}`}
           className="aspect-[16/10] w-full border-b-2 border-[var(--border-strong)] bg-[var(--surface-base)] object-cover object-left-top"
           loading="lazy"
@@ -93,13 +169,13 @@ function SurfaceTile({ appSurface, featured = false }: { appSurface: AppSurface;
             <span className="h-3 w-3 border-2 border-[var(--border-strong)] bg-[var(--brand-primary)]" aria-hidden="true" />
           </div>
           <PanelTitle as="p" size={featured ? 'card' : 'nav'} className="max-w-[14ch]">
-            {appSurface.title}
+            <SurfaceTitle title={appSurface.title} />
           </PanelTitle>
         </div>
       )}
       <div className="grid gap-[var(--space-2)] p-[var(--space-4)]">
         <PanelTitle as="h3" size="nav" className="max-w-none">
-          {appSurface.title}
+          <SurfaceTitle title={appSurface.title} />
         </PanelTitle>
         <PanelBody size="compact" className="max-w-none">
           {appSurface.caption}
@@ -121,7 +197,15 @@ export function MacAppShowcase() {
               <SectionIntro
                 eyebrow="Mac app"
                 title="FleetBar is the front door to the substrate."
-                description="The native app is not a toy launcher. It is the compact Mac entrance to the shared agent state: Fleet Control Center, project fleets, agent radio, sortie work, Shipwright proposals, resource pressure, and backend readiness."
+                description={
+                  <>
+                    The native app is not a toy launcher. It is the compact Mac entrance to shared
+                    agent state: Fleet Control Center, project fleets, agent radio,{' '}
+                    <RoleTerm role="sortie">sortie</RoleTerm> work,{' '}
+                    <RoleTerm role="shipwright">Shipwright</RoleTerm> proposals, resource pressure,
+                    and backend readiness.
+                  </>
+                }
                 titleAs="h2"
                 titleSize="display"
                 titleClassName="max-w-[12ch]"
@@ -132,15 +216,20 @@ export function MacAppShowcase() {
                   Homebrew and npm remain the install path for Port Daddy. The website now also hosts a Mac developer-preview FleetBar app bundle while the signed release channel matures.
                 </PanelBody>
               </SurfacePanel>
-              <picture className="block overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-base)]">
-                <source srcSet="/img/generated/fleetbar-install.webp" type="image/webp" />
-                <img
-                  src="/img/generated/fleetbar-install.jpg"
-                  alt="Abstract FleetBar install diagram"
-                  className="aspect-[16/10] w-full object-cover"
-                  loading="lazy"
-                />
-              </picture>
+              <figure className="grid gap-[var(--space-2)]">
+                <div className="block overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-base)]">
+                  <ThemeLockedScreenshot
+                    screenshots={fleetbarNativeShellScreenshots}
+                    alt="FleetBar macOS app shell with Fleet Control Center embedded"
+                    className="aspect-[16/10] w-full object-cover"
+                    loading="lazy"
+                  />
+                </div>
+                <PanelBody size="compact" className="max-w-none text-[var(--text-muted)]">
+                  The product captures follow the site theme: light site, light app shell; dark site,
+                  dark app shell.
+                </PanelBody>
+              </figure>
             </div>
           </SwissGridItem>
 

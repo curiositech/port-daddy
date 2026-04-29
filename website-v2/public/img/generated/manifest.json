@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-29T00:25:00.185Z",
+  "generatedAt": "2026-04-29T00:59:27.019Z",
   "generator": "website-v2/scripts/generate-gemini-assets.mjs",
   "source": "Google Gemini API Nano Banana image generation",
   "docs": "https://ai.google.dev/gemini-api/docs/image-generation",
@@ -87,6 +87,18 @@
       "prompt": "Port Daddy visual identity direction:\n- Subject: local-first AI agent coordination, daemon runtime, ports, locks, sessions, notes, salvage, budget gates, and recovery flows.\n- Visual language: Swiss-modern editorial infrastructure diagram, precise grid, crisp thin rules, architectural drawing discipline, tactile paper grain, deep ink, technical blue, restrained lime, quiet warm off-white.\n- Must not include people, sailors, boats, harbors, docks, nautical costumes, mascots, emojis, fake testimonials, readable brand logos, glossy stock-photo styling, bubbly extruded SaaS UI, pill-heavy dashboards, purple-blue gradients, or random surrealism.\n- Do not render visible words, letters, numbers, labels, headings, UI copy, brand marks, or fake code. Use abstract ticks, short lines, and geometric marks only.\n- Make it feel premium, serious, current, and operational.\n\nCreate a supporting editorial illustration for Shipwright designing a starter agent fleet for an arbitrary software repo.\nComposition: a repo survey map branching into proposed roles, model tiers, budget gates, trigger lanes, simulation traces, and a final YAML-like plan represented only as abstract line blocks.\nNo readable text, no code, no file names, no people, no nautical imagery, no cartoon robots, no visible words, no letters, no numbers.",
       "jpegQuality": 82,
       "webpFile": "/img/generated/shipwright-proposal.webp",
+      "webpQuality": 82
+    },
+    {
+      "id": "virtual-actor-fleet",
+      "file": "/img/generated/virtual-actor-fleet.jpg",
+      "mimeType": "image/jpeg",
+      "aspectRatio": "16:9",
+      "imageSize": "2K",
+      "model": "gemini-3.1-flash-image-preview",
+      "prompt": "Port Daddy visual identity direction:\n- Subject: local-first AI agent coordination, daemon runtime, ports, locks, sessions, notes, salvage, budget gates, and recovery flows.\n- Visual language: Swiss-modern editorial infrastructure diagram, precise grid, crisp thin rules, architectural drawing discipline, tactile paper grain, deep ink, technical blue, restrained lime, quiet warm off-white.\n- Must not include people, sailors, boats, harbors, docks, nautical costumes, mascots, emojis, fake testimonials, readable brand logos, glossy stock-photo styling, bubbly extruded SaaS UI, pill-heavy dashboards, purple-blue gradients, or random surrealism.\n- Do not render visible words, letters, numbers, labels, headings, UI copy, brand marks, or fake code. Use abstract ticks, short lines, and geometric marks only.\n- Make it feel premium, serious, current, and operational.\n\nCreate a hero image for a website page explaining Port Daddy agents.\nComposition: an abstract Swiss-modern system map with three clear horizontal bands. Top band: stable geometric cores with mailbox-like glyphs for durable virtual actor identities. Middle band: smaller active modules attached to those cores for temporary live body leases. Bottom band: trigger lanes, budget gates, and short mission paths for repo fleets and one-off sorties.\nInclude many distinct role nodes as unlabeled glyphs only: map, claim, docs, budget, validation, failure, repair, idea, connection, and fleet-architecture motifs. Use icons, blocks, ticks, lines, gates, and small abstract symbols instead of any typography.\nLeave a calm negative-space band on the left third for page copy. Use hard ink rules, restrained technical blue, quiet warm paper, one lime accent, precise alignment, and high legibility.\nAbsolutely no visible language: no words, no labels, no headings, no captions, no letters, no numbers, no fake code, no typographic marks. No portraits, no people, no cartoon robots, no nautical objects, no fake UI screenshots, no mascot art.",
+      "jpegQuality": 82,
+      "webpFile": "/img/generated/virtual-actor-fleet.webp",
       "webpQuality": 82
     }
   ]

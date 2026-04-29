@@ -1,4 +1,5 @@
-import { MessageSquareText, RadioTower, ShieldCheck, Waypoints } from 'lucide-react'
+import type { ReactNode } from 'react'
+import { MessageSquareText, RadioTower, ShieldCheck, Waypoints, type LucideIcon } from 'lucide-react'
 import {
   BracketLabel,
   PageContainer,
@@ -10,8 +11,18 @@ import {
   SwissGrid,
   SwissGridItem,
 } from '@/components/site/primitives'
+import { RoleTerm } from '@/components/site/RoleTerm'
 
-const AGENT_SIGNALS = [
+type AgentSignal = {
+  id: string
+  label: string
+  title: string
+  icon: LucideIcon
+  description: ReactNode
+  example: string
+}
+
+const AGENT_SIGNALS: AgentSignal[] = [
   {
     id: 'notes',
     label: '01',
@@ -41,10 +52,23 @@ const AGENT_SIGNALS = [
     label: '04',
     title: 'Actors hold responsibility',
     icon: Waypoints,
-    description: 'Durable actors make coordination accountable to named roles. Coxswain, Lookout, Navigator, and Quartermaster can own claims, docs drift, roadmap truth, and budget pressure across sessions.',
-    example: 'pd actor coxswain --message "Claims and context disagree."',
+    description: (
+      <>
+        <span className="block">
+          Durable actors are always-addressable responsibility holders with inboxes. Fleet agents can ask
+          them for decisions, warnings, or ground truth across sessions.
+        </span>
+        <span className="mt-[var(--space-2)] block">
+          <RoleTerm role="coxswain" tooltipAlign="end">Coxswain</RoleTerm>: claims and locks.{' '}
+          <RoleTerm role="lookout">Lookout</RoleTerm>: docs and product truth.{' '}
+          <RoleTerm role="navigator">Navigator</RoleTerm>: roadmap and recovery truth.{' '}
+          <RoleTerm role="quartermaster">Quartermaster</RoleTerm>: budgets and backend pressure.
+        </span>
+      </>
+    ),
+    example: 'pd actors coxswain --message "Claims and context disagree."',
   },
-] as const
+]
 
 export function AgentConversationSection() {
   return (

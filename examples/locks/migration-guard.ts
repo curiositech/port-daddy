@@ -1,77 +1,87 @@
+#!/usr/bin/env npx tsx
 /**
- * Port Daddy — Migration Guard with Distributed Locks
+ * Port Daddy migration guard.
  *
- * Demonstrates using locks to ensure only one agent
- * runs database migrations at a time.
+ * Demonstrates using the SDK `withLock()` helper so only one agent can run a
+ * critical migration section at a time.
  *
- * Run: npx tsx examples/locks/migration-guard.ts
+ * Run:
+ *   npx tsx examples/locks/migration-guard.ts
  */
 
-const BASE = 'http://localhost:9876';
+import { PortDaddy } from '../../lib/client.js';
 
-interface Lock {
+type MigrationStep = {
   name: string;
-  owner: string;
-  ttl: number;
-  acquired: boolean;
-  held?: boolean;
+  ms: number;
+};
+
+const steps: MigrationStep[] = [
+  { name: 'create users table', ms: 200 },
+  { name: 'add unique index on email', ms: 150 },
+  { name: 'backfill account flags', ms: 150 },
+];
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function acquireLock(name: string, owner: string, ttl = 300000): Promise<Lock> {
-  const res = await fetch(`${BASE}/locks/${name}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ owner, ttl }),
+async function runMigration(agentName: string): Promise<string> {
+  const pd = new PortDaddy({ agentId: agentName, timeout: 10000 });
+  const begin = await pd.begin('Run example migrations', {
+    identity: `examples:migrations:${agentName.split(':').pop()}`,
+    metadata: { example: 'migration-guard' },
   });
-  return res.json();
-}
-
-async function releaseLock(name: string, owner: string): Promise<void> {
-  await fetch(`${BASE}/locks/${name}`, {
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ owner }),
-  });
-}
-
-async function runMigration(agentName: string): Promise<void> {
-  const lockName = 'db-migrations';
-  console.log(`[${agentName}] Attempting to acquire migration lock...`);
-
-  const lock = await acquireLock(lockName, agentName, 60000);
-
-  if (!lock.acquired) {
-    console.log(`[${agentName}] Lock held by another agent. Skipping migrations.`);
-    return;
-  }
-
-  console.log(`[${agentName}] Lock acquired! Running migrations...`);
 
   try {
-    // Simulate migration work
-    console.log(`[${agentName}]   Creating users table...`);
-    await new Promise(r => setTimeout(r, 500));
-    console.log(`[${agentName}]   Adding index on email...`);
-    await new Promise(r => setTimeout(r, 300));
-    console.log(`[${agentName}]   Migrations complete!`);
+    await pd.withLock('examples:db-migrations', async () => {
+      await pd.note(`${agentName} acquired examples:db-migrations`, {
+        agentId: agentName,
+        sessionId: begin.sessionId,
+        type: 'example',
+      });
+
+      for (const step of steps) {
+        console.log(`[${agentName}] ${step.name}`);
+        await sleep(step.ms);
+      }
+    }, {
+      owner: agentName,
+      ttl: 60000,
+      metadata: { example: 'migration-guard' },
+    });
+
+    return `${agentName}: ran migrations`;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return `${agentName}: skipped (${message})`;
   } finally {
-    await releaseLock(lockName, agentName);
-    console.log(`[${agentName}] Lock released.`);
+    await pd.done(`${agentName} finished migration guard example`, {
+      agentId: agentName,
+      sessionId: begin.sessionId,
+    }).catch(() => undefined);
+    pd.destroyIpc();
   }
 }
 
-async function main() {
-  console.log('=== Migration Guard Demo ===\n');
+async function main(): Promise<void> {
+  console.log('Migration guard');
+  console.log('---------------');
+  console.log('Two agents attempt the same critical section.');
+  console.log('');
 
-  // Simulate two agents trying to run migrations concurrently
-  console.log('Two agents attempt migrations simultaneously:\n');
-
-  await Promise.all([
-    runMigration('agent-alpha'),
-    runMigration('agent-beta'),
+  const results = await Promise.all([
+    runMigration('examples:migrator:alpha'),
+    runMigration('examples:migrator:beta'),
   ]);
 
-  console.log('\nOnly one agent ran migrations. The other was safely skipped.');
+  console.log('');
+  for (const result of results) {
+    console.log(result);
+  }
 }
 
-main().catch(console.error);
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message : error);
+  process.exit(1);
+});

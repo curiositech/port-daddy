@@ -1,6 +1,7 @@
 import { Download, Github, PackageCheck, ShieldAlert, Terminal } from 'lucide-react'
 import { DISTRIBUTION_OPTIONS } from '@/data/product'
 import { Button } from '@/components/ui/Button'
+import { useTheme } from '@/lib/theme-context'
 import {
   CommandBlock,
   PageContainer,
@@ -15,6 +16,10 @@ import {
 
 const primaryDownloadHref = '/downloads/PortDaddy-FleetBar-macOS-arm64-dev.zip'
 const checksumHref = '/downloads/PortDaddy-FleetBar-macOS-arm64-dev.zip.sha256'
+const fleetbarNativeShellScreenshots = {
+  light: '/img/app-screens/fleetbar-native-shell-light.png',
+  dark: '/img/app-screens/fleetbar-native-shell-dark.png',
+} as const
 
 const statusCopy = {
   available: 'Available',
@@ -25,6 +30,8 @@ const statusCopy = {
 export function DistributionSection() {
   const primary = DISTRIBUTION_OPTIONS[0]
   const remaining = DISTRIBUTION_OPTIONS.slice(1)
+  const { theme } = useTheme()
+  const shellScreenshot = theme === 'dark' ? fleetbarNativeShellScreenshots.dark : fleetbarNativeShellScreenshots.light
 
   return (
     <section
@@ -58,15 +65,15 @@ export function DistributionSection() {
                 </a>
               </Button>
             </div>
-            <picture className="mt-[var(--space-5)] block overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-base)]">
-              <source srcSet="/img/generated/fleetbar-install.webp" type="image/webp" />
+            <figure className="mt-[var(--space-5)] block overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-base)]">
               <img
-                src="/img/generated/fleetbar-install.jpg"
-                alt="Abstract package and local daemon install diagram"
+                src={shellScreenshot}
+                alt="FleetBar macOS developer preview in a native window shell"
                 className="aspect-[16/9] w-full object-cover"
+                data-theme-screenshot={theme === 'dark' ? 'dark' : 'light'}
                 loading="lazy"
               />
-            </picture>
+            </figure>
           </SwissGridItem>
 
           <SwissGridItem span="wide">

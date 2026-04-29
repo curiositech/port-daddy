@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { KeyRound, Play, Radar, Square } from 'lucide-react'
 import { CommandTerminal } from '@/components/ui/CommandTerminal'
 import { PageContainer, PanelBody, PanelTitle, SectionIntro } from '@/components/site/primitives'
+import { RoleTerm } from '@/components/site/RoleTerm'
 
 const MAC_APP_DEMOS = [
   {
@@ -22,7 +23,7 @@ $ pd pub coordination:inconsistency '{"surface":"website-v2","risk":"overlap","a
   Published to coordination:inconsistency
 
 # It queues the durable coordination actor
-$ pd actor coxswain --message "Session context and file claims disagree; please track."
+$ pd actors coxswain --message "Session context and file claims disagree; please track."
   Message queued to actor:coxswain`,
   },
   {
@@ -104,8 +105,15 @@ export function MacWorkflowDemos() {
       <PageContainer>
         <SectionIntro
           eyebrow="App examples"
-          title="Cold-start, keys, Shipwright, sorties."
-          description="These are the workflows the website was missing: the Mac app opens the real control plane, backend readiness tells you what is missing, Shipwright proposes a bounded fleet, and sorties run explicit one-shot missions."
+          title="Cold-start, keys, platform actors, one-offs."
+          description={
+            <>
+              These are the workflows the website was missing: the Mac app opens the real control
+              plane, backend readiness tells you what is missing, <RoleTerm role="shipwright">Shipwright</RoleTerm>{' '}
+              proposes a bounded fleet, and <RoleTerm role="sortie">sorties</RoleTerm> run explicit
+              one-shot missions.
+            </>
+          }
           titleAs="h2"
           className="mb-[var(--space-7)] max-w-[48rem]"
           titleClassName="max-w-[13ch]"

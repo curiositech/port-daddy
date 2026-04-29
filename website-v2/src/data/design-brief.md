@@ -10,7 +10,10 @@
 
 The design system is structurally sound — good token architecture, real dark mode, accessibility work done. The problem is execution. The landing page (Hero, Features, CTABanner, Nav, Footer) is clean and restrained to the point of feeling generic. The inner pages (DocsPage, MCPPage, TutorialsPage) went the other direction: enormous border radii (`rounded-[48px]`, `rounded-[80px]`), `font-black` everywhere, and text at `text-9xl`. These two registers never reconcile, and the result is a site that cannot decide if it is Stripe or a brutalist art project.
 
-The "liquid and sick and slick" goal is achievable from this foundation. It requires three things: a committed dark aesthetic (not optional), genuine depth through glass and glow, and typographic discipline — choosing one voice and using it with confidence.
+The sharp, disciplined product goal is achievable from this foundation. It
+requires three things: first-class light and dark systems, genuine depth through
+planes and grid pressure, and typographic discipline — choosing one voice and
+using it with confidence.
 
 ---
 
@@ -128,25 +131,28 @@ The tonal elevation system is well-designed. The surfaces from `#0a0a0a` to `#2a
 
 This is a 4–6 point hue shift. At this scale, users do not perceive it as "colored" — they perceive the dark mode as "rich" vs. "flat." Stripe's dark mode uses exactly this technique with a dark navy base.
 
-Alternatively: keep the neutral base but add a full-bleed background gradient on the landing page only:
+Alternatively: keep the neutral base but add a full-bleed structural field on
+the landing page only:
 
 ```css
-/* hero section background — landing page only */
-background:
-  radial-gradient(ellipse 800px 600px at 20% 0%, rgba(13, 148, 136, 0.08) 0%, transparent 60%),
-  radial-gradient(ellipse 600px 400px at 80% 100%, rgba(6, 182, 212, 0.05) 0%, transparent 60%),
-  var(--surface-base);
+/* hero section field — landing page only */
+background: var(--surface-base);
+background-image:
+  linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+  linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
 ```
 
-### Glow Tokens
+### Depth Tokens
 
-The glow system (`--glow-brand`, `--glow-brand-sm`, `--glow-brand-lg`) exists in tokens but is inconsistently applied. It is used on `card:hover` in `index.css`, defined in the button variant, but not systematically applied.
+Depth tokens must resolve to structural differences: borders, rules, surface
+steps, and grid density. They must not reintroduce halos, frosted panels, or
+ambient soft shadows.
 
-**Glow application rules:**
-- Primary CTAs: always `--glow-brand-sm` at rest, `--glow-brand` on hover
-- Active nav item: `--glow-brand-sm`
-- Feature cards: no glow at rest, `--glow-brand-sm` on hover (already set up)
-- Code blocks: no glow — they should feel inert and stable
+**Depth application rules:**
+- Primary CTAs: strong border contrast, clear focus ring, no glow at rest
+- Active nav item: hard background shift plus a rule, not a halo
+- Feature cards: flat at rest, stronger border and surface step on hover
+- Code blocks: inert, stable, and ruled like an instrument panel
 
 ### Accent Colors
 
@@ -224,15 +230,15 @@ This is the most glaring issue on the inner pages. Border radius values in use:
 
 None of the inner page border radii are from the token system. A `rounded-[80px]` card in a 400px column is wider than the radius of the element, making it look like a pill-shaped blob. This is what reads as "weird."
 
-**Rule:** Cap border radius at `--radius-2xl` (24px / `rounded-3xl`) for cards and containers. The only exception is circular icon containers (use `rounded-full` for those). Remove all `rounded-[N]` arbitrary values above 24px from the codebase.
+**Rule:** Cap border radius at `--radius-md` (8px) for cards and containers.
+The only exception is circular icon containers (use `rounded-full` for those).
+Remove all arbitrary pill radii from the codebase.
 
 ```
 rounded-sm    → 4px   (tags, code badges)
 rounded-md    → 6px   (small buttons, tooltips)
 rounded-lg    → 8px   (default buttons)
-rounded-xl    → 12px  (nav dropdowns, small cards)
-rounded-2xl   → 16px  (feature cards, code blocks)
-rounded-3xl   → 24px  (hero panels, CTA sections — maximum for containers)
+rounded-lg    → 8px   (cards, code blocks, CTA sections — maximum for containers)
 ```
 
 ---
@@ -247,62 +253,62 @@ The Button component is well-structured. Two issues:
 
 ```tsx
 /* Replace lg size in sizeClasses */
-lg: 'px-8 py-3.5 text-base rounded-xl gap-2.5 tracking-tight font-semibold',
+lg: 'px-8 py-3.5 text-base rounded-md gap-2.5 tracking-tight font-semibold',
 ```
 
-**2. Primary button hover glow is hardcoded to teal RGBA**, not using the token. This will break if the brand color changes.
+**2. Primary button hover depth must be structural**, not a shadow or glow.
+Use a tokenized border and background state so the brand can change without
+rewriting arbitrary utilities.
 
 ```tsx
-/* Replace hardcoded hover shadow in primary variant */
-'hover:shadow-[var(--shadow-brand)]',
-/* instead of */
-'hover:shadow-[0_6px_24px_rgba(20,184,166,0.4)]',
+/* Prefer tokenized hard states */
+'hover:bg-[var(--interactive-active)] hover:border-[var(--border-strong)]',
 ```
 
 **3. The `secondary` variant looks like a disabled primary.** In dark mode, `bg-[var(--bg-surface)]` with `border-[var(--border-default)]` renders as a flat gray box with a slightly lighter gray border. It has no visual weight. A visitor will not reach for it.
 
 ```tsx
-/* For the secondary variant in dark mode, use a glass treatment */
+/* For the secondary variant in dark mode, use a ruled plane */
 secondary: [
-  'bg-white/5 text-[var(--text-primary)]',
-  'border border-white/10',
-  'backdrop-blur-sm',
-  'hover:bg-white/10',
-  'hover:border-white/20',
-  'transition-all duration-200',
+  'bg-[var(--surface-1)] text-[var(--text-primary)]',
+  'border border-[var(--border-default)]',
+  'hover:bg-[var(--surface-2)]',
+  'hover:border-[var(--border-strong)]',
+  'transition-colors duration-160',
   'font-medium',
 ].join(' '),
 ```
 
 ### Card
 
-The Card component is deliberately minimal — this is correct for a component. The problem is that it is *used* without modification everywhere, producing identical flat boxes. The design system has glow utilities, glass utilities, and elevation utilities defined, but they are not being composed onto cards in the feature sections.
+The Card component is deliberately minimal — this is correct for a component.
+The problem is that it is *used* without hierarchy everywhere, producing
+identical flat boxes. Compose depth with border weight, rule placement, grid
+alignment, and surface steps.
 
-**Feature cards should have the glass treatment in dark mode:**
+**Feature cards should use the bordered plane treatment in both modes:**
 
 ```tsx
 /* On the container in Features.tsx */
-className="group p-6 rounded-2xl bg-white/[0.03] border border-white/[0.08]
-           hover:bg-white/[0.05] hover:border-white/[0.15]
-           hover:shadow-[0_8px_32px_rgba(20,184,166,0.12)]
-           transition-all duration-300 backdrop-blur-sm"
+className="group relative p-6 rounded-md bg-[var(--surface-1)]
+           border border-[var(--border-default)] border-l-4
+           border-l-[var(--accent-primary)]
+           hover:bg-[var(--surface-2)] hover:border-[var(--border-strong)]
+           transition-colors duration-160"
 ```
 
-This gives depth — cards appear to float very slightly above the background — without being ostentatious.
+This gives depth by making the hierarchy legible, not by making cards float.
 
-**The hover glow on cards should be directional.** The current glow radiates from the center. A more refined approach uses an inset top gradient that simulates light catching the top edge:
+**The hover state on cards should be directional.** A refined approach uses a
+hard accent rule that makes the left edge carry state:
 
 ```css
-.card-glass::before {
+.surface-plane::before {
   content: '';
   position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.06) 0%,
-    transparent 50%
-  );
+  inset: -1px auto -1px -1px;
+  width: 6px;
+  background: var(--accent-secondary);
   pointer-events: none;
 }
 ```
@@ -379,107 +385,77 @@ The CodeBlock is well-constructed. Issues:
 
 ## 5. Overall Aesthetic Direction
 
-### What "Liquid and Sick and Slick" Actually Means
+### What "Sharp, Deep, and Professional" Actually Means
 
-The user's goal is the aesthetic register of: Raycast, Warp terminal, Resend, Turso, and the early-2024 era of AI dev tool landing pages. Characterized by:
+The user's goal is a disciplined developer-product interface with the gravity of
+Swiss modernism and the immediacy of restrained neobrutalism. Characterized by:
 
-- Near-black backgrounds with barely-perceptible hue
-- Glass cards with `backdrop-blur` and `bg-white/[0.04]` that appear to float
-- Glow effects on interactive elements — not decorative, used to signal energy/state
-- Typography that is extremely tight and confident (not playful, not editorial)
-- Code as a first-class visual element — terminal windows as hero elements
-- Minimal but precise use of color: one brand accent, white for primary text, gray cascade for secondary
+- Light and dark modes that both feel intentional
+- Hard planes, measured borders, and visible grid pressure
+- No frosted panels, glow blobs, soft shadows, or pill-card blobs
+- Typography that is tight, confident, and useful under scanning pressure
+- Code and runtime evidence as first-class product material
+- Minimal but precise use of color through tokens, not arbitrary literals
 
-**The current site is 60% of the way there in dark mode.** The infrastructure (tokens, glow utilities, glass utility, dark surface system) is all present. The problem is timidity — the gradients are at 3% opacity, the glow only triggers on hover, and the hero section background pattern barely registers.
+**The current site still carries legacy decoration vocabulary.** The correct
+direction is not more atmosphere. It is stronger structure: better hierarchy,
+less softness, clearer claims, and a repeatable component system.
 
 ### Recommended Aesthetic Changes
 
-**1. Make the dark mode default for the marketing page.**
+**1. Make both modes first-class.**
 
-The landing page should load in dark mode by default and not offer a toggle until the user is on documentation pages. Every competitor product in this space (Warp, Raycast, Railway, Fly.io) defaults to dark. A light-mode-first developer tool reads as enterprise/conservative. Port Daddy is not that.
+The landing page may prefer the operator's system theme, but it must not look
+like the real design only exists in dark mode. Every page needs the same token
+discipline, spacing, and contrast in both modes.
 
-**2. Increase the hero background gradient opacity.**
+**2. Replace hero atmosphere with layout pressure.**
 
-Current: `opacity-[0.03]` on the radial gradient. This is invisible.
+Use grid columns, rules, product screenshots, command traces, and strong type
+instead of radial coronas.
 
 ```tsx
-/* Hero background — increase presence */
-<div
-  className="absolute inset-0 opacity-[0.12]"
-  style={{
-    background: `
-      radial-gradient(ellipse 900px 600px at 50% -100px, var(--brand-primary) 0%, transparent 70%)
-    `
-  }}
-/>
+<div className="absolute inset-x-0 top-0 h-px bg-[var(--border-strong)]" />
+<div className="absolute inset-y-0 left-[calc(50%-1px)] w-px bg-[var(--border-subtle)]" />
+<div className="grid-pattern opacity-45" aria-hidden />
 ```
 
-This places a visible but not overwhelming teal corona above the fold.
+**3. Add structural density only when it clarifies.**
 
-**3. Add a noise texture overlay.**
-
-Flat dark gradients look cheap. A fine grain noise texture adds perceived quality:
-
-```css
-/* Add to index.css */
-.noise::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
-  background-repeat: repeat;
-  background-size: 200px 200px;
-  opacity: 0.35;
-  pointer-events: none;
-  mix-blend-mode: overlay;
-}
-```
-
-Apply `.noise` class to the hero section and CTA banner section.
-
-**4. The grid pattern is good but too subtle.**
-
-Current: `opacity-50` and radial fade mask. The grid creates visual depth but disappears too quickly. Extend the mask:
+Fine grid texture can work when it supports alignment. Decorative noise and
+ambient overlays are not allowed.
 
 ```css
 .grid-pattern {
-  mask-image: radial-gradient(ellipse at center, black 60%, transparent 90%);
-}
-```
-
-And increase the color contrast of the lines in dark mode:
-
-```css
-[data-theme='dark'] .grid-pattern {
   background-image:
-    linear-gradient(to right, rgba(255,255,255,0.06) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255,255,255,0.06) 1px, transparent 1px);
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
 }
 ```
 
-**5. Feature cards need the glass treatment, not just a border change on hover.**
+**4. Feature cards need hierarchy, not floating panels.**
 
-The current `hover:shadow-[var(--shadow-md)]` on feature cards is not enough. Feature cards should feel like frosted glass panels:
+The current flat-token guard prevents shadows from rendering, but the component
+text still encodes the old direction. Replace shadow utilities with bordered
+planes and accent rules.
 
 ```tsx
-className="group p-6 rounded-2xl
-  bg-[var(--bg-surface)]
-  border border-[var(--border-subtle)]
-  [.dark_&]:bg-white/[0.03]
-  [.dark_&]:border-white/[0.07]
-  [.dark_&]:backdrop-blur-sm
-  hover:border-[var(--border-default)]
-  [.dark_&]:hover:border-white/[0.15]
-  [.dark_&]:hover:bg-white/[0.06]
-  [.dark_&]:hover:shadow-[0_8px_40px_-8px_rgba(20,184,166,0.2)]
-  transition-all duration-300"
+className="group relative p-6 rounded-md bg-[var(--surface-1)]
+  border border-[var(--border-default)] border-l-4
+  border-l-[var(--accent-primary)]
+  hover:bg-[var(--surface-2)]
+  hover:border-[var(--border-strong)]
+  transition-colors duration-160"
 ```
 
 ### Reference Sites
 
-These five sites nail the aesthetic direction Port Daddy should target:
+These five sites are useful references, but Port Daddy should translate them
+through a harder Swiss-modern system instead of copying decorative effects:
 
-1. **Warp (warp.dev)** — Terminal product with near-black backgrounds, precise gradient glows, and monospace-forward typography. The "trusted by X developers" social proof section uses glass cards with teal/purple glow. Study their hero section.
+1. **Warp (warp.dev)** — Terminal product with confident monospace-forward
+   typography and product-led hero composition. Study the hierarchy, not the
+   atmospheric effects.
 
 2. **Resend (resend.com)** — Near-perfect dark dev tool site. Black base, white typography at extreme weight contrast, subtle animated code examples, minimal use of color. The grid pattern matches what Port Daddy is already doing, but executed at 2x the contrast.
 
@@ -545,80 +521,64 @@ h3 { font-size: var(--text-2xl); font-weight: 600; }
 }
 ```
 
-### index.css — Glass Card Utility
+### index.css — Structural Plane Utility
 
 ```css
-/* Add after existing .glass utility */
-.card-glass {
+/* Add after existing surface utilities. Depth comes from planes and rules. */
+.surface-plane {
   position: relative;
-  background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  background: var(--surface-1);
+  border: 1px solid var(--border-default);
+  border-block-start: 4px solid var(--accent-primary);
+  border-radius: var(--radius-md);
+  box-shadow: none;
+  transition: border-color 160ms ease, background 160ms ease;
 }
 
-.card-glass::before {
+.surface-plane::before {
   content: '';
   position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.05) 0%,
-    transparent 60%
-  );
+  inset: -1px auto -1px -1px;
+  width: 6px;
+  background: var(--accent-secondary);
   pointer-events: none;
 }
 
-.card-glass:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.15);
-  box-shadow: 0 8px 40px -8px rgba(20, 184, 166, 0.2);
+.surface-plane:hover {
+  background: var(--surface-2);
+  border-color: var(--border-strong);
 }
 ```
 
-### Hero.tsx — Stronger Background
+### Hero.tsx — Swiss Field, Not Glow
 
 ```tsx
-{/* Replace the current background glow div */}
-<div
-  className="absolute top-0 left-0 right-0 h-[700px] pointer-events-none"
-  style={{
-    background: 'radial-gradient(ellipse 900px 500px at 50% -50px, rgba(13, 148, 136, 0.14) 0%, transparent 70%)'
-  }}
-/>
-
-{/* Grid pattern — more visible in dark mode */}
-<div className="absolute inset-0 grid-pattern opacity-70" />
+{/* Replace ambient glow with measured structure */}
+<div className="absolute inset-x-0 top-0 h-px bg-[var(--border-strong)]" />
+<div className="absolute inset-y-0 left-[calc(50%-1px)] w-px bg-[var(--border-subtle)]" />
+<div className="grid-pattern opacity-45" aria-hidden />
 ```
 
-### Features.tsx — Glass Card Treatment
+### Features.tsx — Bordered Plane Treatment
 
 ```tsx
 {/* Replace the card container className */}
-className="group p-6 rounded-2xl relative overflow-hidden
-  bg-[var(--bg-surface)] border border-[var(--border-subtle)]
-  dark:bg-white/[0.03] dark:border-white/[0.07] dark:backdrop-blur-sm
+className="group relative overflow-hidden rounded-md
+  bg-[var(--surface-1)] border border-[var(--border-default)] border-l-4
+  border-l-[var(--accent-primary)] p-6
   hover:border-[var(--border-default)]
-  dark:hover:border-white/[0.15]
-  dark:hover:bg-white/[0.05]
-  dark:hover:shadow-[0_8px_32px_-4px_rgba(20,184,166,0.18)]
-  transition-all duration-300"
+  hover:bg-[var(--surface-2)]
+  transition-colors duration-160"
 ```
 
-### Nav.tsx — Dropdown Glass
+### Nav.tsx — Dropdown Plane
 
 ```tsx
 {/* Replace the dropdown container className */}
 className="absolute top-full left-0 mt-2 w-64
-  bg-[var(--bg-surface)]/95
-  dark:bg-[var(--surface-3)]/90
-  dark:backdrop-blur-xl
-  border border-[var(--border-subtle)]
-  dark:border-white/[0.12]
-  rounded-xl shadow-[var(--shadow-lg)]
-  dark:shadow-[0_16px_48px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.08)]
+  bg-[var(--surface-1)]
+  border-2 border-[var(--border-strong)]
+  rounded-md
   py-2 z-50"
 ```
 
@@ -628,14 +588,15 @@ In TutorialsPage, MCPPage, DocsPage — replace all instances of the following p
 
 | Current (arbitrary) | Replace with |
 |--------------------|--------------|
-| `rounded-[48px]` | `rounded-3xl` (24px) |
-| `rounded-[56px]` | `rounded-3xl` (24px) |
-| `rounded-[64px]` | `rounded-3xl` (24px) |
-| `rounded-[80px]` | `rounded-3xl` (24px) |
-| `rounded-[40px]` | `rounded-3xl` (24px) |
-| `rounded-[32px]` | `rounded-3xl` (24px) |
+| `rounded-[48px]` | `rounded-md` (8px) |
+| `rounded-[56px]` | `rounded-md` (8px) |
+| `rounded-[64px]` | `rounded-md` (8px) |
+| `rounded-[80px]` | `rounded-md` (8px) |
+| `rounded-[40px]` | `rounded-md` (8px) |
+| `rounded-[32px]` | `rounded-md` (8px) |
 
-This is a global find-replace across the `src/pages/` directory.
+This is a global find-replace across the `src/pages/` directory. Only controls
+and tiny badges may use smaller radii. Marketing cards do not get pill geometry.
 
 ### Spacing Normalization (Pattern)
 
@@ -659,18 +620,22 @@ If implementing incrementally:
 
 2. **Remove arbitrary border radii** — Find-replace in page files. Changes nothing about content, fixes the "looks like a blob" problem immediately. (30 minutes)
 
-3. **Increase hero gradient opacity** and extend grid pattern mask. Makes the hero feel designed without touching any component. (30 minutes)
+3. **Replace hero atmosphere with structure** — measured rules, column pressure,
+   and live product evidence instead of glow fields. (30 minutes)
 
-4. **Apply glass card treatment** to feature cards in Features.tsx and equivalent grid sections in MCPPage and TutorialsPage. (2 hours)
+4. **Apply bordered plane treatment** to feature cards in Features.tsx and
+   equivalent grid sections in MCPPage and TutorialsPage. (2 hours)
 
 5. **Remove global h1 italic** and standardize heading weights across page files. (1 hour)
 
 6. **Spacing normalization** in inner pages — reduce `p-20` card padding and `space-y-32` gaps. (1–2 hours)
 
-7. **Secondary button variant** — apply glass treatment for dark mode. (30 minutes)
+7. **Secondary button variant** — use tokenized border contrast and explicit
+   pressed/focus states in both modes. (30 minutes)
 
 8. **Section label pattern** — replace oversized badge usage with plain overline labels. (1 hour across all pages)
 
-9. **Add noise texture** to hero and CTA sections. (30 minutes)
+9. **Add hard-depth review** — scan for blur, glow, pill radii, soft shadows,
+   and off-system color literals before every commit. (30 minutes)
 
 10. **Add temperature to dark base surfaces** (optional — highest visual impact but riskiest regression). (1 hour + visual review)

@@ -67,9 +67,13 @@ export class AgentCoordinator {
   private activeChannels: Set<string> = new Set();
   private messageHandlers: Map<string, (msg: AgentMessage) => void> = new Map();
 
-  constructor(agentId: string, options?: { baseUrl?: string }) {
+  constructor(agentId: string, options?: { url?: string }) {
     this.agentId = agentId;
-    this.client = new PortDaddy(options?.baseUrl);
+    this.client = new PortDaddy({ url: options?.url, agentId });
+  }
+
+  get id(): string {
+    return this.agentId;
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -82,6 +86,21 @@ export class AgentCoordinator {
   async joinRoom(channel: string, purpose?: string): Promise<void> {
     this.activeChannels.add(channel);
     await this.publish(channel, 'status', purpose ?? `Joining ${channel}`);
+  }
+
+  /**
+   * Declare a channel so pub/sub resolves through the repo/worktree-aware
+   * channel registry instead of a naked global string.
+   */
+  async ensureRoom(
+    channel: string,
+    options?: { aliases?: string[]; scope?: 'branch' | 'worktree' | 'repo' | 'global'; projectDir?: string }
+  ): Promise<void> {
+    await this.client.ensureChannel(channel, {
+      aliases: options?.aliases,
+      scope: options?.scope ?? 'worktree',
+      projectDir: options?.projectDir ?? process.cwd(),
+    });
   }
 
   /**
@@ -174,6 +193,35 @@ export class AgentCoordinator {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
+  // Tuple Space
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Write queryable swarm state. Use this for facts other agents need to read
+   * later, not just react to once.
+   */
+  async rememberTuple(
+    fields: unknown[],
+    options?: { harbor?: string; ttlMs?: number }
+  ) {
+    return this.client.tupleOut(fields, {
+      harbor: options?.harbor,
+      ttlMs: options?.ttlMs,
+      writtenBy: this.agentId,
+    });
+  }
+
+  /**
+   * Read matching tuples without removing them. Use '*' or null as wildcards.
+   */
+  async readTuples(
+    pattern: unknown[],
+    options?: { harbor?: string; limit?: number }
+  ) {
+    return this.client.tupleRd(pattern, options);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
   // Resource Coordination
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -187,7 +235,11 @@ export class AgentCoordinator {
     ttlMs: number = 300000
   ): Promise<boolean> {
     const lockName = `${channel}:${resource}`;
-    const result = await this.client.lock(lockName, { ttl: ttlMs });
+    const result = await this.client.lock(lockName, {
+      owner: this.agentId,
+      ttl: ttlMs,
+      metadata: { channel, resource, intent },
+    });
 
     if (result.success) {
       await this.publish(channel, 'claim', `Claiming ${resource}: ${intent}`, {
@@ -205,7 +257,7 @@ export class AgentCoordinator {
    */
   async releaseResource(channel: string, resource: string): Promise<void> {
     const lockName = `${channel}:${resource}`;
-    await this.client.unlock(lockName);
+    await this.client.unlock(lockName, { owner: this.agentId });
     await this.publish(channel, 'release', `Released ${resource}`, { resource });
   }
 

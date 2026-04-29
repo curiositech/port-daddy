@@ -171,7 +171,7 @@ export function SdkFunctionPage({
               <BracketLink
                 key={item.href}
                 to={item.href}
-                tone={index % 2 === 0 ? 'blue' : 'lime'}
+                tone={index % 2 === 0 ? 'blue' : 'accent'}
                 side={index % 2 === 0 ? 'left' : 'right'}
               >
                 {item.name}

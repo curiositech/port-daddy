@@ -9,7 +9,7 @@ export function RemoteHarbors() {
     <TutorialLayout
       title="Multiplayer Localhost"
       description="The swarm doesn't stop at your machine. Learn to link Port Daddy daemons across the global mesh to coordinate with remote agent clusters and GPU-powered harbors."
-      number={18}
+      number={17}
       total={20}
       level="Advanced"
       readTime="15 min read"

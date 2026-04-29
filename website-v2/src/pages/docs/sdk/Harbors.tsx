@@ -19,7 +19,7 @@ export default function HarborsSdk() {
       <div className="space-y-4">
         <div className="flex items-center gap-3">
           <Badge variant="teal">SDK</Badge>
-          <Badge variant="gold">New in v3.7</Badge>
+          <Badge variant="gold">Current</Badge>
         </div>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Harbors Module
