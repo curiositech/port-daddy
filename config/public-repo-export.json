@@ -56,7 +56,7 @@
     "routes/",
     "shared/",
     "skills/port-daddy-agent-skill/",
-    "skills/port-daddy-cli/",
+    "skills/port-daddy-agent-skill/",
     "templates/",
     "tests/"
   ],

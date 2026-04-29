@@ -27,6 +27,7 @@ export async function handleInit(options: Record<string, unknown>): Promise<void
   const noFleet = !!options['no-fleet'];
   const noMcp = !!options['no-mcp'];
   const noHook = !!options['no-hook'];
+  const noSkill = !!options['no-skill'];
 
   console.log('');
   ui.info(`Initializing Port Daddy for ${cwd}`);
@@ -143,7 +144,28 @@ export async function handleInit(options: Record<string, unknown>): Promise<void
     ui.info('Skipping MCP (--no-mcp)');
   }
 
-  // ─── 6. Git hook (post-commit → project-scoped git:committed channel) ─────
+  // ─── 6. Project-local skill symlinks ───────────────────────────────────────
+  // Drop the canonical Port Daddy skill into <project>/.claude/skills/,
+  // <project>/.cursor/rules/, etc. so every agent in this project sees the
+  // same skill content the user-level install gets.
+
+  if (!noSkill) {
+    try {
+      const { installSkillSymlinksAt } = await import('./setup.js');
+      const ok = installSkillSymlinksAt(cwd, 'project');
+      if (ok) {
+        results.push('Project-local skill symlinks installed');
+      } else {
+        warnings.push('Project skill symlinks could not be installed');
+      }
+    } catch (err) {
+      warnings.push(`Project skill symlinks failed: ${(err as Error).message}`);
+    }
+  } else {
+    ui.info('Skipping project skill symlinks (--no-skill)');
+  }
+
+  // ─── 7. Git hook (post-commit → project-scoped git:committed channel) ─────
 
   if (!noHook) {
     const gitDir = join(cwd, '.git');

@@ -19,6 +19,7 @@
     "generate:og": "tsx scripts/generate-og-cards.mjs",
     "test:a11y:mcp": "node scripts/check-mcp-a11y.mjs",
     "test:a11y:shell": "node scripts/check-public-shell-a11y.mjs",
+    "test:tutorial-command-surfaces": "node scripts/check-tutorial-command-surfaces.mjs",
     "record:gifs": "bash scripts/record-site-terminal-gifs.sh --all && bash scripts/record-agent-terminal-gifs.sh --all",
     "test:gifs": "node scripts/check-terminal-recordings.mjs"
   },
@@ -43,6 +44,7 @@
     "react-force-graph-3d": "^1.29.1",
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.13.1",
+    "remark-gfm": "^4.0.1",
     "tailwind-merge": "^3.5.0",
     "three": "^0.183.2"
   },

@@ -93,6 +93,10 @@ The `agentsd.ai` public-site reset is now explicit repo work, not chat residue.
 
 ## Current Thread
 
+- 2026-04-29 app-native development cockpit sketch:
+  - New product sketch at `docs/shipwright/APP-NATIVE-DEVELOPMENT-COCKPIT.md`.
+  - It ties roadmap intake, Idea Lab/Trove curation, Windags skill-grafted planning, Coordination Guard, multi-backend launches, worktree collapse, editor claim overlays, HITL decisions, Tube, and day-over-day progress logs into one Fleet Control Center cockpit.
+  - The Idea Lab lane makes `IDEAS-TROVE.md` visible as the promotion surface for Spark/Spider output instead of treating raw `.spark/ideas/` or `.spider/connections/` files as backlog truth.
 - 2026-04-29 stash/worktree harvest:
   - New stash recovery branches `codex/stash-exact-20260429-19-*` and
     `codex/stash-exact-20260429-20-*` are pushed.
@@ -339,18 +343,18 @@ Continuation merge/UI honesty session: `session-d50ed49e-60b5-4e0a-8387-50884f12
 - The active request is to use `skill-architect` to repair the confusing/out-of-date agent skill and improve skill governance across the repo.
 - Live actor truth was verified: `pd actor cartographer` resolves to the durable `navigator` actor, whose mission covers roadmap, recovery-ledger, work-slices, and cartographer-status. `pd actor lookout` is the release-surface owner for docs/API/skills/product truth.
 - `pd actor --message` queues durable mailbox work; it is not an immediate answer. Agents still need to read live Port Daddy state and authority docs when no live body responds.
-- `skills/port-daddy-cli/SKILL.md` now has first-party metadata and an explicit roadmap/skill actor workflow before MCP/reference material.
-- `skills/port-daddy-cli/SKILL.md` and `AGENTS.md` now encode the ambient-collaboration policy: agents should publish structured scope/evidence; durable actors/watchers should call out material inconsistencies; no forced constant peer chat.
+- `skills/port-daddy-agent-skill/SKILL.md` now has first-party metadata and an explicit roadmap/skill actor workflow before MCP/reference material.
+- `skills/port-daddy-agent-skill/SKILL.md` and `AGENTS.md` now encode the ambient-collaboration policy: agents should publish structured scope/evidence; durable actors/watchers should call out material inconsistencies; no forced constant peer chat.
 - The policy now explicitly includes goal/invariant-level inconsistency detection: security/auth/privacy/trust-boundary/API-shape drift, product/UX direction mismatch, and strong inferred operator goals. Example: a raw text API should be flagged if adjacent work indicates authenticated secure API expectations, even when the raw endpoint is not locally broken.
 - Live coordination evidence exposed a gap worth fixing next: `/operator/actors` can show active sessions as stale/salvaged while `pd sessions --active` still lists them, and `pd agents --active` can return zero. That should be surfaced as a coordination inconsistency instead of leaving the operator to reconcile it manually.
 - A worktree-scoped `coordination:inconsistency` channel now exists. Tuple `6213` records the default policy for operator-worthy cross-agent conflicts, and tuple `6249` records implied-goal inconsistency detection.
 - `tests/unit/port-daddy-skill-authority.test.js` now guards first-party skill metadata and the live actor consultation path.
-- `skills/port-daddy-cli/CHANGELOG.md` records this skill-surface mutation.
+- `skills/port-daddy-agent-skill/CHANGELOG.md` records this skill-surface mutation.
 - `scripts/audit-skills.mjs` now provides deterministic JSON/Markdown governance scanning for every visible repo skill; current scan sees 109 skills, 70 missing at least one of `license`, `allowed-tools`, or `metadata`, 4 first-party skills, and 19 imported-literature skills.
 - `docs/reports/SKILL_GOVERNANCE_AUDIT_2026-04-26.md` records the broader audit and warns not to blindly rewrite imported/research skills.
-- The validated `port-daddy-cli` skill and references were mirrored into `/Users/erichowens/.agents/skills/port-daddy-cli/` so new agents can load the updated instructions.
-- The workgroup `port-daddy` skill has now received an adapted merge at `/Users/erichowens/coding/workgroup-ai/skills/port-daddy/`: it keeps the workgroup package name, gains the current repo/user runbook body, gets a changelog entry, and has references mirrored from `skills/port-daddy-cli/references/`.
-- Skill diff honesty: the repo and user installed `port-daddy-cli` skills were identical at 729 lines, while the workgroup `port-daddy` skill was an older 409-line surface with a 546-line diff against the repo copy; its API reference was also stale by 755 diff lines and its SDK reference by 49 diff lines.
+- The validated `port-daddy-agent-skill` skill and references were mirrored into `/Users/erichowens/.agents/skills/port-daddy-agent-skill/` so new agents can load the updated instructions.
+- The workgroup `port-daddy` skill has now received an adapted merge at `/Users/erichowens/coding/workgroup-ai/skills/port-daddy/`: it keeps the workgroup package name, gains the current repo/user runbook body, gets a changelog entry, and has references mirrored from `skills/port-daddy-agent-skill/references/`.
+- Skill diff honesty: the repo and user installed `port-daddy-agent-skill` skills were identical at 729 lines, while the workgroup `port-daddy` skill was an older 409-line surface with a 546-line diff against the repo copy; its API reference was also stale by 755 diff lines and its SDK reference by 49 diff lines.
 - UI honesty: Fleet Control Center already used the coordination substrate generically through actors, channels, tuples, graph, and memory views, but it did not first-class the new `coordination:inconsistency` layer. `fleet-config-ui` now surfaces project-level coordination inconsistency callouts from that channel and jumps the operator into the channel when opened. Native FleetBar still only benefits indirectly through the embedded control plane/actor lens; a native popover alert remains future work.
 - Validation truth: `npm test -- tests/unit/port-daddy-skill-authority.test.js tests/unit/skill-governance-audit.test.js --runInBand` passed 2 suites / 9 tests; `pd fleet validate` passed with no topology warnings; `git diff --check` passed; `npm run build` from `fleet-config-ui/` passed with the existing large-chunk warning.
 
@@ -650,7 +654,7 @@ The promotion script is now the high-signal trigger for docs/website/SDK/CLI/tut
 
 ### Port Daddy Skill Happy Path Polish (2026-04-26)
 
-The distributed `port-daddy-cli` skill now starts as an agent runbook instead of
+The distributed `port-daddy-agent-skill` skill now starts as an agent runbook instead of
 a feature catalog:
 
 - frontmatter now names the default command path directly
@@ -776,7 +780,7 @@ Still-active larger uncommitted slice: tuple-first coordination and semantic gra
     - `GET /semantic/search`
     - Fleet Control Center `Memory` panel semantic cards / recent decision feed
   - near-threshold counts, review backlog, emitted `semantic:resolution` tuples, and persisted `semantic_resolution_events` are the current guardrails against silent threshold drift
-- docs/skill drift also landed in this same working tree: `AGENTS.md` and `skills/port-daddy-cli/SKILL.md` now explicitly require Port Daddy-first coordination on this computer
+- docs/skill drift also landed in this same working tree: `AGENTS.md` and `skills/port-daddy-agent-skill/SKILL.md` now explicitly require Port Daddy-first coordination on this computer
 - validation truth on 2026-04-18:
   - broad `npm test` is green at `123/123` suites and `4689/4690` tests with `1` intentional skip
   - focused tuple/semantic suites (`semantic-terms`, `episodic-memory`, `merge-queue`, `fleet-engine`, `fleet-daemon`) are green

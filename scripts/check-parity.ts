@@ -260,7 +260,7 @@ function extractMcpTools(): Set<string> {
 }
 
 function extractSkillMdCliCommands(): Set<string> {
-  const skillPath = join(ROOT, 'skills', 'port-daddy-cli', 'SKILL.md');
+  const skillPath = join(ROOT, 'skills', 'port-daddy-agent-skill', 'SKILL.md');
   if (!existsSync(skillPath)) return new Set();
   const content = readFileSync(skillPath, 'utf-8');
   const commands = new Set<string>();
@@ -273,7 +273,7 @@ function extractSkillMdCliCommands(): Set<string> {
 }
 
 function extractSkillMdMcpTools(): Set<string> {
-  const skillPath = join(ROOT, 'skills', 'port-daddy-cli', 'SKILL.md');
+  const skillPath = join(ROOT, 'skills', 'port-daddy-agent-skill', 'SKILL.md');
   if (!existsSync(skillPath)) return new Set();
   const content = readFileSync(skillPath, 'utf-8');
   const tools = new Set<string>();

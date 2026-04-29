@@ -6,35 +6,82 @@
     <title>Port Daddy Landing Live Glory Capture</title>
     <style>
       :root {
-        --bg: #f8f3ea;
-        --ink: #17120d;
-        --muted: #6a6054;
-        --line: #241b13;
-        --soft-line: rgba(36, 27, 19, 0.16);
-        --panel: #fffaf2;
-        --terminal: #17120d;
-        --terminal-ink: #f8edda;
-        --terminal-muted: #c8bca7;
-        --accent: #e7532e;
-        --accent-2: #168171;
-        --accent-3: #5596e6;
-        --shadow: 12px 14px 0 rgba(23, 18, 13, 0.16);
+        --radnika-opsz-body: 18;
+        --radnika-opsz-display: 48;
+        --bg: #f2eee6;
+        --ink: #121212;
+        --muted: #403b34;
+        --line: #121212;
+        --soft-line: rgba(18, 18, 18, 0.14);
+        --panel: #f7f3eb;
+        --panel-strong: #e9e2d5;
+        --terminal: #12161f;
+        --terminal-ink: #edf1f9;
+        --terminal-muted: #c7d0e5;
+        --accent: #003fb8;
+        --accent-2: #006b5f;
+        --accent-3: #0055ff;
+        --logo-teal: #5bb9b7;
+        --logo-red: #cc3d2e;
+        --shadow: 12px 14px 0 rgba(18, 18, 18, 0.15);
       }
 
       :root[data-theme="dark"] {
-        --bg: #11100e;
-        --ink: #f8edda;
-        --muted: #b4aa9a;
-        --line: #eadcc5;
-        --soft-line: rgba(234, 220, 197, 0.18);
-        --panel: #1a1714;
-        --terminal: #050505;
-        --terminal-ink: #f8ead3;
-        --terminal-muted: #b8a98f;
-        --accent: #ff6a45;
-        --accent-2: #4cc6af;
-        --accent-3: #66a7ff;
+        --bg: #101216;
+        --ink: #f5f3ed;
+        --muted: #d3cec2;
+        --line: #f5f3ed;
+        --soft-line: rgba(245, 243, 237, 0.16);
+        --panel: #181c22;
+        --panel-strong: #222833;
+        --terminal: #0b0d11;
+        --terminal-ink: #f5f3ed;
+        --terminal-muted: #c4cee2;
+        --accent: #7db4ff;
+        --accent-2: #8fd0a7;
+        --accent-3: #95b8ff;
+        --logo-teal: #5bb9b7;
+        --logo-red: #cc3d2e;
         --shadow: 12px 14px 0 rgba(0, 0, 0, 0.44);
+      }
+
+      @font-face {
+        font-family: "Radnika";
+        src: url("../../public/fonts/radnika/Radnika-Regular.woff2") format("woff2");
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+      }
+
+      @font-face {
+        font-family: "Radnika";
+        src: url("../../public/fonts/radnika/Radnika-Medium.woff2") format("woff2");
+        font-style: normal;
+        font-weight: 500;
+        font-display: swap;
+      }
+
+      @font-face {
+        font-family: "Radnika";
+        src: url("../../public/fonts/radnika/Radnika-Bold.woff2") format("woff2");
+        font-style: normal;
+        font-weight: 700;
+        font-display: swap;
+      }
+
+      @font-face {
+        font-family: "Radnika";
+        src: url("../../public/fonts/radnika/Radnika-Black.woff2") format("woff2");
+        font-style: normal;
+        font-weight: 900;
+        font-display: swap;
+      }
+
+      @media (min-resolution: 2dppx) {
+        :root {
+          --radnika-opsz-body: 20;
+          --radnika-opsz-display: 56;
+        }
       }
 
       * {
@@ -46,7 +93,12 @@
         overflow: hidden;
         background: var(--bg);
         color: var(--ink);
-        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-family: "Radnika", "Helvetica Neue", Helvetica, Arial, sans-serif;
+        font-optical-sizing: auto;
+        font-synthesis-weight: none;
+        font-variation-settings: "opsz" var(--radnika-opsz-body);
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
       }
 
       .stage {
@@ -71,20 +123,18 @@
         align-items: center;
         justify-content: space-between;
         text-transform: uppercase;
-        letter-spacing: 0.15em;
+        letter-spacing: 0.08em;
         font-size: 12px;
         font-weight: 900;
       }
 
       .mark {
-        display: inline-grid;
-        width: 42px;
-        height: 42px;
-        place-items: center;
+        display: block;
+        width: 48px;
+        height: 48px;
         border: 2px solid var(--line);
-        background: var(--accent);
-        color: #fff7eb;
-        letter-spacing: 0;
+        background: #0d0c0b;
+        object-fit: cover;
       }
 
       .run-state {
@@ -100,7 +150,7 @@
         content: "";
         width: 10px;
         height: 10px;
-        background: var(--accent-2);
+        background: var(--logo-teal);
       }
 
       .terminal {
@@ -169,7 +219,7 @@
       }
 
       .terminal-glow {
-        color: #e8b35e;
+        color: var(--logo-red);
       }
 
       .capture {
@@ -209,7 +259,7 @@
         position: relative;
         height: calc(100% - 70px);
         background:
-          radial-gradient(circle at 18% 20%, color-mix(in srgb, var(--accent-2) 18%, transparent), transparent 32%),
+          radial-gradient(circle at 18% 20%, color-mix(in srgb, var(--logo-teal) 16%, transparent), transparent 32%),
           linear-gradient(135deg, color-mix(in srgb, var(--panel) 72%, var(--bg)), var(--bg));
       }
 
@@ -230,60 +280,82 @@
 
       .fleetbar-callout {
         position: absolute;
-        left: 836px;
-        top: 92px;
+        left: 792px;
+        top: 118px;
         right: 34px;
-        border: 2px solid var(--line);
+        min-height: 268px;
+        border: 3px solid var(--line);
         background: var(--panel);
-        padding: 28px;
+        box-shadow: inset 10px 0 0 var(--logo-teal);
+        padding: 34px 36px;
       }
 
       .fleetbar-callout strong {
         display: block;
-        font-size: 34px;
-        line-height: 0.98;
+        font-size: 48px;
+        line-height: 0.96;
         letter-spacing: 0;
+        font-variation-settings: "opsz" var(--radnika-opsz-display);
       }
 
       .fleetbar-callout span {
         display: block;
-        margin-top: 14px;
+        margin-top: 24px;
         color: var(--muted);
-        font-size: 16px;
-        font-weight: 800;
-        line-height: 1.4;
+        font-size: 26px;
+        font-weight: 700;
+        line-height: 1.12;
       }
 
       .surface-copy {
         position: absolute;
-        left: 34px;
-        right: 34px;
-        bottom: 84px;
+        top: auto;
+        right: auto;
+        bottom: auto;
+        left: auto;
         z-index: 3;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 28px;
-        min-height: 92px;
-        border: 3px solid var(--line);
+        width: fit-content;
+        min-width: 380px;
+        max-width: 460px;
+        border: 4px solid var(--line);
         background: var(--panel);
         color: var(--ink);
-        padding: 20px 24px;
+        box-shadow: inset 10px 0 0 var(--accent);
+        padding: 28px 30px 28px 38px;
+      }
+
+      .surface-copy.pos-bottom-left {
+        left: 64px;
+        bottom: 108px;
+      }
+
+      .surface-copy.pos-bottom-right {
+        right: 64px;
+        bottom: 108px;
+      }
+
+      .surface-copy.pos-top-right {
+        top: 96px;
+        right: 64px;
       }
 
       .surface-copy strong {
         display: block;
-        flex: 0 0 38%;
-        font-size: 24px;
-        line-height: 1.05;
+        max-width: 11ch;
+        font-size: 42px;
+        line-height: 0.98;
+        letter-spacing: 0;
+        font-variation-settings: "opsz" var(--radnika-opsz-display);
       }
 
       .surface-copy span {
-        flex: 1;
+        display: block;
+        margin-top: 20px;
+        max-width: 19ch;
         color: var(--muted);
-        font-size: 16px;
-        font-weight: 850;
-        line-height: 1.3;
+        font-size: 23px;
+        font-weight: 700;
+        line-height: 1.16;
       }
 
       .surface {
@@ -316,7 +388,7 @@
         color: var(--ink);
         padding: 10px 13px;
         text-transform: uppercase;
-        letter-spacing: 0.16em;
+        letter-spacing: 0.08em;
         font-size: 12px;
         font-weight: 950;
       }
@@ -338,7 +410,7 @@
         padding: 10px 8px;
         font-size: 10px;
         font-weight: 950;
-        letter-spacing: 0.1em;
+        letter-spacing: 0.06em;
         text-transform: uppercase;
         white-space: nowrap;
       }
@@ -349,7 +421,7 @@
 
       .timeline-step.active {
         background: var(--accent);
-        color: #fff7eb;
+        color: var(--panel);
       }
     </style>
   </head>
@@ -357,7 +429,7 @@
     <main class="stage" id="stage">
       <div class="chrome" id="chrome">
         <div style="display: flex; align-items: center; gap: 14px;">
-          <span class="mark">PD</span>
+          <img class="mark" id="brandMark" alt="" />
           <span>Port Daddy live run</span>
         </div>
         <div class="run-state" id="topStatus">daemon nominal</div>
@@ -388,54 +460,54 @@
       <figure class="capture surface" id="shipwright" aria-label="Fleet Control Center Shipwright">
         <span class="surface-title">Shipwright</span>
         <img id="shipwrightImage" alt="Fleet Control Center Shipwright" />
-        <figcaption class="surface-copy">
-          <strong>Shipwright turns repo shape into a fleet.</strong>
-          <span>It surveys the daemon, proposes agents, budgets the run, and gives the operator a plan before launch.</span>
+        <figcaption class="surface-copy pos-bottom-right">
+          <strong>Shipwright builds the fleet.</strong>
+          <span>Proposes agents, budgets the run, and keeps launch choices visible.</span>
         </figcaption>
       </figure>
 
       <figure class="capture surface" id="roadmap" aria-label="Fleet Control Center Roadmap">
         <span class="surface-title">Roadmap</span>
         <img id="roadmapImage" alt="Fleet Control Center Roadmap" />
-        <figcaption class="surface-copy">
-          <strong>Roadmap keeps the next cuts honest.</strong>
-          <span>Cartographer pulls current work, recovery notes, and feedback into ranked work the fleet can act on.</span>
+        <figcaption class="surface-copy pos-top-right">
+          <strong>Roadmap ranks the next cuts.</strong>
+          <span>Turns notes, recovery docs, and feedback into prioritized work.</span>
         </figcaption>
       </figure>
 
       <figure class="capture surface" id="sorties" aria-label="Fleet Control Center Sorties">
         <span class="surface-title">Sorties</span>
         <img id="sortiesImage" alt="Fleet Control Center Sorties" />
-        <figcaption class="surface-copy">
-          <strong>Sorties make missions spend-aware.</strong>
-          <span>Draft a bounded mission, preview the roster, set approvals, and launch without losing operator control.</span>
+        <figcaption class="surface-copy pos-top-right">
+          <strong>Sorties keep launches bounded.</strong>
+          <span>Preview roster, approvals, budget, and launch path before work starts.</span>
         </figcaption>
       </figure>
 
       <figure class="capture surface" id="flow" aria-label="Fleet Control Center Flow">
         <span class="surface-title">Flow</span>
         <img id="flowImage" alt="Fleet Control Center Flow" />
-        <figcaption class="surface-copy">
+        <figcaption class="surface-copy pos-bottom-right">
           <strong>Flow shows who wakes whom.</strong>
-          <span>The graph shows which agents listen, what they emit, and where work moves next.</span>
+          <span>Shows listeners, triggers, publishes, and where work moves next.</span>
         </figcaption>
       </figure>
 
       <figure class="capture surface" id="resources" aria-label="Fleet Control Center Resources">
         <span class="surface-title">Resources</span>
         <img id="resourcesImage" alt="Fleet Control Center Resources" />
-        <figcaption class="surface-copy">
+        <figcaption class="surface-copy pos-bottom-right">
           <strong>Resources shows fleet pressure.</strong>
-          <span>Memory, disk, local AI, daemon load, spend, and launch capacity stay visible before the fleet runs hotter.</span>
+          <span>Shows daemon load, memory, spend, and launch capacity.</span>
         </figcaption>
       </figure>
 
       <figure class="capture surface" id="agents" aria-label="Fleet Control Center Agents">
         <span class="surface-title">Agents</span>
         <img id="agentsImage" alt="Fleet Control Center Agents" />
-        <figcaption class="surface-copy">
-          <strong>Agents ties signals back to actors.</strong>
-          <span>Runtime bodies, salvage history, sessions, notes, inboxes, channels, and file claims meet on one page.</span>
+        <figcaption class="surface-copy pos-top-right">
+          <strong>Agents ties signals to actors.</strong>
+          <span>Connects runtime bodies, notes, claims, inboxes, and handoffs.</span>
         </figcaption>
       </figure>
 
@@ -487,6 +559,7 @@
       const agents = document.getElementById('agents')
       const topbarImage = document.getElementById('topbarImage')
       const fleetbarImage = document.getElementById('fleetbarImage')
+      const brandMark = document.getElementById('brandMark')
       const shipwrightImage = document.getElementById('shipwrightImage')
       const roadmapImage = document.getElementById('roadmapImage')
       const sortiesImage = document.getElementById('sortiesImage')
@@ -546,6 +619,7 @@
       function paintStatic() {
         const { status } = state.snapshot
         topStatus.textContent = `daemon ${status.runtime || 'nominal'}`
+        brandMark.src = theme === 'dark' ? '../../public/pd_logo_darkmode.svg' : '../../public/pd_logo.svg'
         topbarImage.src = mediaAsset('topbar-crop')
         fleetbarImage.src = mediaAsset('fleetbar-menu-captured')
         shipwrightImage.src = mediaAsset('live-shipwright-focus')

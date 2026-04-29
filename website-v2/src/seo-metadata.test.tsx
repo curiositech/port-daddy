@@ -196,7 +196,7 @@ describe('website SEO metadata', () => {
       expect(document.title).toContain('The Control Plane Is the Product')
     })
 
-    expect(document.querySelector<HTMLMetaElement>('meta[name="description"]')?.content).toContain('FleetBar opens the real Fleet Control Center')
+    expect(document.querySelector<HTMLMetaElement>('meta[name="description"]')?.content).toContain('project identity, file ownership')
     expect(document.querySelector<HTMLLinkElement>('link[rel="canonical"]')?.href).toBe('https://portdaddy.dev/blog/control-plane-is-the-product')
     expect(document.querySelector<HTMLMetaElement>('meta[property="og:image"]')?.content).toBe('https://portdaddy.dev/img/og/blog-control-plane-is-the-product.jpg')
     expect(document.querySelector<HTMLMetaElement>('meta[name="twitter:image"]')?.content).toBe('https://portdaddy.dev/img/og/blog-control-plane-is-the-product.jpg')

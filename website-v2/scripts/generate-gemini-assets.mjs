@@ -116,6 +116,21 @@ No people, no mascots, no handcuffs, no police/security theater, no fake UI scre
 `.trim(),
   },
   {
+    id: 'harbors-signed-access',
+    filename: 'harbors-signed-access.jpg',
+    aspectRatio: '16:9',
+    imageSize: '1K',
+    prompt: `
+${sharedDirection}
+
+Create a completely wordless Swiss-modern architectural security print.
+Composition: nested rectangular zones, blank paper modules, sealed geometric packets, thin verification paths, dot-matrix texture fields, small checkpoint squares, and one strong central boundary shape. It should suggest scoped authority and signed access through structure only, like a museum-quality technical print, not a labeled diagram.
+Use hard ink rules, technical blue, restrained lime, warm paper grain, precise alignment, and crisp shadows. Every panel must be blank. Every packet must be blank. Every module must be blank. Abstract dots, short ticks, and non-language geometric marks are allowed.
+Typography prohibition: absolutely no words, no pseudo-words, no letters, no numbers, no code, no captions, no chart labels, no UI copy, no alphabet-like marks, no handwriting, no tiny labels, no readable or semi-readable text anywhere. Avoid any glyph that resembles Latin text.
+No nautical imagery: no water, boats, docks, flags, lighthouses, sailors, maps, coastlines, cargo, or maritime motifs. No people, keys as cartoon objects, padlock clip art, shields as generic icons, police/security theater, fake UI screenshots, logos, or brand marks.
+`.trim(),
+  },
+  {
     id: 'fleetbar-install',
     filename: 'fleetbar-install.jpg',
     aspectRatio: '16:9',

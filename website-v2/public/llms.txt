@@ -205,13 +205,13 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 
 - [Blog - Port Daddy](https://portdaddy.dev/blog): Read current Port Daddy field notes about FleetBar, Fleet Control Center, launch readiness, recovery maps, PD Tube, daemon provenance, and coordination policy.
 - [Backend Readiness Is Dependency Truth - Port Daddy](https://portdaddy.dev/blog/backend-readiness-is-dependency-truth): A model backend is ready only when credentials, packages, CLI auth, model catalog, and telemetry policy all agree.
-- [The Control Plane Is the Product - Port Daddy](https://portdaddy.dev/blog/control-plane-is-the-product): The website caught up to the app: FleetBar opens the real Fleet Control Center, readiness is visible before launch, and the public story is now about operator truth instead of decorative metaphor.
+- [The Control Plane Is the Product - Port Daddy](https://portdaddy.dev/blog/control-plane-is-the-product): A local agent system is only trustworthy when project identity, file ownership, runtime provenance, backend readiness, cost, and recovery share one inspectable control plane.
 - [Coordination Guard Turns Claims Into Policy - Port Daddy](https://portdaddy.dev/blog/coordination-guard-claims-into-policy): Notes and file claims are useful as shared facts. Coordination Guard makes them matter at commit time.
 - [Cold Start Without Surprise Launches - Port Daddy](https://portdaddy.dev/blog/fleet-designer-cold-start): A good first-run flow should inspect the repo, expose missing credentials, simulate the fleet, and keep the human in control before any agent starts spending money.
 - [PD Tube Turns UI Events Into Agent Work - Port Daddy](https://portdaddy.dev/blog/pd-tube-event-reply-loop): PD Tube is the small event-reply loop underneath button-to-agent examples, test reporters, editor lightbulbs, and webhook adapters.
-- [Keeping The Map Honest - Port Daddy](https://portdaddy.dev/blog/recovery-roadmap-map-truth): Roadmaps, recovery docs, session notes, and live daemon state drift unless one surface reconciles them into an operator-readable map.
-- [Running Is Not The Same As Current - Port Daddy](https://portdaddy.dev/blog/running-is-not-current): A daemon can be alive, reachable, and still serving the wrong checkout. Runtime provenance has to be visible before you trust UI or CLI behavior.
-- [Telemetry Is A Launch Gate - Port Daddy](https://portdaddy.dev/blog/telemetry-is-a-launch-gate): Operator-facing launches should not succeed unless the backend can prove exact tokens, exact rates, and persisted nonzero cost.
+- [Keeping the Map Honest - Port Daddy](https://portdaddy.dev/blog/recovery-roadmap-map-truth): Roadmaps, recovery docs, session notes, and live daemon state drift unless one surface reconciles them into an operator-readable map.
+- [Running Is Not the Same as Current - Port Daddy](https://portdaddy.dev/blog/running-is-not-current): A daemon can be alive, reachable, and still serving the wrong checkout. Runtime provenance has to be visible before you trust UI or CLI behavior.
+- [Telemetry Is a Launch Gate - Port Daddy](https://portdaddy.dev/blog/telemetry-is-a-launch-gate): Operator-facing launches should not succeed unless the backend can prove exact tokens, exact rates, and persisted nonzero cost.
 
 ## White Papers
 

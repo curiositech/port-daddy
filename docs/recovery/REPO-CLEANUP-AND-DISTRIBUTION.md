@@ -50,7 +50,7 @@ Historical but non-authoritative unless refreshed:
 ## Skill Authority
 
 Decision:
-- one skill only: `skills/port-daddy-cli/SKILL.md`
+- one skill only: `skills/port-daddy-agent-skill/SKILL.md`
 - no mirrored alias
 - no second copy kept "for compatibility"
 

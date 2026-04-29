@@ -85,7 +85,7 @@ function FeaturedArticle({ post }: { post: BlogPost }) {
             to={`/blog/${post.slug}`}
             className="inline-flex w-fit items-center gap-2 border-2 border-[var(--border-strong)] bg-[var(--text-primary)] px-4 py-3 text-[var(--text-inverse)] no-underline transition-colors hover:bg-[var(--brand-primary)]"
           >
-            <span className="font-mono text-[11px] font-bold uppercase tracking-[0.16em]">Read note</span>
+            <span className="font-mono text-[11px] font-bold uppercase tracking-[0.16em]">Read article</span>
             <ArrowUpRight size={16} aria-hidden="true" />
           </Link>
         </div>
@@ -146,7 +146,7 @@ export function BlogPage() {
 
           <div className="grid gap-6 lg:col-span-5 lg:self-end">
             <p className="max-w-xl text-base leading-relaxed text-[var(--text-secondary)] sm:text-lg">
-              A cleaned-up field log for the work Port Daddy is actually doing now: FleetBar, Fleet Control Center, readiness gates, PD Tube, recovery maps, daemon provenance, and coordination policy.
+              A technical journal for the work Port Daddy is actually doing now: FleetBar, Fleet Control Center, readiness gates, PD Tube, recovery maps, daemon provenance, and coordination policy.
             </p>
             <div className="grid grid-cols-3 border-2 border-[var(--border-strong)]">
               <div className="border-r-2 border-[var(--border-strong)] p-4">
@@ -193,7 +193,7 @@ export function BlogPage() {
                   <NotebookText size={14} aria-hidden="true" />
                   Article index
                 </div>
-                <h2 id="article-index" className="text-2xl font-black tracking-normal text-[var(--text-primary)]">Current field notes</h2>
+                <h2 id="article-index" className="text-2xl font-black tracking-normal text-[var(--text-primary)]">Current technical articles</h2>
               </div>
               <Cpu className="hidden text-[var(--text-muted)] sm:block" size={24} aria-hidden="true" />
             </div>
