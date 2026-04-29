@@ -173,7 +173,11 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 ## Examples
 
 - [Executable Examples - Port Daddy](https://portdaddy.dev/examples): Run complete Port Daddy example programs for browser buttons, test reporters, editor commands, and webhook adapters that talk to local agents.
+- [Sketch agent archetypes before you launch them - Port Daddy](https://portdaddy.dev/examples/agent-archetypes): Compare star, ring, arbiter, watchdog, and repair topologies before committing a fleet shape to YAML.
 - [Build an editor lightbulb that asks the local agent - Port Daddy](https://portdaddy.dev/examples/editor-lightbulb-to-agent): Select code in a local page, publish the file and range to the agent, and render the explanation inline.
+- [Claim a collision-free port for an ephemeral CI database - Port Daddy](https://portdaddy.dev/examples/ephemeral-ci-db): Give short-lived test databases clean local ports so CI helpers and agents do not collide on the same machine.
+- [Elect one leader from a local agent swarm - Port Daddy](https://portdaddy.dev/examples/leader-election): Use Port Daddy locks and inboxes so one local agent becomes the coordinator while the rest remain safe followers.
+- [Build WebRTC signaling over agent inboxes - Port Daddy](https://portdaddy.dev/examples/p2p-webrtc): Use durable Port Daddy inbox messages for offer-answer rendezvous before peers switch to a direct local link.
 - [Build a button-to-agent loop with PD Tube - Port Daddy](https://portdaddy.dev/examples/pd-tube-button-to-agent): Turn a plain HTML button into a local phone line to the agent session already running in your project.
 - [Build a test reporter that asks the agent for help - Port Daddy](https://portdaddy.dev/examples/test-failure-to-agent): Wrap a failing test command, publish the failure to the local agent, and print the diagnosis back in the terminal.
 - [Build a webhook adapter backed by your workstation - Port Daddy](https://portdaddy.dev/examples/webhook-to-local-agent): Accept Slack, Discord, Linear, or generic webhook JSON and route it to the local agent through PD Tube.
