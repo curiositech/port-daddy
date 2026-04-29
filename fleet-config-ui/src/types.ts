@@ -194,6 +194,44 @@ export interface ChannelMessage {
   createdAt: number;
 }
 
+export type ChannelScope = 'branch' | 'worktree' | 'repo' | 'global';
+
+export interface DeclaredChannel {
+  logicalName: string;
+  physicalName: string;
+  description: string | null;
+  aliases: string[];
+  scope: ChannelScope;
+  projectDir: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: number;
+  updatedAt: number;
+  activeCount: number;
+  lastMessage: number | null;
+  active: boolean;
+  source: 'declared' | 'observed';
+}
+
+export interface ChannelDiscoveryEnvelope {
+  success: boolean;
+  channels: DeclaredChannel[];
+}
+
+export interface EnsureChannelInput {
+  name: string;
+  description?: string | null;
+  aliases?: string[];
+  scope?: ChannelScope;
+  projectDir?: string | null;
+  metadata?: Record<string, unknown> | null;
+}
+
+export interface EnsureChannelResult {
+  success: boolean;
+  created?: boolean;
+  channel: DeclaredChannel;
+}
+
 export type FilePreviewLineKind = 'meta' | 'hunk' | 'add' | 'remove' | 'context';
 
 /**

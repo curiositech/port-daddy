@@ -16,6 +16,8 @@ import MemoryPanel from './components/MemoryPanel';
 import AgentsPanel from './components/AgentsPanel';
 import RoadmapPanel from './components/RoadmapPanel';
 import ResourceGovernancePanel from './components/ResourceGovernancePanel';
+import TubeConsolePanel from './components/TubeConsolePanel';
+import EventsRegistryPanel from './components/EventsRegistryPanel';
 import ShipwrightPanel from './shipwright/ShipwrightPanel';
 import { extractMentionedPaths } from './fileMentions';
 import {
@@ -55,8 +57,8 @@ import type {
   TopologyValidation,
 } from './types';
 
-type MainTab = 'Flow' | 'Roadmap' | 'Agents' | 'Resources' | 'Activity' | 'Channels' | 'Inbox' | 'Sorties' | 'Memory' | 'Shipwright' | 'YAML';
-type ControlSurface = 'flow' | 'roadmap' | 'agents' | 'resources' | 'activity' | 'channels' | 'inbox' | 'sorties' | 'memory' | 'shipwright' | 'yaml';
+type MainTab = 'Flow' | 'Roadmap' | 'Agents' | 'Resources' | 'Activity' | 'Channels' | 'Tube' | 'Events' | 'Inbox' | 'Sorties' | 'Memory' | 'Shipwright' | 'YAML';
+type ControlSurface = 'flow' | 'roadmap' | 'agents' | 'resources' | 'activity' | 'channels' | 'tube' | 'events' | 'inbox' | 'sorties' | 'memory' | 'shipwright' | 'yaml';
 
 function canUseWindow(): boolean {
   return typeof window !== 'undefined';
@@ -66,6 +68,8 @@ function normalizeSurface(value: string | null): ControlSurface {
   switch (value) {
     case 'activity':
     case 'channels':
+    case 'tube':
+    case 'events':
     case 'inbox':
     case 'sorties':
     case 'memory':
@@ -95,6 +99,10 @@ function surfaceToMainTab(surface: ControlSurface): MainTab {
       return 'Activity';
     case 'channels':
       return 'Channels';
+    case 'tube':
+      return 'Tube';
+    case 'events':
+      return 'Events';
     case 'inbox':
       return 'Inbox';
     case 'sorties':
@@ -116,6 +124,8 @@ function mainTabToSurface(activeTab: MainTab): ControlSurface {
   if (activeTab === 'Roadmap') return 'roadmap';
   if (activeTab === 'Activity') return 'activity';
   if (activeTab === 'Channels') return 'channels';
+  if (activeTab === 'Tube') return 'tube';
+  if (activeTab === 'Events') return 'events';
   if (activeTab === 'Inbox') return 'inbox';
   if (activeTab === 'Sorties') return 'sorties';
   if (activeTab === 'Memory') return 'memory';
@@ -361,10 +371,10 @@ function Header({
 
 function TabBar({ tabs, active, onChange }: { tabs: string[]; active: string; onChange: (t: string) => void }) {
   return (
-    <div className="flex gap-0.5 px-4 pt-2" style={{ borderBottom: '1px solid var(--pd-border)' }}>
+    <div className="flex gap-0.5 overflow-x-auto px-4 pt-2" style={{ borderBottom: '1px solid var(--pd-border)' }}>
       {tabs.map(t => (
         <button key={t} onClick={() => onChange(t)}
-          className="px-3 py-1.5 text-[11px] font-semibold tracking-wide rounded-t"
+          className="shrink-0 whitespace-nowrap px-3 py-1.5 text-[11px] font-semibold tracking-wide rounded-t"
           style={{
             backgroundColor: active === t ? 'var(--pd-surface)' : 'transparent',
             color: active === t ? 'var(--pd-text)' : 'var(--pd-muted)',
@@ -1384,7 +1394,7 @@ export default function App() {
 
   const configAgentData = fleetConfig?.agents.find(a => a.name === configAgent);
   const daemonRunning = fleet.status?.running ?? false;
-  const surfaceTabs: MainTab[] = ['Flow', 'Roadmap', 'Agents', 'Resources', 'Activity', 'Channels', 'Inbox', 'Sorties', 'Memory', 'Shipwright', 'YAML'];
+  const surfaceTabs: MainTab[] = ['Flow', 'Roadmap', 'Agents', 'Resources', 'Activity', 'Channels', 'Tube', 'Events', 'Inbox', 'Sorties', 'Memory', 'Shipwright', 'YAML'];
   const allProjectSurfaceTabs: MainTab[] = ['Flow', 'Shipwright'];
   const showProjectSidebar = activeTab === 'Flow' && !embedded;
   const visibleSurfaceTabs = selectedProjectId ? surfaceTabs : allProjectSurfaceTabs;
@@ -1710,6 +1720,26 @@ export default function App() {
                         projectDir={selectedProjectId ?? undefined}
                         onChannelClick={(channelName) => focusChannel(selectedChannel === channelName ? null : channelName)}
                         layout="page"
+                      />
+                    )}
+                    {activeTab === 'Tube' && (
+                      <TubeConsolePanel
+                        channels={channelTargets}
+                        selectedChannel={selectedChannel}
+                        projectDir={selectedProjectId ?? undefined}
+                        onChannelFocus={(channelName) => focusChannel(channelName)}
+                      />
+                    )}
+                    {activeTab === 'Events' && (
+                      <EventsRegistryPanel
+                        channels={channelTargets}
+                        fleetConfig={fleetConfig}
+                        projectDir={selectedProjectId ?? undefined}
+                        projectName={selectedProjectName ?? undefined}
+                        onOpenTube={(channelName) => {
+                          focusChannel(channelName);
+                          setActiveTab('Tube');
+                        }}
                       />
                     )}
                     {activeTab === 'Inbox' && (
