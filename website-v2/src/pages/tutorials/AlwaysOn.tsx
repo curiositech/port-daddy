@@ -10,7 +10,7 @@ export function AlwaysOn() {
       title="Always-On Avatars"
       description="Most agents are ephemeral. Learn to deploy persistent background processes that maintain harbor-scoped state and respond to global swarm signals 24/7."
       number={11}
-      total={20}
+      total={19}
       level="Intermediate"
       readTime="10 min read"
       prev={{ title: 'Sugar Commands', href: '/tutorials/sugar' }}

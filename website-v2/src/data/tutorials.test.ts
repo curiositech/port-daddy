@@ -27,7 +27,6 @@ const FILE_TO_SLUG: Record<string, string> = {
   'AlwaysOn.tsx': 'always-on',
   'Spawn.tsx': 'pd-spawn',
   'Harbors.tsx': 'harbors',
-  'Dashboard.tsx': 'dashboard',
   'TimeTravel.tsx': 'time-travel',
   'Pipelines.tsx': 'pipelines',
   'Watch.tsx': 'watch',

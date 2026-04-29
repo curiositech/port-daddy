@@ -4,7 +4,6 @@ import { BrandMark } from './primitives'
 
 const SITE_LINKS = [
   { label: 'Home', href: '/' },
-  { label: 'Dashboard', href: '/dashboard' },
   { label: 'Examples', href: '/examples' },
   { label: 'Agents', href: '/agents' },
   { label: 'MCP', href: '/mcp' },

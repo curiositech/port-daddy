@@ -82,12 +82,6 @@ function docsMetadata(route: DocsFamilyRoute): SiteMetadata {
 const productRoutes: SiteMetadata[] = [
   metadata('/', SITE_NAME, DEFAULT_SITE_DESCRIPTION, { section: 'home' }),
   metadata(
-    '/dashboard',
-    'Live Coordination Dashboard',
-    'Inspect Port Daddy services, sessions, locks, agents, notes, and swarm activity from one operator-facing dashboard.',
-    { image: '/img/dashboard-agents.png' },
-  ),
-  metadata(
     '/examples',
     'Coordination Examples',
     'Study concrete Port Daddy workflows for multi-agent repos, session notes, file claims, salvage, and event-driven automation.',

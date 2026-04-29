@@ -14,7 +14,6 @@ export function DocsSidebar() {
     { title: 'REST API', href: '/docs/api' },
   ]
   const siteSurfaces = [
-    { title: 'Dashboard', href: '/dashboard' },
     { title: 'Examples', href: '/examples' },
     { title: 'MCP overview', href: '/mcp' },
     { title: 'Agents', href: '/agents' },
@@ -107,8 +106,8 @@ export function DocsSidebar() {
           titleSize="nav"
         >
           <PanelBody size="compact" className="max-w-none">
-            Use the docs shell for deep reading, then jump back to the dashboard, examples, MCP overview, agent
-            catalog, or roadmap when the broader public site is the right surface.
+            Use the docs shell for deep reading, then jump back to examples, MCP overview, agent catalog, or roadmap
+            when the broader public site is the right surface.
           </PanelBody>
           <div className="flex flex-col gap-[var(--space-2)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
             {siteSurfaces.map((surface, index) => (

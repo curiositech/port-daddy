@@ -10,11 +10,11 @@ export function Harbors() {
       title="Cryptographic Harbors"
       description="Your agents should not have unlimited access to everything. Learn to define permission boundaries and issue signed capability tokens that expire automatically."
       number={13}
-      total={20}
+      total={19}
       level="Advanced"
       readTime="12 min read"
       prev={{ title: 'pd spawn: Launch Agent Fleets', href: '/tutorials/pd-spawn' }}
-      next={{ title: 'Live Dashboard', href: '/tutorials/dashboard' }}
+      next={{ title: 'Activity Log Inspection', href: '/tutorials/time-travel' }}
     >
       <div className="space-y-12">
         {/* Why Harbors Exist */}

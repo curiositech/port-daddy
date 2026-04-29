@@ -21,7 +21,6 @@ const TutorialsPage = lazyNamed(() => import('@/pages/TutorialsPage'), 'Tutorial
 const ExamplesPage = lazyNamed(() => import('@/pages/ExamplesPage'), 'ExamplesPage')
 const McpPage = lazy(() => import('@/pages/MCPPage'))
 const WhitepaperPage = lazy(() => import('@/pages/whitepaper'))
-const DashboardPage = lazyNamed(() => import('@/pages/DashboardPage'), 'DashboardPage')
 const BlogPage = lazyNamed(() => import('@/pages/BlogPage'), 'BlogPage')
 const BlogPostPage = lazyNamed(() => import('@/pages/BlogPostPage'), 'BlogPostPage')
 const RoadmapPage = lazyNamed(() => import('@/pages/RoadmapPage'), 'RoadmapPage')
@@ -46,7 +45,6 @@ const Sugar = lazyNamed(() => import('@/pages/tutorials/Sugar'), 'Sugar')
 const AlwaysOn = lazyNamed(() => import('@/pages/tutorials/AlwaysOn'), 'AlwaysOn')
 const Spawn = lazyNamed(() => import('@/pages/tutorials/Spawn'), 'Spawn')
 const Harbors = lazyNamed(() => import('@/pages/tutorials/Harbors'), 'Harbors')
-const TutorialDashboard = lazyNamed(() => import('@/pages/tutorials/Dashboard'), 'Dashboard')
 const TimeTravel = lazyNamed(() => import('@/pages/tutorials/TimeTravel'), 'TimeTravel')
 const Pipelines = lazyNamed(() => import('@/pages/tutorials/Pipelines'), 'Pipelines')
 const Watch = lazyNamed(() => import('@/pages/tutorials/Watch'), 'Watch')
@@ -179,7 +177,6 @@ createRoot(document.getElementById('root')!).render(
           <Routes>
             <Route element={<MainLayout />}>
               <Route path="/" element={<App />} />
-              <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/examples" element={<ExamplesPage />} />
               <Route path="/mcp" element={<McpPage />} />
               <Route path="/roadmap" element={<RoadmapPage />} />
@@ -200,7 +197,6 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/tutorials/always-on" element={<AlwaysOn />} />
               <Route path="/tutorials/pd-spawn" element={<Spawn />} />
               <Route path="/tutorials/harbors" element={<Harbors />} />
-              <Route path="/tutorials/dashboard" element={<TutorialDashboard />} />
               <Route path="/tutorials/time-travel" element={<TimeTravel />} />
               <Route path="/tutorials/pipelines" element={<Pipelines />} />
               <Route path="/tutorials/watch" element={<Watch />} />

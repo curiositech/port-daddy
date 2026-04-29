@@ -10,7 +10,7 @@ export function Inbox() {
       title="The Agent Inbox"
       description="Coordination requires communication. Learn to use Port Daddy's internal messaging system to send direct signals, broadcast events, and monitor agent heartbeats in real-time."
       number={9}
-      total={20}
+      total={19}
       level="Intermediate"
       readTime="10 min read"
       prev={{ title: 'Session Phases', href: '/tutorials/session-phases' }}
@@ -35,7 +35,7 @@ export function Inbox() {
             </p>
             <p className="text-sm text-[var(--text-secondary)] m-0">
               <Activity size={14} className="inline text-[var(--brand-accent)] mr-1" />
-              <strong>Radio Stream</strong> -- Subscribe to any inbox live via SSE to monitor agent progress in your terminal or dashboard.
+              <strong>Radio Stream</strong> -- Subscribe to any inbox live via SSE to monitor agent progress in your terminal or control plane.
             </p>
           </div>
         </section>

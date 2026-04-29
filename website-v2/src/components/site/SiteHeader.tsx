@@ -8,7 +8,6 @@ import { BrandMark, PageContainer } from './primitives'
 
 const NAV_ITEMS = [
   { label: 'Docs', href: '/docs', end: false },
-  { label: 'Dashboard', href: '/dashboard', end: false },
   { label: 'Examples', href: '/examples', end: false },
   { label: 'MCP', href: '/mcp', end: false },
   { label: 'Tutorials', href: '/tutorials', end: false },

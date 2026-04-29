@@ -61,9 +61,6 @@
     <loc>https://portdaddy.dev/cookbook/p2p-webrtc</loc>
   </url>
   <url>
-    <loc>https://portdaddy.dev/dashboard</loc>
-  </url>
-  <url>
     <loc>https://portdaddy.dev/docs</loc>
   </url>
   <url>
@@ -485,9 +482,6 @@
   </url>
   <url>
     <loc>https://portdaddy.dev/tutorials/always-on</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/tutorials/dashboard</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/tutorials/debugging</loc>

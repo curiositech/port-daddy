@@ -10,7 +10,7 @@ export function Monorepo() {
       title="Fleet Management"
       description="Stop juggling 15 terminal tabs. Learn to scan your entire monorepo, assign ports atomically, and orchestrate a full service mesh with a single command."
       number={4}
-      total={20}
+      total={19}
       level="Intermediate"
       readTime="10 min read"
       prev={{ title: 'Multi-Agent Orchestration', href: '/tutorials/multi-agent' }}

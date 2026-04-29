@@ -184,7 +184,7 @@ describe('public shell contracts', () => {
     const header = read('./components/site/SiteHeader.tsx')
     const footer = read('./components/site/SiteFooter.tsx')
 
-    expect(header).toContain('/dashboard')
+    expect(header).not.toContain('/dashboard')
     expect(header).toContain('/examples')
     expect(header).toContain('/mcp')
     expect(header).toContain('/tutorials')
@@ -195,7 +195,7 @@ describe('public shell contracts', () => {
     expect(header).toContain('!max-w-none')
     expect(header).toContain('inline-flex shrink-0 items-center')
     expect(header).not.toContain('absolute right-0 top-0 h-full w-3')
-    expect(footer).toContain('/dashboard')
+    expect(footer).not.toContain('/dashboard')
     expect(footer).toContain('/agents')
     expect(footer).toContain('/mcp')
     expect(footer).toContain('/roadmap')
@@ -228,13 +228,13 @@ describe('public shell contracts', () => {
     const docsSidebar = read('./components/site/DocsSidebar.tsx')
 
     expect(docsOverview).toContain('Keep the rest of the site in play.')
-    expect(docsOverview).toContain('/dashboard')
+    expect(docsOverview).not.toContain('/dashboard')
     expect(docsOverview).toContain('/examples')
     expect(docsOverview).toContain('/mcp')
     expect(docsOverview).toContain('/agents')
     expect(docsOverview).toContain('/roadmap')
     expect(docsSidebar).toContain('The rest of the website stays live.')
-    expect(docsSidebar).toContain('/dashboard')
+    expect(docsSidebar).not.toContain('/dashboard')
     expect(docsSidebar).toContain('/examples')
     expect(docsSidebar).toContain('/mcp')
     expect(docsSidebar).toContain('/agents')
@@ -262,7 +262,6 @@ describe('public shell contracts', () => {
     }
 
     for (const routePath of [
-      'path="/dashboard"',
       'path="/examples"',
       'path="/mcp"',
       'path="/roadmap"',
@@ -528,7 +527,6 @@ describe('public shell contracts', () => {
       './hooks/useDaemonData.ts',
       './hooks/useActivityStream.ts',
       './hooks/useTimeline.ts',
-      './hooks/useDashboardStats.ts',
       './hooks/useOrchestratorRules.ts',
       './components/viz/WorkflowsTable.tsx',
       './lib/daemon-client.ts',

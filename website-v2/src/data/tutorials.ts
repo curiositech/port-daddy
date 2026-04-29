@@ -141,18 +141,8 @@ export const TUTORIALS: Tutorial[] = [
     href: '/tutorials/harbors',
   },
   {
-    slug: 'dashboard',
-    number: '14',
-    title: 'Read the Live Control Plane',
-    description: 'Use the dashboard to inspect services, agents, sessions, locks, runtime health, and recent coordination evidence.',
-    level: 'beginner',
-    time: '5 min',
-    tags: ['dashboard', 'inspection', 'health'],
-    href: '/tutorials/dashboard',
-  },
-  {
     slug: 'time-travel',
-    number: '15',
+    number: '14',
     title: 'Inspect the Activity Ledger',
     description: 'Query the append-only event timeline. Correlate infrastructure events with agent session notes to diagnose coordination failures.',
     level: 'intermediate',
@@ -162,7 +152,7 @@ export const TUTORIALS: Tutorial[] = [
   },
   {
     slug: 'pipelines',
-    number: '16',
+    number: '15',
     title: 'Build Reactive Pipelines',
     description: 'Chain channels, watchers, locks, and spawned agents into event-driven workflows with clear ownership boundaries.',
     level: 'advanced',
@@ -172,7 +162,7 @@ export const TUTORIALS: Tutorial[] = [
   },
   {
     slug: 'watch',
-    number: '17',
+    number: '16',
     title: 'Observe Runtime Channels',
     description: 'Use pd watch to follow channel activity, inspect event pressure, and trigger bounded responses from scripts or agents.',
     level: 'intermediate',
@@ -182,7 +172,7 @@ export const TUTORIALS: Tutorial[] = [
   },
   {
     slug: 'remote-harbors',
-    number: '18',
+    number: '17',
     title: 'Plan Remote Coordination',
     description: 'Separate what works today with tunnels and DNS from the roadmap for cross-machine daemon coordination.',
     level: 'advanced',
@@ -192,7 +182,7 @@ export const TUTORIALS: Tutorial[] = [
   },
   {
     slug: 'fleet',
-    number: '19',
+    number: '18',
     title: 'Run Background Fleets',
     description: 'Declare background agents in YAML, bind them to project events, and keep QA, docs, and research work continuously inspectable.',
     level: 'intermediate',
@@ -202,7 +192,7 @@ export const TUTORIALS: Tutorial[] = [
   },
   {
     slug: 'pheromone',
-    number: '20',
+    number: '19',
     title: 'Use Ambient Attention Signals',
     description: 'Attach decaying numeric signals to files, sessions, or ideas so agents can prioritize work without extra chat traffic.',
     level: 'intermediate',

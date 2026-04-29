@@ -150,7 +150,6 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 
 - [Tutorials - Port Daddy](https://portdaddy.dev/tutorials): Follow hands-on Port Daddy tutorials from first install through sessions, DNS, tunnels, fleet YAML, messaging, and background agents.
 - [Run Event-Triggered Agents - Port Daddy](https://portdaddy.dev/tutorials/always-on): Combine pd spawn and pd watch so agents react to channel events automatically across Ollama, Codex, Claude, Gemini, Aider, and custom backends.
-- [Read the Live Control Plane - Port Daddy](https://portdaddy.dev/tutorials/dashboard): Use the dashboard to inspect services, agents, sessions, locks, runtime health, and recent coordination evidence.
 - [Debug Coordination Failures - Port Daddy](https://portdaddy.dev/tutorials/debugging): Use activity, notes, ownership, diagnostics, and session history to find the exact point where work drifted.
 - [Resolve Services by Name - Port Daddy](https://portdaddy.dev/tutorials/dns): Register local service names so agents and scripts can discover endpoints without hardcoded port numbers.
 - [Run Background Fleets - Port Daddy](https://portdaddy.dev/tutorials/fleet): Declare background agents in YAML, bind them to project events, and keep QA, docs, and research work continuously inspectable.

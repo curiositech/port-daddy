@@ -50,7 +50,6 @@ export default function DocsOverview() {
     { title: 'REST API', href: '/docs/api' },
   ]
   const siteSurfaces = [
-    { title: 'Dashboard', href: '/dashboard' },
     { title: 'Examples', href: '/examples' },
     { title: 'MCP overview', href: '/mcp' },
     { title: 'Agents', href: '/agents' },
@@ -138,7 +137,7 @@ export default function DocsOverview() {
         padding="compact"
       >
         <PanelBody size="compact" className="max-w-none">
-          The docs shell is for sustained reading. The dashboard, examples, MCP overview, agent catalog, and roadmap
+          The docs shell is for sustained reading. Examples, the MCP overview, the agent catalog, and the roadmap
           still matter when you are navigating the working product rather than a linear documentation path.
         </PanelBody>
         <div className="flex flex-wrap gap-[var(--panel-gap-tight)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
