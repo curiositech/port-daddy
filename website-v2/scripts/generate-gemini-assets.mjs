@@ -77,6 +77,45 @@ Composition: archival ledger sheets, event traces, file-claim paths, and restore
 No nautical metaphors, no skulls, no horror mood, no fake code text, no people, no visible words, no letters, no numbers.
 `.trim(),
   },
+  {
+    id: 'coordination-guard',
+    filename: 'coordination-guard.jpg',
+    aspectRatio: '16:9',
+    imageSize: '1K',
+    prompt: `
+${sharedDirection}
+
+Create a supporting editorial illustration of enforced agent coordination.
+Composition: file-claim boundaries, lock gates, session notes, tuple cells, and pre-commit guard rails arranged as a precise compliance diagram. The image should feel like a practical operator control surface, not an abstract promise.
+No people, no mascots, no handcuffs, no police/security theater, no fake UI screenshots, no visible words, no letters, no numbers.
+`.trim(),
+  },
+  {
+    id: 'fleetbar-install',
+    filename: 'fleetbar-install.jpg',
+    aspectRatio: '16:9',
+    imageSize: '1K',
+    prompt: `
+${sharedDirection}
+
+Create a supporting editorial illustration for installing a Mac menu-bar control plane.
+Composition: a restrained Mac desktop silhouette, a small menu-bar control glyph, a packaged app artifact, a Homebrew-style install rail, and a local daemon spine connecting to project folders. It should look like reliable developer infrastructure.
+No readable UI text, no Apple logo, no fake product logo, no people, no stock laptop glamor, no visible words, no letters, no numbers.
+`.trim(),
+  },
+  {
+    id: 'shipwright-proposal',
+    filename: 'shipwright-proposal.jpg',
+    aspectRatio: '16:9',
+    imageSize: '1K',
+    prompt: `
+${sharedDirection}
+
+Create a supporting editorial illustration for Shipwright designing a starter agent fleet for an arbitrary software repo.
+Composition: a repo survey map branching into proposed roles, model tiers, budget gates, trigger lanes, simulation traces, and a final YAML-like plan represented only as abstract line blocks.
+No readable text, no code, no file names, no people, no nautical imagery, no cartoon robots, no visible words, no letters, no numbers.
+`.trim(),
+  },
 ]
 
 function loadEnvFile(path) {

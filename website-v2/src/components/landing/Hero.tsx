@@ -1,14 +1,10 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
-import { IntentModal } from '@/components/ui/IntentModal'
 import { PageContainer, SectionIntro } from '@/components/site/primitives'
-import { ArrowRight, Terminal } from 'lucide-react'
+import { ArrowRight, Download, Terminal } from 'lucide-react'
 
 export function Hero() {
-  const [isModalOpen, setIsModalOpen] = useState(false)
-
   return (
     <section className="relative flex items-center overflow-hidden py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
       {/* Swiss-grid field for the infrastructure diagram. */}
@@ -26,7 +22,7 @@ export function Hero() {
             transition={{ duration: 0.6, ease: 'easeOut' as const }}
             className="space-y-[var(--space-5)]"
           >
-            <Link to="/mcp" className="no-underline">
+            <a href="#mac-app" className="no-underline">
               <motion.div
                 whileHover={{ scale: 1.02 }}
                 className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] px-3 py-1.5 text-xs font-semibold mb-4 cursor-pointer"
@@ -37,34 +33,34 @@ export function Hero() {
                 }}
               >
                 <span>New</span>
-                <span style={{ color: 'var(--text-secondary)' }}>Fleet + auto-respawn — background agents that never die</span>
+                <span style={{ color: 'var(--text-secondary)' }}>Agent radio, handoffs, resources, and launch readiness are visible in the app</span>
                 <ArrowRight size={12} />
               </motion.div>
-            </Link>
+            </a>
 
             <SectionIntro
-              eyebrow="Multi-agent control plane"
+              eyebrow="What is Port Daddy?"
               title={
                 <>
-                  Stop your agents from{' '}
+                  The local communication substrate for{' '}
                   <span className="text-[var(--brand-primary)]">
-                    fighting each other.
+                    coding agents.
                   </span>
                 </>
               }
-              description="Port Daddy coordinates AI agents through atomic ports, pub/sub messaging, file claims, and automatic work recovery. One install. Zero config. Current built-in runtimes cover Claude, Claude CLI, Gemini, Ollama, Aider, and custom shell-backed agents."
+              description="Port Daddy is the layer under your coding agents: a shared place for notes, work ownership, warnings, actor messages, readiness, budgets, and recoverable handoffs. Schedulers decide what runs. Port Daddy makes what agents know, touch, spend, and hand off inspectable."
               titleAs="h1"
               titleSize="hero"
-              titleClassName="max-w-[12ch]"
+              titleClassName="max-w-[14ch]"
               bodyClassName="max-w-[34rem]"
             />
 
             {/* Feature pills */}
             <div className="flex max-w-[34rem] flex-wrap gap-2">
               {[
-                'Background fleet agents',
-                'Auto-respawn on crash',
-                'Budget-gated launches',
+                'Agent-to-agent radio',
+                'Recoverable handoffs',
+                'Operator-visible truth',
               ].map((label) => (
                 <span
                   key={label}
@@ -81,18 +77,17 @@ export function Hero() {
             </div>
 
             <div className="flex flex-wrap items-center gap-[var(--space-3)]">
-              <Button
-                variant="primary"
-                size="lg"
-                onClick={() => setIsModalOpen(true)}
-              >
-                <Terminal size={16} />
-                Get Started
-                <ArrowRight size={16} />
+              <Button asChild variant="primary" size="lg">
+                <a href="#download">
+                  <Download size={16} />
+                  Download Mac preview
+                  <ArrowRight size={16} />
+                </a>
               </Button>
-              <Link to="/mcp">
+              <Link to="/tutorials/getting-started">
                 <Button variant="ghost" size="lg" className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">
-                  MCP Integration
+                  <Terminal size={16} />
+                  Technical docs
                 </Button>
               </Link>
             </div>
@@ -116,7 +111,7 @@ export function Hero() {
                 <source srcSet="/img/generated/control-plane-hero.webp" type="image/webp" />
                 <img
                   src="/img/generated/control-plane-hero.jpg"
-                  alt="Port Daddy control-plane visualization showing agent sessions, locks, ports, and recovery flows"
+                  alt="Port Daddy control-plane visualization showing agent sessions, claims, locks, budgets, and recovery flows"
                   className="block aspect-[16/9] h-auto w-full object-cover"
                 />
               </picture>
@@ -124,8 +119,6 @@ export function Hero() {
           </motion.div>
         </div>
       </PageContainer>
-
-      <IntentModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </section>
   )
 }

@@ -35,6 +35,15 @@ export function ColdStartSection() {
                 API keys, budget caps, model readiness, and project onboarding must be visible before an agent launch, not discovered after a failed sortie.
               </PanelBody>
             </SurfacePanel>
+            <picture className="mt-[var(--space-4)] block overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-base)]">
+              <source srcSet="/img/generated/shipwright-proposal.webp" type="image/webp" />
+              <img
+                src="/img/generated/shipwright-proposal.jpg"
+                alt="Abstract Shipwright fleet proposal diagram"
+                className="aspect-[16/10] w-full object-cover"
+                loading="lazy"
+              />
+            </picture>
           </SwissGridItem>
         </SwissGrid>
 

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-27T20:47:42.241Z",
+  "generatedAt": "2026-04-29T00:25:00.185Z",
   "generator": "website-v2/scripts/generate-gemini-assets.mjs",
   "source": "Google Gemini API Nano Banana image generation",
   "docs": "https://ai.google.dev/gemini-api/docs/image-generation",
@@ -42,6 +42,30 @@
       "webpQuality": 82
     },
     {
+      "id": "coordination-guard",
+      "file": "/img/generated/coordination-guard.jpg",
+      "mimeType": "image/jpeg",
+      "aspectRatio": "16:9",
+      "imageSize": "1K",
+      "model": "gemini-3.1-flash-image-preview",
+      "prompt": "Port Daddy visual identity direction:\n- Subject: local-first AI agent coordination, daemon runtime, ports, locks, sessions, notes, salvage, budget gates, and recovery flows.\n- Visual language: Swiss-modern editorial infrastructure diagram, precise grid, crisp thin rules, architectural drawing discipline, tactile paper grain, deep ink, technical blue, restrained lime, quiet warm off-white.\n- Must not include people, sailors, boats, harbors, docks, nautical costumes, mascots, emojis, fake testimonials, readable brand logos, glossy stock-photo styling, bubbly extruded SaaS UI, pill-heavy dashboards, purple-blue gradients, or random surrealism.\n- Do not render visible words, letters, numbers, labels, headings, UI copy, brand marks, or fake code. Use abstract ticks, short lines, and geometric marks only.\n- Make it feel premium, serious, current, and operational.\n\nCreate a supporting editorial illustration of enforced agent coordination.\nComposition: file-claim boundaries, lock gates, session notes, tuple cells, and pre-commit guard rails arranged as a precise compliance diagram. The image should feel like a practical operator control surface, not an abstract promise.\nNo people, no mascots, no handcuffs, no police/security theater, no fake UI screenshots, no visible words, no letters, no numbers.",
+      "jpegQuality": 82,
+      "webpFile": "/img/generated/coordination-guard.webp",
+      "webpQuality": 82
+    },
+    {
+      "id": "fleetbar-install",
+      "file": "/img/generated/fleetbar-install.jpg",
+      "mimeType": "image/jpeg",
+      "aspectRatio": "16:9",
+      "imageSize": "1K",
+      "model": "gemini-3.1-flash-image-preview",
+      "prompt": "Port Daddy visual identity direction:\n- Subject: local-first AI agent coordination, daemon runtime, ports, locks, sessions, notes, salvage, budget gates, and recovery flows.\n- Visual language: Swiss-modern editorial infrastructure diagram, precise grid, crisp thin rules, architectural drawing discipline, tactile paper grain, deep ink, technical blue, restrained lime, quiet warm off-white.\n- Must not include people, sailors, boats, harbors, docks, nautical costumes, mascots, emojis, fake testimonials, readable brand logos, glossy stock-photo styling, bubbly extruded SaaS UI, pill-heavy dashboards, purple-blue gradients, or random surrealism.\n- Do not render visible words, letters, numbers, labels, headings, UI copy, brand marks, or fake code. Use abstract ticks, short lines, and geometric marks only.\n- Make it feel premium, serious, current, and operational.\n\nCreate a supporting editorial illustration for installing a Mac menu-bar control plane.\nComposition: a restrained Mac desktop silhouette, a small menu-bar control glyph, a packaged app artifact, a Homebrew-style install rail, and a local daemon spine connecting to project folders. It should look like reliable developer infrastructure.\nNo readable UI text, no Apple logo, no fake product logo, no people, no stock laptop glamor, no visible words, no letters, no numbers.",
+      "jpegQuality": 82,
+      "webpFile": "/img/generated/fleetbar-install.webp",
+      "webpQuality": 82
+    },
+    {
       "id": "salvage-ledger",
       "file": "/img/generated/salvage-ledger.jpg",
       "mimeType": "image/jpeg",
@@ -52,7 +76,18 @@
       "jpegQuality": 82,
       "webpFile": "/img/generated/salvage-ledger.webp",
       "webpQuality": 82
+    },
+    {
+      "id": "shipwright-proposal",
+      "file": "/img/generated/shipwright-proposal.jpg",
+      "mimeType": "image/jpeg",
+      "aspectRatio": "16:9",
+      "imageSize": "1K",
+      "model": "gemini-3.1-flash-image-preview",
+      "prompt": "Port Daddy visual identity direction:\n- Subject: local-first AI agent coordination, daemon runtime, ports, locks, sessions, notes, salvage, budget gates, and recovery flows.\n- Visual language: Swiss-modern editorial infrastructure diagram, precise grid, crisp thin rules, architectural drawing discipline, tactile paper grain, deep ink, technical blue, restrained lime, quiet warm off-white.\n- Must not include people, sailors, boats, harbors, docks, nautical costumes, mascots, emojis, fake testimonials, readable brand logos, glossy stock-photo styling, bubbly extruded SaaS UI, pill-heavy dashboards, purple-blue gradients, or random surrealism.\n- Do not render visible words, letters, numbers, labels, headings, UI copy, brand marks, or fake code. Use abstract ticks, short lines, and geometric marks only.\n- Make it feel premium, serious, current, and operational.\n\nCreate a supporting editorial illustration for Shipwright designing a starter agent fleet for an arbitrary software repo.\nComposition: a repo survey map branching into proposed roles, model tiers, budget gates, trigger lanes, simulation traces, and a final YAML-like plan represented only as abstract line blocks.\nNo readable text, no code, no file names, no people, no nautical imagery, no cartoon robots, no visible words, no letters, no numbers.",
+      "jpegQuality": 82,
+      "webpFile": "/img/generated/shipwright-proposal.webp",
+      "webpQuality": 82
     }
-  ],
-  "optimizedAt": "2026-04-27T20:50:54.000Z"
+  ]
 }

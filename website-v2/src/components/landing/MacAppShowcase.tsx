@@ -18,6 +18,14 @@ import {
 } from '@/components/site/primitives'
 
 const capabilityIcons = [MonitorCog, RadioTower, ShieldCheck, WalletCards] as const
+const surfaceScreenshots: Record<string, string> = {
+  'fleet-flow': '/img/app-screens/fleet-flow.png',
+  resources: '/img/app-screens/resources.png',
+  sorties: '/img/app-screens/sorties.png',
+  'shipwright-harbor': '/img/app-screens/shipwright-harbor.png',
+  'shipwright-focus': '/img/app-screens/shipwright-focus.png',
+  'shipwright-control': '/img/app-screens/shipwright-control.png',
+}
 
 function CapabilityRow({
   capability,
@@ -54,6 +62,8 @@ function CapabilityRow({
 }
 
 function SurfaceTile({ appSurface, featured = false }: { appSurface: AppSurface; featured?: boolean }) {
+  const screenshot = surfaceScreenshots[appSurface.id]
+
   return (
     <article
       className={[
@@ -67,17 +77,26 @@ function SurfaceTile({ appSurface, featured = false }: { appSurface: AppSurface;
           <BracketLabel>{appSurface.id}</BracketLabel>
         </div>
       </div>
-      <div className="grid aspect-[16/10] content-between border-b-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-4)]">
-        <div className="flex items-center justify-between border-b-2 border-[var(--border-strong)] pb-[var(--space-3)]">
-          <span className="font-mono text-[10px] font-black uppercase tracking-[0.22em] text-[var(--text-secondary)]">
-            {appSurface.surface}
-          </span>
-          <span className="h-3 w-3 border-2 border-[var(--border-strong)] bg-[var(--brand-primary)]" aria-hidden="true" />
+      {screenshot ? (
+        <img
+          src={screenshot}
+          alt={`${appSurface.title} screenshot from ${appSurface.surface}`}
+          className="aspect-[16/10] w-full border-b-2 border-[var(--border-strong)] bg-[var(--surface-base)] object-cover object-left-top"
+          loading="lazy"
+        />
+      ) : (
+        <div className="grid aspect-[16/10] content-between border-b-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-4)]">
+          <div className="flex items-center justify-between border-b-2 border-[var(--border-strong)] pb-[var(--space-3)]">
+            <span className="font-mono text-[10px] font-black uppercase tracking-[0.22em] text-[var(--text-secondary)]">
+              {appSurface.surface}
+            </span>
+            <span className="h-3 w-3 border-2 border-[var(--border-strong)] bg-[var(--brand-primary)]" aria-hidden="true" />
+          </div>
+          <PanelTitle as="p" size={featured ? 'card' : 'nav'} className="max-w-[14ch]">
+            {appSurface.title}
+          </PanelTitle>
         </div>
-        <PanelTitle as="p" size={featured ? 'card' : 'nav'} className="max-w-[14ch]">
-          {appSurface.title}
-        </PanelTitle>
-      </div>
+      )}
       <div className="grid gap-[var(--space-2)] p-[var(--space-4)]">
         <PanelTitle as="h3" size="nav" className="max-w-none">
           {appSurface.title}
@@ -101,8 +120,8 @@ export function MacAppShowcase() {
             <div className="sticky top-28 space-y-[var(--space-5)]">
               <SectionIntro
                 eyebrow="Mac app"
-                title="FleetBar is now the front door."
-                description="The native app is not a toy launcher. It is the compact Mac entrance to the daemon, the Fleet Control Center, project fleets, sortie work, Shipwright proposals, and machine-pressure governance."
+                title="FleetBar is the front door to the substrate."
+                description="The native app is not a toy launcher. It is the compact Mac entrance to the shared agent state: Fleet Control Center, project fleets, agent radio, sortie work, Shipwright proposals, resource pressure, and backend readiness."
                 titleAs="h2"
                 titleSize="display"
                 titleClassName="max-w-[12ch]"
@@ -113,6 +132,15 @@ export function MacAppShowcase() {
                   Homebrew and npm remain the install path for Port Daddy. The website now also hosts a Mac developer-preview FleetBar app bundle while the signed release channel matures.
                 </PanelBody>
               </SurfacePanel>
+              <picture className="block overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-base)]">
+                <source srcSet="/img/generated/fleetbar-install.webp" type="image/webp" />
+                <img
+                  src="/img/generated/fleetbar-install.jpg"
+                  alt="Abstract FleetBar install diagram"
+                  className="aspect-[16/10] w-full object-cover"
+                  loading="lazy"
+                />
+              </picture>
             </div>
           </SwissGridItem>
 
