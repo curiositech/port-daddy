@@ -49,29 +49,40 @@ def text_width(draw, text, text_font):
     return box[2] - box[0]
 
 
-def wrap_text(draw, text, text_font, max_width, max_lines):
+def split_long_word(draw, word, text_font, max_width):
+    if text_width(draw, word, text_font) <= max_width:
+        return [word]
+
+    chunks = []
+    current = ""
+    for character in word:
+        candidate = f"{current}{character}"
+        if current and text_width(draw, candidate, text_font) > max_width:
+            chunks.append(current)
+            current = character
+        else:
+            current = candidate
+    if current:
+        chunks.append(current)
+    return chunks
+
+
+def wrap_text(draw, text, text_font, max_width):
     words = text.replace("\n", " ").split()
     lines = []
     current = ""
 
     for word in words:
-        candidate = f"{current} {word}".strip()
-        if not current or text_width(draw, candidate, text_font) <= max_width:
-            current = candidate
-            continue
-        lines.append(current)
-        current = word
-        if len(lines) >= max_lines:
-            break
+        for chunk in split_long_word(draw, word, text_font, max_width):
+            candidate = f"{current} {chunk}".strip()
+            if not current or text_width(draw, candidate, text_font) <= max_width:
+                current = candidate
+                continue
+            lines.append(current)
+            current = chunk
 
-    if current and len(lines) < max_lines:
+    if current:
         lines.append(current)
-
-    original = " ".join(words)
-    if lines and len(" ".join(lines)) < len(original):
-        while lines[-1] and text_width(draw, f"{lines[-1].rstrip(' ,.:;')}...", text_font) > max_width:
-            lines[-1] = " ".join(lines[-1].split()[:-1])
-        lines[-1] = f"{lines[-1].rstrip(' ,.:;')}..."
 
     return lines
 
@@ -82,12 +93,60 @@ def draw_multiline(draw, position, lines, text_font, fill, line_height):
         draw.text((x, y + index * line_height), line, font=text_font, fill=fill)
 
 
-def title_font_for(title):
-    if len(title) > 72:
-        return font(40, bold=True), 3, 46
-    if len(title) > 48:
-        return font(46, bold=True), 3, 52
-    return font(52, bold=True), 3, 58
+def block_height(lines, line_height):
+    return max(0, len(lines) - 1) * line_height + line_height
+
+
+def layout_text_blocks(draw, title, description):
+    max_width = 520
+    title_y = 198
+    text_bottom = 526
+
+    for title_size in range(52, 27, -2):
+        title_font = font(title_size, bold=True)
+        title_line_height = round(title_size * 1.08) + 5
+        title_lines = wrap_text(draw, title, title_font, max_width)
+        title_height = block_height(title_lines, title_line_height)
+        if title_height > 210 or len(title_lines) > 5:
+            continue
+
+        gap = 26 if len(title_lines) <= 3 else 18
+        description_y = title_y + title_height + gap
+        available_description_height = text_bottom - description_y
+        if available_description_height < 58:
+            continue
+
+        for description_size in range(22, 13, -1):
+            description_font = font(description_size, bold=True)
+            description_line_height = round(description_size * 1.16) + 5
+            description_lines = wrap_text(draw, description, description_font, max_width)
+            description_height = block_height(description_lines, description_line_height)
+            if description_height <= available_description_height:
+                return {
+                    "title_font": title_font,
+                    "title_lines": title_lines,
+                    "title_line_height": title_line_height,
+                    "description_y": description_y,
+                    "description_font": description_font,
+                    "description_lines": description_lines,
+                    "description_line_height": description_line_height,
+                }
+
+    title_font = font(28, bold=True)
+    title_line_height = 35
+    title_lines = wrap_text(draw, title, title_font, max_width)
+    title_height = block_height(title_lines, title_line_height)
+    description_y = min(title_y + title_height + 16, 430)
+    description_font = font(14, bold=True)
+    return {
+        "title_font": title_font,
+        "title_lines": title_lines,
+        "title_line_height": title_line_height,
+        "description_y": description_y,
+        "description_font": description_font,
+        "description_lines": wrap_text(draw, description, description_font, max_width),
+        "description_line_height": 21,
+    }
 
 
 def blend_over(base, overlay, alpha):
@@ -137,14 +196,23 @@ def draw_card(route, public_dir, background_path, logo_path):
     draw.text((72, 159), route.get("sectionLabel") or route["section"], font=font(18, bold=True), fill=(96, 114, 25))
 
     title = strip_brand(route["title"], route["route"])
-    title_font, max_title_lines, title_line_height = title_font_for(title)
-    title_lines = wrap_text(draw, title, title_font, 504, max_title_lines)
-    draw_multiline(draw, (72, 198), title_lines, title_font, INK, title_line_height)
-    title_bottom = 198 + max(0, len(title_lines) - 1) * title_line_height
-
-    description_font = font(22, bold=True)
-    description_lines = wrap_text(draw, route["description"], description_font, 520, 3)
-    draw_multiline(draw, (76, title_bottom + 74), description_lines, description_font, (38, 52, 66), 30)
+    text_layout = layout_text_blocks(draw, title, route["description"])
+    draw_multiline(
+        draw,
+        (72, 198),
+        text_layout["title_lines"],
+        text_layout["title_font"],
+        INK,
+        text_layout["title_line_height"],
+    )
+    draw_multiline(
+        draw,
+        (76, text_layout["description_y"]),
+        text_layout["description_lines"],
+        text_layout["description_font"],
+        (38, 52, 66),
+        text_layout["description_line_height"],
+    )
 
     draw.rectangle((72, 548, 256, 582), fill=INK)
     draw.text((88, 555), "portdaddy.dev", font=font(15, bold=True), fill=PAPER)
