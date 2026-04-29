@@ -37,6 +37,38 @@ export interface SalvageTriageSummary {
   encryptedNotes: number;
 }
 
+export type SalvageTriageBucketId =
+  | 'resume-now'
+  | 'verify-dismiss'
+  | 'test-noise'
+  | 'no-evidence'
+  | 'archive-later';
+
+export interface SalvageTriageEntry {
+  id: string;
+  name: string;
+  identity: string | null;
+  status: StaleAgent['status'];
+  ageMs: number;
+  reason: string;
+  evidence: string | null;
+  command: string;
+}
+
+export interface SalvageTriageBucket {
+  id: SalvageTriageBucketId;
+  title: string;
+  action: string;
+  count: number;
+  agents: SalvageTriageEntry[];
+}
+
+export interface SalvageTriagePlan {
+  summary: SalvageTriageSummary;
+  buckets: SalvageTriageBucket[];
+  nextActions: string[];
+}
+
 function parseEncryptedNote(note: string): boolean {
   try {
     const parsed = JSON.parse(note) as Record<string, unknown>;
@@ -51,6 +83,11 @@ export function formatSalvageNote(note: string): string {
     return '[encrypted note redacted; use the original session context or keychain-backed tooling if the content is needed]';
   }
   return note;
+}
+
+function agentIdentity(agent: StaleAgent): string | null {
+  if (!agent.identityProject) return null;
+  return `${agent.identityProject}${agent.identityStack ? ':' + agent.identityStack : ''}${agent.identityContext ? ':' + agent.identityContext : ''}`;
 }
 
 export function summarizeSalvageAgents(agents: StaleAgent[], now: number = Date.now()): SalvageTriageSummary {
@@ -89,6 +126,132 @@ export function summarizeSalvageAgents(agents: StaleAgent[], now: number = Date.
   };
 }
 
+const TRIAGE_BUCKET_META: Record<SalvageTriageBucketId, { title: string; action: string }> = {
+  'resume-now': {
+    title: 'Resume now',
+    action: 'Claim these first; they look recent, blocked, or continuation-rich.',
+  },
+  'verify-dismiss': {
+    title: 'Verify, then dismiss',
+    action: 'Likely completed/promoted. Check the named commit or validation note, then dismiss if landed.',
+  },
+  'test-noise': {
+    title: 'Test or fixture residue',
+    action: 'Usually safe to dismiss after confirming it came from stale-context/test coverage.',
+  },
+  'no-evidence': {
+    title: 'No evidence',
+    action: 'No purpose or usable notes. Inspect session files before spending agent time.',
+  },
+  'archive-later': {
+    title: 'Archive later',
+    action: 'Older or ambiguous context. Queue behind resume-now and verify-dismiss work.',
+  },
+};
+
+const completionPattern = /\b(committed|pushed|promoted|promotion complete|completed|validation|validated|tests? passed|typecheck passed|green)\b/i;
+const blockerPattern = /\b(blocked|blocker|not committed|uncommitted|dirty|failed|failing|todo|next|starting|continuing|in progress|wip|needs?)\b/i;
+const testNoisePattern = /(^|:)test(:|$)|stale-whoami|stale-note|demo-scripts-test|recovered from stale context/i;
+
+function previewText(value: string | null | undefined): string | null {
+  const normalized = value?.replace(/\s+/g, ' ').trim();
+  if (!normalized) return null;
+  return normalized.length > 140 ? `${normalized.slice(0, 137)}...` : normalized;
+}
+
+function triageEvidence(agent: StaleAgent): string {
+  return [
+    agent.purpose ?? '',
+    ...(agent.notes ?? []).map(formatSalvageNote),
+    agentIdentity(agent) ?? '',
+    agent.name,
+    agent.id,
+  ].join('\n');
+}
+
+function firstEvidenceLine(agent: StaleAgent): string | null {
+  return previewText(agent.purpose)
+    ?? previewText((agent.notes ?? []).map(formatSalvageNote).find(note => note.trim().length > 0))
+    ?? agentIdentity(agent);
+}
+
+function classifySalvageAgent(agent: StaleAgent, now: number): { bucket: SalvageTriageBucketId; reason: string } {
+  const evidence = triageEvidence(agent);
+  const ageMs = Math.max(0, now - agent.staleSince);
+  const isRecent = ageMs < 2 * 60 * 60 * 1000;
+  const hasPurpose = Boolean(previewText(agent.purpose));
+  const hasNotes = (agent.notes ?? []).some(note => previewText(formatSalvageNote(note)));
+  const looksComplete = completionPattern.test(evidence);
+  const looksBlocked = blockerPattern.test(evidence);
+  const looksLikeTestNoise = testNoisePattern.test(evidence);
+
+  if (looksLikeTestNoise) {
+    return { bucket: 'test-noise', reason: 'identity or notes look like test/stale-context residue' };
+  }
+  if (isRecent || (looksBlocked && !looksComplete)) {
+    return { bucket: 'resume-now', reason: isRecent ? 'recent non-live work' : 'notes mention blockers or continuation' };
+  }
+  if (looksComplete && !looksBlocked) {
+    return { bucket: 'verify-dismiss', reason: 'notes mention commit, push, promotion, or green validation' };
+  }
+  if (!hasPurpose && !hasNotes) {
+    return { bucket: 'no-evidence', reason: 'no purpose or note context' };
+  }
+  return { bucket: 'archive-later', reason: 'older ambiguous handoff' };
+}
+
+function commandForBucket(bucket: SalvageTriageBucketId, agentId: string): string {
+  if (bucket === 'verify-dismiss' || bucket === 'test-noise') {
+    return `pd salvage dismiss ${agentId}`;
+  }
+  return `pd salvage claim ${agentId}`;
+}
+
+export function triageSalvageAgents(agents: StaleAgent[], now: number = Date.now()): SalvageTriagePlan {
+  const buckets = new Map<SalvageTriageBucketId, SalvageTriageEntry[]>();
+  for (const bucketId of Object.keys(TRIAGE_BUCKET_META) as SalvageTriageBucketId[]) {
+    buckets.set(bucketId, []);
+  }
+
+  for (const agent of agents) {
+    const { bucket, reason } = classifySalvageAgent(agent, now);
+    const ageMs = Math.max(0, now - agent.staleSince);
+    buckets.get(bucket)!.push({
+      id: agent.id,
+      name: agent.name || agent.id,
+      identity: agentIdentity(agent),
+      status: agent.status,
+      ageMs,
+      reason,
+      evidence: firstEvidenceLine(agent),
+      command: commandForBucket(bucket, agent.id),
+    });
+  }
+
+  const orderedBuckets = ([...buckets.entries()] as Array<[SalvageTriageBucketId, SalvageTriageEntry[]]>)
+    .map(([id, entries]) => {
+      const meta = TRIAGE_BUCKET_META[id];
+      const agents = entries.sort((a, b) => a.ageMs - b.ageMs || a.id.localeCompare(b.id));
+      return {
+        id,
+        title: meta.title,
+        action: meta.action,
+        count: agents.length,
+        agents,
+      };
+    });
+
+  return {
+    summary: summarizeSalvageAgents(agents, now),
+    buckets: orderedBuckets,
+    nextActions: [
+      'Claim one resume-now item, finish it, then run pd salvage complete or dismiss.',
+      'Dismiss verify-dismiss and test-noise entries only after checking the referenced commit/session evidence.',
+      'Use --json as the future idle-agent work queue: agents should pull one bounded item, claim it, and publish notes.',
+    ],
+  };
+}
+
 function formatCount(name: string, count: number): string | null {
   return count > 0 ? `${count} ${name}` : null;
 }
@@ -119,6 +282,40 @@ function printSalvageTriage(summary: SalvageTriageSummary): void {
   console.log('');
 }
 
+function printSalvageTriagePlan(plan: SalvageTriagePlan, options: CLIOptions): void {
+  console.log(`${ANSI.fgYellow}${ANSI.bold}⚓ Salvage Triage${ANSI.reset}`);
+  console.log(`${ANSI.fgGray}${'─'.repeat(60)}${ANSI.reset}`);
+  console.log('');
+  printSalvageTriage(plan.summary);
+
+  const sampleLimit = Number.isFinite(Number(options.limit)) && Number(options.limit) > 0
+    ? Math.floor(Number(options.limit))
+    : 5;
+
+  for (const bucket of plan.buckets) {
+    if (bucket.count === 0) continue;
+    console.log(`${ANSI.bold}${bucket.title}${ANSI.reset} (${bucket.count})`);
+    console.log(`  ${bucket.action}`);
+    for (const entry of bucket.agents.slice(0, sampleLimit)) {
+      const age = formatAge(entry.ageMs);
+      const identity = entry.identity ? ` ${ANSI.fgCyan}${entry.identity}${ANSI.reset}` : '';
+      console.log(`  - ${entry.name} (${entry.status}, ${age})${identity}`);
+      console.log(`    Reason: ${entry.reason}`);
+      if (entry.evidence) console.log(`    Evidence: ${entry.evidence}`);
+      console.log(`    Next: ${ANSI.fgCyan}${entry.command}${ANSI.reset}`);
+    }
+    if (bucket.count > sampleLimit) {
+      console.log(`    ... ${bucket.count - sampleLimit} more; rerun with --limit ${bucket.count} or --json`);
+    }
+    console.log('');
+  }
+
+  console.log(`${ANSI.bold}Queue handoff${ANSI.reset}`);
+  for (const action of plan.nextActions) {
+    console.log(`  - ${action}`);
+  }
+}
+
 /**
  * Handle `pd salvage` command
  * Lists agents pending resurrection with their context
@@ -131,6 +328,7 @@ export async function handleSalvage(subcommand: string | undefined, args: string
     console.error('');
     console.error('Subcommands:');
     console.error('  (none)                          Show agents awaiting salvage (filtered by --project)');
+    console.error('  triage                          Cluster salvage queue into action buckets');
     console.error('  claim <agent-id>                Claim an agent\'s work');
     console.error('  complete <old-id> <new-id>      Mark salvage complete');
     console.error('  abandon <agent-id>              Return agent to queue');
@@ -148,6 +346,37 @@ export async function handleSalvage(subcommand: string | undefined, args: string
   }
 
   switch (subcommand) {
+    case 'triage': {
+      const endpoint = options.all ? '/salvage' : '/salvage/pending';
+      const params = new URLSearchParams();
+      if (options.project) params.append('project', options.project as string);
+      if (options.stack) params.append('stack', options.stack as string);
+
+      const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}${endpoint}${params.toString() ? '?' + params : ''}`);
+      const data = await res.json();
+
+      if (!res.ok) {
+        ui.error((data.error as string) || 'Failed to triage salvage queue');
+        process.exit(1);
+      }
+
+      const agents = data.agents as StaleAgent[];
+      const plan = triageSalvageAgents(agents);
+
+      if (isJson(options)) {
+        console.log(JSON.stringify(plan, null, 2));
+        return;
+      }
+
+      if (agents.length === 0) {
+        if (!isQuiet(options)) ui.info('No agents awaiting salvage.');
+        return;
+      }
+
+      printSalvageTriagePlan(plan, options);
+      break;
+    }
+
     case 'claim': {
       const agentId = args[0];
       if (!agentId) {

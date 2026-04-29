@@ -753,6 +753,9 @@ Commands:
     --project <name>       Filter by project
     --stack <name>         Filter by stack
 
+  salvage triage           Cluster queue into resume / verify-dismiss / test-noise buckets
+    --json                 Machine-readable queue for future idle-agent pull loops
+
   salvage claim <id>       Claim a dead agent's work to continue
 
 Examples:
@@ -760,6 +763,7 @@ Examples:
   pd agent heartbeat --agent build-42
   pd agents --active --json
   pd salvage --project myapp
+  pd salvage triage --project myapp
   pd salvage claim dead-agent-99`,
 
   actors: `Maritime Actors \u2014 Durable coordination souls and live body signals

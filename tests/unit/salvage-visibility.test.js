@@ -2,6 +2,7 @@ import { describe, expect, test } from '@jest/globals';
 import {
   formatSalvageNote,
   summarizeSalvageAgents,
+  triageSalvageAgents,
 } from '../../cli/commands/resurrection.js';
 
 describe('salvage CLI visibility helpers', () => {
@@ -72,5 +73,91 @@ describe('salvage CLI visibility helpers', () => {
       ],
       encryptedNotes: 1,
     });
+  });
+
+  test('triages salvage agents into operator action buckets', () => {
+    const now = 1_000_000_000;
+    const agents = [
+      {
+        id: 'recent',
+        name: 'recent',
+        purpose: 'Continue docs cleanup',
+        sessionId: 'session-recent',
+        lastHeartbeat: now - 30_000,
+        staleSince: now - 30_000,
+        status: 'dead',
+        notes: [],
+        identityProject: 'port-daddy',
+        identityStack: 'docs',
+        identityContext: null,
+      },
+      {
+        id: 'landed',
+        name: 'landed',
+        purpose: null,
+        sessionId: 'session-landed',
+        lastHeartbeat: now - 48 * 60 * 60 * 1000,
+        staleSince: now - 48 * 60 * 60 * 1000,
+        status: 'dead',
+        notes: ['Committed and pushed abc123. Validation passed.'],
+        identityProject: 'port-daddy',
+        identityStack: 'runtime',
+        identityContext: null,
+      },
+      {
+        id: 'stale-test',
+        name: 'stale-test',
+        purpose: null,
+        sessionId: 'session-test',
+        lastHeartbeat: now - 48 * 60 * 60 * 1000,
+        staleSince: now - 48 * 60 * 60 * 1000,
+        status: 'dead',
+        notes: ['Recovered from stale context'],
+        identityProject: 'port-daddy',
+        identityStack: 'test',
+        identityContext: 'stale-note',
+      },
+      {
+        id: 'empty',
+        name: 'empty',
+        purpose: null,
+        sessionId: null,
+        lastHeartbeat: now - 48 * 60 * 60 * 1000,
+        staleSince: now - 48 * 60 * 60 * 1000,
+        status: 'dead',
+        notes: [],
+        identityProject: null,
+        identityStack: null,
+        identityContext: null,
+      },
+      {
+        id: 'ambiguous',
+        name: 'ambiguous',
+        purpose: 'Inspect old roadmap note',
+        sessionId: 'session-ambiguous',
+        lastHeartbeat: now - 48 * 60 * 60 * 1000,
+        staleSince: now - 48 * 60 * 60 * 1000,
+        status: 'dead',
+        notes: ['Looked at recovery queue.'],
+        identityProject: 'port-daddy',
+        identityStack: 'roadmap',
+        identityContext: null,
+      },
+    ];
+
+    const plan = triageSalvageAgents(agents, now);
+    const bucketIds = Object.fromEntries(
+      plan.buckets.map(bucket => [bucket.id, bucket.agents.map(agent => agent.id)])
+    );
+
+    expect(bucketIds['resume-now']).toEqual(['recent']);
+    expect(bucketIds['verify-dismiss']).toEqual(['landed']);
+    expect(bucketIds['test-noise']).toEqual(['stale-test']);
+    expect(bucketIds['no-evidence']).toEqual(['empty']);
+    expect(bucketIds['archive-later']).toEqual(['ambiguous']);
+    expect(plan.buckets.find(bucket => bucket.id === 'resume-now').agents[0].command).toBe('pd salvage claim recent');
+    expect(plan.buckets.find(bucket => bucket.id === 'verify-dismiss').agents[0].command).toBe('pd salvage dismiss landed');
+    expect(plan.buckets.find(bucket => bucket.id === 'test-noise').agents[0].command).toBe('pd salvage dismiss stale-test');
+    expect(plan.nextActions.join(' ')).toContain('--json');
   });
 });

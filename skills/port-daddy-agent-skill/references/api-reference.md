@@ -500,7 +500,7 @@ List all available webhook event types.
 ## Salvage (Agent Resurrection)
 
 ### GET /salvage/pending
-Check for dead agents with unfinished work. Returns agents that died mid-task. Query params: `project`, `stack`.
+Check for dead agents with unfinished work. Returns agents that died mid-task. Query params: `project`, `stack`, `limit`.
 
 ### GET /salvage
 List all entries in the salvage queue. Query params: `project`, `stack`, `all`, `limit`.
@@ -523,6 +523,12 @@ Remove agent from salvage queue (reviewed/dismissed).
 Trigger the reaper to move dead agents (stale heartbeats) into the salvage queue.
 
 *Note: `/resurrection/*` routes are deprecated aliases for `/salvage/*`.*
+
+### CLI: `pd salvage triage`
+Local CLI synthesis over `/salvage/pending` by default, or `/salvage` with `--all`.
+Clusters entries into `resume-now`, `verify-dismiss`, `test-noise`,
+`no-evidence`, and `archive-later`. Use `--json` to feed future idle-agent
+queue pullers; use `--limit <n>` to control printed examples per bucket.
 
 ---
 
