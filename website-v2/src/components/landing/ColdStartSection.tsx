@@ -88,7 +88,7 @@ export function ColdStartSection() {
                   title={`Step ${index + 1}`}
                   command={step.command}
                   elevation="quiet"
-                  label="Copy"
+                  label="CLI"
                 />
               ) : (
                 <SurfacePanel elevation="quiet" padding="compact" className="grid content-center">

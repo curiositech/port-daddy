@@ -3,15 +3,24 @@ import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Cpu, Terminal, Code, ExternalLink, Check } from 'lucide-react'
 import { ALL_CATEGORIES, MCP_DEFAULT_TOOL_TOTAL, MCP_TOOL_TOTAL } from '@/data/mcp'
+import { PORT_DADDY_VERSION } from '@/data/referenceCatalog'
 
 const MCP_SERVERS = [
   {
     name: 'Claude Code',
-    description: 'Native integration with Claude Code CLI. Install and use Port Daddy tools directly in your Claude sessions.',
+    description: 'Native integration with the Claude Code CLI using ~/.claude/settings.json.',
     href: '/docs/mcp/claude',
     icon: Terminal,
     setup: 'pd mcp install',
-    features: ['Tool discovery', 'Automatic context', 'Session management']
+    features: ['Tool discovery', 'Session management', 'Skill install']
+  },
+  {
+    name: 'Claude Desktop',
+    description: 'Desktop Claude config using claude_desktop_config.json.',
+    href: '/docs/mcp/claude',
+    icon: Terminal,
+    setup: 'pd mcp install',
+    features: ['Desktop app config', 'stdio transport', 'Shared daemon']
   },
   {
     name: 'Cursor',
@@ -26,8 +35,32 @@ const MCP_SERVERS = [
     description: 'Use Port Daddy with Windsurf for collaborative AI coding.',
     href: '/docs/mcp/windsurf',
     icon: Cpu,
-    setup: 'Configure in Windsurf settings',
-    features: ['Cascade integration', 'Multi-agent support', 'State persistence']
+    setup: 'pd mcp install --windsurf',
+    features: ['MCP config file', 'Multi-agent support', 'State persistence']
+  },
+  {
+    name: 'VS Code',
+    description: 'VS Code/Copilot MCP config using the servers key and stdio transport.',
+    href: '/docs/mcp/custom',
+    icon: Code,
+    setup: 'pd mcp install --vscode',
+    features: ['Explicit stdio type', 'Editor integration', 'Shared daemon']
+  },
+  {
+    name: 'Continue.dev',
+    description: 'Continue config with Port Daddy as a local MCP server.',
+    href: '/docs/mcp/custom',
+    icon: Code,
+    setup: 'pd mcp install --continue',
+    features: ['Agent tooling', 'Local daemon', 'Tool discovery']
+  },
+  {
+    name: 'Cline',
+    description: 'Cline MCP settings for VS Code based agent workflows.',
+    href: '/docs/mcp/custom',
+    icon: Cpu,
+    setup: 'pd mcp install --cline',
+    features: ['Cline settings', 'Agent coordination', 'Shared context']
   }
 ]
 
@@ -38,14 +71,15 @@ export default function McpOverview() {
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           <Badge variant="teal">Integration</Badge>
-          <Badge variant="gold">Current</Badge>
+          <Badge variant="default">v{PORT_DADDY_VERSION}</Badge>
+          <Badge variant="gold">source-backed</Badge>
         </div>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Model Context Protocol
         </h1>
         <p className="text-xl text-[var(--text-secondary)] leading-relaxed max-w-3xl">
           Connect Port Daddy to any AI tool via the Model Context Protocol (MCP).
-          Give your agents native access to port management, swarm coordination, and more.
+          Give your agents native access to the daemon surface without shell parsing.
         </p>
         <p className="text-sm text-[var(--text-muted)] p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)] max-w-xl">
           Use this reference if your LLM (Claude, Cursor, Windsurf, etc.) needs to coordinate
@@ -53,6 +87,10 @@ export default function McpOverview() {
           <a href="/docs/cli" className="text-[var(--brand-primary)] hover:underline">CLI reference</a>, or
           for programmatic access see the{' '}
           <a href="/docs/sdk" className="text-[var(--brand-primary)] hover:underline">SDK reference</a>.
+        </p>
+        <p className="text-sm text-[var(--text-muted)] max-w-3xl">
+          Audited from <code className="font-mono">mcp/server.ts</code>: default mode exposes {MCP_DEFAULT_TOOL_TOTAL} tools
+          including <code className="font-mono">pd_discover</code>, and full mode covers {MCP_TOOL_TOTAL} unique registered functions.
         </p>
       </div>
 
@@ -87,13 +125,12 @@ export default function McpOverview() {
       <div className="space-y-4">
         <h2 className="text-2xl font-semibold text-[var(--text-primary)]">Quick Setup</h2>
         <p className="text-[var(--text-secondary)]">
-          The fastest way to get started is using the init command:
+          The fastest way to get started is the installer, which auto-detects supported clients:
         </p>
-        <CodeBlock language="bash">{`# Install the MCP server globally
-$ pd mcp install --global
-✓ MCP server installed
-✓ Claude Code configured
-✓ Cursor settings updated`}</CodeBlock>
+        <CodeBlock language="bash">{`$ pd mcp install
+✓ Port Daddy MCP configured for detected clients
+✓ Port Daddy agent skill installed
+✓ Optional shell hook configured`}</CodeBlock>
       </div>
 
       {/* Supported Platforms */}
@@ -140,7 +177,7 @@ $ pd mcp install --global
           These tools are exposed to any MCP-compatible client:
         </p>
         <p className="text-sm text-[var(--text-muted)]">
-          Default mode exposes {MCP_DEFAULT_TOOL_TOTAL} essential functions. Full mode and <code className="font-mono">pd_discover</code> cover all {MCP_TOOL_TOTAL} registered functions below.
+          Default mode exposes {MCP_DEFAULT_TOOL_TOTAL} functions: the essential set plus <code className="font-mono">pd_discover</code>. Full mode and <code className="font-mono">pd_discover</code> cover all {MCP_TOOL_TOTAL} unique registered functions below.
         </p>
         <div className="grid gap-4">
           {ALL_CATEGORIES.map(category => (

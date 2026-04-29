@@ -4,79 +4,173 @@ export const referenceSection: DocsContentSection = {
   slug: 'reference',
   title: 'Reference',
   summary:
-    'Fast lookup material for the commands, routes, and capability boundaries that matter most in the current runtime.',
+    'Fast lookup for the commands, routes, SDK calls, MCP tools, and harbor scopes in Port Daddy today.',
   pages: [
     {
       slug: 'core-cli-commands',
-      title: 'Core CLI Commands',
+      title: 'Complete CLI Command Surface',
       summary:
-        'The shortest useful command set for operating the daemon honestly: runtime checks, session lifecycle, coordination, and recovery.',
+        'Every routed `pd` command family in the current CLI, including specialist and recently added surfaces.',
       truth: 'source-backed',
       goals: [
-        'Know the default operator entry points.',
-        'Separate baseline commands from specialist surfaces.',
-        'Keep a reference page that favors lookup speed over storytelling.',
+        'Keep the public CLI reference aligned with `bin/port-daddy-cli.ts` and `cli/commands/*.ts`.',
+        'Expose newer surfaces like `pd tube`, `pd guard`, `pd actor`, `pd wallet`, `pd roadmap`, `pd ideas`, and `pd feedback`.',
+        'Separate detail-page coverage from existence so missing deep dives do not hide real commands.',
       ],
       blocks: [
         {
           type: 'paragraph',
-          title: 'Start with the commands that change operator truth',
+          title: 'Start with the full index',
           paragraphs: [
-            'The core CLI is not every command in the binary. It is the small set that establishes runtime truth, starts coordinated work, leaves visible evidence, and recovers when something dies mid-task.',
-            'That is why this reference begins with status, briefing, salvage, begin, note, whoami, done, and the locking surfaces. Those are the commands that turn a daemon install into a usable operating loop.',
+            'The `/docs/cli` page is the lookup surface for the whole CLI in this checkout. It lists the mature detail pages, but it also lists specialist commands that only live in source today.',
+            'Treat the index as source-backed inventory. If a command is routed in `bin/port-daddy-cli.ts`, it belongs in the reference even before a dedicated deep-dive page exists.',
           ],
         },
         {
           type: 'command',
-          title: 'Baseline operator set',
+          title: 'Daily loop plus newer specialist surfaces',
           command:
-            'pd status\npd briefing\npd salvage\npd begin --identity myapp:api --purpose "Fix auth bug"\npd note "JWT validation passing"\npd whoami\npd done',
+            'pd status\npd briefing\npd begin "Fix auth bug" --identity myapp:api\npd note "JWT validation passing"\npd tube ui:clicks\npd guard check --staged\npd actor lookout --message "release-surface drift fixed"\npd done "Docs updated"',
           notes: [
-            'Treat this as the smallest serious operator loop.',
-            'Use lock or harbor surfaces only when the work actually needs stronger coordination or scope.',
+            'The everyday loop remains first-class.',
+            '`pd tube`, actor mailboxes, guard, roadmap, ideas, wallet, bond, and feedback commands now appear in the CLI reference instead of being source-only knowledge.',
           ],
         },
         {
           type: 'checklist',
           items: [
-            '`pd status` and `pd briefing` tell you what runtime and project state you are actually about to touch.',
-            '`pd begin`, `pd note`, `pd whoami`, and `pd done` carry the identity and evidence trail.',
-            '`pd salvage` and `pd salvage claim` keep interrupted work recoverable instead of invisible.',
+            '`/docs/cli` is backed by `website-v2/src/data/referenceCatalog.ts`.',
+            'The catalog records aliases, high-value flags, source files, and detail-page availability.',
+            'Search uses the same catalog, so `pd tube` and other newer commands are discoverable from the docs search box.',
           ],
         },
       ],
       sources: [
         {
-          path: 'website-v2/src/data/docs.ts',
-          rationale: 'CLI command registry defines the operator-facing command set and examples.',
+          path: 'bin/port-daddy-cli.ts',
+          rationale: 'CLI router defines the commands that are actually accepted.',
         },
         {
-          path: 'README.md',
-          rationale: 'README highlights the baseline coordination commands in the public operator story.',
+          path: 'cli/commands/',
+          rationale: 'Command handlers define subcommands, flags, and behavior.',
         },
         {
-          path: 'AGENTS.md',
-          rationale: 'Repo instructions prioritize `pd status`, `pd briefing`, `pd salvage`, and `pd begin` as the startup loop.',
+          path: 'website-v2/src/data/referenceCatalog.ts',
+          rationale: 'Website catalog mirrors the current CLI surface for `/docs/cli` and docs search.',
+        },
+      ],
+    },
+    {
+      slug: 'typescript-sdk-surface',
+      title: 'Complete TypeScript SDK Surface',
+      summary:
+        'Every public method on the `PortDaddy` client class, grouped by daemon capability.',
+      truth: 'source-backed',
+      goals: [
+        'Show the direct SDK method surface, not an imagined nested module API.',
+        'Expose newer SDK coverage for actors, wallets, bonds, panic, pheromones, Arbiter, tuples, sorties, and semantic work.',
+        'Keep `/docs/sdk` useful even before every method has a dedicated page.',
+      ],
+      blocks: [
+        {
+          type: 'paragraph',
+          title: 'The SDK is a direct client class',
+          paragraphs: [
+            '`PortDaddy` exposes methods directly on the client instance: `pd.claim`, `pd.begin`, `pd.spawn`, `pd.tupleOut`, and so on.',
+            'The overview page now lists the whole public method catalog from `lib/client.ts`, while dedicated pages continue to explain the most common modules in depth.',
+          ],
+        },
+        {
+          type: 'command',
+          title: 'Canonical import and first calls',
+          command:
+            "import { PortDaddy } from 'port-daddy/client'\n\nconst pd = new PortDaddy()\nawait pd.claim('myapp:api:main')\nawait pd.begin('Build API preview', { identity: 'myapp:api:main' })\nawait pd.note('Preview server claimed')\nawait pd.done('Preview ready')",
+        },
+        {
+          type: 'checklist',
+          items: [
+            '`/docs/sdk` lists constructor options, public methods, and exports from the current checkout.',
+            'Search indexes every SDK method and links back to the overview anchors.',
+            'Dedicated pages remain useful for core modules, but they are no longer the only discoverability path.',
+          ],
+        },
+      ],
+      sources: [
+        {
+          path: 'lib/client.ts',
+          rationale: 'The `PortDaddy` class defines the public SDK method surface.',
+        },
+        {
+          path: 'shared/types.ts',
+          rationale: 'Client options and exported types back the constructor and type-safety examples.',
+        },
+        {
+          path: 'website-v2/src/data/referenceCatalog.ts',
+          rationale: 'Website SDK catalog groups the complete method list.',
+        },
+      ],
+    },
+    {
+      slug: 'mcp-tool-surface',
+      title: 'Complete MCP Tool Surface',
+      summary:
+        'The tiered MCP catalog, default-mode tools, `pd_discover`, and all full-mode tool categories.',
+      truth: 'source-backed',
+      goals: [
+        'Document default mode and full mode honestly.',
+        'Keep tool counts and category lists tied to `mcp/server.ts`.',
+        'Show that MCP covers the same coordination plane as the CLI and SDK.',
+      ],
+      blocks: [
+        {
+          type: 'paragraph',
+          title: 'Tiered by default, complete through discovery',
+          paragraphs: [
+            'The MCP server starts small by exposing the essential tool set plus `pd_discover` unless full mode is enabled.',
+            '`pd_discover` returns categories, counts, names, and schemas so model clients can unlock the full tool surface without flooding the first tool list.',
+          ],
+        },
+        {
+          type: 'checklist',
+          items: [
+            '`/docs/mcp` lists every category from `TOOL_CATEGORIES`.',
+            'Default mode currently exposes the essential set plus `pd_discover`.',
+            'Full mode covers all registered functions, including fleet control, semantic memory, feedback, tuples, actors, inbox, and budget surfaces.',
+          ],
+        },
+      ],
+      sources: [
+        {
+          path: 'mcp/server.ts',
+          rationale: 'MCP tool definitions, categories, default-mode filter, and discovery behavior.',
+        },
+        {
+          path: 'website-v2/src/data/mcp.ts',
+          rationale: 'Website MCP catalog mirrors categories and tool names.',
+        },
+        {
+          path: 'cli/commands/mcp-install.ts',
+          rationale: 'Installer defines supported MCP client config targets.',
         },
       ],
     },
     {
       slug: 'daemon-http-surface',
-      title: 'Daemon HTTP Surface',
+      title: 'Daemon HTTP Routes',
       summary:
         'The high-value route groups on the live daemon: sessions, salvage, harbors, tuples, sorties, and fleet.',
       truth: 'source-backed',
       goals: [
         'Know which route groups exist right now.',
         'Use the route groups as lookup anchors instead of memorizing every leaf path.',
-        'Keep API reference tied to the real daemon surface.',
+        'Keep API reference tied to the real daemon routes.',
       ],
       blocks: [
         {
           type: 'paragraph',
           title: 'Think in route groups before leaf endpoints',
           paragraphs: [
-            'The daemon surface is easiest to navigate when you think in groups first: sessions and sugar, agents and salvage, tuples and messaging, harbors, sorties, fleet, and general status. That grouping matches how operators actually approach the runtime.',
+            'The daemon routes are easiest to navigate when you think in groups first: sessions and sugar, agents and salvage, tuples and messaging, harbors, sorties, fleet, and general status.',
             'A good reference page should get you to the right neighborhood immediately, then let you drill into the exhaustive endpoint list. It should not force you to read a wall of raw paths just to answer “where do I inspect sorties?” or “which routes own harbor membership?”',
           ],
         },
@@ -85,15 +179,15 @@ export const referenceSection: DocsContentSection = {
           items: [
             'Use `/status` and related info routes for daemon health and overview.',
             'Use `/sugar/*`, `/sessions`, `/agents`, and `/salvage` for identity, lifecycle, and recovery.',
-            'Use `/harbors`, `/tuples`, `/sorties`, and `/fleet` when you need the scoped coordination and delegation surfaces.',
+            'Use `/harbors`, `/tuples`, `/sorties`, and `/fleet` when you need scoped coordination, tracked missions, or project automation.',
           ],
         },
         {
           type: 'paragraph',
           title: 'Where to go for exhaustive detail',
           paragraphs: [
-            'The live reference source in this repo is the OpenAPI file plus the route handlers themselves. That is the layer to trust when you need exact payloads, current parameters, or a route-level truth check.',
-            'The public docs should summarize that surface clearly, but the exhaustive shape still belongs to generated or source-backed API reference rather than hand-maintained prose alone.',
+            'The live reference source in this repo is the OpenAPI file plus the route handlers themselves. Use those when you need exact payloads, current parameters, or route-level behavior.',
+            'The public docs should summarize the route groups clearly, but exhaustive details belong in generated or source-backed API reference rather than hand-maintained prose alone.',
           ],
         },
       ],
@@ -104,7 +198,7 @@ export const referenceSection: DocsContentSection = {
         },
         {
           path: 'routes/index.ts',
-          rationale: 'Route registry shows which major surfaces are actually registered in the daemon.',
+          rationale: 'Route registry shows which major groups are registered in the daemon.',
         },
         {
           path: 'website-v2/src/data/docs.ts',
@@ -116,11 +210,11 @@ export const referenceSection: DocsContentSection = {
       slug: 'harbor-capabilities-and-scopes',
       title: 'Harbor Capabilities And Scopes',
       summary:
-        'The current capability vocabulary for harbor-scoped work and the boundary it is meant to enforce.',
+        'The current capability vocabulary for harbor-scoped work.',
       truth: 'source-backed',
       goals: [
         'Know what a harbor card is expressing today.',
-        'See the capability model as operational scope rather than abstract security language.',
+        'See the capability model as practical scope rather than abstract security language.',
         'Understand where present scope ends and future delegation begins.',
       ],
       blocks: [
@@ -128,8 +222,8 @@ export const referenceSection: DocsContentSection = {
           type: 'paragraph',
           title: 'Capabilities describe what the harbor may do',
           paragraphs: [
-            'A harbor card carries a capability array because the daemon needs a concrete scope boundary, not just a harbor name. That scope is what lets the control plane distinguish “belongs to this working set” from “may perform these specific classes of action within it.”',
-            'The vocabulary is intentionally practical: read code, write notes, acquire locks, create tunnels, publish or subscribe to messages, claim files, and spawn child agents. This is operational scope, not abstract theory.',
+            'A harbor card carries a capability array because Port Daddy needs more than a harbor name. The card should say which classes of action are allowed inside that protected work area.',
+            'The vocabulary is intentionally practical: read code, write notes, acquire locks, create tunnels, publish or subscribe to messages, claim files, and spawn child agents. It describes what a workflow can do, not an abstract theory.',
           ],
         },
         {
@@ -144,7 +238,7 @@ export const referenceSection: DocsContentSection = {
           type: 'paragraph',
           title: 'What this page should not imply',
           paragraphs: [
-            'This page should not imply that the repo has already shipped the full future delegation economy. The truthful current state is scoped admission plus capability-bearing cards on the present harbor path.',
+            'This page should not imply that the repo has already shipped the full future delegation system. The current state is scoped admission plus capability-bearing cards on the present harbor path.',
             'That is enough to make harbor scope meaningful now. It is also a clean boundary from which the later delegation and attenuation layers can grow without rewriting the basic model.',
           ],
         },
@@ -156,11 +250,11 @@ export const referenceSection: DocsContentSection = {
         },
         {
           path: 'lib/harbor-tokens.ts',
-          rationale: 'Harbor token payload shape and verification logic define the capability-bearing card boundary.',
+          rationale: 'Harbor token payload shape and verification logic define the capability-bearing card.',
         },
         {
           path: 'routes/harbors.ts',
-          rationale: 'Harbor routes expose create, enter, leave, membership, and detail surfaces for the current runtime.',
+          rationale: 'Harbor routes expose create, enter, leave, membership, and detail behavior.',
         },
       ],
     },

@@ -107,6 +107,8 @@ import {
   handleTube,
   // Coordination Guard enforcement controls
   handleGuard,
+  // Claim-aware git add wrapper
+  handleAdd,
 } from '../cli/commands/index.js';
 import { getDaemonTcpUrl, readDaemonPort, resolveDaemonTcpTarget } from '../shared/daemon-discovery.js';
 import { calculateRuntimeCodeHash } from '../shared/code-hash.js';
@@ -557,6 +559,7 @@ Commands:
     --no-daemon             Skip daemon installation/start
     --no-mcp                Skip MCP + shell hook installation
     --no-fleetbar           Skip FleetBar install (macOS)
+    --no-skill              Skip Port Daddy agent skill symlink
     --no-init               Skip project initialization
     --no-fleet              Pass through to pd init
     --no-hook               Pass through to pd init
@@ -565,6 +568,7 @@ Examples:
   pd setup
   pd setup --project ~/coding/workgroup-ai
   pd setup --no-fleetbar
+  pd setup --no-skill
   pd setup --no-init`,
 
   sessions: `Sessions & Notes \u2014 Structured multi-agent coordination
@@ -1050,7 +1054,7 @@ const ALL_COMMANDS: string[] = [
   'advise', 'preflight', 'compass', 'guard',
   'salvage', 'resurrection', 'changelog', 'tunnel',
   'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
-  'b', 'w', 'who-owns', 'history', 'tutorial', 'files',
+  'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add',
   'spawn', 'spawned', 'watch',
   'harbor', 'harbors', 'demo', 'fleet', 'tuple', 'sortie', 'graph', 'memory', 'ideas',
   'quorum',
@@ -2425,6 +2429,10 @@ async function main(): Promise<void> {
 
       case 'guard':
         await handleGuard(positional, options);
+        break;
+
+      case 'add':
+        await handleAdd(positional, options);
         break;
 
       case 'integration':

@@ -5,7 +5,7 @@
  * current project when it looks like a real project directory.
  */
 
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync, symlinkSync, lstatSync, unlinkSync, readlinkSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { homedir, platform } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -18,7 +18,23 @@ import { handleInit } from './init.js';
 import { handleMcpInstall } from './mcp-install.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const PROJECT_ROOT = join(__dirname, '..', '..');
+// Walk up from __dirname looking for the repo marker (Formula/port-daddy.rb
+// or skills/port-daddy-agent-skill/). Handles both source layout
+// (cli/commands/setup.ts → ../..) and compiled layout
+// (dist/cli/commands/setup.js → ../../.., since dist/ also contains a
+// package.json from npm install).
+function findProjectRoot(start: string): string {
+  let dir = start;
+  for (let i = 0; i < 8; i++) {
+    if (existsSync(join(dir, 'Formula', 'port-daddy.rb'))) return dir;
+    if (existsSync(join(dir, 'skills', 'port-daddy-agent-skill', 'SKILL.md'))) return dir;
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return join(start, '..', '..');
+}
+const PROJECT_ROOT = findProjectRoot(__dirname);
 const TSX_BIN = join(PROJECT_ROOT, 'node_modules', '.bin', 'tsx');
 const INSTALL_DAEMON_SCRIPT = join(PROJECT_ROOT, 'install-daemon.ts');
 const FLEETBAR_INSTALL_SCRIPT = join(PROJECT_ROOT, 'apps', 'FleetBar', 'install.sh');
@@ -110,6 +126,109 @@ async function ensureDaemonInstalledAndRunning(): Promise<boolean> {
   return false;
 }
 
+/**
+ * Resolve the canonical agent skill source directory.
+ *
+ * Source priority:
+ *   1. Homebrew install: $(brew --prefix)/share/port-daddy/skills/port-daddy
+ *   2. Repo checkout: PROJECT_ROOT/skills/port-daddy-agent-skill
+ */
+function resolveSkillSource(): string | null {
+  const candidates: string[] = [];
+
+  const brew = spawnSync('brew', ['--prefix'], { encoding: 'utf8' });
+  if (brew.status === 0) {
+    const prefix = brew.stdout.trim();
+    candidates.push(join(prefix, 'share', 'port-daddy', 'skills', 'port-daddy'));
+  }
+  candidates.push(join(PROJECT_ROOT, 'skills', 'port-daddy-agent-skill'));
+
+  return candidates.find((p) => existsSync(join(p, 'SKILL.md'))) ?? null;
+}
+
+/**
+ * Each LLM runtime watches a different directory for skill / instruction
+ * files. We symlink the same canonical source into all of them so every
+ * runtime sees the same content with no copy drift. Brew updates the source;
+ * every link follows automatically.
+ *
+ * Returns true if at least one runtime got linked. Per-runtime failures are
+ * logged but do not abort.
+ */
+function installAgentSkillSymlink(): boolean {
+  const source = resolveSkillSource();
+  if (!source) {
+    ui.warn('Skill source not found in brew prefix or repo checkout');
+    return false;
+  }
+
+  const home = homedir();
+  const targets: { path: string; runtime: string; mode: 'dir' | 'file' }[] = [
+    // Claude Code — per-user skills directory.
+    { path: join(home, '.claude', 'skills', 'port-daddy'), runtime: 'Claude Code', mode: 'dir' },
+    // Claude Desktop also reads from ~/.claude/skills/ on macOS.
+    // (Same dir, already covered above.)
+    // Windsurf — Codeium agent runtime.
+    { path: join(home, '.codeium', 'windsurf', 'skills', 'port-daddy'), runtime: 'Windsurf', mode: 'dir' },
+    // Continue — VS Code extension; uses .continue prompts dir.
+    { path: join(home, '.continue', 'prompts', 'port-daddy'), runtime: 'Continue', mode: 'dir' },
+    // Cline / Roo — Claude-Dev-style extensions read from this dir.
+    { path: join(home, '.config', 'cline', 'skills', 'port-daddy'), runtime: 'Cline', mode: 'dir' },
+    // Gemini CLI — extensions live here.
+    { path: join(home, '.gemini', 'extensions', 'port-daddy', 'skills', 'port-daddy'), runtime: 'Gemini CLI', mode: 'dir' },
+    // Cursor — single-file rule format. Different layout: surface the SKILL.md
+    // itself as ~/.cursor/rules/port-daddy.md so Cursor picks it up.
+    { path: join(home, '.cursor', 'rules', 'port-daddy.md'), runtime: 'Cursor', mode: 'file' },
+  ];
+
+  let linkedCount = 0;
+  for (const { path: target, runtime, mode } of targets) {
+    const linkSource = mode === 'file' ? join(source, 'SKILL.md') : source;
+    const targetDir = dirname(target);
+
+    try {
+      if (!existsSync(targetDir)) {
+        mkdirSync(targetDir, { recursive: true });
+      }
+      const stat = lstatSyncSafe(target);
+      if (stat) {
+        if (stat.isSymbolicLink()) {
+          const current = readlinkSync(target);
+          if (current === linkSource) {
+            ui.info(`${runtime}: already linked`);
+            linkedCount++;
+            continue;
+          }
+          unlinkSync(target);
+        } else {
+          ui.warn(`${runtime}: ${target} exists and is not a symlink — skipping`);
+          continue;
+        }
+      }
+      symlinkSync(linkSource, target, mode === 'file' ? 'file' : 'dir');
+      ui.info(`${runtime}: linked ${target} → ${linkSource}`);
+      linkedCount++;
+    } catch (err) {
+      ui.warn(`${runtime}: ${(err as Error).message}`);
+    }
+  }
+
+  if (linkedCount === 0) {
+    ui.warn('No runtimes received the skill symlink');
+    return false;
+  }
+  ui.info(`Skill installed for ${linkedCount} runtime(s). brew upgrade port-daddy will refresh all of them.`);
+  return true;
+}
+
+function lstatSyncSafe(p: string) {
+  try {
+    return lstatSync(p);
+  } catch {
+    return null;
+  }
+}
+
 function installFleetBarIfEnabled(skipFleetBar: boolean): boolean {
   if (skipFleetBar) {
     ui.info('Skipping FleetBar (--no-fleetbar)');
@@ -193,6 +312,12 @@ export async function handleSetup(options: Record<string, unknown>): Promise<voi
   }
 
   installFleetBarIfEnabled(!!options['no-fleetbar']);
+
+  if (!options['no-skill']) {
+    installAgentSkillSymlink();
+  } else {
+    ui.info('Skipping agent skill symlink (--no-skill)');
+  }
 
   const explicitProject = typeof options.project === 'string' ? options.project : undefined;
   if (explicitProject && !existsSync(resolve(explicitProject))) {

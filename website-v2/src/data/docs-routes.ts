@@ -74,7 +74,7 @@ export const docsFamilyRoutes: DocsFamilyRoute[] = [
       {
         truth: 'Live',
         title: 'Install and bootstrap',
-        body: ['Use the Homebrew tap to install the operator runtime, then run `pd setup` to configure the machine.'],
+        body: ['Use the Homebrew tap to install the local service, then run `pd setup` to configure the machine.'],
         code: 'brew install curiositech/tap/port-daddy && pd setup',
       },
       {
@@ -214,7 +214,7 @@ export const docsFamilyRoutes: DocsFamilyRoute[] = [
         title: 'Tutorial depth to add',
         bullets: [
           'Cross-machine handoffs',
-          'Remote delegation with real operator visibility',
+          'Remote delegation with clear activity and status',
           'More walkthroughs for deeper runtime features',
         ],
       },
@@ -245,7 +245,7 @@ export const docsFamilyRoutes: DocsFamilyRoute[] = [
         title: 'Serving discipline',
         bullets: [
           'A source change does not reach users until the serving daemon is rebuilt and relaunched.',
-          'The canonical daemon should own the canonical socket and preferred port.',
+          'The main local daemon should own the expected socket and preferred port.',
         ],
       },
       {
@@ -254,7 +254,7 @@ export const docsFamilyRoutes: DocsFamilyRoute[] = [
         bullets: [
           'Cross-machine orchestration',
           'Stronger process and network enforcement',
-          'Team policy layers for shared agent operations',
+          'Team policy layers for shared agent work',
         ],
       },
     ],
@@ -275,22 +275,22 @@ export const docsFamilyRoutes: DocsFamilyRoute[] = [
         title: 'CLI',
         bullets: [
           'Ports, sessions, locks, messaging, harbors, tunnels, fleet, and setup all live in the CLI.',
-          'The high-value operator entry points are `pd status`, `pd briefing`, `pd salvage`, and `pd begin`.',
+          'The most useful starting commands are `pd status`, `pd briefing`, `pd salvage`, and `pd begin`.',
         ],
       },
       {
         truth: 'Live',
         title: 'SDK and MCP',
         bullets: [
-          'SDK and MCP surfaces let editors and agents use the same Port Daddy state as the CLI.',
-          'Reference pages should stay close to the live runtime behavior.',
+          'SDK and MCP pages let editors and agents use the same Port Daddy state as the CLI.',
+          'Reference pages should stay close to what the current app actually does.',
         ],
       },
       {
         truth: 'Roadmap',
         title: 'Generated reference',
         body: [
-          'The long-term reference should be generated from the real daemon and CLI surfaces rather than hand-maintained one page at a time.',
+          'The long-term reference should be generated from the real daemon routes and CLI commands rather than hand-maintained one page at a time.',
         ],
       },
     ],

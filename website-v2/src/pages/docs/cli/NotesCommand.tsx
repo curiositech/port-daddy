@@ -5,7 +5,7 @@ export default function NotesCommand() {
     <CommandPage
       command="notes"
       description="Show recent notes. Without flags shows the last 10 notes across all sessions."
-      version="3.8.3"
+      version="3.11.0"
       syntax="pd notes"
       flags={[
         { flag: '--session <id>', description: 'Notes for a specific session' },

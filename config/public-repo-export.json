@@ -55,6 +55,7 @@
     "public/",
     "routes/",
     "shared/",
+    "skills/port-daddy-agent-skill/",
     "skills/port-daddy-cli/",
     "templates/",
     "tests/"

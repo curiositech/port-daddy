@@ -5,7 +5,7 @@ export default function CreateHarborTool() {
     <CommandPage
       command="create_harbor"
       description="Create a cryptographic capability namespace (Harbor) for secure agent operations. Harbors restrict what agents can do and create secure enclaves with fine-grained permissions. Agents must present a valid Harbor Card to enter."
-      version="3.8.3"
+      version="3.11.0"
       syntax="create_harbor(name, options?)"
       flags={[
         { flag: 'name', description: 'Unique name for this harbor (required)' },

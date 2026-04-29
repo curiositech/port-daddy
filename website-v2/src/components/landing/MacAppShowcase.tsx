@@ -1,10 +1,12 @@
-import { MonitorCog, RadioTower, ShieldCheck, WalletCards } from 'lucide-react'
+import { useEffect, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { Maximize2, MonitorCog, RadioTower, ShieldCheck, WalletCards, X } from 'lucide-react'
 import {
   APP_SURFACES,
   MAC_APP_CAPABILITIES,
   type AppSurface,
   type MacAppCapability,
 } from '@/data/product'
+import { Button } from '@/components/ui/Button'
 import { useTheme } from '@/lib/theme-context'
 import {
   BracketLabel,
@@ -57,7 +59,7 @@ const surfaceScreenshots: Record<string, ThemedScreenshot> = {
 
 const surfacePreviewRows: Record<string, string[]> = {
   agents: ['Coxswain: active', 'Lookout: docs drift clear', 'Quartermaster: budget guarded'],
-  roadmap: ['built: FleetBar preview', 'blocked: signed release channel', 'next: Shipwright onboarding'],
+  roadmap: ['built: FleetBar preview', 'next: Developer ID notarization', 'next: Shipwright onboarding'],
   activity: ['session.note', 'file.claim', 'sortie.completed'],
   channels: ['website:coordination', 'coordination:inconsistency', 'project:git:committed'],
   inbox: ['Claude handoff unread', 'Codex proof request', 'Navigator status ping'],
@@ -140,25 +142,35 @@ function SurfaceTitle({ title }: { title: string }) {
   return <>{title}</>
 }
 
-function SurfacePreviewFallback({ appSurface, featured = false }: { appSurface: AppSurface; featured?: boolean }) {
+function SurfacePreviewFallback({
+  appSurface,
+  mode = 'card',
+}: {
+  appSurface: AppSurface
+  mode?: 'card' | 'dialog'
+}) {
   const rows = surfacePreviewRows[appSurface.id] ?? [
     appSurface.surface,
-    appSurface.title,
+    appSurface.id,
     'operator surface',
   ]
 
   return (
-    <div className="grid aspect-[16/10] content-between border-b-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-4)]">
+    <div
+      className={[
+        'grid min-h-[10rem] gap-[var(--space-4)] bg-[var(--surface-base)] p-[var(--space-4)]',
+        mode === 'card'
+          ? 'border-b-2 border-[var(--border-strong)]'
+          : 'border-2 border-[var(--border-strong)]',
+      ].join(' ')}
+    >
       <div className="grid gap-[var(--space-3)]">
         <div className="flex items-center justify-between border-b-2 border-[var(--border-strong)] pb-[var(--space-3)]">
           <span className="font-mono text-[10px] font-black uppercase tracking-[0.22em] text-[var(--text-secondary)]">
-            Console subset
+            Surface signals
           </span>
           <span className="h-3 w-3 border-2 border-[var(--border-strong)] bg-[var(--brand-primary)]" aria-hidden="true" />
         </div>
-        <PanelTitle as="p" size={featured ? 'card' : 'nav'} className="max-w-[18ch]">
-          <SurfaceTitle title={appSurface.title} />
-        </PanelTitle>
       </div>
       <div className="grid gap-[var(--space-2)]">
         {rows.map((row) => (
@@ -167,7 +179,7 @@ function SurfacePreviewFallback({ appSurface, featured = false }: { appSurface: 
             key={row}
           >
             <span className="h-2 w-2 bg-[var(--brand-accent)]" aria-hidden="true" />
-            <span className="truncate font-mono text-[11px] font-black uppercase tracking-[0.14em] text-[var(--text-primary)]">
+            <span className="min-w-0 font-mono text-[11px] font-black uppercase tracking-[0.14em] text-[var(--text-primary)] [overflow-wrap:anywhere]">
               {row}
             </span>
           </div>
@@ -177,15 +189,62 @@ function SurfacePreviewFallback({ appSurface, featured = false }: { appSurface: 
   )
 }
 
-function SurfaceTile({ appSurface, featured = false }: { appSurface: AppSurface; featured?: boolean }) {
+function DialogSignalList({ appSurface }: { appSurface: AppSurface }) {
+  const rows = surfacePreviewRows[appSurface.id] ?? [
+    appSurface.surface,
+    appSurface.id,
+    'operator surface',
+  ]
+
+  return (
+    <div className="grid gap-[var(--space-3)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-4)]">
+      <PanelEyebrow>Surface signals</PanelEyebrow>
+      <ul className="grid gap-[var(--space-2)]">
+        {rows.map((row) => (
+          <li
+            className="grid grid-cols-[0.75rem_minmax(0,1fr)] gap-[var(--space-2)] border-2 border-[var(--border-default)] bg-[var(--surface-raised)] px-[var(--space-3)] py-[var(--space-2)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]"
+            key={row}
+          >
+            <span className="mt-[0.45em] h-2 w-2 bg-[var(--brand-accent)]" aria-hidden="true" />
+            <span>{row}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+function SurfaceTile({
+  appSurface,
+  featured = false,
+  onOpen,
+}: {
+  appSurface: AppSurface
+  featured?: boolean
+  onOpen: (appSurface: AppSurface) => void
+}) {
   const screenshot = surfaceScreenshots[appSurface.id]
+  const detailLabel = `Open ${appSurface.title} details`
+
+  const handleKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      onOpen(appSurface)
+    }
+  }
 
   return (
     <article
+      aria-label={detailLabel}
+      aria-haspopup="dialog"
       className={[
-        'min-w-0 border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]',
-        featured ? 'lg:col-span-8' : 'lg:col-span-4',
+        'group min-w-0 cursor-pointer border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] transition-colors hover:bg-[var(--interactive-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-base)]',
+        featured ? 'lg:col-span-12' : 'lg:col-span-6',
       ].join(' ')}
+      onClick={() => onOpen(appSurface)}
+      onKeyDown={handleKeyDown}
+      role="button"
+      tabIndex={0}
     >
       <div className="border-b-2 border-[var(--border-strong)] p-[var(--space-3)]">
         <div className="flex flex-wrap items-center justify-between gap-[var(--space-2)]">
@@ -207,22 +266,152 @@ function SurfaceTile({ appSurface, featured = false }: { appSurface: AppSurface;
           loading="lazy"
         />
       ) : (
-        <SurfacePreviewFallback appSurface={appSurface} featured={featured} />
+        <SurfacePreviewFallback appSurface={appSurface} />
       )}
-      <div className="grid gap-[var(--space-2)] p-[var(--space-4)]">
+      <div className="grid gap-[var(--space-4)] p-[var(--space-4)]">
         <PanelTitle as="h3" size="nav" className="max-w-none">
           <SurfaceTitle title={appSurface.title} />
         </PanelTitle>
-        <PanelBody size="compact" className="max-w-none">
+        <PanelBody className="max-w-none">
           {appSurface.caption}
         </PanelBody>
+        <PanelBody size="compact" className="max-w-none text-[var(--text-muted)]">
+          {appSurface.operatorValue}
+        </PanelBody>
+        <div className="grid gap-[var(--space-2)] border-t-2 border-[var(--border-default)] pt-[var(--space-3)]">
+          <div className="flex flex-wrap items-center justify-between gap-[var(--space-2)]">
+            <PanelEyebrow>What it unlocks</PanelEyebrow>
+            <span className="inline-flex items-center gap-[var(--space-1)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+              <Maximize2 size={13} />
+              Open details
+            </span>
+          </div>
+          <ul className="grid gap-[var(--space-2)]">
+            {appSurface.highlights.map((highlight) => (
+              <li
+                key={highlight}
+                className="grid grid-cols-[0.75rem_minmax(0,1fr)] gap-[var(--space-2)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]"
+              >
+                <span className="mt-[0.45em] h-2 w-2 bg-[var(--brand-accent)]" aria-hidden="true" />
+                <span>{highlight}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
     </article>
   )
 }
 
+function SurfaceDetailDialog({
+  appSurface,
+  onClose,
+}: {
+  appSurface: AppSurface
+  onClose: () => void
+}) {
+  const screenshot = surfaceScreenshots[appSurface.id]
+
+  return (
+    <div
+      aria-modal="true"
+      className="fixed inset-0 z-[100] grid place-items-center overflow-y-auto bg-[var(--scrim-backdrop)] p-[var(--space-4)]"
+      onMouseDown={onClose}
+      role="dialog"
+    >
+      <div
+        aria-labelledby={`surface-detail-${appSurface.id}`}
+        className="grid w-full max-w-5xl gap-0 border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-[var(--shadow-brutal)]"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-[var(--space-3)] border-b-2 border-[var(--border-strong)] p-[var(--space-4)]">
+          <div>
+            <div id={`surface-detail-${appSurface.id}`}>
+              <PanelTitle as="h3" size="card" className="max-w-none">
+                {appSurface.title}
+              </PanelTitle>
+            </div>
+          </div>
+          <Button type="button" variant="secondary" size="sm" aria-label="Close details" onClick={onClose}>
+            <X size={16} />
+            Close
+          </Button>
+        </div>
+
+        <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(20rem,0.9fr)]">
+          <div className="grid gap-[var(--space-4)] border-b-2 border-[var(--border-strong)] p-[var(--space-4)] lg:border-r-2 lg:border-b-0">
+            {screenshot ? (
+              <ThemeLockedScreenshot
+                screenshots={screenshot}
+                alt={`${appSurface.title} screenshot from ${appSurface.surface}`}
+                className="aspect-[16/10] w-full border-2 border-[var(--border-strong)] bg-[var(--surface-base)] object-cover object-left-top"
+              />
+            ) : (
+              <DialogSignalList appSurface={appSurface} />
+            )}
+            <PanelBody className="max-w-none">
+              {appSurface.caption}
+            </PanelBody>
+            <PanelBody size="compact" className="max-w-none text-[var(--text-muted)]">
+              {appSurface.operatorValue}
+            </PanelBody>
+          </div>
+
+          <div className="grid gap-[var(--space-5)] p-[var(--space-4)]">
+            <div className="grid gap-[var(--space-3)]">
+              <PanelEyebrow>Things you can do here</PanelEyebrow>
+              <ul className="grid gap-[var(--space-2)]">
+                {appSurface.actions.map((action) => (
+                  <li
+                    key={action}
+                    className="grid grid-cols-[0.75rem_minmax(0,1fr)] gap-[var(--space-2)] text-[length:var(--type-panel-body-size)] leading-[var(--leading-body)] text-[var(--text-secondary)]"
+                  >
+                    <span className="mt-[0.5em] h-2 w-2 bg-[var(--brand-primary)]" aria-hidden="true" />
+                    <span>{action}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="grid gap-[var(--space-3)] border-t-2 border-[var(--border-default)] pt-[var(--space-4)]">
+              <PanelEyebrow>Why it matters</PanelEyebrow>
+              <ul className="grid gap-[var(--space-2)]">
+                {appSurface.highlights.map((highlight) => (
+                  <li
+                    key={highlight}
+                    className="grid grid-cols-[0.75rem_minmax(0,1fr)] gap-[var(--space-2)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]"
+                  >
+                    <span className="mt-[0.45em] h-2 w-2 bg-[var(--brand-accent)]" aria-hidden="true" />
+                    <span>{highlight}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function MacAppShowcase() {
   const [firstSurface, ...surfaces] = APP_SURFACES
+  const [selectedSurface, setSelectedSurface] = useState<AppSurface | null>(null)
+
+  useEffect(() => {
+    if (!selectedSurface) {
+      return undefined
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setSelectedSurface(null)
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [selectedSurface])
 
   return (
     <section id="mac-app" className="border-t-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
@@ -251,7 +440,9 @@ export function MacAppShowcase() {
               <SurfacePanel elevation="quiet" padding="compact" className="grid gap-[var(--space-2)] self-start">
                 <PanelEyebrow>Current distribution stance</PanelEyebrow>
                 <PanelBody size="compact" className="max-w-none">
-                  Homebrew and npm remain the install path for Port Daddy. The website now also hosts a Mac developer-preview FleetBar app bundle while the signed release channel matures.
+                  Homebrew and npm remain the install path for Port Daddy. The website now also
+                  hosts an ad-hoc signed FleetBar preview while Developer ID signing and
+                  notarization move into the release channel.
                 </PanelBody>
               </SurfacePanel>
               <figure className="grid gap-[var(--space-2)]">
@@ -279,13 +470,24 @@ export function MacAppShowcase() {
 
           <div className="grid gap-[var(--space-4)] lg:grid-cols-12">
             <div className="lg:col-span-12">
-              <PanelEyebrow>Fleet Control Center gallery</PanelEyebrow>
+              <SectionIntro
+                eyebrow="Fleet Control Center gallery"
+                title="Every tab is a job surface, not decoration."
+                description="The Mac app exposes the same daemon truth from multiple angles: launch safety, agent handoffs, project memory, resource pressure, mission history, and Shipwright cold-start design."
+                titleAs="h2"
+                titleSize="card"
+                titleClassName="max-w-none"
+                bodyClassName="max-w-[48rem]"
+              />
             </div>
-            <SurfaceTile appSurface={firstSurface} featured />
+            <SurfaceTile appSurface={firstSurface} featured onOpen={setSelectedSurface} />
             {surfaces.map((appSurface) => (
-              <SurfaceTile appSurface={appSurface} key={appSurface.id} />
+              <SurfaceTile appSurface={appSurface} key={appSurface.id} onOpen={setSelectedSurface} />
             ))}
           </div>
+          {selectedSurface ? (
+            <SurfaceDetailDialog appSurface={selectedSurface} onClose={() => setSelectedSurface(null)} />
+          ) : null}
         </div>
       </PageContainer>
     </section>

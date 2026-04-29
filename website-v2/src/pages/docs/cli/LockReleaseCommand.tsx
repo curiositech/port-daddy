@@ -5,7 +5,7 @@ export default function LockReleaseCommand() {
     <CommandPage
       command="lock release"
       description="Release a distributed lock."
-      version="3.8.3"
+      version="3.11.0"
       syntax="pd lock release <name>"
       flags={[
         { flag: 'name', description: 'Lock name to release' },

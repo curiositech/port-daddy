@@ -47,9 +47,9 @@ export const heroInstall = {
 }
 
 export const heroSellingPoints = [
-  'Keep harbor identity, shared state, locks, and session history under one daemon of record.',
-  'Replace invisible shell state with operator-visible coordination surfaces and live runtime truth.',
-  'Evaluate the security story through the whitepaper and verified core, not vendor promises.',
+  'Keep shared notes, locks, sessions, harbors, and recovery state in one local service.',
+  'Replace invisible shell state with a dashboard and CLI that show what agents are doing.',
+  'Use the whitepaper when you need the deeper security model behind signed harbor access.',
 ] as const
 
 export const proofPanels: ProofPanel[] = [
@@ -103,12 +103,12 @@ export const architectureNarrative = [
     text: 'Agents execute tasks. They are not trusted to own shared coordination state by themselves.',
   },
   {
-    label: 'Daemon control plane',
-    text: 'The daemon owns identity, locks, sessions, harbors, and the operator surfaces that keep multi-agent work legible.',
+    label: 'Local service',
+    text: 'The daemon stores identity, locks, sessions, harbors, and the shared state that keeps multi-agent work visible.',
   },
   {
     label: 'Verified core',
-    text: 'The cryptographic core sits underneath the daemon and gives the control plane a defensible security boundary.',
+    text: 'The cryptographic core sits underneath the daemon and supports signed, scoped harbor access.',
   },
 ] as const
 
@@ -118,7 +118,7 @@ export const commercialTracks: CommercialTrack[] = [
     name: 'Open Core',
     subtitle: 'Local daemon + verified runtime',
     description:
-      'Install the daemon locally, coordinate agent work, and keep the core protocol transparent. This is the adoption path.',
+      'Install the daemon locally, coordinate agent work, and keep the core security model transparent. This is the adoption path.',
     tone: 'blue',
     badge: 'Free',
     bullets: [
@@ -129,8 +129,8 @@ export const commercialTracks: CommercialTrack[] = [
   },
   {
     id: '02',
-    name: 'Team Control Plane',
-    subtitle: 'Shared operator visibility',
+    name: 'Team Coordination',
+    subtitle: 'Shared visibility',
     description:
       'The commercial layer is about visibility, policy, and shared operations for teams running agent workflows together.',
     tone: 'paper',
@@ -138,7 +138,7 @@ export const commercialTracks: CommercialTrack[] = [
     bullets: [
       'Fleet history and cross-machine visibility',
       'Violation context, telemetry, and reviewable evidence',
-      'A control surface built for more than one laptop',
+      'A shared dashboard built for more than one laptop',
     ],
   },
   {
@@ -151,7 +151,7 @@ export const commercialTracks: CommercialTrack[] = [
     badge: 'Enterprise',
     bullets: [
       'Audit export and policy enforcement',
-      'Hardware-backed key management surfaces',
+      'Hardware-backed key management options',
       'Commercial support around serious agent operations',
     ],
   },

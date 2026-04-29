@@ -11,7 +11,7 @@
 export const SECTION_INTROS = {
   features: {
     title: 'Why These Features Exist',
-    body: 'Multi-agent development breaks in predictable ways: port collisions crash your dev servers, two agents silently overwrite the same file, and when one agent dies nobody knows what it was working on. Every feature in Port Daddy exists to close one of those gaps. They are not a grab bag of nice-to-haves -- they are the minimum set of primitives required to run multiple AI agents against a single codebase without losing work.',
+    body: 'Multi-agent development breaks when work has no shared boundary: agents cannot see each other, handoffs disappear into transcripts, files are edited without ownership, and crashes erase context. Every feature in Port Daddy exists to close one of those gaps. They are not a grab bag of nice-to-haves -- they are the minimum set of primitives required to run multiple AI agents against a single codebase without losing work.',
   },
 
   blueprints: {
@@ -25,8 +25,8 @@ export const SECTION_INTROS = {
   },
 
   tutorials: {
-    title: 'Learn by Building, From Simple to Advanced',
-    body: 'The tutorials are ordered intentionally. Start with Getting Started to install the daemon and claim your first port. Move to Multi-Agent Orchestration to see file claims and pub/sub in action with two agents. Then branch out: Monorepo Mastery if you have a big project, Harbors if you need security isolation, or pd spawn if you want to launch agent fleets. Each tutorial builds on concepts from the ones before it, but you can skip ahead if you already understand the basics.',
+    title: 'Learn the Harbor-First Workflow',
+    body: 'The tutorials are ordered intentionally. Start with the project harbor, then install the local daemon and FleetBar, name the work, begin sessions, share notes, publish channel events, and launch agents with visible recovery paths. Ports, DNS, tunnels, fleets, and spawned jobs are taught as resources inside that boundary, not as the whole story.',
   },
 
   docs: {

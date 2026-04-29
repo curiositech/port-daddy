@@ -117,7 +117,7 @@ export const DocsCards: Story = {
       <DocsCard
         kicker="01"
         title="Getting Started"
-        summary="Install the daemon and bring up the control plane."
+        summary="Install the daemon and open the dashboard."
         href="/docs/getting-started"
         tone="blue"
       />
@@ -135,13 +135,13 @@ export const DocsCards: Story = {
 export const DocsNotesAndAnchors: Story = {
   render: () => (
     <div className="grid gap-[var(--space-4)] lg:grid-cols-[minmax(0,1fr)_var(--docs-rail-width)]">
-      <DocsNoteCard label="Operator note" title="Use the canonical runtime checks first" tone="paper">
+      <DocsNoteCard label="User note" title="Check the running app first" tone="paper">
         <PanelBody className="max-w-none">
-          Keep the public docs tied to runtime truth instead of trying to explain every subsystem on one page.
+          Keep the public docs tied to what the current app actually does instead of explaining every subsystem on one page.
         </PanelBody>
         <PanelList
           items={[
-            'Check the live daemon before trusting the shell surface.',
+            'Check the live daemon before trusting a shell command.',
             'Keep source references visible on the same page.',
             'Use one note-card system across overview, section, and leaf pages.',
           ]}

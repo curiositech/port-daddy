@@ -9,18 +9,18 @@ export const tutorialsSection: DocsContentSection = {
   slug: 'tutorials',
   title: 'Tutorials',
   summary:
-    'Longer guided workflows that take you from a clean machine or repo to a working operator pattern you can actually keep.',
+    'Longer guided workflows that take you from a clean machine or repo to useful Port Daddy habits.',
   pages: [
     {
       slug: 'bootstrap-a-project-fleet',
       title: 'Bootstrap A Project Fleet',
       summary:
-        'Create the starter fleet file, validate it, and bring the first project automation loop online without guessing what the daemon is doing.',
+        'Create the starter fleet file, validate it, and bring the first project automation loop online.',
       truth: 'source-backed',
       goals: [
         'Initialize a real fleet config.',
         'Validate the topology before it starts running.',
-        'Know which surfaces to inspect once the fleet is alive.',
+        'Know where to inspect the fleet once it is alive.',
       ],
       blocks: [
         {
@@ -28,7 +28,7 @@ export const tutorialsSection: DocsContentSection = {
           title: 'Bring automation online without hand-wiring scripts',
           paragraphs: [
             'A fleet is the always-on side of Port Daddy. It is where repo stewardship moves from one-shot delegation into declared background automation: triggers, schedules, singleton guards, and the project-wide operating loop.',
-            'This tutorial is about getting to that first live loop honestly. The goal is not to dazzle you with twenty agents. The goal is to establish one readable fleet file, validate it, and watch the daemon manage it as a project surface instead of a pile of shell scripts.',
+            'This tutorial is about getting to that first live loop without drama. The goal is not to dazzle you with twenty agents. The goal is to create one readable fleet file, validate it, and watch Port Daddy manage it instead of hiding behavior in shell scripts.',
           ],
         },
         {
@@ -37,7 +37,7 @@ export const tutorialsSection: DocsContentSection = {
           command: 'pd fleet init\npd fleet validate\npd fleet up\npd fleet status',
           notes: [
             'Initialize the project config first so the topology is declared on disk.',
-            'Validate before starting so bad YAML or broken topology does not become runtime mystery.',
+            'Validate before starting so bad YAML or broken topology does not become a runtime mystery.',
             'Bring the fleet up only after the config parses cleanly.',
           ],
         },
@@ -45,7 +45,7 @@ export const tutorialsSection: DocsContentSection = {
           type: 'checklist',
           items: [
             'Expect `pd-fleet.yml` to become part of the project’s operating contract.',
-            'Use `pd fleet status` as the quick operator check after startup.',
+            'Use `pd fleet status` as the quick check after startup.',
             'Treat trigger channels and singleton policy as part of the fleet’s correctness, not as incidental config detail.',
           ],
         },
@@ -53,8 +53,8 @@ export const tutorialsSection: DocsContentSection = {
           type: 'paragraph',
           title: 'What completion looks like',
           paragraphs: [
-            'You are done when the project has one readable fleet definition, the daemon can validate it, and the status surface tells a coherent story about what is armed and why.',
-            'At that point, the fleet stops looking like magic background AI. It starts looking like declared repo infrastructure that the operator can inspect, pause, resume, and debug.',
+            'You are done when the project has one readable fleet definition, Port Daddy can validate it, and the status view explains what is armed and why.',
+            'At that point, the fleet stops looking like magic background AI. It becomes project automation you can inspect, pause, resume, and debug.',
           ],
         },
       ],
@@ -69,7 +69,7 @@ export const tutorialsSection: DocsContentSection = {
         },
         {
           path: 'routes/fleet.ts',
-          rationale: 'Fleet routes expose bootstrap, status, reload, and config surfaces for the running daemon.',
+          rationale: 'Fleet routes expose bootstrap, status, reload, and config behavior for the running daemon.',
         },
       ],
     },
@@ -82,14 +82,14 @@ export const tutorialsSection: DocsContentSection = {
       goals: [
         'Treat salvage as a normal recovery workflow.',
         'Inspect the dead agent context before continuing.',
-        'Bring the work back under active operator control.',
+        'Bring the work back into an active session.',
       ],
       blocks: [
         {
           type: 'paragraph',
           title: 'Recovery is part of the product, not a footnote',
           paragraphs: [
-            'Agents die. Terminals close. Background work gets interrupted. A control plane that only looks good when everything exits cleanly is not serious operator infrastructure, which is why Port Daddy keeps a salvage queue instead of pretending the problem is rare.',
+            'Agents die. Terminals close. Background work gets interrupted. Port Daddy keeps a salvage queue because this is normal, not rare.',
             'This tutorial shows the recovery path you should actually expect to use: inspect the queue, claim the abandoned work, and continue from the preserved session context instead of rebuilding the thread from memory.',
           ],
         },
@@ -108,14 +108,14 @@ export const tutorialsSection: DocsContentSection = {
           tone: 'info',
           title: 'Do not bypass the queue with fresh anonymous work',
           body:
-            'If an agent died mid-task and you simply start over without salvage, you have thrown away the control plane’s recovery context. That is exactly the gap the product is supposed to close.',
+            'If an agent died mid-task and you simply start over without salvage, you have thrown away the saved context Port Daddy preserved for you.',
         },
         {
           type: 'paragraph',
           title: 'What a good salvage handoff feels like',
           paragraphs: [
             'A good salvage claim gives you enough context to continue confidently: session id, purpose, notes, and any file or task state that survived the crash. You should feel like you inherited a trail, not like you got a vague hint.',
-            'If the queue is empty when it should not be, that is a product bug worth investigating. The tutorial outcome is not only “continue the work.” It is “prove the daemon preserved recoverable state in the first place.”',
+            'If the queue is empty when it should not be, that is a product bug worth investigating. The tutorial outcome is not only “continue the work.” It is “prove Port Daddy preserved recoverable state in the first place.”',
           ],
         },
       ],
@@ -130,7 +130,7 @@ export const tutorialsSection: DocsContentSection = {
         },
         {
           path: 'AGENTS.md',
-          rationale: 'Repo instructions tell operators to run salvage when abandoned work might still matter.',
+          rationale: 'Repo instructions tell users to run salvage when abandoned work might still matter.',
         },
       ],
     },
@@ -138,20 +138,20 @@ export const tutorialsSection: DocsContentSection = {
       slug: 'launch-and-inspect-a-sortie',
       title: 'Launch And Inspect A Sortie',
       summary:
-        'Create a tracked mission, inspect the durable sortie record, and read the event log instead of trusting raw process output.',
+        'Create a tracked mission, inspect the saved sortie record, and read the event log.',
       truth: 'source-backed',
       goals: [
-        'Use the shipped sortie surface truthfully.',
+        'Use the shipped sortie workflow as it exists today.',
         'Inspect status and logs from the persisted record.',
         'Understand the current boundary between shipped sortie state and future richer orchestration.',
       ],
       blocks: [
         {
           type: 'paragraph',
-          title: 'Use the sortie surface for tracked missions',
+          title: 'Use sortie for tracked missions',
           paragraphs: [
             'A sortie is for work you want to inspect later as a mission, not just as one terminal run. The current slice is intentionally modest: it gives you a durable id, a persisted mission record, and an event log you can read back after the coordinating run finishes.',
-            'That matters because many delegation failures are really inspection failures. If you cannot come back later and understand what happened, the system has not given you a usable mission surface. This tutorial stays inside the truth the repo actually ships today.',
+            'That matters because many delegation failures are really inspection failures. If you cannot come back later and understand what happened, the system has not given you a useful mission record. This tutorial stays inside what the repo actually ships today.',
           ],
         },
         {
@@ -160,7 +160,7 @@ export const tutorialsSection: DocsContentSection = {
           command:
             'pd sortie "Review the latest auth changes and summarize the real risks" --budget 0.50\npd sortie list\npd sortie status <sortie-id>\npd sortie logs <sortie-id>',
           notes: [
-            'Launch with an explicit budget ceiling so spend stays part of the operator contract.',
+            'Launch with an explicit budget ceiling so spend stays visible.',
             'Use the persisted sortie id for later inspection instead of scraping raw child-process output.',
             'Read the logs when you need the event narrative, not just the final status.',
           ],
@@ -170,14 +170,14 @@ export const tutorialsSection: DocsContentSection = {
           items: [
             'Expect durable ids, status, and logs from the shipped slice.',
             'Do not expect approval queues or rich multi-agent mission authoring yet.',
-            'Use sortie when you need a tracked mission surface, not when one bounded `pd agent` run is enough.',
+            'Use sortie when you need a tracked mission, not when one bounded `pd agent` run is enough.',
           ],
         },
         {
           type: 'paragraph',
           title: 'What the current slice buys you',
           paragraphs: [
-            'The shipped slice already solves one important operator problem: you can launch a mission, walk away, and return to a durable record instead of hoping the terminal scrollback still tells the story.',
+            'The shipped slice already solves one important user problem: you can launch a mission, walk away, and return to a durable record instead of hoping the terminal scrollback still tells the story.',
             'The richer multi-agent mission engine is still a later layer. The tutorial should make that boundary feel crisp rather than coy, because that honesty is what keeps the docs credible.',
           ],
         },
@@ -185,7 +185,7 @@ export const tutorialsSection: DocsContentSection = {
       sources: [
         {
           path: 'docs/DELEGATION-MODES.md',
-          rationale: 'Delegation modes document defines the truthful current sortie surface and its gaps.',
+          rationale: 'Delegation modes document defines current sortie behavior and gaps.',
         },
         {
           path: 'routes/sorties.ts',
@@ -204,17 +204,17 @@ export const tutorialsSection: DocsContentSection = {
         'Use the Mac app and CLI together so every public primitive has a concrete place in a first-day workflow.',
       truth: 'source-backed',
       goals: [
-        'Tie the public primitive cards to real surfaces.',
+        'Tie the public primitive cards to real product features.',
         'Use FleetBar, Shipwright, and Flow in one cold-start path.',
         'Know which docs and tutorial page to open next.',
       ],
       blocks: [
         {
           type: 'paragraph',
-          title: 'Start from the product surface',
+          title: 'Start from the product',
           paragraphs: [
             'Open the Mac preview when the question is visual: what does the app do, what does FleetBar embed, and where do resources, sorties, Shipwright, backend readiness, and agent communication appear?',
-            'Open the primitives tutorial when the question is procedural: which command or app surface proves each primitive is real, and what should an operator inspect after running it?',
+            'Open the primitives tutorial when the question is procedural: which command or app view proves each primitive is real, and what should you inspect after running it?',
           ],
         },
         {
@@ -223,7 +223,7 @@ export const tutorialsSection: DocsContentSection = {
           command:
             'pd setup --project ~/coding/my-app\npd status\npd briefing\npd fleet models\npd guard status\npd salvage --project my-app',
           notes: [
-            'Setup installs the daemon-facing control plane and FleetBar path.',
+            'Setup installs the local daemon and FleetBar path.',
             'Status, briefing, model readiness, guard status, and salvage show whether the product is ready before you launch more work.',
             'Shipwright and Flow keep the proposed fleet attached to project identity after cold start.',
           ],
@@ -237,7 +237,7 @@ export const tutorialsSection: DocsContentSection = {
           tone: 'info',
           title: 'Tutorial and docs coverage are paired',
           body:
-            'Concepts names the primitives and explains the model. The primitives tutorial walks them as an operator path using the Mac app, CLI, and Fleet Control Center together.',
+            'Concepts names the primitives and explains the model. The primitives tutorial walks them as a first-day path using the Mac app, CLI, and Fleet Control Center together.',
         },
       ],
       sources: [

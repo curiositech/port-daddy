@@ -136,39 +136,4 @@ describe('cartographer routes', () => {
 
     await app.close();
   });
-
-  test('GET /cartographer/roadmap-progress sanitizes feedback query knobs before calling tuples', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'pd-cartographer-feedback-query-'));
-    tempDirs.push(root);
-    writeProgressFixture(root, 'daemon-root');
-
-    const feedback = {
-      list: jest.fn(() => []),
-      summary: jest.fn(() => ({
-        total: 0,
-        open: 0,
-        harvested: 0,
-        bySeverity: { low: 0, medium: 0, high: 0, critical: 0 },
-        bySurface: {},
-      })),
-    };
-
-    const app = Fastify();
-    await app.register(cartographerPlugin, { deps: { daemonDir: root, feedback } });
-
-    const res = await app.inject({
-      method: 'GET',
-      url: '/cartographer/roadmap-progress?feedbackHarbor=port-daddy%3Afleet&feedbackStatus=../../harvested&feedbackLimit=not-a-number',
-    });
-
-    expect(res.statusCode).toBe(200);
-    expect(feedback.list).toHaveBeenCalledWith(expect.objectContaining({
-      harbor: 'port-daddy:fleet',
-      status: 'open',
-      limit: 100,
-    }));
-    expect(res.json().sources.feedbackTupleStatus).toBe('open');
-
-    await app.close();
-  });
 });

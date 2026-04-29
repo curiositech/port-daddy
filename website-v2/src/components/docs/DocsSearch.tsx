@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { Search, X, FileText, Terminal, Code, Cpu, ChevronRight } from 'lucide-react'
 import { ALL_CATEGORIES } from '@/data/mcp'
+import { CLI_REFERENCE_GROUPS, SDK_REFERENCE_GROUPS, referenceAnchor } from '@/data/referenceCatalog'
 import { OPEN_DOCS_SEARCH_EVENT } from './docsSearchEvents'
 
 interface SearchResult {
@@ -33,6 +34,38 @@ const MCP_TOOL_SEARCH_RESULTS: SearchResult[] = ALL_CATEGORIES.flatMap((category
   return results
 })
 
+const CLI_COMMAND_SEARCH_RESULTS: SearchResult[] = CLI_REFERENCE_GROUPS.flatMap((group) =>
+  group.items.map((command) => ({
+    title: command.name,
+    href: command.href ?? `/docs/cli#${referenceAnchor(command.name)}`,
+    category: `CLI: ${group.title}`,
+    icon: Terminal,
+    description: [
+      command.description,
+      command.aliases?.length ? `Aliases: ${command.aliases.join(', ')}` : '',
+      command.flags?.length ? `Flags: ${command.flags.join(', ')}` : '',
+    ].filter(Boolean).join(' '),
+  })),
+)
+
+const SDK_GROUP_SEARCH_RESULTS: SearchResult[] = SDK_REFERENCE_GROUPS.map((group) => ({
+  title: `${group.title} SDK Methods`,
+  href: group.href ?? `/docs/sdk#${referenceAnchor(group.title)}`,
+  category: 'SDK',
+  icon: Code,
+  description: `${group.description} ${group.items.map((item) => `${item.name}()`).join(', ')}`,
+}))
+
+const SDK_METHOD_SEARCH_RESULTS: SearchResult[] = SDK_REFERENCE_GROUPS.flatMap((group) =>
+  group.items.map((method) => ({
+    title: `${method.name}()`,
+    href: `/docs/sdk#${referenceAnchor(method.name)}`,
+    category: `SDK: ${group.title}`,
+    icon: Code,
+    description: method.description,
+  })),
+)
+
 // Search index - all documentation pages
 const SEARCH_INDEX: SearchResult[] = [
   // Overview
@@ -40,59 +73,13 @@ const SEARCH_INDEX: SearchResult[] = [
   { title: 'Quick Start', href: '/docs/quickstart', category: 'Getting Started', icon: FileText, description: 'Get up and running in 5 minutes' },
   { title: 'Ports & Identities', href: '/docs/features/ports', category: 'Getting Started', icon: FileText, description: 'Core concept: semantic identities and deterministic ports' },
   
-  // CLI - Ports
-  { title: 'pd claim', href: '/docs/cli/claim', category: 'CLI', icon: Terminal, description: 'Claim a port for a service' },
-  { title: 'pd release', href: '/docs/cli/release', category: 'CLI', icon: Terminal, description: 'Release a port claim' },
-  { title: 'pd find', href: '/docs/cli/find', category: 'CLI', icon: Terminal, description: 'Find assigned port' },
-  { title: 'pd services', href: '/docs/cli/services', category: 'CLI', icon: Terminal, description: 'List all services' },
-  { title: 'pd scan', href: '/docs/cli/scan', category: 'CLI', icon: Terminal, description: 'Scan directory for services' },
-  { title: 'pd up', href: '/docs/cli/up', category: 'CLI', icon: Terminal, description: 'Start all services' },
-  { title: 'pd down', href: '/docs/cli/down', category: 'CLI', icon: Terminal, description: 'Stop all services' },
-  { title: 'pd status', href: '/docs/cli/status', category: 'CLI', icon: Terminal, description: 'Check daemon status' },
-  
-  // CLI - Sessions
-  { title: 'pd begin', href: '/docs/cli/begin', category: 'CLI', icon: Terminal, description: 'Start a new session' },
-  { title: 'pd done', href: '/docs/cli/done', category: 'CLI', icon: Terminal, description: 'Complete a session' },
-  { title: 'pd whoami', href: '/docs/cli/whoami', category: 'CLI', icon: Terminal, description: 'Show current identity' },
-  { title: 'pd note', href: '/docs/cli/note', category: 'CLI', icon: Terminal, description: 'Add a note' },
-  { title: 'pd notes', href: '/docs/cli/notes', category: 'CLI', icon: Terminal, description: 'View notes' },
-  
-  // CLI - Locks
-  { title: 'pd lock acquire', href: '/docs/cli/lock-acquire', category: 'CLI', icon: Terminal, description: 'Acquire a distributed lock' },
-  { title: 'pd lock release', href: '/docs/cli/lock-release', category: 'CLI', icon: Terminal, description: 'Release a lock' },
-  { title: 'pd with-lock', href: '/docs/cli/with-lock', category: 'CLI', icon: Terminal, description: 'Run command with lock' },
-  
-  // CLI - Messaging
-  { title: 'pd msg', href: '/docs/cli/msg', category: 'CLI', icon: Terminal, description: 'Messaging commands' },
-  { title: 'pd pub', href: '/docs/cli/pub', category: 'CLI', icon: Terminal, description: 'Publish a message' },
-  { title: 'pd watch', href: '/docs/cli/watch', category: 'CLI', icon: Terminal, description: 'Watch a channel' },
-  
-  // CLI - Agents
-  { title: 'pd spawn', href: '/docs/cli/spawn', category: 'CLI', icon: Terminal, description: 'Spawn an AI agent' },
-  { title: 'pd spawned', href: '/docs/cli/spawned', category: 'CLI', icon: Terminal, description: 'List spawned agents' },
-  { title: 'pd agent register', href: '/docs/cli/agent-register', category: 'CLI', icon: Terminal, description: 'Register an agent' },
-  { title: 'pd salvage', href: '/docs/cli/salvage', category: 'CLI', icon: Terminal, description: 'View salvage queue' },
-  { title: 'pd salvage claim', href: '/docs/cli/salvage-claim', category: 'CLI', icon: Terminal, description: 'Claim dead agent work' },
-  
-  // CLI - Harbors
-  { title: 'pd harbor create', href: '/docs/cli/harbor-create', category: 'CLI', icon: Terminal, description: 'Create a harbor' },
-  { title: 'pd harbor enter', href: '/docs/cli/harbor-enter', category: 'CLI', icon: Terminal, description: 'Enter a harbor' },
-  { title: 'pd harbor leave', href: '/docs/cli/harbor-leave', category: 'CLI', icon: Terminal, description: 'Leave a harbor' },
-  { title: 'pd harbors', href: '/docs/cli/harbors', category: 'CLI', icon: Terminal, description: 'List harbors' },
-  
-  // CLI - DNS
-  { title: 'pd dns', href: '/docs/cli/dns', category: 'CLI', icon: Terminal, description: 'DNS commands' },
-  
-  // CLI - Tunnels
-  { title: 'pd tunnel', href: '/docs/cli/tunnel', category: 'CLI', icon: Terminal, description: 'Create a tunnel' },
-  { title: 'pd tunnel stop', href: '/docs/cli/tunnel-stop', category: 'CLI', icon: Terminal, description: 'Stop a tunnel' },
-  
+  // CLI
+  ...CLI_COMMAND_SEARCH_RESULTS,
+
   // SDK
   { title: 'SDK Overview', href: '/docs/sdk', category: 'SDK', icon: Code, description: 'TypeScript SDK introduction' },
-  { title: 'Ports Module', href: '/docs/sdk/ports', category: 'SDK', icon: Code, description: 'claim(), release(), find(), etc.' },
-  { title: 'Sessions Module', href: '/docs/sdk/sessions', category: 'SDK', icon: Code, description: 'begin(), done(), whoami(), etc.' },
-  { title: 'Locks Module', href: '/docs/sdk/locks', category: 'SDK', icon: Code, description: 'acquire(), release(), withLock()' },
-  { title: 'Harbors Module', href: '/docs/sdk/harbors', category: 'SDK', icon: Code, description: 'createHarbor(), enterHarbor(), etc.' },
+  ...SDK_GROUP_SEARCH_RESULTS,
+  ...SDK_METHOD_SEARCH_RESULTS,
   
   // MCP
   { title: 'MCP Overview', href: '/docs/mcp', category: 'MCP', icon: Cpu, description: 'Model Context Protocol integration' },

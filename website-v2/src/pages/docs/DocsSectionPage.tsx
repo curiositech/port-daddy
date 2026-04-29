@@ -270,8 +270,8 @@ export default function DocsSectionPage() {
             titleSize="nav"
           >
             <PanelBody size="compact" className="max-w-none">
-              These pages are a focused thread. Pick the entry point that matches the operator question, protocol
-              question, or integration task you are working through now.
+              These pages are a focused thread. Pick the entry point that matches the question, command, or
+              integration task you are working through now.
             </PanelBody>
           </DocsNoteCard>
 

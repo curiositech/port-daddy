@@ -50,8 +50,8 @@ export default function DocsOverview() {
   const siteSurfaces = [
     { title: 'Mac Preview', href: '/mac-preview' },
     { title: 'Runnable examples', href: '/examples' },
-    { title: 'Templates', href: '/templates' },
-    { title: 'MCP overview', href: '/mcp' },
+    { title: 'Templates', href: '/agents/templates' },
+    { title: 'Skill + MCP', href: '/mcp' },
     { title: 'Agents', href: '/agents' },
   ]
 
@@ -59,11 +59,11 @@ export default function DocsOverview() {
     <div className="space-y-[var(--space-6)]">
       <DocsHero
         eyebrow="Documentation"
-        title="Read the protocol. Bring up the daemon. Learn the operating model."
-        summary="These docs are for engineers evaluating whether Port Daddy can keep real multi-agent repo work legible, governable, and worth trusting."
+        title="What Port Daddy Is And How To Use It"
+        summary="Port Daddy is a local app and background service for AI coding agents. It helps agents share context, avoid collisions, recover interrupted work, and show what is happening on your machine."
         paragraphs={[
-          'Start with the whitepaper if you need the trust boundary, the governance argument, and the line between cryptographic guarantees and host-level reality.',
-          'Move into get started once you want a live daemon on your machine. From there, use concepts and best practices to understand the model and the operator loop, then drop into examples, tutorials, reference architectures, and reference when you need exact workflows or surfaces.',
+          'Start with Get Started if you are installing Port Daddy for the first time. It walks through setup, status checks, and the first session loop.',
+          'Use Concepts and Best Practices when you want the mental model. Use Examples and Tutorials when you want to run something. Use Reference when you need exact commands, routes, SDK calls, or MCP tools.',
         ]}
       />
 
@@ -72,19 +72,19 @@ export default function DocsOverview() {
           title="Install Port Daddy"
           command={heroInstall.command}
           elevation="quiet"
-          description="Install the daemon, provision the control plane, and verify the live runtime on your machine."
+          description="Install Port Daddy, start the local service, and open the dashboard on your machine."
         />
 
         <DocsNoteCard
           label="Reading path"
-          title="Trust boundary first. Workflows second."
+          title="Start here. Read deeper when you need it."
           elevation="quiet"
           padding="compact"
           titleSize="nav"
         >
           <PanelBody size="compact" className="max-w-none">
-            Start with the papers and get started. After that, choose the section that matches the job in front of you
-            instead of reading the docs like a linear manual.
+            Start with Get Started and the sections that match the job in front of you. The whitepaper is there when
+            you need the deeper security and design background.
           </PanelBody>
           <div className="flex flex-wrap gap-[var(--panel-gap-tight)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
             {readingPath.map((item, index) => (
@@ -99,32 +99,14 @@ export default function DocsOverview() {
             ))}
           </div>
           <PanelBody size="compact" className="max-w-none">
-            Concepts explains the model. Best practices explains the operator discipline. Examples lives at the top
-            level because it is runnable code. Tutorials, architectures, and reference stay inside the docs.
+            Concepts explains the model. Best practices explains the habits. Examples lives at the top level because
+            it is runnable code. Tutorials, architectures, and reference stay inside the docs.
           </PanelBody>
         </DocsNoteCard>
       </div>
 
       <DocsNoteCard
-        label="Examples route"
-        title="/examples is the runnable path."
-        elevation="quiet"
-        padding="compact"
-      >
-        <PanelBody size="compact" className="max-w-none">
-          Examples are source-backed working code, so they live outside the docs shell. Use the top-level route for
-          swarm coordination, PD Tube tunnel inspection, service discovery, inbox flows, locks, phases, and dev tools
-          built on top of the daemon.
-        </PanelBody>
-        <div className="flex flex-wrap gap-[var(--panel-gap-tight)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
-          <BracketNavLink to="/examples" tone="accent" side="right">
-            Open /examples
-          </BracketNavLink>
-        </div>
-      </DocsNoteCard>
-
-      <DocsNoteCard
-        label="Reference surfaces"
+        label="Reference pages"
         title="Keep the exact interfaces one click away."
         elevation="quiet"
         padding="compact"
@@ -154,8 +136,8 @@ export default function DocsOverview() {
         padding="compact"
       >
         <PanelBody size="compact" className="max-w-none">
-          The docs shell is for sustained reading. The Mac preview, runnable examples, templates, MCP overview, and
-          agent catalog still matter when you are navigating the working product rather than a linear documentation path.
+          The docs shell is for sustained reading. The Mac preview, runnable examples, agent templates, Skill + MCP,
+          and agent catalog still matter when you are navigating the product rather than a linear documentation path.
         </PanelBody>
         <div className="flex flex-wrap gap-[var(--panel-gap-tight)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
           {siteSurfaces.map((surface, index) => (

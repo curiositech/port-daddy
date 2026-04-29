@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Port Daddy — Architecture Brief</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:'neutral',securityLevel:'loose',flowchart:{curve:'basis'}});</script>
+<style>
+  :root {
+    --ink: #1E1B18;
+    --paper: #FAF7F2;
+    --sand: #D4C5A9;
+    --red: #CC3D2E;
+    --line: #1E1B18;
+    --muted: #6b6358;
+    --accent: #2b6f6c;
+  }
+  html,body { background: var(--paper); color: var(--ink); font: 16px/1.55 -apple-system,BlinkMacSystemFont,system-ui,sans-serif; margin: 0; }
+  main { max-width: 880px; margin: 0 auto; padding: 56px 28px 96px; }
+  header { border-bottom: 3px solid var(--ink); padding-bottom: 24px; margin-bottom: 32px; }
+  header .eyebrow { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--red); margin: 0 0 8px; }
+  header h1 { font-size: 40px; line-height: 1.05; margin: 0 0 8px; letter-spacing: -.02em; }
+  header p.lede { font-size: 18px; color: var(--muted); margin: 12px 0 0; max-width: 64ch; }
+  h2 { margin: 56px 0 16px; font-size: 24px; padding-bottom: 8px; border-bottom: 2px solid var(--ink); letter-spacing: -.01em; }
+  h3 { margin: 32px 0 8px; font-size: 18px; }
+  p { max-width: 70ch; }
+  code, pre { font-family: ui-monospace,SFMono-Regular,Menlo,monospace; font-size: 13.5px; }
+  code { background: rgba(30,27,24,.06); padding: 1px 4px; border-radius: 2px; }
+  pre { background: var(--ink); color: var(--paper); padding: 16px; border-radius: 4px; overflow-x: auto; line-height: 1.45; }
+  pre code { background: transparent; padding: 0; color: inherit; }
+  .pull { background: var(--sand); border-left: 4px solid var(--red); padding: 14px 18px; margin: 20px 0; }
+  .pull strong { color: var(--red); }
+  .mermaid { background: white; border: 2px solid var(--ink); padding: 18px; margin: 18px 0; overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; margin: 16px 0; font-size: 14.5px; }
+  th, td { border: 1px solid var(--ink); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--sand); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin: 18px 0; }
+  .card { border: 2px solid var(--ink); padding: 14px 16px; background: white; }
+  .card h4 { margin: 0 0 6px; font-size: 15px; }
+  .card p { margin: 0; font-size: 14px; color: var(--muted); }
+  footer { margin-top: 80px; padding-top: 16px; border-top: 1px solid var(--ink); font-size: 13px; color: var(--muted); }
+  .legend { font-size: 13px; color: var(--muted); margin-top: -10px; }
+  hr { border: none; border-top: 1px solid var(--ink); opacity: .15; margin: 32px 0; }
+  .kbd { font-family: ui-monospace,monospace; font-size: 12px; border: 1px solid var(--ink); padding: 1px 5px; border-radius: 2px; background: white; }
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <p class="eyebrow">architecture brief · v3.11 · 2026-04</p>
+  <h1>Port Daddy: a coordination substrate for agents that live and die.</h1>
+  <p class="lede">One local daemon. SQLite of record. Two sockets — HTTP for humans, MessagePack-binary for the agent hot path. Every primitive is small, advisory by default, and survives the agent that wrote it.</p>
+</header>
+
+<h2>1. The whole thing in one diagram</h2>
+
+<div class="mermaid">
+flowchart LR
+  subgraph clients[Clients]
+    cli[pd CLI]
+    sdk[SDK / lib/client.ts]
+    mcp[MCP server]
+    fb[FleetBar.app]
+    dash[Dashboard browser]
+  end
+
+  subgraph daemon[Port Daddy daemon · localhost:9876]
+    fast[Fastify HTTP API]
+    ipc[Binary IPC<br/>~/.port-daddy/daemon.ipc]
+    routes[(routes/*)]
+    libs[(lib/*)]
+    fleetd[Fleet daemon<br/>auto-starts on boot]
+    arb[Arbiter<br/>invariant guard]
+  end
+
+  subgraph state[State of record]
+    sqlite[(SQLite<br/>port-registry.db)]
+    keys[~/.port-daddy/master.key<br/>AES-256-GCM]
+    socks[~/.port-daddy/<br/>daemon.sock<br/>daemon.ipc<br/>daemon.pid]
+  end
+
+  subgraph spawn[Spawned work]
+    agents[fleet agents<br/>claude-cli · ollama · custom]
+    work[user agents<br/>Claude Code · Cursor · CLIs]
+  end
+
+  cli & sdk & mcp & fb & dash --> fast
+  work & agents --> ipc
+  work & agents -.HTTP fallback.-> fast
+  fast --> routes --> libs --> sqlite
+  ipc --> libs
+  libs --> arb
+  fleetd --> agents
+  libs --> keys
+  daemon --- socks
+</div>
+
+<p class="legend">Solid lines: in-band protocol. Dashed: fallback path. The daemon is the only writer to <code>port-registry.db</code>; everything else is a client.</p>
+
+<h2>2. The bones — what's load-bearing</h2>
+
+<div class="grid2">
+  <div class="card">
+    <h4>SQLite is the truth</h4>
+    <p>Every primitive — sessions, notes, locks, file claims, tuples, pheromones, salvage queue — persists to a single <code>port-registry.db</code>. Atomic ops are a single transaction. Restart loses nothing.</p>
+  </div>
+  <div class="card">
+    <h4>Two sockets, two latencies</h4>
+    <p>HTTP for control (CLI, dashboard, ~200µs). Binary IPC over Unix socket for hot-path (heartbeats, pheromone, pub/sub, ~3µs). SDK falls back to HTTP if IPC is unavailable.</p>
+  </div>
+  <div class="card">
+    <h4>Identity is the address</h4>
+    <p><code>project:stack:context</code>. Same identity → same port, deterministically. Same identity → same harbor membership. Same identity → same registration namespace.</p>
+  </div>
+  <div class="card">
+    <h4>Notes are encrypted, append-only</h4>
+    <p>AES-256-GCM at rest. Key in <code>~/.port-daddy/master.key</code> (mode 0600). No edit, no delete — supersession by writing a new note. The audit trail is the contract.</p>
+  </div>
+  <div class="card">
+    <h4>Coordination is advisory</h4>
+    <p>File claims warn, don't block. Two agents in the same file is a <em>conversation</em>, not a deadlock. For exclusion that must hold, use a <code>lock</code>.</p>
+  </div>
+  <div class="card">
+    <h4>Death is preserved</h4>
+    <p>An agent that stops heartbeating becomes a <em>salvage entry</em>. Its session, notes, and file claims are visible to anyone with <code>pd salvage</code>. The next agent picks up where it died.</p>
+  </div>
+</div>
+
+<h2>3. An agent's lifetime, one sequence</h2>
+
+<div class="mermaid">
+sequenceDiagram
+  autonumber
+  participant A as Agent (Claude Code)
+  participant D as PD daemon
+  participant S as SQLite
+  participant B as Other agents
+
+  A->>D: pd whoami
+  D->>S: SELECT current session for PID
+  D-->>A: (none) or session_id
+  A->>D: pd sitrep --since 60
+  D-->>A: activity + notes + salvage + spawned
+  A->>D: pd salvage --project myapp
+  alt dead agents present
+    A->>D: pd salvage claim &lt;dead-id&gt;
+    D-->>A: inherits session, notes, file claims
+  else fresh start
+    A->>D: pd begin --identity myapp:api:feat-x --purpose "..."
+    D->>S: INSERT session, agent
+    D-->>A: session_id, agent_id
+  end
+  A->>D: pd session files claim src/auth/jwt.ts
+  D->>S: INSERT file_claim
+  D-->>B: dashboard SSE event
+  loop every 5 minutes
+    A->>D: heartbeat (IPC fast path)
+  end
+  A->>D: pd note --type progress "..."
+  D->>S: INSERT (encrypted) note
+  A->>D: pd note --type handoff "..."
+  A->>D: pd done
+  D->>S: UPDATE session status
+  D-->>A: bye
+</div>
+
+<h2>4. The primitive map — when each one</h2>
+
+<p>Six primitives cover almost all coordination. Picking the wrong one is the most expensive mistake; the table below is the decision.</p>
+
+<table>
+<tr><th>Primitive</th><th>Durability</th><th>Cardinality</th><th>Use when</th><th>Don't use when</th></tr>
+<tr><td><strong>Session</strong></td><td>mutable, completes</td><td>1 per agent</td><td>You are doing work that should be visible/salvageable.</td><td>Single one-off CLI invocation.</td></tr>
+<tr><td><strong>Note</strong></td><td>append-only forever</td><td>many per session</td><td>You decided / shipped / found / blocked something.</td><td>Scratchpad. Use a different file.</td></tr>
+<tr><td><strong>File claim</strong></td><td>session-bounded</td><td>many per file</td><td>You're about to edit a file (advisory warning).</td><td>You need <em>guaranteed</em> exclusion. Use a lock.</td></tr>
+<tr><td><strong>Lock</strong></td><td>TTL-bounded</td><td>1 holder</td><td>Critical section: deploy, migration, cache rebuild.</td><td>Anything you'd do twice. Locks are for exactly-once.</td></tr>
+<tr><td><strong>Pub/sub</strong></td><td>ephemeral</td><td>fan-out</td><td>"Database is ready" → many watchers run.</td><td>You need durable history. Use notes.</td></tr>
+<tr><td><strong>Tuple</strong> (Linda)</td><td>TTL or until taken</td><td><code>rd</code> = fan-out, <code>in</code> = exactly-once</td><td>Typed shared memory, work-stealing queues.</td><td>Ordering matters. Tuples are unordered.</td></tr>
+<tr><td><strong>Pheromone</strong></td><td>geometric decay</td><td>scalar field</td><td>"Where is everyone?" heat maps, contention.</td><td>You need an answer. Pheromones give gradients.</td></tr>
+</table>
+
+<h2>5. Fleets — coordination as a config file</h2>
+
+<p>A <code>pd-fleet.yml</code> declares background agents. The daemon watches the file, hot-reloads on change, and runs the agents under spawn quotas. Triggers fan in: cron, pub/sub, tuple-shape match. Side effects fan out: <code>on_success: publish &lt;channel&gt;</code> chains agents into pipelines.</p>
+
+<div class="mermaid">
+flowchart TD
+  hook([git post-commit hook]) -->|publishes| ch1((git:committed))
+  ch1 --> qa[QA agent<br/>claude-cli]
+  ch1 --> docs[Documentarian<br/>ollama]
+  qa -- on_success --> ch2((qa:clean))
+  qa -- on_failure --> ch3((qa:findings))
+  ch2 --> deploy[Deploy gate]
+  ch3 --> cart[Cartographer]
+  cron([cron */30]) --> cart
+  cart -- writes --> notes[(immutable notes)]
+  qa -- writes --> notes
+</div>
+
+<p class="legend">Channels are the typed messaging fabric. Producers publish; consumers subscribe. The topology validator walks this graph at fleet startup and warns on dead-end channels.</p>
+
+<div class="pull">
+<strong>The footgun.</strong> <code>fleet.name</code> in <code>pd-fleet.yml</code> must equal <code>basename(projectDir)</code>. The post-commit hook publishes to <code>project:&lt;basename&gt;:&lt;hash&gt;:git:committed</code>; if the name drifts, every <code>trigger: git:committed</code> agent goes silently dormant. Validate with <code>scripts/fleet-validate.sh</code>.
+</div>
+
+<h2>6. Death &amp; salvage</h2>
+
+<p>The least flashy feature, the most load-bearing one. An agent's heartbeat is its sign of life. Stop heartbeating for 20 minutes and you're enqueued for salvage. Your session, notes, file claims, and identity all survive. Another agent reads your <code>handoff</code> note and continues.</p>
+
+<div class="mermaid">
+stateDiagram-v2
+  [*] --> alive: pd begin
+  alive --> alive: heartbeat (5m)
+  alive --> stale: no heartbeat (10m)
+  stale --> alive: heartbeat returns
+  stale --> dead: still silent (20m)
+  dead --> enqueued: reaper sweep
+  enqueued --> claimed: pd salvage claim
+  claimed --> completed: pd salvage complete
+  claimed --> enqueued: pd salvage abandon
+  completed --> [*]
+</div>
+
+<p>Salvage is <em>note-passing, not state recovery</em>. Code-state is not preserved. The dying agent's <code>handoff</code> note is the only contract. This is why the per-milestone <code>progress</code> note discipline matters — without it, the salvager is reading tea leaves.</p>
+
+<h2>7. The honesty contract</h2>
+
+<p>Three properties make Port Daddy useful instead of decorative:</p>
+
+<ol>
+  <li><strong>Advisory by default.</strong> Claims, notes, pheromones — none of them block another agent. They make the world legible. If you want exclusion, use a lock and own the consequences.</li>
+  <li><strong>Daemon is the only writer.</strong> Race conditions live inside SQLite transactions, not in agent code. Agents see consistent reads.</li>
+  <li><strong>Notes are forever.</strong> You cannot rewrite history. This is what lets the audit trail be load-bearing — agents can trust what they read.</li>
+</ol>
+
+<h2>8. Where the layers live</h2>
+
+<table>
+<tr><th>Layer</th><th>What it owns</th><th>Source</th></tr>
+<tr><td>HTTP routes</td><td>Validation, request shape, JSON serialization</td><td><code>routes/*.ts</code></td></tr>
+<tr><td>IPC routing</td><td>Frame parsing, FIPA performatives, subscription replay</td><td><code>lib/ipc-*.ts</code></td></tr>
+<tr><td>Domain modules</td><td>Atomic primitives, SQLite transactions</td><td><code>lib/sessions.ts</code>, <code>lib/tuples.ts</code>, <code>lib/locks.ts</code>, …</td></tr>
+<tr><td>Identity / trie</td><td>O(k) lookup; pattern matching</td><td><code>lib/identity.ts</code>, <code>lib/trie.ts</code></td></tr>
+<tr><td>Fleet engine</td><td>YAML parsing, trigger dispatch, spawn quotas, respawn</td><td><code>lib/fleet-engine.ts</code>, <code>lib/fleet-daemon.ts</code></td></tr>
+<tr><td>Arbiter</td><td>Invariant enforcement (PID squat, heartbeat freshness, note monotonicity)</td><td><code>lib/arbiter.ts</code></td></tr>
+<tr><td>Spawner</td><td>Subprocess management for fleet agents</td><td><code>lib/spawner.ts</code></td></tr>
+<tr><td>Cost &amp; counters</td><td>Per-spawn cost recording, ODS metrics, golden signals</td><td><code>lib/cost-tracker.ts</code>, <code>lib/counters.ts</code></td></tr>
+</table>
+
+<h2>9. What Port Daddy is NOT</h2>
+
+<ul>
+  <li><strong>Not a service mesh.</strong> No mTLS, no traffic shaping, no upstream/downstream routing. Use Caddy / Envoy / Linkerd.</li>
+  <li><strong>Not a job queue.</strong> Tuples come close, but no retry policy, no dead-letter, no priority. Use a real queue if you need queue semantics.</li>
+  <li><strong>Not a deploy tool.</strong> Locks help guard a deploy; PD doesn't run one.</li>
+  <li><strong>Not a checkpointing system.</strong> Salvage preserves notes, not code state. Re-derive from git.</li>
+  <li><strong>Not multi-host.</strong> Local daemon, single machine. Mesh-mode is on the roadmap; today PD is per-developer.</li>
+</ul>
+
+<h2>10. Coda — why it works</h2>
+
+<p>Coordination problems in agent fleets are almost never about CAP or consensus. They are about <em>two agents who don't know about each other</em>. PD makes that impossible: the moment you <code>pd begin</code>, every other agent on the daemon can see you, your purpose, your files, your notes. Everything else — fleets, tuples, pheromones — is sugar on top of "make agents legible to each other."</p>
+
+<p>The price is small: one daemon, one SQLite file, a few seconds of session-start ritual, and the discipline to write a note when you decide something. The return is that two agents in the same repo no longer destroy each other's work.</p>
+
+<footer>
+  Port Daddy v3.11 · architecture brief · companion to <code>SKILL.md</code>, <code>schemas/</code>, <code>examples/</code>. Source of truth: <code>~/coding/port-daddy/CLAUDE.md</code> &amp; <code>lib/</code>.
+</footer>
+
+</main>
+</body>
+</html>

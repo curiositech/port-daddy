@@ -44,7 +44,7 @@ $ pd setup --project ~/coding/my-app
   fleetbar: installed in ~/Applications/Port Daddy/FleetBar.app
   project: initialized for Port Daddy
 
-# FleetBar opens the same control plane the daemon serves
+# FleetBar opens the same dashboard the daemon serves
 $ open "http://127.0.0.1:9876/fleet-ui/?surface=flow"
   Fleet Control Center ready`,
   },

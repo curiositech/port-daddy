@@ -5,7 +5,7 @@ export default function HarborsCommand() {
     <CommandPage
       command="harbors"
       description="List all active harbors and their capabilities."
-      version="3.8.3"
+      version="3.11.0"
       syntax="pd harbors"
       flags={[
         { flag: '-j, --json', description: 'JSON output' },

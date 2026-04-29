@@ -5,7 +5,7 @@ export default function LockAcquireCommand() {
     <CommandPage
       command="pd lock acquire"
       description="Acquire a distributed lock. Only one holder at a time. Returns immediately if lock is already held (non-blocking by default). Essential for preventing race conditions in multi-agent workflows."
-      version="3.8.3"
+      version="3.11.0"
       syntax="pd lock acquire <name> [flags]"
       flags={[
         { flag: '--ttl <ms>', description: 'Lock timeout in ms (default 300000 = 5min)' },

@@ -6,7 +6,7 @@ export default function ListNotes() {
       function="listNotes"
       description="Show recent notes. Without filters, returns the last 10 notes across all sessions."
       module="Sessions"
-      version="3.8.3"
+      version="3.11.0"
       signature="listNotes(options?: ListNotesOptions): Promise<Note[]>"
       params={[
         { name: 'options.session', type: 'string', description: 'Filter by specific session ID' },

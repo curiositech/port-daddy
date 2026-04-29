@@ -6,7 +6,7 @@ export default function TunnelStop() {
       function="tunnelStop"
       description="Stop an active tunnel."
       module="Tunnels"
-      version="3.8.3"
+      version="3.11.0"
       signature="tunnelStop(identity: string): Promise<boolean>"
       params={[
         { name: 'identity', type: 'string', required: true, description: 'Service identity whose tunnel to stop' },

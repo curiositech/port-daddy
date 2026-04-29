@@ -34,7 +34,7 @@ const surfaceBracketTone: Record<AccentTone, string> = {
 const SurfaceToneContext = createContext<AccentTone>('paper')
 
 const panelEyebrowClass =
-  'font-sans text-[length:var(--type-meta-size)] font-medium uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)]'
+  'font-sans text-[length:var(--type-meta-size)] font-medium uppercase tracking-[var(--tracking-meta)]'
 
 const panelTitleSize = {
   hero: 'text-[length:var(--type-hero-size)] leading-[var(--leading-display-tight)] tracking-[var(--tracking-display-tight)]',
@@ -155,6 +155,7 @@ export function PanelTitle({
   as,
   children,
   className,
+  id,
   size = 'card',
   tone = 'default',
   caps = false,
@@ -162,6 +163,7 @@ export function PanelTitle({
   as?: ElementType
   children: ReactNode
   className?: string
+  id?: string
   size?: keyof typeof panelTitleSize
   tone?: 'default' | 'primary' | 'accent'
   caps?: boolean
@@ -177,6 +179,7 @@ export function PanelTitle({
   return (
     <Component
       data-slot="panel-title"
+      id={id}
       className={cn(
         'font-display font-black',
         caps ? 'uppercase' : 'normal-case',
@@ -854,15 +857,20 @@ export function DocsCodeBlock({
   language = 'cli',
   label,
   className,
+  variant = 'toolbar',
+  copyable = true,
 }: {
   code: string
   language?: DocsCodeLanguage
   label?: string
   className?: string
+  variant?: 'toolbar' | 'compact'
+  copyable?: boolean
 }) {
   const [copied, setCopied] = useState(false)
   const surface = useSurfaceTone()
   const terminalLabel = label ?? (language === 'cli' ? 'CLI' : language === 'typescript' ? 'TypeScript' : 'Text')
+  const codeLanguage = language === 'typescript' ? 'typescript' : undefined
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(code)
@@ -870,15 +878,44 @@ export function DocsCodeBlock({
     window.setTimeout(() => setCopied(false), 1800)
   }
 
+  if (variant === 'compact') {
+    return (
+      <div className={cn('min-w-0', className)}>
+        {language === 'cli' ? (
+          <CommandTerminal
+            code={code}
+            title={terminalLabel}
+            language="bash"
+            animate={false}
+            copyable={copyable}
+            showHeaderLabel={false}
+          />
+        ) : (
+          <CodeBlock language={codeLanguage} filename={terminalLabel} copyable={copyable} showHeaderLabel={false}>
+            {code}
+          </CodeBlock>
+        )}
+      </div>
+    )
+  }
+
   if (language === 'cli') {
     return (
       <div className={cn('min-w-0 space-y-[var(--space-2)]', className)}>
         <div className="flex items-center justify-between gap-[var(--panel-gap-tight)]">
           <BracketLabel surface={surface}>{terminalLabel}</BracketLabel>
-          <Button type="button" variant="secondary" size="sm" aria-label={`Copy ${terminalLabel}`} onClick={handleCopy}>
-            <Copy size={14} />
-            {copied ? 'Copied' : 'Copy'}
-          </Button>
+          {copyable ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="icon"
+              aria-label={`Copy ${terminalLabel}`}
+              title={copied ? 'Copied' : 'Copy'}
+              onClick={handleCopy}
+            >
+              <Copy size={14} />
+            </Button>
+          ) : null}
         </div>
         <CommandTerminal
           code={code}
@@ -886,6 +923,7 @@ export function DocsCodeBlock({
           language="bash"
           animate={false}
           copyable={false}
+          showHeaderLabel={false}
         />
         <span className="sr-only" aria-live="polite">
           {copied ? `${terminalLabel} copied to clipboard` : ''}
@@ -898,16 +936,94 @@ export function DocsCodeBlock({
     <div className={cn('min-w-0 space-y-[var(--space-2)]', className)}>
       <div className="flex items-center justify-between gap-[var(--panel-gap-tight)]">
         <BracketLabel surface={surface}>{terminalLabel}</BracketLabel>
-        <Button type="button" variant="secondary" size="sm" aria-label={`Copy ${terminalLabel}`} onClick={handleCopy}>
-          <Copy size={14} />
-          {copied ? 'Copied' : 'Copy'}
-        </Button>
+        {copyable ? (
+          <Button
+            type="button"
+            variant="secondary"
+            size="icon"
+            aria-label={`Copy ${terminalLabel}`}
+            title={copied ? 'Copied' : 'Copy'}
+            onClick={handleCopy}
+          >
+            <Copy size={14} />
+          </Button>
+        ) : null}
       </div>
-      <CodeBlock language={language === 'typescript' ? 'typescript' : undefined} filename={terminalLabel}>
+      <CodeBlock language={codeLanguage} filename={terminalLabel} copyable={false} showHeaderLabel={false}>
         {code}
       </CodeBlock>
+      {copyable ? (
+        <span className="sr-only" aria-live="polite">
+          {copied ? `${terminalLabel} copied to clipboard` : ''}
+        </span>
+      ) : null}
+    </div>
+  )
+}
+
+export function CopyableCommandBlock({
+  command,
+  label = 'Command',
+  copyLabel = 'Copy',
+  copiedLabel = 'Copied',
+  ariaLabel,
+  className,
+}: {
+  command: string
+  label?: string
+  copyLabel?: string
+  copiedLabel?: string
+  ariaLabel?: string
+  className?: string
+}) {
+  const [copied, setCopied] = useState(false)
+  const surface = useSurfaceTone()
+  const labelTone = panelToneForAccent(surface)
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(command)
+    setCopied(true)
+    window.setTimeout(() => setCopied(false), 1800)
+  }
+
+  return (
+    <div className={cn('grid min-w-0 gap-[var(--space-2)]', className)}>
+      <div className="flex items-center justify-between gap-[var(--space-3)]">
+        <PanelEyebrow tone={labelTone} className="max-w-none">
+          {label}
+        </PanelEyebrow>
+        <Button
+          type="button"
+          variant="secondary"
+          size="icon"
+          aria-label={ariaLabel ?? `Copy ${label}`}
+          title={copied ? copiedLabel : copyLabel}
+          onClick={handleCopy}
+        >
+          {copied ? <Check size={14} /> : <Copy size={14} />}
+        </Button>
+      </div>
+      <div
+        className="min-w-0 overflow-hidden border-2 border-[var(--border-strong)] px-[var(--space-3)] py-[var(--space-3)] font-mono text-[13px] leading-[1.65]"
+        style={{ background: 'var(--code-bg)', color: 'var(--code-text)' }}
+      >
+        <code
+          className="block"
+          style={{
+            background: 'transparent',
+            border: 0,
+            borderRadius: 0,
+            color: 'inherit',
+            overflowWrap: 'anywhere',
+            padding: 0,
+            whiteSpace: 'pre-wrap',
+          }}
+        >
+          {command}
+        </code>
+      </div>
       <span className="sr-only" aria-live="polite">
-        {copied ? `${terminalLabel} copied to clipboard` : ''}
+        {copied ? `${label} copied to clipboard` : ''}
       </span>
     </div>
   )
@@ -941,7 +1057,7 @@ export function CommandBlock({
       titleSize="nav"
       titleClassName="tracking-[var(--tracking-display-nav)]"
     >
-      <DocsCodeBlock code={command} language="cli" label={title} />
+      <DocsCodeBlock code={command} language="cli" label={title} variant="compact" />
       {description ? (
         <PanelBody size="compact" tone={surfaceBodyTone[tone]} className="max-w-none">
           {description}

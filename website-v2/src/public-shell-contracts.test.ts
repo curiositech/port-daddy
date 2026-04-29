@@ -79,8 +79,8 @@ describe('public shell contracts', () => {
           'DocsNoteCard',
           'BracketLink',
           'overviewOrder',
-          'Read the protocol. Bring up the daemon. Learn the operating model.',
-          'Trust boundary first. Workflows second.',
+          'What Port Daddy Is And How To Use It',
+          'Start here. Read deeper when you need it.',
         ],
         forbidden: [
           /text-\[11px\]/,
@@ -224,8 +224,8 @@ describe('public shell contracts', () => {
     const header = read('./components/site/SiteHeader.tsx')
 
     expect(docsOverview).toContain("href: '/whitepaper'")
-    expect(docsOverview).toContain('Start with the papers and get started.')
-    expect(docsSidebar).toContain('Protocol first.')
+    expect(docsOverview).toContain('Start with Get Started if you are installing Port Daddy for the first time.')
+    expect(docsSidebar).toContain('Start with the basics.')
     expect(docsSidebar).toContain('Whitepaper')
     expect(header).toContain('Port Daddy')
     expect(header).not.toContain('agentsd')
@@ -240,13 +240,15 @@ describe('public shell contracts', () => {
     expect(header).toContain('/examples')
     expect(header).toContain('/agents')
     expect(header).toContain('/mcp')
+    expect(header).toContain('Skill + MCP')
+    expect(header).not.toContain('/agents/agent-skill')
     expect(header).toContain('/tutorials')
     expect(header).not.toContain('/roadmap')
     expect(header).toContain("/whitepaper")
     expect(header).toContain('Papers')
     expect(header).not.toContain('/dashboard')
     expect(header).toContain('Port Daddy')
-    expect(header).toContain('Mobile primary')
+    expect(header).toContain('Compressed primary navigation')
     expect(header).toContain('!max-w-none')
     expect(header).toContain('inline-flex shrink-0 items-center')
     expect(header).not.toContain('absolute right-0 top-0 h-full w-3')
@@ -254,6 +256,7 @@ describe('public shell contracts', () => {
     expect(footer).toContain('/mac-preview')
     expect(footer).toContain('/agents')
     expect(footer).toContain('/mcp')
+    expect(footer).toContain('Skill + MCP')
     expect(footer).not.toContain('/roadmap')
     expect(footer).toContain('/docs/get-started')
     expect(footer).toContain('/docs/cli')
@@ -331,7 +334,7 @@ describe('public shell contracts', () => {
     expect(docsOverview).toContain('/mac-preview')
     expect(docsOverview).toContain('/examples')
     expect(docsOverview).not.toContain('/docs/examples')
-    expect(docsOverview).toContain('/templates')
+    expect(docsOverview).toContain('/agents/templates')
     expect(docsOverview).toContain('/mcp')
     expect(docsOverview).toContain('/agents')
     expect(docsOverview).not.toContain('/roadmap')
@@ -340,7 +343,7 @@ describe('public shell contracts', () => {
     expect(docsSidebar).toContain('/mac-preview')
     expect(docsSidebar).toContain('/examples')
     expect(docsSidebar).not.toContain('/docs/examples')
-    expect(docsSidebar).toContain('/templates')
+    expect(docsSidebar).toContain('/agents/templates')
     expect(docsSidebar).toContain('/mcp')
     expect(docsSidebar).toContain('/agents')
     expect(docsSidebar).not.toContain('/roadmap')
@@ -369,7 +372,9 @@ describe('public shell contracts', () => {
       'path="/mac-preview"',
       'path="/examples"',
       'path="/mcp"',
+      'path="/agents/agent-skill"',
       'path="/templates"',
+      'path="/agents/:section"',
       'path="/agents"',
       'path="/tutorials"',
       'path="/blog"',
@@ -485,6 +490,8 @@ describe('public shell contracts', () => {
     ])
     expect(findDocsContentSection('reference')?.pages.map((page) => page.slug)).toEqual([
       'core-cli-commands',
+      'typescript-sdk-surface',
+      'mcp-tool-surface',
       'daemon-http-surface',
       'harbor-capabilities-and-scopes',
     ])
@@ -614,7 +621,7 @@ describe('public shell contracts', () => {
     expect(terminal).toContain('copyable={copyable}')
   })
 
-  test('public docs copy does not leak maintainer-process language into operator-facing pages', () => {
+  test('public docs copy does not leak maintainer-process language into user-facing pages', () => {
     const sources = [
       read('./components/site/DocsSidebar.tsx'),
       read('./pages/docs/DocsOverview.tsx'),
@@ -635,6 +642,8 @@ describe('public shell contracts', () => {
       'Why this page says this',
       'Evidence in the repo',
       'public install path',
+      'Read the protocol. Bring up the daemon. Learn the operating model.',
+      'Trust boundary first. Workflows second.',
     ]
 
     for (const phrase of forbiddenPhrases) {

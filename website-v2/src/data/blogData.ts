@@ -155,13 +155,13 @@ export const blogPosts: BlogPost[] = [
     ]),
   },
   {
-    id: 'cartographer-navigator-map',
-    slug: 'cartographer-navigator-map-truth',
+    id: 'recovery-roadmap-map',
+    slug: 'recovery-roadmap-map-truth',
     title: 'Keeping The Map Honest',
     date: '2026-04-27',
     author: 'Port Daddy Engineering',
     excerpt: 'Roadmaps, recovery docs, session notes, and live daemon state drift unless one surface reconciles them into an operator-readable map.',
-    tags: ['Recovery', 'Roadmap', 'Navigator', 'Cartographer'],
+    tags: ['Recovery', 'Roadmap', 'Status Map', 'Evidence'],
     heroImage: '/img/generated/blog-map-truth.jpg',
     heroAlt: 'Swiss-modern map of recovery notes, commit history, roadmap lanes, and operator status converging into one projection',
     content: article([
@@ -193,7 +193,7 @@ export const blogPosts: BlogPost[] = [
     date: '2026-04-27',
     author: 'Port Daddy Engineering',
     excerpt: 'A daemon can be alive, reachable, and still serving the wrong checkout. Runtime provenance has to be visible before you trust UI or CLI behavior.',
-    tags: ['Daemon', 'Runtime Truth', 'Bosun', 'Debugging'],
+    tags: ['Daemon', 'Runtime Truth', 'Supervisor', 'Debugging'],
     heroImage: '/img/generated/blog-daemon-provenance.jpg',
     heroAlt: 'Swiss-modern provenance diagram comparing source checkout, installed runtime, socket path, TCP route, and supervisor state',
     content: article([
@@ -308,7 +308,13 @@ export const deprecatedBlogPosts: DeprecatedBlogPost[] = [
     slug: 'dead-agents-tell-tales',
     retiredLabel: 'Original crash-recovery article',
     reason: 'Recovery is now part of a larger roadmap and session-map discipline. The old article used outdated framing.',
-    replacementSlug: 'cartographer-navigator-map-truth',
+    replacementSlug: 'recovery-roadmap-map-truth',
+  },
+  {
+    slug: 'cartographer-navigator-map-truth',
+    retiredLabel: 'Older map-actor route',
+    reason: 'The article now uses recovery-roadmap language instead of old role labels on the public blog surface.',
+    replacementSlug: 'recovery-roadmap-map-truth',
   },
   {
     slug: 'formal-verification-anchor-protocol',
@@ -344,7 +350,7 @@ export const deprecatedBlogPosts: DeprecatedBlogPost[] = [
     slug: 'spark-and-spider-the-creative-engine',
     retiredLabel: 'Future-dated background-creativity article',
     reason: 'The blog should avoid speculative background-agent marketing until the operator surfaces and policy gates are stable.',
-    replacementSlug: 'cartographer-navigator-map-truth',
+    replacementSlug: 'recovery-roadmap-map-truth',
   },
   {
     slug: 'port-daddy-for-teams',

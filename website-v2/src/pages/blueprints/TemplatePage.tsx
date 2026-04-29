@@ -26,7 +26,7 @@ export function TemplatePage() {
       animate={{ opacity: 1 }}
     >
       <motion.div
-        className="fixed top-0 left-0 right-0 h-1 bg-[var(--brand-primary)] z-[100] origin-left shadow-[0_0_12px_rgba(58,173,173,0.5)]"
+        className="fixed top-0 left-0 right-0 h-1 bg-[var(--brand-primary)] z-[100] origin-left"
         style={{ scaleX, top: 'var(--nav-height)' }}
       />
 
@@ -35,11 +35,6 @@ export function TemplatePage() {
         className="py-20 px-6 sm:px-8 lg:px-10 border-b relative overflow-hidden" 
         style={{ background: 'var(--surface-raised)', borderColor: 'var(--border-subtle)' }}
       >
-        <motion.div 
-          className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full blur-[140px] opacity-[0.08] pointer-events-none" 
-          style={{ background: 'radial-gradient(circle, var(--brand-primary) 0%, transparent 70%)' }} 
-        />
-        
         <motion.div className="max-w-4xl mx-auto relative z-10 flex flex-col items-center text-center gap-10">
            <Link to="/templates" className="no-underline group">
               <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] text-[var(--text-muted)] group-hover:text-[var(--brand-primary)] transition-all">
@@ -49,13 +44,13 @@ export function TemplatePage() {
            </Link>
 
            <motion.div className="flex items-center gap-6">
-              <motion.div className="w-24 h-24 rounded-[32px] bg-[var(--interactive-active)] flex items-center justify-center border border-[var(--brand-primary)] shadow-2xl shadow-[var(--brand-primary)]/10 group-hover:scale-110 transition-transform">
+              <motion.div className="w-24 h-24 bg-[var(--interactive-active)] flex items-center justify-center border border-[var(--brand-primary)] group-hover:scale-110 transition-transform">
                  <Box size={48} className="text-[var(--brand-primary)]" />
               </motion.div>
            </motion.div>
 
            <motion.div className="space-y-4">
-              <Badge variant="teal" className="px-4 py-1.5 text-[8px] font-black uppercase tracking-widest">Official Swarm Blueprint</Badge>
+              <Badge variant="teal" className="px-4 py-1.5 text-[8px] font-black uppercase tracking-widest">Official Fleet Blueprint</Badge>
               <motion.h1 
                 className="text-5xl sm:text-7xl font-black tracking-tighter font-display leading-[1.05]"
                 initial={{ opacity: 0, y: 24 }}
@@ -90,13 +85,13 @@ export function TemplatePage() {
            {/* Quick Start */}
            <section className="space-y-12">
               <motion.div className="flex items-center gap-4 border-b border-[var(--border-subtle)] pb-8">
-                 <motion.div className="w-10 h-10 rounded-xl bg-[var(--brand-primary)]/10 flex items-center justify-center border border-[var(--brand-primary)]/20">
+                 <motion.div className="w-10 h-10 bg-[var(--brand-primary)]/10 flex items-center justify-center border border-[var(--brand-primary)]/20">
                     <Rocket size={20} className="text-[var(--brand-primary)]" />
                  </motion.div>
-                 <motion.h2 className="text-3xl font-display font-black m-0">Bootstrap the Swarm</motion.h2>
+                 <motion.h2 className="text-3xl font-display font-black m-0">Bootstrap the Fleet</motion.h2>
               </motion.div>
               
-              <motion.div className="p-10 rounded-[48px] bg-[var(--surface-overlay)] border border-[var(--border-subtle)] space-y-8 shadow-2xl relative overflow-hidden">
+              <motion.div className="p-10 bg-[var(--surface-overlay)] border border-[var(--border-subtle)] space-y-8 relative overflow-hidden">
                  <motion.div className="absolute top-0 right-0 p-8 opacity-5">
                     <Terminal size={100} />
                  </motion.div>
@@ -104,9 +99,9 @@ export function TemplatePage() {
                  <CodeBlock language="bash">
                    {`mkdir ${bp.id}\ncd ${bp.id}\n\npd init --template ${bp.id}\npd up`}
                  </CodeBlock>
-                 <motion.div className="flex items-center gap-3 p-4 rounded-2xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+                 <motion.div className="flex items-center gap-3 p-4 bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
                     <Info size={16} className="text-[var(--brand-primary)] shrink-0" />
-                    <motion.p className="text-sm m-0 text-[var(--text-secondary)]">This template includes pre-configured harbor cards and Swarm Radio channels.</motion.p>
+                    <motion.p className="text-sm m-0 text-[var(--text-secondary)]">This template includes pre-configured harbor cards and project-scoped Port Daddy channels.</motion.p>
                  </motion.div>
               </motion.div>
            </section>
@@ -114,22 +109,22 @@ export function TemplatePage() {
            {/* Architecture */}
            <section className="space-y-12">
               <motion.div className="flex items-center gap-4 border-b border-[var(--border-subtle)] pb-8">
-                 <motion.div className="w-10 h-10 rounded-xl bg-[var(--brand-secondary)]/10 flex items-center justify-center border border-[var(--brand-secondary)]/20">
+                 <motion.div className="w-10 h-10 bg-[var(--brand-secondary)]/10 flex items-center justify-center border border-[var(--brand-secondary)]/20">
                     <Layers size={20} className="text-[var(--brand-secondary)]" />
                  </motion.div>
-                 <motion.h2 className="text-3xl font-display font-black m-0">Swarm Architecture</motion.h2>
+                 <motion.h2 className="text-3xl font-display font-black m-0">Fleet Architecture</motion.h2>
               </motion.div>
 
               <motion.div className="grid sm:grid-cols-2 gap-8">
-                 <motion.div className="p-8 rounded-[32px] bg-[var(--surface-raised)] border border-[var(--border-subtle)] space-y-4 group hover:border-[var(--brand-primary)] transition-colors">
-                    <motion.div className="w-10 h-10 rounded-xl bg-[var(--brand-secondary)]/10 flex items-center justify-center border border-[var(--brand-secondary)]/20">
+                 <motion.div className="p-8 bg-[var(--surface-raised)] border border-[var(--border-subtle)] space-y-4 group hover:border-[var(--brand-primary)] transition-colors">
+                    <motion.div className="w-10 h-10 bg-[var(--brand-secondary)]/10 flex items-center justify-center border border-[var(--brand-secondary)]/20">
                        <Users size={20} className="text-[var(--brand-secondary)]" />
                     </motion.div>
                     <motion.h3 className="text-xl font-display font-black m-0">Role-Based Agents</motion.h3>
                     <motion.p className="text-base text-[var(--text-secondary)] m-0 leading-relaxed">Dedicated identities for planners, coders, and reviewers with scoped file access.</motion.p>
                  </motion.div>
-                 <motion.div className="p-8 rounded-[32px] bg-[var(--surface-raised)] border border-[var(--border-subtle)] space-y-4 group hover:border-[var(--brand-accent)] transition-colors">
-                    <motion.div className="w-10 h-10 rounded-xl bg-[var(--brand-accent)]/10 flex items-center justify-center border border-[var(--brand-accent)]/20">
+                 <motion.div className="p-8 bg-[var(--surface-raised)] border border-[var(--border-subtle)] space-y-4 group hover:border-[var(--brand-accent)] transition-colors">
+                    <motion.div className="w-10 h-10 bg-[var(--brand-accent)]/10 flex items-center justify-center border border-[var(--brand-accent)]/20">
                        <Zap size={20} className="text-[var(--brand-accent)]" />
                     </motion.div>
                     <motion.h3 className="text-xl font-display font-black m-0">Reactive Signaling</motion.h3>
@@ -140,13 +135,13 @@ export function TemplatePage() {
 
            {/* Security Note */}
            <motion.div 
-             className="p-16 rounded-[60px] border border-dashed border-[var(--brand-primary)] bg-[var(--surface-overlay)] flex flex-col items-center text-center gap-8 relative overflow-hidden"
+             className="p-16 border border-dashed border-[var(--brand-primary)] bg-[var(--surface-overlay)] flex flex-col items-center text-center gap-8 relative overflow-hidden"
              whileHover={{ scale: 1.01 }}
            >
               <motion.div className="absolute top-0 right-0 p-10 opacity-[0.03] pointer-events-none">
                  <Shield size={400} />
               </motion.div>
-              <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest shadow-xl">Formal Integrity</Badge>
+              <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Formal Integrity</Badge>
               <motion.h3 className="text-4xl font-display font-black m-0" style={{ color: 'var(--text-primary)' }}>Mathematically Sound.</motion.h3>
               <motion.p className="text-xl max-w-xl text-[var(--text-secondary)]">
                 Like all Port Daddy templates, this blueprint is verified against our formal state machine. We ensure that the coordination logic cannot result in unauthorized port claims or "zombie" process cycles.

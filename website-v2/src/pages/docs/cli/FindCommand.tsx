@@ -5,7 +5,7 @@ export default function FindCommand() {
     <CommandPage
       command="find"
       description="Look up the port assigned to an identity without claiming a new one."
-      version="3.8.3"
+      version="3.11.0"
       syntax="pd find <identity>"
       shortFlag="-q"
       flags={[

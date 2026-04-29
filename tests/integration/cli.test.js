@@ -6,6 +6,7 @@
  * by Jest globalSetup and cleaned up by globalTeardown.
  */
 
+import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -598,13 +599,13 @@ describe('CLI Integration Tests', () => {
       const result = runCli(['session', 'start', 'Bug regression test', '--agent', agentId]);
       expect(result.success).toBe(true);
       expect(result.stdout).not.toContain('undefined');
-      expect(result.stdout).toMatch(/session-[a-f0-9-]+/);
-      const firstSessionId = result.stdout.match(/session-[a-f0-9-]+/)?.[0];
+      expect(result.stdout).toMatch(/session-[a-z0-9-]+-[a-f0-9]{12}/);
+      const firstSessionId = result.stdout.match(/session-[a-z0-9-]+-[a-f0-9]{12}/)?.[0];
 
       // Also test -q returns just the ID
       const quietResult = runCli(['session', 'start', 'Quiet test', '--agent', agentId, '-q']);
       expect(quietResult.success).toBe(true);
-      expect(quietResult.stdout).toMatch(/^session-[a-f0-9-]+$/);
+      expect(quietResult.stdout).toMatch(/^session-[a-z0-9-]+-[a-f0-9]{12}$/);
       expect(quietResult.stdout).not.toBe('undefined');
 
       if (firstSessionId) {
@@ -863,7 +864,7 @@ describe('CLI Integration Tests', () => {
       let data;
       expect(() => { data = JSON.parse(result.stdout); }).not.toThrow();
       expect(data.success).toBe(true);
-      expect(data.id).toMatch(/^session-[a-f0-9-]+$/);
+      expect(data.id).toMatch(/^session-bug-15-test-[a-f0-9]{12}$/);
       expect(data.purpose).toBe('Bug 15 test');
 
       // Should NOT contain ANSI escape codes
@@ -1138,6 +1139,38 @@ describe('CLI Integration Tests', () => {
       expect(data.identity).toBe('port-daddy:test:stale-whoami');
 
       runCli(['done', '--session', beginData.sessionId]);
+    });
+
+    test('pd session files add uses stored session context across worktree drift', async () => {
+      const beginResult = runCli([
+        'begin',
+        'Cross-worktree file claim fallback',
+        '--identity',
+        'port-daddy:test:cross-worktree-file-claim',
+        '--json',
+      ]);
+      expect(beginResult.success).toBe(true);
+      const beginData = JSON.parse(beginResult.stdout);
+
+      const otherRepo = mkdtempSync(join(tmpdir(), 'pd-other-worktree-'));
+      execFileSync('git', ['init'], { cwd: otherRepo, stdio: 'ignore' });
+
+      try {
+        const result = runCli(['session', 'files', 'add', 'README.md', '--json'], { cwd: otherRepo });
+        expect(result.success).toBe(true);
+
+        const data = JSON.parse(result.stdout);
+        expect(data.success).toBe(true);
+        expect(data.claimed).toEqual(['README.md']);
+
+        const detailRes = await requestWithRetry(`/sessions/${beginData.sessionId}`);
+        expect(detailRes.ok).toBe(true);
+        const filePaths = (detailRes.data.files || []).map(file => file.filePath || file.file_path || file.path);
+        expect(filePaths).toContain('README.md');
+      } finally {
+        runCli(['done', '--session', beginData.sessionId]);
+        rmSync(otherRepo, { recursive: true, force: true });
+      }
     });
 
     test('positional args still work (backward compat)', () => {

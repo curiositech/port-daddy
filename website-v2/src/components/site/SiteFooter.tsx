@@ -7,13 +7,13 @@ const SITE_LINKS = [
   { label: 'Mac Preview', href: '/mac-preview' },
   { label: 'Examples', href: '/examples' },
   { label: 'Agents', href: '/agents' },
-  { label: 'MCP', href: '/mcp' },
+  { label: 'Skill + MCP', href: '/mcp' },
 ] as const
 
 const LEARN_LINKS = [
   { label: 'Docs', href: '/docs' },
   { label: 'Tutorials', href: '/tutorials' },
-  { label: 'Templates', href: '/templates' },
+  { label: 'Templates', href: '/agents/templates' },
   { label: 'Blog', href: '/blog' },
 ] as const
 

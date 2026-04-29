@@ -185,14 +185,26 @@ interface FleetYamlLimits {
   budget_usd_per_day?: number;
 }
 
+interface FleetYamlDefaults {
+  /**
+   * Override the per-agent worktree default. If unset, agents with
+   * inferred edit intent (Write/Edit/MultiEdit/Bash in allowedTools, or
+   * no allowedTools restriction at all) default to `worktree: true` —
+   * which removes the shared-tree blast radius for parallel runs.
+   */
+  worktree?: boolean;
+}
+
 interface FleetYamlRoot {
   name?: string;
   harbor?: string;
   limits?: FleetYamlLimits;
+  defaults?: FleetYamlDefaults;
   fleet?: {
     name?: string;
     harbor?: string;
     limits?: FleetYamlLimits;
+    defaults?: FleetYamlDefaults;
     agents?: Record<string, FleetYamlAgent> | FleetYamlAgent[];
     watchers?: Record<string, FleetYamlWatcher>;
     channels?: Record<string, FleetYamlChannel>;
@@ -369,6 +381,32 @@ function buildRuntimeAttempts(agent: Pick<FleetAgent, 'backend' | 'model' | 'mod
   return attempts;
 }
 
+const EDIT_TOOL_PATTERN = /\b(?:Write|Edit|MultiEdit|NotebookEdit|Bash)\b/;
+
+/**
+ * Worktree-by-default: an agent with edit intent should run in its own
+ * git worktree so a destructive `git reset --hard` / `git add -A` /
+ * `git checkout -- .` in one slice cannot reach into another slice's
+ * mid-flight edits. Edit intent is inferred from `allowedTools` (Write,
+ * Edit, MultiEdit, Bash, NotebookEdit) or — conservatively — from the
+ * absence of any allowedTools restriction at all.
+ *
+ * Operators can override per-agent via `worktree: false` or globally via
+ * `fleet.defaults.worktree: false`. Pure-read agents (e.g. `gardener`
+ * with `prompt: "git status --porcelain"` and no allowedTools) keep the
+ * historical default of running in the shared tree.
+ */
+function inferWorktreeDefault(s: FleetYamlAgent): boolean {
+  const allowed = (s.allowedTools || s.allowed_tools || '').trim();
+  if (!allowed) {
+    // Inferred edit intent for cron-only / trigger-only LLM agents that
+    // ship without an allowedTools restriction. These default to a
+    // worktree because they will probably write something.
+    return Boolean(s.backend) && s.backend !== 'custom';
+  }
+  return EDIT_TOOL_PATTERN.test(allowed);
+}
+
 /** Returns the first fleet config path that exists in projectDir, or null. */
 export function findFleetConfigPath(projectDir: string): string | null {
   for (const name of FLEET_CONFIG_NAMES) {
@@ -391,6 +429,16 @@ export function loadFleetConfig(projectDir: string): FleetConfig | null {
   if (!parsed) return null;
 
   const fleet = parsed.fleet || parsed;
+  const fleetDefaults = (parsed.fleet?.defaults ?? parsed.defaults) || {};
+
+  // Resolve the worktree default once per agent, honoring three layers:
+  // explicit per-agent `worktree:` -> fleet `defaults.worktree:` ->
+  // inferred from edit intent (default: true for edit-capable agents).
+  const resolveWorktree = (s: FleetYamlAgent): boolean => {
+    if (typeof s.worktree === 'boolean') return s.worktree;
+    if (typeof fleetDefaults.worktree === 'boolean') return fleetDefaults.worktree;
+    return inferWorktreeDefault(s);
+  };
 
   // Normalize agents (supports both object and array format)
   const agents: FleetAgent[] = [];
@@ -410,7 +458,7 @@ export function loadFleetConfig(projectDir: string): FleetConfig | null {
         model: runtime.model,
         modelTier: runtime.modelTier,
         prompt: typeof s.prompt === 'string' ? s.prompt.trim() : String(s.prompt || ''),
-        worktree: s.worktree || false,
+        worktree: resolveWorktree(s),
         singleton: s.singleton || false,
         respawn: s.respawn || false,
         maxRespawns: s.max_respawns ?? 3,

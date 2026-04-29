@@ -6,7 +6,7 @@ export default function Spawn() {
       function="spawn"
       description="Run a one-shot agent through the Port Daddy daemon. Launches are budget-gated, tied to a semantic identity, and wrapped in the same coordination runtime used by fleet agents and sortie launches."
       module="Agents"
-      version="3.8.3"
+      version="3.11.0"
       signature={`spawn(spec: {
   backend: 'ollama' | 'claude' | 'claude-cli' | 'gemini' | 'codex' | 'aider' | 'custom'
   identity: string

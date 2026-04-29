@@ -1,9 +1,9 @@
-import { useState } from 'react'
-import { Check, Copy, Download, Github, PackageCheck, ShieldAlert, Terminal } from 'lucide-react'
+import { Download, FileText, Github, PackageCheck, ShieldAlert, Terminal } from 'lucide-react'
 import { DISTRIBUTION_OPTIONS } from '@/data/product'
 import { Button } from '@/components/ui/Button'
 import { useTheme } from '@/lib/theme-context'
 import {
+  CopyableCommandBlock,
   PageContainer,
   PanelBody,
   PanelEyebrow,
@@ -14,8 +14,9 @@ import {
   SwissGridItem,
 } from '@/components/site/primitives'
 
-const primaryDownloadHref = '/downloads/PortDaddy-FleetBar-macOS-arm64-dev.zip'
-const checksumHref = '/downloads/PortDaddy-FleetBar-macOS-arm64-dev.zip.sha256'
+const primaryDownloadHref = '/downloads/PortDaddy-FleetBar-macOS-arm64.zip'
+const checksumHref = '/downloads/PortDaddy-FleetBar-macOS-arm64.zip.sha256'
+const manifestHref = '/downloads/fleetbar-preview-manifest.json'
 const fleetbarNativeShellScreenshots = {
   light: '/img/app-screens/fleetbar-native-shell-light.png',
   dark: '/img/app-screens/fleetbar-native-shell-dark.png',
@@ -23,56 +24,9 @@ const fleetbarNativeShellScreenshots = {
 
 const statusCopy = {
   available: 'Available',
-  'developer-preview': 'Developer preview',
+  'signed-build': 'Signed Mac build',
   'release-channel': 'Release channel',
 } as const
-
-function DistributionCommand({
-  command,
-  eyebrowTone = 'default',
-}: {
-  command: string
-  eyebrowTone?: 'default' | 'primary'
-}) {
-  const [copied, setCopied] = useState(false)
-
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(command)
-    setCopied(true)
-    window.setTimeout(() => setCopied(false), 1800)
-  }
-
-  return (
-    <div className="grid gap-[var(--space-2)]">
-      <div className="flex items-center justify-between gap-[var(--space-3)]">
-        <PanelEyebrow tone={eyebrowTone}>Command</PanelEyebrow>
-        <Button type="button" variant="secondary" size="sm" aria-label="Copy command" onClick={handleCopy}>
-          {copied ? <Check size={14} /> : <Copy size={14} />}
-          {copied ? 'Copied' : 'Copy'}
-        </Button>
-      </div>
-      <div
-        className="min-w-0 overflow-hidden border-2 border-[var(--border-strong)] px-[var(--space-3)] py-[var(--space-3)] font-mono text-[13px] leading-[1.65]"
-        style={{ background: 'var(--code-bg)', color: 'var(--code-text)' }}
-      >
-        <code
-          className="block"
-          style={{
-            background: 'transparent',
-            border: 0,
-            borderRadius: 0,
-            color: 'inherit',
-            overflowWrap: 'anywhere',
-            padding: 0,
-            whiteSpace: 'pre-wrap',
-          }}
-        >
-          {command}
-        </code>
-      </div>
-    </div>
-  )
-}
 
 export function DistributionSection() {
   const primary = DISTRIBUTION_OPTIONS[0]
@@ -91,7 +45,7 @@ export function DistributionSection() {
             <SectionIntro
               eyebrow="Download"
               title="A Mac developer can try FleetBar today."
-              description="The binary is a zipped FleetBar.app developer preview for Apple Silicon Macs. The stable install path is still Homebrew or npm, because the daemon, MCP wiring, CLI, and project onboarding all live there."
+              description="The download is a real FleetBar.app ZIP for Apple Silicon Macs, generated from the Swift source by npm run package:fleetbar-preview. The stable install path is still Homebrew or npm, because the daemon, MCP wiring, CLI, and project onboarding live there."
               titleAs="h2"
               titleSize="display"
               titleClassName="max-w-[12ch]"
@@ -111,11 +65,17 @@ export function DistributionSection() {
                   SHA-256
                 </a>
               </Button>
+              <Button asChild variant="secondary" size="lg">
+                <a href={manifestHref}>
+                  <FileText size={16} />
+                  Manifest
+                </a>
+              </Button>
             </div>
             <figure className="mt-[var(--space-5)] block overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-base)]">
               <img
                 src={shellScreenshot}
-                alt="FleetBar macOS developer preview in a native window shell"
+                alt="FleetBar macOS app in a native window shell"
                 className="aspect-[16/9] w-full object-cover"
                 data-theme-screenshot={theme === 'dark' ? 'dark' : 'light'}
                 loading="lazy"
@@ -137,11 +97,14 @@ export function DistributionSection() {
                   <div className="inline-flex items-start gap-[var(--space-2)] border-t border-[color:var(--brand-primary-foreground-subtle)] pt-[var(--space-3)]">
                     <ShieldAlert className="mt-0.5 shrink-0" size={16} />
                     <PanelBody tone="primary" size="compact" className="max-w-none">
-                      This preview is unsigned while the signing and notarization channel is being finished. macOS may require a manual Open confirmation.
+                      The preview is rebuilt by scripts/package-fleetbar-preview.sh, Developer ID
+                      signed when the Curiositech certificate is present, checksummed, and described
+                      by the public manifest. The remaining release gate is accepted notarization,
+                      so macOS may still require Open Anyway until that artifact is regenerated.
                     </PanelBody>
                   </div>
                 </div>
-                <DistributionCommand command={primary.command} eyebrowTone="primary" />
+                <CopyableCommandBlock command={primary.command} />
               </SurfacePanel>
 
               <div className="grid gap-[var(--space-4)] md:grid-cols-3">
@@ -159,7 +122,7 @@ export function DistributionSection() {
                     <PanelBody size="compact" className="max-w-none">
                       {option.description}
                     </PanelBody>
-                    <DistributionCommand command={option.command} />
+                    <CopyableCommandBlock command={option.command} />
                   </SurfacePanel>
                 ))}
               </div>

@@ -10,7 +10,8 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "FleetBar",
-            path: "FleetBar"
+            path: "FleetBar",
+            resources: [.process("Resources")]
         ),
         .testTarget(
             name: "FleetBarTests",

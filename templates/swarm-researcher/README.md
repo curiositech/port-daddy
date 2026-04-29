@@ -13,7 +13,7 @@ A multi-agent research swarm that scrapes the web, synthesizes information, and 
 ```bash
 pd start
 pd up
-pd msg research:start publish '{"topic": "The future of agentic orchestration"}'
+pd pub research:start '{"topic": "The future of agentic orchestration"}'
 ```
 
 ## How it uses Port Daddy

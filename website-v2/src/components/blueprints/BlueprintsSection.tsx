@@ -29,7 +29,7 @@ export function BlueprintsSection() {
             </p>
           </div>
 
-          <Link to="/templates">
+          <Link to="/agents/templates#template-packs">
             <Button variant="secondary" className="gap-2">
               View Library
               <ArrowRight size={16} />
@@ -44,7 +44,7 @@ export function BlueprintsSection() {
             return (
               <Link
                 key={blueprint.id}
-                to={`/templates/${blueprint.id}`}
+                to="/agents/templates#template-packs"
                 className="group block p-6 rounded-xl bg-[var(--surface-base)] border border-[var(--border-subtle)] hover:border-[var(--brand-primary)] hover:shadow-[var(--shadow-md)] transition-all"
               >
                 <div className="flex items-start justify-between mb-4">

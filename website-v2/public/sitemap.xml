@@ -7,13 +7,13 @@
     <loc>https://portdaddy.dev/agents</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/agents/templates</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/blog</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/blog/backend-readiness-is-dependency-truth</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/blog/cartographer-navigator-map-truth</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/blog/control-plane-is-the-product</loc>
@@ -26,6 +26,9 @@
   </url>
   <url>
     <loc>https://portdaddy.dev/blog/pd-tube-event-reply-loop</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/blog/recovery-roadmap-map-truth</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/blog/running-is-not-current</loc>
@@ -400,19 +403,7 @@
     <loc>https://portdaddy.dev/examples</loc>
   </url>
   <url>
-    <loc>https://portdaddy.dev/examples/agent-archetypes</loc>
-  </url>
-  <url>
     <loc>https://portdaddy.dev/examples/editor-lightbulb-to-agent</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/examples/ephemeral-ci-db</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/examples/leader-election</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/examples/p2p-webrtc</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/examples/pd-tube-button-to-agent</loc>
@@ -452,24 +443,6 @@
   </url>
   <url>
     <loc>https://portdaddy.dev/mcp</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/templates</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/templates/agent-swarm-starter</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/templates/ai-ci-pipeline</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/templates/monorepo-dev-server</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/templates/swarm-researcher</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/templates/webhook-relay</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/tutorials</loc>

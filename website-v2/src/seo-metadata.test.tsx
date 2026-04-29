@@ -104,7 +104,7 @@ describe('website SEO metadata', () => {
 
     expect(llms).toContain('# Port Daddy Docs for LLMs')
     expect(llms).toContain('[Docs Overview - Port Daddy](https://portdaddy.dev/docs)')
-    expect(llms).toContain('[MCP Server for AI Agents - Port Daddy](https://portdaddy.dev/mcp)')
+    expect(llms).toContain('[Skill + MCP for AI Agents - Port Daddy](https://portdaddy.dev/mcp)')
     expect(llms).toContain('[API Reference - Port Daddy](https://portdaddy.dev/docs/api)')
     expect(llms).toContain('Sitemap: https://portdaddy.dev/sitemap.xml')
   })

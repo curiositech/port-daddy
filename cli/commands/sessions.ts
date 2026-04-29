@@ -21,6 +21,10 @@ type FileClaimResult = Awaited<ReturnType<PortDaddy['claimFiles']>>;
 type FileReleaseResult = Awaited<ReturnType<PortDaddy['releaseFiles']>>;
 type NoteResult = Awaited<ReturnType<PortDaddy['note']>>;
 type ErrorBody = Record<string, unknown>;
+type ActiveSessionResolution = {
+  sessionId: string;
+  source: 'explicit-session' | 'current-context' | 'active-agent';
+};
 type FileRegion = {
   path: string;
   startLine?: number;
@@ -96,6 +100,70 @@ function buildRegionFromOptions(paths: string[], options: CLIOptions): FileRegio
 }
 
 /**
+ * Resolve the active session that a file-claim command should mutate.
+ *
+ * Sample input:
+ * `current = { agentId: "agent-a", sessionId: "session-1" }`
+ *
+ * Sample output:
+ * `{ sessionId: "session-1", source: "current-context" }`
+ */
+async function resolveActiveSessionForFiles(
+  pd: PortDaddy,
+  options: CLIOptions
+): Promise<ActiveSessionResolution | null> {
+  const current = readCurrentContext();
+  const explicitSessionId = stringOption(options, 'session', 'session-id', 'sessionId');
+  const explicitAgentId = stringOption(options, 'agent', 'agent-id', 'agentId');
+  const contextSessionId = current?.sessionId;
+  const contextAgentId = current?.agentId;
+  const candidateSessionId = explicitSessionId || contextSessionId;
+  const candidateAgentId = explicitAgentId || contextAgentId || pd.agentId;
+
+  if (candidateSessionId) {
+    try {
+      const whoami = await pd.whoami({ agentId: candidateAgentId, sessionId: candidateSessionId });
+      if (whoami?.active && whoami.sessionId) {
+        return {
+          sessionId: whoami.sessionId,
+          source: explicitSessionId ? 'explicit-session' : 'current-context',
+        };
+      }
+      if (explicitSessionId) {
+        ui.error(whoami?.hint || `Session "${explicitSessionId}" is not active`);
+        process.exit(1);
+      }
+    } catch (error) {
+      if (explicitSessionId) {
+        const errorBody = getErrorBody(error);
+        ui.error((errorBody.error as string) || (error as Error).message || 'Failed to resolve session');
+        process.exit(1);
+      }
+    }
+  }
+
+  let listData: SessionListResult;
+  try {
+    listData = await pd.sessions({
+      status: 'active',
+      agentId: candidateAgentId,
+      limit: 1,
+    });
+  } catch (error) {
+    const errorBody = getErrorBody(error);
+    ui.error((errorBody.error as string) || (error as Error).message || 'Failed to list sessions');
+    process.exit(1);
+  }
+
+  if (!listData.success || listData.count === 0) return null;
+
+  return {
+    sessionId: listData.sessions[0].id,
+    source: 'active-agent',
+  };
+}
+
+/**
  * Handle `pd session <subcommand>` commands
  */
 export async function handleSession(
@@ -113,8 +181,8 @@ export async function handleSession(
     console.error('  done [note]           # Alias for "end" with status=completed');
     console.error('  abandon [note]        # End session with status=abandoned');
     console.error('  rm <id>               # Delete a session');
-    console.error('  files add <paths...>  # Claim files in active session');
-    console.error('  files rm <paths...>   # Release files in active session');
+    console.error('  files add <paths...> [--session ID]  # Claim files in active session');
+    console.error('  files rm <paths...> [--session ID]   # Release files in active session');
     console.error('  phase <id> <phase>    # Set session phase');
     console.error('');
     console.error('Phases: planning, in_progress, testing, reviewing, completed, abandoned');
@@ -289,40 +357,27 @@ async function sessionFiles(rest: string[], options: CLIOptions): Promise<void> 
       : rawFilesCmd;
 
   if (!filesCmd || !['add', 'rm'].includes(filesCmd)) {
-    console.error('Usage: port-daddy session files <add|rm> <paths...>');
+    console.error('Usage: port-daddy session files <add|rm> <paths...> [--session ID]');
     console.error('       Compatibility aliases: claim -> add, release -> rm');
     process.exit(1);
   }
 
   const paths = rest.slice(1);
   if (paths.length === 0) {
-    console.error(`Usage: port-daddy session files ${filesCmd} <paths...>`);
+    console.error(`Usage: port-daddy session files ${filesCmd} <paths...> [--session ID]`);
     console.error(`       Region options: --symbol-path SYMBOL_PATH or --start-line N --end-line N [--symbol NAME]`);
     process.exit(1);
   }
   const regions = buildRegionFromOptions(paths, options);
 
   const pd = createSessionClient(options);
-  let listData: SessionListResult;
-  try {
-    listData = await pd.sessions({
-      status: 'active',
-      agentId: pd.agentId,
-      limit: 1,
-    });
-  } catch (error) {
-    const errorBody = getErrorBody(error);
-    ui.error((errorBody.error as string) || (error as Error).message || 'Failed to list sessions');
-    process.exit(1);
-  }
-
-  if (!listData.success || listData.count === 0) {
+  const activeSession = await resolveActiveSessionForFiles(pd, options);
+  if (!activeSession) {
     ui.error('No active session found');
     process.exit(1);
   }
 
-  const sessions = listData.sessions;
-  const sessionId = sessions[0].id;
+  const sessionId = activeSession.sessionId;
 
   if (filesCmd === 'add') {
     let data: FileClaimResult;

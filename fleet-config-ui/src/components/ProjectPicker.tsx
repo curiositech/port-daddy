@@ -1,8 +1,24 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertTriangle, CheckCircle2, CircleDollarSign, Copy, FileCog, KeyRound, Play, Radio, RefreshCw, ShipWheel, Wrench } from 'lucide-react';
-import { fetchModels } from '../api';
-import type { BackendInfo } from '../types';
+import {
+  AlertTriangle,
+  ArrowRight,
+  CheckCircle2,
+  CircleDollarSign,
+  Copy,
+  FileCog,
+  Gauge,
+  KeyRound,
+  Play,
+  Radio,
+  RefreshCw,
+  ShieldCheck,
+  ShipWheel,
+  WalletCards,
+  Wrench,
+} from 'lucide-react';
+import { fetchModels, fetchResourceOverview } from '../api';
+import type { BackendInfo, ResourceOverview } from '../types';
 
 interface ProjectInfo {
   id: string;
@@ -51,6 +67,29 @@ interface AllProjectsProps {
   onOpenShipwright?: () => void;
 }
 
+type OperatorTone = 'accent' | 'danger' | 'neutral' | 'success' | 'warning';
+type IconComponent = typeof AlertTriangle;
+
+interface EntranceMetric {
+  id: string;
+  label: string;
+  value: string;
+  detail: string;
+  tone: OperatorTone;
+  Icon: IconComponent;
+}
+
+interface EntranceAction {
+  id: string;
+  label: string;
+  title: string;
+  detail: string;
+  actionLabel?: string;
+  tone: OperatorTone;
+  Icon: IconComponent;
+  onClick?: () => void;
+}
+
 const ADD_PROJECT_COMMANDS = [
   {
     title: 'Full onboarding',
@@ -84,6 +123,55 @@ function configuredCount(project: ProjectInfo): number {
 
 function formatBudget(value: number | null | undefined): string {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? `$${value.toFixed(2)}/day` : 'no budget';
+}
+
+function formatUsd(value: number | null | undefined): string {
+  return typeof value === 'number' && Number.isFinite(value) ? `$${value.toFixed(2)}` : 'measuring';
+}
+
+function positiveBudget(value: number | null | undefined): number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+function toneStyle(tone: OperatorTone): { backgroundColor: string; color: string; border: string } {
+  if (tone === 'success') {
+    return { backgroundColor: 'var(--pd-success-surface)', color: 'var(--pd-success)', border: '1px solid var(--pd-success-border)' };
+  }
+  if (tone === 'warning') {
+    return { backgroundColor: 'var(--pd-warning-surface)', color: 'var(--pd-warning)', border: '1px solid var(--pd-warning-border)' };
+  }
+  if (tone === 'danger') {
+    return { backgroundColor: 'var(--pd-danger-surface)', color: 'var(--pd-danger)', border: '1px solid var(--pd-danger-border)' };
+  }
+  if (tone === 'accent') {
+    return { backgroundColor: 'var(--pd-accent-surface)', color: 'var(--pd-accent)', border: '1px solid var(--pd-accent-border)' };
+  }
+  return { backgroundColor: 'var(--pd-bg)', color: 'var(--pd-muted)', border: '1px solid var(--pd-border)' };
+}
+
+function readinessTone(backends: BackendInfo[]): OperatorTone {
+  if (backends.length === 0) return 'neutral';
+  const blockers = backends.filter((backend) => (backend.readinessStatus ?? 'unknown') !== 'ready');
+  if (blockers.some((backend) => backend.readinessStatus === 'needs_setup')) return 'danger';
+  if (blockers.length > 0) return 'warning';
+  return 'success';
+}
+
+function backendStatusLabel(backend: BackendInfo): string {
+  if (backend.readinessStatus === 'needs_setup') return 'needs setup';
+  if (backend.readinessStatus === 'manual_check') return 'manual check';
+  if (backend.readinessStatus === 'ready') return 'ready';
+  return 'unknown';
+}
+
+function withLandingTimeout<T>(request: Promise<T>, label: string, timeoutMs = 5000): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      reject(new Error(`${label} timed out after ${Math.round(timeoutMs / 1000)}s`));
+    }, timeoutMs);
+
+    request.then(resolve, reject).finally(() => window.clearTimeout(timeout));
+  });
 }
 
 function projectState(project: ProjectInfo): NonNullable<ProjectInfo['operatorState']> {
@@ -489,6 +577,78 @@ function ProjectActionButton({
   return null;
 }
 
+function MetricTile({ metric }: { metric: EntranceMetric }) {
+  const Icon = metric.Icon;
+  const style = toneStyle(metric.tone);
+
+  return (
+    <div className="rounded-lg border p-2.5 sm:p-3" style={{ backgroundColor: 'var(--pd-surface)', borderColor: 'var(--pd-border)' }}>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-1.5 text-[9px] font-semibold tracking-wider sm:gap-2 sm:text-[10px]" style={{ color: 'var(--pd-dim)' }}>
+          <Icon size={13} />
+          <span>{metric.label.toUpperCase()}</span>
+        </div>
+        <span className="rounded-full px-2 py-0.5 text-[9px] font-bold" style={style}>
+          {metric.tone}
+        </span>
+      </div>
+      <div className="mt-2.5 break-words font-mono text-lg font-semibold tabular-nums sm:mt-3 sm:text-xl" style={{ color: 'var(--pd-text)' }}>
+        {metric.value}
+      </div>
+      <div className="mt-1 min-h-[2.4rem] text-[11px] leading-snug sm:min-h-[2.25rem] sm:text-xs" style={{ color: 'var(--pd-muted)' }}>
+        {metric.detail}
+      </div>
+    </div>
+  );
+}
+
+function ActionRow({ action }: { action: EntranceAction }) {
+  const Icon = action.Icon;
+  const style = toneStyle(action.tone);
+
+  return (
+    <button
+      type="button"
+      disabled={!action.onClick}
+      onClick={action.onClick}
+      className="w-full rounded-lg border p-3 text-left disabled:cursor-default"
+      style={{ backgroundColor: 'var(--pd-surface)', borderColor: 'var(--pd-border)', opacity: action.onClick ? 1 : 0.92 }}
+    >
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md" style={style}>
+          <Icon size={15} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[10px] font-semibold tracking-wider" style={{ color: 'var(--pd-dim)' }}>
+            {action.label.toUpperCase()}
+          </span>
+          <span className="mt-1 block text-sm font-semibold leading-snug" style={{ color: 'var(--pd-text)' }}>
+            {action.title}
+          </span>
+          <span
+            className="mt-1 block text-xs leading-snug"
+            style={{
+              color: 'var(--pd-muted)',
+              display: '-webkit-box',
+              overflow: 'hidden',
+              WebkitBoxOrient: 'vertical',
+              WebkitLineClamp: 2,
+            }}
+          >
+            {action.detail}
+          </span>
+        </span>
+        {action.actionLabel && (
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[10px] font-semibold" style={style}>
+            <span>{action.actionLabel}</span>
+            <ArrowRight size={11} />
+          </span>
+        )}
+      </div>
+    </button>
+  );
+}
+
 export default function ProjectPicker({ projects, selected, onSelect, onStartProject, onSetBudget, onOpenYaml }: Props) {
   const active = projects.find(p => p.id === selected);
   const rest = projects.filter(p => p.id !== selected);
@@ -544,36 +704,338 @@ export default function ProjectPicker({ projects, selected, onSelect, onStartPro
 }
 
 export function AllProjectsList({ projects, onSelect, onStartProject, onSetBudget, onOpenYaml, onOpenShipwright }: AllProjectsProps) {
+  const [overview, setOverview] = useState<ResourceOverview | null>(null);
+  const [backends, setBackends] = useState<BackendInfo[]>([]);
+  const [liveDataError, setLiveDataError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const totalAgents = projects.reduce((n, p) => n + configuredCount(p), 0);
   const totalActive = projects.reduce((n, p) => n + deployedCount(p), 0);
-  const blocked = projects.filter(p => projectState(p) === 'blocked').length;
-  const ready = projects.filter(p => projectState(p) === 'ready').length;
+  const blockedProjects = projects.filter(p => projectState(p) === 'blocked');
+  const readyProjects = projects.filter(p => projectState(p) === 'ready');
+  const runningProjects = projects.filter(p => projectState(p) === 'running');
   const serviceOnly = projects.filter(p => projectState(p) === 'service_only').length;
+  const budgetedProjects = projects.filter((project) => positiveBudget(project.budgetUsdPerDay) > 0);
+  const totalDailyCap = projects.reduce((sum, project) => sum + positiveBudget(project.budgetUsdPerDay), 0);
+  const missingBudgetProjects = projects.filter((project) => project.fleetConfigStatus === 'missing_budget');
+  const invalidConfigProjects = projects.filter((project) => project.fleetConfigStatus === 'invalid');
+  const backendBlockers = backends.filter((backend) => (backend.readinessStatus ?? 'unknown') !== 'ready');
+  const readyBackends = backends.length - backendBlockers.length;
+  const resourceUnavailable = !overview && !!liveDataError?.includes('resources:');
+  const readinessUnavailable = backends.length === 0 && !!liveDataError?.includes('readiness:');
+  const dailySpend = overview?.cost.dailySpendUsd ?? 0;
+  const remainingBudget = totalDailyCap > 0 ? Math.max(0, totalDailyCap - dailySpend) : null;
+  const runningProjectCount = overview?.fleet.runningProjects ?? runningProjects.length;
+  const launchableAgents = overview?.fleet.launchableAgents ?? totalActive;
+  const visibleAgents = overview?.fleet.totalAgents ?? totalAgents;
+  const spendTone: OperatorTone = totalDailyCap <= 0
+    ? 'warning'
+    : dailySpend > totalDailyCap
+      ? 'danger'
+      : dailySpend > totalDailyCap * 0.8
+        ? 'warning'
+        : 'success';
+
+  const refreshLandingData = useCallback(async () => {
+    setRefreshing(true);
+    const [overviewResult, modelsResult] = await Promise.allSettled([
+      withLandingTimeout(fetchResourceOverview(), 'resource governance'),
+      withLandingTimeout(fetchModels(), 'backend readiness'),
+    ]);
+    const errors: string[] = [];
+
+    if (overviewResult.status === 'fulfilled') {
+      setOverview(overviewResult.value);
+    } else {
+      errors.push(`resources: ${overviewResult.reason instanceof Error ? overviewResult.reason.message : String(overviewResult.reason)}`);
+    }
+
+    if (modelsResult.status === 'fulfilled') {
+      setBackends(modelsResult.value);
+    } else {
+      errors.push(`readiness: ${modelsResult.reason instanceof Error ? modelsResult.reason.message : String(modelsResult.reason)}`);
+    }
+
+    setLiveDataError(errors.length > 0 ? errors.join(' | ') : null);
+    setRefreshing(false);
+  }, []);
+
+  useEffect(() => {
+    void refreshLandingData();
+    const interval = window.setInterval(() => void refreshLandingData(), 15000);
+    return () => window.clearInterval(interval);
+  }, [refreshLandingData]);
+
+  const metrics = useMemo<EntranceMetric[]>(() => [
+    {
+      id: 'budget-envelope',
+      label: 'Budget envelope',
+      value: totalDailyCap > 0 ? `${resourceUnavailable ? 'spend ?' : formatUsd(dailySpend)} / ${formatUsd(totalDailyCap)}` : formatUsd(dailySpend),
+      detail: resourceUnavailable && totalDailyCap > 0
+        ? `Live spend is unavailable; ${budgetedProjects.length} project caps total ${formatUsd(totalDailyCap)}/day.`
+        : totalDailyCap > 0
+        ? `${formatUsd(remainingBudget)} left today across ${budgetedProjects.length} budgeted project${budgetedProjects.length === 1 ? '' : 's'}.`
+        : 'No daily cap is configured; agentic launches fail closed until a budget exists.',
+      tone: resourceUnavailable ? 'warning' : spendTone,
+      Icon: WalletCards,
+    },
+    {
+      id: 'launchable',
+      label: 'Launchable',
+      value: `${launchableAgents}/${visibleAgents}`,
+      detail: `${runningProjectCount} running project${runningProjectCount === 1 ? '' : 's'}; ${totalActive} deployed agents in visible fleets.`,
+      tone: launchableAgents > 0 ? 'success' : readyProjects.length > 0 ? 'accent' : 'neutral',
+      Icon: Gauge,
+    },
+    {
+      id: 'readiness',
+      label: 'Readiness',
+      value: readinessUnavailable ? 'timeout' : backends.length > 0 ? `${readyBackends}/${backends.length}` : 'measuring',
+      detail: readinessUnavailable
+        ? 'Backend readiness did not return before the entrance timeout.'
+        : backendBlockers.length > 0
+        ? `${backendBlockers.length} backend${backendBlockers.length === 1 ? '' : 's'} blocked or manual-check before launch.`
+        : backends.length > 0
+          ? 'Backend catalog reports launch dependencies ready.'
+          : 'Waiting for backend readiness.',
+      tone: readinessUnavailable ? 'warning' : readinessTone(backends),
+      Icon: ShieldCheck,
+    },
+    {
+      id: 'next-projects',
+      label: 'Project queue',
+      value: `${blockedProjects.length}/${projects.length}`,
+      detail: `${readyProjects.length} ready, ${serviceOnly} service-only, ${missingBudgetProjects.length} missing budget.`,
+      tone: blockedProjects.length > 0 ? 'warning' : readyProjects.length > 0 ? 'accent' : 'success',
+      Icon: Radio,
+    },
+  ], [
+    backendBlockers.length,
+    backends,
+    blockedProjects.length,
+    budgetedProjects.length,
+    dailySpend,
+    launchableAgents,
+    missingBudgetProjects.length,
+    projects.length,
+    readyBackends,
+    readyProjects.length,
+    remainingBudget,
+    readinessUnavailable,
+    resourceUnavailable,
+    runningProjectCount,
+    serviceOnly,
+    spendTone,
+    totalActive,
+    totalDailyCap,
+    visibleAgents,
+  ]);
+
+  const nextActions = useMemo<EntranceAction[]>(() => {
+    const actions: EntranceAction[] = [];
+    const missingBudget = missingBudgetProjects[0];
+    const invalidConfig = invalidConfigProjects[0];
+    const readyProject = readyProjects[0];
+    const runningProject = runningProjects[0];
+    const backendBlocker = backendBlockers[0];
+
+    if (missingBudget) {
+      const budget = missingBudget.remediation?.suggestedBudgetUsdPerDay ?? 5;
+      actions.push({
+        id: `budget-${missingBudget.id}`,
+        label: 'budget blocker',
+        title: `Set ${formatUsd(budget)}/day for ${missingBudget.name}`,
+        detail: missingBudget.remediation?.detail ?? 'This fleet has agents but no daily cap, so Port Daddy blocks launches.',
+        actionLabel: 'Set cap',
+        tone: 'warning',
+        Icon: CircleDollarSign,
+        onClick: onSetBudget ? () => onSetBudget(missingBudget, budget) : undefined,
+      });
+    }
+
+    if (invalidConfig) {
+      actions.push({
+        id: `yaml-${invalidConfig.id}`,
+        label: 'config blocker',
+        title: `Fix fleet YAML for ${invalidConfig.name}`,
+        detail: invalidConfig.configError ?? invalidConfig.remediation?.detail ?? 'The daemon could not validate this project fleet config.',
+        actionLabel: 'Open YAML',
+        tone: 'danger',
+        Icon: FileCog,
+        onClick: onOpenYaml ? () => onOpenYaml(invalidConfig) : undefined,
+      });
+    }
+
+    if (backendBlocker) {
+      actions.push({
+        id: `backend-${backendBlocker.id}`,
+        label: backendStatusLabel(backendBlocker),
+        title: `${backendBlocker.name} is not launch-ready`,
+        detail: backendBlocker.readinessNextStep ?? backendBlocker.readinessSummary ?? 'Resolve backend readiness before assigning new work.',
+        tone: backendBlocker.readinessStatus === 'needs_setup' ? 'danger' : 'warning',
+        Icon: AlertTriangle,
+      });
+    }
+
+    if (overview?.policy.escalation.recommended) {
+      actions.push({
+        id: 'resource-escalation',
+        label: 'governance',
+        title: overview.policy.escalation.title,
+        detail: overview.policy.escalation.body,
+        actionLabel: onOpenShipwright ? 'Rehearse' : undefined,
+        tone: 'warning',
+        Icon: ShieldCheck,
+        onClick: onOpenShipwright,
+      });
+    }
+
+    if (readyProject) {
+      actions.push({
+        id: `start-${readyProject.id}`,
+        label: 'ready fleet',
+        title: `Start ${readyProject.name}`,
+        detail: readyProject.operatorNextAction ?? 'The fleet has a budget envelope and can be started on this daemon.',
+        actionLabel: 'Start',
+        tone: 'accent',
+        Icon: Play,
+        onClick: onStartProject ? () => onStartProject(readyProject) : undefined,
+      });
+    } else if (runningProject) {
+      actions.push({
+        id: `inspect-${runningProject.id}`,
+        label: 'running now',
+        title: `Inspect ${runningProject.name}`,
+        detail: runningProject.operatorSummary ?? 'Open the running fleet to inspect agents, channels, and recent activity.',
+        actionLabel: 'Open',
+        tone: 'success',
+        Icon: Radio,
+        onClick: () => onSelect(runningProject.id),
+      });
+    }
+
+    if (onOpenShipwright) {
+      actions.push({
+        id: 'shipwright',
+        label: 'where next',
+        title: 'Open Shipwright budget planning',
+        detail: 'Review daily cap, agent budgets, bond ceiling, and dry-run evidence before shaping the next fleet.',
+        actionLabel: 'Shipwright',
+        tone: 'neutral',
+        Icon: ArrowRight,
+        onClick: onOpenShipwright,
+      });
+    }
+
+    if (actions.length === 0) {
+      actions.push({
+        id: 'select-project',
+        label: 'where next',
+        title: projects[0] ? `Open ${projects[0].name}` : 'Add a project',
+        detail: projects[0]?.operatorNextAction ?? 'Bring a repo into Port Daddy before assigning fleet work.',
+        actionLabel: projects[0] ? 'Open' : undefined,
+        tone: 'neutral',
+        Icon: Wrench,
+        onClick: projects[0] ? () => onSelect(projects[0].id) : undefined,
+      });
+    }
+
+    return actions.slice(0, 5);
+  }, [
+    backendBlockers,
+    invalidConfigProjects,
+    missingBudgetProjects,
+    onOpenShipwright,
+    onOpenYaml,
+    onSelect,
+    onSetBudget,
+    onStartProject,
+    overview?.policy.escalation,
+    projects,
+    readyProjects,
+    runningProjects,
+  ]);
+
+  const priorityProjects = useMemo(() => {
+    return [...projects].sort((a, b) => {
+      const order = { running: 0, blocked: 1, ready: 2, service_only: 3, context_only: 4, missing: 5 } as const;
+      const aState = projectState(a);
+      const bState = projectState(b);
+      if (order[aState] !== order[bState]) return order[aState] - order[bState];
+      return a.name.localeCompare(b.name);
+    });
+  }, [projects]);
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -20 }} className="max-w-5xl mx-auto px-8 py-8">
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold mb-1" style={{ color: 'var(--pd-text)' }}>All Projects</h1>
-          <p className="text-sm" style={{ color: 'var(--pd-muted)' }}>
-            {totalActive} active · {totalAgents} agents · {blocked} blocked · {ready} ready · {serviceOnly} service configs
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -20 }} className="mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-[10px] font-semibold tracking-wider" style={{ color: 'var(--pd-dim)' }}>FLEET CONTROL CENTER</div>
+          <h1 className="mt-1 text-xl font-semibold sm:text-2xl" style={{ color: 'var(--pd-text)' }}>Operator entrance</h1>
+          <p className="mt-1 text-sm" style={{ color: 'var(--pd-muted)' }}>
+            {totalActive} deployed · {totalAgents} configured · {blockedProjects.length} blocked · {readyProjects.length} ready
           </p>
         </div>
-        <div className="max-w-xl text-xs leading-relaxed" style={{ color: 'var(--pd-muted)' }}>
-          Fleet automation is driven by <span style={{ color: 'var(--pd-text)' }}>pd-fleet.yml</span>. Service orchestration from <span style={{ color: 'var(--pd-text)' }}>.portdaddyrc</span> is still shown, but marked separately.
-        </div>
+        <button
+          type="button"
+          onClick={() => void refreshLandingData()}
+          className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-semibold"
+          style={{ color: 'var(--pd-text)', border: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-surface)' }}
+        >
+          <RefreshCw size={13} />
+          <span>{refreshing ? 'Refreshing' : 'Refresh'}</span>
+        </button>
       </div>
 
-      <AgentConversationPanel onOpenShipwright={onOpenShipwright} />
-      <BackendReadinessPanel />
+      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.82fr)]">
+        <section className="grid grid-cols-2 gap-2 sm:gap-3 2xl:grid-cols-4" aria-label="Fleet control center live numbers">
+          {metrics.map((metric) => (
+            <MetricTile key={metric.id} metric={metric} />
+          ))}
+        </section>
 
-      <div className="flex flex-col gap-3">
-        {projects.map((p, i) => {
+        <section className="rounded-lg border p-3" style={{ backgroundColor: 'var(--pd-surface-2)', borderColor: 'var(--pd-border)' }}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-[10px] font-semibold tracking-wider" style={{ color: 'var(--pd-dim)' }}>NEXT ACTIONS</div>
+            {liveDataError && (
+              <span className="rounded-full px-2 py-0.5 text-[9px] font-bold" style={toneStyle('warning')}>
+                partial data
+              </span>
+            )}
+          </div>
+          <div className="mt-3 grid gap-2">
+            {nextActions.map((action) => (
+              <ActionRow key={action.id} action={action} />
+            ))}
+          </div>
+          {backendBlockers.length > 1 && (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {backendBlockers.slice(1, 4).map((backend) => (
+                <span key={backend.id} className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={toneStyle(backend.readinessStatus === 'needs_setup' ? 'danger' : 'warning')}>
+                  {backend.name}: {backendStatusLabel(backend)}
+                </span>
+              ))}
+            </div>
+          )}
+          {liveDataError && (
+            <div className="mt-2 line-clamp-2 text-[10px]" style={{ color: 'var(--pd-warning)' }}>
+              {liveDataError}
+            </div>
+          )}
+        </section>
+      </div>
+
+      <div className="mt-6 grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(340px,0.85fr)]">
+        <BackendReadinessPanel />
+        <AgentConversationPanel onOpenShipwright={onOpenShipwright} />
+      </div>
+
+      <div className="mt-4 flex flex-col gap-2">
+        {priorityProjects.map((p, i) => {
           const activeCount = deployedCount(p);
           const warningCount = p.configWarnings?.length ?? 0;
           return (
             <motion.div key={p.id} layoutId={`project-${p.id}`} onClick={() => onSelect(p.id)}
-              className="rounded-lg border px-5 py-4 cursor-pointer"
+              className="cursor-pointer rounded-lg border px-4 py-3"
               style={{ backgroundColor: 'var(--pd-surface)', borderColor: 'var(--pd-border)' }}
               initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.04, type: 'spring', stiffness: 300, damping: 28 }}
@@ -582,18 +1044,18 @@ export function AllProjectsList({ projects, onSelect, onStartProject, onSetBudge
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-3">
                     <span className="font-mono font-bold" style={{ color: 'var(--pd-text)' }}>{p.name}</span>
-                    <span className="inline-flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded-full font-bold" style={stateStyle(p)}>
+                    <span className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold" style={stateStyle(p)}>
                       <StateIcon project={p} />
                       {stateLabel(p)}
                     </span>
                     {warningCount > 0 && (
-                      <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ backgroundColor: 'var(--pd-warning-surface)', color: 'var(--pd-warning)', border: '1px solid var(--pd-warning-border)' }}>
+                      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: 'var(--pd-warning-surface)', color: 'var(--pd-warning)', border: '1px solid var(--pd-warning-border)' }}>
                         <AlertTriangle size={11} />
                         {warningCount} warning{warningCount === 1 ? '' : 's'}
                       </span>
                     )}
                   </div>
-                  <div className="mt-2 text-[11px] font-mono truncate" style={{ color: 'var(--pd-muted)' }}>{p.fleetPath}</div>
+                  <div className="mt-1 truncate font-mono text-[11px]" style={{ color: 'var(--pd-muted)' }}>{p.fleetPath}</div>
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-2">
                   <span className="text-xs" style={{ color: 'var(--pd-muted)' }}>
@@ -603,14 +1065,14 @@ export function AllProjectsList({ projects, onSelect, onStartProject, onSetBudge
                 </div>
               </div>
 
-              <div className="mt-3 text-sm leading-relaxed" style={{ color: 'var(--pd-text)' }}>
+              <div className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--pd-text)' }}>
                 {p.operatorSummary ?? 'No operator summary available.'}
               </div>
               <div className="mt-1 text-xs leading-relaxed" style={{ color: 'var(--pd-muted)' }}>
                 {p.operatorNextAction ?? 'Select this project to inspect it.'}
               </div>
 
-              <div className="mt-2 flex flex-wrap gap-2">
+              <div className="mt-2 flex flex-wrap gap-1.5">
                 {(p.signals ?? []).map((signal) => (
                   <span
                     key={`${p.id}-${signal}`}

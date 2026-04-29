@@ -1,0 +1,23 @@
+{
+  "generatedAt": "2026-04-29T17:25:12.535Z",
+  "status": {
+    "activePorts": "22",
+    "fleet": "1 project(s), 8 agent(s), 3/8 launchable",
+    "runtime": "nominal",
+    "lastActivity": "19s ago",
+    "launchable": "3/8"
+  },
+  "sessions": [
+    "Fix CI terminal recordi...",
+    "commit signed FleetBar ...",
+    "Finalize signed FleetBa...",
+    "expand landing live-glo..."
+  ],
+  "notes": [
+    "Pushed 6474df2 Fix website recording pd shim in CI. Local validation: record-agent --play daemon-runtime had no command-not-found; npm --prefix website-v2 run test:gifs passed. Watching main CI for the recording job.",
+    "Investigating current main CI failure in website-terminal-recordings: recorder emits command-not-found because scripts type pd but CI has no global pd binary. Claiming recording scripts to add local CLI shim.",
+    "Scope: take over staged signed FleetBar download artifact slice from prior note, without touching live-glory tmp screenshots. Files: README.md, scripts/package-fleetbar*.sh, website-v2 public downloads manifest/checksums/zip, landing CTA/distribution/product metadata/MacPreview copy. Plan: claim files, validate checksum/codesign/copy/build, commit, rebase/push.",
+    "Follow-up after deploy: removing stale developer-preview language from FleetBar distribution. Regenerated signed Developer ID ZIP as PortDaddy-FleetBar-macOS-arm64.zip, verified codesign authority Curiositech LLC / team P5H9P59X2M, and staged old -dev artifact removal. Validation: root typecheck, website test/build/lint, codesign verify, rg no developer-preview copy.",
+    "Current main CI 25123098868 failed only in website-terminal-recordings cheap reviewer: regenerated casts contain command-not-found across all tutorial/example/docs/agents casts. I am investigating CI recording PATH/command resolution in temp worktree, not touching dirty primary checkout."
+  ]
+}

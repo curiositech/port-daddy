@@ -1,5 +1,4 @@
 import { Footer } from '@/components/layout/Footer'
-import { ExampleArtwork } from '@/components/examples/ExampleArtwork'
 import {
   BracketLink,
   BracketLabel,
@@ -49,10 +48,10 @@ const broaderBuildIdeas = [
   },
   {
     label: 'Fleet cockpit',
-    title: 'Build an eval and agent-run control plane',
+    title: 'Build an eval and agent-run dashboard',
     body: 'Track launches, evidence, touched files, costs, failures, handoffs, and recovery state across a local fleet of coding agents.',
     href: '/agents',
-    cta: 'Agents surface',
+    cta: 'Agents view',
   },
 ]
 
@@ -63,10 +62,10 @@ export function ExamplesPage() {
         <DocsHero
           eyebrow="Examples"
           title="Build tools that can reach your local agent."
-          summary="These are complete executable examples for the things Port Daddy makes newly easy: local tools can summon agents, agents can coordinate through shared primitives, and support services can stop colliding."
+          summary="These are complete executable examples for the thing Port Daddy makes newly easy: a browser, test runner, editor command, or webhook can summon the agent session already running in your repo."
           paragraphs={[
             'PD Tube is the flagship primitive. It turns local events into a blocking CLI loop with threaded replies, so the publisher stays tiny and the agent runtime stays swappable.',
-            'Pick the system you want to build, run the source in /examples, then copy the shape into your editor extension, test reporter, browser page, bot adapter, CI harness, swarm runner, or local control panel.',
+            'Pick the tool you want to build, run the source in /examples, then copy the publisher shape into your editor extension, test reporter, browser page, bot adapter, or local control panel.',
           ]}
           aside={
             <DocsNoteCard label="Start" title="Start with the phone line." elevation="quiet" padding="compact" titleSize="nav">
@@ -92,7 +91,7 @@ export function ExamplesPage() {
             title={FEATURED_EXAMPLE.title}
             elevation="quiet"
           >
-            <div className="grid gap-[var(--panel-gap)] lg:grid-cols-[minmax(0,1fr)_minmax(24rem,0.56fr)]">
+            <div className="grid gap-[var(--panel-gap)] lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.42fr)]">
               <div className="space-y-[var(--space-3)]">
                 <PanelTitle as="h2" size="card">
                   {FEATURED_EXAMPLE.summary}
@@ -111,7 +110,6 @@ export function ExamplesPage() {
               </div>
 
               <div className="space-y-[var(--panel-gap-tight)]">
-                <ExampleArtwork example={FEATURED_EXAMPLE} priority className="mb-[var(--panel-gap)]" />
                 <BracketLabel side="right">What it builds</BracketLabel>
                 <PanelBody size="compact" className="max-w-none">
                   {FEATURED_EXAMPLE.builds}
@@ -177,8 +175,8 @@ export function ExamplesPage() {
           <div className="lg:col-span-4">
             <DocsNoteCard label="Executable catalogue" title="Source-backed examples you can run today." elevation="quiet" padding="compact" titleSize="nav">
               <PanelBody size="compact" className="max-w-none">
-                The runnable source is the product: each page keeps the full code visible and explains how to turn it
-                into product code.
+                The rest of the catalogue is deliberately narrow: publishers a developer would actually ship.
+                Each page keeps the full source visible and explains how to turn it into product code.
               </PanelBody>
             </DocsNoteCard>
           </div>
@@ -196,15 +194,12 @@ export function ExamplesPage() {
                 elevation="quiet"
                 padding="compact"
               >
-                <div className="grid gap-[var(--panel-gap)] md:grid-cols-[minmax(20rem,0.48fr)_minmax(0,1fr)]">
-                  <ExampleArtwork example={example} />
-                  <div className="space-y-[var(--space-2)]">
-                    <PanelBody className="max-w-[58rem]">{example.summary}</PanelBody>
-                    <PanelBody className="max-w-[58rem] text-[var(--text-secondary)]">{example.surveyPlain}</PanelBody>
-                    <PanelBody size="compact" className="max-w-[58rem] text-[var(--text-secondary)]">
-                      Builds: {example.builds}
-                    </PanelBody>
-                  </div>
+                <div className="space-y-[var(--space-2)]">
+                  <PanelBody className="max-w-[58rem]">{example.summary}</PanelBody>
+                  <PanelBody className="max-w-[58rem] text-[var(--text-secondary)]">{example.surveyPlain}</PanelBody>
+                  <PanelBody size="compact" className="max-w-[58rem] text-[var(--text-secondary)]">
+                    Builds: {example.builds}
+                  </PanelBody>
                 </div>
 
                 <div className="grid gap-[var(--panel-gap)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)] md:grid-cols-[minmax(0,1fr)_minmax(16rem,0.42fr)]">

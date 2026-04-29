@@ -6,7 +6,7 @@ export default function Up() {
       function="up"
       description="Start all registered services in the current project. Uses the detected start commands."
       module="Ports"
-      version="3.8.3"
+      version="3.11.0"
       signature="up(options?: UpOptions): Promise<Process[]>"
       params={[
         { name: 'options.project', type: 'string', description: 'Project name (default: auto-detect)' },

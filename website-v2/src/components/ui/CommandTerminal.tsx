@@ -8,6 +8,7 @@ interface CommandTerminalProps {
   typewriterSpeed?: number
   animate?: boolean
   copyable?: boolean
+  showHeaderLabel?: boolean
 }
 
 export function CommandTerminal({
@@ -17,6 +18,7 @@ export function CommandTerminal({
   typewriterSpeed = 25,
   animate = true,
   copyable = true,
+  showHeaderLabel = true,
 }: CommandTerminalProps) {
   const trimmed = code.trim()
   const [displayedCode, setDisplayedCode] = useState(animate ? '' : trimmed)
@@ -44,7 +46,7 @@ export function CommandTerminal({
   const cursor = isTyping ? '|' : ''
 
   return (
-    <CodeBlock language={language} filename={title} copyable={copyable}>
+    <CodeBlock language={language} filename={title} copyable={copyable} showHeaderLabel={showHeaderLabel}>
       {displayedCode + cursor}
     </CodeBlock>
   )

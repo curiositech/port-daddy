@@ -1,10 +1,10 @@
 # Cartographer Status
 
-**Last updated:** 2026-04-27
-**Updated by:** Codex promotion recovery closeout
-**HEAD:** `717f4f4`
+**Last updated:** 2026-04-29
+**Updated by:** Codex commit-and-push closeout
+**HEAD:** `629de64`
 **Stable:** `40cf79d` — promoted from `main@717f4f4` and pushed to `origin/stable`
-**Previous HEAD:** `7b91e37` — Shipwright component review shots, before the guard/stale-visibility/promotion recovery stack landed
+**Previous HEAD:** `a1dc622` — `pd-fleet.yml` hardened with fallbacks, throttles, and watcher fixes before the latest maritime / website polish burst
 
 ---
 
@@ -14,7 +14,38 @@
 
 Active work ledger lives at `docs/recovery/CURRENT-WORK.md`. Keep the in-flight queue there, then reflect major closures or drift here.
 
-The latest committed work still maps overwhelmingly to the Recovery Roadmap (`docs/recovery/UNIFIED-ROADMAP.md`), not the V4 phase structure. Track 1 (Cost & Observability) is closed. Tracks 2 (FleetBar) and 3 (Fleet Config UI) remain active. The working tree now also contains a real Phase 1 / memory slice, so the old claim that graph work was untouched is no longer true.
+The latest committed work still maps overwhelmingly to the Recovery Roadmap (`docs/recovery/UNIFIED-ROADMAP.md`), not the V4 phase structure. Track 1 (Cost & Observability) is closed. Tracks 2 (FleetBar) and 3 (Fleet Config UI) remain active. The freshest commit stream is mostly unplanned website / release-surface / phone-integration work, plus maritime actor / launchability hardening. Within V4, Phase 3 is still the hottest mapped phase, Phase 2 is the closest to a closure point, Phase 1 remains in-tree but not fully promoted, and Phase 5/6 are stale.
+
+## Snapshot
+
+- Velocity: 174 commits in the last 7 days = 24.9/day.
+- Closest to completion:
+  - `claim-preserving-git-safety`
+  - `fleet-launchability-and-cadence`
+  - `coordination-guard-extended-enforcement`
+- Blocked or drifting:
+  - Phase 5 network / remote harbors
+  - Phase 6 connectors / coaching
+  - Phase 4E `pd self-test --adversarial` / 4F Windows IPC
+- Open dogfood now: 3 slugs (`claim-preserving-git-safety`, `fleet-launchability-and-cadence`, `session-context-cwd-reset`)
+
+### Cartographer Refresh (2026-04-29)
+
+- `cartographer-roadmap-progress-screen` moved out of Immediate Implementation Candidates; the progress/feedback route is shipped and no longer a next cut.
+- `629de64` — website content, proof media, terminal recordings, examples, and FleetBar preview package metadata were committed and pushed.
+- `4dba2a3` — the Port Daddy agent skill bundle was published into repo and tool-specific mirrors.
+- `eac3fc3` — live tuple-backed feedback now surfaces in roadmap progress, CLI, and Fleet Control Center roadmap UI.
+- `5f01294` — Agents pages gained Flow / Coordination Guard / Smart Resources expansions and generated session/agent IDs became human-readable.
+- `9e7d458` — maritime layer dropped: actor IDs are fleet agent names.
+- `a1dc622` — `pd-fleet.yml` hardened with fallbacks, throttles, and watcher fixes.
+- `68753a9` — `pd-fleet.yml` plus git-hygiene guidance landed in the `port-daddy-cli` skill.
+- `0718477` — website distribution commands polished.
+- `d5c05aa` — coordination guard audited after commits.
+- `3214576` — MCP and Mac preview surfaces polished.
+- `8c65932` — MCP catalog docs refreshed.
+- `e9b57b3` — `pd tube` tutorial merged.
+- `5db90d7` — SPA hash anchor navigation landed.
+- `adcc608` — examples clarified as buildable tools.
 
 Active threads, ranked by commit recency:
 

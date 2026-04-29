@@ -4,26 +4,26 @@ export const bestPracticesSection: DocsContentSection = {
   slug: 'best-practices',
   title: 'Best Practices',
   summary:
-    'Operator discipline for keeping runtime truth, coordination, and promotion honest under real repo pressure.',
+    'Practical habits for keeping agent work visible, recoverable, and safe to ship.',
   pages: [
     {
       slug: 'operator-loop',
-      title: 'Operator Loop',
+      title: 'Daily Work Loop',
       summary:
-        'Use the Port Daddy-first loop before broad repo work so the daemon and other agents can see your slice.',
+        'Use the Port Daddy-first loop before broad repo work so other agents can see your slice.',
       truth: 'source-backed',
       goals: [
-        'Start work with the repo’s expected operator sequence.',
+        'Start work with the expected command sequence.',
         'Leave machine-visible context before edits.',
-        'Escalate to shared primitives when work can collide.',
+        'Use locks or file claims when work can collide.',
       ],
       blocks: [
         {
           type: 'paragraph',
-          title: 'Run the operator loop before the repo gets noisy',
+          title: 'Run the work loop before the repo gets noisy',
           paragraphs: [
-            'The operator loop exists to make your slice visible before you start changing a busy repo. It is how you tell the daemon, other agents, and future recovery work what you are about to do.',
-            'This is why Port Daddy-first is a rule in this repo rather than a nice suggestion. Shell archaeology without a session anchor is invisible work, and invisible work is exactly what the control plane is supposed to eliminate.',
+            'The work loop exists to make your slice visible before you start changing a busy repo. It tells Port Daddy, other agents, and future recovery work what you are about to do.',
+            'This is why Port Daddy-first is a rule in this repo rather than a nice suggestion. Local shell work without a session anchor is invisible work.',
           ],
         },
         {
@@ -41,23 +41,23 @@ export const bestPracticesSection: DocsContentSection = {
             'pd note "Owning a narrow slice. State intended files and constraints before broad edits."',
           notes: [
             'Use notes to make your slice visible to other agents.',
-            'When overlap risk is real, move beyond prose and use locks or other coordination primitives.',
+            'When overlap risk is real, use locks or file claims instead of relying on prose.',
           ],
         },
         {
           type: 'checklist',
           items: [
             'Treat plain shell inspection without a Port Daddy session as insufficient for non-trivial repo work.',
-            'Use locks or other shared coordination primitives for overlapping edits or critical sections.',
+            'Use locks or file claims for overlapping edits or critical sections.',
             'Hand off work with the live Port Daddy session anchor, not just free-form prose.',
           ],
         },
         {
           type: 'paragraph',
-          title: 'What good operator behavior looks like',
+          title: 'What good coordination looks like',
           paragraphs: [
-            'Good operator behavior is explicit, attributable, and recoverable. It leaves enough state behind that another person or agent can route around your slice instead of stumbling into it.',
-            'That is the difference between “many tools running in one repo” and an actual control plane.',
+            'Good coordination is explicit, attributable, and recoverable. It leaves enough state behind that another person or agent can route around your slice instead of stumbling into it.',
+            'That is the difference between “many tools running in one repo” and work that other people and agents can understand.',
           ],
         },
       ],
@@ -68,54 +68,54 @@ export const bestPracticesSection: DocsContentSection = {
         },
         {
           path: 'website-v2/src/data/publicSite.ts',
-          rationale: 'Current guides content already reflects the operator loop at a high level.',
+          rationale: 'Current guides content already reflects the daily work loop at a high level.',
         },
       ],
     },
     {
       slug: 'runtime-truth',
-      title: 'Runtime Truth Over Source Assumptions',
+      title: 'Running App Over Source Assumptions',
       summary:
-        'The daemon serving users is the authority for operator truth. Current source only matters after rebuild and relaunch.',
+        'Source changes only help users after the running daemon and UI have been rebuilt and relaunched.',
       truth: 'source-backed',
       goals: [
         'Verify the live daemon instead of assuming the current checkout is active.',
-        'Keep one canonical daemon story.',
-        'Prevent stale UI or stale shim state from rewriting reality.',
+        'Keep one expected daemon running.',
+        'Catch stale UI or stale shell commands before they waste time.',
       ],
       blocks: [
         {
           type: 'paragraph',
-          title: 'Keep one canonical runtime story',
+          title: 'Keep one running-app story',
           paragraphs: [
-            'Operator trust collapses as soon as the daemon, the browser surface, and the CLI disagree about what is live. That is why this repo keeps such a hard line about canonical runtime checks.',
-            'The goal is not ritual. The goal is to keep every operator-facing surface attached to the same process and the same shared state.',
+            'Debugging gets messy as soon as the daemon, browser dashboard, and CLI disagree about what is live.',
+            'The goal is simple: make sure the CLI and UI are attached to the same running Port Daddy process before you trust either one.',
           ],
         },
         {
           type: 'checklist',
           items: [
             'Do not assume the live daemon is running the current checkout.',
-            'Treat the canonical daemon on preferred port `9876` as replaceable stale runtime if a fresher canonical install must take over.',
+            'Treat an old daemon on preferred port `9876` as replaceable if a newer install should be serving.',
             'Use shared discovery rather than sprinkling new hardcoded localhost URLs around the repo.',
-            'If socket and TCP checks disagree, trust live process and launchd output over docs or memory.',
+            'If socket and browser checks disagree, inspect the live process and launchd output.',
           ],
         },
         {
           type: 'command',
-          title: 'Canonical runtime verification',
+          title: 'Runtime verification',
           command:
             'port-daddy status\nlaunchctl print gui/501/com.portdaddy.daemon\ncurl -sS "$(cat ~/.port-daddy/daemon.port 2>/dev/null | sed \'s#^#http://localhost:#\')/fleet"\nwhich port-daddy',
           notes: [
-            'This command set separates daemon health, launchd state, TCP reachability, and shell shim truth.',
+            'This command set separates daemon health, launchd state, browser reachability, and shell command location.',
           ],
         },
         {
           type: 'paragraph',
           title: 'Why this page exists',
           paragraphs: [
-            'Most “the feature does not work” reports in a system like this are really “the runtime story drifted” reports. This page exists so that drift gets diagnosed in minutes instead of hours.',
-            'Once you trust the live process checks, the daemon becomes much easier to operate and much harder to lie to yourself about.',
+            'Many “the feature does not work” reports are really “I am looking at an old daemon or UI bundle” reports.',
+            'Once you verify the live process, the rest of the debugging gets much easier.',
           ],
         },
       ],
@@ -126,7 +126,7 @@ export const bestPracticesSection: DocsContentSection = {
         },
         {
           path: 'docs/recovery/README.md',
-          rationale: 'Recovery authority documents preferred port and runtime-discovery discipline.',
+          rationale: 'Recovery docs describe preferred port and runtime-discovery discipline.',
         },
       ],
     },
@@ -147,7 +147,7 @@ export const bestPracticesSection: DocsContentSection = {
           title: 'Coordination is the product, not the overhead',
           paragraphs: [
             'Sessions, notes, locks, and salvage are not side features around the real work. They are the real work of making multi-agent execution understandable and recoverable.',
-            'If those primitives are treated as optional, the repo falls back to guesswork. That is exactly the failure mode Port Daddy is here to replace.',
+            'If those habits are treated as optional, the repo falls back to guesswork.',
           ],
         },
         {
@@ -178,8 +178,8 @@ export const bestPracticesSection: DocsContentSection = {
           type: 'paragraph',
           title: 'The recovery standard',
           paragraphs: [
-            'Crash recovery has to be ordinary. A daemon that only looks good when everything exits cleanly is not serious operator infrastructure.',
-            'By keeping salvage in the normal best-practices flow, the docs make that expectation explicit.',
+            'Crash recovery has to be ordinary. Agents stop, terminals close, and work still needs to be recoverable.',
+            'Keeping salvage in the normal best-practices flow makes that expectation explicit.',
           ],
         },
       ],
@@ -190,7 +190,7 @@ export const bestPracticesSection: DocsContentSection = {
         },
         {
           path: 'docs/adr/0008-agent-resurrection-pattern.md',
-          rationale: 'ADR explains why salvage is a deliberate operator flow instead of automatic cleanup.',
+          rationale: 'ADR explains why salvage is a deliberate recovery flow instead of automatic cleanup.',
         },
       ],
     },
@@ -198,84 +198,84 @@ export const bestPracticesSection: DocsContentSection = {
       slug: 'testing-and-promotion',
       title: 'Testing and Promotion Discipline',
       summary:
-        'Green tests are necessary but not sufficient, and stable promotion should run through the script instead of improvised operator rituals.',
+        'Use the test gate, promote through the supported script, and verify the Port Daddy app a user actually opens.',
       truth: 'source-backed',
       goals: [
-        'Use the repo’s minimum health gate honestly.',
-        'Keep test and promotion claims tied to source truth.',
-        'Avoid ad hoc stable-promotion behavior.',
+        'Run the documented test gate before claiming release readiness.',
+        'Use the promotion script so install, daemon, and UI assets move together.',
+        'Verify the promoted Port Daddy app from the places users actually open.',
       ],
       blocks: [
         {
           type: 'paragraph',
-          title: 'Do not confuse green with done',
+          title: 'Test the change, then test the installed app',
           paragraphs: [
-            'A green test run is necessary. It is not enough. Promotion, runtime alignment, and operator-visible behavior still need to be checked honestly.',
-            'This page exists because too much drift in systems like this hides behind “tests passed” while the stable daemon, shell shim, or UI still tell a different story.',
+            'Tests tell you whether the checkout is healthy. Promotion decides what users will actually run. Treat those as separate checks so a fixed bug does not stay trapped in an unpromoted build.',
+            'For Port Daddy contributors, that means running the repo gate, using the supported promotion script, and opening the installed app or dashboard before calling the release ready.',
           ],
         },
         {
           type: 'command',
-          title: 'Minimum health gate',
+          title: 'Test gate',
           command: 'npm test',
           notes: [
-            'This is the repo-wide minimum gate before broad health claims.',
-            'A green exit code is still incomplete if worker-exit warnings remain.',
+            'Run focused tests while iterating, then use this as the broad gate before release claims.',
+            'If Jest reports worker-exit warnings, chase them before treating the run as clean.',
           ],
         },
         {
           type: 'command',
-          title: 'Promotion path',
+          title: 'Promote the supported way',
           command: './scripts/promote-stable.sh',
           notes: [
-            'Use the script first when the task is to promote the daemon.',
-            'Do not hand-roll launchctl promotion flows when the script exists.',
+            'This script rebuilds and restarts the stable install.',
+            'Report the script’s blocker instead of improvising a launchd sequence.',
           ],
         },
         {
           type: 'callout',
-          tone: 'warning',
-          title: 'Do not mistake green tests for operational truth',
+          tone: 'info',
+          title: 'Verify what users will open',
           body:
-            'Run the full test suite, then check the daemon and promotion path with the same honesty. A green test run does not prove the runtime, the shell shim, or the stable install are aligned.',
+            'After promotion, open CLI status and the web or FleetBar app from the promoted daemon. The release is ready when the installed app and browser UI both show the change you tested.',
         },
         {
           type: 'paragraph',
-          title: 'What disciplined promotion buys you',
+          title: 'What this gives users',
           paragraphs: [
-            'A disciplined promotion path gives the operator one canonical daemon, one known install root, and one runtime story that can be debugged coherently.',
-            'That is worth protecting. Once stable and dogfood drift apart, every user-facing fix becomes harder to trust.',
+            'The payoff is simple: the person who launches Port Daddy gets the same behavior the contributor just tested.',
+            'Promotion discipline prevents users from seeing an old daemon, stale UI bundle, or missing command after the code has already been fixed.',
           ],
         },
       ],
       sources: [
         {
-          path: 'AGENTS.md',
-          rationale: 'Promotion script rule and testing discipline are defined here.',
+          path: 'package.json',
+          rationale: 'Defines the repo test script used as the broad health gate.',
         },
         {
-          path: 'docs/recovery/CURRENT-WORK.md',
-          rationale: 'Recovery ledger repeatedly distinguishes green tests from complete operator truth.',
+          path: 'scripts/promote-stable.sh',
+          rationale: 'Canonical promotion entry point for the stable install.',
         },
       ],
     },
     {
       slug: 'onboarding-surfaces',
-      title: 'Onboarding Surfaces',
+      title: 'Onboarding Entry Points',
       summary:
         'Project setup, fleet setup, and MCP setup are real entry points today. The remaining work is turning them into one coherent first-run experience.',
       truth: 'blocked',
       goals: [
         'Show the available onboarding commands clearly.',
-        'Set expectations honestly about what is already smooth and what still needs product work.',
+        'Set expectations clearly about what is already smooth and what still needs product work.',
       ],
       blocks: [
         {
           type: 'paragraph',
-          title: 'Three real surfaces, one unfinished journey',
+          title: 'Three entry points, one unfinished journey',
           paragraphs: [
-            'Project setup, fleet setup, and MCP setup are already real surfaces. They are not imaginary roadmap bullets.',
-            'What is still being productized is the feeling of one coherent first-run journey from install to configured project to working control plane.',
+            'Project setup, fleet setup, and MCP setup already exist. They are not imaginary roadmap bullets.',
+            'What is still being productized is the feeling of one clear first-run journey from install to configured project to working app.',
           ],
         },
         {
@@ -284,7 +284,7 @@ export const bestPracticesSection: DocsContentSection = {
           command: 'pd init\npd fleet init\npd mcp install',
           notes: [
             'These commands already exist and are usable today.',
-            'Use them when you are setting up a project, a fleet surface, or an MCP connection.',
+            'Use them when you are setting up a project, a fleet, or an MCP connection.',
           ],
         },
         {
@@ -292,21 +292,21 @@ export const bestPracticesSection: DocsContentSection = {
           tone: 'warning',
           title: 'Real commands, unfinished journey',
           body:
-            'The commands work. What is still being tightened is the first-run story that carries an operator cleanly from install to a configured project and working control plane.',
+            'The commands work. What is still being tightened is the first-run story that carries a new user cleanly from install to a configured project and working app.',
         },
         {
           type: 'paragraph',
-          title: 'How to write about this honestly',
+          title: 'How to write about this clearly',
           paragraphs: [
             'The right public stance is directness. Show the working commands, explain what each one is for, and stop short of pretending the onboarding flow is already seamless.',
-            'That kind of honesty does more for trust than a fake frictionless story ever could.',
+            'That kind of clarity does more for trust than a fake frictionless story ever could.',
           ],
         },
       ],
       sources: [
         {
           path: 'docs/V4-UNIFIED-ROADMAP.md',
-          rationale: 'Roadmap notes that pd init, pd fleet init, and pd mcp install are built onboarding surfaces.',
+          rationale: 'Roadmap notes that pd init, pd fleet init, and pd mcp install are built onboarding entry points.',
         },
         {
           path: 'docs/MULTI-ENTRY-STRATEGY.md',

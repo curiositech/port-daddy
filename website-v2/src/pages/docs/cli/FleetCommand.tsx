@@ -5,7 +5,7 @@ export default function FleetCommand() {
     <CommandPage
       command="pd fleet"
       description="Manage a declarative background agent fleet defined in pd-fleet.yml. Reads agents, watchers, and channel definitions from the project root, resolves template variables, and starts all processes with Port Daddy coordination automatically wired."
-      version="3.8.3"
+      version="3.11.0"
       syntax="pd fleet <subcommand> [agent-name]"
       flags={[
         { flag: 'up', description: 'Start all agents and watchers from pd-fleet.yml' },

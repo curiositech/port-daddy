@@ -73,7 +73,7 @@ pd fleet down    # Stop`}
           <div className="border border-[var(--border-subtle)] rounded-xl p-4 space-y-2">
             <div className="flex items-center gap-2">
               <span className="font-semibold text-[var(--text-primary)]">Daemon Mode</span>
-              <Badge variant="teal">v3.8.3</Badge>
+              <Badge variant="teal">v3.11.0</Badge>
             </div>
             <p className="text-sm text-[var(--text-secondary)]">
               The Port Daddy daemon auto-discovers <code className="font-mono text-xs text-[var(--brand-primary)]">pd-fleet.yml</code> in

@@ -2,6 +2,7 @@ import { describe, expect, test } from '@jest/globals';
 import {
   DEFAULT_GUARD_CONFIG,
   evaluateGuardFacts,
+  extractClaimPaths,
   mergePostCommitHook,
   mergePreCommitHook,
   normalizeGuardConfig,
@@ -54,6 +55,21 @@ describe('Coordination Guard', () => {
       '/repo/.cartographer/status.md',
       '.cartographer/status.md',
     ]);
+  });
+
+  test('extracts active claim paths from daemon claim shapes', () => {
+    expect(extractClaimPaths({
+      claims: [
+        { filePath: 'src/a.ts' },
+        { file_path: 'src/b.ts' },
+        { path: 'src/c.ts' },
+        { path: '   ' },
+      ],
+    })).toEqual(['src/a.ts', 'src/b.ts', 'src/c.ts']);
+
+    expect(extractClaimPaths({
+      files: [{ path: 'src/fallback.ts' }],
+    })).toEqual(['src/fallback.ts']);
   });
 
   test('blocks in enforce mode without active Port Daddy context', () => {

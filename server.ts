@@ -47,6 +47,7 @@ import { createWebhooks, WebhookEvent } from './lib/webhooks.js';
 import { createProjects } from './lib/projects.js';
 import { createSessions } from './lib/sessions.js';
 import { createAgentInbox } from './lib/agent-inbox.js';
+import { createClaimWatcher } from './lib/claim-watcher.js';
 import { createResurrection } from './lib/resurrection.js';
 import { createChangelog } from './lib/changelog.js';
 import { createTunnel } from './lib/tunnel.js';
@@ -281,6 +282,25 @@ const agentInbox = createAgentInbox(db, (agentId, message) => {
     signal: (message as any).signal || 'report'
   });
 });
+// Mid-claim hash watcher — snapshots claimed files when their content
+// hash changes mid-claim and DMs the claim-holder. Reactive, not
+// preventive — but turns silent steamrolls into recoverable events.
+const claimWatcher = createClaimWatcher({
+  listClaims: () => {
+    const result = sessions.listAllActiveClaims();
+    if (!result.success || !Array.isArray(result.claims)) return [];
+    return result.claims.map(c => ({
+      filePath: c.filePath,
+      sessionId: c.sessionId,
+      agentId: c.agentId,
+    }));
+  },
+  sendInbox: (agentId, content, options) => agentInbox.send(agentId, content, options),
+  addNote: (sessionId, note) => sessions.addNote(sessionId, note.content, { type: note.type }),
+  searchRoots: [process.cwd()],
+  log: (msg, meta) => logger.info(msg, meta),
+});
+
 const resurrection = createResurrection(db, { sessions });
 const changelog = createChangelog(db);
 const tunnel = createTunnel(db);
@@ -804,6 +824,14 @@ function onReady(): void {
     version: VERSION, port: PORT, pid: process.pid
   });
   webhooks.retryPending();
+
+  // Start mid-claim hash watcher. Cheap (sha256 every ~5s over the active
+  // claim set), unref()'d so it doesn't keep the process alive on its own.
+  try {
+    claimWatcher.start();
+  } catch (err) {
+    logger.error('claim_watcher_start_failed', { error: (err as Error).message });
+  }
 
   // Start fleet daemon — auto-discovers pd-fleet.yml in registered projects.
   // Named sidecar profiles default this off so they cannot accidentally arm the

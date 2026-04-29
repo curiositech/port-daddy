@@ -186,6 +186,15 @@ pre code {
   color: inherit !important;
 }
 
+/* Tutorial pages should read like docs, not a dashboard of repeated icon tiles. */
+.tutorial-article section > div:first-child:has(> h2) {
+  display: block;
+}
+
+.tutorial-article section > div:first-child:has(> h2) > div:first-child {
+  display: none !important;
+}
+
 /* ─── Blog Article Typography ──────────────────────────────────────────────── */
 /* Uses the design system spacing rules directly (see SPACING RULES below).
  * Component overrides in BlogPostPage.tsx handle STRUCTURAL rendering only

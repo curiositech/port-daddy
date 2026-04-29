@@ -6,7 +6,7 @@ export default function Down() {
       function="down"
       description="Stop all running services in the current project. Sends graceful shutdown signals."
       module="Ports"
-      version="3.8.3"
+      version="3.11.0"
       signature="down(options?: DownOptions): Promise<string[]>"
       params={[
         { name: 'options.project', type: 'string', description: 'Project name (default: auto-detect)' },

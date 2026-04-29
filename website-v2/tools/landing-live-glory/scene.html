@@ -1,0 +1,671 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Port Daddy Landing Live Glory Capture</title>
+    <style>
+      :root {
+        --bg: #f8f3ea;
+        --ink: #17120d;
+        --muted: #6a6054;
+        --line: #241b13;
+        --soft-line: rgba(36, 27, 19, 0.16);
+        --panel: #fffaf2;
+        --terminal: #17120d;
+        --terminal-ink: #f8edda;
+        --terminal-muted: #c8bca7;
+        --accent: #e7532e;
+        --accent-2: #168171;
+        --accent-3: #5596e6;
+        --shadow: 12px 14px 0 rgba(23, 18, 13, 0.16);
+      }
+
+      :root[data-theme="dark"] {
+        --bg: #11100e;
+        --ink: #f8edda;
+        --muted: #b4aa9a;
+        --line: #eadcc5;
+        --soft-line: rgba(234, 220, 197, 0.18);
+        --panel: #1a1714;
+        --terminal: #050505;
+        --terminal-ink: #f8ead3;
+        --terminal-muted: #b8a98f;
+        --accent: #ff6a45;
+        --accent-2: #4cc6af;
+        --accent-3: #66a7ff;
+        --shadow: 12px 14px 0 rgba(0, 0, 0, 0.44);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      .stage {
+        position: relative;
+        width: 1280px;
+        height: 720px;
+        overflow: hidden;
+        background:
+          linear-gradient(90deg, var(--soft-line) 1px, transparent 1px),
+          linear-gradient(0deg, var(--soft-line) 1px, transparent 1px),
+          var(--bg);
+        background-size: 64px 64px, 64px 64px, auto;
+      }
+
+      .chrome {
+        position: absolute;
+        left: 46px;
+        right: 46px;
+        top: 30px;
+        z-index: 50;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        text-transform: uppercase;
+        letter-spacing: 0.15em;
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .mark {
+        display: inline-grid;
+        width: 42px;
+        height: 42px;
+        place-items: center;
+        border: 2px solid var(--line);
+        background: var(--accent);
+        color: #fff7eb;
+        letter-spacing: 0;
+      }
+
+      .run-state {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border: 2px solid var(--line);
+        background: var(--panel);
+        padding: 10px 14px;
+      }
+
+      .run-state::before {
+        content: "";
+        width: 10px;
+        height: 10px;
+        background: var(--accent-2);
+      }
+
+      .terminal {
+        position: absolute;
+        left: 74px;
+        top: 128px;
+        z-index: 10;
+        width: 760px;
+        height: 430px;
+        border: 2px solid var(--line);
+        background: var(--terminal);
+        color: var(--terminal-ink);
+        box-shadow: var(--shadow);
+        transform-origin: top left;
+        will-change: transform, opacity;
+      }
+
+      .terminal-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 44px;
+        border-bottom: 2px solid color-mix(in srgb, var(--terminal-ink) 20%, transparent);
+        padding: 0 18px;
+        color: var(--terminal-muted);
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+        font-size: 12px;
+      }
+
+      .window-dots {
+        display: flex;
+        gap: 8px;
+      }
+
+      .window-dots span {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: var(--terminal-muted);
+      }
+
+      .terminal-lines {
+        position: absolute;
+        top: 44px;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        padding: 22px 24px;
+        color: var(--terminal-ink);
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+        font-size: 18px;
+        line-height: 1.55;
+      }
+
+      .terminal-line {
+        min-height: 1.55em;
+        white-space: pre;
+      }
+
+      .prompt {
+        color: var(--accent-2);
+      }
+
+      .terminal-muted {
+        color: var(--terminal-muted);
+      }
+
+      .terminal-glow {
+        color: #e8b35e;
+      }
+
+      .capture {
+        position: absolute;
+        overflow: hidden;
+        border: 2px solid var(--line);
+        background: var(--panel);
+        box-shadow: var(--shadow);
+        will-change: transform, opacity;
+      }
+
+      .fleetbar-shell {
+        left: 94px;
+        top: 78px;
+        z-index: 20;
+        width: 1092px;
+        height: 610px;
+        opacity: 0;
+        transform-origin: center;
+      }
+
+      .menu-bar {
+        height: 70px;
+        border-bottom: 2px solid var(--line);
+        background: #15110f;
+      }
+
+      .menu-bar img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center top;
+      }
+
+      .popover-stage {
+        position: relative;
+        height: calc(100% - 70px);
+        background:
+          radial-gradient(circle at 18% 20%, color-mix(in srgb, var(--accent-2) 18%, transparent), transparent 32%),
+          linear-gradient(135deg, color-mix(in srgb, var(--panel) 72%, var(--bg)), var(--bg));
+      }
+
+      .popover-image {
+        position: absolute;
+        left: 72px;
+        top: 18px;
+        width: 430px;
+        height: 516px;
+        border: 2px solid color-mix(in srgb, var(--line) 72%, transparent);
+        border-radius: 0;
+        object-fit: cover;
+        object-position: top;
+        box-shadow: 10px 12px 0 rgba(0, 0, 0, 0.18);
+      }
+
+      .fleetbar-callout {
+        position: absolute;
+        left: 566px;
+        top: 92px;
+        right: 70px;
+        border: 2px solid var(--line);
+        background: var(--panel);
+        padding: 28px;
+      }
+
+      .fleetbar-callout strong {
+        display: block;
+        font-size: 34px;
+        line-height: 0.98;
+        letter-spacing: 0;
+      }
+
+      .fleetbar-callout span {
+        display: block;
+        margin-top: 14px;
+        color: var(--muted);
+        font-size: 16px;
+        font-weight: 800;
+        line-height: 1.4;
+      }
+
+      .surface-copy {
+        position: absolute;
+        left: 18px;
+        right: 18px;
+        bottom: 72px;
+        z-index: 3;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        border: 2px solid var(--line);
+        background: var(--panel);
+        color: var(--ink);
+        padding: 13px 16px;
+      }
+
+      .surface-copy strong {
+        display: block;
+        font-size: 15px;
+        line-height: 1.15;
+      }
+
+      .surface-copy span {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 780;
+        line-height: 1.35;
+      }
+
+      .surface {
+        left: 50px;
+        top: 36px;
+        z-index: 30;
+        width: 1180px;
+        height: 650px;
+        opacity: 0;
+        transform-origin: center;
+      }
+
+      .surface img {
+        width: 100%;
+        height: 100%;
+        display: block;
+        object-fit: cover;
+        object-position: top center;
+      }
+
+      .surface-title {
+        position: absolute;
+        left: 18px;
+        top: 18px;
+        z-index: 2;
+        border: 2px solid var(--line);
+        background: var(--panel);
+        color: var(--ink);
+        padding: 10px 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+        font-size: 12px;
+        font-weight: 950;
+      }
+
+      .timeline {
+        position: absolute;
+        left: 64px;
+        right: 64px;
+        bottom: 28px;
+        z-index: 60;
+        display: grid;
+        grid-template-columns: repeat(8, minmax(0, 1fr));
+        border: 2px solid var(--line);
+        background: var(--panel);
+      }
+
+      .timeline-step {
+        border-right: 2px solid var(--line);
+        padding: 10px 8px;
+        font-size: 10px;
+        font-weight: 950;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+
+      .timeline-step:last-child {
+        border-right: 0;
+      }
+
+      .timeline-step.active {
+        background: var(--accent);
+        color: #fff7eb;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="stage" id="stage">
+      <div class="chrome" id="chrome">
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <span class="mark">PD</span>
+          <span>Port Daddy live run</span>
+        </div>
+        <div class="run-state" id="topStatus">daemon nominal</div>
+      </div>
+
+      <section class="terminal" id="terminal" aria-label="Terminal">
+        <div class="terminal-top">
+          <div class="window-dots"><span></span><span></span><span></span></div>
+          <div>~/coding/port-daddy</div>
+        </div>
+        <div class="terminal-lines" id="terminalLines"></div>
+      </section>
+
+      <section class="capture fleetbar-shell" id="fleetbar" aria-label="FleetBar menu bar app">
+        <div class="menu-bar">
+          <div class="traffic"><span></span><span></span><span></span></div>
+          <img id="topbarImage" alt="macOS menu bar with FleetBar icon" />
+        </div>
+        <div class="popover-stage">
+          <img class="popover-image" id="fleetbarImage" alt="FleetBar popover" />
+          <div class="fleetbar-callout">
+            <strong>FleetBar</strong>
+            <span>Menu-bar app for daemon health, recent agent work, touched files, and the Console jump.</span>
+          </div>
+        </div>
+      </section>
+
+      <figure class="capture surface" id="shipwright" aria-label="Fleet Control Center Shipwright">
+        <span class="surface-title">Shipwright</span>
+        <img id="shipwrightImage" alt="Fleet Control Center Shipwright" />
+        <figcaption class="surface-copy">
+          <strong>Shipwright turns repo shape into a fleet.</strong>
+          <span>It surveys the daemon, proposes agents, budgets the run, and gives the operator a plan before launch.</span>
+        </figcaption>
+      </figure>
+
+      <figure class="capture surface" id="roadmap" aria-label="Fleet Control Center Roadmap">
+        <span class="surface-title">Roadmap</span>
+        <img id="roadmapImage" alt="Fleet Control Center Roadmap" />
+        <figcaption class="surface-copy">
+          <strong>Roadmap keeps the next cuts honest.</strong>
+          <span>Cartographer pulls current work, recovery notes, and feedback into ranked work the fleet can act on.</span>
+        </figcaption>
+      </figure>
+
+      <figure class="capture surface" id="sorties" aria-label="Fleet Control Center Sorties">
+        <span class="surface-title">Sorties</span>
+        <img id="sortiesImage" alt="Fleet Control Center Sorties" />
+        <figcaption class="surface-copy">
+          <strong>Sorties make missions spend-aware.</strong>
+          <span>Draft a bounded mission, preview the roster, set approvals, and launch without losing operator control.</span>
+        </figcaption>
+      </figure>
+
+      <figure class="capture surface" id="flow" aria-label="Fleet Control Center Flow">
+        <span class="surface-title">Flow</span>
+        <img id="flowImage" alt="Fleet Control Center Flow" />
+        <figcaption class="surface-copy">
+          <strong>Flow shows who wakes whom.</strong>
+          <span>The graph shows which agents listen, what they emit, and where work moves next.</span>
+        </figcaption>
+      </figure>
+
+      <figure class="capture surface" id="resources" aria-label="Fleet Control Center Resources">
+        <span class="surface-title">Resources</span>
+        <img id="resourcesImage" alt="Fleet Control Center Resources" />
+        <figcaption class="surface-copy">
+          <strong>Resources shows fleet pressure.</strong>
+          <span>Memory, disk, local AI, daemon load, spend, and launch capacity stay visible before the fleet runs hotter.</span>
+        </figcaption>
+      </figure>
+
+      <figure class="capture surface" id="agents" aria-label="Fleet Control Center Agents">
+        <span class="surface-title">Agents</span>
+        <img id="agentsImage" alt="Fleet Control Center Agents" />
+        <figcaption class="surface-copy">
+          <strong>Agents ties signals back to actors.</strong>
+          <span>Runtime bodies, salvage history, sessions, notes, inboxes, channels, and file claims meet on one page.</span>
+        </figcaption>
+      </figure>
+
+      <div class="timeline">
+        <div class="timeline-step" id="stepTerminal">Terminal</div>
+        <div class="timeline-step" id="stepFleetbar">FleetBar</div>
+        <div class="timeline-step" id="stepShipwright">Shipwright</div>
+        <div class="timeline-step" id="stepRoadmap">Roadmap</div>
+        <div class="timeline-step" id="stepSorties">Sorties</div>
+        <div class="timeline-step" id="stepFlow">Flow</div>
+        <div class="timeline-step" id="stepResources">Resources</div>
+        <div class="timeline-step" id="stepAgents">Agents</div>
+      </div>
+    </main>
+
+    <script>
+      const DURATION = 21.6
+      const defaultSnapshot = {
+        status: {
+          activePorts: '21',
+          fleet: '1 project, 8 agents, 3/8 launchable',
+          runtime: 'nominal',
+        },
+        sessions: [
+          'Landing live-glory video',
+          'Fleet agent: cartographer',
+          'QA agent found issues',
+          'Promote Fleet Control Center entrance',
+          'Render real FleetBar popover',
+          'Record Flow and Agents surfaces',
+        ],
+      }
+
+      const params = new URLSearchParams(window.location.search)
+      const theme = params.get('theme') === 'dark' ? 'dark' : 'light'
+      const manual = params.get('manual') === '1'
+      document.documentElement.dataset.theme = theme
+
+      const state = { snapshot: defaultSnapshot }
+      const terminal = document.getElementById('terminal')
+      const chrome = document.getElementById('chrome')
+      const terminalLines = document.getElementById('terminalLines')
+      const fleetbar = document.getElementById('fleetbar')
+      const shipwright = document.getElementById('shipwright')
+      const roadmap = document.getElementById('roadmap')
+      const sorties = document.getElementById('sorties')
+      const flow = document.getElementById('flow')
+      const resources = document.getElementById('resources')
+      const agents = document.getElementById('agents')
+      const topbarImage = document.getElementById('topbarImage')
+      const fleetbarImage = document.getElementById('fleetbarImage')
+      const shipwrightImage = document.getElementById('shipwrightImage')
+      const roadmapImage = document.getElementById('roadmapImage')
+      const sortiesImage = document.getElementById('sortiesImage')
+      const flowImage = document.getElementById('flowImage')
+      const resourcesImage = document.getElementById('resourcesImage')
+      const agentsImage = document.getElementById('agentsImage')
+      const topStatus = document.getElementById('topStatus')
+
+      function clamp(value, min = 0, max = 1) {
+        return Math.max(min, Math.min(max, value))
+      }
+
+      function smooth(edge0, edge1, x) {
+        const v = clamp((x - edge0) / (edge1 - edge0))
+        return v * v * (3 - 2 * v)
+      }
+
+      function short(text, max = 46) {
+        if (!text) return 'Port Daddy agent'
+        return text.length > max ? `${text.slice(0, max - 1)}...` : text
+      }
+
+      function escapeHtml(text) {
+        return String(text)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+      }
+
+      function mediaAsset(name) {
+        const themed = new Set([
+          'live-shipwright-focus',
+          'live-roadmap',
+          'live-sorties',
+          'live-flow-graph',
+          'live-resources',
+          'live-agents-panel',
+        ])
+        if (themed.has(name)) {
+          return `../../public/media/landing-live-glory/${name}-${theme}.png`
+        }
+        return `../../public/media/landing-live-glory/${name}.png`
+      }
+
+      function normalizeSnapshot(snapshot) {
+        const sessions = Array.isArray(snapshot.sessions) && snapshot.sessions.length
+          ? snapshot.sessions
+          : defaultSnapshot.sessions
+        return {
+          status: { ...defaultSnapshot.status, ...(snapshot.status || {}) },
+          sessions: sessions.slice(0, 8),
+        }
+      }
+
+      function paintStatic() {
+        const { status } = state.snapshot
+        topStatus.textContent = `daemon ${status.runtime || 'nominal'}`
+        topbarImage.src = mediaAsset('topbar-crop')
+        fleetbarImage.src = mediaAsset('fleetbar-menu-captured')
+        shipwrightImage.src = mediaAsset('live-shipwright-focus')
+        roadmapImage.src = mediaAsset('live-roadmap')
+        sortiesImage.src = mediaAsset('live-sorties')
+        flowImage.src = mediaAsset('live-flow-graph')
+        resourcesImage.src = mediaAsset('live-resources')
+        agentsImage.src = mediaAsset('live-agents-panel')
+      }
+
+      function paintTerminal(t) {
+        const { status, sessions } = state.snapshot
+        const lines = [
+          { kind: 'command', text: 'pd status' },
+          { kind: 'muted', text: `Port Daddy is running - ${status.runtime || 'nominal'}` },
+          { kind: 'muted', text: `Fleet: ${status.fleet || `${sessions.length} agent(s) visible`}` },
+          { kind: 'command', text: 'pd notes --limit 6' },
+          ...sessions.slice(0, 5).map((session, index) => ({
+            kind: 'agent',
+            agent: `agent-${String(index + 1).padStart(2, '0')}`,
+            text: short(session, 46),
+          })),
+          { kind: 'command', text: 'open -a FleetBar' },
+        ]
+        const visibleCount = Math.max(1, Math.ceil(lines.length * smooth(0.12, 2.65, t)))
+        terminalLines.innerHTML = lines.slice(0, visibleCount).map((line) => {
+          if (line.kind === 'command') {
+            return `<div class="terminal-line"><span class="prompt">$</span> ${escapeHtml(line.text)}</div>`
+          }
+          if (line.kind === 'agent') {
+            return `<div class="terminal-line"><span class="terminal-glow">${escapeHtml(line.agent)}</span> ${escapeHtml(line.text)}</div>`
+          }
+          return `<div class="terminal-line terminal-muted">${escapeHtml(line.text)}</div>`
+        }).join('')
+      }
+
+      function setTimeline(t) {
+        document.querySelectorAll('.timeline-step').forEach((step) => step.classList.remove('active'))
+        if (t < 3.05) document.getElementById('stepTerminal').classList.add('active')
+        else if (t < 5.75) document.getElementById('stepFleetbar').classList.add('active')
+        else if (t < 8.45) document.getElementById('stepShipwright').classList.add('active')
+        else if (t < 11.05) document.getElementById('stepRoadmap').classList.add('active')
+        else if (t < 13.65) document.getElementById('stepSorties').classList.add('active')
+        else if (t < 16.25) document.getElementById('stepFlow').classList.add('active')
+        else if (t < 18.85) document.getElementById('stepResources').classList.add('active')
+        else document.getElementById('stepAgents').classList.add('active')
+      }
+
+      function fadeInOut(t, start, end, outStart, outEnd) {
+        return smooth(start, end, t) * (1 - smooth(outStart, outEnd, t))
+      }
+
+      function renderFrame(time) {
+        const t = ((time % DURATION) + DURATION) % DURATION
+        const terminalOut = smooth(3.0, 4.1, t)
+        const chromeOut = smooth(5.15, 5.85, t)
+        const fleetAlpha = fadeInOut(t, 2.65, 3.5, 5.15, 5.95)
+        const shipwrightAlpha = fadeInOut(t, 5.55, 6.35, 8.05, 8.75)
+        const roadmapAlpha = fadeInOut(t, 8.3, 9.1, 10.75, 11.45)
+        const sortiesAlpha = fadeInOut(t, 11.05, 11.85, 13.35, 14.05)
+        const flowAlpha = fadeInOut(t, 13.65, 14.45, 16.0, 16.7)
+        const resourcesAlpha = fadeInOut(t, 16.25, 17.05, 18.55, 19.25)
+        const agentsAlpha = smooth(18.85, 19.65, t)
+
+        paintTerminal(t)
+        setTimeline(t)
+
+        chrome.style.opacity = String(1 - chromeOut)
+        terminal.style.opacity = String(1 - terminalOut)
+        terminal.style.transform = `translate(${terminalOut * -58}px, ${terminalOut * 24}px) scale(${1 - terminalOut * 0.22})`
+
+        fleetbar.style.opacity = String(fleetAlpha)
+        fleetbar.style.transform = `translate(${(1 - smooth(2.65, 3.5, t)) * 82}px, ${(1 - smooth(2.65, 3.5, t)) * 26}px) scale(${0.94 + smooth(2.65, 3.5, t) * 0.06})`
+
+        shipwright.style.opacity = String(shipwrightAlpha)
+        shipwright.style.transform = `translate(${(1 - smooth(5.55, 6.35, t)) * 76}px, ${(1 - smooth(5.55, 6.35, t)) * 20}px) scale(${0.95 + smooth(5.55, 6.35, t) * 0.05})`
+
+        roadmap.style.opacity = String(roadmapAlpha)
+        roadmap.style.transform = `translate(${(1 - smooth(8.3, 9.1, t)) * 76}px, ${(1 - smooth(8.3, 9.1, t)) * 20}px) scale(${0.95 + smooth(8.3, 9.1, t) * 0.05})`
+
+        sorties.style.opacity = String(sortiesAlpha)
+        sorties.style.transform = `translate(${(1 - smooth(11.05, 11.85, t)) * 76}px, ${(1 - smooth(11.05, 11.85, t)) * 20}px) scale(${0.95 + smooth(11.05, 11.85, t) * 0.05})`
+
+        flow.style.opacity = String(flowAlpha)
+        flow.style.transform = `translate(${(1 - smooth(13.65, 14.45, t)) * 76}px, ${(1 - smooth(13.65, 14.45, t)) * 20}px) scale(${0.95 + smooth(13.65, 14.45, t) * 0.05})`
+
+        resources.style.opacity = String(resourcesAlpha)
+        resources.style.transform = `translate(${(1 - smooth(16.25, 17.05, t)) * 76}px, ${(1 - smooth(16.25, 17.05, t)) * 20}px) scale(${0.95 + smooth(16.25, 17.05, t) * 0.05})`
+
+        agents.style.opacity = String(agentsAlpha)
+        agents.style.transform = `translate(${(1 - agentsAlpha) * 76}px, ${(1 - agentsAlpha) * 20}px) scale(${0.95 + agentsAlpha * 0.05})`
+
+        return true
+      }
+
+      window.setSnapshot = (snapshot) => {
+        state.snapshot = normalizeSnapshot(snapshot || defaultSnapshot)
+        paintStatic()
+        renderFrame(0)
+      }
+
+      window.renderFrame = renderFrame
+      window.setSnapshot(defaultSnapshot)
+
+      window.mediaReady = Promise.all([
+        topbarImage.decode?.().catch(() => undefined) || Promise.resolve(),
+        fleetbarImage.decode?.().catch(() => undefined) || Promise.resolve(),
+        shipwrightImage.decode?.().catch(() => undefined) || Promise.resolve(),
+        roadmapImage.decode?.().catch(() => undefined) || Promise.resolve(),
+        sortiesImage.decode?.().catch(() => undefined) || Promise.resolve(),
+        flowImage.decode?.().catch(() => undefined) || Promise.resolve(),
+        resourcesImage.decode?.().catch(() => undefined) || Promise.resolve(),
+        agentsImage.decode?.().catch(() => undefined) || Promise.resolve(),
+      ]).then(() => {
+        if (!manual) {
+          renderFrame(0)
+        }
+        return true
+      })
+
+      if (!manual) {
+        const started = performance.now()
+        function tick() {
+          renderFrame((performance.now() - started) / 1000)
+          requestAnimationFrame(tick)
+        }
+        requestAnimationFrame(tick)
+      }
+    </script>
+  </body>
+</html>
