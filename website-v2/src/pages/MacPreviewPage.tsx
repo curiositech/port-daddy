@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, Download, MonitorCog, Terminal } from 'lucide-react'
+import { ArrowRight, BookOpen, Download, MonitorCheck, MonitorCog } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { MacAppShowcase } from '@/components/landing/MacAppShowcase'
 import { ColdStartSection } from '@/components/landing/ColdStartSection'
@@ -7,7 +7,6 @@ import { DistributionSection } from '@/components/landing/DistributionSection'
 import { MacWorkflowDemos } from '@/components/landing/MacWorkflowDemos'
 import { Footer } from '@/components/layout/Footer'
 import {
-  CopyableCommandBlock,
   PageContainer,
   PanelBody,
   PanelEyebrow,
@@ -16,8 +15,6 @@ import {
   SwissGrid,
   SwissGridItem,
 } from '@/components/site/primitives'
-
-const heroInstallCommand = 'brew install curiositech/tap/port-daddy\npd setup --project ~/coding/my-app'
 
 export function MacPreviewPage() {
   return (
@@ -54,7 +51,7 @@ export function MacPreviewPage() {
                     </Button>
                     <Button asChild variant="ghost" size="lg">
                       <Link to="/tutorials/primitives">
-                        <Terminal size={16} />
+                        <BookOpen size={16} />
                         Learn the primitives
                       </Link>
                     </Button>
@@ -63,12 +60,30 @@ export function MacPreviewPage() {
               </SwissGridItem>
 
               <SwissGridItem span="narrow">
-                <SurfacePanel elevation="quiet" padding="compact">
-                  <CopyableCommandBlock
-                    label="Homebrew + setup"
-                    command={heroInstallCommand}
-                    ariaLabel="Copy Homebrew and setup command"
-                  />
+                <SurfacePanel elevation="quiet" padding="compact" className="grid gap-[var(--space-4)]">
+                  <div className="grid gap-[var(--space-2)]">
+                    <PanelEyebrow>Human entry</PanelEyebrow>
+                    <PanelTitle as="h2" size="nav" className="max-w-[18ch]">
+                      Open the app, then decide.
+                    </PanelTitle>
+                    <PanelBody size="compact" className="max-w-none">
+                      FleetBar shows daemon health, selected project, agent work, resources,
+                      inboxes, and handoffs before anyone needs a shell prompt.
+                    </PanelBody>
+                  </div>
+                  <picture className="block overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-base)]">
+                    <source srcSet="/img/app-screens/fleetbar-native-shell-dark.png" media="(prefers-color-scheme: dark)" />
+                    <img
+                      src="/img/app-screens/fleetbar-native-shell-light.png"
+                      alt="FleetBar native Mac window showing the Fleet Control Center"
+                      className="aspect-[16/10] w-full object-cover"
+                      loading="eager"
+                    />
+                  </picture>
+                  <div className="flex items-center gap-[var(--space-2)] text-[var(--brand-primary)]">
+                    <MonitorCheck size={16} />
+                    <PanelEyebrow className="text-[var(--brand-primary)]">GUI-first preview</PanelEyebrow>
+                  </div>
                 </SurfacePanel>
               </SwissGridItem>
             </SwissGrid>

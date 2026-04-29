@@ -66,7 +66,7 @@ export function LiveGloryVideo() {
           boxShadow: 'var(--shadow-sm)',
         }}
       >
-        <div className="relative aspect-[16/9] w-full bg-[var(--surface-base)]">
+        <div className="relative aspect-[4/3] w-full bg-[var(--surface-base)]">
           {videos.map(({ key, ref, label }) => {
             const isActive = key === themeKey
             return (

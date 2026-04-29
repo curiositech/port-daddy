@@ -1,9 +1,8 @@
-import { Download, FileText, Github, PackageCheck, ShieldAlert, Terminal } from 'lucide-react'
+import { Download, FileText, Github, MonitorCheck, PackageCheck, ShieldAlert } from 'lucide-react'
 import { DISTRIBUTION_OPTIONS } from '@/data/product'
 import { Button } from '@/components/ui/Button'
 import { useTheme } from '@/lib/theme-context'
 import {
-  CopyableCommandBlock,
   PageContainer,
   PanelBody,
   PanelEyebrow,
@@ -26,6 +25,18 @@ const statusCopy = {
   available: 'Available',
   'signed-build': 'Signed Mac build',
   'release-channel': 'Release channel',
+} as const
+
+const distributionOperatorCopy = {
+  brew: 'Use the setup guide for the agent-side install command. FleetBar is the human checkpoint for daemon health, MCP wiring, and project readiness after setup runs.',
+  npm: 'Use npm when the CLI and daemon are the installation target. The operator still verifies readiness from the app, not from a pasted prompt.',
+  'release-artifacts': 'Use GitHub release artifacts when you need provenance. Checksums, manifests, and release notes carry the proof instead of a homepage command card.',
+} as const
+
+const distributionDisplayTitle = {
+  brew: 'Guided setup path',
+  npm: 'npm package',
+  'release-artifacts': 'GitHub release artifacts',
 } as const
 
 export function DistributionSection() {
@@ -104,7 +115,18 @@ export function DistributionSection() {
                     </PanelBody>
                   </div>
                 </div>
-                <CopyableCommandBlock command={primary.command} />
+                <div className="grid content-start gap-[var(--space-3)] border-l-2 border-[color:var(--brand-primary-foreground-subtle)] pl-[var(--space-4)]">
+                  <PanelEyebrow tone="primary">Human path</PanelEyebrow>
+                  <PanelBody tone="primary" size="compact" className="max-w-none">
+                    Download FleetBar, inspect the manifest or checksum, then open the Mac app to
+                    choose a project, verify readiness, and continue in the GUI. Agent-side install
+                    commands live in docs where output is shown with context.
+                  </PanelBody>
+                  <div className="flex items-center gap-[var(--space-2)] text-[var(--brand-primary-foreground)]">
+                    <MonitorCheck size={16} />
+                    <PanelEyebrow tone="primary">No input-only terminal card</PanelEyebrow>
+                  </div>
+                </div>
               </SurfacePanel>
 
               <div className="grid gap-[var(--space-4)] md:grid-cols-3">
@@ -114,15 +136,20 @@ export function DistributionSection() {
                       <div>
                         <PanelEyebrow>{statusCopy[option.status]}</PanelEyebrow>
                         <PanelTitle as="h3" size="nav" className="mt-[var(--space-2)] max-w-[16ch]">
-                          {option.title}
+                          {distributionDisplayTitle[option.id as keyof typeof distributionDisplayTitle]}
                         </PanelTitle>
                       </div>
-                      {option.id === 'release-artifacts' ? <Github size={18} /> : <Terminal size={18} />}
+                      {option.id === 'release-artifacts' ? <Github size={18} /> : <PackageCheck size={18} />}
                     </div>
                     <PanelBody size="compact" className="max-w-none">
                       {option.description}
                     </PanelBody>
-                    <CopyableCommandBlock command={option.command} />
+                    <div className="border-t-2 border-[var(--border-subtle)] pt-[var(--space-3)]">
+                      <PanelEyebrow>Operator note</PanelEyebrow>
+                      <PanelBody size="compact" className="mt-[var(--space-2)] max-w-none">
+                        {distributionOperatorCopy[option.id as keyof typeof distributionOperatorCopy]}
+                      </PanelBody>
+                    </div>
                   </SurfacePanel>
                 ))}
               </div>

@@ -86,10 +86,10 @@
   --leading-body-compact: 1.62;
   --leading-code: 1.45;
 
-  --tracking-meta: 0.14em;
-  --tracking-display-tight: -0.02em;
-  --tracking-display-card: -0.015em;
-  --tracking-display-nav: -0.01em;
+  --tracking-meta: 0.08em;
+  --tracking-display-tight: 0;
+  --tracking-display-card: 0;
+  --tracking-display-nav: 0;
 
   --panel-padding: var(--space-6);
   --panel-gap: var(--space-5);

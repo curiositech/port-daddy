@@ -1,7 +1,7 @@
 import { AlertTriangle, Bot, CheckCircle2, GitMerge, Mail, Quote, RadioTower } from 'lucide-react'
+import { TerminalGif } from '@/components/site/TerminalGif'
 import {
   BracketLabel,
-  CommandBlock,
   PageContainer,
   PanelBody,
   PanelEyebrow,
@@ -94,11 +94,11 @@ export function AgenticSocialProofSection() {
                 bodyClassName="max-w-[43rem]"
               />
 
-              <CommandBlock
-                title="How the overlap was handled"
-                command={'pd note "Social proof section only."\npd pub coordination:inconsistency \\\n  "homepage overlap visible"\npd agent inbox send agent-6f6d64ab \\\n  "Quote request"\npd session files add \\\n  AgenticSocialProofSection.tsx'}
-                elevation="quiet"
-                label="Live moves"
+              <TerminalGif
+                src="/gifs/agents/coordination.gif"
+                title="Agent terminal proof"
+                caption="Real recordings show commands with daemon responses. Input-only terminal slabs stay out of the human-facing homepage."
+                mediaClassName="!h-[18rem]"
               />
             </div>
           </SwissGridItem>
