@@ -18,7 +18,7 @@
  */
 
 import { chmodSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 import { homedir } from 'node:os';
 
 export const SHIM_BIN_DIR = join(homedir(), '.port-daddy', 'bin');
@@ -137,6 +137,3 @@ export function uninstallGitShim(): { removed: boolean; path: string } {
   }
   return { removed: true, path: SHIM_GIT_PATH };
 }
-
-// Re-export `dirname` / `join` so callers don't need a separate import line.
-export { dirname, join };
