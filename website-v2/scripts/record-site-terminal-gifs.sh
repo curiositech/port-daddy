@@ -11,6 +11,16 @@ install_pd_shim() {
   export -f pd
 }
 
+ensure_daemon() {
+  if pd status >/dev/null 2>&1; then
+    return 0
+  fi
+
+  node "$ROOT_DIR/bin/port-daddy-cli.js" start >/dev/null 2>&1 || true
+  sleep 1
+  pd status >/dev/null 2>&1
+}
+
 type_cmd() {
   local text="$1"
   local i
@@ -22,26 +32,31 @@ type_cmd() {
 
 run_cmd() {
   local cmd="$1"
+  local output
   printf '\n  \033[0;32m$\033[0m '
   type_cmd "$cmd"
   printf '\n'
-  bash -lc "$cmd" 2>&1 \
-    | sed "s#$ROOT_DIR#.#g" \
-    | sed "s#$HOME#~#g" \
-    | sed -n '1,18p' \
-    | sed 's/^/  /'
+  output="$(
+    bash -lc "$cmd" 2>&1 \
+      | sed "s#$ROOT_DIR#.#g" \
+      | sed "s#$HOME#~#g" \
+      | sed -n '1,18p'
+  )"
+
+  if grep -Eq 'Port Daddy is not running|Recorded from real local CLI commands|recorded with asciinema|No pd demo script|command not found|ERROR:' <<<"$output"; then
+    printf '%s\n' "$output" | sed 's/^/  /'
+    printf '\nrecording command produced invalid output: %s\n' "$cmd" >&2
+    exit 1
+  fi
+
+  printf '%s\n' "$output" | sed 's/^/  /'
   sleep 0.45
 }
 
 intro() {
-  local section="$1"
-  local title="$2"
   clear || true
   printf '\n'
-  printf '  \033[1;36mPort Daddy %s\033[0m — %s\n' "$section" "$title"
-  printf '  Recorded from real local CLI commands. No pd demo script.\n'
-  printf '\n'
-  sleep 0.5
+  sleep 0.2
 }
 
 current_session_id() {
@@ -60,128 +75,131 @@ play_recording() {
   local id="$1"
   local slug="${id#*/}"
 
+  ensure_daemon
+
   case "$id" in
     tutorials/pheromone)
-      intro "Tutorial" "Pheromone trails"
+      intro
       run_cmd "pd status"
       run_cmd "pd pheromone --help || true"
       run_cmd "pd pheromone files --path website-v2/src/pages/tutorials --depth 1"
       ;;
     tutorials/primitives)
-      intro "Tutorial" "Product primitives"
+      intro
       run_cmd "pd status"
       run_cmd "pd briefing | sed -n '1,18p'"
       run_cmd "pd guard status"
       ;;
     tutorials/getting-started)
-      intro "Tutorial" "Getting started"
+      intro
       run_cmd "pd status"
       run_cmd "pd claim docs-gif:api:main --json"
       run_cmd "pd find docs-gif:api:main"
       run_cmd "pd release docs-gif:api:main"
       ;;
     tutorials/fleet)
-      intro "Tutorial" "Fleet agents"
+      intro
       run_cmd "pd fleet validate"
       run_cmd "pd fleet status"
       ;;
     tutorials/semantic-identities)
-      intro "Tutorial" "Semantic identities"
+      intro
       run_cmd "pd status"
       run_cmd "pd services | sed -n '1,12p'"
+      run_cmd "pd find 'port-daddy:*' | sed -n '1,12p'"
       ;;
     tutorials/multi-agent)
-      intro "Tutorial" "Multi-agent coordination"
+      intro
       run_cmd "pd status"
       run_cmd "pd pub docs:multi-agent-recording '{\"surface\":\"tutorial\",\"event\":\"handoff\"}' --raw-channel"
       run_cmd "pd tube docs:multi-agent-recording --once --no-history --limit=1"
       ;;
     tutorials/debugging)
-      intro "Tutorial" "Debugging"
+      intro
       run_cmd "pd status"
       run_cmd "pd health"
       run_cmd "pd services | sed -n '1,12p'"
       ;;
     tutorials/inbox)
-      intro "Tutorial" "Inbox and channels"
+      intro
       run_cmd "printf 'inbox handoff' | pd tube docs:inbox-recording --send"
       run_cmd "pd tube docs:inbox-recording --once --no-history --limit=1"
       ;;
     tutorials/harbors)
-      intro "Tutorial" "Harbors"
+      intro
       run_cmd "pd harbors"
       run_cmd "pd harbor --help || true"
       ;;
     tutorials/pipelines|tutorials/watch|tutorials/always-on)
-      intro "Tutorial" "$slug"
+      intro
       run_cmd "pd watch --help || true"
       run_cmd "pd pub docs:pipeline-recording '{\"status\":\"ready\"}' --raw-channel"
       ;;
     tutorials/pd-spawn)
-      intro "Tutorial" "pd spawn"
+      intro
       run_cmd "pd spawn --help || true"
       run_cmd "pd spawned"
       ;;
     tutorials/monorepo)
-      intro "Tutorial" "Monorepo"
+      intro
       run_cmd "pd status"
       run_cmd "pd services | sed -n '1,12p'"
       ;;
     tutorials/tunnel|tutorials/remote-harbors)
-      intro "Tutorial" "$slug"
+      intro
       run_cmd "pd tunnel --help || true"
       run_cmd "pd status"
       ;;
     tutorials/dns)
-      intro "Tutorial" "DNS"
+      intro
       run_cmd "pd dns --help || true"
       run_cmd "pd services | sed -n '1,12p'"
       ;;
     tutorials/session-phases)
-      intro "Tutorial" "Session phases"
+      intro
       run_cmd "pd status"
       run_cmd "pd notes --limit 5"
       ;;
     tutorials/sugar)
-      intro "Tutorial" "Sugar commands"
+      intro
       run_cmd "pd begin --help || true"
       run_cmd "pd done --help || true"
       ;;
     tutorials/time-travel)
-      intro "Tutorial" "Activity inspection"
+      intro
       run_cmd "pd notes --limit 5"
       run_cmd "pd activity --limit 5 || true"
       ;;
     examples/pd-tube-button-to-agent)
-      intro "Example" "PD Tube button to agent"
+      intro
       run_cmd "printf 'button clicked' | pd tube docs:example-button --send"
       run_cmd "pd tube docs:example-button --once --no-history --limit=1"
       ;;
     examples/test-failure-to-agent)
-      intro "Example" "Test failure to agent"
+      intro
       run_cmd "pd status"
       run_cmd "printf 'test failed' | pd tube docs:test-failed --send"
       run_cmd "pd tube docs:test-failed --once --no-history --limit=1"
       ;;
     examples/editor-lightbulb-to-agent)
-      intro "Example" "Editor lightbulb to agent"
+      intro
       run_cmd "printf 'explain selected code' | pd tube editor:explain --send"
       run_cmd "pd tube editor:explain --once --no-history --limit=1"
       ;;
     examples/webhook-to-local-agent)
-      intro "Example" "Webhook to local agent"
+      intro
       run_cmd "printf '{\"event\":\"webhook\"}' | pd tube webhook:local --send"
       run_cmd "pd tube webhook:local --once --no-history --limit=1"
       ;;
     docs/cli-overview)
-      intro "Docs" "CLI command surface"
+      intro
       run_cmd "pd status"
       run_cmd "pd pheromone --help"
       run_cmd "printf 'docs cli recording' | pd tube docs:cli-recording --send"
       run_cmd "pd tube docs:cli-recording --once --no-history --limit=1"
       ;;
     docs/pheromone)
-      intro "Docs" "Pheromone feature reference"
+      intro
       run_cmd "pd status"
       run_cmd "pd pheromone --help || true"
       run_cmd "pd pheromone files --path website-v2/src --depth 1"
@@ -192,8 +210,7 @@ play_recording() {
       ;;
   esac
 
-  printf '\n  \033[0;90mrecorded with asciinema + agg from this checkout\033[0m\n'
-  sleep 1
+  sleep 0.35
 }
 
 record_one() {

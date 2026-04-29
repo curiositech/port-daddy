@@ -30,7 +30,7 @@ export function Sugar() {
             <strong>Sugar Commands</strong>. These are high-level wrappers that
             combine multiple primitives into a single, intuitive action.
           </p>
-          <p className="text-sm text-[var(--text-secondary)]">
+          <p className="text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)]">
             <strong>Zero Config</strong> -- Sugar commands auto-detect your
             project root and existing sessions so you don't have to pass IDs.
             <strong> Safe Defaults</strong> -- Built-in timeouts and retry logic
@@ -66,7 +66,7 @@ export function Sugar() {
             className="border-l-4 border-[var(--brand-secondary)]"
           >
             <p
-              className="m-0 text-sm"
+              className="m-0 text-[length:var(--type-panel-body-compact-size)]"
               style={{ color: "var(--text-secondary)" }}
             >
               When the agent finishes, <code>pd done</code> releases all file
@@ -95,7 +95,7 @@ export function Sugar() {
           </CodeBlock>
 
           <Surface depth="raised" radius="none" className="p-5 space-y-3">
-            <p className="text-sm font-black uppercase tracking-widest text-[var(--text-muted)] m-0">
+            <p className="text-[length:var(--type-panel-body-compact-size)] font-black uppercase tracking-widest text-[var(--text-muted)] m-0">
               Productivity HUD
             </p>
             <div className="space-y-2">
@@ -107,7 +107,7 @@ export function Sugar() {
               >
                 <div className="flex items-center gap-3">
                   <Terminal size={14} className="text-[var(--text-muted)]" />
-                  <code className="text-xs">pd whoami</code>
+                  <code className="text-[length:var(--type-meta-size)]">pd whoami</code>
                 </div>
                 <span className="text-[10px] font-mono text-[var(--text-muted)]">
                   Identify current agent
@@ -121,7 +121,7 @@ export function Sugar() {
               >
                 <div className="flex items-center gap-3">
                   <Terminal size={14} className="text-[var(--text-muted)]" />
-                  <code className="text-xs">pd salvage</code>
+                  <code className="text-[length:var(--type-meta-size)]">pd salvage</code>
                 </div>
                 <span className="text-[10px] font-mono text-[var(--text-muted)]">
                   Recover orphaned work
@@ -135,7 +135,7 @@ export function Sugar() {
         <Surface depth="raised" radius="none" className="p-6 space-y-4">
           <div className="flex items-center gap-3">
             <Zap size={18} className="text-[var(--brand-primary)]" />
-            <p className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] m-0">
+            <p className="text-[length:var(--type-meta-size)] font-black uppercase tracking-widest text-[var(--text-muted)] m-0">
               Efficiency Maturity
             </p>
           </div>

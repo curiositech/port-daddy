@@ -67,7 +67,7 @@ $ pd session files claim src/middleware/*.ts src/routes/auth.ts
 $ pd session files claim src/middleware/auth.ts
   CONFLICT: src/middleware/auth.ts claimed by agent 'myapp:refactor'
   Holder session: session-a1b2c3d4`}</CodeBlock>
-          <motion.p className="text-sm" style={{ color: "var(--text-muted)" }}>
+          <motion.p className="text-[length:var(--type-panel-body-compact-size)]" style={{ color: "var(--text-muted)" }}>
             Claims are released when the session ends (<code>pd done</code>) or
             when the agent crashes and enters the salvage queue.
           </motion.p>
@@ -162,7 +162,7 @@ $ pd pub myapp:events "auth-fix-complete"
 
 # 4. End session (releases claims, preserves notes)
 $ pd done`}</CodeBlock>
-          <motion.p className="text-sm" style={{ color: "var(--text-muted)" }}>
+          <motion.p className="text-[length:var(--type-panel-body-compact-size)]" style={{ color: "var(--text-muted)" }}>
             <strong>Claim, Work, Signal, Done.</strong> Every agent follows this
             lifecycle. Port Daddy handles conflict detection, crash recovery,
             and the audit trail.

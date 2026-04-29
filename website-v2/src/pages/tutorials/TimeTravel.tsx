@@ -72,7 +72,7 @@ $ curl http://localhost:9876/activity/summary
 $ curl http://localhost:9876/activity/stats`}
           </CodeBlock>
 
-          <div className="space-y-2 overflow-hidden bg-[var(--code-bg)] p-5 font-mono text-xs text-[var(--code-text)]">
+          <div className="space-y-2 overflow-hidden bg-[var(--code-bg)] p-5 font-mono text-[length:var(--type-meta-size)] text-[var(--code-text)]">
             <div className="flex items-center gap-4">
               <span className="w-20">12:04:01</span>
               <span className="text-[var(--brand-secondary)]">[infra]</span>
@@ -109,7 +109,7 @@ $ curl http://localhost:9876/activity/stats`}
           </p>
 
           <p
-            className="m-0 text-sm border-l-4 border-[var(--brand-secondary)] pl-4"
+            className="m-0 text-[length:var(--type-panel-body-compact-size)] border-l-4 border-[var(--brand-secondary)] pl-4"
             style={{ color: "var(--text-secondary)" }}
           >
             <strong>Post-Mortem Integrity:</strong> Since the database is
@@ -131,7 +131,7 @@ $ curl http://localhost:9876/activity/stats`}
             Design Principle
           </Badge>
           <p
-            className="text-lg font-bold m-0"
+            className="text-[length:var(--type-panel-title-nav-size)] font-bold m-0"
             style={{ color: "var(--text-primary)" }}
           >
             Append-Only Log

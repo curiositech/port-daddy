@@ -39,7 +39,7 @@ export function SessionPhases() {
           </p>
 
           <Surface depth="raised" radius="none" className="p-5 space-y-4">
-            <p className="text-sm font-black uppercase tracking-widest text-[var(--text-muted)] m-0">
+            <p className="text-[length:var(--type-panel-body-compact-size)] font-black uppercase tracking-widest text-[var(--text-muted)] m-0">
               Swarm Progress
             </p>
             <div className="flex items-center justify-between gap-4">
@@ -105,7 +105,7 @@ export function SessionPhases() {
             className="border-l-4 border-[var(--brand-secondary)]"
           >
             <p
-              className="m-0 text-sm"
+              className="m-0 text-[length:var(--type-panel-body-compact-size)]"
               style={{ color: "var(--text-secondary)" }}
             >
               Phase transitions are recorded in the{" "}
@@ -134,7 +134,7 @@ export function SessionPhases() {
             {`$ pd salvage agent-7f3a\n\n✓ Preserved state found.\n✓ Phase: 'coding' detected.\n✓ Instruction: Checking local diffs before resuming...`}
           </CodeBlock>
 
-          <p className="text-sm text-[var(--text-secondary)]">
+          <p className="text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)]">
             <strong>Zero Context Loss</strong> -- Agents inherit the previous
             agent's notes, file claims, and current phase status.
             <strong> State Integrity</strong> -- The daemon ensures only one
@@ -146,7 +146,7 @@ export function SessionPhases() {
         <Surface depth="raised" radius="none" className="p-6 space-y-4">
           <div className="flex items-center gap-3">
             <Zap size={18} className="text-[var(--brand-primary)]" />
-            <p className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] m-0">
+            <p className="text-[length:var(--type-meta-size)] font-black uppercase tracking-widest text-[var(--text-muted)] m-0">
               Orchestration Maturity
             </p>
           </div>
