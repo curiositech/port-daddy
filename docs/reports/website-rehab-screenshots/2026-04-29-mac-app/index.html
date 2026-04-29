@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Port Daddy Mac App Website Proof</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --paper: #f4efe5;
+        --ink: #101010;
+        --muted: #4d4942;
+        --blue: #0047c7;
+        --line: #101010;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      header,
+      main {
+        width: min(1380px, calc(100vw - 48px));
+        margin: 0 auto;
+      }
+
+      header {
+        padding: 56px 0 32px;
+        border-bottom: 2px solid var(--line);
+      }
+
+      h1 {
+        max-width: 760px;
+        margin: 0;
+        font-size: clamp(44px, 7vw, 92px);
+        line-height: 0.92;
+        letter-spacing: 0;
+      }
+
+      p {
+        max-width: 760px;
+        color: var(--muted);
+        font-size: 18px;
+      }
+
+      a {
+        color: var(--blue);
+        font-weight: 700;
+      }
+
+      .links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 24px;
+      }
+
+      .links a {
+        border: 2px solid var(--line);
+        padding: 10px 14px;
+        text-decoration: none;
+        background: #fffaf0;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+        gap: 24px;
+        padding: 32px 0 64px;
+      }
+
+      figure {
+        margin: 0;
+        border: 2px solid var(--line);
+        background: #fffaf0;
+      }
+
+      img {
+        display: block;
+        width: 100%;
+        height: auto;
+        border-bottom: 2px solid var(--line);
+      }
+
+      figcaption {
+        padding: 14px 16px 16px;
+        font-weight: 800;
+      }
+
+      @media (max-width: 720px) {
+        header,
+        main {
+          width: calc(100vw - 24px);
+        }
+
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Mac app website proof</h1>
+      <p>
+        Screenshot board for the Port Daddy website slice: first-viewport positioning,
+        Agent Radio, real Fleet Control Center surfaces, Shipwright, downloads,
+        native FleetBar shell captures, and mobile command wrapping. The latest
+        frames include the new PD Circuit Monogram in light, dark, mobile, and
+        direction-board contexts, plus the expanded Mac Preview console gallery.
+      </p>
+      <div class="links">
+        <a href="../../../../website-v2/public/downloads/PortDaddy-FleetBar-macOS-arm64-dev.zip">FleetBar preview zip</a>
+        <a href="../../../../website-v2/public/downloads/PortDaddy-FleetBar-macOS-arm64-dev.zip.sha256">SHA-256</a>
+        <a href="../../port-daddy-logo-direction.html">Logo direction board</a>
+        <a href="./GIF-HANDOFF.md">GIF handoff</a>
+      </div>
+    </header>
+    <main class="grid">
+      <figure><img src="./17-pd-monogram-hero-light.png" alt="Homepage hero with PD Circuit Monogram" /><figcaption>What is Port Daddy? PD monogram edition</figcaption></figure>
+      <figure><img src="./02-agent-radio-section.png" alt="Agent Radio section" /><figcaption>Agent Radio: agents can talk to agents</figcaption></figure>
+      <figure><img src="./03-mac-app-section.png" alt="Mac app section" /><figcaption>Mac app with real console screenshots</figcaption></figure>
+      <figure><img src="../../../../website-v2/public/img/app-screens/fleetbar-native-shell-light.png" alt="FleetBar macOS shell in light mode" /><figcaption>FleetBar native shell: light mode</figcaption></figure>
+      <figure><img src="../../../../website-v2/public/img/app-screens/fleetbar-native-shell-dark.png" alt="FleetBar macOS shell in dark mode" /><figcaption>FleetBar native shell: dark mode</figcaption></figure>
+      <figure><img src="./24-mac-app-theme-lock-light.png" alt="Website Mac app section showing light app screenshots" /><figcaption>Website theme lock: light site uses light app captures</figcaption></figure>
+      <figure><img src="./24-mac-app-theme-lock-dark.png" alt="Website Mac app section showing dark app screenshots" /><figcaption>Website theme lock: dark site uses dark app captures</figcaption></figure>
+      <figure><img src="./28-mac-preview-page-light.png" alt="Standalone Mac Preview page in light mode" /><figcaption>Standalone Mac Preview: light mode app captures</figcaption></figure>
+      <figure><img src="./29-mac-preview-page-dark.png" alt="Standalone Mac Preview page in dark mode" /><figcaption>Standalone Mac Preview: dark mode app captures</figcaption></figure>
+      <figure><img src="./32-mac-preview-console-gallery-light.png" alt="Mac Preview console gallery in light mode" /><figcaption>Mac Preview gallery: all console surfaces in light mode</figcaption></figure>
+      <figure><img src="./33-mac-preview-console-gallery-dark.png" alt="Mac Preview console gallery in dark mode" /><figcaption>Mac Preview gallery: all console surfaces in dark mode</figcaption></figure>
+      <figure><img src="./30-home-without-embedded-mac-preview.png" alt="Homepage without the embedded Mac Preview section" /><figcaption>Home no longer embeds the full Mac preview page</figcaption></figure>
+      <figure><img src="./31-primitives-tutorial-light.png" alt="11 product primitives tutorial" /><figcaption>Tutorial: all 11 primitives have an operator path</figcaption></figure>
+      <figure><img src="./26-header-app-download.png" alt="Header with App nav and Download button" /><figcaption>Header: App nav + Download button without clipped labels</figcaption></figure>
+      <figure><img src="./27-actor-hover-card.png" alt="Actor hover card definition for Coxswain" /><figcaption>Named actor hover card: Coxswain definition</figcaption></figure>
+      <figure><img src="./04-cold-start-section.png" alt="Cold start section" /><figcaption>Shipwright cold start</figcaption></figure>
+      <figure><img src="./05-app-examples-section.png" alt="App examples section" /><figcaption>Command examples</figcaption></figure>
+      <figure><img src="./06-download-section.png" alt="Download section" /><figcaption>Hosted FleetBar developer preview</figcaption></figure>
+      <figure><img src="./09-fleet-all-projects-agent-radio-readiness.png" alt="Fleet All Projects readiness" /><figcaption>All Projects: agent radio + backend readiness</figcaption></figure>
+      <figure><img src="./10-fleet-shipwright-all-projects.png" alt="Shipwright FleetControl view" /><figcaption>Shipwright connects back to Fleet</figcaption></figure>
+      <figure><img src="./11-fleet-flow-port-daddy.png" alt="Fleet Flow view" /><figcaption>Flow</figcaption></figure>
+      <figure><img src="./12-fleet-resources-port-daddy.png" alt="Resources view" /><figcaption>Resources</figcaption></figure>
+      <figure><img src="./13-fleet-sorties-port-daddy.png" alt="Sorties view" /><figcaption>Sorties</figcaption></figure>
+      <figure><img src="./14-mobile-agent-radio-section.png" alt="Mobile Agent Radio section" /><figcaption>Mobile Agent Radio: no clipped commands</figcaption></figure>
+      <figure><img src="./18-pd-monogram-hero-dark.png" alt="Homepage with PD Circuit Monogram in dark mode" /><figcaption>PD Circuit Monogram: homepage dark mode</figcaption></figure>
+      <figure><img src="./19-pd-monogram-mobile.png" alt="Mobile homepage with PD Circuit Monogram" /><figcaption>PD Circuit Monogram: mobile</figcaption></figure>
+      <figure><img src="./20-pd-monogram-direction-board.png" alt="PD Circuit Monogram direction board" /><figcaption>PD Circuit Monogram direction board</figcaption></figure>
+      <figure><img src="./21-pd-monogram-header-crop-light.png" alt="Header crop with PD Circuit Monogram in light mode" /><figcaption>Header fit: no clipped brand line in light mode</figcaption></figure>
+      <figure><img src="./22-pd-monogram-header-crop-dark.png" alt="Header crop with PD Circuit Monogram in dark mode" /><figcaption>Header fit: no clipped brand line in dark mode</figcaption></figure>
+    </main>
+  </body>
+</html>

@@ -16,7 +16,7 @@ const CATEGORY_ICONS: Record<string, LucideIcon> = {
 export function IntegrationsPage() {
   return (
     <motion.div
-      className="min-h-screen font-sans flex flex-col selection:bg-[var(--brand-primary)] selection:text-white"
+      className="min-h-screen font-sans flex flex-col selection:bg-[var(--brand-primary)] selection:text-[var(--brand-primary-foreground)]"
       style={{ background: 'var(--surface-base)', color: 'var(--text-primary)' }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}

@@ -1,5 +1,7 @@
 # Example: Chain Verification and Tamper Detection
 
+> **Two implementations now ship**: the Python reference scripts (`scripts/chain_verify.py`, `scripts/chain_anchor.py`) shown here, and a TypeScript library at [`lib/merkle-chain.ts`](../../../lib/merkle-chain.ts) covered in detail in [`merkle-chain-typescript-tutorial.md`](./merkle-chain-typescript-tutorial.md). They are byte-for-byte cross-language compatible — see [`docs/merkle-chain-compat.md`](../../../docs/merkle-chain-compat.md). This example walks the Python script flow; the TS tutorial walks the equivalent in node.
+
 Walks through subscriber-side Merkle chain verification, including the three failure modes you'll actually hit.
 
 ## Scenario

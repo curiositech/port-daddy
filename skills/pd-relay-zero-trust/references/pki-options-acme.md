@@ -1,5 +1,7 @@
 # PKI Option: ACME (RFC 8555 + extensions)
 
+> **Status (2026-04-27)**: Input to **[ADR-0025 (Relay PKI Decision)](../../../docs/adr/0025-pki-decision.md)** which adopted an OIDC-first hybrid (OIDC v0; ACME v1; WoT escape hatch from day 1). This document is preserved as the option analysis behind that decision and is the canonical reference for **when ACME lands in v1**.
+
 **Load when**: ACME is a candidate in the PKI decision (it usually is).
 
 ## Summary

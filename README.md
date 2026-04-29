@@ -164,6 +164,26 @@ pd pub swarm:general \
 
 Declared channels are git-sensitive by default. A branch-scoped channel resolves differently across worktrees/feature branches, which stops unrelated branches from accidentally sharing the same coordination bus. `pd pub`, `pd sub`, `pd watch`, and `pd channels clear` all auto-resolve declared logical names against the current worktree. Use `--raw-channel` only when you intentionally want the literal channel string without resolution.
 
+### `pd tube` — Conversational Pipe (with History Guard)
+
+For one-line conversations between two agents (or between scripts and agents), `pd tube` adds a thin envelope and a per-channel cursor so listeners don't re-emit messages they already processed:
+
+```bash
+# Listen — JSON-line per message on stdout; cursor persisted to disk
+pd tube agent:notes
+
+# One-shot drain (resume from where you left off, then exit)
+pd tube agent:notes --once | jq -r '.body'
+
+# Send (stdin to EOF)
+echo "shipped the fix in commit abc123" | pd tube agent:notes --send
+
+# Reply to a specific message (threading via inReplyTo)
+echo "looks good — merging" | pd tube agent:notes --reply=42
+```
+
+History guard lives at `~/.port-daddy/tube-history-<safe-channel>.json` (atomic via tmp+rename); `--no-history` ignores it; `--since=<id>` overrides it. Composes with `pd pub` / `pd sub` for cases where you want raw fan-out without the envelope. Hands-on tutorial: [`skills/pd-relay-zero-trust/examples/pd-tube-tutorial.md`](skills/pd-relay-zero-trust/examples/pd-tube-tutorial.md).
+
 ### Integration & Signaling
 Automate agent handoffs using `pd integration` and `pd wait`:
 ```bash

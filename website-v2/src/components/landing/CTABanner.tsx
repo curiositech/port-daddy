@@ -1,108 +1,145 @@
 import { Link } from 'react-router-dom'
-import { motion } from 'framer-motion'
-import { ArrowRight, Github, Terminal } from 'lucide-react'
-import { Badge } from '@/components/ui/Badge'
+import { ArrowRight, Download, FileText, Github, Terminal } from 'lucide-react'
+import { Button } from '@/components/ui/Button'
+import {
+  CommandBlock,
+  PageContainer,
+  PanelBody,
+  PanelEyebrow,
+  PanelTitle,
+  SurfacePanel,
+  SwissGrid,
+  SwissGridItem,
+} from '@/components/site/primitives'
+import { RoleTerm } from '@/components/site/RoleTerm'
+import { WHITE_PAPERS } from '@/data/whitePapers'
+
+const COORDINATION_FEEDBACK = [
+  'The paper assets and /whitepaper route were still alive; the homepage rewrite had buried the entry point.',
+  'Port Daddy showed the hero and app shell were already claimed, so this restore stayed in the CTA and dossier route.',
+  'Live render proof caught the header clipping Whitepaper to WHITE; the nav now points to Papers without hiding the route.',
+] as const
 
 export function CTABanner() {
   return (
-    <motion.section
-      className="py-16 lg:py-24 px-6 lg:px-8 relative overflow-hidden font-sans flex flex-col items-center text-center"
-      style={{ background: 'var(--surface-base)' }}
-      initial={{ opacity: 0 }}
-      whileInView={{ opacity: 1 }}
-      viewport={{ once: true }}
-    >
-      {/* Background glow effects */}
-      <motion.div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background: 'linear-gradient(180deg, var(--surface-base) 0%, var(--surface-overlay) 50%, var(--surface-base) 100%)',
-        }}
-      />
+    <section className="border-t-2 border-[var(--border-strong)] bg-[var(--surface-base)] py-[var(--space-8)] lg:py-[var(--section-space-y)]">
+      <PageContainer width="wide">
+        <SwissGrid className="items-end">
+          <SwissGridItem span="wide">
+            <div className="space-y-[var(--space-4)]">
+              <PanelEyebrow>Developer preview</PanelEyebrow>
+              <PanelTitle as="h2" size="display" className="max-w-[13ch]">
+                Install the agent communication layer, then open it from FleetBar.
+              </PanelTitle>
+              <PanelBody className="max-w-[42rem]">
+                Port Daddy is still open-source infrastructure. The difference now is that the Mac
+                app, Fleet Control Center, <RoleTerm role="shipwright">Shipwright</RoleTerm>,{' '}
+                <RoleTerm role="sortie">sorties</RoleTerm>, resource governance, backend readiness,
+                and agent-to-agent handoffs are the product surface, not a hidden terminal story.
+              </PanelBody>
+              <div className="grid gap-[var(--space-3)] md:grid-cols-2">
+                {WHITE_PAPERS.map((paper) => (
+                  <article
+                    key={paper.title}
+                    className="grid content-between gap-[var(--space-4)] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-4)]"
+                  >
+                    <div className="grid gap-[var(--space-3)]">
+                      <div className="flex items-center justify-between gap-[var(--space-3)] border-b-2 border-[var(--border-default)] pb-[var(--space-3)]">
+                        <span className="font-mono text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+                          {paper.order}
+                        </span>
+                        <FileText aria-hidden="true" size={16} className="text-[var(--brand-primary)]" />
+                      </div>
+                      <div className="space-y-[var(--space-2)]">
+                        <h3 className="font-display text-[length:var(--type-panel-title-nav-size)] font-black leading-[var(--leading-nav)] tracking-[var(--tracking-display-nav)] text-[var(--text-primary)]">
+                          {paper.title}
+                        </h3>
+                        <p className="text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
+                          {paper.explainerLead}
+                        </p>
+                      </div>
+                    </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 32 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-        className="relative max-w-5xl mx-auto text-center flex flex-col items-center gap-8"
-      >
-        <motion.div className="flex flex-col items-center gap-6">
-           <Badge variant="teal" className="px-8 py-3 text-[11px] font-black uppercase tracking-[0.25em]">The Protocol</Badge>
-        </motion.div>
+                    <div className="flex flex-wrap gap-[var(--space-2)]">
+                      <Link
+                        to={paper.readerHref}
+                        className="inline-flex items-center justify-center gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--text-primary)] px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-inverse)] transition-colors hover:bg-[var(--brand-primary)] hover:text-[var(--brand-primary-foreground)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]"
+                      >
+                        Read inline
+                        <ArrowRight aria-hidden="true" size={14} />
+                      </Link>
+                      <a
+                        href={paper.pdfPath}
+                        className="inline-flex items-center justify-center gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-strong)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]"
+                      >
+                        PDF
+                        <Download aria-hidden="true" size={14} />
+                      </a>
+                    </div>
+                  </article>
+                ))}
+              </div>
+              <div className="grid gap-[var(--space-3)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-4)]">
+                <div className="flex flex-wrap items-center justify-between gap-[var(--space-3)] border-b-2 border-[var(--border-default)] pb-[var(--space-3)]">
+                  <PanelEyebrow>Coordination feedback</PanelEyebrow>
+                  <span className="font-mono text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+                    Dogfood restore
+                  </span>
+                </div>
+                <PanelBody className="max-w-[44rem]">
+                  This restore used Port Daddy as the coordination layer: inspect live ownership, avoid contested hero/App edits, then put both papers back where a visitor can actually find them.
+                </PanelBody>
+                <ul className="grid gap-[var(--space-2)]">
+                  {COORDINATION_FEEDBACK.map((item) => (
+                    <li
+                      key={item}
+                      className="flex gap-[var(--space-2)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]"
+                    >
+                      <span className="shrink-0 font-mono font-black text-[var(--brand-primary)]">-</span>
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="flex flex-wrap gap-[var(--space-3)]">
+                <Button asChild variant="primary" size="lg">
+                  <a href="/downloads/PortDaddy-FleetBar-macOS-arm64-dev.zip" download>
+                    <Download size={16} />
+                    FleetBar preview
+                  </a>
+                </Button>
+                <Button asChild variant="secondary" size="lg">
+                  <Link to="/whitepaper">
+                    <FileText size={16} />
+                    Read both papers
+                  </Link>
+                </Button>
+                <Button asChild variant="secondary" size="lg">
+                  <a href="https://github.com/curiositech/port-daddy" target="_blank" rel="noreferrer">
+                    <Github size={16} />
+                    GitHub
+                  </a>
+                </Button>
+              </div>
+            </div>
+          </SwissGridItem>
 
-        <motion.div className="space-y-6 flex flex-col items-center">
-           <motion.h2 className="text-2xl sm:text-4xl lg:text-6xl font-display font-black tracking-tighter leading-[0.85] m-0" style={{ color: 'var(--text-primary)' }}>
-             Your agents deserve a <br />
-             <motion.span style={{ color: 'var(--brand-primary)' }}>control plane.</motion.span>
-           </motion.h2>
-
-        <p className="text-base sm:text-lg text-[var(--text-secondary)] max-w-xl mx-auto mb-6 sm:mb-10 px-4">
-          Port Daddy is open-source and installs in seconds. Start building your autonomous organization today.
-        </p>
-
-        <motion.div className="flex flex-col sm:flex-row flex-wrap gap-4 sm:gap-6 justify-center items-center pt-4 w-full sm:w-auto">
-          {/* Primary CTA */}
-          <motion.button
-            className="w-full sm:w-auto px-8 sm:px-16 py-4 sm:py-8 rounded-[var(--radius-md)] font-black text-base sm:text-2xl flex items-center justify-center gap-3 sm:gap-4 transition-all"
-            style={{
-              background: 'var(--brand-primary)',
-              color: 'var(--text-inverse)',
-              boxShadow: 'var(--shadow-sm)',
-              border: 'none',
-              cursor: 'pointer',
-            }}
-            whileHover={{ scale: 1.05, y: -6, boxShadow: 'var(--shadow-raised)' }}
-            whileTap={{ scale: 0.95, boxShadow: 'var(--shadow-pressed)' }}
-            onClick={() => window.open('https://github.com/curiositech/port-daddy', '_blank')}
-          >
-            <Github size={22} />
-            STAR ON GITHUB
-          </motion.button>
-
-          {/* Secondary CTA */}
-          <Link to="/tutorials/getting-started" className="no-underline w-full sm:w-auto">
-            <motion.button
-              className="w-full sm:w-auto px-8 sm:px-16 py-4 sm:py-8 rounded-[var(--radius-md)] font-black text-base sm:text-2xl flex items-center justify-center gap-3 sm:gap-4 transition-all"
-              style={{
-                background: 'var(--surface-base)',
-                color: 'var(--text-primary)',
-                boxShadow: 'none',
-                border: '2px solid var(--border-strong)',
-                cursor: 'pointer',
-              }}
-              whileHover={{ y: -4, background: 'var(--surface-raised)' }}
-              whileTap={{ scale: 0.95, boxShadow: 'var(--shadow-pressed)' }}
-            >
-              <ArrowRight size={22} style={{ color: 'var(--brand-primary)' }} />
-              LEARN THE PROTOCOL
-            </motion.button>
-          </Link>
-        </motion.div>
-
-        <motion.div className="pt-16 flex flex-col items-center gap-6">
-          {/* Install command rail */}
-           <div className="flex flex-col sm:flex-row gap-4 sm:gap-8 items-center">
-             <motion.div
-               className="flex items-center gap-3 sm:gap-4 px-4 sm:px-8 py-3 sm:py-4 rounded-[var(--radius-sm)] font-mono text-[11px] sm:text-xs font-black uppercase tracking-widest"
-               style={{ color: 'var(--text-muted)' }}
-             >
-                <Terminal size={18} style={{ color: 'var(--brand-primary)' }} />
-                npm install -g port-daddy
-             </motion.div>
-             <span className="text-[var(--text-muted)] opacity-30 hidden sm:block">or</span>
-             <motion.div
-               className="flex items-center gap-3 sm:gap-4 px-4 sm:px-8 py-3 sm:py-4 rounded-[var(--radius-sm)] font-mono text-[11px] sm:text-xs font-black uppercase tracking-widest"
-               style={{ color: 'var(--text-muted)' }}
-             >
-                <Terminal size={18} style={{ color: 'var(--brand-primary)' }} />
-                brew install curiositech/tap/port-daddy
-             </motion.div>
-           </div>
-           <motion.p className="text-[11px] font-black uppercase tracking-[0.3em] m-0" style={{ color: 'var(--text-muted)', opacity: 0.5 }}>Free · Open Source · MIT License</motion.p>
-        </motion.div>
-        </motion.div>
-      </motion.div>
-    </motion.section>
+          <SwissGridItem span="rail">
+            <SurfacePanel elevation="quiet" padding="compact" className="grid gap-[var(--space-3)]">
+              <div className="inline-flex items-center gap-[var(--space-2)]">
+                <Terminal size={16} />
+                <PanelEyebrow>Stable install</PanelEyebrow>
+              </div>
+              <CommandBlock
+                title="Install + setup"
+                command={'brew install curiositech/tap/port-daddy\npd setup --project ~/coding/my-app'}
+                elevation="quiet"
+                label="Copy"
+              />
+            </SurfacePanel>
+          </SwissGridItem>
+        </SwissGrid>
+      </PageContainer>
+    </section>
   )
 }

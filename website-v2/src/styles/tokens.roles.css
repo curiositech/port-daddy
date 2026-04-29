@@ -3,6 +3,8 @@
   --bg-surface: var(--surface-raised);
   --bg-overlay: var(--surface-overlay);
   --bg-glass: var(--surface-glass);
+  --bg-scrim: var(--scrim-backdrop);
+  --bg-media-scrim: var(--media-scrim);
   --bg-code: var(--code-bg);
   --text-code: var(--code-text);
   --codeblock-bg: var(--code-bg);

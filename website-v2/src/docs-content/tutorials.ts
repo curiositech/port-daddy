@@ -1,4 +1,9 @@
+import { PRODUCT_FEATURES } from '@/data/product'
 import type { DocsContentSection } from './types'
+
+const productPrimitiveItems = PRODUCT_FEATURES.map(
+  (feature) => `${feature.title}: ${feature.description}`,
+)
 
 export const tutorialsSection: DocsContentSection = {
   slug: 'tutorials',
@@ -189,6 +194,60 @@ export const tutorialsSection: DocsContentSection = {
         {
           path: 'tests/unit/sortie-cli.test.js',
           rationale: 'CLI tests cover sortie launch, status lookup, and log inspection behavior.',
+        },
+      ],
+    },
+    {
+      slug: 'walk-the-eleven-primitives',
+      title: 'Walk The Eleven Primitives',
+      summary:
+        'Use the Mac app and CLI together so every public primitive has a concrete place in a first-day workflow.',
+      truth: 'source-backed',
+      goals: [
+        'Tie the public primitive cards to real surfaces.',
+        'Use FleetBar, Shipwright, and Flow in one cold-start path.',
+        'Know which docs and tutorial page to open next.',
+      ],
+      blocks: [
+        {
+          type: 'paragraph',
+          title: 'Start from the product surface',
+          paragraphs: [
+            'Open the Mac preview when the question is visual: what does the app do, what does FleetBar embed, and where do resources, sorties, Shipwright, backend readiness, and agent communication appear?',
+            'Open the primitives tutorial when the question is procedural: which command or app surface proves each primitive is real, and what should an operator inspect after running it?',
+          ],
+        },
+        {
+          type: 'command',
+          title: 'Move through the first-day primitive path',
+          command:
+            'pd setup --project ~/coding/my-app\npd status\npd briefing\npd fleet models\npd guard status\npd salvage --project my-app',
+          notes: [
+            'Setup installs the daemon-facing control plane and FleetBar path.',
+            'Status, briefing, model readiness, guard status, and salvage show whether the product is ready before you launch more work.',
+            'Shipwright and Flow keep the proposed fleet attached to project identity after cold start.',
+          ],
+        },
+        {
+          type: 'checklist',
+          items: productPrimitiveItems,
+        },
+        {
+          type: 'callout',
+          tone: 'info',
+          title: 'Tutorial and docs coverage are paired',
+          body:
+            'Concepts names the primitives and explains the model. The primitives tutorial walks them as an operator path using the Mac app, CLI, and Fleet Control Center together.',
+        },
+      ],
+      sources: [
+        {
+          path: 'website-v2/src/data/product.ts',
+          rationale: 'The product data is the source for the eleven primitive names and descriptions.',
+        },
+        {
+          path: 'website-v2/src/data/tutorials.ts',
+          rationale: 'The tutorial catalog exposes the dedicated primitives walkthrough.',
         },
       ],
     },

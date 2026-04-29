@@ -33,7 +33,7 @@ import {
   SwissGridItem,
 } from '@/components/site/primitives'
 
-type Tone = 'paper' | 'blue' | 'lime'
+type Tone = 'paper' | 'blue' | 'accent'
 type ToolLanguage = 'cli' | 'typescript' | 'text'
 
 interface ProofMetric {
@@ -68,7 +68,7 @@ interface ChannelSurface {
 
 const PROOF_METRICS: ProofMetric[] = [
   { value: '60+', label: 'coordination tools exposed through MCP', tone: 'blue' },
-  { value: '8', label: 'essential tools loaded by default', tone: 'lime' },
+  { value: '8', label: 'essential tools loaded by default', tone: 'accent' },
   { value: '1', label: 'local daemon as the authority boundary', tone: 'paper' },
 ]
 
@@ -115,7 +115,7 @@ const MAGIC_TOOLS: MagicTool[] = [
     name: 'catch_me_up',
     tagline: 'Rebuild context from durable activity.',
     icon: Activity,
-    tone: 'lime',
+    tone: 'accent',
     description:
       'Summarizes notes, session activity, fleet events, commits, and salvage context since a timestamp or last handoff.',
     example: `const briefing = await catch_me_up({
@@ -159,7 +159,7 @@ const MAGIC_TOOLS: MagicTool[] = [
     name: 'fleet_status',
     tagline: 'Inspect health without reading logs.',
     icon: Search,
-    tone: 'lime',
+    tone: 'accent',
     description:
       'Returns fleet agent state, recent notes, trigger channels, last run timestamps, and respawn counters.',
     example: `const status = await fleet_status({ harbor: "myapp:fleet" })
@@ -283,12 +283,12 @@ function MetricStrip() {
           <PanelTitle
             as="p"
             size="card"
-            tone={metric.tone === 'blue' ? 'primary' : metric.tone === 'lime' ? 'accent' : 'default'}
+            tone={metric.tone === 'blue' ? 'primary' : metric.tone === 'accent' ? 'accent' : 'default'}
           >
             {metric.value}
           </PanelTitle>
           <PanelEyebrow
-            tone={metric.tone === 'blue' ? 'primary' : metric.tone === 'lime' ? 'accent' : 'default'}
+            tone={metric.tone === 'blue' ? 'primary' : metric.tone === 'accent' ? 'accent' : 'default'}
             className="mt-[var(--space-2)]"
           >
             {metric.label}
@@ -328,7 +328,7 @@ function RuntimeTable() {
 }
 
 function ToolCard({ tool, index }: { tool: MagicTool; index: number }) {
-  const panelTone = tool.tone === 'blue' ? 'primary' : tool.tone === 'lime' ? 'accent' : 'default'
+  const panelTone = tool.tone === 'blue' ? 'primary' : tool.tone === 'accent' ? 'accent' : 'default'
 
   return (
     <motion.article
@@ -350,7 +350,7 @@ function ToolCard({ tool, index }: { tool: MagicTool; index: number }) {
             </PanelTitle>
           </div>
         </div>
-        <PanelBody size="compact" tone={tool.tone === 'blue' ? 'primary' : tool.tone === 'lime' ? 'accent' : 'default'} className="max-w-none">
+        <PanelBody size="compact" tone={tool.tone === 'blue' ? 'primary' : tool.tone === 'accent' ? 'accent' : 'default'} className="max-w-none">
           {tool.description}
         </PanelBody>
         <DocsCodeBlock code={tool.example} language="typescript" label={tool.tagline} />
@@ -527,7 +527,7 @@ export default function McpPage() {
                 <BracketLink to="/docs/mcp" tone="blue">
                   Read MCP docs
                 </BracketLink>
-                <BracketLink to="/docs/cli/fleet" tone="lime">
+                <BracketLink to="/docs/cli/fleet" tone="accent">
                   Inspect fleet CLI
                 </BracketLink>
               </div>
@@ -721,7 +721,7 @@ const task = await tuple_in({
 
         <SectionBand tone="sunken">
           <PageContainer className="space-y-[var(--space-6)] text-center">
-            <BracketLabel>Start coordinated</BracketLabel>
+            <PanelEyebrow>Start coordinated</PanelEyebrow>
             <PanelTitle as="h2" size="display" className="mx-auto max-w-[14ch]">
               Give the next MCP client a real operating model.
             </PanelTitle>
@@ -732,7 +732,7 @@ const task = await tuple_in({
               <BracketLink to="/docs/quickstart" tone="blue">
                 Quick start
               </BracketLink>
-              <BracketLink to="/docs/mcp" tone="lime">
+              <BracketLink to="/docs/mcp" tone="accent">
                 MCP reference
               </BracketLink>
             </div>

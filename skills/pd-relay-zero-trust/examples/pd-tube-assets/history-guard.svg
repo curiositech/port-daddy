@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 560" role="img" aria-labelledby="title desc">
+  <title id="title">pd tube history guard cursor</title>
+  <desc id="desc">A listener prints messages, writes lastSeenId to a local cursor file, then restarts without re-emitting old messages.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1">
+      <stop offset="0%" stop-color="#0a1424"/>
+      <stop offset="100%" stop-color="#182b22"/>
+    </linearGradient>
+    <style>
+      .card { fill:#101827; stroke:#37536c; stroke-width:2; }
+      .file { fill:#f7f0d4; stroke:#ffcf5a; stroke-width:3; }
+      .title { fill:#e7f5ff; font:700 28px ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .text { fill:#cbe7df; font:500 22px ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .muted { fill:#8aa0b8; font:500 18px ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .good { fill:#52f2b8; }
+      .line { stroke:#52f2b8; stroke-width:6; stroke-linecap:round; stroke-dasharray:16 14; animation:dash 1.1s linear infinite; }
+      .blink { animation:blink 1.3s ease-in-out infinite; }
+      @keyframes dash { to { stroke-dashoffset:-30; } }
+      @keyframes blink { 0%,100%{opacity:.28} 50%{opacity:1} }
+    </style>
+  </defs>
+  <rect width="1200" height="560" fill="url(#bg)"/>
+  <text x="58" y="62" class="title">History guard: print once, remember where you stopped</text>
+
+  <g transform="translate(72 122)">
+    <rect class="card" width="310" height="270" rx="20"/>
+    <text x="28" y="54" class="text">first run</text>
+    <text x="28" y="104" class="good text">31056 one</text>
+    <text x="28" y="142" class="good text">31057 two</text>
+    <text x="28" y="205" class="muted">writes cursor</text>
+  </g>
+
+  <g transform="translate(455 130)">
+    <path class="file" d="M0 0 H250 L310 60 V270 H0 Z"/>
+    <path d="M250 0 V60 H310" fill="none" stroke="#ffcf5a" stroke-width="3"/>
+    <text x="28" y="92" class="text" fill="#142033">tube-history-</text>
+    <text x="28" y="126" class="text" fill="#142033">tutorial_history.json</text>
+    <text x="28" y="188" class="text" fill="#142033">{"lastSeenId":31057}</text>
+  </g>
+
+  <g transform="translate(835 122)">
+    <rect class="card" width="310" height="270" rx="20"/>
+    <text x="28" y="54" class="text">restart</text>
+    <text x="28" y="118" class="muted">after=31057</text>
+    <text x="28" y="184" class="blink text">no duplicate output</text>
+  </g>
+
+  <line class="line" x1="382" y1="258" x2="455" y2="258"/>
+  <line class="line" x1="765" y1="258" x2="835" y2="258"/>
+  <text x="350" y="476" class="muted">Use --no-history for replay. Use --since=&lt;id&gt; for explicit resume.</text>
+</svg>

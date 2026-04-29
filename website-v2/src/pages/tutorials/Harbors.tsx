@@ -14,7 +14,7 @@ export function Harbors() {
       level="Advanced"
       readTime="12 min read"
       prev={{ title: 'pd spawn: Launch Agent Fleets', href: '/tutorials/pd-spawn' }}
-      next={{ title: 'Live Dashboard', href: '/tutorials/dashboard' }}
+      next={{ title: 'Activity Log Inspection', href: '/tutorials/time-travel' }}
     >
       <div className="space-y-12">
         {/* Why Harbors Exist */}
@@ -36,7 +36,7 @@ export function Harbors() {
           </p>
           <Surface depth="flat" radius="xl" padding="md" className="border-l-4 border-[var(--brand-secondary)]">
             <p className="m-0 text-sm" style={{ color: 'var(--text-secondary)' }}>
-              <strong>Soundness by Design:</strong> In Port Daddy v3.7, every harbor operation is verified against a mathematical state machine. If an agent tries to claim a port it doesn't own, the daemon rejects the request instantly.
+              <strong>Soundness by Design:</strong> Harbor operations are checked against the current capability model. If an agent tries to claim a port it does not own, the daemon rejects the request instantly.
             </p>
           </Surface>
         </section>

@@ -88,20 +88,28 @@ export const PRODUCT_FEATURES = [
     status: 'new'
   },
   {
-    id: 'atomic-ports',
-    title: 'Atomic port assignment',
-    description: 'Deterministic hashing ensures semantic identities like myapp:api always map to the same port across restarts and fleets.',
-    category: 'ports',
-    cli: 'pd claim <identity>',
+    id: 'agent-radio',
+    title: 'Agent communication substrate',
+    description: 'Notes, scoped channels, actor inboxes, claims, tuples, and salvage records give agents durable ways to talk without sharing one chat window.',
+    category: 'coordination',
+    cli: 'pd note "handoff ready"',
     status: 'core'
   },
   {
     id: 'shared-coordination',
-    title: 'Shared coordination state',
-    description: 'Sessions, notes, file claims, locks, tuples, inboxes, activity, and salvage are daemon-owned so agents can recover work instead of relying on chat history.',
+    title: 'Enforced coordination',
+    description: 'Sessions, notes, file claims, locks, tuples, inboxes, activity, salvage, and Coordination Guard make repo work attributable before code reaches a commit.',
     category: 'coordination',
     cli: 'pd begin "purpose"',
     status: 'core'
+  },
+  {
+    id: 'coordination-guard',
+    title: 'Coordination Guard',
+    description: 'Install a local pre-commit guard that checks staged files against the current session and active claims, then blocks uncoordinated commits when enforcement is on.',
+    category: 'coordination',
+    cli: 'pd guard install --mode enforce',
+    status: 'new'
   },
   {
     id: 'harbors',
@@ -126,7 +134,7 @@ export const MAC_APP_CAPABILITIES = [
     id: 'menu-bar',
     label: '01',
     title: 'Native Mac entrance',
-    description: 'FleetBar lives in the menu bar, follows the canonical daemon, shows daemon and fleet health, and opens the full console without making the developer remember a port.',
+    description: 'FleetBar lives in the menu bar, follows the canonical daemon, shows daemon and fleet health, and opens the full console without making the developer remember a local URL.',
     proof: 'Installed by pd setup on macOS and backed by the same daemon-served /fleet-ui bundle as the browser console.',
   },
   {
@@ -134,7 +142,7 @@ export const MAC_APP_CAPABILITIES = [
     label: '02',
     title: 'One console, many operator surfaces',
     description: 'Flow, Roadmap, Agents, Resources, Activity, Channels, Inbox, Sorties, Memory, Shipwright, and YAML are top-level pages instead of hidden side panels.',
-    proof: 'FleetBar embeds the same Fleet Control Center surface with ?embed=fleetbar so native chrome and web chrome do not compete.',
+    proof: 'FleetBar embeds the same Fleet Control Center surface with ?embed=fleetbar so native chrome and web chrome stay aligned.',
   },
   {
     id: 'coordination',
@@ -155,8 +163,20 @@ export const MAC_APP_CAPABILITIES = [
 export const APP_SURFACES = [
   {
     id: 'fleet-flow',
-    title: 'Fleet view',
+    title: 'Flow',
     caption: 'Flow, backend roster, live agent cards, project budget, and coordination guard controls in one operator view.',
+    surface: 'Fleet Control Center',
+  },
+  {
+    id: 'agents',
+    title: 'Agents',
+    caption: 'Durable actors, configured fleet agents, ad hoc jobs, backend/model selections, touched files, and recent signals stay visible together.',
+    surface: 'Fleet Control Center',
+  },
+  {
+    id: 'roadmap',
+    title: 'Roadmap',
+    caption: 'Built, blocked, drifting, and next-up work stays tied to recovery notes, current status, product truth, and dogfood evidence.',
     surface: 'Fleet Control Center',
   },
   {
@@ -166,9 +186,39 @@ export const APP_SURFACES = [
     surface: 'Fleet Control Center',
   },
   {
+    id: 'activity',
+    title: 'Activity',
+    caption: 'Session starts, notes, file claims, handoffs, mutations, and fleet events form a project-scoped audit trail instead of terminal residue.',
+    surface: 'Fleet Control Center',
+  },
+  {
+    id: 'channels',
+    title: 'Channels',
+    caption: 'Scoped publish/subscribe channels show both human-readable names and project-resolved physical channels for agent-to-agent coordination.',
+    surface: 'Fleet Control Center',
+  },
+  {
+    id: 'inbox',
+    title: 'Inbox',
+    caption: 'Actor messages, direct handoffs, unread work, and durable role ownership give agents a place to talk across sessions.',
+    surface: 'Fleet Control Center',
+  },
+  {
     id: 'sorties',
     title: 'Sorties',
     caption: 'Mission recipes, backend/model preflight, budget ceilings, generated brief, logs, and durable run history.',
+    surface: 'Fleet Control Center',
+  },
+  {
+    id: 'memory',
+    title: 'Memory',
+    caption: 'Recovered session context, notes, tuples, semantic joins, and salvage trails help the next agent continue from actual project memory.',
+    surface: 'Fleet Control Center',
+  },
+  {
+    id: 'yaml',
+    title: 'YAML',
+    caption: 'The declarative fleet file exposes agents, triggers, schedules, singleton rules, budgets, and channel wiring as editable operator truth.',
     surface: 'Fleet Control Center',
   },
   {
@@ -181,6 +231,12 @@ export const APP_SURFACES = [
     id: 'shipwright-focus',
     title: 'Shipwright Focus',
     caption: 'A proposed fleet includes rationale, agent roles, model choices, budgets, and risk notes before launch.',
+    surface: 'Shipwright',
+  },
+  {
+    id: 'shipwright-simulation',
+    title: 'Shipwright Simulation',
+    caption: 'Simulation checks the proposed fleet against budget, backend readiness, resource pressure, and coordination risk before activation.',
     surface: 'Shipwright',
   },
   {

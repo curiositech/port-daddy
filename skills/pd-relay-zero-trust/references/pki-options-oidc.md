@@ -1,5 +1,7 @@
 # PKI Option: OIDC (with GitHub OIDC as the canonical case)
 
+> **Status (2026-04-27)**: Input to **[ADR-0025 (Relay PKI Decision)](../../../docs/adr/0025-pki-decision.md)** which adopted OIDC as the **v0 primary identity bootstrap** (OIDC-first hybrid; ACME in v1; WoT escape hatch). The GitHub Actions issuer ships at v0 launch; allowlist is config-expandable. This document is preserved as the option analysis and remains canonical for OIDC implementation guidance.
+
 **Load when**: OIDC is a candidate in the PKI decision, or you need to wire CI/CD identity (where OIDC is essentially mandatory).
 
 ## Summary

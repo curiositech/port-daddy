@@ -103,13 +103,13 @@ export function ActivityFeed() {
         <motion.div className="flex bg-[var(--surface-base)] p-1 rounded-lg border border-[var(--border-subtle)] font-sans">
           <motion.button 
             onClick={() => setMode('live')}
-            className={`px-3 py-1 rounded-md text-[10px] font-black uppercase transition-all font-sans ${mode === 'live' ? 'bg-[var(--brand-primary)] text-white shadow-lg' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
+            className={`px-3 py-1 rounded-md text-[10px] font-black uppercase transition-all font-sans ${mode === 'live' ? 'bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
           >
             Live
           </motion.button>
           <motion.button 
             onClick={() => setMode('history')}
-            className={`px-3 py-1 rounded-md text-[10px] font-black uppercase transition-all font-sans ${mode === 'history' ? 'bg-[var(--brand-accent)] text-white shadow-lg' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
+            className={`px-3 py-1 rounded-md text-[10px] font-black uppercase transition-all font-sans ${mode === 'history' ? 'bg-[var(--brand-accent)] text-[var(--brand-accent-foreground)]' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
           >
             History
           </motion.button>

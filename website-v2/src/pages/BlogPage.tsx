@@ -395,7 +395,7 @@ export function BlogPage() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen bg-[var(--surface-base)] flex flex-col font-sans selection:bg-[var(--brand-primary)] selection:text-white"
+      className="min-h-screen bg-[var(--surface-base)] flex flex-col font-sans selection:bg-[var(--brand-primary)] selection:text-[var(--brand-primary-foreground)]"
     >
       {/* ===== HERO + FEATURES ===== */}
       <Surface depth="raised" radius="none" padding="none" className="pb-16 sm:pb-20 px-4 sm:px-6 lg:px-10 relative overflow-hidden">

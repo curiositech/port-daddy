@@ -10,7 +10,7 @@ export function Fleet() {
     <TutorialLayout
       title="Fleet: Agents That Run While You Sleep"
       description="Declare your background agent fleet in YAML. Wire it to git commits. Watch QA, docs, and idea engines run automatically on every push."
-      number={19}
+      number={18}
       total={20}
       level="Intermediate"
       readTime="12 min read"

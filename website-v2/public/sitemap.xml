@@ -61,9 +61,6 @@
     <loc>https://portdaddy.dev/cookbook/p2p-webrtc</loc>
   </url>
   <url>
-    <loc>https://portdaddy.dev/dashboard</loc>
-  </url>
-  <url>
     <loc>https://portdaddy.dev/docs</loc>
   </url>
   <url>
@@ -433,6 +430,27 @@
     <loc>https://portdaddy.dev/examples</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/examples/dns-service-discovery</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/examples/durable-inbox-lifecycle</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/examples/file-edit-guard</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/examples/migration-lock-guard</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/examples/pd-tube-button-to-agent</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/examples/session-phase-lifecycle</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/examples/war-room-incident</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/integrations</loc>
   </url>
   <url>
@@ -457,10 +475,10 @@
     <loc>https://portdaddy.dev/integrations/windsurf</loc>
   </url>
   <url>
-    <loc>https://portdaddy.dev/mcp</loc>
+    <loc>https://portdaddy.dev/mac-preview</loc>
   </url>
   <url>
-    <loc>https://portdaddy.dev/roadmap</loc>
+    <loc>https://portdaddy.dev/mcp</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/templates</loc>
@@ -485,9 +503,6 @@
   </url>
   <url>
     <loc>https://portdaddy.dev/tutorials/always-on</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/tutorials/dashboard</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/tutorials/debugging</loc>
@@ -523,6 +538,9 @@
     <loc>https://portdaddy.dev/tutorials/pipelines</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/tutorials/primitives</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/tutorials/remote-harbors</loc>
   </url>
   <url>
@@ -545,5 +563,11 @@
   </url>
   <url>
     <loc>https://portdaddy.dev/whitepaper</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/whitepaper/anchor-protocol</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/whitepaper/bonded-commons</loc>
   </url>
 </urlset>

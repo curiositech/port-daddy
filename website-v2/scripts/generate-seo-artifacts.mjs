@@ -75,6 +75,8 @@ function llmsTxt() {
     '/cookbook',
     '/blog',
     '/whitepaper',
+    '/whitepaper/anchor-protocol',
+    '/whitepaper/bonded-commons',
   ]
     .map((path) => indexableRoutes.find((route) => route.path === path))
     .filter(Boolean)
@@ -88,6 +90,7 @@ function llmsTxt() {
     ['## Integrations', routeList('integrations')],
     ['## Templates', routeList('templates')],
     ['## Blog', routeList('blog')],
+    ['## White Papers', routeList('whitepaper')],
   ]
 
   return [
