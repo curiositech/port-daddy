@@ -39,6 +39,7 @@ export function ExampleDetailPage() {
     { id: 'adapt', title: 'Adapt it' },
   ]
   const activeAnchor = location.hash ? location.hash.replace('#', '') : anchors[0]?.id
+  const needsPortDaddy = example.prerequisites.some((item) => item.toLowerCase().includes('port daddy'))
 
   return (
     <div className="min-h-screen bg-[var(--surface-base)] selection:bg-[var(--brand-primary)] selection:text-[var(--brand-primary-foreground)]">
@@ -78,6 +79,21 @@ export function ExampleDetailPage() {
 
             <DocsNoteCard label="Prerequisites" title="Before you run it." elevation="quiet">
               <PanelList items={example.prerequisites} />
+              {needsPortDaddy ? (
+                <div className="grid gap-[var(--space-3)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
+                  <PanelBody size="compact" className="max-w-[58rem]">
+                    Do this first if Port Daddy is not installed or the daemon is not running.
+                  </PanelBody>
+                  <div className="flex flex-wrap gap-[var(--panel-gap-tight)]">
+                    <BracketLink to="/docs/get-started" tone="blue" side="left">
+                      Install Port Daddy
+                    </BracketLink>
+                    <BracketLink to="/docs/get-started" tone="accent" side="right">
+                      Get setup command
+                    </BracketLink>
+                  </div>
+                </div>
+              ) : null}
             </DocsNoteCard>
 
             {example.sections.map((section) => (
