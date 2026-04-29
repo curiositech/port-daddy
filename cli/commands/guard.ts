@@ -4,7 +4,17 @@ import { spawnSync } from 'node:child_process';
 import * as ui from '../utils/ui.js';
 import { pdFetch, PORT_DADDY_URL, type PdFetchResponse } from '../utils/fetch.js';
 import { readCurrentContext } from '../utils/current-context.js';
+import { installGitShim, uninstallGitShim, SHIM_BIN_DIR } from '../utils/git-shim.js';
 import type { CLIOptions } from '../types.js';
+
+/**
+ * Destructive git verbs intercepted by the optional `~/.port-daddy/bin/git`
+ * shim. Each verb maps to "all working-tree paths" for the purpose of the
+ * coordination check — we don't try to predict which paths a `reset --hard`
+ * will touch, we just consult the daemon for any active claim that would
+ * be steamrolled.
+ */
+const DESTRUCTIVE_GIT_VERBS = new Set(['reset-hard', 'checkout-paths', 'clean-force', 'add-all']);
 
 export const COORDINATION_GUARD_NAME = 'Coordination Guard';
 export const GUARD_CONFIG_RELATIVE_PATH = '.portdaddy/coordination-guard.json';
@@ -462,19 +472,48 @@ function printCheckResult(result: GuardCheckResult, options: CLIOptions): void {
   }
 }
 
+async function loadAllActiveClaims(): Promise<string[]> {
+  // Pulls every file currently claimed by an active session. Used by the
+  // git-shim path: a destructive verb implicates the whole working tree,
+  // so the universe of "things at risk" is the union of active claims.
+  try {
+    const data = await fetchJson('/files');
+    const files = Array.isArray(data.files) ? data.files : [];
+    const paths = new Set<string>();
+    for (const entry of files) {
+      if (entry && typeof entry === 'object') {
+        const path = (entry as Record<string, unknown>).path;
+        if (typeof path === 'string' && path.trim()) paths.add(path.trim());
+      }
+    }
+    return Array.from(paths);
+  } catch {
+    return [];
+  }
+}
+
 async function runCheck(positional: string[], options: CLIOptions): Promise<GuardCheckResult> {
   const cwd = resolve(typeof options.dir === 'string' ? options.dir : process.cwd());
   const config = readGuardConfig(cwd);
   const mode = effectiveMode(config, options);
   const postCommit = Boolean(options['post-commit']);
+  const gitVerb = typeof options['git-verb'] === 'string' ? String(options['git-verb']).trim() : '';
   const commitRef = typeof options.commit === 'string' && options.commit.length > 0 ? options.commit : 'HEAD';
-  const files = normalizeFiles(postCommit
-    ? commitFiles(commitRef, cwd)
-    : options.staged || options.hook
-      ? stagedFiles(cwd)
-      : positional.length > 0
-        ? positional
-        : dirtyFiles(cwd));
+  const files = normalizeFiles(
+    gitVerb && DESTRUCTIVE_GIT_VERBS.has(gitVerb)
+      // For destructive verbs the universe of risk is "any claim that
+      // exists right now," so we query the daemon for active claims and
+      // surface them as the file list. The guard then evaluates them
+      // against the caller's session.
+      ? await loadAllActiveClaims()
+      : postCommit
+        ? commitFiles(commitRef, cwd)
+        : options.staged || options.hook
+          ? stagedFiles(cwd)
+          : positional.length > 0
+            ? positional
+            : dirtyFiles(cwd),
+  );
   const context = await loadActiveContext(cwd);
   const root = gitRoot(cwd) ?? cwd;
   const ownersByFile = mode === 'off' || files.length === 0 ? {} : await loadOwners(files, root);
@@ -488,6 +527,35 @@ async function runCheck(positional: string[], options: CLIOptions): Promise<Guar
     sessionId: context.sessionId,
     ownersByFile,
   });
+}
+
+function handleInstallShim(options: CLIOptions): void {
+  const result = installGitShim();
+  if (options.json || options.j) {
+    console.log(JSON.stringify({ success: true, ...result }, null, 2));
+    return;
+  }
+  if (result.alreadyInstalled) {
+    ui.info(`git shim already installed at ${result.path}`);
+  } else {
+    ui.success(`git shim installed at ${result.path}`);
+  }
+  ui.info(result.pathHint);
+  ui.info('Disable temporarily with PD_SHIM_OFF=1 git ...');
+}
+
+function handleUninstallShim(options: CLIOptions): void {
+  const result = uninstallGitShim();
+  if (options.json || options.j) {
+    console.log(JSON.stringify({ success: true, ...result }, null, 2));
+    return;
+  }
+  if (result.removed) {
+    ui.success(`git shim removed from ${result.path}`);
+  } else {
+    ui.info(`No git shim at ${result.path}`);
+  }
+  ui.info(`(directory ${SHIM_BIN_DIR} preserved)`);
 }
 
 function handleStatus(options: CLIOptions): void {
@@ -577,7 +645,7 @@ function installGuard(options: CLIOptions): void {
 }
 
 function printUsage(): void {
-  console.log(`Usage: pd guard <status|check|enable|disable|install> [files...]`);
+  console.log(`Usage: pd guard <status|check|enable|disable|install|install-shim> [files...]`);
   console.log('');
   console.log('Controls:');
   console.log('  pd guard status');
@@ -585,7 +653,10 @@ function printUsage(): void {
   console.log('  pd guard enable --mode warn');
   console.log('  pd guard check --staged');
   console.log('  pd guard check src/file.ts');
-  console.log('  pd guard install --mode enforce');
+  console.log('  pd guard check --git-verb reset-hard      # consult before destructive verbs');
+  console.log('  pd guard install --mode enforce           # pre-commit + post-commit hooks');
+  console.log('  pd guard install-shim                     # ~/.port-daddy/bin/git wrapper');
+  console.log('  pd guard uninstall-shim');
 }
 
 export async function handleGuard(positional: string[], options: CLIOptions): Promise<void> {
@@ -606,6 +677,14 @@ export async function handleGuard(positional: string[], options: CLIOptions): Pr
       return;
     case 'install':
       installGuard(options);
+      return;
+    case 'install-shim':
+    case 'shim-install':
+      handleInstallShim(options);
+      return;
+    case 'uninstall-shim':
+    case 'shim-uninstall':
+      handleUninstallShim(options);
       return;
     case 'check': {
       const result = await runCheck(rest, options);
