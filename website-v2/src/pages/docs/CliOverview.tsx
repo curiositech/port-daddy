@@ -59,6 +59,14 @@ const GROUPS = [
     ]
   },
   {
+    title: 'Roadmap',
+    description: 'Read Cartographer roadmap truth and acknowledge live tuple feedback.',
+    commands: [
+      { name: 'pd roadmap', href: '/docs/cli/roadmap', description: 'Show Next Cuts, live feedback, and curated dogfood harvests' },
+      { name: 'pd roadmap ack', href: '/docs/cli/roadmap', description: 'Harvest live feedback after folding it into roadmap truth' },
+    ]
+  },
+  {
     title: 'Harbors',
     description: 'Permission namespaces with capability tokens.',
     commands: [

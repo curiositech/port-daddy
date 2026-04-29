@@ -165,6 +165,50 @@ describe('roadmap progress parser', () => {
     expect(progress.freshness.latestUpdateMs).toBeGreaterThanOrEqual(1_700_000_000_000);
   });
 
+  test('getRoadmapProgress keeps markdown truth available when live feedback fails', () => {
+    const root = mkdtempSync(join(tmpdir(), 'pd-roadmap-live-feedback-failure-'));
+    tempDirs.push(root);
+    mkdirSync(join(root, 'docs', 'recovery'), { recursive: true });
+    mkdirSync(join(root, '.cartographer'), { recursive: true });
+    writeFileSync(join(root, 'docs', 'ROADMAP.md'), `# Roadmap
+
+## Next Cuts
+
+- **\`still-visible\`** — Curated roadmap must survive tuple outages.
+`);
+    writeFileSync(join(root, 'docs', 'recovery', 'IDEAS-TROVE.md'), '# Ideas\n');
+    writeFileSync(join(root, 'docs', 'recovery', 'DOGFOOD-FEEDBACK.md'), `# Feedback
+
+### \`markdown-backstop\`
+
+- status: \`now\`
+- surface: recovery-docs
+- why it matters:
+  - live feedback failures should not blank the operator map
+`);
+    writeFileSync(join(root, 'docs', 'recovery', 'CURRENT-WORK.md'), '# Current\n');
+    writeFileSync(join(root, '.cartographer', 'status.md'), '# Status\n');
+
+    const feedback = {
+      list: () => {
+        throw new Error('tuple DB temporarily unavailable');
+      },
+      summary: () => {
+        throw new Error('should not be called after list fails');
+      },
+    };
+
+    const progress = getRoadmapProgress({ rootDir: root, feedback });
+
+    expect(progress.nextCuts.map((entry) => entry.slug)).toEqual(['still-visible']);
+    expect(progress.dogfoodFeedback.map((entry) => entry.slug)).toEqual(['markdown-backstop']);
+    expect(progress.liveFeedback).toEqual([]);
+    expect(progress.feedbackSummary).toBeNull();
+    expect(progress.warnings).toEqual([
+      expect.stringContaining('live feedback tuples could not be read: tuple DB temporarily unavailable'),
+    ]);
+  });
+
   test('getRoadmapProgress respects .cartographer/config.yml path overrides', () => {
     const root = mkdtempSync(join(tmpdir(), 'pd-roadmap-config-'));
     tempDirs.push(root);

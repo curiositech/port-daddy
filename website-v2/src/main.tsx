@@ -113,6 +113,7 @@ const TunnelStopCommand = lazy(() => import('@/pages/docs/cli/TunnelStopCommand'
 const FleetCommand = lazy(() => import('@/pages/docs/cli/FleetCommand'))
 const InitCommand = lazy(() => import('@/pages/docs/cli/InitCommand'))
 const McpInstallCommand = lazy(() => import('@/pages/docs/cli/McpInstallCommand'))
+const RoadmapCommand = lazy(() => import('@/pages/docs/cli/RoadmapCommand'))
 
 const SdkOverview = lazy(() => import('@/pages/docs/sdk'))
 const PortsSdk = lazy(() => import('@/pages/docs/sdk/Ports'))
@@ -265,6 +266,7 @@ createRoot(document.getElementById('root')!).render(
               <Route path="cli/fleet" element={<FleetCommand />} />
               <Route path="cli/init" element={<InitCommand />} />
               <Route path="cli/mcp-install" element={<McpInstallCommand />} />
+              <Route path="cli/roadmap" element={<RoadmapCommand />} />
 
               <Route path="features/ports" element={<PortsFeature />} />
               <Route path="features/radio" element={<RadioFeature />} />
