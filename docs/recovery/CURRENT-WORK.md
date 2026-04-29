@@ -98,6 +98,8 @@ The `agentsd.ai` public-site reset is now explicit repo work, not chat residue.
     `codex/stash-exact-20260429-20-*` are pushed.
   - Dirty worktree snapshots are pushed for root recordings, FCC, PR5
     Tube/PKI UI docs, and OG branded social cards.
+  - Reachability sweep preserved seven local-only branch tips under
+    `codex/worktree-preserve-20260429-*`.
   - Recovery ledger: `docs/recovery/STASH-WORKTREE-HARVEST-2026-04-29.md`.
 - 2026-04-29 cartographer map refresh:
   - `cartographer-roadmap-progress-screen` is now shipped via `7ba8d84`, `8fcf93e`, `4807cb5`, and `bd4fc6f`.
