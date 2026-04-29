@@ -406,7 +406,7 @@ describe('operator routes', () => {
       '  agents:',
       '    spark:',
       '      backend: custom',
-      '      prompt: echo spark',
+      '      prompt: Runs tests and finds uncovered code paths. Ignore this second sentence.',
       '',
     ].join('\n'));
 
@@ -449,6 +449,7 @@ describe('operator routes', () => {
           id: 'spark',
           inboxTarget: 'spark',
           isConfiguredFleetAgent: true,
+          purpose: 'Runs tests and finds uncovered code paths.',
           actorState: 'idle',
         }),
       ]);
