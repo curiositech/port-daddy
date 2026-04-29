@@ -32,6 +32,8 @@ type FleetConfigStatus = 'ready' | 'missing_budget' | 'invalid' | 'missing';
 type ProjectOperatorState = 'running' | 'ready' | 'blocked' | 'service_only' | 'context_only' | 'missing';
 type ProjectRemediationAction = 'start_fleet' | 'set_budget' | 'fix_yaml' | 'create_fleet' | 'run_scan';
 
+const PROJECTS_ROUTE_CACHE_TTL_MS = 2_000;
+
 interface ProjectRemediation {
   action: ProjectRemediationAction;
   title: string;
@@ -102,6 +104,19 @@ interface ProjectsRouteDeps {
 // =============================================================================
 export const projectsPlugin: FastifyPluginAsync<{ deps: ProjectsRouteDeps }> = async (fastify, opts) => {
   const { projects, metrics, logger, activityLog } = opts.deps;
+  let projectsRouteCache: {
+    key: string;
+    expiresAt: number;
+    body: unknown;
+  } | null = null;
+
+  function invalidateProjectsRouteCache(): void {
+    projectsRouteCache = null;
+  }
+
+  function cacheKeyForProjectsRoute(pattern: string | undefined): string {
+    return JSON.stringify({ pattern: pattern ?? '' });
+  }
 
   function shellQuotePath(path: string): string {
     return `'${path.replace(/'/g, `'\\''`)}'`;
@@ -292,6 +307,7 @@ export const projectsPlugin: FastifyPluginAsync<{ deps: ProjectsRouteDeps }> = a
             frameworks: Object.values(result.services).map((s: Record<string, unknown>) => (s.stack as Record<string, unknown>).name)
           }
         });
+        invalidateProjectsRouteCache();
       }
 
       let savedPath: string | null = null;
@@ -354,17 +370,24 @@ export const projectsPlugin: FastifyPluginAsync<{ deps: ProjectsRouteDeps }> = a
   fastify.get('/projects', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { pattern } = request.query as any;
+      const normalizedPattern = typeof pattern === 'string' ? pattern : undefined;
+      const cacheKey = cacheKeyForProjectsRoute(normalizedPattern);
+      const now = Date.now();
+      if (projectsRouteCache && projectsRouteCache.key === cacheKey && projectsRouteCache.expiresAt > now) {
+        return projectsRouteCache.body;
+      }
+
       const runtimeRoots = opts.deps.fleetDaemon?.getStatus().fleets.map((fleet) => fleet.projectDir) ?? [];
       const serviceRoots = extractServiceRoots();
 
       const all = projects.listKnown
         ? projects.listKnown({
-            pattern: typeof pattern === 'string' ? pattern : undefined,
+            pattern: normalizedPattern,
             runtimeRoots,
             serviceRoots,
           })
         : projects.list({
-            pattern: typeof pattern === 'string' ? pattern : undefined
+            pattern: normalizedPattern
           });
 
       const runningRoots = new Set(runtimeRoots);
@@ -383,7 +406,7 @@ export const projectsPlugin: FastifyPluginAsync<{ deps: ProjectsRouteDeps }> = a
         readinessByRoot.set(project.root, buildProjectReadiness(project, runningRoots.has(project.root), config, configError));
       }
 
-      return {
+      const body = {
         success: true,
         count: all.length,
         projects: all.map((p: ProjectEntry) => ({
@@ -404,6 +427,12 @@ export const projectsPlugin: FastifyPluginAsync<{ deps: ProjectsRouteDeps }> = a
           ...readinessByRoot.get(p.root),
         }))
       };
+      projectsRouteCache = {
+        key: cacheKey,
+        expiresAt: Date.now() + PROJECTS_ROUTE_CACHE_TTL_MS,
+        body,
+      };
+      return body;
     } catch (error) {
       metrics.errors++;
       reply.code(500);
@@ -459,6 +488,7 @@ export const projectsPlugin: FastifyPluginAsync<{ deps: ProjectsRouteDeps }> = a
       }
 
       logger.info('project_removed', { id: (request.params as any).id as string });
+      invalidateProjectsRouteCache();
 
       return {
         success: true,
