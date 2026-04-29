@@ -446,6 +446,11 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
           readinessStatus: readiness.status,
           readinessSummary: readiness.summary,
           readinessNextStep: readiness.nextStep,
+          credentialKeys: readiness.credentialKeys,
+          credentialAlternates: readiness.credentialAlternates,
+          setupCommand: readiness.setupCommand,
+          setupFiles: readiness.setupFiles,
+          restartRequired: readiness.restartRequired,
         };
       })
     );

@@ -1148,6 +1148,8 @@ interface WhoamiResponse {
   success: boolean;
   active: boolean;
   agentId?: string;
+  agentName?: string | null;
+  name?: string | null;
   sessionId?: string;
   purpose?: string;
   identity?: string | null;
@@ -2617,6 +2619,7 @@ class PortDaddy {
     const body: Record<string, unknown> = { purpose };
     if (this.agentId) body.agentId = this.agentId;
     if (options.agentId) body.agentId = options.agentId;
+    if (options.name) body.name = options.name;
     if (options.identity) body.identity = options.identity;
     if (options.type) body.type = options.type;
     if (options.files) body.files = options.files;
@@ -3665,6 +3668,7 @@ interface DnsResolverStatusResponse {
 
 interface BeginSugarOptions {
   agentId?: string;
+  name?: string;
   identity?: string;
   type?: string;
   files?: string[];
@@ -3675,6 +3679,8 @@ interface BeginSugarOptions {
 interface BeginSugarResponse {
   success: boolean;
   agentId: string;
+  agentName?: string;
+  name?: string;
   sessionId: string;
   identity: string | null;
   purpose: string;
@@ -3706,6 +3712,8 @@ interface WhoamiSugarResponse {
   success: boolean;
   active: boolean;
   agentId?: string;
+  agentName?: string | null;
+  name?: string | null;
   sessionId?: string;
   purpose?: string;
   identity?: string | null;
@@ -3827,6 +3835,7 @@ interface ChangelogIdentitiesResponse {
 
 interface SpawnSpec {
   backend: 'ollama' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'codex' | 'aider' | 'custom';
+  name?: string;
   model?: string;
   modelTier?: 'low' | 'mid' | 'high';
   identity: string;
@@ -3844,6 +3853,7 @@ interface SpawnSpec {
 interface SpawnResult {
   success: boolean;
   agentId: string;
+  name?: string;
   backend: SpawnSpec['backend'];
   model: string;
   status: 'running' | 'completed' | 'failed' | 'killed';
@@ -3862,6 +3872,7 @@ interface SpawnResult {
 
 interface SpawnedAgent {
   agentId: string;
+  name?: string;
   backend: SpawnSpec['backend'];
   model: string;
   status: 'running' | 'completed' | 'failed' | 'killed';
