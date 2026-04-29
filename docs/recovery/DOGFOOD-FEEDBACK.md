@@ -1,6 +1,6 @@
 # Dogfood Feedback — Curated Harvest
 
-Last updated: 2026-04-26
+Last updated: 2026-04-29
 
 This file is the curated harvest of agent dogfooding feedback for Port Daddy.
 
@@ -60,6 +60,11 @@ surface. Spark/Spider do not touch this lane — they own
 _No curated entries yet. Spark fleet (`fleet/spark.sh`) and the human in
 the chair will populate this on the next harvest pass over
 `.spark/feedback/`._
+
+2026-04-29 pass note: this checkout still has no `.spark/feedback/` subtree,
+and `pd feedback list --status open --json` failed with `ERROR: connect EPERM
+/Users/erichowens/.port-daddy/daemon.sock`, so there was nothing new to dedupe
+or promote on this pass.
 
 ## Cross-refs into the roadmap
 

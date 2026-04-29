@@ -1,6 +1,6 @@
 # Ideas Trove
 
-Last updated: 2026-04-11
+Last updated: 2026-04-29
 
 This is the canonical ideation index and curated backlog for Port Daddy.
 
@@ -63,6 +63,7 @@ runtime cuts.
   - operator request 2026-04-26 ("Can cartographer have a screen of just
     roadmap progress showing backlog, bugs, future ideas, future define
     roadmap...?")
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove`
 
 ### `coordination-guard-extended-enforcement`
 
@@ -88,6 +89,7 @@ runtime cuts.
   - operator question 2026-04-26 ("We have 'Coordination Guard', by
     the way, is that the enforcement you want?") → yes, this is the
     right primitive; just extend its reach
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove`
 
 ### `crew-screen-roles-not-pids`
 
@@ -111,6 +113,7 @@ runtime cuts.
   - operator question 2026-04-26 ("These roles, like promotion
     coordinator, can they be visible at a high level on the first
     project screen?")
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove`
 
 ### `coordination-ticker-as-high-signal-feed`
 
@@ -133,6 +136,7 @@ runtime cuts.
 - provenance:
   - operator question 2026-04-26 ("The agent group chat being a
     high-signal ticker?")
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove`
 
 ### `quorum-driven-dynamic-launch`
 
@@ -162,6 +166,7 @@ runtime cuts.
 - provenance:
   - operator question 2026-04-26 ("Can port-daddy launch these
     things dynamically when a quorum of agents agree on need?")
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove`
 
 ### `capability-discovery-dns-harbor`
 
@@ -174,6 +179,7 @@ runtime cuts.
   - prove it against current DNS + harbor tables, not whitepaper aspiration
 - provenance:
   - `.spark/ideas/spider-capability-discovery-dns-harbor.md`
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove`
 
 ### `fleet-run-journal`
 
@@ -187,6 +193,7 @@ runtime cuts.
 - provenance:
   - `.spark/ideas/spider-fleet-run-journal.md`
   - `.spark/ideas/2026-04-06-fleet-run-persistence.md`
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove`
 
 ### `forensic-context-windows`
 
@@ -199,6 +206,7 @@ runtime cuts.
   - keep it cheap and synchronous enough for enforcement paths
 - provenance:
   - `.spark/ideas/spider-forensic-context-windows.md`
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove`
 
 ### `ipc-disconnect-instant-salvage`
 
@@ -213,6 +221,7 @@ runtime cuts.
   - `.spark/ideas/2026-04-05-spider-ipc-disconnect-instant-salvage.md`
   - `.spark/ideas/spider-ipc-disconnect-instant-salvage-and-implicit-heartbeat.md`
   - `.spark/ideas/spider-2026-04-05-ipc-native-liveness.md`
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove`
 
 ### `tuple-driven-fleet`
 
@@ -226,6 +235,7 @@ runtime cuts.
 - provenance:
   - `.spark/ideas/spider-tuple-triggered-fleet-agents.md`
   - `.spark/ideas/spider-ipc-tuple-fast-path.md`
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove`
 
 ### Recommended First Two Builds
 
@@ -240,6 +250,10 @@ Reason:
 - both improve operator truth immediately
 - neither requires speculative product expansion
 - both make future salvage/arbiter work more legible
+
+2026-04-29 pass note: no new raw `.spark/ideas/` or `.spider/connections/`
+files were curated on this pass; the change was only refreshing roadmap
+backrefs on promoted `now` items.
 
 ## Secondary Backlog Families
 

@@ -3,8 +3,9 @@
 Canonical note: this file remains valuable historical context, but the active recovery authority now lives in `docs/recovery/README.md` and `docs/recovery/UNIFIED-ROADMAP.md`.
 
 **Author:** Erich Owens
-**Last Updated:** 2026-04-05
-**Status:** Active — Phase 0 complete, Phase 4 partially complete (Fastify ✅, Trie ✅, Binary IPC ✅, Backpressure ⚡, Bun binary ⚡), Phase 3 largely done (fleet, pheromone, Fleet Live Dashboard all shipped). **Recovery Track 1 CLOSED** (`8744e14`, 2026-04-06) — `cost-tracker`, `counters`, and the full `/metrics/*` observability surface are now committed and released as v3.8.3. The observability trifecta is complete. FleetBar unified with the real fleet control plane (`a41f18f`, `e82f096`) — the menu bar app now shells `fleet-config-ui` via WebView instead of maintaining a shadow dashboard. Fleet runtime readiness checks, backend fallbacks, and spawn preflight enforcement committed (`3b818d2`, `71fc446`, `0cc5e6`). ~16 untracked + ~34 modified/deleted files remain uncommitted (down from 76). HEAD: `e82f096`.
+**Last Updated:** 2026-04-29
+**Status:** Active — Phase 0 complete, Phase 1 is now complete-in-tree, Phase 4 partially complete (Fastify ✅, Trie ✅, Binary IPC ✅, Backpressure ⚡, Bun binary ⚡ (stale)), and Phase 3 is the current center of gravity (fleet, FleetBar, control-plane truth, and actor/memory polish). **Recovery Track 1 CLOSED** (`8744e14`, 2026-04-06) — `cost-tracker`, `counters`, and the full `/metrics/*` observability surface are now committed and released as v3.8.3. The observability trifecta is complete. FleetBar unified with the real fleet control plane (`a41f18f`, `e82f096`) — the menu bar app now shells `fleet-config-ui` via WebView instead of maintaining a shadow dashboard. Fleet runtime readiness checks, backend fallbacks, and spawn preflight enforcement committed (`3b818d2`, `71fc446`, `0cc5e6`). Recent unplanned truth includes structured Codex spawn errors, stale-thread stripping, named daemon profiles/quorum, roadmap-progress projection/panel, Cartographer /feedback wiring, release-surface docs/skill polish, website/public-site distribution and preview polish, generated imagery and MCP page hero tightening, Fleet Control Center entrance viewport refresh, actor route test alignment, the maritime actor naming drop (`9e7d458`), pd-fleet.yml hardening, phone-integration relay work, and fleet budgets / semantic coordination hardening (`a8ed3b3`). This checkout's current map refresh now tracks the latest stable promotion plus the 2026-04-29 public-shell/operator burst. HEAD: `4ba4f90`.
+**Previous HEAD:** `4973777` — docs-only map refresh before the 2026-04-29 public-shell/operator burst
 
 This document synthesizes all V4 planning documents into a single sequenced roadmap. Nothing from the original documents has been discarded — ideas that aren't yet sequenced are preserved in the Appendix.
 
@@ -31,7 +32,7 @@ The formal foundation for this thesis is the **Bonded Commons** paper (Owens, 20
 | Rust core (Kani-verified, FFI) | Deployed | `core/harbor-card-rs/` → `dist/core/libharbor_card_rs.dylib` |
 | Arbiter (6 invariant rules) | Deployed | `lib/arbiter.ts`, `routes/arbiter.ts`, wired in `server.ts` |
 | Note encryption (envelope) | Deployed | `lib/note-encryption.ts`, integrated in `lib/sessions.ts` |
-| Bosun watchdog (Rust) | In progress | daemon writes `~/.port-daddy/heartbeat`; `core/pd-bosun/` supervises filesystem heartbeat and replaces legacy Barnacle |
+| Bosun watchdog (Rust) | Deployed | daemon writes `~/.port-daddy/heartbeat`; `core/pd-bosun/` supervises filesystem heartbeat and replaces legacy Barnacle |
 | 10 formal skills | Built | `~/.claude/skills/{mechanism-design,tlaplus,political-philosophy,...}` |
 | Stable branch workflow | Active | `~/port-daddy-stable/` worktree |
 | Fleet agents | Running | 8 agents: gardener, qa, test-gap-hunter, etc. |
@@ -39,9 +40,9 @@ The formal foundation for this thesis is the **Bonded Commons** paper (Owens, 20
 
 ---
 
-## Phase 1: The Semantic Graph [NEXT — IMPLEMENTED IN TREE, AUTHORITY SYNC REMAINS]
+## Phase 1: The Semantic Graph [COMPLETE — IMPLEMENTED IN TREE, AUTHORITY SYNC STILL MONITORED]
 
-> **Current repo truth — 2026-04-10:** `graph_edges` is implemented in-tree via `lib/graph-edges.ts`, `routes/graph.ts`, `tests/unit/graph-edges.test.js`, and MCP `graph_edges` / `graph_stats` surfaces. The symbol index, orchestrator registry, and merge queue are already wired into `server.ts`. The remaining Phase 1 risk is authority drift: stable promotion, docs, and operator/runtime truth still need to agree on what already exists.
+> **Current repo truth — 2026-04-28:** `graph_edges` is implemented in-tree via `lib/graph-edges.ts`, `routes/graph.ts`, `tests/unit/graph-edges.test.js`, and MCP `graph_edges` / `graph_stats` surfaces. `lib/episodic-memory.ts`, `routes/memory.ts`, and `tests/unit/episodic-memory.test.js` are also in-tree, and `df4c351` added symbol-path session/file claims. The remaining Phase 1 risk is no longer feature absence; it is authority propagation across docs, promotion, and operator/runtime surfaces.
 
 *The nervous system. Agents navigate relationships, not flat registries.*
 
@@ -140,7 +141,7 @@ When credits are at stake, file claims can be enforced (not just advisory). This
 
 ---
 
-## Phase 3: Fleet & Memory [MOSTLY DONE — 3B and 3C outstanding]
+## Phase 3: Fleet & Memory [MOSTLY DONE — 3B complete-in-tree, 3C outstanding]
 
 *Always-on agents, episodic memory, declarative swarm management.*
 
@@ -168,6 +169,8 @@ agents:
 > **Cartographer — 2026-03-31:** Fleet extended significantly. `pd fleet init` added (`91c40af`) — creates a starter fleet YAML for any project. Drop-in fleet templates shipped (`1e70137`) — pre-built templates (docs watcher, adversarial tester, etc.) via `website-v2/src/pages/tutorials/Fleet.tsx`. **Auto-respawn** added (`26c4ed2`) — fleet agents restart automatically on crash; singleton mode enforced at fleet level. Fleet tutorial live on website (7 sections). Git post-commit hook (`dd820c6`) publishes commit metadata to `git:committed` channel — fleet agents trigger automatically. QA agent rules generalized to be framework-agnostic (Jest/Vitest/pytest/Go) and anti-tautology rules added. Core is complete; `.portdaddy/fleet.yaml` convention still not formalized.
 
 ### 3B. Episodic Memory
+
+> **Cartographer — 2026-04-28:** Episodic memory is now committed in-tree via `lib/episodic-memory.ts`, `routes/memory.ts`, and `tests/unit/episodic-memory.test.js`. The remaining work is authority propagation and operator-surface alignment, not feature absence.
 
 ```
 pd memory store <key> <value>
@@ -198,7 +201,11 @@ Visual fleet management, watch hooks with message history, spawn agent form, fle
 >
 > **Cartographer — 2026-04-05:** A full **Fleet Config UI** React app is in progress (uncommitted) at `fleet-config-ui/` with 8 components: AgentCard, AgentConfigPanel, FlowGraph, YAMLEditor, SortiePanel, DMPanel, ChannelLog, ProjectPicker. This goes well beyond the roadmap's "panel" — it's a standalone fleet management application with visual agent configuration, flow visualization, and YAML editing. Also: FleetBar macOS app (`6c6d56a`) gained enhancements, and a CostDashboard + CostStore are in progress (uncommitted) in `apps/FleetBar/`.
 >
-> **Cartographer — 2026-04-06:** FleetBar unified with fleet-config-ui (`a41f18f`). The menu bar app now shells the real `/fleet-ui/` web surface via WKWebView `FleetControlCenter` instead of maintaining a separate native dashboard. This is the correct architecture — one fleet UI served from the daemon, consumed by both browser and native app. Control plane entrypoints hardened in `e82f096`. Fleet Config UI components (6 files) still being actively refactored (uncommitted). The fleet-config-ui backend endpoints (`GET/PUT /fleet/config/:project`, `GET /fleet/prompt`, `GET /fleet/models`) are committed in `8744e14`. **3D is evolving from "dashboard panel" into a full fleet management product spanning daemon, browser, and native menu bar.** 3B (episodic memory) and 3C (deep scan) remain untouched.
+> **Cartographer — 2026-04-28:** FleetBar/control-plane truth is now the hottest commit cluster. Recent work tightened portable named launches, surfaced one-line agent purposes, added recovery hints for failed agents, and promoted structured Codex spawn errors. The operator-facing fleet slice is closer to truth than the old shadow-dashboard era, but the remaining work is release-surface polish and live verification, not core fleet wiring.
+>
+> **Cartographer — 2026-04-29:** The Fleet Control Center entrance viewport was rebuilt and actor route tests were aligned with the fleet roster. This is still operator-truth polish, not new backend wiring.
+>
+> **Cartographer — 2026-04-06:** FleetBar unified with fleet-config-ui (`a41f18f`). The menu bar app now shells the real `/fleet-ui/` web surface via WKWebView `FleetControlCenter` instead of maintaining a separate native dashboard. This is the correct architecture — one fleet UI served from the daemon, consumed by both browser and native app. Control plane entrypoints hardened in `e82f096`. Fleet Config UI components (6 files) still being actively refactored (uncommitted). The fleet-config-ui backend endpoints (`GET/PUT /fleet/config/:project`, `GET /fleet/prompt`, `GET /fleet/models`) are committed in `8744e14`. **3D is evolving from "dashboard panel" into a full fleet management product spanning daemon, browser, and native menu bar.** 3B (episodic memory) is now in tree; 3C (deep scan) remains untouched.
 >
 > **Cartographer — 2026-04-05 (update):** The Fleet Config UI now has a backend. Uncommitted changes to `routes/fleet.ts` add 4 new endpoints: `GET /fleet/config/:project`, `PUT /fleet/config/:project`, `GET /fleet/prompt` (shell integration), `GET /fleet/models` (backend catalog). These are wired through `routes/index.ts` and registered in `features.manifest.json`. The fleet-config-ui itself is being actively refactored — `AgentRadioCard` → `AgentCard`, `ChannelFlowGraph` → `FlowGraph` (component renames in uncommitted changes, net -554 lines from the React app — slimming down). The full loop — read config → edit in UI → write back → fleet reloads — is achievable once committed.
 
@@ -206,19 +213,23 @@ Visual fleet management, watch hooks with message history, spawn agent form, fle
 
 ---
 
-## Phase 4: Resilience & Performance [PARTIALLY SHIPPED — 4B/4C complete, 4A half (Fastify ✅, Bun ⚡), 4D half (IPC ✅), 4E/4F remain]
+## Phase 4: Resilience & Performance [PARTIALLY SHIPPED — 4B/4C complete, 4A stale (Fastify ✅, Bun binary ⚡), 4D half (IPC ✅), 4E/4F stale]
 
 > **Cartographer — 2026-03-31:** Phase 4 went from 0% to ~70% complete in a 3-day burst (2026-03-29 to 2026-03-30). The Fastify migration, Radix Trie, Binary IPC, and IPC backpressure all shipped. This is now the most recently active phase. What remains: `pd self-test --adversarial` (4E) and Windows Named Pipe hardening (4F). Neither has any commits.
+>
+> **Cartographer — 2026-04-29:** Phase 4 is no longer the active center of gravity. Bun packaging is stale, and the 4E/4F cuts have no fresh commits in 2+ weeks. Keep them visible, but parked.
 
 *The kernel upgrade. Hardened for production workloads.*
 
-### 4A. Bun/Fastify Migration [FASTIFY SHIPPED v3.8.1, BUN BINARY IN PROGRESS]
+### 4A. Bun/Fastify Migration [FASTIFY SHIPPED v3.8.1, BUN BINARY STALE]
 
 Replace Express with Fastify on Bun for 20,000+ req/sec. Single-file binary compilation via `bun build --compile`.
 
 > **Cartographer — 2026-03-31:** Fastify migration complete (`b8a8ae0`, 2026-03-29). All 23 route files converted to Fastify plugins. `express`, `cors`, `express-rate-limit`, `supertest` removed. Same API surface, same endpoints. BigInt serialization fixed, ephemeral port exhaustion eliminated with `fastify.inject()`. **Bun** (single-file binary) has zero commits — this half of 4A is not started.
 >
 > **Cartographer — 2026-04-05:** Bun binary work started. `6a8c8bb` (2026-04-01) added `build:bin` scripts and GitHub Actions workflow for binary releases. Maritime guard fix for Bun compatibility. `db4c315` includes "Bun prep" alongside CLI aliases. This half of 4A is now **in progress** — build scripts and CI exist, but no confirmed working single-file binary distribution yet.
+>
+> **Cartographer — 2026-04-28:** Bun packaging has now gone stale relative to the rest of the tree. There have been no confirmed single-file distribution wins since Apr 4, so treat 4A as stale packaging work, not active delivery. The hot path is the operator/runtime polish around FleetBar, Codex launches, and the control plane. Keep 4A visible, but do not mistake the CI scaffolding for a finished binary story.
 
 ### 4B. Unix Domain Sockets / Named Pipes [COMPLETE v3.8.2]
 
@@ -242,9 +253,13 @@ Socket-level backpressure when SQLite WAL commits lag. Forces agents to pause ra
 
 Ships with the daemon. Runs the chaos test suite from V4-TEST-SUITE.md against the live instance. Outputs a "Nautical Seaworthiness Report."
 
+> **Cartographer — 2026-04-29:** No commits in 2+ weeks; keep 4E visible, but parked until the current recovery slices settle.
+
 ### 4F. Hardened Windows IPC
 
 Named Pipes with explicit DACLs (SDDL). `PIPE_REJECT_REMOTE_CLIENTS` to prevent NTLM relay attacks.
+
+> **Cartographer — 2026-04-29:** No commits in 2+ weeks; keep 4F visible, but parked until the current recovery slices settle.
 
 **Deliverable:** The daemon handles production agent fleets at scale with sub-millisecond coordination.
 
@@ -276,6 +291,8 @@ Public task registry. Agents bid on Float Plans. 15% coordination fee on cross-h
 
 **Deliverable:** Agents collaborate across machines and organizations with the same trust guarantees as local coordination.
 
+> **Cartographer — 2026-04-28:** Phase 5 remains aspirational. There have been no fresh commits here in more than two weeks, so treat Lighthouse / Marketplace work as parked until the current recovery slices stop moving.
+
 ---
 
 ## Phase 6: Life Integration
@@ -293,6 +310,8 @@ GET-only by default. POST/PUT requires human approval via the Dashboard. The Arb
 ### 6C. Coaching Agent Template
 
 Pre-built always-on agent: daily brief, skill tracking, calendar awareness. The "killer app" for personal use.
+
+> **Cartographer — 2026-04-28:** Phase 6 is still untouched. The connector and personal-OS concepts are valid, but they are stale relative to the current runtime work and should stay parked until the operator/runtime surfaces settle.
 
 ---
 
@@ -392,12 +411,24 @@ From `v4_thoughts.md`: Run TLC on the BondedCommons spec with concrete parameter
 | Website overhaul Phase 2 (content truth audit + A11y + UX compression) | many commits 2026-03-29–30 | 23 false claims removed, 38 CLI syntax fixes, WCAG AA contrast, responsive padding, 55 raw code blocks unified into `CodeBlock` component, all 40+ pages compressed. Driven by website content being fictional/misleading. |
 | **Orchestrator plugins + Merge queue + Symbol index foundation** — wired, now dependent on graph/authority cleanup | `7b46248` + later graph commits | Built as parallel agent output 2026-03-30. `lib/orchestrator-plugins.ts` (plugin registry + default FIFO), `lib/merge-queue.ts` + `routes/merge-queue.ts` (11 endpoints), and `lib/symbol-index.ts` (tree-sitter WASM) are now wired into `server.ts`, with `graph_edges` / `routes/graph.ts` / tests supplying the missing unified edge layer. Remaining risk is authority sync and stable promotion, not "wire the stubs." |
 | **OpenAPI 3.1 specification** (`docs/openapi.yaml`) — 96 paths, 125 operations | listed in [Unreleased] | Single source of truth for the HTTP API. Not in any roadmap phase. Emerged from SDK documentation maintenance. |
+| **Daemon profiles + quorum primitive** | `cea02e1` | Named sidecar daemon profiles and the tuple-backed quorum primitive landed together. The quorum piece maps to `docs/ROADMAP.md` Next Cuts, but the daemon-profile sidecar mode still has no V4 phase home. |
+| **Codex launch/operator polish** | `55e0381`, `9f1a188`, `37cf620`, `a8ca8e5`, `e53737d`, `e33d53f`, `bd36b5c`, `2645880`, `765f93a`, `78b5cd4`, `7c0020a`, `ff1d942` | Structured Codex spawn errors, stale thread-env stripping, daemon-service exposure, telemetry enablement, portable named fleet launches, one-line purposes, and FleetBar recovery hints landed as a cross-cutting operator/runtime slice. Not part of the original phase taxonomy. |
+| **Coordination Guard hardening** | `d5c05aa`, `5d5805e`, `806bb8a` | Repo-default guard controls, post-commit audit, and fail-closed hooks landed as operator governance, not a dedicated V4 phase cut. |
+| **Roadmap progress operator surfaces** | `7ba8d84`, `ca8ffad` | The `/cartographer/roadmap-progress` endpoint and Fleet UI roadmap surfaces were added to reduce the “open four files to know what is next” problem. The full screen still needs UI completion, so this remains a partial unplanned slice. |
+| **Documentarian release-surface docs/skill polish** | `89c9c52` | `AGENTS.md`, README, `pd-fleet.yml`, and `skills/port-daddy-cli` were expanded to reflect the promotion-gated release-surface review flow. The structured promotion tuple/listener plumbing remains the open half of the slice. |
+| **Central agentic-feedback API** | `8fcf93e` | A new cross-cutting feedback primitive landed outside the V4 phase taxonomy. It exposes the central agentic-feedback API as an operator surface, so future harvest/reporting can stop being chat-only. |
+| **Resource governance cockpit surfaces** | `3d3bedc`, `3172d0f`, `f3038d7` | Budget and resource governance moved out of backend policy and into visible cockpit/FleetBar surfaces. Important operator truth, but not part of the original V4 phase taxonomy. |
+| **Fleet budgets and semantic coordination** | `a8ed3b3` | `lib/backend-readiness.ts`, `lib/keychain.ts`, and `lib/secret-env.ts` hardened secret snapshotting, OS keychain access, and backend readiness. The current tests are validating that path, not inventing it. |
+| **Phone-integration pipe and relay work** | `17cb5dd`, `6dca769`, `ca87b5f`, `a1b9821`, `510de15`, `79ceec9`, `73c471f`, `fa6b66e`, `af84f24`, `e9b57b3` | Merkle chain primitives, `pd tube`, hands-on tutorial and browser example assets, and the relay PKI decision landed as a separate relay/phone-integration thread. Valuable, but not one of the original V4 phase cuts. |
 | **Drop-in fleet templates + `pd fleet init`** | `1e70137`, `91c40af` | Pre-built fleet YAML templates for any project type. `pd fleet init` creates a starter fleet. Not in the original 3A spec — emerged from making fleet approachable for projects that aren't Port Daddy itself. |
 | **VHS CI demo workflow** (`.github/workflows/`) | `d85e30d` | Automated terminal recording with VHS + ffmpeg + daemon startup. Not in roadmap. Closest roadmap item is Appendix A12 (Asciinema Demo Engine) — different toolchain, same intent. |
 | **`pd mcp install` + `pd init`** — onboarding CLI commands | `370d775` | 21 unit tests. `pd init` scaffolds a project for PD coordination; `pd mcp install` adds PD to Claude Code's MCP config. Distribution/onboarding — adjacent to A13 but broader. |
 | **Blog content engine + 3 articles** | `966313d`, `9cee0e2` | Maritime signal flag SVG components. Blog article redesign with directive system. Content marketing — no roadmap phase. |
 | **Curiositech rebranding** | `2a4fc5f` | MCP skill discovery, brand rename. Marketing/identity work. |
 | **Website overhaul Phase 3** (tutorials, hero, install CTA, navigation) | `c1fbbc9`, `ff8b56f`, `78ec0a6`, `d250215`, many more | 19 tutorials repaired, new 4-tab install CTA with typewriter animation, hero feature grid hoist, Home link added. Continued content truthing (`c9be89d` — 10 factual errors fixed). Energy still flowing to website despite no roadmap phase for it. |
+| **Website generated visuals + SEO metadata pipeline** | `9d30e34`, `c41268f`, `3331a8c`, `8670850`, `21ad6a4`, `389871f`, `b192a28`, `9311394` | Generated control-plane visuals, added SEO metadata artifacts, rebuilt whitepaper/tutorial/hero copy, and kept shaving off the old soft-glow residue. Public-site truthing, not a V4 phase. |
+| **Website/public-site distribution + preview polish** | `0718477`, `3214576`, `8c65932`, `5db90d7`, `adcc608`, `a3cbf22`, `f94769a`, `b5c0e41`, `3c34c1d`, `11be921` | Website distribution commands, Mac Preview surfaces, MCP catalog docs, hash-scroll anchor navigation, executable examples docs, and public dashboard route cleanup landed as public-site/release-surface work. Not in a V4 phase. |
+| **FleetBar / public-shell truth burst** | `e0c2839`, `9e7d458`, `b89a362`, `d9fd0fd`, `9eee5b4`, `328f12f`, `a1dc622`, `68753a9` | The 2026-04-29 burst aligned actor route tests with the fleet roster, dropped the maritime layer so actor IDs now read as fleet agent names, rebuilt the Fleet Control Center entrance viewport, added generated imagery and guidance to public pages, tightened the MCP page hero, and hardened `pd-fleet.yml` fallbacks/throttles/watcher behavior. Valuable operator/public-shell truth, but still unplanned relative to the V4 phase taxonomy. |
 | **VHS demo GIFs for blog** | `f88d04e` | 5 recorded GIFs for blog articles. Extension of VHS CI workflow (`d85e30d`). |
 | **CLI aliases** (broadcast/listen/swarm) | `db4c315` | Convenience aliases for pub/sub and fleet commands. Test hardening in same commit. |
 | **Cost tracker + Observability routes** *(COMMITTED 2026-04-05)* | `0169b17` | `lib/cost-tracker.ts` (319 lines), `routes/observability.ts` (162 lines), `tests/unit/cost-tracker.test.js` (165 lines). Per-spawn LLM cost recording, budget checks, fleet budget integration. 6 Fastify endpoints. CLAUDE.md, README, SKILL.md, API reference all updated. **First concrete Phase 2 infrastructure.** Was uncommitted for 5 days; finally landed. `lib/counters.ts` (ODS-style time-bucketed metrics) remains **untracked** — the last piece of the observability trifecta. |
@@ -417,3 +448,6 @@ From `v4_thoughts.md`: Run TLC on the BondedCommons spec with concrete parameter
 | **Setup onboarding + help discoverability** | `0cc5e6` | `pd setup` improvements — help discoverability, onboarding flow polish. Maps to Recovery 3.8.3 onboarding criteria. |
 | **FleetBar unified with fleet-config-ui** | `a41f18f` | FleetBar menu bar app now shells the real `/fleet-ui/` web surface via `FleetControlCenter` WebView. Eliminates the shadow native dashboard. Maps to Recovery Track 2. |
 | **FleetBar control plane hardening** | `e82f096` | Hardens FleetBar control plane entrypoints — security/robustness for the unified WebView surface. Maps to Recovery Track 2. |
+| **Structured Codex spawn errors + stale thread stripping** | `c4dba9f`, `55e0381`, `e7115d1`, `71896da`, `9f1a188`, `ea243ca`, `2f09ce2` | Structured spawn failures now surface through live and promoted daemon paths, and spawned Codex runs no longer inherit stale `CODEX_THREAD_ID` context. Operator/runtime truth, not an original V4 phase cut. |
+| **Named daemon profiles + quorum primitive** | `cea02e1` | Named sidecar daemons and tuple-backed quorum proposal/vote surfaces landed together. Coordination infrastructure is real; the auto-spawn half remains open. |
+| **Roadmap progress operator surfaces** | `47453ca`, `7ba8d84`, `ca8ffad`, `501c7d7` | `/cartographer/roadmap-progress`, `pd roadmap`, Cartographer `/feedback` wiring, and the Roadmap dashboard panel now live. Still unplanned relative to the V4 phase taxonomy, but no longer pending. |

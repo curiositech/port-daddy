@@ -1,9 +1,27 @@
 # Current Recovery Work
 
-Last updated: 2026-04-27
+Last updated: 2026-04-29
 Owner: Codex working session
 
 This is the active execution ledger. If a task is in flight, it belongs here before it belongs in chat.
+
+## Current Map Snapshot
+
+- Current phase: Phase 3 (Fleet & Memory / FleetBar-control-plane truth) has the most active work, with Phase 2 governance and Phase 1 truth propagation close behind.
+- Velocity: 237 commits in the last 7 days (33.9 commits/day).
+- Closest to completion:
+  - FleetBar / control-plane operator truth cleanup: backend endpoints, portable launches, one-line purposes, recovery hints, actor route test alignment, Fleet Control Center entrance viewport polish, and Codex runtime/operator polish are mostly committed; what remains is release-surface plumbing plus live verification.
+  - Roadmap progress operator surface: `/cartographer/roadmap-progress`, Cartographer `/feedback` wiring, and the dashboard panel are in tree; live verification and embed polish remain.
+  - Coordination Guard extended enforcement: pre-commit fail-closed and cockpit controls are landed; broader session/tool hook coverage is the remaining work.
+- Blocked or drifting:
+  - Phase 4A Bun binary: stale since Apr 4; build scripts and CI exist, but no confirmed single-file distribution.
+  - Phase 4E `pd self-test --adversarial`: no commits in 2+ weeks.
+  - Phase 4F Windows IPC: no commits in 2+ weeks.
+- Open dogfood feedback entries at `now`: 0
+- No `.spark/feedback/` subtree exists in this checkout, and `pd feedback list --status open --json` failed with `EPERM` on the daemon socket, so there was nothing to dedupe or promote.
+- Promotion-gated release-surface review: commit `89c9c52` expanded the Documentarian release surfaces in `AGENTS.md`, `README.md`, `pd-fleet.yml`, and `skills/port-daddy-cli`; the structured promotion tuple/listener plumbing remains in flight.
+- Latest unplanned burst: Fleet Control Center entrance viewport refresh, actor route-test alignment, maritime actor naming, generated imagery and image guidance on public pages, MCP page hero tightening, and pd-fleet.yml fallback/throttle/watcher hardening landed outside the V4 spine; the prior 2026-04-28 burst covers website/public-site distribution commands, Mac Preview surfaces, MCP catalog docs, hash-scroll navigation, executable example clarifications, and pd tube tutorial follow-through.
+- Backend readiness / secret-env / keychain validation hardening is also in the worktree, aligning with the fleet-budget and semantic-coordination slice from `a8ed3b3`.
 
 ## Active Side Thread
 
@@ -569,6 +587,7 @@ The promotion script is now the high-signal trigger for docs/website/SDK/CLI/tut
 - The payload filters generated/build artifact paths, carries changed-file counts, and truncates the file list so promotion review cannot accidentally shove stable archaeology through pub/sub.
 - `scripts/promote-stable.sh` emits that review after the test gate passes and before merging `main` into stable.
 - The trigger is intentionally not a direct spawn. Fleet policy owns activation through the `documentarian` agent, which now listens to `promotion:release-surfaces` with singleton, cooldown, dedupe, and backoff controls.
+- 2026-04-28: commit `89c9c52` expanded the Documentarian release surfaces in `AGENTS.md`, `README.md`, `pd-fleet.yml`, and `skills/port-daddy-cli`; the structured promotion tuple/listener plumbing remains the open half of the slice.
 - `PORT_DADDY_PROMOTION_REVIEW_REQUIRED=1` makes emission failures block promotion; `PORT_DADDY_PROMOTION_REVIEW_ONLY=1` stops after signaling so release-surface agents can work before stable moves.
 - The contract is covered by `tests/unit/promotion-release-review.test.js`.
 - Validation truth on 2026-04-26: focused promotion/fleet tests are green, `npm run typecheck` and `npm run build` are green, source `pd fleet validate` reports no topology warnings, and broad `npm test -- --no-coverage --runInBand` is green at `143/143` suites and `4980/4981` passing tests with `1` intentional skip.
@@ -930,7 +949,7 @@ This is the normalized remaining-slice inventory as of 2026-04-24. It supersedes
    - keep line ranges only as fallback/display
    - index non-code coordination documents by section anchors if they are claim hotspots
    - expose first-class CLI/MCP symbol discovery and claim-refinement affordances, not only region-claim pass-through
-   - make symbol freshness automatic in the promoted daemon; the event-driven refresh design exists in recovery notes/stash residue but is not current committed runtime truth
+   - make symbol freshness automatic in the promoted daemon; the event-driven refresh design exists in recovery notes/stash residue, but the committed truth still needs the automatic refresh path wired through the promoted daemon
 5. Wire claims into graph/memory:
    - `session --claims--> file`
    - `session --claims_symbol--> symbol`
@@ -946,7 +965,7 @@ This is the normalized remaining-slice inventory as of 2026-04-24. It supersedes
 
 ### E. Sounder: Tuple, Graph, Memory, And Semantic Collapse
 
-1. Decide whether the graph + episodic-memory slice is the next real cut or quarantine; do not leave it half-landed.
+1. The graph + episodic-memory slice is now committed; the next work is truth propagation, migration cleanup, and operator-surface alignment. Do not leave any line-range-only holdouts pretending the primitives are still missing.
 2. Finish tuple-first coordination:
    - `trigger_tuple` fleet inputs
    - fleet lifecycle as `fleet:event`

@@ -16,6 +16,7 @@ jest.unstable_mockModule('node:module', () => ({
   }),
 }));
 
+const { _resetForTests: resetSecrets } = await import('../../lib/secret-env.js');
 const { assessBackendReadiness } = await import('../../lib/backend-readiness.js');
 
 describe('backend readiness', () => {
@@ -30,6 +31,7 @@ describe('backend readiness', () => {
     delete process.env.GEMINI_API_KEY;
     delete process.env.CLOUDFLARE_ACCOUNT_ID;
     delete process.env.CLOUDFLARE_API_TOKEN;
+    resetSecrets();
     global.fetch = jest.fn(async () => {
       throw new Error('offline');
     });

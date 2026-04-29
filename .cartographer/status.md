@@ -1,24 +1,58 @@
 # Cartographer Status
 
-**Last updated:** 2026-04-27
-**Updated by:** Codex promotion recovery closeout
-**HEAD:** `717f4f4`
-**Stable:** `40cf79d` — promoted from `main@717f4f4` and pushed to `origin/stable`
-**Previous HEAD:** `7b91e37` — Shipwright component review shots, before the guard/stale-visibility/promotion recovery stack landed
+**Last updated:** 2026-04-29
+**Updated by:** Codex map refresh
+**HEAD:** `4ba4f90`
+**Stable:** `4ba4f90` — promoted from `main@e0c2839`; `origin/stable` is still `65a3b7f` in this checkout
+**Previous HEAD:** `4973777` — docs-only map refresh before the 2026-04-29 public-shell/operator burst
 
 ---
 
 ## Current Phase
 
-**Recovery Track dominates. V4 roadmap phases are secondary.**
+**Recovery Track still dominates day-to-day execution, but within the V4 taxonomy Phase 3 (Fleet & Memory / FleetBar-control-plane truth) now has the most active work. Phase 2 governance is the closest secondary, and Phase 1 is complete-in-tree. The newest adjacent operator slices are the Fleet Control Center entrance viewport, generated imagery/public-page refresh, MCP hero layout tightening, actor route test alignment, maritime actor naming, pd-fleet.yml hardening, roadmap-progress /feedback wiring, named daemon profiles/quorum, release-surface docs/skill polish, website/public-site distribution and preview polish, and phone-integration relay work; keep those as unplanned truth until the phase map catches up.**
 
 Active work ledger lives at `docs/recovery/CURRENT-WORK.md`. Keep the in-flight queue there, then reflect major closures or drift here.
 
-The latest committed work still maps overwhelmingly to the Recovery Roadmap (`docs/recovery/UNIFIED-ROADMAP.md`), not the V4 phase structure. Track 1 (Cost & Observability) is closed. Tracks 2 (FleetBar) and 3 (Fleet Config UI) remain active. The working tree now also contains a real Phase 1 / memory slice, so the old claim that graph work was untouched is no longer true.
+Current velocity: 237 commits in the last 7 days (33.9/day).
+
+The latest committed work still maps overwhelmingly to the Recovery Roadmap (`docs/recovery/UNIFIED-ROADMAP.md`), not the V4 phase structure. Track 1 (Cost & Observability) is closed. Tracks 2 (FleetBar) and 3 (Fleet Config UI) remain active. Phase 1 now has committed graph, memory, and symbol-backed claim truth, so the old claim that graph work was untouched is no longer true.
+
+Top 3 closest to completion:
+
+- FleetBar / control-plane operator truth cleanup: portable named launches, one-line purposes, recovery hints, actor route test alignment, Fleet Control Center entrance viewport polish, and Codex runtime/operator polish are mostly committed; release-surface plumbing plus live verification remain.
+- Roadmap progress operator surface: `/cartographer/roadmap-progress`, Cartographer `/feedback` wiring, and the dashboard panel are in tree; live verification and embed polish remain.
+- Coordination Guard extended enforcement: pre-commit fail-closed and cockpit controls are landed; broader session/tool hook coverage is the remaining work.
+
+Top 3 blocked or drifting:
+
+- Phase 4A Bun binary: stale since Apr 4; build scripts and CI exist, but no confirmed single-file distribution.
+- Phase 4E `pd self-test --adversarial`: no commits in 2+ weeks.
+- Phase 4F Windows IPC: no commits in 2+ weeks.
+
+Open dogfood feedback entries at `now`: 0 (none)
 
 Active threads, ranked by commit recency:
 
 Newest committed truth since the last cartographer refresh:
+
+- `4973777` / `0718477` / `3214576` / `8c65932` / `5db90d7` / `adcc608` / `a3cbf22` / `f94769a` / `b5c0e41` / `3c34c1d` / `11be921` — website/public-site distribution, Mac Preview, MCP docs, hash-scroll, executable examples, and route cleanup are the latest unplanned release-surface burst.
+- `4ba4f90` / `e0c2839` / `9e7d458` / `b89a362` / `d9fd0fd` / `9eee5b4` / `328f12f` / `a1dc622` / `68753a9` — 2026-04-29 operator/public-shell burst: actor route tests aligned with the fleet roster, the maritime layer was dropped so actor IDs now read as fleet agent names, Fleet Control Center entrance viewport rebuilt, generated imagery and guidance added to public pages, MCP hero layout tightened, and pd-fleet.yml fallbacks/throttles/watcher behavior hardened.
+- `d5c05aa` / `5d5805e` / `806bb8a` — Coordination Guard audit and fail-closed enforcement remain the broader hook-enforcement slice.
+- `e9b57b3` / `79ceec9` / `73c471f` / `fa6b66e` / `af84f24` — pd tube tutorial/browser example follow-through landed as unplanned relay work.
+- `397a610` / `501c7d7` / `47453ca` — Cartographer now wires to `/feedback`, the roadmap-progress projection is generalized via `.cartographer/config.yml`, and the Roadmap dashboard panel is live; only live verification and embed polish remain.
+- `65a3b7f` / `89c9c52` — Documentarian release-surface docs/skill polish landed on stable; the structured promotion tuple/listener plumbing remains the open half of the slice.
+- `c4dba9f` / `55e0381` / `e7115d1` / `71896da` — structured Codex spawn errors now surface through the live and promoted daemon paths.
+- `9f1a188` / `ea243ca` / `2f09ce2` — stale `CODEX_THREAD_ID` env is stripped from spawned agents, so Codex launches stop inheriting the wrong thread context.
+- `cea02e1` — tuple-backed quorum proposals and named daemon profiles landed together; the quorum primitive is now real, and the daemon-profile sidecar mode is a new unplanned surface.
+- `37cf620` / `a8ca8e5` — Codex CLI exposure to daemon services and telemetry enablement for Cartographer make the launch path and accounting more truthful.
+- `e53737d` / `e33d53f` / `bd36b5c` / `2645880` / `765f93a` / `78b5cd4` / `7c0020a` / `ff1d942` — fleet launches are now portable and named, and FleetBar gives failure recovery hints plus one-line purposes.
+- `b192a28` / `9311394` — website relief cleanup keeps shaving the old soft-glow residue out of the public shell.
+- `3d3bedc` / `3172d0f` / `f3038d7` — resource governance moved into visible cockpit/FleetBar surfaces instead of living only in backend policy.
+- `a8ed3b3` — fleet budgets and semantic coordination landed secret-env snapshotting, keychain-backed secrets, and backend-readiness scrubbing; the current tests are extending coverage on that path.
+- `d5c05aa` / `5d5805e` / `806bb8a` — Coordination Guard now fails closed and has cockpit controls; the remaining gap is broader session/tool hook enforcement.
+- `8fcf93e` — the central agentic-feedback API landed as a separate cross-cutting primitive.
+- `6dca769` / `ca87b5f` / `a1b9821` / `17cb5dd` / `510de15` — `pd tube`, Merkle-chain primitives, and the relay PKI decision landed as a separate phone-integration thread.
 
 - `40cf79d` — stable promotion commit for `main@717f4f4`; pushed to `origin/stable`. Promotion gate passed `147/147` Jest suites, `5019` tests, `1` skip, then rebuilt/reinstalled the stable daemon.
 - `717f4f4` — promotion verification wait loops now use explicit `/bin/sleep` so daemon port/runtime verification actually waits instead of failing red after a healthy install.
@@ -277,103 +311,66 @@ Newest validated working-tree slice before the next commit:
    Everything else from the previously dirty runtime/test/doc slices has now been either committed, merged into normative coverage, or explicitly quarantined.
 
 V4 Phase activity:
-- **Phase 1 (Semantic Graph):** No new committed slice yet, but the working tree now contains real `graph_edges` + semantic-memory plumbing. The stale-clock concern has changed from “nobody started this” to “this is half-landed and needs an explicit commit-or-quarantine decision quickly.”
+- **Phase 1 (Semantic Graph):** `graph_edges`, episodic memory, and symbol-backed claims are committed in tree. The remaining risk is authority propagation across docs, promotion, and operator/runtime surfaces.
 - **Phase 2 (Economy):** `lib/counters.ts` committed — observability trifecta complete. Pricing function still blocked on economist.
-- **Phase 3 (Fleet & Memory):** 3A/3D active via Recovery tracks. 3B (episodic memory) and 3C (deep scan) untouched.
-- **Phase 4 (Resilience):** No new commits. Bun binary stalled since 2026-04-01 (5 days). 4B/4C complete. 4E/4F not started.
+- **Phase 3 (Fleet & Memory):** 3A/3D active via Recovery tracks. 3B (episodic memory) is committed in tree; 3C (deep scan) remains untouched.
+- **Phase 4 (Resilience):** Bun binary is stale; 4B/4C are complete, and 4E/4F are parked with no commits in 2+ weeks.
 
 ---
 
 ## Velocity
 
-**62 commits in the 7-day window** (2026-03-30 to 2026-04-06)
-**8.9 commits/day** average (up from 8.4 — the Apr 5-6 burst added 11 commits)
+**237 commits in the last 7 days** (33.9 commits/day)
 
-| Date | Commits | Driver |
-|------|---------|--------|
-| 2026-03-30 | 31 | IPC Waves 1-4, security hardening, parallel agents, website compression |
-| 2026-03-31 | 6 | Security fixes, fleet daemon, FleetBar app |
-| 2026-04-01 | 10 | Bun binary, `pd mcp install`/`pd init`, FleetBar, blog content, CTA redesign |
-| 2026-04-02 | 0 | -- |
-| 2026-04-03 | 0 | -- |
-| 2026-04-04 | 1 | CLI aliases + test hardening |
-| 2026-04-05 | 11 | Cost-tracker, fleet safety, recovery docs, tutorials, blog, hero, VHS GIFs |
-| 2026-04-06 | 4 | Track 1 closure, FleetBar unification, sortie surfaces, control plane hardening |
-
-Burst-cool-burst pattern continues: 37 commits (Mar 30-31), 2 zero-commit days (Apr 2-3), then 15 commits (Apr 5-6). The Apr 5-6 burst was tightly focused on Recovery Track work — less scattered than the Mar 30 sprint.
-
-### Energy Distribution (8-day window, Mar 30–Apr 6, 66 commits)
-
-| Category | Commits | % | Roadmap Phase |
-|----------|---------|---|---------------|
-| Phase 4 (Fastify, IPC, Bun) | ~20 | 30% | 4A, 4B, 4C, 4D |
-| Phase 3 extensions (fleet daemon, FleetBar, safety) | ~10 | 15% | 3A, 3D |
-| Phase 2 (cost-tracker, counters, observability) | ~3 | 5% | 2A infrastructure |
-| Recovery tracks (setup, readiness, sortie, unification) | ~5 | 8% | Recovery 3.8.3/3.8.4 |
-| Security hardening | ~5 | 8% | Unplanned |
-| Website / marketing / docs | ~15 | 23% | Unplanned |
-| Maintenance / CI / test hardening | ~8 | 12% | Unplanned |
-
-**Planned vs. unplanned: 58% / 42%.** Improvement over last run (was 35%/65%). The Recovery Roadmap's existence is helping — "recovery work" is now counted as planned.
-
-**Uncommitted inventory is no longer just cleanup.** The main in-flight slices are now: semantic graph + episodic-memory plumbing, lease self-healing verification, loopback host / daemon discovery cleanup, project-scoped trigger archaeology, FleetBar/control-plane density work, and native-shell/operator-ergonomics fixes. Treat `docs/recovery/CURRENT-WORK.md` as the operational source of truth instead of mentally diffing `git status`.
+Current burn is concentrated in FleetBar/control-plane truth cleanup, Codex launch/operator polish, roadmap projection, and the 2026-04-29 public-shell/operator burst. The pace is high, but the work is now tightly clustered around operator truth instead of broad exploratory spread.
 
 ---
 
 ## Top 3 Closest to Completion
 
-1. **Fleet Config UI v0.1** *(Mostly committed, still iterating)*
+1. **FleetBar / control-plane operator truth cleanup** *(Mostly committed, still iterating)*
    - Backend endpoints committed (`8744e14`): `GET/PUT /fleet/config/:project`, `GET /fleet/prompt`, `GET /fleet/models`
    - FleetBar unified to consume this surface (`a41f18f`)
    - explicit file actions shipped (`83d1a22`)
    - Activity/Sortie truth fixes shipped (`853cc57`)
-   - **Remaining: higher-level product/UX cleanup, not core wiring.**
+   - latest polish landed (`28cbfe2`, `2645880`, `bd36b5c`, `e33d53f`, `e53737d`, `b89a362`, `e0c2839`)
+   - Codex runtime/operator polish is now part of the same truth-cleanup slice
+   - **Remaining: higher-level product/UX cleanup and live promotion verification, not core wiring.**
 
-2. **Daemon discovery + lease recoverability cleanup** *(UNCOMMITTED, high leverage)*
-   - `shared/daemon-discovery.ts` now carries the shared loopback host
-   - `cli/utils/fetch.ts`, `server.ts`, FleetBar `DaemonLocation.swift`, and fleet-ui API defaults were updated to stop sprinkling new `localhost:9876` assumptions
-   - `lib/fleet-daemon.ts` now attempts lease reacquisition when renewal sees `lock not held` and no competing holder exists
-   - regression coverage added in `tests/unit/fleet-daemon.test.js`
-   - **Remaining: restart the live daemon and verify `/fleet` actually recovers instead of sitting in `skipped` with `owner: null`**
+2. **Phase 1 truth propagation** *(Committed in tree, still cleaning up operator surfaces)*
+   - `graph_edges`, `episodic_memory`, and symbol-backed claims are committed
+   - `df4c351` added symbol-path claim identity
+   - `lib/sessions.ts`, `lib/merge-queue.ts`, and the memory/graph routes already project the new truth
+   - **Remaining: keep docs, promotion notes, and control-plane surfaces in sync with the committed primitives.**
 
-3. **Recovery 3.8.3 release cut** *(CRITERIA MOSTLY MET)*
+3. **Recovery 3.8.3 + budget governance surfaces** *(CRITERIA MOSTLY MET)*
    - Daemon startup: stable (committed)
    - Fleet backend/model selection: explicit with fallbacks (committed `3b818d2`)
    - Readiness/auth preflight: committed (`3b818d2`)
    - Cost/counter/observability: populated with real data (committed `8744e14`)
-   - Fleet singleton enforcement: committed
-   - **Remaining: verify all uncommitted test files pass, commit completions updates, cut the release. Most criteria from the Recovery Roadmap are satisfied.**
-
-4. **Residual test archaeology** *(MOSTLY RESOLVED)*
-   - The redundant `spawner-commit-0df9155-bugs` battery was not promoted as-is
-   - Its missing normative assertions now live in `tests/unit/spawner.test.js`
-   - **Remaining: keep trimming any future archaeology down to durable contract tests instead of one-off bug museums.**
+   - Resource governance is now visible in cockpit/FleetBar (`3d3bedc`, `3172d0f`, `f3038d7`)
+   - **Remaining: verify all uncommitted test files pass, commit completions updates, cut the release.**
 
 ---
 
 ## Top 3 Blocked or Drifting
 
-1. **Phase 1 — Unified Edge Table (1A)** *(DRIFTING — 7 days, 7 days to stale threshold)*
-   - Three Phase 1-adjacent modules on disk (~2500 lines): symbol-index, merge-queue, orchestrator-plugins
-   - All wired into `server.ts` (committed `0ae2df6` on 2026-03-30)
-   - But they depend on `graph_edges` table which has no migration
-   - `tests/unit/semantic-index.test.js` (453 lines, uncommitted) validates symbol index
-   - **The Apr 5-6 burst (7 commits) touched `server.ts` and `routes/index.ts` — the same files these modules are wired into. Merge friction risk is now elevated.**
-   - **One migration away from activating ~2500 lines. 7 days to stale threshold.**
-
-2. **Phase 2 — The Economy** *(BLOCKED on economist, infrastructure now complete)*
-   - Bond pricing function pi is the open problem
-   - Thomas Youle (Indiana U) proposed insurer-agent auction 2026-03-30 — no follow-up in 7 days
-   - The observability trifecta gives real cost data to calibrate against
-   - Fleet budget gates are enforced but use static pricing
-   - **Unblocked path: export cost data from `/metrics/cost` and send to Youle. Real numbers accelerate the conversation.**
-
-3. **Phase 4A — Bun binary** *(STALLED — 5 days since last commit)*
+1. **Phase 4A — Bun binary** *(STALLED — no confirmed single-file distribution)*
    - `6a8c8bb` (Apr 1) added build scripts and GH Actions workflow
    - `db4c315` (Apr 4) included "Bun prep"
    - No confirmed working single-file binary distribution
-   - No commits since Apr 4
-   - **Not yet at stale threshold, but the Apr 5-6 burst went to Recovery work, not Bun. If the next burst also skips Bun, it risks stalling permanently.**
+   - Stale since Apr 4; the current burst is going to operator/runtime polish instead of packaging
+
+2. **Phase 4E — `pd self-test --adversarial`** *(STALE — no commits)*
+   - still unimplemented
+   - would validate the live daemon against the chaos suite from the V4 test plan
+   - no fresh commit evidence in more than two weeks
+
+3. **Phase 4F — Hardened Windows IPC** *(STALE — no commits)*
+   - Named Pipes / SDDL hardening remains future work
+   - no fresh commit evidence in more than two weeks
+
+Phase 2 economy remains blocked on the pricing function and economist handoff, but the accounting pipeline and cost data are live. It is a strategic block, not the current runtime drag.
 
 ---
 
@@ -381,7 +378,7 @@ Burst-cool-burst pattern continues: 37 commits (Mar 30-31), 2 zero-commit days (
 
 - **The actor model is now a runtime migration, not just a Shipwright metaphor.** The repo had been using "agent" for durable identity, live process lease, inbox target, salvage target, and authorization principal. ADR-0022 separates those concerns: souls persist; body leases attach, expire, and carry authority. This is now the governing frame for future `/actors`, salvage, IPC auth, Fleet Control Center, and FleetBar work.
 - **The dangerous shortcut is "just stop deleting agents."** That would preserve history while breaking orphan detection, stale lock cleanup, IPC authorization, and Arbiter assumptions. Any implementation that changes deletion before adding lease/incarnation state should be treated as suspect.
-- **The Recovery Roadmap is the real execution authority.** 5 of 7 new commits map directly to Recovery Track criteria (Track 1 closure, Track 2 FleetBar, 3.8.3 runtime safety). The V4 phase structure is becoming a reference taxonomy rather than an active execution plan. This is fine — as long as both documents are maintained. The cartographer should update both.
+- **The Recovery Roadmap is the real execution authority.** The V4 phase structure is increasingly a reference taxonomy, but Phase 1 truth, FleetBar/control-plane truth, and budget governance surfaces are all now landing in the main tree. This is fine — as long as both documents are maintained. The cartographer should update both.
 - **The full-suite red slice was mostly parity drift plus one real transport edge.** The repaired failures were not random: `routes/messaging.ts` had stopped honoring `body.message`, the client test still assumed a hardcoded daemon URL, completions/manifest/MCP parity did not fully know about `sortie`, stale spawner mocks no longer matched the `node:fs` import surface, and the Unix-socket integration helper needed to normalize oversized-body `EPIPE` / `ECONNRESET` into the daemon's actual 413 intent.
 - **The orchestrator leak was real runtime debt, not just Jest drama.** Reactive `exec` rules spawned child processes with no cleanup contract and piped their output under Jest, which produced late console logs and open pipe handles. The current working tree now suppresses piped stdio under Jest, `unref()`s child handles, and exposes a shutdown path for the reactive orchestrator. The remaining full-suite worker-force-exit warning is now a different leak, not the same one.
 
@@ -407,7 +404,7 @@ Burst-cool-burst pattern continues: 37 commits (Mar 30-31), 2 zero-commit days (
 - **Daemon logs can mix generations of client truth.** After the latest `fleet-ui` channel fix, a fresh Playwright-driven load polled `/msg/project:...:` channels correctly, while older already-open clients continued to hit naked logical channels until they reloaded. Log archaeology now has to distinguish stale client traffic from current bundle behavior.
 - **Not all repo dirt deserves promotion.** The spider markdown pile is generated research output and now belongs in `.gitignore` by default, not in suspense as pseudo-canonical docs. The extra spawner bug-battery test proved that the right move is often to merge missing assertions into the canonical suite and delete the museum piece.
 
-- **Phase 1 stale clock: 7 days.** Equal to the time remaining before the threshold. The `graph_edges` migration is a 1-hour task. Every commit to `server.ts` (2 this burst) increases friction. The symbol index test suite sitting uncommitted for 7 days is a smell — someone validated the code but didn't commit the validation.
+- **Phase 1 is no longer “nobody started this.”** The graph / memory primitives are committed, and the remaining work is propagation, promotion, and operator truth sync. That makes this a doc/runtime alignment problem instead of a feature-start problem.
 
 - **Feedback audit surfaced a real ledger gap.** Several operator asks were implemented or discussed in chat but were not explicitly captured in the recovery queue: singleton Fleet Control Center behavior, Dock/native-window expectations, obvious stop/start controls, split-pane resizing, scheduled-job vs agent taxonomy, and concrete event-source examples/snippets. Those are now promoted into `docs/recovery/CURRENT-WORK.md` instead of relying on memory.
 - **Dogfooding exposed a fourth runtime truth surface.** `pd agent` is not just “sortie lite.” It creates a sugar session plus a single spawned-agent record and can disappear from the live agent registry immediately after completion/failure. The control plane therefore needs to distinguish configured fleet agents, ad hoc manual jobs (`pd agent` / direct `pd spawn`), and sorties instead of flattening them into one generic “agent” concept.

@@ -23,6 +23,19 @@ The **Cartographer** fleet agent (declared in `pd-fleet.yml`, triggered on
 `git:committed`) owns the harvest into `DOGFOOD-FEEDBACK.md` and the
 promotion of `now`-status entries into the section directly below.
 
+Current commit truth: the quorum primitive, named daemon profiles,
+roadmap-progress endpoint, Cartographer /feedback wiring, Roadmap
+dashboard panel, Codex spawn diagnostics, and Documentarian release-surface
+docs/skill polish, and fleet budgets / semantic coordination hardening are
+already in tree; the remaining cuts are the auto-spawn and broader
+hook-enforcement slices. Recent unplanned truth also includes
+website/public-site distribution and Mac Preview polish, generated imagery
+and image guidance, MCP page hero layout tightening, Fleet Control Center
+entrance viewport refresh, actor route test alignment, the maritime actor
+naming drop (`9e7d458`), pd-fleet.yml fallback/throttle/watcher hardening,
+MCP catalog docs, hash-scroll navigation, executable examples docs, and pd
+tube tutorial follow-through.
+
 ## Next Cuts (From Curated Trove)
 
 Mirrored from `docs/recovery/IDEAS-TROVE.md` § Immediate Implementation
@@ -30,15 +43,14 @@ Candidates. Keep this short and rotated — it is the "what we cut next"
 list, not the full backlog. When an item ships, move its line into the
 appropriate phase section below and delete it here.
 
-- **`cartographer-roadmap-progress-screen`** — FOMO killer. One
-  dashboard panel surfacing Next Cuts + open dogfood feedback +
-  curated trove `now` + velocity + closest-to-shipping. Cartographer
-  already maintains all the inputs.
 - **`coordination-guard-extended-enforcement`** — Coordination Guard
   exists (`cli/commands/guard.ts`, modes `off|warn|enforce`) but only
   fires on git pre-commit. Enable by default for repos with
   `pd-fleet.yml`; extend to SessionStart + PreToolUse hooks so agents
-  can't edit without `pd begin` + claims.
+  can't edit without `pd begin` + claims. The pre-commit path now
+  fails closed in `806bb8a`, and the cockpit controls landed in
+  `5d5805e`; remaining work is the repo-default auto-enable path and
+  the broader session/tool hooks.
 - **`crew-screen-roles-not-pids`** — Dashboard currently shows
   agents-by-PID; operators think in *roles*. New Crew panel: each
   fleet role with last-run / last-cost / currently-doing / blocked.
@@ -48,6 +60,8 @@ appropriate phase section below and delete it here.
 - **`quorum-driven-dynamic-launch`** — Tuple-backed proposal/vote
   primitive (`lib/quorum.ts` + 4 endpoints). Phase 2: auto-spawn
   declared spawnable-on-quorum roles when threshold hits.
+  The Phase 1 primitive is now committed in `cea02e1`; the remaining
+  next cut is the auto-spawn / role-registry half.
 - **`ipc-disconnect-instant-salvage`** — IPC drop is already a death
   signal; treat IPC activity as implicit heartbeat and trigger immediate
   salvage on disconnect instead of the 10–20 minute stale window.
@@ -61,6 +75,17 @@ appropriate phase section below and delete it here.
 - **`capability-discovery-dns-harbor`** — Turn existing DNS + harbor
   capability data into real agent discovery; remove hard-coded peer
   naming from delegation paths.
+
+Shipped note: `cartographer-roadmap-progress-screen` landed in `47453ca`,
+`7ba8d84`, `ca8ffad`, and `501c7d7`, so it is no longer a Next Cut; its
+output now feeds the live roadmap-progress operator surface.
+
+Stale watch: `crew-screen-roles-not-pids`, `coordination-ticker-as-high-signal-feed`,
+`ipc-disconnect-instant-salvage`, `forensic-context-windows`,
+`fleet-run-journal`, `tuple-driven-fleet`, and
+`capability-discovery-dns-harbor` have not had fresh commits in 2+ weeks in
+this checkout. Keep them visible, but treat them as drifting until a new slice
+lands.
 
 Secondary backlog families (status `backlog`, see IDEAS-TROVE.md §
 Secondary Backlog Families for full lists):
