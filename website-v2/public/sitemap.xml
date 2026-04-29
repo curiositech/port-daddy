@@ -403,7 +403,19 @@
     <loc>https://portdaddy.dev/examples</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/examples/agent-archetypes</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/examples/editor-lightbulb-to-agent</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/examples/ephemeral-ci-db</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/examples/leader-election</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/examples/p2p-webrtc</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/examples/pd-tube-button-to-agent</loc>
