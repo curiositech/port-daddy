@@ -15,17 +15,17 @@ export function ExamplesPage() {
       <main id="main-content" className="mx-auto grid w-full max-w-[var(--layout-max-width-wide)] gap-[var(--space-6)] px-[var(--space-5)] py-[var(--space-6)] lg:px-[var(--space-6)]">
         <DocsHero
           eyebrow="Examples"
-          title="Executable examples, documented like source code."
-          summary="Each example is a real file in the repository with a dedicated page: prerequisites, commands, full source, explanation, and adaptation notes."
+          title="Build local tools that talk to your agents."
+          summary="Run complete Port Daddy examples for browser buttons, incident rooms, handoff inboxes, edit guards, migration runners, service discovery, and recoverable work logs."
           paragraphs={[
-            'The examples route is not a gallery and not marketing copy. It is the north-star corpus for how Port Daddy is supposed to work in real local agent systems.',
-            'Start from the table of contents, open the example that matches your workflow, run the command, inspect the daemon state, then copy the pattern into a tool, hook, extension, or agent prompt.',
+            'Port Daddy gives local scripts, web pages, and coding agents the same shared substrate: messages, locks, sessions, notes, service names, and file claims.',
+            'Pick the tool you want to build, run its example, then copy the pattern into an editor extension, test reporter, browser page, CI hook, or agent prompt.',
           ]}
           aside={
-            <DocsNoteCard label="Model" title="Cloudflare-style examples." elevation="quiet" padding="compact" titleSize="nav">
+            <DocsNoteCard label="Start" title="Pick the tool you need." elevation="quiet" padding="compact" titleSize="nav">
               <PanelBody size="compact" className="max-w-none">
-                One page per executable pattern. Full source stays visible. The guide explains why the code is shaped
-                that way instead of hiding the important parts behind a teaser card.
+                Want a button that reaches Claude Code or ChatGPT? Start with PD Tube. Want fewer file collisions?
+                Start with the edit guard. Want safe database changes? Start with the migration runner.
               </PanelBody>
               <div className="flex flex-wrap gap-[var(--panel-gap-tight)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
                 <BracketLink to="/docs/examples" tone="blue" side="left">
@@ -41,10 +41,10 @@ export function ExamplesPage() {
 
         <section className="grid gap-[var(--panel-gap)] lg:grid-cols-12" aria-labelledby="examples-list">
           <div className="lg:col-span-4">
-            <DocsNoteCard label="Catalogue" title="Choose by primitive." elevation="quiet" padding="compact" titleSize="nav">
+            <DocsNoteCard label="Catalogue" title="Choose by what you want to build." elevation="quiet" padding="compact" titleSize="nav">
               <PanelBody size="compact" className="max-w-none">
-                These are the pages that should set the quality bar for new examples. If a future example cannot name
-                its files, commands, observable state, and adaptation path, it does not belong here.
+                Each page shows the command to run, the files involved, the daemon state it creates, the full source,
+                and the product pattern you can reuse in your own tool.
               </PanelBody>
             </DocsNoteCard>
           </div>
@@ -62,7 +62,10 @@ export function ExamplesPage() {
                 elevation="quiet"
                 padding="compact"
               >
-                <PanelBody className="max-w-[58rem]">{example.summary}</PanelBody>
+                <div className="space-y-[var(--space-2)]">
+                  <PanelBody className="max-w-[58rem]">{example.summary}</PanelBody>
+                  <PanelBody className="max-w-[58rem] text-[var(--text-secondary)]">{example.surveyPlain}</PanelBody>
+                </div>
 
                 <div className="grid gap-[var(--panel-gap)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)] md:grid-cols-[minmax(0,1fr)_minmax(16rem,0.42fr)]">
                   <div className="space-y-[var(--panel-gap-tight)]">

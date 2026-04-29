@@ -43,6 +43,7 @@ export interface ExampleDoc {
   level: ExampleLevel
   time: string
   summary: string
+  surveyPlain: string
   lastReviewed: string
   tags: string[]
   prerequisites: string[]
@@ -63,6 +64,8 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
     time: '18 min',
     summary:
       'Turn a plain HTML button into a local phone line to the agent session already running in your project.',
+    surveyPlain:
+      'Connect a localhost website button, or anything else you want, to a live Claude Code or ChatGPT session.',
     lastReviewed: '2026-04-29',
     tags: ['tube', 'browser', 'agent loop', 'messages'],
     prerequisites: [
@@ -142,12 +145,14 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
   },
   {
     slug: 'war-room-incident',
-    title: 'Run a multi-agent incident war room',
+    title: 'Build a local incident war room for agents',
     eyebrow: 'Swarm coordination',
     level: 'Advanced',
     time: '20 min',
     summary:
-      'Simulate three agents investigating one production incident through sessions, notes, and a shared channel.',
+      'Create a shared incident channel where specialist agents post findings, hand off work, and leave a durable report.',
+    surveyPlain:
+      'Use this to build a triage tool that keeps agent investigation notes in one place.',
     lastReviewed: '2026-04-29',
     tags: ['agents', 'notes', 'channels', 'incident'],
     prerequisites: [
@@ -175,10 +180,10 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
       {
         id: 'overview',
         label: 'Overview',
-        title: 'This is a social workflow encoded as daemon state.',
+        title: 'This builds the shared room agents use during an incident.',
         paragraphs: [
           'The incident lead, database investigator, and log analyst each get a semantic identity. They publish discoveries to the same incident channel and leave durable notes as they narrow the root cause.',
-          'The example demonstrates the difference between chat transcript coordination and substrate coordination: the useful facts survive the terminal session.',
+          'The thing to copy is the room: one named channel, clear agent roles, durable findings, and a final report that survives after the terminals close.',
         ],
       },
       {
@@ -216,12 +221,13 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
   },
   {
     slug: 'durable-inbox-lifecycle',
-    title: 'Send durable direct messages between agents',
+    title: 'Build an agent handoff inbox',
     eyebrow: 'Inbox',
     level: 'Beginner',
     time: '14 min',
     summary:
-      'Register two agents, send a targeted handoff, inspect unread state, mark it read, clear it, and clean up.',
+      'Create a direct-message inbox where agents can receive assigned work, track unread handoffs, and mark items done.',
+    surveyPlain: 'Send one agent a message that stays unread until someone handles it.',
     lastReviewed: '2026-04-29',
     tags: ['inbox', 'handoff', 'SSE', 'agents'],
     prerequisites: [
@@ -250,9 +256,9 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
       {
         id: 'overview',
         label: 'Overview',
-        title: 'Inbox messages are targeted and persistent.',
+        title: 'This builds the private handoff queue for one agent.',
         paragraphs: [
-          'Use pub/sub when many subscribers should hear an event. Use the inbox when a specific agent needs a handoff, blocker, or result and you need unread/read state.',
+          'Use pub/sub when many subscribers should hear an event. Use the inbox when one specific agent needs a handoff, blocker, or result and you need unread/read state.',
           'The shell script keeps the lifecycle explicit so the semantics are inspectable rather than hidden behind a framework.',
         ],
       },
@@ -297,6 +303,7 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
     time: '22 min',
     summary:
       'Use Port Daddy locks, messages, and notes to build a guard that agents run before editing contested files.',
+    surveyPlain: 'Before an agent edits a file, it checks whether another agent is already working there.',
     lastReviewed: '2026-04-29',
     tags: ['locks', 'file claims', 'dev tools', 'coordination'],
     prerequisites: [
@@ -371,12 +378,14 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
   },
   {
     slug: 'migration-lock-guard',
-    title: 'Protect a migration with one lock',
+    title: 'Build a one-at-a-time database migration runner',
     eyebrow: 'Locks',
     level: 'Intermediate',
     time: '12 min',
     summary:
-      'Simulate two agents racing for one migration resource and prove only one enters the critical section.',
+      'Use a Port Daddy lock so only one agent or script can run a database migration, schema write, or release step at a time.',
+    surveyPlain:
+      'When a second process tries the same dangerous step, it gets a clear skip message instead of touching the database.',
     lastReviewed: '2026-04-29',
     tags: ['locks', 'critical section', 'migrations'],
     prerequisites: [
@@ -401,17 +410,18 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
       {
         id: 'overview',
         label: 'Overview',
-        title: 'The useful demo is the losing actor.',
+        title: 'This builds a guardrail around work that must not run twice.',
         paragraphs: [
-          'A lock demo that only shows success is not a coordination example. The migration guard matters because it shows the second actor getting a clear skip path instead of corrupting shared state.',
+          'Use this pattern when two terminals, hooks, or agents might both try to change shared infrastructure. The finished artifact is a small runner you can put around migrations, deploy promotions, generated files, or any command that should only have one owner.',
+          'The important part is the losing path. The second process gets an operator-readable skip message instead of guessing, waiting forever, or touching the same database state.',
         ],
       },
       {
         id: 'critical-section',
         label: 'Critical section',
-        title: 'The lock wraps exactly the part that cannot run twice.',
+        title: 'Wrap only the dangerous command.',
         paragraphs: [
-          'The script acquires db-migrations, does the simulated work inside try/finally, and releases even if the critical section fails. That structure is the pattern to copy.',
+          'The script acquires db-migrations, runs the simulated migration inside try/finally, and releases the lock even if the command fails. Copy that shape around npm run migrate, prisma migrate deploy, terraform apply, or release promotion.',
         ],
       },
     ],
@@ -430,12 +440,13 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
   },
   {
     slug: 'dns-service-discovery',
-    title: 'Resolve services by semantic name',
+    title: 'Build semantic service discovery for local tools',
     eyebrow: 'Discovery',
     level: 'Intermediate',
     time: '16 min',
     summary:
-      'Register service records, list a namespace, look up the API endpoint, and clean up the records.',
+      "Let agents and dev tools ask for shop:api, docs:preview, or worker:queue instead of hardcoding today's port.",
+    surveyPlain: 'Give a service a name, then ask Port Daddy where it is running.',
     lastReviewed: '2026-04-29',
     tags: ['dns', 'services', 'semantic identity'],
     prerequisites: [
@@ -463,7 +474,7 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
       {
         id: 'overview',
         label: 'Overview',
-        title: 'Semantic service names remove port folklore from local systems.',
+        title: 'This builds the lookup table local tools use instead of guessing ports.',
         paragraphs: [
           'Agents should not have to remember that the API happens to be on 3100 today. They should resolve shop:api and let the daemon answer with the current endpoint.',
           'The example keeps registration and cleanup together so the service namespace remains believable after the demo exits.',
@@ -495,12 +506,14 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
   },
   {
     slug: 'session-phase-lifecycle',
-    title: 'Model a full session phase lifecycle',
+    title: 'Build a recoverable agent work log',
     eyebrow: 'Sessions',
     level: 'Beginner',
     time: '15 min',
     summary:
-      'Start a session, claim files, move through phases, leave phase notes, complete the session, and unregister the agent.',
+      'Use sessions, file claims, phases, and notes to leave a durable trail for one piece of agent work.',
+    surveyPlain:
+      'If an agent disappears, the next agent can see what it was doing, which files it touched, and what happened last.',
     lastReviewed: '2026-04-29',
     tags: ['sessions', 'phases', 'file claims', 'notes'],
     prerequisites: [
@@ -528,18 +541,18 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
       {
         id: 'overview',
         label: 'Overview',
-        title: 'A session is the durable wrapper around one piece of work.',
+        title: 'This builds the handoff record for a long-running agent task.',
         paragraphs: [
-          'The example moves deliberately through setup, planning, implementing, testing, reviewing, cleanup, and completion. Each phase leaves evidence that another agent can recover from.',
-          'That matters because multi-agent work fails when the plan lives only in a transient chat turn.',
+          'The script starts a job, claims files, moves through planning, implementation, testing, review, cleanup, and completion, then leaves notes at each step.',
+          'The output is not a dashboard widget. It is recoverable daemon state: the thing another agent reads when the first agent crashes, loses context, or hands off the work.',
         ],
       },
       {
         id: 'claims',
         label: 'File claims',
-        title: 'File claims attach edit intent to the session.',
+        title: 'File claims show what the agent intended to edit.',
         paragraphs: [
-          'The script claims two files during setup. In a real workflow, that claim would become narrower as symbol-level edit intent becomes clear.',
+          'The script claims two files during setup so other agents can see the work area before touching the same files. In a real workflow, that claim would become narrower as symbol-level edit intent becomes clear.',
         ],
       },
     ],
