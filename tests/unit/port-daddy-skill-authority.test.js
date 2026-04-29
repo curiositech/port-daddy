@@ -3,23 +3,26 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 describe('Port Daddy skill authority', () => {
-  test('the repo exposes exactly one authoritative Port Daddy skill surface', () => {
+  test('the repo exposes only current first-party Port Daddy skill surfaces', () => {
     const skillsDir = join(process.cwd(), 'skills');
     const portDaddySkills = readdirSync(skillsDir)
       .filter((entry) => entry.startsWith('port-daddy'))
       .sort();
 
-    expect(portDaddySkills).toEqual(['port-daddy-cli']);
+    expect(portDaddySkills).toEqual(['port-daddy-agent-skill', 'port-daddy-cli']);
     expect(existsSync(join(skillsDir, 'port-daddy', 'SKILL.md'))).toBe(false);
+    expect(existsSync(join(skillsDir, 'port-daddy-agent-skill', 'SKILL.md'))).toBe(true);
     expect(existsSync(join(skillsDir, 'port-daddy-cli', 'SKILL.md'))).toBe(true);
   });
 
-  test('the authoritative skill declares the matching canonical name', () => {
-    const skillPath = join(process.cwd(), 'skills', 'port-daddy-cli', 'SKILL.md');
-    const contents = readFileSync(skillPath, 'utf8');
+  test('the authoritative skills declare matching canonical names', () => {
+    const cliSkill = readFileSync(join(process.cwd(), 'skills', 'port-daddy-cli', 'SKILL.md'), 'utf8');
+    const agentSkill = readFileSync(join(process.cwd(), 'skills', 'port-daddy-agent-skill', 'SKILL.md'), 'utf8');
 
-    expect(contents).toContain('name: port-daddy-cli');
-    expect(contents).not.toContain('name: port-daddy\n');
+    expect(cliSkill).toContain('name: port-daddy-cli');
+    expect(agentSkill).toContain('name: port-daddy-agent-skill');
+    expect(cliSkill).not.toContain('name: port-daddy\n');
+    expect(agentSkill).not.toContain('name: port-daddy\n');
   });
 
   test('the authoritative skill carries first-party governance metadata', () => {

@@ -96,7 +96,7 @@ set -l __pd_commands \
     'pub' 'publish' 'broadcast' 'sub' 'subscribe' 'listen' 'tube' 'wait' 'lock' 'unlock' 'locks' \
     'agent' 'agents' 'actor' 'actors' 'swarm' 'log' 'activity' \
     'session' 'sessions' 'note' 'notes' \
-    'salvage' 'resurrection' 'changelog' 'dns' 'files' 'who-owns' 'integration' 'briefing' 'history' 'inbox' \
+    'salvage' 'resurrection' 'changelog' 'dns' 'files' 'add' 'who-owns' 'integration' 'briefing' 'history' 'inbox' \
     'begin' 'b' 'done' 'whoami' 'w' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'watch' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' 'roadmap' 'quorum' 'feedback' \
     'say' 'look' 'sitrep' 'advise' 'preflight' 'compass' 'guard' 'pheromone' 'ph' \
     'wallet' 'bond' \
@@ -163,6 +163,7 @@ for prog in port-daddy pd
 
     # File Claims & Integration
     complete -c $prog -n __pd_needs_command -a files -d 'List all active file claims across sessions'
+    complete -c $prog -n __pd_needs_command -a add -d 'Claim-aware git add wrapper'
     complete -c $prog -n __pd_needs_command -a who-owns -d 'Check who has claimed a specific file path'
     complete -c $prog -n __pd_needs_command -a integration -d 'Manage integration signals (ready/needs/list)'
 
