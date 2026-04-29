@@ -35,6 +35,7 @@ export interface FetchOptions {
   method?: string;
   headers?: Record<string, string | number>;
   body?: string | null;
+  timeout?: number;
 }
 
 /**
@@ -62,7 +63,7 @@ export function getDaemonUrl(): string {
 }
 
 function requestTarget(target: ConnectionTarget, path: string, options: FetchOptions): Promise<PdFetchResponse> {
-  const { method = 'GET', headers = {}, body = null } = options;
+  const { method = 'GET', headers = {}, body = null, timeout = 10000 } = options;
 
   const reqHeaders: Record<string, string | number> = { ...headers };
   if (body && !reqHeaders['Content-Length']) {
@@ -74,7 +75,7 @@ function requestTarget(target: ConnectionTarget, path: string, options: FetchOpt
       method,
       path,
       headers: reqHeaders as http.OutgoingHttpHeaders,
-      timeout: 10000,
+      timeout,
       ...(target.socketPath
         ? { socketPath: target.socketPath }
         : { host: target.host, port: target.port }),
