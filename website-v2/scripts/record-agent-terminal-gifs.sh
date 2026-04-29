@@ -5,6 +5,14 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CAST_DIR="$ROOT_DIR/website-v2/public/casts/agents"
 GIF_DIR="$ROOT_DIR/website-v2/public/gifs/agents"
 
+install_pd_shim() {
+  export ROOT_DIR
+  pd() {
+    node "$ROOT_DIR/bin/port-daddy-cli.js" "$@"
+  }
+  export -f pd
+}
+
 type_cmd() {
   local text="$1"
   local i
@@ -36,6 +44,7 @@ intro() {
 
 play_section() {
   cd "$ROOT_DIR"
+  install_pd_shim
   export NO_COLOR=1
   export FORCE_COLOR=0
 

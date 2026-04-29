@@ -3,6 +3,14 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
+install_pd_shim() {
+  export ROOT_DIR
+  pd() {
+    node "$ROOT_DIR/bin/port-daddy-cli.js" "$@"
+  }
+  export -f pd
+}
+
 type_cmd() {
   local text="$1"
   local i
@@ -46,6 +54,7 @@ current_session_id() {
 
 play_recording() {
   cd "$ROOT_DIR"
+  install_pd_shim
   export NO_COLOR=1
   export FORCE_COLOR=0
   local id="$1"
