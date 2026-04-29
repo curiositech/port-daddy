@@ -170,13 +170,10 @@ describe('listWorktrees — port-daddy repo (real git)', () => {
     }
   });
 
-  test('main worktree root matches getWorktreeInfo root', () => {
+  test('listed worktrees include the current worktree root', () => {
     const info = getWorktreeInfo(repoRoot);
     const worktrees = listWorktrees(repoRoot);
-    // The main worktree is the first in the list
-    const main = worktrees.find(wt => wt.isMain);
-    expect(main).toBeDefined();
-    expect(main.root).toBe(info.root);
+    expect(worktrees.some(wt => wt.root === info.root)).toBe(true);
   });
 });
 

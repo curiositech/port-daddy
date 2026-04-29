@@ -363,6 +363,10 @@ For Port Daddy's own repo, `./scripts/promote-stable.sh` emits a `promotion:rele
 
 `pd fleet status` now surfaces backend readiness and sandbox-sensitive local execution hints so users can see install/auth/permission blockers before a fleet run fails.
 
+Fleet is project-agnostic. `pd-fleet.yml` can live in any repo; the fallback watcher path invokes the installed Port Daddy runtime instead of assuming the target repo has `bin/port-daddy-cli.ts` or a local `tsx` toolchain. Array-style YAML agents derive readable names from `name`, `identity`, `prompt`, or backend instead of falling back to `agent-1`.
+
+Agent creation carries readable names beside technical ids. `pd begin`, `pd agent`, `/sugar/begin`, `/spawn`, and fleet-triggered spawns can display labels like `Auth Repair Lead` while preserving ids such as `agent-2b632b24` for claims, heartbeats, inboxes, and logs.
+
 ## `pd agent`: One-Shot Autopilot Delegation
 
 For bounded single-agent work, `pd agent "task text"` now auto-wraps:
@@ -650,6 +654,7 @@ and sidecar-safe fleet/FleetBar guards.
 | **Fleet & Agents** | |
 | `pd fleet init` | Create pd-fleet.yml + git hook |
 | `pd fleet up/down/status/validate` | Start/stop/inspect/dry-run the fleet (CLI-attached mode) |
+| `pd guard install --mode enforce` | Enforce active-session and file-claim coordination before commit |
 | `pd sortie` / `pd sortie list/status/logs` | Launch and inspect tracked mission records |
 | `pd spawn` / `pd spawned` | Launch/list background agents |
 | `pd spawn kill` | Kill a spawned agent |

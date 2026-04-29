@@ -75,6 +75,12 @@ brew install curiositech/tap/port-daddy
 
 # Via npm
 npm install -g port-daddy
+
+# Optional Mac menu-bar developer preview from the public site
+curl -LO https://portdaddy.dev/downloads/PortDaddy-FleetBar-macOS-arm64-dev.zip
+curl -LO https://portdaddy.dev/downloads/PortDaddy-FleetBar-macOS-arm64-dev.zip.sha256
+shasum -a 256 -c PortDaddy-FleetBar-macOS-arm64-dev.zip.sha256
+unzip PortDaddy-FleetBar-macOS-arm64-dev.zip
 ```
 
 ### 3. Verify
@@ -106,6 +112,7 @@ pd up     # Starts all services in dependency order with color-coded logs
 - **pd begin / pd done**: Track **session_phases** (planning, in_progress, etc.).
 - **pd demo**: Interactive multi-agent coordination **demo**.
 - **pd fleet**: Declarative agent **fleet** from `pd-fleet.yml` — cron/trigger-based agents with pub/sub chaining.
+- **pd guard**: Enforce agent coordination before commit — active session plus matching file claims for staged files.
 - **pd status / pd version**: View system **info** and metrics.
 
 ### Session Lifecycle
@@ -498,6 +505,10 @@ curl http://localhost:9876/fleet/models       # Lists ollama, codex, claude-cli,
 ```
 
 Each agent gets full PD coordination for free: registration, sessions, heartbeats, and salvage on crash. Fleet YAML can still describe the broader source backend catalog, but the daemon applies the same fail-closed telemetry policy as manual launches. In practice, treat Claude SDK + exact-rate model entries as the currently runnable operator-facing path until the other backends reach telemetry parity. Template variables (`{project}`) resolve from the YAML context. Fleet lifecycle events publish to the `fleet:events` channel for dashboard and menu bar subscriptions.
+
+Fleet commands invoke the installed Port Daddy runtime, so a `pd-fleet.yml` can live in any project repo. It no longer assumes the target repo has Port Daddy source files, `bin/port-daddy-cli.ts`, or a local `tsx` toolchain. Array-style YAML agents also get readable derived names from `name`, `identity`, `prompt`, or backend instead of falling back to `agent-1`.
+
+Agent creation stores a readable display name beside the technical id. `pd begin`, `pd agent`, `/sugar/begin`, `/spawn`, and fleet-triggered spawns can show names like `Auth Repair Lead` or `Run qa` while preserving machine-stable ids such as `agent-2b632b24` for claims, heartbeats, inboxes, and logs.
 
 Fleet status now reflects mailbox semantics: repeated trigger bursts collapse into queued work instead of spawning a fresh agent for every wake. When that happens, agent rows can show `status: queued` and a non-zero `queueDepth` so operators can see pending work instead of mistaking it for a miss.
 

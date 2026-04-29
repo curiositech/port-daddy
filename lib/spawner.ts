@@ -23,6 +23,7 @@ import type { Harbors } from './harbors.js';
 import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
 import { getSecret } from './secret-env.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
+import { deriveAgentDisplayName } from './agent-names.js';
 
 // ─── Load .env.local for spawned agents ─────────────────────────────────────
 // The daemon runs via launchd which has no shell env. Spawned agents need
@@ -81,6 +82,7 @@ function loadDotenvOnce(): Record<string, string> {
 
 export interface SpawnSpec {
   backend: 'ollama' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'codex' | 'aider' | 'custom';
+  name?: string;        // human-readable display name
   model?: string;
   modelTier?: 'low' | 'mid' | 'high';
   identity?: string;   // PD semantic identity: project:stack:context
@@ -98,6 +100,7 @@ export interface SpawnSpec {
 
 export interface SpawnResult {
   agentId: string;
+  name?: string;
   backend: SpawnSpec['backend'];
   model: string;
   status: 'running' | 'completed' | 'failed' | 'killed';
@@ -118,6 +121,7 @@ export interface SpawnTelemetry {
 
 export interface SpawnedAgent {
   agentId: string;
+  name: string;
   backend: SpawnSpec['backend'];
   model: string;
   status: 'running' | 'completed' | 'failed' | 'killed';
@@ -211,28 +215,50 @@ interface ChildRunOpts {
   env?: Record<string, string | undefined>;
   timeout?: number;
   stdio?: ('ignore' | 'pipe')[];
+  onChild?: (child: ChildProcess) => void;
 }
 
 function runChild(opts: ChildRunOpts): Promise<{ output: string; error: string | null; child: ChildProcess }> {
   return new Promise((resolve) => {
+    const timeoutMs = opts.timeout || 300000;
     const child = spawnChild(opts.cmd, opts.args, {
       cwd: opts.cwd || process.cwd(),
       env: opts.env as NodeJS.ProcessEnv,
-      timeout: opts.timeout || 300000,
+      timeout: timeoutMs,
+      detached: true,
       shell: false,
       ...(opts.stdio ? { stdio: opts.stdio as any } : {}),
     });
+    opts.onChild?.(child);
 
     const stdout: string[] = [];
     const stderr: string[] = [];
+    let timedOut = false;
+    let settled = false;
+    let forceKillTimer: ReturnType<typeof setTimeout> | null = null;
+    const timeoutTimer = setTimeout(() => {
+      timedOut = true;
+      signalChildProcess(child, 'SIGTERM');
+      forceKillTimer = setTimeout(() => {
+        signalChildProcess(child, 'SIGKILL');
+      }, 5000);
+      forceKillTimer.unref?.();
+    }, Math.max(1, timeoutMs - 25));
+    timeoutTimer.unref?.();
 
     child.stdout?.on('data', (data: Buffer) => stdout.push(data.toString()));
     child.stderr?.on('data', (data: Buffer) => stderr.push(data.toString()));
 
     child.on('close', (code) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutTimer);
+      if (forceKillTimer) clearTimeout(forceKillTimer);
       const out = stdout.join('');
       const errText = stderr.join('');
-      if (code !== 0) {
+      if (timedOut) {
+        resolve({ output: out, error: `${opts.cmd} timed out after ${timeoutMs}ms${errText ? `: ${errText}` : ''}`, child });
+      } else if (code !== 0) {
         resolve({ output: out, error: errText || `${opts.cmd} exited with code ${code}`, child });
       } else {
         resolve({ output: out + (errText ? `\nstderr: ${errText}` : ''), error: null, child });
@@ -240,9 +266,37 @@ function runChild(opts: ChildRunOpts): Promise<{ output: string; error: string |
     });
 
     child.on('error', (err) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutTimer);
+      if (forceKillTimer) clearTimeout(forceKillTimer);
       resolve({ output: '', error: `Failed to start ${opts.cmd}: ${err.message}`, child });
     });
   });
+}
+
+function signalChildProcess(child: ChildProcess, signal: NodeJS.Signals): void {
+  const pid = child.pid;
+  if (typeof pid === 'number') {
+    try {
+      process.kill(-pid, signal);
+    } catch {
+      // Fall back below for non-detached/mocked processes.
+    }
+  }
+  try {
+    child.kill(signal);
+  } catch {
+    // Best-effort termination; the close/error handlers own final state.
+  }
+}
+
+function terminateChildProcess(child: ChildProcess): void {
+  signalChildProcess(child, 'SIGTERM');
+  const forceKillTimer = setTimeout(() => {
+    signalChildProcess(child, 'SIGKILL');
+  }, 5000);
+  forceKillTimer.unref?.();
 }
 
 // =============================================================================
@@ -256,6 +310,10 @@ interface BackendRunResult {
   cachedInputTokens?: number;
   outputTokens?: number;
   childProcess?: ChildProcess | null;
+}
+
+interface BackendRunContext {
+  onChildProcess?: (child: ChildProcess) => void;
 }
 
 interface CodexUsage {
@@ -458,7 +516,7 @@ function parseCodexUsage(raw: string): CodexUsage {
   return usage;
 }
 
-function runCodexCli(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
+function runCodexCli(spec: SpawnSpec, model: string, context?: BackendRunContext): Promise<BackendRunResult> {
   const workspace = spec.workdir || process.cwd();
   const tempDir = mkdtempSync(join(tmpdir(), 'port-daddy-codex-'));
   const outputPath = join(tempDir, 'last-message.txt');
@@ -486,6 +544,7 @@ function runCodexCli(spec: SpawnSpec, model: string): Promise<BackendRunResult> 
     },
     timeout: spec.timeout,
     stdio: ['ignore', 'pipe', 'pipe'],
+    onChild: context?.onChildProcess,
   }).then((result) => {
     try {
       const usage = parseCodexUsage(result.output || '');
@@ -501,7 +560,7 @@ function runCodexCli(spec: SpawnSpec, model: string): Promise<BackendRunResult> 
   });
 }
 
-function runAider(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
+function runAider(spec: SpawnSpec, model: string, context?: BackendRunContext): Promise<BackendRunResult> {
   const files = spec.files || [];
   return runChild({
     cmd: 'aider',
@@ -509,10 +568,11 @@ function runAider(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
     cwd: spec.workdir,
     env: { ...process.env, ...loadDotenvOnce(), ...(spec.env || {}) },
     timeout: spec.timeout,
+    onChild: context?.onChildProcess,
   });
 }
 
-function runCustom(spec: SpawnSpec): Promise<BackendRunResult> {
+function runCustom(spec: SpawnSpec, context?: BackendRunContext): Promise<BackendRunResult> {
   // Reject shell injection: metacharacters, newlines, control chars
   const DANGEROUS_PATTERNS = /[;&|`$(){}!<>\n\r\t\x00-\x1f\x7f]/;
   if (DANGEROUS_PATTERNS.test(spec.task)) {
@@ -539,13 +599,14 @@ function runCustom(spec: SpawnSpec): Promise<BackendRunResult> {
       PORT_DADDY_MODEL_TIER: spec.modelTier,
     },
     timeout: spec.timeout,
+    onChild: context?.onChildProcess,
   }).then((result) => ({
     ...result,
     childProcess: result.child,
   }));
 }
 
-function runClaudeCli(spec: SpawnSpec): Promise<BackendRunResult> {
+function runClaudeCli(spec: SpawnSpec, context?: BackendRunContext): Promise<BackendRunResult> {
   const args = ['-p', spec.task];
   if (spec.model) {
     args.push('--model', spec.model);
@@ -574,6 +635,7 @@ function runClaudeCli(spec: SpawnSpec): Promise<BackendRunResult> {
     env: { ...processEnvSafe, ...dotenvSafe, ...(spec.env || {}), PATH: augmentedPath },
     timeout: spec.timeout,
     stdio: ['ignore', 'pipe', 'pipe'],
+    onChild: context?.onChildProcess,
   });
 }
 
@@ -717,6 +779,13 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     const projectName = getProjectName(spec.identity);
     const defaultHarborName = projectName ? `${projectName}:fleet` : undefined;
     const harborName = spec.harborName || defaultHarborName;
+    const displayName = deriveAgentDisplayName({
+      name: spec.name,
+      purpose: spec.purpose,
+      identity: spec.identity,
+      backend: spec.backend,
+      fallback: agentId,
+    });
     counters?.bump('spawn.started', dims);
 
     // Block until the project has a daily budget set. Without a budget,
@@ -805,6 +874,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     // Register agent record (running)
     const record: AgentRecord = {
       agentId,
+      name: displayName,
       backend: spec.backend,
       model,
       status: 'running',
@@ -837,6 +907,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
 
     await pdCoordinate('/agents', {
       id: agentId,
+      name: displayName,
       identity: spec.identity || null,
       purpose: spec.purpose || spec.task.slice(0, 80),
       metadata: coordinationMetadata,
@@ -845,6 +916,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     // PD coordination: start session
     await pdCoordinate('/sugar/begin', {
       agentId,
+      name: displayName,
       identity: spec.identity || null,
       purpose: spec.purpose || spec.task.slice(0, 80),
       metadata: coordinationMetadata,
@@ -867,15 +939,22 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       if (override) {
         result = await override(spec, model);
       } else {
+        const childContext: BackendRunContext = {
+          onChildProcess: (child) => {
+            if (record.status === 'running') {
+              record.childProcess = child;
+            }
+          },
+        };
         switch (spec.backend) {
           case 'ollama':    result = await runOllama(spec, model); break;
           case 'claude':    result = await runClaude(spec, model); break;
           case 'gemini':    result = await runGemini(spec, model); break;
           case 'cloudflare': result = await runCloudflare(spec, model); break;
-          case 'codex':     result = await runCodexCli(spec, model); break;
-          case 'claude-cli': result = await runClaudeCli(spec); break;
-          case 'aider':     result = await runAider(spec, model); break;
-          case 'custom':    result = await runCustom(spec); break;
+          case 'codex':     result = await runCodexCli(spec, model, childContext); break;
+          case 'claude-cli': result = await runClaudeCli(spec, childContext); break;
+          case 'aider':     result = await runAider(spec, model, childContext); break;
+          case 'custom':    result = await runCustom(spec, childContext); break;
           default:
             result = { output: '', error: `Unknown backend: ${String(spec.backend)}` };
         }
@@ -941,12 +1020,18 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       error = (err as Error).message;
     }
 
-    // Common cleanup — runs for both success and failure
-    const completedAt = Date.now();
-    const status: SpawnResult['status'] = error ? 'failed' : 'completed';
+    // Common cleanup — runs for success, failure, and asynchronous kill.
+    const wasKilled = record.status === 'killed';
+    if (wasKilled) {
+      error = 'Killed by spawner';
+      output = null;
+    }
+    const completedAt = record.completedAt ?? Date.now();
+    const status: SpawnResult['status'] = wasKilled ? 'killed' : error ? 'failed' : 'completed';
 
     record.status = status;
     record.completedAt = completedAt;
+    record.childProcess = null;
 
     if (record.heartbeatInterval) {
       clearInterval(record.heartbeatInterval);
@@ -957,15 +1042,19 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       enteredHarborName = null;
     }
 
-    const doneNote = error ? `Failed: ${error.slice(0, 200)}` : `Completed: ${(output || '').slice(0, 200)}`;
-    await pdCoordinate('/sugar/done', { agentId, note: doneNote });
+    if (!wasKilled) {
+      const doneNote = error ? `Failed: ${error.slice(0, 200)}` : `Completed: ${(output || '').slice(0, 200)}`;
+      await pdCoordinate('/sugar/done', { agentId, note: doneNote });
+    }
 
     // Resolve bond. Clean exit → full refund; error → slash full bond with reason.
     // Why slash on any error: an error means the spawn didn't do its job; the
     // commons pool absorbs the cost so the operator doesn't eat it silently.
     if (bonds && bondId) {
       try {
-        if (error) {
+        if (wasKilled) {
+          // kill() already resolves the bond as an operator intervention.
+        } else if (error) {
           bonds.slash(bondId, bondUsd, `spawn-failed: ${error.slice(0, 120)}`);
         } else {
           bonds.refund(bondId);
@@ -975,7 +1064,9 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       }
     }
 
-    counters?.bump(error ? 'spawn.failed' : 'spawn.completed', dims);
+    if (!wasKilled) {
+      counters?.bump(error ? 'spawn.failed' : 'spawn.completed', dims);
+    }
     if (!error) {
       counters?.bump('spawn.duration_ms', dims, Math.max(1, completedAt - startedAt));
     }
@@ -992,6 +1083,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
 
     return {
       agentId,
+      name: displayName,
       backend: spec.backend,
       model,
       status,
@@ -1010,6 +1102,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     cleanupStaleAgents();
     return Array.from(agents.values()).map((r) => ({
       agentId: r.agentId,
+      name: r.name,
       backend: r.backend,
       model: r.model,
       status: r.status,
@@ -1038,7 +1131,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
 
     // Kill child process if present
     if (record.childProcess) {
-      try { record.childProcess.kill('SIGTERM'); } catch {}
+      terminateChildProcess(record.childProcess);
       record.childProcess = null;
     }
 

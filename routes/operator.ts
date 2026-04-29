@@ -703,6 +703,42 @@ function truncateText(text: string | null | undefined, maxLength = 220): string 
   return `${trimmed.slice(0, maxLength - 1).trimEnd()}…`;
 }
 
+function oneSentence(text: string | null | undefined, maxLength = 180): string | null {
+  const normalized = text?.replace(/\s+/g, ' ').trim();
+  if (!normalized) return null;
+  const sentence = normalized.match(/^(.+?[.!?])(?:\s|$)/)?.[1] ?? normalized;
+  return truncateText(sentence, maxLength);
+}
+
+function isGenericFleetAgentPurpose(purpose: string | null | undefined): boolean {
+  return /^Fleet agent:\s*.+$/i.test(purpose?.trim() ?? '');
+}
+
+function chooseActorPurpose(
+  nextPurpose: string | null | undefined,
+  existingPurpose: string | null | undefined,
+): string | null {
+  const next = oneSentence(nextPurpose);
+  const existing = oneSentence(existingPurpose);
+  if (!next) return existing;
+  if (isGenericFleetAgentPurpose(next) && existing) return existing;
+  return next;
+}
+
+function configuredAgentPurpose(agent: ConfiguredFleetAgent): string | null {
+  const explicit = (agent as ConfiguredFleetAgent & { purpose?: unknown }).purpose;
+  if (typeof explicit === 'string') {
+    const purpose = oneSentence(explicit);
+    if (purpose) return purpose;
+  }
+
+  const promptPurpose = oneSentence(agent.prompt);
+  if (promptPurpose) return promptPurpose;
+  if (agent.schedule) return `Runs on schedule ${agent.schedule}.`;
+  if (agent.trigger) return `Responds to ${agent.trigger}.`;
+  return null;
+}
+
 /**
  * Classify a configured fleet agent into a UI-facing actor kind.
  *
@@ -848,7 +884,7 @@ function buildOperatorActors(
     const next: MutableActorRecord = {
       id: patch.id ?? existing?.id ?? key,
       label: patch.label ?? existing?.label ?? key,
-      purpose: patch.purpose ?? existing?.purpose ?? null,
+      purpose: chooseActorPurpose(patch.purpose, existing?.purpose),
       identity: patch.identity ?? existing?.identity ?? null,
       fleetAgentName: patch.fleetAgentName ?? existing?.fleetAgentName ?? null,
       inboxTarget: patch.inboxTarget ?? existing?.inboxTarget ?? key,
@@ -873,6 +909,7 @@ function buildOperatorActors(
     upsert(configuredAgent.name, {
       id: configuredAgent.name,
       label: configuredAgent.name,
+      purpose: configuredAgentPurpose(configuredAgent),
       fleetAgentName: configuredAgent.name,
       inboxTarget: configuredAgent.name,
       isConfiguredFleetAgent: true,

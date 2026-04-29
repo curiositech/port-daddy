@@ -1,5 +1,6 @@
 import { jest } from '@jest/globals';
 import Fastify from 'fastify';
+import { basename } from 'node:path';
 import { createTestDb } from '../setup-unit.js';
 import { createSorties } from '../../lib/sorties.js';
 
@@ -83,6 +84,7 @@ describe('sortie routes', () => {
   test('POST /sorties persists a tracked mission and exposes status/logs', async () => {
     const { app, db, spawner, register } = buildApp();
     await register();
+    const project = basename(process.cwd());
 
     const createRes = await app.inject({
       method: 'POST',
@@ -102,14 +104,14 @@ describe('sortie routes', () => {
     const created = createRes.json();
     expect(created.success).toBe(true);
     expect(created.sortie.id).toMatch(/^sortie-/);
-    expect(created.sortie.harbor).toBe(`port-daddy:sortie:${created.sortie.id}`);
+    expect(created.sortie.harbor).toBe(`${project}:sortie:${created.sortie.id}`);
     expect(created.sortie.status).toBe('completed');
     expect(created.sortie.startedAt).toBeGreaterThan(0);
     expect(spawner.spawn).toHaveBeenCalledWith(expect.objectContaining({
       backend: 'codex',
       model: 'gpt-5.4-mini',
       modelTier: 'low',
-      identity: `port-daddy:sortie:${created.sortie.id}:coordinator`,
+      identity: `${project}:sortie:${created.sortie.id}:coordinator`,
     }));
 
     const listRes = await app.inject({

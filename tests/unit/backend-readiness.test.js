@@ -60,6 +60,9 @@ describe('backend readiness', () => {
       backend: 'claude',
       status: 'ready',
       summary: 'ANTHROPIC_API_KEY present and Claude SDK installed',
+      credentialKeys: ['ANTHROPIC_API_KEY'],
+      setupFiles: ['~/.port-daddy-env', '.env.local', '.env'],
+      restartRequired: true,
     });
   });
 
@@ -73,6 +76,7 @@ describe('backend readiness', () => {
       status: 'ready',
     });
     expect(readiness.summary).toContain('ANTHROPIC_API_KEY present');
+    expect(readiness.setupCommand).toContain('ANTHROPIC_API_KEY=<paste-value>');
   });
 
   test('blocks Gemini backend behind the telemetry policy', async () => {
@@ -82,8 +86,11 @@ describe('backend readiness', () => {
       backend: 'gemini',
       status: 'needs_setup',
     });
-    expect(readiness.summary).toContain('GEMINI_API_KEY missing');
+    expect(readiness.summary).toContain('Gemini API key missing');
     expect(readiness.summary).toContain('blocked until exact token counts');
+    expect(readiness.credentialKeys).toEqual(['GEMINI_API_KEY']);
+    expect(readiness.credentialAlternates).toEqual(['GOOGLE_API_KEY']);
+    expect(readiness.nextStep).toContain('~/.port-daddy-env');
   });
 
   test('blocks Cloudflare backend even when credentials are present', async () => {
@@ -97,6 +104,8 @@ describe('backend readiness', () => {
       status: 'needs_setup',
     });
     expect(readiness.summary).toContain('blocked until exact token counts');
+    expect(readiness.credentialKeys).toEqual(['CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_API_TOKEN']);
+    expect(readiness.credentialAlternates).toEqual(['CLOUDFLARE_API_KEY', 'CF_API_TOKEN', 'CF_ACCOUNT_ID']);
   });
 
   test('keeps claude-cli probe details while still blocking launch under telemetry policy', async () => {
@@ -113,6 +122,7 @@ describe('backend readiness', () => {
     });
     expect(readiness.summary).toContain('Claude CLI binary not found');
     expect(readiness.summary).toContain('blocked until exact token counts');
+    expect(readiness.setupCommand).toBe('claude');
   });
 
   test('keeps codex probe details and allows launch when exact telemetry is available', async () => {
@@ -131,6 +141,7 @@ describe('backend readiness', () => {
     });
     expect(readiness.summary).toContain('Codex CLI binary found');
     expect(readiness.summary).not.toContain('blocked until exact token counts');
+    expect(readiness.setupCommand).toBe('codex exec "print ok"');
   });
 
   test('blocks codex models without exact cost rates', async () => {
@@ -163,6 +174,7 @@ describe('backend readiness', () => {
     });
     expect(readiness.summary).toContain('Ollama CLI found, but local API is not reachable');
     expect(readiness.summary).toContain('blocked until Port Daddy can attach exact token counts');
+    expect(readiness.setupCommand).toBe('ollama serve');
     expect(mockSpawnSync).toHaveBeenCalled();
     expect(global.fetch).toHaveBeenCalled();
   });

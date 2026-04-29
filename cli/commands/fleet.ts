@@ -591,6 +591,7 @@ async function runAgentByName(agentName: string, preloadedConfig?: ReturnType<ty
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: runtime.model,
+        name: agent.name,
         task: agent.prompt,
         identity: agent.identity,
         purpose: `Fleet agent: ${agent.name}`,
@@ -599,6 +600,7 @@ async function runAgentByName(agentName: string, preloadedConfig?: ReturnType<ty
         timeout: agent.timeout,
         allowedTools: agent.allowedTools,
       }),
+      timeout: (agent.timeout ?? 300000) + 10000,
     });
 
     const data = await res.json() as any;

@@ -1092,6 +1092,14 @@ struct AgentRow: View {
                         .foregroundStyle(Fleet.Color.active)
                 }
             }
+            if let purpose = agent.purpose, !purpose.isEmpty {
+                Text(purpose)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.leading, Fleet.Space.xl + Fleet.Space.xs + Fleet.Space.s + Fleet.Space.l)
+            }
             if let lastSummary = agent.lastSummary, !lastSummary.isEmpty {
                 Text(lastSummary)
                     .font(.caption2)
@@ -1105,8 +1113,22 @@ struct AgentRow: View {
                 Text(statusReason)
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
-                    .lineLimit(2)
+                    .lineLimit(nil)
+                    .fixedSize(horizontal: false, vertical: true)
                     .padding(.leading, Fleet.Space.xl + Fleet.Space.xs + Fleet.Space.s + Fleet.Space.l)
+            }
+            if let recoveryHint {
+                Label {
+                    Text(recoveryHint)
+                        .font(.caption2.weight(.medium))
+                        .lineLimit(nil)
+                        .fixedSize(horizontal: false, vertical: true)
+                } icon: {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                        .font(.caption2)
+                }
+                .foregroundStyle(Fleet.Color.warning)
+                .padding(.leading, Fleet.Space.xl + Fleet.Space.xs + Fleet.Space.s + Fleet.Space.l)
             }
             if !agent.recentFiles.isEmpty {
                 HStack(spacing: 4) {
@@ -1132,6 +1154,32 @@ struct AgentRow: View {
         .contentShape(Rectangle())
         .onTapGesture(perform: onInspect)
         .onChange(of: agent.status) { justChanged = true }
+    }
+
+    private var recoveryHint: String? {
+        let diagnostic = [
+            agent.lastSummary,
+            agent.statusReason,
+            agent.lastEvent,
+        ]
+            .compactMap { $0 }
+            .joined(separator: " ")
+            .lowercased()
+
+        if diagnostic.contains("hourly spawn limit") {
+            return "Next: wait for the hourly spawn window to clear, then run this agent again."
+        }
+        if diagnostic.contains("concurrent spawn limit") {
+            return "Next: wait for active spawns to finish, or pause another running agent."
+        }
+        if diagnostic.contains("exact telemetry required") && diagnostic.contains("codex") {
+            return "Next: run `codex exec --json \"print ok\"`; if usage appears, run this agent again. If usage is missing, fix Codex auth/CLI."
+        }
+        if diagnostic.contains("no launchable backend") {
+            return "Next: switch this agent to a launchable backend/model, or fix backend readiness."
+        }
+
+        return nil
     }
 
     @ViewBuilder

@@ -20,6 +20,8 @@ import type { SemanticAlias } from './semantic-terms.js';
 import type { SemanticResolver } from './semantic-resolver.js';
 import type { Tuple, TupleSpace } from './tuples.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
+import { deriveFleetAgentName } from './agent-names.js';
+import { buildPortDaddyShellCommand, resolvePortDaddyInvocation } from './port-daddy-command.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -431,7 +433,13 @@ export function loadFleetConfig(projectDir: string): FleetConfig | null {
     }
   } else if (Array.isArray(rawAgents)) {
     rawAgents.forEach((s, index) => {
-      const derivedName = cleanEnvValue(s.name) || `agent-${index + 1}`;
+      const derivedName = deriveFleetAgentName({
+        name: cleanEnvValue(s.name),
+        identity: cleanEnvValue(s.identity),
+        prompt: typeof s.prompt === 'string' ? s.prompt : undefined,
+        backend: cleanEnvValue(s.backend),
+        index,
+      });
       addAgent(derivedName, s);
     });
   }
@@ -885,8 +893,9 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
         cleanupHandles.push(unsubscribe);
       } else {
         // Fallback for standalone CLI/testing contexts.
-        const watchProc = spawn('npx', [
-          'tsx', join(projectDir, 'bin', 'port-daddy-cli.ts'),
+        const invocation = resolvePortDaddyInvocation();
+        const watchProc = spawn(invocation.command, [
+          ...invocation.args,
           'watch', physicalTriggerChannel,
           '--exec', buildSpawnCommand(agent),
         ], {
@@ -1126,6 +1135,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       task,
       identity,
       purpose,
+      name: agent.name,
     };
     if (runtime.model) body.model = runtime.model;
     if (agent.timeout) body.timeout = agent.timeout;
@@ -1556,16 +1566,14 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       throw new Error(`Fleet agent "${agent.name}" is missing a backend. Set agent.backend or PD_FLEET_DEFAULT_BACKEND.`);
     }
 
-    const quote = (value: string): string => JSON.stringify(value);
-    const parts = [
-      'npx', 'tsx', quote(join(projectDir, 'bin', 'port-daddy-cli.ts')),
-      'spawn', '--backend', quote(runtime.backend),
-      '--identity', quote(identity),
+    const args = [
+      'spawn', '--backend', runtime.backend,
+      '--identity', identity,
     ];
-    if (runtime.model) parts.push('--model', quote(runtime.model));
-    if (agent.allowedTools) parts.push('--allowedTools', quote(agent.allowedTools));
-    parts.push('-q', '--', quote(agent.prompt));
-    return parts.join(' ');
+    if (runtime.model) args.push('--model', runtime.model);
+    if (agent.allowedTools) args.push('--allowedTools', agent.allowedTools);
+    args.push('-q', '--', agent.prompt);
+    return buildPortDaddyShellCommand(args);
   }
 
   async function ensureHarbor(): Promise<void> {

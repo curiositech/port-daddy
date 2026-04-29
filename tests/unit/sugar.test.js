@@ -62,6 +62,25 @@ describe('sugar.begin', () => {
 
     expect(result.success).toBe(true);
     expect(result.agentId).toMatch(/^agent-[a-f0-9]{8}$/);
+    expect(result.agentName).toBe('Test auto-ID');
+  });
+
+  test('stores a readable agent name while keeping the technical ID', () => {
+    const { sugar, agents } = setup();
+
+    const result = sugar.begin({
+      purpose: 'Fix checkout auth regression',
+      identity: 'shop:api:auth',
+      name: 'Auth Repair Lead',
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.agentId).toMatch(/^agent-[a-f0-9]{8}$/);
+    expect(result.agentName).toBe('Auth Repair Lead');
+
+    const agentInfo = agents.get(result.agentId);
+    expect(agentInfo.agent.name).toBe('Auth Repair Lead');
+    expect(agentInfo.agent.purpose).toBe('Fix checkout auth regression');
   });
 
   test('uses provided agent ID', () => {
