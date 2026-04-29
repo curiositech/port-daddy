@@ -100,7 +100,7 @@ export function CommandPage({
       <TerminalGif
         src={CLI_REFERENCE_RECORDING.gifSrc}
         title={CLI_REFERENCE_RECORDING.title}
-        caption="This clip gives the command page context, not just syntax: it shows the daemon health check, command discovery, and message-loop patterns these reference pages keep pointing back to."
+        caption={`${CLI_REFERENCE_RECORDING.caption} Here it grounds the ${command} reference: daemon health, discovery, and message-loop patterns these pages keep pointing back to.`}
       />
 
       {usagePatterns?.length ? (
