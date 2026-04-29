@@ -126,6 +126,39 @@ function actorLookupKey(input: { id?: string | null; fleetAgentName?: string | n
   return input.fleetAgentName?.trim() || input.id?.trim() || '';
 }
 
+function nonEmptyText(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed || null;
+}
+
+function isOpaqueAgentId(value: string | null | undefined): boolean {
+  return /^agent-[a-f0-9]{6,}$/i.test(value?.trim() ?? '');
+}
+
+function semanticAgentLabel(entity: AgentDirectoryEntry, actor: OperatorActorEntry | null): string {
+  const candidates = [
+    entity.fleetAgentName,
+    actor?.label,
+    entity.label,
+    actor?.purpose,
+    entity.purpose,
+    actor?.identity,
+    entity.identity,
+  ];
+
+  return candidates
+    .map(nonEmptyText)
+    .find((candidate): candidate is string => !!candidate && !isOpaqueAgentId(candidate))
+    ?? entity.id;
+}
+
+function semanticAgentSummary(entity: AgentDirectoryEntry, actor: OperatorActorEntry | null): string {
+  return nonEmptyText(actor?.lastSummary)
+    ?? nonEmptyText(entity.purpose)
+    ?? nonEmptyText(entity.identity)
+    ?? 'No operator purpose surfaced yet.';
+}
+
 function Section({
   title,
   subtitle,
@@ -470,6 +503,7 @@ export default function AgentsPanel({
             entities.map((entity) => {
               const selectedRow = entity.id === selected?.id;
               const actor = actorByKey.get(actorLookupKey(entity)) ?? null;
+              const displayLabel = semanticAgentLabel(entity, actor);
               return (
                 <button
                   key={entity.id}
@@ -483,7 +517,7 @@ export default function AgentsPanel({
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: entity.fleetAgentName ? agentColor(entity.fleetAgentName) : 'var(--pd-text)' }}>
-                        {actor?.label ?? entity.label}
+                        {displayLabel}
                       </div>
                       <div className="mt-1 flex flex-wrap gap-1">
                         {actor && <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={badgeStyle(actor.actorState)}>{actor.actorState.replace(/_/g, ' ')}</span>}
@@ -507,7 +541,7 @@ export default function AgentsPanel({
                       WebkitBoxOrient: 'vertical',
                     }}
                   >
-                    {actor?.lastSummary || entity.purpose || entity.identity || entity.id}
+                    {semanticAgentSummary(entity, actor)}
                   </div>
                 </button>
               );
@@ -527,7 +561,7 @@ export default function AgentsPanel({
           <>
             <Section
               title="AGENT DETAIL"
-              subtitle={selected.label}
+              subtitle={semanticAgentLabel(selected, selectedActor)}
               action={detailLoading ? <span className="text-[11px]" style={{ color: 'var(--pd-muted)' }}>Refreshing…</span> : undefined}
             >
               <div className="flex flex-wrap items-start justify-between gap-4">
@@ -539,15 +573,22 @@ export default function AgentsPanel({
                     </span>
                   </div>
                   <div className="mt-3 text-sm leading-relaxed" style={{ color: 'var(--pd-text)' }}>
-                    {selectedActor?.lastSummary || selected.purpose || 'No operator purpose surfaced yet.'}
+                    {semanticAgentSummary(selected, selectedActor)}
                   </div>
                   <div className="mt-3 grid gap-2 text-[12px]" style={{ color: 'var(--pd-muted)' }}>
-                    <div><span style={{ color: 'var(--pd-dim)' }}>ID:</span> <span className="font-mono">{selected.id}</span></div>
+                    <div><span style={{ color: 'var(--pd-dim)' }}>Name:</span> {semanticAgentLabel(selected, selectedActor)}</div>
                     {selected.identity && <div><span style={{ color: 'var(--pd-dim)' }}>Identity:</span> <span className="font-mono">{selected.identity}</span></div>}
                     {selectedActor && <div><span style={{ color: 'var(--pd-dim)' }}>Actor state:</span> {selectedActor.actorState.replace(/_/g, ' ')} · {selectedActor.actorStateReason}</div>}
                     {selected.registry && <div><span style={{ color: 'var(--pd-dim)' }}>Heartbeat:</span> {relativeTime(selected.registry.lastHeartbeat)} · status {selected.registry.status}</div>}
                     {selected.spawned && <div><span style={{ color: 'var(--pd-dim)' }}>Spawned:</span> {relativeTime(selected.spawned.startedAt)} · backend {selected.spawned.backend} · model {selected.spawned.model}</div>}
                     {selected.salvage?.sessionId && <div><span style={{ color: 'var(--pd-dim)' }}>Ghost session:</span> <span className="font-mono">{selected.salvage.sessionId}</span></div>}
+                    <details>
+                      <summary className="cursor-pointer" style={{ color: 'var(--pd-dim)' }}>Internal identifiers</summary>
+                      <div className="mt-2 grid gap-1 font-mono text-[11px]">
+                        <div>agent: {selected.id}</div>
+                        {selectedActor?.inboxTarget && <div>inbox: {selectedActor.inboxTarget}</div>}
+                      </div>
+                    </details>
                   </div>
                 </div>
 
