@@ -1092,6 +1092,14 @@ struct AgentRow: View {
                         .foregroundStyle(Fleet.Color.active)
                 }
             }
+            if let purpose = agent.purpose, !purpose.isEmpty {
+                Text(purpose)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.leading, Fleet.Space.xl + Fleet.Space.xs + Fleet.Space.s + Fleet.Space.l)
+            }
             if let lastSummary = agent.lastSummary, !lastSummary.isEmpty {
                 Text(lastSummary)
                     .font(.caption2)

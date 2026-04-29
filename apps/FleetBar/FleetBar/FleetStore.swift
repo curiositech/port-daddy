@@ -138,6 +138,7 @@ struct FleetAgent: Identifiable {
     let type: AgentType  // scheduled, triggered, watcher
     let isConfiguredFleetAgent: Bool
     let inboxTarget: String?
+    var purpose: String?
     var status: AgentStatus
     var statusReason: String?
     var queueDepth: Int
@@ -880,6 +881,7 @@ class FleetStore: ObservableObject {
                     type: FleetAgent.AgentType(rawValue: agent.type) ?? .triggered,
                     isConfiguredFleetAgent: true,
                     inboxTarget: agent.name,
+                    purpose: existing?.purpose,
                     status: FleetAgent.AgentStatus(rawValue: agent.status) ?? (agent.running ? .running : agent.paused ? .paused : .idle),
                     statusReason: existing?.statusReason,
                     queueDepth: agent.queueDepth ?? 0,
@@ -1043,6 +1045,7 @@ class FleetStore: ObservableObject {
             let existing = mergedByKey[key]
             let nextType = existing?.type ?? mapActorType(actor.actorKind)
             let nextSummary = actor.lastSummary?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let nextPurpose = actor.purpose?.trimmingCharacters(in: .whitespacesAndNewlines)
             let nextFiles = actor.recentFiles.isEmpty
                 ? (existing?.recentFiles ?? [])
                 : Array(actor.recentFiles.prefix(4))
@@ -1056,6 +1059,7 @@ class FleetStore: ObservableObject {
                 type: nextType,
                 isConfiguredFleetAgent: actor.isConfiguredFleetAgent,
                 inboxTarget: actor.inboxTarget,
+                purpose: nextPurpose?.nilIfEmpty ?? existing?.purpose,
                 status: mapActorStatus(actor),
                 statusReason: actor.actorStateReason,
                 queueDepth: existing?.queueDepth ?? 0,

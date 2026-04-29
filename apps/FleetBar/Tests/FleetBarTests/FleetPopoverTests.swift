@@ -219,6 +219,21 @@ final class FleetPopoverTests: XCTestCase {
         XCTAssertNoThrow(try inspected.find(text: "Next: wait for the hourly spawn window to clear, then run this agent again."))
     }
 
+    func testAgentRowShowsOneSentencePurpose() throws {
+        let purpose = "Run the test suite and write meaningful tests for uncovered paths."
+        let row = AgentRow(
+            agent: agent(name: "test-hunter", status: .armed, purpose: purpose),
+            onInspect: {},
+            onRunAgent: {},
+            onPauseToggle: {},
+            onOpenInEditor: { _ in },
+            onRevealInFinder: { _ in }
+        )
+
+        let inspected = try row.inspect()
+        XCTAssertNoThrow(try inspected.find(text: purpose))
+    }
+
     private func project(agents: [FleetAgent]) -> FleetProject {
         FleetProject(
             id: "/tmp/port-daddy-test",
@@ -231,6 +246,7 @@ final class FleetPopoverTests: XCTestCase {
     private func agent(
         name: String,
         status: FleetAgent.AgentStatus,
+        purpose: String? = nil,
         statusReason: String? = nil
     ) -> FleetAgent {
         FleetAgent(
@@ -239,6 +255,7 @@ final class FleetPopoverTests: XCTestCase {
             type: .triggered,
             isConfiguredFleetAgent: true,
             inboxTarget: nil,
+            purpose: purpose,
             status: status,
             statusReason: statusReason,
             queueDepth: 0,
