@@ -3872,11 +3872,18 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
     const { fileURLToPath } = await import('node:url');
     const mcpDir = dirname(fileURLToPath(import.meta.url));
 
-    // Search for skill in multiple locations
+    // Search for skill in multiple locations. Order matters: prefer the
+    // canonical deep skill (port-daddy-agent-skill) over the terse operator
+    // skill (port-daddy-cli) over the brew-installed share dir.
+    const home = process.env.HOME || '';
     const candidates = [
-      join(mcpDir, '..', 'skills', 'port-daddy-cli', 'SKILL.md'),
+      join(mcpDir, '..', 'skills', 'port-daddy-agent-skill', 'SKILL.md'),
       join(mcpDir, '..', 'skills', 'port-daddy', 'SKILL.md'),
-      join(process.env.HOME || '', '.port-daddy', 'skills', 'SKILL.md'),
+      join(mcpDir, '..', 'skills', 'port-daddy-cli', 'SKILL.md'),
+      join(home, '.claude', 'skills', 'port-daddy', 'SKILL.md'),
+      join('/opt/homebrew/share/port-daddy/skills/port-daddy', 'SKILL.md'),
+      join('/usr/local/share/port-daddy/skills/port-daddy', 'SKILL.md'),
+      join(home, '.port-daddy', 'skills', 'SKILL.md'),
     ];
     const skillPath = candidates.find(p => existsSync(p));
     const skillContent = skillPath
