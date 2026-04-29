@@ -31,6 +31,10 @@
 }
 
 :root {
+  --radnika-opsz-body: 17;
+  --radnika-opsz-small: 12;
+  --radnika-opsz-display: 56;
+
   --space-0: 0;
   --space-1: 4px;
   --space-2: 8px;
@@ -82,14 +86,14 @@
   --leading-display: 1;
   --leading-card: 1.02;
   --leading-nav: 1.08;
-  --leading-body: 1.68;
-  --leading-body-compact: 1.62;
+  --leading-body: 1.58;
+  --leading-body-compact: 1.5;
   --leading-code: 1.45;
 
-  --tracking-meta: 0.14em;
-  --tracking-display-tight: -0.02em;
-  --tracking-display-card: -0.015em;
-  --tracking-display-nav: -0.01em;
+  --tracking-meta: 0.08em;
+  --tracking-display-tight: 0;
+  --tracking-display-card: 0;
+  --tracking-display-nav: 0;
 
   --panel-padding: var(--space-6);
   --panel-gap: var(--space-5);
@@ -120,4 +124,12 @@
   --duration-slow: 260ms;
 
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (min-resolution: 2dppx) {
+  :root {
+    --radnika-opsz-body: 18;
+    --radnika-opsz-small: 13;
+    --radnika-opsz-display: 64;
+  }
 }

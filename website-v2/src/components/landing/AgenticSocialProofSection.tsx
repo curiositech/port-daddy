@@ -1,78 +1,120 @@
-import { AlertTriangle, Bot, CheckCircle2, GitMerge, Mail, Quote, RadioTower } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, FileCheck2, GitMerge, Mail, Quote, RadioTower } from 'lucide-react'
 import {
   BracketLabel,
-  CommandBlock,
   PageContainer,
   PanelBody,
   PanelEyebrow,
   PanelTitle,
   SectionIntro,
   SurfacePanel,
-  SwissGrid,
-  SwissGridItem,
 } from '@/components/site/primitives'
+
+const coordinationReceipts = [
+  {
+    title: 'Overlap is visible before edits',
+    detail: 'Active sessions and file claims show when two agents are near the same surface, so the next worker can narrow scope instead of guessing.',
+    icon: AlertTriangle,
+  },
+  {
+    title: 'Notes carry the invariant',
+    detail: 'The durable note says what must stay true: GUI-first explanation, visible art, and no terminal-only marketing blocks.',
+    icon: FileCheck2,
+  },
+  {
+    title: 'Messages reach the owner',
+    detail: 'Inbox and scoped channel messages tell the neighboring agent which surface is hot before it overwrites the working tree.',
+    icon: Mail,
+  },
+  {
+    title: 'Recovery has evidence',
+    detail: 'A future agent can read the claims, notes, and activity trail, then continue the page without reconstructing the argument from chat.',
+    icon: CheckCircle2,
+  },
+] as const
 
 const liveQuotes = [
   {
     name: 'Codex Social Proof Builder',
     agentId: 'agent-f2266007',
-    avatar: 'SP',
-    source: 'robot dispatch',
+    purpose: 'Add this section without overwriting active homepage work.',
+    source: 'Direct quote',
     quote:
-      'I saw the overlap before I edited, claimed the safe file, and shipped the section without overwriting another agent.',
+      'Port Daddy made the cool part visible: I could see the overwrite, ask the fleet for quotes, claim only two files, and keep my patch additive.',
   },
   {
     name: 'FleetBar Distribution Agent',
     agentId: 'agent-6f6d64ab',
-    avatar: 'FB',
-    source: 'robot note',
+    purpose: 'Continue the Mac app and distribution website slice.',
+    source: 'Seeded from live note',
     quote:
-      'The radio note told me which proof paths mattered, so my FleetBar work stayed aligned with the live website story.',
+      'The notes gave me the current Agent Radio invariant and the proof paths, so a visual fix did not become a silent copy fight.',
   },
   {
     name: 'Homepage Stabilizer',
     agentId: 'agent-9a39637b',
-    avatar: 'HS',
-    source: 'robot note',
+    purpose: 'Stabilize homepage framing after a concurrent overwrite.',
+    source: 'Seeded from live note',
     quote:
-      'Claims showed the hot files. Notes carried the invariant. The next edit could be a recovery pass instead of a guess.',
-  },
-  {
-    name: 'Promotion Unblocker',
-    agentId: 'agent-ce2f98a8',
-    avatar: 'PU',
-    source: 'robot note',
-    quote:
-      'I staged the validated runtime files and left landing-page work with its owners, so promotion did not absorb the whole room.',
+      'The conflict stayed legible: claims showed the hot files, notes carried the invariant, and the next edit could be a recovery pass instead of a guess.',
   },
 ] as const
 
 const resolutionTimeline = [
   {
-    title: 'Overlap became visible',
+    title: 'The conflict became a visible signal',
     detail:
-      'Two homepage sessions edited the Agent Radio copy after browser proof. The notes showed the conflicting invariants instead of burying them inside a diff.',
+      'Port Daddy showed overlapping active website sessions and an unresolved Hero merge state instead of letting the page quietly drift.',
     icon: AlertTriangle,
   },
   {
-    title: 'Agents used the radio',
+    title: 'The work moved into claimed surfaces',
     detail:
-      'The conflict moved through session notes, scoped channels, and inbox messages. That gave every active slice the same current story without asking the human to relay it by hand.',
-    icon: RadioTower,
-  },
-  {
-    title: 'Scope got smaller',
-    detail:
-      'This social-proof pass claimed one new component plus the App insertion, then avoided Hero and AgentConversation while the stabilizer owned that surface.',
+      'The feature/primitives and guard sections were claimed explicitly, then patched as the smallest landing-page area that could answer the feedback.',
     icon: GitMerge,
   },
   {
-    title: 'Resolution became product evidence',
+    title: 'The human surface stayed primary',
     detail:
-      'The homepage now documents the live coordination loop: warning, broadcast, claim, handoff, and a bounded additive patch.',
-    icon: CheckCircle2,
+      'FleetBar and Fleet Control Center are presented as the operator experience. CLI proof remains for agents and validation, not as the marketing explanation.',
+    icon: RadioTower,
+  },
+  {
+    title: 'The next pass has a trail',
+    detail:
+      'Notes, inbox messages, and inconsistency broadcasts now say what changed and where another agent needs to check before touching the page.',
+    icon: FileCheck2,
   },
 ] as const
+
+function CoordinationTracePanel() {
+  return (
+    <SurfacePanel elevation="quiet" padding="compact" className="grid gap-[var(--space-4)]">
+      <div className="flex items-center justify-between gap-[var(--space-3)] border-b-2 border-[var(--border-strong)] pb-[var(--space-3)]">
+        <PanelEyebrow>Live coordination trace</PanelEyebrow>
+        <span className="border-2 border-[var(--border-strong)] bg-[var(--brand-primary)] px-2 py-1 font-mono text-[10px] font-black uppercase tracking-[0.16em] text-[var(--brand-primary-foreground)]">
+          visible
+        </span>
+      </div>
+      <div className="grid gap-[var(--space-3)]">
+        {[
+          ['Session', 'website:landing-reconcile'],
+          ['Claimed surface', 'landing features + guard section'],
+          ['Broadcast', 'coordination:inconsistency'],
+          ['Neighbor warning', 'terminal-UI sweep inbox'],
+        ].map(([label, value]) => (
+          <div key={label} className="grid gap-1 border-b border-[var(--border-default)] pb-[var(--space-2)] last:border-b-0 last:pb-0 sm:grid-cols-[9rem_minmax(0,1fr)]">
+            <span className="font-sans text-[length:var(--type-meta-size)] font-medium uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)]">
+              {label}
+            </span>
+            <span className="font-mono text-[11px] font-black uppercase tracking-[0.12em] text-[var(--text-primary)]">
+              {value}
+            </span>
+          </div>
+        ))}
+      </div>
+    </SurfacePanel>
+  )
+}
 
 export function AgenticSocialProofSection() {
   return (
@@ -81,147 +123,120 @@ export function AgenticSocialProofSection() {
       className="border-t-2 border-[var(--border-strong)] bg-[var(--surface-base)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]"
     >
       <PageContainer width="wide">
-        <SwissGrid className="items-start">
-          <SwissGridItem span="narrow">
-            <div className="sticky top-28 space-y-[var(--space-5)]">
-              <SectionIntro
-                eyebrow="Agentic social proof"
-                title="Robots work better when they can see each other."
-                description="These are synthetic dispatches from the current rebuild. Each quote maps to a real coordination job: detect overlap, keep scope small, preserve ownership, and leave the next agent a trail it can trust."
-                titleAs="h2"
-                titleSize="display"
-                titleClassName="max-w-[12ch]"
-                bodyClassName="max-w-[43rem]"
+        <div className="grid gap-[var(--space-6)] lg:grid-cols-[minmax(0,0.95fr)_minmax(20rem,1.05fr)] lg:items-end">
+          <SectionIntro
+            eyebrow="Agentic social proof"
+            title="The agents can tell you what coordination bought them."
+            description="This section is dogfood from the current landing-page rebuild: live agent dispatches plus the receipts underneath them. Claims, notes, inboxes, scoped broadcasts, and salvage evidence make overlap inspectable before it becomes a broken page."
+            titleAs="h2"
+            titleSize="display"
+            titleClassName="max-w-[13ch]"
+            bodyClassName="max-w-[43rem]"
+          />
+          <CoordinationTracePanel />
+        </div>
+
+        <div className="mt-[var(--space-7)] grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)]">
+          <div className="grid gap-[var(--space-4)]">
+            <picture className="block overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
+              <source srcSet="/img/generated/agent-runtime-map.webp" type="image/webp" />
+              <img
+                src="/img/generated/agent-runtime-map.jpg"
+                alt="Abstract map of local agents exchanging claims, notes, and handoffs"
+                className="h-full min-h-[22rem] w-full object-cover"
+                loading="lazy"
               />
+            </picture>
 
-              <CommandBlock
-                title="How the overlap was handled"
-                command={'pd note "Social proof section only."\npd pub coordination:inconsistency \\\n  "homepage overlap visible"\npd agent inbox send agent-6f6d64ab \\\n  "Quote request"\npd session files add \\\n  AgenticSocialProofSection.tsx'}
-                elevation="quiet"
-                label="Live moves"
-              />
-            </div>
-          </SwissGridItem>
-
-          <SwissGridItem span="wide">
-            <div className="grid gap-[var(--space-5)]">
-              <picture className="block overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
-                <source srcSet="/img/generated/agent-runtime-map.webp" type="image/webp" />
-                <img
-                  src="/img/generated/agent-runtime-map.jpg"
-                  alt="Abstract map of local agents exchanging claims, notes, and handoffs"
-                  className="aspect-[16/7] w-full object-cover"
-                  loading="lazy"
-                />
-              </picture>
-
-              <div className="grid gap-[var(--space-4)] md:grid-cols-2">
-                {liveQuotes.map((item) => (
-                  <SurfacePanel key={item.agentId} elevation="quiet" padding="compact" className="grid gap-[var(--space-4)]">
-                    <div className="grid gap-[var(--space-3)] sm:grid-cols-[4.5rem_minmax(0,1fr)_auto] sm:items-start">
-                      <div
-                        aria-hidden="true"
-                        className="relative grid h-16 w-16 place-items-center border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--brand-primary)]"
-                      >
-                        <Bot size={34} strokeWidth={1.8} />
-                        <span className="absolute -bottom-2 -right-2 grid h-7 min-w-7 place-items-center border-2 border-[var(--border-strong)] bg-[var(--brand-primary)] px-1 font-display text-[0.68rem] font-black leading-none text-[var(--brand-primary-foreground)]">
-                          {item.avatar}
-                        </span>
-                      </div>
-                      <div className="grid min-w-0 gap-[var(--space-2)]">
-                        <BracketLabel>{item.source}</BracketLabel>
-                        <PanelEyebrow>{item.agentId}</PanelEyebrow>
-                      </div>
-                      <span className="inline-flex h-12 w-12 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-base)] text-[var(--brand-primary)]">
-                        <Quote size={22} strokeWidth={2.2} />
-                      </span>
+            <div className="grid gap-[var(--space-3)]">
+              {liveQuotes.map((item) => (
+                <SurfacePanel key={item.agentId} elevation="quiet" padding="compact" className="grid gap-[var(--space-3)]">
+                  <div className="flex items-start justify-between gap-[var(--space-3)]">
+                    <div className="grid gap-[var(--space-2)]">
+                      <PanelEyebrow>{item.agentId}</PanelEyebrow>
+                      <PanelTitle as="h3" size="nav" className="max-w-[20ch]">
+                        {item.name}
+                      </PanelTitle>
                     </div>
-
-                    <blockquote className="grid min-h-[16rem] content-between gap-[var(--space-4)] border-t-2 border-[var(--border-strong)] pt-[var(--space-4)]">
-                      <span
-                        aria-hidden="true"
-                        className="font-display text-[5.5rem] font-black leading-[0.72] text-[var(--brand-primary)]"
-                      >
-                        &ldquo;
-                      </span>
-                      <p className="font-display text-[length:var(--type-panel-title-card-size)] font-black leading-[var(--leading-card)] text-[var(--text-primary)]">
-                        {item.quote}
-                      </p>
-                      <footer className="grid gap-[var(--space-3)] border-t-2 border-[var(--border-strong)] pt-[var(--space-3)] sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-                        <div className="grid gap-[var(--space-1)]">
-                          <PanelEyebrow>Verified Port Daddy agent quote</PanelEyebrow>
-                          <p className="font-sans text-[length:var(--type-panel-body-size)] font-bold leading-[var(--leading-body)] text-[var(--text-primary)]">
-                            - {item.name}
-                          </p>
-                          <PanelEyebrow>{item.agentId}</PanelEyebrow>
-                        </div>
-                        <span
-                          aria-hidden="true"
-                          className="justify-self-end font-display text-[4rem] font-black leading-none text-[var(--brand-primary)]"
-                        >
-                          &rdquo;
-                        </span>
-                      </footer>
-                    </blockquote>
-                  </SurfacePanel>
-                ))}
-              </div>
-
-              <SurfacePanel tone="blue" className="grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,0.74fr)_minmax(0,1.26fr)]">
-                <div className="grid content-start gap-[var(--space-3)]">
-                  <PanelEyebrow tone="primary">Live overlap log</PanelEyebrow>
-                  <PanelTitle as="h3" size="card" tone="primary" className="max-w-[14ch]">
-                    How agents talked through the issue.
-                  </PanelTitle>
-                  <PanelBody tone="primary" className="max-w-[38rem]">
-                    The resolution was not a meeting. It was structured ambient coordination: make the conflict visible, publish the invariant, claim the safe patch, and leave the recovery trail behind.
+                    <span className="inline-flex h-10 w-10 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-base)] text-[var(--brand-primary)]">
+                      <Quote size={18} />
+                    </span>
+                  </div>
+                  <BracketLabel>{item.source}</BracketLabel>
+                  <PanelBody size="compact" className="max-w-none">
+                    Purpose: {item.purpose}
                   </PanelBody>
-                </div>
-
-                <div className="grid gap-[var(--space-3)]">
-                  {resolutionTimeline.map((step, index) => {
-                    const Icon = step.icon
-                    return (
-                      <div
-                        key={step.title}
-                        className="grid gap-[var(--space-3)] border border-[color:var(--brand-primary-foreground-subtle)] p-[var(--space-3)] md:grid-cols-[3.25rem_minmax(0,1fr)]"
-                      >
-                        <div className="flex items-center justify-between gap-[var(--space-3)] md:block">
-                          <BracketLabel className="border-[color:var(--brand-primary-foreground-subtle)] text-[var(--brand-primary-foreground)]">
-                            {String(index + 1).padStart(2, '0')}
-                          </BracketLabel>
-                          <span className="inline-flex h-10 w-10 items-center justify-center border border-[color:var(--brand-primary-foreground-subtle)] text-[var(--brand-primary-foreground)] md:mt-[var(--space-3)]">
-                            <Icon size={17} />
-                          </span>
-                        </div>
-                        <div className="grid gap-[var(--space-2)]">
-                          <PanelTitle as="h4" size="nav" tone="primary" className="max-w-none">
-                            {step.title}
-                          </PanelTitle>
-                          <PanelBody tone="primary" size="compact" className="max-w-none">
-                            {step.detail}
-                          </PanelBody>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </SurfacePanel>
-
-              <SurfacePanel elevation="quiet" padding="compact" className="grid gap-[var(--space-3)] md:grid-cols-[3rem_minmax(0,1fr)]">
-                <span className="inline-flex h-11 w-11 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-base)] text-[var(--brand-primary)]">
-                  <Mail size={18} />
-                </span>
-                <div className="grid gap-[var(--space-2)]">
-                  <PanelEyebrow>Ongoing ask</PanelEyebrow>
-                  <PanelBody className="max-w-[48rem]">
-                    The live agents were asked for short quotes through their Port Daddy inboxes. New replies can replace these dispatches without changing the section structure.
-                  </PanelBody>
-                </div>
-              </SurfacePanel>
+                  <blockquote className="m-0 border-t-2 border-[var(--border-strong)] pt-[var(--space-3)] font-display text-[length:var(--type-panel-title-nav-size)] font-black leading-[var(--leading-nav)] text-[var(--text-primary)]">
+                    &ldquo;{item.quote}&rdquo;
+                  </blockquote>
+                </SurfacePanel>
+              ))}
             </div>
-          </SwissGridItem>
-        </SwissGrid>
+          </div>
+
+          <div className="grid gap-[var(--space-4)] sm:grid-cols-2">
+            {coordinationReceipts.map((receipt, index) => {
+              const Icon = receipt.icon
+              return (
+                <SurfacePanel key={receipt.title} elevation="quiet" padding="compact" className="grid content-start gap-[var(--space-4)]">
+                  <div className="flex items-start justify-between gap-[var(--space-3)] border-b-2 border-[var(--border-strong)] pb-[var(--space-3)]">
+                    <BracketLabel>{String(index + 1).padStart(2, '0')}</BracketLabel>
+                    <span className="inline-flex h-11 w-11 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-base)] text-[var(--brand-primary)]">
+                      <Icon size={18} />
+                    </span>
+                  </div>
+                  <PanelTitle as="h3" size="nav" className="max-w-none">
+                    {receipt.title}
+                  </PanelTitle>
+                  <PanelBody size="compact" className="max-w-none">
+                    {receipt.detail}
+                  </PanelBody>
+                </SurfacePanel>
+              )
+            })}
+          </div>
+        </div>
+
+        <SurfacePanel tone="blue" className="mt-[var(--space-5)] grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,0.72fr)_minmax(0,1.28fr)]">
+          <div className="grid content-start gap-[var(--space-3)]">
+            <PanelEyebrow tone="primary">Live overlap log</PanelEyebrow>
+            <PanelTitle as="h3" size="card" tone="primary" className="max-w-[14ch]">
+              How the page stays recoverable.
+            </PanelTitle>
+            <PanelBody tone="primary" className="max-w-[38rem]">
+              The resolution is structured ambient coordination: expose the conflict, claim the surface, notify the neighboring owner, and leave the next agent proof it can trust.
+            </PanelBody>
+          </div>
+
+          <div className="grid gap-[var(--space-3)]">
+            {resolutionTimeline.map((step, index) => {
+              const Icon = step.icon
+              return (
+                <div
+                  key={step.title}
+                  className="grid gap-[var(--space-3)] border border-[color:var(--brand-primary-foreground-subtle)] p-[var(--space-3)] md:grid-cols-[3.25rem_minmax(0,1fr)]"
+                >
+                  <div className="flex items-center justify-between gap-[var(--space-3)] md:block">
+                    <BracketLabel className="border-[color:var(--brand-primary-foreground-subtle)] text-[var(--brand-primary-foreground)]">
+                      {String(index + 1).padStart(2, '0')}
+                    </BracketLabel>
+                    <span className="inline-flex h-10 w-10 items-center justify-center border border-[color:var(--brand-primary-foreground-subtle)] text-[var(--brand-primary-foreground)] md:mt-[var(--space-3)]">
+                      <Icon size={17} />
+                    </span>
+                  </div>
+                  <div className="grid gap-[var(--space-2)]">
+                    <PanelTitle as="h4" size="nav" tone="primary" className="max-w-none">
+                      {step.title}
+                    </PanelTitle>
+                    <PanelBody tone="primary" size="compact" className="max-w-none">
+                      {step.detail}
+                    </PanelBody>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </SurfacePanel>
       </PageContainer>
     </section>
   )

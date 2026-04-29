@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
 import { PageContainer, SectionIntro } from '@/components/site/primitives'
-import { ArrowRight, Download, Terminal } from 'lucide-react'
+import { ArrowRight, Download, RadioTower, Terminal } from 'lucide-react'
 import { LiveGloryVideo } from './LiveGloryVideo'
 
 export function Hero() {
@@ -111,6 +111,14 @@ export function Hero() {
             </picture>
             <div className="relative z-10">
               <LiveGloryVideo />
+              <div className="mt-[var(--space-3)] grid gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)] sm:grid-cols-[auto_minmax(0,1fr)]">
+                <span className="inline-flex h-10 w-10 items-center justify-center border-2 border-[var(--border-strong)] text-[var(--brand-primary)]">
+                  <RadioTower size={18} />
+                </span>
+                <p className="max-w-none text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
+                  The recording shows the split that matters: agents use Port Daddy commands to write coordination state, while humans inspect that state in FleetBar and the full console.
+                </p>
+              </div>
             </div>
           </motion.div>
         </div>

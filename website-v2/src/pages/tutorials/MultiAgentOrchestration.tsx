@@ -161,7 +161,8 @@ $ pd note "Patched. Tests green."
 $ pd pub myapp:events "auth-fix-complete"
 
 # 4. End session (releases claims, preserves notes)
-$ pd done`}</CodeBlock>
+$ pd done
+# Expected result: claims release, the completion event is on myapp:events, and the note trail remains queryable.`}</CodeBlock>
           <motion.p className="text-[length:var(--type-panel-body-compact-size)]" style={{ color: "var(--text-muted)" }}>
             <strong>Claim, Work, Signal, Done.</strong> Every agent follows this
             lifecycle. Port Daddy handles conflict detection, crash recovery,

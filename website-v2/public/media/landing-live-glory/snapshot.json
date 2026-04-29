@@ -1,27 +1,27 @@
 {
-  "generatedAt": "2026-04-29T17:32:31.641Z",
+  "generatedAt": "2026-04-29T20:44:01.801Z",
   "status": {
-    "activePorts": "22",
+    "activePorts": "24",
     "fleet": "1 project(s), 8 agent(s), 3/8 launchable",
     "runtime": "nominal",
-    "lastActivity": "8s ago",
+    "lastActivity": "4s ago",
     "launchable": "3/8"
   },
   "sessions": [
-    "Recording test",
-    "Refresh Tube Events bra...",
-    "Extend git shim to inte...",
-    "gif relevance cleanup",
-    "land signed FleetBar do...",
-    "WinDAGs launcher readin...",
-    "Fix CI terminal recordi...",
-    "commit signed FleetBar ..."
+    "rktree-7a8df1b5a6f2Fix Coxswain actor regi...",
+    "ocal-content-294d83e93799Normalize website-v2 tu...",
+    "mples-with-b-7d81f93cbc91Add UI screenshots to e...",
+    "bit-629eff01b9bdlanding-live-glory card...",
+    "a731Fix Coxswain actor regi...",
+    "g-art-with-n-a51a783d8bc7regenerate harbors sign...",
+    "follow-share-254e85775a34Make Coordination Guard...",
+    "undary-gitig-1921ad80a773Untrack CLAUDE.md per p..."
   ],
   "notes": [
-    "recording multi-agent tutorial proof",
-    "recording multi-agent tutorial proof",
-    "Refreshing codex/tube-events-console-ui from origin/main because previous branch was based on stale feature stack and missed readable agent-name work. Will preserve only Tube/Events UI delta.",
-    "Update: user caught FleetBar theme mismatch. I am wiring FleetBar popover imagery as theme-specific light/dark assets in landing-live-glory and requested real coordinating-agent pull quotes via coordination:pull-quotes.",
-    "Found recording-copy debt in both shared recording data and hardcoded docs GIF props. Fixing all recording titles/captions to explain why the clip matters on that page, not how the asset was produced."
+    "[warning] claim-watcher: /tmp/port-daddy-coxswain/docs/openapi.yaml content hash changed mid-claim",
+    "[warning] claim-watcher: /tmp/port-daddy-coxswain/skills/port-daddy-cli/references/sdk-reference.md content hash changed mid-claim",
+    "[warning] claim-watcher: /tmp/port-daddy-coxswain/skills/port-daddy-cli/references/api-reference.md content hash changed mid-claim",
+    "[validation] Promotion complete for guard fix: stable merged main@2e3118e as stable commit 2423034; promote-stable passed 5244 tests and installed daemon PID 69142. Re-ran pd guard install with the new CLI, which wrote shared policy at .git/port-daddy/coordination-guard.json. Verified a fresh detached worktree with no local .portdaddy/coordination-guard.json reports Coordination Guard: enforce from the shared config.",
+    "[warning] claim-watcher: /tmp/port-daddy-coxswain/skills/port-daddy-cli/SKILL.md content hash changed mid-claim"
   ]
 }

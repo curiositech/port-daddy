@@ -22,6 +22,7 @@ the code lands per the staging order in `SHIPWRIGHT-DESIGN.md §15`.
 | `SHIPWRIGHT-DAEMON.md` | The Shipwright *archetype* — one archetype among seven defined in AGENT-MODEL. DSPy prompt, Klein RPD episodic memory, simulation engine, chat. |
 | `COMPONENT-BRIEF.md` | Component contracts (14 React components + R3F suite). Used by 21st.dev MCP + humans. |
 | `INTEGRATION-PLAN.md` | Track 3b plan for extending `fleet-config-ui/` instead of creating a second dashboard: surfaces, query routes, state, API, realtime, FleetBar, build/deploy boundaries. |
+| `APP-NATIVE-DEVELOPMENT-COCKPIT.md` | Product sketch for making Port Daddy usable entirely inside the app: roadmap intake, Idea Lab/Trove curation, skill-grafted planning, fierce Coordination Guard, multi-backend launches, worktree collapse, editor claim overlays, HITL decisions, and day-over-day progress logs. |
 
 ### Preview — open in a browser
 
@@ -62,7 +63,8 @@ the code lands per the staging order in `SHIPWRIGHT-DESIGN.md §15`.
 5. `SHIPWRIGHT-DAEMON.md` — the archetype, with the runtime moved to AGENT-MODEL.
 6. `COMPONENT-BRIEF.md` — once the above is agreed.
 7. `INTEGRATION-PLAN.md` — how the component contracts enter Fleet Control Center.
-8. `preview/index.html` — see the whole thing. Then `ships-3d.html` for live motion.
+8. `APP-NATIVE-DEVELOPMENT-COCKPIT.md` — how Shipwright, Sorties, Guard, Tube, and the editor become one development cockpit.
+9. `preview/index.html` — see the whole thing. Then `ships-3d.html` for live motion.
 
 ## Skills used to author this
 

@@ -19,7 +19,7 @@ type AgentSignal = {
   title: string
   icon: LucideIcon
   description: ReactNode
-  example: string
+  appEvidence: string
 }
 
 const AGENT_SIGNALS: AgentSignal[] = [
@@ -29,7 +29,7 @@ const AGENT_SIGNALS: AgentSignal[] = [
     title: 'Notes preserve context',
     icon: MessageSquareText,
     description: 'Session notes make intent and evidence durable. A recovering agent can read what changed, what was tested, what stayed risky, and where the last truthful handoff happened.',
-    example: 'pd note "Readiness panel claimed; PR5 demos left alone."',
+    appEvidence: 'Notes timeline shows scope, evidence, and handoff status.',
   },
   {
     id: 'claims',
@@ -37,7 +37,7 @@ const AGENT_SIGNALS: AgentSignal[] = [
     title: 'Claims expose touch',
     icon: ShieldCheck,
     description: 'File and region claims turn parallel editing into visible touch. Agents can see who is already working on a surface, choose a smaller route, or escalate before product truth drifts.',
-    example: 'pd who-owns TerminalDemos.tsx',
+    appEvidence: 'Touched files and owners appear before another agent edits.',
   },
   {
     id: 'radio',
@@ -45,7 +45,7 @@ const AGENT_SIGNALS: AgentSignal[] = [
     title: 'Channels publish evidence',
     icon: RadioTower,
     description: 'Scoped channels carry machine-readable facts without turning the human into the message bus. Test failures, contention, readiness gaps, and drift warnings can move while work continues.',
-    example: 'pd pub coordination:inconsistency \'{"risk":"overlap"}\'',
+    appEvidence: 'Important warnings land in Activity, channels, and actor inboxes.',
   },
   {
     id: 'actors',
@@ -66,7 +66,7 @@ const AGENT_SIGNALS: AgentSignal[] = [
         </span>
       </>
     ),
-    example: 'pd actors coxswain --message "Claims and context disagree."',
+    appEvidence: 'Durable actor inboxes keep responsibility visible after a shell exits.',
   },
 ]
 
@@ -120,9 +120,9 @@ export function AgentConversationSection() {
                       </PanelBody>
                     </div>
                     <div className="grid min-w-0 gap-[var(--space-2)] border-t-2 border-[var(--border-strong)] pt-[var(--space-3)] md:col-start-2">
-                      <BracketLabel>Real move</BracketLabel>
-                      <div className="block min-w-0 whitespace-pre-wrap break-words border border-[var(--border-default)] bg-[color:var(--surface-sunken)] px-[var(--space-3)] py-[var(--space-2)] font-mono text-[11px] font-semibold leading-relaxed text-[var(--brand-primary)] [overflow-wrap:anywhere]">
-                        {signal.example}
+                      <BracketLabel>App evidence</BracketLabel>
+                      <div className="block min-w-0 border border-[var(--border-default)] bg-[color:var(--surface-sunken)] px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-panel-body-compact-size)] font-bold leading-[var(--leading-body-compact)] text-[var(--brand-primary)]">
+                        {signal.appEvidence}
                       </div>
                     </div>
                   </article>
