@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://port-daddy/schemas/pd-fleet.schema.json",
+  "title": "pd-fleet.yml",
+  "description": "Declarative configuration for a Port Daddy background agent fleet. Authoritative source: lib/fleet-engine.ts (FleetYamlRoot).",
+  "type": "object",
+  "required": ["fleet"],
+  "properties": {
+    "fleet": {
+      "type": "object",
+      "required": ["name", "agents"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Fleet name. MUST equal basename(projectDir) so the post-commit hook's project:<basename>:<hash>:git:committed channel matches what fleet-channels.ts subscribes on. Renaming silently breaks every git:committed-triggered agent.",
+          "pattern": "^[a-zA-Z0-9._-]+$"
+        },
+        "harbor": {
+          "type": "string",
+          "description": "Semantic identity of the shared harbor for this fleet. Template variables: {project}.",
+          "examples": ["{project}:fleet"]
+        },
+        "limits": { "$ref": "#/$defs/limits" },
+        "agents": {
+          "type": "object",
+          "description": "Map of agent-name -> agent definition.",
+          "additionalProperties": { "$ref": "#/$defs/agent" }
+        },
+        "watchers": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/watcher" }
+        },
+        "channels": {
+          "type": "object",
+          "description": "Pub/sub channel registry. Used by validateTopology to catch dead-end channels.",
+          "additionalProperties": { "$ref": "#/$defs/channel" }
+        },
+        "defaults": {
+          "type": "object",
+          "properties": {
+            "backend": { "$ref": "#/$defs/backend" },
+            "model": { "type": "string" }
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "backend": {
+      "type": "string",
+      "enum": ["ollama", "claude", "claude-cli", "codex", "gemini", "aider", "custom"]
+    },
+    "modelTier": {
+      "type": "string",
+      "enum": ["low", "mid", "high"]
+    },
+    "limits": {
+      "type": "object",
+      "description": "Fleet-wide spawn quotas enforced at trigger time by FleetRunner.",
+      "properties": {
+        "max_concurrent_spawns": { "type": "integer", "minimum": 1 },
+        "max_spawns_per_hour": { "type": "integer", "minimum": 1 },
+        "budget_usd_per_day": { "type": "number", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "agent": {
+      "type": "object",
+      "required": ["backend", "prompt"],
+      "properties": {
+        "schedule": {
+          "type": "string",
+          "description": "Cron expression. Mutually compatible with trigger / triggerTuple — agent fires on any of them.",
+          "examples": ["*/10 * * * *", "0 */1 * * *"]
+        },
+        "trigger": {
+          "type": "string",
+          "description": "Channel name. Agent fires on every message published to this channel.",
+          "examples": ["git:committed", "qa:findings"]
+        },
+        "triggerTuple": {
+          "type": "array",
+          "description": "Linda-style tuple pattern. Agent fires when a tuple matching this shape lands in the harbor's tuple space."
+        },
+        "backend": { "$ref": "#/$defs/backend" },
+        "model": { "type": "string", "description": "Pin the model whenever the backend supports it for predictable cost." },
+        "modelTier": { "$ref": "#/$defs/modelTier" },
+        "prompt": {
+          "type": "string",
+          "description": "Prompt or shell command (depending on backend). For backend=custom, this IS the command; for LLM backends, this is the user message."
+        },
+        "worktree": { "type": "boolean" },
+        "singleton": { "type": "boolean", "description": "If true, fleet refuses to spawn a second instance while one is running." },
+        "respawn": { "type": "boolean", "description": "Auto-restart on death." },
+        "max_respawns": { "type": "integer", "minimum": 0, "description": "Circuit breaker. Default 3." },
+        "on_success": {
+          "type": "string",
+          "description": "Action on exit code 0. Currently supports `publish <channel>`.",
+          "pattern": "^publish [a-zA-Z0-9:_-]+$"
+        },
+        "on_failure": {
+          "type": "string",
+          "pattern": "^publish [a-zA-Z0-9:_-]+$"
+        },
+        "identity": {
+          "type": "string",
+          "description": "Semantic identity for this agent's PD registration. Template variables: {project}.",
+          "examples": ["{project}:fleet:qa"]
+        },
+        "timeout": { "type": "integer", "minimum": 1, "description": "Seconds before SIGKILL." },
+        "allowedTools": {
+          "type": "string",
+          "description": "Claude-CLI-style tool allowlist. Comma-separated. Bash() and other parametrized tools are supported.",
+          "examples": ["Read,Grep,Glob,Bash(npm test*)"]
+        },
+        "fallbacks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/runtimeTarget" }
+        },
+        "cooldown_ms": { "type": "integer", "minimum": 0 },
+        "dedupe_window_ms": { "type": "integer", "minimum": 0 },
+        "backoff_base_ms": { "type": "integer", "minimum": 0 },
+        "backoff_max_ms": { "type": "integer", "minimum": 0 },
+        "backoff_multiplier": { "type": "number", "minimum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "runtimeTarget": {
+      "type": "object",
+      "properties": {
+        "backend": { "$ref": "#/$defs/backend" },
+        "model": { "type": "string" },
+        "modelTier": { "$ref": "#/$defs/modelTier" }
+      }
+    },
+    "watcher": {
+      "type": "object",
+      "required": ["trigger", "exec"],
+      "properties": {
+        "trigger": { "type": "string", "description": "Channel name to subscribe." },
+        "exec": { "type": "string", "description": "Shell command to run when message arrives." },
+        "condition": { "type": "string", "description": "Optional shell condition; exec only runs when this exits 0." },
+        "confirm": { "type": "boolean", "description": "Require human confirmation before exec." }
+      },
+      "additionalProperties": false
+    },
+    "channel": {
+      "type": "object",
+      "properties": {
+        "description": { "type": "string" },
+        "consumers": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Names of agents/watchers expected to subscribe. Topology validator warns if no consumer is registered."
+        },
+        "external_producer": {
+          "oneOf": [{ "type": "boolean" }, { "type": "string" }],
+          "description": "If true or a label, the topology validator allows the channel to have no in-fleet producer (it's published from outside, e.g. by the post-commit hook)."
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
