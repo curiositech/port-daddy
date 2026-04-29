@@ -101,9 +101,9 @@ Default behavior for every non-trivial slice:
   code when available
 - emit tuples only for facts another process or actor should query
 - use scoped channels for event notifications, not prose conversations
-- use actor inboxes for durable role ownership, especially Navigator,
-  Coxswain, Lookout, Harbormaster, Sounder, Signalman, Breaker, Caulker, and
-  Quartermaster
+- use actor inboxes for durable role ownership, especially Coxswain,
+  Cartographer/Navigator, Documentarian/Lookout, QA/Signalman, Gardener,
+  Test Hunter, Simplifier, Spark, and Spider
 - mark durable actor inbox messages read only after their coordination content
   has been incorporated into the roadmap, recovery ledger, or a live handoff
 - use pheromones/file heat for ambient contention, not ordinary status updates
@@ -151,10 +151,12 @@ pd actor navigator --inbox --unread
 pd roadmap --feedback-status open
 ```
 
-`cartographer` is a compatibility alias for the durable `navigator` actor.
-Navigator owns roadmap, recovery-ledger, work-slice, and cartographer-status
-truth. Lookout owns docs, README, OpenAPI, SDK/MCP/CLI references, website,
-Mac app/FleetBar documentation, skill, and product-truth drift.
+`navigator` is a compatibility alias for the durable `cartographer` actor.
+Cartographer owns roadmap, recovery-ledger, work-slice, and cartographer-status
+truth. Coxswain owns claims, locks, stale assets, symbolic coordination, and
+file/session contention. Documentarian/Lookout owns docs, README, OpenAPI,
+SDK/MCP/CLI references, website, Mac app/FleetBar documentation, skill, and
+product-truth drift.
 
 `pd roadmap` is the operator projection of that map. It reads curated roadmap
 files plus live tuple-backed feedback; `pd roadmap ack <feedbackId> --into
