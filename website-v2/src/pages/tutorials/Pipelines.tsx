@@ -10,7 +10,7 @@ export function Pipelines() {
       title="Reactive Workflows"
       description="Use pd watch and pd spawn to build event-driven workflows today. Declarative reactive pipelines are planned for v4."
       number={16}
-      total={20}
+      total={21}
       level="Advanced"
       readTime="10 min read"
       prev={{ title: 'Activity Log Inspection', href: '/tutorials/time-travel' }}

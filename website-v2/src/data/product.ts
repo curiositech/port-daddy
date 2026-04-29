@@ -25,6 +25,14 @@ export const PRODUCT_FEATURES = [
     status: 'core'
   },
   {
+    id: 'pd-tube',
+    title: 'PD Tube',
+    description: 'A conversational pipe over Port Daddy channels. Listen, send, reply, resume from cursors, and bridge agent handoffs through clean JSON lines.',
+    category: 'coordination',
+    cli: 'pd tube <channel> --send',
+    status: 'new'
+  },
+  {
     id: 'agent-spawning',
     title: 'Agent Spawning',
     description: 'Launch agents with built-in coordination. Supports Ollama, Codex, Claude, Claude CLI, Gemini, Aider, and custom backends. Sessions, heartbeats, and salvage auto-wired.',
@@ -63,6 +71,14 @@ export const PRODUCT_FEATURES = [
     category: 'ports',
     cli: 'pd tunnel start <svc> ngrok',
     status: 'new'
+  },
+  {
+    id: 'relay-pki',
+    title: 'Relay PKI',
+    description: 'OIDC-first relay identity with admin-approved local Web-of-Trust fallback. The relay routes ciphertext while daemon fingerprints stay auditable.',
+    category: 'security',
+    cli: 'python skills/pd-relay-zero-trust/scripts/pki_decision.py',
+    status: 'preview'
   },
   {
     id: 'pheromone-trails',

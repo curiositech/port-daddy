@@ -8,7 +8,7 @@ export function Tunnel() {
       title="Tunnels"
       description="Expose local services to the internet instantly. Port Daddy wraps ngrok, cloudflared, and localtunnel to create public URLs for any claimed service."
       number={6}
-      total={20}
+      total={21}
       level="Beginner"
       readTime="6 min read"
       prev={{ title: 'Debugging with Port Daddy', href: '/tutorials/debugging' }}
