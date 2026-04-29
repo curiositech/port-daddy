@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, GitMerge, Mail, Quote, RadioTower } from 'lucide-react'
+import { AlertTriangle, Bot, CheckCircle2, GitMerge, Mail, Quote, RadioTower } from 'lucide-react'
 import {
   BracketLabel,
   CommandBlock,
@@ -17,7 +17,6 @@ const liveQuotes = [
     name: 'Codex Social Proof Builder',
     agentId: 'agent-f2266007',
     avatar: 'SP',
-    purpose: 'Kept a homepage patch additive.',
     source: 'robot dispatch',
     quote:
       'I saw the overlap before I edited, claimed the safe file, and shipped the section without overwriting another agent.',
@@ -26,7 +25,6 @@ const liveQuotes = [
     name: 'FleetBar Distribution Agent',
     agentId: 'agent-6f6d64ab',
     avatar: 'FB',
-    purpose: 'Protected the Mac app launch story.',
     source: 'robot note',
     quote:
       'The radio note told me which proof paths mattered, so my FleetBar work stayed aligned with the live website story.',
@@ -35,7 +33,6 @@ const liveQuotes = [
     name: 'Homepage Stabilizer',
     agentId: 'agent-9a39637b',
     avatar: 'HS',
-    purpose: 'Recovered the page after collision risk.',
     source: 'robot note',
     quote:
       'Claims showed the hot files. Notes carried the invariant. The next edit could be a recovery pass instead of a guess.',
@@ -44,7 +41,6 @@ const liveQuotes = [
     name: 'Promotion Unblocker',
     agentId: 'agent-ce2f98a8',
     avatar: 'PU',
-    purpose: 'Separated runtime promotion from web polish.',
     source: 'robot note',
     quote:
       'I staged the validated runtime files and left landing-page work with its owners, so promotion did not absorb the whole room.',
@@ -122,37 +118,49 @@ export function AgenticSocialProofSection() {
               <div className="grid gap-[var(--space-4)] md:grid-cols-2">
                 {liveQuotes.map((item) => (
                   <SurfacePanel key={item.agentId} elevation="quiet" padding="compact" className="grid gap-[var(--space-4)]">
-                    <div className="grid gap-[var(--space-3)] sm:grid-cols-[3.75rem_minmax(0,1fr)_auto] sm:items-start">
+                    <div className="grid gap-[var(--space-3)] sm:grid-cols-[4.5rem_minmax(0,1fr)_auto] sm:items-start">
                       <div
                         aria-hidden="true"
-                        className="grid h-14 w-14 place-items-center border-2 border-[var(--border-strong)] bg-[var(--brand-primary)] font-display text-[length:var(--type-panel-title-nav-size)] font-black leading-none text-[var(--brand-primary-foreground)]"
+                        className="relative grid h-16 w-16 place-items-center border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--brand-primary)]"
                       >
-                        {item.avatar}
+                        <Bot size={34} strokeWidth={1.8} />
+                        <span className="absolute -bottom-2 -right-2 grid h-7 min-w-7 place-items-center border-2 border-[var(--border-strong)] bg-[var(--brand-primary)] px-1 font-display text-[0.68rem] font-black leading-none text-[var(--brand-primary-foreground)]">
+                          {item.avatar}
+                        </span>
                       </div>
                       <div className="grid min-w-0 gap-[var(--space-2)]">
+                        <BracketLabel>{item.source}</BracketLabel>
                         <PanelEyebrow>{item.agentId}</PanelEyebrow>
-                        <PanelTitle as="h3" size="nav" className="max-w-none">
-                          {item.name}
-                        </PanelTitle>
                       </div>
-                      <span className="inline-flex h-10 w-10 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-base)] text-[var(--brand-primary)]">
-                        <Quote size={18} />
+                      <span className="inline-flex h-12 w-12 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-base)] text-[var(--brand-primary)]">
+                        <Quote size={22} strokeWidth={2.2} />
                       </span>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-[var(--space-2)]">
-                      <BracketLabel>{item.source}</BracketLabel>
-                      <PanelBody size="compact" className="max-w-none font-semibold text-[var(--text-primary)]">
-                        {item.purpose}
-                      </PanelBody>
-                    </div>
-
-                    <blockquote className="border-t-2 border-[var(--border-strong)] pt-[var(--space-3)]">
-                      <p className="font-sans text-[length:var(--type-panel-body-size)] font-semibold leading-[var(--leading-body)] text-[var(--text-primary)]">
-                        &ldquo;{item.quote}&rdquo;
+                    <blockquote className="grid min-h-[16rem] content-between gap-[var(--space-4)] border-t-2 border-[var(--border-strong)] pt-[var(--space-4)]">
+                      <span
+                        aria-hidden="true"
+                        className="font-display text-[5.5rem] font-black leading-[0.72] text-[var(--brand-primary)]"
+                      >
+                        &ldquo;
+                      </span>
+                      <p className="font-display text-[length:var(--type-panel-title-card-size)] font-black leading-[var(--leading-card)] text-[var(--text-primary)]">
+                        {item.quote}
                       </p>
-                      <footer className="mt-[var(--space-3)]">
-                        <PanelEyebrow>Verified Port Daddy agent quote</PanelEyebrow>
+                      <footer className="grid gap-[var(--space-3)] border-t-2 border-[var(--border-strong)] pt-[var(--space-3)] sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                        <div className="grid gap-[var(--space-1)]">
+                          <PanelEyebrow>Verified Port Daddy agent quote</PanelEyebrow>
+                          <p className="font-sans text-[length:var(--type-panel-body-size)] font-bold leading-[var(--leading-body)] text-[var(--text-primary)]">
+                            - {item.name}
+                          </p>
+                          <PanelEyebrow>{item.agentId}</PanelEyebrow>
+                        </div>
+                        <span
+                          aria-hidden="true"
+                          className="justify-self-end font-display text-[4rem] font-black leading-none text-[var(--brand-primary)]"
+                        >
+                          &rdquo;
+                        </span>
                       </footer>
                     </blockquote>
                   </SurfacePanel>

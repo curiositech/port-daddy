@@ -13,7 +13,6 @@ const overviewOrder = [
   'get-started',
   'concepts',
   'best-practices',
-  'examples',
   'tutorials',
   'reference-architectures',
   'reference',
@@ -23,7 +22,6 @@ const cardSpanClass: Record<(typeof overviewOrder)[number], string> = {
   'get-started': 'xl:col-span-6',
   concepts: 'xl:col-span-4',
   'best-practices': 'xl:col-span-4',
-  examples: 'xl:col-span-4',
   tutorials: 'xl:col-span-4',
   'reference-architectures': 'xl:col-span-4',
   reference: 'xl:col-span-4',
@@ -39,7 +37,7 @@ export default function DocsOverview() {
     { title: 'Get started', href: '/docs/get-started', tone: 'accent' as const },
     { title: 'Concepts', href: '/docs/concepts', tone: 'blue' as const },
     { title: 'Best practices', href: '/docs/best-practices', tone: 'accent' as const },
-    { title: 'Examples', href: '/docs/examples', tone: 'blue' as const },
+    { title: 'Examples', href: '/examples', tone: 'blue' as const },
     { title: 'Tutorials', href: '/docs/tutorials', tone: 'accent' as const },
     { title: 'Reference', href: '/docs/reference', tone: 'blue' as const },
   ]
@@ -101,8 +99,8 @@ export default function DocsOverview() {
             ))}
           </div>
           <PanelBody size="compact" className="max-w-none">
-            Concepts explains the model. Best practices explains the operator discipline. Examples and tutorials show
-            concrete flows. Reference architectures and reference document the exact surfaces that matter in active use.
+            Concepts explains the model. Best practices explains the operator discipline. Examples lives at the top
+            level because it is runnable code. Tutorials, architectures, and reference stay inside the docs.
           </PanelBody>
         </DocsNoteCard>
       </div>

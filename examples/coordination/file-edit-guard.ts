@@ -22,8 +22,8 @@
 
 import { PortDaddy } from '../../lib/client.js';
 
-const client = new PortDaddy();
 const agentId = process.env.AGENT_ID ?? `agent-${process.pid}`;
+const client = new PortDaddy({ agentId });
 
 function fileChannel(path: string): string {
   return `file:${path.replace(/\//g, ':')}:edits`;
@@ -40,7 +40,11 @@ async function claim(filePath: string, intent: string) {
   const lockName = fileLockName(filePath);
 
   // Try to acquire lock
-  const lockResult = await client.lock(lockName, { ttl: 3600000 }); // 1 hour
+  const lockResult = await client.lock(lockName, {
+    owner: agentId,
+    ttl: 3600000,
+    metadata: { file: filePath, intent },
+  });
 
   if (!lockResult.success) {
     // Someone else has it - check who
@@ -83,7 +87,7 @@ async function release(filePath: string) {
   const channel = fileChannel(filePath);
   const lockName = fileLockName(filePath);
 
-  await client.unlock(lockName);
+  await client.unlock(lockName, { owner: agentId });
   await client.publish(channel, {
     agent: agentId,
     type: 'release',

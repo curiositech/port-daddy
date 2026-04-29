@@ -772,10 +772,16 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command ideas" -s q -l quiet -d 'Suppress output'
 
     # roadmap
+    complete -c $prog -n "__pd_using_command roadmap; and not __fish_seen_subcommand_from ack harvest" -a "ack harvest" -d 'Ack live feedback through the roadmap surface'
     complete -c $prog -n "__pd_using_command roadmap" -l dir -r -d 'Project directory'
     complete -c $prog -n "__pd_using_command roadmap" -l root -r -d 'Project root'
     complete -c $prog -n "__pd_using_command roadmap" -l projectDir -r -d 'Project directory'
     complete -c $prog -n "__pd_using_command roadmap" -l limit -x -d 'Rows per section'
+    complete -c $prog -n "__pd_using_command roadmap" -l feedback-status -x -a "open harvested wontfix all" -d 'Live tuple feedback status'
+    complete -c $prog -n "__pd_using_command roadmap" -l feedback-harbor -x -d 'Harbor scope for live feedback'
+    complete -c $prog -n "__pd_using_command roadmap" -l feedback-limit -x -d 'Max live feedback rows'
+    complete -c $prog -n "__pd_using_command roadmap; and __fish_seen_subcommand_from ack harvest" -l as -x -d 'Harvester agent id'
+    complete -c $prog -n "__pd_using_command roadmap; and __fish_seen_subcommand_from ack harvest" -l into -x -d 'Roadmap slug'
     complete -c $prog -n "__pd_using_command roadmap" -l no-excerpts -d 'Hide current-work and Cartographer excerpts'
     complete -c $prog -n "__pd_using_command roadmap" -s j -l json -d 'JSON output'
     complete -c $prog -n "__pd_using_command roadmap" -s q -l quiet -d 'Agent-readable section:slug output'

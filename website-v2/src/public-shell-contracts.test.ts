@@ -165,7 +165,7 @@ describe('public shell contracts', () => {
     const paperData = read('./data/whitePapers.ts')
 
     expect(whitepaper).toContain('Research dossier')
-    expect(whitepaper).toContain('The control-plane papers.')
+    expect(whitepaper).toContain('The Port Daddy papers.')
     expect(whitepaper).toContain('Available papers')
     expect(whitepaper).toContain('Argument map')
     expect(whitepaper).toContain('Reading order')
@@ -331,7 +331,7 @@ describe('public shell contracts', () => {
     expect(docsOverview).not.toContain('/dashboard')
     expect(docsOverview).toContain('/mac-preview')
     expect(docsOverview).toContain('/examples')
-    expect(docsOverview).toContain('/docs/examples guides. /examples runs.')
+    expect(docsOverview).not.toContain('/docs/examples')
     expect(docsOverview).toContain('/templates')
     expect(docsOverview).toContain('/mcp')
     expect(docsOverview).toContain('/agents')
@@ -340,7 +340,7 @@ describe('public shell contracts', () => {
     expect(docsSidebar).not.toContain('/dashboard')
     expect(docsSidebar).toContain('/mac-preview')
     expect(docsSidebar).toContain('/examples')
-    expect(docsSidebar).toContain('/docs/examples guides. /examples runs.')
+    expect(docsSidebar).not.toContain('/docs/examples')
     expect(docsSidebar).toContain('/templates')
     expect(docsSidebar).toContain('/mcp')
     expect(docsSidebar).toContain('/agents')
@@ -355,7 +355,6 @@ describe('public shell contracts', () => {
       'get-started',
       'concepts',
       'best-practices',
-      'examples',
       'tutorials',
       'reference-architectures',
       'reference',
@@ -380,6 +379,7 @@ describe('public shell contracts', () => {
       'path="sdk"',
       'path="mcp"',
       'path="api"',
+      'path="examples/*"',
       'path=":sectionSlug/*"',
     ]) {
       expect(mainSource).toContain(routePath)
@@ -406,16 +406,16 @@ describe('public shell contracts', () => {
     expect(findDocsRouteBySlug('operations')?.slug).toBe('best-practices')
     expect(findDocsRouteBySlug('architecture')?.slug).toBe('reference-architectures')
     expect(findDocsRouteBySlug('guides')?.slug).toBe('tutorials')
+    expect(findDocsRouteBySlug('examples')).toBeUndefined()
     expect(findDocsRouteBySlug('security')).toBeUndefined()
     expect(findDocsRouteByPath('/docs')?.slug).toBe('overview')
     expect(findDocsRouteByPath('/docs/reference-architectures/harbor-bootstrap')?.slug).toBe('reference-architectures')
-    expect(findDocsRouteByPath('/docs/examples/fleet/salvage')?.slug).toBe('examples')
+    expect(findDocsRouteByPath('/docs/examples/fleet/salvage')).toBeUndefined()
     expect(findDocsFamily('guides')?.title).toBe('Tutorials')
     expect(docsFamilies.map((section) => section.slug)).toEqual([
       'get-started',
       'concepts',
       'best-practices',
-      'examples',
       'tutorials',
       'reference-architectures',
       'reference',
@@ -427,7 +427,6 @@ describe('public shell contracts', () => {
       'get-started',
       'concepts',
       'best-practices',
-      'examples',
       'tutorials',
       'reference-architectures',
       'reference',
@@ -458,12 +457,7 @@ describe('public shell contracts', () => {
       'testing-and-promotion',
       'onboarding-surfaces',
     ])
-    expect(findDocsContentSection('examples')?.pages.map((page) => page.slug)).toEqual([
-      'protect-a-critical-command',
-      'exchange-state-through-tuples',
-      'enter-a-harbor-and-pass-a-card',
-    ])
-    expect(findDocsContentSection('examples')?.summary).toContain('/examples corpus')
+    expect(findDocsContentSection('examples')).toBeUndefined()
     expect(findDocsContentSection('tutorials')?.pages.map((page) => page.slug)).toEqual([
       'bootstrap-a-project-fleet',
       'recover-a-dead-agent-session',
@@ -483,7 +477,7 @@ describe('public shell contracts', () => {
     expect(findDocsContentPage('get-started', 'install')?.truth).toBe('source-backed')
     expect(findDocsContentPage('concepts', 'harbors-and-identity')?.truth).toBe('source-backed')
     expect(findDocsContentPage('best-practices', 'onboarding-surfaces')?.truth).toBe('blocked')
-    expect(findDocsContentPage('examples', 'exchange-state-through-tuples')?.truth).toBe('source-backed')
+    expect(findDocsContentPage('examples', 'exchange-state-through-tuples')).toBeUndefined()
     expect(findDocsContentPage('tutorials', 'launch-and-inspect-a-sortie')?.truth).toBe('source-backed')
     expect(findDocsContentPage('reference-architectures', 'delegation-surfaces')?.truth).toBe('source-backed')
     expect(findDocsContentPage('reference', 'daemon-http-surface')?.truth).toBe('source-backed')

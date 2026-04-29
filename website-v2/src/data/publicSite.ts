@@ -177,7 +177,6 @@ const docsHomepageOrder = [
   'get-started',
   'concepts',
   'best-practices',
-  'examples',
   'tutorials',
   'reference-architectures',
   'reference',

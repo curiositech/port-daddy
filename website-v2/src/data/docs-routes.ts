@@ -17,7 +17,6 @@ export type DocsFamilySlug =
   | 'get-started'
   | 'concepts'
   | 'best-practices'
-  | 'examples'
   | 'tutorials'
   | 'reference-architectures'
   | 'reference'
@@ -40,21 +39,21 @@ const productPrimitiveBullets = PRODUCT_FEATURES.map(
 export const docsOverviewRoute: DocsFamilyRoute = {
   slug: 'overview',
   title: 'Docs Overview',
-  summary: 'Start with the papers, install the daemon, then move into the model, operating practice, and reference.',
+  summary: 'Start here, learn what Port Daddy does, install it, then jump to runnable examples or reference.',
   tone: 'paper',
   path: '/docs',
   aliases: ['docs', 'overview'],
   intro: [
-    'These docs exist for engineers deciding whether Port Daddy is trustworthy enough to install and practical enough to run.',
+    'New to Port Daddy? These docs explain the local app, the daemon behind it, and the workflows it gives AI coding agents.',
   ],
   modules: [
     {
       truth: 'Live',
-      title: 'How to read the docs',
+      title: 'How to use these docs',
       bullets: [
-        'Start with Whitepaper for the protocol boundary and governance argument.',
-        'Use Get Started to install the daemon and verify the live runtime.',
-        'Use Concepts, Best Practices, Examples, Tutorials, Architectures, and Reference as your questions get more specific.',
+        'Use Get Started to install Port Daddy and open the dashboard.',
+        'Use the top-level Examples page and Tutorials when you want runnable workflows.',
+        'Use Concepts, Best Practices, Architectures, and Reference when you need deeper detail.',
       ],
     },
   ],
@@ -64,12 +63,12 @@ export const docsFamilyRoutes: DocsFamilyRoute[] = [
   {
     slug: 'get-started',
     title: 'Get Started',
-    summary: 'Install the daemon, verify the live control plane, and run the first operator loop that reflects reality.',
+    summary: 'Install Port Daddy, check that it is running, and try your first coordinated agent task.',
     tone: 'blue',
     path: '/docs/get-started',
     aliases: ['getting-started', 'get-started'],
     intro: [
-      'Bring up the daemon, verify the live runtime, and complete the first real operator loop on your machine.',
+      'Bring up the local Port Daddy service, open the dashboard, and make your first agent run visible to the system.',
     ],
     modules: [
       {
@@ -82,7 +81,7 @@ export const docsFamilyRoutes: DocsFamilyRoute[] = [
         truth: 'Live',
         title: 'Verify the live daemon',
         bullets: [
-          'Run `pd status` to confirm the control plane is up.',
+          'Run `pd status` to confirm Port Daddy is up.',
           'Run `pd briefing` before digging through a busy repo.',
           'Use `pd salvage` if abandoned or crashed work might still matter.',
         ],
@@ -92,9 +91,9 @@ export const docsFamilyRoutes: DocsFamilyRoute[] = [
         truth: 'Live',
         title: 'Start coordinated work',
         bullets: [
-          'Begin sessions with `pd begin` so identity, attribution, and salvage state exist before edits start.',
+          'Begin sessions with `pd begin` so Port Daddy can show who is doing the work.',
           'Leave notes before broad edits if other agents might intersect the same repo.',
-          'Treat the daemon as the authority layer; SDK, MCP, and UI surfaces follow it.',
+          'Use the CLI, MCP tools, or dashboard to inspect the same shared state.',
         ],
       },
     ],
@@ -102,12 +101,12 @@ export const docsFamilyRoutes: DocsFamilyRoute[] = [
   {
     slug: 'concepts',
     title: 'Concepts',
-    summary: 'Understand the model behind agent identity, coordination, shared state, and operator authority.',
+    summary: 'Learn the ideas behind sessions, notes, file claims, locks, ports, fleets, and recovery.',
     tone: 'paper',
     path: '/docs/concepts',
     aliases: ['concepts'],
     intro: [
-      'Port Daddy exists to keep multi-agent work legible and controllable once more than one actor is touching the same repo or machine.',
+      'Port Daddy exists to keep multi-agent work visible and controllable once more than one agent is touching the same repo or machine.',
     ],
     modules: [
       {
@@ -117,9 +116,9 @@ export const docsFamilyRoutes: DocsFamilyRoute[] = [
       },
       {
         truth: 'Live',
-        title: 'Authority versus execution',
+        title: 'What Port Daddy owns',
         body: [
-          'Agents execute tasks. The daemon owns shared state, harbor identity, and the operator-facing truth about what is happening.',
+          'Agents do the coding work. Port Daddy keeps the shared notes, locks, sessions, ports, and handoffs that make that work visible.',
         ],
       },
       {
@@ -127,8 +126,8 @@ export const docsFamilyRoutes: DocsFamilyRoute[] = [
         title: 'Where the model can extend',
         bullets: [
           'Cross-machine delegation chains',
-          'Richer policy and economics on top of the same control plane',
-          'A stronger team-wide operating surface for autonomous workflows',
+          'Team policies for background agent work',
+          'Stronger shared views for autonomous workflows',
         ],
       },
     ],
@@ -136,29 +135,29 @@ export const docsFamilyRoutes: DocsFamilyRoute[] = [
   {
     slug: 'best-practices',
     title: 'Best Practices',
-    summary: 'Operate Port Daddy honestly: verify runtime truth, coordinate explicitly, and promote with discipline.',
+    summary: 'Keep agent work visible, avoid collisions, recover interrupted runs, and promote changes safely.',
     tone: 'accent',
     path: '/docs/best-practices',
     aliases: ['best-practices', 'operations'],
     intro: [
-      'This section is about keeping the daemon honest under active repo pressure: checking runtime truth, coordinating slices explicitly, and treating promotion and testing as operator work.',
+      'This section is about day-to-day habits: check what is running, leave useful notes, claim risky work, and verify what users will actually open.',
     ],
     modules: [
       {
         truth: 'Live',
-        title: 'Operator loop',
+        title: 'Daily work loop',
         bullets: [
           'Start with `pd status`, `pd briefing`, and `pd salvage`.',
-          'Leave notes before broad edits so other agents can route around your slice.',
-          'Use locks and shared coordination primitives when the work can collide.',
+          'Leave notes before broad edits so other agents can see your slice.',
+          'Use locks and file claims when the work can collide.',
         ],
       },
       {
         truth: 'Live',
-        title: 'Canonical runtime checks',
+        title: 'Runtime checks',
         bullets: [
           'Do not assume the live daemon is serving the current checkout.',
-          'Verify the daemon, the socket, and the operator UI independently when something smells stale.',
+          'Check the daemon, CLI, and UI separately when something looks stale.',
           'Rebuild and relaunch after runtime-serving changes before trusting the result.',
         ],
       },
@@ -168,46 +167,7 @@ export const docsFamilyRoutes: DocsFamilyRoute[] = [
         bullets: [
           'Use the promotion script instead of hand-rolled launchctl routines.',
           'Run the full suite before claiming broad health.',
-          'After a fix, ask what operator-visible failure mode is still untested.',
-        ],
-      },
-    ],
-  },
-  {
-    slug: 'examples',
-    title: 'Examples',
-    summary:
-      'Guided examples that explain the runnable /examples code corpus: swarm state, tunnel sharing, service discovery, and operator-visible coordination.',
-    tone: 'blue',
-    path: '/docs/examples',
-    aliases: ['examples'],
-    intro: [
-      '/docs/examples is the guided reading path. /examples is the runnable code corpus. Keep both surfaces connected so examples explain the system and still run against the daemon.',
-    ],
-    modules: [
-      {
-        truth: 'Live',
-        title: 'Repo coordination examples',
-        bullets: [
-          'Use `pd begin`, `pd note`, and file-scoped coordination before editing shared paths.',
-          'Publish explicit machine-readable state when another agent or watcher needs to react.',
-          'Show salvage and handoff behavior as part of the workflow, not as an afterthought.',
-        ],
-      },
-      {
-        truth: 'Live',
-        title: 'Examples worth preserving',
-        bullets: [
-          'A docs-sync agent that compares live source to docs',
-          'A QA loop that triggers on `git:committed` and leaves review notes',
-          'A harbor-based remote or staged workflow that preserves attribution',
-        ],
-      },
-      {
-        truth: 'Roadmap',
-        title: 'Example generation',
-        body: [
-          'Longer-term, examples should be generated or validated against real command and route surfaces so they drift less than hand-written prose.',
+          'After a fix, ask what user-visible failure mode is still untested.',
         ],
       },
     ],
@@ -215,12 +175,12 @@ export const docsFamilyRoutes: DocsFamilyRoute[] = [
   {
     slug: 'tutorials',
     title: 'Tutorials',
-    summary: 'Guided builds that take you from install to a working operator workflow.',
+    summary: 'Step-by-step walkthroughs that take you from install to useful agent workflows.',
     tone: 'accent',
     path: '/docs/tutorials',
     aliases: ['tutorials', 'guides'],
     intro: [
-      'Tutorials are workflow-first. They are here to move an operator from clean bootstrap to real usage without hand-waving through the hard parts.',
+      'Tutorials are hands-on. They help you install Port Daddy, coordinate real work, and recover when an agent run stops.',
     ],
     modules: [
       {
@@ -229,16 +189,16 @@ export const docsFamilyRoutes: DocsFamilyRoute[] = [
         bullets: [
           'Install and verify the daemon.',
           'Start a session, leave notes, and coordinate a real repo slice.',
-          'Use fleet or harbor flows only after the local operator loop is stable.',
+          'Use fleet or harbor flows after the basic local loop makes sense.',
         ],
       },
       {
         truth: 'Live',
         title: 'What tutorials should teach',
         bullets: [
-          'How to keep runtime truth aligned with code truth',
+          'How to keep the running app aligned with the code you changed',
           'How to recover when agents die mid-task',
-          'How to route around collisions instead of discovering them after the fact',
+          'How to avoid collisions before they turn into broken work',
         ],
       },
       {
@@ -255,7 +215,7 @@ export const docsFamilyRoutes: DocsFamilyRoute[] = [
         bullets: [
           'Cross-machine handoffs',
           'Remote delegation with real operator visibility',
-          'More generated walkthroughs for deeper runtime surfaces',
+          'More walkthroughs for deeper runtime features',
         ],
       },
     ],
@@ -263,12 +223,12 @@ export const docsFamilyRoutes: DocsFamilyRoute[] = [
   {
     slug: 'reference-architectures',
     title: 'Reference Architectures',
-    summary: 'Canonical system layouts for the daemon, harbors, fleet surfaces, and the trust boundary.',
+    summary: 'Example layouts for the daemon, dashboard, fleets, harbors, and team workflows.',
     tone: 'paper',
     path: '/docs/reference-architectures',
     aliases: ['reference-architectures', 'architecture'],
     intro: [
-      'These pages show how the daemon, operator surfaces, and cryptographic core fit together so teams can reason about authority instead of copying commands blindly.',
+      'These pages show how the moving pieces fit together when a team wants more than a single local install.',
     ],
     modules: [
       {
@@ -276,15 +236,15 @@ export const docsFamilyRoutes: DocsFamilyRoute[] = [
         title: 'Layer split',
         bullets: [
           'Agent runtimes execute tasks.',
-          'The daemon owns identity, sessions, locks, harbors, and coordination state.',
-          'Operator surfaces are only useful when they report daemon truth.',
+          'The daemon tracks sessions, locks, harbors, and coordination state.',
+          'The dashboard and FleetBar show the same live state.',
         ],
       },
       {
         truth: 'Live',
-        title: 'Runtime-serving discipline',
+        title: 'Serving discipline',
         bullets: [
-          'Source truth is not operator truth until the serving daemon has been rebuilt and relaunched.',
+          'A source change does not reach users until the serving daemon is rebuilt and relaunched.',
           'The canonical daemon should own the canonical socket and preferred port.',
         ],
       },
@@ -294,7 +254,7 @@ export const docsFamilyRoutes: DocsFamilyRoute[] = [
         bullets: [
           'Cross-machine orchestration',
           'Stronger process and network enforcement',
-          'Economic and policy layers built on the same control-plane boundary',
+          'Team policy layers for shared agent operations',
         ],
       },
     ],
@@ -302,12 +262,12 @@ export const docsFamilyRoutes: DocsFamilyRoute[] = [
   {
     slug: 'reference',
     title: 'Reference',
-    summary: 'CLI, API, config, and operator surface reference for the parts that matter.',
+    summary: 'CLI, API, SDK, MCP, configuration, and dashboard reference for the live daemon.',
     tone: 'paper',
     path: '/docs/reference',
     aliases: ['reference'],
     intro: [
-      'Reference should get you to the right surface quickly: CLI, API, config, SDK, MCP, and the operator entry points that matter.',
+      'Reference pages should get you to the exact command, endpoint, tool, or configuration field quickly.',
     ],
     modules: [
       {
@@ -322,15 +282,15 @@ export const docsFamilyRoutes: DocsFamilyRoute[] = [
         truth: 'Live',
         title: 'SDK and MCP',
         bullets: [
-          'The daemon is the authority. SDK and MCP surfaces exist to expose it cleanly.',
-          'Reference should follow the runtime, not fork into a parallel product story.',
+          'SDK and MCP surfaces let editors and agents use the same Port Daddy state as the CLI.',
+          'Reference pages should stay close to the live runtime behavior.',
         ],
       },
       {
         truth: 'Roadmap',
         title: 'Generated reference',
         body: [
-          'The long-term reference surface should be generated from the real daemon and CLI surfaces rather than hand-maintained one page at a time.',
+          'The long-term reference should be generated from the real daemon and CLI surfaces rather than hand-maintained one page at a time.',
         ],
       },
     ],

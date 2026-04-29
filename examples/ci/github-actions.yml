@@ -88,15 +88,15 @@ jobs:
           IDENTITY="${{ github.event.repository.name }}:test:shard-${{ matrix.shard }}"
           PURPOSE="Test shard ${{ matrix.shard }}/${{ matrix.total-shards }} for ${{ github.sha }}"
 
-          pd begin \
+          BEGIN_JSON="$(pd begin "$PURPOSE" \
             --agent "$AGENT_ID" \
             --identity "$IDENTITY" \
-            --purpose "$PURPOSE" \
-            --quiet
+            --json)"
+          SESSION_ID="$(node -e "console.log(JSON.parse(process.argv[1]).sessionId)" "$BEGIN_JSON")"
 
-          # Store the agent ID for later steps
           echo "AGENT_ID=$AGENT_ID" >> "$GITHUB_ENV"
           echo "IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+          echo "SESSION_ID=$SESSION_ID" >> "$GITHUB_ENV"
 
       # -----------------------------------------------------------------------
       # Claim a port for this shard's test server
@@ -111,7 +111,7 @@ jobs:
           echo "TEST_PORT=$PORT" >> "$GITHUB_ENV"
 
           # Record the port assignment as a session note
-          pd note "Claimed port $PORT for test server" --agent "$AGENT_ID"
+          pd note "Claimed port $PORT for test server" --session "$SESSION_ID"
 
       # -----------------------------------------------------------------------
       # Run tests with the assigned port
@@ -130,7 +130,7 @@ jobs:
 
           # Record test results as a note for debugging
           RESULT=$(tail -5 test-output.txt | tr '\n' ' ')
-          pd note "Test results: $RESULT" --agent "$AGENT_ID"
+          pd note "Test results: $RESULT" --session "$SESSION_ID"
 
       # -----------------------------------------------------------------------
       # Cleanup: release port and end session (runs even if tests fail)
@@ -148,9 +148,9 @@ jobs:
             SUMMARY="Shard ${{ matrix.shard }} failed"
           fi
 
-          pd done \
+          pd done "$SUMMARY" \
             --agent "$AGENT_ID" \
-            --summary "$SUMMARY" \
+            --session "$SESSION_ID" \
             --quiet 2>/dev/null || true
 
   # ---------------------------------------------------------------------------

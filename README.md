@@ -55,7 +55,7 @@ pd done "Auth complete"
 - [Multi-Agent Coordination](#-multi-agent-coordination)
 - [The Dashboard (HUD)](#-the-dashboard-hud)
 - [Configuration](#-configuration)
-- [Patterns & Cookbook](#-patterns--cookbook)
+- [Executable Examples](#-executable-examples)
 - [Development & Testing](#-development--testing)
 - [V4 Roadmap: The Wild West](#-v4-roadmap-the-wild-west)
 - [License](#-license)
@@ -644,20 +644,18 @@ Commit this to your repo so every developer gets the same deterministic port map
 
 ---
 
-## 📖 Patterns & Cookbook
+## 📖 Executable Examples
 
 | Pattern | Goal |
 |---------|------|
-| **Leader Election** | Use locks to appoint a single master agent in a worker swarm. (`/cookbook/leader-election`) |
-| **P2P Handshake** | Use inboxes as signaling servers to establish high-bandwidth WebRTC tunnels. (`/cookbook/p2p-webrtc`) |
+| **Leader Election** | Use locks to appoint a single master agent in a worker swarm. (`/examples/leader-election`) |
+| **P2P Handshake** | Use inboxes as signaling servers to establish high-bandwidth WebRTC tunnels. (`/examples/p2p-webrtc`) |
+| **Ephemeral CI Database** | Claim a stable semantic port for a per-run test database. (`/examples/ephemeral-ci-db`) |
+| **Agent Topologies** | Publish star, ring, and arbiter topology events into inspectable channels. (`/examples/agent-archetypes`) |
 | **Agentic Escrow** | Hold lock-backed payouts until an Arbiter agent verifies work quality. *(planned — see `docs/plans/PHONE-INTEGRATION-MASTER-PLAN.md`)* |
 | **The Brig** | Automatically isolate or salvage agents who deviate from their manifest. *(planned — see `docs/plans/PHONE-INTEGRATION-MASTER-PLAN.md`)* |
 
-Two recipe surfaces exist today:
-- **`/examples`** — short SDK-snippet patterns by primitive (sessions, pub/sub, locks, salvage, harbors, etc.)
-- **`/cookbook`** — long-form recipes with full runnable code (Leader Election, P2P WebRTC, Ephemeral CI DB, Agent Archetypes)
-
-These will likely consolidate into a single surface in a future release; see the visual decision board for status.
+The public site uses **`/examples`** as the single source-backed catalogue for runnable patterns.
 
 ---
 

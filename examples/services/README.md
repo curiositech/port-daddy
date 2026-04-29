@@ -1,75 +1,52 @@
 # Example Services
 
-Toy services for demonstrating Port Daddy orchestration.
+These are tiny services you can orchestrate with Port Daddy. They avoid
+framework dependencies so the examples run from this repo without installing
+Express or a separate frontend stack.
 
-## Services
+| Service | Default identity | Shows |
+| --- | --- | --- |
+| API | `examples:api` | Claims a port, exposes `/health` and `/items`, releases on shutdown |
+| Web | `examples:web` | Waits for/discovers the API through Port Daddy before serving HTML |
+| Worker | `examples:worker` | Waits for/discovers the API, then polls it |
 
-| Service | Port | Description |
-|---------|------|-------------|
-| `demo-api` | 3001 | Express REST API with in-memory store |
-| `demo-worker` | - | Background worker that polls the API |
-| `demo-frontend` | 3000 | Static HTML page that talks to the API |
+## Run Manually
 
-## Manual Start
-
-```bash
-# Terminal 1: API server
-PORT=3001 npx tsx api-server.ts
-
-# Terminal 2: Worker
-API_URL=http://localhost:3001 npx tsx worker.ts
-
-# Terminal 3: Frontend
-PORT=3000 API_URL=http://localhost:3001 npx tsx frontend.ts
-```
-
-## Port Daddy Orchestration
-
-### Register services once
+Use three terminals:
 
 ```bash
-# Register the API server
-pd scan examples/services --name demo-api
-
-# Or manually (if scan doesn't detect it)
-pd claim demo-api --port 3001 --dir examples/services --command "npx tsx api-server.ts"
+npx tsx examples/services/api-server.ts
+npx tsx examples/services/frontend.ts
+npx tsx examples/services/worker.ts
 ```
 
-### Start/stop services
+Inspect:
 
 ```bash
-# Start all
-pd up demo-api
-pd up demo-frontend
-
-# Check status
-pd status demo-api
-pd services
-
-# Stop all
-pd down demo-api
-pd down demo-frontend
+pd find examples:
+pd wait examples:api examples:web
+npx tsx examples/devtools/agent-workbench.ts
 ```
 
-### Service Dependencies
+## Expose The Frontend
 
-The worker needs the API to be running. Use the SDK to handle dependencies:
+After the web service is running:
 
-```typescript
-import { PortDaddy } from 'port-daddy';
-
-const pd = new PortDaddy();
-
-// Wait for API to be healthy before starting dependent services
-await pd.waitForService('demo-api', { timeout: 30000 });
-console.log('API is ready, starting worker...');
+```bash
+npx tsx examples/tunnel/share-preview.ts start --identity examples:web --provider cloudflared
+pd tunnel list
 ```
 
-## What These Demonstrate
+Stop the tunnel when done:
 
-1. **Simple service registration** — `pd scan` detects framework and registers
-2. **Port assignment** — Port Daddy assigns stable ports across sessions
-3. **Health checks** — All services expose `/health` for monitoring
-4. **Graceful shutdown** — Services handle SIGTERM cleanly
-5. **Service dependencies** — Worker depends on API
-6. **Orchestration** — Start/stop groups of services together
+```bash
+npx tsx examples/tunnel/share-preview.ts stop --identity examples:web
+```
+
+## Customize Identities
+
+```bash
+PD_SERVICE_ID=myapp:api PORT=4100 npx tsx examples/services/api-server.ts
+API_ID=myapp:api PD_SERVICE_ID=myapp:web npx tsx examples/services/frontend.ts
+API_ID=myapp:api PD_SERVICE_ID=myapp:worker npx tsx examples/services/worker.ts
+```

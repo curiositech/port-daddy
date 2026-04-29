@@ -148,12 +148,18 @@ pd actors --project <project>
 pd actor cartographer --project <project>
 pd actor navigator --inbox-stats
 pd actor navigator --inbox --unread
+pd roadmap --feedback-status open
 ```
 
 `cartographer` is a compatibility alias for the durable `navigator` actor.
 Navigator owns roadmap, recovery-ledger, work-slice, and cartographer-status
 truth. Lookout owns docs, README, OpenAPI, SDK/MCP/CLI references, website,
 Mac app/FleetBar documentation, skill, and product-truth drift.
+
+`pd roadmap` is the operator projection of that map. It reads curated roadmap
+files plus live tuple-backed feedback; `pd roadmap ack <feedbackId> --into
+<slug>` harvests feedback through the feedback primitive when Cartographer or an
+operator has folded it into roadmap truth.
 
 Use actor messages when the durable role should update or arbitrate:
 

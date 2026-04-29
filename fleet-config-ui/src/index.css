@@ -191,6 +191,10 @@ html[data-theme="light"] {
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--pd-accent) 30%, transparent);
   }
 
+  .pd-checkbox {
+    accent-color: var(--pd-accent);
+  }
+
   .pd-label {
     display: block;
     margin-bottom: 0.45rem;

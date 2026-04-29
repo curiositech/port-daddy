@@ -25,6 +25,9 @@ CHANNEL="bridge:${PROJECT}:incident"
 AGENT_A="agent-alpha-$$"
 AGENT_B="agent-bravo-$$"
 AGENT_C="agent-charlie-$$"
+SESSION_A=""
+SESSION_B=""
+SESSION_C=""
 
 # --- Colors ---
 RED='\033[0;31m'
@@ -50,13 +53,23 @@ pause() {
   sleep 1
 }
 
+session_id_from_json() {
+  node -e "let data=''; process.stdin.on('data', c => data += c); process.stdin.on('end', () => console.log(JSON.parse(data).sessionId));"
+}
+
 # --- Cleanup on exit ---
 cleanup() {
   echo ""
   header "Cleanup"
-  pd done --agent "$AGENT_A" --summary "War room concluded" -q 2>/dev/null || true
-  pd done --agent "$AGENT_B" --summary "War room concluded" -q 2>/dev/null || true
-  pd done --agent "$AGENT_C" --summary "War room concluded" -q 2>/dev/null || true
+  if [[ -n "$SESSION_A" ]]; then
+    pd done "War room concluded" --agent "$AGENT_A" --session "$SESSION_A" -q 2>/dev/null || true
+  fi
+  if [[ -n "$SESSION_B" ]]; then
+    pd done "War room concluded" --agent "$AGENT_B" --session "$SESSION_B" -q 2>/dev/null || true
+  fi
+  if [[ -n "$SESSION_C" ]]; then
+    pd done "War room concluded" --agent "$AGENT_C" --session "$SESSION_C" -q 2>/dev/null || true
+  fi
   echo -e "  ${DIM}All agents signed off${RESET}"
 }
 trap cleanup EXIT
@@ -71,19 +84,19 @@ echo ""
 pause
 
 agent_say "$AGENT_A" "$CYAN" "Registering as incident lead..."
-pd begin --agent "$AGENT_A" \
+SESSION_A="$(pd begin --agent "$AGENT_A" \
   --identity "${PROJECT}:backend:incident-lead" \
-  --purpose "Investigate auth 500 errors - lead" -q
+  --purpose "Investigate auth 500 errors - lead" -j | session_id_from_json)"
 
 agent_say "$AGENT_B" "$YELLOW" "Registering as database investigator..."
-pd begin --agent "$AGENT_B" \
+SESSION_B="$(pd begin --agent "$AGENT_B" \
   --identity "${PROJECT}:database:investigator" \
-  --purpose "Check database connections and query logs" -q
+  --purpose "Check database connections and query logs" -j | session_id_from_json)"
 
 agent_say "$AGENT_C" "$GREEN" "Registering as log analyst..."
-pd begin --agent "$AGENT_C" \
+SESSION_C="$(pd begin --agent "$AGENT_C" \
   --identity "${PROJECT}:logs:analyst" \
-  --purpose "Analyze error logs and stack traces" -q
+  --purpose "Analyze error logs and stack traces" -j | session_id_from_json)"
 
 pause
 echo ""
@@ -96,22 +109,22 @@ header "Act 2: Investigation Begins"
 
 # Agent A: sets the stage
 agent_say "$AGENT_A" "$CYAN" "Publishing initial report to shared channel..."
-pd msg publish "$CHANNEL" "SITREP: /api/auth returning 500 since 14:32 UTC. Affecting ~30% of requests. All hands investigate." -q
-pd note "Starting auth incident investigation. Error rate: 30% of /api/auth requests returning 500." --agent "$AGENT_A" -q
+pd pub "$CHANNEL" "SITREP: /api/auth returning 500 since 14:32 UTC. Affecting ~30% of requests. All hands investigate." --sender "$AGENT_A" -q
+pd note "Starting auth incident investigation. Error rate: 30% of /api/auth requests returning 500." --session "$SESSION_A" -q
 
 pause
 
 # Agent B: checks database
 agent_say "$AGENT_B" "$YELLOW" "Checking database connection pool..."
-pd note "Database connection pool at 47/50 connections. No timeouts in pg_stat_activity. Pool is healthy." --agent "$AGENT_B" -q
-pd msg publish "$CHANNEL" "Database pool healthy: 47/50 connections, no timeouts." -q
+pd note "Database connection pool at 47/50 connections. No timeouts in pg_stat_activity. Pool is healthy." --session "$SESSION_B" -q
+pd pub "$CHANNEL" "Database pool healthy: 47/50 connections, no timeouts." --sender "$AGENT_B" -q
 
 pause
 
 # Agent C: analyzes logs
 agent_say "$AGENT_C" "$GREEN" "Scanning error logs for stack traces..."
-pd note "Found repeating stack trace in auth service: TypeError: Cannot read properties of undefined (reading 'exp') at validateToken (auth.ts:142)" --agent "$AGENT_C" -q
-pd msg publish "$CHANNEL" "FOUND: Repeating TypeError in auth.ts:142 - token.exp is undefined. Looks like malformed JWT." -q
+pd note "Found repeating stack trace in auth service: TypeError: Cannot read properties of undefined (reading 'exp') at validateToken (auth.ts:142)" --session "$SESSION_C" -q
+pd pub "$CHANNEL" "FOUND: Repeating TypeError in auth.ts:142 - token.exp is undefined. Looks like malformed JWT." --sender "$AGENT_C" -q
 
 pause
 
@@ -122,25 +135,25 @@ header "Act 3: Narrowing Down the Bug"
 
 # Agent A: responds to findings
 agent_say "$AGENT_A" "$CYAN" "Reading channel messages..."
-pd msg get "$CHANNEL" -q | head -5 2>/dev/null || true
+pd channels describe "$CHANNEL" 2>/dev/null || true
 echo ""
 
 agent_say "$AGENT_A" "$CYAN" "Investigating token validation path..."
-pd note "auth.ts:142 validates JWT expiration. If token.exp is undefined, it means the JWT was signed without an exp claim. Checking token generation code." --agent "$AGENT_A" -q
+pd note "auth.ts:142 validates JWT expiration. If token.exp is undefined, it means the JWT was signed without an exp claim. Checking token generation code." --session "$SESSION_A" -q
 
 pause
 
 # Agent B: checks recent deployments
 agent_say "$AGENT_B" "$YELLOW" "Checking recent deployments..."
-pd note "Found: deploy at 14:28 UTC updated jwt-signer to v3.2.0. Changelog shows breaking change: exp field moved from root to payload.claims.exp" --agent "$AGENT_B" -q
-pd msg publish "$CHANNEL" "BREAKTHROUGH: jwt-signer v3.2.0 deployed at 14:28 moved exp to payload.claims.exp. This is the breaking change." -q
+pd note "Found: deploy at 14:28 UTC updated jwt-signer to v3.2.0. Changelog shows breaking change: exp field moved from root to payload.claims.exp" --session "$SESSION_B" -q
+pd pub "$CHANNEL" "BREAKTHROUGH: jwt-signer v3.2.0 deployed at 14:28 moved exp to payload.claims.exp. This is the breaking change." --sender "$AGENT_B" -q
 
 pause
 
 # Agent C: confirms
 agent_say "$AGENT_C" "$GREEN" "Confirming with token samples..."
-pd note "Confirmed: tokens issued after 14:28 have exp nested under claims. Old validation code expects token.exp at root level." --agent "$AGENT_C" -q
-pd msg publish "$CHANNEL" "Confirmed. All 500s are from tokens issued after 14:28. Old tokens still work fine." -q
+pd note "Confirmed: tokens issued after 14:28 have exp nested under claims. Old validation code expects token.exp at root level." --session "$SESSION_C" -q
+pd pub "$CHANNEL" "Confirmed. All 500s are from tokens issued after 14:28. Old tokens still work fine." --sender "$AGENT_C" -q
 
 pause
 
@@ -151,8 +164,8 @@ header "Act 4: Resolution"
 
 # Agent A: proposes fix
 agent_say "$AGENT_A" "$CYAN" "Proposing fix..."
-pd note "Fix: Update validateToken() to check both token.exp and token.claims?.exp for backward compatibility. Then pin jwt-signer to ~3.1.0 in package.json to prevent future surprises." --agent "$AGENT_A" -q
-pd msg publish "$CHANNEL" "FIX PROPOSED: Dual-path exp check in validateToken() + pin jwt-signer to ~3.1.0. Deploying hotfix." -q
+pd note "Fix: Update validateToken() to check both token.exp and token.claims?.exp for backward compatibility. Then pin jwt-signer to ~3.1.0 in package.json to prevent future surprises." --session "$SESSION_A" -q
+pd pub "$CHANNEL" "FIX PROPOSED: Dual-path exp check in validateToken() + pin jwt-signer to ~3.1.0. Deploying hotfix." --sender "$AGENT_A" -q
 
 pause
 

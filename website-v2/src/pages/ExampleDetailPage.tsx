@@ -1,5 +1,6 @@
 import { Navigate, useLocation, useParams } from 'react-router-dom'
 import { Footer } from '@/components/layout/Footer'
+import { ExampleArtwork } from '@/components/examples/ExampleArtwork'
 import {
   BracketAnchor,
   BracketLink,
@@ -39,6 +40,7 @@ export function ExampleDetailPage() {
     { id: 'adapt', title: 'Adapt it' },
   ]
   const activeAnchor = location.hash ? location.hash.replace('#', '') : anchors[0]?.id
+  const needsPortDaddy = example.prerequisites.some((item) => item.toLowerCase().includes('port daddy'))
 
   return (
     <div className="min-h-screen bg-[var(--surface-base)] selection:bg-[var(--brand-primary)] selection:text-[var(--brand-primary-foreground)]">
@@ -67,10 +69,36 @@ export function ExampleDetailPage() {
           }
         />
 
+        <section aria-label={`${example.title} artwork`}>
+          <ExampleArtwork example={example} priority variant="hero" />
+        </section>
+
         <div className="grid gap-[var(--space-6)] xl:grid-cols-[minmax(0,1fr)_var(--docs-rail-width)]">
           <div className="space-y-[var(--space-5)]">
+            <DocsNoteCard label="What this builds" title={example.builds} elevation="quiet">
+              <div className="space-y-[var(--panel-gap-tight)]">
+                <PanelBody className="max-w-[60rem]">{example.surveyPlain}</PanelBody>
+                <PanelBody className="max-w-[60rem] text-[var(--text-secondary)]">{example.whyItMatters}</PanelBody>
+              </div>
+            </DocsNoteCard>
+
             <DocsNoteCard label="Prerequisites" title="Before you run it." elevation="quiet">
               <PanelList items={example.prerequisites} />
+              {needsPortDaddy ? (
+                <div className="grid gap-[var(--space-3)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
+                  <PanelBody size="compact" className="max-w-[58rem]">
+                    Do this first if Port Daddy is not installed or the daemon is not running.
+                  </PanelBody>
+                  <div className="flex flex-wrap gap-[var(--panel-gap-tight)]">
+                    <BracketLink to="/docs/get-started" tone="blue" side="left">
+                      Install Port Daddy
+                    </BracketLink>
+                    <BracketLink to="/docs/get-started" tone="accent" side="right">
+                      Get setup command
+                    </BracketLink>
+                  </div>
+                </div>
+              ) : null}
             </DocsNoteCard>
 
             {example.sections.map((section) => (

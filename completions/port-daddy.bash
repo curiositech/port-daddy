@@ -1737,7 +1737,19 @@ _port_daddy() {
 
     # roadmap  [options]
     roadmap)
-      _pd_opts '--dir --root --projectDir --limit --no-excerpts --json --quiet'
+      local subcmd="${words[2]:-}"
+      case "$subcmd" in
+        ack|harvest)
+          _pd_opts '--as --into --id --feedbackId --json --quiet'
+          ;;
+        *)
+          if [[ "$cur" == -* ]]; then
+            _pd_opts '--dir --root --projectDir --limit --feedback-status --feedback-harbor --feedback-limit --no-excerpts --json --quiet'
+          else
+            COMPREPLY=( $(compgen -W "ack harvest help" -- "$cur") )
+          fi
+          ;;
+      esac
       ;;
 
     # fleet  init|up|down|status|run|panic|unpanic|validate|prompt|help  [agent-name]

@@ -230,4 +230,68 @@ describe('projects routes', () => {
 
     await app.close();
   });
+
+  test('GET /projects reuses a short-lived operator payload during poll bursts', async () => {
+    mockLoadFleetConfig.mockReturnValue({
+      name: 'cached',
+      limits: { budgetUsdPerDay: 5 },
+      agents: [{ name: 'qa' }],
+      watchers: [],
+      channels: {},
+    });
+
+    const listKnown = jest.fn(() => [
+      {
+        id: 'cached',
+        displayName: 'cached',
+        root: '/repo/cached',
+        type: 'fleet',
+        services: null,
+        config: null,
+        tags: [],
+        last_scanned: 0,
+        created_at: 0,
+        metadata: null,
+        signals: ['fleet'],
+        sources: ['discovered'],
+        exists: true,
+      },
+    ]);
+    const getStatus = jest.fn(() => ({ fleets: [] }));
+    const find = jest.fn(() => ({ success: true, services: [] }));
+
+    const app = Fastify();
+    await app.register(projectsPlugin, {
+      deps: {
+        projects: {
+          register: jest.fn(),
+          get: jest.fn(),
+          list: jest.fn(() => []),
+          listKnown,
+          remove: jest.fn(),
+        },
+        services: { find },
+        fleetDaemon: { getStatus },
+        metrics: { errors: 0 },
+        logger: {
+          info: jest.fn(),
+          error: jest.fn(),
+        },
+        activityLog: {},
+      },
+    });
+
+    const first = await app.inject({ method: 'GET', url: '/projects' });
+    const second = await app.inject({ method: 'GET', url: '/projects' });
+
+    expect(first.statusCode).toBe(200);
+    expect(second.statusCode).toBe(200);
+    expect(second.json()).toEqual(first.json());
+    expect(listKnown).toHaveBeenCalledTimes(1);
+    expect(mockLoadFleetConfig).toHaveBeenCalledTimes(1);
+    expect(getStatus).toHaveBeenCalledTimes(1);
+    expect(find).toHaveBeenCalledTimes(1);
+
+    await app.close();
+  });
 });

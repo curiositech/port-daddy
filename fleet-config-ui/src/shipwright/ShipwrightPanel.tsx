@@ -32,6 +32,9 @@ import type {
 interface ShipwrightPanelProps {
   projectDir?: string;
   projectName?: string | null;
+  onOpenFlow?: () => void;
+  onOpenAgents?: () => void;
+  onOpenYaml?: () => void;
 }
 
 interface ShipwrightPanelState {
@@ -83,7 +86,7 @@ function persistSubview(view: ShipwrightSubview): void {
  *     projectName="port-daddy"
  *   />
  */
-export default function ShipwrightPanel({ projectDir }: ShipwrightPanelProps) {
+export default function ShipwrightPanel({ projectDir, onOpenFlow, onOpenAgents, onOpenYaml }: ShipwrightPanelProps) {
   const [state, setState] = useState<ShipwrightPanelState>(() => initialState(projectDir));
   const [activeSubview, setActiveSubview] = useState<ShipwrightSubview>(() => readInitialSubview());
   const [refreshing, setRefreshing] = useState(false);
@@ -193,7 +196,13 @@ export default function ShipwrightPanel({ projectDir }: ShipwrightPanelProps) {
           <SimulationView proposal={state.proposal} simulation={state.simulation} />
         )}
         {activeSubview === 'control' && (
-          <FleetControlView proposal={state.proposal} simulation={state.simulation} />
+          <FleetControlView
+            proposal={state.proposal}
+            simulation={state.simulation}
+            onOpenFlow={onOpenFlow}
+            onOpenAgents={onOpenAgents}
+            onOpenYaml={onOpenYaml}
+          />
         )}
 
         <section

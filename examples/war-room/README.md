@@ -1,6 +1,8 @@
-# War Room Example
+# Scripted War Room Example
 
-A multi-agent incident response simulation using Port Daddy.
+A scripted incident response example using Port Daddy sessions, notes, and
+pub/sub. For a queryable tuple-backed swarm board, start with
+`examples/swarm/coordination-board.ts`.
 
 ## What It Does
 
@@ -40,8 +42,8 @@ Review the investigation trail:
 # See all recent notes
 pd notes --limit 20
 
-# See channel messages
-pd msg get bridge:warroom:incident
+# Inspect the channel
+pd channels describe bridge:warroom:incident
 
 # See active agents (should be empty after cleanup)
 pd agents
@@ -61,8 +63,8 @@ pd begin --agent my-agent \
 pd note "Found the issue in auth.ts:142 - missing null check"
 
 # Share with the team
-pd msg publish bridge:myproject:incident "Root cause found, deploying fix"
+pd pub bridge:myproject:incident "Root cause found, deploying fix" --sender my-agent
 
 # Sign off when done
-pd done --agent my-agent --summary "Fixed auth regression in PR #432"
+pd done "Fixed auth regression in PR #432" --agent my-agent
 ```

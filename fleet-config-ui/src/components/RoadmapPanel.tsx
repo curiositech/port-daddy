@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Clock3, Map, RefreshCw, Route, ScrollText } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Clock3, Map, RefreshCw, Route, ScrollText } from 'lucide-react';
 
-import { fetchRoadmapProgress } from '../api';
+import { fetchRoadmapProgress, harvestRoadmapFeedback } from '../api';
 import { summarizeRoadmapProgress } from '../lib/roadmap-panel';
 import type { RoadmapFeedbackEntry, RoadmapProgress } from '../types';
 
@@ -42,19 +42,52 @@ function StatusBadge({ label, tone = 'default' }: { label: string; tone?: 'defau
   );
 }
 
-function FeedbackRow({ entry }: { entry: RoadmapFeedbackEntry }) {
+function FeedbackRow({
+  entry,
+  onAck,
+  acting,
+}: {
+  entry: RoadmapFeedbackEntry;
+  onAck?: (entry: RoadmapFeedbackEntry) => void;
+  acting?: boolean;
+}) {
+  const canAck = Boolean(onAck && entry.feedbackId && entry.status === 'open');
+  const detail = entry.hook ?? entry.summary;
+  const statusTone = entry.status === 'now' || entry.status === 'harvested'
+    ? 'success'
+    : entry.status === 'open' || entry.severity === 'critical'
+      ? 'warning'
+      : 'default';
+
   return (
     <div className="rounded-md border px-3 py-2" style={{ backgroundColor: 'var(--pd-bg)', borderColor: 'var(--pd-border)' }}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="truncate font-mono text-xs font-semibold" style={{ color: 'var(--pd-text)' }}>{entry.slug}</div>
-          {entry.hook && <div className="mt-1 text-xs leading-snug" style={{ color: 'var(--pd-muted)' }}>{entry.hook}</div>}
+          {detail && <div className="mt-1 text-xs leading-snug" style={{ color: 'var(--pd-muted)' }}>{detail}</div>}
         </div>
-        <StatusBadge label={entry.status} tone={entry.status === 'now' ? 'success' : 'default'} />
+        <div className="flex shrink-0 items-center gap-2">
+          <StatusBadge label={entry.severity ?? entry.status} tone={statusTone} />
+          {canAck && (
+            <button
+              type="button"
+              onClick={() => onAck?.(entry)}
+              disabled={acting}
+              className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[10px] font-semibold disabled:cursor-not-allowed"
+              style={{ color: 'var(--pd-success)', border: '1px solid var(--pd-success-border)', backgroundColor: 'var(--pd-success-surface)', opacity: acting ? 0.65 : 1 }}
+              title="Mark feedback harvested"
+            >
+              <CheckCircle2 size={12} />
+              <span>{acting ? 'Acking' : 'Ack'}</span>
+            </button>
+          )}
+        </div>
       </div>
-      {entry.surface && (
-        <div className="mt-2 text-[10px] font-semibold" style={{ color: 'var(--pd-dim)' }}>
-          {entry.surface}
+      {(entry.surface || entry.droppedBy || entry.feedbackId) && (
+        <div className="mt-2 flex flex-wrap gap-2 text-[10px] font-semibold" style={{ color: 'var(--pd-dim)' }}>
+          {entry.surface && <span>{entry.surface}</span>}
+          {entry.droppedBy && <span>by {entry.droppedBy}</span>}
+          {entry.feedbackId && <span>id {entry.feedbackId.slice(0, 8)}</span>}
         </div>
       )}
     </div>
@@ -86,6 +119,8 @@ export default function RoadmapPanel({
   const [progress, setProgress] = useState<RoadmapProgress | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actingFeedbackId, setActingFeedbackId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -103,9 +138,28 @@ export default function RoadmapPanel({
     void load();
   }, [load]);
 
+  const ackFeedback = useCallback(async (entry: RoadmapFeedbackEntry) => {
+    if (!entry.feedbackId) return;
+    setActingFeedbackId(entry.feedbackId);
+    setActionError(null);
+    try {
+      await harvestRoadmapFeedback({
+        feedbackId: entry.feedbackId,
+        harvestedBy: 'operator-control-plane',
+        intoSlug: entry.slug,
+      });
+      await load();
+    } catch (err) {
+      setActionError((err as Error).message);
+    } finally {
+      setActingFeedbackId(null);
+    }
+  }, [load]);
+
   const summary = useMemo(() => summarizeRoadmapProgress(progress), [progress]);
   const nextCuts = progress?.nextCuts.slice(0, 8) ?? [];
   const ideasNow = progress?.ideasNow.slice(0, 8) ?? [];
+  const liveFeedback = progress?.liveFeedback.slice(0, 8) ?? [];
   const dogfoodFeedback = progress?.dogfoodFeedback.slice(0, 8) ?? [];
 
   return (
@@ -147,6 +201,12 @@ export default function RoadmapPanel({
             <span className="text-sm font-semibold">{error}</span>
           </div>
         )}
+        {actionError && (
+          <div className="mb-4 flex items-start gap-2 rounded-lg border px-3 py-2" style={{ backgroundColor: 'var(--pd-warning-surface)', borderColor: 'var(--pd-warning-border)', color: 'var(--pd-warning)' }}>
+            <AlertTriangle size={15} />
+            <span className="text-sm font-semibold">{actionError}</span>
+          </div>
+        )}
 
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
           <div className="grid gap-4">
@@ -166,6 +226,25 @@ export default function RoadmapPanel({
                     <div className="font-mono text-xs font-semibold" style={{ color: 'var(--pd-text)' }}>{cut.slug}</div>
                     <div className="mt-1 text-xs leading-snug" style={{ color: 'var(--pd-muted)' }}>{cut.summary}</div>
                   </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-lg border" style={{ backgroundColor: 'var(--pd-surface)', borderColor: 'var(--pd-border)' }}>
+              <div className="flex items-center justify-between gap-3 px-3 py-2" style={{ borderBottom: '1px solid var(--pd-border)' }}>
+                <span className="text-[10px] font-semibold tracking-wider" style={{ color: 'var(--pd-dim)' }}>LIVE FEEDBACK</span>
+                <StatusBadge label={`${progress?.feedbackSummary?.open ?? progress?.liveFeedback.length ?? 0} open`} tone={liveFeedback.length > 0 ? 'warning' : 'success'} />
+              </div>
+              <div className="grid gap-2 p-3">
+                {liveFeedback.length === 0 ? (
+                  <div className="text-sm" style={{ color: 'var(--pd-muted)' }}>No open tuple feedback surfaced.</div>
+                ) : liveFeedback.map((entry) => (
+                  <FeedbackRow
+                    key={entry.feedbackId ?? entry.slug}
+                    entry={entry}
+                    onAck={ackFeedback}
+                    acting={actingFeedbackId === entry.feedbackId}
+                  />
                 ))}
               </div>
             </div>
@@ -211,7 +290,7 @@ export default function RoadmapPanel({
                   <span>SOURCES READABLE</span>
                 </div>
                 <div className="mt-1 text-xs" style={{ color: 'var(--pd-muted)' }}>
-                  Cartographer roadmap, trove, feedback, current-work, and status sources loaded.
+                  Cartographer roadmap, live feedback, trove, current-work, and status sources loaded.
                 </div>
               </div>
             )}

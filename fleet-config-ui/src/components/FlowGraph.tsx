@@ -330,7 +330,7 @@ export default function FlowGraph({ config, topology, theme, selectedAgent, sele
       <div className="absolute top-3 right-3 z-10 flex flex-col gap-1.5 text-[10px]" style={{ color: 'var(--pd-muted)' }}>
         <label className="flex items-center gap-1.5 cursor-pointer select-none">
           <input type="checkbox" checked={hideUnrelated} onChange={e => setHideUnrelated(e.target.checked)}
-            className="accent-red-600 w-3 h-3" />
+            className="pd-checkbox w-3 h-3" />
           <span>Hide unrelated</span>
         </label>
         {topology && !topology.valid && (
