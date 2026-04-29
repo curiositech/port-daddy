@@ -42,7 +42,8 @@ Project-specific shibboleths for proficient Port Daddy work. If you learn a new 
 - Durable actors own this escalation layer:
   - Coxswain watches claims, locks, stale assets, and symbolic coordination
   - Navigator/Cartographer watches roadmap, recovery-ledger, work-slice, and status-map drift
-  - Lookout watches docs, OpenAPI, skills, website, and product-truth drift
+  - Lookout watches docs, README, OpenAPI, SDK/MCP/CLI references, skills,
+    website, Mac app/FleetBar documentation, and product-truth drift
   - Quartermaster watches spawn discipline, model/backend readiness, and spend
 - Use `coordination:inconsistency` as the worktree-scoped callout channel for operator-worthy conflicts. Routine progress belongs in notes, not that channel.
 - If the infrastructure cannot prove agents are talking, make that visible. “Active sessions” plus “zero live registered agents” is itself a coordination inconsistency, not a healthy fleet.
@@ -110,7 +111,7 @@ Project-specific shibboleths for proficient Port Daddy work. If you learn a new 
   - `docs/recovery/PD-AGENT-SORTIE-PLAN.md` for mission/sortie behavior
   - `docs/DELEGATION-MODES.md` for spawn vs agent vs sortie vs fleet vs harbor
   - if source/docs promise a command or surface and the build does not have it, treat that as a drift bug to fix instead of silently redefining the product
-- `skills/port-daddy-cli/SKILL.md` and `skills/port-daddy-cli/references/api-reference.md` are release surfaces, not optional afterthoughts. If Port Daddy’s CLI, MCP, delegation model, or operator workflows change, update those skill docs in the same slice.
+- `skills/port-daddy-cli/SKILL.md` and `skills/port-daddy-cli/references/api-reference.md` are release surfaces, not optional afterthoughts. If Port Daddy’s CLI, SDK, MCP, delegation model, website story, Mac app/FleetBar behavior, README install flow, or operator workflows change, update those skill docs and the matching docs/website/README surface in the same slice.
 - `pd agent` is a thin ad hoc wrapper over `/sugar/begin` + `/spawn` + `/sugar/done`, not a sortie object. Treat its UI presence as a manual job/run unless the launch explicitly came from the sortie workflow.
 - Operator-facing agent launches are fail-closed on telemetry now. Do not treat a run as acceptable unless Port Daddy can attach exact token counts, an exact nonzero model rate, and a persisted exact nonzero cost record to the completed launch.
 - `createSpawner()` defaults telemetry enforcement on. Any code that opts out with `enforceTelemetryPolicy: false` must attach explicit HITL confirmation metadata; a silent bypass is a policy violation.

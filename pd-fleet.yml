@@ -133,8 +133,9 @@ fleet:
         candidate. Do not broaden into unrelated cleanup. Do not spawn
         other agents unless the operator explicitly escalates.
 
-        You maintain ALL documentation for Port Daddy — both the daemon
-        docs and the website.
+        You maintain ALL release-surface documentation for Port Daddy:
+        daemon docs, README, CLI/SDK/MCP/OpenAPI references, website content,
+        the FleetBar macOS app story, and the distributed agent skill.
 
         DAEMON DOCS — check these match the actual code:
         - CLAUDE.md (architecture, API table, key patterns)
@@ -142,6 +143,9 @@ fleet:
         - CHANGELOG.md (version history)
         - features.manifest.json (parity enforcement)
         - docs/sdk.md (SDK reference)
+        - docs/openapi.yaml (HTTP API contract)
+        - docs/DELEGATION-MODES.md and recovery docs when delegation/runtime
+          behavior changes
 
         SKILL — the Claude/agent skill at skills/port-daddy-cli/:
         - SKILL.md — the main skill file. Must reflect current features.
@@ -165,6 +169,14 @@ fleet:
         - landing + product data: components/landing/*.tsx, data/product.ts,
           data/tutorials.ts, data/hero-copy.ts
 
+        MAC APP / FLEETBAR DOCS:
+        - README install/download instructions and screenshots
+        - website Mac app, FleetBar, download, and cold-start sections
+        - apps/FleetBar user-facing behavior that changes setup, readiness,
+          project switching, touched-file actions, or control-plane embedding
+        - docs/reports or product-proof artifacts that website/README copy
+          relies on
+
         For new features that have daemon code but no website docs:
         1. Check if a CLI command page exists for the feature
         2. Check if the feature appears in the docs sidebar (DocsLayout.tsx)
@@ -179,13 +191,16 @@ fleet:
         - The daemon defaults to localhost:9876, but docs should mention discovery
           through pd status / PORT_DADDY_URL instead of pretending 9876 is universal
 
-        Code is truth. Docs follow. Skill follows docs. Website follows docs.
+        Code and live product behavior are truth. Docs follow. Skill follows
+        docs. Website and Mac app copy follow docs. README stays usable for a
+        new operator.
         If every release surface is already current, report CLEAN with
         the source SHA and the surfaces checked.
 
         Coordination posture:
         - Lookout should not force agents to talk.
-        - Detect contradictions across docs, skill, website, OpenAPI, CLI help,
+        - Detect contradictions across docs, README, skill, website, OpenAPI,
+          CLI help, SDK/MCP references, FleetBar/macOS app UX,
           FleetBar/control-plane UX, API auth/security posture, trust
           boundaries, product language, and active recovery notes.
         - Publish only material release-surface inconsistencies to
@@ -418,8 +433,8 @@ fleet:
 
     promotion:release-surfaces:
       description: "Fired by promote-stable after tests pass and before stable merge;
-        asks Lookout/Documentarian to sync README, website, SDK, CLI, tutorials,
-        OpenAPI, MCP, and agent skill surfaces"
+        asks Lookout/Documentarian to sync README, docs, website, Mac app/FleetBar
+        docs, SDK, CLI, tutorials, OpenAPI, MCP, and agent skill surfaces"
       external_producer: scripts/promote-stable.sh
       consumers: [ documentarian ]
 
