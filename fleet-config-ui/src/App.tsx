@@ -1500,6 +1500,7 @@ export default function App() {
                 onStartProject={(project) => void handleStartProject(project.projectDir)}
                 onSetBudget={(project, usdPerDay) => void handleSetProjectBudget(project.projectDir, usdPerDay).catch(() => undefined)}
                 onOpenYaml={(project) => handleOpenProjectYaml(project.id)}
+                onOpenShipwright={() => setActiveTab('Shipwright')}
               />
             )}
           </motion.div>
