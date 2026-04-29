@@ -15,6 +15,9 @@ export interface McpCategory {
   description: string
 }
 
+export const MCP_TOOL_TOTAL = 135
+export const MCP_DEFAULT_TOOL_TOTAL = 18
+
 export const ESSENTIAL_TOOLS: McpTool[] = [
   {
     name: 'begin_session',
@@ -82,6 +85,16 @@ await pd_discover()
 
 export const ALL_CATEGORIES: McpCategory[] = [
   {
+    id: 'magic',
+    label: 'Magic',
+    color: 'var(--p-teal-700)',
+    darkColor: 'var(--p-teal-300)',
+    bg: 'var(--badge-teal-bg)',
+    border: 'var(--badge-teal-border)',
+    tools: ['fleet_init', 'fleet_status', 'swarm_awareness', 'sitrep', 'catch_me_up', 'file_heat', 'talk_to_agent', 'spawn_agent', 'run_sortie'],
+    description: 'High-level composed tools for fleet setup, swarm awareness, situation reports, agent spawning, sortie missions, file heat maps, and agent messaging.',
+  },
+  {
     id: 'session-lifecycle',
     label: 'Session Lifecycle',
     color: 'var(--p-teal-600)',
@@ -90,6 +103,26 @@ export const ALL_CATEGORIES: McpCategory[] = [
     border: 'var(--badge-teal-border)',
     tools: ['begin_session', 'end_session_full', 'whoami'],
     description: 'Start/end sessions, agent registration — the three commands every agent calls.',
+  },
+  {
+    id: 'advisor',
+    label: 'Advisor',
+    color: 'var(--p-amber-700)',
+    darkColor: 'var(--p-amber-300)',
+    bg: 'var(--badge-amber-bg)',
+    border: 'var(--badge-amber-border)',
+    tools: ['coordination_preflight'],
+    description: 'Deterministic coordination preflight for context integrity, claims, symbols, salvage, channels, tuples, and lock candidates.',
+  },
+  {
+    id: 'discovery',
+    label: 'Discovery',
+    color: 'var(--p-teal-600)',
+    darkColor: 'var(--p-teal-400)',
+    bg: 'var(--badge-teal-bg)',
+    border: 'var(--badge-teal-border)',
+    tools: ['pd_discover'],
+    description: 'Lists MCP categories, counts, function names, and full schemas so clients can unlock the specialized surface on demand.',
   },
   {
     id: 'ports',
@@ -150,6 +183,16 @@ export const ALL_CATEGORIES: McpCategory[] = [
     border: 'var(--badge-teal-border)',
     tools: ['register_agent', 'agent_heartbeat', 'unregister_agent', 'get_agent', 'list_agents', 'check_salvage', 'claim_salvage', 'salvage_complete', 'salvage_abandon', 'salvage_dismiss'],
     description: 'Agent registry, heartbeats, and the full salvage/resurrection lifecycle.',
+  },
+  {
+    id: 'actors',
+    label: 'Actors',
+    color: 'var(--p-teal-600)',
+    darkColor: 'var(--p-teal-400)',
+    bg: 'var(--badge-teal-bg)',
+    border: 'var(--badge-teal-border)',
+    tools: ['list_actors', 'get_actor', 'message_actor', 'list_actor_inbox', 'get_actor_inbox_stats'],
+    description: 'Durable actor directory, direct actor messages, inbox inspection, and live lease projections.',
   },
   {
     id: 'inbox',
@@ -242,6 +285,16 @@ export const ALL_CATEGORIES: McpCategory[] = [
     description: 'Full audit trail of all port claims, sessions, notes, and coordination events.',
   },
   {
+    id: 'sorties',
+    label: 'Sorties',
+    color: 'var(--p-amber-700)',
+    darkColor: 'var(--p-amber-300)',
+    bg: 'var(--badge-amber-bg)',
+    border: 'var(--badge-amber-border)',
+    tools: ['run_sortie', 'list_sorties', 'get_sortie', 'get_sortie_logs'],
+    description: 'Tracked mission records over spawned runs: launch, inspect status, and fetch sortie event logs.',
+  },
+  {
     id: 'system',
     label: 'System',
     color: 'var(--p-navy-700)',
@@ -250,6 +303,46 @@ export const ALL_CATEGORIES: McpCategory[] = [
     border: 'rgba(112, 144, 204, 0.2)',
     tools: ['daemon_status', 'get_version', 'get_metrics', 'get_config', 'wait_for_service', 'get_launch_hints'],
     description: 'Daemon health, version, metrics, config, and context-aware startup hints.',
+  },
+  {
+    id: 'tuples',
+    label: 'Tuples',
+    color: 'var(--p-green-700)',
+    darkColor: 'var(--p-green-400)',
+    bg: 'var(--badge-green-bg)',
+    border: 'var(--badge-green-border)',
+    tools: ['tuple_out', 'tuple_read', 'tuple_take', 'tuple_scan', 'tuple_count'],
+    description: 'Shared tuple space for swarm coordination: write, read, take, scan, and count structured facts.',
+  },
+  {
+    id: 'fleet-control',
+    label: 'Fleet Control',
+    color: 'var(--p-amber-700)',
+    darkColor: 'var(--brand-accent)',
+    bg: 'var(--badge-amber-bg)',
+    border: 'var(--badge-amber-border)',
+    tools: ['list_bonds', 'get_bond', 'slash_bond', 'list_wallets', 'get_wallet', 'top_up_wallet', 'set_wallet_budget', 'list_budget_pending', 'get_budget_pending', 'resolve_budget_pending', 'get_panic_status', 'arm_fleet_panic', 'disarm_fleet_panic'],
+    description: 'Bond escrow, project wallets, budget pause-and-ask, and fleet panic controls.',
+  },
+  {
+    id: 'semantic',
+    label: 'Semantic',
+    color: 'var(--p-teal-700)',
+    darkColor: 'var(--p-teal-300)',
+    bg: 'var(--badge-teal-bg)',
+    border: 'var(--badge-teal-border)',
+    tools: ['graph_edges', 'graph_stats', 'memory_episodes', 'memory_stats'],
+    description: 'Semantic graph and episodic memory inspection for graph edges, promoted handoffs, and project-level stats.',
+  },
+  {
+    id: 'feedback',
+    label: 'Feedback',
+    color: 'var(--p-green-700)',
+    darkColor: 'var(--p-green-400)',
+    bg: 'var(--badge-green-bg)',
+    border: 'var(--badge-green-border)',
+    tools: ['drop_feedback', 'list_feedback', 'feedback_summary'],
+    description: 'Agentic feedback primitives for structured findings that Cartographer can harvest into the roadmap.',
   },
 ]
 
