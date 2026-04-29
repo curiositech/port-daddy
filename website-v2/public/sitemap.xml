@@ -46,21 +46,6 @@
     <loc>https://portdaddy.dev/blog/zero-to-multi-agent-in-5-minutes</loc>
   </url>
   <url>
-    <loc>https://portdaddy.dev/cookbook</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/cookbook/agent-archetypes</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/cookbook/ephemeral-ci-db</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/cookbook/leader-election</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/cookbook/p2p-webrtc</loc>
-  </url>
-  <url>
     <loc>https://portdaddy.dev/docs</loc>
   </url>
   <url>
@@ -176,9 +161,6 @@
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/concepts</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/docs/examples</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/features/arbiter</loc>
@@ -430,7 +412,19 @@
     <loc>https://portdaddy.dev/examples</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/examples/agent-archetypes</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/examples/editor-lightbulb-to-agent</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/examples/ephemeral-ci-db</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/examples/leader-election</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/examples/p2p-webrtc</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/examples/pd-tube-button-to-agent</loc>

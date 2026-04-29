@@ -8,7 +8,7 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 ## Primary Entry Points
 
 - [Port Daddy - Local Communication Substrate for Coding Agents](https://portdaddy.dev/): Port Daddy is a local communication substrate and Mac control plane for coding agents: shared notes, claims, channels, actor inboxes, readiness, budgets, and recoverable handoffs.
-- [Docs Overview - Port Daddy](https://portdaddy.dev/docs): Start here, learn what Port Daddy does, install it, then jump to examples or reference.
+- [Docs Overview - Port Daddy](https://portdaddy.dev/docs): Start here, learn what Port Daddy does, install it, then jump to runnable examples or reference.
 - [Quickstart - Port Daddy](https://portdaddy.dev/docs/quickstart): Install Port Daddy, verify the daemon, claim a port, and start the first coordinated operator workflow.
 - [Get Started - Port Daddy](https://portdaddy.dev/docs/get-started): Install Port Daddy, check that it is running, and try your first coordinated agent task.
 - [Best Practices - Port Daddy](https://portdaddy.dev/docs/best-practices): Keep agent work visible, avoid collisions, recover interrupted runs, and promote changes safely.
@@ -17,7 +17,7 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 - [Tutorials - Port Daddy](https://portdaddy.dev/tutorials): Follow hands-on Port Daddy tutorials from first install through sessions, DNS, tunnels, fleet YAML, messaging, and background agents.
 - [Integrations - Port Daddy](https://portdaddy.dev/integrations): Wire Port Daddy into Claude, Cursor, Windsurf, LangChain, CrewAI, Aider, Continue.dev, and other developer tooling.
 - [Agent Fleet Templates - Port Daddy](https://portdaddy.dev/templates): Start from production-ready Port Daddy templates for CI repair loops, research swarms, monorepos, webhooks, and agent teams.
-- [Cookbook - Port Daddy](https://portdaddy.dev/cookbook): Use tested Port Daddy recipes for distributed locks, WebRTC signaling, ephemeral CI databases, and multi-agent topologies.
+- [Executable Examples - Port Daddy](https://portdaddy.dev/examples): Run complete Port Daddy example programs for local agent tools, swarms, inbox signaling, CI services, and topology traces.
 - [Blog - Port Daddy](https://portdaddy.dev/blog): Read practical Port Daddy essays about multi-agent coordination, port collisions, salvage, locks, fleets, and local-first operator tooling.
 - [Whitepaper - Port Daddy](https://portdaddy.dev/whitepaper): Read the Port Daddy protocol argument for local-first agent coordination, identity, authority, locks, sessions, and recoverable work.
 - [The Anchor Protocol - Port Daddy](https://portdaddy.dev/whitepaper/anchor-protocol): Read the Anchor Protocol paper inline with a guided explanation of scoped identity, delegation, verification, and why it matters for Port Daddy harbors.
@@ -25,7 +25,7 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 
 ## Docs
 
-- [Docs Overview - Port Daddy](https://portdaddy.dev/docs): Start here, learn what Port Daddy does, install it, then jump to examples or reference.
+- [Docs Overview - Port Daddy](https://portdaddy.dev/docs): Start here, learn what Port Daddy does, install it, then jump to runnable examples or reference.
 - [API Reference - Port Daddy](https://portdaddy.dev/docs/api): Inspect Port Daddy daemon API routes, request shapes, response contracts, and the operator workflows they support.
 - [Best Practices - Port Daddy](https://portdaddy.dev/docs/best-practices): Keep agent work visible, avoid collisions, recover interrupted runs, and promote changes safely.
 - [CLI Overview - Port Daddy](https://portdaddy.dev/docs/cli): Reference for CLI Overview, including Port Daddy syntax, operator intent, and coordinated local-agent workflow usage.
@@ -64,7 +64,6 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 - [pd whoami - Port Daddy](https://portdaddy.dev/docs/cli/whoami): Reference for pd whoami, including Port Daddy syntax, operator intent, and coordinated local-agent workflow usage.
 - [pd with-lock - Port Daddy](https://portdaddy.dev/docs/cli/with-lock): Reference for pd with-lock, including Port Daddy syntax, operator intent, and coordinated local-agent workflow usage.
 - [Concepts - Port Daddy](https://portdaddy.dev/docs/concepts): Learn the ideas behind sessions, notes, file claims, locks, ports, fleets, and recovery.
-- [Examples - Port Daddy](https://portdaddy.dev/docs/examples): Guided examples for PD Tube publishers, browser buttons, test reporters, editor commands, and webhook adapters.
 - [Arbiter - Port Daddy](https://portdaddy.dev/docs/features/arbiter): Learn the Port Daddy arbiter feature, what operator problem it solves, and how it fits the coordination model.
 - [Agent Avatars - Port Daddy](https://portdaddy.dev/docs/features/avatars): Learn the Port Daddy agent avatars feature, what operator problem it solves, and how it fits the coordination model.
 - [DNS Resolver - Port Daddy](https://portdaddy.dev/docs/features/dns): Learn the Port Daddy dns resolver feature, what operator problem it solves, and how it fits the coordination model.
@@ -116,7 +115,7 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 - [MCP Watch Tool - Port Daddy](https://portdaddy.dev/docs/mcp/watch): Use the Port Daddy MCP Watch Tool route for MCP clients, agent-safe tool calls, and model-facing coordination workflows.
 - [Windsurf MCP Setup - Port Daddy](https://portdaddy.dev/docs/mcp/windsurf): Use the Port Daddy Windsurf MCP Setup route for MCP clients, agent-safe tool calls, and model-facing coordination workflows.
 - [Quickstart - Port Daddy](https://portdaddy.dev/docs/quickstart): Install Port Daddy, verify the daemon, claim a port, and start the first coordinated operator workflow.
-- [Reference - Port Daddy](https://portdaddy.dev/docs/reference): CLI, API, SDK, MCP, config, and dashboard reference.
+- [Reference - Port Daddy](https://portdaddy.dev/docs/reference): CLI, API, SDK, MCP, configuration, and dashboard reference for the live daemon.
 - [Reference Architectures - Port Daddy](https://portdaddy.dev/docs/reference-architectures): Example layouts for the daemon, dashboard, fleets, harbors, and team workflows.
 - [SDK Overview - Port Daddy](https://portdaddy.dev/docs/sdk): Use the Port Daddy SDK Overview surface from typed client code with sessions, locks, ports, and agent coordination primitives.
 - [SDK Add Note - Port Daddy](https://portdaddy.dev/docs/sdk/add-note): Use the Port Daddy SDK Add Note surface from typed client code with sessions, locks, ports, and agent coordination primitives.
@@ -172,13 +171,17 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 - [Expose a Local Service - Port Daddy](https://portdaddy.dev/tutorials/tunnel): Publish a local service through pd tunnel with clear ownership, explicit provider choice, and a reversible path.
 - [Observe Runtime Channels - Port Daddy](https://portdaddy.dev/tutorials/watch): Use pd watch to follow channel activity, inspect event pressure, and trigger bounded responses from scripts or agents.
 
-## Cookbook
+## Examples
 
-- [Cookbook - Port Daddy](https://portdaddy.dev/cookbook): Use tested Port Daddy recipes for distributed locks, WebRTC signaling, ephemeral CI databases, and multi-agent topologies.
-- [Agent Archetypes & Topology - Port Daddy](https://portdaddy.dev/cookbook/agent-archetypes): Standard coordination patterns: The Arbiter, The Ring, and Star Topology.
-- [Ephemeral CI Database - Port Daddy](https://portdaddy.dev/cookbook/ephemeral-ci-db): Spin up an ephemeral PostgreSQL database for integration tests, isolated per CI runner.
-- [Leader Election - Port Daddy](https://portdaddy.dev/cookbook/leader-election): Elect a leader among multiple identical agents using Port Daddy distributed locks.
-- [P2P WebRTC Handshake - Port Daddy](https://portdaddy.dev/cookbook/p2p-webrtc): Establish a direct peer-to-peer WebRTC connection between two agents using Port Daddy Inboxes as the signaling server.
+- [Executable Examples - Port Daddy](https://portdaddy.dev/examples): Run complete Port Daddy example programs for local agent tools, swarms, inbox signaling, CI services, and topology traces.
+- [Publish an agent topology trace - Port Daddy](https://portdaddy.dev/examples/agent-archetypes): Turn star, ring, and arbiter coordination patterns into concrete Port Daddy channel events.
+- [Build an editor lightbulb that asks the local agent - Port Daddy](https://portdaddy.dev/examples/editor-lightbulb-to-agent): Select code in a local page, publish the file and range to the agent, and render the explanation inline.
+- [Claim a collision-free port for an ephemeral CI database - Port Daddy](https://portdaddy.dev/examples/ephemeral-ci-db): Wrap a Postgres test database so parallel CI jobs get stable semantic ports instead of fighting over 5432.
+- [Elect one leader from a local agent swarm - Port Daddy](https://portdaddy.dev/examples/leader-election): Run identical workers that race for one Port Daddy lock so exactly one becomes the coordinator.
+- [Build WebRTC signaling over agent inboxes - Port Daddy](https://portdaddy.dev/examples/p2p-webrtc): Use durable Port Daddy inboxes to exchange offer and answer messages before two agents open a direct peer channel.
+- [Build a button-to-agent loop with PD Tube - Port Daddy](https://portdaddy.dev/examples/pd-tube-button-to-agent): Turn a plain HTML button into a local phone line to the agent session already running in your project.
+- [Build a test reporter that asks the agent for help - Port Daddy](https://portdaddy.dev/examples/test-failure-to-agent): Wrap a failing test command, publish the failure to the local agent, and print the diagnosis back in the terminal.
+- [Build a webhook adapter backed by your workstation - Port Daddy](https://portdaddy.dev/examples/webhook-to-local-agent): Accept Slack, Discord, Linear, or generic webhook JSON and route it to the local agent through PD Tube.
 
 ## Integrations
 

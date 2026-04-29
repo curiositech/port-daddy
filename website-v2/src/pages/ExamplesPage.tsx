@@ -62,10 +62,10 @@ export function ExamplesPage() {
         <DocsHero
           eyebrow="Examples"
           title="Build tools that can reach your local agent."
-          summary="These are complete executable examples for the thing Port Daddy makes newly easy: a browser, test runner, editor command, or webhook can summon the agent session already running in your repo."
+          summary="These are complete executable examples for the things Port Daddy makes newly easy: local tools can summon agents, agents can coordinate through shared primitives, and support services can stop colliding."
           paragraphs={[
             'PD Tube is the flagship primitive. It turns local events into a blocking CLI loop with threaded replies, so the publisher stays tiny and the agent runtime stays swappable.',
-            'Pick the tool you want to build, run the source in /examples, then copy the publisher shape into your editor extension, test reporter, browser page, bot adapter, or local control panel.',
+            'Pick the system you want to build, run the source in /examples, then copy the shape into your editor extension, test reporter, browser page, bot adapter, CI harness, swarm runner, or local control panel.',
           ]}
           aside={
             <DocsNoteCard label="Start" title="Start with the phone line." elevation="quiet" padding="compact" titleSize="nav">
@@ -175,8 +175,8 @@ export function ExamplesPage() {
           <div className="lg:col-span-4">
             <DocsNoteCard label="Executable catalogue" title="Source-backed examples you can run today." elevation="quiet" padding="compact" titleSize="nav">
               <PanelBody size="compact" className="max-w-none">
-                The rest of the catalogue is deliberately narrow: publishers a developer would actually ship.
-                Each page keeps the full source visible and explains how to turn it into product code.
+                The runnable source is the product: each page keeps the full code visible and explains how to turn it
+                into product code.
               </PanelBody>
             </DocsNoteCard>
           </div>

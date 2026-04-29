@@ -1,6 +1,5 @@
 import { BLUEPRINTS } from './blueprints'
 import { blogPosts } from './blogData'
-import { COOKBOOK_RECIPES } from './cookbook'
 import { docsFamilyRoutes, docsOverviewRoute, type DocsFamilyRoute } from './docs-routes'
 import { INTEGRATIONS } from './integrations'
 import { TUTORIALS } from './tutorials'
@@ -17,7 +16,6 @@ export type SiteMetadataSection =
   | 'product'
   | 'docs'
   | 'tutorials'
-  | 'cookbook'
   | 'integrations'
   | 'templates'
   | 'blog'
@@ -85,7 +83,7 @@ const productRoutes: SiteMetadata[] = [
   metadata(
     '/examples',
     'Executable Examples',
-    'Run complete Port Daddy example programs for browser buttons, test reporters, editor commands, and webhook adapters that talk to local agents.',
+    'Run complete Port Daddy example programs for local agent tools, swarms, inbox signaling, CI services, and topology traces.',
   ),
   metadata(
     '/examples/pd-tube-button-to-agent',
@@ -110,6 +108,30 @@ const productRoutes: SiteMetadata[] = [
     'Build a webhook adapter backed by your workstation',
     'Accept Slack, Discord, Linear, or generic webhook JSON and route it to the local agent through PD Tube.',
     { tags: ['tube', 'webhooks', 'bots', 'http'] },
+  ),
+  metadata(
+    '/examples/leader-election',
+    'Elect one leader from a local agent swarm',
+    'Run identical workers that race for one Port Daddy lock so exactly one becomes the coordinator.',
+    { tags: ['locks', 'swarm', 'coordination', 'resilience'] },
+  ),
+  metadata(
+    '/examples/p2p-webrtc',
+    'Build WebRTC signaling over agent inboxes',
+    'Use durable Port Daddy inboxes to exchange offer and answer messages before two agents open a direct peer channel.',
+    { tags: ['inbox', 'webrtc', 'signaling', 'p2p'] },
+  ),
+  metadata(
+    '/examples/ephemeral-ci-db',
+    'Claim a collision-free port for an ephemeral CI database',
+    'Wrap a Postgres test database so parallel CI jobs get stable semantic ports instead of fighting over 5432.',
+    { tags: ['ports', 'ci', 'postgres', 'testing'] },
+  ),
+  metadata(
+    '/examples/agent-archetypes',
+    'Publish an agent topology trace',
+    'Turn star, ring, and arbiter coordination patterns into concrete Port Daddy channel events.',
+    { tags: ['swarm', 'pubsub', 'arbiter', 'topology'] },
   ),
   metadata(
     '/mcp',
@@ -137,12 +159,6 @@ const productRoutes: SiteMetadata[] = [
     'Tutorials',
     'Follow hands-on Port Daddy tutorials from first install through sessions, DNS, tunnels, fleet YAML, messaging, and background agents.',
     { section: 'tutorials' },
-  ),
-  metadata(
-    '/cookbook',
-    'Cookbook',
-    'Use tested Port Daddy recipes for distributed locks, WebRTC signaling, ephemeral CI databases, and multi-agent topologies.',
-    { section: 'cookbook' },
   ),
   metadata(
     '/integrations',
@@ -325,11 +341,6 @@ const contentMetadata: SiteMetadata[] = [
   ...TUTORIALS.map((tutorial) =>
     metadata(tutorial.href, tutorial.title, tutorial.description, {
       section: 'tutorials',
-    }),
-  ),
-  ...COOKBOOK_RECIPES.map((recipe) =>
-    metadata(`/cookbook/${recipe.id}`, recipe.title, recipe.description, {
-      section: 'cookbook',
     }),
   ),
   ...INTEGRATIONS.map((integration) =>

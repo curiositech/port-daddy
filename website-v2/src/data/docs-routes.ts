@@ -17,7 +17,6 @@ export type DocsFamilySlug =
   | 'get-started'
   | 'concepts'
   | 'best-practices'
-  | 'examples'
   | 'tutorials'
   | 'reference-architectures'
   | 'reference'
@@ -40,7 +39,7 @@ const productPrimitiveBullets = PRODUCT_FEATURES.map(
 export const docsOverviewRoute: DocsFamilyRoute = {
   slug: 'overview',
   title: 'Docs Overview',
-  summary: 'Start here, learn what Port Daddy does, install it, then jump to examples or reference.',
+  summary: 'Start here, learn what Port Daddy does, install it, then jump to runnable examples or reference.',
   tone: 'paper',
   path: '/docs',
   aliases: ['docs', 'overview'],
@@ -53,7 +52,7 @@ export const docsOverviewRoute: DocsFamilyRoute = {
       title: 'How to use these docs',
       bullets: [
         'Use Get Started to install Port Daddy and open the dashboard.',
-        'Use Examples and Tutorials when you want runnable workflows.',
+        'Use the top-level Examples page and Tutorials when you want runnable workflows.',
         'Use Concepts, Best Practices, Architectures, and Reference when you need deeper detail.',
       ],
     },
@@ -174,45 +173,6 @@ export const docsFamilyRoutes: DocsFamilyRoute[] = [
     ],
   },
   {
-    slug: 'examples',
-    title: 'Examples',
-    summary:
-      'Guided examples for PD Tube publishers, browser buttons, test reporters, editor commands, and webhook adapters.',
-    tone: 'blue',
-    path: '/docs/examples',
-    aliases: ['examples'],
-    intro: [
-      'Use these pages to see what each workflow is for, then open /examples for the commands, source files, and runnable code.',
-    ],
-    modules: [
-      {
-        truth: 'Live',
-        title: 'Local-agent tool examples',
-        bullets: [
-          'Use PD Tube when a local process needs a live coding agent to notice and answer.',
-          'Keep the publisher small: POST an event, remember the message id, and render the threaded reply.',
-          'Let the agent runtime stay CLI-only so Claude Code, ChatGPT, Codex, Cursor, Aider, and shell tools can all service the same stream.',
-        ],
-      },
-      {
-        truth: 'Live',
-        title: 'Publishers worth building',
-        bullets: [
-          'A browser or localhost admin panel button that asks the repo agent to deploy, test, or explain.',
-          'A test reporter that turns a failure into a structured local work request.',
-          'An editor lightbulb or webhook adapter that reaches the developer workstation instead of a hosted bot backend.',
-        ],
-      },
-      {
-        truth: 'Roadmap',
-        title: 'Example generation',
-        body: [
-          'Longer-term, examples should be generated or validated against real commands and routes so they drift less than hand-written prose.',
-        ],
-      },
-    ],
-  },
-  {
     slug: 'tutorials',
     title: 'Tutorials',
     summary: 'Step-by-step walkthroughs that take you from install to useful agent workflows.',
@@ -302,7 +262,7 @@ export const docsFamilyRoutes: DocsFamilyRoute[] = [
   {
     slug: 'reference',
     title: 'Reference',
-    summary: 'CLI, API, SDK, MCP, config, and dashboard reference.',
+    summary: 'CLI, API, SDK, MCP, configuration, and dashboard reference for the live daemon.',
     tone: 'paper',
     path: '/docs/reference',
     aliases: ['reference'],

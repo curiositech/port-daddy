@@ -53,8 +53,8 @@ export function DocsSidebar() {
           titleSize="nav"
         >
           <PanelBody size="compact" className="max-w-none">
-            The docs split by job: protocol and trust boundary, installation, concepts, operator practice, examples,
-            tutorials, reference architectures, and exact command or API surfaces.
+            The docs split by job: protocol and trust boundary, installation, concepts, operator practice, tutorials,
+            reference architectures, and exact command or API surfaces. Runnable examples live at /examples.
           </PanelBody>
           <div className="flex flex-col gap-[var(--space-2)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
             <BracketNavLink to="/docs" end tone="accent" side="left">
@@ -71,27 +71,6 @@ export function DocsSidebar() {
                 {section.title}
               </BracketNavLink>
             ))}
-          </div>
-        </DocsNoteCard>
-
-        <DocsNoteCard
-          label="Examples route split"
-          title="/docs/examples guides. /examples runs."
-          elevation="quiet"
-          padding="compact"
-          titleSize="nav"
-        >
-          <PanelBody size="compact" className="max-w-none">
-            The docs examples section is the guided reading path. The top-level examples route stays the runnable code
-            corpus for swarm coordination, PD Tube tunnel flows, and dev tools built on the daemon.
-          </PanelBody>
-          <div className="flex flex-col gap-[var(--space-2)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
-            <BracketNavLink to="/docs/examples" tone="blue" side="left">
-              Read the guide
-            </BracketNavLink>
-            <BracketNavLink to="/examples" tone="accent" side="right">
-              Open runnable examples
-            </BracketNavLink>
           </div>
         </DocsNoteCard>
 
