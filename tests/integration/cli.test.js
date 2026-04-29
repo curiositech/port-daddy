@@ -6,6 +6,7 @@
  * by Jest globalSetup and cleaned up by globalTeardown.
  */
 
+import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -1138,6 +1139,38 @@ describe('CLI Integration Tests', () => {
       expect(data.identity).toBe('port-daddy:test:stale-whoami');
 
       runCli(['done', '--session', beginData.sessionId]);
+    });
+
+    test('pd session files add uses stored session context across worktree drift', async () => {
+      const beginResult = runCli([
+        'begin',
+        'Cross-worktree file claim fallback',
+        '--identity',
+        'port-daddy:test:cross-worktree-file-claim',
+        '--json',
+      ]);
+      expect(beginResult.success).toBe(true);
+      const beginData = JSON.parse(beginResult.stdout);
+
+      const otherRepo = mkdtempSync(join(tmpdir(), 'pd-other-worktree-'));
+      execFileSync('git', ['init'], { cwd: otherRepo, stdio: 'ignore' });
+
+      try {
+        const result = runCli(['session', 'files', 'add', 'README.md', '--json'], { cwd: otherRepo });
+        expect(result.success).toBe(true);
+
+        const data = JSON.parse(result.stdout);
+        expect(data.success).toBe(true);
+        expect(data.claimed).toEqual(['README.md']);
+
+        const detailRes = await requestWithRetry(`/sessions/${beginData.sessionId}`);
+        expect(detailRes.ok).toBe(true);
+        const filePaths = (detailRes.data.files || []).map(file => file.filePath || file.file_path || file.path);
+        expect(filePaths).toContain('README.md');
+      } finally {
+        runCli(['done', '--session', beginData.sessionId]);
+        rmSync(otherRepo, { recursive: true, force: true });
+      }
     });
 
     test('positional args still work (backward compat)', () => {
