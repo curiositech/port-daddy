@@ -600,6 +600,7 @@ async function runAgentByName(agentName: string, preloadedConfig?: ReturnType<ty
         timeout: agent.timeout,
         allowedTools: agent.allowedTools,
       }),
+      timeout: (agent.timeout ?? 300000) + 10000,
     });
 
     const data = await res.json() as any;

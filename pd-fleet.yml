@@ -219,6 +219,7 @@ fleet:
       schedule: "*/30 * * * *"
       backend: codex
       model: gpt-5.4-mini
+      timeout: 900000
       singleton: true
       allowedTools: "Read,Grep,Glob,Write"
       prompt: |
