@@ -138,9 +138,9 @@ pd pheromone sniff --table services --id myapp:api:main
           <Surface depth="raised" radius="none" className="p-6 space-y-3">
             <motion.div className="flex items-center gap-2">
               <Timer size={16} className="text-[var(--brand-accent)]" />
-              <motion.p className="text-sm font-bold m-0">Decay Math</motion.p>
+              <motion.p className="text-[length:var(--type-panel-body-compact-size)] font-bold m-0">Decay Math</motion.p>
             </motion.div>
-            <motion.p className="text-xs text-[var(--text-secondary)] m-0">
+            <motion.p className="text-[length:var(--type-meta-size)] text-[var(--text-secondary)] m-0">
               The decay is geometric:{" "}
               <code>value = original * decay_rate ^ minutes_elapsed</code>.
               Default decay rate is 0.95, so a signal of 1.0 decays to 0.54
@@ -198,11 +198,11 @@ curl http://localhost:9876/pheromone/files?path=src/lib/&depth=1
                 size={16}
                 className="text-[var(--status-warning)]"
               />
-              <motion.p className="text-sm font-bold m-0">
+              <motion.p className="text-[length:var(--type-panel-body-compact-size)] font-bold m-0">
                 Conflict Detection
               </motion.p>
             </motion.div>
-            <motion.p className="text-xs text-[var(--text-secondary)] m-0">
+            <motion.p className="text-[length:var(--type-meta-size)] text-[var(--text-secondary)] m-0">
               When <code>conflict: true</code>, two or more active sessions have
               claimed the same file. This is the advisory warning that someone
               else is working here. The dashboard shows these as red CONFLICT
@@ -227,10 +227,10 @@ curl http://localhost:9876/pheromone/files?path=src/lib/&depth=1
 
           <motion.div className="grid sm:grid-cols-2 gap-6">
             <Surface depth="raised" radius="none" className="p-6 space-y-3">
-              <motion.h3 className="text-sm font-bold m-0">
+              <motion.h3 className="text-[length:var(--type-panel-body-compact-size)] font-bold m-0">
                 Adaptive Arbiter
               </motion.h3>
-              <motion.p className="text-xs text-[var(--text-secondary)] m-0">
+              <motion.p className="text-[length:var(--type-meta-size)] text-[var(--text-secondary)] m-0">
                 The Arbiter checks invariants with fixed thresholds. With
                 pheromones, agents with high <code>anomaly</code> signals get
                 stricter checks. The rules tighten automatically for suspicious
@@ -238,20 +238,20 @@ curl http://localhost:9876/pheromone/files?path=src/lib/&depth=1
               </motion.p>
             </Surface>
             <Surface depth="raised" radius="none" className="p-6 space-y-3">
-              <motion.h3 className="text-sm font-bold m-0">
+              <motion.h3 className="text-[length:var(--type-panel-body-compact-size)] font-bold m-0">
                 Hot-File Routing
               </motion.h3>
-              <motion.p className="text-xs text-[var(--text-secondary)] m-0">
+              <motion.p className="text-[length:var(--type-meta-size)] text-[var(--text-secondary)] m-0">
                 When a file is hot (many agents competing), new lock requests
                 can be routed to the agent that already holds the most claims in
                 that directory &mdash; the &ldquo;local expert.&rdquo;
               </motion.p>
             </Surface>
             <Surface depth="raised" radius="none" className="p-6 space-y-3">
-              <motion.h3 className="text-sm font-bold m-0">
+              <motion.h3 className="text-[length:var(--type-panel-body-compact-size)] font-bold m-0">
                 Reputation Scoring
               </motion.h3>
-              <motion.p className="text-xs text-[var(--text-secondary)] m-0">
+              <motion.p className="text-[length:var(--type-meta-size)] text-[var(--text-secondary)] m-0">
                 After reviewing an agent&apos;s output, spray{" "}
                 <code>quality</code> onto its identity. Agents with high quality
                 signals get preferred for important tasks. Low-quality agents
@@ -259,10 +259,10 @@ curl http://localhost:9876/pheromone/files?path=src/lib/&depth=1
               </motion.p>
             </Surface>
             <Surface depth="raised" radius="none" className="p-6 space-y-3">
-              <motion.h3 className="text-sm font-bold m-0">
+              <motion.h3 className="text-[length:var(--type-panel-body-compact-size)] font-bold m-0">
                 Daemon Health
               </motion.h3>
-              <motion.p className="text-xs text-[var(--text-secondary)] m-0">
+              <motion.p className="text-[length:var(--type-meta-size)] text-[var(--text-secondary)] m-0">
                 A watchdog sprays <code>health</code> onto the daemon based on
                 response latency. Agents check this before expensive operations
                 and back off when the daemon is struggling.
@@ -274,11 +274,11 @@ curl http://localhost:9876/pheromone/files?path=src/lib/&depth=1
         {/* Quick Reference */}
         <section className="space-y-6">
           <Surface depth="raised" radius="none" className="p-8 space-y-4">
-            <motion.h3 className="text-lg font-display font-black m-0">
+            <motion.h3 className="text-[length:var(--type-panel-title-nav-size)] font-display font-black m-0">
               Quick Reference
             </motion.h3>
             <motion.div className="overflow-x-auto">
-              <table className="w-full text-xs">
+              <table className="w-full text-[length:var(--type-meta-size)]">
                 <thead>
                   <tr className="text-left text-[var(--text-secondary)]">
                     <th className="pb-2 pr-4">Endpoint</th>
@@ -318,7 +318,7 @@ curl http://localhost:9876/pheromone/files?path=src/lib/&depth=1
                 </tbody>
               </table>
             </motion.div>
-            <motion.p className="text-xs text-[var(--text-secondary)] pt-2 m-0">
+            <motion.p className="text-[length:var(--type-meta-size)] text-[var(--text-secondary)] pt-2 m-0">
               CLI: <code>pd pheromone spray</code>,{" "}
               <code>pd pheromone sniff</code>, <code>pd pheromone list</code>
             </motion.p>

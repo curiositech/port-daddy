@@ -124,8 +124,8 @@ export default function CliOverview() {
 
       <TerminalGif
         src="/gifs/docs/cli-overview.gif"
-        title="Real CLI recording: reference commands"
-        caption="A current checkout recording of the daemon status plus help output for command-heavy surfaces that appear in this reference."
+        title="See the command surfaces this reference keeps in play"
+        caption="This clip shows the daemon health check, command discovery, and message-loop patterns that recur across the CLI reference."
       />
 
       {CLI_REFERENCE_GROUPS.map((group) => (

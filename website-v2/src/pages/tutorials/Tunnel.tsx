@@ -40,7 +40,7 @@ export function Tunnel() {
             claims -- start a tunnel, share the URL, stop it when done.
           </p>
           <div className="space-y-3 pt-2">
-            <p className="text-sm text-[var(--text-secondary)] m-0">
+            <p className="text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)] m-0">
               <LockIcon
                 size={14}
                 className="inline text-[var(--brand-secondary)] mr-1"
@@ -49,7 +49,7 @@ export function Tunnel() {
               provider you have installed. Port Daddy detects available
               providers automatically.
             </p>
-            <p className="text-sm text-[var(--text-secondary)] m-0">
+            <p className="text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)] m-0">
               <Network
                 size={14}
                 className="inline text-[var(--brand-accent)] mr-1"
@@ -81,7 +81,7 @@ export function Tunnel() {
           </CodeBlock>
 
           <p
-            className="m-0 text-sm border-l-4 border-[var(--brand-secondary)] pl-4"
+            className="m-0 text-[length:var(--type-panel-body-compact-size)] border-l-4 border-[var(--brand-secondary)] pl-4"
             style={{ color: "var(--text-secondary)" }}
           >
             Port Daddy doesn't implement its own tunneling -- it spawns your
@@ -112,7 +112,7 @@ export function Tunnel() {
           </CodeBlock>
 
           <p
-            className="m-0 text-sm border-l-4 border-[var(--brand-secondary)] pl-4"
+            className="m-0 text-[length:var(--type-panel-body-compact-size)] border-l-4 border-[var(--brand-secondary)] pl-4"
             style={{ color: "var(--text-secondary)" }}
           >
             The tunnel URL is stored in the daemon's service registry. Other
@@ -124,7 +124,7 @@ export function Tunnel() {
 
         {/* Security Callout */}
         <section className="p-6 text-center space-y-4">
-          <p className="text-lg max-w-xl mx-auto text-[var(--text-secondary)]">
+          <p className="text-[length:var(--type-panel-title-nav-size)] max-w-xl mx-auto text-[var(--text-secondary)]">
             Unlike standard VPNs, Port Daddy tunnels are{" "}
             <strong>per-identity</strong>. You don't expose your entire network
             -- only the specific semantic identities you've explicitly claimed

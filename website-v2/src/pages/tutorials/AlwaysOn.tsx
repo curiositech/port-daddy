@@ -34,7 +34,7 @@ export function AlwaysOn() {
             Harbor, maintaining a persistent local context and listening to{" "}
             <strong>Swarm Radio</strong> for instructions.
           </p>
-          <p className="text-sm text-[var(--text-secondary)]">
+          <p className="text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)]">
             <strong>Persistent State</strong> -- Avatars hold long-running
             variables, database connections, and cache in-memory across multiple
             user sessions.
@@ -74,7 +74,7 @@ export function AlwaysOn() {
             className="border-l-4 border-[var(--brand-secondary)]"
           >
             <p
-              className="m-0 text-sm"
+              className="m-0 text-[length:var(--type-panel-body-compact-size)]"
               style={{ color: "var(--text-secondary)" }}
             >
               The avatar will immediately claim its semantic identity. Any other
@@ -111,7 +111,7 @@ export function AlwaysOn() {
           </CodeBlock>
 
           <Surface depth="raised" radius="none" className="p-5 space-y-3">
-            <p className="text-sm font-black uppercase tracking-widest text-[var(--text-muted)] m-0">
+            <p className="text-[length:var(--type-panel-body-compact-size)] font-black uppercase tracking-widest text-[var(--text-muted)] m-0">
               The Coordination Loop
             </p>
             <div className="space-y-2">
@@ -122,7 +122,7 @@ export function AlwaysOn() {
                 className="flex items-center gap-3 p-3"
               >
                 <Badge variant="default">Trigger</Badge>
-                <span className="text-sm font-bold text-[var(--text-primary)]">
+                <span className="text-[length:var(--type-panel-body-compact-size)] font-bold text-[var(--text-primary)]">
                   Agent publishes to swarm:ci:failure
                 </span>
               </Surface>
@@ -135,7 +135,7 @@ export function AlwaysOn() {
                 className="flex items-center gap-3 p-3"
               >
                 <Badge variant="teal">Action</Badge>
-                <span className="text-sm font-bold text-[var(--text-primary)]">
+                <span className="text-[length:var(--type-panel-body-compact-size)] font-bold text-[var(--text-primary)]">
                   pd watch runs the --exec script
                 </span>
               </Surface>
@@ -149,7 +149,7 @@ export function AlwaysOn() {
                 className="flex items-center gap-3 p-3"
               >
                 <Badge variant="default">Resolve</Badge>
-                <span className="text-sm font-bold text-[var(--text-primary)]">
+                <span className="text-[length:var(--type-panel-body-compact-size)] font-bold text-[var(--text-primary)]">
                   Script publishes result back to Swarm Radio
                 </span>
               </Surface>
@@ -161,7 +161,7 @@ export function AlwaysOn() {
         <Surface depth="raised" radius="none" className="p-6 space-y-4">
           <div className="flex items-center gap-3">
             <RefreshCw size={18} className="text-[var(--brand-secondary)]" />
-            <p className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] m-0">
+            <p className="text-[length:var(--type-meta-size)] font-black uppercase tracking-widest text-[var(--text-muted)] m-0">
               Self-Healing Logic
             </p>
           </div>

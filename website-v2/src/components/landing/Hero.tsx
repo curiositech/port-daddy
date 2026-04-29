@@ -15,7 +15,7 @@ export function Hero() {
       }} />
 
       <PageContainer className="relative z-10">
-        <div className="grid items-center gap-[var(--space-6)] min-[900px]:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] min-[900px]:gap-[var(--space-8)]">
+        <div className="grid items-center gap-[var(--space-6)] min-[900px]:grid-cols-[minmax(18rem,0.72fr)_minmax(38rem,1.38fr)] min-[900px]:gap-[var(--space-7)]">
           {/* Left -- Copy */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
@@ -99,8 +99,19 @@ export function Hero() {
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.2, ease: 'easeOut' as const }}
+            className="relative min-[900px]:-mr-[clamp(2rem,5vw,5.5rem)] min-[900px]:ml-[-0.5rem]"
           >
-            <LiveGloryVideo />
+            <picture aria-hidden="true" className="pointer-events-none absolute -right-[6%] -top-[18%] hidden h-[56%] w-[76%] overflow-hidden border opacity-35 min-[900px]:block dark:opacity-25" style={{ borderColor: 'var(--border-subtle)' }}>
+              <source srcSet="/img/generated/agent-runtime-map.webp" type="image/webp" />
+              <img
+                alt=""
+                className="h-full w-full object-cover"
+                src="/img/generated/agent-runtime-map.jpg"
+              />
+            </picture>
+            <div className="relative z-10">
+              <LiveGloryVideo />
+            </div>
           </motion.div>
         </div>
       </PageContainer>

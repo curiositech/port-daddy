@@ -1,23 +1,27 @@
 {
-  "generatedAt": "2026-04-29T17:25:12.535Z",
+  "generatedAt": "2026-04-29T17:53:13.256Z",
   "status": {
     "activePorts": "22",
     "fleet": "1 project(s), 8 agent(s), 3/8 launchable",
     "runtime": "nominal",
-    "lastActivity": "19s ago",
+    "lastActivity": "5s ago",
     "launchable": "3/8"
   },
   "sessions": [
-    "Fix CI terminal recordi...",
-    "commit signed FleetBar ...",
-    "Finalize signed FleetBa...",
-    "expand landing live-glo..."
+    "Fix latest main unit te...",
+    "Commit and push safe we...",
+    "landing live-glory narr...",
+    "Resolve branch/main con...",
+    "commit push and get to ...",
+    "Notarize FleetBar devel...",
+    "create FleetBar app icon",
+    "Recover and commit stra..."
   ],
   "notes": [
-    "Pushed 6474df2 Fix website recording pd shim in CI. Local validation: record-agent --play daemon-runtime had no command-not-found; npm --prefix website-v2 run test:gifs passed. Watching main CI for the recording job.",
-    "Investigating current main CI failure in website-terminal-recordings: recorder emits command-not-found because scripts type pd but CI has no global pd binary. Claiming recording scripts to add local CLI shim.",
-    "Scope: take over staged signed FleetBar download artifact slice from prior note, without touching live-glory tmp screenshots. Files: README.md, scripts/package-fleetbar*.sh, website-v2 public downloads manifest/checksums/zip, landing CTA/distribution/product metadata/MacPreview copy. Plan: claim files, validate checksum/codesign/copy/build, commit, rebase/push.",
-    "Follow-up after deploy: removing stale developer-preview language from FleetBar distribution. Regenerated signed Developer ID ZIP as PortDaddy-FleetBar-macOS-arm64.zip, verified codesign authority Curiositech LLC / team P5H9P59X2M, and staged old -dev artifact removal. Validation: root typecheck, website test/build/lint, codesign verify, rg no developer-preview copy.",
-    "Current main CI 25123098868 failed only in website-terminal-recordings cheap reviewer: regenerated casts contain command-not-found across all tutorial/example/docs/agents casts. I am investigating CI recording PATH/command resolution in temp worktree, not touching dirty primary checkout."
+    "Scope: investigate current origin/main CI unit failures after FleetBar icon commits in temp worktree /tmp/port-daddy-main-deploy.KPpIxl. I will avoid the shared dirty main checkout and only claim/edit bounded files after logs/local repro identify the failing surface.",
+    "Found active rebase conflict in shared worktree after another session started main catch-up. I am claiming/resolving only UU files website-v2/scripts/record-agent-terminal-gifs.sh and website-v2/scripts/record-site-terminal-gifs.sh; I will not alter temp screenshots or other staged rebase payload.",
+    "After push, another active session rebased codex/agents-flow-guard-readable-ids onto origin/main/dc6cbb8 and left the worktree mid-rebase on 771540f. Current conflicts are website-v2/scripts/record-agent-terminal-gifs.sh and website-v2/scripts/record-site-terminal-gifs.sh, both claimed by agent-60dcc569 for commit/push/main. I will not resolve claimed files out from under that owner; current user-request push is done, branch advanced to origin. Waiting/monitoring for owner to finish or release before continuing commits.",
+    "Regenerating tutorial/docs GIF assets after recorder cleanup. Goal: remove stale intro/outro narration and dead-daemon output from shipped recordings; then verify in browser on tutorial routes.",
+    "Pushed current branch codex/agents-flow-guard-readable-ids to origin after confirming the index was clean and ahead by the committed website recording/live-glory slice. Push output advanced origin from 95eb2ab to 771540f. I did not stage the current landing render scratch changes or tmp screenshots because active landing/media sessions own that lane."
   ]
 }
