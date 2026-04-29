@@ -2,30 +2,14 @@ import { isValidElement, useMemo, type ReactElement, type ReactNode } from 'reac
 import { useParams, Link, Navigate } from 'react-router-dom'
 import { motion, useScroll, useSpring } from 'framer-motion'
 import ReactMarkdown, { type Components } from 'react-markdown'
-import { blogPosts } from '@/data/blogData'
+import { blogPosts, deprecatedBlogPosts } from '@/data/blogData'
 import { Mermaid } from '@/components/ui/Mermaid'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { CommandTerminal } from '@/components/ui/CommandTerminal'
-import { Badge } from '@/components/ui/Badge'
 import { Surface } from '@/components/ui/Surface'
 import { BlogComments } from '@/components/blog/BlogComments'
 import { Calendar, User, ArrowLeft } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
-
-const heroImages: Record<string, string> = {
-  'zero-to-multi-agent-in-5-minutes': '/img/blog/zero-to-multi-agent-hero.png',
-  'the-port-collision-that-ate-my-saturday': '/img/blog/port-collision-hero.png',
-  'dead-agents-tell-tales': '/img/blog/dead-agents-hero.png',
-  'distributed-locks-two-agents-one-migration': '/img/blog/distributed-locks-hero.png',
-  'four-agents-zero-clobber': '/img/blog/four-agents-hero.png',
-  'pubsub-self-healing-test-pipeline': '/img/blog/pub-sub-hero.png',
-  'fleet-agents-as-infrastructure': '/img/blog/fleet-management-hero.png',
-  'spark-and-spider-the-creative-engine': '/img/blog/spark-spider-hero.png',
-  'formal-verification-anchor-protocol': '/img/generated/control-plane-og.webp',
-  'port-daddy-for-teams': '/img/generated/agent-runtime-map.webp',
-  'claude-code-port-daddy-integration': '/img/generated/agent-runtime-map.webp',
-  'performance-at-scale': '/img/generated/control-plane-hero.webp',
-}
 
 // ─── Directive system ─────────────────────────────────────────────────────
 // HTML comments in markdown declare how the NEXT code block should render:
@@ -49,6 +33,14 @@ interface MarkdownCodeElementProps {
 
 function isCodeElement(node: ReactNode): node is ReactElement<MarkdownCodeElementProps> {
   return isValidElement<MarkdownCodeElementProps>(node)
+}
+
+function PostTag({ children }: { children: string }) {
+  return (
+    <span className="border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]">
+      {children}
+    </span>
+  )
 }
 
 /**
@@ -102,9 +94,9 @@ function extractDirectives(content: string): { cleaned: string; directives: Map<
 /** Render a syllogism as a document card */
 function SyllogismCard({ text, filename }: { text: string; filename: string }) {
   return (
-    <Surface depth="inset" radius="xl" padding="none" className="my-8 max-w-xl">
+    <Surface depth="inset" radius="none" padding="none" className="my-8 max-w-xl">
       <div className="flex items-center gap-2 px-4 py-2 border-b border-border-subtle">
-        <span className="w-1.5 h-1.5 rounded-full bg-signal-charlie" />
+        <span className="w-1.5 h-1.5 bg-signal-charlie" />
         <span className="text-xs font-mono font-bold text-text-muted tracking-wider">{filename}</span>
       </div>
       <div className="px-5 py-4 font-mono text-sm leading-relaxed whitespace-pre-wrap text-text-secondary">
@@ -122,6 +114,7 @@ function SyllogismCard({ text, filename }: { text: string; filename: string }) {
 export function BlogPostPage() {
   const { slug } = useParams<{ slug: string }>()
   const post = blogPosts.find(p => p.slug === slug)
+  const deprecatedPost = deprecatedBlogPosts.find(p => p.slug === slug)
   const { scrollYProgress } = useScroll()
 
   const scaleX = useSpring(scrollYProgress, {
@@ -136,6 +129,10 @@ export function BlogPostPage() {
     return extractDirectives(post.content.replace(/^\s*#\s+.+\n/, ''))
   }, [post])
 
+  if (!post && deprecatedPost) {
+    return <Navigate to={`/blog/${deprecatedPost.replacementSlug}`} replace />
+  }
+
   if (!post) {
     return <Navigate to="/blog" replace />
   }
@@ -143,7 +140,7 @@ export function BlogPostPage() {
   const currentIndex = blogPosts.findIndex(p => p.slug === slug)
   const nextPost = currentIndex >= 0 && currentIndex < blogPosts.length - 1 ? blogPosts[currentIndex + 1] : null
   const prevPost = currentIndex > 0 ? blogPosts[currentIndex - 1] : null
-  const heroImg = heroImages[post.slug]
+  const heroImg = post.heroImage
 
   // Track code block index across renders
   let codeBlockCounter = 0
@@ -225,50 +222,57 @@ export function BlogPostPage() {
       />
 
       {/* Hero Section */}
-      <motion.header className="py-16 lg:py-20 px-6 sm:px-8 lg:px-10 border-b border-border-default bg-surface-sunken relative overflow-hidden">
-        <div className="max-w-4xl mx-auto relative z-10 flex flex-col items-center text-center gap-6">
+      <motion.header className="py-16 lg:py-20 px-6 sm:px-8 lg:px-10 border-b-2 border-border-strong bg-surface-base relative overflow-hidden">
+        <div className="max-w-5xl mx-auto relative z-10 grid gap-8 lg:grid-cols-[10rem_minmax(0,1fr)]">
           <Link to="/blog" className="no-underline group">
             <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-text-muted group-hover:text-brand-primary transition-all">
               <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform" />
-              Back to Journal
+              Back to Blog
             </div>
           </Link>
 
-          <div className="flex items-center gap-4 text-xs font-black uppercase tracking-wider text-text-muted font-mono">
-            <div className="flex items-center gap-2">
-              <Calendar size={14} className="text-brand-primary" />
-              {post.date}
+          <div className="flex flex-col gap-6">
+            <div>
+              <PostTag>Port Daddy Blog</PostTag>
             </div>
-            <div className="h-1 w-1 rounded-full bg-border-strong" />
-            <div className="flex items-center gap-2">
-              <User size={14} className="text-brand-secondary" />
-              {post.author}
+            <div className="flex flex-wrap items-center gap-4 text-xs font-black uppercase tracking-wider text-text-muted font-mono">
+              <div className="flex items-center gap-2">
+                <Calendar size={14} className="text-brand-primary" />
+                {post.date}
+              </div>
+              <div className="h-4 w-px bg-border-strong" />
+              <div className="flex items-center gap-2">
+                <User size={14} className="text-brand-secondary" />
+                {post.author}
+              </div>
             </div>
-          </div>
 
-          <motion.h1
-            className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tighter font-display leading-none text-text-primary"
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          >
-            {post.title}
-          </motion.h1>
+            <motion.h1
+              className="max-w-[13ch] text-4xl sm:text-6xl lg:text-7xl font-black tracking-normal font-display leading-[0.9] text-text-primary"
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+            >
+              {post.title}
+            </motion.h1>
 
-          <div className="flex flex-wrap justify-center gap-3">
-            {post.tags.map(tag => (
-              <Badge key={tag} variant="default" className="px-3 py-1 text-xs font-bold uppercase tracking-wider">{tag}</Badge>
-            ))}
+            <p className="max-w-3xl text-base leading-relaxed text-text-secondary sm:text-lg">{post.excerpt}</p>
+
+            <div className="flex flex-wrap gap-2">
+              {post.tags.map(tag => (
+                <PostTag key={tag}>{tag}</PostTag>
+              ))}
+            </div>
           </div>
         </div>
       </motion.header>
 
       {/* Hero Image */}
       {heroImg && (
-        <div className="w-full max-w-4xl mx-auto px-6 -mt-8 relative z-10">
-          <Surface depth="raised" radius="2xl" padding="none" className="overflow-hidden">
-            <img src={heroImg} alt={post.title} className="w-full h-auto object-cover max-h-96" />
-          </Surface>
+        <div className="w-full max-w-5xl mx-auto px-6 -mt-8 relative z-10">
+          <div className="overflow-hidden border-2 border-border-strong bg-surface-sunken">
+            <img src={heroImg} alt={post.heroAlt} className="w-full h-auto object-cover max-h-[30rem]" />
+          </div>
         </div>
       )}
 
@@ -292,7 +296,7 @@ export function BlogPostPage() {
           <div className="mt-16 max-w-prose mx-auto grid grid-cols-1 sm:grid-cols-2 gap-4">
             {prevPost ? (
               <Link to={`/blog/${prevPost.slug}`} className="no-underline group">
-                <Surface depth="flat" radius="2xl" padding="md" interactive>
+                <Surface depth="flat" radius="none" padding="md" interactive>
                   <div className="text-xs font-black uppercase tracking-widest text-text-muted mb-2 flex items-center gap-1">
                     <ArrowLeft size={12} /> Previous
                   </div>
@@ -304,7 +308,7 @@ export function BlogPostPage() {
             ) : <div />}
             {nextPost && (
               <Link to={`/blog/${nextPost.slug}`} className="no-underline group text-right">
-                <Surface depth="flat" radius="2xl" padding="md" interactive>
+                <Surface depth="flat" radius="none" padding="md" interactive>
                   <div className="text-xs font-black uppercase tracking-widest text-text-muted mb-2 flex items-center gap-1 justify-end">
                     Next <ArrowLeft size={12} className="rotate-180" />
                   </div>

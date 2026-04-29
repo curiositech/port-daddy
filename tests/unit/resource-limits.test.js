@@ -211,7 +211,7 @@ describe('Resource Limits', () => {
   });
 });
 
-describe('Secure Random IDs (Phase 9d)', () => {
+describe('Readable secure IDs', () => {
   let db;
   let sessions;
 
@@ -220,14 +220,12 @@ describe('Secure Random IDs (Phase 9d)', () => {
     sessions = createSessions(db);
   });
 
-  it('should generate session IDs using crypto.randomUUID format', () => {
+  it('should generate session IDs with purpose slug and random suffix', () => {
     const session = sessions.start('test purpose');
     expect(session.success).toBe(true);
 
-    // crypto.randomUUID() produces format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-    // Our IDs are prefixed with 'session-'
     const id = session.id;
-    expect(id).toMatch(/^session-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+    expect(id).toMatch(/^session-test-purpose-[a-f0-9]{12}$/);
   });
 
   it('should generate unique session IDs', () => {

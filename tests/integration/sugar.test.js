@@ -215,7 +215,9 @@ describe('Sugar Integration Tests', () => {
 
       agentId = res.data.agentId;
       expect(agentId).toBeDefined();
-      expect(agentId).toMatch(/^agent-[a-f0-9]{8,}$/);
+      expect(agentId).toMatch(/^agent-auto-id-test-[a-f0-9]{8}$/);
+      expect(res.data.sessionId).toMatch(/^session-auto-id-test-[a-f0-9]{12}$/);
+      expect(res.data.sessionName).toBe('Auto-ID test');
     });
 
     test('cleanup', async () => {
