@@ -163,8 +163,20 @@ export const MAC_APP_CAPABILITIES = [
 export const APP_SURFACES = [
   {
     id: 'fleet-flow',
-    title: 'Fleet view',
+    title: 'Flow',
     caption: 'Flow, backend roster, live agent cards, project budget, and coordination guard controls in one operator view.',
+    surface: 'Fleet Control Center',
+  },
+  {
+    id: 'agents',
+    title: 'Agents',
+    caption: 'Durable actors, configured fleet agents, ad hoc jobs, backend/model selections, touched files, and recent signals stay visible together.',
+    surface: 'Fleet Control Center',
+  },
+  {
+    id: 'roadmap',
+    title: 'Roadmap',
+    caption: 'Built, blocked, drifting, and next-up work stays tied to recovery notes, current status, product truth, and dogfood evidence.',
     surface: 'Fleet Control Center',
   },
   {
@@ -174,9 +186,39 @@ export const APP_SURFACES = [
     surface: 'Fleet Control Center',
   },
   {
+    id: 'activity',
+    title: 'Activity',
+    caption: 'Session starts, notes, file claims, handoffs, mutations, and fleet events form a project-scoped audit trail instead of terminal residue.',
+    surface: 'Fleet Control Center',
+  },
+  {
+    id: 'channels',
+    title: 'Channels',
+    caption: 'Scoped publish/subscribe channels show both human-readable names and project-resolved physical channels for agent-to-agent coordination.',
+    surface: 'Fleet Control Center',
+  },
+  {
+    id: 'inbox',
+    title: 'Inbox',
+    caption: 'Actor messages, direct handoffs, unread work, and durable role ownership give agents a place to talk across sessions.',
+    surface: 'Fleet Control Center',
+  },
+  {
     id: 'sorties',
     title: 'Sorties',
     caption: 'Mission recipes, backend/model preflight, budget ceilings, generated brief, logs, and durable run history.',
+    surface: 'Fleet Control Center',
+  },
+  {
+    id: 'memory',
+    title: 'Memory',
+    caption: 'Recovered session context, notes, tuples, semantic joins, and salvage trails help the next agent continue from actual project memory.',
+    surface: 'Fleet Control Center',
+  },
+  {
+    id: 'yaml',
+    title: 'YAML',
+    caption: 'The declarative fleet file exposes agents, triggers, schedules, singleton rules, budgets, and channel wiring as editable operator truth.',
     surface: 'Fleet Control Center',
   },
   {
@@ -189,6 +231,12 @@ export const APP_SURFACES = [
     id: 'shipwright-focus',
     title: 'Shipwright Focus',
     caption: 'A proposed fleet includes rationale, agent roles, model choices, budgets, and risk notes before launch.',
+    surface: 'Shipwright',
+  },
+  {
+    id: 'shipwright-simulation',
+    title: 'Shipwright Simulation',
+    caption: 'Simulation checks the proposed fleet against budget, backend readiness, resource pressure, and coordination risk before activation.',
     surface: 'Shipwright',
   },
   {

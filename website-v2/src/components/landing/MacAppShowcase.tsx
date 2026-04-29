@@ -57,6 +57,17 @@ const surfaceScreenshots: Record<string, ThemedScreenshot> = {
   },
 }
 
+const surfacePreviewRows: Record<string, string[]> = {
+  agents: ['Coxswain: active', 'Lookout: docs drift clear', 'Quartermaster: budget guarded'],
+  roadmap: ['built: FleetBar preview', 'blocked: signed release channel', 'next: Shipwright onboarding'],
+  activity: ['session.note', 'file.claim', 'sortie.completed'],
+  channels: ['website:coordination', 'coordination:inconsistency', 'project:git:committed'],
+  inbox: ['Claude handoff unread', 'Codex proof request', 'Navigator status ping'],
+  memory: ['salvage context found', 'tuples joined', 'session anchor restored'],
+  yaml: ['agents: 8 declared', 'triggers: git:committed', 'budget_usd_per_day: 8'],
+  'shipwright-simulation': ['backend readiness', 'daily budget envelope', 'resource pressure'],
+}
+
 function ThemeLockedScreenshot({
   screenshots,
   alt,
@@ -131,6 +142,43 @@ function SurfaceTitle({ title }: { title: string }) {
   return <>{title}</>
 }
 
+function SurfacePreviewFallback({ appSurface, featured = false }: { appSurface: AppSurface; featured?: boolean }) {
+  const rows = surfacePreviewRows[appSurface.id] ?? [
+    appSurface.surface,
+    appSurface.title,
+    'operator surface',
+  ]
+
+  return (
+    <div className="grid aspect-[16/10] content-between border-b-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-4)]">
+      <div className="grid gap-[var(--space-3)]">
+        <div className="flex items-center justify-between border-b-2 border-[var(--border-strong)] pb-[var(--space-3)]">
+          <span className="font-mono text-[10px] font-black uppercase tracking-[0.22em] text-[var(--text-secondary)]">
+            Console subset
+          </span>
+          <span className="h-3 w-3 border-2 border-[var(--border-strong)] bg-[var(--brand-primary)]" aria-hidden="true" />
+        </div>
+        <PanelTitle as="p" size={featured ? 'card' : 'nav'} className="max-w-[18ch]">
+          <SurfaceTitle title={appSurface.title} />
+        </PanelTitle>
+      </div>
+      <div className="grid gap-[var(--space-2)]">
+        {rows.map((row) => (
+          <div
+            className="grid grid-cols-[0.75rem_minmax(0,1fr)] items-center gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] px-[var(--space-2)] py-[var(--space-1)]"
+            key={row}
+          >
+            <span className="h-2 w-2 bg-[var(--brand-accent)]" aria-hidden="true" />
+            <span className="truncate font-mono text-[11px] font-black uppercase tracking-[0.14em] text-[var(--text-primary)]">
+              {row}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function SurfaceTile({ appSurface, featured = false }: { appSurface: AppSurface; featured?: boolean }) {
   const screenshot = surfaceScreenshots[appSurface.id]
 
@@ -161,17 +209,7 @@ function SurfaceTile({ appSurface, featured = false }: { appSurface: AppSurface;
           loading="lazy"
         />
       ) : (
-        <div className="grid aspect-[16/10] content-between border-b-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-4)]">
-          <div className="flex items-center justify-between border-b-2 border-[var(--border-strong)] pb-[var(--space-3)]">
-            <span className="font-mono text-[10px] font-black uppercase tracking-[0.22em] text-[var(--text-secondary)]">
-              {appSurface.surface}
-            </span>
-            <span className="h-3 w-3 border-2 border-[var(--border-strong)] bg-[var(--brand-primary)]" aria-hidden="true" />
-          </div>
-          <PanelTitle as="p" size={featured ? 'card' : 'nav'} className="max-w-[14ch]">
-            <SurfaceTitle title={appSurface.title} />
-          </PanelTitle>
-        </div>
+        <SurfacePreviewFallback appSurface={appSurface} featured={featured} />
       )}
       <div className="grid gap-[var(--space-2)] p-[var(--space-4)]">
         <PanelTitle as="h3" size="nav" className="max-w-none">
@@ -242,6 +280,9 @@ export function MacAppShowcase() {
               </div>
 
               <div className="grid gap-[var(--space-4)] lg:grid-cols-12">
+                <div className="lg:col-span-12">
+                  <PanelEyebrow>Fleet Control Center gallery</PanelEyebrow>
+                </div>
                 <SurfaceTile appSurface={firstSurface} featured />
                 {surfaces.map((appSurface) => (
                   <SurfaceTile appSurface={appSurface} key={appSurface.id} />

@@ -11,6 +11,7 @@ interface Example {
   category: string
   difficulty: 'Beginner' | 'Intermediate' | 'Advanced'
   description: string
+  spotlight?: string
   what: string[]
   code: string[]
   icon: LucideIcon
@@ -46,26 +47,29 @@ const EXAMPLES: Example[] = [
   },
   {
     id: 'pd-tube-preview-share',
-    title: 'PD Tube preview share',
-    category: 'Tunnels',
+    title: 'PD Tube: localhost the fleet can find',
+    category: 'PD Tube',
     difficulty: 'Intermediate',
-    description: 'Claim a local preview service, inspect tunnel provider readiness, and keep the shareable route tied to a Port Daddy identity.',
+    spotlight: 'Your laptop preview stops being a private port number and becomes a named, revocable artifact humans can open and agents can discover.',
+    description: 'Start with a local dev server. PD Tube claims the service identity, picks an installed tunnel path, records the public URL on the daemon, writes a tuple for the swarm, and gives you one command to shut the door again.',
     what: [
-      'Checks installed tunnel providers before launch',
-      'Claims the preview service through the daemon',
-      'Avoids hardcoded daemon URLs and raw port guesses',
-      'Leaves operators with the exact command to stop the share'
+      'Turns localhost into a real review URL without port folklore',
+      'Names the preview so agents can discover it later',
+      'Writes `preview-url` swarm state instead of hiding the link in chat',
+      'Revokes the route by stopping the tunnel and releasing the identity'
     ],
     code: [
-      '# Check provider readiness',
-      'npx tsx examples/tunnel/share-preview.ts inspect',
+      '# Turn a dev server into a named fleet preview',
+      'npx tsx examples/tunnel/share-preview.ts start \\',
+      '  --identity demo:web --port 5174',
       '',
-      '# Claim the preview service before tunneling',
-      'npx tsx examples/tunnel/share-preview.ts claim \\',
-      '  --identity myapp:web-preview --port 43199',
+      '# Humans can open it; agents can discover it',
+      'pd find demo:web',
+      'pd tuple rd \'["preview-url","demo:web","*","*"]\' \\',
+      '  --harbor examples',
       '',
-      '# Release the service identity when finished',
-      'pd release myapp:web-preview'
+      '# Revoke the preview when the review is over',
+      'npx tsx examples/tunnel/share-preview.ts stop --identity demo:web'
     ],
     icon: Globe,
     color: 'var(--brand-accent)'
@@ -217,6 +221,12 @@ export function ExamplesPage() {
                          <motion.h2 className="m-0 text-2xl sm:text-4xl font-display font-black tracking-tight leading-tight text-[var(--text-primary)]">{ex.title}</motion.h2>
                       </div>
                    </div>
+
+                   {ex.spotlight ? (
+                     <motion.p className="m-0 max-w-xl font-display text-2xl sm:text-3xl font-black leading-tight text-[var(--text-primary)]">
+                       {ex.spotlight}
+                     </motion.p>
+                   ) : null}
 
                    <motion.p className="text-xl sm:text-2xl leading-relaxed text-[var(--text-secondary)] m-0 max-w-xl">{ex.description}</motion.p>
 

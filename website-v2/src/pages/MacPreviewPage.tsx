@@ -31,10 +31,10 @@ export function MacPreviewPage() {
                     FleetBar is the Mac app for agent coordination.
                   </PanelTitle>
                   <PanelBody className="max-w-[44rem] text-[length:var(--text-lg)]">
-                    The native menu-bar app opens the real Fleet Control Center: Flow, Agents,
-                    Resources, Sorties, Shipwright, backend readiness, activity, inboxes, and
-                    project-scoped coordination state. This is where the daemon becomes visible
-                    enough for a Mac developer to trust.
+                    The native menu-bar app opens the real Fleet Control Center: Flow, Roadmap,
+                    Agents, Resources, Activity, Channels, Inbox, Sorties, Memory, Shipwright,
+                    YAML, backend readiness, and project-scoped coordination state. This is where
+                    the daemon becomes visible enough for a Mac developer to trust.
                   </PanelBody>
                   <div className="flex flex-wrap gap-[var(--space-3)]">
                     <Button asChild variant="primary" size="lg">

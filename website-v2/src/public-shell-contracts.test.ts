@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { APP_SURFACES } from './data/product'
 import { docsFamilyOrder, docsOverviewRoute, docsFamilyRoutes, findDocsRouteByPath, findDocsRouteBySlug } from './data/docs-routes'
 import { docsFamilies, findDocsFamily } from './data/publicSite'
 import { docsContentSections, findDocsContentPage, findDocsContentSection } from './docs-content'
@@ -277,6 +278,49 @@ describe('public shell contracts', () => {
       expect(header).not.toMatch(pattern)
       expect(footer).not.toMatch(pattern)
     }
+  })
+
+  test('Mac Preview has a top-level console gallery for every Fleet Control Center surface', () => {
+    const appSurfaceTitles = APP_SURFACES.map((surface) => surface.title)
+    const appSurfaceIds = APP_SURFACES.map((surface) => surface.id)
+    const macPreview = read('./pages/MacPreviewPage.tsx')
+    const showcase = read('./components/landing/MacAppShowcase.tsx')
+
+    expect(macPreview).toContain('Flow, Roadmap')
+    expect(showcase).toContain('Fleet Control Center gallery')
+    expect(appSurfaceTitles).toEqual(expect.arrayContaining([
+      'Flow',
+      'Agents',
+      'Roadmap',
+      'Resources',
+      'Activity',
+      'Channels',
+      'Inbox',
+      'Sorties',
+      'Memory',
+      'YAML',
+      'Shipwright Harbor',
+      'Shipwright Focus',
+      'Shipwright Simulation',
+      'Shipwright Control',
+    ]))
+    expect(appSurfaceIds).toEqual(expect.arrayContaining([
+      'fleet-flow',
+      'agents',
+      'roadmap',
+      'resources',
+      'activity',
+      'channels',
+      'inbox',
+      'sorties',
+      'memory',
+      'yaml',
+      'shipwright-harbor',
+      'shipwright-focus',
+      'shipwright-simulation',
+      'shipwright-control',
+    ]))
+    expect(appSurfaceIds).not.toContain('public-roadmap-page')
   })
 
   test('docs overview and sidebar keep the broader public site reachable from the docs shell', () => {
