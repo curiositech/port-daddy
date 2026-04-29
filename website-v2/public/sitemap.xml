@@ -7,6 +7,9 @@
     <loc>https://portdaddy.dev/agents</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/agents/templates</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/blog</loc>
   </url>
   <url>
@@ -452,24 +455,6 @@
   </url>
   <url>
     <loc>https://portdaddy.dev/mcp</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/templates</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/templates/agent-swarm-starter</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/templates/ai-ci-pipeline</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/templates/monorepo-dev-server</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/templates/swarm-researcher</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/templates/webhook-relay</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/tutorials</loc>

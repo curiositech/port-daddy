@@ -2546,7 +2546,7 @@ async function main(): Promise<void> {
         break;
 
       case 'roadmap':
-        await handleRoadmap(positional, options);
+        await handleRoadmap(options);
         break;
 
       case 'quorum':
