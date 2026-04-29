@@ -84,8 +84,50 @@ const productRoutes: SiteMetadata[] = [
   metadata('/', SITE_NAME, DEFAULT_SITE_DESCRIPTION, { section: 'home' }),
   metadata(
     '/examples',
-    'Coordination Examples',
-    'Study concrete Port Daddy workflows for multi-agent repos, session notes, file claims, salvage, and event-driven automation.',
+    'Executable Examples',
+    'Run full Port Daddy example programs with dedicated pages for prerequisites, commands, source code, explanation, and adaptation notes.',
+  ),
+  metadata(
+    '/examples/pd-tube-button-to-agent',
+    'Build a button-to-agent loop with PD Tube',
+    'Turn a plain HTML button into a local phone line to the agent session already running in your project.',
+    { tags: ['tube', 'browser', 'agent loop', 'messages'] },
+  ),
+  metadata(
+    '/examples/war-room-incident',
+    'Run a multi-agent incident war room',
+    'Simulate three agents investigating one production incident through sessions, notes, and a shared channel.',
+    { tags: ['agents', 'notes', 'channels', 'incident'] },
+  ),
+  metadata(
+    '/examples/durable-inbox-lifecycle',
+    'Send durable direct messages between agents',
+    'Register two agents, send a targeted handoff, inspect unread state, mark it read, clear it, and clean up.',
+    { tags: ['inbox', 'handoff', 'SSE', 'agents'] },
+  ),
+  metadata(
+    '/examples/file-edit-guard',
+    'Build a file edit guard for local agents',
+    'Use Port Daddy locks, messages, and notes to build a guard that agents run before editing contested files.',
+    { tags: ['locks', 'file claims', 'dev tools', 'coordination'] },
+  ),
+  metadata(
+    '/examples/migration-lock-guard',
+    'Protect a migration with one lock',
+    'Simulate two agents racing for one migration resource and prove only one enters the critical section.',
+    { tags: ['locks', 'critical section', 'migrations'] },
+  ),
+  metadata(
+    '/examples/dns-service-discovery',
+    'Resolve services by semantic name',
+    'Register service records, list a namespace, look up the API endpoint, and clean up the records.',
+    { tags: ['dns', 'services', 'semantic identity'] },
+  ),
+  metadata(
+    '/examples/session-phase-lifecycle',
+    'Model a full session phase lifecycle',
+    'Start a session, claim files, move through phases, leave phase notes, complete the session, and unregister the agent.',
+    { tags: ['sessions', 'phases', 'file claims', 'notes'] },
   ),
   metadata(
     '/mcp',
