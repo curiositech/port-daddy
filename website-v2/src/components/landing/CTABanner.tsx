@@ -11,29 +11,29 @@ import {
 import { RoleTerm } from '@/components/site/RoleTerm'
 import { WHITE_PAPERS } from '@/data/whitePapers'
 
-const COORDINATION_FEEDBACK = [
-  'The paper assets and /whitepaper route were still alive; the homepage rewrite had buried the entry point.',
-  'Port Daddy showed the landing shell was already claimed, so this restore stayed in a bounded CTA and dossier route.',
-  'Live render proof caught the header clipping Whitepaper to WHITE; the nav now points to Papers without hiding the route.',
+const EVALUATION_SIGNALS = [
+  'Local-first coordination: the daemon, CLI, FleetBar, and console run against repo-local state instead of a hosted black box.',
+  'Composable agent APIs: sessions, claims, locks, notes, channels, tuples, budgets, and salvage are capabilities other tools can call.',
+  'Operator trust: readiness, cost, ownership, and recovery evidence stay visible before an agent spends money or changes history.',
 ] as const
 
 const START_PATHS = [
   {
-    label: 'Human path',
-    title: 'Open FleetBar first',
-    detail: 'Select the project, check daemon health, inspect agents, and see guard posture before asking for more automation.',
+    label: 'AI engineer',
+    title: 'Wire existing agents into shared state',
+    detail: 'Keep Claude, Codex, Aider, and custom tools from acting like isolated terminals when they touch the same repo.',
     icon: MonitorCheck,
   },
   {
-    label: 'Agent path',
-    title: 'Let agents write state',
-    detail: 'The CLI remains the substrate for sessions, notes, claims, and handoffs. It belongs in agent workflows and docs with real output.',
+    label: 'Platform team',
+    title: 'See readiness before launch',
+    detail: 'Check auth, model availability, telemetry, budgets, resources, and guard state before adding more automation.',
     icon: Terminal,
   },
   {
-    label: 'Proof path',
-    title: 'Verify before shipping',
-    detail: 'Guard checks staged files against active sessions and claims, so coordinated work can fail closed at commit time.',
+    label: 'Evaluator',
+    title: 'Inspect the architecture',
+    detail: 'Review the papers, code, commands, and product surfaces that make multi-agent coordination auditable.',
     icon: ShieldCheck,
   },
 ] as const
@@ -45,16 +45,16 @@ export function CTABanner() {
         <div className="grid gap-[var(--space-6)] lg:grid-cols-[minmax(0,0.96fr)_minmax(24rem,0.74fr)] lg:items-start">
           <div className="grid gap-[var(--space-5)]">
             <div className="space-y-[var(--space-4)]">
-              <PanelEyebrow>Signed Mac build</PanelEyebrow>
+              <PanelEyebrow>Try it on a real repo</PanelEyebrow>
               <PanelTitle as="h2" size="display" className="max-w-[13ch]">
-                Install the coordination layer, then drive it from FleetBar.
+                Put a control plane around your AI agents.
               </PanelTitle>
               <PanelBody className="max-w-[46rem]">
-                Port Daddy is still open-source infrastructure. The product surface is now the Mac
-                app, Fleet Control Center, <RoleTerm role="shipwright">Shipwright</RoleTerm>,{' '}
+                Port Daddy is open-source infrastructure with a Mac operator surface. Start in
+                FleetBar, then inspect the Fleet Control Center, <RoleTerm role="shipwright">Shipwright</RoleTerm>,{' '}
                 <RoleTerm role="sortie">sorties</RoleTerm>, resource controls, backend readiness,
-                and agent-to-agent handoffs. Agents can use the CLI; humans should not have to infer
-                the product from command fragments.
+                and agent-to-agent handoffs. The CLI is there for agents and scripts; the product
+                value is the shared state they all leave behind.
               </PanelBody>
             </div>
 
@@ -85,7 +85,7 @@ export function CTABanner() {
               <Button asChild variant="primary" size="lg">
                 <a href="/downloads/PortDaddy-FleetBar-macOS-arm64.zip" download>
                   <Download size={16} />
-                  FleetBar preview
+                  Download FleetBar
                 </a>
               </Button>
               <Button asChild variant="secondary" size="lg">
@@ -107,10 +107,10 @@ export function CTABanner() {
             <div className="flex items-center justify-between gap-[var(--space-3)] border-b-2 border-[var(--border-strong)] pb-[var(--space-3)]">
               <div className="inline-flex items-center gap-[var(--space-2)]">
                 <MonitorCheck size={17} className="text-[var(--brand-primary)]" />
-                <PanelEyebrow>FleetBar first</PanelEyebrow>
+                <PanelEyebrow>Local control plane</PanelEyebrow>
               </div>
               <span className="border-2 border-[var(--border-strong)] bg-[var(--brand-primary)] px-2 py-1 font-mono text-[10px] font-black uppercase tracking-[0.16em] text-[var(--brand-primary-foreground)]">
-                Human surface
+                Operator surface
               </span>
             </div>
             <picture className="block overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-base)]">
@@ -124,14 +124,14 @@ export function CTABanner() {
             </picture>
             <PanelBody size="compact" className="max-w-none">
               Open FleetBar for daemon health, project selection, agents, resources, handoffs, and
-              guard state. The install command can live in docs; the homepage should show what the
-              operator gets after it runs.
+              guard state. Use the console when you need to see who owns what, what is blocked, and
+              whether another agent can safely start.
             </PanelBody>
             <div className="grid gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)]">
               {[
-                ['Open', 'Fleet Control Center'],
-                ['Inspect', 'Agents + claims'],
-                ['Enforce', 'Coordination Guard'],
+                ['Observe', 'agents + claims'],
+                ['Preflight', 'models + budget'],
+                ['Enforce', 'guarded commits'],
               ].map(([label, value]) => (
                 <div
                   key={label}
@@ -152,17 +152,18 @@ export function CTABanner() {
         <div className="mt-[var(--space-6)] grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,0.72fr)_minmax(0,1.28fr)]">
           <div className="grid content-start gap-[var(--space-3)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-4)]">
             <div className="flex flex-wrap items-center justify-between gap-[var(--space-3)] border-b-2 border-[var(--border-default)] pb-[var(--space-3)]">
-              <PanelEyebrow>Coordination feedback</PanelEyebrow>
+              <PanelEyebrow>Technical evaluation</PanelEyebrow>
               <span className="font-mono text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
-                Dogfood restore
+                Platform-grade signal
               </span>
             </div>
             <PanelBody className="max-w-none">
-              This restore used Port Daddy as the coordination layer: inspect live ownership, avoid
-              contested edits, then put both papers back where a visitor can actually find them.
+              The bet is simple: as AI coding tools become normal engineering infrastructure, the
+              missing layer is not another model. It is local operational truth for parallel agent
+              work.
             </PanelBody>
             <ul className="grid gap-[var(--space-2)]">
-              {COORDINATION_FEEDBACK.map((item) => (
+              {EVALUATION_SIGNALS.map((item) => (
                 <li
                   key={item}
                   className="flex gap-[var(--space-2)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]"

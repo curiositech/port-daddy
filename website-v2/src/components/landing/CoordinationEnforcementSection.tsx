@@ -13,23 +13,23 @@ import {
 
 const outcomes = [
   {
-    title: 'Every change has an owner',
-    detail: 'Agents work in terminals, claim intended files or symbols, and leave notes before their local plan drifts from the repo.',
+    title: 'Parallel work without invisible collisions',
+    detail: 'Agents claim files or symbols before editing, so another agent can see ownership and choose a safer path instead of overwriting nearby work.',
     icon: NotebookTabs,
   },
   {
-    title: 'Humans steer from the app',
-    detail: 'FleetBar and Fleet Control Center show project state, readiness, agents, resources, and recovery without making the operator parse shell ceremony.',
+    title: 'One operator view for the repo',
+    detail: 'FleetBar and Fleet Control Center show live agents, touched files, backend readiness, resource pressure, budget posture, and recovery state together.',
     icon: MonitorCheck,
   },
   {
-    title: 'Terminal proof includes output',
-    detail: 'When the website shows a terminal, it should show the command and the daemon response, not a stack of inputs pretending to be evidence.',
+    title: 'Launch decisions use real readiness',
+    detail: 'Before more automation starts, Port Daddy exposes missing auth, unavailable models, telemetry gaps, spend limits, and machine pressure.',
     icon: GitCommit,
   },
   {
-    title: 'Recovery keeps the context',
-    detail: 'If an agent dies, salvage preserves purpose, notes, claimed files, and handoff evidence for the next agent.',
+    title: 'Agent failure becomes a queue',
+    detail: 'If a process dies, salvage preserves purpose, notes, claims, and handoff evidence so the next agent can continue from facts.',
     icon: FileCheck2,
   },
 ] as const
@@ -59,7 +59,7 @@ function GuardControlMock() {
           Coordination Guard
         </PanelTitle>
         <PanelBody size="compact" className="max-w-none">
-          Humans do not need to remember the shell ceremony. FleetBar shows the guard state, lets an operator switch from observe to enforce, checks staged files, and points agents at the files that need claims.
+          The guard compares staged files with the active session and claims. When enforcement is on, an uncoordinated commit fails before it becomes repo history.
         </PanelBody>
       </div>
 
@@ -82,8 +82,8 @@ function GuardControlMock() {
 
       <div className="grid gap-2 border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)]">
         {[
-          ['Active session', 'website:landing-reconcile'],
-          ['Claim coverage', '7 landing files covered'],
+          ['Active session', 'auth-api-refactor'],
+          ['Claim coverage', 'src/auth.ts + tests'],
           ['Commit posture', 'fail closed on mismatch'],
         ].map(([label, value]) => (
           <div key={label} className="flex items-center justify-between gap-[var(--space-3)] border-b border-[var(--border-default)] pb-2 last:border-b-0 last:pb-0">
@@ -103,7 +103,7 @@ function GuardControlMock() {
           <PanelEyebrow>Why it matters</PanelEyebrow>
         </div>
         <PanelBody size="compact" className="max-w-none">
-          The UI makes the rule obvious before the commit: every staged file should belong to an active session, and every exception should be visible enough for a human to decide.
+          A coordination convention is useful only if agents and operators can see the same rule at the moment a change is about to ship.
         </PanelBody>
       </div>
     </SurfacePanel>
@@ -117,25 +117,25 @@ export function CoordinationEnforcementSection() {
         <SwissGrid className="items-start">
           <SwissGridItem span="narrow">
             <SectionIntro
-              eyebrow="Operator control"
-              title="Agents use the terminal. Humans use the GUI."
-              description="Port Daddy gives each repo a coordination contract, but the public homepage should not ask a human to admire a command checklist. The app surface is where operators see readiness, claims, live agents, resources, handoffs, and recovery state."
+              eyebrow="Why it exists"
+              title="Agent orchestration needs shared state."
+              description="Modern coding agents can write code, but they do not automatically agree on ownership, context, budget, or recovery. Port Daddy supplies the local state layer around them: what is running, what each agent owns, what changed, and what is safe to do next."
               titleAs="h2"
               titleSize="display"
-              titleClassName="max-w-[13ch]"
+              titleClassName="max-w-[12ch]"
               bodyClassName="max-w-[44rem]"
             />
             <div className="mt-[var(--space-5)] flex flex-wrap gap-[var(--space-3)]">
               <Button asChild variant="primary" size="lg">
                 <a href="/docs/best-practices/coordination-discipline">
                   <CheckCircle2 size={16} />
-                  Coordination discipline
+                  Coordination model
                 </a>
               </Button>
               <Button asChild variant="secondary" size="lg">
                 <a href="/docs/cli/with-lock">
                   <LockKeyhole size={16} />
-                  Lock reference
+                  Guard reference
                 </a>
               </Button>
             </div>
