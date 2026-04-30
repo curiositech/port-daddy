@@ -1,27 +1,27 @@
 {
-  "generatedAt": "2026-04-29T22:33:37.133Z",
+  "generatedAt": "2026-04-30T04:27:10.726Z",
   "status": {
     "activePorts": "24",
-    "fleet": "1 project(s), 8 agent(s), 3/8 launchable",
+    "fleet": "0 project(s), 0 agent(s)",
     "runtime": "nominal",
-    "lastActivity": "7s ago",
-    "launchable": "3/8"
+    "lastActivity": "0s ago",
+    "launchable": ""
   },
   "sessions": [
-    "-171d96fdde08landing-live-glory clea...",
-    "urrent-main-6adb89957268Land PR11 canonical ski...",
-    "all-single-s-2e3626c71d9aBulk marketing site upd...",
-    "ill-authorit-cd016af042bffinish CLI detail pages...",
-    "on-5a50252fb1ffClean land PR 11 canoni...",
-    "y-798579c76544landing-live-glory comm...",
-    "l-pages-8ee8c980f3b9Flatten Spawn and TimeT...",
-    "-boxed-secti-c18d6d608062Continue tutorial shell..."
+    "-residue-386b7f9a38d9Harvest next unlanded s...",
+    "ro-video-89bf21bbbd7elanding-live-glory rend...",
+    "ry-safe-laun-edd36e97a46cMake Cloudflare Workers...",
+    "580a6713938fMock app-native develop...",
+    "7gestalt hero flow repair",
+    "-appeal-pers-54ea1078ebd8Overhaul website docs I...",
+    "ich-expositi-60f3e3663f57expand website agent su...",
+    "rktree-9c4bd617474aEradicate port-daddy-cl..."
   ],
   "notes": [
-    "[handoff] Homepage runtime error fixed. Vite now returns 200 for Hero, AgenticSocialProofSection, and Features modules; cache-busted Playwright load of http://127.0.0.1:4850/ returned status 200, h1 rendered, and no console/page errors. Conflict markers are gone from website-v2/src and website-v2/scripts. Remaining checkout has many unrelated staged/modified website tutorial files from the replay slice.",
-    "Homepage runtime error diagnosed and immediate homepage modules now serve 200. Root cause was unresolved merge conflict markers in landing modules causing Vite 500s for Hero/AgenticSocialProofSection/Features. Cache-busted Playwright load at http://127.0.0.1:4850/?probe=... now renders home with no pageerror. Remaining risk: conflict markers still exist in tutorial routes/scripts owned by the active replay slice, so those routes/build may still fail until that slice resolves them.",
-    "Clean deploy worktree from origin/main. Scope: reapply compact landing-live-glory narration card slice, regenerate paired media, commit to fast-forward main, push, deploy Cloudflare Pages.",
-    "Scope: replay PR #11 canonical Port Daddy skill union onto current main in /private/tmp/port-daddy-pr11-rescue. Intended files are the staged skill mirrors, skill-path docs/tests, init/setup fanout, MCP/parity references, and small website data references. Validation target: skill validator/parity/unit gates, website build if site data remains touched, pd guard check --staged, then push main.",
+    "Scope: inspect remaining git stashes and orphaned worktrees from a clean isolated worktree. Avoid root dirty website WIP; do not drop stashes until their contents are committed, intentionally dismissed, or already proven landed.",
+    "Scope update: created docs/shipwright/preview/app-native-cockpit.html; now claiming preview PNG and README index entry for screenshot proof and discoverability.",
+    "[warning] claim-watcher: website-v2/tools/landing-live-glory/scene.html content hash changed mid-claim",
+    "[warning] claim-watcher: website-v2/src/pages/docs/CliOverview.tsx content hash changed mid-claim",
     "[warning] claim-watcher: website-v2/src/components/landing/Hero.tsx content hash changed mid-claim"
   ]
 }

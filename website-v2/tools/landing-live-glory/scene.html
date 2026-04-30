@@ -314,14 +314,13 @@
         bottom: auto;
         left: auto;
         z-index: 3;
-        width: fit-content;
-        min-width: 380px;
-        max-width: 460px;
-        border: 4px solid var(--line);
+        width: 260px;
+        min-height: 0;
+        border: 3px solid var(--line);
         background: var(--panel);
         color: var(--ink);
-        box-shadow: inset 10px 0 0 var(--accent);
-        padding: 28px 30px 28px 38px;
+        box-shadow: inset 8px 0 0 var(--accent);
+        padding: 18px 20px 18px 28px;
       }
 
       .surface-copy.pos-bottom-left {
@@ -341,19 +340,19 @@
 
       .surface-copy strong {
         display: block;
-        max-width: 11ch;
-        font-size: 42px;
-        line-height: 0.98;
+        max-width: none;
+        font-size: 32px;
+        line-height: 1;
         letter-spacing: 0;
         font-variation-settings: "opsz" var(--radnika-opsz-display);
       }
 
       .surface-copy span {
         display: block;
-        margin-top: 20px;
-        max-width: 19ch;
+        margin-top: 12px;
+        max-width: none;
         color: var(--muted);
-        font-size: 23px;
+        font-size: 17px;
         font-weight: 700;
         line-height: 1.16;
       }
@@ -461,8 +460,8 @@
         <span class="surface-title">Shipwright</span>
         <img id="shipwrightImage" alt="Fleet Control Center Shipwright" />
         <figcaption class="surface-copy pos-bottom-right">
-          <strong>Shipwright builds the fleet.</strong>
-          <span>Proposes agents, budgets the run, and keeps launch choices visible.</span>
+          <strong>Shipwright plans the fleet.</strong>
+          <span>Agents, budget, launch.</span>
         </figcaption>
       </figure>
 
@@ -470,8 +469,8 @@
         <span class="surface-title">Roadmap</span>
         <img id="roadmapImage" alt="Fleet Control Center Roadmap" />
         <figcaption class="surface-copy pos-top-right">
-          <strong>Roadmap ranks the next cuts.</strong>
-          <span>Turns notes, recovery docs, and feedback into prioritized work.</span>
+          <strong>Roadmap ranks work.</strong>
+          <span>Notes and feedback become next cuts.</span>
         </figcaption>
       </figure>
 
@@ -479,8 +478,8 @@
         <span class="surface-title">Sorties</span>
         <img id="sortiesImage" alt="Fleet Control Center Sorties" />
         <figcaption class="surface-copy pos-top-right">
-          <strong>Sorties keep launches bounded.</strong>
-          <span>Preview roster, approvals, budget, and launch path before work starts.</span>
+          <strong>Sorties bound launches.</strong>
+          <span>Roster, approval, budget.</span>
         </figcaption>
       </figure>
 
@@ -488,8 +487,8 @@
         <span class="surface-title">Flow</span>
         <img id="flowImage" alt="Fleet Control Center Flow" />
         <figcaption class="surface-copy pos-bottom-right">
-          <strong>Flow shows who wakes whom.</strong>
-          <span>Shows listeners, triggers, publishes, and where work moves next.</span>
+          <strong>Flow shows wakeups.</strong>
+          <span>Listeners, triggers, publishes.</span>
         </figcaption>
       </figure>
 
@@ -498,7 +497,7 @@
         <img id="resourcesImage" alt="Fleet Control Center Resources" />
         <figcaption class="surface-copy pos-bottom-right">
           <strong>Resources shows fleet pressure.</strong>
-          <span>Shows daemon load, memory, spend, and launch capacity.</span>
+          <span>Load, memory, spend.</span>
         </figcaption>
       </figure>
 
@@ -506,8 +505,8 @@
         <span class="surface-title">Agents</span>
         <img id="agentsImage" alt="Fleet Control Center Agents" />
         <figcaption class="surface-copy pos-top-right">
-          <strong>Agents ties signals to actors.</strong>
-          <span>Connects runtime bodies, notes, claims, inboxes, and handoffs.</span>
+          <strong>Agents maps actors.</strong>
+          <span>Notes, claims, inboxes, handoffs.</span>
         </figcaption>
       </figure>
 

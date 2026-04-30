@@ -1,27 +1,11 @@
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
-import { PageContainer, SectionIntro } from '@/components/site/primitives'
-import { ArrowRight, Download, RadioTower, Terminal } from 'lucide-react'
+import { PageContainer } from '@/components/site/primitives'
+import { ArrowRight, Download, Terminal } from 'lucide-react'
 import { LiveGloryVideo } from './LiveGloryVideo'
 
 export function Hero() {
-  const coordinationStrip = (
-    <div className="relative z-20 mb-[var(--space-6)] grid gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)] sm:grid-cols-[auto_minmax(0,1fr)]">
-      <span className="inline-flex h-10 w-10 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--brand-primary)]">
-        <RadioTower size={18} />
-      </span>
-      <div className="grid gap-1">
-        <span className="font-mono text-[10px] font-black uppercase tracking-[0.18em] text-[var(--brand-primary)]">
-          Coordination first
-        </span>
-        <p className="max-w-none text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
-          Agents write notes, claims, and handoffs through Port Daddy; FleetBar gives humans the same live truth before the recording starts.
-        </p>
-      </div>
-    </div>
-  )
-
   return (
     <section className="relative flex items-center overflow-hidden py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
       {/* Swiss-grid field for the infrastructure diagram. */}
@@ -31,8 +15,28 @@ export function Hero() {
       }} />
 
       <PageContainer className="relative z-10">
-        {coordinationStrip}
-        <div className="grid items-center gap-[var(--space-6)] min-[1100px]:grid-cols-[minmax(24rem,0.86fr)_minmax(34rem,1.14fr)] min-[1100px]:gap-[var(--space-7)]">
+        <motion.div
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, ease: 'easeOut' as const }}
+          className="mb-[var(--space-7)] grid gap-[var(--space-4)]"
+        >
+          <div className="flex items-center gap-[var(--space-3)]">
+            <span
+              aria-hidden="true"
+              className="h-8 border-l-2 border-[var(--border-strong)]"
+            />
+            <span className="font-sans text-[length:var(--type-meta-size)] font-medium uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)]">
+              What is Port Daddy?
+            </span>
+          </div>
+          <h1 className="max-w-[13ch] font-sans text-[length:var(--type-hero-size)] font-black leading-[var(--leading-display-tight)] tracking-normal text-[var(--text-primary)]">
+            The local coordination layer for{' '}
+            <span className="text-[var(--brand-primary)]">coding agents.</span>
+          </h1>
+        </motion.div>
+
+        <div className="grid items-start gap-[var(--space-6)] min-[1100px]:grid-cols-[minmax(22rem,0.78fr)_minmax(34rem,1.22fr)] min-[1100px]:gap-[var(--space-7)]">
           {/* Left -- Copy */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
@@ -40,10 +44,14 @@ export function Hero() {
             transition={{ duration: 0.6, ease: 'easeOut' as const }}
             className="space-y-[var(--space-5)]"
           >
+            <p className="max-w-[34rem] text-[length:var(--type-panel-body-size)] leading-[var(--leading-body)] text-[var(--text-secondary)]">
+              Port Daddy is the layer under your coding agents: a shared place for notes, work ownership, warnings, actor messages, readiness, budgets, and recoverable handoffs. Schedulers decide what runs. Port Daddy makes what agents know, touch, spend, and hand off inspectable.
+            </p>
+
             <Link to="/mac-preview" className="no-underline">
               <motion.div
                 whileHover={{ scale: 1.02 }}
-                className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] px-3 py-1.5 text-xs font-semibold mb-4 cursor-pointer"
+                className="inline-grid max-w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-[var(--radius-sm)] px-3 py-1.5 text-xs font-semibold cursor-pointer sm:max-w-[34rem]"
                 style={{
                   background: 'color-mix(in srgb, var(--brand-primary) 12%, transparent)',
                   border: '1px solid color-mix(in srgb, var(--brand-primary) 25%, transparent)',
@@ -51,27 +59,10 @@ export function Hero() {
                 }}
               >
                 <span>New</span>
-                <span style={{ color: 'var(--text-secondary)' }}>Agent radio, handoffs, resources, and launch readiness are visible in the app</span>
+                <span className="min-w-0" style={{ color: 'var(--text-secondary)' }}>Agent radio, handoffs, resources, and launch readiness are visible in the app</span>
                 <ArrowRight size={12} />
               </motion.div>
             </Link>
-
-            <SectionIntro
-              eyebrow="What is Port Daddy?"
-              title={
-                <>
-                  The local coordination layer for{' '}
-                  <span className="text-[var(--brand-primary)]">
-                    coding agents.
-                  </span>
-                </>
-              }
-              description="Port Daddy is the layer under your coding agents: a shared place for notes, work ownership, warnings, actor messages, readiness, budgets, and recoverable handoffs. Schedulers decide what runs. Port Daddy makes what agents know, touch, spend, and hand off inspectable."
-              titleAs="h1"
-              titleSize="hero"
-              titleClassName="max-w-[14ch]"
-              bodyClassName="max-w-[34rem]"
-            />
 
             {/* Feature pills */}
             <div className="flex max-w-[34rem] flex-wrap gap-2">
@@ -116,19 +107,8 @@ export function Hero() {
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.2, ease: 'easeOut' as const }}
-            className="relative min-[1100px]:-mr-[clamp(1rem,3vw,4rem)]"
+            className="relative"
           >
-            <picture aria-hidden="true" className="pointer-events-none absolute -right-[6%] -top-[18%] hidden h-[56%] w-[76%] overflow-hidden border opacity-35 min-[1100px]:block dark:opacity-25" style={{ borderColor: 'var(--border-subtle)' }}>
-              <source srcSet="/img/generated/agent-runtime-map.webp" type="image/webp" />
-              <img
-                alt=""
-                loading="lazy"
-                decoding="async"
-                fetchPriority="low"
-                className="h-full w-full object-cover"
-                src="/img/generated/agent-runtime-map.jpg"
-              />
-            </picture>
             <div className="relative z-10">
               <LiveGloryVideo />
             </div>
