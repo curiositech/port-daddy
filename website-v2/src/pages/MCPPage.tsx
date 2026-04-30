@@ -30,6 +30,12 @@ import { Footer } from '@/components/layout/Footer'
 import { Mermaid } from '@/components/ui/Mermaid'
 import { ALL_CATEGORIES, MCP_DEFAULT_TOOL_TOTAL, MCP_TOOL_TOTAL } from '@/data/mcp'
 import {
+  MCP_AGENT_TOOL_CATEGORIES,
+  MCP_AGENT_TOOL_DEFINITIONS,
+  type McpAgentToolDefinition,
+  type McpAgentToolParameter,
+} from '@/data/mcpAgentToolCatalog'
+import {
   BracketLabel,
   BracketLink,
   DocsCodeBlock,
@@ -1390,6 +1396,234 @@ function DiscoverGrid() {
   )
 }
 
+function sampleValueForParameter(parameter: McpAgentToolParameter): string {
+  if (parameter.enum?.length) return `"${parameter.enum[0]}"`
+  if (parameter.type === 'number') return '123'
+  if (parameter.type === 'boolean') return 'true'
+  if (parameter.type.endsWith('[]')) return '[]'
+  if (parameter.type === 'array') return '[]'
+  if (parameter.type === 'object') return '{}'
+  return `"<${parameter.name}>"`
+}
+
+function agentCallShape(tool: McpAgentToolDefinition): string {
+  if (tool.parameters.length === 0) return `await ${tool.name}({})`
+
+  const fields = tool.parameters
+    .filter((parameter) => parameter.required)
+    .concat(tool.parameters.filter((parameter) => !parameter.required).slice(0, 2))
+    .slice(0, 6)
+
+  return `await ${tool.name}({\n${fields.map((parameter) => `  ${parameter.name}: ${sampleValueForParameter(parameter)},`).join('\n')}\n})`
+}
+
+function ParameterList({ parameters, depth = 0 }: { parameters: McpAgentToolParameter[]; depth?: number }) {
+  if (parameters.length === 0) {
+    return (
+      <PanelBody size="compact" className="max-w-none border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-[var(--space-2)]">
+        No input parameters.
+      </PanelBody>
+    )
+  }
+
+  return (
+    <div className="grid gap-[var(--space-2)]">
+      {parameters.map((parameter) => (
+        <div
+          key={`${depth}-${parameter.name}`}
+          className="grid min-w-0 gap-[var(--space-2)] border border-[var(--border-default)] bg-[var(--surface-raised)] p-[var(--space-2)]"
+        >
+          <div className="flex min-w-0 flex-wrap items-start gap-[var(--space-2)]">
+            <span className="max-w-full break-words border border-[var(--border-subtle)] bg-[var(--surface-base)] px-[var(--space-2)] py-[var(--space-1)] font-mono text-[0.78rem] font-semibold text-[var(--brand-primary)]">
+              {parameter.name}
+            </span>
+            <span className="border border-[var(--border-subtle)] px-[var(--space-2)] py-[var(--space-1)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)]">
+              {parameter.required ? 'required' : 'optional'}
+            </span>
+            <span className="break-words border border-[var(--border-subtle)] px-[var(--space-2)] py-[var(--space-1)] font-mono text-[0.72rem] text-[var(--text-secondary)]">
+              {parameter.type}
+            </span>
+          </div>
+          {parameter.description ? (
+            <PanelBody size="compact" className="max-w-none">
+              {parameter.description}
+            </PanelBody>
+          ) : null}
+          {parameter.enum?.length ? (
+            <div className="flex flex-wrap gap-[var(--space-1)]">
+              {parameter.enum.map((value) => (
+                <span key={value} className="border border-[var(--border-subtle)] bg-[var(--surface-base)] px-[var(--space-2)] py-[var(--space-1)] font-mono text-[0.72rem] text-[var(--text-secondary)]">
+                  {value}
+                </span>
+              ))}
+            </div>
+          ) : null}
+          {parameter.properties?.length ? (
+            <div className="grid min-w-0 gap-[var(--space-2)] border-l-2 border-[var(--border-strong)] pl-[var(--space-2)]">
+              <PanelEyebrow>Nested fields</PanelEyebrow>
+              <ParameterList parameters={parameter.properties} depth={depth + 1} />
+            </div>
+          ) : null}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function AgentToolSpecCard({ tool }: { tool: McpAgentToolDefinition }) {
+  return (
+    <article id={`mcp-tool-${tool.name}`} className="scroll-mt-24 border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)]">
+      <div className="grid gap-[var(--space-3)]">
+        <div className="min-w-0 space-y-[var(--space-3)]">
+          <div className="flex min-w-0 flex-wrap items-start justify-between gap-[var(--space-2)]">
+            <span className="max-w-full break-words font-mono text-[1.05rem] font-bold text-[var(--text-primary)]">
+              {tool.name}
+            </span>
+            <span className={`border-2 px-[var(--space-2)] py-[var(--space-1)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] ${
+              tool.exposure === 'default'
+                ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]'
+                : 'border-[var(--border-default)] text-[var(--text-secondary)]'
+            }`}
+            >
+              {tool.exposure === 'default' ? 'default tool' : 'discoverable'}
+            </span>
+          </div>
+          <PanelEyebrow>{tool.categoryLabel}</PanelEyebrow>
+          <PanelBody size="compact" className="max-w-none">
+            {tool.description}
+          </PanelBody>
+          <div className="border border-[var(--border-default)] bg-[var(--surface-raised)] p-[var(--space-2)]">
+            <PanelEyebrow>Agent call shape</PanelEyebrow>
+            <pre className="mt-[var(--space-2)] overflow-x-auto whitespace-pre-wrap break-words font-mono text-[0.78rem] leading-relaxed text-[var(--text-primary)]">
+              {agentCallShape(tool)}
+            </pre>
+          </div>
+        </div>
+
+        <div className="min-w-0 space-y-[var(--space-3)]">
+          <div className="min-w-0">
+            <PanelEyebrow>Input schema fields</PanelEyebrow>
+            <div className="mt-[var(--space-2)]">
+              <ParameterList parameters={tool.parameters} />
+            </div>
+          </div>
+          <details className="group border border-[var(--border-default)] bg-[var(--surface-raised)] p-[var(--space-2)]">
+            <summary className="cursor-pointer font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-primary)]">
+              Raw MCP JSON schema
+            </summary>
+            <pre className="mt-[var(--space-2)] max-h-[24rem] overflow-auto whitespace-pre-wrap break-words border border-[var(--border-subtle)] bg-[var(--surface-base)] p-[var(--space-2)] font-mono text-[0.72rem] leading-relaxed text-[var(--text-secondary)]">
+              {JSON.stringify(tool.inputSchema, null, 2)}
+            </pre>
+          </details>
+        </div>
+      </div>
+    </article>
+  )
+}
+
+function AgentToolDefinitionsBrowser() {
+  const [activeCategory, setActiveCategory] = useState('all')
+  const [query, setQuery] = useState('')
+  const normalizedQuery = query.trim().toLowerCase()
+
+  const parameterMatches = (parameter: McpAgentToolParameter): boolean =>
+    parameter.name.toLowerCase().includes(normalizedQuery) ||
+    parameter.description.toLowerCase().includes(normalizedQuery) ||
+    parameter.type.toLowerCase().includes(normalizedQuery) ||
+    Boolean(parameter.properties?.some(parameterMatches))
+
+  const categoryOptions = [
+    {
+      id: 'default',
+      label: 'Default',
+      description: 'The tools a normal MCP client receives before asking for more.',
+      tools: MCP_AGENT_TOOL_DEFINITIONS.filter((tool) => tool.exposure === 'default').map((tool) => tool.name),
+    },
+    {
+      id: 'all',
+      label: 'All tools',
+      description: 'Every callable tool handled by the Port Daddy MCP server.',
+      tools: MCP_AGENT_TOOL_DEFINITIONS.map((tool) => tool.name),
+    },
+    ...MCP_AGENT_TOOL_CATEGORIES,
+  ]
+
+  const selectedCategory = categoryOptions.find((category) => category.id === activeCategory) ?? categoryOptions[0]
+  const selectedToolNames = new Set(selectedCategory.tools)
+  const visibleTools = MCP_AGENT_TOOL_DEFINITIONS.filter((tool) => {
+    if (!selectedToolNames.has(tool.name)) return false
+    if (!normalizedQuery) return true
+    return (
+      tool.name.toLowerCase().includes(normalizedQuery) ||
+      tool.description.toLowerCase().includes(normalizedQuery) ||
+      tool.categoryLabel.toLowerCase().includes(normalizedQuery) ||
+      tool.parameters.some(parameterMatches)
+    )
+  })
+
+  return (
+    <div className="grid min-w-0 gap-[var(--space-5)]">
+      <div className="border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)]">
+        <div className="grid gap-[var(--space-4)] lg:grid-cols-[minmax(0,1fr)_minmax(16rem,0.32fr)]">
+          <div className="min-w-0">
+            <PanelEyebrow>{selectedCategory.id === 'default' ? 'ListTools response' : `pd_discover("${selectedCategory.id}")`}</PanelEyebrow>
+            <PanelTitle as="h3" size="card" className="mt-[var(--space-2)]">
+              {selectedCategory.label}: {visibleTools.length} tool{visibleTools.length === 1 ? '' : 's'}
+            </PanelTitle>
+            <PanelBody size="compact" className="mt-[var(--space-2)] max-w-none">
+              {selectedCategory.description}
+            </PanelBody>
+          </div>
+          <label className="grid min-w-0 gap-[var(--space-1)] self-start">
+            <PanelEyebrow>Filter specs</PanelEyebrow>
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="tool, parameter, description"
+              className="min-h-[3rem] w-full border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] px-[var(--space-3)] py-[var(--space-2)] font-sans text-[1rem] text-[var(--text-primary)] outline-none focus:border-[var(--brand-primary)]"
+            />
+          </label>
+        </div>
+        <div role="tablist" aria-label="MCP tool categories" className="mt-[var(--space-4)] grid gap-[var(--space-2)] sm:grid-cols-2 lg:grid-cols-4">
+          {categoryOptions.map((category) => {
+            const active = category.id === activeCategory
+            return (
+              <button
+                key={category.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setActiveCategory(category.id)}
+                className={`grid min-w-0 gap-[var(--space-1)] border-2 p-[var(--space-2)] text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] ${
+                  active
+                    ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]'
+                    : 'border-[var(--border-default)] bg-[var(--surface-raised)] text-[var(--text-primary)] hover:border-[var(--border-strong)]'
+                }`}
+              >
+                <span className="flex min-w-0 items-center justify-between gap-[var(--space-2)]">
+                  <span className="truncate font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)]">
+                    {category.label}
+                  </span>
+                  <span className="font-mono text-[0.72rem]">{category.tools.length}</span>
+                </span>
+                <span className={`line-clamp-2 text-[0.78rem] leading-snug ${active ? 'text-[var(--brand-primary-foreground-subtle)]' : 'text-[var(--text-secondary)]'}`}>
+                  {category.description}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      <div className="grid min-w-0 gap-[var(--space-3)]">
+        {visibleTools.map((tool) => (
+          <AgentToolSpecCard key={tool.name} tool={tool} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function McpPage() {
   const { scrollYProgress } = useScroll()
   const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 })
@@ -1713,6 +1947,15 @@ const task = await tuple_in({
             </SwissGridItem>
           </SwissGrid>
           <DiscoverGrid />
+          <div className="space-y-[var(--space-5)]">
+            <SectionIntro
+              eyebrow="Agent-facing definitions"
+              title="Every MCP tool as the agent receives it."
+              description="This browser mirrors the MCP registry: tool name, exposure tier, category, description, input fields, required parameters, example call shape, and raw JSON schema."
+              titleSize="card"
+            />
+            <AgentToolDefinitionsBrowser />
+          </div>
         </PageContainer>
       </SectionBand>
 
