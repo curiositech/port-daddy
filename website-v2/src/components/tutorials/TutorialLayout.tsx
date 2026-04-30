@@ -26,7 +26,8 @@ interface TutorialLayoutProps {
 }
 
 function tutorialHeaderMeta(readTime: string) {
-  return `${readTime} read`;
+  const normalizedReadTime = readTime.replace(/\s*read\s*$/i, "").trim();
+  return `${normalizedReadTime} reading time`;
 }
 
 export function TutorialLayout({
@@ -139,21 +140,21 @@ export function TutorialLayout({
             initial={{ opacity: 0, y: 32 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-            className="flex flex-col items-center"
+            className="flex w-full min-w-0 max-w-full flex-col items-center"
           >
             <motion.div className="mb-[var(--space-6)] flex flex-wrap items-center justify-center gap-[var(--space-3)] font-sans">
               <motion.span className="border border-[var(--border-default)] bg-[var(--surface-base)] px-[var(--space-3)] py-[var(--space-2)] text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
                 Lesson {number}
               </motion.span>
-              <motion.span className="border border-[var(--border-default)] bg-[var(--surface-base)] px-[var(--space-3)] py-[var(--space-2)] font-mono text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+              <motion.span className="border border-[var(--border-default)] bg-[var(--surface-base)] px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
                 {tutorialHeaderMeta(readTime)}
               </motion.span>
             </motion.div>
 
-            <motion.h1 className="mb-[var(--space-6)] font-display text-[length:var(--type-hero-size)] font-black leading-[var(--leading-display-tight)] tracking-[var(--tracking-display-tight)] text-[var(--text-primary)]">
+            <motion.h1 className="mb-[var(--space-6)] w-full max-w-4xl text-balance font-display text-[2.35rem] font-black leading-[var(--leading-display-tight)] tracking-normal text-[var(--text-primary)] sm:text-[length:var(--type-hero-size)]">
               {title}
             </motion.h1>
-            <motion.p className="mx-auto max-w-3xl font-sans text-[length:var(--type-panel-body-size)] leading-[var(--leading-body)] text-[var(--text-secondary)]">
+            <motion.p className="mx-auto w-full max-w-3xl text-balance font-sans text-[length:var(--type-panel-body-size)] leading-[var(--leading-body)] text-[var(--text-secondary)]">
               {description}
             </motion.p>
             {recording ? (

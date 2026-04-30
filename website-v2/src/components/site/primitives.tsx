@@ -37,15 +37,13 @@ const panelEyebrowClass =
   'font-sans text-[length:var(--type-meta-size)] font-medium uppercase tracking-[var(--tracking-meta)]'
 
 const panelTitleSize = {
-  hero: 'text-[length:var(--type-hero-size)] leading-[var(--leading-display-tight)] tracking-[var(--tracking-display-tight)]',
+  hero: 'text-[length:var(--type-hero-size)] leading-[var(--leading-display-tight)] tracking-normal',
   section:
-    'text-[length:var(--type-panel-title-display-size)] leading-[var(--leading-display)] tracking-[var(--tracking-display-tight)]',
+    'text-[length:var(--type-panel-title-display-size)] leading-[var(--leading-display)] tracking-normal',
   display:
-    'text-[length:var(--type-panel-title-display-size)] leading-[var(--leading-display)] tracking-[var(--tracking-display-tight)]',
-  card:
-    'text-[length:var(--type-panel-title-card-size)] leading-[var(--leading-card)] tracking-[var(--tracking-display-card)]',
-  nav:
-    'text-[length:var(--type-panel-title-nav-size)] leading-[var(--leading-nav)] tracking-[var(--tracking-display-nav)]',
+    'text-[length:var(--type-panel-title-display-size)] leading-[var(--leading-display)] tracking-normal',
+  card: 'text-[length:var(--type-panel-title-card-size)] leading-[var(--leading-card)] tracking-normal',
+  nav: 'text-[length:var(--type-panel-title-nav-size)] leading-[var(--leading-nav)] tracking-normal',
 } as const
 
 const panelBodySize = {
@@ -1055,7 +1053,7 @@ export function CommandBlock({
       tone={tone}
       elevation={elevation}
       titleSize="nav"
-      titleClassName="tracking-[var(--tracking-display-nav)]"
+      titleClassName="tracking-normal"
     >
       <DocsCodeBlock code={command} language="cli" label={title} variant="compact" />
       {description ? (
