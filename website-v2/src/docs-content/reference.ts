@@ -31,6 +31,7 @@ export const referenceSection: DocsContentSection = {
           title: 'Daily loop plus newer specialist surfaces',
           command:
             'pd status\npd briefing\npd begin "Fix auth bug" --identity myapp:api\npd note "JWT validation passing"\npd tube ui:clicks\npd guard check --staged\npd actor lookout --message "release-surface drift fixed"\npd done "Docs updated"',
+          output: 'Port Daddy is running\nSUCCESS: Briefing generated: .portdaddy/briefing.md\nSUCCESS: Agent Fix auth bug ready\nSUCCESS: Note added to session session-fix-auth-bug\n[ui:clicks] waiting for messages...\nPASS: Coordination Guard check passed\nMessage sent to actor lookout\nSUCCESS: Session completed',
           notes: [
             'The everyday loop remains first-class.',
             '`pd tube`, actor mailboxes, guard, roadmap, ideas, wallet, bond, and feedback commands now appear in the CLI reference instead of being source-only knowledge.',
@@ -85,6 +86,7 @@ export const referenceSection: DocsContentSection = {
           title: 'Canonical import and first calls',
           command:
             "import { PortDaddy } from 'port-daddy/client'\n\nconst pd = new PortDaddy()\nawait pd.claim('myapp:api:main')\nawait pd.begin('Build API preview', { identity: 'myapp:api:main' })\nawait pd.note('Preview server claimed')\nawait pd.done('Preview ready')",
+          output: 'PortClaim { identity: "myapp:api:main", port: 3001 }\nSession { status: "active", identity: "myapp:api:main" }\nSessionNote { type: "progress" }\nSession { status: "completed" }',
         },
         {
           type: 'checklist',

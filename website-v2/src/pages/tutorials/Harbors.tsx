@@ -39,7 +39,10 @@ export function Harbors() {
             {`pd harbor create my-app:main
 pd harbors
 pd harbor show my-app:main
-# Expected result: my-app:main appears as the shared project boundary with its current members.`}
+Harbor created: my-app:main
+Harbors (1):
+  my-app:main  (0 members, expires: never)
+Harbor: my-app:main`}
           </CodeBlock>
           <Surface depth="flat" radius="none" padding="lg">
             <p className="m-0">
@@ -60,7 +63,9 @@ pd harbor show my-app:main
             {`pd begin "Add password reset flow" --identity my-app:codex:auth
 pd harbor enter my-app:main
 pd note "Reset email template is implemented; API handler remains."
-# Expected result: the session, note, and agent identity are attached to my-app:main.`}
+SUCCESS: Agent Add password reset flow ready
+Entered harbor: my-app:main
+SUCCESS: Note added to session session-add-password-reset-flow`}
           </CodeBlock>
           <p>
             Now the session, notes, claims, and later salvage all line up inside
@@ -82,7 +87,9 @@ pd note "Reset email template is implemented; API handler remains."
 
 pd harbor enter my-app:security-review --agent my-app:reviewer
 pd harbor leave my-app:security-review --agent my-app:reviewer
-# Expected result: reviewer enters the narrower harbor, then leaves without changing the project harbor.`}
+Harbor created: my-app:security-review
+Entered harbor: my-app:security-review
+Left harbor: my-app:security-review`}
           </CodeBlock>
           <div className="grid gap-[var(--space-4)] md:grid-cols-2">
             <Surface depth="raised" radius="none" padding="lg">

@@ -30,6 +30,7 @@ export const bestPracticesSection: DocsContentSection = {
           type: 'command',
           title: 'Start here',
           command: 'pd status\npd briefing\npd salvage',
+          output: 'Port Daddy is running\nSUCCESS: Briefing generated: .portdaddy/briefing.md\n6 dead agent(s) in myapp. Run: pd salvage --project myapp',
           notes: [
             'This is the default entry loop for recovery, debugging, and parallel-work sessions on this machine.',
           ],
@@ -39,6 +40,7 @@ export const bestPracticesSection: DocsContentSection = {
           title: 'Leave context before edits',
           command:
             'pd note "Owning a narrow slice. State intended files and constraints before broad edits."',
+          output: 'SUCCESS: Note added to session session-current-work',
           notes: [
             'Use notes to make your slice visible to other agents.',
             'When overlap risk is real, use locks or file claims instead of relying on prose.',
@@ -106,6 +108,7 @@ export const bestPracticesSection: DocsContentSection = {
           title: 'Runtime verification',
           command:
             'port-daddy status\nlaunchctl print gui/501/com.portdaddy.daemon\ncurl -sS "$(cat ~/.port-daddy/daemon.port 2>/dev/null | sed \'s#^#http://localhost:#\')/fleet"\nwhich port-daddy',
+          output: 'Port Daddy is running\nstate = running\n{"running":true,"projects":[],"agents":[]}\n/opt/homebrew/bin/port-daddy',
           notes: [
             'This command set separates daemon health, launchd state, browser reachability, and shell command location.',
           ],
@@ -154,6 +157,7 @@ export const bestPracticesSection: DocsContentSection = {
           type: 'command',
           title: 'Session baseline',
           command: 'pd begin --identity myapp:api --purpose "Fix auth bug"\npd whoami',
+          output: 'SUCCESS: Agent Fix auth bug ready\nAgent:    Fix auth bug\nIdentity: myapp:api',
           notes: [
             'Use explicit identity and purpose instead of anonymous local work.',
           ],
@@ -162,6 +166,7 @@ export const bestPracticesSection: DocsContentSection = {
           type: 'command',
           title: 'Contested work',
           command: 'pd lock acquire <name>\npd with-lock <name> -- <command>',
+          output: 'SUCCESS: Lock "<name>" acquired\nSUCCESS: command completed and lock released',
           notes: [
             'Escalate to locks when work can collide or a critical section must be serialized.',
           ],
@@ -170,6 +175,7 @@ export const bestPracticesSection: DocsContentSection = {
           type: 'command',
           title: 'Recovery path',
           command: 'pd salvage\npd salvage claim <agentId>',
+          output: 'Recoverable work:\n  <agentId>  abandoned  preserved session context\nSUCCESS: Salvage claimed <agentId>',
           notes: [
             'Keep salvage visible in best practices because crash recovery is part of the product’s normal coordination story.',
           ],
@@ -218,6 +224,7 @@ export const bestPracticesSection: DocsContentSection = {
           type: 'command',
           title: 'Test gate',
           command: 'npm test',
+          output: 'Test Suites: all passed\nTests: all passed',
           notes: [
             'Run focused tests while iterating, then use this as the broad gate before release claims.',
             'If Jest reports worker-exit warnings, chase them before treating the run as clean.',
@@ -227,6 +234,7 @@ export const bestPracticesSection: DocsContentSection = {
           type: 'command',
           title: 'Promote the supported way',
           command: './scripts/promote-stable.sh',
+          output: 'SUCCESS: stable checkout rebuilt\nSUCCESS: canonical daemon relaunched',
           notes: [
             'This script rebuilds and restarts the stable install.',
             'Report the script’s blocker instead of improvising a launchd sequence.',
@@ -282,6 +290,7 @@ export const bestPracticesSection: DocsContentSection = {
           type: 'command',
           title: 'Available onboarding commands',
           command: 'pd init\npd fleet init\npd mcp install',
+          output: 'SUCCESS: Project initialized\nSUCCESS: Created pd-fleet.yml\nSUCCESS: MCP configuration installed',
           notes: [
             'These commands already exist and are usable today.',
             'Use them when you are setting up a project, a fleet, or an MCP connection.',

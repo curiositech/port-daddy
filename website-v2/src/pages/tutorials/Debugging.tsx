@@ -113,7 +113,8 @@ export function Debugging() {
             Advanced Diagnostics
           </p>
           <CodeBlock copyable={false} language="bash">{`$ pd health --all
-# Expected result: service health rows show which registered processes are healthy and which probe failed.`}</CodeBlock>
+myapp:api       HEALTHY
+myapp:worker    UNHEALTHY (Connection Refused)`}</CodeBlock>
           <div className="space-y-1">
             <div className="flex items-center justify-between text-[length:var(--type-meta-size)] font-mono text-[var(--text-secondary)]">
               <span>myapp:api</span>

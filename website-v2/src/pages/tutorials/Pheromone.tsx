@@ -58,7 +58,9 @@ SUCCESS: pheromone signals recorded for service, agent, and file targets.`}
           <CodeBlock copyable={false} language="bash">
             {`pd pheromone show services myapp:api:main
 pd pheromone ls
-# Expected result: current decayed strength and the hottest active signals are listed.`}
+services/myapp:api:main
+  urgency              0.731
+  quality              0.912`}
           </CodeBlock>
           <p>
             This is good for ambient triage: which service is under pressure,
@@ -77,7 +79,9 @@ pd pheromone ls
           <CodeBlock copyable={false} language="bash">
             {`pd pheromone files
 pd pheromone files --path src/auth --depth 2
-# Expected result: file heat rows include path, score, and conflict status when claims overlap.`}
+  path                                                heat  agents  conflict
+  src/auth/login.ts                                  0.72       2  yes
+  src/auth/session.ts                                0.41       1  no`}
           </CodeBlock>
           <div className="grid gap-[var(--space-4)] md:grid-cols-2">
             <Surface depth="raised" radius="none" padding="lg">

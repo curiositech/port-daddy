@@ -91,7 +91,10 @@ SUCCESS: Briefing generated: .portdaddy/briefing.md`}
 pd begin "Bootstrap auth service" --identity my-app:api
 pd harbor enter my-app:main
 pd whoami
-# Expected result: the active agent identity is my-app:api inside harbor my-app:main.`}
+Harbor created: my-app:main
+Entered harbor: my-app:main
+Agent:    Bootstrap auth service
+Identity: my-app:api`}
           </CodeBlock>
           <p>
             If you want to inspect the harbor itself, use{" "}
@@ -108,7 +111,8 @@ pd whoami
           <CodeBlock copyable={false} language="bash">
             {`pd note "Bootstrap complete. Harbor is ready for auth work."
 pd done "Initial setup complete"
-# Expected result: note recorded, session completed, active context cleared.`}
+SUCCESS: Note added to session session-bootstrap-auth-service
+SUCCESS: Session completed`}
           </CodeBlock>
         </section>
 

@@ -147,6 +147,34 @@ type RichSubpageContent = {
   visualNotes: string[]
 }
 
+function terminalOutputFor(code: string): string {
+  if (code.includes('pd status')) return 'Port Daddy is running\nRuntime: nominal\nFleet: 1 project(s), 5 agent(s), 3/5 launchable'
+  if (code.includes('pd setup')) return 'SUCCESS: Setup complete\nSUCCESS: Daemon running at http://127.0.0.1:9876'
+  if (code.includes('pd fleet validate')) return 'SUCCESS: Fleet "port-daddy-dev" parsed successfully\nSUCCESS: No topology warnings'
+  if (code.includes('pd fleet init')) return 'SUCCESS: Created pd-fleet.yml\nSUCCESS: Installed project-scoped post-commit hook'
+  if (code.includes('pd fleet up')) return 'SUCCESS: Fleet started\nFleet: 1 project(s), 5 agent(s), 3/5 launchable'
+  if (code.includes('pd begin')) return 'SUCCESS: Agent session ready\nSUCCESS: Note added to session session-current-work'
+  if (code.includes('pd guard')) return 'Coordination Guard: enforce\nPASS: staged files are claimed by the active session'
+  if (code.includes('pd salvage claim')) return 'SUCCESS: Salvage claimed agent-001\nSession context restored for active work'
+  if (code.includes('pd salvage')) return 'Recoverable work:\n  agent-001  abandoned  preserved session context'
+  if (code.includes('pd tube') || code.includes('pd sub')) return '[channel] waiting for messages...\n[channel] received persisted event envelope'
+  if (code.includes('pd pub')) return 'Message sent\nPersisted to project-scoped channel'
+  if (code.includes('pd watch')) return 'Watching channel...\n[trigger] command executed for incoming message'
+  if (code.includes('pd actor') || code.includes('pd actors')) return 'Message sent to actor\nNavigator  Lookout  Quartermaster'
+  if (code.includes('pd lock')) return 'SUCCESS: Lock acquired\nSUCCESS: Lock released'
+  if (code.includes('pd spawn')) return '[pd] Spawning codex agent...\n[pd] Agent spawned-8a2f0c1c2f9b: completed'
+  if (code.includes('pd agent')) return 'SUCCESS: Agent run started\nSUCCESS: Agent run completed with notes'
+  if (code.includes('pd sortie')) return 'SUCCESS: Sortie sortie-1234 created\nStatus: completed'
+  if (code.includes('pd note') || code.includes('pd notes')) return 'SUCCESS: Note added to session session-current-work\n[progress] durable note visible in recent notes'
+  if (code.includes('pd harbor')) return 'Harbor created: shared-dev\nMembers: 1'
+  if (code.includes('pd tunnel')) return 'Tunnel ready: web -> 5173'
+  if (code.includes('pd tuple out')) return 'SUCCESS: Tuple written: tuple-1234'
+  if (code.includes('git status')) return ' M website-v2/src/pages/AgentsPage.tsx'
+  if (code.includes('cp templates/')) return 'pd-fleet.yml written from template'
+  if (code.includes('tsx templates/')) return 'encrypted messenger demo started\nlocal messages exchanged'
+  return 'Command completed; Port Daddy state updated and visible in the control plane.'
+}
+
 const CONCEPTS: Concept[] = [
   {
     label: 'YAML',
@@ -2205,9 +2233,7 @@ function OneOffs() {
                   <PanelBody size="compact" className="max-w-none">
                     {item.body}
                   </PanelBody>
-                  <div className="block min-w-0 whitespace-pre-wrap break-words border border-[var(--border-default)] bg-[color:var(--surface-sunken)] px-[var(--space-3)] py-[var(--space-2)] font-mono text-[11px] font-semibold leading-relaxed text-[var(--brand-primary)] [overflow-wrap:anywhere]">
-                    {item.command}
-                  </div>
+                  <DocsCodeBlock code={item.command} output={terminalOutputFor(item.command)} language="cli" label={item.title} copyable={false} />
                 </SurfacePanel>
               ))}
             </div>
@@ -2301,7 +2327,7 @@ function SectionDetail({ section }: { section: AgentSection }) {
                       Example code
                     </PanelTitle>
                   </div>
-                  <DocsCodeBlock code={section.code} language="cli" label={section.codeLabel} />
+                  <DocsCodeBlock code={section.code} output={terminalOutputFor(section.code)} language="cli" label={section.codeLabel} />
                 </SurfacePanel>
 
                 <SurfacePanel tone="blue" className="space-y-[var(--panel-gap)]">
@@ -2420,7 +2446,7 @@ function SectionDetail({ section }: { section: AgentSection }) {
                               {example.body}
                             </PanelBody>
                           </div>
-                          <DocsCodeBlock code={example.code} language="cli" label={example.label} className="min-w-0 max-w-full" />
+                          <DocsCodeBlock code={example.code} output={terminalOutputFor(example.code)} language="cli" label={example.label} className="min-w-0 max-w-full" />
                         </div>
                       ))}
                     </div>
@@ -2489,14 +2515,7 @@ function SectionDetail({ section }: { section: AgentSection }) {
                             {pack.path}
                           </span>
                         </div>
-                        <div
-                          role="textbox"
-                          aria-label={`${pack.title} command example`}
-                          className="m-0 min-w-0 overflow-auto whitespace-pre-wrap border-2 border-[var(--border-default)] p-[var(--space-3)] font-mono text-[12px] leading-relaxed"
-                          style={{ background: 'var(--code-bg)', color: 'var(--code-text)' }}
-                        >
-                          <span>{pack.command}</span>
-                        </div>
+                        <DocsCodeBlock code={pack.command} output={terminalOutputFor(pack.command)} language="cli" label={`${pack.title} command example`} copyable={false} />
                       </SurfacePanel>
                     ))}
                   </div>

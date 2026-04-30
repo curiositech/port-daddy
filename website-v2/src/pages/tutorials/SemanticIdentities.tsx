@@ -65,8 +65,8 @@ PORT=3001 node worker.js
               </motion.p>
               <CodeBlock copyable={false} language="bash">{`PORT=$(pd claim myapp:api:main -q) node server.js
 PORT=$(pd claim myapp:worker:main -q) node worker.js
-# Names describe what they are.
-# Expected result: each service starts with a stable port assigned from its semantic identity.`}</CodeBlock>
+3001
+3002`}</CodeBlock>
             </Surface>
           </motion.div>
         </section>
@@ -150,7 +150,10 @@ PORT=$(pd claim myapp:worker:main -q) node worker.js
 pd claim myapp:api                # Project + stack
 pd claim myapp:api:main           # Project + stack + context
 pd claim myapp:api:feature-auth   # Same stack, different branch
-# Expected result: each narrower identity gets its own deterministic claim.`}</CodeBlock>
+Claimed myapp -> 3000
+Claimed myapp:api -> 3001
+Claimed myapp:api:main -> 3100
+Claimed myapp:api:feature-auth -> 3150`}</CodeBlock>
         </section>
 
         {/* Wildcards and the Trie */}
@@ -174,15 +177,15 @@ pd claim myapp:api:feature-auth   # Same stack, different branch
 
           <CodeBlock copyable={false} language="bash">{`# Find everything in myapp
 pd find 'myapp:*'
-# → myapp:api:main (port 3100)
-# → myapp:frontend:main (port 3101)
-# → myapp:worker:main (port 3102)
+myapp:api:main        3100
+myapp:frontend:main   3101
+myapp:worker:main     3102
 
 # Find all API services across all projects
 pd find '*:api:*'
-# → myapp:api:main (port 3100)
-# → bosun:api:main (port 3200)
-# → marketing:api:staging (port 3300)
+myapp:api:main        3100
+bosun:api:main        3200
+marketing:api:staging 3300
 
 # Find all services on feature branches
 pd find 'myapp:*:feature-*'
@@ -321,9 +324,9 @@ pd claim myapp:api:feature-pay   # → port 3175
 
 # Find all branches of the API
 pd find 'myapp:api:*'
-# → myapp:api:main (3100)
-# → myapp:api:feature-auth (3150)
-# → myapp:api:feature-pay (3175)`}</CodeBlock>
+myapp:api:main          3100
+myapp:api:feature-auth  3150
+myapp:api:feature-pay   3175`}</CodeBlock>
 
           <motion.p>
             The name is the coordination handle. Other agents can resolve the

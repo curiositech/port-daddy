@@ -43,6 +43,7 @@ Start a tube listener:
 <!-- terminal -->
 ```bash
 $ pd tube ui:explain-selection
+[ui:explain-selection] waiting for messages...
 ```
 
 Publish an event from a UI, test runner, or script:
@@ -74,6 +75,7 @@ question: Why does this retry path duplicate invoice events?
 
 reply:
   pd tube reply msg_01JZ... --body <answer>
+reply command ready for threaded response
 ```
 
 Now the agent has a real job. It can inspect the file, run tests, open related modules, and answer the UI in context. The UI gets a structured response tied to the original event instead of a generic notification.

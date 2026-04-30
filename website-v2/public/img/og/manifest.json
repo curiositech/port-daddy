@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-30T02:21:19.402Z",
+  "generatedAt": "2026-04-30T09:07:57.796Z",
   "generator": "website-v2/scripts/generate-og-cards.mjs",
   "renderer": "website-v2/scripts/render-og-cards.py",
   "siteName": "Port Daddy",
@@ -1067,6 +1067,15 @@
       "route": "/docs/cli/swarm",
       "title": "pd swarm - Port Daddy",
       "description": "Reference for pd swarm, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-tube-chat.jpg",
+      "route": "/docs/cli/tube-chat",
+      "title": "pd tube chat <channel> - Port Daddy",
+      "description": "Reference for pd tube chat <channel>, including Port Daddy syntax, what the command does, and when to use it.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/control-plane-og.jpg"

@@ -301,6 +301,24 @@ describe('design system contracts', () => {
     expect(blogPage).not.toMatch(colorLiteral)
   })
 
+  test('shared code blocks syntax-highlight terminal, YAML, JSON, and text without route-specific forks', () => {
+    const codeBlock = read('./components/ui/CodeBlock.tsx')
+    const primitives = read('./components/site/primitives.tsx')
+    const docsCodeBlock = read('./components/docs/DocsCodeBlock.tsx')
+    const fleetTutorial = read('./pages/tutorials/Fleet.tsx')
+
+    expect(codeBlock).toContain('function highlightYaml')
+    expect(codeBlock).toContain('function highlightJson')
+    expect(codeBlock).toContain('normalizeLanguage(language)')
+    expect(codeBlock).toContain('normalized === "text"')
+    expect(primitives).toContain("'json'")
+    expect(primitives).toContain("'yaml'")
+    expect(primitives).toContain('const codeLanguage = language ===')
+    expect(docsCodeBlock).toContain("'json'")
+    expect(docsCodeBlock).toContain("'yaml'")
+    expect(fleetTutorial).toContain('language="yaml"')
+  })
+
   test('blog surfaces stay flat, square, and centralized around post hero metadata', () => {
     const blogSources = [
       read('./pages/BlogPage.tsx'),

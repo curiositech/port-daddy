@@ -27,6 +27,7 @@ export interface ExampleSourceFile {
 export interface ExampleCommand {
   title: string
   command: string
+  output: string
   notes?: string[]
 }
 
@@ -156,21 +157,25 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
       {
         title: 'Start the daemon',
         command: '$ pd start',
+        output: 'SUCCESS: Daemon running at http://127.0.0.1:9876',
         notes: ['The browser publishes to the daemon message channel. The agent listens through the CLI.'],
       },
       {
         title: 'Open the publisher',
         command: '$ open examples/pd-tube/button-to-agent.html',
+        output: 'examples/pd-tube/button-to-agent.html opened in the default browser.',
         notes: ['No SDK, no MCP server, no hosted callback. The page uses plain fetch against the local daemon.'],
       },
       {
         title: 'Start the agent side',
         command: '$ pd tube ui:clicks',
+        output: '[ui:clicks] waiting for messages...',
         notes: ['Leave this running in Claude Code, ChatGPT, Codex, Cursor, Aider, or any terminal-backed agent.'],
       },
       {
         title: 'Reply to an event',
         command: "$ printf '%s\\n' \"Deployed to staging. CI is green.\" | pd tube ui:clicks --reply <message-id> --sender claude-code",
+        output: 'SUCCESS: tube: posted reply id=43 to ui:clicks',
         notes: ['The browser watches the same channel and renders replies whose envelope has inReplyTo set.'],
       },
     ],
@@ -248,21 +253,25 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
       {
         title: 'Start the agent side',
         command: '$ pd tube dev:test-failed',
+        output: '[dev:test-failed] waiting for messages...',
         notes: ['Leave this running in the coding agent that should investigate failures.'],
       },
       {
         title: 'Run the built-in failing demo',
         command: '$ npx tsx examples/test-reporter/test-failure-to-agent.ts',
+        output: '[pd-test-reporter] posted failure to dev:test-failed\n[pd-test-reporter] agent side: pd tube dev:test-failed',
         notes: ['The default command fails on purpose so you can see the tube event immediately.'],
       },
       {
         title: 'Wrap a real test command',
         command: '$ npx tsx examples/test-reporter/test-failure-to-agent.ts -- npm test -- --runInBand',
+        output: '[pd-test-reporter] command failed; published failure payload to dev:test-failed',
         notes: ['Anything after -- is executed as the test command and captured if it fails.'],
       },
       {
         title: 'Use non-blocking mode for hooks',
         command: '$ npx tsx examples/test-reporter/test-failure-to-agent.ts --no-wait -- npm test',
+        output: '[pd-test-reporter] posted failure to dev:test-failed and exited without waiting for a reply',
         notes: ['This publishes the failure and exits with the failing command status.'],
       },
     ],
@@ -349,16 +358,19 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
       {
         title: 'Start the agent side',
         command: '$ pd tube editor:explain',
+        output: '[editor:explain] waiting for messages...',
         notes: ['The agent receives selected code plus file/range context.'],
       },
       {
         title: 'Open the lightbulb publisher',
         command: '$ open examples/editor-lightbulb/explain-selection.html',
+        output: 'examples/editor-lightbulb/explain-selection.html opened in the default browser.',
         notes: ['Edit the file, range, and selected code fields, then press the button.'],
       },
       {
         title: 'Reply with an explanation',
         command: "$ printf '%s\\n' \"This helper normalizes daemon URLs before fetch.\" | pd tube editor:explain --reply <message-id>",
+        output: 'SUCCESS: tube: posted reply id=43 to editor:explain',
         notes: ['The browser renders the threaded reply inline.'],
       },
     ],
@@ -427,21 +439,25 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
       {
         title: 'Start the agent side',
         command: '$ pd tube chat:mentions',
+        output: '[chat:mentions] waiting for messages...',
         notes: ['The agent receives webhook payloads as local work requests.'],
       },
       {
         title: 'Start the adapter',
         command: '$ npx tsx examples/webhook-adapter/local-webhook-to-agent.ts',
+        output: '[local-webhook-to-agent] listening on http://127.0.0.1:8787\n[local-webhook-to-agent] agent side: pd tube chat:mentions',
         notes: ['The server listens on 127.0.0.1:8787 by default.'],
       },
       {
         title: 'Send a webhook',
         command: "$ curl -sS http://127.0.0.1:8787/webhook -H 'Content-Type: application/json' -d '{\"source\":\"linear\",\"issue\":\"PD-42\",\"text\":\"Can you inspect the release check?\"}'",
+        output: '{"ok":true,"channel":"chat:mentions","agentCommand":"pd tube chat:mentions"}',
         notes: ['The adapter publishes the JSON into chat:mentions and waits for the agent reply.'],
       },
       {
         title: 'Fire and forget',
         command: "$ curl -sS 'http://127.0.0.1:8787/webhook?wait=0' -H 'Content-Type: application/json' -d '{\"source\":\"slack\",\"text\":\"Please inspect the current branch\"}'",
+        output: '{"ok":true,"wait":false,"channel":"chat:mentions"}',
         notes: ['Use wait=0 when the upstream bot should acknowledge quickly and receive the answer elsewhere.'],
       },
     ],
@@ -519,21 +535,25 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
       {
         title: 'Check the daemon',
         command: '$ pd status',
+        output: 'Port Daddy is running\nRuntime: nominal',
         notes: ['The example talks to the local daemon lock API.'],
       },
       {
         title: 'Run the default swarm',
         command: '$ npx tsx examples/leader-election/leader-election.ts',
+        output: '[leader-election] worker-1 acquired swarm:leader\n[leader-election] followers observed the held lock',
         notes: ['Five workers start from the same code path; one acquires swarm:leader.'],
       },
       {
         title: 'Run a larger contention demo',
         command: '$ npx tsx examples/leader-election/leader-election.ts --workers 8 --hold-ms 2500',
+        output: '[leader-election] started 8 workers\n[leader-election] exactly one leader held swarm:leader',
         notes: ['Increase worker count and hold time to see followers observe the held lock.'],
       },
       {
         title: 'Tune crash recovery',
         command: '$ npx tsx examples/leader-election/leader-election.ts --ttl-ms 5000',
+        output: '[leader-election] lock TTL set to 5000ms\n[leader-election] stale leadership can be reclaimed after expiry',
         notes: ['The TTL is the safety valve if a leader process dies before releasing the lock.'],
       },
     ],
@@ -611,21 +631,25 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
       {
         title: 'Dry-run the port claim',
         command: '$ bash examples/ephemeral-ci-db/ephemeral-postgres.sh',
+        output: 'DATABASE_URL=postgres://postgres:postgres@127.0.0.1:54321/postgres\nDry run only; release complete.',
         notes: ['Default mode claims a port, prints DATABASE_URL and Docker command, then releases the claim.'],
       },
       {
         title: 'Use a CI run id',
         command: '$ GITHUB_RUN_ID=12345 bash examples/ephemeral-ci-db/ephemeral-postgres.sh',
+        output: 'Claimed ci:postgres:12345\nDATABASE_URL=postgres://postgres:postgres@127.0.0.1:54321/postgres',
         notes: ['The semantic identity becomes ci:postgres:12345 so repeated steps can resolve the same service id.'],
       },
       {
         title: 'Start a real container',
         command: '$ bash examples/ephemeral-ci-db/ephemeral-postgres.sh --run',
+        output: 'docker run --rm -p 54321:5432 postgres:alpine\nPostgres ready on ci:postgres:local',
         notes: ['Requires Docker and starts postgres:alpine on the claimed Port Daddy port.'],
       },
       {
         title: 'Inspect or release manually',
         command: '$ pd find ci:postgres:12345 && pd release ci:postgres:12345',
+        output: 'ci:postgres:12345 -> 54321\nReleased ci:postgres:12345',
         notes: ['The script traps EXIT, but these are the operator commands when you are debugging.'],
       },
     ],
@@ -694,16 +718,19 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
       {
         title: 'Run the exchange',
         command: '$ npx tsx examples/p2p-webrtc/webrtc-signaling.ts',
+        output: '[webrtc-signaling] agent-a registered\n[webrtc-signaling] offer delivered, answer received, messages marked read',
         notes: ['Registers agent-a and agent-b, exchanges offer and answer, marks messages read, and unregisters them.'],
       },
       {
         title: 'Use explicit peer ids',
         command: '$ npx tsx examples/p2p-webrtc/webrtc-signaling.ts --caller camera-agent --receiver analysis-agent',
+        output: '[webrtc-signaling] camera-agent -> analysis-agent offer delivered\n[webrtc-signaling] analysis-agent replied with answer',
         notes: ['Use names that match the real peer roles in your local tool.'],
       },
       {
         title: 'Inspect inboxes while debugging',
         command: '$ pd agent camera-agent --inbox && pd agent analysis-agent --inbox',
+        output: 'camera-agent inbox: 1 message\nanalysis-agent inbox: 1 message',
         notes: ['The messages are durable enough to inspect if the peer flow breaks.'],
       },
     ],
@@ -772,16 +799,19 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
       {
         title: 'Publish the topology trace',
         command: '$ npx tsx examples/agent-topologies/topology-pubsub.ts',
+        output: '[agent-topologies] published star, ring, and arbiter traces to topology:* channels',
         notes: ['Emits star, ring, and arbiter events to topology:* channels.'],
       },
       {
         title: 'Inspect the channel catalogue',
         command: '$ pd channels',
+        output: 'topology:star\ntopology:ring\ntopology:arbiter',
         notes: ['Use the channel list to see the topology channels created by the run.'],
       },
       {
         title: 'Read one topology stream',
         command: '$ pd sub topology:star --once --no-history --limit=5',
+        output: '[topology:star] coordinator -> worker-a\n[topology:star] coordinator -> worker-b',
         notes: ['Swap topology:star for topology:ring or topology:arbiter.'],
       },
     ],
