@@ -1335,7 +1335,7 @@ function LifecycleDiagram() {
     ['heartbeat gap', 'Detect stale body lease'],
     ['salvage', 'Preserve notes and claims'],
     ['budget check', 'Respect run ceiling'],
-    ['respawn', 'Launch same identity'],
+    ['respawn', 'Try replacement run'],
   ] as const
 
   return (
@@ -1848,8 +1848,8 @@ export default function McpPage() {
             <SwissGridItem span="wide" className="space-y-[var(--section-intro-gap)]">
             <SectionIntro
               eyebrow="Fleet recovery"
-              title="Agent resurrection starts a replacement worker."
-              description="If a fleet agent crashes or exits, Port Daddy can automatically launch a new run for that same role when respawn is enabled in pd-fleet.yml. The daemon starts the replacement and enforces the retry limit; it does not revive a dead Claude, Codex, or Gemini process in place."
+              title="Respawn is opt-in; salvage is always visible."
+              description="When a fleet is running and an agent has respawn: true, Port Daddy can attempt a fresh run for that configured role after the old agent is marked dead. If the fleet is not running, or respawn is not enabled, the dead agent lands in salvage for a human or another agent to claim."
               titleSize="display"
             />
             <LifecycleDiagram />
