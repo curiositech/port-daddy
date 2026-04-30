@@ -4,6 +4,7 @@ import { APP_SURFACES } from './data/product'
 import { docsFamilyOrder, docsOverviewRoute, docsFamilyRoutes, findDocsRouteByPath, findDocsRouteBySlug } from './data/docs-routes'
 import { docsFamilies, findDocsFamily } from './data/publicSite'
 import { docsContentSections, findDocsContentPage, findDocsContentSection } from './docs-content'
+import { homepageTeasers, homepageTeaserStats } from './data/homepageTeasers'
 
 function read(relativePath: string) {
   return readFileSync(new URL(relativePath, import.meta.url), 'utf8')
@@ -205,6 +206,8 @@ describe('public shell contracts', () => {
     const app = read('./App.tsx')
     const homepageFiles = [
       './components/landing/Hero.tsx',
+      './components/landing/AboveFoldTeasers.tsx',
+      './data/homepageTeasers.ts',
       './components/landing/CoordinationEnforcementSection.tsx',
       './components/landing/AgentConversationSection.tsx',
       './components/landing/AgenticSocialProofSection.tsx',
@@ -234,6 +237,10 @@ describe('public shell contracts', () => {
       'The app has a real local API underneath.',
       'Put a control plane around your AI agents.',
       'Platform-grade signal',
+      'Open the sharpest Port Daddy proofs.',
+      'Product thesis',
+      'Executable example',
+      'Operator guide',
     ]
     const stalePhrases = [
       'Agents coordinate through observable state.',
@@ -255,6 +262,51 @@ describe('public shell contracts', () => {
     requiredPositioning.forEach((phrase) => expect(homepageCopy).toContain(phrase))
     stalePhrases.forEach((phrase) => expect(homepageCopy).not.toContain(phrase))
     expect(homepageCopy).not.toContain('titleClassName="max-w-[12ch]"')
+  })
+
+  test('homepage above-fold teasers expose articles, guides, and executable examples', () => {
+    const hero = read('./components/landing/Hero.tsx')
+    const teaserComponent = read('./components/landing/AboveFoldTeasers.tsx')
+    const teaserData = read('./data/homepageTeasers.ts')
+    const blogData = read('./data/blogMetaData.ts')
+    const tutorialData = read('./data/tutorials.ts')
+    const exampleData = read('./data/examples.ts')
+
+    expect(hero).toContain('<AboveFoldTeasers />')
+    expect(teaserComponent).toContain('id="featured-dispatches"')
+    expect(teaserComponent).toContain('homepageTeasers')
+    expect(teaserComponent).toContain('homepageTeaserStats')
+    expect(teaserComponent).toContain('group-hover:scale-[1.025]')
+    expect(teaserData).toContain('Product thesis')
+    expect(teaserData).toContain('Executable example')
+    expect(teaserData).toContain('Operator guide')
+    expect(homepageTeasers).toHaveLength(6)
+    expect(homepageTeaserStats.map((stat) => stat.label)).toEqual(['field notes', 'guides', 'examples'])
+    expect(new Set(homepageTeasers.map((teaser) => teaser.kind))).toEqual(new Set(['Article', 'Guide', 'Example']))
+    expect(homepageTeasers.filter((teaser) => teaser.featured)).toHaveLength(1)
+    expect(homepageTeasers[0].href).toBe('/blog/control-plane-is-the-product')
+    expect(homepageTeasers.some((teaser) => teaser.href === '/examples/pd-tube-button-to-agent')).toBe(true)
+    expect(homepageTeasers.some((teaser) => teaser.href === '/examples/test-failure-to-agent')).toBe(true)
+    expect(homepageTeasers.some((teaser) => teaser.href === '/tutorials/multi-agent')).toBe(true)
+    expect(homepageTeasers.some((teaser) => teaser.href === '/tutorials/primitives')).toBe(true)
+
+    for (const teaser of homepageTeasers) {
+      expect(teaser.title.length, `${teaser.href} should have a scan-friendly title`).toBeGreaterThan(12)
+      expect(teaser.summary.length, `${teaser.href} should have real information scent`).toBeGreaterThan(70)
+      expect(teaser.proof.length, `${teaser.href} should tell the reader what proof they get`).toBeGreaterThan(12)
+
+      if (teaser.kind === 'Article') {
+        expect(blogData).toContain(`slug: '${teaser.href.replace('/blog/', '')}'`)
+      }
+
+      if (teaser.kind === 'Guide') {
+        expect(tutorialData).toContain(`href: '${teaser.href}'`)
+      }
+
+      if (teaser.kind === 'Example') {
+        expect(exampleData).toContain(`slug: '${teaser.href.replace('/examples/', '')}'`)
+      }
+    }
   })
 
   test('individual whitepaper pages explain value and embed PDFs inline', () => {

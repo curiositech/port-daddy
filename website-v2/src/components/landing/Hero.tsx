@@ -3,11 +3,11 @@ import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
 import { PageContainer, SectionIntro } from '@/components/site/primitives'
 import { ArrowRight, Download, Terminal } from 'lucide-react'
-import { LiveGloryVideo } from './LiveGloryVideo'
+import { AboveFoldTeasers } from './AboveFoldTeasers'
 
 export function Hero() {
   return (
-    <section className="relative flex items-center overflow-hidden py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+    <section className="relative flex items-start overflow-hidden pb-[var(--space-5)] pt-[var(--space-5)] lg:pb-[var(--space-6)] lg:pt-[var(--space-6)]">
       {/* Swiss-grid field for the infrastructure diagram. */}
       <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{
         backgroundImage: 'radial-gradient(circle, var(--text-muted) 1px, transparent 1px)',
@@ -15,13 +15,13 @@ export function Hero() {
       }} />
 
       <PageContainer className="relative z-10">
-        <div className="grid items-center gap-[var(--space-6)] min-[1100px]:grid-cols-[minmax(24rem,0.86fr)_minmax(34rem,1.14fr)] min-[1100px]:gap-[var(--space-7)]">
+        <div className="grid items-start gap-[var(--space-5)] min-[1180px]:grid-cols-[minmax(23rem,0.58fr)_minmax(0,1.42fr)] min-[1180px]:gap-[var(--space-6)]">
           {/* Left -- Copy */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, ease: 'easeOut' as const }}
-            className="space-y-[var(--space-5)]"
+            className="space-y-[var(--space-4)] min-[1180px]:space-y-[var(--space-5)]"
           >
             <SectionIntro
               eyebrow="What is Port Daddy?"
@@ -36,12 +36,12 @@ export function Hero() {
               description="Port Daddy gives Claude, Codex, Aider, and custom agent tools a shared operating layer: sessions, file claims, locks, notes, inboxes, budgets, backend readiness, and salvage. It does not replace the model or scheduler. It makes multi-agent software work inspectable, recoverable, and safe enough to scale on one repo."
               titleAs="h1"
               titleSize="hero"
-              titleClassName="max-w-[13ch]"
+              titleClassName="max-w-[15ch] min-[1180px]:max-w-[13ch]"
               bodyClassName="max-w-[38rem]"
             />
 
             {/* Feature pills */}
-            <div className="flex max-w-[34rem] flex-wrap gap-2">
+            <div className="hidden max-w-[34rem] flex-wrap gap-2 min-[520px]:flex">
               {[
                 'Shared repo state',
                 'Commit-time guardrails',
@@ -78,27 +78,14 @@ export function Hero() {
             </div>
           </motion.div>
 
-          {/* Right -- synchronized light/dark capture */}
+          {/* Right -- high-scent reading and example paths */}
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.2, ease: 'easeOut' as const }}
-            className="relative min-[1100px]:-mr-[clamp(1rem,3vw,4rem)]"
+            className="relative min-[1180px]:-mr-[clamp(1rem,3vw,4rem)]"
           >
-            <picture aria-hidden="true" className="pointer-events-none absolute -right-[6%] -top-[18%] hidden h-[56%] w-[76%] overflow-hidden border opacity-35 min-[1100px]:block dark:opacity-25" style={{ borderColor: 'var(--border-subtle)' }}>
-              <source srcSet="/img/generated/agent-runtime-map.webp" type="image/webp" />
-              <img
-                alt=""
-                loading="lazy"
-                decoding="async"
-                fetchPriority="low"
-                className="h-full w-full object-cover"
-                src="/img/generated/agent-runtime-map.jpg"
-              />
-            </picture>
-            <div className="relative z-10">
-              <LiveGloryVideo />
-            </div>
+            <AboveFoldTeasers />
           </motion.div>
         </div>
       </PageContainer>
