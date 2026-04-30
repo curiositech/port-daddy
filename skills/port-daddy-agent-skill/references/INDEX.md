@@ -20,3 +20,12 @@ Load only the file that matches the decision in front of you.
   symbol claims, salvage takeover, fleet roles).
 - `portdaddyrc-spec.md`: `.portdaddyrc` configuration schema and resolution
   order.
+- `error-codes-and-recovery.md`: map from observable Port Daddy errors
+  (ECONNREFUSED, EPERM, NODE_MODULE_VERSION mismatch, guard refusals, salvage
+  weirdness) to the recovery action that actually works.
+- `actor-roster.md`: the maritime actor roster — Coxswain, Navigator,
+  Cartographer, Lookout, Quartermaster — what each owns and when to message
+  which one.
+- `session-lifecycle-state-machine.md`: session states (CREATED, ACTIVE,
+  IDLE, ABANDONED, SALVAGED, COMPLETED, DISMISSED), transitions, and how
+  Coordination Guard treats each.

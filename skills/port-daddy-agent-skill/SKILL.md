@@ -115,6 +115,22 @@ Use these only when the task actually needs them:
   capability gaps, model/backend slices, and Port Daddy-call cost versus
   spawned-agent work cost.
 
+## Bundled Decision Trees, Examples, and Sub-agent Patterns
+
+Load on demand when a vague situation needs to become a concrete action:
+
+- `decisions/` — branching trees: `something-broke.md`, `before-publish.md`,
+  `who-do-i-message.md`, `should-i-fork-subagent.md`, `skip-coordination-when.md`.
+- `examples/` — postmortems for the failure modes that bite hardest:
+  `08-launchd-respawn-window.md`, `09-better-sqlite3-abi-rebuild.md`,
+  `10-walked-into-anothers-rebase.md`, `11-briefing-first-even-for-diagnostics.md`.
+- `subagent-fork/` — parent→child fork patterns: when to fork, partition by
+  symbol, handoff checklist, rejoin protocol.
+- `agents/` — fleet personas: `salvage-watcher.yaml`, `lookout.yaml`,
+  `freshness-prober.yaml`, `subagent-fork-template.yaml`. Spawn via `pd spawn`.
+- `scripts/prologue/` — pre-action snapshots: `pd-context.sh`, `git-state.sh`,
+  `live-fleet.sh`. Run before any non-trivial task; parse the JSON output.
+
 ## CLI Documentation Contract
 
 The CLI reference lives in this skill and the website docs; nothing should
