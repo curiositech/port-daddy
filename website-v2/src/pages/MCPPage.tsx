@@ -243,6 +243,60 @@ const SKILL_INSTALL_SURFACES = [
   ['Gemini', '.gemini/extensions/port-daddy/skills/port-daddy-agent-skill keeps extension installs aligned.'],
 ] as const
 
+const INSTALL_TRANSCRIPT = `$ pd install
+Installing Port Daddy daemon...
+  Platform: darwin
+  Wrote ~/Library/LaunchAgents/com.portdaddy.daemon.plist
+  LaunchAgent loaded (com.portdaddy.daemon)
+Port Daddy daemon installed successfully.
+  Auto-starts on login
+  Test: curl http://127.0.0.1:9876/health
+
+$ pd mcp install
+INFO: Port Daddy MCP Installer
+  Configuring MCP server:
+    ✓ Claude Code          configured
+    ✓ Cursor               configured
+  Skill installed:
+    ✓ ~/.port-daddy/skills/SKILL.md
+  Next steps:
+    1. Restart your editors to activate Port Daddy tools
+
+$ python3 skills/port-daddy-agent-skill/scripts/validate_port_daddy_agent_skill.py skills/port-daddy-agent-skill
+Port Daddy agent skill bundle OK: skills/port-daddy-agent-skill
+
+$ pd begin --identity myapp:agent --purpose "coordinate through Skill + MCP"
+SUCCESS: Agent myapp:agent ready
+  Session: session-myapp-agent-8f31
+  Purpose: coordinate through Skill + MCP
+  Identity: myapp:agent`
+
+const READINESS_TRANSCRIPT = `$ pd status
+Port Daddy is running
+  Runtime: nominal
+  Bosun: idle - daemon heartbeat writer active
+
+$ pd briefing
+SUCCESS: Briefing generated: .portdaddy/briefing.md
+SUCCESS: Briefing generated: .portdaddy/briefing.json
+
+$ pd mcp install
+INFO: Port Daddy MCP Installer
+  Configuring MCP server:
+    ✓ Claude Code          updated
+    ✓ Cursor               updated
+  Skill installed:
+    ✓ ~/.port-daddy/skills/SKILL.md
+
+$ python3 skills/port-daddy-agent-skill/scripts/validate_port_daddy_agent_skill.py skills/port-daddy-agent-skill
+Port Daddy agent skill bundle OK: skills/port-daddy-agent-skill
+
+$ bash skills/port-daddy-agent-skill/scripts/diagnose_port_daddy_agent_context.sh
+Port Daddy context OK
+  active daemon: reachable
+  skill bundle: readable
+  MCP config: port-daddy server present`
+
 const ESSENTIAL_TOOLS = [
   ['begin_session', 'Register identity, claim files, and start a recoverable session.'],
   ['end_session_full', 'Release files, close the session, and unregister the agent.'],
@@ -623,10 +677,7 @@ export default function McpPage() {
                     </PanelBody>
                   </div>
                   <DocsCodeBlock
-                    code={`pd install
-pd mcp install
-python3 skills/port-daddy-agent-skill/scripts/validate_port_daddy_agent_skill.py skills/port-daddy-agent-skill
-pd begin --identity myapp:agent --purpose "coordinate through Skill + MCP"`}
+                    code={INSTALL_TRANSCRIPT}
                     language="cli"
                     label="Setup"
                   />
@@ -702,11 +753,7 @@ pd begin --identity myapp:agent --purpose "coordinate through Skill + MCP"`}
                       ))}
                     </div>
                     <DocsCodeBlock
-                      code={`pd status
-pd briefing
-pd mcp install
-python3 skills/port-daddy-agent-skill/scripts/validate_port_daddy_agent_skill.py skills/port-daddy-agent-skill
-bash skills/port-daddy-agent-skill/scripts/diagnose_port_daddy_agent_context.sh`}
+                      code={READINESS_TRANSCRIPT}
                       language="cli"
                       label="Skill + MCP readiness"
                     />
