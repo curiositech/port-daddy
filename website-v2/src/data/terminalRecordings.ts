@@ -72,8 +72,11 @@ const tutorialRecordings: Record<string, RecordingSpec> = {
   inbox: {
     title: 'See a direct agent message land in the right place',
     caption:
-      'This clip shows the one-to-one message loop behind the inbox tutorial: publish to the channel the agent owns, then consume the exact reply.',
-    commands: ['pd tube docs:inbox-recording --send', 'pd tube docs:inbox-recording --once --no-history --limit=1'],
+      'This clip shows the real inbox boundary: the human control layer sends one direct handoff, then the named agent reads that durable message from its own lane.',
+    commands: [
+      'AGENT_ID=RELEASE-LEAD pd inbox send QA-REVIEWER "Review migration 0142 on staging before release."',
+      'pd inbox --agent QA-REVIEWER --unread --limit 1',
+    ],
   },
   sugar: {
     title: 'Watch begin and done wrap the core coordination flow',
@@ -134,6 +137,16 @@ const tutorialRecordings: Record<string, RecordingSpec> = {
     caption:
       'This clip shows the control-plane checks behind the eleven primitives: status, briefing, and guard state before you lean on the rest of the system.',
     commands: ['pd status', 'pd briefing', 'pd guard status'],
+  },
+  'pd-tube': {
+    title: 'Watch one channel carry a threaded agent handoff',
+    caption:
+      'This clip shows the core PD Tube contract: send a message, reply to the exact id, then read both rows back from durable channel history.',
+    commands: [
+      'printf "docs handoff ready" | pd tube docs:pd-tube-recording --send --sender docs',
+      'printf "reply with the checked-in cast and GIF" | pd tube docs:pd-tube-recording --reply=<id> --sender codex',
+      'pd tube docs:pd-tube-recording --once --no-history --limit=2',
+    ],
   },
 }
 

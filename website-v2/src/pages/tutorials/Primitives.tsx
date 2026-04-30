@@ -39,14 +39,17 @@ export function Primitives() {
       title="Walk the 11 Product Primitives"
       description="Use the Mac app, Fleet Control Center, Shipwright, and CLI checks to see where every public primitive lives."
       number={20}
-      total={20}
+      total={21}
       level="Beginner"
       readTime="12 min read"
       prev={{
         title: "Use Ambient Attention Signals",
         href: "/tutorials/pheromone",
       }}
-      next={undefined}
+      next={{
+        title: "Pipe Agent Conversations",
+        href: "/tutorials/pd-tube",
+      }}
     >
       <motion.div className="space-y-16">
         <section className="space-y-6">
@@ -60,7 +63,9 @@ export function Primitives() {
 pd status
 pd briefing
 pd fleet models
-pd guard status`}</CodeBlock>
+pd guard status
+Port Daddy is running
+Coordination Guard: enforce`}</CodeBlock>
         </section>
 
         <section className="space-y-8">
@@ -148,7 +153,8 @@ pd guard status`}</CodeBlock>
           </motion.p>
           <CodeBlock copyable={false} language="bash">{`open "http://127.0.0.1:9876/fleet-ui/?surface=shipwright"
 pd fleet up
-pd sortie "Check docs drift and summarize product-truth gaps" --budget 0.50`}</CodeBlock>
+pd sortie "Check docs drift and summarize product-truth gaps" --budget 0.50
+# Expected result: Fleet Control Center opens, the fleet starts, and the sortie appears in mission history.`}</CodeBlock>
         </section>
       </motion.div>
     </TutorialLayout>

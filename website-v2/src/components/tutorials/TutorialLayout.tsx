@@ -162,7 +162,7 @@ export function TutorialLayout({
                 src={recording.gifSrc}
                 title={recording.title}
                 caption={recording.caption}
-                className="mt-[var(--space-7)] w-full min-w-0 max-w-6xl text-left"
+                className="mt-[var(--space-7)] w-full max-w-6xl text-left"
               />
             ) : null}
           </motion.div>

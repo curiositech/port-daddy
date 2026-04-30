@@ -1,4 +1,4 @@
-import { CheckCircle2, FileCheck2, GitCommit, LockKeyhole, MonitorCheck, NotebookTabs } from 'lucide-react'
+import { CheckCircle2, FileCheck2, GitCommit, LockKeyhole, MonitorCog, NotebookTabs, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import {
   PageContainer,
@@ -34,6 +34,82 @@ const outcomes = [
   },
 ] as const
 
+const guardModes = [
+  'Observe',
+  'Enforce',
+  'Check staged',
+  'Claim files',
+] as const
+
+function GuardControlMock() {
+  return (
+    <SurfacePanel elevation="quiet" padding="compact" className="grid gap-[var(--space-4)]">
+      <div className="flex items-center justify-between gap-[var(--space-3)] border-b-2 border-[var(--border-strong)] pb-[var(--space-3)]">
+        <div className="inline-flex items-center gap-[var(--space-2)]">
+          <MonitorCog size={17} className="text-[var(--brand-primary)]" />
+          <PanelEyebrow>FleetBar control</PanelEyebrow>
+        </div>
+        <span className="border-2 border-[var(--border-strong)] bg-[var(--brand-primary)] px-2 py-1 font-mono text-[10px] font-black uppercase tracking-[0.16em] text-[var(--brand-primary-foreground)]">
+          Guard on
+        </span>
+      </div>
+
+      <div className="grid gap-[var(--space-3)]">
+        <PanelTitle as="h3" size="nav" className="max-w-none">
+          Coordination Guard
+        </PanelTitle>
+        <PanelBody size="compact" className="max-w-none">
+          Humans do not need to remember the shell ceremony. FleetBar shows the guard state, lets an operator switch from observe to enforce, checks staged files, and points agents at the files that need claims.
+        </PanelBody>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        {guardModes.map((mode) => (
+          <button
+            key={mode}
+            type="button"
+            className={[
+              'border-2 border-[var(--border-strong)] px-3 py-2 text-left font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)]',
+              mode === 'Enforce'
+                ? 'bg-[var(--text-primary)] text-[var(--text-inverse)]'
+                : 'bg-[var(--surface-base)] text-[var(--text-primary)]',
+            ].join(' ')}
+          >
+            {mode}
+          </button>
+        ))}
+      </div>
+
+      <div className="grid gap-2 border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)]">
+        {[
+          ['Active session', 'website:landing-reconcile'],
+          ['Claim coverage', '7 landing files covered'],
+          ['Commit posture', 'fail closed on mismatch'],
+        ].map(([label, value]) => (
+          <div key={label} className="flex items-center justify-between gap-[var(--space-3)] border-b border-[var(--border-default)] pb-2 last:border-b-0 last:pb-0">
+            <span className="text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)]">
+              {label}
+            </span>
+            <span className="text-right font-mono text-[10px] font-black uppercase tracking-[0.14em] text-[var(--brand-primary)]">
+              {value}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-3)]">
+        <div className="inline-flex items-center gap-[var(--space-2)]">
+          <ShieldCheck size={16} className="text-[var(--brand-primary)]" />
+          <PanelEyebrow>Why it matters</PanelEyebrow>
+        </div>
+        <PanelBody size="compact" className="max-w-none">
+          The UI makes the rule obvious before the commit: every staged file should belong to an active session, and every exception should be visible enough for a human to decide.
+        </PanelBody>
+      </div>
+    </SurfacePanel>
+  )
+}
+
 export function CoordinationEnforcementSection() {
   return (
     <section id="coordination-enforcement" className="border-t-2 border-[var(--border-strong)] bg-[var(--surface-raised)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
@@ -65,32 +141,8 @@ export function CoordinationEnforcementSection() {
             </div>
           </SwissGridItem>
 
-          <SwissGridItem span="wide">
-            <SurfacePanel elevation="quiet" padding="compact" className="grid gap-[var(--space-4)]">
-              <div className="grid gap-[var(--space-3)] sm:grid-cols-[3rem_minmax(0,1fr)] sm:items-start">
-                <span className="inline-flex h-11 w-11 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-base)] text-[var(--brand-primary)]">
-                  <MonitorCheck size={18} />
-                </span>
-                <div className="grid gap-[var(--space-2)]">
-                  <PanelEyebrow>FleetBar and Fleet Control Center</PanelEyebrow>
-                  <PanelTitle as="h3" size="nav" className="max-w-none">
-                    The human view is the live control plane.
-                  </PanelTitle>
-                  <PanelBody size="compact" className="max-w-none">
-                    Use terminal evidence for agent work. Use the GUI for operator judgment.
-                  </PanelBody>
-                </div>
-              </div>
-              <picture className="block overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-base)]">
-                <source srcSet="/img/app-screens/fleet-flow-dark.png" media="(prefers-color-scheme: dark)" />
-                <img
-                  src="/img/app-screens/fleet-flow-light.png"
-                  alt="Fleet Control Center showing live agent coordination in the GUI"
-                  className="aspect-[16/10] w-full object-cover object-left-top"
-                  loading="lazy"
-                />
-              </picture>
-            </SurfacePanel>
+          <SwissGridItem span="rail">
+            <GuardControlMock />
           </SwissGridItem>
         </SwissGrid>
 

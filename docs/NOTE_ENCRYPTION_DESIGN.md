@@ -124,10 +124,10 @@ Runs automatically on first startup after upgrade (same migration pattern as `wo
 
 ### API behavior:
 
-- **Write path:** `POST /sessions/:id/notes` → content encrypted before INSERT
+- **Write path:** `POST /notes` with `sessionId` → content encrypted before INSERT
 - **Read path:** `GET /sessions/:id/notes` → content decrypted in `formatNote()` before JSON response
 - **Salvage path:** Successor agent gets decrypted notes through the daemon API — the daemon holds the master key and unwraps the session key transparently
-- **Quick notes:** `POST /notes` → same encryption, auto-creates session with key if needed
+- **Compatibility alias:** `POST /sessions/:id/notes` funnels through the same `POST /notes`/`quickNote` write path
 
 ## Merkle Chain Compatibility
 
@@ -189,9 +189,9 @@ curl -X POST http://localhost:9876/sessions \
   -d '{"purpose": "test encryption"}'
 # → {"id": "session-xxx", ...}
 
-curl -X POST http://localhost:9876/sessions/session-xxx/notes \
+curl -X POST http://localhost:9876/notes \
   -H 'Content-Type: application/json' \
-  -d '{"content": "this note is encrypted at rest"}'
+  -d '{"sessionId": "session-xxx", "content": "this note is encrypted at rest"}'
 
 # Verify it's encrypted in the database:
 sqlite3 port-registry.db "SELECT content FROM session_notes ORDER BY id DESC LIMIT 1"

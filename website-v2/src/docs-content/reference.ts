@@ -15,15 +15,15 @@ export const referenceSection: DocsContentSection = {
       goals: [
         'Keep the public CLI reference aligned with `bin/port-daddy-cli.ts` and `cli/commands/*.ts`.',
         'Expose newer surfaces like `pd tube`, `pd guard`, `pd actor`, `pd wallet`, `pd roadmap`, `pd ideas`, and `pd feedback`.',
-        'Separate detail-page coverage from existence so missing deep dives do not hide real commands.',
+        'Ensure every command row resolves to a real detail page with syntax, options, examples, aliases, source provenance, and API contract metadata.',
       ],
       blocks: [
         {
           type: 'paragraph',
           title: 'Start with the full index',
           paragraphs: [
-            'The `/docs/cli` page is the lookup surface for the whole CLI in this checkout. It lists the mature detail pages, but it also lists specialist commands that only live in source today.',
-            'Treat the index as source-backed inventory. If a command is routed in `bin/port-daddy-cli.ts`, it belongs in the reference even before a dedicated deep-dive page exists.',
+            'The `/docs/cli` page is the lookup surface for the whole CLI in this checkout. Every command row links to either a hand-authored page or a generated API-spec page backed by the same catalog.',
+            'Treat the index as source-backed navigation, not the documentation itself. If a command is routed in `bin/port-daddy-cli.ts`, it gets a resolvable detail route.',
           ],
         },
         {
@@ -40,7 +40,7 @@ export const referenceSection: DocsContentSection = {
           type: 'checklist',
           items: [
             '`/docs/cli` is backed by `website-v2/src/data/referenceCatalog.ts`.',
-            'The catalog records aliases, high-value flags, source files, and detail-page availability.',
+            'The catalog records aliases, high-value flags, source files, and generated detail-page routes.',
             'Search uses the same catalog, so `pd tube` and other newer commands are discoverable from the docs search box.',
           ],
         },

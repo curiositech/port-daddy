@@ -10,7 +10,7 @@ export function TimeTravel() {
       title="Activity Log Inspection"
       description="When multiple agents work on the same project, the hardest question is 'what happened first?' Learn to use Port Daddy's immutable activity log to reconstruct the sequence of events."
       number={14}
-      total={20}
+      total={21}
       level="Intermediate"
       readTime="8 min read"
       prev={{ title: "Budgeted One-Shot Agents", href: "/tutorials/pd-spawn" }}
@@ -69,7 +69,8 @@ $ curl http://localhost:9876/activity?limit=20
 $ curl http://localhost:9876/activity/summary
 
 # Get activity statistics
-$ curl http://localhost:9876/activity/stats`}
+$ curl http://localhost:9876/activity/stats
+# Expected result: each request returns recent activity rows, grouped summaries, or JSON stats from the daemon.`}
           </CodeBlock>
 
           <div className="space-y-2 overflow-hidden bg-[var(--code-bg)] p-5 font-mono text-[length:var(--type-meta-size)] text-[var(--code-text)]">

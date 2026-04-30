@@ -6,6 +6,14 @@ import editorLightbulbReadme from '../../../examples/editor-lightbulb/README.md?
 import editorLightbulbHtml from '../../../examples/editor-lightbulb/explain-selection.html?raw'
 import webhookAdapterReadme from '../../../examples/webhook-adapter/README.md?raw'
 import webhookAdapterSource from '../../../examples/webhook-adapter/local-webhook-to-agent.ts?raw'
+import leaderElectionReadme from '../../../examples/leader-election/README.md?raw'
+import leaderElectionSource from '../../../examples/leader-election/leader-election.ts?raw'
+import ephemeralCiDbReadme from '../../../examples/ephemeral-ci-db/README.md?raw'
+import ephemeralCiDbSource from '../../../examples/ephemeral-ci-db/ephemeral-postgres.sh?raw'
+import p2pWebrtcReadme from '../../../examples/p2p-webrtc/README.md?raw'
+import p2pWebrtcSource from '../../../examples/p2p-webrtc/webrtc-signaling.ts?raw'
+import agentTopologiesReadme from '../../../examples/agent-topologies/README.md?raw'
+import agentTopologiesSource from '../../../examples/agent-topologies/topology-pubsub.ts?raw'
 
 export type ExampleLevel = 'Beginner' | 'Intermediate' | 'Advanced'
 export type ExampleLanguage = 'cli' | 'text' | 'typescript'
@@ -35,6 +43,13 @@ export interface ExampleVisual {
   alt: string
 }
 
+export interface ExampleUiScreenshot {
+  src: string
+  alt: string
+  title: string
+  caption: string
+}
+
 export interface ExampleDoc {
   slug: string
   title: string
@@ -48,6 +63,7 @@ export interface ExampleDoc {
   lastReviewed: string
   tags: string[]
   visual: ExampleVisual
+  uiScreenshots?: ExampleUiScreenshot[]
   prerequisites: string[]
   files: string[]
   commands: ExampleCommand[]
@@ -93,7 +109,7 @@ const EXAMPLE_VISUALS = {
     webpSrc: '/img/generated/example-ephemeral-ci-db.webp',
     alt: 'A temporary database container plugged into a single clean CI port socket.',
   },
-  'agent-archetypes': {
+  'agent-topologies': {
     src: '/img/generated/example-agent-archetypes.jpg',
     webpSrc: '/img/generated/example-agent-archetypes.webp',
     alt: 'A physical topology board showing star, ring, and arbiter message traces.',
@@ -118,6 +134,15 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
     lastReviewed: '2026-04-29',
     tags: ['tube', 'browser', 'agent loop', 'messages'],
     visual: EXAMPLE_VISUALS['pd-tube-button-to-agent'],
+    uiScreenshots: [
+      {
+        src: '/img/examples/pd-tube-button-to-agent-ui.png',
+        alt: 'Screenshot of the PD Tube button-to-agent HTML demo with daemon URL, three action buttons, and the waiting tube command.',
+        title: 'The local button publisher.',
+        caption:
+          'This is the actual HTML file in examples/pd-tube: three browser buttons, one daemon URL, and a log that tells the operator to keep an agent blocked in pd tube ui:clicks.',
+      },
+    ],
     prerequisites: [
       'A running Port Daddy daemon.',
       'A browser that can open a local HTML file.',
@@ -302,6 +327,15 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
     lastReviewed: '2026-04-29',
     tags: ['tube', 'editor', 'selection', 'dev tools'],
     visual: EXAMPLE_VISUALS['editor-lightbulb-to-agent'],
+    uiScreenshots: [
+      {
+        src: '/img/examples/editor-lightbulb-to-agent-ui.png',
+        alt: 'Screenshot of the editor lightbulb HTML demo with daemon URL, file path, range, selected code, and an ask-agent button.',
+        title: 'The extension-shaped publisher.',
+        caption:
+          'This is the actual HTML file in examples/editor-lightbulb: a file/range/code selection form that publishes the selected snippet to editor:explain.',
+      },
+    ],
     prerequisites: [
       'A running Port Daddy daemon.',
       'A browser that can open a local HTML file.',
@@ -453,6 +487,337 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
       { title: 'Messaging reference', href: '/docs/cli/pub' },
       { title: 'Agent inbox tutorial', href: '/tutorials/inbox' },
       { title: 'MCP overview', href: '/docs/mcp' },
+    ],
+  },
+  {
+    slug: 'leader-election',
+    title: 'Build a one-leader worker loop with Port Daddy locks',
+    eyebrow: 'Locks',
+    level: 'Intermediate',
+    time: '14 min',
+    summary:
+      'Run a swarm of identical workers where exactly one process becomes leader and the rest keep operating as followers.',
+    surveyPlain:
+      'This is the small, useful version of leader election: one local worker gets the coordinator role without a bespoke consensus system.',
+    builds:
+      'A TypeScript worker swarm that races for the swarm:leader lock, holds it briefly, releases it in finally, and reports which worker won.',
+    whyItMatters:
+      'AI tools often need exactly one process to write the final summary, run the deploy, call a rate-limited API, or mutate a generated artifact. A Port Daddy lock is enough for that local coordination job.',
+    lastReviewed: '2026-04-29',
+    tags: ['locks', 'swarm', 'leader election', 'workers'],
+    visual: EXAMPLE_VISUALS['leader-election'],
+    prerequisites: [
+      'A running Port Daddy daemon.',
+      'tsx for the TypeScript worker script.',
+      'Several local workers, agents, or scheduled jobs that might start at the same time.',
+    ],
+    files: [
+      'examples/leader-election/leader-election.ts',
+      'examples/leader-election/README.md',
+    ],
+    commands: [
+      {
+        title: 'Check the daemon',
+        command: '$ pd status',
+        notes: ['The example talks to the local daemon lock API.'],
+      },
+      {
+        title: 'Run the default swarm',
+        command: '$ npx tsx examples/leader-election/leader-election.ts',
+        notes: ['Five workers start from the same code path; one acquires swarm:leader.'],
+      },
+      {
+        title: 'Run a larger contention demo',
+        command: '$ npx tsx examples/leader-election/leader-election.ts --workers 8 --hold-ms 2500',
+        notes: ['Increase worker count and hold time to see followers observe the held lock.'],
+      },
+      {
+        title: 'Tune crash recovery',
+        command: '$ npx tsx examples/leader-election/leader-election.ts --ttl-ms 5000',
+        notes: ['The TTL is the safety valve if a leader process dies before releasing the lock.'],
+      },
+    ],
+    sections: [
+      {
+        id: 'what-you-build',
+        label: 'What you build',
+        title: 'A same-code worker swarm with one elected coordinator.',
+        paragraphs: [
+          'Each worker sleeps for a small stagger, tries to acquire swarm:leader, and either enters leader mode or logs the holder and continues as a follower.',
+          'The leader uses a try/finally block so the lock is released even if leader work throws. The TTL keeps a crashed worker from owning the role forever.',
+        ],
+      },
+      {
+        id: 'where-to-use-it',
+        label: 'Where it fits',
+        title: 'Use the lock for the scarce side effect, not for the whole system.',
+        paragraphs: [
+          'This is useful when several agents can do discovery in parallel but only one should publish the final decision, modify a migration file, update a generated bundle, or call a costly external API.',
+          'You do not need a full coordinator service. The local daemon already knows who holds the lock and when it expires.',
+        ],
+      },
+      {
+        id: 'production-shape',
+        label: 'Product version',
+        title: 'The product version wraps real work in the leader branch.',
+        paragraphs: [
+          'Replace the demo sleep with the work only one process may do. Keep follower work separate so losing the election is not an error.',
+          'Use a purpose-specific lock name like release:notarize, docs:og-cards, or ci:postgres:run-123 so unrelated work can proceed independently.',
+        ],
+      },
+    ],
+    sourceFiles: [
+      { path: 'examples/leader-election/leader-election.ts', language: 'typescript', code: leaderElectionSource },
+      { path: 'examples/leader-election/README.md', language: 'text', code: leaderElectionReadme },
+    ],
+    adapt: [
+      'Wrap deploys, generated artifacts, migrations, and rate-limited API calls in a named lock.',
+      'Let non-leader workers keep doing read-only discovery or follower tasks.',
+      'Set TTLs short enough to recover from crashes and long enough for the critical section.',
+    ],
+    related: [
+      { title: 'Lock command', href: '/docs/cli/lock' },
+      { title: 'with-lock command', href: '/docs/cli/with-lock' },
+      { title: 'Sessions tutorial', href: '/tutorials/session-phases' },
+    ],
+  },
+  {
+    slug: 'ephemeral-ci-db',
+    title: 'Build an ephemeral CI database port claim',
+    eyebrow: 'CI services',
+    level: 'Beginner',
+    time: '12 min',
+    summary:
+      'Claim a stable semantic port for a throwaway Postgres test database and print the DATABASE_URL your tests should use.',
+    surveyPlain:
+      'This is the practical fix for parallel local and CI runs fighting over the same database port.',
+    builds:
+      'A shell wrapper that claims ci:postgres:<run-id>, constructs DATABASE_URL, prints a safe dry-run Docker command, and releases the claim on exit.',
+    whyItMatters:
+      'Test services are boring until two agents or CI jobs start them at once. Port Daddy gives each run a named local service identity and a collision-free port.',
+    lastReviewed: '2026-04-29',
+    tags: ['ports', 'ci', 'database', 'docker'],
+    visual: EXAMPLE_VISUALS['ephemeral-ci-db'],
+    prerequisites: [
+      'A running Port Daddy daemon.',
+      'bash for the wrapper script.',
+      'Docker only if you pass --run; the default mode is a safe dry-run.',
+    ],
+    files: [
+      'examples/ephemeral-ci-db/ephemeral-postgres.sh',
+      'examples/ephemeral-ci-db/README.md',
+    ],
+    commands: [
+      {
+        title: 'Dry-run the port claim',
+        command: '$ bash examples/ephemeral-ci-db/ephemeral-postgres.sh',
+        notes: ['Default mode claims a port, prints DATABASE_URL and Docker command, then releases the claim.'],
+      },
+      {
+        title: 'Use a CI run id',
+        command: '$ GITHUB_RUN_ID=12345 bash examples/ephemeral-ci-db/ephemeral-postgres.sh',
+        notes: ['The semantic identity becomes ci:postgres:12345 so repeated steps can resolve the same service id.'],
+      },
+      {
+        title: 'Start a real container',
+        command: '$ bash examples/ephemeral-ci-db/ephemeral-postgres.sh --run',
+        notes: ['Requires Docker and starts postgres:alpine on the claimed Port Daddy port.'],
+      },
+      {
+        title: 'Inspect or release manually',
+        command: '$ pd find ci:postgres:12345 && pd release ci:postgres:12345',
+        notes: ['The script traps EXIT, but these are the operator commands when you are debugging.'],
+      },
+    ],
+    sections: [
+      {
+        id: 'what-you-build',
+        label: 'What you build',
+        title: 'A repeatable database identity for one local or CI test run.',
+        paragraphs: [
+          'The script derives a service id from GITHUB_RUN_ID or the current timestamp, claims a port with pd claim, and builds a DATABASE_URL that points at 127.0.0.1 on that claimed port.',
+          'Dry-run mode prints the exact Docker command instead of starting a container. That makes the example safe to run on machines without Docker or without permission to start services.',
+        ],
+      },
+      {
+        id: 'why-semantic',
+        label: 'Why semantic ids',
+        title: 'The test runner should depend on ci:postgres:run-id, not a magic number.',
+        paragraphs: [
+          'Hardcoded 5432 is fine until a second test job, local agent, or developer service is already using it. The semantic id makes the intended service stable while the actual port stays negotiable.',
+          'The same pattern works for Redis, Selenium, fake S3, Playwright preview servers, and any service that needs a local TCP slot during tests.',
+        ],
+      },
+    ],
+    sourceFiles: [
+      { path: 'examples/ephemeral-ci-db/ephemeral-postgres.sh', language: 'cli', code: ephemeralCiDbSource },
+      { path: 'examples/ephemeral-ci-db/README.md', language: 'text', code: ephemeralCiDbReadme },
+    ],
+    adapt: [
+      'Swap postgres:alpine for Redis, MinIO, Selenium, or a preview server.',
+      'Use the claimed port to populate DATABASE_URL or service-specific env vars for tests.',
+      'Keep trap cleanup even in dry-run-friendly wrappers so crashed tests leave less residue.',
+    ],
+    related: [
+      { title: 'Claim command', href: '/docs/cli/claim' },
+      { title: 'Service discovery tutorial', href: '/tutorials/dns' },
+      { title: 'Testing practice', href: '/docs/best-practices/testing-and-promotion' },
+    ],
+  },
+  {
+    slug: 'p2p-webrtc',
+    title: 'Build WebRTC signaling over agent inboxes',
+    eyebrow: 'P2P signaling',
+    level: 'Advanced',
+    time: '22 min',
+    summary:
+      'Use durable agent inboxes to exchange an offer and answer before two peers open their direct channel.',
+    surveyPlain:
+      'Port Daddy coordinates who should connect; the heavy stream can move over WebRTC, WebTransport, or another peer path.',
+    builds:
+      'A TypeScript signaling exchange that registers two agents, sends an SDP offer through one inbox, sends the answer back, marks inboxes read, and unregisters both agents.',
+    whyItMatters:
+      'P2P tools still need a rendezvous layer. Agent inboxes give local peers durable, inspectable signaling without inventing a signaling server for every prototype.',
+    lastReviewed: '2026-04-29',
+    tags: ['inbox', 'webrtc', 'p2p', 'agents'],
+    visual: EXAMPLE_VISUALS['p2p-webrtc'],
+    prerequisites: [
+      'A running Port Daddy daemon.',
+      'tsx for the TypeScript signaling script.',
+      'Two local peer identities that need a durable offer/answer handoff.',
+    ],
+    files: [
+      'examples/p2p-webrtc/webrtc-signaling.ts',
+      'examples/p2p-webrtc/README.md',
+    ],
+    commands: [
+      {
+        title: 'Run the exchange',
+        command: '$ npx tsx examples/p2p-webrtc/webrtc-signaling.ts',
+        notes: ['Registers agent-a and agent-b, exchanges offer and answer, marks messages read, and unregisters them.'],
+      },
+      {
+        title: 'Use explicit peer ids',
+        command: '$ npx tsx examples/p2p-webrtc/webrtc-signaling.ts --caller camera-agent --receiver analysis-agent',
+        notes: ['Use names that match the real peer roles in your local tool.'],
+      },
+      {
+        title: 'Inspect inboxes while debugging',
+        command: '$ pd agent camera-agent --inbox && pd agent analysis-agent --inbox',
+        notes: ['The messages are durable enough to inspect if the peer flow breaks.'],
+      },
+    ],
+    sections: [
+      {
+        id: 'what-you-build',
+        label: 'What you build',
+        title: 'A durable rendezvous for two peers.',
+        paragraphs: [
+          'The caller sends a WEBRTC_OFFER into the receiver inbox. The receiver reads unread inbox messages, extracts the offer, and posts a WEBRTC_ANSWER back to the caller inbox.',
+          'The example uses fake SDP strings because the point is the coordination layer, not browser media bindings. Replace those strings with real RTCPeerConnection descriptions in a browser or native app.',
+        ],
+      },
+      {
+        id: 'why-inbox',
+        label: 'Why inbox',
+        title: 'Signaling needs durability more than throughput.',
+        paragraphs: [
+          'Offers, answers, and ICE candidates are small control messages. If one side restarts, you want to inspect what happened instead of losing the handshake in a transient process.',
+          'Once the peers connect, the high-bandwidth stream should leave Port Daddy and move directly over the peer channel.',
+        ],
+      },
+    ],
+    sourceFiles: [
+      { path: 'examples/p2p-webrtc/webrtc-signaling.ts', language: 'typescript', code: p2pWebrtcSource },
+      { path: 'examples/p2p-webrtc/README.md', language: 'text', code: p2pWebrtcReadme },
+    ],
+    adapt: [
+      'Replace fake SDP payloads with browser RTCPeerConnection offer and answer objects.',
+      'Add candidate trickle by sending additional inbox messages with kind WEBRTC_ICE.',
+      'Use Port Daddy only for rendezvous; send video, audio, or bulk data over the peer channel.',
+    ],
+    related: [
+      { title: 'Inbox tutorial', href: '/tutorials/inbox' },
+      { title: 'Agent command', href: '/docs/cli/agent' },
+      { title: 'Remote harbors', href: '/tutorials/remote-harbors' },
+    ],
+  },
+  {
+    slug: 'agent-topologies',
+    title: 'Build an inspectable agent topology trace',
+    eyebrow: 'Swarm patterns',
+    level: 'Beginner',
+    time: '15 min',
+    summary:
+      'Publish concrete event traces for star, ring, and arbiter coordination patterns so a workflow can be inspected after it runs.',
+    surveyPlain:
+      'This is a runnable sketch of how agents coordinate across channels before you build a full orchestrator.',
+    builds:
+      'A TypeScript publisher that emits star delegation, ring handoff, and arbiter review events into Port Daddy message channels.',
+    whyItMatters:
+      'Topology diagrams are cheap. Event traces are useful. This example makes each edge a real message you can inspect with the daemon after the process exits.',
+    lastReviewed: '2026-04-29',
+    tags: ['swarm', 'messages', 'topologies', 'workflow'],
+    visual: EXAMPLE_VISUALS['agent-topologies'],
+    prerequisites: [
+      'A running Port Daddy daemon.',
+      'tsx for the TypeScript publisher.',
+      'A workflow or fleet template where you want visible coordination edges.',
+    ],
+    files: [
+      'examples/agent-topologies/topology-pubsub.ts',
+      'examples/agent-topologies/README.md',
+    ],
+    commands: [
+      {
+        title: 'Publish the topology trace',
+        command: '$ npx tsx examples/agent-topologies/topology-pubsub.ts',
+        notes: ['Emits star, ring, and arbiter events to topology:* channels.'],
+      },
+      {
+        title: 'Inspect the channel catalogue',
+        command: '$ pd channels',
+        notes: ['Use the channel list to see the topology channels created by the run.'],
+      },
+      {
+        title: 'Read one topology stream',
+        command: '$ pd sub topology:star --once --no-history --limit=5',
+        notes: ['Swap topology:star for topology:ring or topology:arbiter.'],
+      },
+    ],
+    sections: [
+      {
+        id: 'what-you-build',
+        label: 'What you build',
+        title: 'Three coordination shapes as actual Port Daddy messages.',
+        paragraphs: [
+          'The star trace shows a coordinator assigning work and receiving completion events. The ring trace shows phase-to-phase handoff. The arbiter trace shows a worker submitting a change to a quality gate.',
+          'Each event includes topology, actor, action, payload, and timestamp. That is enough for a dashboard, tutorial, or fleet runner to reconstruct what happened.',
+        ],
+      },
+      {
+        id: 'why-events',
+        label: 'Why events',
+        title: 'A topology is only useful if operators can inspect the edges.',
+        paragraphs: [
+          'If every transition stays inside one process log, the operator cannot tell which agent handed off to whom. Publishing the edges gives the local daemon durable coordination evidence.',
+          'This example does not spawn agents. It shows the message shape a real orchestrator or fleet template should emit while agents do the work.',
+        ],
+      },
+    ],
+    sourceFiles: [
+      { path: 'examples/agent-topologies/topology-pubsub.ts', language: 'typescript', code: agentTopologiesSource },
+      { path: 'examples/agent-topologies/README.md', language: 'text', code: agentTopologiesReadme },
+    ],
+    adapt: [
+      'Use star when one coordinator owns assignment and summary.',
+      'Use ring when phases should hand off in order without a permanent coordinator.',
+      'Use arbiter when work needs an explicit quality gate before it becomes accepted state.',
+    ],
+    related: [
+      { title: 'Messaging reference', href: '/docs/cli/pub' },
+      { title: 'Fleet tutorial', href: '/tutorials/fleet' },
+      { title: 'Agents view', href: '/agents' },
     ],
   },
 ]

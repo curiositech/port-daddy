@@ -1,13 +1,14 @@
 import { Badge } from '@/components/ui/Badge'
 import { Surface } from '@/components/ui/Surface'
 import { Link } from 'react-router-dom'
-import { ArrowRight, ExternalLink, Terminal } from 'lucide-react'
+import { ArrowRight, Terminal } from 'lucide-react'
 import { TerminalGif } from '@/components/site/TerminalGif'
 import {
   CLI_ALIAS_TOTAL,
   CLI_COMMAND_TOTAL,
   CLI_REFERENCE_GROUPS,
   PORT_DADDY_VERSION,
+  cliCommandHref,
   referenceAnchor,
 } from '@/data/referenceCatalog'
 
@@ -17,6 +18,7 @@ function CommandRow({
   command: (typeof CLI_REFERENCE_GROUPS)[number]['items'][number]
 }) {
   const anchor = referenceAnchor(command.name)
+  const href = cliCommandHref(command)
   const content = (
     <Surface
       depth="flat"
@@ -28,19 +30,19 @@ function CommandRow({
       <div className="min-w-0 flex-1 space-y-2">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <code className="font-mono text-sm font-semibold text-[var(--brand-primary)]">{command.name}</code>
-          {command.href ? (
-            <Badge variant="success">detail page</Badge>
-          ) : (
-            <Badge variant="default">listed here</Badge>
-          )}
+          <Badge variant="success">API spec</Badge>
         </div>
         <p className="text-sm leading-relaxed text-[var(--text-secondary)]">{command.description}</p>
         {command.aliases?.length ? (
           <div className="flex flex-wrap gap-1.5">
             {command.aliases.map((alias) => (
-              <code key={alias} className="rounded bg-[var(--code-bg)] px-2 py-1 font-mono text-xs text-[var(--text-muted)]">
+              <Link
+                key={alias}
+                to={cliCommandHref(alias)}
+                className="rounded bg-[var(--code-bg)] px-2 py-1 font-mono text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--brand-primary)]"
+              >
                 {alias}
-              </code>
+              </Link>
             ))}
           </div>
         ) : null}
@@ -54,24 +56,12 @@ function CommandRow({
           </div>
         ) : null}
       </div>
-      {command.href ? (
-        <ArrowRight size={14} className="mt-1 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 text-[var(--text-muted)]" />
-      ) : (
-        <ExternalLink size={14} className="mt-1 shrink-0 opacity-30 text-[var(--text-muted)]" />
-      )}
+      <ArrowRight size={14} className="mt-1 shrink-0 text-[var(--text-muted)] opacity-0 transition-opacity group-hover:opacity-100" />
     </Surface>
   )
 
-  if (!command.href) {
-    return (
-      <div id={anchor} className="scroll-mt-24">
-        {content}
-      </div>
-    )
-  }
-
   return (
-    <Link id={anchor} to={command.href} className="group block scroll-mt-24">
+    <Link id={anchor} to={href} className="group block scroll-mt-24">
       {content}
     </Link>
   )
@@ -90,9 +80,9 @@ export default function CliOverview() {
           Command Line Interface
         </h1>
         <p className="max-w-3xl text-lg leading-relaxed text-[var(--text-secondary)]">
-          Complete lookup for the routed <code>pd</code> surface in this checkout. Detail pages cover
-          the mature commands; this index still lists the newer and specialist commands so they are not
-          invisible while deeper pages catch up.
+          Complete lookup for the routed <code>pd</code> surface in this checkout. Every command row links
+          to a detail page with syntax, options, examples, aliases, source provenance, and the API contract
+          agents should follow.
         </p>
       </div>
 
@@ -117,7 +107,7 @@ export default function CliOverview() {
           Audited from <code>bin/port-daddy-cli.ts</code>, <code>cli/commands/*.ts</code>, and
           package version <code>{PORT_DADDY_VERSION}</code>. Commands like <code>pd tube</code>,
           <code>pd wallet</code>, <code>pd guard</code>, <code>pd roadmap</code>, and
-          <code>pd actor</code> are first-class here even when they do not yet have individual pages.
+          <code>pd actor</code> are first-class documentation surfaces, not index-only mentions.
           Roadmap feedback has a dedicated detail page at <Link to="/docs/cli/roadmap">/docs/cli/roadmap</Link>.
         </p>
       </Surface>

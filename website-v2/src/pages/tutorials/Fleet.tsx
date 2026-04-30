@@ -21,7 +21,7 @@ export function Fleet() {
       title="Fleet: Agents That Run While You Sleep"
       description="Declare your background agent fleet in YAML. Wire it to git commits. Watch QA, docs, and idea engines run automatically on every push."
       number={18}
-      total={20}
+      total={21}
       level="Intermediate"
       readTime="12 min read"
       prev={{
@@ -248,6 +248,7 @@ curl -s -X POST "\${PD_URL}/msg/git:committed" \\
   --connect-timeout 2 --max-time 3 \\
   >/dev/null 2>&1 &
 
+# Expected result: git commit returns immediately and the daemon records one git:committed message.
 exit 0`}</CodeBlock>
 
           <motion.p>
@@ -405,7 +406,8 @@ exit 0`}</CodeBlock>
 
           <CodeBlock copyable={false} language="bash">{`pd fleet up       # Start the fleet
 pd fleet status   # What's running?
-pd fleet down     # Stop everything`}</CodeBlock>
+pd fleet down     # Stop everything
+# Expected result: status lists configured agents, readiness, and whether the fleet is running.`}</CodeBlock>
 
           <motion.p>
             Open the Fleet Control Center or the daemon-served dashboard at{" "}

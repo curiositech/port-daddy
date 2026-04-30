@@ -57,7 +57,15 @@ describe('actor routes', () => {
     expect(res.statusCode).toBe(200);
     const payload = res.json();
     expect(payload.success).toBe(true);
-    expect(payload.count).toBe(8);
+    expect(payload.count).toBe(9);
+    const coxswain = payload.actors.find((actor) => actor.id === 'coxswain');
+    expect(coxswain).toEqual(expect.objectContaining({
+      label: 'Coxswain',
+      leaseState: 'dormant',
+      compatibilityFleetAgent: null,
+      inboxTarget: 'actor:coxswain',
+      mailboxStats: { total: 0, unread: 0, max: 1000 },
+    }));
     const cartographer = payload.actors.find((actor) => actor.id === 'cartographer');
     expect(cartographer).toEqual(expect.objectContaining({
       label: 'Cartographer',
@@ -87,6 +95,20 @@ describe('actor routes', () => {
       success: true,
       resolvedId: 'cartographer',
       actor: expect.objectContaining({ id: 'cartographer' }),
+    }));
+
+    const coxswainRes = await app.inject({
+      method: 'GET',
+      url: '/actors/coxswain',
+    });
+    expect(coxswainRes.statusCode).toBe(200);
+    expect(coxswainRes.json()).toEqual(expect.objectContaining({
+      success: true,
+      resolvedId: 'coxswain',
+      actor: expect.objectContaining({
+        id: 'coxswain',
+        inboxTarget: 'actor:coxswain',
+      }),
     }));
 
     const missingRes = await app.inject({
@@ -237,6 +259,47 @@ describe('actor routes', () => {
       from: 'agent-test',
       messageContent: 'roadmap item needs evidence',
     }));
+
+    await app.close();
+  });
+
+  test('POST /actors/:id/message queues to Coxswain without requiring a live fleet body', async () => {
+    const inboxSend = jest.fn(() => ({ success: true, messageId: 43, agentId: 'actor:coxswain' }));
+    const hailAgent = jest.fn(async () => ({ success: true }));
+    const { app, register } = buildApp({
+      agents: { list: () => ({ agents: [] }) },
+      sessions: { list: () => ({ sessions: [] }) },
+      resurrection: { list: () => ({ agents: [] }) },
+      agentInbox: { send: inboxSend },
+      fleetDaemon: { hailAgent },
+    });
+    await register();
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/actors/coxswain/message',
+      payload: {
+        content: 'claims check needed',
+        from: 'agent-test',
+        wake: true,
+        project: 'port-daddy',
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual(expect.objectContaining({
+      success: true,
+      actorId: 'coxswain',
+      inboxTarget: 'actor:coxswain',
+      messageId: 43,
+      delivered: true,
+      woke: false,
+    }));
+    expect(inboxSend).toHaveBeenCalledWith('actor:coxswain', 'claims check needed', {
+      from: 'agent-test',
+      type: 'actor.message',
+    });
+    expect(hailAgent).not.toHaveBeenCalled();
 
     await app.close();
   });

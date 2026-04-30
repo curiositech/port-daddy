@@ -18,7 +18,7 @@ export function Pipelines() {
       title="Reactive Workflows"
       description="Use pd watch and pd spawn to build event-driven workflows today. Declarative reactive pipelines are planned for v4."
       number={15}
-      total={20}
+      total={21}
       level="Advanced"
       readTime="10 min read"
       prev={{
@@ -102,6 +102,7 @@ export function Pipelines() {
           <CodeBlock copyable={false} language="bash">
             {`# Watch the "test:fail" channel, run a fix script on each message
 $ pd watch test:fail --exec ./scripts/auto-fix.sh
+Watching test:fail...
 
 # Environment variables available in your script:
 #   PD_MESSAGE         — full JSON message
@@ -181,7 +182,8 @@ pd watch code:ready --exec 'pd spawn --backend aider -- "Review changes in $PD_M
 pd watch review:pass --exec './scripts/run-tests.sh'
 
 # Terminal 3: Your coding agent publishes when done
-pd pub code:ready "src/auth/login.ts"`}
+pd pub code:ready "src/auth/login.ts"
+# Expected result: the reviewer watcher starts first; the test watcher only runs after review:pass is published.`}
           </CodeBlock>
         </section>
 

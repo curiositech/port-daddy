@@ -90,6 +90,13 @@ play_recording() {
       run_cmd "pd briefing | sed -n '1,18p'"
       run_cmd "pd guard status"
       ;;
+    tutorials/pd-tube)
+      intro
+      run_cmd "printf 'docs handoff ready' | pd tube docs:pd-tube-recording --send --sender docs"
+      reply_to="$(pd tube docs:pd-tube-recording --once --json --no-history --limit=1 | python3 -c 'import json, sys; rows=[json.loads(line) for line in sys.stdin if line.strip()]; print(rows[-1].get("id", "") if rows else "")')"
+      run_cmd "printf 'reply with the checked-in cast and GIF' | pd tube docs:pd-tube-recording --reply=$reply_to --sender codex"
+      run_cmd "pd tube docs:pd-tube-recording --once --no-history --limit=2"
+      ;;
     tutorials/getting-started)
       intro
       run_cmd "pd status"
@@ -111,8 +118,8 @@ play_recording() {
     tutorials/multi-agent)
       intro
       run_cmd "pd status"
-      run_cmd "pd sessions --all-worktrees | sed -n '1,16p'"
-      run_cmd "pd notes --limit 5 | sed -n '1,16p'"
+      run_cmd "pd pub docs:multi-agent-recording '{\"surface\":\"tutorial\",\"event\":\"handoff\"}' --raw-channel"
+      run_cmd "pd tube docs:multi-agent-recording --once --no-history --limit=1"
       ;;
     tutorials/debugging)
       intro
@@ -122,8 +129,9 @@ play_recording() {
       ;;
     tutorials/inbox)
       intro
-      run_cmd "printf 'inbox handoff' | pd tube docs:inbox-recording --send"
-      run_cmd "pd tube docs:inbox-recording --once --no-history --limit=1"
+      run_cmd "node \"$ROOT_DIR/bin/port-daddy-cli.js\" inbox clear --agent QA-REVIEWER"
+      run_cmd "AGENT_ID=RELEASE-LEAD pd inbox send QA-REVIEWER \"Review migration 0142 on staging before release.\""
+      run_cmd "pd inbox --agent QA-REVIEWER --unread --limit 1"
       ;;
     tutorials/harbors)
       intro
@@ -191,6 +199,27 @@ play_recording() {
       run_cmd "printf '{\"event\":\"webhook\"}' | pd tube webhook:local --send"
       run_cmd "pd tube webhook:local --once --no-history --limit=1"
       ;;
+    examples/leader-election)
+      intro
+      run_cmd "pd status"
+      run_cmd "npx tsx examples/leader-election/leader-election.ts --workers 4 --hold-ms 900 --ttl-ms 5000"
+      ;;
+    examples/ephemeral-ci-db)
+      intro
+      run_cmd "pd status"
+      run_cmd "GITHUB_RUN_ID=recording bash examples/ephemeral-ci-db/ephemeral-postgres.sh"
+      ;;
+    examples/p2p-webrtc)
+      intro
+      run_cmd "pd status"
+      run_cmd "npx tsx examples/p2p-webrtc/webrtc-signaling.ts --caller docs-caller --receiver docs-receiver"
+      ;;
+    examples/agent-topologies)
+      intro
+      run_cmd "pd status"
+      run_cmd "npx tsx examples/agent-topologies/topology-pubsub.ts"
+      run_cmd "pd channels | sed -n '1,12p'"
+      ;;
     docs/cli-overview)
       intro
       run_cmd "pd status"
@@ -253,10 +282,15 @@ if [[ "${1:-}" == "--all" || $# -eq 0 ]]; then
     tutorials/watch \
     tutorials/remote-harbors \
     tutorials/fleet \
+    tutorials/pd-tube \
     examples/pd-tube-button-to-agent \
     examples/test-failure-to-agent \
     examples/editor-lightbulb-to-agent \
     examples/webhook-to-local-agent \
+    examples/leader-election \
+    examples/ephemeral-ci-db \
+    examples/p2p-webrtc \
+    examples/agent-topologies \
     docs/cli-overview \
     docs/pheromone; do
     record_one "$id"

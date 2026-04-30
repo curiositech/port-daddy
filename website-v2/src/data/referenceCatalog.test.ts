@@ -3,7 +3,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, test } from 'vitest'
 import { ALL_CATEGORIES, MCP_DEFAULT_TOOL_TOTAL, MCP_TOOL_TOTAL } from './mcp'
-import { CLI_REFERENCE_GROUPS, SDK_REFERENCE_GROUPS } from './referenceCatalog'
+import { CLI_REFERENCE_GROUPS, SDK_REFERENCE_GROUPS, cliCommandHref } from './referenceCatalog'
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
 
@@ -15,12 +15,43 @@ describe('reference catalog source coverage', () => {
   test('CLI catalog includes recent operator surfaces', () => {
     const names = CLI_REFERENCE_GROUPS.flatMap((group) => group.items.map((item) => item.name))
 
+    expect(names).toContain('pd add [path...]')
+    expect(names).toContain('pd bench [iterations]')
     expect(names).toContain('pd tube <channel>')
     expect(names).toContain('pd guard <command>')
     expect(names).toContain('pd actor <id>')
     expect(names).toContain('pd wallet <command>')
     expect(names).toContain('pd roadmap')
     expect(names).toContain('pd pheromone <command>')
+  })
+
+  test('every CLI catalog row resolves to a detail page', () => {
+    const overview = readRepoFile('website-v2/src/pages/docs/CliOverview.tsx')
+    const rows = CLI_REFERENCE_GROUPS.flatMap((group) => group.items)
+
+    expect(overview).not.toContain(['listed', 'here'].join(' '))
+
+    for (const command of rows) {
+      const href = cliCommandHref(command)
+      expect(href).toMatch(/^\/docs\/cli\/[a-z0-9-]+$/)
+      expect(href).not.toContain('#')
+    }
+  })
+
+  test('main CLI dispatch verbs are represented by catalog commands or aliases', () => {
+    const cliSource = readRepoFile('bin/port-daddy-cli.ts')
+    const mainSwitchStart = cliSource.indexOf('switch (command)')
+    const mainSwitchEnd = cliSource.indexOf('default: {', mainSwitchStart)
+    const mainSwitch = cliSource.slice(mainSwitchStart, mainSwitchEnd)
+    const dispatchVerbs = Array.from(mainSwitch.matchAll(/^      case '([^']+)':/gm), (match) => match[1])
+
+    const catalogVerbs = new Set(
+      CLI_REFERENCE_GROUPS.flatMap((group) =>
+        group.items.flatMap((item) => [item.name, ...(item.aliases ?? [])]),
+      ).map((name) => name.replace(/^pd\s+/, '').split(/\s+/)[0]),
+    )
+
+    expect(dispatchVerbs.filter((verb) => !catalogVerbs.has(verb))).toEqual([])
   })
 
   test('SDK catalog matches every public PortDaddy instance method', () => {

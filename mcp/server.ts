@@ -2695,13 +2695,9 @@ async function handleTool(
     case 'add_note': {
       const body: Record<string, unknown> = { content: args.content };
       if (args.type) body.type = args.type;
+      if (args.session_id) body.sessionId = args.session_id;
 
-      if (args.session_id) {
-        res = await POST(`/sessions/${args.session_id}/notes`, body);
-      } else {
-        // Quick note — server auto-creates session if needed
-        res = await POST('/notes', body);
-      }
+      res = await POST('/notes', body);
       break;
     }
 
@@ -3873,13 +3869,12 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
     const mcpDir = dirname(fileURLToPath(import.meta.url));
 
     // Search for skill in multiple locations. Order matters: prefer the
-    // canonical deep skill (port-daddy-agent-skill) over the terse operator
-    // skill (port-daddy-cli) over the brew-installed share dir.
+    // canonical deep skill (port-daddy-agent-skill), then legacy alias/install
+    // locations, then the brew-installed share dir.
     const home = process.env.HOME || '';
     const candidates = [
       join(mcpDir, '..', 'skills', 'port-daddy-agent-skill', 'SKILL.md'),
       join(mcpDir, '..', 'skills', 'port-daddy', 'SKILL.md'),
-      join(mcpDir, '..', 'skills', 'port-daddy-cli', 'SKILL.md'),
       join(home, '.claude', 'skills', 'port-daddy', 'SKILL.md'),
       join('/opt/homebrew/share/port-daddy/skills/port-daddy', 'SKILL.md'),
       join('/usr/local/share/port-daddy/skills/port-daddy', 'SKILL.md'),

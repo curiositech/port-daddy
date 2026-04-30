@@ -2,6 +2,7 @@ import { isValidElement, useMemo, type ReactElement, type ReactNode } from 'reac
 import { useParams, Link, Navigate } from 'react-router-dom'
 import { motion, useScroll, useSpring } from 'framer-motion'
 import ReactMarkdown, { type Components } from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { blogPosts, deprecatedBlogPosts } from '@/data/blogData'
 import { Mermaid } from '@/components/ui/Mermaid'
 import { CodeBlock } from '@/components/ui/CodeBlock'
@@ -285,7 +286,7 @@ export function BlogPostPage() {
             transition={{ duration: 0.7, delay: 0.2 }}
             className="blog-article"
           >
-            <ReactMarkdown components={markdownComponents}>
+            <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]}>
               {cleaned}
             </ReactMarkdown>
           </motion.article>

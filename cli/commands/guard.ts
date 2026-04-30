@@ -14,7 +14,19 @@ import type { CLIOptions } from '../types.js';
  * will touch, we just consult the daemon for any active claim that would
  * be steamrolled.
  */
-const DESTRUCTIVE_GIT_VERBS = new Set(['reset-hard', 'checkout-paths', 'clean-force', 'add-all']);
+const DESTRUCTIVE_GIT_VERBS = new Set([
+  'reset-hard',
+  'checkout-paths',
+  'clean-force',
+  'add-all',
+  // v2: extended after 2026-04-28 auto-stash incident on codex/pd-tube-tutorial.
+  // The shim intercepts these before the working tree is touched; the daemon
+  // evaluates active claims for any session and refuses if another session
+  // owns affected files in enforce mode.
+  'stash-push',
+  'cherry-pick',
+  'rebase',
+]);
 
 export const COORDINATION_GUARD_NAME = 'Coordination Guard';
 export const GUARD_CONFIG_RELATIVE_PATH = '.portdaddy/coordination-guard.json';
@@ -88,24 +100,57 @@ export function normalizeGuardConfig(raw: unknown): CoordinationGuardConfig {
   };
 }
 
-function configPath(cwd = process.cwd()): string {
+export function localGuardConfigPath(cwd = process.cwd()): string {
   return join(cwd, GUARD_CONFIG_RELATIVE_PATH);
 }
 
-function readGuardConfig(cwd = process.cwd()): CoordinationGuardConfig {
-  const path = configPath(cwd);
-  if (!existsSync(path)) return { ...DEFAULT_GUARD_CONFIG };
+function gitCommonDir(cwd = process.cwd()): string | null {
+  const result = spawnSync('git', ['rev-parse', '--git-common-dir'], { cwd, encoding: 'utf8' });
+  if (result.status !== 0) return null;
+  const resolved = result.stdout.trim();
+  return resolved ? resolve(cwd, resolved) : null;
+}
+
+export function sharedGuardConfigPath(cwd = process.cwd()): string | null {
+  const commonDir = gitCommonDir(cwd);
+  return commonDir ? join(commonDir, 'port-daddy', 'coordination-guard.json') : null;
+}
+
+function configCandidatePaths(cwd = process.cwd()): string[] {
+  const paths = [sharedGuardConfigPath(cwd), localGuardConfigPath(cwd)].filter((path): path is string => Boolean(path));
+  return Array.from(new Set(paths));
+}
+
+function readGuardConfigFile(path: string): CoordinationGuardConfig | null {
+  if (!existsSync(path)) return null;
   try {
     return normalizeGuardConfig(JSON.parse(readFileSync(path, 'utf8')));
   } catch {
-    return { ...DEFAULT_GUARD_CONFIG };
+    return null;
   }
 }
 
+export function readGuardConfig(cwd = process.cwd()): CoordinationGuardConfig {
+  for (const path of configCandidatePaths(cwd)) {
+    const config = readGuardConfigFile(path);
+    if (config) return config;
+  }
+  return { ...DEFAULT_GUARD_CONFIG };
+}
+
+function configPath(cwd = process.cwd()): string {
+  for (const path of configCandidatePaths(cwd)) {
+    if (existsSync(path)) return path;
+  }
+  return sharedGuardConfigPath(cwd) ?? localGuardConfigPath(cwd);
+}
+
 function writeGuardConfig(config: CoordinationGuardConfig, cwd = process.cwd()): void {
-  const path = configPath(cwd);
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, JSON.stringify({ ...config, updatedAt: new Date().toISOString() }, null, 2) + '\n');
+  const stamped = JSON.stringify({ ...config, updatedAt: new Date().toISOString() }, null, 2) + '\n';
+  for (const path of configCandidatePaths(cwd)) {
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, stamped);
+  }
 }
 
 function optionMode(options: CLIOptions): CoordinationGuardMode | undefined {
@@ -663,6 +708,7 @@ function printUsage(): void {
   console.log('  pd guard check --staged');
   console.log('  pd guard check src/file.ts');
   console.log('  pd guard check --git-verb reset-hard      # consult before destructive verbs');
+  console.log('  # also: checkout-paths, clean-force, add-all, stash-push, cherry-pick, rebase');
   console.log('  pd guard install --mode enforce           # pre-commit + post-commit hooks');
   console.log('  pd guard install-shim                     # ~/.port-daddy/bin/git wrapper');
   console.log('  pd guard uninstall-shim');

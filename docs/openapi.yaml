@@ -1102,8 +1102,10 @@ paths:
   /sessions/{id}/notes:
     post:
       tags: [sessions]
-      summary: Add a note to a session
+      summary: Compatibility alias for adding a note to a session
+      description: Legacy spelling for targeted note writes. New callers should use POST /notes with sessionId in the request body; this route delegates to the same quickNote path.
       operationId: addSessionNote
+      deprecated: true
       parameters:
         - name: id
           in: path
@@ -1317,7 +1319,8 @@ paths:
   /notes:
     post:
       tags: [sessions]
-      summary: Quick note (auto-creates session if needed)
+      summary: Add a note through the canonical note write path
+      description: Canonical note write endpoint. Pass sessionId to target a known session, or omit it to resolve the active session/quick-note context.
       operationId: quickNote
       requestBody:
         required: true
@@ -1331,6 +1334,9 @@ paths:
                   type: string
                 agentId:
                   type: string
+                sessionId:
+                  type: string
+                  description: Target session ID. When omitted, the daemon resolves active session context or creates an implicit quick-note session.
                 type:
                   type: string
       responses:
@@ -1485,7 +1491,7 @@ paths:
           required: true
           schema:
             type: string
-          description: Actor id or alias, for example navigator or cartographer
+          description: Actor id or alias, for example coxswain, navigator, or cartographer
         - name: project
           in: query
           schema:
@@ -1510,7 +1516,7 @@ paths:
           required: true
           schema:
             type: string
-          description: Actor id or alias, for example navigator or cartographer
+          description: Actor id or alias, for example coxswain, navigator, or cartographer
         - name: unread
           in: query
           schema:
@@ -1548,7 +1554,7 @@ paths:
           required: true
           schema:
             type: string
-          description: Actor id or alias, for example navigator or cartographer
+          description: Actor id or alias, for example coxswain, navigator, or cartographer
       responses:
         '200':
           description: Actor mailbox message counts
@@ -1570,7 +1576,7 @@ paths:
           required: true
           schema:
             type: string
-          description: Actor id or alias, for example navigator or cartographer
+          description: Actor id or alias, for example coxswain, navigator, or cartographer
       responses:
         '200':
           description: Actor mailbox messages marked read
@@ -1605,7 +1611,7 @@ paths:
           required: true
           schema:
             type: string
-          description: Actor id or alias, for example navigator or cartographer
+          description: Actor id or alias, for example coxswain, navigator, or cartographer
       requestBody:
         required: true
         content:

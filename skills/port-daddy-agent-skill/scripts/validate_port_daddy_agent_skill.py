@@ -19,6 +19,7 @@ REQUIRED_PATHS = [
     "references/fleetbar-and-console.md",
     "references/recovery-and-salvage.md",
     "references/distribution-and-installation.md",
+    "references/cli-reference.md",
     "diagrams/INDEX.md",
     "diagrams/01_flowchart_agent_operating_loop.md",
     "diagrams/02_sequenceDiagram_coordination_handoff.md",

@@ -133,7 +133,7 @@ async function ensureDaemonInstalledAndRunning(): Promise<boolean> {
  *   1. Homebrew install: $(brew --prefix)/share/port-daddy/skills/port-daddy
  *   2. Repo checkout: PROJECT_ROOT/skills/port-daddy-agent-skill
  */
-function resolveSkillSource(): string | null {
+export function resolveSkillSource(): string | null {
   const candidates: string[] = [];
 
   const brew = spawnSync('brew', ['--prefix'], { encoding: 'utf8' });
@@ -155,30 +155,26 @@ function resolveSkillSource(): string | null {
  * Returns true if at least one runtime got linked. Per-runtime failures are
  * logged but do not abort.
  */
-function installAgentSkillSymlink(): boolean {
+export function installSkillSymlinksAt(baseDir: string, scope: 'user' | 'project'): boolean {
   const source = resolveSkillSource();
   if (!source) {
     ui.warn('Skill source not found in brew prefix or repo checkout');
     return false;
   }
 
-  const home = homedir();
   const targets: { path: string; runtime: string; mode: 'dir' | 'file' }[] = [
-    // Claude Code — per-user skills directory.
-    { path: join(home, '.claude', 'skills', 'port-daddy'), runtime: 'Claude Code', mode: 'dir' },
-    // Claude Desktop also reads from ~/.claude/skills/ on macOS.
-    // (Same dir, already covered above.)
+    // Claude Code & Desktop — per-scope skills directory.
+    { path: join(baseDir, '.claude', 'skills', 'port-daddy'), runtime: 'Claude Code', mode: 'dir' },
     // Windsurf — Codeium agent runtime.
-    { path: join(home, '.codeium', 'windsurf', 'skills', 'port-daddy'), runtime: 'Windsurf', mode: 'dir' },
+    { path: join(baseDir, '.codeium', 'windsurf', 'skills', 'port-daddy'), runtime: 'Windsurf', mode: 'dir' },
     // Continue — VS Code extension; uses .continue prompts dir.
-    { path: join(home, '.continue', 'prompts', 'port-daddy'), runtime: 'Continue', mode: 'dir' },
+    { path: join(baseDir, '.continue', 'prompts', 'port-daddy'), runtime: 'Continue', mode: 'dir' },
     // Cline / Roo — Claude-Dev-style extensions read from this dir.
-    { path: join(home, '.config', 'cline', 'skills', 'port-daddy'), runtime: 'Cline', mode: 'dir' },
+    { path: join(baseDir, '.config', 'cline', 'skills', 'port-daddy'), runtime: 'Cline', mode: 'dir' },
     // Gemini CLI — extensions live here.
-    { path: join(home, '.gemini', 'extensions', 'port-daddy', 'skills', 'port-daddy'), runtime: 'Gemini CLI', mode: 'dir' },
-    // Cursor — single-file rule format. Different layout: surface the SKILL.md
-    // itself as ~/.cursor/rules/port-daddy.md so Cursor picks it up.
-    { path: join(home, '.cursor', 'rules', 'port-daddy.md'), runtime: 'Cursor', mode: 'file' },
+    { path: join(baseDir, '.gemini', 'extensions', 'port-daddy', 'skills', 'port-daddy'), runtime: 'Gemini CLI', mode: 'dir' },
+    // Cursor — single-file rule format. Project-local: <project>/.cursor/rules/port-daddy.md
+    { path: join(baseDir, '.cursor', 'rules', 'port-daddy.md'), runtime: 'Cursor', mode: 'file' },
   ];
 
   let linkedCount = 0;
@@ -214,11 +210,18 @@ function installAgentSkillSymlink(): boolean {
   }
 
   if (linkedCount === 0) {
-    ui.warn('No runtimes received the skill symlink');
+    ui.warn(`No ${scope} runtimes received the skill symlink`);
     return false;
   }
-  ui.info(`Skill installed for ${linkedCount} runtime(s). brew upgrade port-daddy will refresh all of them.`);
+  const refreshHint = scope === 'user'
+    ? 'brew upgrade port-daddy will refresh all of them.'
+    : 'pd init will refresh links if the canonical source moves.';
+  ui.info(`Skill installed for ${linkedCount} ${scope} runtime(s). ${refreshHint}`);
   return true;
+}
+
+function installAgentSkillSymlink(): boolean {
+  return installSkillSymlinksAt(homedir(), 'user');
 }
 
 function lstatSyncSafe(p: string) {

@@ -6,7 +6,7 @@ allowed-tools: Read,Write,Edit,Bash,Grep,Glob,WebFetch,WebSearch
 metadata:
   category: Frontend & UI
   tags: [web-app, design-system, react, accessibility, storybook, performance, security, privacy, operations, sustainability]
-  pairs-with: [design-archivist, competitive-cartographer, design-consistency-auditor, port-daddy-cli]
+  pairs-with: [design-archivist, competitive-cartographer, design-consistency-auditor, port-daddy]
   provenance:
     kind: first-party
     owners: [port-daddy]

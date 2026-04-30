@@ -75,6 +75,7 @@ play_section() {
       ;;
     event-triggers)
       intro
+      run_cmd "pd channels ensure git:committed --scope repo --description \"commit trigger event\""
       run_cmd "pd channels describe git:committed"
       run_cmd "pd fleet validate"
       run_cmd "pd fleet status"
@@ -92,6 +93,7 @@ play_section() {
     communication-protocols)
       intro
       run_cmd "pd channels discover git"
+      run_cmd "pd channels ensure git:committed --scope repo --description \"commit trigger event\""
       run_cmd "pd channels describe git:committed"
       run_cmd "pd pub docs:agents-recording '{\"surface\":\"agents\",\"section\":\"communication-protocols\"}' --raw-channel"
       ;;

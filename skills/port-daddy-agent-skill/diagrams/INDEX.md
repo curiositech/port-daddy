@@ -5,3 +5,5 @@
   another agent can resume.
 - `03_stateDiagram-v2_agent_lifecycle.md`: durable actor and temporary body
   lifecycle.
+- `04_flowchart_decision-points.md`: decision points and branch outcomes
+  encountered during a coordinated session.

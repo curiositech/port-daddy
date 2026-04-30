@@ -9,7 +9,7 @@ export function Spawn() {
       title="Budgeted One-Shot Agents"
       description="Use pd spawn when you want direct daemon-backed execution inside a harbor with explicit identity, cost ceiling, telemetry, and salvage."
       number={13}
-      total={20}
+      total={21}
       level="Intermediate"
       readTime="10 min read"
       prev={{ title: "Spawn + Watch Pattern", href: "/tutorials/always-on" }}
@@ -66,7 +66,8 @@ export function Spawn() {
     --tier low \\
     --identity port-daddy:docs:spawn-sync \\
     --budget 0.75 \\
-    -- "Rewrite the website spawn docs so they match the daemon contract"`}
+    -- "Rewrite the website spawn docs so they match the daemon contract"
+SUCCESS: spawn accepted agent spawned-8a2f0c1c with ceiling $0.75`}
           </CodeBlock>
 
           <Surface depth="raised" radius="none" padding="md">
@@ -115,7 +116,8 @@ spawned-8a2f0c1c    codex      gpt-5.4-mini           completed   12s`}
     --budget 1.25 \\
     --files apps/FleetBar/FleetBar/CostStore.swift \\
     --files apps/FleetBar/FleetBar/CostDashboard.swift \\
-    -- "Use real fleet ceilings instead of a fake visual budget reference"`}
+    -- "Use real fleet ceilings instead of a fake visual budget reference"
+SUCCESS: spawn accepted with 2 claimed files and telemetry enforcement enabled`}
           </CodeBlock>
         </section>
       </div>

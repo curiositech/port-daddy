@@ -23,13 +23,15 @@ import { homedir } from 'node:os';
 
 export const SHIM_BIN_DIR = join(homedir(), '.port-daddy', 'bin');
 export const SHIM_GIT_PATH = join(SHIM_BIN_DIR, 'git');
-export const SHIM_VERSION = '1';
+export const SHIM_VERSION = '2';
 
 export const GIT_SHIM_CONTENT = `#!/usr/bin/env bash
 # Port Daddy git shim v${SHIM_VERSION}
 # Intercepts destructive git verbs (reset --hard, checkout -- ., clean -fd,
-# add -A) and consults the Port Daddy coordination guard before letting
-# the underlying git touch the working tree.
+# add -A, stash push/save, cherry-pick, rebase) and consults the Port Daddy
+# coordination guard before letting the underlying git touch the working
+# tree. stash-push is the verb that produced the auto-stash anti-pattern
+# documented in skills/port-daddy-agent-skill/references/cli-reference.md.
 #
 # Activate by prepending ~/.port-daddy/bin to PATH. Disable temporarily
 # with PD_SHIM_OFF=1.
@@ -89,6 +91,45 @@ case "\${1:-}" in
     for arg in "$@"; do
       if [ "$arg" = "-A" ] || [ "$arg" = "--all" ]; then verb="add-all"; break; fi
     done
+    ;;
+  stash)
+    # 'git stash' (default = push) and explicit 'git stash push|save' both
+    # capture+wipe the working tree and were the mechanism behind the
+    # 2026-04-28 auto-stash anti-pattern. pop/apply/drop/show/list/clear/
+    # store/create/branch are not WT-destructive (or are restorative) and
+    # pass through.
+    if [ $# -eq 1 ]; then
+      verb="stash-push"
+    else
+      case "\${2:-}" in
+        push|save|"") verb="stash-push" ;;
+        pop|apply|drop|list|show|clear|store|create|branch) ;;
+        -*) verb="stash-push" ;;  # 'git stash -m msg', 'git stash -u' etc. default to push
+      esac
+    fi
+    ;;
+  cherry-pick)
+    # cherry-pick rewrites the working tree to introduce arbitrary commits.
+    # --continue/--abort/--quit/--skip are mid-flow controls and pass through.
+    flow_only=""
+    for arg in "$@"; do
+      case "$arg" in
+        --continue|--abort|--quit|--skip) flow_only="1" ;;
+      esac
+    done
+    if [ -z "$flow_only" ]; then verb="cherry-pick"; fi
+    ;;
+  rebase)
+    # rebase rewrites local history and replays commits over a new base,
+    # touching every file in every replayed commit. --continue/--abort/etc.
+    # are mid-flow controls.
+    flow_only=""
+    for arg in "$@"; do
+      case "$arg" in
+        --continue|--abort|--quit|--skip|--edit-todo|--show-current-patch) flow_only="1" ;;
+      esac
+    done
+    if [ -z "$flow_only" ]; then verb="rebase"; fi
     ;;
 esac
 

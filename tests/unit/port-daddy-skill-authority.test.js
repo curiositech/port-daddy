@@ -2,135 +2,133 @@ import { describe, test, expect } from '@jest/globals';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+const unique = (values) => Array.from(new Set(values));
+
 describe('Port Daddy skill authority', () => {
-  test('the repo exposes only current first-party Port Daddy skill surfaces', () => {
+  test('the repo exposes one canonical first-party Port Daddy skill surface', () => {
     const skillsDir = join(process.cwd(), 'skills');
     const portDaddySkills = readdirSync(skillsDir)
       .filter((entry) => entry.startsWith('port-daddy'))
       .sort();
 
-    expect(portDaddySkills).toEqual(['port-daddy-agent-skill', 'port-daddy-cli']);
+    expect(portDaddySkills).toEqual(['port-daddy-agent-skill']);
     expect(existsSync(join(skillsDir, 'port-daddy', 'SKILL.md'))).toBe(false);
+    expect(existsSync(join(skillsDir, 'port-daddy-cli', 'SKILL.md'))).toBe(false);
     expect(existsSync(join(skillsDir, 'port-daddy-agent-skill', 'SKILL.md'))).toBe(true);
-    expect(existsSync(join(skillsDir, 'port-daddy-cli', 'SKILL.md'))).toBe(true);
   });
 
-  test('the authoritative skills declare matching canonical names', () => {
-    const cliSkill = readFileSync(join(process.cwd(), 'skills', 'port-daddy-cli', 'SKILL.md'), 'utf8');
-    const agentSkill = readFileSync(join(process.cwd(), 'skills', 'port-daddy-agent-skill', 'SKILL.md'), 'utf8');
+  test('the authoritative skill declares the canonical name', () => {
+    const skill = readFileSync(join(process.cwd(), 'skills', 'port-daddy-agent-skill', 'SKILL.md'), 'utf8');
 
-    expect(cliSkill).toContain('name: port-daddy-cli');
-    expect(agentSkill).toContain('name: port-daddy-agent-skill');
-    expect(cliSkill).not.toContain('name: port-daddy\n');
-    expect(agentSkill).not.toContain('name: port-daddy\n');
+    expect(skill).toContain('name: port-daddy-agent-skill');
+    expect(skill).not.toContain('name: port-daddy-cli');
   });
 
   test('the authoritative skill carries first-party governance metadata', () => {
-    const skillPath = join(process.cwd(), 'skills', 'port-daddy-cli', 'SKILL.md');
-    const changelogPath = join(process.cwd(), 'skills', 'port-daddy-cli', 'CHANGELOG.md');
+    const skillPath = join(process.cwd(), 'skills', 'port-daddy-agent-skill', 'SKILL.md');
     const contents = readFileSync(skillPath, 'utf8');
-    const changelog = readFileSync(changelogPath, 'utf8');
 
     expect(contents).toContain('license: FSL-1.1-MIT');
-    expect(contents).toContain('allowed-tools: Read,Bash,Grep,Glob');
+    expect(contents).toContain('allowed-tools:');
     expect(contents).toContain('metadata:');
     expect(contents).toContain('provenance:');
     expect(contents).toContain('authorship:');
-    expect(contents).toContain('workgroup: /Users/erichowens/coding/workgroup-ai/skills/port-daddy');
-    expect(contents).toContain('user: /Users/erichowens/.agents/skills/port-daddy-cli');
-    expect(changelog).toContain('## 2026-04-26');
-    expect(changelog).toContain('Navigator/Cartographer');
+    // Mirrors block must list the in-repo runtime stub locations so brew/setup
+    // can fan the canonical content out to every runtime that reads it.
+    expect(contents).toContain('mirrors:');
+    expect(contents).toContain('repo: skills/port-daddy-agent-skill');
   });
 
-  test('the skill starts with one idiomatic agent happy path before advanced surfaces', () => {
-    const skillPath = join(process.cwd(), 'skills', 'port-daddy-cli', 'SKILL.md');
+  test('the skill teaches the operating loop in order before decision points', () => {
+    const skillPath = join(process.cwd(), 'skills', 'port-daddy-agent-skill', 'SKILL.md');
     const contents = readFileSync(skillPath, 'utf8');
-    const happyPathStart = contents.indexOf('## Default Agent Happy Path');
-    const decisionTableStart = contents.indexOf('## Small Decision Table');
-    const advancedStart = contents.indexOf('## Advanced Surfaces');
-    const quickReferenceStart = contents.indexOf('## CLI Quick Reference');
+    const operatingLoopStart = contents.indexOf('## Operating Loop');
+    const decisionPointsStart = contents.indexOf('## Decision Points');
+    const cliQuickRefStart = contents.indexOf('## CLI Quick Reference', decisionPointsStart);
 
-    expect(happyPathStart).toBeGreaterThan(-1);
-    expect(decisionTableStart).toBeGreaterThan(happyPathStart);
-    expect(advancedStart).toBeGreaterThan(decisionTableStart);
-    expect(quickReferenceStart).toBeGreaterThan(advancedStart);
+    expect(operatingLoopStart).toBeGreaterThan(-1);
+    expect(decisionPointsStart).toBeGreaterThan(operatingLoopStart);
+    expect(cliQuickRefStart).toBeGreaterThan(decisionPointsStart);
 
-    const happyPath = contents.slice(happyPathStart, decisionTableStart);
+    const operatingLoop = contents.slice(operatingLoopStart, decisionPointsStart);
     const expectedOrder = [
       'pd status',
       'pd briefing',
       'pd salvage --project <project>',
       'pd begin',
-      'pd whoami',
-      'pd advise',
       'pd note "Scope:',
       'pd session files add',
+      'pd guard check --staged',
       'pd note "Result:',
       'pd done',
     ];
 
     let previousIndex = -1;
     for (const command of expectedOrder) {
-      const index = happyPath.indexOf(command);
+      const index = operatingLoop.indexOf(command);
       expect(index).toBeGreaterThan(previousIndex);
       previousIndex = index;
     }
 
-    expect(happyPath).not.toContain('pd tuple out');
-    expect(happyPath).not.toContain('pd pheromone');
-    expect(happyPath).not.toContain('pd fleet');
-    expect(happyPath).not.toContain('pd sortie');
-    expect(happyPath).not.toContain('pd agent "');
+    // The operating loop is intentionally a tight, opinionated default.
+    // Advanced primitives belong in the CLI Quick Reference, not the loop.
+    expect(operatingLoop).not.toContain('pd tuple out');
+    expect(operatingLoop).not.toContain('pd pheromone');
+    expect(operatingLoop).not.toContain('pd fleet up');
+    expect(operatingLoop).not.toContain('pd sortie');
   });
 
-  test('roadmap and skill-drift work is routed through live actor surfaces', () => {
-    const skillPath = join(process.cwd(), 'skills', 'port-daddy-cli', 'SKILL.md');
+  test('the CLI quick reference surfaces the agent-facing primitives', () => {
+    const skillPath = join(process.cwd(), 'skills', 'port-daddy-agent-skill', 'SKILL.md');
     const contents = readFileSync(skillPath, 'utf8');
-    const actorTruthStart = contents.indexOf('## Roadmap, Skill, And Actor Truth');
-    const mcpStart = contents.indexOf('## MCP Equivalents');
+    const cliQuickRefStart = contents.lastIndexOf('## CLI Quick Reference');
+    const selfCheckStart = contents.indexOf('## Self-Check');
 
-    expect(actorTruthStart).toBeGreaterThan(-1);
-    expect(mcpStart).toBeGreaterThan(actorTruthStart);
+    expect(cliQuickRefStart).toBeGreaterThan(-1);
+    expect(selfCheckStart).toBeGreaterThan(cliQuickRefStart);
 
-    const actorTruth = contents.slice(actorTruthStart, mcpStart);
+    const quickRef = contents.slice(cliQuickRefStart, selfCheckStart);
 
-    expect(actorTruth).toContain('pd actors --project <project>');
-    expect(actorTruth).toContain('pd actor cartographer --project <project>');
-    expect(actorTruth).toContain('pd actor navigator --inbox-stats');
-    expect(actorTruth).toContain('pd actor navigator --inbox --unread');
-    expect(actorTruth).toContain('pd actor navigator --message');
-    expect(actorTruth).toContain('pd actor lookout --message');
-    expect(actorTruth).toContain('Mailbox delivery is durable but not an immediate answer');
-    expect(actorTruth).toContain('docs/recovery/CURRENT-WORK.md');
-    expect(actorTruth).toContain('.cartographer/README.md');
-    expect(actorTruth).toContain('.cartographer/status.md');
+    expect(quickRef).toContain('project:stack:context');
+    expect(quickRef).toContain('pd whoami');
+    expect(quickRef).toContain('pd claim');
+    expect(quickRef).toContain('pd with-lock');
+    expect(quickRef).toContain('pd dns');
+    expect(quickRef).toMatch(/integration ready|integration needs/);
+    expect(quickRef).toContain('begin_session');
+    expect(quickRef).toContain('end_session_full');
   });
 
-  test('the skill teaches ambient coordination instead of forced agent chat', () => {
-    const skillPath = join(process.cwd(), 'skills', 'port-daddy-cli', 'SKILL.md');
-    const contents = readFileSync(skillPath, 'utf8');
-    const ambientStart = contents.indexOf('## Ambient Peer Coordination');
-    const actorTruthStart = contents.indexOf('## Roadmap, Skill, And Actor Truth');
+  test('release metadata names the canonical skill exactly once', () => {
+    const marketplacePath = join(process.cwd(), '.claude-plugin', 'marketplace.json');
+    const exportConfigPath = join(process.cwd(), 'config', 'public-repo-export.json');
+    const geminiPath = join(process.cwd(), '.gemini', 'extensions', 'port-daddy', 'GEMINI.md');
 
-    expect(ambientStart).toBeGreaterThan(-1);
-    expect(actorTruthStart).toBeGreaterThan(ambientStart);
+    const marketplace = JSON.parse(readFileSync(marketplacePath, 'utf8'));
+    const exportConfig = JSON.parse(readFileSync(exportConfigPath, 'utf8'));
+    const gemini = readFileSync(geminiPath, 'utf8');
 
-    const ambient = contents.slice(ambientStart, actorTruthStart);
+    const marketplaceSkills = marketplace.plugins.flatMap((plugin) => plugin.skills ?? []);
+    const exportIncludes = exportConfig.includePrefixes
+      .filter((entry) => entry.includes('port-daddy-agent-skill'));
 
-    expect(ambient).toContain('not to make agents talk constantly');
-    expect(ambient).toContain('shared facts');
-    expect(ambient).toContain('pd note');
-    expect(ambient).toContain('fix bounded Port Daddy dogfood bugs when you discover them');
-    expect(ambient).toContain('targeted actor message');
-    expect(ambient).toContain('symbol/region claims');
-    expect(ambient).toContain('coordination:inconsistency');
-    expect(ambient).toContain('not just collision avoidance');
-    expect(ambient).toContain('Operator-worthy callouts');
-    expect(ambient).toContain('implied-goal contradictions');
-    expect(ambient).toContain('security, auth, privacy, data-retention, trust-boundary');
-    expect(ambient).toContain('raw text or unauthenticated endpoints');
-    expect(ambient).toContain('authenticated, secure API');
-    expect(ambient).toContain('sessions marked active while their agent registry bodies are dead or missing');
-    expect(ambient).toContain('Routine progress stays in notes');
+    expect(marketplaceSkills).toEqual(unique(marketplaceSkills));
+    expect(marketplaceSkills).toContain('./skills/port-daddy-agent-skill');
+    expect(marketplaceSkills).not.toContain('./skills/port-daddy-cli');
+    expect(exportIncludes).toEqual(['skills/port-daddy-agent-skill/']);
+    expect(gemini).toContain('port-daddy-agent-skill');
+    expect(gemini).not.toContain('port-daddy-cli');
+  });
+
+  test('MCP skill discovery does not duplicate the canonical candidate', () => {
+    const server = readFileSync(join(process.cwd(), 'mcp', 'server.ts'), 'utf8');
+    const candidatesStart = server.indexOf('const candidates = [', server.indexOf('Search for skill'));
+    const candidatesEnd = server.indexOf('];', candidatesStart);
+    const candidates = server.slice(candidatesStart, candidatesEnd);
+    const canonicalCandidate = "join(mcpDir, '..', 'skills', 'port-daddy-agent-skill', 'SKILL.md')";
+
+    expect(candidates.match(/port-daddy-agent-skill/g) ?? []).toHaveLength(1);
+    expect(candidates).toContain(canonicalCandidate);
+    expect(server).toContain('legacy alias/install');
   });
 });

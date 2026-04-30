@@ -36,7 +36,7 @@ console.log(notes)`,
         },
       ]}
       seeAlso={[
-        { name: 'addNote()', href: '/docs/sdk/add-note' },
+        { name: 'note()', href: '/docs/sdk/add-note' },
         { name: 'beginSession()', href: '/docs/sdk/sessions' },
       ]}
     />

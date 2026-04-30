@@ -46,9 +46,10 @@ export function TerminalGif({
       <div className="overflow-hidden bg-[var(--code-bg)]">
         <img
           src={resolvedSrc}
-          alt={caption}
+          alt=""
           loading="lazy"
-          className={`block h-[clamp(22rem,44vw,38rem)] w-full bg-[var(--code-bg)] object-cover object-top ${mediaClassName}`}
+          decoding="async"
+          className={`block h-[clamp(22rem,44vw,38rem)] w-full bg-[var(--code-bg)] object-contain object-top ${mediaClassName}`}
         />
       </div>
       <p className="m-[var(--space-0)] border-t-2 border-[var(--border-strong)] bg-[var(--surface-base)] px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-small-size)] leading-[var(--leading-body)] text-[var(--text-secondary)]">

@@ -261,6 +261,52 @@ export const PRODUCT_FEATURES = [
     status: 'new'
   },
   {
+    id: 'pd-tube',
+    title: 'PD Tube',
+    description: 'A conversational pipe over Port Daddy channels. Listen, send, reply, resume from cursors, and bridge agent handoffs through clean JSON lines.',
+    category: 'coordination',
+    cli: 'pd tube <channel> --send',
+    href: '/tutorials/pd-tube',
+    image: {
+      src: '/img/generated/agent-runtime-map.webp',
+      alt: 'Generated agent runtime map with channel-backed handoffs',
+    },
+    detail: 'PD Tube turns a Port Daddy channel into an operator-visible conversation lane. Scripts can send and reply from stdin, agents can listen as JSON lines, and demos can prove the same history later.',
+    outcomes: [
+      'Send durable agent handoffs without inventing a new hosted webhook bridge.',
+      'Thread replies by message id so browser buttons, tests, and agents can share one trail.',
+      'Use `--once`, `--json`, and `--since` to make automation deterministic.',
+    ],
+    links: [
+      { label: 'PD Tube tutorial', href: '/tutorials/pd-tube' },
+      { label: 'Tube command', href: '/docs/cli/tube' },
+    ],
+    status: 'new'
+  },
+  {
+    id: 'relay-pki',
+    title: 'Relay PKI',
+    description: 'OIDC-first relay identity with admin-approved local Web-of-Trust fallback. The relay routes ciphertext while daemon fingerprints stay auditable.',
+    category: 'security',
+    cli: 'python skills/pd-relay-zero-trust/scripts/pki_decision.py',
+    href: '/docs/features/relay-pki',
+    image: {
+      src: '/img/generated/control-plane-og.webp',
+      alt: 'Generated control-plane diagram showing verified relay identity',
+    },
+    detail: 'Relay PKI keeps remote coordination honest: managed bootstrap is OIDC-first, ACME remains a proof method, Web-of-Trust is local/admin-approved, and the relay never becomes the plaintext transport.',
+    outcomes: [
+      'Keep managed relay identity fail-closed instead of accepting self-attested fingerprints.',
+      'Preserve ACME and local WoT as explicit proof modes with narrower trust boundaries.',
+      'Separate relay identity metadata from end-to-end payload secrecy.',
+    ],
+    links: [
+      { label: 'Relay PKI docs', href: '/docs/features/relay-pki' },
+      { label: 'Whitepaper', href: '/whitepaper' },
+    ],
+    status: 'preview'
+  },
+  {
     id: 'harbors',
     title: 'Harbors and signed access',
     description: 'Named work boundaries, note encryption, Ed25519 harbor-card verification, and proof-backed security work sit underneath the local daemon.',
@@ -268,8 +314,8 @@ export const PRODUCT_FEATURES = [
     cli: 'pd harbor create <name>',
     href: '/docs/features/harbors',
     image: {
-      src: '/img/blog/harbors-hero.png',
-      alt: 'Harbor security illustration for scoped agent authority',
+      src: '/img/generated/harbors-signed-access.webp',
+      alt: 'Swiss-modern security architecture diagram for scoped agent authority and signed access',
     },
     detail: 'Harbors are named boundaries for agent work. The security story is concrete: capability namespaces, note encryption, Ed25519 harbor-card verification, and proof-backed analysis sit underneath the daemon.',
     outcomes: [

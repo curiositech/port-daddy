@@ -16,7 +16,7 @@ export function Debugging() {
       title="Debug Coordination Failures"
       description="Use harbor activity, notes, ownership, diagnostics, and session history to find the exact point where work drifted."
       number={6}
-      total={20}
+      total={21}
       level="Intermediate"
       readTime="14 min read"
       prev={{ title: "Map a Monorepo Harbor", href: "/tutorials/monorepo" }}
@@ -112,7 +112,8 @@ export function Debugging() {
           <p className="text-[length:var(--type-meta-size)] font-black uppercase tracking-widest text-[var(--text-muted)] m-0">
             Advanced Diagnostics
           </p>
-          <CodeBlock copyable={false} language="bash">{`$ pd health --all`}</CodeBlock>
+          <CodeBlock copyable={false} language="bash">{`$ pd health --all
+# Expected result: service health rows show which registered processes are healthy and which probe failed.`}</CodeBlock>
           <div className="space-y-1">
             <div className="flex items-center justify-between text-[length:var(--type-meta-size)] font-mono text-[var(--text-secondary)]">
               <span>myapp:api</span>

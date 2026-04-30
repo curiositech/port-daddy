@@ -18,7 +18,7 @@ export function RemoteHarbors() {
       title="Multiplayer Localhost"
       description="The swarm doesn't stop at your machine. Learn to link Port Daddy daemons across the global mesh to coordinate with remote agent clusters and GPU-powered harbors."
       number={17}
-      total={20}
+      total={21}
       level="Advanced"
       readTime="15 min read"
       prev={{ title: "Swarm Observation", href: "/tutorials/watch" }}
@@ -136,13 +136,16 @@ $ pd harbor discover --lighthouse global.portdaddy.dev \\
           <CodeBlock copyable={false} language="bash">
             {`# Expose a local service via tunnel (works today)
 pd tunnel myapp:api start --provider ngrok
+SUCCESS: tunnel started for myapp:api
 
 # Local DNS for service discovery (works today)
 pd dns create myapp-api.local --port 3000
+SUCCESS: DNS record myapp-api.local -> localhost:3000
 
 # Pub/sub messaging between local agents (works today)
 pd pub deploy:events "build-complete"
-pd watch deploy:events --exec ./notify.sh`}
+pd watch deploy:events --exec ./notify.sh
+Watching deploy:events...`}
           </CodeBlock>
 
           <div className="flex items-center justify-center gap-8 py-4">

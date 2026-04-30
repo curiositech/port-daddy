@@ -1,0 +1,12 @@
+{"version":3,"term":{"cols":80,"rows":24},"timestamp":1777423290,"command":"examples/pd-tube/demo.sh","env":{"SHELL":"/bin/zsh"}}
+[0.015, "o", "# PD Tube: real daemon-backed conversation\r\n# channel: port-daddy:demo:tube\r\n\r\n$ printf 'Coordination should be visible.' | pd tube port-daddy:demo:tube --send --sender demo-writer --json\r\n"]
+[0.429, "o", "{\"ok\":true,\"id\":30160,\"channel\":\"port-daddy:demo:tube\"}\r\n"]
+[0.050, "o", "\r\n"]
+[0.000, "o", "$ printf 'Replying with proof from the same channel.' | pd tube port-daddy:demo:tube --reply=30160 --sender demo-reviewer --json\r\n"]
+[0.504, "o", "{\"ok\":true,\"id\":30168,\"channel\":\"port-daddy:demo:tube\"}\r\n\r\n"]
+[0.000, "o", "$ pd tube port-daddy:demo:tube --since=30159 --once --json --no-history --limit=5\r\n"]
+[0.493, "o", "{\"id\":30160,\"sender\":\"demo-writer\",\"createdAt\":1777423290875,\"body\":\"Coordination should be visible.\"}\r\n"]
+[0.000, "o", "{\"id\":30168,\"sender\":\"demo-reviewer\",\"createdAt\":1777423291429,\"body\":\"Replying with proof from the same channel.\",\"inReplyTo\":30160}\r\n"]
+[0.006, "o", "\r\n"]
+[0.000, "o", "# Done: both messages came from live Port Daddy channel history.\r\n"]
+[0.000, "x", "0"]

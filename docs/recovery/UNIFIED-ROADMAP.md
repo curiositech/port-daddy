@@ -20,7 +20,7 @@ Port Daddy should feel like one coherent system:
 - Stable preferred daemon port: `9876`, with runtime discovery required whenever that port is unavailable
 - Native companion: `apps/FleetBar`
 - Deep fleet control plane: `fleet-config-ui`
-- Canonical Port Daddy skill doc: `skills/port-daddy-cli/SKILL.md`
+- Canonical Port Daddy skill doc: `skills/port-daddy-agent-skill/SKILL.md`
 - Raw idea streams remain useful local inputs, but curated recovery docs are the authority: `.spark/ideas/`, `.spider/connections/`, `.cartographer/status.md`
 
 ## Near-Term Release Cuts

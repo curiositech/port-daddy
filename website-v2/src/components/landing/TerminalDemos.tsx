@@ -62,6 +62,29 @@ $ pd with-lock db-migrations npm run migrate
   Lock released`,
   },
   {
+    id: 'tube',
+    title: 'PD Tube',
+    description: 'Conversational handoffs',
+    code: `# Terminal 1: listen to the design-review pipe
+$ pd tube port-daddy:design-review --json --once
+  {"id":41,"sender":"lookout","body":"Need PKI copy on the public site."}
+
+# Terminal 2: send a top-level note
+$ printf 'Adding Tube tutorial, CLI ref, and PKI feature page.' \\
+    | pd tube port-daddy:design-review --send --sender codex
+  tube: posted id=42 to port-daddy:design-review
+
+# Thread the reply to the original message
+$ printf 'PKI page now links ADR-0025 and local WoT warnings.' \\
+    | pd tube port-daddy:design-review --reply=41 --sender codex
+  tube: posted id=43 to port-daddy:design-review
+
+# Resume exactly after the previous cursor
+$ pd tube port-daddy:design-review --since=41 --json --once
+  {"id":42,"sender":"codex","body":"Adding Tube tutorial, CLI ref, and PKI feature page."}
+  {"id":43,"sender":"codex","inReplyTo":41,"body":"PKI page now links ADR-0025 and local WoT warnings."}`,
+  },
+  {
     id: 'spawn',
     title: 'AI Spawn',
     description: 'Launch agents through PD',
@@ -115,6 +138,28 @@ $ pd notes --session agent-x7y9
   [decision] Using multer for multipart uploads
   [blocker] CORS headers needed for frontend`,
   },
+  {
+    id: 'relay-pki',
+    title: 'Relay PKI',
+    description: 'OIDC-first identity',
+    code: `# Score the relay identity options with the skill script
+$ printf '%s\\n' '{"kind":"request","version":"1","command":"pki.score","payload":{"options":["ACME","OIDC","WoT","Hybrid"]}}' \\
+    | python3 skills/pd-relay-zero-trust/scripts/pki_decision.py \\
+    | jq -r '.result.ranked[] | "\\(.option) \\(.score)"'
+  OIDC 153
+  Hybrid 153
+  WoT 141
+  ACME 137
+
+# Read the accepted ADR boundary
+$ rg "auth-mode=wot|managed/global" docs/adr/0025-pki-decision.md
+  --auth-mode=wot is self-hosted and harbor-local only
+  WoT is not accepted into the managed/global registry in v0
+
+# The relay design keeps payloads opaque
+$ rg "relay never sees plaintext" docs/adr/0025-pki-decision.md
+  I1 (relay never sees plaintext): Preserved`,
+  },
 ]
 
 export function TerminalDemos() {
@@ -124,9 +169,9 @@ export function TerminalDemos() {
     <section id="demos" className="relative py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
       <PageContainer>
         <SectionIntro
-          eyebrow="See it in action"
-          title="Real GIFs. Real output."
-          description="Terminal examples are for agents and scripts. When this homepage shows one, it uses recorded proof with the daemon response visible."
+          eyebrow="Agent CLI proof"
+          title="Real commands. Real output."
+          description="The CLI is for agents, scripts, and developers validating the substrate. Humans should start in FleetBar or Fleet Control Center; this section shows the daemon evidence underneath those app surfaces."
           titleAs="h2"
           className="mb-[var(--space-7)] max-w-[46rem]"
           titleClassName="max-w-[12ch]"
@@ -173,11 +218,10 @@ export function TerminalDemos() {
             transition={{ duration: 0.3 }}
             className="min-w-0 max-w-full overflow-hidden"
           >
-            <TerminalGif
-              src={activeDemo.gif}
-              title={`${activeDemo.title} recording`}
-              caption={activeDemo.caption}
-              mediaClassName="!h-[clamp(18rem,34vw,32rem)]"
+            <CommandTerminal
+              code={activeDemo.code}
+              title={activeDemo.title}
+              animate={false}
             />
           </motion.div>
         </div>

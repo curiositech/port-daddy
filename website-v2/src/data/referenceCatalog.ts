@@ -24,13 +24,73 @@ export function referenceAnchor(name: string): string {
     .replace(/^-|-$/g, '')
 }
 
+const PLACEHOLDER_TOKENS = new Set([
+  'all',
+  'agent',
+  'channel',
+  'cmd',
+  'command',
+  'content',
+  'files',
+  'goal',
+  'id',
+  'identity',
+  'iterations',
+  'message',
+  'name',
+  'path',
+  'pattern',
+  'project',
+  'purpose',
+  'service',
+  'summary',
+  'task',
+  'topic',
+])
+
+function cliNameTokens(name: string): string[] {
+  return name
+    .replace(/^pd\s+/, '')
+    .replace(/"[^"]+"/g, ' ')
+    .match(/[a-zA-Z0-9-]+/g) ?? []
+}
+
+export function cliCommandSlug(command: ReferenceItem | string): string {
+  if (typeof command === 'object' && command.href?.startsWith('/docs/cli/')) {
+    return command.href.replace(/^\/docs\/cli\/?/, '').replace(/\/$/, '')
+  }
+
+  const name = typeof command === 'string' ? command : command.name
+  const tokens = cliNameTokens(name)
+  const meaningfulTokens = tokens.filter((token, index) => index === 0 || !PLACEHOLDER_TOKENS.has(token.toLowerCase()))
+  return referenceAnchor(meaningfulTokens.join('-') || name)
+}
+
+export function cliCommandHref(command: ReferenceItem | string): string {
+  return `/docs/cli/${cliCommandSlug(command)}`
+}
+
+export interface CliReferenceItem extends ReferenceItem {
+  href: string
+  slug: string
+  groupTitle: string
+  groupDescription: string
+  groupSource: string
+  generated: boolean
+  aliasRoutes: Array<{
+    name: string
+    href: string
+    slug: string
+  }>
+}
+
 export const CLI_REFERENCE_GROUPS: ReferenceGroup[] = [
   {
     title: 'Setup, Runtime, And Diagnostics',
     description: 'Install Port Daddy, inspect the live daemon, launch the dashboard, and manage canonical or sidecar runtimes.',
     source: 'bin/port-daddy-cli.ts, cli/commands/setup.ts, cli/commands/daemon.ts, cli/commands/diagnostics.ts, cli/commands/mcp-install.ts',
     items: [
-      { name: 'pd setup', href: '/docs/cli/mcp-install', description: 'Install daemon, MCP, FleetBar, shell hook, and project init in one operator path.', flags: ['--project', '--no-daemon', '--no-mcp', '--no-fleetbar', '--no-init', '--no-hook'] },
+      { name: 'pd setup', description: 'Install daemon, MCP, FleetBar, shell hook, and project init in one operator path.', flags: ['--project', '--no-daemon', '--no-mcp', '--no-fleetbar', '--no-init', '--no-hook'] },
       { name: 'pd init', href: '/docs/cli/init', description: 'Initialize Port Daddy project config, fleet config, MCP files, and managed git hook pieces.' },
       { name: 'pd mcp', description: 'Start the stdio MCP server for model clients. Use `pd mcp install` to configure supported tools.' },
       { name: 'pd mcp install', href: '/docs/cli/mcp-install', description: 'Auto-detect and configure Claude Code, Claude Desktop, Cursor, Windsurf, VS Code, Continue, and Cline.' },
@@ -44,6 +104,7 @@ export const CLI_REFERENCE_GROUPS: ReferenceGroup[] = [
       { name: 'pd dashboard', description: 'Open the local dashboard/control plane.' },
       { name: 'pd metrics', description: 'Print daemon metrics.' },
       { name: 'pd config', description: 'Print resolved daemon or project configuration.' },
+      { name: 'pd bench [iterations]', description: 'Run daemon latency benchmarks for health checks and port assignment.', flags: ['iterations'] },
       { name: 'pd ci-gate', description: 'Run the CLI gate used by CI/promotion checks.' },
       { name: 'pd start', description: 'Start the canonical daemon.', aliases: ['pd stop', 'pd restart'] },
       { name: 'pd install', description: 'Install the canonical daemon service.', aliases: ['pd uninstall'] },
@@ -141,6 +202,7 @@ export const CLI_REFERENCE_GROUPS: ReferenceGroup[] = [
     items: [
       { name: 'pd advise [files...]', description: 'Run deterministic coordination preflight before edits.', aliases: ['pd preflight', 'pd compass'], flags: ['--task', '--session', '--agent', '--dir', '--channels', '--tuples', '--json'] },
       { name: 'pd guard <command>', description: 'Install, enable, disable, status-check, or enforce session plus file-claim discipline.', flags: ['status', 'check', 'enable', 'disable', 'install', '--staged', '--mode'] },
+      { name: 'pd add [path...]', description: 'Stage files through the claim-aware git add wrapper so another active session does not get captured by accident.', flags: ['-A', '--all', '--dry-run', '--force', '--json', '--dir', '--quiet'] },
       { name: 'pd lock <name>', href: '/docs/cli/lock-acquire', description: 'Acquire a distributed lock with optional wait and TTL.', flags: ['--ttl', '--owner', '--wait', '--timeout'] },
       { name: 'pd unlock <name>', href: '/docs/cli/lock-release', description: 'Release a lock.', flags: ['--force'] },
       { name: 'pd locks', description: 'List active locks.' },
@@ -160,6 +222,37 @@ export const CLI_REFERENCE_GROUPS: ReferenceGroup[] = [
     ],
   },
 ]
+
+export const CLI_REFERENCE_ITEMS: CliReferenceItem[] = CLI_REFERENCE_GROUPS.flatMap((group) =>
+  group.items.map((item) => {
+    const href = cliCommandHref(item)
+    const slug = cliCommandSlug(item)
+    const aliasRoutes = (item.aliases ?? []).map((alias) => ({
+      name: alias,
+      href: cliCommandHref(alias),
+      slug: cliCommandSlug(alias),
+    }))
+
+    return {
+      ...item,
+      href,
+      slug,
+      groupTitle: group.title,
+      groupDescription: group.description,
+      groupSource: item.source ?? group.source,
+      generated: !item.href,
+      aliasRoutes,
+    }
+  }),
+)
+
+export function findCliReferenceItemBySlug(slug: string): CliReferenceItem | undefined {
+  const normalizedSlug = slug.replace(/^\/+|\/+$/g, '')
+
+  return CLI_REFERENCE_ITEMS.find((item) =>
+    item.slug === normalizedSlug || item.aliasRoutes.some((alias) => alias.slug === normalizedSlug),
+  )
+}
 
 export const CLI_COMMAND_TOTAL = CLI_REFERENCE_GROUPS.reduce((sum, group) => sum + group.items.length, 0)
 export const CLI_ALIAS_TOTAL = CLI_REFERENCE_GROUPS.reduce(

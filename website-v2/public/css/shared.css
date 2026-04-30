@@ -1,5 +1,6 @@
 /* Signal Tower Design System
-   Bold, systematic, high-contrast. Pure neutral palette with signal flag color strips. */
+   Bold, systematic, high-contrast. Pure neutral palette with signal flag color strips.
+   Typography: Radnika for display and body, mono only for code. */
 
 @font-face {
   font-family: "Radnika";
@@ -34,6 +35,8 @@
 }
 
 :root {
+  --radnika-opsz-body: 17;
+  --radnika-opsz-display: 56;
   --bg: #FAFAFA;
   --bg-card: #FFFFFF;
   --border: #E8E8EC;
@@ -44,9 +47,9 @@
   --amber: #E5A000;
   --red: #CD2B31;
   --purple: #6E56CF;
-  --font-display: "Radnika", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-body: "Radnika", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-mono: "IBM Plex Mono", "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  --font-display: 'Radnika', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-body: 'Radnika', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-mono: 'Geist Mono', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
   --radius: 8px;
   --shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
@@ -85,13 +88,21 @@ html { scroll-behavior: smooth; }
 
 body {
   font-family: var(--font-body);
+  font-optical-sizing: auto;
+  font-synthesis-weight: none;
+  font-variation-settings: "opsz" var(--radnika-opsz-body);
   background: var(--bg);
   color: var(--text);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
 
-h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 600; }
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-optical-sizing: auto;
+  font-variation-settings: "opsz" var(--radnika-opsz-display);
+}
 h1 { font-size: 2.5rem; letter-spacing: 0; }
 h2 { font-size: 1.75rem; letter-spacing: 0; }
 h3 { font-size: 1.25rem; }

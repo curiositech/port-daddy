@@ -48,6 +48,7 @@ export function ExampleDetailPage() {
     title: file.path,
   }))
   const anchors = [
+    ...(example.uiScreenshots?.length ? [{ id: 'ui-screenshots', title: 'UI screenshots' }] : []),
     ...example.sections.map((section) => ({ id: section.id, title: section.title })),
     { id: 'run', title: 'Run it' },
     { id: 'source', title: 'Full source' },
@@ -93,6 +94,34 @@ export function ExampleDetailPage() {
                 <PanelBody className="max-w-[60rem] text-[var(--text-secondary)]">{example.whyItMatters}</PanelBody>
               </div>
             </DocsNoteCard>
+
+            {example.uiScreenshots?.length ? (
+              <section id="ui-screenshots" className="scroll-mt-[calc(var(--space-10)+var(--space-6))]">
+                <DocsNoteCard label="UI screenshots" title="The browser surface this example actually ships." elevation="quiet">
+                  <div className="grid gap-[var(--panel-gap)]">
+                    {example.uiScreenshots.map((screenshot) => (
+                      <figure key={screenshot.src} className="m-0 grid gap-[var(--panel-gap-tight)]">
+                        <img
+                          src={screenshot.src}
+                          alt={screenshot.alt}
+                          loading="lazy"
+                          decoding="async"
+                          className="w-full border-2 border-[var(--border-strong)] bg-[var(--surface-inverse)] object-contain"
+                        />
+                        <figcaption className="grid gap-[var(--space-2)] border-l-2 border-[var(--border-strong)] pl-[var(--space-4)]">
+                          <PanelTitle as="span" size="nav">
+                            {screenshot.title}
+                          </PanelTitle>
+                          <PanelBody size="compact" className="max-w-[58rem] text-[var(--text-secondary)]">
+                            {screenshot.caption}
+                          </PanelBody>
+                        </figcaption>
+                      </figure>
+                    ))}
+                  </div>
+                </DocsNoteCard>
+              </section>
+            ) : null}
 
             {recording ? (
               <TerminalGif src={recording.gifSrc} title={recording.title} caption={recording.caption} />

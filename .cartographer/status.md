@@ -1,10 +1,10 @@
 # Cartographer Status
 
 **Last updated:** 2026-04-29
-**Updated by:** Codex commit-and-push closeout
-**HEAD:** `629de64`
-**Stable:** `40cf79d` — promoted from `main@717f4f4` and pushed to `origin/stable`
-**Previous HEAD:** `a1dc622` — `pd-fleet.yml` hardened with fallbacks, throttles, and watcher fixes before the latest maritime / website polish burst
+**Updated by:** Codex stash/worktree harvest closeout
+**HEAD:** `87fd030`
+**Stable:** `930f8ca` — promoted from `main@a42a6f4` and pushed to `origin/stable`
+**Previous HEAD:** `629de64` — website content, proof media, terminal recordings, examples, and FleetBar preview package metadata
 
 ---
 
@@ -29,6 +29,14 @@ The latest committed work still maps overwhelmingly to the Recovery Roadmap (`do
   - Phase 4E `pd self-test --adversarial` / 4F Windows IPC
 - Open dogfood now: 3 slugs (`claim-preserving-git-safety`, `fleet-launchability-and-cadence`, `session-context-cwd-reset`)
 
+### Stash And Worktree Harvest (2026-04-29)
+
+- Recovery ledger added at `docs/recovery/STASH-WORKTREE-HARVEST-2026-04-29.md`.
+- New stash snapshots are pushed as `codex/stash-exact-20260429-19-*` and `codex/stash-exact-20260429-20-*`; the local stash stack was left intact.
+- Dirty worktree snapshots are pushed for root website recordings, FCC control-plane assets, PR5 Tube/PKI docs and UI work, OG branded route cards, and salvage-autostash screenshot proofs.
+- Local-only branch tips `d729dba`, `1579dee`, `bc310cf`, `d143501`, `acddf1c`, `3f9f142`, `52f13f3`, and patch-equivalent `24e7df4` are preserved on explicit `codex/worktree-preserve-20260429-*` branches.
+- Patch-equivalent or already-absorbed worktrees were not replayed onto main; integration still needs deliberate review per the ledger follow-up queue.
+
 ### Cartographer Refresh (2026-04-29)
 
 - `cartographer-roadmap-progress-screen` moved out of Immediate Implementation Candidates; the progress/feedback route is shipped and no longer a next cut.
@@ -38,7 +46,7 @@ The latest committed work still maps overwhelmingly to the Recovery Roadmap (`do
 - `5f01294` — Agents pages gained Flow / Coordination Guard / Smart Resources expansions and generated session/agent IDs became human-readable.
 - `9e7d458` — maritime layer dropped: actor IDs are fleet agent names.
 - `a1dc622` — `pd-fleet.yml` hardened with fallbacks, throttles, and watcher fixes.
-- `68753a9` — `pd-fleet.yml` plus git-hygiene guidance landed in the `port-daddy-cli` skill.
+- `68753a9` — `pd-fleet.yml` plus git-hygiene guidance landed in the `port-daddy-agent-skill` skill.
 - `0718477` — website distribution commands polished.
 - `d5c05aa` — coordination guard audited after commits.
 - `3214576` — MCP and Mac preview surfaces polished.
@@ -124,11 +132,11 @@ Skill-governance truth on 2026-04-26:
   `session-a7366433-5e18-4deb-b78a-561b77163e23`.
 - `pd actor cartographer` now resolves live to the durable `navigator` actor,
   which owns roadmap, recovery-ledger, work-slices, and cartographer-status.
-- The `port-daddy-cli` skill now tells agents to query `pd actor
+- The `port-daddy-agent-skill` skill now tells agents to query `pd actor
   cartographer`, `pd actor navigator --inbox*`, and `pd actor lookout
   --message` for roadmap/what-next and skill/docs drift before trusting stale
   prose.
-- `AGENTS.md` and the `port-daddy-cli` skill now define ambient collaboration:
+- `AGENTS.md` and the `port-daddy-agent-skill` skill now define ambient collaboration:
   agents should publish structured facts through notes, claims, tuples, scoped
   channels, and actor inboxes; durable actors/watchers should escalate only
   material inconsistencies instead of forcing constant peer chat.
@@ -153,12 +161,12 @@ Skill-governance truth on 2026-04-26:
   missing at least one of `license`, `allowed-tools`, or `metadata`, 4
   first-party skills, and 19 imported-literature skills.
 - The validated user-level installed copy at
-  `/Users/erichowens/.agents/skills/port-daddy-cli/` was mirrored from the repo.
+  `/Users/erichowens/.agents/skills/port-daddy-agent-skill/` was mirrored from the repo.
   The workgroup `port-daddy` skill has now been adapted at
   `/Users/erichowens/coding/workgroup-ai/skills/port-daddy/` without renaming
   the package surface: the body is aligned with the current runbook, the
   changelog records the merge, and references match the repo skill references.
-- Difference check: repo and user installed `port-daddy-cli` were already
+- Difference check: repo and user installed `port-daddy-agent-skill` were already
   identical at 729 lines; the workgroup copy was an older 409-line surface with
   a 546-line diff, missing briefing/advise/ambient coordination/actor truth and
   current backend/delegation guidance. Its API reference was stale by 755 diff
@@ -216,7 +224,7 @@ Newest validated working-tree slice before the next commit:
 
 - **Promotion-gated release-surface review** — new uncommitted Harbormaster/Lookout slice. `promote-stable.sh` now emits a structured `promotion:release-surfaces` tuple and pub/sub signal after tests pass and before stable merge. The fleet `documentarian` now listens to that promotion channel instead of every `git:committed`, with singleton/cooldown/dedupe/backoff controls so docs/website/SDK/CLI/tutorial/README/skill review happens at the high-signal release boundary without directly spawning a swarm. `PORT_DADDY_PROMOTION_REVIEW_REQUIRED=1` can make emission fail-closed; `PORT_DADDY_PROMOTION_REVIEW_ONLY=1` stops before merge so release-surface agents can work first. Regression coverage lives in `tests/unit/promotion-release-review.test.js`. Validation on 2026-04-26: focused tests, typecheck/build, source `pd fleet validate`, and broad in-band Jest are green (`143/143` suites, `4980/4981` tests, `1` intentional skip).
 
-- **Port Daddy skill happy path polish** — new uncommitted Lookout slice. `skills/port-daddy-cli/SKILL.md` now opens as a runbook with one default sequence (`pd status` -> `pd briefing` -> optional salvage -> `pd begin` -> `pd advise` -> `pd note` -> precise claims -> result note -> `pd done`) before any advanced surface catalog. A small decision table gates ports, locks, tuples, inbox/actors, delegation, integration signals, and DNS. `tests/unit/port-daddy-skill-authority.test.js` now guards the ordered happy path so the skill cannot silently drift back into command soup.
+- **Port Daddy skill happy path polish** — new uncommitted Lookout slice. `skills/port-daddy-agent-skill/SKILL.md` now opens as a runbook with one default sequence (`pd status` -> `pd briefing` -> optional salvage -> `pd begin` -> `pd advise` -> `pd note` -> precise claims -> result note -> `pd done`) before any advanced surface catalog. A small decision table gates ports, locks, tuples, inbox/actors, delegation, integration signals, and DNS. `tests/unit/port-daddy-skill-authority.test.js` now guards the ordered happy path so the skill cannot silently drift back into command soup.
 
 - **Tree-sitter symbol refresh from repo events** — uncommitted working tree. The live server now passes `symbolIndex` into the fleet daemon, and managed projects refresh symbols from existing Port Daddy infrastructure instead of manual `/symbols/parse` calls:
   - project-scoped `git:committed` messages are consumed by the daemon and normalized to in-project code files

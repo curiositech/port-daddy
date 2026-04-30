@@ -10,7 +10,7 @@ export function SemanticIdentities() {
       title="Name Work Inside the Harbor"
       description="Every service, agent, session, and channel in a harbor has a project:stack:context name. This is not decoration; it is how other agents find the work."
       number={3}
-      total={20}
+      total={21}
       level="Beginner"
       readTime="8 min read"
       prev={{ title: "Install the Local Control Plane", href: "/tutorials/getting-started" }}
@@ -65,7 +65,8 @@ PORT=3001 node worker.js
               </motion.p>
               <CodeBlock copyable={false} language="bash">{`PORT=$(pd claim myapp:api:main -q) node server.js
 PORT=$(pd claim myapp:worker:main -q) node worker.js
-# Names describe what they are.`}</CodeBlock>
+# Names describe what they are.
+# Expected result: each service starts with a stable port assigned from its semantic identity.`}</CodeBlock>
             </Surface>
           </motion.div>
         </section>
@@ -148,7 +149,8 @@ PORT=$(pd claim myapp:worker:main -q) node worker.js
           <CodeBlock copyable={false} language="bash">{`pd claim myapp                    # Just a project
 pd claim myapp:api                # Project + stack
 pd claim myapp:api:main           # Project + stack + context
-pd claim myapp:api:feature-auth   # Same stack, different branch`}</CodeBlock>
+pd claim myapp:api:feature-auth   # Same stack, different branch
+# Expected result: each narrower identity gets its own deterministic claim.`}</CodeBlock>
         </section>
 
         {/* Wildcards and the Trie */}

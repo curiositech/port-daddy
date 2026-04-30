@@ -49,16 +49,94 @@
     <loc>https://portdaddy.dev/docs/cli</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/docs/cli/activity</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/actor</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/actors</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/add</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/advise</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/agent</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/agent-heartbeat-unregister-inbox</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/docs/cli/agent-register</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/agent-run</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/agents</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/b</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/begin</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/docs/cli/bench</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/bond</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/briefing</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/broadcast</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/c</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/changelog</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/channels</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/ci-gate</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/docs/cli/claim</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/docs/cli/compass</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/config</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/daemon</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/dashboard</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/demo</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/dev</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/diagnose</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/docs/cli/dns</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/doctor</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/done</loc>
@@ -67,25 +145,73 @@
     <loc>https://portdaddy.dev/docs/cli/down</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/docs/cli/env</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/f</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/feedback</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/docs/cli/find</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/fleet</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/docs/cli/fleet-panic-unpanic</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/graph-edges-stats</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/guard</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/docs/cli/harbor-create</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/docs/cli/harbor-enter</loc>
-  </url>
-  <url>
-    <loc>https://portdaddy.dev/docs/cli/harbor-leave</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/harbors</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/docs/cli/health</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/help</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/hints</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/history</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/ideas-list-search-show</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/inbox</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/docs/cli/init</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/install</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/integration</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/l</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/learn</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/list</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/listen</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/lock-acquire</loc>
@@ -94,10 +220,25 @@
     <loc>https://portdaddy.dev/docs/cli/lock-release</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/docs/cli/locks</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/log</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/look</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/mcp</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/docs/cli/mcp-install</loc>
   </url>
   <url>
-    <loc>https://portdaddy.dev/docs/cli/msg</loc>
+    <loc>https://portdaddy.dev/docs/cli/memory-episodes-stats</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/metrics</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/note</loc>
@@ -106,10 +247,52 @@
     <loc>https://portdaddy.dev/docs/cli/notes</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/docs/cli/p</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/ph</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/pheromone</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/ports</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/preflight</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/projects</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/ps</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/docs/cli/pub</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/docs/cli/publish</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/quorum</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/r</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/docs/cli/release</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/restart</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/resurrection</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/roadmap</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/s</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/salvage</loc>
@@ -118,19 +301,64 @@
     <loc>https://portdaddy.dev/docs/cli/salvage-claim</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/docs/cli/salvage-complete-abandon-dismiss</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/say</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/docs/cli/scan</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/services</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/docs/cli/session</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/sessions</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/setup</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/sitrep</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/sortie</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/sortie-list-status-logs</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/docs/cli/spawn</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/spawn-kill</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/spawned</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/docs/cli/start</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/docs/cli/status</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/stop</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/sub</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/subscribe</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/swarm</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/tube</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/tunnel</loc>
@@ -139,10 +367,43 @@
     <loc>https://portdaddy.dev/docs/cli/tunnel-stop</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/docs/cli/tuple</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/tutorial</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/uninstall</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/docs/cli/up</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/docs/cli/url</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/version</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/w</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/wait</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/wallet</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/docs/cli/watch</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/webhook</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/webhooks</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/who-owns</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/whoami</loc>
@@ -176,6 +437,9 @@
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/features/radio</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/features/relay-pki</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/features/remote</loc>
@@ -403,7 +667,19 @@
     <loc>https://portdaddy.dev/examples</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/examples/agent-archetypes</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/examples/editor-lightbulb-to-agent</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/examples/ephemeral-ci-db</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/examples/leader-election</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/examples/p2p-webrtc</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/examples/pd-tube-button-to-agent</loc>
@@ -476,6 +752,9 @@
   </url>
   <url>
     <loc>https://portdaddy.dev/tutorials/pd-spawn</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/tutorials/pd-tube</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/tutorials/pheromone</loc>
