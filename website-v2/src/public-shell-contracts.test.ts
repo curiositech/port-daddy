@@ -227,6 +227,7 @@ describe('public shell contracts', () => {
       'A local control plane for',
       'AI coding agents.',
       'Agent orchestration needs shared state.',
+      'Shared state means',
       'A repo-native API for agent teamwork.',
       'This is what the layer adds when agents overlap.',
       'One layer, many ways to inspect work.',
@@ -253,6 +254,7 @@ describe('public shell contracts', () => {
 
     requiredPositioning.forEach((phrase) => expect(homepageCopy).toContain(phrase))
     stalePhrases.forEach((phrase) => expect(homepageCopy).not.toContain(phrase))
+    expect(homepageCopy).not.toContain('titleClassName="max-w-[12ch]"')
   })
 
   test('individual whitepaper pages explain value and embed PDFs inline', () => {

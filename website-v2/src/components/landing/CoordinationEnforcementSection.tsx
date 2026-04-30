@@ -41,6 +41,39 @@ const guardModes = [
   'Claim files',
 ] as const
 
+const statePrimitives = [
+  ['Session', 'who is working, why, and from which repo context'],
+  ['Ownership', 'claimed files, symbols, locks, and contested surfaces'],
+  ['Runtime', 'backend readiness, budget posture, and machine pressure'],
+  ['Recovery', 'notes, handoffs, salvage records, and remaining risk'],
+] as const
+
+function SharedStatePanel() {
+  return (
+    <SurfacePanel elevation="quiet" padding="compact" className="grid gap-[var(--space-4)]">
+      <div className="grid gap-[var(--space-2)] border-b-2 border-[var(--border-strong)] pb-[var(--space-3)]">
+        <PanelEyebrow>Shared state means</PanelEyebrow>
+        <PanelBody size="compact" className="max-w-[42rem]">
+          A common project ledger that agents can update and the operator can inspect before another worker starts, spends, edits, or commits.
+        </PanelBody>
+      </div>
+
+      <div className="grid gap-2 sm:grid-cols-2">
+        {statePrimitives.map(([label, detail]) => (
+          <div key={label} className="grid gap-1 border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)]">
+            <span className="font-mono text-[10px] font-black uppercase tracking-[0.16em] text-[var(--brand-primary)]">
+              {label}
+            </span>
+            <span className="text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
+              {detail}
+            </span>
+          </div>
+        ))}
+      </div>
+    </SurfacePanel>
+  )
+}
+
 function GuardControlMock() {
   return (
     <SurfacePanel elevation="quiet" padding="compact" className="grid gap-[var(--space-4)]">
@@ -114,16 +147,16 @@ export function CoordinationEnforcementSection() {
   return (
     <section id="coordination-enforcement" className="border-t-2 border-[var(--border-strong)] bg-[var(--surface-raised)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
       <PageContainer width="wide">
-        <SwissGrid className="items-start">
-          <SwissGridItem span="narrow">
+        <SwissGrid className="items-start gap-y-[var(--space-5)]">
+          <SwissGridItem span="wide">
             <SectionIntro
               eyebrow="Why it exists"
               title="Agent orchestration needs shared state."
               description="Modern coding agents can write code, but they do not automatically agree on ownership, context, budget, or recovery. Port Daddy supplies the local state layer around them: what is running, what each agent owns, what changed, and what is safe to do next."
               titleAs="h2"
               titleSize="display"
-              titleClassName="max-w-[12ch]"
-              bodyClassName="max-w-[44rem]"
+              titleClassName="max-w-[22ch]"
+              bodyClassName="max-w-[48rem]"
             />
             <div className="mt-[var(--space-5)] flex flex-wrap gap-[var(--space-3)]">
               <Button asChild variant="primary" size="lg">
@@ -141,12 +174,12 @@ export function CoordinationEnforcementSection() {
             </div>
           </SwissGridItem>
 
-          <SwissGridItem span="rail">
-            <GuardControlMock />
+          <SwissGridItem span="narrow">
+            <SharedStatePanel />
           </SwissGridItem>
         </SwissGrid>
 
-        <div className="mt-[var(--space-7)] grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+        <div className="mt-[var(--space-7)] grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,0.95fr)_minmax(22rem,0.72fr)]">
           <picture className="block overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-base)]">
             <source srcSet="/img/generated/coordination-guard.webp" type="image/webp" />
             <img
@@ -157,24 +190,26 @@ export function CoordinationEnforcementSection() {
             />
           </picture>
 
-          <div className="grid gap-[var(--space-4)]">
-            {outcomes.map((outcome) => (
-              <SurfacePanel key={outcome.title} elevation="quiet" padding="compact" className="grid gap-[var(--space-3)] md:grid-cols-[3rem_minmax(0,1fr)]">
+          <GuardControlMock />
+        </div>
+
+        <div className="mt-[var(--space-5)] grid gap-[var(--space-4)] md:grid-cols-2 xl:grid-cols-4">
+          {outcomes.map((outcome) => (
+            <SurfacePanel key={outcome.title} elevation="quiet" padding="compact" className="grid content-start gap-[var(--space-3)]">
+              <div className="flex items-start justify-between gap-[var(--space-3)] border-b-2 border-[var(--border-strong)] pb-[var(--space-3)]">
+                <PanelEyebrow>What you get</PanelEyebrow>
                 <span className="inline-flex h-11 w-11 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-base)] text-[var(--brand-primary)]">
                   <outcome.icon size={18} />
                 </span>
-                <div className="grid gap-[var(--space-2)]">
-                  <PanelEyebrow>What you get</PanelEyebrow>
-                  <PanelTitle as="h3" size="nav" className="max-w-none">
-                    {outcome.title}
-                  </PanelTitle>
-                  <PanelBody size="compact" className="max-w-none">
-                    {outcome.detail}
-                  </PanelBody>
-                </div>
-              </SurfacePanel>
-            ))}
-          </div>
+              </div>
+              <PanelTitle as="h3" size="nav" className="max-w-none">
+                {outcome.title}
+              </PanelTitle>
+              <PanelBody size="compact" className="max-w-none">
+                {outcome.detail}
+              </PanelBody>
+            </SurfacePanel>
+          ))}
         </div>
       </PageContainer>
     </section>
