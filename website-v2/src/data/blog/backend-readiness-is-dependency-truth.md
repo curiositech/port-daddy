@@ -239,9 +239,13 @@ Before trusting a backend in an unattended fleet, verify the full path:
 <!-- terminal -->
 ```bash
 $ pd fleet models
+codex  low=gpt-5.4-mini  mid=gpt-5.3-codex  high=gpt-5.4  ready
 $ pd agent "Summarize the repo test command" --backend codex --model-tier low --dry-run
+DRY RUN: codex / gpt-5.4-mini / telemetry required / budget required
 $ pd agent "Summarize the repo test command" --backend codex --model-tier low
+SUCCESS: Agent run completed with exact telemetry
 $ pd activity --filter launch
+[launch] codex gpt-5.4-mini tokens=1244 cost=$0.0021 status=completed
 ```
 
 The dry run should explain the selected backend, model, budget, and telemetry mode. The real run should leave a persisted launch record. The activity view should show what happened without scraping terminal output.

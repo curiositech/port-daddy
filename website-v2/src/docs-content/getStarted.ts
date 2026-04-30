@@ -30,6 +30,7 @@ export const getStartedSection: DocsContentSection = {
           type: 'command',
           title: 'Install Port Daddy',
           command: 'brew install curiositech/tap/port-daddy && pd setup',
+          exempt: 'install',
           notes: [
             'Use this when you want the normal local Port Daddy setup.',
             'After setup, use `pd status` to confirm the service is running.',
@@ -95,6 +96,7 @@ export const getStartedSection: DocsContentSection = {
           type: 'command',
           title: 'Basic status check',
           command: 'pd status\npd briefing\npd salvage',
+          output: 'Port Daddy is running\nSUCCESS: Briefing generated: .portdaddy/briefing.md\n6 dead agent(s) in myapp. Run: pd salvage --project myapp',
           notes: [
             'Use these commands before digging through a busy repo.',
             'Briefing and salvage show current context and abandoned work.',
@@ -105,6 +107,7 @@ export const getStartedSection: DocsContentSection = {
           title: 'Check the local install',
           command:
             'port-daddy status\nlaunchctl print gui/501/com.portdaddy.daemon\ncurl -sS "$(cat ~/.port-daddy/daemon.port 2>/dev/null | sed \'s#^#http://localhost:#\')/fleet"\nwhich port-daddy',
+          output: 'Port Daddy is running\nstate = running\n{"running":true,"projects":[],"agents":[]}\n/opt/homebrew/bin/port-daddy',
           notes: [
             'Use these when the CLI, FleetBar, or browser dashboard disagree.',
             'Do not assume the current checkout is the live runtime just because local source changed.',
@@ -165,6 +168,7 @@ export const getStartedSection: DocsContentSection = {
           type: 'command',
           title: 'Start the session',
           command: 'pd begin --identity myapp:api --purpose "Building the auth layer"',
+          output: 'SUCCESS: Agent Building the auth layer ready\n  Session: Building the auth layer\n  Identity: myapp:api',
           notes: [
             'Use `--identity` and `--purpose` explicitly in docs examples.',
             'This is the recommended way to start coordinated work in the current CLI docs.',
@@ -174,6 +178,7 @@ export const getStartedSection: DocsContentSection = {
           type: 'command',
           title: 'Leave a session note',
           command: 'pd note "Auth middleware updated — JWT shape changed" --type milestone',
+          output: 'SUCCESS: Note added to session session-building-the-auth-layer',
           notes: [
             'Notes are immutable session evidence.',
             'If scope is ambiguous, pass explicit targeting instead of relying on implicit lookup.',
@@ -183,6 +188,7 @@ export const getStartedSection: DocsContentSection = {
           type: 'command',
           title: 'Inspect and finish',
           command: 'pd whoami\npd done',
+          output: 'Agent:    Building the auth layer\nSession:  session-building-the-auth-layer\nSUCCESS: Session completed',
           notes: [
             'Use `pd whoami` to confirm the current session context before ending work.',
             'Use `pd done` to close the session and unregister the agent cleanly.',
@@ -192,6 +198,7 @@ export const getStartedSection: DocsContentSection = {
           type: 'command',
           title: 'If the agent crashes instead',
           command: 'pd salvage\npd salvage claim <agentId>',
+          output: 'Recoverable work:\n  dead-agent-99  Building the auth layer\nSUCCESS: Salvage claimed dead-agent-99',
           notes: [
             'Salvage is the recovery path when a session dies mid-task.',
             'Keep salvage framed as a normal recovery path, not as an exotic edge case.',
@@ -255,6 +262,7 @@ export const getStartedSection: DocsContentSection = {
           title: 'Drift triage',
           command:
             'pd status\nport-daddy status\nlaunchctl print gui/501/com.portdaddy.daemon\nwhich port-daddy',
+          output: 'Port Daddy is running\nPort Daddy is running\nstate = running\n/opt/homebrew/bin/port-daddy',
           notes: [
             'Use this set when the daemon, CLI, and code checkout tell different stories.',
           ],

@@ -10,6 +10,7 @@ export type MaritimeActorId =
   | 'documentarian'
   | 'simplifier'
   | 'coxswain'
+  | 'quartermaster'
   | 'cartographer'
   | 'spark'
   | 'spider';
@@ -135,6 +136,16 @@ export const MARITIME_ACTORS: readonly MaritimeActorDefinition[] = [
     aliases: ['claim-owner', 'lock-owner', 'ownership', 'contention'],
     compatibilityFleetAgent: null,
     mailbox: 'actor:coxswain',
+  },
+  {
+    id: 'quartermaster',
+    label: 'Quartermaster',
+    title: 'Backend, spend, and launch-readiness actor',
+    mission: 'Owns spawn discipline, backend readiness, model ladders, telemetry policy, budget ceilings, and spend-related launch blockers.',
+    owns: ['backends', 'models', 'spawn-policy', 'telemetry-policy', 'budget', 'spend', 'launch-readiness'],
+    aliases: ['spend', 'budget', 'backend-owner', 'model-owner', 'launch-readiness'],
+    compatibilityFleetAgent: null,
+    mailbox: 'actor:quartermaster',
   },
   {
     id: 'cartographer',

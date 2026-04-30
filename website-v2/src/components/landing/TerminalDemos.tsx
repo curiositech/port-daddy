@@ -1,14 +1,16 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Play, Square } from 'lucide-react'
-import { CommandTerminal } from '@/components/ui/CommandTerminal'
 import { PageContainer, PanelBody, PanelTitle, SectionIntro } from '@/components/site/primitives'
+import { CommandTerminal } from '@/components/ui/CommandTerminal'
 
 const DEMOS = [
   {
     id: 'quickstart',
     title: 'Quick Start',
     description: 'The begin/note/done ceremony',
+    gif: '/gifs/quickstart.gif',
+    caption: 'A real recording of a Port Daddy quickstart: commands appear with daemon output, not as a naked checklist.',
     code: `# Start working on a project
 $ pd begin "Building the photo upload API" --identity photoapp:api
   Agent agent-a7f3 ready
@@ -33,6 +35,8 @@ $ pd done "Upload API complete with tests"
     id: 'coordination',
     title: 'Multi-Agent',
     description: 'Ports, pub/sub, locks',
+    gif: '/gifs/agents/coordination.gif',
+    caption: 'A real coordination recording with visible terminal responses for claims, notes, and guard state.',
     code: `# Agent 1: Backend developer
 $ pd begin "REST API for auth" --identity myapp:api
   Agent agent-c3d1 ready
@@ -84,6 +88,8 @@ $ pd tube port-daddy:design-review --since=41 --json --once
     id: 'spawn',
     title: 'AI Spawn',
     description: 'Launch agents through PD',
+    gif: '/gifs/agents/event-triggers.gif',
+    caption: 'A real agent-trigger recording. Terminal examples on this page must show the system answering back.',
     code: `# Spawn a cheap Codex agent with an explicit budget ceiling
 $ pd spawn --backend codex \\
     --tier low \\
@@ -110,6 +116,8 @@ $ pd spawned
     id: 'salvage',
     title: 'Salvage',
     description: 'Recover dead agent work',
+    gif: '/gifs/salvage.gif',
+    caption: 'A real salvage recording with command output visible for the recovery path.',
     code: `# Check for dead agents at session start
 $ pd salvage
   1 agent pending salvage:

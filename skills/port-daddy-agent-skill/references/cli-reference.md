@@ -96,6 +96,7 @@ pd sub <channel>
 pd channels
 pd watch <channel>
 pd tube <channel>
+pd tube chat <channel>
 pd inbox <command>
 pd tuple <command>
 pd webhook <command>

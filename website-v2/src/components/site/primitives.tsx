@@ -37,15 +37,13 @@ const panelEyebrowClass =
   'font-sans text-[length:var(--type-meta-size)] font-medium uppercase tracking-[var(--tracking-meta)]'
 
 const panelTitleSize = {
-  hero: 'text-[length:var(--type-hero-size)] leading-[var(--leading-display-tight)] tracking-[var(--tracking-display-tight)]',
+  hero: 'text-[length:var(--type-hero-size)] leading-[var(--leading-display-tight)] tracking-normal',
   section:
-    'text-[length:var(--type-panel-title-display-size)] leading-[var(--leading-display)] tracking-[var(--tracking-display-tight)]',
+    'text-[length:var(--type-panel-title-display-size)] leading-[var(--leading-display)] tracking-normal',
   display:
-    'text-[length:var(--type-panel-title-display-size)] leading-[var(--leading-display)] tracking-[var(--tracking-display-tight)]',
-  card:
-    'text-[length:var(--type-panel-title-card-size)] leading-[var(--leading-card)] tracking-[var(--tracking-display-card)]',
-  nav:
-    'text-[length:var(--type-panel-title-nav-size)] leading-[var(--leading-nav)] tracking-[var(--tracking-display-nav)]',
+    'text-[length:var(--type-panel-title-display-size)] leading-[var(--leading-display)] tracking-normal',
+  card: 'text-[length:var(--type-panel-title-card-size)] leading-[var(--leading-card)] tracking-normal',
+  nav: 'text-[length:var(--type-panel-title-nav-size)] leading-[var(--leading-nav)] tracking-normal',
 } as const
 
 const panelBodySize = {
@@ -88,7 +86,25 @@ const landingStatTone = {
   accent: 'bg-[var(--brand-accent)] text-[var(--brand-accent-foreground)]',
 } as const
 
-type DocsCodeLanguage = 'cli' | 'text' | 'typescript'
+type DocsCodeLanguage = 'cli' | 'bash' | 'shell' | 'text' | 'typescript' | 'ts' | 'javascript' | 'js' | 'json' | 'yaml' | 'yml'
+
+const docsCodeLabel: Record<DocsCodeLanguage, string> = {
+  cli: 'CLI',
+  bash: 'Bash',
+  shell: 'Shell',
+  text: 'Text',
+  typescript: 'TypeScript',
+  ts: 'TypeScript',
+  javascript: 'JavaScript',
+  js: 'JavaScript',
+  json: 'JSON',
+  yaml: 'YAML',
+  yml: 'YAML',
+}
+
+function isTerminalLanguage(language: DocsCodeLanguage): language is 'cli' | 'bash' | 'shell' {
+  return language === 'cli' || language === 'bash' || language === 'shell'
+}
 
 function panelToneForAccent(tone: AccentTone): 'default' | 'primary' | 'accent' {
   return panelToneMap[tone]
@@ -854,6 +870,7 @@ export function DocsNoteCard({
 
 export function DocsCodeBlock({
   code,
+  output,
   language = 'cli',
   label,
   className,
@@ -861,6 +878,7 @@ export function DocsCodeBlock({
   copyable = true,
 }: {
   code: string
+  output?: string
   language?: DocsCodeLanguage
   label?: string
   className?: string
@@ -869,8 +887,8 @@ export function DocsCodeBlock({
 }) {
   const [copied, setCopied] = useState(false)
   const surface = useSurfaceTone()
-  const terminalLabel = label ?? (language === 'cli' ? 'CLI' : language === 'typescript' ? 'TypeScript' : 'Text')
-  const codeLanguage = language === 'typescript' ? 'typescript' : undefined
+  const terminalLabel = label ?? docsCodeLabel[language]
+  const codeLanguage = language === 'cli' ? 'bash' : language
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(code)
@@ -881,11 +899,11 @@ export function DocsCodeBlock({
   if (variant === 'compact') {
     return (
       <div className={cn('min-w-0', className)}>
-        {language === 'cli' ? (
+        {isTerminalLanguage(language) ? (
           <CommandTerminal
             code={code}
             title={terminalLabel}
-            language="bash"
+            language={codeLanguage}
             animate={false}
             copyable={copyable}
             showHeaderLabel={false}
@@ -895,11 +913,16 @@ export function DocsCodeBlock({
             {code}
           </CodeBlock>
         )}
+        {output ? (
+          <CodeBlock language="text" filename={`${terminalLabel} output`} copyable={false} showHeaderLabel={false}>
+            {output}
+          </CodeBlock>
+        ) : null}
       </div>
     )
   }
 
-  if (language === 'cli') {
+  if (isTerminalLanguage(language)) {
     return (
       <div className={cn('min-w-0 space-y-[var(--space-2)]', className)}>
         <div className="flex items-center justify-between gap-[var(--panel-gap-tight)]">
@@ -920,11 +943,16 @@ export function DocsCodeBlock({
         <CommandTerminal
           code={code}
           title={terminalLabel}
-          language="bash"
+          language={codeLanguage}
           animate={false}
           copyable={false}
           showHeaderLabel={false}
         />
+        {output ? (
+          <CodeBlock language="text" filename={`${terminalLabel} output`} copyable={false} showHeaderLabel={false}>
+            {output}
+          </CodeBlock>
+        ) : null}
         <span className="sr-only" aria-live="polite">
           {copied ? `${terminalLabel} copied to clipboard` : ''}
         </span>
@@ -952,6 +980,11 @@ export function DocsCodeBlock({
       <CodeBlock language={codeLanguage} filename={terminalLabel} copyable={false} showHeaderLabel={false}>
         {code}
       </CodeBlock>
+      {output ? (
+        <CodeBlock language="text" filename={`${terminalLabel} output`} copyable={false} showHeaderLabel={false}>
+          {output}
+        </CodeBlock>
+      ) : null}
       {copyable ? (
         <span className="sr-only" aria-live="polite">
           {copied ? `${terminalLabel} copied to clipboard` : ''}
@@ -1055,7 +1088,7 @@ export function CommandBlock({
       tone={tone}
       elevation={elevation}
       titleSize="nav"
-      titleClassName="tracking-[var(--tracking-display-nav)]"
+      titleClassName="tracking-normal"
     >
       <DocsCodeBlock code={command} language="cli" label={title} variant="compact" />
       {description ? (

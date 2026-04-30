@@ -86,7 +86,9 @@ echo "channel: $PD_CHANNEL"
 echo "content: $PD_MESSAGE_CONTENT"
 
 pd note "watcher handled message from $PD_CHANNEL"
-# Expected result: the script prints the channel/content and records one session note.`}
+channel: docs:ready
+content: website-v2/src/pages/tutorials/Watch.tsx
+SUCCESS: Note added to session session-watch-handler`}
           </CodeBlock>
           <div className="grid gap-[var(--space-4)] md:grid-cols-2">
             <Surface depth="raised" radius="none" padding="lg">

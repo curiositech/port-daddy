@@ -16,6 +16,7 @@
 
 import { readFileSync, readdirSync, existsSync } from 'fs';
 import { join } from 'path';
+import { pathToFileURL } from 'url';
 
 const ROOT = join(import.meta.dirname, '..');
 
@@ -120,6 +121,16 @@ function extractSdkMethods(): Set<string> {
   return methods;
 }
 
+export function normalizeRoutePath(path: string): string {
+  return path.replace(/:[^/]+/g, ':param');
+}
+
+export function normalizeRoute(route: string): string {
+  const match = route.match(/^(\w+)\s+(.+)$/);
+  if (!match) return route;
+  return `${match[1].toUpperCase()} ${normalizeRoutePath(match[2])}`;
+}
+
 function extractRoutes(): Set<string> {
   const routesDir = join(ROOT, 'routes');
   const routes = new Set<string>();
@@ -132,7 +143,7 @@ function extractRoutes(): Set<string> {
     let match;
     while ((match = routePattern.exec(content)) !== null) {
       const method = match[1].toUpperCase();
-      const path = match[2].replace(/:[^/]+/g, ':param');
+      const path = normalizeRoutePath(match[2]);
       routes.add(`${method} ${path}`);
     }
   }
@@ -142,7 +153,7 @@ function extractRoutes(): Set<string> {
   let match;
   while ((match = routePattern.exec(serverContent)) !== null) {
     const method = match[1].toUpperCase();
-    const path = match[2].replace(/:[^/]+/g, ':param');
+    const path = normalizeRoutePath(match[2]);
     routes.add(`${method} ${path}`);
   }
 
@@ -306,7 +317,7 @@ function extractDashboardEndpoints(): Set<string> {
 // Validation
 // ═══════════════════════════════════════════════════════════════════════════
 
-function validateFeature(
+export function validateFeature(
   feature: string,
   def: FeatureDefinition,
   surfaces: ExtractedSurfaces
@@ -330,7 +341,7 @@ function validateFeature(
 
   // Check routes
   for (const route of def.routes) {
-    if (!surfaces.routes.has(route)) {
+    if (!surfaces.routes.has(normalizeRoute(route))) {
       issues.push(`Route '${route}' not found in routes/*.ts`);
     }
   }
@@ -528,4 +539,6 @@ function main() {
   }
 }
 
-main();
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main();
+}

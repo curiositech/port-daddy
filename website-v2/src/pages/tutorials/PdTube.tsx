@@ -42,7 +42,7 @@ export function PdTube() {
           </p>
           <CodeBlock language="bash">
             {`pd tube port-daddy:story:coordination --once --json --no-history --limit=5
-# Expected result: up to five JSON message envelopes are printed, then the command exits.`}
+{"id":42,"channel":"port-daddy:story:coordination","sender":"codex","content":"Docs patch is ready for review."}`}
           </CodeBlock>
         </section>
 
@@ -101,7 +101,8 @@ SUCCESS: tube: posted reply id=43 to port-daddy:story:coordination`}
           <CodeBlock language="bash">
             {`pd tube port-daddy:story:coordination --since=42 --json --once
 pd tube port-daddy:story:coordination --no-history --limit=10 --once
-# Expected result: the first command resumes after id 42; the second waits only for new messages.`}
+{"id":43,"inReplyTo":42,"channel":"port-daddy:story:coordination","sender":"codex"}
+[port-daddy:story:coordination] waiting for new messages...`}
           </CodeBlock>
         </section>
 

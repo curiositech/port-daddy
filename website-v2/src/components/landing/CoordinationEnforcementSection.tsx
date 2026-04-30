@@ -1,4 +1,4 @@
-import { CheckCircle2, FileCheck2, GitCommit, LockKeyhole, MonitorCog, NotebookTabs, ShieldCheck } from 'lucide-react'
+import { CheckCircle2, FileCheck2, GitCommit, LockKeyhole, MonitorCheck, MonitorCog, NotebookTabs, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import {
   PageContainer,
@@ -14,17 +14,22 @@ import {
 const outcomes = [
   {
     title: 'Every change has an owner',
-    detail: 'Agents begin a session, claim intended files or symbols, and leave notes before their local plan drifts from the repo.',
+    detail: 'Agents work in terminals, claim intended files or symbols, and leave notes before their local plan drifts from the repo.',
     icon: NotebookTabs,
   },
   {
-    title: 'Commits can fail closed',
-    detail: 'Coordination Guard checks staged files against active Port Daddy sessions and claims before a commit crosses the line.',
+    title: 'Humans steer from the app',
+    detail: 'FleetBar and Fleet Control Center show project state, readiness, agents, resources, and recovery without making the operator parse shell ceremony.',
+    icon: MonitorCheck,
+  },
+  {
+    title: 'Terminal proof includes output',
+    detail: 'When the website shows a terminal, it should show the command and the daemon response, not a stack of inputs pretending to be evidence.',
     icon: GitCommit,
   },
   {
     title: 'Recovery keeps the context',
-    detail: 'If an agent dies, salvage preserves purpose, notes, claimed files, and handoff evidence for the next body.',
+    detail: 'If an agent dies, salvage preserves purpose, notes, claimed files, and handoff evidence for the next agent.',
     icon: FileCheck2,
   },
 ] as const
@@ -110,11 +115,11 @@ export function CoordinationEnforcementSection() {
     <section id="coordination-enforcement" className="border-t-2 border-[var(--border-strong)] bg-[var(--surface-raised)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
       <PageContainer width="wide">
         <SwissGrid className="items-start">
-          <SwissGridItem span="wide">
+          <SwissGridItem span="narrow">
             <SectionIntro
-              eyebrow="Banner capability"
-              title="Enforce agent coordination before the commit."
-              description="Port Daddy is not just a dashboard. It gives every repo a coordination contract: sessions for intent, file claims for edit boundaries, locks for scarce work, tuples for shared facts, and a guard that can block uncoordinated commits."
+              eyebrow="Operator control"
+              title="Agents use the terminal. Humans use the GUI."
+              description="Port Daddy gives each repo a coordination contract, but the public homepage should not ask a human to admire a command checklist. The app surface is where operators see readiness, claims, live agents, resources, handoffs, and recovery state."
               titleAs="h2"
               titleSize="display"
               titleClassName="max-w-[13ch]"

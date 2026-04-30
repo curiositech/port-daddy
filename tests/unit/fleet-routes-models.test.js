@@ -8,7 +8,7 @@ const mockAssessBackendReadiness = jest.fn(async (backend) => ({
   nextStep: backend === 'claude-cli' ? 'Run claude once interactively.' : undefined,
   credentialKeys: backend === 'claude' ? ['ANTHROPIC_API_KEY'] : [],
   credentialAlternates: backend === 'gemini' ? ['GOOGLE_API_KEY'] : [],
-  setupCommand: backend === 'claude' ? "printf '\\nANTHROPIC_API_KEY=<paste-value>\\n' >> ~/.port-daddy-env\npd daemon restart" : `setup ${backend}`,
+  setupCommand: backend === 'claude' ? "printf '\\nANTHROPIC_API_KEY=<paste-value>\\n' >> ~/.port-daddy-env\npd restart" : `setup ${backend}`,
   setupFiles: backend === 'claude' ? ['~/.port-daddy-env', '.env.local', '.env'] : [],
   restartRequired: backend === 'claude',
 }));
@@ -79,6 +79,15 @@ describe('fleet routes /fleet/models', () => {
       expect.objectContaining({
         id: 'gemini',
         credentialAlternates: ['GOOGLE_API_KEY'],
+      }),
+      expect.objectContaining({
+        id: 'cloudflare',
+        models: ['@cf/meta/llama-3.1-8b-instruct', '@cf/meta/llama-3.3-70b-instruct-fp8-fast', '@cf/openai/gpt-oss-120b'],
+        modelTiers: {
+          low: '@cf/meta/llama-3.1-8b-instruct',
+          mid: '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
+          high: '@cf/openai/gpt-oss-120b',
+        },
       }),
       expect.objectContaining({
         id: 'ollama',

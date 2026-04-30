@@ -118,6 +118,9 @@
     <loc>https://portdaddy.dev/docs/cli/config</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/docs/cli/d</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/docs/cli/daemon</loc>
   </url>
   <url>
@@ -241,6 +244,9 @@
     <loc>https://portdaddy.dev/docs/cli/metrics</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/docs/cli/n</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/docs/cli/note</loc>
   </url>
   <url>
@@ -361,6 +367,9 @@
     <loc>https://portdaddy.dev/docs/cli/tube</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/docs/cli/tube-chat</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/docs/cli/tunnel</loc>
   </url>
   <url>
@@ -371,6 +380,9 @@
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/tutorial</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/u</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/uninstall</loc>

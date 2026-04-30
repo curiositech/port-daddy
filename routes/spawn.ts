@@ -23,6 +23,23 @@ interface SpawnRouteDeps {
 }
 
 const VALID_BACKENDS = new Set(['ollama', 'claude', 'claude-cli', 'gemini', 'cloudflare', 'codex', 'aider', 'custom']);
+const SPAWN_IDEMPOTENCY_TTL_MS = 60 * 60 * 1000;
+
+type SpawnRouteResponse = Record<string, unknown>;
+
+function headerString(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function normalizeIdempotencyKey(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value.trim().slice(0, 200) : undefined;
+}
+
+function cleanupIdempotencyCache(cache: Map<string, { createdAt: number; promise: Promise<SpawnRouteResponse> }>, now = Date.now()): void {
+  for (const [key, entry] of cache.entries()) {
+    if (now - entry.createdAt > SPAWN_IDEMPOTENCY_TTL_MS) cache.delete(key);
+  }
+}
 
 
 // ==========================================================================
@@ -30,6 +47,7 @@ const VALID_BACKENDS = new Set(['ollama', 'claude', 'claude-cli', 'gemini', 'clo
 // ==========================================================================
 export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (fastify, opts) => {
   const { metrics, logger, spawner, costTracker } = opts.deps;
+  const idempotentSpawns = new Map<string, { createdAt: number; promise: Promise<SpawnRouteResponse> }>();
 
   fastify.post('/spawn/preflight', async (request, reply) => {
     try {
@@ -63,7 +81,24 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
 
   // POST /spawn — Launch an AI agent
   fastify.post('/spawn', async (request, reply) => {
+    let idempotencyKey: string | undefined;
     try {
+      const body = (request.body as Record<string, any>) || {};
+      idempotencyKey = normalizeIdempotencyKey(
+        headerString(request.headers['idempotency-key'])
+        || body.idempotencyKey
+        || body.requestId,
+      );
+      cleanupIdempotencyCache(idempotentSpawns);
+      const existing = idempotencyKey ? idempotentSpawns.get(idempotencyKey) : undefined;
+      if (existing) {
+        logger.info('spawn_idempotent_replay', { idempotencyKey });
+        return {
+          ...(await existing.promise),
+          idempotentReplay: true,
+        };
+      }
+
       const {
         backend,
         name,
@@ -79,7 +114,7 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
         allowedTools,
         maxTokens,
         budgetUsd: rawBudgetUsd,
-      } = request.body as any;
+      } = body;
 
       if (!backend || typeof backend !== 'string') {
         reply.code(400); return {
@@ -170,16 +205,24 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
         purpose: spec.purpose || null,
       });
 
-      const result = await spawner.spawn(spec);
+      const launch = (async (): Promise<SpawnRouteResponse> => {
+        const result = await spawner.spawn(spec);
 
-      logger.info('spawn_complete', {
-        agentId: result.agentId,
-        backend: result.backend,
-        status: result.status,
-      });
+        logger.info('spawn_complete', {
+          agentId: result.agentId,
+          backend: result.backend,
+          status: result.status,
+        });
 
-      return { success: true, ...result };
+        return { success: true, ...result };
+      })();
+
+      if (idempotencyKey) {
+        idempotentSpawns.set(idempotencyKey, { createdAt: Date.now(), promise: launch });
+      }
+      return await launch;
     } catch (error) {
+      if (idempotencyKey) idempotentSpawns.delete(idempotencyKey);
       metrics.errors++;
       logger.error('spawn_error', { error: (error as Error).message });
       reply.code(500); return { error: 'internal server error' };

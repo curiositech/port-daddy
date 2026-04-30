@@ -53,6 +53,15 @@ describe('CostTracker', () => {
     expect(costUsd).toBeCloseTo(0.0138, 6);
   });
 
+  test('computes exact Cloudflare Workers AI cost from token counts', () => {
+    const { costUsd, isEstimate } = costTracker.computeCost(
+      'cloudflare', '@cf/meta/llama-3.1-8b-instruct', 10000, 2000
+    );
+
+    expect(isEstimate).toBe(false);
+    expect(costUsd).toBeCloseTo(0.004474, 6);
+  });
+
   test('uses model-aware estimate for aider without token counts', () => {
     const { costUsd, isEstimate } = costTracker.computeCost('aider', 'gpt-5');
     expect(isEstimate).toBe(true);

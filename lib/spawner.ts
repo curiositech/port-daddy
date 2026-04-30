@@ -455,6 +455,7 @@ async function runCloudflare(spec: SpawnSpec, model: string): Promise<BackendRun
 
   const data = await res.json() as Record<string, any>;
   const result = data.result ?? data;
+  const usage = extractCloudflareUsage(result, data);
   const text = typeof result === 'string'
     ? result
     : result?.response
@@ -467,7 +468,43 @@ async function runCloudflare(spec: SpawnSpec, model: string): Promise<BackendRun
     return { output: '', error: 'Cloudflare Workers AI returned no text response' };
   }
 
-  return { output: text, error: null };
+  return {
+    output: text,
+    error: null,
+    inputTokens: usage.inputTokens,
+    outputTokens: usage.outputTokens,
+  };
+}
+
+function normalizeCloudflareTokenCount(value: unknown): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
+  return Math.max(0, Math.round(value));
+}
+
+function extractCloudflareUsage(result: unknown, data: Record<string, any>): Pick<BackendRunResult, 'inputTokens' | 'outputTokens'> {
+  const resultUsage = (
+    result
+    && typeof result === 'object'
+    && 'usage' in result
+  )
+    ? (result as { usage?: Record<string, unknown> }).usage
+    : undefined;
+  const usage = resultUsage || data.usage;
+  if (!usage || typeof usage !== 'object') return {};
+
+  const record = usage as Record<string, unknown>;
+  const inputTokens = normalizeCloudflareTokenCount(
+    record.prompt_tokens ?? record.input_tokens ?? record.inputTokens,
+  );
+  let outputTokens = normalizeCloudflareTokenCount(
+    record.completion_tokens ?? record.output_tokens ?? record.outputTokens,
+  );
+  const totalTokens = normalizeCloudflareTokenCount(record.total_tokens ?? record.totalTokens);
+  if (outputTokens === undefined && inputTokens !== undefined && totalTokens !== undefined) {
+    outputTokens = Math.max(0, totalTokens - inputTokens);
+  }
+
+  return { inputTokens, outputTokens };
 }
 
 function sanitizeCodexOutput(raw: string): string {

@@ -6,6 +6,22 @@ import { ArrowRight, Download, RadioTower, Terminal } from 'lucide-react'
 import { LiveGloryVideo } from './LiveGloryVideo'
 
 export function Hero() {
+  const coordinationStrip = (
+    <div className="relative z-20 mb-[var(--space-6)] grid gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)] sm:grid-cols-[auto_minmax(0,1fr)]">
+      <span className="inline-flex h-10 w-10 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--brand-primary)]">
+        <RadioTower size={18} />
+      </span>
+      <div className="grid gap-1">
+        <span className="font-mono text-[10px] font-black uppercase tracking-[0.18em] text-[var(--brand-primary)]">
+          Coordination first
+        </span>
+        <p className="max-w-none text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
+          Agents write notes, claims, and handoffs through Port Daddy; FleetBar gives humans the same live truth before the recording starts.
+        </p>
+      </div>
+    </div>
+  )
+
   return (
     <section className="relative flex items-center overflow-hidden py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
       {/* Swiss-grid field for the infrastructure diagram. */}
@@ -15,7 +31,8 @@ export function Hero() {
       }} />
 
       <PageContainer className="relative z-10">
-        <div className="grid items-center gap-[var(--space-6)] min-[900px]:grid-cols-[minmax(18rem,0.72fr)_minmax(38rem,1.38fr)] min-[900px]:gap-[var(--space-7)]">
+        {coordinationStrip}
+        <div className="grid items-center gap-[var(--space-6)] min-[1100px]:grid-cols-[minmax(24rem,0.86fr)_minmax(34rem,1.14fr)] min-[1100px]:gap-[var(--space-7)]">
           {/* Left -- Copy */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
@@ -99,9 +116,9 @@ export function Hero() {
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.2, ease: 'easeOut' as const }}
-            className="relative min-[900px]:-mr-[clamp(2rem,5vw,5.5rem)] min-[900px]:ml-[-0.5rem]"
+            className="relative min-[1100px]:-mr-[clamp(1rem,3vw,4rem)]"
           >
-            <picture aria-hidden="true" className="pointer-events-none absolute -right-[6%] -top-[18%] hidden h-[56%] w-[76%] overflow-hidden border opacity-35 min-[900px]:block dark:opacity-25" style={{ borderColor: 'var(--border-subtle)' }}>
+            <picture aria-hidden="true" className="pointer-events-none absolute -right-[6%] -top-[18%] hidden h-[56%] w-[76%] overflow-hidden border opacity-35 min-[1100px]:block dark:opacity-25" style={{ borderColor: 'var(--border-subtle)' }}>
               <source srcSet="/img/generated/agent-runtime-map.webp" type="image/webp" />
               <img
                 alt=""
@@ -114,14 +131,6 @@ export function Hero() {
             </picture>
             <div className="relative z-10">
               <LiveGloryVideo />
-              <div className="mt-[var(--space-3)] grid gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)] sm:grid-cols-[auto_minmax(0,1fr)]">
-                <span className="inline-flex h-10 w-10 items-center justify-center border-2 border-[var(--border-strong)] text-[var(--brand-primary)]">
-                  <RadioTower size={18} />
-                </span>
-                <p className="max-w-none text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
-                  The recording shows the split that matters: agents use Port Daddy commands to write coordination state, while humans inspect that state in FleetBar and the full console.
-                </p>
-              </div>
             </div>
           </motion.div>
         </div>
