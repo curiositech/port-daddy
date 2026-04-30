@@ -261,7 +261,7 @@ pd spawn \
 # Cloudflare Workers AI also works when credentials, usage, and model rates line up
 pd spawn \
   --backend cloudflare \
-  --model @cf/meta/llama-3.1-8b-instruct \
+  --model @cf/zai-org/glm-4.7-flash \
   --budget 0.35 \
   --identity myapp:docs \
   -- "Explain what this function does"

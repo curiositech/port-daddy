@@ -149,6 +149,21 @@ h2 { line-height: 1.2; }
 h3 { line-height: 1.3; }
 
 @layer utilities {
+  .font-opsz-body {
+    font-optical-sizing: auto;
+    font-variation-settings: "opsz" var(--radnika-opsz-body);
+  }
+
+  .font-opsz-small {
+    font-optical-sizing: auto;
+    font-variation-settings: "opsz" var(--radnika-opsz-small);
+  }
+
+  .font-opsz-display {
+    font-optical-sizing: auto;
+    font-variation-settings: "opsz" var(--radnika-opsz-display);
+  }
+
   .tracking-tight,
   .tracking-tighter {
     letter-spacing: 0 !important;

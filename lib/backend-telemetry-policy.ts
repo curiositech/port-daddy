@@ -10,7 +10,7 @@ export interface BackendTelemetryPolicy {
 
 export const DEFAULT_OPERATOR_CLAUDE_MODEL = 'claude-haiku-4-5-20251001';
 export const DEFAULT_OPERATOR_CODEX_MODEL = 'gpt-5.4-mini';
-export const DEFAULT_OPERATOR_CLOUDFLARE_MODEL = '@cf/meta/llama-3.1-8b-instruct';
+export const DEFAULT_OPERATOR_CLOUDFLARE_MODEL = '@cf/zai-org/glm-4.7-flash';
 
 function blocked(backend: string, summary: string, nextStep?: string): BackendTelemetryPolicy {
   return {

@@ -56,11 +56,11 @@ describe('backend telemetry policy', () => {
 
   test('allows Cloudflare Workers AI only when the model has an exact rate entry', () => {
     expect(
-      assessBackendTelemetryPolicy('cloudflare', '@cf/meta/llama-3.1-8b-instruct')
+      assessBackendTelemetryPolicy('cloudflare', '@cf/moonshotai/kimi-k2.6')
     ).toEqual(expect.objectContaining({
       backend: 'cloudflare',
       launchAllowed: true,
-      effectiveModel: '@cf/meta/llama-3.1-8b-instruct',
+      effectiveModel: '@cf/moonshotai/kimi-k2.6',
     }));
 
     expect(
@@ -71,13 +71,13 @@ describe('backend telemetry policy', () => {
     }));
   });
 
-  test('defaults Cloudflare to the exact-rate 8B Workers AI model when none is supplied', () => {
+  test('defaults Cloudflare to the current exact-rate low Workers AI model when none is supplied', () => {
     const policy = assessBackendTelemetryPolicy('cloudflare');
 
     expect(policy).toEqual(expect.objectContaining({
       backend: 'cloudflare',
       launchAllowed: true,
-      effectiveModel: '@cf/meta/llama-3.1-8b-instruct',
+      effectiveModel: '@cf/zai-org/glm-4.7-flash',
     }));
   });
 
