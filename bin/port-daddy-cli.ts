@@ -2475,7 +2475,8 @@ async function main(): Promise<void> {
         // Launch MCP server (stdio transport for Claude Code / Desktop)
         const { spawn } = await import('node:child_process');
         const mcpPath = new URL('../mcp/server.ts', import.meta.url).pathname;
-        const child = spawn('npx', ['tsx', mcpPath], {
+        const tsxBin = join(__dirname, '..', 'node_modules', '.bin', 'tsx');
+        const child = spawn(process.execPath, [tsxBin, mcpPath], {
           stdio: 'inherit',
           env: {
             ...process.env,
