@@ -69,6 +69,28 @@ loadEnvFiles();
 const PD_URL = process.env.PD_URL || process.env.PORT_DADDY_URL || getDaemonUrl();
 const LOCAL_EXECUTION_BACKENDS = new Set(['claude-cli', 'codex', 'ollama', 'aider', 'custom']);
 
+interface FleetModelBackend {
+  id: string;
+  name?: string;
+  models?: string[];
+  modelTiers?: Partial<Record<'low' | 'mid' | 'high', string>>;
+  supported?: boolean;
+  readinessStatus?: string;
+  readinessSummary?: string;
+  readinessNextStep?: string;
+  credentialKeys?: string[];
+  credentialAlternates?: string[];
+  setupCommand?: string;
+  setupFiles?: string[];
+  restartRequired?: boolean;
+}
+
+interface FleetModelsResponse {
+  success?: boolean;
+  backends?: FleetModelBackend[];
+  error?: string;
+}
+
 async function getFleetPromptLineViaIpc(project: string, since?: number): Promise<string | null> {
   if (process.env.PD_URL || process.env.PORT_DADDY_URL || process.env.PORT_DADDY_SOCK) return null;
   const socketPath = process.env.PORT_DADDY_IPC || DEFAULT_IPC;
@@ -199,6 +221,98 @@ async function fleetInit(): Promise<void> {
 
 // Module-level fleet runner (persists for the lifetime of the CLI process)
 let activeRunner: ReturnType<typeof createFleetRunner> | null = null;
+
+function compactSetupCommand(command: string | undefined): string | null {
+  const trimmed = command?.trim();
+  if (!trimmed) return null;
+  return trimmed.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).join(' && ');
+}
+
+function formatModelTierLine(tier: 'low' | 'mid' | 'high', model?: string): string {
+  return `  ${tier.padEnd(4)} ${model || '-'}`;
+}
+
+function printFleetModelBackend(backend: FleetModelBackend, detailed: boolean): void {
+  const label = backend.name ? `${backend.id} — ${backend.name}` : backend.id;
+  const status = backend.readinessStatus || 'unknown';
+  console.log(`${label} [${status}]`);
+
+  if (backend.modelTiers) {
+    console.log(formatModelTierLine('low', backend.modelTiers.low));
+    console.log(formatModelTierLine('mid', backend.modelTiers.mid));
+    console.log(formatModelTierLine('high', backend.modelTiers.high));
+  } else if (backend.models?.length) {
+    console.log(`  models ${backend.models.join(', ')}`);
+  } else {
+    console.log('  models -');
+  }
+
+  if (backend.readinessSummary) {
+    console.log(`  readiness: ${backend.readinessSummary}`);
+  }
+
+  if (detailed) {
+    if (backend.readinessNextStep) {
+      console.log(`  next: ${backend.readinessNextStep}`);
+    }
+    if (backend.credentialKeys?.length) {
+      console.log(`  credentials: ${backend.credentialKeys.join(', ')}`);
+    }
+    if (backend.credentialAlternates?.length) {
+      console.log(`  alternates: ${backend.credentialAlternates.join(', ')}`);
+    }
+    const setup = compactSetupCommand(backend.setupCommand);
+    if (setup) {
+      console.log(`  setup: ${setup}`);
+    }
+  }
+
+  console.log('');
+}
+
+async function fleetModels(options: CLIOptions, positionalBackend?: string): Promise<void> {
+  const backendFilter = (
+    positionalBackend
+    || (typeof options.backend === 'string' ? options.backend : undefined)
+  )?.trim();
+
+  const res = await pdFetch('/fleet/models');
+  const data = await res.json() as FleetModelsResponse;
+  if (!res.ok || data.success === false) {
+    ui.error(data.error || `Failed to load fleet models: HTTP ${'status' in res ? res.status : 'unknown'}`);
+    process.exit(1);
+    return;
+  }
+
+  const backends = Array.isArray(data.backends) ? data.backends : [];
+  const selected = backendFilter
+    ? backends.filter((backend) => backend.id === backendFilter)
+    : backends;
+
+  if (backendFilter && selected.length === 0) {
+    ui.error(`Unknown backend: ${backendFilter}`);
+    if (backends.length > 0) {
+      ui.info(`Available: ${backends.map((backend) => backend.id).join(', ')}`);
+    }
+    process.exit(1);
+    return;
+  }
+
+  if (isJson(options)) {
+    console.log(JSON.stringify({ success: true, backends: selected }, null, 2));
+    return;
+  }
+
+  ui.info(backendFilter
+    ? `Fleet backend model tiers: ${backendFilter}`
+    : 'Fleet backend model tiers');
+  console.log('');
+
+  const detailed = Boolean(backendFilter || options.verbose || options.details);
+  for (const backend of selected) {
+    printFleetModelBackend(backend, detailed);
+  }
+}
 
 async function fleetUp(): Promise<void> {
   if (!(await isDaemonRunning())) {
@@ -798,6 +912,10 @@ export async function handleFleet(positional: string[], _options: Record<string,
       fleetValidate();
       break;
 
+    case 'models':
+      await fleetModels(_options as CLIOptions, positional[1]);
+      break;
+
     case 'init':
       await fleetInit();
       break;
@@ -829,6 +947,7 @@ export async function handleFleet(positional: string[], _options: Record<string,
       console.log('  down            Stop all agents');
       console.log('  status          Show fleet health');
       console.log('  validate        Parse pd-fleet.yml, resolve templates, and check topology');
+      console.log('  models          Show backend model ladders and readiness');
       console.log('');
       if (config) {
         console.log(`Agents in pd-fleet.yml (${config.agents.length}):`);
