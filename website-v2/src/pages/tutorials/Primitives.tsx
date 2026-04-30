@@ -1,35 +1,49 @@
-import { motion } from "framer-motion";
-import { MonitorCog, RadioTower, ShieldCheck, Wrench } from "lucide-react";
 import { TutorialLayout } from "@/components/tutorials/TutorialLayout";
+import { ConsoleMotionFigure } from "@/components/tutorials/ConsoleMotionFigure";
+import { ConsoleScreenshotFigure } from "@/components/tutorials/ConsoleScreenshotFigure";
 import { CodeBlock } from "@/components/ui/CodeBlock";
-import { Surface } from "@/components/ui/Surface";
 import { PRODUCT_FEATURES } from "@/data/product";
 
 const workflowSteps = [
   {
-    title: "Open FleetBar and the dashboard",
-    icon: MonitorCog,
-    body: "FleetBar is the Mac entrance. It opens the daemon-served Fleet Control Center, so Flow, Agents, Resources, Sorties, Shipwright, Activity, Inbox, and YAML all report the same project identity.",
-    command: "pd setup --project ~/coding/my-app",
+    title: "Start in FleetBar and Fleet Control Center",
+    body: "FleetBar is the Mac entry. Fleet Control Center carries Flow, Activity, Agents, Resources, Inbox, Sorties, Shipwright, and YAML so the person can verify one coherent project story.",
+    command: `open -a "Port Daddy"
+pd status
+Port Daddy is running
+Fleet: 1 project(s), 8 agent(s), 3/8 launchable`,
   },
   {
     title: "Check readiness before launch",
-    icon: ShieldCheck,
-    body: "Backend readiness, resource pressure, and Coordination Guard are preflight checks. A good launch starts by proving keys, dependencies, model rates, budget ceilings, and claims are visible.",
-    command: "pd status\npd fleet models\npd guard status",
+    body: "Before any agent runs, verify backend readiness, budget posture, and Coordination Guard. The human review path is Shipwright first, then Flow and Resources.",
+    command: `pd fleet models
+claude-sdk   exact telemetry   ready
+codex        exact telemetry   ready
+gemini       missing API key   blocked
+
+pd guard status
+Coordination Guard: enforce`,
   },
   {
-    title: "Let Shipwright connect cold start to Flow",
-    icon: Wrench,
-    body: "Shipwright surveys the repo, proposes a starter fleet, simulates the envelope, then sends you back to Flow, Agents, YAML, Sorties, and Resources.",
-    command: "pd fleet init\npd fleet validate",
+    title: "Let Shipwright propose the starting shape",
+    body: "Shipwright surveys the repo, names suggested agents, estimates the envelope, and hands the person a plan that can be promoted into YAML and Flow.",
+    command: `pd fleet init
+Starter fleet written to pd-fleet.yml
+
+pd fleet validate
+Result: valid`,
   },
   {
-    title: "Use shared agent communication",
-    icon: RadioTower,
-    body: "Sessions, notes, scoped channels, actor inboxes, claims, tuples, locks, and salvage records are how agents communicate across separate tools and crashes.",
-    command:
-      'pd begin "first coordinated change"\npd note "handoff ready"\npd salvage --project my-app',
+    title: "Inspect the shared communication surfaces",
+    body: "Sessions, notes, scoped channels, actor inboxes, claims, tuples, locks, and salvage are the durable communication layer between agents. The person checks Activity, Inbox, and Flow to make sure those surfaces agree.",
+    command: `pd begin "first coordinated change"
+session: session-my-app-first-coordinated-change-c1b28dd2
+
+pd note "handoff ready"
+Note recorded.
+
+pd salvage --project my-app --limit 5
+No abandoned sessions in salvage queue.`,
   },
 ] as const;
 
@@ -51,112 +65,128 @@ export function Primitives() {
         href: "/tutorials/pd-tube",
       }}
     >
-      <motion.div className="space-y-16">
-        <section className="space-y-6">
-          <motion.h2 className="m-0">What this tutorial proves</motion.h2>
-          <motion.p>
-            The home page names eleven primitives. This walkthrough ties each
-            one to the Mac app, the daemon, or a command you can run today, so
-            the website is not asking visitors to believe in invisible features.
-          </motion.p>
-          <CodeBlock copyable={false} language="bash">{`pd setup --project ~/coding/my-app
-pd status
-pd briefing
-pd fleet models
-pd guard status
-Port Daddy is running
-Coordination Guard: enforce`}</CodeBlock>
-        </section>
-
-        <section className="space-y-8">
-          <motion.h2 className="m-0">1. Run the cold-start loop</motion.h2>
-          <div className="grid gap-6">
-            {workflowSteps.map((step, index) => {
-              const Icon = step.icon;
-              return (
-                <Surface
-                  key={step.title}
-                  depth="raised"
-                  radius="none"
-                  className="p-6 space-y-4"
-                >
-                  <div className="flex items-start gap-4">
-                    <Surface
-                      depth="flat"
-                      radius="none"
-                      padding="none"
-                      className="flex h-12 w-12 shrink-0 items-center justify-center"
-                    >
-                      <Icon className="text-[var(--brand-primary)]" size={22} />
-                    </Surface>
-                    <div className="space-y-2">
-                      <p className="m-0 font-mono text-[length:var(--type-meta-size)] font-black uppercase tracking-[0.22em] text-[var(--brand-primary)]">
-                        {String(index + 1).padStart(2, "0")}
-                      </p>
-                      <motion.h3 className="m-0 text-2xl">
-                        {step.title}
-                      </motion.h3>
-                      <motion.p className="m-0">{step.body}</motion.p>
-                    </div>
-                  </div>
-                  <CodeBlock copyable={false} language="bash">{step.command}</CodeBlock>
-                </Surface>
-              );
-            })}
+      <div className="space-y-[var(--section-space-y)]">
+        <section className="space-y-[var(--space-6)]">
+          <h2 className="m-0">Start in the actual app, not a fictional diagram</h2>
+          <p>
+            This page exists to tie the public product claims back to the real
+            app. The person starts in <strong>FleetBar</strong>, opens the
+            daemon-served <strong>Fleet Control Center</strong>, and checks that{" "}
+            <strong>Flow</strong>, <strong>Activity</strong>,{" "}
+            <strong>Shipwright</strong>, and <strong>YAML</strong> all agree
+            with the same runtime truth.
+          </p>
+          <ConsoleMotionFigure
+            lightSrc="/media/landing-live-glory/port-daddy-live-glory-light.mp4"
+            darkSrc="/media/landing-live-glory/port-daddy-live-glory-dark.mp4"
+            lightPoster="/media/landing-live-glory/port-daddy-live-glory-light-poster.jpg"
+            darkPoster="/media/landing-live-glory/port-daddy-live-glory-dark-poster.jpg"
+            caption="Human control layer: the real Fleet console is the first proof surface. It should show the same project identity, readiness, and running story that the CLI commands report."
+          />
+          <div className="grid gap-[var(--space-5)] lg:grid-cols-3">
+            <ConsoleScreenshotFigure
+              lightSrc="/img/app-screens/fleetbar-native-shell-light.png"
+              darkSrc="/img/app-screens/fleetbar-native-shell-dark.png"
+              alt="FleetBar native shell"
+              caption="FleetBar is the native entrance."
+            />
+            <ConsoleScreenshotFigure
+              lightSrc="/img/tutorial-human-layer-control-center-light.png"
+              darkSrc="/img/tutorial-human-layer-control-center-dark.png"
+              alt="Fleet Control Center"
+              caption="Fleet Control Center is the operator overview."
+            />
+            <ConsoleScreenshotFigure
+              lightSrc="/img/app-screens/shipwright-control-light.png"
+              darkSrc="/img/app-screens/shipwright-control-dark.png"
+              alt="Shipwright control surface"
+              caption="Shipwright turns cold start into a reviewable plan."
+            />
           </div>
         </section>
 
-        <section className="space-y-8">
-          <motion.h2 className="m-0">
-            2. Map every primitive to a feature
-          </motion.h2>
-          <motion.p>
-            Keep this table beside the Mac Preview page. If a primitive has no
-            app view, command, or inspection path, it should not be on the
-            public site.
-          </motion.p>
-          <div className="grid gap-4">
-            {PRODUCT_FEATURES.map((feature, index) => (
-              <Surface
-                key={feature.id}
-                depth="raised"
-                radius="none"
-                className="p-6 space-y-4"
+        <section className="space-y-[var(--space-6)]">
+          <h2 className="m-0">1. Run the cold-start loop</h2>
+          <div className="divide-y divide-[var(--hairline)] border-y border-[var(--hairline)]">
+            {workflowSteps.map((step, index) => (
+              <div
+                key={step.title}
+                className="grid gap-[var(--space-4)] py-[var(--space-5)] lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] lg:gap-[var(--space-8)]"
               >
-                <div className="grid gap-3 md:grid-cols-[4rem_1fr]">
-                  <div className="font-mono text-[length:var(--type-panel-title-nav-size)] font-black text-[var(--brand-primary)]">
-                    {String(index + 1).padStart(2, "0")}
-                  </div>
-                  <div className="space-y-2">
-                    <motion.h3 className="m-0 text-2xl">
-                      {feature.title}
-                    </motion.h3>
-                    <motion.p className="m-0">{feature.description}</motion.p>
-                    <CodeBlock copyable={false} language="bash">{feature.cli}</CodeBlock>
-                  </div>
+                <div className="space-y-[var(--space-2)]">
+                  <p className="m-0 font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+                    Step {index + 1}
+                  </p>
+                  <h3 className="m-0">{step.title}</h3>
+                  <p className="m-0">{step.body}</p>
                 </div>
-              </Surface>
+                <CodeBlock copyable={false} language="bash">
+                  {step.command}
+                </CodeBlock>
+              </div>
             ))}
           </div>
         </section>
 
-        <section className="space-y-6">
-          <motion.h2 className="m-0">
-            3. Inspect the result in the app
-          </motion.h2>
-          <motion.p>
-            After setup and readiness checks, open FleetBar or the Fleet Control
-            Center. Shipwright should lead into Flow. Sorties should preserve
-            mission history. Resources should show pressure and spend. Activity,
-            Inbox, notes, claims, tuples, and salvage should make agent-to-agent
-            communication visible instead of buried in one terminal transcript.
-          </motion.p>
-          <CodeBlock copyable={false} language="bash">{`open "http://127.0.0.1:9876/fleet-ui/?surface=shipwright"
-pd fleet up
-pd sortie "Check docs drift and summarize product-truth gaps" --budget 0.50
-# Expected result: Fleet Control Center opens, the fleet starts, and the sortie appears in mission history.`}</CodeBlock>
+        <section className="space-y-[var(--space-6)]">
+          <h2 className="m-0">2. Map every primitive to a proof path</h2>
+          <p>
+            If a primitive has no app surface, no daemon evidence, and no
+            inspectable command path, it should not be advertised. This table
+            keeps the public list honest.
+          </p>
+          <div className="overflow-x-auto">
+            <table>
+              <thead>
+                <tr>
+                  <th>Primitive</th>
+                  <th>Human surface</th>
+                  <th>CLI proof path</th>
+                </tr>
+              </thead>
+              <tbody>
+                {PRODUCT_FEATURES.slice(0, 11).map((feature) => (
+                  <tr key={feature.id}>
+                    <td>{feature.title}</td>
+                    <td>
+                      {"surface" in feature && feature.surface === "Shipwright"
+                        ? "Shipwright"
+                        : "surface" in feature && feature.surface === "FleetBar"
+                          ? "FleetBar"
+                          : "Fleet Control Center"}
+                    </td>
+                    <td>
+                      <code>{feature.cli}</code>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
-      </motion.div>
+
+        <section className="space-y-[var(--space-6)]">
+          <h2 className="m-0">3. Confirm the same story in the app</h2>
+          <p>
+            When the loop is healthy, the person should be able to move from{" "}
+            <strong>Shipwright</strong> into <strong>Flow</strong>, then into{" "}
+            <strong>Activity</strong>, <strong>Inbox</strong>, and{" "}
+            <strong>YAML</strong> without losing the project identity or
+            runtime truth.
+          </p>
+          <CodeBlock copyable={false} language="bash">
+            {`$ pd fleet up
+SUCCESS: fleet started for project my-app
+
+$ pd sortie run --backend codex --budget 0.50 -- "Check docs drift and summarize product-truth gaps"
+SUCCESS: sortie launched
+session: sortie-91a0ef22
+INFO: status running
+
+# Open Fleet Control Center → Shipwright, Flow, Activity, Inbox, and YAML`}
+          </CodeBlock>
+        </section>
+      </div>
     </TutorialLayout>
   );
 }
