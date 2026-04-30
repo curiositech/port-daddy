@@ -98,6 +98,31 @@ interface SkillExplorerItem {
   }
 }
 
+const SKILL_MANUAL_FRONTMATTER = [
+  ['name', 'port-daddy-agent-skill'],
+  ['description', 'Instruction manual for agents driving Port Daddy multi-agent coordination.'],
+  ['allowed-tools', 'Read, Bash, Grep, Glob, Edit, Write'],
+  ['category', 'Coordination'],
+] as const
+
+const SKILL_MANUAL_SECTIONS = [
+  ['Use it when', 'Editing a repo, recovering work, coordinating sessions, inspecting FleetBar, packaging docs, or leaving a durable handoff.'],
+  ['NOT For', 'One-line read-only answers, generic git advice, replacing repo truth, or launching extra agents for a bounded local edit.'],
+  ['Default Agent Happy Path', 'The normal loop: status, briefing, salvage, begin, note, claim, validate, handoff, done.'],
+  ['CLI Documentation Contract', 'Every CLI command needs a real detail page with syntax, options, examples, aliases, provenance, and API contract metadata.'],
+] as const
+
+const SKILL_MANUAL_LOOP = [
+  ['pd status', 'Confirm the daemon and runtime are alive before trusting local assumptions.'],
+  ['pd briefing', 'Read the current work, recovery, and coordination snapshot.'],
+  ['pd salvage --project <project> --limit 20', 'Preserve interrupted work before restarting archaeology.'],
+  ['pd begin "<bounded task>" --identity <project>:<agent>', 'Register an accountable session and identity.'],
+  ['pd note "Scope: <files>. Assumptions: <truth>. Validation: <commands>."', 'Publish scope and proof plan where other agents can find it.'],
+  ['pd session files add <path>', 'Claim the smallest real surface before editing.'],
+  ['pd guard check --staged', 'Prove staged work is coordinated before publishing.'],
+  ['pd done "<short outcome>"', 'Close the loop with result, validation, and remaining risk.'],
+] as const
+
 const PROOF_METRICS: ProofMetric[] = [
   { value: `${MCP_TOOL_TOTAL}`, label: 'MCP functions registered by the server', tone: 'blue' },
   { value: `${MCP_DEFAULT_TOOL_TOTAL}`, label: 'default tools before discovery', tone: 'accent' },
@@ -292,12 +317,24 @@ const SKILL_EXPLORER_ITEMS: SkillExplorerItem[] = [
       'Do not publish before fetch, reconcile, notes, and guard checks.',
     ],
     codeLabel: 'Happy path commands',
-    code: `pd status
-pd briefing
-pd salvage --project port-daddy --limit 20
-pd begin "fix docs surface" --identity port-daddy:documentarian
-pd note "Scope: website-v2/src/pages/MCPPage.tsx. Validation: build + smoke."
-pd session files add website-v2/src/pages/MCPPage.tsx`,
+    code: `$ pd status
+Port Daddy is running
+  Runtime: nominal
+
+$ pd briefing
+SUCCESS: Briefing generated: .portdaddy/briefing.md
+SUCCESS: Briefing generated: .portdaddy/briefing.json
+
+$ pd begin "fix docs surface" --identity port-daddy:documentarian
+SUCCESS: Agent fix docs surface ready
+  Session: session-fix-docs-surface-4a12
+  Identity: port-daddy:documentarian
+
+$ pd note "Scope: website-v2/src/pages/MCPPage.tsx. Validation: build + smoke."
+SUCCESS: Note added to session session-fix-docs-surface-4a12
+
+$ pd session files add website-v2/src/pages/MCPPage.tsx
+Claimed 1 file(s) in session session-fix-docs-surface-4a12`,
   },
   {
     id: 'references',
@@ -900,6 +937,7 @@ function CommentDirectives({ comments }: { comments: string[] }) {
           <code
             key={comment}
             className="block min-w-0 max-w-full whitespace-normal break-all border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-[var(--space-2)] py-[var(--space-2)] font-mono text-[0.78rem] leading-tight text-[var(--text-primary)]"
+            style={{ display: 'block', whiteSpace: 'normal', overflowWrap: 'anywhere', wordBreak: 'break-word' }}
           >
             {comment}
           </code>
@@ -964,6 +1002,80 @@ function SkillVisual({ item }: { item: SkillExplorerItem }) {
       <PanelBody size="compact" className="max-w-none">
         {item.summary}
       </PanelBody>
+    </div>
+  )
+}
+
+function SkillManualView({ item }: { item: SkillExplorerItem }) {
+  return (
+    <div className="grid min-w-0 gap-[var(--space-4)]">
+      <div className="grid gap-[var(--space-3)] lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
+        <div className="min-w-0 border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-3)]">
+          <PanelEyebrow>Frontmatter contract</PanelEyebrow>
+          <div className="mt-[var(--space-3)] grid gap-[var(--space-2)]">
+            {SKILL_MANUAL_FRONTMATTER.map(([key, value]) => (
+              <div key={key} className="grid gap-[var(--space-1)] border border-[var(--border-default)] bg-[var(--surface-base)] p-[var(--space-2)]">
+                <code className="font-mono text-[0.76rem] font-semibold text-[var(--brand-primary)]">{key}</code>
+                <PanelBody size="compact" className="max-w-none">
+                  {value}
+                </PanelBody>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="min-w-0 border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)]">
+          <PanelEyebrow>Rendered manual map</PanelEyebrow>
+          <div className="mt-[var(--space-3)] grid gap-[var(--space-2)]">
+            {SKILL_MANUAL_SECTIONS.map(([title, body]) => (
+              <section key={title} className="border border-[var(--border-default)] bg-[var(--surface-raised)] p-[var(--space-2)]">
+                <PanelTitle as="h4" size="nav">
+                  {title}
+                </PanelTitle>
+                <PanelBody size="compact" className="mt-[var(--space-1)] max-w-none">
+                  {body}
+                </PanelBody>
+              </section>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="min-w-0 border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)]">
+        <div className="flex flex-wrap items-center justify-between gap-[var(--space-2)]">
+          <PanelEyebrow>Default Agent Happy Path</PanelEyebrow>
+          <code
+            className="border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-[var(--space-2)] py-[var(--space-1)] font-mono text-[0.76rem] text-[var(--text-secondary)]"
+            style={{ display: 'block', whiteSpace: 'normal', overflowWrap: 'anywhere', wordBreak: 'break-word' }}
+          >
+            runnable order, not decorative prose
+          </code>
+        </div>
+        <ol className="mt-[var(--space-3)] grid gap-[var(--space-2)]">
+          {SKILL_MANUAL_LOOP.map(([command, reason], index) => (
+            <li key={command} className="grid gap-[var(--space-2)] border border-[var(--border-default)] bg-[var(--surface-raised)] p-[var(--space-2)] sm:grid-cols-[2.2rem_minmax(0,1fr)]">
+              <span className="grid h-[2.2rem] w-[2.2rem] place-items-center border-2 border-[var(--border-strong)] bg-[var(--brand-primary)] font-mono text-[0.78rem] font-bold text-[var(--brand-primary-foreground)]">
+                {String(index + 1).padStart(2, '0')}
+              </span>
+              <div className="min-w-0">
+                <code
+                  className="font-mono text-[0.84rem] font-semibold text-[var(--text-primary)]"
+                  style={{ display: 'block', whiteSpace: 'normal', overflowWrap: 'anywhere', wordBreak: 'break-word' }}
+                >
+                  {command}
+                </code>
+                <PanelBody size="compact" className="mt-[var(--space-1)] max-w-none">
+                  {reason}
+                </PanelBody>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </div>
+
+      <DocsCodeBlock code={item.code ?? ''} language="cli" label={item.codeLabel ?? 'Happy path commands'} />
+      <CommentDirectives comments={item.comments} />
+      <DoDontPanel item={item} />
     </div>
   )
 }
@@ -1054,41 +1166,47 @@ function SkillExplorer() {
               </PanelBody>
             </div>
 
-            <div className="grid gap-[var(--space-3)]">
-              <SkillVisual item={activeItem} />
-              <MarkdownPreview lines={activeItem.markdown} />
-            </div>
-
-            <CommentDirectives comments={activeItem.comments} />
-
-            {activeItem.mermaid ? (
-              <div className="grid gap-[var(--space-3)]">
-                <PanelEyebrow>Mermaid pretty print</PanelEyebrow>
-                <div className="[&>div]:my-0">
-                  <Mermaid chart={activeItem.mermaid} />
+            {activeItem.id === 'skill' ? (
+              <SkillManualView item={activeItem} />
+            ) : (
+              <>
+                <div className="grid gap-[var(--space-3)]">
+                  <SkillVisual item={activeItem} />
+                  <MarkdownPreview lines={activeItem.markdown} />
                 </div>
-                <DocsCodeBlock code={activeItem.mermaid} language="text" label="Mermaid source" />
-              </div>
-            ) : null}
 
-            {activeItem.code ? (
-              <DocsCodeBlock code={activeItem.code} language="text" label={activeItem.codeLabel ?? 'Source snippet'} />
-            ) : null}
+                <CommentDirectives comments={activeItem.comments} />
 
-            {activeItem.image ? (
-              <figure className="grid min-w-0 gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-3)]">
-                <img
-                  src={activeItem.image.src}
-                  alt={activeItem.image.alt}
-                  className="block aspect-[16/10] w-full border border-[var(--border-default)] object-cover"
-                />
-                <figcaption className="font-sans text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
-                  {activeItem.image.caption}
-                </figcaption>
-              </figure>
-            ) : null}
+                {activeItem.mermaid ? (
+                  <div className="grid gap-[var(--space-3)]">
+                    <PanelEyebrow>Mermaid pretty print</PanelEyebrow>
+                    <div className="[&>div]:my-0">
+                      <Mermaid chart={activeItem.mermaid} />
+                    </div>
+                    <DocsCodeBlock code={activeItem.mermaid} language="text" label="Mermaid source" />
+                  </div>
+                ) : null}
 
-            <DoDontPanel item={activeItem} />
+                {activeItem.code ? (
+                  <DocsCodeBlock code={activeItem.code} language="text" label={activeItem.codeLabel ?? 'Source snippet'} />
+                ) : null}
+
+                {activeItem.image ? (
+                  <figure className="grid min-w-0 gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-3)]">
+                    <img
+                      src={activeItem.image.src}
+                      alt={activeItem.image.alt}
+                      className="block aspect-[16/10] w-full border border-[var(--border-default)] object-cover"
+                    />
+                    <figcaption className="font-sans text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
+                      {activeItem.image.caption}
+                    </figcaption>
+                  </figure>
+                ) : null}
+
+                <DoDontPanel item={activeItem} />
+              </>
+            )}
           </div>
         </div>
       </div>
