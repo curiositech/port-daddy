@@ -729,6 +729,24 @@ const ESSENTIAL_TOOLS = [
   ['pd_discover', 'List categories, counts, names, and full schemas for more tools.'],
 ] as const
 
+const TOOL_TIER_STEPS = [
+  [
+    '1',
+    'Start with basics',
+    'The first tool list covers identity, sessions, notes, claims, locks, health checks, and discovery.',
+  ],
+  [
+    '2',
+    'Ask what exists',
+    'pd_discover returns category names, counts, descriptions, and schemas so the agent can choose a narrow expansion.',
+  ],
+  [
+    '3',
+    'Load only the needed family',
+    'Ports, tuples, tunnels, webhooks, fleets, diagnostics, and admin tools stay out of the context window until the task needs them.',
+  ],
+] as const
+
 const CATEGORY_ICONS: Record<string, LucideIcon> = {
   magic: Cpu,
   'session-lifecycle': Activity,
@@ -867,6 +885,28 @@ function ToolCard({ tool }: { tool: MagicTool }) {
   )
 }
 
+function ToolTiersCallout() {
+  return (
+    <SurfacePanel tone="blue" padding="compact">
+      <div className="grid gap-[var(--space-3)] lg:grid-cols-3">
+        {TOOL_TIER_STEPS.map(([number, title, description]) => (
+          <div key={number} className="grid min-w-0 gap-[var(--space-2)] border-2 border-current p-[var(--space-3)]">
+            <span className="grid h-[var(--space-6)] w-[var(--space-6)] place-items-center border-2 border-current font-mono text-[0.8rem] font-bold">
+              {number}
+            </span>
+            <PanelTitle as="h3" size="nav" tone="primary">
+              {title}
+            </PanelTitle>
+            <PanelBody size="compact" tone="primary" className="max-w-none">
+              {description}
+            </PanelBody>
+          </div>
+        ))}
+      </div>
+    </SurfacePanel>
+  )
+}
+
 function ChannelTabs() {
   const [active, setActive] = useState(CHANNEL_SURFACES[0].id)
   const surface = CHANNEL_SURFACES.find((item) => item.id === active) ?? CHANNEL_SURFACES[0]
@@ -925,7 +965,7 @@ function ChannelTabs() {
           <div className="space-y-[var(--space-2)]">
             <BracketLabel>{surface.label}</BracketLabel>
             <PanelTitle as="h3" size="card">
-              One channel, many clients.
+              Same named stream, different access path.
             </PanelTitle>
             <PanelBody size="compact" className="max-w-[42rem]">
               {surface.note}
@@ -1326,7 +1366,7 @@ function EssentialTools() {
           </PanelTitle>
         </div>
         <PanelBody size="compact" className="max-w-[34ch] sm:text-right">
-          Compact listTools response. Full specs live below.
+          Initial listTools response. pd_discover exposes the rest by category.
         </PanelBody>
       </div>
       <div className="flex flex-wrap gap-[var(--space-1)]">
@@ -1523,13 +1563,13 @@ function AgentToolDefinitionsBrowser() {
     {
       id: 'default',
       label: 'Default',
-      description: 'The tools a normal MCP client receives before asking for more.',
+      description: 'The compact starting set: identity, session notes, claims, preflight, locks, health checks, and pd_discover.',
       tools: MCP_AGENT_TOOL_DEFINITIONS.filter((tool) => tool.exposure === 'default').map((tool) => tool.name),
     },
     {
       id: 'all',
       label: 'All tools',
-      description: 'Every callable tool handled by the Port Daddy MCP server.',
+      description: 'Every registered schema. Useful for browsing, not something an agent needs to carry in every context window.',
       tools: MCP_AGENT_TOOL_DEFINITIONS.map((tool) => tool.name),
     },
     ...MCP_AGENT_TOOL_CATEGORIES,
@@ -1696,7 +1736,7 @@ export default function McpPage() {
                 <div className="space-y-[var(--space-4)]">
                   <SectionIntro
                     eyebrow="Agent skill"
-                    title="The instruction manual is now first-class."
+                    title="One operating manual for every agent runner."
                     description="Port Daddy installs the manual in the project folder for Port Daddy-using projects, then mirrors it into the local places Codex, Gemini, Claude, and AGENTS.md-aware tools actually read."
                     titleSize="display"
                   />
@@ -1765,16 +1805,19 @@ export default function McpPage() {
             <SwissGridItem span="rail">
               <SectionIntro
                 eyebrow="High-level MCP tools"
-                title="Useful calls that carry Port Daddy context."
-                description="The MCP tools are not a loose bag of shell wrappers. The important calls preserve identity, budget, files, session notes, and recovery semantics."
+                title="Basic tools start the job; discovery opens the rest."
+                description="An MCP client begins with a small set of coordination tools. When the agent needs a specialized family, it calls pd_discover to see the available categories and schemas, then loads only that slice instead of carrying every tool definition in the context window."
                 titleSize="display"
               />
             </SwissGridItem>
             <SwissGridItem span="body">
-              <div className="grid gap-[var(--space-5)] md:grid-cols-2 xl:grid-cols-3">
-                {MAGIC_TOOLS.map((tool) => (
-                  <ToolCard key={tool.name} tool={tool} />
-                ))}
+              <div className="grid gap-[var(--space-5)]">
+                <ToolTiersCallout />
+                <div className="grid gap-[var(--space-5)] md:grid-cols-2 xl:grid-cols-3">
+                  {MAGIC_TOOLS.map((tool) => (
+                    <ToolCard key={tool.name} tool={tool} />
+                  ))}
+                </div>
               </div>
             </SwissGridItem>
           </SwissGrid>
@@ -1787,8 +1830,8 @@ export default function McpPage() {
             <SwissGridItem span="rail">
               <SectionIntro
                 eyebrow="Pub/Sub radio"
-                title="A channel is the same channel everywhere."
-                description="CLI hooks, MCP clients, SDK integrations, and REST/SSE consumers publish into the same scoped channel model. That keeps background fleets and interactive agents synchronized."
+                title="A channel is a named stream for coordination events."
+                description="A channel is where Port Daddy puts messages such as commits, handoffs, feedback, or fleet triggers. Humans can inspect it from the CLI and dashboard; agents and apps can publish or listen through MCP, the SDK, REST, or SSE. The friendly name resolves to the same project-scoped stream everywhere."
                 titleSize="display"
               />
             </SwissGridItem>
@@ -1805,8 +1848,8 @@ export default function McpPage() {
             <SwissGridItem span="wide" className="space-y-[var(--section-intro-gap)]">
             <SectionIntro
               eyebrow="Fleet recovery"
-              title="Respawn is a policy, not a hope."
-              description="Fleet agents can restart after crashes, but the important behavior is recoverability: the daemon keeps session notes, salvage state, channel scope, and budget checks visible."
+              title="Agent resurrection starts a replacement worker."
+              description="If a fleet agent crashes or exits, Port Daddy can automatically launch a new run for that same role when respawn is enabled in pd-fleet.yml. The daemon starts the replacement and enforces the retry limit; it does not revive a dead Claude, Codex, or Gemini process in place."
               titleSize="display"
             />
             <LifecycleDiagram />
@@ -1902,7 +1945,7 @@ const task = await tuple_in({
               <SectionIntro
                 eyebrow="Tool discovery"
                 title="Small default toolset, full system on demand."
-                description="Agents should not start every turn with an overwhelming tool list. The default set stays tight, then specialized categories unlock only when the task needs them."
+                description="The default list is intentionally small so agents spend less context on tool schemas. pd_discover tells them what larger families exist, and this browser shows the exact definitions they receive when a category is opened."
                 titleSize="display"
               />
             </SwissGridItem>
