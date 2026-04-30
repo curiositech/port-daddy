@@ -951,9 +951,11 @@ await pd.killSpawned(agentId);
 | `pd.listSpawned()` | List active spawned agents |
 | `pd.killSpawned(agentId)` | Kill a running spawned agent |
 
-`SpawnResult.telemetry` carries `{ inputTokens, outputTokens, costUsd, rateMode }` for accepted launches. If the backend/model cannot satisfy that exact telemetry contract, Port Daddy rejects the launch during preflight/spawn instead of silently estimating.
+`SpawnResult.telemetry` carries `{ inputTokens, cachedInputTokens, outputTokens, turns, toolCalls, costUsd, rateMode }` for accepted launches when the backend exposes those fields. If the backend/model cannot satisfy that exact telemetry contract, Port Daddy rejects the launch during preflight/spawn instead of silently estimating.
 The live spawner defaults that enforcement on. Any internal code path that disables it must attach explicit HITL confirmation metadata instead of quietly falling back to unmetered execution.
 Today, the operator-facing launchable path for that contract includes Claude SDK exact-rate models, Codex CLI exact-usage runs, and Cloudflare Workers AI models that return usage with an exact rate entry. Other backend integrations may exist in source, but they should be treated as blocked until they can return the same exact telemetry.
+
+Usage telemetry is also available to the Fleet Console Developer pane through `/usage/summary`. SDK calls, CLI commands, MCP tool calls, daemon routes, and UI interactions are counted as `port_daddy_call`; spawned agent execution is counted as `agent_work` with token, turn, tool-call, and cost fields when available.
 
 ---
 

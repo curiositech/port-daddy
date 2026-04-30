@@ -9,7 +9,7 @@
  */
 
 import type Database from 'better-sqlite3';
-import { existsSync, readdirSync, statSync, type Dirent } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync, type Dirent } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { homedir } from 'node:os';
 
@@ -52,6 +52,18 @@ interface KnownProject extends ProjectDeserialized {
   signals: string[];
   sources: string[];
   exists: boolean;
+  worktree: ProjectWorktreeMetadata | null;
+}
+
+interface ProjectWorktreeMetadata {
+  isGitWorktree: boolean;
+  isLinkedWorktree: boolean;
+  groupId: string;
+  groupName: string;
+  mainWorktreeRoot: string | null;
+  worktreeName: string;
+  branch: string | null;
+  head: string | null;
 }
 
 interface ListKnownOptions {
@@ -124,6 +136,22 @@ function isDirectory(path: string): boolean {
   }
 }
 
+function isFile(path: string): boolean {
+  try {
+    return statSync(path).isFile();
+  } catch {
+    return false;
+  }
+}
+
+function readText(path: string): string | null {
+  try {
+    return readFileSync(path, 'utf-8');
+  } catch {
+    return null;
+  }
+}
+
 function markerExists(root: string, relativePath: string): boolean {
   return existsSync(join(root, relativePath));
 }
@@ -143,6 +171,75 @@ function detectProjectSignals(root: string): string[] {
   }
 
   return [...signals].sort();
+}
+
+function resolveGitDir(root: string): { gitDir: string; linked: boolean } | null {
+  const normalizedRoot = normalizeRoot(root);
+  const dotGit = join(normalizedRoot, '.git');
+
+  if (isDirectory(dotGit)) {
+    return { gitDir: dotGit, linked: false };
+  }
+
+  if (!isFile(dotGit)) {
+    return null;
+  }
+
+  const raw = readText(dotGit)?.trim();
+  const match = raw?.match(/^gitdir:\s*(.+)$/i);
+  if (!match) return null;
+
+  return {
+    gitDir: normalizeRoot(resolve(normalizedRoot, match[1].trim())),
+    linked: true,
+  };
+}
+
+function resolveCommonGitDir(gitDir: string): string {
+  const commonDir = readText(join(gitDir, 'commondir'))?.trim();
+  if (!commonDir) return normalizeRoot(gitDir);
+  return normalizeRoot(resolve(gitDir, commonDir));
+}
+
+function readGitHead(gitDir: string): { branch: string | null; head: string | null } {
+  const head = readText(join(gitDir, 'HEAD'))?.trim();
+  if (!head) return { branch: null, head: null };
+
+  const refPrefix = 'ref: ';
+  if (head.startsWith(refPrefix)) {
+    const ref = head.slice(refPrefix.length).trim();
+    return {
+      branch: ref.startsWith('refs/heads/') ? ref.slice('refs/heads/'.length) : ref,
+      head: null,
+    };
+  }
+
+  return {
+    branch: null,
+    head: head.slice(0, 12),
+  };
+}
+
+function detectWorktreeMetadata(root: string): ProjectWorktreeMetadata | null {
+  const normalizedRoot = normalizeRoot(root);
+  const git = resolveGitDir(normalizedRoot);
+  if (!git) return null;
+
+  const commonGitDir = resolveCommonGitDir(git.gitDir);
+  const mainWorktreeRoot = basename(commonGitDir) === '.git' ? dirname(commonGitDir) : null;
+  const normalizedMainRoot = mainWorktreeRoot ? normalizeRoot(mainWorktreeRoot) : null;
+  const { branch, head } = readGitHead(git.gitDir);
+
+  return {
+    isGitWorktree: true,
+    isLinkedWorktree: git.linked || (normalizedMainRoot !== null && normalizedRoot !== normalizedMainRoot),
+    groupId: commonGitDir,
+    groupName: basename(mainWorktreeRoot ?? normalizedRoot) || basename(normalizedRoot) || normalizedRoot,
+    mainWorktreeRoot,
+    worktreeName: basename(normalizedRoot) || normalizedRoot,
+    branch,
+    head,
+  };
 }
 
 function matchesPattern(candidate: string, pattern?: string): boolean {
@@ -471,6 +568,7 @@ export function createProjects(db: Database.Database) {
           signals,
           sources,
           exists,
+          worktree: detectWorktreeMetadata(root),
         };
         return project;
       })

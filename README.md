@@ -288,6 +288,8 @@ Today that exact-telemetry path covers Claude SDK exact-rate models, Codex CLI e
 
 Internal code paths use the same rule: `createSpawner()` defaults telemetry enforcement on, and any explicit `enforceTelemetryPolicy: false` bypass now requires HITL confirmation metadata instead of relying on an omitted flag.
 
+Fleet Control Center now has a **Developer** pane backed by `/usage/summary`. It shows which Port Daddy surfaces agents actually use across CLI, SDK, MCP, daemon routes, and UI views; it also separates Port Daddy-call overhead from spawned-agent work cost with tokens, turns, tool calls, and USD.
+
 **Backends in source:** `ollama`, `claude`, `claude-cli`, `gemini`, `cloudflare`, `codex`, `aider`, `custom`
 
 **Key flags:** `--backend`, `--model`, `--tier`, `--identity`, `--purpose`, `--budget`, `--allowedTools` (claude-cli), `--maxTokens`, `--workdir`, `--timeout`

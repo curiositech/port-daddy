@@ -63,6 +63,25 @@ interface AgentsRouteDeps {
   };
 }
 
+function firstHeaderValue(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function parsePid(value: unknown): number | undefined {
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (typeof raw !== 'string' && typeof raw !== 'number') return undefined;
+  const parsed = typeof raw === 'number' ? raw : Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed)) return undefined;
+  const normalized = Math.trunc(parsed);
+  return normalized >= 0 ? normalized : undefined;
+}
+
+function requestPid(request: FastifyRequest, body: Record<string, unknown>): number {
+  return parsePid(firstHeaderValue(request.headers['x-pid']))
+    ?? parsePid(body.pid)
+    ?? process.pid;
+}
+
 /**
  * Create agents routes
  *
@@ -80,7 +99,8 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
   // POST /agents - Register an agent
   fastify.post('/agents', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { id, name, type, metadata, agentCard, maxServices, maxLocks, identity, worktreeId, purpose, telos } = request.body as any;
+      const body = ((request.body as Record<string, unknown>) || {});
+      const { id, name, type, metadata, agentCard, maxServices, maxLocks, identity, worktreeId, purpose, telos, status } = body as any;
 
       if (!id) {
         reply.code(400);
@@ -95,7 +115,7 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
 
       const result = agents.register(id, {
         name,
-        pid: parseInt(request.headers['x-pid'] as string, 10) || process.pid,
+        pid: requestPid(request, body),
         type: type || 'cli',
         metadata,
         agentCard,
@@ -104,7 +124,8 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
         identity,
         worktreeId,
         purpose,
-        telos
+        telos,
+        status,
       });
 
       if (!result.success) {
@@ -153,7 +174,7 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
       const body = (request.body as Record<string, unknown>) || {};
 
       const result = agents.heartbeat(id, {
-        pid: parseInt(request.headers['x-pid'] as string, 10) || process.pid,
+        pid: requestPid(request, body),
         status: typeof body.status === 'string' ? body.status : undefined,
         readiness: Array.isArray(body.readiness) ? body.readiness : undefined,
         progress: typeof body.progress === 'string' ? body.progress : undefined,

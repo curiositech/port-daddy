@@ -987,6 +987,9 @@ describe('PD coordination', () => {
     const body = JSON.parse(agentCalls[0][1].body);
     expect(body.identity).toBe('myapp:api:main');
     expect(body.purpose).toBe('Testing coordination');
+    expect(body.type).toBe('spawned');
+    expect(body.pid).toBe(0);
+    expect(agentCalls[0][1].headers['X-Pid']).toBe('0');
   });
 
   test('calls /sugar/begin on spawn', async () => {
@@ -1005,6 +1008,9 @@ describe('PD coordination', () => {
     expect(beginCalls.length).toBe(1);
     const body = JSON.parse(beginCalls[0][1].body);
     expect(body.identity).toBe('myapp:api:main');
+    expect(body.type).toBe('spawned');
+    expect(body.pid).toBe(0);
+    expect(beginCalls[0][1].headers['X-Pid']).toBe('0');
   });
 
   test('calls /sugar/done on successful completion', async () => {
@@ -1110,6 +1116,12 @@ describe('PD coordination', () => {
       ([url]) => typeof url === 'string' && url.includes('/heartbeat')
     );
     expect(heartbeatCalls.length).toBeGreaterThanOrEqual(1);
+    expect(heartbeatCalls.some(([, opts]) => {
+      const body = JSON.parse(opts.body);
+      return opts.headers['X-Pid'] === '12345'
+        && body.pid === 12345
+        && body.status === 'busy';
+    })).toBe(true);
 
     // Kill to clean up
     const agents = spawner.list();
@@ -1595,6 +1607,8 @@ describe('spawn — codex backend', () => {
       inputTokens: 10000,
       cachedInputTokens: 4000,
       outputTokens: 2000,
+      turns: 1,
+      toolCalls: 0,
       costUsd: 0.0138,
       rateMode: 'exact',
     });

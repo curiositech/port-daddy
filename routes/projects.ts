@@ -26,6 +26,16 @@ interface ProjectEntry {
   signals?: string[];
   sources?: string[];
   exists?: boolean;
+  worktree?: {
+    isGitWorktree: boolean;
+    isLinkedWorktree: boolean;
+    groupId: string;
+    groupName: string;
+    mainWorktreeRoot: string | null;
+    worktreeName: string;
+    branch: string | null;
+    head: string | null;
+  } | null;
 }
 
 type FleetConfigStatus = 'ready' | 'missing_budget' | 'invalid' | 'missing';
@@ -421,6 +431,7 @@ export const projectsPlugin: FastifyPluginAsync<{ deps: ProjectsRouteDeps }> = a
           signals: p.signals || [],
           sources: p.sources || ['registered'],
           exists: p.exists ?? true,
+          worktree: p.worktree ?? null,
           running: runningRoots.has(p.root),
           configuredAgentCount: fleetConfigByRoot.get(p.root)?.agents.length ?? 0,
           configuredWatcherCount: fleetConfigByRoot.get(p.root)?.watchers.length ?? 0,

@@ -71,6 +71,7 @@ interface BeginOptions {
   force?: boolean;
   metadata?: Record<string, unknown>;
   telos?: unknown;
+  pid?: number;
 }
 
 interface DoneOptions {
@@ -174,6 +175,9 @@ export function createSugar(deps: SugarDeps) {
     registerOpts.telos = telosResult.telos;
     if (type) registerOpts.type = type;
     if (metadata) registerOpts.metadata = metadata;
+    if (typeof options.pid === 'number' && Number.isFinite(options.pid) && options.pid >= 0) {
+      registerOpts.pid = Math.trunc(options.pid);
+    }
 
     const agentResult = agents.register(agentId, registerOpts);
     if (!agentResult.success) {

@@ -20,6 +20,7 @@ import type { CostTracker } from './cost-tracker.js';
 import type { Counters } from './counters.js';
 import type { Bonds } from './bonds.js';
 import type { Harbors } from './harbors.js';
+import type { UsageTelemetry } from './usage-telemetry.js';
 import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
 import { getSecret } from './secret-env.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
@@ -118,6 +119,8 @@ export interface SpawnTelemetry {
   inputTokens: number;
   cachedInputTokens?: number;
   outputTokens: number;
+  turns?: number;
+  toolCalls?: number;
   costUsd: number;
   rateMode: 'exact';
 }
@@ -153,6 +156,7 @@ interface AgentRecord extends SpawnedAgent {
 interface SpawnerDeps {
   costTracker?: CostTracker;
   counters?: Counters;
+  usageTelemetry?: UsageTelemetry;
   bonds?: Bonds;
   harbors?: Harbors;
   enforceTelemetryPolicy?: boolean;
@@ -197,11 +201,29 @@ function warnTelemetryBypass(approval: TelemetryBypassApproval): void {
 // PD coordination helpers (fire-and-forget, silent on failure)
 // =============================================================================
 
-async function pdCoordinate(path: string, body: Record<string, unknown>): Promise<void> {
+interface PdCoordinateOptions {
+  pid?: number | null;
+}
+
+function normalizeCoordinationPid(pid: number | null | undefined): number | undefined {
+  if (typeof pid !== 'number' || !Number.isFinite(pid)) return undefined;
+  const normalized = Math.trunc(pid);
+  return normalized >= 0 ? normalized : undefined;
+}
+
+function registryPidFor(record: Pick<AgentRecord, 'childProcess'>): number {
+  return normalizeCoordinationPid(record.childProcess?.pid) ?? 0;
+}
+
+async function pdCoordinate(path: string, body: Record<string, unknown>, options: PdCoordinateOptions = {}): Promise<void> {
   try {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    const pid = normalizeCoordinationPid(options.pid);
+    if (pid !== undefined) headers['X-Pid'] = String(pid);
+
     await fetch(`${getDaemonTcpUrl(process.env.PORT_DADDY_URL)}${path}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(body),
     });
   } catch {
@@ -314,6 +336,8 @@ interface BackendRunResult {
   inputTokens?: number;
   cachedInputTokens?: number;
   outputTokens?: number;
+  turns?: number;
+  toolCalls?: number;
   childProcess?: ChildProcess | null;
 }
 
@@ -325,6 +349,8 @@ interface CodexUsage {
   inputTokens?: number;
   cachedInputTokens?: number;
   outputTokens?: number;
+  turns?: number;
+  toolCalls?: number;
 }
 
 const CODEX_DAEMON_CONTEXT_ENV_KEYS = [
@@ -536,6 +562,8 @@ function sanitizeCodexOutput(raw: string): string {
 
 function parseCodexUsage(raw: string): CodexUsage {
   let usage: CodexUsage = {};
+  let turns = 0;
+  let toolCalls = 0;
 
   for (const line of raw.split(/\r?\n/)) {
     const trimmed = line.trim();
@@ -550,19 +578,29 @@ function parseCodexUsage(raw: string): CodexUsage {
           output_tokens?: unknown;
         };
       };
-      if (event.type !== 'turn.completed' || !event.usage) continue;
+      const eventType = typeof event.type === 'string' ? event.type : '';
+      if (/tool|exec|command/i.test(eventType)) toolCalls++;
+      if (eventType !== 'turn.completed') continue;
+      turns++;
+      if (!event.usage) continue;
 
       usage = {
         inputTokens: typeof event.usage.input_tokens === 'number' ? event.usage.input_tokens : undefined,
         cachedInputTokens: typeof event.usage.cached_input_tokens === 'number' ? event.usage.cached_input_tokens : undefined,
         outputTokens: typeof event.usage.output_tokens === 'number' ? event.usage.output_tokens : undefined,
+        turns,
+        toolCalls,
       };
     } catch {
       // runChild may append stderr to stdout; non-JSON lines are not usage.
     }
   }
 
-  return usage;
+  return {
+    ...usage,
+    ...(turns > 0 ? { turns } : {}),
+    ...(toolCalls > 0 ? { toolCalls } : {}),
+  };
 }
 
 function parseCodexError(raw: string): string | null {
@@ -744,6 +782,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
   const {
     costTracker,
     counters,
+    usageTelemetry,
     bonds,
     harbors,
     enforceTelemetryPolicy = true,
@@ -996,34 +1035,46 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       bondUsd,
     };
 
+    const initialRegistryPid = registryPidFor(record);
     await pdCoordinate('/agents', {
       id: agentId,
       name: displayName,
+      type: 'spawned',
+      pid: initialRegistryPid,
       identity: spec.identity || null,
       purpose: spec.purpose || spec.task.slice(0, 80),
       telos: telosResult.telos,
       metadata: coordinationMetadata,
-    });
+    }, { pid: initialRegistryPid });
 
     // PD coordination: start session
     await pdCoordinate('/sugar/begin', {
       agentId,
       name: displayName,
+      type: 'spawned',
+      pid: initialRegistryPid,
       identity: spec.identity || null,
       purpose: spec.purpose || spec.task.slice(0, 80),
       telos: telosResult.telos,
       metadata: coordinationMetadata,
-    });
+    }, { pid: initialRegistryPid });
 
     // Start heartbeat interval
     record.heartbeatInterval = setInterval(async () => {
-      await pdCoordinate(`/agents/${agentId}/heartbeat`, {});
+      const pid = registryPidFor(record);
+      await pdCoordinate(`/agents/${agentId}/heartbeat`, {
+        pid,
+        status: 'busy',
+        progress: `Running ${spec.backend} via Port Daddy spawner`,
+      }, { pid });
     }, 30000);
     record.heartbeatInterval.unref?.();
 
     let output: string | null = null;
     let error: string | null = null;
     let telemetry: SpawnTelemetry | null = null;
+    let runResult: BackendRunResult | null = null;
+    let recordedCost: ReturnType<CostTracker['record']> | null = null;
 
     try {
       const override = runnerOverrides[spec.backend];
@@ -1036,6 +1087,12 @@ export function createSpawner(deps: SpawnerDeps = {}) {
           onChildProcess: (child) => {
             if (record.status === 'running') {
               record.childProcess = child;
+              const pid = registryPidFor(record);
+              void pdCoordinate(`/agents/${agentId}/heartbeat`, {
+                pid,
+                status: 'busy',
+                progress: `Running ${spec.backend} child process`,
+              }, { pid });
             }
           },
         };
@@ -1057,6 +1114,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         record.childProcess = result.childProcess;
       }
 
+      runResult = result;
       output = result.output || null;
       error = result.error;
 
@@ -1093,6 +1151,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
               ...(cachedInputTokens === undefined ? {} : { cachedInputTokens }),
               outputTokens,
             });
+            recordedCost = recorded;
 
             if (!recorded || recorded.isEstimate || recorded.costUsd <= 0) {
               error = `Exact telemetry required, but ${spec.backend} telemetry could not be persisted as an exact nonzero cost record.`;
@@ -1102,6 +1161,8 @@ export function createSpawner(deps: SpawnerDeps = {}) {
                 inputTokens,
                 ...(cachedInputTokens === undefined ? {} : { cachedInputTokens }),
                 outputTokens,
+                ...(result.turns === undefined ? {} : { turns: result.turns }),
+                ...(result.toolCalls === undefined ? {} : { toolCalls: result.toolCalls }),
                 costUsd: recorded.costUsd,
                 rateMode: 'exact',
               };
@@ -1164,14 +1225,51 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       counters?.bump('spawn.duration_ms', dims, Math.max(1, completedAt - startedAt));
     }
     if (!enforceTelemetryPolicy) {
-      costTracker?.record({
+      recordedCost = costTracker?.record({
         backend: spec.backend,
         model,
         projectName,
         projectDir: spec.workdir ? resolve(spec.workdir) : undefined,
         identity: spec.identity,
         spawnId: agentId,
+      }) ?? null;
+    }
+
+    try {
+      usageTelemetry?.record({
+        surface: 'daemon',
+        kind: 'agent_work',
+        name: `spawn.${status}`,
+        category: 'spawn',
+        workScope: 'agent_work',
+        agentId,
+        agentType: spec.backend,
+        agentModel: model,
+        backend: spec.backend,
+        model,
+        project: projectName,
+        projectDir: spec.workdir ? resolve(spec.workdir) : undefined,
+        status,
+        durationMs: completedAt - startedAt,
+        inputTokens: telemetry?.inputTokens ?? runResult?.inputTokens ?? recordedCost?.inputTokens ?? null,
+        cachedInputTokens: telemetry?.cachedInputTokens ?? runResult?.cachedInputTokens ?? recordedCost?.cachedInputTokens ?? null,
+        outputTokens: telemetry?.outputTokens ?? runResult?.outputTokens ?? recordedCost?.outputTokens ?? null,
+        turns: runResult?.turns ?? (status === 'completed' ? 1 : null),
+        toolCalls: runResult?.toolCalls ?? null,
+        costUsd: telemetry?.costUsd ?? recordedCost?.costUsd ?? null,
+        costCurrency: recordedCost || telemetry ? 'USD' : null,
+        costIsEstimate: recordedCost?.isEstimate ?? false,
+        context: {
+          identity: spec.identity ?? null,
+          telosHeadline: telosResult.telos.headline,
+        },
+        metadata: {
+          outputBytes: output ? Buffer.byteLength(output) : 0,
+          error: error ?? null,
+        },
       });
+    } catch {
+      // Usage telemetry must not change spawn outcome.
     }
 
     return {

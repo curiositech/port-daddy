@@ -56,6 +56,7 @@ import { advisorPlugin } from './advisor.js';
 import { quorumPlugin } from './quorum.js';
 import { resourcesPlugin } from './resources.js';
 import { feedbackPlugin } from './feedback.js';
+import { usagePlugin } from './usage.js';
 
 type AnyDeps = Record<string, unknown>;
 
@@ -174,5 +175,10 @@ export async function registerAllRoutes(
   // Mounts when the feedback dep is present (depends on tuple space).
   if ((deps as any).feedback) {
     await fastify.register(feedbackPlugin, { deps } as any);
+  }
+
+  // Usage telemetry — local product instrumentation for CLI/SDK/MCP/UI/daemon.
+  if ((deps as any).usageTelemetry) {
+    await fastify.register(usagePlugin, { deps } as any);
   }
 }
