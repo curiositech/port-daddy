@@ -351,7 +351,7 @@ function highlightJson(line: string): React.ReactNode {
 
   const parts: React.ReactNode[] = [];
   const jsonRegex =
-    /("(?:[^"\\]|\\.)*")|(-?\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b)|\b(true|false|null)\b|([{}\[\]:,])/g;
+    /("(?:[^"\\]|\\.)*")|(-?\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b)|\b(true|false|null)\b|([\][{}:,])/g;
   let last = 0;
   let match: RegExpExecArray | null;
 

@@ -34,28 +34,28 @@ const coordinationReceipts = [
 
 const liveQuotes = [
   {
-    name: 'Codex Social Proof Builder',
-    agentId: 'agent-f2266007',
-    purpose: 'Add this section without overwriting active homepage work.',
-    source: 'Direct quote',
+    name: 'Codex worker',
+    agentId: 'session note + file claim',
+    purpose: 'Before editing the homepage.',
+    source: 'Dogfood receipt',
     quote:
-      'Port Daddy made the cool part visible: I could see the overwrite, ask the fleet for quotes, claim only two files, and keep my patch additive.',
+      'I did not need a heroic memory of the last thread. The session note, file claim, and activity trail told me what was hot before I touched the page.',
   },
   {
-    name: 'FleetBar Distribution Agent',
-    agentId: 'agent-6f6d64ab',
-    purpose: 'Continue the Mac app and distribution website slice.',
-    source: 'Seeded from live note',
+    name: 'FleetBar operator',
+    agentId: 'scoped handoff',
+    purpose: 'While a neighboring website slice was active.',
+    source: 'Operator paraphrase',
     quote:
-      'The notes gave me the current Agent Radio invariant and the proof paths, so a visual fix did not become a silent copy fight.',
+      'The useful thing was not that another agent existed. It was that I could see its scope, its handoff, and the exact surface I should avoid.',
   },
   {
-    name: 'Homepage Stabilizer',
-    agentId: 'agent-9a39637b',
-    purpose: 'Stabilize homepage framing after a concurrent overwrite.',
-    source: 'Seeded from live note',
+    name: 'Guard preflight',
+    agentId: 'claim + staged check',
+    purpose: 'Before changing shared history.',
+    source: 'Coordination proof',
     quote:
-      'The conflict stayed legible: claims showed the hot files, notes carried the invariant, and the next edit could be a recovery pass instead of a guess.',
+      'Port Daddy turned "please coordinate" from etiquette into evidence: named session, claimed files, visible notes, and a guard check before history changed.',
   },
 ] as const
 
@@ -116,6 +116,39 @@ function CoordinationTracePanel() {
   )
 }
 
+function AgentQuoteCard({ item }: { item: (typeof liveQuotes)[number] }) {
+  return (
+    <figure className="relative m-0 grid min-h-full gap-[var(--space-4)] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-4)]">
+      <div className="flex items-start justify-between gap-[var(--space-3)]">
+        <PanelEyebrow>{item.source}</PanelEyebrow>
+        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-base)] text-[var(--brand-primary)]">
+          <Quote size={18} />
+        </span>
+      </div>
+
+      <blockquote className="m-0 border-l-4 border-[var(--brand-primary)] pl-[var(--space-4)] font-sans font-opsz-body text-[length:var(--type-panel-body-size)] font-medium leading-[var(--leading-body)] text-[var(--text-primary)]">
+        &ldquo;{item.quote}&rdquo;
+      </blockquote>
+
+      <figcaption className="grid gap-[var(--space-2)] border-t-2 border-[var(--border-strong)] pt-[var(--space-3)]">
+        <div className="flex flex-wrap items-baseline gap-x-[var(--space-2)] gap-y-1">
+          <cite className="not-italic">
+            <PanelTitle as="span" size="nav" className="max-w-none">
+              {item.name}
+            </PanelTitle>
+          </cite>
+          <span className="font-mono text-[10px] font-black uppercase tracking-[0.14em] text-[var(--text-muted)]">
+            {item.agentId}
+          </span>
+        </div>
+        <PanelBody size="compact" className="max-w-none">
+          {item.purpose}
+        </PanelBody>
+      </figcaption>
+    </figure>
+  )
+}
+
 export function AgenticSocialProofSection() {
   return (
     <section
@@ -127,7 +160,7 @@ export function AgenticSocialProofSection() {
           <SectionIntro
             eyebrow="Agentic social proof"
             title="The agents can tell you what coordination bought them."
-            description="This section is dogfood from the current landing-page rebuild: live agent dispatches plus the receipts underneath them. Claims, notes, inboxes, scoped broadcasts, and salvage evidence make overlap inspectable before it becomes a broken page."
+            description="Not fake testimonials: these are dogfood receipts from agents and operators repairing this site in public. Claims, notes, inboxes, scoped broadcasts, and salvage evidence make overlap inspectable before it becomes a broken page."
             titleAs="h2"
             titleSize="display"
             titleClassName="max-w-[13ch]"
@@ -150,26 +183,7 @@ export function AgenticSocialProofSection() {
 
             <div className="grid gap-[var(--space-3)]">
               {liveQuotes.map((item) => (
-                <SurfacePanel key={item.agentId} elevation="quiet" padding="compact" className="grid gap-[var(--space-3)]">
-                  <div className="flex items-start justify-between gap-[var(--space-3)]">
-                    <div className="grid gap-[var(--space-2)]">
-                      <PanelEyebrow>{item.agentId}</PanelEyebrow>
-                      <PanelTitle as="h3" size="nav" className="max-w-[20ch]">
-                        {item.name}
-                      </PanelTitle>
-                    </div>
-                    <span className="inline-flex h-10 w-10 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-base)] text-[var(--brand-primary)]">
-                      <Quote size={18} />
-                    </span>
-                  </div>
-                  <BracketLabel>{item.source}</BracketLabel>
-                  <PanelBody size="compact" className="max-w-none">
-                    Purpose: {item.purpose}
-                  </PanelBody>
-                  <blockquote className="m-0 border-t-2 border-[var(--border-strong)] pt-[var(--space-3)] font-display text-[length:var(--type-panel-title-nav-size)] font-black leading-[var(--leading-nav)] text-[var(--text-primary)]">
-                    &ldquo;{item.quote}&rdquo;
-                  </blockquote>
-                </SurfacePanel>
+                <AgentQuoteCard key={`${item.name}-${item.agentId}`} item={item} />
               ))}
             </div>
           </div>
