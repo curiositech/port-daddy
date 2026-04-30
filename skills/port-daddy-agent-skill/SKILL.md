@@ -223,7 +223,7 @@ ambiguous handoffs, and local green checks that do not match the installed app.
 | A fact should be machine-queryable | Emit a tuple or schema-shaped handoff, not prose only. |
 | A scarce resource is involved | Use a lock for promotion, migrations, generated assets, or release packaging. |
 | A release surface changed | Update docs, README, website, skill, and package/export metadata in the same coherent slice. |
-| You are about to commit, push, or deploy | Fetch the canonical remote branch, rebase/merge current work onto it, re-read live sessions/notes/activity, and run `pd guard check --staged`. Do not publish stale-base work. |
+| You are about to commit, push, or deploy | Fetch the canonical remote branch, rebase/merge current work onto it, re-read live sessions/notes/activity, stage through `pd add --dry-run -A` then `pd add -A`, and run `pd guard check --staged`. Do not publish stale-base work. |
 
 ## Procedural Cues
 

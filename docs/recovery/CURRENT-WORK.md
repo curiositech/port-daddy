@@ -1025,7 +1025,9 @@ This is the normalized remaining-slice inventory as of 2026-04-24. It supersedes
 8. Add claim-preserving destructive-git guardrails:
    - `git add -A`, `git reset --hard`, and cherry-pick should not
      steamroll active claims
-   - provide a safe `pd add` / stage wrapper that excludes claimed paths
+   - use `pd add --dry-run -A` / `pd add -A` for staging; it expands dirty
+     paths, excludes paths claimed by other live sessions unless `--force` is
+     explicit, and exposes JSON audit output
    - surface bulldozed claims as a coordination callout instead of a
      silent revert
 

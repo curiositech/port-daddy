@@ -43,8 +43,10 @@ appropriate phase section below and delete it here.
   can't be bulldozed by closeout flows.
 - **`claim-preserving-git-safety`** — Advisory file claims can still be
   steamrolled by `git add -A`, `git reset --hard`, and `git cherry-pick`.
-  Add a safe `pd add` path plus destructive-git guardrails that consult
-  claims before they bulldoze another session's edits.
+  Use the safe staging path (`pd add --dry-run -A`, then `pd add -A`) so
+  Port Daddy expands dirty paths, skips files claimed by other live sessions,
+  and emits a JSON audit when requested. Remaining work: finish destructive
+  git guardrails for reset/cherry-pick style flows.
 - **`crew-screen-roles-not-pids`** — Dashboard currently shows
   agents-by-PID; operators think in *roles*. New Crew panel: each
   fleet role with last-run / last-cost / currently-doing / blocked.

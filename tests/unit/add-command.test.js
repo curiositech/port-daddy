@@ -41,6 +41,7 @@ async function loadAddWithMock(ownersByPath) {
       let owners = [];
       for (const [key, val] of Object.entries(ownersByPath)) {
         if (path === key || path.endsWith('/' + key)) {
+          if (val instanceof Error) throw val;
           owners = val;
           break;
         }
@@ -114,6 +115,30 @@ describe('pd add wrapper', () => {
     ]);
   });
 
+  test('blocks a path even when this session also has a claim and another live session overlaps', async () => {
+    mkdirSync(join(dir, '.portdaddy'), { recursive: true });
+    writeFileSync(join(dir, '.portdaddy', 'current.json'), JSON.stringify({
+      sessionId: 'session-self',
+      agentId: 'agent-self',
+    }));
+    const handleAdd = await loadAddWithMock({
+      'a.txt': [
+        { sessionId: 'session-self', agentId: 'agent-self' },
+        { sessionId: 'session-other', agentId: 'agent-other' },
+      ],
+    });
+    const out = await captureStdout(() => handleAdd(['a.txt'], { 'dry-run': true, dir, json: true }))();
+    const payload = JSON.parse(out);
+    expect(payload.staged).toEqual([]);
+    expect(payload.blocked).toEqual([
+      expect.objectContaining({
+        path: 'a.txt',
+        reason: 'claimed_by_other',
+        owners: [expect.objectContaining({ sessionId: 'session-other' })],
+      }),
+    ]);
+  });
+
   test('lets the caller stage their own claimed files', async () => {
     mkdirSync(join(dir, '.portdaddy'), { recursive: true });
     writeFileSync(join(dir, '.portdaddy', 'current.json'), JSON.stringify({
@@ -129,6 +154,52 @@ describe('pd add wrapper', () => {
     expect(payload.blocked).toEqual([]);
   });
 
+  test('fails closed when Port Daddy ownership cannot be checked', async () => {
+    const handleAdd = await loadAddWithMock({
+      'a.txt': new Error('daemon unavailable'),
+    });
+    const out = await captureStdout(() => handleAdd(['a.txt'], { 'dry-run': true, dir, json: true }))();
+    const payload = JSON.parse(out);
+    expect(payload.passed).toBe(false);
+    expect(payload.staged).toEqual([]);
+    expect(payload.blocked).toEqual([
+      expect.objectContaining({
+        path: 'a.txt',
+        reason: 'ownership_check_failed',
+      }),
+    ]);
+    expect(payload.ownerCheckFailures).toEqual(expect.arrayContaining([
+      expect.objectContaining({ path: 'a.txt', message: 'daemon unavailable' }),
+    ]));
+  });
+
+  test('expands directory pathspecs before checking ownership', async () => {
+    mkdirSync(join(dir, 'src'), { recursive: true });
+    writeFileSync(join(dir, 'src', 'claimed.ts'), 'claimed');
+    const handleAdd = await loadAddWithMock({
+      'src/claimed.ts': [{ sessionId: 'session-other', agentId: 'agent-other' }],
+    });
+    const out = await captureStdout(() => handleAdd(['src'], { 'dry-run': true, dir, json: true }))();
+    const payload = JSON.parse(out);
+    expect(payload.requested.expanded).toEqual(['src/claimed.ts']);
+    expect(payload.staged).toEqual([]);
+    expect(payload.blocked).toEqual([
+      expect.objectContaining({
+        path: 'src/claimed.ts',
+        reason: 'claimed_by_other',
+      }),
+    ]);
+  });
+
+  test('stages only the allowed subset in the real git index', async () => {
+    const handleAdd = await loadAddWithMock({
+      'a.txt': [{ sessionId: 'session-other', agentId: 'agent-other' }],
+    });
+    await handleAdd(['a.txt', 'b.txt'], { dir, quiet: true });
+    const index = spawnSync('git', ['diff', '--cached', '--name-only'], { cwd: dir, encoding: 'utf8' });
+    expect(index.stdout.trim().split(/\r?\n/).filter(Boolean)).toEqual(['b.txt']);
+  });
+
   test('--force still records what was overridden in the JSON audit trail', async () => {
     const handleAdd = await loadAddWithMock({
       'a.txt': [{ sessionId: 'session-other', agentId: 'agent-other' }],
@@ -136,6 +207,8 @@ describe('pd add wrapper', () => {
     const out = await captureStdout(() => handleAdd(['a.txt'], { 'dry-run': true, force: true, dir, json: true }))();
     const payload = JSON.parse(out);
     expect(payload.force).toBe(true);
+    expect(payload.staged).toEqual(['a.txt']);
+    expect(payload.skipped).toEqual([]);
     expect(payload.blocked).toHaveLength(1);
   });
 });

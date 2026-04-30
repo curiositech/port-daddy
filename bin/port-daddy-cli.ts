@@ -534,13 +534,14 @@ function buildHelp(): string {
     `  ${G}pd actors${Z}                Inspect durable maritime actor souls`,
     `  ${G}pd advise${Z}                Suggest coordination moves before editing`,
     `  ${G}pd guard${Z}                 Enforce session + file-claim discipline`,
+    `  ${G}pd add -A${Z}                Stage through claim-aware ownership checks`,
     `  ${G}pd graph stats${Z}           Inspect semantic graph totals`,
     `  ${G}pd memory episodes${Z}       Inspect episodic memory`,
     `  ${G}pd ideas search${Z} "text"   Search ideas, notes, tuples, and repo markdown`,
     `  ${G}pd roadmap${Z}               Show Cartographer's current roadmap projection`,
     `  ${G}pd daemon list${Z}           Inspect named sidecar daemon profiles`,
     '',
-    `${D}pd help <topic> for details — topics: setup, sessions, locks, agents, actors, ports, messaging, dns, orchestration, sugar, semantic, advisor, guard, ideas, roadmap, daemon, tutorial${Z}`,
+    `${D}pd help <topic> for details — topics: setup, sessions, locks, agents, actors, ports, messaging, dns, orchestration, sugar, semantic, advisor, guard, add, ideas, roadmap, daemon, tutorial${Z}`,
     `${D}Dashboard: ${PORT_DADDY_URL}  •  Tutorial: pd learn${Z}`,
   );
 
@@ -958,6 +959,30 @@ Examples:
   pd guard check --staged --mode enforce
   pd guard enable --mode enforce
   pd guard install --mode enforce`,
+
+  add: `Claim-aware Git staging \u2014 Safe wrapper around git add
+
+Commands:
+  add [paths...]            Stage paths only after Port Daddy ownership checks
+  add -A                    Expand all dirty paths, then stage the allowed subset
+  add --all [paths...]      Expand dirty paths under optional pathspecs
+    --dry-run, -n           Show the audit without staging
+    --force                 Stage even when another live session owns a path
+    -j, --json              Machine-readable audit surface
+    --dir <path>            Run against a specific repo/worktree
+    -q, --quiet             Suppress human output
+
+What it enforces:
+  - directories and -A are expanded to concrete changed files before checks
+  - paths claimed by another live session are skipped unless --force is explicit
+  - ownership-check failures are skipped unless --force is explicit
+  - JSON output lists requested, expanded, staged, skipped, blocked, and git status
+
+Examples:
+  pd add --dry-run -A --json
+  pd add -A
+  pd add src/foo.ts docs/notes.md
+  pd add --force -A`,
 
   ideas: `Ideas Search \u2014 Search canonical ideas plus live repo memory
 
@@ -1917,6 +1942,7 @@ async function main(): Promise<void> {
   // Parse options
   const options: CLIOptions = {};
   const positional: string[] = [];
+  const addBooleanFlags = ['all', 'force', 'dry-run', 'json', 'quiet'];
 
   // Short flag mappings
   const shortFlags: Record<string, string> = {
@@ -1945,7 +1971,9 @@ async function main(): Promise<void> {
       } else {
         const key: string = arg.slice(2);
         const next: string | undefined = args[i + 1];
-        if (next && !next.startsWith('-')) {
+        if (command === 'add' && addBooleanFlags.includes(key)) {
+          options[key] = true;
+        } else if (next && !next.startsWith('-')) {
           options[key] = next;
           i++;
         } else {

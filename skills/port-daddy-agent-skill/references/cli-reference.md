@@ -158,13 +158,20 @@ current Port Daddy ownership view so one session does not accidentally stage
 another agent's file.
 
 ```bash
-pd add --dry-run -A
-pd add src/foo.ts
+pd add --dry-run -A --json
+pd add -A
+pd add src/foo.ts docs/notes.md
 pd add --force -A
 ```
 
-`--dry-run` is the normal inspection path. `--force` is an explicit override and
-should be mentioned in the session note when used.
+`-A` and directory pathspecs are expanded to concrete changed files before
+ownership is checked. Paths claimed by other live sessions are skipped unless
+`--force` is explicit. If Port Daddy cannot check ownership for a path, the
+safe path skips it rather than guessing; `--force` can override that too.
+`--json` is the audit surface: it reports requested pathspecs, expanded paths,
+stageable paths, skipped paths, blocked owners, ownership-check failures, and
+the `git add` status when staging actually runs. Mention any `--force` use in
+the session note.
 
 ## Website Detail Page Contract
 

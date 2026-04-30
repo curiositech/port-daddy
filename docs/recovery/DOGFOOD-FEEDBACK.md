@@ -86,7 +86,9 @@ surface. Spark/Spider do not touch this lane — they own
   - if an agent forgets to coordinate, the guardrails need to stop the bulldozer
     instead of letting the edits disappear silently
 - next cut:
-  - add a safe `pd add` path that skips paths claimed by other live sessions
+  - use `pd add --dry-run -A` / `pd add -A` as the safe staging path; it
+    expands dirty paths and skips paths claimed by other live sessions unless
+    `--force` is explicit
   - wrap destructive git verbs with guardrails that consult claims before they
     bulldoze another session's edits
 - provenance:
