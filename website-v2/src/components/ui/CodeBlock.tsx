@@ -497,7 +497,11 @@ export function CodeBlock({
       >
         {textContent
           .split("\n")
-          .map((line, i) => <div key={i}>{highlightCodeLine(line, language)}</div>)}
+          .map((line, i) => (
+            <div key={i} className="min-w-0 max-w-full break-words [overflow-wrap:anywhere]">
+              {highlightCodeLine(line, language)}
+            </div>
+          ))}
       </pre>
     </div>
   );

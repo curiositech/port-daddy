@@ -1950,10 +1950,10 @@ function AgentSectionNav() {
   return (
     <nav
       aria-label="Agents section"
-      className="sticky top-[70px] z-40 overflow-x-hidden border-b-2 border-[var(--border-strong)] bg-[var(--surface-raised)]"
+      className="sticky top-[70px] z-40 overflow-x-auto border-b-2 border-[var(--border-strong)] bg-[var(--surface-raised)]"
     >
       <PageContainer width="wide" className="!max-w-none py-[var(--space-2)]">
-        <div className="flex min-w-0 max-w-full flex-wrap items-center gap-[var(--space-3)] md:flex-nowrap md:overflow-x-auto">
+        <div className="flex min-w-max max-w-none flex-nowrap items-center gap-[var(--space-3)]">
           <PanelEyebrow className="hidden shrink-0 text-[var(--text-muted)] md:block">Agents section</PanelEyebrow>
           {NAV_LINKS.map((item) => (
             <NavLink
@@ -2246,7 +2246,7 @@ function OneOffs() {
 
 function AgentsOverview() {
   return (
-    <main className="min-h-screen bg-[var(--surface-base)] text-[var(--text-primary)]">
+    <main className="min-h-screen min-w-0 overflow-x-clip bg-[var(--surface-base)] text-[var(--text-primary)]">
       <AgentSectionNav />
       <AgentHero />
       <section className="border-b-2 border-[var(--border-strong)] py-[var(--space-7)]">
@@ -2292,7 +2292,7 @@ function SectionDetail({ section }: { section: AgentSection }) {
   const rich = RICH_SUBPAGE_CONTENT[section.slug]
 
   return (
-    <main className="min-h-screen bg-[var(--surface-base)] text-[var(--text-primary)]">
+    <main className="min-h-screen min-w-0 overflow-x-clip bg-[var(--surface-base)] text-[var(--text-primary)]">
       <AgentSectionNav />
       <section className="border-b-2 border-[var(--border-strong)] py-[var(--space-7)] lg:py-[var(--space-8)]">
         <PageContainer width="wide">
