@@ -358,7 +358,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
     "categoryLabel": "Session Lifecycle",
     "categoryDescription": "Start/end sessions, manage agent registration (sugar commands)",
     "exposure": "default",
-    "description": "[Essential] Register agent + start session in one atomic step. Use this at the start of every coding session instead of calling register_agent and start_session separately. Returns agentId, sessionId, and a salvageHint if dead agents need attention. Usage: begin_session({purpose: \"Building auth system\", identity: \"myapp:api:main\"})",
+    "description": "[Essential] Register agent + start session in one atomic step. Use this at the start of every coding session instead of calling register_agent and start_session separately. Carries telos, returns agentId, sessionId, and a salvageHint if dead agents need attention. Usage: begin_session({purpose: \"Building auth system\", telos: \"Make auth trustworthy\", identity: \"myapp:api:main\"})",
     "required": [
       "purpose"
     ],
@@ -393,6 +393,12 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         "required": false,
         "description": "Files to claim for this session (advisory — shows conflicts to other agents)",
         "itemType": "string"
+      },
+      {
+        "name": "telos",
+        "type": "unknown",
+        "required": false,
+        "description": "Agent purpose contract/tagline. If omitted, the daemon derives one from purpose; every agent still receives a normalized telos."
       }
     ],
     "inputSchema": {
@@ -420,6 +426,17 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
             "type": "string"
           },
           "description": "Files to claim for this session (advisory — shows conflicts to other agents)"
+        },
+        "telos": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object"
+            }
+          ],
+          "description": "Agent purpose contract/tagline. If omitted, the daemon derives one from purpose; every agent still receives a normalized telos."
         }
       },
       "required": [
@@ -433,7 +450,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
     "categoryLabel": "Session Lifecycle",
     "categoryDescription": "Start/end sessions, manage agent registration (sugar commands)",
     "exposure": "default",
-    "description": "[Essential] End session + unregister agent in one step. Use this at the end of every coding session instead of calling end_session and then unregistering the agent separately. Usage: end_session_full({agent_id: \"agent-abc123\", note: \"Auth complete, all tests passing\"})",
+    "description": "[Essential] End session + unregister agent in one step. Use this at the end of every coding session instead of calling end_session and then unregistering the agent separately. Can include self_salvage when telos is unfinished but doable. Usage: end_session_full({agent_id: \"agent-abc123\", note: \"Auth needs deploy smoke\", self_salvage: {telos_verdict: \"partial\", doable: \"yes\", next_plan: \"smoke /auth\"}})",
     "required": [],
     "parameters": [
       {
@@ -463,6 +480,66 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
           "completed",
           "abandoned"
         ]
+      },
+      {
+        "name": "self_salvage",
+        "type": "object",
+        "required": false,
+        "description": "Optional capsule for unfinished but doable telos. Queueable capsules mark the session abandoned and put the agent in salvage.",
+        "properties": [
+          {
+            "name": "telos_verdict",
+            "type": "enum<fulfilled | partial | not-fulfilled>",
+            "required": false,
+            "description": "Whether the telos was fulfilled.",
+            "enum": [
+              "fulfilled",
+              "partial",
+              "not-fulfilled"
+            ]
+          },
+          {
+            "name": "doable",
+            "type": "enum<yes | no | unknown>",
+            "required": false,
+            "description": "Use yes when another iteration can reasonably continue the telos.",
+            "enum": [
+              "yes",
+              "no",
+              "unknown"
+            ]
+          },
+          {
+            "name": "why_stopped",
+            "type": "string",
+            "required": false,
+            "description": "Why this agent stopped before fulfilling telos."
+          },
+          {
+            "name": "next_plan",
+            "type": "unknown",
+            "required": false,
+            "description": "Concrete continuation plan for the next iteration."
+          },
+          {
+            "name": "wisdom",
+            "type": "string",
+            "required": false,
+            "description": "Lessons, constraints, or traps the next agent should know."
+          },
+          {
+            "name": "evidence",
+            "type": "unknown",
+            "required": false,
+            "description": "Commands, files, observations, or artifacts supporting the handoff."
+          },
+          {
+            "name": "risk",
+            "type": "string",
+            "required": false,
+            "description": "Known risk or caveat for continuation."
+          }
+        ]
       }
     ],
     "inputSchema": {
@@ -487,6 +564,70 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
             "abandoned"
           ],
           "description": "How the session ended (default: completed)"
+        },
+        "self_salvage": {
+          "type": "object",
+          "description": "Optional capsule for unfinished but doable telos. Queueable capsules mark the session abandoned and put the agent in salvage.",
+          "properties": {
+            "telos_verdict": {
+              "type": "string",
+              "enum": [
+                "fulfilled",
+                "partial",
+                "not-fulfilled"
+              ],
+              "description": "Whether the telos was fulfilled."
+            },
+            "doable": {
+              "type": "string",
+              "enum": [
+                "yes",
+                "no",
+                "unknown"
+              ],
+              "description": "Use yes when another iteration can reasonably continue the telos."
+            },
+            "why_stopped": {
+              "type": "string",
+              "description": "Why this agent stopped before fulfilling telos."
+            },
+            "next_plan": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "description": "Concrete continuation plan for the next iteration."
+            },
+            "wisdom": {
+              "type": "string",
+              "description": "Lessons, constraints, or traps the next agent should know."
+            },
+            "evidence": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "description": "Commands, files, observations, or artifacts supporting the handoff."
+            },
+            "risk": {
+              "type": "string",
+              "description": "Known risk or caveat for continuation."
+            }
+          }
         }
       }
     }

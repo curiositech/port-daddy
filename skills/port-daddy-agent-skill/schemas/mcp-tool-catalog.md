@@ -9,8 +9,8 @@ These are the tools the Port Daddy MCP server exposes. They are the **preferred 
 | MCP tool | CLI equivalent | When to use the tool |
 |---|---|---|
 | `whoami` | `pd whoami` | First call of every session. |
-| `begin_session` | `pd begin --purpose "…" --identity …` | Start of agent work. |
-| `end_session_full` | `pd done` | End of agent work. |
+| `begin_session` | `pd begin --purpose "…" --identity … --telos "…"` | Start of agent work; declares the purpose contract. |
+| `end_session_full` | `pd done` | End of agent work; can include `self_salvage` when telos is unfinished but recoverable. |
 | `add_note` | `pd note "…" --type …` | Audit trail; checkpoint progress. |
 | `sitrep` (alias: `catch_me_up`) | `pd sitrep` / `pd look` | Resuming, salvaging, or context-switching in. |
 | `claim_port` | `pd claim <identity>` | Booting a dev server / service. |
@@ -34,6 +34,13 @@ Every PD-aware agent should, at session start, in this order:
 3. **`begin_session`** — if no current session was returned by `whoami`, start one with explicit `--identity` and `--purpose`.
 
 Skipping any of these is the most common dogfooding violation in this repo.
+
+`begin_session` accepts `telos` as a string or structured object. `end_session_full`
+accepts `self_salvage` with `telos_verdict`, `doable`, `why_stopped`,
+`next_plan`, `wisdom`, `evidence`, and `risk`. If that capsule says the telos
+is unfinished and `doable: "yes"`, Port Daddy marks the session abandoned and
+queues the agent for salvage so the next iteration starts with a plan instead
+of archaeology.
 
 ## What `sitrep` returns
 

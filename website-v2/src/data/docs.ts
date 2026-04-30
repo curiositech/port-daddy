@@ -366,7 +366,7 @@ export const ENDPOINTS: Endpoint[] = [
   { method: 'POST',   path: '/sessions/:id/notes',      description: 'Compatibility alias for POST /notes with sessionId', group: 'Sessions' },
   { method: 'GET',    path: '/notes',                   description: 'Get recent notes',                            group: 'Sessions' },
   { method: 'POST',   path: '/sugar/begin',             description: 'Register agent + start session in one call',  group: 'Sessions' },
-  { method: 'POST',   path: '/sugar/done',              description: 'End session + unregister agent in one call',  group: 'Sessions' },
+  { method: 'POST',   path: '/sugar/done',              description: 'End session, unregister agent, and optionally record self-salvage',  group: 'Sessions' },
   { method: 'GET',    path: '/sugar/whoami',            description: 'Get current agent identity and session',      group: 'Sessions' },
   { method: 'POST',   path: '/agents/:id',              description: 'Register an agent',                           group: 'Agents' },
   { method: 'DELETE', path: '/agents/:id',              description: 'Unregister an agent',                         group: 'Agents' },

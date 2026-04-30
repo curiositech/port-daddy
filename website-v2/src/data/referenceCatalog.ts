@@ -138,7 +138,7 @@ export const CLI_REFERENCE_GROUPS: ReferenceGroup[] = [
     source: 'cli/commands/sugar.ts, cli/commands/sessions.ts, cli/commands/say.ts, cli/commands/look.ts, cli/commands/sitrep.ts, cli/commands/resurrection.ts',
     items: [
       { name: 'pd begin "purpose"', href: '/docs/cli/begin', description: 'Register an agent, start a session, and write local context in one command.', aliases: ['pd b'], flags: ['--identity', '--agent', '--type', '--files'] },
-      { name: 'pd done "summary"', href: '/docs/cli/done', description: 'End the active session, leave a final note, and unregister the agent.' },
+      { name: 'pd done "summary"', href: '/docs/cli/done', description: 'End the active session, leave a final note, unregister the agent, or leave self-salvage for unfinished telos.', flags: ['--status', '--self-salvage', '--telos-verdict', '--doable', '--why-stopped', '--next-plan'] },
       { name: 'pd whoami', href: '/docs/cli/whoami', description: 'Show the current agent, active session, purpose, notes, and claimed files.', aliases: ['pd w'] },
       { name: 'pd session <command>', description: 'Manual session lifecycle: start, end, done, abandon, rm, and files add/rm.', flags: ['--agent', '--force', '--files'] },
       { name: 'pd sessions', description: 'List active or historical sessions.', flags: ['--all', '--status', '--all-worktrees', '--json'] },
@@ -349,7 +349,7 @@ export const SDK_REFERENCE_GROUPS: ReferenceGroup[] = [
       { name: 'listFileClaims', description: 'List file claims.' },
       { name: 'whoOwnsFile', description: 'Inspect owners for a path.' },
       { name: 'begin', description: 'Sugar: register agent and start session atomically.' },
-      { name: 'done', description: 'Sugar: close session and unregister atomically.' },
+      { name: 'done', description: 'Sugar: close session, unregister, and optionally queue self-salvage.' },
       { name: 'whoami', description: 'Sugar: show current agent/session context.' },
       { name: 'salvage', description: 'List salvage queue records.' },
       { name: 'salvageClaim', description: 'Claim dead agent work.' },

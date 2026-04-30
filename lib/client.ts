@@ -2648,6 +2648,7 @@ class PortDaddy {
     if (options.sessionId) body.sessionId = options.sessionId;
     if (note) body.note = note;
     if (options.status) body.status = options.status;
+    if (options.selfSalvage !== undefined) body.selfSalvage = options.selfSalvage;
 
     const ipcResult = await this._requestViaIpc<DoneSugarResponse>(IpcAction.DONE, body, {
       agentId: options.agentId || this.agentId,
@@ -3694,6 +3695,7 @@ interface DoneSugarOptions {
   agentId?: string;
   sessionId?: string;
   status?: string;
+  selfSalvage?: unknown;
 }
 
 interface DoneSugarResponse {
@@ -3704,6 +3706,8 @@ interface DoneSugarResponse {
   agentUnregistered: boolean;
   notesCount: number;
   finalNote: boolean;
+  selfSalvage?: unknown | null;
+  selfSalvageQueued?: boolean;
   error?: string;
 }
 

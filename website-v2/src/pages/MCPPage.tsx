@@ -114,7 +114,7 @@ const SKILL_MANUAL_FRONTMATTER = [
 const SKILL_MANUAL_SECTIONS = [
   ['Use it when', 'Editing a repo, recovering work, coordinating sessions, inspecting FleetBar, packaging docs, or leaving a durable handoff.'],
   ['NOT For', 'One-line read-only answers, generic git advice, replacing repo truth, or launching extra agents for a bounded local edit.'],
-  ['Default Agent Happy Path', 'The normal loop: status, briefing, salvage, begin, note, claim, validate, handoff, done.'],
+  ['Default Agent Happy Path', 'The normal loop: status, briefing, salvage, begin with telos, note, claim, validate, handoff, done or self-salvage.'],
   ['CLI Documentation Contract', 'Every CLI command needs a real detail page with syntax, options, examples, aliases, provenance, and API contract metadata.'],
 ] as const
 
@@ -122,11 +122,11 @@ const SKILL_MANUAL_LOOP = [
   ['pd status', 'Confirm the daemon and runtime are alive before trusting local assumptions.'],
   ['pd briefing', 'Read the current work, recovery, and coordination snapshot.'],
   ['pd salvage --project <project> --limit 20', 'Preserve interrupted work before restarting archaeology.'],
-  ['pd begin "<bounded task>" --identity <project>:<agent>', 'Register an accountable session and identity.'],
+  ['pd begin "<bounded task>" --identity <project>:<agent> --telos "<why this agent exists>"', 'Register an accountable session, identity, and purpose contract.'],
   ['pd note "Scope: <files>. Assumptions: <truth>. Validation: <commands>."', 'Publish scope and proof plan where other agents can find it.'],
   ['pd session files add <path>', 'Claim the smallest real surface before editing.'],
   ['pd guard check --staged', 'Prove staged work is coordinated before publishing.'],
-  ['pd done "<short outcome>"', 'Close the loop with result, validation, and remaining risk.'],
+  ['pd done "<short outcome>"', 'Close the loop with result, validation, and remaining risk, or include self_salvage when telos is unfinished but recoverable.'],
 ] as const
 
 const DIRECTIVE_COPY: Record<string, { label: string; body: string }> = {
@@ -710,8 +710,8 @@ SUCCESS: Agent myapp:agent ready
   Identity: myapp:agent`
 
 const ESSENTIAL_TOOLS = [
-  ['begin_session', 'Register identity, claim files, and start a recoverable session.'],
-  ['end_session_full', 'Release files, close the session, and unregister the agent.'],
+  ['begin_session', 'Register identity, claim files, telos, and start a recoverable session.'],
+  ['end_session_full', 'Release files, close the session, unregister the agent, and optionally leave self-salvage.'],
   ['whoami', 'Confirm the current agent, session, notes, and file claims.'],
   ['coordination_preflight', 'Check context, claims, symbols, salvage, tuples, channels, and locks before edits.'],
   ['claim_port', 'Get a deterministic port for a semantic identity.'],

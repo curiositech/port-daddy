@@ -71,6 +71,7 @@ Sessions, notes, recovery, and evidence:
 ```bash
 pd begin "purpose" [--telos "purpose tagline"]
 pd done "summary"
+pd done --self-salvage --telos-verdict not-fulfilled --doable yes --why-stopped "..." --next-plan "..."
 pd whoami
 pd session <command>
 pd sessions

@@ -899,6 +899,32 @@ describe('IPC fast paths', () => {
     expect(result.sessionId).toBe('sess-123');
   });
 
+  test('done forwards self-salvage capsules', async () => {
+    pd._requestViaIpc = jest.fn().mockResolvedValue(null);
+    queueResponse({
+      success: true,
+      sessionId: 'sess-123',
+      sessionStatus: 'abandoned',
+      selfSalvageQueued: true,
+    });
+
+    await pd.done('could not finish telos', {
+      sessionId: 'sess-123',
+      selfSalvage: {
+        telosVerdict: 'not-fulfilled',
+        doable: 'yes',
+        nextPlan: 'Continue the route smoke',
+      },
+    });
+
+    expect(receivedRequests[0].url).toBe('/sugar/done');
+    expect(receivedRequests[0].body.selfSalvage).toEqual({
+      telosVerdict: 'not-fulfilled',
+      doable: 'yes',
+      nextPlan: 'Continue the route smoke',
+    });
+  });
+
   test('whoami prefers IPC query when agentId is known', async () => {
     pd._requestViaIpc = jest.fn().mockResolvedValue({
       success: true,

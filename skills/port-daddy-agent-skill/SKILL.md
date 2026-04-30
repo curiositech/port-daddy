@@ -56,6 +56,8 @@ pd session files add <path>
 # work, validate, and keep notes current
 pd note "Result: <change>. Validation: <evidence>. Remaining: <risk>."
 pd done "<short outcome>"
+# If telos is unfinished but another iteration can continue:
+pd done --self-salvage --telos-verdict not-fulfilled --doable yes --why-stopped "<why>" --next-plan "<next concrete move>"
 ```
 
 Fetch and reconcile before publishing:
@@ -74,10 +76,27 @@ pd guard check --staged
 |---|---|
 | You will edit files | Start a session, leave a scope note, and claim the smallest real files or regions. |
 | You start or register an agent | Give it a telos. Use `--telos` for the purpose tagline; use `purpose` for the current task. |
+| Your telos is unfinished but still doable | Use `pd done --self-salvage` with why, next plan, wisdom, evidence, and risk. |
 | The live daemon looks stale | Verify daemon provenance before trusting docs, source, or memory. |
 | Another session may overlap | Read notes, claims, activity, and ownership before changing the surface. |
 | Work was interrupted | Use salvage and preserve the abandoned intent. |
 | You are about to commit, push, or deploy | Fetch, reconcile, re-read live coordination state, stage narrowly, and run the guard. |
+
+## Agent Nomenclature And Telos
+
+Use the coordination names for addressability and the telos for judgment.
+
+| Field | Decides | Rule |
+|---|---|---|
+| `agentId` | Stable machine address | Immutable enough for routes, notes, claims, heartbeats, and salvage. |
+| `name` | Human display handle | Short and readable; it helps operators scan the fleet. |
+| `purpose` | Current work slice | What this session is doing right now. It may be narrow and temporary. |
+| `telos` | Purpose contract | Why the agent exists and how it should judge done-ness. It can be creator-provided or self-declared, and may be structured. |
+| `selfSalvage` | Recovery judgment | The agent's final claim that telos was not fulfilled, but a next iteration can continue from evidence. |
+
+Do not let telos overwrite identity. A telos can evolve or become plural; the
+agent ID remains the address, the name remains the display handle, and the
+purpose remains the current slice.
 
 ## Advanced Surfaces
 
@@ -111,6 +130,7 @@ pd guard check --staged
 pd tube <channel> --send "message"
 pd actor lookout --message "release surface drift fixed"
 pd done "<summary>"
+pd done --self-salvage --telos-verdict partial --doable yes --why-stopped "<blocker>" --next-plan "<continuation>"
 ```
 
 Load `references/cli-reference.md` when you need the broader command families,
@@ -183,6 +203,8 @@ pd notes --limit 20
 pd guard check --staged
 pd note "Result: <change>. Validation: <evidence>. Remaining: <risk>."
 pd done "<short outcome>"
+# If honest completion is impossible but recovery is possible:
+pd done --self-salvage --telos-verdict not-fulfilled --doable yes --why-stopped "<blocker>" --next-plan "<continuation>"
 ```
 
 The loop is not ceremony. It solves the actual failures that ruin multi-agent
@@ -197,6 +219,7 @@ ambiguous handoffs, and local green checks that do not match the installed app.
 | Another session may overlap | Read notes/activity/claims, then route around or publish a coordination inconsistency. |
 | The daemon or FleetBar looks wrong | Verify live process, socket, TCP URL, install root, and Fleet Control Center evidence. |
 | Work was interrupted | Use salvage before restarting. Preserve the original intent when claiming. |
+| You are the interrupted work | Use self-salvage at `pd done` time so the next agent gets your plan, wisdom, evidence, and risk. |
 | A fact should be machine-queryable | Emit a tuple or schema-shaped handoff, not prose only. |
 | A scarce resource is involved | Use a lock for promotion, migrations, generated assets, or release packaging. |
 | A release surface changed | Update docs, README, website, skill, and package/export metadata in the same coherent slice. |

@@ -309,7 +309,7 @@ dns.setActivityLog(activityLog);
 const resolver = createResolver(db);
 dns.setResolver(resolver);
 const briefing = createBriefing(db, { sessions, agents, resurrection, activityLog, services, messaging });
-const sugar = createSugar({ agents, sessions, activityLog });
+const sugar = createSugar({ agents, sessions, activityLog, resurrection });
 const harborTokens = createHarborTokens(db);
 await harborTokens.initDaemonIdentity();
 const harbors = createHarbors(db, { harborTokens });

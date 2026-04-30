@@ -21,19 +21,26 @@ export const MCP_DEFAULT_TOOL_TOTAL = 17
 export const ESSENTIAL_TOOLS: McpTool[] = [
   {
     name: 'begin_session',
-    description: 'Register as an agent, start a session, claim files — one call.',
+    description: 'Register as an agent, declare telos, start a session, claim files - one call.',
     example: `await begin_session({
   purpose: "Implementing OAuth flow",
+  telos: "Make login trustworthy",
   identity: "myapp:api:main",
   files: ["src/auth.ts"]
 })`,
   },
   {
     name: 'end_session_full',
-    description: 'Close out gracefully: final note, mark session complete, unregister agent.',
+    description: 'Close out gracefully: final note, status, optional self-salvage, unregister agent.',
     example: `await end_session_full({
   agent_id: agentId,
-  closing_note: "Implemented OAuth, all tests pass"
+  note: "Stopped before production smoke",
+  self_salvage: {
+    telos_verdict: "partial",
+    doable: "yes",
+    why_stopped: "Production smoke still pending",
+    next_plan: ["deploy latest build", "smoke /login"]
+  }
 })`,
   },
   {
@@ -102,7 +109,7 @@ export const ALL_CATEGORIES: McpCategory[] = [
     bg: 'var(--badge-teal-bg)',
     border: 'var(--badge-teal-border)',
     tools: ['begin_session', 'end_session_full', 'whoami'],
-    description: 'Start/end sessions, agent registration — the three commands every agent calls.',
+    description: 'Start/end sessions, agent registration, telos, and recoverable closeout - the three commands every agent calls.',
   },
   {
     id: 'advisor',

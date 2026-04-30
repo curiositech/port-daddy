@@ -1157,26 +1157,31 @@ pd notes --limit 10`,
   {
     slug: 'resurrection',
     nav: 'Resurrection',
-    title: 'Dead agents leave salvageable work instead of a mystery.',
+    title: 'Agents can leave an unfinished telos without losing the work.',
     eyebrow: 'pd salvage',
     summary:
-      'The daemon records sessions, notes, claims, and last-known intent so a new agent can resume from evidence.',
+      'The daemon records sessions, notes, claims, telos, and self-salvage capsules so a new agent can resume from evidence.',
     image: '/img/generated/salvage-ledger.webp',
     gif: '/gifs/agents/resurrection.gif',
     alt: 'Generated image of a salvage ledger preserving dead agent work',
     codeLabel: 'Salvage loop',
-    code: `pd salvage --project port-daddy --limit 20
+    code: `pd begin "restore API docs" --telos "Make the public contract truthful"
+pd done --self-salvage --telos-verdict not-fulfilled --doable yes \\
+  --why-stopped "deploy smoke still pending" \\
+  --next-plan "run website build, deploy, then smoke /docs/api"
+pd salvage --project port-daddy --limit 20
 pd salvage claim agent-001
 pd notes --limit 20
 pd note "Recovered abandoned slice; preserving original scope and validation evidence"
 pd done "Recovered, validated, and closed the abandoned work"`,
     theory: [
       'Recovery is where agent systems reveal whether they are serious. If the only trace of an interrupted run is a half-written chat transcript, the next agent has to re-investigate everything and may ship the wrong intent.',
-      'Port Daddy treats salvage as a first-class continuation path. A useful dead agent leaves session notes, claimed files, last activity, and enough purpose to decide whether to resume, dismiss, or escalate.',
+      'Port Daddy treats salvage as a first-class continuation path. A useful agent declares a telos at start, and when it cannot finish but still sees a path, it can leave a self-salvage capsule with why it stopped, what to do next, evidence, wisdom, and risk.',
     ],
     bullets: [
       'Salvage is not cleanup theater. It is the continuation path for interrupted work.',
-      'Good agents leave notes, exact files, validation, and blockers before they disappear.',
+      'Good agents leave notes, exact files, validation, blockers, and a telos verdict before they disappear.',
+      'Self-salvage turns "I did not finish" into a concrete continuation plan instead of a vague apology.',
       'The operator can see what was dead, claimed, dismissed, or finished.',
     ],
     screenshots: [
@@ -1695,6 +1700,16 @@ pd briefing`,
   resurrection: {
     definitions: [
       {
+        term: 'Telos',
+        body: 'Telos is the agent purpose contract: the reason the agent exists and the standard it uses to judge done-ness.',
+        example: 'Use --telos "Make release truth match the live daemon" so completion is evaluated against the real goal, not just task motion.',
+      },
+      {
+        term: 'Self-salvage',
+        body: 'Self-salvage is a voluntary closeout capsule from an agent that did not fulfill telos but believes the work is still doable.',
+        example: 'The capsule records why it stopped, the next plan, evidence, wisdom, and risk for the next iteration.',
+      },
+      {
         term: 'Salvage',
         body: 'Salvage is the recovery process for interrupted or dead agent work.',
         example: 'Run pd salvage before restarting a slice so abandoned notes and claims are not lost.',
@@ -1712,7 +1727,7 @@ pd briefing`,
     ],
     discussion: [
       'Resurrection is not a promise that every abandoned patch should be merged. It is a promise that abandoned work should be inspectable enough to make a good decision.',
-      'The most valuable salvage object is often the note, not the code. A note can say why a file was touched, what validation was pending, and which assumption failed.',
+      'The most valuable salvage object is often the note, not the code. A self-salvage note can say why a file was touched, what validation was pending, which assumption failed, and whether the agent thinks the telos is still achievable.',
       'A patient recovery workflow prevents duplicate archaeology. The next agent reads the queue, claims only what it can finish, preserves evidence, and closes the loop with a final note.',
     ],
     codeExamples: [
@@ -1723,6 +1738,14 @@ pd briefing`,
 pd sessions --all-worktrees
 pd notes --limit 20
 pd note "Salvage triage: no claim taken; current task does not overlap"`,
+      },
+      {
+        label: 'Leave recoverable unfinished work',
+        body: 'When you know the telos was not fulfilled but the path is still viable, close with a capsule instead of pretending completion.',
+        code: `pd done --self-salvage --telos-verdict partial --doable yes \\
+  --why-stopped "production smoke blocked by stale daemon" \\
+  --next-plan "rebuild, relaunch, smoke /agents and /mcp" \\
+  --wisdom "Source truth is not operator truth until promotion succeeds"`,
       },
       {
         label: 'Claim and close a recovery',

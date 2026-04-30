@@ -855,6 +855,9 @@ Commands:
 
   done "summary"           End session + unregister agent atomically
                            Cleans up .portdaddy/current.json
+    --self-salvage         Queue unfinished-but-doable telos for salvage
+    --why-stopped <text>   Explain why the telos was not fulfilled
+    --next-plan <text>     Leave the next concrete continuation move
 
   whoami                   Show current agent/session context
                            Reads from .portdaddy/current.json
@@ -871,6 +874,7 @@ Examples:
   pd begin "Building auth module"
   pd note "Login endpoint done"
   pd done "Auth module complete"
+  pd done --self-salvage --telos-verdict not-fulfilled --doable yes --why-stopped "Tests still red" --next-plan "Fix parser fixture and rerun npm test"
   pd whoami
   pd with-lock db-migrations npm run migrate`,
 

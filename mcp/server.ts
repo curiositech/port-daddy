@@ -260,8 +260,8 @@ const TOOLS = [
     description:
       '[Essential] Register agent + start session in one atomic step. Use this at the start of every ' +
       'coding session instead of calling register_agent and start_session separately. ' +
-      'Returns agentId, sessionId, and a salvageHint if dead agents need attention. ' +
-      'Usage: begin_session({purpose: "Building auth system", identity: "myapp:api:main"})',
+      'Carries telos, returns agentId, sessionId, and a salvageHint if dead agents need attention. ' +
+      'Usage: begin_session({purpose: "Building auth system", telos: "Make auth trustworthy", identity: "myapp:api:main"})',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -286,6 +286,13 @@ const TOOLS = [
           items: { type: 'string' },
           description: 'Files to claim for this session (advisory — shows conflicts to other agents)',
         },
+        telos: {
+          oneOf: [
+            { type: 'string' },
+            { type: 'object' },
+          ],
+          description: 'Agent purpose contract/tagline. If omitted, the daemon derives one from purpose; every agent still receives a normalized telos.',
+        },
       },
       required: ['purpose'],
     },
@@ -295,7 +302,8 @@ const TOOLS = [
     description:
       '[Essential] End session + unregister agent in one step. Use this at the end of every coding ' +
       'session instead of calling end_session and then unregistering the agent separately. ' +
-      'Usage: end_session_full({agent_id: "agent-abc123", note: "Auth complete, all tests passing"})',
+      'Can include self_salvage when telos is unfinished but doable. ' +
+      'Usage: end_session_full({agent_id: "agent-abc123", note: "Auth needs deploy smoke", self_salvage: {telos_verdict: "partial", doable: "yes", next_plan: "smoke /auth"}})',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -315,6 +323,48 @@ const TOOLS = [
           type: 'string',
           enum: ['completed', 'abandoned'],
           description: 'How the session ended (default: completed)',
+        },
+        self_salvage: {
+          type: 'object',
+          description: 'Optional capsule for unfinished but doable telos. Queueable capsules mark the session abandoned and put the agent in salvage.',
+          properties: {
+            telos_verdict: {
+              type: 'string',
+              enum: ['fulfilled', 'partial', 'not-fulfilled'],
+              description: 'Whether the telos was fulfilled.',
+            },
+            doable: {
+              type: 'string',
+              enum: ['yes', 'no', 'unknown'],
+              description: 'Use yes when another iteration can reasonably continue the telos.',
+            },
+            why_stopped: {
+              type: 'string',
+              description: 'Why this agent stopped before fulfilling telos.',
+            },
+            next_plan: {
+              oneOf: [
+                { type: 'string' },
+                { type: 'array', items: { type: 'string' } },
+              ],
+              description: 'Concrete continuation plan for the next iteration.',
+            },
+            wisdom: {
+              type: 'string',
+              description: 'Lessons, constraints, or traps the next agent should know.',
+            },
+            evidence: {
+              oneOf: [
+                { type: 'string' },
+                { type: 'array', items: { type: 'string' } },
+              ],
+              description: 'Commands, files, observations, or artifacts supporting the handoff.',
+            },
+            risk: {
+              type: 'string',
+              description: 'Known risk or caveat for continuation.',
+            },
+          },
         },
       },
     },
@@ -2521,6 +2571,7 @@ async function handleTool(
       if (args.agent_id) body.agentId = args.agent_id;
       if (args.type) body.type = args.type;
       if (args.files) body.files = args.files;
+      if (args.telos) body.telos = args.telos;
       res = await POST('/sugar/begin', body);
 
       // Attach salvage context — check if any dead agents share this project
@@ -2558,6 +2609,7 @@ async function handleTool(
       if (args.session_id) body.sessionId = args.session_id;
       if (args.note) body.note = args.note;
       if (args.status) body.status = args.status;
+      if (args.self_salvage) body.selfSalvage = args.self_salvage;
       res = await POST('/sugar/done', body);
       break;
     }

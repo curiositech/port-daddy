@@ -8,7 +8,7 @@ const DEMOS = [
   {
     id: 'quickstart',
     title: 'Quick Start',
-    description: 'The begin/note/done ceremony',
+    description: 'Session lifecycle',
     gif: '/gifs/quickstart.gif',
     caption: 'A real recording of a Port Daddy quickstart: commands appear with daemon output, not as a naked checklist.',
     code: `# Start working on a project
@@ -34,7 +34,7 @@ $ pd done "Upload API complete with tests"
   {
     id: 'coordination',
     title: 'Multi-Agent',
-    description: 'Ports, pub/sub, locks',
+    description: 'Shared repo work',
     gif: '/gifs/agents/coordination.gif',
     caption: 'A real coordination recording with visible terminal responses for claims, notes, and guard state.',
     code: `# Agent 1: Backend developer
@@ -64,7 +64,7 @@ $ pd with-lock db-migrations npm run migrate
   {
     id: 'tube',
     title: 'PD Tube',
-    description: 'Conversational handoffs',
+    description: 'Channel-backed handoffs',
     code: `# Terminal 1: listen to the design-review pipe
 $ pd tube port-daddy:design-review --json --once
   {"id":41,"sender":"lookout","body":"Need PKI copy on the public site."}
@@ -87,7 +87,7 @@ $ pd tube port-daddy:design-review --since=41 --json --once
   {
     id: 'spawn',
     title: 'AI Spawn',
-    description: 'Launch agents through PD',
+    description: 'Budgeted delegated work',
     gif: '/gifs/agents/event-triggers.gif',
     caption: 'A real agent-trigger recording. Terminal examples on this page must show the system answering back.',
     code: `# Spawn a cheap Codex agent with an explicit budget ceiling
@@ -115,7 +115,7 @@ $ pd spawned
   {
     id: 'salvage',
     title: 'Salvage',
-    description: 'Recover dead agent work',
+    description: 'Recover interrupted work',
     gif: '/gifs/salvage.gif',
     caption: 'A real salvage recording with command output visible for the recovery path.',
     code: `# Check for dead agents at session start
@@ -141,7 +141,7 @@ $ pd notes --session agent-x7y9
   {
     id: 'relay-pki',
     title: 'Relay PKI',
-    description: 'OIDC-first identity',
+    description: 'Remote identity boundary',
     code: `# Score the relay identity options with the skill script
 $ printf '%s\\n' '{"kind":"request","version":"1","command":"pki.score","payload":{"options":["ACME","OIDC","WoT","Hybrid"]}}' \\
     | python3 skills/pd-relay-zero-trust/scripts/pki_decision.py \\
@@ -169,13 +169,13 @@ export function TerminalDemos() {
     <section id="demos" className="relative py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
       <PageContainer>
         <SectionIntro
-          eyebrow="Agent CLI proof"
-          title="Real commands. Real output."
-          description="The CLI is for agents, scripts, and developers validating the substrate. Humans should start in FleetBar or Fleet Control Center; this section shows the daemon evidence underneath those app surfaces."
+          eyebrow="Substrate proof"
+          title="The app has a real local API underneath."
+          description="The GUI matters, but engineers evaluating agent infrastructure also need to see the contract agents can automate. These examples show real commands with daemon output for sessions, claims, locks, channels, launches, salvage, and identity."
           titleAs="h2"
           className="mb-[var(--space-7)] max-w-[46rem]"
-          titleClassName="max-w-[12ch]"
-          bodyClassName="max-w-[36rem]"
+          titleClassName="max-w-[14ch]"
+          bodyClassName="max-w-[39rem]"
         />
 
         <div className="grid w-full min-w-0 max-w-full gap-4 overflow-hidden sm:gap-6 lg:grid-cols-[240px_minmax(0,1fr)] lg:overflow-visible">

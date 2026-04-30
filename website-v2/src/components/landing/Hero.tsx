@@ -27,25 +27,25 @@ export function Hero() {
               eyebrow="What is Port Daddy?"
               title={
                 <>
-                  The local coordination layer for{' '}
+                  A local control plane for{' '}
                   <span className="text-[var(--brand-primary)]">
-                    coding agents.
+                    AI coding agents.
                   </span>
                 </>
               }
-              description="Port Daddy is the layer under your coding agents: a shared place for notes, work ownership, warnings, actor messages, readiness, budgets, and recoverable handoffs. Schedulers decide what runs. Port Daddy makes what agents know, touch, spend, and hand off inspectable."
+              description="Port Daddy gives Claude, Codex, Aider, and custom agent tools a shared operating layer: sessions, file claims, locks, notes, inboxes, budgets, backend readiness, and salvage. It does not replace the model or scheduler. It makes multi-agent software work inspectable, recoverable, and safe enough to scale on one repo."
               titleAs="h1"
               titleSize="hero"
-              titleClassName="max-w-[14ch]"
-              bodyClassName="max-w-[34rem]"
+              titleClassName="max-w-[13ch]"
+              bodyClassName="max-w-[38rem]"
             />
 
             {/* Feature pills */}
             <div className="flex max-w-[34rem] flex-wrap gap-2">
               {[
-                'Agent-to-agent radio',
-                'Recoverable handoffs',
-                'Operator-visible truth',
+                'Shared repo state',
+                'Commit-time guardrails',
+                'Recoverable agent work',
               ].map((label) => (
                 <span
                   key={label}

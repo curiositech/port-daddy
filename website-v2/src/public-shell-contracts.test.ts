@@ -195,8 +195,64 @@ describe('public shell contracts', () => {
     expect(paperData).toContain('/whitepaper/anchor-protocol-whitepaper.pdf')
     expect(paperData).toContain('/whitepaper/agent-transactions-whitepaper.pdf')
     expect(cta).toContain('Read both papers')
-    expect(cta).toContain('Coordination feedback')
-    expect(cta).toContain('Dogfood restore')
+    expect(cta).toContain('Technical evaluation')
+    expect(cta).toContain('Platform-grade signal')
+    expect(cta).not.toContain('Coordination feedback')
+    expect(cta).not.toContain('Dogfood restore')
+  })
+
+  test('homepage positioning is clear for AI tooling evaluators and avoids stale inside-baseball copy', () => {
+    const app = read('./App.tsx')
+    const homepageFiles = [
+      './components/landing/Hero.tsx',
+      './components/landing/CoordinationEnforcementSection.tsx',
+      './components/landing/AgentConversationSection.tsx',
+      './components/landing/AgenticSocialProofSection.tsx',
+      './components/landing/Features.tsx',
+      './components/landing/TerminalDemos.tsx',
+      './components/landing/CTABanner.tsx',
+      './data/product.ts',
+    ]
+    const homepageCopy = homepageFiles.map((path) => read(path)).join('\n')
+    const storyOrder = [
+      '<Hero />',
+      '<CoordinationEnforcementSection />',
+      '<AgentConversationSection />',
+      '<AgenticSocialProofSection />',
+      '<Features />',
+      '<TerminalDemos />',
+      '<CTABanner />',
+    ]
+    const requiredPositioning = [
+      'A local control plane for',
+      'AI coding agents.',
+      'Agent orchestration needs shared state.',
+      'A repo-native API for agent teamwork.',
+      'This is what the layer adds when agents overlap.',
+      'One layer, many ways to inspect work.',
+      'The app has a real local API underneath.',
+      'Put a control plane around your AI agents.',
+      'Platform-grade signal',
+    ]
+    const stalePhrases = [
+      'Agents coordinate through observable state.',
+      'heroic memory',
+      '"please coordinate"',
+      'Dogfood restore',
+      'Coordination feedback',
+      'human-facing',
+      'vibes check',
+    ]
+
+    storyOrder.reduce((previousIndex, marker) => {
+      const currentIndex = app.indexOf(marker)
+      expect(currentIndex, `${marker} should be present on the homepage`).toBeGreaterThan(-1)
+      expect(currentIndex, `${marker} should preserve the homepage story order`).toBeGreaterThan(previousIndex)
+      return currentIndex
+    }, -1)
+
+    requiredPositioning.forEach((phrase) => expect(homepageCopy).toContain(phrase))
+    stalePhrases.forEach((phrase) => expect(homepageCopy).not.toContain(phrase))
   })
 
   test('individual whitepaper pages explain value and embed PDFs inline', () => {

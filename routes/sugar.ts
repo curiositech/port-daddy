@@ -81,7 +81,25 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
   // POST /sugar/done
   fastify.post('/sugar/done', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { agentId, sessionId, note, status } = request.body as any;
+      const body = request.body as any;
+      const {
+        agentId,
+        sessionId,
+        note,
+        status,
+        selfSalvage,
+        self_salvage,
+        telosVerdict,
+        telos_verdict,
+        doable,
+        whyStopped,
+        why_stopped,
+        nextPlan,
+        next_plan,
+        wisdom,
+        evidence,
+        risk,
+      } = body;
 
       const VALID_DONE_STATUSES = new Set(['completed', 'abandoned']);
       if (status && !VALID_DONE_STATUSES.has(status)) {
@@ -93,14 +111,29 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         };
       }
 
-      const result = sugar.done({ agentId, sessionId, note, status });
+      const standaloneSelfSalvage = {
+        telosVerdict: telosVerdict ?? telos_verdict,
+        doable,
+        whyStopped: whyStopped ?? why_stopped,
+        nextPlan: nextPlan ?? next_plan,
+        wisdom,
+        evidence,
+        risk,
+      };
+      const hasStandaloneSelfSalvage = Object.values(standaloneSelfSalvage)
+        .some((value) => value !== undefined);
+      const selfSalvageInput = selfSalvage ?? self_salvage ?? (hasStandaloneSelfSalvage ? standaloneSelfSalvage : undefined);
+
+      const result = sugar.done({ agentId, sessionId, note, status, selfSalvage: selfSalvageInput });
 
       if (!result.success) {
         const httpStatus = result.code === 'NO_ACTIVE_SESSION'
           ? 404
           : result.code === 'SESSION_OWNERSHIP_MISMATCH'
             ? 409
-            : 500;
+            : result.code === 'SELF_SALVAGE_VALIDATION_ERROR' || result.code === 'SELF_SALVAGE_STATUS_MISMATCH'
+              ? 400
+              : 500;
         reply.code(httpStatus);
         return result;
       }
@@ -109,6 +142,7 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         agentId: result.agentId,
         sessionId: result.sessionId,
         status: result.sessionStatus,
+        selfSalvageQueued: result.selfSalvageQueued || false,
       });
 
       return result;
