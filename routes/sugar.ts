@@ -21,6 +21,23 @@ interface SugarRouteDeps {
   };
 }
 
+function firstHeaderValue(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function parsePid(value: unknown): number | undefined {
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (typeof raw !== 'string' && typeof raw !== 'number') return undefined;
+  const parsed = typeof raw === 'number' ? raw : Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed)) return undefined;
+  const normalized = Math.trunc(parsed);
+  return normalized >= 0 ? normalized : undefined;
+}
+
+function requestPid(request: FastifyRequest, body: Record<string, unknown>): number | undefined {
+  return parsePid(firstHeaderValue(request.headers['x-pid'])) ?? parsePid(body.pid);
+}
+
 
 // =============================================================================
 // Fastify plugin export
@@ -32,7 +49,8 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
   // POST /sugar/begin
   fastify.post('/sugar/begin', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { purpose, identity, agentId, name, type, files, force, metadata, telos } = request.body as any;
+      const body = ((request.body as Record<string, unknown>) || {});
+      const { purpose, identity, agentId, name, type, files, force, metadata, telos } = body as any;
 
       if (!purpose || typeof purpose !== 'string') {
         reply.code(400);
@@ -53,6 +71,7 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         force,
         metadata,
         telos,
+        pid: requestPid(request, body),
       });
 
       if (!result.success) {

@@ -509,6 +509,7 @@ export interface ProjectSummary {
   signals?: string[];
   sources?: string[];
   exists?: boolean;
+  worktree?: ProjectWorktreeSummary | null;
   running?: boolean;
   configuredAgentCount?: number;
   configuredWatcherCount?: number;
@@ -526,6 +527,17 @@ export interface ProjectSummary {
     command?: string;
     suggestedBudgetUsdPerDay?: number;
   } | null;
+}
+
+export interface ProjectWorktreeSummary {
+  isGitWorktree: boolean;
+  isLinkedWorktree: boolean;
+  groupId: string;
+  groupName: string;
+  mainWorktreeRoot: string | null;
+  worktreeName: string;
+  branch: string | null;
+  head: string | null;
 }
 
 export interface BackendInfo {

@@ -197,11 +197,29 @@ function warnTelemetryBypass(approval: TelemetryBypassApproval): void {
 // PD coordination helpers (fire-and-forget, silent on failure)
 // =============================================================================
 
-async function pdCoordinate(path: string, body: Record<string, unknown>): Promise<void> {
+interface PdCoordinateOptions {
+  pid?: number | null;
+}
+
+function normalizeCoordinationPid(pid: number | null | undefined): number | undefined {
+  if (typeof pid !== 'number' || !Number.isFinite(pid)) return undefined;
+  const normalized = Math.trunc(pid);
+  return normalized >= 0 ? normalized : undefined;
+}
+
+function registryPidFor(record: Pick<AgentRecord, 'childProcess'>): number {
+  return normalizeCoordinationPid(record.childProcess?.pid) ?? 0;
+}
+
+async function pdCoordinate(path: string, body: Record<string, unknown>, options: PdCoordinateOptions = {}): Promise<void> {
   try {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    const pid = normalizeCoordinationPid(options.pid);
+    if (pid !== undefined) headers['X-Pid'] = String(pid);
+
     await fetch(`${getDaemonTcpUrl(process.env.PORT_DADDY_URL)}${path}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(body),
     });
   } catch {
@@ -996,28 +1014,38 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       bondUsd,
     };
 
+    const initialRegistryPid = registryPidFor(record);
     await pdCoordinate('/agents', {
       id: agentId,
       name: displayName,
+      type: 'spawned',
+      pid: initialRegistryPid,
       identity: spec.identity || null,
       purpose: spec.purpose || spec.task.slice(0, 80),
       telos: telosResult.telos,
       metadata: coordinationMetadata,
-    });
+    }, { pid: initialRegistryPid });
 
     // PD coordination: start session
     await pdCoordinate('/sugar/begin', {
       agentId,
       name: displayName,
+      type: 'spawned',
+      pid: initialRegistryPid,
       identity: spec.identity || null,
       purpose: spec.purpose || spec.task.slice(0, 80),
       telos: telosResult.telos,
       metadata: coordinationMetadata,
-    });
+    }, { pid: initialRegistryPid });
 
     // Start heartbeat interval
     record.heartbeatInterval = setInterval(async () => {
-      await pdCoordinate(`/agents/${agentId}/heartbeat`, {});
+      const pid = registryPidFor(record);
+      await pdCoordinate(`/agents/${agentId}/heartbeat`, {
+        pid,
+        status: 'busy',
+        progress: `Running ${spec.backend} via Port Daddy spawner`,
+      }, { pid });
     }, 30000);
     record.heartbeatInterval.unref?.();
 
@@ -1036,6 +1064,12 @@ export function createSpawner(deps: SpawnerDeps = {}) {
           onChildProcess: (child) => {
             if (record.status === 'running') {
               record.childProcess = child;
+              const pid = registryPidFor(record);
+              void pdCoordinate(`/agents/${agentId}/heartbeat`, {
+                pid,
+                status: 'busy',
+                progress: `Running ${spec.backend} child process`,
+              }, { pid });
             }
           },
         };

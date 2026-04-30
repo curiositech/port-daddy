@@ -62,6 +62,7 @@ export async function handleBegin(
   const identity = (options.identity as string) || autoIdentityFromPackageJson() || undefined;
 
   const body: Record<string, unknown> = { purpose };
+  body.pid = process.pid;
   if (identity) body.identity = identity;
   if (options.agent) body.agentId = options.agent;
   if (options.name) body.name = options.name;
@@ -82,7 +83,7 @@ export async function handleBegin(
 
   const res: PdFetchResponse = await pdFetch('/sugar/begin', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'X-Pid': String(process.pid) },
     body: JSON.stringify(body),
   });
 

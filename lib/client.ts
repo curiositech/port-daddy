@@ -873,12 +873,26 @@ interface ScanResponse {
 /** A single project summary entry as returned by /projects */
 interface ProjectSummary {
   id: string;
+  displayName?: string;
   root: string;
   type: string;
   serviceCount: number;
   lastScanned: string;
   createdAt: string;
   frameworks: string[];
+  signals?: string[];
+  sources?: string[];
+  exists?: boolean;
+  worktree?: {
+    isGitWorktree: boolean;
+    isLinkedWorktree: boolean;
+    groupId: string;
+    groupName: string;
+    mainWorktreeRoot: string | null;
+    worktreeName: string;
+    branch: string | null;
+    head: string | null;
+  } | null;
 }
 
 /** Matches the actual /projects endpoint response */
@@ -2624,6 +2638,8 @@ class PortDaddy {
     if (options.files) body.files = options.files;
     if (options.force) body.force = options.force;
     if (options.metadata) body.metadata = options.metadata;
+    if (options.telos) body.telos = options.telos;
+    if (typeof options.pid === 'number') body.pid = options.pid;
 
     const result = await this._request('POST', '/sugar/begin', body) as BeginSugarResponse;
 
@@ -3674,6 +3690,8 @@ interface BeginSugarOptions {
   files?: string[];
   force?: boolean;
   metadata?: Record<string, unknown>;
+  telos?: unknown;
+  pid?: number;
 }
 
 interface BeginSugarResponse {
@@ -3689,6 +3707,8 @@ interface BeginSugarResponse {
   fileClaims?: string[];
   fileConflicts?: Array<{ filePath: string; sessionId: string }>;
   salvageHint?: string;
+  sessionName?: string;
+  telosHeadline?: string;
 }
 
 interface DoneSugarOptions {

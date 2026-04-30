@@ -1,5 +1,95 @@
 import SwiftUI
 
+struct ProjectMenuGroup: Identifiable {
+    let id: String
+    let label: String
+    let detail: String
+    let projects: [FleetProject]
+    let isWorktreeGroup: Bool
+
+    var sortRank: Int {
+        projects.map(\.sortRank).min() ?? Int.max
+    }
+
+    var latestStartedAt: TimeInterval {
+        projects.compactMap { $0.startedAt?.timeIntervalSince1970 }.max() ?? 0
+    }
+}
+
+private func sortedProjectsForMenu(_ projects: [FleetProject]) -> [FleetProject] {
+    projects.sorted { lhs, rhs in
+        if lhs.worktree?.isLinkedWorktree != rhs.worktree?.isLinkedWorktree {
+            return lhs.worktree?.isLinkedWorktree == false
+        }
+        if lhs.sortRank != rhs.sortRank {
+            return lhs.sortRank < rhs.sortRank
+        }
+        let lhsStarted = lhs.startedAt?.timeIntervalSince1970 ?? 0
+        let rhsStarted = rhs.startedAt?.timeIntervalSince1970 ?? 0
+        if lhsStarted != rhsStarted {
+            return lhsStarted > rhsStarted
+        }
+        return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+    }
+}
+
+func makeProjectMenuGroups(_ projects: [FleetProject]) -> [ProjectMenuGroup] {
+    var grouped: [String: [FleetProject]] = [:]
+    var standalone: [FleetProject] = []
+
+    for project in projects {
+        guard let worktree = project.worktree, !worktree.groupId.isEmpty else {
+            standalone.append(project)
+            continue
+        }
+        grouped[worktree.groupId, default: []].append(project)
+    }
+
+    var groups = standalone.map { project in
+        ProjectMenuGroup(
+            id: "project:\(project.id)",
+            label: project.name,
+            detail: project.projectDir,
+            projects: [project],
+            isWorktreeGroup: false
+        )
+    }
+
+    for (groupId, bucket) in grouped {
+        let projects = sortedProjectsForMenu(bucket)
+        guard projects.count > 1, let worktree = projects.first?.worktree else {
+            if let project = projects.first {
+                groups.append(ProjectMenuGroup(
+                    id: "project:\(project.id)",
+                    label: project.name,
+                    detail: project.projectDir,
+                    projects: [project],
+                    isWorktreeGroup: false
+                ))
+            }
+            continue
+        }
+
+        groups.append(ProjectMenuGroup(
+            id: "worktree:\(groupId)",
+            label: "\(worktree.groupName) worktrees",
+            detail: "\(projects.count) checkouts",
+            projects: projects,
+            isWorktreeGroup: true
+        ))
+    }
+
+    return groups.sorted { lhs, rhs in
+        if lhs.sortRank != rhs.sortRank {
+            return lhs.sortRank < rhs.sortRank
+        }
+        if lhs.latestStartedAt != rhs.latestStartedAt {
+            return lhs.latestStartedAt > rhs.latestStartedAt
+        }
+        return lhs.label.localizedCaseInsensitiveCompare(rhs.label) == .orderedAscending
+    }
+}
+
 struct FleetControlCenter: View {
     @ObservedObject var store: FleetStore
     @ObservedObject var costStore: CostStore
@@ -27,12 +117,22 @@ struct FleetControlCenter: View {
 
     private var selectedProjectLabel: String {
         guard let selectedProjectId else { return "All projects" }
-        return store.projects.first(where: { $0.id == selectedProjectId })?.name ?? selectedProjectId
+        guard let project = store.projects.first(where: { $0.id == selectedProjectId }) else {
+            return selectedProjectId
+        }
+        if let worktree = project.worktree, worktree.isLinkedWorktree {
+            return "\(worktree.groupName) / \(worktree.worktreeName)"
+        }
+        return project.name
     }
 
     private var selectedProject: FleetProject? {
         guard let selectedProjectId else { return nil }
         return store.projects.first(where: { $0.id == selectedProjectId })
+    }
+
+    private var projectMenuGroups: [ProjectMenuGroup] {
+        makeProjectMenuGroups(store.projects)
     }
 
     private var selectedCostProject: ProjectCostStatus? {
@@ -667,11 +767,25 @@ struct FleetControlCenter: View {
 
             if !store.projects.isEmpty {
                 Divider()
-                ForEach(store.projects) { project in
-                    Button {
-                        chooseProject(project.id)
-                    } label: {
-                        projectMenuRow(project)
+                ForEach(projectMenuGroups) { group in
+                    if group.isWorktreeGroup {
+                        Menu {
+                            ForEach(group.projects) { project in
+                                Button {
+                                    chooseProject(project.id)
+                                } label: {
+                                    projectMenuRow(project)
+                                }
+                            }
+                        } label: {
+                            projectMenuGroupRow(group)
+                        }
+                    } else if let project = group.projects.first {
+                        Button {
+                            chooseProject(project.id)
+                        } label: {
+                            projectMenuRow(project)
+                        }
                     }
                 }
             }
@@ -705,13 +819,27 @@ struct FleetControlCenter: View {
         .fixedSize(horizontal: false, vertical: true)
     }
 
+    private func projectMenuGroupRow(_ group: ProjectMenuGroup) -> some View {
+        HStack(spacing: Fleet.Space.s) {
+            Image(systemName: "square.stack.3d.up")
+                .foregroundStyle(Fleet.Color.active)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(group.label)
+                Text(group.detail)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+    }
+
     private func projectMenuRow(_ project: FleetProject) -> some View {
         HStack(spacing: Fleet.Space.s) {
             Image(systemName: project.id == selectedProjectId ? "checkmark.circle.fill" : project.statusIcon)
                 .foregroundStyle(project.id == selectedProjectId ? Fleet.Color.active : project.statusColor)
             VStack(alignment: .leading, spacing: 2) {
                 Text(project.name)
-                Text(project.statusLabel)
+                Text(projectMenuSubtitle(project))
                     .font(.caption2)
                     .foregroundStyle(project.statusColor)
             }
@@ -724,6 +852,14 @@ struct FleetControlCenter: View {
                     .foregroundStyle(project.needsBudget ? Fleet.Color.warning : .secondary)
             }
         }
+    }
+
+    private func projectMenuSubtitle(_ project: FleetProject) -> String {
+        guard let worktree = project.worktree else {
+            return project.statusLabel
+        }
+        let role = worktree.isLinkedWorktree ? "worktree" : "primary"
+        return "\(project.statusLabel) · \(role) · \(worktree.branchLabel)"
     }
 
     private func chooseProject(_ projectId: String?) {

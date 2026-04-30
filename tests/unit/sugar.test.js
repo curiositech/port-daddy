@@ -63,6 +63,20 @@ describe('sugar.begin', () => {
     expect(sessionInfo.session.identityProject).toBe('port-daddy');
   });
 
+  test('preserves explicit pid 0 when begin is daemon-hosted', () => {
+    const { sugar, agents } = setup();
+
+    const result = sugar.begin({
+      purpose: 'Daemon hosted spawned agent',
+      pid: 0,
+    });
+
+    expect(result.success).toBe(true);
+    const agentInfo = agents.get(result.agentId);
+    expect(agentInfo.success).toBe(true);
+    expect(agentInfo.agent.pid).toBe(0);
+  });
+
   test('auto-generates agent ID when not provided', () => {
     const { sugar } = setup();
 

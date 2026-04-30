@@ -1193,6 +1193,9 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     identity: string,
     purpose: string,
     agent: FleetAgent,
+    context: FleetRunContext | undefined,
+    triggerFingerprint: string | null,
+    runStartedAt: number,
   ): Promise<{ ok: true; data: SpawnResponse } | { ok: false; failure: SpawnAttemptFailure }> {
     if (!runtime.backend) {
       return {
@@ -1216,6 +1219,16 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       telos: getAgentTelos(agent),
       name: agent.name,
     };
+    const idempotencyKey = fleetSpawnIdempotencyKey(
+      agent,
+      runtime,
+      identity,
+      context,
+      triggerFingerprint,
+      runStartedAt,
+      attempt,
+    );
+    body.idempotencyKey = idempotencyKey;
     if (runtime.model) body.model = runtime.model;
     if (agent.timeout) body.timeout = agent.timeout;
     if (agent.allowedTools) body.allowedTools = agent.allowedTools;
@@ -1224,7 +1237,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     try {
       res = await fetch(`${getFleetDaemonUrl()}/spawn`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
         body: JSON.stringify(body),
       });
     } catch (err) {
@@ -1353,6 +1366,34 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
         tupleId: context.tuple?.id ?? null,
       }))
       .digest('hex');
+  }
+
+  function fleetSpawnIdempotencyKey(
+    agent: FleetAgent,
+    runtime: ResolvedFleetAgentRuntime,
+    identity: string,
+    context: FleetRunContext | undefined,
+    triggerFingerprint: string | null,
+    runStartedAt: number,
+    attempt: number,
+  ): string {
+    const runWindow = triggerFingerprint || runStartedAt;
+    return createHash('sha256')
+      .update(JSON.stringify({
+        v: 1,
+        projectDir,
+        project,
+        agent: agent.name,
+        identity,
+        source: context?.source ?? 'manual',
+        runWindow,
+        backend: runtime.backend,
+        model: runtime.model ?? null,
+        modelTier: runtime.modelTier ?? null,
+        attempt,
+      }))
+      .digest('hex')
+      .slice(0, 32);
   }
 
   function buildAgentTask(agent: FleetAgent, context?: FleetRunContext): string {
@@ -1542,6 +1583,9 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
           identity,
           `Fleet agent: ${agent.name}`,
           agent,
+          context,
+          triggerFingerprint,
+          now,
         );
 
         if (outcome.ok) {
