@@ -6,20 +6,28 @@ import {
   Anchor,
   ArrowRight,
   Bot,
+  BookOpen,
+  Braces,
   Check,
   Cpu,
   Database,
+  FileCode,
+  FileText,
+  FolderTree,
   GitBranch,
   Globe,
   Layers,
   LifeBuoy,
+  Play,
   Radio,
   Search,
   Terminal,
   Users,
+  Workflow,
   type LucideIcon,
 } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
+import { Mermaid } from '@/components/ui/Mermaid'
 import { ALL_CATEGORIES, MCP_DEFAULT_TOOL_TOTAL, MCP_TOOL_TOTAL } from '@/data/mcp'
 import {
   BracketLabel,
@@ -68,6 +76,28 @@ interface ChannelSurface {
   note: string
 }
 
+interface SkillExplorerItem {
+  id: string
+  label: string
+  path: string
+  badge: string
+  summary: string
+  icon: LucideIcon
+  files: string[]
+  markdown: string[]
+  comments: string[]
+  doItems: string[]
+  dontItems: string[]
+  codeLabel?: string
+  code?: string
+  mermaid?: string
+  image?: {
+    src: string
+    alt: string
+    caption: string
+  }
+}
+
 const PROOF_METRICS: ProofMetric[] = [
   { value: `${MCP_TOOL_TOTAL}`, label: 'MCP functions registered by the server', tone: 'blue' },
   { value: `${MCP_DEFAULT_TOOL_TOTAL}`, label: 'default tools before discovery', tone: 'accent' },
@@ -75,6 +105,7 @@ const PROOF_METRICS: ProofMetric[] = [
 ]
 
 const PROCEDURAL_KNOWLEDGE_URL = 'https://windags.ai/blog/why-declarative-knowledge-isnt-enough'
+const AGENTS_MD_URL = 'https://agents.md/'
 
 const RUNTIME_BACKENDS: RuntimeBackend[] = [
   { name: 'Codex', tier: 'low / mid / high', surface: 'codex exec backend' },
@@ -226,21 +257,311 @@ curl -X POST http://localhost:9876/msg/git:committed \\
   },
 ]
 
-const SKILL_BUNDLE_ITEMS = [
-  ['SKILL.md', 'The lean operating loop: status, briefing, session, note, claims, validation, handoff.'],
-  ['references/', 'Procedural doctrine for coordination theory, FleetBar proof, salvage, distribution, and install surfaces.'],
-  ['diagrams/', 'Flowchart, sequence, and lifecycle diagrams that make multi-agent coordination teachable.'],
-  ['schemas/', 'Machine-checkable coordination notes, agent handoffs, and validation reports.'],
-  ['scripts/', 'Validators and context diagnostics so agents can prove the skill is installed and usable.'],
-  ['examples/', 'Concrete builds that connect buttons, tests, webhooks, FleetBar, and the local console.'],
-] as const
+const SKILL_EXPLORER_ITEMS: SkillExplorerItem[] = [
+  {
+    id: 'skill',
+    label: 'SKILL.md',
+    path: 'skills/port-daddy-agent-skill/SKILL.md',
+    badge: 'Markdown operating manual',
+    summary: 'The first file an agent reads: when to use Port Daddy, how to start, and how to publish durable truth.',
+    icon: FileText,
+    files: ['NOT For', 'Default Agent Happy Path', 'Small Decision Table', 'Procedural Cues'],
+    markdown: [
+      '# Port Daddy Agent Skill',
+      '## Default Agent Happy Path',
+      '- pd status',
+      '- pd briefing',
+      '- pd begin "<bounded task>" --identity <project>:<agent>',
+      '- pd note "Scope: <files>. Assumptions: <truth>. Validation: <commands>."',
+      '- pd session files add <path>',
+      '- pd done "<short outcome>"',
+    ],
+    comments: [
+      '<!-- pd:coordination-contract -->',
+      '<!-- pd:live-truth-before-source-truth -->',
+      '<!-- pd:handoff-needs-validation-evidence -->',
+    ],
+    doItems: [
+      'Start with live status, briefing, salvage, and a bounded session.',
+      'Claim the smallest real files or regions before editing.',
+      'Leave notes that name scope, assumptions, validation, and remaining risk.',
+    ],
+    dontItems: [
+      'Do not replace repo docs, daemon truth, tests, or operator evidence with vibes.',
+      'Do not launch extra agents when one bounded local edit is enough.',
+      'Do not publish before fetch, reconcile, notes, and guard checks.',
+    ],
+    codeLabel: 'Happy path commands',
+    code: `pd status
+pd briefing
+pd salvage --project port-daddy --limit 20
+pd begin "fix docs surface" --identity port-daddy:documentarian
+pd note "Scope: website-v2/src/pages/MCPPage.tsx. Validation: build + smoke."
+pd session files add website-v2/src/pages/MCPPage.tsx`,
+  },
+  {
+    id: 'references',
+    label: 'references/',
+    path: 'skills/port-daddy-agent-skill/references/',
+    badge: 'Long-form source of truth',
+    summary: 'Deep doctrine for CLI, SDK, MCP, distribution, FleetBar, salvage, coordination theory, and install surfaces.',
+    icon: BookOpen,
+    files: ['api-reference.md', 'cli-reference.md', 'sdk-reference.md', 'distribution-and-installation.md'],
+    markdown: [
+      '# references/INDEX.md',
+      '## Load on demand',
+      '- cli-reference.md: every pd command family, aliases, examples, and source provenance.',
+      '- api-reference.md: daemon routes, payload shapes, and runtime behavior.',
+      '- sdk-reference.md: typed helpers for sessions, claims, notes, ports, and locks.',
+      '- fleetbar-and-console.md: what counts as visible operator proof.',
+    ],
+    comments: ['<!-- pd:reference-depth-on-demand -->', '<!-- pd:release-surface-contract -->'],
+    doItems: [
+      'Open the specific reference that matches the task surface.',
+      'Keep CLI, SDK, MCP, website, README, and skill truth aligned.',
+      'Use exact command output or runtime proof when the doc describes behavior.',
+    ],
+    dontItems: [
+      'Do not bury a command only in an index row.',
+      'Do not make a release claim without source or runtime proof.',
+      'Do not split Port Daddy CLI truth into a separate skill.',
+    ],
+    codeLabel: 'Reference map',
+    code: `references/
+  api-reference.md
+  cli-reference.md
+  sdk-reference.md
+  distribution-and-installation.md
+  fleetbar-and-console.md
+  recovery-and-salvage.md`,
+  },
+  {
+    id: 'diagrams',
+    label: 'diagrams/',
+    path: 'skills/port-daddy-agent-skill/diagrams/',
+    badge: 'Mermaid made inspectable',
+    summary: 'Flowcharts, sequence diagrams, and lifecycle state diagrams make the coordination loop visible before an agent acts.',
+    icon: Workflow,
+    files: [
+      '01_flowchart_agent_operating_loop.md',
+      '02_sequenceDiagram_coordination_handoff.md',
+      '03_stateDiagram-v2_agent_lifecycle.md',
+      '04_flowchart_decision-points.md',
+    ],
+    markdown: [
+      '# 01_flowchart_agent_operating_loop.md',
+      '## Agent Operating Loop',
+      '- Discover live state.',
+      '- Start a recoverable session.',
+      '- Claim work and validate.',
+      '- Publish handoff evidence.',
+    ],
+    comments: ['<!-- pd:diagram-renders-mermaid -->', '<!-- pd:coordination-loop -->'],
+    doItems: [
+      'Render diagrams, do not leave Mermaid as an opaque code block.',
+      'Use the diagrams to explain why a command belongs in the loop.',
+      'Keep diagram labels aligned with real CLI and MCP names.',
+    ],
+    dontItems: [
+      'Do not make decorative diagrams that hide the actual command path.',
+      'Do not show coordination as chat-only narration.',
+      'Do not imply locks are the default when claims are enough.',
+    ],
+    mermaid: `flowchart TD
+  A["pd status"] --> B["pd briefing"]
+  B --> C["pd begin + identity"]
+  C --> D["note scope and assumptions"]
+  D --> E["claim file or symbol"]
+  E --> F["work + validate"]
+  F --> G["note result and evidence"]
+  G --> H["pd done"]`,
+  },
+  {
+    id: 'schemas',
+    label: 'schemas/',
+    path: 'skills/port-daddy-agent-skill/schemas/',
+    badge: 'Machine-checkable handoffs',
+    summary: 'JSON schemas and shape docs keep coordination notes, validation reports, tuples, fleets, and salvage entries parseable.',
+    icon: Braces,
+    files: ['agent-handoff.schema.json', 'coordination-note.schema.json', 'validation-report.schema.json', 'pd-fleet.schema.json'],
+    markdown: [
+      '# schemas/coordination-note.schema.json',
+      '## Required evidence fields',
+      '- scope',
+      '- assumptions',
+      '- validation',
+      '- remainingRisk',
+    ],
+    comments: ['<!-- pd:schema-shaped-note -->', '<!-- pd:machine-readable-handoff -->'],
+    doItems: [
+      'Prefer schema-shaped notes when another agent or actor will consume the result.',
+      'Include exact validation commands and observed output.',
+      'Use tuple and handoff shapes for machine-queryable facts.',
+    ],
+    dontItems: [
+      'Do not leave a handoff that only says "fixed".',
+      'Do not hide blockers in prose when a schema field exists.',
+      'Do not treat JSON validity as proof the runtime behavior worked.',
+    ],
+    codeLabel: 'Handoff shape',
+    code: `{
+  "scope": ["website-v2/src/pages/MCPPage.tsx"],
+  "assumptions": ["AGENTS.md is an open Markdown instruction format"],
+  "validation": ["npm --prefix website-v2 run build", "smoke /mcp"],
+  "remainingRisk": []
+}`,
+  },
+  {
+    id: 'scripts',
+    label: 'scripts/',
+    path: 'skills/port-daddy-agent-skill/scripts/',
+    badge: 'Executable proof helpers',
+    summary: 'Validators, diagnostics, preflights, salvage helpers, handoff emitters, and fleet checks turn the manual into runnable proof.',
+    icon: Terminal,
+    files: [
+      'validate_port_daddy_agent_skill.py',
+      'diagnose_port_daddy_agent_context.sh',
+      'agent-handshake.sh',
+      'emit_agent_handoff.py',
+    ],
+    markdown: [
+      '# scripts/',
+      '## When to run',
+      '- Validate the installed skill bundle.',
+      '- Diagnose daemon, MCP, and repo context.',
+      '- Emit structured handoffs.',
+      '- Triage salvage before restarting work.',
+    ],
+    comments: ['<!-- pd:runnable-proof -->', '<!-- pd:diagnostics-before-claims -->'],
+    doItems: [
+      'Run validators before claiming the skill is installed and usable.',
+      'Use diagnostics when CLI, daemon, or MCP truth disagrees.',
+      'Prefer scripts over retyping long schema or handoff snippets.',
+    ],
+    dontItems: [
+      'Do not publish a skill update that the validator rejects.',
+      'Do not trim diagnostic output that an operator needs to debug.',
+      'Do not confuse source existence with installed runtime truth.',
+    ],
+    codeLabel: 'Validation commands',
+    code: `python3 skills/port-daddy-agent-skill/scripts/validate_port_daddy_agent_skill.py skills/port-daddy-agent-skill
+bash skills/port-daddy-agent-skill/scripts/diagnose_port_daddy_agent_context.sh
+bash skills/port-daddy-agent-skill/scripts/preflight.sh`,
+  },
+  {
+    id: 'templates',
+    label: 'templates/',
+    path: 'skills/port-daddy-agent-skill/templates/',
+    badge: 'Reusable coordination documents',
+    summary: 'Starter fleet config, handoff templates, session-note templates, and .portdaddyrc examples reduce drift between agents.',
+    icon: FileCode,
+    files: ['coordination-note.md', 'handoff.md', 'session-note.template.md', 'pd-fleet.starter.yml'],
+    markdown: [
+      '# templates/handoff.md',
+      '## Result',
+      '- What changed',
+      '- What was validated',
+      '- What remains',
+      '## Next agent',
+      '- Read the note before editing',
+      '- Re-run the smallest useful proof',
+    ],
+    comments: ['<!-- pd:template-promotes-consistency -->', '<!-- pd:human-readable-plus-machine-readable -->'],
+    doItems: [
+      'Start from a template when the handoff will outlive the current chat.',
+      'Name exact files and commands in every handoff.',
+      'Keep templates in sync with the schema docs.',
+    ],
+    dontItems: [
+      'Do not make a template so generic it hides operational truth.',
+      'Do not omit validation just because the edit is documentation.',
+      'Do not leave project identity ambiguous.',
+    ],
+    codeLabel: 'Starter fleet snippet',
+    code: `agents:
+  - id: documentarian
+    backend: codex
+    model_tier: low
+    singleton: true
+limits:
+  budget_usd_per_day: 2`,
+  },
+  {
+    id: 'examples',
+    label: 'examples/',
+    path: 'skills/port-daddy-agent-skill/examples/',
+    badge: 'Worked operator scenarios',
+    summary: 'Concrete walkthroughs show how buttons, tests, webhooks, FleetBar, salvage, and local console proof fit together.',
+    icon: Play,
+    files: ['build-now.md', 'coordinated-edit.md', 'fleetbar-triage.md', '01-bootstrap-new-session.md'],
+    markdown: [
+      '# examples/coordinated-edit.md',
+      '## Scenario',
+      '- Two agents need adjacent code in the same repo.',
+      '- One claims the UI file, one claims the docs route.',
+      '- Both leave notes before commit.',
+      '- Guard checks staged ownership.',
+    ],
+    comments: ['<!-- pd:visual-example -->', '<!-- pd:worked-example-needs-output -->'],
+    doItems: [
+      'Show the command, output, and resulting observable state.',
+      'Use paired visual proof when a UI or FleetBar surface changes.',
+      'Make the example runnable enough for a new agent to rehearse.',
+    ],
+    dontItems: [
+      'Do not show a naked command with no output.',
+      'Do not use mock console screenshots when a real capture should exist.',
+      'Do not skip the final note or validation proof.',
+    ],
+    image: {
+      src: '/img/generated/example-pd-tube-button-to-agent.webp',
+      alt: 'Generated visual of a Port Daddy button sending a pd tube event to an agent workflow',
+      caption: 'Example visuals pair the written scenario with an inspectable operator workflow.',
+    },
+  },
+  {
+    id: 'agents',
+    label: 'agents/',
+    path: 'skills/port-daddy-agent-skill/agents/openai.yaml',
+    badge: 'Runner-specific adapter',
+    summary: 'Adapter metadata keeps OpenAI/Codex-style runners on the same doctrine without creating a separate Port Daddy CLI skill.',
+    icon: Bot,
+    files: ['openai.yaml', '.codex/skills mirror', '.claude/skills mirror', '.agents/skills mirror'],
+    markdown: [
+      '# agents/openai.yaml',
+      '## What it says',
+      '- Use the Port Daddy skill for repo work.',
+      '- Prefer live coordination state over memory.',
+      '- Keep release surfaces aligned.',
+      '- Validate before commit, push, or deploy.',
+    ],
+    comments: ['<!-- pd:runner-adapter -->', '<!-- pd:no-port-daddy-cli-skill -->'],
+    doItems: [
+      'Install the skill where the runner actually reads local instructions.',
+      'Treat AGENTS.md as a repo instruction format, not a second source of truth.',
+      'Keep Codex, Claude, Gemini, and AGENTS.md-aware tools on the same manual.',
+    ],
+    dontItems: [
+      'Do not fork the doctrine by client.',
+      'Do not require a separate port-daddy-cli skill.',
+      'Do not let runner metadata get ahead of the source skill.',
+    ],
+    codeLabel: 'Runner adapter shape',
+    code: `name: port-daddy-agent-skill
+surfaces:
+  codex: .codex/skills/port-daddy-agent-skill
+  claude: .claude/skills/port-daddy-agent-skill
+  agents: .agents/skills/port-daddy-agent-skill
+  gemini: .gemini/extensions/port-daddy/skills/port-daddy-agent-skill`,
+  },
+]
 
 const SKILL_INSTALL_SURFACES = [
-  ['Package', 'skills/port-daddy-agent-skill ships beside the Port Daddy binaries.'],
-  ['Codex', '.codex/skills/port-daddy-agent-skill mirrors the same operating manual.'],
-  ['Claude', '.claude/skills/port-daddy-agent-skill keeps Claude Code on the same doctrine.'],
-  ['Agents', '.agents/skills/port-daddy-agent-skill gives AGENTS-aware tools the same contract.'],
-  ['Gemini', '.gemini/extensions/port-daddy/skills/port-daddy-agent-skill keeps extension installs aligned.'],
+  ['Project folder', 'skills/port-daddy-agent-skill'],
+  ['Codex', '.codex/skills/port-daddy-agent-skill'],
+  ['Claude', '.claude/skills/port-daddy-agent-skill'],
+  ['Gemini', '.gemini/extensions/port-daddy/skills/port-daddy-agent-skill'],
+  ['AGENTS.md-aware tools', '.agents/skills/port-daddy-agent-skill'],
 ] as const
 
 const INSTALL_TRANSCRIPT = `$ pd install
@@ -526,6 +847,255 @@ function ChannelTabs() {
   )
 }
 
+function MarkdownPreview({ lines }: { lines: string[] }) {
+  return (
+    <div className="min-w-0 space-y-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)]">
+      <PanelEyebrow>Markdown preview</PanelEyebrow>
+      <div className="space-y-[var(--space-2)]">
+        {lines.map((line, index) => {
+          if (line.startsWith('# ')) {
+            return (
+              <PanelTitle key={`${line}-${index}`} as="p" size="nav">
+                {line.slice(2)}
+              </PanelTitle>
+            )
+          }
+
+          if (line.startsWith('## ')) {
+            return (
+              <PanelEyebrow key={`${line}-${index}`} className="text-[var(--text-primary)]">
+                {line.slice(3)}
+              </PanelEyebrow>
+            )
+          }
+
+          if (line.startsWith('- ')) {
+            return (
+              <div key={`${line}-${index}`} className="flex gap-[var(--space-2)] border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-[var(--space-2)]">
+                <Check aria-hidden="true" className="mt-[0.2rem] h-[var(--space-4)] w-[var(--space-4)] shrink-0 text-[var(--brand-primary)]" />
+                <PanelBody size="compact" className="max-w-none">
+                  {line.slice(2)}
+                </PanelBody>
+              </div>
+            )
+          }
+
+          return (
+            <PanelBody key={`${line}-${index}`} size="compact" className="max-w-none">
+              {line}
+            </PanelBody>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function CommentDirectives({ comments }: { comments: string[] }) {
+  return (
+    <div className="grid min-w-0 gap-[var(--space-2)]">
+      <PanelEyebrow className="break-words">HTML comments rendered as directives</PanelEyebrow>
+      <div className="grid min-w-0 max-w-full gap-[var(--space-2)] sm:grid-cols-2">
+        {comments.map((comment) => (
+          <code
+            key={comment}
+            className="block min-w-0 max-w-full whitespace-normal break-all border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-[var(--space-2)] py-[var(--space-2)] font-mono text-[0.78rem] leading-tight text-[var(--text-primary)]"
+          >
+            {comment}
+          </code>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function DoDontPanel({ item }: { item: SkillExplorerItem }) {
+  return (
+    <div className="grid min-w-0 gap-[var(--space-3)] lg:grid-cols-2">
+      <div className="min-w-0 border-2 border-[var(--brand-primary)] bg-[var(--surface-base)] p-[var(--space-3)]">
+        <PanelEyebrow>Do</PanelEyebrow>
+        <ul className="mt-[var(--space-2)] space-y-[var(--space-2)]">
+          {item.doItems.map((entry) => (
+            <PanelBody key={entry} as="li" size="compact" className="flex max-w-none gap-[var(--space-2)]">
+              <Check aria-hidden="true" className="mt-[0.2rem] h-[var(--space-4)] w-[var(--space-4)] shrink-0 text-[var(--brand-primary)]" />
+              <span>{entry}</span>
+            </PanelBody>
+          ))}
+        </ul>
+      </div>
+      <div className="min-w-0 border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)] p-[var(--space-3)]">
+        <PanelEyebrow>Do not</PanelEyebrow>
+        <ul className="mt-[var(--space-2)] space-y-[var(--space-2)]">
+          {item.dontItems.map((entry) => (
+            <PanelBody key={entry} as="li" size="compact" className="flex max-w-none gap-[var(--space-2)]">
+              <span aria-hidden="true" className="mt-[0.05rem] font-display text-[length:var(--type-panel-title-nav-size)] font-black leading-none text-[var(--text-primary)]">
+                X
+              </span>
+              <span>{entry}</span>
+            </PanelBody>
+          ))}
+        </ul>
+      </div>
+    </div>
+  )
+}
+
+function SkillVisual({ item }: { item: SkillExplorerItem }) {
+  const Icon = item.icon
+
+  return (
+    <div className="grid min-h-[14rem] min-w-0 content-between gap-[var(--space-3)] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-3)]">
+      <div className="flex items-start justify-between gap-[var(--space-3)]">
+        <div className="grid h-[var(--space-8)] w-[var(--space-8)] place-items-center border-2 border-[var(--border-strong)] bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]">
+          <Icon aria-hidden="true" className="h-[var(--space-5)] w-[var(--space-5)]" />
+        </div>
+        <PanelEyebrow className="text-right">{item.badge}</PanelEyebrow>
+      </div>
+
+      <div className="grid gap-[var(--space-2)]">
+        {item.files.map((file) => (
+          <div key={file} className="flex items-center gap-[var(--space-2)] border border-[var(--border-default)] bg-[var(--surface-base)] px-[var(--space-2)] py-[var(--space-2)]">
+            <FileText aria-hidden="true" className="h-[var(--space-4)] w-[var(--space-4)] shrink-0 text-[var(--brand-primary)]" />
+            <code className="min-w-0 break-all font-mono text-[0.78rem] text-[var(--text-primary)]">{file}</code>
+          </div>
+        ))}
+      </div>
+
+      <PanelBody size="compact" className="max-w-none">
+        {item.summary}
+      </PanelBody>
+    </div>
+  )
+}
+
+function SkillExplorer() {
+  const [active, setActive] = useState(SKILL_EXPLORER_ITEMS[0].id)
+  const activeItem = SKILL_EXPLORER_ITEMS.find((item) => item.id === active) ?? SKILL_EXPLORER_ITEMS[0]
+  const activeIndex = SKILL_EXPLORER_ITEMS.findIndex((item) => item.id === active)
+  const focusTab = (index: number) => {
+    const next = SKILL_EXPLORER_ITEMS[index]
+    if (!next) return
+    document.getElementById(`skill-explorer-tab-${next.id}`)?.focus()
+    setActive(next.id)
+  }
+  const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
+      event.preventDefault()
+      focusTab((index + 1) % SKILL_EXPLORER_ITEMS.length)
+    }
+    if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
+      event.preventDefault()
+      focusTab((index - 1 + SKILL_EXPLORER_ITEMS.length) % SKILL_EXPLORER_ITEMS.length)
+    }
+    if (event.key === 'Home') {
+      event.preventDefault()
+      focusTab(0)
+    }
+    if (event.key === 'End') {
+      event.preventDefault()
+      focusTab(SKILL_EXPLORER_ITEMS.length - 1)
+    }
+  }
+
+  return (
+    <div className="grid gap-[var(--space-4)]">
+      <div className="flex items-center gap-[var(--space-2)] text-[var(--brand-primary-foreground)]">
+        <FolderTree aria-hidden="true" className="h-[var(--space-5)] w-[var(--space-5)]" />
+        <PanelEyebrow tone="primary">Clickable skill explorer</PanelEyebrow>
+      </div>
+      <div className="grid min-w-0 gap-[var(--space-4)]">
+        <div role="tablist" aria-label="Port Daddy agent skill file tree" className="grid content-start gap-[var(--space-2)] sm:grid-cols-2">
+          {SKILL_EXPLORER_ITEMS.map((item, index) => {
+            const Icon = item.icon
+            const selected = active === item.id
+
+            return (
+              <button
+                key={item.id}
+                id={`skill-explorer-tab-${item.id}`}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                aria-controls={`skill-explorer-panel-${item.id}`}
+                tabIndex={activeIndex === index ? 0 : -1}
+                onClick={() => setActive(item.id)}
+                onKeyDown={(event) => handleKeyDown(event, index)}
+                className="group flex w-full items-center justify-between gap-[var(--space-2)] border-2 border-current px-[var(--space-3)] py-[var(--space-2)] text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--brand-primary-foreground)]"
+                style={
+                  selected
+                    ? { background: 'var(--surface-base)', color: 'var(--text-primary)' }
+                    : { background: 'transparent', color: 'var(--brand-primary-foreground)' }
+                }
+              >
+                <span className="flex min-w-0 items-center gap-[var(--space-2)]">
+                  <Icon aria-hidden="true" className="h-[var(--space-4)] w-[var(--space-4)] shrink-0" />
+                  <span className="truncate font-mono text-[0.82rem]">{item.label}</span>
+                </span>
+                <ArrowRight aria-hidden="true" className="h-[var(--space-4)] w-[var(--space-4)] shrink-0 opacity-70 transition-transform group-hover:translate-x-1" />
+              </button>
+            )
+          })}
+        </div>
+
+        <div
+          id={`skill-explorer-panel-${activeItem.id}`}
+          role="tabpanel"
+          aria-labelledby={`skill-explorer-tab-${activeItem.id}`}
+          className="min-w-0 border-2 border-current bg-[var(--surface-base)] p-[var(--space-4)] text-[var(--text-primary)]"
+        >
+          <div className="grid gap-[var(--space-4)]">
+            <div className="min-w-0 space-y-[var(--space-2)]">
+              <PanelEyebrow className="break-all">{activeItem.path}</PanelEyebrow>
+              <PanelTitle as="h3" size="card" className="break-words">
+                {activeItem.label}
+              </PanelTitle>
+              <PanelBody size="compact" className="max-w-none">
+                {activeItem.summary}
+              </PanelBody>
+            </div>
+
+            <div className="grid gap-[var(--space-3)]">
+              <SkillVisual item={activeItem} />
+              <MarkdownPreview lines={activeItem.markdown} />
+            </div>
+
+            <CommentDirectives comments={activeItem.comments} />
+
+            {activeItem.mermaid ? (
+              <div className="grid gap-[var(--space-3)]">
+                <PanelEyebrow>Mermaid pretty print</PanelEyebrow>
+                <div className="[&>div]:my-0">
+                  <Mermaid chart={activeItem.mermaid} />
+                </div>
+                <DocsCodeBlock code={activeItem.mermaid} language="text" label="Mermaid source" />
+              </div>
+            ) : null}
+
+            {activeItem.code ? (
+              <DocsCodeBlock code={activeItem.code} language="text" label={activeItem.codeLabel ?? 'Source snippet'} />
+            ) : null}
+
+            {activeItem.image ? (
+              <figure className="grid min-w-0 gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-3)]">
+                <img
+                  src={activeItem.image.src}
+                  alt={activeItem.image.alt}
+                  className="block aspect-[16/10] w-full border border-[var(--border-default)] object-cover"
+                />
+                <figcaption className="font-sans text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
+                  {activeItem.image.caption}
+                </figcaption>
+              </figure>
+            ) : null}
+
+            <DoDontPanel item={activeItem} />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function LifecycleDiagram() {
   const steps = [
     ['heartbeat gap', 'Detect stale body lease'],
@@ -694,7 +1264,7 @@ export default function McpPage() {
                 <SectionIntro
                   eyebrow="Agent skill"
                   title="The instruction manual is now first-class."
-                  description="The skill is not hidden under the agent catalog. It is the operating manual for Port Daddy-aware agents, distributed with the binaries and mirrored into the tool-specific skill directories that agents actually read."
+                  description="Port Daddy installs the manual in the project folder for Port Daddy-using projects, then mirrors it into the local places Codex, Gemini, Claude, and AGENTS.md-aware tools actually read."
                   titleSize="display"
                 />
               </SwissGridItem>
@@ -709,7 +1279,16 @@ export default function McpPage() {
                     </PanelTitle>
                     <PanelBody tone="primary" className="max-w-none">
                       Procedural knowledge is the repeatable operating know-how an agent uses under pressure, not
-                      just facts about a tool. WinDAGs lays out the distinction in{' '}
+                      just facts about a tool.{' '}
+                      <a
+                        href={PROCEDURAL_KNOWLEDGE_URL}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-semibold underline underline-offset-4"
+                      >
+                        WinDAGs explains procedural knowledge
+                      </a>{' '}
+                      in its post on{' '}
                       <a
                         href={PROCEDURAL_KNOWLEDGE_URL}
                         target="_blank"
@@ -720,31 +1299,23 @@ export default function McpPage() {
                       </a>
                       .
                     </PanelBody>
-                    <div className="grid gap-[var(--space-2)]">
-                      {SKILL_BUNDLE_ITEMS.map(([name, body]) => (
-                        <div key={name} className="border-2 border-current bg-transparent p-[var(--space-3)]">
-                          <PanelTitle as="h3" size="nav" tone="primary">
-                            {name}
-                          </PanelTitle>
-                          <PanelBody size="compact" tone="primary" className="mt-[var(--space-1)] max-w-none">
-                            {body}
-                          </PanelBody>
-                        </div>
-                      ))}
-                    </div>
+                    <SkillExplorer />
                   </SurfacePanel>
 
                   <SurfacePanel className="space-y-[var(--panel-gap)]">
                     <BracketLabel>Install surfaces</BracketLabel>
                     <PanelTitle as="h2" size="card">
-                      One doctrine, every agent runner.
+                      Installs project-local, then mirrors to each runner.
                     </PanelTitle>
                     <PanelBody className="max-w-none">
-                      Port Daddy packages the source skill and mirrors it into the local skill locations so agents do not drift by client. The MCP server then exposes the same coordination primitives to those clients at runtime.
+                      Port Daddy installs the skill in the project folder for Port Daddy-using projects, compatible with Codex, Gemini, Claude, and AGENTS.md-aware agents. AGENTS.md is an open Markdown instruction format for coding agents, not a Vercel-only spec.
                     </PanelBody>
-                    <div className="grid gap-[var(--space-2)]">
+                    <PanelBody size="compact" className="max-w-none">
+                      The MCP server exposes the same coordination primitives to those clients at runtime, so the manual and the callable tools stay connected.
+                    </PanelBody>
+                    <div className="grid gap-[var(--space-2)] sm:grid-cols-2">
                       {SKILL_INSTALL_SURFACES.map(([label, body]) => (
-                        <div key={label} className="grid gap-[var(--space-1)] border-2 border-[var(--border-default)] bg-[var(--surface-base)] p-[var(--space-3)]">
+                        <div key={label} className="grid gap-[var(--space-1)] border-2 border-[var(--border-default)] bg-[var(--surface-base)] p-[var(--space-2)]">
                           <PanelEyebrow>{label}</PanelEyebrow>
                           <PanelBody size="compact" className="max-w-none">
                             {body}
@@ -752,6 +1323,14 @@ export default function McpPage() {
                         </div>
                       ))}
                     </div>
+                    <a
+                      href={AGENTS_MD_URL}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex border-2 border-[var(--border-strong)] px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-strong)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]"
+                    >
+                      AGENTS.md open format
+                    </a>
                     <DocsCodeBlock
                       code={READINESS_TRANSCRIPT}
                       language="cli"
