@@ -51,6 +51,7 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 - [pd claim <id> - Port Daddy](https://portdaddy.dev/docs/cli/claim): Reference for pd claim <id>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd compass - Port Daddy](https://portdaddy.dev/docs/cli/compass): Reference for pd compass, including Port Daddy syntax, what the command does, and when to use it.
 - [pd config - Port Daddy](https://portdaddy.dev/docs/cli/config): Reference for pd config, including Port Daddy syntax, what the command does, and when to use it.
+- [pd d - Port Daddy](https://portdaddy.dev/docs/cli/d): Reference for pd d, including Port Daddy syntax, what the command does, and when to use it.
 - [pd daemon <command> - Port Daddy](https://portdaddy.dev/docs/cli/daemon): Reference for pd daemon <command>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd dashboard - Port Daddy](https://portdaddy.dev/docs/cli/dashboard): Reference for pd dashboard, including Port Daddy syntax, what the command does, and when to use it.
 - [pd demo <name> - Port Daddy](https://portdaddy.dev/docs/cli/demo): Reference for pd demo <name>, including Port Daddy syntax, what the command does, and when to use it.
@@ -92,6 +93,7 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 - [pd mcp install - Port Daddy](https://portdaddy.dev/docs/cli/mcp-install): Reference for pd mcp install, including Port Daddy syntax, what the command does, and when to use it.
 - [pd memory episodes|stats - Port Daddy](https://portdaddy.dev/docs/cli/memory-episodes-stats): Reference for pd memory episodes|stats, including Port Daddy syntax, what the command does, and when to use it.
 - [pd metrics - Port Daddy](https://portdaddy.dev/docs/cli/metrics): Reference for pd metrics, including Port Daddy syntax, what the command does, and when to use it.
+- [pd n - Port Daddy](https://portdaddy.dev/docs/cli/n): Reference for pd n, including Port Daddy syntax, what the command does, and when to use it.
 - [pd note <content> - Port Daddy](https://portdaddy.dev/docs/cli/note): Reference for pd note <content>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd notes [session-id] - Port Daddy](https://portdaddy.dev/docs/cli/notes): Reference for pd notes [session-id], including Port Daddy syntax, what the command does, and when to use it.
 - [pd p - Port Daddy](https://portdaddy.dev/docs/cli/p): Reference for pd p, including Port Daddy syntax, what the command does, and when to use it.
@@ -136,6 +138,7 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 - [pd tunnel stop <identity> - Port Daddy](https://portdaddy.dev/docs/cli/tunnel-stop): Reference for pd tunnel stop <identity>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd tuple <command> - Port Daddy](https://portdaddy.dev/docs/cli/tuple): Reference for pd tuple <command>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd tutorial - Port Daddy](https://portdaddy.dev/docs/cli/tutorial): Reference for pd tutorial, including Port Daddy syntax, what the command does, and when to use it.
+- [pd u - Port Daddy](https://portdaddy.dev/docs/cli/u): Reference for pd u, including Port Daddy syntax, what the command does, and when to use it.
 - [pd uninstall - Port Daddy](https://portdaddy.dev/docs/cli/uninstall): Reference for pd uninstall, including Port Daddy syntax, what the command does, and when to use it.
 - [pd up - Port Daddy](https://portdaddy.dev/docs/cli/up): Reference for pd up, including Port Daddy syntax, what the command does, and when to use it.
 - [pd url <id> - Port Daddy](https://portdaddy.dev/docs/cli/url): Reference for pd url <id>, including Port Daddy syntax, what the command does, and when to use it.

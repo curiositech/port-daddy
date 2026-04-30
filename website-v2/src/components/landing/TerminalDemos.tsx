@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Play, Square } from 'lucide-react'
-import { TerminalGif } from '@/components/site/TerminalGif'
 import { PageContainer, PanelBody, PanelTitle, SectionIntro } from '@/components/site/primitives'
+import { CommandTerminal } from '@/components/ui/CommandTerminal'
 
 const DEMOS = [
   {

@@ -64,12 +64,6 @@ function FeatureArt({
   )
 }
 
-const statusLabel: Record<Feature['status'], string> = {
-  core: 'Core surface',
-  new: 'Live surface',
-  preview: 'Preview surface',
-}
-
 function FeatureDetailDialog({
   feature,
   onClose,

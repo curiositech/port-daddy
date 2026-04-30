@@ -1066,6 +1066,19 @@ describe('CLI Integration Tests', () => {
       runCli(['session', 'rm', sessionData.id]);
     });
 
+    test('pd n works as the top-level note alias advertised by completions', () => {
+      const sessionResult = runCli(['session', 'start', 'Short alias note test', '--json']);
+      const sessionData = JSON.parse(sessionResult.stdout);
+
+      const result = runCli(['n', '-c', 'Short alias content', '--session', sessionData.id, '--json']);
+      expect(result.success).toBe(true);
+
+      const data = JSON.parse(result.stdout);
+      expect(data.success).toBe(true);
+
+      runCli(['session', 'rm', sessionData.id]);
+    });
+
     test('pd note falls back to active agent when stored session context is stale', () => {
       const identity = `port-daddy:test:stale-note-${process.pid}-${Date.now()}`;
       const beginResult = runCli([

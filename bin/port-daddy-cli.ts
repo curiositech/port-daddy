@@ -2056,10 +2056,12 @@ async function main(): Promise<void> {
         break;
 
       // Orchestration
+      case 'u':
       case 'up':
         await handleUp(positional, options);
         break;
 
+      case 'd':
       case 'down':
         await handleDown(options);
         break;
@@ -2141,6 +2143,7 @@ async function main(): Promise<void> {
         await handleSessions(options);
         break;
 
+      case 'n':
       case 'note':
         await handleNote(positional[0], options);
         break;

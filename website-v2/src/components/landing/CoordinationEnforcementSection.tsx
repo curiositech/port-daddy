@@ -1,4 +1,4 @@
-import { CheckCircle2, FileCheck2, GitCommit, LockKeyhole, MonitorCog, NotebookTabs, ShieldCheck } from 'lucide-react'
+import { CheckCircle2, FileCheck2, GitCommit, LockKeyhole, MonitorCheck, MonitorCog, NotebookTabs, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import {
   PageContainer,

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-29T21:01:47.805Z",
+  "generatedAt": "2026-04-30T02:21:19.402Z",
   "generator": "website-v2/scripts/generate-og-cards.mjs",
   "renderer": "website-v2/scripts/render-og-cards.py",
   "siteName": "Port Daddy",
@@ -40,7 +40,7 @@
       "image": "/img/og/blog-control-plane-is-the-product.jpg",
       "route": "/blog/control-plane-is-the-product",
       "title": "The Control Plane Is the Product - Port Daddy",
-      "description": "The website caught up to the app: FleetBar opens the real Fleet Control Center, readiness is visible before launch, and the public story is now about operator truth instead of decorative metaphor.",
+      "description": "A local agent system is only trustworthy when project identity, file ownership, runtime provenance, backend readiness, cost, and recovery share one inspectable control plane.",
       "section": "blog",
       "sectionLabel": "Field Note",
       "sourceImage": "/img/generated/blog-control-plane-product.jpg"
@@ -75,7 +75,7 @@
     {
       "image": "/img/og/blog-recovery-roadmap-map-truth.jpg",
       "route": "/blog/recovery-roadmap-map-truth",
-      "title": "Keeping The Map Honest - Port Daddy",
+      "title": "Keeping the Map Honest - Port Daddy",
       "description": "Roadmaps, recovery docs, session notes, and live daemon state drift unless one surface reconciles them into an operator-readable map.",
       "section": "blog",
       "sectionLabel": "Field Note",
@@ -84,7 +84,7 @@
     {
       "image": "/img/og/blog-running-is-not-current.jpg",
       "route": "/blog/running-is-not-current",
-      "title": "Running Is Not The Same As Current - Port Daddy",
+      "title": "Running Is Not the Same as Current - Port Daddy",
       "description": "A daemon can be alive, reachable, and still serving the wrong checkout. Runtime provenance has to be visible before you trust UI or CLI behavior.",
       "section": "blog",
       "sectionLabel": "Field Note",
@@ -93,7 +93,7 @@
     {
       "image": "/img/og/blog-telemetry-is-a-launch-gate.jpg",
       "route": "/blog/telemetry-is-a-launch-gate",
-      "title": "Telemetry Is A Launch Gate - Port Daddy",
+      "title": "Telemetry Is a Launch Gate - Port Daddy",
       "description": "Operator-facing launches should not succeed unless the backend can prove exact tokens, exact rates, and persisted nonzero cost.",
       "section": "blog",
       "sectionLabel": "Field Note",
@@ -127,6 +127,60 @@
       "sourceImage": "/img/generated/control-plane-og.jpg"
     },
     {
+      "image": "/img/og/docs-cli-activity.jpg",
+      "route": "/docs/cli/activity",
+      "title": "pd activity - Port Daddy",
+      "description": "Reference for pd activity, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-actor.jpg",
+      "route": "/docs/cli/actor",
+      "title": "pd actor <id> - Port Daddy",
+      "description": "Reference for pd actor <id>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-actors.jpg",
+      "route": "/docs/cli/actors",
+      "title": "pd actors - Port Daddy",
+      "description": "Reference for pd actors, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-add.jpg",
+      "route": "/docs/cli/add",
+      "title": "pd add [path...] - Port Daddy",
+      "description": "Reference for pd add [path...], including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-advise.jpg",
+      "route": "/docs/cli/advise",
+      "title": "pd advise [files...] - Port Daddy",
+      "description": "Reference for pd advise [files...], including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-agent-heartbeat-unregister-inbox.jpg",
+      "route": "/docs/cli/agent-heartbeat-unregister-inbox",
+      "title": "pd agent heartbeat|unregister|inbox|<id> - Port Daddy",
+      "description": "Reference for pd agent heartbeat|unregister|inbox|<id>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
       "image": "/img/og/docs-cli-agent-register.jpg",
       "route": "/docs/cli/agent-register",
       "title": "pd agent register - Port Daddy",
@@ -136,10 +190,118 @@
       "sourceImage": "/img/generated/control-plane-og.jpg"
     },
     {
+      "image": "/img/og/docs-cli-agent-run.jpg",
+      "route": "/docs/cli/agent-run",
+      "title": "pd agent run <task> - Port Daddy",
+      "description": "Reference for pd agent run <task>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-agent.jpg",
+      "route": "/docs/cli/agent",
+      "title": "pd agent \"task\" - Port Daddy",
+      "description": "Reference for pd agent \"task\", including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-agents.jpg",
+      "route": "/docs/cli/agents",
+      "title": "pd agents - Port Daddy",
+      "description": "Reference for pd agents, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-b.jpg",
+      "route": "/docs/cli/b",
+      "title": "pd b - Port Daddy",
+      "description": "Reference for pd b, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
       "image": "/img/og/docs-cli-begin.jpg",
       "route": "/docs/cli/begin",
-      "title": "pd begin - Port Daddy",
-      "description": "Reference for pd begin, including Port Daddy syntax, what the command does, and when to use it.",
+      "title": "pd begin \"purpose\" - Port Daddy",
+      "description": "Reference for pd begin \"purpose\", including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-bench.jpg",
+      "route": "/docs/cli/bench",
+      "title": "pd bench [iterations] - Port Daddy",
+      "description": "Reference for pd bench [iterations], including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-bond.jpg",
+      "route": "/docs/cli/bond",
+      "title": "pd bond <command> - Port Daddy",
+      "description": "Reference for pd bond <command>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-briefing.jpg",
+      "route": "/docs/cli/briefing",
+      "title": "pd briefing - Port Daddy",
+      "description": "Reference for pd briefing, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-broadcast.jpg",
+      "route": "/docs/cli/broadcast",
+      "title": "pd broadcast - Port Daddy",
+      "description": "Reference for pd broadcast, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-c.jpg",
+      "route": "/docs/cli/c",
+      "title": "pd c - Port Daddy",
+      "description": "Reference for pd c, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-changelog.jpg",
+      "route": "/docs/cli/changelog",
+      "title": "pd changelog <command> - Port Daddy",
+      "description": "Reference for pd changelog <command>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-channels.jpg",
+      "route": "/docs/cli/channels",
+      "title": "pd channels - Port Daddy",
+      "description": "Reference for pd channels, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-ci-gate.jpg",
+      "route": "/docs/cli/ci-gate",
+      "title": "pd ci-gate - Port Daddy",
+      "description": "Reference for pd ci-gate, including Port Daddy syntax, what the command does, and when to use it.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -147,17 +309,98 @@
     {
       "image": "/img/og/docs-cli-claim.jpg",
       "route": "/docs/cli/claim",
-      "title": "pd claim - Port Daddy",
-      "description": "Reference for pd claim, including Port Daddy syntax, what the command does, and when to use it.",
+      "title": "pd claim <id> - Port Daddy",
+      "description": "Reference for pd claim <id>, including Port Daddy syntax, what the command does, and when to use it.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/coordination-guard.jpg"
     },
     {
+      "image": "/img/og/docs-cli-compass.jpg",
+      "route": "/docs/cli/compass",
+      "title": "pd compass - Port Daddy",
+      "description": "Reference for pd compass, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-config.jpg",
+      "route": "/docs/cli/config",
+      "title": "pd config - Port Daddy",
+      "description": "Reference for pd config, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-d.jpg",
+      "route": "/docs/cli/d",
+      "title": "pd d - Port Daddy",
+      "description": "Reference for pd d, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-daemon.jpg",
+      "route": "/docs/cli/daemon",
+      "title": "pd daemon <command> - Port Daddy",
+      "description": "Reference for pd daemon <command>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-dashboard.jpg",
+      "route": "/docs/cli/dashboard",
+      "title": "pd dashboard - Port Daddy",
+      "description": "Reference for pd dashboard, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-demo.jpg",
+      "route": "/docs/cli/demo",
+      "title": "pd demo <name> - Port Daddy",
+      "description": "Reference for pd demo <name>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-dev.jpg",
+      "route": "/docs/cli/dev",
+      "title": "pd dev <command> - Port Daddy",
+      "description": "Reference for pd dev <command>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-diagnose.jpg",
+      "route": "/docs/cli/diagnose",
+      "title": "pd diagnose - Port Daddy",
+      "description": "Reference for pd diagnose, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
       "image": "/img/og/docs-cli-dns.jpg",
       "route": "/docs/cli/dns",
-      "title": "pd dns - Port Daddy",
-      "description": "Reference for pd dns, including Port Daddy syntax, what the command does, and when to use it.",
+      "title": "pd dns <command> - Port Daddy",
+      "description": "Reference for pd dns <command>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-doctor.jpg",
+      "route": "/docs/cli/doctor",
+      "title": "pd doctor - Port Daddy",
+      "description": "Reference for pd doctor, including Port Daddy syntax, what the command does, and when to use it.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -165,8 +408,8 @@
     {
       "image": "/img/og/docs-cli-done.jpg",
       "route": "/docs/cli/done",
-      "title": "pd done - Port Daddy",
-      "description": "Reference for pd done, including Port Daddy syntax, what the command does, and when to use it.",
+      "title": "pd done \"summary\" - Port Daddy",
+      "description": "Reference for pd done \"summary\", including Port Daddy syntax, what the command does, and when to use it.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -181,46 +424,82 @@
       "sourceImage": "/img/generated/control-plane-og.jpg"
     },
     {
-      "image": "/img/og/docs-cli-find.jpg",
-      "route": "/docs/cli/find",
-      "title": "pd find - Port Daddy",
-      "description": "Reference for pd find, including Port Daddy syntax, what the command does, and when to use it.",
+      "image": "/img/og/docs-cli-env.jpg",
+      "route": "/docs/cli/env",
+      "title": "pd env [pattern] - Port Daddy",
+      "description": "Reference for pd env [pattern], including Port Daddy syntax, what the command does, and when to use it.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/control-plane-og.jpg"
     },
     {
-      "image": "/img/og/docs-cli-fleet.jpg",
-      "route": "/docs/cli/fleet",
-      "title": "pd fleet - Port Daddy",
-      "description": "Reference for pd fleet, including Port Daddy syntax, what the command does, and when to use it.",
+      "image": "/img/og/docs-cli-f.jpg",
+      "route": "/docs/cli/f",
+      "title": "pd f - Port Daddy",
+      "description": "Reference for pd f, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-feedback.jpg",
+      "route": "/docs/cli/feedback",
+      "title": "pd feedback <command> - Port Daddy",
+      "description": "Reference for pd feedback <command>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-find.jpg",
+      "route": "/docs/cli/find",
+      "title": "pd find [pattern] - Port Daddy",
+      "description": "Reference for pd find [pattern], including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-fleet-panic-unpanic.jpg",
+      "route": "/docs/cli/fleet-panic-unpanic",
+      "title": "pd fleet panic|unpanic - Port Daddy",
+      "description": "Reference for pd fleet panic|unpanic, including Port Daddy syntax, what the command does, and when to use it.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/virtual-actor-fleet.jpg"
     },
     {
+      "image": "/img/og/docs-cli-fleet.jpg",
+      "route": "/docs/cli/fleet",
+      "title": "pd fleet init|up|down|status|validate|run - Port Daddy",
+      "description": "Reference for pd fleet init|up|down|status|validate|run, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/virtual-actor-fleet.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-graph-edges-stats.jpg",
+      "route": "/docs/cli/graph-edges-stats",
+      "title": "pd graph edges|stats - Port Daddy",
+      "description": "Reference for pd graph edges|stats, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-guard.jpg",
+      "route": "/docs/cli/guard",
+      "title": "pd guard <command> - Port Daddy",
+      "description": "Reference for pd guard <command>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/coordination-guard.jpg"
+    },
+    {
       "image": "/img/og/docs-cli-harbor-create.jpg",
       "route": "/docs/cli/harbor-create",
-      "title": "pd harbor create - Port Daddy",
-      "description": "Reference for pd harbor create, including Port Daddy syntax, what the command does, and when to use it.",
-      "section": "docs",
-      "sectionLabel": "Docs",
-      "sourceImage": "/img/generated/control-plane-og.jpg"
-    },
-    {
-      "image": "/img/og/docs-cli-harbor-enter.jpg",
-      "route": "/docs/cli/harbor-enter",
-      "title": "pd harbor enter - Port Daddy",
-      "description": "Reference for pd harbor enter, including Port Daddy syntax, what the command does, and when to use it.",
-      "section": "docs",
-      "sectionLabel": "Docs",
-      "sourceImage": "/img/generated/control-plane-og.jpg"
-    },
-    {
-      "image": "/img/og/docs-cli-harbor-leave.jpg",
-      "route": "/docs/cli/harbor-leave",
-      "title": "pd harbor leave - Port Daddy",
-      "description": "Reference for pd harbor leave, including Port Daddy syntax, what the command does, and when to use it.",
+      "title": "pd harbor create|enter|leave|show|destroy - Port Daddy",
+      "description": "Reference for pd harbor create|enter|leave|show|destroy, including Port Daddy syntax, what the command does, and when to use it.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -235,6 +514,60 @@
       "sourceImage": "/img/generated/control-plane-og.jpg"
     },
     {
+      "image": "/img/og/docs-cli-health.jpg",
+      "route": "/docs/cli/health",
+      "title": "pd health - Port Daddy",
+      "description": "Reference for pd health, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-help.jpg",
+      "route": "/docs/cli/help",
+      "title": "pd help <topic> - Port Daddy",
+      "description": "Reference for pd help <topic>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-hints.jpg",
+      "route": "/docs/cli/hints",
+      "title": "pd hints - Port Daddy",
+      "description": "Reference for pd hints, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-history.jpg",
+      "route": "/docs/cli/history",
+      "title": "pd history - Port Daddy",
+      "description": "Reference for pd history, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-ideas-list-search-show.jpg",
+      "route": "/docs/cli/ideas-list-search-show",
+      "title": "pd ideas list|search|show - Port Daddy",
+      "description": "Reference for pd ideas list|search|show, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-inbox.jpg",
+      "route": "/docs/cli/inbox",
+      "title": "pd inbox <command> - Port Daddy",
+      "description": "Reference for pd inbox <command>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
       "image": "/img/og/docs-cli-init.jpg",
       "route": "/docs/cli/init",
       "title": "pd init - Port Daddy",
@@ -244,10 +577,64 @@
       "sourceImage": "/img/generated/control-plane-og.jpg"
     },
     {
+      "image": "/img/og/docs-cli-install.jpg",
+      "route": "/docs/cli/install",
+      "title": "pd install - Port Daddy",
+      "description": "Reference for pd install, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/fleetbar-install.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-integration.jpg",
+      "route": "/docs/cli/integration",
+      "title": "pd integration <command> - Port Daddy",
+      "description": "Reference for pd integration <command>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-l.jpg",
+      "route": "/docs/cli/l",
+      "title": "pd l - Port Daddy",
+      "description": "Reference for pd l, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-learn.jpg",
+      "route": "/docs/cli/learn",
+      "title": "pd learn - Port Daddy",
+      "description": "Reference for pd learn, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-list.jpg",
+      "route": "/docs/cli/list",
+      "title": "pd list - Port Daddy",
+      "description": "Reference for pd list, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-listen.jpg",
+      "route": "/docs/cli/listen",
+      "title": "pd listen - Port Daddy",
+      "description": "Reference for pd listen, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
       "image": "/img/og/docs-cli-lock-acquire.jpg",
       "route": "/docs/cli/lock-acquire",
-      "title": "pd lock acquire - Port Daddy",
-      "description": "Reference for pd lock acquire, including Port Daddy syntax, what the command does, and when to use it.",
+      "title": "pd lock <name> - Port Daddy",
+      "description": "Reference for pd lock <name>, including Port Daddy syntax, what the command does, and when to use it.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/coordination-guard.jpg"
@@ -255,11 +642,38 @@
     {
       "image": "/img/og/docs-cli-lock-release.jpg",
       "route": "/docs/cli/lock-release",
-      "title": "pd lock release - Port Daddy",
-      "description": "Reference for pd lock release, including Port Daddy syntax, what the command does, and when to use it.",
+      "title": "pd unlock <name> - Port Daddy",
+      "description": "Reference for pd unlock <name>, including Port Daddy syntax, what the command does, and when to use it.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/coordination-guard.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-locks.jpg",
+      "route": "/docs/cli/locks",
+      "title": "pd locks - Port Daddy",
+      "description": "Reference for pd locks, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/coordination-guard.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-log.jpg",
+      "route": "/docs/cli/log",
+      "title": "pd log - Port Daddy",
+      "description": "Reference for pd log, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-look.jpg",
+      "route": "/docs/cli/look",
+      "title": "pd look - Port Daddy",
+      "description": "Reference for pd look, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
     },
     {
       "image": "/img/og/docs-cli-mcp-install.jpg",
@@ -271,10 +685,37 @@
       "sourceImage": "/img/generated/fleetbar-install.jpg"
     },
     {
-      "image": "/img/og/docs-cli-msg.jpg",
-      "route": "/docs/cli/msg",
-      "title": "pd msg - Port Daddy",
-      "description": "Reference for pd msg, including Port Daddy syntax, what the command does, and when to use it.",
+      "image": "/img/og/docs-cli-mcp.jpg",
+      "route": "/docs/cli/mcp",
+      "title": "pd mcp - Port Daddy",
+      "description": "Reference for pd mcp, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-memory-episodes-stats.jpg",
+      "route": "/docs/cli/memory-episodes-stats",
+      "title": "pd memory episodes|stats - Port Daddy",
+      "description": "Reference for pd memory episodes|stats, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-metrics.jpg",
+      "route": "/docs/cli/metrics",
+      "title": "pd metrics - Port Daddy",
+      "description": "Reference for pd metrics, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-n.jpg",
+      "route": "/docs/cli/n",
+      "title": "pd n - Port Daddy",
+      "description": "Reference for pd n, including Port Daddy syntax, what the command does, and when to use it.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -282,8 +723,8 @@
     {
       "image": "/img/og/docs-cli-note.jpg",
       "route": "/docs/cli/note",
-      "title": "pd note - Port Daddy",
-      "description": "Reference for pd note, including Port Daddy syntax, what the command does, and when to use it.",
+      "title": "pd note <content> - Port Daddy",
+      "description": "Reference for pd note <content>, including Port Daddy syntax, what the command does, and when to use it.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -291,8 +732,71 @@
     {
       "image": "/img/og/docs-cli-notes.jpg",
       "route": "/docs/cli/notes",
-      "title": "pd notes - Port Daddy",
-      "description": "Reference for pd notes, including Port Daddy syntax, what the command does, and when to use it.",
+      "title": "pd notes [session-id] - Port Daddy",
+      "description": "Reference for pd notes [session-id], including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-p.jpg",
+      "route": "/docs/cli/p",
+      "title": "pd p - Port Daddy",
+      "description": "Reference for pd p, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-ph.jpg",
+      "route": "/docs/cli/ph",
+      "title": "pd ph - Port Daddy",
+      "description": "Reference for pd ph, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-pheromone.jpg",
+      "route": "/docs/cli/pheromone",
+      "title": "pd pheromone <command> - Port Daddy",
+      "description": "Reference for pd pheromone <command>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-ports.jpg",
+      "route": "/docs/cli/ports",
+      "title": "pd ports - Port Daddy",
+      "description": "Reference for pd ports, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-preflight.jpg",
+      "route": "/docs/cli/preflight",
+      "title": "pd preflight - Port Daddy",
+      "description": "Reference for pd preflight, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-projects.jpg",
+      "route": "/docs/cli/projects",
+      "title": "pd projects - Port Daddy",
+      "description": "Reference for pd projects, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-ps.jpg",
+      "route": "/docs/cli/ps",
+      "title": "pd ps - Port Daddy",
+      "description": "Reference for pd ps, including Port Daddy syntax, what the command does, and when to use it.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -300,8 +804,35 @@
     {
       "image": "/img/og/docs-cli-pub.jpg",
       "route": "/docs/cli/pub",
-      "title": "pd pub - Port Daddy",
-      "description": "Reference for pd pub, including Port Daddy syntax, what the command does, and when to use it.",
+      "title": "pd pub <channel> <message> - Port Daddy",
+      "description": "Reference for pd pub <channel> <message>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-publish.jpg",
+      "route": "/docs/cli/publish",
+      "title": "pd publish - Port Daddy",
+      "description": "Reference for pd publish, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-quorum.jpg",
+      "route": "/docs/cli/quorum",
+      "title": "pd quorum <command> - Port Daddy",
+      "description": "Reference for pd quorum <command>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-r.jpg",
+      "route": "/docs/cli/r",
+      "title": "pd r - Port Daddy",
+      "description": "Reference for pd r, including Port Daddy syntax, what the command does, and when to use it.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -309,8 +840,26 @@
     {
       "image": "/img/og/docs-cli-release.jpg",
       "route": "/docs/cli/release",
-      "title": "pd release - Port Daddy",
-      "description": "Reference for pd release, including Port Daddy syntax, what the command does, and when to use it.",
+      "title": "pd release <id> - Port Daddy",
+      "description": "Reference for pd release <id>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-restart.jpg",
+      "route": "/docs/cli/restart",
+      "title": "pd restart - Port Daddy",
+      "description": "Reference for pd restart, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-resurrection.jpg",
+      "route": "/docs/cli/resurrection",
+      "title": "pd resurrection - Port Daddy",
+      "description": "Reference for pd resurrection, including Port Daddy syntax, what the command does, and when to use it.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -325,10 +874,28 @@
       "sourceImage": "/img/generated/control-plane-og.jpg"
     },
     {
+      "image": "/img/og/docs-cli-s.jpg",
+      "route": "/docs/cli/s",
+      "title": "pd s - Port Daddy",
+      "description": "Reference for pd s, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
       "image": "/img/og/docs-cli-salvage-claim.jpg",
       "route": "/docs/cli/salvage-claim",
-      "title": "pd salvage claim - Port Daddy",
-      "description": "Reference for pd salvage claim, including Port Daddy syntax, what the command does, and when to use it.",
+      "title": "pd salvage claim <agent> - Port Daddy",
+      "description": "Reference for pd salvage claim <agent>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/salvage-ledger.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-salvage-complete-abandon-dismiss.jpg",
+      "route": "/docs/cli/salvage-complete-abandon-dismiss",
+      "title": "pd salvage complete|abandon|dismiss - Port Daddy",
+      "description": "Reference for pd salvage complete|abandon|dismiss, including Port Daddy syntax, what the command does, and when to use it.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/salvage-ledger.jpg"
@@ -343,10 +910,19 @@
       "sourceImage": "/img/generated/salvage-ledger.jpg"
     },
     {
+      "image": "/img/og/docs-cli-say.jpg",
+      "route": "/docs/cli/say",
+      "title": "pd say <content> - Port Daddy",
+      "description": "Reference for pd say <content>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
       "image": "/img/og/docs-cli-scan.jpg",
       "route": "/docs/cli/scan",
-      "title": "pd scan - Port Daddy",
-      "description": "Reference for pd scan, including Port Daddy syntax, what the command does, and when to use it.",
+      "title": "pd scan [dir] - Port Daddy",
+      "description": "Reference for pd scan [dir], including Port Daddy syntax, what the command does, and when to use it.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -361,10 +937,73 @@
       "sourceImage": "/img/generated/control-plane-og.jpg"
     },
     {
+      "image": "/img/og/docs-cli-session.jpg",
+      "route": "/docs/cli/session",
+      "title": "pd session <command> - Port Daddy",
+      "description": "Reference for pd session <command>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-sessions.jpg",
+      "route": "/docs/cli/sessions",
+      "title": "pd sessions - Port Daddy",
+      "description": "Reference for pd sessions, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-setup.jpg",
+      "route": "/docs/cli/setup",
+      "title": "pd setup - Port Daddy",
+      "description": "Reference for pd setup, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-sitrep.jpg",
+      "route": "/docs/cli/sitrep",
+      "title": "pd sitrep - Port Daddy",
+      "description": "Reference for pd sitrep, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-sortie-list-status-logs.jpg",
+      "route": "/docs/cli/sortie-list-status-logs",
+      "title": "pd sortie list|status|logs - Port Daddy",
+      "description": "Reference for pd sortie list|status|logs, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-sortie.jpg",
+      "route": "/docs/cli/sortie",
+      "title": "pd sortie <goal> - Port Daddy",
+      "description": "Reference for pd sortie <goal>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-spawn-kill.jpg",
+      "route": "/docs/cli/spawn-kill",
+      "title": "pd spawn kill <agent> - Port Daddy",
+      "description": "Reference for pd spawn kill <agent>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/virtual-actor-fleet.jpg"
+    },
+    {
       "image": "/img/og/docs-cli-spawn.jpg",
       "route": "/docs/cli/spawn",
-      "title": "pd spawn - Port Daddy",
-      "description": "Reference for pd spawn, including Port Daddy syntax, what the command does, and when to use it.",
+      "title": "pd spawn <task> - Port Daddy",
+      "description": "Reference for pd spawn <task>, including Port Daddy syntax, what the command does, and when to use it.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/virtual-actor-fleet.jpg"
@@ -379,6 +1018,15 @@
       "sourceImage": "/img/generated/virtual-actor-fleet.jpg"
     },
     {
+      "image": "/img/og/docs-cli-start.jpg",
+      "route": "/docs/cli/start",
+      "title": "pd start - Port Daddy",
+      "description": "Reference for pd start, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
       "image": "/img/og/docs-cli-status.jpg",
       "route": "/docs/cli/status",
       "title": "pd status - Port Daddy",
@@ -388,10 +1036,46 @@
       "sourceImage": "/img/generated/control-plane-og.jpg"
     },
     {
+      "image": "/img/og/docs-cli-stop.jpg",
+      "route": "/docs/cli/stop",
+      "title": "pd stop - Port Daddy",
+      "description": "Reference for pd stop, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-sub.jpg",
+      "route": "/docs/cli/sub",
+      "title": "pd sub <channel> - Port Daddy",
+      "description": "Reference for pd sub <channel>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-subscribe.jpg",
+      "route": "/docs/cli/subscribe",
+      "title": "pd subscribe - Port Daddy",
+      "description": "Reference for pd subscribe, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-swarm.jpg",
+      "route": "/docs/cli/swarm",
+      "title": "pd swarm - Port Daddy",
+      "description": "Reference for pd swarm, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
       "image": "/img/og/docs-cli-tube.jpg",
       "route": "/docs/cli/tube",
-      "title": "pd tube - Port Daddy",
-      "description": "Reference for pd tube, including Port Daddy syntax, what the command does, and when to use it.",
+      "title": "pd tube <channel> - Port Daddy",
+      "description": "Reference for pd tube <channel>, including Port Daddy syntax, what the command does, and when to use it.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -399,8 +1083,8 @@
     {
       "image": "/img/og/docs-cli-tunnel-stop.jpg",
       "route": "/docs/cli/tunnel-stop",
-      "title": "pd tunnel stop - Port Daddy",
-      "description": "Reference for pd tunnel stop, including Port Daddy syntax, what the command does, and when to use it.",
+      "title": "pd tunnel stop <identity> - Port Daddy",
+      "description": "Reference for pd tunnel stop <identity>, including Port Daddy syntax, what the command does, and when to use it.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -408,11 +1092,47 @@
     {
       "image": "/img/og/docs-cli-tunnel.jpg",
       "route": "/docs/cli/tunnel",
-      "title": "pd tunnel - Port Daddy",
-      "description": "Reference for pd tunnel, including Port Daddy syntax, what the command does, and when to use it.",
+      "title": "pd tunnel <identity> - Port Daddy",
+      "description": "Reference for pd tunnel <identity>, including Port Daddy syntax, what the command does, and when to use it.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-tuple.jpg",
+      "route": "/docs/cli/tuple",
+      "title": "pd tuple <command> - Port Daddy",
+      "description": "Reference for pd tuple <command>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-tutorial.jpg",
+      "route": "/docs/cli/tutorial",
+      "title": "pd tutorial - Port Daddy",
+      "description": "Reference for pd tutorial, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-u.jpg",
+      "route": "/docs/cli/u",
+      "title": "pd u - Port Daddy",
+      "description": "Reference for pd u, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-uninstall.jpg",
+      "route": "/docs/cli/uninstall",
+      "title": "pd uninstall - Port Daddy",
+      "description": "Reference for pd uninstall, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/fleetbar-install.jpg"
     },
     {
       "image": "/img/og/docs-cli-up.jpg",
@@ -424,10 +1144,82 @@
       "sourceImage": "/img/generated/control-plane-og.jpg"
     },
     {
+      "image": "/img/og/docs-cli-url.jpg",
+      "route": "/docs/cli/url",
+      "title": "pd url <id> - Port Daddy",
+      "description": "Reference for pd url <id>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-version.jpg",
+      "route": "/docs/cli/version",
+      "title": "pd version - Port Daddy",
+      "description": "Reference for pd version, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-w.jpg",
+      "route": "/docs/cli/w",
+      "title": "pd w - Port Daddy",
+      "description": "Reference for pd w, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-wait.jpg",
+      "route": "/docs/cli/wait",
+      "title": "pd wait <service...> - Port Daddy",
+      "description": "Reference for pd wait <service...>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-wallet.jpg",
+      "route": "/docs/cli/wallet",
+      "title": "pd wallet <command> - Port Daddy",
+      "description": "Reference for pd wallet <command>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
       "image": "/img/og/docs-cli-watch.jpg",
       "route": "/docs/cli/watch",
-      "title": "pd watch - Port Daddy",
-      "description": "Reference for pd watch, including Port Daddy syntax, what the command does, and when to use it.",
+      "title": "pd watch <channel> - Port Daddy",
+      "description": "Reference for pd watch <channel>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-webhook.jpg",
+      "route": "/docs/cli/webhook",
+      "title": "pd webhook <command> - Port Daddy",
+      "description": "Reference for pd webhook <command>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-webhooks.jpg",
+      "route": "/docs/cli/webhooks",
+      "title": "pd webhooks - Port Daddy",
+      "description": "Reference for pd webhooks, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-who-owns.jpg",
+      "route": "/docs/cli/who-owns",
+      "title": "pd who-owns <path> - Port Daddy",
+      "description": "Reference for pd who-owns <path>, including Port Daddy syntax, what the command does, and when to use it.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -444,8 +1236,8 @@
     {
       "image": "/img/og/docs-cli-with-lock.jpg",
       "route": "/docs/cli/with-lock",
-      "title": "pd with-lock - Port Daddy",
-      "description": "Reference for pd with-lock, including Port Daddy syntax, what the command does, and when to use it.",
+      "title": "pd with-lock <name> -- <cmd> - Port Daddy",
+      "description": "Reference for pd with-lock <name> -- <cmd>, including Port Daddy syntax, what the command does, and when to use it.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/coordination-guard.jpg"
