@@ -7,6 +7,7 @@ if (fs.existsSync(repoDocs)) roots.push(repoDocs);
 
 const sourceExtensions = new Set([".tsx", ".ts", ".md", ".mdx"]);
 const commandPattern = /\bpd\s+[a-z]/;
+const terminalLanguages = new Set(["bash", "cli", "shell", "sh", "zsh"]);
 const fencedTerminalPattern =
   /<!--\s*terminal\s*-->\s*```[\w-]*\n([\s\S]*?)```/g;
 
@@ -75,7 +76,7 @@ function hasOutputProp(source) {
 
 function isTerminalLanguage(props) {
   const language = props.match(/\blanguage=(?:\{?["']?)([\w-]+)/)?.[1];
-  return !language || ["bash", "cli", "shell", "sh"].includes(language);
+  return !language || terminalLanguages.has(language);
 }
 
 function isInstallInstruction(text) {
@@ -154,6 +155,14 @@ function assertSourceIncludes(relativePath, needle, message) {
   }
 }
 
+function assertSourceMatches(relativePath, pattern, message) {
+  const file = path.resolve(relativePath);
+  const source = fs.readFileSync(file, "utf8");
+  if (!pattern.test(source)) {
+    findings.push(`${relativePath}: ${message}`);
+  }
+}
+
 assertSourceIncludes(
   "src/docs-content/types.ts",
   "exempt: 'install'",
@@ -178,6 +187,66 @@ assertSourceIncludes(
   "src/pages/AgentsPage.tsx",
   "terminalOutputFor(",
   "agent terminal examples must route through the shared output fixture helper",
+);
+assertSourceIncludes(
+  "src/pages/MCPPage.tsx",
+  "pd channels discover git --dir .",
+  "MCP CLI channel surface must show an output-backed channel discovery command",
+);
+assertSourceIncludes(
+  "src/pages/MCPPage.tsx",
+  "logical:  git:committed",
+  "MCP CLI channel surface must include captured Port Daddy channel output",
+);
+assertSourceIncludes(
+  "src/components/ui/CommandTerminal.tsx",
+  "<CodeBlock language={language}",
+  "terminal views must render through the shared syntax-highlighting CodeBlock",
+);
+assertSourceMatches(
+  "src/components/ui/CodeBlock.tsx",
+  /function highlightYaml\(/,
+  "CodeBlock must keep a YAML highlighter for fleet/tutorial YAML",
+);
+assertSourceMatches(
+  "src/components/ui/CodeBlock.tsx",
+  /function highlightJson\(/,
+  "CodeBlock must keep a JSON highlighter for terminal and API output",
+);
+assertSourceMatches(
+  "src/components/ui/CodeBlock.tsx",
+  /normalized === "yaml" \|\| normalized === "yml"/,
+  "CodeBlock must route yaml/yml languages to the YAML highlighter",
+);
+assertSourceMatches(
+  "src/components/ui/CodeBlock.tsx",
+  /normalized === "json"/,
+  "CodeBlock must route json language to the JSON highlighter",
+);
+assertSourceMatches(
+  "src/components/ui/CodeBlock.tsx",
+  /normalized === "zsh"/,
+  "CodeBlock must treat zsh as a terminal language",
+);
+assertSourceMatches(
+  "src/components/site/primitives.tsx",
+  /type DocsCodeLanguage[\s\S]*'json'[\s\S]*'yaml'[\s\S]*'yml'/,
+  "site docs primitive must expose JSON and YAML syntax languages",
+);
+assertSourceMatches(
+  "src/components/site/primitives.tsx",
+  /isTerminalLanguage[\s\S]*language === 'zsh'/,
+  "site docs primitive must route zsh terminal examples through CommandTerminal",
+);
+assertSourceMatches(
+  "src/components/docs/DocsCodeBlock.tsx",
+  /type DocsCodeLanguage[\s\S]*'json'[\s\S]*'yaml'[\s\S]*'yml'/,
+  "docs wrapper must accept JSON and YAML languages",
+);
+assertSourceIncludes(
+  "src/pages/tutorials/Fleet.tsx",
+  'language="yaml"',
+  "fleet tutorial YAML must opt into YAML syntax highlighting explicitly",
 );
 
 for (const file of files) {
@@ -215,4 +284,4 @@ if (findings.length > 0) {
   process.exit(1);
 }
 
-console.log(`Terminal command surfaces include output or install exemptions across ${files.length} files.`);
+console.log(`Website terminal command surfaces include output or install exemptions, and shared terminal renderers keep syntax highlighting, across ${files.length} files.`);

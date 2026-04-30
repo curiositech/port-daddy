@@ -154,6 +154,7 @@ type CodeLanguage =
   | "cli"
   | "shell"
   | "sh"
+  | "zsh"
   | "typescript"
   | "ts"
   | "javascript"
@@ -169,6 +170,7 @@ function normalizeLanguage(language?: string): CodeLanguage {
     normalized === "cli" ||
     normalized === "shell" ||
     normalized === "sh" ||
+    normalized === "zsh" ||
     normalized === "bash"
   ) {
     return normalized;
@@ -383,7 +385,7 @@ function highlightJson(line: string): React.ReactNode {
 function highlightCodeLine(line: string, language?: string): React.ReactNode {
   const normalized = normalizeLanguage(language);
 
-  if (normalized === "bash" || normalized === "cli" || normalized === "shell" || normalized === "sh") {
+  if (normalized === "bash" || normalized === "cli" || normalized === "shell" || normalized === "sh" || normalized === "zsh") {
     return highlightBash(line);
   }
   if (

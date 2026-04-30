@@ -86,12 +86,14 @@ const landingStatTone = {
   accent: 'bg-[var(--brand-accent)] text-[var(--brand-accent-foreground)]',
 } as const
 
-type DocsCodeLanguage = 'cli' | 'bash' | 'shell' | 'text' | 'typescript' | 'ts' | 'javascript' | 'js' | 'json' | 'yaml' | 'yml'
+type DocsCodeLanguage = 'cli' | 'bash' | 'shell' | 'sh' | 'zsh' | 'text' | 'typescript' | 'ts' | 'javascript' | 'js' | 'json' | 'yaml' | 'yml'
 
 const docsCodeLabel: Record<DocsCodeLanguage, string> = {
   cli: 'CLI',
   bash: 'Bash',
   shell: 'Shell',
+  sh: 'Shell',
+  zsh: 'Zsh',
   text: 'Text',
   typescript: 'TypeScript',
   ts: 'TypeScript',
@@ -102,8 +104,8 @@ const docsCodeLabel: Record<DocsCodeLanguage, string> = {
   yml: 'YAML',
 }
 
-function isTerminalLanguage(language: DocsCodeLanguage): language is 'cli' | 'bash' | 'shell' {
-  return language === 'cli' || language === 'bash' || language === 'shell'
+function isTerminalLanguage(language: DocsCodeLanguage): language is 'cli' | 'bash' | 'shell' | 'sh' | 'zsh' {
+  return language === 'cli' || language === 'bash' || language === 'shell' || language === 'sh' || language === 'zsh'
 }
 
 function panelToneForAccent(tone: AccentTone): 'default' | 'primary' | 'accent' {
