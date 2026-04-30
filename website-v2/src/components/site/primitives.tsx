@@ -34,7 +34,7 @@ const surfaceBracketTone: Record<AccentTone, string> = {
 const SurfaceToneContext = createContext<AccentTone>('paper')
 
 const panelEyebrowClass =
-  'font-sans text-[length:var(--type-meta-size)] font-medium uppercase tracking-[var(--tracking-meta)]'
+  'font-sans font-opsz-small text-[length:var(--type-meta-size)] font-medium uppercase tracking-[var(--tracking-meta)]'
 
 const panelTitleSize = {
   hero: 'text-[length:var(--type-hero-size)] leading-[var(--leading-display-tight)] tracking-normal',
@@ -198,6 +198,7 @@ export function PanelTitle({
       id={id}
       className={cn(
         'font-display font-black',
+        'font-opsz-display',
         caps ? 'uppercase' : 'normal-case',
         panelTitleSize[size],
         toneClass,
@@ -227,7 +228,7 @@ export function PanelBody({
   return (
     <Component
       data-slot="panel-body"
-      className={cn('max-w-[44rem] font-sans', panelBodySize[size], panelBodyTone[tone], className)}
+      className={cn('max-w-[44rem] font-sans font-opsz-body', panelBodySize[size], panelBodyTone[tone], className)}
     >
       {children}
     </Component>

@@ -670,14 +670,6 @@ surfaces:
   },
 ]
 
-const SKILL_INSTALL_SURFACES = [
-  ['Project folder', 'skills/port-daddy-agent-skill'],
-  ['Codex', '.codex/skills/port-daddy-agent-skill'],
-  ['Claude', '.claude/skills/port-daddy-agent-skill'],
-  ['Gemini', '.gemini/extensions/port-daddy/skills/port-daddy-agent-skill'],
-  ['AGENTS.md-aware tools', '.agents/skills/port-daddy-agent-skill'],
-] as const
-
 const INSTALL_TRANSCRIPT = `$ pd install
 Installing Port Daddy daemon...
   Platform: darwin
@@ -705,32 +697,6 @@ SUCCESS: Agent myapp:agent ready
   Session: session-myapp-agent-8f31
   Purpose: coordinate through Skill + MCP
   Identity: myapp:agent`
-
-const READINESS_TRANSCRIPT = `$ pd status
-Port Daddy is running
-  Runtime: nominal
-  Bosun: idle - daemon heartbeat writer active
-
-$ pd briefing
-SUCCESS: Briefing generated: .portdaddy/briefing.md
-SUCCESS: Briefing generated: .portdaddy/briefing.json
-
-$ pd mcp install
-INFO: Port Daddy MCP Installer
-  Configuring MCP server:
-    ✓ Claude Code          updated
-    ✓ Cursor               updated
-  Skill installed:
-    ✓ ~/.port-daddy/skills/SKILL.md
-
-$ python3 skills/port-daddy-agent-skill/scripts/validate_port_daddy_agent_skill.py skills/port-daddy-agent-skill
-Port Daddy agent skill bundle OK: skills/port-daddy-agent-skill
-
-$ bash skills/port-daddy-agent-skill/scripts/diagnose_port_daddy_agent_context.sh
-Port Daddy context OK
-  active daemon: reachable
-  skill bundle: readable
-  MCP config: port-daddy server present`
 
 const ESSENTIAL_TOOLS = [
   ['begin_session', 'Register identity, claim files, and start a recoverable session.'],
@@ -1340,21 +1306,31 @@ function LifecycleDiagram() {
 
 function EssentialTools() {
   return (
-    <div className="grid gap-[var(--space-3)] md:grid-cols-2">
-      {ESSENTIAL_TOOLS.map(([name, description]) => (
-        <SurfacePanel key={name} elevation="quiet" padding="compact" className="flex gap-[var(--space-3)]">
-          <Check aria-hidden="true" className="mt-[var(--space-1)] h-[var(--space-4)] w-[var(--space-4)] shrink-0 text-[var(--brand-primary)]" />
-          <div>
-            <PanelTitle as="h3" size="nav">
-              {name}
-            </PanelTitle>
-            <PanelBody size="compact" className="mt-[var(--space-1)] max-w-none">
-              {description}
-            </PanelBody>
-          </div>
-        </SurfacePanel>
-      ))}
-    </div>
+    <SurfacePanel elevation="quiet" padding="compact" className="space-y-[var(--space-3)]">
+      <div className="flex flex-wrap items-end justify-between gap-[var(--space-3)]">
+        <div className="min-w-0">
+          <PanelEyebrow>Default toolset</PanelEyebrow>
+          <PanelTitle as="h3" size="nav" className="mt-[var(--space-1)]">
+            {ESSENTIAL_TOOLS.length} tools before discovery
+          </PanelTitle>
+        </div>
+        <PanelBody size="compact" className="max-w-[34ch] sm:text-right">
+          Compact listTools response. Full specs live below.
+        </PanelBody>
+      </div>
+      <div className="flex flex-wrap gap-[var(--space-1)]">
+        {ESSENTIAL_TOOLS.map(([name, description]) => (
+          <code
+            key={name}
+            title={description}
+            aria-label={`${name}: ${description}`}
+            className="border border-[var(--border-subtle)] bg-[var(--surface-base)] px-[var(--space-2)] py-[var(--space-1)] font-mono text-[0.72rem] font-semibold leading-[var(--leading-code)] text-[var(--brand-primary)]"
+          >
+            {name}
+          </code>
+        ))}
+      </div>
+    </SurfacePanel>
   )
 }
 
@@ -1580,7 +1556,7 @@ function AgentToolDefinitionsBrowser() {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="tool, parameter, description"
-              className="min-h-[3rem] w-full border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] px-[var(--space-3)] py-[var(--space-2)] font-sans text-[1rem] text-[var(--text-primary)] outline-none focus:border-[var(--brand-primary)]"
+              className="min-h-[3rem] w-full border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] px-[var(--space-3)] py-[var(--space-2)] font-sans font-opsz-body text-[1rem] text-[var(--text-primary)] outline-none focus:border-[var(--brand-primary)]"
             />
           </label>
         </div>
@@ -1706,83 +1682,60 @@ export default function McpPage() {
           <PageContainer width="wide">
             <SwissGrid className="items-start">
               <SwissGridItem span="rail">
-                <SectionIntro
-                  eyebrow="Agent skill"
-                  title="The instruction manual is now first-class."
-                  description="Port Daddy installs the manual in the project folder for Port Daddy-using projects, then mirrors it into the local places Codex, Gemini, Claude, and AGENTS.md-aware tools actually read."
-                  titleSize="display"
-                />
+                <div className="space-y-[var(--space-4)]">
+                  <SectionIntro
+                    eyebrow="Agent skill"
+                    title="The instruction manual is now first-class."
+                    description="Port Daddy installs the manual in the project folder for Port Daddy-using projects, then mirrors it into the local places Codex, Gemini, Claude, and AGENTS.md-aware tools actually read."
+                    titleSize="display"
+                  />
+                  <a
+                    href={AGENTS_MD_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex border-2 border-[var(--border-strong)] px-[var(--space-3)] py-[var(--space-2)] font-sans font-opsz-small text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-strong)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]"
+                  >
+                    AGENTS.md open format
+                  </a>
+                </div>
               </SwissGridItem>
-              <SwissGridItem span="body" className="space-y-[var(--panel-gap)]">
-                <div className="grid gap-[var(--panel-gap)] lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
-                  <SurfacePanel tone="blue" className="space-y-[var(--panel-gap)]">
-                    <BracketLabel tone="primary" surface="blue">
-                      What ships
-                    </BracketLabel>
-                    <PanelTitle as="h2" size="card" tone="primary">
-                      A procedural field manual, not a thin prompt.
-                    </PanelTitle>
-                    <PanelBody tone="primary" className="max-w-none">
-                      Procedural knowledge is the repeatable operating know-how an agent uses under pressure, not
-                      just facts about a tool.{' '}
-                      <a
-                        href={PROCEDURAL_KNOWLEDGE_URL}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="font-semibold underline underline-offset-4"
-                      >
-                        WinDAGs explains procedural knowledge
-                      </a>{' '}
-                      in its post on{' '}
-                      <a
-                        href={PROCEDURAL_KNOWLEDGE_URL}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="font-semibold underline underline-offset-4"
-                      >
-                        why declarative knowledge is not enough
-                      </a>
-                      .
-                    </PanelBody>
-                    <SkillExplorer />
-                  </SurfacePanel>
-
-                  <SurfacePanel className="space-y-[var(--panel-gap)]">
-                    <BracketLabel>Install surfaces</BracketLabel>
-                    <PanelTitle as="h2" size="card">
-                      Installs project-local, then mirrors to each runner.
-                    </PanelTitle>
-                    <PanelBody className="max-w-none">
-                      Port Daddy installs the skill in the project folder for Port Daddy-using projects, compatible with Codex, Gemini, Claude, and AGENTS.md-aware agents. AGENTS.md is an open Markdown instruction format for coding agents, not a Vercel-only spec.
-                    </PanelBody>
-                    <PanelBody size="compact" className="max-w-none">
-                      The MCP server exposes the same coordination primitives to those clients at runtime, so the manual and the callable tools stay connected.
-                    </PanelBody>
-                    <div className="grid gap-[var(--space-2)] sm:grid-cols-2">
-                      {SKILL_INSTALL_SURFACES.map(([label, body]) => (
-                        <div key={label} className="grid gap-[var(--space-1)] border-2 border-[var(--border-default)] bg-[var(--surface-base)] p-[var(--space-2)]">
-                          <PanelEyebrow>{label}</PanelEyebrow>
-                          <PanelBody size="compact" className="max-w-none">
-                            {body}
-                          </PanelBody>
-                        </div>
-                      ))}
-                    </div>
+              <SwissGridItem span="body">
+                <SurfacePanel
+                  tone="blue"
+                  className="grid max-h-[min(74rem,calc(100svh-7rem))] min-h-[36rem] grid-rows-[auto_auto_auto_minmax(0,1fr)] gap-[var(--space-4)] overflow-hidden"
+                >
+                  <BracketLabel tone="primary" surface="blue">
+                    What ships
+                  </BracketLabel>
+                  <PanelTitle as="h2" size="card" tone="primary">
+                    A procedural field manual, not a thin prompt.
+                  </PanelTitle>
+                  <PanelBody tone="primary" className="max-w-none">
+                    Procedural knowledge is the repeatable operating know-how an agent uses under pressure, not
+                    just facts about a tool.{' '}
                     <a
-                      href={AGENTS_MD_URL}
+                      href={PROCEDURAL_KNOWLEDGE_URL}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex border-2 border-[var(--border-strong)] px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-strong)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]"
+                      className="font-semibold underline underline-offset-4"
                     >
-                      AGENTS.md open format
+                      WinDAGs explains procedural knowledge
+                    </a>{' '}
+                    in its post on{' '}
+                    <a
+                      href={PROCEDURAL_KNOWLEDGE_URL}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-semibold underline underline-offset-4"
+                    >
+                      why declarative knowledge is not enough
                     </a>
-                    <DocsCodeBlock
-                      code={READINESS_TRANSCRIPT}
-                      language="cli"
-                      label="Skill + MCP readiness"
-                    />
-                  </SurfacePanel>
-                </div>
+                    .
+                  </PanelBody>
+                  <div className="min-h-0 overflow-y-auto pr-[var(--space-2)]">
+                    <SkillExplorer />
+                  </div>
+                </SurfacePanel>
               </SwissGridItem>
             </SwissGrid>
           </PageContainer>
