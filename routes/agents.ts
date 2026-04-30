@@ -80,7 +80,7 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
   // POST /agents - Register an agent
   fastify.post('/agents', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { id, name, type, metadata, agentCard, maxServices, maxLocks, identity, worktreeId, purpose } = request.body as any;
+      const { id, name, type, metadata, agentCard, maxServices, maxLocks, identity, worktreeId, purpose, telos } = request.body as any;
 
       if (!id) {
         reply.code(400);
@@ -103,7 +103,8 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
         maxLocks,
         identity,
         worktreeId,
-        purpose
+        purpose,
+        telos
       });
 
       if (!result.success) {
@@ -119,7 +120,8 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
           name: name || id,
           type: type || 'cli',
           identity,
-          purpose
+          purpose,
+          telos: result.telos || telos || null,
         }, { targetId: id });
 
         messaging.publish('agents', JSON.stringify({
@@ -129,6 +131,7 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
           type: type || 'cli',
           identity,
           purpose: purpose || metadata?.purpose || null,
+          telos: result.telos || telos || metadata?.telos || null,
           timestamp: Date.now()
         }));
       }
@@ -147,9 +150,15 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
   fastify.post('/agents/:id/heartbeat', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const id = (request.params as any).id as string;
+      const body = (request.body as Record<string, unknown>) || {};
 
       const result = agents.heartbeat(id, {
-        pid: parseInt(request.headers['x-pid'] as string, 10) || process.pid
+        pid: parseInt(request.headers['x-pid'] as string, 10) || process.pid,
+        status: typeof body.status === 'string' ? body.status : undefined,
+        readiness: Array.isArray(body.readiness) ? body.readiness : undefined,
+        progress: typeof body.progress === 'string' ? body.progress : undefined,
+        purpose: typeof body.purpose === 'string' ? body.purpose : undefined,
+        telos: body.telos,
       });
 
       if (!result.success) {

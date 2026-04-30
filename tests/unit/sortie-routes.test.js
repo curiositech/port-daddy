@@ -144,6 +144,40 @@ describe('sortie routes', () => {
     db.close();
   });
 
+  test('POST /sorties forwards structured telos to the spawned coordinator', async () => {
+    const { app, db, spawner, register } = buildApp();
+    await register();
+
+    const telos = {
+      headline: 'Keep sortie purpose explicit',
+      facets: ['coordinate bounded work', 'report evidence'],
+      hierarchy: ['Port Daddy operator trust', 'Sorties'],
+      currentIntent: 'Investigate flaky auth tests',
+      source: 'creator',
+    };
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/sorties',
+      payload: {
+        goal: 'Investigate flaky auth tests',
+        backend: 'codex',
+        modelTier: 'low',
+        budgetUsd: 0.75,
+        projectDir: process.cwd(),
+        telos,
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.sortie.metadata.telos).toEqual(telos);
+    expect(spawner.spawn).toHaveBeenCalledWith(expect.objectContaining({ telos }));
+
+    await app.close();
+    db.close();
+  });
+
   test('POST /sorties blocks the mission before launch when preflight fails', async () => {
     mockAssessSpawnPreflight.mockResolvedValueOnce({
       launchReady: false,

@@ -48,7 +48,7 @@ agent loop for repo work on this machine.
 pd status
 pd briefing
 pd salvage --project <project> --limit 20
-pd begin "<bounded task>" --identity <project>:<agent>
+pd begin "<bounded task>" --identity <project>:<agent> --telos "<why this agent exists>"
 pd whoami
 pd advise <likely-path> --task "<plain-language task>"
 pd note "Scope: <files>. Assumptions: <truth>. Validation: <commands>."
@@ -73,6 +73,7 @@ pd guard check --staged
 | Situation | Move |
 |---|---|
 | You will edit files | Start a session, leave a scope note, and claim the smallest real files or regions. |
+| You start or register an agent | Give it a telos. Use `--telos` for the purpose tagline; use `purpose` for the current task. |
 | The live daemon looks stale | Verify daemon provenance before trusting docs, source, or memory. |
 | Another session may overlap | Read notes, claims, activity, and ownership before changing the surface. |
 | Work was interrupted | Use salvage and preserve the abandoned intent. |
@@ -102,7 +103,7 @@ High-frequency commands:
 ```bash
 pd status
 pd briefing
-pd begin "<purpose>" --identity <project>:<agent>
+pd begin "<purpose>" --identity <project>:<agent> --telos "<why this agent exists>"
 pd note "Scope: <files>"
 pd session files add <path>
 pd add --dry-run -A
@@ -266,7 +267,7 @@ pd briefing                              # what's happening across the fleet
 pd salvage --project <project>           # recover dead-agent intent
 
 # Sessions & coordination
-pd begin "<task>" --identity <project>:<stack>:<context>
+pd begin "<task>" --identity <project>:<stack>:<context> --telos "<why this agent exists>"
 pd note "Scope: ..."                     # durable progress evidence
 pd session files add <path>              # claim a file region
 pd done "<outcome>"                      # close + leave result note

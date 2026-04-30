@@ -121,6 +121,7 @@ export async function handleSpawn(
     console.error('  --tier <level>        Model tier override (low, mid, high)');
     console.error('  --identity <id>       PD semantic identity (project:stack:context)');
     console.error('  --purpose <text>      Human-readable task description');
+    console.error('  --telos <text>        Purpose tagline/contract for this agent');
     console.error('  --budget <usd>        Required spend ceiling for this launch');
     console.error('  --allowedTools <str>  Tool permissions for claude-cli backend');
     console.error('  --maxTokens <n>       Max tokens for claude/claude-cli backends');
@@ -155,6 +156,7 @@ export async function handleSpawn(
   if (options.model) body.model = options.model;
   if (typeof options.tier === 'string') body.modelTier = options.tier;
   if (options.purpose) body.purpose = options.purpose;
+  if (options.telos) body.telos = options.telos;
 
   // Aider: collect --files from options
   if (options.files) {
@@ -219,6 +221,10 @@ export async function handleSpawn(
   console.error(`  Backend: ${data.backend as string}`);
   if (data.model) console.error(`  Model: ${data.model as string}`);
   if (data.identity) console.error(`  Identity: ${data.identity as string}`);
+  if (data.telosHeadline || (data.telos && typeof data.telos === 'object' && 'headline' in data.telos)) {
+    const telosHeadline = data.telosHeadline || (data.telos as { headline?: string }).headline;
+    if (telosHeadline) console.error(`  Telos: ${telosHeadline}`);
+  }
   if (data.completedAt && data.startedAt) {
     const duration = (data.completedAt as number) - (data.startedAt as number);
     console.error(`  Duration: ${relativeTime(duration)}`);

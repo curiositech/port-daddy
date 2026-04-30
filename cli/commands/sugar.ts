@@ -65,6 +65,7 @@ export async function handleBegin(
   if (identity) body.identity = identity;
   if (options.agent) body.agentId = options.agent;
   if (options.name) body.name = options.name;
+  if (options.telos) body.telos = options.telos;
   if (options.type) body.type = options.type;
   if (options.force) body.force = true;
 
@@ -99,6 +100,7 @@ export async function handleBegin(
     agentName: ((data.agentName || data.name) as string | undefined) || null,
     sessionName: (data.sessionName as string | undefined) || null,
     purpose,
+    telosHeadline: (data.telosHeadline as string | undefined) || (typeof options.telos === 'string' ? options.telos : purpose),
     identity: (data.identity as string) || null,
     startedAt: Date.now(),
   });
@@ -120,6 +122,7 @@ export async function handleBegin(
   ui.success(`Agent ${highlightChannel(agentLabel)} ready`);
   console.error(`  Session: ${sessionLabel}`);
   console.error(`  Purpose: ${purpose}`);
+  if (data.telosHeadline) console.error(`  Telos: ${data.telosHeadline as string}`);
   if (identity) console.error(`  Identity: ${identity}`);
   if (data.fileClaims) {
     const claims = data.fileClaims as string[];
@@ -244,6 +247,7 @@ export async function handleWhoami(options: CLIOptions): Promise<void> {
       sessionName: ctx.sessionName ?? null,
       startedAt: ctx.startedAt,
       purpose: ctx.purpose,
+      telosHeadline: ctx.telosHeadline ?? null,
       identity: ctx.identity ?? null,
       contextSlot: ctx.contextSlot,
     };
@@ -271,6 +275,7 @@ export async function handleWhoami(options: CLIOptions): Promise<void> {
   console.error(`  Agent:    ${agentName ? `${agentName} (${data.agentId})` : data.agentId}`);
   console.error(`  Session:  ${sessionName ? `${sessionName} (${data.sessionId})` : data.sessionId}`);
   console.error(`  Purpose:  ${data.purpose}`);
+  if (data.telosHeadline || ctx?.telosHeadline) console.error(`  Telos:    ${data.telosHeadline || ctx?.telosHeadline}`);
   if (data.identity) console.error(`  Identity: ${data.identity}`);
   console.error(`  Phase:    ${data.phase}`);
   if (data.duration != null) {

@@ -106,6 +106,7 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
         modelTier,
         identity,
         purpose,
+        telos,
         task,
         files,
         workdir,
@@ -191,6 +192,7 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
       else if (preflight.attempts[0]?.modelTier) spec.modelTier = preflight.attempts[0].modelTier as FleetModelTier;
       if (identity && typeof identity === 'string') spec.identity = identity;
       if (purpose && typeof purpose === 'string') spec.purpose = purpose;
+      if (telos !== undefined) spec.telos = telos;
       if (Array.isArray(files)) spec.files = files as string[];
       if (workdir && typeof workdir === 'string') spec.workdir = workdir;
       if (env && typeof env === 'object' && !Array.isArray(env)) spec.env = env as Record<string, string>;
@@ -203,6 +205,7 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
         model: spec.model || null,
         identity: spec.identity || null,
         purpose: spec.purpose || null,
+        telos: spec.telos || null,
       });
 
       const launch = (async (): Promise<SpawnRouteResponse> => {

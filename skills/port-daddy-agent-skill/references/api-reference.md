@@ -230,6 +230,7 @@ Register an agent.
 | `type` | string | no | Agent type (e.g., 'ci', 'dev', 'sdk') |
 | `identity` | string | no | Semantic identity (`project:stack:context`) for context-aware salvage |
 | `purpose` | string | no | Human-readable description of what the agent is doing |
+| `telos` | string/object | no | Required purpose contract. If omitted for legacy clients, the registry derives one from `purpose`, `name`, `identity`, or the agent id; responses always include normalized `telos` and `telosHeadline`. |
 | `worktreeId` | string | no | Git worktree identifier |
 | `metadata` | object | no | Arbitrary metadata |
 | `maxServices` | number | no | Max concurrent services |
@@ -238,7 +239,7 @@ Register an agent.
 Response includes `salvageHint` if dead agents exist in the same project.
 
 ### POST /agents/:id/heartbeat
-Send a heartbeat to keep registration alive.
+Send a heartbeat to keep registration alive. Body may include `status`, `readiness`, `progress`, `purpose`, and `telos`; sending `telos` updates the agent's self-declared purpose contract without re-registering.
 
 ### DELETE /agents/:id
 Unregister an agent.
@@ -620,6 +621,7 @@ Register agent + start session atomically. Rolls back agent registration on fail
 | `identity` | string | no | Semantic identity (auto-detected from package.json) |
 | `agentId` | string | no | Agent ID (auto-generated if not provided) |
 | `name` | string | no | Human-readable display name stored beside the technical agent ID |
+| `telos` | string/object | no | Agent purpose contract. If omitted, Port Daddy seeds it from `purpose`; response always includes `telos` and `telosHeadline`. |
 | `type` | string | no | Agent type (e.g., 'claude-code') |
 | `files` | string[] | no | Files to claim |
 | `force` | boolean | no | Force file claims even if conflicts |
@@ -633,6 +635,7 @@ Register agent + start session atomically. Rolls back agent registration on fail
   "sessionId": "session-uuid",
   "identity": "myapp:api",
   "purpose": "Implementing auth",
+  "telosHeadline": "Implementing auth",
   "agentRegistered": true,
   "sessionStarted": true,
   "salvageHint": "1 dead agent(s) found in project"
@@ -678,6 +681,7 @@ Show current agent and session context.
   "agentName": "Auth Repair Lead",
   "sessionId": "session-uuid",
   "purpose": "Implementing auth",
+  "telosHeadline": "Implementing auth",
   "identity": "myapp:api",
   "noteCount": 5,
   "duration": "12m"
@@ -944,6 +948,7 @@ At the moment, the operator-facing launchable path is Claude SDK exact-rate mode
 | `budgetUsd` | number | yes | Positive spend ceiling for this launch |
 | `name` | string | no | Human-readable display name for the spawned agent |
 | `purpose` | string | no | Human-readable task description |
+| `telos` | string/object | no | Purpose contract for the spawned agent. If omitted, the spawner derives a telos from `purpose` or `task`; persisted agents always expose `telos` and `telosHeadline`. |
 | `task` | string | yes | The task/prompt for the agent |
 | `allowedTools` | string | no | Comma-separated tool list (claude-cli backend only) |
 | `maxTokens` | number | no | Max output tokens |
@@ -996,6 +1001,7 @@ Sorties inherit the same fail-closed telemetry contract as `/spawn`. A sortie la
 | `roster` | string[] | no | Requested roles or roster preview |
 | `identity` | string | no | Coordinator identity override |
 | `purpose` | string | no | Human-readable label for the coordinating run |
+| `telos` | string/object | no | Purpose contract for the sortie coordinator. Defaults to `Complete sortie: <goal>` when omitted. |
 | `allowedTools` | string | no | Tool permission string for claude-cli-backed coordinators |
 | `timeout` | number | no | Timeout in milliseconds |
 | `maxTokens` | number | no | Optional token ceiling for claude or claude-cli launches |

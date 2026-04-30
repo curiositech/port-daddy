@@ -69,7 +69,7 @@ pd dns <command>
 Sessions, notes, recovery, and evidence:
 
 ```bash
-pd begin "purpose"
+pd begin "purpose" [--telos "purpose tagline"]
 pd done "summary"
 pd whoami
 pd session <command>
@@ -107,14 +107,14 @@ pd tunnel stop <identity>
 Agents, actors, fleets, sorties, and spawn control:
 
 ```bash
-pd agent "task"
-pd agent run <task>
-pd agent register
-pd agent heartbeat
+pd agent "task" [--telos "purpose tagline"]
+pd agent run <task> [--telos "purpose tagline"]
+pd agent register [--purpose "current task"] [--telos "purpose tagline"]
+pd agent heartbeat [--telos "updated purpose tagline"]
 pd agents
 pd actors
 pd actor <id>
-pd spawn <task>
+pd spawn <task> --budget <usd> [--telos "purpose tagline"]
 pd spawn kill <agent>
 pd spawned
 pd sortie <goal>

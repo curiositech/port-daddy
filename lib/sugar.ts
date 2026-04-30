@@ -9,6 +9,7 @@
 import { randomBytes } from 'crypto';
 import { parseIdentity } from './identity.js';
 import { buildHumanReadableId, cleanAgentDisplayName, deriveAgentDisplayName } from './agent-names.js';
+import { normalizeAgentTelos } from './agent-telos.js';
 
 // =============================================================================
 // Types
@@ -52,6 +53,7 @@ interface BeginOptions {
   files?: string[];
   force?: boolean;
   metadata?: Record<string, unknown>;
+  telos?: unknown;
 }
 
 interface DoneOptions {
@@ -97,6 +99,8 @@ export function createSugar(deps: SugarDeps) {
       agentName: cleanAgentDisplayName(agent?.name) || null,
       name: cleanAgentDisplayName(agent?.name) || null,
       identity: typeof agent?.identity === 'string' ? agent.identity : null,
+      telos: agent?.telos || null,
+      telosHeadline: typeof agent?.telosHeadline === 'string' ? agent.telosHeadline : null,
       phase: session.phase as string || 'in_progress',
       files: files
         .filter((file: Record<string, unknown>) => !file.releasedAt)
@@ -135,12 +139,21 @@ export function createSugar(deps: SugarDeps) {
     // Generate or use provided agent ID. The suffix keeps the stable machine key
     // unique; the slug keeps `pd begin` output readable to humans.
     const agentId = options.agentId || buildHumanReadableId('agent', name, randomBytes(4).toString('hex'), 'work');
+    const telosResult = normalizeAgentTelos(options.telos ?? metadata?.telos, {
+      fallbackHeadline: purpose,
+      fallbackCurrentIntent: purpose,
+      source: options.telos ? 'self' : 'derived',
+    });
+    if (!telosResult.success || !telosResult.telos) {
+      return { success: false, error: telosResult.error || 'telos is required', code: 'TELOS_REQUIRED' };
+    }
 
     // Step 1: Register the agent
     const registerOpts: Record<string, unknown> = {};
     if (name) registerOpts.name = name;
     if (identity) registerOpts.identity = identity;
     if (purpose) registerOpts.purpose = purpose;
+    registerOpts.telos = telosResult.telos;
     if (type) registerOpts.type = type;
     if (metadata) registerOpts.metadata = metadata;
 
@@ -167,9 +180,10 @@ export function createSugar(deps: SugarDeps) {
       sessionOpts.files = files;
       if (force) sessionOpts.force = force;
     }
-    if (metadata && typeof metadata === 'object') {
-      sessionOpts.metadata = metadata;
-    }
+    sessionOpts.metadata = {
+      ...(metadata && typeof metadata === 'object' ? metadata : {}),
+      telos: telosResult.telos,
+    };
 
     const sessionResult = sessions.start(purpose.trim(), sessionOpts);
     if (!sessionResult.success) {
@@ -192,6 +206,8 @@ export function createSugar(deps: SugarDeps) {
       name,
       identity: identity || null,
       purpose: purpose.trim(),
+      telos: telosResult.telos,
+      telosHeadline: telosResult.telos.headline,
       agentRegistered: true,
       sessionStarted: true,
     };
@@ -219,6 +235,7 @@ export function createSugar(deps: SugarDeps) {
         sessionId: sessionResult.id as string,
         identity: identity || null,
         identityProject: identityProject || undefined,
+        telos: telosResult.telos,
       } as unknown as Record<string, unknown>,
     });
 

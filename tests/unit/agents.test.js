@@ -32,6 +32,11 @@ describe('Agents Module', () => {
       expect(result.agentId).toBe('my-agent');
       expect(result.registered).toBe(true);
       expect(result.message).toBe('agent registered');
+      expect(result.telosHeadline).toBe('Operate as my-agent');
+
+      const agent = agents.get('my-agent').agent;
+      expect(agent.telos.headline).toBe('Operate as my-agent');
+      expect(agent.telos.source).toBe('derived');
     });
 
     it('should handle re-registration of existing agent', () => {
@@ -125,6 +130,31 @@ describe('Agents Module', () => {
 
       expect(result.success).toBe(true);
       expect(result.lastHeartbeat).toBeGreaterThanOrEqual(initialAgent.lastHeartbeat);
+    });
+
+    it('should let an agent self-declare an updated telos on heartbeat', () => {
+      agents.register('my-agent', {
+        purpose: 'Initial task',
+        telos: 'Keep the first intent visible',
+      });
+
+      const heartbeat = agents.heartbeat('my-agent', {
+        telos: {
+          headline: 'Keep coordination truth visible',
+          facets: ['surface live intent', 'prevent stale ownership'],
+          hierarchy: ['Port Daddy operator trust'],
+          currentIntent: 'Refresh registry contract',
+          source: 'self',
+        },
+      });
+
+      expect(heartbeat.success).toBe(true);
+      expect(heartbeat.telosUpdated).toBe(true);
+      const agent = agents.get('my-agent').agent;
+      expect(agent.telosHeadline).toBe('Keep coordination truth visible');
+      expect(agent.telos.facets).toEqual(['surface live intent', 'prevent stale ownership']);
+      expect(agent.telos.hierarchy).toEqual(['Port Daddy operator trust']);
+      expect(agent.telos.currentIntent).toBe('Refresh registry contract');
     });
 
     it('should auto-register on first heartbeat', () => {

@@ -154,6 +154,7 @@ describe('spawn routes preflight', () => {
       payload: {
         backend: 'claude-cli',
         identity: 'port-daddy:repo:cli',
+        telos: 'Review diffs without hiding blocked readiness',
         task: 'review the diff',
         budgetUsd: 0.75,
       },
@@ -162,6 +163,7 @@ describe('spawn routes preflight', () => {
     expect(spawner.spawn).toHaveBeenCalledWith(expect.objectContaining({
       backend: 'claude-cli',
       identity: 'port-daddy:repo:cli',
+      telos: 'Review diffs without hiding blocked readiness',
       model: 'claude-sonnet-4-5-20250929',
       task: 'review the diff',
     }));

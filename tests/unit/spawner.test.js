@@ -209,9 +209,12 @@ describe('spawn — instrumentation', () => {
       backend: 'ollama',
       task: 'test instrumentation',
       identity: 'myapp:api:test',
+      telos: 'Keep spawn instrumentation honest',
     });
 
     expect(result.status).toBe('completed');
+    expect(result.telos.headline).toBe('Keep spawn instrumentation honest');
+    expect(spawner.list()[0].telosHeadline).toBe('Keep spawn instrumentation honest');
     expect(counters.bump).toHaveBeenCalledWith(
       'spawn.started',
       expect.objectContaining({ backend: 'ollama', model: 'llama3.1:8b', project: 'myapp' })

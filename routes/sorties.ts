@@ -114,6 +114,10 @@ export const sortiesPlugin: FastifyPluginAsync<{ deps: SortieRouteDeps }> = asyn
       const body = (request.body as Record<string, unknown>) || {};
       const projectDir = typeof body.projectDir === 'string' ? body.projectDir : '';
       const goal = typeof body.goal === 'string' ? body.goal.trim() : '';
+      const fallbackTelos = `Complete sortie: ${goal.slice(0, 180)}`;
+      const telos = typeof body.telos === 'string'
+        ? body.telos.trim() || fallbackTelos
+        : body.telos ?? fallbackTelos;
       const backend = typeof body.backend === 'string' ? body.backend : '';
       const budgetUsd = typeof body.budgetUsd === 'number'
         ? body.budgetUsd
@@ -163,6 +167,7 @@ export const sortiesPlugin: FastifyPluginAsync<{ deps: SortieRouteDeps }> = asyn
         metadata: {
           approvalMode: typeof body.approvalMode === 'string' ? body.approvalMode : null,
           roster: Array.isArray(body.roster) ? body.roster : null,
+          telos,
         },
       });
       const harbor = `${project}:sortie:${sortie.id}`;
@@ -226,6 +231,7 @@ export const sortiesPlugin: FastifyPluginAsync<{ deps: SortieRouteDeps }> = asyn
         modelTier: running.modelTier as FleetModelTier | undefined,
         identity: typeof body.identity === 'string' ? body.identity : `${project}:sortie:${running.id}:coordinator`,
         purpose: typeof body.purpose === 'string' ? body.purpose : `Sortie: ${goal.slice(0, 120)}`,
+        telos,
         task,
         workdir: projectDir,
         allowedTools: typeof body.allowedTools === 'string' ? body.allowedTools : undefined,
