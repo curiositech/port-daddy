@@ -37,6 +37,7 @@ import type {
   SemanticResolutionDecision,
   SemanticResolutionEvent,
   SemanticResolutionStats,
+  BackendSecretSaveResult,
 } from './types';
 
 const CANONICAL_PREFERRED_DAEMON_URL = 'http://127.0.0.1:9876';
@@ -438,6 +439,13 @@ export async function fetchFileClaims(opts: {
 export async function fetchModels(): Promise<BackendInfo[]> {
   const data = await get<{ backends: BackendInfo[] }>('/fleet/models');
   return data.backends;
+}
+
+export async function saveBackendSecrets(input: {
+  backend: string;
+  values: Record<string, string>;
+}): Promise<BackendSecretSaveResult> {
+  return post('/fleet/backend-secrets', input);
 }
 
 // ─── Messaging ────────────────────────────────────────────────────────────────

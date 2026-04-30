@@ -1,6 +1,6 @@
 import { DocsCodeBlock as SiteDocsCodeBlock } from '@/components/site/primitives'
 
-type DocsCodeLanguage = 'bash' | 'cli' | 'shell' | 'typescript' | 'ts' | 'javascript' | 'js' | 'json' | 'yaml' | 'yml' | 'text'
+type DocsCodeLanguage = 'bash' | 'cli' | 'shell' | 'sh' | 'zsh' | 'typescript' | 'ts' | 'javascript' | 'js' | 'json' | 'yaml' | 'yml' | 'text'
 
 interface DocsCodeBlockProps {
   code: string

@@ -54,6 +54,8 @@
  *   });
  */
 
+import { keychain, KEYCHAIN_SERVICE } from './keychain.js';
+
 /**
  * The keys we consider sensitive enough to scrub. Order doesn't matter,
  * but keep the list explicit — never pattern-match on names like
@@ -64,8 +66,10 @@ const SENSITIVE_KEYS: readonly string[] = Object.freeze([
   'OPENAI_API_KEY',
   'GEMINI_API_KEY',
   'GOOGLE_API_KEY',
+  'CLOUDFLARE_ACCOUNT_ID',
   'CLOUDFLARE_API_TOKEN',
   'CLOUDFLARE_API_KEY',
+  'CF_ACCOUNT_ID',
   'CF_API_TOKEN',
   'NGROK_AUTHTOKEN',
   'VOYAGE_API_KEY',
@@ -73,7 +77,40 @@ const SENSITIVE_KEYS: readonly string[] = Object.freeze([
 
 /** Sealed in-module cache. The only way in is snapshotSensitiveEnv(). */
 const cache = new Map<string, string>();
+const SENSITIVE_KEY_SET = new Set<string>(SENSITIVE_KEYS);
+const KEYCHAIN_ACCOUNT_PREFIX = 'env:';
 let snapshotCalled = false;
+
+export interface ManagedSecretSaveResult {
+  key: string;
+  storedAt: 'keychain';
+  encryptedAtRest: true;
+}
+
+export interface ManagedSecretStorageStatus {
+  available: boolean;
+  storage: 'keychain' | 'unavailable';
+  encryptedAtRest: boolean;
+  location: string;
+}
+
+function keychainAccountFor(key: string): string {
+  return `${KEYCHAIN_ACCOUNT_PREFIX}${key}`;
+}
+
+function requireManagedSecretKey(key: string): void {
+  if (!SENSITIVE_KEY_SET.has(key)) {
+    throw new Error(`Unsupported managed secret key: ${key}`);
+  }
+}
+
+function loadStoredSecret(key: string): string | undefined {
+  if (!SENSITIVE_KEY_SET.has(key)) return undefined;
+  const stored = keychain.loadSecret(KEYCHAIN_SERVICE, keychainAccountFor(key));
+  if (!stored) return undefined;
+  cache.set(key, stored);
+  return stored;
+}
 
 /**
  * Read the sensitive env keys into the in-module cache, then delete
@@ -122,8 +159,43 @@ export function getSecret(key: string): string | undefined {
   const cached = cache.get(key);
   if (cached !== undefined) return cached;
   // Only read env as fallback when snapshot hasn't run.
-  if (!snapshotCalled) return process.env[key];
-  return undefined;
+  if (!snapshotCalled) return process.env[key] ?? loadStoredSecret(key);
+  return loadStoredSecret(key);
+}
+
+/**
+ * Save a daemon-managed provider secret in the OS keychain and update the
+ * in-process cache so readiness checks can immediately see it.
+ *
+ * This intentionally fails closed when keychain storage is unavailable. Users
+ * can still use ~/.port-daddy-env as the portable fallback, but console-entered
+ * secrets must be encrypted at rest.
+ */
+export function saveManagedSecret(key: string, value: string): ManagedSecretSaveResult {
+  requireManagedSecretKey(key);
+  const trimmed = value.trim();
+  if (!trimmed) {
+    throw new Error(`${key} must not be empty`);
+  }
+  if (!keychain.available()) {
+    throw new Error('Encrypted secret storage is unavailable on this machine; use ~/.port-daddy-env instead.');
+  }
+  if (!keychain.saveSecret(KEYCHAIN_SERVICE, keychainAccountFor(key), trimmed)) {
+    throw new Error(`Failed to save ${key} in the OS keychain`);
+  }
+  cache.set(key, trimmed);
+  delete process.env[key];
+  return { key, storedAt: 'keychain', encryptedAtRest: true };
+}
+
+export function managedSecretStorageStatus(): ManagedSecretStorageStatus {
+  const available = keychain.available();
+  return {
+    available,
+    storage: available ? 'keychain' : 'unavailable',
+    encryptedAtRest: available,
+    location: available ? 'macOS Keychain' : '~/.port-daddy-env fallback',
+  };
 }
 
 /**
@@ -158,7 +230,7 @@ export function withSecretsInChildEnv(
  *   if (hasSecret('GEMINI_API_KEY')) enableGeminiBackend();
  */
 export function hasSecret(key: string): boolean {
-  return cache.has(key);
+  return cache.has(key) || loadStoredSecret(key) !== undefined;
 }
 
 /**

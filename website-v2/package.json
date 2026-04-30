@@ -20,7 +20,8 @@
     "generate:og": "tsx scripts/generate-og-cards.mjs",
     "test:a11y:mcp": "node scripts/check-mcp-a11y.mjs",
     "test:a11y:shell": "node scripts/check-public-shell-a11y.mjs",
-    "test:tutorial-command-surfaces": "node scripts/check-tutorial-command-surfaces.mjs",
+    "test:terminal-command-surfaces": "node scripts/check-tutorial-command-surfaces.mjs",
+    "test:tutorial-command-surfaces": "npm run test:terminal-command-surfaces",
     "record:gifs": "bash scripts/record-site-terminal-gifs.sh --all && bash scripts/record-agent-terminal-gifs.sh --all",
     "test:gifs": "node scripts/check-terminal-recordings.mjs"
   },

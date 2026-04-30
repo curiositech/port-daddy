@@ -68,6 +68,7 @@ const modelsPayload = {
       readinessNextStep: 'Add Cloudflare credentials.',
       credentialKeys: ['CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_API_TOKEN'],
       credentialAlternates: ['CF_ACCOUNT_ID', 'CF_API_TOKEN'],
+      setupLinks: [{ label: 'Create pd-ai-stack token', url: 'https://dash.cloudflare.com/?to=/:account/api-tokens' }],
       setupCommand: "printf '\\nCLOUDFLARE_ACCOUNT_ID=<paste-value>\\nCLOUDFLARE_API_TOKEN=<paste-value>\\n' >> ~/.port-daddy-env\npd restart",
     },
     {
@@ -118,6 +119,7 @@ describe('pd fleet models', () => {
     expect(mockUi.info).toHaveBeenCalledWith('Fleet backend model tiers: cloudflare');
     expect(console.log).toHaveBeenCalledWith('  credentials: CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN');
     expect(console.log).toHaveBeenCalledWith('  alternates: CF_ACCOUNT_ID, CF_API_TOKEN');
+    expect(console.log).toHaveBeenCalledWith('  link: Create pd-ai-stack token - https://dash.cloudflare.com/?to=/:account/api-tokens');
     expect(console.log).toHaveBeenCalledWith(expect.stringContaining('setup: printf'));
   });
 

@@ -180,12 +180,12 @@ export function TerminalDemos() {
 
         <div className="grid w-full min-w-0 max-w-full gap-4 overflow-hidden sm:gap-6 lg:grid-cols-[240px_minmax(0,1fr)] lg:overflow-visible">
           {/* Tabs */}
-          <div className="flex w-full max-w-full min-w-0 gap-2 overflow-x-auto pb-2 lg:flex-col lg:overflow-visible lg:pb-0">
+          <div className="grid w-full max-w-full min-w-0 grid-cols-2 gap-2 pb-2 sm:grid-cols-3 lg:flex lg:flex-col lg:pb-0">
             {DEMOS.map((demo) => (
               <button
                 key={demo.id}
                 onClick={() => setActiveDemo(demo)}
-                className="min-w-[10rem] shrink-0 cursor-pointer rounded-[var(--radius-lg)] px-4 py-3 text-left transition-all duration-200 lg:min-w-0 lg:shrink"
+                className="min-w-0 cursor-pointer rounded-[var(--radius-lg)] px-4 py-3 text-left transition-all duration-200"
                 style={{
                   background: activeDemo.id === demo.id ? 'var(--surface-overlay)' : 'transparent',
                   boxShadow: activeDemo.id === demo.id ? 'var(--shadow-inset)' : 'none',

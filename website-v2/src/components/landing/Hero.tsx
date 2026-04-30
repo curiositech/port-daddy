@@ -2,26 +2,10 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
 import { PageContainer, SectionIntro } from '@/components/site/primitives'
-import { ArrowRight, Download, RadioTower, Terminal } from 'lucide-react'
+import { ArrowRight, Download, Terminal } from 'lucide-react'
 import { LiveGloryVideo } from './LiveGloryVideo'
 
 export function Hero() {
-  const coordinationStrip = (
-    <div className="relative z-20 mb-[var(--space-6)] grid gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)] sm:grid-cols-[auto_minmax(0,1fr)]">
-      <span className="inline-flex h-10 w-10 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--brand-primary)]">
-        <RadioTower size={18} />
-      </span>
-      <div className="grid gap-1">
-        <span className="font-mono text-[10px] font-black uppercase tracking-[0.18em] text-[var(--brand-primary)]">
-          Coordination first
-        </span>
-        <p className="max-w-none text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
-          Agents write notes, claims, and handoffs through Port Daddy; FleetBar gives humans the same live truth before the recording starts.
-        </p>
-      </div>
-    </div>
-  )
-
   return (
     <section className="relative flex items-center overflow-hidden py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
       {/* Swiss-grid field for the infrastructure diagram. */}
@@ -31,7 +15,6 @@ export function Hero() {
       }} />
 
       <PageContainer className="relative z-10">
-        {coordinationStrip}
         <div className="grid items-center gap-[var(--space-6)] min-[1100px]:grid-cols-[minmax(24rem,0.86fr)_minmax(34rem,1.14fr)] min-[1100px]:gap-[var(--space-7)]">
           {/* Left -- Copy */}
           <motion.div
@@ -40,22 +23,6 @@ export function Hero() {
             transition={{ duration: 0.6, ease: 'easeOut' as const }}
             className="space-y-[var(--space-5)]"
           >
-            <Link to="/mac-preview" className="no-underline">
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] px-3 py-1.5 text-xs font-semibold mb-4 cursor-pointer"
-                style={{
-                  background: 'color-mix(in srgb, var(--brand-primary) 12%, transparent)',
-                  border: '1px solid color-mix(in srgb, var(--brand-primary) 25%, transparent)',
-                  color: 'var(--brand-primary)',
-                }}
-              >
-                <span>New</span>
-                <span style={{ color: 'var(--text-secondary)' }}>Agent radio, handoffs, resources, and launch readiness are visible in the app</span>
-                <ArrowRight size={12} />
-              </motion.div>
-            </Link>
-
             <SectionIntro
               eyebrow="What is Port Daddy?"
               title={

@@ -313,9 +313,20 @@ const CHANNEL_SURFACES: ChannelSurface[] = [
     label: 'CLI',
     icon: Terminal,
     language: 'cli',
-    code: `pd watch git:committed
-pd pub git:committed '{"sha":"abc123"}'
-pd watch git:committed --exec './fleet/qa.sh'`,
+    code: `$ pd channels discover git --dir .
+LOGICAL                   SCOPE       SOURCE      ACTIVE    PHYSICAL
+git:committed             repo        declared    0         repo:4bc8ffb2:git:committed
+
+$ pd channels describe git:committed --dir .
+logical:  git:committed
+physical: repo:4bc8ffb2:git:committed
+scope:    repo
+source:   declared
+active:   0
+worktree: fe53192e
+branch:   -
+aliases:  -
+desc:     commit trigger event`,
     note: 'The shell path is best for hooks, local scripts, and recovery flows you want to inspect later.',
   },
   {
