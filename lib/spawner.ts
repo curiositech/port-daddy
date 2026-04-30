@@ -24,6 +24,7 @@ import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
 import { getSecret } from './secret-env.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { deriveAgentDisplayName } from './agent-names.js';
+import { normalizeAgentTelos, type AgentTelos } from './agent-telos.js';
 
 // ─── Load .env.local for spawned agents ─────────────────────────────────────
 // The daemon runs via launchd which has no shell env. Spawned agents need
@@ -87,6 +88,7 @@ export interface SpawnSpec {
   modelTier?: 'low' | 'mid' | 'high';
   identity?: string;   // PD semantic identity: project:stack:context
   purpose?: string;    // human-readable task description
+  telos?: unknown;     // required purpose contract; purpose/task can seed legacy callers
   task: string;        // the prompt / task
   bondUsd?: number;    // per-spawn bond; slashed on misbehavior, refunded on clean exit
   harborName?: string; // optional override for bond-admission harbor
@@ -107,6 +109,7 @@ export interface SpawnResult {
   output: string | null;
   error: string | null;
   telemetry: SpawnTelemetry | null;
+  telos?: AgentTelos | null;
   startedAt: number;
   completedAt: number | null;
 }
@@ -127,6 +130,8 @@ export interface SpawnedAgent {
   status: 'running' | 'completed' | 'failed' | 'killed';
   identity: string | null;
   purpose: string | null;
+  telos: AgentTelos;
+  telosHeadline: string;
   startedAt: number;
   completedAt: number | null;
 }
@@ -815,6 +820,11 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     const running = [...agents.values()].filter(a => a.status === 'running').length;
     const model = spec.model || DEFAULT_MODELS[spec.backend];
     const dims = metricDims(spec, model);
+    const telosResult = normalizeAgentTelos(spec.telos, {
+      fallbackHeadline: spec.purpose || spec.task,
+      fallbackCurrentIntent: spec.purpose || spec.task,
+      source: spec.telos ? 'creator' : 'derived',
+    });
     const blockedResult = (error: string): SpawnResult => ({
       agentId: 'blocked',
       backend: spec.backend,
@@ -823,9 +833,14 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       output: null,
       error,
       telemetry: null,
+      telos: telosResult.telos || null,
       startedAt: Date.now(),
       completedAt: Date.now(),
     });
+    if (!telosResult.success || !telosResult.telos) {
+      counters?.bump('spawn.blocked', dims);
+      return blockedResult(telosResult.error || 'Spawn blocked: telos is required for every agent.');
+    }
     if (running >= MAX_CONCURRENT_RUNNING) {
       counters?.bump('spawn.blocked', dims);
       return blockedResult(`Spawn blocked: ${running} agents already running (limit: ${MAX_CONCURRENT_RUNNING}). Wait for one to finish.`);
@@ -954,6 +969,8 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       status: 'running',
       identity: spec.identity || null,
       purpose: spec.purpose || spec.task.slice(0, 80),
+      telos: telosResult.telos,
+      telosHeadline: telosResult.telos.headline,
       startedAt,
       completedAt: null,
       heartbeatInterval: null,
@@ -984,6 +1001,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       name: displayName,
       identity: spec.identity || null,
       purpose: spec.purpose || spec.task.slice(0, 80),
+      telos: telosResult.telos,
       metadata: coordinationMetadata,
     });
 
@@ -993,6 +1011,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       name: displayName,
       identity: spec.identity || null,
       purpose: spec.purpose || spec.task.slice(0, 80),
+      telos: telosResult.telos,
       metadata: coordinationMetadata,
     });
 
@@ -1164,6 +1183,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       output,
       error,
       telemetry,
+      telos: telosResult.telos,
       startedAt,
       completedAt,
     };
@@ -1182,6 +1202,8 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       status: r.status,
       identity: r.identity,
       purpose: r.purpose,
+      telos: r.telos,
+      telosHeadline: r.telosHeadline,
       startedAt: r.startedAt,
       completedAt: r.completedAt,
     }));

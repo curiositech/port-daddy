@@ -45,11 +45,13 @@ describe('sugar.begin', () => {
     expect(result.sessionStarted).toBe(true);
     expect(result.identity).toBe('port-daddy:cli:sugar');
     expect(result.purpose).toBe('Implement sugar commands');
+    expect(result.telosHeadline).toBe('Implement sugar commands');
 
     // Verify agent is registered
     const agentInfo = agents.get(result.agentId);
     expect(agentInfo.success).toBe(true);
     expect(agentInfo.agent.purpose).toBe('Implement sugar commands');
+    expect(agentInfo.agent.telos.headline).toBe('Implement sugar commands');
 
     // Verify session is active
     const sessionInfo = sessions.get(result.sessionId);
@@ -78,6 +80,7 @@ describe('sugar.begin', () => {
       purpose: 'Fix checkout auth regression',
       identity: 'shop:api:auth',
       name: 'Auth Repair Lead',
+      telos: 'Keep checkout auth trustworthy',
     });
 
     expect(result.success).toBe(true);
@@ -88,6 +91,7 @@ describe('sugar.begin', () => {
     const agentInfo = agents.get(result.agentId);
     expect(agentInfo.agent.name).toBe('Auth Repair Lead');
     expect(agentInfo.agent.purpose).toBe('Fix checkout auth regression');
+    expect(agentInfo.agent.telosHeadline).toBe('Keep checkout auth trustworthy');
   });
 
   test('uses provided agent ID', () => {

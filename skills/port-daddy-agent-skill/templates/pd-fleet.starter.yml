@@ -24,6 +24,7 @@ fleet:
     qa:
       trigger: git:committed
       identity: "{project}:fleet:qa"
+      telos: "Find the bug this commit would otherwise ship."
       respawn: true
       max_respawns: 3
       cooldown_ms: 30000
@@ -40,6 +41,7 @@ fleet:
     cartographer:
       schedule: "*/30 * * * *"
       identity: "{project}:fleet:cartographer"
+      telos: "Keep roadmap truth aligned with commits and feedback."
       respawn: true
       max_respawns: 3
       backend: ollama

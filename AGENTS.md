@@ -218,3 +218,11 @@ This rule has bitten us repeatedly when the daemon ran on a non-default port (CI
 - Oversized JSON requests over the Unix socket can surface client-side `EPIPE` / `ECONNRESET` before the daemon’s 413 body is readable. In integration tests, normalize that transport failure back into the daemon’s intended oversized-payload rejection instead of pretending the daemon accepted the body.
 - If fleet spawn counts are exploding, treat that as a budget-control bug. Check `singleton`, respawn policy, schedule/trigger churn, and project limits before allowing more agent launches.
 - `pd fleet run <agent>` now inherits `limits.budget_usd_per_day` as its launch ceiling. If it still fails, inspect the live active-agent cap and queue pressure before assuming the agent prompt or backend is broken.
+
+## Agent Telos Contract
+
+- Every Port Daddy agent must carry a telos: a concise purpose headline plus room for structured facets, hierarchy, current intent, and provenance.
+- Telos is not a decorative alias for `purpose`. `purpose` is the current task/session; `telos.headline` is why this agent exists in the fleet.
+- Creator-provided telos is preferred. Self-declared telos is allowed. Runtime-derived telos is only a compatibility fallback and must still be stored as a real `telos` object, not left implicit.
+- If an agent's purpose changes materially, update its telos through registration or heartbeat instead of letting operator surfaces show stale intent.
+- Fleet YAML agents must declare `telos:` explicitly. Keep `pd-fleet.yml`, starter templates, schema docs, CLI help, API docs, and the distributed skill aligned when the telos shape changes.

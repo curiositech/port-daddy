@@ -71,7 +71,7 @@
     },
     "agent": {
       "type": "object",
-      "required": ["prompt"],
+      "required": ["prompt", "telos"],
       "properties": {
         "schedule": {
           "type": "string",
@@ -95,6 +95,7 @@
           "type": "string",
           "description": "Prompt or shell command (depending on backend). For backend=custom, this IS the command; for LLM backends, this is the user message."
         },
+        "telos": { "$ref": "#/$defs/telos" },
         "worktree": { "type": "boolean" },
         "singleton": { "type": "boolean", "description": "If true, fleet refuses to spawn a second instance while one is running." },
         "respawn": { "type": "boolean", "description": "Auto-restart on death." },
@@ -139,6 +140,34 @@
         "model_tier": { "$ref": "#/$defs/modelTier" },
         "modelTier": { "$ref": "#/$defs/modelTier" }
       }
+    },
+    "telos": {
+      "description": "Required purpose contract for the agent. String form is the operator-facing headline; object form can carry plural facets, hierarchy, currentIntent, and source.",
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240
+        },
+        {
+          "type": "object",
+          "required": ["headline"],
+          "properties": {
+            "headline": { "type": "string", "minLength": 1, "maxLength": 240 },
+            "facets": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1, "maxLength": 240 }
+            },
+            "hierarchy": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1, "maxLength": 240 }
+            },
+            "currentIntent": { "type": "string", "maxLength": 240 },
+            "source": { "type": "string", "enum": ["creator", "self", "derived", "system"] }
+          },
+          "additionalProperties": false
+        }
+      ]
     },
     "watcher": {
       "type": "object",

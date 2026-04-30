@@ -22,6 +22,7 @@ import type { Tuple, TupleSpace } from './tuples.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { deriveFleetAgentName } from './agent-names.js';
 import { buildPortDaddyShellCommand, resolvePortDaddyInvocation } from './port-daddy-command.js';
+import { normalizeAgentTelos, type AgentTelos } from './agent-telos.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -33,6 +34,7 @@ export interface FleetAgent {
   backend: string;         // ollama, claude, claude-cli, codex, custom
   model?: string;
   modelTier?: FleetModelTier;
+  telos: AgentTelos;
   prompt: string;
   worktree?: boolean;
   singleton?: boolean;
@@ -141,6 +143,7 @@ interface FleetYamlAgent {
   model?: string;
   model_tier?: string;
   modelTier?: string;
+  telos?: unknown;
   prompt?: string | number;
   worktree?: boolean;
   singleton?: boolean;
@@ -469,6 +472,12 @@ export function loadFleetConfig(projectDir: string): FleetConfig | null {
         model: agentModel,
         modelTier: agentModelTier,
       } as Pick<FleetAgent, 'backend' | 'model' | 'modelTier'>);
+      const prompt = typeof s.prompt === 'string' ? s.prompt.trim() : String(s.prompt || '');
+      const telosResult = normalizeAgentTelos(s.telos, {
+        fallbackHeadline: `${name}: ${prompt || 'serve this fleet'}`.slice(0, 240),
+        fallbackCurrentIntent: prompt,
+        source: s.telos ? 'creator' : 'derived',
+      });
       agents.push({
         name,
         schedule: s.schedule,
@@ -477,7 +486,8 @@ export function loadFleetConfig(projectDir: string): FleetConfig | null {
         backend: runtime.backend || '',
         model: runtime.model,
         modelTier: runtime.modelTier,
-        prompt: typeof s.prompt === 'string' ? s.prompt.trim() : String(s.prompt || ''),
+        telos: telosResult.telos!,
+        prompt,
         worktree: resolveWorktree(s),
         singleton: s.singleton || false,
         respawn: s.respawn || false,
@@ -1203,6 +1213,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       task,
       identity,
       purpose,
+      telos: getAgentTelos(agent),
       name: agent.name,
     };
     if (runtime.model) body.model = runtime.model;
@@ -1640,8 +1651,18 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     ];
     if (runtime.model) args.push('--model', runtime.model);
     if (agent.allowedTools) args.push('--allowedTools', agent.allowedTools);
+    args.push('--telos', getAgentTelos(agent).headline);
     args.push('-q', '--', agent.prompt);
     return buildPortDaddyShellCommand(args);
+  }
+
+  function getAgentTelos(agent: FleetAgent): AgentTelos {
+    if (agent.telos?.headline) return agent.telos;
+    return normalizeAgentTelos(undefined, {
+      fallbackHeadline: `${agent.name}: ${agent.prompt || 'serve this fleet'}`,
+      fallbackCurrentIntent: agent.prompt,
+      source: 'derived',
+    }).telos!;
   }
 
   async function ensureHarbor(): Promise<void> {
@@ -1798,7 +1819,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     emit({ type: 'fleet_stopped', project, timestamp: Date.now() });
   }
 
-  function getStatus(): Array<{ name: string; type: string; status: string; running: boolean; paused: boolean; uptime: number; queueDepth: number }> {
+  function getStatus(): Array<{ name: string; type: string; status: string; running: boolean; paused: boolean; uptime: number; queueDepth: number; telosHeadline: string }> {
     return config.agents.map((agent) => {
       const record = running.get(agent.name);
       const activeRun = activeAgentRuns.has(agent.name);
@@ -1822,6 +1843,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
         paused,
         uptime: record ? Date.now() - record.startedAt : 0,
         queueDepth,
+        telosHeadline: getAgentTelos(agent).headline,
       };
     });
   }

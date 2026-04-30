@@ -35,6 +35,7 @@ fleet:
       trigger: git:committed
       respawn: true                      # Auto-respawn if this agent dies
       max_respawns: 3                    # Circuit breaker — stop after 3 deaths
+      telos: "Find the bug this commit would otherwise ship."
       allowedTools: "Read,Grep,Glob,Bash(npm test*)"
       prompt: |
         Review the most recent commit. Read every changed file.
@@ -47,6 +48,7 @@ fleet:
 
     documentarian:
       trigger: git:committed
+      telos: "Keep documentation honest against code truth."
       allowedTools: "Read,Grep,Glob,Write,Edit"
       prompt: |
         You maintain documentation for this project.
@@ -60,6 +62,7 @@ fleet:
 
     cartographer:
       trigger: git:committed
+      telos: "Keep roadmap truth aligned with commits."
       allowedTools: "Read,Grep,Glob,Write"
       prompt: |
         You maintain the map between what was planned and what was built.
@@ -90,6 +93,7 @@ fleet:
       backend: claude-cli
       model: sonnet
       singleton: true
+      telos: "Propose one novel, buildable improvement with lineage."
       allowedTools: "Read,Grep,Glob,Write,Bash(pd ideas*)"
       prompt: |
         You are Spark, the idea engine for this project.
@@ -119,6 +123,7 @@ fleet:
       backend: claude-cli
       model: sonnet
       singleton: true
+      telos: "Find surprising feature connections without inventing novelty."
       allowedTools: "Read,Grep,Glob,Write,Bash(pd ideas*)"
       prompt: |
         You are Spider, the connection engine.

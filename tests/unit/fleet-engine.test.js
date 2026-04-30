@@ -235,7 +235,7 @@ test('parses canonical fleet budget field as budgetUsdPerDay', () => {
       budget_usd_per_day: 7.5,
     },
     agents: {
-      qa: { backend: 'claude-cli', prompt: 'Run qa', trigger: 'git:committed' },
+      qa: { backend: 'claude-cli', prompt: 'Run qa', trigger: 'git:committed', telos: 'Keep QA intent visible' },
     },
   }));
 
@@ -246,6 +246,7 @@ test('parses canonical fleet budget field as budgetUsdPerDay', () => {
     maxSpawnsPerHour: 20,
     budgetUsdPerDay: 7.5,
   });
+  expect(config?.agents[0].telos.headline).toBe('Keep QA intent visible');
 });
 
 test('parses trigger_tuple arrays from fleet yaml', () => {

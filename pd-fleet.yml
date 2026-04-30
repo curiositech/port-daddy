@@ -29,6 +29,7 @@ fleet:
       prompt: "git status --porcelain"
       on_success: publish git:status
       identity: "{project}:fleet:gardener"
+      telos: "Keep the worktree's cleanliness visible."
 
     qa:
       trigger: git:committed
@@ -84,6 +85,7 @@ fleet:
       on_success: publish qa:clean
       on_failure: publish qa:findings
       identity: "{project}:fleet:qa"
+      telos: "Find the bug the commit would otherwise ship."
 
     test-hunter:
       trigger: git:committed
@@ -127,6 +129,7 @@ fleet:
           coordination:inconsistency with the exact file, assumption, and
           proposed resolution.
       identity: "{project}:fleet:test-hunter"
+      telos: "Turn weak coverage into tests that would catch real regressions."
 
     documentarian:
       trigger: promotion:release-surfaces
@@ -225,6 +228,7 @@ fleet:
         - Publish only material release-surface inconsistencies to
           coordination:inconsistency, with source SHA and exact surfaces.
       identity: "{project}:fleet:documentarian"
+      telos: "Keep every release surface honest against runtime truth."
 
     simplifier:
       trigger: git:committed
@@ -247,6 +251,7 @@ fleet:
         session's ownership or change a public UX/planning assumption, publish
         coordination:inconsistency instead of editing through it.
       identity: "{project}:fleet:simplifier"
+      telos: "Remove needless complexity without changing behavior."
 
     cartographer:
       # Scheduled instead of git:committed because:
@@ -358,6 +363,7 @@ fleet:
           discipline, and data-handling constraints.
         - Publish only material planning conflicts to coordination:inconsistency.
       identity: "{project}:fleet:cartographer"
+      telos: "Keep the roadmap, recovery queue, and live work map aligned."
 
     spark:
       schedule: "*/30 * * * *"
@@ -407,6 +413,7 @@ fleet:
         coordination:inconsistency instead of creating a duplicate proposal.
       on_success: publish spark:idea
       identity: "{project}:fleet:spark"
+      telos: "Propose one novel, buildable improvement with traceable lineage."
 
     spider:
       trigger: spark:idea
@@ -479,6 +486,7 @@ fleet:
         the conflict.
       on_success: publish spider:connections
       identity: "{project}:fleet:spider"
+      telos: "Find surprising feature connections without inventing novelty."
 
   watchers:
     # 9876, not 9877. Was a port typo that silently dropped every qa:findings.

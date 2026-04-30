@@ -1153,6 +1153,8 @@ interface WhoamiResponse {
   sessionId?: string;
   sessionName?: string | null;
   purpose?: string;
+  telos?: unknown;
+  telosHeadline?: string | null;
   identity?: string | null;
   phase?: string;
   files?: string[];
@@ -3714,6 +3716,8 @@ interface WhoamiSugarResponse {
   sessionId?: string;
   sessionName?: string | null;
   purpose?: string;
+  telos?: unknown;
+  telosHeadline?: string | null;
   identity?: string | null;
   phase?: string;
   files?: string[];
@@ -3728,6 +3732,7 @@ interface WhoamiSugarResponse {
     sessionName?: string | null;
     startedAt?: number;
     purpose?: string;
+    telosHeadline?: string | null;
     identity?: string | null;
     contextSlot?: string;
   };

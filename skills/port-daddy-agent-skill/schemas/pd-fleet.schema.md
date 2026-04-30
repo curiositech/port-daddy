@@ -65,6 +65,7 @@ You can mix them. If you set none, the agent is reachable only via manual `pd sp
 | `model` | when supported | Pin it. `claude-3-5-sonnet`, `qwen2.5-coder:7b`, etc. Predictable cost > "best available". |
 | `model_tier` | optional | Shortcut for built-in backend tiers: `low`, `mid`, or `high`. YAML should use `model_tier`; `modelTier` is accepted for compatibility. |
 | `prompt` | yes | For LLM backends, the user message. For `custom`, the shell command. |
+| `telos` | yes | The agent's purpose contract. String form is the visible tagline; object form supports `headline`, `facets`, `hierarchy`, `currentIntent`, and `source`. |
 | `allowedTools` | optional | Claude-CLI tool allowlist: `Read,Grep,Bash(npm test*)`. |
 | `worktree` | optional | If `true`, the spawner creates a git worktree and runs the agent there. |
 | `timeout` | optional | Seconds before SIGKILL. |
@@ -128,6 +129,7 @@ fleet:
       backend: ollama
       model: qwen2.5-coder:7b
       identity: "{project}:fleet:qa"
+      telos: "Find the bug the commit would otherwise ship."
       respawn: true
       max_respawns: 3
       prompt: "Review the last commit for bugs. If clean, say CLEAN."

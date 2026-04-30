@@ -9,6 +9,7 @@
 import type Database from 'better-sqlite3';
 import { parseIdentity, patternToSql } from './identity.js';
 import type { SemanticIndex } from './semantic-index.js';
+import { normalizeAgentTelos, parseAgentTelos, serializeAgentTelos, type AgentTelos } from './agent-telos.js';
 
 const DEFAULT_HEARTBEAT_INTERVAL = 30000;  // 30 seconds
 const DEFAULT_AGENT_TTL = 120000;          // 2 minutes without heartbeat = display as inactive
@@ -53,6 +54,7 @@ interface AgentRow {
   identity_stack: string | null;
   identity_context: string | null;
   purpose: string | null;
+  telos: string | null;
   skills: string | null;
   // Liveness & readiness
   status: string;
@@ -72,6 +74,7 @@ interface RegisterOptions {
   worktreeId?: string | null;
   identity?: string | null;   // Semantic identity: project:stack:context (parsed into components)
   purpose?: string | null;    // What this agent is doing
+  telos?: unknown;            // Required telos contract; purpose/name/identity may seed legacy clients
   status?: string;            // Agent status: starting, ready, busy, draining
 }
 
@@ -94,6 +97,8 @@ interface HeartbeatOptions {
   status?: string;
   readiness?: ReadinessCheck[];
   progress?: string;
+  purpose?: string;
+  telos?: unknown;
   [key: string]: unknown;
 }
 
@@ -116,6 +121,8 @@ interface AgentFormatted {
   identityStack: string | null;
   identityContext: string | null;
   purpose: string | null;
+  telos: AgentTelos;
+  telosHeadline: string;
   skills: string[];
   // Liveness & readiness
   status: string;
@@ -168,6 +175,7 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
       identity_stack TEXT,
       identity_context TEXT,
       purpose TEXT,
+      telos TEXT,
       status TEXT DEFAULT 'ready',
       readiness TEXT,
       progress TEXT
@@ -185,6 +193,7 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
     'ALTER TABLE agents ADD COLUMN identity_stack TEXT',
     'ALTER TABLE agents ADD COLUMN identity_context TEXT',
     'ALTER TABLE agents ADD COLUMN purpose TEXT',
+    'ALTER TABLE agents ADD COLUMN telos TEXT',
     "ALTER TABLE agents ADD COLUMN status TEXT DEFAULT 'ready'",
     'ALTER TABLE agents ADD COLUMN readiness TEXT',
     'ALTER TABLE agents ADD COLUMN progress TEXT',
@@ -198,10 +207,10 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
   const stmts = {
     get: db.prepare('SELECT * FROM agents WHERE id = ?'),
     register: db.prepare(`
-      INSERT OR REPLACE INTO agents (id, name, pid, type, registered_at, last_heartbeat, metadata, agent_card, skills, max_services, max_locks, worktree_id, identity_project, identity_stack, identity_context, purpose, status, readiness, progress)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT OR REPLACE INTO agents (id, name, pid, type, registered_at, last_heartbeat, metadata, agent_card, skills, max_services, max_locks, worktree_id, identity_project, identity_stack, identity_context, purpose, telos, status, readiness, progress)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `),
-    heartbeat: db.prepare('UPDATE agents SET last_heartbeat = ?, pid = ?, status = COALESCE(?, status), readiness = COALESCE(?, readiness), progress = COALESCE(?, progress) WHERE id = ?'),
+    heartbeat: db.prepare('UPDATE agents SET last_heartbeat = ?, pid = ?, status = COALESCE(?, status), readiness = COALESCE(?, readiness), progress = COALESCE(?, progress), purpose = COALESCE(?, purpose), telos = COALESCE(?, telos) WHERE id = ?'),
     unregister: db.prepare('DELETE FROM agents WHERE id = ?'),
     list: db.prepare('SELECT * FROM agents ORDER BY last_heartbeat DESC'),
     listByWorktree: db.prepare('SELECT * FROM agents WHERE worktree_id = ? ORDER BY last_heartbeat DESC'),
@@ -287,8 +296,12 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
       worktreeId = null,
       identity = null,
       purpose = null,
+      telos = undefined,
       status = 'ready'
     } = options;
+    const metadataRecord = metadata && typeof metadata === 'object' && !Array.isArray(metadata)
+      ? metadata as Record<string, unknown>
+      : null;
 
     // Parse semantic identity into components
     let identityProject: string | null = null;
@@ -325,6 +338,16 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
       }
     }
 
+    const telosInput = telos ?? metadataRecord?.telos;
+    const telosResult = normalizeAgentTelos(telosInput, {
+      fallbackHeadline: purpose || (typeof metadataRecord?.purpose === 'string' ? metadataRecord.purpose : null) || name || identity || `Operate as ${agentId}`,
+      fallbackCurrentIntent: purpose,
+      source: telosInput ? 'self' : 'derived',
+    });
+    if (!telosResult.success || !telosResult.telos) {
+      return { success: false, error: telosResult.error || 'telos is required', code: 'TELOS_REQUIRED' };
+    }
+
     const existing = stmts.get.get(agentId) as AgentRow | undefined;
 
     try {
@@ -347,6 +370,7 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
         identityStack,
         identityContext,
         purpose,
+        serializeAgentTelos(telosResult.telos),
         status,
         null,  // readiness (set via heartbeat)
         null   // progress (set via heartbeat)
@@ -373,6 +397,8 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
         agentId,
         registered: !existing,
         message: existing ? 'agent updated' : 'agent registered',
+        telos: telosResult.telos,
+        telosHeadline: telosResult.telos.headline,
         // Include dead agent count so CLI can show a notice
         deadAgentsInProject,
         salvageHint: deadAgentsInProject > 0 ? `${deadAgentsInProject} dead agent(s) in ${identityProject}:*. Run: pd salvage --project ${identityProject}` : null
@@ -390,7 +416,7 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
       return { success: false, error: 'agent ID must be a non-empty string' };
     }
 
-    const { pid = process.pid, status, readiness, progress } = options;
+    const { pid = process.pid, status, readiness, progress, purpose, telos } = options;
     const now = Date.now();
 
     const existing = stmts.get.get(agentId) as AgentRow | undefined;
@@ -420,8 +446,21 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
     const statusValue = status !== undefined ? status : null;
     const readinessValue = readiness !== undefined ? JSON.stringify(readiness) : null;
     const progressValue = progress !== undefined ? progress : null;
+    const purposeValue = typeof purpose === 'string' && purpose.trim() ? purpose.trim() : null;
+    let telosValue: string | null = null;
+    if (telos !== undefined) {
+      const telosResult = normalizeAgentTelos(telos, {
+        fallbackHeadline: purposeValue || existing.purpose || existing.name || agentId,
+        fallbackCurrentIntent: purposeValue || existing.purpose,
+        source: 'self',
+      });
+      if (!telosResult.success || !telosResult.telos) {
+        return { success: false, error: telosResult.error || 'telos must have a non-empty headline', code: 'TELOS_REQUIRED' };
+      }
+      telosValue = serializeAgentTelos(telosResult.telos);
+    }
 
-    stmts.heartbeat.run(now, pid, statusValue, readinessValue, progressValue, agentId);
+    stmts.heartbeat.run(now, pid, statusValue, readinessValue, progressValue, purposeValue, telosValue, agentId);
 
     // Compute health assessment for response
     const effectiveStatus = status || existing.status || 'ready';
@@ -436,6 +475,7 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
       agentId,
       lastHeartbeat: now,
       message: 'heartbeat recorded',
+      ...(telosValue ? { telos: parseAgentTelos(telosValue), telosUpdated: true } : {}),
       health: {
         liveness: 'alive' as const,
         readiness: readinessState,
@@ -480,6 +520,7 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
   function formatAgent(agent: AgentRow, now: number): AgentFormatted {
     const identity = [agent.identity_project, agent.identity_stack, agent.identity_context]
       .filter(Boolean).join(':') || null;
+    const telos = parseAgentTelos(agent.telos, agent.purpose || agent.name || identity || `Operate as ${agent.id}`);
 
     const agentStatus = agent.status || 'ready';
     const readiness = safeJsonParse(agent.readiness) as ReadinessCheck[] | null;
@@ -522,6 +563,8 @@ export function createAgents(db: Database.Database, options?: AgentsOptions) {
       identityStack: agent.identity_stack,
       identityContext: agent.identity_context,
       purpose: agent.purpose,
+      telos,
+      telosHeadline: telos.headline,
       status: agentStatus,
       readiness,
       isReady,
