@@ -646,6 +646,14 @@ describe('MCP tool coverage quality', () => {
     expect(salvageTools).toContain('claim_salvage');
   });
 
+  it('sugar MCP tools expose telos and self-salvage fields', () => {
+    expect(mcpContent).toContain("name: 'begin_session'");
+    expect(mcpContent).toContain('Agent purpose contract/tagline');
+    expect(mcpContent).toContain("name: 'end_session_full'");
+    expect(mcpContent).toContain('self_salvage');
+    expect(mcpContent).toContain('Optional capsule for unfinished but doable telos');
+  });
+
   it('tunnel feature should have start, stop, and list tools', () => {
     const tunnelTools = mcpToolNames.filter(t =>
       TOOL_FEATURE_MAP[t] === 'tunnel'

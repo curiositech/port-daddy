@@ -10,6 +10,7 @@ import { createAgents } from '../../lib/agents.js';
 import { createSessions } from '../../lib/sessions.js';
 import { createActivityLog } from '../../lib/activity.js';
 import { createSugar } from '../../lib/sugar.js';
+import { createResurrection } from '../../lib/resurrection.js';
 
 function setup() {
   const db = createTestDb();
@@ -17,8 +18,9 @@ function setup() {
   const sessions = createSessions(db);
   const activityLog = createActivityLog(db);
   sessions.setActivityLog(activityLog);
-  const sugar = createSugar({ agents, sessions, activityLog });
-  return { db, agents, sessions, activityLog, sugar };
+  const resurrection = createResurrection(db, { sessions });
+  const sugar = createSugar({ agents, sessions, activityLog, resurrection });
+  return { db, agents, sessions, activityLog, resurrection, sugar };
 }
 
 // =============================================================================
@@ -368,6 +370,75 @@ describe('sugar.done', () => {
     expect(result.success).toBe(false);
     expect(result.code).toBe('SESSION_OWNERSHIP_MISMATCH');
     expect(result.error).toContain('belongs to agent agent-a');
+  });
+
+  test('self-salvage queues unfinished but doable telos for resurrection', () => {
+    const { sugar, sessions, resurrection } = setup();
+
+    const begin = sugar.begin({
+      purpose: 'Finish the telos handoff loop',
+      agentId: 'self-salvage-test',
+      identity: 'port-daddy:runtime:self-salvage',
+      telos: 'Make unfinished telos recoverable',
+    });
+    expect(begin.success).toBe(true);
+    sessions.addNote(begin.sessionId, 'Implemented the normalizer; route wiring still pending');
+
+    const result = sugar.done({
+      agentId: 'self-salvage-test',
+      sessionId: begin.sessionId,
+      note: 'Stopping before route smoke',
+      selfSalvage: {
+        telosVerdict: 'not-fulfilled',
+        doable: 'yes',
+        whyStopped: 'Need a fresh route smoke after rebuild',
+        nextPlan: ['Run focused sugar tests', 'Smoke pd done --self-salvage on the promoted daemon'],
+        wisdom: 'The capsule belongs in the handoff note and resurrection metadata.',
+        evidence: ['tests/unit/sugar.test.js'],
+      },
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.sessionStatus).toBe('abandoned');
+    expect(result.selfSalvageQueued).toBe(true);
+    expect(result.selfSalvage.telosVerdict).toBe('not-fulfilled');
+
+    const sessionInfo = sessions.get(begin.sessionId);
+    expect(sessionInfo.session.status).toBe('abandoned');
+    const notes = sessions.getNotes(begin.sessionId);
+    const handoff = notes.notes.find((note) => note.type === 'handoff');
+    expect(handoff.content).toContain('Self-salvage capsule');
+    expect(handoff.content).toContain('Run focused sugar tests');
+
+    const pending = resurrection.pending({ project: 'port-daddy' });
+    expect(pending.count).toBe(1);
+    expect(pending.agents[0].id).toBe('self-salvage-test');
+    expect(pending.agents[0].selfSalvage.telosVerdict).toBe('not-fulfilled');
+    expect(pending.agents[0].selfSalvage.nextPlan).toContain('Run focused sugar tests');
+  });
+
+  test('rejects completed status when self-salvage says unfinished but doable', () => {
+    const { sugar } = setup();
+
+    const begin = sugar.begin({
+      purpose: 'Validate mismatch',
+      agentId: 'self-salvage-mismatch',
+      telos: 'Reject contradictory closeout',
+    });
+
+    const result = sugar.done({
+      agentId: 'self-salvage-mismatch',
+      sessionId: begin.sessionId,
+      status: 'completed',
+      selfSalvage: {
+        telosVerdict: 'partial',
+        doable: 'yes',
+        nextPlan: 'Continue this exact slice',
+      },
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.code).toBe('SELF_SALVAGE_STATUS_MISMATCH');
   });
 });
 

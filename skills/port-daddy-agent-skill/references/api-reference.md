@@ -643,7 +643,9 @@ Register agent + start session atomically. Rolls back agent registration on fail
 ```
 
 ### POST /sugar/done
-End session + unregister agent atomically.
+End session + unregister agent atomically. If `selfSalvage` says the telos is
+unfinished but doable, Port Daddy marks the session `abandoned`, writes the
+capsule into the handoff note, and queues the agent in salvage for continuation.
 
 **Body:**
 | Field | Type | Required | Description |
@@ -652,6 +654,7 @@ End session + unregister agent atomically.
 | `sessionId` | string | no | Session ID |
 | `note` | string | no | Final summary note |
 | `status` | string | no | 'completed' (default) or 'abandoned' |
+| `selfSalvage` | object | no | Recovery capsule: `telosVerdict`, `doable`, `whyStopped`, `nextPlan`, `wisdom`, `evidence`, `risk`. Queueable capsules must be unfinished and `doable: "yes"`. |
 
 **Response (200):**
 ```json
@@ -659,8 +662,26 @@ End session + unregister agent atomically.
   "success": true,
   "agentId": "agent-a1b2c3d4",
   "sessionId": "session-uuid",
-  "sessionStatus": "completed",
-  "agentUnregistered": true
+  "sessionStatus": "abandoned",
+  "agentUnregistered": true,
+  "selfSalvageQueued": true
+}
+```
+
+**Example self-salvage closeout:**
+```json
+{
+  "agentId": "agent-a1b2c3d4",
+  "note": "Stopped before promotion smoke.",
+  "selfSalvage": {
+    "telosVerdict": "not-fulfilled",
+    "doable": "yes",
+    "whyStopped": "Need a fresh daemon rebuild before live proof.",
+    "nextPlan": ["rebuild daemon", "run pd done --self-salvage smoke"],
+    "wisdom": "Do not trust source truth until the canonical daemon is relaunched.",
+    "evidence": ["npm test -- --runInBand tests/unit/sugar.test.js"],
+    "risk": "Stale daemon may reject the new field."
+  }
 }
 ```
 

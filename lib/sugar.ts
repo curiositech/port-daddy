@@ -10,6 +10,7 @@ import { randomBytes } from 'crypto';
 import { parseIdentity } from './identity.js';
 import { buildHumanReadableId, cleanAgentDisplayName, deriveAgentDisplayName } from './agent-names.js';
 import { normalizeAgentTelos } from './agent-telos.js';
+import { formatSelfSalvageNote, normalizeSelfSalvage, type SelfSalvageCapsule } from './telos-salvage.js';
 
 // =============================================================================
 // Types
@@ -38,10 +39,26 @@ interface ActivityLogModule {
   }): void;
 }
 
+interface ResurrectionModule {
+  selfSalvage(agent: {
+    id: string;
+    name: string;
+    purpose?: string | null;
+    sessionId?: string | null;
+    lastHeartbeat?: number;
+    notes?: string[];
+    selfSalvage: SelfSalvageCapsule;
+    identityProject?: string | null;
+    identityStack?: string | null;
+    identityContext?: string | null;
+  }): Record<string, unknown>;
+}
+
 interface SugarDeps {
   agents: AgentsModule;
   sessions: SessionsModule;
   activityLog: ActivityLogModule;
+  resurrection?: ResurrectionModule;
 }
 
 interface BeginOptions {
@@ -61,6 +78,7 @@ interface DoneOptions {
   sessionId?: string;
   note?: string;
   status?: string;
+  selfSalvage?: unknown;
 }
 
 interface WhoamiOptions {
@@ -73,7 +91,7 @@ interface WhoamiOptions {
 // =============================================================================
 
 export function createSugar(deps: SugarDeps) {
-  const { agents, sessions, activityLog } = deps;
+  const { agents, sessions, activityLog, resurrection } = deps;
 
   function sessionTarget(identityProject: string | null | undefined, sessionId: string): string {
     return identityProject ? `${identityProject}:session:${sessionId}` : sessionId;
@@ -247,8 +265,29 @@ export function createSugar(deps: SugarDeps) {
    * Finds active session by agentId if sessionId not provided.
    */
   function done(options: DoneOptions) {
-    const { agentId, note, status = 'completed' } = options;
+    const { agentId, note } = options;
+    let status = options.status || 'completed';
     let { sessionId } = options;
+    const selfSalvage = normalizeSelfSalvage(options.selfSalvage);
+
+    if (!selfSalvage.success) {
+      return {
+        success: false,
+        error: selfSalvage.error,
+        code: 'SELF_SALVAGE_VALIDATION_ERROR',
+      };
+    }
+
+    if (selfSalvage.shouldQueue) {
+      if (options.status && options.status !== 'abandoned') {
+        return {
+          success: false,
+          error: 'Queueable self-salvage means the telos is unfinished; use status "abandoned" or omit status.',
+          code: 'SELF_SALVAGE_STATUS_MISMATCH',
+        };
+      }
+      status = 'abandoned';
+    }
 
     // Find session by agent if not provided
     if (!sessionId && agentId) {
@@ -293,13 +332,26 @@ export function createSugar(deps: SugarDeps) {
       }
     }
 
+    const effectiveAgentId = agentId || findAgentForSession(sessionId);
+    const sessionBeforeResult = sessions.get(sessionId);
+    const sessionBefore = sessionBeforeResult.success && sessionBeforeResult.session
+      ? sessionBeforeResult.session as Record<string, unknown>
+      : null;
+    const agentBeforeResult = effectiveAgentId ? agents.get(effectiveAgentId) : { success: false };
+    const agentBefore = agentBeforeResult.success && agentBeforeResult.agent
+      ? agentBeforeResult.agent as Record<string, unknown>
+      : null;
+
     // Count notes before ending (end adds the handoff note)
     const notesBefore = sessions.getNotes(sessionId);
     const beforeCount = (notesBefore.notes as unknown[] || []).length;
 
     // End the session
     const endOpts: Record<string, unknown> = { status };
-    if (note) endOpts.note = note;
+    const finalNoteParts = [];
+    if (note) finalNoteParts.push(note);
+    if (selfSalvage.capsule) finalNoteParts.push(formatSelfSalvageNote(selfSalvage.capsule));
+    if (finalNoteParts.length > 0) endOpts.note = finalNoteParts.join('\n\n');
     const sessionResult = sessions.end(sessionId, endOpts);
 
     if (!sessionResult.success) {
@@ -312,13 +364,35 @@ export function createSugar(deps: SugarDeps) {
 
     // Unregister the agent
     let agentUnregistered = false;
-    const effectiveAgentId = agentId || findAgentForSession(sessionId);
+    let selfSalvageQueued = false;
+    if (selfSalvage.shouldQueue && selfSalvage.capsule && resurrection && effectiveAgentId) {
+      const liveNotes = Array.isArray(notesBefore.notes)
+        ? notesBefore.notes.map((noteRow: Record<string, unknown>) => String(noteRow.content || '')).filter(Boolean)
+        : [];
+      const queueResult = resurrection.selfSalvage({
+        id: effectiveAgentId,
+        name: typeof agentBefore?.name === 'string' ? agentBefore.name : effectiveAgentId,
+        purpose: typeof sessionBefore?.purpose === 'string' ? sessionBefore.purpose : null,
+        sessionId,
+        lastHeartbeat: typeof agentBefore?.lastHeartbeat === 'number' ? agentBefore.lastHeartbeat : Date.now(),
+        notes: [
+          ...liveNotes,
+          ...(endOpts.note ? [String(endOpts.note)] : []),
+        ],
+        selfSalvage: selfSalvage.capsule,
+        identityProject: typeof sessionBefore?.identityProject === 'string' ? sessionBefore.identityProject : null,
+        identityStack: typeof sessionBefore?.identityStack === 'string' ? sessionBefore.identityStack : null,
+        identityContext: typeof sessionBefore?.identityContext === 'string' ? sessionBefore.identityContext : null,
+      });
+      selfSalvageQueued = !!queueResult.success;
+    }
+
     if (effectiveAgentId) {
       const unregResult = agents.unregister(effectiveAgentId);
       agentUnregistered = !!unregResult.unregistered;
     }
 
-    const totalNotes = beforeCount + (note ? 1 : 0);
+    const totalNotes = beforeCount + (finalNoteParts.length > 0 ? 1 : 0);
 
     const sessionInfo = sessions.get(sessionId);
     const session = sessionInfo.success && sessionInfo.session ? sessionInfo.session as Record<string, unknown> : null;
@@ -332,6 +406,8 @@ export function createSugar(deps: SugarDeps) {
         agentId: effectiveAgentId || null,
         sessionId,
         status,
+        selfSalvage: selfSalvage.capsule || undefined,
+        selfSalvageQueued,
         identityProject: identityProject || undefined,
       } as unknown as Record<string, unknown>,
     });
@@ -343,7 +419,9 @@ export function createSugar(deps: SugarDeps) {
       sessionStatus: status,
       agentUnregistered,
       notesCount: totalNotes,
-      finalNote: !!note,
+      finalNote: finalNoteParts.length > 0,
+      selfSalvage: selfSalvage.capsule || null,
+      selfSalvageQueued,
     };
   }
 
