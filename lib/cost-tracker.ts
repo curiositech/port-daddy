@@ -39,7 +39,7 @@ const MODEL_RATES: Array<[string, ModelRate]> = [
   // Cloudflare Workers AI
   ['@cf/moonshotai/kimi-k2.6',                  { input: 0.950, cachedInput: 0.160, output: 4.000, label: 'Cloudflare Workers AI Kimi K2.6' }],
   ['@cf/zai-org/glm-4.7-flash',                 { input: 0.060, output: 0.400, label: 'Cloudflare Workers AI GLM-4.7-Flash' }],
-  ['@cf/qwen/qwen3-30b-a3b-fp8',                { input: 0.051, output: 0.340, label: 'Cloudflare Workers AI Qwen3 30B A3B FP8' }],
+  ['@cf/qwen/qwen3-30b-a3b-fp8',                { input: 0.051, output: 0.335, label: 'Cloudflare Workers AI Qwen3 30B A3B FP8' }],
   ['@cf/nvidia/nemotron-3-120b-a12b',           { input: 0.500, output: 1.500, label: 'Cloudflare Workers AI Nemotron 3 120B A12B' }],
   ['@cf/meta/llama-4-scout-17b-16e-instruct',   { input: 0.270, output: 0.850, label: 'Cloudflare Workers AI Llama 4 Scout 17B 16E Instruct' }],
   ['@cf/openai/gpt-oss-120b',                   { input: 0.350, output: 0.750, label: 'Cloudflare Workers AI GPT-OSS 120B' }],

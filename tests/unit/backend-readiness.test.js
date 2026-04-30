@@ -111,7 +111,7 @@ describe('backend readiness', () => {
 
     const readiness = await assessBackendReadiness('cloudflare');
 
-    expect(mockGetSecret).toHaveBeenCalledTimes(1);
+    expect(mockGetSecret).toHaveBeenCalledWith('CLOUDFLARE_ACCOUNT_ID');
     expect(mockGetSecret).toHaveBeenCalledWith('CLOUDFLARE_API_TOKEN');
     expect(readiness).toMatchObject({
       backend: 'cloudflare',
@@ -120,6 +120,16 @@ describe('backend readiness', () => {
     expect(readiness.summary).toContain('Cloudflare Workers AI credentials present');
     expect(readiness.credentialKeys).toEqual(['CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_API_TOKEN']);
     expect(readiness.credentialAlternates).toEqual(['CLOUDFLARE_API_KEY', 'CF_API_TOKEN', 'CF_ACCOUNT_ID']);
+    expect(readiness.setupLinks).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        label: 'Create pd-ai-stack token',
+        kind: 'token_template',
+      }),
+      expect.objectContaining({
+        label: 'Create Workers AI token',
+        kind: 'token_template',
+      }),
+    ]));
   });
 
   test('blocks Cloudflare models without exact cost rates', async () => {

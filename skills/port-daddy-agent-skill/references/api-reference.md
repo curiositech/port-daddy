@@ -1302,7 +1302,7 @@ Returns 400 if `yaml` is missing, not a string, or fails YAML parsing. The fleet
 ---
 
 ### GET /fleet/models
-List available backends and their models. Probes Ollama for locally installed models.
+List available backends, model tiers, readiness, setup links, and their models. Probes Ollama for locally installed models.
 
 **Response:**
 ```json
@@ -1321,6 +1321,35 @@ List available backends and their models. Probes Ollama for locally installed mo
 ```
 
 Ollama models are fetched live from `localhost:11434/api/tags` with a 2s timeout. If Ollama is not running, its `models` array is empty.
+
+---
+
+### POST /fleet/backend-secrets
+Save console-managed backend credentials in encrypted local storage.
+
+**Request:**
+```json
+{
+  "backend": "cloudflare",
+  "values": {
+    "CLOUDFLARE_ACCOUNT_ID": "account-id",
+    "CLOUDFLARE_API_TOKEN": "api-token"
+  }
+}
+```
+
+Only allowlisted keys for the selected backend are accepted. Secret values are trimmed, stored through the managed secret store, and never returned in the response. If encrypted storage is unavailable, the endpoint fails closed with 503 and leaves `~/.port-daddy-env` as the manual fallback.
+
+**Response:**
+```json
+{
+  "success": true,
+  "backend": "cloudflare",
+  "savedKeys": ["CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN"],
+  "encryptedAtRest": true,
+  "storage": { "backend": "keychain", "available": true }
+}
+```
 
 ---
 

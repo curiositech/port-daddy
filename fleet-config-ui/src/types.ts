@@ -539,9 +539,30 @@ export interface BackendInfo {
   readinessNextStep?: string;
   credentialKeys?: string[];
   credentialAlternates?: string[];
+  setupLinks?: BackendSetupLink[];
   setupCommand?: string;
   setupFiles?: string[];
   restartRequired?: boolean;
+}
+
+export interface BackendSetupLink {
+  label: string;
+  url: string;
+  description?: string;
+  kind?: 'token_template' | 'docs';
+}
+
+export interface BackendSecretSaveResult {
+  success: boolean;
+  backend: string;
+  savedKeys: string[];
+  encryptedAtRest: boolean;
+  storage: {
+    available: boolean;
+    storage: 'keychain' | 'unavailable';
+    encryptedAtRest: boolean;
+    location: string;
+  };
 }
 
 export interface RegistryAgent {
@@ -689,6 +710,7 @@ export interface SpawnPreflight {
     readinessNextStep?: string;
     credentialKeys?: string[];
     credentialAlternates?: string[];
+    setupLinks?: BackendSetupLink[];
     setupCommand?: string;
     setupFiles?: string[];
     restartRequired?: boolean;

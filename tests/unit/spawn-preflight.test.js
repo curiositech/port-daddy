@@ -29,6 +29,9 @@ describe('assessSpawnPreflight', () => {
       status: 'ready',
       summary: 'ready',
       nextStep: undefined,
+      credentialKeys: ['CLAUDE_CONFIG_DIR'],
+      setupLinks: [{ label: 'Auth docs', url: 'https://example.test/auth', kind: 'docs' }],
+      setupCommand: 'claude',
     });
   });
 
@@ -90,6 +93,11 @@ describe('assessSpawnPreflight', () => {
 
     expect(result.launchReady).toBe(true);
     expect(result.budget).toEqual(budgetStatus);
+    expect(result.attempts[0]).toEqual(expect.objectContaining({
+      credentialKeys: ['CLAUDE_CONFIG_DIR'],
+      setupLinks: [{ label: 'Auth docs', url: 'https://example.test/auth', kind: 'docs' }],
+      setupCommand: 'claude',
+    }));
     expect(mockAssessBackendReadiness).toHaveBeenCalledWith('claude-cli', { model: 'sonnet' });
   });
 
