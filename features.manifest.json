@@ -1032,7 +1032,8 @@
         "GET /fleet/config/:project",
         "PUT /fleet/config/:project",
         "POST /fleet/config/:project/budget",
-        "GET /fleet/models"
+        "GET /fleet/models",
+        "POST /fleet/backend-secrets"
       ],
       "completions": [
         "fleet"

@@ -8,6 +8,7 @@ import { fetchModels, saveFleetConfig, fetchFleetConfig } from '../api';
 import { activityTouchedFiles, isMeaningfulActivityEntry, isMeaningfulStory, summarizeActivityEntry } from '../activityFeed';
 import { extractMentionedPaths } from '../fileMentions';
 import FileActionLinks from './FileActionLinks';
+import BackendSetupActions from './BackendSetupActions';
 
 type InspectorTab = 'details' | 'settings';
 
@@ -384,6 +385,7 @@ export default function AgentConfigPanel({ agent, project, defaultTab, fleetEven
                 {selectedBackend.readinessNextStep && (
                   <div className="opacity-60 mt-1">Next: {selectedBackend.readinessNextStep}</div>
                 )}
+                <BackendSetupActions backend={selectedBackend} compact />
               </div>
             )}
 

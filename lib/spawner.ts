@@ -422,7 +422,10 @@ async function runGemini(spec: SpawnSpec, model: string): Promise<BackendRunResu
 }
 
 async function runCloudflare(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
-  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID || process.env.CF_ACCOUNT_ID;
+  const accountId = getSecret('CLOUDFLARE_ACCOUNT_ID')
+    || process.env.CLOUDFLARE_ACCOUNT_ID
+    || getSecret('CF_ACCOUNT_ID')
+    || process.env.CF_ACCOUNT_ID;
   const token = getSecret('CLOUDFLARE_API_TOKEN')
     || getSecret('CLOUDFLARE_API_KEY')
     || getSecret('CF_API_TOKEN');
