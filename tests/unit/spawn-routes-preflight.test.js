@@ -168,4 +168,31 @@ describe('spawn routes preflight', () => {
 
     await app.close();
   });
+
+  test('POST /spawn replays duplicate idempotency keys instead of launching twice', async () => {
+    const { app, spawner, register } = buildApp();
+    await register();
+
+    const payload = {
+      backend: 'claude-cli',
+      identity: 'port-daddy:repo:cli',
+      task: 'review the diff',
+      budgetUsd: 0.75,
+      idempotencyKey: 'same-request',
+    };
+
+    const first = await app.inject({ method: 'POST', url: '/spawn', payload });
+    const second = await app.inject({ method: 'POST', url: '/spawn', payload });
+
+    expect(first.statusCode).toBe(200);
+    expect(second.statusCode).toBe(200);
+    expect(spawner.spawn).toHaveBeenCalledTimes(1);
+    expect(second.json()).toEqual(expect.objectContaining({
+      success: true,
+      agentId: 'spawned-123',
+      idempotentReplay: true,
+    }));
+
+    await app.close();
+  });
 });

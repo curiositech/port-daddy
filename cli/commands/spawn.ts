@@ -4,6 +4,7 @@
  * Handles: spawn, spawned, watch
  */
 
+import { createHash } from 'node:crypto';
 import { pdFetch } from '../utils/fetch.js';
 import { createWatch } from '../../lib/watch.js';
 import { CLIOptions, isQuiet, isJson } from '../types.js';
@@ -21,6 +22,30 @@ function parseBudgetValue(value: unknown): number | undefined {
   if (typeof value === 'string' && value.trim()) {
     const parsed = parseFloat(value);
     if (Number.isFinite(parsed)) return parsed;
+  }
+  return undefined;
+}
+
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${stableJson(record[key])}`).join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function spawnIdempotencyKey(body: Record<string, unknown>, cwd: string): string {
+  return createHash('sha256')
+    .update(stableJson({ v: 1, cwd, body }))
+    .digest('hex')
+    .slice(0, 32);
+}
+
+function stringOption(options: CLIOptions, ...names: string[]): string | undefined {
+  for (const name of names) {
+    const value = options[name];
+    if (typeof value === 'string' && value.trim()) return value.trim();
   }
   return undefined;
 }
@@ -43,7 +68,6 @@ export async function handleSpawn(
 
     const res: PdFetchResponse = await pdFetch(`/spawn/${encodeURIComponent(agentId)}`, {
       method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
     });
 
     const data = await res.json();
@@ -146,13 +170,19 @@ export async function handleSpawn(
   if (options.allowedTools) body.allowedTools = options.allowedTools;
   if (options.maxTokens) body.maxTokens = parseInt(options.maxTokens as string, 10);
 
+  body.idempotencyKey = stringOption(options, 'idempotency-key', 'idempotencyKey', 'request-id', 'requestId')
+    || spawnIdempotencyKey(body, process.cwd());
+
   if (IS_TTY && !isQuiet(options) && !isJson(options)) {
     ui.info(`Spawning ${backend} agent...`);
   }
 
   const res: PdFetchResponse = await pdFetch('/spawn', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Idempotency-Key': String(body.idempotencyKey),
+    },
     body: JSON.stringify(body),
   });
 
