@@ -1457,6 +1457,22 @@
       },
       "_note": "Composite feature \u2014 routes module wiring cost-tracker + counters together. API-only (no SDK methods or CLI commands)."
     },
+    "usage": {
+      "description": "Local product-usage telemetry for developer-pane diagnostics and operator UX instrumentation",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "POST /usage/trace",
+        "GET /usage/summary",
+        "GET /usage/events"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "API-only telemetry surface consumed by the Fleet Console developer pane."
+    },
     "orchestrator_plugins": {
       "description": "Hot-swappable merge orchestrator plugins \u2014 default FIFO, custom priority/scheduling",
       "cli": [],

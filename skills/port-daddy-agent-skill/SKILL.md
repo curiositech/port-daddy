@@ -81,6 +81,8 @@ pd guard check --staged
 | Another session may overlap | Read notes, claims, activity, and ownership before changing the surface. |
 | Work was interrupted | Use salvage and preserve the abandoned intent. |
 | You are about to commit, push, or deploy | Fetch, reconcile, re-read live coordination state, stage narrowly, and run the guard. |
+| You are promoting a daemon | Bump the version first. Patch for runtime fixes, minor for user-visible capabilities, v4 only for breaking lines. |
+| You need adoption evidence | Use Fleet Console → Developer to inspect usage by CLI/SDK/MCP/UI, agent type, model, tokens, turns, tool calls, and cost scope. |
 
 ## Agent Nomenclature And Telos
 
@@ -109,6 +111,9 @@ Use these only when the task actually needs them:
 - Locks for scarce resources such as promotion, generated artifacts,
   migrations, and release packaging.
 - FleetBar and Fleet Control Center for operator-visible truth.
+- The Fleet Console Developer pane for local usage telemetry: call counts,
+  capability gaps, model/backend slices, and Port Daddy-call cost versus
+  spawned-agent work cost.
 
 ## CLI Documentation Contract
 
@@ -223,6 +228,7 @@ ambiguous handoffs, and local green checks that do not match the installed app.
 | A fact should be machine-queryable | Emit a tuple or schema-shaped handoff, not prose only. |
 | A scarce resource is involved | Use a lock for promotion, migrations, generated assets, or release packaging. |
 | A release surface changed | Update docs, README, website, skill, and package/export metadata in the same coherent slice. |
+| A daemon will be promoted | Increase the version first; `scripts/promote-stable.sh` blocks unchanged or older versions. |
 | You are about to commit, push, or deploy | Fetch the canonical remote branch, rebase/merge current work onto it, re-read live sessions/notes/activity, and run `pd guard check --staged`. Do not publish stale-base work. |
 
 ## Procedural Cues
@@ -245,6 +251,9 @@ ambiguous handoffs, and local green checks that do not match the installed app.
 - If Coordination Guard is absent or only advisory in a repo that expects
   enforced claims, run `pd guard install --mode enforce` or leave an explicit
   blocker note with the exact failure.
+- If you touch daemon behavior, CLI/SDK/MCP surfaces, or Fleet Console
+  workflows, preserve usage telemetry so Port Daddy can answer what agents
+  actually use and what costs money.
 
 ## FleetBar And Console Proof
 

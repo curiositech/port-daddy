@@ -41,6 +41,34 @@ interface TcpTarget {
 
 type ConnectionTarget = SocketTarget | TcpTarget;
 
+function envFirst(names: string[]): string | null {
+  for (const name of names) {
+    const value = process.env[name];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return null;
+}
+
+function sdkCategory(method: string, path: string): string {
+  const p = `${method} ${path}`.toLowerCase();
+  if (p.includes('/tuples')) return 'tuples';
+  if (p.includes('/pheromone')) return 'pheromones';
+  if (p.includes('/locks')) return 'locks';
+  if (p.includes('/msg') || p.includes('/channels')) return 'channels';
+  if (p.includes('/agents')) return 'agents';
+  if (p.includes('/sessions') || p.includes('/notes')) return 'sessions';
+  if (p.includes('/spawn')) return 'spawn';
+  if (p.includes('/fleet')) return 'fleet';
+  if (p.includes('/resources')) return 'resources';
+  if (p.includes('/activity')) return 'activity';
+  if (p.includes('/memory')) return 'memory';
+  if (p.includes('/sorties')) return 'sorties';
+  if (p.includes('/projects')) return 'projects';
+  if (p.includes('/usage')) return 'usage';
+  if (p.includes('/claim') || p.includes('/release') || p.includes('/services')) return 'ports';
+  return 'other';
+}
+
 // =============================================================================
 // SDK option / result interfaces
 // =============================================================================
@@ -1383,6 +1411,60 @@ class PortDaddy {
   }
 
   /** @private */
+  _recordUsage(method: string, path: string, status: 'ok' | 'error', startedAt: number, error?: unknown): void {
+    if (path.startsWith('/usage/trace')) return;
+    if (process.env.NODE_ENV === 'test' && process.env.PORT_DADDY_ENABLE_USAGE_TELEMETRY_IN_TESTS !== '1') return;
+    const target = this._resolveTarget();
+    const body = JSON.stringify({
+      surface: 'sdk',
+      kind: 'function_call',
+      name: `${method} ${path.split('?')[0]}`,
+      category: sdkCategory(method, path),
+      agentId: this.agentId ?? envFirst(['PORT_DADDY_AGENT', 'PD_AGENT_ID', 'CODEX_AGENT_ID', 'CLAUDE_AGENT_ID']),
+      agentType: envFirst(['PORT_DADDY_AGENT_TYPE', 'CODEX_AGENT_TYPE', 'CLAUDE_AGENT_TYPE']) ?? 'sdk',
+      agentModel: envFirst(['PORT_DADDY_AGENT_MODEL', 'CODEX_MODEL', 'OPENAI_MODEL', 'ANTHROPIC_MODEL', 'CLAUDE_MODEL']),
+      backend: envFirst(['PORT_DADDY_BACKEND', 'CODEX_BACKEND', 'CLAUDE_BACKEND']),
+      model: envFirst(['PORT_DADDY_MODEL', 'CODEX_MODEL', 'OPENAI_MODEL', 'ANTHROPIC_MODEL', 'CLAUDE_MODEL']),
+      route: path,
+      method,
+      status,
+      durationMs: Date.now() - startedAt,
+      workScope: 'port_daddy_call',
+      toolCalls: 1,
+      cwd: process.cwd(),
+      context: {
+        pid: this.pid,
+        socket: Boolean(target.socketPath),
+      },
+      metadata: {
+        error: error instanceof Error ? error.message : undefined,
+      },
+    });
+
+    try {
+      const req = http.request({
+        method: 'POST',
+        path: '/usage/trace',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': String(Buffer.byteLength(body)),
+          ...this._headers(true),
+        },
+        timeout: 750,
+        ...(target.socketPath ? { socketPath: target.socketPath } : { host: target.host, port: target.port }),
+      }, (res) => {
+        res.resume();
+      });
+      req.on('error', () => undefined);
+      req.on('timeout', () => req.destroy());
+      req.write(body);
+      req.end();
+    } catch {
+      // SDK telemetry must not affect API behavior.
+    }
+  }
+
+  /** @private */
   _shouldFallbackFromSocket(error: NodeJS.ErrnoException): boolean {
     return error.code === 'ENOENT' ||
       error.code === 'ECONNREFUSED' ||
@@ -1391,6 +1473,7 @@ class PortDaddy {
 
   /** @private */
   async _request(method: string, path: string, body?: Record<string, unknown>): Promise<unknown> {
+    const startedAt = Date.now();
     const target = this._resolveTarget();
     const jsonBody = body !== undefined ? JSON.stringify(body) : null;
     const headers = this._headers(jsonBody !== null);
@@ -1449,7 +1532,14 @@ class PortDaddy {
       req.end();
     });
 
-    return makeRequest(target);
+    try {
+      const result = await makeRequest(target);
+      this._recordUsage(method, path, 'ok', startedAt);
+      return result;
+    } catch (error) {
+      this._recordUsage(method, path, 'error', startedAt, error);
+      throw error;
+    }
   }
 
   // ===========================================================================
@@ -3726,8 +3816,8 @@ interface DoneSugarResponse {
   agentUnregistered: boolean;
   notesCount: number;
   finalNote: boolean;
-  selfSalvage?: unknown | null;
   selfSalvageQueued?: boolean;
+  selfSalvage?: unknown;
   error?: string;
 }
 
@@ -3741,8 +3831,8 @@ interface WhoamiSugarResponse {
   sessionName?: string | null;
   purpose?: string;
   telos?: unknown;
-  telosHeadline?: string | null;
   identity?: string | null;
+  telosHeadline?: string | null;
   phase?: string;
   files?: string[];
   noteCount?: number;
@@ -3756,8 +3846,8 @@ interface WhoamiSugarResponse {
     sessionName?: string | null;
     startedAt?: number;
     purpose?: string;
-    telosHeadline?: string | null;
     identity?: string | null;
+    telosHeadline?: string | null;
     contextSlot?: string;
   };
 }

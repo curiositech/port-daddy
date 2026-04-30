@@ -108,6 +108,72 @@ const POST = (path: string, body?: Record<string, unknown>, opts?: { timeout?: n
 const PUT = (path: string, body?: Record<string, unknown>, opts?: { timeout?: number }) => api('PUT', path, body, opts);
 const DELETE = (path: string, body?: Record<string, unknown>, opts?: { timeout?: number }) => api('DELETE', path, body, opts);
 
+function envFirst(names: string[]): string | null {
+  for (const name of names) {
+    const value = process.env[name];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return null;
+}
+
+function mcpCategory(toolName: string): string {
+  const name = toolName.toLowerCase();
+  if (name.includes('tuple')) return 'tuples';
+  if (name.includes('pheromone') || name.includes('file_heat')) return 'pheromones';
+  if (name.includes('lock')) return 'locks';
+  if (name.includes('message') || name.includes('channel') || name.includes('tube')) return 'channels';
+  if (name.includes('agent') || name.includes('actor')) return 'agents';
+  if (name.includes('session') || name.includes('note') || name.includes('claim_files')) return 'sessions';
+  if (name.includes('spawn')) return 'spawn';
+  if (name.includes('fleet')) return 'fleet';
+  if (name.includes('sortie')) return 'sorties';
+  if (name.includes('project')) return 'projects';
+  if (name.includes('activity') || name.includes('sitrep') || name.includes('catch_me_up')) return 'activity';
+  if (name.includes('budget') || name.includes('wallet') || name.includes('bond')) return 'budget';
+  if (name.includes('salvage')) return 'salvage';
+  if (name.includes('port') || name.includes('service')) return 'ports';
+  return 'other';
+}
+
+async function recordMcpToolUsage(
+  toolName: string,
+  args: Record<string, unknown>,
+  status: 'ok' | 'error',
+  startedAt: number,
+  error?: unknown,
+): Promise<void> {
+  if (process.env.NODE_ENV === 'test' && process.env.PORT_DADDY_ENABLE_USAGE_TELEMETRY_IN_TESTS !== '1') return;
+  try {
+    await POST('/usage/trace', {
+      surface: 'mcp',
+      kind: 'tool_call',
+      name: toolName,
+      category: mcpCategory(toolName),
+      agentId: envFirst(['PORT_DADDY_AGENT', 'PD_AGENT_ID', 'CODEX_AGENT_ID', 'CLAUDE_AGENT_ID']),
+      agentType: envFirst(['PORT_DADDY_AGENT_TYPE', 'CODEX_AGENT_TYPE', 'CLAUDE_AGENT_TYPE']) ?? 'mcp',
+      agentModel: envFirst(['PORT_DADDY_AGENT_MODEL', 'CODEX_MODEL', 'OPENAI_MODEL', 'ANTHROPIC_MODEL', 'CLAUDE_MODEL']),
+      backend: envFirst(['PORT_DADDY_BACKEND', 'CODEX_BACKEND', 'CLAUDE_BACKEND']),
+      model: envFirst(['PORT_DADDY_MODEL', 'CODEX_MODEL', 'OPENAI_MODEL', 'ANTHROPIC_MODEL', 'CLAUDE_MODEL']),
+      project: typeof args.identity === 'string' ? String(args.identity).split(':')[0] : null,
+      projectDir: typeof args.projectDir === 'string' ? args.projectDir : typeof args.cwd === 'string' ? args.cwd : null,
+      status,
+      durationMs: Date.now() - startedAt,
+      workScope: 'port_daddy_call',
+      toolCalls: 1,
+      cwd: process.cwd(),
+      context: {
+        argKeys: Object.keys(args).sort(),
+        fullMode: FULL_MODE,
+      },
+      metadata: {
+        error: error instanceof Error ? error.message : undefined,
+      },
+    }, { timeout: 750 });
+  } catch {
+    // MCP telemetry is best-effort. Tool results must stay authoritative.
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Tiered tool loading — reduce context window overhead by 80%
 //
@@ -3771,7 +3837,7 @@ async function handleTool(
 const server = new Server(
   {
     name: 'port-daddy',
-    version: '3.11.0',
+    version: '3.11.1',
   },
   {
     capabilities: {
@@ -3802,13 +3868,17 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 // Execute tools
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
+  const startedAt = Date.now();
+  const toolArgs = (args ?? {}) as Record<string, unknown>;
 
   try {
-    const result = await handleTool(name, (args ?? {}) as Record<string, unknown>);
+    const result = await handleTool(name, toolArgs);
+    void recordMcpToolUsage(name, toolArgs, 'ok', startedAt);
     return {
       content: [{ type: 'text' as const, text: result }],
     };
   } catch (error) {
+    void recordMcpToolUsage(name, toolArgs, 'error', startedAt, error);
     if (error instanceof McpError) throw error;
 
     const err = error as Error;

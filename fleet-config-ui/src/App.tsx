@@ -18,6 +18,7 @@ import RoadmapPanel from './components/RoadmapPanel';
 import ResourceGovernancePanel from './components/ResourceGovernancePanel';
 import TubeConsolePanel from './components/TubeConsolePanel';
 import EventsRegistryPanel from './components/EventsRegistryPanel';
+import UsageTelemetryPanel from './components/UsageTelemetryPanel';
 import ShipwrightPanel from './shipwright/ShipwrightPanel';
 import { extractMentionedPaths } from './fileMentions';
 import {
@@ -42,6 +43,7 @@ import {
   CUSTOM_DAEMON_SENTINEL,
   getDaemonChoices,
   getDaemonUrl,
+  recordUsageEvent,
   setDaemonUrl,
 } from './api';
 import type {
@@ -57,8 +59,8 @@ import type {
   TopologyValidation,
 } from './types';
 
-type MainTab = 'Flow' | 'Roadmap' | 'Agents' | 'Resources' | 'Activity' | 'Channels' | 'Tube' | 'Events' | 'Inbox' | 'Sorties' | 'Memory' | 'Shipwright' | 'YAML';
-type ControlSurface = 'flow' | 'roadmap' | 'agents' | 'resources' | 'activity' | 'channels' | 'tube' | 'events' | 'inbox' | 'sorties' | 'memory' | 'shipwright' | 'yaml';
+type MainTab = 'Flow' | 'Roadmap' | 'Agents' | 'Resources' | 'Activity' | 'Channels' | 'Tube' | 'Events' | 'Inbox' | 'Sorties' | 'Memory' | 'Developer' | 'Shipwright' | 'YAML';
+type ControlSurface = 'flow' | 'roadmap' | 'agents' | 'resources' | 'activity' | 'channels' | 'tube' | 'events' | 'inbox' | 'sorties' | 'memory' | 'developer' | 'shipwright' | 'yaml';
 
 function canUseWindow(): boolean {
   return typeof window !== 'undefined';
@@ -73,6 +75,7 @@ function normalizeSurface(value: string | null): ControlSurface {
     case 'inbox':
     case 'sorties':
     case 'memory':
+    case 'developer':
     case 'roadmap':
     case 'shipwright':
     case 'yaml':
@@ -109,6 +112,8 @@ function surfaceToMainTab(surface: ControlSurface): MainTab {
       return 'Sorties';
     case 'memory':
       return 'Memory';
+    case 'developer':
+      return 'Developer';
     case 'shipwright':
       return 'Shipwright';
     case 'yaml':
@@ -129,6 +134,7 @@ function mainTabToSurface(activeTab: MainTab): ControlSurface {
   if (activeTab === 'Inbox') return 'inbox';
   if (activeTab === 'Sorties') return 'sorties';
   if (activeTab === 'Memory') return 'memory';
+  if (activeTab === 'Developer') return 'developer';
   if (activeTab === 'Shipwright') return 'shipwright';
   if (activeTab === 'YAML') return 'yaml';
   return 'flow';
@@ -1082,6 +1088,21 @@ export default function App() {
   }, [activeTab, embedded, selectedAgent, selectedProjectId]);
 
   useEffect(() => {
+    const surface = mainTabToSurface(activeTab);
+    void recordUsageEvent({
+      surface: 'ui',
+      kind: 'view',
+      name: `fleet-console.${surface}`,
+      category: surface === 'developer' ? 'usage' : surface,
+      projectDir: selectedProjectId,
+      metadata: {
+        embedded,
+        selectedAgent: selectedAgent ?? null,
+      },
+    });
+  }, [activeTab, embedded, selectedAgent, selectedProjectId]);
+
+  useEffect(() => {
     if (!configAgent || !selectedAgent || configAgent === selectedAgent) return;
     const timeout = window.setTimeout(() => {
       setInspectorTab('details');
@@ -1292,6 +1313,13 @@ export default function App() {
     setConfigAgent(null);
   };
   const selectProject = (projectId: string) => {
+    void recordUsageEvent({
+      surface: 'ui',
+      kind: 'interaction',
+      name: 'fleet-console.project.select',
+      category: 'projects',
+      projectDir: projectId,
+    });
     setSelectedProjectId(projectId);
     setSelectedAgent(null);
     setSelectedChannel(null);
@@ -1308,6 +1336,13 @@ export default function App() {
     }
 
     try {
+      void recordUsageEvent({
+        surface: 'ui',
+        kind: 'interaction',
+        name: 'fleet-console.daemon.change',
+        category: 'usage',
+        metadata: { from: daemonUrl, to: nextValue },
+      });
       const nextDaemonUrl = setDaemonUrl(nextValue);
       setDaemonUrlState(nextDaemonUrl);
       setDaemonChoices(getDaemonChoices());
@@ -1414,10 +1449,24 @@ export default function App() {
 
   const configAgentData = fleetConfig?.agents.find(a => a.name === configAgent);
   const daemonRunning = fleet.status?.running ?? false;
-  const surfaceTabs: MainTab[] = ['Flow', 'Roadmap', 'Agents', 'Resources', 'Activity', 'Channels', 'Tube', 'Events', 'Inbox', 'Sorties', 'Memory', 'Shipwright', 'YAML'];
-  const allProjectSurfaceTabs: MainTab[] = ['Flow', 'Shipwright'];
+  const surfaceTabs: MainTab[] = ['Flow', 'Roadmap', 'Agents', 'Resources', 'Activity', 'Channels', 'Tube', 'Events', 'Inbox', 'Sorties', 'Memory', 'Developer', 'Shipwright', 'YAML'];
+  const allProjectSurfaceTabs: MainTab[] = ['Flow', 'Developer', 'Shipwright'];
   const showProjectSidebar = activeTab === 'Flow' && !embedded;
   const visibleSurfaceTabs = selectedProjectId ? surfaceTabs : allProjectSurfaceTabs;
+  const handleSurfaceTabChange = useCallback((tab: MainTab) => {
+    void recordUsageEvent({
+      surface: 'ui',
+      kind: 'interaction',
+      name: 'fleet-console.tab.change',
+      category: mainTabToSurface(tab) === 'developer' ? 'usage' : mainTabToSurface(tab),
+      projectDir: selectedProjectId,
+      metadata: {
+        from: activeTab,
+        to: tab,
+      },
+    });
+    setActiveTab(tab);
+  }, [activeTab, selectedProjectId]);
   const handleProjectRefresh = useCallback(() => {
     fleet.refresh();
     fleet.refreshFeeds();
@@ -1485,8 +1534,8 @@ export default function App() {
         onBack={selectedProjectId ? goHome : undefined}
       />
 
-      {(selectedProjectId || activeTab === 'Shipwright') && !embedded && (
-        <TabBar tabs={visibleSurfaceTabs} active={activeTab} onChange={(tab) => setActiveTab(tab as MainTab)} />
+      {(selectedProjectId || activeTab === 'Developer' || activeTab === 'Shipwright') && !embedded && (
+        <TabBar tabs={visibleSurfaceTabs} active={activeTab} onChange={(tab) => handleSurfaceTabChange(tab as MainTab)} />
       )}
 
       {selectedProject && !embedded && (
@@ -1516,7 +1565,9 @@ export default function App() {
       <AnimatePresence mode="wait">
         {!selectedProjectId ? (
           <motion.div key="all" className="flex-1 overflow-y-auto" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -20 }}>
-            {activeTab === 'Shipwright' ? (
+            {activeTab === 'Developer' ? (
+              <UsageTelemetryPanel key="developer-all" />
+            ) : activeTab === 'Shipwright' ? (
               <ShipwrightPanel
                 key="shipwright-all"
                 onOpenFlow={() => setActiveTab('Flow')}
@@ -1789,6 +1840,9 @@ export default function App() {
                         projectName={selectedProjectName ?? undefined}
                         harbor={fleetConfig?.harbor}
                       />
+                    )}
+                    {activeTab === 'Developer' && (
+                      <UsageTelemetryPanel projectDir={selectedProjectId ?? undefined} />
                     )}
                     {activeTab === 'Shipwright' && (
                       <ShipwrightPanel

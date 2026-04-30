@@ -1607,6 +1607,8 @@ describe('spawn — codex backend', () => {
       inputTokens: 10000,
       cachedInputTokens: 4000,
       outputTokens: 2000,
+      turns: 1,
+      toolCalls: 0,
       costUsd: 0.0138,
       rateMode: 'exact',
     });

@@ -45,6 +45,14 @@ Note recorded.
 pd salvage --project my-app --limit 5
 No abandoned sessions in salvage queue.`,
   },
+  {
+    title: "Open Developer telemetry",
+    body: "The Developer pane shows which surfaces agents actually use: CLI, SDK, MCP, daemon routes, Fleet Console views, tokens, turns, tool calls, and Port Daddy-call cost versus spawned-agent work cost.",
+    command: `# Open Fleet Control Center -> Developer
+GET /usage/summary?window=7d
+surfaces: cli, sdk, mcp, ui, daemon
+cost scopes: port_daddy_call, agent_work`,
+  },
 ] as const;
 
 export function Primitives() {
@@ -170,9 +178,9 @@ export function Primitives() {
           <p>
             When the loop is healthy, the person should be able to move from{" "}
             <strong>Shipwright</strong> into <strong>Flow</strong>, then into{" "}
-            <strong>Activity</strong>, <strong>Inbox</strong>, and{" "}
-            <strong>YAML</strong> without losing the project identity or
-            runtime truth.
+            <strong>Activity</strong>, <strong>Inbox</strong>,{" "}
+            <strong>Developer</strong>, and <strong>YAML</strong> without
+            losing the project identity, runtime truth, or cost story.
           </p>
           <CodeBlock copyable={false} language="bash">
             {`$ pd fleet up
