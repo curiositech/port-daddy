@@ -719,7 +719,7 @@ const DEFAULT_MODELS: Record<SpawnSpec['backend'], string> = {
   claude: 'claude-haiku-4-5-20251001',
   'claude-cli': 'claude-cli',  // claude CLI manages its own model
   gemini: 'gemini-2.0-flash-exp',
-  cloudflare: '@cf/meta/llama-3.1-8b-instruct',
+  cloudflare: '@cf/zai-org/glm-4.7-flash',
   codex: 'gpt-5.4-mini',
   aider: 'aider',   // aider manages its own model selection
   custom: 'custom',

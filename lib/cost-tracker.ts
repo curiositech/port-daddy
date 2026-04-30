@@ -37,10 +37,16 @@ const FALLBACK_MODEL_RATES: Record<string, ModelRate> = {
 // List more-specific keys before less-specific ones.
 const MODEL_RATES: Array<[string, ModelRate]> = [
   // Cloudflare Workers AI
+  ['@cf/moonshotai/kimi-k2.6',                  { input: 0.950, cachedInput: 0.160, output: 4.000, label: 'Cloudflare Workers AI Kimi K2.6' }],
+  ['@cf/zai-org/glm-4.7-flash',                 { input: 0.060, output: 0.400, label: 'Cloudflare Workers AI GLM-4.7-Flash' }],
+  ['@cf/qwen/qwen3-30b-a3b-fp8',                { input: 0.051, output: 0.340, label: 'Cloudflare Workers AI Qwen3 30B A3B FP8' }],
+  ['@cf/nvidia/nemotron-3-120b-a12b',           { input: 0.500, output: 1.500, label: 'Cloudflare Workers AI Nemotron 3 120B A12B' }],
+  ['@cf/meta/llama-4-scout-17b-16e-instruct',   { input: 0.270, output: 0.850, label: 'Cloudflare Workers AI Llama 4 Scout 17B 16E Instruct' }],
+  ['@cf/openai/gpt-oss-120b',                   { input: 0.350, output: 0.750, label: 'Cloudflare Workers AI GPT-OSS 120B' }],
+  // Legacy exact rates retained for explicit older configs, not recommended tiers.
   ['@cf/meta/llama-3.1-8b-instruct',          { input: 0.282, output: 0.827, label: 'Cloudflare Workers AI Llama 3.1 8B Instruct' }],
   ['@cf/meta/llama-3.3-70b-instruct-fp8-fast', { input: 0.293, output: 2.253, label: 'Cloudflare Workers AI Llama 3.3 70B FP8 Fast' }],
   ['@cf/meta/llama-3.1-70b-instruct-fp8-fast', { input: 0.293, output: 2.253, label: 'Cloudflare Workers AI Llama 3.1 70B FP8 Fast' }],
-  ['@cf/openai/gpt-oss-120b',                  { input: 0.350, output: 0.750, label: 'Cloudflare Workers AI GPT-OSS 120B' }],
   // OpenAI — GPT-5.4 / Codex
   ['gpt-5.4-mini',          { input:  0.75, cachedInput: 0.075, output:  4.50, label: 'GPT-5.4 mini' }],
   ['gpt-5.4',               { input:  2.50, cachedInput: 0.25,  output: 15.00, label: 'GPT-5.4' }],

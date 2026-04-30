@@ -59,9 +59,9 @@ const modelsPayload = {
       id: 'cloudflare',
       name: 'Cloudflare Workers AI',
       modelTiers: {
-        low: '@cf/meta/llama-3.1-8b-instruct',
-        mid: '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
-        high: '@cf/openai/gpt-oss-120b',
+        low: '@cf/zai-org/glm-4.7-flash',
+        mid: '@cf/openai/gpt-oss-120b',
+        high: '@cf/moonshotai/kimi-k2.6',
       },
       readinessStatus: 'needs_setup',
       readinessSummary: 'Cloudflare Workers AI credentials missing',
@@ -106,9 +106,9 @@ describe('pd fleet models', () => {
     expect(mockPdFetch).toHaveBeenCalledWith('/fleet/models');
     expect(mockUi.info).toHaveBeenCalledWith('Fleet backend model tiers');
     expect(console.log).toHaveBeenCalledWith('cloudflare — Cloudflare Workers AI [needs_setup]');
-    expect(console.log).toHaveBeenCalledWith('  low  @cf/meta/llama-3.1-8b-instruct');
-    expect(console.log).toHaveBeenCalledWith('  mid  @cf/meta/llama-3.3-70b-instruct-fp8-fast');
-    expect(console.log).toHaveBeenCalledWith('  high @cf/openai/gpt-oss-120b');
+    expect(console.log).toHaveBeenCalledWith('  low  @cf/zai-org/glm-4.7-flash');
+    expect(console.log).toHaveBeenCalledWith('  mid  @cf/openai/gpt-oss-120b');
+    expect(console.log).toHaveBeenCalledWith('  high @cf/moonshotai/kimi-k2.6');
     expect(console.log).toHaveBeenCalledWith('codex — OpenAI Codex CLI [manual_check]');
   });
 

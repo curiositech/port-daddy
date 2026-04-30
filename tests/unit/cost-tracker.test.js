@@ -55,11 +55,20 @@ describe('CostTracker', () => {
 
   test('computes exact Cloudflare Workers AI cost from token counts', () => {
     const { costUsd, isEstimate } = costTracker.computeCost(
-      'cloudflare', '@cf/meta/llama-3.1-8b-instruct', 10000, 2000
+      'cloudflare', '@cf/zai-org/glm-4.7-flash', 10000, 2000
     );
 
     expect(isEstimate).toBe(false);
-    expect(costUsd).toBeCloseTo(0.004474, 6);
+    expect(costUsd).toBeCloseTo(0.0014, 6);
+  });
+
+  test('computes exact Cloudflare Kimi K2.6 cost with cached input tokens', () => {
+    const { costUsd, isEstimate } = costTracker.computeCost(
+      'cloudflare', '@cf/moonshotai/kimi-k2.6', 10000, 2000, 4000
+    );
+
+    expect(isEstimate).toBe(false);
+    expect(costUsd).toBeCloseTo(0.01434, 6);
   });
 
   test('uses model-aware estimate for aider without token counts', () => {

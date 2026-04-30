@@ -264,7 +264,7 @@ describe('spawner telemetry enforcement', () => {
         inputTokens: opts.inputTokens ?? null,
         cachedInputTokens: opts.cachedInputTokens ?? null,
         outputTokens: opts.outputTokens ?? null,
-        costUsd: 0.004474,
+        costUsd: 0.0014,
         isEstimate: false,
       })),
     };
@@ -275,7 +275,7 @@ describe('spawner telemetry enforcement', () => {
 
     const result = await spawner.spawn({
       backend: 'cloudflare',
-      model: '@cf/meta/llama-3.1-8b-instruct',
+      model: '@cf/zai-org/glm-4.7-flash',
       identity: 'port-daddy:fleet:cloudflare',
       task: 'Summarize Workers AI readiness',
     });
@@ -286,18 +286,18 @@ describe('spawner telemetry enforcement', () => {
     expect(result.telemetry).toEqual({
       inputTokens: 10000,
       outputTokens: 2000,
-      costUsd: 0.004474,
+      costUsd: 0.0014,
       rateMode: 'exact',
     });
     expect(costTracker.computeCost).toHaveBeenCalledWith(
       'cloudflare',
-      '@cf/meta/llama-3.1-8b-instruct',
+      '@cf/zai-org/glm-4.7-flash',
       10000,
       2000,
     );
     expect(costTracker.record).toHaveBeenCalledWith(expect.objectContaining({
       backend: 'cloudflare',
-      model: '@cf/meta/llama-3.1-8b-instruct',
+      model: '@cf/zai-org/glm-4.7-flash',
       identity: 'port-daddy:fleet:cloudflare',
       inputTokens: 10000,
       outputTokens: 2000,

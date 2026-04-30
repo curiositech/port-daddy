@@ -1313,7 +1313,7 @@ List available backends and their models. Probes Ollama for locally installed mo
     { "id": "ollama", "name": "Ollama (local)", "models": ["llama3.1:8b", "codellama:13b"] },
     { "id": "custom", "name": "Custom command", "models": [] },
     { "id": "gemini", "name": "Google Gemini", "models": ["gemini-2.5-pro", "gemini-2.5-flash"] },
-    { "id": "cloudflare", "name": "Cloudflare Workers AI", "models": ["@cf/meta/llama-3.1-8b-instruct", "@cf/meta/llama-3.3-70b-instruct-fp8-fast", "@cf/openai/gpt-oss-120b"] },
+    { "id": "cloudflare", "name": "Cloudflare Workers AI", "models": ["@cf/zai-org/glm-4.7-flash", "@cf/openai/gpt-oss-120b", "@cf/moonshotai/kimi-k2.6", "@cf/qwen/qwen3-30b-a3b-fp8", "@cf/nvidia/nemotron-3-120b-a12b", "@cf/meta/llama-4-scout-17b-16e-instruct"] },
     { "id": "codex", "name": "OpenAI Codex CLI", "models": ["gpt-5.4-mini", "gpt-5.3-codex", "gpt-5.4"] },
     { "id": "aider", "name": "Aider", "models": ["gpt-4.1-mini", "gpt-4.1", "gpt-5"] }
   ]

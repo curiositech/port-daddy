@@ -899,7 +899,7 @@ console.log(result.agentId, result.status);  // e.g. "ollama-abc123", "completed
 // Spawn a Cloudflare Workers AI agent
 await pd.spawn({
   backend: 'cloudflare',
-  model: '@cf/meta/llama-3.1-8b-instruct',
+  model: '@cf/zai-org/glm-4.7-flash',
   identity: 'myapp:edge',
   budgetUsd: 0.5,
   purpose: 'Summarize release notes',

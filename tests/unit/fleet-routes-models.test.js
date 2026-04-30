@@ -82,11 +82,18 @@ describe('fleet routes /fleet/models', () => {
       }),
       expect.objectContaining({
         id: 'cloudflare',
-        models: ['@cf/meta/llama-3.1-8b-instruct', '@cf/meta/llama-3.3-70b-instruct-fp8-fast', '@cf/openai/gpt-oss-120b'],
+        models: [
+          '@cf/zai-org/glm-4.7-flash',
+          '@cf/openai/gpt-oss-120b',
+          '@cf/moonshotai/kimi-k2.6',
+          '@cf/qwen/qwen3-30b-a3b-fp8',
+          '@cf/nvidia/nemotron-3-120b-a12b',
+          '@cf/meta/llama-4-scout-17b-16e-instruct',
+        ],
         modelTiers: {
-          low: '@cf/meta/llama-3.1-8b-instruct',
-          mid: '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
-          high: '@cf/openai/gpt-oss-120b',
+          low: '@cf/zai-org/glm-4.7-flash',
+          mid: '@cf/openai/gpt-oss-120b',
+          high: '@cf/moonshotai/kimi-k2.6',
         },
       }),
       expect.objectContaining({
