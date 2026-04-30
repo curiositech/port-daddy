@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "prebuild": "npm run generate:seo",
+    "prebuild": "npm run generate:seo && npm run generate:mcp-tools",
     "build": "tsc -b && vite build",
     "postbuild": "tsx scripts/inject-route-html.mjs",
     "lint": "eslint .",
@@ -16,6 +16,7 @@
     "build-storybook": "storybook build",
     "test": "vitest run",
     "generate:seo": "tsx scripts/generate-seo-artifacts.mjs",
+    "generate:mcp-tools": "node scripts/generate-mcp-agent-tool-catalog.mjs",
     "generate:og": "tsx scripts/generate-og-cards.mjs",
     "test:a11y:mcp": "node scripts/check-mcp-a11y.mjs",
     "test:a11y:shell": "node scripts/check-public-shell-a11y.mjs",
