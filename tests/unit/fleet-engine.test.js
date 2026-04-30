@@ -150,6 +150,7 @@ afterEach(() => {
   jest.useRealTimers();
   delete process.env.PD_FLEET_DEFAULT_BACKEND;
   delete process.env.PD_FLEET_DEFAULT_MODEL;
+  delete process.env.PD_MODEL_TIER_CLAUDE_CLI_LOW;
 });
 
 // ─── Bug 1: */0 cron produces 0ms interval ───────────────────────────────────
@@ -319,6 +320,97 @@ test('uses env runtime defaults when agent backend/model are omitted', () => {
   ]);
 });
 
+test('uses fleet YAML backend and model_tier defaults when agent runtime is omitted', () => {
+  mockExistsSync.mockImplementation(p => p.endsWith('pd-fleet.yml'));
+  mockExecSync.mockReturnValue('main');
+  mockReadFileSync.mockReturnValue(JSON.stringify({
+    fleet: {
+      name: 'yaml-defaults-fleet',
+      defaults: {
+        backend: 'claude-cli',
+        model_tier: 'low',
+      },
+      agents: {
+        qa: { prompt: 'Review the change', trigger: 'git:committed' },
+      },
+    },
+  }));
+
+  const config = loadFleetConfig('/tmp/proj');
+  expect(config?.agents).toEqual([
+    expect.objectContaining({
+      name: 'qa',
+      backend: 'claude-cli',
+      model: 'haiku',
+      modelTier: 'low',
+    }),
+  ]);
+});
+
+test('resolves project templates from fleet.name instead of checkout basename', () => {
+  mockExistsSync.mockImplementation(p => p.endsWith('pd-fleet.yml'));
+  mockExecSync.mockReturnValue('main');
+  mockReadFileSync.mockReturnValue(JSON.stringify({
+    fleet: {
+      name: 'port-daddy',
+      harbor: '{project}:fleet',
+      agents: {
+        cartographer: {
+          prompt: 'Map the repo',
+          backend: 'codex',
+          model: 'gpt-5.4-mini',
+          schedule: '*/30 * * * *',
+          identity: '{project}:fleet:cartographer',
+        },
+      },
+      channels: {
+        'git:committed': {
+          description: 'commit event for {project}',
+        },
+      },
+    },
+  }));
+
+  const config = loadFleetConfig('/Users/erichowens/port-daddy-stable');
+  expect(config).toEqual(expect.objectContaining({
+    name: 'port-daddy',
+    harbor: 'port-daddy:fleet',
+    channels: expect.objectContaining({
+      'git:committed': expect.objectContaining({
+        description: 'commit event for port-daddy',
+      }),
+    }),
+  }));
+  expect(config?.agents[0]).toEqual(expect.objectContaining({
+    name: 'cartographer',
+    identity: 'port-daddy:fleet:cartographer',
+  }));
+});
+
+test('accepts camelCase modelTier but prefers explicit agent runtime over fleet defaults', () => {
+  mockExistsSync.mockImplementation(p => p.endsWith('pd-fleet.yml'));
+  mockExecSync.mockReturnValue('main');
+  mockReadFileSync.mockReturnValue(JSON.stringify({
+    fleet: {
+      name: 'mixed-defaults-fleet',
+      defaults: {
+        backend: 'claude-cli',
+        modelTier: 'high',
+      },
+      agents: {
+        qa: { prompt: 'Review', trigger: 'git:committed', model_tier: 'low' },
+        local: { prompt: 'Local review', backend: 'ollama', model_tier: 'low' },
+      },
+    },
+  }));
+
+  const config = loadFleetConfig('/tmp/proj');
+  expect(config?.agents).toEqual([
+    expect.objectContaining({ name: 'qa', backend: 'claude-cli', model: 'haiku', modelTier: 'low' }),
+    expect.objectContaining({ name: 'local', backend: 'ollama', model: 'qwen2.5-coder:7b', modelTier: 'low' }),
+  ]);
+});
+
 test('maps model_tier to a backend-specific model', () => {
   mockExistsSync.mockImplementation(p => p.endsWith('pd-fleet.yml'));
   mockExecSync.mockReturnValue('main');
@@ -351,7 +443,7 @@ test('maps model_tier for every backend family with built-in tiers', () => {
     [{ backend: 'aider', modelTier: 'mid' }, 'gpt-4.1'],
     [{ backend: 'custom', modelTier: 'low' }, 'custom-low'],
     [{ backend: 'codex', modelTier: 'low' }, 'gpt-5.4-mini'],
-    [{ backend: 'cloudflare', modelTier: 'mid' }, '@cf/meta/llama-3.1-70b-instruct'],
+    [{ backend: 'cloudflare', modelTier: 'mid' }, '@cf/meta/llama-3.3-70b-instruct-fp8-fast'],
   ];
 
   for (const [agent, expectedModel] of expectations) {

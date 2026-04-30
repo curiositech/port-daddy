@@ -140,6 +140,7 @@ interface FleetYamlAgent {
   backend?: string;
   model?: string;
   model_tier?: string;
+  modelTier?: string;
   prompt?: string | number;
   worktree?: boolean;
   singleton?: boolean;
@@ -163,6 +164,7 @@ interface FleetYamlRuntimeTarget {
   backend?: string;
   model?: string;
   model_tier?: string;
+  modelTier?: string;
 }
 
 interface FleetYamlWatcher {
@@ -186,6 +188,10 @@ interface FleetYamlLimits {
 }
 
 interface FleetYamlDefaults {
+  backend?: string;
+  model?: string;
+  model_tier?: string;
+  modelTier?: string;
   /**
    * Override the per-agent worktree default. If unset, agents with
    * inferred edit intent (Write/Edit/MultiEdit/Bash in allowedTools, or
@@ -228,8 +234,8 @@ function resolveTemplates(text: string, vars: Record<string, string>): string {
   return text.replace(/\{(\w+)\}/g, (match, key) => vars[key] || match);
 }
 
-function getTemplateVars(projectDir: string): Record<string, string> {
-  const project = basename(projectDir);
+function getTemplateVars(projectDir: string, projectName?: string): Record<string, string> {
+  const project = projectName || basename(projectDir);
   let branch = 'main';
   let sha = 'unknown';
 
@@ -263,7 +269,7 @@ export const BUILTIN_MODEL_TIERS: Partial<Record<string, Record<FleetModelTier, 
   gemini: { low: 'gemini-2.0-flash-exp', mid: 'gemini-2.5-flash', high: 'gemini-2.5-pro' },
   cloudflare: {
     low: '@cf/meta/llama-3.1-8b-instruct',
-    mid: '@cf/meta/llama-3.1-70b-instruct',
+    mid: '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
     high: '@cf/openai/gpt-oss-120b',
   },
   ollama: { low: 'qwen2.5-coder:7b', mid: 'llama3.1:8b', high: 'qwen2.5-coder:14b' },
@@ -297,6 +303,10 @@ function normalizeBackoffMultiplier(value: unknown): number | undefined {
 function parseModelTier(value: string | undefined): FleetModelTier | undefined {
   const normalized = cleanEnvValue(value)?.toLowerCase() as FleetModelTier | undefined;
   return normalized && MODEL_TIERS.has(normalized) ? normalized : undefined;
+}
+
+function parseYamlModelTier(value: { model_tier?: string; modelTier?: string } | undefined): FleetModelTier | undefined {
+  return parseModelTier(value?.model_tier) || parseModelTier(value?.modelTier);
 }
 
 function normalizeBackendEnvKey(backend: string): string {
@@ -367,7 +377,7 @@ function parseFallbacks(fallbacks: FleetYamlRuntimeTarget[] | undefined): FleetR
     .map((fallback) => ({
       backend: cleanEnvValue(fallback.backend),
       model: cleanEnvValue(fallback.model),
-      modelTier: parseModelTier(fallback.model_tier),
+      modelTier: parseYamlModelTier(fallback),
     }))
     .filter((fallback) => fallback.backend || fallback.model || fallback.modelTier);
   return parsed.length > 0 ? parsed : undefined;
@@ -423,7 +433,13 @@ export function loadFleetConfig(projectDir: string): FleetConfig | null {
   const raw = readFileSync(configPath, 'utf-8');
   if (!raw.trim()) return null;  // Bug 4 fix: empty file
 
-  const vars = getTemplateVars(projectDir);
+  const baseVars = getTemplateVars(projectDir);
+  const initialParsed = parseFleetYaml(raw);
+  const initialFleet = initialParsed ? (initialParsed.fleet || initialParsed) : null;
+  const rawFleetName = initialFleet && typeof initialFleet.name === 'string'
+    ? resolveTemplates(initialFleet.name, baseVars).trim()
+    : '';
+  const vars = getTemplateVars(projectDir, rawFleetName || undefined);
   const resolved = resolveTemplates(raw, vars);
   const parsed = parseFleetYaml(resolved);
   if (!parsed) return null;
@@ -444,10 +460,14 @@ export function loadFleetConfig(projectDir: string): FleetConfig | null {
   const agents: FleetAgent[] = [];
   const rawAgents = fleet.agents;
   const addAgent = (name: string, s: FleetYamlAgent): void => {
+      const agentBackend = cleanEnvValue(s.backend) || cleanEnvValue(fleetDefaults.backend);
+      const defaultsApplyToBackend = !s.backend || !fleetDefaults.backend || cleanEnvValue(s.backend) === cleanEnvValue(fleetDefaults.backend);
+      const agentModel = cleanEnvValue(s.model) || (defaultsApplyToBackend ? cleanEnvValue(fleetDefaults.model) : undefined);
+      const agentModelTier = parseYamlModelTier(s) || (defaultsApplyToBackend ? parseYamlModelTier(fleetDefaults) : undefined);
       const runtime = resolveFleetAgentRuntime({
-        backend: s.backend,
-        model: s.model,
-        modelTier: parseModelTier(s.model_tier),
+        backend: agentBackend,
+        model: agentModel,
+        modelTier: agentModelTier,
       } as Pick<FleetAgent, 'backend' | 'model' | 'modelTier'>);
       agents.push({
         name,

@@ -104,7 +104,7 @@ describe('backend readiness', () => {
     expect(readiness.nextStep).toContain('~/.port-daddy-env');
   });
 
-  test('blocks Cloudflare backend even when credentials are present', async () => {
+  test('reports Cloudflare backend as ready when credentials are present and the model has an exact rate', async () => {
     process.env.CLOUDFLARE_ACCOUNT_ID = 'acct-123';
     secretValues.set('CLOUDFLARE_ACCOUNT_ID', 'acct-123');
     secretValues.set('CLOUDFLARE_API_TOKEN', 'token-123');
@@ -115,11 +115,26 @@ describe('backend readiness', () => {
     expect(mockGetSecret).toHaveBeenCalledWith('CLOUDFLARE_API_TOKEN');
     expect(readiness).toMatchObject({
       backend: 'cloudflare',
-      status: 'needs_setup',
+      status: 'ready',
     });
-    expect(readiness.summary).toContain('blocked until exact token counts');
+    expect(readiness.summary).toContain('Cloudflare Workers AI credentials present');
     expect(readiness.credentialKeys).toEqual(['CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_API_TOKEN']);
     expect(readiness.credentialAlternates).toEqual(['CLOUDFLARE_API_KEY', 'CF_API_TOKEN', 'CF_ACCOUNT_ID']);
+  });
+
+  test('blocks Cloudflare models without exact cost rates', async () => {
+    process.env.CLOUDFLARE_ACCOUNT_ID = 'acct-123';
+    secretValues.set('CLOUDFLARE_API_TOKEN', 'token-123');
+
+    const readiness = await assessBackendReadiness('cloudflare', {
+      model: '@cf/meta/unknown-model',
+    });
+
+    expect(readiness).toMatchObject({
+      backend: 'cloudflare',
+      status: 'needs_setup',
+    });
+    expect(readiness.summary).toContain('has no exact cost rate entry');
   });
 
   test('keeps claude-cli probe details while still blocking launch under telemetry policy', async () => {

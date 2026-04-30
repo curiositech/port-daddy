@@ -39,8 +39,12 @@
           "type": "object",
           "properties": {
             "backend": { "$ref": "#/$defs/backend" },
-            "model": { "type": "string" }
-          }
+            "model": { "type": "string" },
+            "model_tier": { "$ref": "#/$defs/modelTier" },
+            "modelTier": { "$ref": "#/$defs/modelTier" },
+            "worktree": { "type": "boolean" }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -49,7 +53,7 @@
   "$defs": {
     "backend": {
       "type": "string",
-      "enum": ["ollama", "claude", "claude-cli", "codex", "gemini", "aider", "custom"]
+      "enum": ["ollama", "claude", "claude-cli", "codex", "gemini", "cloudflare", "aider", "custom"]
     },
     "modelTier": {
       "type": "string",
@@ -67,7 +71,7 @@
     },
     "agent": {
       "type": "object",
-      "required": ["backend", "prompt"],
+      "required": ["prompt"],
       "properties": {
         "schedule": {
           "type": "string",
@@ -85,6 +89,7 @@
         },
         "backend": { "$ref": "#/$defs/backend" },
         "model": { "type": "string", "description": "Pin the model whenever the backend supports it for predictable cost." },
+        "model_tier": { "$ref": "#/$defs/modelTier" },
         "modelTier": { "$ref": "#/$defs/modelTier" },
         "prompt": {
           "type": "string",
@@ -131,6 +136,7 @@
       "properties": {
         "backend": { "$ref": "#/$defs/backend" },
         "model": { "type": "string" },
+        "model_tier": { "$ref": "#/$defs/modelTier" },
         "modelTier": { "$ref": "#/$defs/modelTier" }
       }
     },

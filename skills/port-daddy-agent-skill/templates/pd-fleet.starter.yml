@@ -17,7 +17,7 @@ fleet:
 
   defaults:
     backend: claude-cli
-    model: claude-sonnet-4-6
+    model_tier: low
 
   agents:
     # Reactive QA on every commit.
@@ -43,7 +43,7 @@ fleet:
       respawn: true
       max_respawns: 3
       backend: ollama
-      model: qwen2.5-coder:7b
+      model_tier: low
       prompt: |
         Read .spark/feedback/, docs/recovery/DOGFOOD-FEEDBACK.md, and recent
         `pd notes --type finding`. Promote anything that is now actionable

@@ -105,6 +105,7 @@ import {
   handleActors,
   // Tube — relay-independent conversational pipe (Track B1)
   handleTube,
+  handleTubeChat,
   // Coordination Guard enforcement controls
   handleGuard,
   // Claim-aware git add wrapper
@@ -762,6 +763,12 @@ Commands:
   sub <channel>            Subscribe to a channel (real-time SSE stream)
     --dir <path>           Resolve declared logical channels for this worktree
     --raw-channel          Bypass logical-channel resolution and use the literal string
+
+  tube chat <channel>      Bridge tube messages to a spawned backend and reply in-thread
+    --backend <name>       Backend to spawn for each message (default: codex)
+    --tier <level>         Model tier shortcut (low, mid, high)
+    --budget <usd>         Required project budget ceiling for spawned replies
+    --once                 Process one poll pass, then exit
 
   wait <id> [ids...]       Wait for service(s) to become healthy
     --timeout <ms>         Wait timeout (default: 60000)
@@ -2036,7 +2043,11 @@ async function main(): Promise<void> {
 
       // Track B1: relay-independent conversational pipe.
       case 'tube':
-        await handleTube(positional[0], options);
+        if (positional[0] === 'chat') {
+          await handleTubeChat(positional[1], options);
+        } else {
+          await handleTube(positional[0], options);
+        }
         break;
 
       case 'wait':

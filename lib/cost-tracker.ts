@@ -36,6 +36,11 @@ const FALLBACK_MODEL_RATES: Record<string, ModelRate> = {
 // Keys are substrings — matched with .includes() against the model name.
 // List more-specific keys before less-specific ones.
 const MODEL_RATES: Array<[string, ModelRate]> = [
+  // Cloudflare Workers AI
+  ['@cf/meta/llama-3.1-8b-instruct',          { input: 0.282, output: 0.827, label: 'Cloudflare Workers AI Llama 3.1 8B Instruct' }],
+  ['@cf/meta/llama-3.3-70b-instruct-fp8-fast', { input: 0.293, output: 2.253, label: 'Cloudflare Workers AI Llama 3.3 70B FP8 Fast' }],
+  ['@cf/meta/llama-3.1-70b-instruct-fp8-fast', { input: 0.293, output: 2.253, label: 'Cloudflare Workers AI Llama 3.1 70B FP8 Fast' }],
+  ['@cf/openai/gpt-oss-120b',                  { input: 0.350, output: 0.750, label: 'Cloudflare Workers AI GPT-OSS 120B' }],
   // OpenAI — GPT-5.4 / Codex
   ['gpt-5.4-mini',          { input:  0.75, cachedInput: 0.075, output:  4.50, label: 'GPT-5.4 mini' }],
   ['gpt-5.4',               { input:  2.50, cachedInput: 0.25,  output: 15.00, label: 'GPT-5.4' }],

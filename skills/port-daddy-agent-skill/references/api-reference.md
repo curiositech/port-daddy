@@ -932,7 +932,7 @@ This is the low-level delegation primitive. Use `/sorties` when you want a durab
 
 Launches are fail-closed on telemetry. Port Daddy blocks a spawn when the resolved backend/model cannot provide exact token counts plus an exact nonzero model rate for the completed run.
 The live spawner defaults that policy on. Internal code may only opt out by attaching explicit HITL confirmation metadata; an omitted flag is not a valid bypass.
-At the moment, the operator-facing launchable path is the Claude SDK backend with an exact-rate model entry. The larger backend enum is still documented because those implementations exist in source, but most remain blocked until telemetry parity exists.
+At the moment, the operator-facing launchable path is Claude SDK exact-rate models, Codex CLI exact-usage runs, and Cloudflare Workers AI models that return usage with an exact rate entry. The larger backend enum is still documented because those implementations exist in source, but most remain blocked until telemetry parity exists.
 
 **Body:**
 | Field | Type | Required | Description |
@@ -1313,10 +1313,9 @@ List available backends and their models. Probes Ollama for locally installed mo
     { "id": "ollama", "name": "Ollama (local)", "models": ["llama3.1:8b", "codellama:13b"] },
     { "id": "custom", "name": "Custom command", "models": [] },
     { "id": "gemini", "name": "Google Gemini", "models": ["gemini-2.5-pro", "gemini-2.5-flash"] },
-    { "id": "cloudflare", "name": "Cloudflare Workers AI", "models": ["@cf/meta/llama-3.1-8b-instruct", "@cf/meta/llama-3.1-70b-instruct"] },
-    { "id": "openai", "name": "OpenAI", "models": ["gpt-4.1", "gpt-4.1-mini", "o4-mini"] },
-    { "id": "groq", "name": "Groq", "models": ["llama-3.3-70b", "mixtral-8x7b"] },
-    { "id": "aider", "name": "Aider", "models": [] }
+    { "id": "cloudflare", "name": "Cloudflare Workers AI", "models": ["@cf/meta/llama-3.1-8b-instruct", "@cf/meta/llama-3.3-70b-instruct-fp8-fast", "@cf/openai/gpt-oss-120b"] },
+    { "id": "codex", "name": "OpenAI Codex CLI", "models": ["gpt-5.4-mini", "gpt-5.3-codex", "gpt-5.4"] },
+    { "id": "aider", "name": "Aider", "models": ["gpt-4.1-mini", "gpt-4.1", "gpt-5"] }
   ]
 }
 ```

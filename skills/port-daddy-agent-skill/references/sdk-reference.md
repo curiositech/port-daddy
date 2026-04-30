@@ -388,7 +388,7 @@ Launch a background AI agent with full PD coordination.
 
 | Option | Type | Description |
 |--------|------|-------------|
-| `backend` | string | `ollama`, `claude`, `claude-cli`, `gemini`, `codex`, `aider`, `custom` |
+| `backend` | string | `ollama`, `claude`, `claude-cli`, `gemini`, `cloudflare`, `codex`, `aider`, `custom` |
 | `task` | string | The prompt/task for the agent |
 | `model` | string | Model name override |
 | `modelTier` | string | Tier hint: `low`, `mid`, `high` |

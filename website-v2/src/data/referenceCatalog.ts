@@ -166,6 +166,7 @@ export const CLI_REFERENCE_GROUPS: ReferenceGroup[] = [
       { name: 'pd channels', description: 'List, discover, ensure, describe, or clear channels.', flags: ['discover', 'ensure', 'describe', 'clear', '--dir', '--observed', '--scope', '--aliases'] },
       { name: 'pd watch <channel>', href: '/docs/cli/watch', description: 'Subscribe to a channel and optionally run a command for each message.', flags: ['--exec', '--once', '--dir', '--raw-channel'] },
       { name: 'pd tube <channel>', description: 'Relay-independent conversational pipe over a Port Daddy channel with threaded replies.', flags: ['--send', '--reply', '--since', '--once', '--no-history', '--limit', '--sender', '--json', '--quiet'] },
+      { name: 'pd tube chat <channel>', description: 'Bridge new Tube messages to a spawned backend and post each answer as a threaded reply.', flags: ['--backend', '--tier', '--model', '--budget', '--once', '--sender', '--include-replies'] },
       { name: 'pd inbox <command>', description: 'Read, send, mark, and clear durable direct messages for agents.' },
       { name: 'pd tuple <command>', description: 'Linda-style tuple space: out, rd/read, in/take, scan, and count.', flags: ['--harbor', '--ttl', '--as', '--limit'] },
       { name: 'pd webhook <command>', description: 'Create, list, inspect, update, remove, test, and read deliveries for webhook subscriptions.', aliases: ['pd webhooks'] },

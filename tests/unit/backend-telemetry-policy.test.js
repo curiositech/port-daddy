@@ -54,8 +54,35 @@ describe('backend telemetry policy', () => {
     }));
   });
 
+  test('allows Cloudflare Workers AI only when the model has an exact rate entry', () => {
+    expect(
+      assessBackendTelemetryPolicy('cloudflare', '@cf/meta/llama-3.1-8b-instruct')
+    ).toEqual(expect.objectContaining({
+      backend: 'cloudflare',
+      launchAllowed: true,
+      effectiveModel: '@cf/meta/llama-3.1-8b-instruct',
+    }));
+
+    expect(
+      assessBackendTelemetryPolicy('cloudflare', '@cf/meta/unknown-model')
+    ).toEqual(expect.objectContaining({
+      backend: 'cloudflare',
+      launchAllowed: false,
+    }));
+  });
+
+  test('defaults Cloudflare to the exact-rate 8B Workers AI model when none is supplied', () => {
+    const policy = assessBackendTelemetryPolicy('cloudflare');
+
+    expect(policy).toEqual(expect.objectContaining({
+      backend: 'cloudflare',
+      launchAllowed: true,
+      effectiveModel: '@cf/meta/llama-3.1-8b-instruct',
+    }));
+  });
+
   test('blocks opaque backends until exact telemetry exists', () => {
-    for (const backend of ['claude-cli', 'gemini', 'cloudflare', 'ollama', 'aider', 'custom']) {
+    for (const backend of ['claude-cli', 'gemini', 'ollama', 'aider', 'custom']) {
       const policy = assessBackendTelemetryPolicy(backend);
       expect(policy.launchAllowed).toBe(false);
       expect(policy.summary).toContain('blocked');

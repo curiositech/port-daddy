@@ -71,7 +71,7 @@ function setupForKeys(keys: string[]): Pick<BackendReadiness, 'credentialKeys' |
   return {
     credentialKeys: keys,
     setupFiles: ['~/.port-daddy-env', '.env.local', '.env'],
-    setupCommand: `printf '\\n${body}\\n' >> ~/.port-daddy-env\npd daemon restart`,
+    setupCommand: `printf '\\n${body}\\n' >> ~/.port-daddy-env\npd restart`,
     restartRequired: true,
   };
 }
@@ -129,7 +129,7 @@ export async function assessBackendReadiness(
           summary: '@anthropic-ai/sdk is not installed',
           nextStep: 'Run `npm install @anthropic-ai/sdk` before using the Claude SDK backend.',
           ...setupForKeys(['ANTHROPIC_API_KEY']),
-          setupCommand: 'npm install @anthropic-ai/sdk\nprintf \'\\nANTHROPIC_API_KEY=<paste-value>\\n\' >> ~/.port-daddy-env\npd daemon restart',
+          setupCommand: 'npm install @anthropic-ai/sdk\nprintf \'\\nANTHROPIC_API_KEY=<paste-value>\\n\' >> ~/.port-daddy-env\npd restart',
         }, telemetryPolicy);
       }
       return applyTelemetryPolicy(
@@ -159,7 +159,7 @@ export async function assessBackendReadiness(
           nextStep: 'Run `npm install @google/generative-ai` before using the Gemini backend.',
           ...setupForKeys(['GEMINI_API_KEY']),
           credentialAlternates: ['GOOGLE_API_KEY'],
-          setupCommand: 'npm install @google/generative-ai\nprintf \'\\nGEMINI_API_KEY=<paste-value>\\n\' >> ~/.port-daddy-env\npd daemon restart',
+          setupCommand: 'npm install @google/generative-ai\nprintf \'\\nGEMINI_API_KEY=<paste-value>\\n\' >> ~/.port-daddy-env\npd restart',
         }, telemetryPolicy);
       }
       const geminiKeyPresent = getSecret('GEMINI_API_KEY') || getSecret('GOOGLE_API_KEY');

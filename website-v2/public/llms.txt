@@ -134,6 +134,7 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 - [pd subscribe - Port Daddy](https://portdaddy.dev/docs/cli/subscribe): Reference for pd subscribe, including Port Daddy syntax, what the command does, and when to use it.
 - [pd swarm - Port Daddy](https://portdaddy.dev/docs/cli/swarm): Reference for pd swarm, including Port Daddy syntax, what the command does, and when to use it.
 - [pd tube <channel> - Port Daddy](https://portdaddy.dev/docs/cli/tube): Reference for pd tube <channel>, including Port Daddy syntax, what the command does, and when to use it.
+- [pd tube chat <channel> - Port Daddy](https://portdaddy.dev/docs/cli/tube-chat): Reference for pd tube chat <channel>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd tunnel <identity> - Port Daddy](https://portdaddy.dev/docs/cli/tunnel): Reference for pd tunnel <identity>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd tunnel stop <identity> - Port Daddy](https://portdaddy.dev/docs/cli/tunnel-stop): Reference for pd tunnel stop <identity>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd tuple <command> - Port Daddy](https://portdaddy.dev/docs/cli/tuple): Reference for pd tuple <command>, including Port Daddy syntax, what the command does, and when to use it.
