@@ -123,6 +123,77 @@ const SKILL_MANUAL_LOOP = [
   ['pd done "<short outcome>"', 'Close the loop with result, validation, and remaining risk.'],
 ] as const
 
+const DIRECTIVE_COPY: Record<string, { label: string; body: string }> = {
+  'coordination-contract': {
+    label: 'Coordination Contract',
+    body: 'This section changes how an agent coordinates, so it must stay aligned with CLI, SDK, MCP, README, and website truth.',
+  },
+  'live-truth-before-source-truth': {
+    label: 'Live Truth First',
+    body: 'Check daemon, sessions, notes, claims, and runtime state before trusting stale source, docs, or memory.',
+  },
+  'handoff-needs-validation-evidence': {
+    label: 'Handoff Evidence',
+    body: 'A useful handoff names scope, validation, remaining risk, and the next observable state.',
+  },
+  'reference-depth-on-demand': {
+    label: 'Load References On Demand',
+    body: 'Agents should open the specific reference needed for the task instead of stuffing every file into context.',
+  },
+  'release-surface-contract': {
+    label: 'Release Surface',
+    body: 'Changes here imply matching updates across the website, README, package docs, skill mirrors, and product UI.',
+  },
+  'diagram-renders-mermaid': {
+    label: 'Rendered Diagram',
+    body: 'Mermaid source is treated as visual documentation and rendered for humans before publishing.',
+  },
+  'coordination-loop': {
+    label: 'Coordination Loop',
+    body: 'The diagram describes the normal status, briefing, session, note, claim, validate, and done path.',
+  },
+  'schema-shaped-note': {
+    label: 'Schema-Shaped Note',
+    body: 'The note has fields that can be checked by tools instead of being loose prose.',
+  },
+  'machine-readable-handoff': {
+    label: 'Machine-Readable Handoff',
+    body: 'The handoff can be consumed by agents, dashboards, or scripts without guessing at intent.',
+  },
+  'runnable-proof': {
+    label: 'Runnable Proof',
+    body: 'This script or command should produce visible output that proves the skill is installed and usable.',
+  },
+  'diagnostics-before-claims': {
+    label: 'Diagnostics Before Claims',
+    body: 'Check environment and runtime state before claiming a docs, skill, or install surface is broken.',
+  },
+  'template-promotes-consistency': {
+    label: 'Consistency Template',
+    body: 'The template keeps repeated handoffs and notes shaped the same way across agents.',
+  },
+  'human-readable-plus-machine-readable': {
+    label: 'Human And Machine Readable',
+    body: 'The artifact should be easy for a person to scan and structured enough for tooling to validate.',
+  },
+  'visual-example': {
+    label: 'Visual Example',
+    body: 'The example is meant to be inspected visually, not only skimmed as markdown.',
+  },
+  'worked-example-needs-output': {
+    label: 'Worked Example With Output',
+    body: 'Show the command, the resulting output, and the state change so readers can compare their run.',
+  },
+  'runner-adapter': {
+    label: 'Runner Adapter',
+    body: 'This surface explains how Codex, Claude, Gemini, and AGENTS.md-aware runners load the same skill.',
+  },
+  'no-port-daddy-cli-skill': {
+    label: 'Single Skill Home',
+    body: 'Port Daddy CLI guidance belongs inside port-daddy-agent-skill, not a separate port-daddy-cli skill.',
+  },
+}
+
 const PROOF_METRICS: ProofMetric[] = [
   { value: `${MCP_TOOL_TOTAL}`, label: 'MCP functions registered by the server', tone: 'blue' },
   { value: `${MCP_DEFAULT_TOOL_TOTAL}`, label: 'default tools before discovery', tone: 'accent' },
@@ -929,18 +1000,40 @@ function MarkdownPreview({ lines }: { lines: string[] }) {
 }
 
 function CommentDirectives({ comments }: { comments: string[] }) {
+  const directives = comments.map((comment) => {
+    const slug = comment.match(/pd:([a-z0-9-]+)/)?.[1] ?? comment
+    const copy = DIRECTIVE_COPY[slug] ?? {
+      label: slug
+        .split('-')
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' '),
+      body: 'Port Daddy treats this markdown comment as a rendered instruction for agents and docs readers.',
+    }
+
+    return { slug, ...copy }
+  })
+
   return (
-    <div className="grid min-w-0 gap-[var(--space-2)]">
-      <PanelEyebrow className="break-words">HTML comments rendered as directives</PanelEyebrow>
+    <div className="grid min-w-0 gap-[var(--space-3)]">
+      <PanelEyebrow className="break-words">Rendered directives</PanelEyebrow>
       <div className="grid min-w-0 max-w-full gap-[var(--space-2)] sm:grid-cols-2">
-        {comments.map((comment) => (
-          <code
-            key={comment}
-            className="block min-w-0 max-w-full whitespace-normal break-all border border-[var(--border-subtle)] bg-[var(--surface-raised)] px-[var(--space-2)] py-[var(--space-2)] font-mono text-[0.78rem] leading-tight text-[var(--text-primary)]"
-            style={{ display: 'block', whiteSpace: 'normal', overflowWrap: 'anywhere', wordBreak: 'break-word' }}
+        {directives.map(({ slug, label, body }) => (
+          <article
+            key={slug}
+            className="grid min-w-0 grid-cols-[2.4rem_minmax(0,1fr)] gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-2)]"
           >
-            {comment}
-          </code>
+            <span className="grid h-[2.4rem] w-[2.4rem] place-items-center border-2 border-[var(--brand-primary)] bg-[var(--brand-primary)] font-mono text-[0.72rem] font-bold uppercase text-[var(--brand-primary-foreground)]">
+              PD
+            </span>
+            <div className="min-w-0">
+              <PanelTitle as="h4" size="nav">
+                {label}
+              </PanelTitle>
+              <PanelBody size="compact" className="mt-[var(--space-1)] max-w-none">
+                {body}
+              </PanelBody>
+            </div>
+          </article>
         ))}
       </div>
     </div>
