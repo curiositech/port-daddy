@@ -1,10 +1,8 @@
 # Bond Pricing Is a Market, Not a Constant
 
-*With Thomas Youle (Indiana University, Business Economics & Public Policy). The competitive-insurance mechanism described in the second half of this post is Youle's contribution; the framing and product implications are joint.*
-
 Daily budgets are training wheels. They keep agents from spending all your money in one bad night, and they will keep doing that. But they are not how risk should be priced for autonomous work, and the v2 of the Bonded Commons paper says so out loud.
 
-This post translates the §8 pricing rewrite --- including the new competitive-insurance section contributed by Thomas Youle (Indiana University) --- into what it means for Port Daddy as a product.
+This post translates the §8 pricing rewrite --- including the new competitive-insurance section contributed by Thomas Youle[^youle] --- into what it means for Port Daddy as a product.
 
 ![Bond pricing as a market](/img/generated/blog-control-plane-product.jpg)
 
@@ -125,3 +123,5 @@ The thing operators have to do today, and that they should not have to do once t
 - **Choose how much to insure.** With insurer agents in the loop, a principal can buy a bigger claim ceiling for a risky transaction without raising its own posted stake, because the insurer is taking the tail risk in exchange for a market-priced premium.
 
 The headline: *bond pricing is a mechanism design problem, not a configuration value*. Port Daddy is the substrate that makes a real market for it possible. Static caps are what we ship today because the market needs reputation history to function, and reputation history needs the Merkle forest --- which is what the next post is about.
+
+[^youle]: Thomas Youle is at Indiana University (Business Economics & Public Policy). The competitive-insurance mechanism described in the second half of this post is Youle's contribution; the framing and product implications are joint. The mechanism's welfare claim --- that the market-discovered premium Pareto-dominates any authority-chosen static parameter --- is a pre-print result pending Youle's full proof in a companion appendix.
