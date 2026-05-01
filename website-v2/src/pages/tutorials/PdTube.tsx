@@ -1,12 +1,21 @@
 import { TutorialLayout } from '@/components/tutorials/TutorialLayout'
 import { CodeBlock } from '@/components/ui/CodeBlock'
-import { MessageSquare, Play, Reply, ScrollText, ShieldCheck } from 'lucide-react'
+import {
+  CornerDownRight,
+  MessageSquare,
+  Play,
+  Radio,
+  Reply,
+  ScrollText,
+  ShieldCheck,
+  Wand2,
+} from 'lucide-react'
 
 export function PdTube() {
   return (
     <TutorialLayout
       title="PD Tube"
-      description="Use Port Daddy channels as a small conversational pipe: listen, send, reply, resume, and feed clean JSON lines into scripts or agents."
+      description="The single command that turns any local UI, hook, or webhook into an event your running agent can answer in one shell call. Block-once-and-return makes the agent loop work."
       number={21}
       total={21}
       level="Intermediate"
@@ -23,10 +32,146 @@ export function PdTube() {
             <h2 className="m-0">A Conversation Pipe, Not A Chat App</h2>
           </div>
           <p>
-            <code>pd tube</code> wraps the daemon&apos;s existing message channels in a tiny thread-aware envelope.
-            It is meant for operator-visible agent handoffs: stdout stays scriptable, stderr carries status, and every
-            emitted row can be piped into <code>jq</code>, tests, dashboards, or another agent.
+            <code>pd tube</code> wraps the daemon&apos;s message channels in a tiny thread-aware
+            envelope. It is meant for operator-visible agent handoffs: a single command both delivers
+            a reply <em>and</em> blocks for the next event. That is what unlocks the agent loop:
+            every invocation returns, the bash tool yields, the model decides what to reply, and the
+            next call posts the answer.
           </p>
+          <p>
+            Publishers stay simple. Any process that can <code>POST</code> JSON to{' '}
+            <code>/msg/&lt;channel&gt;</code> can summon the agent — no SDK, no MCP server, no
+            websocket plumbing.
+          </p>
+        </section>
+
+        <section className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--surface-inset)]">
+              <Radio className="text-[var(--brand-secondary)]" size={20} />
+            </div>
+            <h2 className="m-0">1. Listen — Block Once, Return On First Event</h2>
+          </div>
+          <p>
+            The default mode of <code>pd tube</code> blocks until a new event arrives, prints a
+            single &quot;crank-handle&quot; prose block telling the agent how to reply, and exits.
+            The bash tool yields control. The model reads the block, does work, and runs the
+            suggested command on the next turn.
+          </p>
+          <CodeBlock language="bash">
+            {`$ pd tube ui:clicks
+tube waiting on ui:clicks as pd-tube/myapp/ui_clicks (up to 600s; Ctrl+C to exit)
+
+──── event id=42 · channel ui:clicks ────
+From: web-demo · 2026-04-30T22:01:11.000Z
+Body:
+  {"button":"deploy-staging","user":"erich"}
+
+Act on the event above, then post your response by running:
+
+    pd tube ui:clicks --reply "your response here"
+
+That command posts a reply correlated to id=42 AND continues
+listening. Use --raw / --json for machine output. Ctrl+C to exit.
+──────────────────────────────────────`}
+          </CodeBlock>
+          <p>
+            If no event arrives within <code>--wait-for=&lt;seconds&gt;</code> (default{' '}
+            <code>600</code>), the call exits cleanly so the agent can loop without tripping a
+            sandbox timeout.
+          </p>
+        </section>
+
+        <section className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--surface-inset)]">
+              <Reply className="text-[var(--brand-primary)]" size={20} />
+            </div>
+            <h2 className="m-0">2. Reply Inline — One Command, Both Jobs</h2>
+          </div>
+          <p>
+            The killer shape: <code>--reply &quot;body&quot;</code> takes a body directly,
+            auto-correlates to the most recent event from someone else, posts the reply, and{' '}
+            <em>then keeps listening</em>. The agent never has to remember an event id.
+          </p>
+          <CodeBlock language="bash">
+            {`$ pd tube ui:clicks --reply "Deployed to staging. CI is green."
+SUCCESS: tube: posted id=43 to ui:clicks
+tube waiting on ui:clicks as pd-tube/myapp/ui_clicks (up to 600s; Ctrl+C to exit)
+…blocks for the next event…`}
+          </CodeBlock>
+          <p>
+            Auto-correlation works because <code>pd tube</code> tracks{' '}
+            <code>lastForeignEventId</code> in the per-channel cursor. Messages whose sender matches
+            the listener&apos;s synthesized identity (<code>pd-tube/&lt;cwd&gt;/&lt;channel&gt;</code>
+            ) are filtered from the &quot;foreign event&quot; pointer so the listener never replies
+            to itself.
+          </p>
+          <p>
+            For long replies, pipe stdin: <code>echo &quot;long body&quot; | pd tube ch --reply -</code>
+            . For explicit threading, pass the parent id and add <code>--send</code> for the legacy
+            post-and-exit shape:
+          </p>
+          <CodeBlock language="bash">
+            {`# Back-compat: numeric parent + stdin body, post and exit (no listen continuation).
+$ printf 'roger that' | pd tube ui:clicks --reply=42 --send --sender codex
+SUCCESS: tube: posted id=43 to ui:clicks`}
+          </CodeBlock>
+        </section>
+
+        <section className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--surface-inset)]">
+              <Wand2 className="text-[var(--brand-secondary)]" size={20} />
+            </div>
+            <h2 className="m-0">3. Output Modes — Prose, Raw, JSON</h2>
+          </div>
+          <p>
+            Default output is the prose block. For machines, use <code>--json</code> (one JSON line
+            per message) or <code>--raw</code> (legacy tab-separated <code>id\tsender\tbody</code>).
+            For humans watching a terminal long-term, <code>--tail</code> keeps the polling loop
+            alive instead of returning on first event.
+          </p>
+          <CodeBlock language="bash">
+            {`$ pd tube ui:clicks --json --once
+{"id":42,"sender":"web-demo","createdAt":1714519871000,"body":"{\\"button\\":\\"deploy-staging\\"}"}
+
+$ pd tube ui:clicks --raw --once
+42	web-demo	{"button":"deploy-staging"}
+
+$ pd tube ui:clicks --tail
+…runs forever, prints every new event as prose…`}
+          </CodeBlock>
+        </section>
+
+        <section className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--surface-inset)]">
+              <CornerDownRight className="text-[var(--brand-primary)]" size={20} />
+            </div>
+            <h2 className="m-0">4. The Smallest Useful Publisher</h2>
+          </div>
+          <p>
+            Any process that can <code>fetch()</code> can fire an event. The browser side of the
+            checked-in <code>examples/pd-tube</code> demo is just this:
+          </p>
+          <CodeBlock language="html">
+            {`<button id="deploy">Deploy to staging</button>
+<div id="reply"></div>
+<script>
+  document.getElementById('deploy').onclick = async () => {
+    await fetch('http://localhost:9876/msg/ui:clicks', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        payload: { button: 'deploy-staging', user: 'erich' },
+      }),
+    });
+    // Poll the same channel for the agent's reply (envelope.inReplyTo).
+    pollForReply();
+  };
+</script>`}
+          </CodeBlock>
         </section>
 
         <section className="space-y-4">
@@ -34,28 +179,17 @@ export function PdTube() {
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--surface-inset)]">
               <Play className="text-[var(--brand-secondary)]" size={20} />
             </div>
-            <h2 className="m-0">1. Start With A One-Pass Read</h2>
+            <h2 className="m-0">5. Real Output Recording</h2>
           </div>
           <p>
-            Use <code>--once</code> when you want a deterministic script step. Add <code>--json</code> when another
-            process will consume the output.
-          </p>
-          <CodeBlock language="bash">
-            {`pd tube port-daddy:story:coordination --once --json --no-history --limit=5
-{"id":42,"channel":"port-daddy:story:coordination","sender":"codex","content":"Docs patch is ready for review."}`}
-          </CodeBlock>
-        </section>
-
-        <section className="space-y-4">
-          <h2 className="m-0">Real Output Recording</h2>
-          <p>
-            This recording is generated from <code>examples/pd-tube/demo.sh</code> against the live daemon. The matching
-            asciinema cast, VHS tape, and GIFs are checked in under <code>demos/pd-tube</code>.
+            The recording below comes from <code>examples/pd-tube/demo.sh</code> hitting the live
+            daemon. The matching asciinema cast and VHS tape are checked in under{' '}
+            <code>demos/pd-tube</code>.
           </p>
           <figure className="overflow-hidden rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-raised)]">
             <img
               src="/demos/pd-tube/pd-tube-real-output.gif"
-              alt="Animated terminal recording of PD Tube sending a message, replying, and reading both records back from channel history"
+              alt="Animated terminal recording of pd tube sending a message, replying, and reading both records back from channel history"
               className="block w-full"
               loading="lazy"
             />
@@ -68,41 +202,20 @@ export function PdTube() {
         <section className="space-y-4">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--surface-inset)]">
-              <Reply className="text-[var(--brand-primary)]" size={20} />
+              <ScrollText className="text-[var(--brand-primary)]" size={20} />
             </div>
-            <h2 className="m-0">2. Send And Reply From Stdin</h2>
+            <h2 className="m-0">6. Resume Without Repeating Yourself</h2>
           </div>
           <p>
-            Tube deliberately reads bodies from stdin. That makes it hard to accidentally hang an interactive terminal
-            and easy to connect real tools.
+            Tube stores a small per-channel cursor under the Port Daddy home directory. It tracks
+            both <code>lastSeenId</code> (so the next call doesn&apos;t re-emit messages you already
+            saw) and <code>lastForeignEventId</code> (so <code>--reply &quot;body&quot;</code> knows
+            who to thread). Use <code>--since</code> for an explicit resume, or{' '}
+            <code>--no-history</code> for test fixtures and demos.
           </p>
           <CodeBlock language="bash">
-            {`printf 'Docs patch is ready for review.' \\
-  | pd tube port-daddy:story:coordination --send --sender codex
-SUCCESS: tube: posted id=42 to port-daddy:story:coordination
-
-printf 'Replying with the generated GIF and cast paths.' \\
-  | pd tube port-daddy:story:coordination --reply=42 --sender codex
-SUCCESS: tube: posted reply id=43 to port-daddy:story:coordination`}
-          </CodeBlock>
-        </section>
-
-        <section className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--surface-inset)]">
-              <ScrollText className="text-[var(--brand-secondary)]" size={20} />
-            </div>
-            <h2 className="m-0">3. Resume Without Repeating Yourself</h2>
-          </div>
-          <p>
-            Tube stores a small per-channel cursor under the Port Daddy home directory. Use <code>--since</code> when
-            you need an explicit resume point, or <code>--no-history</code> for test fixtures and demos.
-          </p>
-          <CodeBlock language="bash">
-            {`pd tube port-daddy:story:coordination --since=42 --json --once
-pd tube port-daddy:story:coordination --no-history --limit=10 --once
-{"id":43,"inReplyTo":42,"channel":"port-daddy:story:coordination","sender":"codex"}
-[port-daddy:story:coordination] waiting for new messages...`}
+            {`$ pd tube ui:clicks --since=42 --json --once
+$ pd tube ui:clicks --no-history --limit=10 --once`}
           </CodeBlock>
         </section>
 
@@ -112,9 +225,11 @@ pd tube port-daddy:story:coordination --no-history --limit=10 --once
             <h2 className="m-0 text-xl">Why This Matters</h2>
           </div>
           <p className="m-0">
-            Port Daddy coordination becomes inspectable when agents use shared state instead of private vibes. Tube is
-            the lightweight lane for that story: messages are persisted by the daemon, threaded by id, readable by
-            humans, and safe for scripts.
+            The trick is the single command that does both jobs. An agent in any tool-use loop
+            (Claude Code, Cursor, Aider, your own bash wrapper) can now be summoned by any process
+            that emits HTTP — editor extensions, test reporters, git hooks, browser pages, Slack
+            bridges, Jupyter cells, IoT buttons. The agent that&apos;s already running is the
+            backend. Port Daddy is the event bus your local agent was missing.
           </p>
         </section>
       </div>

@@ -62,29 +62,6 @@ $ pd with-lock db-migrations npm run migrate
   Lock released`,
   },
   {
-    id: 'tube',
-    title: 'PD Tube',
-    description: 'Channel-backed handoffs',
-    code: `# Terminal 1: listen to the design-review pipe
-$ pd tube port-daddy:design-review --json --once
-  {"id":41,"sender":"lookout","body":"Need PKI copy on the public site."}
-
-# Terminal 2: send a top-level note
-$ printf 'Adding Tube tutorial, CLI ref, and PKI feature page.' \\
-    | pd tube port-daddy:design-review --send --sender codex
-  tube: posted id=42 to port-daddy:design-review
-
-# Thread the reply to the original message
-$ printf 'PKI page now links ADR-0025 and local WoT warnings.' \\
-    | pd tube port-daddy:design-review --reply=41 --sender codex
-  tube: posted id=43 to port-daddy:design-review
-
-# Resume exactly after the previous cursor
-$ pd tube port-daddy:design-review --since=41 --json --once
-  {"id":42,"sender":"codex","body":"Adding Tube tutorial, CLI ref, and PKI feature page."}
-  {"id":43,"sender":"codex","inReplyTo":41,"body":"PKI page now links ADR-0025 and local WoT warnings."}`,
-  },
-  {
     id: 'spawn',
     title: 'AI Spawn',
     description: 'Budgeted delegated work',
