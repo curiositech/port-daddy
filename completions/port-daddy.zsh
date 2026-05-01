@@ -1870,6 +1870,8 @@ _port_daddy() {
     'preflight:alias for advise before risky work'
     'compass:maritime alias for advise'
     'guard:enforce Port Daddy session and file-claim discipline'
+    'snapshots:list/show/restore/prune claim-watcher snapshots'
+    'snapshot:alias for snapshots'
     'pheromone:stigmergic coordination (spray, files, show, ls)'
     'ph:alias for pheromone'
     # Agent Inbox

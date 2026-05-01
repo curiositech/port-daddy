@@ -113,6 +113,8 @@ pd up     # Starts all services in dependency order with color-coded logs
 - **pd demo**: Interactive multi-agent coordination **demo**.
 - **pd fleet**: Declarative agent **fleet** from `pd-fleet.yml` — cron/trigger-based agents with pub/sub chaining.
 - **pd guard**: Enforce agent coordination before commit — active session plus matching file claims for staged files.
+- **pd add**: Claim-aware `git add` — refuses to stage files held by another session.
+- **pd snapshots**: List/show/restore snapshots the daemon-side claim watcher captures when a claimed file's bytes change mid-claim.
 - **pd status / pd version**: View system **info** and metrics.
 
 ### Session Lifecycle

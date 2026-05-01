@@ -109,6 +109,8 @@ import {
   handleGuard,
   // Claim-aware git add wrapper
   handleAdd,
+  // Claim-watcher snapshot list/restore/prune
+  handleSnapshots,
 } from '../cli/commands/index.js';
 import { getDaemonTcpUrl, readDaemonPort, resolveDaemonTcpTarget } from '../shared/daemon-discovery.js';
 import { calculateRuntimeCodeHash } from '../shared/code-hash.js';
@@ -1054,7 +1056,7 @@ const ALL_COMMANDS: string[] = [
   'advise', 'preflight', 'compass', 'guard',
   'salvage', 'resurrection', 'changelog', 'tunnel',
   'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
-  'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add',
+  'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot',
   'spawn', 'spawned', 'watch',
   'harbor', 'harbors', 'demo', 'fleet', 'tuple', 'sortie', 'graph', 'memory', 'ideas',
   'quorum',
@@ -2436,6 +2438,11 @@ async function main(): Promise<void> {
 
       case 'add':
         await handleAdd(positional, options);
+        break;
+
+      case 'snapshots':
+      case 'snapshot':
+        await handleSnapshots(positional, options);
         break;
 
       case 'integration':

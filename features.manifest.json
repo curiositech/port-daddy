@@ -1032,7 +1032,8 @@
         "GET /fleet/config/:project",
         "PUT /fleet/config/:project",
         "POST /fleet/config/:project/budget",
-        "GET /fleet/models"
+        "GET /fleet/models",
+        "POST /fleet/backend-secrets"
       ],
       "completions": [
         "fleet"
@@ -1338,6 +1339,24 @@
       ],
       "docs": {
         "readme": false,
+        "sdk": false
+      }
+    },
+    "claim_watcher_snapshots": {
+      "description": "Daemon-side mtime/hash watcher captures prior bytes when a claimed file's content changes mid-claim. `pd snapshots list/show/restore/prune` surfaces those snapshots to operators with one-command rollback. Auto-prune keeps disk usage bounded (default 7 days).",
+      "module": "lib/claim-watcher.ts",
+      "cli": [
+        "snapshots",
+        "snapshot"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "snapshots",
+        "snapshot"
+      ],
+      "docs": {
+        "readme": true,
         "sdk": false
       }
     },
