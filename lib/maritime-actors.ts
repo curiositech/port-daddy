@@ -10,6 +10,7 @@ export type MaritimeActorId =
   | 'documentarian'
   | 'simplifier'
   | 'coxswain'
+  | 'quartermaster'
   | 'cartographer'
   | 'spark'
   | 'spider';
@@ -129,12 +130,42 @@ export const MARITIME_ACTORS: readonly MaritimeActorDefinition[] = [
   {
     id: 'coxswain',
     label: 'Coxswain',
-    title: 'Claims, locks, and coordination ownership actor',
-    mission: 'Owns claims, locks, stale assets, symbolic coordination, and file/session contention so coordination conflicts have a durable mailbox.',
-    owns: ['claims', 'locks', 'file-ownership', 'stale-assets', 'symbolic-coordination', 'session-contention', 'coordination-conflicts'],
-    aliases: ['claim-owner', 'lock-owner', 'ownership', 'contention'],
+    title: 'Claims, locks, and communications ownership actor',
+    mission: 'Owns claims, locks, stale assets, symbolic coordination, file/session contention, AND the live communications fabric — channels, tuples, naming hygiene, subscription coverage, silent-agent detection, and comm-pipeline debug — so coordination conflicts and communication breakdowns have a single durable mailbox.',
+    owns: [
+      'claims',
+      'locks',
+      'file-ownership',
+      'stale-assets',
+      'symbolic-coordination',
+      'session-contention',
+      'coordination-conflicts',
+      // Comms-officer surface — actively recommends, consolidates, and debugs
+      // pub/sub + tuple traffic. Not just passive ownership; coxswain runs a
+      // periodic audit (lib/coordination-pipeline-audit.ts) that fires
+      // templated DMs to offending agents when subscriptions are missing,
+      // channel names drift, or tuples shape inconsistently.
+      'channels',
+      'tuples',
+      'channel-naming-hygiene',
+      'tuple-nomenclature',
+      'subscription-coverage',
+      'silent-agents',
+      'comm-pipeline-debug',
+    ],
+    aliases: ['claim-owner', 'lock-owner', 'ownership', 'contention', 'comms-officer', 'signaler'],
     compatibilityFleetAgent: null,
     mailbox: 'actor:coxswain',
+  },
+  {
+    id: 'quartermaster',
+    label: 'Quartermaster',
+    title: 'Backend, spend, and launch-readiness actor',
+    mission: 'Owns spawn discipline, backend readiness, model ladders, telemetry policy, budget ceilings, and spend-related launch blockers.',
+    owns: ['backends', 'models', 'spawn-policy', 'telemetry-policy', 'budget', 'spend', 'launch-readiness'],
+    aliases: ['spend', 'budget', 'backend-owner', 'model-owner', 'launch-readiness'],
+    compatibilityFleetAgent: null,
+    mailbox: 'actor:quartermaster',
   },
   {
     id: 'cartographer',

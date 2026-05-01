@@ -16,6 +16,7 @@ describe('fleet actors (formerly maritime)', () => {
       'documentarian',
       'simplifier',
       'coxswain',
+      'quartermaster',
       'cartographer',
       'spark',
       'spider',
@@ -29,14 +30,22 @@ describe('fleet actors (formerly maritime)', () => {
     expect(resolveMaritimeActorId('lookout')).toBe('documentarian');
     expect(resolveMaritimeActorId('signalman')).toBe('qa');
     expect(resolveMaritimeActorId('claim-owner')).toBe('coxswain');
+    // Comms-officer aliases route to coxswain since the comm pipeline is
+    // their domain too.
+    expect(resolveMaritimeActorId('comms-officer')).toBe('coxswain');
+    expect(resolveMaritimeActorId('signaler')).toBe('coxswain');
+    expect(resolveMaritimeActorId('budget')).toBe('quartermaster');
+    expect(resolveMaritimeActorId('backend-owner')).toBe('quartermaster');
     // Identity is identity.
     expect(resolveMaritimeActorId('coxswain')).toBe('coxswain');
+    expect(resolveMaritimeActorId('quartermaster')).toBe('quartermaster');
     expect(resolveMaritimeActorId('cartographer')).toBe('cartographer');
     expect(resolveMaritimeActorId('qa')).toBe('qa');
   });
 
-  test('keeps Coxswain as the standalone coordination owner without inventing the rest of the future roster', () => {
+  test('keeps standalone coordination and spend owners without inventing the rest of the future roster', () => {
     const coxswain = getMaritimeActor('coxswain');
+    const quartermaster = getMaritimeActor('quartermaster');
 
     expect(coxswain).toEqual(expect.objectContaining({
       id: 'coxswain',
@@ -51,12 +60,34 @@ describe('fleet actors (formerly maritime)', () => {
       'stale-assets',
       'symbolic-coordination',
       'session-contention',
+      // Comms-officer expansion — coxswain owns the live communications
+      // fabric in addition to the static coordination primitives.
+      'channels',
+      'tuples',
+      'channel-naming-hygiene',
+      'tuple-nomenclature',
+      'subscription-coverage',
+      'silent-agents',
+      'comm-pipeline-debug',
+    ]));
+    expect(quartermaster).toEqual(expect.objectContaining({
+      id: 'quartermaster',
+      label: 'Quartermaster',
+      inboxTarget: 'actor:quartermaster',
+      compatibilityFleetAgent: null,
+      leaseState: 'dormant',
+    }));
+    expect(quartermaster?.owns).toEqual(expect.arrayContaining([
+      'backends',
+      'models',
+      'telemetry-policy',
+      'budget',
+      'launch-readiness',
     ]));
     expect(resolveMaritimeActorId('harbormaster')).toBeNull();
     expect(resolveMaritimeActorId('sounder')).toBeNull();
     expect(resolveMaritimeActorId('breaker')).toBeNull();
     expect(resolveMaritimeActorId('caulker')).toBeNull();
-    expect(resolveMaritimeActorId('quartermaster')).toBeNull();
   });
 
   test('projects live body, session, and salvage evidence onto cartographer', () => {
