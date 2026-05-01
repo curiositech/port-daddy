@@ -58,6 +58,46 @@ pd note "Result: <change>. Validation: <evidence>. Remaining: <risk>."
 pd done "<short outcome>"
 ```
 
+## Telos vs Purpose
+
+Every Port Daddy agent carries a **telos** alongside its **purpose**.
+They look similar in `pd whoami` output, but they are not the same field
+and should not drift together.
+
+| Field | Meaning | Lifetime |
+|---|---|---|
+| `purpose` | The current task this session is doing. | Per-session. Resets when you `pd done` and `pd begin` again. |
+| `telos`   | Why this agent exists in the fleet — the durable role headline. | Long-lived. Survives across sessions, salvages, and respawns. |
+
+`pd begin "<purpose>"` sets the purpose. By default the telos defaults to
+the same string for compatibility, but creator-provided telos is preferred:
+fleet YAML, spawn calls, and registration paths can declare a richer telos
+object explicitly, and `pd whoami` will show that string instead.
+
+When to update each:
+
+- **Per task** — change `purpose` via a fresh `pd begin` (or `pd done` then
+  `pd begin`). Don't reuse a session whose purpose has materially shifted.
+- **When the agent's role changes** — update `telos` through registration
+  or heartbeat. Don't let operator surfaces (FleetBar, Fleet Control Center,
+  briefings) show a stale role headline. A runtime-derived fallback telos
+  is allowed only as compatibility — bake a real telos in as soon as you
+  know the role.
+
+Practical rules:
+
+- If you spawn fleet agents in `pd-fleet.yml`, declare `telos:` on each
+  agent explicitly. Keep starter templates, schema docs, CLI help, API
+  docs, and this skill aligned when the telos shape changes.
+- If you can choose only one to make accurate, make telos accurate.
+  Operator surfaces use it for the human-readable "what does this agent
+  do" answer.
+- When handing off, mention both telos and purpose in your `pd note` if
+  they differ — the next agent inherits identity but may need to set a
+  new purpose for its own slice.
+
+## Reconciling Before Publishing
+
 Fetch and reconcile before publishing:
 
 ```bash
@@ -199,7 +239,7 @@ ambiguous handoffs, and local green checks that do not match the installed app.
 | A fact should be machine-queryable | Emit a tuple or schema-shaped handoff, not prose only. |
 | A scarce resource is involved | Use a lock for promotion, migrations, generated assets, or release packaging. |
 | A release surface changed | Update docs, README, website, skill, and package/export metadata in the same coherent slice. |
-| You are about to commit, push, or deploy | Fetch the canonical remote branch, rebase/merge current work onto it, re-read live sessions/notes/activity, and run `pd guard check --staged`. Do not publish stale-base work. |
+| You are about to commit, push, or deploy | Fetch the canonical remote branch, rebase/merge current work onto it, re-read live sessions/notes/activity, stage through `pd add --dry-run -A` then `pd add -A`, and run `pd guard check --staged`. Do not publish stale-base work. |
 
 ## Procedural Cues
 
