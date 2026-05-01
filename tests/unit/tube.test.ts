@@ -16,14 +16,19 @@ import { join } from 'node:path';
 import {
   buildEnvelope,
   decodeMessage,
+  formatProse,
   listen,
+  readHistory,
   reply,
   send,
+  synthesizeSender,
+  writeHistory,
   inMemoryHistoryStore,
   createFileHistoryStore,
   defaultHistoryPath,
   safeChannelSlug,
   TUBE_ENVELOPE_KIND,
+  type HistoryStore,
   type RawDaemonMessage,
   type TubeClient,
 } from '../../lib/tube.js';
@@ -272,6 +277,154 @@ describe('lib/tube send & reply', () => {
   });
 });
 
+describe('lib/tube prose & sender helpers', () => {
+  test('synthesizeSender produces a stable per-cwd+channel label', () => {
+    const a = synthesizeSender('ui:clicks', '/Users/jane/coding/myapp');
+    const b = synthesizeSender('ui:clicks', '/Users/jane/coding/myapp');
+    expect(a).toBe(b);
+    expect(a).toContain('myapp');
+    expect(a).toContain('ui_clicks');
+  });
+
+  test('synthesizeSender disambiguates by cwd basename', () => {
+    const a = synthesizeSender('ui:clicks', '/tmp/repo-a');
+    const b = synthesizeSender('ui:clicks', '/tmp/repo-b');
+    expect(a).not.toBe(b);
+  });
+
+  test('formatProse renders a crank-handle block referencing event id and channel', () => {
+    const block = formatProse(
+      {
+        id: 42,
+        sender: 'web-demo',
+        createdAt: 1714519871000,
+        body: '{"button":"deploy-staging"}',
+        envelope: true,
+        raw: null,
+      },
+      'ui:clicks'
+    );
+    expect(block).toContain('id=42');
+    expect(block).toContain('ui:clicks');
+    expect(block).toContain('web-demo');
+    expect(block).toContain('--reply');
+    expect(block).toContain('correlated to id=42');
+  });
+
+  test('formatProse marks reply parents with the threading hint', () => {
+    const block = formatProse(
+      {
+        id: 88,
+        sender: 'agent',
+        createdAt: 0,
+        body: 'follow up',
+        inReplyTo: 42,
+        envelope: true,
+        raw: null,
+      },
+      'chan'
+    );
+    expect(block).toContain('↩ 42');
+  });
+});
+
+describe('lib/tube history meta', () => {
+  test('inMemoryHistoryStore round-trips foreign event metadata', () => {
+    const h = inMemoryHistoryStore();
+    expect(readHistory(h, 'c')).toBeNull();
+    writeHistory(h, 'c', { lastSeenId: 10, lastForeignEventId: 7, lastForeignSender: 'web-demo' });
+    const meta = readHistory(h, 'c');
+    expect(meta).toMatchObject({
+      lastSeenId: 10,
+      lastForeignEventId: 7,
+      lastForeignSender: 'web-demo',
+    });
+  });
+
+  test('writeHistory preserves prior foreign-event hints when only lastSeenId advances', () => {
+    const h = inMemoryHistoryStore();
+    writeHistory(h, 'c', { lastSeenId: 5, lastForeignEventId: 5, lastForeignSender: 'someone' });
+    writeHistory(h, 'c', { lastSeenId: 6 }); // listener saw its own message — no foreign update
+    const meta = readHistory(h, 'c');
+    expect(meta).toMatchObject({ lastSeenId: 6, lastForeignEventId: 5, lastForeignSender: 'someone' });
+  });
+
+  test('readHistory falls back to legacy read() when readMeta is unavailable', () => {
+    const legacy: HistoryStore = {
+      read: () => 17,
+      write: () => {},
+    };
+    expect(readHistory(legacy, 'c')).toEqual({ lastSeenId: 17 });
+  });
+
+  test('writeHistory falls back to legacy write() when writeMeta is unavailable', () => {
+    const writes: Array<[string, number]> = [];
+    const legacy: HistoryStore = {
+      read: () => null,
+      write: (channel, id) => { writes.push([channel, id]); },
+    };
+    writeHistory(legacy, 'c', { lastSeenId: 21, lastForeignEventId: 19 });
+    expect(writes).toEqual([['c', 21]]);
+  });
+
+  test('file-backed store persists foreign-event metadata across reads', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'tube-meta-'));
+    try {
+      const h = createFileHistoryStore(dir);
+      writeHistory(h, 'chan', { lastSeenId: 99, lastForeignEventId: 97, lastForeignSender: 'web' });
+      // Fresh store instance pointing at the same dir should still see the meta.
+      const h2 = createFileHistoryStore(dir);
+      expect(readHistory(h2, 'chan')).toMatchObject({
+        lastSeenId: 99,
+        lastForeignEventId: 97,
+        lastForeignSender: 'web',
+      });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('lib/tube listen with selfSender', () => {
+  test('filters out our own messages and does not advance lastForeignEventId past them', async () => {
+    const client = makeClient({
+      getMessages: jest.fn(async () => ({
+        ok: true,
+        messages: [
+          { id: 10, sender: 'web-demo', createdAt: 1, payload: { v: 1, kind: TUBE_ENVELOPE_KIND, body: 'click' } },
+          { id: 11, sender: 'pd-tube/me/chan', createdAt: 2, payload: { v: 1, kind: TUBE_ENVELOPE_KIND, body: 'self reply', inReplyTo: 10 } },
+        ],
+      })) as unknown as jest.Mock,
+    });
+    const history = inMemoryHistoryStore();
+    const res = await listen('chan', client, history, { selfSender: 'pd-tube/me/chan' });
+
+    expect(res.messages.map((m) => m.id)).toEqual([10]);
+    expect(res.lastSeenId).toBe(11);
+    expect(res.lastForeignEventId).toBe(10);
+    expect(res.lastForeignSender).toBe('web-demo');
+
+    const meta = readHistory(history, 'chan');
+    expect(meta).toMatchObject({ lastSeenId: 11, lastForeignEventId: 10, lastForeignSender: 'web-demo' });
+  });
+
+  test('advances lastForeignEventId only on truly foreign messages', async () => {
+    const client = makeClient({
+      getMessages: jest.fn(async () => ({
+        ok: true,
+        messages: [
+          { id: 1, sender: 'me', createdAt: 1, payload: { v: 1, kind: TUBE_ENVELOPE_KIND, body: 'mine' } },
+          { id: 2, sender: 'them', createdAt: 2, payload: { v: 1, kind: TUBE_ENVELOPE_KIND, body: 'theirs' } },
+          { id: 3, sender: 'me', createdAt: 3, payload: { v: 1, kind: TUBE_ENVELOPE_KIND, body: 'mine again' } },
+        ],
+      })) as unknown as jest.Mock,
+    });
+    const res = await listen('chan', client, inMemoryHistoryStore(), { selfSender: 'me' });
+    expect(res.lastSeenId).toBe(3);
+    expect(res.lastForeignEventId).toBe(2);
+  });
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // CLI handler tests
 // ─────────────────────────────────────────────────────────────────────────────
@@ -505,6 +658,174 @@ describe('cli/tube handler', () => {
   test('missing channel exits non-zero', async () => {
     await expect(handleTube(undefined, {})).rejects.toThrow('exit:1');
     expect(mockUi.error).toHaveBeenCalledWith(expect.stringMatching(/Usage:/));
+  });
+
+  test('inline --reply auto-correlates to lastForeignEventId, posts, and falls through to listening', async () => {
+    const publish = jest.fn(async () => ({ ok: true, id: 200 })) as unknown as TubeClient['publish'];
+    const getMessages = jest.fn(async () => ({ ok: true, messages: [] })) as unknown as TubeClient['getMessages'];
+    const client: TubeClient = { publish, getMessages };
+    const history = inMemoryHistoryStore();
+    writeHistory(history, 'chan', { lastSeenId: 42, lastForeignEventId: 42, lastForeignSender: 'web-demo' });
+    const sleep = jest.fn(async () => {});
+
+    // wait-for=0 makes the post-reply listen pass exit on its first empty
+    // poll, so we can assert the reply was posted AND control flowed into the
+    // listen block (one getMessages call at minimum).
+    await handleTube('chan', { reply: 'shipping it', json: true, 'wait-for': '0' }, {
+      client,
+      history,
+      stdin: fakeStdin('', { isTTY: true }),
+      sleep,
+    });
+
+    expect((publish as jest.Mock).mock.calls).toHaveLength(1);
+    const envelope = (publish as jest.Mock).mock.calls[0][1] as { body: string; inReplyTo?: number };
+    expect(envelope.body).toBe('shipping it');
+    expect(envelope.inReplyTo).toBe(42);
+    expect((getMessages as jest.Mock).mock.calls.length).toBeGreaterThanOrEqual(1);
+  });
+
+  test('inline --reply errors out when no foreign event has been seen', async () => {
+    const publish = jest.fn() as unknown as TubeClient['publish'];
+    const client: TubeClient = {
+      publish,
+      getMessages: jest.fn() as unknown as TubeClient['getMessages'],
+    };
+    await expect(
+      handleTube('chan', { reply: 'late to the party' }, {
+        client,
+        history: inMemoryHistoryStore(),
+        stdin: fakeStdin('', { isTTY: true }),
+      })
+    ).rejects.toThrow('exit:1');
+    expect(publish).not.toHaveBeenCalled();
+    expect(mockUi.error).toHaveBeenCalledWith(expect.stringMatching(/no event to reply to/));
+  });
+
+  test('--reply=<numeric> --send keeps the legacy post-and-exit shape', async () => {
+    const publish = jest.fn(async () => ({ ok: true, id: 555 })) as unknown as TubeClient['publish'];
+    const getMessages = jest.fn() as unknown as TubeClient['getMessages'];
+    const client: TubeClient = { publish, getMessages };
+
+    await handleTube('chan', { reply: '7', send: true, json: true }, {
+      client,
+      history: inMemoryHistoryStore(),
+      stdin: fakeStdin('roger that\n'),
+    });
+
+    const envelope = (publish as jest.Mock).mock.calls[0][1] as { body: string; inReplyTo?: number };
+    expect(envelope.body).toBe('roger that');
+    expect(envelope.inReplyTo).toBe(7);
+    // Post-and-exit: no listen pass should have happened.
+    expect((getMessages as jest.Mock).mock.calls).toHaveLength(0);
+  });
+
+  test('--send "body" posts the inline body as a top-level message', async () => {
+    const publish = jest.fn(async () => ({ ok: true, id: 1 })) as unknown as TubeClient['publish'];
+    const client: TubeClient = {
+      publish,
+      getMessages: jest.fn() as unknown as TubeClient['getMessages'],
+    };
+
+    await handleTube('chan', { send: 'inline hello', json: true }, {
+      client,
+      history: inMemoryHistoryStore(),
+      stdin: fakeStdin('', { isTTY: true }),
+    });
+
+    const envelope = (publish as jest.Mock).mock.calls[0][1] as { body: string; inReplyTo?: number };
+    expect(envelope.body).toBe('inline hello');
+    expect(envelope.inReplyTo).toBeUndefined();
+  });
+
+  test('listen --once with no flags emits prose by default', async () => {
+    const client: TubeClient = {
+      publish: jest.fn() as unknown as TubeClient['publish'],
+      getMessages: jest.fn(async () => ({
+        ok: true,
+        messages: [
+          { id: 5, sender: 'web-demo', createdAt: 1714519871000, payload: { v: 1, kind: TUBE_ENVELOPE_KIND, body: 'click' } },
+        ],
+      })) as unknown as TubeClient['getMessages'],
+    };
+
+    await handleTube('ui:clicks', { once: true }, {
+      client,
+      history: inMemoryHistoryStore(),
+    });
+
+    const joined = logs.join('\n');
+    expect(joined).toContain('id=5');
+    expect(joined).toContain('ui:clicks');
+    expect(joined).toContain('web-demo');
+    expect(joined).toContain('--reply');
+  });
+
+  test('listen --once --raw emits the legacy tab-separated format', async () => {
+    const client: TubeClient = {
+      publish: jest.fn() as unknown as TubeClient['publish'],
+      getMessages: jest.fn(async () => ({
+        ok: true,
+        messages: [
+          { id: 9, sender: 'a', createdAt: 1, payload: { v: 1, kind: TUBE_ENVELOPE_KIND, body: 'plain' } },
+        ],
+      })) as unknown as TubeClient['getMessages'],
+    };
+
+    await handleTube('chan', { once: true, raw: true }, {
+      client,
+      history: inMemoryHistoryStore(),
+    });
+
+    expect(logs).toHaveLength(1);
+    expect(logs[0]).toBe('9\ta\tplain');
+  });
+
+  test('listen blocks until an event arrives, then exits', async () => {
+    let pollCount = 0;
+    const client: TubeClient = {
+      publish: jest.fn() as unknown as TubeClient['publish'],
+      getMessages: jest.fn(async () => {
+        pollCount++;
+        if (pollCount < 3) return { ok: true, messages: [] };
+        return {
+          ok: true,
+          messages: [
+            { id: 1, sender: 'web', createdAt: 1, payload: { v: 1, kind: TUBE_ENVELOPE_KIND, body: 'finally' } },
+          ],
+        };
+      }) as unknown as TubeClient['getMessages'],
+    };
+    const sleep = jest.fn(async () => {}); // skip real waiting
+
+    await handleTube('chan', { json: true }, {
+      client,
+      history: inMemoryHistoryStore(),
+      sleep,
+    });
+
+    expect(pollCount).toBe(3);
+    expect(logs).toHaveLength(1);
+    expect(JSON.parse(logs[0])).toMatchObject({ body: 'finally' });
+  });
+
+  test('listen times out cleanly when no event arrives within --wait-for', async () => {
+    const client: TubeClient = {
+      publish: jest.fn() as unknown as TubeClient['publish'],
+      getMessages: jest.fn(async () => ({ ok: true, messages: [] })) as unknown as TubeClient['getMessages'],
+    };
+    const sleep = jest.fn(async () => {});
+
+    await handleTube('chan', { json: true, 'wait-for': '0' }, {
+      client,
+      history: inMemoryHistoryStore(),
+      sleep,
+    });
+
+    // wait-for=0 means the deadline is reached on the very first iteration.
+    // We should print a structured timeout marker and exit cleanly.
+    expect(logs).toHaveLength(1);
+    expect(JSON.parse(logs[0])).toMatchObject({ ok: true, timedOut: true });
   });
 
   test('listen --once + history-guard skips messages already seen', async () => {

@@ -24,14 +24,17 @@
 import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import { CLIOptions, isJson, isQuiet } from '../types.js';
-import { resolveDeclaredChannel, formatResolvedChannel } from '../utils/channel-resolution.js';
+import { resolveDeclaredChannel, formatResolvedChannel, type ChannelResolution } from '../utils/channel-resolution.js';
 import * as ui from '../utils/ui.js';
 import {
   createFileHistoryStore,
+  formatProse,
   listen,
+  readHistory,
   reply,
   safeChannelSlug,
   send,
+  synthesizeSender,
   type HistoryStore,
   type ListenResult,
   type RawDaemonMessage,
@@ -144,8 +147,10 @@ export async function readStdinToEnd(stdin: NodeJS.ReadableStream & { isTTY?: bo
 // Output formatting
 // ─────────────────────────────────────────────────────────────────────────────
 
-function emitMessage(msg: TubeMessage, json: boolean): void {
-  if (json) {
+type EmitMode = 'prose' | 'raw' | 'json';
+
+function emitMessage(msg: TubeMessage, mode: EmitMode, channelLabel: string): void {
+  if (mode === 'json') {
     const line: Record<string, unknown> = {
       id: msg.id,
       sender: msg.sender,
@@ -158,10 +163,59 @@ function emitMessage(msg: TubeMessage, json: boolean): void {
     return;
   }
 
-  // Default human-readable: `<id>  <sender|-> [<reply-to>]  <body>`
-  const reTag = msg.inReplyTo !== undefined ? ` ↩${msg.inReplyTo}` : '';
-  const sender = msg.sender || '-';
-  console.log(`${msg.id}\t${sender}${reTag}\t${msg.body}`);
+  if (mode === 'raw') {
+    // Tab-separated: `<id>  <sender|-> [↩<reply-to>]  <body>`
+    const reTag = msg.inReplyTo !== undefined ? ` ↩${msg.inReplyTo}` : '';
+    const sender = msg.sender || '-';
+    console.log(`${msg.id}\t${sender}${reTag}\t${msg.body}`);
+    return;
+  }
+
+  // Prose: crank-handle block telling the agent how to call back.
+  // Use console.log so test capture sees it; trim trailing newline since
+  // console.log adds one.
+  console.log(formatProse(msg, channelLabel).replace(/\n+$/, ''));
+}
+
+function pickEmitMode(options: CLIOptions): EmitMode {
+  if (isJson(options)) return 'json';
+  if (options.raw) return 'raw';
+  return 'prose';
+}
+
+/**
+ * Decode the `--reply` / `--send` argument into a body source.
+ *
+ *   undefined           → no body requested
+ *   true (bare flag)    → read stdin
+ *   '-'                 → read stdin
+ *   '<digits>'          → numeric parent id (only legal on --reply); body from stdin
+ *   '<other string>'    → inline body
+ */
+type ReplyArg =
+  | { kind: 'none' }
+  | { kind: 'stdin' }
+  | { kind: 'numericParent'; parentId: number }
+  | { kind: 'inline'; body: string };
+
+function classifyReplyArg(value: unknown): ReplyArg {
+  if (value === undefined) return { kind: 'none' };
+  if (value === true) return { kind: 'stdin' };
+  const s = String(value);
+  if (s === '-') return { kind: 'stdin' };
+  if (/^[0-9]+$/.test(s)) {
+    const parentId = parseInt(s, 10);
+    if (Number.isFinite(parentId) && parentId > 0) return { kind: 'numericParent', parentId };
+  }
+  return { kind: 'inline', body: s };
+}
+
+function classifySendArg(value: unknown): ReplyArg {
+  if (value === undefined) return { kind: 'none' };
+  if (value === true) return { kind: 'stdin' };
+  const s = String(value);
+  if (s === '-') return { kind: 'stdin' };
+  return { kind: 'inline', body: s };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -183,6 +237,13 @@ export interface TubeHandlerDeps {
 
 const DEFAULT_POLL_INTERVAL_MS = 1000;
 const MAX_POLL_INTERVAL_MS = 5000;
+/**
+ * Default block-wait when an agent invokes `pd tube <ch>` and no event has
+ * arrived yet. Long enough to be useful in an agent's tool loop, short
+ * enough that the bash sandbox/timeout won't kill it. Override with
+ * `--wait-for=<seconds>`.
+ */
+const DEFAULT_WAIT_FOR_SECONDS = 600;
 
 function parseNumberOption(raw: unknown, label: string): number {
   const n = typeof raw === 'number' ? raw : parseInt(String(raw), 10);
@@ -335,15 +396,23 @@ export async function handleTubeChat(channel: string | undefined, options: CLIOp
 
 /**
  * `pd tube` entry point.
+ *
+ * Listen mode (default): emits the prose crank-handle for each new event;
+ * `--raw` switches to tab-separated, `--json` to one-JSON-line-per-message.
+ *
+ * Inline reply (the loop unlock): `pd tube <ch> --reply "body"` posts a
+ * reply correlated to the most recent event from someone else and then
+ * keeps listening. `--reply=<numeric-id> --send` preserves the legacy
+ * post-and-exit shape (body comes from stdin in that case).
  */
 export async function handleTube(channel: string | undefined, options: CLIOptions, deps: TubeHandlerDeps = {}): Promise<void> {
   if (!channel) {
-    ui.error('Usage: pd tube <channel> [--send | --reply=<id> | --since=<id> | --once | --no-history]');
+    ui.error('Usage: pd tube <channel> [--reply <body> | --reply=<id> --send | --send <body> | --once | --raw | --json | --no-history]');
     process.exit(1);
   }
 
   // Resolve channel (logical → physical), unless --raw-channel.
-  let resolved;
+  let resolved: ChannelResolution;
   try {
     resolved = await resolveDeclaredChannel(channel, options);
   } catch (error) {
@@ -352,9 +421,10 @@ export async function handleTube(channel: string | undefined, options: CLIOption
     return;
   }
 
-  const json = isJson(options);
+  const emitMode = pickEmitMode(options);
   const quiet = isQuiet(options);
   const physical = resolved.physicalChannel;
+  const channelLabel = (resolved.requestedChannel ?? channel) || channel;
 
   // Build / pick deps.
   const client = deps.client ?? createDaemonTubeClient(() => physical);
@@ -362,41 +432,97 @@ export async function handleTube(channel: string | undefined, options: CLIOption
   const stdin = deps.stdin ?? (process.stdin as NodeJS.ReadableStream & { isTTY?: boolean });
   const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
 
-  // ── --send / --reply: read stdin, post, exit ─────────────────────────────
-  if (options.send || options.reply !== undefined) {
+  // Sender: explicit --sender wins; otherwise synthesize a stable per-cwd
+  // label so the listener doesn't echo its own replies back to itself.
+  const explicitSender = (options.sender as string) || (options.as as string) || '';
+  const selfSender = explicitSender || synthesizeSender(channelLabel);
+
+  // Resolve body for --reply / --send (if either is set).
+  const replyArg = classifyReplyArg(options.reply);
+  const sendArg = classifySendArg(options.send);
+
+  // Forbid the obvious nonsense up front.
+  if (replyArg.kind !== 'none' && sendArg.kind === 'inline') {
+    ui.error('tube: --send takes no body when used with --reply (it just toggles post-and-exit)');
+    process.exit(1);
+    return;
+  }
+
+  // Helper to pull a body from stdin and trim trailing whitespace.
+  async function bodyFromStdin(): Promise<string> {
+    const raw = await readStdinToEnd(stdin);
+    const trimmed = raw.replace(/\s+$/, '');
+    if (!trimmed) {
+      throw new Error('tube: stdin was empty — nothing to send');
+    }
+    return trimmed;
+  }
+
+  function reportPost(id: number): void {
+    if (emitMode === 'json') {
+      console.log(JSON.stringify({ ok: true, id, channel: physical }));
+    } else if (!quiet) {
+      ui.success(`tube: posted id=${id} to ${formatResolvedChannel(resolved)}`);
+    } else {
+      console.log(String(id));
+    }
+  }
+
+  // ── --reply: post a reply, then either exit or keep listening ───────────
+  if (replyArg.kind !== 'none') {
     let body: string;
+    let parentId: number;
+
     try {
-      body = await readStdinToEnd(stdin);
+      if (replyArg.kind === 'stdin') {
+        body = await bodyFromStdin();
+        const meta = readHistory(history, physical);
+        if (!meta?.lastForeignEventId) {
+          throw new Error(
+            'tube: no event to reply to yet — listen first, or use --reply=<id> with the explicit message id'
+          );
+        }
+        parentId = meta.lastForeignEventId;
+      } else if (replyArg.kind === 'numericParent') {
+        body = await bodyFromStdin();
+        parentId = replyArg.parentId;
+      } else {
+        // inline body — auto-correlate to last foreign event
+        body = replyArg.body;
+        const meta = readHistory(history, physical);
+        if (!meta?.lastForeignEventId) {
+          throw new Error(
+            'tube: no event to reply to yet — listen first (pd tube ' + channelLabel + ') so the cursor knows the parent id, or use --reply=<id> --send'
+          );
+        }
+        parentId = meta.lastForeignEventId;
+      }
+
+      const result = await reply(physical, parentId, body, client, { sender: selfSender });
+      reportPost(result.id);
     } catch (e) {
       ui.error((e as Error).message);
       process.exit(1);
       return;
     }
-    const trimmed = body.replace(/\s+$/, '');
-    if (!trimmed) {
-      ui.error('tube: stdin was empty — nothing to send');
-      process.exit(1);
-      return;
-    }
 
-    const sender = (options.sender as string) || (options.as as string) || undefined;
+    // post-and-exit: --send modifier OR --once OR explicit numeric parent.
+    // Continue listening when the user passed an inline body / bare --reply
+    // and didn't ask to exit. That's the loop-unlock shape.
+    const exitAfterPost = !!options.send || !!options.once || replyArg.kind === 'numericParent';
+    if (exitAfterPost) return;
 
+    // Fall through to listen loop.
+  }
+
+  // ── --send (no --reply): top-level message, post and exit ───────────────
+  if (replyArg.kind === 'none' && sendArg.kind !== 'none') {
     try {
-      let result: { id: number };
-      if (options.reply !== undefined) {
-        const parentId = parseNumberOption(options.reply, '--reply');
-        result = await reply(physical, parentId, trimmed, client, { sender });
-      } else {
-        result = await send(physical, trimmed, client, { sender });
-      }
-
-      if (json) {
-        console.log(JSON.stringify({ ok: true, id: result.id, channel: physical }));
-      } else if (!quiet) {
-        ui.success(`tube: posted id=${result.id} to ${formatResolvedChannel(resolved)}`);
-      } else {
-        console.log(String(result.id));
-      }
+      let body: string;
+      if (sendArg.kind === 'inline') body = sendArg.body;
+      else body = await bodyFromStdin();
+      const result = await send(physical, body, client, { sender: selfSender });
+      reportPost(result.id);
       return;
     } catch (e) {
       ui.error((e as Error).message);
@@ -405,29 +531,47 @@ export async function handleTube(channel: string | undefined, options: CLIOption
     }
   }
 
-  // ── Listen mode (default) ────────────────────────────────────────────────
+  // ── Listen mode (default, or after an inline-reply continuation) ────────
+  //
+  // Three shapes:
+  //   default       block up to `waitForSeconds` for the next event, then exit.
+  //                 This is the agent-loop unlock: each invocation returns,
+  //                 letting the agent's bash tool yield control back to the
+  //                 model so it can decide what to reply.
+  //   --tail        infinite loop; for humans watching a terminal.
+  //   --once        single poll-pass; emit current backlog, exit (no waiting).
+  //
   const since = options.since !== undefined ? parseNumberOption(options.since, '--since') : undefined;
   const limit = options.limit !== undefined ? parseNumberOption(options.limit, '--limit') : undefined;
   const disableHistory = !!options['no-history'];
   const once = !!options.once;
+  const tail = !!options.tail;
+  const waitForSeconds = options['wait-for'] !== undefined
+    ? parseNumberOption(options['wait-for'], '--wait-for')
+    : DEFAULT_WAIT_FOR_SECONDS;
+  const waitForMs = Math.max(0, Math.floor(waitForSeconds * 1000));
 
-  if (!quiet && !json) {
-    ui.info(`tube listening on ${formatResolvedChannel(resolved)} (Ctrl+C to exit)`);
+  if (!quiet && emitMode === 'prose' && tail) {
+    ui.info(`tube tailing ${formatResolvedChannel(resolved)} as ${selfSender} (Ctrl+C to exit)`);
+  } else if (!quiet && emitMode === 'prose' && !once) {
+    ui.info(`tube waiting on ${formatResolvedChannel(resolved)} as ${selfSender} (up to ${waitForSeconds}s; Ctrl+C to exit)`);
+  } else if (!quiet && emitMode === 'raw' && tail) {
+    ui.info(`tube tailing ${formatResolvedChannel(resolved)} (Ctrl+C to exit)`);
   }
 
-  // Single pass = once mode; otherwise loop with polling backoff.
   async function pass(currentSince?: number): Promise<ListenResult> {
     return listen(physical, client, history, {
       since: currentSince,
       limit,
       disableHistory,
+      selfSender,
     });
   }
 
   if (once) {
     try {
       const res = await pass(since);
-      for (const m of res.messages) emitMessage(m, json);
+      for (const m of res.messages) emitMessage(m, emitMode, channelLabel);
       return;
     } catch (e) {
       ui.error((e as Error).message);
@@ -435,11 +579,6 @@ export async function handleTube(channel: string | undefined, options: CLIOption
       return;
     }
   }
-
-  // Polling loop. We pass `since` only on the first pass; thereafter the
-  // history store advances the cursor (or stays put if --no-history).
-  let firstPass = true;
-  let interval = DEFAULT_POLL_INTERVAL_MS;
 
   // Graceful shutdown: SIGINT/SIGTERM end the loop without a stack trace.
   let stopped = false;
@@ -447,20 +586,53 @@ export async function handleTube(channel: string | undefined, options: CLIOption
   process.once('SIGINT', stop);
   process.once('SIGTERM', stop);
 
+  if (!tail) {
+    // Default: block until first event(s) arrive or the wait window expires.
+    const deadline = Date.now() + waitForMs;
+    let interval = DEFAULT_POLL_INTERVAL_MS;
+    let currentSince = since;
+    while (!stopped) {
+      try {
+        const res = await pass(currentSince);
+        currentSince = undefined;
+        if (res.messages.length > 0) {
+          for (const m of res.messages) emitMessage(m, emitMode, channelLabel);
+          return;
+        }
+      } catch (e) {
+        ui.error((e as Error).message);
+        interval = Math.min(MAX_POLL_INTERVAL_MS, Math.floor(interval * 2));
+      }
+      if (Date.now() >= deadline) {
+        if (emitMode === 'json') {
+          console.log(JSON.stringify({ ok: true, channel: physical, timedOut: true }));
+        } else if (!quiet && emitMode === 'prose') {
+          ui.info(`tube: no event in ${waitForSeconds}s — exiting. Re-run pd tube ${channelLabel} to keep listening.`);
+        }
+        return;
+      }
+      if (stopped) return;
+      await sleep(interval);
+      interval = Math.min(MAX_POLL_INTERVAL_MS, Math.floor(interval * 1.5));
+    }
+    return;
+  }
+
+  // --tail: classic infinite loop.
+  let firstPass = true;
+  let interval = DEFAULT_POLL_INTERVAL_MS;
   while (!stopped) {
     try {
       const res = await pass(firstPass ? since : undefined);
       firstPass = false;
       if (res.messages.length > 0) {
-        for (const m of res.messages) emitMessage(m, json);
+        for (const m of res.messages) emitMessage(m, emitMode, channelLabel);
         interval = DEFAULT_POLL_INTERVAL_MS;
       } else {
-        // Gentle backoff when quiet — caps at MAX_POLL_INTERVAL_MS.
         interval = Math.min(MAX_POLL_INTERVAL_MS, Math.floor(interval * 1.5));
       }
     } catch (e) {
       ui.error((e as Error).message);
-      // Don't kill the loop on a transient error; back off and retry.
       interval = Math.min(MAX_POLL_INTERVAL_MS, Math.floor(interval * 2));
     }
     if (stopped) break;
