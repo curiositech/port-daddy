@@ -84,7 +84,7 @@ const ADRS: Adr[] = [
     number: '0018',
     filename: '0018-adversarial-security-analysis.md',
     title: 'Adversarial Security Analysis: Attacking the Anchor Protocol',
-    status: 'DRAFT',
+    status: 'SECURITY REVIEW',
     summary:
       'An adversarial analysis of the Anchor Protocol identified and documented twelve attack vectors -- including token flooding, backup-restore replay, PID reuse races, and covert timing channels -- each with documented severity and a mitigation path. This record informs the security roadmap. It is internal threat modeling published for transparency, not a vulnerability disclosure.',
   },
