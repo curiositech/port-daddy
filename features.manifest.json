@@ -1342,6 +1342,18 @@
         "sdk": false
       }
     },
+    "coordination_pipeline_audit": {
+      "description": "Coxswain's deterministic comm-pipeline audit. Periodically scans declared+observed channels, agent activity, and tuple keys; emits structured complaints (subscription_coverage, channel_near_duplicate, channel_naming, tuple_naming, silent_agent) with cooldown keys. Borderline cases are flagged needsJudge=true for the LLM judge layer to evaluate. Owned by actor:coxswain.",
+      "module": "lib/coordination-pipeline-audit.ts",
+      "cli": [],
+      "sdk": [],
+      "routes": [],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
     "claim_watcher_snapshots": {
       "description": "Daemon-side mtime/hash watcher captures prior bytes when a claimed file's content changes mid-claim. `pd snapshots list/show/restore/prune` surfaces those snapshots to operators with one-command rollback. Auto-prune keeps disk usage bounded (default 7 days).",
       "module": "lib/claim-watcher.ts",
