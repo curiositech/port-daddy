@@ -12,7 +12,7 @@ export function Pheromone() {
       level="Intermediate"
       readTime="8 min read"
       prev={{ title: "Run Background Fleets", href: "/tutorials/fleet" }}
-      next={{ title: "Walk the 11 Product Primitives", href: "/tutorials/primitives" }}
+      next={{ title: "Walk the Product Primitives", href: "/tutorials/primitives" }}
     >
       <div className="space-y-[var(--section-space-y)]">
         <section className="space-y-[var(--space-6)]">

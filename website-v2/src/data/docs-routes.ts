@@ -111,7 +111,7 @@ export const docsFamilyRoutes: DocsFamilyRoute[] = [
     modules: [
       {
         truth: 'Live',
-        title: 'Eleven product primitives',
+        title: 'Product primitives',
         bullets: productPrimitiveBullets,
       },
       {
@@ -205,7 +205,7 @@ export const docsFamilyRoutes: DocsFamilyRoute[] = [
         truth: 'Live',
         title: 'Primitive coverage',
         body: [
-          'The tutorials now include a dedicated walkthrough for the exact eleven primitives on the home page and Mac app page.',
+          'The tutorials now include a dedicated walkthrough for the primitives on the home page and Mac app page.',
         ],
         bullets: productPrimitiveBullets,
       },

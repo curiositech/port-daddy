@@ -135,7 +135,7 @@ const tutorialRecordings: Record<string, RecordingSpec> = {
   primitives: {
     title: 'Watch the preflight that ties the product together',
     caption:
-      'This clip shows the control-plane checks behind the eleven primitives: status, briefing, and guard state before you lean on the rest of the system.',
+      'This clip shows the control-plane checks behind every primitive: status, briefing, and guard state before you lean on the rest of the system.',
     commands: ['pd status', 'pd briefing', 'pd guard status'],
   },
   'pd-tube': {

@@ -40,7 +40,6 @@ function requireTutorial(slug: string) {
 }
 
 const controlPlane = requireBlogPost('control-plane-product')
-const pdTubeBlog = requireBlogPost('pd-tube-event-reply-loop')
 const multiAgentGuide = requireTutorial('multi-agent')
 const primitivesGuide = requireTutorial('primitives')
 
@@ -88,18 +87,6 @@ export const homepageTeasers: HomepageTeaser[] = [
     eyebrow: 'Operator guide',
     meta: multiAgentGuide.time,
     proof: 'File claims and notes',
-  },
-  {
-    kind: 'Article',
-    accent: 'blue',
-    href: `/blog/${pdTubeBlog.slug}`,
-    title: pdTubeBlog.title,
-    summary: pdTubeBlog.excerpt,
-    imageSrc: pdTubeBlog.heroImage,
-    imageAlt: pdTubeBlog.heroAlt,
-    eyebrow: 'Event loop',
-    meta: 'Examples essay',
-    proof: 'UI events become work',
   },
   {
     kind: 'Example',

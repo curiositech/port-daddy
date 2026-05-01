@@ -202,7 +202,7 @@ export const tutorialsSection: DocsContentSection = {
     },
     {
       slug: 'walk-the-eleven-primitives',
-      title: 'Walk The Eleven Primitives',
+      title: 'Walk The Primitives',
       summary:
         'Use the Mac app and CLI together so every public primitive has a concrete place in a first-day workflow.',
       truth: 'source-backed',
@@ -247,7 +247,7 @@ export const tutorialsSection: DocsContentSection = {
       sources: [
         {
           path: 'website-v2/src/data/product.ts',
-          rationale: 'The product data is the source for the eleven primitive names and descriptions.',
+          rationale: 'The product data is the source for the primitive names and descriptions.',
         },
         {
           path: 'website-v2/src/data/tutorials.ts',

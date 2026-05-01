@@ -156,12 +156,12 @@ export const conceptsSection: DocsContentSection = {
     },
     {
       slug: 'eleven-product-primitives',
-      title: 'Eleven Product Primitives',
+      title: 'The Product Primitives',
       summary:
         'How the home-page feature cards map to the Mac app, CLI, and dashboard.',
       truth: 'source-backed',
       goals: [
-        'Name the eleven public product primitives.',
+        'Name the public product primitives.',
         'Understand which primitives appear in the Mac app.',
         'Understand which primitives are CLI or daemon-backed features.',
       ],
@@ -170,7 +170,7 @@ export const conceptsSection: DocsContentSection = {
           type: 'paragraph',
           title: 'The primitive list is the product map',
           paragraphs: [
-            'The eleven primitives on the public site are not decorative feature cards. They are the quickest map from a visitor question to a real feature: FleetBar, Fleet Control Center, Shipwright, sorties, resources, backend readiness, agent communication, file claims, Coordination Guard, harbors, and salvage.',
+            'The primitives on the public site are not decorative feature cards. They are the quickest map from a visitor question to a real feature: FleetBar, Fleet Control Center, Shipwright, sorties, resources, backend readiness, agent communication, file claims, Coordination Guard, harbors, and salvage.',
             'Together, they answer the basic product question: Port Daddy is a local app and service that makes shared agent work visible, attributable, and recoverable.',
           ],
         },
@@ -190,7 +190,7 @@ export const conceptsSection: DocsContentSection = {
       sources: [
         {
           path: 'website-v2/src/data/product.ts',
-          rationale: 'Public product data defines the eleven primitives used by the home page and Mac preview.',
+          rationale: 'Public product data defines the primitives used by the home page and Mac preview.',
         },
         {
           path: 'website-v2/src/components/landing/MacAppShowcase.tsx',

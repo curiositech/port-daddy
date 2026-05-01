@@ -11,7 +11,7 @@ export function PdTube() {
       total={21}
       level="Intermediate"
       readTime="9 min read"
-      prev={{ title: 'Walk the 11 Product Primitives', href: '/tutorials/primitives' }}
+      prev={{ title: 'Walk the Product Primitives', href: '/tutorials/primitives' }}
       next={undefined}
     >
       <div className="space-y-12">

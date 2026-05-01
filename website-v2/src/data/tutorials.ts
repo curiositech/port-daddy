@@ -203,7 +203,7 @@ export const TUTORIALS: Tutorial[] = [
   {
     slug: 'primitives',
     number: '20',
-    title: 'Walk the 11 Product Primitives',
+    title: 'Walk the Product Primitives',
     description: 'Use the Mac app, Fleet Control Center, Shipwright, and CLI checks to see where every public primitive lives.',
     level: 'beginner',
     time: '12 min',

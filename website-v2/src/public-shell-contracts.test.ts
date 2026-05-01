@@ -280,7 +280,7 @@ describe('public shell contracts', () => {
     expect(teaserData).toContain('Product thesis')
     expect(teaserData).toContain('Executable example')
     expect(teaserData).toContain('Operator guide')
-    expect(homepageTeasers).toHaveLength(6)
+    expect(homepageTeasers).toHaveLength(5)
     expect(homepageTeaserStats.map((stat) => stat.label)).toEqual(['field notes', 'guides', 'examples'])
     expect(new Set(homepageTeasers.map((teaser) => teaser.kind))).toEqual(new Set(['Article', 'Guide', 'Example']))
     expect(homepageTeasers.filter((teaser) => teaser.featured)).toHaveLength(1)

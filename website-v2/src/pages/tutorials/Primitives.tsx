@@ -58,7 +58,7 @@ cost scopes: port_daddy_call, agent_work`,
 export function Primitives() {
   return (
     <TutorialLayout
-      title="Walk the 11 Product Primitives"
+      title="Walk the Product Primitives"
       description="Use the Mac app, Fleet Control Center, Shipwright, and CLI checks to see where every public primitive lives."
       number={20}
       total={21}

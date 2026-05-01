@@ -55,8 +55,8 @@ export function AboveFoldTeasers() {
               Open the sharpest Port Daddy proofs.
             </h2>
             <p className="max-w-[58rem] text-[0.98rem] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
-              The first screen now exposes the work worth evaluating: the product thesis, runnable agent loops,
-              and guides that show how the local control plane changes day-to-day software work.
+              Read the thesis, run an example, walk a guide. Every card below opens a real artifact you can
+              read, run, or copy &mdash; not a feature description.
             </p>
           </div>
         </div>
