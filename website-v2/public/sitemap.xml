@@ -16,13 +16,22 @@
     <loc>https://portdaddy.dev/blog/backend-readiness-is-dependency-truth</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/blog/bond-pricing-is-a-market</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/blog/control-plane-is-the-product</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/blog/coordination-guard-claims-into-policy</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/blog/evidence-that-survives-machines</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/blog/fleet-designer-cold-start</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/blog/passkey-identity-across-machines</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/blog/pd-tube-event-reply-loop</loc>
@@ -367,6 +376,9 @@
     <loc>https://portdaddy.dev/docs/cli/tube</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/docs/cli/tube-chat</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/docs/cli/tunnel</loc>
   </url>
   <url>
@@ -481,6 +493,9 @@
     <loc>https://portdaddy.dev/docs/guides/templates</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/docs/lifecycle</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/docs/mcp</loc>
   </url>
   <url>
@@ -575,6 +590,9 @@
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/mcp/windsurf</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/personae</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/quickstart</loc>

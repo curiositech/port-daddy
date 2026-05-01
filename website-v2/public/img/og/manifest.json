@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-30T02:21:19.402Z",
+  "generatedAt": "2026-04-30T23:49:42.426Z",
   "generator": "website-v2/scripts/generate-og-cards.mjs",
   "renderer": "website-v2/scripts/render-og-cards.py",
   "siteName": "Port Daddy",
@@ -37,6 +37,15 @@
       "sourceImage": "/img/generated/blog-backend-readiness.jpg"
     },
     {
+      "image": "/img/og/blog-bond-pricing-is-a-market.jpg",
+      "route": "/blog/bond-pricing-is-a-market",
+      "title": "Bond Pricing Is a Market, Not a Constant - Port Daddy",
+      "description": "Daily budgets are training wheels. The v2 of the Bonded Commons paper points at the destination: cleanup-cost lower bounds, scope multipliers, the Bonded Advisor pattern, and Thomas Youle's competitive-insurance market.",
+      "section": "blog",
+      "sectionLabel": "Field Note",
+      "sourceImage": "/img/generated/blog-control-plane-product.jpg"
+    },
+    {
       "image": "/img/og/blog-control-plane-is-the-product.jpg",
       "route": "/blog/control-plane-is-the-product",
       "title": "The Control Plane Is the Product - Port Daddy",
@@ -55,6 +64,15 @@
       "sourceImage": "/img/generated/blog-coordination-guard-policy.jpg"
     },
     {
+      "image": "/img/og/blog-evidence-that-survives-machines.jpg",
+      "route": "/blog/evidence-that-survives-machines",
+      "title": "Evidence That Survives Multiple Machines - Port Daddy",
+      "description": "A note that only your laptop can verify is half a record. The v2 Merkle forest, the KMS witness, and the new mutable-signal ledger turn evidence into something a CI pipeline or a teammate can verify in 700 bytes.",
+      "section": "blog",
+      "sectionLabel": "Field Note",
+      "sourceImage": "/img/generated/blog-map-truth.jpg"
+    },
+    {
       "image": "/img/og/blog-fleet-designer-cold-start.jpg",
       "route": "/blog/fleet-designer-cold-start",
       "title": "Cold Start Without Surprise Launches - Port Daddy",
@@ -62,6 +80,15 @@
       "section": "blog",
       "sectionLabel": "Field Note",
       "sourceImage": "/img/generated/blog-fleet-designer-cold-start.jpg"
+    },
+    {
+      "image": "/img/og/blog-passkey-identity-across-machines.jpg",
+      "route": "/blog/passkey-identity-across-machines",
+      "title": "Passkey Identity Across Machines - Port Daddy",
+      "description": "Single-node scope was a true description that stopped being true. The Federated Sovereign replaces it with passkey-first identity, an abstract KMS, mobile-as-viewer, and an honest recovery story.",
+      "section": "blog",
+      "sectionLabel": "Field Note",
+      "sourceImage": "/img/generated/blog-daemon-provenance.jpg"
     },
     {
       "image": "/img/og/blog-pd-tube-event-reply-loop.jpg",
@@ -1072,6 +1099,15 @@
       "sourceImage": "/img/generated/control-plane-og.jpg"
     },
     {
+      "image": "/img/og/docs-cli-tube-chat.jpg",
+      "route": "/docs/cli/tube-chat",
+      "title": "pd tube chat <channel> - Port Daddy",
+      "description": "Reference for pd tube chat <channel>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
       "image": "/img/og/docs-cli-tube.jpg",
       "route": "/docs/cli/tube",
       "title": "pd tube <channel> - Port Daddy",
@@ -1255,7 +1291,7 @@
       "image": "/img/og/docs-concepts.jpg",
       "route": "/docs/concepts",
       "title": "Concepts - Port Daddy",
-      "description": "Learn the ideas behind sessions, notes, file claims, locks, ports, fleets, and recovery.",
+      "description": "Learn the mental model behind sessions, notes, file claims, locks, ports, fleets, recovery, and shared daemon authority.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -1398,8 +1434,8 @@
     {
       "image": "/img/og/docs-get-started.jpg",
       "route": "/docs/get-started",
-      "title": "Get Started - Port Daddy",
-      "description": "Install Port Daddy, check that it is running, and try your first coordinated agent task.",
+      "title": "Start Here - Port Daddy",
+      "description": "The canonical first-run path: install Port Daddy, verify the daemon, open the app, and run one named session.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/fleetbar-install.jpg"
@@ -1427,6 +1463,15 @@
       "route": "/docs/guides/templates",
       "title": "Template Guide - Port Daddy",
       "description": "Adapt Port Daddy fleet templates for recurring project work, background agents, hooks, and review.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-lifecycle.jpg",
+      "route": "/docs/lifecycle",
+      "title": "Agent Work Lifecycle - Port Daddy",
+      "description": "Follow the path from install to daily coordination, SDK/MCP integration, FleetBar operation, and team governance.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -1729,6 +1774,15 @@
       "sourceImage": "/img/generated/control-plane-og.jpg"
     },
     {
+      "image": "/img/og/docs-personae.jpg",
+      "route": "/docs/personae",
+      "title": "Developer Personae - Port Daddy",
+      "description": "Choose the docs path that matches the person reading: first-timer, CLI coordinator, SDK integrator, agent builder, Mac operator, team lead, or security owner.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
       "image": "/img/og/docs-quickstart.jpg",
       "route": "/docs/quickstart",
       "title": "Quickstart - Port Daddy",
@@ -1750,7 +1804,7 @@
       "image": "/img/og/docs-reference.jpg",
       "route": "/docs/reference",
       "title": "Reference - Port Daddy",
-      "description": "CLI, API, SDK, MCP, configuration, and dashboard reference for the live daemon.",
+      "description": "Exact CLI, API, SDK, MCP, configuration, and dashboard reference for the live daemon, with task-first entry points above the catalogs.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/control-plane-og.jpg"
