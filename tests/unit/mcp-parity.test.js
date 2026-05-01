@@ -249,6 +249,7 @@ const MCP_EXEMPT_FEATURES = new Set([
   'resource_governance', // Operator UI read model; MCP wrapper deferred until enforcement controls exist
   'cartographer',   // Read-only roadmap projection; surfaced via `pd roadmap` CLI; MCP tool deferred until dashboards consume the endpoint
   'quorum',         // New propose/vote primitive; agents drive consensus via SDK calls in v1, MCP wrapper deferred to v4
+  'cockpit',        // First-slice read-only roadmap intake; MCP wrapper arrives with the cockpit's mission-plan/launch surface
 ]);
 
 // ============================================================================

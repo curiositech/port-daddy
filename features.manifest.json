@@ -970,6 +970,19 @@
         "sdk": true
       }
     },
+    "cockpit": {
+      "description": "App-Native Development Cockpit — read roadmap/recovery markdown into typed mission cards",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "GET /cockpit/missions"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
     "sorties": {
       "description": "Tracked mission records over spawned runs with durable ids, harbors, and event logs",
       "cli": [

@@ -331,8 +331,9 @@ describe('Test Group 3: API -> CLI Parity', () => {
     budget: ['wallet'],
   };
 
-  // API-only routes that have no CLI equivalent (accessed via curl or SDK)
-  const API_ONLY_ROUTES = new Set(['arbiter', 'pheromone', 'mergequeue', 'symbols', 'observability', 'operator', 'semantic', 'resources', 'usage']);
+  // API-only routes that have no CLI equivalent (accessed via curl or SDK).
+  // `cockpit` is API-only in its first slice; CLI/SDK arrive in a later cut.
+  const API_ONLY_ROUTES = new Set(['arbiter', 'pheromone', 'mergequeue', 'symbols', 'observability', 'operator', 'semantic', 'resources', 'usage', 'cockpit']);
 
   test('all route modules have at least one corresponding CLI command', () => {
     const missingCoverage = [];
