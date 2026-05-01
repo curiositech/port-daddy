@@ -56,6 +56,7 @@ import { advisorPlugin } from './advisor.js';
 import { quorumPlugin } from './quorum.js';
 import { resourcesPlugin } from './resources.js';
 import { feedbackPlugin } from './feedback.js';
+import { testHooksPlugin } from './test-hooks.js';
 
 type AnyDeps = Record<string, unknown>;
 
@@ -174,5 +175,12 @@ export async function registerAllRoutes(
   // Mounts when the feedback dep is present (depends on tuple space).
   if ((deps as any).feedback) {
     await fastify.register(feedbackPlugin, { deps } as any);
+  }
+
+  // Test-only hooks. Self-degrades to no-op when NODE_ENV !== 'test'. Used
+  // by the integration suite to drive the budget-kill chain end-to-end
+  // (spec docs/shipwright/FLEETCONTROL-HARDENING.md §6.2).
+  if ((deps as any).costTracker) {
+    await fastify.register(testHooksPlugin, { deps } as any);
   }
 }

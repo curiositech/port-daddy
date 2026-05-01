@@ -124,6 +124,7 @@
     "@types/jest": "^30.0.0",
     "@types/node": "^25.3.0",
     "@types/react": "^19.2.14",
+    "fast-check": "^4.7.0",
     "jest": "^30.2.0",
     "typescript": "^5.9.3",
     "yaml": "^2.8.3"
