@@ -8,33 +8,22 @@
  * marked `needsJudge: true`. This module is the LLM yes/no on whether the
  * borderline case actually warrants a DM.
  *
- * **Backend-agnostic.** The judge does not pick a backend itself. It
- * requires a `JudgeTransport` injection — a thin {complete(prompt, signal)}
- * adapter that returns text. The runner (lib/coordination-pipeline-runner.ts)
- * resolves the active backend via the same `PD_FLEET_DEFAULT_BACKEND` /
- * `PD_JUDGE_BACKEND` env that the rest of the fleet uses, so coxswain
- * inherits whatever backend the operator has configured today (claude on
- * Tuesday, codex on Wednesday, cloudflare on Thursday). See
- * lib/llm-backend-resolver.ts for the resolver + per-backend
- * transport implementations.
+ * **Thin wrapper over `lib/llm-call.ts`.** The judge no longer owns
+ * cache / rate-limit / timeout / fallback machinery — those live in
+ * `createLLMClient`, shared with every future request-shape actor. The
+ * judge's remaining job:
  *
- * If no transport is provided, the judge runs in `disabled` mode — every
- * `ask()` returns `{ intervene: false, fellBack: true, reason: 'judge disabled' }`.
- * No backend, no DMs.
+ *   1. Build the conservative-bias prompt.
+ *   2. Parse the model's `{intervene, reason}` JSON (tolerant of
+ *      code-fence wraps and trailing prose, since 3B-class models drift).
+ *   3. Translate the LLMClient's result into the JudgeVerdict shape.
  *
- * The judge is intentionally cheap and constrained:
- *
- *   - Hard 3-second timeout per call. Beyond that, fall back to "no DM".
- *   - LRU-style cache keyed by `cacheKey` (issue's deterministic hash).
- *     Default TTL 1h. Same complaint within an hour gets the same verdict
- *     without burning tokens.
- *   - Per-minute rate limit (default 30 calls/min). If exceeded, fall back
- *     to "no DM" — we never queue, never delay; missing one borderline
- *     judgement is cheaper than building a backlog.
- *   - **Fallback-deny everywhere.** Auth missing, network failure, timeout,
- *     malformed JSON, transport unset — all return `{ intervene: false,
- *     fellBack: true }`. Coxswain stays quiet rather than risk the wrong
- *     nudge.
+ * **Backend-agnostic.** Caller injects either an `LLMClient` (preferred,
+ * built via `createLLMClient` with cache/rate-limit/timeout configured)
+ * or a raw `LLMTransport` for back-compat (the judge wraps it in a
+ * default-configured client). If neither is supplied, the judge runs in
+ * `disabled` mode — every `ask()` returns
+ * `{ intervene: false, fellBack: true, reason: 'judge disabled' }`.
  *
  * The deterministic-only audit + judge layering means: at LLM-unavailability,
  * coxswain still emits clear-signal DMs (e.g. "your channel has 12 publishes
@@ -42,10 +31,11 @@
  */
 
 import { createHash } from 'node:crypto';
+import { createLLMClient, type LLMClient, type LLMAdapter } from './llm-call.js';
 import type { LLMTransport } from './llm-backend-resolver.js';
 
 /** Re-exported for callers that already import this from the judge. New
- *  callers should pull `LLMTransport` directly from `llm-backend-resolver`. */
+ *  callers should pull `LLMTransport` directly from `llm-call`. */
 export type JudgeTransport = LLMTransport;
 
 const DEFAULT_TIMEOUT_MS = 3_000;
@@ -88,25 +78,25 @@ export interface JudgeStats {
 }
 
 export interface JudgeOptions {
-  /** Hard per-call timeout in ms. Default 3000. */
+  /** Hard per-call timeout in ms. Default 3000. Forwarded to LLMClient. */
   timeoutMs?: number;
   /** Cache TTL in ms. Default 1h. Set <=0 to disable cache. */
   cacheTtlMs?: number;
   /** Max LLM calls per rolling 60s window. Default 30. */
   callsPerMinute?: number;
-  /** Model identifier passed through to the transport. Optional —
-   *  transports that target a fixed model can ignore this. The runner
-   *  fills it in from the resolved backend's policy default
-   *  (lib/backend-telemetry-policy.ts → DEFAULT_OPERATOR_*_MODEL). */
+  /** Model identifier passed through. */
   model?: string;
-  /** Force-disable the judge — every ask() returns intervene:false. Useful
-   *  for tests, opt-out flags, or air-gapped operation. Also automatic
-   *  when no transport is supplied. */
+  /** Force-disable the judge — every ask() returns intervene:false. Also
+   *  automatic when neither `client` nor `transport` is supplied. */
   disabled?: boolean;
-  /** The backend transport. Required for the judge to actually call out;
-   *  when omitted, the judge runs in disabled mode. The runner builds
-   *  this via lib/llm-backend-resolver.ts so the judge inherits
-   *  whatever backend the fleet is currently configured for. */
+  /** Pre-built LLM client (preferred). The runner builds this via
+   *  `lib/llm-backend-resolver.resolveLLMBackend` + `createLLMClient`,
+   *  so cache + rate-limit + timeout settings are wired uniformly with
+   *  every other request-shape actor. */
+  client?: LLMClient;
+  /** Back-compat: a raw transport. The judge wraps it in a default-
+   *  configured LLMClient using the timeout/cache/rate-limit options
+   *  above. Prefer `client` for new code. */
   transport?: JudgeTransport;
   /** `Date.now` injection point for cache TTL + rate-limit tests. */
   now?: () => number;
@@ -118,11 +108,6 @@ export interface CoordinationJudge {
   stats(): JudgeStats;
   /** Drop the cache. For tests + manual reset. */
   clearCache(): void;
-}
-
-interface CacheEntry {
-  verdict: JudgeVerdict;
-  insertedAt: number;
 }
 
 /**
@@ -172,129 +157,107 @@ function parseVerdict(text: string): { intervene: boolean; reason: string } | nu
   return { intervene: obj.intervene, reason };
 }
 
+/**
+ * Wrap a raw transport as an adapter. Only used when a caller passes
+ * `transport` (back-compat) instead of a pre-built `client`.
+ */
+function transportToAdapter(transport: LLMTransport): LLMAdapter {
+  return async ({ prompt, model, signal }) => transport.complete({ prompt, model, signal: signal! });
+}
+
 export function createCoordinationJudge(options: JudgeOptions = {}): CoordinationJudge {
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const cacheTtlMs = options.cacheTtlMs ?? DEFAULT_CACHE_TTL_MS;
   const callsPerMinute = options.callsPerMinute ?? DEFAULT_CALLS_PER_MINUTE;
   const model = options.model ?? '';
-  // No transport supplied → judge is implicitly disabled. This is the
-  // safe default: rather than silently picking a backend, we stay quiet
-  // and let the runner explicitly wire one up via the backend factory.
-  const transport = options.transport ?? null;
-  const disabled = options.disabled ?? (transport === null);
   const now = options.now ?? Date.now;
   const log = options.log ?? (() => {});
 
-  const cache = new Map<string, CacheEntry>();
-  const callTimestamps: number[] = [];
-  const stats: JudgeStats = {
-    cacheHits: 0,
-    cacheMisses: 0,
-    llmCalls: 0,
-    llmFailures: 0,
-    rateLimited: 0,
-    disabledCalls: 0,
-  };
+  // Resolve the client. Three paths:
+  //   1. caller passed a fully-built client — use it as-is.
+  //   2. caller passed a raw transport — wrap it with our defaults.
+  //   3. nothing — judge runs disabled.
+  const client: LLMClient | null = options.client
+    ?? (options.transport
+      ? createLLMClient({
+        adapter: transportToAdapter(options.transport),
+        model,
+        timeoutMs,
+        cacheTtlMs,
+        callsPerMinute,
+        now,
+        log,
+      })
+      : null);
+  const disabled = options.disabled ?? (client === null);
 
-  function purgeStaleCache(t: number): void {
-    if (cacheTtlMs <= 0) {
-      cache.clear();
-      return;
-    }
-    const cutoff = t - cacheTtlMs;
-    for (const [k, v] of cache) {
-      if (v.insertedAt < cutoff) cache.delete(k);
-    }
-  }
+  let disabledCalls = 0;
+  let parseFailures = 0;
 
-  function rateLimitOK(t: number): boolean {
-    const cutoff = t - 60_000;
-    while (callTimestamps.length > 0 && callTimestamps[0] < cutoff) callTimestamps.shift();
-    return callTimestamps.length < callsPerMinute;
-  }
-
-  function recordFallback(reason: string): JudgeVerdict {
+  function fallbackVerdict(reason: string): JudgeVerdict {
     return { intervene: false, reason, cached: false, fellBack: true };
   }
 
   return {
-    async ask(req: JudgeRequest) {
-      const t = now();
-
-      if (disabled) {
-        stats.disabledCalls += 1;
-        return recordFallback('judge disabled');
+    async ask(req: JudgeRequest): Promise<JudgeVerdict> {
+      if (disabled || !client) {
+        disabledCalls += 1;
+        return fallbackVerdict('judge disabled');
       }
 
-      // Cache lookup first — TTL purge happens lazily on access.
-      purgeStaleCache(t);
-      const cached = cache.get(req.cacheKey);
-      if (cached) {
-        stats.cacheHits += 1;
-        return { ...cached.verdict, cached: true, fellBack: cached.verdict.fellBack };
-      }
-      stats.cacheMisses += 1;
-
-      if (!rateLimitOK(t)) {
-        stats.rateLimited += 1;
-        log('rate limit exceeded, falling back to no-intervention', { kind: req.kind });
-        return recordFallback('rate limited');
-      }
-
-      // disabled covers transport === null already, but narrow for TS.
-      if (!transport) {
-        stats.disabledCalls += 1;
-        return recordFallback('judge disabled (no transport)');
-      }
-
-      callTimestamps.push(t);
-      stats.llmCalls += 1;
-
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeoutMs);
-      let result;
-      try {
-        result = await transport.complete({
-          prompt: buildPrompt(req),
-          model,
-          signal: controller.signal,
-        });
-      } finally {
-        clearTimeout(timer);
-      }
+      const result = await client.complete({
+        prompt: buildPrompt(req),
+        model,
+        cacheKey: req.cacheKey,
+      });
 
       if (!result.ok) {
-        stats.llmFailures += 1;
-        log('judge transport failed, falling back', { kind: req.kind, error: result.error });
-        return recordFallback(`transport: ${result.error || 'unknown'}`);
+        // Map LLMClient's fallback shapes into judge-flavored reasons so
+        // existing callers' regexes still match.
+        const reason = result.error === 'rate limited'
+          ? 'rate limited'
+          : result.error === 'timeout'
+            ? 'transport: timeout'
+            : `transport: ${(result.error || 'unknown').replace(/^adapter:\s*/, '')}`;
+        log('judge fallback', { kind: req.kind, reason });
+        return { intervene: false, reason, cached: result.cached, fellBack: true };
       }
 
       const parsed = parseVerdict(result.text || '');
       if (!parsed) {
-        stats.llmFailures += 1;
-        log('judge returned unparseable response, falling back', { kind: req.kind, text: (result.text || '').slice(0, 200) });
-        return recordFallback('unparseable response');
+        parseFailures += 1;
+        log('judge returned unparseable response, falling back', {
+          kind: req.kind,
+          text: (result.text || '').slice(0, 200),
+        });
+        return fallbackVerdict('unparseable response');
       }
 
-      const verdict: JudgeVerdict = {
+      return {
         intervene: parsed.intervene,
         reason: parsed.reason || (parsed.intervene ? 'judge said yes' : 'judge said no'),
-        cached: false,
+        cached: result.cached,
         fellBack: false,
       };
-
-      if (cacheTtlMs > 0) {
-        cache.set(req.cacheKey, { verdict, insertedAt: t });
-      }
-      return verdict;
     },
 
-    stats() {
-      return { ...stats };
+    stats(): JudgeStats {
+      const inner = client?.stats() ?? { cacheHits: 0, cacheMisses: 0, llmCalls: 0, llmFailures: 0, rateLimited: 0, timedOut: 0 };
+      return {
+        cacheHits: inner.cacheHits,
+        cacheMisses: inner.cacheMisses,
+        llmCalls: inner.llmCalls,
+        // Parse failures (model returned text but not valid JSON) happen
+        // *after* the adapter resolves, so the client can't count them.
+        // Track them in the judge and roll up here.
+        llmFailures: inner.llmFailures + inner.timedOut + parseFailures,
+        rateLimited: inner.rateLimited,
+        disabledCalls,
+      };
     },
 
     clearCache() {
-      cache.clear();
+      client?.clearCache();
     },
   };
 }

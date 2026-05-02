@@ -8,13 +8,31 @@ const mockAssessBackendReadiness = jest.fn(async (backend) => ({
   nextStep: backend === 'claude-cli' ? 'Run claude once interactively.' : undefined,
   credentialKeys: backend === 'claude' ? ['ANTHROPIC_API_KEY'] : [],
   credentialAlternates: backend === 'gemini' ? ['GOOGLE_API_KEY'] : [],
-  setupCommand: backend === 'claude' ? "printf '\\nANTHROPIC_API_KEY=<paste-value>\\n' >> ~/.port-daddy-env\npd daemon restart" : `setup ${backend}`,
+  setupLinks: backend === 'cloudflare'
+    ? [{ label: 'Create pd-ai-stack token', url: 'https://dash.cloudflare.com/?to=/:account/api-tokens', kind: 'token_template' }]
+    : [],
+  setupCommand: backend === 'claude' ? "printf '\\nANTHROPIC_API_KEY=<paste-value>\\n' >> ~/.port-daddy-env\npd restart" : `setup ${backend}`,
   setupFiles: backend === 'claude' ? ['~/.port-daddy-env', '.env.local', '.env'] : [],
   restartRequired: backend === 'claude',
+}));
+const mockSaveManagedSecret = jest.fn((key) => ({ key, storedAt: 'keychain', encryptedAtRest: true }));
+const mockManagedSecretStorageStatus = jest.fn(() => ({
+  available: true,
+  storage: 'keychain',
+  encryptedAtRest: true,
+  location: 'macOS Keychain',
 }));
 
 jest.unstable_mockModule('../../lib/backend-readiness.js', () => ({
   assessBackendReadiness: mockAssessBackendReadiness,
+}));
+
+jest.unstable_mockModule('../../lib/secret-env.js', () => ({
+  saveManagedSecret: mockSaveManagedSecret,
+  managedSecretStorageStatus: mockManagedSecretStorageStatus,
+  // getSecret is reached transitively via lib/llm-call.ts → fleet-engine →
+  // routes/fleet. Default to undefined (no managed secret stored).
+  getSecret: jest.fn(() => undefined),
 }));
 
 const { fleetPlugin } = await import('../../routes/fleet.js');
@@ -81,6 +99,16 @@ describe('fleet routes /fleet/models', () => {
         credentialAlternates: ['GOOGLE_API_KEY'],
       }),
       expect.objectContaining({
+        id: 'cloudflare',
+        models: ['@cf/zai-org/glm-4.7-flash', '@cf/qwen/qwen3-30b-a3b-fp8', '@cf/moonshotai/kimi-k2.5'],
+        modelTiers: {
+          low: '@cf/zai-org/glm-4.7-flash',
+          mid: '@cf/qwen/qwen3-30b-a3b-fp8',
+          high: '@cf/moonshotai/kimi-k2.5',
+        },
+        setupLinks: [expect.objectContaining({ label: 'Create pd-ai-stack token' })],
+      }),
+      expect.objectContaining({
         id: 'ollama',
         supported: true,
         models: ['llama3.1:8b', 'qwen2.5-coder:7b', 'qwen2.5-coder:14b'],
@@ -103,6 +131,85 @@ describe('fleet routes /fleet/models', () => {
     expect(mockAssessBackendReadiness).toHaveBeenCalledWith('claude-cli');
     expect(mockAssessBackendReadiness).toHaveBeenCalledWith('codex');
     expect(mockAssessBackendReadiness).toHaveBeenCalledWith('ollama');
+
+    await app.close();
+  });
+
+  test('POST /fleet/backend-secrets saves allowed keys without echoing values', async () => {
+    const app = Fastify();
+    await app.register(fleetPlugin, {
+      deps: {
+        fleetDaemon: {
+          getStatus() {
+            return { fleets: [] };
+          },
+        },
+        messaging: {
+          subscribe() {
+            return null;
+          },
+        },
+      },
+    });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/fleet/backend-secrets',
+      payload: {
+        backend: 'cloudflare',
+        values: {
+          CLOUDFLARE_ACCOUNT_ID: 'acct-123',
+          CLOUDFLARE_API_TOKEN: 'token-123',
+        },
+      },
+    });
+    const body = res.json();
+
+    expect(res.statusCode).toBe(200);
+    expect(body).toEqual(expect.objectContaining({
+      success: true,
+      backend: 'cloudflare',
+      savedKeys: ['CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_API_TOKEN'],
+      encryptedAtRest: true,
+    }));
+    expect(JSON.stringify(body)).not.toContain('token-123');
+    expect(mockSaveManagedSecret).toHaveBeenCalledWith('CLOUDFLARE_ACCOUNT_ID', 'acct-123');
+    expect(mockSaveManagedSecret).toHaveBeenCalledWith('CLOUDFLARE_API_TOKEN', 'token-123');
+
+    await app.close();
+  });
+
+  test('POST /fleet/backend-secrets rejects keys outside the backend allowlist', async () => {
+    const app = Fastify();
+    await app.register(fleetPlugin, {
+      deps: {
+        fleetDaemon: {
+          getStatus() {
+            return { fleets: [] };
+          },
+        },
+        messaging: {
+          subscribe() {
+            return null;
+          },
+        },
+      },
+    });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/fleet/backend-secrets',
+      payload: {
+        backend: 'cloudflare',
+        values: {
+          ANTHROPIC_API_KEY: 'wrong-provider',
+        },
+      },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toContain('Unsupported secret key');
+    expect(mockSaveManagedSecret).not.toHaveBeenCalledWith('ANTHROPIC_API_KEY', 'wrong-provider');
 
     await app.close();
   });

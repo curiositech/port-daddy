@@ -50,6 +50,7 @@ import {
   DEFAULT_OPERATOR_CODEX_MODEL,
   DEFAULT_OPERATOR_CLOUDFLARE_MODEL,
 } from './backend-telemetry-policy.js';
+import { cloudflareAdapter, ollamaAdapter, type LLMAdapter } from './llm-call.js';
 
 export type LLMBackend = 'claude' | 'codex' | 'cloudflare' | 'ollama' | 'custom';
 
@@ -202,80 +203,51 @@ export function defaultModelFor(backend: LLMBackend, env: NodeJS.ProcessEnv = pr
   }
 }
 
+/**
+ * Wrap a request-shape adapter (`lib/llm-call.ts`) as an `LLMTransport` —
+ * the small interface the judge-style callers consume. The adapter
+ * already handles the HTTP/SDK details and result-shape; the transport
+ * just adds a label for telemetry and threads the right model through.
+ */
+function adapterToTransport(
+  backend: LLMBackend,
+  model: string,
+  adapter: LLMAdapter,
+  defaultMaxTokens: number,
+  env: NodeJS.ProcessEnv,
+): LLMTransport {
+  return {
+    label: `${backend}:${model}`,
+    async complete({ prompt, model: callModel, signal }) {
+      const useModel = callModel || model;
+      const result = await adapter({
+        prompt,
+        model: useModel,
+        maxTokens: defaultMaxTokens,
+        signal,
+        env,
+      });
+      return result;
+    },
+  };
+}
+
+const JUDGE_MAX_TOKENS = 200;
+
 function buildCloudflareTransport(model: string, env: NodeJS.ProcessEnv): LLMTransport | null {
+  // Don't materialize a transport if creds are missing — caller treats
+  // null as "not configured." We can't ask the adapter for this directly
+  // (it returns ok:false at call time), so peek at the env.
   const accountId = readEnv(env, 'CLOUDFLARE_ACCOUNT_ID') || readEnv(env, 'CF_ACCOUNT_ID');
   const token = readEnv(env, 'CLOUDFLARE_API_TOKEN')
     || readEnv(env, 'CLOUDFLARE_API_KEY')
     || readEnv(env, 'CF_API_TOKEN');
   if (!accountId || !token) return null;
-  return {
-    label: `cloudflare:${model}`,
-    async complete({ prompt, model: callModel, signal }) {
-      const useModel = callModel || model;
-      try {
-        const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${encodeURIComponent(useModel)}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({
-            messages: [{ role: 'user', content: prompt }],
-            max_tokens: 200,
-            stream: false,
-          }),
-          signal,
-        });
-        if (!res.ok) {
-          const txt = await res.text().catch(() => 'unknown');
-          return { ok: false, error: `HTTP ${res.status}: ${txt.slice(0, 120)}` };
-        }
-        const data = await res.json() as Record<string, any>;
-        const result = data.result ?? data;
-        const text = typeof result === 'string'
-          ? result
-          : result?.response
-            || result?.text
-            || result?.output_text
-            || result?.choices?.[0]?.message?.content
-            || '';
-        if (!text) return { ok: false, error: 'empty response' };
-        return { ok: true, text };
-      } catch (err) {
-        return { ok: false, error: (err as Error).message };
-      }
-    },
-  };
+  return adapterToTransport('cloudflare', model, cloudflareAdapter, JUDGE_MAX_TOKENS, env);
 }
 
 function buildOllamaTransport(model: string, env: NodeJS.ProcessEnv): LLMTransport {
-  const host = readEnv(env, 'OLLAMA_HOST') || 'http://localhost:11434';
-  return {
-    label: `ollama:${model}`,
-    async complete({ prompt, model: callModel, signal }) {
-      const useModel = callModel || model;
-      try {
-        const res = await fetch(`${host.replace(/\/$/, '')}/api/chat`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: useModel,
-            messages: [{ role: 'user', content: prompt }],
-            stream: false,
-            options: { num_predict: 200 },
-          }),
-          signal,
-        });
-        if (!res.ok) {
-          const txt = await res.text().catch(() => 'unknown');
-          return { ok: false, error: `HTTP ${res.status}: ${txt.slice(0, 120)}` };
-        }
-        const data = await res.json() as Record<string, any>;
-        const text = data?.message?.content ?? data?.response ?? '';
-        if (!text) return { ok: false, error: 'empty response' };
-        return { ok: true, text };
-      } catch (err) {
-        return { ok: false, error: (err as Error).message };
-      }
-    },
-  };
+  return adapterToTransport('ollama', model, ollamaAdapter, JUDGE_MAX_TOKENS, env);
 }
 
 function notSupportedTransport(backend: LLMBackend, model: string): LLMTransport {

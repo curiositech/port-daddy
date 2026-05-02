@@ -1366,8 +1366,20 @@
         "sdk": false
       }
     },
+    "llm_call": {
+      "description": "Single source of LLM call infrastructure. Owns the per-backend HTTP adapters (cloudflare, ollama) — both lib/spawner.ts (spawn-shape) and lib/llm-backend-resolver.ts (request-shape) delegate here. Also owns createLLMClient: cache (LRU + TTL) + rolling rate limit + hard timeout (AbortController) + fallback-deny, configurable per actor. Judge is the first consumer; future request-shape actors compose on top with their own ttl/perMinute settings. Spawn-shape callers skip the client wrapper since fleet-engine already does cost-budget kill + per-project rate limiting.",
+      "module": "lib/llm-call.ts",
+      "cli": [],
+      "sdk": [],
+      "routes": [],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
     "llm_backend_resolver": {
-      "description": "Single source of LLM backend selection for every Port Daddy actor. Env cascade: options.backend → PD_<ACTOR>_BACKEND → PD_FLEET_DEFAULT_BACKEND → PORT_DADDY_FLEET_DEFAULT_BACKEND → null. Spawn-shape (fleet engine) calls resolveRawBackendName so it preserves claude-vs-claude-cli distinction; request-shape (judge + future actors) calls resolveLLMBackend which materializes a cloudflare/ollama direct-fetch transport (claude/codex return notSupported — use the spawner). Per-backend default models come from lib/backend-telemetry-policy's operator tier. fleet-engine.getFleetRuntimeDefaults delegates here so there is exactly one place that reads backend env in the codebase.",
+      "description": "Env cascade for backend selection. options.backend → PD_<ACTOR>_BACKEND → PD_FLEET_DEFAULT_BACKEND → PORT_DADDY_FLEET_DEFAULT_BACKEND → null. Spawn-shape (fleet engine) calls resolveRawBackendName (preserves claude-vs-claude-cli); request-shape (judge + future actors) calls resolveLLMBackend which materializes a transport delegating to lib/llm-call adapters. Per-backend default models come from lib/backend-telemetry-policy's operator tier. fleet-engine.getFleetRuntimeDefaults delegates here so exactly one place reads backend env.",
       "module": "lib/llm-backend-resolver.ts",
       "cli": [],
       "sdk": [],

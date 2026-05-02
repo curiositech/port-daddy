@@ -22,6 +22,7 @@ import type { Bonds } from './bonds.js';
 import type { Harbors } from './harbors.js';
 import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
 import { getSecret } from './secret-env.js';
+import { cloudflareAdapter, ollamaAdapter } from './llm-call.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { deriveAgentDisplayName } from './agent-names.js';
 
@@ -192,11 +193,29 @@ function warnTelemetryBypass(approval: TelemetryBypassApproval): void {
 // PD coordination helpers (fire-and-forget, silent on failure)
 // =============================================================================
 
-async function pdCoordinate(path: string, body: Record<string, unknown>): Promise<void> {
+interface PdCoordinateOptions {
+  pid?: number | null;
+}
+
+function normalizeCoordinationPid(pid: number | null | undefined): number | undefined {
+  if (typeof pid !== 'number' || !Number.isFinite(pid)) return undefined;
+  const normalized = Math.trunc(pid);
+  return normalized >= 0 ? normalized : undefined;
+}
+
+function registryPidFor(record: Pick<AgentRecord, 'childProcess'>): number {
+  return normalizeCoordinationPid(record.childProcess?.pid) ?? 0;
+}
+
+async function pdCoordinate(path: string, body: Record<string, unknown>, options: PdCoordinateOptions = {}): Promise<void> {
   try {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    const pid = normalizeCoordinationPid(options.pid);
+    if (pid !== undefined) headers['X-Pid'] = String(pid);
+
     await fetch(`${getDaemonTcpUrl(process.env.PORT_DADDY_URL)}${path}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(body),
     });
   } catch {
@@ -327,25 +346,12 @@ const CODEX_DAEMON_CONTEXT_ENV_KEYS = [
 ] as const;
 
 async function runOllama(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
-  const res = await fetch('http://localhost:11434/api/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model,
-      messages: [{ role: 'user', content: spec.task }],
-      stream: false,
-    }),
+  const result = await ollamaAdapter({
+    prompt: spec.task,
+    model,
     signal: spec.timeout ? AbortSignal.timeout(spec.timeout) : undefined,
   });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => 'unknown error');
-    return { output: '', error: `Ollama HTTP ${res.status}: ${text}` };
-  }
-
-  const data = await res.json() as Record<string, unknown>;
-  const message = (data.message as Record<string, unknown> | undefined)?.content as string || '';
-  return { output: message, error: null };
+  return adaptLLMResult(result);
 }
 
 async function runClaude(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
@@ -422,52 +428,31 @@ async function runGemini(spec: SpawnSpec, model: string): Promise<BackendRunResu
 }
 
 async function runCloudflare(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
-  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID || process.env.CF_ACCOUNT_ID;
-  const token = getSecret('CLOUDFLARE_API_TOKEN')
-    || getSecret('CLOUDFLARE_API_KEY')
-    || getSecret('CF_API_TOKEN');
-
-  if (!accountId) {
-    return { output: '', error: 'CLOUDFLARE_ACCOUNT_ID is not set' };
-  }
-  if (!token) {
-    return { output: '', error: 'CLOUDFLARE_API_TOKEN or CLOUDFLARE_API_KEY is not set' };
-  }
-
-  const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${encodeURIComponent(model)}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
-    body: JSON.stringify({
-      messages: [{ role: 'user', content: spec.task }],
-      max_tokens: spec.maxTokens,
-      stream: false,
-    }),
+  const result = await cloudflareAdapter({
+    prompt: spec.task,
+    model,
+    maxTokens: spec.maxTokens,
     signal: spec.timeout ? AbortSignal.timeout(spec.timeout) : undefined,
   });
+  return adaptLLMResult(result);
+}
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => 'unknown error');
-    return { output: '', error: `Cloudflare Workers AI HTTP ${res.status}: ${text}` };
+/**
+ * Convert the unified `LLMCompletionResult` shape (used by lib/llm-call.ts)
+ * into the spawner's legacy `BackendRunResult` shape. The spawner's outer
+ * wrapper expects `{output, error}` plus optional token counts; the
+ * adapter returns `{ok, text, error}`.
+ */
+function adaptLLMResult(result: { ok: boolean; text?: string; error?: string; inputTokens?: number; outputTokens?: number }): BackendRunResult {
+  if (!result.ok) {
+    return { output: '', error: result.error || 'unknown error' };
   }
-
-  const data = await res.json() as Record<string, any>;
-  const result = data.result ?? data;
-  const text = typeof result === 'string'
-    ? result
-    : result?.response
-      || result?.text
-      || result?.output_text
-      || result?.choices?.[0]?.message?.content
-      || '';
-
-  if (!text) {
-    return { output: '', error: 'Cloudflare Workers AI returned no text response' };
-  }
-
-  return { output: text, error: null };
+  return {
+    output: result.text || '',
+    error: null,
+    inputTokens: result.inputTokens,
+    outputTokens: result.outputTokens,
+  };
 }
 
 function sanitizeCodexOutput(raw: string): string {
@@ -682,7 +667,7 @@ const DEFAULT_MODELS: Record<SpawnSpec['backend'], string> = {
   claude: 'claude-haiku-4-5-20251001',
   'claude-cli': 'claude-cli',  // claude CLI manages its own model
   gemini: 'gemini-2.0-flash-exp',
-  cloudflare: '@cf/meta/llama-3.1-8b-instruct',
+  cloudflare: '@cf/zai-org/glm-4.7-flash',
   codex: 'gpt-5.4-mini',
   aider: 'aider',   // aider manages its own model selection
   custom: 'custom',
@@ -939,26 +924,36 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       bondUsd,
     };
 
+    const initialRegistryPid = registryPidFor(record);
     await pdCoordinate('/agents', {
       id: agentId,
       name: displayName,
+      type: 'spawned',
+      pid: initialRegistryPid,
       identity: spec.identity || null,
       purpose: spec.purpose || spec.task.slice(0, 80),
       metadata: coordinationMetadata,
-    });
+    }, { pid: initialRegistryPid });
 
     // PD coordination: start session
     await pdCoordinate('/sugar/begin', {
       agentId,
       name: displayName,
+      type: 'spawned',
+      pid: initialRegistryPid,
       identity: spec.identity || null,
       purpose: spec.purpose || spec.task.slice(0, 80),
       metadata: coordinationMetadata,
-    });
+    }, { pid: initialRegistryPid });
 
     // Start heartbeat interval
     record.heartbeatInterval = setInterval(async () => {
-      await pdCoordinate(`/agents/${agentId}/heartbeat`, {});
+      const pid = registryPidFor(record);
+      await pdCoordinate(`/agents/${agentId}/heartbeat`, {
+        pid,
+        status: 'busy',
+        progress: `Running ${spec.backend} via Port Daddy spawner`,
+      }, { pid });
     }, 30000);
     record.heartbeatInterval.unref?.();
 
@@ -977,6 +972,12 @@ export function createSpawner(deps: SpawnerDeps = {}) {
           onChildProcess: (child) => {
             if (record.status === 'running') {
               record.childProcess = child;
+              const pid = registryPidFor(record);
+              void pdCoordinate(`/agents/${agentId}/heartbeat`, {
+                pid,
+                status: 'busy',
+                progress: `Running ${spec.backend} child process`,
+              }, { pid });
             }
           },
         };
