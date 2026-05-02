@@ -19,6 +19,17 @@ export interface DeprecatedBlogPost {
 
 export const blogPostMetas: BlogPostMeta[] = [
   {
+    id: 'red-and-white-isolation',
+    slug: 'red-and-white-stay-in-their-lanes',
+    title: 'Red and White Stay In Their Lanes',
+    date: '2026-04-29',
+    author: 'Port Daddy Engineering',
+    excerpt: 'Adversarial review of the Bonded Commons + Anchor Protocol whitepapers now runs as a monthly versioned round, with a ProVerif-proved isolation property between red-team and white-hat fleets. This post explains the crypto, the gates, and what an operator should expect to see.',
+    tags: ['Whitepaper', 'Adversarial Review', 'ProVerif', 'Security'],
+    heroImage: '/img/generated/blog-map-truth.jpg',
+    heroAlt: 'Swiss-modern diagram of red and white fleets separated by sec-eng-lead at three signed gates per round',
+  },
+  {
     id: 'bond-pricing-market',
     slug: 'bond-pricing-is-a-market',
     title: 'Bond Pricing Is a Market, Not a Constant',

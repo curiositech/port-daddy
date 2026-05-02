@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-01T00:50:23.830Z",
+  "generatedAt": "2026-05-02T02:11:05.992Z",
   "generator": "website-v2/scripts/generate-og-cards.mjs",
   "renderer": "website-v2/scripts/render-og-cards.py",
   "siteName": "Port Daddy",
@@ -104,6 +104,15 @@
       "route": "/blog/recovery-roadmap-map-truth",
       "title": "Keeping the Map Honest - Port Daddy",
       "description": "Roadmaps, recovery docs, session notes, and live daemon state drift unless one surface reconciles them into an operator-readable map.",
+      "section": "blog",
+      "sectionLabel": "Field Note",
+      "sourceImage": "/img/generated/blog-map-truth.jpg"
+    },
+    {
+      "image": "/img/og/blog-red-and-white-stay-in-their-lanes.jpg",
+      "route": "/blog/red-and-white-stay-in-their-lanes",
+      "title": "Red and White Stay In Their Lanes - Port Daddy",
+      "description": "Adversarial review of the Bonded Commons + Anchor Protocol whitepapers now runs as a monthly versioned round, with a ProVerif-proved isolation property between red-team and white-hat fleets. This post explains the crypto, the gates, and what an operator should expect to see.",
       "section": "blog",
       "sectionLabel": "Field Note",
       "sourceImage": "/img/generated/blog-map-truth.jpg"
