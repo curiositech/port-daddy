@@ -53,7 +53,7 @@ export const conceptsSection: DocsContentSection = {
           title: 'The Arbiter',
           paragraphs: [
             'The Arbiter subscribes to Port Daddy\'s activity log and checks every state transition against six named invariants: `PID_SQUATTING` (service claims must come from the registered PID), `CAP_ESCALATION` (capability-scoped locks cannot exceed the agent\'s granted capability set), `NOTE_MONOTONICITY` (notes are append-only — no backdating or edits), `ESCROW_POSITIVE` (budget escrow cannot go negative), `LOCK_OWNER_VALID` (lock holders must be live agents), and `HEARTBEAT_FRESHNESS` (heartbeats must reference a registered agent identity).',
-            'In observe-only mode the Arbiter logs violations without blocking operations. In strict mode it triggers the man-overboard salvage flow when a critical invariant is broken. The Arbiter status and violation log are accessible at `GET /arbiter/status` and `GET /arbiter/violations`.',
+            'In observe-only mode the Arbiter logs violations without blocking operations. In strict mode a critical invariant break causes the Arbiter to log a `system.man_overboard` activity event — operators and orchestrators can subscribe to that event and trigger recovery. The Arbiter status and violation log are accessible at `GET /arbiter/status` and `GET /arbiter/violations`.',
           ],
         },
       ],
@@ -90,7 +90,7 @@ export const conceptsSection: DocsContentSection = {
           title: 'Sessions: durable records of intent',
           paragraphs: [
             'A Port Daddy session ties identity, purpose, file claims, and notes together into a durable record. `pd begin "<purpose>"` creates the session. `pd note` appends immutable evidence — notes are append-only and cannot be edited or deleted individually, which is what makes them trustworthy as handoff context. `pd done "<summary>"` closes it cleanly, releases file claims, and marks the session completed.',
-            'Sessions move through explicit states: CREATED (exists but no activity yet), ACTIVE (has claims or notes), IDLE (no heartbeat in the activity window), ABANDONED (process died — enters the salvage queue), SALVAGED (another agent has claimed it and is continuing the work), and COMPLETED. If a session is ABANDONED because the agent\'s context window filled or the terminal closed, the daemon preserves all notes and file claims in the salvage queue for the next agent to pick up.',
+            'The session record in `lib/sessions.ts` stores a `status` of `active`, `completed`, or `abandoned`, and a `phase` (such as `in_progress`, `planning`, or `reviewing`). On top of these, the Coordination Guard and skill references define a derived lifecycle view: a freshly created session with no claims or notes yet, an active session that has been observed recently, an idle session whose heartbeat window has lapsed, an abandoned session that has entered the salvage queue, a salvaged session being continued by a new agent, and a completed session. Knowing these derived states matters for interpreting guard check output and salvage queue entries.',
           ],
         },
         {
@@ -221,7 +221,11 @@ export const conceptsSection: DocsContentSection = {
         },
         {
           path: 'lib/resurrection.ts',
-          rationale: 'Salvage queue storage, claim operations, reaper logic, and sleep-grace detection.',
+          rationale: 'Salvage queue storage, claim operations, and reaper logic.',
+        },
+        {
+          path: 'server.ts',
+          rationale: 'Sleep detection and grace period (`isInSleepGracePeriod`) that suspends agent death checks after the machine wakes.',
         },
         {
           path: 'lib/messaging.ts',
