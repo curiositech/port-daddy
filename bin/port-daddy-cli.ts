@@ -110,6 +110,8 @@ import {
   handleGuard,
   // Claim-aware git add wrapper
   handleAdd,
+  // App-Native Development Cockpit
+  handleCockpit,
 } from '../cli/commands/index.js';
 import { getDaemonTcpUrl, readDaemonPort, resolveDaemonTcpTarget } from '../shared/daemon-discovery.js';
 import { calculateRuntimeCodeHash } from '../shared/code-hash.js';
@@ -1147,6 +1149,7 @@ const ALL_COMMANDS: string[] = [
   'harbor', 'harbors', 'demo', 'fleet', 'tuple', 'sortie', 'graph', 'memory', 'ideas',
   'quorum',
   'feedback',
+  'cockpit',
 ];
 
 /** Simple Levenshtein distance for short strings */
@@ -2533,6 +2536,10 @@ async function main(): Promise<void> {
 
       case 'add':
         await handleAdd(positional, options);
+        break;
+
+      case 'cockpit':
+        await handleCockpit(positional, options);
         break;
 
       case 'integration':

@@ -3295,6 +3295,33 @@ class PortDaddy {
     return this._request('GET', `/sorties/${encodeURIComponent(sortieId)}/logs${suffix}`) as Promise<GetSortieLogsResponse>;
   }
 
+  /**
+   * App-Native Development Cockpit — read the project's roadmap markdown
+   * into typed mission cards (work-queue intake). The list does not mutate
+   * any state. Use cockpitMissionDetail / cockpitMissionPlan for the rest
+   * of the cockpit's read surface.
+   */
+  async cockpitMissions(options: {
+    projectDir?: string;
+    status?: string[];
+    limit?: number;
+  } = {}): Promise<{ success: boolean; intake: unknown; count: number }> {
+    const params = new URLSearchParams();
+    if (options.projectDir) params.set('projectDir', options.projectDir);
+    if (options.status && options.status.length > 0) {
+      params.set('status', options.status.join(','));
+    }
+    if (typeof options.limit === 'number' && options.limit > 0) {
+      params.set('limit', String(options.limit));
+    }
+    const suffix = params.toString();
+    return this._request('GET', suffix ? `/cockpit/missions?${suffix}` : '/cockpit/missions') as Promise<{
+      success: boolean;
+      intake: unknown;
+      count: number;
+    }>;
+  }
+
   // Harbors -- Named Permission Namespaces
 
   async createHarbor(name: string, options: CreateHarborOptions = {}): Promise<HarborResponse> {

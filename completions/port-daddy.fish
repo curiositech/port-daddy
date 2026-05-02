@@ -97,7 +97,7 @@ set -l __pd_commands \
     'agent' 'agents' 'actor' 'actors' 'swarm' 'log' 'activity' \
     'session' 'sessions' 'note' 'notes' \
     'salvage' 'resurrection' 'changelog' 'dns' 'files' 'add' 'who-owns' 'integration' 'briefing' 'history' 'inbox' \
-    'begin' 'b' 'done' 'whoami' 'w' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'watch' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' 'roadmap' 'quorum' 'feedback' \
+    'begin' 'b' 'done' 'whoami' 'w' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'cockpit' 'watch' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' 'roadmap' 'quorum' 'feedback' \
     'say' 'look' 'sitrep' 'advise' 'preflight' 'compass' 'guard' 'pheromone' 'ph' \
     'wallet' 'bond' \
     'up' 'down' \
@@ -184,6 +184,12 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a spawn -d 'Launch an AI agent (Ollama/Claude/Gemini/Aider/custom)'
     complete -c $prog -n __pd_needs_command -a spawned -d 'List active spawned agents'
     complete -c $prog -n __pd_needs_command -a sortie -d 'Launch and inspect tracked mission records'
+    complete -c $prog -n __pd_needs_command -a cockpit -d 'App-Native Development Cockpit — read roadmap into mission cards'
+    complete -c $prog -n "__pd_using_command cockpit" -x -a 'missions' -d 'List mission cards parsed from the project roadmap'
+    complete -c $prog -n "__pd_using_command cockpit; and __fish_seen_subcommand_from missions" -l project -x -d 'Project directory to read'
+    complete -c $prog -n "__pd_using_command cockpit; and __fish_seen_subcommand_from missions" -l status -x -d 'Comma-separated status filter'
+    complete -c $prog -n "__pd_using_command cockpit; and __fish_seen_subcommand_from missions" -l limit -x -d 'Cap returned missions'
+    complete -c $prog -n "__pd_using_command cockpit; and __fish_seen_subcommand_from missions" -l json -d 'Emit raw intake envelope'
     complete -c $prog -n __pd_needs_command -a watch -d 'Subscribe to a channel and run a script on each message'
     complete -c $prog -n "__pd_using_command sortie" -x -a 'run' -d 'Launch a tracked sortie mission'
     complete -c $prog -n "__pd_using_command sortie" -x -a 'list' -d 'List recent sorties'
