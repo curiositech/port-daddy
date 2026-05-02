@@ -15,6 +15,7 @@
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
+import { checkAdversarialProjectWrite } from '../lib/coordination-route-guard.js';
 
 interface SessionsRouteDeps {
   sessions: {
@@ -121,6 +122,25 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     }
 
     const sessionId = routeSessionId ?? bodySessionId;
+
+    // Adversarial-fleet projects (redteam-review, whitehat-defense) require
+    // envelope-encrypted bodies. Look up the session's identity_project to
+    // decide; ordinary projects are unaffected.
+    if (sessionId) {
+      const lookup = sessions.get(sessionId);
+      const sess = (lookup as any)?.session as { identity_project?: string | null } | undefined;
+      const project = sess?.identity_project ?? null;
+      const guard = checkAdversarialProjectWrite(project, request.body);
+      if (guard.ok === false) {
+        reply.code(guard.code);
+        return {
+          success: false,
+          error: guard.reason,
+          code: 'ADVERSARIAL_PROJECT_GUARD',
+        };
+      }
+    }
+
     const result = sessions.quickNote(content, { sessionId, agentId, type });
 
     if (!result.success) {

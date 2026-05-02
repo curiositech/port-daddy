@@ -11,6 +11,10 @@
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import type { TupleSpace } from '../lib/tuples.js';
+import {
+  checkAdversarialProjectWrite,
+  projectForTupleKey,
+} from '../lib/coordination-route-guard.js';
 
 interface TupleOpts {
   tuples: TupleSpace;
@@ -26,6 +30,22 @@ export const tuplesPlugin: FastifyPluginAsync<TupleOpts> = async (app, opts) => 
     if (!Array.isArray(fields) || fields.length === 0) {
       reply.code(400);
       return { success: false, error: 'fields must be a non-empty array', code: 'VALIDATION_ERROR' };
+    }
+
+    // Adversarial-fleet projects (inferred from the first field, which is
+    // the tuple key by convention) require envelope-encrypted bodies.
+    // Ordinary tuples are unaffected.
+    const inferred = projectForTupleKey(typeof fields[0] === 'string' ? fields[0] : '');
+    if (inferred) {
+      const guard = checkAdversarialProjectWrite(inferred, request.body);
+      if (guard.ok === false) {
+        reply.code(guard.code);
+        return {
+          success: false,
+          error: guard.reason,
+          code: 'ADVERSARIAL_PROJECT_GUARD',
+        };
+      }
     }
 
     const tuple = tuples.out(fields, {
