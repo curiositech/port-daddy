@@ -15,6 +15,7 @@ import ActivityRail from './components/ActivityRail';
 import MemoryPanel from './components/MemoryPanel';
 import AgentsPanel from './components/AgentsPanel';
 import RoadmapPanel from './components/RoadmapPanel';
+import CockpitMissionsPanel from './components/CockpitMissionsPanel';
 import ResourceGovernancePanel from './components/ResourceGovernancePanel';
 import TubeConsolePanel from './components/TubeConsolePanel';
 import EventsRegistryPanel from './components/EventsRegistryPanel';
@@ -1675,6 +1676,10 @@ export default function App() {
                         )}
                         onCoordinationGuardAction={(action) => void handleCoordinationGuardAction(action)}
                       />
+
+                      <div className="px-4 pt-2">
+                        <CockpitMissionsPanel projectDir={selectedProject?.projectDir} />
+                      </div>
 
                       <div className="flex-1 min-h-0 overflow-hidden grid gap-4 p-4 2xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.85fr)]">
                         <div className="min-h-0 overflow-y-auto pr-1">
