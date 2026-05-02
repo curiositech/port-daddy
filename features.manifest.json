@@ -1354,6 +1354,18 @@
         "sdk": false
       }
     },
+    "coordination_judge": {
+      "description": "LLM yes/no for the coordination-pipeline audit's borderline cases. Cloudflare Workers AI (default @cf/meta/llama-3.2-3b-instruct) wrapped in a 3s hard timeout, 1h LRU cache, 30/min rate limit, fallback-deny on every failure mode (auth missing, transport error, malformed JSON, timeout). Coxswain stays quiet rather than fire the wrong DM.",
+      "module": "lib/coordination-judge.ts",
+      "cli": [],
+      "sdk": [],
+      "routes": [],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
     "claim_watcher_snapshots": {
       "description": "Daemon-side mtime/hash watcher captures prior bytes when a claimed file's content changes mid-claim. `pd snapshots list/show/restore/prune` surfaces those snapshots to operators with one-command rollback. Auto-prune keeps disk usage bounded (default 7 days).",
       "module": "lib/claim-watcher.ts",
