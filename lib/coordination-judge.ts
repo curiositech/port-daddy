@@ -8,10 +8,22 @@
  * marked `needsJudge: true`. This module is the LLM yes/no on whether the
  * borderline case actually warrants a DM.
  *
+ * **Backend-agnostic.** The judge does not pick a backend itself. It
+ * requires a `JudgeTransport` injection — a thin {complete(prompt, signal)}
+ * adapter that returns text. The runner (lib/coordination-pipeline-runner.ts)
+ * resolves the active backend via the same `PD_FLEET_DEFAULT_BACKEND` /
+ * `PD_JUDGE_BACKEND` env that the rest of the fleet uses, so coxswain
+ * inherits whatever backend the operator has configured today (claude on
+ * Tuesday, codex on Wednesday, cloudflare on Thursday). See
+ * lib/coordination-judge-backends.ts for the resolver + per-backend
+ * transport implementations.
+ *
+ * If no transport is provided, the judge runs in `disabled` mode — every
+ * `ask()` returns `{ intervene: false, fellBack: true, reason: 'judge disabled' }`.
+ * No backend, no DMs.
+ *
  * The judge is intentionally cheap and constrained:
  *
- *   - Backend: Cloudflare Workers AI, default model `@cf/meta/llama-3.2-3b-instruct`.
- *     Pricing is fractions of a cent per call; bounded by rate limit.
  *   - Hard 3-second timeout per call. Beyond that, fall back to "no DM".
  *   - LRU-style cache keyed by `cacheKey` (issue's deterministic hash).
  *     Default TTL 1h. Same complaint within an hour gets the same verdict
@@ -20,8 +32,9 @@
  *     to "no DM" — we never queue, never delay; missing one borderline
  *     judgement is cheaper than building a backlog.
  *   - **Fallback-deny everywhere.** Auth missing, network failure, timeout,
- *     malformed JSON — all return `{ intervene: false, fellBack: true }`.
- *     Coxswain stays quiet rather than risk the wrong nudge.
+ *     malformed JSON, transport unset — all return `{ intervene: false,
+ *     fellBack: true }`. Coxswain stays quiet rather than risk the wrong
+ *     nudge.
  *
  * The deterministic-only audit + judge layering means: at LLM-unavailability,
  * coxswain still emits clear-signal DMs (e.g. "your channel has 12 publishes
@@ -30,7 +43,6 @@
 
 import { createHash } from 'node:crypto';
 
-export const DEFAULT_JUDGE_MODEL = '@cf/meta/llama-3.2-3b-instruct';
 const DEFAULT_TIMEOUT_MS = 3_000;
 const DEFAULT_CACHE_TTL_MS = 60 * 60 * 1000;
 const DEFAULT_CALLS_PER_MINUTE = 30;
@@ -73,12 +85,16 @@ export interface JudgeStats {
 export interface JudgeTransport {
   /** Make the actual completion call. Implementations should respect the
    *  AbortSignal and surface errors as resolved-with-error rather than
-   *  throwing — that way the judge's caller never has to try/catch. */
+   *  throwing — that way the judge's caller never has to try/catch. The
+   *  `model` parameter is informational; transports that target a single
+   *  fixed model (e.g. an Ollama server pinned to one tag) can ignore it. */
   complete(input: { prompt: string; model: string; signal: AbortSignal }): Promise<{
     ok: boolean;
     text?: string;
     error?: string;
   }>;
+  /** Identifier surfaced in stats / logs. Free-form, e.g. "cloudflare:@cf/zai-org/glm-4.7-flash". */
+  label?: string;
 }
 
 export interface JudgeOptions {
@@ -88,19 +104,20 @@ export interface JudgeOptions {
   cacheTtlMs?: number;
   /** Max LLM calls per rolling 60s window. Default 30. */
   callsPerMinute?: number;
-  /** Model identifier. Default `@cf/meta/llama-3.2-3b-instruct`. */
+  /** Model identifier passed through to the transport. Optional —
+   *  transports that target a fixed model can ignore this. The runner
+   *  fills it in from the resolved backend's policy default
+   *  (lib/backend-telemetry-policy.ts → DEFAULT_OPERATOR_*_MODEL). */
   model?: string;
   /** Force-disable the judge — every ask() returns intervene:false. Useful
-   *  for tests, opt-out flags, or air-gapped operation. */
+   *  for tests, opt-out flags, or air-gapped operation. Also automatic
+   *  when no transport is supplied. */
   disabled?: boolean;
-  /** Inject a transport for tests OR to swap backends. When omitted, a
-   *  default Cloudflare Workers AI transport is used (requires
-   *  CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN env). */
+  /** The backend transport. Required for the judge to actually call out;
+   *  when omitted, the judge runs in disabled mode. The runner builds
+   *  this via lib/coordination-judge-backends.ts so the judge inherits
+   *  whatever backend the fleet is currently configured for. */
   transport?: JudgeTransport;
-  /** Cloudflare account id override (otherwise read from env). */
-  cloudflareAccountId?: string;
-  /** Cloudflare API token override (otherwise read from env). */
-  cloudflareApiToken?: string;
   /** `Date.now` injection point for cache TTL + rate-limit tests. */
   now?: () => number;
   log?: (msg: string, meta?: Record<string, unknown>) => void;
@@ -165,79 +182,18 @@ function parseVerdict(text: string): { intervene: boolean; reason: string } | nu
   return { intervene: obj.intervene, reason };
 }
 
-/**
- * Default Cloudflare Workers AI transport. Mirrors the shape of
- * `runCloudflare` in lib/spawner.ts but skinned down to a single
- * non-streaming completion. Returns `ok: false` instead of throwing when
- * auth or network fails — caller treats that as "fall back".
- */
-function createCloudflareTransport(opts: { accountId?: string; apiToken?: string }): JudgeTransport {
-  return {
-    async complete({ prompt, model, signal }) {
-      // Lazy import of secret-env to keep this file dep-light at top level.
-      const { getSecret } = await import('./secret-env.js');
-      const accountId = opts.accountId
-        || getSecret('CLOUDFLARE_ACCOUNT_ID')
-        || process.env.CLOUDFLARE_ACCOUNT_ID
-        || getSecret('CF_ACCOUNT_ID')
-        || process.env.CF_ACCOUNT_ID;
-      const token = opts.apiToken
-        || getSecret('CLOUDFLARE_API_TOKEN')
-        || getSecret('CLOUDFLARE_API_KEY')
-        || getSecret('CF_API_TOKEN');
-
-      if (!accountId) return { ok: false, error: 'CLOUDFLARE_ACCOUNT_ID missing' };
-      if (!token) return { ok: false, error: 'CLOUDFLARE_API_TOKEN missing' };
-
-      try {
-        const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${encodeURIComponent(model)}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            messages: [{ role: 'user', content: prompt }],
-            // Plenty for a 1-line JSON verdict + reason.
-            max_tokens: 200,
-            stream: false,
-          }),
-          signal,
-        });
-        if (!res.ok) {
-          const txt = await res.text().catch(() => 'unknown');
-          return { ok: false, error: `HTTP ${res.status}: ${txt.slice(0, 120)}` };
-        }
-        const data = await res.json() as Record<string, any>;
-        const result = data.result ?? data;
-        const text = typeof result === 'string'
-          ? result
-          : result?.response
-            || result?.text
-            || result?.output_text
-            || result?.choices?.[0]?.message?.content
-            || '';
-        if (!text) return { ok: false, error: 'empty response' };
-        return { ok: true, text };
-      } catch (err) {
-        return { ok: false, error: (err as Error).message };
-      }
-    },
-  };
-}
-
 export function createCoordinationJudge(options: JudgeOptions = {}): CoordinationJudge {
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const cacheTtlMs = options.cacheTtlMs ?? DEFAULT_CACHE_TTL_MS;
   const callsPerMinute = options.callsPerMinute ?? DEFAULT_CALLS_PER_MINUTE;
-  const model = options.model ?? DEFAULT_JUDGE_MODEL;
-  const disabled = options.disabled ?? false;
+  const model = options.model ?? '';
+  // No transport supplied → judge is implicitly disabled. This is the
+  // safe default: rather than silently picking a backend, we stay quiet
+  // and let the runner explicitly wire one up via the backend factory.
+  const transport = options.transport ?? null;
+  const disabled = options.disabled ?? (transport === null);
   const now = options.now ?? Date.now;
   const log = options.log ?? (() => {});
-  const transport = options.transport ?? createCloudflareTransport({
-    accountId: options.cloudflareAccountId,
-    apiToken: options.cloudflareApiToken,
-  });
 
   const cache = new Map<string, CacheEntry>();
   const callTimestamps: number[] = [];
@@ -293,6 +249,12 @@ export function createCoordinationJudge(options: JudgeOptions = {}): Coordinatio
         stats.rateLimited += 1;
         log('rate limit exceeded, falling back to no-intervention', { kind: req.kind });
         return recordFallback('rate limited');
+      }
+
+      // disabled covers transport === null already, but narrow for TS.
+      if (!transport) {
+        stats.disabledCalls += 1;
+        return recordFallback('judge disabled (no transport)');
       }
 
       callTimestamps.push(t);

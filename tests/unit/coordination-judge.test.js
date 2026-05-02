@@ -255,6 +255,17 @@ describe('coordination-judge — disabled mode', () => {
     expect(calls).toHaveLength(0);
     expect(judge.stats().disabledCalls).toBe(1);
   });
+
+  test('implicitly disabled when no transport is supplied', async () => {
+    // Backend-agnostic default: no transport injected → judge stays quiet.
+    // The runner is responsible for resolving the active fleet backend via
+    // lib/coordination-judge-backends.ts.
+    const judge = createCoordinationJudge({});
+    const verdict = await judge.ask(makeReq());
+    expect(verdict).toMatchObject({ intervene: false, fellBack: true, reason: 'judge disabled' });
+    expect(judge.stats().disabledCalls).toBe(1);
+    expect(judge.stats().llmCalls).toBe(0);
+  });
 });
 
 describe('coordination-judge — buildJudgeCacheKey', () => {

@@ -1355,8 +1355,20 @@
       }
     },
     "coordination_judge": {
-      "description": "LLM yes/no for the coordination-pipeline audit's borderline cases. Cloudflare Workers AI (default @cf/meta/llama-3.2-3b-instruct) wrapped in a 3s hard timeout, 1h LRU cache, 30/min rate limit, fallback-deny on every failure mode (auth missing, transport error, malformed JSON, timeout). Coxswain stays quiet rather than fire the wrong DM.",
+      "description": "Backend-agnostic LLM yes/no for the coordination-pipeline audit's borderline cases. Pure transport-injection design: 3s hard timeout, 1h LRU cache, 30/min rate limit, fallback-deny on every failure mode (auth missing, transport error, malformed JSON, timeout). No transport injected → judge stays implicitly disabled. Coxswain stays quiet rather than fire the wrong DM.",
       "module": "lib/coordination-judge.ts",
+      "cli": [],
+      "sdk": [],
+      "routes": [],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
+    "coordination_judge_backends": {
+      "description": "Backend resolver + per-backend transports for the coordination judge. Reads PD_JUDGE_BACKEND → PD_FLEET_DEFAULT_BACKEND → PORT_DADDY_FLEET_DEFAULT_BACKEND so the judge inherits whatever backend the fleet is configured for (claude / codex / cloudflare / ollama). Cloudflare and Ollama transports are direct fetch — no spawner overhead. Claude / codex return a guidance error suggesting the operator override PD_JUDGE_BACKEND. Per-backend default models come from lib/backend-telemetry-policy's operator tier.",
+      "module": "lib/coordination-judge-backends.ts",
       "cli": [],
       "sdk": [],
       "routes": [],
