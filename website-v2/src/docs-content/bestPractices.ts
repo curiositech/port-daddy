@@ -133,10 +133,10 @@ export const bestPracticesSection: DocsContentSection = {
         {
           type: 'command',
           title: 'Claim a port by identity, discover it by identity',
-          command: 'pd claim myapp:api:main\npd dns myapp:api:main',
+          command: 'pd claim myapp:api:main\npd dns lookup myapp:api:main',
           output: 'SUCCESS: myapp:api:main → port 54321\nhost: localhost  port: 54321',
           notes: [
-            'The same identity always resolves to the same port. Any other agent calling pd dns myapp:api:main gets the same answer without reading a config file.',
+            'The same identity always resolves to the same port. Any other agent calling pd dns lookup myapp:api:main gets the same answer without reading a config file.',
             'Wildcard release: pd release myapp:* releases all ports for a project in one command.',
           ],
         },
@@ -212,15 +212,15 @@ export const bestPracticesSection: DocsContentSection = {
           title: 'Claim before you edit, not after',
           paragraphs: [
             'A file claim tells other agents "I own this surface right now." Claiming after the edit is useless — the collision has already happened.',
-            '**Run `pd session files add <path>` before touching any file.** For code edits, prefer symbol-level claims (`pd session files add <path> --symbol <functionName>`) when the work is naturally function-scoped. Narrower claims allow more parallel work.',
+            '**Run `pd session files add <path>` before touching any file.** For code edits, prefer symbol-level claims (`pd session files add <path> --symbol-path <functionName>`) when the work is naturally function-scoped. Narrower claims allow more parallel work.',
           ],
         },
         {
           type: 'command',
           title: 'Claim a symbol region, then edit',
           command:
-            'pd session files add src/lib/sessions.ts --symbol "addNote"\n# now edit the file',
-          output: 'SUCCESS: Claimed src/lib/sessions.ts (symbol: addNote)',
+            'pd session files add src/lib/sessions.ts --symbol-path "addNote"\n# now edit the file',
+          output: 'SUCCESS: Claimed src/lib/sessions.ts (symbolPath: addNote)',
           notes: [
             'File claims are advisory by default. Guard enforce mode converts them into commit blockers.',
             'If the symbol index is stale, widen to a whole-file claim and add a note explaining the scope.',
@@ -286,7 +286,7 @@ export const bestPracticesSection: DocsContentSection = {
         {
           type: 'checklist',
           items: [
-            'pd session files add <path> (or --symbol) before editing any file.',
+            'pd session files add <path> (or --symbol-path) before editing any file.',
             'Write a scope note before editing, a result note before pd done.',
             'pd guard install --mode enforce at the start of every session in this repo.',
             'pd guard check --staged before every commit.',
@@ -449,8 +449,8 @@ export const bestPracticesSection: DocsContentSection = {
           output:
             'SUCCESS: pd fleet validate — 1 agent, budget ceiling $5.00/day',
           notes: [
-            'The fleet diagnostic FLEET004 treats a missing budget_usd_per_day as an error when agents are non-empty. `pd fleet validate` surfaces it before `pd fleet up`.',
-            'FLEET008 warns when the predicted daily cost of all configured agents exceeds the ceiling. Reduce agent frequency or switch to a cheaper model tier to bring it under budget.',
+            '`pd fleet validate` warns "Fleet limits.budgetUsdPerDay is required for every agentic launch" when agents are non-empty and no budget is set. Fix it before `pd fleet up`.',
+            'If predicted spend across all agents would exceed the ceiling, reduce the model tier or lower trigger frequency.',
           ],
         },
         {
@@ -474,7 +474,7 @@ export const bestPracticesSection: DocsContentSection = {
           output:
             'SUCCESS: Project initialized\nSUCCESS: Created pd-fleet.yml\nSUCCESS: MCP configuration installed',
           notes: [
-            'pd fleet init generates a starter pd-fleet.yml with a budget_usd_per_day placeholder. Fill it in before pd fleet up.',
+            'pd fleet init creates a starter pd-fleet.yml but does not include a limits section. Add `fleet.limits.budget_usd_per_day` manually before running pd fleet up.',
             'Run pd fleet validate after editing pd-fleet.yml to catch schema errors and projected-cost warnings before launching agents.',
           ],
         },
@@ -494,7 +494,7 @@ export const bestPracticesSection: DocsContentSection = {
         {
           path: 'docs/adr/0026-fleet-ast-and-diagnostics.md',
           rationale:
-            'ADR defines FLEET004 (budget required when agents non-empty) and FLEET008 (predicted cost over ceiling) diagnostics.',
+            'ADR proposes FLEET004/FLEET008 coded diagnostics; current engine emits equivalent plain-text topology warnings via validateTopology().',
         },
         {
           path: 'docs/V4-UNIFIED-ROADMAP.md',
