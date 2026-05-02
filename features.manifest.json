@@ -972,12 +972,18 @@
     },
     "cockpit": {
       "description": "App-Native Development Cockpit — read roadmap/recovery markdown into typed mission cards",
-      "cli": [],
-      "sdk": [],
+      "cli": [
+        "cockpit"
+      ],
+      "sdk": [
+        "cockpitMissions"
+      ],
       "routes": [
         "GET /cockpit/missions"
       ],
-      "completions": [],
+      "completions": [
+        "cockpit"
+      ],
       "docs": {
         "readme": false,
         "sdk": false

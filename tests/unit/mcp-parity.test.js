@@ -208,6 +208,7 @@ const TOOL_FEATURE_MAP = {
   'spawn_agent': 'spawn',
   'run_sortie': 'sorties',
   'list_sorties': 'sorties',
+  'cockpit_missions_list': 'cockpit',
   'get_sortie': 'sorties',
   'get_sortie_logs': 'sorties',
 
@@ -249,7 +250,6 @@ const MCP_EXEMPT_FEATURES = new Set([
   'resource_governance', // Operator UI read model; MCP wrapper deferred until enforcement controls exist
   'cartographer',   // Read-only roadmap projection; surfaced via `pd roadmap` CLI; MCP tool deferred until dashboards consume the endpoint
   'quorum',         // New propose/vote primitive; agents drive consensus via SDK calls in v1, MCP wrapper deferred to v4
-  'cockpit',        // First-slice read-only roadmap intake; MCP wrapper arrives with the cockpit's mission-plan/launch surface
 ]);
 
 // ============================================================================
@@ -686,7 +686,7 @@ describe('MCP tiered tool loading', () => {
     'magic', 'session-lifecycle', 'advisor', 'ports', 'sessions', 'notes', 'locks',
     'messaging', 'agents', 'actors', 'inbox', 'webhooks', 'integration', 'dns', 'briefing',
     'tunnels', 'projects', 'changelog', 'activity', 'system', 'tuples', 'sorties',
-    'fleet-control', 'semantic', 'feedback',
+    'fleet-control', 'semantic', 'feedback', 'cockpit',
   ];
 
   it('ESSENTIAL_TOOL_NAMES in server matches expected set', () => {

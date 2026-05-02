@@ -288,6 +288,10 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     description: 'Tracked mission records over spawned runs — launch, inspect status, and fetch sortie event logs',
     tools: ['run_sortie', 'list_sorties', 'get_sortie', 'get_sortie_logs'],
   },
+  'cockpit': {
+    description: 'App-Native Development Cockpit — read roadmap markdown into typed mission cards',
+    tools: ['cockpit_missions_list'],
+  },
   'system': {
     description: 'Daemon status, version, metrics, config, and launch hints',
     tools: ['daemon_status', 'get_version', 'get_metrics', 'get_config', 'wait_for_service', 'get_launch_hints'],
@@ -2409,6 +2413,28 @@ const TOOLS = [
       required: ['sortie_id'],
     },
   },
+  // ── App-Native Development Cockpit ────────────────────────────────────
+  {
+    name: 'cockpit_missions_list',
+    description:
+      '[Cockpit] Read the project\'s roadmap into typed mission cards (work-queue intake for ' +
+      'the App-Native Development Cockpit). Sources: docs/recovery/CURRENT-WORK.md, ' +
+      'docs/recovery/UNIFIED-ROADMAP.md, .cartographer/status.md. Returns mission cards with ' +
+      'explicit status (closed/blocked/drifting/stalled/uncommitted/in-flight/etc.), summary, ' +
+      'evidence bullets, and the files each mission touches.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        project_dir: { type: 'string', description: 'Project directory to read. Defaults to the daemon\'s repoRoot.' },
+        status: {
+          type: 'array',
+          description: 'Filter to one or more statuses (e.g. ["blocked", "uncommitted"]).',
+          items: { type: 'string' },
+        },
+        limit: { type: 'number', description: 'Optional cap on returned missions.' },
+      },
+    },
+  },
   // ── Tuple Space ──────────────────────────────────────────────────────
   {
     name: 'tuple_out',
@@ -3662,6 +3688,17 @@ async function handleTool(
       if (typeof args.limit === 'number') qs.set('limit', String(args.limit));
       const suffix = qs.toString() ? `?${qs.toString()}` : '';
       res = await GET(`/sorties/${encodeURIComponent(args.sortie_id as string)}/logs${suffix}`);
+      break;
+    }
+
+    case 'cockpit_missions_list': {
+      const qs = new URLSearchParams();
+      if (args.project_dir) qs.set('projectDir', args.project_dir as string);
+      if (Array.isArray(args.status) && args.status.length > 0) {
+        qs.set('status', (args.status as unknown[]).map((s) => String(s)).join(','));
+      }
+      if (typeof args.limit === 'number') qs.set('limit', String(args.limit));
+      res = await GET(qs.toString() ? `/cockpit/missions?${qs.toString()}` : '/cockpit/missions');
       break;
     }
 
