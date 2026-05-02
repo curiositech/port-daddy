@@ -229,3 +229,167 @@ describe('GET /cockpit/missions route', () => {
     }
   });
 });
+
+describe('GET /cockpit/missions/:id and POST /cockpit/missions/:id/plan', () => {
+  let app;
+  let fixtureRoot;
+
+  const liveDeps = {
+    sessions: {
+      list: () => [
+        { sessionId: 'sess-A', purpose: 'cockpit-mission-intake follow-up', project: '/x' },
+        { sessionId: 'sess-B', purpose: 'editing lib/cockpit-missions.ts', project: '/x' },
+        { sessionId: 'sess-C', purpose: 'unrelated work', project: '/x' },
+      ],
+      listAllActiveClaims: () => ({
+        claims: [
+          { sessionId: 'sess-B', filePath: 'lib/cockpit-missions.ts' },
+          { sessionId: 'sess-C', filePath: 'lib/elsewhere.ts' },
+        ],
+      }),
+    },
+    resurrection: {
+      pending: () => [
+        { id: 'r-1', purpose: 'cockpit-mission-intake', note: 'died mid-edit' },
+        { id: 'r-2', purpose: 'unrelated', note: 'nothing to see' },
+      ],
+    },
+    feedback: {
+      list: () => [
+        { feedbackId: 'fb-1', slug: 'cockpit-mission-intake', summary: 'panel needs limit chip', status: 'open' },
+        { feedbackId: 'fb-2', slug: 'unrelated-thing', summary: 'something else', status: 'open' },
+      ],
+    },
+  };
+
+  beforeAll(async () => {
+    fixtureRoot = makeFixture();
+    app = Fastify({ logger: false });
+    await app.register(cockpitPlugin, {
+      deps: {
+        repoRoot: fixtureRoot,
+        metrics: { errors: 0 },
+        logger: { info() {}, error() {} },
+        ...liveDeps,
+      },
+    });
+  });
+
+  afterAll(async () => {
+    await app.close();
+    rmSync(fixtureRoot, { recursive: true, force: true });
+  });
+
+  test('detail returns 404 for unknown mission', async () => {
+    const res = await app.inject({ method: 'GET', url: '/cockpit/missions/no-such-thing' });
+    expect(res.statusCode).toBe(404);
+    expect(res.json().success).toBe(false);
+  });
+
+  test('detail returns mission + live cross-references', async () => {
+    const res = await app.inject({ method: 'GET', url: '/cockpit/missions/cockpit-mission-intake' });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.success).toBe(true);
+    expect(body.mission.id).toBe('cockpit-mission-intake');
+    expect(body.live.sessions.length).toBeGreaterThanOrEqual(2);
+    expect(body.live.claims.length).toBe(1);
+    expect(body.live.claims[0].filePath).toBe('lib/cockpit-missions.ts');
+    expect(body.live.salvage.length).toBe(1);
+    expect(body.live.dogfood.length).toBe(1);
+    expect(body.live.dogfood[0].slug).toBe('cockpit-mission-intake');
+  });
+
+  test('plan returns proposal with sensible defaults', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/cockpit/missions/cockpit-mission-intake/plan',
+      payload: {},
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.success).toBe(true);
+    expect(body.proposal.missionId).toBe('cockpit-mission-intake');
+    expect(body.proposal.harbor).toBe('cockpit');
+    expect(body.proposal.backend).toBe('codex');
+    expect(body.proposal.modelTier).toBe('mid');
+    expect(body.proposal.budgetUsd).toBe(1.0);
+    expect(body.proposal.goal).toMatch(/Cockpit mission intake/);
+    expect(body.proposal.files.length).toBeGreaterThan(0);
+    expect(body.proposal.context).toMatch(/Status: uncommitted/);
+  });
+
+  test('plan honors valid overrides', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/cockpit/missions/cockpit-mission-intake/plan',
+      payload: { backend: 'claude-cli', modelTier: 'high', budgetUsd: 2.5, goal: 'custom goal' },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.proposal.backend).toBe('claude-cli');
+    expect(body.proposal.modelTier).toBe('high');
+    expect(body.proposal.budgetUsd).toBe(2.5);
+    expect(body.proposal.goal).toBe('custom goal');
+  });
+
+  test('plan rejects invalid backend', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/cockpit/missions/cockpit-mission-intake/plan',
+      payload: { backend: 'made-up-backend' },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toMatch(/backend must be/);
+  });
+
+  test('plan rejects invalid tier', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/cockpit/missions/cockpit-mission-intake/plan',
+      payload: { modelTier: 'medium' },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toMatch(/modelTier must be/);
+  });
+
+  test('plan rejects non-positive budget', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/cockpit/missions/cockpit-mission-intake/plan',
+      payload: { budgetUsd: -1 },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toMatch(/budgetUsd/);
+  });
+
+  test('detail/plan tolerate missing live deps', async () => {
+    const bare = Fastify({ logger: false });
+    await bare.register(cockpitPlugin, {
+      deps: {
+        repoRoot: fixtureRoot,
+        metrics: { errors: 0 },
+        logger: { info() {}, error() {} },
+      },
+    });
+    try {
+      const detail = await bare.inject({ method: 'GET', url: '/cockpit/missions/cockpit-mission-intake' });
+      expect(detail.statusCode).toBe(200);
+      const detailBody = detail.json();
+      expect(detailBody.live.sessions).toEqual([]);
+      expect(detailBody.live.claims).toEqual([]);
+      expect(detailBody.live.salvage).toEqual([]);
+      expect(detailBody.live.dogfood).toEqual([]);
+
+      const plan = await bare.inject({
+        method: 'POST',
+        url: '/cockpit/missions/cockpit-mission-intake/plan',
+        payload: {},
+      });
+      expect(plan.statusCode).toBe(200);
+      expect(plan.json().proposal.missionId).toBe('cockpit-mission-intake');
+    } finally {
+      await bare.close();
+    }
+  });
+});
