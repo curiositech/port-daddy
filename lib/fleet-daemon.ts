@@ -17,8 +17,9 @@
  */
 
 import { createHash } from 'node:crypto';
-import { watch as fsWatch, type FSWatcher } from 'node:fs';
-import { join, basename } from 'node:path';
+import { readFileSync, watch as fsWatch, type FSWatcher } from 'node:fs';
+import { homedir } from 'node:os';
+import { dirname, join, basename } from 'node:path';
 import {
   loadFleetConfig,
   createFleetRunner,
@@ -397,17 +398,47 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
     return { success: true };
   }
 
-  function isStaleFleetLeaseHolder(holder: string | null): boolean {
-    if (!holder?.startsWith('fleetd:')) return false;
+  function resolveCanonicalPidFile(): string {
+    if (process.env.PORT_DADDY_PID_FILE) return process.env.PORT_DADDY_PID_FILE;
+    if (process.env.PORT_DADDY_SOCK) return join(dirname(process.env.PORT_DADDY_SOCK), 'daemon.pid');
+    return join(homedir(), '.port-daddy', 'daemon.pid');
+  }
+
+  function readCanonicalDaemonPid(): number | null {
+    try {
+      const raw = readFileSync(resolveCanonicalPidFile(), 'utf8').trim();
+      const pid = Number.parseInt(raw, 10);
+      return Number.isFinite(pid) && pid > 0 ? pid : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function getReclaimableFleetLeaseHolder(holder: string | null): {
+    reclaim: boolean;
+    reason?: 'dead_pid' | 'noncanonical_daemon_pid';
+    pid?: number;
+    canonicalPid?: number | null;
+  } {
+    if (!holder?.startsWith('fleetd:')) return { reclaim: false };
     const pid = Number.parseInt(holder.split(':').at(-1) || '', 10);
-    if (!Number.isFinite(pid) || pid <= 0 || pid === process.pid) return false;
+    if (!Number.isFinite(pid) || pid <= 0 || pid === process.pid) return { reclaim: false };
 
     try {
       process.kill(pid, 0);
-      return false;
     } catch (error) {
-      return (error as NodeJS.ErrnoException).code === 'ESRCH';
+      if ((error as NodeJS.ErrnoException).code === 'ESRCH') {
+        return { reclaim: true, reason: 'dead_pid', pid, canonicalPid: readCanonicalDaemonPid() };
+      }
+      return { reclaim: false };
     }
+
+    const canonicalPid = readCanonicalDaemonPid();
+    if (canonicalPid === process.pid && pid !== canonicalPid) {
+      return { reclaim: true, reason: 'noncanonical_daemon_pid', pid, canonicalPid };
+    }
+
+    return { reclaim: false };
   }
 
   function stopManagedFleet(projectDir: string, options: { releaseLease?: boolean } = {}): boolean {
@@ -493,11 +524,15 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
 
     if (!result.success) {
       const holder = result.holder || null;
-      if (isStaleFleetLeaseHolder(holder)) {
+      const reclaimable = getReclaimableFleetLeaseHolder(holder);
+      if (reclaimable.reclaim) {
         logger.warn('fleet_project_stale_lease_reclaimed', {
           project: projectName,
           projectDir,
           holder,
+          reason: reclaimable.reason,
+          holderPid: reclaimable.pid,
+          canonicalPid: reclaimable.canonicalPid,
         });
         locks.release(lockName, { force: true });
         result = locks.acquire(lockName, {

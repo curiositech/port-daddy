@@ -338,6 +338,72 @@ describe('createFleetDaemon', () => {
     }
   });
 
+  test('startProject() reclaims a fleet lease held by a live noncanonical daemon pid', () => {
+    const originalPidFile = process.env.PORT_DADDY_PID_FILE;
+    const noncanonicalPid = process.pid + 1000;
+    process.env.PORT_DADDY_PID_FILE = '/runtime/daemon.pid';
+    mockReadFileSync.mockImplementation((path) => {
+      if (path === '/runtime/daemon.pid') return String(process.pid);
+      return '';
+    });
+    const killSpy = jest.spyOn(process, 'kill').mockImplementation((pid, signal) => {
+      if (pid === noncanonicalPid && signal === 0) return true;
+      return true;
+    });
+    const acquire = jest.fn()
+      .mockReturnValueOnce({
+        success: false,
+        error: 'lock is held',
+        holder: `fleetd:port-daddy-stable:unknown:${noncanonicalPid}`,
+      })
+      .mockReturnValueOnce({ success: true });
+    const release = jest.fn(() => ({ success: true }));
+    const deps = makeDeps({
+      locks: {
+        acquire,
+        release,
+        extend: jest.fn(() => ({ success: true, expiresAt: Date.now() + 30000 })),
+        check: jest.fn(() => ({
+          success: true,
+          held: true,
+          owner: `fleetd:port-daddy-stable:unknown:${noncanonicalPid}`,
+        })),
+      },
+    });
+
+    try {
+      mockLoadFleetConfig.mockReturnValue(makeConfig('canonical-project'));
+      mockGetStatus.mockReturnValue([]);
+
+      const daemon = makeDaemon(deps);
+      expect(daemon.startProject('/test/canonical')).toEqual({ success: true });
+
+      expect(release).toHaveBeenCalledWith(expect.stringMatching(/^fleet:project:/), { force: true });
+      expect(acquire).toHaveBeenCalledTimes(2);
+      expect(deps.logger.warn).toHaveBeenCalledWith(
+        'fleet_project_stale_lease_reclaimed',
+        expect.objectContaining({
+          project: 'canonical',
+          projectDir: '/test/canonical',
+          holder: `fleetd:port-daddy-stable:unknown:${noncanonicalPid}`,
+          reason: 'noncanonical_daemon_pid',
+          holderPid: noncanonicalPid,
+          canonicalPid: process.pid,
+        })
+      );
+      expect(daemon.getStatus().fleets).toHaveLength(1);
+      expect(daemon.getStatus().skipped).toHaveLength(0);
+    } finally {
+      killSpy.mockRestore();
+      mockReadFileSync.mockReset();
+      if (originalPidFile === undefined) {
+        delete process.env.PORT_DADDY_PID_FILE;
+      } else {
+        process.env.PORT_DADDY_PID_FILE = originalPidFile;
+      }
+    }
+  });
+
   test('renewal reacquires a project lease if the lock row disappears without a new owner', () => {
     const setIntervalSpy = jest.spyOn(global, 'setInterval');
     let held = false;
