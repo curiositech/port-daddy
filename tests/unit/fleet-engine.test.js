@@ -1216,6 +1216,43 @@ test('trigger dedupe suppresses identical messages inside the dedupe window', as
   );
 });
 
+test('duplicate trigger spawn requests carry the same idempotency key', async () => {
+  let triggerCallback;
+  global.fetch = jest.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({ agentId: 'abc', status: 'spawned' }),
+  });
+
+  const config = {
+    ...makeConfig({ trigger: 'spark:idea' }),
+    limits: { budgetUsdPerDay: 5 },
+  };
+
+  const runner = createFleetRunner(config, '/tmp/proj', {
+    messaging: {
+      subscribe: jest.fn((_channel, callback) => {
+        triggerCallback = callback;
+        return jest.fn();
+      }),
+    },
+  });
+
+  runner.startAgent(config.agents[0]);
+  await triggerCallback({ payload: 'same idea', sender: 'fleet-ui' });
+  await Promise.resolve();
+  await Promise.resolve();
+  await triggerCallback({ payload: 'same idea', sender: 'fleet-ui' });
+  await Promise.resolve();
+
+  const spawnCalls = global.fetch.mock.calls.filter(([url]) => url === `${DAEMON_URL}/spawn`);
+  expect(spawnCalls).toHaveLength(2);
+  const keys = spawnCalls.map(([, opts]) => JSON.parse(opts.body).idempotencyKey);
+  expect(keys[0]).toMatch(/^[a-f0-9]{32}$/);
+  expect(keys[1]).toBe(keys[0]);
+  expect(spawnCalls[0][1].headers['Idempotency-Key']).toBe(keys[0]);
+  expect(spawnCalls[1][1].headers['Idempotency-Key']).toBe(keys[1]);
+});
+
 test('rapid trigger bursts collapse into one pending mailbox run while active', async () => {
   let triggerCallback;
   let resolveFirstSpawn;

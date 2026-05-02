@@ -22,6 +22,7 @@ import type { Tuple, TupleSpace } from './tuples.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { deriveFleetAgentName } from './agent-names.js';
 import { buildPortDaddyShellCommand, resolvePortDaddyInvocation } from './port-daddy-command.js';
+import { resolveBackendName } from './llm-backend-resolver.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -312,9 +313,13 @@ function resolveTierModel(backend: string, modelTier: FleetModelTier): string | 
 }
 
 export function getFleetRuntimeDefaults(): FleetRuntimeDefaults {
+  // Backend name comes from the unified resolver in lib/llm-backend-resolver.ts
+  // — same env cascade every actor uses (judge, future request-shape callers,
+  // etc.). We only read the fleet default here; per-agent overrides live on
+  // the FleetAgent itself, not in env.
+  const { backend } = resolveBackendName();
   return {
-    backend: cleanEnvValue(process.env.PD_FLEET_DEFAULT_BACKEND)
-      || cleanEnvValue(process.env.PORT_DADDY_FLEET_DEFAULT_BACKEND),
+    backend: backend ?? undefined,
     model: cleanEnvValue(process.env.PD_FLEET_DEFAULT_MODEL)
       || cleanEnvValue(process.env.PORT_DADDY_FLEET_DEFAULT_MODEL),
   };
@@ -1173,6 +1178,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     identity: string,
     purpose: string,
     agent: FleetAgent,
+    idempotencyKey: string,
   ): Promise<{ ok: true; data: SpawnResponse } | { ok: false; failure: SpawnAttemptFailure }> {
     if (!runtime.backend) {
       return {
@@ -1194,6 +1200,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       identity,
       purpose,
       name: agent.name,
+      idempotencyKey,
     };
     if (runtime.model) body.model = runtime.model;
     if (agent.timeout) body.timeout = agent.timeout;
@@ -1203,7 +1210,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     try {
       res = await fetch(`${getFleetDaemonUrl()}/spawn`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
         body: JSON.stringify(body),
       });
     } catch (err) {
@@ -1332,6 +1339,42 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
         tupleId: context.tuple?.id ?? null,
       }))
       .digest('hex');
+  }
+
+  /**
+   * Stable idempotency key for spawnViaDaemon. Daemon side caches by this key
+   * for `SPAWN_IDEMPOTENCY_TTL_MS` (1h) so a retried spawn after a network blip
+   * resolves to the same agent instead of starting a duplicate. Two requests
+   * collide iff every input matches: project, agent name, identity, run source,
+   * triggerFingerprint (or 1-minute run window), runtime backend/model/tier,
+   * and attempt index. Spec: routes/spawn.ts SPAWN_IDEMPOTENCY_TTL_MS.
+   */
+  function fleetSpawnIdempotencyKey(
+    agent: FleetAgent,
+    runtime: ResolvedFleetAgentRuntime,
+    identity: string,
+    context: FleetRunContext | undefined,
+    triggerFingerprint: string | null,
+    runStartedAt: number,
+    attempt: number,
+  ): string {
+    const runWindow = triggerFingerprint || Math.floor(runStartedAt / 60000);
+    return createHash('sha256')
+      .update(JSON.stringify({
+        v: 1,
+        projectDir,
+        project,
+        agent: agent.name,
+        identity,
+        source: context?.source ?? 'manual',
+        runWindow,
+        backend: runtime.backend,
+        model: runtime.model ?? null,
+        modelTier: runtime.modelTier ?? null,
+        attempt,
+      }))
+      .digest('hex')
+      .slice(0, 32);
   }
 
   function buildAgentTask(agent: FleetAgent, context?: FleetRunContext): string {
@@ -1541,6 +1584,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
           identity,
           `Fleet agent: ${agent.name}`,
           agent,
+          fleetSpawnIdempotencyKey(agent, runtime, identity, context, triggerFingerprint, now, i + 1),
         );
 
         if (outcome.ok) {
