@@ -673,6 +673,16 @@ export interface FleetRunnerOptions {
   messaging?: {
     subscribe(channel: string, callback: (message: unknown) => void): (() => void) | null;
   };
+  /**
+   * Daemon-wide concurrency permit. Called AFTER the per-runner `canSpawn`
+   * quota check passes but BEFORE the spawner runs. Returns a release
+   * function that the runner MUST call exactly once when the spawn finishes
+   * (success or failure). When omitted, the runner enforces only its own
+   * per-fleet cap — fine for tests, but the daemon always injects this so
+   * project-wide limits hold across multiple runners. Spec:
+   * docs/shipwright/FLEETCONTROL-HARDENING.md §5.
+   */
+  acquirePermit?: () => Promise<() => void>;
 }
 
 export function createFleetRunner(config: FleetConfig, projectDir: string, options?: FleetRunnerOptions) {
@@ -1475,6 +1485,26 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       agentState.lastTriggerAt = now;
     }
 
+    // Daemon-wide concurrency permit. The per-runner `canSpawn()` quota check
+    // above guards this fleet alone; the permit guards every fleet sharing a
+    // project. Acquired AFTER all cheap rejections so we never park a waiter
+    // for a spawn that would have been refused anyway. If acquisition itself
+    // throws (e.g. registry was drained mid-shutdown), surface as a normal
+    // agent_failed event — same shape as every other admission failure.
+    let releasePermit: (() => void) | null = null;
+    if (options?.acquirePermit) {
+      try {
+        releasePermit = await options.acquirePermit();
+      } catch (err) {
+        const reason = (err as Error).message || 'permit-acquire-failed';
+        emit({
+          type: 'agent_failed', agent: agent.name, identity, project,
+          timestamp: Date.now(), details: { error: `quota: ${reason}` },
+        });
+        return { success: false, error: `quota: ${reason}` };
+      }
+    }
+
     activeAgentRuns.add(agent.name);
     activeSpawns++;
     if (config.limits?.maxSpawnsPerHour !== undefined) {
@@ -1595,6 +1625,14 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     } finally {
       activeSpawns = Math.max(0, activeSpawns - 1);
       activeAgentRuns.delete(agent.name);
+      // Release the daemon-wide permit BEFORE we re-enqueue any pending
+      // context. If we held the permit while requeuing, a saturated semaphore
+      // could deadlock the same agent against itself: it would await its own
+      // released slot. Releasing first lets the FIFO advance one waiter.
+      if (releasePermit) {
+        try { releasePermit(); } catch { /* idempotent — second release is a no-op */ }
+        releasePermit = null;
+      }
       const pending = agentState.pendingContext;
       agentState.pendingContext = undefined;
       if (pending && !pausedAgents.has(agent.name)) {
