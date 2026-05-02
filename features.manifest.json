@@ -1366,9 +1366,9 @@
         "sdk": false
       }
     },
-    "coordination_judge_backends": {
-      "description": "Backend resolver + per-backend transports for the coordination judge. Reads PD_JUDGE_BACKEND → PD_FLEET_DEFAULT_BACKEND → PORT_DADDY_FLEET_DEFAULT_BACKEND so the judge inherits whatever backend the fleet is configured for (claude / codex / cloudflare / ollama). Cloudflare and Ollama transports are direct fetch — no spawner overhead. Claude / codex return a guidance error suggesting the operator override PD_JUDGE_BACKEND. Per-backend default models come from lib/backend-telemetry-policy's operator tier.",
-      "module": "lib/coordination-judge-backends.ts",
+    "llm_backend_resolver": {
+      "description": "Single source of LLM backend selection for every Port Daddy actor. Env cascade: options.backend → PD_<ACTOR>_BACKEND → PD_FLEET_DEFAULT_BACKEND → PORT_DADDY_FLEET_DEFAULT_BACKEND → null. Spawn-shape (fleet engine) calls resolveRawBackendName so it preserves claude-vs-claude-cli distinction; request-shape (judge + future actors) calls resolveLLMBackend which materializes a cloudflare/ollama direct-fetch transport (claude/codex return notSupported — use the spawner). Per-backend default models come from lib/backend-telemetry-policy's operator tier. fleet-engine.getFleetRuntimeDefaults delegates here so there is exactly one place that reads backend env in the codebase.",
+      "module": "lib/llm-backend-resolver.ts",
       "cli": [],
       "sdk": [],
       "routes": [],

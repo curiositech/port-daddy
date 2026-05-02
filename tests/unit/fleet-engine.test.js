@@ -443,7 +443,7 @@ test('maps model_tier for every backend family with built-in tiers', () => {
     [{ backend: 'aider', modelTier: 'mid' }, 'gpt-4.1'],
     [{ backend: 'custom', modelTier: 'low' }, 'custom-low'],
     [{ backend: 'codex', modelTier: 'low' }, 'gpt-5.4-mini'],
-    [{ backend: 'cloudflare', modelTier: 'mid' }, '@cf/meta/llama-3.1-70b-instruct'],
+    [{ backend: 'cloudflare', modelTier: 'mid' }, '@cf/qwen/qwen3-30b-a3b-fp8'],
   ];
 
   for (const [agent, expectedModel] of expectations) {

@@ -258,8 +258,8 @@ describe('coordination-judge — disabled mode', () => {
 
   test('implicitly disabled when no transport is supplied', async () => {
     // Backend-agnostic default: no transport injected → judge stays quiet.
-    // The runner is responsible for resolving the active fleet backend via
-    // lib/coordination-judge-backends.ts.
+    // The runner resolves the active fleet backend via
+    // lib/llm-backend-resolver.ts (resolveLLMBackend({actor: 'judge'})).
     const judge = createCoordinationJudge({});
     const verdict = await judge.ask(makeReq());
     expect(verdict).toMatchObject({ intervene: false, fellBack: true, reason: 'judge disabled' });

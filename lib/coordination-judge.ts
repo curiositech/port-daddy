@@ -15,7 +15,7 @@
  * `PD_JUDGE_BACKEND` env that the rest of the fleet uses, so coxswain
  * inherits whatever backend the operator has configured today (claude on
  * Tuesday, codex on Wednesday, cloudflare on Thursday). See
- * lib/coordination-judge-backends.ts for the resolver + per-backend
+ * lib/llm-backend-resolver.ts for the resolver + per-backend
  * transport implementations.
  *
  * If no transport is provided, the judge runs in `disabled` mode — every
@@ -42,6 +42,11 @@
  */
 
 import { createHash } from 'node:crypto';
+import type { LLMTransport } from './llm-backend-resolver.js';
+
+/** Re-exported for callers that already import this from the judge. New
+ *  callers should pull `LLMTransport` directly from `llm-backend-resolver`. */
+export type JudgeTransport = LLMTransport;
 
 const DEFAULT_TIMEOUT_MS = 3_000;
 const DEFAULT_CACHE_TTL_MS = 60 * 60 * 1000;
@@ -82,21 +87,6 @@ export interface JudgeStats {
   disabledCalls: number;
 }
 
-export interface JudgeTransport {
-  /** Make the actual completion call. Implementations should respect the
-   *  AbortSignal and surface errors as resolved-with-error rather than
-   *  throwing — that way the judge's caller never has to try/catch. The
-   *  `model` parameter is informational; transports that target a single
-   *  fixed model (e.g. an Ollama server pinned to one tag) can ignore it. */
-  complete(input: { prompt: string; model: string; signal: AbortSignal }): Promise<{
-    ok: boolean;
-    text?: string;
-    error?: string;
-  }>;
-  /** Identifier surfaced in stats / logs. Free-form, e.g. "cloudflare:@cf/zai-org/glm-4.7-flash". */
-  label?: string;
-}
-
 export interface JudgeOptions {
   /** Hard per-call timeout in ms. Default 3000. */
   timeoutMs?: number;
@@ -115,7 +105,7 @@ export interface JudgeOptions {
   disabled?: boolean;
   /** The backend transport. Required for the judge to actually call out;
    *  when omitted, the judge runs in disabled mode. The runner builds
-   *  this via lib/coordination-judge-backends.ts so the judge inherits
+   *  this via lib/llm-backend-resolver.ts so the judge inherits
    *  whatever backend the fleet is currently configured for. */
   transport?: JudgeTransport;
   /** `Date.now` injection point for cache TTL + rate-limit tests. */

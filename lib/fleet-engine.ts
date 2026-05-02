@@ -22,6 +22,7 @@ import type { Tuple, TupleSpace } from './tuples.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { deriveFleetAgentName } from './agent-names.js';
 import { buildPortDaddyShellCommand, resolvePortDaddyInvocation } from './port-daddy-command.js';
+import { resolveRawBackendName } from './llm-backend-resolver.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -268,9 +269,9 @@ export const BUILTIN_MODEL_TIERS: Partial<Record<string, Record<FleetModelTier, 
   codex: { low: 'gpt-5.4-mini', mid: 'gpt-5.3-codex', high: 'gpt-5.4' },
   gemini: { low: 'gemini-2.0-flash-exp', mid: 'gemini-2.5-flash', high: 'gemini-2.5-pro' },
   cloudflare: {
-    low: '@cf/meta/llama-3.1-8b-instruct',
-    mid: '@cf/meta/llama-3.1-70b-instruct',
-    high: '@cf/openai/gpt-oss-120b',
+    low: '@cf/zai-org/glm-4.7-flash',
+    mid: '@cf/qwen/qwen3-30b-a3b-fp8',
+    high: '@cf/moonshotai/kimi-k2.5',
   },
   ollama: { low: 'qwen2.5-coder:7b', mid: 'llama3.1:8b', high: 'qwen2.5-coder:14b' },
   aider: { low: 'gpt-4.1-mini', mid: 'gpt-4.1', high: 'gpt-5' },
@@ -322,9 +323,12 @@ function resolveTierModel(backend: string, modelTier: FleetModelTier): string | 
 }
 
 export function getFleetRuntimeDefaults(): FleetRuntimeDefaults {
+  // Backend name comes from the unified resolver in lib/llm-backend-resolver.ts
+  // — same env cascade every actor uses. Spawn-shape needs the raw form so it
+  // can distinguish "claude" (SDK) from "claude-cli" (CLI subprocess).
+  const { raw } = resolveRawBackendName();
   return {
-    backend: cleanEnvValue(process.env.PD_FLEET_DEFAULT_BACKEND)
-      || cleanEnvValue(process.env.PORT_DADDY_FLEET_DEFAULT_BACKEND),
+    backend: raw ?? undefined,
     model: cleanEnvValue(process.env.PD_FLEET_DEFAULT_MODEL)
       || cleanEnvValue(process.env.PORT_DADDY_FLEET_DEFAULT_MODEL),
   };
