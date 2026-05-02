@@ -22,7 +22,6 @@ import type { Tuple, TupleSpace } from './tuples.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { deriveFleetAgentName } from './agent-names.js';
 import { buildPortDaddyShellCommand, resolvePortDaddyInvocation } from './port-daddy-command.js';
-import { resolveBackendName } from './llm-backend-resolver.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -141,6 +140,7 @@ interface FleetYamlAgent {
   backend?: string;
   model?: string;
   model_tier?: string;
+  modelTier?: string;
   prompt?: string | number;
   worktree?: boolean;
   singleton?: boolean;
@@ -164,6 +164,7 @@ interface FleetYamlRuntimeTarget {
   backend?: string;
   model?: string;
   model_tier?: string;
+  modelTier?: string;
 }
 
 interface FleetYamlWatcher {
@@ -187,6 +188,10 @@ interface FleetYamlLimits {
 }
 
 interface FleetYamlDefaults {
+  backend?: string;
+  model?: string;
+  model_tier?: string;
+  modelTier?: string;
   /**
    * Override the per-agent worktree default. If unset, agents with
    * inferred edit intent (Write/Edit/MultiEdit/Bash in allowedTools, or
@@ -229,8 +234,8 @@ function resolveTemplates(text: string, vars: Record<string, string>): string {
   return text.replace(/\{(\w+)\}/g, (match, key) => vars[key] || match);
 }
 
-function getTemplateVars(projectDir: string): Record<string, string> {
-  const project = basename(projectDir);
+function getTemplateVars(projectDir: string, projectName?: string): Record<string, string> {
+  const project = projectName || basename(projectDir);
   let branch = 'main';
   let sha = 'unknown';
 
@@ -300,6 +305,10 @@ function parseModelTier(value: string | undefined): FleetModelTier | undefined {
   return normalized && MODEL_TIERS.has(normalized) ? normalized : undefined;
 }
 
+function parseYamlModelTier(value: { model_tier?: string; modelTier?: string } | undefined): FleetModelTier | undefined {
+  return parseModelTier(value?.model_tier) || parseModelTier(value?.modelTier);
+}
+
 function normalizeBackendEnvKey(backend: string): string {
   return backend.replace(/[^a-zA-Z0-9]+/g, '_').toUpperCase();
 }
@@ -313,13 +322,9 @@ function resolveTierModel(backend: string, modelTier: FleetModelTier): string | 
 }
 
 export function getFleetRuntimeDefaults(): FleetRuntimeDefaults {
-  // Backend name comes from the unified resolver in lib/llm-backend-resolver.ts
-  // — same env cascade every actor uses (judge, future request-shape callers,
-  // etc.). We only read the fleet default here; per-agent overrides live on
-  // the FleetAgent itself, not in env.
-  const { backend } = resolveBackendName();
   return {
-    backend: backend ?? undefined,
+    backend: cleanEnvValue(process.env.PD_FLEET_DEFAULT_BACKEND)
+      || cleanEnvValue(process.env.PORT_DADDY_FLEET_DEFAULT_BACKEND),
     model: cleanEnvValue(process.env.PD_FLEET_DEFAULT_MODEL)
       || cleanEnvValue(process.env.PORT_DADDY_FLEET_DEFAULT_MODEL),
   };
@@ -372,7 +377,7 @@ function parseFallbacks(fallbacks: FleetYamlRuntimeTarget[] | undefined): FleetR
     .map((fallback) => ({
       backend: cleanEnvValue(fallback.backend),
       model: cleanEnvValue(fallback.model),
-      modelTier: parseModelTier(fallback.model_tier),
+      modelTier: parseYamlModelTier(fallback),
     }))
     .filter((fallback) => fallback.backend || fallback.model || fallback.modelTier);
   return parsed.length > 0 ? parsed : undefined;
@@ -428,7 +433,13 @@ export function loadFleetConfig(projectDir: string): FleetConfig | null {
   const raw = readFileSync(configPath, 'utf-8');
   if (!raw.trim()) return null;  // Bug 4 fix: empty file
 
-  const vars = getTemplateVars(projectDir);
+  const baseVars = getTemplateVars(projectDir);
+  const initialParsed = parseFleetYaml(raw);
+  const initialFleet = initialParsed ? (initialParsed.fleet || initialParsed) : null;
+  const rawFleetName = initialFleet && typeof initialFleet.name === 'string'
+    ? resolveTemplates(initialFleet.name, baseVars).trim()
+    : '';
+  const vars = getTemplateVars(projectDir, rawFleetName || undefined);
   const resolved = resolveTemplates(raw, vars);
   const parsed = parseFleetYaml(resolved);
   if (!parsed) return null;
@@ -449,10 +460,14 @@ export function loadFleetConfig(projectDir: string): FleetConfig | null {
   const agents: FleetAgent[] = [];
   const rawAgents = fleet.agents;
   const addAgent = (name: string, s: FleetYamlAgent): void => {
+      const agentBackend = cleanEnvValue(s.backend) || cleanEnvValue(fleetDefaults.backend);
+      const defaultsApplyToBackend = !s.backend || !fleetDefaults.backend || cleanEnvValue(s.backend) === cleanEnvValue(fleetDefaults.backend);
+      const agentModel = cleanEnvValue(s.model) || (defaultsApplyToBackend ? cleanEnvValue(fleetDefaults.model) : undefined);
+      const agentModelTier = parseYamlModelTier(s) || (defaultsApplyToBackend ? parseYamlModelTier(fleetDefaults) : undefined);
       const runtime = resolveFleetAgentRuntime({
-        backend: s.backend,
-        model: s.model,
-        modelTier: parseModelTier(s.model_tier),
+        backend: agentBackend,
+        model: agentModel,
+        modelTier: agentModelTier,
       } as Pick<FleetAgent, 'backend' | 'model' | 'modelTier'>);
       agents.push({
         name,
@@ -1341,14 +1356,6 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       .digest('hex');
   }
 
-  /**
-   * Stable idempotency key for spawnViaDaemon. Daemon side caches by this key
-   * for `SPAWN_IDEMPOTENCY_TTL_MS` (1h) so a retried spawn after a network blip
-   * resolves to the same agent instead of starting a duplicate. Two requests
-   * collide iff every input matches: project, agent name, identity, run source,
-   * triggerFingerprint (or 1-minute run window), runtime backend/model/tier,
-   * and attempt index. Spec: routes/spawn.ts SPAWN_IDEMPOTENCY_TTL_MS.
-   */
   function fleetSpawnIdempotencyKey(
     agent: FleetAgent,
     runtime: ResolvedFleetAgentRuntime,
