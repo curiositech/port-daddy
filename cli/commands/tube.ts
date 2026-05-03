@@ -3,14 +3,19 @@
  *
  * Surface (Track B1 of PHONE-INTEGRATION-MASTER-PLAN):
  *
- *   pd tube <channel>                       # listen mode (default)
- *   pd tube <channel> --since=<id>          # resume from a specific id
- *   pd tube <channel> --once                # one poll-pass, then exit
- *   pd tube <channel> --reply=<msg-id>      # read stdin to EOF, post as reply
- *   pd tube <channel> --send                # read stdin to EOF, post top-level
- *   pd tube <channel> --no-history          # listen without touching the cursor
- *   pd tube <channel> --limit=N             # initial backfill cap (default 50)
- *   pd tube chat <channel> --backend=codex  # spawn a backend per top-level msg
+ *   pd tube <channel>                          # listen mode (default)
+ *   pd tube <channel> --since=<id>             # resume from a specific id
+ *   pd tube <channel> --once                   # one poll-pass, then exit
+ *   pd tube <channel> --reply <body>           # inline reply (auto-correlates), keep listening
+ *   pd tube <channel> --reply-to=<id>          # reply to a specific message id (body from stdin)
+ *   pd tube <channel> --reply <body> --reply-to=<id>  # inline body, explicit parent
+ *   pd tube <channel> --reply <body> --send    # inline reply, post-and-exit (no continued listen)
+ *   pd tube <channel> --reply=<id> --send      # LEGACY: numeric --reply means parent id; prefer --reply-to
+ *   pd tube <channel> --send                   # read stdin to EOF, post top-level
+ *   pd tube <channel> --send <body>            # inline top-level body
+ *   pd tube <channel> --no-history             # listen without touching the cursor
+ *   pd tube <channel> --limit=N                # initial backfill cap (default 50)
+ *   pd tube chat <channel> --backend=codex     # spawn a backend per top-level msg
  *
  * In listen mode each emitted message is one JSON line on stdout
  * (`{ id, sender, createdAt, body, inReplyTo? }`) — easy to pipe into jq,
@@ -189,13 +194,12 @@ function pickEmitMode(options: CLIOptions): EmitMode {
  *   undefined           → no body requested
  *   true (bare flag)    → read stdin
  *   '-'                 → read stdin
- *   '<digits>'          → numeric parent id (only legal on --reply); body from stdin
- *   '<other string>'    → inline body
+ *   '<any string>'      → inline body (digits included — use --reply-to=<id>
+ *                         to specify a parent id explicitly)
  */
 type ReplyArg =
   | { kind: 'none' }
   | { kind: 'stdin' }
-  | { kind: 'numericParent'; parentId: number }
   | { kind: 'inline'; body: string };
 
 function classifyReplyArg(value: unknown): ReplyArg {
@@ -203,10 +207,6 @@ function classifyReplyArg(value: unknown): ReplyArg {
   if (value === true) return { kind: 'stdin' };
   const s = String(value);
   if (s === '-') return { kind: 'stdin' };
-  if (/^[0-9]+$/.test(s)) {
-    const parentId = parseInt(s, 10);
-    if (Number.isFinite(parentId) && parentId > 0) return { kind: 'numericParent', parentId };
-  }
   return { kind: 'inline', body: s };
 }
 
@@ -216,6 +216,43 @@ function classifySendArg(value: unknown): ReplyArg {
   const s = String(value);
   if (s === '-') return { kind: 'stdin' };
   return { kind: 'inline', body: s };
+}
+
+/**
+ * Parse `--reply-to=<id>` (explicit parent message id). Returns null if the
+ * flag was not provided, or throws on malformed input.
+ */
+function parseReplyToArg(value: unknown): number | null {
+  if (value === undefined || value === null || value === false) return null;
+  if (value === true) {
+    throw new Error('tube: --reply-to needs a numeric message id, e.g. --reply-to=42');
+  }
+  const s = String(value).trim();
+  if (!/^[0-9]+$/.test(s)) {
+    throw new Error(`tube: --reply-to must be a positive integer message id (got ${JSON.stringify(s)})`);
+  }
+  const id = parseInt(s, 10);
+  if (!Number.isFinite(id) || id <= 0) {
+    throw new Error(`tube: --reply-to must be a positive integer message id (got ${JSON.stringify(s)})`);
+  }
+  return id;
+}
+
+/**
+ * Backward-compat detector: the legacy shape was `--reply=<digits> --send`,
+ * where the numeric value of --reply was the parent id and the body came from
+ * stdin. We now prefer `--reply-to=<id>` for the explicit-parent case, but
+ * keep the legacy shape working with a deprecation note.
+ *
+ * Returns the parsed parent id when the legacy shape applies, otherwise null.
+ */
+function detectLegacyNumericReplyParent(replyValue: unknown, sendPresent: boolean): number | null {
+  if (!sendPresent) return null;
+  if (typeof replyValue !== 'string' && typeof replyValue !== 'number') return null;
+  const s = String(replyValue);
+  if (!/^[0-9]+$/.test(s)) return null;
+  const id = parseInt(s, 10);
+  return Number.isFinite(id) && id > 0 ? id : null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -402,12 +439,14 @@ export async function handleTubeChat(channel: string | undefined, options: CLIOp
  *
  * Inline reply (the loop unlock): `pd tube <ch> --reply "body"` posts a
  * reply correlated to the most recent event from someone else and then
- * keeps listening. `--reply=<numeric-id> --send` preserves the legacy
- * post-and-exit shape (body comes from stdin in that case).
+ * keeps listening. To reply to a specific message id, pass
+ * `--reply-to=<id>` (combine with `--reply <body>` for inline body, or pipe
+ * the body via stdin). The legacy `--reply=<numeric> --send` shape still
+ * works for backward compatibility but emits a deprecation hint.
  */
 export async function handleTube(channel: string | undefined, options: CLIOptions, deps: TubeHandlerDeps = {}): Promise<void> {
   if (!channel) {
-    ui.error('Usage: pd tube <channel> [--reply <body> | --reply=<id> --send | --send <body> | --once | --raw | --json | --no-history]');
+    ui.error('Usage: pd tube <channel> [--reply <body> [--reply-to=<id>] | --reply-to=<id> < body | --send <body> | --send | --once | --raw | --json | --no-history]');
     process.exit(1);
   }
 
@@ -438,12 +477,55 @@ export async function handleTube(channel: string | undefined, options: CLIOption
   const selfSender = explicitSender || synthesizeSender(channelLabel);
 
   // Resolve body for --reply / --send (if either is set).
-  const replyArg = classifyReplyArg(options.reply);
+  // --reply-to=<id> is the explicit-parent flag; --reply <body> is always a
+  // body now (digits or otherwise). The legacy `--reply=<digits> --send`
+  // shape (numeric-as-parent) is detected separately and supported with a
+  // deprecation note for backward compatibility.
+  let explicitReplyTo: number | null;
+  try {
+    explicitReplyTo = parseReplyToArg(options['reply-to']);
+  } catch (e) {
+    ui.error((e as Error).message);
+    process.exit(1);
+    return;
+  }
+  const sendPresent = options.send !== undefined;
+  const legacyNumericParent = explicitReplyTo === null
+    ? detectLegacyNumericReplyParent(options.reply, sendPresent)
+    : null;
+
+  let replyArg = classifyReplyArg(options.reply);
+  // Legacy compat: when `--reply=<digits> --send` is used WITHOUT --reply-to,
+  // treat the numeric value as the parent id and pull the body from stdin —
+  // exactly like the pre-PR-17 shape. Emit a one-line deprecation hint to
+  // stderr so users migrate to --reply-to.
+  if (legacyNumericParent !== null) {
+    replyArg = { kind: 'stdin' };
+    if (!quiet) {
+      ui.warn(`tube: --reply=${legacyNumericParent} --send is the legacy shape; prefer --reply-to=${legacyNumericParent} (with stdin or --reply <body>)`);
+    }
+  }
+
+  // If --reply-to is set, we need a body source. --reply <body> (or stdin)
+  // both work. Promote a bare --reply-to (no --reply) to a stdin reply.
+  if (explicitReplyTo !== null && replyArg.kind === 'none') {
+    replyArg = { kind: 'stdin' };
+  }
+
   const sendArg = classifySendArg(options.send);
 
   // Forbid the obvious nonsense up front.
+  // --send must be a strict boolean toggle when --reply provides an inline
+  // body — anything like `--send "body"` collides with the inline reply.
   if (replyArg.kind !== 'none' && sendArg.kind === 'inline') {
-    ui.error('tube: --send takes no body when used with --reply (it just toggles post-and-exit)');
+    ui.error('tube: --send takes no body when used with --reply — pick one (inline reply OR stdin send), not both');
+    process.exit(1);
+    return;
+  }
+  // If --send is given alongside --reply with explicit `-` (stdin) for
+  // --send, that's also nonsense: --reply already chose the body source.
+  if (replyArg.kind !== 'none' && sendArg.kind === 'stdin' && options.send !== true && legacyNumericParent === null) {
+    ui.error('tube: --send=- is not valid with --reply; --send is a boolean post-and-exit toggle in this combo');
     process.exit(1);
     return;
   }
@@ -474,28 +556,27 @@ export async function handleTube(channel: string | undefined, options: CLIOption
     let parentId: number;
 
     try {
+      // Decide parent id first (explicit --reply-to wins, then legacy
+      // numeric, then auto-correlate to lastForeignEventId).
+      if (explicitReplyTo !== null) {
+        parentId = explicitReplyTo;
+      } else if (legacyNumericParent !== null) {
+        parentId = legacyNumericParent;
+      } else {
+        const meta = readHistory(history, physical);
+        if (!meta?.lastForeignEventId) {
+          throw new Error(
+            'tube: no event to reply to yet — listen first (pd tube ' + channelLabel + ') so the cursor knows the parent id, or pass --reply-to=<id> to specify the parent explicitly'
+          );
+        }
+        parentId = meta.lastForeignEventId;
+      }
+
+      // Then resolve the body.
       if (replyArg.kind === 'stdin') {
         body = await bodyFromStdin();
-        const meta = readHistory(history, physical);
-        if (!meta?.lastForeignEventId) {
-          throw new Error(
-            'tube: no event to reply to yet — listen first, or use --reply=<id> with the explicit message id'
-          );
-        }
-        parentId = meta.lastForeignEventId;
-      } else if (replyArg.kind === 'numericParent') {
-        body = await bodyFromStdin();
-        parentId = replyArg.parentId;
       } else {
-        // inline body — auto-correlate to last foreign event
         body = replyArg.body;
-        const meta = readHistory(history, physical);
-        if (!meta?.lastForeignEventId) {
-          throw new Error(
-            'tube: no event to reply to yet — listen first (pd tube ' + channelLabel + ') so the cursor knows the parent id, or use --reply=<id> --send'
-          );
-        }
-        parentId = meta.lastForeignEventId;
       }
 
       const result = await reply(physical, parentId, body, client, { sender: selfSender });
@@ -506,10 +587,10 @@ export async function handleTube(channel: string | undefined, options: CLIOption
       return;
     }
 
-    // post-and-exit: --send modifier OR --once OR explicit numeric parent.
-    // Continue listening when the user passed an inline body / bare --reply
-    // and didn't ask to exit. That's the loop-unlock shape.
-    const exitAfterPost = !!options.send || !!options.once || replyArg.kind === 'numericParent';
+    // post-and-exit: --send modifier OR --once OR legacy numeric-parent
+    // shape. Continue listening when the user passed an inline body / bare
+    // --reply (or --reply-to without --send) and didn't ask to exit.
+    const exitAfterPost = !!options.send || !!options.once || legacyNumericParent !== null;
     if (exitAfterPost) return;
 
     // Fall through to listen loop.

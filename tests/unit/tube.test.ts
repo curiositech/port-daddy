@@ -43,6 +43,7 @@ const mockUi = {
   error: jest.fn(),
   info: jest.fn(),
   success: jest.fn(),
+  warn: jest.fn(),
 };
 
 jest.unstable_mockModule('../../cli/utils/fetch.js', () => ({
@@ -511,14 +512,12 @@ describe('cli/tube handler', () => {
     expect(logs[0]).toContain('"id":50');
   });
 
-  test('--reply pipes stdin and tags parent id', async () => {
+  test('--reply-to=<id> pipes stdin and tags the explicit parent id', async () => {
     const publish = jest.fn(async () => ({ ok: true, id: 99 })) as unknown as TubeClient['publish'];
-    const client: TubeClient = {
-      publish,
-      getMessages: jest.fn() as unknown as TubeClient['getMessages'],
-    };
+    const getMessages = jest.fn(async () => ({ ok: true, messages: [] })) as unknown as TubeClient['getMessages'];
+    const client: TubeClient = { publish, getMessages };
 
-    await handleTube('chan', { reply: '7', json: true }, {
+    await handleTube('chan', { 'reply-to': '7', json: true, send: true }, {
       client,
       history: inMemoryHistoryStore(),
       stdin: fakeStdin('roger that'),
@@ -718,6 +717,79 @@ describe('cli/tube handler', () => {
     expect(envelope.inReplyTo).toBe(7);
     // Post-and-exit: no listen pass should have happened.
     expect((getMessages as jest.Mock).mock.calls).toHaveLength(0);
+    // Legacy shape emits a deprecation hint to ui.warn pointing at --reply-to.
+    expect(mockUi.warn).toHaveBeenCalledWith(expect.stringMatching(/--reply-to=7/));
+  });
+
+  test('--reply with literal numeric body sends "42" as the body, not as a parent id', async () => {
+    const publish = jest.fn(async () => ({ ok: true, id: 100 })) as unknown as TubeClient['publish'];
+    const getMessages = jest.fn(async () => ({ ok: true, messages: [] })) as unknown as TubeClient['getMessages'];
+    const client: TubeClient = { publish, getMessages };
+    const history = inMemoryHistoryStore();
+    writeHistory(history, 'chan', { lastSeenId: 9, lastForeignEventId: 9, lastForeignSender: 'web' });
+
+    await handleTube('chan', { reply: '42', json: true, 'wait-for': '0' }, {
+      client,
+      history,
+      stdin: fakeStdin('', { isTTY: true }),
+      sleep: jest.fn(async () => {}),
+    });
+
+    const envelope = (publish as jest.Mock).mock.calls[0][1] as { body: string; inReplyTo?: number };
+    expect(envelope.body).toBe('42');
+    // Auto-correlated to the last foreign event id (9), NOT to "42" as parent.
+    expect(envelope.inReplyTo).toBe(9);
+  });
+
+  test('--reply <body> --reply-to=<id> uses the explicit parent and continues listening', async () => {
+    const publish = jest.fn(async () => ({ ok: true, id: 101 })) as unknown as TubeClient['publish'];
+    const getMessages = jest.fn(async () => ({ ok: true, messages: [] })) as unknown as TubeClient['getMessages'];
+    const client: TubeClient = { publish, getMessages };
+
+    await handleTube('chan', { reply: 'shipped', 'reply-to': '17', json: true, 'wait-for': '0' }, {
+      client,
+      history: inMemoryHistoryStore(), // no foreign event seen — explicit parent does not need one
+      stdin: fakeStdin('', { isTTY: true }),
+      sleep: jest.fn(async () => {}),
+    });
+
+    const envelope = (publish as jest.Mock).mock.calls[0][1] as { body: string; inReplyTo?: number };
+    expect(envelope.body).toBe('shipped');
+    expect(envelope.inReplyTo).toBe(17);
+    // Falls through to listen — at least one getMessages poll happens.
+    expect((getMessages as jest.Mock).mock.calls.length).toBeGreaterThanOrEqual(1);
+  });
+
+  test('--reply-to with non-numeric value rejects with a clear error', async () => {
+    const client: TubeClient = {
+      publish: jest.fn() as unknown as TubeClient['publish'],
+      getMessages: jest.fn() as unknown as TubeClient['getMessages'],
+    };
+
+    await expect(
+      handleTube('chan', { 'reply-to': 'banana', send: true }, {
+        client,
+        history: inMemoryHistoryStore(),
+        stdin: fakeStdin('hi'),
+      }),
+    ).rejects.toThrow('exit:1');
+    expect(mockUi.error).toHaveBeenCalledWith(expect.stringMatching(/--reply-to/));
+  });
+
+  test('--reply <body> --send <other-body> rejects (cannot mix inline reply with a stdin/inline send)', async () => {
+    const client: TubeClient = {
+      publish: jest.fn() as unknown as TubeClient['publish'],
+      getMessages: jest.fn() as unknown as TubeClient['getMessages'],
+    };
+
+    await expect(
+      handleTube('chan', { reply: 'inline reply body', send: 'inline send body', json: true }, {
+        client,
+        history: inMemoryHistoryStore(),
+        stdin: fakeStdin('', { isTTY: true }),
+      }),
+    ).rejects.toThrow('exit:1');
+    expect(mockUi.error).toHaveBeenCalledWith(expect.stringMatching(/inline reply OR stdin send|takes no body/));
   });
 
   test('--send "body" posts the inline body as a top-level message', async () => {

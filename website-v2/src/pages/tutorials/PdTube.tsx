@@ -128,9 +128,11 @@ SUCCESS: tube: posted id=43 to ui:clicks`}
           </div>
           <p>
             Default output is the prose block. For machines, use <code>--json</code> (one JSON line
-            per message) or <code>--raw</code> (legacy tab-separated <code>id\tsender\tbody</code>).
-            For humans watching a terminal long-term, <code>--tail</code> keeps the polling loop
-            alive instead of returning on first event.
+            per message) or <code>--raw</code> (tab-separated{' '}
+            <code>id&nbsp;\t&nbsp;sender[&nbsp;↩parent]&nbsp;\t&nbsp;body</code>; the{' '}
+            <code>↩parent</code> suffix on the sender column appears only on replies). For humans
+            watching a terminal long-term, <code>--tail</code> keeps the polling loop alive instead
+            of returning on first event.
           </p>
           <CodeBlock language="bash">
             {`$ pd tube ui:clicks --json --once
@@ -138,6 +140,7 @@ SUCCESS: tube: posted id=43 to ui:clicks`}
 
 $ pd tube ui:clicks --raw --once
 42	web-demo	{"button":"deploy-staging"}
+43	agent ↩42	shipping it
 
 $ pd tube ui:clicks --tail
 …runs forever, prints every new event as prose…`}

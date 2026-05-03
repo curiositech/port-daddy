@@ -1,4 +1,5 @@
 import { ArrowRight, MessageSquareDashed, Radio, Reply } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import {
   BracketLabel,
@@ -192,7 +193,7 @@ function BehaviorCard({
 }: {
   icon: typeof Radio
   title: string
-  body: React.ReactNode
+  body: ReactNode
 }) {
   return (
     <div className="border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-4)]">
