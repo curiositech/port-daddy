@@ -49,6 +49,17 @@ export type GuardDecision = GuardOk | GuardDeny;
  * project is adversarial. Plaintext content is allowed for all other
  * projects (backwards compatibility).
  */
+/**
+ * Plaintext content fields the route layer extracts to publish/store.
+ * If any of these appear alongside `envelope` on an adversarial write,
+ * the daemon refuses the request to prevent the smuggle vector where a
+ * client attaches a valid envelope but slips plaintext past the guard.
+ *
+ * Routes pass the names they actually read (`content`/`payload`/`message`
+ * for messaging, `content` for session notes, `fields[1+]` for tuples).
+ */
+const PLAINTEXT_SMUGGLE_FIELDS = ['payload', 'content', 'message'] as const;
+
 export function checkAdversarialProjectWrite(
   project: ProjectName,
   body: unknown,
@@ -68,7 +79,33 @@ export function checkAdversarialProjectWrite(
   if (!daemonAcceptsEnvelopeFor(env as EnvelopePayload, project)) {
     return { ok: false, code: 403, reason: 'envelope-rejected-by-daemon' };
   }
+  // Reject envelope + plaintext smuggling: a valid envelope must not be
+  // accompanied by a plaintext content field that the route would
+  // otherwise persist instead of the envelope.
+  const bodyRecord = body as Record<string, unknown>;
+  for (const field of PLAINTEXT_SMUGGLE_FIELDS) {
+    if (bodyRecord[field] !== undefined && bodyRecord[field] !== null && bodyRecord[field] !== '') {
+      return { ok: false, code: 403, reason: `plaintext-field-with-envelope:${field}` };
+    }
+  }
   return { ok: true, envelopeRequired: true, envelope: env as EnvelopePayload };
+}
+
+/**
+ * Tuples carry their payload as `fields[1+]` (fields[0] is the
+ * adversarial-routed key). For adversarial tuples, fields[1+] must be
+ * absent (envelope-only) or contain only sentinel markers — anything
+ * non-sentinel would be plaintext smuggled past the envelope.
+ */
+export function checkAdversarialTupleFields(fields: unknown[]): GuardDecision {
+  if (fields.length <= 1) return { ok: true, envelopeRequired: true, envelope: null };
+  const sentinel = (v: unknown) => v === null || v === undefined || v === '' || v === 'sealed';
+  for (let i = 1; i < fields.length; i += 1) {
+    if (!sentinel(fields[i])) {
+      return { ok: false, code: 403, reason: 'plaintext-tuple-field-with-envelope' };
+    }
+  }
+  return { ok: true, envelopeRequired: true, envelope: null };
 }
 
 /**

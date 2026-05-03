@@ -94,6 +94,21 @@ describe('tuples route — adversarial guard', () => {
     expect(res.statusCode).toBe(200);
   });
 
+  test('refuses envelope + plaintext field[1] smuggle on adversarial tuple', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/tuples',
+      payload: {
+        fields: ['smell:vuln:crypto:bonded:7.4:0001', 'leaky plaintext payload'],
+        envelope: fakeEnvelope('redteam-review'),
+      },
+    });
+    expect(res.statusCode).toBe(403);
+    const body = JSON.parse(res.body);
+    expect(body.code).toBe('ADVERSARIAL_PROJECT_GUARD');
+    expect(body.error).toMatch(/plaintext-tuple-field-with-envelope/);
+  });
+
   test('accepts plaintext non-adversarial tuple (back-compat)', async () => {
     const res = await app.inject({
       method: 'POST',
@@ -154,16 +169,49 @@ describe('messaging route — adversarial guard', () => {
     expect(res.statusCode).toBe(403);
   });
 
-  test('accepts envelope-bearing POST to redteam:crypto', async () => {
+  test('accepts envelope-only POST to redteam:crypto', async () => {
     const res = await app.inject({
       method: 'POST',
       url: '/msg/redteam:crypto',
       payload: {
-        content: 'opaque',
         envelope: fakeEnvelope('redteam-review'),
       },
     });
     expect(res.statusCode).toBe(200);
+  });
+
+  test('refuses envelope + plaintext content smuggle on redteam channel', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/msg/redteam:crypto',
+      payload: {
+        content: 'leaky plaintext smuggled past envelope',
+        envelope: fakeEnvelope('redteam-review'),
+      },
+    });
+    expect(res.statusCode).toBe(403);
+    const body = JSON.parse(res.body);
+    expect(body.code).toBe('ADVERSARIAL_PROJECT_GUARD');
+    expect(body.error).toMatch(/plaintext-field-with-envelope/);
+  });
+
+  test('persists envelope JSON, not plaintext, on adversarial channel', async () => {
+    const envelope = fakeEnvelope('redteam-review');
+    const post = await app.inject({
+      method: 'POST',
+      url: '/msg/redteam:crypto',
+      payload: { envelope },
+    });
+    expect(post.statusCode).toBe(200);
+    const get = await app.inject({ method: 'GET', url: '/msg/redteam:crypto' });
+    expect(get.statusCode).toBe(200);
+    const { messages } = JSON.parse(get.body);
+    expect(Array.isArray(messages)).toBe(true);
+    expect(messages.length).toBeGreaterThan(0);
+    const stored = messages[0].payload ?? messages[0].content ?? messages[0].message;
+    expect(typeof stored).toBe('string');
+    const parsed = JSON.parse(stored);
+    expect(parsed.key_id).toBe(envelope.key_id);
   });
 
   test('accepts plaintext POST to ordinary channel (back-compat)', async () => {

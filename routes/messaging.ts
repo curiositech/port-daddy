@@ -97,12 +97,16 @@ export const messagingPlugin: FastifyPluginAsync<{ deps: MessagingRouteDeps }> =
       }
 
       const { payload, content, message, sender, expires } = request.body as any;
-      const publishPayload = payload ?? content ?? message;
+      const plaintextPayload = payload ?? content ?? message;
 
       // Adversarial-fleet channels (redteam:*, defense:*) require
       // envelope-encrypted bodies. Ordinary channels are unaffected.
+      // For adversarial writes, the daemon publishes the envelope JSON,
+      // not any plaintext field — and the guard rejects requests that
+      // attach plaintext alongside an envelope (smuggle vector).
       const channel = (request.params as any).channel as string;
       const inferred = projectForChannel(channel);
+      let publishPayload: unknown = plaintextPayload;
       if (inferred) {
         const guard = checkAdversarialProjectWrite(inferred, request.body);
         if (guard.ok === false) {
@@ -111,6 +115,9 @@ export const messagingPlugin: FastifyPluginAsync<{ deps: MessagingRouteDeps }> =
             error: guard.reason,
             code: 'ADVERSARIAL_PROJECT_GUARD',
           };
+        }
+        if (guard.envelopeRequired && guard.envelope) {
+          publishPayload = JSON.stringify(guard.envelope);
         }
       }
 

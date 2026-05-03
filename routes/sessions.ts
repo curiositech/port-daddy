@@ -125,7 +125,9 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
 
     // Adversarial-fleet projects (redteam-review, whitehat-defense) require
     // envelope-encrypted bodies. Look up the session's identity_project to
-    // decide; ordinary projects are unaffected.
+    // decide; ordinary projects are unaffected. For adversarial writes the
+    // daemon persists the envelope JSON, never the plaintext content.
+    let writtenContent: string = content;
     if (sessionId) {
       const lookup = sessions.get(sessionId);
       const sess = (lookup as any)?.session as { identity_project?: string | null } | undefined;
@@ -139,9 +141,12 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
           code: 'ADVERSARIAL_PROJECT_GUARD',
         };
       }
+      if (guard.envelopeRequired && guard.envelope) {
+        writtenContent = JSON.stringify(guard.envelope);
+      }
     }
 
-    const result = sessions.quickNote(content, { sessionId, agentId, type });
+    const result = sessions.quickNote(writtenContent, { sessionId, agentId, type });
 
     if (!result.success) {
       reply.code(noteWriteStatus(result));
