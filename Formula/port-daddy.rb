@@ -41,14 +41,18 @@ class PortDaddy < Formula
         pd setup                  # user-level links
         cd your-project && pd init # project-local links
 
-      Setup links the same canonical skill into:
+      Setup links the same canonical skill into every supported runtime:
         ~/.codex/skills/port-daddy-agent-skill
         ~/.claude/skills/port-daddy-agent-skill
         ~/.agents/skills/port-daddy-agent-skill
+        ~/.codeium/windsurf/skills/port-daddy-agent-skill
+        ~/.continue/prompts/port-daddy-agent-skill
+        ~/.config/cline/skills/port-daddy-agent-skill
         ~/.gemini/extensions/port-daddy/skills/port-daddy-agent-skill
+        ~/.cursor/rules/port-daddy-agent-skill.md
 
       Verify from the console:
-        ls -l ~/.codex/skills/port-daddy-agent-skill ~/.claude/skills/port-daddy-agent-skill ~/.agents/skills/port-daddy-agent-skill ~/.gemini/extensions/port-daddy/skills/port-daddy-agent-skill
+        pd setup --status
         pd status
 
       Or open FleetBar/Fleet Control Center and confirm the selected project,

@@ -20,8 +20,12 @@
  * ════════════════════════════════════════════════════════════════════════
  *  INVARIANTS WE GUARD
  * ════════════════════════════════════════════════════════════════════════
- * 1. CAP RESPECTED. Under any acquire/release/resize trace, `inflight`
- *    never exceeds `capacity`. Verified by fast-check property tests.
+ * 1. CAP RESPECTED. Under any acquire/release/resize trace where capacity
+ *    is fixed or only grown, `inflight` never exceeds `capacity`. Shrinks
+ *    grandfather existing holders (see RESIZE SEMANTICS below) — so after
+ *    a shrink, `inflight > newCapacity` is allowed transiently until those
+ *    holders drain; no new acquires are granted while inflight ≥ newCapacity.
+ *    Verified by fast-check property tests.
  *
  * 2. FIFO FAIRNESS. When permits are scarce, waiters are granted in the
  *    order they called `acquire()`. No starvation, no priority inversions.
@@ -259,10 +263,14 @@ function validateCapacity(n: number, name: string): number {
  *
  * Capacity = `Number.POSITIVE_INFINITY` is the rest-of-system default for
  * "no limit configured." We map it to a very large finite cap (1_000_000)
- * so the math stays in integer-land — Infinity in inflight comparisons
- * works in V8 but trips weird Number.isInteger guards if anyone reads it.
+ * inside the semaphore so the math stays in integer-land — Infinity in
+ * inflight comparisons works in V8 but trips weird Number.isInteger guards
+ * if anyone reads it. The registry tracks "unlimited" as an explicit per-
+ * project flag (NOT a sentinel value) so a real configured cap of exactly
+ * 1,000,000 reports honestly as 1_000_000 instead of being misread as
+ * Infinity in diagnostics.
  */
-const UNLIMITED = 1_000_000;
+const UNLIMITED_INTERNAL_CAP = 1_000_000;
 
 export interface ProjectSemaphoreRegistry {
   /**
@@ -298,21 +306,30 @@ export interface ProjectSemaphoreRegistry {
  */
 export function createProjectSemaphoreRegistry(): ProjectSemaphoreRegistry {
   const registry = new Map<string, Semaphore>();
+  // Tracks projects whose capacity is logically "unlimited" — kept separate
+  // from the semaphore's internal numeric cap so a real configured cap of
+  // 1,000,000 doesn't get misreported as Infinity in snapshot().
+  const unlimited = new Set<string>();
+
+  function isUnlimited(capacity: number | undefined): boolean {
+    return capacity === undefined || !Number.isFinite(capacity) || capacity < 0;
+  }
 
   function forProject(project: string, capacity?: number): Semaphore {
     let sem = registry.get(project);
     if (!sem) {
-      const cap = capacity === undefined || !Number.isFinite(capacity) || capacity < 0
-        ? UNLIMITED
-        : Math.floor(capacity);
+      const willBeUnlimited = isUnlimited(capacity);
+      const cap = willBeUnlimited ? UNLIMITED_INTERNAL_CAP : Math.floor(capacity!);
       sem = createSemaphore({ capacity: cap, name: `fleet:${project}` });
       registry.set(project, sem);
+      if (willBeUnlimited) unlimited.add(project);
       return sem;
     }
     // Existing semaphore: only update capacity if caller provided one. Avoids
     // the "creator wins" bug where the first registrant pins the cap forever.
     if (capacity !== undefined && Number.isFinite(capacity) && capacity >= 0) {
       sem.resize(Math.floor(capacity));
+      unlimited.delete(project);
     }
     return sem;
   }
@@ -320,7 +337,13 @@ export function createProjectSemaphoreRegistry(): ProjectSemaphoreRegistry {
   function resize(project: string, newCapacity: number): void {
     const sem = registry.get(project);
     if (!sem) return;
-    sem.resize(newCapacity);
+    if (isUnlimited(newCapacity)) {
+      sem.resize(UNLIMITED_INTERNAL_CAP);
+      unlimited.add(project);
+    } else {
+      sem.resize(Math.floor(newCapacity));
+      unlimited.delete(project);
+    }
   }
 
   function remove(project: string, reason: string): void {
@@ -328,6 +351,7 @@ export function createProjectSemaphoreRegistry(): ProjectSemaphoreRegistry {
     if (!sem) return;
     sem.drain(reason);
     registry.delete(project);
+    unlimited.delete(project);
   }
 
   function drainAll(reason: string): void {
@@ -335,6 +359,7 @@ export function createProjectSemaphoreRegistry(): ProjectSemaphoreRegistry {
       sem.drain(reason);
       registry.delete(project);
     }
+    unlimited.clear();
   }
 
   function snapshot(): Array<{ project: string; capacity: number; inflight: number; waiters: number }> {
@@ -342,7 +367,7 @@ export function createProjectSemaphoreRegistry(): ProjectSemaphoreRegistry {
     for (const [project, sem] of registry) {
       out.push({
         project,
-        capacity: sem.capacity === UNLIMITED ? Number.POSITIVE_INFINITY : sem.capacity,
+        capacity: unlimited.has(project) ? Number.POSITIVE_INFINITY : sem.capacity,
         inflight: sem.inflight,
         waiters: sem.waiters,
       });

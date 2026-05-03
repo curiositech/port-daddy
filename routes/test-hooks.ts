@@ -12,10 +12,13 @@
  *   or polluting production with debug routes.
  *
  * Safety:
- *   - The plugin no-ops in non-test environments. Even if a misconfigured
- *     daemon set NODE_ENV=test in production, every test-mode route is a
- *     thin pass-through to existing primitives — none of them bypass any
- *     governance check.
+ *   - The plugin no-ops in non-test environments. NODE_ENV=test in
+ *     production IS dangerous: /test/cost-event lets an unauthenticated
+ *     caller synthesize cost charges that *will* arm budget kills and
+ *     drive the kill chain. Treat this as a hot deploy gate — do not run
+ *     a production daemon with NODE_ENV=test, and consider a separate
+ *     loopback-only listener + secret header before extending the
+ *     test-mode surface beyond cost synthesis.
  *   - All test-mode routes are namespaced under /test/* so any operator
  *     glancing at the route list sees them clearly labeled.
  */
@@ -54,6 +57,16 @@ export const testHooksPlugin: FastifyPluginAsync<{ deps: TestHooksDeps }> = asyn
    * Used by tests/integration/fleet-budget-kill.integration.test.js.
    */
   app.post('/test/cost-event', async (request: FastifyRequest, reply: FastifyReply) => {
+    // Belt-and-braces: even though the plugin only mounts under NODE_ENV=test,
+    // refuse non-loopback callers. If somebody forgets and ships a daemon
+    // with NODE_ENV=test, at least an attacker on the network can't drive
+    // synthetic budget kills.
+    const remote = request.ip || request.socket?.remoteAddress || '';
+    const isLoopback = remote === '127.0.0.1' || remote === '::1' || remote === '::ffff:127.0.0.1' || remote === '';
+    if (!isLoopback) {
+      reply.code(403);
+      return { error: 'test hooks are loopback-only' };
+    }
     const body = (request.body as Record<string, unknown>) || {};
     const backend = typeof body.backend === 'string' ? body.backend : 'claude-cli';
     const model = typeof body.model === 'string' ? body.model : 'claude-sonnet-4-5';

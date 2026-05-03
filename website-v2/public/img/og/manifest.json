@@ -1099,15 +1099,6 @@
       "sourceImage": "/img/generated/control-plane-og.jpg"
     },
     {
-      "image": "/img/og/docs-cli-tube-chat.jpg",
-      "route": "/docs/cli/tube-chat",
-      "title": "pd tube chat <channel> - Port Daddy",
-      "description": "Reference for pd tube chat <channel>, including Port Daddy syntax, what the command does, and when to use it.",
-      "section": "docs",
-      "sectionLabel": "Docs",
-      "sourceImage": "/img/generated/control-plane-og.jpg"
-    },
-    {
       "image": "/img/og/docs-cli-tube.jpg",
       "route": "/docs/cli/tube",
       "title": "pd tube <channel> - Port Daddy",
@@ -1468,15 +1459,6 @@
       "sourceImage": "/img/generated/control-plane-og.jpg"
     },
     {
-      "image": "/img/og/docs-lifecycle.jpg",
-      "route": "/docs/lifecycle",
-      "title": "Agent Work Lifecycle - Port Daddy",
-      "description": "Follow the path from install to daily coordination, SDK/MCP integration, FleetBar operation, and team governance.",
-      "section": "docs",
-      "sectionLabel": "Docs",
-      "sourceImage": "/img/generated/control-plane-og.jpg"
-    },
-    {
       "image": "/img/og/docs-mcp-acquire-lock.jpg",
       "route": "/docs/mcp/acquire-lock",
       "title": "MCP Acquire Lock Tool - Port Daddy",
@@ -1771,15 +1753,6 @@
       "description": "Legacy Port Daddy documentation kept available for compatibility while the current docs system is normalized.",
       "section": "legacy",
       "sectionLabel": "Archive",
-      "sourceImage": "/img/generated/control-plane-og.jpg"
-    },
-    {
-      "image": "/img/og/docs-personae.jpg",
-      "route": "/docs/personae",
-      "title": "Developer Personae - Port Daddy",
-      "description": "Choose the docs path that matches the person reading: first-timer, CLI coordinator, SDK integrator, agent builder, Mac operator, team lead, or security owner.",
-      "section": "docs",
-      "sectionLabel": "Docs",
       "sourceImage": "/img/generated/control-plane-og.jpg"
     },
     {

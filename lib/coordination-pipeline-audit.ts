@@ -29,10 +29,11 @@
 
 import { createHash } from 'node:crypto';
 
-// Channel name shape: <scope>:<topic>[:<sub-topic>...] using lowercase letters,
-// digits, hyphens, periods. Stars allowed for wildcard subscriptions, but a
-// declared channel should NOT contain a star. Underscores accepted but
-// discouraged via warning, not error.
+// Channel name shape: <scope>:<topic>[:<sub-topic>...] — lowercase letters,
+// digits, and hyphens between colon-delimited segments. Periods, underscores,
+// and stars are NOT accepted by this default pattern; a violation flags as
+// `channel_naming`. Operators that want a looser ruleset can override
+// `channelNamingPattern` per audit instance.
 export const DEFAULT_CHANNEL_NAMING_PATTERN = /^[a-z][a-z0-9-]*(?::[a-z0-9][a-z0-9-]*)+$/;
 // Tuple keys are `<noun>/<noun>` style: `claim/files`, `lock/holders`, etc.
 export const DEFAULT_TUPLE_KEY_PATTERN = /^[a-z][a-z0-9-]*\/[a-z][a-z0-9-]*$/;

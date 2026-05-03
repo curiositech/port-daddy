@@ -134,7 +134,6 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 - [pd subscribe - Port Daddy](https://portdaddy.dev/docs/cli/subscribe): Reference for pd subscribe, including Port Daddy syntax, what the command does, and when to use it.
 - [pd swarm - Port Daddy](https://portdaddy.dev/docs/cli/swarm): Reference for pd swarm, including Port Daddy syntax, what the command does, and when to use it.
 - [pd tube <channel> - Port Daddy](https://portdaddy.dev/docs/cli/tube): Reference for pd tube <channel>, including Port Daddy syntax, what the command does, and when to use it.
-- [pd tube chat <channel> - Port Daddy](https://portdaddy.dev/docs/cli/tube-chat): Reference for pd tube chat <channel>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd tunnel <identity> - Port Daddy](https://portdaddy.dev/docs/cli/tunnel): Reference for pd tunnel <identity>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd tunnel stop <identity> - Port Daddy](https://portdaddy.dev/docs/cli/tunnel-stop): Reference for pd tunnel stop <identity>, including Port Daddy syntax, what the command does, and when to use it.
 - [pd tuple <command> - Port Daddy](https://portdaddy.dev/docs/cli/tuple): Reference for pd tuple <command>, including Port Daddy syntax, what the command does, and when to use it.
@@ -173,7 +172,6 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 - [Prompting Agents - Port Daddy](https://portdaddy.dev/docs/guides/prompting-agents): Prompt agents to use Port Daddy sessions, notes, file claims, and shared status.
 - [Protocol Guide - Port Daddy](https://portdaddy.dev/docs/guides/protocol): Understand how Port Daddy handles ports, sessions, locks, messages, harbors, and salvage.
 - [Template Guide - Port Daddy](https://portdaddy.dev/docs/guides/templates): Adapt Port Daddy fleet templates for recurring project work, background agents, hooks, and review.
-- [Agent Work Lifecycle - Port Daddy](https://portdaddy.dev/docs/lifecycle): Follow the path from install to daily coordination, SDK/MCP integration, FleetBar operation, and team governance.
 - [MCP Overview - Port Daddy](https://portdaddy.dev/docs/mcp): Use MCP Overview with MCP clients so agents can work through Port Daddy safely.
 - [MCP Acquire Lock Tool - Port Daddy](https://portdaddy.dev/docs/mcp/acquire-lock): Use MCP Acquire Lock Tool with MCP clients so agents can work through Port Daddy safely.
 - [MCP Add Note Tool - Port Daddy](https://portdaddy.dev/docs/mcp/add-note): Use MCP Add Note Tool with MCP clients so agents can work through Port Daddy safely.
@@ -206,7 +204,6 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 - [MCP Up Tool - Port Daddy](https://portdaddy.dev/docs/mcp/up): Use MCP Up Tool with MCP clients so agents can work through Port Daddy safely.
 - [MCP Watch Tool - Port Daddy](https://portdaddy.dev/docs/mcp/watch): Use MCP Watch Tool with MCP clients so agents can work through Port Daddy safely.
 - [Windsurf MCP Setup - Port Daddy](https://portdaddy.dev/docs/mcp/windsurf): Use Windsurf MCP Setup with MCP clients so agents can work through Port Daddy safely.
-- [Developer Personae - Port Daddy](https://portdaddy.dev/docs/personae): Choose the docs path that matches the person reading: first-timer, CLI coordinator, SDK integrator, agent builder, Mac operator, team lead, or security owner.
 - [Quickstart - Port Daddy](https://portdaddy.dev/docs/quickstart): Install Port Daddy, check the local service, claim a port, and start the first coordinated agent task.
 - [Reference - Port Daddy](https://portdaddy.dev/docs/reference): Exact CLI, API, SDK, MCP, configuration, and dashboard reference for the live daemon, with task-first entry points above the catalogs.
 - [Reference Architectures - Port Daddy](https://portdaddy.dev/docs/reference-architectures): Example layouts for the daemon, dashboard, fleets, harbors, and team workflows.

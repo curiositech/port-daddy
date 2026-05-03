@@ -137,7 +137,16 @@ function handleShow(positional: string[], options: CLIOptions): void {
     process.exit(1);
   }
   if (options.json || options.j) {
-    console.log(JSON.stringify({ success: true, ...entry, contents: readFileSync(entry.snapshotPath, 'utf8') }, null, 2));
+    // Snapshots are raw bytes — could be binary, partial UTF-8, or anything
+    // the operator was editing. Base64-encode for JSON safety; the caller
+    // can decode with the explicit `encoding` field if they need bytes.
+    const bytes = readFileSync(entry.snapshotPath);
+    console.log(JSON.stringify({
+      success: true,
+      ...entry,
+      encoding: 'base64',
+      contents: bytes.toString('base64'),
+    }, null, 2));
     return;
   }
   process.stdout.write(readFileSync(entry.snapshotPath));

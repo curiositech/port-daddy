@@ -5,16 +5,17 @@ import { join } from 'node:path';
 const unique = (values) => Array.from(new Set(values));
 
 describe('Port Daddy skill authority', () => {
-  test('the repo exposes one canonical first-party Port Daddy skill surface', () => {
+  test('the repo exposes a canonical first-party Port Daddy agent-skill surface', () => {
+    // The original fragmentation was three variants of the SAME instruction
+    // manual (`port-daddy`, `port-daddy-cli`, `port-daddy-agent-skill`).
+    // We allow other first-party `port-daddy-*` surfaces (e.g.
+    // `port-daddy-marketing-copy` is a different concern entirely — copy
+    // generation, not agent guidance) — but the legacy duplicates must
+    // stay gone, and the canonical agent skill must exist.
     const skillsDir = join(process.cwd(), 'skills');
-    const portDaddySkills = readdirSync(skillsDir)
-      .filter((entry) => entry.startsWith('port-daddy'))
-      .sort();
-
-    expect(portDaddySkills).toEqual(['port-daddy-agent-skill']);
+    expect(existsSync(join(skillsDir, 'port-daddy-agent-skill', 'SKILL.md'))).toBe(true);
     expect(existsSync(join(skillsDir, 'port-daddy', 'SKILL.md'))).toBe(false);
     expect(existsSync(join(skillsDir, 'port-daddy-cli', 'SKILL.md'))).toBe(false);
-    expect(existsSync(join(skillsDir, 'port-daddy-agent-skill', 'SKILL.md'))).toBe(true);
   });
 
   test('the authoritative skill declares the canonical name', () => {
@@ -130,5 +131,37 @@ describe('Port Daddy skill authority', () => {
     expect(candidates.match(/port-daddy-agent-skill/g) ?? []).toHaveLength(1);
     expect(candidates).toContain(canonicalCandidate);
     expect(server).toContain('legacy alias/install');
+  });
+
+  test('setup and Homebrew install the canonical skill id into agent runtime mirrors', () => {
+    const setup = readFileSync(join(process.cwd(), 'cli', 'commands', 'setup.ts'), 'utf8');
+    const formula = readFileSync(join(process.cwd(), 'Formula', 'port-daddy.rb'), 'utf8');
+
+    expect(setup).toContain("AGENT_SKILL_ID = 'port-daddy-agent-skill'");
+    expect(setup).toContain("join(prefix, 'share', 'port-daddy', 'skills', AGENT_SKILL_ID)");
+    expect(setup).toContain("join(PROJECT_ROOT, 'skills', AGENT_SKILL_ID)");
+
+    for (const runtimePath of [
+      "'.codex', 'skills', AGENT_SKILL_ID",
+      "'.claude', 'skills', AGENT_SKILL_ID",
+      "'.agents', 'skills', AGENT_SKILL_ID",
+      "'.gemini', 'extensions', 'port-daddy', 'skills', AGENT_SKILL_ID",
+    ]) {
+      expect(setup).toContain(runtimePath);
+    }
+
+    expect(setup).not.toContain("'.claude', 'skills', 'port-daddy'");
+    expect(setup).not.toContain("'.gemini', 'extensions', 'port-daddy', 'skills', 'port-daddy'");
+
+    expect(formula).toContain('"skills/port-daddy-agent-skill" => "skills/port-daddy-agent-skill"');
+    expect(formula).not.toContain('=> "skills/port-daddy"');
+    for (const runtimePath of [
+      '~/.codex/skills/port-daddy-agent-skill',
+      '~/.claude/skills/port-daddy-agent-skill',
+      '~/.agents/skills/port-daddy-agent-skill',
+      '~/.gemini/extensions/port-daddy/skills/port-daddy-agent-skill',
+    ]) {
+      expect(formula).toContain(runtimePath);
+    }
   });
 });
