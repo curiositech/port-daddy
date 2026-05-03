@@ -1,29 +1,41 @@
 # PD Tube Examples
 
-`pd tube` is a small conversation pipe over Port Daddy channels. It is useful
-when an agent, page, or script needs a durable, threaded handoff without parsing
-a human chat transcript.
+`pd tube` is the single command that turns any local UI, hook, or
+webhook into an event your running agent can answer in one shell call.
 
-## Browser Button To Agent
+## The Browser Button
 
-The simplest product shape is a plain browser button that publishes JSON to the
-daemon message endpoint. The agent side only needs a terminal:
+`button-to-agent.html` is a small page that publishes a click as a
+JSON event to `/msg/ui:clicks` and polls the same channel for the
+agent's reply. No SDK, no MCP, no websocket — just `fetch()`.
+
+The agent side runs once:
 
 ```bash
 pd tube ui:clicks
 ```
 
-When the page publishes a click, `pd tube` prints the event in the agent's
-terminal. The agent can do normal repo work, then reply by piping text back into
-the same tube:
+That blocks until the click arrives, prints a prose "crank-handle"
+block telling the agent how to reply, and exits. The agent does the
+work, then runs:
 
 ```bash
-printf '%s\n' "Deployed to staging. CI is green." \
-  | pd tube ui:clicks --reply 123 --sender claude-code
+pd tube ui:clicks --reply "Deployed to staging. CI is green."
 ```
 
-The browser watches the same channel, matches `inReplyTo: 123`, and renders the
-agent response inline.
+That single command posts a reply correlated to the most recent event
+from someone other than this listener (tracked as
+`lastForeignEventId` in the per-channel cursor) AND continues
+listening. The browser polls, sees the reply with `inReplyTo` set,
+and renders it next to the button.
+
+For very long bodies pipe stdin: `echo "…" | pd tube ui:clicks --reply -`.
+
+For explicit threading the legacy shape still works:
+
+```bash
+printf 'roger' | pd tube ui:clicks --reply=42 --send --sender codex
+```
 
 ## Run The Proof Demo
 
@@ -33,9 +45,9 @@ From the repo root:
 examples/pd-tube/demo.sh
 ```
 
-The script uses the live daemon and posts to `port-daddy:demo:tube`. It sends a
-top-level message, replies to that message, then reads the channel back as JSON
-lines.
+The script uses the live daemon and posts to `port-daddy:demo:tube`.
+It sends a top-level message, replies to that message, then reads the
+channel back as JSON lines.
 
 ## Recordings
 
@@ -54,4 +66,8 @@ agg demos/pd-tube/pd-tube-real-output.cast demos/pd-tube/pd-tube-real-output.gif
 vhs demos/pd-tube/pd-tube-real-output.tape
 ```
 
-The commands intentionally hit the daemon instead of echoing canned output.
+The commands intentionally hit the daemon instead of echoing canned
+output. Note: the recordings predate the prose-default change and
+still show the legacy tab-separated output. The behavior is the
+same; re-record with `--raw` if you want machine-friendly lines, or
+without flags for the new default prose block.
