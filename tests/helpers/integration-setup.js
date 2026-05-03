@@ -146,20 +146,13 @@ export function request(path, options = {}) {
     });
 
     req.on('error', (err) => {
-      if (err?.code === 'EPIPE' || err?.code === 'ECONNRESET') {
-        // Daemon closed the connection before we finished writing the body or
-        // before sending a response. Two known causes:
-        //   1. Body exceeds DAEMON_BODY_LIMIT_BYTES — surface as 413 so size
-        //      tests still get a meaningful status.
-        //   2. Adversarial input (SQL-injection IDs, null bytes, etc.) under
-        //      CI load — daemon rejects mid-flight without a clean response.
-        //      Surface as 499 (client closed) so adversarial tests can assert
-        //      "not 500" without flaking on the unwritten response body.
-        const status = jsonBodyBytes > DAEMON_BODY_LIMIT_BYTES ? 413 : 499;
-        const data = status === 413
-          ? { error: 'request payload too large' }
-          : { error: 'connection closed before response', code: err.code };
-        resolve({ ok: false, status, data, text: JSON.stringify(data) });
+      if ((err?.code === 'EPIPE' || err?.code === 'ECONNRESET') && jsonBodyBytes > DAEMON_BODY_LIMIT_BYTES) {
+        resolve({
+          ok: false,
+          status: 413,
+          data: { error: 'request payload too large' },
+          text: '{"error":"request payload too large"}'
+        });
         return;
       }
       reject(err);
