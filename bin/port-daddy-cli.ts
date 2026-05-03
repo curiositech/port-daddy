@@ -111,6 +111,8 @@ import {
   handleAdd,
   // Claim-watcher snapshot list/restore/prune
   handleSnapshots,
+  // Shipwright — survey/propose/apply for fleet authoring
+  handleShipwright,
 } from '../cli/commands/index.js';
 import { getDaemonTcpUrl, readDaemonPort, resolveDaemonTcpTarget } from '../shared/daemon-discovery.js';
 import { calculateRuntimeCodeHash } from '../shared/code-hash.js';
@@ -1056,7 +1058,7 @@ const ALL_COMMANDS: string[] = [
   'advise', 'preflight', 'compass', 'guard',
   'salvage', 'resurrection', 'changelog', 'tunnel',
   'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
-  'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot',
+  'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'shipwright',
   'spawn', 'spawned', 'watch',
   'harbor', 'harbors', 'demo', 'fleet', 'tuple', 'sortie', 'graph', 'memory', 'ideas',
   'quorum',
@@ -2443,6 +2445,10 @@ async function main(): Promise<void> {
       case 'snapshots':
       case 'snapshot':
         await handleSnapshots(positional, options);
+        break;
+
+      case 'shipwright':
+        await handleShipwright(positional[0], options);
         break;
 
       case 'integration':

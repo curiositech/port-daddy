@@ -56,6 +56,7 @@ import { advisorPlugin } from './advisor.js';
 import { quorumPlugin } from './quorum.js';
 import { resourcesPlugin } from './resources.js';
 import { feedbackPlugin } from './feedback.js';
+import { shipwrightPlugin } from './shipwright.js';
 import { testHooksPlugin } from './test-hooks.js';
 
 type AnyDeps = Record<string, unknown>;
@@ -176,6 +177,15 @@ export async function registerAllRoutes(
   if ((deps as any).feedback) {
     await fastify.register(feedbackPlugin, { deps } as any);
   }
+
+  // Shipwright — survey/propose/apply for fleet authoring.
+  // Always mounts; LLM augmentation is opt-in and degrades if no client wired.
+  await fastify.register(shipwrightPlugin, {
+    deps: {
+      llmClient: (deps as any).llmClient,
+      defaultLlmModel: (deps as any).defaultLlmModel,
+    },
+  });
 
   // Test-only hooks. Self-degrades to no-op when NODE_ENV !== 'test'. Used
   // by the integration suite to drive the budget-kill chain end-to-end

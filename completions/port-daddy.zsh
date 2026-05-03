@@ -1872,6 +1872,7 @@ _port_daddy() {
     'guard:enforce Port Daddy session and file-claim discipline'
     'snapshots:list/show/restore/prune claim-watcher snapshots'
     'snapshot:alias for snapshots'
+    'shipwright:survey + propose + apply for fleet authoring'
     'pheromone:stigmergic coordination (spray, files, show, ls)'
     'ph:alias for pheromone'
     # Agent Inbox

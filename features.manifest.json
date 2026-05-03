@@ -1390,6 +1390,24 @@
         "sdk": false
       }
     },
+    "shipwright": {
+      "description": "Project surveyor + fleet authoring assistant. `pd shipwright survey` walks the surveyed project, classifies stack/activity, surfaces risks/opportunities, and writes `.portdaddy/shipwright/survey.json`. Optional --llm augmentation routes through the daemon's LLM client. Propose/apply ship in PR3 commit 3.",
+      "module": "lib/shipwright/survey.ts",
+      "cli": [
+        "shipwright"
+      ],
+      "sdk": [],
+      "routes": [
+        "POST /shipwright/survey"
+      ],
+      "completions": [
+        "shipwright"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
     "claim_watcher_snapshots": {
       "description": "Daemon-side mtime/hash watcher captures prior bytes when a claimed file's content changes mid-claim. `pd snapshots list/show/restore/prune` surfaces those snapshots to operators with one-command rollback. Auto-prune keeps disk usage bounded (default 7 days).",
       "module": "lib/claim-watcher.ts",
@@ -1522,6 +1540,22 @@
         "sdk": false
       },
       "_note": "Composite feature \u2014 routes module wiring cost-tracker + counters together. API-only (no SDK methods or CLI commands)."
+    },
+    "usage": {
+      "description": "Local product-usage telemetry for developer-pane diagnostics and operator UX instrumentation",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "POST /usage/trace",
+        "GET /usage/summary",
+        "GET /usage/events"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "API-only telemetry surface consumed by the Fleet Console developer pane."
     },
     "orchestrator_plugins": {
       "description": "Hot-swappable merge orchestrator plugins \u2014 default FIFO, custom priority/scheduling",
