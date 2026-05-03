@@ -45,9 +45,13 @@ opens with an updated version of this list, signed by `secops:lead`.
    propagation inequality, commit to `proofs/anchor/cuckoo/freshness.smt2`.
 3. **Anchor §3 Kani harness** — verify current; bump Kani version in
    the run log.
-4. **Bonded §7.x Conservation Theorem** — TLA+ spec
-   `proofs/bonded/conservation/Conservation.tla` + `Conservation.cfg`,
-   TLC log committed. Property: `[]TotalEscrowedConserved`.
+4. **Bonded §7.x Conservation Theorem** — **CLOSED v2.2.** TLA+ spec
+   `proofs/bonded/conservation/Conservation.tla` + `Conservation.cfg`
+   committed; TLC run log shows 26,818 states / 1,716 distinct, complete
+   state-space at bound (3 agents, MaxBalance=3, MaxMint=6), Conservation
+   invariant `TotalFree + TotalEscrow + Burned = Minted` and NoNegative
+   both hold. Re-check at higher bounds with Apalache once parameter
+   tuning matters.
 5. **Bonded §7.x No-Overdraft Lemma** — Kani harness over `lib/bonds.ts`
    `escrow()` plus an invariant that exhaustively checks the SQLite
    isolation reduction. Commit harness + Cargo.toml + run log.
@@ -59,8 +63,14 @@ opens with an updated version of this list, signed by `secops:lead`.
 8. **Bonded §7 Federated Security Theorem** — ProVerif model with
    daemon, KMS, email, passphrase as four separate principals; queries
    for each subset compromise; commit to `proofs/bonded/federated/`.
-9. **Bonded §7.4 Passkey device-pairing** — ProVerif (joint with
-   defense-crypto, defense-recovery); commit `proofs/bonded/pairing/`.
+9. **Bonded §7.4 Passkey device-pairing** — **CLOSED v2.2.** ProVerif
+   model `proofs/bonded/pairing/passkey-pair.pv` committed with run log;
+   3 properties verified TRUE under Dolev-Yao on the WebSocket channel:
+   passkey private-key secrecy, pairing authenticity (every pairing was
+   preceded by a QR scan with the new device's pubkey), and replay
+   resistance. The QR channel is private (out of scope by §7.4
+   declaration); compromised QR channel is documented as a separate
+   threat model.
 10. **Bonded §8.4.4 Pareto-dominance** — track Youle's draft; produce a
     TLA+ or Lean stub that pins the obligations the paper asserts so
     when Youle's proof lands we can integrate it.

@@ -4,6 +4,7 @@
 // it into the bundle.
 
 import dialogueV20to21 from '../../../docs/shipwright/dialogue-v2.0-to-v2.1.json'
+import dialogueV21to22 from '../../../docs/shipwright/dialogue-v2.1-to-v2.2.json'
 
 export interface RoundExchange {
   id: string
@@ -45,4 +46,7 @@ export interface RoundDialogue {
 }
 
 // Most-recent first.
-export const ROUNDS: RoundDialogue[] = [dialogueV20to21 as unknown as RoundDialogue]
+export const ROUNDS: RoundDialogue[] = [
+  dialogueV21to22 as unknown as RoundDialogue,
+  dialogueV20to21 as unknown as RoundDialogue,
+]
