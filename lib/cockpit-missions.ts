@@ -248,7 +248,6 @@ export function readMissions(options: ReadMissionsOptions): MissionIntake {
   const missing: string[] = [];
 
   for (const spec of sources) {
-    const before = all.length;
     const cards = readSourceCards(projectDir, spec, taken);
     if (cards.length === 0) {
       const abs = isAbsolute(spec.relPath) ? spec.relPath : join(projectDir, spec.relPath);
@@ -256,10 +255,10 @@ export function readMissions(options: ReadMissionsOptions): MissionIntake {
         statSync(abs);
       } catch {
         missing.push(spec.relPath);
-        continue;
       }
+      continue;
     }
-    if (cards.length > 0 || all.length > before) all.push(...cards);
+    all.push(...cards);
   }
 
   let filtered = all;

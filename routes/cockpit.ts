@@ -12,9 +12,21 @@
  * to /sorties when they're ready.
  */
 
+import { basename } from 'node:path';
+import { readFileSync } from 'node:fs';
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import { readMissions, type MissionCard, type MissionStatus } from '../lib/cockpit-missions.js';
 import { validateProjectRoot } from '../lib/utils.js';
+
+function deriveProjectName(projectDir: string): string {
+  try {
+    const pkg = JSON.parse(readFileSync(`${projectDir}/package.json`, 'utf8')) as { name?: string };
+    if (pkg.name && typeof pkg.name === 'string') return pkg.name.trim();
+  } catch {
+    // fall through to basename
+  }
+  return basename(projectDir);
+}
 
 interface SessionsDep {
   list(options?: {
@@ -146,7 +158,7 @@ function buildLiveContext(deps: CockpitDeps, mission: MissionCard, projectDir: s
   });
 
   const salvageList = deps.resurrection
-    ? asArray(deps.resurrection.pending({ project: 'port-daddy' }))
+    ? asArray(deps.resurrection.pending({ project: deriveProjectName(projectDir) }))
     : [];
   const matchedSalvage = salvageList.filter((row) => {
     const r = row as Record<string, unknown>;

@@ -3303,9 +3303,9 @@ class PortDaddy {
    */
   async cockpitMissions(options: {
     projectDir?: string;
-    status?: string[];
+    status?: CockpitMissionStatus[];
     limit?: number;
-  } = {}): Promise<{ success: boolean; intake: unknown; count: number }> {
+  } = {}): Promise<CockpitMissionsResponse> {
     const params = new URLSearchParams();
     if (options.projectDir) params.set('projectDir', options.projectDir);
     if (options.status && options.status.length > 0) {
@@ -3315,11 +3315,10 @@ class PortDaddy {
       params.set('limit', String(options.limit));
     }
     const suffix = params.toString();
-    return this._request('GET', suffix ? `/cockpit/missions?${suffix}` : '/cockpit/missions') as Promise<{
-      success: boolean;
-      intake: unknown;
-      count: number;
-    }>;
+    return this._request(
+      'GET',
+      suffix ? `/cockpit/missions?${suffix}` : '/cockpit/missions',
+    ) as Promise<CockpitMissionsResponse>;
   }
 
   // Harbors -- Named Permission Namespaces
@@ -4124,6 +4123,48 @@ interface GetSortieLogsResponse {
   success: boolean;
   sortie: SortieRecord;
   events: SortieEvent[];
+  count: number;
+  error?: string;
+}
+
+// =============================================================================
+// Cockpit types
+// =============================================================================
+
+export type CockpitMissionStatus =
+  | 'closed'
+  | 'blocked'
+  | 'drifting'
+  | 'stalled'
+  | 'mostly-resolved'
+  | 'mostly-committed'
+  | 'uncommitted'
+  | 'in-flight'
+  | 'unknown';
+
+export interface CockpitMissionCard {
+  id: string;
+  title: string;
+  status: CockpitMissionStatus;
+  source: string;
+  sourceAnchor: string;
+  summary: string;
+  evidence: string[];
+  files: string[];
+  updatedAt: number;
+}
+
+export interface CockpitMissionIntake {
+  projectDir: string;
+  sources: string[];
+  missing: string[];
+  missions: CockpitMissionCard[];
+  generatedAt: number;
+}
+
+export interface CockpitMissionsResponse {
+  success: boolean;
+  intake: CockpitMissionIntake;
   count: number;
   error?: string;
 }

@@ -38,7 +38,9 @@ function tonePalette(tone: StatusTone): [string, string, string] {
     return ['var(--pd-warning-surface)', 'var(--pd-warning)', 'var(--pd-warning-border)'];
   }
   if (tone === 'critical') {
-    return ['var(--pd-danger-surface)', 'var(--pd-danger)', 'var(--pd-danger-border)'];
+    // No --pd-danger* tokens defined in the theme; reuse cinnabar accent
+    // family which is the closest "warning/critical" hue we ship.
+    return ['var(--pd-accent-surface)', 'var(--pd-accent)', 'var(--pd-accent-border)'];
   }
   return ['var(--pd-bg)', 'var(--pd-muted)', 'var(--pd-border)'];
 }
