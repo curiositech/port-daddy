@@ -10,6 +10,7 @@ import {
   PanelTitle,
 } from '@/components/site/primitives'
 import { ROUNDS, type RoundExchange } from '@/data/whitepaperRounds'
+import { RoundsVisualization } from './RoundsVisualization'
 
 const SEVERITY_TONE: Record<RoundExchange['severity'], string> = {
   high: 'text-[var(--brand-primary)]',
@@ -57,7 +58,13 @@ export default function RoundsPage() {
           can audit. Most recent first.
         </p>
 
-        <div className="mt-10 space-y-12">
+        <div className="mt-12 mb-16">
+          <RoundsVisualization />
+        </div>
+
+        <h2 className="mt-12 mb-2 text-2xl font-semibold">Round-by-round detail</h2>
+
+        <div className="mt-6 space-y-12">
           {ROUNDS.map((round) => (
             <section
               key={`${round.round_from}-${round.round_to}`}

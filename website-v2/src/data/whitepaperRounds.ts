@@ -5,6 +5,7 @@
 
 import dialogueV20to21 from '../../../docs/shipwright/dialogue-v2.0-to-v2.1.json'
 import dialogueV21to22 from '../../../docs/shipwright/dialogue-v2.1-to-v2.2.json'
+import dialogueV22to23 from '../../../docs/shipwright/dialogue-v2.2-to-v2.3.json'
 
 export interface RoundExchange {
   id: string
