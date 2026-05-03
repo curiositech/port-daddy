@@ -1,5 +1,4 @@
 import { useLocation } from 'react-router-dom'
-import { docsLifecycleStages, docsPersonae } from '@/data/docs-personae'
 import { docsSidebarFamilies, findDocsRouteByPath } from '@/data/publicSite'
 import { findDocsContentSection } from '@/docs-content'
 import { BracketLink, BracketNavLink, DocsNoteCard, PanelBody } from './primitives'
@@ -58,26 +57,19 @@ export function DocsSidebar() {
     { title: 'Skill + MCP', href: '/mcp' },
     { title: 'Agents', href: '/agents' },
   ]
-  const taskGroups = [
-    { title: 'Install', href: '/docs/get-started' },
-    { title: 'Coordinate work', href: '/docs/lifecycle/coordinate-daily-work' },
-    { title: 'Recover work', href: '/docs/best-practices/operator-loop' },
-    { title: 'Integrate SDK/MCP', href: '/docs/lifecycle/integrate-sdk-and-mcp' },
-    { title: 'Reference', href: '/docs/reference' },
-  ]
 
   return (
     <aside className="space-y-[var(--panel-gap)] lg:sticky lg:top-24">
       <DocsNoteCard
         label="Start here"
-        title="One canonical first run."
+        title="Start with the basics."
         elevation="quiet"
         padding="compact"
         titleSize="nav"
       >
         <PanelBody size="compact" className="max-w-none">
-          Install Port Daddy, verify daemon truth, open the app, and create one named session before branching into
-          lifecycle, role, or reference docs.
+          Install Port Daddy, check that it is running, and try the first session loop. The whitepaper is available
+          when you want the deeper security and design background.
         </PanelBody>
         <div className="flex flex-wrap gap-[var(--space-2)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
           <BracketLink to="/whitepaper" tone="blue" side="left">
@@ -86,27 +78,6 @@ export function DocsSidebar() {
           <BracketLink to="/docs/get-started" tone="accent" side="right">
             Get started
           </BracketLink>
-        </div>
-      </DocsNoteCard>
-
-      <DocsNoteCard
-        label="Common jobs"
-        title="Pick the work, then the surface."
-        elevation="quiet"
-        padding="compact"
-        titleSize="nav"
-      >
-        <div className="flex flex-col gap-[var(--space-2)]">
-          {taskGroups.map((task, index) => (
-            <BracketNavLink
-              key={task.href}
-              to={task.href}
-              tone={index % 2 === 0 ? 'blue' : 'accent'}
-              side={index % 2 === 0 ? 'left' : 'right'}
-            >
-              {task.title}
-            </BracketNavLink>
-          ))}
         </div>
       </DocsNoteCard>
 
@@ -153,60 +124,7 @@ export function DocsSidebar() {
         </div>
       </DocsNoteCard>
 
-      <DocsNoteCard
-        label="By role"
-        title="Reader lanes"
-        elevation="quiet"
-        padding="compact"
-        titleSize="nav"
-      >
-        <PanelBody size="compact" className="max-w-none">
-          First-timers, CLI operators, SDK/MCP builders, Mac operators, leads, and security owners have different
-          first questions.
-        </PanelBody>
-        <div className="flex flex-col gap-[var(--space-2)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
-          {docsPersonae.slice(0, 5).map((persona, index) => (
-            <BracketNavLink
-              key={persona.slug}
-              to="/docs/personae"
-              tone={index % 2 === 0 ? 'blue' : 'accent'}
-              side={index % 2 === 0 ? 'right' : 'left'}
-            >
-              {persona.shortName}
-            </BracketNavLink>
-          ))}
-        </div>
-      </DocsNoteCard>
-
       <nav aria-label="Docs sections" className="space-y-[var(--panel-gap)]">
-        <DocsNoteCard
-          label="Lifecycle"
-          title="Move by stage."
-          elevation="quiet"
-          padding="compact"
-          titleSize="nav"
-        >
-          <PanelBody size="compact" className="max-w-none">
-            These stages route the main developer lifecycle before the reader dives into exact commands or API calls.
-          </PanelBody>
-          <div className="flex flex-col gap-[var(--space-2)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
-            <BracketNavLink to="/docs" end tone="accent" side="left">
-              Overview
-            </BracketNavLink>
-
-            {docsLifecycleStages.map((stage, index) => (
-              <BracketNavLink
-                key={stage.slug}
-                to={`/docs/lifecycle/${stage.slug}`}
-                tone={index % 2 === 0 ? 'blue' : 'accent'}
-                side={index % 2 === 0 ? 'right' : 'left'}
-              >
-                {stage.title}
-              </BracketNavLink>
-            ))}
-          </div>
-        </DocsNoteCard>
-
         <DocsNoteCard
           label="Sections"
           title="Deeper docs families."
