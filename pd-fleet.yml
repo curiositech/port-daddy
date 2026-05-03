@@ -29,6 +29,7 @@ fleet:
       prompt: "git status --porcelain"
       on_success: publish git:status
       identity: "{project}:fleet:gardener"
+      telos: "Keep the worktree's cleanliness visible."
 
     qa:
       trigger: git:committed
@@ -38,7 +39,14 @@ fleet:
       # user's "trigger every X but no more than every 15 minutes" rule.
       cooldown_ms: 900000
       dedupe_window_ms: 1800000
+      # When the primary is credit-starved or unavailable, slide to Cloudflare
+      # Workers AI (mid tier) which has exact-rate telemetry and is allowed
+      # under the fail-closed policy. ollama / claude-cli stay below as
+      # documented intent — currently blocked by policy until exact token-rate
+      # accounting lands for them.
       fallbacks:
+        - backend: cloudflare
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
         - backend: ollama
           model: qwen2.5-coder:14b
         - backend: claude-cli
@@ -84,6 +92,7 @@ fleet:
       on_success: publish qa:clean
       on_failure: publish qa:findings
       identity: "{project}:fleet:qa"
+      telos: "Find the bug the commit would otherwise ship."
 
     test-hunter:
       trigger: git:committed
@@ -91,8 +100,12 @@ fleet:
       model: gpt-5.4-mini
       cooldown_ms: 900000
       dedupe_window_ms: 1800000
-      # If Codex credits are out, slide to local Ollama, then claude-cli OAuth.
+      # If Codex credits are out, slide to Cloudflare Workers AI mid tier
+      # (allowed under telemetry policy), then ollama / claude-cli (currently
+      # blocked but kept as documented intent).
       fallbacks:
+        - backend: cloudflare
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
         - backend: ollama
           model: qwen2.5-coder:14b
         - backend: claude-cli
@@ -127,6 +140,7 @@ fleet:
           coordination:inconsistency with the exact file, assumption, and
           proposed resolution.
       identity: "{project}:fleet:test-hunter"
+      telos: "Turn weak coverage into tests that would catch real regressions."
 
     documentarian:
       trigger: promotion:release-surfaces
@@ -138,6 +152,8 @@ fleet:
       backoff_base_ms: 300000
       backoff_max_ms: 3600000
       fallbacks:
+        - backend: cloudflare
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
         - backend: ollama
           model: qwen2.5-coder:14b
         - backend: claude-cli
@@ -225,6 +241,7 @@ fleet:
         - Publish only material release-surface inconsistencies to
           coordination:inconsistency, with source SHA and exact surfaces.
       identity: "{project}:fleet:documentarian"
+      telos: "Keep every release surface honest against runtime truth."
 
     simplifier:
       trigger: git:committed
@@ -233,6 +250,8 @@ fleet:
       cooldown_ms: 900000
       dedupe_window_ms: 1800000
       fallbacks:
+        - backend: cloudflare
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
         - backend: ollama
           model: qwen2.5-coder:14b
         - backend: claude-cli
@@ -247,6 +266,7 @@ fleet:
         session's ownership or change a public UX/planning assumption, publish
         coordination:inconsistency instead of editing through it.
       identity: "{project}:fleet:simplifier"
+      telos: "Remove needless complexity without changing behavior."
 
     cartographer:
       # Scheduled instead of git:committed because:
@@ -262,6 +282,8 @@ fleet:
       timeout: 900000
       singleton: true
       fallbacks:
+        - backend: cloudflare
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
         - backend: ollama
           model: qwen2.5-coder:14b
         - backend: claude-cli
@@ -358,13 +380,19 @@ fleet:
           discipline, and data-handling constraints.
         - Publish only material planning conflicts to coordination:inconsistency.
       identity: "{project}:fleet:cartographer"
+      telos: "Keep the roadmap, recovery queue, and live work map aligned."
 
     spark:
       schedule: "*/30 * * * *"
       backend: ollama
       model: qwen2.5-coder:14b
       singleton: true
+      # ollama primary is currently blocked by fail-closed telemetry policy.
+      # Cloudflare high tier (Kimi K2.5, 256k context) carries spark's long-form
+      # strategy work when the local model can't run.
       fallbacks:
+        - backend: cloudflare
+          model: '@cf/moonshotai/kimi-k2.5'
         - backend: claude-cli
       allowedTools: "Read,Grep,Glob,Write,Bash(pd ideas*)"
       prompt: |
@@ -407,6 +435,7 @@ fleet:
         coordination:inconsistency instead of creating a duplicate proposal.
       on_success: publish spark:idea
       identity: "{project}:fleet:spark"
+      telos: "Propose one novel, buildable improvement with traceable lineage."
 
     spider:
       trigger: spark:idea
@@ -414,7 +443,11 @@ fleet:
       backend: ollama
       model: qwen2.5-coder:14b
       singleton: true
+      # Cloudflare mid tier is sufficient for combinatorial connection mining;
+      # falls through to claude-cli as documented intent (currently blocked).
       fallbacks:
+        - backend: cloudflare
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
         - backend: claude-cli
       allowedTools: "Read,Grep,Glob,Write,Bash(pd ideas*)"
       prompt: |
@@ -479,6 +512,7 @@ fleet:
         the conflict.
       on_success: publish spider:connections
       identity: "{project}:fleet:spider"
+      telos: "Find surprising feature connections without inventing novelty."
 
   watchers:
     # 9876, not 9877. Was a port typo that silently dropped every qa:findings.
