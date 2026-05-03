@@ -11,10 +11,15 @@ describe('Port Daddy skill authority', () => {
       .filter((entry) => entry.startsWith('port-daddy'))
       .sort();
 
-    expect(portDaddySkills).toEqual(['port-daddy-agent-skill']);
+    // The agent-skill is the single canonical *coordination* surface; the
+    // marketing-copy skill is a deliberate, scoped second surface for
+    // website voice. Adding any other port-daddy-* skill should fail this
+    // assertion until it's explicitly listed here.
+    expect(portDaddySkills).toEqual(['port-daddy-agent-skill', 'port-daddy-marketing-copy']);
     expect(existsSync(join(skillsDir, 'port-daddy', 'SKILL.md'))).toBe(false);
     expect(existsSync(join(skillsDir, 'port-daddy-cli', 'SKILL.md'))).toBe(false);
     expect(existsSync(join(skillsDir, 'port-daddy-agent-skill', 'SKILL.md'))).toBe(true);
+    expect(existsSync(join(skillsDir, 'port-daddy-marketing-copy', 'SKILL.md'))).toBe(true);
   });
 
   test('the authoritative skill declares the canonical name', () => {
