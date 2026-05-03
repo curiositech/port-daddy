@@ -57,6 +57,7 @@ import { quorumPlugin } from './quorum.js';
 import { resourcesPlugin } from './resources.js';
 import { feedbackPlugin } from './feedback.js';
 import { shipwrightPlugin } from './shipwright.js';
+import { usagePlugin } from './usage.js';
 import { testHooksPlugin } from './test-hooks.js';
 
 type AnyDeps = Record<string, unknown>;
@@ -186,6 +187,11 @@ export async function registerAllRoutes(
       defaultLlmModel: (deps as any).defaultLlmModel,
     },
   });
+
+  // Usage telemetry — local product instrumentation for CLI/SDK/MCP/UI/daemon.
+  if ((deps as any).usageTelemetry) {
+    await fastify.register(usagePlugin, { deps } as any);
+  }
 
   // Test-only hooks. Self-degrades to no-op when NODE_ENV !== 'test'. Used
   // by the integration suite to drive the budget-kill chain end-to-end

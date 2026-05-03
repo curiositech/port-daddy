@@ -105,6 +105,7 @@ import {
   handleActors,
   // Tube — relay-independent conversational pipe (Track B1)
   handleTube,
+  handleTubeChat,
   // Coordination Guard enforcement controls
   handleGuard,
   // Claim-aware git add wrapper
@@ -363,6 +364,83 @@ function pdFetch(urlOrPath: string, options: { method?: string; headers?: Record
     if (body) req.write(body);
     req.end();
   });
+}
+
+function envFirst(names: string[]): string | null {
+  for (const name of names) {
+    const value = process.env[name];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return null;
+}
+
+function traceCategoryForCommand(command: string): string {
+  if (['look', 'say'].includes(command)) return 'pheromones';
+  if (['tuple'].includes(command)) return 'tuples';
+  if (['pub', 'publish', 'broadcast', 'sub', 'subscribe', 'listen', 'channels', 'tube'].includes(command)) return 'channels';
+  if (['agent', 'agents', 'spawn', 'spawned'].includes(command)) return 'agents';
+  if (['session', 'begin', 'done', 'whoami', 'note', 'notes', 'files', 'who-owns', 'advise'].includes(command)) return 'sessions';
+  if (['fleet', 'watch', 'sortie'].includes(command)) return 'fleet';
+  if (['lock', 'unlock', 'locks', 'with-lock'].includes(command)) return 'locks';
+  if (['claim', 'c', 'release', 'r', 'find', 'list', 'ps', 'services', 'url', 'env', 'ports'].includes(command)) return 'ports';
+  if (['salvage'].includes(command)) return 'salvage';
+  if (['metrics', 'health', 'status', 'version', 'doctor'].includes(command)) return 'usage';
+  return 'other';
+}
+
+async function recordCliUsage(
+  command: string,
+  positional: string[],
+  options: CLIOptions,
+  status: 'ok' | 'error',
+  startedAt: number,
+  error?: unknown,
+): Promise<void> {
+  const body = JSON.stringify({
+    surface: 'cli',
+    kind: 'command',
+    name: `pd ${command}`,
+    category: traceCategoryForCommand(command),
+    agentId: envFirst(['PORT_DADDY_AGENT', 'PD_AGENT_ID', 'CODEX_AGENT_ID', 'CLAUDE_AGENT_ID']),
+    agentType: envFirst(['PORT_DADDY_AGENT_TYPE', 'CODEX_AGENT_TYPE', 'CLAUDE_AGENT_TYPE']) ?? 'cli',
+    agentModel: envFirst(['PORT_DADDY_AGENT_MODEL', 'CODEX_MODEL', 'OPENAI_MODEL', 'ANTHROPIC_MODEL', 'CLAUDE_MODEL']),
+    backend: envFirst(['PORT_DADDY_BACKEND', 'CODEX_BACKEND', 'CLAUDE_BACKEND']),
+    model: envFirst(['PORT_DADDY_MODEL', 'CODEX_MODEL', 'OPENAI_MODEL', 'ANTHROPIC_MODEL', 'CLAUDE_MODEL']),
+    project: typeof options.identity === 'string' ? options.identity.split(':')[0] : null,
+    projectDir: process.cwd(),
+    cwd: process.cwd(),
+    status,
+    durationMs: Date.now() - startedAt,
+    workScope: 'port_daddy_call',
+    toolCalls: 1,
+    version: PKG.version,
+    codeHash: getLocalCodeHash(),
+    context: {
+      positionalCount: positional.length,
+      flags: Object.keys(options).sort(),
+      direct: Boolean(options.direct),
+      json: Boolean(options.json || options.j),
+      tty: Boolean(process.stdout.isTTY || process.stderr.isTTY),
+    },
+    metadata: {
+      command,
+      node: process.version,
+      error: error instanceof Error ? error.message : undefined,
+    },
+  });
+
+  try {
+    await Promise.race([
+      pdFetch('/usage/trace', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+      }),
+      new Promise((resolve) => setTimeout(resolve, 500)),
+    ]);
+  } catch {
+    // Usage telemetry is best-effort and must not change CLI behavior.
+  }
 }
 
 // Calculate local code hash to compare with daemon
@@ -767,6 +845,12 @@ Commands:
     --dir <path>           Resolve declared logical channels for this worktree
     --raw-channel          Bypass logical-channel resolution and use the literal string
 
+  tube chat <channel>      Bridge tube messages to a spawned backend and reply in-thread
+    --backend <name>       Backend to spawn for each message (default: codex)
+    --tier <level>         Model tier shortcut (low, mid, high)
+    --budget <usd>         Required project budget ceiling for spawned replies
+    --once                 Process one poll pass, then exit
+
   wait <id> [ids...]       Wait for service(s) to become healthy
     --timeout <ms>         Wait timeout (default: 60000)
 
@@ -852,6 +936,9 @@ Commands:
 
   done "summary"           End session + unregister agent atomically
                            Cleans up .portdaddy/current.json
+    --self-salvage         Queue unfinished-but-doable telos for salvage
+    --why-stopped <text>   Explain why the telos was not fulfilled
+    --next-plan <text>     Leave the next concrete continuation move
 
   whoami                   Show current agent/session context
                            Reads from .portdaddy/current.json
@@ -868,6 +955,7 @@ Examples:
   pd begin "Building auth module"
   pd note "Login endpoint done"
   pd done "Auth module complete"
+  pd done --self-salvage --telos-verdict not-fulfilled --doable yes --why-stopped "Tests still red" --next-plan "Fix parser fixture and rerun npm test"
   pd whoami
   pd with-lock db-migrations npm run migrate`,
 
@@ -1989,11 +2077,16 @@ async function main(): Promise<void> {
     }
 
     const handled = await executeDirectMode(command, positional, options);
-    if (handled) return;
+    if (handled) {
+      await recordCliUsage(command, positional, options, 'ok', Date.now());
+      return;
+    }
 
     // Not a Tier 1 command — fall through to normal handling
     // (e.g., daemon management commands like 'start', 'version', etc.)
   }
+
+  const commandStartedAt = Date.now();
 
   try {
     switch (command) {
@@ -2040,7 +2133,11 @@ async function main(): Promise<void> {
 
       // Track B1: relay-independent conversational pipe.
       case 'tube':
-        await handleTube(positional[0], options);
+        if (positional[0] === 'chat') {
+          await handleTubeChat(positional[1], options);
+        } else {
+          await handleTube(positional[0], options);
+        }
         break;
 
       case 'wait':
@@ -2592,7 +2689,9 @@ async function main(): Promise<void> {
         break;
       }
     }
+    await recordCliUsage(command, positional, options, 'ok', commandStartedAt);
   } catch (err: unknown) {
+    await recordCliUsage(command, positional, options, 'error', commandStartedAt, err);
     const error = err as Error & { code?: string; cause?: { code?: string } };
     const errCode = error.code || error.cause?.code;
     if (errCode === 'ECONNREFUSED' || errCode === 'ENOENT') {
