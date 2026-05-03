@@ -57,6 +57,7 @@ import { quorumPlugin } from './quorum.js';
 import { resourcesPlugin } from './resources.js';
 import { feedbackPlugin } from './feedback.js';
 import { usagePlugin } from './usage.js';
+import { cockpitPlugin } from './cockpit.js';
 
 type AnyDeps = Record<string, unknown>;
 
@@ -181,4 +182,8 @@ export async function registerAllRoutes(
   if ((deps as any).usageTelemetry) {
     await fastify.register(usagePlugin, { deps } as any);
   }
+
+  // App-Native Development Cockpit — read-only roadmap intake. Pure-function
+  // markdown reader, no extra deps required.
+  await fastify.register(cockpitPlugin, { deps } as any);
 }
