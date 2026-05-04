@@ -111,6 +111,8 @@ _port_daddy() {
     inbox
     # AI Agent Spawner + Watch
     spawn spawned sortie watch
+    # App-Native Development Cockpit
+    cockpit
     # Harbors (named permission namespaces)
     harbor harbors
     # Tuple space
@@ -1463,6 +1465,21 @@ _port_daddy() {
     # -----------------------------------------------------------------------
     spawned)
       _pd_opts ''
+      ;;
+
+    # -----------------------------------------------------------------------
+    # cockpit  missions  [--project --status --limit --json]
+    # -----------------------------------------------------------------------
+    cockpit)
+      local subcmd="${words[2]:-}"
+      case "$subcmd" in
+        '')
+          COMPREPLY=( $(compgen -W "missions help" -- "$cur") )
+          ;;
+        missions)
+          _pd_opts '--project --status --limit --json'
+          ;;
+      esac
       ;;
 
     # -----------------------------------------------------------------------

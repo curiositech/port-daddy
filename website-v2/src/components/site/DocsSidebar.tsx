@@ -7,11 +7,53 @@ export function DocsSidebar() {
   const location = useLocation()
   const activeRoute = findDocsRouteByPath(location.pathname)
   const activeContentSection = activeRoute ? findDocsContentSection(activeRoute.slug) : undefined
-  const referenceSurfaces = [
-    { title: 'CLI reference', href: '/docs/cli' },
-    { title: 'SDK reference', href: '/docs/sdk' },
-    { title: 'MCP tools', href: '/docs/mcp' },
-    { title: 'REST API', href: '/docs/api' },
+  const referenceSurfaces: Array<{
+    title: string
+    href: string
+    description: string
+    featured?: Array<{ title: string; href: string }>
+  }> = [
+    {
+      title: 'CLI reference',
+      href: '/docs/cli',
+      description: '40+ commands for sessions, locks, messaging, harbors, and fleet.',
+      featured: [
+        { title: 'pd begin', href: '/docs/cli/begin' },
+        { title: 'pd done', href: '/docs/cli/done' },
+        { title: 'pd spawn', href: '/docs/cli/spawn' },
+        { title: 'pd fleet', href: '/docs/cli/fleet' },
+      ],
+    },
+    {
+      title: 'SDK reference',
+      href: '/docs/sdk',
+      description: 'TypeScript SDK for embedding Port Daddy in your own tools.',
+      featured: [
+        { title: 'Sessions', href: '/docs/sdk/sessions' },
+        { title: 'Spawn', href: '/docs/sdk/spawn' },
+        { title: 'Subscribe', href: '/docs/sdk/subscribe' },
+      ],
+    },
+    {
+      title: 'MCP tools',
+      href: '/docs/mcp',
+      description: 'Tools an MCP agent (Claude, Cursor, Windsurf) can call directly.',
+      featured: [
+        { title: 'begin_session', href: '/docs/mcp/begin-session' },
+        { title: 'spawn_agent', href: '/docs/mcp/spawn-agent' },
+        { title: 'salvage', href: '/docs/mcp/salvage' },
+      ],
+    },
+    {
+      title: 'REST API',
+      href: '/docs/api',
+      description: 'HTTP endpoints for direct integration without a SDK.',
+    },
+    {
+      title: 'Decisions',
+      href: '/docs/decisions',
+      description: 'Public ADR index — the architectural choices behind Port Daddy.',
+    },
   ]
   const siteSurfaces = [
     { title: 'Mac Preview', href: '/mac-preview' },
@@ -44,23 +86,62 @@ export function DocsSidebar() {
         </div>
       </DocsNoteCard>
 
+      <DocsNoteCard
+        label="Reference"
+        title="Jump straight to the exact interface."
+        elevation="quiet"
+        padding="compact"
+        titleSize="nav"
+      >
+        <PanelBody size="compact" className="max-w-none">
+          When you know what you want — a command, an SDK method, an MCP tool, or an HTTP endpoint.
+        </PanelBody>
+        <div className="flex flex-col gap-[var(--space-3)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
+          {referenceSurfaces.map((surface, index) => (
+            <div key={surface.href} className="flex flex-col gap-[var(--space-1)]">
+              <BracketNavLink
+                to={surface.href}
+                tone={index % 2 === 0 ? 'blue' : 'accent'}
+                side={index % 2 === 0 ? 'left' : 'right'}
+              >
+                {surface.title}
+              </BracketNavLink>
+              <p className="px-[var(--space-2)] text-[0.78rem] leading-snug text-[var(--text-quiet)]">
+                {surface.description}
+              </p>
+              {surface.featured ? (
+                <ul className="flex flex-wrap gap-[var(--space-2)] px-[var(--space-2)] pt-[var(--space-1)]">
+                  {surface.featured.map((item) => (
+                    <li key={item.href}>
+                      <BracketLink
+                        to={item.href}
+                        tone={index % 2 === 0 ? 'accent' : 'blue'}
+                        side="left"
+                      >
+                        {item.title}
+                      </BracketLink>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      </DocsNoteCard>
+
       <nav aria-label="Docs sections" className="space-y-[var(--panel-gap)]">
         <DocsNoteCard
           label="Sections"
-          title="Choose the part of the system you need."
+          title="Deeper docs families."
           elevation="quiet"
           padding="compact"
           titleSize="nav"
         >
           <PanelBody size="compact" className="max-w-none">
-            The docs split by job: installation, concepts, daily habits, tutorials, reference architectures, and exact
-            command or API pages. Runnable examples live at /examples.
+            Use these when the job lane is clear and you need the system model, practices, tutorials, architectures, or
+            exact interfaces.
           </PanelBody>
           <div className="flex flex-col gap-[var(--space-2)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
-            <BracketNavLink to="/docs" end tone="accent" side="left">
-              Overview
-            </BracketNavLink>
-
             {docsSidebarFamilies.map((section, index) => (
               <BracketNavLink
                 key={section.slug}
@@ -69,31 +150,6 @@ export function DocsSidebar() {
                 side={index % 2 === 0 ? 'right' : 'left'}
               >
                 {section.title}
-              </BracketNavLink>
-            ))}
-          </div>
-        </DocsNoteCard>
-
-        <DocsNoteCard
-          label="Reference pages"
-          title="Jump straight to the exact interface."
-          elevation="quiet"
-          padding="compact"
-          titleSize="nav"
-        >
-          <PanelBody size="compact" className="max-w-none">
-            The newer docs families improve reading order. The existing CLI, SDK, MCP, and API pages still matter when
-            you need exact interfaces and older reference pages preserved.
-          </PanelBody>
-          <div className="flex flex-col gap-[var(--space-2)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
-            {referenceSurfaces.map((surface, index) => (
-              <BracketNavLink
-                key={surface.href}
-                to={surface.href}
-                tone={index % 2 === 0 ? 'blue' : 'accent'}
-                side={index % 2 === 0 ? 'left' : 'right'}
-              >
-                {surface.title}
               </BracketNavLink>
             ))}
           </div>

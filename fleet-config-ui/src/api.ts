@@ -40,6 +40,7 @@ import type {
   BackendSecretSaveResult,
   UsageTelemetrySummary,
   UsageTraceInput,
+  MissionIntake,
 } from './types';
 
 const CANONICAL_PREFERRED_DAEMON_URL = 'http://127.0.0.1:9876';
@@ -335,6 +336,22 @@ export async function harvestRoadmapFeedback(input: {
     harvestedBy: input.harvestedBy ?? 'operator-control-plane',
     intoSlug: input.intoSlug,
   });
+}
+
+export async function fetchCockpitMissions(
+  options: { projectDir?: string; status?: string[]; limit?: number } = {},
+): Promise<MissionIntake> {
+  const params = new URLSearchParams();
+  if (options.projectDir) params.set('projectDir', options.projectDir);
+  if (options.status && options.status.length > 0) params.set('status', options.status.join(','));
+  if (typeof options.limit === 'number' && options.limit > 0) {
+    params.set('limit', String(options.limit));
+  }
+  const qs = params.toString();
+  const payload = await get<{ success: boolean; intake: MissionIntake; count: number }>(
+    `/cockpit/missions${qs ? `?${qs}` : ''}`,
+  );
+  return payload.intake;
 }
 
 export async function fetchCoordinationGuard(projectDir: string): Promise<CoordinationGuardEnvelope> {

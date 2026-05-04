@@ -1214,6 +1214,30 @@ _pd_cmd_spawn() {
   esac
 }
 
+_pd_cmd_cockpit() {
+  local -a cockpit_subcmds
+  cockpit_subcmds=(
+    'missions:list mission cards parsed from the project roadmap'
+    'help:show cockpit help'
+  )
+
+  if (( CURRENT == 2 )); then
+    _describe 'subcommand' cockpit_subcmds
+    return
+  fi
+
+  local subcmd="${words[2]}"
+  case "$subcmd" in
+    missions)
+      _arguments \
+        '--project[scope to a different project directory]:dir:_files -/' \
+        '--status[filter by comma-separated statuses]' \
+        '--limit[cap returned missions]' \
+        '--json[emit raw intake envelope]'
+      ;;
+  esac
+}
+
 _pd_cmd_sortie() {
   local -a sortie_subcmds
   sortie_subcmds=(
@@ -1878,6 +1902,7 @@ _port_daddy() {
     'spawn:launch an AI agent (Ollama/Claude/Gemini/Aider/custom)'
     'spawned:list active spawned agents'
     'sortie:launch and inspect tracked mission records'
+    'cockpit:App-Native Development Cockpit — read roadmap into mission cards'
     'watch:subscribe to a channel and run a script on each message'
     # Harbors (named permission namespaces)
     'harbor:create, enter, leave, show, or destroy a harbor'
@@ -2021,6 +2046,7 @@ _port_daddy() {
         inbox)                  _pd_cmd_inbox ;;
         spawn)                  _pd_cmd_spawn ;;
         sortie)                 _pd_cmd_sortie ;;
+        cockpit)                _pd_cmd_cockpit ;;
         spawned)                _pd_cmd_spawned ;;
         watch)                  _pd_cmd_watch ;;
         harbor)                 _pd_cmd_harbor ;;
