@@ -50,6 +50,11 @@ export function DocsSidebar() {
       href: '/docs/api',
       description: 'HTTP endpoints for direct integration without a SDK.',
     },
+    {
+      title: 'Decisions',
+      href: '/docs/decisions',
+      description: 'ADRs — architectural decisions, why they were made, and what was traded off.',
+    },
   ]
   const siteSurfaces = [
     { title: 'Mac Preview', href: '/mac-preview' },
