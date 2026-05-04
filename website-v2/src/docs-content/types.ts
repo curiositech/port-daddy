@@ -16,6 +16,7 @@ export type ContentBlock =
       title: string
       command: string
       notes?: string[]
+      output?: string
     }
   | {
       type: 'callout'
