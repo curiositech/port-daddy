@@ -251,6 +251,7 @@ const MCP_EXEMPT_FEATURES = new Set([
   'quorum',         // New propose/vote primitive; agents drive consensus via SDK calls in v1, MCP wrapper deferred to v4
   'shipwright',     // Survey + propose + apply for fleet authoring; CLI-driven workflow (long-running, interactive review). MCP wrapper deferred until the propose/apply step is non-interactive.
   'usage',          // Local developer-pane telemetry ingestion; not a user-facing MCP tool.
+  'blob',           // Phase 0 tube-as-coordination-substrate: content-addressed object storage; agents use the SDK or HTTP directly, MCP wrapper deferred to Phase 1+
 ]);
 
 // ============================================================================
