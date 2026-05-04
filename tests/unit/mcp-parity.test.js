@@ -208,6 +208,7 @@ const TOOL_FEATURE_MAP = {
   'spawn_agent': 'spawn',
   'run_sortie': 'sorties',
   'list_sorties': 'sorties',
+  'cockpit_missions_list': 'cockpit',
   'get_sortie': 'sorties',
   'get_sortie_logs': 'sorties',
 
@@ -685,7 +686,7 @@ describe('MCP tiered tool loading', () => {
     'magic', 'session-lifecycle', 'advisor', 'ports', 'sessions', 'notes', 'locks',
     'messaging', 'agents', 'actors', 'inbox', 'webhooks', 'integration', 'dns', 'briefing',
     'tunnels', 'projects', 'changelog', 'activity', 'system', 'tuples', 'sorties',
-    'fleet-control', 'semantic', 'feedback',
+    'fleet-control', 'semantic', 'feedback', 'cockpit',
   ];
 
   it('ESSENTIAL_TOOL_NAMES in server matches expected set', () => {

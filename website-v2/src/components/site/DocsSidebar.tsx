@@ -49,6 +49,11 @@ export function DocsSidebar() {
       href: '/docs/api',
       description: 'HTTP endpoints for direct integration without a SDK.',
     },
+    {
+      title: 'Decisions',
+      href: '/docs/decisions',
+      description: 'Public ADR index — the architectural choices behind Port Daddy.',
+    },
   ]
   const siteSurfaces = [
     { title: 'Mac Preview', href: '/mac-preview' },

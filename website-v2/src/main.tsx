@@ -55,6 +55,7 @@ const Primitives = lazyNamed(() => import('@/pages/tutorials/Primitives'), 'Prim
 const PdTube = lazyNamed(() => import('@/pages/tutorials/PdTube'), 'PdTube')
 
 const ApiReference = lazy(() => import('@/pages/docs/ApiReference'))
+const Decisions = lazy(() => import('@/pages/docs/Decisions'))
 const DocsOverview = lazy(() => import('@/pages/docs/DocsOverview'))
 const DocsSectionPage = lazy(() => import('@/pages/docs/DocsSectionPage'))
 const QuickStart = lazy(() => import('@/pages/docs/QuickStart'))
@@ -355,6 +356,8 @@ createRoot(document.getElementById('root')!).render(
 
               <Route path="api" element={<ApiReference />} />
               <Route path="api/endpoints" element={<ApiReference />} />
+
+              <Route path="decisions" element={<Decisions />} />
 
               <Route path="examples/*" element={<Navigate to="/examples" replace />} />
               <Route path=":sectionSlug/*" element={<DocsSectionPage />} />
