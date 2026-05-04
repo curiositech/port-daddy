@@ -12,6 +12,7 @@ export function DocsSidebar() {
     { title: 'SDK reference', href: '/docs/sdk' },
     { title: 'MCP tools', href: '/docs/mcp' },
     { title: 'REST API', href: '/docs/api' },
+    { title: 'Decisions', href: '/docs/decisions' },
   ]
   const siteSurfaces = [
     { title: 'Mac Preview', href: '/mac-preview' },
