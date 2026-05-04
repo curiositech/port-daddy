@@ -1,5 +1,6 @@
 import './App.css'
 import { Hero } from '@/components/landing/Hero'
+import { TubeShowcase } from '@/components/landing/TubeShowcase'
 import { CoordinationEnforcementSection } from '@/components/landing/CoordinationEnforcementSection'
 import { AgentConversationSection } from '@/components/landing/AgentConversationSection'
 import { AgenticSocialProofSection } from '@/components/landing/AgenticSocialProofSection'
@@ -13,6 +14,7 @@ export default function App() {
     <div className="min-h-screen bg-[var(--surface-base)] selection:bg-[var(--brand-primary)] selection:text-[var(--brand-primary-foreground)]">
       <main id="main-content">
         <Hero />
+        <TubeShowcase />
         <CoordinationEnforcementSection />
         <AgentConversationSection />
         <AgenticSocialProofSection />

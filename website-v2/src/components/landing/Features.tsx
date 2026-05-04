@@ -105,8 +105,8 @@ function FeatureDetailDialog({
                 <PanelEyebrow>Primary surface</PanelEyebrow>
                 <PanelBody size="compact" className="max-w-none">
                   {feature.href.startsWith('/docs')
-                    ? 'The docs explain the workflow; the app and daemon keep the same primitive inspectable during live work.'
-                    : 'The app surface is the human-facing entrance; agents can still write the underlying coordination state through Port Daddy primitives.'}
+                    ? 'The docs explain the workflow; the app and daemon keep the same capability inspectable during live work.'
+                    : 'The app surface is the operator-facing entrance; agents can still write the underlying coordination state through Port Daddy APIs.'}
                 </PanelBody>
               </div>
               <div className="grid gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)]">
@@ -270,18 +270,18 @@ export function Features() {
       <PageContainer width="wide">
         <div className="mb-[var(--space-7)] grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,0.9fr)_minmax(18rem,0.55fr)] lg:items-end">
           <SectionIntro
-            eyebrow="Features"
-            title="Every primitive has a product surface."
-            description="The full feature map is back. FleetBar, Fleet Control Center, PD Tube, relay PKI, events, inboxes, resources, and guardrails all open into concrete commands, outcomes, and docs links."
+            eyebrow="Product surface"
+            title="One layer, many ways to inspect work."
+            description="Port Daddy is built as infrastructure first, with a real operator surface on top. FleetBar, Fleet Control Center, sessions, guardrails, inboxes, resources, sorties, and relay security all point back to the same local daemon state."
             titleAs="h2"
             className="max-w-[46rem]"
             titleClassName="max-w-[14ch]"
             bodyClassName="max-w-[39rem]"
           />
           <div className="grid border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-4)]">
-            <PanelEyebrow>Feature atlas</PanelEyebrow>
+            <PanelEyebrow>Evaluation map</PanelEyebrow>
             <PanelBody className="mt-[var(--space-2)] max-w-none">
-              FleetBar and the control plane lead because they are the human surfaces. The remaining cards keep the primitive map complete while still showing the command or route an operator can actually use.
+              For an AI tooling team, the important question is whether the control plane is more than a demo. Each card links a user-facing surface to the command, state, and outcome underneath it.
             </PanelBody>
           </div>
         </div>

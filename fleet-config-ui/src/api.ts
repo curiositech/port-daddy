@@ -37,6 +37,10 @@ import type {
   SemanticResolutionDecision,
   SemanticResolutionEvent,
   SemanticResolutionStats,
+  BackendSecretSaveResult,
+  UsageTelemetrySummary,
+  UsageTraceInput,
+  MissionIntake,
 } from './types';
 
 const CANONICAL_PREFERRED_DAEMON_URL = 'http://127.0.0.1:9876';
@@ -182,6 +186,7 @@ export function formatDaemonLabel(url: string): string {
 }
 
 async function api<T>(method: string, path: string, body?: unknown): Promise<T> {
+  const startedAt = Date.now();
   const res = await fetch(daemonEndpoint(path), {
     method,
     ...(body !== undefined && {
@@ -190,6 +195,20 @@ async function api<T>(method: string, path: string, body?: unknown): Promise<T> 
     }),
   });
   if (!res.ok) {
+    void recordUsageEvent({
+      surface: 'ui',
+      kind: 'api_call',
+      name: `${method} ${path.split('?')[0]}`,
+      route: path,
+      method,
+      status: res.status,
+      durationMs: Date.now() - startedAt,
+      workScope: 'port_daddy_call',
+      toolCalls: 1,
+      category: pathCategory(path),
+      userAgent: canUseWindow() ? window.navigator.userAgent : null,
+    });
+
     const contentType = res.headers.get('content-type') ?? '';
     let detail = '';
 
@@ -209,6 +228,19 @@ async function api<T>(method: string, path: string, body?: unknown): Promise<T> 
 
     throw new Error(detail || `${method} ${path}: ${res.status} ${res.statusText}`);
   }
+  void recordUsageEvent({
+    surface: 'ui',
+    kind: 'api_call',
+    name: `${method} ${path.split('?')[0]}`,
+    route: path,
+    method,
+    status: res.status,
+    durationMs: Date.now() - startedAt,
+    workScope: 'port_daddy_call',
+    toolCalls: 1,
+    category: pathCategory(path),
+    userAgent: canUseWindow() ? window.navigator.userAgent : null,
+  });
   return res.json();
 }
 
@@ -216,6 +248,55 @@ const get = <T>(path: string) => api<T>('GET', path);
 const post = <T>(path: string, body?: unknown) => api<T>('POST', path, body);
 const put = <T>(path: string, body: unknown) => api<T>('PUT', path, body);
 const del = <T>(path: string) => api<T>('DELETE', path);
+
+function pathCategory(path: string): string {
+  const p = path.toLowerCase();
+  if (p.startsWith('/usage')) return 'usage';
+  if (p.startsWith('/fleet')) return 'fleet';
+  if (p.startsWith('/agents')) return 'agents';
+  if (p.startsWith('/sessions')) return 'sessions';
+  if (p.startsWith('/msg') || p.startsWith('/channels')) return 'channels';
+  if (p.startsWith('/tuples')) return 'tuples';
+  if (p.startsWith('/pheromone')) return 'pheromones';
+  if (p.startsWith('/resources')) return 'resources';
+  if (p.startsWith('/activity')) return 'activity';
+  if (p.startsWith('/memory')) return 'memory';
+  if (p.startsWith('/sorties')) return 'sorties';
+  if (p.startsWith('/projects')) return 'projects';
+  if (p.startsWith('/locks')) return 'locks';
+  if (p.startsWith('/services') || p.startsWith('/claim') || p.startsWith('/release')) return 'ports';
+  return 'other';
+}
+
+export async function recordUsageEvent(input: UsageTraceInput): Promise<void> {
+  if (input.route === '/usage/trace') return;
+  const payload: UsageTraceInput = {
+    ...input,
+    surface: input.surface || 'ui',
+    userAgent: input.userAgent ?? (canUseWindow() ? window.navigator.userAgent : null),
+  };
+
+  try {
+    await fetch(daemonEndpoint('/usage/trace'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      keepalive: true,
+    });
+  } catch {
+    // Usage telemetry must never make the operator UI noisy or brittle.
+  }
+}
+
+export async function fetchUsageSummary(opts: {
+  window?: string;
+  limit?: number;
+} = {}): Promise<UsageTelemetrySummary> {
+  const params = new URLSearchParams();
+  if (opts.window) params.set('window', opts.window);
+  if (typeof opts.limit === 'number') params.set('limit', String(opts.limit));
+  return get(`/usage/summary${params.toString() ? `?${params}` : ''}`);
+}
 
 interface FilePreviewEnvelope {
   success?: boolean;
@@ -255,6 +336,22 @@ export async function harvestRoadmapFeedback(input: {
     harvestedBy: input.harvestedBy ?? 'operator-control-plane',
     intoSlug: input.intoSlug,
   });
+}
+
+export async function fetchCockpitMissions(
+  options: { projectDir?: string; status?: string[]; limit?: number } = {},
+): Promise<MissionIntake> {
+  const params = new URLSearchParams();
+  if (options.projectDir) params.set('projectDir', options.projectDir);
+  if (options.status && options.status.length > 0) params.set('status', options.status.join(','));
+  if (typeof options.limit === 'number' && options.limit > 0) {
+    params.set('limit', String(options.limit));
+  }
+  const qs = params.toString();
+  const payload = await get<{ success: boolean; intake: MissionIntake; count: number }>(
+    `/cockpit/missions${qs ? `?${qs}` : ''}`,
+  );
+  return payload.intake;
 }
 
 export async function fetchCoordinationGuard(projectDir: string): Promise<CoordinationGuardEnvelope> {
@@ -438,6 +535,13 @@ export async function fetchFileClaims(opts: {
 export async function fetchModels(): Promise<BackendInfo[]> {
   const data = await get<{ backends: BackendInfo[] }>('/fleet/models');
   return data.backends;
+}
+
+export async function saveBackendSecrets(input: {
+  backend: string;
+  values: Record<string, string>;
+}): Promise<BackendSecretSaveResult> {
+  return post('/fleet/backend-secrets', input);
 }
 
 // ─── Messaging ────────────────────────────────────────────────────────────────

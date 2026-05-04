@@ -10,6 +10,7 @@ export interface BackendTelemetryPolicy {
 
 export const DEFAULT_OPERATOR_CLAUDE_MODEL = 'claude-haiku-4-5-20251001';
 export const DEFAULT_OPERATOR_CODEX_MODEL = 'gpt-5.4-mini';
+export const DEFAULT_OPERATOR_CLOUDFLARE_MODEL = '@cf/zai-org/glm-4.7-flash';
 
 function blocked(backend: string, summary: string, nextStep?: string): BackendTelemetryPolicy {
   return {
@@ -53,6 +54,23 @@ export function assessBackendTelemetryPolicy(backend: string, model?: string | n
         backend,
         launchAllowed: true,
         summary: `Exact telemetry policy satisfied for Codex model "${effectiveModel}"`,
+        effectiveModel,
+      };
+    }
+
+    case 'cloudflare': {
+      const effectiveModel = model?.trim() || DEFAULT_OPERATOR_CLOUDFLARE_MODEL;
+      if (!hasExactModelRate(effectiveModel)) {
+        return blocked(
+          backend,
+          `Cloudflare Workers AI model "${effectiveModel}" has no exact cost rate entry; fail-closed telemetry policy blocks launch.`,
+          'Add an exact model rate before enabling this model.'
+        );
+      }
+      return {
+        backend,
+        launchAllowed: true,
+        summary: `Exact telemetry policy satisfied for Cloudflare model "${effectiveModel}"`,
         effectiveModel,
       };
     }

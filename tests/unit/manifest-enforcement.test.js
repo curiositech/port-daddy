@@ -671,6 +671,7 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'list_sorties': 'sorties',
       'get_sortie': 'sorties',
       'get_sortie_logs': 'sorties',
+      'cockpit_missions_list': 'cockpit',
 
       // Tuples
       'tuple_out': 'tuples',

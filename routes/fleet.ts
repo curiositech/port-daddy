@@ -30,6 +30,7 @@ import {
 import { ensureStarterFleetProject } from '../lib/fleet-bootstrap.js';
 import { resolveFleetChannel } from '../lib/fleet-channels.js';
 import { assessBackendReadiness } from '../lib/backend-readiness.js';
+import { managedSecretStorageStatus, saveManagedSecret } from '../lib/secret-env.js';
 import { validateProjectRoot } from '../lib/utils.js';
 import {
   canOpenConnection,
@@ -52,12 +53,33 @@ const BACKEND_CATALOG = [
   { id: 'claude-cli', name: 'Claude CLI', models: ['haiku', 'sonnet', 'opus'] },
   { id: 'claude', name: 'Claude SDK', models: ['claude-haiku-4-5-20251001', 'claude-sonnet-4-5-20250929', 'claude-opus-4-1-20250805'] },
   { id: 'gemini', name: 'Google Gemini', models: ['gemini-2.0-flash-exp', 'gemini-2.5-flash', 'gemini-2.5-pro'] },
-  { id: 'cloudflare', name: 'Cloudflare Workers AI', models: ['@cf/meta/llama-3.1-8b-instruct', '@cf/meta/llama-3.1-70b-instruct', '@cf/openai/gpt-oss-120b'] },
+  {
+    id: 'cloudflare',
+    name: 'Cloudflare Workers AI',
+    models: [
+      '@cf/zai-org/glm-4.7-flash',
+      '@cf/openai/gpt-oss-120b',
+      '@cf/moonshotai/kimi-k2.6',
+      '@cf/qwen/qwen3-30b-a3b-fp8',
+      '@cf/nvidia/nemotron-3-120b-a12b',
+      '@cf/meta/llama-4-scout-17b-16e-instruct',
+    ],
+  },
   { id: 'codex', name: 'OpenAI Codex CLI', models: ['gpt-5.4-mini', 'gpt-5.3-codex', 'gpt-5.4'] },
   { id: 'ollama', name: 'Ollama (local)', models: [] as string[] },
   { id: 'aider', name: 'Aider', models: ['gpt-4.1-mini', 'gpt-4.1', 'gpt-5'] },
   { id: 'custom', name: 'Custom command', models: ['custom-low', 'custom-mid', 'custom-high'] },
 ] as const;
+
+const BACKEND_SECRET_KEYS: Record<string, string[]> = {
+  claude: ['ANTHROPIC_API_KEY'],
+  gemini: ['GEMINI_API_KEY', 'GOOGLE_API_KEY'],
+  cloudflare: ['CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_API_KEY', 'CF_API_TOKEN', 'CF_ACCOUNT_ID'],
+};
+
+function allowedSecretKeysForBackend(backend: string): Set<string> {
+  return new Set(BACKEND_SECRET_KEYS[backend] || []);
+}
 
 function extractPublishedChannel(command?: string): string | null {
   if (!command) return null;
@@ -448,6 +470,7 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
           readinessNextStep: readiness.nextStep,
           credentialKeys: readiness.credentialKeys,
           credentialAlternates: readiness.credentialAlternates,
+          setupLinks: readiness.setupLinks,
           setupCommand: readiness.setupCommand,
           setupFiles: readiness.setupFiles,
           restartRequired: readiness.restartRequired,
@@ -456,6 +479,54 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
     );
 
     return { success: true, backends };
+  });
+
+  // POST /fleet/backend-secrets - save provider credentials in encrypted local storage.
+  fastify.post('/fleet/backend-secrets', async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = (request.body as Record<string, unknown>) || {};
+    const backend = typeof body.backend === 'string' ? body.backend.trim() : '';
+    const values = body.values && typeof body.values === 'object' && !Array.isArray(body.values)
+      ? body.values as Record<string, unknown>
+      : null;
+
+    if (!backend || !values) {
+      reply.code(400);
+      return { success: false, error: 'backend and values are required' };
+    }
+
+    const allowedKeys = allowedSecretKeysForBackend(backend);
+    if (allowedKeys.size === 0) {
+      reply.code(400);
+      return { success: false, error: `No console-managed secrets are registered for backend "${backend}"` };
+    }
+
+    const entries = Object.entries(values)
+      .filter(([, value]) => typeof value === 'string' && value.trim().length > 0)
+      .map(([key, value]) => [key, (value as string).trim()] as const);
+    if (entries.length === 0) {
+      reply.code(400);
+      return { success: false, error: 'At least one non-empty secret value is required' };
+    }
+
+    const rejected = entries.map(([key]) => key).filter((key) => !allowedKeys.has(key));
+    if (rejected.length > 0) {
+      reply.code(400);
+      return { success: false, error: `Unsupported secret key for ${backend}: ${rejected.join(', ')}` };
+    }
+
+    try {
+      const saved = entries.map(([key, value]) => saveManagedSecret(key, value));
+      return {
+        success: true,
+        backend,
+        savedKeys: saved.map((entry) => entry.key),
+        encryptedAtRest: saved.every((entry) => entry.encryptedAtRest),
+        storage: managedSecretStorageStatus(),
+      };
+    } catch (error) {
+      reply.code(503);
+      return { success: false, error: (error as Error).message, storage: managedSecretStorageStatus() };
+    }
   });
 
   // GET /fleet/events — SSE stream of fleet lifecycle events

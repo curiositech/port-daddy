@@ -59,6 +59,7 @@ import { feedbackPlugin } from './feedback.js';
 import { shipwrightPlugin } from './shipwright.js';
 import { usagePlugin } from './usage.js';
 import { testHooksPlugin } from './test-hooks.js';
+import { cockpitPlugin } from './cockpit.js';
 
 type AnyDeps = Record<string, unknown>;
 
@@ -199,4 +200,8 @@ export async function registerAllRoutes(
   if ((deps as any).costTracker) {
     await fastify.register(testHooksPlugin, { deps } as any);
   }
+
+  // App-Native Development Cockpit — read-only roadmap intake. Pure-function
+  // markdown reader, no extra deps required.
+  await fastify.register(cockpitPlugin, { deps } as any);
 }

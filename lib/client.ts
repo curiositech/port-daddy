@@ -3186,6 +3186,32 @@ class PortDaddy {
     return this._request('GET', `/sorties/${encodeURIComponent(sortieId)}/logs${suffix}`) as Promise<GetSortieLogsResponse>;
   }
 
+  /**
+   * App-Native Development Cockpit — read the project's roadmap markdown
+   * into typed mission cards (work-queue intake). The list does not mutate
+   * any state. Use cockpitMissionDetail / cockpitMissionPlan for the rest
+   * of the cockpit's read surface.
+   */
+  async cockpitMissions(options: {
+    projectDir?: string;
+    status?: CockpitMissionStatus[];
+    limit?: number;
+  } = {}): Promise<CockpitMissionsResponse> {
+    const params = new URLSearchParams();
+    if (options.projectDir) params.set('projectDir', options.projectDir);
+    if (options.status && options.status.length > 0) {
+      params.set('status', options.status.join(','));
+    }
+    if (typeof options.limit === 'number' && options.limit > 0) {
+      params.set('limit', String(options.limit));
+    }
+    const suffix = params.toString();
+    return this._request(
+      'GET',
+      suffix ? `/cockpit/missions?${suffix}` : '/cockpit/missions',
+    ) as Promise<CockpitMissionsResponse>;
+  }
+
   // Harbors -- Named Permission Namespaces
 
   async createHarbor(name: string, options: CreateHarborOptions = {}): Promise<HarborResponse> {
@@ -3978,6 +4004,48 @@ interface GetSortieLogsResponse {
   success: boolean;
   sortie: SortieRecord;
   events: SortieEvent[];
+  count: number;
+  error?: string;
+}
+
+// =============================================================================
+// Cockpit types
+// =============================================================================
+
+export type CockpitMissionStatus =
+  | 'closed'
+  | 'blocked'
+  | 'drifting'
+  | 'stalled'
+  | 'mostly-resolved'
+  | 'mostly-committed'
+  | 'uncommitted'
+  | 'in-flight'
+  | 'unknown';
+
+export interface CockpitMissionCard {
+  id: string;
+  title: string;
+  status: CockpitMissionStatus;
+  source: string;
+  sourceAnchor: string;
+  summary: string;
+  evidence: string[];
+  files: string[];
+  updatedAt: number;
+}
+
+export interface CockpitMissionIntake {
+  projectDir: string;
+  sources: string[];
+  missing: string[];
+  missions: CockpitMissionCard[];
+  generatedAt: number;
+}
+
+export interface CockpitMissionsResponse {
+  success: boolean;
+  intake: CockpitMissionIntake;
   count: number;
   error?: string;
 }

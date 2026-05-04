@@ -439,6 +439,42 @@ export interface RoadmapProgress {
   warnings: string[];
 }
 
+/**
+ * App-Native Development Cockpit — work-queue intake card. Mirrors
+ * `lib/cockpit-missions.ts` on the daemon side; the type is duplicated at
+ * the UI/API boundary so we don't import from `lib/`.
+ */
+export type MissionStatus =
+  | 'closed'
+  | 'blocked'
+  | 'drifting'
+  | 'stalled'
+  | 'mostly-resolved'
+  | 'mostly-committed'
+  | 'uncommitted'
+  | 'in-flight'
+  | 'unknown';
+
+export interface MissionCard {
+  id: string;
+  title: string;
+  status: MissionStatus;
+  source: string;
+  sourceAnchor: string;
+  summary: string;
+  evidence: string[];
+  files: string[];
+  updatedAt: number;
+}
+
+export interface MissionIntake {
+  projectDir: string;
+  sources: string[];
+  missing: string[];
+  missions: MissionCard[];
+  generatedAt: number;
+}
+
 export type SemanticResolutionDecision = 'seeded' | 'auto' | 'review' | 'reject' | 'error';
 
 /**

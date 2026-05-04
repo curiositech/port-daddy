@@ -49,3 +49,4 @@ export * from './guard.js';
 export * from './add.js';
 export * from './snapshots.js';
 export * from './shipwright.js';
+export * from './cockpit.js';

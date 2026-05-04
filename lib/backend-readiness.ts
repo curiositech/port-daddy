@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
 import { getSecret } from './secret-env.js';
+import { CLOUDFLARE_BACKEND_SETUP_LINKS, type BackendSetupLink } from './backend-setup-links.js';
 
 export interface BackendReadiness {
   backend: string;
@@ -10,6 +11,7 @@ export interface BackendReadiness {
   nextStep?: string;
   credentialKeys?: string[];
   credentialAlternates?: string[];
+  setupLinks?: BackendSetupLink[];
   setupCommand?: string;
   setupFiles?: string[];
   restartRequired?: boolean;
@@ -71,7 +73,7 @@ function setupForKeys(keys: string[]): Pick<BackendReadiness, 'credentialKeys' |
   return {
     credentialKeys: keys,
     setupFiles: ['~/.port-daddy-env', '.env.local', '.env'],
-    setupCommand: `printf '\\n${body}\\n' >> ~/.port-daddy-env\npd daemon restart`,
+    setupCommand: `printf '\\n${body}\\n' >> ~/.port-daddy-env\npd restart`,
     restartRequired: true,
   };
 }
@@ -129,7 +131,7 @@ export async function assessBackendReadiness(
           summary: '@anthropic-ai/sdk is not installed',
           nextStep: 'Run `npm install @anthropic-ai/sdk` before using the Claude SDK backend.',
           ...setupForKeys(['ANTHROPIC_API_KEY']),
-          setupCommand: 'npm install @anthropic-ai/sdk\nprintf \'\\nANTHROPIC_API_KEY=<paste-value>\\n\' >> ~/.port-daddy-env\npd daemon restart',
+          setupCommand: 'npm install @anthropic-ai/sdk\nprintf \'\\nANTHROPIC_API_KEY=<paste-value>\\n\' >> ~/.port-daddy-env\npd restart',
         }, telemetryPolicy);
       }
       return applyTelemetryPolicy(
@@ -159,7 +161,7 @@ export async function assessBackendReadiness(
           nextStep: 'Run `npm install @google/generative-ai` before using the Gemini backend.',
           ...setupForKeys(['GEMINI_API_KEY']),
           credentialAlternates: ['GOOGLE_API_KEY'],
-          setupCommand: 'npm install @google/generative-ai\nprintf \'\\nGEMINI_API_KEY=<paste-value>\\n\' >> ~/.port-daddy-env\npd daemon restart',
+          setupCommand: 'npm install @google/generative-ai\nprintf \'\\nGEMINI_API_KEY=<paste-value>\\n\' >> ~/.port-daddy-env\npd restart',
         }, telemetryPolicy);
       }
       const geminiKeyPresent = getSecret('GEMINI_API_KEY') || getSecret('GOOGLE_API_KEY');
@@ -184,7 +186,10 @@ export async function assessBackendReadiness(
       );
 
     case 'cloudflare': {
-      const accountId = process.env.CLOUDFLARE_ACCOUNT_ID || process.env.CF_ACCOUNT_ID;
+      const accountId = getSecret('CLOUDFLARE_ACCOUNT_ID')
+        || process.env.CLOUDFLARE_ACCOUNT_ID
+        || getSecret('CF_ACCOUNT_ID')
+        || process.env.CF_ACCOUNT_ID;
       const token = getSecret('CLOUDFLARE_API_TOKEN')
         || getSecret('CLOUDFLARE_API_KEY')
         || getSecret('CF_API_TOKEN');
@@ -195,15 +200,17 @@ export async function assessBackendReadiness(
           summary: 'Cloudflare Workers AI credentials present',
           ...setupForKeys(['CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_API_TOKEN']),
           credentialAlternates: ['CLOUDFLARE_API_KEY', 'CF_API_TOKEN', 'CF_ACCOUNT_ID'],
+          setupLinks: CLOUDFLARE_BACKEND_SETUP_LINKS,
         }, telemetryPolicy);
       }
       return applyTelemetryPolicy({
         backend,
         status: 'needs_setup',
         summary: 'Cloudflare Workers AI credentials missing',
-        nextStep: 'Add CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN to ~/.port-daddy-env or your project .env file, then restart the daemon.',
+        nextStep: 'Create a Cloudflare token from the Port Daddy template, then save CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN in the console or ~/.port-daddy-env.',
         ...setupForKeys(['CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_API_TOKEN']),
         credentialAlternates: ['CLOUDFLARE_API_KEY', 'CF_API_TOKEN', 'CF_ACCOUNT_ID'],
+        setupLinks: CLOUDFLARE_BACKEND_SETUP_LINKS,
       }, telemetryPolicy);
     }
 

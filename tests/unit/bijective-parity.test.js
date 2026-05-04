@@ -320,6 +320,7 @@ describe('Test Group 3: API -> CLI Parity', () => {
     orchestrator: ['up', 'down'],
     tuples: ['tuple'],
     sorties: ['sortie'],
+    cockpit: ['cockpit'],
     graph: ['graph'],
     memory: ['memory'],
     cartographer: ['roadmap'],
@@ -330,9 +331,10 @@ describe('Test Group 3: API -> CLI Parity', () => {
     panic: ['fleet'],
     budget: ['wallet'],
     shipwright: ['shipwright'],
+    cockpit: ['cockpit'],
   };
 
-  // API-only routes that have no CLI equivalent (accessed via curl or SDK)
+  // API-only routes that have no CLI equivalent (accessed via curl or SDK).
   const API_ONLY_ROUTES = new Set(['arbiter', 'pheromone', 'mergequeue', 'symbols', 'observability', 'operator', 'semantic', 'resources', 'usage', 'testhooks']);
 
   test('all route modules have at least one corresponding CLI command', () => {
