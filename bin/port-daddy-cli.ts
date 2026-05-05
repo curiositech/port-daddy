@@ -679,9 +679,11 @@ Commands:
   note <content>             Quick note (auto-creates session if needed)
     --type <type>            Note type: progress, decision, blocker, etc.
 
-  notes [session-id]         View notes for a session or recent across all
+  notes [session-id]         View notes for a session or project-scoped recent notes
     --limit <n>              Limit number of notes
     --type <type>            Filter by note type
+    --project <slug>         Scope recent notes to one project
+    --all-projects           Intentional global recent-notes read
     -j, --json               Output as JSON
 
 Examples:

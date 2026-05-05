@@ -642,17 +642,21 @@ const TOOLS = [
   },
   {
     name: 'list_notes',
-    description: '[Standard] List notes for a session, or recent notes across all sessions.',
+    description: '[Standard] List notes for a session, or recent notes scoped to one project.',
     inputSchema: {
       type: 'object' as const,
       properties: {
         session_id: {
           type: 'string',
-          description: 'Session ID (omit for recent notes across all sessions)',
+          description: 'Session ID (omit for recent notes)',
         },
         limit: {
           type: 'number',
           description: 'Maximum number of notes to return',
+        },
+        project: {
+          type: 'string',
+          description: 'Project slug to isolate recent notes (e.g. "port-daddy" or "workgroup-ai"). Omit only for an intentional global read.',
         },
       },
     },
@@ -2138,7 +2142,12 @@ const TOOLS = [
       'recent fleet channel messages, and the latest output from spark/spider/cartographer.',
     inputSchema: {
       type: 'object' as const,
-      properties: {},
+      properties: {
+        project: {
+          type: 'string',
+          description: 'Project slug to isolate fleet notes and agents (e.g. "port-daddy"). Omit only for an intentional global read.',
+        },
+      },
     },
   },
   {
@@ -2178,6 +2187,8 @@ const TOOLS = [
       type: 'object' as const,
       properties: {
         since_minutes: { type: 'number', description: 'How far back to look (default: 60 minutes)' },
+        project: { type: 'string', description: 'Scope notes and salvage queue to a project (optional)' },
+        stack: { type: 'string', description: 'Scope salvage queue to a stack (optional)' },
       },
     },
   },
@@ -2204,6 +2215,7 @@ const TOOLS = [
         agent: { type: 'string', description: 'Agent name or identity (e.g. "spider", "myapp:fleet:qa")' },
         message: { type: 'string', description: 'The message to send' },
         type: { type: 'string', description: 'Message type (default: "request")' },
+        project: { type: 'string', description: 'Project slug used to resolve short fleet names (e.g. "workgroup-ai" makes "cartographer" target "workgroup-ai:fleet:cartographer").' },
       },
       required: ['agent', 'message'],
     },
@@ -2468,7 +2480,7 @@ const TOOLS = [
         hook: { type: 'string', description: 'Concrete reproduction hook (command, payload, log line)' },
         suggested: { type: 'string', description: 'Suggested direction or fix' },
         project: { type: 'string', description: 'Project slug this feedback belongs to' },
-        harbor: { type: 'string', description: 'Harbor namespace for scoping (default: fleet)' },
+        harbor: { type: 'string', description: 'Harbor namespace for scoping. Defaults to <project>:fleet when project is supplied; otherwise legacy fleet.' },
       },
       required: ['slug', 'summary'],
     },
@@ -2740,12 +2752,13 @@ async function handleTool(
     }
 
     case 'list_notes': {
+      const params = new URLSearchParams();
+      if (args.limit) params.set('limit', String(args.limit));
+      if (args.project) params.set('project', args.project as string);
       if (args.session_id) {
-        const qs = args.limit ? `?limit=${args.limit}` : '';
-        res = await GET(`/sessions/${args.session_id}/notes${qs}`);
+        res = await GET(`/sessions/${args.session_id}/notes${params.toString() ? `?${params.toString()}` : ''}`);
       } else {
-        const qs = args.limit ? `?limit=${args.limit}` : '';
-        res = await GET(`/notes${qs}`);
+        res = await GET(`/notes${params.toString() ? `?${params.toString()}` : ''}`);
       }
       break;
     }
@@ -3415,10 +3428,14 @@ async function handleTool(
     }
 
     case 'fleet_status': {
+      const project = args.project as string | undefined;
+      const agentQs = project ? `?identityPrefix=${encodeURIComponent(project)}` : '';
+      const noteQs = new URLSearchParams({ limit: '10' });
+      if (project) noteQs.set('project', project);
       const [spawned, channels, notes] = await Promise.all([
-        GET('/spawn'),
+        GET(`/spawn${agentQs}`),
         GET('/msg'),
-        GET('/notes?limit=10'),
+        GET(`/notes?${noteQs}`),
       ]);
       const agents = (spawned.data as Record<string, unknown>)?.agents ?? [];
       const msgs = (channels.data as Record<string, unknown>)?.channels ?? [];
@@ -3429,9 +3446,11 @@ async function handleTool(
     case 'swarm_awareness': {
       const project = args.project as string | undefined;
       const qs = project ? `?identityPrefix=${encodeURIComponent(project)}` : '';
+      const sessionQs = new URLSearchParams({ limit: '20' });
+      if (project) sessionQs.set('project', project);
       const [agentsRes, sessionsRes, filesRes, salvageRes] = await Promise.all([
         GET(`/agents${qs}`),
-        GET('/sessions?limit=20'),
+        GET(`/sessions?${sessionQs}`),
         GET('/files'),
         GET(`/salvage/pending${project ? '?project=' + encodeURIComponent(project) : ''}`),
       ]);
@@ -3464,10 +3483,15 @@ async function handleTool(
 
       // Legacy fallback for daemons older than 3.8.4.
       const since = Date.now() - mins * 60 * 1000;
+      const notesQs = new URLSearchParams({ limit: '20' });
+      if (project) notesQs.set('project', project);
+      const salvageQs = new URLSearchParams();
+      if (project) salvageQs.set('project', project);
+      if (stack) salvageQs.set('stack', stack);
       const [actRes, notesRes, salvageRes, spawnRes] = await Promise.all([
         GET(`/activity?limit=30&since=${since}`),
-        GET('/notes?limit=20'),
-        GET('/salvage/pending'),
+        GET(`/notes?${notesQs}`),
+        GET(`/salvage/pending${salvageQs.toString() ? `?${salvageQs}` : ''}`),
         GET('/spawn'),
       ]);
       const activity = (actRes.data as Record<string, unknown>)?.entries ?? (actRes.data as Record<string, unknown>)?.activity ?? [];
@@ -3491,7 +3515,14 @@ async function handleTool(
       const agent = args.agent as string;
       const message = args.message as string;
       const type = (args.type as string) || 'request';
-      const candidates = [agent, `fleet:${agent}`, `port-daddy:fleet:${agent}`];
+      const project = args.project as string | undefined;
+      const candidates = agent.includes(':')
+        ? [agent]
+        : [
+            ...(project ? [`${project}:fleet:${agent}`] : []),
+            `fleet:${agent}`,
+            agent,
+          ];
       for (const target of candidates) {
         try {
           const r = await POST(`/agents/${encodeURIComponent(target)}/inbox`, {

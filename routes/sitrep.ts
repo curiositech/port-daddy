@@ -46,7 +46,7 @@ interface SitrepDeps {
   sessions: {
     getNotes(
       sessionId: string | null,
-      options?: { limit?: number; type?: string; since?: number },
+      options?: { limit?: number; type?: string; since?: number; project?: string | null },
     ): { notes: unknown[] } | unknown[];
   };
   resurrection: {
@@ -89,7 +89,7 @@ export const sitrepPlugin: FastifyPluginAsync<{ deps: SitrepDeps }> = async (fas
       ? activityResult
       : (activityResult.entries ?? []);
 
-    const notesResult = sessions.getNotes(null, { limit: limitNotes, since: sinceMs });
+    const notesResult = sessions.getNotes(null, { limit: limitNotes, since: sinceMs, project });
     const notes = Array.isArray(notesResult)
       ? notesResult
       : ((notesResult as { notes?: unknown[] }).notes ?? []);

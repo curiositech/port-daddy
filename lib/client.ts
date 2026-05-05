@@ -2398,6 +2398,7 @@ class PortDaddy {
     limit?: number;
     type?: string;
     since?: number;
+    project?: string;
   }): Promise<NotesResponse> {
     if (typeof sessionIdOrOptions === 'string') {
       return this._request('GET', `/sessions/${sessionIdOrOptions}/notes`) as Promise<NotesResponse>;
@@ -2406,6 +2407,7 @@ class PortDaddy {
     if (sessionIdOrOptions?.limit) params.set('limit', String(sessionIdOrOptions.limit));
     if (sessionIdOrOptions?.type) params.set('type', sessionIdOrOptions.type);
     if (sessionIdOrOptions?.since) params.set('since', String(sessionIdOrOptions.since));
+    if (sessionIdOrOptions?.project) params.set('project', sessionIdOrOptions.project);
     const qs = params.toString();
     return this._request('GET', `/notes${qs ? `?${qs}` : ''}`) as Promise<NotesResponse>;
   }

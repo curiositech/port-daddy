@@ -1,7 +1,7 @@
 /**
  * Harbor CLI Commands
  *
- * pd harbor create <name> [--cap <caps>] [--channels <chans>] [--expires <duration>]
+ * pd harbor create <name> [--scope <project>] [--cap <caps>] [--channels <chans>] [--expires <duration>]
  * pd harbor enter <name> [--agent <id>] [--cap <caps>]
  * pd harbor leave <name> [--agent <id>]
  * pd harbor show <name>
@@ -64,8 +64,9 @@ export async function handleHarborCreate(args: string[], options: ParsedOptions)
   const caps = options['cap'] ? String(options['cap']).split(',').map(s => s.trim()) : [];
   const channels = options['channels'] ? String(options['channels']).split(',').map(s => s.trim()) : [];
   const expiresIn = options['expires'] ? parseDuration(String(options['expires'])) : undefined;
+  const scope = typeof options['scope'] === 'string' && options['scope'].trim() ? options['scope'].trim() : undefined;
 
-  const result = await api('POST', '/harbors', { name, capabilities: caps, channels, expiresIn }) as Record<string, unknown>;
+  const result = await api('POST', '/harbors', { name, scope, capabilities: caps, channels, expiresIn }) as Record<string, unknown>;
   if (!(result as Record<string, unknown>)['success']) {
     console.error('Error:', (result as Record<string, unknown>)['error']);
     process.exit(1);
@@ -78,6 +79,7 @@ export async function handleHarborCreate(args: string[], options: ParsedOptions)
 
   const h = (result as Record<string, unknown>)['harbor'] as Record<string, unknown>;
   console.log(`\n  Harbor created: ${h['name']}`);
+  if (scope) console.log(`  Scope:          ${scope}`);
   if (caps.length) console.log(`  Capabilities:   ${caps.join(', ')}`);
   if (channels.length) console.log(`  Channels:       ${channels.join(', ')}`);
   if (expiresIn) console.log(`  Expires in:     ${options['expires']}`);

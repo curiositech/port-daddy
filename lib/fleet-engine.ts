@@ -1728,6 +1728,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: config.harbor,
+          scope: project,
           capabilities: config.agents.map(a => a.name),
           channels,
           agentPatterns: config.agents

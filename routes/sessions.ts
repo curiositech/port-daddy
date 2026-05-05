@@ -38,6 +38,7 @@ interface SessionsRouteDeps {
       limit?: number;
       type?: string;
       since?: number;
+      project?: string | null;
     }): Record<string, unknown>;
     claimFiles(sessionId: string, files: string[], options?: {
       regions?: Array<{ path: string; startLine?: number; endLine?: number; symbol?: string; symbolPath?: string }>;
@@ -403,12 +404,14 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       const typeParam = q.type;
       const limitParam = q.limit;
       const sinceParam = q.since;
+      const projectParam = q.project;
 
       const type = typeof typeParam === 'string' ? typeParam : undefined;
       const limit = typeof limitParam === 'string' ? parseInt(limitParam, 10) : 100;
       const since = typeof sinceParam === 'string' ? parseInt(sinceParam, 10) : undefined;
+      const project = typeof projectParam === 'string' && projectParam.trim() ? projectParam.trim() : undefined;
 
-      const result = sessions.getNotes(sessionId, { type, limit, since });
+      const result = sessions.getNotes(sessionId, { type, limit, since, project });
 
       if (!result.success) {
         reply.code(404);
@@ -670,12 +673,14 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       const limitParam = q.limit;
       const typeParam = q.type;
       const sinceParam = q.since;
+      const projectParam = q.project;
 
       const limit = typeof limitParam === 'string' ? parseInt(limitParam, 10) : 50;
       const type = typeof typeParam === 'string' ? typeParam : undefined;
       const since = typeof sinceParam === 'string' ? parseInt(sinceParam, 10) : undefined;
+      const project = typeof projectParam === 'string' && projectParam.trim() ? projectParam.trim() : undefined;
 
-      const result = sessions.getNotes(null, { limit, type, since });
+      const result = sessions.getNotes(null, { limit, type, since, project });
 
       return result;
 

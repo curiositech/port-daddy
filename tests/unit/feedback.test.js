@@ -57,6 +57,19 @@ describe('drop', () => {
     expect(entry.source).toBe('unknown');
   });
 
+  test('defaults harbor to the project fleet harbor when project is supplied', () => {
+    const entry = feedback.drop({
+      slug: 'workgroup-cartographer-note',
+      summary: 'keep this out of Port Daddy feedback',
+      droppedBy: 'workgroup-ai:fleet:cartographer',
+      project: 'workgroup-ai',
+    });
+
+    expect(entry.harbor).toBe('workgroup-ai:fleet');
+    expect(feedback.list({ harbor: 'workgroup-ai:fleet' }).map((e) => e.slug)).toEqual(['workgroup-cartographer-note']);
+    expect(feedback.list({ harbor: 'port-daddy:fleet' })).toEqual([]);
+  });
+
   test('coerces unknown enum values back to defaults', () => {
     const entry = feedback.drop({
       slug: 's',

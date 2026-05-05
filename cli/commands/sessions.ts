@@ -12,6 +12,7 @@ import { canPrompt, promptText, promptSelect } from '../utils/prompt.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
 import { readCurrentContext } from '../utils/current-context.js';
+import { loadFleetConfig } from '../../lib/fleet-engine.js';
 
 type SessionStartResult = Awaited<ReturnType<PortDaddy['startSession']>>;
 type SessionEndResult = Awaited<ReturnType<PortDaddy['endSession']>>;
@@ -62,6 +63,28 @@ function numberOption(options: CLIOptions, ...keys: string[]): number | undefine
   if (raw === undefined) return undefined;
   const parsed = typeof raw === 'number' ? raw : Number(raw);
   return Number.isFinite(parsed) ? parsed : NaN;
+}
+
+function projectFromIdentity(identity: string | null | undefined): string | undefined {
+  if (!identity || typeof identity !== 'string') return undefined;
+  const project = identity.split(':')[0]?.trim();
+  return project || undefined;
+}
+
+function inferNotesProject(options: CLIOptions): string | undefined {
+  if (options.all || options['all-projects'] || options.global) return undefined;
+  const explicit = stringOption(options, 'project');
+  if (explicit) return explicit;
+
+  try {
+    const fleetConfig = loadFleetConfig(process.cwd());
+    if (fleetConfig?.name) return fleetConfig.name;
+  } catch {
+    // Fall back to session context below.
+  }
+
+  const current = readCurrentContext();
+  return projectFromIdentity(current?.identity) ?? projectFromIdentity(current?.agentId);
 }
 
 function buildRegionFromOptions(paths: string[], options: CLIOptions): FileRegion[] | undefined {
@@ -838,6 +861,13 @@ export async function handleNotes(sessionId: string | undefined, options: CLIOpt
   const params = new URLSearchParams();
   if (options.limit) params.append('limit', String(options.limit));
   if (options.type) params.append('type', options.type as string);
+  const explicitProject = stringOption(options, 'project');
+  if (explicitProject) {
+    params.append('project', explicitProject);
+  } else if (!sessionId) {
+    const project = inferNotesProject(options);
+    if (project) params.append('project', project);
+  }
 
   const res: PdFetchResponse = await pdFetch(`${url}?${params}`);
   const data = await res.json();

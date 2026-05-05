@@ -129,6 +129,11 @@ const SEVERITY_RANK: Record<FeedbackSeverity, number> = {
 const DEFAULT_HARBOR = 'fleet';
 const DEFAULT_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days — stale unharvested feedback eventually expires.
 
+function harborForProject(project: string | undefined): string | null {
+  const trimmed = typeof project === 'string' ? project.trim() : '';
+  return trimmed ? `${trimmed}:fleet` : null;
+}
+
 function asEnum<T extends string>(value: string | undefined, allowed: T[], fallback: T): T {
   if (value && (allowed as string[]).includes(value)) return value as T;
   return fallback;
@@ -173,7 +178,7 @@ export function createFeedback(deps: FeedbackDeps) {
       throw new Error('feedback.drop: droppedBy is required (string)');
     }
 
-    const harbor = input.harbor ?? DEFAULT_HARBOR;
+    const harbor = input.harbor ?? harborForProject(input.project) ?? DEFAULT_HARBOR;
     const ttlMs = input.ttlMs ?? DEFAULT_TTL_MS;
     const at = now();
     const feedbackId = randomUUID();
