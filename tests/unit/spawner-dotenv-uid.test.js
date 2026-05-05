@@ -61,6 +61,8 @@ const mockSpawnFn = jest.fn(() => mockChildProc);
 
 jest.unstable_mockModule('node:child_process', () => ({
   spawn: mockSpawnFn,
+  execSync: jest.fn(),
+  execFileSync: jest.fn(),
 }));
 
 // Import AFTER mocks are registered
