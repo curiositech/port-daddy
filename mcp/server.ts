@@ -2755,10 +2755,11 @@ async function handleTool(
       const params = new URLSearchParams();
       if (args.limit) params.set('limit', String(args.limit));
       if (args.project) params.set('project', args.project as string);
+      const qs = params.toString() ? `?${params.toString()}` : '';
       if (args.session_id) {
-        res = await GET(`/sessions/${args.session_id}/notes${params.toString() ? `?${params.toString()}` : ''}`);
+        res = await GET(`/sessions/${args.session_id}/notes${qs}`);
       } else {
-        res = await GET(`/notes${params.toString() ? `?${params.toString()}` : ''}`);
+        res = await GET(`/notes${qs}`);
       }
       break;
     }
