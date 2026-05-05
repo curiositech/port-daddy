@@ -104,20 +104,25 @@ describe('backend readiness', () => {
     expect(readiness.nextStep).toContain('~/.port-daddy-env');
   });
 
-  test('blocks Cloudflare backend even when credentials are present', async () => {
+  test('marks Cloudflare backend ready when credentials are present (telemetry policy allows it)', async () => {
     process.env.CLOUDFLARE_ACCOUNT_ID = 'acct-123';
     secretValues.set('CLOUDFLARE_ACCOUNT_ID', 'acct-123');
     secretValues.set('CLOUDFLARE_API_TOKEN', 'token-123');
 
     const readiness = await assessBackendReadiness('cloudflare');
 
-    expect(mockGetSecret).toHaveBeenCalledTimes(1);
-    expect(mockGetSecret).toHaveBeenCalledWith('CLOUDFLARE_API_TOKEN');
+    // Order: account-id first (resolved via getSecret), then API token.
+    expect(mockGetSecret).toHaveBeenCalledTimes(2);
+    expect(mockGetSecret).toHaveBeenNthCalledWith(1, 'CLOUDFLARE_ACCOUNT_ID');
+    expect(mockGetSecret).toHaveBeenNthCalledWith(2, 'CLOUDFLARE_API_TOKEN');
     expect(readiness).toMatchObject({
       backend: 'cloudflare',
-      status: 'needs_setup',
+      status: 'ready',
     });
-    expect(readiness.summary).toContain('blocked until exact token counts');
+    // Cloudflare default model (@cf/zai-org/glm-4.7-flash) has an exact cost
+    // rate in lib/cost-tracker.ts, so the fail-closed telemetry policy allows
+    // launch. See commit 30e0597e (cloudflare wired as runnable fallback).
+    expect(readiness.summary).toContain('Cloudflare Workers AI credentials present');
     expect(readiness.credentialKeys).toEqual(['CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_API_TOKEN']);
     expect(readiness.credentialAlternates).toEqual(['CLOUDFLARE_API_KEY', 'CF_API_TOKEN', 'CF_ACCOUNT_ID']);
   });
