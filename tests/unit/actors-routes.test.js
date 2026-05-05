@@ -57,13 +57,21 @@ describe('actor routes', () => {
     expect(res.statusCode).toBe(200);
     const payload = res.json();
     expect(payload.success).toBe(true);
-    expect(payload.count).toBe(9);
+    expect(payload.count).toBe(10);
     const coxswain = payload.actors.find((actor) => actor.id === 'coxswain');
     expect(coxswain).toEqual(expect.objectContaining({
       label: 'Coxswain',
       leaseState: 'dormant',
       compatibilityFleetAgent: null,
       inboxTarget: 'actor:coxswain',
+      mailboxStats: { total: 0, unread: 0, max: 1000 },
+    }));
+    const quartermaster = payload.actors.find((actor) => actor.id === 'quartermaster');
+    expect(quartermaster).toEqual(expect.objectContaining({
+      label: 'Quartermaster',
+      leaseState: 'dormant',
+      compatibilityFleetAgent: null,
+      inboxTarget: 'actor:quartermaster',
       mailboxStats: { total: 0, unread: 0, max: 1000 },
     }));
     const cartographer = payload.actors.find((actor) => actor.id === 'cartographer');
@@ -108,6 +116,20 @@ describe('actor routes', () => {
       actor: expect.objectContaining({
         id: 'coxswain',
         inboxTarget: 'actor:coxswain',
+      }),
+    }));
+
+    const quartermasterRes = await app.inject({
+      method: 'GET',
+      url: '/actors/quartermaster',
+    });
+    expect(quartermasterRes.statusCode).toBe(200);
+    expect(quartermasterRes.json()).toEqual(expect.objectContaining({
+      success: true,
+      resolvedId: 'quartermaster',
+      actor: expect.objectContaining({
+        id: 'quartermaster',
+        inboxTarget: 'actor:quartermaster',
       }),
     }));
 
