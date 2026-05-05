@@ -54,7 +54,7 @@ pd session files add <path>                      # claim the smallest real surfa
 # work happens — see Git Discipline below for staging/commit
 pd note "Result: <change>. Validation: <evidence>. Remaining: <risk>."
 pd done "<short outcome>"
-pd drop_feedback "<one-sentence experience report>"   # see Feedback Loop
+pd feedback "<one-sentence experience report>"   # see Feedback Loop
 ```
 
 The loop is not ceremony. It solves the actual failures that ruin
@@ -247,10 +247,22 @@ Port Daddy is a tool for the user. Tools improve when their users tell the
 maintainer where the friction is. **Drop feedback after every Port Daddy session,
 even briefly.**
 
+The reliable surface today is the MCP tool `drop_feedback` (callable from
+any MCP-aware client):
+
+```
+drop_feedback({ message: "Salvage worked first try; but I had to guess --project arg syntax." })
+drop_feedback({ message: "Got confused: pd briefing showed two coxswain actors. Expected one." })
+drop_feedback({ message: "Worktree creation cost 30s on first run; would skip it for sub-minute tasks." })
+```
+
+If you don't have MCP access (pure shell session), record the same
+feedback in a `pd note` tagged `feedback:` so it lands in the durable
+note stream — operators can grep it out:
+
 ```bash
-pd drop_feedback "Salvage worked first try; but I had to guess --project arg syntax."
-pd drop_feedback "Got confused: pd briefing showed two coxswain actors. Expected one."
-pd drop_feedback "Worktree creation cost 30s on first run; would skip it for sub-minute tasks."
+pd note "feedback: salvage worked first try; --project arg syntax was guessable but undocumented"
+pd note "feedback: pd briefing showed two coxswain actors; expected one"
 ```
 
 The user reads these. They are not noise. They are how the friction
@@ -259,12 +271,13 @@ budget gets spent on the right places.
 If you skipped a step in the loop above (no `pd note`, no claim, no
 salvage check), **own up to it in the feedback** with the reason:
 
-```bash
-pd drop_feedback "SKIPPED: pd salvage. Reason: I judged the task too small. In hindsight: 30s investment to confirm; should not have skipped."
-pd drop_feedback "SKIPPED: pd note pre-edit. Reason: lazy. No good reason. Adding to my own session checklist."
+```
+drop_feedback({ message: "SKIPPED: pd salvage. Reason: I judged the task too small. In hindsight: 30s investment to confirm; should not have skipped." })
 ```
 
 The user explicitly asked for this honesty. Don't paper over it.
+
+> **Skill-vs-reality drift noted (2026-05-05):** the CLI does not yet expose a `pd feedback` / `pd drop_feedback` command — only the MCP tool. A Lookout drift report has been filed proposing CLI parity. When the CLI gains the command, this section gets updated to use it as the primary path; until then, MCP + tagged `pd note` are the reliable surfaces.
 
 ## Reconciling Before Publishing
 
