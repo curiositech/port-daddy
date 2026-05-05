@@ -33,6 +33,7 @@ const mockExecSync = jest.fn();
 jest.unstable_mockModule('node:child_process', () => ({
   spawn: mockSpawn,
   execSync: mockExecSync,
+  execFileSync: jest.fn(),
 }));
 
 // yaml must be available for fleet-engine to import
