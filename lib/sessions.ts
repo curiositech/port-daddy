@@ -1063,19 +1063,17 @@ export function createSessions(
     const result = stmts.insertNote.run(sessionId, storedContent, type, now);
     const noteId = Number(result.lastInsertRowid);
 
-    if (['handoff', 'finding', 'decision', 'summary', 'result', 'failure'].includes(type)) {
-      rememberEpisode(
-        session,
-        type,
-        `${sessionId}:note:${noteId}`,
-        `${session.agent_id || 'agent'} ${type}`,
-        trimmedContent,
-        {
-          sessionId,
-          noteType: type,
-        },
-      );
-    }
+    rememberEpisode(
+      session,
+      type,
+      `${sessionId}:note:${noteId}`,
+      `${session.agent_id || 'agent'} ${type}`,
+      trimmedContent,
+      {
+        sessionId,
+        noteType: type,
+      },
+    );
 
     if (activityLog) {
       activityLog.log(ActivityType.SESSION_NOTE, {
