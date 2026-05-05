@@ -26,37 +26,37 @@ const AGENT_SIGNALS: AgentSignal[] = [
   {
     id: 'notes',
     label: '01',
-    title: 'Notes preserve context',
+    title: 'Notes become recoverable memory',
     icon: MessageSquareText,
-    description: 'Session notes make intent and evidence durable. A recovering agent can read what changed, what was tested, what stayed risky, and where the last truthful handoff happened.',
-    appEvidence: 'Notes timeline shows scope, evidence, and handoff status.',
+    description: 'Session notes keep intent, evidence, tests, remaining risk, and the last truthful handoff outside the model context window that produced them.',
+    appEvidence: 'A new agent can resume from the note trail without asking the human to reconstruct state.',
   },
   {
     id: 'claims',
     label: '02',
-    title: 'Claims expose touch',
+    title: 'Claims make ownership explicit',
     icon: ShieldCheck,
-    description: 'File and region claims turn parallel editing into visible touch. Agents can see who is already working on a surface, choose a smaller route, or escalate before product truth drifts.',
-    appEvidence: 'Touched files and owners appear before another agent edits.',
+    description: 'File and region claims turn parallel editing into visible intent. Agents can see who is already near a surface, narrow scope, or escalate before edits collide.',
+    appEvidence: 'Touched files and owners appear before another agent starts writing.',
   },
   {
     id: 'radio',
     label: '03',
-    title: 'Channels publish evidence',
+    title: 'Channels carry machine-readable signals',
     icon: RadioTower,
-    description: 'Scoped channels carry machine-readable facts without turning the human into the message bus. Test failures, contention, readiness gaps, and drift warnings can move while work continues.',
-    appEvidence: 'Important warnings land in Activity, channels, and actor inboxes.',
+    description: 'Scoped channels carry test failures, contention, readiness gaps, and drift warnings without turning the human into the message bus.',
+    appEvidence: 'Warnings land in Activity, channels, and actor inboxes with project scope attached.',
   },
   {
     id: 'actors',
     label: '04',
-    title: 'Actors hold responsibility',
+    title: 'Actors keep responsibility addressable',
     icon: Waypoints,
     description: (
       <>
         <span className="block">
-          Durable actors are always-addressable responsibility holders with inboxes. Fleet agents can ask
-          them for decisions, warnings, or ground truth across sessions.
+          Durable actors are named responsibility holders with inboxes. Agents can ask them for
+          decisions, warnings, or ground truth after the original shell session exits.
         </span>
         <span className="mt-[var(--space-2)] block">
           <RoleTerm role="coxswain" tooltipAlign="end">Coxswain</RoleTerm>: claims and locks.{' '}
@@ -66,7 +66,7 @@ const AGENT_SIGNALS: AgentSignal[] = [
         </span>
       </>
     ),
-    appEvidence: 'Durable actor inboxes keep responsibility visible after a shell exits.',
+    appEvidence: 'Durable actor inboxes keep ownership visible after a process exits.',
   },
 ]
 
@@ -78,17 +78,17 @@ export function AgentConversationSection() {
           <SwissGridItem span="narrow">
             <div className="sticky top-28 space-y-[var(--space-5)]">
               <SectionIntro
-                eyebrow="Steerability layer"
-                title="Agents coordinate through observable state."
-                description="Port Daddy gives ordinary orchestration a shared memory layer: agents leave durable state for other agents they may never meet. Notes, claims, scoped channels, actor inboxes, and salvage records make the work inspectable instead of making the human relay every message."
+                eyebrow="Shared-state substrate"
+                title="Coordination is state agents can read."
+                description="Schedulers decide what runs. Port Daddy gives the running agents a durable coordination plane: notes, claims, scoped channels, actor inboxes, tuple-backed facts, and salvage records that make work inspectable across models, terminals, and crashes."
                 titleAs="h2"
                 titleSize="display"
                 titleClassName="max-w-[12ch]"
               />
               <SurfacePanel tone="blue" padding="compact" elevation="quiet">
-                <PanelEyebrow tone="primary">Steerability in practice</PanelEyebrow>
+                <PanelEyebrow tone="primary">Why AI tooling teams care</PanelEyebrow>
                 <PanelBody tone="primary" size="compact" className="mt-[var(--space-2)] max-w-none">
-                  Shared memory, shared warnings, durable roles, telemetry, resource pressure, and recoverable handoffs stay visible in the app.
+                  Agent quality improves when the environment can prove ownership, state, budget, and recovery instead of relying on prompt discipline alone.
                 </PanelBody>
               </SurfacePanel>
             </div>

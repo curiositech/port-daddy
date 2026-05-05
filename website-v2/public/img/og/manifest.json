@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-30T23:49:42.426Z",
+  "generatedAt": "2026-05-05T11:26:39.087Z",
   "generator": "website-v2/scripts/generate-og-cards.mjs",
   "renderer": "website-v2/scripts/render-og-cards.py",
   "siteName": "Port Daddy",
@@ -130,7 +130,7 @@
       "image": "/img/og/blog.jpg",
       "route": "/blog",
       "title": "Blog - Port Daddy",
-      "description": "Read current Port Daddy field notes about FleetBar, Fleet Control Center, launch readiness, recovery maps, PD Tube, daemon provenance, and coordination policy.",
+      "description": "Read Port Daddy engineering notes about local control planes, shared state, launch readiness, recovery maps, PD Tube, daemon provenance, and coordination policy.",
       "section": "blog",
       "sectionLabel": "Field Note",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -148,7 +148,7 @@
       "image": "/img/og/docs-best-practices.jpg",
       "route": "/docs/best-practices",
       "title": "Best Practices - Port Daddy",
-      "description": "Keep agent work visible, avoid collisions, recover interrupted runs, and promote changes safely.",
+      "description": "Keep agent work visible, avoid collisions, recover interrupted runs, and promote changes with evidence.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -341,6 +341,15 @@
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/coordination-guard.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-cockpit-missions.jpg",
+      "route": "/docs/cli/cockpit-missions",
+      "title": "pd cockpit missions - Port Daddy",
+      "description": "Reference for pd cockpit missions, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
     },
     {
       "image": "/img/og/docs-cli-compass.jpg",
@@ -991,10 +1000,37 @@
       "sourceImage": "/img/generated/control-plane-og.jpg"
     },
     {
+      "image": "/img/og/docs-cli-shipwright-survey.jpg",
+      "route": "/docs/cli/shipwright-survey",
+      "title": "pd shipwright survey - Port Daddy",
+      "description": "Reference for pd shipwright survey, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
       "image": "/img/og/docs-cli-sitrep.jpg",
       "route": "/docs/cli/sitrep",
       "title": "pd sitrep - Port Daddy",
       "description": "Reference for pd sitrep, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-snapshot.jpg",
+      "route": "/docs/cli/snapshot",
+      "title": "pd snapshot - Port Daddy",
+      "description": "Reference for pd snapshot, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-snapshots.jpg",
+      "route": "/docs/cli/snapshots",
+      "title": "pd snapshots <command> - Port Daddy",
+      "description": "Reference for pd snapshots <command>, including Port Daddy syntax, what the command does, and when to use it.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -1282,7 +1318,7 @@
       "image": "/img/og/docs-concepts.jpg",
       "route": "/docs/concepts",
       "title": "Concepts - Port Daddy",
-      "description": "Learn the mental model behind sessions, notes, file claims, locks, ports, fleets, recovery, and shared daemon authority.",
+      "description": "Learn the ideas behind shared state: sessions, notes, file claims, locks, channels, fleets, readiness, and recovery.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -1425,8 +1461,8 @@
     {
       "image": "/img/og/docs-get-started.jpg",
       "route": "/docs/get-started",
-      "title": "Start Here - Port Daddy",
-      "description": "The canonical first-run path: install Port Daddy, verify the daemon, open the app, and run one named session.",
+      "title": "Get Started - Port Daddy",
+      "description": "Install Port Daddy, check that it is running, and try your first coordinated agent task.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/fleetbar-install.jpg"
@@ -1768,7 +1804,7 @@
       "image": "/img/og/docs-reference-architectures.jpg",
       "route": "/docs/reference-architectures",
       "title": "Reference Architectures - Port Daddy",
-      "description": "Example layouts for the daemon, dashboard, fleets, harbors, and team workflows.",
+      "description": "Example layouts for the local daemon, Fleet Control Center, fleets, harbors, and agent-team workflows.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -1777,7 +1813,7 @@
       "image": "/img/og/docs-reference.jpg",
       "route": "/docs/reference",
       "title": "Reference - Port Daddy",
-      "description": "Exact CLI, API, SDK, MCP, configuration, and dashboard reference for the live daemon, with task-first entry points above the catalogs.",
+      "description": "CLI, API, SDK, MCP, configuration, and dashboard reference for the live shared-state daemon.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -2038,7 +2074,7 @@
       "image": "/img/og/docs-tutorials.jpg",
       "route": "/docs/tutorials",
       "title": "Tutorials - Port Daddy",
-      "description": "Step-by-step walkthroughs that take you from install to useful agent workflows.",
+      "description": "Step-by-step walkthroughs that take you from install to real shared-state agent workflows.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -2047,7 +2083,7 @@
       "image": "/img/og/docs.jpg",
       "route": "/docs",
       "title": "Docs Overview - Port Daddy",
-      "description": "Start here, learn what Port Daddy does, install it, then jump to runnable examples or reference.",
+      "description": "Start here to evaluate Port Daddy as a local control plane for coding agents, then jump to runnable examples or reference.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -2128,7 +2164,7 @@
       "image": "/img/og/examples.jpg",
       "route": "/examples",
       "title": "Executable Examples - Port Daddy",
-      "description": "Run complete Port Daddy example programs for browser buttons, test reporters, editor commands, and webhook adapters that talk to local agents.",
+      "description": "Run complete Port Daddy example programs showing how browser buttons, test reporters, editor commands, and webhook adapters can hand work to local agents.",
       "section": "product",
       "sectionLabel": "Examples",
       "sourceImage": "/img/generated/example-agent-archetypes.jpg"
@@ -2136,8 +2172,8 @@
     {
       "image": "/img/og/home.jpg",
       "route": "/",
-      "title": "Port Daddy - Local Coordination for AI Coding Agents",
-      "description": "Port Daddy is a local app and background service that helps AI coding agents share notes, claim work, avoid collisions, recover interrupted runs, and show what is happening on your machine.",
+      "title": "Port Daddy - Local Control Plane for AI Coding Agents",
+      "description": "Port Daddy is a local control plane and shared-state substrate for AI coding agents: sessions, claims, notes, channels, readiness, budgets, and recoverable handoffs on your machine.",
       "section": "home",
       "sectionLabel": "Local Control Plane",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -2209,7 +2245,7 @@
       "image": "/img/og/integrations.jpg",
       "route": "/integrations",
       "title": "Integrations - Port Daddy",
-      "description": "Wire Port Daddy into Claude, Cursor, Windsurf, LangChain, CrewAI, Aider, Continue.dev, and other developer tooling.",
+      "description": "Wire Port Daddy into Claude, Codex, Cursor, Windsurf, LangChain, CrewAI, Aider, Continue.dev, and other agent-facing developer tooling.",
       "section": "integrations",
       "sectionLabel": "Integration",
       "sourceImage": "/img/generated/agent-runtime-map.jpg"
@@ -2425,7 +2461,7 @@
       "image": "/img/og/tutorials.jpg",
       "route": "/tutorials",
       "title": "Tutorials - Port Daddy",
-      "description": "Follow hands-on Port Daddy tutorials from first install through sessions, DNS, tunnels, fleet YAML, messaging, and background agents.",
+      "description": "Follow hands-on Port Daddy tutorials from first install through shared state, sessions, claims, messaging, fleet YAML, launch gates, and recovery.",
       "section": "tutorials",
       "sectionLabel": "Tutorial",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -2452,7 +2488,7 @@
       "image": "/img/og/whitepaper.jpg",
       "route": "/whitepaper",
       "title": "Whitepaper - Port Daddy",
-      "description": "Read the technical whitepaper behind Port Daddy: local-first agent coordination, signed identity, locks, sessions, and recoverable work.",
+      "description": "Read the technical whitepaper behind Port Daddy: local-first agent coordination, signed identity, capability boundaries, sessions, and recoverable work.",
       "section": "whitepaper",
       "sectionLabel": "Whitepaper",
       "sourceImage": "/img/generated/control-plane-og.jpg"

@@ -178,7 +178,7 @@ export function RoleTerm({
       <span
         id={tooltipId}
         role="tooltip"
-        className={`pointer-events-none invisible absolute top-[calc(100%+var(--space-2))] z-[80] w-[min(18rem,calc(100vw-var(--space-6)))] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-3)] text-left opacity-0 shadow-none group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100 ${tooltipAlignClass}`}
+        className={`pointer-events-none absolute top-[calc(100%+var(--space-2))] z-[80] hidden w-[min(18rem,calc(100vw-var(--space-6)))] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-3)] text-left shadow-none group-focus-within:block group-hover:block ${tooltipAlignClass}`}
       >
         <span className="block font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
           {definition.category}
