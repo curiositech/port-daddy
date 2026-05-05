@@ -290,29 +290,23 @@ Register agent + start session atomically. Recommended entry point for every ses
 | `purpose` | string | What you're working on (required) |
 | `identity` | string | Semantic identity (auto-detected from package.json) |
 | `agentId` | string | Agent ID (auto-generated if not provided) |
-| `name` | string | Human-readable display handle |
-| `telos` | string/object | Purpose contract/tagline for how the agent judges done-ness |
 | `type` | string | Agent type (e.g., 'claude-code') |
 | `files` | string[] | Files to claim |
 | `force` | boolean | Force file claims even if conflicts |
 
-Returns `{ success, agentId, agentName, sessionId, identity, purpose, telos, telosHeadline, salvageHint? }`.
+Returns `{ success, agentId, sessionId, identity, purpose, salvageHint? }`.
 
-### `pd.done(note?, options?)`
+### `pd.done(options?)`
 End session + unregister agent atomically.
 
 | Option | Type | Description |
 |--------|------|-------------|
 | `agentId` | string | Agent ID (or finds by active session) |
 | `sessionId` | string | Session ID |
+| `note` | string | Final summary note |
 | `status` | string | 'completed' (default) or 'abandoned' |
-| `selfSalvage` | object | Optional recovery capsule for unfinished but doable telos. Fields: `telosVerdict`, `doable`, `whyStopped`, `nextPlan`, `wisdom`, `evidence`, `risk`. |
 
-Returns `{ success, agentId, sessionId, sessionStatus, agentUnregistered, selfSalvage?, selfSalvageQueued? }`.
-
-If `selfSalvage` is queueable (`telosVerdict !== "fulfilled"` and
-`doable === "yes"`), `pd.done` closes the session as `abandoned` and queues the
-agent in salvage for continuation.
+Returns `{ success, agentId, sessionId, sessionStatus, agentUnregistered }`.
 
 ### `pd.whoami(agentId?)`
 Show current agent and session context.
@@ -338,19 +332,7 @@ await pd.note('Created ThemeProvider skeleton', { sessionId })
 const ctx = await pd.whoami(agentId)
 
 // Finish
-await pd.done('Theme system complete', { agentId })
-
-// Or leave an honest continuation capsule
-await pd.done('Stopped before visual smoke', {
-  agentId,
-  selfSalvage: {
-    telosVerdict: 'partial',
-    doable: 'yes',
-    whyStopped: 'Need browser proof after rebuild',
-    nextPlan: ['Run Playwright smoke', 'Capture FleetBar screenshot'],
-    wisdom: 'The route was green in source but not yet promoted.',
-  },
-})
+await pd.done({ agentId, note: 'Theme system complete' })
 ```
 
 ---
@@ -406,7 +388,7 @@ Launch a background AI agent with full PD coordination.
 
 | Option | Type | Description |
 |--------|------|-------------|
-| `backend` | string | `ollama`, `claude`, `claude-cli`, `gemini`, `cloudflare`, `codex`, `aider`, `custom` |
+| `backend` | string | `ollama`, `claude`, `claude-cli`, `gemini`, `codex`, `aider`, `custom` |
 | `task` | string | The prompt/task for the agent |
 | `model` | string | Model name override |
 | `modelTier` | string | Tier hint: `low`, `mid`, `high` |

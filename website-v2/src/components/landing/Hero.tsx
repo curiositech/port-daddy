@@ -2,12 +2,28 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
 import { PageContainer, SectionIntro } from '@/components/site/primitives'
-import { ArrowRight, Download, Terminal } from 'lucide-react'
-import { AboveFoldTeasers } from './AboveFoldTeasers'
+import { ArrowRight, Download, RadioTower, Terminal } from 'lucide-react'
+import { LiveGloryVideo } from './LiveGloryVideo'
 
 export function Hero() {
+  const coordinationStrip = (
+    <div className="relative z-20 mb-[var(--space-6)] grid gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)] sm:grid-cols-[auto_minmax(0,1fr)]">
+      <span className="inline-flex h-10 w-10 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--brand-primary)]">
+        <RadioTower size={18} />
+      </span>
+      <div className="grid gap-1">
+        <span className="font-mono text-[10px] font-black uppercase tracking-[0.18em] text-[var(--brand-primary)]">
+          Coordination first
+        </span>
+        <p className="max-w-none text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
+          Agents write notes, claims, and handoffs through Port Daddy; FleetBar gives humans the same live truth before the recording starts.
+        </p>
+      </div>
+    </div>
+  )
+
   return (
-    <section className="relative flex items-start overflow-hidden pb-[var(--space-5)] pt-[var(--space-5)] lg:pb-[var(--space-6)] lg:pt-[var(--space-6)]">
+    <section className="relative flex items-center overflow-hidden py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
       {/* Swiss-grid field for the infrastructure diagram. */}
       <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{
         backgroundImage: 'radial-gradient(circle, var(--text-muted) 1px, transparent 1px)',
@@ -15,37 +31,54 @@ export function Hero() {
       }} />
 
       <PageContainer className="relative z-10">
-        <div className="grid items-start gap-[var(--space-5)] min-[1180px]:grid-cols-[minmax(23rem,0.58fr)_minmax(0,1.42fr)] min-[1180px]:gap-[var(--space-6)]">
+        {coordinationStrip}
+        <div className="grid items-center gap-[var(--space-6)] min-[1100px]:grid-cols-[minmax(24rem,0.86fr)_minmax(34rem,1.14fr)] min-[1100px]:gap-[var(--space-7)]">
           {/* Left -- Copy */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, ease: 'easeOut' as const }}
-            className="space-y-[var(--space-4)] min-[1180px]:space-y-[var(--space-5)]"
+            className="space-y-[var(--space-5)]"
           >
+            <Link to="/mac-preview" className="no-underline">
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] px-3 py-1.5 text-xs font-semibold mb-4 cursor-pointer"
+                style={{
+                  background: 'color-mix(in srgb, var(--brand-primary) 12%, transparent)',
+                  border: '1px solid color-mix(in srgb, var(--brand-primary) 25%, transparent)',
+                  color: 'var(--brand-primary)',
+                }}
+              >
+                <span>New</span>
+                <span style={{ color: 'var(--text-secondary)' }}>Agent radio, handoffs, resources, and launch readiness are visible in the app</span>
+                <ArrowRight size={12} />
+              </motion.div>
+            </Link>
+
             <SectionIntro
               eyebrow="What is Port Daddy?"
               title={
                 <>
-                  A local control plane for{' '}
+                  The local coordination layer for{' '}
                   <span className="text-[var(--brand-primary)]">
-                    AI coding agents.
+                    coding agents.
                   </span>
                 </>
               }
-              description="Port Daddy gives Claude, Codex, Aider, and custom agent tools a shared operating layer: sessions, file claims, locks, notes, inboxes, budgets, backend readiness, and salvage. It does not replace the model or scheduler. It makes multi-agent software work inspectable, recoverable, and safe enough to scale on one repo."
+              description="Port Daddy is the layer under your coding agents: a shared place for notes, work ownership, warnings, actor messages, readiness, budgets, and recoverable handoffs. Schedulers decide what runs. Port Daddy makes what agents know, touch, spend, and hand off inspectable."
               titleAs="h1"
               titleSize="hero"
-              titleClassName="max-w-[15ch] min-[1180px]:max-w-[13ch]"
-              bodyClassName="max-w-[38rem]"
+              titleClassName="max-w-[14ch]"
+              bodyClassName="max-w-[34rem]"
             />
 
             {/* Feature pills */}
-            <div className="hidden max-w-[34rem] flex-wrap gap-2 min-[520px]:flex">
+            <div className="flex max-w-[34rem] flex-wrap gap-2">
               {[
-                'Shared repo state',
-                'Commit-time guardrails',
-                'Recoverable agent work',
+                'Agent-to-agent radio',
+                'Recoverable handoffs',
+                'Operator-visible truth',
               ].map((label) => (
                 <span
                   key={label}
@@ -78,14 +111,27 @@ export function Hero() {
             </div>
           </motion.div>
 
-          {/* Right -- high-scent reading and example paths */}
+          {/* Right -- synchronized light/dark capture */}
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.2, ease: 'easeOut' as const }}
-            className="relative min-[1180px]:-mr-[clamp(1rem,3vw,4rem)]"
+            className="relative min-[1100px]:-mr-[clamp(1rem,3vw,4rem)]"
           >
-            <AboveFoldTeasers />
+            <picture aria-hidden="true" className="pointer-events-none absolute -right-[6%] -top-[18%] hidden h-[56%] w-[76%] overflow-hidden border opacity-35 min-[1100px]:block dark:opacity-25" style={{ borderColor: 'var(--border-subtle)' }}>
+              <source srcSet="/img/generated/agent-runtime-map.webp" type="image/webp" />
+              <img
+                alt=""
+                loading="lazy"
+                decoding="async"
+                fetchPriority="low"
+                className="h-full w-full object-cover"
+                src="/img/generated/agent-runtime-map.jpg"
+              />
+            </picture>
+            <div className="relative z-10">
+              <LiveGloryVideo />
+            </div>
           </motion.div>
         </div>
       </PageContainer>

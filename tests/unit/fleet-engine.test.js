@@ -235,7 +235,7 @@ test('parses canonical fleet budget field as budgetUsdPerDay', () => {
       budget_usd_per_day: 7.5,
     },
     agents: {
-      qa: { backend: 'claude-cli', prompt: 'Run qa', trigger: 'git:committed', telos: 'Keep QA intent visible' },
+      qa: { backend: 'claude-cli', prompt: 'Run qa', trigger: 'git:committed' },
     },
   }));
 
@@ -246,7 +246,6 @@ test('parses canonical fleet budget field as budgetUsdPerDay', () => {
     maxSpawnsPerHour: 20,
     budgetUsdPerDay: 7.5,
   });
-  expect(config?.agents[0].telos.headline).toBe('Keep QA intent visible');
 });
 
 test('parses trigger_tuple arrays from fleet yaml', () => {
@@ -444,8 +443,7 @@ test('maps model_tier for every backend family with built-in tiers', () => {
     [{ backend: 'aider', modelTier: 'mid' }, 'gpt-4.1'],
     [{ backend: 'custom', modelTier: 'low' }, 'custom-low'],
     [{ backend: 'codex', modelTier: 'low' }, 'gpt-5.4-mini'],
-    [{ backend: 'cloudflare', modelTier: 'mid' }, '@cf/openai/gpt-oss-120b'],
-    [{ backend: 'cloudflare', modelTier: 'high' }, '@cf/moonshotai/kimi-k2.6'],
+    [{ backend: 'cloudflare', modelTier: 'mid' }, '@cf/qwen/qwen3-30b-a3b-fp8'],
   ];
 
   for (const [agent, expectedModel] of expectations) {

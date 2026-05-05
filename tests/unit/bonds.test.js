@@ -12,6 +12,8 @@
  * (escrow/refund/slash/topUp) and asserts the invariant at every step.
  */
 
+import fc from 'fast-check';
+
 import { createTestDb } from '../setup-unit.js';
 import { createBonds } from '../../lib/bonds.js';
 import { createHarbors } from '../../lib/harbors.js';
@@ -451,5 +453,77 @@ describe('Bonds', () => {
       expect(c.walletUsd + c.escrowUsd + c.commonsUsd).toBeCloseTo(c.supplyUsd, 6);
       expect(c.supplyUsd).toBeCloseTo(initialSupply, 6);
     }
+  });
+
+  // Spec §6.3: replace the hand-rolled xorshift trace with a fast-check
+  // generator that shrinks failing traces to a minimal counter-example. We
+  // keep the deterministic 200-op test above as a stable regression check;
+  // this one explores arbitrary orderings and depths chosen by fast-check.
+  test('PROPERTY: conservation holds under fast-check random op traces', () => {
+    // Arbitrary shape: a sequence of operations. Each op picks one of four
+    // commands. `topUp` always succeeds; the others target a small fixed
+    // pool of agent ids so refund/slash sometimes find live bonds.
+    const opArb = fc.oneof(
+      fc.record({
+        kind: fc.constant('topUp'),
+        amt: fc.integer({ min: 0, max: 5000 }).map((n) => n / 100), // 0..50.00
+      }),
+      fc.record({
+        kind: fc.constant('escrow'),
+        agentIdx: fc.integer({ min: 0, max: 7 }),
+        bond: fc.integer({ min: 0, max: 200 }).map((n) => n / 100), // 0..2.00
+      }),
+      fc.record({
+        kind: fc.constant('refund'),
+        liveIdx: fc.integer({ min: 0, max: 100 }), // modded against live list
+      }),
+      fc.record({
+        kind: fc.constant('slash'),
+        liveIdx: fc.integer({ min: 0, max: 100 }),
+        portionFrac: fc.integer({ min: 0, max: 100 }).map((n) => n / 100),
+      }),
+    );
+
+    fc.assert(
+      fc.property(
+        fc.array(opArb, { minLength: 30, maxLength: 200 }),
+        (ops) => {
+          const project = `prop-${Math.random().toString(36).slice(2, 8)}`;
+          let supplyDebit = 0;
+          // Pre-seed wallet so initial escrows have headroom.
+          bonds.topUpWallet(project, 100);
+          supplyDebit += 100;
+
+          const liveBonds = [];
+
+          for (const op of ops) {
+            if (op.kind === 'topUp') {
+              bonds.topUpWallet(project, op.amt);
+              supplyDebit += op.amt;
+            } else if (op.kind === 'escrow') {
+              const r = bonds.escrow({ project, agentId: `a${op.agentIdx}`, bondUsd: op.bond });
+              if (r.ok) liveBonds.push(r.id);
+            } else if (op.kind === 'refund' && liveBonds.length > 0) {
+              const idx = op.liveIdx % liveBonds.length;
+              const id = liveBonds.splice(idx, 1)[0];
+              bonds.refund(id);
+            } else if (op.kind === 'slash' && liveBonds.length > 0) {
+              const idx = op.liveIdx % liveBonds.length;
+              const id = liveBonds.splice(idx, 1)[0];
+              const b = bonds.getBond(id);
+              if (b) bonds.slash(id, b.bondUsd * op.portionFrac, `prop-slash`);
+            }
+
+            // Conservation must hold at EVERY step. The supply equals the
+            // sum of all top-ups (no money has ever left the system in any
+            // valid trace).
+            const c = bonds.conservation(project);
+            expect(c.walletUsd + c.escrowUsd + c.commonsUsd).toBeCloseTo(c.supplyUsd, 6);
+            expect(c.supplyUsd).toBeCloseTo(supplyDebit, 6);
+          }
+        },
+      ),
+      { numRuns: 100 },
+    );
   });
 });

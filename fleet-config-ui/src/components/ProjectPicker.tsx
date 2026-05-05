@@ -17,9 +17,8 @@ import {
   WalletCards,
   Wrench,
 } from 'lucide-react';
-import { fetchModels, fetchResourceOverview, saveBackendSecrets } from '../api';
+import { fetchModels, fetchResourceOverview } from '../api';
 import type { BackendInfo, ResourceOverview } from '../types';
-import BackendSetupActions from './BackendSetupActions';
 
 interface ProjectInfo {
   id: string;
@@ -279,7 +278,7 @@ function setupCommandForBackend(backend: BackendInfo): string {
   const credentialKeys = credentialKeysForBackend(backend);
   if (credentialKeys.length) {
     const body = credentialKeys.map((key) => `${key}=<paste-value>`).join('\\n');
-    return `printf '\\n${body}\\n' >> ~/.port-daddy-env\npd restart`;
+    return `printf '\\n${body}\\n' >> ~/.port-daddy-env\npd daemon restart`;
   }
   if (backend.id === 'claude-cli') return 'claude';
   if (backend.id === 'codex') return 'codex exec "print ok"';
@@ -293,9 +292,6 @@ function BackendReadinessPanel() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [secretDraft, setSecretDraft] = useState<Record<string, string>>({});
-  const [secretSaving, setSecretSaving] = useState(false);
-  const [secretMessage, setSecretMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -329,34 +325,6 @@ function BackendReadinessPanel() {
   const needsAttention = backends.filter((backend) => backend.readinessStatus !== 'ready').length;
   const readyCount = backends.length - needsAttention;
   const setupCommand = selectedBackend ? setupCommandForBackend(selectedBackend) : 'pd fleet models';
-  const selectedCredentialKeys = selectedBackend ? credentialKeysForBackend(selectedBackend) : [];
-
-  async function saveSelectedSecrets() {
-    if (!selectedBackend) return;
-    const values = Object.fromEntries(
-      selectedCredentialKeys
-        .map((key) => [key, secretDraft[key]?.trim() ?? ''] as const)
-        .filter(([, value]) => value.length > 0),
-    );
-    if (Object.keys(values).length === 0) {
-      setSecretMessage('Enter at least one value to save.');
-      return;
-    }
-
-    setSecretSaving(true);
-    setSecretMessage(null);
-    try {
-      const result = await saveBackendSecrets({ backend: selectedBackend.id, values });
-      setSecretDraft({});
-      setSecretMessage(`${result.savedKeys.join(', ')} saved in ${result.storage.location}.`);
-      const models = await fetchModels();
-      setBackends(models);
-    } catch (err) {
-      setSecretMessage((err as Error).message);
-    } finally {
-      setSecretSaving(false);
-    }
-  }
 
   return (
     <section className="mb-6 rounded-lg border p-5" style={{ backgroundColor: 'var(--pd-surface)', borderColor: 'var(--pd-border)' }}>
@@ -403,11 +371,7 @@ function BackendReadinessPanel() {
               <button
                 key={backend.id}
                 type="button"
-                onClick={() => {
-                  setSelectedId(backend.id);
-                  setSecretDraft({});
-                  setSecretMessage(null);
-                }}
+                onClick={() => setSelectedId(backend.id)}
                 className="rounded-lg border px-3 py-3 text-left"
                 style={{
                   backgroundColor: selectedBackend?.id === backend.id ? 'var(--pd-surface-2)' : 'var(--pd-bg)',
@@ -475,47 +439,6 @@ function BackendReadinessPanel() {
                 {selectedBackend.readinessNextStep}
               </p>
             )}
-            <BackendSetupActions backend={selectedBackend} />
-            {selectedBackend && selectedCredentialKeys.length > 0 ? (
-              <div className="mt-4 rounded-md border p-3" style={{ backgroundColor: 'var(--pd-surface)', borderColor: 'var(--pd-border)' }}>
-                <div className="text-[10px] font-semibold tracking-[0.18em] uppercase" style={{ color: 'var(--pd-muted)' }}>
-                  Encrypted save
-                </div>
-                <div className="mt-3 grid gap-2">
-                  {selectedCredentialKeys.map((key) => (
-                    <label key={key} className="grid gap-1 text-[11px] font-semibold" style={{ color: 'var(--pd-muted)' }}>
-                      <span>{key}</span>
-                      <input
-                        value={secretDraft[key] ?? ''}
-                        onChange={(event) => setSecretDraft((draft) => ({ ...draft, [key]: event.target.value }))}
-                        type={key.includes('TOKEN') || key.includes('KEY') ? 'password' : 'text'}
-                        autoComplete="off"
-                        spellCheck={false}
-                        className="rounded-md border px-2 py-1.5 font-mono text-xs"
-                        style={{ backgroundColor: 'var(--pd-bg)', borderColor: 'var(--pd-border)', color: 'var(--pd-text)' }}
-                      />
-                    </label>
-                  ))}
-                </div>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => void saveSelectedSecrets()}
-                    disabled={secretSaving}
-                    className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[11px] font-semibold disabled:opacity-60"
-                    style={{ backgroundColor: 'var(--pd-success-surface)', color: 'var(--pd-success)', border: '1px solid var(--pd-success-border)' }}
-                  >
-                    <ShieldCheck size={12} />
-                    {secretSaving ? 'Saving...' : 'Save'}
-                  </button>
-                  {secretMessage ? (
-                    <span className="text-[11px] leading-relaxed" style={{ color: secretMessage.includes('saved') ? 'var(--pd-success)' : 'var(--pd-warning)' }}>
-                      {secretMessage}
-                    </span>
-                  ) : null}
-                </div>
-              </div>
-            ) : null}
           </div>
         </div>
       )}

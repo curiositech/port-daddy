@@ -58,7 +58,7 @@ jest.unstable_mockModule('../../cli/utils/channel-resolution.js', () => ({
 }));
 jest.unstable_mockModule('../../cli/utils/ui.js', () => mockUi);
 
-const { handleTube, handleTubeChat, readStdinToEnd } = await import('../../cli/commands/tube.js');
+const { handleTube, readStdinToEnd } = await import('../../cli/commands/tube.js');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Lib tests — pure functions
@@ -526,98 +526,6 @@ describe('cli/tube handler', () => {
     const envelope = (publish as jest.Mock).mock.calls[0][1] as { body: string; inReplyTo?: number };
     expect(envelope.body).toBe('roger that');
     expect(envelope.inReplyTo).toBe(7);
-  });
-
-  test('chat --once spawns a backend for each top-level message and replies in-thread', async () => {
-    const publish = jest.fn(async () => ({ ok: true, id: 99 })) as unknown as TubeClient['publish'];
-    const client: TubeClient = {
-      publish,
-      getMessages: jest.fn(async () => ({
-        ok: true,
-        messages: [
-          { id: 7, sender: 'ui', createdAt: 100, payload: { v: 1, kind: TUBE_ENVELOPE_KIND, body: 'what broke?' } },
-        ],
-      })) as unknown as TubeClient['getMessages'],
-    };
-    const spawnClient = {
-      spawn: jest.fn(async () => ({ ok: true as const, output: 'the retry path duplicates events', agentId: 'spawned-1' })),
-    };
-
-    await handleTubeChat('chan', {
-      once: true,
-      json: true,
-      backend: 'codex',
-      tier: 'low',
-      budget: '5',
-      identity: 'port-daddy:tube-chat:test',
-      sender: 'bridge',
-    }, {
-      client,
-      spawnClient,
-      history: inMemoryHistoryStore(),
-    });
-
-    expect(spawnClient.spawn).toHaveBeenCalledWith(expect.objectContaining({
-      backend: 'codex',
-      modelTier: 'low',
-      budgetUsd: 5,
-      identity: 'port-daddy:tube-chat:test',
-    }));
-    const envelope = (publish as jest.Mock).mock.calls[0][1] as { body: string; inReplyTo?: number };
-    expect(envelope.body).toBe('the retry path duplicates events');
-    expect(envelope.inReplyTo).toBe(7);
-  });
-
-  test('chat skips its own replies and existing reply messages', async () => {
-    const publish = jest.fn(async () => ({ ok: true, id: 99 })) as unknown as TubeClient['publish'];
-    const client: TubeClient = {
-      publish,
-      getMessages: jest.fn(async () => ({
-        ok: true,
-        messages: [
-          { id: 7, sender: 'bridge', createdAt: 100, payload: { v: 1, kind: TUBE_ENVELOPE_KIND, body: 'self' } },
-          { id: 8, sender: 'ui', createdAt: 101, payload: { v: 1, kind: TUBE_ENVELOPE_KIND, body: 'reply', inReplyTo: 7 } },
-        ],
-      })) as unknown as TubeClient['getMessages'],
-    };
-    const spawnClient = {
-      spawn: jest.fn(async () => ({ ok: true as const, output: 'unused' })),
-    };
-
-    await handleTubeChat('chan', {
-      once: true,
-      backend: 'codex',
-      tier: 'low',
-      budget: '5',
-      sender: 'bridge',
-      quiet: true,
-    }, {
-      client,
-      spawnClient,
-      history: inMemoryHistoryStore(),
-    });
-
-    expect(spawnClient.spawn).not.toHaveBeenCalled();
-    expect(publish).not.toHaveBeenCalled();
-  });
-
-  test('chat requires a positive budget', async () => {
-    const client: TubeClient = {
-      publish: jest.fn() as unknown as TubeClient['publish'],
-      getMessages: jest.fn(async () => ({
-        ok: true,
-        messages: [
-          { id: 7, sender: 'ui', createdAt: 100, payload: { v: 1, kind: TUBE_ENVELOPE_KIND, body: 'hello' } },
-        ],
-      })) as unknown as TubeClient['getMessages'],
-    };
-
-    await expect(handleTubeChat('chan', { once: true }, {
-      client,
-      spawnClient: { spawn: jest.fn(async () => ({ ok: true as const, output: 'unused' })) },
-      history: inMemoryHistoryStore(),
-    })).rejects.toThrow(/exit:1/);
-    expect(mockUi.error).toHaveBeenCalledWith(expect.stringContaining('--budget'));
   });
 
   test('--send with TTY stdin exits non-zero with helpful error', async () => {

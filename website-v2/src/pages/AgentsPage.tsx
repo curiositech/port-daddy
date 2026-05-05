@@ -128,53 +128,6 @@ type AgentSection = {
   }>
 }
 
-type RichDefinition = {
-  term: string
-  body: string
-  example: string
-}
-
-type RichCodeExample = {
-  label: string
-  body: string
-  code: string
-}
-
-type RichSubpageContent = {
-  definitions: RichDefinition[]
-  discussion: string[]
-  codeExamples: RichCodeExample[]
-  visualNotes: string[]
-}
-
-function terminalOutputFor(code: string): string {
-  if (code.includes('pd status')) return 'Port Daddy is running\nRuntime: nominal\nFleet: 1 project(s), 5 agent(s), 3/5 launchable'
-  if (code.includes('pd setup')) return 'SUCCESS: Setup complete\nSUCCESS: Daemon running at http://127.0.0.1:9876'
-  if (code.includes('pd fleet validate')) return 'SUCCESS: Fleet "port-daddy-dev" parsed successfully\nSUCCESS: No topology warnings'
-  if (code.includes('pd fleet init')) return 'SUCCESS: Created pd-fleet.yml\nSUCCESS: Installed project-scoped post-commit hook'
-  if (code.includes('pd fleet up')) return 'SUCCESS: Fleet started\nFleet: 1 project(s), 5 agent(s), 3/5 launchable'
-  if (code.includes('pd begin')) return 'SUCCESS: Agent session ready\nSUCCESS: Note added to session session-current-work'
-  if (code.includes('pd guard')) return 'Coordination Guard: enforce\nPASS: staged files are claimed by the active session'
-  if (code.includes('pd salvage claim')) return 'SUCCESS: Salvage claimed agent-001\nSession context restored for active work'
-  if (code.includes('pd salvage')) return 'Recoverable work:\n  agent-001  abandoned  preserved session context'
-  if (code.includes('pd tube') || code.includes('pd sub')) return '[channel] waiting for messages...\n[channel] received persisted event envelope'
-  if (code.includes('pd pub')) return 'Message sent\nPersisted to project-scoped channel'
-  if (code.includes('pd watch')) return 'Watching channel...\n[trigger] command executed for incoming message'
-  if (code.includes('pd actor') || code.includes('pd actors')) return 'Message sent to actor\nNavigator  Lookout  Quartermaster'
-  if (code.includes('pd lock')) return 'SUCCESS: Lock acquired\nSUCCESS: Lock released'
-  if (code.includes('pd spawn')) return '[pd] Spawning codex agent...\n[pd] Agent spawned-8a2f0c1c2f9b: completed'
-  if (code.includes('pd agent')) return 'SUCCESS: Agent run started\nSUCCESS: Agent run completed with notes'
-  if (code.includes('pd sortie')) return 'SUCCESS: Sortie sortie-1234 created\nStatus: completed'
-  if (code.includes('pd note') || code.includes('pd notes')) return 'SUCCESS: Note added to session session-current-work\n[progress] durable note visible in recent notes'
-  if (code.includes('pd harbor')) return 'Harbor created: shared-dev\nMembers: 1'
-  if (code.includes('pd tunnel')) return 'Tunnel ready: web -> 5173'
-  if (code.includes('pd tuple out')) return 'SUCCESS: Tuple written: tuple-1234'
-  if (code.includes('git status')) return ' M website-v2/src/pages/AgentsPage.tsx'
-  if (code.includes('cp templates/')) return 'pd-fleet.yml written from template'
-  if (code.includes('tsx templates/')) return 'encrypted messenger demo started\nlocal messages exchanged'
-  return 'Command completed; Port Daddy state updated and visible in the control plane.'
-}
-
 const CONCEPTS: Concept[] = [
   {
     label: 'YAML',
@@ -1157,31 +1110,26 @@ pd notes --limit 10`,
   {
     slug: 'resurrection',
     nav: 'Resurrection',
-    title: 'Agents can leave an unfinished telos without losing the work.',
+    title: 'Dead agents leave salvageable work instead of a mystery.',
     eyebrow: 'pd salvage',
     summary:
-      'The daemon records sessions, notes, claims, telos, and self-salvage capsules so a new agent can resume from evidence.',
+      'The daemon records sessions, notes, claims, and last-known intent so a new agent can resume from evidence.',
     image: '/img/generated/salvage-ledger.webp',
     gif: '/gifs/agents/resurrection.gif',
     alt: 'Generated image of a salvage ledger preserving dead agent work',
     codeLabel: 'Salvage loop',
-    code: `pd begin "restore API docs" --telos "Make the public contract truthful"
-pd done --self-salvage --telos-verdict not-fulfilled --doable yes \\
-  --why-stopped "deploy smoke still pending" \\
-  --next-plan "run website build, deploy, then smoke /docs/api"
-pd salvage --project port-daddy --limit 20
+    code: `pd salvage --project port-daddy --limit 20
 pd salvage claim agent-001
 pd notes --limit 20
 pd note "Recovered abandoned slice; preserving original scope and validation evidence"
 pd done "Recovered, validated, and closed the abandoned work"`,
     theory: [
       'Recovery is where agent systems reveal whether they are serious. If the only trace of an interrupted run is a half-written chat transcript, the next agent has to re-investigate everything and may ship the wrong intent.',
-      'Port Daddy treats salvage as a first-class continuation path. A useful agent declares a telos at start, and when it cannot finish but still sees a path, it can leave a self-salvage capsule with why it stopped, what to do next, evidence, wisdom, and risk.',
+      'Port Daddy treats salvage as a first-class continuation path. A useful dead agent leaves session notes, claimed files, last activity, and enough purpose to decide whether to resume, dismiss, or escalate.',
     ],
     bullets: [
       'Salvage is not cleanup theater. It is the continuation path for interrupted work.',
-      'Good agents leave notes, exact files, validation, blockers, and a telos verdict before they disappear.',
-      'Self-salvage turns "I did not finish" into a concrete continuation plan instead of a vague apology.',
+      'Good agents leave notes, exact files, validation, and blockers before they disappear.',
       'The operator can see what was dead, claimed, dismissed, or finished.',
     ],
     screenshots: [
@@ -1282,531 +1230,6 @@ pd guard check --staged`,
     ],
   },
 ]
-
-const RICH_SUBPAGE_CONTENT: Record<string, RichSubpageContent> = {
-  flow: {
-    definitions: [
-      {
-        term: 'Flow',
-        body: 'Flow is the operator map for a live project. It combines channel topology, scheduled agents, budget posture, guard state, and recent work into one reading surface.',
-        example: 'If QA wakes from git:committed and publishes qa:findings, Flow should show both the wakeup edge and the downstream signal.',
-      },
-      {
-        term: 'Topology',
-        body: 'Topology is the shape of agent relationships: which roles publish events, which roles subscribe, and which edges are project-scoped.',
-        example: 'A clean topology has few meaningful edges. A noisy topology shows too many agents reacting to the same vague event.',
-      },
-      {
-        term: 'Live chronology',
-        body: 'Live chronology is the ordered evidence trail of notes, sessions, file claims, events, and completion records.',
-        example: 'Use chronology to answer: who changed the repo, what did they claim, and what did they validate before they stopped?',
-      },
-    ],
-    discussion: [
-      'Flow is the page to open before asking for more agents. It shows the operator whether the fleet is calm, noisy, blocked, or drifting. A single terminal can tell you one command succeeded; Flow tells you whether that success fits the rest of the system.',
-      'The visual map is useful because it changes the question from "what command do I run?" to "what relationship am I about to create?" That is the right question for agent systems. A recurring worker is not just a process; it is a new edge in the repo operating model.',
-      'The healthiest Flow screen is not the busiest one. The healthiest screen is the one where each edge has a reason, each role has a narrow job, and recent activity gives the next agent enough context to continue without guessing.',
-    ],
-    codeExamples: [
-      {
-        label: 'Publish an event and watch it appear',
-        body: 'Use this when you want to verify that the channel you are designing is project-scoped and visible to the control plane.',
-        code: `pd pub qa:findings '{"severity":"medium","file":"routes/fleet.ts"}'
-pd sub qa:findings --history --limit 5
-pd note "Flow check: qa:findings emitted and visible in project chronology"`,
-      },
-      {
-        label: 'Read the fleet before changing it',
-        body: 'This is the calm preflight before editing pd-fleet.yml or asking Shipwright to propose a new recurring role.',
-        code: `pd status
-pd briefing
-pd fleet status
-pd sessions --all-worktrees
-pd notes --limit 20`,
-      },
-    ],
-    visualNotes: [
-      'The generated topology artwork is conceptual; the Fleet Control Center screenshot is the product truth. Read both together.',
-      'In light and dark mode, the same Flow page should preserve line contrast, panel boundaries, and event labels without forcing the operator to decode decoration.',
-    ],
-  },
-  'coordination-guard': {
-    definitions: [
-      {
-        term: 'Coordination Guard',
-        body: 'Coordination Guard is the local enforcement layer that checks the staged commit against the active Port Daddy session and file claims.',
-        example: 'If website-v2/src/pages/AgentsPage.tsx is staged, the committing session must have claimed that file.',
-      },
-      {
-        term: 'Claim',
-        body: 'A claim is an early signal of edit intent. It lets other agents route around the same file, symbol, or region before work collides.',
-        example: 'Claim a page component before editing copy, layout, or imported assets on that page.',
-      },
-      {
-        term: 'Guard failure',
-        body: 'A guard failure is not a nuisance. It is exact evidence that the commit is missing session proof, file ownership, or staged-slice discipline.',
-        example: 'No active session attached to this shell means the fix is to attach the Port Daddy context, not bypass the hook.',
-      },
-    ],
-    discussion: [
-      'Guard turns a cultural preference into a local invariant. Without it, agents can sound careful while still committing from a stale shell. With it, the repository can ask for proof at the one moment that matters: when the staged changes are about to become history.',
-      'The guard is deliberately narrow. It does not judge whether the copy is beautiful or the architecture is perfect. It asks whether the agent used the coordination substrate that makes collaborative work recoverable.',
-      'This matters most when several agents are moving quickly. A narrow guard check keeps velocity from becoming invisibility. The next agent can read the session, inspect the claim, and understand why this exact file was touched.',
-    ],
-    codeExamples: [
-      {
-        label: 'Install enforce mode',
-        body: 'Use enforce mode when a repo expects claims to be real, not aspirational.',
-        code: `pd guard status
-pd guard install --mode enforce
-pd begin "guarded edit"
-pd session files add website-v2/src/pages/AgentsPage.tsx
-pd guard check --staged`,
-      },
-      {
-        label: 'Recover from a guard block',
-        body: 'The healthy response is to narrow the staged set and attach the missing coordination evidence.',
-        code: `git status --short
-pd whoami
-pd note "Scope: staged files only; validation: focused website tests"
-pd session files add <path>
-pd guard check --staged`,
-      },
-    ],
-    visualNotes: [
-      'The generated guard image shows policy as a diagram; the Flow cockpit shows the actual enforce state beside launch controls.',
-      'In screenshots, guard belongs near actions and budget because it is part of launch readiness, not a hidden Git feature.',
-    ],
-  },
-  'smart-resources': {
-    definitions: [
-      {
-        term: 'Smart resources',
-        body: 'Smart resources are the machine, model, daemon, budget, and backend facts that determine whether more agent work should launch.',
-        example: 'A fleet may be logically valid but still unwise if memory is low, backend credentials are missing, or daily budget is nearly exhausted.',
-      },
-      {
-        term: 'Fleet pressure',
-        body: 'Fleet pressure is the combined load of active agents, watchers, queued work, local AI processes, open ports, and spend.',
-        example: 'Two launchable agents can be too many when both use expensive backends and the repo already has long-running watchers.',
-      },
-      {
-        term: 'Operator approval',
-        body: 'Operator approval means Port Daddy can recommend a higher cap without silently granting itself more concurrency.',
-        example: 'Resources can suggest maxActiveAgents 3, but the operator still decides whether to apply it.',
-      },
-    ],
-    discussion: [
-      'Resource management is coordination at the hardware and budget level. Agents can avoid file conflicts and still create a bad day by launching too many backends, writing too many logs, or consuming a daily cap the operator did not intend to spend.',
-      'The Resources page makes hidden pressure discussable. Memory, disk, port pressure, backend readiness, and spend are not side concerns. They are the conditions that determine whether the next agent should wake at all.',
-      'The best resource system is conservative. It should explain the bottleneck, recommend the smallest next move, and keep the human in the approval loop when raising limits.',
-    ],
-    codeExamples: [
-      {
-        label: 'Inspect readiness before spawn',
-        body: 'Run this before converting a one-off idea into a fleet member.',
-        code: `pd status
-pd fleet status
-pd wallet status
-pd models
-pd spawn --dry-run --backend codex --model gpt-5.4-mini -- "review readiness only"`,
-      },
-      {
-        label: 'Keep budget explicit',
-        body: 'Make the daily cap part of the fleet contract so automation has a ceiling.',
-        code: `pd fleet validate
-pd config get limits.budget_usd_per_day
-pd fleet run qa
-pd note "Resource check: launchable agents, budget cap, backend readiness"`,
-      },
-    ],
-    visualNotes: [
-      'The Resources screenshot is the ground truth for pressure, ports, local AI, and budget. The generated runtime map explains why those facts belong together.',
-      'Light and dark screenshots should make warning, nominal, and advisory states readable without relying on color alone.',
-    ],
-  },
-  'yaml-and-shipwright': {
-    definitions: [
-      {
-        term: 'pd-fleet.yml',
-        body: 'pd-fleet.yml is the checked-in contract for recurring agents, their triggers, backends, budgets, and channel relationships.',
-        example: 'A qa agent can wake on git:committed, use an Ollama backend, and publish qa:findings.',
-      },
-      {
-        term: 'Shipwright',
-        body: 'Shipwright is the guided fleet designer. It surveys the repo and proposes a small fleet instead of assuming every project needs every role.',
-        example: 'A docs-heavy repo may get Lookout and Documentarian before it gets Spark or Spider.',
-      },
-      {
-        term: 'Starter fleet',
-        body: 'A starter fleet is a modest first YAML contract that can be validated, committed, and revised after real use.',
-        example: 'Start with health, QA, docs drift, and simplification before adding research or idea agents.',
-      },
-    ],
-    discussion: [
-      'YAML is the part that makes automation reviewable. It turns agent behavior into something a teammate can diff, comment on, and roll back. That is better than a hidden GUI configuration or a prompt living only in chat history.',
-      'Shipwright exists to prevent fleet inflation. A new repo is exciting, but excitement is not a launch policy. The proposal should reflect tests, docs, build system, backend readiness, and the operator goal.',
-      'The right fleet is usually smaller than the fantasy fleet. Shipwright should help a project earn each recurring role by showing what event wakes it, what evidence it produces, and how it stops.',
-    ],
-    codeExamples: [
-      {
-        label: 'Validate a proposed fleet',
-        body: 'Keep the proposal diffable and checked before any watchers start.',
-        code: `pd fleet init
-git diff -- pd-fleet.yml
-pd fleet validate
-pd note "Shipwright proposal reviewed; disabled roles not needed for this repo"`,
-      },
-      {
-        label: 'Start small',
-        body: 'Bring up the smallest useful set and let Flow prove the shape.',
-        code: `pd fleet up
-pd fleet status
-pd briefing
-open "$(pd url)/fleet-ui/?surface=flow"`,
-      },
-    ],
-    visualNotes: [
-      'The Shipwright generated image is a proposal metaphor; the Shipwright control screenshot shows where the operator accepts or edits real roles.',
-      'FleetBar screenshots show that the native shell opens the real control plane, so a YAML proposal is connected to the live daemon.',
-    ],
-  },
-  templates: {
-    definitions: [
-      {
-        term: 'Template pack',
-        body: 'A template pack is a checked-in coordination pattern with files, commands, and an adoption trail.',
-        example: 'The Starter Fleet pack copies pd-fleet-starter.yml, validates it, and starts only the declared roles.',
-      },
-      {
-        term: 'Adoption trail',
-        body: 'An adoption trail is the note, validation, and diff evidence that explains why a template became part of a repo.',
-        example: 'Leave a note naming the copied template, the files changed, and the validation commands that passed.',
-      },
-      {
-        term: 'Reusable pattern',
-        body: 'A reusable pattern is a workflow that has survived real use and can be repeated without hiding its coordination contract.',
-        example: 'A test-failure-to-agent loop becomes a template only after it reliably routes failures, diagnosis, and validation.',
-      },
-    ],
-    discussion: [
-      'Templates are not decorative starter kits. In Port Daddy they are operating patterns: event intake, fleet YAML, locks, inboxes, notes, and validation tied together in a way another repo can understand.',
-      'The healthiest template is boring to inspect. You can see what it copies, what command starts it, what event wakes it, and what evidence it leaves. If those pieces are missing, the template is just a demo.',
-      'Keeping templates under Agents also keeps expectations honest. A template should answer the same questions as any agent workflow: who owns it, what wakes it, what can it touch, what does it cost, and how does the next operator recover it?',
-    ],
-    codeExamples: [
-      {
-        label: 'Adopt and trim a starter fleet',
-        body: 'Copy the template, remove roles the repo does not need, then validate before launch.',
-        code: `cp templates/pd-fleet-starter.yml pd-fleet.yml
-$EDITOR pd-fleet.yml
-pd fleet validate
-pd note "Template adopted: starter fleet; removed unused research roles"`,
-      },
-      {
-        label: 'Promote a proven event loop',
-        body: 'Use a one-off example first, then make it reusable only after it leaves good evidence.',
-        code: `pd pub test:failed '{"file":"auth.test.ts","case":"login"}'
-pd agent "diagnose the latest test failure and leave validation steps"
-pd note "Template candidate: test failure loop; evidence captured"`,
-      },
-    ],
-    visualNotes: [
-      'The generated virtual-actor image frames templates as repeatable coordination structures rather than a generic gallery.',
-      'The FleetBar and Flow screenshots show the path from copied files to live operational truth.',
-    ],
-  },
-  'event-triggers': {
-    definitions: [
-      {
-        term: 'Trigger',
-        body: 'A trigger is a condition that wakes an agent: a channel event, scheduled timer, git hook, file change, or explicit fleet run.',
-        example: 'git:committed can wake QA, but only if singleton and cooldown policy prevent duplicate reviews.',
-      },
-      {
-        term: 'Logical channel',
-        body: 'A logical channel is the human-readable event name in YAML and CLI commands.',
-        example: 'Humans say git:committed while Port Daddy resolves the physical channel for the current project directory.',
-      },
-      {
-        term: 'Cooldown',
-        body: 'A cooldown is the time window that prevents a triggered agent from waking repeatedly from noisy events.',
-        example: 'A docs watcher may ignore repeated file saves for several minutes before launching again.',
-      },
-    ],
-    discussion: [
-      'Triggers make agent work feel immediate, but immediacy is risky without shape. A good trigger has a bounded meaning, a scoped response, and a clear stop condition.',
-      'The project-scoping detail matters. Multiple checkouts can have the same logical fleet name. The runtime has to resolve the event to the actual project path or one repo can wake another repo by accident.',
-      'Treat every new trigger as a new production rule. Ask what publishes it, who consumes it, how often it can fire, what budget it spends, and what evidence proves the agent responded correctly.',
-    ],
-    codeExamples: [
-      {
-        label: 'Create a narrow event',
-        body: 'Prefer a specific event payload over a vague wakeup that forces the agent to rediscover context.',
-        code: `pd pub docs:changed '{"path":"website-v2/src/pages/AgentsPage.tsx","reason":"content expansion"}'
-pd sub docs:changed --history --limit 3
-pd note "docs:changed event published with path and reason"`,
-      },
-      {
-        label: 'Wire a bounded watcher',
-        body: 'Use watchers for small loops; graduate to fleet YAML after the pattern is stable.',
-        code: `pd watch docs:changed --exec "pd agent 'review docs drift and leave a note'"
-pd pub docs:changed '{"path":"README.md"}'
-pd notes --limit 10`,
-      },
-    ],
-    visualNotes: [
-      'The generated control-plane image gives the trigger system a visual topology; the GIF shows terminal evidence for the event path.',
-      'Flow screenshots should make the difference between publishers, subscribers, and recent activity visible.',
-    ],
-  },
-  'virtual-actors': {
-    definitions: [
-      {
-        term: 'Actor',
-        body: 'An actor is a durable role with a name, responsibility, inbox, history, and coordination identity.',
-        example: 'Lookout can own docs drift even when no Claude, Codex, or Ollama process is currently running.',
-      },
-      {
-        term: 'Body',
-        body: 'A body is the temporary runtime process currently doing work for an actor.',
-        example: 'Codex may be the current body for Documentarian, while a later run uses Ollama for a lower-cost pass.',
-      },
-      {
-        term: 'Inbox',
-        body: 'An inbox is durable directed communication for a role that should own a decision or follow-up.',
-        example: 'Send Coxswain a file-claim inconsistency instead of broadcasting routine progress to everyone.',
-      },
-    ],
-    discussion: [
-      'Actors separate responsibility from liveness. That distinction is essential because model processes are transient, but roadmap truth, docs drift, budget policy, and coordination ownership must survive restarts.',
-      'This is why Port Daddy does not need every role awake at all times. A durable actor can receive a message, preserve context, and wake a body only when the work is worth the spend.',
-      'The pattern also gives humans a better vocabulary. You can ask "is Lookout responsible for this docs drift?" without asking "which currently running process should I paste this into?"',
-    ],
-    codeExamples: [
-      {
-        label: 'Send a durable handoff',
-        body: 'Use actor mail when one role should own the follow-up even if it wakes later.',
-        code: `pd actor lookout --message "Agents page changed; verify docs and skill references"
-pd actor lookout --inbox --unread
-pd note "Lookout handoff sent for public-surface drift check"`,
-      },
-      {
-        label: 'Read actor state before spawning',
-        body: 'Check whether an actor already has context before launching another body.',
-        code: `pd actors --project port-daddy
-pd actor navigator --inbox --unread
-pd sessions --all-worktrees
-pd briefing`,
-      },
-    ],
-    visualNotes: [
-      'The generated virtual-actor image explains durable identity; the FleetBar screenshot shows why the operator still needs live summaries.',
-      'In product screenshots, actor views should distinguish configured roles, live bodies, recent work, and dead sessions.',
-    ],
-  },
-  'daemon-runtime': {
-    definitions: [
-      {
-        term: 'Canonical daemon',
-        body: 'The canonical daemon is the launchd-managed Port Daddy process serving the local machine.',
-        example: 'The preferred URL is discovered from the daemon port file, not hardcoded as localhost:9876 in source.',
-      },
-      {
-        term: 'Runtime provenance',
-        body: 'Runtime provenance is proof that the CLI, browser, FleetBar, and daemon are all talking to the same promoted checkout.',
-        example: 'A source route is not operator truth until the promoted daemon serves it.',
-      },
-      {
-        term: 'Stable promotion',
-        body: 'Stable promotion is the controlled path that merges main into the stable checkout, runs the gate, builds native pieces, and restarts services.',
-        example: './scripts/promote-stable.sh is the release path for daemon-facing work.',
-      },
-    ],
-    discussion: [
-      'Daemon runtime pages need patience because stale-runtime bugs are convincing. The browser can show an old bundle, the CLI shim can point to an old checkout, and a source file can be correct while the installed daemon is still wrong.',
-      'Port Daddy treats that as product truth, not developer trivia. A coordination tool that cannot prove which runtime served the UI cannot safely coordinate agents that mutate files.',
-      'The daemon is also why local-first coordination works without a cloud control plane. Sessions, notes, locks, ports, channels, budgets, and FleetBar all meet at one local authority the operator can inspect.',
-    ],
-    codeExamples: [
-      {
-        label: 'Prove the daemon path',
-        body: 'Use this when a UI or CLI feature appears missing even though source code exists.',
-        code: `pd status
-which port-daddy
-launchctl print gui/501/com.portdaddy.daemon | head -n 40
-curl -sS "$(cat ~/.port-daddy/daemon.port | sed 's#^#http://127.0.0.1:#')/health"`,
-      },
-      {
-        label: 'Promote after runtime changes',
-        body: 'Run the canonical promotion path instead of hand-rolling launchctl restarts.',
-        code: `git status --short
-npm test -- --no-coverage
-pd with-lock promotion:stable -- ./scripts/promote-stable.sh
-pd status`,
-      },
-    ],
-    visualNotes: [
-      'The generated runtime map shows local services as a system; the Resources screenshot shows the same idea as a product view.',
-      'Screenshots should always be treated as daemon-served evidence, not proof that the current source checkout is installed.',
-    ],
-  },
-  'communication-protocols': {
-    definitions: [
-      {
-        term: 'Channel',
-        body: 'A channel is broadcast-style event traffic for subscribers that care about the same fact.',
-        example: 'git:committed can wake QA, simplifier, or documentarian depending on the fleet file.',
-      },
-      {
-        term: 'Tuple',
-        body: 'A tuple is a machine-readable fact another process can query later.',
-        example: '["coordination:claim","website-v2/src/pages/AgentsPage.tsx","session-123"] is more queryable than prose alone.',
-      },
-      {
-        term: 'Note',
-        body: 'A note is human-readable coordination evidence attached to a session.',
-        example: 'A good note names scope, assumptions, validation, result, and remaining risk.',
-      },
-    ],
-    discussion: [
-      'The most common mistake is to make every agent interaction conversational. Conversation is useful for ambiguity, but durable systems need facts in the right container.',
-      'Protocol choice should follow audience and lifetime. Broadcast events go to channels. Directed ownership goes to inboxes. Human context goes to notes. Queryable state goes to tuples. Scarce critical sections use locks.',
-      'When agents choose the right primitive, the site of coordination becomes inspectable. A future agent can replay events, read notes, query tuples, and avoid asking the user to reconstruct the past.',
-    ],
-    codeExamples: [
-      {
-        label: 'Choose the primitive',
-        body: 'This compact example shows the same work fact expressed in four different coordination forms.',
-        code: `pd pub build:failed '{"suite":"website-v2","command":"npm run build"}'
-pd actor lookout --message "Website build failed after docs change"
-pd tuple out '["build:failed","website-v2","npm run build"]'
-pd note "Build failed; Lookout notified; tuple emitted for machine lookup"`,
-      },
-      {
-        label: 'Read the trail',
-        body: 'Use history reads before creating another message surface.',
-        code: `pd sub build:failed --history --limit 10
-pd actor lookout --inbox --unread
-pd notes --limit 20
-pd briefing`,
-      },
-    ],
-    visualNotes: [
-      'The generated protocol image is abstract by design; the product screenshots show where those facts become visible.',
-      'A good protocol screenshot should make broadcast, directed ownership, and session evidence feel different.',
-    ],
-  },
-  resurrection: {
-    definitions: [
-      {
-        term: 'Telos',
-        body: 'Telos is the agent purpose contract: the reason the agent exists and the standard it uses to judge done-ness.',
-        example: 'Use --telos "Make release truth match the live daemon" so completion is evaluated against the real goal, not just task motion.',
-      },
-      {
-        term: 'Self-salvage',
-        body: 'Self-salvage is a voluntary closeout capsule from an agent that did not fulfill telos but believes the work is still doable.',
-        example: 'The capsule records why it stopped, the next plan, evidence, wisdom, and risk for the next iteration.',
-      },
-      {
-        term: 'Salvage',
-        body: 'Salvage is the recovery process for interrupted or dead agent work.',
-        example: 'Run pd salvage before restarting a slice so abandoned notes and claims are not lost.',
-      },
-      {
-        term: 'Dead agent',
-        body: 'A dead agent is a body that stopped before the work was closed, while its session evidence may still be useful.',
-        example: 'A dead QA body may have left a failing test, a partial patch, and a note naming the next command.',
-      },
-      {
-        term: 'Continuation',
-        body: 'Continuation means preserving the original intent while deciding whether to resume, dismiss, or hand off the abandoned work.',
-        example: 'Claim salvage only when you can keep the slice bounded and validate the recovered result.',
-      },
-    ],
-    discussion: [
-      'Resurrection is not a promise that every abandoned patch should be merged. It is a promise that abandoned work should be inspectable enough to make a good decision.',
-      'The most valuable salvage object is often the note, not the code. A self-salvage note can say why a file was touched, what validation was pending, which assumption failed, and whether the agent thinks the telos is still achievable.',
-      'A patient recovery workflow prevents duplicate archaeology. The next agent reads the queue, claims only what it can finish, preserves evidence, and closes the loop with a final note.',
-    ],
-    codeExamples: [
-      {
-        label: 'Triage without claiming',
-        body: 'Read the queue first. Do not claim every dead body just because it exists.',
-        code: `pd salvage --project port-daddy --limit 20
-pd sessions --all-worktrees
-pd notes --limit 20
-pd note "Salvage triage: no claim taken; current task does not overlap"`,
-      },
-      {
-        label: 'Leave recoverable unfinished work',
-        body: 'When you know the telos was not fulfilled but the path is still viable, close with a capsule instead of pretending completion.',
-        code: `pd done --self-salvage --telos-verdict partial --doable yes \\
-  --why-stopped "production smoke blocked by stale daemon" \\
-  --next-plan "rebuild, relaunch, smoke /agents and /mcp" \\
-  --wisdom "Source truth is not operator truth until promotion succeeds"`,
-      },
-      {
-        label: 'Claim and close a recovery',
-        body: 'When the abandoned slice is yours to finish, leave a recovery note before editing.',
-        code: `pd salvage claim agent-001
-pd note "Recovered intent: finish focused route test; preserving original files"
-pd guard check --staged
-pd done "Recovered, validated, and closed salvage item"`,
-      },
-    ],
-    visualNotes: [
-      'The generated salvage ledger image shows evidence preservation; Flow and FleetBar screenshots show where the operator should discover recoverable work.',
-      'Recovery screenshots should make dead, claimed, dismissed, and completed states visually distinct.',
-    ],
-  },
-  coordination: {
-    definitions: [
-      {
-        term: 'Coordination',
-        body: 'Coordination is the practice of making intent, ownership, evidence, and conflict visible before work collides.',
-        example: 'A scoped note plus file claim lets another agent route around the same page before editing.',
-      },
-      {
-        term: 'Lock',
-        body: 'A lock is an exclusive critical-section guard for non-mergeable resources.',
-        example: 'Use a promotion lock for ./scripts/promote-stable.sh, not for every copy edit.',
-      },
-      {
-        term: 'Inconsistency',
-        body: 'An inconsistency is an operator-worthy conflict between live truth, docs, source, runtime, security posture, or another agent plan.',
-        example: 'Active sessions but zero registered agents is a coordination inconsistency, not a healthy fleet.',
-      },
-    ],
-    discussion: [
-      'Coordination is broader than avoiding merge conflicts. Two agents can edit different files and still violate the same product goal, security boundary, or release-surface contract.',
-      'That is why Port Daddy uses several primitives instead of one chat stream. Notes describe intent. Claims show ownership. Locks protect scarce resources. Channels move events. Actor inboxes assign durable responsibility. Guard enforces the commit edge.',
-      'The operator should be able to ask "what changed, who owns it, what was validated, and what remains?" and get an answer from the system rather than from a human memory exercise.',
-    ],
-    codeExamples: [
-      {
-        label: 'Publish a narrow edit plan',
-        body: 'Use this before touching a page, route, test, or generated artifact another session may care about.',
-        code: `pd begin "expand agent docs page"
-pd note "Scope: website-v2/src/pages/AgentsPage.tsx; validation: website tests and build"
-pd session files add website-v2/src/pages/AgentsPage.tsx
-pd sessions --all-worktrees`,
-      },
-      {
-        label: 'Escalate a real conflict',
-        body: 'Use the inconsistency channel for operator-worthy conflicts, not routine progress.',
-        code: `pd pub coordination:inconsistency '{"surface":"website-v2","issue":"docs promise route not served by daemon"}'
-pd actor lookout --message "Public docs/runtime drift needs review"
-pd note "Escalated docs/runtime mismatch with exact surface and evidence"`,
-      },
-    ],
-    visualNotes: [
-      'The generated coordination image shows the abstract policy; the Sorties and Flow screenshots show how coordination becomes a navigable product workflow.',
-      'The page should feel like an operating manual: generated art for concepts, screenshots for product truth, code for exact practice.',
-    ],
-  },
-}
 
 const NAV_LINKS = [
   { label: 'Overview', href: '/agents', end: true },
@@ -1973,30 +1396,28 @@ function AgentSectionNav() {
   return (
     <nav
       aria-label="Agents section"
-      className="sticky top-[70px] z-40 overflow-x-auto border-b-2 border-[var(--border-strong)] bg-[var(--surface-raised)]"
+      className="sticky top-[70px] z-40 border-b-2 border-[var(--border-strong)] bg-[var(--surface-raised)]"
     >
-      <PageContainer width="wide" className="!max-w-none py-[var(--space-2)]">
-        <div className="flex min-w-max max-w-none flex-nowrap items-center gap-[var(--space-3)]">
-          <PanelEyebrow className="hidden shrink-0 text-[var(--text-muted)] md:block">Agents section</PanelEyebrow>
-          {NAV_LINKS.map((item) => (
-            <NavLink
-              key={item.href}
-              to={item.href}
-              end={item.end}
-              className={({ isActive }) =>
-                [
-                  'flex shrink-0 items-center justify-between gap-[var(--space-2)] border-2 px-[var(--space-3)] py-[var(--space-2)] font-sans text-[0.78rem] font-semibold uppercase tracking-[var(--tracking-meta)] transition-colors',
-                  isActive
-                    ? 'bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]'
-                    : 'border-transparent text-[var(--text-primary)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-base)]',
-                ].join(' ')
-              }
-            >
-              <span>{item.label}</span>
-              <ArrowRight className="h-[var(--space-3)] w-[var(--space-3)]" strokeWidth={2.25} />
-            </NavLink>
-          ))}
-        </div>
+      <PageContainer width="wide" className="!max-w-none flex items-center gap-[var(--space-3)] overflow-x-auto py-[var(--space-2)]">
+        <PanelEyebrow className="hidden shrink-0 text-[var(--text-muted)] md:block">Agents section</PanelEyebrow>
+        {NAV_LINKS.map((item) => (
+          <NavLink
+            key={item.href}
+            to={item.href}
+            end={item.end}
+            className={({ isActive }) =>
+              [
+                'flex shrink-0 items-center justify-between gap-[var(--space-2)] border-2 px-[var(--space-3)] py-[var(--space-2)] font-sans text-[0.78rem] font-semibold uppercase tracking-[var(--tracking-meta)] transition-colors',
+                isActive
+                  ? 'bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]'
+                  : 'border-transparent text-[var(--text-primary)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-base)]',
+              ].join(' ')
+            }
+          >
+            <span>{item.label}</span>
+            <ArrowRight className="h-[var(--space-3)] w-[var(--space-3)]" strokeWidth={2.25} />
+          </NavLink>
+        ))}
       </PageContainer>
     </nav>
   )
@@ -2256,7 +1677,9 @@ function OneOffs() {
                   <PanelBody size="compact" className="max-w-none">
                     {item.body}
                   </PanelBody>
-                  <DocsCodeBlock code={item.command} output={terminalOutputFor(item.command)} language="cli" label={item.title} copyable={false} />
+                  <div className="block min-w-0 whitespace-pre-wrap break-words border border-[var(--border-default)] bg-[color:var(--surface-sunken)] px-[var(--space-3)] py-[var(--space-2)] font-mono text-[11px] font-semibold leading-relaxed text-[var(--brand-primary)] [overflow-wrap:anywhere]">
+                    {item.command}
+                  </div>
                 </SurfacePanel>
               ))}
             </div>
@@ -2269,7 +1692,7 @@ function OneOffs() {
 
 function AgentsOverview() {
   return (
-    <main className="min-h-screen min-w-0 overflow-x-clip bg-[var(--surface-base)] text-[var(--text-primary)]">
+    <main className="min-h-screen bg-[var(--surface-base)] text-[var(--text-primary)]">
       <AgentSectionNav />
       <AgentHero />
       <section className="border-b-2 border-[var(--border-strong)] py-[var(--space-7)]">
@@ -2312,10 +1735,8 @@ function AgentsOverview() {
 }
 
 function SectionDetail({ section }: { section: AgentSection }) {
-  const rich = RICH_SUBPAGE_CONTENT[section.slug]
-
   return (
-    <main className="min-h-screen min-w-0 overflow-x-clip bg-[var(--surface-base)] text-[var(--text-primary)]">
+    <main className="min-h-screen bg-[var(--surface-base)] text-[var(--text-primary)]">
       <AgentSectionNav />
       <section className="border-b-2 border-[var(--border-strong)] py-[var(--space-7)] lg:py-[var(--space-8)]">
         <PageContainer width="wide">
@@ -2330,15 +1751,9 @@ function SectionDetail({ section }: { section: AgentSection }) {
                 </SurfacePanel>
                 <figure className="m-0 overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
                   <ThemedScreenshot source={section.image} alt={section.alt} className="aspect-[16/9] w-full object-cover" loading="eager" />
-                  <figcaption className="border-t-2 border-[var(--border-strong)] px-[var(--space-3)] py-[var(--space-2)] font-sans text-[0.72rem] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)]">
-                    Generated concept image or theme-aware product screenshot for {section.nav}.
-                  </figcaption>
                 </figure>
                 <figure className="m-0 overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] xl:col-span-2">
                   <img src={section.gif} alt="" className="aspect-[16/9] w-full object-cover" loading="lazy" />
-                  <figcaption className="border-t-2 border-[var(--border-strong)] px-[var(--space-3)] py-[var(--space-2)] font-sans text-[0.72rem] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)]">
-                    Terminal recording or product motion proof for the workflow.
-                  </figcaption>
                 </figure>
               </div>
 
@@ -2350,7 +1765,7 @@ function SectionDetail({ section }: { section: AgentSection }) {
                       Example code
                     </PanelTitle>
                   </div>
-                  <DocsCodeBlock code={section.code} output={terminalOutputFor(section.code)} language="cli" label={section.codeLabel} />
+                  <DocsCodeBlock code={section.code} language="cli" label={section.codeLabel} />
                 </SurfacePanel>
 
                 <SurfacePanel tone="blue" className="space-y-[var(--panel-gap)]">
@@ -2415,86 +1830,6 @@ function SectionDetail({ section }: { section: AgentSection }) {
                 </SurfacePanel>
               </div>
 
-              {rich ? (
-                <section className="grid gap-[var(--panel-gap)] xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)]">
-                  <SurfacePanel className="space-y-[var(--panel-gap)]">
-                    <BracketLabel>Patient definitions</BracketLabel>
-                    <PanelTitle as="h2" size="card">
-                      Terms, explained slowly.
-                    </PanelTitle>
-                    <div className="grid gap-[var(--space-3)]">
-                      {rich.definitions.map((definition) => (
-                        <div key={definition.term} className="border-2 border-[var(--border-default)] bg-[var(--surface-base)] p-[var(--space-3)]">
-                          <PanelEyebrow>{definition.term}</PanelEyebrow>
-                          <PanelBody className="mt-[var(--space-2)] max-w-none">
-                            {definition.body}
-                          </PanelBody>
-                          <PanelBody size="compact" className="mt-[var(--space-2)] max-w-none text-[var(--text-muted)]">
-                            Example: {definition.example}
-                          </PanelBody>
-                        </div>
-                      ))}
-                    </div>
-                  </SurfacePanel>
-
-                  <SurfacePanel elevation="quiet" className="space-y-[var(--panel-gap)]">
-                    <BracketLabel>Discussion</BracketLabel>
-                    <PanelTitle as="h2" size="card">
-                      How to think about it in real work.
-                    </PanelTitle>
-                    <div className="space-y-[var(--space-3)]">
-                      {rich.discussion.map((paragraph) => (
-                        <PanelBody key={paragraph} className="max-w-[58rem]">
-                          {paragraph}
-                        </PanelBody>
-                      ))}
-                    </div>
-                  </SurfacePanel>
-                </section>
-              ) : null}
-
-              {rich ? (
-                <section className="grid min-w-0 gap-[var(--panel-gap)] xl:grid-cols-[minmax(0,1fr)_minmax(22rem,0.72fr)]">
-                  <SurfacePanel className="min-w-0 space-y-[var(--panel-gap)] overflow-hidden">
-                    <BracketLabel>More code examples</BracketLabel>
-                    <PanelTitle as="h2" size="card">
-                      Runnable patterns, not just prose.
-                    </PanelTitle>
-                    <div className="grid gap-[var(--panel-gap)]">
-                      {rich.codeExamples.map((example) => (
-                        <div key={example.label} className="min-w-0 space-y-[var(--space-3)] overflow-hidden border-2 border-[var(--border-default)] bg-[var(--surface-base)] p-[var(--space-3)]">
-                          <div className="min-w-0 space-y-[var(--space-1)]">
-                            <PanelEyebrow className="break-words [overflow-wrap:anywhere]">{example.label}</PanelEyebrow>
-                            <PanelBody size="compact" className="max-w-none">
-                              {example.body}
-                            </PanelBody>
-                          </div>
-                          <DocsCodeBlock code={example.code} output={terminalOutputFor(example.code)} language="cli" label={example.label} className="min-w-0 max-w-full" />
-                        </div>
-                      ))}
-                    </div>
-                  </SurfacePanel>
-
-                  <SurfacePanel tone="blue" className="space-y-[var(--panel-gap)]">
-                    <BracketLabel tone="primary" surface="blue">
-                      Images and screenshots
-                    </BracketLabel>
-                    <PanelTitle as="h2" size="card" tone="primary">
-                      What the visuals are proving.
-                    </PanelTitle>
-                    <div className="grid gap-[var(--space-3)]">
-                      {rich.visualNotes.map((note) => (
-                        <div key={note} className="border-2 border-[color:var(--brand-primary-foreground-subtle)] p-[var(--space-3)]">
-                          <PanelBody size="compact" tone="primary" className="max-w-none">
-                            {note}
-                          </PanelBody>
-                        </div>
-                      ))}
-                    </div>
-                  </SurfacePanel>
-                </section>
-              ) : null}
-
               {section.templatePacks?.length ? (
                 <section id="template-packs" className="space-y-[var(--space-4)]">
                   <div className="max-w-[56rem] space-y-[var(--space-2)]">
@@ -2534,11 +1869,18 @@ function SectionDetail({ section }: { section: AgentSection }) {
                         </div>
                         <div className="border-2 border-[var(--border-default)] bg-[var(--surface-base)] p-[var(--space-3)]">
                           <PanelEyebrow>Path</PanelEyebrow>
-                          <span className="mt-[var(--space-1)] block break-all font-mono text-[12px] font-semibold text-[var(--brand-primary)] [overflow-wrap:anywhere]">
+                          <code className="mt-[var(--space-1)] block break-words font-mono text-[12px] font-semibold text-[var(--brand-primary)]">
                             {pack.path}
-                          </span>
+                          </code>
                         </div>
-                        <DocsCodeBlock code={pack.command} output={terminalOutputFor(pack.command)} language="cli" label={`${pack.title} command example`} copyable={false} />
+                        <div
+                          role="textbox"
+                          aria-label={`${pack.title} command example`}
+                          className="m-0 min-w-0 overflow-auto whitespace-pre-wrap border-2 border-[var(--border-default)] p-[var(--space-3)] font-mono text-[12px] leading-relaxed"
+                          style={{ background: 'var(--code-bg)', color: 'var(--code-text)' }}
+                        >
+                          <span>{pack.command}</span>
+                        </div>
                       </SurfacePanel>
                     ))}
                   </div>

@@ -64,13 +64,13 @@ export function assessBackendTelemetryPolicy(backend: string, model?: string | n
         return blocked(
           backend,
           `Cloudflare Workers AI model "${effectiveModel}" has no exact cost rate entry; fail-closed telemetry policy blocks launch.`,
-          'Add an exact Workers AI model rate before enabling this model.'
+          'Add an exact model rate before enabling this model.'
         );
       }
       return {
         backend,
         launchAllowed: true,
-        summary: `Exact telemetry policy satisfied for Cloudflare Workers AI model "${effectiveModel}"`,
+        summary: `Exact telemetry policy satisfied for Cloudflare model "${effectiveModel}"`,
         effectiveModel,
       };
     }

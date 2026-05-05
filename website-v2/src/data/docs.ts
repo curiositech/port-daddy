@@ -208,20 +208,6 @@ export const CLI_COMMANDS: CliCommand[] = [
     example: 'printf "ready" | pd tube myapp:handoff --send --sender qa',
     output: 'tube: posted id=42 to myapp:handoff',
   },
-  {
-    group: 'Messaging',
-    cmd: 'pd tube chat <channel>',
-    description: 'Listen for new top-level Tube messages, spawn a backend for each one, and publish the answer as a threaded reply.',
-    flags: [
-      '--backend <name>  Backend to spawn for each reply',
-      '--tier <level>    Built-in model tier: low, mid, or high',
-      '--model <id>      Exact model override',
-      '--budget <usd>    Required project budget ceiling',
-      '--once            Process one read pass and exit',
-    ],
-    example: 'pd tube chat myapp:handoff --backend codex --tier low --budget 5 --once',
-    output: 'tube chat: processed 1/1 message(s)',
-  },
   // Agents
   {
     group: 'Agents',
@@ -366,7 +352,7 @@ export const ENDPOINTS: Endpoint[] = [
   { method: 'POST',   path: '/sessions/:id/notes',      description: 'Compatibility alias for POST /notes with sessionId', group: 'Sessions' },
   { method: 'GET',    path: '/notes',                   description: 'Get recent notes',                            group: 'Sessions' },
   { method: 'POST',   path: '/sugar/begin',             description: 'Register agent + start session in one call',  group: 'Sessions' },
-  { method: 'POST',   path: '/sugar/done',              description: 'End session, unregister agent, and optionally record self-salvage',  group: 'Sessions' },
+  { method: 'POST',   path: '/sugar/done',              description: 'End session + unregister agent in one call',  group: 'Sessions' },
   { method: 'GET',    path: '/sugar/whoami',            description: 'Get current agent identity and session',      group: 'Sessions' },
   { method: 'POST',   path: '/agents/:id',              description: 'Register an agent',                           group: 'Agents' },
   { method: 'DELETE', path: '/agents/:id',              description: 'Unregister an agent',                         group: 'Agents' },

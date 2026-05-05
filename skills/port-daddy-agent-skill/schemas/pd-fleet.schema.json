@@ -39,12 +39,8 @@
           "type": "object",
           "properties": {
             "backend": { "$ref": "#/$defs/backend" },
-            "model": { "type": "string" },
-            "model_tier": { "$ref": "#/$defs/modelTier" },
-            "modelTier": { "$ref": "#/$defs/modelTier" },
-            "worktree": { "type": "boolean" }
-          },
-          "additionalProperties": false
+            "model": { "type": "string" }
+          }
         }
       },
       "additionalProperties": false
@@ -53,7 +49,7 @@
   "$defs": {
     "backend": {
       "type": "string",
-      "enum": ["ollama", "claude", "claude-cli", "codex", "gemini", "cloudflare", "aider", "custom"]
+      "enum": ["ollama", "claude", "claude-cli", "codex", "gemini", "aider", "custom"]
     },
     "modelTier": {
       "type": "string",
@@ -71,7 +67,7 @@
     },
     "agent": {
       "type": "object",
-      "required": ["prompt", "telos"],
+      "required": ["backend", "prompt"],
       "properties": {
         "schedule": {
           "type": "string",
@@ -89,13 +85,11 @@
         },
         "backend": { "$ref": "#/$defs/backend" },
         "model": { "type": "string", "description": "Pin the model whenever the backend supports it for predictable cost." },
-        "model_tier": { "$ref": "#/$defs/modelTier" },
         "modelTier": { "$ref": "#/$defs/modelTier" },
         "prompt": {
           "type": "string",
           "description": "Prompt or shell command (depending on backend). For backend=custom, this IS the command; for LLM backends, this is the user message."
         },
-        "telos": { "$ref": "#/$defs/telos" },
         "worktree": { "type": "boolean" },
         "singleton": { "type": "boolean", "description": "If true, fleet refuses to spawn a second instance while one is running." },
         "respawn": { "type": "boolean", "description": "Auto-restart on death." },
@@ -137,37 +131,8 @@
       "properties": {
         "backend": { "$ref": "#/$defs/backend" },
         "model": { "type": "string" },
-        "model_tier": { "$ref": "#/$defs/modelTier" },
         "modelTier": { "$ref": "#/$defs/modelTier" }
       }
-    },
-    "telos": {
-      "description": "Required purpose contract for the agent. String form is the operator-facing headline; object form can carry plural facets, hierarchy, currentIntent, and source.",
-      "oneOf": [
-        {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 240
-        },
-        {
-          "type": "object",
-          "required": ["headline"],
-          "properties": {
-            "headline": { "type": "string", "minLength": 1, "maxLength": 240 },
-            "facets": {
-              "type": "array",
-              "items": { "type": "string", "minLength": 1, "maxLength": 240 }
-            },
-            "hierarchy": {
-              "type": "array",
-              "items": { "type": "string", "minLength": 1, "maxLength": 240 }
-            },
-            "currentIntent": { "type": "string", "maxLength": 240 },
-            "source": { "type": "string", "enum": ["creator", "self", "derived", "system"] }
-          },
-          "additionalProperties": false
-        }
-      ]
     },
     "watcher": {
       "type": "object",

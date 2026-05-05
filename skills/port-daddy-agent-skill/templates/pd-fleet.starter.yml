@@ -17,14 +17,13 @@ fleet:
 
   defaults:
     backend: claude-cli
-    model_tier: low
+    model: claude-sonnet-4-6
 
   agents:
     # Reactive QA on every commit.
     qa:
       trigger: git:committed
       identity: "{project}:fleet:qa"
-      telos: "Find the bug this commit would otherwise ship."
       respawn: true
       max_respawns: 3
       cooldown_ms: 30000
@@ -41,11 +40,10 @@ fleet:
     cartographer:
       schedule: "*/30 * * * *"
       identity: "{project}:fleet:cartographer"
-      telos: "Keep roadmap truth aligned with commits and feedback."
       respawn: true
       max_respawns: 3
       backend: ollama
-      model_tier: low
+      model: qwen2.5-coder:7b
       prompt: |
         Read .spark/feedback/, docs/recovery/DOGFOOD-FEEDBACK.md, and recent
         `pd notes --type finding`. Promote anything that is now actionable

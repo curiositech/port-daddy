@@ -108,72 +108,6 @@ const POST = (path: string, body?: Record<string, unknown>, opts?: { timeout?: n
 const PUT = (path: string, body?: Record<string, unknown>, opts?: { timeout?: number }) => api('PUT', path, body, opts);
 const DELETE = (path: string, body?: Record<string, unknown>, opts?: { timeout?: number }) => api('DELETE', path, body, opts);
 
-function envFirst(names: string[]): string | null {
-  for (const name of names) {
-    const value = process.env[name];
-    if (typeof value === 'string' && value.trim()) return value.trim();
-  }
-  return null;
-}
-
-function mcpCategory(toolName: string): string {
-  const name = toolName.toLowerCase();
-  if (name.includes('tuple')) return 'tuples';
-  if (name.includes('pheromone') || name.includes('file_heat')) return 'pheromones';
-  if (name.includes('lock')) return 'locks';
-  if (name.includes('message') || name.includes('channel') || name.includes('tube')) return 'channels';
-  if (name.includes('agent') || name.includes('actor')) return 'agents';
-  if (name.includes('session') || name.includes('note') || name.includes('claim_files')) return 'sessions';
-  if (name.includes('spawn')) return 'spawn';
-  if (name.includes('fleet')) return 'fleet';
-  if (name.includes('sortie')) return 'sorties';
-  if (name.includes('project')) return 'projects';
-  if (name.includes('activity') || name.includes('sitrep') || name.includes('catch_me_up')) return 'activity';
-  if (name.includes('budget') || name.includes('wallet') || name.includes('bond')) return 'budget';
-  if (name.includes('salvage')) return 'salvage';
-  if (name.includes('port') || name.includes('service')) return 'ports';
-  return 'other';
-}
-
-async function recordMcpToolUsage(
-  toolName: string,
-  args: Record<string, unknown>,
-  status: 'ok' | 'error',
-  startedAt: number,
-  error?: unknown,
-): Promise<void> {
-  if (process.env.NODE_ENV === 'test' && process.env.PORT_DADDY_ENABLE_USAGE_TELEMETRY_IN_TESTS !== '1') return;
-  try {
-    await POST('/usage/trace', {
-      surface: 'mcp',
-      kind: 'tool_call',
-      name: toolName,
-      category: mcpCategory(toolName),
-      agentId: envFirst(['PORT_DADDY_AGENT', 'PD_AGENT_ID', 'CODEX_AGENT_ID', 'CLAUDE_AGENT_ID']),
-      agentType: envFirst(['PORT_DADDY_AGENT_TYPE', 'CODEX_AGENT_TYPE', 'CLAUDE_AGENT_TYPE']) ?? 'mcp',
-      agentModel: envFirst(['PORT_DADDY_AGENT_MODEL', 'CODEX_MODEL', 'OPENAI_MODEL', 'ANTHROPIC_MODEL', 'CLAUDE_MODEL']),
-      backend: envFirst(['PORT_DADDY_BACKEND', 'CODEX_BACKEND', 'CLAUDE_BACKEND']),
-      model: envFirst(['PORT_DADDY_MODEL', 'CODEX_MODEL', 'OPENAI_MODEL', 'ANTHROPIC_MODEL', 'CLAUDE_MODEL']),
-      project: typeof args.identity === 'string' ? String(args.identity).split(':')[0] : null,
-      projectDir: typeof args.projectDir === 'string' ? args.projectDir : typeof args.cwd === 'string' ? args.cwd : null,
-      status,
-      durationMs: Date.now() - startedAt,
-      workScope: 'port_daddy_call',
-      toolCalls: 1,
-      cwd: process.cwd(),
-      context: {
-        argKeys: Object.keys(args).sort(),
-        fullMode: FULL_MODE,
-      },
-      metadata: {
-        error: error instanceof Error ? error.message : undefined,
-      },
-    }, { timeout: 750 });
-  } catch {
-    // MCP telemetry is best-effort. Tool results must stay authoritative.
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Tiered tool loading — reduce context window overhead by 80%
 //
@@ -330,8 +264,8 @@ const TOOLS = [
     description:
       '[Essential] Register agent + start session in one atomic step. Use this at the start of every ' +
       'coding session instead of calling register_agent and start_session separately. ' +
-      'Carries telos, returns agentId, sessionId, and a salvageHint if dead agents need attention. ' +
-      'Usage: begin_session({purpose: "Building auth system", telos: "Make auth trustworthy", identity: "myapp:api:main"})',
+      'Returns agentId, sessionId, and a salvageHint if dead agents need attention. ' +
+      'Usage: begin_session({purpose: "Building auth system", identity: "myapp:api:main"})',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -356,13 +290,6 @@ const TOOLS = [
           items: { type: 'string' },
           description: 'Files to claim for this session (advisory — shows conflicts to other agents)',
         },
-        telos: {
-          oneOf: [
-            { type: 'string' },
-            { type: 'object' },
-          ],
-          description: 'Agent purpose contract/tagline. If omitted, the daemon derives one from purpose; every agent still receives a normalized telos.',
-        },
       },
       required: ['purpose'],
     },
@@ -372,8 +299,7 @@ const TOOLS = [
     description:
       '[Essential] End session + unregister agent in one step. Use this at the end of every coding ' +
       'session instead of calling end_session and then unregistering the agent separately. ' +
-      'Can include self_salvage when telos is unfinished but doable. ' +
-      'Usage: end_session_full({agent_id: "agent-abc123", note: "Auth needs deploy smoke", self_salvage: {telos_verdict: "partial", doable: "yes", next_plan: "smoke /auth"}})',
+      'Usage: end_session_full({agent_id: "agent-abc123", note: "Auth complete, all tests passing"})',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -393,48 +319,6 @@ const TOOLS = [
           type: 'string',
           enum: ['completed', 'abandoned'],
           description: 'How the session ended (default: completed)',
-        },
-        self_salvage: {
-          type: 'object',
-          description: 'Optional capsule for unfinished but doable telos. Queueable capsules mark the session abandoned and put the agent in salvage.',
-          properties: {
-            telos_verdict: {
-              type: 'string',
-              enum: ['fulfilled', 'partial', 'not-fulfilled'],
-              description: 'Whether the telos was fulfilled.',
-            },
-            doable: {
-              type: 'string',
-              enum: ['yes', 'no', 'unknown'],
-              description: 'Use yes when another iteration can reasonably continue the telos.',
-            },
-            why_stopped: {
-              type: 'string',
-              description: 'Why this agent stopped before fulfilling telos.',
-            },
-            next_plan: {
-              oneOf: [
-                { type: 'string' },
-                { type: 'array', items: { type: 'string' } },
-              ],
-              description: 'Concrete continuation plan for the next iteration.',
-            },
-            wisdom: {
-              type: 'string',
-              description: 'Lessons, constraints, or traps the next agent should know.',
-            },
-            evidence: {
-              oneOf: [
-                { type: 'string' },
-                { type: 'array', items: { type: 'string' } },
-              ],
-              description: 'Commands, files, observations, or artifacts supporting the handoff.',
-            },
-            risk: {
-              type: 'string',
-              description: 'Known risk or caveat for continuation.',
-            },
-          },
         },
       },
     },
@@ -2663,7 +2547,6 @@ async function handleTool(
       if (args.agent_id) body.agentId = args.agent_id;
       if (args.type) body.type = args.type;
       if (args.files) body.files = args.files;
-      if (args.telos) body.telos = args.telos;
       res = await POST('/sugar/begin', body);
 
       // Attach salvage context — check if any dead agents share this project
@@ -2701,7 +2584,6 @@ async function handleTool(
       if (args.session_id) body.sessionId = args.session_id;
       if (args.note) body.note = args.note;
       if (args.status) body.status = args.status;
-      if (args.self_salvage) body.selfSalvage = args.self_salvage;
       res = await POST('/sugar/done', body);
       break;
     }
@@ -3874,7 +3756,7 @@ async function handleTool(
 const server = new Server(
   {
     name: 'port-daddy',
-    version: '3.12.0',
+    version: '3.11.0',
   },
   {
     capabilities: {
@@ -3905,17 +3787,13 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 // Execute tools
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
-  const startedAt = Date.now();
-  const toolArgs = (args ?? {}) as Record<string, unknown>;
 
   try {
-    const result = await handleTool(name, toolArgs);
-    void recordMcpToolUsage(name, toolArgs, 'ok', startedAt);
+    const result = await handleTool(name, (args ?? {}) as Record<string, unknown>);
     return {
       content: [{ type: 'text' as const, text: result }],
     };
   } catch (error) {
-    void recordMcpToolUsage(name, toolArgs, 'error', startedAt, error);
     if (error instanceof McpError) throw error;
 
     const err = error as Error;

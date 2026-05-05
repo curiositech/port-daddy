@@ -7,7 +7,7 @@
  * detection without standing up a daemon.
  */
 import { describe, expect, test, jest, beforeEach, afterEach } from '@jest/globals';
-import { mkdtempSync, writeFileSync, rmSync, readFileSync, readdirSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, rmSync, readFileSync, readdirSync, mkdirSync, utimesSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -118,6 +118,58 @@ describe('claim watcher', () => {
     watcher.start();
     expect(() => watcher.tickOnce()).not.toThrow();
     expect(watcher.status().changesDetected).toBe(0);
+  });
+
+  test('pruneOnce removes snapshot blobs older than the retention window and preserves manifest', () => {
+    // Stand up a watcher with a short retention. Seed a stale snapshot blob plus
+    // a manifest entry; verify the blob disappears and the manifest survives.
+    const pruneWatcher = createClaimWatcher({
+      listClaims: () => [],
+      searchRoots: [dir],
+      snapshotDir,
+      intervalMs: 60_000,
+      retentionDays: 1,
+      pruneIntervalMs: 60_000,
+      log: () => {},
+    });
+    const sessionDir = join(snapshotDir, 'sess-old');
+    mkdirSync(sessionDir, { recursive: true });
+    const stalePath = join(sessionDir, 'stale-blob');
+    writeFileSync(stalePath, 'stale');
+    const manifestPath = join(sessionDir, 'manifest.jsonl');
+    writeFileSync(manifestPath, JSON.stringify({ filePath: 'x', snapshotPath: stalePath }) + '\n');
+    const ancient = Date.now() / 1000 - 10 * 24 * 60 * 60;
+    utimesSync(stalePath, ancient, ancient);
+
+    const result = pruneWatcher.pruneOnce();
+    expect(result.pruned).toBe(1);
+    expect(result.bytesFreed).toBeGreaterThan(0);
+    expect(readdirSync(sessionDir)).toEqual(['manifest.jsonl']);
+    expect(readFileSync(manifestPath, 'utf8')).toContain('stale-blob');
+  });
+
+  test('start runs an initial prune so daemon boots clean up old snapshots', () => {
+    const pruneWatcher = createClaimWatcher({
+      listClaims: () => [],
+      searchRoots: [dir],
+      snapshotDir,
+      intervalMs: 60_000,
+      retentionDays: 1,
+      pruneIntervalMs: 60_000,
+      log: () => {},
+    });
+    const sessionDir = join(snapshotDir, 'sess-boot');
+    mkdirSync(sessionDir, { recursive: true });
+    const stalePath = join(sessionDir, 'stale-blob');
+    writeFileSync(stalePath, 'stale');
+    const ancient = Date.now() / 1000 - 10 * 24 * 60 * 60;
+    utimesSync(stalePath, ancient, ancient);
+
+    pruneWatcher.start();
+    pruneWatcher.stop();
+
+    expect(pruneWatcher.status().snapshotsPruned).toBe(1);
+    expect(readdirSync(sessionDir)).toEqual([]);
   });
 
   test('multiple claims on the same file under different sessions are tracked independently', () => {

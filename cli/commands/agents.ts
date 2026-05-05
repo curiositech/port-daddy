@@ -50,7 +50,6 @@ function shouldRunAutopilot(subcommand: string, args: string[], options: CLIOpti
     || !!options.timeout
     || !!options.allowedTools
     || !!options.identity
-    || !!options.telos
     || !!options.recipe
     || !!options.background;
 }
@@ -128,7 +127,6 @@ async function runAgentAutopilot(task: string, options: CLIOptions): Promise<voi
   }
 
   const purpose = (options.purpose as string) || task;
-  const telos = (options.telos as string) || purpose;
   const name = (options.name as string) || purpose;
   const identity = (options.identity as string) || autoIdentityFromPackageJson() || undefined;
   const allowedTools = options.allowedTools as string | undefined;
@@ -145,7 +143,6 @@ async function runAgentAutopilot(task: string, options: CLIOptions): Promise<voi
   if (!isQuiet(options) && !isJson(options)) {
     ui.info('pd agent autopilot');
     console.error(`  Task: ${task}`);
-    console.error(`  Telos: ${telos}`);
     console.error(`  Runtime: ${runtime.backend}${runtime.model ? ` / ${runtime.model}` : ''}`);
     if (identity) console.error(`  Identity: ${identity}`);
     console.error(`  Budget ceiling: $${budgetUsd.toFixed(2)}`);
@@ -167,7 +164,6 @@ async function runAgentAutopilot(task: string, options: CLIOptions): Promise<voi
       identity,
       agentId: options.agent,
       type: 'pd-agent',
-      telos,
     }),
   });
   const beginData = await beginRes.json();
@@ -203,7 +199,6 @@ async function runAgentAutopilot(task: string, options: CLIOptions): Promise<voi
         name,
         identity,
         purpose: `pd agent: ${purpose.slice(0, 120)}`,
-        telos,
         task,
         allowedTools,
         timeout,
@@ -268,7 +263,7 @@ export async function handleAgent(subcommand: string | undefined, args: string[]
     console.error('Subcommands:');
     console.error('  "task text"                               Run a one-shot pd agent autopilot task');
     console.error('  run <task text>                           Explicit autopilot form');
-    console.error('  register [--agent <id>] [--type <type>] [--identity <project:stack:context>] [--purpose <text>] [--telos <text>] [--skills <list>]');
+    console.error('  register [--agent <id>] [--type <type>] [--identity <project:stack:context>] [--purpose <text>] [--skills <list>]');
     console.error('                                            Register as an agent (auto-checks for dead agents in same project)');
     console.error('  heartbeat [--agent <id>]                  Send heartbeat');
     console.error('  unregister [--agent <id>]                 Unregister agent');
@@ -281,7 +276,6 @@ export async function handleAgent(subcommand: string | undefined, args: string[]
     console.error('Options:');
     console.error('  --identity <project:stack:context>        Semantic identity (enables context-aware salvage)');
     console.error('  --purpose <text>                          What you\'re working on');
-    console.error('  --telos <text>                            Purpose tagline/contract for this agent');
     console.error('  --budget <usd>                           Required one-shot spend ceiling enforced at launch');
     console.error('  --skills <list>                           Comma-separated agent skills (e.g. "typescript,react")');
     console.error('  --worktree <id>                           Git worktree identifier');
@@ -315,7 +309,6 @@ export async function handleAgent(subcommand: string | undefined, args: string[]
         // Context-aware salvage: semantic identity enables project-scoped resurrection
         identity: options.identity,
         purpose: options.purpose,
-        telos: options.telos,
         skills: options.skills,
         worktreeId: options.worktree
       };
@@ -351,18 +344,12 @@ export async function handleAgent(subcommand: string | undefined, args: string[]
     }
 
     case 'heartbeat': {
-      const body: Record<string, unknown> = {};
-      if (options.purpose) body.purpose = options.purpose;
-      if (options.telos) body.telos = options.telos;
-      if (options.status) body.status = options.status;
-      if (options.progress) body.progress = options.progress;
       const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/agents/${encodeURIComponent(agentId)}/heartbeat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-PID': String(process.pid)
-        },
-        body: JSON.stringify(body),
+        }
       });
 
       const data = await res.json();
@@ -564,13 +551,9 @@ export async function handleAgent(subcommand: string | undefined, args: string[]
           registeredAt: number;
           maxServices: number;
           maxLocks: number;
-          telos?: { headline?: string };
-          telosHeadline?: string;
         };
         console.log(`Agent: ${agent.id}`);
         console.log(`  Name: ${agent.name || '-'}`);
-        const telosHeadline = agent.telosHeadline || agent.telos?.headline;
-        if (telosHeadline) console.log(`  Telos: ${telosHeadline}`);
         console.log(`  Type: ${agent.type}`);
         console.log(`  PID: ${agent.pid}`);
         console.log(`  Active: ${agent.isActive ? 'yes' : 'no'}`);

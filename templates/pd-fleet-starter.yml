@@ -5,10 +5,8 @@
 #
 # This starter uses `claude-cli` because these prompts assume a local agent
 # runtime with file/tool access. Swap backend/model per agent as needed.
-# Pin `model:` or `model_tier:` so costs are predictable. You can set
-# fleet.defaults.backend/model/model_tier once and omit them on each agent.
-# Environment fallbacks still work: PD_FLEET_DEFAULT_BACKEND,
-# PD_FLEET_DEFAULT_MODEL, and PD_MODEL_TIER_<BACKEND>_<LOW|MID|HIGH>.
+# Pin `model:` so costs are predictable. If you omit backend/model entirely,
+# set PD_FLEET_DEFAULT_BACKEND / PD_FLEET_DEFAULT_MODEL in your environment.
 #
 # What you get:
 #   - QA reviews every commit for bugs
@@ -24,18 +22,15 @@ fleet:
   name: "{project}"
   harbor: "{project}:fleet"
 
-  defaults:
-    backend: claude-cli
-    model_tier: low
-
   agents:
     # ── Triggered on every commit ──────────────────────────────────────────
 
     qa:
       trigger: git:committed
+      backend: claude-cli
+      model: haiku
       respawn: true                      # Auto-respawn if this agent dies
       max_respawns: 3                    # Circuit breaker — stop after 3 deaths
-      telos: "Find the bug this commit would otherwise ship."
       allowedTools: "Read,Grep,Glob,Bash(npm test*)"
       prompt: |
         Review the most recent commit. Read every changed file.
@@ -48,7 +43,8 @@ fleet:
 
     documentarian:
       trigger: git:committed
-      telos: "Keep documentation honest against code truth."
+      backend: claude-cli
+      model: haiku
       allowedTools: "Read,Grep,Glob,Write,Edit"
       prompt: |
         You maintain documentation for this project.
@@ -62,7 +58,8 @@ fleet:
 
     cartographer:
       trigger: git:committed
-      telos: "Keep roadmap truth aligned with commits."
+      backend: claude-cli
+      model: haiku
       allowedTools: "Read,Grep,Glob,Write"
       prompt: |
         You maintain the map between what was planned and what was built.
@@ -93,7 +90,6 @@ fleet:
       backend: claude-cli
       model: sonnet
       singleton: true
-      telos: "Propose one novel, buildable improvement with lineage."
       allowedTools: "Read,Grep,Glob,Write,Bash(pd ideas*)"
       prompt: |
         You are Spark, the idea engine for this project.
@@ -123,7 +119,6 @@ fleet:
       backend: claude-cli
       model: sonnet
       singleton: true
-      telos: "Find surprising feature connections without inventing novelty."
       allowedTools: "Read,Grep,Glob,Write,Bash(pd ideas*)"
       prompt: |
         You are Spider, the connection engine.

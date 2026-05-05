@@ -138,10 +138,7 @@ export function TemplatesPage() {
             <CodeBlock language="bash">{`cd ~/my-project
 pd fleet init          # Creates pd-fleet.yml + git hook + output dirs
 pd fleet up            # Starts the fleet
-git commit -m "test"   # QA, docs, cartographer fire automatically
-SUCCESS: Created pd-fleet.yml
-SUCCESS: Fleet started
-Message sent to git:committed`}</CodeBlock>
+git commit -m "test"   # QA, docs, cartographer fire automatically`}</CodeBlock>
             <p className="text-sm m-0 text-[var(--text-secondary)]">
               Requires Port Daddy running (<code>pd start</code>) and <code>ANTHROPIC_API_KEY</code> in <code>.env.local</code>.
             </p>
@@ -169,8 +166,7 @@ Message sent to git:committed`}</CodeBlock>
               </p>
               <CodeBlock language="bash">{`pd fleet init
 # or manually:
-cp templates/pd-fleet-starter.yml pd-fleet.yml
-SUCCESS: Created pd-fleet.yml`}</CodeBlock>
+cp templates/pd-fleet-starter.yml pd-fleet.yml`}</CodeBlock>
             </Surface>
 
             <Surface depth="raised" radius="2xl" padding="lg" className="space-y-4">

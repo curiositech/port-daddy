@@ -9,8 +9,6 @@
 import { randomBytes } from 'crypto';
 import { parseIdentity } from './identity.js';
 import { buildHumanReadableId, cleanAgentDisplayName, deriveAgentDisplayName } from './agent-names.js';
-import { normalizeAgentTelos } from './agent-telos.js';
-import { formatSelfSalvageNote, normalizeSelfSalvage, type SelfSalvageCapsule } from './telos-salvage.js';
 
 // =============================================================================
 // Types
@@ -39,26 +37,10 @@ interface ActivityLogModule {
   }): void;
 }
 
-interface ResurrectionModule {
-  selfSalvage(agent: {
-    id: string;
-    name: string;
-    purpose?: string | null;
-    sessionId?: string | null;
-    lastHeartbeat?: number;
-    notes?: string[];
-    selfSalvage: SelfSalvageCapsule;
-    identityProject?: string | null;
-    identityStack?: string | null;
-    identityContext?: string | null;
-  }): Record<string, unknown>;
-}
-
 interface SugarDeps {
   agents: AgentsModule;
   sessions: SessionsModule;
   activityLog: ActivityLogModule;
-  resurrection?: ResurrectionModule;
 }
 
 interface BeginOptions {
@@ -70,8 +52,6 @@ interface BeginOptions {
   files?: string[];
   force?: boolean;
   metadata?: Record<string, unknown>;
-  telos?: unknown;
-  pid?: number;
 }
 
 interface DoneOptions {
@@ -79,7 +59,6 @@ interface DoneOptions {
   sessionId?: string;
   note?: string;
   status?: string;
-  selfSalvage?: unknown;
 }
 
 interface WhoamiOptions {
@@ -92,7 +71,7 @@ interface WhoamiOptions {
 // =============================================================================
 
 export function createSugar(deps: SugarDeps) {
-  const { agents, sessions, activityLog, resurrection } = deps;
+  const { agents, sessions, activityLog } = deps;
 
   function sessionTarget(identityProject: string | null | undefined, sessionId: string): string {
     return identityProject ? `${identityProject}:session:${sessionId}` : sessionId;
@@ -118,8 +97,6 @@ export function createSugar(deps: SugarDeps) {
       agentName: cleanAgentDisplayName(agent?.name) || null,
       name: cleanAgentDisplayName(agent?.name) || null,
       identity: typeof agent?.identity === 'string' ? agent.identity : null,
-      telos: agent?.telos || null,
-      telosHeadline: typeof agent?.telosHeadline === 'string' ? agent.telosHeadline : null,
       phase: session.phase as string || 'in_progress',
       files: files
         .filter((file: Record<string, unknown>) => !file.releasedAt)
@@ -158,26 +135,14 @@ export function createSugar(deps: SugarDeps) {
     // Generate or use provided agent ID. The suffix keeps the stable machine key
     // unique; the slug keeps `pd begin` output readable to humans.
     const agentId = options.agentId || buildHumanReadableId('agent', name, randomBytes(4).toString('hex'), 'work');
-    const telosResult = normalizeAgentTelos(options.telos ?? metadata?.telos, {
-      fallbackHeadline: purpose,
-      fallbackCurrentIntent: purpose,
-      source: options.telos ? 'self' : 'derived',
-    });
-    if (!telosResult.success || !telosResult.telos) {
-      return { success: false, error: telosResult.error || 'telos is required', code: 'TELOS_REQUIRED' };
-    }
 
     // Step 1: Register the agent
     const registerOpts: Record<string, unknown> = {};
     if (name) registerOpts.name = name;
     if (identity) registerOpts.identity = identity;
     if (purpose) registerOpts.purpose = purpose;
-    registerOpts.telos = telosResult.telos;
     if (type) registerOpts.type = type;
     if (metadata) registerOpts.metadata = metadata;
-    if (typeof options.pid === 'number' && Number.isFinite(options.pid) && options.pid >= 0) {
-      registerOpts.pid = Math.trunc(options.pid);
-    }
 
     const agentResult = agents.register(agentId, registerOpts);
     if (!agentResult.success) {
@@ -202,10 +167,9 @@ export function createSugar(deps: SugarDeps) {
       sessionOpts.files = files;
       if (force) sessionOpts.force = force;
     }
-    sessionOpts.metadata = {
-      ...(metadata && typeof metadata === 'object' ? metadata : {}),
-      telos: telosResult.telos,
-    };
+    if (metadata && typeof metadata === 'object') {
+      sessionOpts.metadata = metadata;
+    }
 
     const sessionResult = sessions.start(purpose.trim(), sessionOpts);
     if (!sessionResult.success) {
@@ -228,8 +192,6 @@ export function createSugar(deps: SugarDeps) {
       name,
       identity: identity || null,
       purpose: purpose.trim(),
-      telos: telosResult.telos,
-      telosHeadline: telosResult.telos.headline,
       agentRegistered: true,
       sessionStarted: true,
     };
@@ -257,7 +219,6 @@ export function createSugar(deps: SugarDeps) {
         sessionId: sessionResult.id as string,
         identity: identity || null,
         identityProject: identityProject || undefined,
-        telos: telosResult.telos,
       } as unknown as Record<string, unknown>,
     });
 
@@ -269,29 +230,8 @@ export function createSugar(deps: SugarDeps) {
    * Finds active session by agentId if sessionId not provided.
    */
   function done(options: DoneOptions) {
-    const { agentId, note } = options;
-    let status = options.status || 'completed';
+    const { agentId, note, status = 'completed' } = options;
     let { sessionId } = options;
-    const selfSalvage = normalizeSelfSalvage(options.selfSalvage);
-
-    if (!selfSalvage.success) {
-      return {
-        success: false,
-        error: selfSalvage.error,
-        code: 'SELF_SALVAGE_VALIDATION_ERROR',
-      };
-    }
-
-    if (selfSalvage.shouldQueue) {
-      if (options.status && options.status !== 'abandoned') {
-        return {
-          success: false,
-          error: 'Queueable self-salvage means the telos is unfinished; use status "abandoned" or omit status.',
-          code: 'SELF_SALVAGE_STATUS_MISMATCH',
-        };
-      }
-      status = 'abandoned';
-    }
 
     // Find session by agent if not provided
     if (!sessionId && agentId) {
@@ -336,26 +276,13 @@ export function createSugar(deps: SugarDeps) {
       }
     }
 
-    const effectiveAgentId = agentId || findAgentForSession(sessionId);
-    const sessionBeforeResult = sessions.get(sessionId);
-    const sessionBefore = sessionBeforeResult.success && sessionBeforeResult.session
-      ? sessionBeforeResult.session as Record<string, unknown>
-      : null;
-    const agentBeforeResult = effectiveAgentId ? agents.get(effectiveAgentId) : { success: false };
-    const agentBefore = agentBeforeResult.success && agentBeforeResult.agent
-      ? agentBeforeResult.agent as Record<string, unknown>
-      : null;
-
     // Count notes before ending (end adds the handoff note)
     const notesBefore = sessions.getNotes(sessionId);
     const beforeCount = (notesBefore.notes as unknown[] || []).length;
 
     // End the session
     const endOpts: Record<string, unknown> = { status };
-    const finalNoteParts = [];
-    if (note) finalNoteParts.push(note);
-    if (selfSalvage.capsule) finalNoteParts.push(formatSelfSalvageNote(selfSalvage.capsule));
-    if (finalNoteParts.length > 0) endOpts.note = finalNoteParts.join('\n\n');
+    if (note) endOpts.note = note;
     const sessionResult = sessions.end(sessionId, endOpts);
 
     if (!sessionResult.success) {
@@ -368,35 +295,13 @@ export function createSugar(deps: SugarDeps) {
 
     // Unregister the agent
     let agentUnregistered = false;
-    let selfSalvageQueued = false;
-    if (selfSalvage.shouldQueue && selfSalvage.capsule && resurrection && effectiveAgentId) {
-      const liveNotes = Array.isArray(notesBefore.notes)
-        ? notesBefore.notes.map((noteRow: Record<string, unknown>) => String(noteRow.content || '')).filter(Boolean)
-        : [];
-      const queueResult = resurrection.selfSalvage({
-        id: effectiveAgentId,
-        name: typeof agentBefore?.name === 'string' ? agentBefore.name : effectiveAgentId,
-        purpose: typeof sessionBefore?.purpose === 'string' ? sessionBefore.purpose : null,
-        sessionId,
-        lastHeartbeat: typeof agentBefore?.lastHeartbeat === 'number' ? agentBefore.lastHeartbeat : Date.now(),
-        notes: [
-          ...liveNotes,
-          ...(endOpts.note ? [String(endOpts.note)] : []),
-        ],
-        selfSalvage: selfSalvage.capsule,
-        identityProject: typeof sessionBefore?.identityProject === 'string' ? sessionBefore.identityProject : null,
-        identityStack: typeof sessionBefore?.identityStack === 'string' ? sessionBefore.identityStack : null,
-        identityContext: typeof sessionBefore?.identityContext === 'string' ? sessionBefore.identityContext : null,
-      });
-      selfSalvageQueued = !!queueResult.success;
-    }
-
+    const effectiveAgentId = agentId || findAgentForSession(sessionId);
     if (effectiveAgentId) {
       const unregResult = agents.unregister(effectiveAgentId);
       agentUnregistered = !!unregResult.unregistered;
     }
 
-    const totalNotes = beforeCount + (finalNoteParts.length > 0 ? 1 : 0);
+    const totalNotes = beforeCount + (note ? 1 : 0);
 
     const sessionInfo = sessions.get(sessionId);
     const session = sessionInfo.success && sessionInfo.session ? sessionInfo.session as Record<string, unknown> : null;
@@ -410,8 +315,6 @@ export function createSugar(deps: SugarDeps) {
         agentId: effectiveAgentId || null,
         sessionId,
         status,
-        selfSalvage: selfSalvage.capsule || undefined,
-        selfSalvageQueued,
         identityProject: identityProject || undefined,
       } as unknown as Record<string, unknown>,
     });
@@ -423,9 +326,7 @@ export function createSugar(deps: SugarDeps) {
       sessionStatus: status,
       agentUnregistered,
       notesCount: totalNotes,
-      finalNote: finalNoteParts.length > 0,
-      selfSalvage: selfSalvage.capsule || null,
-      selfSalvageQueued,
+      finalNote: !!note,
     };
   }
 

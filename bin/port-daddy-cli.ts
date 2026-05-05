@@ -105,11 +105,14 @@ import {
   handleActors,
   // Tube — relay-independent conversational pipe (Track B1)
   handleTube,
-  handleTubeChat,
   // Coordination Guard enforcement controls
   handleGuard,
   // Claim-aware git add wrapper
   handleAdd,
+  // Claim-watcher snapshot list/restore/prune
+  handleSnapshots,
+  // Shipwright — survey/propose/apply for fleet authoring
+  handleShipwright,
   // App-Native Development Cockpit
   handleCockpit,
 } from '../cli/commands/index.js';
@@ -843,12 +846,6 @@ Commands:
     --dir <path>           Resolve declared logical channels for this worktree
     --raw-channel          Bypass logical-channel resolution and use the literal string
 
-  tube chat <channel>      Bridge tube messages to a spawned backend and reply in-thread
-    --backend <name>       Backend to spawn for each message (default: codex)
-    --tier <level>         Model tier shortcut (low, mid, high)
-    --budget <usd>         Required project budget ceiling for spawned replies
-    --once                 Process one poll pass, then exit
-
   wait <id> [ids...]       Wait for service(s) to become healthy
     --timeout <ms>         Wait timeout (default: 60000)
 
@@ -1144,7 +1141,7 @@ const ALL_COMMANDS: string[] = [
   'advise', 'preflight', 'compass', 'guard',
   'salvage', 'resurrection', 'changelog', 'tunnel',
   'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
-  'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add',
+  'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'shipwright',
   'spawn', 'spawned', 'watch',
   'harbor', 'harbors', 'demo', 'fleet', 'tuple', 'sortie', 'graph', 'memory', 'ideas',
   'quorum',
@@ -2132,11 +2129,7 @@ async function main(): Promise<void> {
 
       // Track B1: relay-independent conversational pipe.
       case 'tube':
-        if (positional[0] === 'chat') {
-          await handleTubeChat(positional[1], options);
-        } else {
-          await handleTube(positional[0], options);
-        }
+        await handleTube(positional[0], options);
         break;
 
       case 'wait':
@@ -2536,6 +2529,15 @@ async function main(): Promise<void> {
 
       case 'add':
         await handleAdd(positional, options);
+        break;
+
+      case 'snapshots':
+      case 'snapshot':
+        await handleSnapshots(positional, options);
+        break;
+
+      case 'shipwright':
+        await handleShipwright(positional[0], options);
         break;
 
       case 'cockpit':

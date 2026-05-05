@@ -35,7 +35,6 @@ export const tutorialsSection: DocsContentSection = {
           type: 'command',
           title: 'Initialize and validate the fleet',
           command: 'pd fleet init\npd fleet validate\npd fleet up\npd fleet status',
-          output: 'SUCCESS: Created pd-fleet.yml\nSUCCESS: Fleet "myapp-dev" parsed successfully\nSUCCESS: Fleet started\nFleet: 1 project(s), 5 agent(s), 3/5 launchable',
           notes: [
             'Initialize the project config first so the topology is declared on disk.',
             'Validate before starting so bad YAML or broken topology does not become a runtime mystery.',
@@ -98,7 +97,6 @@ export const tutorialsSection: DocsContentSection = {
           type: 'command',
           title: 'Inspect and claim the dead work',
           command: 'pd salvage --project myapp\npd salvage claim dead-agent-99\npd notes --session <session-id>',
-          output: 'Recoverable work for myapp:\n  dead-agent-99  abandoned  auth layer\nSUCCESS: Salvage claimed dead-agent-99\n[progress] Preserved context is ready for recovery.',
           notes: [
             'Start with the queue so you know what died and how long ago.',
             'Claiming returns the preserved context for that dead agent.',
@@ -161,7 +159,6 @@ export const tutorialsSection: DocsContentSection = {
           title: 'Run and inspect the sortie',
           command:
             'pd sortie "Review the latest auth changes and summarize the real risks" --budget 0.50\npd sortie list\npd sortie status <sortie-id>\npd sortie logs <sortie-id>',
-          output: 'SUCCESS: Sortie sortie-1234 created\nsortie-1234  running  Review the latest auth changes\nStatus: completed\n[sortie-1234] completed with residual risk summary',
           notes: [
             'Launch with an explicit budget ceiling so spend stays visible.',
             'Use the persisted sortie id for later inspection instead of scraping raw child-process output.',
@@ -225,7 +222,6 @@ export const tutorialsSection: DocsContentSection = {
           title: 'Move through the first-day primitive path',
           command:
             'pd setup --project ~/coding/my-app\npd status\npd briefing\npd fleet models\npd guard status\npd salvage --project my-app',
-          output: 'SUCCESS: Setup complete for ~/coding/my-app\nPort Daddy is running\nSUCCESS: Briefing generated: .portdaddy/briefing.md\n3 launchable backend tiers\nCoordination Guard: enforce\nNo recoverable work for my-app',
           notes: [
             'Setup installs the local daemon and FleetBar path.',
             'Status, briefing, model readiness, guard status, and salvage show whether the product is ready before you launch more work.',
@@ -280,7 +276,6 @@ export const tutorialsSection: DocsContentSection = {
           title: 'Run the live proof script',
           command:
             'examples/pd-tube/demo.sh\nasciinema rec --overwrite -q -c "examples/pd-tube/demo.sh" demos/pd-tube/pd-tube-real-output.cast\nagg demos/pd-tube/pd-tube-real-output.cast demos/pd-tube/pd-tube-real-output.gif\nvhs demos/pd-tube/pd-tube-real-output.tape',
-          output: 'SUCCESS: tube: posted id=30160 to port-daddy:demo:tube\nSUCCESS: tube: posted reply id=30161 to port-daddy:demo:tube\nwrote demos/pd-tube/pd-tube-real-output.cast\nwrote demos/pd-tube/pd-tube-real-output.gif',
           notes: [
             'The script posts two real messages to `port-daddy:demo:tube`.',
             'The second message replies to the first id.',
@@ -336,7 +331,6 @@ export const tutorialsSection: DocsContentSection = {
           title: 'Run the decision matrix',
           command:
             'python3 skills/pd-relay-zero-trust/scripts/pki_decision.py <<\'JSON\'\n{"kind":"request","version":"1","command":"pki.score","payload":{"options":["ACME","OIDC","WoT","Hybrid"]}}\nJSON',
-          output: '{"winner":"OIDC","score":0.86,"runnerUp":"Hybrid","decision":"smallest managed v0 path"}',
           notes: [
             'OIDC and Hybrid tie in the score, but OIDC is the smallest v0 path.',
             'ACME remains a proof method for name control rather than the daemon transport credential.',

@@ -13,8 +13,8 @@ import { FEATURED_EXAMPLE, SECONDARY_EXAMPLES } from '@/data/examples'
 
 export function ExamplesPage() {
   return (
-    <div className="min-h-screen min-w-0 overflow-x-clip bg-[var(--surface-base)] selection:bg-[var(--brand-primary)] selection:text-[var(--brand-primary-foreground)]">
-      <main id="main-content" className="mx-auto grid w-full min-w-0 max-w-[var(--layout-max-width-wide)] gap-[var(--space-6)] px-[var(--space-5)] py-[var(--space-6)] lg:px-[var(--space-6)]">
+    <div className="min-h-screen bg-[var(--surface-base)] selection:bg-[var(--brand-primary)] selection:text-[var(--brand-primary-foreground)]">
+      <main id="main-content" className="mx-auto grid w-full max-w-[var(--layout-max-width-wide)] gap-[var(--space-6)] px-[var(--space-5)] py-[var(--space-6)] lg:px-[var(--space-6)]">
         <DocsHero
           eyebrow="Examples"
           title="Build tools that can reach your local agent."
@@ -127,7 +127,7 @@ export function ExamplesPage() {
                       {example.files.map((file) => (
                         <code
                           key={file}
-                          className="block min-w-0 max-w-full overflow-hidden break-all border border-[var(--border-default)] bg-[var(--surface-raised)] px-[var(--space-3)] py-[var(--space-2)] font-mono text-[length:var(--type-meta-size)] text-[var(--text-primary)] [overflow-wrap:anywhere]"
+                          className="block min-w-0 border border-[var(--border-default)] bg-[var(--surface-raised)] px-[var(--space-3)] py-[var(--space-2)] font-mono text-[length:var(--type-meta-size)] text-[var(--text-primary)]"
                         >
                           {file}
                         </code>

@@ -63,25 +63,6 @@ interface AgentsRouteDeps {
   };
 }
 
-function firstHeaderValue(value: string | string[] | undefined): string | undefined {
-  return Array.isArray(value) ? value[0] : value;
-}
-
-function parsePid(value: unknown): number | undefined {
-  const raw = Array.isArray(value) ? value[0] : value;
-  if (typeof raw !== 'string' && typeof raw !== 'number') return undefined;
-  const parsed = typeof raw === 'number' ? raw : Number.parseInt(raw, 10);
-  if (!Number.isFinite(parsed)) return undefined;
-  const normalized = Math.trunc(parsed);
-  return normalized >= 0 ? normalized : undefined;
-}
-
-function requestPid(request: FastifyRequest, body: Record<string, unknown>): number {
-  return parsePid(firstHeaderValue(request.headers['x-pid']))
-    ?? parsePid(body.pid)
-    ?? process.pid;
-}
-
 /**
  * Create agents routes
  *
@@ -99,8 +80,7 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
   // POST /agents - Register an agent
   fastify.post('/agents', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const body = ((request.body as Record<string, unknown>) || {});
-      const { id, name, type, metadata, agentCard, maxServices, maxLocks, identity, worktreeId, purpose, telos, status } = body as any;
+      const { id, name, type, metadata, agentCard, maxServices, maxLocks, identity, worktreeId, purpose } = request.body as any;
 
       if (!id) {
         reply.code(400);
@@ -115,7 +95,7 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
 
       const result = agents.register(id, {
         name,
-        pid: requestPid(request, body),
+        pid: parseInt(request.headers['x-pid'] as string, 10) || process.pid,
         type: type || 'cli',
         metadata,
         agentCard,
@@ -123,9 +103,7 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
         maxLocks,
         identity,
         worktreeId,
-        purpose,
-        telos,
-        status,
+        purpose
       });
 
       if (!result.success) {
@@ -141,8 +119,7 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
           name: name || id,
           type: type || 'cli',
           identity,
-          purpose,
-          telos: result.telos || telos || null,
+          purpose
         }, { targetId: id });
 
         messaging.publish('agents', JSON.stringify({
@@ -152,7 +129,6 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
           type: type || 'cli',
           identity,
           purpose: purpose || metadata?.purpose || null,
-          telos: result.telos || telos || metadata?.telos || null,
           timestamp: Date.now()
         }));
       }
@@ -171,15 +147,9 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
   fastify.post('/agents/:id/heartbeat', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const id = (request.params as any).id as string;
-      const body = (request.body as Record<string, unknown>) || {};
 
       const result = agents.heartbeat(id, {
-        pid: requestPid(request, body),
-        status: typeof body.status === 'string' ? body.status : undefined,
-        readiness: Array.isArray(body.readiness) ? body.readiness : undefined,
-        progress: typeof body.progress === 'string' ? body.progress : undefined,
-        purpose: typeof body.purpose === 'string' ? body.purpose : undefined,
-        telos: body.telos,
+        pid: parseInt(request.headers['x-pid'] as string, 10) || process.pid
       });
 
       if (!result.success) {

@@ -35,28 +35,10 @@ struct ProjectRemediation {
     let suggestedBudgetUsdPerDay: Double?
 }
 
-struct ProjectWorktreeInfo {
-    let isGitWorktree: Bool
-    let isLinkedWorktree: Bool
-    let groupId: String
-    let groupName: String
-    let mainWorktreeRoot: String?
-    let worktreeName: String
-    let branch: String?
-    let head: String?
-
-    var branchLabel: String {
-        if let branch, !branch.isEmpty { return branch }
-        if let head, !head.isEmpty { return "detached \(head)" }
-        return worktreeName
-    }
-}
-
 struct FleetProject: Identifiable {
     let id: String  // projectDir
     let name: String
     let projectDir: String
-    var worktree: ProjectWorktreeInfo? = nil
     var agents: [FleetAgent]
     var startedAt: Date?
     var configuredAgentCount: Int = 0
@@ -246,7 +228,6 @@ struct RegisteredProjectResponse: Decodable {
     let configError: String?
     let configWarnings: [String]?
     let remediation: ProjectRemediationResponse?
-    let worktree: ProjectWorktreeResponse?
 }
 
 struct ProjectRemediationResponse: Decodable {
@@ -255,95 +236,6 @@ struct ProjectRemediationResponse: Decodable {
     let detail: String
     let command: String?
     let suggestedBudgetUsdPerDay: Double?
-}
-
-struct ProjectWorktreeResponse: Decodable {
-    let isGitWorktree: Bool
-    let isLinkedWorktree: Bool
-    let groupId: String
-    let groupName: String
-    let mainWorktreeRoot: String?
-    let worktreeName: String
-    let branch: String?
-    let head: String?
-}
-
-private func readTrimmedText(_ path: String) -> String? {
-    guard let data = FileManager.default.contents(atPath: path),
-          let value = String(data: data, encoding: .utf8) else {
-        return nil
-    }
-    let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-    return trimmed.isEmpty ? nil : trimmed
-}
-
-private func resolveGitDir(for projectDir: String) -> (gitDir: String, linked: Bool)? {
-    let dotGit = URL(fileURLWithPath: projectDir).appendingPathComponent(".git").path
-    var isDirectory: ObjCBool = false
-    guard FileManager.default.fileExists(atPath: dotGit, isDirectory: &isDirectory) else {
-        return nil
-    }
-
-    if isDirectory.boolValue {
-        return (dotGit, false)
-    }
-
-    guard let raw = readTrimmedText(dotGit),
-          raw.lowercased().hasPrefix("gitdir:") else {
-        return nil
-    }
-
-    let value = raw.dropFirst("gitdir:".count).trimmingCharacters(in: .whitespacesAndNewlines)
-    let baseURL = URL(fileURLWithPath: projectDir, isDirectory: true)
-    let gitURL = URL(fileURLWithPath: value, relativeTo: baseURL).standardizedFileURL
-    return (gitURL.path, true)
-}
-
-private func resolveCommonGitDir(_ gitDir: String) -> String {
-    guard let commonDir = readTrimmedText(URL(fileURLWithPath: gitDir).appendingPathComponent("commondir").path) else {
-        return URL(fileURLWithPath: gitDir).standardizedFileURL.path
-    }
-    return URL(fileURLWithPath: commonDir, relativeTo: URL(fileURLWithPath: gitDir, isDirectory: true))
-        .standardizedFileURL
-        .path
-}
-
-private func readGitHead(_ gitDir: String) -> (branch: String?, head: String?) {
-    guard let head = readTrimmedText(URL(fileURLWithPath: gitDir).appendingPathComponent("HEAD").path) else {
-        return (nil, nil)
-    }
-    if head.hasPrefix("ref: ") {
-        let ref = head.dropFirst("ref: ".count).trimmingCharacters(in: .whitespacesAndNewlines)
-        let prefix = "refs/heads/"
-        return (ref.hasPrefix(prefix) ? String(ref.dropFirst(prefix.count)) : ref, nil)
-    }
-    return (nil, String(head.prefix(12)))
-}
-
-func detectLocalWorktreeInfo(projectDir: String) -> ProjectWorktreeInfo? {
-    let projectURL = URL(fileURLWithPath: projectDir).standardizedFileURL
-    guard let git = resolveGitDir(for: projectURL.path) else {
-        return nil
-    }
-
-    let commonGitDir = resolveCommonGitDir(git.gitDir)
-    let commonURL = URL(fileURLWithPath: commonGitDir).standardizedFileURL
-    let mainRoot = commonURL.lastPathComponent == ".git"
-        ? commonURL.deletingLastPathComponent().path
-        : nil
-    let head = readGitHead(git.gitDir)
-    let normalizedMainRoot = mainRoot.map { URL(fileURLWithPath: $0).standardizedFileURL.path }
-
-    return ProjectWorktreeInfo(
-        isGitWorktree: true,
-        isLinkedWorktree: git.linked || (normalizedMainRoot != nil && projectURL.path != normalizedMainRoot),
-        groupId: commonURL.path,
-        groupName: URL(fileURLWithPath: mainRoot ?? projectURL.path).lastPathComponent,
-        mainWorktreeRoot: mainRoot,
-        worktreeName: projectURL.lastPathComponent,
-        branch: head.branch,
-        head: head.head
-    )
 }
 
 struct FleetResponse: Decodable {
@@ -905,7 +797,6 @@ class FleetStore: ObservableObject {
         configError: String?,
         configWarnings: [String],
         remediation: ProjectRemediation?,
-        worktree: ProjectWorktreeInfo?,
         signals: [String],
         sources: [String]
     ) {
@@ -922,18 +813,6 @@ class FleetStore: ObservableObject {
                 suggestedBudgetUsdPerDay: $0.suggestedBudgetUsdPerDay
             )
         }
-        let worktree = registered?.worktree.map {
-            ProjectWorktreeInfo(
-                isGitWorktree: $0.isGitWorktree,
-                isLinkedWorktree: $0.isLinkedWorktree,
-                groupId: $0.groupId,
-                groupName: $0.groupName,
-                mainWorktreeRoot: $0.mainWorktreeRoot,
-                worktreeName: $0.worktreeName,
-                branch: $0.branch,
-                head: $0.head
-            )
-        }
 
         return (
             configuredAgentCount: registered?.configuredAgentCount ?? 0,
@@ -946,7 +825,6 @@ class FleetStore: ObservableObject {
             configError: registered?.configError,
             configWarnings: registered?.configWarnings ?? [],
             remediation: remediation,
-            worktree: worktree,
             signals: registered?.signals ?? [],
             sources: registered?.sources ?? []
         )
@@ -962,12 +840,10 @@ class FleetStore: ObservableObject {
         fallbackRunning: Bool
     ) -> FleetProject {
         let metadata = projectMetadata(from: registered, fallbackRunning: fallbackRunning)
-        let worktree = metadata.worktree ?? detectLocalWorktreeInfo(projectDir: projectDir)
         return FleetProject(
             id: id,
             name: name,
             projectDir: projectDir,
-            worktree: worktree,
             agents: agents,
             startedAt: startedAt,
             configuredAgentCount: max(metadata.configuredAgentCount, agents.count),

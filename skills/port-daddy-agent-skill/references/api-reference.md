@@ -230,7 +230,6 @@ Register an agent.
 | `type` | string | no | Agent type (e.g., 'ci', 'dev', 'sdk') |
 | `identity` | string | no | Semantic identity (`project:stack:context`) for context-aware salvage |
 | `purpose` | string | no | Human-readable description of what the agent is doing |
-| `telos` | string/object | no | Required purpose contract. If omitted for legacy clients, the registry derives one from `purpose`, `name`, `identity`, or the agent id; responses always include normalized `telos` and `telosHeadline`. |
 | `worktreeId` | string | no | Git worktree identifier |
 | `metadata` | object | no | Arbitrary metadata |
 | `maxServices` | number | no | Max concurrent services |
@@ -239,7 +238,7 @@ Register an agent.
 Response includes `salvageHint` if dead agents exist in the same project.
 
 ### POST /agents/:id/heartbeat
-Send a heartbeat to keep registration alive. Body may include `status`, `readiness`, `progress`, `purpose`, and `telos`; sending `telos` updates the agent's self-declared purpose contract without re-registering.
+Send a heartbeat to keep registration alive.
 
 ### DELETE /agents/:id
 Unregister an agent.
@@ -621,7 +620,6 @@ Register agent + start session atomically. Rolls back agent registration on fail
 | `identity` | string | no | Semantic identity (auto-detected from package.json) |
 | `agentId` | string | no | Agent ID (auto-generated if not provided) |
 | `name` | string | no | Human-readable display name stored beside the technical agent ID |
-| `telos` | string/object | no | Agent purpose contract. If omitted, Port Daddy seeds it from `purpose`; response always includes `telos` and `telosHeadline`. |
 | `type` | string | no | Agent type (e.g., 'claude-code') |
 | `files` | string[] | no | Files to claim |
 | `force` | boolean | no | Force file claims even if conflicts |
@@ -635,7 +633,6 @@ Register agent + start session atomically. Rolls back agent registration on fail
   "sessionId": "session-uuid",
   "identity": "myapp:api",
   "purpose": "Implementing auth",
-  "telosHeadline": "Implementing auth",
   "agentRegistered": true,
   "sessionStarted": true,
   "salvageHint": "1 dead agent(s) found in project"
@@ -643,9 +640,7 @@ Register agent + start session atomically. Rolls back agent registration on fail
 ```
 
 ### POST /sugar/done
-End session + unregister agent atomically. If `selfSalvage` says the telos is
-unfinished but doable, Port Daddy marks the session `abandoned`, writes the
-capsule into the handoff note, and queues the agent in salvage for continuation.
+End session + unregister agent atomically.
 
 **Body:**
 | Field | Type | Required | Description |
@@ -654,7 +649,6 @@ capsule into the handoff note, and queues the agent in salvage for continuation.
 | `sessionId` | string | no | Session ID |
 | `note` | string | no | Final summary note |
 | `status` | string | no | 'completed' (default) or 'abandoned' |
-| `selfSalvage` | object | no | Recovery capsule: `telosVerdict`, `doable`, `whyStopped`, `nextPlan`, `wisdom`, `evidence`, `risk`. Queueable capsules must be unfinished and `doable: "yes"`. |
 
 **Response (200):**
 ```json
@@ -662,26 +656,8 @@ capsule into the handoff note, and queues the agent in salvage for continuation.
   "success": true,
   "agentId": "agent-a1b2c3d4",
   "sessionId": "session-uuid",
-  "sessionStatus": "abandoned",
-  "agentUnregistered": true,
-  "selfSalvageQueued": true
-}
-```
-
-**Example self-salvage closeout:**
-```json
-{
-  "agentId": "agent-a1b2c3d4",
-  "note": "Stopped before promotion smoke.",
-  "selfSalvage": {
-    "telosVerdict": "not-fulfilled",
-    "doable": "yes",
-    "whyStopped": "Need a fresh daemon rebuild before live proof.",
-    "nextPlan": ["rebuild daemon", "run pd done --self-salvage smoke"],
-    "wisdom": "Do not trust source truth until the canonical daemon is relaunched.",
-    "evidence": ["npm test -- --runInBand tests/unit/sugar.test.js"],
-    "risk": "Stale daemon may reject the new field."
-  }
+  "sessionStatus": "completed",
+  "agentUnregistered": true
 }
 ```
 
@@ -702,7 +678,6 @@ Show current agent and session context.
   "agentName": "Auth Repair Lead",
   "sessionId": "session-uuid",
   "purpose": "Implementing auth",
-  "telosHeadline": "Implementing auth",
   "identity": "myapp:api",
   "noteCount": 5,
   "duration": "12m"
@@ -957,7 +932,7 @@ This is the low-level delegation primitive. Use `/sorties` when you want a durab
 
 Launches are fail-closed on telemetry. Port Daddy blocks a spawn when the resolved backend/model cannot provide exact token counts plus an exact nonzero model rate for the completed run.
 The live spawner defaults that policy on. Internal code may only opt out by attaching explicit HITL confirmation metadata; an omitted flag is not a valid bypass.
-At the moment, the operator-facing launchable path is Claude SDK exact-rate models, Codex CLI exact-usage runs, and Cloudflare Workers AI models that return usage with an exact rate entry. The larger backend enum is still documented because those implementations exist in source, but most remain blocked until telemetry parity exists.
+At the moment, the operator-facing launchable path is the Claude SDK backend with an exact-rate model entry. The larger backend enum is still documented because those implementations exist in source, but most remain blocked until telemetry parity exists.
 
 **Body:**
 | Field | Type | Required | Description |
@@ -969,7 +944,6 @@ At the moment, the operator-facing launchable path is Claude SDK exact-rate mode
 | `budgetUsd` | number | yes | Positive spend ceiling for this launch |
 | `name` | string | no | Human-readable display name for the spawned agent |
 | `purpose` | string | no | Human-readable task description |
-| `telos` | string/object | no | Purpose contract for the spawned agent. If omitted, the spawner derives a telos from `purpose` or `task`; persisted agents always expose `telos` and `telosHeadline`. |
 | `task` | string | yes | The task/prompt for the agent |
 | `allowedTools` | string | no | Comma-separated tool list (claude-cli backend only) |
 | `maxTokens` | number | no | Max output tokens |
@@ -1022,7 +996,6 @@ Sorties inherit the same fail-closed telemetry contract as `/spawn`. A sortie la
 | `roster` | string[] | no | Requested roles or roster preview |
 | `identity` | string | no | Coordinator identity override |
 | `purpose` | string | no | Human-readable label for the coordinating run |
-| `telos` | string/object | no | Purpose contract for the sortie coordinator. Defaults to `Complete sortie: <goal>` when omitted. |
 | `allowedTools` | string | no | Tool permission string for claude-cli-backed coordinators |
 | `timeout` | number | no | Timeout in milliseconds |
 | `maxTokens` | number | no | Optional token ceiling for claude or claude-cli launches |
@@ -1329,7 +1302,7 @@ Returns 400 if `yaml` is missing, not a string, or fails YAML parsing. The fleet
 ---
 
 ### GET /fleet/models
-List available backends, model tiers, readiness, setup links, and their models. Probes Ollama for locally installed models.
+List available backends and their models. Probes Ollama for locally installed models.
 
 **Response:**
 ```json
@@ -1340,43 +1313,15 @@ List available backends, model tiers, readiness, setup links, and their models. 
     { "id": "ollama", "name": "Ollama (local)", "models": ["llama3.1:8b", "codellama:13b"] },
     { "id": "custom", "name": "Custom command", "models": [] },
     { "id": "gemini", "name": "Google Gemini", "models": ["gemini-2.5-pro", "gemini-2.5-flash"] },
-    { "id": "cloudflare", "name": "Cloudflare Workers AI", "models": ["@cf/zai-org/glm-4.7-flash", "@cf/openai/gpt-oss-120b", "@cf/moonshotai/kimi-k2.6", "@cf/qwen/qwen3-30b-a3b-fp8", "@cf/nvidia/nemotron-3-120b-a12b", "@cf/meta/llama-4-scout-17b-16e-instruct"] },
-    { "id": "codex", "name": "OpenAI Codex CLI", "models": ["gpt-5.4-mini", "gpt-5.3-codex", "gpt-5.4"] },
-    { "id": "aider", "name": "Aider", "models": ["gpt-4.1-mini", "gpt-4.1", "gpt-5"] }
+    { "id": "cloudflare", "name": "Cloudflare Workers AI", "models": ["@cf/meta/llama-3.1-8b-instruct", "@cf/meta/llama-3.1-70b-instruct"] },
+    { "id": "openai", "name": "OpenAI", "models": ["gpt-4.1", "gpt-4.1-mini", "o4-mini"] },
+    { "id": "groq", "name": "Groq", "models": ["llama-3.3-70b", "mixtral-8x7b"] },
+    { "id": "aider", "name": "Aider", "models": [] }
   ]
 }
 ```
 
 Ollama models are fetched live from `localhost:11434/api/tags` with a 2s timeout. If Ollama is not running, its `models` array is empty.
-
----
-
-### POST /fleet/backend-secrets
-Save console-managed backend credentials in encrypted local storage.
-
-**Request:**
-```json
-{
-  "backend": "cloudflare",
-  "values": {
-    "CLOUDFLARE_ACCOUNT_ID": "account-id",
-    "CLOUDFLARE_API_TOKEN": "api-token"
-  }
-}
-```
-
-Only allowlisted keys for the selected backend are accepted. Secret values are trimmed, stored through the managed secret store, and never returned in the response. If encrypted storage is unavailable, the endpoint fails closed with 503 and leaves `~/.port-daddy-env` as the manual fallback.
-
-**Response:**
-```json
-{
-  "success": true,
-  "backend": "cloudflare",
-  "savedKeys": ["CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN"],
-  "encryptedAtRest": true,
-  "storage": { "backend": "keychain", "available": true }
-}
-```
 
 ---
 

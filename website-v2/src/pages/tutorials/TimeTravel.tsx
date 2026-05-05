@@ -1,13 +1,14 @@
 import { TutorialLayout } from "@/components/tutorials/TutorialLayout";
-import { ConsoleMotionFigure } from "@/components/tutorials/ConsoleMotionFigure";
-import { ConsoleScreenshotFigure } from "@/components/tutorials/ConsoleScreenshotFigure";
 import { CodeBlock } from "@/components/ui/CodeBlock";
+import { Badge } from "@/components/ui/Badge";
+import { History, Activity, Search } from "lucide-react";
+import { Surface } from "@/components/ui/Surface";
 
 export function TimeTravel() {
   return (
     <TutorialLayout
       title="Activity Log Inspection"
-      description="When multiple agents work on the same project, the hardest question is what happened first. Use Port Daddy's immutable activity ledger to reconstruct the sequence."
+      description="When multiple agents work on the same project, the hardest question is 'what happened first?' Learn to use Port Daddy's immutable activity log to reconstruct the sequence of events."
       number={14}
       total={21}
       level="Intermediate"
@@ -15,97 +16,134 @@ export function TimeTravel() {
       prev={{ title: "Budgeted One-Shot Agents", href: "/tutorials/pd-spawn" }}
       next={{ title: "Reactive Pipelines", href: "/tutorials/pipelines" }}
     >
-      <div className="space-y-[var(--section-space-y)]">
-        <section className="space-y-[var(--space-6)]">
-          <h2 className="m-0">The human reads the ledger in Activity and Flow</h2>
+      <div className="space-y-12">
+        {/* Concept Section */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 flex items-center justify-center  border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
+              <History className="text-[var(--brand-secondary)]" size={20} />
+            </div>
+            <h2 className="m-0">Why Event Ordering Matters</h2>
+          </div>
           <p>
-            Event ordering matters because the failure usually lives between two
-            actions. A person reconstructs that story in the Fleet Control
-            Center&apos;s <strong>Activity</strong> and <strong>Flow</strong>{" "}
-            surfaces, then drops to CLI or API queries only when the timeline
-            needs exact filtering.
+            In a multi-agent system, events from different agents are
+            interleaved. Agent A claims a file at 12:04:01, Agent B publishes a
+            message at 12:04:03, then Agent A writes a note at 12:04:05. Bugs
+            hide in the ordering of these events, not in any single event.
           </p>
-          <ConsoleMotionFigure
-            lightSrc="/media/landing-live-glory/port-daddy-live-glory-light.mp4"
-            darkSrc="/media/landing-live-glory/port-daddy-live-glory-dark.mp4"
-            lightPoster="/media/landing-live-glory/port-daddy-live-glory-light-poster.jpg"
-            darkPoster="/media/landing-live-glory/port-daddy-live-glory-dark-poster.jpg"
-            caption="Human control layer: the daemon-served Fleet Control Center is the first pass. Flow shows the current project story; Activity is where you verify the exact order of launches, notes, claims, and handoffs."
-          />
-        </section>
-
-        <section className="space-y-[var(--space-6)]">
-          <h2 className="m-0">1. Pull the recent ledger, not just one event</h2>
           <p>
-            Ask for a recent slice first. You want the surrounding sequence,
-            because the bug is usually in the handoff between one action and the
-            next.
+            Port Daddy records every inter-agent event into an append-only
+            SQLite database. Port claims, file claims, pub/sub messages, session
+            notes, lock acquisitions, and heartbeats all go into the same
+            timeline.
           </p>
-          <CodeBlock copyable={false} language="bash">
-            {`$ pd log --limit 6
-Recent activity:
-12:04:01 [session.start] planner claimed port 3102
-12:04:03 [channel.publish] project:my-app:git:committed {"sha":"a13e7f2"}
-12:04:05 [session.note] planner Started decomposition
-12:04:11 [file.claim] planner src/routes/auth.ts
-12:04:16 [spawn.complete] qa-review CLEAN cost=$0.06
-12:04:19 [session.note] reviewer Waiting on auth test update
-
-$ curl -s "http://127.0.0.1:9876/activity?limit=6"
-{"items":[{"type":"session.start"},{"type":"channel.publish"},{"type":"session.note"},{"type":"file.claim"},{"type":"spawn.complete"},{"type":"session.note"}]}`}
-          </CodeBlock>
-        </section>
-
-        <section className="space-y-[var(--space-6)]">
-          <h2 className="m-0">2. Correlate the CLI slice with the console</h2>
-          <p>
-            The CLI gives exact rows. The Fleet Control Center gives the human
-            overview: which project was active, which agents were involved, and
-            whether the same story is visible in <strong>Flow</strong> and
-            <strong>Activity</strong>.
-          </p>
-          <div className="grid gap-[var(--space-5)] lg:grid-cols-2">
-            <ConsoleScreenshotFigure
-              lightSrc="/media/landing-live-glory/fleetbar-menu-captured-light.png"
-              darkSrc="/media/landing-live-glory/fleetbar-menu-captured-dark.png"
-              alt="FleetBar entry view"
-              caption="Human control layer: start in FleetBar to confirm the active project and jump into the same Fleet Control Center runtime before you dig into one timeline slice."
-            />
-            <ConsoleScreenshotFigure
-              lightSrc="/media/landing-live-glory/live-flow-light.png"
-              darkSrc="/media/landing-live-glory/live-flow-dark.png"
-              alt="Fleet Control Center Flow surface"
-              caption="Human control layer: Flow keeps the recent launches, touched agents, and run topology attached to the same project story as the ledger rows."
-            />
+          <div className="flex gap-4 pt-2">
+            <Badge variant="teal">Port Claims</Badge>
+            <Badge variant="gold">Pub/sub + SSE</Badge>
+            <Badge variant="default">Agent Notes</Badge>
           </div>
         </section>
 
-        <section className="space-y-[var(--space-6)]">
-          <h2 className="m-0">3. Diagnose the common failures</h2>
+        {/* Step 1: Querying */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 flex items-center justify-center  border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
+              <Search className="text-[var(--brand-primary)]" size={20} />
+            </div>
+            <h2 className="m-0">1. Query the Activity Log</h2>
+          </div>
+
           <p>
-            The activity ledger is strongest when two things disagree: a claim
-            vanished, a session died mid-handoff, or a watcher fired in the
-            wrong order. Look for the exact point where the sequence stopped
-            making sense.
+            The <code>pd log</code> command shows recent activity. You can also
+            query the REST API directly for more control.
           </p>
+
           <CodeBlock copyable={false} language="bash">
-            {`$ pd log --type file.claim --limit 4
-12:11:02 [file.claim] docs-agent website-v2/src/pages/tutorials/Fleet.tsx
-12:11:09 [file.claim] qa-agent website-v2/src/pages/tutorials/Fleet.tsx
+            {`# View recent activity via CLI
+$ pd log
 
-$ pd notes --limit 4
-[note] docs-agent: Rewriting Fleet tutorial around Flow, Shipwright, YAML, and Activity.
-[note] qa-agent: Attempted same file; backing off due to overlap.
+# Query the REST API with a limit
+$ curl http://localhost:9876/activity?limit=20
 
-$ pd salvage --project port-daddy --limit 3
-No abandoned sessions in salvage queue.`}
+# Get a summary grouped by type
+$ curl http://localhost:9876/activity/summary
+
+# Get activity statistics
+$ curl http://localhost:9876/activity/stats
+# Expected result: each request returns recent activity rows, grouped summaries, or JSON stats from the daemon.`}
           </CodeBlock>
+
+          <div className="space-y-2 overflow-hidden bg-[var(--code-bg)] p-5 font-mono text-[length:var(--type-meta-size)] text-[var(--code-text)]">
+            <div className="flex items-center gap-4">
+              <span className="w-20">12:04:01</span>
+              <span className="text-[var(--brand-secondary)]">[infra]</span>
+              <span>Agent 'planner' claimed port 3102</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <span className="w-20">12:04:05</span>
+              <span className="text-[var(--brand-accent)]">[radio]</span>
+              <span className="font-bold">
+                swarm:task:new {"->"} {"{id: 42}"}
+              </span>
+            </div>
+            <div className="flex items-center gap-4">
+              <span className="w-20">12:04:12</span>
+              <span className="text-[var(--brand-secondary)]">[note]</span>
+              <span>'planner': Started decomposition</span>
+            </div>
+          </div>
+        </section>
+
+        {/* Step 2: Diagnosing */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 flex items-center justify-center  border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
+              <Activity className="text-[var(--brand-accent)]" size={20} />
+            </div>
+            <h2 className="m-0">2. Diagnose Common Problems</h2>
+          </div>
+
           <p>
-            When the sequence is clean, you can explain the issue in one
-            sentence. When it is not, keep following the ledger until the
-            contradiction is visible.
+            The activity log is most useful for diagnosing race conditions
+            between agents, finding lost work after crashes, and understanding
+            why a service stopped responding.
+          </p>
+
+          <p
+            className="m-0 text-[length:var(--type-panel-body-compact-size)] border-l-4 border-[var(--brand-secondary)] pl-4"
+            style={{ color: "var(--text-secondary)" }}
+          >
+            <strong>Post-Mortem Integrity:</strong> Since the database is
+            immutable, agents can't "delete their mistakes" to hide errors. This
+            ensures a 100% audit trail for your autonomous organization.
           </p>
         </section>
+
+        {/* Design Principle Callout */}
+        <Surface
+          depth="raised"
+          radius="none"
+          className="p-6 text-center space-y-4 relative overflow-hidden"
+        >
+          <Badge
+            variant="teal"
+            className="px-4 py-1 text-[10px] font-black uppercase tracking-widest"
+          >
+            Design Principle
+          </Badge>
+          <p
+            className="text-[length:var(--type-panel-title-nav-size)] font-bold m-0"
+            style={{ color: "var(--text-primary)" }}
+          >
+            Append-Only Log
+          </p>
+          <p className="max-w-xl mx-auto text-[var(--text-secondary)] m-0">
+            The timeline isn't just a log--it's a <strong>ledger</strong>. It
+            provides the historical evidence needed to train agents on
+            "coordination failures," allowing your swarms to learn from their
+            own race conditions over time.
+          </p>
+        </Surface>
       </div>
     </TutorialLayout>
   );

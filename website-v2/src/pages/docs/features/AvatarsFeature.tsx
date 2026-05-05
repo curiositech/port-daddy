@@ -26,9 +26,7 @@ export default function AvatarsFeature() {
         <DocsCodeBlock code={`cd ~/my-project
 pd fleet init          # Creates pd-fleet.yml + git hook
 pd fleet up            # Starts 5 agents
-git commit -m "test"   # QA, docs, cartographer fire automatically`} output={`SUCCESS: Created pd-fleet.yml
-SUCCESS: Fleet started
-Message sent to git:committed`} />
+git commit -m "test"   # QA, docs, cartographer fire automatically`} />
         <p className="text-sm text-[var(--text-muted)] mt-2">
           Requires <code>ANTHROPIC_API_KEY</code> in <code>.env.local</code>.
         </p>

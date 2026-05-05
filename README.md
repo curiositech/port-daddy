@@ -113,6 +113,8 @@ pd up     # Starts all services in dependency order with color-coded logs
 - **pd demo**: Interactive multi-agent coordination **demo**.
 - **pd fleet**: Declarative agent **fleet** from `pd-fleet.yml` — cron/trigger-based agents with pub/sub chaining.
 - **pd guard**: Enforce agent coordination before commit — active session plus matching file claims for staged files.
+- **pd add**: Claim-aware `git add` — refuses to stage files held by another session.
+- **pd snapshots**: List/show/restore snapshots the daemon-side claim watcher captures when a claimed file's bytes change mid-claim.
 - **pd status / pd version**: View system **info** and metrics.
 
 ### Session Lifecycle
@@ -250,7 +252,7 @@ queued mailbox state separately from live-body wake status.
 ### Spawn AI Agents
 Launch AI agents with full PD coordination (registration, sessions, heartbeats) baked in:
 ```bash
-# Exact-telemetry launch path: Claude SDK with an exact-rate model
+# Current operator-facing launchable path: Claude SDK with an exact-rate model
 pd spawn \
   --backend claude \
   --model claude-haiku-4-5-20251001 \
@@ -258,18 +260,18 @@ pd spawn \
   --identity myapp:fixer \
   -- "Summarize the latest auth diff"
 
-# Cloudflare Workers AI also works when credentials, usage, and model rates line up
+# Another exact-telemetry Claude run
 pd spawn \
-  --backend cloudflare \
-  --model @cf/zai-org/glm-4.7-flash \
+  --backend claude \
+  --model claude-haiku-4-5-20251001 \
   --budget 0.35 \
   --identity myapp:docs \
   -- "Explain what this function does"
 
 # `pd agent` and `pd sortie` run spawn preflight internally before launch
 pd agent "Explain what changed in the auth flow" \
-  --backend codex \
-  --tier low \
+  --backend claude \
+  --model claude-haiku-4-5-20251001 \
   --budget 0.35
 
 # List running/completed agents
@@ -284,11 +286,9 @@ pd watch git:committed --exec './fleet/qa-adversary.sh'
 
 Operator-facing launches are fail-closed on telemetry. Port Daddy rejects a launch unless it can attach exact token counts, an exact nonzero rate, and a persisted exact nonzero cost record to the completed run.
 
-Today that exact-telemetry path covers Claude SDK exact-rate models, Codex CLI exact-usage runs, and Cloudflare Workers AI models that return usage with an exact rate entry. Other backend integrations still exist in source, but they should be treated as blocked until they reach the same telemetry standard.
+Today that means the live launchable path is the Claude SDK backend with an exact-rate model entry. Other backend integrations still exist in source, but they should be treated as blocked until they reach the same telemetry standard.
 
 Internal code paths use the same rule: `createSpawner()` defaults telemetry enforcement on, and any explicit `enforceTelemetryPolicy: false` bypass now requires HITL confirmation metadata instead of relying on an omitted flag.
-
-Fleet Control Center now has a **Developer** pane backed by `/usage/summary`. It shows which Port Daddy surfaces agents actually use across CLI, SDK, MCP, daemon routes, and UI views; it also separates Port Daddy-call overhead from spawned-agent work cost with tokens, turns, tool calls, and USD.
 
 **Backends in source:** `ollama`, `claude`, `claude-cli`, `gemini`, `cloudflare`, `codex`, `aider`, `custom`
 
@@ -526,7 +526,7 @@ curl 'http://localhost:9876/fleet/prompt?project=myapp'  # One-line status for P
 curl http://localhost:9876/fleet/models       # Lists ollama, codex, claude-cli, gemini, cloudflare, aider, etc.
 ```
 
-Each agent gets full PD coordination for free: registration, sessions, heartbeats, and salvage on crash. Fleet YAML can still describe the broader source backend catalog, but the daemon applies the same fail-closed telemetry policy as manual launches. In practice, use Claude SDK, Codex CLI, or Cloudflare Workers AI only when the selected model has an exact rate entry and the backend returns exact usage; the remaining backends stay blocked until telemetry parity lands. Template variables (`{project}`) resolve from the YAML context. Fleet lifecycle events publish to the `fleet:events` channel for dashboard and menu bar subscriptions.
+Each agent gets full PD coordination for free: registration, sessions, heartbeats, and salvage on crash. Fleet YAML can still describe the broader source backend catalog, but the daemon applies the same fail-closed telemetry policy as manual launches. In practice, treat Claude SDK + exact-rate model entries as the currently runnable operator-facing path until the other backends reach telemetry parity. Template variables (`{project}`) resolve from the YAML context. Fleet lifecycle events publish to the `fleet:events` channel for dashboard and menu bar subscriptions.
 
 Fleet commands invoke the installed Port Daddy runtime, so a `pd-fleet.yml` can live in any project repo. It no longer assumes the target repo has Port Daddy source files, `bin/port-daddy-cli.ts`, or a local `tsx` toolchain. Array-style YAML agents also get readable derived names from `name`, `identity`, `prompt`, or backend instead of falling back to `agent-1`.
 

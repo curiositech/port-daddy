@@ -24,12 +24,19 @@
  */
 
 import { createHash } from 'node:crypto';
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { homedir } from 'node:os';
 
 const DEFAULT_INTERVAL_MS = 5_000;
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
+// Snapshots accumulate forever otherwise — every claim-stomp leaves a copy
+// of the prior bytes on disk. 7 days is enough to recover from yesterday's
+// "wait, what happened to my work?" without growing a multi-GiB pile.
+const DEFAULT_RETENTION_DAYS = 7;
+// Pruning is amortized across watcher ticks; running every hour is plenty
+// for a directory whose churn is at-most-one-snapshot-per-hash-change.
+const DEFAULT_PRUNE_INTERVAL_MS = 60 * 60 * 1000;
 
 export interface ClaimWatcherDeps {
   /** Returns the current set of active claims across all sessions. */
@@ -44,6 +51,10 @@ export interface ClaimWatcherDeps {
   snapshotDir?: string;
   /** Override for periodic interval. Default: 5000ms */
   intervalMs?: number;
+  /** Number of days a snapshot is kept on disk. Default: 7. Set <=0 to disable auto-prune. */
+  retentionDays?: number;
+  /** How often to run the auto-prune sweep. Default: every hour. */
+  pruneIntervalMs?: number;
   /** Logger. Default: console.error for warnings only. */
   log?: (msg: string, meta?: Record<string, unknown>) => void;
 }
@@ -54,6 +65,9 @@ export interface ClaimWatcherStatus {
   lastTickAt: number | null;
   changesDetected: number;
   snapshotsWritten: number;
+  lastPruneAt: number | null;
+  snapshotsPruned: number;
+  bytesFreed: number;
 }
 
 interface FileFingerprint {
@@ -82,6 +96,8 @@ function ensureDir(p: string): void {
 }
 
 function defaultSnapshotDir(): string {
+  const override = process.env.PORT_DADDY_SNAPSHOT_ROOT;
+  if (override && override.length > 0) return override;
   return join(homedir(), '.port-daddy', 'snapshots');
 }
 
@@ -129,6 +145,42 @@ function snapshotClaims(deps: ClaimWatcherDeps, roots: string[]): Map<string, Fi
   return out;
 }
 
+/**
+ * Sweep the snapshot directory and remove snapshot blobs older than the cutoff.
+ * Manifest lines are left intact — they're tiny and serve as the audit trail
+ * even after the bytes are gone. Returns counts so callers can surface them.
+ */
+function pruneOldSnapshots(snapshotDir: string, retentionDays: number): { pruned: number; bytesFreed: number } {
+  if (retentionDays <= 0) return { pruned: 0, bytesFreed: 0 };
+  if (!existsSync(snapshotDir)) return { pruned: 0, bytesFreed: 0 };
+  const cutoff = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
+  let pruned = 0;
+  let bytesFreed = 0;
+  let sessionDirs: string[];
+  try { sessionDirs = readdirSync(snapshotDir); } catch { return { pruned: 0, bytesFreed: 0 }; }
+  for (const sessionDir of sessionDirs) {
+    const dirPath = join(snapshotDir, sessionDir);
+    let entries: string[];
+    try { entries = readdirSync(dirPath); } catch { continue; }
+    for (const name of entries) {
+      if (name === 'manifest.jsonl') continue;
+      const file = join(dirPath, name);
+      let s;
+      try { s = statSync(file); } catch { continue; }
+      if (s.mtimeMs < cutoff) {
+        try {
+          rmSync(file, { force: true });
+          pruned += 1;
+          bytesFreed += s.size;
+        } catch {
+          // best-effort
+        }
+      }
+    }
+  }
+  return { pruned, bytesFreed };
+}
+
 function writeSnapshot(snapshotDir: string, prior: FileFingerprint, content: Buffer): string {
   const sessionDir = join(snapshotDir, prior.sessionId);
   ensureDir(sessionDir);
@@ -159,8 +211,11 @@ export function createClaimWatcher(deps: ClaimWatcherDeps) {
   const snapshotDir = deps.snapshotDir ?? defaultSnapshotDir();
   const roots = (deps.searchRoots && deps.searchRoots.length > 0) ? deps.searchRoots : [process.cwd()];
   const log = deps.log ?? ((msg, meta) => console.error(`[claim-watcher] ${msg}`, meta || ''));
+  const retentionDays = deps.retentionDays ?? DEFAULT_RETENTION_DAYS;
+  const pruneIntervalMs = deps.pruneIntervalMs ?? DEFAULT_PRUNE_INTERVAL_MS;
 
   let interval: ReturnType<typeof setInterval> | null = null;
+  let pruneInterval: ReturnType<typeof setInterval> | null = null;
   let lastSnapshot: Map<string, FileFingerprint> = new Map();
   const stats: ClaimWatcherStatus = {
     running: false,
@@ -168,7 +223,20 @@ export function createClaimWatcher(deps: ClaimWatcherDeps) {
     lastTickAt: null,
     changesDetected: 0,
     snapshotsWritten: 0,
+    lastPruneAt: null,
+    snapshotsPruned: 0,
+    bytesFreed: 0,
   };
+
+  function runPrune(): void {
+    stats.lastPruneAt = Date.now();
+    const result = pruneOldSnapshots(snapshotDir, retentionDays);
+    stats.snapshotsPruned += result.pruned;
+    stats.bytesFreed += result.bytesFreed;
+    if (result.pruned > 0) {
+      log(`pruned ${result.pruned} stale snapshot(s)`, { bytesFreed: result.bytesFreed, retentionDays });
+    }
+  }
 
   /** One pass: hash every active claim, diff vs last pass, snapshot+notify on change. */
   function tick(): void {
@@ -231,17 +299,37 @@ export function createClaimWatcher(deps: ClaimWatcherDeps) {
       interval = setInterval(tick, intervalMs);
       // Don't keep the daemon process alive on the watcher alone.
       if (typeof interval.unref === 'function') interval.unref();
+      // Prune once at startup, then on a slow timer. Keeps disk usage bounded
+      // without piling work onto every claim-hash tick.
+      runPrune();
+      if (retentionDays > 0 && pruneIntervalMs > 0) {
+        pruneInterval = setInterval(runPrune, pruneIntervalMs);
+        if (typeof pruneInterval.unref === 'function') pruneInterval.unref();
+      }
       stats.running = true;
     },
     stop(): void {
-      if (!interval) return;
-      clearInterval(interval);
-      interval = null;
+      if (interval) {
+        clearInterval(interval);
+        interval = null;
+      }
+      if (pruneInterval) {
+        clearInterval(pruneInterval);
+        pruneInterval = null;
+      }
       stats.running = false;
     },
     /** Run one tick synchronously. Used by tests and `pd guard scan` callers. */
     tickOnce(): void {
       tick();
+    },
+    /** Run one prune sweep synchronously. Returns counts for callers. */
+    pruneOnce(): { pruned: number; bytesFreed: number } {
+      stats.lastPruneAt = Date.now();
+      const result = pruneOldSnapshots(snapshotDir, retentionDays);
+      stats.snapshotsPruned += result.pruned;
+      stats.bytesFreed += result.bytesFreed;
+      return result;
     },
     status(): ClaimWatcherStatus {
       return { ...stats };

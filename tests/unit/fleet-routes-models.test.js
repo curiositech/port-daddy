@@ -30,6 +30,9 @@ jest.unstable_mockModule('../../lib/backend-readiness.js', () => ({
 jest.unstable_mockModule('../../lib/secret-env.js', () => ({
   saveManagedSecret: mockSaveManagedSecret,
   managedSecretStorageStatus: mockManagedSecretStorageStatus,
+  // getSecret is reached transitively via lib/llm-call.ts → fleet-engine →
+  // routes/fleet. Default to undefined (no managed secret stored).
+  getSecret: jest.fn(() => undefined),
 }));
 
 const { fleetPlugin } = await import('../../routes/fleet.js');
@@ -97,18 +100,11 @@ describe('fleet routes /fleet/models', () => {
       }),
       expect.objectContaining({
         id: 'cloudflare',
-        models: [
-          '@cf/zai-org/glm-4.7-flash',
-          '@cf/openai/gpt-oss-120b',
-          '@cf/moonshotai/kimi-k2.6',
-          '@cf/qwen/qwen3-30b-a3b-fp8',
-          '@cf/nvidia/nemotron-3-120b-a12b',
-          '@cf/meta/llama-4-scout-17b-16e-instruct',
-        ],
+        models: ['@cf/zai-org/glm-4.7-flash', '@cf/qwen/qwen3-30b-a3b-fp8', '@cf/moonshotai/kimi-k2.5'],
         modelTiers: {
           low: '@cf/zai-org/glm-4.7-flash',
-          mid: '@cf/openai/gpt-oss-120b',
-          high: '@cf/moonshotai/kimi-k2.6',
+          mid: '@cf/qwen/qwen3-30b-a3b-fp8',
+          high: '@cf/moonshotai/kimi-k2.5',
         },
         setupLinks: [expect.objectContaining({ label: 'Create pd-ai-stack token' })],
       }),

@@ -20,12 +20,11 @@ import type { CostTracker } from './cost-tracker.js';
 import type { Counters } from './counters.js';
 import type { Bonds } from './bonds.js';
 import type { Harbors } from './harbors.js';
-import type { UsageTelemetry } from './usage-telemetry.js';
 import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
 import { getSecret } from './secret-env.js';
+import { cloudflareAdapter, ollamaAdapter } from './llm-call.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { deriveAgentDisplayName } from './agent-names.js';
-import { normalizeAgentTelos, type AgentTelos } from './agent-telos.js';
 
 // ─── Load .env.local for spawned agents ─────────────────────────────────────
 // The daemon runs via launchd which has no shell env. Spawned agents need
@@ -89,7 +88,6 @@ export interface SpawnSpec {
   modelTier?: 'low' | 'mid' | 'high';
   identity?: string;   // PD semantic identity: project:stack:context
   purpose?: string;    // human-readable task description
-  telos?: unknown;     // required purpose contract; purpose/task can seed legacy callers
   task: string;        // the prompt / task
   bondUsd?: number;    // per-spawn bond; slashed on misbehavior, refunded on clean exit
   harborName?: string; // optional override for bond-admission harbor
@@ -110,7 +108,6 @@ export interface SpawnResult {
   output: string | null;
   error: string | null;
   telemetry: SpawnTelemetry | null;
-  telos?: AgentTelos | null;
   startedAt: number;
   completedAt: number | null;
 }
@@ -119,8 +116,6 @@ export interface SpawnTelemetry {
   inputTokens: number;
   cachedInputTokens?: number;
   outputTokens: number;
-  turns?: number;
-  toolCalls?: number;
   costUsd: number;
   rateMode: 'exact';
 }
@@ -133,8 +128,6 @@ export interface SpawnedAgent {
   status: 'running' | 'completed' | 'failed' | 'killed';
   identity: string | null;
   purpose: string | null;
-  telos: AgentTelos;
-  telosHeadline: string;
   startedAt: number;
   completedAt: number | null;
 }
@@ -156,7 +149,6 @@ interface AgentRecord extends SpawnedAgent {
 interface SpawnerDeps {
   costTracker?: CostTracker;
   counters?: Counters;
-  usageTelemetry?: UsageTelemetry;
   bonds?: Bonds;
   harbors?: Harbors;
   enforceTelemetryPolicy?: boolean;
@@ -336,8 +328,6 @@ interface BackendRunResult {
   inputTokens?: number;
   cachedInputTokens?: number;
   outputTokens?: number;
-  turns?: number;
-  toolCalls?: number;
   childProcess?: ChildProcess | null;
 }
 
@@ -349,8 +339,6 @@ interface CodexUsage {
   inputTokens?: number;
   cachedInputTokens?: number;
   outputTokens?: number;
-  turns?: number;
-  toolCalls?: number;
 }
 
 const CODEX_DAEMON_CONTEXT_ENV_KEYS = [
@@ -358,25 +346,12 @@ const CODEX_DAEMON_CONTEXT_ENV_KEYS = [
 ] as const;
 
 async function runOllama(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
-  const res = await fetch('http://localhost:11434/api/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model,
-      messages: [{ role: 'user', content: spec.task }],
-      stream: false,
-    }),
+  const result = await ollamaAdapter({
+    prompt: spec.task,
+    model,
     signal: spec.timeout ? AbortSignal.timeout(spec.timeout) : undefined,
   });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => 'unknown error');
-    return { output: '', error: `Ollama HTTP ${res.status}: ${text}` };
-  }
-
-  const data = await res.json() as Record<string, unknown>;
-  const message = (data.message as Record<string, unknown> | undefined)?.content as string || '';
-  return { output: message, error: null };
+  return adaptLLMResult(result);
 }
 
 async function runClaude(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
@@ -453,92 +428,31 @@ async function runGemini(spec: SpawnSpec, model: string): Promise<BackendRunResu
 }
 
 async function runCloudflare(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
-  const accountId = getSecret('CLOUDFLARE_ACCOUNT_ID')
-    || process.env.CLOUDFLARE_ACCOUNT_ID
-    || getSecret('CF_ACCOUNT_ID')
-    || process.env.CF_ACCOUNT_ID;
-  const token = getSecret('CLOUDFLARE_API_TOKEN')
-    || getSecret('CLOUDFLARE_API_KEY')
-    || getSecret('CF_API_TOKEN');
-
-  if (!accountId) {
-    return { output: '', error: 'CLOUDFLARE_ACCOUNT_ID is not set' };
-  }
-  if (!token) {
-    return { output: '', error: 'CLOUDFLARE_API_TOKEN or CLOUDFLARE_API_KEY is not set' };
-  }
-
-  const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${encodeURIComponent(model)}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
-    body: JSON.stringify({
-      messages: [{ role: 'user', content: spec.task }],
-      max_tokens: spec.maxTokens,
-      stream: false,
-    }),
+  const result = await cloudflareAdapter({
+    prompt: spec.task,
+    model,
+    maxTokens: spec.maxTokens,
     signal: spec.timeout ? AbortSignal.timeout(spec.timeout) : undefined,
   });
+  return adaptLLMResult(result);
+}
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => 'unknown error');
-    return { output: '', error: `Cloudflare Workers AI HTTP ${res.status}: ${text}` };
+/**
+ * Convert the unified `LLMCompletionResult` shape (used by lib/llm-call.ts)
+ * into the spawner's legacy `BackendRunResult` shape. The spawner's outer
+ * wrapper expects `{output, error}` plus optional token counts; the
+ * adapter returns `{ok, text, error}`.
+ */
+function adaptLLMResult(result: { ok: boolean; text?: string; error?: string; inputTokens?: number; outputTokens?: number }): BackendRunResult {
+  if (!result.ok) {
+    return { output: '', error: result.error || 'unknown error' };
   }
-
-  const data = await res.json() as Record<string, any>;
-  const result = data.result ?? data;
-  const usage = extractCloudflareUsage(result, data);
-  const text = typeof result === 'string'
-    ? result
-    : result?.response
-      || result?.text
-      || result?.output_text
-      || result?.choices?.[0]?.message?.content
-      || '';
-
-  if (!text) {
-    return { output: '', error: 'Cloudflare Workers AI returned no text response' };
-  }
-
   return {
-    output: text,
+    output: result.text || '',
     error: null,
-    inputTokens: usage.inputTokens,
-    outputTokens: usage.outputTokens,
+    inputTokens: result.inputTokens,
+    outputTokens: result.outputTokens,
   };
-}
-
-function normalizeCloudflareTokenCount(value: unknown): number | undefined {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
-  return Math.max(0, Math.round(value));
-}
-
-function extractCloudflareUsage(result: unknown, data: Record<string, any>): Pick<BackendRunResult, 'inputTokens' | 'outputTokens'> {
-  const resultUsage = (
-    result
-    && typeof result === 'object'
-    && 'usage' in result
-  )
-    ? (result as { usage?: Record<string, unknown> }).usage
-    : undefined;
-  const usage = resultUsage || data.usage;
-  if (!usage || typeof usage !== 'object') return {};
-
-  const record = usage as Record<string, unknown>;
-  const inputTokens = normalizeCloudflareTokenCount(
-    record.prompt_tokens ?? record.input_tokens ?? record.inputTokens,
-  );
-  let outputTokens = normalizeCloudflareTokenCount(
-    record.completion_tokens ?? record.output_tokens ?? record.outputTokens,
-  );
-  const totalTokens = normalizeCloudflareTokenCount(record.total_tokens ?? record.totalTokens);
-  if (outputTokens === undefined && inputTokens !== undefined && totalTokens !== undefined) {
-    outputTokens = Math.max(0, totalTokens - inputTokens);
-  }
-
-  return { inputTokens, outputTokens };
 }
 
 function sanitizeCodexOutput(raw: string): string {
@@ -562,8 +476,6 @@ function sanitizeCodexOutput(raw: string): string {
 
 function parseCodexUsage(raw: string): CodexUsage {
   let usage: CodexUsage = {};
-  let turns = 0;
-  let toolCalls = 0;
 
   for (const line of raw.split(/\r?\n/)) {
     const trimmed = line.trim();
@@ -578,29 +490,19 @@ function parseCodexUsage(raw: string): CodexUsage {
           output_tokens?: unknown;
         };
       };
-      const eventType = typeof event.type === 'string' ? event.type : '';
-      if (/tool|exec|command/i.test(eventType)) toolCalls++;
-      if (eventType !== 'turn.completed') continue;
-      turns++;
-      if (!event.usage) continue;
+      if (event.type !== 'turn.completed' || !event.usage) continue;
 
       usage = {
         inputTokens: typeof event.usage.input_tokens === 'number' ? event.usage.input_tokens : undefined,
         cachedInputTokens: typeof event.usage.cached_input_tokens === 'number' ? event.usage.cached_input_tokens : undefined,
         outputTokens: typeof event.usage.output_tokens === 'number' ? event.usage.output_tokens : undefined,
-        turns,
-        toolCalls,
       };
     } catch {
       // runChild may append stderr to stdout; non-JSON lines are not usage.
     }
   }
 
-  return {
-    ...usage,
-    ...(turns > 0 ? { turns } : {}),
-    ...(toolCalls > 0 ? { toolCalls } : {}),
-  };
+  return usage;
 }
 
 function parseCodexError(raw: string): string | null {
@@ -782,7 +684,6 @@ export function createSpawner(deps: SpawnerDeps = {}) {
   const {
     costTracker,
     counters,
-    usageTelemetry,
     bonds,
     harbors,
     enforceTelemetryPolicy = true,
@@ -859,11 +760,6 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     const running = [...agents.values()].filter(a => a.status === 'running').length;
     const model = spec.model || DEFAULT_MODELS[spec.backend];
     const dims = metricDims(spec, model);
-    const telosResult = normalizeAgentTelos(spec.telos, {
-      fallbackHeadline: spec.purpose || spec.task,
-      fallbackCurrentIntent: spec.purpose || spec.task,
-      source: spec.telos ? 'creator' : 'derived',
-    });
     const blockedResult = (error: string): SpawnResult => ({
       agentId: 'blocked',
       backend: spec.backend,
@@ -872,14 +768,9 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       output: null,
       error,
       telemetry: null,
-      telos: telosResult.telos || null,
       startedAt: Date.now(),
       completedAt: Date.now(),
     });
-    if (!telosResult.success || !telosResult.telos) {
-      counters?.bump('spawn.blocked', dims);
-      return blockedResult(telosResult.error || 'Spawn blocked: telos is required for every agent.');
-    }
     if (running >= MAX_CONCURRENT_RUNNING) {
       counters?.bump('spawn.blocked', dims);
       return blockedResult(`Spawn blocked: ${running} agents already running (limit: ${MAX_CONCURRENT_RUNNING}). Wait for one to finish.`);
@@ -1008,8 +899,6 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       status: 'running',
       identity: spec.identity || null,
       purpose: spec.purpose || spec.task.slice(0, 80),
-      telos: telosResult.telos,
-      telosHeadline: telosResult.telos.headline,
       startedAt,
       completedAt: null,
       heartbeatInterval: null,
@@ -1043,7 +932,6 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       pid: initialRegistryPid,
       identity: spec.identity || null,
       purpose: spec.purpose || spec.task.slice(0, 80),
-      telos: telosResult.telos,
       metadata: coordinationMetadata,
     }, { pid: initialRegistryPid });
 
@@ -1055,7 +943,6 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       pid: initialRegistryPid,
       identity: spec.identity || null,
       purpose: spec.purpose || spec.task.slice(0, 80),
-      telos: telosResult.telos,
       metadata: coordinationMetadata,
     }, { pid: initialRegistryPid });
 
@@ -1073,8 +960,6 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     let output: string | null = null;
     let error: string | null = null;
     let telemetry: SpawnTelemetry | null = null;
-    let runResult: BackendRunResult | null = null;
-    let recordedCost: ReturnType<CostTracker['record']> | null = null;
 
     try {
       const override = runnerOverrides[spec.backend];
@@ -1114,7 +999,6 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         record.childProcess = result.childProcess;
       }
 
-      runResult = result;
       output = result.output || null;
       error = result.error;
 
@@ -1151,7 +1035,6 @@ export function createSpawner(deps: SpawnerDeps = {}) {
               ...(cachedInputTokens === undefined ? {} : { cachedInputTokens }),
               outputTokens,
             });
-            recordedCost = recorded;
 
             if (!recorded || recorded.isEstimate || recorded.costUsd <= 0) {
               error = `Exact telemetry required, but ${spec.backend} telemetry could not be persisted as an exact nonzero cost record.`;
@@ -1161,8 +1044,6 @@ export function createSpawner(deps: SpawnerDeps = {}) {
                 inputTokens,
                 ...(cachedInputTokens === undefined ? {} : { cachedInputTokens }),
                 outputTokens,
-                ...(result.turns === undefined ? {} : { turns: result.turns }),
-                ...(result.toolCalls === undefined ? {} : { toolCalls: result.toolCalls }),
                 costUsd: recorded.costUsd,
                 rateMode: 'exact',
               };
@@ -1225,51 +1106,14 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       counters?.bump('spawn.duration_ms', dims, Math.max(1, completedAt - startedAt));
     }
     if (!enforceTelemetryPolicy) {
-      recordedCost = costTracker?.record({
+      costTracker?.record({
         backend: spec.backend,
         model,
         projectName,
         projectDir: spec.workdir ? resolve(spec.workdir) : undefined,
         identity: spec.identity,
         spawnId: agentId,
-      }) ?? null;
-    }
-
-    try {
-      usageTelemetry?.record({
-        surface: 'daemon',
-        kind: 'agent_work',
-        name: `spawn.${status}`,
-        category: 'spawn',
-        workScope: 'agent_work',
-        agentId,
-        agentType: spec.backend,
-        agentModel: model,
-        backend: spec.backend,
-        model,
-        project: projectName,
-        projectDir: spec.workdir ? resolve(spec.workdir) : undefined,
-        status,
-        durationMs: completedAt - startedAt,
-        inputTokens: telemetry?.inputTokens ?? runResult?.inputTokens ?? recordedCost?.inputTokens ?? null,
-        cachedInputTokens: telemetry?.cachedInputTokens ?? runResult?.cachedInputTokens ?? recordedCost?.cachedInputTokens ?? null,
-        outputTokens: telemetry?.outputTokens ?? runResult?.outputTokens ?? recordedCost?.outputTokens ?? null,
-        turns: runResult?.turns ?? (status === 'completed' ? 1 : null),
-        toolCalls: runResult?.toolCalls ?? null,
-        costUsd: telemetry?.costUsd ?? recordedCost?.costUsd ?? null,
-        costCurrency: recordedCost || telemetry ? 'USD' : null,
-        costIsEstimate: recordedCost?.isEstimate ?? false,
-        context: {
-          identity: spec.identity ?? null,
-          telosHeadline: telosResult.telos.headline,
-        },
-        metadata: {
-          outputBytes: output ? Buffer.byteLength(output) : 0,
-          error: error ?? null,
-        },
       });
-    } catch {
-      // Usage telemetry must not change spawn outcome.
     }
 
     return {
@@ -1281,7 +1125,6 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       output,
       error,
       telemetry,
-      telos: telosResult.telos,
       startedAt,
       completedAt,
     };
@@ -1300,8 +1143,6 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       status: r.status,
       identity: r.identity,
       purpose: r.purpose,
-      telos: r.telos,
-      telosHeadline: r.telosHeadline,
       startedAt: r.startedAt,
       completedAt: r.completedAt,
     }));

@@ -13,23 +13,23 @@ import {
 
 const outcomes = [
   {
-    title: 'Parallel work without invisible collisions',
-    detail: 'Agents claim files or symbols before editing, so another agent can see ownership and choose a safer path instead of overwriting nearby work.',
+    title: 'Every change has an owner',
+    detail: 'Agents work in terminals, claim intended files or symbols, and leave notes before their local plan drifts from the repo.',
     icon: NotebookTabs,
   },
   {
-    title: 'One operator view for the repo',
-    detail: 'FleetBar and Fleet Control Center show live agents, touched files, backend readiness, resource pressure, budget posture, and recovery state together.',
+    title: 'Humans steer from the app',
+    detail: 'FleetBar and Fleet Control Center show project state, readiness, agents, resources, and recovery without making the operator parse shell ceremony.',
     icon: MonitorCheck,
   },
   {
-    title: 'Launch decisions use real readiness',
-    detail: 'Before more automation starts, Port Daddy exposes missing auth, unavailable models, telemetry gaps, spend limits, and machine pressure.',
+    title: 'Terminal proof includes output',
+    detail: 'When the website shows a terminal, it should show the command and the daemon response, not a stack of inputs pretending to be evidence.',
     icon: GitCommit,
   },
   {
-    title: 'Agent failure becomes a queue',
-    detail: 'If a process dies, salvage preserves purpose, notes, claims, and handoff evidence so the next agent can continue from facts.',
+    title: 'Recovery keeps the context',
+    detail: 'If an agent dies, salvage preserves purpose, notes, claimed files, and handoff evidence for the next agent.',
     icon: FileCheck2,
   },
 ] as const
@@ -40,39 +40,6 @@ const guardModes = [
   'Check staged',
   'Claim files',
 ] as const
-
-const statePrimitives = [
-  ['Session', 'who is working, why, and from which repo context'],
-  ['Ownership', 'claimed files, symbols, locks, and contested surfaces'],
-  ['Runtime', 'backend readiness, budget posture, and machine pressure'],
-  ['Recovery', 'notes, handoffs, salvage records, and remaining risk'],
-] as const
-
-function SharedStatePanel() {
-  return (
-    <SurfacePanel elevation="quiet" padding="compact" className="grid gap-[var(--space-4)]">
-      <div className="grid gap-[var(--space-2)] border-b-2 border-[var(--border-strong)] pb-[var(--space-3)]">
-        <PanelEyebrow>Shared state means</PanelEyebrow>
-        <PanelBody size="compact" className="max-w-[42rem]">
-          A common project ledger that agents can update and the operator can inspect before another worker starts, spends, edits, or commits.
-        </PanelBody>
-      </div>
-
-      <div className="grid gap-2 sm:grid-cols-2">
-        {statePrimitives.map(([label, detail]) => (
-          <div key={label} className="grid gap-1 border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)]">
-            <span className="font-mono text-[10px] font-black uppercase tracking-[0.16em] text-[var(--brand-primary)]">
-              {label}
-            </span>
-            <span className="text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
-              {detail}
-            </span>
-          </div>
-        ))}
-      </div>
-    </SurfacePanel>
-  )
-}
 
 function GuardControlMock() {
   return (
@@ -92,7 +59,7 @@ function GuardControlMock() {
           Coordination Guard
         </PanelTitle>
         <PanelBody size="compact" className="max-w-none">
-          The guard compares staged files with the active session and claims. When enforcement is on, an uncoordinated commit fails before it becomes repo history.
+          Humans do not need to remember the shell ceremony. FleetBar shows the guard state, lets an operator switch from observe to enforce, checks staged files, and points agents at the files that need claims.
         </PanelBody>
       </div>
 
@@ -115,8 +82,8 @@ function GuardControlMock() {
 
       <div className="grid gap-2 border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)]">
         {[
-          ['Active session', 'auth-api-refactor'],
-          ['Claim coverage', 'src/auth.ts + tests'],
+          ['Active session', 'website:landing-reconcile'],
+          ['Claim coverage', '7 landing files covered'],
           ['Commit posture', 'fail closed on mismatch'],
         ].map(([label, value]) => (
           <div key={label} className="flex items-center justify-between gap-[var(--space-3)] border-b border-[var(--border-default)] pb-2 last:border-b-0 last:pb-0">
@@ -136,7 +103,7 @@ function GuardControlMock() {
           <PanelEyebrow>Why it matters</PanelEyebrow>
         </div>
         <PanelBody size="compact" className="max-w-none">
-          A coordination convention is useful only if agents and operators can see the same rule at the moment a change is about to ship.
+          The UI makes the rule obvious before the commit: every staged file should belong to an active session, and every exception should be visible enough for a human to decide.
         </PanelBody>
       </div>
     </SurfacePanel>
@@ -147,39 +114,39 @@ export function CoordinationEnforcementSection() {
   return (
     <section id="coordination-enforcement" className="border-t-2 border-[var(--border-strong)] bg-[var(--surface-raised)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
       <PageContainer width="wide">
-        <SwissGrid className="items-start gap-y-[var(--space-5)]">
-          <SwissGridItem span="wide">
+        <SwissGrid className="items-start">
+          <SwissGridItem span="narrow">
             <SectionIntro
-              eyebrow="Why it exists"
-              title="Agent orchestration needs shared state."
-              description="Modern coding agents can write code, but they do not automatically agree on ownership, context, budget, or recovery. Port Daddy supplies the local state layer around them: what is running, what each agent owns, what changed, and what is safe to do next."
+              eyebrow="Operator control"
+              title="Agents use the terminal. Humans use the GUI."
+              description="Port Daddy gives each repo a coordination contract, but the public homepage should not ask a human to admire a command checklist. The app surface is where operators see readiness, claims, live agents, resources, handoffs, and recovery state."
               titleAs="h2"
               titleSize="display"
-              titleClassName="max-w-[22ch]"
-              bodyClassName="max-w-[48rem]"
+              titleClassName="max-w-[13ch]"
+              bodyClassName="max-w-[44rem]"
             />
             <div className="mt-[var(--space-5)] flex flex-wrap gap-[var(--space-3)]">
               <Button asChild variant="primary" size="lg">
                 <a href="/docs/best-practices/coordination-discipline">
                   <CheckCircle2 size={16} />
-                  Coordination model
+                  Coordination discipline
                 </a>
               </Button>
               <Button asChild variant="secondary" size="lg">
                 <a href="/docs/cli/with-lock">
                   <LockKeyhole size={16} />
-                  Guard reference
+                  Lock reference
                 </a>
               </Button>
             </div>
           </SwissGridItem>
 
-          <SwissGridItem span="narrow">
-            <SharedStatePanel />
+          <SwissGridItem span="rail">
+            <GuardControlMock />
           </SwissGridItem>
         </SwissGrid>
 
-        <div className="mt-[var(--space-7)] grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,0.95fr)_minmax(22rem,0.72fr)]">
+        <div className="mt-[var(--space-7)] grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
           <picture className="block overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-base)]">
             <source srcSet="/img/generated/coordination-guard.webp" type="image/webp" />
             <img
@@ -190,26 +157,24 @@ export function CoordinationEnforcementSection() {
             />
           </picture>
 
-          <GuardControlMock />
-        </div>
-
-        <div className="mt-[var(--space-5)] grid gap-[var(--space-4)] md:grid-cols-2 xl:grid-cols-4">
-          {outcomes.map((outcome) => (
-            <SurfacePanel key={outcome.title} elevation="quiet" padding="compact" className="grid content-start gap-[var(--space-3)]">
-              <div className="flex items-start justify-between gap-[var(--space-3)] border-b-2 border-[var(--border-strong)] pb-[var(--space-3)]">
-                <PanelEyebrow>What you get</PanelEyebrow>
+          <div className="grid gap-[var(--space-4)]">
+            {outcomes.map((outcome) => (
+              <SurfacePanel key={outcome.title} elevation="quiet" padding="compact" className="grid gap-[var(--space-3)] md:grid-cols-[3rem_minmax(0,1fr)]">
                 <span className="inline-flex h-11 w-11 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-base)] text-[var(--brand-primary)]">
                   <outcome.icon size={18} />
                 </span>
-              </div>
-              <PanelTitle as="h3" size="nav" className="max-w-none">
-                {outcome.title}
-              </PanelTitle>
-              <PanelBody size="compact" className="max-w-none">
-                {outcome.detail}
-              </PanelBody>
-            </SurfacePanel>
-          ))}
+                <div className="grid gap-[var(--space-2)]">
+                  <PanelEyebrow>What you get</PanelEyebrow>
+                  <PanelTitle as="h3" size="nav" className="max-w-none">
+                    {outcome.title}
+                  </PanelTitle>
+                  <PanelBody size="compact" className="max-w-none">
+                    {outcome.detail}
+                  </PanelBody>
+                </div>
+              </SurfacePanel>
+            ))}
+          </div>
         </div>
       </PageContainer>
     </section>

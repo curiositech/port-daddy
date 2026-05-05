@@ -43,7 +43,7 @@ describe('reference catalog source coverage', () => {
     const mainSwitchStart = cliSource.indexOf('switch (command)')
     const mainSwitchEnd = cliSource.indexOf('default: {', mainSwitchStart)
     const mainSwitch = cliSource.slice(mainSwitchStart, mainSwitchEnd)
-    const dispatchVerbs = Array.from(mainSwitch.matchAll(/^ {6}case '([^']+)':/gm), (match) => match[1])
+    const dispatchVerbs = Array.from(mainSwitch.matchAll(/^      case '([^']+)':/gm), (match) => match[1])
 
     const catalogVerbs = new Set(
       CLI_REFERENCE_GROUPS.flatMap((group) =>

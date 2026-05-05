@@ -62,11 +62,9 @@ export async function handleBegin(
   const identity = (options.identity as string) || autoIdentityFromPackageJson() || undefined;
 
   const body: Record<string, unknown> = { purpose };
-  body.pid = process.pid;
   if (identity) body.identity = identity;
   if (options.agent) body.agentId = options.agent;
   if (options.name) body.name = options.name;
-  if (options.telos) body.telos = options.telos;
   if (options.type) body.type = options.type;
   if (options.force) body.force = true;
 
@@ -83,7 +81,7 @@ export async function handleBegin(
 
   const res: PdFetchResponse = await pdFetch('/sugar/begin', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Pid': String(process.pid) },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
 
@@ -101,7 +99,6 @@ export async function handleBegin(
     agentName: ((data.agentName || data.name) as string | undefined) || null,
     sessionName: (data.sessionName as string | undefined) || null,
     purpose,
-    telosHeadline: (data.telosHeadline as string | undefined) || (typeof options.telos === 'string' ? options.telos : purpose),
     identity: (data.identity as string) || null,
     startedAt: Date.now(),
   });
@@ -123,7 +120,6 @@ export async function handleBegin(
   ui.success(`Agent ${highlightChannel(agentLabel)} ready`);
   console.error(`  Session: ${sessionLabel}`);
   console.error(`  Purpose: ${purpose}`);
-  if (data.telosHeadline) console.error(`  Telos: ${data.telosHeadline as string}`);
   if (identity) console.error(`  Identity: ${identity}`);
   if (data.fileClaims) {
     const claims = data.fileClaims as string[];
@@ -142,31 +138,6 @@ export async function handleBegin(
 // =============================================================================
 // handleDone — pd done ["note"] [--status STATUS]
 // =============================================================================
-
-function doneOptionText(options: CLIOptions, key: string): string | undefined {
-  const value = options[key];
-  return typeof value === 'string' && value.trim() ? value : undefined;
-}
-
-function buildSelfSalvageOption(options: CLIOptions): unknown {
-  const selfSalvageFlag = options['self-salvage'] || options.selfSalvage;
-  const capsule: Record<string, unknown> = {};
-  const telosVerdict = doneOptionText(options, 'telos-verdict') || doneOptionText(options, 'telosVerdict');
-  const whyStopped = doneOptionText(options, 'why-stopped') || doneOptionText(options, 'whyStopped');
-  const nextPlan = doneOptionText(options, 'next-plan') || doneOptionText(options, 'nextPlan');
-
-  if (telosVerdict) capsule.telosVerdict = telosVerdict;
-  if (doneOptionText(options, 'doable')) capsule.doable = doneOptionText(options, 'doable');
-  if (whyStopped) capsule.whyStopped = whyStopped;
-  if (nextPlan) capsule.nextPlan = nextPlan;
-  if (doneOptionText(options, 'wisdom')) capsule.wisdom = doneOptionText(options, 'wisdom');
-  if (doneOptionText(options, 'evidence')) capsule.evidence = doneOptionText(options, 'evidence');
-  if (doneOptionText(options, 'risk')) capsule.risk = doneOptionText(options, 'risk');
-
-  if (Object.keys(capsule).length > 0) return capsule;
-  if (selfSalvageFlag) return true;
-  return undefined;
-}
 
 export async function handleDone(
   note: string | undefined,
@@ -203,15 +174,12 @@ export async function handleDone(
   if (options.session) body.sessionId = options.session;
   if (note) body.note = note;
   if (options.status) body.status = options.status;
-  const selfSalvage = buildSelfSalvageOption(options);
-  if (selfSalvage !== undefined) body.selfSalvage = selfSalvage;
 
   const pd = new PortDaddy({ agentId: typeof body.agentId === 'string' ? body.agentId : undefined });
   const data = await pd.done(note, {
     agentId: typeof body.agentId === 'string' ? body.agentId : undefined,
     sessionId: typeof body.sessionId === 'string' ? body.sessionId : undefined,
     status: typeof body.status === 'string' ? body.status : undefined,
-    selfSalvage,
   });
 
   if (!data?.success) {
@@ -239,11 +207,6 @@ export async function handleDone(
   }
   if (data.agentUnregistered) console.error(`  Agent ${data.agentId} unregistered`);
   if (data.notesCount) console.error(`  Notes: ${data.notesCount}`);
-  if (data.selfSalvageQueued) {
-    console.error('  Self-salvage: queued unfinished telos for continuation');
-  } else if (data.selfSalvage) {
-    console.error('  Self-salvage: recorded on final handoff');
-  }
   if (note) console.error(`  Final note: "${note}"`);
 }
 
@@ -281,7 +244,6 @@ export async function handleWhoami(options: CLIOptions): Promise<void> {
       sessionName: ctx.sessionName ?? null,
       startedAt: ctx.startedAt,
       purpose: ctx.purpose,
-      telosHeadline: ctx.telosHeadline ?? null,
       identity: ctx.identity ?? null,
       contextSlot: ctx.contextSlot,
     };
@@ -309,7 +271,6 @@ export async function handleWhoami(options: CLIOptions): Promise<void> {
   console.error(`  Agent:    ${agentName ? `${agentName} (${data.agentId})` : data.agentId}`);
   console.error(`  Session:  ${sessionName ? `${sessionName} (${data.sessionId})` : data.sessionId}`);
   console.error(`  Purpose:  ${data.purpose}`);
-  if (data.telosHeadline || ctx?.telosHeadline) console.error(`  Telos:    ${data.telosHeadline || ctx?.telosHeadline}`);
   if (data.identity) console.error(`  Identity: ${data.identity}`);
   console.error(`  Phase:    ${data.phase}`);
   if (data.duration != null) {

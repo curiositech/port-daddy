@@ -56,7 +56,7 @@ export const PRODUCT_FEATURES = [
   {
     id: 'fleetbar',
     title: 'FleetBar for macOS',
-    description: 'A native menu-bar app for the local agent control plane: daemon health, selected project, active fleet, and the full console one click away.',
+    description: 'A native menu-bar app that opens the real Fleet Control Center, shows daemon health, starts and stops fleets, and keeps the selected project one click away.',
     category: 'control-plane',
     cli: 'pd setup',
     href: '/mac-preview',
@@ -64,7 +64,7 @@ export const PRODUCT_FEATURES = [
       src: '/img/app-screens/fleetbar-native-shell-light.png',
       alt: 'FleetBar macOS shell showing the embedded Fleet Control Center',
     },
-    detail: 'FleetBar is the Mac-native front door for Port Daddy. It keeps daemon health, project selection, fleet state, and the full web dashboard reachable from the menu bar so engineers do not have to remember ports, tabs, or stale localhost URLs.',
+    detail: 'FleetBar is the Mac-native front door for Port Daddy. It keeps daemon health, project selection, fleet state, and the full web dashboard reachable from the menu bar so you do not have to remember ports, tabs, or stale localhost URLs.',
     outcomes: [
       'Open the same daemon-served console from native chrome or the browser.',
       'See whether the main daemon, selected project, and Fleet Control Center agree.',
@@ -79,7 +79,7 @@ export const PRODUCT_FEATURES = [
   {
     id: 'fleet-control',
     title: 'Fleet Control Center',
-    description: 'The console for seeing what agents are doing now: Flow, Agents, Resources, Activity, Channels, Inbox, Sorties, Memory, Shipwright, Roadmap, and YAML.',
+    description: 'The console for Flow, Roadmap, Agents, Resources, Activity, Channels, Inbox, Sorties, Memory, Shipwright, and YAML. It is served by the daemon and embedded by FleetBar.',
     category: 'control-plane',
     cli: 'pd fleet status',
     href: '/agents',
@@ -87,7 +87,7 @@ export const PRODUCT_FEATURES = [
       src: '/img/app-screens/fleet-flow-light.png',
       alt: 'Fleet Control Center flow view showing agent coordination',
     },
-    detail: 'Fleet Control Center is the dashboard for real multi-agent work. It brings Flow, Agents, Activity, Channels, Inbox, Sorties, Memory, Resources, Shipwright, Roadmap, and YAML into one inspectable console backed by the live daemon.',
+    detail: 'Fleet Control Center is the dashboard for real multi-agent work. It brings Flow, Agents, Activity, Channels, Inbox, Sorties, Memory, Resources, Shipwright, and YAML into one inspectable console backed by the live daemon.',
     outcomes: [
       'Inspect the current project without guessing which branch, daemon, or browser tab is authoritative.',
       'Move from roadmap and flow state into individual agent, channel, inbox, and resource views.',
@@ -102,7 +102,7 @@ export const PRODUCT_FEATURES = [
   {
     id: 'shipwright',
     title: 'Shipwright cold start',
-    description: 'Survey a repo, propose a starter fleet, simulate budget and readiness risk, then move into Flow, Agents, and YAML without leaving the app.',
+    description: 'Survey a repo, propose a starter fleet, simulate budget and bond exposure, then move into Flow, Agents, and YAML without leaving the app.',
     category: 'agents',
     cli: 'pd setup --project <dir>',
     href: '/docs/get-started',
@@ -110,7 +110,7 @@ export const PRODUCT_FEATURES = [
       src: '/img/app-screens/shipwright-control-light.png',
       alt: 'Shipwright control view proposing a project fleet',
     },
-    detail: 'Shipwright is the cold-start path for a new repo. It surveys the project, proposes a small fleet, names ownership boundaries, estimates budget and readiness pressure, and turns setup into a reviewable plan before agents start writing.',
+    detail: 'Shipwright is the cold-start path for a new repo. It surveys the project, proposes a small fleet, names ownership boundaries, estimates budget pressure, and turns setup into a reviewable plan before agents start writing.',
     outcomes: [
       'Understand what Port Daddy thinks the repo needs before launching background work.',
       'Review suggested agents, triggers, budget envelopes, and risky areas visually.',
@@ -125,7 +125,7 @@ export const PRODUCT_FEATURES = [
   {
     id: 'sorties',
     title: 'Sortie missions',
-    description: 'Launch a tracked agent mission with a durable id, goal, recipe, backend/model, budget ceiling, logs, and a result record you can inspect later.',
+    description: 'Launch a tracked delegated mission with a durable id, goal, recipe, backend/model, budget ceiling, logs, and a result record you can inspect later.',
     category: 'agents',
     cli: 'pd sortie run --backend codex',
     href: '/agents',
@@ -148,7 +148,7 @@ export const PRODUCT_FEATURES = [
   {
     id: 'resource-governance',
     title: 'Resource controls',
-    description: 'Inspect memory, disk, daemon health, local model pressure, renderer load, fleet activity, daily spend, and the suggested concurrency envelope.',
+    description: 'Inspect memory, disk, Port Daddy process cost, local model pressure, renderer load, fleet activity, daily spend, and the suggested concurrency envelope.',
     category: 'resources',
     cli: 'pd status',
     href: '/docs/cli/status',
@@ -171,7 +171,7 @@ export const PRODUCT_FEATURES = [
   {
     id: 'backend-readiness',
     title: 'Backend readiness',
-    description: 'Readiness tells you which agent backends need API keys, CLI login, model access, dependency installation, telemetry parity, or manual confirmation.',
+    description: 'Readiness tells you which backends need API keys, CLI login, model access, dependency installation, telemetry parity, or manual confirmation.',
     category: 'observability',
     cli: 'pd fleet models',
     href: '/docs/features/fleet',
@@ -194,7 +194,7 @@ export const PRODUCT_FEATURES = [
   {
     id: 'agent-radio',
     title: 'Agent communication',
-    description: 'Notes, scoped channels, actor inboxes, claims, tuples, and salvage records give agents durable ways to coordinate without sharing one chat window.',
+    description: 'Notes, scoped channels, actor inboxes, claims, tuples, and salvage records give agents durable ways to talk without sharing one chat window.',
     category: 'coordination',
     cli: 'pd note "handoff ready"',
     href: '/docs/features/radio',
@@ -202,7 +202,7 @@ export const PRODUCT_FEATURES = [
       src: '/img/generated/agent-runtime-map.webp',
       alt: 'Generated map of agents exchanging claims, notes, and handoffs',
     },
-    detail: 'Agent communication is the difference between parallel agents and a pile of untracked edits. Notes, scoped channels, actor inboxes, tuples, claims, and salvage records create durable context other agents can read without interrupting the developer.',
+    detail: 'Agent communication is the difference between parallel agents and a pile of untracked edits. Notes, scoped radio channels, actor inboxes, tuples, claims, and salvage records create durable context other agents can read without interrupting the human.',
     outcomes: [
       'Give agents a shared memory trail that survives process exits and branch drift.',
       'Publish machine-readable coordination facts instead of relying on chat prose.',
@@ -217,7 +217,7 @@ export const PRODUCT_FEATURES = [
   {
     id: 'shared-coordination',
     title: 'Enforced coordination',
-    description: 'Sessions, notes, file claims, locks, tuples, inboxes, activity, salvage, and Coordination Guard make repo work attributable before code reaches history.',
+    description: 'Sessions, notes, file claims, locks, tuples, inboxes, activity, salvage, and Coordination Guard make repo work attributable before code reaches a commit.',
     category: 'coordination',
     cli: 'pd begin "purpose"',
     href: '/tutorials/multi-agent',
@@ -240,7 +240,7 @@ export const PRODUCT_FEATURES = [
   {
     id: 'coordination-guard',
     title: 'Coordination Guard',
-    description: 'Install a local pre-commit guard that checks staged files against the current session and active claims, then blocks uncoordinated commits.',
+    description: 'Install a local pre-commit guard that checks staged files against the current session and active claims, then blocks uncoordinated commits when enforcement is on.',
     category: 'coordination',
     cli: 'pd guard install --mode enforce',
     href: '/docs/best-practices',
@@ -342,7 +342,7 @@ export const PRODUCT_FEATURES = [
     },
     detail: 'Session salvage is how Port Daddy keeps agent failures from becoming lost work. When an agent dies, its session notes, claims, purpose, and context remain claimable by the next worker.',
     outcomes: [
-      'Recover abandoned context instead of asking the developer to reconstruct it.',
+      'Recover abandoned context instead of asking the human to reconstruct it.',
       'See which sessions died with open claims or incomplete handoffs.',
       'Turn crash recovery into an explicit queue with ownership.',
     ],
@@ -425,7 +425,7 @@ export const APP_SURFACES = [
   {
     id: 'roadmap',
     title: 'Roadmap',
-    caption: 'A live roadmap board that ties built, blocked, drifting, and next-up work to recovery notes, docs drift, and proof from real agent work.',
+    caption: 'A live roadmap board that ties built, blocked, drifting, and next-up work to recovery notes, docs drift, and dogfood evidence.',
     operatorValue: 'Use Roadmap when another agent returns and needs the current state, not a stale plan copied from chat.',
     highlights: [
       'Built items point back to evidence and recovery notes.',
@@ -448,7 +448,7 @@ export const APP_SURFACES = [
     highlights: [
       'Machine pressure and spend sit beside backend readiness.',
       'Renderer and daemon signals separate app UI load from runtime load.',
-      'Resource context gives launch preflight a real ceiling instead of a guess.',
+      'Resource context gives launch preflight a real ceiling instead of a vibes check.',
     ],
     actions: [
       'Check memory, disk, renderer, daemon, and local AI pressure before launching more work.',

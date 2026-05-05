@@ -103,7 +103,7 @@ function renderContentBlock(block: ContentBlock, index: number) {
     case 'command':
       return (
         <DocsNoteCard key={`command-${index}`} label={label} title={block.title} tone="blue">
-          <DocsCodeBlock code={block.command} output={block.output} language="cli" label={block.title} />
+          <DocsCodeBlock code={block.command} language="cli" label={block.title} />
           {block.notes?.length ? <PanelList items={block.notes} tone="primary" /> : null}
         </DocsNoteCard>
       )

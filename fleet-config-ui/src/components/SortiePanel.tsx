@@ -20,7 +20,6 @@ import {
 } from 'lucide-react';
 import { fetchModels, fetchSortiePreflight, fetchSorties, killSortie, launchSortie } from '../api';
 import type { BackendInfo, SpawnPreflight, SpawnedAgent } from '../types';
-import BackendSetupActions from './BackendSetupActions';
 
 type RecipeId = 'investigate' | 'fix' | 'review' | 'creative' | 'custom';
 type ApprovalMode = 'none' | 'before-build' | 'before-apply' | 'before-close';
@@ -851,7 +850,6 @@ export default function SortiePanel({ project }: SortiePanelProps) {
                             {selectedBackend.readinessNextStep && (
                               <div className="mt-2">Next: {selectedBackend.readinessNextStep}</div>
                             )}
-                            <BackendSetupActions backend={selectedBackend} compact />
                           </div>
                         )}
 
@@ -887,7 +885,6 @@ export default function SortiePanel({ project }: SortiePanelProps) {
                                       Attempt {attempt.attempt}: {attempt.backend || 'missing'} / {attempt.model || (attempt.modelTier ? `${attempt.modelTier} tier` : 'default')}
                                     </div>
                                     <div className="mt-1">{attempt.readinessSummary}</div>
-                                    <BackendSetupActions backend={attempt} compact />
                                   </div>
                                   <span className={`pd-chip ${attempt.readinessStatus === 'ready' ? 'pd-chip-success' : 'pd-chip-warning'}`}>
                                     {attempt.readinessStatus}

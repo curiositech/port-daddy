@@ -1,5 +1,6 @@
 import { TutorialLayout } from "@/components/tutorials/TutorialLayout";
 import { CodeBlock } from "@/components/ui/CodeBlock";
+import { Surface } from "@/components/ui/Surface";
 
 export function AlwaysOn() {
   return (
@@ -101,34 +102,22 @@ pd spawn --backend codex --tier low --budget 0.20 \\
             into the fleet layer instead of leaving it as a personal terminal
             watcher.
           </p>
-          <div className="divide-y divide-[var(--hairline)] border-y border-[var(--hairline)]">
-            <div className="grid gap-[var(--space-3)] py-[var(--space-4)] md:grid-cols-[12rem_1fr]">
-              <p className="m-0 font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
-                Shell watcher
+          <Surface depth="flat" radius="none" padding="lg">
+            <div className="space-y-[var(--space-4)]">
+              <p className="m-0">
+                Use a shell watcher for local experiments and one-off
+                automations.
               </p>
               <p className="m-0">
-                Use it for local experiments and short-lived automations.
-              </p>
-            </div>
-            <div className="grid gap-[var(--space-3)] py-[var(--space-4)] md:grid-cols-[12rem_1fr]">
-              <p className="m-0 font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
-                <code>pd spawn</code>
+                Use <code>pd spawn</code> when you want exact backend, model,
+                identity, and budget control for one run.
               </p>
               <p className="m-0">
-                Use it when you want exact backend, model, identity, and budget
-                control for one run.
+                Use <code>pd fleet up</code> when the automation is part of the
+                project itself and other operators need to inspect it.
               </p>
             </div>
-            <div className="grid gap-[var(--space-3)] py-[var(--space-4)] md:grid-cols-[12rem_1fr]">
-              <p className="m-0 font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
-                <code>pd fleet up</code>
-              </p>
-              <p className="m-0">
-                Use it when the automation belongs to the project and other
-                operators need to inspect it in Flow, Activity, and YAML.
-              </p>
-            </div>
-          </div>
+          </Surface>
         </section>
 
         <section className="space-y-[var(--space-6)]">

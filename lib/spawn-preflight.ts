@@ -31,12 +31,6 @@ export interface SpawnPreflightAttempt {
   readinessStatus: BackendReadiness['status'];
   readinessSummary: string;
   readinessNextStep?: string;
-  credentialKeys?: string[];
-  credentialAlternates?: string[];
-  setupLinks?: BackendReadiness['setupLinks'];
-  setupCommand?: string;
-  setupFiles?: string[];
-  restartRequired?: boolean;
 }
 
 export interface SpawnPreflightResult {
@@ -134,12 +128,6 @@ export async function assessSpawnPreflight(
         readinessStatus: readiness.status,
         readinessSummary: readiness.summary,
         readinessNextStep: readiness.nextStep,
-        credentialKeys: readiness.credentialKeys,
-        credentialAlternates: readiness.credentialAlternates,
-        setupLinks: readiness.setupLinks,
-        setupCommand: readiness.setupCommand,
-        setupFiles: readiness.setupFiles,
-        restartRequired: readiness.restartRequired,
       };
     })
   );
