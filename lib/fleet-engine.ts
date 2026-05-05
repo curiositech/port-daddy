@@ -1069,8 +1069,9 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       return;
     }
 
-    const watchProc = spawn('npx', [
-      'tsx', join(projectDir, 'bin', 'port-daddy-cli.ts'),
+    const invocation = resolvePortDaddyInvocation();
+    const watchProc = spawn(invocation.command, [
+      ...invocation.args,
       'watch', physicalTriggerChannel,
       '--exec', watcher.exec,
     ], {
