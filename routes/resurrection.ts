@@ -17,7 +17,7 @@ interface StaleAgent {
   sessionId: string | null;
   lastHeartbeat: number;
   staleSince: number;
-  status: 'stale' | 'dead' | 'resurrecting';
+  status: 'pending' | 'stale' | 'dead' | 'resurrecting';
   notes?: string[];
   // Semantic identity components for prefix filtering
   identityProject: string | null;
