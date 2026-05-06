@@ -32,7 +32,7 @@ import http from 'node:http';
 import Database from 'better-sqlite3';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { readFileSync, existsSync, readdirSync, unlinkSync, writeFileSync } from 'fs';
+import { readFileSync, existsSync, readdirSync, unlinkSync, writeFileSync, mkdirSync } from 'fs';
 import { createConnection } from 'net';
 import winston from 'winston';
 
@@ -145,6 +145,35 @@ const STARTED_AT: number = Date.now();
 
 const isSilent: boolean = process.env.PORT_DADDY_SILENT === '1';
 
+// Resolve log directory in priority order:
+//   1. PORT_DADDY_LOG_DIR env (explicit override)
+//   2. PORT_DADDY_PREFIX/logs/ (matches the rest of the runtime layout)
+//   3. ~/.port-daddy/logs/ (user-writable fallback; works inside compiled
+//      Bun binaries where __dirname is the read-only /$bunfs/root/)
+//   4. __dirname (legacy: only used when none of the above are writable
+//      AND the install dir is, i.e. dev-from-checkout)
+function resolveLogDir(): string {
+  const envOverride = process.env.PORT_DADDY_LOG_DIR;
+  if (envOverride) return envOverride;
+  const prefix = process.env.PORT_DADDY_PREFIX;
+  if (prefix) return join(prefix, 'logs');
+  const home = process.env.HOME || process.env.USERPROFILE;
+  if (home) return join(home, '.port-daddy', 'logs');
+  return __dirname;
+}
+
+const LOG_DIR: string = resolveLogDir();
+
+// Best-effort: ensure the log dir exists. winston's File transport will
+// throw on first write otherwise. If mkdir fails (read-only fs, perms),
+// fall through silently — winston's error path will surface it.
+try {
+  mkdirSync(LOG_DIR, { recursive: true });
+} catch {
+  // Intentionally swallow. If we can't create logs dir, the user can set
+  // PORT_DADDY_SILENT=1 to skip file transports entirely.
+}
+
 const logger: winston.Logger = winston.createLogger({
   level: isSilent ? 'error' : config.logging.level,
   silent: isSilent,
@@ -155,11 +184,11 @@ const logger: winston.Logger = winston.createLogger({
   defaultMeta: { service: 'port-daddy', version: VERSION },
   transports: isSilent ? [] : [
     new winston.transports.File({
-      filename: join(__dirname, config.logging.error_file),
+      filename: join(LOG_DIR, config.logging.error_file),
       level: 'error'
     }),
     new winston.transports.File({
-      filename: join(__dirname, config.logging.file)
+      filename: join(LOG_DIR, config.logging.file)
     })
   ]
 });

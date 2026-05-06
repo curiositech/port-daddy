@@ -11,7 +11,7 @@
  * sessions, session_files, session_notes) exist before any module is loaded.
  */
 
-import Database from 'better-sqlite3';
+import Database, { type DatabaseInstance } from './sqlite-runtime.js';
 import { chmodSync } from 'node:fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
@@ -180,7 +180,7 @@ export interface InitDbOptions {
  * This is the single entry point for obtaining a database handle.
  * Both server.ts and the CLI's direct-DB mode use this.
  */
-export function initDatabase(options: InitDbOptions = {}): Database.Database {
+export function initDatabase(options: InitDbOptions = {}): DatabaseInstance {
   const path = options.inMemory ? ':memory:' : resolveDbPath(options.dbPath);
   const db = new Database(path);
 
@@ -292,7 +292,7 @@ export function initDatabase(options: InitDbOptions = {}): Database.Database {
  * Cleanly close the database, checkpointing WAL to the main file.
  * Call during daemon shutdown to merge WAL pages back and truncate.
  */
-export function closeDatabase(db: Database.Database): void {
+export function closeDatabase(db: DatabaseInstance): void {
   try {
     db.pragma('wal_checkpoint(TRUNCATE)');
   } catch (err) {
