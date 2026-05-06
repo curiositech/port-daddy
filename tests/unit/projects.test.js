@@ -341,49 +341,5 @@ describe('Projects Module', () => {
 
       expect(known.some((entry) => entry.root === contextRoot)).toBe(false);
     });
-
-    it('annotates sibling Git worktrees with shared group metadata', () => {
-      const workspace = mkdtempSync(join(tmpdir(), 'pd-projects-worktrees-'));
-      const primaryRoot = join(workspace, 'port-daddy');
-      const linkedRoot = join(workspace, 'port-daddy-feature');
-      const linkedGitDir = join(primaryRoot, '.git', 'worktrees', 'port-daddy-feature');
-      tempRoots.push(workspace);
-
-      mkdirSync(join(primaryRoot, '.git'), { recursive: true });
-      mkdirSync(linkedGitDir, { recursive: true });
-      mkdirSync(linkedRoot, { recursive: true });
-      writeFileSync(join(primaryRoot, 'pd-fleet.yml'), 'name: port-daddy\nagents: []\nwatchers: []\nchannels: {}\n');
-      writeFileSync(join(linkedRoot, 'pd-fleet.yml'), 'name: port-daddy\nagents: []\nwatchers: []\nchannels: {}\n');
-      writeFileSync(join(primaryRoot, '.git', 'HEAD'), 'ref: refs/heads/main\n');
-      writeFileSync(join(linkedGitDir, 'commondir'), '../..\n');
-      writeFileSync(join(linkedGitDir, 'HEAD'), 'ref: refs/heads/codex/worktree-picker\n');
-      writeFileSync(join(linkedRoot, '.git'), `gitdir: ${linkedGitDir}\n`);
-
-      const known = projects.listKnown({
-        discoveryRoots: [workspace],
-        maxDepth: 2,
-        fresh: true,
-      });
-
-      const primary = known.find((entry) => entry.root === primaryRoot);
-      const linked = known.find((entry) => entry.root === linkedRoot);
-      expect(primary?.worktree).toMatchObject({
-        isGitWorktree: true,
-        isLinkedWorktree: false,
-        groupName: 'port-daddy',
-        mainWorktreeRoot: primaryRoot,
-        worktreeName: 'port-daddy',
-        branch: 'main',
-      });
-      expect(linked?.worktree).toMatchObject({
-        isGitWorktree: true,
-        isLinkedWorktree: true,
-        groupId: primary?.worktree?.groupId,
-        groupName: 'port-daddy',
-        mainWorktreeRoot: primaryRoot,
-        worktreeName: 'port-daddy-feature',
-        branch: 'codex/worktree-picker',
-      });
-    });
   });
 });

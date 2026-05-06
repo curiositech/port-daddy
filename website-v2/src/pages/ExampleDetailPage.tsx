@@ -166,7 +166,7 @@ export function ExampleDetailPage() {
               </PanelTitle>
               {example.commands.map((command) => (
                 <DocsNoteCard key={command.title} label="Command" title={command.title} tone="blue">
-                  <DocsCodeBlock code={command.command} output={command.output} language="cli" label={command.title} copyable={false} />
+                  <DocsCodeBlock code={command.command} language="cli" label={command.title} copyable={false} />
                   {command.notes?.length ? <PanelList items={command.notes} tone="primary" /> : null}
                 </DocsNoteCard>
               ))}

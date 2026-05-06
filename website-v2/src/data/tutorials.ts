@@ -214,7 +214,7 @@ export const TUTORIALS: Tutorial[] = [
     slug: 'pd-tube',
     number: '21',
     title: 'Pipe Agent Conversations',
-    description: 'Use PD Tube to send, read, reply, and resume channel conversations as clean JSON lines for scripts and agents.',
+    description: 'Use PD Tube to send, read, reply, and resume channel conversations as block-once handoffs or JSON lines.',
     level: 'intermediate',
     time: '9 min',
     tags: ['tube', 'messaging', 'control plane'],

@@ -13,22 +13,22 @@ import { FEATURED_EXAMPLE, SECONDARY_EXAMPLES } from '@/data/examples'
 
 export function ExamplesPage() {
   return (
-    <div className="min-h-screen min-w-0 overflow-x-clip bg-[var(--surface-base)] selection:bg-[var(--brand-primary)] selection:text-[var(--brand-primary-foreground)]">
-      <main id="main-content" className="mx-auto grid w-full min-w-0 max-w-[var(--layout-max-width-wide)] gap-[var(--space-6)] px-[var(--space-5)] py-[var(--space-6)] lg:px-[var(--space-6)]">
+    <div className="min-h-screen bg-[var(--surface-base)] selection:bg-[var(--brand-primary)] selection:text-[var(--brand-primary-foreground)]">
+      <main id="main-content" className="mx-auto grid w-full max-w-[var(--layout-max-width-wide)] gap-[var(--space-6)] px-[var(--space-5)] py-[var(--space-6)] lg:px-[var(--space-6)]">
         <DocsHero
           eyebrow="Examples"
-          title="Build tools that can reach your local agent."
-          summary="These are complete executable examples for the thing Port Daddy makes newly easy: a browser, test runner, editor command, or webhook can summon the agent session already running in your repo."
+          title="Executable local loops for agent products."
+          summary="These complete examples show the product surface Port Daddy unlocks: a browser, test runner, editor command, or webhook can hand structured work to the agent session already running in the repo."
           paragraphs={[
-            'PD Tube is the flagship primitive. It turns local events into a blocking CLI loop with threaded replies, so the publisher stays tiny and the agent runtime stays swappable.',
-            'Pick the tool you want to build, run the source in /examples, then copy the publisher shape into your editor extension, test reporter, browser page, bot adapter, or local control panel.',
+            'PD Tube is the flagship primitive. It turns local events into a blocking CLI loop with threaded replies, so publishers stay tiny and the agent runtime stays swappable.',
+            'Pick the tool you want to build, run the source in /examples, then copy the publisher shape into an editor extension, test reporter, browser page, bot adapter, or local control panel.',
           ]}
           aside={
             <div className="grid gap-[var(--panel-gap)]">
               <ExampleArtwork example={FEATURED_EXAMPLE} priority variant="hero" />
               <DocsNoteCard label="Start" title="Start with the phone line." elevation="quiet" padding="compact" titleSize="nav">
                 <PanelBody size="compact" className="max-w-none">
-                  If you only read one example, read PD Tube. It is the shape the other examples copy:
+                  If you only read one example, read PD Tube. It is the minimal shape an AI tooling team can copy:
                   publish one local event, let the agent act, then render the threaded reply.
                 </PanelBody>
                 <div className="flex flex-wrap gap-[var(--panel-gap-tight)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
@@ -91,7 +91,7 @@ export function ExamplesPage() {
             <DocsNoteCard label="Executable catalogue" title="Source-backed examples you can run today." elevation="quiet" padding="compact" titleSize="nav">
               <PanelBody size="compact" className="max-w-none">
                 These are executable source packages, not reference teasers. Each card opens a page with runnable
-                commands, full source files, and the product shape the code is meant to become.
+                commands, full source files, and the product shape an agent-facing tool can adopt.
               </PanelBody>
             </DocsNoteCard>
           </div>
@@ -127,7 +127,7 @@ export function ExamplesPage() {
                       {example.files.map((file) => (
                         <code
                           key={file}
-                          className="block min-w-0 max-w-full overflow-hidden break-all border border-[var(--border-default)] bg-[var(--surface-raised)] px-[var(--space-3)] py-[var(--space-2)] font-mono text-[length:var(--type-meta-size)] text-[var(--text-primary)] [overflow-wrap:anywhere]"
+                          className="!block min-w-0 break-all !whitespace-normal border border-[var(--border-default)] bg-[var(--surface-raised)] px-[var(--space-3)] py-[var(--space-2)] font-mono text-[length:var(--type-meta-size)] text-[var(--text-primary)]"
                         >
                           {file}
                         </code>

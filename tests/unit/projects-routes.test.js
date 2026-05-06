@@ -41,16 +41,6 @@ describe('projects routes', () => {
         signals: ['fleet'],
         sources: ['discovered'],
         exists: true,
-        worktree: {
-          isGitWorktree: true,
-          isLinkedWorktree: true,
-          groupId: '/repo/port-daddy/.git',
-          groupName: 'port-daddy',
-          mainWorktreeRoot: '/repo/port-daddy',
-          worktreeName: 'alpha',
-          branch: 'codex/alpha',
-          head: null,
-        },
       },
     ]);
 
@@ -99,11 +89,6 @@ describe('projects routes', () => {
       fleetConfigStatus: 'ready',
       budgetUsdPerDay: 5,
       operatorState: 'ready',
-      worktree: {
-        isLinkedWorktree: true,
-        groupName: 'port-daddy',
-        branch: 'codex/alpha',
-      },
     });
     expect(listKnown).toHaveBeenCalledWith(expect.objectContaining({
       serviceRoots: ['/repo/alpha/apps/api'],

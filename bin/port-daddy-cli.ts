@@ -105,11 +105,14 @@ import {
   handleActors,
   // Tube — relay-independent conversational pipe (Track B1)
   handleTube,
-  handleTubeChat,
   // Coordination Guard enforcement controls
   handleGuard,
   // Claim-aware git add wrapper
   handleAdd,
+  // Claim-watcher snapshot list/restore/prune
+  handleSnapshots,
+  // Shipwright — survey/propose/apply for fleet authoring
+  handleShipwright,
   // App-Native Development Cockpit
   handleCockpit,
 } from '../cli/commands/index.js';
@@ -118,6 +121,10 @@ import { calculateRuntimeCodeHash } from '../shared/code-hash.js';
 import { DEFAULT_SOCK as _DEFAULT_SOCK, DEFAULT_PORT_FILE as _DEFAULT_PORT_FILE } from '../shared/paths.js';
 import { shouldAutoRestartDaemonForFreshness, shouldCheckDaemonFreshness } from '../cli/utils/freshness.js';
 import { readCurrentContext } from '../cli/utils/current-context.js';
+import {
+  attachCliSessionWorktreePolicy,
+  resolveCliSessionWorktreePolicy,
+} from '../cli/utils/session-worktree-policy.js';
 
 const __dirname: string = dirname(fileURLToPath(import.meta.url));
 const PORT_DADDY_URL: string = getDaemonTcpUrl(process.env.PORT_DADDY_URL);
@@ -658,6 +665,7 @@ Commands:
     --agent <id>             Associate with an agent
     --force                  Force start even if another session is active
     --files <paths...>       Claim files at session start
+    --allow-main-worktree    Explicitly allow an integration session in the main worktree
 
   session end [note]         End the active session (completed)
   session done [note]        Alias for "session end"
@@ -676,9 +684,11 @@ Commands:
   note <content>             Quick note (auto-creates session if needed)
     --type <type>            Note type: progress, decision, blocker, etc.
 
-  notes [session-id]         View notes for a session or recent across all
+  notes [session-id]         View notes for a session or project-scoped recent notes
     --limit <n>              Limit number of notes
     --type <type>            Filter by note type
+    --project <slug>         Scope recent notes to one project
+    --all-projects           Intentional global recent-notes read
     -j, --json               Output as JSON
 
 Examples:
@@ -843,12 +853,6 @@ Commands:
     --dir <path>           Resolve declared logical channels for this worktree
     --raw-channel          Bypass logical-channel resolution and use the literal string
 
-  tube chat <channel>      Bridge tube messages to a spawned backend and reply in-thread
-    --backend <name>       Backend to spawn for each message (default: codex)
-    --tier <level>         Model tier shortcut (low, mid, high)
-    --budget <usd>         Required project budget ceiling for spawned replies
-    --once                 Process one poll pass, then exit
-
   wait <id> [ids...]       Wait for service(s) to become healthy
     --timeout <ms>         Wait timeout (default: 60000)
 
@@ -931,6 +935,7 @@ They manage agent registration, sessions, and local context together.
 Commands:
   begin "purpose"          Register agent + start session atomically
                            Writes context to .portdaddy/current.json
+    --allow-main-worktree  Explicitly allow an integration session in the main worktree
 
   done "summary"           End session + unregister agent atomically
                            Cleans up .portdaddy/current.json
@@ -1144,7 +1149,7 @@ const ALL_COMMANDS: string[] = [
   'advise', 'preflight', 'compass', 'guard',
   'salvage', 'resurrection', 'changelog', 'tunnel',
   'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
-  'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add',
+  'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'shipwright',
   'spawn', 'spawned', 'watch',
   'harbor', 'harbors', 'demo', 'fleet', 'tuple', 'sortie', 'graph', 'memory', 'ideas',
   'quorum',
@@ -1595,6 +1600,15 @@ async function executeDirectMode(
             if (!rest[i].startsWith('-')) files.push(rest[i]);
           }
           if (files.length > 0) startOpts.files = files;
+
+          const worktreePolicy = resolveCliSessionWorktreePolicy(options);
+          if (!worktreePolicy.success) {
+            ui.error(worktreePolicy.error || 'Session worktree policy failed');
+            if (worktreePolicy.hint) console.error(`  ${worktreePolicy.hint}`);
+            process.exit(1);
+          }
+          attachCliSessionWorktreePolicy(startOpts, worktreePolicy);
+          if (worktreePolicy.worktree) startOpts.worktreeId = worktreePolicy.worktree.id;
 
           const result = sess.start(purpose, startOpts as Parameters<typeof sess.start>[1]);
 
@@ -2132,11 +2146,7 @@ async function main(): Promise<void> {
 
       // Track B1: relay-independent conversational pipe.
       case 'tube':
-        if (positional[0] === 'chat') {
-          await handleTubeChat(positional[1], options);
-        } else {
-          await handleTube(positional[0], options);
-        }
+        await handleTube(positional[0], options);
         break;
 
       case 'wait':
@@ -2478,7 +2488,8 @@ async function main(): Promise<void> {
         // Launch MCP server (stdio transport for Claude Code / Desktop)
         const { spawn } = await import('node:child_process');
         const mcpPath = new URL('../mcp/server.ts', import.meta.url).pathname;
-        const child = spawn('npx', ['tsx', mcpPath], {
+        const tsxBin = join(__dirname, '..', 'node_modules', '.bin', 'tsx');
+        const child = spawn(process.execPath, [tsxBin, mcpPath], {
           stdio: 'inherit',
           env: {
             ...process.env,
@@ -2536,6 +2547,15 @@ async function main(): Promise<void> {
 
       case 'add':
         await handleAdd(positional, options);
+        break;
+
+      case 'snapshots':
+      case 'snapshot':
+        await handleSnapshots(positional, options);
+        break;
+
+      case 'shipwright':
+        await handleShipwright(positional[0], options);
         break;
 
       case 'cockpit':

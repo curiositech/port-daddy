@@ -50,9 +50,7 @@ export function SessionPhases() {
             {`pd session phase session-a1b2c3d4 in_progress
 pd session phase session-a1b2c3d4 testing
 pd session phase session-a1b2c3d4 reviewing
-SUCCESS: Session session-a1b2c3d4 phase -> in_progress
-SUCCESS: Session session-a1b2c3d4 phase -> testing
-SUCCESS: Session session-a1b2c3d4 phase -> reviewing`}
+# Expected result: the session timeline records each phase transition in order.`}
           </CodeBlock>
           <p>
             Keep the change paired with notes. A phase without a note tells the
@@ -73,10 +71,7 @@ pd session phase session-a1b2c3d4 testing
 
 pd note "Auth suite green. Ready for review."
 pd session phase session-a1b2c3d4 reviewing
-SUCCESS: Note added to session session-a1b2c3d4
-SUCCESS: Session session-a1b2c3d4 phase -> testing
-SUCCESS: Note added to session session-a1b2c3d4
-SUCCESS: Session session-a1b2c3d4 phase -> reviewing`}
+# Expected result: notes explain why the session moved to testing and then reviewing.`}
           </CodeBlock>
         </section>
 
@@ -91,10 +86,7 @@ SUCCESS: Session session-a1b2c3d4 phase -> reviewing`}
             {`pd salvage
 pd briefing
 pd whoami
-Recoverable work:
-  agent-99  phase=testing  session-a1b2c3d4
-SUCCESS: Briefing generated: .portdaddy/briefing.md
-Agent:    recovered-agent`}
+# Expected result: recovery surfaces show the previous phase before you decide the next action.`}
           </CodeBlock>
           <Surface depth="flat" radius="none" padding="lg">
             <p className="m-0">

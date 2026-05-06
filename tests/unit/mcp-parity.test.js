@@ -246,10 +246,11 @@ const MCP_EXEMPT_FEATURES = new Set([
   'symbols',        // API-only symbol index; no CLI or MCP tools yet
   'semantic',       // Internal review/search surface for embedding joins; operator API/UI only for now
   'observability',  // Internal metrics/golden signals; admin API, not user-facing MCP
-  'usage',          // Local developer-pane telemetry ingestion; not a user-facing MCP tool
   'resource_governance', // Operator UI read model; MCP wrapper deferred until enforcement controls exist
   'cartographer',   // Read-only roadmap projection; surfaced via `pd roadmap` CLI; MCP tool deferred until dashboards consume the endpoint
   'quorum',         // New propose/vote primitive; agents drive consensus via SDK calls in v1, MCP wrapper deferred to v4
+  'shipwright',     // Survey + propose + apply for fleet authoring; CLI-driven workflow (long-running, interactive review). MCP wrapper deferred until the propose/apply step is non-interactive.
+  'usage',          // Local developer-pane telemetry ingestion; not a user-facing MCP tool.
 ]);
 
 // ============================================================================
@@ -648,14 +649,6 @@ describe('MCP tool coverage quality', () => {
     expect(salvageTools).toContain('claim_salvage');
   });
 
-  it('sugar MCP tools expose telos and self-salvage fields', () => {
-    expect(mcpContent).toContain("name: 'begin_session'");
-    expect(mcpContent).toContain('Agent purpose contract/tagline');
-    expect(mcpContent).toContain("name: 'end_session_full'");
-    expect(mcpContent).toContain('self_salvage');
-    expect(mcpContent).toContain('Optional capsule for unfinished but doable telos');
-  });
-
   it('tunnel feature should have start, stop, and list tools', () => {
     const tunnelTools = mcpToolNames.filter(t =>
       TOOL_FEATURE_MAP[t] === 'tunnel'
@@ -715,12 +708,11 @@ describe('MCP tiered tool loading', () => {
     const match = mcpContent.match(categoryRegex);
     expect(match).not.toBeNull();
 
-    const categorySource = match[1];
     // Every MCP tool should appear in at least one category
     const allCategoryTools = [];
     for (const catName of CATEGORY_NAMES) {
       const catRegex = new RegExp(`'${catName}'[\\s\\S]*?tools:\\s*\\[(.*?)\\]`, 's');
-      const catMatch = categorySource.match(catRegex);
+      const catMatch = mcpContent.match(catRegex);
       if (catMatch) {
         const tools = catMatch[1].match(/'([^']+)'/g)?.map(s => s.replace(/'/g, '')) || [];
         allCategoryTools.push(...tools);

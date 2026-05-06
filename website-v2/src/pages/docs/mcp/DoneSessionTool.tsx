@@ -3,45 +3,27 @@ import { CommandPage } from '@/components/docs/CommandPage'
 export default function DoneSessionTool() {
   return (
     <CommandPage
-      command="end_session_full"
-      description="End the current session and unregister the agent. Marks completed by default, or records a self-salvage capsule when telos is unfinished but still doable."
-      version="3.11.0"
-      syntax="end_session_full(options?)"
+      command="done_session"
+      description="End the current session and unregister agent. Marks session as completed."
+      version="3.13.0"
+      syntax="done_session(options?)"
       flags={[
-        { flag: 'agent_id', description: 'Agent ID returned by begin_session' },
-        { flag: 'session_id', description: 'Explicit session ID (skips current lookup)' },
-        { flag: 'note', description: 'Final summary or handoff note' },
-        { flag: 'status', description: 'completed or abandoned' },
-        { flag: 'self_salvage', description: 'Recovery capsule with telos verdict, doable, why stopped, next plan, wisdom, evidence, and risk' },
+        { flag: 'session', description: 'Explicit session ID (skips current lookup)' },
+        { flag: 'summary', description: 'Final summary of work completed' },
       ]}
       usagePatterns={[
-        'end_session_full()',
-        'end_session_full({ note: "Fixed auth bug and added tests" })',
-        'end_session_full({ self_salvage: { telos_verdict: "partial", doable: "yes", next_plan: "run deploy smoke" } })',
+        'done_session()',
+        'done_session({ summary: "Fixed auth bug and added tests" })',
       ]}
       examples={[
         {
           description: 'End current session',
-          code: 'end_session_full()',
+          code: 'done_session()',
           output: `{\n  "session": "abc123",\n  "status": "completed",\n  "duration": "45m",\n  "notes": 5\n}`
         },
         {
-          description: 'Leave recoverable unfinished telos',
-          code: `end_session_full({
-  note: "Stopped before production smoke",
-  self_salvage: {
-    telos_verdict: "partial",
-    doable: "yes",
-    why_stopped: "stale daemon blocked live proof",
-    next_plan: ["promote daemon", "smoke /agents and /mcp"],
-    wisdom: "source truth is not operator truth until promotion succeeds"
-  }
-})`,
-          output: `{
-  "session": "abc123",
-  "status": "abandoned",
-  "selfSalvageQueued": true
-}`
+          description: 'End with summary',
+          code: 'done_session({ summary: "Fixed auth bug" })',
         },
       ]}
       seeAlso={[

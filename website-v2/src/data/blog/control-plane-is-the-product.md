@@ -59,15 +59,10 @@ Here is a minimal loop for a software engineer who wants help on a route handler
 <!-- terminal -->
 ```bash
 $ pd begin "Tighten billing route error handling" --identity web:billing
-SUCCESS: Agent Tighten billing route error handling ready
 $ pd session files add apps/web/src/routes/billing.ts
-Claimed 1 file(s)
 $ pd note "Intent: preserve API shape, add retry-safe validation, run route tests."
-SUCCESS: Note added to session session-tighten-billing-route-error-handling
 $ pd agent "Review the billing route for idempotency and missing test cases" --backend codex --model-tier low
-SUCCESS: Agent run completed with findings note
 $ pd guard check --staged
-PASS: Coordination Guard check passed
 ```
 
 This is not ceremony. Each command creates operational state:

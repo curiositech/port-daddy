@@ -15,6 +15,10 @@ Project-specific shibboleths for proficient Port Daddy work. If you learn a new 
   - prefer symbol/region claims for code edits when the symbol index knows the file; use whole-file claims only when the edit truly spans the file or no symbol/section identity exists
   - use `pd lock` / `pd with-lock` for scarce critical sections, generated artifacts, migrations, promotion, or other work that really must be exclusive
   - use tuples, inbox, pheromones, or other shared state when the task benefits from machine-readable coordination
+- New edit sessions should start from a linked Git worktree. `pd begin` and
+  `pd session start` refuse the main worktree by default; use
+  `--allow-main-worktree` only for explicit integration or release work where
+  the main checkout is the point.
 - Treat plain shell inspection without a Port Daddy session as insufficient for this repo unless you are doing truly trivial read-only work.
 - During active repo work, keep listening. Re-read live `pd notes`, `pd activity`, `pd sessions --all-worktrees`, and relevant file ownership before switching scope, before editing a contested surface, and after daemon/session restarts. A stale local plan is not coordination.
 - Before every commit, push, or deploy, fetch and reconcile against the canonical remote branch (`origin/main` for this repo) so you do not publish stale work over another agent's moved surface.
@@ -218,11 +222,3 @@ This rule has bitten us repeatedly when the daemon ran on a non-default port (CI
 - Oversized JSON requests over the Unix socket can surface client-side `EPIPE` / `ECONNRESET` before the daemon’s 413 body is readable. In integration tests, normalize that transport failure back into the daemon’s intended oversized-payload rejection instead of pretending the daemon accepted the body.
 - If fleet spawn counts are exploding, treat that as a budget-control bug. Check `singleton`, respawn policy, schedule/trigger churn, and project limits before allowing more agent launches.
 - `pd fleet run <agent>` now inherits `limits.budget_usd_per_day` as its launch ceiling. If it still fails, inspect the live active-agent cap and queue pressure before assuming the agent prompt or backend is broken.
-
-## Agent Telos Contract
-
-- Every Port Daddy agent must carry a telos: a concise purpose headline plus room for structured facets, hierarchy, current intent, and provenance.
-- Telos is not a decorative alias for `purpose`. `purpose` is the current task/session; `telos.headline` is why this agent exists in the fleet.
-- Creator-provided telos is preferred. Self-declared telos is allowed. Runtime-derived telos is only a compatibility fallback and must still be stored as a real `telos` object, not left implicit.
-- If an agent's purpose changes materially, update its telos through registration or heartbeat instead of letting operator surfaces show stale intent.
-- Fleet YAML agents must declare `telos:` explicitly. Keep `pd-fleet.yml`, starter templates, schema docs, CLI help, API docs, and the distributed skill aligned when the telos shape changes.

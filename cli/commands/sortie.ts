@@ -19,7 +19,6 @@ function usage(): never {
   console.error('  --dir <path>          Project directory (default: cwd)');
   console.error('  --recipe <name>       Mission recipe label');
   console.error('  --expected <text>     Expected output summary');
-  console.error('  --telos <text>        Purpose tagline/contract for the sortie agent');
   console.error('  --context <text>      Extra context / constraints');
   process.exit(1);
 }
@@ -150,7 +149,6 @@ export async function handleSortie(args: string[], options: CLIOptions): Promise
   if (typeof options.context === 'string') body.context = options.context;
   if (typeof options.identity === 'string') body.identity = options.identity;
   if (typeof options.purpose === 'string') body.purpose = options.purpose;
-  if (typeof options.telos === 'string') body.telos = options.telos;
   if (typeof options.allowedTools === 'string') body.allowedTools = options.allowedTools;
   if (options.timeout != null) body.timeout = parseInt(String(options.timeout), 10);
   if (options.maxTokens != null) body.maxTokens = parseInt(String(options.maxTokens), 10);

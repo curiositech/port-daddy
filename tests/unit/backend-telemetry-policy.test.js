@@ -54,38 +54,22 @@ describe('backend telemetry policy', () => {
     }));
   });
 
-  test('allows Cloudflare Workers AI only when the model has an exact rate entry', () => {
-    expect(
-      assessBackendTelemetryPolicy('cloudflare', '@cf/moonshotai/kimi-k2.6')
-    ).toEqual(expect.objectContaining({
-      backend: 'cloudflare',
-      launchAllowed: true,
-      effectiveModel: '@cf/moonshotai/kimi-k2.6',
-    }));
-
-    expect(
-      assessBackendTelemetryPolicy('cloudflare', '@cf/meta/unknown-model')
-    ).toEqual(expect.objectContaining({
-      backend: 'cloudflare',
-      launchAllowed: false,
-    }));
-  });
-
-  test('defaults Cloudflare to the current exact-rate low Workers AI model when none is supplied', () => {
-    const policy = assessBackendTelemetryPolicy('cloudflare');
-
-    expect(policy).toEqual(expect.objectContaining({
-      backend: 'cloudflare',
-      launchAllowed: true,
-      effectiveModel: '@cf/zai-org/glm-4.7-flash',
-    }));
-  });
-
   test('blocks opaque backends until exact telemetry exists', () => {
+    // Cloudflare is no longer opaque — `lib/cost-tracker.ts` now ships exact
+    // rates for Workers AI models and `lib/backend-telemetry-policy.ts` has
+    // an explicit cloudflare branch (default model
+    // `@cf/zai-org/glm-4.7-flash`). The remaining backends below still have
+    // no exact telemetry contract and stay blocked.
     for (const backend of ['claude-cli', 'gemini', 'ollama', 'aider', 'custom']) {
       const policy = assessBackendTelemetryPolicy(backend);
       expect(policy.launchAllowed).toBe(false);
       expect(policy.summary).toContain('blocked');
     }
+  });
+
+  test('allows Cloudflare when the model has an exact rate entry', () => {
+    const policy = assessBackendTelemetryPolicy('cloudflare');
+    expect(policy.launchAllowed).toBe(true);
+    expect(policy.effectiveModel).toBe('@cf/zai-org/glm-4.7-flash');
   });
 });

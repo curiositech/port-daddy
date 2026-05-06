@@ -6,7 +6,7 @@ export default function WithLock() {
       function="withLock"
       description="Run a function inside a lock. Acquires lock, runs function, releases lock — even if the function throws."
       module="Locks"
-      version="3.11.0"
+      version="3.13.0"
       signature="withLock<T>(name: string, fn: () => Promise<T>, options?: LockOptions): Promise<T>"
       params={[
         { name: 'name', type: 'string', required: true, description: 'Lock name' },

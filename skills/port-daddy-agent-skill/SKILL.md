@@ -48,7 +48,7 @@ agent loop for repo work on this machine.
 pd status
 pd briefing
 pd salvage --project <project> --limit 20
-pd begin "<bounded task>" --identity <project>:<agent> --telos "<why this agent exists>"
+pd begin "<bounded task>" --identity <project>:<agent>
 pd whoami
 pd advise <likely-path> --task "<plain-language task>"
 pd note "Scope: <files>. Assumptions: <truth>. Validation: <commands>."
@@ -56,9 +56,47 @@ pd session files add <path>
 # work, validate, and keep notes current
 pd note "Result: <change>. Validation: <evidence>. Remaining: <risk>."
 pd done "<short outcome>"
-# If telos is unfinished but another iteration can continue:
-pd done --self-salvage --telos-verdict not-fulfilled --doable yes --why-stopped "<why>" --next-plan "<next concrete move>"
 ```
+
+## Telos vs Purpose
+
+Every Port Daddy agent carries a **telos** alongside its **purpose**.
+They look similar in `pd whoami` output, but they are not the same field
+and should not drift together.
+
+| Field | Meaning | Lifetime |
+|---|---|---|
+| `purpose` | The current task this session is doing. | Per-session. Resets when you `pd done` and `pd begin` again. |
+| `telos`   | Why this agent exists in the fleet — the durable role headline. | Long-lived. Survives across sessions, salvages, and respawns. |
+
+`pd begin "<purpose>"` sets the purpose. By default the telos defaults to
+the same string for compatibility, but creator-provided telos is preferred:
+fleet YAML, spawn calls, and registration paths can declare a richer telos
+object explicitly, and `pd whoami` will show that string instead.
+
+When to update each:
+
+- **Per task** — change `purpose` via a fresh `pd begin` (or `pd done` then
+  `pd begin`). Don't reuse a session whose purpose has materially shifted.
+- **When the agent's role changes** — update `telos` through registration
+  or heartbeat. Don't let operator surfaces (FleetBar, Fleet Control Center,
+  briefings) show a stale role headline. A runtime-derived fallback telos
+  is allowed only as compatibility — bake a real telos in as soon as you
+  know the role.
+
+Practical rules:
+
+- If you spawn fleet agents in `pd-fleet.yml`, declare `telos:` on each
+  agent explicitly. Keep starter templates, schema docs, CLI help, API
+  docs, and this skill aligned when the telos shape changes.
+- If you can choose only one to make accurate, make telos accurate.
+  Operator surfaces use it for the human-readable "what does this agent
+  do" answer.
+- When handing off, mention both telos and purpose in your `pd note` if
+  they differ — the next agent inherits identity but may need to set a
+  new purpose for its own slice.
+
+## Reconciling Before Publishing
 
 Fetch and reconcile before publishing:
 
@@ -75,30 +113,10 @@ pd guard check --staged
 | Situation | Move |
 |---|---|
 | You will edit files | Start a session, leave a scope note, and claim the smallest real files or regions. |
-| You start or register an agent | Give it a telos. Use `--telos` for the purpose tagline; use `purpose` for the current task. |
-| Your telos is unfinished but still doable | Use `pd done --self-salvage` with why, next plan, wisdom, evidence, and risk. |
 | The live daemon looks stale | Verify daemon provenance before trusting docs, source, or memory. |
 | Another session may overlap | Read notes, claims, activity, and ownership before changing the surface. |
 | Work was interrupted | Use salvage and preserve the abandoned intent. |
 | You are about to commit, push, or deploy | Fetch, reconcile, re-read live coordination state, stage narrowly, and run the guard. |
-| You are promoting a daemon | Bump the version first. Patch for runtime fixes, minor for user-visible capabilities, v4 only for breaking lines. |
-| You need adoption evidence | Use Fleet Console → Developer to inspect usage by CLI/SDK/MCP/UI, agent type, model, tokens, turns, tool calls, and cost scope. |
-
-## Agent Nomenclature And Telos
-
-Use the coordination names for addressability and the telos for judgment.
-
-| Field | Decides | Rule |
-|---|---|---|
-| `agentId` | Stable machine address | Immutable enough for routes, notes, claims, heartbeats, and salvage. |
-| `name` | Human display handle | Short and readable; it helps operators scan the fleet. |
-| `purpose` | Current work slice | What this session is doing right now. It may be narrow and temporary. |
-| `telos` | Purpose contract | Why the agent exists and how it should judge done-ness. It can be creator-provided or self-declared, and may be structured. |
-| `selfSalvage` | Recovery judgment | The agent's final claim that telos was not fulfilled, but a next iteration can continue from evidence. |
-
-Do not let telos overwrite identity. A telos can evolve or become plural; the
-agent ID remains the address, the name remains the display handle, and the
-purpose remains the current slice.
 
 ## Advanced Surfaces
 
@@ -111,25 +129,6 @@ Use these only when the task actually needs them:
 - Locks for scarce resources such as promotion, generated artifacts,
   migrations, and release packaging.
 - FleetBar and Fleet Control Center for operator-visible truth.
-- The Fleet Console Developer pane for local usage telemetry: call counts,
-  capability gaps, model/backend slices, and Port Daddy-call cost versus
-  spawned-agent work cost.
-
-## Bundled Decision Trees, Examples, and Sub-agent Patterns
-
-Load on demand when a vague situation needs to become a concrete action:
-
-- `decisions/` — branching trees: `something-broke.md`, `before-publish.md`,
-  `who-do-i-message.md`, `should-i-fork-subagent.md`, `skip-coordination-when.md`.
-- `examples/` — postmortems for the failure modes that bite hardest:
-  `08-launchd-respawn-window.md`, `09-better-sqlite3-abi-rebuild.md`,
-  `10-walked-into-anothers-rebase.md`, `11-briefing-first-even-for-diagnostics.md`.
-- `subagent-fork/` — parent→child fork patterns: when to fork, partition by
-  symbol, handoff checklist, rejoin protocol.
-- `agents/` — fleet personas: `salvage-watcher.yaml`, `lookout.yaml`,
-  `freshness-prober.yaml`, `subagent-fork-template.yaml`. Spawn via `pd spawn`.
-- `scripts/prologue/` — pre-action snapshots: `pd-context.sh`, `git-state.sh`,
-  `live-fleet.sh`. Run before any non-trivial task; parse the JSON output.
 
 ## CLI Documentation Contract
 
@@ -143,7 +142,7 @@ High-frequency commands:
 ```bash
 pd status
 pd briefing
-pd begin "<purpose>" --identity <project>:<agent> --telos "<why this agent exists>"
+pd begin "<purpose>" --identity <project>:<agent>
 pd note "Scope: <files>"
 pd session files add <path>
 pd add --dry-run -A
@@ -151,7 +150,6 @@ pd guard check --staged
 pd tube <channel> --send "message"
 pd actor lookout --message "release surface drift fixed"
 pd done "<summary>"
-pd done --self-salvage --telos-verdict partial --doable yes --why-stopped "<blocker>" --next-plan "<continuation>"
 ```
 
 Load `references/cli-reference.md` when you need the broader command families,
@@ -224,8 +222,6 @@ pd notes --limit 20
 pd guard check --staged
 pd note "Result: <change>. Validation: <evidence>. Remaining: <risk>."
 pd done "<short outcome>"
-# If honest completion is impossible but recovery is possible:
-pd done --self-salvage --telos-verdict not-fulfilled --doable yes --why-stopped "<blocker>" --next-plan "<continuation>"
 ```
 
 The loop is not ceremony. It solves the actual failures that ruin multi-agent
@@ -240,12 +236,10 @@ ambiguous handoffs, and local green checks that do not match the installed app.
 | Another session may overlap | Read notes/activity/claims, then route around or publish a coordination inconsistency. |
 | The daemon or FleetBar looks wrong | Verify live process, socket, TCP URL, install root, and Fleet Control Center evidence. |
 | Work was interrupted | Use salvage before restarting. Preserve the original intent when claiming. |
-| You are the interrupted work | Use self-salvage at `pd done` time so the next agent gets your plan, wisdom, evidence, and risk. |
 | A fact should be machine-queryable | Emit a tuple or schema-shaped handoff, not prose only. |
 | A scarce resource is involved | Use a lock for promotion, migrations, generated assets, or release packaging. |
 | A release surface changed | Update docs, README, website, skill, and package/export metadata in the same coherent slice. |
-| A daemon will be promoted | Increase the version first; `scripts/promote-stable.sh` blocks unchanged or older versions. |
-| You are about to commit, push, or deploy | Fetch the canonical remote branch, rebase/merge current work onto it, re-read live sessions/notes/activity, and run `pd guard check --staged`. Do not publish stale-base work. |
+| You are about to commit, push, or deploy | Fetch the canonical remote branch, rebase/merge current work onto it, re-read live sessions/notes/activity, stage through `pd add --dry-run -A` then `pd add -A`, and run `pd guard check --staged`. Do not publish stale-base work. |
 
 ## Procedural Cues
 
@@ -267,9 +261,6 @@ ambiguous handoffs, and local green checks that do not match the installed app.
 - If Coordination Guard is absent or only advisory in a repo that expects
   enforced claims, run `pd guard install --mode enforce` or leave an explicit
   blocker note with the exact failure.
-- If you touch daemon behavior, CLI/SDK/MCP surfaces, or Fleet Console
-  workflows, preserve usage telemetry so Port Daddy can answer what agents
-  actually use and what costs money.
 
 ## FleetBar And Console Proof
 
@@ -315,7 +306,7 @@ pd briefing                              # what's happening across the fleet
 pd salvage --project <project>           # recover dead-agent intent
 
 # Sessions & coordination
-pd begin "<task>" --identity <project>:<stack>:<context> --telos "<why this agent exists>"
+pd begin "<task>" --identity <project>:<stack>:<context>
 pd note "Scope: ..."                     # durable progress evidence
 pd session files add <path>              # claim a file region
 pd done "<outcome>"                      # close + leave result note

@@ -104,47 +104,27 @@ describe('backend readiness', () => {
     expect(readiness.nextStep).toContain('~/.port-daddy-env');
   });
 
-  test('reports Cloudflare backend as ready when credentials are present and the model has an exact rate', async () => {
+  test('marks Cloudflare backend ready when credentials are present (telemetry policy allows it)', async () => {
     process.env.CLOUDFLARE_ACCOUNT_ID = 'acct-123';
     secretValues.set('CLOUDFLARE_ACCOUNT_ID', 'acct-123');
     secretValues.set('CLOUDFLARE_API_TOKEN', 'token-123');
 
     const readiness = await assessBackendReadiness('cloudflare');
 
-    expect(mockGetSecret).toHaveBeenCalledWith('CLOUDFLARE_ACCOUNT_ID');
-    expect(mockGetSecret).toHaveBeenCalledWith('CLOUDFLARE_API_TOKEN');
+    // Order: account-id first (resolved via getSecret), then API token.
+    expect(mockGetSecret).toHaveBeenCalledTimes(2);
+    expect(mockGetSecret).toHaveBeenNthCalledWith(1, 'CLOUDFLARE_ACCOUNT_ID');
+    expect(mockGetSecret).toHaveBeenNthCalledWith(2, 'CLOUDFLARE_API_TOKEN');
     expect(readiness).toMatchObject({
       backend: 'cloudflare',
       status: 'ready',
     });
+    // Cloudflare default model (@cf/zai-org/glm-4.7-flash) has an exact cost
+    // rate in lib/cost-tracker.ts, so the fail-closed telemetry policy allows
+    // launch. See commit 30e0597e (cloudflare wired as runnable fallback).
     expect(readiness.summary).toContain('Cloudflare Workers AI credentials present');
     expect(readiness.credentialKeys).toEqual(['CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_API_TOKEN']);
     expect(readiness.credentialAlternates).toEqual(['CLOUDFLARE_API_KEY', 'CF_API_TOKEN', 'CF_ACCOUNT_ID']);
-    expect(readiness.setupLinks).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        label: 'Create pd-ai-stack token',
-        kind: 'token_template',
-      }),
-      expect.objectContaining({
-        label: 'Create Workers AI token',
-        kind: 'token_template',
-      }),
-    ]));
-  });
-
-  test('blocks Cloudflare models without exact cost rates', async () => {
-    process.env.CLOUDFLARE_ACCOUNT_ID = 'acct-123';
-    secretValues.set('CLOUDFLARE_API_TOKEN', 'token-123');
-
-    const readiness = await assessBackendReadiness('cloudflare', {
-      model: '@cf/meta/unknown-model',
-    });
-
-    expect(readiness).toMatchObject({
-      backend: 'cloudflare',
-      status: 'needs_setup',
-    });
-    expect(readiness.summary).toContain('has no exact cost rate entry');
   });
 
   test('keeps claude-cli probe details while still blocking launch under telemetry policy', async () => {

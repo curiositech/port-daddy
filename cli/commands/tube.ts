@@ -15,12 +15,10 @@
  *   pd tube <channel> --send <body>            # inline top-level body
  *   pd tube <channel> --no-history             # listen without touching the cursor
  *   pd tube <channel> --limit=N                # initial backfill cap (default 50)
- *   pd tube chat <channel> --backend=codex     # spawn a backend per top-level msg
  *
- * In listen mode each emitted message is one JSON line on stdout
- * (`{ id, sender, createdAt, body, inReplyTo? }`) — easy to pipe into jq,
- * grep, websocat, or another `pd tube` instance. Errors and status notes go
- * to stderr; stdout stays a clean data pipe.
+ * In listen mode the default output is a prose crank-handle block: one event,
+ * how to reply, then exit so an agent's shell tool yields. Use `--json` for
+ * JSON lines and `--raw` for tab-separated output.
  *
  * The command works against the daemon's existing `/msg/:channel`
  * surface; nothing else is required and the relay is not assumed.
@@ -37,7 +35,6 @@ import {
   listen,
   readHistory,
   reply,
-  safeChannelSlug,
   send,
   synthesizeSender,
   type HistoryStore,
@@ -46,20 +43,6 @@ import {
   type TubeClient,
   type TubeMessage,
 } from '../../lib/tube.js';
-
-export interface TubeSpawnRequest {
-  backend: string;
-  model?: string;
-  modelTier?: string;
-  budgetUsd: number;
-  identity: string;
-  purpose: string;
-  task: string;
-}
-
-export interface TubeSpawnClient {
-  spawn(request: TubeSpawnRequest): Promise<{ ok: true; output: string; agentId?: string } | { ok: false; error: string }>;
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Daemon client (HTTP shim over pdFetch)
@@ -93,37 +76,6 @@ export function createDaemonTubeClient(physicalChannel: () => string): TubeClien
       const data = (await res.json()) as { messages?: RawDaemonMessage[]; error?: string };
       if (!res.ok) return { ok: false, messages: [], error: data.error || `HTTP ${res.status}` };
       return { ok: true, messages: Array.isArray(data.messages) ? data.messages : [] };
-    },
-  };
-}
-
-export function createDaemonTubeSpawnClient(): TubeSpawnClient {
-  return {
-    async spawn(request) {
-      const body: Record<string, unknown> = {
-        backend: request.backend,
-        budgetUsd: request.budgetUsd,
-        identity: request.identity,
-        purpose: request.purpose,
-        task: request.task,
-      };
-      if (request.model) body.model = request.model;
-      if (request.modelTier) body.modelTier = request.modelTier;
-
-      const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/spawn`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      const data = (await res.json()) as {
-        agentId?: string;
-        output?: string;
-        error?: string;
-      };
-      if (!res.ok || data.error) {
-        return { ok: false, error: data.error || `HTTP ${res.status}` };
-      }
-      return { ok: true, output: typeof data.output === 'string' ? data.output : '', agentId: data.agentId };
     },
   };
 }
@@ -264,8 +216,6 @@ export interface TubeHandlerDeps {
   history?: HistoryStore;
   /** Override for tests — defaults to a daemon-backed HTTP client. */
   client?: TubeClient;
-  /** Override for tube chat tests — defaults to the daemon /spawn route. */
-  spawnClient?: TubeSpawnClient;
   /** Override for tests — defaults to process.stdin. */
   stdin?: NodeJS.ReadableStream & { isTTY?: boolean };
   /** Used to make once-mode listen sleep injectable. */
@@ -290,147 +240,6 @@ function parseNumberOption(raw: unknown, label: string): number {
   return n;
 }
 
-function parsePositiveBudget(raw: unknown): number | null {
-  const budget = typeof raw === 'number' ? raw : parseFloat(String(raw ?? ''));
-  return Number.isFinite(budget) && budget > 0 ? budget : null;
-}
-
-function defaultTubeChatIdentity(channel: string): string {
-  const project = process.cwd().split(/[\\/]/).filter(Boolean).pop() || 'project';
-  return `${project}:tube-chat:${safeChannelSlug(channel)}`;
-}
-
-function tubeChatTask(channel: string, msg: TubeMessage, promptPrefix?: string): string {
-  const prefix = promptPrefix?.trim() || 'Reply to this Port Daddy tube message. Keep the answer concise and directly useful.';
-  return [
-    prefix,
-    '',
-    `Channel: ${channel}`,
-    `Message id: ${msg.id}`,
-    msg.sender ? `Sender: ${msg.sender}` : 'Sender: unknown',
-    '',
-    msg.body,
-  ].join('\n');
-}
-
-async function processTubeChatMessages(
-  requestedChannel: string,
-  physicalChannel: string,
-  messages: TubeMessage[],
-  options: CLIOptions,
-  deps: Required<Pick<TubeHandlerDeps, 'client' | 'spawnClient'>>,
-): Promise<number> {
-  const sender = ((options.sender as string) || (options.as as string) || 'pd-tube-chat').trim();
-  const backend = ((options.backend as string) || 'codex').trim();
-  const budgetUsd = parsePositiveBudget(options.budget);
-  if (!budgetUsd) {
-    throw new Error('tube chat: --budget <usd> is required and must be positive');
-  }
-  const identity = ((options.identity as string) || defaultTubeChatIdentity(requestedChannel)).trim();
-  const model = typeof options.model === 'string' ? options.model : undefined;
-  const modelTier = typeof options.tier === 'string'
-    ? options.tier
-    : typeof options.modelTier === 'string'
-      ? options.modelTier
-      : undefined;
-  const promptPrefix = typeof options.prompt === 'string' ? options.prompt : undefined;
-
-  let processed = 0;
-  for (const msg of messages) {
-    if (msg.sender === sender) continue;
-    if (msg.inReplyTo !== undefined && !options['include-replies']) continue;
-
-    const spawned = await deps.spawnClient.spawn({
-      backend,
-      model,
-      modelTier,
-      budgetUsd,
-      identity,
-      purpose: `pd tube chat reply for ${requestedChannel}#${msg.id}`,
-      task: tubeChatTask(requestedChannel, msg, promptPrefix),
-    });
-
-    const body = spawned.ok
-      ? spawned.output.trim() || `(agent ${spawned.agentId || 'unknown'} completed with no text output)`
-      : `pd tube chat spawn failed: ${spawned.error}`;
-    await reply(physicalChannel, msg.id, body, deps.client, { sender });
-    processed++;
-  }
-  return processed;
-}
-
-export async function handleTubeChat(channel: string | undefined, options: CLIOptions, deps: TubeHandlerDeps = {}): Promise<void> {
-  if (!channel) {
-    ui.error('Usage: pd tube chat <channel> --backend <backend> --tier <low|mid|high> --budget <usd> [--once]');
-    process.exit(1);
-  }
-  const requestedChannel = channel;
-
-  let resolved;
-  try {
-    resolved = await resolveDeclaredChannel(channel, options);
-  } catch (error) {
-    ui.error((error as Error).message);
-    process.exit(1);
-    return;
-  }
-
-  const json = isJson(options);
-  const quiet = isQuiet(options);
-  const physical = resolved.physicalChannel;
-  const client = deps.client ?? createDaemonTubeClient(() => physical);
-  const spawnClient = deps.spawnClient ?? createDaemonTubeSpawnClient();
-  const history = deps.history ?? createFileHistoryStore();
-  const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
-  const since = options.since !== undefined ? parseNumberOption(options.since, '--since') : undefined;
-  const limit = options.limit !== undefined ? parseNumberOption(options.limit, '--limit') : undefined;
-  const disableHistory = !!options['no-history'];
-  const once = !!options.once;
-
-  if (!quiet && !json) {
-    ui.info(`tube chat listening on ${formatResolvedChannel(resolved)}`);
-  }
-
-  async function pass(currentSince?: number): Promise<{ processed: number; seen: number }> {
-    const res = await listen(physical, client, history, { since: currentSince, limit, disableHistory });
-    const processed = await processTubeChatMessages(requestedChannel, physical, res.messages, options, { client, spawnClient });
-    return { processed, seen: res.messages.length };
-  }
-
-  if (once) {
-    try {
-      const res = await pass(since);
-      if (json) console.log(JSON.stringify({ ok: true, channel: physical, ...res }));
-      else if (!quiet) ui.success(`tube chat: processed ${res.processed}/${res.seen} message(s)`);
-      return;
-    } catch (e) {
-      ui.error((e as Error).message);
-      process.exit(1);
-      return;
-    }
-  }
-
-  let firstPass = true;
-  let interval = DEFAULT_POLL_INTERVAL_MS;
-  let stopped = false;
-  const stop = () => { stopped = true; };
-  process.once('SIGINT', stop);
-  process.once('SIGTERM', stop);
-
-  while (!stopped) {
-    try {
-      const res = await pass(firstPass ? since : undefined);
-      firstPass = false;
-      interval = res.seen > 0 ? DEFAULT_POLL_INTERVAL_MS : Math.min(MAX_POLL_INTERVAL_MS, Math.floor(interval * 1.5));
-    } catch (e) {
-      ui.error((e as Error).message);
-      interval = Math.min(MAX_POLL_INTERVAL_MS, Math.floor(interval * 2));
-    }
-    if (stopped) break;
-    await sleep(interval);
-  }
-}
-
 /**
  * `pd tube` entry point.
  *
@@ -446,7 +255,7 @@ export async function handleTubeChat(channel: string | undefined, options: CLIOp
  */
 export async function handleTube(channel: string | undefined, options: CLIOptions, deps: TubeHandlerDeps = {}): Promise<void> {
   if (!channel) {
-    ui.error('Usage: pd tube <channel> [--reply <body> [--reply-to=<id>] | --reply-to=<id> < body | --send <body> | --send | --once | --raw | --json | --no-history]');
+    ui.error('Usage: pd tube <channel> [--reply <body> [--reply-to=<id>] | --reply-to=<id> < body | --send <body> | --send | --once | --tail | --wait-for=<seconds> | --raw | --json | --no-history]');
     process.exit(1);
   }
 

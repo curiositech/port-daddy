@@ -39,12 +39,12 @@ const productPrimitiveBullets = PRODUCT_FEATURES.map(
 export const docsOverviewRoute: DocsFamilyRoute = {
   slug: 'overview',
   title: 'Docs Overview',
-  summary: 'Start here, learn what Port Daddy does, install it, then jump to runnable examples or reference.',
+  summary: 'Start here to evaluate Port Daddy as a local control plane for coding agents, then jump to runnable examples or reference.',
   tone: 'paper',
   path: '/docs',
   aliases: ['docs', 'overview'],
   intro: [
-    'New to Port Daddy? These docs explain the local app, the daemon behind it, and the workflows it gives AI coding agents.',
+    'New to Port Daddy? These docs explain the local app, the daemon behind it, and the shared-state workflows it gives AI coding agents.',
   ],
   modules: [
     {
@@ -101,12 +101,12 @@ export const docsFamilyRoutes: DocsFamilyRoute[] = [
   {
     slug: 'concepts',
     title: 'Concepts',
-    summary: 'Learn the ideas behind sessions, notes, file claims, locks, ports, fleets, and recovery.',
+    summary: 'Learn the ideas behind shared state: sessions, notes, file claims, locks, channels, fleets, readiness, and recovery.',
     tone: 'paper',
     path: '/docs/concepts',
     aliases: ['concepts'],
     intro: [
-      'Port Daddy exists to keep multi-agent work visible and controllable once more than one agent is touching the same repo or machine.',
+      'Port Daddy exists to keep coding-agent work visible and controllable once more than one model, process, or tool is touching the same repo.',
     ],
     modules: [
       {
@@ -135,12 +135,12 @@ export const docsFamilyRoutes: DocsFamilyRoute[] = [
   {
     slug: 'best-practices',
     title: 'Best Practices',
-    summary: 'Keep agent work visible, avoid collisions, recover interrupted runs, and promote changes safely.',
+    summary: 'Keep agent work visible, avoid collisions, recover interrupted runs, and promote changes with evidence.',
     tone: 'accent',
     path: '/docs/best-practices',
     aliases: ['best-practices', 'operations'],
     intro: [
-      'This section is about day-to-day habits: check what is running, leave useful notes, claim risky work, and verify what users will actually open.',
+      'This section is about day-to-day operator habits: check what is running, leave useful notes, claim risky work, and verify the user-facing surface that will actually ship.',
     ],
     modules: [
       {
@@ -175,12 +175,12 @@ export const docsFamilyRoutes: DocsFamilyRoute[] = [
   {
     slug: 'tutorials',
     title: 'Tutorials',
-    summary: 'Step-by-step walkthroughs that take you from install to useful agent workflows.',
+    summary: 'Step-by-step walkthroughs that take you from install to real shared-state agent workflows.',
     tone: 'accent',
     path: '/docs/tutorials',
     aliases: ['tutorials', 'guides'],
     intro: [
-      'Tutorials are hands-on. They help you install Port Daddy, coordinate real work, and recover when an agent run stops.',
+      'Tutorials are hands-on. They help you install Port Daddy, coordinate real work, inspect the control plane, and recover when an agent run stops.',
     ],
     modules: [
       {
@@ -223,12 +223,12 @@ export const docsFamilyRoutes: DocsFamilyRoute[] = [
   {
     slug: 'reference-architectures',
     title: 'Reference Architectures',
-    summary: 'Example layouts for the daemon, dashboard, fleets, harbors, and team workflows.',
+    summary: 'Example layouts for the local daemon, Fleet Control Center, fleets, harbors, and agent-team workflows.',
     tone: 'paper',
     path: '/docs/reference-architectures',
     aliases: ['reference-architectures', 'architecture'],
     intro: [
-      'These pages show how the moving pieces fit together when a team wants more than a single local install.',
+      'These pages show how the moving pieces fit together when an AI tooling team wants more than a single local prompt loop.',
     ],
     modules: [
       {
@@ -262,12 +262,12 @@ export const docsFamilyRoutes: DocsFamilyRoute[] = [
   {
     slug: 'reference',
     title: 'Reference',
-    summary: 'CLI, API, SDK, MCP, configuration, and dashboard reference for the live daemon.',
+    summary: 'CLI, API, SDK, MCP, configuration, and dashboard reference for the live shared-state daemon.',
     tone: 'paper',
     path: '/docs/reference',
     aliases: ['reference'],
     intro: [
-      'Reference pages should get you to the exact command, endpoint, tool, or configuration field quickly.',
+      'Reference pages should get engineers to the exact command, endpoint, tool, or configuration field quickly.',
     ],
     modules: [
       {

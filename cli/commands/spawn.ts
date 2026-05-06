@@ -4,7 +4,6 @@
  * Handles: spawn, spawned, watch
  */
 
-import { createHash } from 'node:crypto';
 import { pdFetch } from '../utils/fetch.js';
 import { createWatch } from '../../lib/watch.js';
 import { CLIOptions, isQuiet, isJson } from '../types.js';
@@ -22,30 +21,6 @@ function parseBudgetValue(value: unknown): number | undefined {
   if (typeof value === 'string' && value.trim()) {
     const parsed = parseFloat(value);
     if (Number.isFinite(parsed)) return parsed;
-  }
-  return undefined;
-}
-
-function stableJson(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
-  if (value && typeof value === 'object') {
-    const record = value as Record<string, unknown>;
-    return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${stableJson(record[key])}`).join(',')}}`;
-  }
-  return JSON.stringify(value);
-}
-
-function spawnIdempotencyKey(body: Record<string, unknown>, cwd: string): string {
-  return createHash('sha256')
-    .update(stableJson({ v: 1, cwd, body }))
-    .digest('hex')
-    .slice(0, 32);
-}
-
-function stringOption(options: CLIOptions, ...names: string[]): string | undefined {
-  for (const name of names) {
-    const value = options[name];
-    if (typeof value === 'string' && value.trim()) return value.trim();
   }
   return undefined;
 }
@@ -68,6 +43,7 @@ export async function handleSpawn(
 
     const res: PdFetchResponse = await pdFetch(`/spawn/${encodeURIComponent(agentId)}`, {
       method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
     });
 
     const data = await res.json();
@@ -121,7 +97,6 @@ export async function handleSpawn(
     console.error('  --tier <level>        Model tier override (low, mid, high)');
     console.error('  --identity <id>       PD semantic identity (project:stack:context)');
     console.error('  --purpose <text>      Human-readable task description');
-    console.error('  --telos <text>        Purpose tagline/contract for this agent');
     console.error('  --budget <usd>        Required spend ceiling for this launch');
     console.error('  --allowedTools <str>  Tool permissions for claude-cli backend');
     console.error('  --maxTokens <n>       Max tokens for claude/claude-cli backends');
@@ -156,7 +131,6 @@ export async function handleSpawn(
   if (options.model) body.model = options.model;
   if (typeof options.tier === 'string') body.modelTier = options.tier;
   if (options.purpose) body.purpose = options.purpose;
-  if (options.telos) body.telos = options.telos;
 
   // Aider: collect --files from options
   if (options.files) {
@@ -172,19 +146,13 @@ export async function handleSpawn(
   if (options.allowedTools) body.allowedTools = options.allowedTools;
   if (options.maxTokens) body.maxTokens = parseInt(options.maxTokens as string, 10);
 
-  body.idempotencyKey = stringOption(options, 'idempotency-key', 'idempotencyKey', 'request-id', 'requestId')
-    || spawnIdempotencyKey(body, process.cwd());
-
   if (IS_TTY && !isQuiet(options) && !isJson(options)) {
     ui.info(`Spawning ${backend} agent...`);
   }
 
   const res: PdFetchResponse = await pdFetch('/spawn', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Idempotency-Key': String(body.idempotencyKey),
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
 
@@ -221,10 +189,6 @@ export async function handleSpawn(
   console.error(`  Backend: ${data.backend as string}`);
   if (data.model) console.error(`  Model: ${data.model as string}`);
   if (data.identity) console.error(`  Identity: ${data.identity as string}`);
-  if (data.telosHeadline || (data.telos && typeof data.telos === 'object' && 'headline' in data.telos)) {
-    const telosHeadline = data.telosHeadline || (data.telos as { headline?: string }).headline;
-    if (telosHeadline) console.error(`  Telos: ${telosHeadline}`);
-  }
   if (data.completedAt && data.startedAt) {
     const duration = (data.completedAt as number) - (data.startedAt as number);
     console.error(`  Duration: ${relativeTime(duration)}`);

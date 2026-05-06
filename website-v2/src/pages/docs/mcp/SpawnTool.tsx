@@ -5,7 +5,7 @@ export default function SpawnTool() {
     <CommandPage
       command="spawn_agent"
       description="Launch a one-shot Port Daddy-managed agent from MCP. The tool requires an explicit semantic identity and a positive budget ceiling, then routes the request through daemon preflight before execution."
-      version="3.11.0"
+      version="3.13.0"
       syntax="spawn_agent({ task, identity, budget_usd, ...optionalFields })"
       flags={[
         { flag: 'task', description: 'Required task or prompt text.' },

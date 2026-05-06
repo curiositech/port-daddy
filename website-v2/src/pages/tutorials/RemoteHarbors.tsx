@@ -102,9 +102,10 @@ export function RemoteHarbors() {
 $ pd harbor discover --lighthouse global.portdaddy.dev \\
     --invite pd-inv-7f3a-9921
 
-Identity Verified.
-Linked to remote harbor: gpu-swarm-01
-Latency: 42ms (Secure P2P)`}
+# Expected output (v4):
+# ✓ Identity Verified.
+# ✓ Linked to remote harbor: gpu-swarm-01
+# ✓ Latency: 42ms (Secure P2P)`}
           </CodeBlock>
 
           <p

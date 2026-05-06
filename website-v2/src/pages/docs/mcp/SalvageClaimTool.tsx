@@ -5,7 +5,7 @@ export default function SalvageClaimTool() {
     <CommandPage
       command="salvage_claim"
       description="Claim a dead agent's work. Returns the full context: session ID, notes, file claims, and purpose."
-      version="3.11.0"
+      version="3.13.0"
       syntax="salvage_claim(agent_id)"
       flags={[
         { flag: 'agent_id', description: 'ID of the dead agent to claim' },

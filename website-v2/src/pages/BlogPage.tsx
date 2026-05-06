@@ -6,8 +6,8 @@ import { Footer } from '@/components/layout/Footer'
 const focusLanes = [
   {
     icon: Activity,
-    title: 'Operator truth',
-    body: 'FleetBar, Fleet Control Center, project activity, and launch state that can be inspected before work starts.',
+    title: 'Control-plane truth',
+    body: 'FleetBar, Fleet Control Center, project identity, launch state, and runtime provenance that can be inspected before work starts.',
   },
   {
     icon: ShieldCheck,
@@ -16,13 +16,13 @@ const focusLanes = [
   },
   {
     icon: GitBranch,
-    title: 'Recoverable work',
-    body: 'Session notes, claims, stale work, roadmap drift, and evidence that lets the next agent resume cleanly.',
+    title: 'Recoverable agent work',
+    body: 'Session notes, claims, stale work, roadmap drift, and evidence that lets a different model resume cleanly.',
   },
   {
     icon: Terminal,
-    title: 'Local loops',
-    body: 'PD Tube, guard checks, daemon provenance, and practical command surfaces that stay on this machine.',
+    title: 'Local integration loops',
+    body: 'PD Tube, guard checks, daemon provenance, and command surfaces that let ordinary tools reach the live agent session.',
   },
 ]
 
@@ -133,20 +133,20 @@ export function BlogPage() {
           <div className="lg:col-span-7">
             <div className="mb-5 flex flex-wrap gap-2">
               <Tag>Port Daddy Blog</Tag>
-              <Tag>Engineering notes</Tag>
-              <Tag>Current as of 2026-04-29</Tag>
+              <Tag>AI infrastructure notes</Tag>
+              <Tag>Current as of 2026-05-06</Tag>
             </div>
             <h1 className="max-w-[12ch] text-5xl font-black leading-[0.9] tracking-normal text-[var(--text-primary)] sm:text-7xl lg:text-[5.8rem]">
-              Port Daddy Blog
+              Engineering notes for agent control planes
             </h1>
             <p className="mt-6 max-w-2xl text-2xl font-black leading-tight tracking-normal text-[var(--text-primary)] sm:text-3xl">
-              Local agent systems, made legible.
+              What breaks when coding agents share a repo, and what a control plane has to make true.
             </p>
           </div>
 
           <div className="grid gap-6 lg:col-span-5 lg:self-end">
             <p className="max-w-xl text-base leading-relaxed text-[var(--text-secondary)] sm:text-lg">
-              A technical journal for the work Port Daddy is actually doing now: FleetBar, Fleet Control Center, readiness gates, PD Tube, recovery maps, daemon provenance, and coordination policy.
+              A technical journal for AI engineers evaluating Port Daddy as infrastructure: shared state, ownership, launch gates, PD Tube, recovery maps, daemon provenance, and coordination policy.
             </p>
             <div className="grid grid-cols-3 border-2 border-[var(--border-strong)]">
               <div className="border-r-2 border-[var(--border-strong)] p-4">

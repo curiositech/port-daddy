@@ -199,13 +199,9 @@ Port Daddy gives agents a better starting point:
 <!-- terminal -->
 ```bash
 $ pd briefing
-SUCCESS: Briefing generated: .portdaddy/briefing.md
 $ pd activity --since 24h
-[session.note] Cartographer updated roadmap truth
 $ pd sessions --all-worktrees
-session-cartographer-feedback  in_progress
 $ pd salvage --project acme-web --limit 10
-No recoverable work for acme-web
 ```
 
 Those commands are useful because they put the messy world into a queryable shape. They do not replace judgment. They reduce the amount of guessing before judgment starts.

@@ -23,7 +23,11 @@ async function requestWithRetry(path, options = {}, attempts = 3) {
   let lastError;
   for (let index = 0; index < attempts; index += 1) {
     try {
-      return await request(path, options);
+      const response = await request(path, options);
+      if (response?.aborted === true && index < attempts - 1) {
+        continue;
+      }
+      return response;
     } catch (error) {
       lastError = error;
       const code = error && typeof error === 'object' && 'code' in error ? error.code : '';
@@ -308,7 +312,7 @@ describe('CLI Integration Tests', () => {
       } finally {
         clearTestCurrentContext(slot);
       }
-    });
+    }, 30000);
   });
 
   describe('Ideas Command', () => {

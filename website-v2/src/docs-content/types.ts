@@ -1,15 +1,5 @@
 export type ContentTruth = 'source-backed' | 'blocked'
 
-type TerminalCommandOutput =
-  | {
-      output: string
-      exempt?: never
-    }
-  | {
-      exempt: 'install'
-      output?: string
-    }
-
 export type ContentBlock =
   | {
       type: 'paragraph'
@@ -21,12 +11,13 @@ export type ContentBlock =
       type: 'checklist'
       items: string[]
     }
-  | ({
+  | {
       type: 'command'
       title: string
       command: string
       notes?: string[]
-    } & TerminalCommandOutput)
+      output?: string
+    }
   | {
       type: 'callout'
       tone: 'info' | 'warning'

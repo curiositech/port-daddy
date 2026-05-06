@@ -168,8 +168,9 @@ function buildLiveContext(deps: CockpitDeps, mission: MissionCard, projectDir: s
     return pathContainsAny(blob, files) || (mission.id && blob.toLowerCase().includes(mission.id));
   });
 
+  const projectName = deriveProjectName(projectDir);
   const dogfoodList = deps.feedback
-    ? asArray(deps.feedback.list({ harbor: 'fleet', status: 'open', limit: 50 }))
+    ? asArray(deps.feedback.list({ harbor: `${projectName}:fleet`, status: 'open', limit: 50 }))
     : [];
   const matchedDogfood = dogfoodList.filter((row) => {
     const r = row as Record<string, unknown>;

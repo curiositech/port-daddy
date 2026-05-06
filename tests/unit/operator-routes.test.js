@@ -17,6 +17,7 @@ jest.unstable_mockModule('node:child_process', () => ({
   spawn: mockSpawn,
   spawnSync: mockSpawnSync,
   execSync: mockExecSync,
+  execFileSync: jest.fn(),
 }));
 
 const { operatorPlugin } = await import('../../routes/operator.js');

@@ -149,265 +149,10 @@ function highlightTSStrings(text: string): React.ReactNode {
   return <>{parts}</>;
 }
 
-type CodeLanguage =
-  | "bash"
-  | "cli"
-  | "shell"
-  | "sh"
-  | "zsh"
-  | "typescript"
-  | "ts"
-  | "javascript"
-  | "js"
-  | "json"
-  | "yaml"
-  | "yml"
-  | "text";
-
-function normalizeLanguage(language?: string): CodeLanguage {
-  const normalized = language?.toLowerCase();
-  if (
-    normalized === "cli" ||
-    normalized === "shell" ||
-    normalized === "sh" ||
-    normalized === "zsh" ||
-    normalized === "bash"
-  ) {
-    return normalized;
-  }
-  if (
-    normalized === "typescript" ||
-    normalized === "ts" ||
-    normalized === "javascript" ||
-    normalized === "js" ||
-    normalized === "json" ||
-    normalized === "yaml" ||
-    normalized === "yml" ||
-    normalized === "text"
-  ) {
-    return normalized;
-  }
-  return language ? "text" : "bash";
-}
-
-function splitInlineComment(line: string): [string, string] {
-  let quote: '"' | "'" | null = null;
-  let escaped = false;
-
-  for (let i = 0; i < line.length; i += 1) {
-    const char = line[i];
-
-    if (escaped) {
-      escaped = false;
-      continue;
-    }
-    if (quote === '"' && char === "\\") {
-      escaped = true;
-      continue;
-    }
-    if (quote) {
-      if (char === quote) quote = null;
-      continue;
-    }
-    if (char === '"' || char === "'") {
-      quote = char;
-      continue;
-    }
-    if (char === "#" && (i === 0 || /\s/.test(line[i - 1]))) {
-      return [line.slice(0, i), line.slice(i)];
-    }
-  }
-
-  return [line, ""];
-}
-
-function findYamlKeySeparator(text: string): number {
-  let quote: '"' | "'" | null = null;
-  let escaped = false;
-
-  for (let i = 0; i < text.length; i += 1) {
-    const char = text[i];
-
-    if (escaped) {
-      escaped = false;
-      continue;
-    }
-    if (quote === '"' && char === "\\") {
-      escaped = true;
-      continue;
-    }
-    if (quote) {
-      if (char === quote) quote = null;
-      continue;
-    }
-    if (char === '"' || char === "'") {
-      quote = char;
-      continue;
-    }
-    if (char === ":" && (!text[i + 1] || /\s/.test(text[i + 1]))) {
-      return i;
-    }
-  }
-
-  return -1;
-}
-
-function highlightScalar(text: string): React.ReactNode {
-  if (!text) return null;
-
-  const parts: React.ReactNode[] = [];
-  const scalarRegex =
-    /("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|\b(true|false|null|yes|no|on|off)\b|(-?\b\d+(?:\.\d+)?\b)|(\[[^\]]*\])|([\w.*-]+:[\w.*:-]+)/gi;
-  let last = 0;
-  let match: RegExpExecArray | null;
-
-  while ((match = scalarRegex.exec(text)) !== null) {
-    if (match.index > last) parts.push(text.slice(last, match.index));
-    const [full, str, boolish, number, inlineList, identity] = match;
-    const color = str
-      ? "var(--code-string)"
-      : boolish || number || inlineList
-        ? "var(--code-flag)"
-        : identity
-          ? "var(--code-channel-topic)"
-          : "var(--code-text)";
-
-    parts.push(
-      <span key={match.index} style={{ color, fontWeight: boolish ? 600 : undefined }}>
-        {full}
-      </span>,
-    );
-    last = match.index + full.length;
-  }
-
-  if (last < text.length) parts.push(text.slice(last));
-  return <>{parts}</>;
-}
-
-function highlightYaml(line: string): React.ReactNode {
-  if (!line.trim()) return "\u00A0";
-
-  const [content, comment] = splitInlineComment(line);
-  if (!content.trim()) {
-    return <span style={{ color: "var(--code-comment)" }}>{line}</span>;
-  }
-
-  const trimmedStart = content.trimStart();
-  if (trimmedStart.startsWith("---") || trimmedStart.startsWith("...")) {
-    return (
-      <>
-        <span style={{ color: "var(--code-comment)" }}>{content}</span>
-        {comment ? <span style={{ color: "var(--code-comment)" }}>{comment}</span> : null}
-      </>
-    );
-  }
-
-  const leading = content.match(/^(\s*)/)?.[1] ?? "";
-  const afterIndent = content.slice(leading.length);
-  const listMatch = afterIndent.match(/^(-\s+)(.*)$/);
-  const listMarker = listMatch?.[1] ?? "";
-  const body = listMatch?.[2] ?? afterIndent;
-  const separatorIndex = findYamlKeySeparator(body);
-  const rendered: React.ReactNode[] = [leading];
-
-  if (listMarker) {
-    rendered.push(
-      <span key="list" style={{ color: "var(--code-prompt)", fontWeight: 600 }}>
-        {listMarker}
-      </span>,
-    );
-  }
-
-  if (separatorIndex >= 0) {
-    const key = body.slice(0, separatorIndex);
-    const separatorMatch = body.slice(separatorIndex).match(/^(:\s*)/)?.[1] ?? ":";
-    const value = body.slice(separatorIndex + separatorMatch.length);
-    rendered.push(
-      <span key="key" style={{ color: "var(--code-command)", fontWeight: 700 }}>
-        {key}
-      </span>,
-      <span key="colon" style={{ color: "var(--code-channel-sep)" }}>
-        {separatorMatch}
-      </span>,
-      <React.Fragment key="value">{highlightScalar(value)}</React.Fragment>,
-    );
-  } else {
-    rendered.push(<React.Fragment key="scalar">{highlightScalar(body)}</React.Fragment>);
-  }
-
-  if (comment) {
-    rendered.push(
-      <span key="comment" style={{ color: "var(--code-comment)" }}>
-        {comment}
-      </span>,
-    );
-  }
-
-  return <>{rendered}</>;
-}
-
-function highlightJson(line: string): React.ReactNode {
-  if (!line.trim()) return "\u00A0";
-
-  const parts: React.ReactNode[] = [];
-  const jsonRegex =
-    /("(?:[^"\\]|\\.)*")|(-?\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b)|\b(true|false|null)\b|([\][{}:,])/g;
-  let last = 0;
-  let match: RegExpExecArray | null;
-
-  while ((match = jsonRegex.exec(line)) !== null) {
-    if (match.index > last) parts.push(line.slice(last, match.index));
-
-    const [full, str, number, literal, punctuation] = match;
-    const isKey = Boolean(str && line.slice(match.index + full.length).trimStart().startsWith(":"));
-    const color = isKey
-      ? "var(--code-command)"
-      : str
-        ? "var(--code-string)"
-        : number || literal
-          ? "var(--code-flag)"
-          : punctuation
-            ? "var(--code-channel-sep)"
-            : "var(--code-text)";
-
-    parts.push(
-      <span key={match.index} style={{ color, fontWeight: isKey || literal ? 600 : undefined }}>
-        {full}
-      </span>,
-    );
-    last = match.index + full.length;
-  }
-
-  if (last < line.length) parts.push(line.slice(last));
-  return <>{parts}</>;
-}
-
-function highlightCodeLine(line: string, language?: string): React.ReactNode {
-  const normalized = normalizeLanguage(language);
-
-  if (normalized === "bash" || normalized === "cli" || normalized === "shell" || normalized === "sh" || normalized === "zsh") {
-    return highlightBash(line);
-  }
-  if (
-    normalized === "typescript" ||
-    normalized === "ts" ||
-    normalized === "javascript" ||
-    normalized === "js"
-  ) {
-    return highlightTS(line);
-  }
-  if (normalized === "yaml" || normalized === "yml") return highlightYaml(line);
-  if (normalized === "json") return highlightJson(line);
-  if (!line.trim()) return "\u00A0";
-  return line;
-}
-
 /* ── Component ───────────────────────────────────────────────────────────── */
 
 interface CodeBlockProps {
-  children?: React.ReactNode;
-  code?: string;
-  output?: string;
+  children: React.ReactNode;
   language?: string;
   filename?: string;
   className?: string;
@@ -417,8 +162,6 @@ interface CodeBlockProps {
 
 export function CodeBlock({
   children,
-  code,
-  output,
   language,
   filename,
   className,
@@ -428,13 +171,11 @@ export function CodeBlock({
   const [copied, setCopied] = React.useState(false);
   const headerLabel = filename || language;
 
-  // Extract text content from children, handling JSX whitespace nodes.
-  const sourceText =
-    code ??
-    React.Children.toArray(children)
-      .map((c) => (typeof c === "string" ? c : ""))
-      .join("");
-  const textContent = [sourceText, output].filter(Boolean).join("\n").trim();
+  // Extract text content from children, handling JSX whitespace nodes
+  const textContent = React.Children.toArray(children)
+    .map((c) => (typeof c === "string" ? c : ""))
+    .join("")
+    .trim();
 
   const handleCopy = () => {
     navigator.clipboard.writeText(textContent).then(() => {
@@ -497,13 +238,15 @@ export function CodeBlock({
         className="!m-[var(--space-0)] w-full max-w-full min-w-0 overflow-x-hidden whitespace-pre-wrap break-words bg-[var(--code-bg)] px-[var(--space-3)] py-[var(--space-3)] font-mono text-[length:var(--type-code-size)] leading-[var(--leading-code)] [overflow-wrap:anywhere]"
         style={{ color: "var(--code-text)" }}
       >
-        {textContent
-          .split("\n")
-          .map((line, i) => (
-            <div key={i} className="min-w-0 max-w-full break-words [overflow-wrap:anywhere]">
-              {highlightCodeLine(line, language)}
-            </div>
-          ))}
+        {language === "bash" || language === "shell" || !language
+          ? textContent
+              .split("\n")
+              .map((line, i) => <div key={i}>{highlightBash(line)}</div>)
+          : language === "typescript" || language === "javascript"
+            ? textContent
+                .split("\n")
+                .map((line, i) => <div key={i}>{highlightTS(line)}</div>)
+            : textContent}
       </pre>
     </div>
   );

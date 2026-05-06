@@ -86,7 +86,6 @@ import { createEpisodicMemory } from './lib/episodic-memory.js';
 import { createSemanticResolver } from './lib/semantic-resolver.js';
 import { createBosunHeartbeat } from './lib/bosun-heartbeat.js';
 import { createResourceGovernance } from './lib/resource-governance.js';
-import { createUsageTelemetry } from './lib/usage-telemetry.js';
 
 // Fastify route aggregator (Phase 3 — native Fastify plugins, no Express bridge)
 import { registerAllRoutes } from './routes/index.js';
@@ -253,11 +252,6 @@ const graphEdges = createGraphEdges(db);
 const symbolIndex = createSymbolIndex(db, { graphEdges });
 const tuples = createTupleSpace(db);
 const counters = createCounters(db);
-const usageTelemetry = createUsageTelemetry(db, {
-  version: VERSION,
-  codeHash: CODE_HASH,
-  buildDate: new Date(STARTED_AT).toISOString(),
-}, { counters });
 const semanticResolver = createSemanticResolver(db, {
   cacheDir: join(REPO_ROOT, '.cache', 'transformers'),
   counters,
@@ -315,7 +309,7 @@ dns.setActivityLog(activityLog);
 const resolver = createResolver(db);
 dns.setResolver(resolver);
 const briefing = createBriefing(db, { sessions, agents, resurrection, activityLog, services, messaging });
-const sugar = createSugar({ agents, sessions, activityLog, resurrection });
+const sugar = createSugar({ agents, sessions, activityLog });
 const harborTokens = createHarborTokens(db);
 await harborTokens.initDaemonIdentity();
 const harbors = createHarbors(db, { harborTokens });
@@ -361,7 +355,7 @@ const costTracker = createCostTracker(db, {
     budgetPause.arm({ agentId, project, reason, spentTodayUsd, budgetUsdPerDay });
   },
 });
-const spawner = createSpawner({ costTracker, counters, usageTelemetry, bonds, harbors, enforceTelemetryPolicy: true });
+const spawner = createSpawner({ costTracker, counters, bonds, harbors, enforceTelemetryPolicy: true });
 spawnerRef = spawner;
 const resourceGovernance = createResourceGovernance({ repoRoot: REPO_ROOT, startedAt: STARTED_AT });
 
@@ -668,33 +662,6 @@ app.addHook('onResponse', async (request: FastifyRequest, reply: FastifyReply) =
   });
 });
 
-// --- Local usage telemetry ---
-app.addHook('onResponse', async (request: FastifyRequest, reply: FastifyReply) => {
-  const path = request.url.split('?')[0] ?? request.url;
-  if (path === '/usage/trace') return;
-
-  try {
-    usageTelemetry.record({
-      surface: 'daemon',
-      kind: 'api_call',
-      name: `${request.method} ${path}`,
-      route: request.url,
-      method: request.method,
-      status: reply.statusCode,
-      durationMs: reply.elapsedTime,
-      workScope: 'port_daddy_call',
-      toolCalls: 1,
-      agentId: typeof request.headers['x-agent-id'] === 'string' ? request.headers['x-agent-id'] : null,
-      userAgent: typeof request.headers['user-agent'] === 'string' ? request.headers['user-agent'] : null,
-      context: {
-        host: typeof request.headers.host === 'string' ? request.headers.host : null,
-      },
-    });
-  } catch {
-    // Observing usage must never break a daemon response.
-  }
-});
-
 // --- Dashboard Broadcast on Mutations (replaces custom middleware) ---
 app.addHook('onResponse', async (request: FastifyRequest, reply: FastifyReply) => {
   if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(request.method)) {
@@ -721,7 +688,7 @@ await registerAllRoutes(
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar,
     harbors, sorties, orchestrator, correlationEngine, spawner, tuples, fleetDaemon,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, counters,
-    usageTelemetry, quorum, resourceGovernance, feedback,
+    quorum, resourceGovernance, feedback,
     bonds, budgetGuard, budgetPause,
     arbiter, bosunHeartbeat,
     VERSION, CODE_HASH, STARTED_AT, __dirname, repoRoot: REPO_ROOT,

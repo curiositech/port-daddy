@@ -320,7 +320,7 @@ If \textsc{verify-note-inclusion}$(n,s,h,\ell,\pi)$ returns \texttt{true} for so
 Once a daemon publishes $R_{\text{harbor},\ell}$, it cannot produce a different valid root for the same $(\textit{harbor},\ell)$ without contradicting its earlier signature (detectable via the KMS witness) or forking its identity.
 \end{property}
 
-\paragraph{Cost.} Each settlement adds an $O(1)$ amortized append to the epoch accumulator (de Marneffe 2011). Epoch rollover is $O(N)$ hashes plus one signature: at 100 sessions/hour, $\approx 10$ms. Negligible.
+\paragraph{Cost.} Each settlement adds an $O(1)$ amortized append to the epoch accumulator. Epoch rollover is $O(N)$ hashes plus one signature: at 100 sessions/hour, $\approx 10$ms. Negligible.
 
 This is the structural underpinning the original draft promised in one paragraph (``decentralized verification'') and now substantiates: bonded commons evidence is not just immutable within a daemon, it is verifiable \emph{across} daemons by any party with the daemon's public key and a 700-byte proof.
 
@@ -579,8 +579,7 @@ The pricer is priced. Convergence depends on (i) whether the advisor has access 
 
 \paragraph{$c$ as a project health metric.} A project whose observed $c$ is rising is fraying---breaches cost more to recover from, implying coordination is decaying. The authority can publish $c$ alongside the bond pool and raise required bonds automatically when $c$ crosses a threshold. Homeostatic feedback: risky spawns become expensive when the project needs them least.
 
-\subsubsection{Competitive-Insurance Pricing Mechanism}\label{sec:youle}
-\footnote{This subsection contributed by Thomas Youle (Indiana University, Business Economics \& Public Policy) based on conversations with the primary author in March--April 2026. The mechanism builds on classical competitive-insurance market literature~\cite{rothschildstiglitz1976,wilson1977insurance} adapted to the agent-transactions setting. The text here is a pre-print draft pending economist review of \S\ref{sec:youle:mechanism}--\S\ref{sec:youle:welfare}.}
+\subsubsection{Competitive-Insurance Pricing Mechanism\protect\footnote{This subsection contributed by Thomas Youle (Indiana University, Business Economics \& Public Policy) based on conversations with the primary author in March--April 2026. The mechanism builds on classical competitive-insurance market literature~\cite{rothschildstiglitz1976,wilson1977insurance} adapted to the agent-transactions setting. The text here is a pre-print draft pending economist review of \S\ref{sec:youle:mechanism}--\S\ref{sec:youle:welfare}.}}\label{sec:youle}
 
 \paragraph{The mechanism.}\label{sec:youle:mechanism}
 Instead of a static bond size $B(\pi, r, s)$ selected by the commons authority (\S\ref{sec:scope-multiplier}), allow a market of \emph{insurer agents} to bid on underwriting each agent transaction. An insurer $I$ offers a quote $(q_I, c_I)$ where $q_I$ is the required premium and $c_I$ is the claim ceiling.

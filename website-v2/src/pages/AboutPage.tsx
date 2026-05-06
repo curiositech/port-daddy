@@ -36,17 +36,17 @@ export function AboutPage() {
             className="text-5xl sm:text-7xl font-black tracking-tight font-display leading-[0.95] text-[var(--text-primary)]"
             {...fadeUp}
           >
-            The daemon that keeps <br />
-            <span className="text-[var(--brand-primary)]">multi-agent chaos in check.</span>
+            The control plane under <br />
+            <span className="text-[var(--brand-primary)]">serious coding-agent work.</span>
           </motion.h1>
 
           <motion.p
             className="text-xl sm:text-2xl leading-relaxed text-[var(--text-secondary)] max-w-2xl"
             {...fadeUp}
           >
-            Port Daddy is a lightweight local daemon that coordinates AI coding agents
-            working on the same project. Install it once, and your agents stop fighting
-            over ports, files, and processes.
+            Port Daddy is a local app and daemon that gives AI coding agents shared state:
+            sessions, notes, file ownership, channels, readiness, budgets, and recoverable
+            handoffs that survive the terminal that created them.
           </motion.p>
         </motion.div>
       </motion.section>
@@ -62,39 +62,38 @@ export function AboutPage() {
                 <Users className="text-[var(--brand-primary)]" size={24} />
               </div>
               <h2 className="text-2xl sm:text-3xl font-display font-black tracking-tight m-0 text-[var(--text-primary)]">
-                The Problem: Agent Chaos
+                The Problem: No Shared State
               </h2>
             </div>
 
             <div className="space-y-4 text-lg leading-relaxed text-[var(--text-secondary)]">
               <p>
-                Imagine you have Claude Code building the API layer of your app while Cursor is
-                working on the frontend and a third Gemini CLI agent is writing database migrations.
-                Each agent is individually capable, but none of them knows the others exist.
+                Model capability is improving faster than the local environment around it. Claude Code,
+                Codex, Cursor, Gemini CLI, Aider, and local model agents can all work inside the same
+                repo, but the operating system does not give them a shared concept of ownership,
+                launch readiness, cost, or handoff state.
               </p>
               <p>
-                The first thing that breaks is ports. Claude Code starts a dev server on port 3000.
-                Cursor tries to start its Vite server on port 3000. It gets <code>EADDRINUSE</code> and
-                either crashes or silently picks a different port that nothing else knows about. Now
-                your frontend is trying to proxy API calls to a port that the API server is not
-                actually running on.
+                The first thing that breaks is authority. An agent starts a dev server, another
+                assumes a different runtime is current, and the browser or CLI may still be talking
+                to yesterday's process. The system is alive, but nobody can prove it is the right
+                live system.
               </p>
               <p>
-                The second thing that breaks is files. Both Claude Code and Gemini are editing
-                <code>src/db/schema.ts</code> at the same time. They do not know about each other, so
-                one agent silently overwrites the other's changes. You lose work, and worse, you might
-                not notice until much later when the schema no longer matches what the migration
-                expects.
+                The second thing that breaks is ownership. Two agents edit the same module, both
+                believe they are helping, and the repository records only the final diff. Without
+                claims, locks, notes, and activity, the operator cannot see whether the work was
+                coordinated or merely lucky.
               </p>
               <p>
                 The third thing that breaks is recovery. An agent crashes halfway through a refactor.
-                It was tracking its progress in its own context window, which is now gone. A new agent
-                starts up, has no idea what the previous one was doing, and either redoes the work or
-                starts from a broken intermediate state.
+                Its plan lived in the model context window. A new agent starts with a dirty tree and
+                no trustworthy account of what changed, what was tested, or what must be preserved.
               </p>
               <p>
-                These are not edge cases. They are the default behavior of every multi-agent setup
-                without coordination infrastructure. Port Daddy exists to make them impossible.
+                These are not edge cases. They are the default behavior of multi-agent coding without
+                a coordination substrate. Port Daddy exists to make the state visible enough for
+                agents and humans to control.
               </p>
             </div>
           </motion.section>
@@ -112,26 +111,21 @@ export function AboutPage() {
 
             <div className="space-y-4 text-lg leading-relaxed text-[var(--text-secondary)]">
               <p>
-                Port Daddy is a single daemon that runs on <code>localhost:9876</code>. It starts when
-                your machine boots and stays running in the background. Every agent, script, and dev
-                server talks to the same daemon, which gives it a single source of truth about what
-                is running, who owns what, and what just happened.
+                Port Daddy runs locally and becomes the shared coordination service for the project.
+                The CLI, FleetBar, Fleet Control Center, SDK, MCP server, scripts, and agent terminals
+                all point back to the same durable state instead of inventing parallel stories.
               </p>
               <p>
-                The foundation is <strong>deterministic port assignment</strong>. Instead of
-                hardcoding port numbers or hoping for the best, you give each service a semantic
-                identity like <code>myapp:api:main</code> or <code>myapp:frontend:feature-auth</code>.
-                Port Daddy hashes that identity into a stable port number. The same identity always
-                gets the same port, across restarts, across machines, across agents. You
-                run <code>pd claim myapp:api</code> and get back <code>3001</code> every time.
+                The foundation is named work. Sessions give an agent a purpose and lifecycle. Notes
+                preserve decisions and evidence. File and region claims expose intended edits. Locks
+                protect scarce resources. Channels, inboxes, and tuples let agents exchange signals
+                without making the human relay every message.
               </p>
               <p>
-                On top of that, Port Daddy provides the coordination primitives that agents need to
-                work together safely: <strong>file claims</strong> so agents announce which files they
-                are touching, <strong>distributed locks</strong> so only one agent runs a database
-                migration at a time, <strong>pub/sub messaging</strong> so agents can signal each
-                other in real time, and <strong>sessions with notes</strong> so every agent leaves an
-                immutable audit trail of what it did and why.
+                Around that substrate, the product adds operator surfaces: backend readiness before
+                launch, resource pressure before spawning more work, guard checks before commit,
+                salvage when agents disappear, and a Mac app that shows the current project without
+                asking the user to remember which terminal tab is authoritative.
               </p>
             </div>
           </motion.section>
@@ -149,38 +143,35 @@ export function AboutPage() {
 
             <div className="space-y-4 text-lg leading-relaxed text-[var(--text-secondary)]">
               <p>
-                You are working on a full-stack app. You want Claude Code to build the API and Cursor
-                to build the frontend, running simultaneously. Here is what that looks like with Port
-                Daddy.
+                You are working on a full-stack app. You want one agent to build an API, another to
+                wire the frontend, and a third to keep tests and docs honest. Here is what that looks
+                like with Port Daddy.
               </p>
               <p>
                 <strong>Agent A (Claude Code)</strong> starts up and
                 runs <code>pd begin --identity myapp:api --purpose "Build REST endpoints"</code>.
                 Port Daddy registers it as an active agent, starts a session, and returns a session
-                ID. Claude Code then runs <code>pd claim myapp:api</code> to get a stable port for
-                the Express server and <code>pd session files add src/routes/ src/middleware/</code> to
-                announce which files it plans to touch.
+                ID. The agent claims the routes and middleware it intends to touch, then leaves a
+                note that states the invariant another model must preserve.
               </p>
               <p>
                 <strong>Agent B (Cursor)</strong> starts up and
                 runs <code>pd begin --identity myapp:frontend --purpose "Build React UI"</code>. Port
-                Daddy registers it, and because it knows Agent A is already working on the same
-                project, it returns a hint: "1 active agent in myapp:*". Cursor
-                claims <code>myapp:frontend</code> for its Vite dev server and gets a different port
-                automatically. When it tries to claim <code>src/routes/api.ts</code>, Port Daddy
-                returns a conflict warning because Agent A already claimed that directory.
+                Daddy registers it against the same project state. When it approaches the API route
+                surface, the existing claim is visible before a write happens, so the agent can narrow
+                scope or ask for a handoff instead of silently colliding.
               </p>
               <p>
                 Agent A finishes the API and publishes a message: <code>pd pub myapp:events
-                "api-ready"</code>. Agent B, which is subscribed to that channel, receives the
-                message instantly and begins wiring up the frontend to call the new endpoints. No
-                polling. No shared files. No race conditions.
+                "api-ready"</code>. Agent B, which is subscribed to that scoped channel, receives the
+                message and wires the frontend to the new endpoints. The important part is not the
+                syntax; it is the durable event row that another tool can inspect later.
               </p>
               <p>
                 If Agent A crashes mid-task, Port Daddy notices the heartbeat has stopped. It
                 preserves Agent A's session notes, file claims, and purpose in a salvage queue.
-                When a new agent starts up and runs <code>pd salvage</code>, it gets the full
-                context of what Agent A was doing and can pick up from where it left off.
+                When a new agent runs <code>pd salvage</code>, it gets the context needed to continue
+                from the last honest state instead of hallucinating a plan from the dirty tree.
               </p>
             </div>
           </motion.section>
@@ -192,80 +183,67 @@ export function AboutPage() {
                 <Radio className="text-[var(--brand-primary)]" size={24} />
               </div>
               <h2 className="text-2xl sm:text-3xl font-display font-black tracking-tight m-0 text-[var(--text-primary)]">
-                Core Concepts, In Order of Complexity
+                Core Concepts, In Evaluation Order
               </h2>
             </div>
 
             <div className="space-y-4 text-lg leading-relaxed text-[var(--text-secondary)]">
               <p>
-                <strong>Semantic Identities</strong> are the addressing system.
-                Everything in Port Daddy is referenced by a string
-                like <code>project:stack:context</code>. This replaces hardcoded port numbers, PIDs,
-                and magic environment variables with human-readable names that stay stable across
-                restarts.
+                <strong>Project identity</strong> is the root of the control plane. Every session,
+                claim, channel, inbox, and fleet signal needs to attach to the actual checkout and
+                project, not just a display name that can collide across worktrees.
               </p>
               <p>
-                <strong>Sessions and Notes</strong> are the audit trail. When an agent starts work, it
-                opens a session. As it works, it appends notes -- progress updates, decisions,
-                warnings -- to an immutable log. Notes are never edited or deleted. This means you can
-                always reconstruct what happened, in what order, and why.
+                <strong>Sessions and notes</strong> are the recoverable memory. When an agent starts
+                work, it opens a session. As it works, it appends progress, decisions, warnings, and
+                validation to a durable log that the next agent can read.
               </p>
               <p>
-                <strong>Pub/Sub Channels</strong> are the communication layer. Agents publish messages
-                to named channels and subscribe to messages on other channels. Messages are delivered
-                via Server-Sent Events, so there is no polling and no missed messages. You can also
-                attach a watcher that runs a shell command every time a message arrives, which is how
-                you build reactive pipelines.
+                <strong>Channels, inboxes, and tuples</strong> are the shared-state layer. Agents can
+                publish events, send durable role-owned messages, and write machine-readable facts
+                that other tools can react to without parsing a chat transcript.
               </p>
               <p>
-                <strong>Salvage</strong> is the crash recovery system. Port Daddy monitors agent
-                heartbeats. When an agent stops sending heartbeats, the daemon moves it to a salvage
-                queue and preserves its full context: session notes, file claims, purpose, and
-                identity. A new agent can claim that work and continue from where the dead agent left
-                off instead of starting from scratch.
+                <strong>Readiness and guardrails</strong> are the launch and commit boundary. Backend
+                readiness, exact telemetry, budget ceilings, file claims, and guard checks make it
+                possible to block unsafe work before it spends money or reaches history.
               </p>
               <p>
-                <strong>Harbors</strong> are the security layer. A harbor is a named permission
-                namespace. You define what capabilities agents inside the harbor have -- read code,
-                write notes, create tunnels, acquire locks -- and Port Daddy issues HMAC-signed JWT
-                tokens that enforce those boundaries. Agents outside the harbor cannot access
-                resources inside it.
+                <strong>Salvage</strong> is the recovery system. When an agent stops heartbeating,
+                Port Daddy preserves session notes, file claims, purpose, and identity so another
+                agent can claim the work and continue from evidence.
               </p>
             </div>
           </motion.section>
 
-          {/* Section 5: The Maritime Metaphor */}
+          {/* Section 5: Why This Matters */}
           <motion.section className="space-y-5" {...fadeUp}>
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 flex items-center justify-center border border-[var(--border-subtle)] bg-[var(--interactive-active)]">
                 <History className="text-[var(--brand-primary)]" size={24} />
               </div>
               <h2 className="text-2xl sm:text-3xl font-display font-black tracking-tight m-0 text-[var(--text-primary)]">
-                About the Maritime Theme
+                Why AI Infrastructure Teams Should Care
               </h2>
             </div>
 
             <div className="space-y-4 text-lg leading-relaxed text-[var(--text-secondary)]">
               <p>
-                You will notice a lot of nautical language throughout Port Daddy: harbors, salvage,
-                lighthouses, signal flags. This is not just decoration. The metaphor maps cleanly to
-                the problem domain.
+                The model is not the whole product. Serious coding-agent systems also need a local
+                operating layer that answers basic control questions: who owns this work, what did it
+                touch, what can it spend, which backend is actually ready, and what evidence survives
+                when the process dies?
               </p>
               <p>
-                A <strong>harbor</strong> is a protected space where ships (agents) can dock safely
-                without crashing into each other -- which is exactly what a permission namespace does
-                for agent processes. <strong>Salvage</strong> is the practice of recovering cargo from
-                a wrecked ship -- which is exactly what happens when you pick up a crashed agent's
-                session notes and file claims. The <strong>port authority</strong> is the office that
-                assigns berths to incoming ships -- which is exactly what deterministic port assignment
-                does.
+                Port Daddy is valuable because it is intentionally below the scheduler. It can serve
+                a hand-written terminal workflow, a FleetBar button, an MCP client, a Codex CLI task,
+                a Claude Code session, or a local model loop without requiring those runtimes to agree
+                on one orchestration framework.
               </p>
               <p>
-                The metaphor is a convenience, not a requirement. You do not need to think in
-                nautical terms to use Port Daddy. The CLI uses plain language (<code>pd begin</code>,
-                <code>pd done</code>, <code>pd note</code>) and the API uses standard REST
-                conventions. But when you see the word "harbor" in the docs, now you know what it
-                means: a security boundary for a group of agents.
+                That is the acquisition-relevant point: the substrate is not another chat UI. It is
+                the local truth layer that makes coding agents inspectable, recoverable, and safer to
+                launch in real repositories.
               </p>
             </div>
           </motion.section>
@@ -283,20 +261,20 @@ export function AboutPage() {
 
             <div className="space-y-4 text-lg leading-relaxed text-[var(--text-secondary)]">
               <p>
-                Port Daddy is for developers who run more than one AI coding agent at the same
-                time. If you use Claude Code, Cursor, Gemini CLI, Aider, or any combination of
-                these in the same project, you have the coordination problem that Port Daddy solves.
+                Port Daddy is for developers and AI tooling teams who run more than one coding agent
+                against the same project. If you use Claude Code, Codex, Cursor, Gemini CLI, Aider,
+                or local model agents in one repo, you have the shared-state problem Port Daddy solves.
               </p>
               <p>
                 It is also for teams building agent-based automation. If you are using LangChain,
-                CrewAI, or AutoGen to build multi-agent pipelines, Port Daddy provides the
-                infrastructure layer that those frameworks do not: port management, file coordination,
-                crash recovery, and security isolation.
+                CrewAI, AutoGen, MCP clients, custom schedulers, or internal agent loops, Port Daddy
+                provides the local infrastructure layer those frameworks usually leave implicit:
+                ownership, coordination, launch readiness, crash recovery, and operator evidence.
               </p>
               <p>
-                You do not need Port Daddy if you only run a single AI agent at a time. The value
-                comes from coordination, and coordination only matters when there is more than one
-                actor. But the moment you run a second agent on the same project, you will want it.
+                You do not need Port Daddy for a single throwaway prompt. The value appears when agent
+                work must be inspectable, concurrent, recoverable, and safe enough to run inside a
+                repository a human or team actually cares about.
               </p>
             </div>
           </motion.section>
@@ -310,8 +288,8 @@ export function AboutPage() {
               Ready to try it?
             </h3>
             <p className="text-lg text-[var(--text-secondary)] max-w-lg m-0">
-              Port Daddy installs in under a minute. The Getting Started tutorial walks you from
-              zero to a coordinated two-agent workflow in five minutes.
+              Start with the Mac preview or the Getting Started tutorial, then evaluate the parts
+              that matter for serious agent work: shared state, ownership, readiness, and recovery.
             </p>
             <div className="flex flex-wrap justify-center gap-4">
               <Button asChild size="lg">

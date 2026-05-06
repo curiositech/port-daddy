@@ -1363,6 +1363,90 @@
         "sdk": false
       }
     },
+    "coordination_pipeline_audit": {
+      "description": "Coxswain's deterministic comm-pipeline audit. Periodically scans declared+observed channels, agent activity, and tuple keys; emits structured complaints (subscription_coverage, channel_near_duplicate, channel_naming, tuple_naming, silent_agent) with cooldown keys. Borderline cases are flagged needsJudge=true for the LLM judge layer to evaluate. Owned by actor:coxswain.",
+      "module": "lib/coordination-pipeline-audit.ts",
+      "cli": [],
+      "sdk": [],
+      "routes": [],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
+    "coordination_judge": {
+      "description": "Backend-agnostic LLM yes/no for the coordination-pipeline audit's borderline cases. Pure transport-injection design: 3s hard timeout, 1h LRU cache, 30/min rate limit, fallback-deny on every failure mode (auth missing, transport error, malformed JSON, timeout). No transport injected → judge stays implicitly disabled. Coxswain stays quiet rather than fire the wrong DM.",
+      "module": "lib/coordination-judge.ts",
+      "cli": [],
+      "sdk": [],
+      "routes": [],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
+    "llm_call": {
+      "description": "Single source of LLM call infrastructure. Owns the per-backend HTTP adapters (cloudflare, ollama) — both lib/spawner.ts (spawn-shape) and lib/llm-backend-resolver.ts (request-shape) delegate here. Also owns createLLMClient: cache (LRU + TTL) + rolling rate limit + hard timeout (AbortController) + fallback-deny, configurable per actor. Judge is the first consumer; future request-shape actors compose on top with their own ttl/perMinute settings. Spawn-shape callers skip the client wrapper since fleet-engine already does cost-budget kill + per-project rate limiting.",
+      "module": "lib/llm-call.ts",
+      "cli": [],
+      "sdk": [],
+      "routes": [],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
+    "llm_backend_resolver": {
+      "description": "Env cascade for backend selection. options.backend → PD_<ACTOR>_BACKEND → PD_FLEET_DEFAULT_BACKEND → PORT_DADDY_FLEET_DEFAULT_BACKEND → null. Spawn-shape (fleet engine) calls resolveRawBackendName (preserves claude-vs-claude-cli); request-shape (judge + future actors) calls resolveLLMBackend which materializes a transport delegating to lib/llm-call adapters. Per-backend default models come from lib/backend-telemetry-policy's operator tier. fleet-engine.getFleetRuntimeDefaults delegates here so exactly one place reads backend env.",
+      "module": "lib/llm-backend-resolver.ts",
+      "cli": [],
+      "sdk": [],
+      "routes": [],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
+    "shipwright": {
+      "description": "Project surveyor + fleet authoring assistant. `pd shipwright survey` walks the surveyed project, classifies stack/activity, surfaces risks/opportunities, and writes `.portdaddy/shipwright/survey.json`. Optional --llm augmentation routes through the daemon's LLM client. Propose/apply ship in PR3 commit 3.",
+      "module": "lib/shipwright/survey.ts",
+      "cli": [
+        "shipwright"
+      ],
+      "sdk": [],
+      "routes": [
+        "POST /shipwright/survey"
+      ],
+      "completions": [
+        "shipwright"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
+    "claim_watcher_snapshots": {
+      "description": "Daemon-side mtime/hash watcher captures prior bytes when a claimed file's content changes mid-claim. `pd snapshots list/show/restore/prune` surfaces those snapshots to operators with one-command rollback. Auto-prune keeps disk usage bounded (default 7 days).",
+      "module": "lib/claim-watcher.ts",
+      "cli": [
+        "snapshots",
+        "snapshot"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "snapshots",
+        "snapshot"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
+    },
     "ideas": {
       "description": "Canonical ideation trove inspection and dedupe over docs/recovery/IDEAS-TROVE.md with optional local Spark/Spider residue",
       "cli": [

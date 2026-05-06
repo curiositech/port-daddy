@@ -50,6 +50,10 @@
  *   keychain.deleteSecret('port-daddy', 'legacy-account');
  */
 
+// Use namespace import: Jest's experimental-VM-modules ESM transformer
+// fails to resolve named exports of Node built-ins (e.g. `execFileSync`)
+// when this module is loaded transitively by tests. Namespace import
+// works in all environments. See PR #20 regression.
 import * as childProcess from 'node:child_process';
 
 /**

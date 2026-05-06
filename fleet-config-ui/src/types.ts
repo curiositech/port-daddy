@@ -112,166 +112,6 @@ export interface ResourceOverview {
   };
 }
 
-export interface UsageTraceInput {
-  surface: 'ui' | 'cli' | 'sdk' | 'mcp' | 'daemon' | string;
-  kind: 'view' | 'interaction' | 'engagement' | 'api_call' | 'function_call' | 'tool_call' | 'command' | string;
-  name: string;
-  category?: string | null;
-  agentId?: string | null;
-  agentType?: string | null;
-  agentModel?: string | null;
-  backend?: string | null;
-  model?: string | null;
-  project?: string | null;
-  projectDir?: string | null;
-  route?: string | null;
-  method?: string | null;
-  status?: string | number | null;
-  durationMs?: number | null;
-  workScope?: string | null;
-  inputTokens?: number | null;
-  cachedInputTokens?: number | null;
-  outputTokens?: number | null;
-  totalTokens?: number | null;
-  turns?: number | null;
-  toolCalls?: number | null;
-  costUsd?: number | null;
-  costCurrency?: string | null;
-  costIsEstimate?: boolean | null;
-  context?: Record<string, unknown> | null;
-  metadata?: Record<string, unknown> | null;
-  version?: string | null;
-  codeHash?: string | null;
-  buildDate?: string | null;
-  cwd?: string | null;
-  userAgent?: string | null;
-}
-
-export interface UsageBreakdownRow {
-  key: string;
-  label: string;
-  count: number;
-  percentage: number;
-}
-
-export interface UsageNameRow {
-  surface: string;
-  kind: string;
-  category: string;
-  name: string;
-  count: number;
-  avgDurationMs: number | null;
-  lastSeen: number;
-}
-
-export interface UsageAgentModelRow {
-  agentType: string;
-  agentModel: string;
-  backend: string;
-  model: string;
-  surface: string;
-  count: number;
-  lastSeen: number;
-}
-
-export interface UsageCapabilityRow {
-  category: string;
-  count: number;
-  surfaces: Record<string, number>;
-  models: Array<{ label: string; count: number }>;
-}
-
-export interface UsageAgentCapabilityRow {
-  agentType: string;
-  agentModel: string;
-  backend: string;
-  model: string;
-  category: string;
-  count: number;
-}
-
-export interface UsageCostScopeRow {
-  scope: string;
-  events: number;
-  inputTokens: number;
-  cachedInputTokens: number;
-  outputTokens: number;
-  totalTokens: number;
-  turns: number;
-  toolCalls: number;
-  costUsd: number;
-  estimatedCostEvents: number;
-}
-
-export interface UsageRecentEvent {
-  id: number;
-  timestamp: number;
-  surface: string;
-  kind: string;
-  name: string;
-  category: string;
-  agentId: string | null;
-  agentType: string | null;
-  agentModel: string | null;
-  backend: string | null;
-  model: string | null;
-  project: string | null;
-  route: string | null;
-  method: string | null;
-  status: string | null;
-  durationMs: number | null;
-  workScope: string | null;
-  inputTokens: number | null;
-  cachedInputTokens: number | null;
-  outputTokens: number | null;
-  totalTokens: number | null;
-  turns: number | null;
-  toolCalls: number | null;
-  costUsd: number | null;
-  costCurrency: string | null;
-  costIsEstimate: boolean | null;
-  version: string | null;
-  codeHash: string | null;
-  buildDate: string | null;
-  context: Record<string, unknown> | null;
-  metadata: Record<string, unknown> | null;
-}
-
-export interface UsageTelemetrySummary {
-  success: true;
-  generatedAt: number;
-  since: number;
-  periodMs: number;
-  build: {
-    version: string;
-    codeHash: string;
-    buildDate: string;
-  };
-  totals: {
-    events: number;
-    uniqueAgents: number;
-    uniqueProjects: number;
-    uniqueModels: number;
-    inputTokens: number;
-    cachedInputTokens: number;
-    outputTokens: number;
-    totalTokens: number;
-    turns: number;
-    toolCalls: number;
-    costUsd: number;
-  };
-  costByScope: UsageCostScopeRow[];
-  bySurface: UsageBreakdownRow[];
-  byKind: UsageBreakdownRow[];
-  byCategory: UsageBreakdownRow[];
-  topNames: UsageNameRow[];
-  agentModels: UsageAgentModelRow[];
-  capabilities: UsageCapabilityRow[];
-  agentCapabilityMatrix: UsageAgentCapabilityRow[];
-  unusedCapabilities: string[];
-  recent: UsageRecentEvent[];
-}
-
 export interface FleetAgent {
   name: string;
   schedule?: string;
@@ -705,7 +545,6 @@ export interface ProjectSummary {
   signals?: string[];
   sources?: string[];
   exists?: boolean;
-  worktree?: ProjectWorktreeSummary | null;
   running?: boolean;
   configuredAgentCount?: number;
   configuredWatcherCount?: number;
@@ -725,17 +564,6 @@ export interface ProjectSummary {
   } | null;
 }
 
-export interface ProjectWorktreeSummary {
-  isGitWorktree: boolean;
-  isLinkedWorktree: boolean;
-  groupId: string;
-  groupName: string;
-  mainWorktreeRoot: string | null;
-  worktreeName: string;
-  branch: string | null;
-  head: string | null;
-}
-
 export interface BackendInfo {
   id: string;
   name: string;
@@ -747,30 +575,9 @@ export interface BackendInfo {
   readinessNextStep?: string;
   credentialKeys?: string[];
   credentialAlternates?: string[];
-  setupLinks?: BackendSetupLink[];
   setupCommand?: string;
   setupFiles?: string[];
   restartRequired?: boolean;
-}
-
-export interface BackendSetupLink {
-  label: string;
-  url: string;
-  description?: string;
-  kind?: 'token_template' | 'docs';
-}
-
-export interface BackendSecretSaveResult {
-  success: boolean;
-  backend: string;
-  savedKeys: string[];
-  encryptedAtRest: boolean;
-  storage: {
-    available: boolean;
-    storage: 'keychain' | 'unavailable';
-    encryptedAtRest: boolean;
-    location: string;
-  };
 }
 
 export interface RegistryAgent {
@@ -918,7 +725,6 @@ export interface SpawnPreflight {
     readinessNextStep?: string;
     credentialKeys?: string[];
     credentialAlternates?: string[];
-    setupLinks?: BackendSetupLink[];
     setupCommand?: string;
     setupFiles?: string[];
     restartRequired?: boolean;

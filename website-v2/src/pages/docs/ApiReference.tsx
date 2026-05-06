@@ -798,10 +798,9 @@ const ENDPOINTS: Endpoint[] = [
     description: 'Register agent + start session atomically. The recommended way to start work.',
     curl: `$ curl -X POST ${BASE}/sugar/begin \\
   -H "Content-Type: application/json" \\
-  -d '{"purpose": "Building auth", "telos": "Make login trustworthy", "identity": "myapp:api", "files": ["src/auth.ts"]}'`,
+  -d '{"purpose": "Building auth", "identity": "myapp:api", "files": ["src/auth.ts"]}'`,
     requestBody: `{
   "purpose": "Building auth",
-  "telos": "Make login trustworthy",
   "identity": "myapp:api",
   "agentId": "agent-1",
   "type": "cli",
@@ -820,29 +819,22 @@ const ENDPOINTS: Endpoint[] = [
     group: 'Sugar',
     method: 'POST',
     path: '/sugar/done',
-    description: 'End session + unregister agent atomically. The recommended way to finish work, or leave self-salvage when telos is unfinished but recoverable.',
+    description: 'End session + unregister agent atomically. The recommended way to finish work.',
     curl: `$ curl -X POST ${BASE}/sugar/done \\
   -H "Content-Type: application/json" \\
-  -d '{"agentId": "agent-1", "note": "Auth needs smoke", "selfSalvage": {"telosVerdict": "partial", "doable": "yes", "nextPlan": ["smoke /login"]}}'`,
+  -d '{"agentId": "agent-1", "note": "Auth complete", "status": "completed"}'`,
     requestBody: `{
   "agentId": "agent-1",
   "sessionId": "sess_abc123",
-  "note": "Auth feature needs one more smoke pass",
-  "status": "abandoned",
-  "selfSalvage": {
-    "telosVerdict": "partial",
-    "doable": "yes",
-    "whyStopped": "Production smoke still pending",
-    "nextPlan": ["deploy latest build", "smoke /login"]
-  }
+  "note": "Auth feature complete",
+  "status": "completed"
 }`,
     responseBody: `{
   "success": true,
   "agentId": "agent-1",
   "sessionId": "sess_abc123",
-  "sessionStatus": "abandoned",
-  "agentUnregistered": true,
-  "selfSalvageQueued": true
+  "sessionStatus": "completed",
+  "agentUnregistered": true
 }`,
   },
   {
@@ -941,7 +933,7 @@ const ENDPOINTS: Endpoint[] = [
     responseBody: `{
   "status": "running",
   "uptime": 86400,
-  "version": "3.11.0",
+  "version": "3.13.0",
   "codeHash": "a1b2c3d4",
   "services": 5,
   "agents": 3,
@@ -968,7 +960,7 @@ const ENDPOINTS: Endpoint[] = [
     description: 'Version string and source code hash.',
     curl: `$ curl ${BASE}/version`,
     responseBody: `{
-  "version": "3.11.0",
+  "version": "3.13.0",
   "codeHash": "a1b2c3d4"
 }`,
   },

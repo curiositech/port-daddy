@@ -32,11 +32,12 @@ export const harborsPlugin: FastifyPluginAsync<{ deps: HarborsRouteDeps }> = asy
   // POST /harbors — create or update harbor
   fastify.post('/harbors', async (request, reply) => {
     try {
-      const { name, capabilities, channels, agentPatterns, expiresIn, metadata } = request.body as any;
+      const { name, scope, capabilities, channels, agentPatterns, expiresIn, metadata } = request.body as any;
       if (!name || typeof name !== 'string') {
         reply.code(400); return { error: 'name required', code: 'VALIDATION_ERROR' };
       }
       const result = harbors.create(name, {
+        scope: typeof scope === 'string' && scope.trim() ? scope.trim() : undefined,
         capabilities: Array.isArray(capabilities) ? capabilities as string[] : undefined,
         channels: Array.isArray(channels) ? channels as string[] : undefined,
         agentPatterns: Array.isArray(agentPatterns) ? agentPatterns as string[] : undefined,

@@ -21,23 +21,6 @@ interface SugarRouteDeps {
   };
 }
 
-function firstHeaderValue(value: string | string[] | undefined): string | undefined {
-  return Array.isArray(value) ? value[0] : value;
-}
-
-function parsePid(value: unknown): number | undefined {
-  const raw = Array.isArray(value) ? value[0] : value;
-  if (typeof raw !== 'string' && typeof raw !== 'number') return undefined;
-  const parsed = typeof raw === 'number' ? raw : Number.parseInt(raw, 10);
-  if (!Number.isFinite(parsed)) return undefined;
-  const normalized = Math.trunc(parsed);
-  return normalized >= 0 ? normalized : undefined;
-}
-
-function requestPid(request: FastifyRequest, body: Record<string, unknown>): number | undefined {
-  return parsePid(firstHeaderValue(request.headers['x-pid'])) ?? parsePid(body.pid);
-}
-
 
 // =============================================================================
 // Fastify plugin export
@@ -49,8 +32,19 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
   // POST /sugar/begin
   fastify.post('/sugar/begin', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const body = ((request.body as Record<string, unknown>) || {});
-      const { purpose, identity, agentId, name, type, files, force, metadata, telos } = body as any;
+      const {
+        purpose,
+        identity,
+        agentId,
+        name,
+        type,
+        files,
+        force,
+        metadata,
+        worktree,
+        requireLinkedWorktree,
+        allowMainWorktree,
+      } = request.body as any;
 
       if (!purpose || typeof purpose !== 'string') {
         reply.code(400);
@@ -70,12 +64,17 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         files,
         force,
         metadata,
-        telos,
-        pid: requestPid(request, body),
+        worktree,
+        requireLinkedWorktree,
+        allowMainWorktree,
       });
 
       if (!result.success) {
-        const status = result.code === 'AGENT_REGISTRATION_FAILED' ? 400 : 500;
+        const status = result.code === 'AGENT_REGISTRATION_FAILED'
+          || result.code === 'WORKTREE_REQUIRED'
+          || result.code === 'MAIN_WORKTREE_SESSION_FORBIDDEN'
+          ? 400
+          : 500;
         reply.code(status);
         return result;
       }
@@ -85,7 +84,6 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         sessionId: result.sessionId,
         identity,
         purpose,
-        telos: result.telos || telos || null,
       });
 
       return result;
@@ -100,25 +98,7 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
   // POST /sugar/done
   fastify.post('/sugar/done', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const body = request.body as any;
-      const {
-        agentId,
-        sessionId,
-        note,
-        status,
-        selfSalvage,
-        self_salvage,
-        telosVerdict,
-        telos_verdict,
-        doable,
-        whyStopped,
-        why_stopped,
-        nextPlan,
-        next_plan,
-        wisdom,
-        evidence,
-        risk,
-      } = body;
+      const { agentId, sessionId, note, status } = request.body as any;
 
       const VALID_DONE_STATUSES = new Set(['completed', 'abandoned']);
       if (status && !VALID_DONE_STATUSES.has(status)) {
@@ -130,29 +110,14 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         };
       }
 
-      const standaloneSelfSalvage = {
-        telosVerdict: telosVerdict ?? telos_verdict,
-        doable,
-        whyStopped: whyStopped ?? why_stopped,
-        nextPlan: nextPlan ?? next_plan,
-        wisdom,
-        evidence,
-        risk,
-      };
-      const hasStandaloneSelfSalvage = Object.values(standaloneSelfSalvage)
-        .some((value) => value !== undefined);
-      const selfSalvageInput = selfSalvage ?? self_salvage ?? (hasStandaloneSelfSalvage ? standaloneSelfSalvage : undefined);
-
-      const result = sugar.done({ agentId, sessionId, note, status, selfSalvage: selfSalvageInput });
+      const result = sugar.done({ agentId, sessionId, note, status });
 
       if (!result.success) {
         const httpStatus = result.code === 'NO_ACTIVE_SESSION'
           ? 404
           : result.code === 'SESSION_OWNERSHIP_MISMATCH'
             ? 409
-            : result.code === 'SELF_SALVAGE_VALIDATION_ERROR' || result.code === 'SELF_SALVAGE_STATUS_MISMATCH'
-              ? 400
-              : 500;
+            : 500;
         reply.code(httpStatus);
         return result;
       }
@@ -161,7 +126,6 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         agentId: result.agentId,
         sessionId: result.sessionId,
         status: result.sessionStatus,
-        selfSalvageQueued: result.selfSalvageQueued || false,
       });
 
       return result;

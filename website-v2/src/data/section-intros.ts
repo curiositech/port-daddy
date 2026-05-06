@@ -10,27 +10,27 @@
 
 export const SECTION_INTROS = {
   features: {
-    title: 'Why These Features Exist',
-    body: 'Multi-agent development breaks when work has no shared boundary: agents cannot see each other, handoffs disappear into transcripts, files are edited without ownership, and crashes erase context. Every feature in Port Daddy exists to close one of those gaps. They are not a grab bag of nice-to-haves -- they are the minimum set of primitives required to run multiple AI agents against a single codebase without losing work.',
+    title: 'Why These Primitives Exist',
+    body: 'Multi-agent development breaks when work has no shared state: agents cannot see each other, handoffs disappear into transcripts, files are edited without ownership, launch costs stay opaque, and crashes erase context. Every feature in Port Daddy closes one of those gaps. This is the minimum substrate for running multiple AI agents against one codebase without losing work.',
   },
 
   blueprints: {
-    title: 'Start With a Pattern, Not a Blank Slate',
-    body: 'Blueprints are pre-built coordination recipes that wire together Port Daddy primitives into common agent architectures. Instead of figuring out how to connect file claims, pub/sub channels, and session phases yourself, pick a blueprint that matches your workflow -- a LangChain tool swarm, a CrewAI security review, a self-healing CI pipeline -- and customize from there. Each blueprint is a working .portdaddyrc configuration plus a README that explains the design decisions behind it.',
+    title: 'Start With a Control-Plane Pattern',
+    body: 'Blueprints are pre-built coordination recipes that wire Port Daddy primitives into common agent architectures. Instead of inventing file claims, channels, session phases, and launch boundaries from scratch, pick a blueprint that matches the workflow -- a LangChain tool swarm, a CrewAI security review, or a self-healing CI pipeline -- and customize from there.',
   },
 
   harbors: {
-    title: 'Security Boundaries for Agent Teams',
-    body: 'When you give an AI agent access to your codebase, you are trusting it with everything: source files, environment variables, database credentials. Harbors let you draw boundaries. Each harbor is a named permission namespace with an HMAC-signed capability token that controls exactly what an agent can do -- read code, write notes, claim files, create tunnels. Agents outside the harbor cannot access resources inside it, and tokens expire automatically so permissions never linger.',
+    title: 'Security Boundaries for Agent Work',
+    body: 'When an AI agent can touch a repo, the boundary matters. Harbors define named permission namespaces for code, notes, claims, tunnels, and other shared resources. The goal is not theatrical isolation; it is a concrete capability boundary the daemon and UI can show before agents run.',
   },
 
   tutorials: {
-    title: 'Learn the Harbor-First Workflow',
-    body: 'The tutorials are ordered intentionally. Start with the project harbor, then install the local daemon and FleetBar, name the work, begin sessions, share notes, publish channel events, and launch agents with visible recovery paths. Ports, DNS, tunnels, fleets, and spawned jobs are taught as resources inside that boundary, not as the whole story.',
+    title: 'Learn the Operator Workflow',
+    body: 'The tutorials are ordered intentionally. Start with the project boundary, then install the local daemon and FleetBar, name the work, begin sessions, share notes, publish channel events, and launch agents with visible recovery paths. Ports, DNS, tunnels, fleets, and spawned jobs are taught as resources inside that control plane.',
   },
 
   docs: {
     title: 'Three Interfaces, One Daemon',
-    body: 'Port Daddy exposes the same capabilities through three interfaces: a CLI for humans and shell scripts, a TypeScript SDK for programmatic access from Node.js, and an MCP server for AI agents that speak the Model Context Protocol. The docs are organized by interface so you can find the right syntax for your context. If you are wiring Port Daddy into an agent framework, start with the SDK. If you are scripting a CI pipeline, start with the CLI. If you are configuring an AI assistant, start with MCP.',
+    body: 'Port Daddy exposes the same capabilities through three interfaces: a CLI for humans and shell scripts, a TypeScript SDK for programmatic access from Node.js, and an MCP server for agents that speak the Model Context Protocol. The docs are organized by interface so an engineer can evaluate the same substrate from app, automation, and agent-runtime angles.',
   },
 } as const

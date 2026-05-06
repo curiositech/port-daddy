@@ -83,7 +83,6 @@ export const referenceArchitecturesSection: DocsContentSection = {
           title: 'Inspection path',
           command:
             'pd fleet validate\npd fleet status\ncurl http://localhost:9876/fleet\ncurl http://localhost:9876/fleet/events',
-          output: 'SUCCESS: Fleet "myapp-dev" parsed successfully\nFleet: 1 project(s), 5 agent(s), 3/5 launchable\n{"running":true,"projects":[{"name":"myapp-dev"}]}\nevent: fleet.status',
           notes: [
             'Validate the topology before trusting the running state.',
             'Use the CLI for a quick project view and daemon routes for aggregated fleet state and lifecycle events.',
