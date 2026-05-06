@@ -214,6 +214,10 @@ export function runCli(args, options = {}) {
     PORT_DADDY_SKIP_FRESHNESS_CHECK: '1',
     // Force non-interactive mode
     PORT_DADDY_NON_INTERACTIVE: '1',
+    // Integration tests run inside the main worktree; bypass the
+    // worktree-backed-session policy added in 47840169 so `pd begin`
+    // doesn't refuse the test process and break JSON.parse on stdout.
+    PORT_DADDY_ALLOW_MAIN_WORKTREE_SESSION: '1',
     NO_COLOR: '1',
     CI: '1'
   };
@@ -263,6 +267,8 @@ export function runCliViaIpc(args, options = {}) {
     PORT_DADDY_SOCK: '',
     PORT_DADDY_SKIP_FRESHNESS_CHECK: '1',
     PORT_DADDY_NON_INTERACTIVE: '1',
+    // Bypass worktree-backed-session policy for IPC test invocations too.
+    PORT_DADDY_ALLOW_MAIN_WORKTREE_SESSION: '1',
     NO_COLOR: '1',
     CI: '1'
   };
