@@ -1,45 +1,76 @@
-\contentsline {section}{\numberline {1}Introduction: The Trust Problem}{3}{section.1}%
-\contentsline {subsection}{\numberline {1.1}The Three Failures of Peer-to-Peer Trust}{3}{subsection.1.1}%
-\contentsline {paragraph}{It doesn't scale.}{3}{section*.2}%
-\contentsline {paragraph}{It doesn't survive death.}{3}{section*.3}%
-\contentsline {paragraph}{It doesn't address misaligned principals.}{3}{section*.4}%
-\contentsline {subsection}{\numberline {1.2}Contributions}{3}{subsection.1.2}%
-\contentsline {section}{\numberline {2}The Commons Authority}{4}{section.2}%
-\contentsline {subsection}{\numberline {2.1}Why Agents Consent}{4}{subsection.2.1}%
-\contentsline {section}{\numberline {3}Layer 1: Structural Prevention}{5}{section.3}%
-\contentsline {subsection}{\numberline {3.1}Capability Attenuation}{5}{subsection.3.1}%
-\contentsline {subsection}{\numberline {3.2}Isolation Domains}{6}{subsection.3.2}%
-\contentsline {subsection}{\numberline {3.3}Runtime Invariant Enforcement}{6}{subsection.3.3}%
-\contentsline {section}{\numberline {4}Layer 2: Immutable Attribution}{6}{section.4}%
-\contentsline {subsection}{\numberline {4.1}The Evidence Chain}{6}{subsection.4.1}%
-\contentsline {subsection}{\numberline {4.2}Merkle-Chained Auditability}{7}{subsection.4.2}%
-\contentsline {subsection}{\numberline {4.3}Attribution Survives Identity Disposal}{7}{subsection.4.3}%
-\contentsline {section}{\numberline {5}The Impossibility of Enforced Allocation}{7}{section.5}%
-\contentsline {subsection}{\numberline {5.1}Sen's Theorem Applied to Agent Coordination}{7}{subsection.5.1}%
-\contentsline {subsection}{\numberline {5.2}Advisory Claims as Resolution}{8}{subsection.5.2}%
-\contentsline {section}{\numberline {6}Crash Recovery as Social Continuation}{8}{section.6}%
-\contentsline {subsection}{\numberline {6.1}What Morality Means When Death Is Cheap}{9}{subsection.6.1}%
-\contentsline {subsection}{\numberline {6.2}The Limits of Reputation}{9}{subsection.6.2}%
-\contentsline {section}{\numberline {7}Layer 3: Economic Alignment}{9}{section.7}%
-\contentsline {subsection}{\numberline {7.1}The Float Plan}{10}{subsection.7.1}%
-\contentsline {subsection}{\numberline {7.2}Settlement}{10}{subsection.7.2}%
-\contentsline {subsection}{\numberline {7.3}Why This Defeats the Three Adversaries}{10}{subsection.7.3}%
-\contentsline {subsection}{\numberline {7.4}The Open Problem: Pricing the Bond}{11}{subsection.7.4}%
-\contentsline {section}{\numberline {8}Formal Model}{11}{section.8}%
-\contentsline {subsection}{\numberline {8.1}State and Actions}{11}{subsection.8.1}%
-\contentsline {subsection}{\numberline {8.2}Properties}{13}{subsection.8.2}%
-\contentsline {section}{\numberline {9}Related Work}{13}{section.9}%
-\contentsline {paragraph}{Social contract theory.}{13}{section*.7}%
-\contentsline {paragraph}{Impossibility results.}{14}{section*.8}%
-\contentsline {paragraph}{Long-lived transactions.}{14}{section*.9}%
-\contentsline {paragraph}{BDI agents.}{14}{section*.10}%
-\contentsline {paragraph}{Generative agents.}{14}{section*.11}%
-\contentsline {paragraph}{Capability-based security.}{14}{section*.12}%
-\contentsline {paragraph}{Mechanism design.}{14}{section*.13}%
-\contentsline {section}{\numberline {10}Discussion and Limitations}{14}{section.10}%
-\contentsline {paragraph}{The commons authority is a single point of failure.}{14}{section*.14}%
-\contentsline {paragraph}{Collateral does not prevent harm---it prices it.}{14}{section*.15}%
-\contentsline {paragraph}{Single-node scope.}{14}{section*.16}%
-\contentsline {paragraph}{Recovery fidelity depends on LLM capability.}{15}{section*.17}%
-\contentsline {paragraph}{Bond pricing is unsolved.}{15}{section*.18}%
-\contentsline {section}{\numberline {11}Conclusion}{15}{section.11}%
+\contentsline {section}{\numberline {1}Introduction: The Trust Problem}{4}{section.1}%
+\contentsline {subsection}{\numberline {1.1}The Three Failures of Peer-to-Peer Trust}{4}{subsection.1.1}%
+\contentsline {paragraph}{It doesn't scale.}{4}{section*.2}%
+\contentsline {paragraph}{It doesn't survive death.}{4}{section*.3}%
+\contentsline {paragraph}{It doesn't address misaligned principals.}{4}{section*.4}%
+\contentsline {subsection}{\numberline {1.2}Contributions}{4}{subsection.1.2}%
+\contentsline {section}{\numberline {2}The Commons Authority}{5}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Why Agents Consent}{5}{subsection.2.1}%
+\contentsline {section}{\numberline {3}Layer 1: Structural Prevention}{6}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Capability Attenuation}{6}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Isolation Domains}{7}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}Runtime Invariant Enforcement}{7}{subsection.3.3}%
+\contentsline {section}{\numberline {4}Layer 2: Immutable Attribution}{7}{section.4}%
+\contentsline {subsection}{\numberline {4.1}The Evidence Chain}{7}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}The Merkle Forest: Cross-Daemon Inclusion Proofs}{8}{subsection.4.2}%
+\contentsline {paragraph}{Inclusion proofs.}{8}{section*.6}%
+\contentsline {paragraph}{Witness to an abstract KMS.}{8}{section*.7}%
+\contentsline {paragraph}{Cost.}{8}{section*.8}%
+\contentsline {subsection}{\numberline {4.3}Mutable-Signal Ledger (Pheromone Lineage)}{9}{subsection.4.3}%
+\contentsline {paragraph}{Event-sourced pheromones.}{9}{section*.9}%
+\contentsline {paragraph}{Integration with the forest.}{9}{section*.10}%
+\contentsline {subsection}{\numberline {4.4}Attribution Survives Identity Disposal}{9}{subsection.4.4}%
+\contentsline {section}{\numberline {5}The Impossibility of Enforced Allocation}{9}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Sen's Theorem Applied to Agent Coordination}{10}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}Advisory Claims as Resolution}{10}{subsection.5.2}%
+\contentsline {section}{\numberline {6}Crash Recovery as Social Continuation}{11}{section.6}%
+\contentsline {subsection}{\numberline {6.1}What Morality Means When Death Is Cheap}{11}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}The Limits of Reputation}{11}{subsection.6.2}%
+\contentsline {section}{\numberline {7}Layer 3: Economic Alignment}{12}{section.7}%
+\contentsline {subsection}{\numberline {7.1}The Float Plan}{12}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}Settlement}{12}{subsection.7.2}%
+\contentsline {subsection}{\numberline {7.3}Why This Defeats the Three Adversaries}{13}{subsection.7.3}%
+\contentsline {subsection}{\numberline {7.4}Pricing the Bond}{13}{subsection.7.4}%
+\contentsline {subsubsection}{\numberline {7.4.1}Cleanup Lower Bound}{13}{subsubsection.7.4.1}%
+\contentsline {subsubsection}{\numberline {7.4.2}Consequential-Scope Multiplier}{13}{subsubsection.7.4.2}%
+\contentsline {subsubsection}{\numberline {7.4.3}Reputation Discount}{14}{subsubsection.7.4.3}%
+\contentsline {subsubsection}{\numberline {7.4.4}The Bonded Advisor}{14}{subsubsection.7.4.4}%
+\contentsline {paragraph}{$c$ as a project health metric.}{14}{section*.12}%
+\contentsline {subsubsection}{\numberline {7.4.5}Competitive-Insurance Pricing Mechanism\footnote {This subsection contributed by Thomas Youle (Indiana University, Business Economics \& Public Policy) based on conversations with the primary author in March--April 2026. The mechanism builds on classical competitive-insurance market literature~\cite {rothschildstiglitz1976,wilson1977insurance} adapted to the agent-transactions setting. The text here is a pre-print draft pending economist review of \S \ref {sec:youle:mechanism}--\S \ref {sec:youle:welfare}.}}{14}{subsubsection.7.4.5}%
+\contentsline {paragraph}{The mechanism.}{14}{section*.13}%
+\contentsline {paragraph}{Market-discovered pricing.}{14}{section*.14}%
+\contentsline {paragraph}{Adverse-selection controls.}{14}{section*.15}%
+\contentsline {paragraph}{Welfare properties (claim).}{15}{section*.16}%
+\contentsline {paragraph}{Relationship to the Bonded Advisor.}{15}{section*.17}%
+\contentsline {section}{\numberline {8}Coordination as Substrate: An Expressive-Act Taxonomy}{15}{section.8}%
+\contentsline {subsection}{\numberline {8.1}Five Expressive Classes}{15}{subsection.8.1}%
+\contentsline {subsection}{\numberline {8.2}Per-Class Bond Profiles}{15}{subsection.8.2}%
+\contentsline {section}{\numberline {9}Vibe Time and Observability}{15}{section.9}%
+\contentsline {paragraph}{Token-rate telemetry as first-class signal.}{16}{section*.18}%
+\contentsline {paragraph}{Replay JSONL as artifact.}{16}{section*.19}%
+\contentsline {paragraph}{Privacy contract.}{16}{section*.20}%
+\contentsline {section}{\numberline {10}Formal Model}{16}{section.10}%
+\contentsline {subsection}{\numberline {10.1}State and Actions}{16}{subsection.10.1}%
+\contentsline {subsection}{\numberline {10.2}Properties}{18}{subsection.10.2}%
+\contentsline {subsection}{\numberline {10.3}The Conservation Theorem}{18}{subsection.10.3}%
+\contentsline {paragraph}{Property verification.}{19}{section*.21}%
+\contentsline {paragraph}{Graduated sanctions.}{19}{section*.22}%
+\contentsline {section}{\numberline {11}Related Work}{19}{section.11}%
+\contentsline {paragraph}{Social contract theory.}{19}{section*.23}%
+\contentsline {paragraph}{Impossibility results.}{19}{section*.24}%
+\contentsline {paragraph}{Long-lived transactions.}{19}{section*.25}%
+\contentsline {paragraph}{BDI agents.}{19}{section*.26}%
+\contentsline {paragraph}{Generative agents.}{20}{section*.27}%
+\contentsline {paragraph}{Capability-based security.}{20}{section*.28}%
+\contentsline {paragraph}{Mechanism design.}{20}{section*.29}%
+\contentsline {section}{\numberline {12}Discussion and Limitations}{20}{section.12}%
+\contentsline {paragraph}{The commons authority is a single point of failure.}{20}{section*.30}%
+\contentsline {paragraph}{Collateral does not prevent harm---it prices it.}{20}{section*.31}%
+\contentsline {paragraph}{The Federated Sovereign.}{20}{section*.32}%
+\contentsline {paragraph}{Trust boundary.}{21}{section*.33}%
+\contentsline {paragraph}{Recovery and its honest limits.}{21}{section*.34}%
+\contentsline {paragraph}{Passkeys, not passwords.}{21}{section*.35}%
+\contentsline {paragraph}{Multi-node consensus.}{21}{section*.36}%
+\contentsline {paragraph}{Recovery fidelity depends on LLM capability.}{21}{section*.37}%
+\contentsline {paragraph}{Bond pricing is unsolved.}{22}{section*.38}%
+\contentsline {section}{\numberline {13}Conclusion}{22}{section.13}%
