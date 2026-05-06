@@ -19,11 +19,33 @@ export interface DeprecatedBlogPost {
 
 export const blogPostMetas: BlogPostMeta[] = [
   {
+    id: 'red-and-white-isolation',
+    slug: 'red-and-white-stay-in-their-lanes',
+    title: 'Red and White Stay In Their Lanes',
+    date: '2026-04-29',
+    author: 'Port Daddy Engineering',
+    excerpt: 'Adversarial review of the Bonded Commons + Anchor Protocol whitepapers now runs as a monthly versioned round, with a ProVerif-proved isolation property between red-team and white-hat fleets. This post explains the crypto, the gates, and what an operator should expect to see.',
+    tags: ['Whitepaper', 'Adversarial Review', 'ProVerif', 'Security'],
+    heroImage: '/img/generated/blog-map-truth.jpg',
+    heroAlt: 'Swiss-modern diagram of red and white fleets separated by sec-eng-lead at three signed gates per round',
+  },
+  {
+    id: 'coordination-guard',
+    slug: 'coordination-guard-claims-into-policy',
+    title: 'Why Coordination Guard Exists',
+    date: '2026-05-06',
+    author: 'Port Daddy Engineering',
+    excerpt: "Coordination Guard was not born from a clean theory of Git as policy. It was born because agents kept staging, resetting, and cherry-picking through each other's claims.",
+    tags: ['Coordination Guard', 'Runtime Primitives', 'Git Safety', 'Dogfooding'],
+    heroImage: '/img/generated/blog-coordination-guard-policy.jpg',
+    heroAlt: 'Swiss-modern commit gate with file claims, session identity, staged paths, and policy checks',
+  },
+  {
     id: 'bond-pricing-market',
     slug: 'bond-pricing-is-a-market',
     title: 'Bond Pricing Is a Market, Not a Constant',
     date: '2026-04-29',
-    author: 'Port Daddy Engineering',
+    author: 'Port Daddy Engineering, with Thomas Youle (Indiana University)',
     excerpt: "Daily budgets are training wheels. The v2 of the Bonded Commons paper points at the destination: cleanup-cost lower bounds, scope multipliers, the Bonded Advisor pattern, and Thomas Youle's competitive-insurance market.",
     tags: ['Whitepaper', 'Pricing', 'Bonded Advisor', 'Mechanism Design'],
     heroImage: '/img/generated/blog-control-plane-product.jpg',
@@ -127,17 +149,6 @@ export const blogPostMetas: BlogPostMeta[] = [
     tags: ['Backends', 'Models', 'Readiness', 'Control Plane'],
     heroImage: '/img/generated/blog-backend-readiness.jpg',
     heroAlt: 'Swiss-modern readiness matrix with model tiers, dependency checks, credentials, and blocked launch states',
-  },
-  {
-    id: 'coordination-guard',
-    slug: 'coordination-guard-claims-into-policy',
-    title: 'Coordination Guard Turns Claims Into Policy',
-    date: '2026-04-25',
-    author: 'Port Daddy Engineering',
-    excerpt: 'Notes and file claims are useful as shared facts. Coordination Guard makes them matter at commit time.',
-    tags: ['Coordination Guard', 'File Claims', 'Git', 'Safety'],
-    heroImage: '/img/generated/blog-coordination-guard-policy.jpg',
-    heroAlt: 'Swiss-modern commit gate with file claims, session identity, staged paths, and policy checks',
   },
 ];
 

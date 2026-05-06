@@ -77,20 +77,24 @@ pd tube
 ```
 Expected output:
 ```text
-ERROR: Usage: pd tube <channel> [--send | --reply=<id> | --since=<id> | --once | --no-history]
+ERROR: Usage: pd tube <channel> [--reply <body> [--reply-to=<id>] | --reply-to=<id> < body | --send <body> | --send | --once | --tail | --wait-for=<seconds> | --raw | --json | --no-history]
 ```
 The full practical surface is:
 ```bash
-pd tube <channel>                # listen, default mode
-pd tube <channel> --since=<id>   # resume after a known message id
-pd tube <channel> --once         # one poll pass, then exit
-pd tube <channel> --limit=N      # backfill cap when no cursor exists
-pd tube <channel> --no-history   # ignore and do not update the cursor file
-pd tube <channel> --send         # read stdin to EOF and post top-level
-pd tube <channel> --reply=<id>   # read stdin to EOF and post a reply
+pd tube <channel>                         # block once, print one handoff, exit
+pd tube <channel> --tail                  # keep polling for a human watcher
+pd tube <channel> --wait-for=<seconds>    # first-event timeout, default 600
+pd tube <channel> --since=<id>            # resume after a known message id
+pd tube <channel> --once                  # one poll pass, then exit
+pd tube <channel> --limit=N               # backfill cap when no cursor exists
+pd tube <channel> --no-history            # ignore and do not update the cursor file
+pd tube <channel> --send                  # read stdin to EOF and post top-level
+pd tube <channel> --send "body"           # post an inline top-level body
+pd tube <channel> --reply "body"          # auto-correlate and keep listening
+pd tube <channel> --reply-to=<id>         # read stdin and post a threaded reply
 ```
-Listen mode is long-running. It polls, prints new messages, backs off when quiet, and exits when you press `Ctrl+C`. Use `--once` for scripts. Use `--send` or
-`--reply=<id>` for publishing. For clean tutorial runs, remove old cursor files too:
+Listen mode is block-once by default. It waits for a new event, prints one prose handoff, then exits so an agent's shell tool yields. Use `--tail` for the old
+human-watching loop. Use `--send`, `--reply`, or `--reply-to=<id>` for publishing. For clean tutorial runs, remove old cursor files too:
 ```bash
 rm -f ~/.port-daddy/tube-history-tutorial_hello.json
 rm -f ~/.port-daddy/tube-history-tutorial_threads.json
@@ -214,7 +218,7 @@ Example output:
 ```
 Use that id as the reply parent:
 ```bash
-printf 'reply from bob\n' | pd tube tutorial:threads --reply=31054 --sender bob --json
+printf 'reply from bob\n' | pd tube tutorial:threads --reply-to=31054 --sender bob --json
 ```
 Example output:
 ```json
@@ -262,7 +266,7 @@ Example output:
 Tube decodes this storage shape into consumer-friendly JSON lines. That envelope is the thread model. `--reply` validates that the parent id is a positive
 number:
 ```bash
-printf 'body\n' | pd tube tutorial:threads --reply=0 --json
+printf 'body\n' | pd tube tutorial:threads --reply-to=0 --json
 ```
 Expected output:
 ```text
@@ -270,7 +274,7 @@ ERROR: tube: invalid parent id 0
 ```
 It does not validate that the parent exists. This can succeed even if `999999` is absent:
 ```bash
-printf 'orphan reply\n' | pd tube tutorial:threads --reply=999999 --sender bob --json
+printf 'orphan reply\n' | pd tube tutorial:threads --reply-to=999999 --sender bob --json
 ```
 Build parent-existence validation in your consumer if that matters. Tube also surfaces foreign messages on the same channel. Publish a non-tube payload:
 ```bash
@@ -557,7 +561,7 @@ Bot B watches the answer channel.
 flowchart LR
   Human["human or issue importer"] -->|"pd tube issues:triage --send"| Triage["issues:triage"]
   Triage -->|"listener or --once"| BotA["bot A: classify issue"]
-  BotA -->|"--reply=<id>"| Triage
+  BotA -->|"--reply-to=<id>"| Triage
   BotA -->|"--send"| Answers["issues:triage:answers"]
   Answers -->|"listener"| BotB["bot B: create follow-up task"]
 ```
@@ -581,7 +585,7 @@ Example output:
 Bot A replies:
 ```bash
 printf 'Classified as operator-ux regression; needs settled FleetBar screenshot.\n' \
-  | pd tube issues:triage --reply=32001 --sender triage-bot --json
+  | pd tube issues:triage --reply-to=32001 --sender triage-bot --json
 ```
 Example output:
 ```json
@@ -653,7 +657,7 @@ intent=summarize-fleet text=What changed in the last hour?
 Then reply:
 ```bash
 printf 'Fleet changed: pd tube tutorial landed, website sessions still active.\n' \
-  | pd tube phone:inbox --reply=32100 --sender local-assistant --json
+  | pd tube phone:inbox --reply-to=32100 --sender local-assistant --json
 ```
 Today, both sides are local. In the relay future, the envelope is the same and the transport changes. That is why `pd tube` is worth learning before the relay
 exists.
@@ -674,21 +678,21 @@ pd tube human:review --once --json | jq -r '"#\(.id) \(.body)"'
 And then reply:
 ```bash
 printf 'Decision: keep transport permissive; validate parent existence in higher-level tools.\n' \
-  | pd tube human:review --reply=32210 --sender human --json
+  | pd tube human:review --reply-to=32210 --sender human --json
 ```
 The pattern is intentionally low ceremony. You do not need to create an issue, launch a UI, or invent a mailbox schema for every tiny decision. Use the tube
 when a channel plus a thread id is enough.
 
 ## Closer: pitfalls, troubleshooting, and relay composition
 Common pitfalls:
-- `pd tube <channel>` blocks because listen mode is long-running by default.
-- `--send` and `--reply` need piped stdin or redirected stdin.
+- `pd tube <channel>` waits for one event by default and exits after `--wait-for` seconds if none arrives.
+- Bare `--send`, `--reply -`, and `--reply-to=<id>` need piped stdin or redirected stdin.
 - Empty stdin exits non-zero with `tube: stdin was empty - nothing to send`.
-- Interactive TTY stdin exits non-zero with the "needs a body on stdin" error.
+- Interactive TTY stdin exits non-zero with a message telling you to pipe a body.
 - Foreign messages are printed with `foreign: true`.
 - A stale daemon can make a new source command look broken; run `pd status` first.
 - Busy channels can produce a large first backfill; use `--limit=` or `--since=`.
-- `--reply=<id>` checks that the id is positive, but it does not check that the parent exists.
+- `--reply-to=<id>` checks that the id is positive, but the daemon accepts the parent id as an envelope reference.
 - The history guard is a local cursor, not multi-machine sync.
 Troubleshoot from the daemon outward:
 ```bash

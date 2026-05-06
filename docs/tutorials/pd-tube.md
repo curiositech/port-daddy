@@ -57,6 +57,14 @@ $ printf 'roger that' \
 SUCCESS: tube: posted id=43 to ui:clicks
 ```
 
+Prefer the explicit modern spelling for new scripts:
+
+```bash
+$ printf 'roger that' \
+  | pd tube ui:clicks --reply-to=42 --sender codex
+SUCCESS: tube: posted id=43 to ui:clicks
+```
+
 ## Send — Top-Level Message, Post-And-Exit
 
 ```bash
@@ -91,26 +99,6 @@ pd tube ui:clicks --no-history --limit=10 --once
 `--since` overrides the cursor with an explicit floor. `--no-history`
 leaves the cursor untouched (use for test fixtures).
 
-## Chat Bridge
-
-`pd tube chat` listens to the same threaded channel, launches one
-backend run for each new top-level message, and posts the result back
-as an in-thread reply. This is the quick bridge for "PD Tube plus
-Codex/Claude/Gemini" experiments while keeping the transcript inside
-Port Daddy channel history.
-
-```bash
-pd tube chat port-daddy:demo:tube \
-  --backend codex \
-  --tier low \
-  --budget 5 \
-  --once
-```
-
-Use `--model` when you need an exact model, or `--tier low|mid|high`
-when the backend's built-in ladder is enough. The bridge skips its
-own replies by default so it does not loop on itself.
-
 ## Proof Artifacts
 
 The checked-in demo artifacts are generated from real commands
@@ -132,7 +120,6 @@ agg demos/pd-tube/pd-tube-real-output.cast demos/pd-tube/pd-tube-real-output.gif
 vhs demos/pd-tube/pd-tube-real-output.tape
 ```
 
-Note: the recordings predate the prose-default change and still show
-the legacy tab-separated output. The behavior is the same; the
-formatting on disk does not match the new default until the cast is
-regenerated.
+The checked-in recording should show the current `pd tube` contract.
+If the CLI output shape changes, regenerate the cast and GIF in the
+same slice as the docs change.

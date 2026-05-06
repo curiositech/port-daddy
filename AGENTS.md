@@ -15,6 +15,10 @@ Project-specific shibboleths for proficient Port Daddy work. If you learn a new 
   - prefer symbol/region claims for code edits when the symbol index knows the file; use whole-file claims only when the edit truly spans the file or no symbol/section identity exists
   - use `pd lock` / `pd with-lock` for scarce critical sections, generated artifacts, migrations, promotion, or other work that really must be exclusive
   - use tuples, inbox, pheromones, or other shared state when the task benefits from machine-readable coordination
+- New edit sessions should start from a linked Git worktree. `pd begin` and
+  `pd session start` refuse the main worktree by default; use
+  `--allow-main-worktree` only for explicit integration or release work where
+  the main checkout is the point.
 - Treat plain shell inspection without a Port Daddy session as insufficient for this repo unless you are doing truly trivial read-only work.
 - During active repo work, keep listening. Re-read live `pd notes`, `pd activity`, `pd sessions --all-worktrees`, and relevant file ownership before switching scope, before editing a contested surface, and after daemon/session restarts. A stale local plan is not coordination.
 - Before every commit, push, or deploy, fetch and reconcile against the canonical remote branch (`origin/main` for this repo) so you do not publish stale work over another agent's moved surface.

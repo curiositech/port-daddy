@@ -11,6 +11,11 @@
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import type { TupleSpace } from '../lib/tuples.js';
+import {
+  checkAdversarialProjectWrite,
+  checkAdversarialTupleFields,
+  projectForTupleKey,
+} from '../lib/coordination-route-guard.js';
 
 interface TupleOpts {
   tuples: TupleSpace;
@@ -28,7 +33,38 @@ export const tuplesPlugin: FastifyPluginAsync<TupleOpts> = async (app, opts) => 
       return { success: false, error: 'fields must be a non-empty array', code: 'VALIDATION_ERROR' };
     }
 
-    const tuple = tuples.out(fields, {
+    // Adversarial-fleet projects (inferred from the first field, which is
+    // the tuple key by convention) require envelope-encrypted bodies.
+    // Ordinary tuples are unaffected.
+    const inferred = projectForTupleKey(typeof fields[0] === 'string' ? fields[0] : '');
+    let outFields = fields;
+    if (inferred) {
+      const guard = checkAdversarialProjectWrite(inferred, request.body);
+      if (guard.ok === false) {
+        reply.code(guard.code);
+        return {
+          success: false,
+          error: guard.reason,
+          code: 'ADVERSARIAL_PROJECT_GUARD',
+        };
+      }
+      const fieldsGuard = checkAdversarialTupleFields(fields);
+      if (fieldsGuard.ok === false) {
+        reply.code(fieldsGuard.code);
+        return {
+          success: false,
+          error: fieldsGuard.reason,
+          code: 'ADVERSARIAL_PROJECT_GUARD',
+        };
+      }
+      // Persist the envelope JSON as the tuple body (fields[1]) so the
+      // ciphertext is what's stored, not the sentinel marker.
+      if (guard.envelopeRequired && guard.envelope) {
+        outFields = [fields[0], JSON.stringify(guard.envelope)];
+      }
+    }
+
+    const tuple = tuples.out(outFields, {
       harbor: (harbor as string) || undefined,
       writtenBy: (writtenBy as string) || undefined,
       ttlMs: typeof ttlMs === 'number' ? ttlMs : undefined,

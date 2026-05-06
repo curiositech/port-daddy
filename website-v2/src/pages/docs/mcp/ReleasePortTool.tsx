@@ -5,7 +5,7 @@ export default function ReleasePortTool() {
     <CommandPage
       command="release_port"
       description="Release a previously claimed port. Safe to call even if the port is not claimed or was already released. Returns success status."
-      version="3.11.0"
+      version="3.13.0"
       syntax="release_port(identity)"
       flags={[
         { flag: 'identity', description: 'The identity whose port should be released (required)' },

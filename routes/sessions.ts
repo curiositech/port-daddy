@@ -15,6 +15,11 @@
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
+import { checkAdversarialProjectWrite } from '../lib/coordination-route-guard.js';
+import {
+  evaluateSessionWorktreePolicy,
+  mergeSessionWorktreeMetadata,
+} from '../lib/worktree-policy.js';
 
 interface SessionsRouteDeps {
   sessions: {
@@ -22,6 +27,7 @@ interface SessionsRouteDeps {
       agentId?: string | null;
       files?: string[];
       metadata?: Record<string, unknown> | null;
+      worktreeId?: string | null;
     }): Record<string, unknown>;
     end(sessionId: string, options?: {
       note?: string;
@@ -122,7 +128,31 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     }
 
     const sessionId = routeSessionId ?? bodySessionId;
-    const result = sessions.quickNote(content, { sessionId, agentId, type });
+
+    // Adversarial-fleet projects (redteam-review, whitehat-defense) require
+    // envelope-encrypted bodies. Look up the session's identity_project to
+    // decide; ordinary projects are unaffected. For adversarial writes the
+    // daemon persists the envelope JSON, never the plaintext content.
+    let writtenContent: string = content;
+    if (sessionId) {
+      const lookup = sessions.get(sessionId);
+      const sess = (lookup as any)?.session as { identity_project?: string | null } | undefined;
+      const project = sess?.identity_project ?? null;
+      const guard = checkAdversarialProjectWrite(project, request.body);
+      if (guard.ok === false) {
+        reply.code(guard.code);
+        return {
+          success: false,
+          error: guard.reason,
+          code: 'ADVERSARIAL_PROJECT_GUARD',
+        };
+      }
+      if (guard.envelopeRequired && guard.envelope) {
+        writtenContent = JSON.stringify(guard.envelope);
+      }
+    }
+
+    const result = sessions.quickNote(writtenContent, { sessionId, agentId, type });
 
     if (!result.success) {
       reply.code(noteWriteStatus(result));
@@ -148,7 +178,16 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
   // POST /sessions - Start a session
   fastify.post('/sessions', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { purpose, agentId, files, force, metadata } = request.body as any;
+      const {
+        purpose,
+        agentId,
+        files,
+        force,
+        metadata,
+        worktree,
+        requireLinkedWorktree,
+        allowMainWorktree,
+      } = request.body as any;
 
       if (!purpose || typeof purpose !== 'string') {
         reply.code(400);
@@ -173,7 +212,23 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         }
       }
 
-      const result = sessions.start(purpose, { agentId, files, metadata });
+      const worktreePolicy = evaluateSessionWorktreePolicy({ worktree, requireLinkedWorktree, allowMainWorktree });
+      if (!worktreePolicy.success) {
+        reply.code(400);
+        return worktreePolicy;
+      }
+
+      const mergedMetadata = mergeSessionWorktreeMetadata(metadata, worktreePolicy.worktree, {
+        requireLinkedWorktree,
+        allowMainWorktree,
+      });
+
+      const result = sessions.start(purpose, {
+        agentId,
+        files,
+        metadata: mergedMetadata,
+        worktreeId: worktreePolicy.worktree?.id,
+      });
 
       if (!result.success) {
         reply.code(400);

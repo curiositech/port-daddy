@@ -933,7 +933,7 @@ const ENDPOINTS: Endpoint[] = [
     responseBody: `{
   "status": "running",
   "uptime": 86400,
-  "version": "3.11.0",
+  "version": "3.13.0",
   "codeHash": "a1b2c3d4",
   "services": 5,
   "agents": 3,
@@ -960,7 +960,7 @@ const ENDPOINTS: Endpoint[] = [
     description: 'Version string and source code hash.',
     curl: `$ curl ${BASE}/version`,
     responseBody: `{
-  "version": "3.11.0",
+  "version": "3.13.0",
   "codeHash": "a1b2c3d4"
 }`,
   },

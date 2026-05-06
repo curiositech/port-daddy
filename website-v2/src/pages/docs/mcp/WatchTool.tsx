@@ -5,7 +5,7 @@ export default function WatchTool() {
     <CommandPage
       command="watch"
       description="Subscribe to a channel and run a script on every message. Uses SSE for real-time delivery. Auto-reconnects on disconnect. This is the always-on agent primitive."
-      version="3.11.0"
+      version="3.13.0"
       syntax="watch(channel, options?)"
       flags={[
         { flag: 'channel', description: 'Channel to watch' },

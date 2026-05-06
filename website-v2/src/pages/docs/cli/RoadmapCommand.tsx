@@ -5,7 +5,7 @@ export default function RoadmapCommand() {
     <CommandPage
       command="pd roadmap"
       description="Show Cartographer's live roadmap projection: curated Next Cuts, immediate ideas, tuple-backed operator feedback, and markdown dogfood harvests. Use ack when a live feedback item has been folded into roadmap truth."
-      version="3.11.0"
+      version="3.13.0"
       syntax="pd roadmap [flags]\npd roadmap ack <feedbackId> [--as <agentId>] [--into <roadmap-slug>]"
       flags={[
         { flag: '--dir <path>, --root <path>, --projectDir <path>', description: 'Read roadmap files for a specific project root instead of the current directory.' },

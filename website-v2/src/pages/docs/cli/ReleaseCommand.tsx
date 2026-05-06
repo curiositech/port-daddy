@@ -5,7 +5,7 @@ export default function ReleaseCommand() {
     <CommandPage
       command="release"
       description="Release a port claim. Safe to call even if the port is not claimed."
-      version="3.11.0"
+      version="3.13.0"
       syntax="pd release <identity>"
       flags={[
         { flag: 'identity', description: 'Service identity to release (project:stack:context)' },

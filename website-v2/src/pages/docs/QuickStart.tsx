@@ -18,7 +18,7 @@ const STEPS = [
     description: 'Install globally via npm.',
     code: '$ npm install -g port-daddy',
     verifyCommand: '$ pd --version',
-    verifyOutput: 'port-daddy v3.11.0',
+    verifyOutput: 'port-daddy v3.13.0',
   },
   {
     number: '02',

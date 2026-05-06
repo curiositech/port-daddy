@@ -111,7 +111,10 @@ jobs:
       - name: Start daemon and recording session
         run: |
           node bin/port-daddy-cli.js start
-          node bin/port-daddy-cli.js begin --identity ci:website:gifs --purpose "Regenerate website terminal GIFs"
+          # CI runs on the main worktree by design (no linked worktrees in
+          # actions/checkout). Pass --allow-main-worktree so the worktree
+          # policy added in 47840169 doesn't refuse the integration session.
+          node bin/port-daddy-cli.js begin --identity ci:website:gifs --purpose "Regenerate website terminal GIFs" --allow-main-worktree
 
       - name: Regenerate website terminal GIFs
         working-directory: website-v2

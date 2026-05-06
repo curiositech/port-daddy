@@ -268,7 +268,7 @@ export const tutorialsSection: DocsContentSection = {
           title: 'Coordination should be visible while it happens',
           paragraphs: [
             'The strongest Port Daddy demo is not a polished final summary. It is the operator seeing agents inspect live sessions, check file ownership, message an overlapping worker, and publish proof through a shared channel before edits collide.',
-            'PD Tube gives that story a tiny command surface. It wraps a daemon channel in a thread-aware envelope and emits clean JSON lines so humans, scripts, and agents can read the same trail.',
+            'PD Tube gives that story a tiny command surface. It wraps a daemon channel in a thread-aware envelope and can emit either a block-once handoff or JSON lines so humans, scripts, and agents can read the same trail.',
           ],
         },
         {
