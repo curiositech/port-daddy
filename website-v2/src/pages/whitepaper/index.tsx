@@ -62,18 +62,21 @@ export default function WhitepaperPage() {
           <PageContainer width="wide">
             <div className="grid gap-[var(--space-7)] lg:grid-cols-[minmax(0,0.88fr)_minmax(22rem,0.42fr)] lg:items-start">
               <div className="space-y-[var(--space-6)]">
-                <PanelEyebrow>Two papers, one argument</PanelEyebrow>
+                <PanelEyebrow>Two papers, one running argument</PanelEyebrow>
                 <PanelTitle as="h1" size="hero" className="max-w-[14ch]">
                   How autonomous programs share a laptop without making a mess.
                 </PanelTitle>
                 <PanelBody size="default" className="max-w-[60ch] text-[length:var(--text-lg)]">
-                  These two papers describe a small, working system for the
-                  problem of "many programs, one machine." The first paper
-                  asks how a program proves who it is to another program.
-                  The second asks how several of those programs share a
-                  workspace without one of them being put in charge.
-                  Each is readable on its own; together they tell the whole
-                  story.
+                  The first paper is about how a program proves who it is
+                  to another program — local cryptography, smaller than you
+                  would think, more careful than it had to be. The second
+                  paper is the harder one: how several of those programs
+                  share a workspace without anyone being put in charge.
+                  (You will recognize this as the problem governments and
+                  apartment buildings have not entirely solved.) Each paper
+                  is readable on its own. Read together, they describe a
+                  small, working system for the otherwise-unfixable problem
+                  of "many programs, one machine."
                 </PanelBody>
 
                 <div className="grid gap-[var(--space-3)] border-y-2 border-[var(--border-strong)] py-[var(--space-4)] sm:grid-cols-3">
@@ -94,11 +97,13 @@ export default function WhitepaperPage() {
                 </div>
 
                 <p className="max-w-[60ch] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
-                  by <strong className="font-black text-[var(--text-primary)]">Erich Owens</strong>.
-                  Each paper opens with a short primer. If you have never thought about cryptographic
-                  identity or shared-resource governance before, that is fine — the primer assumes
-                  you have not, and the page that holds the PDF defines every technical term as it
-                  appears.
+                  by <strong className="font-black text-[var(--text-primary)]">Erich Owens</strong> (Curiositech LLC).
+                  Each paper opens with a short, plain-language primer.
+                  If you have never thought about cryptographic identity
+                  or shared-resource governance before, no problem — the
+                  primers assume you have not, and the page that wraps
+                  the PDF defines every technical term as it shows up.
+                  Bring whatever you bring.
                 </p>
 
                 <Link
@@ -111,9 +116,12 @@ export default function WhitepaperPage() {
                       Read the review history →
                     </span>
                     <span className="block text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
-                      Both papers were argued with by two AI review teams over five rounds.
-                      We kept every objection, every fix, and every honest gap. Useful if you
-                      want to know what we changed our minds about.
+                      Both papers spent five months getting argued with by two
+                      AI review teams — one playing attacker, one playing defender,
+                      neither allowed to read the other&apos;s notes. Every objection
+                      that landed, every fix, every still-open gap is on the record.
+                      Useful for the kind of reader who wants to see where we
+                      changed our minds.
                     </span>
                   </span>
                 </Link>

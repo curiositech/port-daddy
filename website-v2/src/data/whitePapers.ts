@@ -43,11 +43,12 @@ export const WHITE_PAPERS: WhitePaper[] = [
     id: 'anchor-protocol',
     slug: 'anchor-protocol',
     title: 'The Anchor Protocol',
-    subtitle: 'A way for one program to prove who it is to another, on the same machine, without secrets in the wind',
+    subtitle:
+      'How one program proves who it is to another — on the same machine, without secrets blowing around in the wind.',
     thesis:
-      'When you spawn a script, that script inherits everything you can do. That is fine for trusted code; it is dangerous for autonomous agents. This paper specifies a small system that lets each agent carry a signed "ID card" listing exactly what it is allowed to do — and that lets the program receiving a request verify the card without phoning home.',
+      'When you spawn a script, that script inherits the full powers of you. Fine for code you wrote yesterday; perilous for autonomous agents you barely supervised. This paper specifies a small, embarrassingly classical bit of plumbing — a signed ID card per program, scoped to exactly what that program may do — that turns "trust me, I was launched by Erich" into something a cryptographer would shake hands on.',
     summary:
-      'A guided read of the Anchor Protocol paper: what an "identity for a process" should mean, how to make one with off-the-shelf cryptography, and why this is now solvable on a laptop.',
+      'A guided read of the Anchor Protocol paper — what an "identity for a process" should even mean, how to mint one out of off-the-shelf cryptography, and why a problem that felt unsolvable in 2010 is now a long weekend\'s work.',
     filename: 'anchor-protocol-whitepaper',
     pdfPath: '/whitepaper/anchor-protocol-whitepaper.pdf',
     readerHref: '/whitepaper/anchor-protocol',
@@ -58,7 +59,7 @@ export const WHITE_PAPERS: WhitePaper[] = [
     status: 'Version 1.2',
     order: '01',
     primer:
-      'A laptop today happily runs dozens of background programs spawned by IDEs, language models, and developer tools. Most of them inherit the full power of whoever launched them — your shell, your network, your filesystem. The Anchor Protocol is a small piece of plumbing that gives each one a tiny ID card instead. The card lists what the program may do (read this folder, call this port, talk to this peer), how long the card is valid, and is signed so it cannot be forged. The receiving program checks the signature and the scope, and refuses anything outside it. That is the whole idea. The paper exists because doing this correctly is full of subtle traps, and we wanted to write down a version that holds up to formal scrutiny.',
+      'Your laptop is — at this exact moment, while you are reading this — running about twenty programs you did not consciously start. Some you wanted (the language model in your editor, the build watcher, that weird Electron app you forgot you installed). Some are vestigial. A small but rapidly growing handful are *autonomous* — little agents your tools spawned to act on your behalf, with the same standing on your machine as you. This is the cryptographic equivalent of giving every guest at a party your house keys because they showed up with the same Uber driver. The Anchor Protocol is the boring, important plumbing that hands each program a guest pass instead — a tiny signed card listing exactly which rooms it may enter, for how long, and from whom. The card is checked at every door. The card cannot be forged. The paper is short because the idea is small; it is more careful than it had to be, because cryptography is one of those domains where 99%-correct is functionally 0%-correct. (We made a machine — ProVerif — check our work. Output in the appendix.)',
     glossary: [
       {
         term: 'Capability',
@@ -87,9 +88,9 @@ export const WHITE_PAPERS: WhitePaper[] = [
       },
     ],
     whatYouGet:
-      'After this paper you should be able to (1) explain why "the user trusts everything this script does" is a fragile model for autonomous agents, (2) sketch a token-based alternative on a whiteboard, (3) recognize three classic attacks the design defends against — algorithm confusion, replay, and over-broad delegation — and know what defends against each.',
+      'You should leave able to (a) explain to your most skeptical coworker why "the user trusts everything this script does" stops being a working model the minute the script can spawn its own scripts, (b) sketch the token-based alternative on a whiteboard with the cryptography in the right places, and (c) recognize three classic attacks by name — algorithm confusion, replay, and over-broad delegation — and know which line of which paragraph defends against each. None of this is novel. The art is in the composition.',
     forBuilders:
-      "If you are building a tool that spawns subprocesses (an IDE plugin, an agent runtime, a build orchestrator), this paper is a working blueprint for putting a real authorization layer between them. The cryptography is standard; the contribution is the assembly: which check to do where, and what the receiving program should refuse.",
+      'If you are shipping anything that spawns subprocesses on a user\'s machine — an IDE plugin, an agent runtime, a build orchestrator, a self-updating CLI — this is a working blueprint for the authorization layer you have probably been meaning to write. The cryptographic primitives are standard; you can grab them off NPM. The contribution is the assembly: which check happens where, what the receiver should refuse, what to do when the card is good but the request is suspicious anyway, and how to revoke a card that you handed out two minutes ago.',
     highlights: [
       { icon: Shield, label: 'Verified in ProVerif' },
       { icon: Lock, label: 'Standard Ed25519 signatures' },
@@ -126,15 +127,15 @@ export const WHITE_PAPERS: WhitePaper[] = [
     takeaways: [
       {
         title: 'A program is not a person',
-        body: 'Treating a spawned process as if it were "you" worked when there were three of them. With dozens of autonomous helpers running on a laptop, each one needs its own much smaller permission set.',
+        body: 'Treating a spawned process as a stand-in for "you" worked fine in 2008. With twenty autonomous helpers a day cycling through your laptop, each of them needs its own much smaller permission set — not because anybody is malicious, but because the per-program blast radius needs to match the per-program competence.',
       },
       {
         title: 'Localhost is a real network',
-        body: 'Local ports, sockets, and developer-tool APIs are attack surface. The paper applies the same hygiene we use for the public internet to the connections inside your machine.',
+        body: 'Local ports, sockets, and developer-tool APIs are attack surface, full stop. The paper applies the same hygiene the public internet learned the hard way to the connections inside your own machine. The fact that two programs are talking over `127.0.0.1` is interesting; the fact that one of them came from a `curl | bash` you ran six months ago is the part to be careful about.',
       },
       {
-        title: 'Proofs are useful, not decorative',
-        body: 'Mathematically checking the design lets the running daemon make sharper claims to its UI ("this token is valid, scoped to X, expires at Y") instead of vague reassurances. Users notice the difference.',
+        title: 'Proofs are leverage, not decoration',
+        body: 'Putting the protocol through a formal verifier is not a flex — it is what lets the daemon say sharper things to its UI ("this token is valid, scoped to /tmp/build, expires at 5:14pm") instead of vague reassurances. Users notice. Engineers notice when they go to integrate. The math earns its keep at the seams.',
       },
     ],
   },
@@ -142,11 +143,12 @@ export const WHITE_PAPERS: WhitePaper[] = [
     id: 'bonded-commons',
     slug: 'bonded-commons',
     title: 'The Bonded Commons',
-    subtitle: 'How a group of independent programs can share a workspace without stepping on each other',
+    subtitle:
+      'How a group of independent programs can share a workspace without one of them being put in charge.',
     thesis:
-      'When several agents work on the same project, the cheap solution is to lock everything; the cheap-but-broken solution is to trust everyone. This paper proposes a third option: agents announce what they are about to do, leave durable evidence of what they did, and post a small bond against making a mess. The bond, the announcements, and the evidence together replace a central authority.',
+      'Two agents can negotiate. Twenty cannot. The expensive-and-broken solutions are to lock every drawer or to trust everyone equally. This paper proposes a third thing: agents announce what they are about to do, leave durable evidence of what they actually did, and post a small refundable deposit against making a mess. The deposit, the announcements, and the evidence together do the job a central manager would do — and they do it without a manager.',
     summary:
-      'A guided read of the Bonded Commons paper: why mutual visibility beats locks for agent coordination, what kind of "deposit" makes that visibility honest, and how to price the deposit fairly.',
+      'A guided read of the Bonded Commons paper: why mutual visibility beats locks once you have more than a handful of agents, what kind of refundable "deposit" makes that visibility honest instead of theatrical, and how a tiny insurance market beats any single human picking the deposit size by hand.',
     filename: 'agent-transactions-whitepaper',
     pdfPath: '/whitepaper/agent-transactions-whitepaper.pdf',
     readerHref: '/whitepaper/bonded-commons',
@@ -157,7 +159,7 @@ export const WHITE_PAPERS: WhitePaper[] = [
     status: 'Version 2.5 (pre-print)',
     order: '02',
     primer:
-      'Imagine four people sharing a kitchen. They could put a lock on every drawer (slow, miserable), or trust nobody to take the last egg (fragile, ends in tears). The third option is the one that actually works in shared kitchens: a chore wheel on the fridge, receipts for groceries, and a small kitty everyone chips into for breakage. That is the design pattern we transplant to autonomous programs sharing a project. Each agent posts a small deposit (the bond), announces what it is about to do (the commons), and leaves an unforgeable record of what actually happened (the ledger). If the agent makes a mess, the deposit pays for the cleanup. If it does good work, the deposit comes back, plus a tiny reputation gain. Most of the paper is about doing this honestly: how to make the announcements visible without leaking the agent\'s private plan, how to size the deposit so it actually deters bad behavior, and how to recover when an agent simply dies mid-task.',
+      'Picture four roommates sharing a kitchen. There are two tempting solutions and they are both bad. The first is to put a lock on every drawer (slow, miserable, ruins dinner). The second is to trust everyone implicitly to never take the last egg or leave the pan in the sink (fragile, scales poorly, ends in tears). The thing that actually works in real shared kitchens — and has worked for as long as humans have shared kitchens — is the boring third option: a chore wheel on the fridge, receipts kept where everybody can see them, and a small communal kitty that pays for breakage when it happens. Elinor Ostrom won a Nobel Prize for noticing that this same pattern is how fisheries and pastures avoid the *tragedy of the commons*. We are transplanting it into the directory where your autonomous programs work. Each agent posts a small refundable deposit (the *bond*), announces what it is about to do (the *commons*), and leaves a tamper-evident record of what actually happened (the *ledger*). Clean work, the deposit comes back. Mess, the deposit pays for the cleanup. The clever part is not the deposit — that is just escrow. The clever part is that you do not need a judge.',
     glossary: [
       {
         term: 'Commons',
@@ -191,9 +193,9 @@ export const WHITE_PAPERS: WhitePaper[] = [
       },
     ],
     whatYouGet:
-      'After this paper you should be able to (1) describe why locks scale poorly for autonomous coordination, (2) explain how a posted bond changes an agent\'s incentive without needing a judge to step in, (3) sketch a system where agents leave evidence of their work that anyone can verify later, and (4) recognize where this design stops being right — small teams, low-stakes work, or environments where one trusted operator is faster.',
+      'You should leave with: (a) a real intuition for why locking-everything starts to feel claustrophobic the second you have more than two agents in the same directory, (b) a feel for how a refundable deposit changes an agent\'s incentives without anybody needing to play judge, (c) a working sketch of a system where each participant leaves evidence anybody can verify later (Git already half-does this; we finish the half), and (d) — the part most authors leave out — an honest map of where this design stops being right. Small teams, low-stakes scratch work, environments with one trusted operator: stick with the lock. The mechanism only earns its keep when the agents are many, the consequences are real, and nobody has the standing to be in charge.',
     forBuilders:
-      'If you are building infrastructure for multiple agents (or multiple humans! — the design is identical) to collaborate on shared state, this paper gives you a working set of contracts: who announces what, where the evidence lives, how to recover from a crashed participant, and how to price the participation deposit so neither side gets cheated.',
+      'If you are building infrastructure for multiple agents to collaborate on shared state — or multiple humans, frankly; the design does not care — this paper gives you the contracts you actually need: who announces what before they touch anything, where the evidence has to live so it cannot be quietly retconned, how a participant returns from a crash without you losing what they were doing, and (the whole back half of the paper) how to price the deposit so the buyer and seller both come out ahead. The pricing section was contributed by an actual economist. We made him write down his assumptions.',
     highlights: [
       { icon: Scale, label: 'Conservation invariant proven (TLA+)' },
       { icon: Handshake, label: 'Market-priced participation bonds' },
@@ -234,16 +236,16 @@ export const WHITE_PAPERS: WhitePaper[] = [
     ],
     takeaways: [
       {
-        title: 'Trust is cheaper as infrastructure than as a negotiation',
-        body: 'Building the visibility, the evidence, and the deposit into the substrate means new agents can start working without first establishing a relationship with every other agent.',
+        title: 'Trust is cheaper as infrastructure than as negotiation',
+        body: 'If the visibility, the evidence, and the deposit are baked into the substrate, a new agent can show up and start working without first establishing a personal relationship with every other agent in the room. This is exactly the dynamic that lets you walk into a hardware store you have never visited before and buy a hammer with a credit card. The infrastructure does the negotiating, ahead of time, in bulk.',
       },
       {
         title: 'Visibility is not surveillance',
-        body: 'The paper distinguishes "what an agent announces it is about to do" from "what an agent is privately thinking." Only the first is shared. The design protects private context while making coordination legible.',
+        body: 'The paper holds an important line: what an agent *announces* it is about to do is shared. What an agent is *privately thinking* is not. Coordination is legible; the agent\'s private context, plan, and reasoning stay the agent\'s own. (This is why the system feels less like a panopticon and more like a hardware store.)',
       },
       {
         title: 'Evidence makes recovery from failure boring',
-        body: 'When an agent dies mid-task, the next one inherits a precise record of what was done and what is left. Today this is achieved through chat archaeology and prayer; the paper makes it routine.',
+        body: 'When an agent dies mid-task — and they will — the next one inherits a precise record of what was done and what is left. Today this is achieved through chat archaeology and a hopeful re-run; in the world this paper describes, it is the routine. Boring is the goal. Boring is what scales.',
       },
     ],
   },
@@ -253,17 +255,17 @@ export const READING_ORDER = [
   {
     step: '01',
     title: 'Start with identity',
-    body: 'Read the Anchor Protocol first. It defines what it means for one local program to prove who it is to another. Everything in the second paper assumes you can do that.',
+    body: 'Read the Anchor Protocol first — it is the shorter and more classical of the two. It pins down what it means for one local program to prove who it is to another, and everything in the second paper quietly assumes you can do that. (Skip the appendix on the first pass; come back when you want the proofs.)',
   },
   {
     step: '02',
-    title: 'Then read coordination',
-    body: 'Read the Bonded Commons next. It builds on Anchor and asks the harder question: how do several of these programs share a workspace without one of them being put in charge?',
+    title: 'Then the harder one',
+    body: 'Read the Bonded Commons next. Anchor handles "who is this program;" Bonded Commons handles the question that gets harder every year: how do several of those programs share the same project without anyone being put in charge of anyone else? This is the paper with the kitchen analogy and Elinor Ostrom showing up.',
   },
   {
     step: '03',
-    title: 'Compare against running software',
-    body: 'Both papers describe a real running daemon. The website tour shows the same ideas as moving parts you can install and inspect: signed sessions, file claims, locks, durable notes, and recovery from crashes.',
+    title: 'Then go look at the actual software',
+    body: 'Both papers describe a daemon you can install and poke at. After you have read them, the rest of this site stops looking like marketing — sessions, file claims, locks, durable notes, and recovery from crashes are the moving parts the papers were arguing about. The papers describe the rules; the daemon enforces them.',
   },
 ] as const
 
