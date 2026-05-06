@@ -1,16 +1,16 @@
 import type { DocsContentSection } from './types'
 
 const singleMachineControlPlane = String.raw`flowchart TB
-  Operator["Human operator"]
-  Surfaces["One interface layer<br/>CLI, FleetBar, Control Center, MCP"]
-  Daemon["Local Port Daddy daemon<br/>coordination source of truth"]
-  State["Daemon-owned facts<br/>sessions, notes, claims, locks,<br/>harbors, tuples, salvage"]
-  Workers["Agent runtimes<br/>Codex, Claude, Gemini, custom"]
+  Operator["Human<br/>operator"]
+  Surfaces["Interface layer<br/>CLI + FleetBar<br/>Control Center + MCP"]
+  Daemon["Local daemon<br/>coordination<br/>source of truth"]
+  State["Daemon facts<br/>sessions + notes<br/>claims + locks<br/>harbors + tuples<br/>salvage"]
+  Workers["Agent runtimes<br/>Codex + Claude<br/>Gemini + custom"]
 
   Operator --> Surfaces
-  Surfaces -->|commands, views, approvals| Daemon
-  Workers -->|begin, claim, note, spawn, done| Daemon
-  Daemon -->|context and constraints| Workers
+  Surfaces -->|commands + views| Daemon
+  Workers -->|agent events| Daemon
+  Daemon -->|context| Workers
   Daemon --> State
   State -->|same live story| Surfaces
 
@@ -23,9 +23,9 @@ const singleMachineControlPlane = String.raw`flowchart TB
   class State green;`
 
 const relayHarborMesh = String.raw`flowchart TB
-  Harbor["Harbor: erich-workbench<br/>fingerprint, keys, policy"]
+  Harbor["Harbor<br/>fingerprint + keys<br/>policy"]
   Relay["PD Relay<br/>outbound-only ciphertext router"]
-  Events["Encrypted harbor events<br/>status, approvals, replies, results"]
+  Events["Encrypted events<br/>status + approvals<br/>replies + results"]
   Phone["Phone<br/>reads + approves"]
   Laptop["Laptop daemon<br/>sessions + agents"]
   HomePC["Home PC daemon<br/>compute lane"]
@@ -46,7 +46,7 @@ const relayHarborMesh = String.raw`flowchart TB
 const relayJoinPath = String.raw`flowchart TB
   Invite["01 Owner laptop<br/>makes invite"]
   Phone["02 Phone scans QR<br/>redeems link"]
-  Card["03 Relay returns<br/>phone card"]
+  Card["03 Relay returns<br/>attenuated card"]
   Listen["04 Phone listens<br/>to channels"]
   Approve["05 Phone sends<br/>approval"]
   Apply["06 Laptop daemon<br/>applies action"]
@@ -62,6 +62,43 @@ const relayJoinPath = String.raw`flowchart TB
   class Invite,Apply ink;
   class Phone,Card,Listen,Approve cobalt;
   class Peer accent;`
+
+const fleetAutomationLoop = String.raw`flowchart TB
+  Config["pd-fleet.yml<br/>agents + triggers<br/>limits"]
+  Parser["Fleet engine<br/>parse config<br/>resolve vars"]
+  Topology["Topology check<br/>cycles + orphan<br/>channels"]
+  Daemon["Fleet daemon<br/>lease + watch<br/>reload"]
+  Trigger["Trigger source<br/>schedule, channel<br/>tuple, manual"]
+  Budget["Budget gates<br/>daily + hourly<br/>concurrent"]
+  Runner["Fleet runner<br/>worktree + backend<br/>fallback"]
+  Evidence["Runtime evidence<br/>events + notes<br/>tuples + status"]
+  Surfaces["Operator surfaces<br/>CLI + FleetBar<br/>Control Center"]
+
+  Config --> Parser --> Topology --> Daemon
+  Daemon --> Trigger --> Budget --> Runner --> Evidence --> Surfaces
+  Surfaces -->|control| Daemon
+
+  classDef cobalt fill:#003fb8,color:#fbf7ef,stroke:#121212,stroke-width:2px;
+  classDef green fill:#006b5f,color:#fbf7ef,stroke:#121212,stroke-width:2px;
+  classDef ink fill:#121212,color:#fbf7ef,stroke:#121212,stroke-width:2px;
+  class Config,Daemon,Runner ink;
+  class Parser,Topology,Budget cobalt;
+  class Trigger,Evidence,Surfaces green;`
+
+const fleetTriggerTopology = String.raw`flowchart TB
+  Commit["git:committed<br/>qa + tests<br/>simplifier"]
+  Promotion["promotion docs<br/>documentarian"]
+  Schedule["cron schedules<br/>gardener + map<br/>spark + spider"]
+  Manual["manual hail<br/>one selected<br/>agent"]
+  Evidence["runtime evidence<br/>events, notes, status"]
+
+  Commit --> Promotion --> Schedule --> Manual --> Evidence
+
+  classDef cobalt fill:#003fb8,color:#fbf7ef,stroke:#121212,stroke-width:2px;
+  classDef green fill:#006b5f,color:#fbf7ef,stroke:#121212,stroke-width:2px;
+  classDef ink fill:#121212,color:#fbf7ef,stroke:#121212,stroke-width:2px;
+  class Commit,Promotion,Schedule,Manual ink;
+  class Evidence green;`
 
 export const referenceArchitecturesSection: DocsContentSection = {
   slug: 'reference-architectures',
@@ -282,28 +319,65 @@ export const referenceArchitecturesSection: DocsContentSection = {
       blocks: [
         {
           type: 'paragraph',
-          title: 'From YAML to inspectable automation',
+          title: 'From config to accountable background work',
           paragraphs: [
-            'A fleet architecture starts with a declared project config and ends with running automation Port Daddy can show you. The point is not to hide the workflow behind magic watchers. The point is to make background agents visible: status, lifecycle events, triggers, and topology.',
-            'A good fleet view tells you what is armed, what wakes on a trigger, what stays singleton, and which channels connect one agent to another. Those relationships should be visible in the app instead of buried in handwritten scripts.',
+            'The fleet architecture is the project-level version of Port Daddy coordination: a checked-in `pd-fleet.yml` declares background agents, channels, schedules, budgets, and launch defaults; the daemon turns that into live runners with status, lifecycle events, pause/resume controls, and a source-backed topology.',
+            'This is not supposed to be a pile of hidden watchers. A fleet should answer five operator questions quickly: what is armed, what can wake it, what budget gate protects it, which worktree or backend will run it, and where the evidence goes after it fires.',
+            'The current runtime already does the hard parts that matter for trust: templates are resolved from project context, trigger graphs are checked for cycles, project-scoped channels avoid cross-repo wakeups, budget/concurrency gates sit before agent launch, and edit-capable agents default toward isolated worktrees unless the fleet config opts out.',
+          ],
+        },
+        {
+          type: 'mermaid',
+          title: 'Fleet automation loop',
+          chart: fleetAutomationLoop,
+          caption:
+            'The architecture is a loop, not a fire-and-forget launcher: config becomes topology, topology arms the daemon, triggers request work, budgets gate the spawn, and events return to operator surfaces.',
+        },
+        {
+          type: 'checklist',
+          title: 'Fleet invariants',
+          tone: 'blue',
+          items: [
+            'Treat `pd-fleet.yml` as the inspectable declaration of intent, not as an excuse to bury behavior in shell scripts.',
+            'Validate the trigger graph before arming automation; cycles and orphan channels are topology facts, not UI trivia.',
+            'Scope physical channels by project directory so two repos can both publish `git:committed` without waking each other.',
+            'Require a positive daily budget for agentic launches, then enforce concurrent and hourly spawn limits before the backend starts.',
+            'Default edit-capable agents into separate worktrees; shared-tree runners should be explicit and usually read-only.',
+            'Emit events, notes, tuples, and status so FleetBar, Fleet Control Center, CLI, and API clients can prove what happened.',
           ],
         },
         {
           type: 'command',
           title: 'Inspection path',
-          command:
-            'pd fleet validate\npd fleet status\ncurl http://localhost:9876/fleet\ncurl http://localhost:9876/fleet/events',
+          command: 'pd fleet validate\npd fleet status',
+          output:
+            'SUCCESS: Fleet "port-daddy" parsed successfully\n  agents:   8\n  watchers: 2\n  channels: 8\n  budget:   9.76\n\nSUCCESS: No topology warnings\n\nFleet status then shows configured agents, backend readiness, registered fleet agents, and recent fleet events.',
           notes: [
-            'Validate the topology before trusting the running state.',
-            'Use the CLI for a quick project view and daemon routes for aggregated fleet state and lifecycle events.',
+            'This output is from the current checkout while building this page.',
+            'Use `/fleet`, `/fleet/events`, and `/fleet/config/:project` when a UI or SDK needs the same truth over HTTP.',
           ],
         },
         {
+          type: 'mermaid',
+          title: 'Trigger topology example',
+          chart: fleetTriggerTopology,
+          caption:
+            'A useful fleet is readable as a topology: commits wake review and testing, promotion wakes release-surface docs, schedules wake maintenance, and manual hails stay possible.',
+        },
+        {
+          type: 'callout',
+          tone: 'warning',
+          title: 'Do not make fleet magic',
+          body:
+            'The failure mode is automation that looks impressive until something goes wrong. Fleet work should be dull to inspect: the same project directory, physical channel, budget decision, backend readiness, run id, and result should show up in every surface.',
+        },
+        {
           type: 'paragraph',
-          title: 'What keeps this architecture useful',
+          title: 'Future-facing recommendation',
           paragraphs: [
-            'The fleet loop works when the YAML, daemon, and UI all describe the same project automation.',
-            'A project fleet is useful when the user can inspect it, pause it, reload it, and understand what actually fired.',
+            'The next product step is a Fleet Control Center that edits the topology without hiding it. A user should be able to drag an agent from `git:committed` to `promotion:release-surfaces`, see the YAML diff, preview budget impact, validate the graph, and only then apply the change. The UI can be friendly, but the artifact should remain `pd-fleet.yml` plus daemon events.',
+            'The stronger future version is tuple-triggered fleet work with named lanes. A QA agent could write a structured finding tuple, a documentarian could subscribe to only release-surface tuples, and Spark could publish ideas without turning every channel into prose. The runtime already has tuple mailboxes and semantic alias emission for fleet tasks; the architecture should lean into that instead of inventing a second queue.',
+            'The user-facing rule: automation should become more ambient without becoming less accountable. A fleet can be always-on only if the operator can stop it, explain it, limit it, and replay the evidence after it acts.',
           ],
         },
       ],
@@ -313,12 +387,28 @@ export const referenceArchitecturesSection: DocsContentSection = {
           rationale: 'ADR defines the fleet YAML model, lifecycle, and user expectations.',
         },
         {
-          path: 'routes/fleet.ts',
-          rationale: 'Fleet routes expose status, lifecycle, config, and events on the daemon.',
+          path: 'pd-fleet.yml',
+          rationale: 'The repo-owned fleet config shows real agents, schedules, triggers, model fallbacks, budget limits, and channel topology.',
         },
         {
-          path: 'README.md',
-          rationale: 'README documents both CLI and daemon-mode fleet workflows.',
+          path: 'lib/fleet-engine.ts',
+          rationale: 'Parses fleet YAML, infers worktree defaults, validates topology, scopes triggers, enforces budget/concurrency gates, and runs agents/watchers.',
+        },
+        {
+          path: 'lib/fleet-daemon.ts',
+          rationale: 'Owns fleet discovery, project leases, config watching, reload, event emission, status aggregation, and project-wide concurrency semaphores.',
+        },
+        {
+          path: 'lib/fleet-channels.ts',
+          rationale: 'Scopes human-readable fleet channels like `git:committed` into project-specific physical channels.',
+        },
+        {
+          path: 'routes/fleet.ts',
+          rationale: 'Fleet routes expose status, lifecycle controls, config editing, budget updates, backend readiness, and SSE events on the daemon.',
+        },
+        {
+          path: 'routes/projects.ts',
+          rationale: 'Project readiness uses fleet config state to tell operators whether to create, validate, budget, or start a fleet.',
         },
       ],
     },
@@ -344,6 +434,8 @@ export const referenceArchitecturesSection: DocsContentSection = {
         },
         {
           type: 'checklist',
+          title: 'Delegation choices',
+          tone: 'blue',
           items: [
             'Use `pd spawn` when you need explicit low-level control over one launch.',
             'Use `pd agent` when you want the daemon to wrap a bounded one-shot task correctly.',

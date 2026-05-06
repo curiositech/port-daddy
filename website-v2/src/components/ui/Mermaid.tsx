@@ -60,8 +60,16 @@ export const Mermaid: React.FC<MermaidProps> = ({ chart, className }) => {
         noteTextColor: text,
         noteBorderColor: border,
         fontFamily: 'Radnika, Helvetica Neue, Helvetica, Arial, sans-serif',
-        fontSize: '17px',
-      }
+        fontSize: '16px',
+      },
+      flowchart: {
+        curve: 'basis',
+        htmlLabels: true,
+        nodeSpacing: 72,
+        rankSpacing: 82,
+        padding: 22,
+        useMaxWidth: false,
+      },
     })
 
     if (ref.current && chart) {
@@ -101,7 +109,7 @@ export const Mermaid: React.FC<MermaidProps> = ({ chart, className }) => {
   return (
     <Surface
       depth="inset"
-      radius="3xl"
+      radius="none"
       padding="xl"
       className={cn('pd-docs-mermaid my-12 flex w-full justify-start overflow-x-auto', className)}
       ref={ref}

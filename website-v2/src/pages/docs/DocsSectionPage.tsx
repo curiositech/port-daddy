@@ -93,6 +93,24 @@ const checklistBodyTone = {
   blue: 'primary',
   accent: 'accent',
 } as const
+type DocsSurfaceTone = keyof typeof checklistBodyTone
+
+function surfaceToneForBlock(block: ContentBlock, index: number): DocsSurfaceTone {
+  if (block.type === 'mermaid') {
+    return index % 2 === 0 ? 'paper' : 'blue'
+  }
+
+  if (block.type === 'paragraph') {
+    const tones: DocsSurfaceTone[] = ['paper', 'blue', 'accent']
+    return tones[index % tones.length]
+  }
+
+  return 'paper'
+}
+
+function panelToneForSurface(tone: DocsSurfaceTone) {
+  return checklistBodyTone[tone]
+}
 
 function renderInlineLinks(text: string) {
   const nodes: ReactNode[] = []
@@ -386,9 +404,9 @@ function ChecklistRows({
   const bodyTone = checklistBodyTone[tone]
 
   return (
-    <div className="grid gap-[var(--space-2)] border-t-2 border-[color:var(--border-strong)]/20 pt-[var(--panel-gap)]">
+    <ul className="grid gap-[var(--space-2)] border-t-2 border-[color:var(--border-strong)]/20 pt-[var(--panel-gap)]">
       {items.map((item, itemIndex) => (
-        <div
+        <li
           key={item}
           className={cn(
             'grid gap-[var(--space-3)] border-2 p-[var(--space-3)] md:grid-cols-[3rem_minmax(0,1fr)]',
@@ -412,9 +430,9 @@ function ChecklistRows({
           <PanelBody tone={bodyTone} className="max-w-none self-center">
             {renderInlineLinks(item)}
           </PanelBody>
-        </div>
+        </li>
       ))}
-    </div>
+    </ul>
   )
 }
 
@@ -459,23 +477,28 @@ function renderContentBlock(block: ContentBlock, index: number) {
   switch (block.type) {
     case 'paragraph': {
       const paragraphs = paragraphSet(block)
+      const tone = surfaceToneForBlock(block, index)
+      const textTone = panelToneForSurface(tone)
       return (
-        <div
+        <SurfacePanel
           key={`paragraph-${index}`}
-          className="space-y-[var(--panel-gap)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]"
+          tone={tone}
+          className={cn('pd-docs-section-block space-y-[var(--panel-gap)]', `pd-docs-section-block--${tone}`)}
         >
-          <BracketLabel>{label}</BracketLabel>
-          <PanelTitle as="h2" size="nav" className="max-w-none">
+          <BracketLabel tone={textTone} surface={tone}>
+            {label}
+          </BracketLabel>
+          <PanelTitle as="h2" size="nav" tone={textTone} className="max-w-none">
             {blockHeading(block, index)}
           </PanelTitle>
           <div className="space-y-[var(--panel-gap-tight)]">
             {paragraphs.map((paragraph) => (
-              <PanelBody key={paragraph} className="max-w-[58rem]">
+              <PanelBody key={paragraph} tone={textTone} className="max-w-[58rem]">
                 {renderInlineLinks(paragraph)}
               </PanelBody>
             ))}
           </div>
-        </div>
+        </SurfacePanel>
       )
     }
     case 'checklist':
@@ -504,23 +527,33 @@ function renderContentBlock(block: ContentBlock, index: number) {
         </DocsNoteCard>
       )
     case 'mermaid':
-      return (
-        <div
-          key={`mermaid-${index}`}
-          className="space-y-[var(--panel-gap)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]"
-        >
-          <BracketLabel>{label}</BracketLabel>
-          <PanelTitle as="h2" size="nav" className="max-w-none">
-            {block.title}
-          </PanelTitle>
-          <Mermaid chart={block.chart} />
-          {block.caption ? (
-            <PanelBody size="compact" className="max-w-[58rem]">
-              {renderInlineLinks(block.caption)}
-            </PanelBody>
-          ) : null}
-        </div>
-      )
+      {
+        const tone = surfaceToneForBlock(block, index)
+        const textTone = panelToneForSurface(tone)
+        return (
+          <SurfacePanel
+            key={`mermaid-${index}`}
+            tone={tone}
+            className={cn(
+              'pd-docs-section-block pd-docs-diagram-block space-y-[var(--panel-gap)]',
+              `pd-docs-section-block--${tone}`,
+            )}
+          >
+            <BracketLabel tone={textTone} surface={tone}>
+              {label}
+            </BracketLabel>
+            <PanelTitle as="h2" size="nav" tone={textTone} className="max-w-none">
+              {block.title}
+            </PanelTitle>
+            <Mermaid chart={block.chart} />
+            {block.caption ? (
+              <PanelBody size="compact" tone={textTone} className="max-w-[58rem]">
+                {renderInlineLinks(block.caption)}
+              </PanelBody>
+            ) : null}
+          </SurfacePanel>
+        )
+      }
     case 'callout':
       return (
         <DocsNoteCard
