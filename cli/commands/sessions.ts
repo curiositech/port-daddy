@@ -13,6 +13,10 @@ import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
 import { readCurrentContext } from '../utils/current-context.js';
 import { loadFleetConfig } from '../../lib/fleet-engine.js';
+import {
+  attachCliSessionWorktreePolicy,
+  resolveCliSessionWorktreePolicy,
+} from '../utils/session-worktree-policy.js';
 
 type SessionStartResult = Awaited<ReturnType<PortDaddy['startSession']>>;
 type SessionEndResult = Awaited<ReturnType<PortDaddy['endSession']>>;
@@ -275,6 +279,14 @@ async function sessionStart(rest: string[], options: CLIOptions): Promise<void> 
   if (files.length > 0) {
     body.files = files;
   }
+
+  const worktreePolicy = resolveCliSessionWorktreePolicy(options);
+  if (!worktreePolicy.success) {
+    ui.error(worktreePolicy.error || 'Session worktree policy failed');
+    if (worktreePolicy.hint) console.error(`  ${worktreePolicy.hint}`);
+    process.exit(1);
+  }
+  attachCliSessionWorktreePolicy(body, worktreePolicy);
 
   const pd = createSessionClient(options);
   let data: SessionStartResult;

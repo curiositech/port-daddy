@@ -114,6 +114,76 @@ describe('sugar.begin', () => {
     expect(result.fileClaims).toEqual(['lib/sugar.ts', 'routes/sugar.ts']);
   });
 
+  test('rejects required worktree sessions without worktree context', () => {
+    const { sugar } = setup();
+
+    const result = sugar.begin({
+      purpose: 'Main checkout work',
+      requireLinkedWorktree: true,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.code).toBe('WORKTREE_REQUIRED');
+    expect(result.hint).toContain('git worktree add');
+  });
+
+  test('rejects main-worktree sessions unless explicitly allowed', () => {
+    const { sugar } = setup();
+
+    const result = sugar.begin({
+      purpose: 'Main checkout work',
+      requireLinkedWorktree: true,
+      worktree: {
+        id: 'main1234',
+        root: '/repo/port-daddy',
+        name: 'port-daddy',
+        branch: 'main',
+        isMain: true,
+      },
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.code).toBe('MAIN_WORKTREE_SESSION_FORBIDDEN');
+  });
+
+  test('stores linked worktree context on agent, session, and metadata', () => {
+    const { sugar, agents, sessions } = setup();
+    const worktree = {
+      id: 'wt123456',
+      root: '/tmp/port-daddy-feature',
+      name: 'port-daddy-feature',
+      branch: 'codex/worktree-policy',
+      isMain: false,
+    };
+
+    const result = sugar.begin({
+      purpose: 'Linked worktree work',
+      identity: 'port-daddy:runtime:worktrees',
+      metadata: { source: 'unit-test' },
+      requireLinkedWorktree: true,
+      worktree,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.worktree).toEqual(worktree);
+
+    const agentInfo = agents.get(result.agentId);
+    expect(agentInfo.agent.worktreeId).toBe(worktree.id);
+    expect(agentInfo.agent.metadata.worktree).toEqual(worktree);
+    expect(agentInfo.agent.metadata.sessionWorktreePolicy).toEqual({
+      requireLinkedWorktree: true,
+      allowMainWorktree: false,
+    });
+
+    const sessionInfo = sessions.get(result.sessionId);
+    expect(sessionInfo.session.worktreeId).toBe(worktree.id);
+    expect(sessionInfo.session.metadata.worktree).toEqual(worktree);
+    expect(sessionInfo.session.metadata.sessionWorktreePolicy).toEqual({
+      requireLinkedWorktree: true,
+      allowMainWorktree: false,
+    });
+  });
+
   test('reports file conflicts without blocking', () => {
     const { sugar, sessions } = setup();
 

@@ -121,6 +121,10 @@ import { calculateRuntimeCodeHash } from '../shared/code-hash.js';
 import { DEFAULT_SOCK as _DEFAULT_SOCK, DEFAULT_PORT_FILE as _DEFAULT_PORT_FILE } from '../shared/paths.js';
 import { shouldAutoRestartDaemonForFreshness, shouldCheckDaemonFreshness } from '../cli/utils/freshness.js';
 import { readCurrentContext } from '../cli/utils/current-context.js';
+import {
+  attachCliSessionWorktreePolicy,
+  resolveCliSessionWorktreePolicy,
+} from '../cli/utils/session-worktree-policy.js';
 
 const __dirname: string = dirname(fileURLToPath(import.meta.url));
 const PORT_DADDY_URL: string = getDaemonTcpUrl(process.env.PORT_DADDY_URL);
@@ -661,6 +665,7 @@ Commands:
     --agent <id>             Associate with an agent
     --force                  Force start even if another session is active
     --files <paths...>       Claim files at session start
+    --allow-main-worktree    Explicitly allow an integration session in the main worktree
 
   session end [note]         End the active session (completed)
   session done [note]        Alias for "session end"
@@ -930,6 +935,7 @@ They manage agent registration, sessions, and local context together.
 Commands:
   begin "purpose"          Register agent + start session atomically
                            Writes context to .portdaddy/current.json
+    --allow-main-worktree  Explicitly allow an integration session in the main worktree
 
   done "summary"           End session + unregister agent atomically
                            Cleans up .portdaddy/current.json
@@ -1594,6 +1600,15 @@ async function executeDirectMode(
             if (!rest[i].startsWith('-')) files.push(rest[i]);
           }
           if (files.length > 0) startOpts.files = files;
+
+          const worktreePolicy = resolveCliSessionWorktreePolicy(options);
+          if (!worktreePolicy.success) {
+            ui.error(worktreePolicy.error || 'Session worktree policy failed');
+            if (worktreePolicy.hint) console.error(`  ${worktreePolicy.hint}`);
+            process.exit(1);
+          }
+          attachCliSessionWorktreePolicy(startOpts, worktreePolicy);
+          if (worktreePolicy.worktree) startOpts.worktreeId = worktreePolicy.worktree.id;
 
           const result = sess.start(purpose, startOpts as Parameters<typeof sess.start>[1]);
 
