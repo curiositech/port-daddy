@@ -87,6 +87,7 @@ import { createGraphEdges } from './lib/graph-edges.js';
 import { createEpisodicMemory } from './lib/episodic-memory.js';
 import { createSemanticResolver } from './lib/semantic-resolver.js';
 import { createBosunHeartbeat } from './lib/bosun-heartbeat.js';
+import { decideTakeover, probePortOwner } from './lib/port-takeover.js';
 import { createResourceGovernance } from './lib/resource-governance.js';
 
 // Fastify route aggregator (Phase 3 — native Fastify plugins, no Express bridge)
@@ -1081,6 +1082,7 @@ sockServer.listen(SOCK_PATH, async () => {
   // Secondary: TCP for dashboard/browser access
   if (!DISABLE_TCP) {
     const MAX_PORT_ATTEMPTS: number = 11;
+    const ALLOW_TCP_FALLBACK = process.env.PD_ALLOW_TCP_FALLBACK === '1';
     function tryListenTcp(attempt: number = 0): void {
       const tryPort: number = PORT + attempt;
       if (attempt >= MAX_PORT_ATTEMPTS) {
@@ -1094,6 +1096,40 @@ sockServer.listen(SOCK_PATH, async () => {
       const tcpServer = http.createServer((req, res) => { app.routing(req, res); });
       tcpServer.on('error', (err: NodeJS.ErrnoException) => {
         if (err.code === 'EADDRINUSE') {
+          // On the canonical port specifically, probe the existing owner
+          // before falling back. Two Port Daddy daemons on different TCP
+          // ports but the same SQLite DB silently corrupt each other; refuse
+          // to start instead. PD_ALLOW_TCP_FALLBACK=1 restores legacy walk.
+          if (attempt === 0) {
+            void probePortOwner(tcpHost, tryPort).then((probe) => {
+              const decision = decideTakeover({ probe, selfPid: process.pid, allowFallback: ALLOW_TCP_FALLBACK });
+              if (decision.action === 'refuse') {
+                logger.error('tcp_bind_blocked_by_sibling', {
+                  port: tryPort,
+                  reason: decision.reason,
+                  foreignPid: decision.foreignPid,
+                  probeKind: probe.kind,
+                  probeVersion: probe.version,
+                  probeUptimeSeconds: probe.uptimeSeconds,
+                });
+                if (!isSilent) {
+                  console.error(`Port Daddy v${VERSION} refusing to start: ${decision.reason}`);
+                  console.error(`  Existing daemon pid: ${decision.foreignPid ?? '(unknown)'}`);
+                  console.error('  Resolve by killing the stale daemon or unsetting PD_ALLOW_TCP_FALLBACK only after verifying it is safe.');
+                }
+                process.exit(1);
+              }
+              logger.warn('tcp_port_busy', { port: tryPort, nextAttempt: tryPort + 1, reason: decision.reason });
+              tryListenTcp(attempt + 1);
+            }).catch((probeErr: Error) => {
+              // If the probe itself fails unexpectedly, fall back rather
+              // than refuse — refusing on probe failure would be a worse
+              // failure mode than the legacy behavior.
+              logger.warn('tcp_port_busy', { port: tryPort, nextAttempt: tryPort + 1, probeError: probeErr.message });
+              tryListenTcp(attempt + 1);
+            });
+            return;
+          }
           logger.warn('tcp_port_busy', { port: tryPort, nextAttempt: tryPort + 1 });
           tryListenTcp(attempt + 1);
         } else {
