@@ -125,10 +125,71 @@ describe('Bosun heartbeat writer', () => {
     expect(() => writer.writeOnce()).toThrow(/belongs to 9999, not heartbeat pid 4242/);
     expect(writer.getStatus()).toEqual(expect.objectContaining({
       enabled: true,
-      state: 'degraded',
+      state: 'displaced',
       ownerPid: 9999,
       writeCount: 0,
     }));
+  });
+
+  test('a missing pid file is treated as transient and stays degraded', () => {
+    // No pid file written — readPidFileOwner returns null.
+    const writer = createWriter({
+      pidFile: join(tmpHeartbeatPath(), '..', 'daemon.pid.missing'),
+      pid: 4242,
+      requirePidFileMatch: true,
+    });
+
+    expect(() => writer.writeOnce()).toThrow(/belongs to nobody, not heartbeat pid 4242/);
+    expect(writer.getStatus()).toEqual(expect.objectContaining({
+      state: 'degraded',
+      ownerPid: null,
+    }));
+  });
+
+  test('start self-stops the interval once a foreign daemon takes the pid file', () => {
+    jest.useFakeTimers();
+    const heartbeatPath = tmpHeartbeatPath();
+    const pidFile = join(heartbeatPath, '..', 'daemon.pid');
+    writeFileSync(pidFile, '4242\n');
+    const warnings = [];
+    const infos = [];
+    const errors = [];
+    const writer = createWriter({
+      heartbeatPath,
+      pidFile,
+      pid: 4242,
+      requirePidFileMatch: true,
+      logger: {
+        info: (msg, meta) => infos.push({ msg, meta }),
+        warn: (msg, meta) => warnings.push({ msg, meta }),
+        error: (msg, meta) => errors.push({ msg, meta }),
+      },
+    });
+
+    writer.start();
+    expect(writer.getStatus().state).toBe('healthy');
+
+    // Another daemon takes the canonical pid file.
+    writeFileSync(pidFile, '9999\n');
+
+    // Next interval tick: writeOnce throws displaced, the interval logs once
+    // and self-stops. Subsequent ticks must not produce new errors.
+    jest.advanceTimersByTime(50);
+    expect(writer.getStatus()).toEqual(expect.objectContaining({
+      enabled: false,
+      state: 'displaced',
+      ownerPid: 9999,
+    }));
+    expect(warnings.map((w) => w.msg)).toContain('bosun_heartbeat_displaced');
+    expect(infos.map((i) => i.msg)).toContain('bosun_heartbeat_self_stop');
+
+    // Drain another second of ticks; nothing else should fire.
+    const errorCountBefore = errors.length;
+    const warnCountBefore = warnings.length;
+    jest.advanceTimersByTime(1000);
+    expect(errors.length).toBe(errorCountBefore);
+    expect(warnings.length).toBe(warnCountBefore);
+    expect(writer.getStatus().state).toBe('displaced');
   });
 
   test('canonical guard writes after the pid file names the current daemon', () => {

@@ -49,7 +49,7 @@ export const BOSUN_HEARTBEAT_SCHEMA = 'port-daddy.bosun.heartbeat.v1';
 export const DEFAULT_BOSUN_HEARTBEAT_INTERVAL_MS = 5_000;
 export const DEFAULT_BOSUN_STALE_AFTER_MS = 30_000;
 
-export type BosunHeartbeatState = 'idle' | 'healthy' | 'degraded' | 'stopped';
+export type BosunHeartbeatState = 'idle' | 'healthy' | 'degraded' | 'displaced' | 'stopped';
 
 export interface BosunHeartbeatPayload {
   schema: typeof BOSUN_HEARTBEAT_SCHEMA;
@@ -201,13 +201,20 @@ export function createBosunHeartbeat(options: BosunHeartbeatOptions) {
     }
   }
 
-  function assertCanonicalOwnership(): void {
-    if (!options.requirePidFileMatch) return;
+  function assertCanonicalOwnership(): { displaced: boolean } {
+    if (!options.requirePidFileMatch) return { displaced: false };
     const ownerPid = readPidFileOwner();
     status.ownerPid = ownerPid;
-    if (ownerPid !== pid) {
-      throw new Error(`canonical pid file ${pidFile} belongs to ${ownerPid ?? 'nobody'}, not heartbeat pid ${pid}`);
-    }
+    if (ownerPid === pid) return { displaced: false };
+    // A real owner pid that isn't us means another daemon has taken over the
+    // canonical pid file. We are an orphan and our heartbeats are no longer
+    // meaningful — surface this distinctly so the caller can self-stop instead
+    // of retrying forever. A null owner (missing/empty pid file) is treated as
+    // transient: the new daemon may still be writing it.
+    const displaced = ownerPid !== null && ownerPid !== pid;
+    const err = new Error(`canonical pid file ${pidFile} belongs to ${ownerPid ?? 'nobody'}, not heartbeat pid ${pid}`);
+    (err as Error & { displaced?: boolean }).displaced = displaced;
+    throw err;
   }
 
   function buildPayload(): BosunHeartbeatPayload {
@@ -243,15 +250,44 @@ export function createBosunHeartbeat(options: BosunHeartbeatOptions) {
       status.writeCount += 1;
       return payload;
     } catch (err) {
+      const displaced = (err as Error & { displaced?: boolean }).displaced === true;
       status.enabled = true;
-      status.state = 'degraded';
+      status.state = displaced ? 'displaced' : 'degraded';
       status.lastError = (err as Error).message;
-      options.logger?.error?.('bosun_heartbeat_write_failed', {
-        path: heartbeatPath,
-        error: status.lastError,
-      });
+      // Displacement is a one-shot event (another daemon owns the pid file);
+      // log it once at warn so we don't spam error every interval forever.
+      // Transient errors (filesystem, missing pid file) keep error logging so
+      // they remain visible during real outages.
+      if (displaced) {
+        options.logger?.warn?.('bosun_heartbeat_displaced', {
+          path: heartbeatPath,
+          ownerPid: status.ownerPid,
+          pid,
+          error: status.lastError,
+        });
+      } else {
+        options.logger?.error?.('bosun_heartbeat_write_failed', {
+          path: heartbeatPath,
+          error: status.lastError,
+        });
+      }
       throw err;
     }
+  }
+
+  function stopInternal(reason: 'manual' | 'displaced'): void {
+    if (timer) {
+      clearInterval(timer);
+      timer = null;
+    }
+    if (reason === 'displaced') {
+      status.enabled = false;
+      // Preserve state='displaced' so getStatus() and downstream readers can
+      // distinguish "owner replaced us" from a clean stop().
+      return;
+    }
+    status.enabled = false;
+    status.state = 'stopped';
   }
 
   return {
@@ -260,14 +296,34 @@ export function createBosunHeartbeat(options: BosunHeartbeatOptions) {
       try {
         writeOnce();
       } catch {
-        // Status is already degraded and logged. Keep the interval alive so a
-        // transient filesystem failure can recover without daemon restart.
+        // Status is already degraded/displaced and logged. If we were displaced
+        // on the very first write, the interval below will short-circuit on the
+        // next tick and self-stop without spamming errors.
+      }
+      if (status.state === 'displaced') {
+        // No point starting an interval — we are an orphan. Log once and bail.
+        options.logger?.info?.('bosun_heartbeat_self_stop', {
+          path: heartbeatPath,
+          reason: 'displaced',
+          ownerPid: status.ownerPid,
+          pid,
+        });
+        return;
       }
       timer = setInterval(() => {
         try {
           writeOnce();
         } catch {
           // writeOnce records the error in status.
+        }
+        if (status.state === 'displaced') {
+          options.logger?.info?.('bosun_heartbeat_self_stop', {
+            path: heartbeatPath,
+            reason: 'displaced',
+            ownerPid: status.ownerPid,
+            pid,
+          });
+          stopInternal('displaced');
         }
       }, intervalMs);
       options.logger?.info?.('bosun_heartbeat_started', {
@@ -278,12 +334,7 @@ export function createBosunHeartbeat(options: BosunHeartbeatOptions) {
     },
 
     stop() {
-      if (timer) {
-        clearInterval(timer);
-        timer = null;
-      }
-      status.enabled = false;
-      status.state = 'stopped';
+      stopInternal('manual');
     },
 
     writeOnce,
