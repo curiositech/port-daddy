@@ -2362,7 +2362,7 @@
       "image": "/img/og/tutorials-pd-tube.jpg",
       "route": "/tutorials/pd-tube",
       "title": "Pipe Agent Conversations - Port Daddy",
-      "description": "Use PD Tube to send, read, reply, and resume channel conversations as clean JSON lines for scripts and agents.",
+      "description": "Use PD Tube to send, read, reply, and resume channel conversations as block-once handoffs or JSON lines.",
       "section": "tutorials",
       "sectionLabel": "Tutorial 21",
       "sourceImage": "/img/generated/agent-runtime-map.jpg"

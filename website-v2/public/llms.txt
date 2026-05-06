@@ -254,7 +254,7 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 - [Map a Monorepo - Port Daddy](https://portdaddy.dev/tutorials/monorepo): Scan a large repo, detect service boundaries, register them in the harbor, and bring the local stack up and down cleanly.
 - [Coordinate Multiple Agents - Port Daddy](https://portdaddy.dev/tutorials/multi-agent): Run two agents in the same harbor with file claims, session notes, conflict visibility, and channel signals.
 - [pd spawn: Launch One-Shot Agents - Port Daddy](https://portdaddy.dev/tutorials/pd-spawn): Start a bounded agent job with sessions, heartbeats, notes, cost telemetry, and salvage wired around the backend.
-- [Pipe Agent Conversations - Port Daddy](https://portdaddy.dev/tutorials/pd-tube): Use PD Tube to send, read, reply, and resume channel conversations as clean JSON lines for scripts and agents.
+- [Pipe Agent Conversations - Port Daddy](https://portdaddy.dev/tutorials/pd-tube): Use PD Tube to send, read, reply, and resume channel conversations as block-once handoffs or JSON lines.
 - [Use Ambient Attention Signals - Port Daddy](https://portdaddy.dev/tutorials/pheromone): Attach decaying numeric signals to files, sessions, or ideas so agents can prioritize work without extra chat traffic.
 - [Build Reactive Pipelines - Port Daddy](https://portdaddy.dev/tutorials/pipelines): Chain channels, watchers, locks, and spawned agents into event-driven workflows with clear ownership boundaries.
 - [Walk the 11 Product Primitives - Port Daddy](https://portdaddy.dev/tutorials/primitives): Use the Mac app, Fleet Control Center, Shipwright, and CLI checks to see where every public primitive lives.

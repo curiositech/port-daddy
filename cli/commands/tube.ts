@@ -15,12 +15,10 @@
  *   pd tube <channel> --send <body>            # inline top-level body
  *   pd tube <channel> --no-history             # listen without touching the cursor
  *   pd tube <channel> --limit=N                # initial backfill cap (default 50)
- *   pd tube chat <channel> --backend=codex     # spawn a backend per top-level msg
  *
- * In listen mode each emitted message is one JSON line on stdout
- * (`{ id, sender, createdAt, body, inReplyTo? }`) — easy to pipe into jq,
- * grep, websocat, or another `pd tube` instance. Errors and status notes go
- * to stderr; stdout stays a clean data pipe.
+ * In listen mode the default output is a prose crank-handle block: one event,
+ * how to reply, then exit so an agent's shell tool yields. Use `--json` for
+ * JSON lines and `--raw` for tab-separated output.
  *
  * The command works against the daemon's existing `/msg/:channel`
  * surface; nothing else is required and the relay is not assumed.
@@ -257,7 +255,7 @@ function parseNumberOption(raw: unknown, label: string): number {
  */
 export async function handleTube(channel: string | undefined, options: CLIOptions, deps: TubeHandlerDeps = {}): Promise<void> {
   if (!channel) {
-    ui.error('Usage: pd tube <channel> [--reply <body> [--reply-to=<id>] | --reply-to=<id> < body | --send <body> | --send | --once | --raw | --json | --no-history]');
+    ui.error('Usage: pd tube <channel> [--reply <body> [--reply-to=<id>] | --reply-to=<id> < body | --send <body> | --send | --once | --tail | --wait-for=<seconds> | --raw | --json | --no-history]');
     process.exit(1);
   }
 

@@ -5,7 +5,7 @@ export default function SpawnedCommand() {
     <CommandPage
       command="spawned"
       description="List all currently running spawned agents."
-      version="3.11.0"
+      version="3.13.0"
       syntax="pd spawned"
       flags={[
         { flag: '-j, --json', description: 'JSON output' },

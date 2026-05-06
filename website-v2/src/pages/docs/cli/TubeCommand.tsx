@@ -6,7 +6,7 @@ export default function TubeCommand() {
       command="pd tube"
       description="The single command that turns any local UI, hook, or webhook into an event your running agent can answer in one shell call. Listen mode blocks once and returns; --reply auto-correlates to the most recent foreign event and continues listening."
       version="3.13.0"
-      syntax="pd tube <channel> [--reply <body> | --reply=<id> --send | --send <body> | --raw | --json | --once | --tail | --wait-for=<seconds> | --no-history | --since=<id> | --limit=<N> | --sender <id>]"
+      syntax="pd tube <channel> [--reply <body> | --reply-to=<id> | --reply=<id> --send | --send <body> | --raw | --json | --once | --tail | --wait-for=<seconds> | --no-history | --since=<id> | --limit=<N> | --sender <id>]"
       usagePatterns={[
         'pd tube ui:clicks',
         'pd tube ui:clicks --reply "Deployed to staging."',
@@ -20,6 +20,11 @@ export default function TubeCommand() {
           flag: '--reply <body>',
           description:
             'Inline reply: auto-correlates to the most recent foreign event on this channel, posts the body, then continues listening. Pass `-` to read body from stdin.',
+        },
+        {
+          flag: '--reply-to=<id>',
+          description:
+            'Explicit parent id for a threaded reply. Combine with `--reply <body>` or pipe stdin.',
         },
         {
           flag: '--reply=<id> --send',
@@ -88,8 +93,8 @@ export default function TubeCommand() {
             '{"id":42,"sender":"web-demo","createdAt":1714519871000,"body":"{\\"button\\":\\"deploy-staging\\"}"}',
         },
         {
-          description: 'Legacy explicit-parent shape: post a reply to id=42 from stdin, then exit.',
-          code: 'printf "roger that" | pd tube ui:clicks --reply=42 --send --sender codex',
+          description: 'Explicit-parent shape: post a reply to id=42 from stdin.',
+          code: 'printf "roger that" | pd tube ui:clicks --reply-to=42 --sender codex',
           output: 'SUCCESS: tube: posted id=43 to ui:clicks',
         },
       ]}

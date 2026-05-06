@@ -6,7 +6,7 @@ export default function Status() {
       function="status"
       description="Get daemon status including uptime, port count, SQLite path, and code hash."
       module="Ports"
-      version="3.11.0"
+      version="3.13.0"
       signature="status(): Promise<DaemonStatus>"
       returns={{
         type: 'Promise<DaemonStatus>',
@@ -18,7 +18,7 @@ export default function Status() {
           code: `const status = await pd.status()
 console.log(status)`,
           output: `{
-  "version": "3.11.0",
+  "version": "3.13.0",
   "uptime": "4h 12m",
   "services": 3,
   "dbPath": "/Users/me/.portdaddy/registry.db",

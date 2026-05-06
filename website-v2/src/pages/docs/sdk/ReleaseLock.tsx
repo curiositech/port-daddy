@@ -6,7 +6,7 @@ export default function ReleaseLock() {
       function="releaseLock"
       description="Release a distributed lock. Safe to call even if lock is not held."
       module="Locks"
-      version="3.11.0"
+      version="3.13.0"
       signature="releaseLock(name: string): Promise<boolean>"
       params={[
         { name: 'name', type: 'string', required: true, description: 'Lock name to release' },

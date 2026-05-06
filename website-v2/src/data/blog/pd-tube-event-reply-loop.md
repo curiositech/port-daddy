@@ -73,7 +73,7 @@ tube waiting on ui:clicks as pd-tube/myapp/ui_clicks (up to 600s; Ctrl+C to exit
 
 That is the whole protocol from the agent's side. Two shapes of one command: read, reply.
 
-For long bodies the agent can pipe stdin (`echo "long body" | pd tube ch --reply -`). For deterministic threading against a known parent id the legacy post-and-exit shape still works (`printf 'roger' | pd tube ch --reply=42 --send`). For human terminal use, `--tail` brings back the infinite loop.
+For long bodies the agent can pipe stdin (`echo "long body" | pd tube ch --reply -`). For deterministic threading against a known parent id, pipe the body with `--reply-to=42`. For human terminal use, `--tail` brings back the infinite loop.
 
 ## The Smallest Useful Publisher
 

@@ -6,7 +6,7 @@ export default function ListSpawned() {
       function="listSpawned"
       description="List all currently running spawned agents."
       module="Agents"
-      version="3.11.0"
+      version="3.13.0"
       signature="listSpawned(options?: ListSpawnedOptions): Promise<AgentInfo[]>"
       params={[
         { name: 'options.project', type: 'string', description: 'Filter by project identity prefix' },

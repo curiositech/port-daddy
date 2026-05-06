@@ -68,7 +68,7 @@ export const CLI_COMMANDS: CliCommand[] = [
     cmd: 'pd status',
     description: 'Daemon status: uptime, port count, SQLite path, and code hash.',
     example: 'pd status',
-    output: '[pd] Port Daddy v3.11.0 — 3 services, uptime 4h 12m',
+    output: '[pd] Port Daddy v3.13.0 — 3 services, uptime 4h 12m',
   },
   {
     group: 'Ports',
@@ -196,11 +196,14 @@ export const CLI_COMMANDS: CliCommand[] = [
   {
     group: 'Messaging',
     cmd: 'pd tube <channel>',
-    description: 'Open a durable conversation pipe over a message channel. Listen as JSON lines, send from stdin, reply by message id, and resume from an explicit cursor.',
+    description: 'Open a durable conversation pipe over a message channel. Listen as a block-once prose handoff, send from stdin, reply by message id, and resume from an explicit cursor.',
     flags: [
       '--send           Read stdin and publish a top-level tube message',
-      '--reply <id>     Read stdin and publish a threaded reply',
+      '--reply <body>   Reply inline to the most recent foreign event',
+      '--reply-to <id>  Read stdin and publish a threaded reply',
       '--once           Perform one read pass and exit',
+      '--tail           Keep polling for humans watching a terminal',
+      '--wait-for <sec> Block for the first event before timing out',
       '--since <id>     Emit only messages after this id',
       '--json           Emit JSON lines',
       '--no-history     Do not read or update the local cursor file',

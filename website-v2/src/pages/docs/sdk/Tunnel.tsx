@@ -6,7 +6,7 @@ export default function Tunnel() {
       function="tunnel"
       description="Create a secure tunnel to a service. Enables external access to local services."
       module="Tunnels"
-      version="3.11.0"
+      version="3.13.0"
       signature="tunnel(identity: string, options?: TunnelOptions): Promise<TunnelInfo>"
       params={[
         { name: 'identity', type: 'string', required: true, description: 'Service identity to tunnel to' },

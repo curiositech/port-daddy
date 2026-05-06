@@ -170,7 +170,7 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
       },
       {
         title: 'Reply to an event',
-        command: "$ printf '%s\\n' \"Deployed to staging. CI is green.\" | pd tube ui:clicks --reply <message-id> --sender claude-code",
+        command: "$ printf '%s\\n' \"Deployed to staging. CI is green.\" | pd tube ui:clicks --reply-to <message-id> --sender claude-code",
         notes: ['The browser watches the same channel and renders replies whose envelope has inReplyTo set.'],
       },
     ],
@@ -358,7 +358,7 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
       },
       {
         title: 'Reply with an explanation',
-        command: "$ printf '%s\\n' \"This helper normalizes daemon URLs before fetch.\" | pd tube editor:explain --reply <message-id>",
+        command: "$ printf '%s\\n' \"This helper normalizes daemon URLs before fetch.\" | pd tube editor:explain --reply-to <message-id>",
         notes: ['The browser renders the threaded reply inline.'],
       },
     ],

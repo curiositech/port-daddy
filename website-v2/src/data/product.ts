@@ -263,7 +263,7 @@ export const PRODUCT_FEATURES = [
   {
     id: 'pd-tube',
     title: 'PD Tube',
-    description: 'A conversational pipe over Port Daddy channels. Listen, send, reply, resume from cursors, and bridge agent handoffs through clean JSON lines.',
+    description: 'A conversational pipe over Port Daddy channels. Listen, send, reply, resume from cursors, and bridge agent handoffs through block-once prose or JSON output.',
     category: 'coordination',
     cli: 'pd tube <channel> --send',
     href: '/tutorials/pd-tube',
@@ -271,7 +271,7 @@ export const PRODUCT_FEATURES = [
       src: '/img/generated/agent-runtime-map.webp',
       alt: 'Generated agent runtime map with channel-backed handoffs',
     },
-    detail: 'PD Tube turns a Port Daddy channel into an operator-visible conversation lane. Scripts can send and reply from stdin, agents can listen as JSON lines, and demos can prove the same history later.',
+    detail: 'PD Tube turns a Port Daddy channel into an operator-visible conversation lane. Scripts can send and reply from stdin, agents can listen as a block-once handoff or JSON lines, and demos can prove the same history later.',
     outcomes: [
       'Send durable agent handoffs without inventing a new hosted webhook bridge.',
       'Thread replies by message id so browser buttons, tests, and agents can share one trail.',
