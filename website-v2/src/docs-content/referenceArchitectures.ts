@@ -1,60 +1,121 @@
 import type { DocsContentSection } from './types'
 
+const singleMachineControlPlane = String.raw`flowchart LR
+  subgraph Operator["Operator surfaces"]
+    CLI["pd CLI"]
+    FleetBar["FleetBar"]
+    Control["Fleet Control Center"]
+    MCP["MCP / SDK clients"]
+  end
+
+  subgraph Workers["Agent runtimes"]
+    Codex["Codex"]
+    Claude["Claude"]
+    Gemini["Gemini"]
+    Custom["custom backend"]
+  end
+
+  Daemon["local Port Daddy daemon"]
+
+  subgraph State["Daemon-owned coordination state"]
+    Sessions["sessions + notes"]
+    Claims["file / region claims"]
+    Locks["locks"]
+    Harbors["harbors + cards"]
+    Tuples["tuples + channels"]
+    Salvage["salvage ledger"]
+  end
+
+  Operator -->|commands, views, approvals| Daemon
+  Workers -->|begin, claim, note, spawn, done| Daemon
+  Daemon --> State
+  State -->|single live story| Operator
+  State -->|coordination context| Workers`
+
 export const referenceArchitecturesSection: DocsContentSection = {
   slug: 'reference-architectures',
   title: 'Reference Architectures',
   summary:
-    'Example layouts for the local daemon, dashboard, fleets, harbors, and delegation workflows.',
+    'Concrete layouts for the daemon boundary, fleet automation, relay-backed harbors, and delegation workflows.',
   pages: [
     {
       slug: 'single-machine-control-plane',
       title: 'Single-Machine Port Daddy',
       summary:
-        'The basic local layout: one daemon, many agent tools, and one shared place to inspect work.',
+        'The local baseline: one daemon owns coordination truth while many tools and agent runtimes come and go.',
       truth: 'source-backed',
       goals: [
-        'Understand what runs locally.',
-        'Know what agents do and what the daemon tracks.',
-        'Use one plain narrative that still matches the code and repo rules.',
+        'Separate execution workers from the coordination control plane.',
+        'Know which state belongs in the daemon instead of in terminal lore.',
+        'Use the same model for CLI, FleetBar, dashboard, SDK, and MCP clients.',
       ],
       blocks: [
         {
           type: 'paragraph',
-          title: 'One daemon, many agents, one shared view',
+          title: 'The daemon is the local source of truth',
           paragraphs: [
-            'The local architecture is intentionally simple: agents execute tasks, and the daemon tracks the shared state those tasks need. That includes sessions, notes, locks, file claims, ports, harbors, and salvage state.',
-            'The CLI, FleetBar, dashboard, SDK, and MCP tools should all point back to that same daemon so the user does not have to reconcile competing stories about the same work.',
+            'The single-machine architecture is intentionally boring in the best way: the agent runtime does the work, but the daemon owns the coordination facts. A Codex process, a Claude session, a FleetBar webview, and an MCP client should all read and write the same sessions, notes, claims, locks, harbors, tuples, and salvage records.',
+            'That split matters because agent processes are disposable. They crash, restart, fork into worktrees, lose stdout, or get replaced by a different backend. The daemon is the place where the operator can still ask what happened, who owns which files, what locks are live, which channels fired, and what work needs salvage.',
+            'Treat the daemon as a local control plane, not just a helper server. The control plane should be narrow enough to run on a laptop, strict enough to coordinate concurrent agents, and visible enough that FleetBar and the web dashboard do not become decorative wrappers around stale assumptions.',
           ],
+        },
+        {
+          type: 'mermaid',
+          title: 'Local control-plane boundary',
+          chart: singleMachineControlPlane,
+          caption:
+            'The important boundary is not "CLI versus UI". It is execution workers versus daemon-owned coordination state. Every surface should tell the same story because every surface resolves through the same daemon.',
         },
         {
           type: 'checklist',
           items: [
-            'Keep exactly one main daemon on the preferred local socket and port unless an extra daemon is explicitly opt-in.',
-            'Treat agent runtimes as execution workers, not as the place that owns shared coordination state.',
-            'Use daemon and launchd checks when CLI, browser, or shell command behavior diverges.',
+            'Keep one canonical daemon for the checkout unless an extra daemon is explicitly opted in with a separate socket, port, and prefix.',
+            'Put shared coordination state in daemon primitives: sessions for lifecycle, claims for edit intent, locks for scarce resources, tuples/channels for machine-readable facts, harbors for scope, and salvage for interrupted work.',
+            'Make every human-facing surface resolve through the same daemon truth before it claims that work is active, blocked, complete, or safe to publish.',
+            'When CLI, browser, FleetBar, and source code disagree, verify daemon provenance before rewriting docs or trusting an old build.',
+          ],
+        },
+        {
+          type: 'command',
+          title: 'Operator inspection path',
+          command:
+            'pd status\npd sessions --all-worktrees\npd notes --limit 20\npd guard check --staged',
+          output:
+            'Port Daddy is running\nActive sessions and notes describe current work across worktrees\nCoordination Guard checks staged paths against active session claims',
+          notes: [
+            'This is the small local loop before commit, push, deploy, or any contested edit.',
+            'Use the app surfaces for richer browsing, but keep the CLI path boring and dependable.',
           ],
         },
         {
           type: 'paragraph',
-          title: 'When this architecture is the right answer',
+          title: 'Design recommendation',
           paragraphs: [
-            'Use this layout whenever the problem is local agent work: one engineer, one machine, one or more checkouts, and enough concurrent work that you need shared state instead of terminal folklore.',
-            'It is the baseline the rest of the product grows from. Fleet, harbors, and tracked sorties all build on top of this local daemon instead of replacing it.',
+            'Keep the first product promise local. A new user should be able to run one daemon, start one or many agents, and see the exact same coordination facts from CLI, FleetBar, dashboard, SDK, and MCP. Do not ask the user to understand relay, remote harbors, or fleet topology before the local loop is trustworthy.',
+            'Use this architecture for solo development, local multi-agent work, CI-adjacent scripts running on the same machine, and any repo where the main risk is agents losing each other inside one worktree. Remote collaboration should extend this model through harbors and relay, not replace it with a second coordination system.',
           ],
         },
       ],
       sources: [
         {
           path: 'AGENTS.md',
-          rationale: 'Runtime rules define one-daemon checks and user expectations.',
+          rationale: 'Defines the repo operating contract: Port Daddy first, one canonical daemon, live notes, claims, guard checks, and daemon provenance before publish.',
         },
         {
-          path: 'README.md',
-          rationale: 'README explains the daemon-backed workflow for sessions, notes, locks, tuples, fleet, and harbors.',
+          path: 'server.ts',
+          rationale: 'Wires the daemon-owned runtime primitives together: harbors, tokens, spawner, tuples, fleet daemon, sorties, and route registration.',
         },
         {
-          path: 'website-v2/src/data/docs-routes.ts',
-          rationale: 'Public docs route registry describes the daemon, CLI, dashboard, and agent workflows.',
+          path: 'routes/index.ts',
+          rationale: 'Shows the route boundary where CLI, UI, SDK, and MCP clients converge on one local daemon API.',
+        },
+        {
+          path: 'lib/harbors.ts',
+          rationale: 'Implements named coordination namespaces and admission state for agents inside a harbor.',
+        },
+        {
+          path: 'lib/tuples.ts',
+          rationale: 'Implements the harbor-scoped shared tuple space used for machine-readable coordination facts.',
         },
       ],
     },

@@ -16,6 +16,7 @@ import {
   SwissGrid,
   SwissGridItem,
 } from '@/components/site/primitives'
+import { Mermaid } from '@/components/ui/Mermaid'
 import { findDocsFamily, findDocsRouteBySlug } from '@/data/publicSite'
 import { findDocsContentPage, findDocsContentSection } from '@/docs-content'
 import type { ContentBlock, DocsContentPage } from '@/docs-content'
@@ -32,6 +33,8 @@ function blockLabel(block: ContentBlock) {
       return 'Checklist'
     case 'command':
       return 'Command'
+    case 'mermaid':
+      return 'Diagram'
     case 'callout':
       return block.tone === 'warning' ? 'Blocked or caution' : 'Note'
   }
@@ -44,6 +47,8 @@ function blockHeading(block: ContentBlock, index: number) {
     case 'checklist':
       return `Checklist ${String(index + 1).padStart(2, '0')}`
     case 'command':
+      return block.title
+    case 'mermaid':
       return block.title
     case 'callout':
       return block.title
@@ -360,6 +365,41 @@ function InlinePanelList({
   )
 }
 
+function sourceHref(path: string) {
+  return `https://github.com/curiositech/port-daddy/blob/main/${path}`
+}
+
+function SourceTrail({ page }: { page: DocsContentPage }) {
+  if (!page.sources.length) {
+    return null
+  }
+
+  return (
+    <DocsNoteCard label="Source trail" elevation="quiet" padding="compact">
+      <div className="space-y-[var(--panel-gap-tight)]">
+        {page.sources.map((source) => (
+          <div
+            key={source.path}
+            className="border-t border-[var(--border-default)] pt-[var(--space-2)] first:border-t-0 first:pt-0"
+          >
+            <a
+              href={sourceHref(source.path)}
+              target="_blank"
+              rel="noreferrer"
+              className="font-mono text-[length:var(--type-meta-size)] font-semibold text-[var(--brand-primary)] underline decoration-[var(--border-strong)] underline-offset-4"
+            >
+              {source.path}
+            </a>
+            <PanelBody size="compact" className="mt-[var(--space-1)] max-w-none">
+              {source.rationale}
+            </PanelBody>
+          </div>
+        ))}
+      </div>
+    </DocsNoteCard>
+  )
+}
+
 function renderContentBlock(block: ContentBlock, index: number) {
   const label = blockLabel(block)
 
@@ -395,8 +435,33 @@ function renderContentBlock(block: ContentBlock, index: number) {
       return (
         <DocsNoteCard key={`command-${index}`} label={label} title={block.title} tone="blue">
           <DocsCodeBlock code={block.command} language="cli" label={block.title} />
+          {block.output ? (
+            <DocsCodeBlock
+              code={block.output}
+              language="text"
+              label={`${block.title} output`}
+            />
+          ) : null}
           {block.notes?.length ? <InlinePanelList items={block.notes} tone="primary" /> : null}
         </DocsNoteCard>
+      )
+    case 'mermaid':
+      return (
+        <div
+          key={`mermaid-${index}`}
+          className="space-y-[var(--panel-gap)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]"
+        >
+          <BracketLabel>{label}</BracketLabel>
+          <PanelTitle as="h2" size="nav" className="max-w-none">
+            {block.title}
+          </PanelTitle>
+          <Mermaid chart={block.chart} />
+          {block.caption ? (
+            <PanelBody size="compact" className="max-w-[58rem]">
+              {renderInlineLinks(block.caption)}
+            </PanelBody>
+          ) : null}
+        </div>
       )
     case 'callout':
       return (
@@ -498,6 +563,8 @@ export default function DocsSectionPage() {
             <DocsNoteCard label="What this page answers" elevation="quiet" padding="compact">
               <PanelList items={contentPage.goals} />
             </DocsNoteCard>
+
+            <SourceTrail page={contentPage} />
 
             <DocsNoteCard label="On this page" elevation="quiet" padding="compact">
               <div className="flex flex-col gap-[var(--space-2)]">

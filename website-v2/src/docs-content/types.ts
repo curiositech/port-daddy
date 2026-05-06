@@ -70,6 +70,12 @@ export type ContentBlock =
       output?: string
     }
   | {
+      type: 'mermaid'
+      title: string
+      chart: string
+      caption?: string
+    }
+  | {
       type: 'callout'
       tone: 'info' | 'warning'
       title: string
