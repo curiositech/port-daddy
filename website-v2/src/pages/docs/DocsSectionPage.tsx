@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { Fragment, type ReactNode } from 'react'
 import { Link, Navigate, useLocation, useParams } from 'react-router-dom'
 import {
   BracketAnchor,
@@ -12,6 +12,9 @@ import {
   PanelBody,
   PanelList,
   PanelTitle,
+  SurfacePanel,
+  SwissGrid,
+  SwissGridItem,
 } from '@/components/site/primitives'
 import { findDocsFamily, findDocsRouteBySlug } from '@/data/publicSite'
 import { findDocsContentPage, findDocsContentSection } from '@/docs-content'
@@ -71,6 +74,13 @@ function buildAnchoredBlocks(blocks: ContentBlock[]) {
 }
 
 const inlineLinkPattern = /\[([^\]]+)\]\(([^)]+)\)/g
+const primitiveToneClass = {
+  ink: 'border-[var(--border-strong)] bg-[var(--text-primary)] text-[var(--text-inverse)]',
+  blue: 'border-[var(--border-strong)] bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]',
+  green: 'border-[var(--border-strong)] bg-[var(--status-success)] text-[var(--text-inverse)]',
+  amber: 'border-[var(--border-strong)] bg-[var(--status-warning)] text-[var(--text-primary)]',
+  red: 'border-[var(--border-strong)] bg-[var(--status-error)] text-[var(--text-inverse)]',
+} as const
 
 function renderInlineLinks(text: string) {
   const nodes: ReactNode[] = []
@@ -108,6 +118,256 @@ function renderInlineLinks(text: string) {
   }
 
   return nodes.length ? nodes : text
+}
+
+function renderStructuredLink(
+  link: { label: string; href: string },
+  className =
+    'font-semibold text-[var(--brand-primary)] underline decoration-[var(--border-strong)] underline-offset-4 transition-colors hover:text-[var(--text-primary)]',
+) {
+  return link.href.startsWith('/') ? (
+    <Link key={link.href} to={link.href} className={className}>
+      {link.label}
+    </Link>
+  ) : (
+    <a key={link.href} href={link.href} className={className} target="_blank" rel="noreferrer">
+      {link.label}
+    </a>
+  )
+}
+
+function StructuredLinkList({
+  links,
+  className,
+}: {
+  links: Array<{ label: string; href: string }>
+  className?: string
+}) {
+  return (
+    <div className={`flex flex-wrap gap-[var(--space-2)] ${className ?? ''}`}>
+      {links.map((link) =>
+        renderStructuredLink(
+          link,
+          'inline-flex border border-[var(--border-default)] bg-[var(--surface-base)] px-[var(--space-2)] py-[var(--space-1)] font-mono text-[length:var(--type-meta-size)] font-semibold text-[var(--text-primary)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-strong)]',
+        ),
+      )}
+    </div>
+  )
+}
+
+function PrimitiveMapPage({ page }: { page: DocsContentPage }) {
+  const map = page.primitiveMap
+
+  if (!map) {
+    return null
+  }
+
+  return (
+    <div className="space-y-[var(--space-7)]">
+      <SurfacePanel className="grid gap-[var(--panel-gap-loose)] lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.42fr)]">
+        <div className="space-y-[var(--panel-gap)]">
+          <BracketLabel>{map.eyebrow}</BracketLabel>
+          <PanelTitle as="h1" size="section" className="max-w-[10ch]">
+            {map.title}
+          </PanelTitle>
+          <PanelBody className="max-w-[50rem] text-[length:var(--type-panel-body-large-size)] leading-[var(--leading-body-large)]">
+            {map.deck}
+          </PanelBody>
+          <PanelBody className="max-w-[54rem]">{map.thesis}</PanelBody>
+        </div>
+        <div className="grid content-start gap-[var(--space-2)]">
+          {map.operatorQuestions.map((question, index) => (
+            <div
+              key={question}
+              className={`border-2 px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] ${
+                index % 2 === 0
+                  ? 'border-[var(--border-strong)] bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]'
+                  : 'border-[var(--border-default)] bg-[var(--surface-base)] text-[var(--text-primary)]'
+              }`}
+            >
+              {question}
+            </div>
+          ))}
+        </div>
+      </SurfacePanel>
+
+      <section className="space-y-[var(--panel-gap)]">
+        <div className="grid gap-[var(--panel-gap)] lg:grid-cols-[0.36fr_1fr]">
+          <div>
+            <BracketLabel>Primitive families</BracketLabel>
+          </div>
+          <PanelTitle as="h2" size="card" className="max-w-[16ch]">
+            Six families, six kinds of runtime truth.
+          </PanelTitle>
+        </div>
+        <SwissGrid>
+          {map.families.map((family) => (
+            <SwissGridItem key={family.family} span="half">
+              <SurfacePanel padding="compact" className="grid h-full gap-[var(--panel-gap-tight)]">
+                <div className={`inline-flex w-max border-2 px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] ${primitiveToneClass[family.tone]}`}>
+                  {family.family}
+                </div>
+                <PanelTitle as="h3" size="nav">
+                  {family.question}
+                </PanelTitle>
+                <PanelBody size="compact" className="max-w-none">
+                  {family.summary}
+                </PanelBody>
+                <StructuredLinkList links={family.links} />
+              </SurfacePanel>
+            </SwissGridItem>
+          ))}
+        </SwissGrid>
+      </section>
+
+      <section className="space-y-[var(--panel-gap)]">
+        <div className="grid gap-[var(--panel-gap)] lg:grid-cols-[0.36fr_1fr]">
+          <div>
+            <BracketLabel>Runtime stack</BracketLabel>
+          </div>
+          <PanelTitle as="h2" size="card" className="max-w-[14ch]">
+            Use the primitive whose lifetime matches the fact.
+          </PanelTitle>
+        </div>
+        <SurfacePanel padding="compact">
+          <div className="grid border-2 border-[var(--border-strong)] md:grid-cols-[0.34fr_0.33fr_0.33fr]">
+            {['Layer', 'Encodes', 'Why it exists'].map((heading) => (
+              <div key={heading} className="border-b-2 border-[var(--border-strong)] bg-[var(--text-primary)] p-[var(--space-3)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-inverse)] md:border-r-2 md:last:border-r-0">
+                {heading}
+              </div>
+            ))}
+            {map.layers.map((layer) => (
+              <Fragment key={layer.layer}>
+                <div key={`${layer.layer}-name`} className="border-b border-[var(--border-default)] p-[var(--space-3)] md:border-r">
+                  <PanelTitle as="h3" size="nav">
+                    {layer.layer}
+                  </PanelTitle>
+                  <StructuredLinkList links={layer.links} className="mt-[var(--space-2)]" />
+                </div>
+                <PanelBody key={`${layer.layer}-encodes`} as="div" className="max-w-none border-b border-[var(--border-default)] p-[var(--space-3)] md:border-r">
+                  {layer.encodes}
+                </PanelBody>
+                <PanelBody key={`${layer.layer}-reason`} as="div" className="max-w-none border-b border-[var(--border-default)] p-[var(--space-3)]">
+                  {layer.reason}
+                </PanelBody>
+              </Fragment>
+            ))}
+          </div>
+        </SurfacePanel>
+      </section>
+
+      <section className="space-y-[var(--panel-gap)]">
+        <div className="grid gap-[var(--panel-gap)] lg:grid-cols-[0.36fr_1fr]">
+          <div>
+            <BracketLabel>Choosing</BracketLabel>
+          </div>
+          <PanelTitle as="h2" size="card" className="max-w-[14ch]">
+            Pick by need, not by slogan.
+          </PanelTitle>
+        </div>
+        <div className="grid gap-[var(--panel-gap)] md:grid-cols-2">
+          {map.choices.map((choice) => (
+            <SurfacePanel key={choice.need} padding="compact" className="space-y-[var(--panel-gap-tight)]">
+              <PanelTitle as="h3" size="nav">
+                {choice.need}
+              </PanelTitle>
+              <StructuredLinkList links={choice.use} />
+              <PanelBody size="compact" tone="accent" className="max-w-none">
+                Avoid: {choice.avoid}
+              </PanelBody>
+            </SurfacePanel>
+          ))}
+        </div>
+      </section>
+
+      <section className="space-y-[var(--panel-gap)]">
+        <div className="grid gap-[var(--panel-gap)] lg:grid-cols-[0.36fr_1fr]">
+          <div>
+            <BracketLabel>Topology honesty</BracketLabel>
+          </div>
+          <PanelTitle as="h2" size="card" className="max-w-[16ch]">
+            Planning topology is not runtime topology.
+          </PanelTitle>
+        </div>
+        <div className="grid gap-[var(--panel-gap)] md:grid-cols-2 xl:grid-cols-3">
+          {map.topologies.map((topology) => (
+            <SurfacePanel key={topology.shape} padding="compact" className="grid content-between gap-[var(--panel-gap)]">
+              <PanelTitle as="h3" size="nav">
+                {topology.shape}
+              </PanelTitle>
+              <div className="grid gap-[var(--space-2)]">
+                <PanelBody size="compact" className="max-w-none">
+                  <strong>Eligibility:</strong> {topology.eligibility}
+                </PanelBody>
+                <PanelBody size="compact" className="max-w-none">
+                  <strong>State:</strong> {topology.sharedState}
+                </PanelBody>
+                <PanelBody size="compact" className="max-w-none">
+                  <strong>Done:</strong> {topology.completion}
+                </PanelBody>
+              </div>
+            </SurfacePanel>
+          ))}
+        </div>
+      </section>
+
+      <section className="space-y-[var(--panel-gap)]">
+        <div className="grid gap-[var(--panel-gap)] lg:grid-cols-[0.36fr_1fr]">
+          <div>
+            <BracketLabel>Citations</BracketLabel>
+          </div>
+          <PanelTitle as="h2" size="card" className="max-w-[18ch]">
+            The static HTML source trail, promoted into the content data.
+          </PanelTitle>
+        </div>
+        <div className="grid gap-[var(--panel-gap)] xl:grid-cols-2">
+          {map.citations.map((citation) => (
+            <SurfacePanel key={citation.title} padding="compact" className="space-y-[var(--panel-gap)]">
+              <div className="space-y-[var(--space-2)]">
+                <PanelTitle as="h3" size="nav">
+                  {citation.title}
+                </PanelTitle>
+                <PanelBody size="compact" className="max-w-none">
+                  {citation.summary}
+                </PanelBody>
+              </div>
+              <div className="grid gap-[var(--space-3)]">
+                <div className="space-y-[var(--space-2)]">
+                  <BracketLabel side="left">Website docs</BracketLabel>
+                  <StructuredLinkList links={citation.websiteDocs} />
+                </div>
+                <div className="space-y-[var(--space-2)]">
+                  <BracketLabel side="left">Runtime code</BracketLabel>
+                  <StructuredLinkList links={citation.runtimeCode} />
+                </div>
+                <div className="space-y-[var(--space-2)]">
+                  <BracketLabel side="left">Skill dossiers</BracketLabel>
+                  <StructuredLinkList links={citation.skillDossiers} />
+                </div>
+              </div>
+            </SurfacePanel>
+          ))}
+        </div>
+      </section>
+
+      <SurfacePanel tone="blue" className="space-y-[var(--panel-gap)]">
+        <BracketLabel surface="blue">WinDAGs dossier trail</BracketLabel>
+        <PanelTitle as="h2" size="card" tone="primary" className="max-w-[18ch]">
+          Dossiers used by the static HTML pass.
+        </PanelTitle>
+        <PanelBody tone="primary" className="max-w-[58rem]">
+          WinDAGs does not use a literal file named dossier here. A dossier is the skill folder: its SKILL.md,
+          references, diagrams, schemas, examples, and screenshots.
+        </PanelBody>
+        <StructuredLinkList links={map.skillTrail} />
+      </SurfacePanel>
+
+      <SurfacePanel padding="compact" className="space-y-[var(--panel-gap)]">
+        <BracketLabel>Design variant rules</BracketLabel>
+        <InlinePanelList items={map.designRules} />
+      </SurfacePanel>
+    </div>
+  )
 }
 
 function InlinePanelList({
@@ -217,6 +477,10 @@ export default function DocsSectionPage() {
 
   if (pageSlug && !contentPage) {
     return <Navigate to={route.path} replace />
+  }
+
+  if (contentSection && contentPage?.variant === 'primitive-map') {
+    return <PrimitiveMapPage page={contentPage} />
   }
 
   if (contentSection && contentPage) {

@@ -1,5 +1,61 @@
 export type ContentTruth = 'source-backed' | 'blocked'
 
+export interface InlineLink {
+  label: string
+  href: string
+}
+
+export interface PrimitiveFamily {
+  family: string
+  question: string
+  summary: string
+  tone: 'ink' | 'blue' | 'green' | 'amber' | 'red'
+  links: InlineLink[]
+}
+
+export interface PrimitiveLayer {
+  layer: string
+  encodes: string
+  reason: string
+  links: InlineLink[]
+}
+
+export interface PrimitiveChoice {
+  need: string
+  use: InlineLink[]
+  avoid: string
+}
+
+export interface PrimitiveTopology {
+  shape: string
+  eligibility: string
+  sharedState: string
+  completion: string
+}
+
+export interface PrimitiveCitationGroup {
+  title: string
+  summary: string
+  websiteDocs: InlineLink[]
+  runtimeCode: InlineLink[]
+  skillDossiers: InlineLink[]
+}
+
+export interface PrimitiveMapContent {
+  eyebrow: string
+  title: string
+  deck: string
+  thesis: string
+  operatorQuestions: string[]
+  families: PrimitiveFamily[]
+  layers: PrimitiveLayer[]
+  choices: PrimitiveChoice[]
+  topologies: PrimitiveTopology[]
+  designRules: string[]
+  citations: PrimitiveCitationGroup[]
+  skillTrail: InlineLink[]
+}
+
 export type ContentBlock =
   | {
       type: 'paragraph'
@@ -35,6 +91,8 @@ export interface DocsContentPage {
   title: string
   summary: string
   truth: ContentTruth
+  variant?: 'primitive-map'
+  primitiveMap?: PrimitiveMapContent
   goals: string[]
   blocks: ContentBlock[]
   sources: SourceReference[]
