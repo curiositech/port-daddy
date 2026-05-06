@@ -18,19 +18,16 @@ export interface PrimitiveLayer {
   encodes: string
   reason: string
   links: InlineLink[]
+  example: {
+    command: string
+    output: string
+  }
 }
 
 export interface PrimitiveChoice {
   need: string
   use: InlineLink[]
   avoid: string
-}
-
-export interface PrimitiveTopology {
-  shape: string
-  eligibility: string
-  sharedState: string
-  completion: string
 }
 
 export interface PrimitiveCitationGroup {
@@ -50,8 +47,6 @@ export interface PrimitiveMapContent {
   families: PrimitiveFamily[]
   layers: PrimitiveLayer[]
   choices: PrimitiveChoice[]
-  topologies: PrimitiveTopology[]
-  designRules: string[]
   citations: PrimitiveCitationGroup[]
   skillTrail: InlineLink[]
 }

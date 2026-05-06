@@ -37,22 +37,6 @@ Use the primitive whose lifetime matches the fact.
 | [Arbiter](/docs/features/arbiter) and gates | Runtime invariants, spend limits, telemetry requirements | They keep invisible policy violations from becoming normal. |
 | Operator surfaces | [FleetBar](/mac-preview), [Fleet Control Center](/mac-preview), [Shipwright](/agents/yaml-and-shipwright), [Mac preview](/mac-preview) | They let a human see the coordination state without reconstructing it from commands. |
 
-## Coordination Topologies
-
-Different collaboration shapes need different primitives.
-
-| Shape | Eligibility | Shared state | Completion signal |
-| --- | --- | --- | --- |
-| DAG | Dependencies are satisfied | task graph, artifacts | all terminal nodes complete |
-| Workflow | Gate verdict routes the next step | review state, rework target | accepted verdict |
-| Manager team | Lead assigns work round by round | roster, notes, capability map | lead declares done |
-| Swarm | Messages or discoveries reveal work | channel stream, tuple facts | quorum, timeout, inactivity, quality threshold |
-| Blackboard | Specialists read and write one shared model | tuple space, board facts | board condition satisfied |
-| Contract net | Work is announced and agents bid | bids, capabilities, commitments | accepted bid completes task |
-| Recurring loop | Clock or event repeats a check | last result, threshold, escalation rule | threshold, timeout, or halt |
-
-Planning topology and runtime topology are not the same thing. A plan can describe a swarm, but the runtime still has to say which signals, facts, locks, queues, and stop conditions actually exist.
-
 ## Choosing The Primitive
 
 | Need | Use | Avoid |

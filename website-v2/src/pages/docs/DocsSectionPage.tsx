@@ -230,8 +230,8 @@ function PrimitiveMapPage({ page }: { page: DocsContentPage }) {
           </PanelTitle>
         </div>
         <SurfacePanel padding="compact">
-          <div className="grid border-2 border-[var(--border-strong)] md:grid-cols-[0.34fr_0.33fr_0.33fr]">
-            {['Layer', 'Encodes', 'Why it exists'].map((heading) => (
+          <div className="grid border-2 border-[var(--border-strong)] lg:grid-cols-[0.22fr_0.22fr_0.22fr_0.34fr]">
+            {['Layer', 'Encodes', 'Why it exists', 'Example'].map((heading) => (
               <div key={heading} className="border-b-2 border-[var(--border-strong)] bg-[var(--text-primary)] p-[var(--space-3)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-inverse)] md:border-r-2 md:last:border-r-0">
                 {heading}
               </div>
@@ -250,6 +250,13 @@ function PrimitiveMapPage({ page }: { page: DocsContentPage }) {
                 <PanelBody key={`${layer.layer}-reason`} as="div" className="max-w-none border-b border-[var(--border-default)] p-[var(--space-3)]">
                   {layer.reason}
                 </PanelBody>
+                <div key={`${layer.layer}-example`} className="border-b border-[var(--border-default)] p-[var(--space-3)]">
+                  <DocsCodeBlock
+                    code={`${layer.example.command}\n\n${layer.example.output}`}
+                    language="text"
+                    label={`${layer.layer} example`}
+                  />
+                </div>
               </Fragment>
             ))}
           </div>
@@ -283,41 +290,10 @@ function PrimitiveMapPage({ page }: { page: DocsContentPage }) {
       <section className="space-y-[var(--panel-gap)]">
         <div className="grid gap-[var(--panel-gap)] lg:grid-cols-[0.36fr_1fr]">
           <div>
-            <BracketLabel>Topology honesty</BracketLabel>
-          </div>
-          <PanelTitle as="h2" size="card" className="max-w-[16ch]">
-            Planning topology is not runtime topology.
-          </PanelTitle>
-        </div>
-        <div className="grid gap-[var(--panel-gap)] md:grid-cols-2 xl:grid-cols-3">
-          {map.topologies.map((topology) => (
-            <SurfacePanel key={topology.shape} padding="compact" className="grid content-between gap-[var(--panel-gap)]">
-              <PanelTitle as="h3" size="nav">
-                {topology.shape}
-              </PanelTitle>
-              <div className="grid gap-[var(--space-2)]">
-                <PanelBody size="compact" className="max-w-none">
-                  <strong>Eligibility:</strong> {topology.eligibility}
-                </PanelBody>
-                <PanelBody size="compact" className="max-w-none">
-                  <strong>State:</strong> {topology.sharedState}
-                </PanelBody>
-                <PanelBody size="compact" className="max-w-none">
-                  <strong>Done:</strong> {topology.completion}
-                </PanelBody>
-              </div>
-            </SurfacePanel>
-          ))}
-        </div>
-      </section>
-
-      <section className="space-y-[var(--panel-gap)]">
-        <div className="grid gap-[var(--panel-gap)] lg:grid-cols-[0.36fr_1fr]">
-          <div>
             <BracketLabel>Citations</BracketLabel>
           </div>
           <PanelTitle as="h2" size="card" className="max-w-[18ch]">
-            The static HTML source trail, promoted into the content data.
+            Source evidence for the runtime map.
           </PanelTitle>
         </div>
         <div className="grid gap-[var(--panel-gap)] xl:grid-cols-2">
@@ -333,7 +309,7 @@ function PrimitiveMapPage({ page }: { page: DocsContentPage }) {
               </div>
               <div className="grid gap-[var(--space-3)]">
                 <div className="space-y-[var(--space-2)]">
-                  <BracketLabel side="left">Website docs</BracketLabel>
+                  <BracketLabel side="left">Website pages</BracketLabel>
                   <StructuredLinkList links={citation.websiteDocs} />
                 </div>
                 <div className="space-y-[var(--space-2)]">
@@ -353,18 +329,12 @@ function PrimitiveMapPage({ page }: { page: DocsContentPage }) {
       <SurfacePanel tone="blue" className="space-y-[var(--panel-gap)]">
         <BracketLabel surface="blue">WinDAGs dossier trail</BracketLabel>
         <PanelTitle as="h2" size="card" tone="primary" className="max-w-[18ch]">
-          Dossiers used by the static HTML pass.
+          WinDAGs skill dossiers.
         </PanelTitle>
         <PanelBody tone="primary" className="max-w-[58rem]">
-          WinDAGs does not use a literal file named dossier here. A dossier is the skill folder: its SKILL.md,
-          references, diagrams, schemas, examples, and screenshots.
+          External coordination references for the primitive map.
         </PanelBody>
         <StructuredLinkList links={map.skillTrail} />
-      </SurfacePanel>
-
-      <SurfacePanel padding="compact" className="space-y-[var(--panel-gap)]">
-        <BracketLabel>Design variant rules</BracketLabel>
-        <InlinePanelList items={map.designRules} />
       </SurfacePanel>
     </div>
   )

@@ -1,18 +1,18 @@
-import { PRODUCT_FEATURES } from '@/data/product'
 import type { DocsContentSection } from './types'
-
-const productPrimitiveItems = PRODUCT_FEATURES.map(
-  (feature) => `${feature.title}: ${feature.description}`,
-)
 
 const repo = (path: string, lines?: string) => ({
   label: lines ? `${path}:${lines}` : path,
   href: `https://github.com/curiositech/port-daddy/blob/main/${path}${lines ? `#L${lines.replace('-', '-L')}` : ''}`,
 })
 
+const site = (label: string, path: string, highlight: string) => ({
+  label,
+  href: `https://portdaddy.dev${path}#:~:text=${encodeURIComponent(highlight)}`,
+})
+
 const windags = (path: string) => ({
   label: path,
-  href: `file:///opt/homebrew/Cellar/windags/2.7.0/libexec/${path}`,
+  href: `http://windag.ai/skills/${path.split('/')[1] ?? ''}`,
 })
 
 export const conceptsSection: DocsContentSection = {
@@ -122,36 +122,72 @@ export const conceptsSection: DocsContentSection = {
             encodes: 'Purpose, assumptions, progress, validation, handoff.',
             reason: 'They give work a durable human-readable trail.',
             links: [{ label: 'sessions', href: '/docs/features/sessions' }, { label: 'notes', href: '/docs/cli/note' }],
+            example: {
+              command:
+                'pd begin "repair docs primitives" --identity port-daddy:docs:main\npd note "Scope: docs/concepts/primitives.md and website-v2 docs content."',
+              output:
+                'SUCCESS: Agent repair docs primitives ready\n  Session: session-repair-docs-primitives\nSUCCESS: Note added',
+            },
           },
           {
             layer: 'Claims and locks',
             encodes: 'Current edit intent and scarce-resource ownership.',
             reason: 'They let nearby agents route around each other before conflict.',
             links: [{ label: 'claims', href: '/docs/features/sessions' }, { label: 'locks', href: '/docs/sdk/locks' }],
+            example: {
+              command:
+                'pd session files add website-v2/src/docs-content/concepts.ts\npd with-lock website-build -- npm --prefix website-v2 run build',
+              output:
+                'Claimed 1 file(s)\nAcquired lock: website-build\n✓ built in 6.16s\nReleased lock: website-build',
+            },
           },
           {
             layer: 'Channels and inboxes',
             encodes: 'Broadcast events and directed ownership.',
             reason: 'They prevent coordination from becoming transcript archaeology.',
             links: [{ label: 'channels', href: '/docs/cli/pub' }, { label: 'inboxes', href: '/agents/communication-protocols' }],
+            example: {
+              command:
+                'pd pub coordination:inconsistency "docs surface changed; refresh before editing primitives"',
+              output:
+                'SUCCESS: Message published to coordination:inconsistency',
+            },
           },
           {
             layer: 'Tuples',
             encodes: 'Shared machine-readable facts with TTL and pattern matching.',
             reason: 'They let agents query what the system currently knows.',
             links: [{ label: 'tuples', href: '/docs/features/tuples' }],
+            example: {
+              command:
+                'pd tuple out \'["docs","primitives","build","green"]\' --ttl 3600000\npd tuple rd \'["docs","primitives","build","*"]\'',
+              output:
+                'SUCCESS: Tuple written\n["docs","primitives","build","green"]',
+            },
           },
           {
             layer: 'Activity and salvage',
             encodes: 'What happened, what died, what can be resumed.',
             reason: 'They turn crashes into recoverable state.',
             links: [{ label: 'activity', href: '/docs/features/timeline' }, { label: 'salvage', href: '/docs/features/salvage' }],
+            example: {
+              command:
+                'pd activity --limit 3\npd salvage --project port-daddy',
+              output:
+                'session.note  docs primitives scope recorded\nfile.claim    website-v2/src/docs-content/concepts.ts\nRecoverable work: 3 abandoned session(s)',
+            },
           },
           {
             layer: 'Arbiter and gates',
             encodes: 'Runtime invariants, spend limits, telemetry requirements.',
             reason: 'They keep policy violations from hiding behind a clean commit.',
             links: [{ label: 'Arbiter', href: '/docs/features/arbiter' }, { label: 'Resources', href: '/agents/smart-resources' }],
+            example: {
+              command:
+                'pd guard check --staged',
+              output:
+                'Coordination Guard: ENFORCE passed\n  checked: website-v2/src/docs-content/concepts.ts',
+            },
           },
         ],
         choices: [
@@ -163,76 +199,86 @@ export const conceptsSection: DocsContentSection = {
           { need: 'This work died but should continue.', use: [{ label: 'Salvage queue', href: '/docs/features/salvage' }], avoid: 'Re-running the task from memory.' },
           { need: 'This launch is too opaque or too expensive.', use: [{ label: 'Budget and telemetry gates', href: '/agents/smart-resources' }], avoid: 'Launching first and hoping logs explain cost later.' },
         ],
-        topologies: [
-          { shape: 'DAG', eligibility: 'Dependencies are satisfied.', sharedState: 'Task graph and artifacts.', completion: 'All terminal nodes complete.' },
-          { shape: 'Workflow', eligibility: 'Gate verdict routes the next step.', sharedState: 'Review state and rework target.', completion: 'Accepted verdict.' },
-          { shape: 'Manager team', eligibility: 'Lead assigns work round by round.', sharedState: 'Roster, notes, capability map.', completion: 'Lead declares done.' },
-          { shape: 'Swarm', eligibility: 'Messages or discoveries reveal work.', sharedState: 'Channel stream and tuple facts.', completion: 'Quorum, timeout, inactivity, or quality threshold.' },
-          { shape: 'Blackboard', eligibility: 'Specialists read and write one shared model.', sharedState: 'Tuple space and board facts.', completion: 'Board condition satisfied.' },
-          { shape: 'Contract net', eligibility: 'Work is announced and agents bid.', sharedState: 'Bids, capabilities, commitments.', completion: 'Accepted bid completes task.' },
-          { shape: 'Recurring loop', eligibility: 'Clock or event repeats a check.', sharedState: 'Last result, threshold, escalation rule.', completion: 'Threshold, timeout, or halt.' },
-        ],
-        designRules: [
-          'Use hard rules instead of decorative cards.',
-          'Use compact fact tables with explicit labels.',
-          'Use one strong color per semantic family.',
-          'Cite source rows when a claim maps to code or a skill dossier.',
-          'Separate current runtime behavior from design target behavior.',
-        ],
         citations: [
           {
             title: 'Sessions, notes, and file or symbol claims',
             summary: 'Work has an identity, immutable notes, and advisory edit claims before Git sees the final diff.',
-            websiteDocs: [repo('website-v2/src/pages/docs/features/SessionsFeature.tsx', '18-20'), repo('website-v2/src/pages/docs/features/PheromoneFeature.tsx', '127-132')],
+            websiteDocs: [
+              site('Sessions', '/docs/features/sessions', 'every note is append-only, and file claims prevent conflicts before they happen'),
+              site('Session file claims', '/docs/features/sessions', 'File claims are advisory locks that warn agents about overlapping edits'),
+            ],
             runtimeCode: [repo('lib/sessions.ts', '1-7'), repo('lib/sessions.ts', '54-77'), repo('lib/sessions.ts', '156-282'), repo('lib/sessions.ts', '1047-1089'), repo('lib/sessions.ts', '1272-1395'), repo('routes/sessions.ts'), repo('cli/commands/sessions.ts')],
             skillDossiers: [windags('skills/multi-agent-coordination/SKILL.md'), windags('skills/agent-conversation-protocols/SKILL.md')],
           },
           {
             title: 'Leases, locks, and semantic port claims',
             summary: 'Scarce resources use ownership, TTLs, cleanup, and conflict responses instead of commit-time convention.',
-            websiteDocs: [repo('website-v2/src/pages/docs/features/PortsFeature.tsx', '18-20'), repo('website-v2/src/pages/docs/features/PortsFeature.tsx', '27-35'), repo('website-v2/src/pages/docs/features/PortsFeature.tsx', '50-62')],
+            websiteDocs: [
+              site('Ports', '/docs/features/ports', 'Port conflicts when two agents claim the same port'),
+              site('Locks SDK', '/docs/sdk/locks', 'exclusive lock'),
+            ],
             runtimeCode: [repo('lib/locks.ts', '1-6'), repo('lib/locks.ts', '75-105'), repo('lib/locks.ts', '126-205'), repo('lib/locks.ts', '313-422'), repo('lib/services.ts', '1-5'), repo('lib/services.ts', '16-58'), repo('routes/locks.ts'), repo('routes/services.ts')],
             skillDossiers: [windags('skills/multi-agent-coordination/SKILL.md'), windags('skills/ipc-communication-patterns/SKILL.md')],
           },
           {
             title: 'Pub/sub channels and direct agent inboxes',
             summary: 'Agents coordinate through project-scoped signals and durable direct messages.',
-            websiteDocs: [repo('website-v2/src/pages/docs/features/RadioFeature.tsx', '18-20'), repo('website-v2/src/pages/docs/features/RadioFeature.tsx', '50-68'), repo('website-v2/src/pages/TutorialsPage.tsx', '36-41')],
+            websiteDocs: [
+              site('Pub command', '/docs/cli/pub', 'Publish a message to a channel'),
+              site('Communication protocols', '/agents/communication-protocols', 'communication'),
+              site('Radio', '/docs/features/radio', 'task claims, handoffs, done signals'),
+            ],
             runtimeCode: [repo('lib/messaging.ts', '1-5'), repo('lib/messaging.ts', '72-140'), repo('lib/messaging.ts', '150-213'), repo('lib/messaging.ts', '303-397'), repo('lib/agent-inbox.ts', '1-10'), repo('routes/messaging.ts')],
             skillDossiers: [windags('skills/agent-conversation-protocols/SKILL.md'), windags('skills/ipc-communication-patterns/SKILL.md')],
           },
           {
-            title: 'Tuple space and blackboard coordination',
+            title: 'Tuple space',
             summary: 'Shared facts live in a queryable board with pattern matching, harbor scope, TTL, reads, and takes.',
-            websiteDocs: [repo('website-v2/src/pages/docs/features/TuplesFeature.tsx', '18-21'), repo('website-v2/src/pages/docs/features/TuplesFeature.tsx', '52-60'), repo('docs/V4-UNIFIED-ROADMAP.md', '402')],
+            websiteDocs: [
+              site('Tuples', '/docs/features/tuples', 'a place to post work items, claim tasks, and coordinate state'),
+              site('Tuple CLI', '/docs/cli/tuple', 'tuple'),
+            ],
             runtimeCode: [repo('lib/tuples.ts', '1-20'), repo('lib/tuples.ts', '40-59'), repo('lib/tuples.ts', '79-159'), repo('lib/tuples.ts', '181-280'), repo('routes/tuples.ts'), repo('cli/commands/tuples.ts'), repo('mcp/server.ts', '2336-2391')],
-            skillDossiers: [windags('skills/coordination-topology-architect/references/swarm-blackboard-contract-net.md'), windags('skills/coordination-topology-architect/SKILL.md')],
+            skillDossiers: [windags('skills/multi-agent-coordination/SKILL.md'), windags('skills/agent-conversation-protocols/SKILL.md')],
           },
           {
             title: 'Harbors, capability cards, and zero-trust boundaries',
             summary: 'Capability scope is recorded in harbors and backed by daemon-held token issuance and verifier rules.',
-            websiteDocs: [repo('website-v2/src/pages/docs/features/HarborsFeature.tsx', '18-29'), repo('website-v2/src/pages/docs/features/HarborsFeature.tsx', '58-87'), repo('website-v2/src/pages/docs/mcp/CreateHarborTool.tsx')],
+            websiteDocs: [
+              site('Harbors', '/docs/features/harbors', 'create reviewer --cap'),
+              site('Create harbor MCP', '/docs/mcp/create-harbor', 'Create a scoped harbor'),
+            ],
             runtimeCode: [repo('lib/harbors.ts', '1-15'), repo('lib/harbors.ts', '41-72'), repo('lib/harbor-tokens.ts', '1-24'), repo('lib/harbor-tokens.ts', '121-380'), repo('routes/harbors.ts')],
             skillDossiers: [windags('skills/agentic-zero-trust-security/SKILL.md'), windags('skills/ostrom-commons-governance/SKILL.md')],
           },
           {
             title: 'Append-only activity, timelines, and evidence trails',
             summary: 'Port Daddy records the operating trace: claims, locks, notes, releases, violations, and spawn events.',
-            websiteDocs: [repo('website-v2/src/pages/docs/features/TimelineFeature.tsx', '18-20'), repo('website-v2/src/pages/docs/features/TimelineFeature.tsx', '50-74'), repo('website-v2/src/pages/docs/features/ArbiterFeature.tsx', '18-23')],
+            websiteDocs: [
+              site('Timeline', '/docs/features/timeline', 'claim    myapp:api:main'),
+              site('Activity CLI', '/docs/cli/activity', 'activity'),
+            ],
             runtimeCode: [repo('lib/activity.ts', '1-6'), repo('lib/activity.ts', '16-52'), repo('lib/activity.ts', '147-164'), repo('lib/activity.ts', '226-380'), repo('routes/activity.ts'), repo('cli/commands/activity.ts'), repo('lib/sessions.ts', '1047-1089')],
             skillDossiers: [windags('skills/runtime-verification-for-agents/SKILL.md'), windags('skills/game-theoretic-agent-incentives/SKILL.md')],
           },
           {
             title: 'Runtime monitors and invariant enforcement',
             summary: 'Safety rules can fire while the daemon is running, with strict mode escalating violations.',
-            websiteDocs: [repo('website-v2/src/pages/docs/features/ArbiterFeature.tsx', '18-33'), repo('website-v2/src/pages/docs/features/ArbiterFeature.tsx', '72-93'), repo('docs/V4-UNIFIED-ROADMAP.md', '21-37')],
+            websiteDocs: [
+              site('Arbiter', '/docs/features/arbiter', 'Catches impersonation'),
+              site('Coordination Guard', '/agents/coordination-guard', 'Coordination Guard'),
+            ],
             runtimeCode: [repo('lib/arbiter.ts', '1-12'), repo('lib/arbiter.ts', '102-209'), repo('lib/arbiter.ts', '213-245'), repo('lib/arbiter.ts', '297-353'), repo('lib/agents.ts', '320-390'), repo('lib/bosun-heartbeat.ts')],
             skillDossiers: [windags('skills/runtime-verification-for-agents/SKILL.md'), windags('skills/runtime-verification-for-agents/diagrams/01_flowchart_decision-points.md')],
           },
           {
             title: 'Budget, cost, and economic gates',
             summary: 'Cost recording, exact telemetry policy, budget ledgers, and fleet permits affect whether agents may launch.',
-            websiteDocs: [repo('website-v2/src/pages/docs/mcp/SpawnTool.tsx', '6-14'), repo('website-v2/src/pages/docs/features/FleetFeature.tsx', '105-112'), repo('docs/V4-UNIFIED-ROADMAP.md', '419-427')],
+            websiteDocs: [
+              site('Spawn MCP', '/docs/mcp/spawn-agent', 'Launch an agent'),
+              site('Fleet', '/docs/features/fleet', 'budget'),
+              site('Resources', '/agents/smart-resources', 'Resources'),
+            ],
             runtimeCode: [repo('lib/budget-guard.ts', '1-52'), repo('lib/budget-guard.ts', '149-232'), repo('lib/cost-tracker.ts', '1-17'), repo('lib/backend-telemetry-policy.ts', '11-99'), repo('lib/fleet-engine.ts', '690-709'), repo('lib/fleet-engine.ts', '1543-1560')],
             skillDossiers: [windags('skills/game-theoretic-agent-incentives/SKILL.md'), windags('skills/ostrom-commons-governance/SKILL.md')],
           },
@@ -240,11 +286,6 @@ export const conceptsSection: DocsContentSection = {
         skillTrail: [
           windags('skills/multi-agent-coordination/SKILL.md'),
           windags('skills/agent-conversation-protocols/SKILL.md'),
-          windags('skills/coordination-topology-architect/SKILL.md'),
-          windags('skills/coordination-topology-architect/references/topology-decomposition-playbook.md'),
-          windags('skills/coordination-topology-architect/references/swarm-blackboard-contract-net.md'),
-          windags('skills/coordination-topology-architect/references/workflow-patterns-review-gates.md'),
-          windags('skills/coordination-topology-architect/references/runtime-honesty-and-legacy-labels.md'),
           windags('skills/ipc-communication-patterns/SKILL.md'),
           windags('skills/agentic-zero-trust-security/SKILL.md'),
           windags('skills/runtime-verification-for-agents/SKILL.md'),
@@ -699,50 +740,6 @@ export const conceptsSection: DocsContentSection = {
         {
           path: 'docs/adr/0019-declarative-fleet-yaml.md',
           rationale: 'ADR describing the pd-fleet.yml schema, agent properties, template variables, and CLI integration.',
-        },
-      ],
-    },
-    {
-      slug: 'eleven-product-primitives',
-      title: 'Eleven Product Primitives',
-      summary:
-        'How the home-page feature cards map to the Mac app, CLI, and daemon.',
-      truth: 'source-backed',
-      goals: [
-        'Name the eleven public product primitives.',
-        'Understand which primitives appear in the Mac app.',
-        'Understand which primitives are CLI or daemon-backed features.',
-      ],
-      blocks: [
-        {
-          type: 'paragraph',
-          title: 'The primitive list is the product map',
-          paragraphs: [
-            'The eleven primitives on the public site are not decorative feature cards. They are the quickest map from a visitor question to a real feature: FleetBar, Fleet Control Center, Shipwright, sorties, resources, backend readiness, agent communication, file claims, Coordination Guard, harbors, and salvage.',
-            'Together, they answer the basic product question: Port Daddy is a local app and service that makes shared agent work visible, attributable, and recoverable.',
-          ],
-        },
-        {
-          type: 'checklist',
-          items: productPrimitiveItems,
-        },
-        {
-          type: 'paragraph',
-          title: 'The Mac app and daemon work together',
-          paragraphs: [
-            'FleetBar and Fleet Control Center are the Mac-facing parts. The daemon-backed features underneath are sessions, notes, channels, inboxes, claims, tuples, guard checks, harbors, backend readiness, budgets, and salvage state.',
-            'Shipwright connects those layers during cold start. It surveys a repo, proposes a starter fleet, simulates risk and budget, then sends you back to Flow, Agents, YAML, and Resources.',
-          ],
-        },
-      ],
-      sources: [
-        {
-          path: 'website-v2/src/data/product.ts',
-          rationale: 'Public product data defines the eleven primitives used by the home page and Mac preview.',
-        },
-        {
-          path: 'website-v2/src/components/landing/MacAppShowcase.tsx',
-          rationale: 'Mac app showcase maps those primitives to FleetBar and Fleet Control Center screenshots.',
         },
       ],
     },
