@@ -391,6 +391,15 @@ pre code {
   position: relative;
 }
 
+.pd-docs-paragraph-stack {
+  display: grid;
+  gap: clamp(var(--space-3), 1.2vw, var(--space-4));
+}
+
+.pd-docs-body-copy {
+  line-height: 1.44;
+}
+
 .pd-docs-diagram-block {
   padding-bottom: clamp(var(--space-4), 4vw, var(--space-8)) !important;
 }

@@ -491,9 +491,9 @@ function renderContentBlock(block: ContentBlock, index: number) {
           <PanelTitle as="h2" size="nav" tone={textTone} className="max-w-none">
             {blockHeading(block, index)}
           </PanelTitle>
-          <div className="space-y-[var(--panel-gap-tight)]">
+          <div className="pd-docs-paragraph-stack">
             {paragraphs.map((paragraph) => (
-              <PanelBody key={paragraph} tone={textTone} className="max-w-[58rem]">
+              <PanelBody key={paragraph} tone={textTone} className="pd-docs-body-copy max-w-[58rem]">
                 {renderInlineLinks(paragraph)}
               </PanelBody>
             ))}
