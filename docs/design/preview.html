@@ -128,7 +128,7 @@
   --state-claim-stale-border: var(--gray);
 
   --state-awaiting-human-bg: var(--warning-medium);
-  --state-awaiting-human-fg: var(--warning-strong);
+  --state-awaiting-human-fg: #92400E;                            /* warning-fg per neobrutalism — passes AA on warning-medium */
   --state-awaiting-human-border: var(--warning);
 
   --state-burning-cash-bg: #FFE4E4;
@@ -402,7 +402,7 @@ section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bott
   grid-template-columns: 64px 1fr;
   gap: 0.5rem 0.75rem;
 }
-.state-card__line span:first-child { color: var(--text-body-subtle); text-transform: uppercase; letter-spacing: 0.1em; }
+.state-card__line span:first-child { color: #374151; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; }
 .state-card__line span:last-child { word-break: break-all; }
 .state-card[data-state="claim-active"]   { --state-bg: var(--state-claim-active-bg); --state-fg: var(--state-claim-active-fg); --state-border: var(--state-claim-active-border); }
 .state-card[data-state="awaiting-human"] { --state-bg: var(--state-awaiting-human-bg); --state-fg: var(--state-awaiting-human-fg); --state-border: var(--state-awaiting-human-border); }
@@ -469,7 +469,7 @@ section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bott
   background: var(--text-heading);
   color: var(--neutral-primary-soft);
 }
-.distress[data-level="securité"] .distress__band { background: var(--warning-strong); }
+.distress[data-level="securité"] .distress__band { background: #92400E; }
 .distress[data-level="pan-pan"]  .distress__band { background: var(--pd-cinnabar); color: #FFFFFF; }
 .distress[data-level="mayday"]   .distress__band { background: var(--danger-strong); color: #FFFFFF; }
 .distress h4 {
@@ -511,15 +511,16 @@ section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bott
   border: var(--bw-default) solid var(--border-default);
   background: var(--neutral-primary-soft);
 }
-.perf-tag[data-perf="REQUEST"]         { background: var(--sky); color: #FFFFFF; }
-.perf-tag[data-perf="INFORM"]          { background: var(--success-medium); color: var(--success-strong); }
-.perf-tag[data-perf="AGREE"]           { background: var(--success); color: #FFFFFF; }
-.perf-tag[data-perf="REFUSE"]          { background: var(--danger); color: #FFFFFF; }
-.perf-tag[data-perf="FAILURE"]         { background: var(--danger-strong); color: #FFFFFF; }
+/* All white-on-color performatives use 700-grade backgrounds (≥4.5:1 white text). */
+.perf-tag[data-perf="REQUEST"]         { background: #0369A1; color: #FFFFFF; }     /* sky-700 */
+.perf-tag[data-perf="INFORM"]          { background: var(--success-medium); color: #166534; } /* success-700 fg */
+.perf-tag[data-perf="AGREE"]           { background: #15803D; color: #FFFFFF; }     /* success-strong */
+.perf-tag[data-perf="REFUSE"]          { background: var(--danger-strong); color: #FFFFFF; }
+.perf-tag[data-perf="FAILURE"]         { background: #991B1B; color: #FFFFFF; }     /* danger-800 */
 .perf-tag[data-perf="CFP"]             { background: var(--brand); color: var(--text-heading); }
-.perf-tag[data-perf="PROPOSE"]         { background: var(--purple); color: #FFFFFF; }
-.perf-tag[data-perf="ACCEPT-PROPOSAL"] { background: var(--indigo); color: #FFFFFF; }
-.perf-tag[data-perf="SUBSCRIBE"]       { background: var(--teal); color: #FFFFFF; }
+.perf-tag[data-perf="PROPOSE"]         { background: #6D28D9; color: #FFFFFF; }     /* purple-700 */
+.perf-tag[data-perf="ACCEPT-PROPOSAL"] { background: #4338CA; color: #FFFFFF; }     /* indigo-700 */
+.perf-tag[data-perf="SUBSCRIBE"]       { background: #0F766E; color: #FFFFFF; }     /* teal-700 */
 .perf-tag[data-perf="QUERY-REF"]       { background: var(--cyan); color: var(--text-heading); }
 
 /* =============================================================================
@@ -615,9 +616,13 @@ section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bott
   font-size: 0.75rem;
 }
 .fleetbar__avatar[data-state="awaiting"] { box-shadow: 0 0 0 3px var(--warning); }
-.fleetbar__avatar[data-state="conflict"] { box-shadow: 0 0 0 3px var(--danger); }
+.fleetbar__avatar[data-state="conflict"] { box-shadow: 0 0 0 3px var(--danger); color: #FFFFFF; }
 .fleetbar__avatar[data-state="active"]   { box-shadow: 0 0 0 3px var(--success); }
+/* Override avatar text color when accent is dark (cinnabar/danger/ebony) */
+.fleetbar__avatar[style*="--pd-cinnabar"], .fleetbar__avatar[style*="--danger"] { color: #FFFFFF; }
 .fleetbar__sep { width: 1px; height: 18px; background: rgba(255,255,255,0.25); margin: 0 0.25rem; }
+/* Lighter pill caps inside the dark fleetbar (parent fg overrides aren't enough — cap has its own rule) */
+.fleetbar .cost-pill__cap { color: #D1D5DB; }
 
 /* =============================================================================
    HOCKNEY TIMELINE — multi-perspective screenshot collage
@@ -687,7 +692,7 @@ section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bott
 .trove__card[data-weight="small"]  { font-size: 0.875rem; font-variation-settings: "opsz" 16, "wght" 500; opacity: 0.85; }
 .trove__card[data-tone="brand"]    { background: var(--brand); }
 .trove__card[data-tone="cinnabar"] { background: var(--pd-cinnabar); color: var(--neutral-primary-soft); border-color: var(--border-default); }
-.trove__card[data-tone="purple"]   { background: var(--purple); color: #FFFFFF; }
+.trove__card[data-tone="purple"]   { background: #6D28D9; color: #FFFFFF; }    /* purple-700 for AA */
 
 /* =============================================================================
    60/30/10 PANE LAYOUT (Tauri Bridge mock)
@@ -783,9 +788,15 @@ section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bott
 .footer__meta {
   font-family: var(--font-mono);
   font-size: 0.8rem;
-  color: var(--gray);
+  color: #C7C7BD;                                  /* lifted from --gray #AEAEAE for AA on ebony */
   border-top: var(--bw-default) solid #3A3A3A;
   padding-top: var(--baseline);
+}
+/* Code in dark contexts inverts to dark-on-brand for readability */
+.footer code, .terminal code, .bridge__rail code {
+  background: #2A2520;
+  color: var(--brand);
+  border-color: #3A3A3A;
 }
 
 /* =============================================================================
@@ -1303,7 +1314,7 @@ section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bott
         <div class="fleetbar__avatar" data-state="active"   style="--accent:var(--cyan)">QA</div>
         <div class="fleetbar__avatar" data-state="awaiting" style="--accent:var(--warning)">CA</div>
         <div class="fleetbar__avatar"                       style="--accent:var(--purple)">SP</div>
-        <div class="fleetbar__avatar" data-state="conflict" style="--accent:var(--pd-cinnabar)">DM</div>
+        <div class="fleetbar__avatar" data-state="conflict" style="--accent:var(--danger-strong);color:#FFFFFF">DM</div>
         <div class="fleetbar__avatar"                       style="--accent:var(--teal)">HV</div>
       </div>
     </div>
