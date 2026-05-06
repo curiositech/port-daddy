@@ -29,9 +29,9 @@ export default function PaperDetailPage() {
     >
       <main id="main-content">
         {/* HEADER ─ paper title + reader file */}
-        <section className="border-b-2 border-[var(--border-strong)] py-[var(--space-7)] lg:py-[var(--space-8)]">
+        <section className="border-b-2 border-[var(--border-strong)] py-[var(--space-6)] lg:py-[var(--space-7)]">
           <PageContainer width="wide">
-            <div className="grid gap-[var(--space-6)] lg:grid-cols-[minmax(0,0.64fr)_minmax(20rem,0.36fr)] lg:items-end">
+            <div className="grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,0.64fr)_minmax(18rem,0.36fr)] lg:items-end">
               <div className="space-y-[var(--space-5)]">
                 <Link
                   to="/whitepaper"
@@ -96,7 +96,7 @@ export default function PaperDetailPage() {
         </section>
 
         {/* PRIMER ─ the big idea, in plain prose */}
-        <section className="border-b-2 border-[var(--border-strong)] bg-[var(--brand-primary)] py-[var(--space-7)] lg:py-[var(--space-8)] text-[var(--brand-primary-foreground)]">
+        <section className="border-b-2 border-[var(--border-strong)] bg-[var(--brand-primary)] py-[var(--space-6)] lg:py-[var(--space-7)] text-[var(--brand-primary-foreground)]">
           <PageContainer width="wide">
             <div className="grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,0.32fr)_minmax(0,0.68fr)] lg:items-start">
               <div className="space-y-[var(--space-3)]">
@@ -115,23 +115,23 @@ export default function PaperDetailPage() {
         </section>
 
         {/* GLOSSARY ─ define every term before it appears below */}
-        <section className="border-b-2 border-[var(--border-strong)] py-[var(--space-7)] lg:py-[var(--space-8)]">
+        <section className="border-b-2 border-[var(--border-strong)] bg-[var(--surface-strong)] py-[var(--space-6)] lg:py-[var(--space-7)]">
           <PageContainer width="wide">
-            <div className="grid gap-[var(--space-6)] lg:grid-cols-[minmax(0,0.32fr)_minmax(0,0.68fr)] lg:items-start">
+            <div className="grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,0.30fr)_minmax(0,0.70fr)] lg:items-start">
               <div className="space-y-[var(--space-3)]">
                 <BracketLabel>Vocabulary</BracketLabel>
                 <PanelTitle as="h2" size="section" className="max-w-[14ch]">
                   Words this paper uses, defined.
                 </PanelTitle>
-                <PanelBody className="max-w-[44ch]">
+                <PanelBody className="max-w-[40ch]">
                   Skim these once. The rest of the page assumes them, and the PDF leans on them harder.
                 </PanelBody>
               </div>
-              <dl className="grid gap-[var(--space-4)] sm:grid-cols-2">
+              <dl className="grid gap-[var(--space-3)] sm:grid-cols-2">
                 {paper.glossary.map((entry) => (
                   <div
                     key={entry.term}
-                    className="border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-4)]"
+                    className="border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-4)]"
                   >
                     <dt className="font-display text-[length:var(--type-panel-title-card-size)] font-black leading-[var(--leading-card)] text-[var(--text-primary)]">
                       {entry.term}
@@ -146,32 +146,36 @@ export default function PaperDetailPage() {
           </PageContainer>
         </section>
 
-        {/* WHAT YOU GET ─ benefit framing for the reader */}
-        <section className="border-b-2 border-[var(--border-strong)] py-[var(--space-7)] lg:py-[var(--space-8)]">
-          <PageContainer width="wide">
-            <div className="grid gap-[var(--space-6)] lg:grid-cols-2">
-              <div className="border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-5)]">
-                <PanelEyebrow className="mb-[var(--space-3)]">If you are reading to learn</PanelEyebrow>
-                <PanelTitle as="h3" size="card" className="mb-[var(--space-3)] max-w-[20ch]">
-                  What this gives you.
-                </PanelTitle>
-                <PanelBody>{paper.whatYouGet}</PanelBody>
-              </div>
-              <div className="border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-5)]">
-                <PanelEyebrow className="mb-[var(--space-3)]">If you are reading to build</PanelEyebrow>
-                <PanelTitle as="h3" size="card" className="mb-[var(--space-3)] max-w-[20ch]">
-                  How to use this.
-                </PanelTitle>
-                <PanelBody>{paper.forBuilders}</PanelBody>
-              </div>
-            </div>
-          </PageContainer>
+        {/* WHAT YOU GET ─ benefit framing for the reader, color-blocked */}
+        <section className="grid border-b-2 border-[var(--border-strong)] lg:grid-cols-2">
+          <div className="bg-[var(--text-primary)] p-[var(--space-6)] text-[var(--text-inverse)] lg:border-r-2 lg:border-[var(--border-strong)] lg:p-[var(--space-7)]">
+            <BracketLabel className="border-[color:var(--brand-primary-foreground-subtle)] text-[var(--text-inverse)]">
+              If you are reading to learn
+            </BracketLabel>
+            <h3 className="mt-[var(--space-3)] mb-[var(--space-3)] max-w-[20ch] font-display text-[length:var(--type-panel-title-card-size)] font-black leading-[var(--leading-card)] tracking-normal text-[var(--text-inverse)]">
+              What this gives you.
+            </h3>
+            <p className="max-w-[60ch] text-[length:var(--type-panel-body-size)] leading-[var(--leading-body)] text-[color:var(--brand-primary-foreground-muted)]">
+              {paper.whatYouGet}
+            </p>
+          </div>
+          <div className="bg-[var(--brand-accent)] p-[var(--space-6)] text-[var(--brand-accent-foreground)] lg:p-[var(--space-7)]">
+            <BracketLabel className="border-[color:var(--brand-accent-foreground-subtle)] text-[var(--brand-accent-foreground)]">
+              If you are reading to build
+            </BracketLabel>
+            <h3 className="mt-[var(--space-3)] mb-[var(--space-3)] max-w-[20ch] font-display text-[length:var(--type-panel-title-card-size)] font-black leading-[var(--leading-card)] tracking-normal text-[var(--brand-accent-foreground)]">
+              How to use this.
+            </h3>
+            <p className="max-w-[60ch] text-[length:var(--type-panel-body-size)] leading-[var(--leading-body)] text-[color:var(--brand-accent-foreground-muted)]">
+              {paper.forBuilders}
+            </p>
+          </div>
         </section>
 
         {/* ARGUMENT MAP + PDF READER */}
-        <section className="py-[var(--space-7)] lg:py-[var(--space-8)]">
+        <section className="py-[var(--space-6)] lg:py-[var(--space-7)]">
           <PageContainer width="wide">
-            <div className="grid gap-[var(--space-6)] lg:grid-cols-[minmax(20rem,0.36fr)_minmax(0,0.64fr)] lg:items-start">
+            <div className="grid gap-[var(--space-5)] lg:grid-cols-[minmax(20rem,0.36fr)_minmax(0,0.64fr)] lg:items-start">
               <aside className="order-last grid gap-[var(--space-4)] lg:order-first">
                 <section className="border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-5)]">
                   <div className="mb-[var(--space-4)] flex items-center justify-between gap-[var(--space-3)] border-b-2 border-[var(--border-default)] pb-[var(--space-3)]">

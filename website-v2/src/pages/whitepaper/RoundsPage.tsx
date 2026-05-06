@@ -47,17 +47,17 @@ export default function RoundsPage() {
     >
       <main id="main-content">
         {/* HEADER + welcoming intro */}
-        <section className="border-b-2 border-[var(--border-strong)] py-[var(--space-7)] lg:py-[var(--space-8)]">
+        <section className="border-b-2 border-[var(--border-strong)] py-[var(--space-6)] lg:py-[var(--space-7)]">
           <PageContainer width="wide">
             <Link
               to="/whitepaper"
-              className="mb-[var(--space-5)] inline-flex items-center gap-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)] transition-colors hover:text-[var(--brand-primary)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]"
+              className="mb-[var(--space-4)] inline-flex items-center gap-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)] transition-colors hover:text-[var(--brand-primary)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]"
             >
               <ArrowLeft aria-hidden="true" size={14} />
               Back to the papers
             </Link>
 
-            <div className="grid gap-[var(--space-7)] lg:grid-cols-[minmax(0,0.62fr)_minmax(0,0.38fr)] lg:items-end">
+            <div className="grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,0.62fr)_minmax(0,0.38fr)] lg:items-end">
               <div className="space-y-[var(--space-5)]">
                 <PanelEyebrow>How the papers got better</PanelEyebrow>
                 <PanelTitle as="h1" size="hero" className="max-w-[14ch]">
@@ -108,9 +108,9 @@ export default function RoundsPage() {
         </section>
 
         {/* HOW TO READ THIS PAGE — vocabulary panel */}
-        <section className="border-b-2 border-[var(--border-strong)] bg-[var(--surface-raised)] py-[var(--space-7)] lg:py-[var(--space-8)]">
+        <section className="border-b-2 border-[var(--border-strong)] bg-[var(--surface-strong)] py-[var(--space-6)] lg:py-[var(--space-7)]">
           <PageContainer width="wide">
-            <div className="grid gap-[var(--space-6)] lg:grid-cols-[minmax(0,0.32fr)_minmax(0,0.68fr)] lg:items-start">
+            <div className="grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,0.30fr)_minmax(0,0.70fr)] lg:items-start">
               <div className="space-y-[var(--space-3)]">
                 <BracketLabel>How to read this</BracketLabel>
                 <PanelTitle as="h2" size="section" className="max-w-[14ch]">
@@ -138,7 +138,7 @@ export default function RoundsPage() {
                 ].map((entry) => (
                   <div
                     key={entry.term}
-                    className="border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-4)]"
+                    className="border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-4)]"
                   >
                     <dt className="font-display text-[length:var(--type-panel-title-card-size)] font-black leading-[var(--leading-card)] text-[var(--text-primary)]">
                       {entry.term}
@@ -154,9 +154,9 @@ export default function RoundsPage() {
         </section>
 
         {/* VISUALIZATIONS */}
-        <section className="border-b-2 border-[var(--border-strong)] py-[var(--space-7)] lg:py-[var(--space-8)]">
+        <section className="border-b-2 border-[var(--border-strong)] py-[var(--space-6)] lg:py-[var(--space-7)]">
           <PageContainer width="wide">
-            <div className="mb-[var(--space-6)] grid gap-[var(--space-3)] lg:max-w-[60ch]">
+            <div className="mb-[var(--space-5)] grid gap-[var(--space-3)] lg:max-w-[60ch]">
               <BracketLabel>The whole story, three ways</BracketLabel>
               <PanelTitle as="h2" size="section" className="max-w-[18ch]">
                 Coverage, severity, who said what.
@@ -167,9 +167,7 @@ export default function RoundsPage() {
                 clarifications, and which review personas pushed which arguments.
               </PanelBody>
             </div>
-            <div className="border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-5)]">
-              <RoundsVisualization />
-            </div>
+            <RoundsVisualization />
           </PageContainer>
         </section>
 
