@@ -38,6 +38,7 @@ import { sitrepPlugin } from './sitrep.js';
 import { arbiterPlugin } from './arbiter.js';
 import { pheromonePlugin } from './pheromone.js';
 import { tuplesPlugin } from './tuples.js';
+import { blobPlugin } from './blob.js';
 import { fleetPlugin } from './fleet.js';
 import { observabilityPlugin } from './observability.js';
 import { mergeQueuePlugin } from './merge-queue.js';
@@ -122,6 +123,12 @@ export async function registerAllRoutes(
   const tupleDeps = (deps as any).tuples;
   if (tupleDeps) {
     await fastify.register(tuplesPlugin, { tuples: tupleDeps } as any);
+  }
+
+  // Blob store (Phase 0 of tube-as-coordination-substrate roadmap).
+  // Filesystem-only — registers iff a blob store dep was constructed.
+  if ((deps as any).blobs) {
+    await fastify.register(blobPlugin, { deps } as any);
   }
 
   // Fleet daemon (always-on fleet management) — fleetDaemon, messaging, logger are in deps

@@ -1273,6 +1273,23 @@
         "sdk": true
       }
     },
+    "blob": {
+      "description": "Content-addressed blob store (Phase 0 tube-as-coordination-substrate). SHA-256 keyed object storage on the filesystem under ~/.port-daddy/blobs/",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "POST /blob",
+        "GET /blob",
+        "GET /blob/:param",
+        "DELETE /blob/:param"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "API-only \u2014 Phase 0 substrate. CLI/SDK surfaces follow in Phase 1."
+    },
     "graph": {
       "description": "Semantic graph edges and aggregate graph stats for merge queue and symbol-index relationships",
       "cli": [

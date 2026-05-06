@@ -65,6 +65,7 @@ import { createCorrelationEngine } from './lib/correlation.js';
 import { createArbiter } from './lib/arbiter.js';
 import { createSemanticIndex } from './lib/semantic-index.js';
 import { createTupleSpace } from './lib/tuples.js';
+import { createBlobStore } from './lib/blob.js';
 import { createNoteEncryption } from './lib/note-encryption.js';
 import { initDatabase, closeDatabase, resolveDbPath } from './lib/db.js';
 import { createIpcServer } from './lib/ipc-server.js';
@@ -251,6 +252,7 @@ const semanticIndex = createSemanticIndex(db);
 const graphEdges = createGraphEdges(db);
 const symbolIndex = createSymbolIndex(db, { graphEdges });
 const tuples = createTupleSpace(db);
+const blobs = createBlobStore();
 const counters = createCounters(db);
 const semanticResolver = createSemanticResolver(db, {
   cacheDir: join(REPO_ROOT, '.cache', 'transformers'),
@@ -686,7 +688,7 @@ await registerAllRoutes(
     db, logger, metrics, config,
     services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar,
-    harbors, sorties, orchestrator, correlationEngine, spawner, tuples, fleetDaemon,
+    harbors, sorties, orchestrator, correlationEngine, spawner, tuples, blobs, fleetDaemon,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, counters,
     quorum, resourceGovernance, feedback,
     bonds, budgetGuard, budgetPause,
