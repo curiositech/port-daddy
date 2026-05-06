@@ -205,6 +205,17 @@ export const referenceArchitecturesSection: DocsContentSection = {
           ],
         },
         {
+          type: 'command',
+          title: 'Live local control-plane proof',
+          command: 'pd status\npd sessions --all-worktrees',
+          output:
+            'Port Daddy is running\n  Version: 3.12.0 (f3b4f7d40d8c)\n  Runtime: nominal\n  Fleet: 1 project(s), 8 agent(s), 3/8 launchable\n\nID              PURPOSE                    STATUS    FILES  NOTES  AGE\nsession-add-source-backed-operator-examples-to-reference-fba539e7dcb2Add source-backed opera... active        0      0  1m',
+          notes: [
+            'This was captured from the isolated reference-architecture worktree while editing this page.',
+            'The important observable is not the exact age or PID. It is that the CLI can see daemon runtime state and the active docs session from the same local control plane.',
+          ],
+        },
+        {
           type: 'paragraph',
           title: 'Design recommendation',
           paragraphs: [
@@ -286,15 +297,22 @@ export const referenceArchitecturesSection: DocsContentSection = {
         },
         {
           type: 'command',
-          title: 'Recommended target syntax',
+          title: 'Current runnable boundary check',
           command:
-            'pd harbor create erich-workbench --cap sessions:read --cap tube:pub --cap approvals:pub\npd relay share erich-workbench --aud phone --expires 30m --cap status:read --cap approvals:pub\npd relay share erich-workbench --aud collaborator --expires 7d --cap tube:pub --cap notes:read\npd relay status --harbor erich-workbench',
+            'pd tunnel --help\npd dns --help\npd pub --help',
           output:
-            'PLANNED SURFACE\nowner invite: short-lived phone link or QR\ncollaborator invite: scoped MacBook join link\nrelay status: connected members, accepted channels, rejected caps, revocation freshness',
+            'Usage: pd tunnel <subcommand> [args]\n  start <identity> [--provider ngrok]  Start a tunnel\n  stop <identity>                      Stop a tunnel\n  status <identity>                    Get tunnel status\n  list                                 List active tunnels\n  providers                            Check installed providers\n\nUsage: pd dns <subcommand> [args] [options]\n  register <identity> --port <n>       Register a DNS record\n  lookup <hostname>                    Lookup by hostname\n  status                               DNS system status\n\nUsage: port-daddy pub <channel> <message> [--message "text"] [-m "text"] [--signal mayday|pan-pan|roger|...]',
           notes: [
-            'This is the product shape to design toward, not a claim that every command is shipped today.',
-            'The existing remote-harbors tutorial already marks cross-daemon coordination as planned; this architecture tightens what that planned feature should mean.',
+            'These commands are the source-backed local building blocks that exist today: tunnels, local DNS, and pub/sub.',
+            'The existing remote-harbors tutorial says remote harbor commands are planned and that none of those planned commands exist yet. The relay mesh architecture should not present planned relay syntax as a runnable recipe.',
           ],
+        },
+        {
+          type: 'callout',
+          tone: 'info',
+          title: 'Planned relay operator result',
+          body:
+            'The target observable for the future relay surface is specific: a short-lived phone invite or QR, a collaborator invite with narrower caps, connected members, accepted channels, rejected capabilities, and revocation freshness. That is product direction, not a current CLI transcript.',
         },
         {
           type: 'callout',
@@ -398,7 +416,7 @@ export const referenceArchitecturesSection: DocsContentSection = {
           title: 'Inspection path',
           command: 'pd fleet validate\npd fleet status',
           output:
-            'SUCCESS: Fleet "port-daddy" parsed successfully\n  agents:   8\n  watchers: 2\n  channels: 8\n  budget:   9.76\n\nSUCCESS: No topology warnings\n\nFleet status then shows configured agents, backend readiness, registered fleet agents, and recent fleet events.',
+            'SUCCESS: Fleet "port-daddy" parsed successfully\n  agents:   8\n  watchers: 2\n  channels: 8\n  budget:   9.76\n\nSUCCESS: No topology warnings\n\nWARN: Fleet "port-daddy" defined in pd-fleet.yml but not running\nINFO:   Start with: pd fleet up\n\nINFO: Configured agents:\n  gardener — custom / backend default / schedule */10 * * * *\n  qa — ollama / qwen2.5-coder:7b / trigger git:committed\n  test-hunter — codex / gpt-5.4-mini / trigger git:committed\n  documentarian — ollama / qwen2.5-coder:7b / trigger promotion:release-surfaces\n\nINFO: Recent fleet events:\n  (no recent events)',
           notes: [
             'This output is from the current checkout while building this page.',
             'Use `/fleet`, `/fleet/events`, and `/fleet/config/:project` when a UI or SDK needs the same truth over HTTP.',
@@ -510,6 +528,17 @@ export const referenceArchitecturesSection: DocsContentSection = {
           notes: [
             '`pd sortie approve`, `pd sortie cancel`, rich roster execution, and a full mission workspace are still future layers.',
             'The current sortie route launches a single coordinating spawned agent underneath; the page should say that plainly because it is the present runtime truth.',
+          ],
+        },
+        {
+          type: 'command',
+          title: 'Non-launching delegation sanity check',
+          command: 'pd sortie --help\npd agent --help',
+          output:
+            'Usage: pd sortie <goal text> [options]\n   or: pd sortie run <goal text> [options]\n   or: pd sortie list [--all] [--limit N]\n   or: pd sortie status <id>\n   or: pd sortie logs <id> [--limit N]\n\nOptions for run:\n  --backend <name>      Required backend\n  --budget <usd>        Required spend ceiling\n  --recipe <name>       Mission recipe label\n\nUsage: port-daddy agent <subcommand> [options]\n\nSubcommands:\n  "task text"                               Run a one-shot pd agent autopilot task\n  run <task text>                           Explicit autopilot form\n  register [--agent <id>] [--type <type>] [--identity <project:stack:context>] [--purpose <text>]\n  inbox                                     Read your inbox',
+          notes: [
+            'This help output is a cheap way to verify the shipped CLI surface without launching a paid or background agent.',
+            'It backs the page distinction: sortie has durable list/status/log commands, while agent is the one-shot autopilot entry point plus agent registry/inbox utilities.',
           ],
         },
         {
