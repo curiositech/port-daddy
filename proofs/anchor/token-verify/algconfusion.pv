@@ -1,0 +1,93 @@
+(* ============================================================
+   Algorithm Confusion in Token Verification — Anchor §3
+
+   Smell: a verifier that does not pin its expected algorithm can be
+   tricked into accepting a token signed under a *different*
+   algorithm than the one the verifier "thinks" it is checking.
+   Classic JWT exploits: alg=none, alg=HS256-with-RSA-pubkey-as-secret,
+   ECDSA accepting a swapped-curve token.
+
+   Property: a token accepted by a verifier pinned to AlgA was
+   issued by an honest AlgA-issuer. Hold even when the attacker
+   knows the symmetric key kB (worst case for the pinned verifier).
+
+   Two channels per algorithm. Two issuers (one honest AlgA, no
+   honest AlgB). Pinned verifier rejects any token whose header
+   isn't ALG_A.
+   ============================================================ *)
+
+free pub : channel.
+
+type pkA. type skA. type sigA.
+type kB.            type macB.
+type message. type alg.
+const ALG_A : alg.
+const ALG_B : alg.
+
+(* AlgA — Ed25519-shaped public-key signature. *)
+fun pkAof(skA) : pkA.
+fun signA(skA, message) : sigA.
+reduc forall sk : skA, m : message;
+  verifyA(pkAof(sk), m, signA(sk, m)) = true.
+
+(* AlgB — HMAC. *)
+fun hmacB(kB, message) : macB.
+reduc forall k : kB, m : message;
+  verifyB(k, m, hmacB(k, m)) = true.
+
+(* Token: (header_alg, payload, sig_or_mac).
+   The signature slot is one of two distinct types — they cannot be
+   silently coerced. This models the type-safety that a properly
+   pinned implementation enforces. *)
+type token.
+fun tokenA(alg, message, sigA) : token [data].
+fun tokenB(alg, message, macB) : token [data].
+
+event accepted_pinned(message).
+event accepted_naive(message).
+event issued_A(message).
+
+(* Honest AlgA issuer. *)
+let IssuerA(sk : skA) =
+  in(pub, m : message);
+  event issued_A(m);
+  let s = signA(sk, m) in
+  out(pub, tokenA(ALG_A, m, s)).
+
+(* Pinned verifier: only accepts tokenA shape (type-tagged) AND the
+   header field equals ALG_A. Modelled by exhaustive pattern: only
+   the tokenA constructor is ever destructed; tokenB tokens fall
+   through silently. *)
+let VerifierPinnedA(vkA : pkA) =
+  in(pub, t : token);
+  let tokenA(=ALG_A, m, s) = t in
+  if verifyA(vkA, m, s) then event accepted_pinned(m).
+
+(* Naive verifier: accepts whichever shape arrives, picking the
+   verification routine based on the header. This is the bug we
+   want to demonstrate. *)
+let VerifierNaive(vkA : pkA, vkB : kB) =
+  in(pub, t : token);
+  ( let tokenA(=ALG_A, m, s) = t in
+    if verifyA(vkA, m, s) then event accepted_naive(m) )
+  | ( let tokenB(=ALG_B, m, mac) = t in
+    if verifyB(vkB, m, mac) then event accepted_naive(m) ).
+
+(* Authenticity for the pinned verifier. *)
+query m : message;
+  event(accepted_pinned(m)) ==> event(issued_A(m)).
+
+(* Authenticity for the naive verifier — expected to FAIL because the
+   attacker can publish tokenB(ALG_B, m, hmacB(kB, m)) for any m,
+   even one never issued by AlgA. ProVerif should produce a counter-
+   trace. *)
+query m : message;
+  event(accepted_naive(m)) ==> event(issued_A(m)).
+
+process
+  new sk : skA;
+  let vkA = pkAof(sk) in
+  new vkB : kB;
+  out(pub, vkA);   (* attacker has the public AlgA key *)
+  out(pub, vkB);   (* worst case: attacker knows the AlgB key too *)
+  ( !IssuerA(sk) | !VerifierPinnedA(vkA) | !VerifierNaive(vkA, vkB) )

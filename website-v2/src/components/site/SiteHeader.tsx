@@ -2,7 +2,6 @@ import { Link, NavLink } from "react-router-dom";
 import * as Popover from "@radix-ui/react-popover";
 import {
   ChevronDown,
-  Download,
   Github,
   Menu,
   Moon,
@@ -21,13 +20,14 @@ type NavItem = {
   href: string;
   end: boolean;
   badge?: string;
+  featured?: boolean;
   className?: string;
 };
 
 const PRIMARY_NAV_ITEMS = [
   { label: "Agents", href: "/agents", end: true },
   { label: "Skill + MCP", href: "/mcp", end: true },
-  { label: "Mac Preview", href: "/mac-preview", end: false, badge: "New" },
+  { label: "Mac Preview", href: "/mac-preview", end: false, badge: "New", featured: true },
   { label: "Docs", href: "/docs", end: false },
 ] satisfies readonly NavItem[];
 
@@ -48,11 +48,16 @@ function navItemClass(
   isActive: boolean,
   mobile = false,
   displayClass = "inline-flex",
+  featured = false,
 ) {
+  const featuredDesktop = featured && !mobile;
+
   return [
     displayClass,
     "shrink-0 items-center gap-[var(--space-2)] border-2 px-[var(--space-2)] py-[var(--space-2)] font-sans text-[length:0.76rem] font-semibold uppercase tracking-[var(--tracking-meta)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] xl:px-[var(--space-3)]",
-    isActive
+    featuredDesktop
+      ? "border-[var(--border-strong)] bg-[var(--text-primary)] text-[var(--surface-base)] hover:bg-[var(--brand-primary)] hover:text-[var(--brand-primary-foreground)]"
+      : isActive
       ? "border-[var(--border-strong)] bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]"
       : mobile
         ? "border-transparent text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-base)] hover:text-[var(--text-primary)]"
@@ -77,6 +82,7 @@ function PrimaryNavItem({
           false,
           mobile,
           mobile ? "inline-flex" : desktopDisplayClass,
+          item.featured,
         )}
       >
         {item.label}
@@ -93,12 +99,13 @@ function PrimaryNavItem({
           isActive,
           mobile,
           mobile ? "inline-flex" : desktopDisplayClass,
+          item.featured,
         )
       }
     >
       <span>{item.label}</span>
       {item.badge ? (
-        <span className="hidden border border-current px-[var(--space-1)] py-[1px] text-[0.62rem] leading-none tracking-[0.08em] 2xl:inline">
+        <span className="border border-current px-[var(--space-1)] py-[1px] text-[0.62rem] leading-none tracking-[0.08em]">
           {item.badge}
         </span>
       ) : null}
@@ -231,7 +238,7 @@ export function SiteHeader() {
       >
         <PageContainer
           width="wide"
-          className="!max-w-none grid grid-cols-[minmax(0,1fr)_auto] items-center gap-[var(--space-2)] py-[var(--space-3)] lg:grid-cols-[minmax(10rem,0.85fr)_minmax(0,auto)_minmax(10rem,0.85fr)] xl:gap-[var(--space-3)]"
+          className="!max-w-none grid grid-cols-[minmax(0,1fr)_auto] items-center gap-[var(--space-2)] py-[var(--space-3)] lg:grid-cols-[minmax(10rem,0.72fr)_minmax(0,auto)_minmax(15rem,0.9fr)] xl:gap-[var(--space-3)]"
         >
           <Link
             to="/"
@@ -261,7 +268,7 @@ export function SiteHeader() {
           <div className="flex min-w-0 items-center justify-end gap-[var(--space-2)]">
             <CompressedNavMenu />
 
-            <div className="hidden min-w-[12rem] max-w-[13rem] 2xl:block">
+            <div className="hidden min-w-[14rem] max-w-[19rem] flex-1 2xl:block">
               <DocsSearch variant="compact" />
             </div>
 
@@ -283,18 +290,6 @@ export function SiteHeader() {
             >
               <Github size={16} />
             </a>
-
-            <Button
-              asChild
-              variant="primary"
-              size="sm"
-              className="hidden 2xl:inline-flex"
-            >
-              <Link to="/mac-preview#download">
-                <Download size={15} />
-                <span>Download</span>
-              </Link>
-            </Button>
 
             <Button
               type="button"

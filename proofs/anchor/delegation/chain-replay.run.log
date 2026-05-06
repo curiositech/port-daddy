@@ -1,0 +1,154 @@
+Process 0 (that is, the initial process):
+{1}new skP: skey;
+{2}let pkP: pkey = pk(skP) in
+{3}new skA: skey;
+{4}let pkA: pkey = pk(skA) in
+{5}new skB: skey;
+{6}let pkB: pkey = pk(skB) in
+{7}new skC: skey;
+{8}let pkC: pkey = pk(skC) in
+{9}let idP: id = id_of_pk(pkP) in
+{10}let idA: id = id_of_pk(pkA) in
+{11}let idB: id = id_of_pk(pkB) in
+{12}let idC: id = id_of_pk(pkC) in
+{13}out(pub, pkP);
+{14}out(pub, pkA);
+{15}out(pub, pkB);
+{16}out(pub, pkC);
+{17}out(pub, idP);
+{18}out(pub, idA);
+{19}out(pub, idB);
+{20}out(pub, idC);
+(
+    {21}!
+    {22}let skP_1: skey = skP in
+    {23}in(pub, m: message);
+    {24}new n1: nonce;
+    {25}insert issued_nonce(n1);
+    {26}let s1: sig = sign(skP_1,hopBind(n1,id_of_pk(pk(skP_1)),idA,m)) in
+    {27}event chain_authorized(id_of_pk(pk(skP_1)),idA,idB,idC,m);
+    {28}out(pub, (n1,id_of_pk(pk(skP_1)),idA,m,s1))
+) | (
+    {29}!
+    {30}let skA_1: skey = skA in
+    {31}in(pub, (n1_1: nonce,idP_1: id,idA_in: id,m_1: message,s1_1: sig));
+    {32}if (id_of_pk(pk(skA_1)) = idA_in) then
+    {33}if verify(pkP,hopBind(n1_1,idP_1,idA_in,m_1),s1_1) then
+    {34}new n2: nonce;
+    {35}insert issued_nonce(n2);
+    {36}let s2: sig = sign(skA_1,hopBind(n2,idA_in,idB,m_1)) in
+    {37}out(pub, (n1_1,idP_1,idA_in,m_1,s1_1,n2,idB,s2))
+) | (
+    {38}!
+    {39}let skB_1: skey = skB in
+    {40}in(pub, (n1_2: nonce,idP_2: id,idA_1: id,m_2: message,s1_2: sig,n2_1: nonce,idB_in: id,s2_1: sig));
+    {41}if (id_of_pk(pk(skB_1)) = idB_in) then
+    {42}if verify(pkP,hopBind(n1_2,idP_2,idA_1,m_2),s1_2) then
+    {43}if verify(pkA,hopBind(n2_1,idA_1,idB_in,m_2),s2_1) then
+    {44}new n3: nonce;
+    {45}insert issued_nonce(n3);
+    {46}let s3: sig = sign(skB_1,hopBind(n3,idB_in,idC,m_2)) in
+    {47}out(pub, (n1_2,idP_2,idA_1,m_2,s1_2,n2_1,idB_in,s2_1,n3,idC,s3))
+) | (
+    {48}!
+    {49}let skC_1: skey = skC in
+    {50}in(pub, (n1_3: nonce,idP_3: id,idA_2: id,m_3: message,s1_3: sig,n2_2: nonce,idB_1: id,s2_2: sig,n3_1: nonce,idC_in: id,s3_1: sig));
+    {51}if (id_of_pk(pk(skC_1)) = idC_in) then
+    {52}if (idP_3 = idP) then
+    {62}get issued_nonce(=n1_3) in
+    {61}get issued_nonce(=n2_2) in
+    {60}get issued_nonce(=n3_1) in
+    {53}if verify(pkP,hopBind(n1_3,idP_3,idA_2,m_3),s1_3) then
+    {54}if verify(pkA,hopBind(n2_2,idA_2,idB_1,m_3),s2_2) then
+    {55}if verify(pkB,hopBind(n3_1,idB_1,idC_in,m_3),s3_1) then
+    {56}insert consumed_nonce(n1_3);
+    {57}insert consumed_nonce(n2_2);
+    {58}insert consumed_nonce(n3_1);
+    {59}event chain_accepted(idP_3,idA_2,idB_1,idC_in,m_3)
+)
+
+--  Process 1 (that is, process 0, with let moved downwards):
+{1}new skP: skey;
+{3}new skA: skey;
+{5}new skB: skey;
+{7}new skC: skey;
+{2}let pkP: pkey = pk(skP) in
+{13}out(pub, pkP);
+{4}let pkA: pkey = pk(skA) in
+{14}out(pub, pkA);
+{6}let pkB: pkey = pk(skB) in
+{15}out(pub, pkB);
+{8}let pkC: pkey = pk(skC) in
+{16}out(pub, pkC);
+{9}let idP: id = id_of_pk(pkP) in
+{17}out(pub, idP);
+{10}let idA: id = id_of_pk(pkA) in
+{18}out(pub, idA);
+{11}let idB: id = id_of_pk(pkB) in
+{19}out(pub, idB);
+{12}let idC: id = id_of_pk(pkC) in
+{20}out(pub, idC);
+(
+    {21}!
+    {23}in(pub, m: message);
+    {24}new n1: nonce;
+    {25}insert issued_nonce(n1);
+    {22}let skP_1: skey = skP in
+    {27}event chain_authorized(id_of_pk(pk(skP_1)),idA,idB,idC,m);
+    {26}let s1: sig = sign(skP_1,hopBind(n1,id_of_pk(pk(skP_1)),idA,m)) in
+    {28}out(pub, (n1,id_of_pk(pk(skP_1)),idA,m,s1))
+) | (
+    {29}!
+    {31}in(pub, (n1_1: nonce,idP_1: id,idA_in: id,m_1: message,s1_1: sig));
+    {30}let skA_1: skey = skA in
+    {32}if (id_of_pk(pk(skA_1)) = idA_in) then
+    {33}if verify(pkP,hopBind(n1_1,idP_1,idA_in,m_1),s1_1) then
+    {34}new n2: nonce;
+    {35}insert issued_nonce(n2);
+    {36}let s2: sig = sign(skA_1,hopBind(n2,idA_in,idB,m_1)) in
+    {37}out(pub, (n1_1,idP_1,idA_in,m_1,s1_1,n2,idB,s2))
+) | (
+    {38}!
+    {40}in(pub, (n1_2: nonce,idP_2: id,idA_1: id,m_2: message,s1_2: sig,n2_1: nonce,idB_in: id,s2_1: sig));
+    {39}let skB_1: skey = skB in
+    {41}if (id_of_pk(pk(skB_1)) = idB_in) then
+    {42}if verify(pkP,hopBind(n1_2,idP_2,idA_1,m_2),s1_2) then
+    {43}if verify(pkA,hopBind(n2_1,idA_1,idB_in,m_2),s2_1) then
+    {44}new n3: nonce;
+    {45}insert issued_nonce(n3);
+    {46}let s3: sig = sign(skB_1,hopBind(n3,idB_in,idC,m_2)) in
+    {47}out(pub, (n1_2,idP_2,idA_1,m_2,s1_2,n2_1,idB_in,s2_1,n3,idC,s3))
+) | (
+    {48}!
+    {50}in(pub, (n1_3: nonce,idP_3: id,idA_2: id,m_3: message,s1_3: sig,n2_2: nonce,idB_1: id,s2_2: sig,n3_1: nonce,idC_in: id,s3_1: sig));
+    {49}let skC_1: skey = skC in
+    {51}if (id_of_pk(pk(skC_1)) = idC_in) then
+    {52}if (idP_3 = idP) then
+    {62}get issued_nonce(=n1_3) in
+    {61}get issued_nonce(=n2_2) in
+    {60}get issued_nonce(=n3_1) in
+    {53}if verify(pkP,hopBind(n1_3,idP_3,idA_2,m_3),s1_3) then
+    {54}if verify(pkA,hopBind(n2_2,idA_2,idB_1,m_3),s2_2) then
+    {55}if verify(pkB,hopBind(n3_1,idB_1,idC_in,m_3),s3_1) then
+    {56}insert consumed_nonce(n1_3);
+    {57}insert consumed_nonce(n2_2);
+    {58}insert consumed_nonce(n3_1);
+    {59}event chain_accepted(idP_3,idA_2,idB_1,idC_in,m_3)
+)
+
+-- Query event(chain_accepted(idP_4,idA_3,idB_2,idC_1,m_4)) ==> event(chain_authorized(idP_4,idA_3,idB_2,idC_1,m_4)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+200 rules inserted. Base: 114 rules (27 with conclusion selected). Queue: 23 rules.
+400 rules inserted. Base: 160 rules (30 with conclusion selected). Queue: 12 rules.
+Starting query event(chain_accepted(idP_4,idA_3,idB_2,idC_1,m_4)) ==> event(chain_authorized(idP_4,idA_3,idB_2,idC_1,m_4))
+goal reachable: b-event(chain_authorized(id_of_pk(pk(skP[])),id_of_pk(pk(skA[])),id_of_pk(pk(skB[])),id_of_pk(pk(skC[])),m_4)) && attacker(m_4) -> event(chain_accepted(id_of_pk(pk(skP[])),id_of_pk(pk(skA[])),id_of_pk(pk(skB[])),id_of_pk(pk(skC[])),m_4))
+RESULT event(chain_accepted(idP_4,idA_3,idB_2,idC_1,m_4)) ==> event(chain_authorized(idP_4,idA_3,idB_2,idC_1,m_4)) is true.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query event(chain_accepted(idP_4,idA_3,idB_2,idC_1,m_4)) ==> event(chain_authorized(idP_4,idA_3,idB_2,idC_1,m_4)) is true.
+
+--------------------------------------------------------------
+

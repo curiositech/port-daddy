@@ -1,9 +1,19 @@
-import { PRODUCT_FEATURES } from '@/data/product'
 import type { DocsContentSection } from './types'
 
-const productPrimitiveItems = PRODUCT_FEATURES.map(
-  (feature) => `${feature.title}: ${feature.description}`,
-)
+const repo = (path: string, lines?: string) => ({
+  label: lines ? `${path}:${lines}` : path,
+  href: `https://github.com/curiositech/port-daddy/blob/main/${path}${lines ? `#L${lines.replace('-', '-L')}` : ''}`,
+})
+
+const site = (label: string, path: string, highlight: string) => ({
+  label,
+  href: `https://portdaddy.dev${path}#:~:text=${encodeURIComponent(highlight)}`,
+})
+
+const windags = (path: string) => ({
+  label: path,
+  href: `http://windag.ai/skills/${path.split('/')[1] ?? ''}`,
+})
 
 export const conceptsSection: DocsContentSection = {
   slug: 'concepts',
@@ -11,6 +21,351 @@ export const conceptsSection: DocsContentSection = {
   summary:
     'The ideas behind semantic identity, ownership primitives, session lifecycle, agent recovery, harbors, channels, tuples, fleet management, and runtime invariant enforcement.',
   pages: [
+    {
+      slug: 'primitives',
+      title: 'Primitives',
+      summary:
+        'The official Primitive Map: how Port Daddy separates identity, ownership, messaging, recovery, verification, and human control into small runtime primitives.',
+      truth: 'source-backed',
+      variant: 'primitive-map',
+      primitiveMap: {
+        eyebrow: 'Concepts / primitive map',
+        title: 'Primitives',
+        deck: 'A source-backed map of the small runtime facts Port Daddy uses for multi-agent coordination.',
+        thesis:
+          'Port Daddy works best when coordination is built from small, inspectable primitives. A session is not a lock. A lock is not a note. A channel is not a handoff.',
+        operatorQuestions: [
+          'Who is acting?',
+          'Who owns the surface?',
+          'What changed?',
+          'What survived?',
+          'What checked it?',
+          'Where can the operator see it?',
+        ],
+        families: [
+          {
+            family: 'Identity',
+            question: 'Who is acting, and under what project context?',
+            summary: 'Agents, sessions, semantic service names, and project-scoped channels give work a durable name.',
+            tone: 'ink',
+            links: [
+              { label: 'agents', href: '/agents' },
+              { label: 'sessions', href: '/docs/features/sessions' },
+              { label: 'semantic service names', href: '/docs/features/ports' },
+              { label: 'project-scoped channels', href: '/docs/cli/pub' },
+            ],
+          },
+          {
+            family: 'Ownership',
+            question: 'Who intends to touch this scarce surface now?',
+            summary: 'Service claims, file claims, region claims, and locks make edit intent visible before Git sees a diff.',
+            tone: 'blue',
+            links: [
+              { label: 'service claims', href: '/docs/features/ports' },
+              { label: 'file claims', href: '/docs/features/sessions' },
+              { label: 'region claims', href: '/docs/features/sessions' },
+              { label: 'locks', href: '/docs/sdk/locks' },
+            ],
+          },
+          {
+            family: 'Messaging',
+            question: 'How do agents and tools notify each other without scraping prose?',
+            summary: 'Channels, inboxes, and tuples separate broadcast events from directed handoffs and queryable facts.',
+            tone: 'green',
+            links: [
+              { label: 'channels', href: '/docs/cli/pub' },
+              { label: 'inboxes', href: '/agents/communication-protocols' },
+              { label: 'tuples', href: '/docs/features/tuples' },
+            ],
+          },
+          {
+            family: 'Recovery',
+            question: 'What survives when a process dies?',
+            summary: 'Session notes, activity, salvage, and resurrection preserve intent after a process or context window disappears.',
+            tone: 'amber',
+            links: [
+              { label: 'session notes', href: '/docs/cli/note' },
+              { label: 'activity', href: '/docs/features/timeline' },
+              { label: 'salvage', href: '/docs/features/salvage' },
+              { label: 'resurrection', href: '/agents/resurrection' },
+            ],
+          },
+          {
+            family: 'Verification',
+            question: 'What checks the runtime story against actual behavior?',
+            summary: 'Arbiter invariants, guard checks, telemetry gates, and budget gates keep invisible policy drift from becoming normal.',
+            tone: 'red',
+            links: [
+              { label: 'Arbiter invariants', href: '/docs/features/arbiter' },
+              { label: 'guard checks', href: '/agents/coordination-guard' },
+              { label: 'telemetry gates', href: '/agents/smart-resources' },
+              { label: 'budget gates', href: '/agents/smart-resources' },
+            ],
+          },
+          {
+            family: 'Human Control',
+            question: 'Where does a person inspect and approve the state?',
+            summary: 'FleetBar, Fleet Control Center, Shipwright, Resources, and Sorties make coordination visible to a human operator.',
+            tone: 'ink',
+            links: [
+              { label: 'FleetBar', href: '/mac-preview' },
+              { label: 'Fleet Control Center', href: '/mac-preview' },
+              { label: 'Shipwright', href: '/agents/yaml-and-shipwright' },
+              { label: 'Resources', href: '/agents/smart-resources' },
+              { label: 'Sorties', href: '/docs/tutorials/launch-and-inspect-a-sortie' },
+            ],
+          },
+        ],
+        layers: [
+          {
+            layer: 'Sessions and notes',
+            encodes: 'Purpose, assumptions, progress, validation, handoff.',
+            reason: 'They give work a durable human-readable trail.',
+            links: [{ label: 'sessions', href: '/docs/features/sessions' }, { label: 'notes', href: '/docs/cli/note' }],
+            example: {
+              command:
+                'pd begin "repair docs primitives" --identity port-daddy:docs:main\npd note "Scope: docs/concepts/primitives.md and website-v2 docs content."',
+              output:
+                'SUCCESS: Agent repair docs primitives ready\n  Session: session-repair-docs-primitives\nSUCCESS: Note added',
+            },
+          },
+          {
+            layer: 'Claims and locks',
+            encodes: 'Current edit intent and scarce-resource ownership.',
+            reason: 'They let nearby agents route around each other before conflict.',
+            links: [{ label: 'claims', href: '/docs/features/sessions' }, { label: 'locks', href: '/docs/sdk/locks' }],
+            example: {
+              command:
+                'pd session files add website-v2/src/docs-content/concepts.ts\npd with-lock website-build -- npm --prefix website-v2 run build',
+              output:
+                'Claimed 1 file(s)\nAcquired lock: website-build\n✓ built in 6.16s\nReleased lock: website-build',
+            },
+          },
+          {
+            layer: 'Channels and inboxes',
+            encodes: 'Broadcast events and directed ownership.',
+            reason: 'They prevent coordination from becoming transcript archaeology.',
+            links: [{ label: 'channels', href: '/docs/cli/pub' }, { label: 'inboxes', href: '/agents/communication-protocols' }],
+            example: {
+              command:
+                'pd pub coordination:inconsistency "docs surface changed; refresh before editing primitives"',
+              output:
+                'SUCCESS: Message published to coordination:inconsistency',
+            },
+          },
+          {
+            layer: 'Tuples',
+            encodes: 'Shared machine-readable facts with TTL and pattern matching.',
+            reason: 'They let agents query what the system currently knows.',
+            links: [{ label: 'tuples', href: '/docs/features/tuples' }],
+            example: {
+              command:
+                'pd tuple out \'["docs","primitives","build","green"]\' --ttl 3600000\npd tuple rd \'["docs","primitives","build","*"]\'',
+              output:
+                'SUCCESS: Tuple written\n["docs","primitives","build","green"]',
+            },
+          },
+          {
+            layer: 'Activity and salvage',
+            encodes: 'What happened, what died, what can be resumed.',
+            reason: 'They turn crashes into recoverable state.',
+            links: [{ label: 'activity', href: '/docs/features/timeline' }, { label: 'salvage', href: '/docs/features/salvage' }],
+            example: {
+              command:
+                'pd activity --limit 3\npd salvage --project port-daddy',
+              output:
+                'session.note  docs primitives scope recorded\nfile.claim    website-v2/src/docs-content/concepts.ts\nRecoverable work: 3 abandoned session(s)',
+            },
+          },
+          {
+            layer: 'Arbiter and gates',
+            encodes: 'Runtime invariants, spend limits, telemetry requirements.',
+            reason: 'They keep policy violations from hiding behind a clean commit.',
+            links: [{ label: 'Arbiter', href: '/docs/features/arbiter' }, { label: 'Resources', href: '/agents/smart-resources' }],
+            example: {
+              command:
+                'pd guard check --staged',
+              output:
+                'Coordination Guard: ENFORCE passed\n  checked: website-v2/src/docs-content/concepts.ts',
+            },
+          },
+        ],
+        choices: [
+          { need: 'I am working on this file or symbol.', use: [{ label: 'File claim', href: '/docs/features/sessions' }, { label: 'region claim', href: '/docs/features/sessions' }], avoid: 'A chat message that no tool can query.' },
+          { need: 'Only one process can touch this now.', use: [{ label: 'Lock', href: '/docs/sdk/locks' }], avoid: 'A broad file claim for a generated artifact or migration.' },
+          { need: 'Someone needs to own this handoff.', use: [{ label: 'Actor inbox', href: '/agents/communication-protocols' }], avoid: 'A channel broadcast that everyone can ignore.' },
+          { need: 'Everyone watching this project should know.', use: [{ label: 'Project-scoped channel', href: '/docs/cli/pub' }], avoid: 'A note hidden inside one session.' },
+          { need: 'Another process should query this fact later.', use: [{ label: 'Tuple', href: '/docs/features/tuples' }], avoid: 'A paragraph that must be parsed.' },
+          { need: 'This work died but should continue.', use: [{ label: 'Salvage queue', href: '/docs/features/salvage' }], avoid: 'Re-running the task from memory.' },
+          { need: 'This launch is too opaque or too expensive.', use: [{ label: 'Budget and telemetry gates', href: '/agents/smart-resources' }], avoid: 'Launching first and hoping logs explain cost later.' },
+        ],
+        citations: [
+          {
+            title: 'Sessions, notes, and file or symbol claims',
+            summary: 'Work has an identity, immutable notes, and advisory edit claims before Git sees the final diff.',
+            websiteDocs: [
+              site('Sessions', '/docs/features/sessions', 'every note is append-only, and file claims prevent conflicts before they happen'),
+              site('Session file claims', '/docs/features/sessions', 'File claims are advisory locks that warn agents about overlapping edits'),
+            ],
+            runtimeCode: [repo('lib/sessions.ts', '1-7'), repo('lib/sessions.ts', '54-77'), repo('lib/sessions.ts', '156-282'), repo('lib/sessions.ts', '1047-1089'), repo('lib/sessions.ts', '1272-1395'), repo('routes/sessions.ts'), repo('cli/commands/sessions.ts')],
+            skillDossiers: [windags('skills/multi-agent-coordination/SKILL.md'), windags('skills/agent-conversation-protocols/SKILL.md')],
+          },
+          {
+            title: 'Leases, locks, and semantic port claims',
+            summary: 'Scarce resources use ownership, TTLs, cleanup, and conflict responses instead of commit-time convention.',
+            websiteDocs: [
+              site('Ports', '/docs/features/ports', 'Port conflicts when two agents claim the same port'),
+              site('Locks SDK', '/docs/sdk/locks', 'exclusive lock'),
+            ],
+            runtimeCode: [repo('lib/locks.ts', '1-6'), repo('lib/locks.ts', '75-105'), repo('lib/locks.ts', '126-205'), repo('lib/locks.ts', '313-422'), repo('lib/services.ts', '1-5'), repo('lib/services.ts', '16-58'), repo('routes/locks.ts'), repo('routes/services.ts')],
+            skillDossiers: [windags('skills/multi-agent-coordination/SKILL.md'), windags('skills/ipc-communication-patterns/SKILL.md')],
+          },
+          {
+            title: 'Pub/sub channels and direct agent inboxes',
+            summary: 'Agents coordinate through project-scoped signals and durable direct messages.',
+            websiteDocs: [
+              site('Pub command', '/docs/cli/pub', 'Publish a message to a channel'),
+              site('Communication protocols', '/agents/communication-protocols', 'communication'),
+              site('Radio', '/docs/features/radio', 'task claims, handoffs, done signals'),
+            ],
+            runtimeCode: [repo('lib/messaging.ts', '1-5'), repo('lib/messaging.ts', '72-140'), repo('lib/messaging.ts', '150-213'), repo('lib/messaging.ts', '303-397'), repo('lib/agent-inbox.ts', '1-10'), repo('routes/messaging.ts')],
+            skillDossiers: [windags('skills/agent-conversation-protocols/SKILL.md'), windags('skills/ipc-communication-patterns/SKILL.md')],
+          },
+          {
+            title: 'Tuple space',
+            summary: 'Shared facts live in a queryable board with pattern matching, harbor scope, TTL, reads, and takes.',
+            websiteDocs: [
+              site('Tuples', '/docs/features/tuples', 'a place to post work items, claim tasks, and coordinate state'),
+              site('Tuple CLI', '/docs/cli/tuple', 'tuple'),
+            ],
+            runtimeCode: [repo('lib/tuples.ts', '1-20'), repo('lib/tuples.ts', '40-59'), repo('lib/tuples.ts', '79-159'), repo('lib/tuples.ts', '181-280'), repo('routes/tuples.ts'), repo('cli/commands/tuples.ts'), repo('mcp/server.ts', '2336-2391')],
+            skillDossiers: [windags('skills/multi-agent-coordination/SKILL.md'), windags('skills/agent-conversation-protocols/SKILL.md')],
+          },
+          {
+            title: 'Harbors, capability cards, and zero-trust boundaries',
+            summary: 'Capability scope is recorded in harbors and backed by daemon-held token issuance and verifier rules.',
+            websiteDocs: [
+              site('Harbors', '/docs/features/harbors', 'create reviewer --cap'),
+              site('Create harbor MCP', '/docs/mcp/create-harbor', 'Create a scoped harbor'),
+            ],
+            runtimeCode: [repo('lib/harbors.ts', '1-15'), repo('lib/harbors.ts', '41-72'), repo('lib/harbor-tokens.ts', '1-24'), repo('lib/harbor-tokens.ts', '121-380'), repo('routes/harbors.ts')],
+            skillDossiers: [windags('skills/agentic-zero-trust-security/SKILL.md'), windags('skills/ostrom-commons-governance/SKILL.md')],
+          },
+          {
+            title: 'Append-only activity, timelines, and evidence trails',
+            summary: 'Port Daddy records the operating trace: claims, locks, notes, releases, violations, and spawn events.',
+            websiteDocs: [
+              site('Timeline', '/docs/features/timeline', 'claim    myapp:api:main'),
+              site('Activity CLI', '/docs/cli/activity', 'activity'),
+            ],
+            runtimeCode: [repo('lib/activity.ts', '1-6'), repo('lib/activity.ts', '16-52'), repo('lib/activity.ts', '147-164'), repo('lib/activity.ts', '226-380'), repo('routes/activity.ts'), repo('cli/commands/activity.ts'), repo('lib/sessions.ts', '1047-1089')],
+            skillDossiers: [windags('skills/runtime-verification-for-agents/SKILL.md'), windags('skills/game-theoretic-agent-incentives/SKILL.md')],
+          },
+          {
+            title: 'Runtime monitors and invariant enforcement',
+            summary: 'Safety rules can fire while the daemon is running, with strict mode escalating violations.',
+            websiteDocs: [
+              site('Arbiter', '/docs/features/arbiter', 'Catches impersonation'),
+              site('Coordination Guard', '/agents/coordination-guard', 'Coordination Guard'),
+            ],
+            runtimeCode: [repo('lib/arbiter.ts', '1-12'), repo('lib/arbiter.ts', '102-209'), repo('lib/arbiter.ts', '213-245'), repo('lib/arbiter.ts', '297-353'), repo('lib/agents.ts', '320-390'), repo('lib/bosun-heartbeat.ts')],
+            skillDossiers: [windags('skills/runtime-verification-for-agents/SKILL.md'), windags('skills/runtime-verification-for-agents/diagrams/01_flowchart_decision-points.md')],
+          },
+          {
+            title: 'Budget, cost, and economic gates',
+            summary: 'Cost recording, exact telemetry policy, budget ledgers, and fleet permits affect whether agents may launch.',
+            websiteDocs: [
+              site('Spawn MCP', '/docs/mcp/spawn-agent', 'Launch an agent'),
+              site('Fleet', '/docs/features/fleet', 'budget'),
+              site('Resources', '/agents/smart-resources', 'Resources'),
+            ],
+            runtimeCode: [repo('lib/budget-guard.ts', '1-52'), repo('lib/budget-guard.ts', '149-232'), repo('lib/cost-tracker.ts', '1-17'), repo('lib/backend-telemetry-policy.ts', '11-99'), repo('lib/fleet-engine.ts', '690-709'), repo('lib/fleet-engine.ts', '1543-1560')],
+            skillDossiers: [windags('skills/game-theoretic-agent-incentives/SKILL.md'), windags('skills/ostrom-commons-governance/SKILL.md')],
+          },
+        ],
+        skillTrail: [
+          windags('skills/multi-agent-coordination/SKILL.md'),
+          windags('skills/agent-conversation-protocols/SKILL.md'),
+          windags('skills/ipc-communication-patterns/SKILL.md'),
+          windags('skills/agentic-zero-trust-security/SKILL.md'),
+          windags('skills/runtime-verification-for-agents/SKILL.md'),
+          windags('skills/game-theoretic-agent-incentives/SKILL.md'),
+          windags('skills/ostrom-commons-governance/SKILL.md'),
+          windags('skills/next-move/SKILL.md'),
+          windags('skills/next-move/references/runtime-honesty.md'),
+          windags('docs/METHODOLOGY.md'),
+          windags('docs/screenshots/skill-search-bm25.png'),
+        ],
+      },
+      goals: [
+        'Understand the six primitive families behind Port Daddy coordination.',
+        'Choose the right primitive for ownership, messaging, recovery, verification, or human control.',
+        'Use the Primitive Map design variant for source-backed explanations of runtime state.',
+      ],
+      blocks: [
+        {
+          type: 'paragraph',
+          title: 'Small primitives beat one big orchestration claim',
+          paragraphs: [
+            'Port Daddy works best when coordination is built from small, inspectable primitives. A [session](/docs/features/sessions) is not a [lock](/docs/sdk/locks). A lock is not a [note](/docs/cli/note). A [channel](/docs/cli/pub) is not a handoff. Each primitive stores a different kind of fact with a different lifetime.',
+            'The six primitive families are [identity](/docs/features/ports), [ownership](/docs/features/sessions), [messaging](/agents/communication-protocols), [recovery](/docs/features/salvage), [verification](/docs/features/arbiter), and [human control](/mac-preview). Together they answer the questions a human or agent needs before changing a repo: who is acting, who owns the surface, what changed, what survived, what checked it, and where can the operator see it?',
+          ],
+        },
+        {
+          type: 'checklist',
+          items: [
+            'Identity: [agents](/agents), [sessions](/docs/features/sessions), [semantic service names](/docs/features/ports), and [project-scoped channels](/docs/cli/pub).',
+            'Ownership: [service claims](/docs/features/ports), [file claims](/docs/features/sessions), [region claims](/docs/features/sessions), and [locks](/docs/sdk/locks).',
+            'Messaging: [channels](/docs/cli/pub), [inboxes](/agents/communication-protocols), and [tuples](/docs/features/tuples).',
+            'Recovery: [session notes](/docs/cli/note), [activity](/docs/features/timeline), [salvage](/docs/features/salvage), and [resurrection](/agents/resurrection).',
+            'Verification: [Arbiter invariants](/docs/features/arbiter), [guard checks](/agents/coordination-guard), [telemetry gates](/agents/smart-resources), and [budget gates](/agents/smart-resources).',
+            'Human control: [FleetBar](/mac-preview), [Fleet Control Center](/mac-preview), [Shipwright](/agents/yaml-and-shipwright), [Resources](/agents/smart-resources), and [Sorties](/docs/tutorials/launch-and-inspect-a-sortie).',
+          ],
+        },
+        {
+          type: 'paragraph',
+          title: 'Choose by lifetime',
+          paragraphs: [
+            'Use a [file claim](/docs/features/sessions) or [region claim](/docs/features/sessions) when an agent intends to edit a file or symbol. Use a [lock](/docs/sdk/locks) when simultaneous access would corrupt the result. Use a [channel](/docs/cli/pub) when everyone watching a project should know. Use an [inbox](/agents/communication-protocols) when one durable owner should respond. Use a [tuple](/docs/features/tuples) when another process should query a machine-readable fact later.',
+            'The rule of thumb is simple: use the primitive whose lifetime matches the fact. A transient event should not become a permanent [note](/docs/cli/note). A scarce resource should not be protected only by prose. A handoff should not be hidden in a broadcast stream.',
+          ],
+        },
+        {
+          type: 'paragraph',
+          title: 'Primitive Map design variant',
+          paragraphs: [
+            'Primitive-heavy pages should look like operator instruments, not generic feature grids. The official Primitive Map variant uses hard rules, compact fact tables, semantic color, source rows, and one decisive CTA per viewport.',
+            'The variant is documented in `docs/design-system/primitives-variant.md`. Use it for runtime-primitives concept pages, Mac preview proof surfaces, and source-backed launch or review artifacts.',
+          ],
+        },
+      ],
+      sources: [
+        {
+          path: 'docs/concepts/primitives.md',
+          rationale: 'Canonical repo concept page for the Primitive Map.',
+        },
+        {
+          path: 'docs/design-system/primitives-variant.md',
+          rationale: 'Official design-system variant for primitive explanations.',
+        },
+        {
+          path: 'lib/sessions.ts',
+          rationale: 'Sessions, notes, file claims, lifecycle state, and salvage handoff data.',
+        },
+        {
+          path: 'lib/locks.ts',
+          rationale: 'Exclusive coordination over scarce resources.',
+        },
+        {
+          path: 'lib/tuples.ts',
+          rationale: 'Shared machine-readable facts with pattern matching and TTL.',
+        },
+        {
+          path: 'lib/arbiter.ts',
+          rationale: 'Runtime invariant checks over coordination state.',
+        },
+      ],
+    },
     {
       slug: 'daemon-and-authority',
       title: 'Why There Is A Daemon',
@@ -385,50 +740,6 @@ export const conceptsSection: DocsContentSection = {
         {
           path: 'docs/adr/0019-declarative-fleet-yaml.md',
           rationale: 'ADR describing the pd-fleet.yml schema, agent properties, template variables, and CLI integration.',
-        },
-      ],
-    },
-    {
-      slug: 'eleven-product-primitives',
-      title: 'Eleven Product Primitives',
-      summary:
-        'How the home-page feature cards map to the Mac app, CLI, and daemon.',
-      truth: 'source-backed',
-      goals: [
-        'Name the eleven public product primitives.',
-        'Understand which primitives appear in the Mac app.',
-        'Understand which primitives are CLI or daemon-backed features.',
-      ],
-      blocks: [
-        {
-          type: 'paragraph',
-          title: 'The primitive list is the product map',
-          paragraphs: [
-            'The eleven primitives on the public site are not decorative feature cards. They are the quickest map from a visitor question to a real feature: FleetBar, Fleet Control Center, Shipwright, sorties, resources, backend readiness, agent communication, file claims, Coordination Guard, harbors, and salvage.',
-            'Together, they answer the basic product question: Port Daddy is a local app and service that makes shared agent work visible, attributable, and recoverable.',
-          ],
-        },
-        {
-          type: 'checklist',
-          items: productPrimitiveItems,
-        },
-        {
-          type: 'paragraph',
-          title: 'The Mac app and daemon work together',
-          paragraphs: [
-            'FleetBar and Fleet Control Center are the Mac-facing parts. The daemon-backed features underneath are sessions, notes, channels, inboxes, claims, tuples, guard checks, harbors, backend readiness, budgets, and salvage state.',
-            'Shipwright connects those layers during cold start. It surveys a repo, proposes a starter fleet, simulates risk and budget, then sends you back to Flow, Agents, YAML, and Resources.',
-          ],
-        },
-      ],
-      sources: [
-        {
-          path: 'website-v2/src/data/product.ts',
-          rationale: 'Public product data defines the eleven primitives used by the home page and Mac preview.',
-        },
-        {
-          path: 'website-v2/src/components/landing/MacAppShowcase.tsx',
-          rationale: 'Mac app showcase maps those primitives to FleetBar and Fleet Control Center screenshots.',
         },
       ],
     },
