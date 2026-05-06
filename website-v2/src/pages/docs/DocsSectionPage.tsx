@@ -1,5 +1,6 @@
 import { Fragment, type ReactNode } from 'react'
 import { Link, Navigate, useLocation, useParams } from 'react-router-dom'
+import { Check } from 'lucide-react'
 import {
   BracketAnchor,
   BracketLabel,
@@ -19,6 +20,7 @@ import {
 import { Mermaid } from '@/components/ui/Mermaid'
 import { findDocsFamily, findDocsRouteBySlug } from '@/data/publicSite'
 import { findDocsContentPage, findDocsContentSection } from '@/docs-content'
+import { cn } from '@/lib/utils'
 import type { ContentBlock, DocsContentPage } from '@/docs-content'
 
 function pageTone(page: DocsContentPage) {
@@ -45,7 +47,7 @@ function blockHeading(block: ContentBlock, index: number) {
     case 'paragraph':
       return block.title ?? `Overview ${String(index + 1).padStart(2, '0')}`
     case 'checklist':
-      return `Checklist ${String(index + 1).padStart(2, '0')}`
+      return block.title ?? `Checklist ${String(index + 1).padStart(2, '0')}`
     case 'command':
       return block.title
     case 'mermaid':
@@ -85,6 +87,11 @@ const primitiveToneClass = {
   green: 'border-[var(--border-strong)] bg-[var(--status-success)] text-[var(--text-inverse)]',
   amber: 'border-[var(--border-strong)] bg-[var(--status-warning)] text-[var(--text-primary)]',
   red: 'border-[var(--border-strong)] bg-[var(--status-error)] text-[var(--text-inverse)]',
+} as const
+const checklistBodyTone = {
+  paper: 'default',
+  blue: 'primary',
+  accent: 'accent',
 } as const
 
 function renderInlineLinks(text: string) {
@@ -365,6 +372,52 @@ function InlinePanelList({
   )
 }
 
+function checklistTone(block: Extract<ContentBlock, { type: 'checklist' }>, index: number) {
+  return block.tone ?? (index % 2 === 0 ? 'blue' : 'accent')
+}
+
+function ChecklistRows({
+  items,
+  tone,
+}: {
+  items: string[]
+  tone: 'paper' | 'blue' | 'accent'
+}) {
+  const bodyTone = checklistBodyTone[tone]
+
+  return (
+    <div className="grid gap-[var(--space-2)] border-t-2 border-[color:var(--border-strong)]/20 pt-[var(--panel-gap)]">
+      {items.map((item, itemIndex) => (
+        <div
+          key={item}
+          className={cn(
+            'grid gap-[var(--space-3)] border-2 p-[var(--space-3)] md:grid-cols-[3rem_minmax(0,1fr)]',
+            tone === 'paper'
+              ? 'border-[var(--border-default)] bg-[var(--surface-base)]'
+              : 'border-[color:var(--brand-primary-foreground-subtle)] bg-[color:rgba(255,255,255,0.08)]',
+          )}
+        >
+          <div
+            className={cn(
+              'flex h-11 w-11 items-center justify-center border-2',
+              tone === 'paper'
+                ? itemIndex % 2 === 0
+                  ? 'border-[var(--border-strong)] bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]'
+                  : 'border-[var(--border-strong)] bg-[var(--brand-accent)] text-[var(--brand-accent-foreground)]'
+                : 'border-[color:var(--brand-primary-foreground-subtle)] text-[var(--brand-primary-foreground)]',
+            )}
+          >
+            <Check aria-hidden="true" className="h-5 w-5" strokeWidth={3} />
+          </div>
+          <PanelBody tone={bodyTone} className="max-w-none self-center">
+            {renderInlineLinks(item)}
+          </PanelBody>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function sourceHref(path: string) {
   return `https://github.com/curiositech/port-daddy/blob/main/${path}`
 }
@@ -427,8 +480,13 @@ function renderContentBlock(block: ContentBlock, index: number) {
     }
     case 'checklist':
       return (
-        <DocsNoteCard key={`checklist-${index}`} label={label} title={blockHeading(block, index)}>
-          <InlinePanelList items={block.items} className="border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]" />
+        <DocsNoteCard
+          key={`checklist-${index}`}
+          label={label}
+          title={blockHeading(block, index)}
+          tone={checklistTone(block, index)}
+        >
+          <ChecklistRows items={block.items} tone={checklistTone(block, index)} />
         </DocsNoteCard>
       )
     case 'command':

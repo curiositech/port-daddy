@@ -60,6 +60,8 @@ export type ContentBlock =
     }
   | {
       type: 'checklist'
+      title?: string
+      tone?: 'paper' | 'blue' | 'accent'
       items: string[]
     }
   | {

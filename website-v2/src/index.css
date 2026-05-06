@@ -366,6 +366,50 @@ pre code {
   max-width: 100%;
 }
 
+.pd-docs-mermaid {
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--brand-primary) 8%, transparent), transparent 42%),
+    var(--surface-sunken) !important;
+  border: 2px solid var(--border-strong) !important;
+  padding: var(--space-5) !important;
+}
+
+.pd-docs-mermaid svg {
+  display: block;
+  width: 100%;
+  max-width: none;
+  height: auto;
+}
+
+.pd-docs-mermaid svg text,
+.pd-docs-mermaid svg .label,
+.pd-docs-mermaid svg .nodeLabel {
+  font-family: var(--font-sans) !important;
+}
+
+.pd-docs-mermaid svg .edgeLabel,
+.pd-docs-mermaid svg .edgeLabel span {
+  background: var(--text-primary) !important;
+  color: var(--text-inverse) !important;
+  font-size: 15px !important;
+}
+
+.pd-docs-mermaid svg .cluster rect {
+  stroke-width: 2px !important;
+}
+
+.pd-docs-mermaid svg .node rect,
+.pd-docs-mermaid svg .node polygon,
+.pd-docs-mermaid svg .node path {
+  stroke-width: 2px !important;
+}
+
+@media (max-width: 720px) {
+  .pd-docs-mermaid svg {
+    min-width: 680px;
+  }
+}
+
 .blog-article code:not(pre code) {
   border-radius: 0;
   box-shadow: none;
