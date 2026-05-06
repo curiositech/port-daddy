@@ -19,6 +19,17 @@ export interface DeprecatedBlogPost {
 
 export const blogPostMetas: BlogPostMeta[] = [
   {
+    id: 'coordination-guard',
+    slug: 'coordination-guard-claims-into-policy',
+    title: 'Why Coordination Guard Exists',
+    date: '2026-05-06',
+    author: 'Port Daddy Engineering',
+    excerpt: "Coordination Guard was not born from a clean theory of Git as policy. It was born because agents kept staging, resetting, and cherry-picking through each other's claims.",
+    tags: ['Coordination Guard', 'Runtime Primitives', 'Git Safety', 'Dogfooding'],
+    heroImage: '/img/generated/blog-coordination-guard-policy.jpg',
+    heroAlt: 'Swiss-modern commit gate with file claims, session identity, staged paths, and policy checks',
+  },
+  {
     id: 'bond-pricing-market',
     slug: 'bond-pricing-is-a-market',
     title: 'Bond Pricing Is a Market, Not a Constant',
@@ -127,17 +138,6 @@ export const blogPostMetas: BlogPostMeta[] = [
     tags: ['Backends', 'Models', 'Readiness', 'Control Plane'],
     heroImage: '/img/generated/blog-backend-readiness.jpg',
     heroAlt: 'Swiss-modern readiness matrix with model tiers, dependency checks, credentials, and blocked launch states',
-  },
-  {
-    id: 'coordination-guard',
-    slug: 'coordination-guard-claims-into-policy',
-    title: 'Coordination Guard Turns Claims Into Policy',
-    date: '2026-04-25',
-    author: 'Port Daddy Engineering',
-    excerpt: 'Notes and file claims are useful as shared facts. Coordination Guard makes them matter at commit time.',
-    tags: ['Coordination Guard', 'File Claims', 'Git', 'Safety'],
-    heroImage: '/img/generated/blog-coordination-guard-policy.jpg',
-    heroAlt: 'Swiss-modern commit gate with file claims, session identity, staged paths, and policy checks',
   },
 ];
 

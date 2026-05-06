@@ -15,6 +15,10 @@
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
+import {
+  evaluateSessionWorktreePolicy,
+  mergeSessionWorktreeMetadata,
+} from '../lib/worktree-policy.js';
 
 interface SessionsRouteDeps {
   sessions: {
@@ -22,6 +26,7 @@ interface SessionsRouteDeps {
       agentId?: string | null;
       files?: string[];
       metadata?: Record<string, unknown> | null;
+      worktreeId?: string | null;
     }): Record<string, unknown>;
     end(sessionId: string, options?: {
       note?: string;
@@ -148,7 +153,16 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
   // POST /sessions - Start a session
   fastify.post('/sessions', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { purpose, agentId, files, force, metadata } = request.body as any;
+      const {
+        purpose,
+        agentId,
+        files,
+        force,
+        metadata,
+        worktree,
+        requireLinkedWorktree,
+        allowMainWorktree,
+      } = request.body as any;
 
       if (!purpose || typeof purpose !== 'string') {
         reply.code(400);
@@ -173,7 +187,23 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         }
       }
 
-      const result = sessions.start(purpose, { agentId, files, metadata });
+      const worktreePolicy = evaluateSessionWorktreePolicy({ worktree, requireLinkedWorktree, allowMainWorktree });
+      if (!worktreePolicy.success) {
+        reply.code(400);
+        return worktreePolicy;
+      }
+
+      const mergedMetadata = mergeSessionWorktreeMetadata(metadata, worktreePolicy.worktree, {
+        requireLinkedWorktree,
+        allowMainWorktree,
+      });
+
+      const result = sessions.start(purpose, {
+        agentId,
+        files,
+        metadata: mergedMetadata,
+        worktreeId: worktreePolicy.worktree?.id,
+      });
 
       if (!result.success) {
         reply.code(400);

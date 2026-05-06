@@ -2274,6 +2274,9 @@ class PortDaddy {
     files?: string[];
     force?: boolean;
     metadata?: Record<string, unknown>;
+    worktree?: Record<string, unknown>;
+    requireLinkedWorktree?: boolean;
+    allowMainWorktree?: boolean;
   }): Promise<SessionResponse> {
     const ipcResult = await this._requestViaIpc<SessionResponse>(
       IpcAction.SESSION_START,
@@ -2624,6 +2627,9 @@ class PortDaddy {
     if (options.files) body.files = options.files;
     if (options.force) body.force = options.force;
     if (options.metadata) body.metadata = options.metadata;
+    if (options.worktree) body.worktree = options.worktree;
+    if (options.requireLinkedWorktree) body.requireLinkedWorktree = true;
+    if (options.allowMainWorktree) body.allowMainWorktree = true;
 
     const result = await this._request('POST', '/sugar/begin', body) as BeginSugarResponse;
 
@@ -3699,6 +3705,9 @@ interface BeginSugarOptions {
   files?: string[];
   force?: boolean;
   metadata?: Record<string, unknown>;
+  worktree?: Record<string, unknown>;
+  requireLinkedWorktree?: boolean;
+  allowMainWorktree?: boolean;
 }
 
 interface BeginSugarResponse {

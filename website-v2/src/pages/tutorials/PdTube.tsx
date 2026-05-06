@@ -109,12 +109,11 @@ tube waiting on ui:clicks as pd-tube/myapp/ui_clicks (up to 600s; Ctrl+C to exit
           </p>
           <p>
             For long replies, pipe stdin: <code>echo &quot;long body&quot; | pd tube ch --reply -</code>
-            . For explicit threading, pass the parent id and add <code>--send</code> for the legacy
-            post-and-exit shape:
+            . For explicit threading, pass the parent id with <code>--reply-to</code>:
           </p>
           <CodeBlock language="bash">
-            {`# Back-compat: numeric parent + stdin body, post and exit (no listen continuation).
-$ printf 'roger that' | pd tube ui:clicks --reply=42 --send --sender codex
+            {`# Explicit parent + stdin body.
+$ printf 'roger that' | pd tube ui:clicks --reply-to=42 --sender codex
 SUCCESS: tube: posted id=43 to ui:clicks`}
           </CodeBlock>
         </section>

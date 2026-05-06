@@ -32,7 +32,19 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
   // POST /sugar/begin
   fastify.post('/sugar/begin', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { purpose, identity, agentId, name, type, files, force, metadata } = request.body as any;
+      const {
+        purpose,
+        identity,
+        agentId,
+        name,
+        type,
+        files,
+        force,
+        metadata,
+        worktree,
+        requireLinkedWorktree,
+        allowMainWorktree,
+      } = request.body as any;
 
       if (!purpose || typeof purpose !== 'string') {
         reply.code(400);
@@ -52,10 +64,17 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         files,
         force,
         metadata,
+        worktree,
+        requireLinkedWorktree,
+        allowMainWorktree,
       });
 
       if (!result.success) {
-        const status = result.code === 'AGENT_REGISTRATION_FAILED' ? 400 : 500;
+        const status = result.code === 'AGENT_REGISTRATION_FAILED'
+          || result.code === 'WORKTREE_REQUIRED'
+          || result.code === 'MAIN_WORKTREE_SESSION_FORBIDDEN'
+          ? 400
+          : 500;
         reply.code(status);
         return result;
       }

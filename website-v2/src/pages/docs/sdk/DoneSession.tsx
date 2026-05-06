@@ -6,7 +6,7 @@ export default function DoneSession() {
       function="doneSession"
       description="End the current session and unregister agent. Reads session ID from current session file. Marks session as completed."
       module="Sessions"
-      version="3.11.0"
+      version="3.13.0"
       signature="doneSession(options?: DoneOptions): Promise<SessionResult>"
       params={[
         { name: 'options.session', type: 'string', description: 'Explicit session ID (skips current.json lookup)' },

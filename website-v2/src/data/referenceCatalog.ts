@@ -15,7 +15,7 @@ export interface ReferenceGroup {
   items: ReferenceItem[]
 }
 
-export const PORT_DADDY_VERSION = '3.11.0'
+export const PORT_DADDY_VERSION = '3.13.0'
 
 export function referenceAnchor(name: string): string {
   return name
@@ -166,7 +166,7 @@ export const CLI_REFERENCE_GROUPS: ReferenceGroup[] = [
       { name: 'pd sub <channel>', description: 'Subscribe to a channel as an SSE stream.', aliases: ['pd subscribe', 'pd listen'], flags: ['--dir', '--raw-channel'] },
       { name: 'pd channels', description: 'List, discover, ensure, describe, or clear channels.', flags: ['discover', 'ensure', 'describe', 'clear', '--dir', '--observed', '--scope', '--aliases'] },
       { name: 'pd watch <channel>', href: '/docs/cli/watch', description: 'Subscribe to a channel and optionally run a command for each message.', flags: ['--exec', '--once', '--dir', '--raw-channel'] },
-      { name: 'pd tube <channel>', description: 'Relay-independent conversational pipe over a Port Daddy channel with threaded replies.', flags: ['--send', '--reply', '--since', '--once', '--no-history', '--limit', '--sender', '--json', '--quiet'] },
+      { name: 'pd tube <channel>', description: 'Relay-independent conversational pipe over a Port Daddy channel with block-once handoffs and threaded replies.', flags: ['--send', '--reply', '--reply-to', '--since', '--once', '--tail', '--wait-for', '--no-history', '--limit', '--sender', '--json', '--raw', '--quiet'] },
       { name: 'pd inbox <command>', description: 'Read, send, mark, and clear durable direct messages for agents.' },
       { name: 'pd tuple <command>', description: 'Linda-style tuple space: out, rd/read, in/take, scan, and count.', flags: ['--harbor', '--ttl', '--as', '--limit'] },
       { name: 'pd webhook <command>', description: 'Create, list, inspect, update, remove, test, and read deliveries for webhook subscriptions.', aliases: ['pd webhooks'] },

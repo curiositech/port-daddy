@@ -9,6 +9,11 @@
 import { randomBytes } from 'crypto';
 import { parseIdentity } from './identity.js';
 import { buildHumanReadableId, cleanAgentDisplayName, deriveAgentDisplayName } from './agent-names.js';
+import {
+  evaluateSessionWorktreePolicy,
+  mergeSessionWorktreeMetadata,
+  type SessionWorktreeContext,
+} from './worktree-policy.js';
 
 // =============================================================================
 // Types
@@ -52,6 +57,9 @@ interface BeginOptions {
   files?: string[];
   force?: boolean;
   metadata?: Record<string, unknown>;
+  worktree?: SessionWorktreeContext;
+  requireLinkedWorktree?: boolean;
+  allowMainWorktree?: boolean;
 }
 
 interface DoneOptions {
@@ -112,11 +120,31 @@ export function createSugar(deps: SugarDeps) {
    * Rolls back agent registration if session start fails.
    */
   function begin(options: BeginOptions) {
-    const { purpose, identity, type, files, force, metadata } = options;
+    const { purpose, identity, type, files, force } = options;
 
     if (!purpose || typeof purpose !== 'string' || !purpose.trim()) {
       return { success: false, error: 'purpose is required' };
     }
+
+    const worktreePolicy = evaluateSessionWorktreePolicy({
+      worktree: options.worktree,
+      requireLinkedWorktree: options.requireLinkedWorktree,
+      allowMainWorktree: options.allowMainWorktree,
+    });
+    if (!worktreePolicy.success) {
+      return {
+        success: false,
+        error: worktreePolicy.error,
+        code: worktreePolicy.code,
+        hint: worktreePolicy.hint,
+        worktree: worktreePolicy.worktree,
+      };
+    }
+
+    const metadata = mergeSessionWorktreeMetadata(options.metadata, worktreePolicy.worktree, {
+      requireLinkedWorktree: options.requireLinkedWorktree,
+      allowMainWorktree: options.allowMainWorktree,
+    });
 
     const name = deriveAgentDisplayName({
       name: options.name,
@@ -143,6 +171,7 @@ export function createSugar(deps: SugarDeps) {
     if (purpose) registerOpts.purpose = purpose;
     if (type) registerOpts.type = type;
     if (metadata) registerOpts.metadata = metadata;
+    if (worktreePolicy.worktree) registerOpts.worktreeId = worktreePolicy.worktree.id;
 
     const agentResult = agents.register(agentId, registerOpts);
     if (!agentResult.success) {
@@ -155,6 +184,7 @@ export function createSugar(deps: SugarDeps) {
 
     // Step 2: Start session (rollback agent on failure)
     const sessionOpts: Record<string, unknown> = { agentId };
+    if (worktreePolicy.worktree) sessionOpts.worktreeId = worktreePolicy.worktree.id;
     let identityProject: string | null = null;
     if (identity) {
       const parsedIdentity = parseIdentity(identity);
@@ -195,6 +225,7 @@ export function createSugar(deps: SugarDeps) {
       agentRegistered: true,
       sessionStarted: true,
     };
+    if (worktreePolicy.worktree) response.worktree = worktreePolicy.worktree;
 
     // Include file claims if present
     if (sessionResult.files) {

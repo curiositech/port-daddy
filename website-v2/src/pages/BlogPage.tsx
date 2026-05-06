@@ -134,7 +134,7 @@ export function BlogPage() {
             <div className="mb-5 flex flex-wrap gap-2">
               <Tag>Port Daddy Blog</Tag>
               <Tag>AI infrastructure notes</Tag>
-              <Tag>Current as of 2026-04-29</Tag>
+              <Tag>Current as of 2026-05-06</Tag>
             </div>
             <h1 className="max-w-[12ch] text-5xl font-black leading-[0.9] tracking-normal text-[var(--text-primary)] sm:text-7xl lg:text-[5.8rem]">
               Engineering notes for agent control planes

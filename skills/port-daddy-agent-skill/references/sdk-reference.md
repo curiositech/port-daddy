@@ -1,4 +1,4 @@
-# Port Daddy JavaScript SDK Reference (v3.11.0)
+# Port Daddy JavaScript SDK Reference (v3.13.0)
 
 The `PortDaddy` class provides a programmatic interface to the Port Daddy daemon. Works in Node.js 18+ (uses native `fetch`). Automatically uses Binary IPC for high-frequency operations (heartbeats, pheromone sprays, pub/sub) when the daemon's IPC socket is available, falling back to HTTP.
 
