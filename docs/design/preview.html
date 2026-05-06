@@ -23,16 +23,17 @@
 -->
 
 <!-- Typography stack: 3 families (within the typography-expert "max 2 + mono" rule).
-     - Bricolage Grotesque (variable: wght 200-800, wdth 75-125, opsz 12-96) — DISPLAY
+     - Bricolage Grotesque (variable: wght 200-800, opsz 12-96) — DISPLAY
      - Inter (variable: wght 100-900) — BODY workhorse
      - JetBrains Mono (variable: wght 100-800) — CODE / CLI
 
-     Performance: WOFF2 only, font-display:swap, preconnect to Google Fonts,
-     subset to latin + latin-ext (~30KB target per face). Fluid sizing via clamp()
-     against a Minor Third (1.2) ratio at 320px → Perfect Fourth (1.333) at 1440px. -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght,wdth@12..96,200..800,75..125&family=Inter:wght@100..900&family=JetBrains+Mono:wght@100..800&display=swap">
+     Self-hosted under ./fonts/ — no external CDN. Fluid sizing via
+     clamp() against a Minor Third (1.2) ratio at 320px → Perfect Fourth
+     (1.333) at 1440px.
+
+     NOTE: Bricolage Grotesque does not ship a `wdth` axis — only wght
+     and opsz. Visual contrast across the type spec uses weight + opsz. -->
+<link rel="stylesheet" href="./fonts/all.css">
 
 <style>
 /* =============================================================================
@@ -179,7 +180,7 @@ body {
   color: var(--text-body);
   font-family: var(--font-body);
   font-size: var(--type-body);
-  font-weight: 420;                                              /* slightly bumped for readability */
+  font-weight: 460;                                              /* density on cream/yellow backgrounds */
   line-height: var(--baseline);
   font-variation-settings: "opsz" 18;                            /* Inter optical size */
   -webkit-font-smoothing: antialiased;
@@ -191,7 +192,7 @@ h1, h2, h3, h4 {
   font-family: var(--font-display);
   color: var(--text-heading);
   margin: 0 0 var(--baseline);
-  font-variation-settings: "opsz" 60, "wdth" 100, "wght" 800;
+  font-variation-settings: "opsz" 60, "wght" 800;
   letter-spacing: -0.02em;
   line-height: 1;
 }
@@ -234,7 +235,7 @@ section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bott
   font-family: var(--font-display);
   font-size: var(--type-display-1);
   font-weight: 800;
-  font-variation-settings: "opsz" 96, "wdth" 110, "wght" 800;
+  font-variation-settings: "opsz" 96, "wght" 800;
   letter-spacing: -0.045em;
   line-height: 0.85;
   margin: 0 0 var(--baseline);
@@ -243,14 +244,14 @@ section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bott
 }
 .hero__title em {
   font-style: normal;
-  font-variation-settings: "opsz" 96, "wdth" 75, "wght" 300;
+  font-variation-settings: "opsz" 96, "wght" 300;
   font-style: italic;
 }
 .hero__subtitle {
   font-family: var(--font-display);
   font-size: clamp(1.25rem, 0.75rem + 1.5vw, 2rem);
   font-weight: 500;
-  font-variation-settings: "opsz" 36, "wdth" 90, "wght" 500;
+  font-variation-settings: "opsz" 36, "wght" 500;
   line-height: 1.15;
   max-width: 28ch;
   color: var(--text-on-brand);
@@ -346,13 +347,13 @@ section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bott
 }
 .axis-demo > div { padding: 0.25rem 0; border-bottom: var(--bw-default) dashed var(--border-light); }
 .axis-demo > div:last-child { border-bottom: 0; }
-.ax-200 { font-variation-settings: "opsz" 96, "wdth" 100, "wght" 200; }
-.ax-400 { font-variation-settings: "opsz" 96, "wdth" 100, "wght" 400; }
-.ax-600 { font-variation-settings: "opsz" 96, "wdth" 100, "wght" 600; }
-.ax-800 { font-variation-settings: "opsz" 96, "wdth" 100, "wght" 800; }
-.ax-w75  { font-variation-settings: "opsz" 96, "wdth" 75,  "wght" 700; }
-.ax-w100 { font-variation-settings: "opsz" 96, "wdth" 100, "wght" 700; }
-.ax-w125 { font-variation-settings: "opsz" 96, "wdth" 125, "wght" 700; }
+.ax-200 { font-variation-settings: "opsz" 96, "wght" 200; }
+.ax-400 { font-variation-settings: "opsz" 96, "wght" 400; }
+.ax-600 { font-variation-settings: "opsz" 96, "wght" 600; }
+.ax-800 { font-variation-settings: "opsz" 96, "wght" 800; }
+.ax-opsz12 { font-variation-settings: "opsz" 12, "wght" 700; }
+.ax-opsz36 { font-variation-settings: "opsz" 36, "wght" 700; }
+.ax-opsz96 { font-variation-settings: "opsz" 96, "wght" 700; }
 
 /* =============================================================================
    COLOR & TOKEN GRID
@@ -389,7 +390,7 @@ section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bott
   font-family: var(--font-display);
   font-size: 1.5rem;
   font-weight: 800;
-  font-variation-settings: "opsz" 36, "wdth" 100, "wght" 800;
+  font-variation-settings: "opsz" 36, "wght" 800;
   letter-spacing: -0.02em;
   color: var(--state-fg, var(--text-heading));
   margin: 0;
@@ -752,7 +753,7 @@ section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bott
 .section-title {
   font-family: var(--font-display);
   font-size: var(--type-display-2);
-  font-variation-settings: "opsz" 96, "wdth" 110, "wght" 800;
+  font-variation-settings: "opsz" 96, "wght" 800;
   letter-spacing: -0.04em;
   line-height: 0.85;
   margin-bottom: var(--baseline);
@@ -780,7 +781,7 @@ section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bott
 .footer h2 {
   color: var(--brand);
   font-size: var(--type-display-2);
-  font-variation-settings: "opsz" 96, "wdth" 75, "wght" 200;
+  font-variation-settings: "opsz" 96, "wght" 200;
   font-style: italic;
   letter-spacing: -0.03em;
   text-wrap: balance;
@@ -861,14 +862,14 @@ section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bott
 
       <div class="type-spec">
         <div class="type-spec__label">Display 1 · Hero</div>
-        <div class="type-spec__sample" style="font-size:clamp(2.5rem,7vw,5rem);font-variation-settings:'opsz' 96,'wdth' 110,'wght' 800;letter-spacing:-0.045em">FLEET&nbsp;UP.</div>
-        <div class="type-spec__caption">Bricolage · opsz 96 · wdth 110 · wght 800 · ls −0.045em</div>
+        <div class="type-spec__sample" style="font-size:clamp(2.5rem,7vw,5rem);font-variation-settings:'opsz' 96,'wght' 800;letter-spacing:-0.045em">FLEET&nbsp;UP.</div>
+        <div class="type-spec__caption">Bricolage · opsz 96 · wght 800 · ls −0.045em</div>
       </div>
 
       <div class="type-spec">
         <div class="type-spec__label">Display 2 · Section</div>
-        <div class="type-spec__sample" style="font-size:clamp(2rem,5vw,3.75rem);font-variation-settings:'opsz' 60,'wdth' 90,'wght' 500;letter-spacing:-0.025em">salvage.<br>recover.<br>resume.</div>
-        <div class="type-spec__caption">Bricolage · opsz 60 · wdth 90 · wght 500</div>
+        <div class="type-spec__sample" style="font-size:clamp(2rem,5vw,3.75rem);font-variation-settings:'opsz' 60,'wght' 500;letter-spacing:-0.025em">salvage.<br>recover.<br>resume.</div>
+        <div class="type-spec__caption">Bricolage · opsz 60 · wght 500</div>
       </div>
 
       <div class="type-spec">
@@ -893,11 +894,11 @@ section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bott
       <div class="ax-800">CONFLICT.</div>
     </div>
 
-    <h3 class="mt-6">Variable axes — width (75 → 125)</h3>
+    <h3 class="mt-6">Variable axes — optical size (12 → 96)</h3>
     <div class="axis-demo">
-      <div class="ax-w75">fleet condensed</div>
-      <div class="ax-w100">fleet standard</div>
-      <div class="ax-w125">fleet wide</div>
+      <div class="ax-opsz12">fleet · text grade</div>
+      <div class="ax-opsz36">fleet · subhead grade</div>
+      <div class="ax-opsz96">fleet · display grade</div>
     </div>
   </div>
 </section>
