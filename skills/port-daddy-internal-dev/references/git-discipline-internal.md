@@ -37,21 +37,26 @@ prefix; the website docs/version map assumes the prefix. A tag without
 
 ## Brew formula update protocol
 
-The Homebrew tap is in a separate repo (`homebrew-port-daddy`). The flow
-across two repos requires sequencing:
+The **primary** Homebrew formula lives in this repo at
+`Formula/port-daddy.rb` (it also serves as a repo marker that tooling
+detects). A separate downstream tap repo (`homebrew-port-daddy`) mirrors
+it for users who add the tap. Both must be updated, and the sequence
+across two repos matters:
 
 1. **port-daddy repo**: tag the release commit, push the tag, **wait for the GitHub tarball to be available** (~30 seconds).
 2. **port-daddy repo**: compute the tarball sha256:
    ```bash
    curl -sSL https://github.com/curiositech/port-daddy/archive/refs/tags/v<X.Y.Z>.tar.gz | shasum -a 256
    ```
-3. **homebrew-port-daddy repo**: update `Formula/port-daddy.rb` — `url` (new tag), `sha256` (new hash), version string in tests, `post_install` only if `install.sh` changed.
-4. **homebrew-port-daddy repo**: commit + push.
-5. **back in port-daddy**: send `pd actor lookout` a message confirming the brew formula matches.
+3. **port-daddy repo (in-repo primary)**: update `Formula/port-daddy.rb` — `url` (new tag), `sha256` (new hash), version string in tests, `post_install` only if `install.sh` changed. Commit + push as part of the release slice.
+4. **homebrew-port-daddy repo (downstream sync)**: copy the same updates into `Formula/port-daddy.rb` there (commonly via `cp` from the in-repo primary). Commit + push.
+5. **back in port-daddy**: send `pd actor lookout` a message confirming both formulas match.
 
-If you reverse step 1 and step 3 (push formula before tarball is available),
-brew users get a 404. If you skip step 5, the next contributor can't tell
-whether the brew bump actually landed.
+If you reverse step 1 and step 3/4 (push formula before tarball is available),
+brew users get a 404. If you update only the tap and not the in-repo
+primary, repo-marker tooling and `brew install --build-from-source ./Formula/port-daddy.rb`
+diverge from what tap users see. If you skip step 5, the next contributor
+can't tell whether the brew bump actually landed.
 
 ## Pre-push reconciliation (mandatory)
 

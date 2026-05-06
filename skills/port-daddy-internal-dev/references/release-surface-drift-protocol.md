@@ -53,7 +53,8 @@ same coherent slice — or leave a Lookout drift report naming the gaps.
 
 | Surface | Path | Updated when |
 |---|---|---|
-| Homebrew formula | `~/coding/homebrew-port-daddy/Formula/port-daddy.rb` | Every release (url, sha256, version stamp) |
+| Homebrew formula (primary, in-repo) | `Formula/port-daddy.rb` | Every release (url, sha256, version stamp) — also serves as a repo marker |
+| Homebrew tap (downstream sync) | `~/coding/homebrew-port-daddy/Formula/port-daddy.rb` | Mirror of the in-repo primary; sync after the in-repo update lands |
 | Mac app installer | `apps/FleetBar/install.sh` | Install path change, new resources |
 | Codex extension | `.codex/skills/...` (synced via install.sh) | Skill bundle change |
 | Claude extension | `.claude/skills/...` (synced via install.sh) | Skill bundle change |
@@ -70,7 +71,8 @@ same coherent slice — or leave a Lookout drift report naming the gaps.
 | Mac app Info.plist | `apps/FleetBar/.../Info.plist` | `CFBundleShortVersionString` |
 | Website footer | `apps/website-v2/.../footer.tsx` | display version |
 | `pd version` CLI output | `bin/port-daddy-cli.ts` | hard-coded or imported |
-| Brew formula version | `homebrew-port-daddy/Formula/port-daddy.rb` | inside the version-string echo |
+| Brew formula version (in-repo primary) | `Formula/port-daddy.rb` | inside the version-string echo |
+| Brew formula version (tap mirror) | `homebrew-port-daddy/Formula/port-daddy.rb` | inside the version-string echo (must match in-repo primary) |
 
 ## Detection
 

@@ -35,9 +35,13 @@ pd session files add scripts/mcp-handshake-test.mjs
 ## 2. Implement core
 
 ```bash
-$EDITOR lib/swarm-health.ts          # new file: aggregateSwarmHealth()
-$EDITOR lib/swarm-health.test.ts     # unit test alongside
+$EDITOR lib/swarm-health.ts                # new file: aggregateSwarmHealth()
+$EDITOR tests/unit/swarm-health.test.ts    # repo convention: tests live under tests/unit/
 ```
+
+This repo's tests live under `tests/unit/*.test.{js,ts}`, NOT co-located in
+`lib/`. Tests outside `tests/unit/` are not picked up by Jest's
+`--selectProjects unit` configuration and will silently fail to run in CI.
 
 Follow the existing pattern in `lib/sessions.ts` — pure function over
 daemon state, returns a typed object, no side effects.
@@ -124,7 +128,7 @@ pd actor lookout --message "NEW MCP TOOL pd_swarm_health: shipped. Surfaces audi
 
 pd note "Result: pd_swarm_health MCP tool. Validation: handshake-test.mjs green; called from Claude Code with success. Remaining: none."
 pd done "pd_swarm_health MCP tool shipped"
-pd drop_feedback "Adding an MCP tool touches 6 surfaces. release-surface-audit.mjs caught two I forgot. Worth the 30s it added."
+pd feedback "Adding an MCP tool touches 6 surfaces. release-surface-audit.mjs caught two I forgot. Worth the 30s it added." --hook "mcp-tool-add-flow"
 ```
 
 ## 11. Push (after explicit user confirmation if part of a release)
@@ -145,4 +149,4 @@ formula update protocol — sequence matters.
 | Forgot to update website | Step 7 (audit fails) |
 | Swept a foreign file | Step 9 (`git status --porcelain` line for it) |
 | Pushed before tag tarball was up | Brew users hit 404 — see brew protocol |
-| Forgot to drop_feedback | Self-discipline. The user notices empty feedback streams. |
+| Forgot to drop feedback | Self-discipline. The user notices empty feedback streams. (`pd feedback "..."` CLI bare form, or MCP `drop_feedback`.) |

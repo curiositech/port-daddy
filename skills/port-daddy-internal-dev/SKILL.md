@@ -92,7 +92,7 @@ Public surfaces, in approximate update order:
 3. The skill bundle (this repo's `skills/port-daddy-agent-skill/SKILL.md`, references, templates, examples).
 4. The website (`apps/website-v2/` — `/docs/cli`, `/docs/api`, `/docs/mcp`, command detail routes, screenshots).
 5. The OpenAPI spec, SDK reference, MCP tool catalog.
-6. The Homebrew formula (`~/coding/homebrew-port-daddy/Formula/port-daddy.rb`) — version + sha256, post_install if install.sh changed.
+6. The Homebrew formula. The **primary** is the in-repo `Formula/port-daddy.rb` (also serves as a repo marker). The external tap repo `homebrew-port-daddy` is a downstream sync — push the in-repo formula update first, then mirror to the tap repo (see `references/release-surface-drift-protocol.md` for the cross-repo sequence).
 7. The Mac app distribution (`apps/FleetBar/install.sh`, icon refresh, codesign + notarize if needed).
 8. README + CHANGELOG + version stamps in package.json / Cargo.toml.
 9. Any plugin/extension manifests (Codex `.codex/skills/`, Gemini `.gemini/extensions/port-daddy/`, Claude `.claude/skills/`).
@@ -146,7 +146,7 @@ because this repo has the highest agent density on the user's machine.
 1. **Worktree mandatory** for any background contributor work — even small ones. The repo has 70+ existing worktrees and dozens of WIP branches; sweeping up someone's WIP is a near-certainty without isolation.
 2. **No `git add -A` ever.** No exceptions. The repo has too many drafts in flight.
 3. **Pre-commit `git status --porcelain` check.** Abort on foreign files. The pre-commit hook from `pd guard install --mode enforce` should be on at all times in this repo.
-4. **Lock the staging area** if you must work in the main checkout: `pd acquire_lock port-daddy:git:write`.
+4. **Lock the staging area** if you must work in the main checkout: `pd lock port-daddy:git:write` (or `pd with-lock port-daddy:git:write -- <command>`). MCP-aware clients can call `acquire_lock` with the same name.
 5. **Push only what you tagged.** Never `git push --follow-tags` from a contributor agent.
 
 See `references/git-discipline-internal.md` for port-daddy-specific
@@ -250,7 +250,7 @@ git push origin v<X.Y.Z>        # tag, not branch — see Rule 5
 # 8. Close
 pd note "Result: <change>. Validation: <evidence>. Remaining: <Lookout drifts, follow-ups>."
 pd done "<outcome>"
-pd drop_feedback "<contributor experience report>"
+pd feedback "<contributor experience report>"   # bare form; auto slug + agent
 ```
 
 ## Anti-Patterns (port-daddy contributor edition)
@@ -277,10 +277,10 @@ pd drop_feedback "<contributor experience report>"
 **Symptoms:** Brew formulas with frozen sha256 break for users; CI caches invalidate; users on the old tag see different code than users on the new one with the same tag string.
 **Fix:** Tags are immutable. If a release was wrong, ship `vX.Y.Z+1` with a CHANGELOG entry explaining the recall. Never `git push --force origin vX.Y.Z`.
 
-### Skipping `pd drop_feedback` On Contributor Friction
+### Skipping `pd feedback` On Contributor Friction
 **Detection:** Internal contributor sessions end clean but the friction isn't recorded; the same friction visits the next contributor.
 **Symptoms:** "Why is this so hard" gets discovered repeatedly. The roadmap doesn't reflect the actual pain. Cartographer's priorities lag reality.
-**Fix:** End every contributor session with `pd drop_feedback`, even (especially) if everything went smoothly — record what worked too. Friction patterns and frictionless patterns are both signal.
+**Fix:** End every contributor session with `pd feedback "<one-liner>"` (bare form) or `drop_feedback({ slug, summary, droppedBy })` from MCP, even (especially) if everything went smoothly — record what worked too. Friction patterns and frictionless patterns are both signal.
 
 ## Worked Examples
 
@@ -319,7 +319,7 @@ it in one commit.** Land the rename in phases through Cartographer:
 1. Worktree, identity, scope note.
 2. Tag locally: `git tag -a v0.42.0 -m "<changelog summary>"`.
 3. Compute tarball sha256: `curl -sSL <github tag tarball> | shasum -a 256`.
-4. Update `~/coding/homebrew-port-daddy/Formula/port-daddy.rb`: `url`, `sha256`, version-string-in-tests if present, post_install if `install.sh` changed.
+4. Update the **in-repo** primary `Formula/port-daddy.rb`: `url`, `sha256`, version-string-in-tests if present, post_install if `install.sh` changed. Then mirror the same change into the external tap repo (`homebrew-port-daddy/Formula/port-daddy.rb`) — both must match before the brew install command in step 5 will succeed for users.
 5. `brew install --build-from-source ./Formula/port-daddy.rb` locally; confirm install path, daemon launches, `pd status` healthy.
 6. `pd actor lookout --message "Brew formula v0.42.0 ready: <sha256>. Surfaces audited: README, CHANGELOG, website, skill bundle."`
 7. Push the tag from port-daddy first, then commit + push the formula.
@@ -333,7 +333,7 @@ it in one commit.** Land the rename in phases through Cartographer:
 - [ ] If you touched an internal actor's body, you updated the actor-roster reference and the matching `decisions/` entry.
 - [ ] If you renamed or removed a CLI / API / MCP surface, you provided a migration path and a deprecation window.
 - [ ] You did not edit `docs/recovery/CURRENT-WORK.md` directly.
-- [ ] You ended with `pd done` AND `pd drop_feedback`.
+- [ ] You ended with `pd done` AND `pd feedback "..."` (CLI bare form) or MCP `drop_feedback`.
 - [ ] If you skipped any of the above, you owned up to it explicitly in the feedback.
 - [ ] You ran `windags_skill_search` for the slice's domain before starting.
 - [ ] If you discovered wisdom this skill should have carried, you committed it back into the relevant section in the same slice (or filed a Cartographer follow-up).

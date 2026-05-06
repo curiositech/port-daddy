@@ -72,7 +72,7 @@ for the post-mortem and the full ADR.
 2. **Never `git add -A` / `git add .` / `git add -u` in agent code paths.** Stage by explicit path. You can only commit what you authored.
 3. **Pre-commit dirty-tree check.** Before any `git commit`, run `git status --porcelain` and abort with a named-paths error if anything dirty in the tree was authored elsewhere.
 4. **Push only what you tagged.** Tags are content-addressed; branches are shared mutable state across agents.
-5. **Lock the staging area when sharing a tree by exception.** `pd acquire_lock <repo>:git:write` serializes the rare case where Rule 1 cannot apply.
+5. **Lock the staging area when sharing a tree by exception.** `pd lock <repo>:git:write` (or `pd with-lock <repo>:git:write -- <command>`) serializes the rare case where Rule 1 cannot apply. MCP-aware clients can call the `acquire_lock` tool with the same name.
 
 A pre-commit hook that enforces Rule 3 belongs in any repo with multiple
 agents writing to it. `pd guard install --mode enforce` is the reference.
@@ -247,22 +247,45 @@ Port Daddy is a tool for the user. Tools improve when their users tell the
 maintainer where the friction is. **Drop feedback after every Port Daddy session,
 even briefly.**
 
-The reliable surface today is the MCP tool `drop_feedback` (callable from
-any MCP-aware client):
+**Primary surface — CLI bare form** (auto-derives slug, droppedBy, surface):
+
+```bash
+pd feedback "salvage worked first try; --project arg syntax was guessable but undocumented"
+pd feedback "got confused: pd briefing showed two coxswain actors; expected one" --high
+pd feedback "worktree creation cost 30s on first run; would skip it for sub-minute tasks" --surface CLI
+pd feedback recent       # see what's open
+pd feedback mine         # what you've dropped this fleet
+pd feedback ack <id>     # mark a finding harvested into the roadmap
+```
+
+The bare form derives a kebab-case slug from the message, picks
+`droppedBy` from the active session/agent context (falls back to
+`cli:$USER`), and infers `surface` from the CWD path segment
+(`cli/`→CLI, `routes/`→API, `mcp/`→MCP, etc.). Severity shortcuts
+`--critical` / `--high` / `--medium` / `--low` work in lieu of
+`--severity X`. The explicit `pd feedback drop --slug X --summary Y --as Z`
+form is still available for scripted use.
+
+**Equivalent MCP surface** (for MCP-aware clients without shell access) —
+the tool is named `drop_feedback` and requires `slug` + `summary`
+(plus an agent identifier as `droppedBy`):
 
 ```
-drop_feedback({ message: "Salvage worked first try; but I had to guess --project arg syntax." })
-drop_feedback({ message: "Got confused: pd briefing showed two coxswain actors. Expected one." })
-drop_feedback({ message: "Worktree creation cost 30s on first run; would skip it for sub-minute tasks." })
+drop_feedback({
+  slug: "briefing-shows-duplicate-coxswain",
+  summary: "got confused: pd briefing showed two coxswain actors; expected one",
+  droppedBy: "<your agent id>",
+  severity: "high",
+  surface: "CLI"
+})
 ```
 
-If you don't have MCP access (pure shell session), record the same
-feedback in a `pd note` tagged `feedback:` so it lands in the durable
-note stream — operators can grep it out:
+**Last-resort fallback — tagged `pd note`** (only when neither the CLI
+verb nor MCP is reachable; less structured, harder for cartographer to
+harvest):
 
 ```bash
 pd note "feedback: salvage worked first try; --project arg syntax was guessable but undocumented"
-pd note "feedback: pd briefing showed two coxswain actors; expected one"
 ```
 
 The user reads these. They are not noise. They are how the friction
@@ -271,13 +294,11 @@ budget gets spent on the right places.
 If you skipped a step in the loop above (no `pd note`, no claim, no
 salvage check), **own up to it in the feedback** with the reason:
 
-```
-drop_feedback({ message: "SKIPPED: pd salvage. Reason: I judged the task too small. In hindsight: 30s investment to confirm; should not have skipped." })
+```bash
+pd feedback "SKIPPED: pd salvage. Reason: I judged the task too small. In hindsight: 30s investment to confirm; should not have skipped." --hook "skipped-coordination-step"
 ```
 
 The user explicitly asked for this honesty. Don't paper over it.
-
-> **Skill-vs-reality drift noted (2026-05-05):** the CLI does not yet expose a `pd feedback` / `pd drop_feedback` command — only the MCP tool. A Lookout drift report has been filed proposing CLI parity. When the CLI gains the command, this section gets updated to use it as the primary path; until then, MCP + tagged `pd note` are the reliable surfaces.
 
 ## Reconciling Before Publishing
 
