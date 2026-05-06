@@ -1,4 +1,6 @@
-# ADR-0027: Salvage Envelope and Resume Contract
+# ADR-0028: Salvage Envelope and Resume Contract
+
+> **Note (2026-05-06):** Renumbered from 0027 → 0028 because 0027 is reserved for "V4 Remote Harbor Redefinition" (referenced from ADR-0025 and `docs/plans/PHONE-INTEGRATION-MASTER-PLAN.md`; template at `templates/ADR-V4-Remote-Harbor-Redefinition.md`).
 
 **Status:** Draft (2026-05-05)
 **Owner:** salvage-operator (proposed)

@@ -2,7 +2,7 @@
 
 **Identity:** `port-daddy:salvage-operator`
 **Backend:** claude-cli (recommend Sonnet for cost; Haiku for triage-only loop)
-**Telos (top-line):** Drain the port-daddy salvage yard from 342 entries to <20, applying the resume contract from ADR-0027.
+**Telos (top-line):** Drain the port-daddy salvage yard from 342 entries to <20, applying the resume contract from ADR-0028.
 
 ## Why this agent exists
 
@@ -50,7 +50,7 @@ This agent inherits the user-level **directory ownership rule** (`~/.claude/proj
 - Daemon at `localhost:9876`
 - `pd salvage triage` and `pd salvage next` (PR #36)
 - `scripts/salvage-envelope.mjs` (PR #38)
-- ADR-0027 (the contract)
+- ADR-0028 (the contract)
 
 ## Spawn command (once PR #36 merges)
 
@@ -58,7 +58,7 @@ This agent inherits the user-level **directory ownership rule** (`~/.claude/proj
 pd spawn \
   --identity port-daddy:salvage-operator \
   --backend claude-cli \
-  --telos "Drain salvage yard to <20 entries applying resume contract from ADR-0027" \
+  --telos "Drain salvage yard to <20 entries applying resume contract from ADR-0028" \
   --schedule '*/30 * * * *' \
   --prompt-file docs/agents/salvage-operator-brief.md
 ```
@@ -74,7 +74,7 @@ agents:
     worktree: true
     telos: |
       Drain the port-daddy salvage yard to <20 entries applying the resume
-      contract from ADR-0027. Read the brief at
+      contract from ADR-0028. Read the brief at
       docs/agents/salvage-operator-brief.md.
     prompt: |
       You are port-daddy:salvage-operator. Read your brief at
