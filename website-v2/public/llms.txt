@@ -19,8 +19,8 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 - [Executable Examples - Port Daddy](https://portdaddy.dev/examples): Run complete Port Daddy example programs showing how browser buttons, test reporters, editor commands, and webhook adapters can hand work to local agents.
 - [Blog - Port Daddy](https://portdaddy.dev/blog): Read Port Daddy engineering notes about local control planes, shared state, launch readiness, recovery maps, PD Tube, daemon provenance, and coordination policy.
 - [Whitepaper - Port Daddy](https://portdaddy.dev/whitepaper): Read the technical whitepaper behind Port Daddy: local-first agent coordination, signed identity, capability boundaries, sessions, and recoverable work.
-- [The Anchor Protocol - Port Daddy](https://portdaddy.dev/whitepaper/anchor-protocol): Read the Anchor Protocol paper inline with a guided explanation of scoped identity, delegation, verification, and why it matters for Port Daddy harbors.
-- [The Bonded Commons - Port Daddy](https://portdaddy.dev/whitepaper/bonded-commons): Read the Bonded Commons paper inline with a guided explanation of evidence trails, advisory claims, collateralized work, and the future agent economy Port Daddy can support.
+- [The Anchor Protocol - Port Daddy](https://portdaddy.dev/whitepaper/anchor-protocol): A guided read of the Anchor Protocol paper: what an "identity for a process" should mean, how to make one with off-the-shelf cryptography, and why this is now solvable on a laptop.
+- [The Bonded Commons - Port Daddy](https://portdaddy.dev/whitepaper/bonded-commons): A guided read of the Bonded Commons paper: why mutual visibility beats locks for agent coordination, what kind of "deposit" makes that visibility honest, and how to price the deposit fairly.
 
 ## Docs
 
@@ -312,8 +312,8 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 ## White Papers
 
 - [Whitepaper - Port Daddy](https://portdaddy.dev/whitepaper): Read the technical whitepaper behind Port Daddy: local-first agent coordination, signed identity, capability boundaries, sessions, and recoverable work.
-- [The Anchor Protocol - Port Daddy](https://portdaddy.dev/whitepaper/anchor-protocol): Read the Anchor Protocol paper inline with a guided explanation of scoped identity, delegation, verification, and why it matters for Port Daddy harbors.
-- [The Bonded Commons - Port Daddy](https://portdaddy.dev/whitepaper/bonded-commons): Read the Bonded Commons paper inline with a guided explanation of evidence trails, advisory claims, collateralized work, and the future agent economy Port Daddy can support.
+- [The Anchor Protocol - Port Daddy](https://portdaddy.dev/whitepaper/anchor-protocol): A guided read of the Anchor Protocol paper: what an "identity for a process" should mean, how to make one with off-the-shelf cryptography, and why this is now solvable on a laptop.
+- [The Bonded Commons - Port Daddy](https://portdaddy.dev/whitepaper/bonded-commons): A guided read of the Bonded Commons paper: why mutual visibility beats locks for agent coordination, what kind of "deposit" makes that visibility honest, and how to price the deposit fairly.
 
 ## Repository
 
