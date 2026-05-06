@@ -22,7 +22,7 @@ import type { Tuple, TupleSpace } from './tuples.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { deriveFleetAgentName } from './agent-names.js';
 import { buildPortDaddyShellCommand, resolvePortDaddyInvocation } from './port-daddy-command.js';
-import { normalizeAgentTelos, type AgentTelos } from './agent-telos.js';
+import { resolveRawBackendName } from './llm-backend-resolver.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -34,7 +34,6 @@ export interface FleetAgent {
   backend: string;         // ollama, claude, claude-cli, codex, custom
   model?: string;
   modelTier?: FleetModelTier;
-  telos: AgentTelos;
   prompt: string;
   worktree?: boolean;
   singleton?: boolean;
@@ -143,7 +142,6 @@ interface FleetYamlAgent {
   model?: string;
   model_tier?: string;
   modelTier?: string;
-  telos?: unknown;
   prompt?: string | number;
   worktree?: boolean;
   singleton?: boolean;
@@ -325,9 +323,12 @@ function resolveTierModel(backend: string, modelTier: FleetModelTier): string | 
 }
 
 export function getFleetRuntimeDefaults(): FleetRuntimeDefaults {
+  // Backend name comes from the unified resolver in lib/llm-backend-resolver.ts
+  // — same env cascade every actor uses. Spawn-shape needs the raw form so it
+  // can distinguish "claude" (SDK) from "claude-cli" (CLI subprocess).
+  const { raw } = resolveRawBackendName();
   return {
-    backend: cleanEnvValue(process.env.PD_FLEET_DEFAULT_BACKEND)
-      || cleanEnvValue(process.env.PORT_DADDY_FLEET_DEFAULT_BACKEND),
+    backend: raw ?? undefined,
     model: cleanEnvValue(process.env.PD_FLEET_DEFAULT_MODEL)
       || cleanEnvValue(process.env.PORT_DADDY_FLEET_DEFAULT_MODEL),
   };
@@ -472,12 +473,6 @@ export function loadFleetConfig(projectDir: string): FleetConfig | null {
         model: agentModel,
         modelTier: agentModelTier,
       } as Pick<FleetAgent, 'backend' | 'model' | 'modelTier'>);
-      const prompt = typeof s.prompt === 'string' ? s.prompt.trim() : String(s.prompt || '');
-      const telosResult = normalizeAgentTelos(s.telos, {
-        fallbackHeadline: `${name}: ${prompt || 'serve this fleet'}`.slice(0, 240),
-        fallbackCurrentIntent: prompt,
-        source: s.telos ? 'creator' : 'derived',
-      });
       agents.push({
         name,
         schedule: s.schedule,
@@ -486,8 +481,7 @@ export function loadFleetConfig(projectDir: string): FleetConfig | null {
         backend: runtime.backend || '',
         model: runtime.model,
         modelTier: runtime.modelTier,
-        telos: telosResult.telos!,
-        prompt,
+        prompt: typeof s.prompt === 'string' ? s.prompt.trim() : String(s.prompt || ''),
         worktree: resolveWorktree(s),
         singleton: s.singleton || false,
         respawn: s.respawn || false,
@@ -703,6 +697,16 @@ export interface FleetRunnerOptions {
   messaging?: {
     subscribe(channel: string, callback: (message: unknown) => void): (() => void) | null;
   };
+  /**
+   * Daemon-wide concurrency permit. Called AFTER the per-runner `canSpawn`
+   * quota check passes but BEFORE the spawner runs. Returns a release
+   * function that the runner MUST call exactly once when the spawn finishes
+   * (success or failure). When omitted, the runner enforces only its own
+   * per-fleet cap — fine for tests, but the daemon always injects this so
+   * project-wide limits hold across multiple runners. Spec:
+   * docs/shipwright/FLEETCONTROL-HARDENING.md §5.
+   */
+  acquirePermit?: () => Promise<() => void>;
 }
 
 export function createFleetRunner(config: FleetConfig, projectDir: string, options?: FleetRunnerOptions) {
@@ -1065,8 +1069,9 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       return;
     }
 
-    const watchProc = spawn('npx', [
-      'tsx', join(projectDir, 'bin', 'port-daddy-cli.ts'),
+    const invocation = resolvePortDaddyInvocation();
+    const watchProc = spawn(invocation.command, [
+      ...invocation.args,
       'watch', physicalTriggerChannel,
       '--exec', watcher.exec,
     ], {
@@ -1193,9 +1198,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     identity: string,
     purpose: string,
     agent: FleetAgent,
-    context: FleetRunContext | undefined,
-    triggerFingerprint: string | null,
-    runStartedAt: number,
+    idempotencyKey: string,
   ): Promise<{ ok: true; data: SpawnResponse } | { ok: false; failure: SpawnAttemptFailure }> {
     if (!runtime.backend) {
       return {
@@ -1216,19 +1219,9 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       task,
       identity,
       purpose,
-      telos: getAgentTelos(agent),
       name: agent.name,
+      idempotencyKey,
     };
-    const idempotencyKey = fleetSpawnIdempotencyKey(
-      agent,
-      runtime,
-      identity,
-      context,
-      triggerFingerprint,
-      runStartedAt,
-      attempt,
-    );
-    body.idempotencyKey = idempotencyKey;
     if (runtime.model) body.model = runtime.model;
     if (agent.timeout) body.timeout = agent.timeout;
     if (agent.allowedTools) body.allowedTools = agent.allowedTools;
@@ -1377,7 +1370,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     runStartedAt: number,
     attempt: number,
   ): string {
-    const runWindow = triggerFingerprint || runStartedAt;
+    const runWindow = triggerFingerprint || Math.floor(runStartedAt / 60000);
     return createHash('sha256')
       .update(JSON.stringify({
         v: 1,
@@ -1547,6 +1540,26 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       agentState.lastTriggerAt = now;
     }
 
+    // Daemon-wide concurrency permit. The per-runner `canSpawn()` quota check
+    // above guards this fleet alone; the permit guards every fleet sharing a
+    // project. Acquired AFTER all cheap rejections so we never park a waiter
+    // for a spawn that would have been refused anyway. If acquisition itself
+    // throws (e.g. registry was drained mid-shutdown), surface as a normal
+    // agent_failed event — same shape as every other admission failure.
+    let releasePermit: (() => void) | null = null;
+    if (options?.acquirePermit) {
+      try {
+        releasePermit = await options.acquirePermit();
+      } catch (err) {
+        const reason = (err as Error).message || 'permit-acquire-failed';
+        emit({
+          type: 'agent_failed', agent: agent.name, identity, project,
+          timestamp: Date.now(), details: { error: `quota: ${reason}` },
+        });
+        return { success: false, error: `quota: ${reason}` };
+      }
+    }
+
     activeAgentRuns.add(agent.name);
     activeSpawns++;
     if (config.limits?.maxSpawnsPerHour !== undefined) {
@@ -1583,9 +1596,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
           identity,
           `Fleet agent: ${agent.name}`,
           agent,
-          context,
-          triggerFingerprint,
-          now,
+          fleetSpawnIdempotencyKey(agent, runtime, identity, context, triggerFingerprint, now, i + 1),
         );
 
         if (outcome.ok) {
@@ -1670,6 +1681,14 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     } finally {
       activeSpawns = Math.max(0, activeSpawns - 1);
       activeAgentRuns.delete(agent.name);
+      // Release the daemon-wide permit BEFORE we re-enqueue any pending
+      // context. If we held the permit while requeuing, a saturated semaphore
+      // could deadlock the same agent against itself: it would await its own
+      // released slot. Releasing first lets the FIFO advance one waiter.
+      if (releasePermit) {
+        try { releasePermit(); } catch { /* idempotent — second release is a no-op */ }
+        releasePermit = null;
+      }
       const pending = agentState.pendingContext;
       agentState.pendingContext = undefined;
       if (pending && !pausedAgents.has(agent.name)) {
@@ -1695,18 +1714,8 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     ];
     if (runtime.model) args.push('--model', runtime.model);
     if (agent.allowedTools) args.push('--allowedTools', agent.allowedTools);
-    args.push('--telos', getAgentTelos(agent).headline);
     args.push('-q', '--', agent.prompt);
     return buildPortDaddyShellCommand(args);
-  }
-
-  function getAgentTelos(agent: FleetAgent): AgentTelos {
-    if (agent.telos?.headline) return agent.telos;
-    return normalizeAgentTelos(undefined, {
-      fallbackHeadline: `${agent.name}: ${agent.prompt || 'serve this fleet'}`,
-      fallbackCurrentIntent: agent.prompt,
-      source: 'derived',
-    }).telos!;
   }
 
   async function ensureHarbor(): Promise<void> {
@@ -1719,6 +1728,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: config.harbor,
+          scope: project,
           capabilities: config.agents.map(a => a.name),
           channels,
           agentPatterns: config.agents
@@ -1863,7 +1873,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     emit({ type: 'fleet_stopped', project, timestamp: Date.now() });
   }
 
-  function getStatus(): Array<{ name: string; type: string; status: string; running: boolean; paused: boolean; uptime: number; queueDepth: number; telosHeadline: string }> {
+  function getStatus(): Array<{ name: string; type: string; status: string; running: boolean; paused: boolean; uptime: number; queueDepth: number }> {
     return config.agents.map((agent) => {
       const record = running.get(agent.name);
       const activeRun = activeAgentRuns.has(agent.name);
@@ -1887,7 +1897,6 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
         paused,
         uptime: record ? Date.now() - record.startedAt : 0,
         queueDepth,
-        telosHeadline: getAgentTelos(agent).headline,
       };
     });
   }

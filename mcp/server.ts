@@ -108,72 +108,6 @@ const POST = (path: string, body?: Record<string, unknown>, opts?: { timeout?: n
 const PUT = (path: string, body?: Record<string, unknown>, opts?: { timeout?: number }) => api('PUT', path, body, opts);
 const DELETE = (path: string, body?: Record<string, unknown>, opts?: { timeout?: number }) => api('DELETE', path, body, opts);
 
-function envFirst(names: string[]): string | null {
-  for (const name of names) {
-    const value = process.env[name];
-    if (typeof value === 'string' && value.trim()) return value.trim();
-  }
-  return null;
-}
-
-function mcpCategory(toolName: string): string {
-  const name = toolName.toLowerCase();
-  if (name.includes('tuple')) return 'tuples';
-  if (name.includes('pheromone') || name.includes('file_heat')) return 'pheromones';
-  if (name.includes('lock')) return 'locks';
-  if (name.includes('message') || name.includes('channel') || name.includes('tube')) return 'channels';
-  if (name.includes('agent') || name.includes('actor')) return 'agents';
-  if (name.includes('session') || name.includes('note') || name.includes('claim_files')) return 'sessions';
-  if (name.includes('spawn')) return 'spawn';
-  if (name.includes('fleet')) return 'fleet';
-  if (name.includes('sortie')) return 'sorties';
-  if (name.includes('project')) return 'projects';
-  if (name.includes('activity') || name.includes('sitrep') || name.includes('catch_me_up')) return 'activity';
-  if (name.includes('budget') || name.includes('wallet') || name.includes('bond')) return 'budget';
-  if (name.includes('salvage')) return 'salvage';
-  if (name.includes('port') || name.includes('service')) return 'ports';
-  return 'other';
-}
-
-async function recordMcpToolUsage(
-  toolName: string,
-  args: Record<string, unknown>,
-  status: 'ok' | 'error',
-  startedAt: number,
-  error?: unknown,
-): Promise<void> {
-  if (process.env.NODE_ENV === 'test' && process.env.PORT_DADDY_ENABLE_USAGE_TELEMETRY_IN_TESTS !== '1') return;
-  try {
-    await POST('/usage/trace', {
-      surface: 'mcp',
-      kind: 'tool_call',
-      name: toolName,
-      category: mcpCategory(toolName),
-      agentId: envFirst(['PORT_DADDY_AGENT', 'PD_AGENT_ID', 'CODEX_AGENT_ID', 'CLAUDE_AGENT_ID']),
-      agentType: envFirst(['PORT_DADDY_AGENT_TYPE', 'CODEX_AGENT_TYPE', 'CLAUDE_AGENT_TYPE']) ?? 'mcp',
-      agentModel: envFirst(['PORT_DADDY_AGENT_MODEL', 'CODEX_MODEL', 'OPENAI_MODEL', 'ANTHROPIC_MODEL', 'CLAUDE_MODEL']),
-      backend: envFirst(['PORT_DADDY_BACKEND', 'CODEX_BACKEND', 'CLAUDE_BACKEND']),
-      model: envFirst(['PORT_DADDY_MODEL', 'CODEX_MODEL', 'OPENAI_MODEL', 'ANTHROPIC_MODEL', 'CLAUDE_MODEL']),
-      project: typeof args.identity === 'string' ? String(args.identity).split(':')[0] : null,
-      projectDir: typeof args.projectDir === 'string' ? args.projectDir : typeof args.cwd === 'string' ? args.cwd : null,
-      status,
-      durationMs: Date.now() - startedAt,
-      workScope: 'port_daddy_call',
-      toolCalls: 1,
-      cwd: process.cwd(),
-      context: {
-        argKeys: Object.keys(args).sort(),
-        fullMode: FULL_MODE,
-      },
-      metadata: {
-        error: error instanceof Error ? error.message : undefined,
-      },
-    }, { timeout: 750 });
-  } catch {
-    // MCP telemetry is best-effort. Tool results must stay authoritative.
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Tiered tool loading — reduce context window overhead by 80%
 //
@@ -288,6 +222,10 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     description: 'Tracked mission records over spawned runs — launch, inspect status, and fetch sortie event logs',
     tools: ['run_sortie', 'list_sorties', 'get_sortie', 'get_sortie_logs'],
   },
+  'cockpit': {
+    description: 'App-Native Development Cockpit — read roadmap markdown into typed mission cards',
+    tools: ['cockpit_missions_list'],
+  },
   'system': {
     description: 'Daemon status, version, metrics, config, and launch hints',
     tools: ['daemon_status', 'get_version', 'get_metrics', 'get_config', 'wait_for_service', 'get_launch_hints'],
@@ -326,8 +264,8 @@ const TOOLS = [
     description:
       '[Essential] Register agent + start session in one atomic step. Use this at the start of every ' +
       'coding session instead of calling register_agent and start_session separately. ' +
-      'Carries telos, returns agentId, sessionId, and a salvageHint if dead agents need attention. ' +
-      'Usage: begin_session({purpose: "Building auth system", telos: "Make auth trustworthy", identity: "myapp:api:main"})',
+      'Returns agentId, sessionId, and a salvageHint if dead agents need attention. ' +
+      'Usage: begin_session({purpose: "Building auth system", identity: "myapp:api:main"})',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -352,13 +290,6 @@ const TOOLS = [
           items: { type: 'string' },
           description: 'Files to claim for this session (advisory — shows conflicts to other agents)',
         },
-        telos: {
-          oneOf: [
-            { type: 'string' },
-            { type: 'object' },
-          ],
-          description: 'Agent purpose contract/tagline. If omitted, the daemon derives one from purpose; every agent still receives a normalized telos.',
-        },
       },
       required: ['purpose'],
     },
@@ -368,8 +299,7 @@ const TOOLS = [
     description:
       '[Essential] End session + unregister agent in one step. Use this at the end of every coding ' +
       'session instead of calling end_session and then unregistering the agent separately. ' +
-      'Can include self_salvage when telos is unfinished but doable. ' +
-      'Usage: end_session_full({agent_id: "agent-abc123", note: "Auth needs deploy smoke", self_salvage: {telos_verdict: "partial", doable: "yes", next_plan: "smoke /auth"}})',
+      'Usage: end_session_full({agent_id: "agent-abc123", note: "Auth complete, all tests passing"})',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -389,48 +319,6 @@ const TOOLS = [
           type: 'string',
           enum: ['completed', 'abandoned'],
           description: 'How the session ended (default: completed)',
-        },
-        self_salvage: {
-          type: 'object',
-          description: 'Optional capsule for unfinished but doable telos. Queueable capsules mark the session abandoned and put the agent in salvage.',
-          properties: {
-            telos_verdict: {
-              type: 'string',
-              enum: ['fulfilled', 'partial', 'not-fulfilled'],
-              description: 'Whether the telos was fulfilled.',
-            },
-            doable: {
-              type: 'string',
-              enum: ['yes', 'no', 'unknown'],
-              description: 'Use yes when another iteration can reasonably continue the telos.',
-            },
-            why_stopped: {
-              type: 'string',
-              description: 'Why this agent stopped before fulfilling telos.',
-            },
-            next_plan: {
-              oneOf: [
-                { type: 'string' },
-                { type: 'array', items: { type: 'string' } },
-              ],
-              description: 'Concrete continuation plan for the next iteration.',
-            },
-            wisdom: {
-              type: 'string',
-              description: 'Lessons, constraints, or traps the next agent should know.',
-            },
-            evidence: {
-              oneOf: [
-                { type: 'string' },
-                { type: 'array', items: { type: 'string' } },
-              ],
-              description: 'Commands, files, observations, or artifacts supporting the handoff.',
-            },
-            risk: {
-              type: 'string',
-              description: 'Known risk or caveat for continuation.',
-            },
-          },
         },
       },
     },
@@ -754,17 +642,21 @@ const TOOLS = [
   },
   {
     name: 'list_notes',
-    description: '[Standard] List notes for a session, or recent notes across all sessions.',
+    description: '[Standard] List notes for a session, or recent notes scoped to one project.',
     inputSchema: {
       type: 'object' as const,
       properties: {
         session_id: {
           type: 'string',
-          description: 'Session ID (omit for recent notes across all sessions)',
+          description: 'Session ID (omit for recent notes)',
         },
         limit: {
           type: 'number',
           description: 'Maximum number of notes to return',
+        },
+        project: {
+          type: 'string',
+          description: 'Project slug to isolate recent notes (e.g. "port-daddy" or "workgroup-ai"). Omit only for an intentional global read.',
         },
       },
     },
@@ -2250,7 +2142,12 @@ const TOOLS = [
       'recent fleet channel messages, and the latest output from spark/spider/cartographer.',
     inputSchema: {
       type: 'object' as const,
-      properties: {},
+      properties: {
+        project: {
+          type: 'string',
+          description: 'Project slug to isolate fleet notes and agents (e.g. "port-daddy"). Omit only for an intentional global read.',
+        },
+      },
     },
   },
   {
@@ -2290,6 +2187,8 @@ const TOOLS = [
       type: 'object' as const,
       properties: {
         since_minutes: { type: 'number', description: 'How far back to look (default: 60 minutes)' },
+        project: { type: 'string', description: 'Scope notes and salvage queue to a project (optional)' },
+        stack: { type: 'string', description: 'Scope salvage queue to a stack (optional)' },
       },
     },
   },
@@ -2316,6 +2215,7 @@ const TOOLS = [
         agent: { type: 'string', description: 'Agent name or identity (e.g. "spider", "myapp:fleet:qa")' },
         message: { type: 'string', description: 'The message to send' },
         type: { type: 'string', description: 'Message type (default: "request")' },
+        project: { type: 'string', description: 'Project slug used to resolve short fleet names (e.g. "workgroup-ai" makes "cartographer" target "workgroup-ai:fleet:cartographer").' },
       },
       required: ['agent', 'message'],
     },
@@ -2407,6 +2307,28 @@ const TOOLS = [
         limit: { type: 'number', description: 'Optional maximum number of log events to return.' },
       },
       required: ['sortie_id'],
+    },
+  },
+  // ── App-Native Development Cockpit ────────────────────────────────────
+  {
+    name: 'cockpit_missions_list',
+    description:
+      '[Cockpit] Read the project\'s roadmap into typed mission cards (work-queue intake for ' +
+      'the App-Native Development Cockpit). Sources: docs/recovery/CURRENT-WORK.md, ' +
+      'docs/recovery/UNIFIED-ROADMAP.md, .cartographer/status.md. Returns mission cards with ' +
+      'explicit status (closed/blocked/drifting/stalled/uncommitted/in-flight/etc.), summary, ' +
+      'evidence bullets, and the files each mission touches.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        project_dir: { type: 'string', description: 'Project directory to read. Defaults to the daemon\'s repoRoot.' },
+        status: {
+          type: 'array',
+          description: 'Filter to one or more statuses (e.g. ["blocked", "uncommitted"]).',
+          items: { type: 'string' },
+        },
+        limit: { type: 'number', description: 'Optional cap on returned missions.' },
+      },
     },
   },
   // ── Tuple Space ──────────────────────────────────────────────────────
@@ -2558,7 +2480,7 @@ const TOOLS = [
         hook: { type: 'string', description: 'Concrete reproduction hook (command, payload, log line)' },
         suggested: { type: 'string', description: 'Suggested direction or fix' },
         project: { type: 'string', description: 'Project slug this feedback belongs to' },
-        harbor: { type: 'string', description: 'Harbor namespace for scoping (default: fleet)' },
+        harbor: { type: 'string', description: 'Harbor namespace for scoping. Defaults to <project>:fleet when project is supplied; otherwise legacy fleet.' },
       },
       required: ['slug', 'summary'],
     },
@@ -2637,7 +2559,6 @@ async function handleTool(
       if (args.agent_id) body.agentId = args.agent_id;
       if (args.type) body.type = args.type;
       if (args.files) body.files = args.files;
-      if (args.telos) body.telos = args.telos;
       res = await POST('/sugar/begin', body);
 
       // Attach salvage context — check if any dead agents share this project
@@ -2675,7 +2596,6 @@ async function handleTool(
       if (args.session_id) body.sessionId = args.session_id;
       if (args.note) body.note = args.note;
       if (args.status) body.status = args.status;
-      if (args.self_salvage) body.selfSalvage = args.self_salvage;
       res = await POST('/sugar/done', body);
       break;
     }
@@ -2832,11 +2752,13 @@ async function handleTool(
     }
 
     case 'list_notes': {
+      const params = new URLSearchParams();
+      if (args.limit) params.set('limit', String(args.limit));
+      if (args.project) params.set('project', args.project as string);
+      const qs = params.toString() ? `?${params.toString()}` : '';
       if (args.session_id) {
-        const qs = args.limit ? `?limit=${args.limit}` : '';
         res = await GET(`/sessions/${args.session_id}/notes${qs}`);
       } else {
-        const qs = args.limit ? `?limit=${args.limit}` : '';
         res = await GET(`/notes${qs}`);
       }
       break;
@@ -3507,10 +3429,14 @@ async function handleTool(
     }
 
     case 'fleet_status': {
+      const project = args.project as string | undefined;
+      const agentQs = project ? `?identityPrefix=${encodeURIComponent(project)}` : '';
+      const noteQs = new URLSearchParams({ limit: '10' });
+      if (project) noteQs.set('project', project);
       const [spawned, channels, notes] = await Promise.all([
-        GET('/spawn'),
+        GET(`/spawn${agentQs}`),
         GET('/msg'),
-        GET('/notes?limit=10'),
+        GET(`/notes?${noteQs}`),
       ]);
       const agents = (spawned.data as Record<string, unknown>)?.agents ?? [];
       const msgs = (channels.data as Record<string, unknown>)?.channels ?? [];
@@ -3521,9 +3447,11 @@ async function handleTool(
     case 'swarm_awareness': {
       const project = args.project as string | undefined;
       const qs = project ? `?identityPrefix=${encodeURIComponent(project)}` : '';
+      const sessionQs = new URLSearchParams({ limit: '20' });
+      if (project) sessionQs.set('project', project);
       const [agentsRes, sessionsRes, filesRes, salvageRes] = await Promise.all([
         GET(`/agents${qs}`),
-        GET('/sessions?limit=20'),
+        GET(`/sessions?${sessionQs}`),
         GET('/files'),
         GET(`/salvage/pending${project ? '?project=' + encodeURIComponent(project) : ''}`),
       ]);
@@ -3556,10 +3484,15 @@ async function handleTool(
 
       // Legacy fallback for daemons older than 3.8.4.
       const since = Date.now() - mins * 60 * 1000;
+      const notesQs = new URLSearchParams({ limit: '20' });
+      if (project) notesQs.set('project', project);
+      const salvageQs = new URLSearchParams();
+      if (project) salvageQs.set('project', project);
+      if (stack) salvageQs.set('stack', stack);
       const [actRes, notesRes, salvageRes, spawnRes] = await Promise.all([
         GET(`/activity?limit=30&since=${since}`),
-        GET('/notes?limit=20'),
-        GET('/salvage/pending'),
+        GET(`/notes?${notesQs}`),
+        GET(`/salvage/pending${salvageQs.toString() ? `?${salvageQs}` : ''}`),
         GET('/spawn'),
       ]);
       const activity = (actRes.data as Record<string, unknown>)?.entries ?? (actRes.data as Record<string, unknown>)?.activity ?? [];
@@ -3583,7 +3516,14 @@ async function handleTool(
       const agent = args.agent as string;
       const message = args.message as string;
       const type = (args.type as string) || 'request';
-      const candidates = [agent, `fleet:${agent}`, `port-daddy:fleet:${agent}`];
+      const project = args.project as string | undefined;
+      const candidates = agent.includes(':')
+        ? [agent]
+        : [
+            ...(project ? [`${project}:fleet:${agent}`] : []),
+            `fleet:${agent}`,
+            agent,
+          ];
       for (const target of candidates) {
         try {
           const r = await POST(`/agents/${encodeURIComponent(target)}/inbox`, {
@@ -3662,6 +3602,17 @@ async function handleTool(
       if (typeof args.limit === 'number') qs.set('limit', String(args.limit));
       const suffix = qs.toString() ? `?${qs.toString()}` : '';
       res = await GET(`/sorties/${encodeURIComponent(args.sortie_id as string)}/logs${suffix}`);
+      break;
+    }
+
+    case 'cockpit_missions_list': {
+      const qs = new URLSearchParams();
+      if (args.project_dir) qs.set('projectDir', args.project_dir as string);
+      if (Array.isArray(args.status) && args.status.length > 0) {
+        qs.set('status', (args.status as unknown[]).map((s) => String(s)).join(','));
+      }
+      if (typeof args.limit === 'number') qs.set('limit', String(args.limit));
+      res = await GET(qs.toString() ? `/cockpit/missions?${qs.toString()}` : '/cockpit/missions');
       break;
     }
 
@@ -3837,7 +3788,7 @@ async function handleTool(
 const server = new Server(
   {
     name: 'port-daddy',
-    version: '3.12.0',
+    version: '3.13.0',
   },
   {
     capabilities: {
@@ -3868,17 +3819,13 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 // Execute tools
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
-  const startedAt = Date.now();
-  const toolArgs = (args ?? {}) as Record<string, unknown>;
 
   try {
-    const result = await handleTool(name, toolArgs);
-    void recordMcpToolUsage(name, toolArgs, 'ok', startedAt);
+    const result = await handleTool(name, (args ?? {}) as Record<string, unknown>);
     return {
       content: [{ type: 'text' as const, text: result }],
     };
   } catch (error) {
-    void recordMcpToolUsage(name, toolArgs, 'error', startedAt, error);
     if (error instanceof McpError) throw error;
 
     const err = error as Error;

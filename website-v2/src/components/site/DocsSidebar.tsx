@@ -1,4 +1,5 @@
 import { useLocation } from 'react-router-dom'
+import { docsLifecycleStages, docsPersonae } from '@/data/docs-personae'
 import { docsSidebarFamilies, findDocsRouteByPath } from '@/data/publicSite'
 import { findDocsContentSection } from '@/docs-content'
 import { BracketLink, BracketNavLink, DocsNoteCard, PanelBody } from './primitives'
@@ -7,11 +8,53 @@ export function DocsSidebar() {
   const location = useLocation()
   const activeRoute = findDocsRouteByPath(location.pathname)
   const activeContentSection = activeRoute ? findDocsContentSection(activeRoute.slug) : undefined
-  const referenceSurfaces = [
-    { title: 'CLI reference', href: '/docs/cli' },
-    { title: 'SDK reference', href: '/docs/sdk' },
-    { title: 'MCP tools', href: '/docs/mcp' },
-    { title: 'REST API', href: '/docs/api' },
+  const referenceSurfaces: Array<{
+    title: string
+    href: string
+    description: string
+    featured?: Array<{ title: string; href: string }>
+  }> = [
+    {
+      title: 'CLI reference',
+      href: '/docs/cli',
+      description: '40+ commands for sessions, locks, messaging, harbors, and fleet.',
+      featured: [
+        { title: 'pd begin', href: '/docs/cli/begin' },
+        { title: 'pd done', href: '/docs/cli/done' },
+        { title: 'pd spawn', href: '/docs/cli/spawn' },
+        { title: 'pd fleet', href: '/docs/cli/fleet' },
+      ],
+    },
+    {
+      title: 'SDK reference',
+      href: '/docs/sdk',
+      description: 'TypeScript SDK for embedding Port Daddy in your own tools.',
+      featured: [
+        { title: 'Sessions', href: '/docs/sdk/sessions' },
+        { title: 'Spawn', href: '/docs/sdk/spawn' },
+        { title: 'Subscribe', href: '/docs/sdk/subscribe' },
+      ],
+    },
+    {
+      title: 'MCP tools',
+      href: '/docs/mcp',
+      description: 'Tools an MCP agent (Claude, Cursor, Windsurf) can call directly.',
+      featured: [
+        { title: 'begin_session', href: '/docs/mcp/begin-session' },
+        { title: 'spawn_agent', href: '/docs/mcp/spawn-agent' },
+        { title: 'salvage', href: '/docs/mcp/salvage' },
+      ],
+    },
+    {
+      title: 'REST API',
+      href: '/docs/api',
+      description: 'HTTP endpoints for direct integration without a SDK.',
+    },
+    {
+      title: 'Decisions',
+      href: '/docs/decisions',
+      description: 'ADRs — architectural decisions, why they were made, and what was traded off.',
+    },
   ]
   const siteSurfaces = [
     { title: 'Mac Preview', href: '/mac-preview' },
@@ -20,19 +63,54 @@ export function DocsSidebar() {
     { title: 'Skill + MCP', href: '/mcp' },
     { title: 'Agents', href: '/agents' },
   ]
+  const taskGroups = [
+    { title: 'Install', href: '/docs/get-started' },
+    { title: 'Understand primitives', href: '/docs/concepts/primitives' },
+    { title: 'Coordinate work', href: '/docs/best-practices/coordination-discipline' },
+    { title: 'Choose an architecture', href: '/docs/reference-architectures' },
+    { title: 'Integrate SDK/MCP', href: '/docs/reference/mcp-tool-surface' },
+    { title: 'Reference', href: '/docs/reference' },
+  ]
+  const systemMap = [
+    {
+      title: 'Primitives',
+      href: '/docs/concepts/primitives',
+      description: 'Name the small runtime facts: identity, ownership, messaging, recovery, verification, and human control.',
+    },
+    {
+      title: 'Reference Architectures',
+      href: '/docs/reference-architectures',
+      description: 'Arrange those primitives into local control planes, automation loops, and delegation surfaces.',
+    },
+    {
+      title: 'Mac Preview',
+      href: '/mac-preview',
+      description: 'See FleetBar and Fleet Control Center as the human inspection surface for the same state.',
+    },
+    {
+      title: 'Skill + MCP',
+      href: '/mcp',
+      description: 'Install the agent operating guide and expose the same coordination primitives through MCP tools.',
+    },
+    {
+      title: 'Reference',
+      href: '/docs/reference',
+      description: 'Jump from the model to exact CLI commands, SDK calls, MCP tools, HTTP routes, and capability scopes.',
+    },
+  ]
 
   return (
     <aside className="space-y-[var(--panel-gap)] lg:sticky lg:top-24">
       <DocsNoteCard
         label="Start here"
-        title="Start with the basics."
+        title="One canonical first run."
         elevation="quiet"
         padding="compact"
         titleSize="nav"
       >
         <PanelBody size="compact" className="max-w-none">
-          Install Port Daddy, check that it is running, and try the first session loop. The whitepaper is available
-          when you want the deeper security and design background.
+          Install Port Daddy, verify daemon truth, open the app, and create one named session before branching into
+          lifecycle, role, or reference docs.
         </PanelBody>
         <div className="flex flex-wrap gap-[var(--space-2)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
           <BracketLink to="/whitepaper" tone="blue" side="left">
@@ -44,23 +122,165 @@ export function DocsSidebar() {
         </div>
       </DocsNoteCard>
 
+      <DocsNoteCard
+        label="Common jobs"
+        title="Pick the question, then the surface."
+        elevation="quiet"
+        padding="compact"
+        titleSize="nav"
+      >
+        <div className="flex flex-col gap-[var(--space-2)]">
+          {taskGroups.map((task, index) => (
+            <BracketNavLink
+              key={task.href}
+              to={task.href}
+              tone={index % 2 === 0 ? 'blue' : 'accent'}
+              side={index % 2 === 0 ? 'left' : 'right'}
+            >
+              {task.title}
+            </BracketNavLink>
+          ))}
+        </div>
+      </DocsNoteCard>
+
+      <DocsNoteCard
+        label="System map"
+        title="Model, layout, app, agent, reference."
+        elevation="quiet"
+        padding="compact"
+        titleSize="nav"
+      >
+        <PanelBody size="compact" className="max-w-none">
+          Read this path when the new Primitives and Reference Architectures pages need to line up with the Mac app,
+          Skill + MCP, and exact reference surfaces.
+        </PanelBody>
+        <div className="flex flex-col gap-[var(--space-3)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
+          {systemMap.map((surface, index) => (
+            <div key={surface.href} className="flex flex-col gap-[var(--space-1)]">
+              <BracketNavLink
+                to={surface.href}
+                tone={index % 2 === 0 ? 'blue' : 'accent'}
+                side={index % 2 === 0 ? 'left' : 'right'}
+              >
+                {surface.title}
+              </BracketNavLink>
+              <p className="px-[var(--space-2)] text-[0.78rem] leading-snug text-[var(--text-quiet)]">
+                {surface.description}
+              </p>
+            </div>
+          ))}
+        </div>
+      </DocsNoteCard>
+
+      <DocsNoteCard
+        label="Reference"
+        title="Jump straight to the exact interface."
+        elevation="quiet"
+        padding="compact"
+        titleSize="nav"
+      >
+        <PanelBody size="compact" className="max-w-none">
+          When you know what you want — a command, an SDK method, an MCP tool, or an HTTP endpoint.
+        </PanelBody>
+        <div className="flex flex-col gap-[var(--space-3)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
+          {referenceSurfaces.map((surface, index) => (
+            <div key={surface.href} className="flex flex-col gap-[var(--space-1)]">
+              <BracketNavLink
+                to={surface.href}
+                tone={index % 2 === 0 ? 'blue' : 'accent'}
+                side={index % 2 === 0 ? 'left' : 'right'}
+              >
+                {surface.title}
+              </BracketNavLink>
+              <p className="px-[var(--space-2)] text-[0.78rem] leading-snug text-[var(--text-quiet)]">
+                {surface.description}
+              </p>
+              {surface.featured ? (
+                <ul className="flex flex-wrap gap-[var(--space-2)] px-[var(--space-2)] pt-[var(--space-1)]">
+                  {surface.featured.map((item) => (
+                    <li key={item.href}>
+                      <BracketLink
+                        to={item.href}
+                        tone={index % 2 === 0 ? 'accent' : 'blue'}
+                        side="left"
+                      >
+                        {item.title}
+                      </BracketLink>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      </DocsNoteCard>
+
+      <DocsNoteCard
+        label="By role"
+        title="Reader lanes"
+        elevation="quiet"
+        padding="compact"
+        titleSize="nav"
+      >
+        <PanelBody size="compact" className="max-w-none">
+          First-timers, CLI operators, SDK/MCP builders, Mac operators, leads, and security owners have different
+          first questions.
+        </PanelBody>
+        <div className="flex flex-col gap-[var(--space-2)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
+          {docsPersonae.slice(0, 5).map((persona, index) => (
+            <BracketNavLink
+              key={persona.slug}
+              to="/docs/personae"
+              tone={index % 2 === 0 ? 'blue' : 'accent'}
+              side={index % 2 === 0 ? 'right' : 'left'}
+            >
+              {persona.shortName}
+            </BracketNavLink>
+          ))}
+        </div>
+      </DocsNoteCard>
+
       <nav aria-label="Docs sections" className="space-y-[var(--panel-gap)]">
         <DocsNoteCard
-          label="Sections"
-          title="Choose the part of the system you need."
+          label="Lifecycle"
+          title="Move by stage."
           elevation="quiet"
           padding="compact"
           titleSize="nav"
         >
           <PanelBody size="compact" className="max-w-none">
-            The docs split by job: installation, concepts, daily habits, tutorials, reference architectures, and exact
-            command or API pages. Runnable examples live at /examples.
+            These stages route the main developer lifecycle before the reader dives into exact commands or API calls.
           </PanelBody>
           <div className="flex flex-col gap-[var(--space-2)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
             <BracketNavLink to="/docs" end tone="accent" side="left">
               Overview
             </BracketNavLink>
 
+            {docsLifecycleStages.map((stage, index) => (
+              <BracketNavLink
+                key={stage.slug}
+                to={`/docs/lifecycle/${stage.slug}`}
+                tone={index % 2 === 0 ? 'blue' : 'accent'}
+                side={index % 2 === 0 ? 'right' : 'left'}
+              >
+                {stage.title}
+              </BracketNavLink>
+            ))}
+          </div>
+        </DocsNoteCard>
+
+        <DocsNoteCard
+          label="Sections"
+          title="Deeper docs families."
+          elevation="quiet"
+          padding="compact"
+          titleSize="nav"
+        >
+          <PanelBody size="compact" className="max-w-none">
+            Use these when the job lane is clear and you need the system model, practices, tutorials, architectures, or
+            exact interfaces.
+          </PanelBody>
+          <div className="flex flex-col gap-[var(--space-2)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
             {docsSidebarFamilies.map((section, index) => (
               <BracketNavLink
                 key={section.slug}
@@ -69,31 +289,6 @@ export function DocsSidebar() {
                 side={index % 2 === 0 ? 'right' : 'left'}
               >
                 {section.title}
-              </BracketNavLink>
-            ))}
-          </div>
-        </DocsNoteCard>
-
-        <DocsNoteCard
-          label="Reference pages"
-          title="Jump straight to the exact interface."
-          elevation="quiet"
-          padding="compact"
-          titleSize="nav"
-        >
-          <PanelBody size="compact" className="max-w-none">
-            The newer docs families improve reading order. The existing CLI, SDK, MCP, and API pages still matter when
-            you need exact interfaces and older reference pages preserved.
-          </PanelBody>
-          <div className="flex flex-col gap-[var(--space-2)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
-            {referenceSurfaces.map((surface, index) => (
-              <BracketNavLink
-                key={surface.href}
-                to={surface.href}
-                tone={index % 2 === 0 ? 'blue' : 'accent'}
-                side={index % 2 === 0 ? 'left' : 'right'}
-              >
-                {surface.title}
               </BracketNavLink>
             ))}
           </div>

@@ -159,6 +159,17 @@ describe('Sessions Module', () => {
       expect(got.notes[0].type).toBe('handoff');
     });
 
+    it('should wrap new session keys with the project fleet harbor scope', () => {
+      const mockEncryption = createMockNoteEncryption();
+      mockEncryption.wrapSessionKey = jest.fn(() => 'wrapped-session-key');
+      const encryptedSessions = createSessions(db, mockEncryption);
+
+      const started = encryptedSessions.start('Scoped encrypted work', { project: 'workgroup-ai' });
+
+      expect(started.success).toBe(true);
+      expect(mockEncryption.wrapSessionKey).toHaveBeenCalledWith(expect.any(Buffer), 'workgroup-ai:fleet');
+    });
+
     it('should release all file claims when ending', () => {
       const started = sessions.start('Work item', {
         files: ['src/a.ts', 'src/b.ts']
@@ -518,6 +529,19 @@ describe('Sessions Module', () => {
       expect(result.count).toBe(2);
       // Cross-session notes should include sessionPurpose
       expect(result.notes[0].sessionPurpose).toBeDefined();
+    });
+
+    it('should filter recent notes by identity project', () => {
+      const portDaddy = sessions.start('Port Daddy cartographer', { project: 'port-daddy' });
+      const workgroup = sessions.start('Workgroup cartographer', { project: 'workgroup-ai' });
+      sessions.addNote(portDaddy.id, 'Port Daddy roadmap note');
+      sessions.addNote(workgroup.id, 'Workgroup roadmap note');
+
+      const result = sessions.getNotes(null, { project: 'workgroup-ai' });
+
+      expect(result.success).toBe(true);
+      expect(result.notes.map((n) => n.content)).toEqual(['Workgroup roadmap note']);
+      expect(result.notes[0].identityProject).toBe('workgroup-ai');
     });
 
     it('should filter by type', () => {

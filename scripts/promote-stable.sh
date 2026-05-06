@@ -41,37 +41,7 @@ if ! git -C "$DEV_DIR" diff --quiet HEAD -- lib/ server.ts mcp/ routes/ bin/ tes
 fi
 
 # ---------------------------------------------------------------------------
-# Step 3: Enforce daemon version bump
-# ---------------------------------------------------------------------------
-DEV_VERSION="$(node -e 'process.stdout.write(require(process.argv[1]).version)' "$DEV_DIR/package.json")"
-STABLE_VERSION=""
-if [[ -f "$STABLE_DIR/package.json" ]]; then
-  STABLE_VERSION="$(node -e 'process.stdout.write(require(process.argv[1]).version)' "$STABLE_DIR/package.json")"
-fi
-
-if [[ -n "$STABLE_VERSION" ]]; then
-  if ! node - "$DEV_VERSION" "$STABLE_VERSION" <<'NODE'
-const [dev, stable] = process.argv.slice(2);
-const parse = (v) => String(v).split('.').map((part) => Number(part.replace(/\D.*$/, '')) || 0);
-const a = parse(dev);
-const b = parse(stable);
-for (let i = 0; i < 3; i++) {
-  if ((a[i] ?? 0) > (b[i] ?? 0)) process.exit(0);
-  if ((a[i] ?? 0) < (b[i] ?? 0)) process.exit(1);
-}
-process.exit(1);
-NODE
-  then
-    echo "${RED}ERROR: Daemon promotion requires a version bump.${NC}"
-    echo "  Stable package.json: $STABLE_VERSION"
-    echo "  Main package.json:   $DEV_VERSION"
-    echo "  Philosophy: patch for daemon/runtime-only changes, minor for user-visible capabilities, major only for v4-scale breaks."
-    exit 1
-  fi
-fi
-
-# ---------------------------------------------------------------------------
-# Step 4: Run tests
+# Step 3: Run tests
 # ---------------------------------------------------------------------------
 echo "${YELLOW}Running test suite...${NC}"
 cd "$DEV_DIR"
@@ -99,7 +69,7 @@ fi
 echo "${GREEN}Tests passed ($PASS_COUNT passing, 0 failures)${NC}"
 
 # ---------------------------------------------------------------------------
-# Step 5: Emit promotion-time release-surface review
+# Step 4: Emit promotion-time release-surface review
 # ---------------------------------------------------------------------------
 MAIN_SHA=$(git -C "$DEV_DIR" rev-parse --short HEAD)
 STABLE_SHA="$(git -C "$STABLE_DIR" rev-parse --short HEAD 2>/dev/null || true)"
@@ -129,7 +99,7 @@ if [[ "${PORT_DADDY_PROMOTION_REVIEW_ONLY:-0}" == "1" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Step 6: Merge main into stable
+# Step 5: Merge main into stable
 # ---------------------------------------------------------------------------
 echo "${YELLOW}Merging main → stable...${NC}"
 
@@ -137,25 +107,25 @@ cd "$STABLE_DIR"
 git merge main --no-edit -m "promote: main@$MAIN_SHA → stable"
 
 # ---------------------------------------------------------------------------
-# Step 7: Reinstall dependencies (in case package.json changed)
+# Step 6: Reinstall dependencies (in case package.json changed)
 # ---------------------------------------------------------------------------
 echo "${YELLOW}Installing dependencies in stable...${NC}"
 npm install --production=false 2>&1 | tail -3
 
 # ---------------------------------------------------------------------------
-# Step 8: Build native Rust enforcement core
+# Step 7: Build native Rust enforcement core
 # ---------------------------------------------------------------------------
 echo "${YELLOW}Building Rust FFI core in stable...${NC}"
 npm run build:core:dist
 
 # ---------------------------------------------------------------------------
-# Step 9: Build native Bosun supervisor
+# Step 8: Build native Bosun supervisor
 # ---------------------------------------------------------------------------
 echo "${YELLOW}Building pd-bosun in stable...${NC}"
 npm run build:bosun:dist
 
 # ---------------------------------------------------------------------------
-# Step 10: Re-link (in case bin entries changed)
+# Step 9: Re-link (in case bin entries changed)
 # ---------------------------------------------------------------------------
 if ! LINK_LOG="$(npm link 2>&1)"; then
   echo "${YELLOW}WARNING: npm link failed; continuing with direct stable daemon paths.${NC}"
@@ -165,7 +135,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Step 11: Reinstall service plists and restart daemon + Bosun
+# Step 10: Reinstall service plists and restart daemon + Bosun
 # ---------------------------------------------------------------------------
 echo "${YELLOW}Installing daemon and Bosun services...${NC}"
 npm run install-daemon -- install
@@ -215,7 +185,7 @@ fetch_json_with_retry() {
 }
 
 # ---------------------------------------------------------------------------
-# Step 12: Verify authoritative runtime truth
+# Step 11: Verify authoritative runtime truth
 # ---------------------------------------------------------------------------
 PORT_FILE="$HOME/.port-daddy/daemon.port"
 if ! wait_for_file "$PORT_FILE" 60; then

@@ -100,7 +100,7 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
   fastify.post('/agents', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const body = ((request.body as Record<string, unknown>) || {});
-      const { id, name, type, metadata, agentCard, maxServices, maxLocks, identity, worktreeId, purpose, telos, status } = body as any;
+      const { id, name, type, metadata, agentCard, maxServices, maxLocks, identity, worktreeId, purpose } = body as any;
 
       if (!id) {
         reply.code(400);
@@ -123,9 +123,7 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
         maxLocks,
         identity,
         worktreeId,
-        purpose,
-        telos,
-        status,
+        purpose
       });
 
       if (!result.success) {
@@ -141,8 +139,7 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
           name: name || id,
           type: type || 'cli',
           identity,
-          purpose,
-          telos: result.telos || telos || null,
+          purpose
         }, { targetId: id });
 
         messaging.publish('agents', JSON.stringify({
@@ -152,7 +149,6 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
           type: type || 'cli',
           identity,
           purpose: purpose || metadata?.purpose || null,
-          telos: result.telos || telos || metadata?.telos || null,
           timestamp: Date.now()
         }));
       }
@@ -178,8 +174,6 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
         status: typeof body.status === 'string' ? body.status : undefined,
         readiness: Array.isArray(body.readiness) ? body.readiness : undefined,
         progress: typeof body.progress === 'string' ? body.progress : undefined,
-        purpose: typeof body.purpose === 'string' ? body.purpose : undefined,
-        telos: body.telos,
       });
 
       if (!result.success) {

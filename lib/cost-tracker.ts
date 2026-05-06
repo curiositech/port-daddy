@@ -38,6 +38,7 @@ const FALLBACK_MODEL_RATES: Record<string, ModelRate> = {
 const MODEL_RATES: Array<[string, ModelRate]> = [
   // Cloudflare Workers AI
   ['@cf/moonshotai/kimi-k2.6',                  { input: 0.950, cachedInput: 0.160, output: 4.000, label: 'Cloudflare Workers AI Kimi K2.6' }],
+  ['@cf/moonshotai/kimi-k2.5',                  { input: 0.600, cachedInput: 0.100, output: 3.000, label: 'Cloudflare Workers AI Kimi K2.5' }],
   ['@cf/zai-org/glm-4.7-flash',                 { input: 0.060, output: 0.400, label: 'Cloudflare Workers AI GLM-4.7-Flash' }],
   ['@cf/qwen/qwen3-30b-a3b-fp8',                { input: 0.051, output: 0.335, label: 'Cloudflare Workers AI Qwen3 30B A3B FP8' }],
   ['@cf/nvidia/nemotron-3-120b-a12b',           { input: 0.500, output: 1.500, label: 'Cloudflare Workers AI Nemotron 3 120B A12B' }],

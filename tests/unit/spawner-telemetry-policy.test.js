@@ -10,14 +10,10 @@ const TEST_TELEMETRY_BYPASS = {
 
 describe('spawner telemetry enforcement', () => {
   const originalAnthropicKey = process.env.ANTHROPIC_API_KEY;
-  const originalCloudflareAccountId = process.env.CLOUDFLARE_ACCOUNT_ID;
-  const originalCloudflareApiToken = process.env.CLOUDFLARE_API_TOKEN;
 
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.ANTHROPIC_API_KEY = 'sk-test';
-    delete process.env.CLOUDFLARE_ACCOUNT_ID;
-    delete process.env.CLOUDFLARE_API_TOKEN;
     global.fetch = jest.fn(async () => ({
       ok: true,
       json: async () => ({}),
@@ -28,12 +24,6 @@ describe('spawner telemetry enforcement', () => {
   afterAll(() => {
     if (originalAnthropicKey === undefined) delete process.env.ANTHROPIC_API_KEY;
     else process.env.ANTHROPIC_API_KEY = originalAnthropicKey;
-
-    if (originalCloudflareAccountId === undefined) delete process.env.CLOUDFLARE_ACCOUNT_ID;
-    else process.env.CLOUDFLARE_ACCOUNT_ID = originalCloudflareAccountId;
-
-    if (originalCloudflareApiToken === undefined) delete process.env.CLOUDFLARE_API_TOKEN;
-    else process.env.CLOUDFLARE_API_TOKEN = originalCloudflareApiToken;
   });
 
   test('defaults telemetry enforcement on when no override is provided', async () => {
@@ -217,89 +207,6 @@ describe('spawner telemetry enforcement', () => {
       identity: 'port-daddy:fleet:cartographer',
       inputTokens: 10000,
       cachedInputTokens: 4000,
-      outputTokens: 2000,
-    }));
-  });
-
-  test('attaches exact telemetry to successful Cloudflare Workers AI launches under enforcement', async () => {
-    process.env.CLOUDFLARE_ACCOUNT_ID = 'acct-123';
-    process.env.CLOUDFLARE_API_TOKEN = 'token-123';
-    global.fetch = jest.fn(async (url) => {
-      if (typeof url === 'string' && url.includes('api.cloudflare.com/client/v4/accounts/acct-123/ai/run/')) {
-        return {
-          ok: true,
-          status: 200,
-          json: async () => ({
-            success: true,
-            result: {
-              response: 'Cloudflare done',
-              usage: {
-                prompt_tokens: 10000,
-                completion_tokens: 2000,
-                total_tokens: 12000,
-              },
-            },
-          }),
-          text: async () => 'Cloudflare done',
-        };
-      }
-      return {
-        ok: true,
-        status: 200,
-        json: async () => ({ success: true, sessionId: 'test-session' }),
-        text: async () => 'OK',
-      };
-    });
-    const costTracker = {
-      computeCost: jest.fn(() => ({ costUsd: 0.004474, isEstimate: false })),
-      record: jest.fn((opts) => ({
-        id: 'evt-cloudflare-1',
-        ts: 1,
-        backend: opts.backend,
-        model: opts.model,
-        projectName: opts.projectName ?? null,
-        projectDir: opts.projectDir ?? null,
-        identity: opts.identity ?? null,
-        spawnId: opts.spawnId ?? null,
-        inputTokens: opts.inputTokens ?? null,
-        cachedInputTokens: opts.cachedInputTokens ?? null,
-        outputTokens: opts.outputTokens ?? null,
-        costUsd: 0.0014,
-        isEstimate: false,
-      })),
-    };
-    const spawner = createSpawner({
-      costTracker,
-      enforceTelemetryPolicy: true,
-    });
-
-    const result = await spawner.spawn({
-      backend: 'cloudflare',
-      model: '@cf/zai-org/glm-4.7-flash',
-      identity: 'port-daddy:fleet:cloudflare',
-      task: 'Summarize Workers AI readiness',
-    });
-
-    expect(result.status).toBe('completed');
-    expect(result.error).toBeNull();
-    expect(result.output).toBe('Cloudflare done');
-    expect(result.telemetry).toEqual({
-      inputTokens: 10000,
-      outputTokens: 2000,
-      costUsd: 0.0014,
-      rateMode: 'exact',
-    });
-    expect(costTracker.computeCost).toHaveBeenCalledWith(
-      'cloudflare',
-      '@cf/zai-org/glm-4.7-flash',
-      10000,
-      2000,
-    );
-    expect(costTracker.record).toHaveBeenCalledWith(expect.objectContaining({
-      backend: 'cloudflare',
-      model: '@cf/zai-org/glm-4.7-flash',
-      identity: 'port-daddy:fleet:cloudflare',
-      inputTokens: 10000,
       outputTokens: 2000,
     }));
   });

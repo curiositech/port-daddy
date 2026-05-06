@@ -9,7 +9,7 @@ import { WHITE_PAPERS } from './whitePapers'
 export const SITE_NAME = 'Port Daddy'
 export const SITE_ORIGIN = 'https://portdaddy.dev'
 export const DEFAULT_SITE_DESCRIPTION =
-  'Port Daddy is a local app and background service that helps AI coding agents share notes, claim work, avoid collisions, recover interrupted runs, and show what is happening on your machine.'
+  'Port Daddy is a local control plane and shared-state substrate for AI coding agents: sessions, claims, notes, channels, readiness, budgets, and recoverable handoffs on your machine.'
 
 export function ogImagePathForRoutePath(pathname: string) {
   const slug = pathname
@@ -179,7 +179,7 @@ function tutorialSourceImage(slug: string) {
 }
 
 function pageTitle(title: string) {
-  if (title === SITE_NAME) return 'Port Daddy - Local Coordination for AI Coding Agents'
+  if (title === SITE_NAME) return 'Port Daddy - Local Control Plane for AI Coding Agents'
   if (title.endsWith(SITE_NAME)) return title
   return `${title} - ${SITE_NAME}`
 }
@@ -215,7 +215,7 @@ const productRoutes: SiteMetadata[] = [
   metadata(
     '/examples',
     'Executable Examples',
-    'Run complete Port Daddy example programs for browser buttons, test reporters, editor commands, and webhook adapters that talk to local agents.',
+    'Run complete Port Daddy example programs showing how browser buttons, test reporters, editor commands, and webhook adapters can hand work to local agents.',
     { ogSourceImage: OG_SOURCE_IMAGES.exampleArchetypes, ogSectionLabel: 'Examples' },
   ),
   ...exampleRouteMetadata.map((example) =>
@@ -234,7 +234,7 @@ const productRoutes: SiteMetadata[] = [
   metadata(
     '/mac-preview',
     'Mac Preview',
-    'Download the signed FleetBar Mac build and see how the app exposes Fleet Control Center, Shipwright, resources, sorties, backend readiness, and agent communication.',
+    'See what the FleetBar Mac preview downloads, how to verify it, how to open it, and how it exposes Fleet Control Center, Shipwright, resources, sorties, backend readiness, and agent communication.',
     { ogSourceImage: OG_SOURCE_IMAGES.fleetbarInstall, ogSectionLabel: 'FleetBar' },
   ),
   metadata(
@@ -275,25 +275,25 @@ const productRoutes: SiteMetadata[] = [
   metadata(
     '/tutorials',
     'Tutorials',
-    'Follow hands-on Port Daddy tutorials from first install through sessions, DNS, tunnels, fleet YAML, messaging, and background agents.',
+    'Follow hands-on Port Daddy tutorials from first install through shared state, sessions, claims, messaging, fleet YAML, launch gates, and recovery.',
     { section: 'tutorials' },
   ),
   metadata(
     '/integrations',
     'Integrations',
-    'Wire Port Daddy into Claude, Cursor, Windsurf, LangChain, CrewAI, Aider, Continue.dev, and other developer tooling.',
+    'Wire Port Daddy into Claude, Codex, Cursor, Windsurf, LangChain, CrewAI, Aider, Continue.dev, and other agent-facing developer tooling.',
     { section: 'integrations' },
   ),
   metadata(
     '/blog',
     'Blog',
-    'Read current Port Daddy field notes about FleetBar, Fleet Control Center, launch readiness, recovery maps, PD Tube, daemon provenance, and coordination policy.',
+    'Read Port Daddy engineering notes about local control planes, shared state, launch readiness, recovery maps, PD Tube, daemon provenance, and coordination policy.',
     { section: 'blog' },
   ),
   metadata(
     '/whitepaper',
     'Whitepaper',
-    'Read the technical whitepaper behind Port Daddy: local-first agent coordination, signed identity, locks, sessions, and recoverable work.',
+    'Read the technical whitepaper behind Port Daddy: local-first agent coordination, signed identity, capability boundaries, sessions, and recoverable work.',
     { section: 'whitepaper' },
   ),
   ...WHITE_PAPERS.map((paper) =>

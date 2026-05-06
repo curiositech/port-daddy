@@ -7,7 +7,6 @@ export interface CurrentContext {
   agentName?: string | null;
   sessionName?: string | null;
   purpose?: string;
-  telosHeadline?: string | null;
   identity?: string | null;
   startedAt?: number;
   contextSlot?: string;

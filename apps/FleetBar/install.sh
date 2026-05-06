@@ -43,6 +43,22 @@ cp "$RELEASE_BIN" "$APP_BIN"
 cp "$APP_INFO_PLIST_SRC" "$APP_CONTENTS/Info.plist"
 chmod +x "$APP_BIN"
 
+# Copy the Dock/Finder/Cmd-Tab app icon into the bundle. Info.plist references
+# `FleetBarIcon` via CFBundleIconFile, so the .icns must live at
+# Contents/Resources/FleetBarIcon.icns. Without this, macOS shows the generic
+# blank-grid placeholder in the Dock even though the menu bar status item works.
+ICON_SRC="$SCRIPT_DIR/FleetBar/Resources/FleetBarIcon.icns"
+if [ -f "$ICON_SRC" ]; then
+    cp "$ICON_SRC" "$APP_RESOURCES/FleetBarIcon.icns"
+else
+    echo "Warning: $ICON_SRC missing; Dock will show generic icon"
+fi
+
+# Bust the macOS icon cache so the Dock picks up the new icon immediately
+# instead of waiting for relaunch / login.
+touch "$APP_BUNDLE"
+/usr/bin/killall -HUP Dock 2>/dev/null || true
+
 # Create plist with installed app executable path
 sed "s|/Users/erichowens/coding/port-daddy/apps/FleetBar/.build/arm64-apple-macosx/debug/FleetBar|$APP_BIN|" "$PLIST_SRC" > "$PLIST_DST"
 

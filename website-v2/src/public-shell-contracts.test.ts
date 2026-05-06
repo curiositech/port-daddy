@@ -4,7 +4,6 @@ import { APP_SURFACES } from './data/product'
 import { docsFamilyOrder, docsOverviewRoute, docsFamilyRoutes, findDocsRouteByPath, findDocsRouteBySlug } from './data/docs-routes'
 import { docsFamilies, findDocsFamily } from './data/publicSite'
 import { docsContentSections, findDocsContentPage, findDocsContentSection } from './docs-content'
-import { homepageTeasers, homepageTeaserStats } from './data/homepageTeasers'
 
 function read(relativePath: string) {
   return readFileSync(new URL(relativePath, import.meta.url), 'utf8')
@@ -196,117 +195,8 @@ describe('public shell contracts', () => {
     expect(paperData).toContain('/whitepaper/anchor-protocol-whitepaper.pdf')
     expect(paperData).toContain('/whitepaper/agent-transactions-whitepaper.pdf')
     expect(cta).toContain('Read both papers')
-    expect(cta).toContain('Technical evaluation')
-    expect(cta).toContain('Platform-grade signal')
-    expect(cta).not.toContain('Coordination feedback')
-    expect(cta).not.toContain('Dogfood restore')
-  })
-
-  test('homepage positioning is clear for AI tooling evaluators and avoids stale inside-baseball copy', () => {
-    const app = read('./App.tsx')
-    const homepageFiles = [
-      './components/landing/Hero.tsx',
-      './components/landing/AboveFoldTeasers.tsx',
-      './data/homepageTeasers.ts',
-      './components/landing/CoordinationEnforcementSection.tsx',
-      './components/landing/AgentConversationSection.tsx',
-      './components/landing/AgenticSocialProofSection.tsx',
-      './components/landing/Features.tsx',
-      './components/landing/TerminalDemos.tsx',
-      './components/landing/CTABanner.tsx',
-      './data/product.ts',
-    ]
-    const homepageCopy = homepageFiles.map((path) => read(path)).join('\n')
-    const storyOrder = [
-      '<Hero />',
-      '<CoordinationEnforcementSection />',
-      '<AgentConversationSection />',
-      '<AgenticSocialProofSection />',
-      '<Features />',
-      '<TerminalDemos />',
-      '<CTABanner />',
-    ]
-    const requiredPositioning = [
-      'A local control plane for',
-      'AI coding agents.',
-      'Agent orchestration needs shared state.',
-      'Shared state means',
-      'A repo-native API for agent teamwork.',
-      'This is what the layer adds when agents overlap.',
-      'One layer, many ways to inspect work.',
-      'The app has a real local API underneath.',
-      'Put a control plane around your AI agents.',
-      'Platform-grade signal',
-      'Open the sharpest Port Daddy proofs.',
-      'Product thesis',
-      'Executable example',
-      'Operator guide',
-    ]
-    const stalePhrases = [
-      'Agents coordinate through observable state.',
-      'heroic memory',
-      '"please coordinate"',
-      'Dogfood restore',
-      'Coordination feedback',
-      'human-facing',
-      'vibes check',
-    ]
-
-    storyOrder.reduce((previousIndex, marker) => {
-      const currentIndex = app.indexOf(marker)
-      expect(currentIndex, `${marker} should be present on the homepage`).toBeGreaterThan(-1)
-      expect(currentIndex, `${marker} should preserve the homepage story order`).toBeGreaterThan(previousIndex)
-      return currentIndex
-    }, -1)
-
-    requiredPositioning.forEach((phrase) => expect(homepageCopy).toContain(phrase))
-    stalePhrases.forEach((phrase) => expect(homepageCopy).not.toContain(phrase))
-    expect(homepageCopy).not.toContain('titleClassName="max-w-[12ch]"')
-  })
-
-  test('homepage above-fold teasers expose articles, guides, and executable examples', () => {
-    const hero = read('./components/landing/Hero.tsx')
-    const teaserComponent = read('./components/landing/AboveFoldTeasers.tsx')
-    const teaserData = read('./data/homepageTeasers.ts')
-    const blogData = read('./data/blogMetaData.ts')
-    const tutorialData = read('./data/tutorials.ts')
-    const exampleData = read('./data/examples.ts')
-
-    expect(hero).toContain('<AboveFoldTeasers />')
-    expect(teaserComponent).toContain('id="featured-dispatches"')
-    expect(teaserComponent).toContain('homepageTeasers')
-    expect(teaserComponent).toContain('homepageTeaserStats')
-    expect(teaserComponent).toContain('group-hover:scale-[1.025]')
-    expect(teaserData).toContain('Product thesis')
-    expect(teaserData).toContain('Executable example')
-    expect(teaserData).toContain('Operator guide')
-    expect(homepageTeasers).toHaveLength(6)
-    expect(homepageTeaserStats.map((stat) => stat.label)).toEqual(['field notes', 'guides', 'examples'])
-    expect(new Set(homepageTeasers.map((teaser) => teaser.kind))).toEqual(new Set(['Article', 'Guide', 'Example']))
-    expect(homepageTeasers.filter((teaser) => teaser.featured)).toHaveLength(1)
-    expect(homepageTeasers[0].href).toBe('/blog/control-plane-is-the-product')
-    expect(homepageTeasers.some((teaser) => teaser.href === '/examples/pd-tube-button-to-agent')).toBe(true)
-    expect(homepageTeasers.some((teaser) => teaser.href === '/examples/test-failure-to-agent')).toBe(true)
-    expect(homepageTeasers.some((teaser) => teaser.href === '/tutorials/multi-agent')).toBe(true)
-    expect(homepageTeasers.some((teaser) => teaser.href === '/tutorials/primitives')).toBe(true)
-
-    for (const teaser of homepageTeasers) {
-      expect(teaser.title.length, `${teaser.href} should have a scan-friendly title`).toBeGreaterThan(12)
-      expect(teaser.summary.length, `${teaser.href} should have real information scent`).toBeGreaterThan(70)
-      expect(teaser.proof.length, `${teaser.href} should tell the reader what proof they get`).toBeGreaterThan(12)
-
-      if (teaser.kind === 'Article') {
-        expect(blogData).toContain(`slug: '${teaser.href.replace('/blog/', '')}'`)
-      }
-
-      if (teaser.kind === 'Guide') {
-        expect(tutorialData).toContain(`href: '${teaser.href}'`)
-      }
-
-      if (teaser.kind === 'Example') {
-        expect(exampleData).toContain(`slug: '${teaser.href.replace('/examples/', '')}'`)
-      }
-    }
+    expect(cta).toContain('Coordination feedback')
+    expect(cta).toContain('Dogfood restore')
   })
 
   test('individual whitepaper pages explain value and embed PDFs inline', () => {
@@ -335,7 +225,7 @@ describe('public shell contracts', () => {
 
     expect(docsOverview).toContain("href: '/whitepaper'")
     expect(docsOverview).toContain('Start with Get Started if you are installing Port Daddy for the first time.')
-    expect(docsSidebar).toContain('Start with the basics.')
+    expect(docsSidebar).toContain('One canonical first run.')
     expect(docsSidebar).toContain('Whitepaper')
     expect(header).toContain('Port Daddy')
     expect(header).not.toContain('agentsd')
@@ -527,6 +417,72 @@ describe('public shell contracts', () => {
     expect(appSource).toContain('<CTABanner />')
     expect(appSource).not.toContain('Install agentsd')
     expect(appSource).not.toContain('agentsd.ai')
+  })
+
+  test('public copy uses the AI infrastructure evaluator lens without slipping into inside-baseball framing', () => {
+    const sources = {
+      hero: read('./components/landing/Hero.tsx'),
+      conversation: read('./components/landing/AgentConversationSection.tsx'),
+      socialProof: read('./components/landing/AgenticSocialProofSection.tsx'),
+      enforcement: read('./components/landing/CoordinationEnforcementSection.tsx'),
+      about: read('./pages/AboutPage.tsx'),
+      blog: read('./pages/BlogPage.tsx'),
+      examples: read('./pages/ExamplesPage.tsx'),
+      tutorials: read('./pages/TutorialsPage.tsx'),
+      metadata: read('./data/siteMetadata.ts'),
+      docsRoutes: read('./data/docs-routes.ts'),
+      sectionIntros: read('./data/section-intros.ts'),
+    }
+
+    expect(sources.hero).toContain('For AI engineering teams')
+    expect(sources.hero).toContain('shared-state substrate')
+    expect(sources.hero).toContain('Evaluate Mac preview')
+    expect(sources.conversation).toContain('Coordination is state agents can read.')
+    expect(sources.conversation).toContain('Why AI tooling teams care')
+    expect(sources.socialProof).toContain('Dogfood receipts')
+    expect(sources.socialProof).toContain('These are not customer testimonials.')
+    expect(sources.enforcement).toContain('Operators need the control plane.')
+    expect(sources.about).toContain('Why AI Infrastructure Teams Should Care')
+    expect(sources.about).toContain('The control plane under')
+    expect(sources.blog).toContain('AI infrastructure notes')
+    expect(sources.blog).toContain('Engineering notes for agent control planes')
+    expect(sources.examples).toContain('Executable local loops for agent products.')
+    expect(sources.tutorials).toContain('Learn the control plane like an operator.')
+    expect(sources.metadata).toContain('local control plane and shared-state substrate')
+    expect(sources.docsRoutes).toContain('AI tooling team')
+    expect(sources.sectionIntros).toContain('minimum substrate for running multiple AI agents')
+
+    const combined = Object.values(sources).join('\n')
+    const forbiddenPhrases = [
+      'Agents coordinate through observable state.',
+      'The daemon that keeps',
+      'multi-agent chaos in check',
+      'About the Maritime Theme',
+      'A technical journal for the work Port Daddy is actually doing now',
+      'acquisition-grade thesis',
+      'Agentic social proof',
+      'terminal-only marketing blocks',
+      'localhost:9876',
+    ]
+
+    for (const phrase of forbiddenPhrases) {
+      expect(combined).not.toContain(phrase)
+    }
+  })
+
+  test('role glossary tooltips stay layout-inert until hover or focus', () => {
+    const roleTerm = read('./components/site/RoleTerm.tsx')
+
+    expect(roleTerm).toContain('hidden w-[min(18rem,calc(100vw-var(--space-6)))]')
+    expect(roleTerm).toContain('group-focus-within:block')
+    expect(roleTerm).toContain('group-hover:block')
+    expect(roleTerm).not.toContain('invisible absolute')
+  })
+
+  test('example file path chips wrap instead of forcing mobile page overflow', () => {
+    const examplesPage = read('./pages/ExamplesPage.tsx')
+
+    expect(examplesPage).toContain('!block min-w-0 break-all !whitespace-normal')
   })
 
   test('docs route helpers resolve canonical families and current legacy section slugs', () => {

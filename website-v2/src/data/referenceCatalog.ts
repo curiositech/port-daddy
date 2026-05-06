@@ -15,7 +15,7 @@ export interface ReferenceGroup {
   items: ReferenceItem[]
 }
 
-export const PORT_DADDY_VERSION = '3.11.0'
+export const PORT_DADDY_VERSION = '3.13.0'
 
 export function referenceAnchor(name: string): string {
   return name
@@ -138,7 +138,7 @@ export const CLI_REFERENCE_GROUPS: ReferenceGroup[] = [
     source: 'cli/commands/sugar.ts, cli/commands/sessions.ts, cli/commands/say.ts, cli/commands/look.ts, cli/commands/sitrep.ts, cli/commands/resurrection.ts',
     items: [
       { name: 'pd begin "purpose"', href: '/docs/cli/begin', description: 'Register an agent, start a session, and write local context in one command.', aliases: ['pd b'], flags: ['--identity', '--agent', '--type', '--files'] },
-      { name: 'pd done "summary"', href: '/docs/cli/done', description: 'End the active session, leave a final note, unregister the agent, or leave self-salvage for unfinished telos.', flags: ['--status', '--self-salvage', '--telos-verdict', '--doable', '--why-stopped', '--next-plan'] },
+      { name: 'pd done "summary"', href: '/docs/cli/done', description: 'End the active session, leave a final note, and unregister the agent.' },
       { name: 'pd whoami', href: '/docs/cli/whoami', description: 'Show the current agent, active session, purpose, notes, and claimed files.', aliases: ['pd w'] },
       { name: 'pd session <command>', description: 'Manual session lifecycle: start, end, done, abandon, rm, and files add/rm.', flags: ['--agent', '--force', '--files'] },
       { name: 'pd sessions', description: 'List active or historical sessions.', flags: ['--all', '--status', '--all-worktrees', '--json'] },
@@ -151,6 +151,7 @@ export const CLI_REFERENCE_GROUPS: ReferenceGroup[] = [
       { name: 'pd briefing', description: 'Generate `.portdaddy/briefing.md` and `.portdaddy/briefing.json` for the current project.' },
       { name: 'pd history', description: 'Read briefing history.' },
       { name: 'pd changelog <command>', description: 'Add and query changelog entries by identity, session, or agent.' },
+      { name: 'pd snapshots <command>', description: 'List, show, restore, or prune claim-watcher snapshots for recoverable file evidence.', aliases: ['pd snapshot'], flags: ['list', 'show', 'restore', 'prune', '--session', '--path', '--limit', '--json', '--target', '--force', '--days', '--dry-run'] },
       { name: 'pd salvage', href: '/docs/cli/salvage', description: 'List stale/dead agents waiting for recovery.', aliases: ['pd resurrection'], flags: ['--project', '--stack', '--all', '--limit', '--summary'] },
       { name: 'pd salvage claim <agent>', href: '/docs/cli/salvage-claim', description: 'Claim a dead agent work record and retrieve its context.' },
       { name: 'pd salvage complete|abandon|dismiss', description: 'Resolve, return, or remove a salvage record after review.' },
@@ -165,8 +166,7 @@ export const CLI_REFERENCE_GROUPS: ReferenceGroup[] = [
       { name: 'pd sub <channel>', description: 'Subscribe to a channel as an SSE stream.', aliases: ['pd subscribe', 'pd listen'], flags: ['--dir', '--raw-channel'] },
       { name: 'pd channels', description: 'List, discover, ensure, describe, or clear channels.', flags: ['discover', 'ensure', 'describe', 'clear', '--dir', '--observed', '--scope', '--aliases'] },
       { name: 'pd watch <channel>', href: '/docs/cli/watch', description: 'Subscribe to a channel and optionally run a command for each message.', flags: ['--exec', '--once', '--dir', '--raw-channel'] },
-      { name: 'pd tube <channel>', description: 'Relay-independent conversational pipe over a Port Daddy channel with threaded replies.', flags: ['--send', '--reply', '--since', '--once', '--no-history', '--limit', '--sender', '--json', '--quiet'] },
-      { name: 'pd tube chat <channel>', description: 'Bridge new Tube messages to a spawned backend and post each answer as a threaded reply.', flags: ['--backend', '--tier', '--model', '--budget', '--once', '--sender', '--include-replies'] },
+      { name: 'pd tube <channel>', description: 'Relay-independent conversational pipe over a Port Daddy channel with block-once handoffs and threaded replies.', flags: ['--send', '--reply', '--reply-to', '--since', '--once', '--tail', '--wait-for', '--no-history', '--limit', '--sender', '--json', '--raw', '--quiet'] },
       { name: 'pd inbox <command>', description: 'Read, send, mark, and clear durable direct messages for agents.' },
       { name: 'pd tuple <command>', description: 'Linda-style tuple space: out, rd/read, in/take, scan, and count.', flags: ['--harbor', '--ttl', '--as', '--limit'] },
       { name: 'pd webhook <command>', description: 'Create, list, inspect, update, remove, test, and read deliveries for webhook subscriptions.', aliases: ['pd webhooks'] },
@@ -193,6 +193,8 @@ export const CLI_REFERENCE_GROUPS: ReferenceGroup[] = [
       { name: 'pd sortie list|status|logs', description: 'Inspect sortie records and event logs.' },
       { name: 'pd fleet init|up|down|status|validate|run', href: '/docs/cli/fleet', description: 'Create, validate, run, and inspect YAML-defined background agent fleets.' },
       { name: 'pd fleet panic|unpanic', description: 'Arm or disarm the fleet panic control with an audited reason.' },
+      { name: 'pd shipwright survey', description: 'Survey the current project into a structured Shipwright intake record for app-native fleet planning.', flags: ['--root', '--llm', '--model', '--json', '--quiet'] },
+      { name: 'pd cockpit missions', description: 'Read app-native development cockpit mission cards from roadmap and recovery truth.', flags: ['--project', '--status', '--limit', '--json'] },
       { name: 'pd quorum <command>', description: 'Run quorum-oriented coordination checks and summaries.' },
     ],
   },
@@ -349,7 +351,7 @@ export const SDK_REFERENCE_GROUPS: ReferenceGroup[] = [
       { name: 'listFileClaims', description: 'List file claims.' },
       { name: 'whoOwnsFile', description: 'Inspect owners for a path.' },
       { name: 'begin', description: 'Sugar: register agent and start session atomically.' },
-      { name: 'done', description: 'Sugar: close session, unregister, and optionally queue self-salvage.' },
+      { name: 'done', description: 'Sugar: close session and unregister atomically.' },
       { name: 'whoami', description: 'Sugar: show current agent/session context.' },
       { name: 'salvage', description: 'List salvage queue records.' },
       { name: 'salvageClaim', description: 'Claim dead agent work.' },
@@ -390,6 +392,7 @@ export const SDK_REFERENCE_GROUPS: ReferenceGroup[] = [
       { name: 'listSorties', description: 'List sortie records.' },
       { name: 'getSortie', description: 'Read one sortie.' },
       { name: 'getSortieLogs', description: 'Read sortie event logs.' },
+      { name: 'cockpitMissions', description: 'Read typed cockpit mission cards from roadmap and recovery truth without mutating state.' },
       { name: 'up', description: 'Start configured services.' },
       { name: 'down', description: 'Stop configured services.' },
     ],

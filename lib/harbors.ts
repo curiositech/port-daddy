@@ -124,6 +124,7 @@ export function createHarbors(db: Database.Database, deps: HarborsDeps = {}) {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `),
     getByName: db.prepare('SELECT * FROM harbors WHERE name = ?'),
+    setMissingScope: db.prepare('UPDATE harbors SET scope = ? WHERE name = ? AND scope IS NULL'),
     listAll: db.prepare('SELECT * FROM harbors ORDER BY created_at DESC LIMIT ?'),
     listByPattern: db.prepare("SELECT * FROM harbors WHERE name LIKE ? ESCAPE '\\' ORDER BY created_at DESC LIMIT ?"),
     deleteByName: db.prepare('DELETE FROM harbors WHERE name = ?'),
@@ -182,6 +183,9 @@ export function createHarbors(db: Database.Database, deps: HarborsDeps = {}) {
         expiresAt,
         options.metadata ? JSON.stringify(options.metadata) : null
       );
+      if (options.scope) {
+        stmts.setMissingScope.run(options.scope, name);
+      }
 
       const row = stmts.getByName.get(name) as HarborRow;
       const members = stmts.listMembers.all(name) as HarborMemberRow[];

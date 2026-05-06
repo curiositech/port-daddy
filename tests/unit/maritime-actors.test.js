@@ -30,6 +30,10 @@ describe('fleet actors (formerly maritime)', () => {
     expect(resolveMaritimeActorId('lookout')).toBe('documentarian');
     expect(resolveMaritimeActorId('signalman')).toBe('qa');
     expect(resolveMaritimeActorId('claim-owner')).toBe('coxswain');
+    // Comms-officer aliases route to coxswain since the comm pipeline is
+    // their domain too.
+    expect(resolveMaritimeActorId('comms-officer')).toBe('coxswain');
+    expect(resolveMaritimeActorId('signaler')).toBe('coxswain');
     expect(resolveMaritimeActorId('budget')).toBe('quartermaster');
     expect(resolveMaritimeActorId('backend-owner')).toBe('quartermaster');
     // Identity is identity.
@@ -56,6 +60,15 @@ describe('fleet actors (formerly maritime)', () => {
       'stale-assets',
       'symbolic-coordination',
       'session-contention',
+      // Comms-officer expansion — coxswain owns the live communications
+      // fabric in addition to the static coordination primitives.
+      'channels',
+      'tuples',
+      'channel-naming-hygiene',
+      'tuple-nomenclature',
+      'subscription-coverage',
+      'silent-agents',
+      'comm-pipeline-debug',
     ]));
     expect(quartermaster).toEqual(expect.objectContaining({
       id: 'quartermaster',

@@ -5,7 +5,7 @@ export default function UpTool() {
     <CommandPage
       command="up"
       description="Start all registered services in the current project. Uses the detected start commands."
-      version="3.11.0"
+      version="3.13.0"
       syntax="up(options?)"
       flags={[
         { flag: 'project', description: 'Project name (default: auto-detect)' },

@@ -15,6 +15,30 @@ requires three things: first-class light and dark systems, genuine depth through
 planes and grid pressure, and typographic discipline — choosing one voice and
 using it with confidence.
 
+## Official Variant: Primitive Map
+
+The Port Daddy design system now has an official **Primitive Map** variant for
+runtime-primitives pages, Mac preview proof surfaces, and source-backed concept
+explainers. The canonical design note lives at
+`docs/design-system/primitives-variant.md`; the canonical concept page lives at
+`docs/concepts/primitives.md`.
+
+Use this variant when the page needs to explain live coordination state:
+sessions, claims, region claims, locks, channels, inboxes, tuples, activity,
+salvage, Arbiter checks, budget gates, telemetry gates, FleetBar, Fleet Control
+Center, or Shipwright.
+
+Rules:
+
+- one decisive CTA per viewport;
+- hard rules and aligned modules before decorative cards;
+- compact fact tables for proof and comparison;
+- source rows for code-backed claims;
+- black/ink for the primary action, blue for live runtime state, green for
+  evidence, amber for preview or pending gates, red for conflict;
+- no mystery download CTAs and no abstract "AI magic" copy where a concrete
+  primitive exists.
+
 ---
 
 ## 1. Typography

@@ -31,6 +31,7 @@ import {
 } from './fleet-engine.js';
 import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
 import { loadEnvFiles } from './env-loader.js';
+import { createProjectSemaphoreRegistry, type ProjectSemaphoreRegistry } from './concurrency-semaphore.js';
 import type { CostTracker } from './cost-tracker.js';
 import type { SemanticResolver } from './semantic-resolver.js';
 import type { TupleSpace } from './tuples.js';
@@ -220,6 +221,12 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
   const projectLeases = new Map<string, FleetProjectLease>();
   const projectPausedAgents = new Map<string, Set<string>>();
   const skippedProjects = new Map<string, SkippedFleet>();
+  // Project-wide concurrency semaphore registry. One Semaphore per project name.
+  // Capacity follows the canonical fleet's `limits.max_concurrent_spawns`. When
+  // multiple runners share a project (sub-fleets, monorepo packages), they all
+  // acquire from the same Semaphore, so the project-level cap is honored across
+  // runners. Spec: docs/shipwright/FLEETCONTROL-HARDENING.md §5.
+  const concurrency: ProjectSemaphoreRegistry = createProjectSemaphoreRegistry();
   let isRunning = false;
   let startedAt: number | null = null;
   let leaseRenewTimer: ReturnType<typeof setInterval> | null = null;
@@ -595,6 +602,14 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
       logger.warn('fleet_topology_warning', { project: config.name, warning: w });
     }
 
+    // Register or update the project-wide concurrency semaphore for this
+    // project's cap. If another runner already exists for the same project
+    // name (rare but possible — daemonDir + a registered project pointing at
+    // a sibling fleet), the registry resizes the existing Semaphore so all
+    // runners share the same gate.
+    const projectCap = config.limits?.maxConcurrentSpawns;
+    const projectSemaphore = concurrency.for(config.name, projectCap);
+
     const runner = createFleetRunner(config, projectDir, {
       onEvent: handleEvent,
       costTracker,
@@ -604,6 +619,7 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
       messaging: {
         subscribe: messaging.subscribe.bind(messaging),
       },
+      acquirePermit: () => projectSemaphore.acquire(),
     });
 
     return {
@@ -787,6 +803,11 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
     for (const dir of [...fleets.keys()]) {
       stopManagedFleet(dir, { releaseLease: true });
     }
+    // Drain every project semaphore. Reject waiters with a clear shutdown
+    // reason so any inflight `acquirePermit` resolves to an `agent_failed`
+    // event instead of hanging forever. Holders aren't affected — their
+    // child processes have already been SIGTERM'd by `stopManagedFleet`.
+    concurrency.drainAll('fleet daemon stopping');
     fleets.clear();
     projectLeases.clear();
     skippedProjects.clear();
@@ -1087,6 +1108,26 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
     return { success: true };
   }
 
+  /**
+   * Snapshot of every project's concurrency semaphore. Surfaces inflight,
+   * waiters, and current capacity so `pd fleet status` and the FleetControl
+   * dashboard can show "this project is at the cap, N waiting." Read-only.
+   */
+  function getConcurrencySnapshot(): Array<{ project: string; capacity: number; inflight: number; waiters: number }> {
+    return concurrency.snapshot();
+  }
+
+  /**
+   * Operator-driven resize of a project's concurrency cap. Used by SIGHUP
+   * config reload (when `limits.max_concurrent_spawns` changes) and by a
+   * future `pd fleet resize-cap <project> <n>` CLI. No-op if the project
+   * has no registered semaphore yet — caller should ensure the fleet is
+   * loaded first.
+   */
+  function resizeProjectConcurrency(project: string, newCapacity: number): void {
+    concurrency.resize(project, newCapacity);
+  }
+
   return {
     start,
     stop,
@@ -1101,5 +1142,7 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
     pauseAgent,
     resumeAgent,
     setProjectEnabledAgents,
+    getConcurrencySnapshot,
+    resizeProjectConcurrency,
   };
 }

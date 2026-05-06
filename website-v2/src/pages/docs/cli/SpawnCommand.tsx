@@ -5,7 +5,7 @@ export default function SpawnCommand() {
     <CommandPage
       command="pd spawn"
       description="Launch a one-shot agent directly through the daemon. This is the low-level spawn surface: explicit backend, explicit budget ceiling, explicit identity, and no silent premium-default inheritance."
-      version="3.11.0"
+      version="3.13.0"
       syntax="pd spawn [flags] -- <task>"
       flags={[
         { flag: '--backend <type>', description: 'Backend to use: ollama | claude | claude-cli | gemini | codex | aider | custom.' },

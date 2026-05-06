@@ -183,9 +183,7 @@ pd watch review:pass --exec './scripts/run-tests.sh'
 
 # Terminal 3: Your coding agent publishes when done
 pd pub code:ready "src/auth/login.ts"
-Watching code:ready...
-Watching review:pass...
-Message sent to code:ready`}
+# Expected result: the reviewer watcher starts first; the test watcher only runs after review:pass is published.`}
           </CodeBlock>
         </section>
 

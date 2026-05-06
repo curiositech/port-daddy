@@ -1,0 +1,105 @@
+{
+  "round_from": "v2.4",
+  "round_to": "v2.5",
+  "kind": "normal",
+  "sealed_at": "2026-05-03",
+  "lead": "secops:lead",
+  "exchanges": [
+    {
+      "id": "smell:audit:anchor:3:algorithm-confusion",
+      "class": "crypto",
+      "section": "Anchor §3",
+      "severity": "high",
+      "title": "Algorithm confusion in token verify — ProVerif: pinned verifier authenticity TRUE; naive verifier vulnerability demonstrated FALSE (counter-trace)",
+      "smell_from": "secops:lead audit (v2.4)",
+      "fix_from": "proof-completer + defense-crypto",
+      "fix_status": "landed-in-paper",
+      "artifact": "proofs/anchor/token-verify/algconfusion.pv"
+    },
+    {
+      "id": "smell:audit:anchor:3:delegation-replay",
+      "class": "crypto",
+      "section": "Anchor §3",
+      "severity": "high",
+      "title": "Delegation chain replay — ProVerif at depth 3: chain_accepted ==> chain_authorized TRUE under nonce + (prev,next,m) binding",
+      "smell_from": "secops:lead audit (v2.4)",
+      "fix_from": "proof-completer + defense-crypto",
+      "fix_status": "landed-in-paper",
+      "artifact": "proofs/anchor/delegation/chain-replay.pv"
+    },
+    {
+      "id": "smell:audit:bonded:7.x:magic-link-race",
+      "class": "recovery",
+      "section": "Bonded §7.x",
+      "severity": "high",
+      "title": "Email magic-link race — ProVerif: single-use (inj-event) TRUE under per-token private-channel cap; binding TRUE",
+      "smell_from": "secops:lead audit (v2.4)",
+      "fix_from": "proof-completer + defense-recovery",
+      "fix_status": "landed-in-paper",
+      "artifact": "proofs/bonded/recovery/magic-link.pv"
+    },
+    {
+      "id": "smell:proof-gap:bonded:8.4.4:pareto",
+      "class": "econ",
+      "section": "Bonded §8.4",
+      "severity": "high",
+      "title": "Pareto dominance — independent theorization (don't wait for Youle) + Monte Carlo (36 configs × 2000 trials) finds three quantitative boundaries beyond the patch claim",
+      "smell_from": "proof-gap-auditor (v2.1 carry, originally external)",
+      "fix_from": "defense-econ + secops:lead",
+      "fix_status": "partial",
+      "artifact": "proofs/bonded/pareto/dominance.md + proofs/bonded/pareto/simulation.mjs + proofs/bonded/pareto/simulation.run.log"
+    }
+  ],
+  "carried": [
+    {
+      "id": "smell:proof-gap:bonded:4.2:merkle-binding-mechanization",
+      "class": "proof-gap",
+      "title": "Merkle Forest binding — full EasyCrypt mechanization",
+      "reason": "v2.4 shipped impl + fast-check + game spec + EasyCrypt skeleton; full mechanization paid only when a higher-assurance audit asks"
+    },
+    {
+      "id": "smell:proof-gap:bonded:8.4.4:pareto-formalization",
+      "class": "proof-gap",
+      "title": "Pareto dominance — formal Coq/Lean mechanization of strategic game",
+      "reason": "v2.5 shipped honest theorization + Monte Carlo; formal game-theory mechanization (~1000 LOC + months) carried indefinitely behind the simulation"
+    },
+    {
+      "id": "smell:audit:anchor:2.4:cuckoo-pollution",
+      "class": "coord",
+      "title": "Cuckoo filter pollution (Anchor §2.4)",
+      "reason": "Awaits lib/cuckoo-filter.ts implementation; without code there is nothing to property-test"
+    },
+    {
+      "id": "smell:audit:bonded:8.4:sybil-insurers",
+      "class": "econ",
+      "title": "Sybil insurers (Bonded §8.4)",
+      "reason": "Scheduled v2.6: extend simulation.mjs with Sybil-attack regime; produces deposit lower bound the paper should adopt"
+    },
+    {
+      "id": "smell:audit:bonded:8.4:cartel-formal",
+      "class": "econ",
+      "title": "Insurer cartel — full repeated-game / folk-theorem analysis",
+      "reason": "v2.5 simulation already covers cartel sweeps qualitatively; formal repeated-game analysis carried"
+    }
+  ],
+  "paper_changes": [
+    "§3 Anchor token verify: cite proofs/anchor/token-verify/algconfusion.pv; explicit algorithm-pinning required at verifier; document the naive-verifier counter-trace as the failure mode",
+    "§3 Anchor delegation: cite proofs/anchor/delegation/chain-replay.pv; chain depth 3 verified; nonce + (prev,next,m) binding is load-bearing for the property",
+    "§7.x Bonded recovery: cite proofs/bonded/recovery/magic-link.pv; per-token private-channel cap pattern (modeling SQL UPDATE WHERE consumed=0 atomicity) is what makes single-use hold under concurrent attacker",
+    "§8.4 Pricing mechanism: cite proofs/bonded/pareto/dominance.md + simulation.run.log; ADD three quantitative boundaries to §8.4.4: (1) sigma_r ≤ 0.1 reputation-noise ceiling, (2) partial-cartel resilience via Vickrey, full-cartel collapse, (3) n=3 insurer optimum due to winner's-curse order-statistic effect at larger n",
+    "§A.3 Mechanization registry: A1, A2, A4 closed; A3 awaits impl; A5/A6 carried; #3 and #7 partial-closed"
+  ],
+  "infrastructure_added": [
+    "proofs/anchor/token-verify/algconfusion.pv (ProVerif: 2 RESULTs as expected — pinned TRUE, naive FALSE)",
+    "proofs/anchor/delegation/chain-replay.pv (ProVerif: 1 RESULT TRUE for depth-3 chain authenticity)",
+    "proofs/bonded/recovery/magic-link.pv (ProVerif: 2 RESULTs TRUE — inj single-use + binding)"
+  ],
+  "reputation_deltas": {
+    "proof-completer": "+3 closed (A1, A2, A4) + 1 partial (Pareto)",
+    "defense-crypto": "+2 co-signed (A1, A2)",
+    "defense-recovery": "+1 co-signed (A4)",
+    "defense-econ": "+1 co-signed (Pareto theorization + simulation)",
+    "secops:lead": "+1 (round lead, plus independent theorization credit on Pareto)",
+    "proof-gap-auditor": "+1 vindicated again (v2.4 audit promotions converted to closures in 1 round)"
+  }
+}

@@ -69,9 +69,8 @@ pd dns <command>
 Sessions, notes, recovery, and evidence:
 
 ```bash
-pd begin "purpose" [--telos "purpose tagline"]
+pd begin "purpose"
 pd done "summary"
-pd done --self-salvage --telos-verdict not-fulfilled --doable yes --why-stopped "..." --next-plan "..."
 pd whoami
 pd session <command>
 pd sessions
@@ -97,7 +96,6 @@ pd sub <channel>
 pd channels
 pd watch <channel>
 pd tube <channel>
-pd tube chat <channel>
 pd inbox <command>
 pd tuple <command>
 pd webhook <command>
@@ -108,14 +106,14 @@ pd tunnel stop <identity>
 Agents, actors, fleets, sorties, and spawn control:
 
 ```bash
-pd agent "task" [--telos "purpose tagline"]
-pd agent run <task> [--telos "purpose tagline"]
-pd agent register [--purpose "current task"] [--telos "purpose tagline"]
-pd agent heartbeat [--telos "updated purpose tagline"]
+pd agent "task"
+pd agent run <task>
+pd agent register
+pd agent heartbeat
 pd agents
 pd actors
 pd actor <id>
-pd spawn <task> --budget <usd> [--telos "purpose tagline"]
+pd spawn <task>
 pd spawn kill <agent>
 pd spawned
 pd sortie <goal>

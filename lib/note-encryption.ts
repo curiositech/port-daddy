@@ -12,7 +12,7 @@
  * written to the database.
  */
 
-import { randomBytes, createCipheriv, createDecipheriv } from 'node:crypto';
+import { randomBytes, createCipheriv, createDecipheriv, createHmac } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync, mkdirSync, statSync, chmodSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
@@ -66,7 +66,11 @@ export interface EncryptedPayload {
   /** Base64-encoded authentication tag */
   tag: string;
   /** Version marker for future algorithm changes */
-  v: 1;
+  v: 1 | 2;
+  /** Optional encryption scope for scoped key wrapping. */
+  scope?: string;
+  /** Optional scoped-key derivation marker. */
+  kdf?: 'hmac-sha256';
 }
 
 export interface NoteEncryption {
@@ -77,10 +81,10 @@ export interface NoteEncryption {
   generateSessionKey(): Buffer;
 
   /** Wrap a session key with the master key for storage */
-  wrapSessionKey(sessionKey: Buffer): string;
+  wrapSessionKey(sessionKey: Buffer, scope?: string | null): string;
 
   /** Unwrap a session key using the master key */
-  unwrapSessionKey(wrapped: string): Buffer;
+  unwrapSessionKey(wrapped: string, scope?: string | null): Buffer;
 
   /** Encrypt note content with a session key */
   encryptNote(plaintext: string, sessionKey: Buffer): string;
@@ -211,9 +215,27 @@ export function createNoteEncryption(options: NoteEncryptionOptions = {}): NoteE
     verifyPermissions(MASTER_KEY_PATH, 0o600, 'master key file');
   }
 
-  function encrypt(plaintext: Buffer, key: Buffer): EncryptedPayload {
+  function normalizeScope(scope?: string | null): string | null {
+    const trimmed = typeof scope === 'string' ? scope.trim() : '';
+    return trimmed || null;
+  }
+
+  function deriveWrappingKey(scope?: string | null): Buffer {
+    if (!masterKey) throw new Error('Note encryption not enabled');
+    const normalizedScope = normalizeScope(scope);
+    if (!normalizedScope) return masterKey;
+    return createHmac('sha256', masterKey)
+      .update('port-daddy:note-wrap:v2')
+      .update('\0')
+      .update(normalizedScope)
+      .digest();
+  }
+
+  function encrypt(plaintext: Buffer, key: Buffer, associatedData?: string | null): EncryptedPayload {
     const iv = randomBytes(IV_LENGTH);
     const cipher = createCipheriv(ALGORITHM, key, iv);
+    const aad = normalizeScope(associatedData);
+    if (aad) cipher.setAAD(Buffer.from(aad, 'utf8'));
     const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
     const tag = cipher.getAuthTag();
     return {
@@ -224,13 +246,15 @@ export function createNoteEncryption(options: NoteEncryptionOptions = {}): NoteE
     };
   }
 
-  function decrypt(payload: EncryptedPayload, key: Buffer): Buffer | null {
+  function decrypt(payload: EncryptedPayload, key: Buffer, associatedData?: string | null): Buffer | null {
     try {
       const iv = Buffer.from(payload.iv, 'base64');
       const ciphertext = Buffer.from(payload.ct, 'base64');
       const tag = Buffer.from(payload.tag, 'base64');
 
       const decipher = createDecipheriv(ALGORITHM, key, iv);
+      const aad = normalizeScope(associatedData);
+      if (aad) decipher.setAAD(Buffer.from(aad, 'utf8'));
       decipher.setAuthTag(tag);
       return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
     } catch {
@@ -247,16 +271,36 @@ export function createNoteEncryption(options: NoteEncryptionOptions = {}): NoteE
       return randomBytes(KEY_LENGTH);
     },
 
-    wrapSessionKey(sessionKey: Buffer): string {
+    wrapSessionKey(sessionKey: Buffer, scope?: string | null): string {
       if (!masterKey) throw new Error('Note encryption not enabled');
-      const payload = encrypt(sessionKey, masterKey);
+      const normalizedScope = normalizeScope(scope);
+      const payload = encrypt(sessionKey, deriveWrappingKey(normalizedScope), normalizedScope);
+      if (normalizedScope) {
+        payload.v = 2;
+        payload.scope = normalizedScope;
+        payload.kdf = 'hmac-sha256';
+      }
       return JSON.stringify(payload);
     },
 
-    unwrapSessionKey(wrapped: string): Buffer {
+    unwrapSessionKey(wrapped: string, scope?: string | null): Buffer {
       if (!masterKey) throw new Error('Note encryption not enabled');
       const payload: EncryptedPayload = JSON.parse(wrapped);
-      const result = decrypt(payload, masterKey);
+      const payloadScope = normalizeScope(payload.scope);
+      const expectedScope = normalizeScope(scope);
+      let result: Buffer | null;
+
+      if (payload.v === 2 || payloadScope) {
+        if (!payloadScope) throw new Error('Scoped wrapped key missing scope');
+        if (expectedScope && expectedScope !== payloadScope) {
+          throw new Error('Wrapped session key scope mismatch');
+        }
+        result = decrypt(payload, deriveWrappingKey(payloadScope), payloadScope);
+      } else {
+        // Legacy v1 wraps used the install master key directly. Keep them
+        // readable so old session notes do not become orphaned.
+        result = decrypt(payload, masterKey);
+      }
       if (!result) throw new Error('Failed to unwrap session key — master key mismatch?');
       return result;
     },
@@ -280,7 +324,9 @@ export function createNoteEncryption(options: NoteEncryptionOptions = {}): NoteE
     isEncrypted(content: string): boolean {
       try {
         const parsed = JSON.parse(content);
-        return parsed.v === 1 && parsed.iv && parsed.ct && parsed.tag;
+        if (!parsed.iv || !parsed.ct || !parsed.tag) return false;
+        if (parsed.v === 1) return true;
+        return parsed.v === 2 && typeof parsed.scope === 'string' && parsed.kdf === 'hmac-sha256';
       } catch {
         return false;
       }

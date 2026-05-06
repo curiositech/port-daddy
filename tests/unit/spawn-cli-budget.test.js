@@ -83,8 +83,6 @@ describe('pd spawn budget enforcement', () => {
       identity: 'port-daddy:repo:cli',
       budgetUsd: 0.75,
     });
-    expect(body.idempotencyKey).toEqual(expect.any(String));
-    expect(mockPdFetch.mock.calls[0][1].headers['Idempotency-Key']).toBe(body.idempotencyKey);
   });
 
   test('forwards model tier when requested', async () => {
@@ -106,47 +104,6 @@ describe('pd spawn budget enforcement', () => {
 
     const body = JSON.parse(mockPdFetch.mock.calls[0][1].body);
     expect(body.modelTier).toBe('low');
-  });
-
-  test('uses a stable idempotency key for retrying the same spawn command', async () => {
-    mockPdFetch.mockResolvedValue(response(true, {
-      success: true,
-      status: 'completed',
-      agentId: 'spawned-retry',
-      backend: 'codex',
-      model: 'gpt-5.4-mini',
-      output: 'done',
-    }));
-
-    await handleSpawn(['review the diff'], {
-      backend: 'codex',
-      tier: 'low',
-      budget: '0.25',
-      quiet: true,
-    });
-    await handleSpawn(['review the diff'], {
-      backend: 'codex',
-      tier: 'low',
-      budget: '0.25',
-      quiet: true,
-    });
-
-    const firstBody = JSON.parse(mockPdFetch.mock.calls[0][1].body);
-    const secondBody = JSON.parse(mockPdFetch.mock.calls[1][1].body);
-    expect(secondBody.idempotencyKey).toBe(firstBody.idempotencyKey);
-  });
-
-  test('kills spawned agents without sending an empty JSON body', async () => {
-    mockPdFetch.mockResolvedValueOnce(response(true, {
-      success: true,
-      agentId: 'spawned-123',
-    }));
-
-    await handleSpawn(['kill', 'spawned-123'], { quiet: true });
-
-    expect(mockPdFetch).toHaveBeenCalledWith('/spawn/spawned-123', {
-      method: 'DELETE',
-    });
   });
 
   test('fails fast when budget is missing', async () => {

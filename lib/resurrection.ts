@@ -13,7 +13,8 @@
 import type Database from 'better-sqlite3';
 import { EventEmitter } from 'events';
 import { patternToSql } from './identity.js';
-import type { SelfSalvageCapsule } from './telos-salvage.js';
+
+export type SalvageQueueStatus = 'pending' | 'stale' | 'dead' | 'resurrecting';
 
 export interface StaleAgent {
   id: string;
@@ -22,9 +23,8 @@ export interface StaleAgent {
   sessionId: string | null;
   lastHeartbeat: number;
   staleSince: number;
-  status: 'stale' | 'dead' | 'resurrecting';
+  status: SalvageQueueStatus;
   notes?: string[];
-  selfSalvage?: SelfSalvageCapsule;
   // Semantic identity components for prefix filtering
   identityProject: string | null;
   identityStack: string | null;
@@ -70,7 +70,6 @@ interface ResurrectionDeps {
 interface QueueMetadata {
   lastHeartbeat?: number;
   notes?: unknown;
-  selfSalvage?: SelfSalvageCapsule;
 }
 
 export function createResurrection(db: Database.Database, deps: ResurrectionDeps = {}) {
@@ -239,9 +238,8 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
       sessionId: row.session_id,
       lastHeartbeat: metadata.lastHeartbeat || 0,
       staleSince: row.detected_at,
-      status: row.status as 'stale' | 'dead' | 'resurrecting',
+      status: row.status as SalvageQueueStatus,
       notes: notesForRow(row, metadata),
-      selfSalvage: metadata.selfSalvage,
       identityProject: row.identity_project,
       identityStack: row.identity_stack,
       identityContext: row.identity_context,
@@ -321,51 +319,6 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
       }
 
       return { status, queued: existing.status === 'pending' };
-    },
-
-    /**
-     * Voluntarily queue unfinished work when the agent can explain why its
-     * telos was not fulfilled and how the next iteration can continue.
-     */
-    selfSalvage(agent: {
-      id: string;
-      name: string;
-      purpose?: string | null;
-      sessionId?: string | null;
-      lastHeartbeat?: number;
-      notes?: string[];
-      selfSalvage: SelfSalvageCapsule;
-      identityProject?: string | null;
-      identityStack?: string | null;
-      identityContext?: string | null;
-    }) {
-      const now = Date.now();
-      const metadata = JSON.stringify({
-        lastHeartbeat: agent.lastHeartbeat || now,
-        notes: agent.notes,
-        selfSalvage: agent.selfSalvage,
-      });
-
-      stmts.queue.run(
-        agent.id,
-        agent.name,
-        agent.sessionId || null,
-        agent.purpose || null,
-        now,
-        'pending',
-        0,
-        null,
-        metadata,
-        agent.identityProject || null,
-        agent.identityStack || null,
-        agent.identityContext || null
-      );
-
-      return {
-        success: true,
-        queued: true,
-        agent: formatQueueEntry(stmts.get.get(agent.id) as ResurrectionQueueRow),
-      };
     },
 
     /**

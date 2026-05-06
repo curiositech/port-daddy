@@ -45,6 +45,22 @@ jest.unstable_mockModule('child_process', () => ({
     stdout: '',
     stderr: ''
   })),
+  execSync: jest.fn(),
+  execFileSync: jest.fn(),
+}));
+
+jest.unstable_mockModule('node:child_process', () => ({
+  spawn: jest.fn(() => {
+    mockProc = createMockProcess();
+    return mockProc;
+  }),
+  spawnSync: jest.fn(() => ({
+    status: 1,
+    stdout: '',
+    stderr: ''
+  })),
+  execSync: jest.fn(),
+  execFileSync: jest.fn(),
 }));
 
 const { spawn: cpSpawn, spawnSync: cpSpawnSync } = await import('child_process');

@@ -86,9 +86,7 @@ SUCCESS: Agent Review flaky auth tests ready and tests/auth/login.test.ts claime
             {`pd whoami
 
 pd note "Running the auth suite before editing login flow"
-Agent:    Fix auth bug
-Session:  session-fix-auth-bug
-SUCCESS: Note added to session session-fix-auth-bug`}
+# Expected result: whoami shows the active session, then the note is recorded on that session.`}
           </CodeBlock>
           <Surface depth="flat" radius="none" padding="lg">
             <p className="m-0">
@@ -108,9 +106,7 @@ SUCCESS: Note added to session session-fix-auth-bug`}
           </p>
           <CodeBlock copyable={false} language="bash">
             {`pd with-lock db-migrations npm run migrate
-SUCCESS: Lock "db-migrations" acquired
-> npm run migrate
-SUCCESS: Lock "db-migrations" released`}
+# Expected result: the migration command runs while the db-migrations lock is held, then releases it.`}
           </CodeBlock>
           <p>
             If the command exits or crashes, Port Daddy still cleans up the
@@ -130,8 +126,7 @@ SUCCESS: Lock "db-migrations" released`}
             {`pd done "Auth test fixes landed with notes and claims released"
 
 pd salvage
-SUCCESS: Session completed
-No recoverable work found`}
+# Expected result: the finished session is absent from active work and salvage has no stranded copy.`}
           </CodeBlock>
         </section>
       </div>

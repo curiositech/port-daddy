@@ -1,5 +1,4 @@
 import XCTest
-import Foundation
 import SwiftUI
 import ViewInspector
 @testable import FleetBar
@@ -188,84 +187,6 @@ final class FleetPopoverTests: XCTestCase {
         XCTAssertEqual(store.menuBarTone, .warning)
     }
 
-    func testProjectMenuGroupsCollapseSiblingWorktrees() {
-        let groupId = "/repo/port-daddy/.git"
-        let primary = project(
-            id: "/repo/port-daddy",
-            name: "port-daddy",
-            agents: [],
-            worktree: ProjectWorktreeInfo(
-                isGitWorktree: true,
-                isLinkedWorktree: false,
-                groupId: groupId,
-                groupName: "port-daddy",
-                mainWorktreeRoot: "/repo/port-daddy",
-                worktreeName: "port-daddy",
-                branch: "main",
-                head: nil
-            )
-        )
-        let feature = project(
-            id: "/repo/port-daddy-feature",
-            name: "port-daddy-feature",
-            agents: [],
-            worktree: ProjectWorktreeInfo(
-                isGitWorktree: true,
-                isLinkedWorktree: true,
-                groupId: groupId,
-                groupName: "port-daddy",
-                mainWorktreeRoot: "/repo/port-daddy",
-                worktreeName: "port-daddy-feature",
-                branch: "codex/worktree-picker",
-                head: nil
-            )
-        )
-        let other = project(id: "/repo/workgroup-ai", name: "workgroup-ai", agents: [])
-
-        let groups = makeProjectMenuGroups([feature, other, primary])
-        let worktreeGroup = groups.first { $0.id == "worktree:\(groupId)" }
-
-        XCTAssertEqual(groups.filter(\.isWorktreeGroup).count, 1)
-        XCTAssertEqual(worktreeGroup?.label, "port-daddy worktrees")
-        XCTAssertEqual(worktreeGroup?.detail, "2 checkouts")
-        XCTAssertEqual(worktreeGroup?.projects.map(\.id), [primary.id, feature.id])
-        XCTAssertTrue(groups.contains { $0.id == "project:/repo/workgroup-ai" })
-    }
-
-    func testNativeWorktreeDetectorReadsGitFileAndCommonDir() throws {
-        let workspace = FileManager.default.temporaryDirectory
-            .appendingPathComponent("FleetBarWorktree-\(UUID().uuidString)", isDirectory: true)
-        let primary = workspace.appendingPathComponent("port-daddy", isDirectory: true)
-        let linked = workspace.appendingPathComponent("port-daddy-feature", isDirectory: true)
-        let primaryGit = primary.appendingPathComponent(".git", isDirectory: true)
-        let linkedGit = primaryGit
-            .appendingPathComponent("worktrees", isDirectory: true)
-            .appendingPathComponent("port-daddy-feature", isDirectory: true)
-        defer {
-            try? FileManager.default.removeItem(at: workspace)
-        }
-
-        try FileManager.default.createDirectory(at: primaryGit, withIntermediateDirectories: true)
-        try FileManager.default.createDirectory(at: linkedGit, withIntermediateDirectories: true)
-        try FileManager.default.createDirectory(at: linked, withIntermediateDirectories: true)
-        try "ref: refs/heads/main\n".write(to: primaryGit.appendingPathComponent("HEAD"), atomically: true, encoding: .utf8)
-        try "../..\n".write(to: linkedGit.appendingPathComponent("commondir"), atomically: true, encoding: .utf8)
-        try "ref: refs/heads/codex/worktree-picker\n".write(to: linkedGit.appendingPathComponent("HEAD"), atomically: true, encoding: .utf8)
-        try "gitdir: \(linkedGit.path)\n".write(to: linked.appendingPathComponent(".git"), atomically: true, encoding: .utf8)
-
-        let primaryInfo = try XCTUnwrap(detectLocalWorktreeInfo(projectDir: primary.path))
-        let linkedInfo = try XCTUnwrap(detectLocalWorktreeInfo(projectDir: linked.path))
-
-        XCTAssertFalse(primaryInfo.isLinkedWorktree)
-        XCTAssertEqual(primaryInfo.groupId, primaryGit.path)
-        XCTAssertEqual(primaryInfo.branch, "main")
-        XCTAssertTrue(linkedInfo.isLinkedWorktree)
-        XCTAssertEqual(linkedInfo.groupId, primaryInfo.groupId)
-        XCTAssertEqual(linkedInfo.groupName, "port-daddy")
-        XCTAssertEqual(linkedInfo.worktreeName, "port-daddy-feature")
-        XCTAssertEqual(linkedInfo.branch, "codex/worktree-picker")
-    }
-
     func testAgentRowShowsCodexTelemetryRecoveryHint() throws {
         let reason = "Failed: Exact telemetry required, but codex did not return token counts."
         let row = AgentRow(
@@ -313,17 +234,11 @@ final class FleetPopoverTests: XCTestCase {
         XCTAssertNoThrow(try inspected.find(text: purpose))
     }
 
-    private func project(
-        id: String = "/tmp/port-daddy-test",
-        name: String = "port-daddy-test",
-        agents: [FleetAgent],
-        worktree: ProjectWorktreeInfo? = nil
-    ) -> FleetProject {
+    private func project(agents: [FleetAgent]) -> FleetProject {
         FleetProject(
-            id: id,
-            name: name,
-            projectDir: id,
-            worktree: worktree,
+            id: "/tmp/port-daddy-test",
+            name: "port-daddy-test",
+            projectDir: "/tmp/port-daddy-test",
             agents: agents
         )
     }

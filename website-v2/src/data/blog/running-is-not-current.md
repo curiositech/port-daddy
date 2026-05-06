@@ -198,17 +198,11 @@ When debugging a runtime-facing issue, use a small repeatable loop:
 <!-- terminal -->
 ```bash
 $ pd status --json
-{"running":true,"version":"3.11.0","runtime":"nominal"}
 $ pd fleet projects --json
-{"projects":[{"name":"acme-web","projectDir":"/workspace/acme-web"}]}
 $ pd doctor
-SUCCESS: Port Daddy doctor found no blocking runtime drift
 $ npm --prefix website-v2 run build
-✓ built in 4.2s
 $ pd restart
-SUCCESS: Daemon restarted
 $ pd status --json
-{"running":true,"version":"3.11.0","runtime":"nominal"}
 ```
 
 Then verify the actual surface:

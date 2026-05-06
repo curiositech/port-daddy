@@ -117,13 +117,9 @@ A cold-start flow can infer a surprising amount before asking the human for a pr
 <!-- terminal -->
 ```bash
 $ pd setup
-SUCCESS: Setup complete
 $ pd status
-Port Daddy is running
 $ pd scan
-Detected project acme-web: node, tests, docs, git hooks
 $ pd fleet propose --project acme-web
-Proposal written: .portdaddy/fleet-proposal.yml
 ```
 
 The interesting part is not the exact command names. The interesting part is the shape of the evidence:

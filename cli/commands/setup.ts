@@ -35,6 +35,11 @@ function findProjectRoot(start: string): string {
   return join(start, '..', '..');
 }
 const PROJECT_ROOT = findProjectRoot(__dirname);
+
+// Canonical agent-skill id. Single source of truth so renames propagate across
+// brew install paths, repo source path, and every runtime mirror without
+// drift.
+const AGENT_SKILL_ID = 'port-daddy-agent-skill';
 const TSX_BIN = join(PROJECT_ROOT, 'node_modules', '.bin', 'tsx');
 const INSTALL_DAEMON_SCRIPT = join(PROJECT_ROOT, 'install-daemon.ts');
 const FLEETBAR_INSTALL_SCRIPT = join(PROJECT_ROOT, 'apps', 'FleetBar', 'install.sh');
@@ -139,9 +144,9 @@ export function resolveSkillSource(): string | null {
   const brew = spawnSync('brew', ['--prefix'], { encoding: 'utf8' });
   if (brew.status === 0) {
     const prefix = brew.stdout.trim();
-    candidates.push(join(prefix, 'share', 'port-daddy', 'skills', 'port-daddy'));
+    candidates.push(join(prefix, 'share', 'port-daddy', 'skills', AGENT_SKILL_ID));
   }
-  candidates.push(join(PROJECT_ROOT, 'skills', 'port-daddy-agent-skill'));
+  candidates.push(join(PROJECT_ROOT, 'skills', AGENT_SKILL_ID));
 
   return candidates.find((p) => existsSync(join(p, 'SKILL.md'))) ?? null;
 }
@@ -163,18 +168,22 @@ export function installSkillSymlinksAt(baseDir: string, scope: 'user' | 'project
   }
 
   const targets: { path: string; runtime: string; mode: 'dir' | 'file' }[] = [
+    // Codex CLI — first-party fleet runtime.
+    { path: join(baseDir, '.codex', 'skills', AGENT_SKILL_ID), runtime: 'Codex CLI', mode: 'dir' },
     // Claude Code & Desktop — per-scope skills directory.
-    { path: join(baseDir, '.claude', 'skills', 'port-daddy'), runtime: 'Claude Code', mode: 'dir' },
+    { path: join(baseDir, '.claude', 'skills', AGENT_SKILL_ID), runtime: 'Claude Code', mode: 'dir' },
+    // Generic agents directory — runtime-agnostic skill drop point.
+    { path: join(baseDir, '.agents', 'skills', AGENT_SKILL_ID), runtime: 'Generic agent', mode: 'dir' },
     // Windsurf — Codeium agent runtime.
-    { path: join(baseDir, '.codeium', 'windsurf', 'skills', 'port-daddy'), runtime: 'Windsurf', mode: 'dir' },
+    { path: join(baseDir, '.codeium', 'windsurf', 'skills', AGENT_SKILL_ID), runtime: 'Windsurf', mode: 'dir' },
     // Continue — VS Code extension; uses .continue prompts dir.
-    { path: join(baseDir, '.continue', 'prompts', 'port-daddy'), runtime: 'Continue', mode: 'dir' },
+    { path: join(baseDir, '.continue', 'prompts', AGENT_SKILL_ID), runtime: 'Continue', mode: 'dir' },
     // Cline / Roo — Claude-Dev-style extensions read from this dir.
-    { path: join(baseDir, '.config', 'cline', 'skills', 'port-daddy'), runtime: 'Cline', mode: 'dir' },
+    { path: join(baseDir, '.config', 'cline', 'skills', AGENT_SKILL_ID), runtime: 'Cline', mode: 'dir' },
     // Gemini CLI — extensions live here.
-    { path: join(baseDir, '.gemini', 'extensions', 'port-daddy', 'skills', 'port-daddy'), runtime: 'Gemini CLI', mode: 'dir' },
-    // Cursor — single-file rule format. Project-local: <project>/.cursor/rules/port-daddy.md
-    { path: join(baseDir, '.cursor', 'rules', 'port-daddy.md'), runtime: 'Cursor', mode: 'file' },
+    { path: join(baseDir, '.gemini', 'extensions', 'port-daddy', 'skills', AGENT_SKILL_ID), runtime: 'Gemini CLI', mode: 'dir' },
+    // Cursor — single-file rule format. Project-local: <project>/.cursor/rules/port-daddy-agent-skill.md
+    { path: join(baseDir, '.cursor', 'rules', `${AGENT_SKILL_ID}.md`), runtime: 'Cursor', mode: 'file' },
   ];
 
   let linkedCount = 0;

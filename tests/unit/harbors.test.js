@@ -27,7 +27,7 @@ describe('Harbors Module', () => {
 
   // ─── Create ───────────────────────────────────────────────────────────────
 
-  describe('create (12 tests)', () => {
+  describe('create', () => {
     it('should create a harbor with minimal options', () => {
       const result = harbors.create('myapp:security-review');
 
@@ -110,6 +110,17 @@ describe('Harbors Module', () => {
       const got = harbors.get('myapp:dup');
       expect(got).not.toBeNull();
       // Original capabilities preserved (OR IGNORE didn't overwrite)
+      expect(got.capabilities).toEqual(['code:read']);
+    });
+
+    it('should backfill missing scope on an existing harbor without replacing capabilities', () => {
+      harbors.create('myapp:dup-scope', { capabilities: ['code:read'] });
+
+      const result = harbors.create('myapp:dup-scope', { scope: 'myapp', capabilities: ['code:write'] });
+
+      expect(result.success).toBe(true);
+      const got = harbors.get('myapp:dup-scope');
+      expect(got.scope).toBe('myapp');
       expect(got.capabilities).toEqual(['code:read']);
     });
 

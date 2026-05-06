@@ -70,6 +70,18 @@ describe('wrapSessionKey() / unwrapSessionKey()', () => {
     expect(Buffer.compare(unwrapped, sessionKey)).toBe(0);
   });
 
+  test('wraps session keys with a harbor scope when supplied', () => {
+    const sessionKey = enc.generateSessionKey();
+    const wrapped = enc.wrapSessionKey(sessionKey, 'workgroup-ai:fleet');
+    const parsed = JSON.parse(wrapped);
+
+    expect(parsed.v).toBe(2);
+    expect(parsed.scope).toBe('workgroup-ai:fleet');
+    expect(parsed.kdf).toBe('hmac-sha256');
+    expect(Buffer.compare(enc.unwrapSessionKey(wrapped, 'workgroup-ai:fleet'), sessionKey)).toBe(0);
+    expect(() => enc.unwrapSessionKey(wrapped, 'port-daddy:fleet')).toThrow(/scope mismatch/);
+  });
+
   test('different session keys produce different wrapped outputs', () => {
     const k1 = enc.generateSessionKey();
     const k2 = enc.generateSessionKey();

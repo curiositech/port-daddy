@@ -30,15 +30,15 @@ const META_MONO_CLASS =
 const TRACKS = [
   {
     label: 'Harbor first',
-    detail: 'Create the project boundary, then install, join, and verify the local control plane.',
+    detail: 'Create the project boundary, then install, join, and verify the local control plane before agents act.',
   },
   {
     label: 'Agent work loops',
-    detail: 'Sessions, notes, file claims, inboxes, channels, and phase-aware handoff inside the harbor.',
+    detail: 'Sessions, notes, file claims, inboxes, channels, and phase-aware handoffs inside the boundary.',
   },
   {
     label: 'Automation paths',
-    detail: 'Spawned agents, watchers, pipelines, fleets, resource checks, and recovery.',
+    detail: 'Spawned agents, watchers, pipelines, fleets, resource checks, launch gates, and recovery.',
   },
 ]
 
@@ -55,13 +55,13 @@ export function TutorialsPage() {
             <div className="space-y-[var(--space-6)]">
               <PanelEyebrow>Operator training</PanelEyebrow>
               <PanelTitle as="h1" size="hero" className="max-w-[12ch]">
-                Start in the harbor. Then coordinate agents.
+                Learn the control plane like an operator.
               </PanelTitle>
               <PanelBody size="default" className="max-w-[42rem] text-[length:var(--text-lg)]">
-                Port Daddy is not a generic automation tutorial with a few agent
-                screens tacked on. The harbor is the project boundary. Inside it, agents can leave
-                notes, claim files, publish channel events, launch jobs, inspect runtime
-                state, and recover work without losing accountability.
+                These tutorials are for engineers evaluating real coding-agent infrastructure.
+                Start with a project boundary, then learn how agents leave notes, claim files,
+                publish events, launch jobs, inspect runtime state, and recover work without
+                losing accountability.
               </PanelBody>
             </div>
 
@@ -171,7 +171,7 @@ export function TutorialsPage() {
               <div className="space-y-[var(--space-4)]">
                 <PanelEyebrow>Product-truth curriculum</PanelEyebrow>
                 <PanelTitle as="h2" size="section" className="max-w-[12ch]">
-                  Learn the live system, not folklore.
+                  Learn the live system, not demo folklore.
                 </PanelTitle>
                 <PanelBody size="default" className="max-w-[44rem]">
                   Lessons are written against the current harbor-first product model and

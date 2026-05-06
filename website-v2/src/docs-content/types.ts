@@ -1,14 +1,55 @@
 export type ContentTruth = 'source-backed' | 'blocked'
 
-type TerminalCommandOutput =
-  | {
-      output: string
-      exempt?: never
-    }
-  | {
-      exempt: 'install'
-      output?: string
-    }
+export interface InlineLink {
+  label: string
+  href: string
+}
+
+export interface PrimitiveFamily {
+  family: string
+  question: string
+  summary: string
+  tone: 'ink' | 'blue' | 'green' | 'amber' | 'red'
+  links: InlineLink[]
+}
+
+export interface PrimitiveLayer {
+  layer: string
+  encodes: string
+  reason: string
+  links: InlineLink[]
+  example: {
+    command: string
+    output: string
+  }
+}
+
+export interface PrimitiveChoice {
+  need: string
+  use: InlineLink[]
+  avoid: string
+}
+
+export interface PrimitiveCitationGroup {
+  title: string
+  summary: string
+  websiteDocs: InlineLink[]
+  runtimeCode: InlineLink[]
+  skillDossiers: InlineLink[]
+}
+
+export interface PrimitiveMapContent {
+  eyebrow: string
+  title: string
+  deck: string
+  thesis: string
+  operatorQuestions: string[]
+  families: PrimitiveFamily[]
+  layers: PrimitiveLayer[]
+  choices: PrimitiveChoice[]
+  citations: PrimitiveCitationGroup[]
+  skillTrail: InlineLink[]
+}
 
 export type ContentBlock =
   | {
@@ -19,14 +60,23 @@ export type ContentBlock =
     }
   | {
       type: 'checklist'
+      title?: string
+      tone?: 'paper' | 'blue' | 'accent'
       items: string[]
     }
-  | ({
+  | {
       type: 'command'
       title: string
       command: string
       notes?: string[]
-    } & TerminalCommandOutput)
+      output?: string
+    }
+  | {
+      type: 'mermaid'
+      title: string
+      chart: string
+      caption?: string
+    }
   | {
       type: 'callout'
       tone: 'info' | 'warning'
@@ -44,6 +94,8 @@ export interface DocsContentPage {
   title: string
   summary: string
   truth: ContentTruth
+  variant?: 'primitive-map'
+  primitiveMap?: PrimitiveMapContent
   goals: string[]
   blocks: ContentBlock[]
   sources: SourceReference[]

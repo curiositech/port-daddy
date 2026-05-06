@@ -38,6 +38,7 @@ import { sitrepPlugin } from './sitrep.js';
 import { arbiterPlugin } from './arbiter.js';
 import { pheromonePlugin } from './pheromone.js';
 import { tuplesPlugin } from './tuples.js';
+import { blobPlugin } from './blob.js';
 import { fleetPlugin } from './fleet.js';
 import { observabilityPlugin } from './observability.js';
 import { mergeQueuePlugin } from './merge-queue.js';
@@ -56,7 +57,10 @@ import { advisorPlugin } from './advisor.js';
 import { quorumPlugin } from './quorum.js';
 import { resourcesPlugin } from './resources.js';
 import { feedbackPlugin } from './feedback.js';
+import { shipwrightPlugin } from './shipwright.js';
 import { usagePlugin } from './usage.js';
+import { testHooksPlugin } from './test-hooks.js';
+import { cockpitPlugin } from './cockpit.js';
 
 type AnyDeps = Record<string, unknown>;
 
@@ -121,6 +125,12 @@ export async function registerAllRoutes(
     await fastify.register(tuplesPlugin, { tuples: tupleDeps } as any);
   }
 
+  // Blob store (Phase 0 of tube-as-coordination-substrate roadmap).
+  // Filesystem-only — registers iff a blob store dep was constructed.
+  if ((deps as any).blobs) {
+    await fastify.register(blobPlugin, { deps } as any);
+  }
+
   // Fleet daemon (always-on fleet management) — fleetDaemon, messaging, logger are in deps
   if ((deps as any).fleetDaemon) {
     await fastify.register(fleetPlugin, { deps } as any);
@@ -177,8 +187,28 @@ export async function registerAllRoutes(
     await fastify.register(feedbackPlugin, { deps } as any);
   }
 
+  // Shipwright — survey/propose/apply for fleet authoring.
+  // Always mounts; LLM augmentation is opt-in and degrades if no client wired.
+  await fastify.register(shipwrightPlugin, {
+    deps: {
+      llmClient: (deps as any).llmClient,
+      defaultLlmModel: (deps as any).defaultLlmModel,
+    },
+  });
+
   // Usage telemetry — local product instrumentation for CLI/SDK/MCP/UI/daemon.
   if ((deps as any).usageTelemetry) {
     await fastify.register(usagePlugin, { deps } as any);
   }
+
+  // Test-only hooks. Self-degrades to no-op when NODE_ENV !== 'test'. Used
+  // by the integration suite to drive the budget-kill chain end-to-end
+  // (spec docs/shipwright/FLEETCONTROL-HARDENING.md §6.2).
+  if ((deps as any).costTracker) {
+    await fastify.register(testHooksPlugin, { deps } as any);
+  }
+
+  // App-Native Development Cockpit — read-only roadmap intake. Pure-function
+  // markdown reader, no extra deps required.
+  await fastify.register(cockpitPlugin, { deps } as any);
 }

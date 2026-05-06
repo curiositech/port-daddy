@@ -92,7 +92,7 @@
 \fancyhf{}
 \fancyhead[L]{\small\textit{The Bonded Commons}}
 \fancyhead[R]{\small\thepage}
-\fancyfoot[C]{\small Port Daddy v3.8.0}
+\fancyfoot[C]{\small Port Daddy v3.9 --- pre-release}
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0pt}
 
@@ -108,9 +108,13 @@
 \author{
   \textbf{Erich Owens}\\[0.2cm]
   The Port Daddy Engineering Team\\[0.2cm]
-  \texttt{engineering@portdaddy.dev}
+  \texttt{engineering@portdaddy.dev}\\[0.4cm]
+  with the competitive-insurance pricing mechanism (\S\ref{sec:youle}) by\\[0.1cm]
+  \textbf{Thomas Youle}\\[0.1cm]
+  Business Economics \& Public Policy\\[0.1cm]
+  Indiana University
 }
-\date{March 2026\\Version 1.0}
+\date{April 2026\\Version 2.0 (pre-print)}
 
 % ─── Document ────────────────────────────────────────────────────────────────
 \begin{document}
@@ -121,7 +125,7 @@
 \vspace{1cm}
 
 \begin{abstract}\noindent
-There will be no AI economy without trust, and trust cannot be earned peer-to-peer at every transaction. This paper argues that multi-agent collaboration at scale requires a \textbf{commons authority}---a pre-transactional trust infrastructure that removes trust negotiation from the critical path of work. We present a three-layer architecture: \emph{structural prevention} via capability-attenuated tokens that physically bound agent scope, \emph{immutable attribution} via Merkle-chained evidence trails that make anonymous harm impossible, and \emph{economic alignment} via collateralized work contracts that pre-fund damage regardless of agent intent. We formalize these layers in the context of Port Daddy, a coordination daemon for local agent swarms, and show that the resulting system does not require agents to be trustworthy, to share values, or to fear punishment. It requires only that their principals post collateral proportional to the risk their agents impose on the commons. We ground the advisory (non-enforced) design of the resource claim system in Sen's Impossibility of a Paretian Liberal, showing that enforced allocation with private agent knowledge is provably suboptimal, and that the commons authority's role is to provide shared information, not to make allocation decisions.
+There will be no AI economy without trust, and trust cannot be earned peer-to-peer at every transaction. This paper argues that multi-agent collaboration at scale requires a \textbf{commons authority}---a pre-transactional trust infrastructure that removes trust negotiation from the critical path of work. We present a three-layer architecture: \emph{structural prevention} via capability-attenuated tokens that physically bound agent scope, \emph{immutable attribution} via Merkle-chained evidence trails that make anonymous harm impossible, and \emph{economic alignment} via collateralized work contracts that pre-fund damage regardless of agent intent. We formalize these layers in the context of Port Daddy, a coordination daemon for local agent swarms, and show that the resulting system does not require agents to be trustworthy, to share values, or to fear punishment. It requires only that their principals post collateral proportional to the risk their agents impose on the commons. We ground the advisory (non-enforced) design of the resource claim system in Sen's Impossibility of a Paretian Liberal, showing that enforced allocation with private agent knowledge is provably suboptimal, and that the commons authority's role is to provide shared information, not to make allocation decisions. We further show how the commons authority can be equipped with a \emph{mutable-signal ledger} (\S\ref{sec:pheromones}) that supports revocation, renaming, and provenance-aware propagation of coordination hints without sacrificing attribution integrity. Finally, we describe a competitive-insurance pricing mechanism (\S\ref{sec:youle}, contributed by Youle) in which insurer agents bid to underwrite agent transactions, replacing static parameter selection with market-discovered bond prices.
 \end{abstract}
 
 \vspace{0.5cm}
@@ -290,15 +294,61 @@ The evidence trail is immutable by construction. No \texttt{UPDATE} or targeted 
 By code inspection of the session module: the note insertion API performs only \texttt{INSERT INTO session\_notes}. The only deletion path is \texttt{DELETE FROM sessions WHERE id = ?}, which triggers \texttt{ON DELETE CASCADE}. Since transaction completion (commit or abort) updates the session's \emph{status} field but does not delete the session row, notes survive all normal lifecycle transitions.
 \end{proof}
 
-\subsection{Merkle-Chained Auditability}
+\subsection{The Merkle Forest: Cross-Daemon Inclusion Proofs}\label{sec:merkle-forest}
 
-For high-assurance environments, the evidence trail can be strengthened to a \textbf{Merkle chain}: each note includes the SHA-256 hash of the previous note, and the session's completion produces a Merkle root over all notes and artifact hashes~\cite{owens2026anchor}. This provides:
+For high-assurance environments and for fleets spanning multiple daemons, the evidence trail is strengthened to a three-level \textbf{Merkle Forest}. The single-daemon Merkle chain---each note hashing the previous, with a per-session root---is necessary but not sufficient: the moment two daemons exist, an auditor without database access still needs to verify that a particular note was included in a particular session using only a short proof.
 
-\begin{itemize}[nosep]
-  \item \textbf{Tamper evidence}: modifying any note invalidates all subsequent hashes.
-  \item \textbf{Completeness proof}: the Merkle root is a cryptographic commitment to the full evidence trail.
-  \item \textbf{Decentralized verification}: agents can independently verify the trail without trusting the commons authority's database.
-\end{itemize}
+\begin{definition}[Merkle Forest]\label{def:merkle-forest}
+The evidence structure has three levels:
+\begin{description}[nosep]
+  \item[Note chain.] Each note's header includes $h_i = H(n_i \mathbin{\|} h_{i-1})$ over SHA-256. The session's note commitment is $h_k$, the hash of the last note.
+  \item[Session root.] All note hashes $(h_1,\ldots,h_k)$ are assembled into a Merkle binary tree with root $R_{\text{session}}$. The chain commits to order; the tree commits to presence with $O(\log k)$ proofs.
+  \item[Harbor root.] Periodically (per-settlement, or hourly), every completed session root within a harbor is assembled into a harbor Merkle tree with root $R_{\text{harbor},\ell}$ at epoch $\ell$, signed by the daemon's Ed25519 key.
+\end{description}
+The collection $\{R_{\text{harbor},\ell}\}_{\ell}$ is the \emph{Merkle forest}: one tree per epoch.
+\end{definition}
+
+\paragraph{Inclusion proofs.} To prove that note $n_i$ from session $s$ belongs to harbor $h$ at epoch $\ell$, the daemon emits: (i) the note inclusion path of size $O(\log k)$, (ii) the session inclusion path of size $O(\log N)$ where $N$ is the number of settled sessions in the epoch, and (iii) the signed harbor root $\sigma_{\text{daemon}}(R_{\text{harbor},\ell})$. For $k=100$ notes and $N=10^{4}$ sessions, the total proof is $\approx 20 \times 32$ bytes $+\,64$-byte signature $\approx$ 700 bytes---small enough to embed in any settlement receipt.
+
+\paragraph{Witness to an abstract KMS.} Each $R_{\text{harbor},\ell}$ is uploaded as a \textbf{witness} to a Key Management Service satisfying the properties enumerated in \S\ref{sec:federated-sovereign}. The KMS enforces append-only monotonicity and periodically publishes a signed tree head, in the Certificate Transparency pattern~\cite{laurie2013ct}. Equivocation---publishing different roots for the same epoch to different parties---is detectable by auditors performing consistency proofs across tree heads.
+
+\begin{property}[Proof Soundness]\label{prop:proof-sound}
+If \textsc{verify-note-inclusion}$(n,s,h,\ell,\pi)$ returns \texttt{true} for some proof $\pi$, then either (a) $n$ was included in session $s$ at epoch $\ell$, or (b) the daemon's signing key has been compromised, or (c) SHA-256 has been broken. Under standard assumptions, (b) and (c) are computationally infeasible.
+\end{property}
+
+\begin{property}[Binding]\label{prop:forest-bind}
+Once a daemon publishes $R_{\text{harbor},\ell}$, it cannot produce a different valid root for the same $(\textit{harbor},\ell)$ without contradicting its earlier signature (detectable via the KMS witness) or forking its identity.
+\end{property}
+
+\paragraph{Cost.} Each settlement adds an $O(1)$ amortized append to the epoch accumulator. Epoch rollover is $O(N)$ hashes plus one signature: at 100 sessions/hour, $\approx 10$ms. Negligible.
+
+This is the structural underpinning the original draft promised in one paragraph (``decentralized verification'') and now substantiates: bonded commons evidence is not just immutable within a daemon, it is verifiable \emph{across} daemons by any party with the daemon's public key and a 700-byte proof.
+
+\subsection{Mutable-Signal Ledger (Pheromone Lineage)}\label{sec:pheromones}
+
+Stigmergic coordination originated in biology, where pheromones are accumulate-only: ants deposit, the environment evaporates~\cite{theraulaz1999stigmergy}. Software agents need a richer model. Coordination signals must be \emph{revocable, renamable, and provenance-attributable} as understanding of the work evolves---an agent that deposited a hint and later realized the hint was wrong needs a way to retract it that preserves attribution rather than erasing it.
+
+\paragraph{Event-sourced pheromones.} Each entity's pheromone state is a view over an append-only event ledger. For entity $e$ and key $k$:
+\[
+\sigma_t(e,k) \;=\; \mathrm{decay}(S, t - t_0)\;\cdot\;\mathbb{1}\bigl[\text{not revoked or expired in }(t_0, t]\bigr]
+\]
+where $S$ is the last spray strength on $k$ at time $t_0$ and $\mathrm{decay}$ is a geometric decay defined per-channel. \textbf{Revocation} is itself an event; \textbf{rename} is a rewrite-pointer event; \textbf{fork} creates a new key namespace whose provenance is traceable through the event chain.
+
+\begin{property}[Attribution Invariant]\label{prop:pheromone-attribution}
+Every $\sigma_t(e,k)$ value has a deterministic provenance chain back to one signing principal, traceable via the event chain.
+\end{property}
+
+\begin{property}[Rollback Safety]\label{prop:pheromone-rollback}
+A consumer that reads $\sigma$ at time $t$ and later discovers a revocation event timestamped $t' < t$ can compute the correct counterfactual view by replaying events.
+\end{property}
+
+\begin{property}[Conservation]\label{prop:pheromone-conservation}
+Revocation does not erase. The event ledger is monotone: the cardinality of the event set only grows.
+\end{property}
+
+\paragraph{Integration with the forest.} Pheromone events are included in the session tree of \S\ref{sec:merkle-forest}: each session's root summarizes the events the session produced, harbor roots summarize session roots, and revocations are therefore transparent to witnesses without erasing any prior state. The mutable surface is the \emph{view}; the underlying ledger is immutable.
+
+This dual---mutable view, immutable substrate---is what lets coordination signals evolve without compromising the evidentiary guarantees the rest of the paper depends on.
 
 \subsection{Attribution Survives Identity Disposal}
 
@@ -472,22 +522,133 @@ This is how performance bonds work in construction. This is how futures markets 
 The Float Plan does not make sabotage impossible. It makes sabotage \emph{expensive}. A principal willing to burn money to cause damage will burn the bond and cause the damage. The bond raises the price of defection; it does not eliminate it. The defense against existential threats to the commons is not internal governance but external boundary enforcement: who is allowed to post Float Plans at all. That decision is irreducibly political.
 \end{remark}
 
-\subsection{The Open Problem: Pricing the Bond}
-
-\emph{This section identifies the central unsolved problem and is intended as a foundation for collaboration with domain experts in mechanism design and market microstructure.}
-
-\medskip
+\subsection{Pricing the Bond}\label{sec:pricing}
 
 What is the right collateral for ``write access to \texttt{auth.ts} for 30 minutes''? The answer requires a pricing function $\pi: \mathcal{F} \rightarrow \mathbb{R}^{+}$ that maps Float Plans to bond amounts. An effective $\pi$ must satisfy:
 
 \begin{enumerate}[nosep]
   \item \textbf{Deterrence}: $\pi(\mathcal{F})$ must exceed the expected damage from defection under $\mathcal{F}$'s scope.
   \item \textbf{Accessibility}: $\pi(\mathcal{F})$ must not be so high that legitimate agents are priced out of the commons.
-  \item \textbf{Risk sensitivity}: $\pi$ should increase with the scope and criticality of the manifest (write access to 50 files costs more than read access to 3).
-  \item \textbf{History adjustment}: $\pi$ may decrease for principals with strong track records (reputation as a discount on collateral).
+  \item \textbf{Risk sensitivity}: $\pi$ should increase with the scope and criticality of the manifest.
+  \item \textbf{History adjustment}: $\pi$ may decrease for principals with strong track records.
 \end{enumerate}
 
-We do not propose a specific pricing function. The infrastructure described in this paper---manifests, escrow, evidence chains, settlement---makes a market for agent labor \emph{possible}. The design of the market itself is a mechanism design problem that we identify as critical future work, suitable for collaboration between systems engineers and economists.
+We do not close this problem. We tighten the lower bound, propose a scope multiplier, suggest a reputation discount, and describe two concrete mechanisms---the \textbf{Bonded Advisor} (\S\ref{sec:bonded-advisor}) and the \textbf{Competitive-Insurance} market of Youle (\S\ref{sec:youle}).
+
+\subsubsection{Cleanup Lower Bound}\label{sec:cleanup-bound}
+
+Let $c$ be the project's \emph{cleanup cost per breach event}---the human-plus-compute cost to detect, assess, and recover from a budget breach. This is observable from the audit log.
+
+\begin{theorem}[Cleanup Lower Bound]\label{thm:cleanup-bound}
+For any Float Plan $\mathcal{F}$, $\pi(\mathcal{F}) \geq c$.
+\end{theorem}
+
+\begin{proof}[Rationale]
+If $\pi(\mathcal{F}) < c$, breach is cheap: the bond is forfeit for less than the cleanup cost. If the commons pool funds cleanup, $\pi < c$ drains the commons per breach---the system bankrupts itself through enforcement. \qed
+\end{proof}
+
+This is a floor, not a tight bound. It is observable from operations and trackable as a project health metric.
+
+\subsubsection{Consequential-Scope Multiplier}\label{sec:scope-multiplier}
+
+Let $s(\mathcal{F})$ be plan scope (files claimed, presence of \texttt{db:write}, production-deployment capability). Empirically, cleanup scales super-linearly with scope; coordination cost dominates the high end.
+\[
+\pi(\mathcal{F}) \;\geq\; c \cdot \bigl(1 + \alpha \cdot s(\mathcal{F})\bigr)
+\]
+$\alpha$ is calibrated from observed cleanup per scope unit. Low-$\alpha$ projects have simple, easily-audited work; high-$\alpha$ projects have tangled dependencies. $\alpha$ is publishable from the audit log.
+
+\subsubsection{Reputation Discount}\label{sec:rep-discount}
+
+Principals with a history of clean settlements have lower expected damage:
+\[
+\pi(\mathcal{F}, p) \;=\; \pi(\mathcal{F}) \cdot (1 - \rho(p)),
+\quad \rho(p) \in [0, r_{\max}],\; r_{\max} \leq 0.5,
+\]
+to prevent trivialization. $\rho$ increases with clean settlements, decreases with breaches, decays over time. Functional form: future work.
+
+\subsubsection{The Bonded Advisor}\label{sec:bonded-advisor}
+
+One direction for solving $\pi$ is to delegate its computation to a specialized agent, itself bonded on its advisory accuracy. We call this the \textbf{Bonded Advisor} pattern:
+\begin{itemize}[nosep]
+  \item A principal posts a Float Plan whose only acceptance criterion is ``propose a fleet that meets budget/scope constraints for project $P$.''
+  \item A Bonded Advisor surveys $P$ and emits a candidate fleet---itself a set of Float Plans with proposed $\pi$ values.
+  \item The advisor's bond on the proposing plan is slashed proportionally to the accepted fleet's eventual breach rate. Clean settlements accumulate reputation; breaches shrink it.
+\end{itemize}
+
+The pricer is priced. Convergence depends on (i) whether the advisor has access to sufficient prior-fleet audit data to pattern-match new projects, (ii) whether reputation history is long enough for discounting to be meaningful, and (iii) whether the population of advisors is large enough for competition to discipline outliers.
+
+\paragraph{$c$ as a project health metric.} A project whose observed $c$ is rising is fraying---breaches cost more to recover from, implying coordination is decaying. The authority can publish $c$ alongside the bond pool and raise required bonds automatically when $c$ crosses a threshold. Homeostatic feedback: risky spawns become expensive when the project needs them least.
+
+\subsubsection{Competitive-Insurance Pricing Mechanism\protect\footnote{This subsection contributed by Thomas Youle (Indiana University, Business Economics \& Public Policy) based on conversations with the primary author in March--April 2026. The mechanism builds on classical competitive-insurance market literature~\cite{rothschildstiglitz1976,wilson1977insurance} adapted to the agent-transactions setting. The text here is a pre-print draft pending economist review of \S\ref{sec:youle:mechanism}--\S\ref{sec:youle:welfare}.}}\label{sec:youle}
+
+\paragraph{The mechanism.}\label{sec:youle:mechanism}
+Instead of a static bond size $B(\pi, r, s)$ selected by the commons authority (\S\ref{sec:scope-multiplier}), allow a market of \emph{insurer agents} to bid on underwriting each agent transaction. An insurer $I$ offers a quote $(q_I, c_I)$ where $q_I$ is the required premium and $c_I$ is the claim ceiling.
+
+A principal $P$ submits a transaction $T$ requiring bond coverage $B_T$. Insurers quote; principal selects. If the transaction proceeds and damages are assessed at $d$ with $d \leq c_I$, the insurer pays. Otherwise principal pays up to $B_T - c_I$ from its own stake.
+
+\paragraph{Market-discovered pricing.}
+The premium $q_I$ equals the insurer's expected loss $\mathbb{E}[d \mid T,\, \textit{agent history}]$ plus a risk premium $\alpha_I$ encoding the insurer's risk aversion and cost of capital. In equilibrium under competition, $q_I \to \mathbb{E}[d]$ for risk-neutral insurers (Rothschild--Stiglitz). Market discovery replaces the authority's best-guess parameter selection.
+
+\paragraph{Adverse-selection controls.}
+To avoid the classic lemons problem, the mechanism requires:
+\begin{itemize}[nosep]
+  \item Public agent reputation history (from \S\ref{sec:merkle-forest} the Merkle forest).
+  \item Principal-bound slashing if an agent's history is misrepresented at quote time.
+  \item Insurer capital reserve backed by on-chain stake (the same bond mechanism, recursive: an insurer posts bond that its claim ceilings are funded).
+\end{itemize}
+
+\paragraph{Welfare properties (claim).}\label{sec:youle:welfare}
+\emph{Under full information and competitive entry, the market-discovered premium Pareto-dominates any authority-chosen static parameter.} An independent theorization with explicit assumptions and a Monte Carlo sweep over 36 parameter configurations is recorded in \texttt{proofs/bonded/pareto/dominance.md} and \texttt{proofs/bonded/pareto/simulation.mjs} (sealed at round v2.5; see \S\ref{app:mech}). The simulation surfaces three quantitative boundaries beyond the qualitative claim: (i) Pareto dominance requires reputation noise $\sigma_r \le 0.1$, coupling \S\ref{sec:merkle-forest} to this section; (ii) a partial cartel is robustly defeated by Vickrey 2nd-price, but a full cartel collapses dominance regardless of detection rate at $p_d = 0.3$; (iii) larger insurer pools exacerbate winner's curse via the order-statistic effect, with the empirical optimum at $n = 3$. A formal Coq/Lean mechanization of the strategic game is carried indefinitely behind the empirical artifact.
+
+\paragraph{Relationship to the Bonded Advisor.}
+Under this framing, the Bonded Advisor of \S\ref{sec:bonded-advisor} becomes the matchmaker plus reputation oracle in the insurance market. It does not set prices; it provides information. Pricing is a competitive equilibrium, not an administrative decision.
+
+% ═══════════════════════════════════════════════════════════════════════════════
+\section{Coordination as Substrate: An Expressive-Act Taxonomy}\label{sec:taxonomy}
+% ═══════════════════════════════════════════════════════════════════════════════
+
+The bonded commons treats coordination as a uniform action surface: agents post bonds, settle, accrue reputation. In practice, the \emph{kinds} of coordination differ enough that uniform pricing distorts incentives. We argue that any commons-scale pricing mechanism must distinguish among five expressive classes, and that each class has a different bonding profile.
+
+\subsection{Five Expressive Classes}
+
+\begin{description}[nosep]
+  \item[Signal.] ``Something happened.'' Notes, tuples, pheromones, activity events. High frequency, low individual stakes, cumulative value.
+  \item[Request.] ``Decision, input, or approval needed.'' Escalations to a human or to a higher-authority agent. Low frequency, blocks downstream work, asymmetric cost.
+  \item[Distress.] ``I am stuck, repeatedly.'' Bounded enum: \texttt{auth}, \texttt{conflict}, \texttt{permission}, \texttt{budget}, \texttt{invariant}. Rare; abuse can halt sibling agents.
+  \item[Commons.] Shared durable state---tuple kinds, graph edges, channels, proposals. Persists beyond the originator; pollution is hard to undo.
+  \item[Proposal.] ``Here is a plan; commit?'' Float Plans, change sets, fleet specifications. Requires review; cost is in the reviewer's time.
+\end{description}
+
+\subsection{Per-Class Bond Profiles}
+
+Each expressive class has a different relationship to the cleanup cost of \S\ref{sec:cleanup-bound}:
+\begin{itemize}[nosep]
+  \item \emph{Signal class}: cheap, numerous, micro-bonds or reputation-discounted. Slashable for false alarm.
+  \item \emph{Request class}: bonded by the cost of the human's time plus the downstream action cost.
+  \item \emph{Distress class}: bonded by the blast radius if an agent uses it to halt siblings abusively.
+  \item \emph{Commons class}: bonded by the storage cost; slashable for pollution.
+  \item \emph{Proposal class}: bonded by the cost of reviewing plus the cost of implementing.
+\end{itemize}
+
+Treating all coordination as one uniform ``bonded action'' misses the price-discovery differences. The Bonded Advisor (\S\ref{sec:bonded-advisor}) and the Competitive-Insurance market (\S\ref{sec:youle}) must price each class separately, or the market will collapse to its highest-stakes class and freeze out the rest.
+
+% ═══════════════════════════════════════════════════════════════════════════════
+\section{Vibe Time and Observability}\label{sec:vibe}
+% ═══════════════════════════════════════════════════════════════════════════════
+
+Wall-clock is the wrong axis for observing multi-agent coding. A 30-second wait while a model thinks is qualitatively different from a 30-second wait while four agents are actively producing tokens. We introduce \emph{vibe time} as a causal-density temporal axis:
+\[
+t_{\text{vibe}} \;=\; \int_{0}^{t} \mathrm{vibe\_rate}(\tau)\,d\tau
+\]
+where $\mathrm{vibe\_rate}$ aggregates token-emission rate across active agents, weighted by surface area of effect (file claims, evidence trail growth, settlement events).
+
+\paragraph{Token-rate telemetry as first-class signal.} The daemon already records token usage per agent for billing. Promoted to a streaming signal, token rate becomes the substrate for: detecting stalled agents (rate $\to 0$), detecting runaway loops (rate without evidence-trail growth), and aligning visualizations to causal cadence rather than wall-clock cadence.
+
+\paragraph{Replay JSONL as artifact.} Every settled session emits a JSONL replay log: events, notes, claims, settlements, in causal order. This is simultaneously: an audit artifact, a debugging tool, and---redacted---training data for downstream DPO/SFT.
+
+\paragraph{Privacy contract.} Replay is opt-in. Redaction strips secrets and PII. Encryption-at-rest applies the harbor session key (\S\ref{sec:federated-sovereign}). Eviction is LRU-bounded.
+
+We position vibe-time and replay not as a Port Daddy feature but as a category claim: \emph{multi-agent coding requires its own observability primitives}, and they are not the wall-clock metrics that single-process systems get away with.
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Formal Model}\label{sec:tlaplus}
@@ -630,6 +791,44 @@ Spec == Init /\ [][Next]_vars
 
 \textbf{Key invariant}: \texttt{EscrowInvariant} ensures that no agent can participate in the commons without posted collateral. This is the economic layer's structural guarantee---it holds by construction of the \texttt{Begin} action, which requires $\texttt{escrow} > 0$.
 
+\subsection{The Conservation Theorem}\label{sec:conservation}
+
+The original specification states the escrow invariant in TLA$^{+}$ but does not commit to an operational accounting. The April 2026 implementation in \texttt{lib/bonds.ts} collapses the abstract escrow into three monetary buckets per project---\textbf{wallet}, \textbf{escrow}, and \textbf{commons pool}---and lets us formalize what \texttt{EscrowInvariant} only asserted in prose.
+
+\begin{definition}[Accounting State]\label{def:acct-state}
+For project $P$, the accounting state is the triple $(W_P, E_P, C_P) \in \mathbb{R}_{\geq 0}^{3}$, where $W_P$ is wallet balance, $E_P$ is the sum of bond amounts in states $\{\textit{escrowed},\, \textit{running},\, \textit{exiting}\}$, and $C_P$ is the commons pool balance. The \emph{monetary supply} is $S_P := W_P + E_P + C_P$.
+\end{definition}
+
+\begin{theorem}[Conservation]\label{thm:conservation}
+For any sequence of operations
+$\sigma = \langle \mathrm{topUp}, \mathrm{escrow}, \mathrm{markRunning}, \mathrm{refund}, \mathrm{slash}\rangle^{*}$
+applied to an initial state $(W_P^{0}, 0, 0)$, the supply $S_P$ changes only on $\mathrm{topUp}$. All other operations redistribute among the three buckets.
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+Each operation commits in a single SQLite transaction (\texttt{db.transaction}). The individual effects:
+\begin{itemize}[nosep]
+  \item $\mathrm{topUp}(u)$: $W_P\mathrel{+}=u$. $S_P$ grows by $u$.
+  \item $\mathrm{escrow}(b)$: $W_P\mathrel{-}=b$, $E_P\mathrel{+}=b$. $S_P$ invariant.
+  \item $\mathrm{markRunning}(\mathit{id})$: state transition within $E_P$'s contributing set. No monetary movement. $S_P$ invariant.
+  \item $\mathrm{refund}(\mathit{id})$: $W_P\mathrel{+}=b_{\mathit{id}}$; row state $\to\,\textit{refunded}$. Net $E_P\mathrel{-}=b$, $W_P\mathrel{+}=b$. $S_P$ invariant.
+  \item $\mathrm{slash}(\mathit{id}, p)$ with $p\in[0, b_{\mathit{id}}]$: $W_P\mathrel{+}=b_{\mathit{id}}-p$, $C_P\mathrel{+}=p$, row $\to\,\textit{slashed}$. Net $-b + (b-p) + p = 0$. $S_P$ invariant.
+\end{itemize}
+By induction on $|\sigma|$, $S_P$ equals $S_P^{0}$ plus the sum of $\mathrm{topUp}$ arguments in $\sigma$. \qed
+\end{proof}
+
+\paragraph{Property verification.} The conservation invariant is asserted after every operation in the bonds test suite. Across 200 random traces, $|W_P + E_P + C_P - S_P^{\text{expected}}| < 10^{-6}$ holds deterministically; the $10^{-6}$ tolerance is IEEE-754 floating-point slack, not logical slack.
+
+\begin{lemma}[No Overdraft Under Concurrent Escrow]\label{lem:no-overdraft}
+Given two concurrent invocations $\mathrm{escrow}(b_1)$ and $\mathrm{escrow}(b_2)$ on the same project with $b_i \leq W_P^{\text{pre}}$ but $b_1 + b_2 > W_P^{\text{pre}}$, at most one invocation succeeds.
+\end{lemma}
+
+\begin{proof}
+Both transactions execute under \texttt{BEGIN EXCLUSIVE}, so SQLite serializes them. Suppose $T_1$ wins. After commit, $W_P = W_P^{\text{pre}} - b_1$. $T_2$ now reads the updated balance and rejects iff $b_2 > W_P^{\text{pre}} - b_1$, which by assumption is true. \qed
+\end{proof}
+
+\paragraph{Graduated sanctions.} The TLA$^{+}$ model abstracts settlement into \texttt{Commit} and \texttt{Crash}. Reality has an intermediate state: an agent whose spend is approaching its daily budget. \texttt{lib/budget-guard.ts} introduces \textbf{throttle} as a soft signal at 80\% spend (publishes \texttt{budget:decisions:throttle}; structurally non-coercive, advisory in Sen's sense) and \textbf{kill} as the hard signal at 100\% (refuses new spawns until UTC midnight; existing spawns SIGTERMed; bond slashed). The throttle/kill split is the commons' analogue of Ostrom's graduated sanctions~\cite{ostrom1990governing}: response scales with violation severity. Settlement is not binary; it is a three-state machine $\textit{nominal} \to \textit{throttled} \to \textit{killed}$, with $\textit{nominal} \to \textit{killed}$ reachable only on hard evidence (e.g., a direct Arbiter violation).
+
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Related Work}\label{sec:related}
 % ═══════════════════════════════════════════════════════════════════════════════
@@ -656,7 +855,50 @@ Spec == Init /\ [][Next]_vars
 
 \paragraph{Collateral does not prevent harm---it prices it.} A principal willing to burn money to sabotage a competitor will post a bond, cause damage, and accept the loss. The bond makes sabotage expensive, not impossible. The defense against existential threats is not internal governance but \emph{admission control}: who is allowed to participate in the commons at all. This decision is irreducibly political and lies outside the formal model.
 
-\paragraph{Single-node scope.} The formal model assumes all agents share a single machine and a single SQLite database. Distributed multi-node settings require consensus primitives (Paxos~\cite{lamport1998part}, Raft~\cite{ongaro2014search}) that are unnecessary for local development and would introduce complexity disproportionate to the threat model.
+\paragraph{The Federated Sovereign.}\label{sec:federated-sovereign} Earlier drafts dismissed the multi-node case as ``unnecessary for local development.'' That was true for single-machine usage and is no longer adequate: users roam across laptop, desktop, and CI machines; machine loss should not destroy encrypted evidence; multiple humans may share a harbor. The daemon remains the authority \emph{within} its machine. Key custody federates.
+
+We introduce a fourth actor, specified by properties rather than by vendor:
+\begin{description}[nosep]
+  \item[Daemon] commons authority within a machine; signs harbor roots; enforces bonds.
+  \item[Agent] participant; holds Harbor Card; signs actions.
+  \item[Principal] funds Float Plans; identifies via Ed25519 keypair.
+  \item[\textbf{KMS}] key custody; recovery root-of-trust; witnesses harbor roots.
+\end{description}
+
+\begin{definition}[Admissible KMS]\label{def:kms}
+A Key Management Service $\mathcal{K}$ is admissible for the federated sovereign if it provides:
+\begin{enumerate}[nosep]
+  \item Passphrase-wrapped private-key custody using a memory-hard KDF (Argon2id) at the 2026 security floor.
+  \item Encryption-at-rest for all user-held blobs; $\mathcal{K}$ never sees plaintext keying material.
+  \item A signed witness log for harbor Merkle roots with append-only, monotonic semantics and detectable equivocation~\cite{laurie2013ct}.
+  \item Rate-limited, email-gated recovery via single-use magic-link tokens of bounded TTL.
+  \item Public verification of signed user public keys under an account identifier, without requiring mutual authentication.
+\end{enumerate}
+\end{definition}
+
+The implementation choice (a particular cloud platform, an on-prem HSM, a self-hosted Tang server) lives in companion design documents. The paper's theory applies to any $\mathcal{K}$ meeting properties (1)--(5).
+
+\paragraph{Trust boundary.} The federated trust boundary is
+$\mathrm{TB} = \mathit{daemon} \cup \mathcal{K} \cup \mathit{user{\text{-}}email} \cup \mathit{user{\text{-}}passphrase}$.
+Each element is necessary for its role; no element is sufficient alone. The daemon enforces bonds and publishes roots but never sees the unwrapped user master. The KMS stores encrypted blobs and can deny service but cannot decrypt. Email is the recovery root---and is documented as the weakest link, since an adversary with email control can trigger magic-link recovery. The passphrase wraps the user's master with Argon2id, making offline brute force expensive.
+
+\begin{theorem}[Federated Security, informal]\label{thm:federated-security}
+Assuming Ed25519 and SHA-256 are secure, Argon2id parameters meet the 2026 security floor, and the user's email and passphrase are not simultaneously compromised, an adversary with read access to $\mathcal{K}$'s storage, the daemon's SQLite database, and mesh gossip traffic, but \emph{without} same-user code execution on the daemon's host, cannot:
+(i) forge a Harbor Card without the daemon's private key,
+(ii) read plaintext evidence without the harbor's session key,
+(iii) impersonate the user without both email access and passphrase,
+(iv) roll back a harbor's Merkle forest without $\mathcal{K}$'s complicity.
+\end{theorem}
+
+The theorem deliberately excludes the same-user adversary (an unsandboxed agent, a malicious postinstall, a compromised editor extension). Such an adversary reads any file the user can read, which absent OS-mediated key custody includes the daemon's keys and database. The \texttt{macOS Keychain} integration ships now; native keyring and hardware-backed keystore extend the theorem's reach to the same-user case.
+
+\paragraph{Recovery and its honest limits.} Recovery is email magic link. The honest limit: \emph{if the user loses both passphrase and old machine}, harbor session keys wrapped only for that pubkey cannot be recovered. This is the price of zero-knowledge at-rest encryption. An opt-in Shamir escrow mode~\cite{shamir1979share} ($t$-of-$n$ secret sharing across $\mathcal{K}$, email, and recovery contacts) trades some zero-knowledge for stronger recovery.
+
+\paragraph{Passkeys, not passwords.} Identity is anchored in WebAuthn-backed device keypairs---no phishable secrets, no passphrase on the critical path of every action. New devices enroll by exchanging a short-lived pairing token that re-encrypts the KMS master under the new device's public key. Mobile devices act as \emph{viewers}, not peers: they sign low-stakes actions (approve an ask, bump budget) over a WebSocket viewer channel, but they do not run the full daemon. Each account's harbors gossip Merkle roots among its own devices; cross-account gossip requires explicit signed consent.
+
+What we deliberately do \emph{not} do: require passwords, use TOTP as a primary factor, or couple recovery to a single cloud vendor.
+
+\paragraph{Multi-node consensus.} For fleets requiring strict serializability across nodes, a Raft-backed harbor-root consensus~\cite{ongaro2014search} is possible but not specified here; eventual consistency via the Merkle forest plus KMS witness is sufficient for the workloads we have measured. Paxos~\cite{lamport1998part} remains the textbook fallback.
 
 \paragraph{Recovery fidelity depends on LLM capability.} Social recovery works because successor agents can interpret natural-language evidence trails. This capability is not formally guaranteed---it depends on the successor's LLM. A formal model of ``given this evidence trail, will the successor complete the original intent?'' requires characterizing LLM reasoning, which is an open problem.
 
@@ -670,15 +912,71 @@ We have argued that multi-agent collaboration at scale requires a commons author
 
 \begin{enumerate}[nosep]
   \item \textbf{Structural prevention}: Capability-attenuated tokens make scope escalation physically impossible.
-  \item \textbf{Immutable attribution}: Merkle-chained evidence trails make anonymous harm impossible.
+  \item \textbf{Immutable attribution}: A Merkle forest of evidence trails (\S\ref{sec:merkle-forest}) makes anonymous harm impossible \emph{across daemons}, not just within one.
   \item \textbf{Economic alignment}: Collateralized work contracts make harm expensive, transforming moral questions into economic ones.
 \end{enumerate}
 
-The advisory design of the resource claim system is not an engineering shortcut---it is the correct resolution of Sen's impossibility result for systems where agents have private knowledge about their own needs. The commons authority provides information (the conflict graph), not allocation decisions.
+The Version~2 expansion threads six contributions through this skeleton. The Conservation Theorem (\S\ref{sec:conservation}) makes the economic invariant operationally checkable, not just an asserted property of the abstract model. The mutable-signal ledger (\S\ref{sec:pheromones}) shows how coordination signals can be revoked, renamed, and re-attributed without sacrificing the immutability the rest of the architecture depends on. The federated sovereign (\S\ref{sec:federated-sovereign}) replaces single-node scope with an abstract KMS satisfying five named properties, and anchors identity in passkeys rather than passphrases on the critical path. The competitive-insurance pricing mechanism (\S\ref{sec:youle}, contributed by Youle) replaces static parameter selection with market-discovered bond prices, recovering classical Rothschild--Stiglitz equilibria in the agent-transactions setting. The expressive-act taxonomy (\S\ref{sec:taxonomy}) decomposes ``coordination'' into five priceable classes, because uniform pricing collapses the market to its highest-stakes class. Vibe time and replay (\S\ref{sec:vibe}) give the substrate the empirical grounding to iterate on all of the above.
 
-The central open problem is bond pricing: designing a function $\pi$ that makes defection too expensive for rational adversaries without pricing legitimate agents out of the commons. This is a mechanism design problem, and we invite collaboration with economists to solve it.
+The advisory design of the resource claim system remains the correct resolution of Sen's impossibility result for systems where agents have private knowledge about their own needs. The commons authority provides information, not allocation decisions.
 
-The infrastructure is running. The formal model is specified. The economic layer awaits its market designer.
+The central open problem---bond pricing---is no longer a single open problem. It is a lattice: a cleanup-cost lower bound (\S\ref{sec:cleanup-bound}), a scope multiplier (\S\ref{sec:scope-multiplier}), a reputation discount (\S\ref{sec:rep-discount}), the Bonded Advisor mechanism (\S\ref{sec:bonded-advisor}), and the competitive-insurance market (\S\ref{sec:youle}). None of these is closed; each is now precise enough to disprove.
+
+The infrastructure is running. The forest is building. The covenants are auditable. The sovereign is legible. The advisor is bondable. The market is open for bids.
+
+% ═══════════════════════════════════════════════════════════════════════════════
+\appendix
+
+\section{Mechanization Status (v2.5)}\label{app:mech}
+
+This appendix records the formal-verification status of the load-bearing claims in the body of this paper, sealed at adversarial-review round v2.5. Each row names the claim, the artifact (or the explicit deferral), and the runtime conformance test (or \emph{spec-only} marker if no implementation exists yet). The full round-by-round dialogue lives at \texttt{docs/shipwright/dialogue-v(N)-to-v(N+1).\{md,json\}} and is rendered at \url{https://portdaddy.dev/whitepaper/rounds}.
+
+\subsection*{Summary of closed claims}
+
+\begin{itemize}
+\item \textbf{Coordination channel isolation} (\S\ref{sec:merkle-forest}, between adversarial and white-hat fleets). Verified in ProVerif under a Dolev-Yao adversary controlling the daemon. Three properties (red secrecy, defense secrecy, Gate B uniqueness via injective event) verified TRUE. Artifact: \texttt{proofs/coordination/isolation.pv}.
+
+\item \textbf{Passkey device pairing} (\S\ref{sec:youle}, prerequisite for federated identity). Verified in ProVerif. Three properties (passkey secrecy, pairing authenticity, replay resistance) TRUE. Artifact: \texttt{proofs/bonded/pairing/passkey-pair.pv}.
+
+\item \textbf{Federated Security Theorem} (Theorem~\ref{thm:federated-security} informal in \S\ref{sec:federated-sovereign}). ProVerif model of the four-principal split (daemon, KMS, email, passphrase) under a 3-of-4 compromise scenario. Result: \texttt{not attacker(account\_root) is true}. Artifact: \texttt{proofs/bonded/federated/federated.pv}.
+
+\item \textbf{Conservation Theorem} (\S\ref{sec:conservation}). TLA+ specification with bounded TLC model checking (3 agents, MaxBalance=3, MaxMint=6): 26{,}818 states explored, no error found. Conservation invariant $\mathit{TotalFree} + \mathit{TotalEscrow} + \mathit{burned} = \mathit{minted}$ and $\mathit{NoNegative}$ both hold under exhaustive bounded search. Artifact: \texttt{proofs/bonded/conservation/Conservation.tla}. Property test against the real \texttt{lib/bonds.ts} at \texttt{tests/unit/bonds-conservation-property.test.js} (6 properties under fast-check, 100 cases each).
+
+\item \textbf{No-Overdraft Lemma} (\S\ref{sec:economic}). fast-check property test against the real \texttt{lib/bonds.ts} code, exercising 4 invariants under randomized op sequences. Artifact: \texttt{tests/unit/bonds-conservation-property.test.js}.
+
+\item \textbf{Algorithm-confusion in token verification} (Anchor companion, \S3). ProVerif: pinned-verifier authenticity TRUE; naive-verifier counter-trace witnessed (the JWT \texttt{alg=}-rewriting attack the pinning defends against). Artifact: \texttt{proofs/anchor/token-verify/algconfusion.pv}. Runtime conformance against \texttt{lib/harbor-tokens.ts}: \texttt{tests/unit/runtime-conformance/algorithm-pinning.test.js} (5 attack patterns + 2 controls, all pass).
+
+\item \textbf{Delegation chain replay} (Anchor companion, \S3). ProVerif at depth 3: chain authenticity TRUE under nonce $+$ (prev\_id, next\_id, message) binding. Artifact: \texttt{proofs/anchor/delegation/chain-replay.pv}.
+
+\item \textbf{Email magic-link single-use} (\S\ref{sec:federated-sovereign}). ProVerif: injective-event single-use TRUE under per-token private-channel cap (modeling the SQL \texttt{UPDATE WHERE consumed\_at IS NULL RETURNING} atomicity); binding TRUE. Artifact: \texttt{proofs/bonded/recovery/magic-link.pv}.
+\end{itemize}
+
+\subsection*{Partially closed (empirical $+$ game spec; formal mechanization deferred)}
+
+\begin{itemize}
+\item \textbf{Merkle Forest binding} (\S\ref{sec:merkle-forest}). Reference implementation in \texttt{lib/merkle-tree.ts} (RFC~6962-style domain-separated binary tree, 200 LOC). Eight binding properties verified empirically under fast-check at \texttt{tests/unit/merkle-binding-property.test.js} (100 random cases per property). Game-based spec with reduction sketch to SHA-256 collision resistance: \texttt{proofs/bonded/merkle/binding.md}. EasyCrypt skeleton with admit. lines: \texttt{proofs/bonded/merkle/binding.ec}. Full mechanization (estimated 200--400 LOC EasyCrypt $+$ one EasyCrypt-fluent author-week) carried indefinitely; paid only when a higher-assurance audit asks.
+
+\item \textbf{Pareto dominance of competitive-insurance pricing} (\S\ref{sec:youle:welfare}). Independent theorization at \texttt{proofs/bonded/pareto/dominance.md} restating the claim with explicit assumptions (public reputation, no collusion, solvency, insurer efficiency) and a sketch reduction by cases. Monte Carlo simulation at \texttt{proofs/bonded/pareto/simulation.mjs} (Vickrey 2nd-price vs.\ static authority bond, identical coverage in both regimes, 36 parameter configurations $\times$ 2{,}000 trials $\times$ 50 transactions). Three quantitative findings: $\sigma_r \le 0.1$ ceiling on reputation noise, partial cartel resilience but full cartel collapse, $n = 3$ insurer optimum due to winner's-curse order-statistic effect. Formal Coq/Lean mechanization of the strategic game (estimated 1{,}000 LOC $+$ several months) carried indefinitely.
+\end{itemize}
+
+\subsection*{Spec-only (proof landed; runtime not yet implemented)}
+
+The following \texttt{.pv} files prove their respective claims, but the corresponding runtime modules do not yet exist. When implementations land, the implementer is expected to re-read the \texttt{.pv} file and bind the runtime to the verified pattern. Bindings are tracked in \texttt{docs/shipwright/RUNTIME-CONFORMANCE.md}.
+
+\begin{itemize}
+\item Passkey pairing handshake (\texttt{proofs/bonded/pairing/passkey-pair.pv}): no \texttt{lib/passkey-pairing.ts} yet.
+\item Federated KMS Cloudflare Worker (\texttt{proofs/bonded/federated/federated.pv}): only design doc \texttt{USER-ACCOUNTS-KMS.md}; no Worker code yet.
+\item Multi-hop delegation walker (\texttt{proofs/anchor/delegation/chain-replay.pv}): single-hop in \texttt{lib/harbor-tokens.ts} suffices today; multi-hop module pending.
+\item Magic-link recovery route (\texttt{proofs/bonded/recovery/magic-link.pv}): no recovery route or SQL migration yet.
+\end{itemize}
+
+\subsection*{Audit-promoted gaps remaining (v2.5 carry list)}
+
+The v2.4 self-audit surfaced six v2.1 smells where the paper text was tightened but no formal artifact was built. Three closed in v2.5 (algorithm confusion, delegation replay, magic-link race). Three remain on the carry list: cuckoo-filter pollution (waiting on \texttt{lib/cuckoo-filter.ts} implementation), Sybil insurer attack (extension to the Pareto simulation pending), and full repeated-game cartel folk-theorem analysis (qualitative covered by the Pareto simulation; formal repeated-game analysis pending).
+
+\subsection*{Reading the registry}
+
+A claim with both a formal artifact \emph{and} a runtime conformance test is honestly closed: a future regression in \texttt{lib/} will register as a red CI signal and force a review against the \texttt{.pv} model. A claim with only a formal artifact is spec-only and must be flagged as such until a runtime exists. A claim that is only empirical (Pareto, Merkle binding) is honestly partial and is documented to be carried indefinitely behind the empirical evidence. The intent is that no claim drifts silently from ``proven'' to ``hand-waved'' between rounds.
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \bibliographystyle{plain}
@@ -774,6 +1072,46 @@ Jonathan Hickman.
 Bruno Blanchet.
 \newblock Modeling and Verifying Security Protocols with the Applied Pi Calculus and ProVerif.
 \newblock \textit{Foundations and Trends in Privacy and Security}, 1(1-2):1--135, 2016.
+
+\bibitem{rothschildstiglitz1976}
+Michael Rothschild and Joseph Stiglitz.
+\newblock Equilibrium in Competitive Insurance Markets: An Essay on the Economics of Imperfect Information.
+\newblock \textit{Quarterly Journal of Economics}, 90(4):629--649, 1976.
+
+\bibitem{wilson1977insurance}
+Charles Wilson.
+\newblock A Model of Insurance Markets with Incomplete Information.
+\newblock \textit{Journal of Economic Theory}, 16(2):167--207, 1977.
+
+\bibitem{theraulaz1999stigmergy}
+Guy Theraulaz and Eric Bonabeau.
+\newblock A Brief History of Stigmergy.
+\newblock \textit{Artificial Life}, 5(2):97--116, 1999.
+
+\bibitem{laurie2013ct}
+Ben Laurie, Adam Langley, and Emilia Kasper.
+\newblock Certificate Transparency.
+\newblock RFC 6962, IETF, 2013.
+
+\bibitem{fan2014cuckoo}
+Bin Fan, David~G. Andersen, Michael Kaminsky, and Michael~D. Mitzenmacher.
+\newblock Cuckoo Filter: Practically Better Than Bloom.
+\newblock In \textit{ACM CoNEXT}, 2014.
+
+\bibitem{demers1987epidemic}
+Alan Demers et al.
+\newblock Epidemic Algorithms for Replicated Database Maintenance.
+\newblock In \textit{ACM PODC}, 1987.
+
+\bibitem{shamir1979share}
+Adi Shamir.
+\newblock How to Share a Secret.
+\newblock \textit{Communications of the ACM}, 22(11):612--613, 1979.
+
+\bibitem{ostrom1990governing}
+Elinor Ostrom.
+\newblock \textit{Governing the Commons: The Evolution of Institutions for Collective Action}.
+\newblock Cambridge University Press, 1990.
 
 \end{thebibliography}
 

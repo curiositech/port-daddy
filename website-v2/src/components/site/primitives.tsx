@@ -34,7 +34,7 @@ const surfaceBracketTone: Record<AccentTone, string> = {
 const SurfaceToneContext = createContext<AccentTone>('paper')
 
 const panelEyebrowClass =
-  'font-sans font-opsz-small text-[length:var(--type-meta-size)] font-medium uppercase tracking-[var(--tracking-meta)]'
+  'font-sans text-[length:var(--type-meta-size)] font-medium uppercase tracking-[var(--tracking-meta)]'
 
 const panelTitleSize = {
   hero: 'text-[length:var(--type-hero-size)] leading-[var(--leading-display-tight)] tracking-normal',
@@ -86,27 +86,7 @@ const landingStatTone = {
   accent: 'bg-[var(--brand-accent)] text-[var(--brand-accent-foreground)]',
 } as const
 
-type DocsCodeLanguage = 'cli' | 'bash' | 'shell' | 'sh' | 'zsh' | 'text' | 'typescript' | 'ts' | 'javascript' | 'js' | 'json' | 'yaml' | 'yml'
-
-const docsCodeLabel: Record<DocsCodeLanguage, string> = {
-  cli: 'CLI',
-  bash: 'Bash',
-  shell: 'Shell',
-  sh: 'Shell',
-  zsh: 'Zsh',
-  text: 'Text',
-  typescript: 'TypeScript',
-  ts: 'TypeScript',
-  javascript: 'JavaScript',
-  js: 'JavaScript',
-  json: 'JSON',
-  yaml: 'YAML',
-  yml: 'YAML',
-}
-
-function isTerminalLanguage(language: DocsCodeLanguage): language is 'cli' | 'bash' | 'shell' | 'sh' | 'zsh' {
-  return language === 'cli' || language === 'bash' || language === 'shell' || language === 'sh' || language === 'zsh'
-}
+type DocsCodeLanguage = 'cli' | 'text' | 'typescript'
 
 function panelToneForAccent(tone: AccentTone): 'default' | 'primary' | 'accent' {
   return panelToneMap[tone]
@@ -200,7 +180,6 @@ export function PanelTitle({
       id={id}
       className={cn(
         'font-display font-black',
-        'font-opsz-display',
         caps ? 'uppercase' : 'normal-case',
         panelTitleSize[size],
         toneClass,
@@ -230,7 +209,7 @@ export function PanelBody({
   return (
     <Component
       data-slot="panel-body"
-      className={cn('max-w-[44rem] font-sans font-opsz-body', panelBodySize[size], panelBodyTone[tone], className)}
+      className={cn('max-w-[44rem] font-sans', panelBodySize[size], panelBodyTone[tone], className)}
     >
       {children}
     </Component>
@@ -873,7 +852,6 @@ export function DocsNoteCard({
 
 export function DocsCodeBlock({
   code,
-  output,
   language = 'cli',
   label,
   className,
@@ -881,7 +859,6 @@ export function DocsCodeBlock({
   copyable = true,
 }: {
   code: string
-  output?: string
   language?: DocsCodeLanguage
   label?: string
   className?: string
@@ -890,8 +867,8 @@ export function DocsCodeBlock({
 }) {
   const [copied, setCopied] = useState(false)
   const surface = useSurfaceTone()
-  const terminalLabel = label ?? docsCodeLabel[language]
-  const codeLanguage = language === 'cli' ? 'bash' : language
+  const terminalLabel = label ?? (language === 'cli' ? 'CLI' : language === 'typescript' ? 'TypeScript' : 'Text')
+  const codeLanguage = language === 'typescript' ? 'typescript' : undefined
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(code)
@@ -902,11 +879,11 @@ export function DocsCodeBlock({
   if (variant === 'compact') {
     return (
       <div className={cn('min-w-0', className)}>
-        {isTerminalLanguage(language) ? (
+        {language === 'cli' ? (
           <CommandTerminal
             code={code}
             title={terminalLabel}
-            language={codeLanguage}
+            language="bash"
             animate={false}
             copyable={copyable}
             showHeaderLabel={false}
@@ -916,16 +893,11 @@ export function DocsCodeBlock({
             {code}
           </CodeBlock>
         )}
-        {output ? (
-          <CodeBlock language="text" filename={`${terminalLabel} output`} copyable={false} showHeaderLabel={false}>
-            {output}
-          </CodeBlock>
-        ) : null}
       </div>
     )
   }
 
-  if (isTerminalLanguage(language)) {
+  if (language === 'cli') {
     return (
       <div className={cn('min-w-0 space-y-[var(--space-2)]', className)}>
         <div className="flex items-center justify-between gap-[var(--panel-gap-tight)]">
@@ -946,16 +918,11 @@ export function DocsCodeBlock({
         <CommandTerminal
           code={code}
           title={terminalLabel}
-          language={codeLanguage}
+          language="bash"
           animate={false}
           copyable={false}
           showHeaderLabel={false}
         />
-        {output ? (
-          <CodeBlock language="text" filename={`${terminalLabel} output`} copyable={false} showHeaderLabel={false}>
-            {output}
-          </CodeBlock>
-        ) : null}
         <span className="sr-only" aria-live="polite">
           {copied ? `${terminalLabel} copied to clipboard` : ''}
         </span>
@@ -983,11 +950,6 @@ export function DocsCodeBlock({
       <CodeBlock language={codeLanguage} filename={terminalLabel} copyable={false} showHeaderLabel={false}>
         {code}
       </CodeBlock>
-      {output ? (
-        <CodeBlock language="text" filename={`${terminalLabel} output`} copyable={false} showHeaderLabel={false}>
-          {output}
-        </CodeBlock>
-      ) : null}
       {copyable ? (
         <span className="sr-only" aria-live="polite">
           {copied ? `${terminalLabel} copied to clipboard` : ''}
@@ -1204,7 +1166,7 @@ export function DocsHero({
   eyebrow: string
   title: string
   summary: string
-  paragraphs?: string[]
+  paragraphs?: ReactNode[]
   aside?: ReactNode
   titleClassName?: string
 }) {
@@ -1220,8 +1182,8 @@ export function DocsHero({
             <PanelBody className="max-w-[46rem]">{summary}</PanelBody>
             {paragraphs.length ? (
               <div className="space-y-[var(--panel-gap-tight)]">
-                {paragraphs.map((paragraph) => (
-                  <PanelBody key={paragraph}>{paragraph}</PanelBody>
+                {paragraphs.map((paragraph, index) => (
+                  <PanelBody key={index}>{paragraph}</PanelBody>
                 ))}
               </div>
             ) : null}

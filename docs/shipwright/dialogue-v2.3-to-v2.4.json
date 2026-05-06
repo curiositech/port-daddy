@@ -1,0 +1,98 @@
+{
+  "round_from": "v2.3",
+  "round_to": "v2.4",
+  "kind": "normal",
+  "sealed_at": "2026-05-02",
+  "lead": "secops:lead",
+  "exchanges": [
+    {
+      "id": "smell:proof-gap:bonded:4.2:merkle-binding",
+      "class": "crypto",
+      "section": "Bonded §4.2",
+      "severity": "high",
+      "title": "Merkle Forest binding — reference impl + fast-check binding properties + EasyCrypt-shaped game spec",
+      "smell_from": "proof-gap-auditor (v2.1 carry, indefinite)",
+      "fix_from": "proof-completer + defense-crypto",
+      "fix_status": "partial",
+      "artifact": "lib/merkle-tree.ts + tests/unit/merkle-binding-property.test.js + proofs/bonded/merkle/binding.md"
+    },
+    {
+      "id": "smell:audit:registry:hand-waved-six",
+      "class": "process",
+      "section": "Bonded §3 / §7.x / §8.4 + Anchor §2.4 / §3",
+      "severity": "scope-clarification",
+      "title": "Honest audit: six v2.1 staged smells still rely on paper text only (no formal artifact)",
+      "smell_from": "secops:lead self-audit",
+      "fix_from": "secops:lead",
+      "fix_status": "scope-clarified",
+      "artifact": "docs/shipwright/dialogue-v2.3-to-v2.4.md §audit"
+    }
+  ],
+  "carried": [
+    {
+      "id": "smell:proof-gap:bonded:4.2:merkle-binding-mechanization",
+      "class": "proof-gap",
+      "title": "Merkle Forest binding — full EasyCrypt mechanization",
+      "reason": "v2.4 ships the implementation, fast-check binding, reduction sketch, and EasyCrypt skeleton (proofs/bonded/merkle/binding.ec with admit. lines). Full mechanization is paid only if a higher-assurance audit asks; estimated 200-400 LOC + 1 week of an EasyCrypt-fluent author."
+    },
+    {
+      "id": "smell:proof-gap:bonded:8.4:pareto",
+      "class": "proof-gap",
+      "title": "Pareto-dominance proof (§8.4.4)",
+      "reason": "External, depends on Youle's pending formal proof"
+    },
+    {
+      "id": "smell:audit:anchor:3:algorithm-confusion",
+      "class": "crypto",
+      "title": "Algorithm confusion in token verification (Anchor §3)",
+      "reason": "Paper requires explicit algorithm whitelist; no ProVerif on verify path. Scheduled v2.5."
+    },
+    {
+      "id": "smell:audit:anchor:3:delegation-replay",
+      "class": "crypto",
+      "title": "Delegation chain replay (Anchor §3)",
+      "reason": "Paper requires nonce + ID binding; no ProVerif / property test on chain walker. Scheduled v2.5."
+    },
+    {
+      "id": "smell:audit:anchor:2.4:cuckoo-pollution",
+      "class": "coord",
+      "title": "Cuckoo filter pollution (Anchor §2.4)",
+      "reason": "Paper says rate limits + capacity bound; no adversarial fill test. Could be fast-check on lib/cuckoo-filter.ts (if/when it lands). Scheduled v2.5 or later."
+    },
+    {
+      "id": "smell:audit:bonded:7.x:magic-link-race",
+      "class": "recovery",
+      "title": "Email magic-link race (Bonded §7.x)",
+      "reason": "Paper requires single-use TTL; no ProVerif on token state machine. Scheduled v2.5."
+    },
+    {
+      "id": "smell:audit:bonded:8.4:sybil-insurers",
+      "class": "econ",
+      "title": "Sybil insurers (Bonded §8.4)",
+      "reason": "Paper requires registration deposit; no equilibrium simulation showing the deposit is sufficient. Possible v2.5 target via mechanism-design simulation in lib/insurer-auction.ts."
+    },
+    {
+      "id": "smell:audit:bonded:8.4:cartel",
+      "class": "econ",
+      "title": "Insurer collusion / cartel (Bonded §8.4)",
+      "reason": "Paper requires public auction; no game-theory proof of collusion-resistance under repeated play. Same target as sybil-insurers."
+    }
+  ],
+  "paper_changes": [
+    "§4.2 Merkle Forest binding: cite lib/merkle-tree.ts + tests/unit/merkle-binding-property.test.js + proofs/bonded/merkle/binding.md; explicitly note that full EasyCrypt mechanization is deferred and the empirical artifact reduces to SHA-256 collision resistance",
+    "§A.3 Mechanization gap registry: Merkle binding moves from 'narrowed in v2.1 paper text' to 'reference impl + binding property test + game spec; full EasyCrypt mechanization deferred'",
+    "§A.3 Mechanization gap registry: ADD six v2.1 staged smells (algorithm confusion, delegation replay, cuckoo pollution, magic-link race, sybil insurers, cartel) as 'paper text only — no artifact yet'. These were always honest-but-informal; v2.4 surfaces them rather than letting them blend into 'closed.'"
+  ],
+  "infrastructure_added": [
+    "lib/merkle-tree.ts (RFC 6962-style domain-separated binary tree, 200 LOC)",
+    "tests/unit/merkle-binding-property.test.js (8 properties: B1 soundness, B2 positional binding, B3 cross-index binding, B4 cross-tree, B5 sibling tamper, B6/B6.b empty-tree separation, B7 1024-leaf spot check; all pass)",
+    "proofs/bonded/merkle/binding.md (game-based spec + reduction sketch to SHA-256 collision resistance)",
+    "proofs/bonded/merkle/binding.ec (EasyCrypt skeleton with admit. lines — placeholder for future heavy verification)"
+  ],
+  "reputation_deltas": {
+    "proof-completer": "+1 partial (Merkle binding empirical + game spec; full mechanization deferred honestly)",
+    "defense-crypto": "+1 co-signed (Merkle reference impl matches §4.2 spec)",
+    "secops:lead": "+1 self-audit (surfaced six previously hand-waved smells; honesty over coverage theatre)",
+    "proof-gap-auditor": "+1 vindicated (the 'staged but unverified' tagging in v2.1 caught real gaps)"
+  }
+}

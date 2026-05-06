@@ -48,23 +48,23 @@ export const WHITE_PAPERS: WhitePaper[] = [
     pdfPath: '/whitepaper/anchor-protocol-whitepaper.pdf',
     readerHref: '/whitepaper/anchor-protocol',
     overviewHref: '/whitepaper?paper=anchor-protocol',
-    date: 'March 2026',
-    pages: 12,
-    sizeKb: 368,
+    date: 'April 2026',
+    pages: 17,
+    sizeKb: 437,
     status: 'Protocol foundation',
     order: '01',
     explainerTitle: 'The paper that makes local access explicit.',
     explainerLead:
       'Anchor is the identity boundary underneath Port Daddy harbors. It says an agent should be able to prove what it may do locally without inheriting broad ambient power from the process that launched it.',
     whyValuable:
-      'The project needs this because a local app cannot ask users to trust every spawned process by vibes. Signed cards, scoped capabilities, and attenuated delegation give FleetBar, Shipwright, sorties, and future harbor joins a common language for safe access.',
+      'The project needs this because a local app cannot ask users to trust every spawned process by vibes. Signed cards, scoped capabilities, attenuated delegation, and now early-revocation give FleetBar, Shipwright, sorties, and future harbor joins a common language for safe access.',
     futureValue:
-      'As Port Daddy moves toward richer fleet admission and remote harbor workflows, this paper will become the design contract for who may enter, what access they carry, and how the daemon can reject forged or over-broad claims before they touch shared work.',
+      'As Port Daddy moves toward richer fleet admission and remote harbor workflows, this paper is the design contract for who may enter, what access they carry, and how the daemon revokes or rejects claims before they touch shared work.',
     highlights: [
       { icon: Shield, label: 'ProVerif agreement proof' },
       { icon: Lock, label: 'Rust memory-safety path' },
       { icon: CheckCircle, label: 'Constant-time comparison' },
-      { icon: Terminal, label: 'Formal methods appendix' },
+      { icon: Terminal, label: 'Cuckoo-filter revocation' },
     ],
     sections: [
       {
@@ -81,6 +81,11 @@ export const WHITE_PAPERS: WhitePaper[] = [
         title: 'Verification strategy',
         content:
           'Symbolic analysis models authentication and delegation properties, while implementation-level checks focus on memory safety, signature verification, and constant-time comparisons.',
+      },
+      {
+        title: 'Revocation via cuckoo filter',
+        content:
+          'New in v2: capability tokens can be withdrawn before TTL via a gossiped cuckoo filter. Compromise and policy reversal stop being eventual-only events; revocation reaches every daemon in O(log m) gossip rounds.',
       },
       {
         title: 'Implementation boundary',
@@ -116,23 +121,23 @@ export const WHITE_PAPERS: WhitePaper[] = [
     pdfPath: '/whitepaper/agent-transactions-whitepaper.pdf',
     readerHref: '/whitepaper/bonded-commons',
     overviewHref: '/whitepaper?paper=bonded-commons',
-    date: 'March 2026',
-    pages: 16,
-    sizeKb: 400,
-    status: 'Mechanism design',
+    date: 'April 2026',
+    pages: 24,
+    sizeKb: 499,
+    status: 'Pre-print v2.0',
     order: '02',
     explainerTitle: 'The paper that makes coordination accountable.',
     explainerLead:
-      'Bonded Commons sits above Anchor. It asks how agents can work together when intent is private, damage can be real, and trust cannot be negotiated from scratch for every handoff.',
+      'Bonded Commons sits above Anchor. It asks how agents can work together when intent is private, damage can be real, and trust cannot be negotiated from scratch for every handoff. Version 2 adds the proofs and pricing the original draft promised.',
     whyValuable:
-      'The project needs this because Port Daddy is not only a launcher. Sessions, file claims, locks, notes, activity, handoffs, and salvage already form a commons. This paper explains why those signals should be durable, attributable, and eventually backed by explicit risk and accountability.',
+      'The project needs this because Port Daddy is not only a launcher. Sessions, file claims, locks, notes, activity, and salvage already form a commons. This paper explains why those signals should be durable, attributable, and now backed by an operationally checkable conservation invariant and a market-discovered bond price.',
     futureValue:
-      'As Port Daddy grows sortie histories, resource controls, budget ceilings, and harbor admission, this paper will guide how future work contracts, evidence trails, and collateral models could make autonomous work understandable before anything goes wrong.',
+      'As Port Daddy grows sortie histories, resource controls, budget ceilings, and harbor admission, the v2 expansion gives the foundation: a Merkle forest that survives multi-machine usage, a federated sovereign for keys across devices, and a Bonded Advisor / competitive-insurance market that prices risk instead of guessing it.',
     highlights: [
       { icon: Scale, label: "Sen's impossibility applied" },
-      { icon: Handshake, label: 'Collateralized work contracts' },
-      { icon: Eye, label: 'Immutable evidence trails' },
-      { icon: Terminal, label: 'TLA+ model boundary' },
+      { icon: Handshake, label: 'Bonded advisor + insurance market' },
+      { icon: Eye, label: 'Merkle forest with KMS witness' },
+      { icon: Terminal, label: 'Conservation theorem (proved)' },
     ],
     sections: [
       {
@@ -141,19 +146,29 @@ export const WHITE_PAPERS: WhitePaper[] = [
           'Peer-to-peer promises do not scale to autonomous work. The paper frames a shared record of intent, scope, evidence, and accountability before coordination turns into conflict.',
       },
       {
-        title: 'Three layers',
+        title: 'Three layers, now proved',
         content:
-          'Capability boundaries prevent broad damage, Merkle-chained attribution makes work inspectable, and collateralized contracts fund accountability without pretending that intent is observable.',
+          'Capability boundaries (with revocation) prevent broad damage, the Merkle forest makes work inspectable across daemons, and the conservation theorem turns escrow accounting into a checkable invariant rather than a hopeful claim.',
       },
       {
-        title: 'Why advisory claims',
+        title: 'Mutable-signal ledger',
         content:
-          "Strict allocation can be worse than conflict when private knowledge matters. Port Daddy should show clear coordination signals instead of pretending it can centrally know every agent's best move.",
+          'New §4.3: coordination hints can be revoked, renamed, and re-attributed without erasing history. Pheromones get a provenance chain; the substrate stays immutable.',
       },
       {
-        title: 'Open problem',
+        title: 'Federated sovereign',
         content:
-          'Bond pricing has to make defection expensive without pricing legitimate agents out of the commons. That is a product, economics, and systems-design problem, not a decorative token mechanic.',
+          'New: passkey-first identity, abstract KMS with five named properties, devices that pair without passwords, and an honest recovery story that does not pretend zero-knowledge is free.',
+      },
+      {
+        title: 'Pricing the bond',
+        content:
+          "v2 closes part of the original open problem: a cleanup-cost lower bound, a scope multiplier, a reputation discount, the Bonded Advisor pattern, and Thomas Youle's competitive-insurance market in which insurer agents bid to underwrite each transaction.",
+      },
+      {
+        title: 'Coordination as substrate',
+        content:
+          'Five expressive classes (Signal, Request, Distress, Commons, Proposal) get separate bond profiles. Vibe-time and replay become first-class observability primitives instead of features.',
       },
     ],
     takeaways: [

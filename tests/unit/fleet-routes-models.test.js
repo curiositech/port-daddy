@@ -30,6 +30,9 @@ jest.unstable_mockModule('../../lib/backend-readiness.js', () => ({
 jest.unstable_mockModule('../../lib/secret-env.js', () => ({
   saveManagedSecret: mockSaveManagedSecret,
   managedSecretStorageStatus: mockManagedSecretStorageStatus,
+  // getSecret is reached transitively via lib/llm-call.ts → fleet-engine →
+  // routes/fleet. Default to undefined (no managed secret stored).
+  getSecret: jest.fn(() => undefined),
 }));
 
 const { fleetPlugin } = await import('../../routes/fleet.js');

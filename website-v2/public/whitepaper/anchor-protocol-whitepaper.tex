@@ -15,6 +15,7 @@
 \usepackage{tikz}
 \usepackage{float}
 \usepackage{caption}
+\usepackage{enumitem}
 % Algorithms are formatted using lstlisting with custom pseudocode style
 
 % ─── Geometry ────────────────────────────────────────────────────────────────
@@ -171,6 +172,40 @@ Agent A takes its existing Harbor Card, appends a new set of restricted capabili
 
 The Harbor verifies the Daemon's root signature, Agent A's delegation signature, and mathematically ensures that Agent B's capabilities are a strict subset of Agent A's.
 \end{definition}
+
+\subsection{Phase 4: Revocation via Cuckoo Filter}\label{sec:revocation}
+
+Capability tokens have a TTL, but natural expiry is not always sufficient. Two circumstances force early withdrawal: (i) \emph{compromise}---a Harbor Card leaks from its agent's process, and every second until TTL is a second the attacker has legitimate capabilities; and (ii) \emph{policy reversal}---a principal decides an agent should no longer hold \texttt{db:write}, and waiting for TTL is unacceptable. A naive revocation list is $O(n)$ per verification and grows monotonically; in a daemon mesh, propagating it is $O(n \cdot m)$ for $m$ peers. The Anchor Protocol commits to a cuckoo filter~\cite{fan2014cuckoo} for revocation.
+
+\paragraph{Why cuckoo, not Bloom.} For uniform-TTL workloads, a rotating Bloom filter would suffice. Port Daddy's TTLs are heterogeneous---Shipwright proposals run hours to days, \texttt{pd spawn} children run minutes, one-shot agents run seconds. Rotating Bloom either rotates at the longest TTL (short-TTL revocations linger orders of magnitude longer than needed) or buckets by TTL class (reintroducing the structural complexity cuckoo collapses). Cuckoo provides $O(1)$ per-entry removal at each specific expiry, plus the same removal handles operator-initiated early-revocation undo cleanly.
+
+\paragraph{Space.} At false-positive rate $\epsilon$, a cuckoo filter uses approximately $\log_2(1/\epsilon) + 3$ bits per entry. For $\epsilon = 10^{-3}$, $\approx 13$ bits per revoked card. A fleet retaining $10^{5}$ active revocations fits in $\approx 160$\,KB---trivially in memory, trivially gossiped.
+
+\begin{definition}[Revocation-Augmented Verification]\label{def:revocation}
+Let $R_t$ denote the set of revoked Harbor Card IDs at time $t$. Each daemon $d$ maintains a cuckoo filter $F_d \approx R_t$. Every Harbor Card verification additionally:
+\begin{enumerate}[nosep]
+  \item Looks up the card's \texttt{kid} in $F_d$. If absent, admit.
+  \item If present, query the local \texttt{revocations} table (authoritative). If genuinely revoked, reject with \texttt{revoked}; otherwise the filter is in the false-positive regime and the caller is admitted, with an asynchronous reconciliation job repopulating the filter.
+\end{enumerate}
+\end{definition}
+
+\paragraph{Gossip-based synchronization.} Daemons in a mesh synchronize filters by anti-entropy gossip~\cite{demers1987epidemic}: each daemon maintains a version vector over peers, periodically picks a random peer, exchanges vectors, ships deltas (cards revoked since the peer's last seen version), and applies them. A revocation reaches all $m$ peers in expected $O(\log m)$ gossip rounds. For $m = 10$ daemons at 30-second intervals, all nodes see a new revocation within $\approx 2$ minutes. Security-critical revocations can trigger immediate push (the issuer broadcasts to every known peer).
+
+\begin{property}[Filter Monotonicity over a TTL Epoch]\label{prop:filter-mono}
+For any Harbor Card $c$ with issue time $t_0$ and TTL $\tau$, if $c \in R_t$ for some $t \in [t_0, t_0+\tau]$, then $c \in R_{t'}$ for all $t' \in [t, t_0+\tau]$. After $t_0+\tau$, $c$ may be removed from $R$ since the card has expired.
+\end{property}
+
+\begin{property}[No Partial Reanimation]\label{prop:no-reanim}
+A revoked card cannot be un-revoked within its TTL. If an operator decides the revocation was erroneous, they must issue a new card.
+\end{property}
+
+\begin{property}[Filter Freshness Bound]\label{prop:fresh}
+Under the gossip protocol with period $\Delta$ in a mesh of $m$ daemons, every daemon's filter converges to global $R_t$ within expected time $\Delta \cdot (1 + \ln m)$.
+\end{property}
+
+\paragraph{Soundness preservation.} Revocation strictly narrows acceptance, so existing ProVerif soundness proofs (Theorem~\ref{thm:injective}) are unaffected. The new proof obligation is small: revocation is \emph{enforced}, which follows by inspection of the verification path---the revocation check is unconditional and precedes admission. The card lifecycle gains a state ($\textit{valid} \to \textit{revoked} \to \textit{expired}$) modeled as an additional transition.
+
+\paragraph{Privacy.} A Dolev-Yao adversary observing all gossip traffic learns the revoked-card IDs, leaking which agents have been disciplined. For an organization's own daemons, this is acceptable audit transparency. Stronger privacy is available by encoding revocations as salted hashes $H(\texttt{kid}, \texttt{salt})$ where the salt rotates daily, stored encrypted under a harbor session key.
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Related Work}
@@ -687,6 +722,16 @@ Billy Bob Brumley and Nicola Tuveri.
 Manuel Barbosa, Gilles Barthe, Karthikeyan Bhargavan, Bruno Blanchet, Cas Cremers, Kevin Liao, and Bryan Parno.
 \newblock SoK: Computer-Aided Cryptography.
 \newblock In \textit{IEEE Symposium on Security and Privacy (S\&P)}, 2021.
+
+\bibitem{fan2014cuckoo}
+Bin Fan, David~G. Andersen, Michael Kaminsky, and Michael~D. Mitzenmacher.
+\newblock Cuckoo Filter: Practically Better Than Bloom.
+\newblock In \textit{ACM CoNEXT}, 2014.
+
+\bibitem{demers1987epidemic}
+Alan Demers, Dan Greene, Carl Hauser, Wes Irish, John Larson, Scott Shenker, Howard Sturgis, Dan Swinehart, and Doug Terry.
+\newblock Epidemic Algorithms for Replicated Database Maintenance.
+\newblock In \textit{ACM Symposium on Principles of Distributed Computing (PODC)}, 1987.
 
 \end{thebibliography}
 

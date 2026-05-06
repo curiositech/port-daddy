@@ -106,11 +106,13 @@ _port_daddy() {
     # Briefing & History
     briefing history
     # Consolidated read/write (3.8.4)
-    say look sitrep pheromone ph advise preflight compass guard
+    say look sitrep pheromone ph advise preflight compass guard snapshots snapshot shipwright
     # Agent Inbox
     inbox
     # AI Agent Spawner + Watch
     spawn spawned sortie watch
+    # App-Native Development Cockpit
+    cockpit
     # Harbors (named permission namespaces)
     harbor harbors
     # Tuple space
@@ -1463,6 +1465,21 @@ _port_daddy() {
     # -----------------------------------------------------------------------
     spawned)
       _pd_opts ''
+      ;;
+
+    # -----------------------------------------------------------------------
+    # cockpit  missions  [--project --status --limit --json]
+    # -----------------------------------------------------------------------
+    cockpit)
+      local subcmd="${words[2]:-}"
+      case "$subcmd" in
+        '')
+          COMPREPLY=( $(compgen -W "missions help" -- "$cur") )
+          ;;
+        missions)
+          _pd_opts '--project --status --limit --json'
+          ;;
+      esac
       ;;
 
     # -----------------------------------------------------------------------

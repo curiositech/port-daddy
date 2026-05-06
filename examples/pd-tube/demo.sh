@@ -17,8 +17,8 @@ echo "$first_json"
 first_id="$(node -e "const j=JSON.parse(process.argv[1]); console.log(j.id)" "$first_json")"
 echo
 
-echo "$ printf 'Replying with proof from the same channel.' | pd tube $CHANNEL --reply=$first_id --sender demo-reviewer --json"
-reply_json="$(printf 'Replying with proof from the same channel.' | "${PD[@]}" tube "$CHANNEL" --reply="$first_id" --sender demo-reviewer --json)"
+echo "$ printf 'Replying with proof from the same channel.' | pd tube $CHANNEL --reply-to=$first_id --sender demo-reviewer --json"
+reply_json="$(printf 'Replying with proof from the same channel.' | "${PD[@]}" tube "$CHANNEL" --reply-to="$first_id" --sender demo-reviewer --json)"
 echo "$reply_json"
 echo
 

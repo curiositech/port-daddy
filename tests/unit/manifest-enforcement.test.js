@@ -50,8 +50,14 @@ function extractServerRoutes() {
 
   const routePattern = /\.(get|post|put|delete|patch)\s*\(\s*['"`]([^'"`]+)['"`]/gi;
 
+  // routes/test-hooks.ts mounts only when NODE_ENV=test (see
+  // routes/test-hooks.ts + routes/index.ts). Intentionally absent from
+  // features.manifest.json — not a documented product surface.
+  const TEST_ONLY_ROUTE_FILES = new Set(['test-hooks.ts']);
+
   for (const file of readdirSync(routesDir)) {
     if (!file.endsWith('.ts')) continue;
+    if (TEST_ONLY_ROUTE_FILES.has(file)) continue;
     const content = readFileSync(join(routesDir, file), 'utf-8');
     let match;
     while ((match = routePattern.exec(content)) !== null) {
@@ -665,6 +671,7 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'list_sorties': 'sorties',
       'get_sortie': 'sorties',
       'get_sortie_logs': 'sorties',
+      'cockpit_missions_list': 'cockpit',
 
       // Tuples
       'tuple_out': 'tuples',

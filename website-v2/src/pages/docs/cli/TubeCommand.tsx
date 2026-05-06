@@ -4,42 +4,98 @@ export default function TubeCommand() {
   return (
     <CommandPage
       command="pd tube"
-      description="Open a scriptable conversation pipe over a Port Daddy channel. Listen mode emits one message per line; send and reply modes read the body from stdin."
-      version="3.11.0"
-      syntax="pd tube <channel> [--send | --reply=<id> | --since=<id> | --once | --json | --no-history]"
+      description="The single command that turns any local UI, hook, or webhook into an event your running agent can answer in one shell call. Listen mode blocks once and returns; --reply auto-correlates to the most recent foreign event and continues listening."
+      version="3.13.0"
+      syntax="pd tube <channel> [--reply <body> | --reply-to=<id> | --reply=<id> --send | --send <body> | --raw | --json | --once | --tail | --wait-for=<seconds> | --no-history | --since=<id> | --limit=<N> | --sender <id>]"
       usagePatterns={[
-        'pd tube project:handoff --once --json',
-        'printf "ready" | pd tube project:handoff --send --sender qa',
-        'printf "fixed" | pd tube project:handoff --reply=42 --sender codex',
+        'pd tube ui:clicks',
+        'pd tube ui:clicks --reply "Deployed to staging."',
+        'echo "long body" | pd tube ui:clicks --reply -',
+        'pd tube ui:clicks --send "shipping it"',
+        'pd tube ui:clicks --json --once',
+        'pd tube ui:clicks --tail',
       ]}
       flags={[
-        { flag: '--send', description: 'Read stdin to EOF and publish a top-level tube message.' },
-        { flag: '--reply=<id>', description: 'Read stdin to EOF and publish a threaded reply to an existing message id.' },
-        { flag: '--once', description: 'Perform one read pass and exit instead of polling continuously.' },
-        { flag: '--since=<id>', description: 'Only emit messages with ids greater than the given cursor.' },
-        { flag: '--json', description: 'Emit clean JSON lines for scripts and agents.' },
-        { flag: '--no-history', description: 'Bypass the per-channel cursor file for fixtures, tests, and demos.' },
+        {
+          flag: '--reply <body>',
+          description:
+            'Inline reply: auto-correlates to the most recent foreign event on this channel, posts the body, then continues listening. Pass `-` to read body from stdin.',
+        },
+        {
+          flag: '--reply-to=<id>',
+          description:
+            'Explicit parent id for a threaded reply. Combine with `--reply <body>` or pipe stdin.',
+        },
+        {
+          flag: '--reply=<id> --send',
+          description:
+            'Legacy post-and-exit shape. Numeric parent id; body comes from stdin. Posts a threaded reply and exits.',
+        },
+        {
+          flag: '--send <body>',
+          description:
+            'Top-level message (no inReplyTo). Inline body or pipe stdin. Posts and exits.',
+        },
+        {
+          flag: '--raw',
+          description:
+            'Tab-separated machine output (`id\\tsender[ ↩parent]\\tbody`). Default output is the prose crank-handle block.',
+        },
+        { flag: '--json', description: 'One JSON line per emitted message.' },
+        {
+          flag: '--once',
+          description: 'Single poll-pass: emit current backlog, exit. No blocking, no waiting.',
+        },
+        {
+          flag: '--tail',
+          description: 'Classic infinite loop. For humans watching a terminal.',
+        },
+        {
+          flag: '--wait-for=<seconds>',
+          description: 'How long to block waiting for the first event. Default 600.',
+        },
+        {
+          flag: '--since=<id>',
+          description: 'Only emit messages with ids greater than the given cursor.',
+        },
+        {
+          flag: '--limit=<N>',
+          description: 'Cap on initial backfill when no cursor exists. Default 50.',
+        },
+        {
+          flag: '--no-history',
+          description: 'Bypass the per-channel cursor file for fixtures, tests, and demos.',
+        },
+        {
+          flag: '--sender <id>',
+          description:
+            'Override the synthesized listener identity (default `pd-tube/<cwd-basename>/<channel-slug>`).',
+        },
       ]}
       examples={[
         {
-          description: 'Read recent messages as JSON lines',
-          code: 'pd tube port-daddy:story:coordination --once --json --no-history --limit=5',
-          output: '{"id":30083,"sender":"codex-pr5","createdAt":1777422337428,"body":"Port Daddy coordination story: agents do not just promise to be careful..."}',
+          description:
+            'Block until the next event arrives, print the prose block, exit. The agent’s default loop shape.',
+          code: 'pd tube ui:clicks',
+          output:
+            'tube waiting on ui:clicks as pd-tube/myapp/ui_clicks (up to 600s; Ctrl+C to exit)\n\n──── event id=42 · channel ui:clicks ────\nFrom: web-demo · 2026-04-30T22:01:11.000Z\nBody:\n  {"button":"deploy-staging","user":"erich"}\n\nAct on the event above, then post your response by running:\n\n    pd tube ui:clicks --reply "your response here"\n\nThat command posts a reply correlated to id=42 AND continues\nlistening. Use --raw / --json for machine output. Ctrl+C to exit.\n──────────────────────────────────────',
         },
         {
-          description: 'Send a handoff from stdin',
-          code: 'printf "Docs patch is ready." | pd tube port-daddy:story:coordination --send --sender codex',
-          output: 'tube: posted id=30084 to port-daddy:story:coordination',
+          description: 'Inline reply: auto-correlates to id=42 above, posts, keeps listening.',
+          code: 'pd tube ui:clicks --reply "Deployed to staging. CI is green."',
+          output:
+            'SUCCESS: tube: posted id=43 to ui:clicks\ntube waiting on ui:clicks as pd-tube/myapp/ui_clicks (up to 600s; Ctrl+C to exit)',
         },
         {
-          description: 'Reply to an existing message',
-          code: 'printf "GIF and cast are attached in demos/pd-tube." | pd tube port-daddy:story:coordination --reply=30083 --sender codex',
-          output: 'tube: posted id=30085 to port-daddy:story:coordination',
+          description: 'Machine output: one JSON line per message, single pass.',
+          code: 'pd tube ui:clicks --json --once',
+          output:
+            '{"id":42,"sender":"web-demo","createdAt":1714519871000,"body":"{\\"button\\":\\"deploy-staging\\"}"}',
         },
         {
-          description: 'Resume from an explicit cursor',
-          code: 'pd tube port-daddy:story:coordination --since=30083 --json --once',
-          output: '{"id":30084,"sender":"codex","createdAt":1777422400123,"body":"Docs patch is ready."}',
+          description: 'Explicit-parent shape: post a reply to id=42 from stdin.',
+          code: 'printf "roger that" | pd tube ui:clicks --reply-to=42 --sender codex',
+          output: 'SUCCESS: tube: posted id=43 to ui:clicks',
         },
       ]}
       seeAlso={[

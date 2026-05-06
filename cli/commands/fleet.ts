@@ -80,9 +80,9 @@ interface FleetModelBackend {
   readinessNextStep?: string;
   credentialKeys?: string[];
   credentialAlternates?: string[];
-  setupLinks?: Array<{ label: string; url: string }>;
   setupCommand?: string;
   setupFiles?: string[];
+  setupLinks?: Array<{ label?: string; url?: string; kind?: string }>;
   restartRequired?: boolean;
 }
 
@@ -262,8 +262,12 @@ function printFleetModelBackend(backend: FleetModelBackend, detailed: boolean): 
     if (backend.credentialAlternates?.length) {
       console.log(`  alternates: ${backend.credentialAlternates.join(', ')}`);
     }
-    for (const link of backend.setupLinks || []) {
-      console.log(`  link: ${link.label} - ${link.url}`);
+    if (backend.setupLinks?.length) {
+      for (const link of backend.setupLinks) {
+        const label = link.label || link.kind || 'link';
+        const url = link.url || '';
+        console.log(`  link: ${label}${url ? ` - ${url}` : ''}`);
+      }
     }
     const setup = compactSetupCommand(backend.setupCommand);
     if (setup) {
@@ -498,9 +502,6 @@ async function fleetStatus(): Promise<void> {
         console.log(`  [${statusIcon}] ${readiness.backend} — ${readiness.summary}`);
         if (readiness.nextStep) {
           console.log(`      next: ${readiness.nextStep}`);
-        }
-        for (const link of readiness.setupLinks || []) {
-          console.log(`      link: ${link.label} - ${link.url}`);
         }
       }
 
