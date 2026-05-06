@@ -8,6 +8,7 @@ import fleetDesignerContent from './blog/fleet-designer-cold-start.md?raw';
 import mapTruthContent from './blog/recovery-roadmap-map-truth.md?raw';
 import passkeyIdentityContent from './blog/passkey-identity-across-machines.md?raw';
 import pdTubeContent from './blog/pd-tube-event-reply-loop.md?raw';
+import redWhiteIsolationContent from './blog/red-and-white-stay-in-their-lanes.md?raw';
 import telemetryContent from './blog/telemetry-is-a-launch-gate.md?raw';
 import { blogPostMetas, deprecatedBlogPosts, type BlogPostMeta } from './blogMetaData';
 
@@ -25,6 +26,7 @@ const contentBySlug: Record<string, string> = {
   'passkey-identity-across-machines': passkeyIdentityContent,
   'pd-tube-event-reply-loop': pdTubeContent,
   'recovery-roadmap-map-truth': mapTruthContent,
+  'red-and-white-stay-in-their-lanes': redWhiteIsolationContent,
   'running-is-not-current': daemonProvenanceContent,
   'telemetry-is-a-launch-gate': telemetryContent,
 };

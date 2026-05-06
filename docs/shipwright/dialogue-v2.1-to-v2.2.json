@@ -1,0 +1,72 @@
+{
+  "round_from": "v2.1",
+  "round_to": "v2.2",
+  "kind": "normal",
+  "sealed_at": "2026-05-02",
+  "lead": "secops:lead",
+  "exchanges": [
+    {
+      "id": "smell:proof-gap:bonded:7.4:passkey",
+      "class": "crypto+recovery",
+      "section": "Bonded §7.4",
+      "severity": "high",
+      "title": "Passkey device-pairing — ProVerif model + 3 verified properties",
+      "smell_from": "proof-gap-auditor (v2.1 carry)",
+      "fix_from": "proof-completer + defense-crypto + defense-recovery",
+      "fix_status": "landed-in-paper",
+      "artifact": "proofs/bonded/pairing/passkey-pair.pv"
+    },
+    {
+      "id": "smell:proof-gap:bonded:7.x:conservation",
+      "class": "mechanism",
+      "section": "Bonded §7.x",
+      "severity": "high",
+      "title": "Conservation Theorem — TLA+ spec + complete bounded-model TLC run",
+      "smell_from": "proof-gap-auditor (v2.1 carry)",
+      "fix_from": "proof-completer",
+      "fix_status": "landed-in-paper",
+      "artifact": "proofs/bonded/conservation/Conservation.tla"
+    }
+  ],
+  "carried": [
+    {
+      "id": "smell:proof-gap:bonded:7.x:no-overdraft",
+      "class": "proof-gap",
+      "title": "No-Overdraft Lemma mechanization (Kani)",
+      "reason": "TLA+ Conservation gives structural argument; Kani harness on lib/bonds.ts:escrow() scheduled v2.3"
+    },
+    {
+      "id": "smell:proof-gap:bonded:4.2:merkle-binding",
+      "class": "proof-gap",
+      "title": "Merkle Forest binding (EasyCrypt)",
+      "reason": "Scope narrowed in v2.1 paper text; full mechanization deferred"
+    },
+    {
+      "id": "smell:proof-gap:bonded:7:federated",
+      "class": "proof-gap",
+      "title": "Federated Security Theorem (ProVerif four-principal split)",
+      "reason": "Scheduled v2.3"
+    },
+    {
+      "id": "smell:proof-gap:bonded:8.4:pareto",
+      "class": "proof-gap",
+      "title": "Pareto-dominance proof (§8.4.4)",
+      "reason": "Depends on Youle's pending formal proof — external"
+    }
+  ],
+  "paper_changes": [
+    "§7.4 Passkey pairing: cite proofs/bonded/pairing/passkey-pair.pv with the three ProVerif properties; out-of-scope note for QR-channel compromise",
+    "§7.x Conservation: replace prose-only argument with reference to proofs/bonded/conservation/Conservation.tla and bounded-model parameters",
+    "§A.3 Mechanization gap registry updated"
+  ],
+  "infrastructure_added": [
+    "proofs/bonded/pairing/passkey-pair.pv (ProVerif, 3 RESULT lines all TRUE)",
+    "proofs/bonded/conservation/Conservation.tla + .cfg (TLC: 26818 states / 1716 distinct, complete state-space)"
+  ],
+  "reputation_deltas": {
+    "proof-completer": "+2 closed (high-impact: passkey + Conservation)",
+    "defense-crypto": "+1 co-signed (passkey)",
+    "defense-recovery": "+1 co-signed (passkey)",
+    "secops:lead": "+baseline (clean round with two real artifacts)"
+  }
+}
