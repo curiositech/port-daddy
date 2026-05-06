@@ -1,12 +1,14 @@
 import React, { useEffect, useRef, useCallback, useId } from 'react'
 import mermaid from 'mermaid'
 import { Surface } from './Surface'
+import { cn } from '@/lib/utils'
 
 interface MermaidProps {
   chart: string
+  className?: string
 }
 
-export const Mermaid: React.FC<MermaidProps> = ({ chart }) => {
+export const Mermaid: React.FC<MermaidProps> = ({ chart, className }) => {
   const ref = useRef<HTMLDivElement>(null)
   const idPrefix = useId().replace(/:/g, '')
   const renderCount = useRef(0)
@@ -57,7 +59,17 @@ export const Mermaid: React.FC<MermaidProps> = ({ chart }) => {
         noteBkgColor: raised,
         noteTextColor: text,
         noteBorderColor: border,
-      }
+        fontFamily: 'Radnika, Helvetica Neue, Helvetica, Arial, sans-serif',
+        fontSize: '16px',
+      },
+      flowchart: {
+        curve: 'basis',
+        htmlLabels: true,
+        nodeSpacing: 72,
+        rankSpacing: 82,
+        padding: 22,
+        useMaxWidth: false,
+      },
     })
 
     if (ref.current && chart) {
@@ -97,9 +109,9 @@ export const Mermaid: React.FC<MermaidProps> = ({ chart }) => {
   return (
     <Surface
       depth="inset"
-      radius="3xl"
+      radius="none"
       padding="xl"
-      className="my-12 flex justify-center"
+      className={cn('pd-docs-mermaid my-12 flex w-full justify-start overflow-x-auto', className)}
       ref={ref}
     />
   )

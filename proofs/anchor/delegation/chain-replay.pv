@@ -1,0 +1,128 @@
+(* ============================================================
+   Delegation Chain Replay — Anchor §3
+
+   Smell: a multi-hop delegation chain (principal → A → B → C) can be
+   silently replayed if each hop's signature is not bound to a
+   freshly-generated nonce AND the unique identifier of the
+   downstream agent. An attacker who observes a valid chain
+   (m1 → A → B → C, m2) for some message m2 can splice it onto a
+   different message (m2') by reusing intermediate hop signatures.
+
+   Property: a chain accepted at depth N (here N=3) was originally
+   signed by exactly the principal P with exactly the agent
+   identifiers (A, B, C) and exactly the message m. Replay across
+   hops or message-substitution must be rejected.
+
+   Defense modeled: each hop signature binds (nonce_i, prev_id,
+   next_id, message_hash). The verifier rebuilds the binding before
+   accepting and rejects if the chain's nonces are not fresh.
+   ============================================================ *)
+
+free pub : channel.
+
+type pkey. type skey. type sig. type nonce. type id. type message.
+
+fun pk(skey) : pkey.
+fun sign(skey, bitstring) : sig.
+reduc forall sk : skey, m : bitstring;
+  verify(pk(sk), m, sign(sk, m)) = true.
+
+fun id_of_pk(pkey) : id.
+
+(* The hop binding: each hop signs a hashable tuple containing the
+   nonce, the previous id (or "principal" for hop 0), the next id, and
+   the message digest. *)
+fun hopBind(nonce, id, id, message) : bitstring [data].
+
+(* A delegation chain at depth 3:
+     hop1 = principal P signs hopBind(n1, id(P), id(A), m)
+     hop2 = agent A     signs hopBind(n2, id(A), id(B), m)
+     hop3 = agent B     signs hopBind(n3, id(B), id(C), m)
+   The final agent C verifies the entire chain and acts.
+   Each n_i is fresh per chain (modeled with new). *)
+
+event chain_authorized(id, id, id, id, message).  (* P, A, B, C, m *)
+event chain_accepted(id, id, id, id, message).
+
+table issued_nonce(nonce).
+
+(* Honest principal: signs hop1 with a fresh nonce.
+   Publishes (n1, id(P), id(A), m, sig) to pub. *)
+let Principal(skP : skey, idA : id, idB : id, idC : id) =
+  in(pub, m : message);
+  new n1 : nonce;
+  insert issued_nonce(n1);
+  let s1 = sign(skP, hopBind(n1, id_of_pk(pk(skP)), idA, m)) in
+  event chain_authorized(id_of_pk(pk(skP)), idA, idB, idC, m);
+  out(pub, (n1, id_of_pk(pk(skP)), idA, m, s1)).
+
+(* Honest hop A: receives (n1, idP, idA, m, s1) -> verifies -> if good,
+   appends its own hop with fresh n2 and forwards. *)
+let HopA(skA : skey, pkP : pkey, idB : id) =
+  in(pub, (n1 : nonce, idP : id, idA_in : id, m : message, s1 : sig));
+  if id_of_pk(pk(skA)) = idA_in then
+  if verify(pkP, hopBind(n1, idP, idA_in, m), s1) then
+    new n2 : nonce;
+    insert issued_nonce(n2);
+    let s2 = sign(skA, hopBind(n2, idA_in, idB, m)) in
+    out(pub, (n1, idP, idA_in, m, s1, n2, idB, s2)).
+
+let HopB(skB : skey, pkP : pkey, pkA : pkey, idC : id) =
+  in(pub, (n1 : nonce, idP : id, idA : id, m : message, s1 : sig,
+           n2 : nonce, idB_in : id, s2 : sig));
+  if id_of_pk(pk(skB)) = idB_in then
+  if verify(pkP, hopBind(n1, idP, idA, m), s1) then
+  if verify(pkA, hopBind(n2, idA, idB_in, m), s2) then
+    new n3 : nonce;
+    insert issued_nonce(n3);
+    let s3 = sign(skB, hopBind(n3, idB_in, idC, m)) in
+    out(pub, (n1, idP, idA, m, s1, n2, idB_in, s2, n3, idC, s3)).
+
+(* Final verifier C — checks all three hops AND that each nonce is
+   fresh (was issued and not previously consumed). *)
+table consumed_nonce(nonce).
+
+let HopC_Verifier(skC : skey, pkP : pkey, pkA : pkey, pkB : pkey, idP_expected : id) =
+  in(pub, (n1 : nonce, idP : id, idA : id, m : message, s1 : sig,
+           n2 : nonce, idB : id, s2 : sig,
+           n3 : nonce, idC_in : id, s3 : sig));
+  if id_of_pk(pk(skC)) = idC_in then
+  if idP = idP_expected then
+  (* nonce freshness: each must have been issued and not already consumed *)
+  get issued_nonce(=n1) in
+  get issued_nonce(=n2) in
+  get issued_nonce(=n3) in
+  (* Replay protection: refuse if ANY nonce was already consumed *)
+  if verify(pkP, hopBind(n1, idP, idA, m), s1) then
+  if verify(pkA, hopBind(n2, idA, idB, m), s2) then
+  if verify(pkB, hopBind(n3, idB, idC_in, m), s3) then
+    insert consumed_nonce(n1);
+    insert consumed_nonce(n2);
+    insert consumed_nonce(n3);
+    event chain_accepted(idP, idA, idB, idC_in, m).
+
+(* Property: every chain accepted by C corresponds to an originally
+   authorized chain by P with the same (P, A, B, C, m) tuple and
+   nonces that were freshly issued.
+   Because the hopBind ties each signature to (nonce, prev, next,
+   message), the attacker cannot splice a hop into a different
+   chain or replay a chain with a different message. *)
+query idP : id, idA : id, idB : id, idC : id, m : message;
+  event(chain_accepted(idP, idA, idB, idC, m)) ==>
+  event(chain_authorized(idP, idA, idB, idC, m)).
+
+process
+  new skP : skey; let pkP = pk(skP) in
+  new skA : skey; let pkA = pk(skA) in
+  new skB : skey; let pkB = pk(skB) in
+  new skC : skey; let pkC = pk(skC) in
+  let idP = id_of_pk(pkP) in
+  let idA = id_of_pk(pkA) in
+  let idB = id_of_pk(pkB) in
+  let idC = id_of_pk(pkC) in
+  out(pub, pkP); out(pub, pkA); out(pub, pkB); out(pub, pkC);
+  out(pub, idP); out(pub, idA); out(pub, idB); out(pub, idC);
+  ( !Principal(skP, idA, idB, idC)
+  | !HopA(skA, pkP, idB)
+  | !HopB(skB, pkP, pkA, idC)
+  | !HopC_Verifier(skC, pkP, pkA, pkB, idP) )

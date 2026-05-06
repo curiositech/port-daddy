@@ -1,0 +1,62 @@
+{
+  "round_from": "v2.2",
+  "round_to": "v2.3",
+  "kind": "normal",
+  "sealed_at": "2026-05-02",
+  "lead": "secops:lead",
+  "exchanges": [
+    {
+      "id": "smell:proof-gap:bonded:7:federated",
+      "class": "crypto+recovery",
+      "section": "Bonded §7",
+      "severity": "high",
+      "title": "Federated Security Theorem — ProVerif 4-principal split, account_root not derivable under 3-of-4 compromise",
+      "smell_from": "proof-gap-auditor (v2.1 carry)",
+      "fix_from": "proof-completer + defense-crypto + defense-recovery",
+      "fix_status": "landed-in-paper",
+      "artifact": "proofs/bonded/federated/federated.pv"
+    },
+    {
+      "id": "smell:proof-gap:bonded:7.x:no-overdraft",
+      "class": "mechanism",
+      "section": "Bonded §7.x",
+      "severity": "high",
+      "title": "No-Overdraft Lemma — fast-check property test on real lib/bonds.ts (Conservation, No-Overdraft, slash split, idempotent terminal)",
+      "smell_from": "proof-gap-auditor (v2.1 carry)",
+      "fix_from": "proof-completer + defense-econ",
+      "fix_status": "landed-in-paper",
+      "artifact": "tests/unit/bonds-conservation-property.test.js"
+    }
+  ],
+  "carried": [
+    {
+      "id": "smell:proof-gap:bonded:4.2:merkle-binding",
+      "class": "proof-gap",
+      "title": "Merkle Forest binding (EasyCrypt)",
+      "reason": "Scope narrowed in v2.1 paper text; mechanization paid only if a higher-assurance audit asks. Indefinite carry."
+    },
+    {
+      "id": "smell:proof-gap:bonded:8.4:pareto",
+      "class": "proof-gap",
+      "title": "Pareto-dominance proof (§8.4.4)",
+      "reason": "External, depends on Youle's pending formal proof"
+    }
+  ],
+  "paper_changes": [
+    "§7 Federated Security Theorem: cite proofs/bonded/federated/federated.pv with the verified property; document all-four-compromise out-of-scope",
+    "§7.x No-Overdraft: cite tests/unit/bonds-conservation-property.test.js plus v2.2 TLA+ spec; explain fast-check choice",
+    "§A.3 Mechanization gap registry: only #3 and #7 remain"
+  ],
+  "infrastructure_added": [
+    "proofs/bonded/federated/federated.pv (ProVerif: account_root not derivable under 3-of-4 compromise)",
+    "tests/unit/bonds-conservation-property.test.js (fast-check, 6 properties on real lib/bonds.ts)",
+    "website-v2/src/pages/whitepaper/RoundsVisualization.tsx (coverage heatmap + severity stack + reputation ledger)"
+  ],
+  "reputation_deltas": {
+    "proof-completer": "+2 closed (Federated + No-Overdraft)",
+    "defense-econ": "+1 co-signed (No-Overdraft mechanism)",
+    "defense-crypto": "+1 co-signed (Federated)",
+    "defense-recovery": "+1 co-signed (Federated)",
+    "secops:lead": "+baseline (clean round)"
+  }
+}

@@ -15,6 +15,7 @@
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
+import { checkAdversarialProjectWrite } from '../lib/coordination-route-guard.js';
 import {
   evaluateSessionWorktreePolicy,
   mergeSessionWorktreeMetadata,
@@ -127,7 +128,31 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     }
 
     const sessionId = routeSessionId ?? bodySessionId;
-    const result = sessions.quickNote(content, { sessionId, agentId, type });
+
+    // Adversarial-fleet projects (redteam-review, whitehat-defense) require
+    // envelope-encrypted bodies. Look up the session's identity_project to
+    // decide; ordinary projects are unaffected. For adversarial writes the
+    // daemon persists the envelope JSON, never the plaintext content.
+    let writtenContent: string = content;
+    if (sessionId) {
+      const lookup = sessions.get(sessionId);
+      const sess = (lookup as any)?.session as { identity_project?: string | null } | undefined;
+      const project = sess?.identity_project ?? null;
+      const guard = checkAdversarialProjectWrite(project, request.body);
+      if (guard.ok === false) {
+        reply.code(guard.code);
+        return {
+          success: false,
+          error: guard.reason,
+          code: 'ADVERSARIAL_PROJECT_GUARD',
+        };
+      }
+      if (guard.envelopeRequired && guard.envelope) {
+        writtenContent = JSON.stringify(guard.envelope);
+      }
+    }
+
+    const result = sessions.quickNote(writtenContent, { sessionId, agentId, type });
 
     if (!result.success) {
       reply.code(noteWriteStatus(result));

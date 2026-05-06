@@ -366,6 +366,96 @@ pre code {
   max-width: 100%;
 }
 
+.pd-docs-section-block {
+  position: relative;
+  overflow: hidden;
+}
+
+.pd-docs-section-block::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: clamp(0.45rem, 0.9vw, 0.85rem);
+  background: var(--text-primary);
+}
+
+.pd-docs-section-block--blue::before {
+  background: var(--brand-accent);
+}
+
+.pd-docs-section-block--accent::before {
+  background: var(--brand-primary);
+}
+
+.pd-docs-section-block > * {
+  position: relative;
+}
+
+.pd-docs-paragraph-stack {
+  display: grid;
+  gap: clamp(var(--space-3), 1.2vw, var(--space-4));
+}
+
+.pd-docs-body-copy {
+  line-height: 1.44;
+}
+
+.pd-docs-diagram-block {
+  padding-bottom: clamp(var(--space-4), 4vw, var(--space-8)) !important;
+}
+
+.pd-docs-mermaid {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--brand-primary) 12%, transparent) 0 18%, transparent 18% 100%),
+    linear-gradient(90deg, color-mix(in srgb, var(--brand-accent) 16%, transparent), transparent 44%),
+    var(--surface-raised) !important;
+  border: 2px solid var(--border-strong) !important;
+  padding: clamp(var(--space-4), 2.2vw, var(--space-7)) !important;
+  min-height: clamp(24rem, 38vw, 42rem);
+  align-items: center;
+}
+
+.pd-docs-mermaid svg {
+  display: block;
+  width: 100% !important;
+  max-width: none;
+  height: auto;
+}
+
+.pd-docs-mermaid svg text,
+.pd-docs-mermaid svg .label,
+.pd-docs-mermaid svg .nodeLabel {
+  font-family: var(--font-sans) !important;
+  line-height: 1.12 !important;
+}
+
+.pd-docs-mermaid svg foreignObject {
+  overflow: visible !important;
+}
+
+.pd-docs-mermaid svg .edgeLabel,
+.pd-docs-mermaid svg .edgeLabel span {
+  background: var(--text-primary) !important;
+  color: var(--text-inverse) !important;
+  font-size: 15px !important;
+}
+
+.pd-docs-mermaid svg .cluster rect {
+  stroke-width: 2px !important;
+}
+
+.pd-docs-mermaid svg .node rect,
+.pd-docs-mermaid svg .node polygon,
+.pd-docs-mermaid svg .node path {
+  stroke-width: 2px !important;
+}
+
+@media (max-width: 720px) {
+  .pd-docs-mermaid svg {
+    min-width: 860px;
+  }
+}
+
 .blog-article code:not(pre code) {
   border-radius: 0;
   box-shadow: none;

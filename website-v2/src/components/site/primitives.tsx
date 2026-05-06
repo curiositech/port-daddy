@@ -1166,7 +1166,7 @@ export function DocsHero({
   eyebrow: string
   title: string
   summary: string
-  paragraphs?: string[]
+  paragraphs?: ReactNode[]
   aside?: ReactNode
   titleClassName?: string
 }) {
@@ -1182,8 +1182,8 @@ export function DocsHero({
             <PanelBody className="max-w-[46rem]">{summary}</PanelBody>
             {paragraphs.length ? (
               <div className="space-y-[var(--panel-gap-tight)]">
-                {paragraphs.map((paragraph) => (
-                  <PanelBody key={paragraph}>{paragraph}</PanelBody>
+                {paragraphs.map((paragraph, index) => (
+                  <PanelBody key={index}>{paragraph}</PanelBody>
                 ))}
               </div>
             ) : null}

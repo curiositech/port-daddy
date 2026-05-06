@@ -39,6 +39,23 @@ const distributionDisplayTitle = {
   'release-artifacts': 'GitHub release artifacts',
 } as const
 
+const downloadFacts = [
+  ['Artifact', 'PortDaddy-FleetBar-macOS-arm64.zip'],
+  ['Contains', 'FleetBar.app, the native Mac menu-bar shell for Fleet Control Center'],
+  ['Platform', 'Apple Silicon Mac, macOS 14 or newer'],
+  ['Signature', 'Developer ID Application: Curiositech LLC'],
+  ['Notarization', 'Not stapled yet; macOS may require Open Anyway'],
+] as const
+
+const downloadSteps = [
+  'Download the FleetBar ZIP.',
+  'Download the SHA-256 file or manifest if you want provenance before opening it.',
+  'Run shasum -a 256 -c PortDaddy-FleetBar-macOS-arm64.zip.sha256 from the folder that contains both files.',
+  'Unzip the archive and move FleetBar.app to Applications.',
+  'Open FleetBar from Finder. Until notarization is stapled, macOS may ask you to confirm the Developer ID build.',
+  'Use Homebrew or npm setup for the daemon, CLI, MCP server, and project onboarding; the ZIP is the Mac operator surface.',
+] as const
+
 export function DistributionSection() {
   const primary = DISTRIBUTION_OPTIONS[0]
   const remaining = DISTRIBUTION_OPTIONS.slice(1)
@@ -54,9 +71,9 @@ export function DistributionSection() {
         <SwissGrid className="items-start">
           <SwissGridItem span="narrow">
             <SectionIntro
-              eyebrow="Download"
-              title="A Mac developer can try FleetBar today."
-              description="The download is a real FleetBar.app ZIP for Apple Silicon Macs, generated from the Swift source by npm run package:fleetbar-preview. The stable install path is still Homebrew or npm, because the daemon, MCP wiring, CLI, and project onboarding live there."
+              eyebrow="Mac Preview download"
+              title="Know what the ZIP is before you open it."
+              description="This is a real FleetBar.app preview for Apple Silicon Macs. It is the native operator surface for an existing Port Daddy install, not a replacement for the daemon, CLI, MCP server, or project setup."
               titleAs="h2"
               titleSize="display"
               titleClassName="max-w-[12ch]"
@@ -96,6 +113,37 @@ export function DistributionSection() {
 
           <SwissGridItem span="wide">
             <div className="grid gap-[var(--space-4)]">
+              <SurfacePanel elevation="quiet" className="grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,0.78fr)_minmax(0,1fr)]">
+                <div className="grid content-start gap-[var(--space-3)]">
+                  <PanelEyebrow>What downloads</PanelEyebrow>
+                  <PanelTitle as="h3" size="card" className="max-w-[16ch]">
+                    A FleetBar app preview, not the whole Port Daddy runtime.
+                  </PanelTitle>
+                  <PanelBody className="max-w-[38rem]">
+                    FleetBar embeds the Fleet Control Center so a human can inspect daemon health,
+                    projects, agents, resources, inboxes, sorties, Shipwright, and backend readiness
+                    from the Mac menu bar. The app expects the Port Daddy runtime to be installed
+                    separately through the normal setup path.
+                  </PanelBody>
+                </div>
+
+                <dl className="grid gap-[var(--space-2)]">
+                  {downloadFacts.map(([label, value]) => (
+                    <div
+                      key={label}
+                      className="grid gap-[var(--space-2)] border-t-2 border-[var(--border-default)] pt-[var(--space-2)] sm:grid-cols-[9rem_minmax(0,1fr)]"
+                    >
+                      <dt className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+                        {label}
+                      </dt>
+                      <dd className="font-sans text-[length:var(--text-sm)] font-semibold leading-snug text-[var(--text-primary)]">
+                        {value}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </SurfacePanel>
+
               <SurfacePanel tone="blue" className="grid gap-[var(--space-4)] md:grid-cols-[minmax(0,1fr)_minmax(260px,0.72fr)]">
                 <div className="grid gap-[var(--space-3)]">
                   <PanelEyebrow tone="primary">{statusCopy[primary.status]}</PanelEyebrow>
@@ -127,6 +175,30 @@ export function DistributionSection() {
                     <PanelEyebrow tone="primary">No input-only terminal card</PanelEyebrow>
                   </div>
                 </div>
+              </SurfacePanel>
+
+              <SurfacePanel elevation="quiet" className="grid gap-[var(--space-4)]">
+                <div className="grid gap-[var(--space-2)]">
+                  <PanelEyebrow>How to open it</PanelEyebrow>
+                  <PanelTitle as="h3" size="card" className="max-w-[18ch]">
+                    The short path is download, verify, unzip, open.
+                  </PanelTitle>
+                </div>
+                <ol className="grid gap-[var(--space-3)] md:grid-cols-2">
+                  {downloadSteps.map((step, index) => (
+                    <li
+                      key={step}
+                      className="grid grid-cols-[2.25rem_minmax(0,1fr)] gap-[var(--space-3)] border-t-2 border-[var(--border-default)] pt-[var(--space-3)]"
+                    >
+                      <span className="inline-flex h-8 w-8 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-base)] font-mono text-[length:var(--type-meta-size)] font-black text-[var(--text-primary)]">
+                        {index + 1}
+                      </span>
+                      <PanelBody size="compact" className="max-w-none">
+                        {step}
+                      </PanelBody>
+                    </li>
+                  ))}
+                </ol>
               </SurfacePanel>
 
               <div className="grid gap-[var(--space-4)] md:grid-cols-3">

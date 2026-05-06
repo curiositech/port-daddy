@@ -1,0 +1,71 @@
+(* ============================================================
+   Email Magic-Link Race — Bonded §7.x
+
+   Smell: an attacker who can observe a magic-link recovery email
+   (or who races a legitimate user) attempts to consume the token
+   twice. The protocol must guarantee:
+
+     (S) single-use   — at most one consume() per token (race-safe)
+     (B) binding      — every consume corresponds to an issue with
+                        the same (account, token) pair
+
+   Defense pattern modeled here: per-token PRIVATE CHANNEL that
+   carries exactly one consume-capability message. Once the consume
+   process takes from the channel, no further consume can succeed
+   (channel is drained). This models the real implementation, where
+   the server enforces single-use by an atomic SQL UPDATE WHERE
+   consumed=0 RETURNING — atomicity provided by the DB, modeled
+   here by ProVerif's private-channel linearity.
+
+   The Dolev-Yao adversary controls the public email channel and
+   can call consume() arbitrarily many times in parallel.
+   ============================================================ *)
+
+free pub : channel.   (* attacker-controlled email + network *)
+
+type token. type account_id.
+
+fun mkLink(token, account_id) : bitstring [data].
+
+event issued_for(account_id, token).
+event consumed_for(account_id, token).
+
+(* Consumer: listens for (tk_in, a_in) on pub AND a single consume-cap
+   on the private ch_tk. The cap is consumed atomically by the
+   in(ch_tk, ...). Any second consume blocks forever (no more cap),
+   modeling the real DB UPDATE WHERE consumed=0 atomicity. *)
+let Consumer(tk : token, a : account_id, ch_tk : channel) =
+  in(pub, (tk_in : token, a_in : account_id));
+  if tk_in = tk then
+  if a_in = a then
+  in(ch_tk, cap : bitstring);
+  event consumed_for(a, tk).
+
+(* Server, issue side: receives a recovery request for account a.
+   - Generates a fresh token tk.
+   - Allocates a fresh PRIVATE channel ch_tk for tk's single-use cap.
+   - Sends one consume-cap message on ch_tk.
+   - Publishes (tk, a) to pub (the email).
+   - Spawns a Consumer process bound to ch_tk. *)
+let Issuer =
+  in(pub, a : account_id);
+  new tk : token;
+  new ch_tk : channel;
+  event issued_for(a, tk);
+  out(ch_tk, ());
+  out(pub, mkLink(tk, a));
+  Consumer(tk, a, ch_tk).
+
+(* PROPERTIES *)
+
+(* (S) single-use, INJECTIVE correspondence:
+       every consume corresponds to a UNIQUE issue. *)
+query a : account_id, tk : token;
+  inj-event(consumed_for(a, tk)) ==> inj-event(issued_for(a, tk)).
+
+(* (B) binding *)
+query a : account_id, tk : token;
+  event(consumed_for(a, tk)) ==> event(issued_for(a, tk)).
+
+process
+  ( !Issuer )

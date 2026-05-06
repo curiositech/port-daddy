@@ -1,0 +1,75 @@
+Process 0 (that is, the initial process):
+{1}let n_sk_inst: signkey = passkey_priv in
+{2}out(websocket, pk(passkey_priv));
+(
+    {3}!
+    {4}let passkey_sk: signkey = passkey_priv in
+    {5}in(qr_channel, (qr_nonce: nonce,n_pub: vkey));
+    {6}event UserScannedQR(qr_nonce,n_pub);
+    {7}let assertion: bitstring = sign((qr_nonce,n_pub),passkey_sk) in
+    {8}out(websocket, assertion)
+) | (
+    {9}new n_sk: signkey;
+    {10}let passkey_pub: vkey = pk(passkey_priv) in
+    {11}let n_sk_1: signkey = n_sk in
+    {12}new fresh_nonce: nonce;
+    {13}out(qr_channel, (fresh_nonce,pk(n_sk_1)));
+    {14}in(websocket, assertion_1: bitstring);
+    {15}if (verify(assertion_1,(fresh_nonce,pk(n_sk_1)),passkey_pub) = true) then
+    {16}event NewDevicePaired(fresh_nonce,pk(n_sk_1));
+    {17}out(user_session, (fresh_nonce,pk(n_sk_1),pairing_secret))
+)
+
+--  Process 1 (that is, process 0, with let moved downwards):
+{2}out(websocket, pk(passkey_priv));
+(
+    {3}!
+    {5}in(qr_channel, (qr_nonce: nonce,n_pub: vkey));
+    {6}event UserScannedQR(qr_nonce,n_pub);
+    {4}let passkey_sk: signkey = passkey_priv in
+    {7}let assertion: bitstring = sign((qr_nonce,n_pub),passkey_sk) in
+    {8}out(websocket, assertion)
+) | (
+    {9}new n_sk: signkey;
+    {12}new fresh_nonce: nonce;
+    {11}let n_sk_1: signkey = n_sk in
+    {13}out(qr_channel, (fresh_nonce,pk(n_sk_1)));
+    {14}in(websocket, assertion_1: bitstring);
+    {10}let passkey_pub: vkey = pk(passkey_priv) in
+    {15}if (verify(assertion_1,(fresh_nonce,pk(n_sk_1)),passkey_pub) = true) then
+    {16}event NewDevicePaired(fresh_nonce,pk(n_sk_1));
+    {17}out(user_session, (fresh_nonce,pk(n_sk_1),pairing_secret))
+)
+
+-- Query not attacker(passkey_priv[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query not attacker(passkey_priv[])
+RESULT not attacker(passkey_priv[]) is true.
+-- Query inj-event(NewDevicePaired(x,k)) ==> inj-event(UserScannedQR(x,k)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query inj-event(NewDevicePaired(x,k)) ==> inj-event(UserScannedQR(x,k))
+goal reachable: b-inj-event(UserScannedQR(fresh_nonce[],pk(n_sk[])),@occ6_1) -> inj-event(NewDevicePaired(fresh_nonce[],pk(n_sk[])),@occ16_1)
+The hypothesis occurs strictly before the conclusion.
+Abbreviations:
+@occ16_1 = @occ16[assertion_1 = sign((fresh_nonce[],pk(n_sk[])),passkey_priv[])]
+@occ6_1 = @occ6[n_pub = pk(n_sk[]),qr_nonce = fresh_nonce[],!1 = @sid]
+RESULT inj-event(NewDevicePaired(x,k)) ==> inj-event(UserScannedQR(x,k)) is true.
+-- Query not attacker(pairing_secret[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query not attacker(pairing_secret[])
+RESULT not attacker(pairing_secret[]) is true.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query not attacker(passkey_priv[]) is true.
+
+Query inj-event(NewDevicePaired(x,k)) ==> inj-event(UserScannedQR(x,k)) is true.
+
+Query not attacker(pairing_secret[]) is true.
+
+--------------------------------------------------------------
+

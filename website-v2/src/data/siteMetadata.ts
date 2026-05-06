@@ -234,7 +234,7 @@ const productRoutes: SiteMetadata[] = [
   metadata(
     '/mac-preview',
     'Mac Preview',
-    'Download the signed FleetBar Mac build and see how the app exposes Fleet Control Center, Shipwright, resources, sorties, backend readiness, and agent communication.',
+    'See what the FleetBar Mac preview downloads, how to verify it, how to open it, and how it exposes Fleet Control Center, Shipwright, resources, sorties, backend readiness, and agent communication.',
     { ogSourceImage: OG_SOURCE_IMAGES.fleetbarInstall, ogSectionLabel: 'FleetBar' },
   ),
   metadata(
