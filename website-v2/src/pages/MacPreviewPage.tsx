@@ -1,5 +1,4 @@
-import { Link } from 'react-router-dom'
-import { ArrowRight, BookOpen, Download, MonitorCheck, MonitorCog } from 'lucide-react'
+import { ArrowRight, Download, MonitorCheck } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { MacAppShowcase } from '@/components/landing/MacAppShowcase'
 import { ColdStartSection } from '@/components/landing/ColdStartSection'
@@ -37,23 +36,11 @@ export function MacPreviewPage() {
                   </PanelBody>
                   <div className="flex flex-wrap gap-[var(--space-3)]">
                     <Button asChild variant="primary" size="lg">
-                      <a href="/downloads/PortDaddy-FleetBar-macOS-arm64.zip" download>
+                      <a href="#download">
                         <Download size={16} />
-                        Download FleetBar
+                        View download details
                         <ArrowRight size={16} />
                       </a>
-                    </Button>
-                    <Button asChild variant="secondary" size="lg">
-                      <a href="#cold-start">
-                        <MonitorCog size={16} />
-                        Shipwright cold start
-                      </a>
-                    </Button>
-                    <Button asChild variant="ghost" size="lg">
-                      <Link to="/tutorials/primitives">
-                        <BookOpen size={16} />
-                        Learn the primitives
-                      </Link>
                     </Button>
                   </div>
                 </div>

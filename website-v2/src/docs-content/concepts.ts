@@ -12,6 +12,81 @@ export const conceptsSection: DocsContentSection = {
     'The ideas behind semantic identity, ownership primitives, session lifecycle, agent recovery, harbors, channels, tuples, fleet management, and runtime invariant enforcement.',
   pages: [
     {
+      slug: 'primitives',
+      title: 'Primitives',
+      summary:
+        'The official Primitive Map: how Port Daddy separates identity, ownership, messaging, recovery, verification, and human control into small runtime primitives.',
+      truth: 'source-backed',
+      goals: [
+        'Understand the six primitive families behind Port Daddy coordination.',
+        'Choose the right primitive for ownership, messaging, recovery, verification, or human control.',
+        'Use the Primitive Map design variant for source-backed explanations of runtime state.',
+      ],
+      blocks: [
+        {
+          type: 'paragraph',
+          title: 'Small primitives beat one big orchestration claim',
+          paragraphs: [
+            'Port Daddy works best when coordination is built from small, inspectable primitives. A [session](/docs/features/sessions) is not a [lock](/docs/sdk/locks). A lock is not a [note](/docs/cli/note). A [channel](/docs/cli/pub) is not a handoff. Each primitive stores a different kind of fact with a different lifetime.',
+            'The six primitive families are [identity](/docs/features/ports), [ownership](/docs/features/sessions), [messaging](/agents/communication-protocols), [recovery](/docs/features/salvage), [verification](/docs/features/arbiter), and [human control](/mac-preview). Together they answer the questions a human or agent needs before changing a repo: who is acting, who owns the surface, what changed, what survived, what checked it, and where can the operator see it?',
+          ],
+        },
+        {
+          type: 'checklist',
+          items: [
+            'Identity: [agents](/agents), [sessions](/docs/features/sessions), [semantic service names](/docs/features/ports), and [project-scoped channels](/docs/cli/pub).',
+            'Ownership: [service claims](/docs/features/ports), [file claims](/docs/features/sessions), [region claims](/docs/features/sessions), and [locks](/docs/sdk/locks).',
+            'Messaging: [channels](/docs/cli/pub), [inboxes](/agents/communication-protocols), and [tuples](/docs/features/tuples).',
+            'Recovery: [session notes](/docs/cli/note), [activity](/docs/features/timeline), [salvage](/docs/features/salvage), and [resurrection](/agents/resurrection).',
+            'Verification: [Arbiter invariants](/docs/features/arbiter), [guard checks](/agents/coordination-guard), [telemetry gates](/agents/smart-resources), and [budget gates](/agents/smart-resources).',
+            'Human control: [FleetBar](/mac-preview), [Fleet Control Center](/mac-preview), [Shipwright](/agents/yaml-and-shipwright), [Resources](/agents/smart-resources), and [Sorties](/docs/tutorials/launch-and-inspect-a-sortie).',
+          ],
+        },
+        {
+          type: 'paragraph',
+          title: 'Choose by lifetime',
+          paragraphs: [
+            'Use a [file claim](/docs/features/sessions) or [region claim](/docs/features/sessions) when an agent intends to edit a file or symbol. Use a [lock](/docs/sdk/locks) when simultaneous access would corrupt the result. Use a [channel](/docs/cli/pub) when everyone watching a project should know. Use an [inbox](/agents/communication-protocols) when one durable owner should respond. Use a [tuple](/docs/features/tuples) when another process should query a machine-readable fact later.',
+            'The rule of thumb is simple: use the primitive whose lifetime matches the fact. A transient event should not become a permanent [note](/docs/cli/note). A scarce resource should not be protected only by prose. A handoff should not be hidden in a broadcast stream.',
+          ],
+        },
+        {
+          type: 'paragraph',
+          title: 'Primitive Map design variant',
+          paragraphs: [
+            'Primitive-heavy pages should look like operator instruments, not generic feature grids. The official Primitive Map variant uses hard rules, compact fact tables, semantic color, source rows, and one decisive CTA per viewport.',
+            'The variant is documented in `docs/design-system/primitives-variant.md`. Use it for runtime-primitives concept pages, Mac preview proof surfaces, and source-backed launch or review artifacts.',
+          ],
+        },
+      ],
+      sources: [
+        {
+          path: 'docs/concepts/primitives.md',
+          rationale: 'Canonical repo concept page for the Primitive Map.',
+        },
+        {
+          path: 'docs/design-system/primitives-variant.md',
+          rationale: 'Official design-system variant for primitive explanations.',
+        },
+        {
+          path: 'lib/sessions.ts',
+          rationale: 'Sessions, notes, file claims, lifecycle state, and salvage handoff data.',
+        },
+        {
+          path: 'lib/locks.ts',
+          rationale: 'Exclusive coordination over scarce resources.',
+        },
+        {
+          path: 'lib/tuples.ts',
+          rationale: 'Shared machine-readable facts with pattern matching and TTL.',
+        },
+        {
+          path: 'lib/arbiter.ts',
+          rationale: 'Runtime invariant checks over coordination state.',
+        },
+      ],
+    },
+    {
       slug: 'daemon-and-authority',
       title: 'Why There Is A Daemon',
       summary:

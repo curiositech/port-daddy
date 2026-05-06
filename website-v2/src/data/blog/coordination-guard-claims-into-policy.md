@@ -2,95 +2,111 @@
 
 > **Editorial note, May 6, 2026:** This article was substantially rewritten after publication. It keeps the same URL because the topic is the same, but the argument is more candid about why Coordination Guard exists and where Git fits. You can still read the [former version in the source archive](https://github.com/curiositech/port-daddy/blob/7aec5d09a58983f7d5e30f686fd89a5d145f8426/website-v2/src/data/blog/coordination-guard-claims-into-policy.md).
 
-The honest version is less glamorous than the architecture diagram.
+The embarrassing bit first: I made this sound cleaner than it was.
 
-Coordination Guard did not start as a clean theory that Git should be the policy layer for agent collaboration. It started as dogfooding pain. Agents were leaving notes, claiming files, asking other agents to route around them, and still getting their work captured, reset, cherry-picked, or overwritten by ordinary Git operations.
+Trying to stop Port Daddy agents from clobbering each other set me down a rabbit hole of treating Git as an enforcement point. That phrase, "Git as a policy layer," sounded clever enough when I was moving fast and trying to explain the newest feature. Reading it back, I had made the checkpoint sound like the coordination model.
 
-That is the reason the guard exists.
+I had. In fact, those other primitives are the main system.
 
-Git was not chosen because it understands agent policy. Git was chosen because it is where uncoordinated work becomes durable. The Port Daddy runtime already has the coordination primitives: sessions, notes, file and region claims, locks, channels, inboxes, tuple space, harbors, activity, salvage, Arbiter checks, budget gates, and telemetry gates. Git is the place where those facts have to be consulted before a local mistake enters history.
+So the original framing was a little backwards. Git was not the beautiful first principle. Git was where the mess became impossible to ignore.
 
 ![Coordination guard commit policy illustration](/img/generated/blog-coordination-guard-policy.jpg)
 
-## The Confession
+## What Actually Happened
 
-I had been writing about skill search, specialized agents, and Git as a place to encode policy. A hiring manager asked whether I had considered other primitives besides Git for the policy layer. The question landed because the blog made the system sound more premeditated than it was.
+Port Daddy already had sessions, notes, file claims, region claims, locks, channels, inboxes, tuples, activity, salvage, Arbiter checks, budget gates, and telemetry gates. Those were not hypothetical. Agents were using them.
 
-It did not even occur to me that I had elevated Git to that level until somebody smart reflected it back. That made me laugh a little from embarrassment. It is also telling of too-rapid development: something that felt like a good enough idea to show a potential employer, Coordination Guard, could seem goofy a week later once the deeper runtime lesson caught up with me.
+And still, a normal Git command could wipe out the story.
 
-The deeper answer is: yes, Port Daddy has other primitives, and they are the primary runtime layer. Git is not the coordination system. Git is the last integration point.
+One agent would leave a note saying it was touching a page. Another would claim a nearby file. A third would stage a broad slice because it had a green build. A cherry-pick would replay something without the same hook path. A reset would erase a local buffer. Nobody was trying to be reckless. The tooling just made the reckless path cheap.
 
-Coordination Guard was my most direct attempt to force agents to use the real coordination layer because plain Git kept letting them bypass it.
+That is how Coordination Guard happened. It was not me discovering that Git had a soul. It was me noticing that a repo history does not care how elegant your coordination model is if `git add -A` can still scoop up the wrong files.
 
-The sequence was embarrassing and useful:
+Pretty good, distributed runtime. Bad ending, local checkout.
 
-1. A pre-commit guard existed, but an old hook wrapper printed the error and still let the commit happen.
-2. Cherry-pick and sequencer operations created commits without going through the pre-commit path.
-3. Advisory claims could still be steamrolled by `git add -A` or erased by destructive reset operations because raw Git never asked Port Daddy who owned the files.
+## The Better Answer
 
-That is the actual origin story. Not "Git is a perfect policy substrate." More like: "Git is where agent coordination failures became undeniable."
+The cleaner version is:
+
+> Port Daddy's policy lives in runtime primitives. Git is not the policy system. Git is the integration boundary where the policy system has to be consulted.
+
+That distinction matters.
+
+The Port Daddy runtime is where intent and ownership live. Git is where work becomes durable. Coordination Guard sits at that boundary and asks a small question before history changes:
+
+> Does this staged change have an active session, and do the staged files match the scope that session claimed?
+
+That is all. It is not a judge of taste. It is not a reviewer. It does not know if the UI is good or if the abstraction is silly. It only checks whether the commit has a coordination story.
 
 ## The Runtime Primitives
 
-Port Daddy's coordination layer is broader than the guard. The guard only checks one boundary: whether staged work matches active coordination state. The runtime primitives are the things agents use before that boundary.
+Here is the boring table, because the blog still needs to be useful.
 
-| Primitive | Runtime role | Where it is established or used |
+| Primitive | What it is for | Where it is established or used |
 | --- | --- | --- |
-| Session | Names a unit of work and gives changes an accountable identity | [`lib/sessions.ts`](https://github.com/curiositech/port-daddy/blob/main/lib/sessions.ts), [`routes/sessions.ts`](https://github.com/curiositech/port-daddy/blob/main/routes/sessions.ts), [`server.ts`](https://github.com/curiositech/port-daddy/blob/main/server.ts) |
-| Note | Preserves intent, assumptions, validation, and handoff evidence | [`lib/sessions.ts`](https://github.com/curiositech/port-daddy/blob/main/lib/sessions.ts), [`cli/commands/sessions.ts`](https://github.com/curiositech/port-daddy/blob/main/cli/commands/sessions.ts) |
-| File claim | Advisory edit ownership for paths | [`lib/sessions.ts`](https://github.com/curiositech/port-daddy/blob/main/lib/sessions.ts), [`routes/sessions.ts`](https://github.com/curiositech/port-daddy/blob/main/routes/sessions.ts), [`tests/unit/sessions.test.js`](https://github.com/curiositech/port-daddy/blob/main/tests/unit/sessions.test.js) |
-| Region claim | Symbol or line-scoped ownership inside a file | [`tests/unit/region-claims.test.js`](https://github.com/curiositech/port-daddy/blob/main/tests/unit/region-claims.test.js), [`lib/sessions.ts`](https://github.com/curiositech/port-daddy/blob/main/lib/sessions.ts) |
-| Lock | Exclusive critical section for generated assets, migrations, promotion, and scarce resources | [`lib/locks.ts`](https://github.com/curiositech/port-daddy/blob/main/lib/locks.ts), [`routes/locks.ts`](https://github.com/curiositech/port-daddy/blob/main/routes/locks.ts), [`tests/unit/locks.test.js`](https://github.com/curiositech/port-daddy/blob/main/tests/unit/locks.test.js) |
-| Channel | Event stream for commits, status changes, UI events, and wakeups | [`lib/activity.ts`](https://github.com/curiositech/port-daddy/blob/main/lib/activity.ts), [`routes/activity.ts`](https://github.com/curiositech/port-daddy/blob/main/routes/activity.ts), [`server.ts`](https://github.com/curiositech/port-daddy/blob/main/server.ts) |
-| Inbox | Durable directed ownership for actor handoffs | [`lib/agent-inbox.ts`](https://github.com/curiositech/port-daddy/blob/main/lib/agent-inbox.ts), [`cli/commands/agents.ts`](https://github.com/curiositech/port-daddy/blob/main/cli/commands/agents.ts) |
-| Tuple space | Machine-readable shared facts that other processes can query | [`lib/tuples.ts`](https://github.com/curiositech/port-daddy/blob/main/lib/tuples.ts), [`routes/tuples.ts`](https://github.com/curiositech/port-daddy/blob/main/routes/tuples.ts), [`cli/commands/tuples.ts`](https://github.com/curiositech/port-daddy/blob/main/cli/commands/tuples.ts) |
-| Harbor | Shared work room and admission boundary for a sortie or fleet run | [`lib/harbors.ts`](https://github.com/curiositech/port-daddy/blob/main/lib/harbors.ts), [`routes/harbors.ts`](https://github.com/curiositech/port-daddy/blob/main/routes/harbors.ts) |
-| Salvage and resurrection | Recovery surface when a body dies but the work should not disappear | [`lib/resurrection.ts`](https://github.com/curiositech/port-daddy/blob/main/lib/resurrection.ts), [`routes/resurrection.ts`](https://github.com/curiositech/port-daddy/blob/main/routes/resurrection.ts), [`tests/unit/salvage-routes.test.js`](https://github.com/curiositech/port-daddy/blob/main/tests/unit/salvage-routes.test.js) |
-| Arbiter | Runtime invariant monitor for coordination health | [`lib/arbiter.ts`](https://github.com/curiositech/port-daddy/blob/main/lib/arbiter.ts), [`routes/arbiter.ts`](https://github.com/curiositech/port-daddy/blob/main/routes/arbiter.ts), [`tests/unit/arbiter.test.js`](https://github.com/curiositech/port-daddy/blob/main/tests/unit/arbiter.test.js) |
-| Budget and telemetry gate | Prevents opaque or unpriced launches from silently spending | [`lib/spawner.ts`](https://github.com/curiositech/port-daddy/blob/main/lib/spawner.ts), [`lib/budget-guard.ts`](https://github.com/curiositech/port-daddy/blob/main/lib/budget-guard.ts), [`tests/unit/spawner-telemetry-policy.test.js`](https://github.com/curiositech/port-daddy/blob/main/tests/unit/spawner-telemetry-policy.test.js) |
-| Coordination Guard | Commit-time policy over active session and staged files | [`cli/commands/guard.ts`](https://github.com/curiositech/port-daddy/blob/main/cli/commands/guard.ts), [`tests/unit/coordination-guard.test.js`](https://github.com/curiositech/port-daddy/blob/main/tests/unit/coordination-guard.test.js), [`routes/operator.ts`](https://github.com/curiositech/port-daddy/blob/main/routes/operator.ts) |
-| Claim-aware staging | Safe wrapper so the lazy path does not capture another session's files | [`cli/commands/add.ts`](https://github.com/curiositech/port-daddy/blob/main/cli/commands/add.ts), [`tests/unit/add-command.test.js`](https://github.com/curiositech/port-daddy/blob/main/tests/unit/add-command.test.js) |
+| Session | Names a unit of work and gives it an accountable identity | [`lib/sessions.ts`](https://github.com/curiositech/port-daddy/blob/main/lib/sessions.ts), [`routes/sessions.ts`](https://github.com/curiositech/port-daddy/blob/main/routes/sessions.ts), [`server.ts`](https://github.com/curiositech/port-daddy/blob/main/server.ts) |
+| Note | Captures intent, assumptions, validation, and handoff evidence | [`lib/sessions.ts`](https://github.com/curiositech/port-daddy/blob/main/lib/sessions.ts), [`cli/commands/sessions.ts`](https://github.com/curiositech/port-daddy/blob/main/cli/commands/sessions.ts) |
+| File claim | Says "I am editing this path; route around me if you can" | [`lib/sessions.ts`](https://github.com/curiositech/port-daddy/blob/main/lib/sessions.ts), [`routes/sessions.ts`](https://github.com/curiositech/port-daddy/blob/main/routes/sessions.ts), [`tests/unit/sessions.test.js`](https://github.com/curiositech/port-daddy/blob/main/tests/unit/sessions.test.js) |
+| Region claim | Narrows ownership to a symbol or line range | [`tests/unit/region-claims.test.js`](https://github.com/curiositech/port-daddy/blob/main/tests/unit/region-claims.test.js), [`lib/sessions.ts`](https://github.com/curiositech/port-daddy/blob/main/lib/sessions.ts) |
+| Lock | Protects a scarce thing that should not be edited concurrently | [`lib/locks.ts`](https://github.com/curiositech/port-daddy/blob/main/lib/locks.ts), [`routes/locks.ts`](https://github.com/curiositech/port-daddy/blob/main/routes/locks.ts), [`tests/unit/locks.test.js`](https://github.com/curiositech/port-daddy/blob/main/tests/unit/locks.test.js) |
+| Channel | Publishes events for commits, status changes, wakeups, and UI state | [`lib/activity.ts`](https://github.com/curiositech/port-daddy/blob/main/lib/activity.ts), [`routes/activity.ts`](https://github.com/curiositech/port-daddy/blob/main/routes/activity.ts), [`server.ts`](https://github.com/curiositech/port-daddy/blob/main/server.ts) |
+| Inbox | Gives a durable handoff to a named actor or role | [`lib/agent-inbox.ts`](https://github.com/curiositech/port-daddy/blob/main/lib/agent-inbox.ts), [`cli/commands/agents.ts`](https://github.com/curiositech/port-daddy/blob/main/cli/commands/agents.ts) |
+| Tuple space | Stores machine-readable shared facts that other tools can query | [`lib/tuples.ts`](https://github.com/curiositech/port-daddy/blob/main/lib/tuples.ts), [`routes/tuples.ts`](https://github.com/curiositech/port-daddy/blob/main/routes/tuples.ts), [`cli/commands/tuples.ts`](https://github.com/curiositech/port-daddy/blob/main/cli/commands/tuples.ts) |
+| Harbor | Gives a shared room and admission boundary to a sortie or fleet run | [`lib/harbors.ts`](https://github.com/curiositech/port-daddy/blob/main/lib/harbors.ts), [`routes/harbors.ts`](https://github.com/curiositech/port-daddy/blob/main/routes/harbors.ts) |
+| Salvage and resurrection | Finds work left behind when an agent dies | [`lib/resurrection.ts`](https://github.com/curiositech/port-daddy/blob/main/lib/resurrection.ts), [`routes/resurrection.ts`](https://github.com/curiositech/port-daddy/blob/main/routes/resurrection.ts), [`tests/unit/salvage-routes.test.js`](https://github.com/curiositech/port-daddy/blob/main/tests/unit/salvage-routes.test.js) |
+| Arbiter | Watches coordination invariants that are broader than one commit | [`lib/arbiter.ts`](https://github.com/curiositech/port-daddy/blob/main/lib/arbiter.ts), [`routes/arbiter.ts`](https://github.com/curiositech/port-daddy/blob/main/routes/arbiter.ts), [`tests/unit/arbiter.test.js`](https://github.com/curiositech/port-daddy/blob/main/tests/unit/arbiter.test.js) |
+| Budget and telemetry gate | Keeps launches from spending with opaque or missing telemetry | [`lib/spawner.ts`](https://github.com/curiositech/port-daddy/blob/main/lib/spawner.ts), [`lib/budget-guard.ts`](https://github.com/curiositech/port-daddy/blob/main/lib/budget-guard.ts), [`tests/unit/spawner-telemetry-policy.test.js`](https://github.com/curiositech/port-daddy/blob/main/tests/unit/spawner-telemetry-policy.test.js) |
+| Coordination Guard | Checks staged files against active session ownership | [`cli/commands/guard.ts`](https://github.com/curiositech/port-daddy/blob/main/cli/commands/guard.ts), [`tests/unit/coordination-guard.test.js`](https://github.com/curiositech/port-daddy/blob/main/tests/unit/coordination-guard.test.js), [`routes/operator.ts`](https://github.com/curiositech/port-daddy/blob/main/routes/operator.ts) |
+| Claim-aware staging | Makes the lazy staging path respect live claims | [`cli/commands/add.ts`](https://github.com/curiositech/port-daddy/blob/main/cli/commands/add.ts), [`tests/unit/add-command.test.js`](https://github.com/curiositech/port-daddy/blob/main/tests/unit/add-command.test.js) |
 
-The architecture line is therefore:
+So the picture is not "Git runs policy." It is more like this:
 
 ```mermaid
 flowchart LR
-  Runtime["Port Daddy runtime state"] --> Session["sessions + notes"]
-  Runtime --> Ownership["claims + region claims + locks"]
-  Runtime --> Coordination["channels + inboxes + tuples + harbors"]
+  Runtime["Port Daddy runtime"] --> Session["sessions + notes"]
+  Runtime --> Ownership["claims + regions + locks"]
+  Runtime --> SharedState["channels + inboxes + tuples + harbors"]
   Runtime --> Recovery["activity + salvage + Arbiter"]
-  Ownership --> Guard["coordination guard"]
-  Session --> Guard
-  Git["git index / sequencer / destructive verbs"] --> Guard
-  Guard --> Commit["commit history"]
+  Session --> Guard["coordination guard"]
+  Ownership --> Guard
+  Git["git index / commit / sequencer"] --> Guard
+  Guard --> History["repo history"]
 ```
 
-Git is not the brain. Git is the choke point where the brain must be consulted.
+Git is the door. The runtime is the guest list.
 
-## Why Git Became The Gate
+## The Failure That Made It Obvious
 
-The Git index is the exact set of paths about to become history. That makes it a useful enforcement boundary for one narrow invariant:
+This is the part I should probably have led with.
 
-> A commit should be attributable to an active session, and the staged files should match that session's claimed scope.
+We had a guard. We had notes. We had claims. It still failed.
 
-That invariant does not prove the code is correct. It does not prove the product decision is good. It proves the work has a coordination story before it becomes durable.
+1. A stale pre-commit wrapper printed a guard error and then returned success. The commit landed anyway.
+2. Git sequencer operations, especially cherry-pick and rebase paths, could create commits without the same pre-commit route.
+3. Broad staging and reset commands could ignore claim ownership because raw Git did not ask Port Daddy anything.
 
-The healthy loop is small:
+This code will fail, to borrow the old blog-post rhythm.
 
-<!-- terminal -->
 ```bash
-$ pd begin "Repair project switcher ownership" --identity control-plane:project-switcher
-session: session-control-plane-project-switcher
+$ pd begin "repair blog nav" --identity website:nav
+session: session-website-nav
 
-$ pd note "Intent: preserve selected page while changing projects; touch BlogPage only for current engineering date."
+$ pd note "Only touching SiteHeader and MacPreviewPage."
 note: saved
 
-$ pd session files add website-v2/src/pages/BlogPage.tsx
-claimed: website-v2/src/pages/BlogPage.tsx
+$ pd session files add website-v2/src/components/site/SiteHeader.tsx
+claimed: website-v2/src/components/site/SiteHeader.tsx
 
+$ git add -A
+# oops: this can stage unrelated files unless something checks it
+```
+
+The right path is not complicated:
+
+```bash
 $ pd add --dry-run -A
 would stage:
-  website-v2/src/pages/BlogPage.tsx
+  website-v2/src/components/site/SiteHeader.tsx
 
 blocked by other active claims:
   none
@@ -102,151 +118,83 @@ $ pd guard check --staged
 pass: staged files are covered by active session claims
 ```
 
-The important part is not the command aesthetic. It is the resulting facts:
-
-```json
-{
-  "activeSession": "control-plane:project-switcher",
-  "intentNote": true,
-  "claimedFiles": ["website-v2/src/pages/BlogPage.tsx"],
-  "stagedFiles": ["website-v2/src/pages/BlogPage.tsx"],
-  "guard": "pass"
-}
-```
-
-That state is cheap for a human to inspect and cheap for another agent to respect.
+The interesting thing is not the command spelling. It is the invariant: before the commit exists, the staged paths should line up with live coordination state.
 
 ![Coordination terminal recording](/gifs/agents/coordination.gif)
 
-## Three Times The Guard Did Not Stick
+## Worktrees Would Have Helped
 
-The guard became real through failure. The internal feedback, idea corpus, Spider notes, Spark notes, and Cartographer status maps all repeated the same uncomfortable lesson: an advisory coordination layer has to be wired into the places where people and agents actually mutate the repo.
+I also should have forced every editing session into a new worktree earlier.
 
-| Failure | What happened | What changed |
-| --- | --- | --- |
-| Stale hook failed open | Enforce mode printed a guard error, but an old pre-commit wrapper still ended with success. The commit landed anyway. | Hook installation now has tests for fail-closed shell fragments and post-commit observation. |
-| Cherry-pick bypassed pre-commit | Git sequencer commands can create commits without the same pre-commit path, so the guard never had a chance to object. | The guard now has post-commit observation and the roadmap calls out sequencer-aware enforcement. |
-| Raw Git steamrolled claims | A broad `git add -A`, a reset, or a forced integration could capture or erase files another live session had claimed. | `pd add` became the claim-aware staging path, and destructive-git guardrails moved onto the roadmap. |
+That would have prevented a lot of the dumbest damage. If each agent has its own checkout, one agent's reset does not erase another agent's local edits. One `git add -A` cannot capture somebody else's uncommitted file. The working tree stops being a shared countertop covered in half-finished parts.
 
-The sharpest lesson is that "agents should coordinate" is not a system property. It is an aspiration until the runtime can make the cheap path safer than the reckless path.
+But worktrees do not answer everything.
 
-## Would Worktrees Have Been Enough?
+They do not say which session owns the integration commit. They do not tell you whether two clean branches break the program together. They do not protect generated assets or migrations that need a lock. They do not salvage a dead agent's intent. They do not make a cherry-pick explain itself.
 
-A per-session worktree would have prevented a lot of the initial damage. In hindsight, that should have been the default sooner.
-
-Worktrees are excellent at isolating dirty working trees. If every agent edits in its own checkout, one agent's `git reset --hard` does not erase another agent's uncommitted buffer. One broad `git add -A` cannot accidentally stage someone else's local files. The "we both touched the same checkout" class of failure gets much smaller.
-
-But worktrees are an isolation primitive, not the whole coordination layer.
-
-They do not answer:
-
-- which session owns the integration commit;
-- whether the files being merged match the declared scope;
-- whether two worktrees made Git-clean changes that break the program semantically;
-- whether generated artifacts, migrations, package locks, or promotion outputs need exclusive access;
-- whether a cherry-pick, rebase, revert, or release script bypassed the normal guard path;
-- whether a dead agent left work that should be salvaged before another agent repeats or overwrites it.
-
-That is the simpler distinction I wish I had written first:
+So I now think the default should be:
 
 ```mermaid
 flowchart LR
-  Worktree["worktree per session"] --> Isolation["prevents dirty-tree clobbering"]
-  Runtime["sessions + claims + locks + tuples"] --> Coordination["records ownership and intent"]
-  Guard["coordination guard"] --> Integration["checks the durable boundary"]
+  Worktree["one worktree per session"] --> Isolation["protect local edits"]
+  Runtime["sessions + notes + claims + locks"] --> Coordination["record intent"]
+  Guard["guard at Git boundary"] --> Integration["protect history"]
   Isolation --> Integration
   Coordination --> Integration
 ```
 
-So yes: session-scoped worktrees should be the boring default for agents that will edit code. Coordination Guard still earns its keep at integration time, especially when humans, release scripts, background agents, and sequencer operations all meet at the same history.
+Worktrees keep agents from stepping on each other's dirty buffers. Coordination Guard keeps Git history from pretending that no one was responsible.
 
-## What Spark, Spider, And Cartographer Kept Telling Us
+Both are needed. I learned that in the expensive order.
 
-The idea corpus did not point toward one giant supervisor. It pointed toward layered, boring, inspectable coordination.
+## What Spark, Spider, And Cartographer Kept Telling Me
 
-Spark and Spider kept rediscovering a few themes:
+The sidecar notes kept circling the same answer. I did not need one giant boss agent. I needed small facts in the right places.
 
-- Session notes and Git deltas should be compared. Notes describe what agents claimed they were doing; commits show what they actually produced.
-- Intent tuples should exist before work begins, not only after a conflict has already happened.
-- Hot files and active claims should become territory signals, so agents can route around defended surfaces.
-- Activity should automatically surface contention, stale ownership, and blocked critical sections instead of waiting for a human to read every note.
-- IPC disconnects, dead bodies, and stale heartbeats should trigger salvage quickly, because slow detection turns one crash into a coordination pileup.
-- Symbol claims matter because a whole file can be too broad and a line range can be too brittle.
-- Claim-aware staging and destructive-git guardrails are not convenience wrappers. They are the difference between advisory ownership and operational ownership.
+Spark and Spider kept turning up the same themes:
 
-Cartographer's maps turned those notes into active product work: extend guard enforcement beyond pre-commit, make staging claim-preserving, make coordination inconsistency visible, and keep recovery truth aligned with the roadmap.
+- compare session notes with Git deltas, because intent and output drift;
+- write intent tuples before work begins, not after the conflict;
+- turn hot files and active claims into routing signals;
+- surface stale ownership automatically instead of hoping a human reads every note;
+- treat dead agents as salvage events quickly;
+- prefer symbol claims when whole-file claims are too blunt;
+- make staging and destructive Git operations claim-aware.
 
-That is also why the WinDAGs runtime-honesty dossier matters. Planning topology and runtime topology are not the same thing. A skill system can describe a swarm, blackboard, or team loop, but the runtime has to say what it can actually execute today. Port Daddy has to apply the same honesty to policy: do not say "claims protect work" if raw Git can still ignore claims.
+Cartographer turned those into the product chores: make enforcement fail closed, extend guard coverage past pre-commit, keep staging claim-preserving, and make coordination inconsistency visible.
 
-Useful WinDAGs and Port Daddy dossiers behind this direction:
+That also lines up with the WinDAGs runtime-honesty warning. Planning topology is not runtime topology. A diagram can say "multi-agent team." The runtime has to say what facts it can actually enforce today.
+
+Useful dossiers:
 
 - [`skills/multi-agent-coordination/SKILL.md`](https://github.com/curiositech/port-daddy/blob/main/skills/multi-agent-coordination/SKILL.md) for worktree isolation, locking, messaging, shared state, and integration strategy.
 - [`skills/semantic-conflict-prediction/SKILL.md`](https://github.com/curiositech/port-daddy/blob/main/skills/semantic-conflict-prediction/SKILL.md) for the gap between Git-clean textual merges and broken semantic integration.
-- [`skills/runtime-verification-for-agents/SKILL.md`](https://github.com/curiositech/port-daddy/blob/main/skills/runtime-verification-for-agents/SKILL.md) for the Arbiter pattern: independent runtime checks over live coordination invariants.
+- [`skills/runtime-verification-for-agents/SKILL.md`](https://github.com/curiositech/port-daddy/blob/main/skills/runtime-verification-for-agents/SKILL.md) for independent runtime checks over live coordination invariants.
 - [`skills/hong-et-al-2024-metagpt/references/publish-subscribe-as-coordination-primitive.md`](https://github.com/curiositech/port-daddy/blob/main/skills/hong-et-al-2024-metagpt/references/publish-subscribe-as-coordination-primitive.md) for publish-subscribe as a coordination primitive.
-- [`skills/port-daddy-agent-skill/references/coordination-theory.md`](https://github.com/curiositech/port-daddy/blob/main/skills/port-daddy-agent-skill/references/coordination-theory.md) for Port Daddy's local rule of thumb: use the primitive whose lifetime matches the fact.
+- [`skills/port-daddy-agent-skill/references/coordination-theory.md`](https://github.com/curiositech/port-daddy/blob/main/skills/port-daddy-agent-skill/references/coordination-theory.md) for the local rule of thumb: use the primitive whose lifetime matches the fact.
 
-## The Guard Is Narrow On Purpose
+## What The Guard Should Not Do
 
-Coordination Guard should not judge taste. It should not decide whether a UI is beautiful, whether an abstraction is worth it, or whether a launch page has the right tone. That is review work.
+Coordination Guard should stay narrow.
 
-The guard should enforce operational invariants:
+It should not decide whether an abstraction is elegant. It should not decide whether a landing page sounds corny. It should not decide whether the product is good.
 
-- the commit has an active session;
-- the staged paths are inside the declared ownership boundary;
-- generated or scarce artifacts use locks instead of optimistic claims;
-- sequencer and destructive Git paths do not silently bypass coordination;
-- a failed guard actually fails closed.
+It should answer the boring operational questions:
 
-That leaves the runtime primitives to handle the rest of the collaboration story. Channels notify. Inboxes preserve directed ownership. Tuples carry machine-readable facts. Activity and salvage make recovery possible. Arbiter watches invariants that are broader than a single commit.
+- is there an active session;
+- do the staged files match that session's claims;
+- are scarce artifacts protected by locks;
+- did a sequencer path bypass the normal hook;
+- did enforcement actually fail closed?
 
-```ts
-type GuardDecision =
-  | { ok: true; sessionId: string; staged: string[] }
-  | {
-      ok: false
-      code: 'missing-session' | 'unclaimed-file' | 'foreign-claim' | 'unsafe-git-verb'
-      staged: string[]
-      next: string[]
-    }
+That is enough. Review can handle taste. Tests can handle behavior. Humans can handle judgment. The guard handles the small mechanical lie that causes too much damage: "this commit just happened," with no ownership trail behind it.
 
-function decide(staged: string[], activeSession: Session | null, claims: Claim[]): GuardDecision {
-  if (!activeSession) {
-    return {
-      ok: false,
-      code: 'missing-session',
-      staged,
-      next: ['start a session', 'or attach the shell to the intended session']
-    }
-  }
+## The Version I Would Write Now
 
-  const uncovered = staged.filter((path) => !claims.some((claim) => claim.sessionId === activeSession.id && covers(claim, path)))
+Port Daddy's real policy lives in runtime primitives: sessions, notes, claims, region claims, locks, channels, inboxes, tuples, harbors, activity, salvage, Arbiter checks, budget gates, and telemetry gates.
 
-  if (uncovered.length > 0) {
-    return {
-      ok: false,
-      code: 'unclaimed-file',
-      staged: uncovered,
-      next: ['claim the file', 'split the commit', 'or use claim-aware staging']
-    }
-  }
+Git matters because it is where local work becomes history. The guard exists because my own agents kept finding ways to use Git that bypassed the coordination layer. I overstated the theory because I was moving quickly. The honest version is less glamorous and more useful: Git is the checkpoint, not the constitution.
 
-  return { ok: true, sessionId: activeSession.id, staged }
-}
-```
+That is a better design sentence anyway.
 
-That shape is intentionally dull. It turns a social promise into a small testable decision.
-
-## The Better Answer To "Why Git?"
-
-If someone asks whether Port Daddy has considered primitives besides Git to encode policy, the accurate answer is:
-
-Yes. The runtime is built out of non-Git primitives: sessions, notes, claims, locks, channels, inboxes, tuples, harbors, activity, salvage, Arbiter checks, budgets, and telemetry gates. Those are where agent policy actually lives.
-
-Git is used because a repo needs a durable integration boundary. The index, commit hooks, sequencer paths, and destructive verbs are where local coordination either becomes history or gets bypassed. Coordination Guard exists to make those Git paths consult the runtime instead of pretending chat etiquette is enough.
-
-The more candid version is even shorter:
-
-Port Daddy built Coordination Guard because our own agents kept stepping on each other, and Git kept making the damage easy. The guard is the scar tissue turned into product.
-
-That scar tissue is valuable. It keeps the blog from overselling. It keeps the runtime honest. And it makes the next design target clear: coordination should not depend on every agent remembering to be careful. The system should make careful the easiest path.
+Coordination should not depend on every agent remembering to be careful. The system should make careful the easiest path.

@@ -1,4 +1,5 @@
-import { Navigate, useLocation, useParams } from 'react-router-dom'
+import type { ReactNode } from 'react'
+import { Link, Navigate, useLocation, useParams } from 'react-router-dom'
 import {
   BracketAnchor,
   BracketLabel,
@@ -69,6 +70,66 @@ function buildAnchoredBlocks(blocks: ContentBlock[]) {
   })
 }
 
+const inlineLinkPattern = /\[([^\]]+)\]\(([^)]+)\)/g
+
+function renderInlineLinks(text: string) {
+  const nodes: ReactNode[] = []
+  let lastIndex = 0
+  let match: RegExpExecArray | null
+
+  while ((match = inlineLinkPattern.exec(text))) {
+    const [source, label, href] = match
+
+    if (match.index > lastIndex) {
+      nodes.push(text.slice(lastIndex, match.index))
+    }
+
+    const className =
+      'font-semibold text-[var(--brand-primary)] underline decoration-[var(--border-strong)] underline-offset-4 transition-colors hover:text-[var(--text-primary)]'
+    const key = `${href}-${match.index}`
+
+    nodes.push(
+      href.startsWith('/') ? (
+        <Link key={key} to={href} className={className}>
+          {label}
+        </Link>
+      ) : (
+        <a key={key} href={href} className={className}>
+          {label}
+        </a>
+      ),
+    )
+
+    lastIndex = match.index + source.length
+  }
+
+  if (lastIndex < text.length) {
+    nodes.push(text.slice(lastIndex))
+  }
+
+  return nodes.length ? nodes : text
+}
+
+function InlinePanelList({
+  items,
+  className,
+  tone = 'default',
+}: {
+  items: string[]
+  className?: string
+  tone?: 'default' | 'primary' | 'accent'
+}) {
+  return (
+    <div data-slot="panel-list" className={`space-y-[var(--panel-gap-tight)] ${className ?? ''}`}>
+      {items.map((item) => (
+        <PanelBody key={item} as="p" size="compact" tone={tone} className="max-w-none">
+          {renderInlineLinks(item)}
+        </PanelBody>
+      ))}
+    </div>
+  )
+}
+
 function renderContentBlock(block: ContentBlock, index: number) {
   const label = blockLabel(block)
 
@@ -87,7 +148,7 @@ function renderContentBlock(block: ContentBlock, index: number) {
           <div className="space-y-[var(--panel-gap-tight)]">
             {paragraphs.map((paragraph) => (
               <PanelBody key={paragraph} className="max-w-[58rem]">
-                {paragraph}
+                {renderInlineLinks(paragraph)}
               </PanelBody>
             ))}
           </div>
@@ -97,14 +158,14 @@ function renderContentBlock(block: ContentBlock, index: number) {
     case 'checklist':
       return (
         <DocsNoteCard key={`checklist-${index}`} label={label} title={blockHeading(block, index)}>
-          <PanelList items={block.items} className="border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]" />
+          <InlinePanelList items={block.items} className="border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]" />
         </DocsNoteCard>
       )
     case 'command':
       return (
         <DocsNoteCard key={`command-${index}`} label={label} title={block.title} tone="blue">
           <DocsCodeBlock code={block.command} language="cli" label={block.title} />
-          {block.notes?.length ? <PanelList items={block.notes} tone="primary" /> : null}
+          {block.notes?.length ? <InlinePanelList items={block.notes} tone="primary" /> : null}
         </DocsNoteCard>
       )
     case 'callout':
@@ -119,7 +180,7 @@ function renderContentBlock(block: ContentBlock, index: number) {
             tone={block.tone === 'warning' ? 'accent' : 'default'}
             className="max-w-none"
           >
-            {block.body}
+            {renderInlineLinks(block.body)}
           </PanelBody>
         </DocsNoteCard>
       )
@@ -165,7 +226,7 @@ export default function DocsSectionPage() {
           eyebrow={section.title}
           title={contentPage.title}
           summary={contentPage.summary}
-          paragraphs={leadParagraphBlock ? paragraphSet(leadParagraphBlock) : []}
+          paragraphs={leadParagraphBlock ? paragraphSet(leadParagraphBlock).map(renderInlineLinks) : []}
         />
 
         <div className="grid gap-[var(--space-6)] xl:grid-cols-[minmax(0,1fr)_var(--docs-rail-width)]">

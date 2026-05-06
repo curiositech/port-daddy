@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, Download, FileText, Github, MonitorCheck, RadioTower, ShieldCheck, Terminal } from 'lucide-react'
+import { ArrowRight, FileDown, FileText, Github, MonitorCheck, RadioTower, ShieldCheck, Terminal } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import {
   PageContainer,
@@ -83,10 +83,10 @@ export function CTABanner() {
 
             <div className="flex flex-wrap gap-[var(--space-3)]">
               <Button asChild variant="primary" size="lg">
-                <a href="/downloads/PortDaddy-FleetBar-macOS-arm64.zip" download>
-                  <Download size={16} />
-                  FleetBar preview
-                </a>
+                <Link to="/mac-preview#download">
+                  <MonitorCheck size={16} />
+                  Mac Preview
+                </Link>
               </Button>
               <Button asChild variant="secondary" size="lg">
                 <Link to="/whitepaper">
@@ -210,7 +210,7 @@ export function CTABanner() {
                     className="inline-flex items-center justify-center gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-strong)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]"
                   >
                     PDF
-                    <Download aria-hidden="true" size={14} />
+                    <FileDown aria-hidden="true" size={14} />
                   </a>
                 </div>
               </article>
