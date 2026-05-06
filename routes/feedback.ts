@@ -45,12 +45,18 @@ interface HarvestBody {
 }
 
 function asString(v: unknown): string | undefined {
-  return typeof v === 'string' && v.length > 0 ? v : undefined;
+  if (typeof v !== 'string') return undefined;
+  const trimmed = v.trim();
+  return trimmed ? trimmed : undefined;
 }
 
 function asPosInt(v: unknown): number | undefined {
   const n = typeof v === 'number' ? v : typeof v === 'string' ? parseInt(v, 10) : NaN;
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : undefined;
+}
+
+function harborForProject(project: string | undefined): string | undefined {
+  return project ? `${project}:fleet` : undefined;
 }
 
 const SEVERITY_VALUES = new Set<FeedbackSeverity>(['low', 'medium', 'high', 'critical']);
@@ -107,7 +113,8 @@ export const feedbackPlugin: FastifyPluginAsync<{ deps: FeedbackDeps }> = async 
 
   fastify.get('/feedback', async (request: FastifyRequest) => {
     const q = (request.query ?? {}) as Record<string, unknown>;
-    const harbor = asString(q.harbor);
+    const project = asString(q.project);
+    const harbor = asString(q.harbor) ?? harborForProject(project);
     const limit = asPosInt(q.limit);
     const surface = asString(q.surface);
     const severityRaw = asString(q.severity);
@@ -131,7 +138,8 @@ export const feedbackPlugin: FastifyPluginAsync<{ deps: FeedbackDeps }> = async 
 
   fastify.get('/feedback/summary', async (request: FastifyRequest) => {
     const q = (request.query ?? {}) as Record<string, unknown>;
-    const harbor = asString(q.harbor);
+    const project = asString(q.project);
+    const harbor = asString(q.harbor) ?? harborForProject(project);
     return { success: true, summary: feedback.summary(harbor) };
   });
 

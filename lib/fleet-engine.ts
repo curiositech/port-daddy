@@ -1069,8 +1069,9 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       return;
     }
 
-    const watchProc = spawn('npx', [
-      'tsx', join(projectDir, 'bin', 'port-daddy-cli.ts'),
+    const invocation = resolvePortDaddyInvocation();
+    const watchProc = spawn(invocation.command, [
+      ...invocation.args,
       'watch', physicalTriggerChannel,
       '--exec', watcher.exec,
     ], {
@@ -1727,6 +1728,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: config.harbor,
+          scope: project,
           capabilities: config.agents.map(a => a.name),
           channels,
           agentPatterns: config.agents

@@ -15,6 +15,10 @@ import { autoIdentityFromPackageJson } from './services.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
 import { clearCurrentContext, readCurrentContext, writeCurrentContext } from '../utils/current-context.js';
+import {
+  attachCliSessionWorktreePolicy,
+  resolveCliSessionWorktreePolicy,
+} from '../utils/session-worktree-policy.js';
 
 // =============================================================================
 // handleBegin — pd begin "purpose" [--identity X] [--files f1 f2...]
@@ -79,6 +83,14 @@ export async function handleBegin(
   }
   if (files.length > 0) body.files = files;
 
+  const worktreePolicy = resolveCliSessionWorktreePolicy(options);
+  if (!worktreePolicy.success) {
+    ui.error(worktreePolicy.error || 'Session worktree policy failed');
+    if (worktreePolicy.hint) console.error(`  ${worktreePolicy.hint}`);
+    process.exit(1);
+  }
+  attachCliSessionWorktreePolicy(body, worktreePolicy);
+
   const res: PdFetchResponse = await pdFetch('/sugar/begin', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -121,6 +133,11 @@ export async function handleBegin(
   console.error(`  Session: ${sessionLabel}`);
   console.error(`  Purpose: ${purpose}`);
   if (identity) console.error(`  Identity: ${identity}`);
+  if (data.worktree && typeof data.worktree === 'object') {
+    const worktree = data.worktree as { name?: string; branch?: string | null; id?: string };
+    const branch = worktree.branch ? `:${worktree.branch}` : '';
+    console.error(`  Worktree: ${worktree.name || worktree.id || 'linked'}${branch}`);
+  }
   if (data.fileClaims) {
     const claims = data.fileClaims as string[];
     console.error(`  Files: ${claims.length} claimed`);

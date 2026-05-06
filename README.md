@@ -1,4 +1,4 @@
-# ⚓ Port Daddy (v3.11.0)
+# ⚓ Port Daddy (v3.13.0)
 
 <p align="center">
   <img src="website-v2/public/img/hero-portdaddy.png" alt="Port Daddy — the harbormaster for your AI agents" width="600">
@@ -171,20 +171,20 @@ Declared channels are git-sensitive by default. A branch-scoped channel resolves
 For one-line conversations between two agents (or between scripts and agents), `pd tube` adds a thin envelope and a per-channel cursor so listeners don't re-emit messages they already processed:
 
 ```bash
-# Listen — JSON-line per message on stdout; cursor persisted to disk
+# Listen — block until one event arrives, print the prose crank-handle, then exit
 pd tube agent:notes
 
 # One-shot drain (resume from where you left off, then exit)
-pd tube agent:notes --once | jq -r '.body'
+pd tube agent:notes --once --json | jq -r '.body'
 
 # Send (stdin to EOF)
 echo "shipped the fix in commit abc123" | pd tube agent:notes --send
 
 # Reply to a specific message (threading via inReplyTo)
-echo "looks good — merging" | pd tube agent:notes --reply=42
+echo "looks good — merging" | pd tube agent:notes --reply-to=42
 ```
 
-History guard lives at `~/.port-daddy/tube-history-<safe-channel>.json` (atomic via tmp+rename); `--no-history` ignores it; `--since=<id>` overrides it. Composes with `pd pub` / `pd sub` for cases where you want raw fan-out without the envelope. Hands-on tutorial: [`skills/pd-relay-zero-trust/examples/pd-tube-tutorial.md`](skills/pd-relay-zero-trust/examples/pd-tube-tutorial.md).
+History guard lives at `~/.port-daddy/tube-history-<safe-channel>.json` (atomic via tmp+rename); `--no-history` ignores it; `--since=<id>` overrides it. Use `--json` for JSON lines, `--raw` for tab-separated output, and `--tail` for the old human-watching loop. Composes with `pd pub` / `pd sub` for cases where you want raw fan-out without the envelope. Hands-on tutorial: [`docs/tutorials/pd-tube.md`](docs/tutorials/pd-tube.md).
 
 ### Integration & Signaling
 Automate agent handoffs using `pd integration` and `pd wait`:

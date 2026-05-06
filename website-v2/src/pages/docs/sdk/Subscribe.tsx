@@ -6,7 +6,7 @@ export default function Subscribe() {
       function="subscribe"
       description="Subscribe to a Swarm Radio channel. Returns an async iterator that yields messages as they arrive."
       module="Messaging"
-      version="3.11.0"
+      version="3.13.0"
       signature="subscribe(channel: string, options?: SubscribeOptions): AsyncIterable<Message>"
       params={[
         { name: 'channel', type: 'string', required: true, description: 'Channel name to subscribe to' },

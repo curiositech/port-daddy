@@ -5,7 +5,7 @@ export default function HarborLeaveCommand() {
     <CommandPage
       command="harbor leave"
       description="Leave a harbor. Burns the JTI identifier so the token cannot be reused."
-      version="3.11.0"
+      version="3.13.0"
       syntax="pd harbor leave <name>"
       flags={[
         { flag: 'name', description: 'Harbor name to leave' },

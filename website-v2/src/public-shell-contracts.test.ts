@@ -225,7 +225,7 @@ describe('public shell contracts', () => {
 
     expect(docsOverview).toContain("href: '/whitepaper'")
     expect(docsOverview).toContain('Start with Get Started if you are installing Port Daddy for the first time.')
-    expect(docsSidebar).toContain('Start with the basics.')
+    expect(docsSidebar).toContain('One canonical first run.')
     expect(docsSidebar).toContain('Whitepaper')
     expect(header).toContain('Port Daddy')
     expect(header).not.toContain('agentsd')
@@ -417,6 +417,72 @@ describe('public shell contracts', () => {
     expect(appSource).toContain('<CTABanner />')
     expect(appSource).not.toContain('Install agentsd')
     expect(appSource).not.toContain('agentsd.ai')
+  })
+
+  test('public copy uses the AI infrastructure evaluator lens without slipping into inside-baseball framing', () => {
+    const sources = {
+      hero: read('./components/landing/Hero.tsx'),
+      conversation: read('./components/landing/AgentConversationSection.tsx'),
+      socialProof: read('./components/landing/AgenticSocialProofSection.tsx'),
+      enforcement: read('./components/landing/CoordinationEnforcementSection.tsx'),
+      about: read('./pages/AboutPage.tsx'),
+      blog: read('./pages/BlogPage.tsx'),
+      examples: read('./pages/ExamplesPage.tsx'),
+      tutorials: read('./pages/TutorialsPage.tsx'),
+      metadata: read('./data/siteMetadata.ts'),
+      docsRoutes: read('./data/docs-routes.ts'),
+      sectionIntros: read('./data/section-intros.ts'),
+    }
+
+    expect(sources.hero).toContain('For AI engineering teams')
+    expect(sources.hero).toContain('shared-state substrate')
+    expect(sources.hero).toContain('Evaluate Mac preview')
+    expect(sources.conversation).toContain('Coordination is state agents can read.')
+    expect(sources.conversation).toContain('Why AI tooling teams care')
+    expect(sources.socialProof).toContain('Dogfood receipts')
+    expect(sources.socialProof).toContain('These are not customer testimonials.')
+    expect(sources.enforcement).toContain('Operators need the control plane.')
+    expect(sources.about).toContain('Why AI Infrastructure Teams Should Care')
+    expect(sources.about).toContain('The control plane under')
+    expect(sources.blog).toContain('AI infrastructure notes')
+    expect(sources.blog).toContain('Engineering notes for agent control planes')
+    expect(sources.examples).toContain('Executable local loops for agent products.')
+    expect(sources.tutorials).toContain('Learn the control plane like an operator.')
+    expect(sources.metadata).toContain('local control plane and shared-state substrate')
+    expect(sources.docsRoutes).toContain('AI tooling team')
+    expect(sources.sectionIntros).toContain('minimum substrate for running multiple AI agents')
+
+    const combined = Object.values(sources).join('\n')
+    const forbiddenPhrases = [
+      'Agents coordinate through observable state.',
+      'The daemon that keeps',
+      'multi-agent chaos in check',
+      'About the Maritime Theme',
+      'A technical journal for the work Port Daddy is actually doing now',
+      'acquisition-grade thesis',
+      'Agentic social proof',
+      'terminal-only marketing blocks',
+      'localhost:9876',
+    ]
+
+    for (const phrase of forbiddenPhrases) {
+      expect(combined).not.toContain(phrase)
+    }
+  })
+
+  test('role glossary tooltips stay layout-inert until hover or focus', () => {
+    const roleTerm = read('./components/site/RoleTerm.tsx')
+
+    expect(roleTerm).toContain('hidden w-[min(18rem,calc(100vw-var(--space-6)))]')
+    expect(roleTerm).toContain('group-focus-within:block')
+    expect(roleTerm).toContain('group-hover:block')
+    expect(roleTerm).not.toContain('invisible absolute')
+  })
+
+  test('example file path chips wrap instead of forcing mobile page overflow', () => {
+    const examplesPage = read('./pages/ExamplesPage.tsx')
+
+    expect(examplesPage).toContain('!block min-w-0 break-all !whitespace-normal')
   })
 
   test('docs route helpers resolve canonical families and current legacy section slugs', () => {

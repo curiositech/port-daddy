@@ -27,6 +27,8 @@ const mockChildProcess = {
 
 jest.unstable_mockModule('node:child_process', () => ({
   spawn: jest.fn(() => mockChildProcess),
+  execSync: jest.fn(),
+  execFileSync: jest.fn(),
 }));
 
 // Import after mocking

@@ -5,7 +5,7 @@ export default function AddNoteTool() {
     <CommandPage
       command="add_note"
       description="Add a note to the current session. Notes are immutable — they are never edited or deleted."
-      version="3.11.0"
+      version="3.13.0"
       syntax="add_note({ content, type?, session_id? })"
       flags={[
         { flag: 'content', description: 'Note content' },

@@ -33,6 +33,7 @@ const mockExecSync = jest.fn();
 jest.unstable_mockModule('node:child_process', () => ({
   spawn: mockSpawn,
   execSync: mockExecSync,
+  execFileSync: jest.fn(),
 }));
 
 // yaml must be available for fleet-engine to import
@@ -443,7 +444,7 @@ test('maps model_tier for every backend family with built-in tiers', () => {
     [{ backend: 'aider', modelTier: 'mid' }, 'gpt-4.1'],
     [{ backend: 'custom', modelTier: 'low' }, 'custom-low'],
     [{ backend: 'codex', modelTier: 'low' }, 'gpt-5.4-mini'],
-    [{ backend: 'cloudflare', modelTier: 'mid' }, '@cf/qwen/qwen3-30b-a3b-fp8'],
+    [{ backend: 'cloudflare', modelTier: 'mid' }, '@cf/openai/gpt-oss-120b'],
   ];
 
   for (const [agent, expectedModel] of expectations) {
@@ -604,6 +605,32 @@ test('trigger watcher fallback invokes Port Daddy from the installed runtime, no
   const execCommand = args[execIndex + 1];
   expect(execCommand).toContain('"spawn"');
   expect(execCommand).not.toContain('/tmp/plain-ruby-repo');
+});
+
+test('YAML watcher fallback invokes Port Daddy from the installed runtime, not the target repo', async () => {
+  const projectDir = '/tmp/plain-ruby-repo';
+  const config = {
+    name: 'test-fleet',
+    limits: { budgetUsdPerDay: 5 },
+    agents: [],
+    watchers: [
+      { name: 'notify', trigger: 'qa:findings', exec: 'echo "$PD_MESSAGE_CONTENT"' },
+    ],
+    channels: {},
+  };
+  const physicalChannel = resolveFleetChannel('qa:findings', projectDir, config.name);
+  const runner = createFleetRunner(config, projectDir);
+
+  runner.startAll();
+  await Promise.resolve();
+  await Promise.resolve();
+
+  expect(mockSpawn).toHaveBeenCalled();
+  const [command, args] = mockSpawn.mock.calls[0];
+  expect(command).toBe('pd');
+  expect(args).toEqual(['watch', physicalChannel, '--exec', 'echo "$PD_MESSAGE_CONTENT"']);
+  expect(args).not.toContain('tsx');
+  expect(args.join(' ')).not.toContain('/tmp/plain-ruby-repo/bin/port-daddy-cli.ts');
 });
 
 test('runner can deploy a subset by pausing unselected agents', async () => {

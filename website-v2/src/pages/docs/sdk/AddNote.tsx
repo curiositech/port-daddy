@@ -6,7 +6,7 @@ export default function AddNote() {
       function="note"
       description="Add a note to the current session. Notes are immutable — they are never edited or deleted."
       module="Sessions"
-      version="3.11.0"
+      version="3.13.0"
       signature="note(content: string, options?: NoteOptions): Promise<Note>"
       params={[
         { name: 'content', type: 'string', required: true, description: 'Note content' },

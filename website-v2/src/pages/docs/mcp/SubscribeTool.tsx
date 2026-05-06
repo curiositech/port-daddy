@@ -5,7 +5,7 @@ export default function SubscribeTool() {
     <CommandPage
       command="subscribe"
       description="Subscribe to a Swarm Radio channel. Returns messages as they arrive via SSE."
-      version="3.11.0"
+      version="3.13.0"
       syntax="subscribe(channel, options?)"
       flags={[
         { flag: 'channel', description: 'Channel name to subscribe to' },

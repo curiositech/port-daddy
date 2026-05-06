@@ -14,17 +14,17 @@ import {
 const outcomes = [
   {
     title: 'Every change has an owner',
-    detail: 'Agents work in terminals, claim intended files or symbols, and leave notes before their local plan drifts from the repo.',
+    detail: 'Agents claim intended files or symbols, then leave notes that tie edits back to a session the operator can inspect.',
     icon: NotebookTabs,
   },
   {
     title: 'Humans steer from the app',
-    detail: 'FleetBar and Fleet Control Center show project state, readiness, agents, resources, and recovery without making the operator parse shell ceremony.',
+    detail: 'FleetBar and Fleet Control Center show project state, readiness, agents, resources, and recovery without making the operator parse terminal scrollback.',
     icon: MonitorCheck,
   },
   {
     title: 'Terminal proof includes output',
-    detail: 'When the website shows a terminal, it should show the command and the daemon response, not a stack of inputs pretending to be evidence.',
+    detail: 'Command surfaces show the invocation and the daemon response, because serious evaluators need proof of behavior, not input-only demos.',
     icon: GitCommit,
   },
   {
@@ -118,8 +118,8 @@ export function CoordinationEnforcementSection() {
           <SwissGridItem span="narrow">
             <SectionIntro
               eyebrow="Operator control"
-              title="Agents use the terminal. Humans use the GUI."
-              description="Port Daddy gives each repo a coordination contract, but the public homepage should not ask a human to admire a command checklist. The app surface is where operators see readiness, claims, live agents, resources, handoffs, and recovery state."
+              title="Agents automate terminals. Operators need the control plane."
+              description="Port Daddy gives each repo a coordination contract that both agents and humans can inspect. The app is where operators evaluate readiness, claims, live agents, resources, handoffs, and recovery before they let more automation run."
               titleAs="h2"
               titleSize="display"
               titleClassName="max-w-[13ch]"

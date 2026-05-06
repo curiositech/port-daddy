@@ -13,10 +13,10 @@ export function Hero() {
       </span>
       <div className="grid gap-1">
         <span className="font-mono text-[10px] font-black uppercase tracking-[0.18em] text-[var(--brand-primary)]">
-          Coordination first
+          Evaluator signal
         </span>
         <p className="max-w-none text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
-          Agents write notes, claims, and handoffs through Port Daddy; FleetBar gives humans the same live truth before the recording starts.
+          Port Daddy turns agent work into inspectable state: ownership, readiness, cost, resources, handoffs, and recovery.
         </p>
       </div>
     </div>
@@ -50,23 +50,23 @@ export function Hero() {
                   color: 'var(--brand-primary)',
                 }}
               >
-                <span>New</span>
-                <span style={{ color: 'var(--text-secondary)' }}>Agent radio, handoffs, resources, and launch readiness are visible in the app</span>
+                <span>Preview</span>
+                <span style={{ color: 'var(--text-secondary)' }}>A local control plane for engineers evaluating serious coding-agent workflows</span>
                 <ArrowRight size={12} />
               </motion.div>
             </Link>
 
             <SectionIntro
-              eyebrow="What is Port Daddy?"
+              eyebrow="For AI engineering teams"
               title={
                 <>
-                  The local coordination layer for{' '}
+                  A local control plane for{' '}
                   <span className="text-[var(--brand-primary)]">
                     coding agents.
                   </span>
                 </>
               }
-              description="Port Daddy is the layer under your coding agents: a shared place for notes, work ownership, warnings, actor messages, readiness, budgets, and recoverable handoffs. Schedulers decide what runs. Port Daddy makes what agents know, touch, spend, and hand off inspectable."
+              description="Port Daddy gives Claude Code, Codex, Cursor, Gemini CLI, Aider, and local model agents a shared-state substrate: sessions, claims, notes, channels, readiness, budgets, and salvage records that survive the terminal that created them."
               titleAs="h1"
               titleSize="hero"
               titleClassName="max-w-[14ch]"
@@ -76,9 +76,9 @@ export function Hero() {
             {/* Feature pills */}
             <div className="flex max-w-[34rem] flex-wrap gap-2">
               {[
-                'Agent-to-agent radio',
-                'Recoverable handoffs',
-                'Operator-visible truth',
+                'Shared state substrate',
+                'Visible ownership',
+                'Fail-closed launches',
               ].map((label) => (
                 <span
                   key={label}
@@ -98,7 +98,7 @@ export function Hero() {
               <Button asChild variant="primary" size="lg">
                 <Link to="/mac-preview#download">
                   <Download size={16} />
-                  Download Mac preview
+                  Evaluate Mac preview
                   <ArrowRight size={16} />
                 </Link>
               </Button>

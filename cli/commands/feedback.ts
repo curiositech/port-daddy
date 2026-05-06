@@ -9,6 +9,7 @@
 import { CLIOptions, isJson, isQuiet } from '../types.js';
 import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
+import { loadFleetConfig } from '../../lib/fleet-engine.js';
 
 interface FeedbackEntry {
   feedbackId: string;
@@ -45,6 +46,17 @@ function readNumber(options: CLIOptions, ...keys: string[]): number | undefined 
     }
   }
   return undefined;
+}
+
+function inferProject(options: CLIOptions): string | undefined {
+  const explicit = readString(options, 'project');
+  if (explicit) return explicit;
+  if (options.all || options['all-projects'] || options.global) return undefined;
+  try {
+    return loadFleetConfig(process.cwd())?.name;
+  } catch {
+    return undefined;
+  }
 }
 
 async function postJson(path: string, body: Record<string, unknown>): Promise<{ ok: boolean; data: any }> {
@@ -89,10 +101,10 @@ export async function handleFeedback(args: string[], options: CLIOptions): Promi
   pd feedback drop --slug <name> --summary <text> --as <agentId> [--severity low|medium|high|critical]
                    [--surface CLI|API|MCP|...] [--source agent|human|mcp|cli] [--hook <text>]
                    [--suggest <text>] [--project <slug>] [--harbor <h>]
-  pd feedback list [--severity ...] [--surface ...] [--status open|harvested|all] [--limit N] [--harbor <h>]
+  pd feedback list [--severity ...] [--surface ...] [--status open|harvested|all] [--limit N] [--project <slug>] [--harbor <h>]
   pd feedback show <feedbackId>
   pd feedback harvest <feedbackId> --as <agentId> [--into <roadmap-slug>]
-  pd feedback summary [--harbor <h>]
+  pd feedback summary [--project <slug>] [--harbor <h>]
 `);
     return;
   }
@@ -116,7 +128,7 @@ export async function handleFeedback(args: string[], options: CLIOptions): Promi
     if (hook) body.hook = hook;
     const suggest = readString(options, 'suggest', 'suggested');
     if (suggest) body.suggested = suggest;
-    const project = readString(options, 'project');
+    const project = inferProject(options);
     if (project) body.project = project;
     const harbor = readString(options, 'harbor');
     if (harbor) body.harbor = harbor;
@@ -145,6 +157,10 @@ export async function handleFeedback(args: string[], options: CLIOptions): Promi
     const params = new URLSearchParams();
     const harbor = readString(options, 'harbor');
     if (harbor) params.set('harbor', harbor);
+    else {
+      const project = inferProject(options);
+      if (project) params.set('project', project);
+    }
     const severity = readString(options, 'severity');
     if (severity) params.set('severity', severity);
     const surface = readString(options, 'surface');
@@ -219,6 +235,10 @@ export async function handleFeedback(args: string[], options: CLIOptions): Promi
     const params = new URLSearchParams();
     const harbor = readString(options, 'harbor');
     if (harbor) params.set('harbor', harbor);
+    else {
+      const project = inferProject(options);
+      if (project) params.set('project', project);
+    }
     const qs = params.toString();
     const { ok, data } = await getJson(`/feedback/summary${qs ? `?${qs}` : ''}`);
     if (!ok) {

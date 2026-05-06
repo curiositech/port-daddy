@@ -57,12 +57,12 @@ export const homepageTeasers: HomepageTeaser[] = [
     href: `/blog/${controlPlane.slug}`,
     title: controlPlane.title,
     summary:
-      'The acquisition-grade thesis: agent orchestration becomes valuable when runtime truth, file ownership, readiness, cost, and recovery are one inspectable product surface.',
+      'The AI-infrastructure thesis: agent orchestration becomes valuable when runtime truth, file ownership, readiness, cost, and recovery share one inspectable product surface.',
     imageSrc: controlPlane.heroImage,
     imageAlt: controlPlane.heroAlt,
     eyebrow: 'Product thesis',
     meta: 'Architecture note',
-    proof: 'Why the control plane matters',
+    proof: 'The control-plane thesis',
     featured: true,
   },
   {

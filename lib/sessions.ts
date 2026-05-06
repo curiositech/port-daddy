@@ -112,6 +112,7 @@ interface GetNotesOptions {
   type?: string;
   since?: number;
   agentId?: string | null;
+  project?: string | null;
 }
 
 interface ListOptions {
@@ -310,7 +311,7 @@ export function createSessions(
       UPDATE sessions SET wrapped_session_key = ? WHERE id = ?
     `),
     getWrappedKey: db.prepare(`
-      SELECT wrapped_session_key FROM sessions WHERE id = ?
+      SELECT wrapped_session_key, identity_project FROM sessions WHERE id = ?
     `),
     abandonActiveByAgent: db.prepare(`
       UPDATE sessions SET status = 'abandoned', updated_at = ?, completed_at = ?
@@ -547,11 +548,14 @@ export function createSessions(
     if (cached) return cached;
 
     // Unwrap from DB
-    const row = stmts.getWrappedKey.get(sessionId) as { wrapped_session_key: string | null } | undefined;
+    const row = stmts.getWrappedKey.get(sessionId) as {
+      wrapped_session_key: string | null;
+      identity_project: string | null;
+    } | undefined;
     if (!row?.wrapped_session_key) return null;
 
     try {
-      const key = noteEncryption.unwrapSessionKey(row.wrapped_session_key);
+      const key = noteEncryption.unwrapSessionKey(row.wrapped_session_key, noteEncryptionScope(row.identity_project));
       sessionKeyCache.set(sessionId, key);
       return key;
     } catch {
@@ -591,6 +595,20 @@ export function createSessions(
     } catch {
       return null;
     }
+  }
+
+  function noteEncryptionScope(identityProject: string | null | undefined): string | null {
+    return identityProject ? `${identityProject}:fleet` : null;
+  }
+
+  function matchesSqlLike(pattern: string, value: string | null | undefined): boolean {
+    if (!value) return false;
+    const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&')
+      .replace(/\?/g, '\\?')
+      .replace(/\*/g, '\\*')
+      .replace(/%/g, '.*')
+      .replace(/_/g, '.');
+    return new RegExp(`^${escaped}$`).test(value);
   }
 
   function generateSessionId(purpose?: string): string {
@@ -834,7 +852,7 @@ export function createSessions(
     if (noteEncryption?.isEnabled()) {
       try {
         const sessionKey = noteEncryption.generateSessionKey();
-        const wrappedKey = noteEncryption.wrapSessionKey(sessionKey);
+        const wrappedKey = noteEncryption.wrapSessionKey(sessionKey, noteEncryptionScope(identityProject));
         stmts.setWrappedKey.run(wrappedKey, id);
         sessionKeyCache.set(id, sessionKey);
       } catch (err) {
@@ -1160,7 +1178,8 @@ export function createSessions(
    * Get notes — by session, or across all sessions
    */
   function getNotes(sessionId?: string | null, options: GetNotesOptions = {}) {
-    const { limit = 50, type, since, agentId } = options;
+    const { limit = 50, type, since, agentId, project } = options;
+    const projectPattern = project ? (patternToSql(project) ?? project) : null;
 
     let notes: Array<SessionNoteRow & { session_purpose?: string }>;
 
@@ -1177,7 +1196,7 @@ export function createSessions(
         notes = stmts.getNotesBySession.all(sessionId) as SessionNoteRow[];
       }
 
-      // Apply since/agentId filters manually for session-specific queries if needed
+      // Apply since/agent/project filters manually for session-specific queries if needed
       if (since) {
         notes = notes.filter(n => n.created_at >= since);
       }
@@ -1185,19 +1204,24 @@ export function createSessions(
         // Simple exact match for session-specific query (usually agent matches session)
         if (session.agent_id !== agentId) notes = [];
       }
+      if (projectPattern && !matchesSqlLike(projectPattern, session.identity_project)) {
+        notes = [];
+      }
 
       // Apply limit
       if (notes.length > limit) {
         notes = notes.slice(0, limit);
       }
-    } else if (agentId) {
-      // Get notes by agent pattern across sessions
-      const agentPattern = agentId.includes('*') ? agentId.replace(/\*/g, '%') : agentId;
+    } else if (agentId || projectPattern) {
+      // Get notes by agent/project pattern across sessions
+      const agentPattern = agentId
+        ? (patternToSql(agentId) ?? agentId.replace(/\*/g, '%'))
+        : null;
       notes = stmts.getNotesByPattern.all(
         agentPattern,
         agentPattern,
-        null, // project
-        null,
+        projectPattern,
+        projectPattern,
         type ?? null,
         type ?? null,
         since ?? null,

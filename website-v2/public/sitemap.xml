@@ -121,6 +121,9 @@
     <loc>https://portdaddy.dev/docs/cli/claim</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/docs/cli/cockpit-missions</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/docs/cli/compass</loc>
   </url>
   <url>
@@ -337,7 +340,16 @@
     <loc>https://portdaddy.dev/docs/cli/setup</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/docs/cli/shipwright-survey</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/docs/cli/sitrep</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/snapshot</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/docs/cli/snapshots</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/docs/cli/sortie</loc>

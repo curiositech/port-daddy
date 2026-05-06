@@ -112,8 +112,9 @@ describe('tutorials index brand voice', () => {
 
   it('uses the current control-plane positioning instead of retired academy metaphors', () => {
     expect(pageSource).toContain('Operator training')
-    expect(pageSource).toContain('Start in the harbor. Then coordinate agents.')
+    expect(pageSource).toContain('Learn the control plane like an operator.')
     expect(pageSource).toContain('Product-truth curriculum')
+    expect(pageSource).toContain('engineers evaluating real coding-agent infrastructure')
     expect(pageSource).not.toContain('Academy of Coordination')
     expect(pageSource).not.toContain('Master the')
     expect(pageSource).not.toContain('Swarm Logic')
