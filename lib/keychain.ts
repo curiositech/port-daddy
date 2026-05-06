@@ -50,7 +50,11 @@
  *   keychain.deleteSecret('port-daddy', 'legacy-account');
  */
 
-import { execFileSync } from 'node:child_process';
+// Use namespace import: Jest's experimental-VM-modules ESM transformer
+// fails to resolve named exports of Node built-ins (e.g. `execFileSync`)
+// when this module is loaded transitively by tests. Namespace import
+// works in all environments. See PR #20 regression.
+import * as childProcess from 'node:child_process';
 
 /**
  * Is the OS keychain usable on this platform?
@@ -106,7 +110,7 @@ function isHexDump(s: string): boolean {
 function loadSecret(service: string, account: string): string | null {
   if (!available()) return null;
   try {
-    const out = execFileSync(
+    const out = childProcess.execFileSync(
       '/usr/bin/security',
       ['find-generic-password', '-s', service, '-a', account, '-w'],
       { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 5000 },
@@ -173,7 +177,7 @@ function saveSecret(service: string, account: string, value: string): boolean {
   if (!available()) return false;
   try {
     const encoded = Buffer.from(value, 'utf8').toString('base64');
-    execFileSync(
+    childProcess.execFileSync(
       '/usr/bin/security',
       [
         'add-generic-password',
@@ -201,7 +205,7 @@ function saveSecret(service: string, account: string, value: string): boolean {
 function deleteSecret(service: string, account: string): boolean {
   if (!available()) return false;
   try {
-    execFileSync(
+    childProcess.execFileSync(
       '/usr/bin/security',
       ['delete-generic-password', '-s', service, '-a', account],
       { stdio: 'ignore', timeout: 5000 },
