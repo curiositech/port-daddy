@@ -38,10 +38,11 @@ one official design:
 The product scenario that needs a decision is smaller and more concrete than a
 general database mesh:
 
-> One person has a phone, laptop, and home PC. A remote colleague joins the same
-> harbor. They need coordination signals, fleet status, tuples, handoffs, and
-> selected commands to move across those devices without exposing raw local
-> daemon state or opening inbound firewall holes.
+> One person has a phone, MacBook Pro, and home PC. A remote colleague joins
+> the same harbor from their MacBook. They need coordination signals, fleet
+> status, tuples, handoffs, approvals, selected compute requests, and replies to
+> move across those devices without exposing raw local daemon state, sharing
+> owner credentials, or opening inbound firewall holes.
 
 ## Decision Drivers
 
@@ -73,7 +74,7 @@ general database mesh:
 ## Decision
 
 Adopt a **relay-backed harbor event mesh** as the official recommendation for
-phone + laptop + home PC + remote colleague collaboration.
+phone + MacBook Pro + home PC + remote colleague collaboration.
 
 The mesh is not a replicated daemon database. It is a harbor-scoped event fabric
 that propagates selected channel messages, tuples, capability advertisements,
@@ -81,13 +82,23 @@ presence, revocations, and explicit request/reply flows between authorized
 members. Each daemon remains authoritative for its own sessions, files, locks,
 local agents, local notes, local command execution, and local secrets.
 
+The recommended device roles are:
+
+| Device | Role | Authority |
+|--------|------|-----------|
+| Owner phone | Thin approval and reply surface | Status, inbox, replies, revocation, and explicit approvals; no daemon and no raw filesystem authority by default |
+| Owner MacBook Pro | Primary local control plane | Repo-local sessions, file claims, locks, notes, ordinary agent launches, owner approvals, and final publish decisions |
+| Owner home PC | Secondary daemon / compute worker | Advertises GPU/Ollama/Docker/checkout resources, accepts only approved request classes, applies local policy before execution |
+| Colleague MacBook | Scoped collaborator | Project channels, handoffs, coordination tuples, and bounded request/reply; no owner secrets, owner revocation, or home-PC compute control by default |
+| PD Relay | Event gateway | Routes encrypted envelopes, revocations, accepted subscriptions, and chain heads; does not decrypt payloads or expand capabilities |
+
 ```mermaid
 flowchart LR
   subgraph H[Harbor: project:fleet]
-    L[Laptop daemon<br/>local repo + agents]
-    P[Phone client<br/>no local daemon]
+    L[Owner MacBook Pro daemon<br/>local repo + agents]
+    P[Owner phone client<br/>approval + reply]
     D[Home PC daemon<br/>GPU / Ollama / Docker]
-    C[Remote colleague daemon<br/>bounded caps]
+    C[Colleague MacBook daemon<br/>bounded collaboration]
   end
 
   R[PD Relay<br/>routes ciphertext + metadata]
@@ -102,6 +113,23 @@ flowchart LR
   R -- harbor-scoped events --> C
   R -- filtered mobile events --> P
 ```
+
+The design was checked against these WinDAGs skill lenses:
+
+- `agentic-zero-trust-security`: connection is not authority; use scoped cards,
+  signed envelopes, revocation, audit, and least privilege.
+- `tunnels-for-agents`: prefer outbound-only tunnel/relay connections for NAT
+  traversal instead of requiring inbound access to a home network.
+- `reverse-proxy-for-agents`: treat the relay as an agent gateway with TLS,
+  SSE/EventSource, rate limits, accepted subscriptions, and explicit identity
+  headers.
+- `always-on-agent-architecture`, `always-on-agent-inputs`, and
+  `always-on-agent-safety`: persistent agents need bounded memory/input
+  channels, stale/fresh markers, cost gates, data hygiene, and revocation UX.
+- `vibe-coding-background-agent`, `cooperative-vibe-coding`, and
+  `high-quality-vibe-coding`: background help should be quiet for observation,
+  explicit for side effects, worktree-aware, and verifiable before merge or
+  publish.
 
 ## Recommendation
 
@@ -148,11 +176,11 @@ Recommended flow for the scenario:
 
 ```mermaid
 sequenceDiagram
-  participant Owner as Laptop owner
+  participant Owner as MacBook Pro owner
   participant Relay as PD Relay
   participant Phone as Phone
   participant PC as Home PC
-  participant Colleague as Remote colleague
+  participant Colleague as Colleague MacBook
 
   Owner->>Relay: Create or select harbor project:fleet
   Owner->>Relay: Publish invite with cap template + expiry
@@ -229,15 +257,37 @@ Default caps for the target devices:
 
 | Member | Default approved caps |
 |--------|-----------------------|
-| Phone | `chan:sub:status:*`, `chan:sub:inbox:*`, `chan:pub:reply:*`, `request:send:low-risk`, `presence:write` |
-| Laptop | Owner/editor caps for local project channels and tuples; no automatic authority over PC-only resources |
-| Home PC | `cap:advertise`, `chan:sub:request:compute:*`, `request:accept:compute`, limited `tuple:out:result:*`, local-only execution gate |
-| Remote colleague | Bounded project collaboration caps, normally `chan:pub/sub:project:*`, `tuple:out/read:coordination:*`, no owner-only revocation/admin caps |
+| Owner phone | `chan:sub:status:*`, `chan:sub:inbox:*`, `chan:pub:reply:*`, `request:send:low-risk`, `approval:write`, `presence:write`, `revocation:self` |
+| Owner MacBook Pro | Owner/editor caps for local project channels and tuples; approval authority for own devices; no automatic authority over PC-only resources |
+| Owner home PC | `cap:advertise`, `chan:sub:request:compute:*`, `request:accept:compute`, limited `tuple:out:result:*`, local-only execution gate |
+| Colleague MacBook | Bounded project collaboration caps, normally `chan:pub/sub:project:*`, `tuple:out/read:coordination:*`, `handoff:write`, no owner-only revocation/admin caps |
 
 Remote execution is intentionally two-step: a member can request work only if it
 has `request:send:*`, and the target device can accept only if it has
 `request:accept:*`. The target daemon still applies its local operator policy,
 budget limits, model readiness, filesystem claims, and human gates.
+
+### Ergonomic Control Plane
+
+The user-facing flow should be profile based, not capability-string based:
+
+1. The owner opens **Share Harbor** on the MacBook Pro.
+2. Port Daddy asks which profile to issue: **Phone**, **Compute PC**,
+   **Collaborator**, **CI/Bot**, or **Custom**.
+3. The owner sees a plain-language summary of the caps, expiry, retention,
+   and what the device cannot do.
+4. The joining device scans a QR code or opens a magic link, proves identity,
+   and generates its own device key.
+5. The relay returns accepted and rejected subscriptions. The MacBook Pro and
+   phone both show the joined device with live/stale state, cap summary, and a
+   revoke button.
+
+The phone UI should stay card based: who is asking, which device will act, the
+exact capability used, expected budget/cost lane, freshness, and approve/reject.
+It should not expose a general remote shell by default. Background agents may
+publish suggestions, tests, status, and low-risk findings silently; they should
+ask before spawning, writing files, spending meaningful budget, accepting remote
+compute, opening tunnels, installing dependencies, or publishing to a colleague.
 
 ### Tuple And Channel Propagation
 
@@ -323,6 +373,8 @@ required for a developer to keep using Port Daddy locally.
   surfaces.
 - Local `pd tube` envelopes and cursor behavior in `lib/tube.ts` and
   `cli/commands/tube.ts`.
+- Content-addressed local blob storage in `lib/blob.ts`, which can carry larger
+  relay/tube artifacts by hash without making the relay inspect their payloads.
 - Local harbor-scoped tuple space in `lib/tuples.ts` and tuple CLI/MCP tools.
 - Project/worktree-scoped physical channel resolution for fleet and messaging
   paths.
@@ -333,8 +385,8 @@ required for a developer to keep using Port Daddy locally.
 - A relay-backed harbor event mesh as the official path for multi-device and
   remote-colleague collaboration.
 - Device membership records linking human/account proof to device public keys.
-- Harbor admission and per-device capability templates for phone, laptop, home
-  PC, remote colleague, CI, bot, and browser clients.
+- Harbor admission and per-device capability templates for phone, MacBook Pro,
+  home PC, colleague MacBook, CI, bot, and browser clients.
 - Relay wire channels based on `<harbor_fingerprint>:<physical_channel>`.
 - Explicit propagation policy for channels, tuples, presence, capabilities,
   handoffs, and request/reply flows.
@@ -361,8 +413,8 @@ required for a developer to keep using Port Daddy locally.
 
 ### Positive
 
-- Solves the phone/laptop/home-PC/colleague scenario without waiting for a full
-  distributed database mesh.
+- Solves the phone/MacBook-Pro/home-PC/colleague-MacBook scenario without
+  waiting for a full distributed database mesh.
 - Keeps local Port Daddy reliable and understandable.
 - Makes the trust boundary reviewable: every remote effect is a capability
   decision.
@@ -404,7 +456,11 @@ required for a developer to keep using Port Daddy locally.
    replication.
 6. Add local outbound queueing with card-expiry/revocation checks before replay.
 7. Build phone participation as a filtered client profile, not as a full daemon.
-8. Keep direct daemon mesh, leader election, and database replication out of
+8. Build the home-PC compute lane as request/reply plus local policy gates
+   before attempting generic remote spawning.
+9. Build collaborator invites as separate attenuated profiles, never as owner
+   credential reuse.
+10. Keep direct daemon mesh, leader election, and database replication out of
    v0 unless a future ADR re-opens that scope.
 
 ## Related ADRs / References
@@ -417,8 +473,18 @@ required for a developer to keep using Port Daddy locally.
 - `lib/harbor-tokens.ts`
 - `lib/messaging.ts`
 - `lib/tuples.ts`
+- `lib/blob.ts`
 - `lib/tube.ts`
 - `cli/commands/tube.ts`
+- WinDAGs skill: `agentic-zero-trust-security`
+- WinDAGs skill: `tunnels-for-agents`
+- WinDAGs skill: `reverse-proxy-for-agents`
+- WinDAGs skill: `cooperative-vibe-coding`
+- WinDAGs skill: `vibe-coding-background-agent`
+- WinDAGs skill: `high-quality-vibe-coding`
+- WinDAGs skill: `always-on-agent-architecture`
+- WinDAGs skill: `always-on-agent-inputs`
+- WinDAGs skill: `always-on-agent-safety`
 - `skills/pd-relay-zero-trust/references/relay-architecture.md`
 - `skills/pd-relay-zero-trust/references/threat-model.md`
 - `skills/pd-relay-zero-trust/templates/ADR-Relay-Architecture.md`
