@@ -35,7 +35,7 @@ const SECTIONS: DocSection[] = [
   {
     id: 'identity',
     title: 'Atomic Identity',
-    description: 'The foundation of Port Daddy. Map semantic project:stack:context strings to deterministic ports.',
+    description: 'The foundation. A semantic project:stack:context string is the agent — call the same identity twice, get the same port. Idempotent on purpose: a restart should not rename the world.',
     icon: Anchor,
     tone: 'secondary',
     commands: [
@@ -47,7 +47,7 @@ const SECTIONS: DocSection[] = [
   {
     id: 'sessions',
     title: 'Sessions & Notes',
-    description: 'Structured multi-agent coordination with immutable audit trails. Begin work, log progress, recover context.',
+    description: 'How agents leave a paper trail. Begin a session, log notes as work goes, hand off or wrap up at the end. The notes are immutable on purpose — you cannot retroactively edit yesterday into something more flattering.',
     icon: History,
     tone: 'primary',
     commands: [
@@ -59,7 +59,7 @@ const SECTIONS: DocSection[] = [
   {
     id: 'coordination',
     title: 'Project Channels',
-    description: 'Project-scoped pub/sub signaling for real-time agent state, handoffs, and checks.',
+    description: 'Pub/sub the way mailroom intercoms used to work — a named channel anyone in the project can shout into and anyone can listen on. Lower-overhead than a queue, harder to lose than chat.',
     icon: MessageSquare,
     tone: 'accent',
     commands: [
@@ -71,7 +71,7 @@ const SECTIONS: DocSection[] = [
   {
     id: 'locks',
     title: 'Distributed Locks',
-    description: 'Mutual exclusion for shared resources. Prevent concurrent writes, coordinate database migrations.',
+    description: 'Plain old mutual exclusion. Two agents both try to migrate the database; one of them waits. Locks here are TTL-bound — a dead agent cannot hold the keys forever.',
     icon: Zap,
     tone: 'secondary',
     commands: [
@@ -95,7 +95,7 @@ const SECTIONS: DocSection[] = [
   {
     id: 'security',
     title: 'Cryptographic Harbors',
-    description: 'Enforce permission boundaries using HMAC-signed capability tokens (Harbor Cards).',
+    description: 'Capability fences. A harbor names a small permission boundary; an agent enters with a token; the token says exactly what they may do and for how long. Inspired by Capsicum and CHERI more than ACLs.',
     icon: Shield,
     tone: 'secondary',
     commands: [
@@ -107,7 +107,7 @@ const SECTIONS: DocSection[] = [
   {
     id: 'agents',
     title: 'Agent Spawning',
-    description: 'Launch AI agents through Port Daddy with automatic identity, session management, and crash recovery.',
+    description: 'Hand a prompt to Port Daddy and Port Daddy hands an agent back to you. Identity, session, budget cap, salvage hook — all wired in. The agent inherits a guest pass, not the master key.',
     icon: Cpu,
     tone: 'accent',
     commands: [
@@ -180,14 +180,14 @@ export default function DocsPage() {
         className="relative overflow-hidden border-b border-[var(--border-subtle)] bg-[var(--surface-raised)] px-[var(--space-6)] py-[var(--space-12)] lg:px-[var(--space-8)] lg:py-[var(--space-16)]"
       >
         <motion.div className="relative z-10 mx-auto flex max-w-7xl flex-col items-center gap-[var(--space-6)] text-center">
-           <Badge variant="teal" className="px-[var(--space-4)] py-[var(--space-2)] text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)]">Protocol Reference</Badge>
+           <Badge variant="teal" className="px-[var(--space-4)] py-[var(--space-2)] text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)]">SDK Manual</Badge>
            <motion.h1
              className="font-display text-[length:var(--type-hero-size)] font-black leading-[var(--leading-display-tight)] tracking-[var(--tracking-display-tight)] text-[var(--text-primary)]"
              initial={{ opacity: 0, y: 32 }}
              animate={{ opacity: 1, y: 0 }}
              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
            >
-             The <motion.span className="text-[var(--brand-primary)]">SDK Manual.</motion.span>
+             The <motion.span className="text-[var(--brand-primary)]">SDK manual.</motion.span>
            </motion.h1>
            <motion.p
              className="max-w-3xl text-[length:var(--type-panel-body-size)] font-medium leading-[var(--leading-body)] text-[var(--text-secondary)]"
@@ -195,7 +195,7 @@ export default function DocsPage() {
              animate={{ opacity: 1, y: 0 }}
              transition={{ duration: 0.8, delay: 0.1 }}
            >
-             Seven primitives that give your agent fleet stable identity, coordination, recovery, and security. Every one is a single CLI command.
+             Seven primitives — identity, sessions, channels, locks, salvage, harbors, spawning — wired so a fleet of agents can run on the same machine without stepping on each other. Each one is a single CLI verb. The longer story for each is below; the shape of the whole thing is here.
            </motion.p>
         </motion.div>
       </motion.section>
@@ -241,12 +241,12 @@ export default function DocsPage() {
         <Surface depth="raised" radius="md" padding="lg" className="relative mt-[var(--space-16)] flex flex-col items-center gap-[var(--space-5)] overflow-hidden text-center">
 
            <div className="relative z-10 flex max-w-3xl flex-col items-center space-y-[var(--space-4)]">
-              <Badge variant="gold" className="px-[var(--space-4)] py-[var(--space-2)] text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)]">Architectural Integrity</Badge>
+              <Badge variant="gold" className="px-[var(--space-4)] py-[var(--space-2)] text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)]">Why we built it this way</Badge>
               <h3 className="font-display text-[length:var(--type-panel-title-display-size)] font-black leading-[var(--leading-display)] tracking-[var(--tracking-display-tight)] text-[var(--text-primary)]">
-                System <span className="text-[var(--brand-accent)]">Soundness.</span>
+                Why the seams hold up.
               </h3>
               <p className="text-[length:var(--type-panel-body-size)] leading-[var(--leading-body)] text-[var(--text-secondary)]">
-                Port Daddy is built on a foundation of formal verification. Every command follows defined state transitions, avoiding orphaned processes and unauthorized port claims across the project fleet.
+                Port Daddy is built around the parts that get formally verified — state transitions on sessions, locks, harbors, and message channels. The boring outcome of all that boring rigor is an agent fleet that does not lose its homework when one of its members crashes.
               </p>
            </div>
 

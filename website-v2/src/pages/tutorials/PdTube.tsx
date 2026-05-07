@@ -26,7 +26,7 @@ export function PdTube() {
       <div className="space-y-12">
         <section className="space-y-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--surface-inset)]">
+            <div className="flex h-10 w-10 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
               <MessageSquare className="text-[var(--brand-primary)]" size={20} />
             </div>
             <h2 className="m-0">A Conversation Pipe, Not A Chat App</h2>
@@ -47,7 +47,7 @@ export function PdTube() {
 
         <section className="space-y-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--surface-inset)]">
+            <div className="flex h-10 w-10 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
               <Radio className="text-[var(--brand-secondary)]" size={20} />
             </div>
             <h2 className="m-0">1. Listen — Block Once, Return On First Event</h2>
@@ -84,7 +84,7 @@ listening. Use --raw / --json for machine output. Ctrl+C to exit.
 
         <section className="space-y-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--surface-inset)]">
+            <div className="flex h-10 w-10 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
               <Reply className="text-[var(--brand-primary)]" size={20} />
             </div>
             <h2 className="m-0">2. Reply Inline — One Command, Both Jobs</h2>
@@ -120,7 +120,7 @@ SUCCESS: tube: posted id=43 to ui:clicks`}
 
         <section className="space-y-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--surface-inset)]">
+            <div className="flex h-10 w-10 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
               <Wand2 className="text-[var(--brand-secondary)]" size={20} />
             </div>
             <h2 className="m-0">3. Output Modes — Prose, Raw, JSON</h2>
@@ -148,7 +148,7 @@ $ pd tube ui:clicks --tail
 
         <section className="space-y-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--surface-inset)]">
+            <div className="flex h-10 w-10 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
               <CornerDownRight className="text-[var(--brand-primary)]" size={20} />
             </div>
             <h2 className="m-0">4. The Smallest Useful Publisher</h2>
@@ -178,7 +178,7 @@ $ pd tube ui:clicks --tail
 
         <section className="space-y-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--surface-inset)]">
+            <div className="flex h-10 w-10 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
               <Play className="text-[var(--brand-secondary)]" size={20} />
             </div>
             <h2 className="m-0">5. Real Output Recording</h2>
@@ -188,14 +188,14 @@ $ pd tube ui:clicks --tail
             daemon. The matching asciinema cast and VHS tape are checked in under{' '}
             <code>demos/pd-tube</code>.
           </p>
-          <figure className="overflow-hidden rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-raised)]">
+          <figure className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
             <img
               src="/demos/pd-tube/pd-tube-real-output.gif"
               alt="Animated terminal recording of pd tube sending a message, replying, and reading both records back from channel history"
               className="block w-full"
               loading="lazy"
             />
-            <figcaption className="border-t border-[var(--border-subtle)] px-4 py-3 text-sm text-[var(--text-muted)]">
+            <figcaption className="border-t-2 border-[var(--border-strong)] px-[var(--space-4)] py-[var(--space-3)] font-sans text-sm text-[var(--text-muted)]">
               Recorded with asciinema and rendered with agg from real Port Daddy channel history.
             </figcaption>
           </figure>
@@ -203,7 +203,7 @@ $ pd tube ui:clicks --tail
 
         <section className="space-y-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--surface-inset)]">
+            <div className="flex h-10 w-10 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
               <ScrollText className="text-[var(--brand-primary)]" size={20} />
             </div>
             <h2 className="m-0">6. Resume Without Repeating Yourself</h2>
