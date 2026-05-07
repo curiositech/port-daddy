@@ -7,22 +7,22 @@ const focusLanes = [
   {
     icon: Activity,
     title: 'Control-plane truth',
-    body: 'FleetBar, Fleet Control Center, project identity, launch state, and runtime provenance that can be inspected before work starts.',
+    body: 'FleetBar, Fleet Control Center, project identity, launch state, and runtime provenance — the things you want to see before any agent presses go.',
   },
   {
     icon: ShieldCheck,
     title: 'Fail-closed launches',
-    body: 'Backend readiness, exact telemetry, model rates, budget ceilings, and explicit blocked states.',
+    body: 'Backend readiness, exact telemetry, model rates, budget ceilings, and a blocked state that says no in plain English.',
   },
   {
     icon: GitBranch,
     title: 'Recoverable agent work',
-    body: 'Session notes, claims, stale work, roadmap drift, and evidence that lets a different model resume cleanly.',
+    body: 'Session notes, file claims, stale work, roadmap drift, and enough evidence that a different model can pick up where the last one left off.',
   },
   {
     icon: Terminal,
     title: 'Local integration loops',
-    body: 'PD Tube, guard checks, daemon provenance, and command surfaces that let ordinary tools reach the live agent session.',
+    body: 'PD Tube, guard checks, daemon provenance, and the small command surfaces that let ordinary tools reach the live agent in your terminal.',
   },
 ]
 
@@ -128,30 +128,30 @@ export function BlogPage() {
 
   return (
     <div className="min-h-screen bg-[var(--surface-base)] text-[var(--text-primary)] selection:bg-[var(--brand-primary)] selection:text-[var(--text-inverse)]">
-      <header className="border-b-2 border-[var(--border-strong)] px-4 py-12 sm:px-6 sm:py-16 lg:px-10 lg:py-20">
+      <header className="border-b-2 border-[var(--border-strong)] bg-[var(--surface-raised)] px-4 py-14 sm:px-6 sm:py-20 lg:px-10 lg:py-24">
         <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-12 lg:gap-8">
           <div className="lg:col-span-7">
             <div className="mb-5 flex flex-wrap gap-2">
               <Tag>Port Daddy Blog</Tag>
-              <Tag>AI infrastructure notes</Tag>
+              <Tag>Field notes from a coordinator</Tag>
               <Tag>Current as of 2026-05-06</Tag>
             </div>
-            <h1 className="max-w-[12ch] text-5xl font-black leading-[0.9] tracking-normal text-[var(--text-primary)] sm:text-7xl lg:text-[5.8rem]">
-              Engineering notes for agent control planes
+            <h1 className="max-w-[14ch] text-5xl font-black leading-[0.9] tracking-normal text-[var(--text-primary)] sm:text-7xl lg:text-[5.8rem]">
+              Notes from coordinating agents that didn't want to be coordinated.
             </h1>
             <p className="mt-6 max-w-2xl text-2xl font-black leading-tight tracking-normal text-[var(--text-primary)] sm:text-3xl">
-              What breaks when coding agents share a repo, and what a control plane has to make true.
+              Four agents in a repo will eventually clobber each other. This is the field log of what broke, what got fixed, and what a control plane actually has to make true.
             </p>
           </div>
 
           <div className="grid gap-6 lg:col-span-5 lg:self-end">
             <p className="max-w-xl text-base leading-relaxed text-[var(--text-secondary)] sm:text-lg">
-              A technical journal for AI engineers evaluating Port Daddy as infrastructure: shared state, ownership, launch gates, PD Tube, recovery maps, daemon provenance, and coordination policy.
+              For AI engineers evaluating Port Daddy as infrastructure. Shared state, file ownership, launch gates, PD Tube, recovery maps, daemon provenance, coordination policy — the unglamorous parts that turn a clever demo into something you can leave running on a Tuesday.
             </p>
             <div className="grid grid-cols-3 border-2 border-[var(--border-strong)]">
               <div className="border-r-2 border-[var(--border-strong)] p-4">
                 <div className="font-mono text-3xl font-black leading-none">{blogPosts.length}</div>
-                <div className="mt-2 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Current</div>
+                <div className="mt-2 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">In rotation</div>
               </div>
               <div className="border-r-2 border-[var(--border-strong)] p-4">
                 <div className="font-mono text-3xl font-black leading-none">{deprecatedBlogPosts.length}</div>
@@ -159,14 +159,14 @@ export function BlogPage() {
               </div>
               <div className="p-4">
                 <div className="font-mono text-3xl font-black leading-none">0</div>
-                <div className="mt-2 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Future-dated</div>
+                <div className="mt-2 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Pretending to be published</div>
               </div>
             </div>
           </div>
         </div>
       </header>
 
-      <main id="main-content" className="px-4 py-10 sm:px-6 sm:py-14 lg:px-10">
+      <main id="main-content" className="px-4 py-12 sm:px-6 sm:py-16 lg:px-10">
         <div className="mx-auto max-w-7xl space-y-14">
           <section aria-labelledby="focus-lanes" className="grid gap-4 border-b-2 border-[var(--border-strong)] pb-10 sm:grid-cols-2 lg:grid-cols-4">
             <h2 id="focus-lanes" className="sr-only">Blog focus lanes</h2>
@@ -191,9 +191,9 @@ export function BlogPage() {
               <div>
                 <div className="mb-2 flex items-center gap-2 font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
                   <NotebookText size={14} aria-hidden="true" />
-                  Article index
+                  The rest of the rotation
                 </div>
-                <h2 id="article-index" className="text-2xl font-black tracking-normal text-[var(--text-primary)]">Current technical articles</h2>
+                <h2 id="article-index" className="text-2xl font-black tracking-normal text-[var(--text-primary)]">Everything else worth reading</h2>
               </div>
               <Cpu className="hidden text-[var(--text-muted)] sm:block" size={24} aria-hidden="true" />
             </div>
@@ -208,7 +208,7 @@ export function BlogPage() {
               </div>
               <h2 id="retired-threads" className="text-2xl font-black tracking-normal text-[var(--text-primary)]">Retired threads</h2>
               <p className="mt-3 text-sm leading-relaxed text-[var(--text-secondary)]">
-                Future-dated, stale, or visually off-brief articles are no longer part of the public index. Old slugs resolve to current replacements.
+                Old drafts, future-dated speculation, and visually off-brief pieces are no longer in the index. The slugs still resolve, though — they just redirect to whatever the current honest version is.
               </p>
             </div>
             <div className="divide-y-2 divide-[var(--border-strong)] border-2 border-[var(--border-strong)]">

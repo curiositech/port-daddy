@@ -124,13 +124,13 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
     level: 'Intermediate',
     time: '18 min',
     summary:
-      'Turn a plain HTML button into a local phone line to the agent session already running in your project.',
+      'Turn a plain HTML button into a phone line to the coding agent already running in your repo.',
     surveyPlain:
-      'Connect a localhost website button, or anything else you want, to a live Claude Code or ChatGPT session.',
+      'Connect a localhost button — or anything else you want — to a live Claude Code, ChatGPT, Codex, or Cursor session.',
     builds:
-      'A browser page with three buttons that publish work requests into Port Daddy and render the local agent reply inline.',
+      'A browser page with three buttons that publish work into Port Daddy and render the agent\'s threaded reply inline.',
     whyItMatters:
-      'This is the lede: the app does not integrate with Claude, OpenAI, MCP, or a hosted webhook. It posts JSON to the local daemon, and the terminal agent already sitting in the repo becomes the worker.',
+      'This is the lede. The page does not integrate with Claude, OpenAI, MCP, or a hosted webhook. It POSTs JSON to the local daemon, and the terminal agent already sitting in the repo becomes the worker.',
     lastReviewed: '2026-04-29',
     tags: ['tube', 'browser', 'agent loop', 'messages'],
     visual: EXAMPLE_VISUALS['pd-tube-button-to-agent'],
@@ -225,9 +225,9 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
     level: 'Intermediate',
     time: '20 min',
     summary:
-      'Wrap a failing test command, publish the failure to the local agent, and print the diagnosis back in the terminal.',
+      'Wrap a failing test command, publish the failure to the local agent, and print the diagnosis back in the same terminal.',
     surveyPlain:
-      'Turn red tests into a direct prompt for the agent that already has the repo open.',
+      'Red tests become a direct prompt for the agent that already has the repo open. No log-paste, no chat tab.',
     builds:
       'A TypeScript reporter you can run around npm test, Vitest, Jest, pytest, Playwright, or a pre-commit check.',
     whyItMatters:
@@ -317,9 +317,9 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
     level: 'Beginner',
     time: '16 min',
     summary:
-      'Select code in a local page, publish the file and range to the agent, and render the explanation inline.',
+      'Select code in a page, publish the file and range to the agent, and render the explanation right next to the selection.',
     surveyPlain:
-      'This is the useful core of a VS Code or JetBrains extension without extension packaging.',
+      'The useful core of a VS Code or JetBrains extension — without the packaging, the marketplace, or the extension host.',
     builds:
       'A browser-based editor mock that sends selected code to editor:explain and waits for the local agent reply.',
     whyItMatters:
@@ -406,7 +406,7 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
     summary:
       'Accept Slack, Discord, Linear, or generic webhook JSON and route it to the local agent through PD Tube.',
     surveyPlain:
-      'Your actual workstation becomes the bot backend, with full repo access and no hosted agent service.',
+      'Your workstation becomes the bot backend — full repo access, real credentials, no hosted agent service in the middle.',
     builds:
       'A local HTTP server with /webhook, /slack, /discord, and /linear endpoints that publish to chat:mentions and optionally wait for a reply.',
     whyItMatters:
@@ -496,9 +496,9 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
     level: 'Intermediate',
     time: '14 min',
     summary:
-      'Run a swarm of identical workers where exactly one process becomes leader and the rest keep operating as followers.',
+      'Run a swarm of identical workers where exactly one becomes leader and the rest keep working as followers.',
     surveyPlain:
-      'This is the small, useful version of leader election: one local worker gets the coordinator role without a bespoke consensus system.',
+      'The small, useful version of leader election: one local process gets the coordinator role without a bespoke consensus system.',
     builds:
       'A TypeScript worker swarm that races for the swarm:leader lock, holds it briefly, releases it in finally, and reports which worker won.',
     whyItMatters:
@@ -588,9 +588,9 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
     level: 'Beginner',
     time: '12 min',
     summary:
-      'Claim a stable semantic port for a throwaway Postgres test database and print the DATABASE_URL your tests should use.',
+      'Claim a semantic port for a throwaway Postgres test database, then print the DATABASE_URL your tests should use.',
     surveyPlain:
-      'This is the practical fix for parallel local and CI runs fighting over the same database port.',
+      'The practical fix for parallel local and CI runs fighting over the same database port at three in the morning.',
     builds:
       'A shell wrapper that claims ci:postgres:<run-id>, constructs DATABASE_URL, prints a safe dry-run Docker command, and releases the claim on exit.',
     whyItMatters:
@@ -671,9 +671,9 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
     level: 'Advanced',
     time: '22 min',
     summary:
-      'Use durable agent inboxes to exchange an offer and answer before two peers open their direct channel.',
+      'Use durable agent inboxes to exchange an SDP offer and answer before two peers open their direct channel.',
     surveyPlain:
-      'Port Daddy coordinates who should connect; the heavy stream can move over WebRTC, WebTransport, or another peer path.',
+      'Port Daddy is the rendezvous; the heavy stream moves over WebRTC, WebTransport, or any other peer path you prefer.',
     builds:
       'A TypeScript signaling exchange that registers two agents, sends an SDP offer through one inbox, sends the answer back, marks inboxes read, and unregisters both agents.',
     whyItMatters:
@@ -749,9 +749,9 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
     level: 'Beginner',
     time: '15 min',
     summary:
-      'Publish concrete event traces for star, ring, and arbiter coordination patterns so a workflow can be inspected after it runs.',
+      'Publish concrete event traces for star, ring, and arbiter coordination patterns, so a workflow can be inspected after it runs.',
     surveyPlain:
-      'This is a runnable sketch of how agents coordinate across channels before you build a full orchestrator.',
+      'A runnable sketch of how agents coordinate across channels — before you commit to a full orchestrator.',
     builds:
       'A TypeScript publisher that emits star delegation, ring handoff, and arbiter review events into Port Daddy message channels.',
     whyItMatters:

@@ -29,8 +29,8 @@ function exampleMetaLines(example: {
   commands: { title: string }[]
 }) {
   return [
-    `Reviewed ${example.lastReviewed}. First run takes about ${example.time}.`,
-    `${example.files.length} source file${example.files.length === 1 ? '' : 's'} and ${example.commands.length} operator step${example.commands.length === 1 ? '' : 's'}. The publisher stays small; the live agent work happens in the repo terminal you already trust.`,
+    `Reviewed ${example.lastReviewed}. First run takes about ${example.time} — including the part where you read the source.`,
+    `${example.files.length} source file${example.files.length === 1 ? '' : 's'}, ${example.commands.length} operator step${example.commands.length === 1 ? '' : 's'}. The publisher stays small on purpose; the agent work happens in the repo terminal you already trust.`,
   ]
 }
 
@@ -132,7 +132,7 @@ export function ExampleDetailPage() {
               {needsPortDaddy ? (
                 <div className="grid gap-[var(--space-3)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
                   <PanelBody size="compact" className="max-w-[58rem]">
-                    Do this first if Port Daddy is not installed or the daemon is not running.
+                    If Port Daddy is not installed or the daemon is not running, do this part first. The example will not work without it.
                   </PanelBody>
                   <div className="flex flex-wrap gap-[var(--panel-gap-tight)]">
                     <BracketLink to="/docs/get-started" tone="blue" side="left">
@@ -184,7 +184,7 @@ export function ExampleDetailPage() {
             </section>
 
             <section id="adapt" className="scroll-mt-[calc(var(--space-10)+var(--space-6))]">
-              <DocsNoteCard label="Adapt it" title="How to turn this into product code." tone="accent">
+              <DocsNoteCard label="Adapt it" title="How to turn the demo into product code." tone="accent">
                 <PanelList items={example.adapt} tone="accent" />
               </DocsNoteCard>
             </section>

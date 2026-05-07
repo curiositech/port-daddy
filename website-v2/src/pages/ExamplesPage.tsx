@@ -17,19 +17,18 @@ export function ExamplesPage() {
       <main id="main-content" className="mx-auto grid w-full max-w-[var(--layout-max-width-wide)] gap-[var(--space-6)] px-[var(--space-5)] py-[var(--space-6)] lg:px-[var(--space-6)]">
         <DocsHero
           eyebrow="Examples"
-          title="Executable local loops for agent products."
-          summary="These complete examples show the product surface Port Daddy unlocks: a browser, test runner, editor command, or webhook can hand structured work to the agent session already running in the repo."
+          title="Real things that publish to a real agent."
+          summary="Each one is a runnable local loop, not a teaser. A browser button, a failing test, an editor command, or an inbound webhook hands structured work to the coding agent already sitting in your repo terminal."
           paragraphs={[
-            'PD Tube is the flagship primitive. It turns local events into a blocking CLI loop with threaded replies, so publishers stay tiny and the agent runtime stays swappable.',
-            'Pick the tool you want to build, run the source in /examples, then copy the publisher shape into an editor extension, test reporter, browser page, bot adapter, or local control panel.',
+            'PD Tube is the flagship primitive — a blocking CLI loop with threaded replies. The publisher stays tiny; the agent runtime stays swappable; the protocol stays boring.',
+            'Pick the tool you want to build, run the source in /examples, then copy the publisher shape into an editor extension, a test reporter, a bot adapter, a browser page, or a local control panel. The agent side does not change.',
           ]}
           aside={
             <div className="grid gap-[var(--panel-gap)]">
               <ExampleArtwork example={FEATURED_EXAMPLE} priority variant="hero" />
               <DocsNoteCard label="Start" title="Start with the phone line." elevation="quiet" padding="compact" titleSize="nav">
                 <PanelBody size="compact" className="max-w-none">
-                  If you only read one example, read PD Tube. It is the minimal shape an AI tooling team can copy:
-                  publish one local event, let the agent act, then render the threaded reply.
+                  If you only read one example, read PD Tube. It is the smallest shape that holds: publish one local event, let the agent act, render the threaded reply. Everything else is a variation on that phone call.
                 </PanelBody>
                 <div className="flex flex-wrap gap-[var(--panel-gap-tight)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
                   <BracketLink to={`/examples/${FEATURED_EXAMPLE.slug}`} tone="blue" side="left">
@@ -90,8 +89,7 @@ export function ExamplesPage() {
           <div className="lg:col-span-4">
             <DocsNoteCard label="Executable catalogue" title="Source-backed examples you can run today." elevation="quiet" padding="compact" titleSize="nav">
               <PanelBody size="compact" className="max-w-none">
-                These are executable source packages, not reference teasers. Each card opens a page with runnable
-                commands, full source files, and the product shape an agent-facing tool can adopt.
+                Real source, not reference teasers. Each card opens a page with the runnable commands, the full source files, and the product shape an agent-facing tool can copy without rewriting.
               </PanelBody>
             </DocsNoteCard>
           </div>

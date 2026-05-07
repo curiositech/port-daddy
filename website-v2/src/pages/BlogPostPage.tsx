@@ -223,18 +223,18 @@ export function BlogPostPage() {
       />
 
       {/* Hero Section */}
-      <motion.header className="py-16 lg:py-20 px-6 sm:px-8 lg:px-10 border-b-2 border-border-strong bg-surface-base relative overflow-hidden">
+      <motion.header className="py-20 lg:py-24 px-6 sm:px-8 lg:px-10 border-b-2 border-border-strong bg-surface-raised relative overflow-hidden">
         <div className="max-w-5xl mx-auto relative z-10 grid gap-8 lg:grid-cols-[10rem_minmax(0,1fr)]">
           <Link to="/blog" className="no-underline group">
             <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-text-muted group-hover:text-brand-primary transition-all">
               <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform" />
-              Back to Blog
+              Back to the field log
             </div>
           </Link>
 
           <div className="flex flex-col gap-6">
             <div>
-              <PostTag>Port Daddy Blog</PostTag>
+              <PostTag>Field log</PostTag>
             </div>
             <div className="flex flex-wrap items-center gap-4 text-xs font-black uppercase tracking-wider text-text-muted font-mono">
               <div className="flex items-center gap-2">
