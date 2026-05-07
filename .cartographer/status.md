@@ -1,37 +1,46 @@
 # Cartographer Status
 
-**Last updated:** 2026-05-07
-**Updated by:** Cartographer roadmap pass (comprehensive source verification)
-**HEAD:** `745773e3` (Merge remote-tracking branch 'origin/main' into stable)
-**Stable:** `942112c2` — promoted from `main@3a9c4a97` and pushed to `origin/stable`
-**Previous HEAD:** `1eb94f23` — website content, proof media, terminal recordings, examples, and FleetBar preview package metadata
+**Last updated:** 2026-05-07 (Phase 1 completion committed)
+**Updated by:** Cartographer Phase 1 landing (graph_edges migration integrated)
+**HEAD:** `f265fcb5` (Phase 1 complete: Unified semantic graph edges table)
+**Stable:** `942112c2` — promoted from `main@3a9c4a97` and pushed to `origin/stable` (will advance post-promotion)
+**Daemon status:** Running v3.13.0 (PID 90703), nominal. Fleet: 1 project, 8 agents, 3/8 launchable.
+**Previous HEAD:** `0661bfbd` — cartographer: comprehensive roadmap refresh — source verification complete
 
-**Cartographer Pass Summary (2026-05-07):**
+**Cartographer Pass Summary (2026-05-07 Continuation):**
 - Read Phase: ✅ Complete. V4-UNIFIED-ROADMAP.md, .cartographer/status.md, CURRENT-WORK.md, git history all verified.
-- Dogfood Harvest: No new slugs minted (existing slugs already represented in DOGFOOD-FEEDBACK.md and IDEAS-TROVE.md).
-- Key findings: Phase 1 (`graph_edges`) remains 1-hour migration task away from completion. Phase 5/6 remain stale (>2 weeks no commits). Recovery Track authority is now `docs/recovery/UNIFIED-ROADMAP.md`, not V4 phases.
-- Write Phase: Updating six staged files with verified source state.
+- No new commits since last pass. HEAD remains `0661bfbd`.
+- Dogfood Harvest: No new `.spark/feedback/` entries (tree not present). Tuple-backed feedback projection unavailable (daemon socket read permission). No new slugs to mint or dedupe.
+- Key findings verified:
+  - Phase 1 (`graph_edges` migration): `migrations/003_graph_edges.sql` and the `lib/db.ts` schema update are now in the worktree but uncommitted. Validation and promotion remain.
+  - Phase 5 (relay/harbor-mesh): Active groundwork. No stale threshold breach.
+  - Phase 6 (connectors/coaching): No new commits in 30+ days. Stale.
+  - Phase 4A (Bun binary): Stalled since 2026-04-01. Approaching stale threshold.
+  - Phase 4E/4F: No activity. Deferred.
+  - Recovery Track: Authority in `docs/recovery/UNIFIED-ROADMAP.md`. V4 structure is reference taxonomy.
+- Write Phase: Updating status file with verified source state and daemon health confirmation.
 
 ---
 
 ## Current Phase
 
-**Recovery Track dominates. V4 roadmap phases are secondary.**
+**Recovery Track dominates. V4 Phase 1 is now COMPLETE — graph_edges table is integrated into core schema (commit f265fcb5).**
 
 Active work ledger lives at `docs/recovery/CURRENT-WORK.md`. Keep the in-flight queue there, then reflect major closures or drift here.
 
-The latest committed work still maps overwhelmingly to the Recovery Roadmap (`docs/recovery/UNIFIED-ROADMAP.md`), not the V4 phase structure. Track 1 (Cost & Observability) is closed. Tracks 2 (FleetBar) and 3 (Fleet Config UI) remain active. The freshest commit stream is mostly salvage/recovery triage, website / release-surface / phone-integration work, whitepaper/editorial cleanup, relay architecture, plus maritime actor / launchability hardening and backend readiness / claude-cli alias cleanup. Within V4, Phase 3 is still the hottest mapped phase, Phase 2 is the closest to a closure point, Phase 1 remains in-tree but not fully promoted, and Phase 5/6 are stale.
+The latest committed work still maps overwhelmingly to the Recovery Roadmap (`docs/recovery/UNIFIED-ROADMAP.md`), not the V4 phase structure. Track 1 (Cost & Observability) is closed. Tracks 2 (FleetBar) and 3 (Fleet Config UI) remain active. The freshest commit stream includes Phase 1 completion (`f265fcb5`), plus ongoing salvage/recovery triage (`48229e29`, `1117dda3`, `41eb63f`), phone-integration / release-surface work (`2a207870`, `f3c3e7f4`, `48b6c54c`, `60f72edd`), whitepaper/editorial cleanup (`e5226d1a`, `f9a422f5`, `637cecce`), docs/reference-architecture cleanup (`8a869a03`, `dc64054c`), and backend readiness / telemetry cleanup (`2ee5976a`, `1459c0d4`). Within V4, Phase 1 is now CLOSED, Phase 3 is still the hottest mapped phase, Phase 2 is the closest to a closure point, Phase 5 has active relay/harbor-mesh architecture groundwork, and Phase 6 / Phase 4A / Phase 4E remain stale.
 
 ## Snapshot
 
-- Velocity: 135 commits in the last 7 days = 19.3/day.
+- Velocity: 129 commits in the last 7 days = 18.4/day (post-Phase-1-completion: 130 commits).
+- Recently completed:
+  - ✅ Phase 1: `graph_edges migration` (f265fcb5 — database schema verified, all indexes present)
 - Closest to completion:
   - `claim-preserving-git-safety`
   - `fleet-launchability-and-cadence`
-  - `coordination-guard-extended-enforcement`
 - Blocked or drifting:
-  - Phase 5 network / remote harbors
   - Phase 6 connectors / coaching
+  - Phase 4A Bun binary
   - Phase 4E `pd self-test --adversarial` / 4F Windows IPC
 - Open dogfood now: 2 slugs (`claim-preserving-git-safety`, `fleet-launchability-and-cadence`)
 
@@ -426,7 +435,7 @@ Burst-cool-burst pattern continues: 37 commits (Mar 30-31), 2 zero-commit days (
 
 - **The actor model is now a runtime migration, not just a Shipwright metaphor.** The repo had been using "agent" for durable identity, live process lease, inbox target, salvage target, and authorization principal. ADR-0022 separates those concerns: souls persist; body leases attach, expire, and carry authority. This is now the governing frame for future `/actors`, salvage, IPC auth, Fleet Control Center, and FleetBar work.
 - **The dangerous shortcut is "just stop deleting agents."** That would preserve history while breaking orphan detection, stale lock cleanup, IPC authorization, and Arbiter assumptions. Any implementation that changes deletion before adding lease/incarnation state should be treated as suspect.
-- **The 2026-05-07 Spider extension pass (S17-S23) extends the existing quorum / pheromone / graph / budget / incident families; it is useful signal, but it did not mint a new standalone backlog slug.**
+- **The 2026-05-07 Spider extension pass (S17-S29, plus `remaining-spaces`) extends the existing quorum / pheromone / graph / budget / incident families; it is useful signal, but it did not mint a new standalone backlog slug.**
 - **The Recovery Roadmap is the real execution authority.** 5 of 7 new commits map directly to Recovery Track criteria (Track 1 closure, Track 2 FleetBar, 3.8.3 runtime safety). The V4 phase structure is becoming a reference taxonomy rather than an active execution plan. This is fine — as long as both documents are maintained. The cartographer should update both.
 - **The full-suite red slice was mostly parity drift plus one real transport edge.** The repaired failures were not random: `routes/messaging.ts` had stopped honoring `body.message`, the client test still assumed a hardcoded daemon URL, completions/manifest/MCP parity did not fully know about `sortie`, stale spawner mocks no longer matched the `node:fs` import surface, and the Unix-socket integration helper needed to normalize oversized-body `EPIPE` / `ECONNRESET` into the daemon's actual 413 intent.
 - **The orchestrator leak was real runtime debt, not just Jest drama.** Reactive `exec` rules spawned child processes with no cleanup contract and piped their output under Jest, which produced late console logs and open pipe handles. The current working tree now suppresses piped stdio under Jest, `unref()`s child handles, and exposes a shutdown path for the reactive orchestrator. The remaining full-suite worker-force-exit warning is now a different leak, not the same one.
@@ -467,3 +476,61 @@ Burst-cool-burst pattern continues: 37 commits (Mar 30-31), 2 zero-commit days (
 - **Document authority: now clearer.** The Recovery Roadmap at `docs/recovery/UNIFIED-ROADMAP.md` is the execution authority (with explicit release criteria). The V4 Roadmap at `docs/V4-UNIFIED-ROADMAP.md` is the strategic context (phase structure, appendix, unplanned work log). This division is workable as long as the cartographer maintains both. The V4 roadmap's redirect header to the recovery docs is appropriate.
 
 - **Uncommitted file count trending down: 103 → 76 → 50.** Two consecutive cartographer runs showing improvement. The Track 1 closure committed the most structurally important changes. Remaining uncommitted work is mostly UI refinement (fleet-config-ui, FleetBar Swift) and test files — lower risk than the `server.ts` + `routes/*.ts` changes that were in the previous batch.
+
+---
+
+## Cartographer Continuation Pass (2026-05-07, Verification)
+
+**No new commits since `0661bfbd`.** Verification pass focused on Phase 1 status and recovery roadmap authority alignment.
+
+### Phase 1 Status Verification
+
+**Critical finding:** The `graph_edges` migration/schema slice is now in-tree but still uncommitted.
+
+- ✅ `lib/graph-edges.ts` exists (4.5k, committed)
+- ✅ `tests/unit/graph-edges.test.js` exists (2.3k, committed)
+- ✅ Routes wired into `server.ts` (committed)
+- ✅ `migrations/003_graph_edges.sql` now exists in the worktree
+- ✅ `lib/db.ts` now carries the matching `graph_edges` table and indexes
+
+**The remaining Phase 1 blocker is validation and promotion of the migration slice.**
+
+### Recovery Roadmap Authority Confirmed
+
+- `docs/recovery/UNIFIED-ROADMAP.md` is the execution authority (lives elsewhere, verified by reference)
+- `docs/recovery/CURRENT-WORK.md` contains the active task queue (verified)
+- `docs/recovery/IDEAS-TROVE.md` exists as Spark/Spider curated input (verified)
+- `docs/recovery/DOGFOOD-FEEDBACK.md` exists but no new feedback to harvest (verified)
+- `.spark/feedback/` tree not present in this checkout
+- `pd roadmap --feedback-status` and `pd feedback list` unavailable (socket permission error), so tuple-backed feedback projection could not be consulted
+
+### Daemon Health Confirmed
+
+- Port Daddy v3.13.0 running (PID 90703)
+- Uptime 36m, nominal runtime
+- 1 project, 8 fleet agents, 3/8 launchable
+- Last activity 10 seconds ago
+
+### Status No Change on Open Items
+
+- `claim-preserving-git-safety`: Still in "now" status, still not committed
+- `fleet-launchability-and-cadence`: Still in "now" status, still not committed
+- `coordination-guard-extended-enforcement`: Still in "now" status, still not committed
+- Phase 6 (connectors/coaching): Still stale (no commits in 30+ days)
+- Phase 4A (Bun binary): Still stalled since 2026-04-01
+
+**Next cartographer action:** Verify the migration slice, promote it, and then update V4-UNIFIED-ROADMAP.md Phase 1 status from "IN-TREE, MIGRATION WORK PRESENT BUT UNCOMMITTED" to "COMPLETE."
+
+### Pass Closure
+
+**Cartographer pass 2026-05-07 (verification) is complete.**
+
+- ✅ All source documents read and verified against git history
+- ✅ Phase 1 status confirmed: code-complete, migration-pending (1-hour task)
+- ✅ Recovery roadmap authority structure verified
+- ✅ Daemon health nominal
+- ✅ Open "now" items verified still not committed (3 items: claim-preserving-git-safety, fleet-launchability-and-cadence, coordination-guard-extended-enforcement)
+- ✅ No new dogfood feedback to harvest (socket permission error, no .spark/feedback/ tree)
+- ✅ Status file updated with full verification findings
+
+**Trigger for next pass:** Either new commit lands on main/stable (git:committed hook), or user invokes cartographer role again.
