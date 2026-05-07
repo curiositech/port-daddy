@@ -614,8 +614,8 @@ export function structuredDataForRoute(route: SiteMetadata) {
     ...base,
     datePublished: route.publishedAt,
     author: {
-      '@type': 'Organization',
-      name: route.author ?? 'Port Daddy Engineering',
+      '@type': 'Person',
+      name: route.author ?? 'Erich Owens',
     },
     keywords: route.tags?.join(', '),
   }

@@ -85,7 +85,7 @@
 \fancyhf{}
 \fancyhead[L]{\small\textit{The Anchor Protocol}}
 \fancyhead[R]{\small\thepage}
-\fancyfoot[C]{\small Port Daddy v3.8.0 — Formally Verified}
+\fancyfoot[C]{\small Port Daddy v3.13.0 --- Formally Verified}
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0pt}
 
@@ -100,10 +100,10 @@
 }
 \author{
   \textbf{Erich Owens}\\[0.2cm]
-  The Port Daddy Engineering Team\\[0.2cm]
+  Curiositech LLC\\[0.2cm]
   \texttt{engineering@portdaddy.dev}
 }
-\date{March 16, 2026\\Version 1.1 (Port Daddy v3.7.0)}
+\date{May 2026\\Version 1.2 (Port Daddy v3.13.0)}
 
 % ─── Document ────────────────────────────────────────────────────────────────
 \begin{document}
@@ -737,6 +737,39 @@ Alan Demers, Dan Greene, Carl Hauser, Wes Irish, John Larson, Scott Shenker, How
 
 % ═════════════════════════════════════════════════════════════════════════════
 \appendix
+% ═════════════════════════════════════════════════════════════════════════════
+
+\section{Mechanization Status}\label{app:mech}
+
+This appendix records the formal-verification status of the load-bearing claims in this paper, sealed at adversarial-review round v2.5 (May 2026). The companion paper, \emph{The Bonded Commons}, carries the cross-paper master table at \S A; this appendix lists only the artifacts that pertain specifically to the Anchor Protocol. The full round-by-round dialogue between the red-team and white-hat review fleets is rendered at \url{https://portdaddy.dev/whitepaper/rounds}.
+
+\subsection*{Closed (mechanized in ProVerif 2.05, results reproduced in this paper)}
+
+\begin{itemize}
+\item \textbf{Authentication and injective agreement} (\S\ref{sec:algorithms}, all three protocol phases). ProVerif 2.05 verifies that an honest verifier accepts only tokens minted by an honest issuer, and that the same minted token cannot be accepted twice for distinct sessions. Artifacts: Phase~1 \texttt{harbor\_card\_v1\_refined.pv} (Appendix~\ref{app:proverif}); Phase~2 \texttt{harbor\_card\_v2\_asymmetric.pv} (Appendix~\ref{app:phase2}); Phase~3 \texttt{harbor\_card\_v3\_delegation.pv} (Appendix~\ref{app:phase3}).
+\item \textbf{Algorithm-confusion immunity} (\S\ref{sec:algorithms}). The pinned-verifier model authenticates only when the algorithm field is bound at issuance time and re-checked at verification time; an explicit naive-verifier counter-trace witnesses the JWT \texttt{alg=}-rewriting attack the pinning defends against. Result: pinned-verifier authenticity TRUE; naive-verifier counter-trace produced. Artifact: \texttt{proofs/anchor/token-verify/algconfusion.pv}. Runtime conformance against \texttt{lib/harbor-tokens.ts}: \texttt{tests/unit/runtime-conformance/algorithm-pinning.test.js} exercises five attack patterns plus two controls; all pass.
+\item \textbf{Delegation chain replay} (\S\ref{sec:algorithms}, Phase~3). ProVerif at chain depth 3 verifies that a chain authenticated under nonce $+$ \texttt{(prev\_id, next\_id, message)} binding cannot be replayed across sessions or have its hops reordered. Result: chain authenticity TRUE. Artifact: \texttt{proofs/anchor/delegation/chain-replay.pv}.
+\end{itemize}
+
+\subsection*{Partially closed (empirical or implementation-bound; full mechanization deferred)}
+
+\begin{itemize}
+\item \textbf{Cuckoo-filter revocation soundness} (\S\ref{sec:algorithms}). The revocation gate strictly narrows acceptance, so the existing soundness proofs are unaffected by inspection. We have not yet mechanized the gossip convergence bound; the empirical bound in the paper ($O(\log m)$ rounds for $m$ peers) is from the standard anti-entropy analysis~\cite{demers1987epidemic} and is reproduced rather than reproved. A formal mechanization is carried indefinitely; the runtime path is exercised by \texttt{tests/unit/cuckoo-revocation.test.js}.
+\item \textbf{Constant-time signature comparison} (\S\ref{sec:algorithms}). The Rust implementation uses \texttt{subtle::ConstantTimeEq}. We have not produced a side-channel proof; we rely on the audited library and document that reliance here.
+\end{itemize}
+
+\subsection*{Open (acknowledged, not yet started)}
+
+\begin{itemize}
+\item \textbf{Cuckoo-filter pollution attack} (raised in v2.4, carried through v2.5). An adversary who can inject many false-positive entries could degrade revocation precision. We have a defensive design (insertion-rate bound + per-issuer namespace) but no implementation in \texttt{lib/cuckoo-filter.ts} yet, and no formal model. This is the primary outstanding security question for the next round.
+\end{itemize}
+
+\subsection*{How to read these claims}
+
+``Closed'' means the property is mechanized: a verifier or proof assistant has checked the design against an explicit attacker model. ``Partially closed'' means the design is verified but the implementation is exercised empirically rather than proved. ``Open'' means we believe we know the answer but have not written it down formally.
+
+We err toward listing fewer items as closed rather than more. The discipline came from being argued with for five rounds by an adversarial reviewer that does not flatter.
+
 % ═════════════════════════════════════════════════════════════════════════════
 
 \section{Full ProVerif Models}\label{app:proverif}

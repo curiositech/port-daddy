@@ -23,45 +23,77 @@ const singleMachineControlPlane = String.raw`flowchart TB
   class State green;`
 
 const relayHarborMesh = String.raw`flowchart TB
-  Harbor["Harbor<br/>fingerprint + keys<br/>policy"]
-  Relay["PD Relay<br/>outbound-only ciphertext router"]
-  Events["Encrypted events<br/>status + approvals<br/>replies + results"]
-  Phone["Phone<br/>reads + approves"]
-  Laptop["Laptop daemon<br/>sessions + agents"]
-  HomePC["Home PC daemon<br/>compute lane"]
-  MacBook["Colleague MacBook<br/>scoped collaborator"]
+  Harbor["Shared harbor<br/>fingerprint + policy<br/>membership"]
+  Relay["PD Relay gateway<br/>outbound-only<br/>ciphertext router"]
+  Cards["Four separate cards<br/>phone approval<br/>MacBook Pro owner<br/>home PC compute<br/>colleague collaboration"]
+  Local["Authority stays local<br/>daemons keep sessions,<br/>files, locks, secrets,<br/>budgets, and tools"]
 
-  Harbor --> Relay --> Events
-  Events --> Phone --> Laptop --> HomePC --> MacBook
-
-  classDef cobalt fill:#003fb8,color:#fbf7ef,stroke:#121212,stroke-width:2px;
-  classDef green fill:#006b5f,color:#fbf7ef,stroke:#121212,stroke-width:2px;
-  classDef ink fill:#121212,color:#fbf7ef,stroke:#121212,stroke-width:2px;
-  classDef paper fill:#f7f3eb,color:#121212,stroke:#121212,stroke-width:2px;
-  class Harbor,Events green;
-  class Relay ink;
-  class Phone,Laptop,HomePC,MacBook cobalt;
-`
-
-const relayJoinPath = String.raw`flowchart TB
-  Invite["01 Owner laptop<br/>makes invite"]
-  Phone["02 Phone scans QR<br/>redeems link"]
-  Card["03 Relay returns<br/>attenuated card"]
-  Listen["04 Phone listens<br/>to channels"]
-  Approve["05 Phone sends<br/>approval"]
-  Apply["06 Laptop daemon<br/>applies action"]
-  Peer["Colleague MacBook<br/>gets narrow invite"]
-
-  Invite --> Phone --> Card --> Listen --> Approve --> Apply
-  Invite -. collaborator path .-> Peer
+  Harbor --> Relay --> Cards --> Local
 
   classDef cobalt fill:#003fb8,color:#fbf7ef,stroke:#121212,stroke-width:2px;
   classDef green fill:#006b5f,color:#fbf7ef,stroke:#121212,stroke-width:2px;
   classDef ink fill:#121212,color:#fbf7ef,stroke:#121212,stroke-width:2px;
   classDef accent fill:#cad900,color:#121212,stroke:#121212,stroke-width:2px;
-  class Invite,Apply ink;
-  class Phone,Card,Listen,Approve cobalt;
-  class Peer accent;`
+  class Harbor green;
+  class Relay ink;
+  class Cards cobalt;
+  class Local accent;
+`
+
+const relayJoinPath = String.raw`flowchart TB
+  Owner["01 MacBook Pro<br/>creates harbor invite"]
+  Phone["02 Phone scans QR<br/>or opens magic link"]
+  Profile["03 Pick profile<br/>phone, compute PC,<br/>collaborator"]
+  Card["04 Relay issues<br/>short card + accepted subs"]
+  Live["05 Device appears<br/>with caps + freshness"]
+  Revoke["06 Revoke or narrow<br/>without touching<br/>other devices"]
+
+  Owner --> Phone --> Profile --> Card --> Live --> Revoke
+
+  classDef cobalt fill:#003fb8,color:#fbf7ef,stroke:#121212,stroke-width:2px;
+  classDef green fill:#006b5f,color:#fbf7ef,stroke:#121212,stroke-width:2px;
+  classDef ink fill:#121212,color:#fbf7ef,stroke:#121212,stroke-width:2px;
+  classDef accent fill:#cad900,color:#121212,stroke:#121212,stroke-width:2px;
+  class Owner,Revoke ink;
+  class Phone,Card,Live cobalt;
+  class Profile accent;`
+
+const relayComputeRequest = String.raw`flowchart TB
+  Proposal["01 MacBook Pro<br/>publishes compute proposal"]
+  Phone["02 Phone approves<br/>request:compute:low-risk"]
+  Request["03 Relay delivers<br/>encrypted request<br/>to home PC"]
+  Gate["04 Home PC checks<br/>card, budget, worktree,<br/>model readiness"]
+  Result["05 Home PC returns<br/>encrypted result event<br/>+ blob refs"]
+  Summary["06 Phone and MacBook<br/>see fresh summary"]
+  Handoff["07 Colleague sees<br/>only scoped handoff<br/>if card allows"]
+
+  Proposal --> Phone --> Request --> Gate --> Result --> Summary --> Handoff
+
+  classDef cobalt fill:#003fb8,color:#fbf7ef,stroke:#121212,stroke-width:2px;
+  classDef green fill:#006b5f,color:#fbf7ef,stroke:#121212,stroke-width:2px;
+  classDef ink fill:#121212,color:#fbf7ef,stroke:#121212,stroke-width:2px;
+  classDef accent fill:#cad900,color:#121212,stroke:#121212,stroke-width:2px;
+  class Proposal,Gate ink;
+  class Phone,Request,Result,Summary cobalt;
+  class Handoff accent;`
+
+const relayErgonomicControlPlane = String.raw`flowchart TB
+  Quiet["Quiet by default<br/>presence + status"]
+  Ask["Ask on side effects<br/>spawn, write, spend,<br/>remote compute"]
+  Local["Local daemon decides<br/>claims, locks, budgets,<br/>secrets"]
+  Proof["Proof follows action<br/>event hash, actor,<br/>cap, result"]
+  Review["Human review<br/>phone, Mac app,<br/>CLI, docs"]
+
+  Quiet --> Ask --> Local --> Proof --> Review
+
+  classDef cobalt fill:#003fb8,color:#fbf7ef,stroke:#121212,stroke-width:2px;
+  classDef green fill:#006b5f,color:#fbf7ef,stroke:#121212,stroke-width:2px;
+  classDef ink fill:#121212,color:#fbf7ef,stroke:#121212,stroke-width:2px;
+  classDef accent fill:#cad900,color:#121212,stroke:#121212,stroke-width:2px;
+  class Quiet green;
+  class Ask,Proof cobalt;
+  class Local ink;
+  class Review accent;`
 
 const fleetAutomationLoop = String.raw`flowchart TB
   Config["pd-fleet.yml<br/>agents + triggers<br/>limits"]
@@ -261,11 +293,11 @@ export const referenceArchitecturesSection: DocsContentSection = {
       blocks: [
         {
           type: 'paragraph',
-          title: 'Recommendation: one harbor, many local authorities',
+          title: 'Recommendation: one harbor, four device roles',
           paragraphs: [
-            'The design I would ship is a shared harbor mesh: your laptop daemon, home PC daemon, phone client, and a colleague\'s MacBook all join the same harbor fingerprint, but each full machine keeps its own local daemon state. The relay federates encrypted events across that harbor. It does not replicate SQLite, claims, notes, or process tables between machines.',
-            'That gives the user-visible win: your phone can approve a launch, reply to a tube thread, or inspect live status while your laptop and home PC keep running agents. Your colleague can join from another city and publish scoped collaboration events into the same harbor. Nobody needs an inbound port open at home, and the relay never needs plaintext payloads.',
-            'The phone should be a thin control client, not a full coordination authority by default. Give it attenuated capabilities: read status, publish approvals, reply to threads, maybe wake a predeclared run. Do not give it raw filesystem, spawn, or secret-management authority unless the user explicitly promotes it.',
+            'The design I would ship is a shared harbor mesh with four explicit roles. Your MacBook Pro is the primary local authority for the repo, sessions, claims, locks, notes, and ordinary agent work. Your phone is a thin approval and reply surface. Your home PC is a second full daemon with compute capabilities such as GPU, Ollama, Docker, or a heavy checkout. A colleague\'s MacBook is a collaborator with its own device key and a narrower card.',
+            'All four devices join the same harbor fingerprint, but full daemon state stays local to the machines that own it. The relay federates encrypted events, not SQLite tables, process state, lock rows, or raw filesystem access. The MacBook Pro can ask the home PC to do compute work; the home PC can accept only the request classes its card allows; the phone can approve or reject side effects without becoming a daemon.',
+            'This is the useful ergonomic compromise: no inbound port at home, no VPN setup required for the first demo, no owner credential sharing with a colleague, and no fake promise that a phone can safely mutate a repo directly. The phone gets short-lived caps for status, inbox, approvals, replies, and low-risk requests. The MacBook Pro and home PC keep their local operator policies, budgets, model readiness checks, and worktree rules.',
           ],
         },
         {
@@ -273,27 +305,49 @@ export const referenceArchitecturesSection: DocsContentSection = {
           title: 'Relay-backed harbor mesh',
           chart: relayHarborMesh,
           caption:
-            'All devices share the harbor fingerprint, but full daemon state stays on each machine. The stacked members are not a sync chain; they are separate cards attached to one encrypted event bus.',
+            'Every device connects outbound to the relay. The relay routes encrypted harbor events; each daemon keeps authority over its own local state and tools.',
         },
         {
           type: 'checklist',
-          title: 'Harbor mesh invariants',
+          title: 'Device-role contract',
           tone: 'accent',
           items: [
-            'Laptop and home PC run full local daemons and keep local sessions, file claims, locks, process state, and salvage ledgers authoritative for their own machines.',
-            'Phone joins through a managed relay or self-hosted relay as a thin member with short-lived, attenuated harbor cards.',
-            'A colleague joins through a separate invite with collaborator caps, not through owner credentials.',
-            'Relay channels are namespaced by harbor fingerprint so two different harbors cannot collide even when channel names match.',
-            'Payloads are end-to-end encrypted to harbor members; the relay can route by header metadata but cannot read the application body.',
-            'Per-publisher event chains make relay rewrites and broken histories detectable without turning the relay into a trusted sequencer.',
+            'MacBook Pro: primary daemon and owner control plane. It owns repo-local sessions, file claims, locks, notes, secrets, ordinary agent launches, and final publish decisions.',
+            'Phone: thin control client. It can read filtered status, receive inbox/approval cards, reply to threads, revoke its own device, and approve predeclared low-risk actions.',
+            'Home PC: secondary daemon and compute worker. It advertises resources, accepts only approved request classes, and applies local budget/model/worktree policy before doing work.',
+            'Colleague MacBook: scoped collaborator. It gets project channels, coordination tuples, and handoff rights without owner-only revocation, secrets, local filesystem, or home-PC compute authority by default.',
+            'Relay: gateway and event fabric. It stores envelopes, chain heads, revocations, and metadata needed for routing, but never needs decrypted payloads or raw daemon master keys.',
+            'Harbor: capability boundary. Display names are cosmetic; the authority is the device public key, proof method, card expiry, accepted subscriptions, and approved capabilities.',
+          ],
+        },
+        {
+          type: 'paragraph',
+          title: 'WinDAGs lenses used',
+          paragraphs: [
+            'This recommendation was checked against the [WinDAGs skill dossiers](http://windag.ai/), especially `agentic-zero-trust-security`, `tunnels-for-agents`, and `reverse-proxy-for-agents`: reachable does not mean trusted, outbound-only is the default NAT story, and relay headers route envelopes rather than granting authority.',
+            'The always-on and vibe-coding skills push the product shape: stale/fresh markers, bounded inputs, cost gates, local policy checks, worktree-aware handoffs, and proof before merge. That is why the phone is a card-based approval surface, the home PC is a locally gated compute worker, and the colleague gets a separate attenuated card.',
           ],
         },
         {
           type: 'mermaid',
-          title: 'Phone join and approval path',
+          title: 'Join and revoke path',
           chart: relayJoinPath,
           caption:
-            'The phone flow should feel like a magic link or QR join, but the underlying model is still capability cards, channel keys, and local daemon authority.',
+            'The UX can feel like QR plus magic link, but the important operator affordance is profile selection: phone, compute PC, or collaborator should never receive the same card.',
+        },
+        {
+          type: 'mermaid',
+          title: 'Phone approval to home-PC compute',
+          chart: relayComputeRequest,
+          caption:
+            'Remote execution is two-sided: the requester needs send authority, the target needs accept authority, and the target daemon still runs local policy before touching tools or files.',
+        },
+        {
+          type: 'mermaid',
+          title: 'Ergonomic safety loop',
+          chart: relayErgonomicControlPlane,
+          caption:
+            'The product should stay quiet for observation and explicit for side effects. Suggestions can be ambient; mutation, spending, remote compute, and publishing need visible approval or predeclared policy.',
         },
         {
           type: 'command',
@@ -325,21 +379,35 @@ export const referenceArchitecturesSection: DocsContentSection = {
           type: 'paragraph',
           title: 'Security posture',
           paragraphs: [
-            'Identity should follow the OIDC-first hybrid from the relay PKI ADR: OIDC for managed workload bootstrap, admin-approved web-of-trust for self-hosted or harbor-local deployments, and ACME later for name-bound daemon identity. The relay registry should track proof method, expiry, revocation state, and harbor memberships.',
-            'Authorization belongs in Port Daddy cards, not in the fact that a person reached the relay. A phone card can be short lived and narrow; a home PC card can be owner-grade; a colleague card can publish into selected channels but be unable to spawn agents or read private notes. Revocation has to be visible and fast enough that removing a phone or collaborator is operationally boring.',
-            'The relay should store event envelopes and chain heads, not decrypted task content. If the phone wants to display rich status, the local daemon publishes a status event intended for harbor members. If the colleague needs more authority, the owner issues a new attenuated card rather than sharing the owner key.',
+            'The zero-trust rule is simple: connection proves reachability, not authority. Identity should follow the OIDC-first hybrid from the relay PKI ADR, with admin-approved web-of-trust for self-hosted or harbor-local deployments and ACME later for name-bound daemon identity. The relay registry tracks proof method, device public key, accepted subscriptions, expiry, revocation state, and harbor memberships.',
+            'Authorization belongs in Port Daddy cards. A phone card is short-lived and narrow; a home-PC card can advertise compute and accept selected requests; a colleague card can publish into project channels but cannot spawn agents, read private notes, revoke owner devices, or inherit home-PC compute. Capability attenuation must never expand rights, and the UI should show rejected capabilities as first-class feedback rather than hiding them.',
+            'The relay stores event envelopes, chain heads, revocations, and routing metadata, not decrypted task content. Application payloads are end-to-end encrypted to harbor members; per-publisher event chains make rewrite or broken-history detection possible. Relay metadata is still sensitive, so channel names, payload sizes, retention, source IP handling, and audit export need explicit product policy.',
+            'The home PC must be treated like a powerful but local resource, not a cloud worker that anyone can drive. It can finish already-accepted local work offline, but new remote request acceptance waits for live card and policy checks. The phone can show cached stale status, but it must never pretend stale authority is live authority.',
+          ],
+        },
+        {
+          type: 'paragraph',
+          title: 'Ergonomic product design',
+          paragraphs: [
+            'The happy path should be physical and boring: open Port Daddy on the MacBook Pro, choose Share Harbor, scan the QR on the phone, pick the Phone profile, and see the phone appear with exactly the caps it received. Adding the home PC should feel similar, except the profile is Compute Worker and the approval screen names the resources it advertises. Adding a colleague should use a separate invite and never reuse the owner invite.',
+            'The phone surface should be card-based: live/stale marker, who is asking, which device will act, exact capability used, expected cost or budget lane, and the accept/reject buttons. It should not expose a general terminal by default. Replies and approvals are ergonomic; arbitrary remote shell is not.',
+            'Background agents should be helpful without becoming spooky. They may publish suggestions, test results, status, and low-risk findings silently. They should ask before side effects: spawning agents, writing files, spending meaningful budget, accepting remote compute, installing dependencies, opening tunnels, or publishing results to a colleague.',
           ],
         },
         {
           type: 'paragraph',
           title: 'What ships first',
           paragraphs: [
-            'Ship the smallest useful mesh: owner laptop plus phone plus one second daemon. Support status, tube replies, approvals, and manual event publish/subscribe before remote spawning. Then add collaborator invites. Only after that should Port Daddy route heavier work to the home PC or let a colleague launch scoped tasks.',
-            'The first production-quality demo should be physical and plain: start a laptop daemon, join the phone by QR, see a live session status event, send an approval from the phone, and watch the laptop daemon apply it locally. Add the home PC as a second full daemon and show a compute result event returning to the phone. Add the colleague MacBook last, with a visibly narrower card.',
+            'Ship the smallest useful mesh in three slices. Slice one: MacBook Pro plus phone, with QR join, live/stale status, inbox cards, replies, approval events, revocation, and no remote execution. Slice two: add the home PC as a compute worker that advertises resources, accepts predeclared low-risk requests, returns encrypted result events, and refuses anything outside its card or local policy. Slice three: add a colleague MacBook with project collaboration caps, handoff events, and a visibly narrower authority model.',
+            'The first production-quality demo should be physical and plain: start the MacBook Pro daemon, join the phone by QR, see a live session status event, send an approval from the phone, and watch the MacBook Pro daemon apply it locally. Then add the home PC and show a compute result returning to both MacBook Pro and phone. Add the colleague last and prove they can see the handoff without seeing owner-only notes, secrets, or home-PC controls.',
           ],
         },
       ],
       sources: [
+        {
+          path: 'docs/adr/0027-relay-harbor-mesh.md',
+          rationale: 'Official proposed ADR for the relay-backed harbor event mesh, device membership model, capability defaults, and non-goal against database replication.',
+        },
         {
           path: 'skills/pd-relay-zero-trust/references/relay-architecture.md',
           rationale: 'Defines the outbound-only relay, SSE transport, harbor fingerprint namespace, E2E payload invariant, and relay storage model.',
@@ -355,6 +423,22 @@ export const referenceArchitecturesSection: DocsContentSection = {
         {
           path: 'docs/adr/0013-unified-harbor-model.md',
           rationale: 'Defines harbors as the unit of scope, security, economy, ambient knowledge, and remote collaboration.',
+        },
+        {
+          path: 'lib/harbor-tokens.ts',
+          rationale: 'Current shipped harbor-card boundary: Ed25519 phase-2 cards, one-hour default TTL, JTI persistence, revocation checks, and explicit cross-machine federation deferral.',
+        },
+        {
+          path: 'lib/messaging.ts',
+          rationale: 'Current local pub/sub substrate that relay export/import should wrap as event federation instead of replacing.',
+        },
+        {
+          path: 'lib/tuples.ts',
+          rationale: 'Current harbor-scoped tuple space; remote tuple behavior should remain policy-driven events, not distributed atomic memory.',
+        },
+        {
+          path: 'lib/blob.ts',
+          rationale: 'Content-addressed blob store now exists locally and can back larger relay/tube artifacts by hash without putting payload semantics into the relay.',
         },
         {
           path: 'skills/pd-relay-zero-trust/references/e2e-payload-encryption.md',

@@ -62,6 +62,16 @@ const MODEL_RATES: Array<[string, ModelRate]> = [
   ['claude-haiku-4-5',        { input:  0.80, output:  4.00, label: 'Claude Haiku 4.5' }],
   ['claude-3-5-haiku',        { input:  0.80, output:  4.00, label: 'Claude 3.5 Haiku' }],
   ['claude-haiku',            { input:  0.80, output:  4.00, label: 'Claude Haiku' }],
+  // Anthropic — claude-cli tier shorthands.
+  // The claude-cli backend's tier resolver (lib/fleet-engine.ts BUILTIN_MODEL_TIERS)
+  // returns bare names "opus" / "sonnet" / "haiku" for `--tier high|mid|low`.
+  // findRate() does substring matching, so the longer keys above never match
+  // a 4-6-character shortname. These rows are placed at the END so full IDs
+  // hit their specific entries first; the shortnames are matched as a fallback
+  // when the backend hands back only the tier alias.
+  ['opus',                    { input: 15.00, output: 75.00, label: 'Claude Opus (claude-cli tier shorthand)' }],
+  ['sonnet',                  { input:  3.00, output: 15.00, label: 'Claude Sonnet (claude-cli tier shorthand)' }],
+  ['haiku',                   { input:  0.80, output:  4.00, label: 'Claude Haiku (claude-cli tier shorthand)' }],
   // Gemini
   ['gemini-2.0-flash',        { input:  0.075, output: 0.30, label: 'Gemini 2.0 Flash' }],
   ['gemini-1.5-pro',          { input:  1.25, output:  5.00, label: 'Gemini 1.5 Pro' }],

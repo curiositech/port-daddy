@@ -80,6 +80,48 @@ describe('CostTracker', () => {
     expect(costUsd).toBeCloseTo(0.016, 5);
   });
 
+  // ── claude-cli tier shorthands (opus/sonnet/haiku) ───────────────────────
+  // The claude-cli backend hands the cost-tracker bare tier names rather than
+  // full model IDs. We need short alias entries so the telemetry policy
+  // recognizes them. Tests guard against accidental removal of those rows.
+
+  test('claude-cli "opus" tier shorthand resolves to Opus pricing', () => {
+    // Opus: $15 input / $75 output per 1M
+    // 1000 input + 200 output = $0.015 + $0.015 = $0.030
+    const { costUsd, isEstimate } = costTracker.computeCost(
+      'claude-cli', 'opus', 1000, 200
+    );
+    expect(isEstimate).toBe(false);
+    expect(costUsd).toBeCloseTo(0.030, 5);
+  });
+
+  test('claude-cli "sonnet" tier shorthand resolves to Sonnet pricing', () => {
+    // Sonnet: $3 input / $15 output per 1M
+    // 10000 input + 2000 output = $0.030 + $0.030 = $0.060
+    const { costUsd, isEstimate } = costTracker.computeCost(
+      'claude-cli', 'sonnet', 10000, 2000
+    );
+    expect(isEstimate).toBe(false);
+    expect(costUsd).toBeCloseTo(0.060, 5);
+  });
+
+  test('claude-cli "haiku" tier shorthand resolves to Haiku pricing', () => {
+    // Haiku: $0.80 input / $4.00 output per 1M
+    // 10000 input + 5000 output = $0.008 + $0.020 = $0.028
+    const { costUsd, isEstimate } = costTracker.computeCost(
+      'claude-cli', 'haiku', 10000, 5000
+    );
+    expect(isEstimate).toBe(false);
+    expect(costUsd).toBeCloseTo(0.028, 5);
+  });
+
+  test('full Claude IDs still match their specific entries (not the shortname fallback)', () => {
+    // Confirms order: long entries appear before short aliases so a full ID
+    // hits its precise label, not the shorthand.
+    const { costUsd } = costTracker.computeCost('claude', 'claude-opus-4', 1000, 0);
+    expect(costUsd).toBeCloseTo(0.015, 5); // 1000 * 15/1M = 0.015
+  });
+
   // ── record ────────────────────────────────────────────────────────────────
 
   test('record stores an event', () => {
