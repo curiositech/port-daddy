@@ -1,10 +1,16 @@
 # Cartographer Status
 
-**Last updated:** 2026-04-29
-**Updated by:** Codex stash/worktree harvest closeout
-**HEAD:** `87fd030`
-**Stable:** `930f8ca` — promoted from `main@a42a6f4` and pushed to `origin/stable`
-**Previous HEAD:** `629de64` — website content, proof media, terminal recordings, examples, and FleetBar preview package metadata
+**Last updated:** 2026-05-07
+**Updated by:** Cartographer roadmap pass (comprehensive source verification)
+**HEAD:** `745773e3` (Merge remote-tracking branch 'origin/main' into stable)
+**Stable:** `942112c2` — promoted from `main@3a9c4a97` and pushed to `origin/stable`
+**Previous HEAD:** `1eb94f23` — website content, proof media, terminal recordings, examples, and FleetBar preview package metadata
+
+**Cartographer Pass Summary (2026-05-07):**
+- Read Phase: ✅ Complete. V4-UNIFIED-ROADMAP.md, .cartographer/status.md, CURRENT-WORK.md, git history all verified.
+- Dogfood Harvest: No new slugs minted (existing slugs already represented in DOGFOOD-FEEDBACK.md and IDEAS-TROVE.md).
+- Key findings: Phase 1 (`graph_edges`) remains 1-hour migration task away from completion. Phase 5/6 remain stale (>2 weeks no commits). Recovery Track authority is now `docs/recovery/UNIFIED-ROADMAP.md`, not V4 phases.
+- Write Phase: Updating six staged files with verified source state.
 
 ---
 
@@ -14,11 +20,11 @@
 
 Active work ledger lives at `docs/recovery/CURRENT-WORK.md`. Keep the in-flight queue there, then reflect major closures or drift here.
 
-The latest committed work still maps overwhelmingly to the Recovery Roadmap (`docs/recovery/UNIFIED-ROADMAP.md`), not the V4 phase structure. Track 1 (Cost & Observability) is closed. Tracks 2 (FleetBar) and 3 (Fleet Config UI) remain active. The freshest commit stream is mostly unplanned website / release-surface / phone-integration work, plus maritime actor / launchability hardening. Within V4, Phase 3 is still the hottest mapped phase, Phase 2 is the closest to a closure point, Phase 1 remains in-tree but not fully promoted, and Phase 5/6 are stale.
+The latest committed work still maps overwhelmingly to the Recovery Roadmap (`docs/recovery/UNIFIED-ROADMAP.md`), not the V4 phase structure. Track 1 (Cost & Observability) is closed. Tracks 2 (FleetBar) and 3 (Fleet Config UI) remain active. The freshest commit stream is mostly salvage/recovery triage, website / release-surface / phone-integration work, whitepaper/editorial cleanup, relay architecture, plus maritime actor / launchability hardening and backend readiness / claude-cli alias cleanup. Within V4, Phase 3 is still the hottest mapped phase, Phase 2 is the closest to a closure point, Phase 1 remains in-tree but not fully promoted, and Phase 5/6 are stale.
 
 ## Snapshot
 
-- Velocity: 174 commits in the last 7 days = 24.9/day.
+- Velocity: 135 commits in the last 7 days = 19.3/day.
 - Closest to completion:
   - `claim-preserving-git-safety`
   - `fleet-launchability-and-cadence`
@@ -27,7 +33,7 @@ The latest committed work still maps overwhelmingly to the Recovery Roadmap (`do
   - Phase 5 network / remote harbors
   - Phase 6 connectors / coaching
   - Phase 4E `pd self-test --adversarial` / 4F Windows IPC
-- Open dogfood now: 3 slugs (`claim-preserving-git-safety`, `fleet-launchability-and-cadence`, `session-context-cwd-reset`)
+- Open dogfood now: 2 slugs (`claim-preserving-git-safety`, `fleet-launchability-and-cadence`)
 
 ### Stash And Worktree Harvest (2026-04-29)
 
@@ -420,6 +426,7 @@ Burst-cool-burst pattern continues: 37 commits (Mar 30-31), 2 zero-commit days (
 
 - **The actor model is now a runtime migration, not just a Shipwright metaphor.** The repo had been using "agent" for durable identity, live process lease, inbox target, salvage target, and authorization principal. ADR-0022 separates those concerns: souls persist; body leases attach, expire, and carry authority. This is now the governing frame for future `/actors`, salvage, IPC auth, Fleet Control Center, and FleetBar work.
 - **The dangerous shortcut is "just stop deleting agents."** That would preserve history while breaking orphan detection, stale lock cleanup, IPC authorization, and Arbiter assumptions. Any implementation that changes deletion before adding lease/incarnation state should be treated as suspect.
+- **The 2026-05-07 Spider extension pass (S17-S23) extends the existing quorum / pheromone / graph / budget / incident families; it is useful signal, but it did not mint a new standalone backlog slug.**
 - **The Recovery Roadmap is the real execution authority.** 5 of 7 new commits map directly to Recovery Track criteria (Track 1 closure, Track 2 FleetBar, 3.8.3 runtime safety). The V4 phase structure is becoming a reference taxonomy rather than an active execution plan. This is fine — as long as both documents are maintained. The cartographer should update both.
 - **The full-suite red slice was mostly parity drift plus one real transport edge.** The repaired failures were not random: `routes/messaging.ts` had stopped honoring `body.message`, the client test still assumed a hardcoded daemon URL, completions/manifest/MCP parity did not fully know about `sortie`, stale spawner mocks no longer matched the `node:fs` import surface, and the Unix-socket integration helper needed to normalize oversized-body `EPIPE` / `ECONNRESET` into the daemon's actual 413 intent.
 - **The orchestrator leak was real runtime debt, not just Jest drama.** Reactive `exec` rules spawned child processes with no cleanup contract and piped their output under Jest, which produced late console logs and open pipe handles. The current working tree now suppresses piped stdio under Jest, `unref()`s child handles, and exposes a shutdown path for the reactive orchestrator. The remaining full-suite worker-force-exit warning is now a different leak, not the same one.

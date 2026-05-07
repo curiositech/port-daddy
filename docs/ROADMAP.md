@@ -1,5 +1,7 @@
 # Port Daddy Roadmap & Future Ideas
 
+**Last updated:** 2026-05-07 (Cartographer comprehensive pass — source verification complete)
+
 This document captures the ambitious, industry-defining vision for Port Daddy as the definitive "Agentic OS" Control Plane. It outlines "things for later" and serves as a living synthesis of conceptual ideas.
 
 ## Inputs Into This Roadmap
@@ -22,6 +24,10 @@ file in `.spark/feedback/` whenever a Port Daddy primitive surprises them.
 The **Cartographer** fleet agent (declared in `pd-fleet.yml`, triggered on
 `git:committed`) owns the harvest into `DOGFOOD-FEEDBACK.md` and the
 promotion of `now`-status entries into the section directly below.
+On this checkout, both `pd roadmap --feedback-status open --json` and
+`pd feedback list --status open --json` return `connect EPERM` against
+`~/.port-daddy/daemon.sock`, and there are no `.spark/feedback/*.md`
+drops in the tree, so the curated harvest stayed unchanged this pass.
 
 The cartographer roadmap-progress screen and central feedback pipe are
 already shipped, so the "Next Cuts" list below is the remaining backlog
@@ -34,17 +40,17 @@ Candidates. Keep this short and rotated — it is the "what we cut next"
 list, not the full backlog. When an item ships, move its line into the
 appropriate phase section below and delete it here.
 
-- **`coordination-guard-extended-enforcement`** — Coordination Guard
-  exists (`cli/commands/guard.ts`, modes `off|warn|enforce`) but only
-  fires on git pre-commit. Enable by default for repos with
-  `pd-fleet.yml`; extend to SessionStart + PreToolUse hooks so agents
-  can't edit without `pd begin` + claims. Also cover destructive git
-  verbs (`git add -A`, `git reset --hard`, `git cherry-pick`) so claims
-  can't be bulldozed by closeout flows.
 - **`claim-preserving-git-safety`** — Advisory file claims can still be
   steamrolled by `git add -A`, `git reset --hard`, and `git cherry-pick`.
   Add a safe `pd add` path plus destructive-git guardrails that consult
   claims before they bulldoze another session's edits.
+- **`coordination-guard-extended-enforcement`** — Coordination Guard
+  already exists and this repo now ships it in enforce mode
+  (`.portdaddy/coordination-guard.json`), but it still only fires on
+  git pre-commit. Extend it to SessionStart + PreToolUse hooks so
+  agents can't edit without `pd begin` + claims. Also cover destructive
+  git verbs (`git add -A`, `git reset --hard`, `git cherry-pick`) so
+  claims can't be bulldozed by closeout flows.
 - **`crew-screen-roles-not-pids`** — Dashboard currently shows
   agents-by-PID; operators think in *roles*. New Crew panel: each
   fleet role with last-run / last-cost / currently-doing / blocked.
@@ -62,9 +68,6 @@ appropriate phase section below and delete it here.
   instead of being bare facts.
 - **`fleet-run-journal`** — Persist fleet run lifecycle into SQLite so
   `pd fleet history` and briefings stop forgetting on restart.
-- **`session-context-cwd-reset`** — `pd begin` / `pd note` / `pd
-  whoami` lose the active session when shell cwd resets between Bash
-  calls; recover by agent id or a home-scoped current-session file.
 - **`fleet-launchability-and-cadence`** — Cartographer can be wired but
   still blocked by cadence routing, slug drift, and the wallet /
   telemetry wall; surface `launchable` vs `blocked` truth in `pd

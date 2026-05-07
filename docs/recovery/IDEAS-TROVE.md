@@ -1,6 +1,6 @@
 # Ideas Trove
 
-Last updated: 2026-04-29
+Last updated: 2026-05-07 (Cartographer comprehensive pass — no new ideas from source inspection)
 
 This is the canonical ideation index and curated backlog for Port Daddy.
 
@@ -22,6 +22,10 @@ allowed to multiply duplicate backlog items forever.
 - raw `.spark/ideas/` and `.spider/connections/`
   - local provenance and research exhaust
   - useful as input, not authoritative backlog on their own
+- 2026-05-07 Spider extension pass
+  - `.spider/connections/2026-05-07-connections.md`
+  - `.spider/connections/2026-05-07-connections-extended.md`
+  - extended the existing quorum / pheromone / graph / budget / incident families without minting a new standalone backlog slug from raw Spider exhaust
 
 Status meanings used here:
 
@@ -82,6 +86,7 @@ runtime cuts.
   - `.spark/feedback/2026-04-26-coordination-guard-stale-hook-silent-fail.md`
   - `.spark/feedback/2026-04-28-coordination-guard-bypassed-by-cherry-pick.md`
   - `.spark/feedback/2026-04-28-claims-steamrolled-by-git-reset-hard.md`
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove`
 
 ### `crew-screen-roles-not-pids`
 

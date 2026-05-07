@@ -1,14 +1,14 @@
 # Current Recovery Work
 
-Last updated: 2026-04-29
-Owner: Codex working session
+Last updated: 2026-05-07
+Owner: Codex working session → Cartographer pass completion
 
 This is the active execution ledger. If a task is in flight, it belongs here before it belongs in chat.
 
-## Cartographer Snapshot
+## Cartographer Snapshot (2026-05-07 Refresh)
 
-- Current phase: Recovery Track dominates; within V4, Phase 3 is the hottest mapped phase.
-- Velocity: 174 commits in the last 7 days = 24.9/day.
+- Current phase: Recovery Track dominates; within V4, Phase 3 is the hottest mapped phase, but the freshest commit burst is mostly salvage/recovery triage, website / release-surface / phone-integration work, whitepaper/editorial cleanup, relay architecture, plus maritime actor / launchability hardening and backend readiness / claude-cli alias cleanup.
+- Velocity: 135 commits in the last 7 days = 19.3/day.
 - Closest to completion:
   - `claim-preserving-git-safety`
   - `fleet-launchability-and-cadence`
@@ -17,7 +17,7 @@ This is the active execution ledger. If a task is in flight, it belongs here bef
   - Phase 5 network / remote harbors
   - Phase 6 connectors / coaching
   - Phase 4E `pd self-test --adversarial` / 4F Windows IPC
-- Open dogfood now: 3 slugs (`claim-preserving-git-safety`, `fleet-launchability-and-cadence`, `session-context-cwd-reset`)
+- Open dogfood now: 2 slugs (`claim-preserving-git-safety`, `fleet-launchability-and-cadence`)
 
 ## Active Side Thread
 
@@ -109,18 +109,22 @@ The `agentsd.ai` public-site reset is now explicit repo work, not chat residue.
 - 2026-04-29 cartographer map refresh:
   - `cartographer-roadmap-progress-screen` is now shipped via `7ba8d84`, `8fcf93e`, `4807cb5`, and `bd4fc6f`.
   - Closeout commits now pushed on `codex/agents-flow-guard-readable-ids`: `5f01294` (Agents pages + readable IDs), `eac3fc3` (live roadmap feedback), `4dba2a3` (Port Daddy agent skill bundle), and `629de64` (website content/proof media + FleetBar preview package metadata).
+- 2026-05-07 follow-up:
   - `pd feedback list --status open --json` still fails on this daemon (`connect EPERM`), so the raw `.spark/feedback/` harvest remained the fallback source of truth for this pass.
   - No new dogfood slugs were minted; the raw drops were already represented in `DOGFOOD-FEEDBACK.md` or `IDEAS-TROVE.md`.
-  - `9e7d458` landed after the previous pass; the latest burst is maritime-layer hardening, website/release polish, and examples/navigation cleanup, so those commits are recorded as unplanned work below.
+  - `50fe92ff` shipped the slot-scoped session-context hardening; `session-context-cwd-reset` was demoted out of the `now` bucket and the remaining follow-up is docs/help alignment.
+  - `9e7d458` landed after the previous pass; the latest burst is maritime-layer hardening, website/release polish, whitepaper/editorial cleanup, relay architecture, and examples/navigation cleanup, so those commits are recorded as unplanned work below.
+  - `pd status` reports Port Daddy running in this checkout, but tuple-backed feedback projection was unavailable because both `pd roadmap --feedback-status open --json` and `pd feedback list --status open --json` hit `connect EPERM` on `~/.port-daddy/daemon.sock`; direct `.spark/feedback/` inspection found no markdown drops, only `.DS_Store`, so there were no new dogfood slugs to mint or dedupe.
+  - The 2026-05-07 Spider extension pass (S17-S23) extends existing quorum / pheromone / graph / budget / incident families rather than minting a new backlog slug.
 
-## Recovery Radar
+## Historical Recovery Radar (2026-04-28)
 
-- Current phase: Recovery Track dominates; among V4 lanes, Phase 3 is the hottest mapped phase, Phase 2 is the closest to closure, and Phase 1 remains in-tree but not fully promoted.
-- Velocity: 174 commits in the last 7 days = 24.9/day.
+- Current phase: Recovery Track dominates; among V4 lanes, Phase 3 is the hottest mapped phase, Phase 2 is the closest to closure, and Phase 1 remains in-tree but not fully promoted. The freshest commit burst is still mostly outside V4, centered on salvage/recovery triage, website / release-surface / phone-integration work, and maritime actor / launchability hardening.
+- Velocity: 132 commits in the last 7 days = 18.9/day.
 - Closest to completion:
   - `claim-preserving-git-safety`
   - `fleet-launchability-and-cadence`
-  - `coordination-guard-extended-enforcement`
+  - `session-context-cwd-reset`
 - Blocked or drifting:
   - Phase 5 network / remote harbors
   - Phase 6 connectors / coaching

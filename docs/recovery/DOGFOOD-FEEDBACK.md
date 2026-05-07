@@ -1,6 +1,6 @@
 # Dogfood Feedback — Curated Harvest
 
-Last updated: 2026-04-29
+Last updated: 2026-05-07 (Cartographer comprehensive pass)
 
 This file is the curated harvest of agent dogfooding feedback for Port Daddy.
 
@@ -17,6 +17,12 @@ This file is the curated harvest of agent dogfooding feedback for Port Daddy.
 - 2026-04-29 pass: no new dogfood slugs were minted. The raw drops were
   already represented here or in `IDEAS-TROVE.md`, so this was a dedupe pass
   rather than a minting pass.
+- 2026-05-07 pass: `pd status` still reported Port Daddy running in this
+  checkout, but the tuple-backed feedback projection was unavailable because
+  both `pd roadmap --feedback-status open --json` and `pd feedback list
+  --status open --json` hit `connect EPERM` on `~/.port-daddy/daemon.sock`;
+  direct `.spark/feedback/` inspection found no markdown drops, only
+  `.DS_Store`, so there were no new dogfood slugs to mint or dedupe.
 
 Status meanings:
 
@@ -96,15 +102,15 @@ surface. Spark/Spider do not touch this lane — they own
 
 ### `session-context-cwd-reset`
 
-- status: `now`
+- status: `backlog`
 - surface: cli | other
 - friction:
-  - `pd begin` / `pd note` / `pd whoami` lose the active session when shell cwd resets between Bash calls.
+  - `pd begin` / `pd note` / `pd whoami` used to lose the active session when shell cwd reset between Bash calls; the slot-scoped fix now ships in `50fe92ff`.
 - next cut:
-  - recover session context by agent id or a home-scoped current-session file, and make the error point to the actual missing state.
+  - finish docs/help alignment so installed CLI prose matches slot-scoped `.portdaddy/contexts/<slot>.json` and stops describing `current.json` as the only truth.
 - provenance:
   - `.spark/feedback/2026-04-28-session-drops-on-cwd-reset.md`
-- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove`
+  - `50fe92ff` (session-context hardening committed)
 
 ### `feedback-route-stable-gap`
 
