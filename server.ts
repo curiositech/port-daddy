@@ -76,6 +76,7 @@ import { createSymbolIndex } from './lib/symbol-index.js';
 import { createMergeQueue } from './lib/merge-queue.js';
 import { createCostTracker } from './lib/cost-tracker.js';
 import { createCounters } from './lib/counters.js';
+import { createMetricsRegistry } from './lib/metrics-registry.js';
 import { createBonds } from './lib/bonds.js';
 import { createBudgetGuard } from './lib/budget-guard.js';
 import { createBudgetPause } from './lib/budget-pause.js';
@@ -109,7 +110,22 @@ interface PortDaddyServerConfig {
   service: { port: number; host: string };
   ports: { range_start: number; range_end: number; reserved: number[] };
   cleanup: { interval_ms: number };
-  logging: { level: string; file: string; error_file: string };
+  logging: {
+    level: string;
+    file: string;
+    error_file: string;
+    /** Per-file rotation cap in bytes. Default 50 MB. */
+    maxsize?: number;
+    /** Number of rotated files to keep. Default 5. Older files are deleted. */
+    maxFiles?: number;
+    /**
+     * Fraction of successful requests to log (0..1). Default 0 — only errors are logged.
+     * The request-log firehose was the dominant source of disk pressure
+     * (625 MB unrotated). Per-route latency now lives in the in-memory
+     * MetricsRegistry; the file log is for forensic error tracing only.
+     */
+    requestSamplingRate?: number;
+  };
   security: { rate_limit: { window_ms: number; max_requests: number } };
 }
 
@@ -156,10 +172,16 @@ const logger: winston.Logger = winston.createLogger({
   transports: isSilent ? [] : [
     new winston.transports.File({
       filename: join(__dirname, config.logging.error_file),
-      level: 'error'
+      level: 'error',
+      maxsize: config.logging.maxsize ?? 50 * 1024 * 1024,
+      maxFiles: config.logging.maxFiles ?? 5,
+      tailable: true,
     }),
     new winston.transports.File({
-      filename: join(__dirname, config.logging.file)
+      filename: join(__dirname, config.logging.file),
+      maxsize: config.logging.maxsize ?? 50 * 1024 * 1024,
+      maxFiles: config.logging.maxFiles ?? 5,
+      tailable: true,
     })
   ]
 });
@@ -254,6 +276,7 @@ const symbolIndex = createSymbolIndex(db, { graphEdges });
 const tuples = createTupleSpace(db);
 const blobs = createBlobStore();
 const counters = createCounters(db);
+const metricsRegistry = createMetricsRegistry();
 const semanticResolver = createSemanticResolver(db, {
   cacheDir: join(REPO_ROOT, '.cache', 'transformers'),
   counters,
@@ -654,14 +677,61 @@ app.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) =>
   );
 });
 
-// --- Request Logging (replaces custom middleware) ---
+// --- Request metrics + sampled logging ---
+//
+// Per-request JSON dumps to winston grew port-daddy.log to 625 MB. We now record
+// every request into the in-memory MetricsRegistry (Prometheus histograms +
+// outlier ring) and only log to disk when the request is interesting:
+//   - any non-2xx/3xx status
+//   - any duration above the slow threshold (default 1000 ms)
+//   - a small random sample of successes when requestSamplingRate > 0
+// /metrics, /metrics/* and SSE long-poll routes are skipped to keep the
+// histograms honest (we shouldn't measure the cost of measuring).
+const SLOW_REQUEST_MS = 1000;
+const requestSamplingRate = config.logging.requestSamplingRate ?? 0;
+
 app.addHook('onResponse', async (request: FastifyRequest, reply: FastifyReply) => {
-  logger.info('request', {
+  const url = request.url ?? '';
+  if (url.startsWith('/metrics')) return;
+
+  // Fastify 5 — request.routeOptions.url is the route TEMPLATE (e.g. "/projects/:id").
+  // Falling back to "(unknown)" for static-served files / 404s keeps cardinality bounded.
+  const routeTemplate = request.routeOptions?.url ?? (reply.statusCode === 404 ? '(404)' : '(unknown)');
+  const durationMs = reply.elapsedTime;
+  const status = reply.statusCode;
+
+  metricsRegistry.observeHttpRequest({
     method: request.method,
-    path: request.url,
-    status: reply.statusCode,
-    duration_ms: reply.elapsedTime,
+    route: routeTemplate,
+    rawPath: url,
+    statusCode: status,
+    durationMs,
   });
+
+  // Persist a coarse minute-bucketed counter so the dashboard seasonality
+  // heatmap has multi-day history beyond the in-memory window.
+  // Status class only (not exact code) to keep counter cardinality low.
+  counters.bump('http.requests', {
+    method: request.method,
+    route: routeTemplate,
+    status: status >= 500 ? '5xx' : status >= 400 ? '4xx' : status >= 300 ? '3xx' : '2xx',
+  });
+
+  const isError = status >= 400;
+  const isSlow = durationMs >= SLOW_REQUEST_MS;
+  const shouldSample = requestSamplingRate > 0 && Math.random() < requestSamplingRate;
+  if (!isError && !isSlow && !shouldSample) return;
+
+  const meta = {
+    method: request.method,
+    path: url,
+    route: routeTemplate,
+    status,
+    duration_ms: +durationMs.toFixed(2),
+    reason: isError ? 'error' : isSlow ? 'slow' : 'sampled',
+  };
+  if (isError) logger.warn('request', meta);
+  else logger.info('request', meta);
 });
 
 // --- Dashboard Broadcast on Mutations (replaces custom middleware) ---
@@ -689,7 +759,7 @@ await registerAllRoutes(
     services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar,
     harbors, sorties, orchestrator, correlationEngine, spawner, tuples, blobs, fleetDaemon,
-    orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, counters,
+    orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, counters, metricsRegistry,
     quorum, resourceGovernance, feedback,
     bonds, budgetGuard, budgetPause,
     arbiter, bosunHeartbeat,

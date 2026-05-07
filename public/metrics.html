@@ -1,0 +1,677 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Port Daddy · Metrics</title>
+
+  <!--
+    Charts page for Port Daddy.
+
+    Data sources (all on the same daemon):
+      /metrics/http/now         - top-of-page summary tiles
+      /metrics/http/routes      - per-route histogram snapshot
+      /metrics/http/outliers    - recent slow requests
+      /metrics/annotations      - git commits / pd notes / session purposes
+      /metrics/counters?key=http.requests&since=...&groupBy=hour
+                                - historical request volume for seasonality
+
+    Honest limits:
+      Latency percentiles are computed from the in-memory ring buffer,
+      so they reset on daemon restart. The seasonality heatmap reads from
+      the SQLite counters table, so it accumulates across restarts and
+      shows real hour-of-day / day-of-week patterns once enough data lands.
+
+    Security:
+      Every dynamic value passes through escapeHtml() before being interpolated
+      into innerHTML. Git commit subjects and pd note bodies are user-controlled
+      and could contain markup; they are NEVER trusted as raw HTML.
+  -->
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+
+  <style>
+    :root {
+      /* Harbor Heritage palette (matches main dashboard) */
+      --sandstone:    #d4c5a9;
+      --sandstone-2:  #c8b89a;
+      --sandstone-3:  #b8a884;
+      --ebony:        #1e1b18;
+      --ebony-2:      #2a2622;
+      --cinnabar:     #cc3d2e;
+      --rust:         #8b3a2e;
+      --teal:         #4a7d7a;
+      --olive:        #6b7d4a;
+      --gold:         #b89545;
+      --paper:        #e8dec5;
+
+      --shadow-out: 4px 4px 8px rgba(40, 30, 20, 0.18), -4px -4px 8px rgba(255, 245, 220, 0.55);
+      --shadow-in:  inset 3px 3px 6px rgba(40, 30, 20, 0.18), inset -3px -3px 6px rgba(255, 245, 220, 0.55);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      background: var(--sandstone);
+      color: var(--ebony);
+      min-height: 100vh;
+    }
+
+    header {
+      padding: 28px 32px 18px;
+      border-bottom: 1px solid rgba(30, 27, 24, 0.12);
+    }
+    h1 {
+      margin: 0 0 4px;
+      font-family: "Times New Roman", serif;
+      font-weight: 600;
+      font-size: 24px;
+      letter-spacing: 0.5px;
+    }
+    .subhead {
+      font-size: 12px;
+      color: var(--ebony-2);
+      opacity: 0.72;
+    }
+    .subhead a { color: var(--rust); text-decoration: none; }
+    .subhead a:hover { text-decoration: underline; }
+
+    main {
+      padding: 24px 32px 60px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+
+    .tiles {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 14px;
+    }
+    .tile {
+      background: var(--sandstone);
+      border-radius: 12px;
+      box-shadow: var(--shadow-out);
+      padding: 14px 16px;
+    }
+    .tile .label {
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--ebony-2);
+      opacity: 0.7;
+    }
+    .tile .value {
+      font-family: "Times New Roman", serif;
+      font-size: 28px;
+      font-weight: 600;
+      margin-top: 4px;
+      color: var(--ebony);
+    }
+    .tile .delta {
+      font-size: 11px;
+      color: var(--rust);
+      margin-top: 2px;
+    }
+    .tile.warn .value { color: var(--cinnabar); }
+    .tile.ok   .value { color: var(--olive); }
+
+    .panel {
+      background: var(--sandstone);
+      border-radius: 14px;
+      box-shadow: var(--shadow-out);
+      padding: 18px 20px;
+    }
+    .panel h2 {
+      margin: 0 0 12px;
+      font-family: "Times New Roman", serif;
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+    .panel h2 .hint {
+      font-family: ui-monospace, monospace;
+      font-size: 10px;
+      font-weight: 400;
+      opacity: 0.6;
+      letter-spacing: 0;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 24px;
+    }
+    @media (max-width: 1100px) {
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    th, td {
+      text-align: left;
+      padding: 6px 8px;
+      border-bottom: 1px dotted rgba(30, 27, 24, 0.18);
+    }
+    th {
+      font-weight: 600;
+      font-size: 10px;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: var(--ebony-2);
+      opacity: 0.7;
+    }
+    td.num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    tr:hover { background: rgba(255, 245, 220, 0.4); }
+    tr.hot td.num { color: var(--cinnabar); font-weight: 600; }
+
+    .pill {
+      display: inline-block;
+      padding: 1px 8px;
+      border-radius: 999px;
+      font-size: 10px;
+      letter-spacing: 0.5px;
+    }
+    .pill.GET    { background: rgba(74, 125, 122, 0.18); color: var(--teal); }
+    .pill.POST   { background: rgba(184, 149, 69, 0.22); color: var(--gold); }
+    .pill.PUT    { background: rgba(184, 149, 69, 0.22); color: var(--gold); }
+    .pill.DELETE { background: rgba(204, 61, 46, 0.18);  color: var(--cinnabar); }
+    .pill.PATCH  { background: rgba(107, 125, 74, 0.18); color: var(--olive); }
+    .pill.s2xx { background: rgba(107, 125, 74, 0.18); color: var(--olive); }
+    .pill.s3xx { background: rgba(184, 149, 69, 0.22); color: var(--gold); }
+    .pill.s4xx { background: rgba(204, 61, 46, 0.18); color: var(--cinnabar); }
+    .pill.s5xx { background: var(--cinnabar); color: var(--paper); }
+
+    .heatmap {
+      display: grid;
+      grid-template-columns: 30px repeat(24, 1fr);
+      gap: 2px;
+      font-size: 9px;
+    }
+    .heatmap .hcol-label { text-align: center; opacity: 0.5; padding-top: 4px; }
+    .heatmap .hrow-label { text-align: right; opacity: 0.5; padding-right: 4px; line-height: 18px; }
+    .heatmap .cell {
+      height: 18px;
+      border-radius: 3px;
+      background: rgba(30, 27, 24, 0.04);
+    }
+
+    .legend {
+      display: flex;
+      gap: 16px;
+      font-size: 10px;
+      opacity: 0.7;
+      margin-top: 8px;
+      letter-spacing: 0.5px;
+    }
+    .legend .swatch {
+      display: inline-block;
+      width: 14px; height: 8px;
+      vertical-align: middle;
+      border-radius: 2px;
+      margin-right: 4px;
+    }
+
+    .outlier-row {
+      display: grid;
+      grid-template-columns: 80px 60px 1fr 60px 70px;
+      gap: 10px;
+      padding: 6px 4px;
+      font-size: 12px;
+      border-bottom: 1px dotted rgba(30, 27, 24, 0.15);
+      align-items: center;
+    }
+    .outlier-row .ms {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+      color: var(--cinnabar);
+    }
+    .outlier-row .ts {
+      font-size: 10px;
+      opacity: 0.7;
+    }
+
+    .annot-feed {
+      max-height: 360px;
+      overflow-y: auto;
+    }
+    .annot-row {
+      padding: 8px 6px;
+      border-bottom: 1px dotted rgba(30, 27, 24, 0.15);
+      font-size: 11px;
+      line-height: 1.4;
+    }
+    .annot-row .when {
+      font-size: 10px;
+      opacity: 0.6;
+      letter-spacing: 0.5px;
+    }
+    .annot-row .kind {
+      display: inline-block;
+      width: 64px;
+      font-size: 9px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      opacity: 0.7;
+    }
+    .annot-row.commit  .kind { color: var(--teal); }
+    .annot-row.tag     .kind { color: var(--cinnabar); font-weight: 600; }
+    .annot-row.note    .kind { color: var(--gold); }
+    .annot-row.session_purpose .kind { color: var(--olive); }
+    .annot-row .title { font-weight: 600; }
+    .annot-row .detail {
+      opacity: 0.85;
+      font-size: 11px;
+      margin-top: 2px;
+    }
+
+    .chart-wrap { position: relative; height: 320px; }
+    .chart-wrap.tall { height: 380px; }
+
+    .footnote {
+      font-size: 10px;
+      opacity: 0.55;
+      margin-top: 8px;
+      line-height: 1.5;
+    }
+
+    .updated-at {
+      font-size: 10px;
+      opacity: 0.5;
+      letter-spacing: 0.5px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Port Daddy &middot; Metrics</h1>
+    <div class="subhead">
+      <a href="/">dashboard</a> &middot;
+      <a href="/metrics/prom" target="_blank">prometheus text</a> &middot;
+      <a href="/metrics/http/routes" target="_blank">routes json</a> &middot;
+      <a href="/metrics/annotations" target="_blank">annotations</a>
+      <span class="updated-at" id="updated-at" style="margin-left:18px;"></span>
+    </div>
+  </header>
+
+  <main>
+    <section class="tiles" id="tiles"></section>
+
+    <section class="panel">
+      <h2>
+        Latency over time &mdash; top 5 routes by total cost
+        <span class="hint" id="latency-window">since process start</span>
+      </h2>
+      <div class="chart-wrap tall"><canvas id="chart-latency"></canvas></div>
+      <div class="legend">
+        <span><span class="swatch" style="background: var(--cinnabar)"></span> tag (release)</span>
+        <span><span class="swatch" style="background: var(--teal)"></span> commit</span>
+        <span><span class="swatch" style="background: var(--gold)"></span> pd note</span>
+        <span><span class="swatch" style="background: var(--olive)"></span> session purpose</span>
+      </div>
+      <p class="footnote">Each route is plotted at its own p95.</p>
+    </section>
+
+    <div class="grid-2">
+      <section class="panel">
+        <h2>Hot paths <span class="hint">sorted by total ms over current window</span></h2>
+        <table>
+          <thead>
+            <tr>
+              <th>method</th><th>route</th><th>status</th>
+              <th class="num">n</th><th class="num">p50</th><th class="num">p95</th><th class="num">p99</th><th class="num">total</th>
+            </tr>
+          </thead>
+          <tbody id="hot-body"></tbody>
+        </table>
+      </section>
+
+      <section class="panel">
+        <h2>Recent outliers <span class="hint">duration &ge; 500 ms, last 50</span></h2>
+        <div id="outliers-list" style="max-height: 320px; overflow-y: auto;"></div>
+      </section>
+    </div>
+
+    <div class="grid-2">
+      <section class="panel">
+        <h2>
+          Seasonality &mdash; requests by hour &times; day
+          <span class="hint">last 7 days</span>
+        </h2>
+        <div id="heatmap" class="heatmap"></div>
+        <p class="footnote">
+          Each cell counts requests in that hour-of-day &times; day-of-week bucket
+          across the lookback window. Requires the <code>http.requests</code> counter to
+          have accumulated &mdash; brand new daemons will look empty until traffic builds.
+        </p>
+      </section>
+
+      <section class="panel">
+        <h2>
+          Context feed <span class="hint">commits, notes, session purposes</span>
+        </h2>
+        <div id="annot-feed" class="annot-feed"></div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    // ─── Security helper ─────────────────────────────────────────────────────
+    // Every dynamic string passes through this before reaching innerHTML.
+    // Sources of untrusted text on this page:
+    //   * git commit subjects, tag names (annotations)
+    //   * pd note bodies, session purposes (annotations)
+    //   * raw URL paths (outliers)
+    // Route templates, methods, and status codes come from Fastify's own
+    // route definitions and are server-controlled, but we escape them too
+    // for defense in depth.
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+      }[c]));
+    }
+
+    // ─── Color + format helpers ──────────────────────────────────────────────
+    const ROUTE_PALETTE = ['#cc3d2e', '#4a7d7a', '#b89545', '#6b7d4a', '#8b3a2e', '#1e1b18'];
+
+    function pillForMethod(m) {
+      const safe = esc(m);
+      return '<span class="pill ' + safe + '">' + safe + '</span>';
+    }
+    function pillForStatusClass(s) {
+      const safe = esc(s);
+      return '<span class="pill s' + safe + '">' + safe + '</span>';
+    }
+    function statusClassOf(code) {
+      const c = String(code);
+      if (c.startsWith('5')) return '5xx';
+      if (c.startsWith('4')) return '4xx';
+      if (c.startsWith('3')) return '3xx';
+      return '2xx';
+    }
+    function fmtNum(n) {
+      if (n === undefined || n === null) return '—';
+      if (n >= 10000) return (n / 1000).toFixed(1) + 'k';
+      if (n >= 1000) return n.toFixed(0);
+      if (n >= 10) return n.toFixed(1);
+      return n.toFixed(2);
+    }
+    function fmtAge(ts) {
+      const sec = (Date.now() - ts) / 1000;
+      if (sec < 60) return Math.floor(sec) + 's ago';
+      if (sec < 3600) return Math.floor(sec / 60) + 'm ago';
+      if (sec < 86400) return Math.floor(sec / 3600) + 'h ago';
+      return Math.floor(sec / 86400) + 'd ago';
+    }
+
+    // ─── Tiles ───────────────────────────────────────────────────────────────
+    function renderTiles(snap) {
+      const totalReq = snap.routes.reduce((s, r) => s + r.count, 0);
+      const totalMs  = snap.routes.reduce((s, r) => s + r.sumMs, 0);
+      const errors   = snap.routes.filter(r => r.status === '4xx' || r.status === '5xx')
+                                  .reduce((s, r) => s + r.count, 0);
+      const errorPct = totalReq > 0 ? (errors / totalReq) * 100 : 0;
+      const avgMs    = totalReq > 0 ? totalMs / totalReq : 0;
+      const upSec    = snap.process.uptimeSec;
+      const reqPerMin = upSec > 0 ? totalReq / (upSec / 60) : 0;
+
+      let worstP95 = 0, worstRoute = '—';
+      for (const r of snap.routes) {
+        if (r.count >= 5 && r.p95 > worstP95) {
+          worstP95 = r.p95;
+          worstRoute = r.method + ' ' + r.route;
+        }
+      }
+
+      const tiles = [
+        { label: 'requests / min', value: fmtNum(reqPerMin) },
+        { label: 'total requests', value: fmtNum(totalReq) },
+        { label: 'avg latency',    value: fmtNum(avgMs) + ' ms', cls: avgMs > 100 ? 'warn' : 'ok' },
+        { label: 'error rate',     value: errorPct.toFixed(2) + '%', cls: errorPct > 1 ? 'warn' : 'ok' },
+        { label: 'worst p95',      value: fmtNum(worstP95) + ' ms', delta: worstRoute, cls: worstP95 > 500 ? 'warn' : '' },
+        { label: 'event loop lag', value: fmtNum(snap.process.eventLoopLagMs) + ' ms', cls: snap.process.eventLoopLagMs > 50 ? 'warn' : 'ok' },
+        { label: 'rss',            value: fmtNum(snap.process.rssMB) + ' MB' },
+        { label: 'uptime',         value: upSec < 3600 ? Math.floor(upSec / 60) + 'm' : Math.floor(upSec / 3600) + 'h' },
+      ];
+
+      document.getElementById('tiles').innerHTML = tiles.map(t =>
+        '<div class="tile ' + esc(t.cls || '') + '">' +
+        '  <div class="label">' + esc(t.label) + '</div>' +
+        '  <div class="value">' + esc(t.value) + '</div>' +
+        (t.delta ? '<div class="delta">' + esc(t.delta) + '</div>' : '') +
+        '</div>'
+      ).join('');
+    }
+
+    // ─── Hot paths table ─────────────────────────────────────────────────────
+    function renderHotTable(snap) {
+      const rows = snap.routes.filter(r => r.count >= 1).slice(0, 25);
+      document.getElementById('hot-body').innerHTML = rows.map(r => {
+        const routeShort = r.route.length > 40 ? r.route.slice(0, 40) + '…' : r.route;
+        return '<tr class="' + (r.p95 > 500 ? 'hot' : '') + '">' +
+          '<td>' + pillForMethod(r.method) + '</td>' +
+          '<td title="' + esc(r.route) + '">' + esc(routeShort) + '</td>' +
+          '<td>' + pillForStatusClass(r.status) + '</td>' +
+          '<td class="num">' + r.count + '</td>' +
+          '<td class="num">' + esc(fmtNum(r.p50)) + '</td>' +
+          '<td class="num">' + esc(fmtNum(r.p95)) + '</td>' +
+          '<td class="num">' + esc(fmtNum(r.p99)) + '</td>' +
+          '<td class="num">' + esc(fmtNum(r.sumMs)) + '</td>' +
+        '</tr>';
+      }).join('');
+    }
+
+    // ─── Latency over time ───────────────────────────────────────────────────
+    let latencyChart = null;
+    const latencyHistory = new Map();
+    const MAX_HISTORY_POINTS = 240;
+
+    function topRouteKeys(snap, n) {
+      return snap.routes.filter(r => r.count >= 5).slice(0, n)
+                        .map(r => r.method + ' ' + r.route + ' ' + r.status);
+    }
+    function pushLatencyHistory(snap) {
+      const now = Date.now();
+      const top = topRouteKeys(snap, 5);
+      for (const key of top) {
+        const r = snap.routes.find(x => (x.method + ' ' + x.route + ' ' + x.status) === key);
+        if (!r) continue;
+        const arr = latencyHistory.get(key) || [];
+        arr.push({ x: now, y: r.p95 });
+        while (arr.length > MAX_HISTORY_POINTS) arr.shift();
+        latencyHistory.set(key, arr);
+      }
+      for (const k of [...latencyHistory.keys()]) {
+        if (!top.includes(k)) {
+          const arr = latencyHistory.get(k);
+          if (!arr || arr[arr.length - 1].x < now - 30_000) latencyHistory.delete(k);
+        }
+      }
+    }
+
+    function renderLatencyChart(annotations) {
+      const ctx = document.getElementById('chart-latency').getContext('2d');
+      const datasets = [...latencyHistory.entries()].map(([key, data], i) => ({
+        label: key,
+        data,
+        borderColor: ROUTE_PALETTE[i % ROUTE_PALETTE.length],
+        backgroundColor: ROUTE_PALETTE[i % ROUTE_PALETTE.length] + '22',
+        borderWidth: 1.5,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        tension: 0.25,
+      }));
+
+      const annotationPlugins = {};
+      let pinIdx = 0;
+      const colorByKind = {
+        commit: '#4a7d7a', tag: '#cc3d2e', note: '#b89545', session_purpose: '#6b7d4a', spawn: '#8b3a2e',
+      };
+      const allXs = [...latencyHistory.values()].flat().map(p => p.x);
+      const minX = allXs.length ? Math.min(...allXs) : Date.now() - 60 * 60_000;
+      for (const ev of (annotations || [])) {
+        if (ev.ts < minX) continue;
+        annotationPlugins['pin-' + (pinIdx++)] = {
+          type: 'line',
+          xMin: ev.ts,
+          xMax: ev.ts,
+          borderColor: colorByKind[ev.kind] || '#1e1b18',
+          borderWidth: ev.kind === 'tag' ? 2 : 1,
+          borderDash: ev.kind === 'note' ? [3, 3] : [],
+          // Chart.js annotation labels are rendered to canvas, not HTML;
+          // they are not an XSS sink. Still keep titles short.
+          label: { display: false, content: ev.kind + ': ' + (ev.title || '').slice(0, 60) },
+        };
+      }
+
+      const cfg = {
+        type: 'line',
+        data: { datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { position: 'bottom', labels: { font: { size: 10 } } },
+            tooltip: { callbacks: { label: (c) => c.dataset.label + ': p95 ' + fmtNum(c.parsed.y) + ' ms' } },
+            annotation: { annotations: annotationPlugins },
+          },
+          scales: {
+            x: { type: 'time', time: { unit: 'minute' }, grid: { display: false } },
+            y: { title: { display: true, text: 'p95 latency (ms)' }, beginAtZero: true,
+                 grid: { color: 'rgba(30,27,24,0.06)' } },
+          },
+        },
+      };
+
+      if (latencyChart) {
+        latencyChart.data.datasets = datasets;
+        latencyChart.options.plugins.annotation.annotations = annotationPlugins;
+        latencyChart.update('none');
+      } else {
+        latencyChart = new Chart(ctx, cfg);
+      }
+    }
+
+    // ─── Outliers list ───────────────────────────────────────────────────────
+    async function renderOutliers() {
+      const r = await fetch('/metrics/http/outliers?limit=50');
+      const j = await r.json();
+      const list = j.outliers || [];
+      if (list.length === 0) {
+        document.getElementById('outliers-list').innerHTML =
+          '<div class="footnote">No slow requests yet — the daemon is responsive.</div>';
+        return;
+      }
+      document.getElementById('outliers-list').innerHTML = list.map(o => {
+        const cls = statusClassOf(o.status);
+        return '<div class="outlier-row">' +
+          '<span class="ts">' + esc(fmtAge(o.ts)) + '</span>' +
+          '<span>' + pillForMethod(o.method) + '</span>' +
+          '<span title="' + esc(o.rawPath) + '">' + esc(o.route) + '</span>' +
+          '<span>' + pillForStatusClass(cls) + '</span>' +
+          '<span class="ms">' + esc(fmtNum(o.durationMs)) + ' ms</span>' +
+        '</div>';
+      }).join('');
+    }
+
+    // ─── Seasonality heatmap (uses counters table for true history) ──────────
+    async function renderSeasonality() {
+      const r = await fetch('/metrics/counters?key=http.requests&since=' + (7 * 86400) + '&groupBy=hour');
+      const j = await r.json();
+      const grid = Array.from({ length: 7 }, () => Array(24).fill(0));
+      let max = 0;
+      for (const row of (j.results || [])) {
+        const d = new Date(row.bucket);
+        const dow = (d.getDay() + 6) % 7;       // Mon=0
+        const hour = d.getHours();
+        grid[dow][hour] += row.value;
+        if (grid[dow][hour] > max) max = grid[dow][hour];
+      }
+      const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+      const cells = [];
+      cells.push('<div class="hcol-label"></div>');
+      for (let h = 0; h < 24; h++) cells.push('<div class="hcol-label">' + h + '</div>');
+      for (let d = 0; d < 7; d++) {
+        cells.push('<div class="hrow-label">' + esc(days[d]) + '</div>');
+        for (let h = 0; h < 24; h++) {
+          const v = grid[d][h];
+          const intensity = max > 0 ? v / max : 0;
+          const alpha = (0.05 + intensity * 0.85).toFixed(3);
+          const bg = 'rgba(204, 61, 46, ' + alpha + ')';
+          const title = days[d] + ' ' + h + ':00 — ' + v + ' req';
+          cells.push('<div class="cell" style="background:' + bg + '" title="' + esc(title) + '"></div>');
+        }
+      }
+      let html = cells.join('');
+      if (max === 0) {
+        html += '<div class="footnote" style="grid-column: 1 / -1; text-align: center;">' +
+                'No counter data yet — restart the daemon and let traffic flow.</div>';
+      }
+      document.getElementById('heatmap').innerHTML = html;
+    }
+
+    // ─── Annotations feed ────────────────────────────────────────────────────
+    let lastAnnotations = [];
+    async function renderAnnotations() {
+      const r = await fetch('/metrics/annotations?since=' + (24 * 3600) + '&limit=120');
+      const j = await r.json();
+      lastAnnotations = j.events || [];
+      const feed = lastAnnotations.map(ev =>
+        '<div class="annot-row ' + esc(ev.kind) + '">' +
+          '<span class="kind">' + esc(String(ev.kind || '').replace('_', ' ')) + '</span>' +
+          '<span class="when">' + esc(fmtAge(ev.ts)) + '</span><br>' +
+          '<span class="title">' + esc(ev.title || '') + '</span>' +
+          (ev.detail ? '<div class="detail">' + esc(ev.detail) + '</div>' : '') +
+          (ev.ref ? '<div class="when">' + esc(ev.ref) + '</div>' : '') +
+        '</div>'
+      ).join('');
+      document.getElementById('annot-feed').innerHTML =
+        feed || '<div class="footnote">No annotations in the last 24h.</div>';
+    }
+
+    // ─── Main poll loop ──────────────────────────────────────────────────────
+    async function pollFast() {
+      try {
+        const r = await fetch('/metrics/http/routes');
+        const snap = await r.json();
+        renderTiles(snap);
+        renderHotTable(snap);
+        pushLatencyHistory(snap);
+        renderLatencyChart(lastAnnotations);
+
+        const startedAgo = Math.floor((Date.now() - snap.startedAt) / 60_000);
+        document.getElementById('latency-window').textContent =
+          'since process start (' + startedAgo + ' min)';
+        document.getElementById('updated-at').textContent =
+          'updated ' + new Date().toLocaleTimeString();
+      } catch (e) {
+        document.getElementById('updated-at').textContent =
+          'failed: ' + ((e && e.message) || 'unknown');
+      }
+      try { await renderOutliers(); } catch {}
+    }
+    async function pollSlow() {
+      try { await renderAnnotations(); } catch {}
+      try { await renderSeasonality(); } catch {}
+    }
+
+    pollFast(); pollSlow();
+    setInterval(pollFast, 5_000);
+    setInterval(pollSlow, 60_000);
+  </script>
+</body>
+</html>
