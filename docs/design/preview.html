@@ -23,15 +23,15 @@
 -->
 
 <!-- Typography stack: 3 families (within the typography-expert "max 2 + mono" rule).
-     - Bricolage Grotesque (variable: wght 200-800, opsz 12-96) — DISPLAY
-     - Inter (variable: wght 100-900) — BODY workhorse
-     - JetBrains Mono (variable: wght 100-800) — CODE / CLI
+     - Fraunces (variable: wght 100-900) — DISPLAY
+     - IBM Plex Sans (variable: wght 100-900) — BODY workhorse
+     - IBM Plex Mono (variable: wght 100-800) — CODE / CLI
 
      Self-hosted under ./fonts/ — no external CDN. Fluid sizing via
      clamp() against a Minor Third (1.2) ratio at 320px → Perfect Fourth
      (1.333) at 1440px.
 
-     NOTE: Bricolage Grotesque does not ship a `wdth` axis — only wght
+     NOTE: Fraunces does not ship a `wdth` axis — only wght
      and opsz. Visual contrast across the type spec uses weight + opsz. -->
 <link rel="stylesheet" href="./fonts/all.css">
 
@@ -164,9 +164,9 @@
   --type-eyebrow: 0.75rem;
 
   /* Stacks */
-  --font-display: "Bricolage Grotesque", "Helvetica Neue", system-ui, sans-serif;
-  --font-body: "Inter", system-ui, -apple-system, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", "SF Mono", Menlo, monospace;
+  --font-display: "Fraunces", "IBM Plex Sans", -apple-system, system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Code", "SF Mono", Menlo, monospace;
 }
 
 /* =============================================================================
@@ -182,17 +182,19 @@ body {
   font-size: var(--type-body);
   font-weight: 460;                                              /* density on cream/yellow backgrounds */
   line-height: var(--baseline);
-  font-variation-settings: "opsz" 18;                            /* Inter optical size */
+
+  font-variation-settings: "CASL" 0.4, "MONO" 0, "slnt" 0;
+
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
-/* Headings — Bricolage at extreme weight + tight tracking */
+/* Headings — Fraunces at extreme weight + tight tracking */
 h1, h2, h3, h4 {
   font-family: var(--font-display);
   color: var(--text-heading);
   margin: 0 0 var(--baseline);
-  font-variation-settings: "opsz" 60, "wght" 800;
+  font-variation-settings: "wght" 800;
   letter-spacing: -0.02em;
   line-height: 1;
 }
@@ -235,7 +237,7 @@ section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bott
   font-family: var(--font-display);
   font-size: var(--type-display-1);
   font-weight: 800;
-  font-variation-settings: "opsz" 96, "wght" 800;
+  font-variation-settings: "wght" 900;
   letter-spacing: -0.045em;
   line-height: 0.85;
   margin: 0 0 var(--baseline);
@@ -244,14 +246,14 @@ section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bott
 }
 .hero__title em {
   font-style: normal;
-  font-variation-settings: "opsz" 96, "wght" 300;
+  font-variation-settings: "wght" 300;
   font-style: italic;
 }
 .hero__subtitle {
   font-family: var(--font-display);
   font-size: clamp(1.25rem, 0.75rem + 1.5vw, 2rem);
   font-weight: 500;
-  font-variation-settings: "opsz" 36, "wght" 500;
+  font-variation-settings: "wght" 500;
   line-height: 1.15;
   max-width: 28ch;
   color: var(--text-on-brand);
@@ -276,7 +278,7 @@ section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bott
   font-family: var(--font-display);
   font-size: clamp(2.5rem, 6vw, 5rem);
   font-weight: 800;
-  font-variation-settings: "opsz" 96, "wght" 800;
+  font-variation-settings: "wght" 800;
   transform: rotate(-3deg);
 }
 
@@ -309,34 +311,11 @@ section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bott
 /* =============================================================================
    TYPE SHOWCASE — going nuts on variable axes
    ============================================================================= */
-.type-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; }
-.type-spec {
-  border: var(--bw-default) solid var(--border-default);
-  background: var(--neutral-primary-soft);
-  box-shadow: var(--shadow-sm);
-  padding: 1.25rem;
-}
-.type-spec__label {
-  font-family: var(--font-mono);
-  font-size: var(--type-eyebrow);
-  font-weight: 600;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  color: var(--text-body-subtle);
-  margin-bottom: 0.5rem;
-}
-.type-spec__sample {
-  font-family: var(--font-display);
-  line-height: 0.95;
-  letter-spacing: -0.03em;
-  color: var(--text-heading);
-}
-.type-spec__caption {
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  margin-top: 0.75rem;
-  color: var(--text-body-subtle);
-}
+.type-grid { display: flex; flex-direction: column; gap: 1rem; max-width: 70ch; }
+.type-spec { padding: 0.5rem 0; border-bottom: 2px dashed var(--border-light); }
+.type-spec__label { font-family: var(--font-mono); font-size: 0.85rem; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-heading); margin-bottom: 0.25rem; }
+.type-spec__sample { font-family: var(--font-display); line-height: 0.95; letter-spacing: -0.03em; color: var(--text-heading); font-size: clamp(2rem, 5vw, 4rem); }
+.type-spec__caption { font-family: var(--font-mono); font-size: 0.95rem; margin-top: 0.5rem; color: var(--text-body-subtle); letter-spacing: 0.04em; }
 
 .axis-demo {
   font-family: var(--font-display);
@@ -347,13 +326,13 @@ section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bott
 }
 .axis-demo > div { padding: 0.25rem 0; border-bottom: var(--bw-default) dashed var(--border-light); }
 .axis-demo > div:last-child { border-bottom: 0; }
-.ax-200 { font-variation-settings: "opsz" 96, "wght" 200; }
-.ax-400 { font-variation-settings: "opsz" 96, "wght" 400; }
-.ax-600 { font-variation-settings: "opsz" 96, "wght" 600; }
-.ax-800 { font-variation-settings: "opsz" 96, "wght" 800; }
-.ax-opsz12 { font-variation-settings: "opsz" 12, "wght" 700; }
-.ax-opsz36 { font-variation-settings: "opsz" 36, "wght" 700; }
-.ax-opsz96 { font-variation-settings: "opsz" 96, "wght" 700; }
+.ax-200 { font-variation-settings: "wght" 200; }
+.ax-400 { font-variation-settings: "wght" 400; }
+.ax-600 { font-variation-settings: "wght" 600; }
+.ax-800 { font-variation-settings: "wght" 800; }
+.ax-w100 { font-weight: 100; }
+.ax-w500 { font-weight: 500; }
+.ax-w900 { font-weight: 900; }
 
 /* =============================================================================
    COLOR & TOKEN GRID
@@ -390,7 +369,7 @@ section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bott
   font-family: var(--font-display);
   font-size: 1.5rem;
   font-weight: 800;
-  font-variation-settings: "opsz" 36, "wght" 800;
+  font-variation-settings: "wght" 800;
   letter-spacing: -0.02em;
   color: var(--state-fg, var(--text-heading));
   margin: 0;
@@ -688,9 +667,9 @@ section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bott
   letter-spacing: -0.015em;
   max-width: 240px;
 }
-.trove__card[data-weight="big"]    { font-size: 1.5rem; font-variation-settings: "opsz" 60, "wght" 700; box-shadow: var(--shadow-md); }
-.trove__card[data-weight="medium"] { font-size: 1.05rem; font-variation-settings: "opsz" 24, "wght" 600; }
-.trove__card[data-weight="small"]  { font-size: 0.875rem; font-variation-settings: "opsz" 16, "wght" 500; opacity: 0.85; }
+.trove__card[data-weight="big"]    { font-size: 1.5rem; font-variation-settings: "wght" 700; box-shadow: var(--shadow-md); }
+.trove__card[data-weight="medium"] { font-size: 1.05rem; font-variation-settings: "wght" 600; }
+.trove__card[data-weight="small"]  { font-size: 0.875rem; font-variation-settings: "wght" 500; opacity: 0.85; }
 .trove__card[data-tone="brand"]    { background: var(--brand); }
 .trove__card[data-tone="cinnabar"] { background: var(--pd-cinnabar); color: var(--neutral-primary-soft); border-color: var(--border-default); }
 .trove__card[data-tone="purple"]   { background: #6D28D9; color: #FFFFFF; }    /* purple-700 for AA */
@@ -750,10 +729,8 @@ section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bott
   border: var(--bw-default) solid var(--border-default);
   margin-bottom: var(--baseline);
 }
-.section-title {
-  font-family: var(--font-display);
-  font-size: var(--type-display-2);
-  font-variation-settings: "opsz" 96, "wght" 800;
+.section-title { font-family: var(--font-display); font-size: clamp(2rem, 6vw, 4.5rem);
+  font-variation-settings: "wght" 800;
   letter-spacing: -0.04em;
   line-height: 0.85;
   margin-bottom: var(--baseline);
@@ -781,7 +758,7 @@ section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bott
 .footer h2 {
   color: var(--brand);
   font-size: var(--type-display-2);
-  font-variation-settings: "opsz" 96, "wght" 200;
+  font-variation-settings: "wght" 200;
   font-style: italic;
   letter-spacing: -0.03em;
   text-wrap: balance;
@@ -849,11 +826,11 @@ section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bott
 <section id="type">
   <div class="container">
     <span class="eyebrow">Typography</span>
-    <h2 class="section-title">Bricolage. Inter. JetBrains&nbsp;Mono.<br>Three families. Variable everything.</h2>
+    <h2 class="section-title">Fraunces. IBM Plex Sans. JetBrains&nbsp;Mono.<br>Three families. Variable everything.</h2>
     <p class="section-lede">
-      Display headlines run on Bricolage Grotesque at three axes —
+      Display headlines run on Fraunces at three axes —
       weight, width, optical size — to swing from <span style="font-variation-settings:'wght' 200">whisper</span>
-      to <span style="font-variation-settings:'wght' 800">slam</span> within the same family. Body type is Inter.
+      to <span style="font-variation-settings:'wght' 800">slam</span> within the same family. Body type is IBM Plex Sans.
       All numerics are tabular by default. Fractions render as <span class="frac">1/2</span>, <span class="frac">3/4</span>,
       <span class="frac">7/12</span>. Small caps for <span class="smcp">actor names</span> and <span class="smcp">performatives</span>.
     </p>
@@ -862,26 +839,26 @@ section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bott
 
       <div class="type-spec">
         <div class="type-spec__label">Display 1 · Hero</div>
-        <div class="type-spec__sample" style="font-size:clamp(2.5rem,7vw,5rem);font-variation-settings:'opsz' 96,'wght' 800;letter-spacing:-0.045em">FLEET&nbsp;UP.</div>
-        <div class="type-spec__caption">Bricolage · opsz 96 · wght 800 · ls −0.045em</div>
+        <div class="type-spec__sample">FLEET&nbsp;UP.</div>
+        <div class="type-spec__caption">Fraunces · opsz 96 · wght 800 · ls −0.045em</div>
       </div>
 
       <div class="type-spec">
         <div class="type-spec__label">Display 2 · Section</div>
-        <div class="type-spec__sample" style="font-size:clamp(2rem,5vw,3.75rem);font-variation-settings:'opsz' 60,'wght' 500;letter-spacing:-0.025em">salvage.<br>recover.<br>resume.</div>
-        <div class="type-spec__caption">Bricolage · opsz 60 · wght 500</div>
+        <div class="type-spec__sample">salvage.<br>recover.<br>resume.</div>
+        <div class="type-spec__caption">Fraunces · opsz 60 · wght 500</div>
       </div>
 
       <div class="type-spec">
         <div class="type-spec__label">Body · 65ch max</div>
-        <div class="type-spec__sample" style="font-family:var(--font-body);font-size:1rem;line-height:1.55;color:var(--text-body);">Coordination guard is enforcing. Three actors hold claims on <code>lib/auth.ts</code>. The cheap-classifier router chose Cloudflare Llama 3.2 1B — Anthropic credit not present.</div>
-        <div class="type-spec__caption">Inter · wght 420 · 1rem · 1.55 line-height</div>
+        <div class="type-spec__sample" style="font-family:var(--font-body);font-size:1.5rem;line-height:1.5;color:var(--text-body);font-weight:460;">Coordination guard is enforcing. Three actors hold claims on <code>lib/auth.ts</code>. The cheap-classifier router chose Cloudflare Llama 3.2 1B — Anthropic credit not present.</div>
+        <div class="type-spec__caption">IBM Plex Sans · wght 420 · 1rem · 1.55 line-height</div>
       </div>
 
       <div class="type-spec">
         <div class="type-spec__label">Mono · CLI</div>
-        <div class="type-spec__sample" style="font-family:var(--font-mono);font-size:1rem;line-height:1.55;color:var(--text-heading);"><span style="color:var(--success-strong)">✓</span> claim acquired<br><span style="color:var(--warning-strong)">⚠</span> awaiting human<br><span style="color:var(--pd-cinnabar)">$</span> 23.40<span style="color:var(--text-body-subtle)"> / 50.00 cap</span></div>
-        <div class="type-spec__caption">JetBrains Mono · tabular nums · 1rem</div>
+        <div class="type-spec__sample" style="font-family:var(--font-mono);font-size:1.25rem;line-height:1.55;color:var(--text-heading);"><span style="color:var(--success-strong)">✓</span> claim acquired<br><span style="color:var(--warning-strong)">⚠</span> awaiting human<br><span style="color:var(--pd-cinnabar)">$</span> 23.40<span style="color:var(--text-body-subtle)"> / 50.00 cap</span></div>
+        <div class="type-spec__caption">IBM Plex Mono · tabular nums · 1rem</div>
       </div>
 
     </div>
@@ -894,11 +871,11 @@ section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bott
       <div class="ax-800">CONFLICT.</div>
     </div>
 
-    <h3 class="mt-6">Variable axes — optical size (12 → 96)</h3>
+    <h3 class="mt-6">Variable axes — full weight ladder (100 → 900)</h3>
     <div class="axis-demo">
-      <div class="ax-opsz12">fleet · text grade</div>
-      <div class="ax-opsz36">fleet · subhead grade</div>
-      <div class="ax-opsz96">fleet · display grade</div>
+      <div class="ax-w100">fleet · thin</div>
+      <div class="ax-w500">fleet · medium</div>
+      <div class="ax-w900">fleet · black</div>
     </div>
   </div>
 </section>
@@ -1343,7 +1320,7 @@ section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bott
     <h2><em>"Make agents behave well —<br>and read each other before they edit."</em></h2>
     <div class="footer__meta">
       <span class="smcp">port daddy · design language v0 · 2026-05-05</span><br>
-      Stack: Bricolage Grotesque + Inter + JetBrains Mono · neobrutalism-pro tokens · windags skills (jade · design-system-creator · beautiful-cli · collage · typography · design-trend) · WCAG AA verified for body text.
+      Stack: Fraunces + IBM Plex Sans + IBM Plex Mono · neobrutalism-pro tokens · windags skills (jade · design-system-creator · beautiful-cli · collage · typography · design-trend) · WCAG AA verified for body text.
       <br><br>
       Mocked graphics in this preview are SVG placeholders. Search the source for
       <code>nano banana:</code> comments — each slot includes a generation prompt.
