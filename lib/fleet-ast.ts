@@ -288,8 +288,9 @@ function parseAgentMap(
 ): AgentNode {
   const r = gr(nodeRange(m));
   const nameRange = nameScalar ? gr(nodeRange(nameScalar)) : r;
+  const nodeR = nameScalar ? { start: nameRange.start, end: r.end } : r;
   return {
-    kind: 'agent', range: r,
+    kind: 'agent', range: nodeR,
     name:          { kind: 'string', range: nameRange, value: name },
     prompt:        gStr(m, 'prompt', gr),
     trigger:       extractChannelRef(gNode(m, 'trigger'),   gr),
@@ -330,12 +331,13 @@ function parseWatcherMap(
 ): WatcherNode {
   const r = gr(nodeRange(m));
   const nameRange = nameScalar ? gr(nodeRange(nameScalar)) : r;
+  const nodeR = nameScalar ? { start: nameRange.start, end: r.end } : r;
   const trigger = extractChannelRef(gNode(m, 'trigger'), gr)
     ?? { kind: 'channelRef' as const, range: r, channel: '', declared: false };
   const exec = gStr(m, 'exec', gr)
     ?? { kind: 'string' as const, range: r, value: '' };
   return {
-    kind: 'watcher', range: r,
+    kind: 'watcher', range: nodeR,
     name:      { kind: 'string', range: nameRange, value: name },
     trigger, exec,
     condition: gStr(m, 'condition', gr),
@@ -355,6 +357,7 @@ function parseChannelMap(
   }
   const r = gr(nodeRange(m));
   const nameRange = nameScalar ? gr(nodeRange(nameScalar)) : r;
+  const nodeR = nameScalar ? { start: nameRange.start, end: r.end } : r;
 
   let consumers: StringNode[] | undefined;
   const consNode = gNode(m, 'consumers');
@@ -370,7 +373,7 @@ function parseChannelMap(
     extractBool(epRaw, gr) ?? extractString(epRaw, gr);
 
   return {
-    kind: 'channel', range: r,
+    kind: 'channel', range: nodeR,
     name:             { kind: 'string', range: nameRange, value: name },
     description:      gStr(m, 'description', gr),
     consumers,
@@ -385,6 +388,7 @@ export function parseFleetSource(source: string): FleetAst | null {
 
   const lc  = new LineCounter();
   const doc = parseDocument(source, { lineCounter: lc });
+  if (doc.errors.length > 0) return null;
   if (!doc.contents || !isMap(doc.contents)) return null;
 
   const gr   = makeGetRange(lc);
@@ -473,7 +477,7 @@ export function parseFleetSource(source: string): FleetAst | null {
 
   // ── Limits / Defaults / Name / Harbor ─────────────────────────────────────
   const limitsRaw   = gNode(fleetMap, 'limits');
-  const defaultsRaw = gNode(fleetMap, 'defaults');
+  const defaultsRaw = gNode(fleetMap, 'defaults') ?? (fleetMap !== root ? gNode(root, 'defaults') : undefined);
 
   const limits   = (limitsRaw   && isMap(limitsRaw))   ? parseLimits(limitsRaw   as YAMLMap, gr) : undefined;
   const defaults = (defaultsRaw && isMap(defaultsRaw)) ? parseDefaults(defaultsRaw as YAMLMap, gr) : undefined;
@@ -516,7 +520,8 @@ function normBackoffMultiplier(n?: IntNode): number | undefined {
 }
 
 function toModelTier(s?: string): FleetModelTier | undefined {
-  return s && MODEL_TIERS.has(s) ? (s as FleetModelTier) : undefined;
+  const norm = s?.toLowerCase().trim();
+  return norm && MODEL_TIERS.has(norm) ? (norm as FleetModelTier) : undefined;
 }
 
 export function astToConfig(ast: FleetAst): FleetConfig {
