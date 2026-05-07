@@ -648,12 +648,16 @@ Commands:
     --no-mcp                Skip MCP + shell hook installation
     --no-fleetbar           Skip FleetBar install (macOS)
     --no-skill              Skip Port Daddy agent skill symlink
+    --status                Show cross-tool skill sync status only
+    --skill-status          Alias for --status
+    --dry-run               Preview cross-tool skill sync without writing links
     --no-init               Skip project initialization
     --no-fleet              Pass through to pd init
     --no-hook               Pass through to pd init
 
 Examples:
   pd setup
+  pd setup --status
   pd setup --project ~/coding/workgroup-ai
   pd setup --no-fleetbar
   pd setup --no-skill

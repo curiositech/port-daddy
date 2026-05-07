@@ -16,6 +16,11 @@ import { detectStack } from '../../lib/detect.js';
 import { handleDaemon } from './daemon.js';
 import { handleInit } from './init.js';
 import { handleMcpInstall } from './mcp-install.js';
+import {
+  ensureGeminiPortDaddyExtension,
+  formatSkillSyncSummary,
+  syncAgentSkills,
+} from '../utils/skill-sync.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // Walk up from __dirname looking for the repo marker (Formula/port-daddy.rb
@@ -229,8 +234,32 @@ export function installSkillSymlinksAt(baseDir: string, scope: 'user' | 'project
   return true;
 }
 
-function installAgentSkillSymlink(): boolean {
-  return installSkillSymlinksAt(homedir(), 'user');
+function installAgentSkillUnion(options: Record<string, unknown>): boolean {
+  const dryRun = !!options['dry-run'];
+  const statusOnly = !!options.status || !!options['skill-status'];
+  const result = syncAgentSkills({
+    baseDir: homedir(),
+    projectRoot: PROJECT_ROOT,
+    scope: 'user',
+    dryRun,
+    statusOnly,
+  });
+
+  for (const line of formatSkillSyncSummary(result)) {
+    ui.info(line);
+  }
+
+  const gemini = ensureGeminiPortDaddyExtension(homedir(), PROJECT_ROOT, dryRun || statusOnly);
+  if (gemini.written.length > 0) {
+    ui.info(`Gemini extension metadata ${dryRun || statusOnly ? 'would refresh' : 'refreshed'}: ${gemini.written.length} file(s)`);
+  }
+  if (gemini.errors.length > 0) {
+    for (const err of gemini.errors.slice(0, 3)) {
+      ui.warn(`Gemini extension metadata: ${err.path}: ${err.error}`);
+    }
+  }
+
+  return result.errors.length === 0;
 }
 
 function lstatSyncSafe(p: string) {
@@ -308,6 +337,11 @@ export async function handleSetup(options: Record<string, unknown>): Promise<voi
   ui.info('Port Daddy setup');
   console.log('');
 
+  if (options.status || options['skill-status']) {
+    installAgentSkillUnion({ ...options, status: true });
+    return;
+  }
+
   if (!options['no-daemon']) {
     const daemonOk = await ensureDaemonInstalledAndRunning();
     if (!daemonOk) {
@@ -326,7 +360,7 @@ export async function handleSetup(options: Record<string, unknown>): Promise<voi
   installFleetBarIfEnabled(!!options['no-fleetbar']);
 
   if (!options['no-skill']) {
-    installAgentSkillSymlink();
+    installAgentSkillUnion(options);
   } else {
     ui.info('Skipping agent skill symlink (--no-skill)');
   }
