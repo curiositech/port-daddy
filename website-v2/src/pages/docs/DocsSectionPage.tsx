@@ -20,6 +20,7 @@ import {
 import { Mermaid } from '@/components/ui/Mermaid'
 import { findDocsFamily, findDocsRouteBySlug } from '@/data/publicSite'
 import { findDocsContentPage, findDocsContentSection } from '@/docs-content'
+import { withChartPalette } from '@/docs-content/chartTokens'
 import { cn } from '@/lib/utils'
 import type { ContentBlock, DocsContentPage } from '@/docs-content'
 
@@ -574,7 +575,7 @@ function renderContentBlock(block: ContentBlock, index: number) {
             <PanelTitle as="h2" size="nav" tone={textTone} className="max-w-none">
               {block.title}
             </PanelTitle>
-            <Mermaid chart={block.chart} />
+            <Mermaid chart={withChartPalette(block.chart)} />
             {block.caption ? (
               <PanelBody size="compact" tone={textTone} className="max-w-[58rem]">
                 {renderInlineLinks(block.caption)}

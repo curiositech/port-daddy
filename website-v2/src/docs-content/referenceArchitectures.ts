@@ -14,10 +14,10 @@ const singleMachineControlPlane = String.raw`flowchart TB
   Daemon --> State
   State -->|same live story| Surfaces
 
-  classDef cobalt fill:#003fb8,color:#fbf7ef,stroke:#121212,stroke-width:2px;
-  classDef green fill:#006b5f,color:#fbf7ef,stroke:#121212,stroke-width:2px;
-  classDef ink fill:#121212,color:#fbf7ef,stroke:#121212,stroke-width:2px;
-  classDef paper fill:#f7f3eb,color:#121212,stroke:#121212,stroke-width:2px;
+  classDef cobalt fill:{{cobalt}},color:{{cobaltText}},stroke:{{stroke}},stroke-width:2px;
+  classDef green fill:{{green}},color:{{cobaltText}},stroke:{{stroke}},stroke-width:2px;
+  classDef ink fill:{{ink}},color:{{cobaltText}},stroke:{{stroke}},stroke-width:2px;
+  classDef paper fill:{{paper}},color:{{paperText}},stroke:{{stroke}},stroke-width:2px;
   class Operator,Daemon ink;
   class Surfaces,Workers cobalt;
   class State green;`
@@ -30,10 +30,10 @@ const relayHarborMesh = String.raw`flowchart TB
 
   Harbor --> Relay --> Cards --> Local
 
-  classDef cobalt fill:#003fb8,color:#fbf7ef,stroke:#121212,stroke-width:2px;
-  classDef green fill:#006b5f,color:#fbf7ef,stroke:#121212,stroke-width:2px;
-  classDef ink fill:#121212,color:#fbf7ef,stroke:#121212,stroke-width:2px;
-  classDef accent fill:#cad900,color:#121212,stroke:#121212,stroke-width:2px;
+  classDef cobalt fill:{{cobalt}},color:{{cobaltText}},stroke:{{stroke}},stroke-width:2px;
+  classDef green fill:{{green}},color:{{cobaltText}},stroke:{{stroke}},stroke-width:2px;
+  classDef ink fill:{{ink}},color:{{cobaltText}},stroke:{{stroke}},stroke-width:2px;
+  classDef accent fill:{{accent}},color:{{paperText}},stroke:{{stroke}},stroke-width:2px;
   class Harbor green;
   class Relay ink;
   class Cards cobalt;
@@ -50,10 +50,10 @@ const relayJoinPath = String.raw`flowchart TB
 
   Owner --> Phone --> Profile --> Card --> Live --> Revoke
 
-  classDef cobalt fill:#003fb8,color:#fbf7ef,stroke:#121212,stroke-width:2px;
-  classDef green fill:#006b5f,color:#fbf7ef,stroke:#121212,stroke-width:2px;
-  classDef ink fill:#121212,color:#fbf7ef,stroke:#121212,stroke-width:2px;
-  classDef accent fill:#cad900,color:#121212,stroke:#121212,stroke-width:2px;
+  classDef cobalt fill:{{cobalt}},color:{{cobaltText}},stroke:{{stroke}},stroke-width:2px;
+  classDef green fill:{{green}},color:{{cobaltText}},stroke:{{stroke}},stroke-width:2px;
+  classDef ink fill:{{ink}},color:{{cobaltText}},stroke:{{stroke}},stroke-width:2px;
+  classDef accent fill:{{accent}},color:{{paperText}},stroke:{{stroke}},stroke-width:2px;
   class Owner,Revoke ink;
   class Phone,Card,Live cobalt;
   class Profile accent;`
@@ -69,10 +69,10 @@ const relayComputeRequest = String.raw`flowchart TB
 
   Proposal --> Phone --> Request --> Gate --> Result --> Summary --> Handoff
 
-  classDef cobalt fill:#003fb8,color:#fbf7ef,stroke:#121212,stroke-width:2px;
-  classDef green fill:#006b5f,color:#fbf7ef,stroke:#121212,stroke-width:2px;
-  classDef ink fill:#121212,color:#fbf7ef,stroke:#121212,stroke-width:2px;
-  classDef accent fill:#cad900,color:#121212,stroke:#121212,stroke-width:2px;
+  classDef cobalt fill:{{cobalt}},color:{{cobaltText}},stroke:{{stroke}},stroke-width:2px;
+  classDef green fill:{{green}},color:{{cobaltText}},stroke:{{stroke}},stroke-width:2px;
+  classDef ink fill:{{ink}},color:{{cobaltText}},stroke:{{stroke}},stroke-width:2px;
+  classDef accent fill:{{accent}},color:{{paperText}},stroke:{{stroke}},stroke-width:2px;
   class Proposal,Gate ink;
   class Phone,Request,Result,Summary cobalt;
   class Handoff accent;`
@@ -86,10 +86,10 @@ const relayErgonomicControlPlane = String.raw`flowchart TB
 
   Quiet --> Ask --> Local --> Proof --> Review
 
-  classDef cobalt fill:#003fb8,color:#fbf7ef,stroke:#121212,stroke-width:2px;
-  classDef green fill:#006b5f,color:#fbf7ef,stroke:#121212,stroke-width:2px;
-  classDef ink fill:#121212,color:#fbf7ef,stroke:#121212,stroke-width:2px;
-  classDef accent fill:#cad900,color:#121212,stroke:#121212,stroke-width:2px;
+  classDef cobalt fill:{{cobalt}},color:{{cobaltText}},stroke:{{stroke}},stroke-width:2px;
+  classDef green fill:{{green}},color:{{cobaltText}},stroke:{{stroke}},stroke-width:2px;
+  classDef ink fill:{{ink}},color:{{cobaltText}},stroke:{{stroke}},stroke-width:2px;
+  classDef accent fill:{{accent}},color:{{paperText}},stroke:{{stroke}},stroke-width:2px;
   class Quiet green;
   class Ask,Proof cobalt;
   class Local ink;
@@ -110,9 +110,9 @@ const fleetAutomationLoop = String.raw`flowchart TB
   Daemon --> Trigger --> Budget --> Runner --> Evidence --> Surfaces
   Surfaces -->|control| Daemon
 
-  classDef cobalt fill:#003fb8,color:#fbf7ef,stroke:#121212,stroke-width:2px;
-  classDef green fill:#006b5f,color:#fbf7ef,stroke:#121212,stroke-width:2px;
-  classDef ink fill:#121212,color:#fbf7ef,stroke:#121212,stroke-width:2px;
+  classDef cobalt fill:{{cobalt}},color:{{cobaltText}},stroke:{{stroke}},stroke-width:2px;
+  classDef green fill:{{green}},color:{{cobaltText}},stroke:{{stroke}},stroke-width:2px;
+  classDef ink fill:{{ink}},color:{{cobaltText}},stroke:{{stroke}},stroke-width:2px;
   class Config,Daemon,Runner ink;
   class Parser,Topology,Budget cobalt;
   class Trigger,Evidence,Surfaces green;`
@@ -126,9 +126,9 @@ const fleetTriggerTopology = String.raw`flowchart TB
 
   Commit --> Promotion --> Schedule --> Manual --> Evidence
 
-  classDef cobalt fill:#003fb8,color:#fbf7ef,stroke:#121212,stroke-width:2px;
-  classDef green fill:#006b5f,color:#fbf7ef,stroke:#121212,stroke-width:2px;
-  classDef ink fill:#121212,color:#fbf7ef,stroke:#121212,stroke-width:2px;
+  classDef cobalt fill:{{cobalt}},color:{{cobaltText}},stroke:{{stroke}},stroke-width:2px;
+  classDef green fill:{{green}},color:{{cobaltText}},stroke:{{stroke}},stroke-width:2px;
+  classDef ink fill:{{ink}},color:{{cobaltText}},stroke:{{stroke}},stroke-width:2px;
   class Commit,Promotion,Schedule,Manual ink;
   class Evidence green;`
 
@@ -146,10 +146,10 @@ const delegationChoiceMap = String.raw`flowchart TB
   Sortie --> Harbor
   Fleet --> Harbor
 
-  classDef cobalt fill:#003fb8,color:#fbf7ef,stroke:#121212,stroke-width:2px;
-  classDef green fill:#006b5f,color:#fbf7ef,stroke:#121212,stroke-width:2px;
-  classDef ink fill:#121212,color:#fbf7ef,stroke:#121212,stroke-width:2px;
-  classDef accent fill:#cad900,color:#121212,stroke:#121212,stroke-width:2px;
+  classDef cobalt fill:{{cobalt}},color:{{cobaltText}},stroke:{{stroke}},stroke-width:2px;
+  classDef green fill:{{green}},color:{{cobaltText}},stroke:{{stroke}},stroke-width:2px;
+  classDef ink fill:{{ink}},color:{{cobaltText}},stroke:{{stroke}},stroke-width:2px;
+  classDef accent fill:{{accent}},color:{{paperText}},stroke:{{stroke}},stroke-width:2px;
   class Intent,Spawn ink;
   class Agent,Sortie,Fleet cobalt;
   class Harbor green;
@@ -170,10 +170,10 @@ const sortieMissionPath = String.raw`flowchart TB
   Preflight -->|ready| Running --> Events --> Result
   Result -. next architecture .-> Future
 
-  classDef cobalt fill:#003fb8,color:#fbf7ef,stroke:#121212,stroke-width:2px;
-  classDef green fill:#006b5f,color:#fbf7ef,stroke:#121212,stroke-width:2px;
-  classDef ink fill:#121212,color:#fbf7ef,stroke:#121212,stroke-width:2px;
-  classDef accent fill:#cad900,color:#121212,stroke:#121212,stroke-width:2px;
+  classDef cobalt fill:{{cobalt}},color:{{cobaltText}},stroke:{{stroke}},stroke-width:2px;
+  classDef green fill:{{green}},color:{{cobaltText}},stroke:{{stroke}},stroke-width:2px;
+  classDef ink fill:{{ink}},color:{{cobaltText}},stroke:{{stroke}},stroke-width:2px;
+  classDef accent fill:{{accent}},color:{{paperText}},stroke:{{stroke}},stroke-width:2px;
   class Brief,Running ink;
   class Record,Preflight,Events cobalt;
   class Result green;

@@ -90,6 +90,14 @@
   --code-dot-red: #e55c5c;
   --code-dot-amber: #e0c04a;
   --code-dot-green: #62c47a;
+
+  /* Chart palette — Mermaid classDef tokens for docs reference architectures.
+     Most chart slots map to existing brand tokens (cobalt → brand-primary,
+     green → brand-accent, etc.); --chart-yellow is the lone chart-only color
+     because no existing brand slot is yellow, and we need a fourth distinct
+     node tier in the diagrams to keep "highlight" visually separate from
+     "safety/state". Consumed via src/docs-content/chartTokens.ts. */
+  --chart-yellow: #cad900;
 }
 
 [data-theme='dark'] {
