@@ -1,6 +1,6 @@
 # Port Daddy Roadmap & Future Ideas
 
-**Last updated:** 2026-05-07 (Cartographer comprehensive pass — source verification complete)
+**Last updated:** 2026-05-08 (Cartographer comprehensive pass — source verification complete)
 
 This document captures the ambitious, industry-defining vision for Port Daddy as the definitive "Agentic OS" Control Plane. It outlines "things for later" and serves as a living synthesis of conceptual ideas.
 
@@ -26,8 +26,8 @@ The **Cartographer** fleet agent (declared in `pd-fleet.yml`, triggered on
 promotion of `now`-status entries into the section directly below.
 On this checkout, both `pd roadmap --feedback-status open --json` and
 `pd feedback list --status open --json` return `connect EPERM` against
-`~/.port-daddy/daemon.sock`, and there are no `.spark/feedback/*.md`
-drops in the tree, so the curated harvest stayed unchanged this pass.
+`~/.port-daddy/daemon.sock`, and this checkout does not contain a
+`.spark/feedback/` tree, so the curated harvest stayed unchanged this pass.
 
 The cartographer roadmap-progress screen and central feedback pipe are
 already shipped, so the "Next Cuts" list below is the remaining backlog
@@ -72,6 +72,10 @@ appropriate phase section below and delete it here.
   still blocked by cadence routing, slug drift, and the wallet /
   telemetry wall; surface `launchable` vs `blocked` truth in `pd
   status` and spawn/preflight output.
+- **`telos-driven-model-selection`** — The telos contract and shared
+  backend resolver already exist; the next cut is an explicit spawn-time
+  suggestion layer that recommends a model from durable telos without
+  hiding overrides.
 - **`tuple-driven-fleet`** — Tuple-triggered fleet agents, then IPC tuple
   fast path. Most direct path from "fleet" to actual swarm task routing.
 - **`capability-discovery-dns-harbor`** — Turn existing DNS + harbor

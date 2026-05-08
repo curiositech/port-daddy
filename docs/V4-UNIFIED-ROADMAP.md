@@ -3,8 +3,8 @@
 Canonical note: this file remains valuable historical context, but the active recovery authority now lives in `docs/recovery/README.md` and `docs/recovery/UNIFIED-ROADMAP.md`.
 
 **Author:** Erich Owens
-**Last Updated:** 2026-05-07
-**Status:** Canonical reference document — authority for execution now lives in `docs/recovery/UNIFIED-ROADMAP.md`. Phase 0 complete, Phase 4 partially complete (Fastify ✅, Trie ✅, Binary IPC ✅, Backpressure ⚡, Bun binary ⚡), Phase 3 largely done (fleet, pheromone, Fleet Live Dashboard all shipped), Phase 1 in-tree with graph_edges migration/schema work present but still uncommitted. **Recovery Track 1 CLOSED** (`8744e14`, 2026-04-06) — `cost-tracker`, `counters`, and the full `/metrics/*` observability surface are now committed and released as v3.8.3. The observability trifecta is complete. FleetBar unified with the real fleet control plane (`a41f18f`, `e82f096`) — the menu bar app now shells `fleet-config-ui` via WebView instead of maintaining a shadow dashboard. Fleet runtime readiness checks, backend fallbacks, and spawn preflight enforcement committed (`3b818d2`, `71fc446`, `0cc5e6`); `1459c0d4` tightened the claude-cli tier aliases. Cartographer roadmap-progress and feedback surfaces now exist in-tree (`7ba8d84`, `8fcf93e`, `4807cb5`, `bd4fc6f`, `eac3fc3`). Recent commits are mostly salvage/recovery triage (`48229e29`, `1117dda3`, `41eb63f`), unplanned website / release-surface / phone-integration work (`2a207870`, `f3c3e7f4`, `48b6c54c`, `60f72edd`), whitepaper/editorial cleanup (`e5226d1a`, `f9a422f5`, `637cecce`), docs/reference-architecture cleanup (`8a869a03`, `dc64054c`), and backend readiness / telemetry cleanup (`2ee5976a`, `1459c0d4`). Phase 5 now has active relay/harbor-mesh architecture groundwork, while Phase 6 connectors/coaching is still stale (>2 weeks no commits). The 2026-05-07 Spider extension pass (`S17`–`S29`, plus `remaining-spaces`) extends existing quorum / pheromone / graph / budget / incident combinations rather than minting a new V4 phase. HEAD: `0661bfbd`.
+**Last Updated:** 2026-05-08
+**Status:** Canonical reference document — authority for execution now lives in `docs/recovery/UNIFIED-ROADMAP.md`. Phase 0 complete, Phase 4 partially complete (Fastify ✅, Trie ✅, Binary IPC ✅, Backpressure ⚡, Bun binary ⚡), Phase 3 largely done (fleet, pheromone, Fleet Live Dashboard all shipped), Phase 1 complete (graph_edges migration/schema committed in `f265fcb5` and reflected in the roadmaps by `2ad20f32`). **Recovery Track 1 CLOSED** (`8744e14`, 2026-04-06) — `cost-tracker`, `counters`, and the full `/metrics/*` observability surface are now committed and released as v3.8.3. The observability trifecta is complete. FleetBar unified with the real fleet control plane (`a41f18f`, `e82f096`) — the menu bar app now shells `fleet-config-ui` via WebView instead of maintaining a shadow dashboard. Fleet runtime readiness checks, backend fallbacks, and spawn preflight enforcement committed (`3b818d2`, `71fc446`, `0cc5e6`); `1459c0d4` tightened the claude-cli tier aliases. Cartographer roadmap-progress and feedback surfaces now exist in-tree (`7ba8d84`, `8fcf93e`, `4807cb5`, `bd4fc6f`, `eac3fc3`). Recent commits are now the Phase 1 completion/reflection pair (`f265fcb5`, `2ad20f32`), plus salvage/recovery triage (`48229e29`, `1117dda3`, `41eb63f`), unplanned website / release-surface / phone-integration work (`2a207870`, `f3c3e7f4`, `48b6c54c`, `60f72edd`), whitepaper/editorial cleanup (`e5226d1a`, `f9a422f5`, `637cecce`), docs/reference-architecture cleanup (`8a869a03`, `dc64054c`), backend readiness / telemetry cleanup (`2ee5976a`, `1459c0d4`), and an unplanned fleet-model / telos hardening burst (`ffe098fe`, `57f24644`, `4c85f3e4`, `6a610bf3`, `d3e43b3d`, `989c6972`, `2fc96f8b`). The same release window also shipped the relay-independent primitive layer (`pd tube`, Merkle chain, relay PKI, `pd-relay-zero-trust`, quorum primitives, daemon profiles, and repo-enforced Coordination Guard), so the network / release-surface story is real rather than aspirational. Phase 5 now has active relay/harbor-mesh architecture groundwork, while Phase 6 connectors/coaching is still stale (>2 weeks no commits). The 2026-05-07 Spider extension pass (`S17`–`S29`, plus `remaining-spaces`) extends existing quorum / pheromone / graph / budget / incident combinations rather than minting a new V4 phase. HEAD: `2ad20f32`.
 
 This document synthesizes all V4 planning documents into a single sequenced roadmap. Nothing from the original documents has been discarded — ideas that aren't yet sequenced are preserved in the Appendix.
 
@@ -34,6 +34,10 @@ The formal foundation for this thesis is the **Bonded Commons** paper (Owens, 20
 | Merkle event chain library | Deployed | `lib/merkle-chain.ts`, `tests/fixtures/merkle-chain-golden.json`, `docs/merkle-chain-compat.md` |
 | Relay PKI decision (ADR-0025) | Decided | `docs/adr/0025-pki-decision.md` |
 | `pd-relay-zero-trust` skill | Built | `skills/pd-relay-zero-trust/` |
+| `pd tube` relay-independent conversational pipe | Built | `cli/commands/tube.ts`, `lib/tube.ts`, `features.manifest.json`, completions |
+| Quorum primitives | Built | `lib/quorum.ts`, `routes/quorum.ts`, `pd quorum` CLI |
+| Daemon profiles | Built | `lib/daemon-profiles.ts`, `cli/commands/daemon.ts`, `docs/adr/0024-daemon-profiles.md` |
+| Coordination Guard enforce mode | Built | `.portdaddy/coordination-guard.json`, `cli/commands/guard.ts`, hooks |
 | Bosun watchdog / Bosun supervisor (Rust) | Deployed | daemon writes `~/.port-daddy/heartbeat`; `core/pd-bosun/` and `dist/core/pd-bosun` supervise filesystem heartbeat and replace legacy Barnacle — release landed in `b074370` / `a94872c` and the Barnacle runtime path was removed in `7e16880` |
 | 10 formal skills | Built | `~/.claude/skills/{mechanism-design,tlaplus,political-philosophy,...}` |
 | Stable branch workflow | Active | `~/port-daddy-stable/` worktree |
@@ -42,15 +46,20 @@ The formal foundation for this thesis is the **Bonded Commons** paper (Owens, 20
 
 ---
 
-## Phase 1: The Semantic Graph [COMPLETE]
+## Phase 1: The Semantic Graph [COMPLETE — 2026-05-08]
 
-> **Current repo truth — 2026-04-10:** `graph_edges` is implemented in-tree via `lib/graph-edges.ts`, `routes/graph.ts`, `tests/unit/graph-edges.test.js`, and MCP `graph_edges` / `graph_stats` surfaces. The symbol index, orchestrator registry, and merge queue are already wired into `server.ts`. The remaining Phase 1 risk is authority drift: stable promotion, docs, and operator/runtime truth still need to agree on what already exists.
->
-> **Cartographer — 2026-04-28:** `a8b310e` now harvests `symbolPath` region claim support and `e3ea67e` adds a semantic alias resolve diagnostic. The graph / claim discovery path is moving, but the authoritative Phase 1 story is still split between committed runtime, uncommitted graph/memory slices, and doc authority drift.
->
-> **Cartographer — 2026-05-07:** Phase 1 code exists and is tested. `migrations/003_graph_edges.sql` and the matching `lib/db.ts` schema update are now present in the worktree but uncommitted. The remaining task is validation and promotion of the migration slice, not drafting it from scratch.
->
-> **COMPLETION — 2026-05-07:** Commit `f265fcb5` lands the complete Phase 1 integration. `lib/db.ts` CORE_SCHEMA_SQL now includes the unified `graph_edges` table with all schema columns and 6 indexes (scope, project+recency, source, target, edge_type+recency, uniqueness constraint). `migrations/003_graph_edges.sql` documents the schema. Database initialization verified working with all indexes present. Phase 1 is now code-complete, tested, and persisted.
+**Status:** ✅ FULLY COMPLETE. Code committed, tested, persisted, and reflected in all documentation.
+
+> **COMPLETION — 2026-05-07:** Commit `f265fcb5` lands the complete Phase 1 integration. `lib/db.ts` CORE_SCHEMA_SQL now includes the unified `graph_edges` table with all schema columns and 6 indexes (scope, project+recency, source, target, edge_type+recency, uniqueness constraint). `migrations/003_graph_edges.sql` documents the schema. Database initialization verified working with all indexes present. Phase 1 is now code-complete, tested, and persisted. Cartographer reflection pass (`2ad20f32`) updated all roadmaps on 2026-05-08.
+
+**Authority Evidence:**
+- **Migration:** `migrations/003_graph_edges.sql` with full schema
+- **Code:** `lib/db.ts` CORE_SCHEMA_SQL, `lib/graph-edges.ts`, `routes/graph.ts`
+- **Tests:** `tests/unit/graph-edges.test.js` — all passing
+- **MCP:** `graph_edges` / `graph_stats` tools live
+- **Symbol Index:** `lib/symbol-index.ts` (tree-sitter WASM)
+- **Orchestrator Registry:** Wired into `server.ts`
+- **Merge Queue:** Routes wired, routes pending orchestrator plugin wire
 
 *The nervous system. Agents navigate relationships, not flat registries.*
 
@@ -272,6 +281,8 @@ Named Pipes with explicit DACLs (SDDL). `PIPE_REJECT_REMOTE_CLIENTS` to prevent 
 A lighthouse is a daemon that advertises its harbors to the network.
 
 > **Cartographer — 2026-05-07:** Relay / harbor-mesh architecture is active again. `48b6c54c` added ADR-0027, `03adccfc` added the relay harbor mesh reference architecture, and `60f72edd` tightened the secure relay harbor architecture. This is groundwork only; the network implementation still needs to land.
+>
+> **Cartographer — 2026-05-08:** The relay-independent primitive layer from the phone-integration plan is now real too: `pd tube`, the Merkle event-chain library, the OIDC-first relay PKI decision, `pd-relay-zero-trust`, quorum primitives, daemon profiles, and repo-enforced Coordination Guard. That is still groundwork, not the full relay v0.
 
 - **Layer 1 (Local):** mDNS/Bonjour for zero-config tandem coding on LAN
 - **Layer 2 (Relay):** `lighthouse.portdaddy.dev` for remote teams
@@ -308,6 +319,12 @@ GET-only by default. POST/PUT requires human approval via the Dashboard. The Arb
 ### 6C. Coaching Agent Template
 
 Pre-built always-on agent: daily brief, skill tracking, calendar awareness. The "killer app" for personal use.
+
+### 6D. Telos-Driven Model Suggestions
+
+Use the durable telos contract to suggest a model/backend at spawn time so operators do not have to guess the Haiku/Sonnet/Opus ladder by hand. This belongs in the coaching/life-integration lane as an explicit suggestion layer, not a silent policy lock; the operator should always see and override the choice.
+
+> **Cartographer — 2026-05-08:** The May 1 fleet-model / telos hardening cluster landed `lib/agent-telos.ts`, `lib/llm-backend-resolver.ts`, self-salvage continuity, fleet YAML inheritance/modelTier handling, coordination-judge backend policy, and canonical lease reclaim. The remaining cut is the explicit spawn-time suggestion layer and operator override surface.
 
 ---
 
@@ -401,8 +418,9 @@ From `v4_thoughts.md`: Run TLC on the BondedCommons spec with concrete parameter
 | Spark fleet agent (idea engine) | `6a68547`, fleet YAML | Emerged from the fleet work. Spark runs every 30 min, generates ideas, publishes to `spark:idea` channel. |
 | Cartographer fleet agent (this agent) | `a930413`, `a8f3710`, fleet YAML | Emerged from needing automated roadmap tracking. The agent writes this file. |
 | **Maritime actor foundation + launchability truth** | `9e7d458`, `e33d53d`, `e53737d`, `ee1caf7`, `bd36b5c`, `2645880`, `28cbfe2`, `7a65e5d`, `a1dc622` | Durable actor names, readiness surfacing, and FleetBar/project truth were all shaped by recovery reality, not the original V4 phase list. |
+| **May 1 fleet-model / telos hardening burst** | `ffe098fe`, `57f24644`, `4c85f3e4`, `6a610bf3`, `d3e43b3d`, `989c6972`, `2fc96f8b` | Tightened telos contracts, self-salvage continuity, the shared backend resolver, YAML inheritance/modelTier handling, coordination-judge backend policy, and canonical lease reclaim. This landed outside the named V4 lanes, so it is signal about where energy actually went rather than a phase item. The remaining cut is the explicit `telos-driven-model-selection` suggestion layer and operator override surface. |
 | **Cartographer roadmap-progress + feedback ingest + quorum primitive** | `7ba8d84`, `8fcf93e`, `4807cb5`, `bd4fc6f`, `cea02e1`, `d5c05aa` | Operator-truth and coordination hardening landed because the map needed a single screen, a live feedback pipe, and quorum before the fleet looked healthy. |
-| **PD Tube / feedback / relay docs burst** | `79ceec9`, `73c471f`, `af84f24`, `fa6b66e`, `6a37bd3`, `e9b57b3`, `2a207870`, `f3c3e7f4`, `5ded9f79`, `48b6c54c`, `60f72edd` | Phone-integration and release-surface work escaped the V4 plan and got pulled forward by release-surface dogfooding. |
+| **Relay-independent primitives / zero-trust relay stack** | `79ceec9`, `73c471f`, `af84f24`, `fa6b66e`, `6a37bd3`, `e9b57b3`, `2a207870`, `f3c3e7f4`, `5ded9f79`, `48b6c54c`, `60f72edd` | Phone-integration and release-surface work escaped the V4 plan and got pulled forward by release-surface dogfooding. The follow-on tranche now includes `pd tube`, the Merkle event-chain library, the OIDC-first relay PKI decision, `pd-relay-zero-trust`, quorum primitives, daemon profiles, and repo-enforced Coordination Guard. |
 | **Salvage triage + stale-work visibility + next queue pull + envelope prototype** | `48229e29`, `1117dda3`, `41eb63f`, `6c7c8507` | Recovery tooling turned the salvage queue into a bounded triage surface, improved stale-work visibility, and added an empirical gap-report envelope prototype; not a V4 phase. |
 | **Website / docs / preview polish burst** | `e5226d1a`, `f9a422f5`, `637cecce`, `35500702`, `8a869a03`, `dc64054c`, `ca6ee88d`, `e0efcc7c`, `bebd0333`, `d35c7c55`, `aebccb1a`, `1515a767`, `03adccfc`, `90235d8f`, `0cee274c`, `8b3ac867`, `a9d151e7` | Whitepaper/editorial, docs/reference-architecture, and public-site polish escaped the V4 plan and got pulled forward by release-surface dogfooding. |
 | **Website distribution / Mac Preview / MCP polish** | `0718477`, `3214576`, `8c65932`, `f94769a`, `b5c0e41`, `3c34c1d`, `11be921`, `3752aef`, `9311394`, `78b5cd4`, `629de64` | Public website, preview, and download-path polish were urgent product truth work, not a scheduled V4 phase. |
