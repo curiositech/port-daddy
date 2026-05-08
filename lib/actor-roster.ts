@@ -1,9 +1,7 @@
-// Actor IDs mostly follow fleet agent names, with standalone durable actors
-// where the operator contract names an owner that may not have a live body.
-// Old maritime IDs (navigator, lookout, signalman, etc.) remain as deprecated
-// aliases so existing URLs / inbox addresses keep working during the
-// transition.
-export type MaritimeActorId =
+// The canonical roster of Port Daddy actors. IDs mostly follow fleet agent
+// names; standalone durable actors (coxswain, quartermaster) name an owner
+// that may not have a live body.
+export type ActorId =
   | 'gardener'
   | 'qa'
   | 'test-hunter'
@@ -15,10 +13,10 @@ export type MaritimeActorId =
   | 'spark'
   | 'spider';
 
-export type MaritimeActorLeaseState = 'attached' | 'recoverable' | 'detached' | 'dormant';
+export type ActorLeaseState = 'attached' | 'recoverable' | 'detached' | 'dormant';
 
-export interface MaritimeActorDefinition {
-  id: MaritimeActorId;
+export interface ActorDefinition {
+  id: ActorId;
   label: string;
   title: string;
   mission: string;
@@ -58,11 +56,11 @@ export interface ActorMailboxStats {
   max: number | null;
 }
 
-export interface MaritimeActorRecord extends MaritimeActorDefinition {
+export interface ActorRecord extends ActorDefinition {
   address: string;
   inboxTarget: string;
   mailboxStats: ActorMailboxStats | null;
-  leaseState: MaritimeActorLeaseState;
+  leaseState: ActorLeaseState;
   liveBodies: ActorAgentSignal[];
   recentSessions: ActorSessionSignal[];
   salvage: ActorSalvageSignal[];
@@ -70,13 +68,13 @@ export interface MaritimeActorRecord extends MaritimeActorDefinition {
   evidence: string[];
 }
 
-export interface MaritimeActorsProjectionInput {
+export interface ActorsProjectionInput {
   agents?: unknown[];
   sessions?: unknown[];
   salvage?: unknown[];
 }
 
-export const MARITIME_ACTORS: readonly MaritimeActorDefinition[] = [
+export const ACTOR_ROSTER: readonly ActorDefinition[] = [
   {
     id: 'gardener',
     label: 'Gardener',
@@ -93,7 +91,7 @@ export const MARITIME_ACTORS: readonly MaritimeActorDefinition[] = [
     title: 'Validation and evidence actor',
     mission: 'Tracks test runs, validation evidence, signal quality, teardown warnings, and promotion proof.',
     owns: ['tests', 'validation', 'evidence', 'signals'],
-    aliases: ['signalman', 'validation', 'evidence'],
+    aliases: ['validation', 'evidence'],
     compatibilityFleetAgent: 'qa',
     mailbox: 'actor:qa',
   },
@@ -113,7 +111,7 @@ export const MARITIME_ACTORS: readonly MaritimeActorDefinition[] = [
     title: 'Docs, API, skill, and product-truth actor',
     mission: 'Watches route, manifest, OpenAPI, CLI, MCP, website, and skill drift before product truth splits.',
     owns: ['docs', 'openapi', 'skills', 'manifest', 'website-truth'],
-    aliases: ['lookout', 'docs', 'drift'],
+    aliases: ['docs', 'drift'],
     compatibilityFleetAgent: 'documentarian',
     mailbox: 'actor:documentarian',
   },
@@ -173,7 +171,7 @@ export const MARITIME_ACTORS: readonly MaritimeActorDefinition[] = [
     title: 'Roadmap, recovery, and feedback-harvest actor',
     mission: 'Maintains roadmap state, recovery ledgers, work-slice evidence, supersession edges, and harvests dogfood feedback.',
     owns: ['roadmap', 'recovery-ledger', 'work-slices', 'cartographer-status', 'feedback-harvest'],
-    aliases: ['navigator', 'roadmap', 'mapmaker'],
+    aliases: ['roadmap', 'mapmaker'],
     compatibilityFleetAgent: 'cartographer',
     mailbox: 'actor:cartographer',
   },
@@ -199,9 +197,9 @@ export const MARITIME_ACTORS: readonly MaritimeActorDefinition[] = [
   },
 ] as const;
 
-const ACTOR_BY_ID = new Map<string, MaritimeActorId>();
+const ACTOR_BY_ID = new Map<string, ActorId>();
 
-for (const actor of MARITIME_ACTORS) {
+for (const actor of ACTOR_ROSTER) {
   ACTOR_BY_ID.set(actor.id, actor.id);
   for (const alias of actor.aliases) {
     ACTOR_BY_ID.set(alias, actor.id);
@@ -255,7 +253,7 @@ function lowerHaystack(record: unknown): string {
     .join(' ');
 }
 
-function matchesActorEvidence(record: unknown, actor: MaritimeActorDefinition): boolean {
+function matchesActorEvidence(record: unknown, actor: ActorDefinition): boolean {
   const haystack = lowerHaystack(record);
   if (!haystack) return false;
   const needles = [
@@ -266,7 +264,7 @@ function matchesActorEvidence(record: unknown, actor: MaritimeActorDefinition): 
   return needles.some(needle => haystack.includes(needle.toLowerCase()));
 }
 
-function matchesFleetBody(record: unknown, actor: MaritimeActorDefinition): boolean {
+function matchesFleetBody(record: unknown, actor: ActorDefinition): boolean {
   const fleetAgent = actor.compatibilityFleetAgent?.toLowerCase();
   if (!fleetAgent) return false;
 
@@ -329,28 +327,28 @@ function leaseState(
   liveBodies: ActorAgentSignal[],
   recentSessions: ActorSessionSignal[],
   salvage: ActorSalvageSignal[],
-): MaritimeActorLeaseState {
+): ActorLeaseState {
   if (liveBodies.some(body => body.liveness !== 'dead')) return 'attached';
   if (salvage.length > 0) return 'recoverable';
   if (recentSessions.length > 0) return 'detached';
   return 'dormant';
 }
 
-export function resolveMaritimeActorId(value: string): MaritimeActorId | null {
+export function resolveActorId(value: string): ActorId | null {
   return ACTOR_BY_ID.get(value.trim().toLowerCase()) ?? null;
 }
 
-export function getMaritimeActorDefinition(value: string): MaritimeActorDefinition | null {
-  const id = resolveMaritimeActorId(value);
-  return id ? MARITIME_ACTORS.find(actor => actor.id === id) ?? null : null;
+export function getActorDefinition(value: string): ActorDefinition | null {
+  const id = resolveActorId(value);
+  return id ? ACTOR_ROSTER.find(actor => actor.id === id) ?? null : null;
 }
 
-export function listMaritimeActors(input: MaritimeActorsProjectionInput = {}): MaritimeActorRecord[] {
+export function listActors(input: ActorsProjectionInput = {}): ActorRecord[] {
   const agents = input.agents ?? [];
   const sessions = input.sessions ?? [];
   const salvage = input.salvage ?? [];
 
-  return MARITIME_ACTORS.map(actor => {
+  return ACTOR_ROSTER.map(actor => {
     const liveBodies = agents.filter(agent => matchesFleetBody(agent, actor)).map(toAgentSignal);
     const recentSessions = sessions.filter(session => matchesActorEvidence(session, actor)).map(toSessionSignal);
     const salvageSignals = salvage.filter(entry => matchesActorEvidence(entry, actor)).map(toSalvageSignal);
@@ -381,8 +379,8 @@ export function listMaritimeActors(input: MaritimeActorsProjectionInput = {}): M
   });
 }
 
-export function getMaritimeActor(value: string, input: MaritimeActorsProjectionInput = {}): MaritimeActorRecord | null {
-  const id = resolveMaritimeActorId(value);
+export function getActor(value: string, input: ActorsProjectionInput = {}): ActorRecord | null {
+  const id = resolveActorId(value);
   if (!id) return null;
-  return listMaritimeActors(input).find(actor => actor.id === id) ?? null;
+  return listActors(input).find(actor => actor.id === id) ?? null;
 }

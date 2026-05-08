@@ -21,7 +21,7 @@
  * (server.ts) maintains a per-key TTL cache so we don't spam the same
  * agent about the same channel-naming-drift every 5 minutes forever.
  *
- * Owned by actor:coxswain (lib/maritime-actors.ts coxswain.owns includes
+ * Owned by actor:coxswain (lib/actor-roster.ts coxswain.owns includes
  * channels, tuples, channel-naming-hygiene, tuple-nomenclature,
  * subscription-coverage, silent-agents, comm-pipeline-debug as of the
  * commit-prior comms-officer scope expansion).
