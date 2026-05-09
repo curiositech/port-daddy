@@ -4,6 +4,17 @@ Base URL: `http://localhost:9876` by default. If your daemon is running elsewher
 Unix Socket: `~/.port-daddy/daemon.sock`
 IPC Socket: `~/.port-daddy/daemon.ipc` (binary MessagePack, for high-frequency operations)
 
+Runtime packaging: operator installs are binary-first. The daemon service should
+launch `dist/daemon/port-daddy-daemon`; `tsx server.ts` is only allowed when
+`PORT_DADDY_ALLOW_SOURCE_DAEMON=1` is set for local development. Binary builds
+also serve the generated public sample bundle at `/samples/manifest.json` and
+`/samples/files/...`. The single-binary lane (`npm run build:bin`) emits
+`dist/port-daddy`, whose CLI can run the MCP stdio server in-process and start
+the daemon through a hidden `__daemon` entrypoint. Fleet UI and public samples
+are embedded into that executable through a generated asset table, with
+external `PORT_DADDY_RESOURCE_DIR/public/...` files still preferred when
+present.
+
 All HTTP endpoints accept and return JSON. Rate limited to 100 req/min per IP.
 
 **Transport options:**

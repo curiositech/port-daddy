@@ -30,7 +30,7 @@ import fastifyRateLimit from '@fastify/rate-limit';
 import fastifyStatic from '@fastify/static';
 import http from 'node:http';
 import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { dirname, join, extname } from 'path';
 import { readFileSync, existsSync, readdirSync, unlinkSync, writeFileSync, mkdirSync, accessSync, constants as fsConstants } from 'fs';
 import type { DatabaseInstance } from './lib/sqlite-runtime.js';
 import { createConnection } from 'net';
@@ -97,8 +97,10 @@ import { registerAllRoutes } from './routes/index.js';
 import { getSystemPorts, startSystemPortsRefresh } from './shared/port-utils.js';
 import { LOOPBACK_TCP_HOST } from './shared/daemon-discovery.js';
 import { calculateRuntimeCodeHash } from './shared/code-hash.js';
+import { resolveDistributionRoot } from './shared/daemon-binary.js';
 
-const __dirname: string = dirname(fileURLToPath(import.meta.url));
+const MODULE_DIR: string = dirname(fileURLToPath(import.meta.url));
+const __dirname: string = resolveDistributionRoot(MODULE_DIR);
 const REPO_ROOT: string = existsSync(join(__dirname, 'apps', 'FleetBar'))
   ? __dirname
   : dirname(__dirname);
@@ -707,12 +709,91 @@ await app.register(fastifyRateLimit, {
   errorResponseBuilder: () => ({ error: 'Too many requests, please slow down' }),
 });
 
+type EmbeddedPublicAsset = {
+  path?: string;
+  name?: string;
+  type?: string;
+  dataBase64?: string;
+  arrayBuffer?: () => Promise<ArrayBuffer>;
+};
+
+function contentTypeForPublicPath(path: string, fallback?: string): string {
+  if (fallback) return fallback;
+  switch (extname(path).toLowerCase()) {
+    case '.css': return 'text/css; charset=utf-8';
+    case '.html': return 'text/html; charset=utf-8';
+    case '.js': return 'text/javascript; charset=utf-8';
+    case '.json': return 'application/json; charset=utf-8';
+    case '.md': return 'text/markdown; charset=utf-8';
+    case '.svg': return 'image/svg+xml';
+    case '.ts': return 'text/plain; charset=utf-8';
+    case '.txt': return 'text/plain; charset=utf-8';
+    case '.yml':
+    case '.yaml': return 'text/yaml; charset=utf-8';
+    default: return 'application/octet-stream';
+  }
+}
+
+function embeddedPublicAssets(): Map<string, EmbeddedPublicAsset> {
+  const globalAssets = (globalThis as typeof globalThis & {
+    __PORT_DADDY_EMBEDDED_PUBLIC_ASSETS__?: readonly EmbeddedPublicAsset[];
+  }).__PORT_DADDY_EMBEDDED_PUBLIC_ASSETS__;
+  const bun = (globalThis as typeof globalThis & {
+    Bun?: { embeddedFiles?: readonly EmbeddedPublicAsset[] };
+  }).Bun;
+  const assets = new Map<string, EmbeddedPublicAsset>();
+  for (const asset of globalAssets ?? []) {
+    if (asset.path?.startsWith('/')) assets.set(asset.path, asset);
+  }
+  for (const blob of bun?.embeddedFiles ?? []) {
+    const name = blob.name?.replace(/\\/g, '/');
+    if (!name?.startsWith('public/')) continue;
+    assets.set(`/${name.slice('public/'.length)}`, blob);
+  }
+  return assets;
+}
+
+async function registerEmbeddedPublicAssets(appInstance: FastifyInstance): Promise<boolean> {
+  const assets = embeddedPublicAssets();
+  if (assets.size === 0) return false;
+
+  const registered = new Set<string>();
+  const registerAssetRoute = (route: string, asset: EmbeddedPublicAsset): void => {
+    if (registered.has(route)) return;
+    registered.add(route);
+    appInstance.get(route, async (_request: FastifyRequest, reply: FastifyReply) => {
+      const body = asset.dataBase64
+        ? Buffer.from(asset.dataBase64, 'base64')
+        : Buffer.from(await asset.arrayBuffer!());
+      reply.header('Cache-Control', route.includes('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache');
+      reply.type(contentTypeForPublicPath(route, asset.type));
+      return reply.send(body);
+    });
+  };
+
+  for (const [route, blob] of assets) {
+    registerAssetRoute(route, blob);
+    if (route.endsWith('/index.html')) {
+      const directoryRoute = route.slice(0, -'index.html'.length);
+      registerAssetRoute(directoryRoute, blob);
+      registerAssetRoute(directoryRoute.replace(/\/$/, ''), blob);
+    }
+  }
+  logger.info('embedded_public_assets_registered', { count: assets.size });
+  return true;
+}
+
 // --- Static Files (replaces express.static) ---
-await app.register(fastifyStatic, {
-  root: join(__dirname, 'public'),
-  prefix: '/',
-  decorateReply: false,  // Don't decorate reply with sendFile — we only serve static
-});
+const publicRoot = join(__dirname, 'public');
+if (existsSync(publicRoot)) {
+  await app.register(fastifyStatic, {
+    root: publicRoot,
+    prefix: '/',
+    decorateReply: false,  // Don't decorate reply with sendFile — we only serve static
+  });
+} else if (!(await registerEmbeddedPublicAssets(app))) {
+  logger.warn('public_assets_missing', { publicRoot });
+}
 
 // --- DNS Rebinding Protection (replaces custom middleware) ---
 app.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) => {

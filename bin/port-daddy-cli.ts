@@ -1979,7 +1979,7 @@ async function executeDirectMode(
   }
 }
 
-async function main(): Promise<void> {
+export async function main(): Promise<void> {
   const args: string[] = process.argv.slice(2);
   const command: string | undefined = args[0];
 
@@ -2529,20 +2529,10 @@ async function main(): Promise<void> {
           await handleMcpInstall(options);
           break;
         }
-        // Launch MCP server (stdio transport for Claude Code / Desktop)
-        const { spawn } = await import('node:child_process');
-        const mcpPath = new URL('../mcp/server.ts', import.meta.url).pathname;
-        const tsxBin = join(__dirname, '..', 'node_modules', '.bin', 'tsx');
-        const child = spawn(process.execPath, [tsxBin, mcpPath], {
-          stdio: 'inherit',
-          env: {
-            ...process.env,
-            PORT_DADDY_URL: options.port ? `http://localhost:${options.port}` : PORT_DADDY_URL,
-          },
-        });
-        child.on('exit', (code) => process.exit(code ?? 0));
-        // Keep parent alive until MCP server exits
-        await new Promise(() => {});
+        if (options.port) {
+          process.env.PORT_DADDY_URL = `http://localhost:${options.port}`;
+        }
+        await import('../mcp/server.js');
         break;
       }
 
@@ -2798,4 +2788,6 @@ async function main(): Promise<void> {
   }
 }
 
-main();
+if (process.env.PORT_DADDY_SUPPRESS_CLI_MAIN !== '1') {
+  void main();
+}

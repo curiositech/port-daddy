@@ -15,6 +15,7 @@ import type { PdFetchResponse } from '../utils/fetch.js';
 import { printBanner, printCompactHeader, printFarewell, WHEEL, ANCHOR, ANSI } from '../../lib/banner.js';
 import { autoFixStartupBlockers, diagnoseStartupBlockers } from '../utils/startup-doctor.js';
 import { LOOPBACK_TCP_HOST, readDaemonPort } from '../../shared/daemon-discovery.js';
+import { resolveDaemonLaunchCommand, type DaemonLaunchCommand } from '../../shared/daemon-binary.js';
 import { calculateRuntimeCodeHash, listRuntimeSourceFiles } from '../../shared/code-hash.js';
 import {
   buildDaemonProfileEnv,
@@ -223,11 +224,29 @@ function isCanonicalDaemonTarget(): boolean {
   return !process.env.PORT_DADDY_URL && !process.env.PORT_DADDY_SOCK && !process.env.PORT_DADDY_PORT_FILE;
 }
 
+function daemonLaunchCommand(libDir: string): DaemonLaunchCommand {
+  try {
+    return resolveDaemonLaunchCommand(libDir);
+  } catch (err) {
+    ui.error((err as Error).message);
+    process.exit(1);
+  }
+}
+
+function spawnDaemon(command: DaemonLaunchCommand, options: Parameters<typeof spawn>[2] = {}): ChildProcess {
+  return spawn(command.program, command.args, {
+    ...options,
+    env: {
+      ...process.env,
+      ...(command.env ?? {}),
+      ...((options.env ?? {}) as NodeJS.ProcessEnv),
+    },
+  });
+}
+
 export async function handleDaemonCommand(positional: string[], options: DaemonCommandOptions = {}): Promise<void> {
   const action = positional[0] || 'list';
   const libDir: string = join(__dirname, '..', '..');
-  const tsxBin: string = join(libDir, 'node_modules', '.bin', 'tsx');
-  const serverScript: string = join(libDir, 'server.ts');
 
   switch (action) {
     case 'list':
@@ -300,7 +319,7 @@ export async function handleDaemonCommand(positional: string[], options: DaemonC
       const logFd = openSync(profile.logFile, 'a');
       let child: ChildProcess;
       try {
-        child = spawn(tsxBin, [serverScript], {
+        child = spawnDaemon(daemonLaunchCommand(libDir), {
           env: buildDaemonProfileEnv(profile, {
             port: preferredPort,
             enableFleet: options.fleet === true,
@@ -493,8 +512,8 @@ async function stopRunningCanonicalDaemon(localCodeHash: string, daemonPort: num
  * Attempt to spawn the daemon and wait for it to become healthy.
  * Returns true if the daemon started successfully, false otherwise.
  */
-async function attemptDaemonStart(tsxBin: string, serverScript: string): Promise<boolean> {
-  const child: ChildProcess = spawn(tsxBin, [serverScript], {
+async function attemptDaemonStart(command: DaemonLaunchCommand): Promise<boolean> {
+  const child: ChildProcess = spawnDaemon(command, {
     stdio: 'ignore',
     detached: true,
   });
@@ -520,7 +539,6 @@ export async function handleDaemon(action: string): Promise<void> {
   const libDir: string = join(__dirname, '..', '..');
   const tsxBin: string = join(libDir, 'node_modules', '.bin', 'tsx');
   const installScript: string = join(libDir, 'install-daemon.ts');
-  const serverScript: string = join(libDir, 'server.ts');
 
   switch (action) {
     case 'start': {
@@ -550,7 +568,8 @@ export async function handleDaemon(action: string): Promise<void> {
       console.log(`  ${WHEEL} Starting daemon...`);
 
       // Attempt 1: Try to start normally
-      if (await attemptDaemonStart(tsxBin, serverScript)) return;
+      const command = daemonLaunchCommand(libDir);
+      if (await attemptDaemonStart(command)) return;
 
       // Attempt 1 failed — diagnose and auto-fix
       console.log(`  ${ANSI.fgYellow}First attempt failed, diagnosing...${ANSI.reset}`);
@@ -600,14 +619,14 @@ export async function handleDaemon(action: string): Promise<void> {
       // Attempt 2: Retry after fixes
       console.log(`  ${WHEEL} Retrying...`);
 
-      if (await attemptDaemonStart(tsxBin, serverScript)) return;
+      if (await attemptDaemonStart(command)) return;
 
       // Still failing — one more diagnostic pass in case socket needs cleanup
       const secondPass = autoFixStartupBlockers(daemonPort);
       if (secondPass.fixed) {
         await new Promise<void>(r => setTimeout(r, 1000));
         console.log(`  ${WHEEL} Final retry...`);
-        if (await attemptDaemonStart(tsxBin, serverScript)) return;
+        if (await attemptDaemonStart(command)) return;
       }
 
       ui.error('Failed to start daemon after auto-fix');
@@ -648,14 +667,24 @@ export async function handleDaemon(action: string): Promise<void> {
     }
 
     case 'install': {
-      const result: SpawnSyncReturns<Buffer> = spawnSync(tsxBin, [installScript, 'install'], { stdio: 'inherit' });
-      process.exit(result.status ?? 1);
+      if (process.env.PORT_DADDY_CAN_SELF_DAEMON === '1') {
+        const { runInstallDaemonCli } = await import('../../install-daemon.js');
+        runInstallDaemonCli('install');
+      } else {
+        const result: SpawnSyncReturns<Buffer> = spawnSync(tsxBin, [installScript, 'install'], { stdio: 'inherit' });
+        process.exit(result.status ?? 1);
+      }
       break;
     }
 
     case 'uninstall': {
-      const result: SpawnSyncReturns<Buffer> = spawnSync(tsxBin, [installScript, 'uninstall'], { stdio: 'inherit' });
-      process.exit(result.status ?? 1);
+      if (process.env.PORT_DADDY_CAN_SELF_DAEMON === '1') {
+        const { runInstallDaemonCli } = await import('../../install-daemon.js');
+        runInstallDaemonCli('uninstall');
+      } else {
+        const result: SpawnSyncReturns<Buffer> = spawnSync(tsxBin, [installScript, 'uninstall'], { stdio: 'inherit' });
+        process.exit(result.status ?? 1);
+      }
       break;
     }
   }
