@@ -1,6 +1,6 @@
 # Ideas Trove
 
-Last updated: 2026-05-09 (Cartographer comprehensive pass — telos/model-selection and fleet-health-scorecard promoted from raw Spark; tuple-namespace-hierarchies folded into tuple-driven-fleet; quorum primitive status refreshed)
+Last updated: 2026-05-09 (Cartographer comprehensive pass — daemon-introspection-api and ideas-trove-queryable-surface promoted from raw Spark; telos/model-selection and fleet-health-scorecard promoted from raw Spark; tuple-namespace-hierarchies folded into tuple-driven-fleet; quorum primitive status refreshed)
 
 This is the canonical ideation index and curated backlog for Port Daddy.
 
@@ -34,6 +34,10 @@ allowed to multiply duplicate backlog items forever.
   - `.spark/ideas/2026-05-08-telos-driven-model-selection.md`
   - `.spark/ideas/2026-05-08-tuple-namespace-hierarchies.md`
   - promoted `fleet-health-scorecard` as a new backlog slug and treated `tuple-namespace-hierarchies` as an extension of `tuple-driven-fleet`
+- 2026-05-09 Spark idea pass
+  - `.spark/ideas/2026-05-09-daemon-introspection-api.md`
+  - `.spark/ideas/2026-05-09-ideas-trove-queryable-surface.md`
+  - promoted `daemon-introspection-api` and `ideas-trove-queryable-surface` as new backlog slugs and execution-wave now items
 
 Status meanings used here:
 
@@ -66,6 +70,39 @@ Status meanings used here:
 
 These are the highest-signal ideas from the corpus and should shape the next
 runtime cuts.
+
+### `daemon-introspection-api`
+
+- status: `now`
+- why it matters:
+  - Operators lack a unified view of daemon health: SQLite WAL lag, IPC backlog, active session count, lock contention, role runtime stats
+  - This blocks two "now"-queue dashboard items: `crew-screen-roles-not-pids` and `fleet-health-scorecard`, which both need aggregated role health (uptime, cost, status)
+  - Unifying the introspection endpoint eliminates the need for dashboard code to stitch together fragments from `/agents`, `/fleet`, `/metrics/cost/recent`, `/sessions`
+- implementation sketch:
+  - `lib/daemon-introspection.ts` (~70 LOC): query WAL state, session/lock counts, IPC stats, fleet aggregation, Arbiter violations
+  - `routes/daemon.ts` (~40 LOC): expose `GET /daemon/introspect` with optional filtering
+  - ~10 test cases validating field accuracy and schema consistency
+  - No database migrations, no schema changes
+- provenance:
+  - `.spark/ideas/2026-05-09-daemon-introspection-api.md`
+
+### `ideas-trove-queryable-surface`
+
+- status: `now`
+- why it matters:
+  - IDEAS-TROVE.md is canonical policy: "Spark and Spider are required to check it before minting new items"
+  - But the trove is static markdown — not queryable. Spark/Spider have no programmatic way to check for duplicates
+  - This blocks Spark/Spider deduplication enforcement (documented in AGENTS.md)
+  - This is explicit infrastructure gap captured in CURRENT-WORK.md: "`pd ideas list|search|show` — repo-local CLI surface over the canonical trove"
+- implementation sketch:
+  - `lib/ideas-trove.ts` (~80 LOC): parse IDEAS-TROVE.md into structured `IdeaEntry[]` with slug, status, title, families, provenance
+  - `cli/commands/ideas.ts` (~60 LOC): `pd ideas list [--status]`, `pd ideas search <keyword>`, `pd ideas show <slug>`
+  - `routes/ideas.ts` (~40 LOC): HTTP endpoints for dashboard integration
+  - ~15 test cases covering parsing, query, search, provenance accuracy
+  - No database changes, no external dependencies
+  - Deliverable: Spark/Spider call `pd ideas search "root cause"` and reliably check for duplicates before proposing
+- provenance:
+  - `.spark/ideas/2026-05-09-ideas-trove-queryable-surface.md`
 
 ### `coordination-guard-extended-enforcement`
 

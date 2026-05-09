@@ -1,6 +1,6 @@
 # Port Daddy Roadmap & Future Ideas
 
-**Last updated:** 2026-05-09 (Cartographer verification pass — source verification complete; curated now dogfood pair still `claim-preserving-git-safety` and `fleet-launchability-and-cadence`)
+**Last updated:** 2026-05-09 (Cartographer harvest pass — source verification complete; curated now dogfood pair still `claim-preserving-git-safety` and `fleet-launchability-and-cadence`; 2 new Spark now items promoted into the wave)
 
 This document captures the ambitious, industry-defining vision for Port Daddy as the definitive "Agentic OS" Control Plane. It outlines "things for later" and serves as a living synthesis of conceptual ideas.
 
@@ -31,6 +31,9 @@ On this checkout, both `pd roadmap --feedback-status open --json` and
 The current now-status dogfood pair remains `claim-preserving-git-safety`
 and `fleet-launchability-and-cadence`.
 
+The 2026-05-09 Spark harvest promoted `daemon-introspection-api` and
+`ideas-trove-queryable-surface` into the same now wave.
+
 The cartographer roadmap-progress screen and central feedback pipe are
 already shipped, so the "Next Cuts" list below is the remaining backlog
 rather than the old four-file FOMO check.
@@ -46,6 +49,14 @@ appropriate phase section below and delete it here.
   steamrolled by `git add -A`, `git reset --hard`, and `git cherry-pick`.
   Add a safe `pd add` path plus destructive-git guardrails that consult
   claims before they bulldoze another session's edits.
+- **`daemon-introspection-api`** — Operators lack a unified view of daemon
+  health: SQLite WAL lag, IPC backlog, active session count, lock
+  contention, role runtime stats. Add `GET /daemon/introspect` so the Crew
+  panel and Fleet Health Scorecard can stop stitching fragments together.
+- **`ideas-trove-queryable-surface`** — `IDEAS-TROVE.md` is canonical
+  policy, but it is static markdown. Add `pd ideas list|search|show` plus
+  HTTP routes so Spark/Spider can query the trove for deduplication instead
+  of doing brittle string matching.
 - **`coordination-guard-extended-enforcement`** — Coordination Guard
   already exists and this repo now ships it in enforce mode
   (`.portdaddy/coordination-guard.json`), but it still only fires on

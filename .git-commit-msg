@@ -1,0 +1,15 @@
+Cartographer: 2026-05-09 harvest pass — 2 Spark ideas promoted to execution wave
+
+Promoted daemon-introspection-api and ideas-trove-queryable-surface from
+.spark/ideas/ as new "now" candidates, both enabling existing backlog items.
+
+- daemon-introspection-api: unified GET /daemon/introspect endpoint (~150 LOC),
+  enables crew-screen-roles-not-pids and fleet-health-scorecard dashboard work
+- ideas-trove-queryable-surface: pd ideas CLI + HTTP queryable API (~180 LOC),
+  enables Spark/Spider deduplication enforcement
+
+Updated CURRENT-WORK.md execution wave from 9 to 11 items.
+Updated IDEAS-TROVE.md Immediate Implementation Candidates section.
+Updated .cartographer/status.md with 2026-05-09 verification pass results.
+
+Execution wave now: 11 now-status items + 5 backlog items = 16 total next-cuts.

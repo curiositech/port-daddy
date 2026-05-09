@@ -1,6 +1,6 @@
 # Cartographer Status — Port Daddy v4 Map
 
-**Last Updated**: 2026-05-09 14:22 UTC (Cartographer verification pass — Phase 1 locked, daemon feedback unavailable in this shell, 14 total next-cuts items (9 now-status), 4A/4E/4F stale 38–41 days; execution wave ready)
+**Last Updated**: 2026-05-09 (Cartographer harvest pass — Phase 1 locked, 2 new Spark ideas promoted to execution wave, 16 total next-cuts items (11 now-status), daemon feedback unavailable in this shell, 4A/4E/4F stale 38–41 days)
 **Authority**: Committed code + git log > curated markdown (recovery hub) > raw files (.spark)
 
 ---
@@ -9,12 +9,12 @@
 
 | Signal | Value |
 |--------|-------|
-| Phase Status | 0: ✅ COMPLETE \| 1: ✅ COMPLETE \| 2: 🔄 INFRA READY \| 3: 🔄 ACTIVE \| 4: 🟨 PARTIAL \| 5: 🔥 ARCHITECTURE (hottest mapped phase) \| 6: 🔄 ACTIVE |
-| 7-Day Velocity | 12.6 commits/day (88 commits trailing 7 days, stable post-May-1) |
-| HEAD Commit | `3b9d17ce` (Cartographer: Verification pass complete — Phase 1 locked, daemon feedback LIVE, 14 next-cuts items (9 now-status) queued for execution) |
+| Phase Status | 0: ✅ COMPLETE \| 1: ✅ COMPLETE \| 2: 🔄 INFRA READY \| 3: 🔥 ACTIVE (hottest mapped phase) \| 4: 🟨 PARTIAL \| 5: 🔄 ARCHITECTURE \| 6: 🔄 ACTIVE |
+| 7-Day Velocity | 12.7 commits/day (89 commits trailing 7 days, stable post-May-1) |
+| HEAD Commit | `f4624ebd` (Cartographer: Verification pass reconciliation — daemon feedback unavailable) |
 | Most Recent Code | `f265fcb5` (Phase 1 complete: Unified semantic graph edges table, 2026-05-07) |
-| Daemon Status | ✅ Operational (v3.13.0, PID 19970); tuple-backed feedback projection unavailable in this shell (`connect EPERM`) |
-| Feedback Queue | **14 total next-cuts items**; 9 now-status (6 trove + 3 from 2026-05-08 Spark promotion); execution wave ready in curated markdown |
+| Daemon Status | ✅ Operational (v3.13.0, PID 36875); tuple-backed feedback projection unavailable in this shell (`connect EPERM`) |
+| Feedback Queue | **16 total next-cuts items**; 11 now-status (6 dogfood/trove + 3 from 2026-05-08 Spark promotion + 2 from 2026-05-09 Spark harvest); execution wave ready in curated markdown |
 | Stale Phases (≥38 days) | Phase 4A (38 days, Bun binary); Phase 4E (39 days, self-test); Phase 4F (39 days, Windows IPC) |
 | Blocked Phases | Phase 2 economist (no follow-up since 2026-03-30 — Thomas Youle pricing function π); Phase 4A, 4E, 4F all waiting on decision/implementation |
 
@@ -79,12 +79,12 @@
 - **Curated entries (DOGFOOD-FEEDBACK.md)**: 5 total entries
   - now (2 at status=now): `claim-preserving-git-safety`, `fleet-launchability-and-cadence`
   - backlog (3 at status=backlog): `session-context-cwd-reset`, `feedback-route-stable-gap`, `fleet-status-skipped-duplicates`
-- **Ideas-Trove now-status (IDEAS-TROVE.md)**: 7 curated now items
-  - `coordination-guard-extended-enforcement`, `crew-screen-roles-not-pids`, `fleet-health-scorecard`, `coordination-ticker-as-high-signal-feed`, `quorum-driven-dynamic-launch`, `ipc-disconnect-instant-salvage`, `telos-driven-model-selection`
+- **Ideas-Trove now-status (IDEAS-TROVE.md)**: 9 curated now items (7 previous + 2 from 2026-05-09 Spark harvest)
+  - `daemon-introspection-api`, `ideas-trove-queryable-surface`, `coordination-guard-extended-enforcement`, `crew-screen-roles-not-pids`, `fleet-health-scorecard`, `coordination-ticker-as-high-signal-feed`, `quorum-driven-dynamic-launch`, `ipc-disconnect-instant-salvage`, `telos-driven-model-selection`
 - **Raw .spark/feedback/**: Tree not present in this checkout; next auto-harvest pending on agent contribution or commit
-- **Spark/Spider residue**: `.spark/ideas/` and `.spider/connections/` exist locally; Spark pass (2026-05-08) promoted `fleet-health-scorecard` and `telos-driven-model-selection` as new backlog slugs
-- **Trove-to-roadmap promotion**: 14 items queued in execution wave (9 now-status items: 6 from IDEAS-TROVE now-lane + 3 from recent Spark promotion; 5 dogfood/trove at backlog-status not yet scheduled)
-- **Next harvest**: 2026-05-09 on next commit, automatic via `pd feedback` daemon tuple stream when available, or when `.spark/feedback/` tree is populated
+- **Spark/Spider residue**: `.spark/ideas/` and `.spider/connections/` exist locally; Spark pass (2026-05-08) promoted `fleet-health-scorecard` and `telos-driven-model-selection`; Spark pass (2026-05-09) promoted `daemon-introspection-api` and `ideas-trove-queryable-surface` (both "now" candidates)
+- **Trove-to-roadmap promotion**: 16 items queued in execution wave (11 now-status items: 6 dogfood/trove + 3 from 2026-05-08 Spark + 2 from 2026-05-09 Spark; 5 dogfood/trove at backlog-status not yet scheduled)
+- **Next harvest**: 2026-05-09 harvest complete (2 Spark ideas promoted); next automatic harvest on next commit via `pd feedback` daemon tuple stream when available, or when `.spark/feedback/` tree is populated
 
 ---
 
@@ -99,7 +99,7 @@
 | Stale Phases | 🔴 Phase 4A/4E/4F (38–39 days) | Bun binary: design complete, no binary distribution. Windows IPC/self-test: designs complete, zero implementation commits since 2026-03-31. |
 | Coordination Guard | ✅ Enforce mode in stable | `.portdaddy/coordination-guard.json` live. Extended enforcement (SessionStart/PreToolUse/destructive-git) is #2 execution priority. |
 | Daemon Tuple Feedback | ⚠ unavailable in this shell | `pd roadmap --feedback-status open --json` / `pd feedback list --status open --json` hit `connect EPERM`. Curated queue still carries 14 items / 9 now-status entries. |
-| Unplanned Work Signal | 🟨 Healthy leak | Cartographer verification / status reconciliation (`3b9d17ce`, `e6bd1b88`, `670ab97b`) plus May 1 fleet-model/telos hardening (7 commits); docs content fill (15+ pages); relay/harbor mesh ADR; whitepaper rewrite; all adding product value outside named V4 phases. |
+| Unplanned Work Signal | 🟨 Healthy leak | Cartographer verification / status reconciliation (`f4624ebd`, `3b9d17ce`, `e6bd1b88`, `670ab97b`) plus May 1 fleet-model/telos hardening (7 commits); docs content fill (15+ pages); relay/harbor mesh ADR; whitepaper rewrite; all adding product value outside named V4 phases. |
 
 ---
 
