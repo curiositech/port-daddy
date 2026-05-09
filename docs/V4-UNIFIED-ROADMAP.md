@@ -4,7 +4,7 @@ Canonical note: this file remains valuable historical context, but the active re
 
 **Author:** Erich Owens
 **Last Updated:** 2026-05-09
-**Status:** Canonical reference document — authority for execution now lives in `docs/recovery/UNIFIED-ROADMAP.md`. Phase 0 complete, Phase 4 partially complete (Fastify ✅, Trie ✅, Binary IPC ✅, Backpressure ⚡, Bun binary stale, 4E/4F stale), Phase 3 largely done (fleet, pheromone, Fleet Live Dashboard all shipped), Phase 1 complete (graph_edges migration/schema committed in `f265fcb5` and reflected in the roadmaps by `2ad20f32`). **Recovery Track 1 CLOSED** (`8744e14`, 2026-04-06) — `cost-tracker`, `counters`, and the full `/metrics/*` observability surface are now committed and released as v3.8.3. The observability trifecta is complete. FleetBar unified with the real fleet control plane (`a41f18f`, `e82f096`) — the menu bar app now shells `fleet-config-ui` via WebView instead of maintaining a shadow dashboard. Fleet runtime readiness checks, backend fallbacks, and spawn preflight enforcement committed (`3b818d2`, `71fc446`, `0cc5e6`); `1459c0d4` tightened the claude-cli tier aliases. Cartographer roadmap-progress and feedback surfaces now exist in-tree (`7ba8d84`, `8fcf93e`, `4807cb5`, `bd4fc6f`, `eac3fc3`). Recent commits are now the Phase 1 completion/reflection/finalization/verification sequence (`f265fcb5`, `2ad20f32`, `670ab97b`, `e6bd1b88`, `3b9d17ce`), plus salvage/recovery triage (`48229e29`, `1117dda3`, `41eb63f`), unplanned website / release-surface / phone-integration work (`2a207870`, `f3c3e7f4`, `48b6c54c`, `60f72edd`), whitepaper/editorial cleanup (`e5226d1a`, `f9a422f5`, `637cecce`), docs/reference-architecture cleanup (`8a869a03`, `dc64054c`), backend readiness / telemetry cleanup (`2ee5976a`, `1459c0d4`), and an unplanned fleet-model / telos hardening burst (`ffe098fe`, `57f24644`, `4c85f3e4`, `6a610bf3`, `d3e43b3d`, `989c6972`, `2fc96f8b`). The same release window also shipped the relay-independent primitive layer (`pd tube`, Merkle chain, relay PKI, `pd-relay-zero-trust`, quorum primitives, daemon profiles, and repo-enforced Coordination Guard), so the network / release-surface story is real rather than aspirational. Phase 5 now has active relay/harbor-mesh architecture groundwork; Phase 6 has fresh telos substrate landings, and the explicit spawn-time suggestion layer remains the remaining cut. The 2026-05-07 Spider extension pass (`S17`–`S29`, plus `remaining-spaces`) extends existing quorum / pheromone / graph / budget / incident combinations rather than minting a new V4 phase. HEAD: `3b9d17ce`.
+**Status:** Canonical reference document — authority for execution now lives in `docs/recovery/UNIFIED-ROADMAP.md`. Phase 0 complete, Phase 4 partially complete (Fastify ✅, Trie ✅, Binary IPC ✅, Backpressure ⚡, Bun binary stale, 4E/4F stale), Phase 3 largely done (fleet, pheromone, Fleet Live Dashboard all shipped) with the visibility follow-ons (`daemon-introspection-api`, `crew-screen-roles-not-pids`, `fleet-health-scorecard`, `coordination-ticker-as-high-signal-feed`, `fleet-run-journal`) now the hottest mapped lane, Phase 1 complete (graph_edges migration/schema committed in `f265fcb5` and reflected in the roadmaps by `2ad20f32`). **Recovery Track 1 CLOSED** (`8744e14`, 2026-04-06) — `cost-tracker`, `counters`, and the full `/metrics/*` observability surface are now committed and released as v3.8.3. The observability trifecta is complete. FleetBar unified with the real fleet control plane (`a41f18f`, `e82f096`) — the menu bar app now shells `fleet-config-ui` via WebView instead of maintaining a shadow dashboard. Fleet runtime readiness checks, backend fallbacks, and spawn preflight enforcement committed (`3b818d2`, `71fc446`, `0cc5e6`); `1459c0d4` tightened the claude-cli tier aliases. Cartographer roadmap-progress and feedback surfaces now exist in-tree (`7ba8d84`, `8fcf93e`, `4807cb5`, `bd4fc6f`, `eac3fc3`). Recent commits are now the Phase 1 completion/reflection/finalization/verification sequence (`f265fcb5`, `2ad20f32`, `670ab97b`, `e6bd1b88`, `3b9d17ce`, `f4624ebd`), plus salvage/recovery triage (`48229e29`, `1117dda3`, `41eb63f`), unplanned website / release-surface / phone-integration work (`2a207870`, `f3c3e7f4`, `48b6c54c`, `60f72edd`), whitepaper/editorial cleanup (`e5226d1a`, `f9a422f5`, `637cecce`), docs/reference-architecture cleanup (`8a869a03`, `dc64054c`), backend readiness / telemetry cleanup (`2ee5976a`, `1459c0d4`), and an unplanned fleet-model / telos hardening burst (`ffe098fe`, `57f24644`, `4c85f3e4`, `6a610bf3`, `d3e43b3d`, `989c6972`, `2fc96f8b`). The same release window also shipped the relay-independent primitive layer (`pd tube`, Merkle chain, relay PKI, `pd-relay-zero-trust`, quorum primitives, daemon profiles, and repo-enforced Coordination Guard), so the network / release-surface story is real rather than aspirational. Phase 5 now has active relay/harbor-mesh architecture groundwork; Phase 6 has fresh telos substrate landings, and the explicit spawn-time suggestion layer remains the remaining cut. The 2026-05-07 Spider extension pass (`S17`–`S29`, plus `remaining-spaces`) extends existing quorum / pheromone / graph / budget / incident combinations rather than minting a new V4 phase. HEAD: `f4624ebd`.
 
 This document synthesizes all V4 planning documents into a single sequenced roadmap. Nothing from the original documents has been discarded — ideas that aren't yet sequenced are preserved in the Appendix.
 
@@ -98,6 +98,8 @@ Force-directed graph view in the dashboard. Heat map overlay for contested files
 
 **Deliverable:** Agents can declare, query, and subscribe to semantic relationships. The graph is the foundation for everything that follows.
 
+> **Cartographer — 2026-05-09:** `ideas-trove-queryable-surface` is the phase-1-adjacent ideas-discoverability slice: `pd ideas` plus HTTP routes expose the curated trove so Spark/Spider dedup can be enforced instead of hand-scanning markdown.
+
 ---
 
 ## Phase 2: The Economy [REQUIRES ECONOMIST — FIRST INFRASTRUCTURE COMMITTED]
@@ -159,6 +161,8 @@ pd done  →  daemon evaluates  →  credits released/forfeited
 When credits are at stake, file claims can be enforced (not just advisory). This is $I_1^+$ from the Bonded Commons paper — advisory stays the default, enforcement is opt-in for bonded work.
 
 **Deliverable:** Agents enter binding work agreements. Work is declared, collateralized, and settled against evidence. The economy runs on internal credits with reputation-based pricing.
+
+> **Cartographer — 2026-05-09:** `quorum-driven-dynamic-launch` is the current Phase 2 follow-on: the quorum primitive is shipped in `cea02e1`; the remaining cut is auto-spawn routing for declared spawnable-on-quorum roles.
 
 ---
 
@@ -224,7 +228,7 @@ Visual fleet management, watch hooks with message history, spawn agent form, fle
 >
 > **Cartographer — 2026-04-05 (update):** The Fleet Config UI now has a backend. Uncommitted changes to `routes/fleet.ts` add 4 new endpoints: `GET /fleet/config/:project`, `PUT /fleet/config/:project`, `GET /fleet/prompt` (shell integration), `GET /fleet/models` (backend catalog). These are wired through `routes/index.ts` and registered in `features.manifest.json`. The fleet-config-ui itself is being actively refactored — `AgentRadioCard` → `AgentCard`, `ChannelFlowGraph` → `FlowGraph` (component renames in uncommitted changes, net -554 lines from the React app — slimming down). The full loop — read config → edit in UI → write back → fleet reloads — is achievable once committed.
 >
-> **Cartographer — 2026-05-08:** The raw Spark `fleet-health-scorecard` idea is the next Phase 3 visibility slice: one panel that condenses role health, uptime, cost burn, queue depth, and recent violations into a single operator view. It belongs with the shipped fleet-config-ui / FleetBar surfaces rather than in the network or coaching lanes.
+> **Cartographer — 2026-05-09:** The Phase 3 visibility cluster now spans `daemon-introspection-api`, `crew-screen-roles-not-pids`, `fleet-health-scorecard`, `coordination-ticker-as-high-signal-feed`, and `fleet-run-journal`: one panel/view for daemon pressure, role health, cost burn, queue depth, violations, and fleet history. It belongs with the shipped fleet-config-ui / FleetBar surfaces rather than in the network or coaching lanes.
 
 **Deliverable:** Agents run continuously, learn across sessions, and are managed declaratively.
 
@@ -262,6 +266,8 @@ Socket-level backpressure when SQLite WAL commits lag. Forces agents to pause ra
 
 > **Cartographer — 2026-03-31:** IPC write-queue + drain event backpressure shipped (`3b81580`). When write queue exceeds threshold, new writes pause until the socket drains — this prevents agent output from bloating daemon RAM when the client is slow. The roadmap item specified "SQLite WAL commits lag" as the trigger — that specific coupling is not yet implemented. HTTP-level backpressure has zero commits. Partial credit: the IPC path (which is the hot path for high-frequency agents) is protected.
 
+> **Cartographer — 2026-05-09:** `ipc-disconnect-instant-salvage` is the now cut here: IPC disconnect should trigger immediate salvage instead of waiting for the 10–20 minute stale window.
+
 ### 4E. `pd self-test --adversarial` [STALE — no commits since 2026-03-31] [STALE — no commits since 2026-03-31]
 
 Ships with the daemon. Runs the chaos test suite from V4-TEST-SUITE.md against the live instance. Outputs a "Nautical Seaworthiness Report."
@@ -289,6 +295,8 @@ A lighthouse is a daemon that advertises its harbors to the network.
 - **Layer 1 (Local):** mDNS/Bonjour for zero-config tandem coding on LAN
 - **Layer 2 (Relay):** `lighthouse.portdaddy.dev` for remote teams
 - **Layer 3 (Public):** Marketplace for GPU compute and specialist agent bidding
+
+> **Cartographer — 2026-05-09:** `capability-discovery-dns-harbor` is the current curated cut here: turn existing DNS + harbor capability data into actual agent discovery.
 
 ### 5B. Cross-Daemon Harbor Tokens
 
@@ -414,7 +422,7 @@ From `v4_thoughts.md`: Run TLC on the BondedCommons spec with concrete parameter
 
 | Shipped | Commit | Why It Happened |
 |---------|--------|-----------------|
-| Cartographer verification pass / status reconciliation | `3b9d17ce`, `e6bd1b88`, `670ab97b` | Map refresh and queue reconciliation, not a product phase. Keeps the roadmap honest against the live shell and current HEAD. |
+| Cartographer verification pass / status reconciliation | `f4624ebd`, `3b9d17ce`, `e6bd1b88`, `670ab97b` | Map refresh and queue reconciliation, not a product phase. Keeps the roadmap honest against the live shell and current HEAD. |
 | `pd dev start/stop/status` — isolated dev daemon alongside stable | `790cdb2`, `3164375` | Needed to iterate without breaking the running stable daemon. Dev workflow gap exposed by the stable branch model. |
 | Security audit — 4 CRITICAL/HIGH/MEDIUM/LOW RCE fixes | `433d3eb`, `871a559`, `52b13d7`, `ff191b1` | Security audit found command injection in spawner, DNS rebinding, path traversal, and shell injection. Urgent. |
 | Website neumorphic design system overhaul | many commits 2026-03-25–26 | Design debt. The website had fictional content and inconsistent styling. Full CVA token system + Harbor Heritage palette. |
