@@ -1,6 +1,6 @@
 # Ideas Trove
 
-Last updated: 2026-05-07 (Cartographer comprehensive pass — no new ideas from source inspection)
+Last updated: 2026-05-08 (Cartographer comprehensive pass — telos/model-selection and fleet-health-scorecard promoted from raw Spark; tuple-namespace-hierarchies folded into tuple-driven-fleet)
 
 This is the canonical ideation index and curated backlog for Port Daddy.
 
@@ -25,7 +25,15 @@ allowed to multiply duplicate backlog items forever.
 - 2026-05-07 Spider extension pass
   - `.spider/connections/2026-05-07-connections.md`
   - `.spider/connections/2026-05-07-connections-extended.md`
+  - `.spider/connections/2026-05-07-connections-s24-s26.md`
+  - `.spider/connections/2026-05-07-connections-final.md`
+  - `.spider/connections/2026-05-07-remaining-spaces.md`
   - extended the existing quorum / pheromone / graph / budget / incident families without minting a new standalone backlog slug from raw Spider exhaust
+- 2026-05-08 Spark idea pass
+  - `.spark/ideas/2026-05-08-fleet-health-scorecard.md`
+  - `.spark/ideas/2026-05-08-telos-driven-model-selection.md`
+  - `.spark/ideas/2026-05-08-tuple-namespace-hierarchies.md`
+  - promoted `fleet-health-scorecard` as a new backlog slug and treated `tuple-namespace-hierarchies` as an extension of `tuple-driven-fleet`
 
 Status meanings used here:
 
@@ -110,6 +118,25 @@ runtime cuts.
   - operator question 2026-04-26 ("These roles, like promotion
     coordinator, can they be visible at a high level on the first
     project screen?")
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove`
+
+### `fleet-health-scorecard`
+
+- status: `now`
+- why it matters:
+  - operators need one view that answers "is the swarm healthy?" without
+    hopping between role status, cost, tuples, and violations
+  - it extends the Phase 3 dashboard work into a real incident-response
+    scorecard
+- next cut:
+  - add a Fleet Health Scorecard panel that aggregates role health,
+    uptime, cost burn, queue depth, and recent violations
+  - source it from fleet roles, heartbeat / restart data, recent cost
+    metrics, tuple queue depth, and recent violations
+  - keep the first slice observational only; no auto-remediation
+- provenance:
+  - `.spark/ideas/2026-05-08-fleet-health-scorecard.md`
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove`
 
 ### `coordination-ticker-as-high-signal-feed`
 
@@ -132,6 +159,7 @@ runtime cuts.
 - provenance:
   - operator question 2026-04-26 ("The agent group chat being a
     high-signal ticker?")
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove`
 
 ### `quorum-driven-dynamic-launch`
 
@@ -161,6 +189,20 @@ runtime cuts.
 - provenance:
   - operator question 2026-04-26 ("Can port-daddy launch these
     things dynamically when a quorum of agents agree on need?")
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove`
+
+### `telos-driven-model-selection`
+
+- status: `now`
+- why it matters:
+  - the telos contract and shared backend resolver are already in tree, so the remaining friction is making spawn-time model choice explicit instead of manual
+  - operators should not have to remember which roles are best served by Haiku, Sonnet, or Opus
+- next cut:
+  - surface a telos-driven model suggestion in `pd spawn`, FleetBar, and Fleet Control Center
+  - keep the live model catalog and backend resolver as the source of truth, with explicit overrides
+- provenance:
+  - `.spark/ideas/2026-05-08-telos-driven-model-selection.md`
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove`
 
 ### `capability-discovery-dns-harbor`
 
@@ -173,6 +215,7 @@ runtime cuts.
   - prove it against current DNS + harbor tables, not whitepaper aspiration
 - provenance:
   - `.spark/ideas/spider-capability-discovery-dns-harbor.md`
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove`
 
 ### `fleet-run-journal`
 
@@ -186,6 +229,24 @@ runtime cuts.
 - provenance:
   - `.spark/ideas/spider-fleet-run-journal.md`
   - `.spark/ideas/2026-04-06-fleet-run-persistence.md`
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove`
+
+### `salvage-root-cause-classifier`
+
+- status: `now`
+- why it matters:
+  - Salvage records log *that* agents failed, not *why* they failed
+  - Operators need to distinguish timeout (increase deadline) from OOM (reduce parallelism) from permission errors (audit IAM)
+  - Complements `forensic-context-windows` (timeline context) with reason classification
+- next cut:
+  - New `root_cause_classify()` function in `lib/salvage.ts` with heuristic parsing (stderr, exit codes, signals)
+  - New `/salvage/:id/root-cause` API endpoint returning enum: `timeout | oom | permission | network | logic_error | crash | unknown`
+  - Dashboard badges + aggregate view in Salvage panel
+  - ~80 LOC, one-session achievable
+- provenance:
+  - `.spark/ideas/2026-05-08-salvage-root-cause-classifier.md`
+  - `.spark/ideas/2026-05-08-salvage-root-cause-promotion.md` (Spark meta-review)
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove`
 
 ### `forensic-context-windows`
 
@@ -198,6 +259,7 @@ runtime cuts.
   - keep it cheap and synchronous enough for enforcement paths
 - provenance:
   - `.spark/ideas/spider-forensic-context-windows.md`
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove`
 
 ### `ipc-disconnect-instant-salvage`
 
@@ -212,6 +274,7 @@ runtime cuts.
   - `.spark/ideas/2026-04-05-spider-ipc-disconnect-instant-salvage.md`
   - `.spark/ideas/spider-ipc-disconnect-instant-salvage-and-implicit-heartbeat.md`
   - `.spark/ideas/spider-2026-04-05-ipc-native-liveness.md`
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove`
 
 ### `tuple-driven-fleet`
 
@@ -222,9 +285,13 @@ runtime cuts.
 - next cut:
   - add tuple-triggered fleet agents
   - then add IPC tuple fast path so the coordination path is not HTTP-bound
+  - the raw `tuple-namespace-hierarchies` extension points at namespace-
+    scoped queries and wildcard listeners for role-scoped work
 - provenance:
   - `.spark/ideas/spider-tuple-triggered-fleet-agents.md`
   - `.spark/ideas/spider-ipc-tuple-fast-path.md`
+  - `.spark/ideas/2026-05-08-tuple-namespace-hierarchies.md`
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove`
 
 ### Recommended First Two Builds
 

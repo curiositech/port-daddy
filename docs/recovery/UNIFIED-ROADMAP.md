@@ -1,6 +1,6 @@
 # Unified Recovery Roadmap
 
-Last updated: 2026-04-11
+Last updated: 2026-05-08 (Cartographer pass — Phase 1 closure, Phase 3 visibility, Phase 6 telos suggestion)
 
 This is the single execution-order roadmap for the active Port Daddy recovery and consolidation effort.
 
@@ -120,6 +120,7 @@ Immediate ships:
 - keep real channel logs alive
 - make Flow, YAML, inbox, and sortie surfaces deep-linkable from the native companion
 - restore stronger story, causality, and suggestion affordances
+- surface `fleet-health-scorecard` as the one-glance swarm health panel in the same fleet UI shell
 - merge the best of `public/fleet-live.html` and `public/fleet-config.html` into `fleet-config-ui`
 - turn `SortiePanel` into a mission workspace, not just a raw launch form
 
@@ -169,19 +170,22 @@ Why now:
 - substantial dormant code is already waiting on this
 - symbol index, merge queue, and orchestrator-adjacent work will keep drifting until the table exists
 
-Immediate ships:
-- add the `graph_edges` migration
-- wire it into symbol indexing and merge orchestration
-- start making graph-aware coordination real instead of archival
-- after the current locks / tuples tranche, upgrade session/file claims from line-range overlap to Tree-sitter symbol-backed identity where symbol data exists
-- keep line spans only as fallback and display data, not the durable semantic authority for indexed code
+Status:
+- closed on 2026-05-07 after `f265fcb5` landed the `graph_edges` migration/schema slice and `2ad20f32` reflected it in the roadmaps
+
+What landed:
+- the `graph_edges` migration landed
+- it was wired into symbol indexing and merge orchestration
+- graph-aware coordination started becoming real instead of archival
+- after the current locks / tuples tranche, session/file claims can upgrade from line-range overlap to Tree-sitter symbol-backed identity where symbol data exists
+- line spans remain only as fallback and display data, not the durable semantic authority for indexed code
 
 Representative idea pressure:
 - graph-centric watch
 - stigmergic merging
 - semantic synonym registry
 
-Done when:
+Outcome:
 - graph-backed coordination features can ship against one shared edge table
 - symbolic claims, graph edges, memory attribution, and control-plane visualizations agree on what code region an agent actually owns
 

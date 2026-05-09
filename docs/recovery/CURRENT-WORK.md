@@ -1,23 +1,32 @@
 # Current Recovery Work
 
-Last updated: 2026-05-07
-Owner: Codex working session → Cartographer pass completion
+Last updated: 2026-05-08 (Cartographer comprehensive pass — no .spark/feedback/ tree present; daemon EPERM; execution wave verified)
+Owner: Cartographer maintenance pass + daemon feedback projection (unavailable on this checkout)
+Authority: git log (15.3/day, 107 commits trailing 7d) > committed code > V4-UNIFIED-ROADMAP.md
 
 This is the active execution ledger. If a task is in flight, it belongs here before it belongs in chat.
 
-## Cartographer Snapshot (2026-05-07 Refresh)
+## Cartographer Snapshot (2026-05-08 Comprehensive Pass)
 
-- Current phase: Recovery Track dominates; within V4, Phase 3 is the hottest mapped phase, but the freshest commit burst is mostly salvage/recovery triage, website / release-surface / phone-integration work, whitepaper/editorial cleanup, relay architecture, plus maritime actor / launchability hardening and backend readiness / claude-cli alias cleanup.
-- Velocity: 135 commits in the last 7 days = 19.3/day.
-- Closest to completion:
-  - `claim-preserving-git-safety`
-  - `fleet-launchability-and-cadence`
-  - `coordination-guard-extended-enforcement`
-- Blocked or drifting:
-  - Phase 5 network / remote harbors
-  - Phase 6 connectors / coaching
-  - Phase 4E `pd self-test --adversarial` / 4F Windows IPC
-- Open dogfood now: 2 slugs (`claim-preserving-git-safety`, `fleet-launchability-and-cadence`)
+- **Current phase**: Phase 1 COMPLETE (verified 2026-05-07 `f265fcb5`, reflection `2ad20f32` 2026-05-08). Within V4 phases, Phase 3A COMPLETE, Phase 2 INFRA READY, Phase 5 ARCHITECTURE ACTIVE, Phase 6 ACTIVE (telos substrate landed; suggestion layer open). Phase 4A/4E/4F STALE (38–40 days, no commits).
+- **Velocity**: 107 commits in last 7 days = **15.3/day** (stable post-May-1 burst). May 1–2 burst: 7 fleet-model/telos commits + 15+ docs content pages + cost-tracker work.
+- **Unplanned work** (signal of where energy actually goes): May 1 fleet-model / telos hardening (`ffe098fe` through `2fc96f8b`); docs content fill (15+ new leaf pages in `/docs/concepts`, `/docs/best-practices`); relay/harbor mesh ADR (`60f72edd`, `48b6c54c`); whitepaper rewrite v2.5 (`e5226d1a`, `f9a422f5`, `637cecce`); Phase 1 completion (`f265fcb5`, `2ad20f32`).
+- **Closest to completion** (9 execution-ready items):
+  1. `claim-preserving-git-safety` (dogfood)
+  2. `coordination-guard-extended-enforcement` (trove)
+  3. `fleet-launchability-and-cadence` (dogfood)
+  4. `crew-screen-roles-not-pids` (trove)
+  5. `fleet-health-scorecard` (trove)
+  6. `coordination-ticker-as-high-signal-feed` (trove)
+  7. `quorum-driven-dynamic-launch` (trove)
+  8. `ipc-disconnect-instant-salvage` (trove)
+  9. `telos-driven-model-selection` (trove)
+- **Blocked or drifting**:
+  - Phase 2 economy: economist (Thomas Youle) — no follow-up since 2026-03-30 (39 days idle)
+  - Phase 4A Bun binary: design complete, no shipped binary (2026-04-01 → 2026-05-08, 37 days)
+  - Phase 4E `pd self-test --adversarial`: design complete, zero commits (2026-03-31 → 2026-05-08, 38 days)
+  - Phase 4F Windows IPC hardening: design complete, zero commits (2026-03-31 → 2026-05-08, 38 days)
+- **Feedback harvest status**: No .spark/feedback/ tree on this checkout; daemon EPERM prevents tuple-backed feedback projection. Next harvest pending local Spark/feedback output.
 
 ## Active Side Thread
 
@@ -93,6 +102,12 @@ The `agentsd.ai` public-site reset is now explicit repo work, not chat residue.
 
 ## Current Thread
 
+- 2026-05-08 fleet-health-scorecard:
+  - raw Spark idea promoted into `IDEAS-TROVE.md` and `docs/ROADMAP.md`
+  - new Phase 3 dashboard follow-on for role health, cost burn, queue depth,
+    and recent violations
+  - `tuple-namespace-hierarchies` extends `tuple-driven-fleet` instead of
+    minting a duplicate family
 - 2026-04-29 app-native development cockpit sketch:
   - New product sketch at `docs/shipwright/APP-NATIVE-DEVELOPMENT-COCKPIT.md`.
   - It ties roadmap intake, Idea Lab/Trove curation, Windags skill-grafted planning, Coordination Guard, multi-backend launches, worktree collapse, editor claim overlays, HITL decisions, Tube, and day-over-day progress logs into one Fleet Control Center cockpit.
@@ -110,12 +125,13 @@ The `agentsd.ai` public-site reset is now explicit repo work, not chat residue.
   - `cartographer-roadmap-progress-screen` is now shipped via `7ba8d84`, `8fcf93e`, `4807cb5`, and `bd4fc6f`.
   - Closeout commits now pushed on `codex/agents-flow-guard-readable-ids`: `5f01294` (Agents pages + readable IDs), `eac3fc3` (live roadmap feedback), `4dba2a3` (Port Daddy agent skill bundle), and `629de64` (website content/proof media + FleetBar preview package metadata).
 - 2026-05-07 follow-up:
-  - `pd feedback list --status open --json` still fails on this daemon (`connect EPERM`), so the raw `.spark/feedback/` harvest remained the fallback source of truth for this pass.
-  - No new dogfood slugs were minted; the raw drops were already represented in `DOGFOOD-FEEDBACK.md` or `IDEAS-TROVE.md`.
+  - `pd feedback list --status open --json` still fails on this daemon (`connect EPERM`), and this checkout does not contain a `.spark/feedback/` tree, so there were no markdown drops to mint or dedupe.
+  - No new dogfood slugs were minted; there was no `.spark/feedback/` tree to curate on this checkout.
+  - `f265fcb5` landed the `graph_edges` migration/schema slice and `2ad20f32` reflected it in the roadmaps, so `graph_edges migration` moved out of the close queue.
   - `50fe92ff` shipped the slot-scoped session-context hardening; `session-context-cwd-reset` was demoted out of the `now` bucket and the remaining follow-up is docs/help alignment.
-  - `9e7d458` landed after the previous pass; the latest burst is maritime-layer hardening, website/release polish, whitepaper/editorial cleanup, relay architecture, and examples/navigation cleanup, so those commits are recorded as unplanned work below.
-  - `pd status` reports Port Daddy running in this checkout, but tuple-backed feedback projection was unavailable because both `pd roadmap --feedback-status open --json` and `pd feedback list --status open --json` hit `connect EPERM` on `~/.port-daddy/daemon.sock`; direct `.spark/feedback/` inspection found no markdown drops, only `.DS_Store`, so there were no new dogfood slugs to mint or dedupe.
-  - The 2026-05-07 Spider extension pass (S17-S23) extends existing quorum / pheromone / graph / budget / incident families rather than minting a new backlog slug.
+  - `9e7d458` remains in the earlier maritime-layer unplanned bucket below; the newest burst is the salvage / release-surface / whitepaper / docs cleanup cluster above, so those commits are recorded as unplanned work below.
+  - `pd status` reports Port Daddy running in this checkout, but tuple-backed feedback projection was unavailable because both `pd roadmap --feedback-status open --json` and `pd feedback list --status open --json` hit `connect EPERM` on `~/.port-daddy/daemon.sock`; there were no raw markdown drops to inspect because the checkout lacks `.spark/feedback/`.
+  - The 2026-05-07 Spider extension pass (S17-S29, plus `remaining-spaces`) extends existing quorum / pheromone / graph / budget / incident families rather than minting a new backlog slug.
 
 ## Historical Recovery Radar (2026-04-28)
 
@@ -1098,6 +1114,12 @@ This is the normalized remaining-slice inventory as of 2026-04-24. It supersedes
      gates before the operator has to inspect raw JSON
    - keep cartographer cadence visible so a "healthy" fleet cannot hide
      the reason nothing actually ran
+10. Surface telos-driven model suggestions at spawn time:
+   - derive the hint from durable telos, the live backend resolver, and
+     the fleet model catalog
+   - keep the suggestion explicit and overridable; never hide the
+     actual backend the operator selected
+   - surface the hint in `pd spawn`, FleetBar, and Fleet Control Center
 
 ### H. Harbormaster: Promotion, Distribution, Daemon Freshness, And Runtime Truth
 

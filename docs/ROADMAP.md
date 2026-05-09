@@ -54,6 +54,10 @@ appropriate phase section below and delete it here.
 - **`crew-screen-roles-not-pids`** — Dashboard currently shows
   agents-by-PID; operators think in *roles*. New Crew panel: each
   fleet role with last-run / last-cost / currently-doing / blocked.
+- **`fleet-health-scorecard`** — Operators still have to stitch role
+  health, cost burn, queue depth, and recent violations together by
+  hand. Add one Fleet Health Scorecard panel that answers "is the
+  swarm healthy?" in a single glance.
 - **`coordination-ticker-as-high-signal-feed`** — Surface
   `coordination:inconsistency` as a live ticker on the dashboard with
   severity coloring. The channel exists; the panel doesn't.
@@ -72,12 +76,18 @@ appropriate phase section below and delete it here.
   still blocked by cadence routing, slug drift, and the wallet /
   telemetry wall; surface `launchable` vs `blocked` truth in `pd
   status` and spawn/preflight output.
+- **`salvage-root-cause-classifier`** — Salvage records log *that* agents
+  failed, not *why*. Add classification by root cause (timeout, OOM,
+  permission, network, logic error) to help operators distinguish tuning
+  from audit from redesign.
 - **`telos-driven-model-selection`** — The telos contract and shared
   backend resolver already exist; the next cut is an explicit spawn-time
   suggestion layer that recommends a model from durable telos without
   hiding overrides.
 - **`tuple-driven-fleet`** — Tuple-triggered fleet agents, then IPC tuple
   fast path. Most direct path from "fleet" to actual swarm task routing.
+  The raw `tuple-namespace-hierarchies` extension points at
+  namespace-scoped queries and wildcard listeners for role-scoped work.
 - **`capability-discovery-dns-harbor`** — Turn existing DNS + harbor
   capability data into real agent discovery; remove hard-coded peer
   naming from delegation paths.

@@ -1,28 +1,29 @@
 # Dogfood Feedback — Curated Harvest
 
-Last updated: 2026-05-07 (Cartographer comprehensive pass)
+Last updated: 2026-05-08 (Cartographer comprehensive pass)
 
 This file is the curated harvest of agent dogfooding feedback for Port Daddy.
 
 ## Authority and status
 
-- Raw drops live in `.spark/feedback/` (one file per session-level observation).
+- Raw drops live in `.spark/feedback/` when that tree is present (one file per session-level observation).
 - This file is the **deduped, curated** index. It is the surface that feeds
   `docs/ROADMAP.md` and `docs/recovery/CURRENT-WORK.md`.
 - `IDEAS-TROVE.md` is the parallel surface for Spark/Spider exhaust. The two
   feed the same roadmap; they should not duplicate each other.
 - The daemon-mediated `pd feedback list --status open --json` surface was
   unavailable on this pass (`connect EPERM` on `~/.port-daddy/daemon.sock`),
-  so the raw `.spark/feedback/` harvest was the source of truth here.
+  and this checkout did not contain a `.spark/feedback/` tree, so there was
+  nothing to harvest directly.
 - 2026-04-29 pass: no new dogfood slugs were minted. The raw drops were
   already represented here or in `IDEAS-TROVE.md`, so this was a dedupe pass
   rather than a minting pass.
-- 2026-05-07 pass: `pd status` still reported Port Daddy running in this
+- 2026-05-08 pass: `pd status` still reported Port Daddy running in this
   checkout, but the tuple-backed feedback projection was unavailable because
   both `pd roadmap --feedback-status open --json` and `pd feedback list
   --status open --json` hit `connect EPERM` on `~/.port-daddy/daemon.sock`;
-  direct `.spark/feedback/` inspection found no markdown drops, only
-  `.DS_Store`, so there were no new dogfood slugs to mint or dedupe.
+  this checkout did not contain a `.spark/feedback/` tree, so there were no
+  markdown drops to mint or dedupe.
 
 Status meanings:
 
