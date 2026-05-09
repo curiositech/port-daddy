@@ -314,6 +314,19 @@ ambiguous handoffs, and local green checks that do not match the installed app.
 
 - If `pd status` is green but the browser or FleetBar is stale, suspect install
   root or daemon freshness before rewriting source.
+- Daemon installation is binary-first. `pd start`, `pd daemon start`, and
+  `pd install` should launch `dist/daemon/port-daddy-daemon` when present;
+  source-backed `tsx server.ts` is a development-only fallback gated by
+  `PORT_DADDY_ALLOW_SOURCE_DAEMON=1`.
+- Single-binary builds use `npm run build:bin` and emit `dist/port-daddy`.
+  That executable carries CLI dispatch, the MCP stdio server, and a hidden
+  `__daemon` entrypoint without a `tsx` subprocess. The build embeds Fleet UI
+  and public samples into the executable through a generated asset table, then
+  smoke-tests daemon health plus `/samples/manifest.json` and
+  `/fleet-ui/index.html` with an empty `PORT_DADDY_RESOURCE_DIR`.
+- Public tutorial samples are served from the generated `/samples/manifest.json`
+  bundle. Rebuild it with `npm run build:public-samples` before claiming a
+  binary install can serve promised example code.
 - If a file looks unclaimed but a recent note says someone owns that surface,
   trust the coordination story enough to inspect before editing.
 - If your fix needs a phrase like "probably unrelated," separate it from the

@@ -293,7 +293,7 @@ export async function handleVersion(): Promise<void> {
     const pkgFallback: string = join(libDir, 'package.json');
     const ver: string = existsSync(pkgFallback)
       ? (JSON.parse(readFileSync(pkgFallback, 'utf8')) as { version: string }).version
-      : 'unknown';
+      : process.env.PORT_DADDY_PACKAGE_VERSION || 'unknown';
     console.log(`Port Daddy v${ver} (server not running)`);
   }
 }
