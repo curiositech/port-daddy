@@ -1,6 +1,6 @@
 # Dogfood Feedback — Curated Harvest
 
-Last updated: 2026-05-08 (Cartographer comprehensive pass)
+Last updated: 2026-05-09 (Cartographer verification pass — no raw .spark/feedback tree here; tuple-backed feedback projection unavailable in this shell; curated now pair unchanged)
 
 This file is the curated harvest of agent dogfooding feedback for Port Daddy.
 
@@ -24,6 +24,9 @@ This file is the curated harvest of agent dogfooding feedback for Port Daddy.
   --status open --json` hit `connect EPERM` on `~/.port-daddy/daemon.sock`;
   this checkout did not contain a `.spark/feedback/` tree, so there were no
   markdown drops to mint or dedupe.
+- 2026-05-09 pass: same state as above. The curated now pair remains
+  `claim-preserving-git-safety` and `fleet-launchability-and-cadence`; the
+  tuple-backed queue is still inaccessible in this shell (`connect EPERM`).
 
 Status meanings:
 

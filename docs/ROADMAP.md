@@ -1,6 +1,6 @@
 # Port Daddy Roadmap & Future Ideas
 
-**Last updated:** 2026-05-08 (Cartographer comprehensive pass — source verification complete)
+**Last updated:** 2026-05-09 (Cartographer verification pass — source verification complete; curated now dogfood pair still `claim-preserving-git-safety` and `fleet-launchability-and-cadence`)
 
 This document captures the ambitious, industry-defining vision for Port Daddy as the definitive "Agentic OS" Control Plane. It outlines "things for later" and serves as a living synthesis of conceptual ideas.
 
@@ -28,6 +28,8 @@ On this checkout, both `pd roadmap --feedback-status open --json` and
 `pd feedback list --status open --json` return `connect EPERM` against
 `~/.port-daddy/daemon.sock`, and this checkout does not contain a
 `.spark/feedback/` tree, so the curated harvest stayed unchanged this pass.
+The current now-status dogfood pair remains `claim-preserving-git-safety`
+and `fleet-launchability-and-cadence`.
 
 The cartographer roadmap-progress screen and central feedback pipe are
 already shipped, so the "Next Cuts" list below is the remaining backlog
@@ -61,9 +63,10 @@ appropriate phase section below and delete it here.
 - **`coordination-ticker-as-high-signal-feed`** — Surface
   `coordination:inconsistency` as a live ticker on the dashboard with
   severity coloring. The channel exists; the panel doesn't.
-- **`quorum-driven-dynamic-launch`** — Tuple-backed proposal/vote
-  primitive (`lib/quorum.ts` + 4 endpoints). Phase 2: auto-spawn
-  declared spawnable-on-quorum roles when threshold hits.
+- **`quorum-driven-dynamic-launch`** — Phase 1 tuple-backed
+  proposal/vote primitive (`lib/quorum.ts` + 4 endpoints) shipped in
+  `cea02e1`; Phase 2 remains the auto-spawn of declared
+  spawnable-on-quorum roles when threshold hits.
 - **`ipc-disconnect-instant-salvage`** — IPC drop is already a death
   signal; treat IPC activity as implicit heartbeat and trigger immediate
   salvage on disconnect instead of the 10–20 minute stale window.

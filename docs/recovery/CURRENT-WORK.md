@@ -1,16 +1,16 @@
 # Current Recovery Work
 
-Last updated: 2026-05-08 (Cartographer comprehensive pass — no .spark/feedback/ tree present; daemon EPERM; execution wave verified)
-Owner: Cartographer maintenance pass + daemon feedback projection (unavailable on this checkout)
-Authority: git log (15.3/day, 107 commits trailing 7d) > committed code > V4-UNIFIED-ROADMAP.md
+Last updated: 2026-05-09 14:22 UTC (Cartographer verification pass — Phase 1 locked; 2 now-status dogfood items unchanged; daemon tuple projection unavailable in this shell; execution wave verified)
+Owner: Cartographer maintenance pass + curated dogfood queue (2 now-status items); daemon feedback projection unavailable on this checkout
+Authority: git log (12.6/day, 88 commits trailing 7d) > committed code > V4-UNIFIED-ROADMAP.md
 
 This is the active execution ledger. If a task is in flight, it belongs here before it belongs in chat.
 
-## Cartographer Snapshot (2026-05-08 Comprehensive Pass)
+## Cartographer Snapshot (2026-05-09 Verification Pass)
 
-- **Current phase**: Phase 1 COMPLETE (verified 2026-05-07 `f265fcb5`, reflection `2ad20f32` 2026-05-08). Within V4 phases, Phase 3A COMPLETE, Phase 2 INFRA READY, Phase 5 ARCHITECTURE ACTIVE, Phase 6 ACTIVE (telos substrate landed; suggestion layer open). Phase 4A/4E/4F STALE (38–40 days, no commits).
-- **Velocity**: 107 commits in last 7 days = **15.3/day** (stable post-May-1 burst). May 1–2 burst: 7 fleet-model/telos commits + 15+ docs content pages + cost-tracker work.
-- **Unplanned work** (signal of where energy actually goes): May 1 fleet-model / telos hardening (`ffe098fe` through `2fc96f8b`); docs content fill (15+ new leaf pages in `/docs/concepts`, `/docs/best-practices`); relay/harbor mesh ADR (`60f72edd`, `48b6c54c`); whitepaper rewrite v2.5 (`e5226d1a`, `f9a422f5`, `637cecce`); Phase 1 completion (`f265fcb5`, `2ad20f32`).
+- **Current phase**: Phase 1 COMPLETE (verified 2026-05-07 `f265fcb5`, reflection `2ad20f32` 2026-05-08). Within V4 phases, Phase 3A COMPLETE, Phase 2 INFRA READY, Phase 5 ARCHITECTURE ACTIVE (hottest mapped phase), Phase 6 ACTIVE (telos substrate landed; suggestion layer open). Phase 4A/4E/4F STALE (38–39 days, no commits).
+- **Velocity**: 88 commits in last 7 days = **12.6/day** (still post-May-1 heavy, but lower than the earlier 107-commit window). May 1–2 burst: 7 fleet-model/telos commits + 15+ docs content pages + cost-tracker work.
+- **Unplanned work** (signal of where energy actually goes): Cartographer verification / status reconciliation (`3b9d17ce`, `e6bd1b88`, `670ab97b`); May 1 fleet-model / telos hardening (`ffe098fe` through `2fc96f8b`); docs content fill (15+ new leaf pages in `/docs/concepts`, `/docs/best-practices`); relay/harbor mesh ADR (`60f72edd`, `48b6c54c`); whitepaper rewrite v2.5 (`e5226d1a`, `f9a422f5`, `637cecce`); Phase 1 completion (`f265fcb5`, `2ad20f32`).
 - **Closest to completion** (9 execution-ready items):
   1. `claim-preserving-git-safety` (dogfood)
   2. `coordination-guard-extended-enforcement` (trove)
@@ -18,15 +18,15 @@ This is the active execution ledger. If a task is in flight, it belongs here bef
   4. `crew-screen-roles-not-pids` (trove)
   5. `fleet-health-scorecard` (trove)
   6. `coordination-ticker-as-high-signal-feed` (trove)
-  7. `quorum-driven-dynamic-launch` (trove)
+  7. `quorum-driven-dynamic-launch` (trove; Phase 1 shipped in `cea02e1`, Phase 2 auto-spawn remains)
   8. `ipc-disconnect-instant-salvage` (trove)
   9. `telos-driven-model-selection` (trove)
 - **Blocked or drifting**:
-  - Phase 2 economy: economist (Thomas Youle) — no follow-up since 2026-03-30 (39 days idle)
-  - Phase 4A Bun binary: design complete, no shipped binary (2026-04-01 → 2026-05-08, 37 days)
-  - Phase 4E `pd self-test --adversarial`: design complete, zero commits (2026-03-31 → 2026-05-08, 38 days)
-  - Phase 4F Windows IPC hardening: design complete, zero commits (2026-03-31 → 2026-05-08, 38 days)
-- **Feedback harvest status**: No .spark/feedback/ tree on this checkout; daemon EPERM prevents tuple-backed feedback projection. Next harvest pending local Spark/feedback output.
+  - Phase 2 economy: economist (Thomas Youle) — no follow-up since 2026-03-30 (40 days idle)
+  - Phase 4A Bun binary: design complete, no shipped binary (2026-04-01 → 2026-05-09, 38 days)
+  - Phase 4E `pd self-test --adversarial`: design complete, zero commits (2026-03-31 → 2026-05-09, 39 days)
+  - Phase 4F Windows IPC hardening: design complete, zero commits (2026-03-31 → 2026-05-09, 39 days)
+- **Feedback harvest status**: 2 open dogfood now-items remain curated here (`claim-preserving-git-safety`, `fleet-launchability-and-cadence`); `pd roadmap` / `pd feedback list` still return EPERM in this shell and no `.spark/feedback/` tree is present, so the raw harvest remains pending.
 
 ## Active Side Thread
 

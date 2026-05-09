@@ -1,6 +1,6 @@
 # Ideas Trove
 
-Last updated: 2026-05-08 (Cartographer comprehensive pass — telos/model-selection and fleet-health-scorecard promoted from raw Spark; tuple-namespace-hierarchies folded into tuple-driven-fleet)
+Last updated: 2026-05-09 (Cartographer comprehensive pass — telos/model-selection and fleet-health-scorecard promoted from raw Spark; tuple-namespace-hierarchies folded into tuple-driven-fleet; quorum primitive status refreshed)
 
 This is the canonical ideation index and curated backlog for Port Daddy.
 
@@ -163,14 +163,14 @@ runtime cuts.
 
 ### `quorum-driven-dynamic-launch`
 
-- status: `now` (Phase 1: primitive); `backlog` (Phase 2: auto-spawn)
+- status: `now` (Phase 2: auto-spawn); Phase 1 primitive shipped in `cea02e1`
 - why it matters:
   - difference between "fleet of cron jobs" and "actual swarm" is
     that swarms can decide *what they need* and *spawn it*
   - the primitives are mostly here (tuples, `pd actor`, `pd say
-    --broadcast`, harbor-scoped voting) — what's missing is a
-    composable quorum proposal/vote object
-- next cut (Phase 1 — primitive):
+    --broadcast`, harbor-scoped voting) — the proposal/vote object
+    shipped in `cea02e1`; the remaining cut is auto-spawn routing
+- next cut (Phase 1 — primitive, shipped in `cea02e1`):
   - new module `lib/quorum.ts`: tuple-backed proposals
     `['quorum:proposal', proposalId, { role, reason, threshold,
       proposedBy, expiresAt }]` and votes
