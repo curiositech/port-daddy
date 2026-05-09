@@ -113,6 +113,22 @@ export interface Outlier {
 
 const OUTLIER_RING_SIZE = 500;
 
+/**
+ * Route templates that legitimately stay open for a long time (SSE streams,
+ * long-poll subscribes). Capturing these as outliers would just fill the
+ * ring with noise; the histograms still observe them.
+ *
+ * Kept as an explicit allowlist rather than a substring match because routes
+ * like /usage/events and /webhooks/events look long-poll-y by name but are
+ * actually fast list endpoints.
+ */
+const LONG_POLL_ROUTES: ReadonlySet<string> = new Set([
+  '/dashboard/events',
+  '/activity/subscribe',
+  '/msg/:channel/subscribe',
+  '/fleet/events',
+]);
+
 // ─── Generic counters (for non-HTTP metrics like spawn.started passthrough) ────
 interface GenericCounter {
   name: string;
@@ -217,8 +233,7 @@ export function createMetricsRegistry(): MetricsRegistry {
 
     // Outlier capture: anything taking > 500 ms is forensic-worthy.
     // Don't capture SSE / long-poll subscribe routes — those are by design.
-    const isLongPoll = opts.route.includes('/subscribe') || opts.route.includes('/events');
-    if (opts.durationMs >= 500 && !isLongPoll) {
+    if (opts.durationMs >= 500 && !LONG_POLL_ROUTES.has(opts.route)) {
       outlierRing[outlierIdx] = {
         ts: Date.now(),
         method: opts.method,

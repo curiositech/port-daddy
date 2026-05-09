@@ -71,6 +71,18 @@ describe('metrics-prom routes', () => {
       expect(j.outliers[0].route).toBe('/slow');
       expect(j.outliers[0].durationMs).toBe(1200);
     });
+
+    it('treats malformed limit values as the default rather than NaN', async () => {
+      // ?limit=foo (NaN), ?limit=-1 (negative), and ?limit=99999 (over cap)
+      // should all produce a sensible response, not crash or return the
+      // entire ring.
+      for (const bad of ['foo', '-1', '99999', '']) {
+        const r = await app.inject({ method: 'GET', url: '/metrics/http/outliers?limit=' + bad });
+        expect(r.statusCode).toBe(200);
+        const j = JSON.parse(r.payload);
+        expect(Array.isArray(j.outliers)).toBe(true);
+      }
+    });
   });
 
   describe('GET /metrics/annotations', () => {

@@ -5,7 +5,7 @@
  *                                 Configure scrapers with metrics_path: /metrics/prom — the bare
  *                                 /metrics path is occupied by the older JSON daemon-stats endpoint
  *                                 (info.ts) which the SDK, MCP, and CLI diagnostics depend on.
- * GET /metrics/http/routes        JSON snapshot of per-route histograms (used by /metrics-charts dashboard)
+ * GET /metrics/http/routes        JSON snapshot of per-route histograms (used by /metrics.html dashboard)
  * GET /metrics/http/outliers      Recent slow requests, newest first
  * GET /metrics/annotations        Time-aligned annotation events: git commits + recent pd notes
  *                                 + session purposes (telos). Used to overlay context on charts.
@@ -15,7 +15,7 @@
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
-import { execFileSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import type { MetricsRegistry } from '../lib/metrics-registry.js';
 import type { Database } from 'better-sqlite3';
 
@@ -31,6 +31,104 @@ interface AnnotationEvent {
   title: string;
   detail?: string;
   ref?: string;     // git sha, session id, etc.
+}
+
+// ─── Query-param helpers ─────────────────────────────────────────────────────
+/**
+ * Parse a positive-integer query param with a default and a hard cap.
+ * Returns the default for missing, NaN, negative, or non-finite inputs.
+ * Rejecting bad inputs by silently falling back to the default is fine here
+ * because both endpoints accepting these params (outliers / annotations)
+ * have safe, well-defined defaults.
+ */
+function parseBoundedInt(raw: string | undefined, fallback: number, cap: number): number {
+  if (raw === undefined || raw === '') return Math.min(fallback, cap);
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isFinite(n) || n < 0) return Math.min(fallback, cap);
+  return Math.min(n, cap);
+}
+
+// ─── Async git annotation cache ──────────────────────────────────────────────
+// /metrics/annotations is polled once a minute from each open dashboard. Each
+// call shells out to `git log` over the whole repo, which can take many
+// seconds on a large checkout. Doing this *synchronously* in a request handler
+// blocks the Node event loop for the daemon's other clients. Solution:
+//   1. Use spawn() (async) instead of execFileSync.
+//   2. Cache results in-process for ANNOTATION_TTL_MS so repeated dashboard
+//      polls share a single git invocation.
+const ANNOTATION_TTL_MS = 30_000;
+type GitAnnotationCacheKey = string;
+interface CachedGit { ts: number; events: AnnotationEvent[] }
+const gitAnnotationCache = new Map<GitAnnotationCacheKey, CachedGit>();
+const inflight = new Map<GitAnnotationCacheKey, Promise<AnnotationEvent[]>>();
+
+function runGit(cwd: string, args: string[], timeoutMs: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const child = spawn('git', args, { cwd });
+    let stdout = '';
+    let stderr = '';
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      child.kill('SIGKILL');
+    }, timeoutMs);
+    child.stdout.on('data', (d) => { stdout += d.toString('utf8'); });
+    child.stderr.on('data', (d) => { stderr += d.toString('utf8'); });
+    child.on('error', (err) => { clearTimeout(timer); reject(err); });
+    child.on('close', (code) => {
+      clearTimeout(timer);
+      if (timedOut) return reject(new Error(`git ${args[0]} timed out after ${timeoutMs}ms`));
+      if (code !== 0) return reject(new Error(`git exited ${code}: ${stderr.trim()}`));
+      resolve(stdout);
+    });
+  });
+}
+
+async function loadGitAnnotations(repoRoot: string, sinceSecs: number, sinceMs: number): Promise<AnnotationEvent[]> {
+  const cacheKey: GitAnnotationCacheKey = `${repoRoot}|${Math.ceil(sinceSecs / 3600)}`;
+  const cached = gitAnnotationCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < ANNOTATION_TTL_MS) {
+    return cached.events.filter(e => e.ts >= sinceMs);
+  }
+  // Coalesce concurrent requests into a single git invocation.
+  let pending = inflight.get(cacheKey);
+  if (!pending) {
+    pending = (async () => {
+      try {
+        const since = `--since=${Math.ceil(sinceSecs / 3600)} hours ago`;
+        const fmt = '--pretty=format:%H%x1f%ct%x1f%s%x1f%d';   // sha | committed-ts | subject | refs
+        const raw = await runGit(repoRoot, ['log', since, fmt, '--no-merges'], 5000);
+        const events: AnnotationEvent[] = [];
+        for (const line of raw.split('\n')) {
+          if (!line.trim()) continue;
+          const [sha, cts, subject, refs] = line.split('\x1f');
+          const ts = Number.parseInt(cts, 10) * 1000;
+          if (!Number.isFinite(ts)) continue;
+          const tagMatch = (refs ?? '').match(/tag:\s*([^,)]+)/);
+          events.push({
+            ts,
+            kind: tagMatch ? 'tag' : 'commit',
+            title: tagMatch ? tagMatch[1].trim() : subject.slice(0, 80),
+            detail: tagMatch ? subject.slice(0, 200) : undefined,
+            ref: sha.slice(0, 8),
+          });
+        }
+        gitAnnotationCache.set(cacheKey, { ts: Date.now(), events });
+        return events;
+      } catch {
+        // Not in a git repo, git missing, or timeout — annotations layer
+        // just becomes thinner. Cache the empty result briefly so we don't
+        // re-shell out on every poll.
+        gitAnnotationCache.set(cacheKey, { ts: Date.now(), events: [] });
+        return [];
+      } finally {
+        inflight.delete(cacheKey);
+      }
+    })();
+    inflight.set(cacheKey, pending);
+  }
+  const events = await pending;
+  return events.filter(e => e.ts >= sinceMs);
 }
 
 export const metricsPromPlugin: FastifyPluginAsync<{ deps: MetricsRouteDeps }> = async (
@@ -53,7 +151,7 @@ export const metricsPromPlugin: FastifyPluginAsync<{ deps: MetricsRouteDeps }> =
   // ── /metrics/http/outliers — recent slow requests ───────────────────────────
   fastify.get('/metrics/http/outliers', async (request: FastifyRequest) => {
     const q = request.query as Record<string, string>;
-    const limit = Math.min(parseInt(q.limit ?? '100', 10), 500);
+    const limit = parseBoundedInt(q.limit, 100, 500);
     return { outliers: metricsRegistry.outliers(limit) };
   });
 
@@ -63,46 +161,26 @@ export const metricsPromPlugin: FastifyPluginAsync<{ deps: MetricsRouteDeps }> =
    * (deploy markers), version tags, recent pd notes (agent activity), and
    * session purposes (the "telos" — what an agent set out to do).
    *
-   * ?since=N      seconds back (default 86400 = 24h)
-   * ?limit=N      cap the response (default 200)
+   * ?since=N      seconds back (default 86400 = 24h, max 30 days)
+   * ?limit=N      cap the response (default 200, max 1000)
+   *
+   * Git invocations are async (spawn-based) and cached for 30s so concurrent
+   * dashboard polls share a single shell-out and never block the event loop.
    */
   fastify.get('/metrics/annotations', async (request: FastifyRequest) => {
     const q = request.query as Record<string, string>;
-    const sinceSecs = q.since ? parseInt(q.since, 10) : 86_400;
+    const sinceSecs = parseBoundedInt(q.since, 86_400, 30 * 86_400);
     const sinceMs = Date.now() - sinceSecs * 1_000;
-    const limit = Math.min(parseInt(q.limit ?? '200', 10), 1000);
+    const limit = parseBoundedInt(q.limit, 200, 1000);
 
     const events: AnnotationEvent[] = [];
 
-    // ── Git commits / tags ──
-    // Use a single git log call with a chosen format. Errors are non-fatal —
-    // metrics works without git history (just an empty annotations layer).
+    // ── Git commits / tags (async + cached) ──
     try {
-      const since = `--since=${Math.ceil(sinceSecs / 3600)} hours ago`;
-      const fmt = '--pretty=format:%H%x1f%ct%x1f%s%x1f%d';   // sha | committed-ts | subject | refs
-      const raw = execFileSync('git', ['log', since, fmt, '--no-merges'], {
-        cwd: repoRoot,
-        encoding: 'utf8',
-        maxBuffer: 4 * 1024 * 1024,
-        timeout: 5000,
-      });
-      for (const line of raw.split('\n')) {
-        if (!line.trim()) continue;
-        const [sha, cts, subject, refs] = line.split('\x1f');
-        const ts = parseInt(cts, 10) * 1000;
-        if (!Number.isFinite(ts) || ts < sinceMs) continue;
-        // Treat tagged commits as "version" events
-        const tagMatch = (refs ?? '').match(/tag:\s*([^,)]+)/);
-        events.push({
-          ts,
-          kind: tagMatch ? 'tag' : 'commit',
-          title: tagMatch ? tagMatch[1].trim() : subject.slice(0, 80),
-          detail: tagMatch ? subject.slice(0, 200) : undefined,
-          ref: sha.slice(0, 8),
-        });
-      }
+      const gitEvents = await loadGitAnnotations(repoRoot, sinceSecs, sinceMs);
+      events.push(...gitEvents);
     } catch {
-      // not in a git repo, or git missing — annotations layer just becomes thinner
+      // already swallowed inside loadGitAnnotations; defensive double-catch
     }
 
     // ── pd notes (last N) ──
@@ -164,7 +242,7 @@ export const metricsPromPlugin: FastifyPluginAsync<{ deps: MetricsRouteDeps }> =
     return { sinceMs, count: events.length, events: events.slice(0, limit) };
   });
 
-  // ── /metrics — debug stub: who is hitting us right now ─────────────────────
+  // ── /metrics/http/now — debug stub: who is hitting us right now ─────────────
   fastify.get('/metrics/http/now', async () => {
     const snap = metricsRegistry.snapshot();
     const now = Date.now();

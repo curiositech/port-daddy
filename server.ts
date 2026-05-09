@@ -685,10 +685,15 @@ app.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) =>
 //   - any non-2xx/3xx status
 //   - any duration above the slow threshold (default 1000 ms)
 //   - a small random sample of successes when requestSamplingRate > 0
-// /metrics, /metrics/* and SSE long-poll routes are skipped to keep the
-// histograms honest (we shouldn't measure the cost of measuring).
+// /metrics/* paths are excluded from observation entirely (we shouldn't
+// measure the cost of measuring); SSE long-poll routes are observed in the
+// histograms but skipped from the outlier ring inside MetricsRegistry itself
+// (see lib/metrics-registry.ts LONG_POLL_ROUTES).
 const SLOW_REQUEST_MS = 1000;
-const requestSamplingRate = config.logging.requestSamplingRate ?? 0;
+// Clamp to [0, 1] — values outside that range would either disable sampling
+// (negative) or log every successful request (>1), neither of which the
+// config docs promise.
+const requestSamplingRate = Math.min(1, Math.max(0, config.logging.requestSamplingRate ?? 0));
 
 app.addHook('onResponse', async (request: FastifyRequest, reply: FastifyReply) => {
   const url = request.url ?? '';

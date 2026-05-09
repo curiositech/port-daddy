@@ -127,12 +127,50 @@ describe('MetricsRegistry', () => {
         statusCode: 200,
         durationMs: 60_000,
       });
+      registry.observeHttpRequest({
+        method: 'GET',
+        route: '/activity/subscribe',
+        rawPath: '/activity/subscribe',
+        statusCode: 200,
+        durationMs: 300_000,
+      });
+      registry.observeHttpRequest({
+        method: 'GET',
+        route: '/fleet/events',
+        rawPath: '/fleet/events',
+        statusCode: 200,
+        durationMs: 300_000,
+      });
       // But a real outlier on a different route should still land
       registry.observeHttpRequest({ method: 'POST', route: '/spawn', rawPath: '/spawn', statusCode: 200, durationMs: 5000 });
 
       const out = registry.outliers();
       expect(out).toHaveLength(1);
       expect(out[0].route).toBe('/spawn');
+    });
+
+    it('DOES capture slow non-SSE list endpoints whose template happens to end in /events', () => {
+      // Regression for the substring matcher that previously skipped these:
+      // /usage/events and /webhooks/events are list endpoints, NOT SSE streams.
+      // A slow request to either one should still surface as an outlier.
+      registry.observeHttpRequest({
+        method: 'GET',
+        route: '/usage/events',
+        rawPath: '/usage/events?limit=500',
+        statusCode: 200,
+        durationMs: 1200,
+      });
+      registry.observeHttpRequest({
+        method: 'GET',
+        route: '/webhooks/events',
+        rawPath: '/webhooks/events',
+        statusCode: 200,
+        durationMs: 800,
+      });
+
+      const out = registry.outliers();
+      const routes = out.map(o => o.route).sort();
+      expect(routes).toEqual(['/usage/events', '/webhooks/events']);
     });
 
     it('honors the limit parameter', () => {

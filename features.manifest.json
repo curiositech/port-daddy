@@ -1580,7 +1580,7 @@
       "_note": "Composite feature \u2014 routes module wiring cost-tracker + counters together. API-only (no SDK methods or CLI commands)."
     },
     "metricsprom": {
-      "description": "Prometheus text exposition + per-route HTTP histograms with outlier ring buffer and time-aligned annotation feed (git commits, pd notes, session purposes). Powers the /metrics-charts in-house dashboard and any external Prometheus scraper. Replaces the unbounded winston request-log firehose.",
+      "description": "Prometheus text exposition + per-route HTTP histograms with outlier ring buffer and time-aligned annotation feed (git commits, pd notes, session purposes). Powers the /metrics.html in-house dashboard and any external Prometheus scraper. Replaces the unbounded winston request-log firehose.",
       "cli": [],
       "sdk": [],
       "routes": [

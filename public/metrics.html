@@ -28,9 +28,17 @@
       and could contain markup; they are NEVER trusted as raw HTML.
   -->
 
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+  <!--
+    Chart.js + plugins are vendored under /vendor/ rather than loaded from a CDN.
+    The daemon's CSP is `script-src 'self' 'unsafe-inline'` (server.ts), so
+    cross-origin script loads would be blocked. Vendoring also means the
+    dashboard works on machines without internet access (sandboxed CI runners,
+    air-gapped operator workstations). See public/vendor/CHART_JS_VENDOR.md
+    for versions and provenance.
+  -->
+  <script src="/vendor/chart.umd.min.js"></script>
+  <script src="/vendor/chartjs-adapter-date-fns.bundle.min.js"></script>
+  <script src="/vendor/chartjs-plugin-annotation.min.js"></script>
 
   <style>
     :root {
