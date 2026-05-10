@@ -19,7 +19,7 @@
 import { createHash } from 'node:crypto';
 import { readFileSync, watch as fsWatch, type FSWatcher } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, join, basename } from 'node:path';
+import { dirname, join, basename, resolve } from 'node:path';
 import {
   loadFleetConfig,
   createFleetRunner,
@@ -114,8 +114,10 @@ export interface FleetDaemonDeps {
     warn(msg: string, meta?: Record<string, unknown>): void;
     error(msg: string, meta?: Record<string, unknown>): void;
   };
-  /** Daemon's own project directory (always load its own fleet) */
+  /** Daemon's own project directory. Stable install roots are protected by default. */
   daemonDir: string;
+  /** Explicitly allow fleet management inside /port-daddy-stable install roots. */
+  allowStableInstallFleet?: boolean;
   /** Optional cost tracker for fleet budget enforcement */
   costTracker?: CostTracker;
   /** Distributed lock manager used to enforce fleet ownership across daemons */
@@ -205,6 +207,17 @@ export interface FleetDaemonStatus {
 
 const FLEET_PROJECT_LEASE_TTL_MS = 30000;
 const FLEET_PROJECT_LEASE_RENEW_MS = 10000;
+const STABLE_INSTALL_DIR_NAME = 'port-daddy-stable';
+const STABLE_INSTALL_FLEET_SKIP_REASON =
+  'Stable install checkout is protected from fleet writes; use an editable worktree or set PORT_DADDY_ALLOW_STABLE_FLEET=1 to opt in.';
+
+function hasPathSegment(path: string, segment: string): boolean {
+  return resolve(path).replace(/\\/g, '/').split('/').includes(segment);
+}
+
+function isStableInstallDir(path: string): boolean {
+  return hasPathSegment(path, STABLE_INSTALL_DIR_NAME);
+}
 
 // ─── Env Loading ────────────────────────────────────────────────────────────
 
@@ -216,6 +229,7 @@ const FLEET_PROJECT_LEASE_RENEW_MS = 10000;
 
 export function createFleetDaemon(deps: FleetDaemonDeps) {
   const { projects, messaging, logger, daemonDir, costTracker, locks, tuples, semanticResolver } = deps;
+  const allowStableInstallFleet = deps.allowStableInstallFleet === true;
   const fleets = new Map<string, ManagedFleet>();
   const configWatchers = new Map<string, FSWatcher>();
   const projectLeases = new Map<string, FleetProjectLease>();
@@ -332,6 +346,27 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
       reason,
       owner,
     });
+  }
+
+  function isProtectedStableProjectDir(projectDir: string): boolean {
+    return !allowStableInstallFleet && isStableInstallDir(projectDir);
+  }
+
+  function markProtectedStableProject(
+    projectDir: string,
+    projectName: string,
+    source: 'daemon' | 'registered' | 'manual',
+  ): boolean {
+    if (!isProtectedStableProjectDir(projectDir)) return false;
+
+    markSkippedProject(projectDir, projectName, STABLE_INSTALL_FLEET_SKIP_REASON);
+    logger.warn('fleet_stable_install_skipped', {
+      project: projectName,
+      projectDir,
+      source,
+      reason: STABLE_INSTALL_FLEET_SKIP_REASON,
+    });
+    return true;
   }
 
   function stopLeaseRenewalIfIdle(): void {
@@ -636,8 +671,13 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
   function discoverFleets(): Array<{ dir: string; name: string }> {
     const discovered: Array<{ dir: string; name: string; source: 'daemon' | 'registered' }> = [];
 
-    // 1. Always check the daemon's own directory
-    if (findFleetConfigPath(daemonDir)) {
+    // 1. Check the daemon's own directory unless it is the protected
+    // stable install checkout. Stable serves runtime; editable worktrees
+    // run fleets.
+    if (
+      findFleetConfigPath(daemonDir) &&
+      !markProtectedStableProject(daemonDir, basename(daemonDir), 'daemon')
+    ) {
       discovered.push({ dir: daemonDir, name: basename(daemonDir), source: 'daemon' });
     }
 
@@ -646,7 +686,10 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
       const registered = projects.list();
       for (const proj of registered) {
         if (proj.root === daemonDir) continue; // already added
-        if (findFleetConfigPath(proj.root)) {
+        if (
+          findFleetConfigPath(proj.root) &&
+          !markProtectedStableProject(proj.root, proj.id, 'registered')
+        ) {
           discovered.push({ dir: proj.root, name: proj.id, source: 'registered' });
         }
       }
@@ -824,6 +867,9 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
 
   /** Start a specific project's fleet by directory path. */
   function startProject(projectDir: string, options: { enabledAgents?: string[] } = {}): { success: boolean; error?: string } {
+    if (markProtectedStableProject(projectDir, basename(projectDir), 'manual')) {
+      return { success: false, error: STABLE_INSTALL_FLEET_SKIP_REASON };
+    }
     if (fleets.has(projectDir)) {
       if (options.enabledAgents) {
         return setProjectEnabledAgents(projectDir, options.enabledAgents);

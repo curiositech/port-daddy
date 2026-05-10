@@ -227,6 +227,51 @@ describe('createFleetDaemon', () => {
     expect(status.totalAgents).toBe(2);
   });
 
+  test('start() skips stable install dir fleet by default', () => {
+    const deps = makeDeps({ daemonDir: '/Users/test/port-daddy-stable' });
+
+    const daemon = makeDaemon(deps);
+    daemon.start();
+
+    expect(mockLoadFleetConfig).not.toHaveBeenCalled();
+    expect(mockStartAll).not.toHaveBeenCalled();
+    expect(daemon.getStatus().fleets).toHaveLength(0);
+    expect(daemon.getStatus().skipped).toEqual([
+      expect.objectContaining({
+        project: 'port-daddy-stable',
+        projectDir: '/Users/test/port-daddy-stable',
+        reason: expect.stringContaining('protected from fleet writes'),
+      }),
+    ]);
+    expect(deps.logger.warn).toHaveBeenCalledWith(
+      'fleet_stable_install_skipped',
+      expect.objectContaining({
+        project: 'port-daddy-stable',
+        projectDir: '/Users/test/port-daddy-stable',
+        source: 'daemon',
+      })
+    );
+  });
+
+  test('start() can opt into stable install dir fleet explicitly', () => {
+    const deps = makeDeps({
+      daemonDir: '/Users/test/port-daddy-stable',
+      allowStableInstallFleet: true,
+    });
+    const config = makeConfig('port-daddy');
+
+    mockLoadFleetConfig.mockReturnValue(config);
+    mockGetStatus.mockReturnValue([]);
+
+    const daemon = makeDaemon(deps);
+    daemon.start();
+
+    expect(mockLoadFleetConfig).toHaveBeenCalledWith('/Users/test/port-daddy-stable');
+    expect(mockStartAll).toHaveBeenCalledTimes(1);
+    expect(daemon.getStatus().fleets).toHaveLength(1);
+    expect(daemon.getStatus().skipped).toHaveLength(0);
+  });
+
   test('start() discovers registered project fleets', () => {
     const deps = makeDeps({
       projects: {
@@ -532,6 +577,23 @@ describe('createFleetDaemon', () => {
     expect(result.success).toBe(true);
     expect(mockStartAll).toHaveBeenCalledTimes(1);
     expect(daemon.getStatus().fleets).toHaveLength(1);
+  });
+
+  test('startProject() rejects stable install dir fleets by default', () => {
+    const deps = makeDeps();
+    const daemon = makeDaemon(deps);
+    const result = daemon.startProject('/Users/test/port-daddy-stable');
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('protected from fleet writes');
+    expect(mockLoadFleetConfig).not.toHaveBeenCalled();
+    expect(mockStartAll).not.toHaveBeenCalled();
+    expect(daemon.getStatus().skipped).toEqual([
+      expect.objectContaining({
+        projectDir: '/Users/test/port-daddy-stable',
+        reason: expect.stringContaining('protected from fleet writes'),
+      }),
+    ]);
   });
 
   test('startProject() can persist an enabled-agent subset for a project', () => {
