@@ -49,9 +49,11 @@ interface SessionsRouteDeps {
     claimFiles(sessionId: string, files: string[], options?: {
       regions?: Array<{ path: string; startLine?: number; endLine?: number; symbol?: string; symbolPath?: string }>;
       force?: boolean;
+      agentId?: string | null;
     }): Record<string, unknown>;
     releaseFiles(sessionId: string, files: string[], options?: {
       regions?: Array<{ path: string; startLine?: number; endLine?: number; symbolPath?: string }>;
+      agentId?: string | null;
     }): Record<string, unknown>;
     getFileConflicts(files: string[]): Record<string, unknown>;
     setPhase(sessionId: string, phase: string): Record<string, unknown>;
@@ -98,6 +100,25 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
   const { deps } = opts;
   const { sessions, metrics, logger, activityLog } = deps;
 
+  const errorStatus = (result: Record<string, unknown>) => {
+    switch (result.code) {
+      case 'VALIDATION_ERROR':
+        return 400;
+      case 'SESSION_AGENT_MISMATCH':
+        return 403;
+      case 'SESSION_NOT_ACTIVE':
+      case 'SESSION_AGENT_REQUIRED':
+      case 'AMBIGUOUS_ACTIVE_SESSION':
+      case 'NOTES_LIMIT_EXCEEDED':
+        return 409;
+      case 'SESSION_NOT_FOUND':
+      case undefined:
+        return 404;
+      default:
+        return 400;
+    }
+  };
+
   const noteWriteStatus = (result: Record<string, unknown>) => {
     switch (result.code) {
       case 'SESSION_NOT_FOUND':
@@ -109,6 +130,95 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       default:
         return 400;
     }
+  };
+
+  const headerAgentId = (request: FastifyRequest): string | null => {
+    const value = request.headers['x-agent-id'];
+    if (Array.isArray(value)) return typeof value[0] === 'string' && value[0].trim() ? value[0].trim() : null;
+    return typeof value === 'string' && value.trim() ? value.trim() : null;
+  };
+
+  const mutationAgentId = (
+    request: FastifyRequest,
+    bodyAgentId: unknown,
+  ): { success: true; agentId: string | null } | { success: false; result: Record<string, unknown> } => {
+    if (bodyAgentId !== undefined && bodyAgentId !== null && typeof bodyAgentId !== 'string') {
+      return {
+        success: false,
+        result: { success: false, error: 'agentId must be a string', code: 'VALIDATION_ERROR' },
+      };
+    }
+    if (typeof bodyAgentId === 'string' && !bodyAgentId.trim()) {
+      return {
+        success: false,
+        result: { success: false, error: 'agentId must be a non-empty string when provided', code: 'VALIDATION_ERROR' },
+      };
+    }
+
+    const agentId = typeof bodyAgentId === 'string' && bodyAgentId.trim()
+      ? bodyAgentId.trim()
+      : headerAgentId(request);
+    return { success: true, agentId };
+  };
+
+  const authorizeFileMutationRoute = (
+    sessionId: string,
+    agentId: string | null,
+    action: 'claiming' | 'releasing',
+  ): { success: true } | { success: false; result: Record<string, unknown> } => {
+    if (!agentId) {
+      return {
+        success: false,
+        result: {
+          success: false,
+          error: `agentId is required when ${action} files for a session`,
+          code: 'SESSION_AGENT_REQUIRED',
+        },
+      };
+    }
+
+    const lookup = sessions.get(sessionId);
+    if (!lookup.success) {
+      return {
+        success: false,
+        result: { ...lookup, code: lookup.code || 'SESSION_NOT_FOUND' },
+      };
+    }
+
+    const session = lookup.session as { agentId?: unknown; status?: unknown } | undefined;
+    const owner = typeof session?.agentId === 'string' ? session.agentId.trim() : '';
+    if (!owner) {
+      return {
+        success: false,
+        result: {
+          success: false,
+          error: `agentId is required before ${action} files for a session`,
+          code: 'SESSION_AGENT_REQUIRED',
+        },
+      };
+    }
+    if (session?.status !== 'active') {
+      return {
+        success: false,
+        result: {
+          success: false,
+          error: `session is ${String(session?.status)}; only active sessions can ${action === 'claiming' ? 'claim' : 'release'} files`,
+          code: 'SESSION_NOT_ACTIVE',
+        },
+      };
+    }
+    if (owner !== agentId) {
+      return {
+        success: false,
+        result: {
+          success: false,
+          error: `agentId "${agentId}" cannot mutate file claims for session owned by "${owner}"`,
+          code: 'SESSION_AGENT_MISMATCH',
+        },
+      };
+    }
+
+    return { success: true };
   };
 
   const writeNote = (
@@ -198,6 +308,21 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         };
       }
 
+      const sessionAgent = mutationAgentId(request, agentId);
+      if (!sessionAgent.success) {
+        reply.code(400);
+        return sessionAgent.result;
+      }
+
+      if (files && Array.isArray(files) && files.length > 0 && !sessionAgent.agentId) {
+        reply.code(400);
+        return {
+          success: false,
+          error: 'agentId is required to start a session with file claims',
+          code: 'SESSION_AGENT_REQUIRED'
+        };
+      }
+
       if (files && Array.isArray(files) && files.length > 0 && !force) {
         const conflictCheck = sessions.getFileConflicts(files);
         if (conflictCheck.conflicts && Array.isArray(conflictCheck.conflicts) && conflictCheck.conflicts.length > 0) {
@@ -224,7 +349,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       });
 
       const result = sessions.start(purpose, {
-        agentId,
+        agentId: sessionAgent.agentId,
         files,
         metadata: mergedMetadata,
         worktreeId: worktreePolicy.worktree?.id,
@@ -232,7 +357,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
 
       if (!result.success) {
         reply.code(400);
-        return { ...result, code: 'VALIDATION_ERROR' };
+        return { ...result, code: result.code || 'VALIDATION_ERROR' };
       }
 
       logger.info('session_started', {
@@ -488,7 +613,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     try {
       const sessionIdParam = (request.params as any).id;
       const sessionId = typeof sessionIdParam === 'string' ? sessionIdParam : sessionIdParam[0];
-      const { files, regions, force } = request.body as any;
+      const { files, regions, force, agentId } = request.body as any;
 
       const hasFiles = files && Array.isArray(files) && files.length > 0;
       const hasRegions = regions && Array.isArray(regions) && regions.length > 0;
@@ -539,6 +664,18 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         }
       }
 
+      const requestAgent = mutationAgentId(request, agentId);
+      if (!requestAgent.success) {
+        reply.code(400);
+        return requestAgent.result;
+      }
+
+      const routeAuth = authorizeFileMutationRoute(sessionId, requestAgent.agentId, 'claiming');
+      if (!routeAuth.success) {
+        reply.code(errorStatus(routeAuth.result));
+        return routeAuth.result;
+      }
+
       if (hasFiles && !force) {
         const conflictCheck = sessions.getFileConflicts(files);
         if (conflictCheck.conflicts && Array.isArray(conflictCheck.conflicts) && conflictCheck.conflicts.length > 0) {
@@ -553,15 +690,10 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         }
       }
 
-      const result = sessions.claimFiles(sessionId, files || [], { regions, force });
+      const result = sessions.claimFiles(sessionId, files || [], { regions, force, agentId: requestAgent.agentId });
 
       if (!result.success) {
-        const statusCode = result.code === 'VALIDATION_ERROR'
-          ? 400
-          : result.code === 'SESSION_NOT_ACTIVE'
-            ? 409
-            : 404;
-        reply.code(statusCode);
+        reply.code(errorStatus(result));
         return { ...result, code: result.code || 'SESSION_NOT_FOUND' };
       }
 
@@ -597,6 +729,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
 
       let files: string[] = [];
       let regions: Array<{ path: string; startLine?: number; endLine?: number; symbolPath?: string }> | undefined;
+      const { agentId } = (request.body as any) || {};
 
       const pathsParam = (request.query as any).paths;
       if (pathsParam && typeof pathsParam === 'string') {
@@ -618,11 +751,23 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         };
       }
 
-      const result = sessions.releaseFiles(sessionId, files, { regions });
+      const requestAgent = mutationAgentId(request, agentId);
+      if (!requestAgent.success) {
+        reply.code(400);
+        return requestAgent.result;
+      }
+
+      const routeAuth = authorizeFileMutationRoute(sessionId, requestAgent.agentId, 'releasing');
+      if (!routeAuth.success) {
+        reply.code(errorStatus(routeAuth.result));
+        return routeAuth.result;
+      }
+
+      const result = sessions.releaseFiles(sessionId, files, { regions, agentId: requestAgent.agentId });
 
       if (!result.success) {
-        reply.code(404);
-        return { ...result, code: 'SESSION_NOT_FOUND' };
+        reply.code(errorStatus(result));
+        return { ...result, code: result.code || 'SESSION_NOT_FOUND' };
       }
 
       logger.info('session_files_released', {
