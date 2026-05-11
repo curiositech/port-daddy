@@ -17,7 +17,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import { readFileSync, watch as fsWatch, type FSWatcher } from 'node:fs';
+import { readFileSync, realpathSync, watch as fsWatch, type FSWatcher } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, basename, resolve } from 'node:path';
 import {
@@ -212,7 +212,15 @@ const STABLE_INSTALL_FLEET_SKIP_REASON =
   'Stable install checkout is protected from fleet writes; use an editable worktree or set PORT_DADDY_ALLOW_STABLE_FLEET=1 to opt in.';
 
 function hasPathSegment(path: string, segment: string): boolean {
-  return resolve(path).replace(/\\/g, '/').split('/').includes(segment);
+  const resolvedPath = resolve(path);
+  let canonicalPath = resolvedPath;
+  try {
+    canonicalPath = realpathSync.native(resolvedPath);
+  } catch {
+    // The path may not exist yet during validation; resolved text is still
+    // enough for direct stable-install paths.
+  }
+  return canonicalPath.replace(/\\/g, '/').split('/').includes(segment);
 }
 
 function isStableInstallDir(path: string): boolean {
