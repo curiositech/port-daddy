@@ -42,11 +42,15 @@ export function assessBackendTelemetryPolicy(backend: string, model?: string | n
     }
 
     case 'claude-cli': {
-      return blocked(
-        backend,
-        'Claude CLI is blocked until exact token counts and exact nonzero cost are recorded end-to-end.',
-        'Keep Claude CLI disabled for operator launches until subprocess telemetry is exact and test-covered.'
-      );
+      const effectiveModel = model?.trim() || DEFAULT_OPERATOR_CLAUDE_MODEL;
+      return {
+        ...blocked(
+          backend,
+          'Claude CLI is blocked until exact token counts and exact nonzero cost are recorded end-to-end.',
+          'Keep Claude CLI disabled for operator launches until subprocess telemetry is exact and test-covered.'
+        ),
+        effectiveModel,
+      };
     }
 
     case 'codex': {
