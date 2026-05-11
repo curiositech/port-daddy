@@ -754,10 +754,13 @@ describe('Route error codes: locks', () => {
 describe('Route error codes: sessions', () => {
   let app;
   let sessionsMod;
+  let logger;
+  let activityEntries;
 
   beforeEach(async () => {
     const db = createTestDb();
-    const logger = createMockLogger();
+    logger = createMockLogger();
+    activityEntries = [];
     sessionsMod = createSessions(db, undefined, { requireAgentForFileClaims: true });
 
     app = Fastify();
@@ -766,7 +769,7 @@ describe('Route error codes: sessions', () => {
         sessions: sessionsMod,
         metrics: { errors: 0 },
         logger,
-        activityLog: { log: () => {} }
+        activityLog: { log: (...args) => activityEntries.push(args) }
       }
     });
     await app.ready();
@@ -782,6 +785,29 @@ describe('Route error codes: sessions', () => {
     expect(res.statusCode).toBe(400);
     expect(res.json().code).toBe('VALIDATION_ERROR');
     expect(res.json().error).toContain('purpose');
+  });
+
+  test('POST /sessions logs the resolved session agent identity', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/sessions',
+      headers: { 'x-agent-id': 'agent-from-header' },
+      payload: { purpose: 'header-owned session' },
+    });
+
+    expect(res.statusCode).toBe(200);
+
+    const sessionStarted = logger.getLogs().info.find(([event]) => event === 'session_started');
+    expect(sessionStarted?.[1]).toEqual(expect.objectContaining({
+      agentId: 'agent-from-header',
+      purpose: 'header-owned session',
+    }));
+
+    const activityStarted = activityEntries.find(([event]) => event === 'session_start');
+    expect(activityStarted?.[1].metadata).toEqual(expect.objectContaining({
+      agentId: 'agent-from-header',
+      purpose: 'header-owned session',
+    }));
   });
 
   test('POST /sessions preserves SESSION_AGENT_REQUIRED for initial file claims', async () => {

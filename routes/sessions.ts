@@ -363,14 +363,14 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       logger.info('session_started', {
         sessionId: result.id,
         purpose,
-        agentId,
+        agentId: sessionAgent.agentId,
         filesCount: files ? files.length : 0
       });
 
       if (activityLog?.log) {
         activityLog.log('session_start', {
           details: `Started session: ${purpose}`,
-          metadata: { sessionId: result.id as string, purpose, agentId }
+          metadata: { sessionId: result.id as string, purpose, agentId: sessionAgent.agentId }
         });
       }
 
