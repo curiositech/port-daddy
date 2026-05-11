@@ -1,7 +1,9 @@
 #!/usr/bin/env npx tsx
 import { spawn } from 'node:child_process';
 
-const DEFAULT_DAEMON_URL = process.env.PORT_DADDY_URL ?? 'http://127.0.0.1:9876';
+const DEFAULT_DAEMON_URL =
+  process.env.PORT_DADDY_URL ??
+  `http://${process.env.PORT_DADDY_HOST ?? '127.0.0.1'}:${process.env.PORT_DADDY_PORT ?? '9876'}`;
 const CHANNEL = process.env.PD_TUBE_CHANNEL ?? 'dev:test-failed';
 const TUBE_KIND = 'tube.msg';
 
