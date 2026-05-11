@@ -256,8 +256,9 @@ async function sessionStart(rest: string[], options: CLIOptions): Promise<void> 
     process.exit(1);
   }
 
+  const pd = createSessionClient(options);
   const body: Record<string, unknown> = { purpose };
-  if (options.agent) body.agentId = options.agent;
+  if (pd.agentId) body.agentId = pd.agentId;
   if (options.force) body.force = true;
 
   // Collect files from --files option or remaining positional args
@@ -288,7 +289,6 @@ async function sessionStart(rest: string[], options: CLIOptions): Promise<void> 
   }
   attachCliSessionWorktreePolicy(body, worktreePolicy);
 
-  const pd = createSessionClient(options);
   let data: SessionStartResult;
   try {
     data = await pd.startSession(body as {

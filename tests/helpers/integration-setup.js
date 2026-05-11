@@ -212,6 +212,9 @@ export function runCli(args, options = {}) {
     PORT_DADDY_URL: '',
     // Skip freshness check during integration tests to avoid noise and races
     PORT_DADDY_SKIP_FRESHNESS_CHECK: '1',
+    // The GitHub Actions checkout is a main worktree; integration session
+    // tests intentionally opt in while production CLI behavior stays closed.
+    PORT_DADDY_ALLOW_MAIN_WORKTREE_SESSION: '1',
     // Force non-interactive mode
     PORT_DADDY_NON_INTERACTIVE: '1',
     NO_COLOR: '1',

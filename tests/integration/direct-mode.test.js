@@ -34,6 +34,7 @@ describe('Direct-Mode Integration Tests', () => {
       PORT_DADDY_DB: testDb,
       PORT_DADDY_URL: 'http://127.0.0.1:1', // Unreachable
       PORT_DADDY_SKIP_FRESHNESS_CHECK: '1',
+      PORT_DADDY_ALLOW_MAIN_WORKTREE_SESSION: '1',
       NO_COLOR: '1',
       ...overrides
     };
