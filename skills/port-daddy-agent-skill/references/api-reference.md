@@ -1321,26 +1321,61 @@ Returns 400 if `yaml` is missing, not a string, or fails YAML parsing. The fleet
 ---
 
 ### GET /fleet/models
-List available backends and their models. Probes Ollama for locally installed models.
+List available backends, model choices, readiness, and whether each backend is launchable. `launchable: true` means the daemon can prove the backend is setup and ready; manual-check backends stay visible for setup but must not power agents yet.
 
 **Response:**
 ```json
 {
   "success": true,
   "backends": [
-    { "id": "claude-cli", "name": "Claude CLI", "models": ["sonnet", "opus", "haiku"] },
-    { "id": "ollama", "name": "Ollama (local)", "models": ["llama3.1:8b", "codellama:13b"] },
-    { "id": "custom", "name": "Custom command", "models": [] },
-    { "id": "gemini", "name": "Google Gemini", "models": ["gemini-2.5-pro", "gemini-2.5-flash"] },
-    { "id": "cloudflare", "name": "Cloudflare Workers AI", "models": ["@cf/meta/llama-3.1-8b-instruct", "@cf/meta/llama-3.1-70b-instruct"] },
-    { "id": "openai", "name": "OpenAI", "models": ["gpt-4.1", "gpt-4.1-mini", "o4-mini"] },
-    { "id": "groq", "name": "Groq", "models": ["llama-3.3-70b", "mixtral-8x7b"] },
-    { "id": "aider", "name": "Aider", "models": [] }
+    {
+      "id": "cloudflare",
+      "name": "Cloudflare Workers AI",
+      "models": ["@cf/zai-org/glm-4.7-flash", "@cf/qwen/qwen3-30b-a3b-fp8", "@cf/moonshotai/kimi-k2.6"],
+      "launchable": true,
+      "readinessStatus": "ready"
+    },
+    {
+      "id": "codex",
+      "name": "OpenAI Codex CLI",
+      "models": ["gpt-5.4-mini", "gpt-5.3-codex", "gpt-5.4"],
+      "launchable": false,
+      "readinessStatus": "manual_check"
+    }
   ]
 }
 ```
 
-Ollama models are fetched live from `localhost:11434/api/tags` with a 2s timeout. If Ollama is not running, its `models` array is empty.
+The catalog can list backend implementations that are not currently launchable. Use `launchable` and `readinessStatus` for runtime selection.
+
+---
+
+### POST /fleet/config/:project/runtime
+Bulk-apply one setup-ready backend/model to fleet agents without hand-editing YAML. The route rejects any backend whose readiness is not `ready`.
+
+**Request:**
+```json
+{
+  "backend": "cloudflare",
+  "model": "@cf/qwen/qwen3-30b-a3b-fp8",
+  "agentNames": ["qa", "spider"],
+  "clearFallbacks": true
+}
+```
+
+Omit `agentNames` to update every agent. Use `modelTier` instead of `model` when a backend ladder is preferred.
+
+**Response:**
+```json
+{
+  "success": true,
+  "backend": "cloudflare",
+  "model": "@cf/qwen/qwen3-30b-a3b-fp8",
+  "modelTier": null,
+  "updatedAgents": ["qa", "spider"],
+  "skippedAgents": []
+}
+```
 
 ---
 

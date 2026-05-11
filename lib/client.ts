@@ -3134,13 +3134,13 @@ class PortDaddy {
 
   /**
    * Launch an AI agent with the given spec.
-   * Supports backends: ollama, claude, claude-cli, gemini, codex, aider, custom.
+   * Requires a backend that passes readiness and exact-telemetry preflight.
    * Auto-wires PD coordination (agent registration, session, heartbeat, done).
    *
    * @example
    * const result = await pd.spawn({
-   *   backend: 'ollama',
-   *   model: 'llama3.1:8b',
+   *   backend: 'cloudflare',
+   *   model: '@cf/qwen/qwen3-30b-a3b-fp8',
    *   identity: 'myapp:coder',
    *   budgetUsd: 2.5,
    *   task: 'Write a hello world in TypeScript',

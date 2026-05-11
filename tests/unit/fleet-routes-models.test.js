@@ -1,5 +1,9 @@
 import { jest } from '@jest/globals';
 import Fastify from 'fastify';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const mockAssessBackendReadiness = jest.fn(async (backend) => ({
   backend,
@@ -37,7 +41,17 @@ jest.unstable_mockModule('../../lib/secret-env.js', () => ({
 
 const { fleetPlugin } = await import('../../routes/fleet.js');
 
+function commitTempRepo(projectDir) {
+  spawnSync('git', ['init'], { cwd: projectDir, stdio: 'ignore' });
+  spawnSync('git', ['config', 'user.email', 'test@example.com'], { cwd: projectDir, stdio: 'ignore' });
+  spawnSync('git', ['config', 'user.name', 'Port Daddy Test'], { cwd: projectDir, stdio: 'ignore' });
+  spawnSync('git', ['add', '.'], { cwd: projectDir, stdio: 'ignore' });
+  spawnSync('git', ['commit', '-m', 'init'], { cwd: projectDir, stdio: 'ignore' });
+}
+
 describe('fleet routes /fleet/models', () => {
+  const tempDirs = [];
+
   beforeEach(() => {
     jest.clearAllMocks();
     global.fetch = jest.fn(async () => ({
@@ -47,6 +61,12 @@ describe('fleet routes /fleet/models', () => {
         };
       },
     }));
+  });
+
+  afterEach(() => {
+    while (tempDirs.length) {
+      rmSync(tempDirs.pop(), { recursive: true, force: true });
+    }
   });
 
   test('returns supported backends with readiness metadata', async () => {
@@ -217,6 +237,131 @@ describe('fleet routes /fleet/models', () => {
     expect(res.statusCode).toBe(400);
     expect(res.json().error).toContain('Unsupported secret key');
     expect(mockSaveManagedSecret).not.toHaveBeenCalledWith('ANTHROPIC_API_KEY', 'wrong-provider');
+
+    await app.close();
+  });
+
+  test('POST /fleet/config/:project/runtime applies only a ready runtime and clears fallbacks', async () => {
+    const projectDir = mkdtempSync(join(tmpdir(), 'pd-fleet-runtime-'));
+    tempDirs.push(projectDir);
+    const configPath = join(projectDir, 'pd-fleet.yml');
+    writeFileSync(configPath, `fleet:
+  name: demo
+  limits:
+    budget_usd_per_day: 2
+  agents:
+    qa:
+      trigger: git:committed
+      backend: ollama
+      model: qwen2.5-coder:7b
+      fallbacks:
+        - backend: claude-cli
+      prompt: review
+    spider:
+      schedule: "0 */2 * * *"
+      backend: codex
+      model: gpt-5.4-mini
+      prompt: connect
+`, 'utf-8');
+    commitTempRepo(projectDir);
+
+    const reload = jest.fn();
+    const app = Fastify();
+    await app.register(fleetPlugin, {
+      deps: {
+        fleetDaemon: {
+          getStatus() {
+            return { fleets: [{ project: 'demo', projectDir }] };
+          },
+          reload,
+        },
+        projects: {
+          get() { return null; },
+          getByPath() { return null; },
+        },
+        messaging: {
+          subscribe() {
+            return null;
+          },
+        },
+      },
+    });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/fleet/config/demo/runtime',
+      payload: {
+        backend: 'cloudflare',
+        model: '@cf/qwen/qwen3-30b-a3b-fp8',
+        clearFallbacks: true,
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual(expect.objectContaining({
+      success: true,
+      backend: 'cloudflare',
+      updatedAgents: ['qa', 'spider'],
+    }));
+    const yaml = readFileSync(configPath, 'utf-8');
+    expect(yaml).toContain('backend: cloudflare');
+    expect(yaml).toContain('model: "@cf/qwen/qwen3-30b-a3b-fp8"');
+    expect(yaml).not.toContain('backend: ollama');
+    expect(yaml).not.toContain('fallbacks:');
+    expect(reload).toHaveBeenCalled();
+
+    await app.close();
+  });
+
+  test('POST /fleet/config/:project/runtime rejects backends that are not ready', async () => {
+    mockAssessBackendReadiness.mockResolvedValueOnce({
+      backend: 'codex',
+      status: 'manual_check',
+      summary: 'Codex auth needs interactive verification',
+      nextStep: 'Run codex exec once.',
+    });
+
+    const projectDir = mkdtempSync(join(tmpdir(), 'pd-fleet-runtime-blocked-'));
+    tempDirs.push(projectDir);
+    writeFileSync(join(projectDir, 'pd-fleet.yml'), `fleet:
+  name: demo
+  agents:
+    qa:
+      trigger: git:committed
+      backend: cloudflare
+      prompt: review
+`, 'utf-8');
+    commitTempRepo(projectDir);
+
+    const app = Fastify();
+    await app.register(fleetPlugin, {
+      deps: {
+        fleetDaemon: {
+          getStatus() {
+            return { fleets: [{ project: 'demo', projectDir }] };
+          },
+          reload: jest.fn(),
+        },
+        projects: {
+          get() { return null; },
+          getByPath() { return null; },
+        },
+        messaging: {
+          subscribe() {
+            return null;
+          },
+        },
+      },
+    });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/fleet/config/demo/runtime',
+      payload: { backend: 'codex', model: 'gpt-5.4-mini' },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toContain('Backend "codex" is not ready');
 
     await app.close();
   });

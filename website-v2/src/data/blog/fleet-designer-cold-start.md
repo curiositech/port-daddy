@@ -131,9 +131,10 @@ The interesting part is not the exact command names. The interesting part is the
   "testCommands": ["pnpm test", "pnpm lint"],
   "frameworks": ["vite", "react", "fastify"],
   "backends": {
-    "codex": { "ready": true, "telemetry": "exact" },
+    "cloudflare": { "ready": true, "telemetry": "exact" },
+    "codex": { "ready": false, "reason": "manual auth check required" },
     "claude": { "ready": false, "reason": "missing SDK package" },
-    "ollama": { "ready": true, "telemetry": "local-no-cost" }
+    "custom": { "ready": false, "reason": "exact telemetry unavailable" }
   },
   "recommendedLimits": {
     "maxActiveAgents": 2,

@@ -13,8 +13,8 @@ fleet:
   watchers: { ... }       # optional
   channels: { ... }       # optional, used by topology validator
   defaults:               # optional fallbacks for backend/model
-    backend: ollama
-    model: qwen2.5-coder:7b
+    backend: cloudflare
+    model: "@cf/qwen/qwen3-30b-a3b-fp8"
 ```
 
 ## `fleet.name`
@@ -62,7 +62,7 @@ You can mix them. If you set none, the agent is reachable only via manual `pd sp
 | Field | Required | Notes |
 |---|---|---|
 | `backend` | yes | One of `ollama`, `claude`, `claude-cli`, `codex`, `gemini`, `aider`, `custom`. |
-| `model` | when supported | Pin it. `claude-3-5-sonnet`, `qwen2.5-coder:7b`, etc. Predictable cost > "best available". |
+| `model` | when supported | Pin it. `@cf/qwen/qwen3-30b-a3b-fp8`, `claude-haiku-4-5-20251001`, etc. Predictable cost > "best available". |
 | `prompt` | yes | For LLM backends, the user message. For `custom`, the shell command. |
 | `allowedTools` | optional | Claude-CLI tool allowlist: `Read,Grep,Bash(npm test*)`. |
 | `worktree` | optional | If `true`, the spawner creates a git worktree and runs the agent there. |
@@ -124,8 +124,8 @@ fleet:
   agents:
     qa:
       trigger: git:committed
-      backend: ollama
-      model: qwen2.5-coder:7b
+      backend: cloudflare
+      model: "@cf/qwen/qwen3-30b-a3b-fp8"
       identity: "{project}:fleet:qa"
       respawn: true
       max_respawns: 3

@@ -570,14 +570,200 @@ export interface BackendInfo {
   models: string[];
   modelTiers?: Partial<Record<'low' | 'mid' | 'high', string>>;
   supported?: boolean;
+  launchable?: boolean;
   readinessStatus?: 'ready' | 'needs_setup' | 'manual_check' | 'unknown';
   readinessSummary?: string;
   readinessNextStep?: string;
   credentialKeys?: string[];
   credentialAlternates?: string[];
+  setupLinks?: BackendSetupLink[];
   setupCommand?: string;
   setupFiles?: string[];
   restartRequired?: boolean;
+}
+
+export interface BackendSetupLink {
+  label: string;
+  url: string;
+  description?: string;
+  kind?: 'token_template' | 'docs';
+}
+
+export interface BackendSecretSaveResult {
+  success: boolean;
+  backend?: string;
+  savedKeys?: string[];
+  encryptedAtRest?: boolean;
+  storage?: {
+    available: boolean;
+    storage?: string;
+    encryptedAtRest?: boolean;
+    location?: string;
+  };
+  error?: string;
+}
+
+export interface UsageTraceInput {
+  timestamp?: number;
+  surface: string;
+  kind: string;
+  name: string;
+  category?: string | null;
+  agentId?: string | null;
+  agentType?: string | null;
+  agentModel?: string | null;
+  backend?: string | null;
+  model?: string | null;
+  project?: string | null;
+  projectDir?: string | null;
+  route?: string | null;
+  method?: string | null;
+  status?: string | number | null;
+  durationMs?: number | null;
+  workScope?: 'port_daddy_call' | 'agent_work' | 'other_work' | string | null;
+  inputTokens?: number | null;
+  cachedInputTokens?: number | null;
+  outputTokens?: number | null;
+  totalTokens?: number | null;
+  turns?: number | null;
+  toolCalls?: number | null;
+  costUsd?: number | null;
+  costCurrency?: string | null;
+  costIsEstimate?: boolean | null;
+  context?: Record<string, unknown> | null;
+  metadata?: Record<string, unknown> | null;
+  version?: string | null;
+  codeHash?: string | null;
+  buildDate?: string | null;
+  cwd?: string | null;
+  userAgent?: string | null;
+}
+
+export interface UsageBuildMeta {
+  version: string;
+  codeHash: string;
+  buildDate: string;
+}
+
+export interface UsageBreakdownRow {
+  key: string;
+  label: string;
+  count: number;
+  percentage: number;
+}
+
+export interface UsageNameRow {
+  surface: string;
+  kind: string;
+  category: string;
+  name: string;
+  count: number;
+  avgDurationMs: number | null;
+  lastSeen: number;
+}
+
+export interface UsageAgentModelRow {
+  agentType: string;
+  agentModel: string;
+  backend: string;
+  model: string;
+  surface: string;
+  count: number;
+  lastSeen: number;
+}
+
+export interface UsageCapabilityRow {
+  category: string;
+  count: number;
+  surfaces: Record<string, number>;
+  models: Array<{ label: string; count: number }>;
+}
+
+export interface UsageAgentCapabilityRow {
+  agentType: string;
+  agentModel: string;
+  backend: string;
+  model: string;
+  category: string;
+  count: number;
+}
+
+export interface UsageCostScopeRow {
+  scope: string;
+  events: number;
+  inputTokens: number;
+  cachedInputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  turns: number;
+  toolCalls: number;
+  costUsd: number;
+  estimatedCostEvents: number;
+}
+
+export interface UsageRecentEvent {
+  id: number;
+  timestamp: number;
+  surface: string;
+  kind: string;
+  name: string;
+  category: string;
+  agentId: string | null;
+  agentType: string | null;
+  agentModel: string | null;
+  backend: string | null;
+  model: string | null;
+  project: string | null;
+  route: string | null;
+  method: string | null;
+  status: string | null;
+  durationMs: number | null;
+  workScope: string | null;
+  inputTokens: number | null;
+  cachedInputTokens: number | null;
+  outputTokens: number | null;
+  totalTokens: number | null;
+  turns: number | null;
+  toolCalls: number | null;
+  costUsd: number | null;
+  costCurrency: string | null;
+  costIsEstimate: boolean | null;
+  version: string | null;
+  codeHash: string | null;
+  buildDate: string | null;
+  context: Record<string, unknown> | null;
+  metadata: Record<string, unknown> | null;
+}
+
+export interface UsageTelemetrySummary {
+  success: true;
+  generatedAt: number;
+  since: number;
+  periodMs: number;
+  build: UsageBuildMeta;
+  totals: {
+    events: number;
+    uniqueAgents: number;
+    uniqueProjects: number;
+    uniqueModels: number;
+    inputTokens: number;
+    cachedInputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+    turns: number;
+    toolCalls: number;
+    costUsd: number;
+  };
+  costByScope: UsageCostScopeRow[];
+  bySurface: UsageBreakdownRow[];
+  byKind: UsageBreakdownRow[];
+  byCategory: UsageBreakdownRow[];
+  topNames: UsageNameRow[];
+  agentModels: UsageAgentModelRow[];
+  capabilities: UsageCapabilityRow[];
+  agentCapabilityMatrix: UsageAgentCapabilityRow[];
+  unusedCapabilities: string[];
+  recent: UsageRecentEvent[];
 }
 
 export interface RegistryAgent {

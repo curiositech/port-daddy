@@ -217,8 +217,8 @@ export const CLI_COMMANDS: CliCommand[] = [
     cmd: 'pd spawn',
     description: 'Launch an AI agent with Port Daddy coordination pre-wired. The agent auto-registers, sends heartbeats, writes notes, and gets salvaged if it crashes.',
     flags: [
-      '--backend <type>      AI backend: ollama | claude | gemini | aider | custom',
-      '--model <name>        Model to use (e.g. llama3, claude-haiku-4-5)',
+      '--backend <type>      AI backend: cloudflare | claude | codex | gemini | aider | custom',
+      "--model <name>        Model to use (e.g. '@cf/qwen/qwen3-30b-a3b-fp8', claude-haiku-4-5)",
       '--identity <id>       Semantic identity for this agent',
       '--purpose <text>      What this agent should do',
       '--harbor <name>       Run agent inside a harbor (scoped permissions)',

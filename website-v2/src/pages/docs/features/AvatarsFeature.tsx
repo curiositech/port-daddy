@@ -78,7 +78,7 @@ git commit -m "test"   # QA, docs, cartographer fire automatically`} />
             <p className="text-xs text-[var(--text-secondary)] m-0 mt-1">
               Fires when a message arrives on a pub/sub channel. Reactive, event-driven. Good for: code review, docs sync, roadmap updates.
             </p>
-            <DocsCodeBlock code={`qa:\n  trigger: git:committed\n  backend: ollama\n  model: qwen2.5-coder:7b`} />
+            <DocsCodeBlock code={`qa:\n  trigger: git:committed\n  backend: cloudflare\n  model: '@cf/qwen/qwen3-30b-a3b-fp8'`} />
           </div>
           <div className="border-l-4 border-[var(--brand-secondary)] pl-4">
             <div className="flex items-center gap-2">

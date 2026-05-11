@@ -12,6 +12,7 @@
  * POST   /fleet/reload     — Re-read all configs and restart changed fleets
  * POST   /fleet/register   — Register a project directory for fleet management
  * POST   /fleet/config/:project/budget — Set limits.budget_usd_per_day
+ * POST   /fleet/config/:project/runtime — Apply one ready runtime to fleet agents
  * GET    /fleet/events     — SSE stream of all fleet lifecycle events
  */
 
@@ -26,6 +27,7 @@ import {
   loadFleetConfig,
   validateTopology,
   type FleetConfig,
+  type FleetModelTier,
 } from '../lib/fleet-engine.js';
 import { ensureStarterFleetProject } from '../lib/fleet-bootstrap.js';
 import { resolveFleetChannel } from '../lib/fleet-channels.js';
@@ -129,6 +131,80 @@ function setFleetYamlBudget(yaml: string, usdPerDay: number): string {
   }
 
   return String(doc);
+}
+
+interface FleetRuntimeYamlUpdate {
+  backend: string;
+  model?: string;
+  modelTier?: FleetModelTier;
+  agentNames?: string[];
+  clearFallbacks: boolean;
+}
+
+interface FleetRuntimeYamlUpdateResult {
+  yaml: string;
+  updatedAgents: string[];
+  skippedAgents: string[];
+}
+
+const VALID_MODEL_TIERS = new Set<FleetModelTier>(['low', 'mid', 'high']);
+
+function parseAgentName(key: unknown): string {
+  return typeof key === 'string' ? key : String(key ?? '').trim();
+}
+
+function setFleetYamlRuntime(yaml: string, update: FleetRuntimeYamlUpdate): FleetRuntimeYamlUpdateResult {
+  const doc = parseDocument(yaml);
+  if (doc.errors.length > 0) {
+    throw new Error(doc.errors.map((err) => err.message).join('; '));
+  }
+  if (!isMap<string, unknown>(doc.contents)) {
+    throw new Error('Invalid YAML object');
+  }
+
+  const nestedFleet = doc.contents.get('fleet', true);
+  const target = isMap<string, unknown>(nestedFleet) ? nestedFleet : doc.contents;
+  const agents = target.get('agents', true);
+  if (!isMap<string, unknown>(agents)) {
+    throw new Error('Invalid YAML object: agents map is required');
+  }
+
+  const requestedAgents = update.agentNames?.length ? new Set(update.agentNames) : null;
+  const updatedAgents: string[] = [];
+  const skippedAgents: string[] = [];
+
+  for (const item of agents.items) {
+    const agentName = parseAgentName(item.key);
+    if (!agentName) continue;
+    if (requestedAgents && !requestedAgents.has(agentName)) continue;
+    if (!isMap<string, unknown>(item.value)) {
+      skippedAgents.push(agentName);
+      continue;
+    }
+
+    item.value.set('backend', update.backend);
+    if (update.modelTier) {
+      item.value.delete('model');
+      item.value.set('model_tier', update.modelTier);
+    } else {
+      item.value.delete('model_tier');
+      item.value.delete('modelTier');
+      if (update.model) item.value.set('model', update.model);
+      else item.value.delete('model');
+    }
+    if (update.clearFallbacks) item.value.delete('fallbacks');
+    updatedAgents.push(agentName);
+  }
+
+  if (requestedAgents) {
+    for (const agentName of requestedAgents) {
+      if (!updatedAgents.includes(agentName) && !skippedAgents.includes(agentName)) {
+        skippedAgents.push(agentName);
+      }
+    }
+  }
+
+  return { yaml: String(doc), updatedAgents, skippedAgents };
 }
 
 export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (fastify, opts) => {
@@ -430,6 +506,91 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
     }
   });
 
+  // POST /fleet/config/:project/runtime — bulk-apply one ready backend/model to fleet agents
+  fastify.post('/fleet/config/:project/runtime', async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = (request.body as Record<string, unknown>) || {};
+    const backend = typeof body.backend === 'string' ? body.backend.trim() : '';
+    const model = typeof body.model === 'string' && body.model.trim() ? body.model.trim() : undefined;
+    const rawModelTier = typeof body.modelTier === 'string' && body.modelTier.trim()
+      ? body.modelTier.trim()
+      : undefined;
+    const modelTier = rawModelTier && VALID_MODEL_TIERS.has(rawModelTier as FleetModelTier)
+      ? rawModelTier as FleetModelTier
+      : undefined;
+    const clearFallbacks = body.clearFallbacks !== false;
+    const agentNames = Array.isArray(body.agentNames)
+      ? [...new Set(body.agentNames
+        .filter((value): value is string => typeof value === 'string')
+        .map((value) => value.trim())
+        .filter(Boolean))]
+      : undefined;
+
+    if (!backend) {
+      reply.code(400);
+      return { success: false, error: 'backend is required' };
+    }
+    if (!BACKEND_CATALOG.some((entry) => entry.id === backend)) {
+      reply.code(400);
+      return { success: false, error: `Unknown backend "${backend}"` };
+    }
+    if (rawModelTier && !modelTier) {
+      reply.code(400);
+      return { success: false, error: 'modelTier must be one of: low, mid, high' };
+    }
+    if (model && modelTier) {
+      reply.code(400);
+      return { success: false, error: 'Choose either model or modelTier, not both' };
+    }
+
+    const readinessModel = model || (modelTier ? BUILTIN_MODEL_TIERS[backend]?.[modelTier] : undefined);
+    const readiness = await assessBackendReadiness(backend, { model: readinessModel ?? null });
+    if (readiness.status !== 'ready') {
+      reply.code(400);
+      return {
+        success: false,
+        error: `Backend "${backend}" is not ready: ${readiness.summary}`,
+        readiness,
+      };
+    }
+
+    const resolved = resolveFleetConfig((request.params as { project: string }).project, reply);
+    if (!resolved) return;
+    const { projectDir, configPath } = resolved;
+
+    try {
+      const currentYaml = readFileSync(configPath, 'utf-8');
+      const result = setFleetYamlRuntime(currentYaml, {
+        backend,
+        model,
+        modelTier,
+        agentNames,
+        clearFallbacks,
+      });
+      if (result.updatedAgents.length === 0) {
+        reply.code(400);
+        return { success: false, error: 'No matching agent definitions were updated', skippedAgents: result.skippedAgents };
+      }
+
+      writeFileSync(configPath, result.yaml, 'utf-8');
+      fleetDaemon.reload();
+      const newParsed = loadFleetConfig(projectDir);
+      const topology = newParsed ? validateTopology(newParsed) : null;
+      return {
+        success: true,
+        backend,
+        model: model ?? null,
+        modelTier: modelTier ?? null,
+        clearFallbacks,
+        updatedAgents: result.updatedAgents,
+        skippedAgents: result.skippedAgents,
+        topology,
+      };
+    } catch (err) {
+      reply.code(400);
+      return { success: false, error: (err as Error).message };
+    }
+  });
+
   // Ollama model list — cached to avoid 2s timeout penalty when Ollama is down
   let ollamaCache: { models: string[]; at: number } | null = null;
   const OLLAMA_TTL = 60_000;
@@ -465,6 +626,7 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
           models,
           modelTiers: tierDefaults || undefined,
           supported: true,
+          launchable: readiness.status === 'ready',
           readinessStatus: readiness.status,
           readinessSummary: readiness.summary,
           readinessNextStep: readiness.nextStep,

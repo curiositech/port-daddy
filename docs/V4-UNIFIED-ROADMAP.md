@@ -159,8 +159,8 @@ When credits are at stake, file claims can be enforced (not just advisory). This
 project: myapp
 agents:
   docs-updater:
-    backend: ollama
-    model: llama3.1:8b
+    backend: cloudflare
+    model: "@cf/qwen/qwen3-30b-a3b-fp8"
     purpose: "Watch for code changes, update docs"
     trigger: pd watch myapp:code:changed
   adversarial-tester:

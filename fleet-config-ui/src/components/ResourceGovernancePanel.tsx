@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Cpu, HardDrive, Monitor, Network, RefreshCw, ServerCog, ShieldCheck, Sparkles } from 'lucide-react';
-import { fetchResourceOverview } from '../api';
-import type { FleetLimits, ResourceBucket, ResourceOverview, ResourceSample, ResourceStatus } from '../types';
+import { AlertTriangle, Cpu, HardDrive, Monitor, Network, RefreshCw, ServerCog, ShieldCheck, SlidersHorizontal, Sparkles } from 'lucide-react';
+import { fetchModels, fetchResourceOverview, setFleetConfigRuntime } from '../api';
+import type { BackendInfo, FleetLimits, ResourceBucket, ResourceOverview, ResourceSample, ResourceStatus } from '../types';
 
 interface ResourceGovernancePanelProps {
   projectDir?: string;
   limits?: FleetLimits;
   onOpenYaml?: () => void;
+  onRuntimeChanged?: () => void;
 }
 
 const BUCKET_ICONS: Record<ResourceBucket['id'], typeof Cpu> = {
@@ -57,6 +58,10 @@ function formatLimit(bucket: ResourceBucket): string {
   if (bucket.unit === 'usd') return `$${bucket.limit.toFixed(2)}`;
   if (bucket.unit === 'percent') return `${bucket.limit.toFixed(0)}%`;
   return `${bucket.limit}`;
+}
+
+function isBackendReady(backend: BackendInfo): boolean {
+  return backend.launchable ?? backend.readinessStatus === 'ready';
 }
 
 function sampleValue(bucketId: ResourceBucket['id'], sample: ResourceSample): number | null {
@@ -148,12 +153,20 @@ function BucketCard({ bucket, samples }: { bucket: ResourceBucket; samples: Reso
   );
 }
 
-export default function ResourceGovernancePanel({ projectDir, limits, onOpenYaml }: ResourceGovernancePanelProps) {
+export default function ResourceGovernancePanel({ projectDir, limits, onOpenYaml, onRuntimeChanged }: ResourceGovernancePanelProps) {
   const [overview, setOverview] = useState<ResourceOverview | null>(null);
+  const [backends, setBackends] = useState<BackendInfo[]>([]);
+  const [runtimeBackend, setRuntimeBackend] = useState('');
+  const [runtimeModel, setRuntimeModel] = useState('');
+  const [runtimeSaving, setRuntimeSaving] = useState(false);
+  const [runtimeMessage, setRuntimeMessage] = useState<string | null>(null);
+  const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dismissedEscalation, setDismissedEscalation] = useState(false);
   const maxConcurrentSpawns = limits?.maxConcurrentSpawns;
+  const readyBackends = useMemo(() => backends.filter(isBackendReady), [backends]);
+  const selectedRuntimeBackend = readyBackends.find((backend) => backend.id === runtimeBackend) ?? readyBackends[0] ?? null;
 
   const refresh = async () => {
     setError(null);
@@ -174,6 +187,57 @@ export default function ResourceGovernancePanel({ projectDir, limits, onOpenYaml
     const interval = window.setInterval(() => void refresh(), 8000);
     return () => window.clearInterval(interval);
   }, [projectDir, maxConcurrentSpawns]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchModels()
+      .then((models) => {
+        if (cancelled) return;
+        const launchable = models.filter(isBackendReady);
+        setBackends(models);
+        setRuntimeBackend((current) => (
+          launchable.some((backend) => backend.id === current)
+            ? current
+            : launchable[0]?.id ?? ''
+        ));
+      })
+      .catch(() => {
+        if (!cancelled) setBackends([]);
+      });
+    return () => { cancelled = true; };
+  }, [projectDir]);
+
+  useEffect(() => {
+    if (!selectedRuntimeBackend) {
+      setRuntimeModel('');
+      return;
+    }
+    setRuntimeModel((current) => (
+      current && selectedRuntimeBackend.models.includes(current)
+        ? current
+        : selectedRuntimeBackend.models[0] ?? ''
+    ));
+  }, [selectedRuntimeBackend?.id]);
+
+  const applyRuntime = async () => {
+    if (!projectDir || !selectedRuntimeBackend) return;
+    setRuntimeSaving(true);
+    setRuntimeMessage(null);
+    setRuntimeError(null);
+    try {
+      const result = await setFleetConfigRuntime(projectDir, {
+        backend: selectedRuntimeBackend.id,
+        model: runtimeModel || undefined,
+        clearFallbacks: true,
+      });
+      setRuntimeMessage(`Updated ${result.updatedAgents.length} agents`);
+      onRuntimeChanged?.();
+    } catch (err) {
+      setRuntimeError((err as Error).message);
+    } finally {
+      setRuntimeSaving(false);
+    }
+  };
 
   const headline = useMemo(() => {
     if (!overview) return 'Measuring this computer';
@@ -290,6 +354,75 @@ export default function ResourceGovernancePanel({ projectDir, limits, onOpenYaml
             <span className="text-right font-mono" style={{ color: 'var(--pd-text)' }}>${overview.cost.dailySpendUsd.toFixed(2)}</span>
           </div>
         </div>
+      </div>
+
+      <div className="mt-4 rounded-lg border p-3" style={{ backgroundColor: 'var(--pd-surface)', borderColor: 'var(--pd-border)' }}>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 text-[10px] font-semibold tracking-wider" style={{ color: 'var(--pd-dim)' }}>
+              <SlidersHorizontal size={13} />
+              <span>FLEET RUNTIME</span>
+            </div>
+            <div className="mt-1 text-sm font-semibold" style={{ color: 'var(--pd-text)' }}>
+              {readyBackends.length > 0 ? `${readyBackends.length} ready backend${readyBackends.length === 1 ? '' : 's'}` : 'No ready backends'}
+            </div>
+          </div>
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="grid gap-1 text-[10px] font-semibold" style={{ color: 'var(--pd-muted)' }}>
+              <span>Backend</span>
+              <select
+                value={selectedRuntimeBackend?.id ?? ''}
+                onChange={(event) => {
+                  setRuntimeBackend(event.target.value);
+                  setRuntimeMessage(null);
+                  setRuntimeError(null);
+                }}
+                className="h-8 min-w-40 rounded-md px-2 text-xs"
+                style={{ color: 'var(--pd-text)', border: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-bg)' }}
+                disabled={readyBackends.length === 0 || runtimeSaving}
+              >
+                {readyBackends.length === 0 && <option value="" disabled>No ready backend</option>}
+                {readyBackends.map((backend) => (
+                  <option key={backend.id} value={backend.id}>{backend.name}</option>
+                ))}
+              </select>
+            </label>
+            <label className="grid gap-1 text-[10px] font-semibold" style={{ color: 'var(--pd-muted)' }}>
+              <span>Model</span>
+              <select
+                value={runtimeModel}
+                onChange={(event) => {
+                  setRuntimeModel(event.target.value);
+                  setRuntimeMessage(null);
+                  setRuntimeError(null);
+                }}
+                className="h-8 min-w-64 rounded-md px-2 text-xs"
+                style={{ color: 'var(--pd-text)', border: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-bg)' }}
+                disabled={!selectedRuntimeBackend || runtimeSaving}
+              >
+                <option value="">default</option>
+                {selectedRuntimeBackend?.models.map((model) => (
+                  <option key={model} value={model}>{model}</option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              onClick={() => void applyRuntime()}
+              disabled={!projectDir || !selectedRuntimeBackend || runtimeSaving}
+              className="inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-[11px] font-semibold disabled:opacity-50"
+              style={{ color: 'var(--pd-text)', border: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-bg)' }}
+            >
+              <ServerCog size={13} />
+              <span>{runtimeSaving ? 'Applying' : 'Apply to all agents'}</span>
+            </button>
+          </div>
+        </div>
+        {(runtimeMessage || runtimeError) && (
+          <div className="mt-2 text-xs" style={{ color: runtimeError ? 'var(--pd-accent)' : 'var(--pd-success)' }}>
+            {runtimeError || runtimeMessage}
+          </div>
+        )}
       </div>
 
       <div className="mt-4 grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">
