@@ -324,7 +324,12 @@ const activityLog = createActivityLog(db);
 const webhooks = createWebhooks(db);
 const projects = createProjects(db);
 const noteEncryption = createNoteEncryption({ requireMasterKey: true });
-const sessions = createSessions(db, noteEncryption, { semanticIndex, episodicMemory, symbolIndex });
+const sessions = createSessions(db, noteEncryption, {
+  semanticIndex,
+  episodicMemory,
+  symbolIndex,
+  requireAgentForFileClaims: true,
+});
 sessions.setActivityLog(activityLog);
 
 const agentInbox = createAgentInbox(db, (agentId, message) => {
