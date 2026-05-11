@@ -874,8 +874,11 @@ export function createFleetDaemon(deps: FleetDaemonDeps) {
   }
 
   /** Start a specific project's fleet by directory path. */
-  function startProject(projectDir: string, options: { enabledAgents?: string[] } = {}): { success: boolean; error?: string } {
-    if (markProtectedStableProject(projectDir, basename(projectDir), 'manual')) {
+  function startProject(
+    projectDir: string,
+    options: { enabledAgents?: string[]; allowStableInstallFleet?: boolean } = {}
+  ): { success: boolean; error?: string } {
+    if (!options.allowStableInstallFleet && markProtectedStableProject(projectDir, basename(projectDir), 'manual')) {
       return { success: false, error: STABLE_INSTALL_FLEET_SKIP_REASON };
     }
     if (fleets.has(projectDir)) {
