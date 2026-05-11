@@ -754,11 +754,14 @@ describe('Route error codes: locks', () => {
 describe('Route error codes: sessions', () => {
   let app;
   let sessionsMod;
+  let logger;
+  let activityEntries;
 
   beforeEach(async () => {
     const db = createTestDb();
-    const logger = createMockLogger();
-    sessionsMod = createSessions(db);
+    logger = createMockLogger();
+    activityEntries = [];
+    sessionsMod = createSessions(db, undefined, { requireAgentForFileClaims: true });
 
     app = Fastify();
     await app.register(sessionsPlugin, {
@@ -766,7 +769,7 @@ describe('Route error codes: sessions', () => {
         sessions: sessionsMod,
         metrics: { errors: 0 },
         logger,
-        activityLog: { log: () => {} }
+        activityLog: { log: (...args) => activityEntries.push(args) }
       }
     });
     await app.ready();
@@ -782,6 +785,40 @@ describe('Route error codes: sessions', () => {
     expect(res.statusCode).toBe(400);
     expect(res.json().code).toBe('VALIDATION_ERROR');
     expect(res.json().error).toContain('purpose');
+  });
+
+  test('POST /sessions logs the resolved session agent identity', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/sessions',
+      headers: { 'x-agent-id': 'agent-from-header' },
+      payload: { purpose: 'header-owned session' },
+    });
+
+    expect(res.statusCode).toBe(200);
+
+    const sessionStarted = logger.getLogs().info.find(([event]) => event === 'session_started');
+    expect(sessionStarted?.[1]).toEqual(expect.objectContaining({
+      agentId: 'agent-from-header',
+      purpose: 'header-owned session',
+    }));
+
+    const activityStarted = activityEntries.find(([event]) => event === 'session_start');
+    expect(activityStarted?.[1].metadata).toEqual(expect.objectContaining({
+      agentId: 'agent-from-header',
+      purpose: 'header-owned session',
+    }));
+  });
+
+  test('POST /sessions preserves SESSION_AGENT_REQUIRED for initial file claims', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/sessions',
+      payload: { purpose: 'test', files: ['file-a.ts'] },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json().code).toBe('SESSION_AGENT_REQUIRED');
   });
 
   test('GET /sessions/:id returns SESSION_NOT_FOUND', async () => {
@@ -853,6 +890,75 @@ describe('Route error codes: sessions', () => {
     expect(res.json().code).toBe('VALIDATION_ERROR');
   });
 
+  test('POST /sessions/:id/files returns SESSION_AGENT_REQUIRED for agentless sessions', async () => {
+    const session = await app.inject({ method: 'POST', url: '/sessions', payload: { purpose: 'test' } });
+    const sessionId = session.json().id;
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/sessions/${sessionId}/files`,
+      payload: { files: ['file-a.ts'] },
+    });
+
+    expect(res.statusCode).toBe(409);
+    expect(res.json().code).toBe('SESSION_AGENT_REQUIRED');
+  });
+
+  test('POST /sessions/:id/files requires the owning agent before conflict checks', async () => {
+    await app.inject({
+      method: 'POST',
+      url: '/sessions',
+      payload: { purpose: 'owner', agentId: 'agent-owner', files: ['file-a.ts'] },
+    });
+    const session = await app.inject({
+      method: 'POST',
+      url: '/sessions',
+      payload: { purpose: 'intruder', agentId: 'agent-intruder' },
+    });
+    const sessionId = session.json().id;
+
+    const noAgent = await app.inject({
+      method: 'POST',
+      url: `/sessions/${sessionId}/files`,
+      payload: { files: ['file-a.ts'] },
+    });
+    expect(noAgent.statusCode).toBe(409);
+    expect(noAgent.json().code).toBe('SESSION_AGENT_REQUIRED');
+
+    const wrongAgent = await app.inject({
+      method: 'POST',
+      url: `/sessions/${sessionId}/files`,
+      payload: { agentId: 'agent-owner', files: ['file-a.ts'] },
+    });
+    expect(wrongAgent.statusCode).toBe(403);
+    expect(wrongAgent.json().code).toBe('SESSION_AGENT_MISMATCH');
+  });
+
+  test('DELETE /sessions/:id/files requires the owning agent', async () => {
+    const session = await app.inject({
+      method: 'POST',
+      url: '/sessions',
+      payload: { purpose: 'owned release', agentId: 'agent-owner', files: ['file-a.ts'] },
+    });
+    const sessionId = session.json().id;
+
+    const wrongAgent = await app.inject({
+      method: 'DELETE',
+      url: `/sessions/${sessionId}/files`,
+      payload: { agentId: 'agent-intruder', files: ['file-a.ts'] },
+    });
+    expect(wrongAgent.statusCode).toBe(403);
+    expect(wrongAgent.json().code).toBe('SESSION_AGENT_MISMATCH');
+
+    const owner = await app.inject({
+      method: 'DELETE',
+      url: `/sessions/${sessionId}/files`,
+      payload: { agentId: 'agent-owner', files: ['file-a.ts'] },
+    });
+    expect(owner.statusCode).toBe(200);
+    expect(owner.json().released).toEqual(['file-a.ts']);
+  });
+
   test('POST /notes returns VALIDATION_ERROR for empty content', async () => {
     const res = await app.inject({ method: 'POST', url: '/notes', payload: {} });
 
@@ -862,10 +968,18 @@ describe('Route error codes: sessions', () => {
 
   test('POST /sessions with conflicting files returns FILE_CONFLICT', async () => {
     // Create a session and claim files
-    await app.inject({ method: 'POST', url: '/sessions', payload: { purpose: 'session-1', files: ['file-a.ts'] } });
+    await app.inject({
+      method: 'POST',
+      url: '/sessions',
+      payload: { purpose: 'session-1', agentId: 'agent-1', files: ['file-a.ts'] },
+    });
 
     // Try to create another session with the same files
-    const res = await app.inject({ method: 'POST', url: '/sessions', payload: { purpose: 'session-2', files: ['file-a.ts'] } });
+    const res = await app.inject({
+      method: 'POST',
+      url: '/sessions',
+      payload: { purpose: 'session-2', agentId: 'agent-2', files: ['file-a.ts'] },
+    });
 
     expect(res.statusCode).toBe(409);
     expect(res.json().code).toBe('FILE_CONFLICT');

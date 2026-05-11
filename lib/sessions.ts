@@ -74,6 +74,12 @@ interface FileRegion {
 interface ClaimFilesOptions {
   regions?: FileRegion[];
   force?: boolean;
+  agentId?: string | null;
+}
+
+interface ReleaseFilesOptions {
+  regions?: FileRegion[];
+  agentId?: string | null;
 }
 
 interface SessionNoteRow {
@@ -156,11 +162,17 @@ interface FileConflict {
 export function createSessions(
   db: Database.Database,
   noteEncryption?: NoteEncryption,
-  options?: { semanticIndex?: SemanticIndex; episodicMemory?: EpisodicMemory; symbolIndex?: SymbolIndex },
+  options?: {
+    semanticIndex?: SemanticIndex;
+    episodicMemory?: EpisodicMemory;
+    symbolIndex?: SymbolIndex;
+    requireAgentForFileClaims?: boolean;
+  },
 ) {
   const semanticIndex = options?.semanticIndex;
   const episodicMemory = options?.episodicMemory;
   const symbolIndex = options?.symbolIndex;
+  const requireAgentForFileClaims = options?.requireAgentForFileClaims === true;
   // In-memory cache: sessionId → unwrapped session key (avoids re-unwrap on every read)
   const sessionKeyCache = new Map<string, Buffer>();
   // Ensure tables exist (base schema without worktree_id for migration compatibility)
@@ -776,6 +788,51 @@ export function createSessions(
     });
   }
 
+  function normalizeAgentId(agentId: string | null | undefined): string | null {
+    if (agentId == null) return null;
+    return agentId.trim();
+  }
+
+  function authorizeFileMutation(
+    session: SessionRow,
+    callerAgentId: string | null | undefined,
+    action: 'claiming' | 'releasing',
+  ): { success: true; agentId: string | null } | { success: false; error: string; code: string } {
+    if (callerAgentId !== null && callerAgentId !== undefined && typeof callerAgentId !== 'string') {
+      return { success: false, error: 'agentId must be a string', code: 'VALIDATION_ERROR' };
+    }
+
+    const normalizedCaller = normalizeAgentId(callerAgentId);
+    if (!requireAgentForFileClaims) {
+      return { success: true, agentId: normalizedCaller };
+    }
+
+    const sessionAgentId = normalizeAgentId(session.agent_id);
+    if (!sessionAgentId) {
+      return {
+        success: false,
+        error: `agentId is required before ${action} files for a session`,
+        code: 'SESSION_AGENT_REQUIRED',
+      };
+    }
+    if (!normalizedCaller) {
+      return {
+        success: false,
+        error: `agentId is required when ${action} files for a session`,
+        code: 'SESSION_AGENT_REQUIRED',
+      };
+    }
+    if (normalizedCaller !== sessionAgentId) {
+      return {
+        success: false,
+        error: `agentId "${normalizedCaller}" cannot mutate file claims for session owned by "${sessionAgentId}"`,
+        code: 'SESSION_AGENT_MISMATCH',
+      };
+    }
+
+    return { success: true, agentId: normalizedCaller };
+  }
+
   // ---------------------------------------------------------------------------
   // Activity logging (optional — injected via setActivityLog)
   // ---------------------------------------------------------------------------
@@ -820,6 +877,10 @@ export function createSessions(
     if (agentId !== null && typeof agentId !== 'string') {
       return { success: false, error: 'agentId must be a string', code: 'VALIDATION_ERROR' };
     }
+    const normalizedAgentId = normalizeAgentId(agentId);
+    if (agentId !== null && !normalizedAgentId) {
+      return { success: false, error: 'agentId must be a non-empty string when provided', code: 'VALIDATION_ERROR' };
+    }
 
     // Validate files array contents
     if (!Array.isArray(files)) {
@@ -830,13 +891,20 @@ export function createSessions(
         return { success: false, error: 'files must contain non-empty strings', code: 'VALIDATION_ERROR' };
       }
     }
+    if (requireAgentForFileClaims && files.length > 0 && !normalizedAgentId) {
+      return {
+        success: false,
+        error: 'agentId is required to start a session with file claims',
+        code: 'SESSION_AGENT_REQUIRED',
+      };
+    }
 
     try {
       stmts.insert.run(
         id,
         trimmedPurpose,
         'active',
-        agentId,
+        normalizedAgentId,
         resolvedWorktreeId,
         identityProject,
         now,
@@ -866,7 +934,7 @@ export function createSessions(
     let conflicts: FileConflict[] | undefined;
 
     if (files.length > 0) {
-      const claimResult = claimFiles(id, files);
+      const claimResult = claimFiles(id, files, { agentId: normalizedAgentId });
       claimedFiles = claimResult.claimed;
       if (claimResult.conflicts && claimResult.conflicts.length > 0) {
         conflicts = claimResult.conflicts;
@@ -897,14 +965,14 @@ export function createSessions(
 
     if (activityLog) {
       activityLog.log(ActivityType.SESSION_START, {
-        agentId,
+        agentId: normalizedAgentId,
         targetId: sessionTarget(identityProject, id),
         details: `Session started: ${trimmedPurpose}`,
         metadata: {
           ...(metadata && typeof metadata === 'object' ? metadata : {}),
           sessionId: id,
           purpose: trimmedPurpose,
-          agentId: agentId || undefined,
+          agentId: normalizedAgentId || undefined,
           identityProject: identityProject || undefined,
           worktreeId: resolvedWorktreeId || undefined,
         } as unknown as Record<string, unknown>,
@@ -1309,6 +1377,8 @@ export function createSessions(
         code: 'SESSION_NOT_ACTIVE',
       };
     }
+    const auth = authorizeFileMutation(session, options?.agentId, 'claiming');
+    if (!auth.success) return auth;
 
     const now = Date.now();
     const claimed: string[] = [];
@@ -1413,7 +1483,7 @@ export function createSessions(
    * @param filePaths - Release all claims (any region) for these paths
    * @param options - Optional: release specific region claims
    */
-  function releaseFiles(sessionId: string, filePaths: string[], options?: { regions?: FileRegion[] }) {
+  function releaseFiles(sessionId: string, filePaths: string[], options?: ReleaseFilesOptions) {
     if (!sessionId || typeof sessionId !== 'string') {
       return { success: false, error: 'sessionId must be a non-empty string' };
     }
@@ -1422,6 +1492,16 @@ export function createSessions(
     if (!session) {
       return { success: false, error: 'session not found' };
     }
+    if (session.status !== 'active') {
+      return {
+        success: false,
+        error: `session is ${session.status}; only active sessions can release files`,
+        code: 'SESSION_NOT_ACTIVE',
+      };
+    }
+
+    const auth = authorizeFileMutation(session, options?.agentId, 'releasing');
+    if (!auth.success) return auth;
 
     const regions = options?.regions ?? [];
 
