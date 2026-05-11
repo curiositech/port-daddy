@@ -130,9 +130,10 @@ describe('backend readiness', () => {
   test('keeps claude-cli probe details while still blocking launch under telemetry policy', async () => {
     mockSpawnSync.mockReturnValue({ status: 1 });
 
-    // Claude CLI remains fail-closed even when a model has an exact rate:
-    // subprocess telemetry still cannot prove exact token counts and nonzero
-    // cost. The probe detail must survive alongside that policy summary.
+    // Claude CLI remains fail-closed for an unknown model without an exact
+    // cost rate entry: subprocess telemetry still cannot prove exact token
+    // counts and nonzero cost. The probe detail must survive alongside that
+    // policy summary.
     const readiness = await assessBackendReadiness('claude-cli', { model: 'unknown-rateless-model-9999' });
 
     expect(mockSpawnSync).toHaveBeenCalledWith('which', ['claude'], expect.objectContaining({
