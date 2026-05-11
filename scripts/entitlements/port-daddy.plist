@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!--
+    Bun-compiled binaries embed a JavaScript engine (JSC/V8) that needs
+    to allocate executable memory pages at runtime. Hardened runtime's
+    default W^X policy blocks that — without these entitlements the
+    binary aborts at first JIT codegen with:
+        Ran out of executable memory while allocating 128 bytes.
+    Notarization Accepted with this entitlement set is verified in the
+    ADR-0028 spike (submissions 503ff7ae-4173-4f86-be88-df5d7c285031,
+    e10f290c-3f40-49c7-8cd9-cc1c189d1891, 11c434f4-9403-451e-a909-b1a8ee79aee6).
+  -->
+  <key>com.apple.security.cs.allow-jit</key>
+  <true/>
+  <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+  <true/>
+  <key>com.apple.security.cs.disable-library-validation</key>
+  <true/>
+</dict>
+</plist>
