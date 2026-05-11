@@ -42,26 +42,11 @@ export function assessBackendTelemetryPolicy(backend: string, model?: string | n
     }
 
     case 'claude-cli': {
-      // claude-cli runs the Claude Code subprocess against the user's
-      // interactive login. Underlying Anthropic models (haiku/sonnet/opus)
-      // share the same exact cost rates as the `claude` SDK backend, so
-      // rate accounting flows through the same MODEL_RATES table. The
-      // operator's billing surface differs (subscription vs. API key),
-      // but per-call token-cost arithmetic is identical.
-      const effectiveModel = model?.trim() || DEFAULT_OPERATOR_CLAUDE_MODEL;
-      if (!hasExactModelRate(effectiveModel)) {
-        return blocked(
-          backend,
-          `Claude CLI model "${effectiveModel}" has no exact cost rate entry; fail-closed telemetry policy blocks launch.`,
-          'Add an exact model rate before enabling this model.'
-        );
-      }
-      return {
+      return blocked(
         backend,
-        launchAllowed: true,
-        summary: `Exact telemetry policy satisfied for Claude CLI model "${effectiveModel}"`,
-        effectiveModel,
-      };
+        'Claude CLI is blocked until exact token counts and exact nonzero cost are recorded end-to-end.',
+        'Keep Claude CLI disabled for operator launches until subprocess telemetry is exact and test-covered.'
+      );
     }
 
     case 'codex': {
