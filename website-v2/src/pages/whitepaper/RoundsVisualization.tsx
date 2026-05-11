@@ -252,39 +252,46 @@ function ReputationLedger() {
 
 export function RoundsVisualization(): React.ReactElement {
   return (
-    <div className="space-y-12">
-      <section>
-        <h2 className="mb-2 text-xl font-semibold">Coverage matrix</h2>
-        <p className="mb-4 text-sm text-[var(--text-muted)]">
-          Cumulative smells answered per paper section × class. Empty cells
-          are unprobed surfaces — candidates for the next round&apos;s target list.
+    <div className="grid gap-[var(--space-6)] lg:grid-cols-2">
+      <section className="border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-5)] lg:col-span-2">
+        <h3 className="mb-[var(--space-2)] font-display text-[length:var(--type-panel-title-card-size)] font-black leading-[var(--leading-card)] text-[var(--text-primary)]">
+          Coverage matrix
+        </h3>
+        <p className="mb-[var(--space-4)] max-w-[64ch] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
+          Each cell is one paper section crossed with one kind of complaint
+          (cryptography, economics, recovery, and so on). Filled cells have
+          been argued over; empty ones are surfaces no reviewer has
+          stress-tested yet.
         </p>
-        <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-6">
+        <div className="overflow-x-auto">
           <Heatmap />
         </div>
       </section>
 
-      <section>
-        <h2 className="mb-2 text-xl font-semibold">Severity by round</h2>
-        <p className="mb-4 text-sm text-[var(--text-muted)]">
-          High-severity smells (filled) vs. medium (half-tone) vs. scope
-          clarifications (muted). Useful for spotting rounds that produced
-          mostly cosmetic deltas.
+      <section className="border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-5)]">
+        <h3 className="mb-[var(--space-2)] font-display text-[length:var(--type-panel-title-card-size)] font-black leading-[var(--leading-card)] text-[var(--text-primary)]">
+          Severity, round by round
+        </h3>
+        <p className="mb-[var(--space-4)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
+          Filled bars are deep flaws; half-tones are weaker objections;
+          muted bars are scope clarifications. A round that was mostly
+          muted means the paper held up that month.
         </p>
-        <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-6">
+        <div className="overflow-x-auto">
           <SeverityStack />
         </div>
       </section>
 
-      <section>
-        <h2 className="mb-2 text-xl font-semibold">Reputation ledger</h2>
-        <p className="mb-4 text-sm text-[var(--text-muted)]">
-          Per-persona deltas across rounds. Slashes (when they happen)
-          appear as negative entries in the round column.
+      <section className="border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-5)]">
+        <h3 className="mb-[var(--space-2)] font-display text-[length:var(--type-panel-title-card-size)] font-black leading-[var(--leading-card)] text-[var(--text-primary)]">
+          Who pushed what
+        </h3>
+        <p className="mb-[var(--space-4)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
+          Each reviewer persona earns or loses points per round depending on
+          whether their objection landed. Negative entries are the times we
+          decided a critique was wrong on the merits.
         </p>
-        <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-raised)] p-6">
-          <ReputationLedger />
-        </div>
+        <ReputationLedger />
       </section>
     </div>
   )

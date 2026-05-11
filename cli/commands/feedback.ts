@@ -1,15 +1,95 @@
 /**
- * Feedback CLI — `pd feedback drop|list|show|harvest|summary`
+ * Feedback CLI — `pd feedback [<message> | drop|list|show|harvest|summary]`
  *
  * Thin wrapper around `/feedback/*` HTTP endpoints. Lets agents and
  * humans drop structured findings without writing markdown files. The
  * feedback stream is what cartographer harvests into the roadmap.
+ *
+ * Bare form: `pd feedback "summary text"` drops a finding with auto-
+ * derived slug and droppedBy (from active session/agent context).
  */
 
 import { CLIOptions, isJson, isQuiet } from '../types.js';
 import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
 import { loadFleetConfig } from '../../lib/fleet-engine.js';
+import { readCurrentContext } from '../utils/current-context.js';
+
+const SUBCOMMANDS = new Set([
+  'drop', 'list', 'show', 'harvest', 'ack', 'summary',
+  'recent', 'mine', 'open', 'help', '--help', '-h',
+]);
+
+function readSummaryFromStdin(): Promise<string> {
+  return new Promise((resolve) => {
+    if (process.stdin.isTTY) {
+      resolve('');
+      return;
+    }
+    let buf = '';
+    process.stdin.setEncoding('utf8');
+    process.stdin.on('data', (chunk) => {
+      buf += chunk;
+    });
+    process.stdin.on('end', () => resolve(buf.trim()));
+    process.stdin.on('error', () => resolve(''));
+  });
+}
+
+/**
+ * Auto-detect surface from CWD when not explicitly set. Looks for the closest
+ * directory marker that maps to a known surface (CLI/API/MCP/Routes/Lib/Fleet/UI).
+ * Returns undefined when no clear match — caller can omit the field.
+ */
+function inferSurfaceFromCwd(): string | undefined {
+  const cwd = process.cwd();
+  const segments = cwd.split('/').filter(Boolean);
+  // Walk segments right-to-left, first match wins.
+  for (let i = segments.length - 1; i >= 0; i--) {
+    const seg = segments[i].toLowerCase();
+    if (seg === 'cli' || seg === 'bin') return 'CLI';
+    if (seg === 'mcp' || seg === 'mcp-server') return 'MCP';
+    if (seg === 'routes' || seg === 'api') return 'API';
+    if (seg === 'dashboard' || seg === 'website' || seg === 'apps') return 'UI';
+    if (seg === 'fleet') return 'Fleet';
+    if (seg === 'lib') return 'Lib';
+    if (seg === 'docs') return 'Docs';
+  }
+  return undefined;
+}
+
+function severityFromOptions(options: CLIOptions): string | undefined {
+  const explicit = readString(options, 'severity');
+  if (explicit) return explicit;
+  // Convenience flags: --critical / --high / --medium / --low
+  if (options.critical) return 'critical';
+  if (options.high) return 'high';
+  if (options.medium) return 'medium';
+  if (options.low) return 'low';
+  return undefined;
+}
+
+function slugFromSummary(summary: string): string {
+  const slug = summary
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]+/g, '')
+    .trim()
+    .split(/\s+/)
+    .slice(0, 6)
+    .join('-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+  return slug || `feedback-${Date.now().toString(36)}`;
+}
+
+function inferDroppedBy(options: CLIOptions): string {
+  const explicit = readString(options, 'as', 'droppedBy', 'agent');
+  if (explicit) return explicit;
+  const ctx = readCurrentContext();
+  if (ctx?.agentId) return ctx.agentId;
+  const user = process.env.USER || process.env.USERNAME;
+  return user ? `cli:${user}` : 'cli:unknown';
+}
 
 interface FeedbackEntry {
   feedbackId: string;
@@ -95,17 +175,98 @@ function printEntry(entry: FeedbackEntry): void {
 }
 
 export async function handleFeedback(args: string[], options: CLIOptions): Promise<void> {
-  const sub = args[0];
-  if (!sub || sub === 'help' || sub === '--help' || sub === '-h') {
+  let sub = args[0];
+
+  // No-args, no-stdin → show summary instead of help (more useful default).
+  // Help is still reachable via `pd feedback help` / `--help` / `-h`.
+  if (!sub && process.stdin.isTTY) {
+    sub = 'summary';
+    args = [sub];
+  }
+
+  if (sub === 'help' || sub === '--help' || sub === '-h') {
     console.log(`Usage:
-  pd feedback drop --slug <name> --summary <text> --as <agentId> [--severity low|medium|high|critical]
-                   [--surface CLI|API|MCP|...] [--source agent|human|mcp|cli] [--hook <text>]
-                   [--suggest <text>] [--project <slug>] [--harbor <h>]
-  pd feedback list [--severity ...] [--surface ...] [--status open|harvested|all] [--limit N] [--project <slug>] [--harbor <h>]
+  pd feedback "<message>"                 Bare form — auto slug + agent from context
+  cat notes.md | pd feedback              Stdin pipe — same auto-derivation
+  pd feedback                             No args → shows summary (when run interactively)
+
+Subcommands:
+  pd feedback drop --slug X --summary Y --as Z [--severity ...] [--surface ...] [--hook ...] [--suggest ...]
+  pd feedback list [--severity ...] [--surface ...] [--status open|harvested|all] [--limit N]
+  pd feedback recent                      Alias: list --status open --limit 10
+  pd feedback open                        Alias: list --status open
+  pd feedback mine                        Alias: list filtered to current agent/user
   pd feedback show <feedbackId>
-  pd feedback harvest <feedbackId> --as <agentId> [--into <roadmap-slug>]
-  pd feedback summary [--project <slug>] [--harbor <h>]
+  pd feedback ack <feedbackId> [--into <slug>]   Alias for harvest
+  pd feedback harvest <feedbackId> [--into <slug>]
+  pd feedback summary
+
+Severity shortcuts (instead of --severity X):
+  --critical / --high / --medium / --low
+
+Surface auto-detection:
+  Inferred from CWD (cli/→CLI, mcp/→MCP, routes/→API, dashboard/→UI, fleet/→Fleet, lib/→Lib, docs/→Docs).
+  Override with --surface <X>. Pass --no-auto-surface to disable inference.
+
+Project scoping:
+  Auto-derived from fleet config in CWD. Override --project <slug> or pass --all to ignore.
 `);
+    return;
+  }
+
+  // Bare form: `pd feedback "free text"` — or stdin pipe — or no-args while
+  // piped from a non-TTY (CI/scripts). Skipped when args[0] is a known subcommand.
+  if (!sub || !SUBCOMMANDS.has(sub)) {
+    let summary = sub ?? '';
+    if (!summary && !process.stdin.isTTY) {
+      summary = await readSummaryFromStdin();
+    }
+    summary = summary.trim();
+    if (!summary) {
+      ui.error('feedback requires a non-empty message (positional arg or stdin pipe)');
+      process.exit(1);
+    }
+    const droppedBy = inferDroppedBy(options);
+    const slug = readString(options, 'slug') ?? slugFromSummary(summary);
+    const body: Record<string, unknown> = { slug, summary, droppedBy, source: 'cli' };
+    const explicitSurface = readString(options, 'surface');
+    if (explicitSurface) {
+      body.surface = explicitSurface;
+    } else if (!options['no-auto-surface']) {
+      const inferred = inferSurfaceFromCwd();
+      if (inferred) body.surface = inferred;
+    }
+    const severity = severityFromOptions(options);
+    if (severity) body.severity = severity;
+    const sourceOverride = readString(options, 'source');
+    if (sourceOverride) body.source = sourceOverride;
+    const hook = readString(options, 'hook');
+    if (hook) body.hook = hook;
+    const suggest = readString(options, 'suggest', 'suggested');
+    if (suggest) body.suggested = suggest;
+    const project = inferProject(options);
+    if (project) body.project = project;
+    const harbor = readString(options, 'harbor');
+    if (harbor) body.harbor = harbor;
+    const ttlMs = readNumber(options, 'ttl-ms', 'ttlMs');
+    if (ttlMs !== undefined) body.ttlMs = ttlMs;
+
+    const { ok, data } = await postJson('/feedback', body);
+    if (!ok) {
+      ui.error(data.error || 'drop failed');
+      process.exit(1);
+    }
+    if (isJson(options)) {
+      console.log(JSON.stringify(data.entry, null, 2));
+      return;
+    }
+    if (isQuiet(options)) {
+      console.log(data.entry.feedbackId);
+      return;
+    }
+    console.log(`Feedback dropped: ${data.entry.feedbackId}`);
+    console.log(`  ${data.entry.severity}  ${data.entry.surface ?? '—'}  ${data.entry.slug}`);
+    console.log(`  by ${data.entry.droppedBy}`);
     return;
   }
 
@@ -119,8 +280,13 @@ export async function handleFeedback(args: string[], options: CLIOptions): Promi
     }
     const body: Record<string, unknown> = { slug, summary, droppedBy, source: 'cli' };
     const surface = readString(options, 'surface');
-    if (surface) body.surface = surface;
-    const severity = readString(options, 'severity');
+    if (surface) {
+      body.surface = surface;
+    } else if (!options['no-auto-surface']) {
+      const inferred = inferSurfaceFromCwd();
+      if (inferred) body.surface = inferred;
+    }
+    const severity = severityFromOptions(options);
     if (severity) body.severity = severity;
     const sourceOverride = readString(options, 'source');
     if (sourceOverride) body.source = sourceOverride;
@@ -153,7 +319,7 @@ export async function handleFeedback(args: string[], options: CLIOptions): Promi
     return;
   }
 
-  if (sub === 'list') {
+  if (sub === 'list' || sub === 'recent' || sub === 'open' || sub === 'mine') {
     const params = new URLSearchParams();
     const harbor = readString(options, 'harbor');
     if (harbor) params.set('harbor', harbor);
@@ -161,13 +327,19 @@ export async function handleFeedback(args: string[], options: CLIOptions): Promi
       const project = inferProject(options);
       if (project) params.set('project', project);
     }
-    const severity = readString(options, 'severity');
+    const severity = severityFromOptions(options);
     if (severity) params.set('severity', severity);
     const surface = readString(options, 'surface');
     if (surface) params.set('surface', surface);
-    const status = readString(options, 'status');
+    let status = readString(options, 'status');
+    let limit = readNumber(options, 'limit');
+    // Alias defaults — explicit options always win.
+    if (sub === 'recent') {
+      if (!status) status = 'open';
+      if (limit === undefined) limit = 10;
+    }
+    if (sub === 'open' && !status) status = 'open';
     if (status) params.set('status', status);
-    const limit = readNumber(options, 'limit');
     if (limit !== undefined) params.set('limit', String(limit));
     const qs = params.toString();
     const { ok, data } = await getJson(`/feedback${qs ? `?${qs}` : ''}`);
@@ -175,7 +347,11 @@ export async function handleFeedback(args: string[], options: CLIOptions): Promi
       ui.error(data.error || 'list failed');
       process.exit(1);
     }
-    const entries: FeedbackEntry[] = data.entries ?? [];
+    let entries: FeedbackEntry[] = data.entries ?? [];
+    if (sub === 'mine') {
+      const me = inferDroppedBy(options);
+      entries = entries.filter((e) => e.droppedBy === me);
+    }
     if (isJson(options)) {
       console.log(JSON.stringify(entries, null, 2));
       return;
@@ -184,7 +360,8 @@ export async function handleFeedback(args: string[], options: CLIOptions): Promi
       for (const e of entries) console.log(e.feedbackId);
       return;
     }
-    console.log(`${entries.length} entry(ies)`);
+    const label = sub === 'mine' ? `${entries.length} entry(ies) by you` : `${entries.length} entry(ies)`;
+    console.log(label);
     for (const e of entries) printEntry(e);
     return;
   }
@@ -208,11 +385,17 @@ export async function handleFeedback(args: string[], options: CLIOptions): Promi
     return;
   }
 
-  if (sub === 'harvest') {
+  if (sub === 'harvest' || sub === 'ack') {
     const feedbackId = args[1] || readString(options, 'id');
-    const harvestedBy = readString(options, 'as', 'harvestedBy', 'agent');
+    // ack auto-derives harvestedBy from context; harvest historically required --as.
+    const harvestedBy = sub === 'ack'
+      ? inferDroppedBy(options)
+      : readString(options, 'as', 'harvestedBy', 'agent');
     if (!feedbackId || !harvestedBy) {
-      ui.error('Usage: pd feedback harvest <feedbackId> --as <agentId> [--into <roadmap-slug>]');
+      const usage = sub === 'ack'
+        ? 'Usage: pd feedback ack <feedbackId> [--into <slug>]'
+        : 'Usage: pd feedback harvest <feedbackId> --as <agentId> [--into <slug>]';
+      ui.error(usage);
       process.exit(1);
     }
     const intoSlug = readString(options, 'into', 'intoSlug');
@@ -227,7 +410,7 @@ export async function handleFeedback(args: string[], options: CLIOptions): Promi
       console.log(JSON.stringify(data.entry, null, 2));
       return;
     }
-    console.log(`Harvested ${feedbackId}${intoSlug ? ` → ${intoSlug}` : ''}`);
+    console.log(`Harvested ${feedbackId}${intoSlug ? ` → ${intoSlug}` : ''} (by ${harvestedBy})`);
     return;
   }
 

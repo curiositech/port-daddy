@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { motion } from 'framer-motion'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ArrowRight, Download, FileText } from 'lucide-react'
+import { ArrowRight, BookOpen, Download, FileText } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
 import {
   BracketLabel,
@@ -62,21 +62,28 @@ export default function WhitepaperPage() {
           <PageContainer width="wide">
             <div className="grid gap-[var(--space-7)] lg:grid-cols-[minmax(0,0.88fr)_minmax(22rem,0.42fr)] lg:items-start">
               <div className="space-y-[var(--space-6)]">
-                <PanelEyebrow>Research dossier</PanelEyebrow>
-                <PanelTitle as="h1" size="hero" className="max-w-[12ch]">
-                  The Port Daddy papers.
+                <PanelEyebrow>Two papers, one running argument</PanelEyebrow>
+                <PanelTitle as="h1" size="hero" className="max-w-[14ch]">
+                  How autonomous programs share a laptop without making a mess.
                 </PanelTitle>
-                <PanelBody size="default" className="max-w-[48rem] text-[length:var(--text-lg)]">
-                  Two technical papers explain the deeper Port Daddy design:
-                  signed local identity first, then shared accountability for
-                  multi-agent work.
+                <PanelBody size="default" className="max-w-[60ch] text-[length:var(--text-lg)]">
+                  The first paper is about how a program proves who it is
+                  to another program — local cryptography, smaller than you
+                  would think, more careful than it had to be. The second
+                  paper is the harder one: how several of those programs
+                  share a workspace without anyone being put in charge.
+                  (You will recognize this as the problem governments and
+                  apartment buildings have not entirely solved.) Each paper
+                  is readable on its own. Read together, they describe a
+                  small, working system for the otherwise-unfixable problem
+                  of "many programs, one machine."
                 </PanelBody>
 
                 <div className="grid gap-[var(--space-3)] border-y-2 border-[var(--border-strong)] py-[var(--space-4)] sm:grid-cols-3">
                   {[
-                    { value: String(WHITE_PAPERS.length).padStart(2, '0'), label: 'public papers' },
-                    { value: String(totalPages).padStart(2, '0'), label: 'review pages' },
-                    { value: 'PDF', label: 'canonical format' },
+                    { value: String(WHITE_PAPERS.length).padStart(2, '0'), label: 'papers to read' },
+                    { value: String(totalPages).padStart(2, '0'), label: 'pages, total' },
+                    { value: 'Free', label: 'PDFs, no signup' },
                   ].map((stat) => (
                     <div key={stat.label} className="space-y-[var(--space-1)]">
                       <div className="font-mono text-[length:var(--text-xl)] font-black leading-none text-[var(--text-primary)]">
@@ -89,11 +96,35 @@ export default function WhitepaperPage() {
                   ))}
                 </div>
 
-                <p className="max-w-[44rem] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
-                  by <strong className="font-black text-[var(--text-primary)]">Erich Owens</strong> --
-                  cryptographic identity, advisory coordination, durable evidence, and
-                  collateral-backed work agreements for local agent systems.
+                <p className="max-w-[60ch] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
+                  by <strong className="font-black text-[var(--text-primary)]">Erich Owens</strong> (Curiositech LLC).
+                  Each paper opens with a short, plain-language primer.
+                  If you have never thought about cryptographic identity
+                  or shared-resource governance before, no problem — the
+                  primers assume you have not, and the page that wraps
+                  the PDF defines every technical term as it shows up.
+                  Bring whatever you bring.
                 </p>
+
+                <Link
+                  to="/whitepaper/rounds"
+                  className="group inline-flex max-w-[60ch] items-start gap-[var(--space-3)] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-4)] text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-strong)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]"
+                >
+                  <BookOpen aria-hidden="true" size={18} className="mt-[var(--space-1)] shrink-0 text-[var(--brand-primary)]" />
+                  <span className="space-y-[var(--space-1)] min-w-0">
+                    <span className="block font-display text-[length:var(--type-panel-title-nav-size)] font-black leading-[var(--leading-nav)] tracking-[var(--tracking-display-nav)]">
+                      Read the review history →
+                    </span>
+                    <span className="block text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
+                      Both papers spent five months getting argued with by two
+                      AI review teams — one playing attacker, one playing defender,
+                      neither allowed to read the other&apos;s notes. Every objection
+                      that landed, every fix, every still-open gap is on the record.
+                      Useful for the kind of reader who wants to see where we
+                      changed our minds.
+                    </span>
+                  </span>
+                </Link>
               </div>
 
               <aside className="border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
@@ -289,10 +320,15 @@ export default function WhitepaperPage() {
           <PageContainer width="wide">
             <div className="grid gap-[var(--space-6)] lg:grid-cols-[minmax(0,0.35fr)_minmax(0,0.65fr)]">
               <div className="space-y-[var(--space-4)]">
-                <PanelEyebrow>Reading order</PanelEyebrow>
-                <PanelTitle as="h2" size="section" className="max-w-[11ch]">
-                  Read the system from proof to practice.
+                <PanelEyebrow>How to read these</PanelEyebrow>
+                <PanelTitle as="h2" size="section" className="max-w-[14ch]">
+                  Identity first. Coordination next. Software last.
                 </PanelTitle>
+                <PanelBody className="max-w-[44ch]">
+                  The papers build on each other. You can stop after the first one and have
+                  a useful mental model. Carrying through to the second is where the system
+                  starts paying for itself.
+                </PanelBody>
               </div>
 
               <div className="grid gap-[var(--space-3)]">

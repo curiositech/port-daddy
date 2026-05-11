@@ -260,7 +260,7 @@ function PrimitiveMapPage({ page }: { page: DocsContentPage }) {
           </PanelTitle>
         </div>
         <SurfacePanel padding="compact">
-          <div className="grid border-2 border-[var(--border-strong)] lg:grid-cols-[0.22fr_0.22fr_0.22fr_0.34fr]">
+          <div className="hidden border-2 border-[var(--border-strong)] lg:grid lg:grid-cols-[0.22fr_0.22fr_0.22fr_0.34fr]">
             {['Layer', 'Encodes', 'Why it exists', 'Example'].map((heading) => (
               <div key={heading} className="border-b-2 border-[var(--border-strong)] bg-[var(--text-primary)] p-[var(--space-3)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-inverse)] md:border-r-2 md:last:border-r-0">
                 {heading}
@@ -290,6 +290,35 @@ function PrimitiveMapPage({ page }: { page: DocsContentPage }) {
               </Fragment>
             ))}
           </div>
+          <div className="grid gap-[var(--space-3)] lg:hidden">
+            {map.layers.map((layer) => (
+              <SurfacePanel key={layer.layer} elevation="quiet" padding="compact" className="space-y-[var(--space-3)]">
+                <div className="space-y-[var(--space-2)]">
+                  <PanelTitle as="h3" size="nav">
+                    {layer.layer}
+                  </PanelTitle>
+                  <StructuredLinkList links={layer.links} />
+                </div>
+                <div className="grid gap-[var(--space-2)]">
+                  <BracketLabel>Encodes</BracketLabel>
+                  <PanelBody size="compact" className="max-w-none">
+                    {layer.encodes}
+                  </PanelBody>
+                </div>
+                <div className="grid gap-[var(--space-2)]">
+                  <BracketLabel>Why it exists</BracketLabel>
+                  <PanelBody size="compact" className="max-w-none">
+                    {layer.reason}
+                  </PanelBody>
+                </div>
+                <DocsCodeBlock
+                  code={`${layer.example.command}\n\n${layer.example.output}`}
+                  language="text"
+                  label={`${layer.layer} example`}
+                />
+              </SurfacePanel>
+            ))}
+          </div>
         </SurfacePanel>
       </section>
 
@@ -309,7 +338,7 @@ function PrimitiveMapPage({ page }: { page: DocsContentPage }) {
                 {choice.need}
               </PanelTitle>
               <StructuredLinkList links={choice.use} />
-              <PanelBody size="compact" tone="accent" className="max-w-none">
+              <PanelBody size="compact" className="max-w-none">
                 Avoid: {choice.avoid}
               </PanelBody>
             </SurfacePanel>

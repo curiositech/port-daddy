@@ -192,7 +192,7 @@ export function CTABanner() {
                       {paper.title}
                     </h3>
                     <p className="text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
-                      {paper.explainerLead}
+                      {paper.thesis}
                     </p>
                   </div>
                 </div>

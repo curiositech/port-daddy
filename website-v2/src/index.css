@@ -452,7 +452,7 @@ pre code {
 
 @media (max-width: 720px) {
   .pd-docs-mermaid svg {
-    min-width: 860px;
+    min-width: 100%;
   }
 }
 
