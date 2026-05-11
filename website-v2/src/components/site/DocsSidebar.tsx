@@ -65,10 +65,38 @@ export function DocsSidebar() {
   ]
   const taskGroups = [
     { title: 'Install', href: '/docs/get-started' },
-    { title: 'Coordinate work', href: '/docs/lifecycle/coordinate-daily-work' },
-    { title: 'Recover work', href: '/docs/best-practices/operator-loop' },
-    { title: 'Integrate SDK/MCP', href: '/docs/lifecycle/integrate-sdk-and-mcp' },
+    { title: 'Understand primitives', href: '/docs/concepts/primitives' },
+    { title: 'Coordinate work', href: '/docs/best-practices/coordination-discipline' },
+    { title: 'Choose an architecture', href: '/docs/reference-architectures' },
+    { title: 'Integrate SDK/MCP', href: '/docs/reference/mcp-tool-surface' },
     { title: 'Reference', href: '/docs/reference' },
+  ]
+  const systemMap = [
+    {
+      title: 'Primitives',
+      href: '/docs/concepts/primitives',
+      description: 'Name the small runtime facts: identity, ownership, messaging, recovery, verification, and human control.',
+    },
+    {
+      title: 'Reference Architectures',
+      href: '/docs/reference-architectures',
+      description: 'Arrange those primitives into local control planes, automation loops, and delegation surfaces.',
+    },
+    {
+      title: 'Mac Preview',
+      href: '/mac-preview',
+      description: 'See FleetBar and Fleet Control Center as the human inspection surface for the same state.',
+    },
+    {
+      title: 'Skill + MCP',
+      href: '/mcp',
+      description: 'Install the agent operating guide and expose the same coordination primitives through MCP tools.',
+    },
+    {
+      title: 'Reference',
+      href: '/docs/reference',
+      description: 'Jump from the model to exact CLI commands, SDK calls, MCP tools, HTTP routes, and capability scopes.',
+    },
   ]
 
   return (
@@ -96,7 +124,7 @@ export function DocsSidebar() {
 
       <DocsNoteCard
         label="Common jobs"
-        title="Pick the work, then the surface."
+        title="Pick the question, then the surface."
         elevation="quiet"
         padding="compact"
         titleSize="nav"
@@ -111,6 +139,35 @@ export function DocsSidebar() {
             >
               {task.title}
             </BracketNavLink>
+          ))}
+        </div>
+      </DocsNoteCard>
+
+      <DocsNoteCard
+        label="System map"
+        title="Model, layout, app, agent, reference."
+        elevation="quiet"
+        padding="compact"
+        titleSize="nav"
+      >
+        <PanelBody size="compact" className="max-w-none">
+          Read this path when the new Primitives and Reference Architectures pages need to line up with the Mac app,
+          Skill + MCP, and exact reference surfaces.
+        </PanelBody>
+        <div className="flex flex-col gap-[var(--space-3)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
+          {systemMap.map((surface, index) => (
+            <div key={surface.href} className="flex flex-col gap-[var(--space-1)]">
+              <BracketNavLink
+                to={surface.href}
+                tone={index % 2 === 0 ? 'blue' : 'accent'}
+                side={index % 2 === 0 ? 'left' : 'right'}
+              >
+                {surface.title}
+              </BracketNavLink>
+              <p className="px-[var(--space-2)] text-[0.78rem] leading-snug text-[var(--text-quiet)]">
+                {surface.description}
+              </p>
+            </div>
           ))}
         </div>
       </DocsNoteCard>

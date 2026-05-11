@@ -14,6 +14,8 @@ import type Database from 'better-sqlite3';
 import { EventEmitter } from 'events';
 import { patternToSql } from './identity.js';
 
+export type SalvageQueueStatus = 'pending' | 'stale' | 'dead' | 'resurrecting';
+
 export interface StaleAgent {
   id: string;
   name: string;
@@ -21,7 +23,7 @@ export interface StaleAgent {
   sessionId: string | null;
   lastHeartbeat: number;
   staleSince: number;
-  status: 'stale' | 'dead' | 'resurrecting';
+  status: SalvageQueueStatus;
   notes?: string[];
   // Semantic identity components for prefix filtering
   identityProject: string | null;
@@ -236,7 +238,7 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
       sessionId: row.session_id,
       lastHeartbeat: metadata.lastHeartbeat || 0,
       staleSince: row.detected_at,
-      status: row.status as 'stale' | 'dead' | 'resurrecting',
+      status: row.status as SalvageQueueStatus,
       notes: notesForRow(row, metadata),
       identityProject: row.identity_project,
       identityStack: row.identity_stack,

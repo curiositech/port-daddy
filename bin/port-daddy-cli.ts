@@ -611,6 +611,7 @@ function buildHelp(): string {
     `  ${G}pd session start${Z} "why"   Manual session start`,
     `  ${G}pd note${Z} "message"        Leave a note`,
     `  ${G}pd notes${Z}                 Review recent notes`,
+    `  ${G}pd feedback${Z} "message"    Drop structured feedback (auto-slug, agent from context)`,
     '',
     `${A}Coordination:${Z}`,
     `  ${G}pd lock${Z} <name>           Grab a distributed lock`,
@@ -691,10 +692,22 @@ Commands:
     --all-projects           Intentional global recent-notes read
     -j, --json               Output as JSON
 
+  feedback "<message>"       Drop structured feedback (bare form)
+    --severity <s>           low | medium | high | critical
+    --surface <s>            CLI | API | MCP | Roadmap | ...
+    --hook <text>            What you were doing when you noticed
+    --suggest <text>         Suggested fix
+    --as <agentId>           Override droppedBy (defaults to active session/agent)
+  feedback list              List feedback (filter by --severity, --surface, --status)
+  feedback show <id>         Show one entry
+  feedback harvest <id>      Mark as harvested into roadmap
+  feedback summary           Counts by severity + surface
+
 Examples:
   pd session start "Building auth module" --agent agent-42
   pd note "Finished login endpoint" --type progress
   pd notes --limit 10
+  pd feedback "tests dropped from 1638 to 1620 — investigate" --severity high
   pd session files add src/auth.ts src/login.ts
   pd session end "Auth module complete"
   pd sessions --all --json`,
@@ -753,6 +766,14 @@ Commands:
     --project <name>       Filter by project
     --stack <name>         Filter by stack
 
+  salvage triage           Cluster queue into resume / verify-dismiss / test-noise buckets
+    --json                 Machine-readable queue for future idle-agent pull loops
+
+  salvage next             Print one bounded queue item for an idle agent
+    --bucket <id>          Pull a specific bucket instead of resume-now/archive-later
+    --claim                Claim the selected claimable item immediately
+    --json                 Machine-readable single-item queue pull
+
   salvage claim <id>       Claim a dead agent's work to continue
 
 Examples:
@@ -760,6 +781,8 @@ Examples:
   pd agent heartbeat --agent build-42
   pd agents --active --json
   pd salvage --project myapp
+  pd salvage triage --project myapp
+  pd salvage next --project myapp --json
   pd salvage claim dead-agent-99`,
 
   actors: `Maritime Actors \u2014 Durable coordination souls and live body signals
