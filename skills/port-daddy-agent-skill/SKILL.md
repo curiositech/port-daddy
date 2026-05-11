@@ -58,6 +58,53 @@ pd note "Result: <change>. Validation: <evidence>. Remaining: <risk>."
 pd done "<short outcome>"
 ```
 
+## Session Continuity
+
+A resumed coding session is not automatically a new Port Daddy session. Treat
+multi-day work as a continuity problem first, then decide whether to resume,
+link, or restart.
+
+Re-anchor when a conversation resumes after a calendar day, after context
+compaction, after daemon/session drift, or when the worktree is behind the
+canonical remote:
+
+```bash
+pd status
+pd briefing
+pd sessions --all-worktrees
+pd notes --limit 20
+pd salvage --project <project> --limit 20
+git status --short --branch
+git fetch origin
+```
+
+Resume the existing session when the user goal, worktree or successor
+worktree, branch lineage, and touched surface are still the same unresolved
+slice. If the previous session is stale, abandoned, or cannot be made active,
+start a new session in the same identity family and link the predecessor in
+the first note.
+
+Start a new linked session when the product goal changed, the previous slice
+was completed or merged, the branch no longer descends cleanly from the old
+work, or the next edit would touch unrelated surfaces. Continuity comes from
+explicit provenance, not from overloading one old purpose forever.
+
+The first continuity note must carry enough truth for another agent to take
+over without transcript archaeology:
+
+- predecessor session id and new session id, if different
+- identity, worktree, branch, and base drift from the canonical branch
+- dirty or claimed files, plus any ownership conflicts
+- last validation that is still trusted and validation that is stale
+- runtime truth, especially socket/TCP/port-file or install-root drift
+- next intended edit, blocker, or handoff
+
+After drift, prefer explicit session ids for notes and file claims. If
+`pd whoami`, active context, TCP port-file routing, and direct session storage
+disagree, call it a coordination bug. Leave the best durable evidence you can,
+fix the bounded bug if this slice can safely absorb it, or continue with a
+clear note about the degraded coordination path.
+
 ## Telos vs Purpose
 
 Every Port Daddy agent carries a **telos** alongside its **purpose**.
@@ -116,6 +163,7 @@ pd guard check --staged
 | The live daemon looks stale | Verify daemon provenance before trusting docs, source, or memory. |
 | Another session may overlap | Read notes, claims, activity, and ownership before changing the surface. |
 | Work was interrupted | Use salvage and preserve the abandoned intent. |
+| The same coding vibe resumes days later | Re-anchor, then resume the old session or start a linked successor with explicit predecessor provenance. |
 | You are about to commit, push, or deploy | Fetch, reconcile, re-read live coordination state, stage narrowly, and run the guard. |
 
 ## Advanced Surfaces

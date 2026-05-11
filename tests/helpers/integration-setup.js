@@ -265,6 +265,7 @@ export function runCliViaIpc(args, options = {}) {
     PORT_DADDY_URL: '',
     PORT_DADDY_SOCK: '',
     PORT_DADDY_SKIP_FRESHNESS_CHECK: '1',
+    PORT_DADDY_ALLOW_MAIN_WORKTREE_SESSION: '1',
     PORT_DADDY_NON_INTERACTIVE: '1',
     NO_COLOR: '1',
     CI: '1'

@@ -162,10 +162,48 @@ describe('assessSpawnPreflight', () => {
 
     expect(result.launchReady).toBe(false);
     expect(result.blockedReasons.join('\n')).toContain(
-      'No launchable backend (every configured attempt is blocked at readiness):',
+      'No launchable backend (no configured attempt is setup-ready):',
     );
     expect(result.blockedReasons.join('\n')).toContain(
-      'ollama:qwen2.5-coder:7b — Ollama is blocked until exact telemetry exists. Next: Use a Claude model with an exact nonzero rate.',
+      'ollama:qwen2.5-coder:7b — needs_setup: Ollama is blocked until exact telemetry exists. Next: Use a Claude model with an exact nonzero rate.',
     );
+  });
+
+  test('blocks manual-check runtimes until readiness is proven', async () => {
+    mockAssessBackendReadiness.mockResolvedValue({
+      backend: 'codex',
+      status: 'manual_check',
+      summary: 'Codex auth cannot be verified non-interactively',
+      nextStep: 'Run codex exec once interactively.',
+    });
+    mockResolveFleetAgentRuntime.mockReturnValue({
+      backend: 'codex',
+      model: 'gpt-5.4-mini',
+      modelTier: undefined,
+      backendSource: 'agent',
+      modelSource: 'agent',
+      warnings: [],
+    });
+
+    const result = await assessSpawnPreflight({
+      backend: 'codex',
+      model: 'gpt-5.4-mini',
+      identity: 'port-daddy:fleet:test-hunter',
+      budgetUsd: 0.75,
+    }, {
+      costTracker: {
+        budgetStatus: jest.fn(() => ({
+          project: 'port-daddy',
+          budgetUsdPerDay: 0.75,
+          spentUsd: 0,
+          remainingUsd: 0.75,
+          percentUsed: 0,
+          overBudget: false,
+        })),
+      },
+    });
+
+    expect(result.launchReady).toBe(false);
+    expect(result.blockedReasons.join('\n')).toContain('codex:gpt-5.4-mini — manual_check');
   });
 });

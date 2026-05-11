@@ -878,28 +878,27 @@ function verifySignature(payload, signature, secret) {
 
 ## Spawn — AI Agent Launcher
 
-Launch AI agents (Ollama, Codex, Claude, Claude CLI, Gemini, Cloudflare Workers AI, Aider, custom subprocess) with Port Daddy coordination auto-wired. Each spawned agent automatically registers, sends heartbeats, and marks its session done on completion.
+Launch AI agents through setup-ready runtimes (Cloudflare Workers AI, Codex, Claude, Claude CLI, Gemini, Aider, custom subprocess) with Port Daddy coordination auto-wired. Each spawned agent automatically registers, sends heartbeats, and marks its session done on completion.
 
 Use `spawn()` for the low-level primitive. If you want a tracked mission object with a durable id and event log, use the sortie methods below instead. Canonical operator guidance lives in `docs/DELEGATION-MODES.md`.
 
-**Backends:** `ollama` (default), `claude` (API — text in/out), `claude-cli` (full CLI with tools), `gemini`, `cloudflare`, `codex`, `aider`, `custom`
+**Backends:** Port Daddy only launches backends that pass readiness and exact-telemetry preflight. Use `/fleet/models` or Fleet Control Center to see which are ready on this machine.
 
 ```typescript
-// Spawn a local Ollama agent
-const result = await pd.spawn({
-  backend: 'ollama',
-  model: 'qwen2.5-coder:7b',
-  identity: 'myapp:coder',
-  budgetUsd: 2.5,
-  purpose: 'Refactor auth module',
-  task: 'Fix the login bug in src/auth.ts',
-});
-console.log(result.agentId, result.status);  // e.g. "ollama-abc123", "completed"
-
 // Spawn a Cloudflare Workers AI agent
+const result = await pd.spawn({
+  backend: 'cloudflare',
+  model: '@cf/qwen/qwen3-30b-a3b-fp8',
+  identity: 'myapp:edge',
+  budgetUsd: 0.5,
+  purpose: 'Summarize release notes',
+  task: 'Summarize the last five commits',
+});
+console.log(result.agentId, result.status);  // e.g. "cloudflare-abc123", "completed"
+
+// Use the default ready Cloudflare model
 await pd.spawn({
   backend: 'cloudflare',
-  model: '@cf/meta/llama-3.1-8b-instruct',
   identity: 'myapp:edge',
   budgetUsd: 0.5,
   purpose: 'Summarize release notes',

@@ -5,8 +5,9 @@
 #
 # Backend is configurable per agent.
 # Pin `model:` whenever your backend supports it so fleet costs are predictable.
-# This fleet is intentionally local-first: Ollama for background cognition,
-# Codex mini for code-changing agents, and custom for non-LLM jobs.
+# This checked-in fleet only pins launch-ready, exact-telemetry runtimes for
+# LLM-powered agents. Use Fleet Control Center to bulk switch the runtime when
+# another backend is setup and ready.
 
 fleet:
   # Name must match `basename(projectDir)` so the post-commit hook's
@@ -33,23 +34,12 @@ fleet:
 
     qa:
       trigger: git:committed
-      backend: ollama
-      model: qwen2.5-coder:7b
+      backend: cloudflare
+      model: '@cf/qwen/qwen3-30b-a3b-fp8'
       # Don't carpet-bomb on a flurry of commits. 15min floor matches the
       # user's "trigger every X but no more than every 15 minutes" rule.
       cooldown_ms: 900000
       dedupe_window_ms: 1800000
-      # When the primary is credit-starved or unavailable, slide to Cloudflare
-      # Workers AI (mid tier) which has exact-rate telemetry and is allowed
-      # under the fail-closed policy. ollama / claude-cli stay below as
-      # documented intent — currently blocked by policy until exact token-rate
-      # accounting lands for them.
-      fallbacks:
-        - backend: cloudflare
-          model: '@cf/qwen/qwen3-30b-a3b-fp8'
-        - backend: ollama
-          model: qwen2.5-coder:14b
-        - backend: claude-cli
       singleton: true
       allowedTools: "Read,Grep,Glob,Bash(npm test*)"
       prompt: |
@@ -96,19 +86,10 @@ fleet:
 
     test-hunter:
       trigger: git:committed
-      backend: codex
-      model: gpt-5.4-mini
+      backend: cloudflare
+      model: '@cf/qwen/qwen3-30b-a3b-fp8'
       cooldown_ms: 900000
       dedupe_window_ms: 1800000
-      # If Codex credits are out, slide to Cloudflare Workers AI mid tier
-      # (allowed under telemetry policy), then ollama / claude-cli (currently
-      # blocked but kept as documented intent).
-      fallbacks:
-        - backend: cloudflare
-          model: '@cf/qwen/qwen3-30b-a3b-fp8'
-        - backend: ollama
-          model: qwen2.5-coder:14b
-        - backend: claude-cli
       singleton: true
       allowedTools: "Read,Grep,Glob,Write,Bash(npm test*)"
       prompt: |
@@ -144,19 +125,13 @@ fleet:
 
     documentarian:
       trigger: promotion:release-surfaces
-      backend: ollama
-      model: qwen2.5-coder:7b
+      backend: cloudflare
+      model: '@cf/qwen/qwen3-30b-a3b-fp8'
       singleton: true
       cooldown_ms: 900000
       dedupe_window_ms: 43200000
       backoff_base_ms: 300000
       backoff_max_ms: 3600000
-      fallbacks:
-        - backend: cloudflare
-          model: '@cf/qwen/qwen3-30b-a3b-fp8'
-        - backend: ollama
-          model: qwen2.5-coder:14b
-        - backend: claude-cli
       allowedTools: "Read,Grep,Glob,Write,Edit"
       prompt: |
         You are Lookout / Documentarian. Promotion just passed the
@@ -220,8 +195,8 @@ fleet:
         5. Use semantic tokens (--surface-*, --text-*, --brand-*)
 
         Runtime truth to preserve:
-        - Port Daddy is now local-first: Ollama + Codex are first-class backends
-        - Spawn docs must include codex and model tiers where supported
+        - Agent launches must use setup-ready runtimes with exact telemetry
+        - Spawn docs must include backend/model-tier support where available
         - Budget ceilings are mandatory for agentic launches
         - The daemon defaults to localhost:9876, but docs should mention discovery
           through pd status / PORT_DADDY_URL instead of pretending 9876 is universal
@@ -245,16 +220,10 @@ fleet:
 
     simplifier:
       trigger: git:committed
-      backend: codex
-      model: gpt-5.4-mini
+      backend: cloudflare
+      model: '@cf/qwen/qwen3-30b-a3b-fp8'
       cooldown_ms: 900000
       dedupe_window_ms: 1800000
-      fallbacks:
-        - backend: cloudflare
-          model: '@cf/qwen/qwen3-30b-a3b-fp8'
-        - backend: ollama
-          model: qwen2.5-coder:14b
-        - backend: claude-cli
       singleton: true
       worktree: true
       allowedTools: "Read,Grep,Glob,Edit,Bash(npm test*)"
@@ -277,16 +246,10 @@ fleet:
       # (3) harvesting .spark/feedback/ on a steady cadence is more useful
       #     than reactive bursts that compete for slots
       schedule: "*/30 * * * *"
-      backend: codex
-      model: gpt-5.4-mini
+      backend: cloudflare
+      model: '@cf/qwen/qwen3-30b-a3b-fp8'
       timeout: 900000
       singleton: true
-      fallbacks:
-        - backend: cloudflare
-          model: '@cf/qwen/qwen3-30b-a3b-fp8'
-        - backend: ollama
-          model: qwen2.5-coder:14b
-        - backend: claude-cli
       allowedTools: "Read,Grep,Glob,Write,Bash(pd feedback*),Bash(pd roadmap*),Bash(pd ideas*)"
       prompt: |
         You are the Cartographer — you maintain the map between what
@@ -384,16 +347,9 @@ fleet:
 
     spark:
       schedule: "*/30 * * * *"
-      backend: ollama
-      model: qwen2.5-coder:14b
+      backend: cloudflare
+      model: '@cf/moonshotai/kimi-k2.6'
       singleton: true
-      # ollama primary is currently blocked by fail-closed telemetry policy.
-      # Cloudflare high tier (Kimi K2.5, 256k context) carries spark's long-form
-      # strategy work when the local model can't run.
-      fallbacks:
-        - backend: cloudflare
-          model: '@cf/moonshotai/kimi-k2.5'
-        - backend: claude-cli
       allowedTools: "Read,Grep,Glob,Write,Bash(pd ideas*)"
       prompt: |
         You are Spark, the idea engine for Port Daddy.
@@ -440,15 +396,9 @@ fleet:
     spider:
       trigger: spark:idea
       schedule: "0 */2 * * *"
-      backend: ollama
-      model: qwen2.5-coder:14b
+      backend: cloudflare
+      model: '@cf/qwen/qwen3-30b-a3b-fp8'
       singleton: true
-      # Cloudflare mid tier is sufficient for combinatorial connection mining;
-      # falls through to claude-cli as documented intent (currently blocked).
-      fallbacks:
-        - backend: cloudflare
-          model: '@cf/qwen/qwen3-30b-a3b-fp8'
-        - backend: claude-cli
       allowedTools: "Read,Grep,Glob,Write,Bash(pd ideas*)"
       prompt: |
         You are Spider, the connection engine for Port Daddy.
