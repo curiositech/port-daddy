@@ -1,6 +1,6 @@
 # Ideas Trove
 
-Last updated: 2026-05-09 (Cartographer comprehensive pass — daemon-introspection-api and ideas-trove-queryable-surface promoted from raw Spark; telos/model-selection and fleet-health-scorecard promoted from raw Spark; tuple-namespace-hierarchies folded into tuple-driven-fleet; quorum primitive status refreshed)
+Last updated: 2026-05-11 (Spark promotion pass — graph-based-merge-conflict-predictor and ambient-anomaly-signaling added to immediate candidates; both pass novelty gate with new API surfaces, new data sources, and distinct operator payoffs)
 
 This is the canonical ideation index and curated backlog for Port Daddy.
 
@@ -329,6 +329,42 @@ runtime cuts.
   - `.spark/ideas/spider-ipc-tuple-fast-path.md`
   - `.spark/ideas/2026-05-08-tuple-namespace-hierarchies.md`
 - roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove`
+
+### `graph-based-merge-conflict-predictor`
+
+- status: `now`
+- why it matters:
+  - merge failures are painful: two agents edit the same symbol, git conflict ensues, operators debug manually
+  - the semantic graph (Phase 1, complete) now tracks *what each session touches* at the symbol level
+  - no pre-merge risk prediction exists yet — operators trial-and-error merge attempts
+  - this enables safe automation: "auto-merge if risk < 0.1" becomes possible, and prevents merge failures before git attempts them
+- implementation sketch:
+  - `lib/graph-conflict-detector.ts` (~60 LOC): query semantic graph for overlapping symbol claims, score risk as overlap_count / max(a_claims, b_claims)
+  - `routes/graph.ts` addition (~30 LOC): `POST /graph/predict-conflicts` returning `ConflictReport` with safe boolean, riskScore, and symbol-level conflict details
+  - CLI command `pd graph predict <session-a> <session-b>` via HTTP endpoint
+  - ~12 test cases: no conflicts, single/multiple overlaps, cross-file overlaps, nested hierarchy overlaps, edge cases (no claims, same symbol different claim types)
+  - no schema changes; leverages existing graph_edges table
+- provenance:
+  - `.spark/ideas/2026-05-10-graph-based-merge-conflict-predictor.md`
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove` (Phase 4: merge infrastructure)
+
+### `ambient-anomaly-signaling`
+
+- status: `now`
+- why it matters:
+  - transforms coordination from orchestrator-driven (active probing) to ambient (passive signal sniffing)
+  - roles can make smart avoidance decisions autonomously without polling
+  - enables faster mean-time-to-avoidance than salvage operator round-trip
+  - prerequisite for downstream self-healing work (namespace cascading, market pricing)
+- implementation sketch:
+  - wire daemon-introspection-api (Phase 2 backlog, ~150 LOC, already in "now" queue) to coordination-judge every SSE tick (every 5-10 sec)
+  - when judge detects anomaly (orphaned session >24h, broken claim, cost overrun, split-brain quorum, missing capability), spray pheromone signal on affected role(s): `anomaly:{kind}` with strength inversely proportional to age (fresh = 1.0, stale = decay over 10 min window)
+  - roles sniff `anomaly:*` signals before spawning work; if sniff strength > 0.5, escalate to salvage instead of direct spawn
+  - no schema changes; pheromone system already deployed
+  - ~50 lines total (25 daemon + 15 preflight + 10 dashboard)
+- provenance:
+  - `.spark/ideas/2026-05-10-s41-ambient-anomaly-signaling.md`
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove` (Phase 2: foundation for self-healing)
 
 ### Recommended First Two Builds
 
