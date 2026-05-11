@@ -63,6 +63,10 @@ function formToYamlObj(form: FleetAgent): Record<string, unknown> {
   return obj;
 }
 
+function isBackendReady(backend: BackendInfo): boolean {
+  return backend.launchable ?? backend.readinessStatus === 'ready';
+}
+
 interface Props {
   agent: FleetAgent;
   project: string;
@@ -104,6 +108,11 @@ export default function AgentConfigPanel({ agent, project, defaultTab, fleetEven
     setSaving(true);
     setError(null);
     try {
+      const backend = backends.find((candidate) => candidate.id === form.backend);
+      if (!backend || !isBackendReady(backend)) {
+        setError('Choose a ready backend before saving this agent.');
+        return;
+      }
       // Fetch current YAML, mutate this agent, save back
       const config = await fetchFleetConfig(project);
       const parsed = parseYaml(config.yaml);
@@ -154,6 +163,8 @@ export default function AgentConfigPanel({ agent, project, defaultTab, fleetEven
   };
 
   const selectedBackend = backends.find(b => b.id === form.backend);
+  const readyBackends = backends.filter(isBackendReady);
+  const selectedBackendReady = selectedBackend ? isBackendReady(selectedBackend) : false;
   const color = agentColor(form.name);
   const timeline = useMemo<AgentTimelineItem[]>(() => {
     const agentFleetEvents: AgentTimelineItem[] = fleetEvents
@@ -359,8 +370,9 @@ export default function AgentConfigPanel({ agent, project, defaultTab, fleetEven
               <Field label="Backend">
                 <select value={form.backend} onChange={e => setForm(f => ({ ...f, backend: e.target.value, model: undefined }))}
                   className="w-full rounded px-2 py-1.5 text-sm" style={inputStyle}>
-                  {backends.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                  {!backends.find(b => b.id === form.backend) && <option value={form.backend}>{form.backend}</option>}
+                  {readyBackends.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                  {selectedBackend && !selectedBackendReady && <option value={form.backend} disabled>{selectedBackend.name} (not ready)</option>}
+                  {!selectedBackend && form.backend && <option value={form.backend} disabled>{form.backend} (not ready)</option>}
                 </select>
               </Field>
               <Field label="Model">

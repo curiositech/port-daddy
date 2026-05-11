@@ -29,10 +29,10 @@ import fastifyCors from '@fastify/cors';
 import fastifyRateLimit from '@fastify/rate-limit';
 import fastifyStatic from '@fastify/static';
 import http from 'node:http';
-import Database from 'better-sqlite3';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { readFileSync, existsSync, readdirSync, unlinkSync, writeFileSync } from 'fs';
+import { readFileSync, existsSync, readdirSync, unlinkSync, writeFileSync, mkdirSync, accessSync, constants as fsConstants } from 'fs';
+import type { DatabaseInstance } from './lib/sqlite-runtime.js';
 import { createConnection } from 'net';
 import winston from 'winston';
 
@@ -145,6 +145,56 @@ const STARTED_AT: number = Date.now();
 
 const isSilent: boolean = process.env.PORT_DADDY_SILENT === '1';
 
+// Resolve log directory by trying candidates in priority order until one
+// is mkdir-able AND writable. Each candidate is gated by a writability
+// probe (mkdir recursive + accessSync W_OK) so winston is never wired to
+// a directory it can't actually write to.
+//
+// Priority order:
+//   1. PORT_DADDY_LOG_DIR env (explicit override)
+//   2. PORT_DADDY_PREFIX/logs/ (matches the rest of the runtime layout)
+//   3. %LOCALAPPDATA%\port-daddy\logs (Windows convention)
+//   4. ~/.port-daddy/logs/ (user-writable fallback; works inside compiled
+//      Bun binaries where __dirname is the read-only /$bunfs/root/)
+//   5. __dirname (dev-from-checkout fallback)
+function tryWritableDir(dir: string): string | null {
+  try {
+    mkdirSync(dir, { recursive: true });
+    accessSync(dir, fsConstants.W_OK);
+    return dir;
+  } catch {
+    return null;
+  }
+}
+
+function resolveLogDir(): string {
+  const isWindows = process.platform === 'win32';
+  const candidates: Array<string | undefined> = [
+    process.env.PORT_DADDY_LOG_DIR,
+    process.env.PORT_DADDY_PREFIX ? join(process.env.PORT_DADDY_PREFIX, 'logs') : undefined,
+    isWindows && process.env.LOCALAPPDATA
+      ? join(process.env.LOCALAPPDATA, 'port-daddy', 'logs')
+      : undefined,
+    process.env.HOME ? join(process.env.HOME, '.port-daddy', 'logs') : undefined,
+    process.env.USERPROFILE ? join(process.env.USERPROFILE, '.port-daddy', 'logs') : undefined,
+    __dirname,
+  ];
+
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const writable = tryWritableDir(candidate);
+    if (writable) return writable;
+  }
+
+  // Last-resort: return __dirname even if it isn't writable. winston's
+  // File transport will throw on first write and surface the failure
+  // rather than silently swallowing it. The operator can set
+  // PORT_DADDY_SILENT=1 to skip file transports entirely.
+  return __dirname;
+}
+
+const LOG_DIR: string = resolveLogDir();
+
 const logger: winston.Logger = winston.createLogger({
   level: isSilent ? 'error' : config.logging.level,
   silent: isSilent,
@@ -155,11 +205,11 @@ const logger: winston.Logger = winston.createLogger({
   defaultMeta: { service: 'port-daddy', version: VERSION },
   transports: isSilent ? [] : [
     new winston.transports.File({
-      filename: join(__dirname, config.logging.error_file),
+      filename: join(LOG_DIR, config.logging.error_file),
       level: 'error'
     }),
     new winston.transports.File({
-      filename: join(__dirname, config.logging.file)
+      filename: join(LOG_DIR, config.logging.file)
     })
   ]
 });
@@ -243,7 +293,7 @@ function isInSleepGracePeriod(): boolean {
   return Date.now() < sleepGraceUntil;
 }
 
-const db: Database.Database = initDatabase({ dbPath: DB_PATH });
+const db: DatabaseInstance = initDatabase({ dbPath: DB_PATH });
 
 // =============================================================================
 // MODULE INITIALIZATION (identical to server.ts)
@@ -275,7 +325,12 @@ const activityLog = createActivityLog(db);
 const webhooks = createWebhooks(db);
 const projects = createProjects(db);
 const noteEncryption = createNoteEncryption({ requireMasterKey: true });
-const sessions = createSessions(db, noteEncryption, { semanticIndex, episodicMemory, symbolIndex });
+const sessions = createSessions(db, noteEncryption, {
+  semanticIndex,
+  episodicMemory,
+  symbolIndex,
+  requireAgentForFileClaims: true,
+});
 sessions.setActivityLog(activityLog);
 
 const agentInbox = createAgentInbox(db, (agentId, message) => {

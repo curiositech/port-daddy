@@ -157,6 +157,10 @@ describe('Port Daddy skill authority', () => {
     expect(setup).toContain("AGENT_SKILL_ID = 'port-daddy-agent-skill'");
     expect(setup).toContain("join(prefix, 'share', 'port-daddy', 'skills', AGENT_SKILL_ID)");
     expect(setup).toContain("join(PROJECT_ROOT, 'skills', AGENT_SKILL_ID)");
+    expect(setup).toContain('syncAgentSkills');
+    expect(setup).toContain('ensureGeminiPortDaddyExtension');
+    expect(setup).toContain("options['dry-run']");
+    expect(setup).toContain("options['skill-status']");
 
     for (const runtimePath of [
       "'.codex', 'skills', AGENT_SKILL_ID",
@@ -171,6 +175,7 @@ describe('Port Daddy skill authority', () => {
     expect(setup).not.toContain("'.gemini', 'extensions', 'port-daddy', 'skills', 'port-daddy'");
 
     expect(formula).toContain('"skills/port-daddy-agent-skill" => "skills/port-daddy-agent-skill"');
+    expect(formula).toContain('Refreshing Port Daddy cross-tool skill symlinks');
     expect(formula).not.toContain('=> "skills/port-daddy"');
     for (const runtimePath of [
       '~/.codex/skills/port-daddy-agent-skill',

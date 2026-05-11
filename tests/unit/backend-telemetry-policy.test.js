@@ -56,8 +56,8 @@ describe('backend telemetry policy', () => {
 
   test('blocks opaque backends until exact telemetry exists', () => {
     // Cloudflare is no longer opaque — `lib/cost-tracker.ts` ships exact
-    // rates for Workers AI models. The remaining backends below still have
-    // no exact telemetry contract and stay blocked.
+    // rates for Workers AI models. Claude CLI still stays blocked because
+    // subprocess launches do not yet prove exact token counts end-to-end.
     for (const backend of ['claude-cli', 'gemini', 'ollama', 'aider', 'custom']) {
       const policy = assessBackendTelemetryPolicy(backend);
       expect(policy.launchAllowed).toBe(false);
@@ -76,8 +76,8 @@ describe('backend telemetry policy', () => {
     expect(policy.launchAllowed).toBe(false);
     expect(policy.backend).toBe('claude-cli');
     expect(policy.effectiveModel).toBe('claude-haiku-4-5-20251001');
-    expect(policy.summary).toMatch(/blocked until exact token counts/);
-    expect(policy.nextStep).toMatch(/subprocess telemetry is exact/);
+    expect(policy.summary).toContain('blocked until exact token counts');
+    expect(policy.nextStep).toContain('subprocess telemetry is exact');
   });
 
   test('blocks Claude CLI when none is supplied', () => {
@@ -85,14 +85,14 @@ describe('backend telemetry policy', () => {
     expect(policy.launchAllowed).toBe(false);
     expect(policy.backend).toBe('claude-cli');
     expect(policy.effectiveModel).toBe('claude-haiku-4-5-20251001');
-    expect(policy.summary).toMatch(/blocked until exact token counts/);
+    expect(policy.summary).toContain('exact nonzero cost');
   });
 
-  test('blocks Claude CLI when the model has no exact rate entry', () => {
+  test('blocks Claude CLI before model-rate checks can imply readiness', () => {
     const policy = assessBackendTelemetryPolicy('claude-cli', 'claude-mystery-model');
     expect(policy.launchAllowed).toBe(false);
     expect(policy.backend).toBe('claude-cli');
     expect(policy.effectiveModel).toBe('claude-mystery-model');
-    expect(policy.summary).toMatch(/blocked until exact token counts/);
+    expect(policy.summary).toContain('blocked until exact token counts');
   });
 });

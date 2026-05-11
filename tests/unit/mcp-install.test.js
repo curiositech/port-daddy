@@ -36,9 +36,9 @@ const { createPlatforms, configurePlatform, silentMcpInstall } =
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
 describe('createPlatforms(home)', () => {
-  it('returns 7 platforms', () => {
+  it('returns 8 platforms', () => {
     const platforms = createPlatforms('/tmp/fake-home');
-    expect(platforms).toHaveLength(7);
+    expect(platforms).toHaveLength(8);
   });
 
   it('Claude Code uses .claude/settings.json and mcpServers key', () => {
@@ -66,6 +66,15 @@ describe('createPlatforms(home)', () => {
     expect(cursor).toBeDefined();
     expect(cursor.configPath).toBe(join(home, '.cursor', 'mcp.json'));
     expect(cursor.configKey).toBe('mcpServers');
+  });
+
+  it('Gemini CLI uses .gemini/settings.json and mcpServers key', () => {
+    const home = '/tmp/fake-home';
+    const platforms = createPlatforms(home);
+    const gemini = platforms.find(p => p.slug === 'gemini');
+    expect(gemini).toBeDefined();
+    expect(gemini.configPath).toBe(join(home, '.gemini', 'settings.json'));
+    expect(gemini.configKey).toBe('mcpServers');
   });
 
   it('all platform slugs are unique', () => {

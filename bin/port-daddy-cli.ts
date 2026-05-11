@@ -648,12 +648,16 @@ Commands:
     --no-mcp                Skip MCP + shell hook installation
     --no-fleetbar           Skip FleetBar install (macOS)
     --no-skill              Skip Port Daddy agent skill symlink
+    --status                Show cross-tool skill sync status only
+    --skill-status          Alias for --status
+    --dry-run               Preview cross-tool skill sync without writing links
     --no-init               Skip project initialization
     --no-fleet              Pass through to pd init
     --no-hook               Pass through to pd init
 
 Examples:
   pd setup
+  pd setup --status
   pd setup --project ~/coding/workgroup-ai
   pd setup --no-fleetbar
   pd setup --no-skill
@@ -1613,7 +1617,11 @@ async function executeDirectMode(
           }
 
           const startOpts: Record<string, unknown> = {};
-          if (options.agent) startOpts.agentId = options.agent;
+          const current = readCurrentSession();
+          const agentId = typeof options.agent === 'string'
+            ? options.agent
+            : current?.agentId || `cli-${process.pid}`;
+          if (agentId) startOpts.agentId = agentId;
           if (options.force) startOpts.force = true;
 
           // Collect files
@@ -1753,7 +1761,11 @@ async function executeDirectMode(
             process.exit(1);
           }
 
-          const listResult = sess.list({ status: 'active', limit: 1 });
+          const current = readCurrentSession();
+          const agentId = typeof options.agent === 'string'
+            ? options.agent
+            : current?.agentId || `cli-${process.pid}`;
+          const listResult = sess.list({ status: 'active', agentId, limit: 1 });
           const sessionsList = (listResult as Record<string, unknown>).sessions as Array<{ id: string }>;
           if (!sessionsList || sessionsList.length === 0) {
             console.error('No active session found');
@@ -1763,7 +1775,7 @@ async function executeDirectMode(
           const sessionId = sessionsList[0].id;
 
           if (filesCmd === 'add') {
-            const result = sess.claimFiles(sessionId, paths);
+            const result = sess.claimFiles(sessionId, paths, { agentId });
             if (!(result as Record<string, unknown>).success) {
               console.error((result as Record<string, unknown>).error || 'Failed to claim files');
               process.exit(1);
@@ -1774,7 +1786,7 @@ async function executeDirectMode(
               console.log(`Claimed ${paths.length} file(s) in session ${sessionId}`);
             }
           } else {
-            const result = sess.releaseFiles(sessionId, paths);
+            const result = sess.releaseFiles(sessionId, paths, { agentId });
             if (!(result as Record<string, unknown>).success) {
               console.error((result as Record<string, unknown>).error || 'Failed to release files');
               process.exit(1);

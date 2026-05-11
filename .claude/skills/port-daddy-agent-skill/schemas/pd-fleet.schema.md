@@ -61,7 +61,7 @@ You can mix them. If you set none, the agent is reachable only via manual `pd sp
 
 | Field | Required | Notes |
 |---|---|---|
-| `backend` | yes | One of `ollama`, `claude`, `claude-cli`, `codex`, `gemini`, `aider`, `custom`. |
+| `backend` | yes | One of `ollama`, `cloudflare`, `claude`, `claude-cli`, `codex`, `gemini`, `aider`, `custom`. Only setup-ready backends can launch. |
 | `model` | when supported | Pin it. `claude-3-5-sonnet`, `qwen2.5-coder:7b`, etc. Predictable cost > "best available". |
 | `prompt` | yes | For LLM backends, the user message. For `custom`, the shell command. |
 | `allowedTools` | optional | Claude-CLI tool allowlist: `Read,Grep,Bash(npm test*)`. |

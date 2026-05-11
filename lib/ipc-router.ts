@@ -94,9 +94,7 @@ function asStringArray(val: unknown): string[] | null {
 
 function recoverableSessionAction(action: string): boolean {
   return action === IpcAction.DONE ||
-    action === IpcAction.NOTE ||
-    action === IpcAction.FILES_CLAIM ||
-    action === IpcAction.FILES_RELEASE;
+    action === IpcAction.NOTE;
 }
 
 // ─── Route Handler Type ─────────────────────────────────────────────────────
@@ -191,9 +189,9 @@ export function createIpcRouter(deps: IpcRouterDeps) {
     const sessionId = typeof p.sessionId === 'string' && p.sessionId.trim()
       ? p.sessionId.trim()
       : null;
-    const agentId = typeof p.agentId === 'string' && p.agentId.trim()
+    const agentId = conn.agentId || (typeof p.agentId === 'string' && p.agentId.trim()
       ? p.agentId.trim()
-      : (conn.agentId || null);
+      : null);
 
     return deps.sessions.quickNote(String(p.content ?? ''), {
       ...p,
@@ -202,20 +200,28 @@ export function createIpcRouter(deps: IpcRouterDeps) {
     });
   });
 
-  handlers.set(IpcAction.FILES_CLAIM, (p) => {
+  handlers.set(IpcAction.FILES_CLAIM, (p, conn) => {
     const paths = asStringArray(p.paths);
     if (!paths) return { error: 'paths must be an array of strings' };
+    const agentId = conn.agentId || (typeof p.agentId === 'string' && p.agentId.trim()
+      ? p.agentId.trim()
+      : null);
     return deps.sessions.claimFiles(String(p.sessionId), paths, {
       regions: Array.isArray(p.regions) ? p.regions as unknown[] : undefined,
       force: p.force === true,
+      agentId,
     });
   });
 
-  handlers.set(IpcAction.FILES_RELEASE, (p) => {
+  handlers.set(IpcAction.FILES_RELEASE, (p, conn) => {
     const paths = asStringArray(p.paths);
     if (!paths) return { error: 'paths must be an array of strings' };
+    const agentId = typeof p.agentId === 'string' && p.agentId.trim()
+      ? p.agentId.trim()
+      : (conn.agentId || null);
     return deps.sessions.releaseFiles(String(p.sessionId), paths, {
       regions: Array.isArray(p.regions) ? p.regions as unknown[] : undefined,
+      agentId,
     });
   });
 
@@ -454,7 +460,22 @@ export function createIpcRouter(deps: IpcRouterDeps) {
     reply: (response: IpcFrame) => void,
   ): void {
     const action = String(frame.payload.action ?? '');
-    const requestedAgentId = frame.payload.agentId ? String(frame.payload.agentId) : conn.agentId;
+    const payloadAgentId = typeof frame.payload.agentId === 'string' && frame.payload.agentId.trim()
+      ? frame.payload.agentId.trim()
+      : null;
+    if (conn.agentId && payloadAgentId && payloadAgentId !== conn.agentId) {
+      reply({
+        type: Performative.REFUSE,
+        convId: frame.convId,
+        payload: {
+          error: 'agent_mismatch',
+          action,
+          message: `Action '${action}' cannot be sent as '${payloadAgentId}' over a connection bound to '${conn.agentId}'`,
+        },
+      });
+      return;
+    }
+    const requestedAgentId = payloadAgentId || conn.agentId;
     let agentId = requestedAgentId;
 
     // ── Auth check ──

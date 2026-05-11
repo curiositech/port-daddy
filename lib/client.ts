@@ -2476,24 +2476,28 @@ class PortDaddy {
   async claimFiles(
     sessionId: string,
     files: string[],
-    options?: { regions?: FileRegion[]; force?: boolean } | boolean
+    options?: { regions?: FileRegion[]; force?: boolean; agentId?: string | null } | boolean
   ): Promise<FileClaimResponse> {
     // Backward compat: third arg used to be just `force: boolean`
     let force: boolean | undefined;
     let regions: FileRegion[] | undefined;
+    let agentId: string | null | undefined;
     if (typeof options === 'boolean') {
       force = options;
     } else if (options) {
       force = options.force;
       regions = options.regions;
+      agentId = options.agentId;
     }
+    const callerAgentId = agentId ?? this.agentId;
     const ipcResult = await this._requestViaIpc<FileClaimResponse>(
       IpcAction.FILES_CLAIM,
-      { sessionId, paths: files, regions, force },
+      { sessionId, paths: files, regions, force, agentId: callerAgentId },
+      { agentId: callerAgentId || undefined },
     );
     if (ipcResult) return ipcResult;
 
-    return this._request('POST', `/sessions/${sessionId}/files`, { files, regions, force }) as Promise<FileClaimResponse>;
+    return this._request('POST', `/sessions/${sessionId}/files`, { files, regions, force, agentId: callerAgentId }) as Promise<FileClaimResponse>;
   }
 
   /**
@@ -2502,15 +2506,17 @@ class PortDaddy {
   async releaseFiles(
     sessionId: string,
     files: string[],
-    options?: { regions?: FileRegion[] }
+    options?: { regions?: FileRegion[]; agentId?: string | null }
   ): Promise<FileReleaseResponse> {
+    const callerAgentId = options?.agentId ?? this.agentId;
     const ipcResult = await this._requestViaIpc<FileReleaseResponse>(
       IpcAction.FILES_RELEASE,
-      { sessionId, paths: files, regions: options?.regions },
+      { sessionId, paths: files, regions: options?.regions, agentId: callerAgentId },
+      { agentId: callerAgentId || undefined },
     );
     if (ipcResult) return ipcResult;
 
-    return this._request('DELETE', `/sessions/${sessionId}/files`, { files, regions: options?.regions }) as Promise<FileReleaseResponse>;
+    return this._request('DELETE', `/sessions/${sessionId}/files`, { files, regions: options?.regions, agentId: callerAgentId }) as Promise<FileReleaseResponse>;
   }
 
   // ──────────────────────────────────────────────────────────────
@@ -3128,13 +3134,13 @@ class PortDaddy {
 
   /**
    * Launch an AI agent with the given spec.
-   * Supports backends: ollama, claude, claude-cli, gemini, codex, aider, custom.
+   * Requires a backend that passes readiness and exact-telemetry preflight.
    * Auto-wires PD coordination (agent registration, session, heartbeat, done).
    *
    * @example
    * const result = await pd.spawn({
-   *   backend: 'ollama',
-   *   model: 'llama3.1:8b',
+   *   backend: 'cloudflare',
+   *   model: '@cf/qwen/qwen3-30b-a3b-fp8',
    *   identity: 'myapp:coder',
    *   budgetUsd: 2.5,
    *   task: 'Write a hello world in TypeScript',

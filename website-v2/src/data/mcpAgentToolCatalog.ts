@@ -5033,7 +5033,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         "name": "backend",
         "type": "string",
         "required": false,
-        "description": "LLM backend: ollama (default), claude, claude-cli, gemini, cloudflare, codex, aider, or custom"
+        "description": "LLM backend: cloudflare, claude, claude-cli, gemini, codex, aider, custom, or another setup-ready backend"
       },
       {
         "name": "model",
@@ -5102,7 +5102,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         },
         "backend": {
           "type": "string",
-          "description": "LLM backend: ollama (default), claude, claude-cli, gemini, cloudflare, codex, aider, or custom"
+          "description": "LLM backend: cloudflare, claude, claude-cli, gemini, codex, aider, custom, or another setup-ready backend"
         },
         "model": {
           "type": "string",
@@ -5182,7 +5182,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         "name": "backend",
         "type": "string",
         "required": true,
-        "description": "Required backend: ollama, claude, claude-cli, gemini, cloudflare, codex, aider, or custom."
+        "description": "Required setup-ready backend: cloudflare, claude, claude-cli, gemini, codex, aider, custom, or another configured backend."
       },
       {
         "name": "model",
@@ -5275,7 +5275,7 @@ export const MCP_AGENT_TOOL_DEFINITIONS: McpAgentToolDefinition[] = [
         },
         "backend": {
           "type": "string",
-          "description": "Required backend: ollama, claude, claude-cli, gemini, cloudflare, codex, aider, or custom."
+          "description": "Required setup-ready backend: cloudflare, claude, claude-cli, gemini, codex, aider, custom, or another configured backend."
         },
         "model": {
           "type": "string",
