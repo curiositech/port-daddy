@@ -127,7 +127,7 @@ describe('backend readiness', () => {
     expect(readiness.credentialAlternates).toEqual(['CLOUDFLARE_API_KEY', 'CF_API_TOKEN', 'CF_ACCOUNT_ID']);
   });
 
-  test('keeps claude-cli probe details while still blocking launch under telemetry policy', async () => {
+  test('keeps claude-cli probe details when binary missing (telemetry policy allows the default model)', async () => {
     mockSpawnSync.mockReturnValue({ status: 1 });
 
     const readiness = await assessBackendReadiness('claude-cli');
@@ -140,7 +140,25 @@ describe('backend readiness', () => {
       status: 'needs_setup',
     });
     expect(readiness.summary).toContain('Claude CLI binary not found');
-    expect(readiness.summary).toContain('blocked until exact token counts');
+    // Per commit 2ee5976a, claude-cli with the default Claude model now
+    // satisfies the fail-closed telemetry policy (it shares MODEL_RATES
+    // with the `claude` SDK backend), so the readiness summary should
+    // not pick up a telemetry-blocked tail.
+    expect(readiness.summary).not.toContain('blocked until exact token counts');
+    expect(readiness.setupCommand).toBe('claude');
+  });
+
+  test('claude-cli with an unknown model still blocks launch under telemetry policy', async () => {
+    mockSpawnSync.mockReturnValue({ status: 1 });
+
+    const readiness = await assessBackendReadiness('claude-cli', { model: 'claude-future-unknown-1' });
+
+    expect(readiness).toMatchObject({
+      backend: 'claude-cli',
+      status: 'needs_setup',
+    });
+    expect(readiness.summary).toContain('Claude CLI binary not found');
+    expect(readiness.summary).toContain('no exact cost rate entry');
     expect(readiness.setupCommand).toBe('claude');
   });
 
