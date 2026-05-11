@@ -38,23 +38,25 @@ describe('lib/keychain.ts import shape (PR #20 regression guard)', () => {
   });
 
   test('uses namespace import for node:child_process, not named import', () => {
-    // Allow type-only named imports if they ever become necessary.
-    // Forbid value named imports of node:child_process (the broken form).
-    const valueNamedImport = /import\s+\{[^}]*\}\s+from\s+['"]node:child_process['"]/;
-    const typeOnlyNamedImport = /import\s+type\s+\{[^}]*\}\s+from\s+['"]node:child_process['"]/;
+    // Per-statement scan, not per-file. The earlier whole-file form
+    // (`valueNamed && !typeOnly`) cleared to false if any unrelated
+    // `import type { ... } from 'node:child_process'` lived in the same
+    // file — letting the actual regression slip through. Classify each
+    // statement independently instead.
+    const statementRe = /import\s+(type\s+)?\{[^}]*\}\s+from\s+['"]node:child_process['"]/g;
+    const offenders = [];
+    let m;
+    while ((m = statementRe.exec(source)) !== null) {
+      if (!m[1]) offenders.push(m[0]); // m[1] === 'type ' means type-only, fine.
+    }
 
-    const hasValueNamed = valueNamedImport.test(source) && !typeOnlyNamedImport.test(source);
-
-    if (hasValueNamed) {
-      const offending = source.match(valueNamedImport)?.[0] ?? '<unknown>';
+    if (offenders.length > 0) {
       throw new Error(
-        `lib/keychain.ts uses a named import from node:child_process: ${offending}\n` +
-          'This regresses PR #20. Use namespace import instead:\n' +
-          "  import * as childProcess from 'node:child_process';\n" +
-          '  childProcess.execFileSync(...);',
+        `lib/keychain.ts uses a value named import from node:child_process: ${offenders[0]}\n` +
+          'This regresses PR #20. Use the namespace import instead.',
       );
     }
-    expect(hasValueNamed).toBe(false);
+    expect(offenders).toEqual([]);
   });
 
   test('imports node:child_process as a namespace and uses it through the namespace', () => {

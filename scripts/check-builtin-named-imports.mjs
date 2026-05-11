@@ -43,8 +43,11 @@ import { join, resolve } from 'node:path';
 // rules will trigger a 200-file refactor for no benefit.
 const BUILTINS = ['child_process'];
 
+// Match VALUE named imports only. Type-only imports (`import type { ... }`)
+// are erased at compile time and never reach Jest's ESM linker, so flagging
+// them would send users on a no-op refactor.
 const PATTERN = new RegExp(
-  String.raw`import\s+(?:type\s+)?\{[^}]*\}\s+from\s+['"]node:(` +
+  String.raw`import\s+\{[^}]*\}\s+from\s+['"]node:(` +
     BUILTINS.map((b) => b.replace('/', '\\/')).join('|') +
     String.raw`)['"]`,
   'gm',
@@ -116,7 +119,7 @@ for (const o of offenders) {
 }
 console.error('');
 console.error(
-  `${offenders.length} offender(s). Jest --experimental-vm-modules cannot resolve named exports of Node core builtins.`,
+  `${offenders.length} offender(s). Jest --experimental-vm-modules cannot resolve named exports of node:child_process under this repo's @swc/jest transform. Other node:* builtins are not flagged here.`,
 );
 console.error('Replace with a namespace import, e.g.:');
 console.error("  import * as childProcess from 'node:child_process';");
