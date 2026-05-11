@@ -127,7 +127,7 @@ describe('backend readiness', () => {
     expect(readiness.credentialAlternates).toEqual(['CLOUDFLARE_API_KEY', 'CF_API_TOKEN', 'CF_ACCOUNT_ID']);
   });
 
-  test('keeps claude-cli probe details while still blocking launch under telemetry policy', async () => {
+  test('keeps claude-cli probe details when binary is missing (telemetry policy now allows claude-cli launch)', async () => {
     mockSpawnSync.mockReturnValue({ status: 1 });
 
     // Claude CLI remains fail-closed for an unknown model without an exact
@@ -144,7 +144,12 @@ describe('backend readiness', () => {
       status: 'needs_setup',
     });
     expect(readiness.summary).toContain('Claude CLI binary not found');
-    expect(readiness.summary).toContain('blocked until exact token counts');
+    // PR #39 (`fix(telemetry): allow claude-cli backend through fail-closed gate`)
+    // gave claude-cli a dedicated case in `assessBackendTelemetryPolicy` that returns
+    // `launchAllowed: true` for known-rate models. So when the binary is missing the
+    // telemetry summary no longer chains on; the readiness summary stays focused on
+    // the install step (matches the codex test below).
+    expect(readiness.summary).not.toContain('blocked until exact token counts');
     expect(readiness.setupCommand).toBe('claude');
   });
 
