@@ -139,6 +139,7 @@ interface FleetRuntimeYamlUpdate {
   modelTier?: FleetModelTier;
   agentNames?: string[];
   clearFallbacks: boolean;
+  skipCustomAgents: boolean;
 }
 
 interface FleetRuntimeYamlUpdateResult {
@@ -178,6 +179,10 @@ function setFleetYamlRuntime(yaml: string, update: FleetRuntimeYamlUpdate): Flee
     if (!agentName) continue;
     if (requestedAgents && !requestedAgents.has(agentName)) continue;
     if (!isMap<string, unknown>(item.value)) {
+      skippedAgents.push(agentName);
+      continue;
+    }
+    if (!requestedAgents && update.skipCustomAgents && item.value.get('backend') === 'custom') {
       skippedAgents.push(agentName);
       continue;
     }
@@ -430,7 +435,19 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
           })),
         });
         return null;
-      } else if (existsSync(project) && statSync(project).isDirectory()) {
+      } else if (project.includes('\0')) {
+        reply.code(400).send({ success: false, error: 'projectRoot contains invalid characters' });
+        return null;
+      } else if (project.startsWith('/')) {
+        const validation = validateProjectRoot(project);
+        if (!validation.ok) {
+          reply.code(400).send({ success: false, error: validation.error });
+          return null;
+        }
+        if (!existsSync(project) || !statSync(project).isDirectory()) {
+          reply.code(404).send({ success: false, error: `Project directory does not exist: ${project}` });
+          return null;
+        }
         const discoveredConfig = loadFleetConfig(project);
         if (discoveredConfig) {
           projectName = discoveredConfig.name || basename(project);
@@ -517,7 +534,7 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
     const modelTier = rawModelTier && VALID_MODEL_TIERS.has(rawModelTier as FleetModelTier)
       ? rawModelTier as FleetModelTier
       : undefined;
-    const clearFallbacks = body.clearFallbacks !== false;
+    const clearFallbacks = body.clearFallbacks === true;
     const agentNames = Array.isArray(body.agentNames)
       ? [...new Set(body.agentNames
         .filter((value): value is string => typeof value === 'string')
@@ -565,6 +582,7 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
         modelTier,
         agentNames,
         clearFallbacks,
+        skipCustomAgents: body.skipCustomAgents !== false,
       });
       if (result.updatedAgents.length === 0) {
         reply.code(400);

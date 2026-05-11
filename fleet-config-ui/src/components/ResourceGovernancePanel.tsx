@@ -161,12 +161,13 @@ export default function ResourceGovernancePanel({ projectDir, limits, onOpenYaml
   const [runtimeSaving, setRuntimeSaving] = useState(false);
   const [runtimeMessage, setRuntimeMessage] = useState<string | null>(null);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
+  const [runtimeSelectionWarning, setRuntimeSelectionWarning] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dismissedEscalation, setDismissedEscalation] = useState(false);
   const maxConcurrentSpawns = limits?.maxConcurrentSpawns;
   const readyBackends = useMemo(() => backends.filter(isBackendReady), [backends]);
-  const selectedRuntimeBackend = readyBackends.find((backend) => backend.id === runtimeBackend) ?? readyBackends[0] ?? null;
+  const selectedRuntimeBackend = readyBackends.find((backend) => backend.id === runtimeBackend) ?? null;
 
   const refresh = async () => {
     setError(null);
@@ -195,11 +196,18 @@ export default function ResourceGovernancePanel({ projectDir, limits, onOpenYaml
         if (cancelled) return;
         const launchable = models.filter(isBackendReady);
         setBackends(models);
-        setRuntimeBackend((current) => (
-          launchable.some((backend) => backend.id === current)
-            ? current
-            : launchable[0]?.id ?? ''
-        ));
+        setRuntimeBackend((current) => {
+          if (launchable.some((backend) => backend.id === current)) {
+            setRuntimeSelectionWarning(null);
+            return current;
+          }
+          if (current) {
+            setRuntimeSelectionWarning(`Backend "${current}" is no longer ready. Choose another ready backend before applying.`);
+            return '';
+          }
+          setRuntimeSelectionWarning(null);
+          return launchable[0]?.id ?? '';
+        });
       })
       .catch(() => {
         if (!cancelled) setBackends([]);
@@ -221,6 +229,11 @@ export default function ResourceGovernancePanel({ projectDir, limits, onOpenYaml
 
   const applyRuntime = async () => {
     if (!projectDir || !selectedRuntimeBackend) return;
+    const modelLabel = runtimeModel || 'the backend default model';
+    const confirmed = window.confirm(
+      `Apply ${selectedRuntimeBackend.name} (${modelLabel}) to all non-custom fleet agents and clear their fallbacks? Custom command agents are skipped.`,
+    );
+    if (!confirmed) return;
     setRuntimeSaving(true);
     setRuntimeMessage(null);
     setRuntimeError(null);
@@ -229,8 +242,10 @@ export default function ResourceGovernancePanel({ projectDir, limits, onOpenYaml
         backend: selectedRuntimeBackend.id,
         model: runtimeModel || undefined,
         clearFallbacks: true,
+        skipCustomAgents: true,
       });
-      setRuntimeMessage(`Updated ${result.updatedAgents.length} agents`);
+      const skipped = result.skippedAgents.length > 0 ? `; skipped ${result.skippedAgents.length}` : '';
+      setRuntimeMessage(`Updated ${result.updatedAgents.length} agents${skipped}`);
       onRuntimeChanged?.();
     } catch (err) {
       setRuntimeError((err as Error).message);
@@ -376,11 +391,13 @@ export default function ResourceGovernancePanel({ projectDir, limits, onOpenYaml
                   setRuntimeBackend(event.target.value);
                   setRuntimeMessage(null);
                   setRuntimeError(null);
+                  setRuntimeSelectionWarning(null);
                 }}
                 className="h-8 min-w-40 rounded-md px-2 text-xs"
                 style={{ color: 'var(--pd-text)', border: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-bg)' }}
                 disabled={readyBackends.length === 0 || runtimeSaving}
               >
+                {readyBackends.length > 0 && !selectedRuntimeBackend && <option value="" disabled>Choose backend</option>}
                 {readyBackends.length === 0 && <option value="" disabled>No ready backend</option>}
                 {readyBackends.map((backend) => (
                   <option key={backend.id} value={backend.id}>{backend.name}</option>
@@ -414,10 +431,15 @@ export default function ResourceGovernancePanel({ projectDir, limits, onOpenYaml
               style={{ color: 'var(--pd-text)', border: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-bg)' }}
             >
               <ServerCog size={13} />
-              <span>{runtimeSaving ? 'Applying' : 'Apply to all agents'}</span>
+              <span>{runtimeSaving ? 'Applying' : 'Apply to LLM agents'}</span>
             </button>
           </div>
         </div>
+        {runtimeSelectionWarning && (
+          <div className="mt-2 text-xs" style={{ color: 'var(--pd-warning)' }}>
+            {runtimeSelectionWarning}
+          </div>
+        )}
         {(runtimeMessage || runtimeError) && (
           <div className="mt-2 text-xs" style={{ color: runtimeError ? 'var(--pd-accent)' : 'var(--pd-success)' }}>
             {runtimeError || runtimeMessage}

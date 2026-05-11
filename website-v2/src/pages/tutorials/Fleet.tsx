@@ -302,7 +302,7 @@ exit 0`}</CodeBlock>
                 Fire when a message arrives on their channel. Reactive. Good for
                 code review, docs updates, test coverage. Think event handlers.
               </motion.p>
-<CodeBlock copyable={false} language="yaml">{`qa:
+              <CodeBlock copyable={false} language="yaml">{`qa:
   trigger: git:committed
   backend: cloudflare
   model: '@cf/qwen/qwen3-30b-a3b-fp8'`}</CodeBlock>

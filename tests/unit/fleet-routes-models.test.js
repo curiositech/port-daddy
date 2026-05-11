@@ -262,6 +262,10 @@ describe('fleet routes /fleet/models', () => {
       backend: codex
       model: gpt-5.4-mini
       prompt: connect
+    gardener:
+      trigger: cleanup
+      backend: custom
+      prompt: ./scripts/gardener.sh
 `, 'utf-8');
     commitTempRepo(projectDir);
 
@@ -302,13 +306,78 @@ describe('fleet routes /fleet/models', () => {
       success: true,
       backend: 'cloudflare',
       updatedAgents: ['qa', 'spider'],
+      skippedAgents: ['gardener'],
     }));
     const yaml = readFileSync(configPath, 'utf-8');
     expect(yaml).toContain('backend: cloudflare');
     expect(yaml).toContain('model: "@cf/qwen/qwen3-30b-a3b-fp8"');
+    expect(yaml).toContain('gardener:');
+    expect(yaml).toContain('backend: custom');
+    expect(yaml).toContain('prompt: ./scripts/gardener.sh');
     expect(yaml).not.toContain('backend: ollama');
     expect(yaml).not.toContain('fallbacks:');
     expect(reload).toHaveBeenCalled();
+
+    await app.close();
+  });
+
+  test('POST /fleet/config/:project/runtime preserves fallbacks unless explicitly cleared', async () => {
+    const projectDir = mkdtempSync(join(tmpdir(), 'pd-fleet-runtime-fallbacks-'));
+    tempDirs.push(projectDir);
+    const configPath = join(projectDir, 'pd-fleet.yml');
+    writeFileSync(configPath, `fleet:
+  name: demo
+  agents:
+    qa:
+      trigger: git:committed
+      backend: ollama
+      model: qwen2.5-coder:7b
+      fallbacks:
+        - backend: claude-cli
+      prompt: review
+`, 'utf-8');
+    commitTempRepo(projectDir);
+
+    const app = Fastify();
+    await app.register(fleetPlugin, {
+      deps: {
+        fleetDaemon: {
+          getStatus() {
+            return { fleets: [{ project: 'demo', projectDir }] };
+          },
+          reload: jest.fn(),
+        },
+        projects: {
+          get() { return null; },
+          getByPath() { return null; },
+        },
+        messaging: {
+          subscribe() {
+            return null;
+          },
+        },
+      },
+    });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/fleet/config/demo/runtime',
+      payload: {
+        backend: 'cloudflare',
+        model: '@cf/qwen/qwen3-30b-a3b-fp8',
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual(expect.objectContaining({
+      success: true,
+      clearFallbacks: false,
+      updatedAgents: ['qa'],
+      skippedAgents: [],
+    }));
+    const yaml = readFileSync(configPath, 'utf-8');
+    expect(yaml).toContain('fallbacks:');
+    expect(yaml).toContain('backend: claude-cli');
 
     await app.close();
   });

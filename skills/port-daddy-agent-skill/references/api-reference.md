@@ -1359,11 +1359,12 @@ Bulk-apply one setup-ready backend/model to fleet agents without hand-editing YA
   "backend": "cloudflare",
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "agentNames": ["qa", "spider"],
-  "clearFallbacks": true
+  "clearFallbacks": true,
+  "skipCustomAgents": true
 }
 ```
 
-Omit `agentNames` to update every agent. Use `modelTier` instead of `model` when a backend ladder is preferred.
+Omit `agentNames` to update every non-`custom` agent. `custom` command agents are skipped by default unless you explicitly target them by name or set `skipCustomAgents: false`. Use `modelTier` instead of `model` when a backend ladder is preferred. `clearFallbacks` defaults to `false`; pass `true` when you want the route to remove fallback runtime chains.
 
 **Response:**
 ```json
@@ -1373,7 +1374,8 @@ Omit `agentNames` to update every agent. Use `modelTier` instead of `model` when
   "model": "@cf/qwen/qwen3-30b-a3b-fp8",
   "modelTier": null,
   "updatedAgents": ["qa", "spider"],
-  "skippedAgents": []
+  "skippedAgents": ["gardener"],
+  "clearFallbacks": true
 }
 ```
 

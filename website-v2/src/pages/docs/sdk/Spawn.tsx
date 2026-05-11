@@ -8,7 +8,7 @@ export default function Spawn() {
       module="Agents"
       version="3.13.0"
       signature={`spawn(spec: {
-  backend: 'cloudflare' | 'claude' | 'claude-cli' | 'gemini' | 'codex' | 'aider' | 'custom'
+  backend: 'ollama' | 'cloudflare' | 'claude' | 'claude-cli' | 'gemini' | 'codex' | 'aider' | 'custom'
   identity: string
   budgetUsd: number
   task: string
@@ -22,7 +22,7 @@ export default function Spawn() {
   maxTokens?: number
 }): Promise<SpawnResult>`}
       params={[
-        { name: 'spec.backend', type: 'string', required: true, description: 'Execution backend. It must be setup-ready before launch.' },
+        { name: 'spec.backend', type: 'string', required: true, description: 'Execution backend. The SDK accepts the daemon backend catalog, but launch preflight only allows setup-ready backends with exact telemetry.' },
         { name: 'spec.identity', type: 'string', required: true, description: 'Semantic identity in project:stack:context form. Spend attribution and salvage depend on this.' },
         { name: 'spec.budgetUsd', type: 'number', required: true, description: 'Required spend ceiling for the launch. Unbudgeted spawns are rejected.' },
         { name: 'spec.task', type: 'string', required: true, description: 'The actual task or prompt to execute.' },

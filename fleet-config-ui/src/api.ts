@@ -403,6 +403,7 @@ export async function setFleetConfigRuntime(project: string, input: {
   modelTier?: 'low' | 'mid' | 'high';
   agentNames?: string[];
   clearFallbacks?: boolean;
+  skipCustomAgents?: boolean;
 }): Promise<{
   success: boolean;
   backend: string;
