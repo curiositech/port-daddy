@@ -1,6 +1,6 @@
 # Port Daddy Roadmap & Future Ideas
 
-**Last updated:** 2026-05-12 (Cartographer harvest pass — source verification complete; curated now dogfood pair still `claim-preserving-git-safety` and `fleet-launchability-and-cadence`; 2 new Spark now items promoted into the wave on 2026-05-09: `daemon-introspection-api` and `ideas-trove-queryable-surface`; 2 more Spark now items promoted on 2026-05-11: `graph-based-merge-conflict-predictor` and `ambient-anomaly-signaling`; 2026-05-12 added `symbol-graph-visualization`, `incremental-symbol-index-refresh`, and `operator-hint-engine` as the Phase 1/3 support cuts; raw 2026-05-10 Spider exhaust remains uncurated; verification pass `f0398b9a` now heads the branch)
+**Last updated:** 2026-05-12 21:33 UTC (Cartographer harvest pass — source verification complete; curated now dogfood pair still `claim-preserving-git-safety` and `fleet-launchability-and-cadence`; 2 new Spark now items promoted into the wave on 2026-05-09: `daemon-introspection-api` and `ideas-trove-queryable-surface`; 2 more Spark now items promoted on 2026-05-11: `graph-based-merge-conflict-predictor` and `ambient-anomaly-signaling`; 2026-05-12 added `symbol-graph-visualization`, `incremental-symbol-index-refresh`, `operator-hint-engine`, `symbol-claim-isolation-validator`, and `orchestrator-plugin-lifecycle` as the Phase 1/3 support cuts; raw 2026-05-10 Spider exhaust remains uncurated; continuation pass `857f225c` now heads the branch)
 
 This document captures the ambitious, industry-defining vision for Port Daddy as the definitive "Agentic OS" Control Plane. It outlines "things for later" and serves as a living synthesis of conceptual ideas.
 
@@ -45,6 +45,9 @@ The same 2026-05-12 Spark idea pass added `incremental-symbol-index-refresh`
 as the Phase 1 predictive-coordination cut and `operator-hint-engine` as
 the Phase 3 decision-velocity cut.
 
+The same 2026-05-12 Spark idea pass added `orchestrator-plugin-lifecycle`
+as the Phase 1 user-extensibility cut.
+
 The cartographer roadmap-progress screen and central feedback pipe are
 already shipped, so the "Next Cuts" list below is the remaining backlog
 rather than the old four-file FOMO check.
@@ -75,6 +78,11 @@ appropriate phase section below and delete it here.
   policy, but it is static markdown. Add `pd ideas list|search|show` plus
   HTTP routes so Spark/Spider can query the trove for deduplication instead
   of doing brittle string matching.
+- **`orchestrator-plugin-lifecycle`** — Phase 1 wired the orchestrator
+  registry and default FIFO orchestrator, but users still can't hot-load
+  custom orchestrators without forking the daemon. Add the loader /
+  lifecycle wire so domain-specific routing can be tested and activated at
+  runtime.
 - **`claim-preserving-git-safety`** — Advisory file claims can still be
   steamrolled by `git add -A`, `git reset --hard`, and `git cherry-pick`.
   Add a safe `pd add` path plus destructive-git guardrails that consult
@@ -112,15 +120,14 @@ appropriate phase section below and delete it here.
   salvage on disconnect instead of the 10–20 minute stale window.
 - **`graph-based-merge-conflict-predictor`** — Use the Phase 1 semantic
   graph to score pre-merge overlap and warn before git attempts a conflict.
+- **`symbol-claim-isolation-validator`** — Phase 1 graph-backed claim
+  safety still needs a pre-flight check. Validate symbol ownership before
+  agents lock work so conflict risk is caught before merge time.
 - **`forensic-context-windows`** — Attach recent correlation timeline
   context to Arbiter violation records so violations narrate themselves
   instead of being bare facts.
 - **`fleet-run-journal`** — Persist fleet run lifecycle into SQLite so
   `pd fleet history` and briefings stop forgetting on restart.
-- **`fleet-launchability-and-cadence`** — Cartographer can be wired but
-  still blocked by cadence routing, slug drift, and the wallet /
-  telemetry wall; surface `launchable` vs `blocked` truth in `pd
-  status` and spawn/preflight output.
 - **`salvage-root-cause-classifier`** — Salvage records log *that* agents
   failed, not *why*. Add classification by root cause (timeout, OOM,
   permission, network, logic error) to help operators distinguish tuning

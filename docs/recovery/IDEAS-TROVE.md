@@ -1,6 +1,6 @@
 # Ideas Trove
 
-Last updated: 2026-05-12 (Spark promotion pass — symbol-graph-visualization, incremental-symbol-index-refresh, and operator-hint-engine added to immediate candidates; Phase 1 operator visibility now has a direct visual slice, Phase 1 predictive coordination now stays live as files change, and Phase 3 decision velocity gains a hint layer; all pass novelty gate with new API surfaces, new data sources, and distinct operator payoffs)
+Last updated: 2026-05-12 (Spark promotion pass — symbol-graph-visualization, incremental-symbol-index-refresh, operator-hint-engine, symbol-claim-isolation-validator, and orchestrator-plugin-lifecycle added to immediate candidates; Phase 1 operator visibility now has a direct visual slice, Phase 1 predictive coordination now stays live as files change, Phase 3 decision velocity gains a hint layer, Phase 1/4 claim-safety gets a pre-flight validator, and Phase 1 user-extensibility gains hot-load plugin lifecycle; all pass novelty gate with new API surfaces, new data sources, and distinct operator payoffs)
 
 This is the canonical ideation index and curated backlog for Port Daddy.
 
@@ -42,7 +42,9 @@ allowed to multiply duplicate backlog items forever.
   - `.spark/ideas/2026-05-12-symbol-graph-visualization.md`
   - `.spark/ideas/2026-05-12-incremental-symbol-index-refresh.md`
   - `.spark/ideas/2026-05-11-operator-hint-engine.md`
-  - promoted `symbol-graph-visualization`, `incremental-symbol-index-refresh`, and `operator-hint-engine` as new backlog slugs and execution-wave now items
+  - `.spark/ideas/2026-05-12-symbol-claim-isolation-validator.md`
+  - `.spark/ideas/2026-05-12-orchestrator-plugin-lifecycle.md`
+  - promoted `symbol-graph-visualization`, `incremental-symbol-index-refresh`, `operator-hint-engine`, `symbol-claim-isolation-validator`, and `orchestrator-plugin-lifecycle` as new backlog slugs and execution-wave now items
 
 Status meanings used here:
 
@@ -231,6 +233,45 @@ runtime cuts.
 - provenance:
   - operator question 2026-04-26 ("Can port-daddy launch these
     things dynamically when a quorum of agents agree on need?")
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove`
+
+### `symbol-claim-isolation-validator`
+
+- status: `now`
+- why it matters:
+  - agents currently discover claim conflicts at merge time, wasting effort
+  - Phase 1 semantic graph already knows which symbols are claimed by active sessions
+  - this fills the gap: early-warning before an agent claims a symbol that another session owns
+  - complements `graph-based-merge-conflict-predictor` (reactive) with proactive validation
+- next cut:
+  - new API `POST /graph/validate-claim-safety` returning isolation risk and conflicting claims
+  - new CLI `pd graph validate-claim <symbol-path>` for pre-flight checks
+  - ~120 LOC, zero schema changes, leverages Phase 1 graph
+  - agents can query before `pd begin` to check symbol availability
+  - dashboard integration: show "symbol claim health" when planning work
+- provenance:
+  - `.spark/ideas/2026-05-12-symbol-claim-isolation-validator.md`
+  - fills gap identified in Phase 1 completion + Phase 4 merge-infrastructure lane
+  - distinct from intent-tuples (speculative), merge-predictor (post-facto), graph-viz (visual)
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove`
+
+### `orchestrator-plugin-lifecycle`
+
+- status: `now`
+- why it matters:
+  - Phase 1 wired the orchestrator registry and default FIFO orchestrator, but users can't load custom orchestrators without forking the daemon
+  - V4 thesis says "users bring private orchestrators with domain intelligence," but there's no surface for that yet
+  - this unblocks domain-specific task assignment (e.g., "bind read-only tasks to Spark, writes to QA") without daemon rebuilds
+- next cut:
+  - new CLI `pd orchestrator load <path> | test | list | set-active`
+  - new API `GET /orchestrator, POST /orchestrator/load, GET /orchestrator/test`
+  - hot-load custom orchestrators from `.portdaddy/orchestrators/` with interface validation
+  - ~180 LOC, zero schema changes, one-session achievable
+  - test scenarios before activation, persist choice across daemon cycles
+- provenance:
+  - `.spark/ideas/2026-05-12-orchestrator-plugin-lifecycle.md`
+  - explicit gap from V4-UNIFIED-ROADMAP.md section "Orchestrator plugins + Merge queue": "routes pending orchestrator plugin wire"
+  - Phase 1 completion: registry wired; Phase 1.5: user-facing loader
 - roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove`
 
 ### `telos-driven-model-selection`

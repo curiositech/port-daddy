@@ -1,6 +1,6 @@
 # Unified Recovery Roadmap
 
-Last updated: 2026-05-12 (Cartographer pass — Phase 1 closure, Phase 3 visibility, Phase 6 telos suggestion, the 2026-05-11 Spark promotion of `graph-based-merge-conflict-predictor` + `ambient-anomaly-signaling`, the 2026-05-12 Spark promotion of `symbol-graph-visualization`, `incremental-symbol-index-refresh`, and `operator-hint-engine`, and the 2026-05-12 verification pass (`f0398b9a`))
+Last updated: 2026-05-12 (Cartographer pass — Phase 1 closure, Phase 3 visibility, Phase 6 telos suggestion, the 2026-05-11 Spark promotion of `graph-based-merge-conflict-predictor` + `ambient-anomaly-signaling`, the 2026-05-12 Spark promotion of `symbol-graph-visualization`, `incremental-symbol-index-refresh`, `operator-hint-engine`, and `symbol-claim-isolation-validator`, plus the 2026-05-12 continuation pass (`857f225c`) and verification pass (`f0398b9a`))
 
 This is the single execution-order roadmap for the active Port Daddy recovery and consolidation effort.
 
@@ -33,6 +33,9 @@ Phase 1 visual operator slice.
 The same 2026-05-12 Spark promotion added `incremental-symbol-index-refresh`
 as the Phase 1 predictive coordination cut and `operator-hint-engine` as
 the Phase 3 operator decision-velocity cut.
+
+The same 2026-05-12 curation pass added `symbol-claim-isolation-validator`
+as the Phase 1/4 claim-safety cut.
 
 ## Near-Term Release Cuts
 
@@ -171,6 +174,7 @@ Immediate ships:
 - preflight-backed single-use mission launches so `pd agent` and sorties show readiness, budget, and fallback choices before work starts
 - `incremental-symbol-index-refresh` — keep graph conflict prediction current as files change instead of waiting for explicit graph queries
 - `graph-based-merge-conflict-predictor` — predict graph-backed merge risk before git attempts a merge so repeated trigger storms do not turn into repeated conflict churn
+- `symbol-claim-isolation-validator` — validate symbol ownership before a claim or lock is accepted so pre-flight work can stop contention before merge time
 
 Representative idea pressure:
 - budget-gated fleet spawning

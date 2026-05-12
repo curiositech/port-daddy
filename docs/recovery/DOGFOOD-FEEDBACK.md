@@ -1,6 +1,6 @@
 # Dogfood Feedback — Curated Harvest
 
-Last updated: 2026-05-12 (Cartographer verification pass — no raw .spark/feedback tree here; tuple-backed feedback projection unavailable in this shell; curated now pair unchanged; today’s raw exhaust was ideas/spider only, not feedback)
+Last updated: 2026-05-12 20:33 UTC (Cartographer verification pass — no raw .spark/feedback tree here; tuple-backed feedback projection unavailable in this shell; curated now pair unchanged; today’s raw exhaust was ideas/spider only, not feedback)
 
 This file is the curated harvest of agent dogfooding feedback for Port Daddy.
 
