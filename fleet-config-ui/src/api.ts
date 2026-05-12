@@ -397,6 +397,24 @@ export async function setFleetConfigBudget(project: string, usdPerDay: number): 
   return post(`/fleet/config/${encodeURIComponent(project)}/budget`, { usdPerDay });
 }
 
+export async function setFleetConfigRuntime(project: string, input: {
+  backend: string;
+  model?: string;
+  modelTier?: 'low' | 'mid' | 'high';
+  agentNames?: string[];
+  clearFallbacks?: boolean;
+  skipCustomAgents?: boolean;
+}): Promise<{
+  success: boolean;
+  backend: string;
+  model: string | null;
+  modelTier: string | null;
+  updatedAgents: string[];
+  skippedAgents: string[];
+}> {
+  return post(`/fleet/config/${encodeURIComponent(project)}/runtime`, input);
+}
+
 export async function fetchResourceOverview(opts: {
   projectDir?: string;
   maxConcurrentSpawns?: number;

@@ -618,7 +618,7 @@ function buildHelp(): string {
     `  ${G}pd agent${Z} "task"         One-shot autopilot delegation`,
     `  ${G}pd agent register${Z}        Register as an agent`,
     `  ${G}pd salvage${Z}               Pick up a dead agent's work`,
-    `  ${G}pd actors${Z}                Inspect durable maritime actor souls`,
+    `  ${G}pd actors${Z}                Inspect durable actor roster`,
     `  ${G}pd advise${Z}                Suggest coordination moves before editing`,
     `  ${G}pd guard${Z}                 Enforce session + file-claim discipline`,
     `  ${G}pd graph stats${Z}           Inspect semantic graph totals`,
@@ -648,12 +648,16 @@ Commands:
     --no-mcp                Skip MCP + shell hook installation
     --no-fleetbar           Skip FleetBar install (macOS)
     --no-skill              Skip Port Daddy agent skill symlink
+    --status                Show cross-tool skill sync status only
+    --skill-status          Alias for --status
+    --dry-run               Preview cross-tool skill sync without writing links
     --no-init               Skip project initialization
     --no-fleet              Pass through to pd init
     --no-hook               Pass through to pd init
 
 Examples:
   pd setup
+  pd setup --status
   pd setup --project ~/coding/workgroup-ai
   pd setup --no-fleetbar
   pd setup --no-skill
@@ -785,16 +789,16 @@ Examples:
   pd salvage next --project myapp --json
   pd salvage claim dead-agent-99`,
 
-  actors: `Maritime Actors \u2014 Durable coordination souls and live body signals
+  actors: `Actors \u2014 Durable coordination souls and live body signals
 
 Commands:
-  actors                    List canonical maritime actors and live lease signals
+  actors                    List canonical actors and live lease signals
     --project <name>        Filter live session/agent/salvage evidence by project
     --limit <n>             Limit session/salvage evidence per actor
     -j, --json              Output as JSON
 
   actor <id-or-alias>       Show one actor by canonical id or alias
-                            Examples: navigator, cartographer, coxswain
+                            Examples: cartographer, coxswain, qa
     --project <name>        Filter live evidence by project
     --message <text>        Queue a message to the actor mailbox
     --inbox                 Read recent actor mailbox messages
@@ -804,23 +808,32 @@ Commands:
     --wake                  Try to hail the compatibility fleet body, if one exists
     -j, --json              Output as JSON
 
-Actors:
-  navigator                 Roadmap, recovery map, and Cartographer compatibility
-  coxswain                  Claims, locks, stale assets, and symbolic coordination
-  signalman                 Tests, validation, and evidence
-  harbormaster              Promotion, daemon freshness, and runtime truth
-  sounder                   Tuples, graph, memory, and semantic collapse
-  lookout                   Docs, OpenAPI, skills, and product truth
-  breaker                   Failure propagation and circuit breakers
-  caulker                   Robustness repair and leak sealing
-  quartermaster             Costs, spawn discipline, and backend policy
+Canonical actors (mirror lib/actor-roster.ts ACTOR_ROSTER):
+  gardener                  Working-tree hygiene, uncommitted-state drift
+  qa                        Tests, validation, evidence, signal quality
+  test-hunter               Coverage gaps, test quality, tautology / mock-echo flags
+  documentarian             Docs, OpenAPI, CLI, MCP, website, and skill drift
+  simplifier                Complexity reduction; deletion preferred over addition
+  coxswain                  Claims, locks, stale assets, channels, tuples, comm-pipeline debug
+  quartermaster             Backends, models, spawn discipline, telemetry policy, budget
+  cartographer              Roadmap, recovery ledger, work-slice evidence, feedback harvest
+  spark                     Idea generation, deduped against the canonical idea trove
+  spider                    Combinatorial connections; new capabilities implied by combinations
+
+Functional aliases:
+  tree, wip \u2192 gardener           validation, evidence \u2192 qa
+  hunter, coverage \u2192 test-hunter docs, drift \u2192 documentarian
+  shrink, reduce \u2192 simplifier    roadmap, mapmaker \u2192 cartographer
+  ideator, proposer \u2192 spark      weaver, connector \u2192 spider
+  claim-owner, lock-owner, ownership, contention, comms-officer, signaler \u2192 coxswain
+  spend, budget, backend-owner, model-owner, launch-readiness \u2192 quartermaster
 
 Examples:
   pd actors --project port-daddy
   pd actor cartographer
-  pd actor navigator --message "roadmap item needs evidence"
-  pd actor navigator --inbox --unread
-  pd actor navigator --inbox --unread --mark-read
+  pd actor cartographer --message "roadmap item needs evidence"
+  pd actor cartographer --inbox --unread
+  pd actor cartographer --inbox --unread --mark-read
   pd actor coxswain --json`,
 
   ports: `Port Management \u2014 Claim, release, and query ports

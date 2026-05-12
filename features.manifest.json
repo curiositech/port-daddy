@@ -1053,6 +1053,7 @@
         "GET /fleet/config/:project",
         "PUT /fleet/config/:project",
         "POST /fleet/config/:project/budget",
+        "POST /fleet/config/:project/runtime",
         "GET /fleet/models",
         "POST /fleet/backend-secrets"
       ],

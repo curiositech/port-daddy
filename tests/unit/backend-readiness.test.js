@@ -127,17 +127,9 @@ describe('backend readiness', () => {
     expect(readiness.credentialAlternates).toEqual(['CLOUDFLARE_API_KEY', 'CF_API_TOKEN', 'CF_ACCOUNT_ID']);
   });
 
-  test('keeps claude-cli probe details while still blocking launch under telemetry policy', async () => {
+  test('keeps claude-cli probe details when binary is missing and stamps the fail-closed telemetry summary', async () => {
     mockSpawnSync.mockReturnValue({ status: 1 });
 
-    // Force the telemetry policy to block by passing a model with no exact
-    // cost rate. The default operator model (claude-haiku-4-5-20251001) now
-    // resolves through the cost-tracker rate table (substring match against
-    // 'claude-haiku-4-5'), so the policy's launchAllowed flag goes true and
-    // applyTelemetryPolicy() doesn't append the policy summary. Passing an
-    // unknown model exercises the original test invariant: even when the
-    // telemetry policy IS blocking, the binary-not-found probe wording must
-    // survive in the merged summary.
     const readiness = await assessBackendReadiness('claude-cli', { model: 'unknown-rateless-model-9999' });
 
     expect(mockSpawnSync).toHaveBeenCalledWith('which', ['claude'], expect.objectContaining({
@@ -147,11 +139,12 @@ describe('backend readiness', () => {
       backend: 'claude-cli',
       status: 'needs_setup',
     });
+    // The combined summary has the binary-probe detail AND the claude-cli
+    // telemetry-policy detail. After the latest policy revision claude-cli is
+    // fail-closed regardless of model (subprocess telemetry can't prove exact
+    // token counts), so the policy summary appends to the readiness summary.
     expect(readiness.summary).toContain('Claude CLI binary not found');
-    // Claude CLI has its own switch case in assessBackendTelemetryPolicy with
-    // case-specific wording — no longer the generic "blocked until exact token
-    // counts" string from the default case. See lib/backend-telemetry-policy.ts.
-    expect(readiness.summary).toContain('fail-closed telemetry policy blocks launch');
+    expect(readiness.summary).toContain('blocked until exact token counts');
     expect(readiness.setupCommand).toBe('claude');
   });
 

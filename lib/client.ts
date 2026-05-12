@@ -999,7 +999,7 @@ interface NotesResponse {
   count: number;
 }
 
-type MaritimeActorLeaseState = 'attached' | 'recoverable' | 'detached' | 'dormant';
+type ActorLeaseState = 'attached' | 'recoverable' | 'detached' | 'dormant';
 
 interface ActorMailboxStats {
   total: number;
@@ -1007,7 +1007,7 @@ interface ActorMailboxStats {
   max: number | null;
 }
 
-interface MaritimeActorSignal {
+interface ActorSignal {
   id: string;
   identity?: string | null;
   purpose?: string | null;
@@ -1019,7 +1019,7 @@ interface MaritimeActorSignal {
   liveness?: string | null;
 }
 
-interface MaritimeActorRecord {
+interface ActorRecord {
   id: string;
   label: string;
   title: string;
@@ -1031,10 +1031,10 @@ interface MaritimeActorRecord {
   address: string;
   inboxTarget: string;
   mailboxStats: ActorMailboxStats | null;
-  leaseState: MaritimeActorLeaseState;
-  liveBodies: MaritimeActorSignal[];
-  recentSessions: MaritimeActorSignal[];
-  salvage: MaritimeActorSignal[];
+  leaseState: ActorLeaseState;
+  liveBodies: ActorSignal[];
+  recentSessions: ActorSignal[];
+  salvage: ActorSignal[];
   lastActivityAt: number | null;
   evidence: string[];
 }
@@ -1047,7 +1047,7 @@ interface ListActorsOptions {
 interface ListActorsResponse {
   success: boolean;
   count: number;
-  actors: MaritimeActorRecord[];
+  actors: ActorRecord[];
 }
 
 interface GetActorOptions {
@@ -1056,7 +1056,7 @@ interface GetActorOptions {
 
 interface GetActorResponse {
   success: boolean;
-  actor: MaritimeActorRecord;
+  actor: ActorRecord;
   resolvedId: string;
 }
 
@@ -2812,11 +2812,11 @@ class PortDaddy {
   }
 
   // ──────────────────────────────────────────────────────────────
-  // Maritime actors (durable actor souls + optional live bodies)
+  // Actors (durable actor souls + optional live bodies)
   // ──────────────────────────────────────────────────────────────
 
   /**
-   * List durable maritime actors projected from live agents, sessions, and salvage state.
+   * List durable actors projected from live agents, sessions, and salvage state.
    */
   async listActors(options: ListActorsOptions = {}): Promise<ListActorsResponse> {
     const params = new URLSearchParams();
@@ -2827,7 +2827,7 @@ class PortDaddy {
   }
 
   /**
-   * Get a durable maritime actor by canonical ID or alias.
+   * Get a durable actor by canonical ID or alias.
    */
   async getActor(actorId: string, options: GetActorOptions = {}): Promise<GetActorResponse> {
     const params = new URLSearchParams();
@@ -3134,13 +3134,13 @@ class PortDaddy {
 
   /**
    * Launch an AI agent with the given spec.
-   * Supports backends: ollama, claude, claude-cli, gemini, codex, aider, custom.
+   * Requires a backend that passes readiness and exact-telemetry preflight.
    * Auto-wires PD coordination (agent registration, session, heartbeat, done).
    *
    * @example
    * const result = await pd.spawn({
-   *   backend: 'ollama',
-   *   model: 'llama3.1:8b',
+   *   backend: 'cloudflare',
+   *   model: '@cf/qwen/qwen3-30b-a3b-fp8',
    *   identity: 'myapp:coder',
    *   budgetUsd: 2.5,
    *   task: 'Write a hello world in TypeScript',
