@@ -1,6 +1,6 @@
 # Port Daddy Roadmap & Future Ideas
 
-**Last updated:** 2026-05-09 (Cartographer harvest pass — source verification complete; curated now dogfood pair still `claim-preserving-git-safety` and `fleet-launchability-and-cadence`; 2 new Spark now items promoted into the wave)
+**Last updated:** 2026-05-12 (Cartographer harvest pass — source verification complete; curated now dogfood pair still `claim-preserving-git-safety` and `fleet-launchability-and-cadence`; 2 new Spark now items promoted into the wave on 2026-05-09: `daemon-introspection-api` and `ideas-trove-queryable-surface`; 2 more Spark now items promoted on 2026-05-11: `graph-based-merge-conflict-predictor` and `ambient-anomaly-signaling`; raw 2026-05-10 Spider exhaust remains uncurated)
 
 This document captures the ambitious, industry-defining vision for Port Daddy as the definitive "Agentic OS" Control Plane. It outlines "things for later" and serves as a living synthesis of conceptual ideas.
 
@@ -29,7 +29,11 @@ On this checkout, both `pd roadmap --feedback-status open --json` and
 `~/.port-daddy/daemon.sock`, and this checkout does not contain a
 `.spark/feedback/` tree, so the curated harvest stayed unchanged this pass.
 The current now-status dogfood pair remains `claim-preserving-git-safety`
-and `fleet-launchability-and-cadence`.
+and `fleet-launchability-and-cadence`. The 2026-05-11 Spark promotion
+added `graph-based-merge-conflict-predictor` and
+`ambient-anomaly-signaling` to the curated wave; the fresh 2026-05-10 raw
+Spider exhaust (`S41/S42/S43`) is still uncurated, so it stays outside the
+Next Cuts list for now.
 
 The 2026-05-09 Spark harvest promoted `daemon-introspection-api` and
 `ideas-trove-queryable-surface` into the same now wave.
@@ -53,6 +57,9 @@ appropriate phase section below and delete it here.
   health: SQLite WAL lag, IPC backlog, active session count, lock
   contention, role runtime stats. Add `GET /daemon/introspect` so the Crew
   panel and Fleet Health Scorecard can stop stitching fragments together.
+- **`ambient-anomaly-signaling`** — Turn daemon introspection plus
+  coordination-judge anomalies into ambient pheromone signals so roles can
+  avoid bad spawns before they happen.
 - **`ideas-trove-queryable-surface`** — `IDEAS-TROVE.md` is canonical
   policy, but it is static markdown. Add `pd ideas list|search|show` plus
   HTTP routes so Spark/Spider can query the trove for deduplication instead
@@ -81,6 +88,8 @@ appropriate phase section below and delete it here.
 - **`ipc-disconnect-instant-salvage`** — IPC drop is already a death
   signal; treat IPC activity as implicit heartbeat and trigger immediate
   salvage on disconnect instead of the 10–20 minute stale window.
+- **`graph-based-merge-conflict-predictor`** — Use the Phase 1 semantic
+  graph to score pre-merge overlap and warn before git attempts a conflict.
 - **`forensic-context-windows`** — Attach recent correlation timeline
   context to Arbiter violation records so violations narrate themselves
   instead of being bare facts.
