@@ -140,6 +140,10 @@ describe('cost-ledger / bySlice', () => {
   test('invalid slice throws', () => {
     expect(() => ledger.bySlice('vibes')).toThrow(/invalid slice/);
   });
+
+  test('invalid window throws', () => {
+    expect(() => ledger.bySlice('actor', { window: 'fortnight' })).toThrow(/invalid window/);
+  });
 });
 
 describe('cost-ledger / caps', () => {
@@ -282,7 +286,7 @@ describe('cost-ledger / coexistence with cost-tracker view', () => {
     const db = freshDb();
     // Create ledger first — it should idempotently shell the source tables.
     const ledger = createCostLedger(db);
-    // Then layer on the real cost-tracker (would re-create cost_events).
+    // Then layer on the real cost-tracker, which should add its indexes without clobbering rows.
     const tracker = createCostTracker(db);
     tracker.record({
       backend: 'claude-cli', model: 'sonnet',

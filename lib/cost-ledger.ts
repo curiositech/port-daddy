@@ -253,6 +253,9 @@ export function createCostLedger(
       throw new Error(`cost-ledger: invalid slice "${slice}"`);
     }
     const window = opts?.window ?? 'day';
+    if (!VALID_WINDOWS.includes(window)) {
+      throw new Error(`cost-ledger: invalid window "${window}"`);
+    }
     const limit = clampLimit(opts?.limit, 100, 1, 1000);
     const ms = WINDOW_MS[window];
     const since = ms == null ? null : now() - ms;
@@ -383,9 +386,9 @@ export function createCostLedger(
 
 function ensureSourceTables(db: Database.Database): void {
   // Idempotent shells matching the live schemas. The owning modules
-  // (transcript-store, cost-tracker) re-create with full indexes on
-  // their own init paths; we just need the columns to exist so the
-  // view is valid even when this module loads first.
+  // (transcript-store, cost-tracker) add their own indexes and schema
+  // maintenance on init; we just need the columns to exist so the view
+  // is valid even when this module loads first.
   db.prepare(`
     CREATE TABLE IF NOT EXISTS transcript_events (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
