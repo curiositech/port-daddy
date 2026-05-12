@@ -425,6 +425,45 @@ function ensureSourceTables(db: Database.Database): void {
       is_estimate  INTEGER NOT NULL DEFAULT 0
     )
   `).run();
+  ensureColumns(db, 'transcript_events', [
+    { name: 'actor_id', definition: 'TEXT' },
+    { name: 'session_id', definition: 'TEXT' },
+    { name: 'event_type', definition: 'TEXT' },
+    { name: 'cost_usd', definition: 'REAL' },
+    { name: 'ts', definition: 'INTEGER' },
+    { name: 'model', definition: 'TEXT' },
+    { name: 'backend', definition: 'TEXT' },
+    { name: 'tokens_in', definition: 'INTEGER' },
+    { name: 'tokens_out', definition: 'INTEGER' },
+    { name: 'cached_tokens_in', definition: 'INTEGER' },
+  ]);
+  ensureColumns(db, 'cost_events', [
+    { name: 'ts', definition: 'INTEGER' },
+    { name: 'cost_usd', definition: 'REAL NOT NULL DEFAULT 0' },
+    { name: 'model', definition: 'TEXT' },
+    { name: 'backend', definition: 'TEXT' },
+    { name: 'identity', definition: 'TEXT' },
+    { name: 'project_name', definition: 'TEXT' },
+    { name: 'project_dir', definition: 'TEXT' },
+    { name: 'input_tokens', definition: 'INTEGER' },
+    { name: 'output_tokens', definition: 'INTEGER' },
+    { name: 'cached_input_tokens', definition: 'INTEGER' },
+  ]);
+}
+
+function ensureColumns(
+  db: Database.Database,
+  tableName: 'transcript_events' | 'cost_events',
+  columns: Array<{ name: string; definition: string }>,
+): void {
+  const existingColumns = new Set(
+    (db.prepare(`PRAGMA table_info(${tableName})`).all() as Array<{ name: string }>).map((column) => column.name),
+  );
+  for (const column of columns) {
+    if (!existingColumns.has(column.name)) {
+      db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${column.name} ${column.definition};`);
+    }
+  }
 }
 
 function round6(n: number): number {
