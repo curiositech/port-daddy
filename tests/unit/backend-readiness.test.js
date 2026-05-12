@@ -127,13 +127,9 @@ describe('backend readiness', () => {
     expect(readiness.credentialAlternates).toEqual(['CLOUDFLARE_API_KEY', 'CF_API_TOKEN', 'CF_ACCOUNT_ID']);
   });
 
-  test('keeps claude-cli probe details while still blocking launch under telemetry policy', async () => {
+  test('keeps claude-cli probe details when binary is missing and stamps the fail-closed telemetry summary', async () => {
     mockSpawnSync.mockReturnValue({ status: 1 });
 
-    // Claude CLI remains fail-closed for an unknown model without an exact
-    // cost rate entry: subprocess telemetry still cannot prove exact token
-    // counts and nonzero cost. The probe detail must survive alongside that
-    // policy summary.
     const readiness = await assessBackendReadiness('claude-cli', { model: 'unknown-rateless-model-9999' });
 
     expect(mockSpawnSync).toHaveBeenCalledWith('which', ['claude'], expect.objectContaining({
@@ -143,6 +139,10 @@ describe('backend readiness', () => {
       backend: 'claude-cli',
       status: 'needs_setup',
     });
+    // The combined summary has the binary-probe detail AND the claude-cli
+    // telemetry-policy detail. After the latest policy revision claude-cli is
+    // fail-closed regardless of model (subprocess telemetry can't prove exact
+    // token counts), so the policy summary appends to the readiness summary.
     expect(readiness.summary).toContain('Claude CLI binary not found');
     expect(readiness.summary).toContain('blocked until exact token counts');
     expect(readiness.setupCommand).toBe('claude');
