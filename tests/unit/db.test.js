@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { initDatabase, resolveDbPath, isPortAvailable, CORE_SCHEMA_SQL } from '../../lib/db.js';
+import { initDatabase, resolveDbPath, resolveDefaultDbRoot, isPortAvailable, CORE_SCHEMA_SQL } from '../../lib/db.js';
 import { createServices } from '../../lib/services.js';
 import { createLocks } from '../../lib/locks.js';
 import { createSessions } from '../../lib/sessions.js';
@@ -49,6 +49,26 @@ describe('lib/db.ts', () => {
           process.env.PORT_DADDY_DB = original;
         }
       }
+    });
+
+    it('uses the distribution resource root when running from a compiled binary', () => {
+      const result = resolveDefaultDbRoot(
+        '/$bunfs/root/lib',
+        {},
+        '/opt/port-daddy/dist/daemon/port-daddy-daemon',
+      );
+
+      expect(result).toBe('/opt/port-daddy');
+    });
+
+    it('honors PORT_DADDY_RESOURCE_DIR for default DB placement', () => {
+      const result = resolveDefaultDbRoot(
+        '/$bunfs/root/lib',
+        { PORT_DADDY_RESOURCE_DIR: '/srv/port-daddy' },
+        '/tmp/port-daddy-daemon',
+      );
+
+      expect(result).toBe('/srv/port-daddy');
     });
   });
 

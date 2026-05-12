@@ -15,6 +15,7 @@ describe('daemon binary launch contract', () => {
     expect(command.mode).toBe('binary');
     expect(command.program).toBe(binaryPath);
     expect(command.args).toEqual([]);
+    expect(command.env?.PORT_DADDY_RESOURCE_DIR).toBe(root);
   });
 
   test('refuses source daemon fallback unless explicitly allowed', () => {
