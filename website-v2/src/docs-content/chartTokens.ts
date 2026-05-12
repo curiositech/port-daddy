@@ -42,7 +42,7 @@ const SLOT_TO_VAR: Record<ChartSlot, string> = {
   // its own thing in the rendered diagram. The text on it is always dark
   // because yellow is bright.
   accent: '--chart-yellow',
-  accentText: '--text-primary',
+  accentText: '--chart-yellow-foreground',
   stroke: '--border-strong',
 }
 

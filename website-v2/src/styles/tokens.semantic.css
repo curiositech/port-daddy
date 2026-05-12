@@ -98,6 +98,7 @@
      node tier in the diagrams to keep "highlight" visually separate from
      "safety/state". Consumed via src/docs-content/chartTokens.ts. */
   --chart-yellow: #cad900;
+  --chart-yellow-foreground: #121212;
 }
 
 [data-theme='dark'] {
