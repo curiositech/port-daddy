@@ -193,7 +193,7 @@ describe('actor routes', () => {
 
     const statsRes = await app.inject({
       method: 'GET',
-      url: '/actors/navigator/inbox/stats',
+      url: '/actors/cartographer/inbox/stats',
     });
     expect(statsRes.statusCode).toBe(200);
     expect(statsRes.json()).toEqual({
