@@ -618,7 +618,7 @@ function buildHelp(): string {
     `  ${G}pd agent${Z} "task"         One-shot autopilot delegation`,
     `  ${G}pd agent register${Z}        Register as an agent`,
     `  ${G}pd salvage${Z}               Pick up a dead agent's work`,
-    `  ${G}pd actors${Z}                Inspect durable maritime actor souls`,
+    `  ${G}pd actors${Z}                Inspect durable actor roster`,
     `  ${G}pd advise${Z}                Suggest coordination moves before editing`,
     `  ${G}pd guard${Z}                 Enforce session + file-claim discipline`,
     `  ${G}pd graph stats${Z}           Inspect semantic graph totals`,

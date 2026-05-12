@@ -1007,7 +1007,7 @@ interface ActorMailboxStats {
   max: number | null;
 }
 
-interface MaritimeActorSignal {
+interface ActorSignal {
   id: string;
   identity?: string | null;
   purpose?: string | null;
@@ -1032,9 +1032,9 @@ interface ActorRecord {
   inboxTarget: string;
   mailboxStats: ActorMailboxStats | null;
   leaseState: ActorLeaseState;
-  liveBodies: MaritimeActorSignal[];
-  recentSessions: MaritimeActorSignal[];
-  salvage: MaritimeActorSignal[];
+  liveBodies: ActorSignal[];
+  recentSessions: ActorSignal[];
+  salvage: ActorSignal[];
   lastActivityAt: number | null;
   evidence: string[];
 }
