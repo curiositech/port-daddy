@@ -294,4 +294,56 @@ describe('cost-ledger / coexistence with cost-tracker view', () => {
     });
     expect(ledger.rollup({ window: 'all' }).turnCount).toBe(1);
   });
+
+  test('ledger upgrades legacy cost_events columns before querying the view', () => {
+    const db = freshDb();
+    db.exec(`
+      CREATE TABLE cost_events (
+        id            TEXT    PRIMARY KEY,
+        ts            INTEGER NOT NULL,
+        backend       TEXT    NOT NULL,
+        model         TEXT    NOT NULL,
+        project_name  TEXT,
+        identity      TEXT,
+        spawn_id      TEXT,
+        input_tokens  INTEGER,
+        output_tokens INTEGER,
+        cost_usd      REAL    NOT NULL DEFAULT 0,
+        is_estimate   INTEGER NOT NULL DEFAULT 0
+      )
+    `);
+    db.prepare(`
+      INSERT INTO cost_events (
+        id, ts, backend, model, project_name, identity, spawn_id,
+        input_tokens, output_tokens, cost_usd, is_estimate
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      'legacy-row',
+      1_700_000_000_000,
+      'claude-cli',
+      'sonnet',
+      'port-daddy',
+      'legacy-agent',
+      'spawn-1',
+      200,
+      80,
+      0.0018,
+      0,
+    );
+
+    const ledger = createCostLedger(db, { now: () => 1_700_000_000_000 });
+
+    expect(ledger.rollup({ window: 'all' })).toEqual(expect.objectContaining({
+      totalUsd: 0.0018,
+      turnCount: 1,
+      inputTokens: 200,
+      outputTokens: 80,
+    }));
+    expect(ledger.bySlice('project', { window: 'all' })[0]).toEqual(expect.objectContaining({
+      key: 'port-daddy',
+      totalUsd: 0.0018,
+    }));
+    const columnNames = db.prepare('PRAGMA table_info(cost_events)').all().map((column) => column.name);
+    expect(columnNames).toEqual(expect.arrayContaining(['project_dir', 'cached_input_tokens']));
+  });
 });
