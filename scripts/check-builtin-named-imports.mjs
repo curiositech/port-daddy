@@ -22,11 +22,12 @@
 // branch protection on `main` requiring unit-tests to pass before merge.
 //
 // Usage:
-//   node scripts/check-builtin-named-imports.mjs            # default roots
-//   node scripts/check-builtin-named-imports.mjs lib cli    # custom roots
+//   node scripts/check-builtin-named-imports.mjs             # default roots
+//   node scripts/check-builtin-named-imports.mjs lib cli     # custom roots
+//   node scripts/check-builtin-named-imports.mjs --fail lib  # exit 1 on matches
 //
-// Exit code: 0 = no named imports found, 1 = at least one named import
-// found. Exit 1 is informational, not a CI failure signal.
+// Exit code: 0 by default, even when diagnostic matches are found. Pass
+// --fail to make matches exit 1 for a deliberate one-off gate.
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -43,11 +44,12 @@ import { join, resolve } from 'node:path';
 // rules will trigger a 200-file refactor for no benefit.
 const BUILTINS = ['child_process'];
 
-// Match VALUE named imports only. Type-only imports (`import type { ... }`)
-// are erased at compile time and never reach Jest's ESM linker, so flagging
-// them would send users on a no-op refactor.
-const PATTERN = new RegExp(
-  String.raw`import\s+\{[^}]*\}\s+from\s+['"]node:(` +
+// Match named import statements first, then classify specifiers. Type-only
+// imports (`import type { ... }`) and TS inline type-only specifiers
+// (`import { type Foo }`) are erased at compile time and never reach Jest's
+// ESM linker, so flagging them would send users on a no-op refactor.
+const NAMED_IMPORT_PATTERN = new RegExp(
+  String.raw`import\s+(type\s+)?\{([^}]*)\}\s+from\s+['"]node:(` +
     BUILTINS.map((b) => b.replace('/', '\\/')).join('|') +
     String.raw`)['"]`,
   'gm',
@@ -59,6 +61,14 @@ const SKIP_FILE_RE = /\.d\.ts$/;
 const FILE_RE = /\.(?:ts|tsx|js|mjs|cjs)$/;
 
 const offenders = [];
+
+function hasValueNamedSpecifier(importKind, specifierList) {
+  if (importKind) return false;
+  return specifierList.split(',').some((specifier) => {
+    const cleaned = specifier.trim();
+    return cleaned.length > 0 && !/^type\b/.test(cleaned);
+  });
+}
 
 function walk(dir) {
   let entries;
@@ -79,14 +89,15 @@ function walk(dir) {
       } catch {
         continue;
       }
-      PATTERN.lastIndex = 0;
+      NAMED_IMPORT_PATTERN.lastIndex = 0;
       let match;
-      while ((match = PATTERN.exec(src)) !== null) {
+      while ((match = NAMED_IMPORT_PATTERN.exec(src)) !== null) {
+        if (!hasValueNamedSpecifier(match[1], match[2])) continue;
         const line = src.slice(0, match.index).split('\n').length;
         offenders.push({
           file: p,
           line,
-          builtin: match[1],
+          builtin: match[3],
           snippet: match[0].replace(/\s+/g, ' ').trim(),
         });
       }
@@ -95,7 +106,9 @@ function walk(dir) {
 }
 
 const cwd = process.cwd();
-const cliRoots = process.argv.slice(2);
+const rawArgs = process.argv.slice(2);
+const failOnOffenders = rawArgs.includes('--fail');
+const cliRoots = rawArgs.filter((arg) => arg !== '--fail');
 const targetRoots = cliRoots.length > 0 ? cliRoots : DEFAULT_ROOTS;
 
 for (const r of targetRoots) {
@@ -124,4 +137,11 @@ console.error(
 console.error('Replace with a namespace import, e.g.:');
 console.error("  import * as childProcess from 'node:child_process';");
 console.error('  childProcess.execFileSync(...);');
-process.exit(1);
+if (failOnOffenders) {
+  console.error('');
+  console.error('Failing because --fail was provided.');
+  process.exit(1);
+}
+console.error('');
+console.error('Diagnostic only; exiting 0. Re-run with --fail to turn matches into a gate.');
+process.exit(0);

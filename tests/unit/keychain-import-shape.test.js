@@ -30,6 +30,24 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const KEYCHAIN_PATH = join(__dirname, '..', '..', 'lib', 'keychain.ts');
 
+function hasValueNamedSpecifier(importKind, specifierList) {
+  if (importKind) return false;
+  return specifierList.split(',').some((specifier) => {
+    const cleaned = specifier.trim();
+    return cleaned.length > 0 && !/^type\b/.test(cleaned);
+  });
+}
+
+function findValueNamedChildProcessImports(source) {
+  const statementRe = /import\s+(type\s+)?\{([^}]*)\}\s+from\s+['"]node:child_process['"]/g;
+  const offenders = [];
+  let m;
+  while ((m = statementRe.exec(source)) !== null) {
+    if (hasValueNamedSpecifier(m[1], m[2])) offenders.push(m[0]);
+  }
+  return offenders;
+}
+
 describe('lib/keychain.ts import shape (PR #20 regression guard)', () => {
   let source;
 
@@ -43,12 +61,7 @@ describe('lib/keychain.ts import shape (PR #20 regression guard)', () => {
     // `import type { ... } from 'node:child_process'` lived in the same
     // file — letting the actual regression slip through. Classify each
     // statement independently instead.
-    const statementRe = /import\s+(type\s+)?\{[^}]*\}\s+from\s+['"]node:child_process['"]/g;
-    const offenders = [];
-    let m;
-    while ((m = statementRe.exec(source)) !== null) {
-      if (!m[1]) offenders.push(m[0]); // m[1] === 'type ' means type-only, fine.
-    }
+    const offenders = findValueNamedChildProcessImports(source);
 
     if (offenders.length > 0) {
       throw new Error(
@@ -57,6 +70,21 @@ describe('lib/keychain.ts import shape (PR #20 regression guard)', () => {
       );
     }
     expect(offenders).toEqual([]);
+  });
+
+  test('does not flag erased type-only named imports', () => {
+    expect(
+      findValueNamedChildProcessImports(`
+        import type { ChildProcess } from 'node:child_process';
+        import { type ChildProcessByInlineSpecifier } from 'node:child_process';
+      `),
+    ).toEqual([]);
+
+    expect(
+      findValueNamedChildProcessImports(`
+        import { type ChildProcessByInlineSpecifier, execFileSync } from 'node:child_process';
+      `),
+    ).toHaveLength(1);
   });
 
   test('imports node:child_process as a namespace and uses it through the namespace', () => {
