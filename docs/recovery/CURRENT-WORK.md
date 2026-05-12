@@ -1,35 +1,38 @@
 # Current Recovery Work
 
-Last updated: 2026-05-12 (Spark promotion pass — `graph-based-merge-conflict-predictor` and `ambient-anomaly-signaling` added to the curated execution wave; raw 2026-05-10 Spider exhaust still sits in S41/S42/S43 and remains uncurated; prior: Cartographer harvest pass 2026-05-09 + V4 roadmap reconciliation — Phase 1 locked; 2 new Spark "now" items promoted from IDEAS-TROVE (`daemon-introspection-api`, `ideas-trove-queryable-surface`); execution wave 13 items; daemon tuple projection unavailable)
+Last updated: 2026-05-12 (Spark promotion pass — `graph-based-merge-conflict-predictor`, `ambient-anomaly-signaling`, `symbol-graph-visualization`, `incremental-symbol-index-refresh`, and `operator-hint-engine` added to the curated execution wave; raw 2026-05-10 Spider exhaust still sits in S41/S42/S43 and remains uncurated; prior: Cartographer harvest pass 2026-05-09 + V4 roadmap reconciliation — Phase 1 locked; 2 new Spark "now" items promoted from IDEAS-TROVE (`daemon-introspection-api`, `ideas-trove-queryable-surface`); execution wave 16 items; daemon tuple projection unavailable; verification pass `f0398b9a`)
 Owner: Cartographer maintenance pass + curated dogfood queue (2 now-status items: `claim-preserving-git-safety`, `fleet-launchability-and-cadence`); daemon feedback projection unavailable on this checkout
 Authority: git log (7.7/day, 54 commits trailing 7d) > committed code > V4-UNIFIED-ROADMAP.md
 
 This is the active execution ledger. If a task is in flight, it belongs here before it belongs in chat.
 
-## Cartographer Snapshot (2026-05-11 Verification Pass)
+## Cartographer Snapshot (2026-05-12 Verification Pass)
 
-- **Current phase**: Phase 1 COMPLETE (verified 2026-05-07 `f265fcb5`, reflection `2ad20f32` 2026-05-08). Within V4 phases, Phase 3 visibility (`daemon-introspection-api`, `crew-screen-roles-not-pids`, `fleet-health-scorecard`, `coordination-ticker-as-high-signal-feed`, `fleet-run-journal`) is the hottest mapped phase, with the Phase 1-adjacent `ideas-trove-queryable-surface` support slice keeping the semantic-graph/tooling lane active. Phase 5 ARCHITECTURE and Phase 6 ACTIVE remain open; Phase 4A/4E/4F STALE (41–42 days, no commits). The fresh 2026-05-11 Spark promotion changes the curated queue shape but not the phase ranking yet.
+- **Current phase**: Phase 1 COMPLETE (verified 2026-05-07 `f265fcb5`, reflection `2ad20f32` 2026-05-08). Within V4 phases, Phase 3 visibility (`daemon-introspection-api`, `crew-screen-roles-not-pids`, `fleet-health-scorecard`, `coordination-ticker-as-high-signal-feed`, `fleet-run-journal`, `operator-hint-engine`) is the hottest mapped phase, with the Phase 1-adjacent `ideas-trove-queryable-surface`, `incremental-symbol-index-refresh`, and `symbol-graph-visualization` support slices keeping the semantic-graph/tooling lane active. Phase 5 ARCHITECTURE and Phase 6 ACTIVE remain open; Phase 4A/4E/4F STALE (41–42 days, no commits). The fresh 2026-05-11 and 2026-05-12 Spark promotions change the curated queue shape but not the phase ranking yet.
 - **Velocity**: 54 commits in last 7 days = **7.7/day** (still post-May-1 heavy, but lower than the earlier 107-commit window). May 1–2 burst: 7 fleet-model/telos commits + 15+ docs content pages + cost-tracker work.
 - **Unplanned work** (signal of where energy actually goes): Cartographer verification / status reconciliation (`f4624ebd`, `05e94639`, `3b9d17ce`, `e6bd1b88`, `670ab97b`); May 1 fleet-model / telos hardening (`ffe098fe` through `2fc96f8b`); docs content fill (15+ new leaf pages in `/docs/concepts`, `/docs/best-practices`); relay/harbor mesh ADR (`60f72edd`, `48b6c54c`); whitepaper rewrite v2.5 (`e5226d1a`, `f9a422f5`, `637cecce`); Phase 1 completion (`f265fcb5`, `2ad20f32`); 2026-05-11 Spark promotion (`5ee873cd`) that added `graph-based-merge-conflict-predictor` and `ambient-anomaly-signaling` to the curated wave.
-- **Closest to completion** (13 execution-ready items; top 3 are the most immediate slices):
-  1. `claim-preserving-git-safety` (dogfood)
-  2. `daemon-introspection-api` (Spark, 2026-05-09) — ~150 LOC unified `GET /daemon/introspect` endpoint; enables crew-screen-roles-not-pids and fleet-health-scorecard
-  3. `ideas-trove-queryable-surface` (Spark, 2026-05-09) — ~180 LOC `pd ideas` CLI + HTTP API; enables Spark/Spider deduplication enforcement
-  4. `fleet-launchability-and-cadence` (dogfood)
-  5. `coordination-guard-extended-enforcement` (trove)
-  6. `crew-screen-roles-not-pids` (trove)
-  7. `fleet-health-scorecard` (trove)
-  8. `coordination-ticker-as-high-signal-feed` (trove)
-  9. `quorum-driven-dynamic-launch` (trove; Phase 1 shipped in `cea02e1`, Phase 2 auto-spawn remains)
-  10. `ipc-disconnect-instant-salvage` (trove)
-  11. `telos-driven-model-selection` (trove)
-  12. `graph-based-merge-conflict-predictor` (Spark, 2026-05-11) — Phase 4 merge-risk predictor on Phase 1 graph edges
-  13. `ambient-anomaly-signaling` (Spark, 2026-05-11) — Phase 2 self-healing feed from daemon introspection and coordination-judge
+- **Closest to completion** (16 execution-ready items; top 3 are the most immediate slices):
+  1. `incremental-symbol-index-refresh` (Spark, 2026-05-12) — ~150 LOC incremental file-write watcher; keeps graph conflict prediction current as files change
+  2. `symbol-graph-visualization` (Spark, 2026-05-12) — ~4 hours visual Phase 1 graph explorer; makes graph_edges visible instead of query-only
+  3. `daemon-introspection-api` (Spark, 2026-05-09) — ~150 LOC unified `GET /daemon/introspect` endpoint; enables crew-screen-roles-not-pids and fleet-health-scorecard
+  4. `operator-hint-engine` (Spark, 2026-05-11) — ~160 LOC decision layer; turns daemon anomalies into suggested next actions
+  5. `ideas-trove-queryable-surface` (Spark, 2026-05-09) — ~180 LOC `pd ideas` CLI + HTTP API; enables Spark/Spider deduplication enforcement
+  6. `claim-preserving-git-safety` (dogfood)
+  7. `fleet-launchability-and-cadence` (dogfood)
+  8. `coordination-guard-extended-enforcement` (trove)
+  9. `crew-screen-roles-not-pids` (trove)
+  10. `fleet-health-scorecard` (trove)
+  11. `coordination-ticker-as-high-signal-feed` (trove)
+  12. `quorum-driven-dynamic-launch` (trove; Phase 1 shipped in `cea02e1`, Phase 2 auto-spawn remains)
+  13. `ipc-disconnect-instant-salvage` (trove)
+  14. `telos-driven-model-selection` (trove)
+  15. `graph-based-merge-conflict-predictor` (Spark, 2026-05-11) — Phase 4 merge-risk predictor on Phase 1 graph edges
+  16. `ambient-anomaly-signaling` (Spark, 2026-05-11) — Phase 2 self-healing feed from daemon introspection and coordination-judge
 - **Blocked or drifting**:
   - Phase 2 economy: economist (Thomas Youle) — no follow-up since 2026-03-30 (43 days idle)
   - Phase 4A Bun binary: design complete, no shipped binary (2026-04-01 → 2026-05-12, 41 days)
   - Phase 4E/4F `pd self-test --adversarial` + Windows IPC hardening: design complete, zero commits (2026-03-31 → 2026-05-12, 42 days)
-- **Feedback harvest status**: 2026-05-11 Spark promotion complete — promoted 2 new Spark ideas from `.spark/ideas/` to execution wave on 2026-05-09 (`daemon-introspection-api`, `ideas-trove-queryable-surface`) and 2 more on 2026-05-11 (`graph-based-merge-conflict-predictor`, `ambient-anomaly-signaling`); 2 dogfood now-items already curated (`claim-preserving-git-safety`, `fleet-launchability-and-cadence`); daemon tuple projection unavailable in this shell; raw `.spark/feedback/` tree not present. The 2026-05-10 raw Spider exhaust remains present on disk, but it is intentionally still outside the curated queue.
+- **Feedback harvest status**: 2026-05-12 Spark promotion complete — promoted 2 new Spark ideas from `.spark/ideas/` to execution wave on 2026-05-09 (`daemon-introspection-api`, `ideas-trove-queryable-surface`), 2 more on 2026-05-11 (`graph-based-merge-conflict-predictor`, `ambient-anomaly-signaling`), and 3 on 2026-05-12 (`symbol-graph-visualization`, `incremental-symbol-index-refresh`, `operator-hint-engine`); 2 dogfood now-items already curated (`claim-preserving-git-safety`, `fleet-launchability-and-cadence`); daemon tuple projection unavailable in this shell; raw `.spark/feedback/` tree not present. The 2026-05-10 raw Spider exhaust remains present on disk, but it is intentionally still outside the curated queue.
 
 ## Active Side Thread
 

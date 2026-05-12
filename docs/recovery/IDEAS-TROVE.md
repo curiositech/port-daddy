@@ -1,6 +1,6 @@
 # Ideas Trove
 
-Last updated: 2026-05-11 (Spark promotion pass — graph-based-merge-conflict-predictor and ambient-anomaly-signaling added to immediate candidates; both pass novelty gate with new API surfaces, new data sources, and distinct operator payoffs)
+Last updated: 2026-05-12 (Spark promotion pass — symbol-graph-visualization, incremental-symbol-index-refresh, and operator-hint-engine added to immediate candidates; Phase 1 operator visibility now has a direct visual slice, Phase 1 predictive coordination now stays live as files change, and Phase 3 decision velocity gains a hint layer; all pass novelty gate with new API surfaces, new data sources, and distinct operator payoffs)
 
 This is the canonical ideation index and curated backlog for Port Daddy.
 
@@ -38,6 +38,11 @@ allowed to multiply duplicate backlog items forever.
   - `.spark/ideas/2026-05-09-daemon-introspection-api.md`
   - `.spark/ideas/2026-05-09-ideas-trove-queryable-surface.md`
   - promoted `daemon-introspection-api` and `ideas-trove-queryable-surface` as new backlog slugs and execution-wave now items
+- 2026-05-12 Spark idea pass
+  - `.spark/ideas/2026-05-12-symbol-graph-visualization.md`
+  - `.spark/ideas/2026-05-12-incremental-symbol-index-refresh.md`
+  - `.spark/ideas/2026-05-11-operator-hint-engine.md`
+  - promoted `symbol-graph-visualization`, `incremental-symbol-index-refresh`, and `operator-hint-engine` as new backlog slugs and execution-wave now items
 
 Status meanings used here:
 
@@ -366,19 +371,78 @@ runtime cuts.
   - `.spark/ideas/2026-05-10-s41-ambient-anomaly-signaling.md`
 - roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove` (Phase 2: foundation for self-healing)
 
+### `symbol-graph-visualization`
+
+- status: `now`
+- why it matters:
+  - Phase 1 graph infrastructure exists (semantic graph, `graph_edges` table fully indexed) but is invisible to operators
+  - `graph-based-merge-conflict-predictor` (also in "now" queue) calculates *numeric* risk; this provides *visual* risk so operators understand *why* a merge is risky
+  - enables "symbol-level locking" downstream — operators spot contention visually and can declare claims proactively
+  - instant swarm topology comprehension replaces JSON query interpretation
+- implementation sketch:
+  - `lib/graph-export.ts` (~80 LOC): query `graph_edges`, serialize to D3-ready format (nodes, links, metadata)
+  - `routes/graph.ts` addition (~20 LOC): `GET /graph/export?scope=<project|session|all>` endpoint
+  - `public/src/panels/SymbolGraph.tsx` (~120 LOC): D3 force-directed graph, zoom/pan, click-to-highlight-claims
+  - dashboard integration (~20 LOC): add "Symbol Graph" panel, live SSE subscription to graph mutations
+  - tests (~15 cases): export format, cardinality, filtering, recency decay
+  - total: ~4 hours, one session achievable
+- provenance:
+  - `.spark/ideas/2026-05-12-symbol-graph-visualization.md`
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove` (Phase 1: operator visibility)
+
+### `incremental-symbol-index-refresh`
+
+- status: `now` (HIGHEST PRIORITY — zero blockers, unlocks downstream)
+- why it matters:
+  - Phase 1 graph is complete; symbol index is currently static. Filesystem changes are invisible to the merge-conflict predictor until someone manually calls `POST /graph/predict-conflicts`
+  - real-time filesystem watching + incremental tree-sitter re-indexing keeps the semantic graph *live* as code changes
+  - transforms `graph-based-merge-conflict-predictor` from reactive ("predict only when asked") to predictive ("always current")
+  - unlocks `ambient-anomaly-signaling` to detect graph staleness and emit `anomaly:outdated-claims` when agent knowledge diverges from reality
+  - foundation for self-healing: agents detect their own claims are obsolete and escalate autonomously
+- implementation sketch:
+  - `lib/symbol-watcher.ts` (~60 LOC): fs.watch on project root, debounce within 200ms window, enqueue re-index jobs
+  - `lib/incremental-index.ts` (~80 LOC): tree-sitter diff on changed files, update `graph_edges` with new symbol boundaries, handle race conditions (skip during active claims)
+  - `routes/*` additions (~30 LOC): `GET /index/status`, `POST /index/watch|unwatch`
+  - extend `daemon-introspection-api` to include index staleness (enables anomaly signals)
+  - tests (~12 cases): file write triggers index, symbol boundary updates, race condition handling, cleanup
+  - total: ~150 LOC, one session
+- provenance:
+  - `.spark/ideas/2026-05-12-incremental-symbol-index-refresh.md`
+- dependencies: **ZERO BLOCKERS**. Phase 1 graph complete, fs.watch is stdlib. Immediately shippable.
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove` (Phase 1: foundation for predictive coordination)
+
+### `operator-hint-engine`
+
+- status: `now` (follow-on to `daemon-introspection-api`)
+- why it matters:
+  - `daemon-introspection-api` gives operators *what is happening* (WAL lag, stuck sessions, cost overruns, IPC queue depth)
+  - this gives them *what to do about it* — closing the feedback loop from observation → decision
+  - without hints, operators see raw anomalies; with hints, they see actionable suggestions ("Pause fleet 30s", "Check for deadlock", "Cost will exceed budget in 2h")
+  - distinct from `ambient-anomaly-signaling` (role-to-role, async) — this is daemon-to-operator, synchronous, human-friendly
+- implementation sketch:
+  - `lib/operator-hints.ts` (~100 LOC): heuristics for anomalies (WAL >50MB → pause fleet; stuck >3 → check deadlock; cost >95% budget → pause non-critical; IPC >80% → CLI degraded; salvage spike → check health; lock contention >0.5/sec → reduce concurrency)
+  - `routes/operator-hints.ts` (~60 LOC): `GET /daemon/hints` (current), `GET /daemon/hints/forecast` (trend-based projections in next N min)
+  - dashboard: hint ticker in header with severity badges + escalation suggestions
+  - tests (~8-10 cases): each heuristic branch
+  - total: ~160 LOC, one session
+- provenance:
+  - `.spark/ideas/2026-05-11-operator-hint-engine.md`
+- dependencies: blocks on `daemon-introspection-api` shipping (Phase 3, "now" queue, ~5 days out)
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove` (Phase 3: operator decision velocity)
+
 ### Recommended First Two Builds
 
 If only one or two of the above move immediately, the best first cuts are:
 
-1. `ipc-disconnect-instant-salvage`
-2. `forensic-context-windows`
+1. `incremental-symbol-index-refresh`
+2. `symbol-graph-visualization`
 
 Reason:
 
 - both are small
-- both improve operator truth immediately
+- both keep Phase 1 coordination live and legible
 - neither requires speculative product expansion
-- both make future salvage/arbiter work more legible
+- incremental refresh keeps the graph-risk predictor current while the visual panel makes contention obvious
 
 ## Secondary Backlog Families
 

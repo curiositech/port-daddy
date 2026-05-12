@@ -1,6 +1,6 @@
 # Unified Recovery Roadmap
 
-Last updated: 2026-05-08 (Cartographer pass — Phase 1 closure, Phase 3 visibility, Phase 6 telos suggestion)
+Last updated: 2026-05-12 (Cartographer pass — Phase 1 closure, Phase 3 visibility, Phase 6 telos suggestion, the 2026-05-11 Spark promotion of `graph-based-merge-conflict-predictor` + `ambient-anomaly-signaling`, the 2026-05-12 Spark promotion of `symbol-graph-visualization`, `incremental-symbol-index-refresh`, and `operator-hint-engine`, and the 2026-05-12 verification pass (`f0398b9a`))
 
 This is the single execution-order roadmap for the active Port Daddy recovery and consolidation effort.
 
@@ -22,6 +22,17 @@ Port Daddy should feel like one coherent system:
 - Deep fleet control plane: `fleet-config-ui`
 - Canonical Port Daddy skill doc: `skills/port-daddy-agent-skill/SKILL.md`
 - Raw idea streams remain useful local inputs, but curated recovery docs are the authority: `.spark/ideas/`, `.spider/connections/`, `.cartographer/status.md`
+
+The 2026-05-11 Spark promotion added `graph-based-merge-conflict-predictor` and
+`ambient-anomaly-signaling` to the curated queue; the 2026-05-10 raw Spider
+exhaust (`S41`/`S42`/`S43`) remains uncurated.
+
+The 2026-05-12 Spark promotion added `symbol-graph-visualization` as the
+Phase 1 visual operator slice.
+
+The same 2026-05-12 Spark promotion added `incremental-symbol-index-refresh`
+as the Phase 1 predictive coordination cut and `operator-hint-engine` as
+the Phase 3 operator decision-velocity cut.
 
 ## Near-Term Release Cuts
 
@@ -120,7 +131,13 @@ Immediate ships:
 - keep real channel logs alive
 - make Flow, YAML, inbox, and sortie surfaces deep-linkable from the native companion
 - restore stronger story, causality, and suggestion affordances
+- surface `daemon-introspection-api` as the shared health rollup for Crew and Scorecard
+- surface `operator-hint-engine` as the synchronous "what to do next" hint layer on top of daemon introspection
+- surface `symbol-graph-visualization` as the visual companion to graph-backed merge risk and Phase 1 contentions
 - surface `fleet-health-scorecard` as the one-glance swarm health panel in the same fleet UI shell
+- persist `fleet-run-journal` so role history survives restarts instead of disappearing with the process table
+- surface `salvage-root-cause-classifier` in the Salvage panel so operators can see why agents failed, not just that they failed
+- surface `ambient-anomaly-signaling` as the passive anomaly feed that powers the same control-plane shell
 - merge the best of `public/fleet-live.html` and `public/fleet-config.html` into `fleet-config-ui`
 - turn `SortiePanel` into a mission workspace, not just a raw launch form
 
@@ -152,6 +169,8 @@ Immediate ships:
 - next event sources: `file:saved`, `build:error`, `test:result`
 - next declarative trigger primitives: `trigger: webhook:<event>` and `trigger: files:<glob>`
 - preflight-backed single-use mission launches so `pd agent` and sorties show readiness, budget, and fallback choices before work starts
+- `incremental-symbol-index-refresh` — keep graph conflict prediction current as files change instead of waiting for explicit graph queries
+- `graph-based-merge-conflict-predictor` — predict graph-backed merge risk before git attempts a merge so repeated trigger storms do not turn into repeated conflict churn
 
 Representative idea pressure:
 - budget-gated fleet spawning

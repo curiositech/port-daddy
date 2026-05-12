@@ -1,6 +1,6 @@
 # Port Daddy Roadmap & Future Ideas
 
-**Last updated:** 2026-05-12 (Cartographer harvest pass — source verification complete; curated now dogfood pair still `claim-preserving-git-safety` and `fleet-launchability-and-cadence`; 2 new Spark now items promoted into the wave on 2026-05-09: `daemon-introspection-api` and `ideas-trove-queryable-surface`; 2 more Spark now items promoted on 2026-05-11: `graph-based-merge-conflict-predictor` and `ambient-anomaly-signaling`; raw 2026-05-10 Spider exhaust remains uncurated)
+**Last updated:** 2026-05-12 (Cartographer harvest pass — source verification complete; curated now dogfood pair still `claim-preserving-git-safety` and `fleet-launchability-and-cadence`; 2 new Spark now items promoted into the wave on 2026-05-09: `daemon-introspection-api` and `ideas-trove-queryable-surface`; 2 more Spark now items promoted on 2026-05-11: `graph-based-merge-conflict-predictor` and `ambient-anomaly-signaling`; 2026-05-12 added `symbol-graph-visualization`, `incremental-symbol-index-refresh`, and `operator-hint-engine` as the Phase 1/3 support cuts; raw 2026-05-10 Spider exhaust remains uncurated; verification pass `f0398b9a` now heads the branch)
 
 This document captures the ambitious, industry-defining vision for Port Daddy as the definitive "Agentic OS" Control Plane. It outlines "things for later" and serves as a living synthesis of conceptual ideas.
 
@@ -38,6 +38,13 @@ Next Cuts list for now.
 The 2026-05-09 Spark harvest promoted `daemon-introspection-api` and
 `ideas-trove-queryable-surface` into the same now wave.
 
+The 2026-05-12 Spark idea pass added `symbol-graph-visualization` as the
+Phase 1 operator-visibility cut.
+
+The same 2026-05-12 Spark idea pass added `incremental-symbol-index-refresh`
+as the Phase 1 predictive-coordination cut and `operator-hint-engine` as
+the Phase 3 decision-velocity cut.
+
 The cartographer roadmap-progress screen and central feedback pipe are
 already shipped, so the "Next Cuts" list below is the remaining backlog
 rather than the old four-file FOMO check.
@@ -49,21 +56,33 @@ Candidates. Keep this short and rotated — it is the "what we cut next"
 list, not the full backlog. When an item ships, move its line into the
 appropriate phase section below and delete it here.
 
-- **`claim-preserving-git-safety`** — Advisory file claims can still be
-  steamrolled by `git add -A`, `git reset --hard`, and `git cherry-pick`.
-  Add a safe `pd add` path plus destructive-git guardrails that consult
-  claims before they bulldoze another session's edits.
+- **`incremental-symbol-index-refresh`** — Phase 1 graph infrastructure is
+  static after initial indexing. Add filesystem-driven incremental refresh
+  so merge-risk predictions stay current as files change instead of going
+  stale between explicit graph queries.
+- **`symbol-graph-visualization`** — Phase 1 graph infrastructure exists,
+  but operators still cannot see the symbol graph. Add a visual graph panel
+  and export route so contention is legible instead of only queryable.
 - **`daemon-introspection-api`** — Operators lack a unified view of daemon
   health: SQLite WAL lag, IPC backlog, active session count, lock
   contention, role runtime stats. Add `GET /daemon/introspect` so the Crew
   panel and Fleet Health Scorecard can stop stitching fragments together.
-- **`ambient-anomaly-signaling`** — Turn daemon introspection plus
-  coordination-judge anomalies into ambient pheromone signals so roles can
-  avoid bad spawns before they happen.
+- **`operator-hint-engine`** — `daemon-introspection-api` tells operators
+  what is happening; this adds the "what to do next" hint layer so the
+  dashboard can suggest pause/check/escalate actions instead of only showing
+  raw anomaly data.
 - **`ideas-trove-queryable-surface`** — `IDEAS-TROVE.md` is canonical
   policy, but it is static markdown. Add `pd ideas list|search|show` plus
   HTTP routes so Spark/Spider can query the trove for deduplication instead
   of doing brittle string matching.
+- **`claim-preserving-git-safety`** — Advisory file claims can still be
+  steamrolled by `git add -A`, `git reset --hard`, and `git cherry-pick`.
+  Add a safe `pd add` path plus destructive-git guardrails that consult
+  claims before they bulldoze another session's edits.
+- **`fleet-launchability-and-cadence`** — Cartographer can be wired but
+  still blocked by cadence routing, slug drift, and the wallet /
+  telemetry wall; surface `launchable` vs `blocked` truth in `pd
+  status` and spawn/preflight output.
 - **`coordination-guard-extended-enforcement`** — Coordination Guard
   already exists and this repo now ships it in enforce mode
   (`.portdaddy/coordination-guard.json`), but it still only fires on
@@ -81,6 +100,9 @@ appropriate phase section below and delete it here.
 - **`coordination-ticker-as-high-signal-feed`** — Surface
   `coordination:inconsistency` as a live ticker on the dashboard with
   severity coloring. The channel exists; the panel doesn't.
+- **`ambient-anomaly-signaling`** — Turn daemon introspection plus
+  coordination-judge anomalies into ambient pheromone signals so roles can
+  avoid bad spawns before they happen.
 - **`quorum-driven-dynamic-launch`** — Phase 1 tuple-backed
   proposal/vote primitive (`lib/quorum.ts` + 4 endpoints) shipped in
   `cea02e1`; Phase 2 remains the auto-spawn of declared

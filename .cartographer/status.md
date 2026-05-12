@@ -1,6 +1,6 @@
 # Cartographer Status — Port Daddy v4 Map
 
-**Last Updated**: 2026-05-12 14:55 UTC (Cartographer verification pass — daemon feedback PROJECTION LIVE; execution wave confirmed 18 items (13 now-status) with 2 new Spark additions `graph-based-merge-conflict-predictor` and `ambient-anomaly-signaling`; 7-day velocity 7.7/day stable; 0 feature implementation commits since May 9; raw 2026-05-10 Spider exhaust remains as S41/S42/S43)
+**Last Updated**: 2026-05-12 18:03 UTC (Cartographer verification pass — branch HEAD `f0398b9a`; daemon feedback projection unavailable in this shell; execution wave still 21 items in curated markdown (16 now-status) with 5 Spark additions `graph-based-merge-conflict-predictor`, `ambient-anomaly-signaling`, `symbol-graph-visualization`, `incremental-symbol-index-refresh`, and `operator-hint-engine`; 7-day velocity 7.7/day stable; 0 feature implementation commits since May 9; raw 2026-05-10 Spider exhaust remains as S41/S42/S43)
 **Authority**: Committed code + git log > curated markdown (recovery hub) > raw files (.spark)
 
 ---
@@ -11,10 +11,10 @@
 |--------|-------|
 | Phase Status | 0: ✅ COMPLETE \| 1: ✅ COMPLETE \| 2: 🔄 INFRA READY \| 3: 🔥 ACTIVE (hottest mapped phase) \| 4: 🟨 PARTIAL \| 5: 🔄 ARCHITECTURE \| 6: 🔄 ACTIVE |
 | 7-Day Velocity | 7.7 commits/day (54 commits trailing 7 days, stable post-May-1) |
-| HEAD Commit | `5ee873cd` (Spark: Promote merge-conflict-predictor and anomaly-signaling ideas) |
+| HEAD Commit | `f0398b9a` (Cartographer: 2026-05-12 verification pass — daemon feedback LIVE, execution wave 21 items, velocity 7.7/day) |
 | Most Recent Code | `f265fcb5` (Phase 1 complete: Unified semantic graph edges table, 2026-05-07) |
-| Daemon Status | ✅ Operational (v3.13.0, PID 25155); tuple-backed feedback projection LIVE — 18 execution-ready items visible |
-| Feedback Queue | **18 total next-cuts items**; 13 now-status in the execution wave (2 dogfood + 11 trove), with 5 additional now-status trove entries lower in the curated backlog; execution wave lives in curated markdown; open dogfood now-items: `claim-preserving-git-safety`, `fleet-launchability-and-cadence` |
+| Daemon Status | ✅ Operational (v3.13.0, PID 13499); tuple-backed feedback projection unavailable in this shell (`connect EPERM`) |
+| Feedback Queue | Curated execution wave lists **21 next-cuts items**; 16 now-status in the curated wave (2 dogfood + 14 trove in the execution list, with 5 additional now-status trove entries lower in the curated backlog); live tuple queue unavailable in this shell; open dogfood now-items: `claim-preserving-git-safety`, `fleet-launchability-and-cadence` |
 | Stale Phases (≥39 days) | Phase 4A (41 days, Bun binary); Phase 4E (42 days, self-test); Phase 4F (42 days, Windows IPC) |
 | Blocked Phases | Phase 2 economist (no follow-up since 2026-03-30 — 43 days idle — Thomas Youle pricing function π); Phase 4A Bun binary (waiting on shipping decision); Phase 4E/4F stale (self-test + Windows IPC) |
 
@@ -22,7 +22,7 @@
 
 ## Top 3
 
-- **Closest to completion**: `claim-preserving-git-safety`, `daemon-introspection-api`, `ideas-trove-queryable-surface`
+- **Closest to completion**: `incremental-symbol-index-refresh`, `symbol-graph-visualization`, `daemon-introspection-api`
 - **Blocked or drifting**: Phase 2 economist, Phase 4A Bun binary, Phase 4E/4F stale
 - **Open dogfood now**: 2 entries, `claim-preserving-git-safety` and `fleet-launchability-and-cadence`
 
@@ -50,23 +50,26 @@
 
 ---
 
-## Execution Wave (13 now-status items — from `pd roadmap --feedback-status open --json`)
+## Execution Wave (16 now-status items — curated markdown; tuple projection unavailable in this shell)
 
 **High-priority next cuts** (ordered by dependency/readiness):
 
-1. **claim-preserving-git-safety** (dogfood) — 2–3 days; wrap `git add -A` / `reset --hard` / `cherry-pick` with claim guardrails
-2. **daemon-introspection-api** (Spark 2026-05-09) — ~150 LOC `GET /daemon/introspect`; unlocks Crew + Scorecard aggregation
-3. **ideas-trove-queryable-surface** (Spark 2026-05-09) — ~180 LOC `pd ideas` CLI + HTTP API; unlocks trove dedupe enforcement
-4. **coordination-guard-extended-enforcement** (trove) — 2–3 days; extend from pre-commit to SessionStart + PreToolUse + destructive verbs
-5. **fleet-launchability-and-cadence** (dogfood) — 1–2 days; surface `launchable` vs `blocked` in spawn/preflight
-6. **crew-screen-roles-not-pids** (trove) — dashboard: replace agents-by-PID with fleet roles view
-7. **fleet-health-scorecard** (trove) — dashboard: single glance for swarm health (role health, cost burn, queue depth, violations)
-8. **coordination-ticker-as-high-signal-feed** (trove) — dashboard: live ticker for `coordination:inconsistency` channel
-9. **quorum-driven-dynamic-launch** (trove; Phase 1 shipped in `cea02e1`) — Phase 2 dependency: auto-spawn declared spawnable-on-quorum roles
-10. **ipc-disconnect-instant-salvage** (trove) — treat IPC activity as heartbeat, salvage on disconnect (not 10–20 min window)
-11. **telos-driven-model-selection** (trove) — Phase 6: spawn-time suggestion layer without hiding model overrides
-12. **graph-based-merge-conflict-predictor** (Spark 2026-05-11) — ~200 LOC semantic symbol-level conflict detection; prevents merge surprises
-13. **ambient-anomaly-signaling** (Spark 2026-05-11) — monitoring + alerting for rare/anomalous Fleet patterns; unblock Phase 4 self-test diagnostics
+1. **incremental-symbol-index-refresh** (Spark 2026-05-12) — ~150 LOC incremental file-write watcher; keeps graph conflict prediction current as files change
+2. **symbol-graph-visualization** (Spark 2026-05-12) — ~4 hours; graph_edges visualization for Phase 1 operator visibility
+3. **daemon-introspection-api** (Spark 2026-05-09) — ~150 LOC `GET /daemon/introspect`; unlocks Crew + Scorecard aggregation
+4. **operator-hint-engine** (Spark 2026-05-11) — ~160 LOC decision layer; turns daemon anomalies into suggested next actions
+5. **ideas-trove-queryable-surface** (Spark 2026-05-09) — ~180 LOC `pd ideas` CLI + HTTP API; unlocks trove dedupe enforcement
+6. **claim-preserving-git-safety** (dogfood) — 2–3 days; wrap `git add -A` / `reset --hard` / `cherry-pick` with claim guardrails
+7. **fleet-launchability-and-cadence** (dogfood) — 1–2 days; surface `launchable` vs `blocked` in spawn/preflight
+8. **coordination-guard-extended-enforcement** (trove) — 2–3 days; extend from pre-commit to SessionStart + PreToolUse + destructive verbs
+9. **crew-screen-roles-not-pids** (trove) — dashboard: replace agents-by-PID with fleet roles view
+10. **fleet-health-scorecard** (trove) — dashboard: single glance for swarm health (role health, cost burn, queue depth, violations)
+11. **coordination-ticker-as-high-signal-feed** (trove) — dashboard: live ticker for `coordination:inconsistency` channel
+12. **quorum-driven-dynamic-launch** (trove; Phase 1 shipped in `cea02e1`) — Phase 2 dependency: auto-spawn declared spawnable-on-quorum roles
+13. **ipc-disconnect-instant-salvage** (trove) — treat IPC activity as heartbeat, salvage on disconnect (not 10–20 min window)
+14. **telos-driven-model-selection** (trove) — Phase 6: spawn-time suggestion layer without hiding model overrides
+15. **graph-based-merge-conflict-predictor** (Spark 2026-05-11) — ~200 LOC semantic symbol-level conflict detection; prevents merge surprises
+16. **ambient-anomaly-signaling** (Spark 2026-05-11) — monitoring + alerting for rare/anomalous Fleet patterns; unblock Phase 4 self-test diagnostics
 
 ---
 
@@ -85,16 +88,16 @@
 
 ---
 
-## Feedback Pipeline & Harvest Status (2026-05-09 14:22 UTC)
+## Feedback Pipeline & Harvest Status (2026-05-12 13:01 UTC)
 
 - **Daemon tuple feedback**: ⚠ unavailable in this shell — `pd roadmap --feedback-status open --json` and `pd feedback list --status open --json` both hit `connect EPERM` on `~/.port-daddy/daemon.sock`
 - **Curated entries (DOGFOOD-FEEDBACK.md)**: 5 total entries
   - now (2 at status=now): `claim-preserving-git-safety`, `fleet-launchability-and-cadence`
   - backlog (3 at status=backlog): `session-context-cwd-reset`, `feedback-route-stable-gap`, `fleet-status-skipped-duplicates`
-- **Ideas-Trove now-status (IDEAS-TROVE.md)**: 16 curated now items; 11 are already in the execution wave above, and 5 additional now-status trove entries remain lower-priority backlog (`fleet-run-journal`, `salvage-root-cause-classifier`, `forensic-context-windows`, `tuple-driven-fleet`, `capability-discovery-dns-harbor`)
+- **Ideas-Trove now-status (IDEAS-TROVE.md)**: 17 curated now items; 12 are already in the execution wave above, and 5 additional now-status trove entries remain lower-priority backlog (`fleet-run-journal`, `salvage-root-cause-classifier`, `forensic-context-windows`, `tuple-driven-fleet`, `capability-discovery-dns-harbor`)
 - **Raw .spark/feedback/**: Tree not present in this checkout; next auto-harvest pending on agent contribution or commit
-- **Spark/Spider residue**: `.spark/ideas/` and `.spider/connections/` exist locally; Spark pass (2026-05-08) promoted `fleet-health-scorecard` and `telos-driven-model-selection`; Spark pass (2026-05-09) promoted `daemon-introspection-api` and `ideas-trove-queryable-surface` (both "now" candidates); the 2026-05-11 Spark promotion added `graph-based-merge-conflict-predictor` and `ambient-anomaly-signaling`; the 2026-05-10 raw exhaust now remains as `S41`/`S42`/`S43` and is still uncurated
-- **Trove-to-roadmap promotion**: 18 items queued in execution wave (13 now-status items: 6 dogfood/trove + 3 from 2026-05-08 Spark + 2 from 2026-05-09 Spark + 2 from 2026-05-11 Spark; 5 lower-priority now-status trove entries not yet scheduled)
+- **Spark/Spider residue**: `.spark/ideas/` and `.spider/connections/` exist locally; Spark pass (2026-05-08) promoted `fleet-health-scorecard` and `telos-driven-model-selection`; Spark pass (2026-05-09) promoted `daemon-introspection-api` and `ideas-trove-queryable-surface` (both "now" candidates); the 2026-05-11 Spark promotion added `graph-based-merge-conflict-predictor` and `ambient-anomaly-signaling`; the 2026-05-12 Spark promotion added `symbol-graph-visualization`, `incremental-symbol-index-refresh`, and `operator-hint-engine`; the 2026-05-10 raw exhaust now remains as `S41`/`S42`/`S43` and is still uncurated
+- **Trove-to-roadmap promotion**: 19 items listed in curated execution wave (14 now-status items: 6 dogfood/trove + 3 from 2026-05-08 Spark + 2 from 2026-05-09 Spark + 2 from 2026-05-11 Spark + 1 from 2026-05-12 Spark; 5 lower-priority now-status trove entries not yet scheduled)
 - **Next harvest**: 2026-05-11 harvest complete (4 Spark ideas promoted); next automatic harvest on next commit via `pd feedback` daemon tuple stream when available, or when `.spark/feedback/` tree is populated
 
 ---
@@ -109,9 +112,9 @@
 | Blocking Dependencies | 🔴 Phase 2 economist (43 days idle) | Thomas Youle / pricing function π — no follow-up since 2026-03-30. |
 | Stale Phases | 🔴 Phase 4A/4E/4F (41–42 days) | Bun binary: design complete, no binary distribution. Windows IPC/self-test: designs complete, zero implementation commits since 2026-03-31. |
 | Coordination Guard | ✅ Enforce mode in stable | `.portdaddy/coordination-guard.json` live. Extended enforcement (SessionStart/PreToolUse/destructive-git) is #2 execution priority. |
-| Daemon Tuple Feedback | ✅ LIVE | `pd roadmap --feedback-status open --json` returns 18-item execution projection (13 now-status + 5 backlog-priority trove). Tuple stream confirmed operational. |
+| Daemon Tuple Feedback | ⚠ unavailable in this shell | `pd roadmap --feedback-status open --json` and `pd feedback list --status open --json` both hit `connect EPERM` on `~/.port-daddy/daemon.sock`. |
 | Unplanned Work Signal | 🟨 Healthy leak | Cartographer verification / status reconciliation (`f4624ebd`, `05e94639`, `3b9d17ce`, `e6bd1b88`, `670ab97b`) plus May 1 fleet-model/telos hardening (7 commits); docs content fill (15+ pages); relay/harbor mesh ADR; whitepaper rewrite; the 2026-05-11 Spark promotion (`5ee873cd`); and the fresh 2026-05-10 raw Spider exhaust (`S41/S42/S43`), all adding product signal outside named V4 phases. |
 
 ---
 
-**Authority**: pd roadmap --feedback-status open --json (daemon tuples)
+**Authority**: committed code + git log > curated markdown (recovery hub) > raw files (.spark)
