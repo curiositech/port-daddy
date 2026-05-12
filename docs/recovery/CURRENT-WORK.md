@@ -1314,15 +1314,15 @@ This is the normalized remaining-slice inventory as of 2026-04-24. It supersedes
   - Claude CLI: haiku / sonnet / opus
   - Gemini: 2.0 Flash / 2.5 Flash / 2.5 Pro
   - Codex: gpt-5.4-mini / gpt-5.3-codex / gpt-5.4
-  - Ollama: qwen2.5-coder:7b / llama3.1:8b / qwen2.5-coder:14b
   - Aider: gpt-4.1-mini / gpt-4.1 / gpt-5
+  - Cloudflare Workers AI: GLM flash / Qwen mid / Kimi high
   - Custom: custom-low / custom-mid / custom-high (forwarded via env so wrappers can honor it)
 - The live Codex dogfood also surfaced two operator bugs that belong in the recovery queue, not chat memory:
   - file actions still fail on some relative mutation paths (`Not Found`)
   - fleet spawn counts can still run too hot for real model-usage scarcity
-- Port Daddy's own `pd-fleet.yml` is now local-first by default: background/read-only agents use Ollama, code-changing agents use cheaper Codex tiers, and hosted backends are opt-in instead of the silent default.
-- The local runtime ladder is now actually provisioned on this machine: Aider is installed, Ollama is healthy again, and the recommended Ollama models (`qwen2.5-coder:7b`, `llama3.1:8b`, `qwen2.5-coder:14b`) are pulled locally.
-- Source truth and live-daemon truth still have to be checked separately for Ollama tiers. The repo now points mid-tier Ollama to `llama3.1:8b`, but stale manual daemons can still serve the old invalid `llama3.2:8b` mapping until the canonical runtime is restarted.
+- Port Daddy's own `pd-fleet.yml` should only pin setup-ready, exact-telemetry runtimes for LLM-powered agents. Use Fleet Control Center to bulk-move the fleet when another backend becomes ready.
+- Local/manual runtimes are implementation surfaces until readiness and exact telemetry are proven through preflight. Do not treat "installed locally" as enough to power agents.
+- Source truth and live-daemon truth still have to be checked separately for backend readiness. Stale manual daemons can serve old model-tier mappings until the canonical runtime is restarted.
 - Embedded FleetBar routing needs two signals, not one: query-param embed plus an explicit WebView identity. Relying on `?embed=fleetbar` alone is brittle enough that duplicate chrome can come back.
 - The modern fleet engine already scopes logical channels like `git:committed` through `lib/fleet-channels.ts`. If cross-project triggers still bleed, the likely culprit is leaked legacy detached watcher processes, not missing scoping code in the current runner.
 - `port-daddy status` and browser reachability are separate truths. The CLI can look healthy over the Unix socket while TCP/browser consumers are still pointed at a brittle loopback URL or stale port assumption.

@@ -123,8 +123,8 @@ curl "$PD_URL/fleet/events"   # SSE stream`}
     # Triggered agent — runs whenever git:committed is published
     qa:
       trigger: git:committed
-      backend: ollama
-      model: qwen2.5-coder:7b
+      backend: cloudflare
+      model: '@cf/qwen/qwen3-30b-a3b-fp8'
       respawn: true              # Auto-restart on crash
       max_respawns: 3            # Circuit breaker — stop after 3 failures
       prompt: |
@@ -137,8 +137,8 @@ curl "$PD_URL/fleet/events"   # SSE stream`}
     # Focused higher-signal code worker
     test-hunter:
       trigger: git:committed
-      backend: codex
-      model: gpt-5.4-mini
+      backend: cloudflare
+      model: '@cf/qwen/qwen3-30b-a3b-fp8'
       singleton: true
       prompt: |
         Run tests, expand coverage around changed code, and report
@@ -148,8 +148,8 @@ curl "$PD_URL/fleet/events"   # SSE stream`}
     # Singleton — only one instance allowed at a time
     spark:
       schedule: "*/30 * * * *"
-      backend: ollama
-      model: qwen2.5-coder:14b
+      backend: cloudflare
+      model: '@cf/moonshotai/kimi-k2.6'
       singleton: true
       prompt: |
         Read the roadmap and recent commits.

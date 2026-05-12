@@ -143,10 +143,10 @@ models:
     low: claude-haiku-4-5-20251001
     mid: claude-sonnet-4-5-20250929
     high: claude-opus-4-1-20250805
-  local:
-    low: qwen2.5-coder:7b
-    mid: llama3.1:8b
-    high: qwen2.5-coder:14b
+  cloudflare:
+    low: "@cf/zai-org/glm-4.7-flash"
+    mid: "@cf/qwen/qwen3-30b-a3b-fp8"
+    high: "@cf/moonshotai/kimi-k2.6"
 ```
 
 The ladder is not only about cost. It is about expectation. A low-tier docs watcher should not silently become a high-tier architecture agent because a wrapper default changed. A high-tier run should be an explicit choice.
@@ -251,9 +251,9 @@ agents:
     model_tier: high
     requires_human_approval: true
 
-  local-test-triage:
+  test-triage:
     trigger: test:failed
-    backend: ollama
+    backend: cloudflare
     model_tier: mid
 ```
 

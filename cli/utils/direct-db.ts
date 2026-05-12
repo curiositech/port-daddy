@@ -98,7 +98,9 @@ export function getDirectSessions(): ReturnType<typeof createSessions> {
     // CLI keeps graceful-degradation so users without keychain access
     // can still run direct-DB commands. Follow-up: align once the
     // keychain story is cross-platform (napi-rs/keyring).
-    _directSessions = createSessions(db, createNoteEncryption());
+    _directSessions = createSessions(db, createNoteEncryption(), {
+      requireAgentForFileClaims: true,
+    });
     // Wire up activity log for direct mode too
     const activityLog = createActivityLog(db);
     _directSessions.setActivityLog(activityLog);
