@@ -75,16 +75,16 @@ describe('backend telemetry policy', () => {
     const policy = assessBackendTelemetryPolicy('claude-cli', 'claude-haiku-4-5-20251001');
     expect(policy.launchAllowed).toBe(false);
     expect(policy.backend).toBe('claude-cli');
-    expect(policy.effectiveModel).toBeNull();
+    expect(policy.effectiveModel).toBe('claude-haiku-4-5-20251001');
     expect(policy.summary).toContain('blocked until exact token counts');
     expect(policy.nextStep).toContain('subprocess telemetry is exact');
   });
 
-  test('blocks Claude CLI without selecting a default launch model', () => {
+  test('blocks Claude CLI when none is supplied', () => {
     const policy = assessBackendTelemetryPolicy('claude-cli');
     expect(policy.launchAllowed).toBe(false);
     expect(policy.backend).toBe('claude-cli');
-    expect(policy.effectiveModel).toBeNull();
+    expect(policy.effectiveModel).toBe('claude-haiku-4-5-20251001');
     expect(policy.summary).toContain('exact nonzero cost');
   });
 
@@ -92,6 +92,7 @@ describe('backend telemetry policy', () => {
     const policy = assessBackendTelemetryPolicy('claude-cli', 'claude-mystery-model');
     expect(policy.launchAllowed).toBe(false);
     expect(policy.backend).toBe('claude-cli');
+    expect(policy.effectiveModel).toBe('claude-mystery-model');
     expect(policy.summary).toContain('blocked until exact token counts');
   });
 });
