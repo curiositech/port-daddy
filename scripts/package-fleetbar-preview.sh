@@ -35,6 +35,17 @@ fi
 
 mkdir -p "$DOWNLOADS_DIR"
 
+SOURCE_COMMIT="$(git -C "$REPO_ROOT" rev-parse HEAD)"
+SOURCE_REPO_DIRTY="false"
+if ! git -C "$REPO_ROOT" diff --quiet || [[ -n "$(git -C "$REPO_ROOT" ls-files --others --exclude-standard)" ]]; then
+  SOURCE_REPO_DIRTY="true"
+fi
+
+SOURCE_FLEETBAR_DIRTY="false"
+if ! git -C "$REPO_ROOT" diff --quiet -- apps/FleetBar; then
+  SOURCE_FLEETBAR_DIRTY="true"
+fi
+
 echo "Building FleetBar release binary..."
 (
   cd "$FLEETBAR_DIR"
@@ -204,17 +215,6 @@ rm -f "$ZIP_PATH" "$CHECKSUM_PATH"
 SHA256="$(shasum -a 256 "$ZIP_PATH" | awk '{print $1}')"
 printf '%s  %s\n' "$SHA256" "$ARTIFACT_NAME" > "$CHECKSUM_PATH"
 
-SOURCE_COMMIT="$(git -C "$REPO_ROOT" rev-parse HEAD)"
-REPO_DIRTY="false"
-if ! git -C "$REPO_ROOT" diff --quiet || [[ -n "$(git -C "$REPO_ROOT" ls-files --others --exclude-standard)" ]]; then
-  REPO_DIRTY="true"
-fi
-
-FLEETBAR_SOURCE_DIRTY="false"
-if ! git -C "$REPO_ROOT" diff --quiet -- apps/FleetBar; then
-  FLEETBAR_SOURCE_DIRTY="true"
-fi
-
 BUNDLE_IDENTIFIER="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_CONTENTS/Info.plist")"
 BUNDLE_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP_CONTENTS/Info.plist")"
 BUNDLE_SHORT_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP_CONTENTS/Info.plist")"
@@ -238,8 +238,8 @@ FLEETBAR_PREVIEW_BUNDLE_IDENTIFIER="$BUNDLE_IDENTIFIER" \
 FLEETBAR_PREVIEW_BUNDLE_VERSION="$BUNDLE_VERSION" \
 FLEETBAR_PREVIEW_BUNDLE_SHORT_VERSION="$BUNDLE_SHORT_VERSION" \
 FLEETBAR_PREVIEW_SOURCE_COMMIT="$SOURCE_COMMIT" \
-FLEETBAR_PREVIEW_REPO_DIRTY="$REPO_DIRTY" \
-FLEETBAR_PREVIEW_FLEETBAR_SOURCE_DIRTY="$FLEETBAR_SOURCE_DIRTY" \
+FLEETBAR_PREVIEW_REPO_DIRTY="$SOURCE_REPO_DIRTY" \
+FLEETBAR_PREVIEW_FLEETBAR_SOURCE_DIRTY="$SOURCE_FLEETBAR_DIRTY" \
 FLEETBAR_PREVIEW_MANIFEST_PATH="$MANIFEST_PATH" \
 node <<'NODE'
 const fs = require('node:fs')
