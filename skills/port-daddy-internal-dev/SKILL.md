@@ -179,8 +179,20 @@ issue: `pd actor cartographer --message "Catalog gap: <what skill should exist>.
 ## Maintain These Skills (port-daddy-internal-dev edition)
 
 This skill is alive. It improves when contributors update it. **When you
-finish a slice, ask: did I just learn something that this skill should
-have warned me about?**
+finish a slice — any slice on this repo — ask: did I just learn something
+that this skill *or* `port-daddy-agent-skill` should have warned me about?**
+
+Contributors are the only agents who write to *both* surfaces. As an
+internal agent you own a continuous maintenance duty for both:
+
+- **Public** (`skills/port-daddy-agent-skill/SKILL.md`) — anything that helps an agent on *any* project using Port Daddy. New verb, deprecated flag, decision row, anti-pattern, clarification, brevity win.
+- **Internal** (this skill) — anything specific to *editing this repo*: release ceremony, internal actor embodiments, drift protocol, worked contributor examples.
+
+Drive-by edits are explicitly welcome on both. No issue required, no
+permission required. Same-slice fixes — landing the skill update alongside
+the code change that revealed the problem — are the default; that is what
+keeps the documentation from going stale between releases. Retrospective
+edits (the lesson surfaced days later) are still owed; open a tiny PR.
 
 Concrete triggers:
 
@@ -336,7 +348,7 @@ it in one commit.** Land the rename in phases through Cartographer:
 - [ ] You ended with `pd done` AND `pd feedback "..."` (CLI bare form) or MCP `drop_feedback`.
 - [ ] If you skipped any of the above, you owned up to it explicitly in the feedback.
 - [ ] You ran `windags_skill_search` for the slice's domain before starting.
-- [ ] If you discovered wisdom this skill should have carried, you committed it back into the relevant section in the same slice (or filed a Cartographer follow-up).
+- [ ] **Two-skill maintenance check.** You asked: "did the public `port-daddy-agent-skill` or this internal skill mislead me, mis-instruct me, or under-equip me?" If yes, you landed the fix on the correct surface (public vs. internal — see "Maintain These Skills") *in the same slice*. Drive-by edits are explicitly welcome; no separate ticket required.
 - [ ] You did NOT propagate internal-only wisdom into `port-daddy-agent-skill` (that's the public skill's split-decision rule).
 
 ## Sources
