@@ -107,7 +107,7 @@ As of v2.5 close (2026-05-04):
 | `proofs/bonded/pairing/passkey-pair.pv` | **SPEC-ONLY** — passkey device pairing not yet implemented | flag explicitly |
 | `proofs/bonded/federated/federated.pv` | **PARTIAL** — federated KMS shape exists in `USER-ACCOUNTS-KMS.md` design doc; no code yet | flag explicitly |
 | `proofs/anchor/token-verify/algconfusion.pv` | `lib/harbor-tokens.ts:201–267` | **NEW v2.5: `tests/unit/runtime-conformance/algorithm-pinning.test.js`** |
-| `proofs/anchor/delegation/chain-replay.pv` | **SPEC-ONLY** — multi-hop delegation walker not yet a discrete module | flag explicitly |
+| `proofs/anchor/delegation/chain-replay.pv` | `lib/delegation-chain.ts` | **NEW v2.6: `tests/unit/runtime-conformance/delegation-chain-replay.test.js`** |
 | `proofs/bonded/recovery/magic-link.pv` | **SPEC-ONLY** — magic-link recovery route not yet implemented | flag explicitly |
 | `proofs/bonded/conservation/Conservation.tla` | `lib/bonds.ts` | `tests/unit/bonds-conservation-property.test.js` |
 | `proofs/bonded/merkle/binding.md` (game spec) | `lib/merkle-tree.ts` | `tests/unit/merkle-binding-property.test.js` |
@@ -115,8 +115,7 @@ As of v2.5 close (2026-05-04):
 
 ### Surfacing the SPEC-ONLY entries
 
-Three `.pv` files have no runtime yet: passkey pairing, delegation
-chain, magic-link. Those proofs are *aspirational* — they describe
+Two `.pv` files have no runtime yet: passkey pairing, magic-link. Those proofs are *aspirational* — they describe
 the protocol the runtime will follow once the runtime exists. That
 is honest formal-methods practice: prove the design before writing
 the code. But it must be tagged.
@@ -132,13 +131,6 @@ For each SPEC-ONLY entry, the implementation effort is:
     state machine). Implementer should re-read `passkey-pair.pv`
     and bind the pairing handshake to the verified
     `pairing_secret` derivation.
-  - **Delegation chain walker:** ~150 LOC. Already partially
-    present in `lib/harbor-tokens.ts` for single-hop; multi-hop
-    needs a separate module that follows the §3 spec literally.
-    `chain-replay.pv` defines the binding format
-    `hopBind(nonce, prev_id, next_id, message)` that the
-    implementation must use.
-
 ### Adding the CI gate
 
 `scripts/runtime-conformance-check.mjs` (deferred to v2.6) walks
@@ -220,5 +212,30 @@ itself. For these, the conformance is:
     Already provided by `tests/unit/merkle-binding-property.test.js`;
     the new file is a thin alias / pointer for the registry.
 
-Future v2.6 conformance tests will follow as the SPEC-ONLY
-implementations land.
+---
+
+## 6. What ships in v2.6 alongside this update
+
+  - `lib/delegation-chain.ts` — multi-hop delegation chain walker.
+    Implements `hopBind(nonce, prev_id, next_id, message_hash)` binding,
+    `NonceTable` (issued/consumed), `signHop()`, and `verifyDelegationChain()`.
+    Rejects splices, replays, message substitution, and principal spoofing.
+
+  - `tests/unit/runtime-conformance/delegation-chain-replay.test.js` —
+    binds `chain-replay.pv` to `lib/delegation-chain.ts`. Tests (17):
+      (H)   3-hop happy path accepted;
+      (R1)  nonce replay rejected after first acceptance;
+      (R1b) partial replay (one reused nonce) rejected;
+      (S1)  splice with wrong messageHash rejected;
+      (S2)  id splice (broken chain connectivity) rejected;
+      (M1)  message substitution at verify time rejected;
+      (P1)  wrong principalId rejected;
+      (F1)  flipped byte in hop sig rejected;
+      (N1)  forged nonce (never issued) rejected;
+      (D1)  depth-1 (direct) chain accepted;
+      (D5)  depth-5 chain accepted;
+      (D5-R) depth-5 replay rejected;
+      plus determinism and id-derivation sanity checks.
+
+Future conformance tests will follow as the remaining SPEC-ONLY
+implementations (passkey pairing, magic-link) land.
