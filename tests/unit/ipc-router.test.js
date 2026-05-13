@@ -381,8 +381,59 @@ describe('IPC Router', () => {
     expect(deps.sessions.claimFiles).toHaveBeenCalledWith('sess-123', paths, {
       regions: undefined,
       force: false,
+      agentId: 'registered-x',
     });
     expect(replies[0].type).toBe(Performative.INFORM_DONE);
+  });
+
+  test('session.files.claim refuses payload agent spoofing on a bound connection', () => {
+    const deps = createMockDeps();
+    const router = createIpcRouter(deps);
+    const replies = [];
+
+    router.handleFrame(
+      {
+        type: Performative.REQUEST,
+        convId: 26,
+        payload: {
+          action: IpcAction.FILES_CLAIM,
+          sessionId: 'sess-123',
+          paths: ['src/auth.ts'],
+          agentId: 'registered-owner',
+        },
+      },
+      mockConn('registered-x'),
+      (f) => replies.push(f),
+    );
+
+    expect(deps.sessions.claimFiles).not.toHaveBeenCalled();
+    expect(replies[0].type).toBe(Performative.REFUSE);
+    expect(replies[0].payload.error).toBe('agent_mismatch');
+  });
+
+  test('session.files.claim refuses missing agent instead of recovering the session owner', () => {
+    const deps = createMockDeps();
+    const router = createIpcRouter(deps);
+    const replies = [];
+
+    router.handleFrame(
+      {
+        type: Performative.REQUEST,
+        convId: 27,
+        payload: {
+          action: IpcAction.FILES_CLAIM,
+          sessionId: 'sess-123',
+          paths: ['src/auth.ts'],
+        },
+      },
+      mockConn(null),
+      (f) => replies.push(f),
+    );
+
+    expect(deps.sessions.get).not.toHaveBeenCalled();
+    expect(deps.sessions.claimFiles).not.toHaveBeenCalled();
+    expect(replies[0].type).toBe(Performative.REFUSE);
+    expect(replies[0].payload.error).toBe('no_agent_id');
   });
 
   test('session.files.claim preserves regions and force over IPC', () => {
@@ -411,6 +462,7 @@ describe('IPC Router', () => {
     expect(deps.sessions.claimFiles).toHaveBeenCalledWith('sess-123', ['src/auth.ts'], {
       regions,
       force: true,
+      agentId: 'registered-x',
     });
     expect(replies[0].type).toBe(Performative.INFORM_DONE);
   });
@@ -428,6 +480,7 @@ describe('IPC Router', () => {
 
     expect(deps.sessions.releaseFiles).toHaveBeenCalledWith('sess-123', ['src/auth.ts'], {
       regions: undefined,
+      agentId: 'registered-x',
     });
   });
 
@@ -455,6 +508,7 @@ describe('IPC Router', () => {
 
     expect(deps.sessions.releaseFiles).toHaveBeenCalledWith('sess-123', ['src/auth.ts'], {
       regions,
+      agentId: 'registered-x',
     });
     expect(replies[0].type).toBe(Performative.INFORM_DONE);
   });

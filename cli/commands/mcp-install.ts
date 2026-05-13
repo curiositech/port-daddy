@@ -1,8 +1,8 @@
 /**
  * pd mcp install — Universal AI Agent Connection
  *
- * Auto-detects installed AI platforms (Claude, Cursor, Windsurf, VS Code,
- * Continue, Cline) and configures Port Daddy as an MCP server for each.
+ * Auto-detects installed AI platforms (Claude, Cursor, Windsurf, Gemini,
+ * VS Code, Continue, Cline) and configures Port Daddy as an MCP server for each.
  * Also installs the agent skill and offers shell prompt hook setup.
  *
  * Usage:
@@ -112,6 +112,20 @@ function buildPlatforms(home: string): McpPlatform[] {
       detect: () =>
         existsSync(join(home, '.codeium', 'windsurf')) ||
         existsSync(join(home, '.windsurf')),
+      serverEntry: makeServerEntry,
+    },
+    {
+      name: 'Gemini CLI',
+      slug: 'gemini',
+      configPath: join(home, '.gemini', 'settings.json'),
+      configKey: 'mcpServers',
+      detect: () => {
+        if (existsSync(join(home, '.gemini'))) return true;
+        try {
+          execFileSync('which', ['gemini'], { stdio: ['pipe', 'pipe', 'pipe'] });
+          return true;
+        } catch { return false; }
+      },
       serverEntry: makeServerEntry,
     },
     {
@@ -308,7 +322,7 @@ export async function handleMcpInstall(options: Record<string, unknown>, _home =
 
     if (targets.length === 0) {
       ui.warn('No AI platforms detected.');
-      console.log('  Supported: Claude Code, Claude Desktop, Cursor, Windsurf, VS Code, Continue, Cline');
+      console.log('  Supported: Claude Code, Claude Desktop, Cursor, Windsurf, Gemini CLI, VS Code, Continue, Cline');
       console.log('  Continuing with the shared Port Daddy skill and shell prompt hook.');
       console.log('');
       shouldInstallSkill = true;

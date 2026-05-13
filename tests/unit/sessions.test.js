@@ -77,6 +77,14 @@ describe('Sessions Module', () => {
       expect(got.session.agentId).toBe('agent-001');
     });
 
+    it('should reject blank agentId values when provided', () => {
+      const result = sessions.start('Work item', { agentId: '   ' });
+
+      expect(result.success).toBe(false);
+      expect(result.code).toBe('VALIDATION_ERROR');
+      expect(result.error).toMatch(/agentId/);
+    });
+
     it('should accept metadata option', () => {
       const metadata = { branch: 'feature/x', priority: 'high' };
       const result = sessions.start('Work item', { metadata });
@@ -94,6 +102,30 @@ describe('Sessions Module', () => {
 
       expect(result.success).toBe(true);
       expect(result.files).toEqual(['src/app.ts', 'src/utils.ts']);
+    });
+
+    it('should require agentId for initial file claims when mutation identity is enforced', () => {
+      const enforcedSessions = createSessions(db, undefined, { requireAgentForFileClaims: true });
+
+      const result = enforcedSessions.start('Work item', {
+        files: ['src/app.ts']
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.code).toBe('SESSION_AGENT_REQUIRED');
+      expect(result.error).toMatch(/agentId/);
+    });
+
+    it('should allow initial file claims with agentId when mutation identity is enforced', () => {
+      const enforcedSessions = createSessions(db, undefined, { requireAgentForFileClaims: true });
+
+      const result = enforcedSessions.start('Work item', {
+        agentId: 'agent-001',
+        files: ['src/app.ts']
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.files).toEqual(['src/app.ts']);
     });
 
     it('should detect file conflicts during start', () => {
@@ -422,6 +454,59 @@ describe('Sessions Module', () => {
     });
   });
 
+  describe('addNote → episodic_memory projection', () => {
+    let episodicMemory;
+    let sessionsWithEpisodic;
+
+    beforeEach(() => {
+      episodicMemory = { remember: jest.fn(() => ({ id: 1 })) };
+      sessionsWithEpisodic = createSessions(db, undefined, { episodicMemory });
+    });
+
+    it('projects default-type notes (the agent loop default) into episodic_memory', () => {
+      const started = sessionsWithEpisodic.start('Work item', { agentId: 'agent-x' });
+      sessionsWithEpisodic.addNote(started.id, 'Scope: lib/foo.ts. Validation: npm test.');
+
+      expect(episodicMemory.remember).toHaveBeenCalledTimes(1);
+      const call = episodicMemory.remember.mock.calls[0][0];
+      expect(call.episodeType).toBe('note');
+      expect(call.summary).toMatch(/Scope: lib\/foo\.ts/);
+      expect(call.sourceType).toBe('session');
+      expect(call.sourceId).toBe(`${started.id}:note:1`);
+    });
+
+    it('projects user-facing CLI types (general/progress/blocker/question)', () => {
+      const started = sessionsWithEpisodic.start('Work item', { agentId: 'agent-x' });
+      const types = ['general', 'progress', 'blocker', 'question'];
+      types.forEach((type, i) => {
+        sessionsWithEpisodic.addNote(started.id, `note ${i}`, { type });
+      });
+
+      expect(episodicMemory.remember).toHaveBeenCalledTimes(types.length);
+      const projected = episodicMemory.remember.mock.calls.map((c) => c[0].episodeType);
+      expect(projected).toEqual(types);
+    });
+
+    it('still projects high-signal types (handoff/decision/summary/result/failure/finding)', () => {
+      const started = sessionsWithEpisodic.start('Work item', { agentId: 'agent-x' });
+      const types = ['handoff', 'decision', 'summary', 'result', 'failure', 'finding'];
+      types.forEach((type, i) => {
+        sessionsWithEpisodic.addNote(started.id, `note ${i}`, { type });
+      });
+
+      expect(episodicMemory.remember).toHaveBeenCalledTimes(types.length);
+    });
+
+    it('passes sessionId and noteType through metadata for retrieval filtering', () => {
+      const started = sessionsWithEpisodic.start('Work item', { agentId: 'agent-x' });
+      sessionsWithEpisodic.addNote(started.id, 'something', { type: 'progress' });
+
+      const call = episodicMemory.remember.mock.calls[0][0];
+      expect(call.metadata).toEqual({ sessionId: started.id, noteType: 'progress' });
+      expect(call.agentId).toBe('agent-x');
+    });
+  });
+
   describe('quickNote', () => {
     it('should reject unscoped quick notes when no session exists', () => {
       const result = sessions.quickNote('Quick thought');
@@ -723,6 +808,42 @@ describe('Sessions Module', () => {
       expect(conflicts.conflicts).toHaveLength(0);
     });
 
+    it('should reject file claims for agentless sessions when mutation identity is enforced', () => {
+      const enforcedSessions = createSessions(db, undefined, { requireAgentForFileClaims: true });
+      const started = enforcedSessions.start('Read-only session');
+
+      const result = enforcedSessions.claimFiles(started.id, ['src/a.ts']);
+
+      expect(result.success).toBe(false);
+      expect(result.code).toBe('SESSION_AGENT_REQUIRED');
+
+      const conflicts = enforcedSessions.getFileConflicts(['src/a.ts']);
+      expect(conflicts.conflicts).toHaveLength(0);
+    });
+
+    it('should allow file claims for agent-owned sessions when mutation identity is enforced', () => {
+      const enforcedSessions = createSessions(db, undefined, { requireAgentForFileClaims: true });
+      const started = enforcedSessions.start('Owned session', { agentId: 'agent-001' });
+
+      const result = enforcedSessions.claimFiles(started.id, ['src/a.ts'], { agentId: 'agent-001' });
+
+      expect(result.success).toBe(true);
+      expect(result.claimed).toEqual(['src/a.ts']);
+    });
+
+    it('should reject file claims from the wrong agent when mutation identity is enforced', () => {
+      const enforcedSessions = createSessions(db, undefined, { requireAgentForFileClaims: true });
+      const started = enforcedSessions.start('Owned session', { agentId: 'agent-001' });
+
+      const result = enforcedSessions.claimFiles(started.id, ['src/a.ts'], { agentId: 'agent-002' });
+
+      expect(result.success).toBe(false);
+      expect(result.code).toBe('SESSION_AGENT_MISMATCH');
+
+      const conflicts = enforcedSessions.getFileConflicts(['src/a.ts']);
+      expect(conflicts.conflicts).toHaveLength(0);
+    });
+
     it('should reject empty filePaths array', () => {
       const started = sessions.start('Work item');
       const result = sessions.claimFiles(started.id, []);
@@ -776,6 +897,24 @@ describe('Sessions Module', () => {
       // Release again
       const result = sessions.releaseFiles(started.id, ['src/a.ts']);
       expect(result.released).toHaveLength(0);
+    });
+
+    it('should require the owning agent to release files when mutation identity is enforced', () => {
+      const enforcedSessions = createSessions(db, undefined, { requireAgentForFileClaims: true });
+      const started = enforcedSessions.start('Owned session', { agentId: 'agent-001' });
+      enforcedSessions.claimFiles(started.id, ['src/a.ts'], { agentId: 'agent-001' });
+
+      const missingAgent = enforcedSessions.releaseFiles(started.id, ['src/a.ts']);
+      expect(missingAgent.success).toBe(false);
+      expect(missingAgent.code).toBe('SESSION_AGENT_REQUIRED');
+
+      const wrongAgent = enforcedSessions.releaseFiles(started.id, ['src/a.ts'], { agentId: 'agent-002' });
+      expect(wrongAgent.success).toBe(false);
+      expect(wrongAgent.code).toBe('SESSION_AGENT_MISMATCH');
+
+      const owner = enforcedSessions.releaseFiles(started.id, ['src/a.ts'], { agentId: 'agent-001' });
+      expect(owner.success).toBe(true);
+      expect(owner.released).toEqual(['src/a.ts']);
     });
 
     it('should reject empty filePaths', () => {

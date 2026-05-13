@@ -17,15 +17,22 @@ describe('Port Daddy skill authority', () => {
       .filter((entry) => entry.startsWith('port-daddy'))
       .sort();
 
-    // The agent-skill is the single canonical *coordination* surface; the
-    // marketing-copy skill is a deliberate, scoped second surface for
-    // website voice. Adding any other port-daddy-* skill should fail this
-    // assertion until it's explicitly listed here.
-    expect(portDaddySkills).toEqual(['port-daddy-agent-skill', 'port-daddy-marketing-copy']);
+    // The agent-skill is the single canonical *coordination* surface for
+    // any agent on any project; the marketing-copy skill is a deliberate,
+    // scoped second surface for website voice; the internal-dev skill is
+    // the contributor-only manual for editing this repo (private, never
+    // published downstream). Adding any other port-daddy-* skill should
+    // fail this assertion until it's explicitly listed here.
+    expect(portDaddySkills).toEqual([
+      'port-daddy-agent-skill',
+      'port-daddy-internal-dev',
+      'port-daddy-marketing-copy',
+    ]);
     expect(existsSync(join(skillsDir, 'port-daddy', 'SKILL.md'))).toBe(false);
     expect(existsSync(join(skillsDir, 'port-daddy-cli', 'SKILL.md'))).toBe(false);
     expect(existsSync(join(skillsDir, 'port-daddy-agent-skill', 'SKILL.md'))).toBe(true);
     expect(existsSync(join(skillsDir, 'port-daddy-marketing-copy', 'SKILL.md'))).toBe(true);
+    expect(existsSync(join(skillsDir, 'port-daddy-internal-dev', 'SKILL.md'))).toBe(true);
   });
 
   test('the authoritative skill declares the canonical name', () => {
@@ -150,6 +157,10 @@ describe('Port Daddy skill authority', () => {
     expect(setup).toContain("AGENT_SKILL_ID = 'port-daddy-agent-skill'");
     expect(setup).toContain("join(prefix, 'share', 'port-daddy', 'skills', AGENT_SKILL_ID)");
     expect(setup).toContain("join(PROJECT_ROOT, 'skills', AGENT_SKILL_ID)");
+    expect(setup).toContain('syncAgentSkills');
+    expect(setup).toContain('ensureGeminiPortDaddyExtension');
+    expect(setup).toContain("options['dry-run']");
+    expect(setup).toContain("options['skill-status']");
 
     for (const runtimePath of [
       "'.codex', 'skills', AGENT_SKILL_ID",
@@ -164,6 +175,7 @@ describe('Port Daddy skill authority', () => {
     expect(setup).not.toContain("'.gemini', 'extensions', 'port-daddy', 'skills', 'port-daddy'");
 
     expect(formula).toContain('"skills/port-daddy-agent-skill" => "skills/port-daddy-agent-skill"');
+    expect(formula).toContain('Refreshing Port Daddy cross-tool skill symlinks');
     expect(formula).not.toContain('=> "skills/port-daddy"');
     for (const runtimePath of [
       '~/.codex/skills/port-daddy-agent-skill',

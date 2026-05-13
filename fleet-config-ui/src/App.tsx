@@ -1742,6 +1742,10 @@ export default function App() {
                         projectDir={selectedProjectId ?? undefined}
                         limits={fleetConfig?.limits}
                         onOpenYaml={() => setActiveTab('YAML')}
+                        onRuntimeChanged={() => {
+                          fleet.refresh();
+                          if (selectedProjectId) fleet.loadConfig(selectedProjectId);
+                        }}
                       />
                     )}
                     {activeTab === 'Channels' && (

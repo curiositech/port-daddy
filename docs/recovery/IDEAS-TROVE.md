@@ -221,6 +221,89 @@ runtime cuts.
   - `.spark/ideas/spider-tuple-triggered-fleet-agents.md`
   - `.spark/ideas/spider-ipc-tuple-fast-path.md`
 
+### `metrics-histogram-persistence`
+
+- status: `now`
+- why it matters:
+  - `MetricsRegistry` (lib/metrics-registry.ts, shipped in PR #44) is
+    in-memory only. Daemon restart clears every per-route bucket count and
+    ring-buffer percentile.
+  - Generic counters are already persisted (lib/counters.ts → SQLite), so we
+    have multi-day history for *request volume* but not for *latency shape*.
+  - Without persistent histograms, the next item
+    (`slo-alerts-and-outlier-detection`) can't compute a "same hour last
+    week" baseline because that hour's data evaporates on restart.
+- next cut:
+  - persist per-minute bucket counts to a new `metric_histograms` SQLite
+    table keyed by `(method, route_template, status_class, bucket_le_ms,
+    bucket_minute)`. Reuse the in-memory batch+flush pattern from
+    `lib/counters.ts` so every observation is still O(1).
+  - server-side `GET /metrics/http/timeseries?route=&since=&groupBy=` that
+    interpolates p50/p95/p99 across the requested window from cumulative
+    bucket counts (Prometheus `histogram_quantile()` semantics, but in
+    SQLite).
+  - replace the client-side rolling buffer in `public/metrics.html` with a
+    real time-series fetch so percentiles survive page reloads and daemon
+    restarts.
+  - decay/retention to keep the table bounded — same 30-day retention as
+    `metric_counters`.
+- provenance:
+  - PR #44 explicitly flagged the limitation in the dashboard
+    ("since process start") and in the PR description's "What this does NOT
+    do" section.
+  - design note in lib/metrics-registry.ts: "Latency percentiles are
+    computed from the in-memory ring buffer, so they reset on daemon
+    restart."
+
+### `slo-alerts-and-outlier-detection`
+
+- status: `now` (depends on `metrics-histogram-persistence` for full value;
+  the alerting plumbing can ship first against the in-memory registry)
+- why it matters:
+  - PR #44 gives us p50/p95/p99 + per-route counters but **no automated
+    detection or alerting**. Operators see the number, they don't get told
+    when it goes wrong.
+  - the project already has the right pipes (`coordination:inconsistency`
+    SSE channel, session notes, agent inbox, `pd guard` advisory walls) —
+    they just aren't wired to the metrics layer.
+  - "metrics without alerts" is the same anti-pattern as "logs without
+    rotation" we just fixed: the data exists, nobody is paying attention.
+- next cut (Phase 1 — wiring):
+  - `config.json` schema: `slo: { routes: [{ method, route, p95Ms,
+    errorPctMax }] }`. Per-route targets, optional global default.
+  - new `lib/slo-evaluator.ts` that runs every flush tick, reads from
+    `MetricsRegistry.snapshot()` + the persistent histogram (after the
+    item above lands), and emits a typed violation when p95 exceeds target
+    or error rate crosses the gate.
+  - **routing** — three default channels, all wired through existing pipes:
+    1. `coordination:inconsistency` SSE event (severity: `warning` for
+       mild breach, `critical` for sustained breach).
+    2. structured note dropped into the active session via
+       `lib/sessions.addNote(session, "[slo] ...")`.
+    3. `pd inbox` message to `actor:navigator` for slow-burn follow-up.
+  - dashboard side: outliers/SLO violations become annotation pins on the
+    `latency-over-time` chart in `public/metrics.html`. The pin renderer
+    already handles arbitrary `kind` values; adding `slo_violation` is one
+    color swatch.
+- next cut (Phase 2 — anomaly detection):
+  - z-score against same-hour-last-week baseline (requires
+    `metrics-histogram-persistence`). For each route, compute the p95
+    distribution across the last 7 same-hour buckets, then flag when the
+    current bucket is `>= 3 sigma` above the mean.
+  - sustained-breach gate: don't fire on a single tick — require the
+    violation to hold across N consecutive flush ticks. Avoids paging on
+    a single GC pause.
+  - escalation ladder: warning (note only) → critical (inbox the
+    navigator) → emergency (broadcast to `harbor:port-daddy:fleet`).
+- provenance:
+  - PR #44 explicitly deferred this with the note: "Outlier *detection*
+    against historical baselines (z-score vs same-hour-last-week) and
+    SLO-driven alert routing to the pd inbox are deliberately out of
+    scope — they need accumulated data and a separate spec discussion.
+    The dashboard is wired so they can be added without UI rework."
+  - operator request 2026-05-06: "SHOW ME SEASONALITY AND OUTLIERS AND
+    ALERT WHEN IMPORTANT".
+
 ### Recommended First Two Builds
 
 If only one or two of the above move immediately, the best first cuts are:

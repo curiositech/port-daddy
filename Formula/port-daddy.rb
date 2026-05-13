@@ -18,17 +18,17 @@ class PortDaddy < Formula
   end
 
   def post_install
-    # Refresh the agent-skill symlinks after every install/upgrade so newly
-    # added runtime targets (e.g. a future Windsurf path) get linked without
-    # the user remembering to re-run `pd setup`. Only the skill step runs —
-    # daemon, MCP, FleetBar, and project init each have their own lifecycle
-    # and should not be touched silently on every brew upgrade.
+    # Refresh the cross-tool skill symlink union after every install/upgrade so
+    # Codex, Claude, Gemini, and editor runtimes follow the current Windags and
+    # workgroup skill sources without a manual copy step. Only the skill step
+    # runs - daemon, MCP, FleetBar, and project init each have their own
+    # lifecycle and should not be touched silently on every brew upgrade.
     return if ENV["HOME"].nil? || ENV["HOME"].empty?
 
     pd = opt_bin/"pd"
     return unless pd.exist?
 
-    ohai "Refreshing port-daddy agent skill symlinks"
+    ohai "Refreshing Port Daddy cross-tool skill symlinks"
     system pd.to_s, "setup", "--no-daemon", "--no-mcp", "--no-fleetbar", "--no-init"
   end
 
@@ -41,15 +41,17 @@ class PortDaddy < Formula
         pd setup                  # user-level links
         cd your-project && pd init # project-local links
 
-      Setup links the same canonical skill into every supported runtime:
+      Setup links Port Daddy's canonical skill and the local skill union into:
         ~/.codex/skills/port-daddy-agent-skill
         ~/.claude/skills/port-daddy-agent-skill
         ~/.agents/skills/port-daddy-agent-skill
-        ~/.codeium/windsurf/skills/port-daddy-agent-skill
-        ~/.continue/prompts/port-daddy-agent-skill
+        ~/.gemini/skills/port-daddy-agent-skill
         ~/.config/cline/skills/port-daddy-agent-skill
         ~/.gemini/extensions/port-daddy/skills/port-daddy-agent-skill
-        ~/.cursor/rules/port-daddy-agent-skill.md
+        ~/.cursor/skills/port-daddy-agent-skill
+        ~/.continue/skills/port-daddy-agent-skill
+        ~/.windsurf/skills/port-daddy-agent-skill
+        ...and other AGENTS-aware/editor skill registries
 
       Verify from the console:
         pd setup --status

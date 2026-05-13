@@ -20,7 +20,7 @@
  * descriptions are already curated for retrieval.
  */
 
-import Database from 'better-sqlite3';
+import Database, { type DatabaseInstance } from '../sqlite-runtime.js';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -63,7 +63,7 @@ export interface SkillEmbedder {
 /** Options for `createSkillIndex`. All have sensible defaults. */
 export interface SkillIndexOptions {
   /** Database to persist vectors in. Defaults to `<dbDir>/skill-index.sqlite`. */
-  db?: Database.Database;
+  db?: DatabaseInstance;
   /** Where to write the SQLite file when `db` is omitted. */
   dbDir?: string;
   /** Embedder to use. Defaults to the lazy MiniLM loader. */
@@ -97,7 +97,7 @@ export interface SkillIndex {
   clear(): void;
 
   /** Underlying database — exposed for tests + diagnostics, not for routine use. */
-  db: Database.Database;
+  db: DatabaseInstance;
 }
 
 const SKILL_DIR_BLOCKLIST = new Set(['node_modules', '.git', 'dist', 'build', 'target', '.cache', '.scratch']);
@@ -366,14 +366,14 @@ function cosine(a: number[], b: number[]): number {
   return sum;
 }
 
-function openDefaultDb(dbDir?: string): Database.Database {
+function openDefaultDb(dbDir?: string): DatabaseInstance {
   const dir = dbDir ?? DEFAULT_DB_DIR;
   mkdirSync(dir, { recursive: true });
   const file = join(dir, DEFAULT_DB_FILE);
   return new Database(file);
 }
 
-function ensureSchema(db: Database.Database): void {
+function ensureSchema(db: DatabaseInstance): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS shipwright_skill_vectors (
       skill_id     TEXT PRIMARY KEY,

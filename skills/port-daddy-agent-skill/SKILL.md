@@ -58,6 +58,53 @@ pd note "Result: <change>. Validation: <evidence>. Remaining: <risk>."
 pd done "<short outcome>"
 ```
 
+## Session Continuity
+
+A resumed coding session is not automatically a new Port Daddy session. Treat
+multi-day work as a continuity problem first, then decide whether to resume,
+link, or restart.
+
+Re-anchor when a conversation resumes after a calendar day, after context
+compaction, after daemon/session drift, or when the worktree is behind the
+canonical remote:
+
+```bash
+pd status
+pd briefing
+pd sessions --all-worktrees
+pd notes --limit 20
+pd salvage --project <project> --limit 20
+git status --short --branch
+git fetch origin
+```
+
+Resume the existing session when the user goal, worktree or successor
+worktree, branch lineage, and touched surface are still the same unresolved
+slice. If the previous session is stale, abandoned, or cannot be made active,
+start a new session in the same identity family and link the predecessor in
+the first note.
+
+Start a new linked session when the product goal changed, the previous slice
+was completed or merged, the branch no longer descends cleanly from the old
+work, or the next edit would touch unrelated surfaces. Continuity comes from
+explicit provenance, not from overloading one old purpose forever.
+
+The first continuity note must carry enough truth for another agent to take
+over without transcript archaeology:
+
+- predecessor session id and new session id, if different
+- identity, worktree, branch, and base drift from the canonical branch
+- dirty or claimed files, plus any ownership conflicts
+- last validation that is still trusted and validation that is stale
+- runtime truth, especially socket/TCP/port-file or install-root drift
+- next intended edit, blocker, or handoff
+
+After drift, prefer explicit session ids for notes and file claims. If
+`pd whoami`, active context, TCP port-file routing, and direct session storage
+disagree, call it a coordination bug. Leave the best durable evidence you can,
+fix the bounded bug if this slice can safely absorb it, or continue with a
+clear note about the degraded coordination path.
+
 ## Telos vs Purpose
 
 Every Port Daddy agent carries a **telos** alongside its **purpose**.
@@ -116,6 +163,7 @@ pd guard check --staged
 | The live daemon looks stale | Verify daemon provenance before trusting docs, source, or memory. |
 | Another session may overlap | Read notes, claims, activity, and ownership before changing the surface. |
 | Work was interrupted | Use salvage and preserve the abandoned intent. |
+| The same coding vibe resumes days later | Re-anchor, then resume the old session or start a linked successor with explicit predecessor provenance. |
 | You are about to commit, push, or deploy | Fetch, reconcile, re-read live coordination state, stage narrowly, and run the guard. |
 
 ## Advanced Surfaces
@@ -338,3 +386,206 @@ bash skills/port-daddy-agent-skill/scripts/diagnose_port_daddy_agent_context.sh
 
 The first command checks the bundle. The second samples the local Port Daddy
 context so the agent can reason from live state instead of memory.
+
+---
+
+## Git Discipline (NON-NEGOTIABLE)
+
+Multi-agent repos collide on the staging area. Follow these rules without
+exception. They come from a real incident — see `references/git-discipline.md`
+for the post-mortem and the full ADR.
+
+1. **Worktree for long-running background work.** If your work takes more than ~10s between "start" and "commit", do it in a git worktree (`git worktree add ../$repo-$agent-$task`). Disjoint trees make collisions structurally impossible.
+2. **Never `git add -A` / `git add .` / `git add -u` in agent code paths.** Stage by explicit path. You can only commit what you authored.
+3. **Pre-commit dirty-tree check.** Before any `git commit`, run `git status --porcelain` and abort with a named-paths error if anything dirty in the tree was authored elsewhere.
+4. **Push only what you tagged.** Tags are content-addressed; branches are shared mutable state across agents.
+5. **Lock the staging area when sharing a tree by exception.** `pd lock <repo>:git:write` (or `pd with-lock <repo>:git:write -- <command>`) serializes the rare case where Rule 1 cannot apply. MCP-aware clients can call the `acquire_lock` tool with the same name.
+
+A pre-commit hook that enforces Rule 3 belongs in any repo with multiple
+agents writing to it. `pd guard install --mode enforce` is the reference.
+
+## Coordination Reflex
+
+Whenever you work on a Port Daddy-protected project, ask yourself **before**
+starting:
+
+1. *How can I do this even better and in tandem with other agents?*
+2. *What background helpers would make this delightful instead of a slog?* (See Useful Background Agents below.)
+3. *What pheromone trail / tuple / actor message would future-me wish I had left?*
+4. *What ambient signal (file heat, recent notes, claim density) tells me where the danger is?*
+
+Coordination is cheap when it is durable and machine-readable. It is
+expensive when it is conversational ("hey did you finish X?"). Default to:
+
+- **`pd note`** for scope, assumptions, touched files, validation, blockers, handoffs.
+- **Claims** at the smallest real granularity — file region or symbol where possible.
+- **Tuples** (`pd tuple out <space> <key>=<value>`) for facts another agent might query.
+- **Pheromones** (`pd pheromone deposit <surface>`) for contention/heat signals.
+- **Actor inboxes** for durable role-routed escalations (see Actor Roster below).
+
+If the user has to remind you to coordinate, the process has already
+failed: pull against the canonical branch, read the live fleet, leave a
+durable note, and make the standing instruction stronger before continuing.
+
+## Actor Roster (universal Port Daddy concepts)
+
+Port Daddy exposes a small set of durable actor inboxes. They are roles,
+not processes — messages persist; the actor processes them on demand.
+Use them when a concern crosses your slice's boundary.
+
+| Actor | Owns | Message when... |
+|---|---|---|
+| **Coxswain** | claims, locks, surface integrity | A file conflict needs adjudication; a stale lock blocks promotion. |
+| **Navigator** | roadmap state, work-slice routing, recovery ledger | A roadmap item finishes; the recovery ledger contradicts the live fleet. |
+| **Cartographer** | priorities + ideas synthesis | A new idea should join the queue; priorities feel wrong. |
+| **Lookout** | release-surface drift | Source shipped without the matching docs / CLI help / website / version stamp. |
+| **Quartermaster** | spawn discipline, model readiness, fleet spend | A persona uses an over-powered model; spawn count rises without proportional value. |
+
+Routing one-liner: **file → Coxswain. Roadmap → Navigator. Priority → Cartographer. Drift → Lookout. Spawn → Quartermaster.**
+
+## Useful Background Agents (suggestion menu)
+
+Port Daddy makes it cheap to keep several focused background agents running.
+When you start meaningful work on a project, scan this list and propose
+spawning the ones that fit the project's gaps. The user picks; you draft
+the YAML in `pd-fleet.yml` so they can review before launch.
+
+| Suggested agent | When to propose |
+|---|---|
+| **Test gardener** | Project has tests but new features ship without them |
+| **Documentation steward** | API/CLI surface changes faster than docs |
+| **Roadmap cartographer** | Many half-built things; ideas escape into Slack/issues |
+| **Architecture archivist** | Codebase has accreted faster than the architecture doc |
+| **Marketing voice** | Public-facing project with infrequent releases |
+| **Prototype scout** | "What if?" ideas pile up unbuilt |
+| **Feature stitcher** | Independent features could compose into something new |
+| **Fleet observer** | Background agents drift, stop firing |
+| **Post-mortem proposer** | Multi-agent friction or "wow we fought dumb git shit" moments |
+| **Adversarial QA** | Code lands without thinking about how it breaks |
+| **Skill auditor** | Project ships skills (windags-skills, .claude/skills, etc.) |
+
+These are not a fixed menu. **Always think creatively** about what this
+specific project needs, and propose new agent shapes as the project shape
+shifts. The proposal protocol is small: write the agent shape into a draft
+block in `pd-fleet.yml`, leave a `pd note` summarizing what it would do,
+and message Cartographer with a one-line recommendation. The user approves
+before anything starts firing.
+
+## Catalog-First Reflex (use the WinDAGs MCP)
+
+There are 600+ specialist skills in the WinDAGs catalog. Most coding tasks
+have a skill written for them already. **Search the catalog before you
+start, not after you're stuck.**
+
+```bash
+windags_skill_search "<one-line description of what you're about to do>"
+windags_skill_graft <skill-id-1> <skill-id-2>   # pull the full SKILL.md bodies into your prompt
+```
+
+Default reflexes:
+
+- **Before every meaningful task** — one `windags_skill_search` call. If a top result is >0.4 score, graft it.
+- **When you find yourself reasoning about a domain you don't own** — the catalog has a skill for that. Search.
+- **When a skill would help on this project long-term** — install it into the project's `.claude/skills/` and leave a `pd note` recording the install.
+- **When you used a skill and it was wrong / stale** — that's a Maintain-These-Skills moment (next section).
+
+If you go a whole session without a single `windags_skill_search`, that's
+probably a missed leverage opportunity.
+
+## Maintain These Skills (living documents)
+
+The skills you read are not finished products. They are **living instructions**
+that improve when their users update them. When you discover wisdom that
+would have helped past-you, write it back into the skill that should have
+carried it.
+
+When to update:
+
+- **Anti-pattern discovery** — you hit a failure mode that should have been a warning. Add it to the Anti-Patterns section.
+- **Tooling change** — Port Daddy ships a new command, deprecates an old one, or changes a flag. Update the relevant section + `references/cli-reference.md`.
+- **Decision-table gap** — a Situation→Move row would have saved you 10 minutes. Add it to the Decision Table.
+- **Feedback pattern** — if `pd feedback` reveals recurring friction, propose the systemic fix in the relevant skill section.
+
+When the update is internal-only (port-daddy contributors), update
+`port-daddy-internal-dev` instead. Don't mix internal wisdom into the
+public skill. If unsure: *would an agent on a non-port-daddy project
+benefit?* Yes → public. No → internal.
+
+After landing, `pd actor cartographer --message "Skill update: <one-line>."` so the wisdom propagates.
+
+## Feedback Loop (you owe the user this)
+
+Port Daddy is a tool for the user. Tools improve when their users tell the
+maintainer where the friction is. **Drop feedback after every Port Daddy session,
+even briefly.**
+
+**Primary surface — CLI bare form** (auto-derives slug, droppedBy, surface):
+
+```bash
+pd feedback "salvage worked first try; --project arg syntax was guessable but undocumented"
+pd feedback "got confused: pd briefing showed two coxswain actors; expected one" --high
+pd feedback "worktree creation cost 30s on first run; would skip it for sub-minute tasks" --surface CLI
+pd feedback recent       # see what's open
+pd feedback mine         # what you've dropped this fleet
+pd feedback ack <id>     # mark a finding harvested into the roadmap
+```
+
+The bare form derives a kebab-case slug from the message, picks
+`droppedBy` from the active session/agent context (falls back to
+`cli:$USER`), and infers `surface` from the CWD path segment. Severity
+shortcuts `--critical` / `--high` / `--medium` / `--low` work in lieu of
+`--severity X`.
+
+**Equivalent MCP surface** — the tool is named `drop_feedback` and
+requires `slug` + `summary` (plus an agent identifier as `droppedBy`):
+
+```
+drop_feedback({
+  slug: "briefing-shows-duplicate-coxswain",
+  summary: "got confused: pd briefing showed two coxswain actors; expected one",
+  droppedBy: "<your agent id>",
+  severity: "high",
+  surface: "CLI"
+})
+```
+
+The user reads these. They are not noise.
+
+If you skipped a step in the loop (no `pd note`, no claim, no salvage
+check), **own up to it in the feedback** with the reason:
+
+```bash
+pd feedback "SKIPPED: pd salvage. Reason: I judged the task too small. In hindsight: should not have skipped." --hook "skipped-coordination-step"
+```
+
+## Anti-Patterns
+
+### Treating Coordination As Optional
+**Detection:** Edits land without `pd note`, claims, or session begin.
+**Fix:** The Operating Loop is the floor, not the ceiling. Skipping it is a bug to own up to in `pd feedback`, not a shortcut.
+
+### Sweeping Up Peers' Work With `git add -A`
+**Detection:** Background agent's commit contains files it did not author.
+**Fix:** Per Git Discipline above — worktree, explicit-path staging, dirty-tree pre-check.
+**Triggering incident:** windags-skills `bb34efa`. Force-push was disallowed; the audit trail had to be corrected via tagging instead.
+
+### Spawning A New Agent Where A Note Would Do
+**Detection:** The fleet shows N+1 agents but the actual work is one bounded change.
+**Fix:** Default to a session and a note. Spawn only when the work decomposes into independently-running pieces.
+
+### Silent Friction
+**Detection:** A session ends with `pd done`, no `pd feedback`.
+**Fix:** End every session with feedback, even if it's "no friction this time."
+
+## Quality Gates (you, the agent following this skill)
+
+- [ ] You started the session with `pd begin` and left at least one `pd note` before editing.
+- [ ] You claimed the smallest real surface (`pd session files add <path>` or symbol/region).
+- [ ] You did not run `git add -A` / `git add .` / `git add -u` anywhere.
+- [ ] Your commit's `git status --porcelain` was clean of unfamiliar files.
+- [ ] If your work took >10s of background time, you used a worktree.
+- [ ] You ran `pd guard check --staged` before commit / push / deploy.
+- [ ] You ended with `pd done` AND `pd feedback "..."` (or MCP `drop_feedback`).
+- [ ] If you skipped any of the above, you owned up to it explicitly in the feedback.
+- [ ] You ran at least one `windags_skill_search` for the task domain before starting.
+- [ ] If you discovered wisdom this skill should have carried, you committed it back into the skill in the same slice.
