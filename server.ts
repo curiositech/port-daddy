@@ -727,11 +727,16 @@ app.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) =>
 // --- Security Headers (replaces custom middleware) ---
 app.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) => {
   reply.header('X-Content-Type-Options', 'nosniff');
-  reply.header('X-Frame-Options', 'DENY');
+  // Allow same-origin framing so fleet-ui (/fleet-ui/) can embed /metrics.html.
+  // The DNS rebinding hook above restricts requests to loopback hosts plus any
+  // host ending in `.local` (mDNS / Bonjour names used by FleetBar and local
+  // tooling). SAMEORIGIN is the strictest framing policy that still allows the
+  // in-app Metrics tab to render; tightening back to DENY breaks that path.
+  reply.header('X-Frame-Options', 'SAMEORIGIN');
   reply.header('Referrer-Policy', 'no-referrer');
   reply.header(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://localhost:* http://localhost:* ws://127.0.0.1:* http://127.0.0.1:* ws://[::1]:* http://[::1]:*; img-src 'self' data:; frame-ancestors 'none';"
+    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://localhost:* http://localhost:* ws://127.0.0.1:* http://127.0.0.1:* ws://[::1]:* http://[::1]:*; img-src 'self' data:; frame-ancestors 'self';"
   );
 });
 
