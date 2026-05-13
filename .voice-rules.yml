@@ -1,0 +1,41 @@
+# Voice rules for Curiositech / Port Daddy properties.
+# Run: npm run check:voice-rules
+# Inline override: append `<!-- voice-rule:ok reason=... -->` to the same line OR the line immediately above.
+# Forbidden phrases are exact-string matches (NOT regex, NOT keyword-NLP). Match is case-sensitive
+# unless `case_insensitive: true` on the entry.
+
+forbidden_phrases:
+  - phrase: "Port Daddy Engineering Team"
+    reason: "Single-person operation. Erich Owens / Curiositech LLC. Team framing is actively stripped."
+  - phrase: "engineering@portdaddy.dev"
+    reason: "No team email. Use hello@curiositech.ai or omit email entirely."
+  - phrase: "our engineers"
+    reason: "Single-person operation."
+    case_insensitive: true
+  - phrase: "we believe"
+    reason: "Corporate hedging. Erich's voice asserts directly."
+    case_insensitive: true
+
+# Paths to scan (relative to repo root). Recursive.
+scan_paths:
+  - "docs/"
+  - "website-v2/public/"
+  - "website-v2/src/"
+  - "README.md"
+  - "CHANGELOG.md"
+
+# File extensions to check.
+scan_extensions:
+  - ".tex"
+  - ".md"
+  - ".mdx"
+  - ".tsx"
+  - ".ts"
+
+# Path globs to exclude. node_modules / build artifacts always skipped.
+exclude_paths:
+  - ".voice-rules.yml"            # self
+  - "scripts/check-voice-rules.ts" # the script names the rules to enforce
+  - "tests/unit/voice-rules.test.js" # tests assert against the rules
+  - "docs/research/"              # research docs discuss the rules in plain text
+  - "docs/shipwright/WHITEPAPER-PATCHES-V2.md" # historical patch record quoting the old byline

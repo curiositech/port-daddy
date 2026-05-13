@@ -1,6 +1,6 @@
 # The Anchor Protocol: A Formally Verified Control Plane for Local Agent Swarms
 
-**Authors:** The Port Daddy Engineering Team
+**Authors:** Erich Owens / Curiositech LLC
 **Date:** March 12, 2026
 **Version:** 1.0 (Reflecting Port Daddy v3.8.0 / v4 Architecture)
 

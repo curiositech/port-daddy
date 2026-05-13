@@ -32,6 +32,7 @@
     "boundary:public": "tsx scripts/check-public-repo-boundary.ts",
     "export:public": "tsx scripts/export-public-repo.ts",
     "check:public-export": "tsx scripts/export-public-repo.ts --check",
+    "check:voice-rules": "tsx scripts/check-voice-rules.ts",
     "parity": "tsx scripts/check-parity.ts",
     "preversion": "npm run parity && npm test -- --no-coverage",
     "postversion": "tsx scripts/sync-version.ts && git add .claude-plugin/plugin.json mcp-server.json mcp/server.ts && git commit --amend --no-edit",
