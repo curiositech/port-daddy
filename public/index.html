@@ -127,6 +127,8 @@
       border-left: 3px solid transparent;
       font-size: 13px;
       position: relative;
+      /* Anchor variants (e.g. Metrics link) keep the same visual treatment */
+      text-decoration: none;
     }
     .nav-item:hover {
       background: rgba(0,102,204,0.06);
@@ -215,6 +217,16 @@
       cursor: pointer;
       font-family: inherit; font-size: 12px;
       transition: all 0.15s ease;
+      /* Anchor variants (e.g. Metrics link) keep the same visual treatment */
+      text-decoration: none;
+      /* Don't let the greedy `flex: 1` cmd-search compress buttons into single
+         vertical columns of text (pre-existing layout bug — "Release All" was
+         already wrapping to 32px wide before this commit). flex-shrink: 0 alone
+         isn't enough in WebKit/Blink when the sibling cmd-search has
+         `flex: 1 1 0%`; force the rendered width to its natural content size. */
+      flex-shrink: 0;
+      flex-basis: max-content;
+      white-space: nowrap;
     }
     .cmd-btn:hover { background: var(--bg-elevated); color: var(--text); }
     .cmd-btn svg {
@@ -814,6 +826,7 @@
     <symbol id="icon-trash" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
     <symbol id="icon-activity" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></symbol>
     <symbol id="icon-anchor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></symbol>
+    <symbol id="icon-bar-chart" viewBox="0 0 24 24"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></symbol>
   </svg>
 
   <!-- Sidebar -->
@@ -877,6 +890,18 @@
         <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-activity"/></svg></span>
         <span class="nav-label">Activity</span>
       </div>
+      <!--
+        Metrics opens the standalone /metrics.html page (Prometheus + per-route
+        histograms + charts dashboard). Rendered as an anchor rather than a
+        data-panel because it's a full-page surface with its own Chart.js
+        runtime — embedding it in the panel switcher would double the JS load
+        on every dashboard tab change. Same nav-item class so the visual
+        treatment matches the rest of the sidebar.
+      -->
+      <a class="nav-item" href="/metrics.html" tabindex="0" role="link" title="Open the Metrics dashboard (Prometheus histograms + outliers + seasonality)">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-bar-chart"/></svg></span>
+        <span class="nav-label">Metrics</span>
+      </a>
       <div class="nav-item" data-panel="roadmap" tabindex="0" role="tab">
         <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-list"/></svg></span>
         <span class="nav-label">Roadmap</span>
@@ -932,6 +957,10 @@
         <svg viewBox="0 0 24 24"><use href="#icon-terminal"/></svg>
         Terminal
       </button>
+      <a class="cmd-btn" href="/metrics.html" title="Open the Metrics dashboard">
+        <svg viewBox="0 0 24 24"><use href="#icon-bar-chart"/></svg>
+        Metrics
+      </a>
       <button class="cmd-btn" onclick="refreshAll()" title="Refresh">
         <svg viewBox="0 0 24 24"><use href="#icon-refresh"/></svg>
         Refresh
