@@ -134,11 +134,12 @@ export function Debugging() {
             The CLI manual contains detailed error codes and recovery patterns
             for every possible infrastructure collision.
           </p>
-          <Link to="/docs" className="no-underline">
-            <button className="px-8 py-3  text-[var(--text-inverse)] font-black text-[length:var(--type-panel-body-compact-size)] inline-flex items-center gap-2 transition-all">
-              VIEW SDK MANUAL
-              <ChevronRight size={16} />
-            </button>
+          <Link
+            to="/docs"
+            className="inline-flex items-center gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--text-primary)] px-[var(--space-6)] py-[var(--space-3)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-inverse)] transition-colors hover:bg-[var(--brand-primary)] hover:text-[var(--brand-primary-foreground)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]"
+          >
+            View the SDK manual
+            <ChevronRight size={16} />
           </Link>
         </section>
       </div>
