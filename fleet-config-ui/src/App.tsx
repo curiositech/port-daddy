@@ -19,6 +19,7 @@ import CockpitMissionsPanel from './components/CockpitMissionsPanel';
 import ResourceGovernancePanel from './components/ResourceGovernancePanel';
 import TubeConsolePanel from './components/TubeConsolePanel';
 import EventsRegistryPanel from './components/EventsRegistryPanel';
+import { MetricsPanel } from './components/MetricsPanel';
 import ShipwrightPanel from './shipwright/ShipwrightPanel';
 import { extractMentionedPaths } from './fileMentions';
 import {
@@ -58,8 +59,8 @@ import type {
   TopologyValidation,
 } from './types';
 
-type MainTab = 'Flow' | 'Roadmap' | 'Agents' | 'Resources' | 'Activity' | 'Channels' | 'Tube' | 'Events' | 'Inbox' | 'Sorties' | 'Memory' | 'Shipwright' | 'YAML';
-type ControlSurface = 'flow' | 'roadmap' | 'agents' | 'resources' | 'activity' | 'channels' | 'tube' | 'events' | 'inbox' | 'sorties' | 'memory' | 'shipwright' | 'yaml';
+type MainTab = 'Flow' | 'Roadmap' | 'Agents' | 'Resources' | 'Activity' | 'Channels' | 'Tube' | 'Events' | 'Inbox' | 'Sorties' | 'Memory' | 'Metrics' | 'Shipwright' | 'YAML';
+type ControlSurface = 'flow' | 'roadmap' | 'agents' | 'resources' | 'activity' | 'channels' | 'tube' | 'events' | 'inbox' | 'sorties' | 'memory' | 'metrics' | 'shipwright' | 'yaml';
 
 function canUseWindow(): boolean {
   return typeof window !== 'undefined';
@@ -74,6 +75,7 @@ function normalizeSurface(value: string | null): ControlSurface {
     case 'inbox':
     case 'sorties':
     case 'memory':
+    case 'metrics':
     case 'roadmap':
     case 'shipwright':
     case 'yaml':
@@ -110,6 +112,8 @@ function surfaceToMainTab(surface: ControlSurface): MainTab {
       return 'Sorties';
     case 'memory':
       return 'Memory';
+    case 'metrics':
+      return 'Metrics';
     case 'shipwright':
       return 'Shipwright';
     case 'yaml':
@@ -130,6 +134,7 @@ function mainTabToSurface(activeTab: MainTab): ControlSurface {
   if (activeTab === 'Inbox') return 'inbox';
   if (activeTab === 'Sorties') return 'sorties';
   if (activeTab === 'Memory') return 'memory';
+  if (activeTab === 'Metrics') return 'metrics';
   if (activeTab === 'Shipwright') return 'shipwright';
   if (activeTab === 'YAML') return 'yaml';
   return 'flow';
@@ -1415,8 +1420,10 @@ export default function App() {
 
   const configAgentData = fleetConfig?.agents.find(a => a.name === configAgent);
   const daemonRunning = fleet.status?.running ?? false;
-  const surfaceTabs: MainTab[] = ['Flow', 'Roadmap', 'Agents', 'Resources', 'Activity', 'Channels', 'Tube', 'Events', 'Inbox', 'Sorties', 'Memory', 'Shipwright', 'YAML'];
-  const allProjectSurfaceTabs: MainTab[] = ['Flow', 'Shipwright'];
+  const surfaceTabs: MainTab[] = ['Flow', 'Roadmap', 'Agents', 'Resources', 'Activity', 'Channels', 'Tube', 'Events', 'Inbox', 'Sorties', 'Memory', 'Metrics', 'Shipwright', 'YAML'];
+  // Metrics are daemon-wide (request volume, latency, seasonality), so they're useful even
+  // before a project is picked. Shipwright is the other daemon-level tab.
+  const allProjectSurfaceTabs: MainTab[] = ['Flow', 'Metrics', 'Shipwright'];
   const showProjectSidebar = activeTab === 'Flow' && !embedded;
   const visibleSurfaceTabs = selectedProjectId ? surfaceTabs : allProjectSurfaceTabs;
   const handleProjectRefresh = useCallback(() => {
@@ -1486,7 +1493,7 @@ export default function App() {
         onBack={selectedProjectId ? goHome : undefined}
       />
 
-      {(selectedProjectId || activeTab === 'Shipwright') && !embedded && (
+      {(selectedProjectId || activeTab === 'Shipwright' || activeTab === 'Metrics') && !embedded && (
         <TabBar tabs={visibleSurfaceTabs} active={activeTab} onChange={(tab) => setActiveTab(tab as MainTab)} />
       )}
 
@@ -1516,6 +1523,11 @@ export default function App() {
 
       <AnimatePresence mode="wait">
         {!selectedProjectId ? (
+          activeTab === 'Metrics' ? (
+            <motion.div key="metrics-all-wrap" className="flex-1 overflow-hidden flex flex-col" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -20 }}>
+              <MetricsPanel key="metrics-all" theme={theme} embedded={embedded} />
+            </motion.div>
+          ) : (
           <motion.div key="all" className="flex-1 overflow-y-auto" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -20 }}>
             {activeTab === 'Shipwright' ? (
               <ShipwrightPanel
@@ -1541,6 +1553,7 @@ export default function App() {
               />
             )}
           </motion.div>
+          )
         ) : (
           <motion.div key={`proj-${selectedProjectId}-${activeTab}`} className="flex-1 overflow-hidden"
             initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
@@ -1798,6 +1811,9 @@ export default function App() {
                         projectName={selectedProjectName ?? undefined}
                         harbor={fleetConfig?.harbor}
                       />
+                    )}
+                    {activeTab === 'Metrics' && (
+                      <MetricsPanel theme={theme} embedded={embedded} />
                     )}
                     {activeTab === 'Shipwright' && (
                       <ShipwrightPanel

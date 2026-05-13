@@ -727,11 +727,14 @@ app.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) =>
 // --- Security Headers (replaces custom middleware) ---
 app.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) => {
   reply.header('X-Content-Type-Options', 'nosniff');
-  reply.header('X-Frame-Options', 'DENY');
+  // Allow same-origin framing so fleet-ui (/fleet-ui/) can embed /metrics.html.
+  // The daemon is already locked to localhost by the DNS rebinding hook above,
+  // so SAMEORIGIN is the strictest policy compatible with the in-app metrics tab.
+  reply.header('X-Frame-Options', 'SAMEORIGIN');
   reply.header('Referrer-Policy', 'no-referrer');
   reply.header(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://localhost:* http://localhost:* ws://127.0.0.1:* http://127.0.0.1:* ws://[::1]:* http://[::1]:*; img-src 'self' data:; frame-ancestors 'none';"
+    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://localhost:* http://localhost:* ws://127.0.0.1:* http://127.0.0.1:* ws://[::1]:* http://[::1]:*; img-src 'self' data:; frame-ancestors 'self';"
   );
 });
 

@@ -804,6 +804,29 @@
   </style>
 </head>
 <body>
+  <!--
+    This page (the legacy daemon dashboard) is deprecated as of 2026-05-13.
+    The active read/write surface is /fleet-ui/ (the React app embedded in FleetBar
+    and served standalone for browser users). The Metrics dashboard lives at
+    /metrics.html and is now reachable from the Metrics tab inside /fleet-ui/.
+
+    This file remains reachable so existing bookmarks, MCP introspection probes,
+    and the bijective-parity test suite keep working — it is read-only at this
+    point and will not get new features. New work should go into fleet-config-ui/.
+  -->
+  <div role="alert" id="legacy-deprecation-banner" style="position:sticky;top:0;z-index:9999;background:linear-gradient(90deg,#cc3d2e,#8b3a2e);color:#fff;padding:10px 16px;font:600 12px/1.4 ui-monospace,'SF Mono',Menlo,Consolas,monospace;display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid rgba(0,0,0,0.2);box-shadow:0 2px 6px rgba(0,0,0,0.18);">
+    <span style="min-width:0;">
+      <strong>Legacy dashboard.</strong>
+      The active control surface is
+      <a href="/fleet-ui/" style="color:#fff;text-decoration:underline;font-weight:700;">/fleet-ui/</a>
+      &middot; metrics at
+      <a href="/metrics.html" style="color:#fff;text-decoration:underline;font-weight:700;">/metrics.html</a>.
+    </span>
+    <a href="/fleet-ui/" style="background:rgba(255,255,255,0.18);color:#fff;text-decoration:none;padding:6px 12px;border-radius:6px;border:1px solid rgba(255,255,255,0.35);white-space:nowrap;font-weight:700;">
+      Open Fleet UI &rarr;
+    </a>
+  </div>
+
   <!-- SVG Icon Sprite System -->
   <svg xmlns="http://www.w3.org/2000/svg" style="display:none;">
     <symbol id="icon-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
