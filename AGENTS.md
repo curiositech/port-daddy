@@ -2,6 +2,15 @@
 
 Project-specific shibboleths for proficient Port Daddy work. If you learn a new one that materially changes how to operate this repo, add it here immediately.
 
+## Skill maintenance is part of every slice
+
+The two Port Daddy skills are the operating instructions for *all* future agents working in port-daddy-protected projects. Treat them as load-bearing code:
+
+- **`skills/port-daddy-agent-skill/SKILL.md`** — the public skill. Edit when the lesson would help any agent on any project (new verb, deprecated flag, anti-pattern, decision-table gap, inefficient worked example, stale or wrong content).
+- **`skills/port-daddy-internal-dev/SKILL.md`** — the contributor-only skill. Edit when the lesson is specific to editing *this* repo (release ceremony, internal actor embodiments, drift protocol, worked contributor examples).
+
+You are explicitly invited to fix errors, sharpen inefficient passages, and add anti-patterns the moment you notice them — no issue, ticket, or permission required. Same-slice edits (landing the doc fix alongside the code change that revealed the problem) are the default; retrospective edits days later are still owed and welcome. Both skills carry their own "Maintain These Skills" sections with the small ceremony (worktree, explicit-path staging, tests, Cartographer ping). Internal agents working on port-daddy itself own *both* surfaces continuously — split-decision rule lives in `port-daddy-internal-dev`.
+
 ## Port Daddy First
 
 - On this computer, use Port Daddy for repo work by default, not only when a task already looks multi-agent.
