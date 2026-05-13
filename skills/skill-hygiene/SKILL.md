@@ -39,34 +39,44 @@ disk — and for catching the drift before it ships.
 - You're about to publish or mirror a skill and want a clean reachability check first.
 - A new INDEX.md was written by hand and may have drifted from the directory.
 
-## The Three Drift Modes
+## The Drift Modes
 
-A skill bundle drifts in three ways. The auditor catches all three.
+A skill bundle drifts in four ways. The auditor catches all four. A fifth
+issue type — broken links — surfaces typos and renames before they ship.
 
 ### 1. Orphaned files
 
-A file exists in a subdirectory but no SKILL.md or INDEX.md mentions it. Agents
-loading the skill at runtime will never find it. It might as well not be there.
-
-Common causes:
-- New leaf doc was added but the directory's INDEX.md wasn't updated.
-- File was renamed; the old name still appears in INDEX.md (this is "ghost
-  entries" below) but the new name doesn't.
-- A whole new subdirectory was added but SKILL.md doesn't reference it at all.
+A doc file exists in a subdirectory but no SKILL.md or INDEX.md mentions it.
+Agents loading the skill at runtime will never find it. Asset files (`.svg`,
+`.png`, fonts, etc.) are not audited as orphans — they're consumed by docs
+that reference them, not loaded directly.
 
 ### 2. INDEX drift
 
 An `INDEX.md` lists entries that don't match the directory:
-- **missing_from_index**: files on disk the index doesn't mention (the
+- **missing_from_index**: doc files on disk the index doesn't mention (the
   orphan's mirror — same problem, viewed from the index side).
-- **ghost_entries**: files in the index's table that aren't on disk.
-  Filename was changed or deleted; the index wasn't updated.
+- **ghost_entries**: files in the index's table-row first column that aren't
+  on disk anywhere in the bundle. Filename was changed or deleted; the
+  index wasn't updated.
 
-### 3. Missing INDEX
+### 3. Broken links
 
-A subdirectory has multiple bundled files but no `INDEX.md`. SKILL.md has no
-hub to point at, so agents either pre-load the whole directory (wasteful) or
-skip it entirely (orphans every file inside).
+A markdown link `[text](path)` or reference-style link from SKILL.md or any
+INDEX.md points at a file that doesn't exist at the resolved path. The
+auditor reports the source, target, and fuzzy-matched suggestions ("did you
+mean: `respawn.md`?") for likely typos.
+
+### 4. Missing INDEX
+
+A subdirectory has multiple bundled doc files but no `INDEX.md`. Two
+severities:
+
+- **Failure**: at least one file in the directory is not named in SKILL.md.
+  Without an INDEX hub, those files are unreachable.
+- **Warning**: every file is named directly in SKILL.md. The skill works,
+  but adding an INDEX would let SKILL.md route by trigger instead of listing
+  files individually.
 
 ## The Audit Procedure
 
@@ -77,17 +87,25 @@ python3 skills/skill-hygiene/scripts/audit_skill_bundle.py <path-to-skill-bundle
 The script:
 
 1. Walks the bundle, treating each top-level subdirectory as an audit unit.
-2. Concatenates SKILL.md plus every INDEX.md into a "reachable text" blob.
-3. Flags any non-INDEX file whose basename appears nowhere in that blob → **orphan**.
-4. For each existing INDEX.md, checks that every same-directory file appears
-   in the index → flags missing entries.
-5. For each existing INDEX.md, scans pipe-table first-column backtick-quoted
-   filenames; if such a filename isn't on disk anywhere in the bundle, flags
-   it as a **ghost entry**.
-6. For each subdirectory with >1 file but no INDEX.md → flags **missing INDEX**.
+2. Parses markdown links (inline `[text](path)`, reference-style, backtick
+   code spans) from SKILL.md and every INDEX.md.
+3. Resolves each link relative to its containing file. Classifies as
+   `ok` / `broken` / `external` / `anchor` / `outside`.
+4. Builds a "referenced" set from successfully resolved links plus basenames
+   mentioned in prose anywhere reachable.
+5. Any doc file not in that set → **orphan** (assets are exempt).
+6. Any link with status `broken` → **broken_link** with typo suggestions.
+7. For each existing INDEX.md, checks every same-directory doc file appears
+   in the index → flags **missing_from_index**.
+8. For each existing INDEX.md, scans pipe-table first-column entries for
+   filenames not on disk anywhere → flags **ghost_entries**.
+9. For each subdirectory with >1 doc file but no INDEX.md → flags
+   **missing_index** (failure or warning depending on whether SKILL.md
+   already names every file in the directory).
 
-Exit code is `0` if clean, `1` if drift, `2` if the bundle is malformed
-(no SKILL.md). Use `--json` for CI integration, `--quiet` to set exit code only.
+Exit code is `0` if clean, `1` if any failing issue, `2` if the bundle is
+malformed (no SKILL.md). Use `--json` for CI integration, `--quiet` to set
+exit code only.
 
 ## Fixing Drift
 
