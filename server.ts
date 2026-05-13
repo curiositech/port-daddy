@@ -728,8 +728,10 @@ app.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) =>
 app.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) => {
   reply.header('X-Content-Type-Options', 'nosniff');
   // Allow same-origin framing so fleet-ui (/fleet-ui/) can embed /metrics.html.
-  // The daemon is already locked to localhost by the DNS rebinding hook above,
-  // so SAMEORIGIN is the strictest policy compatible with the in-app metrics tab.
+  // The DNS rebinding hook above restricts requests to loopback hosts plus any
+  // host ending in `.local` (mDNS / Bonjour names used by FleetBar and local
+  // tooling). SAMEORIGIN is the strictest framing policy that still allows the
+  // in-app Metrics tab to render; tightening back to DENY breaks that path.
   reply.header('X-Frame-Options', 'SAMEORIGIN');
   reply.header('Referrer-Policy', 'no-referrer');
   reply.header(

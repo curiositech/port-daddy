@@ -1,26 +1,31 @@
 import { useMemo, useState } from 'react';
 import { BarChart3, ExternalLink, RefreshCw } from 'lucide-react';
-import { getDaemonUrl } from '../api';
 
 interface MetricsPanelProps {
   theme: 'light' | 'dark';
   embedded: boolean;
+  // App owns `daemonUrl` as state (set via `setDaemonUrl` in api.ts when the
+  // user picks a different daemon in the Header). Threading it through as a
+  // prop guarantees the iframe re-renders when the daemon switches, instead of
+  // capturing whatever value `getDaemonUrl()` returned at first render.
+  daemonUrl: string;
 }
 
-export function MetricsPanel({ theme, embedded }: MetricsPanelProps) {
+export function MetricsPanel({ theme, embedded, daemonUrl }: MetricsPanelProps) {
   const [reloadKey, setReloadKey] = useState(0);
 
+  const base = daemonUrl.replace(/\/$/, '');
+
   const src = useMemo(() => {
-    const base = getDaemonUrl().replace(/\/$/, '');
     const params = new URLSearchParams({
       embed: embedded ? 'fleetbar' : 'fleet-ui',
       theme,
       v: String(reloadKey),
     });
     return `${base}/metrics.html?${params.toString()}`;
-  }, [theme, embedded, reloadKey]);
+  }, [base, theme, embedded, reloadKey]);
 
-  const popOutHref = useMemo(() => `${getDaemonUrl().replace(/\/$/, '')}/metrics.html`, []);
+  const popOutHref = `${base}/metrics.html`;
 
   return (
     <div className="flex flex-col h-full w-full" style={{ backgroundColor: 'var(--pd-bg)' }}>

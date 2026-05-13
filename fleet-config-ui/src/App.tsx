@@ -1493,7 +1493,12 @@ export default function App() {
         onBack={selectedProjectId ? goHome : undefined}
       />
 
-      {(selectedProjectId || activeTab === 'Shipwright' || activeTab === 'Metrics') && !embedded && (
+      {!embedded && (
+        // Always show the TabBar in non-embedded mode. `visibleSurfaceTabs`
+        // narrows to daemon-level tabs (Flow / Metrics / Shipwright) when no
+        // project is selected, so the bar stays useful as the entry point for
+        // daemon-level surfaces (previously you had no way to reach Metrics
+        // from the default Flow tab without picking a project first).
         <TabBar tabs={visibleSurfaceTabs} active={activeTab} onChange={(tab) => setActiveTab(tab as MainTab)} />
       )}
 
@@ -1525,7 +1530,7 @@ export default function App() {
         {!selectedProjectId ? (
           activeTab === 'Metrics' ? (
             <motion.div key="metrics-all-wrap" className="flex-1 overflow-hidden flex flex-col" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -20 }}>
-              <MetricsPanel key="metrics-all" theme={theme} embedded={embedded} />
+              <MetricsPanel key="metrics-all" theme={theme} embedded={embedded} daemonUrl={daemonUrl} />
             </motion.div>
           ) : (
           <motion.div key="all" className="flex-1 overflow-y-auto" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -20 }}>
@@ -1813,7 +1818,7 @@ export default function App() {
                       />
                     )}
                     {activeTab === 'Metrics' && (
-                      <MetricsPanel theme={theme} embedded={embedded} />
+                      <MetricsPanel theme={theme} embedded={embedded} daemonUrl={daemonUrl} />
                     )}
                     {activeTab === 'Shipwright' && (
                       <ShipwrightPanel
