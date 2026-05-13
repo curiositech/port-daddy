@@ -127,6 +127,8 @@
       border-left: 3px solid transparent;
       font-size: 13px;
       position: relative;
+      /* Anchor variants (e.g. Metrics link) keep the same visual treatment */
+      text-decoration: none;
     }
     .nav-item:hover {
       background: rgba(0,102,204,0.06);
@@ -215,6 +217,8 @@
       cursor: pointer;
       font-family: inherit; font-size: 12px;
       transition: all 0.15s ease;
+      /* Anchor variants (e.g. Metrics link) keep the same visual treatment */
+      text-decoration: none;
     }
     .cmd-btn:hover { background: var(--bg-elevated); color: var(--text); }
     .cmd-btn svg {
@@ -663,13 +667,21 @@
     }
     .integrate-cmd code { flex: 1; font-size: 0.8em; color: var(--accent-soft); word-break: break-all; }
 
-    .cmd-btn {
+    /*
+     * .integrate-cmd-icon — small square icon-only button inside the integrate
+     * card surface (copy / run actions). Previously named `.cmd-btn` which
+     * shadowed the canonical command-button styling above and made the real
+     * command-bar buttons inherit `width: 32px`. The integrate surface itself
+     * is currently unused by any markup; the rules stay here so a future
+     * resurrection has the styling ready, but the name is now distinct.
+     */
+    .integrate-cmd-icon {
       background: none; border: 1px solid var(--border); color: var(--text-dim);
       width: 32px; height: 32px; border-radius: 4px; cursor: pointer;
       display: flex; align-items: center; justify-content: center; transition: all var(--transition-med);
     }
-    .cmd-btn:hover { border-color: var(--accent); color: var(--accent); }
-    .cmd-btn.copied, .cmd-btn.ran { border-color: var(--success); color: var(--success); }
+    .integrate-cmd-icon:hover { border-color: var(--accent); color: var(--accent); }
+    .integrate-cmd-icon.copied, .integrate-cmd-icon.ran { border-color: var(--success); color: var(--success); }
 
     .danger-btn { border-color: var(--danger) !important; color: var(--danger) !important; }
     .danger-btn:hover { background: rgba(248, 113, 113, 0.1) !important; }
@@ -814,6 +826,7 @@
     <symbol id="icon-trash" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
     <symbol id="icon-activity" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></symbol>
     <symbol id="icon-anchor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="3"/><line x1="12" y1="22" x2="12" y2="8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></symbol>
+    <symbol id="icon-bar-chart" viewBox="0 0 24 24"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></symbol>
   </svg>
 
   <!-- Sidebar -->
@@ -877,6 +890,18 @@
         <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-activity"/></svg></span>
         <span class="nav-label">Activity</span>
       </div>
+      <!--
+        Metrics opens the standalone /metrics.html page (Prometheus + per-route
+        histograms + charts dashboard). Rendered as an anchor rather than a
+        data-panel because it's a full-page surface with its own Chart.js
+        runtime — embedding it in the panel switcher would double the JS load
+        on every dashboard tab change. Same nav-item class so the visual
+        treatment matches the rest of the sidebar.
+      -->
+      <a class="nav-item" href="/metrics.html" tabindex="0" role="link" title="Open the Metrics dashboard (Prometheus histograms + outliers + seasonality)">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-bar-chart"/></svg></span>
+        <span class="nav-label">Metrics</span>
+      </a>
       <div class="nav-item" data-panel="roadmap" tabindex="0" role="tab">
         <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-list"/></svg></span>
         <span class="nav-label">Roadmap</span>
@@ -932,6 +957,10 @@
         <svg viewBox="0 0 24 24"><use href="#icon-terminal"/></svg>
         Terminal
       </button>
+      <a class="cmd-btn" href="/metrics.html" title="Open the Metrics dashboard">
+        <svg viewBox="0 0 24 24"><use href="#icon-bar-chart"/></svg>
+        Metrics
+      </a>
       <button class="cmd-btn" onclick="refreshAll()" title="Refresh">
         <svg viewBox="0 0 24 24"><use href="#icon-refresh"/></svg>
         Refresh
@@ -1164,8 +1193,15 @@
     function switchPanel(name) {
       currentPanel = name;
       document.querySelectorAll('.nav-item').forEach(function(n) {
-        n.classList.toggle('active', n.getAttribute('data-panel') === name);
-        n.setAttribute('aria-selected', n.getAttribute('data-panel') === name ? 'true' : 'false');
+        var panel = n.getAttribute('data-panel');
+        // External-link variants of .nav-item (e.g. Metrics → /metrics.html)
+        // have no data-panel and use role="link"; aria-selected is only
+        // valid on tab/option/row/etc., not on link, so skip the aria toggle
+        // for those. They also never get the "active" class — the user has
+        // navigated away from the dashboard entirely when they click.
+        if (!panel) return;
+        n.classList.toggle('active', panel === name);
+        n.setAttribute('aria-selected', panel === name ? 'true' : 'false');
       });
       document.querySelectorAll('.panel').forEach(function(p) {
         p.classList.toggle('active', p.id === 'panel-' + name);
