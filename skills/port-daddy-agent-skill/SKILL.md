@@ -266,20 +266,40 @@ ambiguous handoffs, and local green checks that do not match the installed app.
 
 FleetBar is the native Mac entry point. Fleet Control Center is the full
 console. Use them when the task touches agents, readiness, launches, Shipwright,
-resources, sorties, or operator-visible coordination.
+resources, sorties, or operator-visible coordination. Deeper guidance lives in
+`references/fleetbar-and-console.md` (loaded via the bundled assets map below).
 
-Load deeper guidance only when needed:
+## Bundled Assets — Load On Demand
 
-- `references/fleetbar-and-console.md` for product surfaces and screenshot
-  pointers.
-- `references/coordination-theory.md` for notes, channels, inboxes, tuples,
-  claims, locks, and actor bodies.
-- `references/recovery-and-salvage.md` for interrupted work.
-- `references/distribution-and-installation.md` for packaging and mirrors.
-- `references/cli-reference.md` for command families, aliases, generated docs
-  expectations, and claim-aware staging.
-- `examples/build-now.md` for things a user can build immediately with the
-  shipped examples.
+Everything else in this skill is progressive disclosure: each subdirectory has
+an `INDEX.md` listing what is inside and when to read it. Load the index for
+the situation in front of you, then load the leaf file the index points at.
+Do not pre-load the whole bundle.
+
+| Trigger | Open this index first |
+|---|---|
+| You hit a symptom and need to branch from "what's happening" to "what to do" | `decisions/INDEX.md` |
+| You want a worked walkthrough that mirrors your situation | `examples/INDEX.md` |
+| You are about to fork or rejoin a sub-agent (parent→child, not peer) | `subagent-fork/INDEX.md` |
+| You are spawning a fleet persona or editing `pd-fleet.yml` | `agents/INDEX.md` |
+| You need to start an agent with verified-fresh local truth (JSON-routable prologue) | `scripts/prologue/INDEX.md` |
+| You need a visual model of the loop, lifecycle, handoff, or fanout | `diagrams/INDEX.md` |
+| You need a deeper procedural reference (theory, recovery, CLI/API/SDK, multi-agent recipes, .portdaddyrc, session lifecycle) | `references/INDEX.md` |
+| You need a machine-readable contract (semantic identity, fleet schema, tuple/note/pheromone/salvage shape, MCP catalog) | `schemas/INDEX.md` |
+| You are about to copy a starter (`.portdaddyrc`, `pd-fleet.yml`, coordination note, handoff, session note) | `templates/` |
+
+If a subdirectory has assets but no `INDEX.md`, or an `INDEX.md` is out of
+sync with what's on disk, that is a drift bug — surface it with the
+skill-hygiene validator (see Self-Check).
+
+Loose top-level scripts beside the prologue:
+
+- `scripts/preflight.sh` — pre-edit gate: daemon up, no mid-rebase, claims sane.
+- `scripts/agent-handshake.sh` — emit a handoff envelope on session close.
+- `scripts/emit_agent_handoff.py` — typed handoff emitter; pairs with `templates/handoff.md`.
+- `scripts/fleet-validate.sh` — validate a `pd-fleet.yml` against `schemas/pd-fleet.schema.json`.
+- `scripts/salvage-triage.sh` — surface dead-agent intent worth claiming.
+- `scripts/session-resume.sh` — resume a salvaged session with original purpose.
 
 ## Output Contracts
 
@@ -333,8 +353,12 @@ through the MCP protocol.
 
 ```bash
 python3 skills/port-daddy-agent-skill/scripts/validate_port_daddy_agent_skill.py skills/port-daddy-agent-skill
+python3 skills/skill-hygiene/scripts/audit_skill_bundle.py skills/port-daddy-agent-skill
 bash skills/port-daddy-agent-skill/scripts/diagnose_port_daddy_agent_context.sh
 ```
 
-The first command checks the bundle. The second samples the local Port Daddy
-context so the agent can reason from live state instead of memory.
+The first command checks this bundle's required shape. The second is the
+generic skill-hygiene audit — it flags orphaned files (assets no INDEX or
+SKILL.md mentions), drifted indexes (entries vs. disk), and missing INDEXes.
+The third samples the local Port Daddy context so the agent can reason from
+live state instead of memory.
