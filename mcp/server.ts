@@ -179,7 +179,7 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     tools: ['register_agent', 'agent_heartbeat', 'unregister_agent', 'get_agent', 'list_agents', 'check_salvage', 'claim_salvage', 'salvage_complete', 'salvage_abandon', 'salvage_dismiss'],
   },
   'actors': {
-    description: 'Durable maritime actor directory and live lease projections',
+    description: 'Durable actor directory and live lease projections',
     tools: ['list_actors', 'get_actor', 'message_actor', 'list_actor_inbox', 'get_actor_inbox_stats'],
   },
   'inbox': {
@@ -1018,7 +1018,7 @@ const TOOLS = [
   {
     name: 'list_actors',
     description:
-      '[Standard] List canonical maritime actor souls with live bodies, recent sessions, salvage, and inbox targets.',
+      '[Standard] List canonical actor souls with live bodies, recent sessions, salvage, and inbox targets.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -1036,7 +1036,7 @@ const TOOLS = [
   {
     name: 'get_actor',
     description:
-      '[Standard] Get one canonical maritime actor by id or alias, including live body and recent work signals.',
+      '[Standard] Get one canonical actor by id or alias, including live body and recent work signals.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -1059,7 +1059,7 @@ const TOOLS = [
   {
     name: 'message_actor',
     description:
-      '[Standard] Queue a message to a durable maritime actor mailbox. Does not grant dormant actors live mutation authority.',
+      '[Standard] Queue a message to a durable actor mailbox. Does not grant dormant actors live mutation authority.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -1094,7 +1094,7 @@ const TOOLS = [
   {
     name: 'list_actor_inbox',
     description:
-      '[Standard] Read recent messages queued to a durable maritime actor mailbox.',
+      '[Standard] Read recent messages queued to a durable actor mailbox.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -1121,7 +1121,7 @@ const TOOLS = [
   {
     name: 'get_actor_inbox_stats',
     description:
-      '[Standard] Read mailbox depth for a durable maritime actor.',
+      '[Standard] Read mailbox depth for a durable actor.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -2231,7 +2231,7 @@ const TOOLS = [
         task: { type: 'string', description: 'What the agent should do' },
         identity: { type: 'string', description: 'Semantic identity (e.g. "myapp:fleet:custom-agent")' },
         budget_usd: { type: 'number', description: 'Required spend ceiling for this launch in USD' },
-        backend: { type: 'string', description: 'LLM backend: ollama (default), claude, claude-cli, gemini, cloudflare, codex, aider, or custom' },
+        backend: { type: 'string', description: 'LLM backend: cloudflare, claude, claude-cli, gemini, codex, aider, custom, or another setup-ready backend' },
         model: { type: 'string', description: 'Optional explicit model override' },
         model_tier: { type: 'string', description: 'Optional model tier shortcut: low, mid, or high' },
         purpose: { type: 'string', description: 'Optional short human-readable label for the run' },
@@ -2255,7 +2255,7 @@ const TOOLS = [
         goal: { type: 'string', description: 'Required mission goal or brief.' },
         project_dir: { type: 'string', description: 'Optional project directory override. Defaults to the current working directory on the daemon side.' },
         budget_usd: { type: 'number', description: 'Required spend ceiling for the sortie in USD.' },
-        backend: { type: 'string', description: 'Required backend: ollama, claude, claude-cli, gemini, cloudflare, codex, aider, or custom.' },
+        backend: { type: 'string', description: 'Required setup-ready backend: cloudflare, claude, claude-cli, gemini, codex, aider, custom, or another configured backend.' },
         model: { type: 'string', description: 'Optional explicit model override.' },
         model_tier: { type: 'string', description: 'Optional tier hint: low, mid, or high.' },
         recipe: { type: 'string', description: 'Optional mission recipe such as investigate, fix, review, creative, or custom.' },

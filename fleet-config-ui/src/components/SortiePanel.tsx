@@ -170,13 +170,17 @@ function getRecipe(recipeId: RecipeId): RecipeSpec {
   return RECIPES.find((recipe) => recipe.id === recipeId) ?? RECIPES[0];
 }
 
+function isBackendReady(backend: BackendInfo): boolean {
+  return backend.launchable ?? backend.readinessStatus === 'ready';
+}
+
 function createInitialDraft(project?: string | null): MissionDraft {
   const recipe = getRecipe('investigate');
   return {
     goal: '',
     recipe: recipe.id,
     expectedOutput: recipe.defaultOutput,
-    backend: 'claude-cli',
+    backend: '',
     model: '',
     identity: buildSuggestedIdentity(project, recipe, ''),
     budgetUsd: recipe.defaultBudgetUsd,
@@ -361,7 +365,14 @@ export default function SortiePanel({ project }: SortiePanelProps) {
       try {
         const [models, launched] = await Promise.all([fetchModels(), fetchSorties()]);
         if (cancelled) return;
-        setBackends(models);
+        const launchable = models.filter(isBackendReady);
+        setBackends(launchable);
+        setDraft((current) => {
+          if (!current.backend || !launchable.some((backend) => backend.id === current.backend)) {
+            return { ...current, backend: launchable[0]?.id ?? '', model: '' };
+          }
+          return current;
+        });
         setSorties(launched);
         setMissionSnapshots((previous) => {
           const next = { ...previous };
@@ -438,7 +449,7 @@ export default function SortiePanel({ project }: SortiePanelProps) {
     if (!exists) setSelectedMissionId('draft');
   }, [missionSnapshots, project, selectedMissionId, visibleSorties]);
 
-  const launchBlocked = !!preflight && !preflight.launchReady;
+  const launchBlocked = !draft.backend || (!!preflight && !preflight.launchReady);
 
   async function refreshSorties(): Promise<void> {
     const updated = await fetchSorties();
@@ -462,6 +473,10 @@ export default function SortiePanel({ project }: SortiePanelProps) {
     }
     if (!draft.expectedOutput.trim()) {
       window.alert('Expected output is required so the sortie has a clear finish line.');
+      return;
+    }
+    if (!draft.backend.trim()) {
+      window.alert('A ready backend is required before launching a sortie.');
       return;
     }
     if (!Number.isFinite(parsedBudgetUsd) || parsedBudgetUsd <= 0) {
@@ -719,6 +734,9 @@ export default function SortiePanel({ project }: SortiePanelProps) {
                             value={draft.backend}
                             onChange={(event) => setDraft((current) => ({ ...current, backend: event.target.value, model: '' }))}
                           >
+                            {backends.length === 0 && (
+                              <option value="" disabled>No ready backend</option>
+                            )}
                             {backends.map((backend) => (
                               <option key={backend.id} value={backend.id}>{backend.name}</option>
                             ))}

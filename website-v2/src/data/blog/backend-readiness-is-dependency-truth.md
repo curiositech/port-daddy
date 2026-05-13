@@ -166,17 +166,17 @@ That should produce a precise state, not a second-class label. For example:
 
 ```json
 {
-  "backend": "ollama",
+  "backend": "cloudflare",
   "state": "ready",
   "modelTiers": {
-    "low": "qwen2.5-coder:7b",
-    "mid": "llama3.1:8b",
-    "high": "qwen2.5-coder:14b"
+    "low": "@cf/zai-org/glm-4.7-flash",
+    "mid": "@cf/qwen/qwen3-30b-a3b-fp8",
+    "high": "@cf/moonshotai/kimi-k2.6"
   },
-  "telemetry": "local-no-cost",
+  "telemetry": "exact-rate",
   "checks": [
-    { "id": "service", "state": "pass", "detail": "Ollama reachable" },
-    { "id": "model", "state": "pass", "detail": "qwen2.5-coder:7b installed" }
+    { "id": "credentials", "state": "pass", "detail": "Cloudflare Workers AI credentials present" },
+    { "id": "model", "state": "pass", "detail": "@cf/qwen/qwen3-30b-a3b-fp8 has exact rates" }
   ]
 }
 ```

@@ -171,4 +171,41 @@ describe('fleet-config-ui api', () => {
       expect.objectContaining({ method: 'GET' }),
     );
   });
+
+  test('setFleetConfigRuntime posts the ready-runtime bulk update', async () => {
+    global.fetch = jest.fn(async () => ({
+      ok: true,
+      headers: {
+        get: () => 'application/json',
+      },
+      json: async () => ({
+        success: true,
+        backend: 'cloudflare',
+        model: '@cf/qwen/qwen3-30b-a3b-fp8',
+        modelTier: null,
+        updatedAgents: ['qa', 'spider'],
+        skippedAgents: [],
+      }),
+    })) as typeof fetch;
+
+    const { setFleetConfigRuntime } = await import('../../fleet-config-ui/src/api.ts');
+    const result = await setFleetConfigRuntime('/Users/test/port-daddy', {
+      backend: 'cloudflare',
+      model: '@cf/qwen/qwen3-30b-a3b-fp8',
+      clearFallbacks: true,
+    });
+
+    expect(result.updatedAgents).toEqual(['qa', 'spider']);
+    expect(global.fetch).toHaveBeenCalledWith(
+      'http://127.0.0.1:9876/fleet/config/%2FUsers%2Ftest%2Fport-daddy/runtime',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          backend: 'cloudflare',
+          model: '@cf/qwen/qwen3-30b-a3b-fp8',
+          clearFallbacks: true,
+        }),
+      }),
+    );
+  });
 });

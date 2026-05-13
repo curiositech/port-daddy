@@ -153,21 +153,24 @@ export async function assessSpawnPreflight(
   if (!projectName) {
     blockedReasons.push('Semantic identity is required so spend can be attributed to a project budget.');
   }
+  const readyAttempts = dedupedAttempts.filter((attempt) => attempt.backend && attempt.readinessStatus === 'ready');
+
   if (dedupedAttempts.length === 0 || dedupedAttempts.every((attempt) => !attempt.backend)) {
     blockedReasons.push('No backend resolved for this launch.');
-  } else if (dedupedAttempts.every((attempt) => attempt.readinessStatus === 'needs_setup')) {
-    // Surface each blocked attempt with its actual reason. The fail-closed
-    // telemetry policy (lib/backend-telemetry-policy.ts, AGENTS.md) is the
-    // most common cause and looks identical to "missing setup" without this.
+  } else if (readyAttempts.length === 0) {
+    // Surface each blocked attempt with its actual reason. Manual-check
+    // backends are intentionally not enough to power agents; the control plane
+    // should only launch runtimes the daemon can prove are setup and ready.
     const detail = dedupedAttempts
       .map((a) => {
-        const summary = (a.readinessSummary || 'needs_setup').trim();
+        const status = a.readinessStatus || 'unknown';
+        const summary = (a.readinessSummary || status).trim();
         const nextStep = a.readinessNextStep ? ` Next: ${a.readinessNextStep.trim()}` : '';
-        return `  • ${a.backend}${a.model ? `:${a.model}` : ''} — ${summary}${nextStep}`;
+        return `  • ${a.backend}${a.model ? `:${a.model}` : ''} — ${status}: ${summary}${nextStep}`;
       })
       .join('\n');
     blockedReasons.push(
-      `No launchable backend (every configured attempt is blocked at readiness):\n${detail}`,
+      `No launchable backend (no configured attempt is setup-ready):\n${detail}`,
     );
   }
 

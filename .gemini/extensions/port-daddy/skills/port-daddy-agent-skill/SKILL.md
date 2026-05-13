@@ -58,6 +58,93 @@ pd note "Result: <change>. Validation: <evidence>. Remaining: <risk>."
 pd done "<short outcome>"
 ```
 
+## Session Continuity
+
+A resumed coding session is not automatically a new Port Daddy session. Treat
+multi-day work as a continuity problem first, then decide whether to resume,
+link, or restart.
+
+Re-anchor when a conversation resumes after a calendar day, after context
+compaction, after daemon/session drift, or when the worktree is behind the
+canonical remote:
+
+```bash
+pd status
+pd briefing
+pd sessions --all-worktrees
+pd notes --limit 20
+pd salvage --project <project> --limit 20
+git status --short --branch
+git fetch origin
+```
+
+Resume the existing session when the user goal, worktree or successor
+worktree, branch lineage, and touched surface are still the same unresolved
+slice. If the previous session is stale, abandoned, or cannot be made active,
+start a new session in the same identity family and link the predecessor in
+the first note.
+
+Start a new linked session when the product goal changed, the previous slice
+was completed or merged, the branch no longer descends cleanly from the old
+work, or the next edit would touch unrelated surfaces. Continuity comes from
+explicit provenance, not from overloading one old purpose forever.
+
+The first continuity note must carry enough truth for another agent to take
+over without transcript archaeology:
+
+- predecessor session id and new session id, if different
+- identity, worktree, branch, and base drift from the canonical branch
+- dirty or claimed files, plus any ownership conflicts
+- last validation that is still trusted and validation that is stale
+- runtime truth, especially socket/TCP/port-file or install-root drift
+- next intended edit, blocker, or handoff
+
+After drift, prefer explicit session ids for notes and file claims. If
+`pd whoami`, active context, TCP port-file routing, and direct session storage
+disagree, call it a coordination bug. Leave the best durable evidence you can,
+fix the bounded bug if this slice can safely absorb it, or continue with a
+clear note about the degraded coordination path.
+
+## Telos vs Purpose
+
+Every Port Daddy agent carries a **telos** alongside its **purpose**.
+They look similar in `pd whoami` output, but they are not the same field
+and should not drift together.
+
+| Field | Meaning | Lifetime |
+|---|---|---|
+| `purpose` | The current task this session is doing. | Per-session. Resets when you `pd done` and `pd begin` again. |
+| `telos`   | Why this agent exists in the fleet — the durable role headline. | Long-lived. Survives across sessions, salvages, and respawns. |
+
+`pd begin "<purpose>"` sets the purpose. By default the telos defaults to
+the same string for compatibility, but creator-provided telos is preferred:
+fleet YAML, spawn calls, and registration paths can declare a richer telos
+object explicitly, and `pd whoami` will show that string instead.
+
+When to update each:
+
+- **Per task** — change `purpose` via a fresh `pd begin` (or `pd done` then
+  `pd begin`). Don't reuse a session whose purpose has materially shifted.
+- **When the agent's role changes** — update `telos` through registration
+  or heartbeat. Don't let operator surfaces (FleetBar, Fleet Control Center,
+  briefings) show a stale role headline. A runtime-derived fallback telos
+  is allowed only as compatibility — bake a real telos in as soon as you
+  know the role.
+
+Practical rules:
+
+- If you spawn fleet agents in `pd-fleet.yml`, declare `telos:` on each
+  agent explicitly. Keep starter templates, schema docs, CLI help, API
+  docs, and this skill aligned when the telos shape changes.
+- If you can choose only one to make accurate, make telos accurate.
+  Operator surfaces use it for the human-readable "what does this agent
+  do" answer.
+- When handing off, mention both telos and purpose in your `pd note` if
+  they differ — the next agent inherits identity but may need to set a
+  new purpose for its own slice.
+
+## Reconciling Before Publishing
+
 Fetch and reconcile before publishing:
 
 ```bash
@@ -76,6 +163,7 @@ pd guard check --staged
 | The live daemon looks stale | Verify daemon provenance before trusting docs, source, or memory. |
 | Another session may overlap | Read notes, claims, activity, and ownership before changing the surface. |
 | Work was interrupted | Use salvage and preserve the abandoned intent. |
+| The same coding vibe resumes days later | Re-anchor, then resume the old session or start a linked successor with explicit predecessor provenance. |
 | You are about to commit, push, or deploy | Fetch, reconcile, re-read live coordination state, stage narrowly, and run the guard. |
 
 ## Advanced Surfaces
@@ -199,7 +287,7 @@ ambiguous handoffs, and local green checks that do not match the installed app.
 | A fact should be machine-queryable | Emit a tuple or schema-shaped handoff, not prose only. |
 | A scarce resource is involved | Use a lock for promotion, migrations, generated assets, or release packaging. |
 | A release surface changed | Update docs, README, website, skill, and package/export metadata in the same coherent slice. |
-| You are about to commit, push, or deploy | Fetch the canonical remote branch, rebase/merge current work onto it, re-read live sessions/notes/activity, and run `pd guard check --staged`. Do not publish stale-base work. |
+| You are about to commit, push, or deploy | Fetch the canonical remote branch, rebase/merge current work onto it, re-read live sessions/notes/activity, stage through `pd add --dry-run -A` then `pd add -A`, and run `pd guard check --staged`. Do not publish stale-base work. |
 
 ## Procedural Cues
 

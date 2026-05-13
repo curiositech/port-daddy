@@ -1067,7 +1067,9 @@ describe('IPC fast paths', () => {
         sessionId: 'sess-123',
         paths: ['src/auth.ts'],
         force: true,
+        agentId: 'registered-agent',
       }),
+      { agentId: 'registered-agent' },
     );
     expect(receivedRequests).toHaveLength(0);
     expect(result.success).toBe(true);
@@ -1090,7 +1092,9 @@ describe('IPC fast paths', () => {
         paths: ['src/auth.ts'],
         regions,
         force: true,
+        agentId: 'registered-agent',
       }),
+      { agentId: 'registered-agent' },
     );
   });
 
@@ -1110,7 +1114,9 @@ describe('IPC fast paths', () => {
         sessionId: 'sess-123',
         paths: ['src/auth.ts'],
         regions,
+        agentId: 'registered-agent',
       }),
+      { agentId: 'registered-agent' },
     );
   });
 

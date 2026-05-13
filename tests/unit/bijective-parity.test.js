@@ -335,7 +335,7 @@ describe('Test Group 3: API -> CLI Parity', () => {
   };
 
   // API-only routes that have no CLI equivalent (accessed via curl or SDK).
-  const API_ONLY_ROUTES = new Set(['arbiter', 'pheromone', 'mergequeue', 'symbols', 'observability', 'operator', 'semantic', 'resources', 'usage', 'testhooks', 'blob']);
+  const API_ONLY_ROUTES = new Set(['arbiter', 'pheromone', 'mergequeue', 'symbols', 'observability', 'metricsprom', 'operator', 'semantic', 'resources', 'usage', 'testhooks', 'blob']);
 
   test('all route modules have at least one corresponding CLI command', () => {
     const missingCoverage = [];
