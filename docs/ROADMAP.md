@@ -74,6 +74,19 @@ appropriate phase section below and delete it here.
 - **`capability-discovery-dns-harbor`** — Turn existing DNS + harbor
   capability data into real agent discovery; remove hard-coded peer
   naming from delegation paths.
+- **`metrics-histogram-persistence`** — `MetricsRegistry` (PR #44) is
+  in-memory only; daemon restart drops every per-route bucket. Persist
+  per-minute bucket counts to a new `metric_histograms` SQLite table and
+  add `GET /metrics/http/timeseries` so percentiles survive restarts and
+  the dashboard can drop its client-side rolling buffer. Prerequisite for
+  `slo-alerts-and-outlier-detection`.
+- **`slo-alerts-and-outlier-detection`** — PR #44 ships percentiles but no
+  alerting. Phase 1: per-route SLO config in `config.json`,
+  `lib/slo-evaluator.ts` that emits to `coordination:inconsistency` SSE +
+  session notes + navigator inbox, dashboard `slo_violation` pins. Phase 2:
+  z-score outlier detection against same-hour-last-week (depends on
+  histogram persistence) with sustained-breach gating and an escalation
+  ladder.
 
 Secondary backlog families (status `backlog`, see IDEAS-TROVE.md §
 Secondary Backlog Families for full lists):

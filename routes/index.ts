@@ -41,6 +41,7 @@ import { tuplesPlugin } from './tuples.js';
 import { blobPlugin } from './blob.js';
 import { fleetPlugin } from './fleet.js';
 import { observabilityPlugin } from './observability.js';
+import { metricsPromPlugin } from './metrics-prom.js';
 import { mergeQueuePlugin } from './merge-queue.js';
 import { symbolsPlugin } from './symbols.js';
 import { operatorPlugin } from './operator.js';
@@ -139,6 +140,11 @@ export async function registerAllRoutes(
   // Observability (counters + cost tracking)
   if ((deps as any).counters && (deps as any).costTracker) {
     await fastify.register(observabilityPlugin, { deps } as any);
+  }
+
+  // Prometheus metrics + JSON snapshots (powers /metrics dashboard page)
+  if ((deps as any).metricsRegistry && (deps as any).db) {
+    await fastify.register(metricsPromPlugin, { deps } as any);
   }
 
   // Phase 1 — Semantic Graph routes (merge queue, symbol index)

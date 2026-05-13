@@ -15,7 +15,10 @@
   "logging": {
     "level": "info",
     "file": "port-daddy.log",
-    "error_file": "port-daddy-error.log"
+    "error_file": "port-daddy-error.log",
+    "maxsize": 52428800,
+    "maxFiles": 5,
+    "requestSamplingRate": 0
   },
   "security": {
     "rate_limit": {

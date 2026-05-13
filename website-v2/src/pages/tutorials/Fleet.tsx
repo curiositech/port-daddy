@@ -145,8 +145,8 @@ export function Fleet() {
   agents:
     qa:
       trigger: git:committed             # Fires when someone commits
-      backend: ollama
-      model: qwen2.5-coder:7b
+      backend: cloudflare
+      model: '@cf/qwen/qwen3-30b-a3b-fp8'
       prompt: |
         Review the most recent commit. Read every changed file.
         If you find bugs, write a test that exposes each one.
@@ -157,8 +157,8 @@ export function Fleet() {
 
     docs:
       trigger: git:committed             # Same trigger, different job
-      backend: codex
-      model: gpt-5.4-mini
+      backend: cloudflare
+      model: '@cf/qwen/qwen3-30b-a3b-fp8'
       prompt: |
         Check if docs match the code. Update anything stale.
       identity: "{project}:fleet:docs"
@@ -304,8 +304,8 @@ exit 0`}</CodeBlock>
               </motion.p>
               <CodeBlock copyable={false} language="yaml">{`qa:
   trigger: git:committed
-  backend: ollama
-  model: qwen2.5-coder:7b`}</CodeBlock>
+  backend: cloudflare
+  model: '@cf/qwen/qwen3-30b-a3b-fp8'`}</CodeBlock>
             </Surface>
             <Surface depth="raised" radius="none" className="p-8 space-y-4">
               <Surface

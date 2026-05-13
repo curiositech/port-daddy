@@ -785,8 +785,8 @@ bash skills/port-daddy-agent-skill/scripts/diagnose_port_daddy_agent_context.sh`
   agents:
     qa:
       trigger: git:committed
-      backend: ollama
-      model: qwen2.5-coder:7b
+      backend: cloudflare
+      model: '@cf/qwen/qwen3-30b-a3b-fp8'
       respawn: true
       max_respawns: 3
       prompt: |

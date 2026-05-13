@@ -228,7 +228,7 @@ function buildGuardianSummary(deps: InfoRouteDeps) {
     reason: describeBosunHeartbeat(heartbeat, bosunBinary.binaryExists),
     lastCheckAt: heartbeat.lastWrittenAt,
     lastHealthyAt: heartbeat.state === 'healthy' ? heartbeat.lastWrittenAt : null,
-    lastFailureAt: heartbeat.state === 'degraded' ? Date.now() : null,
+    lastFailureAt: heartbeat.state === 'degraded' || heartbeat.state === 'displaced' ? Date.now() : null,
     failureCount: heartbeat.lastError ? 1 : 0,
     heartbeat,
   } : {

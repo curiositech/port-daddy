@@ -1,10 +1,10 @@
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import {
-  getMaritimeActor,
-  listMaritimeActors,
-  resolveMaritimeActorId,
-} from '../lib/maritime-actors.js';
-import type { MaritimeActorRecord } from '../lib/maritime-actors.js';
+  getActor,
+  listActors,
+  resolveActorId,
+} from '../lib/actor-roster.js';
+import type { ActorRecord } from '../lib/actor-roster.js';
 import type { createAgents } from '../lib/agents.js';
 import type { createAgentInbox } from '../lib/agent-inbox.js';
 import type { createResurrection } from '../lib/resurrection.js';
@@ -89,7 +89,7 @@ function collectProjectionInput(deps: ActorsRouteDeps, query: ActorsQuery) {
   return { agents, sessions, salvage };
 }
 
-function attachMailboxStats(actor: MaritimeActorRecord, deps: ActorsRouteDeps): MaritimeActorRecord {
+function attachMailboxStats(actor: ActorRecord, deps: ActorsRouteDeps): ActorRecord {
   if (!deps.agentInbox?.stats) return actor;
   const stats = deps.agentInbox.stats(actor.inboxTarget);
   if (!stats.success) return actor;
@@ -103,8 +103,8 @@ function attachMailboxStats(actor: MaritimeActorRecord, deps: ActorsRouteDeps): 
   };
 }
 
-function actorOr404(id: string, deps: ActorsRouteDeps, project?: string): MaritimeActorRecord | null {
-  const actor = getMaritimeActor(id, collectProjectionInput(deps, { project }));
+function actorOr404(id: string, deps: ActorsRouteDeps, project?: string): ActorRecord | null {
+  const actor = getActor(id, collectProjectionInput(deps, { project }));
   return actor ? attachMailboxStats(actor, deps) : null;
 }
 
@@ -113,7 +113,7 @@ export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = asyn
 
   fastify.get('/actors', async (request: FastifyRequest<{ Querystring: ActorsQuery }>) => {
     const input = collectProjectionInput(deps, request.query ?? {});
-    const actors = listMaritimeActors(input)
+    const actors = listActors(input)
       .map(actor => attachMailboxStats(actor, deps));
 
     return {
@@ -127,11 +127,11 @@ export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = asyn
     request: FastifyRequest<{ Params: ActorParams; Querystring: ActorsQuery }>,
     reply: FastifyReply,
   ) => {
-    const resolvedId = resolveMaritimeActorId(request.params.id);
+    const resolvedId = resolveActorId(request.params.id);
     if (!resolvedId) {
       return reply.code(404).send({
         success: false,
-        error: `Unknown maritime actor: ${request.params.id}`,
+        error: `Unknown actor: ${request.params.id}`,
         code: 'ACTOR_NOT_FOUND',
       });
     }
@@ -153,7 +153,7 @@ export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = asyn
     if (!actor) {
       return reply.code(404).send({
         success: false,
-        error: `Unknown maritime actor: ${request.params.id}`,
+        error: `Unknown actor: ${request.params.id}`,
         code: 'ACTOR_NOT_FOUND',
       });
     }
@@ -217,7 +217,7 @@ export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = asyn
     if (!actor) {
       return reply.code(404).send({
         success: false,
-        error: `Unknown maritime actor: ${request.params.id}`,
+        error: `Unknown actor: ${request.params.id}`,
         code: 'ACTOR_NOT_FOUND',
       });
     }
@@ -253,7 +253,7 @@ export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = asyn
     if (!actor) {
       return reply.code(404).send({
         success: false,
-        error: `Unknown maritime actor: ${request.params.id}`,
+        error: `Unknown actor: ${request.params.id}`,
         code: 'ACTOR_NOT_FOUND',
       });
     }
@@ -284,7 +284,7 @@ export const actorsPlugin: FastifyPluginAsync<{ deps?: ActorsRouteDeps }> = asyn
     if (!actor) {
       return reply.code(404).send({
         success: false,
-        error: `Unknown maritime actor: ${request.params.id}`,
+        error: `Unknown actor: ${request.params.id}`,
         code: 'ACTOR_NOT_FOUND',
       });
     }

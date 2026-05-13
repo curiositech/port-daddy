@@ -1,13 +1,13 @@
 import { describe, expect, test } from '@jest/globals';
 import {
-  getMaritimeActor,
-  listMaritimeActors,
-  resolveMaritimeActorId,
-} from '../../lib/maritime-actors.js';
+  getActor,
+  listActors,
+  resolveActorId,
+} from '../../lib/actor-roster.js';
 
 describe('fleet actors (formerly maritime)', () => {
   test('defines the canonical durable actor roster', () => {
-    const actors = listMaritimeActors();
+    const actors = listActors();
 
     expect(actors.map(actor => actor.id)).toEqual([
       'gardener',
@@ -21,31 +21,38 @@ describe('fleet actors (formerly maritime)', () => {
       'spark',
       'spider',
     ]);
-    // Mailboxes are addressed by fleet name, not maritime metaphor.
     expect(actors.every(actor => actor.inboxTarget === `actor:${actor.id}`)).toBe(true);
   });
 
-  test('resolves deprecated maritime aliases to the fleet-name canonical id', () => {
-    expect(resolveMaritimeActorId('navigator')).toBe('cartographer');
-    expect(resolveMaritimeActorId('lookout')).toBe('documentarian');
-    expect(resolveMaritimeActorId('signalman')).toBe('qa');
-    expect(resolveMaritimeActorId('claim-owner')).toBe('coxswain');
+  test('resolves functional aliases to the canonical id', () => {
+    expect(resolveActorId('claim-owner')).toBe('coxswain');
     // Comms-officer aliases route to coxswain since the comm pipeline is
     // their domain too.
-    expect(resolveMaritimeActorId('comms-officer')).toBe('coxswain');
-    expect(resolveMaritimeActorId('signaler')).toBe('coxswain');
-    expect(resolveMaritimeActorId('budget')).toBe('quartermaster');
-    expect(resolveMaritimeActorId('backend-owner')).toBe('quartermaster');
+    expect(resolveActorId('comms-officer')).toBe('coxswain');
+    expect(resolveActorId('signaler')).toBe('coxswain');
+    expect(resolveActorId('budget')).toBe('quartermaster');
+    expect(resolveActorId('backend-owner')).toBe('quartermaster');
+    expect(resolveActorId('docs')).toBe('documentarian');
+    expect(resolveActorId('roadmap')).toBe('cartographer');
+    expect(resolveActorId('hunter')).toBe('test-hunter');
     // Identity is identity.
-    expect(resolveMaritimeActorId('coxswain')).toBe('coxswain');
-    expect(resolveMaritimeActorId('quartermaster')).toBe('quartermaster');
-    expect(resolveMaritimeActorId('cartographer')).toBe('cartographer');
-    expect(resolveMaritimeActorId('qa')).toBe('qa');
+    expect(resolveActorId('coxswain')).toBe('coxswain');
+    expect(resolveActorId('quartermaster')).toBe('quartermaster');
+    expect(resolveActorId('cartographer')).toBe('cartographer');
+    expect(resolveActorId('qa')).toBe('qa');
+  });
+
+  test('rejects retired maritime IDs', () => {
+    // navigator/lookout/signalman were carried as aliases for the fleet-name
+    // transition. We have no users; aliases are gone.
+    expect(resolveActorId('navigator')).toBeNull();
+    expect(resolveActorId('lookout')).toBeNull();
+    expect(resolveActorId('signalman')).toBeNull();
   });
 
   test('keeps standalone coordination and spend owners without inventing the rest of the future roster', () => {
-    const coxswain = getMaritimeActor('coxswain');
-    const quartermaster = getMaritimeActor('quartermaster');
+    const coxswain = getActor('coxswain');
+    const quartermaster = getActor('quartermaster');
 
     expect(coxswain).toEqual(expect.objectContaining({
       id: 'coxswain',
@@ -84,14 +91,14 @@ describe('fleet actors (formerly maritime)', () => {
       'budget',
       'launch-readiness',
     ]));
-    expect(resolveMaritimeActorId('harbormaster')).toBeNull();
-    expect(resolveMaritimeActorId('sounder')).toBeNull();
-    expect(resolveMaritimeActorId('breaker')).toBeNull();
-    expect(resolveMaritimeActorId('caulker')).toBeNull();
+    expect(resolveActorId('harbormaster')).toBeNull();
+    expect(resolveActorId('sounder')).toBeNull();
+    expect(resolveActorId('breaker')).toBeNull();
+    expect(resolveActorId('caulker')).toBeNull();
   });
 
   test('projects live body, session, and salvage evidence onto cartographer', () => {
-    const cartographer = getMaritimeActor('cartographer', {
+    const cartographer = getActor('cartographer', {
       agents: [{
         id: 'agent-cartographer',
         identity: 'port-daddy:fleet:cartographer',
@@ -127,7 +134,7 @@ describe('fleet actors (formerly maritime)', () => {
   });
 
   test('does not attach topical coordination sessions as live actor bodies', () => {
-    const cartographer = getMaritimeActor('cartographer', {
+    const cartographer = getActor('cartographer', {
       agents: [{
         id: 'agent-fix',
         identity: 'port-daddy:cartographer-body-fix',
@@ -150,11 +157,11 @@ describe('fleet actors (formerly maritime)', () => {
   });
 
   test('classifies actors without live bodies as dormant, detached, or recoverable', () => {
-    expect(getMaritimeActor('spark')?.leaseState).toBe('dormant');
-    expect(getMaritimeActor('spark', {
+    expect(getActor('spark')?.leaseState).toBe('dormant');
+    expect(getActor('spark', {
       sessions: [{ id: 'session-spark', purpose: 'spark idea review', status: 'completed' }],
     })?.leaseState).toBe('detached');
-    expect(getMaritimeActor('spark', {
+    expect(getActor('spark', {
       salvage: [{ id: 'agent-spark-dead', purpose: 'spark crashed mid-idea', status: 'pending' }],
     })?.leaseState).toBe('recoverable');
   });
