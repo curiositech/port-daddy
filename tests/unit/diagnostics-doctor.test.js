@@ -1,7 +1,12 @@
 import { describe, expect, test } from '@jest/globals';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir, platform } from 'node:os';
+import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
 import {
   plistTargetsLegacyDaemon,
   describeResourceDir,
+  readPlistAsXml,
 } from '../../cli/commands/diagnostics.js';
 
 describe('plistTargetsLegacyDaemon', () => {
@@ -50,6 +55,102 @@ describe('plistTargetsLegacyDaemon', () => {
 
   test('handles empty input', () => {
     expect(plistTargetsLegacyDaemon('')).toBe(false);
+  });
+
+  // Regression coverage for the scoping fix flagged by skeptical
+  // review: the prior whole-document regex would false-positive on
+  // comment <string> values that merely mention "server.ts" in
+  // English prose. Healthy binary-daemon plists must pass.
+
+  test('does not false-positive on a comment mentioning server.ts', () => {
+    // port-daddy install has shipped commentary like this before.
+    // The check must not fail a healthy install for it.
+    const plist = `<plist><dict>
+      <key>ProgramArguments</key><array>
+        <string>/usr/local/opt/port-daddy/dist/daemon/port-daddy-daemon</string>
+      </array>
+      <key>Comment</key>
+      <string>Replaces the old server.ts launcher introduced in v3.x.</string>
+    </dict></plist>`;
+    expect(plistTargetsLegacyDaemon(plist)).toBe(false);
+  });
+
+  test('does not false-positive on "server.ts." followed by a period in prose', () => {
+    // Period after server.ts in a sentence — old `(?![A-Za-z0-9])`
+    // negative lookahead permitted this and would match incorrectly.
+    const plist = `<plist><dict>
+      <key>ProgramArguments</key><array>
+        <string>/opt/port-daddy/dist/daemon/port-daddy-daemon</string>
+      </array>
+      <key>Note</key>
+      <string>Migrated from server.ts. Do not edit by hand.</string>
+    </dict></plist>`;
+    expect(plistTargetsLegacyDaemon(plist)).toBe(false);
+  });
+
+  test('still catches a real legacy plist whose <string> value is /opt/.../server.ts', () => {
+    const plist = `<plist><dict>
+      <key>ProgramArguments</key><array>
+        <string>/usr/local/bin/node</string>
+        <string>/opt/port-daddy/server.ts</string>
+      </array>
+    </dict></plist>`;
+    expect(plistTargetsLegacyDaemon(plist)).toBe(true);
+  });
+
+  test('handles <string> tags with attributes', () => {
+    // Hypothetical attribute on the tag — pattern uses [^>]* to
+    // tolerate this without breaking the value capture.
+    const plist = `<string xml:space="preserve">/path/node_modules/.bin/tsx</string>`;
+    expect(plistTargetsLegacyDaemon(plist)).toBe(true);
+  });
+});
+
+describe('readPlistAsXml', () => {
+  // macOS launchd accepts both XML and binary plists. A naive
+  // `readFileSync(path, 'utf8')` on a binary plist produces garbage
+  // that silently false-negatives plistTargetsLegacyDaemon. The
+  // normalization step shells out to `plutil -convert xml1` first.
+
+  test('returns XML contents unchanged when input is already XML', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'pd-plist-xml-'));
+    try {
+      const path = join(dir, 'sample.plist');
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<plist><dict><key>K</key><string>v</string></dict></plist>\n`;
+      writeFileSync(path, xml);
+      expect(readPlistAsXml(path)).toBe(xml);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // Binary plist conversion requires `plutil`, which only ships on
+  // macOS. Skip on other platforms rather than skip the whole file
+  // — the XML path above is still meaningful coverage everywhere.
+  const isDarwin = platform() === 'darwin';
+  const darwinOnly = isDarwin ? test : test.skip;
+
+  darwinOnly('normalizes a binary plist to XML via plutil', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'pd-plist-binary-'));
+    try {
+      const xmlPath = join(dir, 'src.plist');
+      const binPath = join(dir, 'bin.plist');
+      writeFileSync(xmlPath, `<?xml version="1.0" encoding="UTF-8"?>
+<plist><dict>
+  <key>ProgramArguments</key>
+  <array><string>/opt/port-daddy/server.ts</string></array>
+</dict></plist>`);
+      // Round-trip XML → binary via plutil.
+      const convert = spawnSync('plutil', ['-convert', 'binary1', '-o', binPath, xmlPath]);
+      expect(convert.status).toBe(0);
+      const out = readPlistAsXml(binPath);
+      expect(out).toContain('<?xml');
+      expect(out).toContain('/opt/port-daddy/server.ts');
+      // And the legacy detector should now fire correctly:
+      expect(plistTargetsLegacyDaemon(out)).toBe(true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 

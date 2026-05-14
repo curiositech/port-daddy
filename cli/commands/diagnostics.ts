@@ -315,12 +315,36 @@ export async function handleVersion(): Promise<void> {
  * but launchd keeps running the old `tsx server.ts`.
  *
  * Pure on the plist contents string so it's trivially testable.
+ *
+ * Scoped to `<string>` element VALUES (with a tolerant pattern for
+ * attribute-bearing tags). A naive whole-document regex would
+ * false-positive on free-form comment lines like
+ * `<key>Comment</key><string>Replaces the old server.ts launcher</string>`
+ * — `port-daddy install` itself has shipped such commentary in the
+ * past. We only care about plist STRING VALUES, which is where
+ * ProgramArguments live.
  */
 export function plistTargetsLegacyDaemon(plistContents: string): boolean {
-  // `node_modules/.bin/tsx` — the dev/source launcher path
-  // `server.ts` (not followed by an alphanumeric, to avoid matching
-  //              `server.test.ts` or similar) — a source-mode argument
-  return /node_modules\/\.bin\/tsx|server\.ts(?![A-Za-z0-9])/.test(plistContents);
+  // Pull every `<string>...</string>` value. A plist <string> in
+  // ProgramArguments is a single argv element — a filesystem path,
+  // not prose — so we can apply path-shaped checks to the trimmed
+  // value rather than substring-match the whole document.
+  //
+  //   - `node_modules/.bin/tsx` anywhere in the value: this token
+  //     wouldn't appear in plausible English commentary, so any
+  //     match is the legacy tsx loader.
+  //   - The value ends with `/server.ts` (i.e. server.ts is the
+  //     final path component): catches `/opt/port-daddy/server.ts`
+  //     and `node server.ts`-style args, but NOT prose like
+  //     "Migrated from server.ts. Do not edit." because that
+  //     <string>'s trimmed tail is "edit.", not "/server.ts".
+  const matches = plistContents.matchAll(/<string[^>]*>([\s\S]*?)<\/string>/g);
+  for (const m of matches) {
+    const value = m[1].trim();
+    if (/node_modules\/\.bin\/tsx/.test(value)) return true;
+    if (/(?:^|\/)server\.ts$/.test(value)) return true;
+  }
+  return false;
 }
 
 export interface ResourceDirBreakdown {
@@ -369,6 +393,41 @@ export function userLaunchAgentPlistPath(): string | null {
     return join(homedir(), 'Library', 'LaunchAgents', 'com.portdaddy.daemon.plist');
   }
   return null;
+}
+
+/**
+ * Reads a plist as XML text, normalizing binary plist format if
+ * necessary. macOS `launchctl load` accepts both XML and binary
+ * plists; `plutil -convert binary1` and several Homebrew install
+ * scripts emit the binary variant. Reading those bytes as UTF-8
+ * yields garbage that would silently false-negative
+ * `plistTargetsLegacyDaemon` — the check would say "looks fine!"
+ * on a stale binary plist that still targets `tsx server.ts`.
+ *
+ * Strategy: read raw bytes. If they start with the binary plist
+ * magic (`bplist`), shell out to `plutil -convert xml1 -o - <path>`
+ * to normalize, then return the XML stdout. Otherwise return the
+ * UTF-8 string directly. Throws on plutil failure so the caller
+ * can surface a real error rather than silently passing.
+ *
+ * macOS-only: `plutil` is shipped with the OS. Other platforms
+ * shouldn't reach here because `userLaunchAgentPlistPath()` returns
+ * null off darwin.
+ */
+export function readPlistAsXml(plistPath: string): string {
+  const raw = readFileSync(plistPath);
+  const isBinaryPlist = raw.length >= 6 && raw.slice(0, 6).toString('ascii') === 'bplist';
+  if (!isBinaryPlist) {
+    return raw.toString('utf8');
+  }
+  const result = spawnSync('plutil', ['-convert', 'xml1', '-o', '-', plistPath], {
+    encoding: 'utf8',
+  });
+  if (result.status !== 0) {
+    const stderr = result.stderr?.trim() || `exit ${result.status}`;
+    throw new Error(`plutil failed to convert binary plist: ${stderr}`);
+  }
+  return result.stdout;
 }
 
 export async function handleDoctor(): Promise<void> {
@@ -803,7 +862,10 @@ export async function handleDoctor(): Promise<void> {
   try {
     const plistPath = userLaunchAgentPlistPath();
     if (plistPath && existsSync(plistPath)) {
-      const contents = readFileSync(plistPath, 'utf8');
+      // readPlistAsXml handles both XML and binary plist formats —
+      // a stale binary plist still targeting tsx server.ts would
+      // otherwise read as UTF-8 garbage and silently false-negative.
+      const contents = readPlistAsXml(plistPath);
       if (plistTargetsLegacyDaemon(contents)) {
         check(
           'LaunchAgent target',
