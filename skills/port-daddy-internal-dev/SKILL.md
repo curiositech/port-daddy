@@ -85,6 +85,15 @@ When Port Daddy itself ships, the cost of inconsistency lands on every
 project on the user's machine. **Every change to a public surface MUST
 update every mirror in the same coherent slice.**
 
+For the actual release ceremony (tagging, GitHub Release, `release.yml`,
+brew tap roll via `publish.yml`), follow [`docs/RELEASING.md`](../../docs/RELEASING.md).
+For semver policy and the canonical list of *version surfaces* that must
+all bump in lockstep, see [`docs/VERSIONING.md`](../../docs/VERSIONING.md).
+
+The list below is the broader surface area a contributor touches *before*
+the release ceremony fires — the docs, examples, manifests, and CLI help
+that lie about behavior if not updated alongside the code.
+
 Public surfaces, in approximate update order:
 
 1. Source code (`lib/`, `routes/`, `mcp/`, `apps/FleetBar/`).
@@ -92,10 +101,11 @@ Public surfaces, in approximate update order:
 3. The skill bundle (this repo's `skills/port-daddy-agent-skill/SKILL.md`, references, templates, examples).
 4. The website (`apps/website-v2/` — `/docs/cli`, `/docs/api`, `/docs/mcp`, command detail routes, screenshots).
 5. The OpenAPI spec, SDK reference, MCP tool catalog.
-6. The Homebrew formula. The **primary** is the in-repo `Formula/port-daddy.rb` (also serves as a repo marker). The external tap repo `homebrew-port-daddy` is a downstream sync — push the in-repo formula update first, then mirror to the tap repo (see `references/release-surface-drift-protocol.md` for the cross-repo sequence).
-7. The Mac app distribution (`apps/FleetBar/install.sh`, icon refresh, codesign + notarize if needed).
-8. README + CHANGELOG + version stamps in package.json / Cargo.toml.
-9. Any plugin/extension manifests (Codex `.codex/skills/`, Gemini `.gemini/extensions/port-daddy/`, Claude `.claude/skills/`).
+6. README + CHANGELOG + the eight version surfaces in `docs/VERSIONING.md`.
+7. Any plugin/extension manifests (Codex `.codex/skills/`, Gemini `.gemini/extensions/port-daddy/`, Claude `.claude/skills/`).
+8. **Binary smoke-test** (per [`RELEASING.md` §3](../../docs/RELEASING.md#3-local-feature-dev)) for any change in `lib/`, `routes/`, `server.ts`, or `mcp/`. Source-mode `tsx server.ts` lies about what users actually run.
+
+The Homebrew formula is no longer a per-PR concern — it rolls during the release ceremony via the `curiositech/homebrew-tap` repo and `publish.yml`. See [`RELEASING.md` §1](../../docs/RELEASING.md#1-public-release) step J.
 
 If you cannot land all of these in one commit, leave a `pd actor lookout`
 message naming the gaps and link the follow-up issue. Lookout is the role
@@ -252,18 +262,20 @@ pd guard check --staged
 node scripts/release-surface-audit.mjs   # if present
 # OR walk the Release-Surface Drift list above by hand
 
-# 7. Commit + tag + push
+# 7. Commit + push (NOT tag — tags are release work, see RELEASING.md §1)
 git add <explicit paths>
 git status --porcelain          # MUST be clean of foreign files
 git commit -m "<scope>: <change>"
-git tag -a v<X.Y.Z> -m "<one-liner>"
-git push origin v<X.Y.Z>        # tag, not branch — see Rule 5
+git push -u origin <feature-branch>
+gh pr create ...                # standard PR flow
 
 # 8. Close
 pd note "Result: <change>. Validation: <evidence>. Remaining: <Lookout drifts, follow-ups>."
 pd done "<outcome>"
 pd feedback "<contributor experience report>"   # bare form; auto slug + agent
 ```
+
+**For releases** (cutting `v3.X.Y`, building binaries, rolling the brew tap): follow [`docs/RELEASING.md`](../../docs/RELEASING.md), not this loop. Tagging here is a footgun — feature branches must not push tags. The "binary smoke-test before merging anything in `lib/`, `routes/`, `server.ts`, or `mcp/`" rule is in RELEASING.md §3; honor it.
 
 ## Anti-Patterns (port-daddy contributor edition)
 

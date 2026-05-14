@@ -101,9 +101,9 @@ You are explicitly invited to fix errors, sharpen inefficient passages, and add 
 
 ## Release
 
+- **Full playbook lives in [`docs/RELEASING.md`](docs/RELEASING.md).** It covers public releases, candidate/hotfix builds, and local feature dev (with the binary smoke-test path you must run before merging anything in `lib/`, `routes/`, `server.ts`, or `mcp/`). [`docs/VERSIONING.md`](docs/VERSIONING.md) is the canonical list of version surfaces and the semver policy.
 - Port Daddy ships as **signed binaries** per [ADR-0028](docs/adr/0028-signed-binary-distribution.md). There is no `~/port-daddy-stable` worktree, no `promote-stable.sh`, and no `npm link` install path.
-- The release boundary is a git tag plus a GitHub Release. The workflow `.github/workflows/release.yml` builds and notarizes the daemon, CLI, and MCP server binaries from the tagged commit; `.github/workflows/publish.yml` is the manual companion that rolls the `curiositech/homebrew-tap` formula.
-- Cutting a release: (1) bump version across the five surfaces (`package.json`, `package-lock.json`, `mcp-server.json`, `.claude-plugin/plugin.json`, `.gemini/extensions/port-daddy/gemini-extension.json`) plus the CHANGELOG, (2) merge, (3) `git tag v<version> && git push --tags`, (4) `gh release create v<version> --generate-notes`, (5) `gh workflow run publish.yml`.
+- The release boundary is a git tag plus a GitHub Release. `.github/workflows/release.yml` builds notarized binaries on the tag; `.github/workflows/publish.yml` is the manual companion that rolls the `curiositech/homebrew-tap` formula. Hold `pd lock release-publish` for the duration of the brew-tap roll — the formula is shared state.
 - Versioning is operator-trust. If users will get a behavior change after `brew upgrade port-daddy`, the binary they download must report a newer version than the one they had.
 - User-facing runtime/control-plane fixes still need a prompt cut, or the live daemon/UI will keep lying from an older binary.
 
