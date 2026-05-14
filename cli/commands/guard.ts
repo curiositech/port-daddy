@@ -538,12 +538,48 @@ async function loadAllActiveClaims(): Promise<string[]> {
   // Pulls every file currently claimed by an active session. Used by the
   // git-shim path: a destructive verb implicates the whole working tree,
   // so the universe of "things at risk" is the union of active claims.
+  //
+  // The Port Daddy daemon's claim DB is host-global — sessions across every
+  // project share one namespace. Callers MUST filter this list with
+  // `filterClaimsToRepo()` before treating the paths as "files about to be
+  // touched," otherwise a claim on `apps/marketing/page.tsx` in some
+  // unrelated repo blocks an unrelated rebase here. The long-term fix is
+  // a `repo_root` column on `session_files` (denormalize from the parent
+  // session's worktree) so the daemon can filter server-side; see
+  // ADR follow-up after this hotfix.
   try {
     const data = await fetchJson('/files');
     return extractClaimPaths(data);
   } catch {
     return [];
   }
+}
+
+/**
+ * Drops claim paths that can't possibly belong to `repoRoot`.
+ *
+ * A claim path passes when both:
+ *   (a) its absolute form resolves inside `repoRoot` (via the existing
+ *       `relativePathInside` semantics — no escaping `..`), AND
+ *   (b) the file exists on disk.
+ *
+ * This prevents cross-project claim leak: a session that claimed
+ * `apps/marketing/page.tsx` in some other repo no longer pollutes the
+ * destructive-verb check here. Conservative tradeoff: a claim on a file
+ * that hasn't been created yet in this repo will be filtered out. For
+ * destructive verbs that's acceptable — nobody has live edits on a
+ * file that doesn't exist yet — and the alternative (keeping ghosts)
+ * is the bug we're fixing.
+ */
+export function filterClaimsToRepo(paths: string[], repoRoot: string): string[] {
+  const root = resolve(repoRoot);
+  return paths.filter(path => {
+    const trimmed = path.trim();
+    if (!trimmed) return false;
+    const abs = isAbsolute(trimmed) ? trimmed : resolve(root, trimmed);
+    if (relativePathInside(root, abs) === null) return false;
+    return existsSync(abs);
+  });
 }
 
 async function runCheck(positional: string[], options: CLIOptions): Promise<GuardCheckResult> {
@@ -553,13 +589,16 @@ async function runCheck(positional: string[], options: CLIOptions): Promise<Guar
   const postCommit = Boolean(options['post-commit']);
   const gitVerb = typeof options['git-verb'] === 'string' ? String(options['git-verb']).trim() : '';
   const commitRef = typeof options.commit === 'string' && options.commit.length > 0 ? options.commit : 'HEAD';
+  const root = gitRoot(cwd) ?? cwd;
   const files = normalizeFiles(
     gitVerb && DESTRUCTIVE_GIT_VERBS.has(gitVerb)
       // For destructive verbs the universe of risk is "any claim that
-      // exists right now," so we query the daemon for active claims and
-      // surface them as the file list. The guard then evaluates them
-      // against the caller's session.
-      ? await loadAllActiveClaims()
+      // exists right now AND belongs to this repo." We pull every active
+      // claim from the daemon and then filter to ones that resolve inside
+      // `root`. Without the filter, claims from sessions operating in
+      // unrelated repos (PD's claim DB is host-global) produce false-
+      // positive refusals on rebases here.
+      ? filterClaimsToRepo(await loadAllActiveClaims(), root)
       : postCommit
         ? commitFiles(commitRef, cwd)
         : options.staged || options.hook
@@ -569,7 +608,6 @@ async function runCheck(positional: string[], options: CLIOptions): Promise<Guar
             : dirtyFiles(cwd),
   );
   const context = await loadActiveContext(cwd);
-  const root = gitRoot(cwd) ?? cwd;
   const ownersByFile = mode === 'off' || files.length === 0 ? {} : await loadOwners(files, root);
   return evaluateGuardFacts({
     config,

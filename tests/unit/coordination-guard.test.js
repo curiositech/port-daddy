@@ -7,6 +7,7 @@ import {
   DEFAULT_GUARD_CONFIG,
   evaluateGuardFacts,
   extractClaimPaths,
+  filterClaimsToRepo,
   localGuardConfigPath,
   mergePostCommitHook,
   mergePreCommitHook,
@@ -287,5 +288,95 @@ describe('Coordination Guard', () => {
     const reapplied = mergePostCommitHook(initial);
     const startMarkers = reapplied.match(/# >>> Port Daddy Coordination Guard/g) ?? [];
     expect(startMarkers).toHaveLength(1);
+  });
+
+  describe('filterClaimsToRepo', () => {
+    // Regression coverage for the host-global claim-DB leak that blocked
+    // a port-daddy rebase because a marketing agent in some unrelated
+    // repo had claimed `apps/marketing/src/app/page.tsx`. The destructive-
+    // verb path of runCheck() now filters claims through this helper so
+    // only claims that actually belong to the caller's repo get evaluated.
+
+    test('drops a claim path whose absolute form is outside the repo root', () => {
+      const repo = mkdtempSync(join(tmpdir(), 'pd-guard-filter-outside-'));
+      try {
+        // A path that resolves outside the repo via .. escaping
+        const result = filterClaimsToRepo(['../elsewhere/file.ts'], repo);
+        expect(result).toEqual([]);
+      } finally {
+        rmSync(repo, { recursive: true, force: true });
+      }
+    });
+
+    test('drops a relative claim path for a file that does not exist in this repo', () => {
+      // This is the exact production bug: a marketing agent in some
+      // other repo claimed `apps/marketing/src/app/page.tsx`. That path
+      // does NOT exist under our port-daddy worktree, so the filter
+      // must drop it before it can refuse our rebase.
+      const repo = mkdtempSync(join(tmpdir(), 'pd-guard-filter-ghost-'));
+      try {
+        const result = filterClaimsToRepo(['apps/marketing/src/app/page.tsx'], repo);
+        expect(result).toEqual([]);
+      } finally {
+        rmSync(repo, { recursive: true, force: true });
+      }
+    });
+
+    test('keeps a relative claim that resolves to a real file inside the repo', () => {
+      const repo = mkdtempSync(join(tmpdir(), 'pd-guard-filter-inside-'));
+      try {
+        mkdirSync(join(repo, 'src'), { recursive: true });
+        writeFileSync(join(repo, 'src', 'real.ts'), '// real\n');
+        const result = filterClaimsToRepo(['src/real.ts'], repo);
+        expect(result).toEqual(['src/real.ts']);
+      } finally {
+        rmSync(repo, { recursive: true, force: true });
+      }
+    });
+
+    test('keeps an absolute claim that lives inside the repo', () => {
+      const repo = mkdtempSync(join(tmpdir(), 'pd-guard-filter-abs-'));
+      try {
+        const filePath = join(repo, 'kept.ts');
+        writeFileSync(filePath, '// kept\n');
+        const result = filterClaimsToRepo([filePath], repo);
+        expect(result).toEqual([filePath]);
+      } finally {
+        rmSync(repo, { recursive: true, force: true });
+      }
+    });
+
+    test('drops an absolute claim that lives outside the repo even if the file exists', () => {
+      const repo = mkdtempSync(join(tmpdir(), 'pd-guard-filter-other-repo-'));
+      const otherRepo = mkdtempSync(join(tmpdir(), 'pd-guard-filter-other-'));
+      try {
+        const filePath = join(otherRepo, 'foreign.ts');
+        writeFileSync(filePath, '// foreign\n');
+        const result = filterClaimsToRepo([filePath], repo);
+        expect(result).toEqual([]);
+      } finally {
+        rmSync(repo, { recursive: true, force: true });
+        rmSync(otherRepo, { recursive: true, force: true });
+      }
+    });
+
+    test('mixed input keeps only the in-repo extant claims', () => {
+      const repo = mkdtempSync(join(tmpdir(), 'pd-guard-filter-mixed-'));
+      try {
+        writeFileSync(join(repo, 'a.ts'), '// a\n');
+        writeFileSync(join(repo, 'b.ts'), '// b\n');
+        const result = filterClaimsToRepo([
+          'a.ts',                            // in-repo, exists → keep
+          'apps/marketing/page.tsx',         // in-repo path but ghost → drop
+          'b.ts',                            // in-repo, exists → keep
+          '../escape.ts',                    // outside via .. → drop
+          '',                                // empty → drop
+          '   ',                             // whitespace → drop
+        ], repo);
+        expect(result.sort()).toEqual(['a.ts', 'b.ts']);
+      } finally {
+        rmSync(repo, { recursive: true, force: true });
+      }
+    });
   });
 });
