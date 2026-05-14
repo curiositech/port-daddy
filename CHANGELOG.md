@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.14.0] - 2026-05-13
+
+### Added
+- **Metrics tab in `/fleet-ui/`** (PR #71). The React app FleetBar embeds now has a Metrics tab that iframes `/metrics.html` with reload and pop-out controls. The tab is visible even before a project is picked (alongside Flow and Shipwright), since request volume, latency, seasonality, and outliers are all daemon-wide. `MetricsPanel` takes `daemonUrl` as a prop so it re-renders correctly when the user switches daemons in the Header.
+- **Always-visible TabBar in non-embedded `/fleet-ui/`** (PR #71). Previously the bar was gated to `(selectedProjectId || activeTab === 'Shipwright')`, which made daemon-level tabs unreachable from the default Flow view in all-projects mode. `visibleSurfaceTabs` already narrows to daemon-level tabs without a project, so the bar stays minimal there.
+- **`/metrics/prom` + `/metrics.html` dashboard** (PR #44). Prometheus exposition + per-(method, route_template, status_class) HDR histograms in `lib/metrics-registry.ts`. New endpoints under `/metrics/*`: `prom`, `http/routes`, `http/outliers`, `http/now`, `annotations` (git commits + tags + pd notes + session purposes/telos). Vendored Chart.js under `/vendor/` (CSP-friendly, works offline). 30-second TTL cache + inflight coalescing on git annotations.
+- **Sidebar Metrics link + command-bar Metrics button** on the legacy `/index.html` dashboard (PR #63, superseded by deprecation below).
+
+### Changed
+- **`X-Frame-Options: DENY → SAMEORIGIN`** and **CSP `frame-ancestors 'none' → 'self'`** in `server.ts` (PR #71). Required so `/fleet-ui/` can iframe `/metrics.html`. The daemon is already restricted to loopback hosts plus `.local` (mDNS / Bonjour) by the DNS rebinding hook, so `SAMEORIGIN` is the strictest framing policy compatible with the embedded Metrics tab. Regression test at `tests/unit/framing-headers.test.js` guards against accidental tightening.
+- **Winston request firehose retired** (PR #44). The 625 MB unbounded log file was contributing to per-request slowness via synchronous JSON serialization. Replaced with bounded in-memory histograms + sampled error-only file logging. New `config.logging.{maxsize, maxFiles, requestSamplingRate}` knobs; sampling rate clamped to `[0, 1]`.
+
+### Deprecated
+- **Legacy `/index.html` daemon dashboard** (PR #71). Sticky red banner at the top of the page links users to `/fleet-ui/` and `/metrics.html`. The file stays reachable so existing bookmarks, MCP introspection probes, and the bijective-parity test suite keep working — it is read-only at this point and will not get new features. New control-surface work goes into `fleet-config-ui/`.
+
+### Backfill — work that landed since 3.8.4 (not retroactively versioned)
+
+The entries below shipped to `main` between 3.8.4 and 3.14.0 but were never assigned an interim version. They are listed here for an honest changelog rather than dropped on the floor.
+
 ### Added
 - **`pd tube` — relay-independent conversational pipe** (Track B1 from the phone-integration master plan). Usage: `pd tube <channel> [--listen|--once|--since=<id>|--limit=N|--no-history|--send|--reply=<id>]`. Listen mode emits one JSON-line per message on stdout; `--send` / `--reply` read stdin to EOF and post via the daemon's existing `POST /msg/:channel`. File-based history guard at `~/.port-daddy/tube-history-<safe-channel>.json` (atomic write via tmp+rename) prevents re-emission across listen sessions; `--no-history` ignores it; `--since=<id>` overrides it. Threading via a small `{ v:1, kind:"tube.msg", body, inReplyTo? }` envelope since the daemon's messages table doesn't model thread parents natively. 26 unit tests; wired into bash/zsh/fish completions and `features.manifest.json`. Hands-on tutorial at `skills/pd-relay-zero-trust/examples/pd-tube-tutorial.md`. No daemon-side changes needed; works against the local PD daemon today and will compose unchanged with the future relay.
 - **Per-publisher Merkle event chain library — `lib/merkle-chain.ts`** (Track B2). Pure-function TypeScript: `next_hash(prev_hash, event)`, `verify_chain(events)`, `sign_head(head, signing_key)`, `verify_head(signed_head, pub_key)`, plus `canonicalJson` matching RFC-8785-ish ordering. Uses `node:crypto` Ed25519 (no new top-level dependency). Byte-for-byte cross-language compatible with the Python reference scripts at `skills/pd-relay-zero-trust/scripts/{chain_verify,chain_anchor}.py` — verified end-to-end with shared golden vectors at `tests/fixtures/merkle-chain-golden.json`. Cross-language compat reference at `docs/merkle-chain-compat.md`; hands-on TypeScript tutorial (with cross-language demo) at `skills/pd-relay-zero-trust/examples/merkle-chain-typescript-tutorial.md`. 29 unit tests covering canonicalJson, next_hash, verify_chain (happy path + tamper detection at every position + equivocation), and sign/verify_head round-trip.

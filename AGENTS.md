@@ -99,19 +99,13 @@ You are explicitly invited to fix errors, sharpen inefficient passages, and add 
 - If a command exists in source but the installed CLI gets `Not Found`, suspect a stale daemon or stale `dist/` before assuming the feature is imaginary.
 - Very long daemon uptime after runtime-route work is a smell. If the daemon has been up for hours and new routes/surfaces are “missing,” verify build + restart first.
 
-## Promotion
+## Release
 
-- The real promotion path is `./scripts/promote-stable.sh`.
-- Do not hand-roll daemon promotion with ad hoc `launchctl` commands if the script exists.
-- If the user asks to "promote the daemon", run the script first and report the exact blocker if it fails.
-- Promotion to stable is not a rare release ceremony here; user-facing runtime/control-plane fixes often need prompt promotion, or the live daemon/UI will keep lying from an older checkout.
-- `/Users/erichowens/port-daddy-stable` is a clean promotion target, not a live dogfood sandbox.
-- Do not run fleets, background daemons, Spark, Spider, or local build outputs in the stable checkout.
-- If stable accumulates `.spark/`, `.spider/`, `port-daddy.log`, `port-registry.db`, `public/fleet-ui`, or tracked build garbage, treat that as operator misuse to rehabilitate before the next promotion.
-- If promotion is blocked by dirty archaeology, split green feature/parity slices from intentionally red bug-battery tests; do not bundle known-red test files into an otherwise promotable commit.
-- The script expects:
-  - current branch is `main`
-  - no uncommitted source changes in `lib/`, `server.ts`, `mcp/`, `routes/`, `bin/`, or `tests/`
+- Port Daddy ships as **signed binaries** per [ADR-0028](docs/adr/0028-signed-binary-distribution.md). There is no `~/port-daddy-stable` worktree, no `promote-stable.sh`, and no `npm link` install path.
+- The release boundary is a git tag plus a GitHub Release. The workflow `.github/workflows/release.yml` builds and notarizes the daemon, CLI, and MCP server binaries from the tagged commit; `.github/workflows/publish.yml` is the manual companion that rolls the `curiositech/homebrew-tap` formula.
+- Cutting a release: (1) bump version across the five surfaces (`package.json`, `package-lock.json`, `mcp-server.json`, `.claude-plugin/plugin.json`, `.gemini/extensions/port-daddy/gemini-extension.json`) plus the CHANGELOG, (2) merge, (3) `git tag v<version> && git push --tags`, (4) `gh release create v<version> --generate-notes`, (5) `gh workflow run publish.yml`.
+- Versioning is operator-trust. If users will get a behavior change after `brew upgrade port-daddy`, the binary they download must report a newer version than the one they had.
+- User-facing runtime/control-plane fixes still need a prompt cut, or the live daemon/UI will keep lying from an older binary.
 
 ## Fleet Identity
 

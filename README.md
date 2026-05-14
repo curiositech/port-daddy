@@ -310,7 +310,7 @@ Use the right surface for the job:
 
 Canonical operator explanation: [docs/DELEGATION-MODES.md](docs/DELEGATION-MODES.md)
 
-For Port Daddy itself, promotion is the high-signal docs boundary. `./scripts/promote-stable.sh` emits a `promotion:release-surfaces` tuple and pub/sub signal after tests pass and before the stable merge, so the fleet Documentarian/Lookout reviews README, docs, website docs/tutorials, Mac app/FleetBar install and product copy, SDK/CLI references, OpenAPI/MCP surfaces, and the distributed agent skill when those surfaces are about to become live operator truth.
+For Port Daddy itself, the release boundary is the signed-binary cut. Tagging `v<version>` and publishing a GitHub Release triggers the `release.yml` workflow, which rebuilds the daemon, CLI, and MCP server as signed/notarized binaries (per [ADR-0028](docs/adr/0028-signed-binary-distribution.md)). The brew tap (`curiositech/homebrew-tap`) is then bumped via the manual `publish.yml` workflow. Documentarian/Lookout reviews README, docs, website docs/tutorials, Mac app/FleetBar install and product copy, SDK/CLI references, OpenAPI/MCP surfaces, and the distributed agent skill around the same tag, since those surfaces become live operator truth at the moment users run `brew upgrade port-daddy`.
 
 ```bash
 # Preferred single-agent delegation
