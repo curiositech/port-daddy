@@ -1553,11 +1553,37 @@ export default function App() {
                 onOpenYaml={() => setActiveTab('YAML')}
               />
             ) : fleet.loading ? (
-              <div className="flex items-center justify-center h-full opacity-30" style={{ color: 'var(--pd-text)' }}>Loading...</div>
+              <>
+                <div className="mx-auto mt-4 w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+                  <div className="rounded-lg border px-4 py-3 text-sm" style={{ backgroundColor: 'var(--pd-warning-surface)', borderColor: 'var(--pd-warning-border)', color: 'var(--pd-warning)' }}>
+                    Fleet discovery is still loading. The first-run guide stays available while Port Daddy checks the daemon.
+                  </div>
+                </div>
+                <AllProjectsList
+                  projects={projects}
+                  onSelect={selectProject}
+                  onStartProject={(project) => void handleStartProject(project.projectDir)}
+                  onSetBudget={(project, usdPerDay) => void handleSetProjectBudget(project.projectDir, usdPerDay).catch(() => undefined)}
+                  onOpenYaml={(project) => handleOpenProjectYaml(project.id)}
+                  onOpenShipwright={() => setActiveTab('Shipwright')}
+                />
+              </>
             ) : fleet.error ? (
-              <div className="flex items-center justify-center h-full text-sm" style={{ color: 'var(--pd-text)' }}>
-                <span style={{ color: 'var(--pd-accent)' }}>Daemon offline</span>&nbsp;at {formatDaemonLabel(daemonUrl)}: {fleet.error}
-              </div>
+              <>
+                <div className="mx-auto mt-4 w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+                  <div className="rounded-lg border px-4 py-3 text-sm" style={{ backgroundColor: 'var(--pd-accent-surface)', borderColor: 'var(--pd-accent-border)', color: 'var(--pd-accent)' }}>
+                    Daemon offline at {formatDaemonLabel(daemonUrl)}: {fleet.error}
+                  </div>
+                </div>
+                <AllProjectsList
+                  projects={projects}
+                  onSelect={selectProject}
+                  onStartProject={(project) => void handleStartProject(project.projectDir)}
+                  onSetBudget={(project, usdPerDay) => void handleSetProjectBudget(project.projectDir, usdPerDay).catch(() => undefined)}
+                  onOpenYaml={(project) => handleOpenProjectYaml(project.id)}
+                  onOpenShipwright={() => setActiveTab('Shipwright')}
+                />
+              </>
             ) : (
               <AllProjectsList
                 projects={projects}

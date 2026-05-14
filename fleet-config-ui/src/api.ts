@@ -41,6 +41,9 @@ import type {
   UsageTelemetrySummary,
   UsageTraceInput,
   MissionIntake,
+  SetupActionId,
+  SetupOverview,
+  SetupRunResult,
 } from './types';
 
 const CANONICAL_PREFERRED_DAEMON_URL = 'http://127.0.0.1:9876';
@@ -183,6 +186,22 @@ export function formatDaemonLabel(url: string): string {
   } catch {
     return url;
   }
+}
+
+export function fetchSetupOverview(): Promise<SetupOverview> {
+  return get<SetupOverview>('/setup/overview');
+}
+
+export function runSetupAction(input: {
+  action: SetupActionId;
+  confirmed?: boolean;
+  projectDir?: string | null;
+}): Promise<SetupRunResult> {
+  return post<SetupRunResult>('/setup/run', {
+    action: input.action,
+    confirmed: input.confirmed === true,
+    ...(input.projectDir ? { projectDir: input.projectDir } : {}),
+  });
 }
 
 async function api<T>(method: string, path: string, body?: unknown): Promise<T> {
