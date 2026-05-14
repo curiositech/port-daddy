@@ -29,6 +29,13 @@ jobs:
         with:
           bun-version: latest
 
+      # Bun's compile path resolves bare imports against node_modules. Without
+      # this step, specifiers like 'yaml', 'msgpackr', '@clack/prompts' fail
+      # with "Could not resolve" and the binary build aborts. The repo doesn't
+      # ship a bun.lockb (npm is canonical), so Bun resolves against package.json.
+      - name: Install dependencies
+        run: bun install
+
       - name: Build binary
         run: |
           bun build --compile --target=${{ matrix.target }} bin/port-daddy-cli.ts --outfile dist/pd
