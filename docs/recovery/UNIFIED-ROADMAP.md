@@ -1,6 +1,6 @@
 # Unified Recovery Roadmap
 
-Last updated: 2026-05-12 (Cartographer pass — Phase 1 closure, Phase 3 visibility, Phase 6 telos suggestion, the 2026-05-11 Spark promotion of `graph-based-merge-conflict-predictor` + `ambient-anomaly-signaling`, the 2026-05-12 Spark promotion of `symbol-graph-visualization`, `incremental-symbol-index-refresh`, `operator-hint-engine`, and `symbol-claim-isolation-validator`, plus the 2026-05-12 continuation pass (`857f225c`) and verification pass (`f0398b9a`))
+Last updated: 2026-05-13 23:24 UTC (Cartographer verification pass — Phase 1 closure, Phase 3 visibility, Phase 6 telos suggestion, the 2026-05-11 Spark promotion of `graph-based-merge-conflict-predictor` + `ambient-anomaly-signaling`, the 2026-05-12 Spark promotion of `symbol-graph-visualization`, `incremental-symbol-index-refresh`, `operator-hint-engine`, and `symbol-claim-isolation-validator`, the 2026-05-13 Spark promotion of `graph-integrity-auditor`, `daemon-fleet-auto-recovery`, `cost-forecast-alert`, `agent-skills-quality-gates`, and `ipc-queue-saturation-promotion`, plus the 2026-05-12 continuation passes (`857f225c`, `d017bc28`) and verification pass (`f0398b9a`))
 
 This is the single execution-order roadmap for the active Port Daddy recovery and consolidation effort.
 
@@ -22,6 +22,11 @@ Port Daddy should feel like one coherent system:
 - Deep fleet control plane: `fleet-config-ui`
 - Canonical Port Daddy skill doc: `skills/port-daddy-agent-skill/SKILL.md`
 - Raw idea streams remain useful local inputs, but curated recovery docs are the authority: `.spark/ideas/`, `.spider/connections/`, `.cartographer/status.md`
+
+The 2026-05-13 Spark promotion added `graph-integrity-auditor`,
+`daemon-fleet-auto-recovery`, `cost-forecast-alert`,
+`agent-skills-quality-gates`, and `ipc-queue-saturation-promotion` to the
+curated queue; the raw files remain on disk as provenance.
 
 The 2026-05-11 Spark promotion added `graph-based-merge-conflict-predictor` and
 `ambient-anomaly-signaling` to the curated queue; the 2026-05-10 raw Spider
@@ -110,6 +115,7 @@ Immediate ships:
 - daemon health and error surfacing
 - fleet config warnings
 - cost warnings and budget exhaustion
+- `cost-forecast-alert` so FleetBar can show projected budget trouble before the economist layer catches up
 - native control window that shells the real `/fleet-ui/` surface instead of a second shadow dashboard
 - QA/Spark/Spider/documentarian briefings
 - suggestion cards for onboarding and remediation
@@ -141,6 +147,7 @@ Immediate ships:
 - persist `fleet-run-journal` so role history survives restarts instead of disappearing with the process table
 - surface `salvage-root-cause-classifier` in the Salvage panel so operators can see why agents failed, not just that they failed
 - surface `ambient-anomaly-signaling` as the passive anomaly feed that powers the same control-plane shell
+- `daemon-fleet-auto-recovery` so persistent fleet roles come back after daemon restarts without manual `pd fleet up` ceremony
 - merge the best of `public/fleet-live.html` and `public/fleet-config.html` into `fleet-config-ui`
 - turn `SortiePanel` into a mission workspace, not just a raw launch form
 
@@ -175,6 +182,9 @@ Immediate ships:
 - `incremental-symbol-index-refresh` — keep graph conflict prediction current as files change instead of waiting for explicit graph queries
 - `graph-based-merge-conflict-predictor` — predict graph-backed merge risk before git attempts a merge so repeated trigger storms do not turn into repeated conflict churn
 - `symbol-claim-isolation-validator` — validate symbol ownership before a claim or lock is accepted so pre-flight work can stop contention before merge time
+- `graph-integrity-auditor` — audit the graph substrate so silent corruption does not poison merge prediction or claim safety
+- `agent-skills-quality-gates` — validate skill trust before spawn confidence is trusted
+- `ipc-queue-saturation-promotion` — shed load before the IPC queue becomes the daemon bottleneck
 
 Representative idea pressure:
 - budget-gated fleet spawning

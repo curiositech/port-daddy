@@ -1,6 +1,6 @@
 # Port Daddy Roadmap & Future Ideas
 
-**Last updated:** 2026-05-12 21:33 UTC (Cartographer harvest pass — source verification complete; curated now dogfood pair still `claim-preserving-git-safety` and `fleet-launchability-and-cadence`; 2 new Spark now items promoted into the wave on 2026-05-09: `daemon-introspection-api` and `ideas-trove-queryable-surface`; 2 more Spark now items promoted on 2026-05-11: `graph-based-merge-conflict-predictor` and `ambient-anomaly-signaling`; 2026-05-12 added `symbol-graph-visualization`, `incremental-symbol-index-refresh`, `operator-hint-engine`, `symbol-claim-isolation-validator`, and `orchestrator-plugin-lifecycle` as the Phase 1/3 support cuts; raw 2026-05-10 Spider exhaust remains uncurated; continuation pass `857f225c` now heads the branch)
+**Last updated:** 2026-05-13 23:24 UTC (Cartographer verification pass — source verification complete; curated now dogfood pair still `claim-preserving-git-safety` and `fleet-launchability-and-cadence`; 2 new Spark now items promoted into the wave on 2026-05-09: `daemon-introspection-api` and `ideas-trove-queryable-surface`; 2 more Spark now items promoted on 2026-05-11: `graph-based-merge-conflict-predictor` and `ambient-anomaly-signaling`; 2026-05-12 added `symbol-graph-visualization`, `incremental-symbol-index-refresh`, `operator-hint-engine`, `symbol-claim-isolation-validator`, and `orchestrator-plugin-lifecycle` as the Phase 1/3 support cuts; 2026-05-13 added `daemon-fleet-auto-recovery`, `graph-integrity-auditor`, `agent-skills-quality-gates`, `cost-forecast-alert`, and `ipc-queue-saturation-promotion` as the latest curated Spark batch; raw 2026-05-10 Spider exhaust remains uncurated; continuation passes `857f225c` and `d017bc28` plus verification pass `f0398b9a` now head the branch)
 
 This document captures the ambitious, industry-defining vision for Port Daddy as the definitive "Agentic OS" Control Plane. It outlines "things for later" and serves as a living synthesis of conceptual ideas.
 
@@ -24,10 +24,12 @@ file in `.spark/feedback/` whenever a Port Daddy primitive surprises them.
 The **Cartographer** fleet agent (declared in `pd-fleet.yml`, triggered on
 `git:committed`) owns the harvest into `DOGFOOD-FEEDBACK.md` and the
 promotion of `now`-status entries into the section directly below.
-On this checkout, both `pd roadmap --feedback-status open --json` and
-`pd feedback list --status open --json` return `connect EPERM` against
-`~/.port-daddy/daemon.sock`, and this checkout does not contain a
-`.spark/feedback/` tree, so the curated harvest stayed unchanged this pass.
+On this checkout, `pd status` reports Port Daddy is running, but both
+`pd roadmap --feedback-status open --json` and `pd feedback list --status
+open --json` hit `connect EPERM` against `~/.port-daddy/daemon.sock`, so
+the live feedback projection is unavailable here. This checkout also does
+not contain a `.spark/feedback/` tree, so the curated harvest stayed
+unchanged this pass.
 The current now-status dogfood pair remains `claim-preserving-git-safety`
 and `fleet-launchability-and-cadence`. The 2026-05-11 Spark promotion
 added `graph-based-merge-conflict-predictor` and
@@ -47,6 +49,12 @@ the Phase 3 decision-velocity cut.
 
 The same 2026-05-12 Spark idea pass added `orchestrator-plugin-lifecycle`
 as the Phase 1 user-extensibility cut.
+
+The 2026-05-13 Spark promotion moved `daemon-fleet-auto-recovery`,
+`graph-integrity-auditor`, `agent-skills-quality-gates`,
+`cost-forecast-alert`, and `ipc-queue-saturation-promotion` into the
+curated immediate-candidate wave, so they now sit in Next Cuts rather than
+the raw-exhaust pile.
 
 The cartographer roadmap-progress screen and central feedback pipe are
 already shipped, so the "Next Cuts" list below is the remaining backlog
@@ -83,6 +91,21 @@ appropriate phase section below and delete it here.
   custom orchestrators without forking the daemon. Add the loader /
   lifecycle wire so domain-specific routing can be tested and activated at
   runtime.
+- **`daemon-fleet-auto-recovery`** — Phase 3 declarative fleet survives only
+  while the daemon is up. Add automatic recovery so persistent roles come
+  back after restart instead of requiring manual `pd fleet up` ceremony.
+- **`graph-integrity-auditor`** — Phase 1 graph quality needs daily
+  integrity audits so silent corruption does not undermine merge
+  prediction or claim safety.
+- **`agent-skills-quality-gates`** — validate skill inventory and quality
+  before spawn confidence is trusted. This is the Phase 2.5 bridge from
+  skill trust to more confident launches.
+- **`cost-forecast-alert`** — Phase 2 spend visibility is historical only
+  today. Add forward budget alerts so operators see projected overages
+  before the economist pricing layer catches up.
+- **`ipc-queue-saturation-promotion`** — the IPC backpressure story still
+  lacks a saturation-aware spawn gate. Add load shedding so the queue can
+  warn before the daemon becomes the bottleneck.
 - **`claim-preserving-git-safety`** — Advisory file claims can still be
   steamrolled by `git add -A`, `git reset --hard`, and `git cherry-pick`.
   Add a safe `pd add` path plus destructive-git guardrails that consult

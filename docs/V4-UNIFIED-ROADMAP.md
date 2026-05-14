@@ -3,10 +3,10 @@
 Canonical note: this file remains valuable historical context, but the active recovery authority now lives in `docs/recovery/README.md` and `docs/recovery/UNIFIED-ROADMAP.md`.
 
 **Author:** Erich Owens
-**Last Updated:** 2026-05-12 21:33 UTC
-**Status:** Canonical reference document — authority for execution now lives in `docs/recovery/UNIFIED-ROADMAP.md`. Phase 0 complete, Phase 4 partially complete (Fastify ✅, Trie ✅, Binary IPC ✅, Backpressure ⚡, Bun binary stale 41d, 4E/4F stale 42d), Phase 3 largely done (fleet, pheromone, Fleet Live Dashboard all shipped) with the visibility follow-ons (`daemon-introspection-api`, `crew-screen-roles-not-pids`, `fleet-health-scorecard`, `coordination-ticker-as-high-signal-feed`, `fleet-run-journal`, `operator-hint-engine`) now the hottest mapped lane, and the 2026-05-11 Spark promotion adding `graph-based-merge-conflict-predictor` and `ambient-anomaly-signaling` to the curated execution wave while the 2026-05-12 Spark promotion adds `symbol-graph-visualization`, `incremental-symbol-index-refresh`, `operator-hint-engine`, `symbol-claim-isolation-validator`, and `orchestrator-plugin-lifecycle` to the Phase 1/3 support lanes; the 2026-05-10 Spider exhaust (`S41`/`S42`/`S43`) remains uncurated. Phase 1 complete (graph_edges migration/schema committed in `f265fcb5` and reflected in the roadmaps by `2ad20f32`). **Recovery Track 1 CLOSED** (`8744e14`, 2026-04-06) — `cost-tracker`, `counters`, and the full `/metrics/*` observability surface are now committed and released as v3.8.3. The observability trifecta is complete. FleetBar unified with the real fleet control plane (`a41f18f`, `e82f096`) — the menu bar app now shells `fleet-config-ui` via WebView instead of maintaining a shadow dashboard. Fleet runtime readiness checks, backend fallbacks, and spawn preflight enforcement committed (`3b818d2`, `71fc446`, `0cc5e6`); `1459c0d4` tightened the claude-cli tier aliases. Cartographer roadmap-progress and feedback surfaces now exist in-tree (`7ba8d84`, `8fcf93e`, `4807cb5`, `bd4fc6f`, `eac3fc3`). Recent commits are now the Phase 1 completion/reflection/finalization/verification sequence (`f265fcb5`, `2ad20f32`, `670ab97b`, `e6bd1b88`, `3b9d17ce`, `f4624ebd`), the 2026-05-09 harvest pass (`676b0d30`), the 2026-05-09 roadmap reconciliation (`05e94639`), the 2026-05-12 continuation pass (`857f225c`), plus salvage/recovery triage (`48229e29`, `1117dda3`, `41eb63f`), unplanned website / release-surface / phone-integration work (`2a207870`, `f3c3e7f4`, `48b6c54c`, `60f72edd`), whitepaper/editorial cleanup (`e5226d1a`, `f9a422f5`, `637cecce`), docs/reference-architecture cleanup (`8a869a03`, `dc64054c`), backend readiness / telemetry cleanup (`2ee5976a`, `1459c0d4`), and an unplanned fleet-model / telos hardening burst (`ffe098fe`, `57f24644`, `4c85f3e4`, `6a610bf3`, `d3e43b3d`, `989c6972`, `2fc96f8b`). The same release window also shipped the relay-independent primitive layer (`pd tube`, Merkle chain, relay PKI, `pd-relay-zero-trust`, quorum primitives, daemon profiles, and repo-enforced Coordination Guard), so the network / release-surface story is real rather than aspirational. Phase 5 now has active relay/harbor-mesh architecture groundwork; Phase 6 has fresh telos substrate landings, and the explicit spawn-time suggestion layer remains the remaining cut. The 2026-05-07 Spider extension pass (`S17`–`S29`, plus `remaining-spaces`) extends existing quorum / pheromone / graph / budget / incident combinations rather than minting a new V4 phase. HEAD: `857f225c`.
+**Last Updated:** 2026-05-13 23:24 UTC
+**Status:** Canonical reference document — authority for execution now lives in `docs/recovery/UNIFIED-ROADMAP.md`. Phase 0 complete, Phase 4 partially complete (Fastify ✅, Trie ✅, Binary IPC ✅, Backpressure ⚡, Bun binary stale 42d, 4E/4F stale 43d), Phase 2 economist follow-up remains stale (44d idle), Phase 3 largely done (fleet, pheromone, Fleet Live Dashboard all shipped) with the visibility / automation follow-ons (`daemon-introspection-api`, `crew-screen-roles-not-pids`, `fleet-health-scorecard`, `coordination-ticker-as-high-signal-feed`, `fleet-run-journal`, `daemon-fleet-auto-recovery`, `operator-hint-engine`) now the hottest mapped lane, and the 2026-05-11 Spark promotion adding `graph-based-merge-conflict-predictor` and `ambient-anomaly-signaling` to the curated execution wave while the 2026-05-12 Spark promotion adds `symbol-graph-visualization`, `incremental-symbol-index-refresh`, `operator-hint-engine`, `symbol-claim-isolation-validator`, and `orchestrator-plugin-lifecycle` to the Phase 1/3 support lanes; the 2026-05-13 Spark promotion now adds `graph-integrity-auditor`, `daemon-fleet-auto-recovery`, `cost-forecast-alert`, `agent-skills-quality-gates`, and `ipc-queue-saturation-promotion` to the Phase 1/2/3/4 support lanes. The 2026-05-10 Spider exhaust (`S41`/`S42`/`S43`) remains uncurated. Phase 1 complete (graph_edges migration/schema committed in `f265fcb5` and reflected in the roadmaps by `2ad20f32`). **Recovery Track 1 CLOSED** (`8744e14`, 2026-04-06) — `cost-tracker`, `counters`, and the full `/metrics/*` observability surface are now committed and released as v3.8.3. The observability trifecta is complete. FleetBar unified with the real fleet control plane (`a41f18f`, `e82f096`) — the menu bar app now shells `fleet-config-ui` via WebView instead of maintaining a shadow dashboard. Fleet runtime readiness checks, backend fallbacks, and spawn preflight enforcement committed (`3b818d2`, `71fc446`, `0cc5e6`); `1459c0d4` tightened the claude-cli tier aliases. Cartographer roadmap-progress and feedback surfaces now exist in-tree (`7ba8d84`, `8fcf93e`, `4807cb5`, `bd4fc6f`, `eac3fc3`). Recent commits are now the Phase 1 completion/reflection/finalization/verification sequence (`f265fcb5`, `2ad20f32`, `670ab97b`, `e6bd1b88`, `3b9d17ce`, `f4624ebd`, `f0398b9a`), the 2026-05-09 harvest pass (`676b0d30`), the 2026-05-09 roadmap reconciliation (`05e94639`), the 2026-05-12 continuation passes (`857f225c`, `d017bc28`), plus salvage/recovery triage (`48229e29`, `1117dda3`, `41eb63f`), unplanned website / release-surface / phone-integration work (`2a207870`, `f3c3e7f4`, `48b6c54c`, `60f72edd`), whitepaper/editorial cleanup (`e5226d1a`, `f9a422f5`, `637cecce`), docs/reference-architecture cleanup (`8a869a03`, `dc64054c`), backend readiness / telemetry cleanup (`2ee5976a`, `1459c0d4`), and an unplanned fleet-model / telos hardening burst (`ffe098fe`, `57f24644`, `4c85f3e4`, `6a610bf3`, `d3e43b3d`, `989c6972`, `2fc96f8b`). The same release window also shipped the relay-independent primitive layer (`pd tube`, Merkle chain, relay PKI, `pd-relay-zero-trust`, quorum primitives, daemon profiles, and repo-enforced Coordination Guard), so the network / release-surface story is real rather than aspirational. Phase 5 now has active relay/harbor-mesh architecture groundwork; Phase 6 has fresh telos substrate landings, and the explicit spawn-time suggestion layer remains the remaining cut. The 2026-05-07 Spider extension pass (`S17`–`S29`, plus `remaining-spaces`) extends existing quorum / pheromone / graph / budget / incident combinations rather than minting a new V4 phase. HEAD: `d017bc28`.
 
-This document synthesizes all V4 planning documents into a single sequenced roadmap. Nothing from the original documents has been discarded — ideas that aren't yet sequenced are preserved in the Appendix. The 2026-05-11 Spark promotion added `graph-based-merge-conflict-predictor` and `ambient-anomaly-signaling` to the curated wave; the 2026-05-10 raw Spider exhaust (`S41`/`S42`/`S43`) remains uncurated and is therefore not reflected in the phase map below yet.
+This document synthesizes all V4 planning documents into a single sequenced roadmap. Nothing from the original documents has been discarded — ideas that aren't yet sequenced are preserved in the Appendix. The 2026-05-11 Spark promotion added `graph-based-merge-conflict-predictor` and `ambient-anomaly-signaling` to the curated wave; the 2026-05-12 continuation passes (`857f225c`, `d017bc28`) added the claim-safety and plugin-lifecycle support lane, and the 2026-05-10 raw Spider exhaust (`S41`/`S42`/`S43`) remains uncurated and is therefore not reflected in the phase map below yet.
 
 ---
 
@@ -108,13 +108,15 @@ Force-directed graph view in the dashboard. Heat map overlay for contested files
 
 > **Cartographer — 2026-05-12:** `orchestrator-plugin-lifecycle` is the user-facing Phase 1.5 wire for `orchestrator-plugins`: hot-load custom orchestrators so the registry can accept domain routers without a daemon fork.
 
+> **Cartographer — 2026-05-13:** `graph-integrity-auditor` turns the Phase 1 graph into a daily health-checked substrate so silent corruption does not poison merge prediction or claim safety.
+
 ---
 
-## Phase 2: The Economy [REQUIRES ECONOMIST — FIRST INFRASTRUCTURE COMMITTED]
+## Phase 2: The Economy [REQUIRES ECONOMIST — FIRST INFRASTRUCTURE COMMITTED — economist stale 44d]
 
 > **Cartographer — 2026-04-05:** The cost-tracker landed (`0169b17`). `lib/cost-tracker.ts` (319 lines): per-spawn LLM cost recording with model pricing tables, project-scoped budget checks, burn rate tracking. `routes/observability.ts` (162 lines): 6 Fastify endpoints — `/metrics/golden` (RED signals), `/metrics/cost`, `/metrics/cost/recent`, `/metrics/cost/budget/:project`, `/metrics/counters`, `/metrics/counters/top`. `tests/unit/cost-tracker.test.js` (165 lines). Fleet engine gained budget integration — `budget_usd_per_day` in `pd-fleet.yml` now enforced at spawn time. CLAUDE.md, README, SKILL.md, and API reference all updated in the same commit. **This is the first concrete Phase 2 code to ship.** It's accounting infrastructure, not the economy itself — but the economy needs accounting.
 >
-> **Cartographer — 2026-04-06:** `lib/counters.ts` committed in `8744e14` — the **observability trifecta is now complete** (cost-tracker + counters + observability routes). All `/metrics/*` endpoints are populated with real data. FleetBar's CostDashboard + CostStore are wired to these endpoints (committed in `a41f18f`). Fleet budget gates now actively stop spawns when `budget_usd_per_day` is exceeded. Spawn preflight enforcement (`3b818d2`, `71fc446`) requires positive budget ceiling + semantic identity before any agent launch. **Recovery Track 1 is closed.** The accounting infrastructure is production-ready. The pricing function π still requires the economist — but there's now a full cost data pipeline to calibrate against. Thomas Youle (Indiana U) proposed insurer-agent auction 2026-03-30 — still no follow-up as of 2026-05-12 (43 days idle). Unblocked path: ship real cost data to Youle.
+> **Cartographer — 2026-04-06:** `lib/counters.ts` committed in `8744e14` — the **observability trifecta is now complete** (cost-tracker + counters + observability routes). All `/metrics/*` endpoints are populated with real data. FleetBar's CostDashboard + CostStore are wired to these endpoints (committed in `a41f18f`). Fleet budget gates now actively stop spawns when `budget_usd_per_day` is exceeded. Spawn preflight enforcement (`3b818d2`, `71fc446`) requires positive budget ceiling + semantic identity before any agent launch. **Recovery Track 1 is closed.** The accounting infrastructure is production-ready. The pricing function π still requires the economist — but there's now a full cost data pipeline to calibrate against. Thomas Youle (Indiana U) proposed insurer-agent auction 2026-03-30 — still no follow-up as of 2026-05-13 (44 days idle). Unblocked path: ship real cost data to Youle.
 >
 > **Cartographer — 2026-04-28:** `lib/counters.ts` and the observability trifecta remain complete, but the pricing function and wallet path are still blocked on economist / operator follow-up. No new Phase 2 commit landed in this burst; the infrastructure is ready while the economics remain effectively stale.
 
@@ -173,6 +175,8 @@ When credits are at stake, file claims can be enforced (not just advisory). This
 > **Cartographer — 2026-05-09:** `quorum-driven-dynamic-launch` is the current Phase 2 follow-on: the quorum primitive is shipped in `cea02e1`; the remaining cut is auto-spawn routing for declared spawnable-on-quorum roles.
 
 > **Cartographer — 2026-05-11:** `ambient-anomaly-signaling` is the current curated self-healing cut here: feed daemon-introspection and coordination-judge anomalies into ambient pheromone signals so roles can avoid bad spawns before they happen.
+
+> **Cartographer — 2026-05-13:** `cost-forecast-alert` extends the Phase 2 budget lane with forward visibility, while `agent-skills-quality-gates` is the Phase 2.5 bridge that validates skills before spawn confidence is trusted.
 
 ---
 
@@ -240,6 +244,8 @@ Visual fleet management, watch hooks with message history, spawn agent form, fle
 >
 > **Cartographer — 2026-05-09:** The Phase 3 visibility cluster now spans `daemon-introspection-api`, `crew-screen-roles-not-pids`, `fleet-health-scorecard`, `coordination-ticker-as-high-signal-feed`, and `fleet-run-journal`: one panel/view for daemon pressure, role health, cost burn, queue depth, violations, and fleet history. It belongs with the shipped fleet-config-ui / FleetBar surfaces rather than in the network or coaching lanes.
 
+> **Cartographer — 2026-05-13:** `daemon-fleet-auto-recovery` is the Phase 3 automation cut that keeps persistent roles alive across daemon restarts so `pd fleet up` stops being manual ceremony.
+
 **Deliverable:** Agents run continuously, learn across sessions, and are managed declaratively.
 
 ---
@@ -250,7 +256,7 @@ Visual fleet management, watch hooks with message history, spawn agent form, fle
 
 *The kernel upgrade. Hardened for production workloads.*
 
-### 4A. Bun/Fastify Migration [FASTIFY SHIPPED v3.8.1, BUN BINARY STALE — no commits since 2026-04-01 (41 days)]
+### 4A. Bun/Fastify Migration [FASTIFY SHIPPED v3.8.1, BUN BINARY STALE — no commits since 2026-04-01 (42 days)]
 
 Replace Express with Fastify on Bun for 20,000+ req/sec. Single-file binary compilation via `bun build --compile`.
 
@@ -282,11 +288,13 @@ Socket-level backpressure when SQLite WAL commits lag. Forces agents to pause ra
 
 > **Cartographer — 2026-05-11:** `graph-based-merge-conflict-predictor` is the current curated merge-infrastructure cut: score symbol-level overlap from the Phase 1 graph before git attempts a merge.
 
-### 4E. `pd self-test --adversarial` [STALE — no commits since 2026-03-31 (42 days)]
+> **Cartographer — 2026-05-13:** `ipc-queue-saturation-promotion` fills the remaining Phase 4B gap with saturation-aware spawn gating so the daemon can shed load before the IPC queue becomes the bottleneck.
+
+### 4E. `pd self-test --adversarial` [STALE — no commits since 2026-03-31 (43 days)]
 
 Ships with the daemon. Runs the chaos test suite from V4-TEST-SUITE.md against the live instance. Outputs a "Nautical Seaworthiness Report."
 
-### 4F. Hardened Windows IPC [STALE — no commits since 2026-03-31 (42 days)]
+### 4F. Hardened Windows IPC [STALE — no commits since 2026-03-31 (43 days)]
 
 Named Pipes with explicit DACLs (SDDL). `PIPE_REJECT_REMOTE_CLIENTS` to prevent NTLM relay attacks.
 
@@ -436,7 +444,7 @@ From `v4_thoughts.md`: Run TLC on the BondedCommons spec with concrete parameter
 
 | Shipped | Commit | Why It Happened |
 |---------|--------|-----------------|
-| Cartographer verification pass / status reconciliation | `0661bfbd`, `676b0d30`, `5ee873cd`, `f4624ebd`, `05e94639`, `3b9d17ce`, `e6bd1b88`, `670ab97b` | Map refresh, harvest, and promotion passes kept the roadmap honest against the live shell and current HEAD. Useful operator-truth work, but not a product phase. |
+| Cartographer verification pass / status reconciliation | `0661bfbd`, `676b0d30`, `5ee873cd`, `f4624ebd`, `05e94639`, `3b9d17ce`, `e6bd1b88`, `670ab97b`, `f0398b9a`, `857f225c`, `d017bc28` | Map refresh, harvest, verification, and promotion passes kept the roadmap honest against the live shell and current HEAD. Useful operator-truth work, but not a product phase. |
 | `pd dev start/stop/status` — isolated dev daemon alongside stable | `790cdb2`, `3164375` | Needed to iterate without breaking the running stable daemon. Dev workflow gap exposed by the stable branch model. |
 | Security audit — 4 CRITICAL/HIGH/MEDIUM/LOW RCE fixes | `433d3eb`, `871a559`, `52b13d7`, `ff191b1` | Security audit found command injection in spawner, DNS rebinding, path traversal, and shell injection. Urgent. |
 | Website neumorphic design system overhaul | many commits 2026-03-25–26 | Design debt. The website had fictional content and inconsistent styling. Full CVA token system + Harbor Heritage palette. |

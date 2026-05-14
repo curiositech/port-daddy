@@ -1,6 +1,6 @@
 # Ideas Trove
 
-Last updated: 2026-05-12 (Spark promotion pass — symbol-graph-visualization, incremental-symbol-index-refresh, operator-hint-engine, symbol-claim-isolation-validator, and orchestrator-plugin-lifecycle added to immediate candidates; Phase 1 operator visibility now has a direct visual slice, Phase 1 predictive coordination now stays live as files change, Phase 3 decision velocity gains a hint layer, Phase 1/4 claim-safety gets a pre-flight validator, and Phase 1 user-extensibility gains hot-load plugin lifecycle; all pass novelty gate with new API surfaces, new data sources, and distinct operator payoffs)
+Last updated: 2026-05-14 00:15 UTC (Extended Spark promotion pass — added cost-gated-spawning, sandboxed-adversarial-test-harness, operator-decision-journal, empirical-model-efficiency-routing to immediate candidates; Phase 2 budget gating now enforces at spawn time, Phase 4E/4F adversarial testing unblocked via sandbox isolation, governance decisions now auditable via immutable journal, and cost optimization learns from empirical performance; all four pass novelty gate with new API surfaces, new data sources, new actuators, and distinct operator payoffs)
 
 This is the canonical ideation index and curated backlog for Port Daddy.
 
@@ -471,6 +471,199 @@ runtime cuts.
 - dependencies: blocks on `daemon-introspection-api` shipping (Phase 3, "now" queue, ~5 days out)
 - roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove` (Phase 3: operator decision velocity)
 
+### `daemon-fleet-auto-recovery`
+
+- status: `now`
+- why it matters:
+  - Phase 3 declarative fleet (complete, `.portdaddy/fleet.yaml`) only survives while the daemon runs
+  - on daemon restart, operators must manually run `pd fleet up` — manual ceremony for what should be automatic
+  - declaring `persistent: true` on a role *looks* like a promise, but the daemon doesn't enforce it automatically across restarts
+  - completes the Phase 3 contract: declare once, daemon honors it across restarts and upgrades
+- implementation sketch:
+  - `lib/fleet-engine.ts` (~10 LOC): add `persistent: boolean` field to fleet role config (default: `true` for declared roles)
+  - `server.ts` (~40 LOC): register `onDaemonStartup` hook that queries roles with `persistent=true` and re-spawns them with telemetry bypass
+  - `routes/fleet.ts` (~25 LOC): `POST /fleet/redeploy-on-restart` for manual triggering (idempotent)
+  - `cli/commands/fleet.ts` (~15 LOC): `pd fleet auto-recover` command
+  - Dashboard badge (~20 LOC): show last daemon startup, recovered roles, success rate
+  - Tests (~20 LOC): persistence flag logic, startup hook, idempotency
+  - total: ~130 LOC, zero schema breaks, one-session achievable
+- provenance:
+  - `.spark/ideas/2026-05-13-daemon-fleet-auto-recovery.md`
+- dependencies: **ZERO BLOCKERS** — orthogonal to Phase 3/4 work, immediately shippable
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove` (Phase 3: operational automation)
+
+### `graph-integrity-auditor`
+
+- status: `now`
+- why it matters:
+  - Phase 1 graph (`graph_edges` table with 6 indexes) is production-deployed and foundation for merge-conflict prediction, claim-isolation validation, and visualization
+  - silent data corruption (orphaned edges, duplicates, cardinality mismatches, broken indexes) would silently degrade prediction accuracy and cause false negatives in safety checks
+  - operators have no automated way to detect or repair corruption today; manual SQL queries and schema inspection required
+  - blocks daily integrity audits, undermining confidence in downstream decisions that depend on graph quality
+- implementation sketch:
+  - `lib/graph-auditor.ts` (~100 LOC): validate `graph_edges` schema, detect orphaned edges, duplicates, cardinality issues, verify all 6 indexes exist and are populated
+  - `routes/graph.ts` additions (~30 LOC): `GET /graph/audit` (last or run new), `POST /graph/audit` (run immediately), `POST /graph/audit/repair` (apply suggested repairs), `GET /graph/audit/schedule` (cron config)
+  - `cli/commands/graph.ts` additions (~20 LOC): `pd graph audit`, `pd graph audit --repair`, `pd graph audit --json`
+  - Dashboard panel (~50 LOC): last audit timestamp, severity badge, violations count, suggested repairs, daily audit toggle
+  - Tests (~10 cases): corrupt and verify detection, repair idempotency, edge cases
+  - total: ~260 LOC, zero schema changes, runs in <100ms on fresh graph
+- provenance:
+  - `.spark/ideas/2026-05-13-graph-integrity-auditor.md`
+- dependencies: **ZERO BLOCKERS** — Phase 1 graph already complete and stable
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove` (Phase 1: health infrastructure)
+
+### `agent-skills-quality-gates`
+
+- status: `now` (Phase 1–2 immediately: registry + validation; Phase 3–4 follow-on)
+- why it matters:
+  - operators spawn agents for specific roles but have no quality assurance surface before spawning
+  - no skills inventory, no skill trust chain, no skill performance tracking, no pre-spawn safety check
+  - this blocks swarms from being confident in delegated work, skill version management, and cross-harbor skill sharing
+  - directly supports Phase 2 spawning work (`quorum-driven-dynamic-launch`) by giving agents confidence they're equipped
+- implementation sketch (Phase 1–2):
+  - `lib/skills-registry.ts` (~80 LOC): load skills manifest, track skill ID, version, owner, quality scores (test coverage, latency p50/p95, error rate), maturity [alpha|beta|stable|deprecated], cost, timestamp
+  - `lib/skill-quality-tracker.ts` (~80 LOC): hook cost/error logs, compute rolling metrics, emit `skill:quality-change` tuples at thresholds
+  - `db/migrations/004_skills_registry.sql` (~40 LOC): `skills` table + `skill_quality_history` table for time-series
+  - `routes/skills.ts` (~70 LOC): `GET /skills/list`, `GET /skills/:id/quality`, `POST /skills/validate?role&backend`, `POST /skills/validate-set`
+  - `lib/spawn-skill-validator.ts` (~50 LOC): pre-spawn validation, check existence, quality thresholds, deprecation
+  - `cli/commands/spawn.ts` changes (~30 LOC): add `--validate-skills` flag, call validator before spawn
+  - Tests (~28 cases): registry CRUD, quality updates, policy enforcement, pre-spawn validation flow
+  - Phase 1–2 total: ~450 LOC, one-session achievable, Phase 3–4 (dashboard panel + harbor governance) follow-on
+- provenance:
+  - `.spark/ideas/2026-05-13-agent-skills-quality-gates.md`
+- dependencies: no blocking dependencies for Phase 1–2; Phase 4 (cross-harbor) requires Phase 5 network infrastructure
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove` (Phase 2.5: Quality & Trust bridge to Phase 3 visibility)
+
+### `cost-forecast-alert`
+
+- status: `now` (Phase 2 unlocker, unblocked by stale economist)
+- why it matters:
+  - Phase 2 cost-tracker landed but economist follow-up is stale (43 days); operators have historical spend visibility but no forward visibility
+  - "you spent $45 so far" vs "you'll hit your $100 budget in 2h 15m" — no early warning exists, cost overruns surprise operators
+  - unblocks budget-aware spawn decisions without waiting for full pricing function π
+  - foundation for priced changelog entries and agent self-gating on cost signals
+- implementation sketch:
+  - `lib/cost-forecast.ts` (~80 LOC): query `cost_log` table, compute rolling hourly/5-min burn rate (EWMA), project to budget ceiling with ETA and confidence
+  - `routes/cost.ts` (~60 LOC): `GET /cost/forecast?horizon=1h&budget=<usd>`, `GET /cost/forecast/alert?threshold=0.8` returning `{projected_spend, budget, eta, burn_rate, confidence}`
+  - `lib/pheromone-auto-spray.ts` extension (~30 LOC): wire forecast into daemon heartbeat, spray `cost:approaching-limit` at 80% projected (agents sniff before spawn)
+  - Dashboard (~40 LOC): spend history + projected trajectory + budget line, alert badge when ETA < 30min, live SSE update
+  - CLI (~20 LOC): `pd cost forecast --budget 100 --horizon 2h`, `pd cost alert --threshold 0.9`
+  - total: ~230 LOC, zero schema migrations, one-session achievable
+- provenance:
+  - `.spark/ideas/2026-05-13-cost-forecast-alert.md`
+- dependencies: **ZERO BLOCKERS** — complements cost-tracker, doesn't require economist, doesn't block pricing work
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove` (Phase 2: forward cost visibility without π)
+
+### `ipc-queue-saturation-promotion`
+
+- status: `now` (Phase 4B backpressure, fills explicit gap in CURRENT-WORK.md)
+- why it matters:
+  - Phase 4 is active (Fastify ✅, Trie ✅, Binary IPC ✅) but HTTP-level backpressure (`ipc-disconnect-instant-salvage` handles drop, not saturation) is missing
+  - CURRENT-WORK.md explicitly notes: "Phase 4B is in-progress but has no execution item in the 'now' queue"
+  - under high-frequency agent triggers (git post-commit fleet dispatch, rapid spawn cycles), daemon IPC queue can saturate with no feedback loop
+  - result: daemon becomes bottleneck instead of fleet adapting gracefully; no cascading failure prevention
+- implementation sketch:
+  - `lib/ipc-queue-tracker.ts` (~40 LOC): track queue depth and latency in IPC message handler, maintain rolling P50/P95/P99 buckets
+  - `routes/daemon.ts` extension (~30 LOC): `GET /daemon-pressure` endpoint returning `{queue_depth, latency_p50, latency_p95, saturation_signal: 0.0–1.0}`
+  - `lib/spawn-preflight.ts` (~50 LOC): check `/daemon-pressure` before claiming spawn; if saturation > 0.8, return `{escalate_shed_decision: true}`
+  - `lib/orchestrator.ts` (~80 LOC): orchestrator receives shed recommendation, can defer spawn, queue it, or shed lower-priority work
+  - Tests (~20 LOC): queue tracking, endpoint accuracy, preflight gating, orchestrator dispatch
+  - total: ~220 LOC, zero schema changes, no external dependencies
+- provenance:
+  - `.spark/ideas/2026-05-13-ipc-queue-saturation-promotion.md`
+- dependencies: **ZERO BLOCKERS** — pure value-add, no breaking changes
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove` (Phase 4B: HTTP-level backpressure)
+
+### `cost-gated-spawning`
+
+- status: `now` (Phase 2 unlocker, unblocked by stale economist)
+- why it matters:
+  - Phase 2 cost-tracker landed but binding spend enforcement is missing
+  - operators can see historical spend but cannot prevent overruns at spawn time
+  - declaring `role.budget = $50/month` looks like a promise, but daemon doesn't enforce it — cost surprises are still possible
+  - unblocks budget-aware spawn decisions without requiring economist follow-up; enables static budgets now while π (dynamic pricing) lands later
+- implementation sketch:
+  - `lib/spend-budget.ts` (~40 LOC): tuple-backed budget registry, `setRoleBudget()`, `getSpentThisWindow()`, `getRemainingBudget()`
+  - `routes/spawn.ts` addition (~60 LOC): `POST /spawn/budget-check` returning approved/rejected + reasoning + remaining headroom
+  - `lib/spawner.ts` integration (~50 LOC): pre-spawn budget validation, throw if rejected, emit `coordination:inconsistency` for overrideable rejections
+  - CLI commands (~20 LOC): `pd budget set <role> <limit>`, `pd budget show`, `pd budget approve-override <spawn-id>`
+  - Dashboard widget (~10 LOC): per-role budget progress bars, monthly reset date
+  - total: ~180 LOC, zero schema migrations, one-session achievable
+- test cases: within-limit approved, at/over limit rejected, monthly reset, override logging, multi-role isolation, no-budget degradation
+- provenance:
+  - `.spark/ideas/2026-05-13-cost-gated-spawning.md`
+- dependencies: **ZERO BLOCKERS** — complements cost-tracker, doesn't require economist, orthogonal to Phase 2/3/4 work
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove` (Phase 2: binding spend enforcement)
+
+### `sandboxed-adversarial-test-harness`
+
+- status: `now` (Phase 4E/4F unlocker, unblocks 43-day stall)
+- why it matters:
+  - Phase 4E/4F (adversarial testing + Windows IPC hardening) has been idle 43 days — design is complete but execution blocked
+  - running chaos tests against a live daemon risks crashes and unrecoverable state
+  - no safe isolation between test failures and running fleet
+  - developers avoid adversarial tests locally because they might corrupt daemon state
+  - result: adversarial tests remain unwritten, Phase 4E/4F stalled, hardening unvalidated
+- implementation sketch:
+  - `lib/test-sandbox.ts` (~60 LOC): `createTestDaemon()` spawning isolated subprocess, separate port, separate SQLite DB, timeout, auto-cleanup
+  - `lib/adversarial-payloads.ts` (~80 LOC): chaos payload generators — malformed requests, concurrency chaos, resource bombs, IPC edge cases, state corruption
+  - `lib/test-harness.ts` (~50 LOC): `runAdversarialSuite()` executing payloads, tracking crashes/hangs/assertions/resource peaks
+  - CLI command (~20 LOC): `pd test adversarial [--payload] [--timeout] [--verbose]`, `pd test adversarial list`, `pd test adversarial <name>`
+  - API surface (~10 LOC): `POST /test/adversarial/run`, `GET /test/adversarial/status/:id`
+  - Dashboard widget (~30 LOC): "Resilience" panel showing last run timestamp, crash/hang counts, resource peaks, one-click "Run Suite"
+  - total: ~250 LOC, zero schema changes, one-session achievable
+- test cases: isolated spawn, graceful malformed handling, no race conditions under chaos, OOM/timeout not system crash, IPC resilience, daemon crash recovery, Windows edge cases
+- provenance:
+  - `.spark/ideas/2026-05-13-sandboxed-adversarial-test-harness.md`
+- dependencies: **ZERO BLOCKERS** — uses existing spawn infrastructure, immediately shippable
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove` (Phase 4E/4F: Testing & Hardening)
+
+### `operator-decision-journal`
+
+- status: `now` (Phase 3 + Phase 2 governance)
+- why it matters:
+  - Port Daddy records *what happened* (cost-tracker logs spend, tuples coordinate work, anomaly signals flag broken state) but operators leave no trace of *why* or *who decided*
+  - when a cost gate was bypassed, which operator approved it? When a role was paused, what reasoning? Forensics require manual git+chat history search
+  - audit gap blocks compliance, prevents learning from decision patterns, makes governance non-traceable
+  - quorum votes exist but live transiently in tuples; operator commands are CLI events with no persistent record
+- implementation sketch:
+  - `lib/operator-audit.ts` (~30 LOC): `recordDecision(actor, decisionType, context, outcome)` creating JSON record, storing via blob, writing metadata row to `audit_decisions` table
+  - `routes/quorum.ts` integration (~15 LOC): after vote settlement, call `recordDecision()` with proposal + threshold + votes
+  - `routes/spawn.ts` integration (~15 LOC): when operator approves cost override, record decision with role/cost/reason
+  - `routes/fleet.ts` integration (~10 LOC): record role pause/resume decisions with metadata
+  - Query endpoint (~40 LOC): `GET /audit/decisions?actor=<id>&type=<type>&from=<date>&to=<date>&outcome=<outcome>` with paginated results + blob retrieval
+  - Dashboard panel (~20 LOC): recent approvals/rejections grouped by type + actor, click-through to full decision JSON
+  - Tests (~15 LOC): recording correctness, blob storage/retrieval, query filters, timestamp accuracy
+  - total: ~145 LOC, one new table `audit_decisions(id, blob_id, actor, decision_type, outcome, archived_at)`, one-session achievable
+- test cases: decision recording, blob persistence, query filters, actor/timestamp accuracy, output format
+- provenance:
+  - `.spark/ideas/2026-05-13-operator-decision-journal.md`
+- dependencies: **ZERO BLOCKERS** — uses existing blob storage, orthogonal to Phase 2/3/4
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove` (Phase 3: Visibility + Phase 2: Governance)
+
+### `empirical-model-efficiency-routing`
+
+- status: `now` (Phase 2 unlocker, cost optimization)
+- why it matters:
+  - Phase 0 cost-tracker already records per-spawn costs by model, tokens, role, project — we have thousands of prior tasks in each domain
+  - current friction: operators manually choose Haiku/Sonnet/Opus at spawn time, no signal about which is most *efficient* for this task type
+  - no optimization loop — successful role pairings aren't captured as reusable heuristics; cost optimization is left on the table
+  - this closes the feedback loop: learn from empirical history, auto-select the model that minimizes cost while maintaining success rate
+- implementation sketch:
+  - `lib/cost-tracker.ts` addition (~40 LOC): `queryModelEfficiency(taskType, window='7d')` computing avg_cost, success_rate, efficiency_score = success_rate / (cost + baseline)
+  - `routes/spawn.ts` addition (~30 LOC): `GET /spawn/model-efficiency/:task-type` returning ranked models with confidence thresholds (high: >100 samples, low: <10)
+  - `lib/spawn-preflight.ts` integration (~35 LOC): check efficiency endpoint before spawn, pick top-ranked if no explicit model, log recommendation + confidence
+  - Pheromone signaling (~30 LOC): spray `model-efficiency` signal on selected model with efficiency_score as strength
+  - Dashboard (~40 LOC): spawn telemetry showing "Selected Sonnet (88% efficiency) over Haiku (72%) based on 423 prior tasks"
+  - CLI (~20 LOC): `pd spawn --model auto` uses efficiency routing
+  - Tests (~20 LOC): efficiency computation, ranking, confidence scoring
+  - total: ~215 LOC, zero schema migrations, one-session achievable
+- test cases: efficiency computation correctness, ranking accuracy, confidence thresholds, low-confidence fallback, pheromone signaling
+- provenance:
+  - `.spark/ideas/2026-05-13-empirical-model-efficiency-routing.md`
+- dependencies: **ZERO BLOCKERS** — complements cost-tracker, doesn't require economist, orthogonal to Phase 2 work
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove` (Phase 2: Economy)
+
 ### Recommended First Two Builds
 
 If only one or two of the above move immediately, the best first cuts are:
@@ -484,6 +677,12 @@ Reason:
 - both keep Phase 1 coordination live and legible
 - neither requires speculative product expansion
 - incremental refresh keeps the graph-risk predictor current while the visual panel makes contention obvious
+
+**For Phase 2–3 infrastructure**: prioritize `daemon-fleet-auto-recovery` (zero blockers, completes Phase 3), then `graph-integrity-auditor` (Phase 1 health), then Phase 1–2 slice of `agent-skills-quality-gates` (bridges to confident spawning).
+
+**For Phase 2 forward motion**: ship `cost-forecast-alert` (unblocks budget-aware spawn decisions), then Phase 1–2 slice of `agent-skills-quality-gates` (skill validation before spawn).
+
+**For Phase 4B resilience**: ship `ipc-queue-saturation-promotion` (fills backpressure gap, enables graceful degradation).
 
 ## Secondary Backlog Families
 
