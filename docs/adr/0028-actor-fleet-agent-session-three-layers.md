@@ -101,7 +101,7 @@ session-roadmap-update-…      (ephemeral; ttl, claims files, lives in worktree
 
 When a fleet agent dies mid-work, its sessions land in salvage. Another
 embodiment of the same actor — or a new fleet body, or a human running
-`pd salvage claim <id>` — can continue. The actor's mailbox keeps
+`pd salvage claim <agent-id>` — can continue. The actor's mailbox keeps
 accumulating regardless.
 
 ## Rationale
