@@ -1,4 +1,4 @@
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import * as ui from '../utils/ui.js';
@@ -570,15 +570,36 @@ async function loadAllActiveClaims(): Promise<string[]> {
  * destructive verbs that's acceptable — nobody has live edits on a
  * file that doesn't exist yet — and the alternative (keeping ghosts)
  * is the bug we're fixing.
+ *
+ * Both `repoRoot` and each candidate path are canonicalized via
+ * `realpathSync` before the containment check. Without this, a symlink
+ * pointing outside the repo would pass `resolve()`'s `..`-collapsing
+ * check unchallenged and re-introduce the very leak this fixes. On
+ * macOS, `/var` → `/private/var` makes this matter even for plain
+ * paths under `os.tmpdir()`.
  */
 export function filterClaimsToRepo(paths: string[], repoRoot: string): string[] {
-  const root = resolve(repoRoot);
+  let root: string;
+  try {
+    root = realpathSync(resolve(repoRoot));
+  } catch {
+    // Repo root doesn't exist or isn't resolvable — no claims belong here.
+    return [];
+  }
   return paths.filter(path => {
     const trimmed = path.trim();
     if (!trimmed) return false;
     const abs = isAbsolute(trimmed) ? trimmed : resolve(root, trimmed);
-    if (relativePathInside(root, abs) === null) return false;
-    return existsSync(abs);
+    let real: string;
+    try {
+      real = realpathSync(abs);
+    } catch {
+      // Doesn't exist or unresolvable. `existsSync` was the prior bar,
+      // and `realpathSync` throwing covers the same case plus broken
+      // symlinks. Drop it.
+      return false;
+    }
+    return relativePathInside(root, real) !== null;
   });
 }
 
