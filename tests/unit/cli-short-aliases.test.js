@@ -32,3 +32,11 @@ describe('operator short aliases', () => {
     }
   });
 });
+
+describe('operator repeatable flags', () => {
+  test('--files accumulates across repeated CLI flag occurrences', () => {
+    expect(cliSource).toMatch(/REPEATABLE_FLAGS[\s\S]*new Set\(\['files'\]\)/);
+    expect(cliSource).toContain('options[key] = [existing, value as string];');
+    expect(cliSource).toContain('else if (Array.isArray(options.files)) files.push(...(options.files as string[]));');
+  });
+});
