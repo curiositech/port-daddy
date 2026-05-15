@@ -42,7 +42,7 @@ Five adversarial roles. Each owns a paper region and a comms surface.
 | `redteam-recovery` | Bonded §7 federated sovereign, Shamir escrow | `redteam:recovery` | `smell:vuln:recovery:*` |
 | `proof-gap-auditor` | Cross-cutting; cited-but-unmodeled proofs | `redteam:proofs` | `smell:proof-gap:*` |
 
-Persona specifications live under `agents/`. Each spec names:
+Persona specifications live under `agents/` (see [agents/INDEX.md](agents/INDEX.md)). Each spec names:
 - target paper sections
 - the persona's tool kit (ProVerif, Tamarin, TLA+, Kani, Z3, Mesa, Jepsen, etc.)
 - the bond the persona posts on its findings (a bad attack costs reputation;
@@ -87,10 +87,13 @@ See `references/comms-protocol.md` for the full spec.
 
 ## Reference manifest
 
-- `agents/` — five persona specs.
+- `agents/` — five persona specs; see [agents/INDEX.md](agents/INDEX.md) for when to load each.
 - `references/attack-patterns.md` — catalog of attack classes (cryptographic,
   multi-hop capability, revocation, mechanism-design, coordination-layer,
   recovery oracle).
+- `references/attack-research-2025.md` — curated 2023–2025 bibliography covering
+  capability-token delegation, cuckoo/Bloom filter pollution, Sybil formation,
+  passkey attacks, and email-recovery chain threats.
 - `references/computational-tooling.md` — when to reach for ProVerif vs
   Tamarin, TLA+ vs Apalache, Kani vs AFL, Mesa vs custom market sim.
 - `references/reading-list.md` — citations.
@@ -98,6 +101,16 @@ See `references/comms-protocol.md` for the full spec.
   artifact format.
 - `references/paper-targets.md` — what each paper section claims and what
   proof obligations attach to it.
+- `scripts/env.sh` — source before running any formal-methods tool; wires
+  `JAVA_HOME`, OPAM, and tool paths.
 - `scripts/run-redteam.sh` — orchestrator; `pd spawn`s each persona with
   the right paper region claimed and inbox subscribed.
 - `scripts/attack-templates/` — concrete probe templates per class.
+
+## Bundled Assets
+
+| Directory | Index |
+|---|---|
+| `agents/` | [agents/INDEX.md](agents/INDEX.md) — five adversarial persona specs |
+| `references/` | [references/INDEX.md](references/INDEX.md) — attack patterns, research bibliography, comms protocol, tooling guide, reading list |
+| `scripts/` | [scripts/INDEX.md](scripts/INDEX.md) — environment setup and round orchestrator |

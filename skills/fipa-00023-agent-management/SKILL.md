@@ -63,6 +63,8 @@ IF agent joins platform:
   └─ Registration order matters: existence before capabilities
 ```
 
+See `references/agent-discovery-without-omniscience.md` for why a single central registry eventually fails under real-world dynamic conditions.
+
 ### Failure Recovery Logic
 ```
 IF receive typed FIPA exception:
@@ -95,22 +97,24 @@ IF agent reports failure/becomes unresponsive:
   └─ Initiate recovery protocol (restart/reregister)
 ```
 
+See `references/lifecycle-states-as-coordination-contracts.md` for when each unavailability state demands a different orchestrator response.
+
 ## Failure Modes
 
 ### 🚫 **Endpoint Conflation** 
 **Symptoms**: Direct calls to `http://agent.host:8080`, hard-coded URLs in routing logic, broken references when agents move  
 **Detection Rule**: If you store transport addresses as permanent identifiers, you have this anti-pattern  
-**Fix**: Store AIDs only; resolve transport addresses via AMS at invocation time
+**Fix**: Store AIDs only; resolve transport addresses via AMS at invocation time — see `references/fipa-identity-vs-location-separation.md` for the formal AID model
 
 ### 🚫 **Registry Collapse**
 **Symptoms**: Single table/store tracking both agent existence and capabilities, lifecycle changes break service discovery  
 **Detection Rule**: If updating agent state requires touching capability records, you've collapsed the registries  
-**Fix**: Separate AMS (white pages) from DF (yellow pages); independent update operations
+**Fix**: Separate AMS (white pages) from DF (yellow pages); independent update operations — see `references/fipa-two-registry-architecture.md` for the canonical separation argument
 
 ### 🚫 **Blind Retry Loops**
 **Symptoms**: Generic error handling that retries all failures identically, no differentiation between temporary vs permanent failures  
 **Detection Rule**: If your retry logic doesn't branch on failure type, you're in blind retry  
-**Fix**: Parse FIPA exception types; different recovery strategies per exception class
+**Fix**: Parse FIPA exception types; different recovery strategies per exception class — see `references/fipa-exception-taxonomy-as-reasoning-tool.md` for the complete taxonomy
 
 ### 🚫 **State-Blind Invocation**
 **Symptoms**: Sending requests without checking agent lifecycle state, timeouts on suspended agents  
@@ -184,6 +188,11 @@ IF agent reports failure/becomes unresponsive:
 - [ ] Lifecycle state transitions respect authority rules (AMS vs agent-initiated)
 - [ ] Message performatives match communication intent (REQUEST vs INFORM vs QUERY)
 - [ ] Recovery protocols distinguish between agent failure and capability unavailability
+
+## Bundled Assets
+
+- **Diagrams** — [`diagrams/INDEX.md`](diagrams/INDEX.md): lifecycle state machine, discovery/registration sequence, and agent addressing decision tree
+- **References** — [`references/INDEX.md`](references/INDEX.md): deep-dives on AMS/DF separation, AID identity model, exception taxonomy, federated discovery, capability search, lifecycle contracts, registry authorization, message performatives, and platform interoperability
 
 ## Not-For Boundaries
 
