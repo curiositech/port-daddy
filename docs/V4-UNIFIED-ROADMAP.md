@@ -3,10 +3,14 @@
 Canonical note: this file remains valuable historical context, but the active recovery authority now lives in `docs/recovery/README.md` and `docs/recovery/UNIFIED-ROADMAP.md`.
 
 **Author:** Erich Owens
-**Last Updated:** 2026-05-13 23:24 UTC
-**Status:** Canonical reference document — authority for execution now lives in `docs/recovery/UNIFIED-ROADMAP.md`. Phase 0 complete, Phase 4 partially complete (Fastify ✅, Trie ✅, Binary IPC ✅, Backpressure ⚡, Bun binary stale 42d, 4E/4F stale 43d), Phase 2 economist follow-up remains stale (44d idle), Phase 3 largely done (fleet, pheromone, Fleet Live Dashboard all shipped) with the visibility / automation follow-ons (`daemon-introspection-api`, `crew-screen-roles-not-pids`, `fleet-health-scorecard`, `coordination-ticker-as-high-signal-feed`, `fleet-run-journal`, `daemon-fleet-auto-recovery`, `operator-hint-engine`) now the hottest mapped lane, and the 2026-05-11 Spark promotion adding `graph-based-merge-conflict-predictor` and `ambient-anomaly-signaling` to the curated execution wave while the 2026-05-12 Spark promotion adds `symbol-graph-visualization`, `incremental-symbol-index-refresh`, `operator-hint-engine`, `symbol-claim-isolation-validator`, and `orchestrator-plugin-lifecycle` to the Phase 1/3 support lanes; the 2026-05-13 Spark promotion now adds `graph-integrity-auditor`, `daemon-fleet-auto-recovery`, `cost-forecast-alert`, `agent-skills-quality-gates`, and `ipc-queue-saturation-promotion` to the Phase 1/2/3/4 support lanes. The 2026-05-10 Spider exhaust (`S41`/`S42`/`S43`) remains uncurated. Phase 1 complete (graph_edges migration/schema committed in `f265fcb5` and reflected in the roadmaps by `2ad20f32`). **Recovery Track 1 CLOSED** (`8744e14`, 2026-04-06) — `cost-tracker`, `counters`, and the full `/metrics/*` observability surface are now committed and released as v3.8.3. The observability trifecta is complete. FleetBar unified with the real fleet control plane (`a41f18f`, `e82f096`) — the menu bar app now shells `fleet-config-ui` via WebView instead of maintaining a shadow dashboard. Fleet runtime readiness checks, backend fallbacks, and spawn preflight enforcement committed (`3b818d2`, `71fc446`, `0cc5e6`); `1459c0d4` tightened the claude-cli tier aliases. Cartographer roadmap-progress and feedback surfaces now exist in-tree (`7ba8d84`, `8fcf93e`, `4807cb5`, `bd4fc6f`, `eac3fc3`). Recent commits are now the Phase 1 completion/reflection/finalization/verification sequence (`f265fcb5`, `2ad20f32`, `670ab97b`, `e6bd1b88`, `3b9d17ce`, `f4624ebd`, `f0398b9a`), the 2026-05-09 harvest pass (`676b0d30`), the 2026-05-09 roadmap reconciliation (`05e94639`), the 2026-05-12 continuation passes (`857f225c`, `d017bc28`), plus salvage/recovery triage (`48229e29`, `1117dda3`, `41eb63f`), unplanned website / release-surface / phone-integration work (`2a207870`, `f3c3e7f4`, `48b6c54c`, `60f72edd`), whitepaper/editorial cleanup (`e5226d1a`, `f9a422f5`, `637cecce`), docs/reference-architecture cleanup (`8a869a03`, `dc64054c`), backend readiness / telemetry cleanup (`2ee5976a`, `1459c0d4`), and an unplanned fleet-model / telos hardening burst (`ffe098fe`, `57f24644`, `4c85f3e4`, `6a610bf3`, `d3e43b3d`, `989c6972`, `2fc96f8b`). The same release window also shipped the relay-independent primitive layer (`pd tube`, Merkle chain, relay PKI, `pd-relay-zero-trust`, quorum primitives, daemon profiles, and repo-enforced Coordination Guard), so the network / release-surface story is real rather than aspirational. Phase 5 now has active relay/harbor-mesh architecture groundwork; Phase 6 has fresh telos substrate landings, and the explicit spawn-time suggestion layer remains the remaining cut. The 2026-05-07 Spider extension pass (`S17`–`S29`, plus `remaining-spaces`) extends existing quorum / pheromone / graph / budget / incident combinations rather than minting a new V4 phase. HEAD: `d017bc28`.
+**Last Updated:** 2026-05-14 22:53 UTC
+**Status:** Canonical reference document — authority for execution now lives in `docs/recovery/UNIFIED-ROADMAP.md`. Phase 0 complete, Phase 4 partially complete (Fastify ✅, Trie ✅, Binary IPC ✅, Backpressure ⚡, Bun binary stale 43d, 4E/4F stale 44d), Phase 2 economist follow-up remains stale (45d idle), Phase 3 largely done (fleet, pheromone, Fleet Live Dashboard all shipped) with the visibility / automation follow-ons (`daemon-introspection-api`, `crew-screen-roles-not-pids`, `fleet-health-scorecard`, `coordination-ticker-as-high-signal-feed`, `fleet-run-journal`, `daemon-fleet-auto-recovery`, `operator-hint-engine`) now the hottest mapped lane, the 2026-05-14 `tuple-driven-fleet` routing cut adding a lower-priority Phase 3 dispatch lane beneath that cluster, and the 2026-05-11 Spark promotion adding `graph-based-merge-conflict-predictor` and `ambient-anomaly-signaling` to the curated execution wave while the 2026-05-12 Spark promotion adds `symbol-graph-visualization`, `incremental-symbol-index-refresh`, `operator-hint-engine`, `symbol-claim-isolation-validator`, and `orchestrator-plugin-lifecycle` to the Phase 1/3 support lanes; the 2026-05-13 Spark promotion now adds `graph-integrity-auditor`, `daemon-fleet-auto-recovery`, `cost-forecast-alert`, `agent-skills-quality-gates`, and `ipc-queue-saturation-promotion` to the Phase 1/2/3/4 support lanes, and the 2026-05-13 extended Spark promotion adds `cost-gated-spawning`, `empirical-model-efficiency-routing`, `operator-decision-journal`, and `sandboxed-adversarial-test-harness` to the phase map. The 2026-05-14 promotion adds `tuple-store-query-api`, `governance-coordination-hub`, `phase-3-auto-remediation-executor`, `cost-aware-model-training-loop`, and `unified-spawn-risk-synthesis` to the curated execution wave while `skill-degradation-contagion-early-warning` stays backlog. The 2026-05-10 Phase 4 resilience cut `salvage-root-cause-classifier` now anchors the salvage lane, and the 2026-05-10 Spider exhaust (`S41`/`S42`/`S43`) remains uncurated. Phase 1 complete (graph_edges migration/schema committed in `f265fcb5` and reflected in the roadmaps by `2ad20f32`). **Recovery Track 1 CLOSED** (`8744e14`, 2026-04-06) — `cost-tracker`, `counters`, and the full `/metrics/*` observability surface are now committed and released as v3.8.3. The observability trifecta is complete. FleetBar unified with the real fleet control plane (`a41f18f`, `e82f096`) — the menu bar app now shells `fleet-config-ui` via WebView instead of maintaining a shadow dashboard. Fleet runtime readiness checks, backend fallbacks, and spawn preflight enforcement committed (`3b818d2`, `71fc446`, `0cc5e6`); `1459c0d4` tightened the claude-cli tier aliases. Cartographer roadmap-progress and feedback surfaces now exist in-tree (`7ba8d84`, `8fcf93e`, `4807cb5`, `bd4fc6f`, `eac3fc3`). Recent commits are now the Phase 1 completion/reflection/finalization/verification sequence (`f265fcb5`, `2ad20f32`, `670ab97b`, `e6bd1b88`, `3b9d17ce`, `f4624ebd`, `f0398b9a`), the 2026-05-09 harvest pass (`676b0d30`), the 2026-05-09 roadmap reconciliation (`05e94639`), the 2026-05-12 continuation passes (`857f225c`, `d017bc28`), plus salvage/recovery triage (`48229e29`, `1117dda3`, `41eb63f`), unplanned website / release-surface / phone-integration work (`2a207870`, `f3c3e7f4`, `48b6c54c`, `60f72edd`), whitepaper/editorial cleanup (`e5226d1a`, `f9a422f5`, `637cecce`), docs/reference-architecture cleanup (`8a869a03`, `dc64054c`), backend readiness / telemetry cleanup (`2ee5976a`, `1459c0d4`), and an unplanned fleet-model / telos hardening burst (`ffe098fe`, `57f24644`, `4c85f3e4`, `6a610bf3`, `d3e43b3d`, `989c6972`, `2fc96f8b`). The same release window also shipped the relay-independent primitive layer (`pd tube`, Merkle chain, relay PKI, `pd-relay-zero-trust`, quorum primitives, daemon profiles, and repo-enforced Coordination Guard), so the network / release-surface story is real rather than aspirational. Phase 5 now has active relay/harbor-mesh architecture groundwork; Phase 6 has fresh telos substrate landings, and the explicit spawn-time suggestion layer remains the remaining cut. The live tuple-backed feedback queue was unavailable from this shell because `pd roadmap --feedback-status open --json` and `pd feedback list --status open --json` both hit `EPERM` on `~/.port-daddy/daemon.sock`, so the dogfood harvest stayed unchanged this pass. The 2026-05-07 Spider extension pass (`S17`–`S29`, plus `remaining-spaces`) extends existing quorum / pheromone / graph / budget / incident combinations rather than minting a new V4 phase. HEAD: `bbbd19be`.
 
-This document synthesizes all V4 planning documents into a single sequenced roadmap. Nothing from the original documents has been discarded — ideas that aren't yet sequenced are preserved in the Appendix. The 2026-05-11 Spark promotion added `graph-based-merge-conflict-predictor` and `ambient-anomaly-signaling` to the curated wave; the 2026-05-12 continuation passes (`857f225c`, `d017bc28`) added the claim-safety and plugin-lifecycle support lane, and the 2026-05-10 raw Spider exhaust (`S41`/`S42`/`S43`) remains uncurated and is therefore not reflected in the phase map below yet.
+This document synthesizes all V4 planning documents into a single sequenced roadmap. Nothing from the original documents has been discarded — ideas that aren't yet sequenced are preserved in the Appendix. The 2026-05-11 Spark promotion added `graph-based-merge-conflict-predictor` and `ambient-anomaly-signaling` to the curated wave; the 2026-05-12 continuation passes (`857f225c`, `d017bc28`) added the claim-safety and plugin-lifecycle support lane; the 2026-05-14 promotion adds `tuple-store-query-api`, `governance-coordination-hub`, `phase-3-auto-remediation-executor`, `cost-aware-model-training-loop`, and `unified-spawn-risk-synthesis` to the curated wave while `skill-degradation-contagion-early-warning` stays backlog, and the 2026-05-10 raw Spider exhaust (`S41`/`S42`/`S43`) remains uncurated and is therefore not reflected in the phase map below yet.
+
+The same 2026-05-14 Spark promotion also surfaced
+`episodic-memory-query-surfaces` as the Phase 3B memory cut, so Fleet &
+Memory is no longer just a spec.
 
 ---
 
@@ -109,6 +113,14 @@ Force-directed graph view in the dashboard. Heat map overlay for contested files
 > **Cartographer — 2026-05-12:** `orchestrator-plugin-lifecycle` is the user-facing Phase 1.5 wire for `orchestrator-plugins`: hot-load custom orchestrators so the registry can accept domain routers without a daemon fork.
 
 > **Cartographer — 2026-05-13:** `graph-integrity-auditor` turns the Phase 1 graph into a daily health-checked substrate so silent corruption does not poison merge prediction or claim safety.
+>
+> **Cartographer — 2026-05-13:** `cost-gated-spawning` and `empirical-model-efficiency-routing` extend the Phase 2 cost lane with hard launch-time enforcement and model-efficiency routing, while `operator-decision-journal` gives Phase 3/2 governance an immutable decision trail.
+>
+> **Cartographer — 2026-05-14:** `cost-aware-model-training-loop` closes the Phase 2 feedback loop so operator overrides and budget breaches can teach the model router instead of only being logged.
+>
+> **Cartographer — 2026-05-14:** `tuple-driven-fleet` is the Phase 3 routing cut that turns tuples into actual swarm task dispatch instead of broadcast-only coordination.
+>
+> **Cartographer — 2026-05-14:** `tuple-store-query-api`, `governance-coordination-hub`, and `phase-3-auto-remediation-executor` widen the Phase 3 visibility/governance lane, while `skill-degradation-contagion-early-warning` stays a backlog extension of the same lane.
 
 ---
 
@@ -216,6 +228,8 @@ pd memory forget <key>
 pd memory episodes [--agent <id>]
 ```
 
+> **Cartographer — 2026-05-14:** `episodic-memory-query-surfaces` is the Phase 3B memory cut: expose memory store/recall/forget/episodes so Fleet & Memory can actually search learned experience across sessions.
+
 - Persists across sessions (SQLite)
 - Scoped by agent identity (wildcards)
 - Semantic recall via local embeddings (Ollama)
@@ -245,6 +259,10 @@ Visual fleet management, watch hooks with message history, spawn agent form, fle
 > **Cartographer — 2026-05-09:** The Phase 3 visibility cluster now spans `daemon-introspection-api`, `crew-screen-roles-not-pids`, `fleet-health-scorecard`, `coordination-ticker-as-high-signal-feed`, and `fleet-run-journal`: one panel/view for daemon pressure, role health, cost burn, queue depth, violations, and fleet history. It belongs with the shipped fleet-config-ui / FleetBar surfaces rather than in the network or coaching lanes.
 
 > **Cartographer — 2026-05-13:** `daemon-fleet-auto-recovery` is the Phase 3 automation cut that keeps persistent roles alive across daemon restarts so `pd fleet up` stops being manual ceremony.
+>
+> **Cartographer — 2026-05-13:** `operator-decision-journal` keeps approvals, overrides, and pauses auditable so Phase 3 visibility has a durable "why" trail, not just a "what happened" log.
+>
+> **Cartographer — 2026-05-14:** `claim-preserving-git-safety` and `fleet-launchability-and-cadence` are the dogfood-backed execution-boundary cuts: preserve claims across destructive git and surface launchability truth before spawn.
 
 **Deliverable:** Agents run continuously, learn across sessions, and are managed declaratively.
 
@@ -256,9 +274,9 @@ Visual fleet management, watch hooks with message history, spawn agent form, fle
 
 *The kernel upgrade. Hardened for production workloads.*
 
-### 4A. Bun/Fastify Migration [FASTIFY SHIPPED v3.8.1, BUN BINARY STALE — no commits since 2026-04-01 (42 days)]
+### 4A. Bun/Fastify Migration [FASTIFY SHIPPED v3.8.1, BUN BINARY NOW ACTIVE — resumed 2026-05-11, active 2026-05-14 with sign/notarize + doctor diagnostics]
 
-Replace Express with Fastify on Bun for 20,000+ req/sec. Single-file binary compilation via `bun build --compile`.
+Replace Express with Fastify on Bun for 20,000+ req/sec. Single-file binary compilation via `bun build --compile`. **STATUS UPDATE (2026-05-14)**: Binary distribution work has resumed. Commits include sign-and-notarize wrapper (`0d99bdfe`), LaunchAgent plist diagnostics (`cd283478`), and doctor feature enhancements (`72461802`). Distribution cycle v3.14.0 in progress.
 
 > **Cartographer — 2026-03-31:** Fastify migration complete (`b8a8ae0`, 2026-03-29). All 23 route files converted to Fastify plugins. `express`, `cors`, `express-rate-limit`, `supertest` removed. Same API surface, same endpoints. BigInt serialization fixed, ephemeral port exhaustion eliminated with `fastify.inject()`. **Bun** (single-file binary) has zero commits — this half of 4A is not started.
 >
@@ -289,6 +307,12 @@ Socket-level backpressure when SQLite WAL commits lag. Forces agents to pause ra
 > **Cartographer — 2026-05-11:** `graph-based-merge-conflict-predictor` is the current curated merge-infrastructure cut: score symbol-level overlap from the Phase 1 graph before git attempts a merge.
 
 > **Cartographer — 2026-05-13:** `ipc-queue-saturation-promotion` fills the remaining Phase 4B gap with saturation-aware spawn gating so the daemon can shed load before the IPC queue becomes the bottleneck.
+>
+> **Cartographer — 2026-05-13:** `sandboxed-adversarial-test-harness` is the Phase 4E/4F unlocker: isolate adversarial runs from the live daemon so hardening work can execute safely instead of staying design-only.
+>
+> **Cartographer — 2026-05-14:** `forensic-context-windows` is the narrative companion to salvage classification: Arbiter violations need recent timeline context, not just a bare label.
+>
+> **Cartographer — 2026-05-14:** `unified-spawn-risk-synthesis` combines the Phase 4B launch gates into one preflight risk signal so operators can see the combined cost/skill/dependency/harbor/learning picture before spawn.
 
 ### 4E. `pd self-test --adversarial` [STALE — no commits since 2026-03-31 (43 days)]
 
@@ -394,8 +418,20 @@ From `STIGMERGIC_BACKLOG.md`: Metadata traces that fade over time. Agents "spray
 >
 > **Cartographer — 2026-03-31:** Dashboard visualization is **done**. The pheromone file heat map on the overview panel shipped in 3.8.0 — color-coded with CONFLICT badges per file. Additionally, pheromone spray and pub/sub publish now route over the binary IPC fast path (3.8.2). Also in 3.8.2: pheromone IPC path (spray + sniff) wired into SDK fast paths. **This appendix item is now fully complete.** The only remaining open question is whether auto-merge at 0.95 confidence scent (the full A3 vision) gets built — that requires Phase 1 graph infrastructure.
 
-### A3. Stigmergic Merging
+### A3. Stigmergic Merging & Cuckoo Filter
 From `WORKTREE_SWARMS.md`: Instead of human-driven merge, a "Janitor Agent" watches the token graph. When confidence_scent hits 0.95 across Coder + Reviewer + Tester annotations, it initiates `git merge` of all involved worktrees automatically. Requires the Semantic Token Graph (Phase 1) as infrastructure.
+
+**STATUS (2026-05-14)**: Cuckoo filter + pollution-resistance property test committed (`631118fb` 2026-05-13). Foundation for swarm attack resilience now in codebase.
+
+### A5. Sybil Attack Resistance via Economic Simulation [NOW IN EXECUTION — 2026-05-14]
+From swarm/econ-v2 branch: Formal proof of Sybil-attack resistance using folk-theorem game-theoretic analysis. Prevents agents from creating fake identities to monopolize resources or manipulate consensus.
+
+**STATUS (2026-05-14)**: Folk-theorem simulations + proofs committed (`427353f7` 2026-05-14, §8.4.4 extension). Attack cost analysis and cartel-formation barriers now mathematically grounded. Appendix item promoted to execution.
+
+### A6. Cartel Prevention via Mechanism Design [NOW IN EXECUTION — 2026-05-14]
+From swarm/econ-v2 branch: Agents colluding to monopolize work or suppress honest agents are economically disincentivized by bond pricing and collateral enforcement. Mechanism analysis via cryptoeconomic simulation.
+
+**STATUS (2026-05-14)**: Same commit as A5 (`427353f7`). Cartel folk-theorem equilibria now in executable proofs. Appendix item promoted to execution.
 
 ### A4. WinDAGs Bridge
 From `STIGMERGIC_BACKLOG.md`: Map WinDAGs abstract nodes to Port Daddy physical Harbors. Automatically create a Harbor for every WinDAGs execution ID. Use the Arbiter to revoke Harbor Cards if WinDAGs evaluation fails.
@@ -456,6 +492,7 @@ From `v4_thoughts.md`: Run TLC on the BondedCommons spec with concrete parameter
 | **Relay-independent primitives / zero-trust relay stack** | `79ceec9`, `73c471f`, `af84f24`, `fa6b66e`, `6a37bd3`, `e9b57b3`, `2a207870`, `f3c3e7f4`, `5ded9f79`, `48b6c54c`, `60f72edd` | Phone-integration and release-surface work escaped the V4 plan and got pulled forward by release-surface dogfooding. The follow-on tranche now includes `pd tube`, the Merkle event-chain library, the OIDC-first relay PKI decision, `pd-relay-zero-trust`, quorum primitives, daemon profiles, and repo-enforced Coordination Guard. |
 | **Salvage triage + stale-work visibility + next queue pull + envelope prototype** | `48229e29`, `1117dda3`, `41eb63f`, `6c7c8507` | Recovery tooling turned the salvage queue into a bounded triage surface, improved stale-work visibility, and added an empirical gap-report envelope prototype; not a V4 phase. |
 | **Website / docs / preview polish burst** | `e5226d1a`, `f9a422f5`, `637cecce`, `35500702`, `8a869a03`, `dc64054c`, `ca6ee88d`, `e0efcc7c`, `bebd0333`, `d35c7c55`, `aebccb1a`, `1515a767`, `03adccfc`, `90235d8f`, `0cee274c`, `8b3ac867`, `a9d151e7` | Whitepaper/editorial, docs/reference-architecture, and public-site polish escaped the V4 plan and got pulled forward by release-surface dogfooding. |
+| **Whitepaper / proof conformance burst** | `18198c46`, `36af999b`, `d4484135`, `e973bbd2`, `8ea60834`, `27dce34f`, `b4a0fe50` | Formal proof closure, runtime conformance, and whitepaper follow-through landed as release-support work rather than a named V4 phase. |
 | **Website distribution / Mac Preview / MCP polish** | `0718477`, `3214576`, `8c65932`, `f94769a`, `b5c0e41`, `3c34c1d`, `11be921`, `3752aef`, `9311394`, `78b5cd4`, `629de64` | Public website, preview, and download-path polish were urgent product truth work, not a scheduled V4 phase. |
 | **Website shell navigation + examples toolability** | `5db90d7`, `adcc608` | SPA hash-anchor navigation and examples-as-buildable-tools cleanup were release-surface polish, not a scheduled V4 phase. |
 | Tuple Space (`lib/tuples.ts`) — Linda-style shared coordination | `8cfce3f`, `305e063`, `f6acdbf` | Emerged from fleet coordination needs. Gives agents a shared scratchpad: `out/rd/take` with wildcard pattern matching, harbor scoping, TTL. 24 unit tests. Fully wired: CLI, SDK, MCP, completions. Not in any phase — new primitive. |
