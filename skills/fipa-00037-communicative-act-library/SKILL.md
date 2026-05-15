@@ -63,6 +63,8 @@ What is the sender's knowledge state about the content?
     └── Declining proposal → reject-proposal(proposal, reason)
 ```
 
+> For `query-ref` over unbounded result spaces (unknown number of matches, open-ended referents), see `references/macro-acts-and-infinite-disjunctions.md` for how macro acts handle lazy infinite-disjunction evaluation.
+
 ### Federation Routing Decision Tree
 
 ```
@@ -98,10 +100,12 @@ Received unexpected response or timeout?
 
 ## FAILURE MODES
 
+See `references/failure-modes-of-multi-agent-coordination.md` for the formal treatment of `refuse`, `failure`, and `not-understood` semantics and a full taxonomy of coordination breakdown modes.
+
 ### 1. "Command Confusion" Anti-Pattern
 **Symptom**: Agent sends `request(action)` and assumes action will happen without confirmation
 **Detection Rule**: If you see coordination logic that doesn't handle `refuse` or `failure` responses, this is command confusion
-**Fix**: Always design request-response pairs: `request(action)` → expect (`inform-done` | `refuse` | `failure`)
+**Fix**: Always design request-response pairs: `request(action)` → expect (`inform-done` | `refuse` | `failure`). See `references/feasibility-preconditions-rational-effects-separation.md` for why rational effects are never guaranteed even when preconditions are met.
 
 ### 2. "Silent Drop" Anti-Pattern  
 **Symptom**: Agent receives message it cannot process and ignores it silently
@@ -116,7 +120,7 @@ Received unexpected response or timeout?
 ### 4. "Protocol Explosion" Anti-Pattern
 **Symptom**: Creating specialized acts like `urgent-notify` or `status-update` instead of composing from primitives
 **Detection Rule**: If you see custom message types that aren't grounded in B/U/I mental state changes, this is protocol explosion
-**Fix**: Decompose into primitives - `urgent-notify(P)` becomes `inform(P) + priority-flag`, `status-update` becomes `inform(current-status)`
+**Fix**: Decompose into primitives — `urgent-notify(P)` becomes `inform(P) + priority-flag`, `status-update` becomes `inform(current-status)`. See `references/compositional-communication-through-action-expressions.md` for the full action-expression composition model.
 
 ### 5. "Timeout Guessing" Anti-Pattern
 **Symptom**: Using arbitrary timeout values (like 5 seconds) without considering act semantics
@@ -144,7 +148,7 @@ Received unexpected response or timeout?
 
 **Novice approach**: Retry with same request or give up
 **Expert reasoning**:
-1. Parse refusal reason - "file too large" indicates capability boundary, not context issue
+1. Parse refusal reason — "file too large" indicates capability boundary, not context issue (see `references/ability-preconditions-vs-context-relevance.md` for the formal distinction)
 2. Decision tree: capability issue → find different agent OR modify request
 3. Try `request(process_document_chunks(split(large_file.pdf, 10MB)))`
 4. If that also fails, escalate to agent with higher processing limits
@@ -172,7 +176,7 @@ Protocol validation checklist - mark complete when all conditions are verifiable
 
 - [ ] Every `request` has defined response paths for `inform-done`, `refuse`, and `failure`
 - [ ] All agents can emit `not-understood` for unparseable messages
-- [ ] Mental state preconditions are satisfied before sending each act (sender believes what they claim to believe)
+- [ ] Mental state preconditions are satisfied before sending each act (sender believes what they claim to believe; see `references/mental-attitudes-as-coordination-substrate.md` for B/U/I operator semantics)
 - [ ] Timeout thresholds are set based on act complexity: `inform` 5-10s, `query` 10-30s, `request` 30s-5min
 - [ ] Routing strategy chosen: direct, proxy, or propagate with appropriate filtering criteria
 - [ ] Error escalation paths defined for each failure mode (refuse → find different agent, failure → retry logic)
@@ -180,6 +184,12 @@ Protocol validation checklist - mark complete when all conditions are verifiable
 - [ ] Protocol uses composition of primitives rather than custom act types
 - [ ] Belief/uncertainty/intention states remain consistent across message sequences
 - [ ] Context-relevance vs. ability preconditions distinguished in refusal handling
+
+---
+
+## Bundled Assets
+
+See [`references/INDEX.md`](references/INDEX.md) for the full reference library with per-document load triggers.
 
 ---
 

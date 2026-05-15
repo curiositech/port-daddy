@@ -60,6 +60,8 @@ IF output is creative/subjective (writing, designs)
 └── Use structured evaluation criteria with binary checkpoints
 ```
 
+See `diagrams/02_flowchart_multi-agent_system_decision_tr.md` for a visual rendering of these decision paths alongside failure-mode diagnoses.
+
 ## Failure Modes
 
 ### 1. **Hallucination Cascade** 
@@ -67,25 +69,35 @@ IF output is creative/subjective (writing, designs)
 *Detection*: Compare first agent output quality to final output—if final is significantly worse, cascade is occurring
 *Fix*: Implement structured artifacts with validation at each handoff; require concrete verification before passing to next agent
 
+See `references/structured-communication-prevents-hallucination-cascades.md` for the formal argument on why structured formats arrest cascade propagation.
+
 ### 2. **Context Dilution**
 *Symptoms*: Agents lose critical information from earlier steps; requirements get "interpreted" differently at each stage
 *Detection*: If agents ask for information that was provided earlier, or if final output doesn't match initial requirements
 *Fix*: Use persistent structured documents (PRDs, design specs) that agents read from rather than relying on message passing
+
+See `references/sops-as-decomposition-frameworks.md` for how human SOPs solve the same context-preservation problem.
 
 ### 3. **Coordination Thrashing**
 *Symptoms*: Agents endlessly negotiate, ask clarifying questions, or produce conflicting outputs
 *Detection*: High message volume between agents with low progress on actual deliverables; circular dependencies in agent communication
 *Fix*: Switch to pub-sub with pre-defined message types; eliminate agent-to-agent negotiation in favor of structured information publishing
 
+See `references/publish-subscribe-as-coordination-primitive.md` for the O(n²) vs O(n) communication cost analysis.
+
 ### 4. **Executable Bypass**
 *Symptoms*: Code/outputs that look correct but fail when tested; agents claiming "validation complete" without actually running tests
 *Detection*: If agent reports success but execution reveals errors that should have been caught
 *Fix*: Make execution feedback mandatory and automatic; never accept agent self-assessment without concrete verification
 
+See `references/executable-feedback-as-reality-grounding.md` for the knowing-doing gap analysis that motivates this requirement.
+
 ### 5. **Role Boundary Blur**
 *Symptoms*: Agents performing tasks outside their specialization; unclear ownership when outputs fail
 *Detection*: If you can't answer "which agent is responsible for X deliverable?" or agents produce overlapping outputs
 *Fix*: Redefine roles by output artifacts; each agent owns exactly one type of structured deliverable
+
+See `references/role-specialization-as-bounded-expertise.md` for the compounding-error argument against generalist agents.
 
 ## Worked Examples
 
@@ -168,6 +180,11 @@ IF output is creative/subjective (writing, designs)
 - [ ] Final output quality is verifiable through concrete metrics, not agent self-assessment
 - [ ] Adding/removing agents doesn't require rewiring communication logic
 - [ ] Each agent's success criteria are binary and testable
+
+## Bundled Assets
+
+- **[diagrams/INDEX.md](diagrams/INDEX.md)** — Sequence diagram of the full PM→QA agent handoff flow, decision tree for diagnosing coordination failures, and mental models mindmap
+- **[references/INDEX.md](references/INDEX.md)** — Deep dives on structured communication, SOPs as decomposition engines, role specialization, pub-sub architecture, executable feedback, and collective meta-programming
 
 ## NOT-FOR Boundaries
 

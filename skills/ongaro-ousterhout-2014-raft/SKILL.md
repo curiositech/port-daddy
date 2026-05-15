@@ -66,7 +66,7 @@ Good decomposition separates concerns such that:
 - Implementation order is flexible (loose coupling in time)
 - The interface between components is smaller than the component internals
 
-**Raft's example**: Leader election, log replication, and safety are nearly independent subproblems. You can understand log replication without understanding election mechanics.
+**Raft's example**: Leader election, log replication, and safety are nearly independent subproblems. You can understand log replication without understanding election mechanics. See [`references/decomposition-as-coordination-strategy.md`](references/decomposition-as-coordination-strategy.md) for the formal analysis.
 
 **Bad decomposition signs**:
 - "You can't understand X without first understanding Y and Z"
@@ -84,7 +84,7 @@ Good decomposition separates concerns such that:
 - Log entries flow unidirectionally (leader → followers)
 - Only candidates with up-to-date logs can be elected
 
-Each constraint eliminates combinatorial possibilities. The Leader Append-Only Property alone prevents entire classes of consistency violations.
+Each constraint eliminates combinatorial possibilities. The Leader Append-Only Property alone prevents entire classes of consistency violations. See [`references/state-space-reduction-through-constraints.md`](references/state-space-reduction-through-constraints.md) for the constraint selection methodology.
 
 **How to apply**:
 1. Identify the full state space your system could theoretically occupy
@@ -231,13 +231,13 @@ Complete specification includes:
 
 | Reference File | When to Load | Key Content |
 |---------------|--------------|-------------|
-| `decomposition-as-coordination-strategy.md` | Designing multi-component systems; experiencing tight coupling between modules | How Raft's three-way split (election/replication/safety) reduces interdependency; criteria for good vs. bad decomposition boundaries |
-| `strong-leadership-vs-democratic-coordination.md` | Choosing between centralized orchestrator and peer coordination; designing leader election | Deep analysis of strong leader trade-offs; when asymmetric coordination simplifies systems; failure scenario handling |
-| `state-space-reduction-through-constraints.md` | System has too many edge cases; debugging mysterious state corruption; designing invariants | Raft's specific constraints (no holes, append-only, etc.); how restrictions eliminate bug classes; constraint selection methodology |
-| `randomization-and-coordination-simplicity.md` | Facing split-brain or coordination deadlocks; deterministic approach creating corner cases | Why Raft uses randomized timeouts; when nondeterminism reduces complexity; trade-offs vs. reproducibility |
-| `failure-modes-and-recovery-design.md` | Implementing fault tolerance; system experiencing undefined failure states; designing recovery logic | Raft's failure taxonomy; how to design for failure from the start; making recovery paths first-class design elements |
-| `understandability-as-measurable-goal.md` | Evaluating design alternatives; system is "theoretically correct" but brittle in practice; measuring design quality | Raft's empirical study comparing comprehension; metrics for understandability; how to make it a design objective not afterthought |
-| `implementing-vs-specifying-distributed-systems.md` | Writing specifications or documentation; gap between design and implementation; distributed system design | The completeness gap in academic literature; what Raft includes that others omit; how to write implementable specs |
+| [`references/decomposition-as-coordination-strategy.md`](references/decomposition-as-coordination-strategy.md) | Designing multi-component systems; experiencing tight coupling between modules | How Raft's three-way split (election/replication/safety) reduces interdependency; criteria for good vs. bad decomposition boundaries |
+| [`references/strong-leadership-vs-democratic-coordination.md`](references/strong-leadership-vs-democratic-coordination.md) | Choosing between centralized orchestrator and peer coordination; designing leader election | Deep analysis of strong leader trade-offs; when asymmetric coordination simplifies systems; failure scenario handling |
+| [`references/state-space-reduction-through-constraints.md`](references/state-space-reduction-through-constraints.md) | System has too many edge cases; debugging mysterious state corruption; designing invariants | Raft's specific constraints (no holes, append-only, etc.); how restrictions eliminate bug classes; constraint selection methodology |
+| [`references/randomization-and-coordination-simplicity.md`](references/randomization-and-coordination-simplicity.md) | Facing split-brain or coordination deadlocks; deterministic approach creating corner cases | Why Raft uses randomized timeouts; when nondeterminism reduces complexity; trade-offs vs. reproducibility |
+| [`references/failure-modes-and-recovery-design.md`](references/failure-modes-and-recovery-design.md) | Implementing fault tolerance; system experiencing undefined failure states; designing recovery logic | Raft's failure taxonomy; how to design for failure from the start; making recovery paths first-class design elements |
+| [`references/understandability-as-measurable-goal.md`](references/understandability-as-measurable-goal.md) | Evaluating design alternatives; system is "theoretically correct" but brittle in practice; measuring design quality | Raft's empirical study comparing comprehension; metrics for understandability; how to make it a design objective not afterthought |
+| [`references/implementing-vs-specifying-distributed-systems.md`](references/implementing-vs-specifying-distributed-systems.md) | Writing specifications or documentation; gap between design and implementation; distributed system design | The completeness gap in academic literature; what Raft includes that others omit; how to write implementable specs |
 
 ## Anti-Patterns
 
@@ -330,3 +330,8 @@ Complete specification includes:
 ---
 
 *Note: This skill emphasizes design principles over implementation details. Load reference files for deeper dives into specific mechanisms, trade-offs, and applications.*
+
+## Bundled Assets
+
+- **Diagrams**: [`diagrams/INDEX.md`](diagrams/INDEX.md) — state-transition diagram, log replication sequence, and decomposition mindmap
+- **References**: [`references/INDEX.md`](references/INDEX.md) — seven deep-dive documents covering decomposition strategy, leadership trade-offs, constraint design, randomization, failure modes, understandability metrics, and specification completeness

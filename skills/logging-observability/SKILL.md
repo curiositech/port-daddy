@@ -71,6 +71,8 @@ SLI established →
       └── NO → Set conservative threshold, tune weekly for 1 month
 ```
 
+> See `references/alerting-patterns.md` for full SLI/SLO vocabulary, error budget tables, and PagerDuty alert routing recipes.
+
 **4. Trace Sampling Decision**
 ```
 Performance impact →
@@ -194,6 +196,8 @@ export function correlationMiddleware(req, res, next) {
 }
 ```
 
+> See `references/opentelemetry-setup.md` for complete OTel SDK initialization across Node.js, Python, and Go, plus collector deployment and trace propagation configuration.
+
 ## Failure Modes
 
 **Alert Noise Syndrome**
@@ -223,6 +227,12 @@ export function correlationMiddleware(req, res, next) {
 - [ ] Log retention policy set based on compliance requirements
 - [ ] Dashboard covers four golden signals (latency, traffic, errors, saturation)
 - [ ] Cardinality limits enforced (<1000 unique values per metric label)
+
+## Bundled Assets
+
+| Directory | Index |
+|-----------|-------|
+| Reference docs (SLI/SLO alerting, OTel SDK setup) | [`references/INDEX.md`](references/INDEX.md) |
 
 ## NOT-FOR Boundaries
 

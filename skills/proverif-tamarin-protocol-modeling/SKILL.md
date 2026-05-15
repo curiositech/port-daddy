@@ -381,3 +381,7 @@ A protocol model is ready for review when:
 **Novice:** "ProVerif says it's secure, so it's secure."
 
 **Expert:** ProVerif proves security in the symbolic (Dolev-Yao) model. This transfers to computational security ONLY under specific conditions (IND-CCA2 encryption, EUF-CMA signatures, no algebraic interactions). If your implementation uses AES-CBC without authentication, or HMAC where the model assumes digital signatures, the symbolic proof is irrelevant to real-world security. State your cryptographic assumptions explicitly.
+
+## Bundled Assets
+
+See `evals/INDEX.md` for test cases and quality assurance evaluation data.

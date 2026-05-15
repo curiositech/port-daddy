@@ -402,3 +402,7 @@ pd begin --agent arbiter-001 --purpose "Monitoring against formal invariants"
 The recursion terminates because the reaper is a simple timer with no
 invariant checks of its own -- the ground truth that must be correct by
 inspection, not by monitoring.
+
+## Bundled Assets
+
+- `evals/evals.json` — Evaluation scenarios and quality-gate validation. Load when testing your monitor implementation against formal correctness (100% violation detection), overhead budgets (<2% CPU, <0.5ms/check), and crash resilience.
