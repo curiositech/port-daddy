@@ -32,6 +32,13 @@ export function isBunVirtualPath(path: string): boolean {
   return path.includes('/$bunfs/') || path.startsWith('/$bunfs/') || path.startsWith('$bunfs/');
 }
 
+/**
+ * One-shot guard so the unconventional-layout warning doesn't spam
+ * stderr every time the resolver is called (CLI invocations chain
+ * through it many times per command).
+ */
+let warnedUnconventionalLayout = false;
+
 export function resolveDistributionRoot(
   moduleDir: string,
   env: NodeJS.ProcessEnv = process.env,
@@ -49,7 +56,26 @@ export function resolveDistributionRoot(
   if (basename(execDir) === 'dist') {
     return parentDir;
   }
-  return process.cwd();
+
+  // Unconventional layout (user-built binary, non-Homebrew install
+  // location, cross-target build dropped outside `dist/`). Falling
+  // back to `process.cwd()` is wrong — it'd land on whatever
+  // directory the operator was in when launchd fired the daemon and
+  // attempt to write the DB there. Use `execDir` instead: it at
+  // least relates to where the binary actually lives. Warn so the
+  // operator can set PORT_DADDY_RESOURCE_DIR explicitly if they
+  // care about a different layout. The warning fires once per
+  // process — `pd doctor` check 13 also surfaces this for free.
+  if (!warnedUnconventionalLayout) {
+    warnedUnconventionalLayout = true;
+    console.warn(
+      `[port-daddy] resolveDistributionRoot: bun virtual-fs binary at ${execPath} ` +
+      `lives in an unconventional layout (neither dist/daemon/ nor dist/). ` +
+      `Falling back to ${execDir}. ` +
+      `Set PORT_DADDY_RESOURCE_DIR to silence this warning and pin the asset root.`,
+    );
+  }
+  return execDir;
 }
 
 export function daemonBinaryPath(rootDir: string, env: NodeJS.ProcessEnv = process.env): string {

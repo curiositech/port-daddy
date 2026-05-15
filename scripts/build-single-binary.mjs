@@ -148,7 +148,7 @@ async function waitForText(url, child, stderrChunks, timeoutMs = 15000) {
 
 async function smokeSelfHostedDaemon(outfile) {
   const port = await reservePort();
-  const prefix = join('/tmp', `pd-sb-${process.pid}`);
+  const prefix = join(tmpdir(), `pd-sb-${process.pid}`);
   const resourceDir = join(prefix, 'empty-resource-root');
   rmSync(prefix, { recursive: true, force: true });
   mkdirSync(resourceDir, { recursive: true });

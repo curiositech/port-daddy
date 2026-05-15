@@ -42,6 +42,56 @@ const isBun: boolean = typeof (globalThis as { Bun?: unknown }).Bun !== 'undefin
 
 const require = createRequire(import.meta.url);
 
+/**
+ * Pure pragma router for the bun:sqlite shim — exported so unit tests
+ * can verify dispatch without a live Bun runtime.
+ *
+ * Routes between three better-sqlite3 call shapes:
+ *
+ *   - Setter:        `foreign_keys = ON`        → execSql('PRAGMA …'), return []
+ *   - Function form: `wal_checkpoint(TRUNCATE)` → execSql('PRAGMA …'), return []
+ *   - Getter:        `journal_mode`             → querySql('PRAGMA …').all(),
+ *                                                 extract scalar when
+ *                                                 `{ simple: true }` is passed
+ *
+ * The getter scalar extraction takes `Object.values(rows[0])[0]`. This
+ * survives a column-name divergence between SQLite versions or
+ * implementations: regardless of whether the result row is shaped
+ * `{ journal_mode: 'wal' }` or anything else, the first value mirrors
+ * what better-sqlite3 returns under `{ simple: true }`.
+ */
+export function executeBunPragma(
+  execSql: (sql: string) => void,
+  querySql: (sql: string) => { all: () => unknown[] },
+  stmt: string,
+  options?: { simple?: boolean },
+): unknown {
+  const trimmed = stmt.trim();
+
+  // Setter form: 'foreign_keys = ON' (must contain `=` not at the end).
+  if (/=/.test(trimmed) && !/=\s*$/.test(trimmed)) {
+    execSql(`PRAGMA ${trimmed};`);
+    return [];
+  }
+
+  // Function-pragma form: 'wal_checkpoint(TRUNCATE)'.
+  if (/\(/.test(trimmed)) {
+    execSql(`PRAGMA ${trimmed};`);
+    return [];
+  }
+
+  // Getter form: 'journal_mode', 'integrity_check'.
+  const rows = querySql(`PRAGMA ${trimmed};`).all();
+
+  if (options?.simple) {
+    if (!Array.isArray(rows) || rows.length === 0) return undefined;
+    const first = rows[0] as Record<string, unknown>;
+    const values = Object.values(first);
+    return values[0];
+  }
+  return rows;
+}
+
 let DatabaseClass: DatabaseConstructor;
 
 if (isBun) {
@@ -57,42 +107,21 @@ if (isBun) {
     opts?: unknown
   ) => Record<string, unknown>) {
     /**
-     * better-sqlite3 .pragma() compatibility shim.
-     *
-     * Three call shapes used in the codebase:
-     *   db.pragma('foreign_keys = ON')              // setter, return ignored
-     *   db.pragma('journal_mode', { simple: true }) // getter, returns scalar
-     *   db.pragma('wal_checkpoint(TRUNCATE)')       // function-pragma
+     * better-sqlite3 .pragma() compatibility shim. Routing logic lives
+     * in `executeBunPragma()` so it can be unit-tested without a live
+     * Bun runtime.
      */
     pragma(stmt: string, options?: { simple?: boolean }): unknown {
-      const trimmed = stmt.trim();
       const self = this as unknown as {
         exec: (sql: string) => void;
         query: (sql: string) => { all: () => unknown[] };
       };
-
-      // Setter form: 'foreign_keys = ON' (must contain `=` not at the end).
-      if (/=/.test(trimmed) && !/=\s*$/.test(trimmed)) {
-        self.exec(`PRAGMA ${trimmed};`);
-        return [];
-      }
-
-      // Function-pragma form: 'wal_checkpoint(TRUNCATE)'.
-      if (/\(/.test(trimmed)) {
-        self.exec(`PRAGMA ${trimmed};`);
-        return [];
-      }
-
-      // Getter form: 'journal_mode', 'integrity_check'.
-      const rows = self.query(`PRAGMA ${trimmed};`).all();
-
-      if (options?.simple) {
-        if (!Array.isArray(rows) || rows.length === 0) return undefined;
-        const first = rows[0] as Record<string, unknown>;
-        const values = Object.values(first);
-        return values[0];
-      }
-      return rows;
+      return executeBunPragma(
+        self.exec.bind(self),
+        self.query.bind(self),
+        stmt,
+        options,
+      );
     }
   }
 
