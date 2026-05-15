@@ -152,3 +152,19 @@ python3 skills/skill-hygiene/scripts/audit_skill_bundle.py skills/skill-hygiene
 
 The hygiene skill audits itself. It should always pass; if it doesn't, fix
 its own surface area before fixing anyone else's.
+
+## Healing Drift In Bulk
+
+For libraries with many drifted skills, see `scripts/heal_skill_bundle.py`.
+It reads the audit findings, packages SKILL.md + every subdirectory's
+content into a prompt, and dispatches to `claude` (haiku for one-orphan
+quick wins, sonnet for content integration). The model emits a JSON write
+plan; the script applies it and re-runs the auditor to verify. Use
+`--apply` to mutate; default is dry-run.
+
+```bash
+python3 skills/skill-hygiene/scripts/heal_skill_bundle.py skills/<name> --model sonnet --apply
+```
+
+Mis-paired content (frontmatter says X, content is about Y) is out of
+scope for the healer — that needs human review.

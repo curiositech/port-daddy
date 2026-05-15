@@ -167,11 +167,14 @@ def extract_codespan_filenames(text: str) -> set[str]:
     return out
 
 
+_PLACEHOLDER_TARGETS = {"path", "target", "url", "link", "file", "filename", "uri", "href", "src", "name"}
+
+
 def classify_link(target: str, container_dir: Path, skill_root: Path) -> tuple[str, Path | None]:
     """Categorise a link.
 
     Returns (status, resolved_relative_path_or_None).
-    status in {"external", "anchor", "ok", "broken", "outside"}.
+    status in {"external", "anchor", "ok", "broken", "outside", "placeholder"}.
     """
     if _EXTERNAL_RE.match(target):
         return "external", None
@@ -180,6 +183,15 @@ def classify_link(target: str, container_dir: Path, skill_root: Path) -> tuple[s
     path_part = target.split("#", 1)[0].split("?", 1)[0]
     if not path_part:
         return "anchor", None
+    # Heuristic: bare placeholder tokens in docstrings/prose like `[text](path)`
+    # are demonstrations of link syntax, not actual links. Real link targets
+    # have a path separator, an extension, or a URL fragment.
+    if (
+        path_part.lower() in _PLACEHOLDER_TARGETS
+        and "/" not in path_part
+        and "." not in path_part
+    ):
+        return "placeholder", None
     resolved = (container_dir / path_part).resolve()
     try:
         rel = resolved.relative_to(skill_root.resolve())
