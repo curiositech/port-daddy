@@ -12,7 +12,7 @@ See [`VERSIONING.md`](VERSIONING.md) for semver policy and the canonical list of
 
 ## 1. Public release
 
-The release boundary is a git tag plus a GitHub Release. The workflow `.github/workflows/release.yml` builds notarized binaries from the tagged commit; `.github/workflows/publish.yml` is the manual companion that rolls the brew tap.
+The release boundary is a git tag plus a GitHub Release. The workflow `.github/workflows/release.yml` builds notarized binaries from the tagged commit and automatically dispatches to `curiositech/homebrew-tap` to roll the formula. `.github/workflows/publish.yml` is the manual companion for **npm** only (not the brew tap).
 
 ### Recipe
 
@@ -76,10 +76,14 @@ gh run watch $(gh run list --workflow=release.yml --limit 1 --json databaseId --
 #   pd-linux-x64.tar.gz
 # plus the FleetBar preview .zip.
 
-# J. Roll the brew tap (serialized — see Coordination section)
+# J. Brew tap rolls automatically via release.yml → update-homebrew job.
+#    If it failed (e.g. after a manual workflow_dispatch re-run), dispatch it:
 pd lock release-publish
-gh workflow run publish.yml
-# wait for the publish.yml run to land the formula PR on curiositech/homebrew-tap
+gh api repos/curiositech/homebrew-tap/dispatches \
+  --input - <<JSON
+{"event_type":"update-formula","client_payload":{"version":"v3.15.0"}}
+JSON
+# wait for update-formula.yml to commit to curiositech/homebrew-tap
 pd release release-publish
 
 # K. Verify users can actually upgrade
@@ -100,7 +104,7 @@ pd done "v3.15.0 shipped"
 | `distribution-freshness.test.js` fails with `Expected: "3.15.0" / Received: "3.14.0"` | `mcp/server.ts` has a hardcoded version literal that `sync-version.ts` doesn't touch. | Bump `mcp/server.ts:3791` by hand. Same fix for `website-v2/src/data/referenceCatalog.ts:18`. |
 | Tag pushed but `release.yml` didn't fire | Tag push alone doesn't fire release.yml — only the GitHub *Release* event does. | `gh release create v<x.y.z> --generate-notes`. |
 | Release created but binaries missing | release.yml failed; check `gh run view --log-failed`. | Fix workflow, re-run via `gh workflow run release.yml --ref v<x.y.z>` (works because workflow_dispatch is also enabled). |
-| `brew upgrade port-daddy` still serves the old version | `publish.yml` hasn't rolled the tap yet, or the formula PR is open. | Check `curiositech/homebrew-tap`. Until the formula merges, the bottle URL points at the previous release. |
+| `brew upgrade port-daddy` still serves the old version | The `update-homebrew` job in `release.yml` hasn't run or failed (common after a `workflow_dispatch` re-run, which skips that job). | Manually dispatch: `gh api repos/curiositech/homebrew-tap/dispatches --input - <<<'{"event_type":"update-formula","client_payload":{"version":"vX.Y.Z"}}'`. Until the commit lands in the tap, the bottle URL points at the previous release. |
 
 ---
 
@@ -247,13 +251,14 @@ The binary distribution makes all three obsolete. The migration only runs once p
 
 ```bash
 # 0. Prerequisites: a tagged version has binaries attached on the GitHub
-#    release, and publish.yml has rolled the brew tap. Verify:
+#    release, and the update-homebrew job has updated the tap. Verify:
 gh release view v<X.Y.Z> | grep -E 'pd-darwin-arm64|pd-linux-x64'
 gh api repos/curiositech/homebrew-tap/contents/Formula/port-daddy.rb \
   --jq '.content' | base64 -d | grep -E 'version|url'
 
 # 1. Install the brew bottle
-brew tap curiositech/port-daddy
+#    NOTE: tap name is curiositech/tap (repo = curiositech/homebrew-tap)
+brew tap curiositech/tap
 brew install port-daddy
 
 # 2. Stop the old launchd-managed daemon
