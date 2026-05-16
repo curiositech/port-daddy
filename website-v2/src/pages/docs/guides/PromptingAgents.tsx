@@ -1,82 +1,89 @@
-import { Badge } from '@/components/ui/Badge'
-import { CodeBlock } from '@/components/ui/CodeBlock'
-import { Surface } from '@/components/ui/Surface'
-import { Link } from 'react-router-dom'
-import { ArrowRight, MessageSquare, ShieldAlert } from 'lucide-react'
+import {
+  BracketLabel,
+  BracketLink,
+  DocsCodeBlock as SiteDocsCodeBlock,
+  DocsNoteCard,
+  PanelBody,
+  PanelList,
+  SectionIntro,
+  SurfacePanel,
+} from '@/components/site/primitives'
+import { DocsCodeBlock } from '@/components/docs/DocsCodeBlock'
+
+const promptTemplate = `You are agent myrepo:docs:redesign.
+Session purpose: redesign docs IA and styling.
+
+Before edits:
+1. Run: pd begin --identity myrepo:docs:redesign
+2. Leave: pd note "Scope: docs IA, docs styling, no runtime files."
+3. Claim: pd session files add website-v2/src/pages/docs/DocsOverview.tsx
+
+During work:
+- Leave a pd note at each milestone.
+- Publish blockers to a project-scoped channel.
+- Keep human approval steps out of the agent terminal.
+
+Completion:
+- Run tests and build.
+- End with pd done "Docs IA and styling normalized."`
+
+const promptResult = `Session started: session-docs-redesign-41af
+Agent registered: myrepo:docs:redesign
+Note added: Scope: docs IA, docs styling, no runtime files.
+Claim added: website-v2/src/pages/docs/DocsOverview.tsx`
+
+const approvalTemplate = `When a task reaches a destructive operation:
+1. Stop before executing it.
+2. Write the exact proposed command to pd note.
+3. Surface the decision in Fleet Control Center Inbox.
+4. Continue only after the human approves in the console UI.`
 
 export default function PromptingAgents() {
   return (
-    <div className="space-y-8">
-      <div className="space-y-3">
-        <Badge variant="teal">Guides</Badge>
-        <h1 className="text-4xl font-semibold tracking-tight text-[var(--text-primary)]">Prompting Agents For Port Daddy</h1>
-        <p className="text-lg text-[var(--text-secondary)] max-w-3xl">
-          Reliable fleet behavior starts with prompts that encode identity, scope, locks, and handoff obligations.
-          Treat prompts as protocol contracts, not just prose requests.
-        </p>
+    <div className="space-y-[var(--space-7)]">
+      <div className="space-y-[var(--space-4)]">
+        <BracketLabel>Guides</BracketLabel>
+        <SectionIntro
+          eyebrow="Prompting agents"
+          title="Tell the agent what Port Daddy must prove."
+          description="A good Port Daddy prompt names the agent, the scope, the files it can touch, the evidence it must leave, and the human decisions that must stay in Fleet Control Center."
+          titleAs="h1"
+          titleSize="section"
+          titleClassName="max-w-[18ch]"
+          bodyClassName="max-w-[52rem]"
+        />
       </div>
 
-      <Surface depth="raised" radius="xl" padding="lg" className="space-y-3">
-        <h2 className="text-xl font-semibold text-[var(--text-primary)]">Prompt Template</h2>
-        <CodeBlock language="bash">{`You are agent myrepo:docs:redesign.
-Session purpose: redesign docs IA + styling.
+      <DocsNoteCard label="Template" title="Start with identity, scope, claims, and evidence." elevation="quiet" padding="compact" titleSize="nav">
+        <SiteDocsCodeBlock code={promptTemplate} language="text" label="Prompt body" />
+        <DocsCodeBlock code="pd begin --identity myrepo:docs:redesign && pd note 'Scope: docs IA, docs styling, no runtime files.'" output={promptResult} label="Expected Port Daddy trace" />
+      </DocsNoteCard>
 
-Before edits:
-1) Run pd begin --identity myrepo:docs:redesign
-2) Leave pd note with intended file scope
-3) Acquire claims/locks for high-contention files
+      <SurfacePanel elevation="quiet" padding="compact" className="space-y-[var(--panel-gap)]">
+        <BracketLabel>Required constraints</BracketLabel>
+        <PanelList
+          items={[
+            'Bind an explicit identity in project:role:task form.',
+            'Say which files or sections the agent may touch.',
+            'Require notes, claims, and a completion summary.',
+            'Set a budget ceiling before spawning any backend.',
+            'Route destructive decisions to Fleet Control Center, not a hidden terminal prompt.',
+          ]}
+        />
+      </SurfacePanel>
 
-During work:
-- Emit pd note on milestone completion
-- Publish significant events to project-scoped channels
-- Preserve explicit handoff notes when blocked
+      <DocsNoteCard label="Human layer" title="The person approves risk in the console UI." elevation="quiet" padding="compact" titleSize="nav">
+        <PanelBody size="compact" className="max-w-[52rem]">
+          The agent can prepare the command. The human decides in Fleet Control Center Inbox, Flow, or Activity,
+          where the request, affected files, and rollback note are visible together.
+        </PanelBody>
+        <SiteDocsCodeBlock code={approvalTemplate} language="text" label="Approval rule" />
+      </DocsNoteCard>
 
-Completion:
-- Run tests
-- pd done with concise summary + touched files`}</CodeBlock>
-      </Surface>
-
-      <Surface depth="raised" radius="xl" padding="lg" className="space-y-3">
-        <div className="flex items-center gap-2">
-          <ShieldAlert size={16} className="text-[var(--brand-primary)]" />
-          <h2 className="text-xl font-semibold text-[var(--text-primary)]">Required Prompt Constraints</h2>
-        </div>
-        <ul className="list-disc pl-5 space-y-2 text-sm text-[var(--text-secondary)]">
-          <li>Always bind an explicit identity (`project:role:task`).</li>
-          <li>Require session lifecycle (`begin` / notes / `done`).</li>
-          <li>Declare file claims for overlapping critical files.</li>
-          <li>Declare budget ceilings before spawning expensive backends.</li>
-          <li>Specify escalation behavior for blocked or ambiguous states.</li>
-        </ul>
-      </Surface>
-
-      <Surface depth="raised" radius="xl" padding="lg" className="space-y-3">
-        <div className="flex items-center gap-2">
-          <MessageSquare size={16} className="text-[var(--brand-secondary)]" />
-          <h2 className="text-xl font-semibold text-[var(--text-primary)]">Human-In-The-Loop Pattern</h2>
-        </div>
-        <p className="text-sm text-[var(--text-secondary)]">
-          Add an explicit “approval checkpoint” instruction inside long-running prompts for risky operations
-          (schema migrations, irreversible file moves, production deployment commands).
-        </p>
-        <CodeBlock language="bash">{`If the task reaches a destructive or irreversible operation:
-- Pause execution
-- Emit a summary via pd note and channel message
-- Request approval with the exact command and rollback plan
-- Continue only after approval token is received`}</CodeBlock>
-      </Surface>
-
-      <div className="rounded-xl border-l-4 p-4" style={{ borderLeftColor: 'var(--status-info)', background: 'color-mix(in srgb, var(--status-info) 8%, var(--surface-raised))' }}>
-        <p className="text-sm text-[var(--text-secondary)]">
-          <strong className="text-[var(--text-primary)]">Tip:</strong> Use the same prompting pattern across CLI, SDK, and MCP entrypoints so behavior does not drift by interface.
-        </p>
-      </div>
-
-      <div className="pt-2">
-        <Link to="/docs/guides/templates" className="inline-flex items-center gap-2 text-sm font-medium text-[var(--brand-primary)]">
-          Continue to Template Quickstarts
-          <ArrowRight size={14} />
-        </Link>
+      <div className="flex flex-wrap gap-[var(--panel-gap-tight)]">
+        <BracketLink to="/docs/guides/templates" tone="blue">Template quickstarts</BracketLink>
+        <BracketLink to="/docs/guides/protocol" tone="accent">Protocol and state</BracketLink>
+        <BracketLink to="/docs/features/fleet" tone="blue">Fleet agents</BracketLink>
       </div>
     </div>
   )

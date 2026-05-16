@@ -17,6 +17,7 @@ const STEPS = [
     title: 'Install Port Daddy',
     description: 'Install globally via npm.',
     code: '$ npm install -g port-daddy',
+    output: '+ port-daddy@3.13.0\nadded 1 package in 3s',
     verifyCommand: '$ pd --version',
     verifyOutput: 'port-daddy v3.13.0',
   },
@@ -25,6 +26,7 @@ const STEPS = [
     title: 'Start the Daemon',
     description: 'The daemon runs in the background and manages all coordination.',
     code: '$ pd start',
+    output: 'Port Daddy daemon started\nSocket: ~/.port-daddy/daemon.sock',
     verifyCommand: '$ pd status',
     verifyOutput: 'Port Daddy is running\nRuntime: nominal',
   },
@@ -33,6 +35,7 @@ const STEPS = [
     title: 'Claim Your First Port',
     description: 'Use semantic identities to claim stable ports for your services.',
     code: '$ pd claim myapp:api:main',
+    output: 'Port 3001 assigned to myapp:api:main',
     verifyCommand: '$ pd services',
     verifyOutput: 'myapp:api:main  3001  healthy',
   },
@@ -41,6 +44,7 @@ const STEPS = [
     title: 'Begin an Agent Session',
     description: 'Register as an agent and start tracking your work.',
     code: '$ pd begin "Initial setup" --identity myapp:coder',
+    output: 'Session started: session-b2e4\nAgent registered: myapp:coder',
     verifyCommand: '$ pd whoami',
     verifyOutput: 'Agent:   agent-7f3a\nSession: session-b2e4\nIdentity: myapp:coder',
   }
@@ -91,7 +95,7 @@ export default function QuickStart() {
             </div>
 
             <div className="grid gap-[var(--space-3)] lg:grid-cols-2">
-              <DocsCodeBlock code={step.code} label="Command" />
+              <DocsCodeBlock code={step.code} output={step.output} label="Command" />
               <DocsCodeBlock code={step.verifyCommand} output={step.verifyOutput} label="Verify" />
             </div>
           </SurfacePanel>

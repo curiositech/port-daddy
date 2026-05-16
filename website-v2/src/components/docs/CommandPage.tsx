@@ -1,8 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
-import { Badge } from '@/components/ui/Badge'
 import {
   BracketLink,
+  BracketLabel,
   DocsNoteCard,
   PanelBody,
   PanelEyebrow,
@@ -103,6 +102,16 @@ function fallbackApiSpec(command: string, pathname: string): ApiSpecEntry[] {
   ]
 }
 
+function SyntaxBlock({ syntax }: { syntax: string }) {
+  return (
+    <div className="border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-4)]">
+      <pre className="overflow-x-auto whitespace-pre-wrap break-words font-mono text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-primary)]">
+        <code>{syntax}</code>
+      </pre>
+    </div>
+  )
+}
+
 export function CommandPage({
   command,
   shortFlag,
@@ -136,8 +145,8 @@ export function CommandPage({
 
       <div className="space-y-[var(--space-4)]">
         <div className="flex items-center gap-3">
-          <Badge variant="teal">CLI</Badge>
-          <Badge variant="default">v{version}</Badge>
+          <BracketLabel>CLI</BracketLabel>
+          <BracketLabel>v{version}</BracketLabel>
         </div>
 
         <SectionIntro
@@ -165,7 +174,7 @@ export function CommandPage({
         padding="compact"
         titleSize="nav"
       >
-        <CodeBlock code={syntax} />
+        <SyntaxBlock syntax={syntax} />
       </DocsNoteCard>
 
       {resolvedApiSpec.length ? (
@@ -310,15 +319,15 @@ export function CommandPage({
           to="/docs/cli"
           className="flex items-center gap-2 text-sm text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
         >
-          <ArrowLeft size={14} />
-          All commands
+          <span aria-hidden="true">←</span>
+          <span>All commands</span>
         </Link>
         <Link
           to="/docs/sdk"
           className="flex items-center gap-2 text-sm text-[var(--brand-primary)] transition-colors hover:text-[var(--brand-primary)]"
         >
           SDK reference
-          <ArrowLeft size={14} className="rotate-180" />
+          <span aria-hidden="true">→</span>
         </Link>
       </div>
     </div>
