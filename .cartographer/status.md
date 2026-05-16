@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-05-15
 **Updated by:** Codex website docs task-list provenance refresh
-**HEAD:** `57c2ff9c`
+**Refresh base:** `origin/main@e0ab8e4f`
 **Stable:** `930f8ca` — promoted from `main@a42a6f4` and pushed to `origin/stable`
 **Previous HEAD:** `629de64` — website content, proof media, terminal recordings, examples, and FleetBar preview package metadata
 
