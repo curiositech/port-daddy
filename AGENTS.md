@@ -99,6 +99,45 @@ You are explicitly invited to fix errors, sharpen inefficient passages, and add 
 - If a command exists in source but the installed CLI gets `Not Found`, suspect a stale daemon or stale `dist/` before assuming the feature is imaginary.
 - Very long daemon uptime after runtime-route work is a smell. If the daemon has been up for hours and new routes/surfaces are “missing,” verify build + restart first.
 
+## Pull Request Operating Procedure
+
+Every PR opened in this repo MUST go through skeptical adversarial review
+before merging. The author cannot self-approve by typing "looks good." The
+flow is:
+
+1. **Open the PR.** Branch claimed via `pd begin --identity` + `pd session
+   files add ...`. CI must be green (or you must explicitly justify each
+   red check in the PR body).
+2. **Spawn a skeptical reviewer agent.** Use the `feature-dev:code-reviewer`
+   subagent type (or `auditor` for whole-codebase concerns). Brief it with
+   the PR's context, the change's invariants, the failure modes you're
+   worried about, and SPECIFIC hunting prompts ("could this leak X? does
+   this handle symlinks? what about Windows path separators?"). Demand a
+   verdict prefix: `SHIP / SHIP-AFTER-FIX / DO-NOT-SHIP`. Cap word count so
+   you get signal, not a wall of text.
+3. **Address every HIGH-confidence finding** as a fixup commit on the
+   branch. Don't squash until merge. Each fixup commit message names the
+   finding it addresses so the audit trail survives.
+4. **Comment on the PR** with what changed, the validation evidence
+   (test counts, `tsc --noEmit` exit, focused jest output), and an explicit
+   line for each reviewer finding marked done / deferred / contested-because.
+5. **Re-spawn the reviewer** (or a fresh one) if the change set is
+   non-trivial. Don't ship with a stale verdict.
+6. **`pd note` the result + `pd done`** before merge. The PD audit trail
+   is part of the ship contract — a merge without it is not durable.
+7. **Merge in the right order.** When PRs stack (e.g. a doctor PR bases on
+   a binary-daemon PR), merge the base first, rebase the dependent onto
+   `main`, re-run CI, then merge.
+
+Skeptical review is parallelizable: when multiple PRs are in flight, fire
+the reviewer agents in a single message so they run concurrently. Always
+read the diff yourself before delegating — the reviewer can't catch what
+you don't brief it on.
+
+For multi-PR ship campaigns, track the state in `TaskCreate` so the merge
+sequence is explicit. The user can interrupt at any boundary; the task
+list is the recovery surface.
+
 ## Release
 
 - Port Daddy ships as **signed binaries** per [ADR-0028](docs/adr/0028-signed-binary-distribution.md). There is no `~/port-daddy-stable` worktree, no `promote-stable.sh`, and no `npm link` install path.
