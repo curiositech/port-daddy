@@ -1,8 +1,8 @@
 # Cartographer Status
 
-**Last updated:** 2026-04-29
-**Updated by:** Codex stash/worktree harvest closeout
-**HEAD:** `87fd030`
+**Last updated:** 2026-05-15
+**Updated by:** Codex website docs task-list provenance refresh
+**HEAD:** `57c2ff9c`
 **Stable:** `930f8ca` — promoted from `main@a42a6f4` and pushed to `origin/stable`
 **Previous HEAD:** `629de64` — website content, proof media, terminal recordings, examples, and FleetBar preview package metadata
 
@@ -28,6 +28,20 @@ The latest committed work still maps overwhelmingly to the Recovery Roadmap (`do
   - Phase 6 connectors / coaching
   - Phase 4E `pd self-test --adversarial` / 4F Windows IPC
 - Open dogfood now: 3 slugs (`claim-preserving-git-safety`, `fleet-launchability-and-cadence`, `session-context-cwd-reset`)
+
+### Website Docs Task List Note (2026-05-15)
+
+- `docs/recovery/WEBSITE_DOCS_TASK_LIST.html` is a tracked, browser-openable
+  reset-research task board generated on 2026-04-16. It is not the active
+  execution ledger for `website-v2`.
+- This file was not previously named in Cartographer status; it is now recorded
+  here as provenance only. The active public-site direction remains
+  `docs/recovery/CURRENT-WORK.md`, which quarantines the `agentsd.ai` reset docs
+  and preserves the current broad Port Daddy website surface unless a deliberate
+  migration is approved.
+- If reset-research work is revived, promote the specific item into
+  `docs/recovery/CURRENT-WORK.md`, `docs/ROADMAP.md`, or a fresh Cartographer
+  refresh before treating the HTML checklist as active queue truth.
 
 ### Stash And Worktree Harvest (2026-04-29)
 
