@@ -13,15 +13,64 @@ import { createCounters } from '../../lib/counters.js';
 import { metricsPromPlugin } from '../../routes/metrics-prom.js';
 
 describe('metrics-prom routes', () => {
-  let app, registry, db, counters;
+  let app, registry, db, counters, skillDistributionCalls;
 
   beforeEach(async () => {
     db = createTestDb();
     counters = createCounters(db);
     registry = createMetricsRegistry();
+    skillDistributionCalls = 0;
     app = Fastify();
     await app.register(metricsPromPlugin, {
-      deps: { metricsRegistry: registry, db, repoRoot: process.cwd() },
+      deps: {
+        metricsRegistry: registry,
+        db,
+        repoRoot: process.cwd(),
+        skillDistribution: {
+          cacheTtlMs: 60_000,
+          audit: () => {
+            skillDistributionCalls += 1;
+            return {
+              scope: 'user',
+              baseDir: '/tmp/home',
+              dryRun: true,
+              statusOnly: true,
+              sources: [{ label: 'source', path: '/tmp/source' }],
+              targets: [
+                { label: 'Codex', path: '/tmp/home/.codex/skills' },
+                { label: 'Gemini', path: '/tmp/home/.gemini/skills' },
+              ],
+              skillCount: 2,
+              collisions: [],
+              created: 0,
+              replaced: 0,
+              alreadyLinked: 0,
+              skippedExisting: [],
+              errors: [],
+              audit: {
+                expectedLinks: 4,
+                currentLinks: 3,
+                missingLinks: 1,
+                staleSymlinks: 0,
+                blockedNonSymlinks: 0,
+                errors: [],
+                freshnessPct: 75,
+                examples: {
+                  missing: [{
+                    skill: 'beta',
+                    runtime: 'Gemini',
+                    target: '/tmp/home/.gemini/skills/beta',
+                    source: '/tmp/source/beta',
+                  }],
+                  staleSymlinks: [],
+                  blockedNonSymlinks: [],
+                  errors: [],
+                },
+              },
+            };
+          },
+        },
+      },
     });
     await app.ready();
 
@@ -44,8 +93,31 @@ describe('metrics-prom routes', () => {
       expect(r.headers['content-type']).toMatch(/text\/plain/);
       expect(r.payload).toMatch(/port_daddy_http_requests_total/);
       expect(r.payload).toMatch(/port_daddy_http_request_duration_ms_bucket/);
+      expect(r.payload).toMatch(/port_daddy_skill_distribution_freshness_ratio\{scope="user"\} 0.7500/);
+      expect(r.payload).toMatch(/port_daddy_skill_distribution_missing_links\{scope="user"\} 1/);
       expect(r.payload).toMatch(/route="\/x"/);
       expect(r.payload).toMatch(/route="\/slow"/);
+    });
+  });
+
+  describe('GET /metrics/skills', () => {
+    it('returns skill freshness and distribution gauges for the dashboard', async () => {
+      const r = await app.inject({ method: 'GET', url: '/metrics/skills' });
+      expect(r.statusCode).toBe(200);
+      const j = JSON.parse(r.payload);
+      expect(j.status).toBe('drift');
+      expect(j.expectedLinks).toBe(4);
+      expect(j.currentLinks).toBe(3);
+      expect(j.missingLinks).toBe(1);
+      expect(j.freshnessPct).toBe(75);
+      expect(j.examples.missing[0].skill).toBe('beta');
+    });
+
+    it('caches audit scans across dashboard polls', async () => {
+      await app.inject({ method: 'GET', url: '/metrics/skills' });
+      await app.inject({ method: 'GET', url: '/metrics/skills' });
+      await app.inject({ method: 'GET', url: '/metrics/prom' });
+      expect(skillDistributionCalls).toBe(1);
     });
   });
 
