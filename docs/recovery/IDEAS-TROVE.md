@@ -1,6 +1,6 @@
 # Ideas Trove
 
-Last updated: 2026-05-14 00:15 UTC (Extended Spark promotion pass — added cost-gated-spawning, sandboxed-adversarial-test-harness, operator-decision-journal, empirical-model-efficiency-routing to immediate candidates; Phase 2 budget gating now enforces at spawn time, Phase 4E/4F adversarial testing unblocked via sandbox isolation, governance decisions now auditable via immutable journal, and cost optimization learns from empirical performance; all four pass novelty gate with new API surfaces, new data sources, new actuators, and distinct operator payoffs)
+Last updated: 2026-05-16 18:45 UTC (Spark promotion — `orchestrator-decision-attribution` added to now-status immediate candidates as Phase 1.5 orchestrator observability unlocker; `symbol-staleness-merge-safety` deferred as specialization of `operator-hint-engine` via `EXTENDS:` marking. Fresh 2026-05-16 raw Spark/Spider exhaust: orchestrator-decision-attribution survives novelty gate (new instrumentation data source, new API surface, new dashboard/CLI actuator, distinct operator payoff); symbol-staleness-merge-safety marked for extension rather than standalone. Prior: 2026-05-15 16:46 UTC Cartographer mapping pass; 2026-05-14 13:47 UTC Extended Spark promotion.)
 
 This is the canonical ideation index and curated backlog for Port Daddy.
 
@@ -22,6 +22,8 @@ allowed to multiply duplicate backlog items forever.
 - raw `.spark/ideas/` and `.spider/connections/`
   - local provenance and research exhaust
   - useful as input, not authoritative backlog on their own
+- fresh 2026-05-16 raw Spark/Spider exhaust
+  - present on disk, but still awaiting Spark/Spider dedupe; do not promote directly from the raw drops
 - 2026-05-07 Spider extension pass
   - `.spider/connections/2026-05-07-connections.md`
   - `.spider/connections/2026-05-07-connections-extended.md`
@@ -77,6 +79,120 @@ Status meanings used here:
 
 These are the highest-signal ideas from the corpus and should shape the next
 runtime cuts.
+
+### `tuple-store-query-api`
+
+- status: `now`
+- why it matters:
+  - Phase 3 fleet-health-scorecard (status: now) requires queue-depth metric; this provides safe queryable access to tuple-store visibility
+  - aggregates tuple stats (total pending, by-type distribution, age), enabling predictive work-queue transparency without exposing raw tuples
+  - distinct from daemon-introspection-api (daemon-level WAL/IPC/session stats) — this is *work-unit* queue visibility
+- implementation sketch:
+  - `lib/tuple-store-queries.ts` (~80 LOC): getTupleStats(), getPendingTuples(), getTupleDistribution() with timewindow buckets
+  - `routes/tuples.ts` (~40 LOC): GET /tuples/stats, GET /tuples/pending, GET /tuples/distribution/:window
+  - Dashboard panel (~60 LOC): queue depth with color coding, age distribution stacked bar, top 3 by-type counts, estimated backlog hours
+  - ~20 test cases covering query accuracy, timewindow bucketing, edge cases (empty queue, stale tuples)
+  - zero schema changes (uses existing tuples system)
+- provenance:
+  - uncurated 2026-05-14 Spark idea
+  - distinct from daemon-introspection-api (which surfaces daemon health, not work-unit queue)
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove` (Phase 3: fleet visibility)
+
+### `governance-coordination-hub`
+
+- status: `now`
+- why it matters:
+  - three independent governance signal sources (S60 outcome disputes with dissent tracking, S61 liquidation warnings with hours-to-breach, S62 skills parliament votes) currently scattered across separate dashboard panels
+  - operators making decisions need unified view: "Are there disputes? Running out of budget? Skills gated?" at a glance
+  - distinct from fleet-health-scorecard (role-centric health) or coordination-ticker (alert-based) — this aggregates *governance state*
+  - unblocks Phase 3 operator decision velocity by surfacing all governance context simultaneously
+- implementation sketch:
+  - `lib/governance-coordinator.ts` (~80 LOC): GovernanceSnapshot interface with outcome_disputes, liquidation_warnings, skill_governance nested structures
+  - `routes/governance.ts` (~40 LOC): GET /governance/snapshot, GET /governance/disputes/:taskId, GET /governance/agent/:agentId/budget-status, GET /governance/skills/gated
+  - Dashboard panel (~120 LOC): metric cards (total disputes, agents at risk, active votes), disputes table with voter count/dissent %, liquidation list with hours-to-breach color coding, active governance votes
+  - ~15 test cases: aggregation correctness, decay handling, filtering, empty state graceful handling
+  - zero schema changes (uses existing tuples, episodes, cost-tracker, pheromone)
+- provenance:
+  - uncurated 2026-05-14 Spark idea (promotes S60/S61/S62 Spider items to backlog)
+  - integrates: outcome-dispute-resolution (S60), liquidation-threshold-prediction (S61), skills-parliament (S62)
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove` (Phase 3: visibility + governance)
+
+### `phase-3-auto-remediation-executor`
+
+- status: `now`
+- why it matters:
+  - governance-coordination-hub (visibility) and operator-hint-engine (hints) surface problems and suggest actions, but no system currently *executes* them
+  - operators must manually pause roles, reschedule work, or escalate — response latency from hours (read email, decide, act) to seconds (auto-execute + notify) is blocked
+  - closes the Phase 3 governance loop: visibility → insights → hints → **automatic response** with operator pre-approval gates
+  - reduces toil, enables 24/7 response without always-on staff
+- implementation sketch:
+  - `lib/remediation-executor.ts` (~120 LOC): RemediationAuthorization interface with target/trigger/action/enabled fields; executeRemediations() checks active authorizations against governance state and executes matches
+  - `routes/remediation.ts` (~50 LOC): POST /remediation/authorize (create playbook), GET /remediation/authorizations, POST /remediation/execute (daemon 30-sec call), PUT /remediation/authorizations/:id (enable/disable)
+  - Dashboard panel (~60 LOC): list active/disabled remediations, enable/disable toggles, execution history (24h), one-click authorize form
+  - ~20 test cases: trigger threshold matching, authorization enabled check, audit log generation, empty governance state graceful handling
+  - zero schema breaks (uses existing remediation_authorizations table)
+- provenance:
+  - uncurated 2026-05-14 Spark idea
+  - extends: governance-coordination-hub (reads from), operator-hint-engine (executes suggestions from), tuples (emits tuples), cost-tracker (liquidation signals), pheromone (harbor-health signals)
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove` (Phase 3: operational automation)
+
+### `cost-aware-model-training-loop`
+
+- status: `now`
+- why it matters:
+  - empirical-model-efficiency-routing (status: now) learns which model minimizes cost while maintaining success; operator-decision-journal (status: now) records all operator decisions
+  - but: operator model-choice overrides are recorded but not fed back into efficiency recommendations; missing feedback loop
+  - enables system to learn model preferences over time (e.g., "operator always overrides Haiku→Sonnet for analysis tasks, so bias Sonnet higher for that class")
+  - completes cost-optimization feedback loop: cost-gated-spawning prevents overbudget → empirical-routing suggests model → operator decides → decision becomes training signal
+- implementation sketch:
+  - `lib/cost-tracker.ts` extension (~10 LOC): when canSpawn() false due to budget, call empirical-model-efficiency-routing.recommend(), if operator force-higher-cost-model, emit model-routing:override tuple
+  - `lib/operator-decision-journal.ts` (~5 LOC): record override with metadata (task_class, original_model, forced_model, operator, reason)
+  - Cartographer feedback harvest (~30 LOC): aggregate override patterns by task_class; if override_count/spawn_count > 0.10, emit INFO feedback suggesting higher baseline model tier for that task
+  - tests (~15 LOC): override rate tracking, feedback emission, learned bias application
+  - zero schema changes
+- provenance:
+  - uncurated 2026-05-14 Spark idea
+  - extends: cost-gated-spawning, empirical-model-efficiency-routing, operator-decision-journal
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove` (Phase 2: cost optimization feedback)
+
+### `skill-degradation-contagion-early-warning`
+
+- status: `backlog` (valid extension of agent-skills-quality-gates, non-blocking)
+- why it matters:
+  - extends agent-skills-quality-gates (pre-spawn skill validation) with cross-harbor early-warning capability
+  - when skill error rate spikes in harbor-a, system emits anomaly:skill-degradation tuple; if same skill degrades in harbor-b within 10min, emits cross-harbor-contagion signal
+  - enables proactive decision-making in harbor-b operators before local failures occur
+  - distinct from pre-spawn validation (which happens at spawn boundary); this is ambient cross-harbor signal sniffing
+- implementation sketch:
+  - `lib/skill-quality-tracker.ts` (~35 LOC): emit anomaly:skill-degradation when error_rate spike detected
+  - `lib/ambient-anomaly-signaling.ts` extension (~25 LOC): subscribe to anomaly:skill-degradation with 10-min window counter, emit contagion if same skill in 2+ harbors
+  - Cartographer feedback harvest (~15 LOC): emit CRITICAL feedback to block dependent work if contagion detected
+  - Dashboard "Skill Health" panel (~40 LOC): render anomaly tuples as red banners with harbor metadata
+  - ~12 test cases: single harbor degradation (no contagion), skill degrades harbor-a then harbor-b within 10min (trigger contagion), timeout past 10min then harbor-b (no contagion), timestamp precision, network partition handling
+  - zero schema changes
+- provenance:
+  - uncurated 2026-05-14 Spark idea
+  - extends: agent-skills-quality-gates (data source), ambient-anomaly-signaling (execution pattern), harbors
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove` (Phase 3: cross-harbor governance)
+
+### `unified-spawn-risk-synthesis`
+
+- status: `now` (Phase 4B preflight hardening, fills execution-gap in CURRENT-WORK.md)
+- why it matters:
+  - five independent spawn-gating items exist (cost-gated-spawning, agent-skills-quality-gates, symbol-claim-isolation-validator, empirical-model-efficiency-routing, cost-forecast-alert) but no synthesis
+  - current preflight catches ~30% of spawn failures (backend readiness, budget); remaining ~70% fail during execution (skill degrades mid-task, symbol deleted by concurrent work, harbor capacity breached, learned model fails unexpectedly)
+  - unified domain-weighted synthesis (cost 40%, skills 25%, dependencies 20%, harbor 10%, learning 5%) predicts cross-domain failures *before* spawn, preventing waste and churn
+  - new API surface: POST /spawn/preflight with structured domain breakdown returning PASS/WARN/FAIL
+- implementation sketch:
+  - `lib/spawn-risk-synthesis.ts` (~120 LOC): SpawnRiskDomain and SpawnRiskAssessment interfaces; synthesizeSpawnRisk() aggregates five domain scores with weighted scoring
+  - `routes/spawn.ts` addition (~30 LOC): POST /spawn/preflight returns 200 for PASS, 207 Multi-Status with assessment for FAIL, new POST /spawn/preflight-override logs to operator-decision-journal
+  - Dashboard panel (~25 LOC): pending preflight assessments with domain breakdown, required override explanations, one-click override button
+  - ~20 test cases: domain weight accuracy, synthesis correctness, PASS/WARN/FAIL boundary conditions, override recording
+  - zero schema changes
+- provenance:
+  - uncurated 2026-05-14 Spark idea
+  - synthesizes: cost-gated-spawning, agent-skills-quality-gates, symbol-claim-isolation-validator, empirical-model-efficiency-routing, cost-forecast-alert (all status: now)
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove` (Phase 4B: bounded execution)
 
 ### `daemon-introspection-api`
 
@@ -273,6 +389,36 @@ runtime cuts.
   - explicit gap from V4-UNIFIED-ROADMAP.md section "Orchestrator plugins + Merge queue": "routes pending orchestrator plugin wire"
   - Phase 1 completion: registry wired; Phase 1.5: user-facing loader
 - roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove`
+
+### `orchestrator-decision-attribution`
+
+- status: `now`
+- why it matters:
+  - `orchestrator-plugin-lifecycle` (Phase 1.5, now-status) lets users load custom orchestrators without forking the daemon, but once loaded there's zero visibility into orchestrator behavior
+  - operators have no way to diagnose whether a custom orchestrator is working, what decisions it's making, or if performance has regressed
+  - decision attribution surfaces orchestrator correctness and latency trends, enabling validation of custom routers
+- implementation sketch:
+  - `lib/orchestrator-stats.ts` (~50 LOC): aggregate stats from decision tuples (success rate, latency p50/p95/p99, error rate by task class)
+  - `routes/orchestrator.ts` (~50 LOC): GET /orchestrator/:id/stats, GET /orchestrator/:id/decisions with filtering by outcome/latency/task class
+  - `lib/orchestrator.ts` instrumentation (~40 LOC): emit attribution tuples on every decide() call with latencyMs, selectedAgent, confidence, context
+  - Dashboard panel (~40 LOC): show active orchestrator, decision count, latency trends, error rate badge, by-task-class breakdown
+  - CLI (~10 LOC): `pd orchestrator stats|decisions` with filtering
+  - ~20 tests covering stats accuracy, filtering, edge cases (no decisions yet, all failed)
+  - zero schema changes (uses existing tuple system + optional new orchestrator_decisions audit table)
+  - one session (~220 LOC)
+- operator payoff:
+  - "Custom router made 0 decisions in 2 hours — looks like it crashed; dashboard shows error 100%"
+  - "API tasks route at 80ms vs. finance at 320ms — suggests tuning the router's cost model"
+  - "Custom orchestrator p95 latency is 50% higher than baseline FIFO — investigate performance regression"
+- integration points:
+  - Unblocks: orchestrator-plugin-lifecycle validation
+  - Extends: daemon-introspection-api (health metrics), operator-hint-engine (can emit hints on orchestrator errors)
+  - Enabled by: tuple-space (attribution tuples), operator-decision-journal (audit trail pattern)
+  - Supports: empirical-model-efficiency-routing (can learn orchestrator + model combos), Phase 5 federated orchestration
+- provenance:
+  - `.spark/ideas/2026-05-16-orchestrator-decision-attribution.md`
+  - new data source (orchestrator instrumentation), new API surface (/orchestrator/:id/{stats,decisions}), new actuator (dashboard + CLI)
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove` (Phase 1.5: orchestrator observability)
 
 ### `telos-driven-model-selection`
 
@@ -663,6 +809,58 @@ runtime cuts.
   - `.spark/ideas/2026-05-13-empirical-model-efficiency-routing.md`
 - dependencies: **ZERO BLOCKERS** — complements cost-tracker, doesn't require economist, orthogonal to Phase 2 work
 - roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove` (Phase 2: Economy)
+
+### `operator-manual-fleet-dispatch`
+
+- status: `now` (Phase 3 dispatch operator surface)
+- why it matters:
+  - Phase 3 has comprehensive visibility (governance-coordination-hub, fleet-health-scorecard, daemon-introspection-api) and reactive automation (operator-hint-engine, phase-3-auto-remediation-executor)
+  - but operators have NO way to *proactively* dispatch work units to specific agents before the system auto-routes them via tuple-driven-fleet
+  - currently: system decides where work goes → operator reacts if it fails
+  - proposed: operator can see pending work → intentionally route to specific agent/role/cost-tier → system executes
+  - closes the Phase 3 operator toolkit: from reactive (hints, remediations) to deliberate (dispatch, then observe)
+- implementation sketch:
+  - `lib/operator-dispatch.ts` (~60 LOC): `canDispatch(tupleId, targetAgent)`, `recordDispatch(tupleId, targetAgent, reason)`, `queryPendingWork(filters)`
+  - `routes/dispatch.ts` (~50 LOC): `GET /fleet/dispatch/pending`, `POST /fleet/dispatch/{tupleId}`, `GET /fleet/dispatch/history`
+  - `operator_dispatch_log` table (idempotent schema): `tuple_id, target_agent, reason, timestamp, cost_override`
+  - Dashboard "Dispatch Workbench" panel (~100 LOC): pending work units with queue position, suggested agents, dispatch form with role/agent picker and reason input, 24h history
+  - Tuples integration: emit `['dispatch:routed-by-operator', { tupleId, operatorId, targetAgent, reason, timestamp }]` marker (1-week decay)
+  - CLI: `pd fleet dispatch pending --format=json`, `pd fleet dispatch route <tupleId> --to <agent> --reason <text>`
+  - ~15 test cases: dispatch validation, ledger recording, pending query filters, history accuracy
+- test cases: canDispatch validation, dispatch recording, pending work filtering, history queries, operator-routed tuple markers, graceful fallback to auto-routing when operator doesn't intervene
+- avoids duplication:
+  - tuple-driven-fleet: system auto-routing (this is manual override)
+  - operator-hint-engine: reactive suggestions (this is proactive action)
+  - phase-3-auto-remediation-executor: auto-execute after problems (this prevents problems via intentional routing)
+- provenance:
+  - `.spark/ideas/2026-05-14-operator-manual-fleet-dispatch.md`
+- dependencies: **ZERO BLOCKERS** — complements tuple-driven-fleet, governance-coordination-hub, operator-hint-engine. Works with existing tuple system
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove` (Phase 3: Fleet & Governance)
+
+### `episodic-memory-query-surfaces`
+
+- status: `now` (Phase 3B unimplemented, closes Phase 3 spec)
+- why it matters:
+  - Phase 3 spec (V4-UNIFIED-ROADMAP.md section 3B) explicitly declares Episodic Memory but daemon has zero routes, zero CLI commands, zero semantics today
+  - operators and agents cannot access learned knowledge across sessions, blocking coaching use cases (Phase 6) and role continuity
+  - semantic recall (embeddings-based fuzzy search) unblocks non-keyword-based discovery (follows CLAUDE.md ban on keyword NLP)
+  - closes Phase 3 delivery: "Fleet & Memory" is 50% done (fleet shipped, memory unbuilt)
+- implementation sketch:
+  - `lib/episodic-memory.ts` (~80 LOC): memory CRUD, scoping by agent identity wildcards, TTL, encryption
+  - `lib/memory-embeddings.ts` (~60 LOC): Ollama embeddings on store, cosine similarity on recall, graceful degradation if Ollama unavailable
+  - `lib/memory-auto-summarize.ts` (~40 LOC): background summarization when episode count > threshold (configurable, default 500)
+  - `routes/memory.ts` (~80 LOC): `POST /memory/store`, `GET /memory/recall?query=&limit=5&scope=`, `DELETE /memory/forget`, `GET /memory/episodes`
+  - `cli/commands/memory.ts` (~40 LOC): `pd memory store`, `pd memory recall`, `pd memory forget`, `pd memory episodes`
+  - Dashboard widget (~40 LOC): search interface, recent episodes, summarization status
+  - `episodic_memory` + `memory_embeddings` tables (idempotent schema)
+  - ~25 test cases: CRUD, scoping, embedding accuracy, summarization, TTL cleanup, encryption
+  - zero breaking changes
+- provenance:
+  - V4-UNIFIED-ROADMAP.md Phase 3 section 3B (explicit spec, unimplemented 60+ days)
+  - distinct from operator-decision-journal (audit trail vs. learning log)
+  - distinct from fleet-run-journal (fleet history vs. agent knowledge)
+  - unblocks Phase 6 coaching agent and cross-session continuity
+- roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove` (completes 3B)
 
 ### Recommended First Two Builds
 

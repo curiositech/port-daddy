@@ -1,6 +1,6 @@
 # Dogfood Feedback — Curated Harvest
 
-Last updated: 2026-05-13 23:24 UTC (Cartographer verification pass — no raw .spark/feedback tree here; tuple-backed feedback projection unavailable in this shell; curated now pair unchanged; today’s raw exhaust was ideas/spider only, not feedback)
+Last updated: 2026-05-16 18:16 UTC (Cartographer mapping pass — no raw .spark/feedback tree here; live tuple-backed feedback projection is empty (`open: 0`, `harvested: 11`); curated now pair unchanged; today’s raw exhaust was ideas/spider only, not feedback)
 
 This file is the curated harvest of agent dogfooding feedback for Port Daddy.
 
@@ -11,18 +11,19 @@ This file is the curated harvest of agent dogfooding feedback for Port Daddy.
   `docs/ROADMAP.md` and `docs/recovery/CURRENT-WORK.md`.
 - `IDEAS-TROVE.md` is the parallel surface for Spark/Spider exhaust. The two
   feed the same roadmap; they should not duplicate each other.
-- The daemon-mediated `pd feedback list --status open --json` surface was
-  unavailable on this pass (`connect EPERM` on `~/.port-daddy/daemon.sock`),
-  and this checkout did not contain a `.spark/feedback/` tree, so there was
-  nothing to harvest directly.
+- The daemon-mediated `pd feedback list --status open --json` surface still
+  hits `EPERM` on this shell, but `pd roadmap --feedback-status open --json`
+  is live and currently shows 0 open entries after 11 harvested items; this
+  checkout did not contain a `.spark/feedback/` tree, so there was nothing to
+  harvest directly.
 - 2026-04-29 pass: no new dogfood slugs were minted. The raw drops were
   already represented here or in `IDEAS-TROVE.md`, so this was a dedupe pass
   rather than a minting pass.
 - 2026-05-08 pass: `pd status` still reported Port Daddy running in this
   checkout, but the tuple-backed feedback projection was unavailable because
   both `pd roadmap --feedback-status open --json` and `pd feedback list
-  --status open --json` hit `connect EPERM` on `~/.port-daddy/daemon.sock`;
-  this checkout did not contain a `.spark/feedback/` tree, so there were no
+  --status open --json` hit `EPERM` on `~/.port-daddy/daemon.sock`; this
+  checkout did not contain a `.spark/feedback/` tree, so there were no
   markdown drops to mint or dedupe.
 - 2026-05-09 pass: same state as above. The curated now pair remains
   `claim-preserving-git-safety` and `fleet-launchability-and-cadence`; the

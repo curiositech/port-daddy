@@ -1,6 +1,6 @@
 # Port Daddy Roadmap & Future Ideas
 
-**Last updated:** 2026-05-13 23:24 UTC (Cartographer verification pass — source verification complete; curated now dogfood pair still `claim-preserving-git-safety` and `fleet-launchability-and-cadence`; 2 new Spark now items promoted into the wave on 2026-05-09: `daemon-introspection-api` and `ideas-trove-queryable-surface`; 2 more Spark now items promoted on 2026-05-11: `graph-based-merge-conflict-predictor` and `ambient-anomaly-signaling`; 2026-05-12 added `symbol-graph-visualization`, `incremental-symbol-index-refresh`, `operator-hint-engine`, `symbol-claim-isolation-validator`, and `orchestrator-plugin-lifecycle` as the Phase 1/3 support cuts; 2026-05-13 added `daemon-fleet-auto-recovery`, `graph-integrity-auditor`, `agent-skills-quality-gates`, `cost-forecast-alert`, and `ipc-queue-saturation-promotion` as the latest curated Spark batch; raw 2026-05-10 Spider exhaust remains uncurated; continuation passes `857f225c` and `d017bc28` plus verification pass `f0398b9a` now head the branch)
+**Last updated:** 2026-05-16 18:16 UTC (Cartographer mapping pass — source verification complete; curated now dogfood pair still `claim-preserving-git-safety` and `fleet-launchability-and-cadence`; 2 new Spark now items promoted into the wave on 2026-05-09: `daemon-introspection-api` and `ideas-trove-queryable-surface`; 2 more Spark now items promoted on 2026-05-11: `graph-based-merge-conflict-predictor` and `ambient-anomaly-signaling`; 2026-05-12 added `symbol-graph-visualization`, `incremental-symbol-index-refresh`, `operator-hint-engine`, `symbol-claim-isolation-validator`, and `orchestrator-plugin-lifecycle` as the Phase 1/3 support cuts; 2026-05-13 added `daemon-fleet-auto-recovery`, `graph-integrity-auditor`, `agent-skills-quality-gates`, `cost-forecast-alert`, and `ipc-queue-saturation-promotion` as the latest curated Spark batch; the 2026-05-13 extended promotion added `cost-gated-spawning`, `empirical-model-efficiency-routing`, `operator-decision-journal`, and `sandboxed-adversarial-test-harness` to the immediate queue; the 2026-05-14 promotion adds `tuple-store-query-api`, `governance-coordination-hub`, `phase-3-auto-remediation-executor`, `cost-aware-model-training-loop`, and `unified-spawn-risk-synthesis` to the curated wave while `skill-degradation-contagion-early-warning` stays backlog; the Phase 3 visibility cluster now spans `daemon-introspection-api`, `crew-screen-roles-not-pids`, `fleet-health-scorecard`, `coordination-ticker-as-high-signal-feed`, and `fleet-run-journal`; the 2026-05-14 curated trove also surfaced `operator-manual-fleet-dispatch` as the proactive Phase 3 dispatch workbench beside the `tuple-driven-fleet` lane; the 2026-05-14 `tuple-driven-fleet` routing cut adds a lower-priority Phase 3 dispatch lane beneath that cluster; raw 2026-05-10 Spider exhaust remains uncurated; the live tuple-backed feedback queue was empty (`open: 0`, `harvested: 11`), and the direct `pd feedback list --status open --json` shell path still hits `EPERM` on `~/.port-daddy/daemon.sock`; continuation passes `857f225c` and `d017bc28`, verification pass `f0398b9a`, extended promotion pass `bbbd19be`, and mapping pass `4e2a9f01` now head the branch)
 
 This document captures the ambitious, industry-defining vision for Port Daddy as the definitive "Agentic OS" Control Plane. It outlines "things for later" and serves as a living synthesis of conceptual ideas.
 
@@ -24,12 +24,11 @@ file in `.spark/feedback/` whenever a Port Daddy primitive surprises them.
 The **Cartographer** fleet agent (declared in `pd-fleet.yml`, triggered on
 `git:committed`) owns the harvest into `DOGFOOD-FEEDBACK.md` and the
 promotion of `now`-status entries into the section directly below.
-On this checkout, `pd status` reports Port Daddy is running, but both
-`pd roadmap --feedback-status open --json` and `pd feedback list --status
-open --json` hit `connect EPERM` against `~/.port-daddy/daemon.sock`, so
-the live feedback projection is unavailable here. This checkout also does
-not contain a `.spark/feedback/` tree, so the curated harvest stayed
-unchanged this pass.
+On this checkout, the live tuple-backed feedback queue is empty:
+`pd roadmap --feedback-status open --json` shows `open: 0` after 11 harvested
+items, while `pd feedback list --status open --json` still hits `EPERM` on
+`~/.port-daddy/daemon.sock`. This checkout also does not contain a
+`.spark/feedback/` tree, so the curated harvest stayed unchanged this pass.
 The current now-status dogfood pair remains `claim-preserving-git-safety`
 and `fleet-launchability-and-cadence`. The 2026-05-11 Spark promotion
 added `graph-based-merge-conflict-predictor` and
@@ -56,9 +55,37 @@ The 2026-05-13 Spark promotion moved `daemon-fleet-auto-recovery`,
 curated immediate-candidate wave, so they now sit in Next Cuts rather than
 the raw-exhaust pile.
 
+The 2026-05-13 extended Spark promotion moved
+`cost-gated-spawning`, `empirical-model-efficiency-routing`,
+`operator-decision-journal`, and `sandboxed-adversarial-test-harness`
+into the same immediate-candidate wave.
+
+The 2026-05-14 Spark promotion moved `tuple-store-query-api`,
+`governance-coordination-hub`, `phase-3-auto-remediation-executor`,
+`cost-aware-model-training-loop`, and `unified-spawn-risk-synthesis`
+into the curated wave; `skill-degradation-contagion-early-warning`
+remains a backlog extension of `agent-skills-quality-gates` and
+`ambient-anomaly-signaling`.
+
+The same 2026-05-14 Spark promotion also surfaced
+`episodic-memory-query-surfaces` as the Phase 3B memory cut, so Fleet &
+Memory can finally recall learned knowledge across sessions instead of
+staying a spec.
+
+**Cartographer Mapping Pass (2026-05-16 18:16 UTC):** No new dogfood feedback files found this pass. `origin/main` and stable are heavily diverged: `origin/main` has 35 commits not in stable, led by v3.14.0 release-prep / metrics / docs-polish work, while the Phase 4A binary / doctor / distribution slice lives on feature branches (`feat/binary-distribution-daemon-unblock`, `feat/doctor-binary-daemon-diagnostics`) and has not landed on `origin/main` or stable. Tuple-backed feedback projection is available and empty (`open: 0`, `harvested: 11`). 34 now-status items in execution wave; Phase 3 visibility/automation is hottest mapped lane. That release-prep cluster is unplanned work relative to the V4 phases and is tracked here as such rather than being relabeled as a roadmap phase.
+
+The curated trove also surfaced `operator-manual-fleet-dispatch` as the
+proactive Phase 3 dispatch workbench beside `tuple-driven-fleet`, so
+operators can route pending work intentionally before auto-routing takes
+over.
+
 The cartographer roadmap-progress screen and central feedback pipe are
 already shipped, so the "Next Cuts" list below is the remaining backlog
 rather than the old four-file FOMO check.
+
+Fresh 2026-05-16 raw Spark/Spider exhaust exists on disk as research-only
+provenance. It stays outside "Next Cuts" until Spark/Spider dedupe it into
+`IDEAS-TROVE.md`.
 
 ## Next Cuts (From Curated Trove)
 
@@ -103,9 +130,33 @@ appropriate phase section below and delete it here.
 - **`cost-forecast-alert`** — Phase 2 spend visibility is historical only
   today. Add forward budget alerts so operators see projected overages
   before the economist pricing layer catches up.
+- **`cost-gated-spawning`** — Phase 2 cost-tracker exists, but spend
+  enforcement is still advisory. Add a spawn-time budget gate so budget
+  promises are enforced before a run starts.
+- **`empirical-model-efficiency-routing`** — We already have historical
+  cost and success data, but spawn-time model selection is still manual.
+  Use the empirical history to recommend the model that minimizes cost
+  while keeping success rates high.
+- **`operator-decision-journal`** — The system records what happened, but
+  not why. Persist operator approvals, overrides, and pause decisions so
+  governance and forensics are auditable.
+- **`operator-manual-fleet-dispatch`** — Phase 3 still auto-routes too
+  much. Add an operator workbench for intentionally routing pending work
+  to a chosen agent or role before `tuple-driven-fleet` takes over.
+- **`cost-aware-model-training-loop`** — The existing model-efficiency
+  routing and operator decision trail need a feedback loop. Feed operator
+  overrides back into model routing so the spawn policy learns from the
+  decisions already being made.
 - **`ipc-queue-saturation-promotion`** — the IPC backpressure story still
   lacks a saturation-aware spawn gate. Add load shedding so the queue can
   warn before the daemon becomes the bottleneck.
+- **`sandboxed-adversarial-test-harness`** — Phase 4E/4F still needs a safe
+  isolated daemon harness. Add sandboxed adversarial runs so hardening work
+  can execute without risking the live daemon.
+- **`unified-spawn-risk-synthesis`** — the spawn gate still reasons about
+  cost, skills, dependencies, harbor capacity, and learned model behavior
+  separately. Add a preflight synthesis so operators see the combined risk
+  before the daemon starts a run.
 - **`claim-preserving-git-safety`** — Advisory file claims can still be
   steamrolled by `git add -A`, `git reset --hard`, and `git cherry-pick`.
   Add a safe `pd add` path plus destructive-git guardrails that consult
@@ -134,6 +185,16 @@ appropriate phase section below and delete it here.
 - **`ambient-anomaly-signaling`** — Turn daemon introspection plus
   coordination-judge anomalies into ambient pheromone signals so roles can
   avoid bad spawns before they happen.
+- **`governance-coordination-hub`** — Combine the governance signals
+  already split across dispute, liquidation, and skills vote surfaces into
+  one operator view so the control plane can answer "what governance is
+  active right now?" without stitching panels together.
+- **`phase-3-auto-remediation-executor`** — Visibility and hints already
+  exist; this adds the operator-approved automation step so the daemon can
+  execute bounded remediation playbooks instead of only suggesting them.
+- **`episodic-memory-query-surfaces`** — Phase 3B is still write-only;
+  expose store/recall/forget/episodes so Fleet & Memory can actually search
+  learned experience across sessions.
 - **`quorum-driven-dynamic-launch`** — Phase 1 tuple-backed
   proposal/vote primitive (`lib/quorum.ts` + 4 endpoints) shipped in
   `cea02e1`; Phase 2 remains the auto-spawn of declared
@@ -149,6 +210,10 @@ appropriate phase section below and delete it here.
 - **`forensic-context-windows`** — Attach recent correlation timeline
   context to Arbiter violation records so violations narrate themselves
   instead of being bare facts.
+- **`tuple-store-query-api`** — `fleet-health-scorecard` needs queue-depth
+  visibility, but the tuple store is still write-only to operators. Add a
+  narrow stats/query surface so the scorecard can read backlog truth without
+  exposing raw tuples.
 - **`fleet-run-journal`** — Persist fleet run lifecycle into SQLite so
   `pd fleet history` and briefings stop forgetting on restart.
 - **`salvage-root-cause-classifier`** — Salvage records log *that* agents
