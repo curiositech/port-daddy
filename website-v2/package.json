@@ -19,6 +19,7 @@
     "generate:og": "tsx scripts/generate-og-cards.mjs",
     "test:a11y:mcp": "node scripts/check-mcp-a11y.mjs",
     "test:a11y:shell": "node scripts/check-public-shell-a11y.mjs",
+    "crawl:docs": "node scripts/crawl-docs-surface.mjs",
     "test:tutorial-command-surfaces": "node scripts/check-tutorial-command-surfaces.mjs",
     "record:gifs": "bash scripts/record-site-terminal-gifs.sh --all && bash scripts/record-agent-terminal-gifs.sh --all",
     "test:gifs": "node scripts/check-terminal-recordings.mjs"

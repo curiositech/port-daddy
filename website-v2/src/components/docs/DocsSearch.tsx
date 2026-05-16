@@ -209,11 +209,11 @@ export function DocsSearch({ variant = 'full', className }: DocsSearchProps) {
       <button
         data-search-trigger
         onClick={openSearch}
-        className={`flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--surface-overlay)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--interactive-hover)] transition-all text-sm ${variant === 'full' ? 'w-full' : 'w-[min(36vw,280px)]'} ${className ?? ''}`}
+        className={`flex items-center gap-2 border border-[var(--border-default)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--text-muted)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-secondary)] ${variant === 'full' ? 'w-full' : 'w-[min(36vw,280px)]'} ${className ?? ''}`}
       >
         <Search size={16} />
         <span className="flex-1 text-left">{variant === 'full' ? 'Search documentation...' : 'Search docs...'}</span>
-        <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-xs font-mono bg-[var(--surface-raised)] rounded border border-[var(--border-subtle)]">
+        <kbd className="hidden border border-[var(--border-default)] bg-[var(--surface-base)] px-1.5 py-0.5 font-mono text-xs sm:inline-block">
           {shortcut}
         </kbd>
       </button>
@@ -228,7 +228,7 @@ export function DocsSearch({ variant = 'full', className }: DocsSearchProps) {
           />
           
           {/* Search Panel */}
-          <div className="relative w-full max-w-xl bg-[var(--surface-raised)] rounded-2xl border border-[var(--border-subtle)] shadow-[var(--shadow-xl)] overflow-hidden">
+          <div className="relative w-full max-w-xl overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
             {/* Search Input */}
             <div className="flex items-center gap-3 px-4 py-4 border-b border-[var(--border-subtle)]">
               <Search size={20} className="text-[var(--text-muted)]" />
@@ -246,12 +246,12 @@ export function DocsSearch({ variant = 'full', className }: DocsSearchProps) {
                     setQuery('')
                     inputRef.current?.focus()
                   }}
-                  className="p-1 rounded hover:bg-[var(--interactive-hover)] text-[var(--text-muted)]"
+                  className="border border-transparent p-1 text-[var(--text-muted)] hover:border-[var(--border-default)]"
                 >
                   <X size={16} />
                 </button>
               )}
-              <kbd className="hidden sm:inline-block px-2 py-1 text-xs font-mono bg-[var(--surface-base)] rounded border border-[var(--border-subtle)] text-[var(--text-muted)]">
+              <kbd className="hidden border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1 font-mono text-xs text-[var(--text-muted)] sm:inline-block">
                 ESC
               </kbd>
             </div>
@@ -278,7 +278,7 @@ export function DocsSearch({ variant = 'full', className }: DocsSearchProps) {
                               navigate(item.href)
                               closeSearch()
                             }}
-                            className="flex w-full items-center gap-2 p-2 rounded-lg hover:bg-[var(--interactive-hover)] transition-colors text-left"
+                            className="flex w-full items-center gap-2 border border-transparent p-2 text-left transition-colors hover:border-[var(--border-default)]"
                           >
                             <Icon size={16} className="text-[var(--text-muted)]" />
                             <span className="text-sm text-[var(--text-secondary)] truncate">{item.title}</span>
@@ -307,10 +307,10 @@ export function DocsSearch({ variant = 'full', className }: DocsSearchProps) {
                               navigate(item.href)
                               closeSearch()
                             }}
-                            className={`flex items-center gap-3 px-4 py-3 mx-2 rounded-lg transition-colors ${
+                            className={`mx-2 flex items-center gap-3 border px-4 py-3 transition-colors ${
                               isSelected 
-                                ? 'bg-[var(--interactive-active)]' 
-                                : 'hover:bg-[var(--interactive-hover)]'
+                                ? 'border-[var(--border-strong)] bg-[var(--interactive-active)]'
+                                : 'border-transparent hover:border-[var(--border-default)] hover:bg-[var(--interactive-hover)]'
                             } w-[calc(100%-1rem)] text-left`}
                           >
                             <Icon size={18} className="text-[var(--text-muted)] shrink-0" />
@@ -338,11 +338,11 @@ export function DocsSearch({ variant = 'full', className }: DocsSearchProps) {
             <div className="flex items-center justify-between px-4 py-3 border-t border-[var(--border-subtle)] text-xs text-[var(--text-muted)]">
               <div className="flex items-center gap-3">
                 <span className="flex items-center gap-1">
-                  <kbd className="px-1.5 py-0.5 bg-[var(--surface-base)] rounded border border-[var(--border-subtle)]">↑↓</kbd>
+                  <kbd className="border border-[var(--border-default)] bg-[var(--surface-base)] px-1.5 py-0.5">↑↓</kbd>
                   to navigate
                 </span>
                 <span className="flex items-center gap-1">
-                  <kbd className="px-1.5 py-0.5 bg-[var(--surface-base)] rounded border border-[var(--border-subtle)]">↵</kbd>
+                  <kbd className="border border-[var(--border-default)] bg-[var(--surface-base)] px-1.5 py-0.5">↵</kbd>
                   to select
                 </span>
               </div>

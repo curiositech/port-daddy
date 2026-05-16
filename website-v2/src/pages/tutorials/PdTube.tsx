@@ -60,7 +60,7 @@ export function PdTube() {
           </p>
           <CodeBlock language="bash">
             {`$ pd tube ui:clicks
-tube waiting on ui:clicks as pd-tube/myapp/ui_clicks (up to 600s; Ctrl+C to exit)
+INFO: tube waiting on ui:clicks as pd-tube/myapp/ui_clicks (up to 600s; Ctrl+C to exit)
 
 ──── event id=42 · channel ui:clicks ────
 From: web-demo · 2026-04-30T22:01:11.000Z
@@ -135,14 +135,16 @@ SUCCESS: tube: posted id=43 to ui:clicks`}
           </p>
           <CodeBlock language="bash">
             {`$ pd tube ui:clicks --json --once
+# Output:
 {"id":42,"sender":"web-demo","createdAt":1714519871000,"body":"{\\"button\\":\\"deploy-staging\\"}"}
 
 $ pd tube ui:clicks --raw --once
+# Output:
 42	web-demo	{"button":"deploy-staging"}
 43	agent ↩42	shipping it
 
 $ pd tube ui:clicks --tail
-…runs forever, prints every new event as prose…`}
+INFO: tailing ui:clicks; every new event prints as prose until Ctrl+C.`}
           </CodeBlock>
         </section>
 
@@ -217,7 +219,10 @@ $ pd tube ui:clicks --tail
           </p>
           <CodeBlock language="bash">
             {`$ pd tube ui:clicks --since=42 --json --once
-$ pd tube ui:clicks --no-history --limit=10 --once`}
+{"id":43,"sender":"agent","inReplyTo":42,"body":"shipping it"}
+
+$ pd tube ui:clicks --no-history --limit=10 --once
+INFO: history skipped; waiting for the next live event only`}
           </CodeBlock>
         </section>
 
