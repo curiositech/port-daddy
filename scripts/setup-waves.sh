@@ -157,6 +157,13 @@ for spec in "${ITEMS[@]}"; do
     echo "  = worktree exists: $repo"
   fi
 
+  # Symlink node_modules from the lab repo so worktrees can run tests / npm scripts
+  # without their own `npm install`. Per Wave 0 H-diagnostic finding: fresh
+  # `git worktree add` produces no node_modules; tests fail silently with MODULE_NOT_FOUND.
+  if [ ! -e "$repo/node_modules" ]; then
+    ln -sfn "$LAB_REPO/node_modules" "$repo/node_modules" && echo "  + node_modules symlinked"
+  fi
+
   # ----- RUNBOOK.md (item-specific) -----
   secondary_block=""
   if [ -n "$secondary_skill" ]; then
