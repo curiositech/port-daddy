@@ -1,7 +1,7 @@
 # Current Recovery Work
 
-Last updated: 2026-04-29
-Owner: Codex working session
+Last updated: 2026-05-15
+Owner: Codex website docs task-list provenance refresh
 
 This is the active execution ledger. If a task is in flight, it belongs here before it belongs in chat.
 
@@ -36,8 +36,14 @@ New public-site reset work for `agentsd.ai` is now captured on disk:
 - `docs/AGENTSD_AI_SITE_CONTRACT.md`
 - `docs/AGENTSD_BRAND_IDENTITY.md`
 - `docs/AGENTSD_DEVELOPER_DOCS_SYSTEM_PLAN.md`
+- `docs/recovery/WEBSITE_DOCS_TASK_LIST.html`
 
 This research thread remains on disk, but it is not the current implementation direction. The user explicitly rejected using it to replace the active site.
+
+`docs/recovery/WEBSITE_DOCS_TASK_LIST.html` is a browser-openable checklist for
+this same reset-research thread, not a separate Cartographer queue. If one of
+its tasks becomes live again, promote that specific item back into this ledger,
+the roadmap, or a fresh Cartographer refresh before treating it as active work.
 
 Key constraints now captured there:
 
