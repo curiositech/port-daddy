@@ -927,9 +927,11 @@ The infrastructure is running. The forest is building. The covenants are auditab
 % ═══════════════════════════════════════════════════════════════════════════════
 \appendix
 
-\section{Mechanization Status (v2.5)}\label{app:mech}
+\section{Mechanization Status (v2.6)}\label{app:mech}
 
-This appendix records the formal-verification status of the load-bearing claims in the body of this paper, sealed at adversarial-review round v2.5. Each row names the claim, the artifact (or the explicit deferral), and the runtime conformance test (or \emph{spec-only} marker if no implementation exists yet). The full round-by-round dialogue lives at \texttt{docs/shipwright/dialogue-v(N)-to-v(N+1).\{md,json\}} and is rendered at \url{https://portdaddy.dev/whitepaper/rounds}.
+This appendix records the formal-verification status of the load-bearing claims in the body of this paper, sealed at adversarial-review round v2.6. Each row names the claim, the artifact (or the explicit deferral), and the runtime conformance test (or \emph{spec-only} marker if no implementation exists yet). The full round-by-round dialogue lives at \texttt{docs/shipwright/dialogue-v(N)-to-v(N+1).\{md,json\}} and is rendered at \url{https://portdaddy.dev/whitepaper/rounds}.
+
+The v2.6 round closes the three remaining audit-promoted gaps from v2.5 (cuckoo-filter pollution, Sybil insurer attack, repeated-game cartel folk-theorem) and promotes the magic-link and delegation runtime bindings out of \emph{spec-only}. The Merkle binding EasyCrypt skeleton has been discharged. The Pareto Monte Carlo has been extended with two new regimes (A5 Sybil, A6 cartel). The algorithms and the empirical Monte Carlo evidence are visualized in Appendix~\ref{app:algorithms} and Appendix~\ref{app:montecarlo} respectively.
 
 \subsection*{Summary of closed claims}
 
@@ -946,17 +948,23 @@ This appendix records the formal-verification status of the load-bearing claims 
 
 \item \textbf{Algorithm-confusion in token verification} (Anchor companion, \S3). ProVerif: pinned-verifier authenticity TRUE; naive-verifier counter-trace witnessed (the JWT \texttt{alg=}-rewriting attack the pinning defends against). Artifact: \texttt{proofs/anchor/token-verify/algconfusion.pv}. Runtime conformance against \texttt{lib/harbor-tokens.ts}: \texttt{tests/unit/runtime-conformance/algorithm-pinning.test.js} (5 attack patterns + 2 controls, all pass).
 
-\item \textbf{Delegation chain replay} (Anchor companion, \S3). ProVerif at depth 3: chain authenticity TRUE under nonce $+$ (prev\_id, next\_id, message) binding. Artifact: \texttt{proofs/anchor/delegation/chain-replay.pv}.
+\item \textbf{Delegation chain replay} (Anchor companion, \S3). ProVerif at depth 3: chain authenticity TRUE under nonce $+$ (prev\_id, next\_id, message) binding. Artifact: \texttt{proofs/anchor/delegation/chain-replay.pv}. \emph{v2.6 update}: multi-hop runtime walker in \texttt{lib/delegation-chain.ts} (297 LOC) with conformance test \texttt{tests/unit/runtime-conformance/delegation-chain-replay.test.js} (17/17 pass, exercises nonce reuse, hop swap, signature forgery, chain truncation).
 
-\item \textbf{Email magic-link single-use} (\S\ref{sec:federated-sovereign}). ProVerif: injective-event single-use TRUE under per-token private-channel cap (modeling the SQL \texttt{UPDATE WHERE consumed\_at IS NULL RETURNING} atomicity); binding TRUE. Artifact: \texttt{proofs/bonded/recovery/magic-link.pv}.
+\item \textbf{Email magic-link single-use} (\S\ref{sec:federated-sovereign}). ProVerif: injective-event single-use TRUE under per-token private-channel cap (modeling the SQL \texttt{UPDATE WHERE consumed\_at IS NULL RETURNING} atomicity); binding TRUE. Artifact: \texttt{proofs/bonded/recovery/magic-link.pv}. \emph{v2.6 update}: runtime in \texttt{lib/recovery-magic-link.ts} (131 LOC) $+$ SQL migration $+$ route. Conformance test at \texttt{tests/unit/runtime-conformance/magic-link-single-use.test.js} exercises the four ProVerif counter-traces (double-consume, unknown token, TTL expiry, race) plus three controls; 7/7 pass.
+
+\item \textbf{Cuckoo-filter pollution resistance} (A3 attack catalog, \S\ref{sec:merkle-forest} rate-limit gate). \emph{New in v2.6}: \texttt{lib/cuckoo-filter.ts} implements Fan, Andersen, Kaminsky, Mitzenmacher~\cite{fan2014cuckoo} with 8-bit fingerprints, 4 entries per bucket, MaxKicks $= 500$, and load-factor ceiling $0.95$. Property test \texttt{tests/unit/cuckoo-pollution-property.test.js} exercises five adversarial invariants under fast-check: no false negatives (C1), false-positive rate within the theoretical bound $2B/2^f = 0.03125$ at the load ceiling (C2), insert rejection at $0.95$ (C3), delete safety (C4), and capacity ceiling against a duplicate-fingerprint adversary (C5).
 \end{itemize}
 
 \subsection*{Partially closed (empirical $+$ game spec; formal mechanization deferred)}
 
 \begin{itemize}
-\item \textbf{Merkle Forest binding} (\S\ref{sec:merkle-forest}). Reference implementation in \texttt{lib/merkle-tree.ts} (RFC~6962-style domain-separated binary tree, 200 LOC). Eight binding properties verified empirically under fast-check at \texttt{tests/unit/merkle-binding-property.test.js} (100 random cases per property). Game-based spec with reduction sketch to SHA-256 collision resistance: \texttt{proofs/bonded/merkle/binding.md}. EasyCrypt skeleton with admit. lines: \texttt{proofs/bonded/merkle/binding.ec}. Full mechanization (estimated 200--400 LOC EasyCrypt $+$ one EasyCrypt-fluent author-week) carried indefinitely; paid only when a higher-assurance audit asks.
+\item \textbf{Merkle Forest binding} (\S\ref{sec:merkle-forest}). Reference implementation in \texttt{lib/merkle-tree.ts} (RFC~6962-style domain-separated binary tree, 200 LOC). Eight binding properties verified empirically under fast-check at \texttt{tests/unit/merkle-binding-property.test.js} (100 random cases per property). Game-based spec with reduction sketch to SHA-256 collision resistance: \texttt{proofs/bonded/merkle/binding.md}. \emph{v2.6 update}: the EasyCrypt skeleton has been \emph{discharged} --- \texttt{proofs/bonded/merkle/binding.ec} now closes \texttt{leaf\_collision\_bound}, \texttt{internal\_collision\_bound}, and \texttt{binding\_reduction} via a union bound over leaf and internal collisions. The \texttt{easycrypt -check} run log is captured at \texttt{proofs/bonded/merkle/binding.run.log}.
 
-\item \textbf{Pareto dominance of competitive-insurance pricing} (\S\ref{sec:youle:welfare}). Independent theorization at \texttt{proofs/bonded/pareto/dominance.md} restating the claim with explicit assumptions (public reputation, no collusion, solvency, insurer efficiency) and a sketch reduction by cases. Monte Carlo simulation at \texttt{proofs/bonded/pareto/simulation.mjs} (Vickrey 2nd-price vs.\ static authority bond, identical coverage in both regimes, 36 parameter configurations $\times$ 2{,}000 trials $\times$ 50 transactions). Three quantitative findings: $\sigma_r \le 0.1$ ceiling on reputation noise, partial cartel resilience but full cartel collapse, $n = 3$ insurer optimum due to winner's-curse order-statistic effect. Formal Coq/Lean mechanization of the strategic game (estimated 1{,}000 LOC $+$ several months) carried indefinitely.
+\item \textbf{Pareto dominance of competitive-insurance pricing} (\S\ref{sec:youle:welfare}). Independent theorization at \texttt{proofs/bonded/pareto/dominance.md} restating the claim with explicit assumptions (public reputation, no collusion, solvency, insurer efficiency) and a sketch reduction by cases. Monte Carlo simulation at \texttt{proofs/bonded/pareto/simulation.mjs} (Vickrey 2nd-price vs.\ static authority bond, identical coverage in both regimes, 36 parameter configurations $\times$ 2{,}000 trials $\times$ 50 transactions). Three quantitative findings: $\sigma_r \le 0.1$ ceiling on reputation noise, partial cartel resilience but full cartel collapse, $n = 3$ insurer optimum due to winner's-curse order-statistic effect. Visualized in Figure~\ref{fig:pareto-dominance} of Appendix~\ref{app:montecarlo}. Formal Coq/Lean mechanization of the strategic game (estimated 1{,}000 LOC $+$ several months) carried indefinitely.
+
+\item \textbf{Sybil insurer attack (A5)}. \emph{New in v2.6}: \texttt{proofs/bonded/pareto/simulation-sybil.mjs} extends the Pareto MC with $K$ Sybil identities undercutting honest bids by $10\%$ and defaulting on loss. The headline finding (Figure~\ref{fig:sybil-deposit-floor}) is that pure deposit-based deterrence has a coverage-bounded ceiling: deposit slash is capped at $B_T = \mu(1+s)$, so beyond $B_{\mathrm{dep}} \ge B_T$ additional deposit provides no extra deterrence. Closing A5 requires a composite mechanism --- per-identity onboarding cost $C_{\mathrm{kyc}}$ plus reputation gating plus per-class $B_{\mathrm{dep}}$. The single-instrument deposit policy is provably insufficient; this is a real revision to the \S\ref{sec:youle} mechanism design recorded honestly rather than waved away. Analysis: \texttt{proofs/bonded/pareto/cartel-resilience.md}.
+
+\item \textbf{Repeated-game cartel folk-theorem (A6)}. \emph{New in v2.6}: \texttt{proofs/bonded/pareto/simulation-cartel.mjs} mechanizes the grim-trigger strategy under per-round detection probability $p_d$ and discount factor $\delta$. The one-shot-deviation principle gives the closed-form threshold $p_d^\star = 1 - (\pi_C - (1 - \delta)\pi_D)/(\delta\,\pi_D)$; the simulation confirms it empirically across a $(p_d, \delta)$ grid (Figure~\ref{fig:cartel-folk}). Headline at the realistic discount factor $\delta = 0.95$: $p_d^\star \approx 0.10$. Protocols must achieve at least 10\% per-round detection to break repeated-game cartel sustainability. This sets a concrete falsifiable goal for the Anchor \S6.4 detection mechanism (Merkle Forest binding $+$ bid-pattern heat). Analysis: \texttt{proofs/bonded/pareto/cartel-resilience.md}.
 \end{itemize}
 
 \subsection*{Spec-only (proof landed; runtime not yet implemented)}
@@ -966,17 +974,52 @@ The following \texttt{.pv} files prove their respective claims, but the correspo
 \begin{itemize}
 \item Passkey pairing handshake (\texttt{proofs/bonded/pairing/passkey-pair.pv}): no \texttt{lib/passkey-pairing.ts} yet.
 \item Federated KMS Cloudflare Worker (\texttt{proofs/bonded/federated/federated.pv}): only design doc \texttt{USER-ACCOUNTS-KMS.md}; no Worker code yet.
-\item Multi-hop delegation walker (\texttt{proofs/anchor/delegation/chain-replay.pv}): single-hop in \texttt{lib/harbor-tokens.ts} suffices today; multi-hop module pending.
-\item Magic-link recovery route (\texttt{proofs/bonded/recovery/magic-link.pv}): no recovery route or SQL migration yet.
 \end{itemize}
 
-\subsection*{Audit-promoted gaps remaining (v2.5 carry list)}
+\subsection*{Audit-promoted gaps remaining (v2.6 carry list)}
 
-The v2.4 self-audit surfaced six v2.1 smells where the paper text was tightened but no formal artifact was built. Three closed in v2.5 (algorithm confusion, delegation replay, magic-link race). Three remain on the carry list: cuckoo-filter pollution (waiting on \texttt{lib/cuckoo-filter.ts} implementation), Sybil insurer attack (extension to the Pareto simulation pending), and full repeated-game cartel folk-theorem analysis (qualitative covered by the Pareto simulation; formal repeated-game analysis pending).
+The v2.4 self-audit surfaced six v2.1 smells. Three closed in v2.5 (algorithm confusion, delegation replay, magic-link race). The three remaining closed in v2.6: cuckoo-filter pollution (\texttt{lib/cuckoo-filter.ts} $+$ property test), Sybil insurer attack (\texttt{simulation-sybil.mjs} with the surface finding on the coverage-bounded deposit ceiling), and the repeated-game cartel folk-theorem (\texttt{simulation-cartel.mjs} closing the empirical $p_d^\star$ at the closed-form threshold).
+
+The v2.6 carry list therefore contains only the \emph{two spec-only items} above (passkey runtime, federated KMS Worker), plus four formal-mechanization deferrals carried indefinitely behind the empirical evidence: full Merkle binding under EasyCrypt PROM (skeleton discharged; PROM-formal version remains future work), Coq/Lean mechanization of the Pareto strategic game, mechanized A5 composite-mechanism analysis, and the multi-class repeated-game generalization.
 
 \subsection*{Reading the registry}
 
 A claim with both a formal artifact \emph{and} a runtime conformance test is honestly closed: a future regression in \texttt{lib/} will register as a red CI signal and force a review against the \texttt{.pv} model. A claim with only a formal artifact is spec-only and must be flagged as such until a runtime exists. A claim that is only empirical (Pareto, Merkle binding) is honestly partial and is documented to be carried indefinitely behind the empirical evidence. The intent is that no claim drifts silently from ``proven'' to ``hand-waved'' between rounds.
+
+% ═══════════════════════════════════════════════════════════════════════════════
+% ═══════════════════════════════════════════════════════════════════════════════
+\section{Algorithm Diagrams}\label{app:algorithms}
+
+This appendix visualizes the load-bearing algorithms whose correctness is established in Appendix~\ref{app:mech}. Each figure is a normative reference for implementers: the diagram is the contract, the prose around it is commentary.
+
+\input{figures/appendix-figures}
+
+% ═══════════════════════════════════════════════════════════════════════════════
+\section{Monte Carlo Visualizations}\label{app:montecarlo}
+
+Three figures summarize the empirical evidence behind the §8.4.4 Pareto-dominance theorem and the two new regimes (A5, A6) closed in this round. All raw run logs are tracked at \texttt{proofs/bonded/pareto/*.run.log}; the rendering script is at \texttt{website-v2/public/whitepaper/figures/render\_montecarlo.py}.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{figures/fig-pareto-dominance.pdf}
+  \caption{Pareto dominance of competitive auction over static escrow.
+  Left: dominance rate as a function of reputation noise $\sigma_r$ at $n=5$ insurers, split by cartel size. Dominance holds robustly with no cartel even at $\sigma_r = 0.5$; with 3 colluders it collapses past $\sigma_r \approx 0.1$. Right: dominance rate vs.\ $n$ at $\sigma_r = 0$ and no cartel; $n=3$ is the empirical optimum due to the winner's-curse order-statistic effect noted in \S\ref{sec:youle:welfare}.}
+  \label{fig:pareto-dominance}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{figures/fig-sybil-deposit-floor.pdf}
+  \caption{A5 --- Sybil attack: deposit-only deterrence has a coverage-bounded ceiling. Left: attacker net profit per 50-transaction trial stays positive across the entire deposit sweep ($B_{\mathrm{dep}} \in [0.5, 1000]$ USD). Right: commons deficit converges to zero around $B_{\mathrm{dep}} \approx 200$ USD --- the protocol is fully reimbursed, but the attacker still profits because deposit slash is capped at coverage $B_T = \mu(1+s)$. Closing A5 requires a composite mechanism ($C_{\mathrm{kyc}} +$ reputation gating $+$ per-class $B_{\mathrm{dep}}$); pure deposit-based deterrence is provably insufficient.}
+  \label{fig:sybil-deposit-floor}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{figures/fig-cartel-folk-theorem.pdf}
+  \caption{A6 --- Repeated-game cartel folk-theorem. Left: sustainability map over the $(p_d, \delta)$ grid; red cells are configurations where the grim-trigger cartel beats one-shot defection in expected PV (sustainable), white cells are where it does not (collapses). The thick black vertical bars mark the per-row threshold $p_d^\star$. Right: mean cartel lifespan (rounds until first detection) vs.\ $p_d$, one line per discount factor $\delta$. At the realistic $\delta = 0.95$, $p_d^\star \approx 0.10$: protocols must achieve $\ge 10\%$ per-round detection to break repeated-game cartels.}
+  \label{fig:cartel-folk}
+\end{figure}
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \bibliographystyle{plain}

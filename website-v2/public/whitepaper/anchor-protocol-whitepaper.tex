@@ -736,19 +736,28 @@ Alan Demers, Dan Greene, Carl Hauser, Wes Irish, John Larson, Scott Shenker, How
 \end{thebibliography}
 
 % ═════════════════════════════════════════════════════════════════════════════
+\section{Algorithm Diagrams (v2.6)}\label{app:algorithms-anchor}
+
+This appendix visualizes the two algorithms whose mechanization was closed in v2.6: the multi-hop delegation walker (\S\ref{sec:algorithms} Phase~3 binding) and the cuckoo-filter revocation gate with the load-factor ceiling that defeats the pollution attack.
+
+\input{figures/appendix-figures-anchor}
+
+% ═════════════════════════════════════════════════════════════════════════════
 \appendix
 % ═════════════════════════════════════════════════════════════════════════════
 
 \section{Mechanization Status}\label{app:mech}
 
-This appendix records the formal-verification status of the load-bearing claims in this paper, sealed at adversarial-review round v2.5 (May 2026). The companion paper, \emph{The Bonded Commons}, carries the cross-paper master table at \S A; this appendix lists only the artifacts that pertain specifically to the Anchor Protocol. The full round-by-round dialogue between the red-team and white-hat review fleets is rendered at \url{https://portdaddy.dev/whitepaper/rounds}.
+This appendix records the formal-verification status of the load-bearing claims in this paper, sealed at adversarial-review round v2.6 (May 2026). The companion paper, \emph{The Bonded Commons}, carries the cross-paper master table at \S A; this appendix lists only the artifacts that pertain specifically to the Anchor Protocol. The full round-by-round dialogue between the red-team and white-hat review fleets is rendered at \url{https://portdaddy.dev/whitepaper/rounds}.
+
+The v2.6 round closes the cuckoo-filter pollution open item and lands the multi-hop delegation walker that binds runtime to the depth-$N$ ProVerif chain-replay proof. Algorithm diagrams for both are in Appendix~\ref{app:algorithms-anchor}.
 
 \subsection*{Closed (mechanized in ProVerif 2.05, results reproduced in this paper)}
 
 \begin{itemize}
 \item \textbf{Authentication and injective agreement} (\S\ref{sec:algorithms}, all three protocol phases). ProVerif 2.05 verifies that an honest verifier accepts only tokens minted by an honest issuer, and that the same minted token cannot be accepted twice for distinct sessions. Artifacts: Phase~1 \texttt{harbor\_card\_v1\_refined.pv} (Appendix~\ref{app:proverif}); Phase~2 \texttt{harbor\_card\_v2\_asymmetric.pv} (Appendix~\ref{app:phase2}); Phase~3 \texttt{harbor\_card\_v3\_delegation.pv} (Appendix~\ref{app:phase3}).
 \item \textbf{Algorithm-confusion immunity} (\S\ref{sec:algorithms}). The pinned-verifier model authenticates only when the algorithm field is bound at issuance time and re-checked at verification time; an explicit naive-verifier counter-trace witnesses the JWT \texttt{alg=}-rewriting attack the pinning defends against. Result: pinned-verifier authenticity TRUE; naive-verifier counter-trace produced. Artifact: \texttt{proofs/anchor/token-verify/algconfusion.pv}. Runtime conformance against \texttt{lib/harbor-tokens.ts}: \texttt{tests/unit/runtime-conformance/algorithm-pinning.test.js} exercises five attack patterns plus two controls; all pass.
-\item \textbf{Delegation chain replay} (\S\ref{sec:algorithms}, Phase~3). ProVerif at chain depth 3 verifies that a chain authenticated under nonce $+$ \texttt{(prev\_id, next\_id, message)} binding cannot be replayed across sessions or have its hops reordered. Result: chain authenticity TRUE. Artifact: \texttt{proofs/anchor/delegation/chain-replay.pv}.
+\item \textbf{Delegation chain replay} (\S\ref{sec:algorithms}, Phase~3). ProVerif at chain depth 3 verifies that a chain authenticated under nonce $+$ \texttt{(prev\_id, next\_id, message)} binding cannot be replayed across sessions or have its hops reordered. Result: chain authenticity TRUE. Artifact: \texttt{proofs/anchor/delegation/chain-replay.pv}. \emph{v2.6 update}: multi-hop runtime walker landed at \texttt{lib/delegation-chain.ts} (297 LOC) with conformance test \texttt{tests/unit/runtime-conformance/delegation-chain-replay.test.js} (17/17 pass, exercising nonce reuse, hop swap, signature forgery, chain truncation). Diagram in Figure~\ref{fig:anchor-delegation-diag}.
 \end{itemize}
 
 \subsection*{Partially closed (empirical or implementation-bound; full mechanization deferred)}
@@ -758,10 +767,16 @@ This appendix records the formal-verification status of the load-bearing claims 
 \item \textbf{Constant-time signature comparison} (\S\ref{sec:algorithms}). The Rust implementation uses \texttt{subtle::ConstantTimeEq}. We have not produced a side-channel proof; we rely on the audited library and document that reliance here.
 \end{itemize}
 
+\subsection*{Closed in v2.6 (was open in v2.5)}
+
+\begin{itemize}
+\item \textbf{Cuckoo-filter pollution attack}. Implementation landed at \texttt{lib/cuckoo-filter.ts} per Fan, Andersen, Kaminsky, Mitzenmacher~\cite{fan2014cuckoo}: 8-bit fingerprints, 4 entries per bucket, MaxKicks $= 500$, load-factor ceiling $0.95$. Property test \texttt{tests/unit/cuckoo-pollution-property.test.js} exercises five adversarial invariants under fast-check (C1 no false negatives, C2 false-positive rate within the theoretical bound $2B/2^f = 0.03125$ at the load ceiling, C3 insert rejection, C4 delete safety, C5 capacity ceiling against a duplicate-fingerprint adversary). The load-factor cap keeps occupancy inside the regime where the FP bound holds. Diagram in Figure~\ref{fig:anchor-cuckoo-diag}.
+\end{itemize}
+
 \subsection*{Open (acknowledged, not yet started)}
 
 \begin{itemize}
-\item \textbf{Cuckoo-filter pollution attack} (raised in v2.4, carried through v2.5). An adversary who can inject many false-positive entries could degrade revocation precision. We have a defensive design (insertion-rate bound + per-issuer namespace) but no implementation in \texttt{lib/cuckoo-filter.ts} yet, and no formal model. This is the primary outstanding security question for the next round.
+\item \textbf{Formal model of the gossip convergence bound}. The cuckoo-filter pollution closure handles the local-filter side; cross-peer gossip propagation is still leaning on the standard anti-entropy analysis~\cite{demers1987epidemic} rather than a mechanized proof. Carried indefinitely.
 \end{itemize}
 
 \subsection*{How to read these claims}
