@@ -33,7 +33,8 @@ function replacePayload(token, payload) {
 
 function tamperSignature(token) {
   const parts = token.split('.');
-  parts[2] = `${parts[2].slice(0, -2)}xx`;
+  const replacement = parts[2][0] === 'A' ? 'B' : 'A';
+  parts[2] = `${replacement}${parts[2].slice(1)}`;
   return parts.join('.');
 }
 
