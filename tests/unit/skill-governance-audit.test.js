@@ -7,7 +7,15 @@ describe('skill governance audit', () => {
 
     expect(report.summary.total).toBeGreaterThan(100);
     expect(report.summary.missingGovernance).toBeGreaterThan(0);
+    expect(report.summary.runtimeInvalid).toBe(0);
     expect(report.skills.some((skill) => skill.path === 'skills/port-daddy-agent-skill/SKILL.md')).toBe(true);
+  });
+
+  test('runtime-required frontmatter fields are fail-closed', () => {
+    const report = auditSkills();
+    const invalidSkills = report.skills.filter((skill) => skill.runtimeMissing.length > 0);
+
+    expect(invalidSkills).toEqual([]);
   });
 
   test('classifies the Port Daddy agent skill as first-party and governance-complete', () => {
@@ -17,6 +25,7 @@ describe('skill governance audit', () => {
     expect(portDaddySkill).toEqual(expect.objectContaining({
       class: 'first-party',
       missing: [],
+      runtimeMissing: [],
       hasChangelog: true,
       hasReferences: true,
     }));

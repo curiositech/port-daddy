@@ -1,0 +1,7 @@
+interface:
+  display_name: "Rust Desktop App Builder"
+  short_description: "Premium cross-platform Rust desktop apps"
+  brand_color: "#84D8FF"
+  default_prompt: "Use $rust-desktop-app-builder to plan and build a polished cross-platform Rust desktop app."
+policy:
+  allow_implicit_invocation: true

@@ -1,16 +1,18 @@
 #!/usr/bin/env node
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { isAbsolute, join, relative } from 'node:path';
 
 const ROOT = process.cwd();
-const DEFAULT_ROOTS = ['skills', '.codex/skills'];
+const DEFAULT_ROOTS = ['skills', '.codex/skills', '.agents/skills'];
 
 function parseArgs(argv) {
-  const opts = { json: false, roots: [] };
+  const opts = { json: false, roots: [], failRuntimeInvalid: false };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--json') {
       opts.json = true;
+    } else if (arg === '--fail-runtime-invalid') {
+      opts.failRuntimeInvalid = true;
     } else if (arg === '--root') {
       const next = argv[i + 1];
       if (!next) throw new Error('--root requires a path');
@@ -25,7 +27,7 @@ function parseArgs(argv) {
 }
 
 function walkSkillFiles(root) {
-  const absRoot = join(ROOT, root);
+  const absRoot = isAbsolute(root) ? root : join(ROOT, root);
   if (!existsSync(absRoot)) return [];
 
   const found = [];
@@ -49,15 +51,33 @@ function walkSkillFiles(root) {
 }
 
 function parseFrontmatter(contents) {
-  const match = contents.match(/^---\n([\s\S]*?)\n---/);
-  if (!match) return { raw: '', fields: new Set() };
+  const match = contents.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
+  if (!match) return { hasFrontmatter: false, raw: '', fields: new Set(), values: new Map() };
 
   const fields = new Set();
-  for (const line of match[1].split('\n')) {
-    const field = line.match(/^([A-Za-z0-9_-]+):/);
-    if (field) fields.add(field[1]);
+  const values = new Map();
+  const lines = match[1].split('\n');
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const field = line.match(/^([A-Za-z0-9_-]+):(?:\s*(.*))?$/);
+    if (field) {
+      const value = field[2] ?? '';
+      fields.add(field[1]);
+      if (/^[>|][+-]?$/.test(value.trim())) {
+        const block = [];
+        let cursor = index + 1;
+        while (cursor < lines.length && (lines[cursor].trim() === '' || /^\s/.test(lines[cursor]))) {
+          block.push(lines[cursor]);
+          cursor += 1;
+        }
+        values.set(field[1], block.join('\n').trim());
+        index = cursor - 1;
+      } else {
+        values.set(field[1], value);
+      }
+    }
   }
-  return { raw: match[1], fields };
+  return { hasFrontmatter: true, raw: match[1], fields, values };
 }
 
 function classifySkill(relPath, frontmatter) {
@@ -71,14 +91,27 @@ function classifySkill(relPath, frontmatter) {
   return 'unclassified';
 }
 
+function displayPath(absPath) {
+  const relPath = relative(ROOT, absPath);
+  return relPath.startsWith('..') || isAbsolute(relPath) ? absPath : relPath;
+}
+
+function isEmptyFrontmatterValue(value) {
+  const trimmed = (value ?? '').trim();
+  return trimmed === '' || trimmed === '""' || trimmed === "''";
+}
+
 export function auditSkills({ roots = DEFAULT_ROOTS } = {}) {
   const skillFiles = roots.flatMap(walkSkillFiles);
   const skills = skillFiles.map((absPath) => {
-    const relPath = relative(ROOT, absPath);
+    const relPath = displayPath(absPath);
     const contents = readFileSync(absPath, 'utf8');
     const frontmatter = parseFrontmatter(contents);
     const required = ['name', 'description', 'license', 'allowed-tools', 'metadata'];
     const missing = required.filter((field) => !frontmatter.fields.has(field));
+    const runtimeMissing = frontmatter.hasFrontmatter
+      ? ['name', 'description'].filter((field) => !frontmatter.fields.has(field) || isEmptyFrontmatterValue(frontmatter.values.get(field)))
+      : ['frontmatter'];
     const hasChangelog = existsSync(join(absPath, '..', 'CHANGELOG.md'));
     const hasOpenAiAgent = existsSync(join(absPath, '..', 'agents', 'openai.yaml'));
     const referencesDir = join(absPath, '..', 'references');
@@ -89,6 +122,7 @@ export function auditSkills({ roots = DEFAULT_ROOTS } = {}) {
       class: classifySkill(relPath, frontmatter),
       bytes: contents.length,
       missing,
+      runtimeMissing,
       hasChangelog,
       hasOpenAiAgent,
       hasReferences,
@@ -98,6 +132,7 @@ export function auditSkills({ roots = DEFAULT_ROOTS } = {}) {
   const summary = {
     total: skills.length,
     missingGovernance: skills.filter((skill) => skill.missing.length > 0).length,
+    runtimeInvalid: skills.filter((skill) => skill.runtimeMissing.length > 0).length,
     firstParty: skills.filter((skill) => skill.class === 'first-party').length,
     importedLiterature: skills.filter((skill) => skill.class === 'imported-literature').length,
     repoLocal: skills.filter((skill) => skill.class === 'repo-local').length,
@@ -112,16 +147,18 @@ function printMarkdown(report) {
   console.log('');
   console.log(`Total skills: ${report.summary.total}`);
   console.log(`Missing governance fields: ${report.summary.missingGovernance}`);
+  console.log(`Runtime-invalid skills: ${report.summary.runtimeInvalid}`);
   console.log(`First-party: ${report.summary.firstParty}`);
   console.log(`Imported literature: ${report.summary.importedLiterature}`);
   console.log(`Repo-local: ${report.summary.repoLocal}`);
   console.log(`Unclassified: ${report.summary.unclassified}`);
   console.log('');
-  console.log('| Path | Class | Missing | Changelog | References |');
-  console.log('|---|---|---|---|---|');
+  console.log('| Path | Class | Missing Governance | Runtime Missing | Changelog | References |');
+  console.log('|---|---|---|---|---|---|');
   for (const skill of report.skills) {
     const missing = skill.missing.length > 0 ? skill.missing.join(', ') : '-';
-    console.log(`| ${skill.path} | ${skill.class} | ${missing} | ${skill.hasChangelog ? 'yes' : 'no'} | ${skill.hasReferences ? 'yes' : 'no'} |`);
+    const runtimeMissing = skill.runtimeMissing.length > 0 ? skill.runtimeMissing.join(', ') : '-';
+    console.log(`| ${skill.path} | ${skill.class} | ${missing} | ${runtimeMissing} | ${skill.hasChangelog ? 'yes' : 'no'} | ${skill.hasReferences ? 'yes' : 'no'} |`);
   }
 }
 
@@ -133,6 +170,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       console.log(JSON.stringify(report, null, 2));
     } else {
       printMarkdown(report);
+    }
+    if (opts.failRuntimeInvalid && report.summary.runtimeInvalid > 0) {
+      process.exitCode = 1;
     }
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));

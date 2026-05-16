@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rust Desktop Inspiration Board</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #090a0d;
+      --panel: #12141a;
+      --panel-2: #191d25;
+      --ink: #f6f2e8;
+      --muted: #a9adba;
+      --line: #2a303b;
+      --accent: #84d8ff;
+      --hot: #ffb86b;
+      --green: #93e6ad;
+      --rose: #f29fbc;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background:
+        linear-gradient(180deg, rgba(132, 216, 255, .10), transparent 28rem),
+        radial-gradient(circle at 100% 0%, rgba(255, 184, 107, .13), transparent 24rem),
+        var(--bg);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+
+    a { color: inherit; }
+
+    .wrap {
+      width: min(1440px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 40px 0 56px;
+    }
+
+    header {
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(280px, .75fr);
+      gap: 28px;
+      align-items: end;
+      padding-bottom: 28px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h1 {
+      margin: 0;
+      max-width: 920px;
+      font-size: clamp(2.2rem, 5vw, 5.8rem);
+      line-height: .92;
+      font-weight: 760;
+    }
+
+    .lede {
+      margin: 18px 0 0;
+      max-width: 760px;
+      color: var(--muted);
+      font-size: 1.05rem;
+      line-height: 1.55;
+    }
+
+    .legend {
+      display: grid;
+      gap: 10px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      background: rgba(18, 20, 26, .78);
+      border-radius: 8px;
+    }
+
+    .legend strong { color: var(--ink); }
+    .legend span { color: var(--muted); line-height: 1.4; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 18px;
+      margin-top: 28px;
+    }
+
+    .card {
+      grid-column: span 6;
+      min-width: 0;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.01)), var(--panel);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .card.wide { grid-column: span 8; }
+    .card.small { grid-column: span 4; }
+
+    .shot {
+      display: block;
+      width: 100%;
+      aspect-ratio: 16 / 10;
+      object-fit: cover;
+      background: #050608;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .shot.contain {
+      object-fit: contain;
+      padding: 18px;
+      background: #050608;
+    }
+
+    .body {
+      padding: 18px;
+    }
+
+    .kicker {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+      color: var(--muted);
+      font-size: .78rem;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    .tag {
+      padding: 4px 8px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255,255,255,.035);
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 1.45rem;
+      line-height: 1.08;
+    }
+
+    p {
+      color: var(--muted);
+      line-height: 1.5;
+      margin: 10px 0 0;
+    }
+
+    .take {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .take div {
+      min-width: 0;
+      padding: 12px;
+      border-radius: 6px;
+      background: var(--panel-2);
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    .take b {
+      display: block;
+      color: var(--ink);
+      margin-bottom: 4px;
+    }
+
+    .source {
+      display: inline-block;
+      margin-top: 14px;
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 650;
+    }
+
+    .source:hover { text-decoration: underline; }
+
+    .matrix {
+      margin-top: 28px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background: var(--panel);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+      text-align: left;
+      line-height: 1.45;
+    }
+
+    th {
+      color: var(--ink);
+      background: #171b23;
+      font-size: .82rem;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+    }
+
+    td { color: var(--muted); }
+    td:first-child { color: var(--ink); font-weight: 700; }
+    tr:last-child td { border-bottom: 0; }
+
+    .section-title {
+      margin: 40px 0 0;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    .section-title h2 { font-size: 2rem; }
+    .section-title p { margin: 0; max-width: 620px; }
+
+    @media (max-width: 960px) {
+      header { grid-template-columns: 1fr; }
+      .card, .card.wide, .card.small { grid-column: span 12; }
+      .take { grid-template-columns: 1fr; }
+      th, td { padding: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <div>
+        <h1>Rust desktop can be hot.</h1>
+        <p class="lede">A visual board for building modern, buttery, cross-platform Rust desktop apps. The lesson: use Rust's speed and safety, but steal taste from the products that already feel expensive.</p>
+      </div>
+      <aside class="legend">
+        <strong>How to use this</strong>
+        <span>Pick one reference for layout, one for rendering/feel, and one for release polish. Then translate the reference into tokens, states, platform affordances, and verification gates.</span>
+      </aside>
+    </header>
+
+    <section class="grid" aria-label="Visual inspiration cards">
+      <article class="card wide">
+        <img class="shot" src="https://zed.dev/_next/image?q=75&amp;url=%2Fimg%2Fagentic%2Fposters%2Fexplore-poster.webp&amp;w=3840" alt="Zed editor with split code and agent panel">
+        <div class="body">
+          <div class="kicker"><span class="tag">Rust</span><span class="tag">GPUI</span><span class="tag">GPU-native editor</span></div>
+          <h2>Zed: dense, fast, quiet, alive</h2>
+          <p>Zed is the current north star for high-end Rust desktop product feel: low visual noise, serious density, beautiful dark chrome, and AI/collaboration woven into the editing surface instead of bolted on.</p>
+          <div class="take">
+            <div><b>Steal</b>Panel hierarchy, muted borders, GPU fluidity, agent progress inside the workspace.</div>
+            <div><b>Avoid</b>Copying its editor-specific density into apps with less expert users.</div>
+          </div>
+          <a class="source" href="https://zed.dev/">Source: zed.dev</a>
+        </div>
+      </article>
+
+      <article class="card small">
+        <img class="shot" src="https://raw.githubusercontent.com/lapce/lapce/master/extra/images/screenshot.png" alt="Lapce code editor screenshot">
+        <div class="body">
+          <div class="kicker"><span class="tag">Rust</span><span class="tag">Floem</span><span class="tag">wgpu</span></div>
+          <h2>Lapce: native editor ergonomics</h2>
+          <p>Lapce proves a Rust-native GUI can be familiar, GPU-accelerated, and serious without inheriting browser-app heaviness.</p>
+          <a class="source" href="https://lap.dev/lapce/">Source: lap.dev/lapce</a>
+        </div>
+      </article>
+
+      <article class="card">
+        <img class="shot" src="https://static.rerun.io/opf_screenshot/bee51040cba93c0bae62ef6c57fa703704012a41/full.png" alt="Rerun viewer with 3D point cloud and timeline">
+        <div class="body">
+          <div class="kicker"><span class="tag">Rust</span><span class="tag">egui</span><span class="tag">wgpu</span></div>
+          <h2>Rerun: egui taken seriously</h2>
+          <p>Rerun shows what happens when immediate-mode UI is treated as a product system: multimodal data, 3D views, timeline controls, and dense debugging UI in one coherent app.</p>
+          <div class="take">
+            <div><b>Steal</b>Timeline-first controls, viewport composition, direct manipulation.</div>
+            <div><b>Avoid</b>Assuming default egui style is enough for a consumer-grade app.</div>
+          </div>
+          <a class="source" href="https://github.com/rerun-io/rerun">Source: rerun-io/rerun</a>
+        </div>
+      </article>
+
+      <article class="card">
+        <img class="shot contain" src="https://slint.dev/blog/material-1.0/pad.png" alt="Slint Material 3 components on a tablet-like display">
+        <div class="body">
+          <div class="kicker"><span class="tag">Slint</span><span class="tag">Material 3</span><span class="tag">components</span></div>
+          <h2>Slint Material: polished controls</h2>
+          <p>This is the "ship a real app, not raw widgets" path for Slint: navigation, segmented controls, badges, progress, search, and responsive/touch-minded components.</p>
+          <a class="source" href="https://material.slint.dev/getting-started/">Source: material.slint.dev</a>
+        </div>
+      </article>
+
+      <article class="card">
+        <img class="shot contain" src="https://slint.dev/assets/img/responsive.png" alt="Slint responsive UI across multiple screen sizes">
+        <div class="body">
+          <div class="kicker"><span class="tag">Responsive</span><span class="tag">native</span><span class="tag">cross-device</span></div>
+          <h2>Slint Responsive: one design, many surfaces</h2>
+          <p>The inspiration here is adaptive composition: cards, charts, and navigation reflow across widths without becoming a web page trapped in a desktop window.</p>
+          <a class="source" href="https://slint.dev/">Source: slint.dev</a>
+        </div>
+      </article>
+
+      <article class="card">
+        <img class="shot" src="https://makepad.nl/img/demo-graphs.png" alt="Makepad graphs demo preview">
+        <div class="body">
+          <div class="kicker"><span class="tag">Makepad</span><span class="tag">Rust UI</span><span class="tag">shader-native</span></div>
+          <h2>Makepad: experimental, visual, fast</h2>
+          <p>Makepad is worth watching for live-designed, shader-fluent Rust UI. The aesthetic is more lab bench than enterprise CRUD, which is exactly why it is useful inspiration.</p>
+          <a class="source" href="https://makepad.nl/">Source: makepad.nl</a>
+        </div>
+      </article>
+
+      <article class="card small">
+        <img class="shot" src="https://knptukaauqosnxneipdo.supabase.co/storage/v1/object/public/app-screenshots/59f0308e-ebfa-452d-8d29-5e63258e7169/06ccbf06-5237-4a01-b5a6-79416b02dc0b.png" alt="Cap app screenshot">
+        <div class="body">
+          <div class="kicker"><span class="tag">Tauri</span><span class="tag">screen recorder</span></div>
+          <h2>Cap: creator-tool polish</h2>
+          <p>Cap is useful for studying a modern Tauri product with a recording/edit/share loop and a strong privacy/open-source pitch.</p>
+          <a class="source" href="https://github.com/CapSoftware/Cap">Source: CapSoftware/Cap</a>
+        </div>
+      </article>
+
+      <article class="card small">
+        <div class="body">
+          <div class="kicker"><span class="tag">Tauri</span><span class="tag">API client</span><span class="tag">themes</span></div>
+          <h2>Yaak: anti-bloat desktop UX</h2>
+          <p>Yaak is clean, offline, themeable, local-first, and Git-friendly. Study it for restrained API-client density and an app that does not bury the primary workflow under account chrome.</p>
+          <div class="take">
+            <div><b>Steal</b>Theme system, local-first framing, narrow feature reveal.</div>
+            <div><b>Avoid</b>Adding AI chrome where command-line and local workflows matter more.</div>
+          </div>
+          <a class="source" href="https://yaak.app/">Source: yaak.app</a>
+        </div>
+      </article>
+
+      <article class="card small">
+        <div class="body">
+          <div class="kicker"><span class="tag">Rust core</span><span class="tag">local-first</span><span class="tag">files</span></div>
+          <h2>Spacedrive: data sovereignty as design</h2>
+          <p>Spacedrive's appeal is not only a futuristic file explorer. It is the local-first product stance: reference-only indexing, offline volumes, dedupe, encryption, no telemetry.</p>
+          <a class="source" href="https://spacedrive.com/">Source: spacedrive.com</a>
+        </div>
+      </article>
+    </section>
+
+    <section class="section-title">
+      <h2>Framework/Tutorial Picks</h2>
+      <p>Use these as starting paths. The "sexy" outcome still depends on a product-specific design system, not the default scaffold.</p>
+    </section>
+
+    <section class="matrix" aria-label="Framework and template matrix">
+      <table>
+        <thead>
+          <tr>
+            <th>Stack</th>
+            <th>Best Starter</th>
+            <th>Visual Ceiling</th>
+            <th>Watch Out</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Tauri 2</td>
+            <td><a href="https://tauri.app/">create-tauri-app</a> plus a real web design system</td>
+            <td>Highest if you want web-grade UI plus native shell</td>
+            <td>Capabilities, IPC, signing, updater, and WebView security must be first-class</td>
+          </tr>
+          <tr>
+            <td>Dioxus Desktop</td>
+            <td><a href="https://dioxuslabs.com/learn/0.7/guides/platforms/desktop/">Desktop guide</a> and `dx new` templates</td>
+            <td>Great for Rust component teams that still want HTML/CSS mental models</td>
+            <td>Desktop renderer is WebView-backed; browser APIs are not the same promise as web deployment</td>
+          </tr>
+          <tr>
+            <td>Slint</td>
+            <td><a href="https://github.com/slint-ui/slint-rust-template">slint-rust-template</a> or <a href="https://material.slint.dev/getting-started/">Material template</a></td>
+            <td>Excellent for custom native, embedded-adjacent, and touch-friendly products</td>
+            <td>Requires learning `.slint` and designing component/token structure early</td>
+          </tr>
+          <tr>
+            <td>egui/eframe</td>
+            <td><a href="https://github.com/emilk/eframe_template">eframe_template</a></td>
+            <td>Excellent for tools, inspectors, visualizers, and control panels</td>
+            <td>Default egui can feel like a debug panel without disciplined styling</td>
+          </tr>
+          <tr>
+            <td>iced</td>
+            <td><a href="https://github.com/iced-rs/iced">iced examples</a></td>
+            <td>Strong for typed native apps with Elm-style architecture</td>
+            <td>Documentation assumes Rust fluency and the ecosystem is still moving</td>
+          </tr>
+          <tr>
+            <td>Floem</td>
+            <td><a href="https://github.com/lapce/floem">Floem examples/widget gallery</a></td>
+            <td>Promising for reactive native Rust UI with GPU rendering</td>
+            <td>Maturing API; choose it when you accept framework evolution</td>
+          </tr>
+          <tr>
+            <td>Makepad</td>
+            <td><a href="https://makepad.rs/guide/start/tutorial-ui-zoo">UI Zoo tutorial</a></td>
+            <td>High for shader-fluent, live-designed, ambitious UI</td>
+            <td>Experimental feel; best for teams willing to work close to the framework</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+</body>
+</html>
