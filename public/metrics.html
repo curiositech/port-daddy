@@ -12,6 +12,7 @@
       /metrics/http/now         - top-of-page summary tiles
       /metrics/http/routes      - per-route histogram snapshot
       /metrics/http/outliers    - recent slow requests
+      /metrics/skills           - cross-runtime skill freshness and distribution
       /metrics/annotations      - git commits / pd notes / session purposes
       /metrics/counters?key=http.requests&since=...&groupBy=hour
                                 - historical request volume for seasonality
@@ -286,6 +287,31 @@
       margin-top: 2px;
     }
 
+    .skill-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+    .skill-example {
+      font-size: 11px;
+      line-height: 1.5;
+      border-top: 1px dotted rgba(30, 27, 24, 0.18);
+      padding-top: 10px;
+      opacity: 0.85;
+    }
+    .skill-example code {
+      white-space: nowrap;
+      overflow-wrap: anywhere;
+    }
+    .skill-status {
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .skill-status.fresh { color: var(--olive); }
+    .skill-status.drift { color: var(--gold); }
+    .skill-status.error { color: var(--cinnabar); }
+
     .chart-wrap { position: relative; height: 320px; }
     .chart-wrap.tall { height: 380px; }
 
@@ -310,6 +336,7 @@
       <a href="/">dashboard</a> &middot;
       <a href="/metrics/prom" target="_blank">prometheus text</a> &middot;
       <a href="/metrics/http/routes" target="_blank">routes json</a> &middot;
+      <a href="/metrics/skills" target="_blank">skills json</a> &middot;
       <a href="/metrics/annotations" target="_blank">annotations</a>
       <span class="updated-at" id="updated-at" style="margin-left:18px;"></span>
     </div>
@@ -317,6 +344,13 @@
 
   <main>
     <section class="tiles" id="tiles"></section>
+
+    <section class="panel">
+      <h2>
+        Skill distribution <span class="hint" id="skills-hint">freshness across agent runtimes</span>
+      </h2>
+      <div id="skills-panel"></div>
+    </section>
 
     <section class="panel">
       <h2>
@@ -462,6 +496,49 @@
         (t.delta ? '<div class="delta">' + esc(t.delta) + '</div>' : '') +
         '</div>'
       ).join('');
+    }
+
+    async function renderSkillDistribution() {
+      const r = await fetch('/metrics/skills');
+      const j = await r.json();
+      const status = String(j.status || 'error');
+      const examples = []
+        .concat((j.examples && j.examples.staleSymlinks) || [])
+        .concat((j.examples && j.examples.missing) || [])
+        .concat((j.examples && j.examples.blockedNonSymlinks) || [])
+        .concat((j.examples && j.examples.errors) || [])
+        .slice(0, 6);
+
+      const cells = [
+        { label: 'status', value: status, cls: 'skill-status ' + status },
+        { label: 'freshness', value: fmtNum(j.freshnessPct || 0) + '%' },
+        { label: 'current links', value: fmtNum(j.currentLinks || 0) + ' / ' + fmtNum(j.expectedLinks || 0) },
+        { label: 'missing', value: fmtNum(j.missingLinks || 0), cls: j.missingLinks ? 'warn' : 'ok' },
+        { label: 'stale', value: fmtNum(j.staleSymlinks || 0), cls: j.staleSymlinks ? 'warn' : 'ok' },
+        { label: 'blocked', value: fmtNum(j.blockedNonSymlinks || 0), cls: j.blockedNonSymlinks ? 'warn' : 'ok' },
+        { label: 'skills', value: fmtNum(j.skillCount || 0) },
+        { label: 'runtimes', value: fmtNum(j.targetCount || 0) },
+      ];
+
+      const examplesHtml = examples.length
+        ? '<div class="skill-example">' + examples.map(ex =>
+            '<div><span class="skill-status ' + esc(status) + '">' + esc(ex.runtime || '') + '</span> ' +
+            esc(ex.skill || '') + ' <code>' + esc(ex.target || '') + '</code></div>'
+          ).join('') + '</div>'
+        : '<div class="footnote">No drift examples. Runtime skill links are current.</div>';
+
+      document.getElementById('skills-panel').innerHTML =
+        '<div class="skill-grid">' +
+        cells.map(t =>
+          '<div class="tile ' + esc(t.cls || '') + '">' +
+          '  <div class="label">' + esc(t.label) + '</div>' +
+          '  <div class="value ' + esc(t.cls || '') + '">' + esc(t.value) + '</div>' +
+          '</div>'
+        ).join('') +
+        '</div>' + examplesHtml;
+
+      document.getElementById('skills-hint').textContent =
+        'generated ' + new Date(j.generatedAt || Date.now()).toLocaleTimeString();
     }
 
     // ─── Hot paths table ─────────────────────────────────────────────────────
@@ -673,6 +750,7 @@
       try { await renderOutliers(); } catch {}
     }
     async function pollSlow() {
+      try { await renderSkillDistribution(); } catch {}
       try { await renderAnnotations(); } catch {}
       try { await renderSeasonality(); } catch {}
     }
