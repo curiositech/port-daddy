@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`pd roadmap pop` — atomic claim from the curated pile** (proposed **3.15.0**, minor: new workflow surface + new durable API + new SQL table). Pops one entry from the roadmap pile (live feedback → next-cut → ideas-now → dogfood feedback by default, override with `--kind`), writes a `roadmap_claims` row, and returns the entry. Atomicity is enforced by a partial UNIQUE index `ON roadmap_claims(slug) WHERE released_at IS NULL` — two racers, one INSERT wins, the loser gets `SQLITE_CONSTRAINT` and the daemon picks the next candidate. Companion verbs: `pd roadmap release <slug>` lifts the claim; `pd roadmap claims [--mine]` shows the active claim map. Optional `--begin` flag chains into `pd begin` so a session opens with the claim's slug + summary as purpose. New routes: `POST /cartographer/roadmap-pop`, `POST /cartographer/roadmap-release`, `GET /cartographer/roadmap-claims`. Rationale + alternatives in [ADR-0033](docs/adr/0033-roadmap-pop-atomic-claim.md).
+
 ## [3.14.0] - 2026-05-13
 
 ### Added
