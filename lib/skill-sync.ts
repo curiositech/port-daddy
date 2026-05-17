@@ -49,6 +49,31 @@ export interface SkillUnion {
   collisions: SkillCollision[];
 }
 
+export interface SkillLinkAuditExample {
+  skill: string;
+  runtime: string;
+  target: string;
+  source: string;
+  current?: string;
+  error?: string;
+}
+
+export interface SkillLinkAudit {
+  expectedLinks: number;
+  currentLinks: number;
+  missingLinks: number;
+  staleSymlinks: number;
+  blockedNonSymlinks: number;
+  errors: Array<{ target: string; error: string }>;
+  freshnessPct: number;
+  examples: {
+    missing: SkillLinkAuditExample[];
+    staleSymlinks: SkillLinkAuditExample[];
+    blockedNonSymlinks: SkillLinkAuditExample[];
+    errors: SkillLinkAuditExample[];
+  };
+}
+
 export interface SyncAgentSkillsOptions {
   baseDir: string;
   projectRoot: string;
@@ -73,9 +98,11 @@ export interface SyncAgentSkillsResult {
   alreadyLinked: number;
   skippedExisting: Array<{ target: string; reason: string }>;
   errors: Array<{ target: string; error: string }>;
+  audit: SkillLinkAudit;
 }
 
 const MAX_DISCOVERY_DEPTH = 3;
+const MAX_AUDIT_EXAMPLES = 10;
 
 function expandHome(path: string, home = homedir()): string {
   if (path === '~') return home;
@@ -215,6 +242,7 @@ export function syncAgentSkills(options: SyncAgentSkillsOptions): SyncAgentSkill
   const union = collectSkillUnion(roots);
   const targets = options.targets ?? runtimeSkillTargets(options.baseDir, options.scope);
   const dryRun = !!options.dryRun || !!options.statusOnly;
+  const initialAudit = auditSkillLinks(union.skills, targets);
   const result: SyncAgentSkillsResult = {
     scope: options.scope,
     baseDir: options.baseDir,
@@ -229,6 +257,7 @@ export function syncAgentSkills(options: SyncAgentSkillsOptions): SyncAgentSkill
     alreadyLinked: 0,
     skippedExisting: [],
     errors: [],
+    audit: initialAudit,
   };
 
   if (options.statusOnly) {
@@ -259,7 +288,87 @@ export function syncAgentSkills(options: SyncAgentSkillsOptions): SyncAgentSkill
     }
   }
 
+  if (!dryRun) {
+    result.audit = auditSkillLinks(union.skills, targets);
+  }
+
   return result;
+}
+
+export function auditSkillLinks(skills: SkillEntry[], targets: RuntimeSkillTarget[]): SkillLinkAudit {
+  const audit: SkillLinkAudit = {
+    expectedLinks: skills.length * targets.length,
+    currentLinks: 0,
+    missingLinks: 0,
+    staleSymlinks: 0,
+    blockedNonSymlinks: 0,
+    errors: [],
+    freshnessPct: 100,
+    examples: {
+      missing: [],
+      staleSymlinks: [],
+      blockedNonSymlinks: [],
+      errors: [],
+    },
+  };
+
+  for (const targetRoot of targets) {
+    for (const skill of skills) {
+      const target = join(targetRoot.path, skill.id);
+      const exampleBase = {
+        skill: skill.id,
+        runtime: targetRoot.label,
+        target,
+        source: skill.path,
+      };
+
+      try {
+        const stat = lstatSafe(target);
+        if (!stat) {
+          audit.missingLinks++;
+          pushAuditExample(audit.examples.missing, exampleBase);
+          continue;
+        }
+
+        if (!stat.isSymbolicLink()) {
+          audit.blockedNonSymlinks++;
+          pushAuditExample(audit.examples.blockedNonSymlinks, exampleBase);
+          continue;
+        }
+
+        const current = readlinkSync(target);
+        if (sameLinkTarget(target, current, skill.path)) {
+          audit.currentLinks++;
+          continue;
+        }
+
+        audit.staleSymlinks++;
+        pushAuditExample(audit.examples.staleSymlinks, { ...exampleBase, current });
+      } catch (err) {
+        const error = (err as Error).message;
+        audit.errors.push({ target, error });
+        pushAuditExample(audit.examples.errors, { ...exampleBase, error });
+      }
+    }
+  }
+
+  audit.freshnessPct = audit.expectedLinks === 0
+    ? 100
+    : Number(((audit.currentLinks / audit.expectedLinks) * 100).toFixed(2));
+  return audit;
+}
+
+function pushAuditExample(target: SkillLinkAuditExample[], entry: SkillLinkAuditExample): void {
+  if (target.length < MAX_AUDIT_EXAMPLES) target.push(entry);
+}
+
+function sameLinkTarget(linkPath: string, current: string, expected: string): boolean {
+  if (current === expected) return true;
+  const currentAbsolute = current.startsWith('/') ? current : resolve(dirname(linkPath), current);
+  if (resolve(currentAbsolute) === resolve(expected)) return true;
+  const currentReal = safeRealpath(currentAbsolute);
+  const expectedReal = safeRealpath(expected);
+  return !!currentReal && !!expectedReal && currentReal === expectedReal;
 }
 
 export function formatSkillSyncSummary(result: SyncAgentSkillsResult): string[] {
@@ -269,6 +378,7 @@ export function formatSkillSyncSummary(result: SyncAgentSkillsResult): string[] 
     `${action}: ${result.skillCount} skill(s), ${result.targets.length} runtime target(s), ${totalLinks} possible link(s)`,
     `  sources: ${result.sources.map((source) => source.label).join(', ') || 'none'}`,
     `  targets: ${result.targets.map((target) => target.label).join(', ') || 'none'}`,
+    `  freshness: ${result.audit.currentLinks}/${result.audit.expectedLinks} current (${result.audit.freshnessPct}%), missing ${result.audit.missingLinks}, stale ${result.audit.staleSymlinks}, blocked ${result.audit.blockedNonSymlinks}, audit errors ${result.audit.errors.length}`,
   ];
 
   if (!result.statusOnly) {
@@ -440,7 +550,7 @@ function ensureSymlink(target: string, source: string, dryRun: boolean): Symlink
 
     if (stat.isSymbolicLink()) {
       const current = readlinkSync(target);
-      if (current === source) {
+      if (sameLinkTarget(target, current, source)) {
         return { kind: 'already' };
       }
       if (!dryRun) {

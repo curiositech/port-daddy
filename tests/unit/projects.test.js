@@ -9,8 +9,20 @@ import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { execSync } from 'node:child_process';
 import { createTestDb } from '../setup-unit.js';
 import { createProjects } from '../../lib/projects.js';
+
+function gitAvailable() {
+  try {
+    execSync('git --version', { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const itIfGit = gitAvailable() ? it : it.skip;
 
 describe('Projects Module', () => {
   let db, projects;
@@ -340,6 +352,45 @@ describe('Projects Module', () => {
       });
 
       expect(known.some((entry) => entry.root === contextRoot)).toBe(false);
+    });
+
+    itIfGit('annotates linked git worktrees so operator pickers can group siblings', () => {
+      const workspace = mkdtempSync(join(tmpdir(), 'pd-projects-worktrees-'));
+      const mainRoot = join(workspace, 'port-daddy');
+      const featureRoot = join(workspace, 'port-daddy-feature');
+      tempRoots.push(workspace);
+
+      mkdirSync(mainRoot, { recursive: true });
+      execSync('git init', { cwd: mainRoot, stdio: 'ignore' });
+      execSync('git config user.email test@example.com', { cwd: mainRoot });
+      execSync('git config user.name "Port Daddy Test"', { cwd: mainRoot });
+      writeFileSync(join(mainRoot, 'pd-fleet.yml'), 'name: port-daddy\nagents: []\nwatchers: []\nchannels: {}\n');
+      execSync('git add pd-fleet.yml && git commit -m init', { cwd: mainRoot, stdio: 'ignore' });
+      const mainBranch = execSync('git rev-parse --abbrev-ref HEAD', { cwd: mainRoot, encoding: 'utf8' }).trim();
+      execSync(`git worktree add -b feature-ui ${featureRoot}`, { cwd: mainRoot, stdio: 'ignore' });
+      writeFileSync(join(featureRoot, 'pd-fleet.yml'), 'name: port-daddy\nagents: []\nwatchers: []\nchannels: {}\n');
+
+      const known = projects.listKnown({
+        discoveryRoots: [workspace],
+        maxDepth: 2,
+        fresh: true,
+      });
+
+      const main = known.find((entry) => entry.root === mainRoot);
+      const feature = known.find((entry) => entry.root === featureRoot);
+      expect(main?.worktree).toMatchObject({
+        isMain: true,
+        branch: mainBranch,
+        siblingCount: 2,
+      });
+      expect(main?.worktree?.repoRoot).toBeTruthy();
+      expect(feature?.worktree).toMatchObject({
+        isMain: false,
+        branch: 'feature-ui',
+        repoRoot: main?.worktree?.repoRoot,
+        siblingCount: 2,
+      });
+      expect(feature?.worktree?.repoKey).toBe(main?.worktree?.repoKey);
     });
   });
 });

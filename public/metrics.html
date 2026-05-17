@@ -12,6 +12,7 @@
       /metrics/http/now         - top-of-page summary tiles
       /metrics/http/routes      - per-route histogram snapshot
       /metrics/http/outliers    - recent slow requests
+      /metrics/skills           - cross-runtime skill freshness and distribution
       /metrics/annotations      - git commits / pd notes / session purposes
       /metrics/counters?key=http.requests&since=...&groupBy=hour
                                 - historical request volume for seasonality
@@ -39,6 +40,15 @@
   <script src="/vendor/chart.umd.min.js"></script>
   <script src="/vendor/chartjs-adapter-date-fns.bundle.min.js"></script>
   <script src="/vendor/chartjs-plugin-annotation.min.js"></script>
+  <script>
+    (() => {
+      const params = new URLSearchParams(window.location.search);
+      const theme = params.get('theme');
+      if (theme === 'light' || theme === 'dark') {
+        document.documentElement.dataset.theme = theme;
+      }
+    })();
+  </script>
 
   <style>
     :root {
@@ -286,6 +296,31 @@
       margin-top: 2px;
     }
 
+    .skill-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+    .skill-example {
+      font-size: 11px;
+      line-height: 1.5;
+      border-top: 1px dotted rgba(30, 27, 24, 0.18);
+      padding-top: 10px;
+      opacity: 0.85;
+    }
+    .skill-example code {
+      white-space: nowrap;
+      overflow-wrap: anywhere;
+    }
+    .skill-status {
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .skill-status.fresh { color: var(--olive); }
+    .skill-status.drift { color: var(--gold); }
+    .skill-status.error { color: var(--cinnabar); }
+
     .chart-wrap { position: relative; height: 320px; }
     .chart-wrap.tall { height: 380px; }
 
@@ -301,6 +336,213 @@
       opacity: 0.5;
       letter-spacing: 0.5px;
     }
+
+    /* Current Fleet Control Center visual language. Keep this block last. */
+    :root {
+      --pd-font-ui: "Manrope", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+      --pd-font-mono: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+
+      --pd-bg: #121210;
+      --pd-header: #171612;
+      --pd-surface: #1c1a17;
+      --pd-surface-hover: #26231f;
+      --pd-surface-2: #2a2622;
+      --pd-surface-3: #151411;
+      --pd-border: #655d51;
+      --pd-border-2: #4e473d;
+      --pd-code: #12110e;
+      --pd-text: #f3ebdd;
+      --pd-muted: #c2b49f;
+      --pd-dim: #9e907d;
+      --pd-accent: #e07a61;
+      --pd-success: #6cc39a;
+      --pd-warning: #e2a95c;
+      --pd-info: #77a9c8;
+      --pd-accent-surface: #3d221b;
+      --pd-success-surface: #1c3027;
+      --pd-warning-surface: #382918;
+      --pd-info-surface: #172a34;
+      --pd-accent-border: #8e4a3e;
+      --pd-success-border: #3f6755;
+      --pd-warning-border: #866137;
+      --pd-info-border: #426579;
+
+      --cinnabar: var(--pd-accent);
+      --rust: var(--pd-accent);
+      --teal: var(--pd-info);
+      --olive: var(--pd-success);
+      --gold: var(--pd-warning);
+      --paper: var(--pd-bg);
+    }
+
+    html[data-theme="light"] {
+      --pd-bg: #fcf8f2;
+      --pd-header: #f4eee4;
+      --pd-surface: #ffffff;
+      --pd-surface-hover: #f4ede4;
+      --pd-surface-2: #eee4d7;
+      --pd-surface-3: #f8f2e8;
+      --pd-border: #cfc1af;
+      --pd-border-2: #e2d6c6;
+      --pd-code: #f3ece2;
+      --pd-text: #231f19;
+      --pd-muted: #5f5447;
+      --pd-dim: #7e6f5c;
+      --pd-accent: #aa432e;
+      --pd-success: #1f6a4e;
+      --pd-warning: #8c540e;
+      --pd-info: #245d78;
+      --pd-accent-surface: #f7e2dc;
+      --pd-success-surface: #dceee6;
+      --pd-warning-surface: #f8e8d5;
+      --pd-info-surface: #dcebf2;
+      --pd-accent-border: #d9a599;
+      --pd-success-border: #9ac4b1;
+      --pd-warning-border: #d8b389;
+      --pd-info-border: #9bb9c8;
+    }
+
+    body {
+      font-family: var(--pd-font-ui);
+      background: var(--pd-bg);
+      color: var(--pd-text);
+      line-height: 1.5;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+    }
+    body.embed header { display: none; }
+    body.embed main { padding: 16px; }
+    header {
+      padding: 18px 24px 14px;
+      border-bottom: 1px solid var(--pd-border);
+      background: var(--pd-header);
+    }
+    h1 {
+      margin: 0;
+      font-family: var(--pd-font-ui);
+      font-size: clamp(20px, 2vw, 30px);
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+    .subhead {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 10px;
+      align-items: center;
+      margin-top: 6px;
+      color: var(--pd-muted);
+      opacity: 1;
+    }
+    .subhead a { color: var(--pd-accent); }
+    main { padding: 18px 24px 42px; gap: 16px; }
+    .tiles { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+    .tile,
+    .panel {
+      min-width: 0;
+      background: var(--pd-surface);
+      border: 1px solid var(--pd-border);
+      border-radius: 8px;
+      box-shadow: none;
+    }
+    .tile { padding: 12px 14px; }
+    .panel { padding: 16px; }
+    .tile .label,
+    th {
+      color: var(--pd-dim);
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      opacity: 1;
+    }
+    .tile .value {
+      font-family: var(--pd-font-mono);
+      font-size: clamp(20px, 2.2vw, 28px);
+      font-weight: 700;
+      color: var(--pd-text);
+      overflow-wrap: anywhere;
+    }
+    .tile .delta {
+      color: var(--pd-muted);
+      overflow-wrap: anywhere;
+    }
+    .tile.warn { background: var(--pd-warning-surface); border-color: var(--pd-warning-border); }
+    .tile.warn .value { color: var(--pd-warning); }
+    .tile.ok { background: var(--pd-success-surface); border-color: var(--pd-success-border); }
+    .tile.ok .value { color: var(--pd-success); }
+    .tile.error { background: var(--pd-accent-surface); border-color: var(--pd-accent-border); }
+    .tile.error .value { color: var(--pd-accent); }
+    .panel h2 {
+      font-family: var(--pd-font-ui);
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0;
+      gap: 12px;
+      color: var(--pd-text);
+    }
+    .panel h2 .hint {
+      font-family: var(--pd-font-mono);
+      color: var(--pd-dim);
+      opacity: 1;
+      text-align: right;
+    }
+    table { color: var(--pd-text); }
+    th,
+    td,
+    .outlier-row,
+    .annot-row,
+    .skill-example {
+      border-color: color-mix(in srgb, var(--pd-border) 60%, transparent);
+    }
+    tr:hover { background: var(--pd-surface-hover); }
+    tr.hot td.num,
+    .outlier-row .ms,
+    .annot-row.tag .kind,
+    .skill-status.error { color: var(--pd-accent); }
+    .annot-row.commit .kind { color: var(--pd-info); }
+    .annot-row.note .kind,
+    .skill-status.drift { color: var(--pd-warning); }
+    .annot-row.session_purpose .kind,
+    .skill-status.fresh { color: var(--pd-success); }
+    .pill { font-weight: 700; border: 1px solid transparent; }
+    .pill.GET { background: var(--pd-info-surface); color: var(--pd-info); border-color: var(--pd-info-border); }
+    .pill.POST,
+    .pill.PUT,
+    .pill.s3xx { background: var(--pd-warning-surface); color: var(--pd-warning); border-color: var(--pd-warning-border); }
+    .pill.PATCH,
+    .pill.s2xx { background: var(--pd-success-surface); color: var(--pd-success); border-color: var(--pd-success-border); }
+    .pill.DELETE,
+    .pill.s4xx { background: var(--pd-accent-surface); color: var(--pd-accent); border-color: var(--pd-accent-border); }
+    .pill.s5xx { background: var(--pd-accent); color: var(--pd-bg); border-color: var(--pd-accent); }
+    .heatmap .cell { background: color-mix(in srgb, var(--pd-surface-2) 48%, transparent); }
+    .footnote,
+    .updated-at { color: var(--pd-dim); opacity: 1; }
+    .state-message {
+      border: 1px solid var(--pd-border);
+      border-radius: 8px;
+      background: var(--pd-surface-3);
+      color: var(--pd-muted);
+      padding: 14px;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+    .state-message strong {
+      display: block;
+      color: var(--pd-text);
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+    .state-message code {
+      color: var(--pd-text);
+      background: var(--pd-code);
+      border: 1px solid var(--pd-border);
+      border-radius: 4px;
+      padding: 1px 4px;
+      overflow-wrap: anywhere;
+    }
+    .state-message.error {
+      background: var(--pd-accent-surface);
+      border-color: var(--pd-accent-border);
+      color: var(--pd-text);
+    }
   </style>
 </head>
 <body>
@@ -310,6 +552,7 @@
       <a href="/">dashboard</a> &middot;
       <a href="/metrics/prom" target="_blank">prometheus text</a> &middot;
       <a href="/metrics/http/routes" target="_blank">routes json</a> &middot;
+      <a href="/metrics/skills" target="_blank">skills json</a> &middot;
       <a href="/metrics/annotations" target="_blank">annotations</a>
       <span class="updated-at" id="updated-at" style="margin-left:18px;"></span>
     </div>
@@ -317,6 +560,13 @@
 
   <main>
     <section class="tiles" id="tiles"></section>
+
+    <section class="panel">
+      <h2>
+        Skill distribution <span class="hint" id="skills-hint">freshness across agent runtimes</span>
+      </h2>
+      <div id="skills-panel"></div>
+    </section>
 
     <section class="panel">
       <h2>
@@ -392,8 +642,78 @@
       }[c]));
     }
 
+    const PAGE_PARAMS = new URLSearchParams(window.location.search);
+    const FILE_PREVIEW = window.location.protocol === 'file:';
+    const API_BASE = (PAGE_PARAMS.get('apiBase') || '').replace(/\/$/, '');
+    document.body.classList.toggle('embed', PAGE_PARAMS.has('embed'));
+
+    function apiUrl(path) {
+      return API_BASE ? API_BASE + path : path;
+    }
+
+    function apiErrorMessage(error) {
+      if (FILE_PREVIEW && !API_BASE) {
+        return 'This file preview cannot reach the daemon metrics API. Open the Metrics tab from Fleet Control Center or serve this page from the Port Daddy daemon.';
+      }
+      return (error && error.message) || 'metrics endpoint unavailable';
+    }
+
+    async function fetchJson(path) {
+      if (FILE_PREVIEW && !API_BASE) {
+        throw new Error(apiErrorMessage());
+      }
+      const response = await fetch(apiUrl(path));
+      if (!response.ok) {
+        throw new Error(response.status + ' ' + response.statusText + ' from ' + path);
+      }
+      return response.json();
+    }
+
+    function stateHtml(title, body, cls) {
+      return '<div class="state-message ' + esc(cls || '') + '">' +
+        '<strong>' + esc(title) + '</strong>' +
+        esc(body) +
+        '</div>';
+    }
+
+    function renderInitialState() {
+      document.getElementById('tiles').innerHTML = [
+        { label: 'metrics API', value: 'waiting' },
+        { label: 'routes', value: 'waiting' },
+        { label: 'skills', value: 'waiting' },
+        { label: 'annotations', value: 'waiting' },
+      ].map(t =>
+        '<div class="tile">' +
+        '  <div class="label">' + esc(t.label) + '</div>' +
+        '  <div class="value">' + esc(t.value) + '</div>' +
+        '</div>'
+      ).join('');
+      document.getElementById('skills-panel').innerHTML =
+        stateHtml('Skill distribution audit', 'Waiting for /metrics/skills.', '');
+      document.getElementById('hot-body').innerHTML =
+        '<tr><td colspan="8">' + stateHtml('Route histograms', 'Waiting for /metrics/http/routes.', '') + '</td></tr>';
+      document.getElementById('outliers-list').innerHTML =
+        stateHtml('Recent outliers', 'Waiting for /metrics/http/outliers.', '');
+      document.getElementById('heatmap').innerHTML =
+        '<div style="grid-column: 1 / -1;">' + stateHtml('Seasonality', 'Waiting for persisted request counters.', '') + '</div>';
+      document.getElementById('annot-feed').innerHTML =
+        stateHtml('Context feed', 'Waiting for /metrics/annotations.', '');
+    }
+
+    function renderMetricsUnavailable(error) {
+      const message = apiErrorMessage(error);
+      document.getElementById('tiles').innerHTML =
+        '<div class="tile error"><div class="label">metrics API</div><div class="value">offline</div><div class="delta">' +
+        esc(message) + '</div></div>';
+      document.getElementById('hot-body').innerHTML =
+        '<tr><td colspan="8">' + stateHtml('Route histograms unavailable', message, 'error') + '</td></tr>';
+      const chartCanvas = document.getElementById('chart-latency');
+      const chartWrap = chartCanvas ? chartCanvas.parentElement : document.querySelector('.chart-wrap.tall');
+      if (chartWrap) chartWrap.innerHTML = stateHtml('Latency chart unavailable', message, 'error');
+    }
+
     // ─── Color + format helpers ──────────────────────────────────────────────
-    const ROUTE_PALETTE = ['#cc3d2e', '#4a7d7a', '#b89545', '#6b7d4a', '#8b3a2e', '#1e1b18'];
+    const ROUTE_PALETTE = ['#e07a61', '#77a9c8', '#e2a95c', '#6cc39a', '#c2b49f', '#f3ebdd'];
 
     function pillForMethod(m) {
       const safe = esc(m);
@@ -464,6 +784,48 @@
       ).join('');
     }
 
+    async function renderSkillDistribution() {
+      const j = await fetchJson('/metrics/skills');
+      const status = String(j.status || 'error');
+      const examples = []
+        .concat((j.examples && j.examples.staleSymlinks) || [])
+        .concat((j.examples && j.examples.missing) || [])
+        .concat((j.examples && j.examples.blockedNonSymlinks) || [])
+        .concat((j.examples && j.examples.errors) || [])
+        .slice(0, 6);
+
+      const cells = [
+        { label: 'status', value: status, cls: 'skill-status ' + status },
+        { label: 'freshness', value: fmtNum(j.freshnessPct || 0) + '%' },
+        { label: 'current links', value: fmtNum(j.currentLinks || 0) + ' / ' + fmtNum(j.expectedLinks || 0) },
+        { label: 'missing', value: fmtNum(j.missingLinks || 0), cls: j.missingLinks ? 'warn' : 'ok' },
+        { label: 'stale', value: fmtNum(j.staleSymlinks || 0), cls: j.staleSymlinks ? 'warn' : 'ok' },
+        { label: 'blocked', value: fmtNum(j.blockedNonSymlinks || 0), cls: j.blockedNonSymlinks ? 'warn' : 'ok' },
+        { label: 'skills', value: fmtNum(j.skillCount || 0) },
+        { label: 'runtimes', value: fmtNum(j.targetCount || 0) },
+      ];
+
+      const examplesHtml = examples.length
+        ? '<div class="skill-example">' + examples.map(ex =>
+            '<div><span class="skill-status ' + esc(status) + '">' + esc(ex.runtime || '') + '</span> ' +
+            esc(ex.skill || '') + ' <code>' + esc(ex.target || '') + '</code></div>'
+          ).join('') + '</div>'
+        : '<div class="footnote">No drift examples. Runtime skill links are current.</div>';
+
+      document.getElementById('skills-panel').innerHTML =
+        '<div class="skill-grid">' +
+        cells.map(t =>
+          '<div class="tile ' + esc(t.cls || '') + '">' +
+          '  <div class="label">' + esc(t.label) + '</div>' +
+          '  <div class="value ' + esc(t.cls || '') + '">' + esc(t.value) + '</div>' +
+          '</div>'
+        ).join('') +
+        '</div>' + examplesHtml;
+
+      document.getElementById('skills-hint').textContent =
+        'generated ' + new Date(j.generatedAt || Date.now()).toLocaleTimeString();
+    }
+
     // ─── Hot paths table ─────────────────────────────────────────────────────
     function renderHotTable(snap) {
       const rows = snap.routes.filter(r => r.count >= 1).slice(0, 25);
@@ -511,7 +873,29 @@
     }
 
     function renderLatencyChart(annotations) {
-      const ctx = document.getElementById('chart-latency').getContext('2d');
+      if (typeof Chart === 'undefined') {
+        const chartCanvas = document.getElementById('chart-latency');
+        const chartWrap = chartCanvas ? chartCanvas.parentElement : document.querySelector('.chart-wrap.tall');
+        if (chartWrap) {
+          chartWrap.innerHTML = stateHtml(
+            'Latency chart unavailable',
+            'Chart.js did not load. The route table and counters can still render when the daemon API is reachable.',
+            'error',
+          );
+        }
+        return;
+      }
+      const canvas = document.getElementById('chart-latency');
+      let activeCanvas = canvas;
+      if (!activeCanvas) {
+        const chartWrap = document.querySelector('.chart-wrap.tall');
+        if (!chartWrap) return;
+        chartWrap.innerHTML = '<canvas id="chart-latency"></canvas>';
+        activeCanvas = document.getElementById('chart-latency');
+        latencyChart = null;
+      }
+      if (!activeCanvas) return;
+      const ctx = activeCanvas.getContext('2d');
       const datasets = [...latencyHistory.entries()].map(([key, data], i) => ({
         label: key,
         data,
@@ -526,7 +910,7 @@
       const annotationPlugins = {};
       let pinIdx = 0;
       const colorByKind = {
-        commit: '#4a7d7a', tag: '#cc3d2e', note: '#b89545', session_purpose: '#6b7d4a', spawn: '#8b3a2e',
+        commit: '#77a9c8', tag: '#e07a61', note: '#e2a95c', session_purpose: '#6cc39a', spawn: '#c2b49f',
       };
       const allXs = [...latencyHistory.values()].flat().map(p => p.x);
       const minX = allXs.length ? Math.min(...allXs) : Date.now() - 60 * 60_000;
@@ -560,7 +944,7 @@
           scales: {
             x: { type: 'time', time: { unit: 'minute' }, grid: { display: false } },
             y: { title: { display: true, text: 'p95 latency (ms)' }, beginAtZero: true,
-                 grid: { color: 'rgba(30,27,24,0.06)' } },
+                 grid: { color: 'rgba(194,180,159,0.16)' } },
           },
         },
       };
@@ -576,8 +960,7 @@
 
     // ─── Outliers list ───────────────────────────────────────────────────────
     async function renderOutliers() {
-      const r = await fetch('/metrics/http/outliers?limit=50');
-      const j = await r.json();
+      const j = await fetchJson('/metrics/http/outliers?limit=50');
       const list = j.outliers || [];
       if (list.length === 0) {
         document.getElementById('outliers-list').innerHTML =
@@ -598,8 +981,7 @@
 
     // ─── Seasonality heatmap (uses counters table for true history) ──────────
     async function renderSeasonality() {
-      const r = await fetch('/metrics/counters?key=http.requests&since=' + (7 * 86400) + '&groupBy=hour');
-      const j = await r.json();
+      const j = await fetchJson('/metrics/counters?key=http.requests&since=' + (7 * 86400) + '&groupBy=hour');
       const grid = Array.from({ length: 7 }, () => Array(24).fill(0));
       let max = 0;
       for (const row of (j.results || [])) {
@@ -619,7 +1001,7 @@
           const v = grid[d][h];
           const intensity = max > 0 ? v / max : 0;
           const alpha = (0.05 + intensity * 0.85).toFixed(3);
-          const bg = 'rgba(204, 61, 46, ' + alpha + ')';
+          const bg = 'rgba(224, 122, 97, ' + alpha + ')';
           const title = days[d] + ' ' + h + ':00 — ' + v + ' req';
           cells.push('<div class="cell" style="background:' + bg + '" title="' + esc(title) + '"></div>');
         }
@@ -635,8 +1017,7 @@
     // ─── Annotations feed ────────────────────────────────────────────────────
     let lastAnnotations = [];
     async function renderAnnotations() {
-      const r = await fetch('/metrics/annotations?since=' + (24 * 3600) + '&limit=120');
-      const j = await r.json();
+      const j = await fetchJson('/metrics/annotations?since=' + (24 * 3600) + '&limit=120');
       lastAnnotations = j.events || [];
       const feed = lastAnnotations.map(ev =>
         '<div class="annot-row ' + esc(ev.kind) + '">' +
@@ -654,8 +1035,7 @@
     // ─── Main poll loop ──────────────────────────────────────────────────────
     async function pollFast() {
       try {
-        const r = await fetch('/metrics/http/routes');
-        const snap = await r.json();
+        const snap = await fetchJson('/metrics/http/routes');
         renderTiles(snap);
         renderHotTable(snap);
         pushLatencyHistory(snap);
@@ -667,16 +1047,34 @@
         document.getElementById('updated-at').textContent =
           'updated ' + new Date().toLocaleTimeString();
       } catch (e) {
+        renderMetricsUnavailable(e);
         document.getElementById('updated-at').textContent =
           'failed: ' + ((e && e.message) || 'unknown');
       }
-      try { await renderOutliers(); } catch {}
+      try { await renderOutliers(); } catch (e) {
+        document.getElementById('outliers-list').innerHTML =
+          stateHtml('Recent outliers unavailable', apiErrorMessage(e), 'error');
+      }
     }
     async function pollSlow() {
-      try { await renderAnnotations(); } catch {}
-      try { await renderSeasonality(); } catch {}
+      try { await renderSkillDistribution(); } catch (e) {
+        document.getElementById('skills-panel').innerHTML =
+          stateHtml('Skill distribution unavailable', apiErrorMessage(e), 'error');
+        document.getElementById('skills-hint').textContent = 'unavailable';
+      }
+      try { await renderAnnotations(); } catch (e) {
+        document.getElementById('annot-feed').innerHTML =
+          stateHtml('Context feed unavailable', apiErrorMessage(e), 'error');
+      }
+      try { await renderSeasonality(); } catch (e) {
+        document.getElementById('heatmap').innerHTML =
+          '<div style="grid-column: 1 / -1;">' +
+          stateHtml('Seasonality unavailable', apiErrorMessage(e), 'error') +
+          '</div>';
+      }
     }
 
+    renderInitialState();
     pollFast(); pollSlow();
     setInterval(pollFast, 5_000);
     setInterval(pollSlow, 60_000);

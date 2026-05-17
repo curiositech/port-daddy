@@ -4056,14 +4056,24 @@ export interface CockpitMissionIntake {
   projectDir: string;
   sources: string[];
   missing: string[];
+  /**
+   * Source files present on disk that produced zero mission cards.
+   * Optional for back-compat with daemons that don't surface this field.
+   */
+  sourcesWithNoCards?: string[];
   missions: CockpitMissionCard[];
   generatedAt: number;
 }
 
 export interface CockpitMissionsResponse {
   success: boolean;
-  intake: CockpitMissionIntake;
-  count: number;
+  /**
+   * Present on 2xx success responses. Absent when the route returns an
+   * error (4xx/5xx); in that case `success` is false and `error` carries
+   * the reason. Callers must guard before destructuring.
+   */
+  intake?: CockpitMissionIntake;
+  count?: number;
   error?: string;
 }
 

@@ -1584,11 +1584,12 @@
       "_note": "Composite feature \u2014 routes module wiring cost-tracker + counters together. API-only (no SDK methods or CLI commands)."
     },
     "metricsprom": {
-      "description": "Prometheus text exposition + per-route HTTP histograms with outlier ring buffer and time-aligned annotation feed (git commits, pd notes, session purposes). Powers the /metrics.html in-house dashboard and any external Prometheus scraper. Replaces the unbounded winston request-log firehose.",
+      "description": "Prometheus text exposition + per-route HTTP histograms with outlier ring buffer, skill freshness/distribution gauges, and time-aligned annotation feed (git commits, pd notes, session purposes). Powers the /metrics.html in-house dashboard and any external Prometheus scraper. Replaces the unbounded winston request-log firehose.",
       "cli": [],
       "sdk": [],
       "routes": [
         "GET /metrics/prom",
+        "GET /metrics/skills",
         "GET /metrics/http/routes",
         "GET /metrics/http/outliers",
         "GET /metrics/http/now",
@@ -1599,7 +1600,7 @@
         "readme": false,
         "sdk": false
       },
-      "_note": "Browser-served at /metrics.html. /metrics/prom is the Prometheus scrape path (the bare /metrics path is owned by the older info.ts daemon-stats endpoint that the SDK and MCP depend on)."
+      "_note": "Browser-served at /metrics.html. /metrics/prom is the Prometheus scrape path (the bare /metrics path is owned by the older info.ts daemon-stats endpoint that the SDK and MCP depend on). /metrics/skills is the JSON skill-distribution audit feeding the dashboard panel and Prometheus gauge export."
     },
     "usage": {
       "description": "Local product-usage telemetry for developer-pane diagnostics and operator UX instrumentation",

@@ -471,6 +471,11 @@ export interface MissionIntake {
   projectDir: string;
   sources: string[];
   missing: string[];
+  /**
+   * Source files present on disk that produced zero mission cards.
+   * Optional for back-compat with daemons that don't surface this field.
+   */
+  sourcesWithNoCards?: string[];
   missions: MissionCard[];
   generatedAt: number;
 }
@@ -545,6 +550,7 @@ export interface ProjectSummary {
   signals?: string[];
   sources?: string[];
   exists?: boolean;
+  worktree?: ProjectWorktreeSummary | null;
   running?: boolean;
   configuredAgentCount?: number;
   configuredWatcherCount?: number;
@@ -562,6 +568,16 @@ export interface ProjectSummary {
     command?: string;
     suggestedBudgetUsdPerDay?: number;
   } | null;
+}
+
+export interface ProjectWorktreeSummary {
+  id: string;
+  name: string;
+  branch: string | null;
+  isMain: boolean;
+  repoKey: string;
+  repoRoot: string | null;
+  siblingCount: number;
 }
 
 export interface BackendInfo {

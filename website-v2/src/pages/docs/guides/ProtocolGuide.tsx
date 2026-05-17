@@ -1,75 +1,82 @@
-import { Badge } from '@/components/ui/Badge'
-import { CodeBlock } from '@/components/ui/CodeBlock'
-import { Surface } from '@/components/ui/Surface'
 import { Mermaid } from '@/components/ui/Mermaid'
-import { Workflow } from 'lucide-react'
+import {
+  BracketLabel,
+  DocsCodeBlock,
+  DocsNoteCard,
+  PanelBody,
+  PanelList,
+  PanelTitle,
+  SectionIntro,
+  SurfacePanel,
+} from '@/components/site/primitives'
 
 const LIFECYCLE_CHART = `flowchart LR
-  A[Client or Agent] -->|begin session| B[Port Daddy Daemon]
-  B --> C[(SQLite state)]
-  A -->|emit notes / claims / signals| B
-  B -->|broadcast updates| D[Other clients]
-  A -->|spawn or queue work| E[Fleet executor]
-  E -->|status + artifacts| B
-  F[Agent crash] -->|salvage claim| G[Replacement agent]
-  G -->|resume state| B`
+  Human["Human in Fleet Control Center"] -->|"approves scope, budget, risk"| Daemon["Port Daddy daemon"]
+  Agent["Agent process"] -->|"begin, note, claim, publish"| Daemon
+  Daemon --> State["SQLite state"]
+  Daemon --> Console["Flow, Activity, Inbox, YAML"]
+  Daemon --> Peers["Other agents"]
+  Agent -->|"crash or timeout"| Salvage["Salvage queue"]
+  Salvage -->|"claimed by replacement"| Agent2["Replacement agent"]`
 
-export default function ProtocolGuide() {
-  return (
-    <div className="space-y-8">
-      <div className="space-y-3">
-        <Badge variant="teal">Guides</Badge>
-        <h1 className="text-4xl font-semibold tracking-tight text-[var(--text-primary)]">Agent Protocol &amp; State</h1>
-        <p className="text-lg text-[var(--text-secondary)] max-w-3xl">
-          Port Daddy coordination is event-driven: session lifecycle, message flow, persisted state, and resumability are first-class protocol behavior.
-        </p>
-      </div>
-
-      <Surface depth="raised" radius="xl" padding="lg" className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Workflow size={16} className="text-[var(--brand-secondary)]" />
-          <h2 className="text-xl font-semibold text-[var(--text-primary)]">Lifecycle Diagram</h2>
-        </div>
-        <figure className="space-y-2">
-          <Mermaid chart={LIFECYCLE_CHART} />
-          <figcaption className="text-xs text-center text-[var(--text-muted)]">
-            Session begin, event emission, broadcast synchronization, and salvage-based continuation.
-          </figcaption>
-        </figure>
-      </Surface>
-
-      <Surface depth="raised" radius="xl" padding="lg" className="space-y-3">
-        <h2 className="text-xl font-semibold text-[var(--text-primary)]">State Model</h2>
-        <ul className="list-disc pl-5 space-y-2 text-sm text-[var(--text-secondary)]">
-          <li>Session state is persisted and queryable; it survives process restarts.</li>
-          <li>Notes and claims are immutable audit surfaces for recovery and attribution.</li>
-          <li>Broadcast channels provide real-time fan-out to all interested clients.</li>
-          <li>Salvage queue transfers ownership when an agent fails mid-run.</li>
-        </ul>
-      </Surface>
-
-      <Surface depth="raised" radius="xl" padding="lg" className="space-y-3">
-        <h2 className="text-xl font-semibold text-[var(--text-primary)]">Event Handlers</h2>
-        <p className="text-sm text-[var(--text-secondary)]">
-          Model events as stable protocol hooks so agents and operators can react deterministically.
-        </p>
-        <CodeBlock language="typescript">{`type SessionEvent =
+const eventExample = `type SessionEvent =
   | { type: 'session.start'; sessionId: string; agentId: string }
   | { type: 'session.note'; sessionId: string; noteId: number }
   | { type: 'file.claim'; path: string; owner: string }
+  | { type: 'human.approval.requested'; inboxId: string; risk: string }
   | { type: 'agent.crash'; agentId: string }
-  | { type: 'salvage.claimed'; originalAgentId: string; replacementAgentId: string }
+  | { type: 'salvage.claimed'; originalAgentId: string; replacementAgentId: string }`
 
-function onEvent(event: SessionEvent) {
-  // publish to channels, trigger fleet actions, or request human approval
-}`}</CodeBlock>
-      </Surface>
-
-      <div className="rounded-xl border-l-4 p-4" style={{ borderLeftColor: 'var(--status-info)', background: 'color-mix(in srgb, var(--status-info) 8%, var(--surface-raised))' }}>
-        <p className="text-sm text-[var(--text-secondary)]">
-          Treat event-handler coverage as product behavior: start/stop hooks, queue transitions, approval waits, and failure handoff should all be observable.
-        </p>
+export default function ProtocolGuide() {
+  return (
+    <div className="space-y-[var(--space-7)]">
+      <div className="space-y-[var(--space-4)]">
+        <BracketLabel>Guides</BracketLabel>
+        <SectionIntro
+          eyebrow="Protocol and state"
+          title="The agent acts. The console keeps the work accountable."
+          description="Port Daddy is not just a CLI wrapper. Agents write sessions, notes, claims, messages, and salvage records into a daemon-owned state layer. The human reads and approves that work in Fleet Control Center."
+          titleAs="h1"
+          titleSize="section"
+          titleClassName="max-w-[20ch]"
+          bodyClassName="max-w-[54rem]"
+        />
       </div>
+
+      <SurfacePanel elevation="quiet" padding="compact" className="space-y-[var(--panel-gap)]">
+        <BracketLabel>Lifecycle</BracketLabel>
+        <PanelTitle as="h2" size="nav" className="max-w-none">One state model, two audiences.</PanelTitle>
+        <PanelBody size="compact" className="max-w-[54rem]">
+          Agents need fast commands and durable handoffs. Humans need Flow, Activity, Inbox, and YAML views that
+          explain what happened without asking them to reverse-engineer a terminal scrollback.
+        </PanelBody>
+        <figure className="space-y-[var(--space-2)]">
+          <Mermaid chart={LIFECYCLE_CHART} />
+          <figcaption className="font-sans text-[length:var(--type-meta-size)] font-medium uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+            Begin, notes, claims, approval, crash recovery, and replacement all write into the same daemon state.
+          </figcaption>
+        </figure>
+      </SurfacePanel>
+
+      <DocsNoteCard label="State model" title="What must survive process death." elevation="quiet" padding="compact" titleSize="nav">
+        <PanelList
+          items={[
+            'Session state is persisted and queryable after terminal close.',
+            'Notes and claims are immutable evidence for recovery and attribution.',
+            'Channels carry agent-to-agent signals without hiding them from the operator.',
+            'Fleet Control Center turns the same state into human-readable Flow, Activity, Inbox, and YAML surfaces.',
+            'Salvage transfers abandoned work to a replacement instead of losing the context.',
+          ]}
+        />
+      </DocsNoteCard>
+
+      <DocsNoteCard label="Events" title="Event handlers are product behavior." elevation="quiet" padding="compact" titleSize="nav">
+        <PanelBody size="compact" className="max-w-[54rem]">
+          Start, stop, queue transitions, approvals, failure handoffs, and salvage claims are not background trivia.
+          They are the things the human console must show and the agent runtime must write.
+        </PanelBody>
+        <DocsCodeBlock code={eventExample} language="typescript" label="Protocol shape" />
+      </DocsNoteCard>
     </div>
   )
 }

@@ -978,6 +978,15 @@ export default function App() {
       configuredWatcherCount: number;
       signals: string[];
       sources: string[];
+      worktree: {
+        id: string;
+        name: string;
+        branch: string | null;
+        isMain: boolean;
+        repoKey: string;
+        repoRoot: string | null;
+        siblingCount: number;
+      } | null;
       operatorState?: 'running' | 'ready' | 'blocked' | 'service_only' | 'context_only' | 'missing';
       operatorSummary?: string;
       operatorNextAction?: string;
@@ -1008,6 +1017,7 @@ export default function App() {
         configuredWatcherCount: project.configuredWatcherCount ?? 0,
         signals: project.signals ?? [],
         sources: project.sources ?? [],
+        worktree: project.worktree ?? null,
         operatorState: project.operatorState,
         operatorSummary: project.operatorSummary,
         operatorNextAction: project.operatorNextAction,
@@ -1033,6 +1043,7 @@ export default function App() {
         configuredWatcherCount: existing?.configuredWatcherCount ?? 0,
         signals: existing?.signals ?? [],
         sources: [...new Set([...(existing?.sources ?? []), 'runtime'])],
+        worktree: existing?.worktree ?? null,
         operatorState: existing?.operatorState ?? 'running',
         operatorSummary: existing?.operatorSummary,
         operatorNextAction: existing?.operatorNextAction,
@@ -1550,6 +1561,7 @@ export default function App() {
             ) : (
               <AllProjectsList
                 projects={projects}
+                selected={selectedProjectId}
                 onSelect={selectProject}
                 onStartProject={(project) => void handleStartProject(project.projectDir)}
                 onSetBudget={(project, usdPerDay) => void handleSetProjectBudget(project.projectDir, usdPerDay).catch(() => undefined)}
