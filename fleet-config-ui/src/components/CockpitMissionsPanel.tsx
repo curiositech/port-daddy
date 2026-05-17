@@ -49,7 +49,7 @@ function StatusBadge({ status }: { status: MissionStatus }) {
   const [bg, fg, border] = tonePalette(STATUS_TONE[status]);
   return (
     <span
-      className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+      className="rounded-full px-2 py-0.5 text-xs font-semibold uppercase tracking-wide"
       style={{ backgroundColor: bg, color: fg, border: `1px solid ${border}` }}
     >
       {status}
@@ -69,12 +69,12 @@ function MissionRow({ mission }: { mission: MissionCard }) {
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="truncate text-xs font-semibold" style={{ color: 'var(--pd-text)' }}>
+          <div className="truncate text-sm font-semibold" style={{ color: 'var(--pd-text)' }}>
             {mission.title}
           </div>
           {mission.summary && (
             <div
-              className="mt-1 line-clamp-2 text-xs leading-snug"
+              className="mt-1 line-clamp-2 text-sm leading-snug"
               style={{ color: 'var(--pd-muted)' }}
             >
               {mission.summary}
@@ -86,11 +86,11 @@ function MissionRow({ mission }: { mission: MissionCard }) {
         </div>
       </div>
       <div
-        className="mt-2 flex flex-wrap items-center gap-2 text-[10px] font-mono"
+        className="mt-2 flex flex-wrap items-center gap-2 text-sm font-mono"
         style={{ color: 'var(--pd-dim)' }}
       >
         <span className="inline-flex items-center gap-1">
-          <FileText size={10} />
+          <FileText size={12} />
           <span>{mission.source}</span>
         </span>
         {fileChips.map((file) => (
@@ -115,7 +115,7 @@ function MissionRow({ mission }: { mission: MissionCard }) {
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
-            className="text-[10px] font-semibold uppercase tracking-wide"
+            className="text-xs font-semibold uppercase tracking-wide"
             style={{ color: 'var(--pd-accent)' }}
           >
             {open
@@ -124,7 +124,7 @@ function MissionRow({ mission }: { mission: MissionCard }) {
           </button>
           {open && (
             <ul
-              className="mt-1 list-disc pl-4 text-xs leading-snug"
+              className="mt-1 list-disc pl-4 text-sm leading-snug"
               style={{ color: 'var(--pd-muted)' }}
             >
               {mission.evidence.map((line, i) => (
@@ -193,7 +193,7 @@ export default function CockpitMissionsPanel({ projectDir }: CockpitMissionsPane
             <div className="text-sm font-semibold" style={{ color: 'var(--pd-text)' }}>
               Roadmap intake
             </div>
-            <div className="text-[10px]" style={{ color: 'var(--pd-dim)' }}>
+            <div className="text-sm" style={{ color: 'var(--pd-dim)' }}>
               Cockpit work queue from CURRENT-WORK.md, UNIFIED-ROADMAP.md, and
               .cartographer/status.md
             </div>
@@ -203,7 +203,7 @@ export default function CockpitMissionsPanel({ projectDir }: CockpitMissionsPane
           type="button"
           onClick={() => void reload()}
           disabled={loading}
-          className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[10px] font-semibold disabled:cursor-not-allowed"
+          className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-sm font-semibold disabled:cursor-not-allowed"
           style={{
             color: 'var(--pd-text)',
             border: '1px solid var(--pd-border)',
@@ -212,7 +212,7 @@ export default function CockpitMissionsPanel({ projectDir }: CockpitMissionsPane
           }}
           title="Reload missions"
         >
-          <RefreshCw size={10} />
+          <RefreshCw size={14} />
           <span>{loading ? 'Loading' : 'Reload'}</span>
         </button>
       </header>
@@ -227,7 +227,7 @@ export default function CockpitMissionsPanel({ projectDir }: CockpitMissionsPane
               key={f.id}
               type="button"
               onClick={() => setFilter(f.id)}
-              className="rounded-full px-2 py-0.5 text-[10px] font-semibold"
+              className="rounded-full px-2 py-0.5 text-sm font-semibold"
               style={{
                 color: active ? 'var(--pd-accent)' : 'var(--pd-muted)',
                 border: `1px solid ${active ? 'var(--pd-accent)' : 'var(--pd-border)'}`,
@@ -242,21 +242,24 @@ export default function CockpitMissionsPanel({ projectDir }: CockpitMissionsPane
 
       {error && (
         <div
-          className="mt-3 flex items-start gap-2 rounded-md border px-3 py-2 text-xs"
+          className="mt-3 flex items-start gap-2 rounded-md border px-3 py-2 text-sm"
           style={{
-            backgroundColor: 'var(--pd-danger-surface)',
-            borderColor: 'var(--pd-danger-border)',
-            color: 'var(--pd-danger)',
+            // No --pd-danger* tokens defined in the theme; reuse the
+            // cinnabar accent family which is the closest "critical" hue
+            // we ship. Mirrors the StatusBadge palette decision.
+            backgroundColor: 'var(--pd-accent-surface)',
+            borderColor: 'var(--pd-accent-border)',
+            color: 'var(--pd-accent)',
           }}
         >
-          <AlertTriangle size={12} className="mt-0.5 shrink-0" />
+          <AlertTriangle size={14} className="mt-0.5 shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
       {!error && intake && intake.missing.length > 0 && (
         <div
-          className="mt-3 rounded-md border px-3 py-2 text-[11px]"
+          className="mt-3 rounded-md border px-3 py-2 text-sm"
           style={{
             backgroundColor: 'var(--pd-warning-surface)',
             borderColor: 'var(--pd-warning-border)',
@@ -268,10 +271,26 @@ export default function CockpitMissionsPanel({ projectDir }: CockpitMissionsPane
         </div>
       )}
 
+      {!error && intake && intake.sourcesWithNoCards && intake.sourcesWithNoCards.length > 0 && (
+        <div
+          className="mt-3 rounded-md border px-3 py-2 text-sm"
+          style={{
+            backgroundColor: 'var(--pd-bg)',
+            borderColor: 'var(--pd-border)',
+            color: 'var(--pd-muted)',
+          }}
+        >
+          {intake.sourcesWithNoCards.length} source file(s) present but parsed
+          zero mission cards (likely missing status tags like (UNCOMMITTED),
+          (BLOCKED), (CLOSED)):{' '}
+          <span className="font-mono">{intake.sourcesWithNoCards.join(', ')}</span>
+        </div>
+      )}
+
       <div className="mt-3 flex flex-col gap-2">
         {!loading && visible.length === 0 && !error && (
           <div
-            className="rounded-md border border-dashed px-3 py-6 text-center text-xs"
+            className="rounded-md border border-dashed px-3 py-6 text-center text-sm"
             style={{ borderColor: 'var(--pd-border)', color: 'var(--pd-dim)' }}
           >
             {intake && intake.missions.length === 0

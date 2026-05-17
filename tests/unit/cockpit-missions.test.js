@@ -148,9 +148,34 @@ describe('readMissions', () => {
     try {
       const intake = readMissions({ projectDir: empty });
       expect(intake.missing.length).toBe(3);
+      expect(intake.sourcesWithNoCards).toEqual([]);
       expect(intake.missions).toEqual([]);
     } finally {
       rmSync(empty, { recursive: true, force: true });
+    }
+  });
+
+  test('present-but-empty source files surface in `sourcesWithNoCards`', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'cockpit-no-cards-'));
+    try {
+      // Create the three default sources with content that produces zero
+      // mission cards (no headings at the configured level / no status tags).
+      mkdirSync(join(dir, 'docs', 'recovery'), { recursive: true });
+      mkdirSync(join(dir, '.cartographer'), { recursive: true });
+      writeFileSync(join(dir, 'docs', 'recovery', 'CURRENT-WORK.md'), '# Work\n\nNo tagged sections.\n');
+      writeFileSync(join(dir, 'docs', 'recovery', 'UNIFIED-ROADMAP.md'), '# Roadmap\n');
+      writeFileSync(join(dir, '.cartographer', 'status.md'), '# Status\n\nNothing yet.\n');
+
+      const intake = readMissions({ projectDir: dir });
+      expect(intake.missing).toEqual([]);
+      expect(intake.sourcesWithNoCards.sort()).toEqual([
+        '.cartographer/status.md',
+        'docs/recovery/CURRENT-WORK.md',
+        'docs/recovery/UNIFIED-ROADMAP.md',
+      ]);
+      expect(intake.missions).toEqual([]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
     }
   });
 });

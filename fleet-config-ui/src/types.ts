@@ -471,6 +471,11 @@ export interface MissionIntake {
   projectDir: string;
   sources: string[];
   missing: string[];
+  /**
+   * Source files present on disk that produced zero mission cards.
+   * Optional for back-compat with daemons that don't surface this field.
+   */
+  sourcesWithNoCards?: string[];
   missions: MissionCard[];
   generatedAt: number;
 }
