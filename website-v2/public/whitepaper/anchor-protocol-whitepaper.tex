@@ -28,6 +28,14 @@
 \definecolor{darkgreen}{RGB}{0,100,0}
 \definecolor{darkblue}{RGB}{0,50,100}
 \definecolor{accent}{RGB}{0,128,128}
+\definecolor{hhsand}{HTML}{E9DCC4}
+\definecolor{hhsanddeep}{HTML}{D4C5A9}
+\definecolor{hhebony}{HTML}{1E1B18}
+\definecolor{hhink}{HTML}{2C2A26}
+\definecolor{hhcinnabar}{HTML}{CC3D2E}
+\definecolor{hhbrass}{HTML}{B08D57}
+\definecolor{hhpatina}{HTML}{5C7A6A}
+\definecolor{hhpaper}{HTML}{FBF7EE}
 
 % ─── Listings Setup ──────────────────────────────────────────────────────────
 \lstdefinestyle{proverif}{
@@ -145,6 +153,16 @@ In a multi-agent development environment, agents operate concurrently to read fi
 
 To solve this, Port Daddy introduces the concept of a \textbf{Harbor}—a zero-trust, namespace-isolated execution environment where agents must prove their identity and capabilities. Our approach builds upon foundational work in capability-based security by Dennis and Van Horn~\cite{dennis1966programming} and the principle of least privilege articulated by Saltzer and Schroeder~\cite{saltzer1975protection}.
 
+\vspace{4pt}
+\noindent\begin{tikzpicture}
+\node[draw=hhebony,thick,fill=hhsand!30,rounded corners=2pt,
+      inner sep=8pt,text width=\dimexpr\textwidth-22pt\relax,
+      align=left] (cbox) {%
+  \small\textbf{\sffamily Companion paper.}\enspace This paper is the cryptographic substrate. Its companion, \emph{The Bonded Commons: Why Free-Market Agent Economies Decay and How To Fix Them}, builds the economic and game-theoretic layer on top: bonded participation, conditional-Pareto-dominant auctions, A5/A6 mechanism analysis, and the Sen-grounded justification for why coercive coordination is required at all. The Anchor Protocol is a self-contained subset; \emph{The Bonded Commons} consumes it as the trust kernel for the wider mechanism design. Read this paper for ``how does the daemon authenticate an agent?''; read the companion for ``why should there be a daemon at all?''
+};
+\end{tikzpicture}
+\vspace{4pt}
+
 % ═════════════════════════════════════════════════════════════════════════════
 \section{The Anchor Protocol Architecture}
 % ═════════════════════════════════════════════════════════════════════════════
@@ -194,6 +212,8 @@ For depth-$N$ chains, the verifier walks the structure shown in Figure~\ref{fig:
 \subsection{Phase 4: Revocation via Cuckoo Filter}\label{sec:revocation}
 
 Capability tokens have a TTL, but natural expiry is not always sufficient. Two circumstances force early withdrawal: (i) \emph{compromise}---a Harbor Card leaks from its agent's process, and every second until TTL is a second the attacker has legitimate capabilities; and (ii) \emph{policy reversal}---a principal decides an agent should no longer hold \texttt{db:write}, and waiting for TTL is unacceptable. A naive revocation list is $O(n)$ per verification and grows monotonically; in a daemon mesh, propagating it is $O(n \cdot m)$ for $m$ peers. The Anchor Protocol commits to a cuckoo filter~\cite{fan2014cuckoo} for revocation (Figure~\ref{fig:anchor-cuckoo-inline}).
+
+\paragraph{Cuckoo filters in one paragraph.} A cuckoo filter is a compact probabilistic set: it answers ``is $x$ in this set?'' with possible false positives but no false negatives, like a Bloom filter, but supports \emph{deletions} and uses less space at the false-positive rates we care about. Each inserted key is reduced to a small fingerprint (8 bits here) and placed in one of two candidate buckets selected by two hashes; on collision, the resident fingerprint is ``kicked'' to its alternate bucket, recursively, until a slot opens or a kick budget is exhausted. Lookups check both candidate buckets for the fingerprint. The relevant properties for revocation are: $O(1)$ expected insert/lookup/delete, no false negatives (a revoked card is \emph{never} missed), and a tunable false-positive rate that determines space per entry. Fan et al.\ prove the FP bound holds up to a load factor of $\approx 0.95$; we enforce that ceiling at the insert path.
 
 \input{figures/fig-anchor-cuckoo-inline}
 
