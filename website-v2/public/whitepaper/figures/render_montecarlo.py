@@ -264,8 +264,8 @@ def fig_cartel_folk(out: Path) -> None:
         Patch(facecolor=CINNABAR, edgecolor=EBONY, label="sustainable"),
         Patch(facecolor=PAPER, edgecolor=EBONY, label="collapses"),
     ]
-    ax.legend(handles=legend_elems, loc="upper right",
-              bbox_to_anchor=(1.0, -0.18), ncol=2)
+    ax.legend(handles=legend_elems, loc="upper center",
+              bbox_to_anchor=(0.5, -0.22), ncol=2, frameon=False)
 
     # Right: lifespan vs p_d, one line per delta.
     ax = axes[1]

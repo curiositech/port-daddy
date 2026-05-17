@@ -1,0 +1,59 @@
+% Capability attenuation — Russian doll. Inline in §2 Architecture or §3.3 Delegation.
+
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D4C5A9}
+\providecolor{hhebony}{HTML}{1E1B18}
+\providecolor{hhink}{HTML}{2C2A26}
+\providecolor{hhcinnabar}{HTML}{CC3D2E}
+\providecolor{hhbrass}{HTML}{B08D57}
+\providecolor{hhpatina}{HTML}{5C7A6A}
+\providecolor{hhpaper}{HTML}{FBF7EE}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  font=\sffamily\small,
+  capring/.style={draw=hhebony,thick,rounded corners=4pt,align=center,inner sep=6pt},
+  caplbl/.style={font=\sffamily\footnotesize,align=center},
+  prin/.style={draw=hhebony,thick,fill=hhcinnabar!30,rounded corners=2pt,
+               inner sep=4pt,font=\sffamily\bfseries\footnotesize,align=center},
+  arr/.style={->,>=Latex,thick,draw=hhink},
+  na/.style={->,>=Latex,thick,draw=hhcinnabar,dashed},
+]
+% Outermost capability: root cap from daemon
+\node[capring,fill=hhsand,minimum width=78mm,minimum height=54mm] (root) at (0,0)
+  {};
+\node[caplbl,above=1mm of root.north]
+  {\textbf{Root cap (daemon)}: \texttt{db:*}, \texttt{fs:*}, \texttt{net:*}, TTL = 1h};
+% Middle capability: attenuated for AgentA
+\node[capring,fill=hhsanddeep,minimum width=56mm,minimum height=36mm] (mid) at (-3,-1)
+  {};
+\node[caplbl,above=1mm of mid.north,xshift=0mm]
+  {\textbf{AgentA cap}: \texttt{db:write}, \texttt{fs:read}, TTL = 15m};
+% Innermost capability: AgentB
+\node[capring,fill=hhbrass!40,minimum width=32mm,minimum height=18mm] (inner) at (-4.6,-1.8)
+  {{\bfseries AgentB}\\\texttt{db:write}\\TTL = 5m};
+% Daemon issues to AgentA
+\node[prin,right=10mm of root.east] (daemon) {Daemon};
+\draw[arr] (daemon.west) -- node[above,font=\sffamily\footnotesize] {issue} (root.east);
+% AgentA delegates to AgentB
+\node[prin,right=8mm of mid.east,yshift=-4mm,fill=hhsand!50] (agentA) {AgentA};
+\draw[arr] (agentA.west) -- node[below,font=\sffamily\footnotesize] {delegate} (mid.east);
+% AgentA → AgentB delegation arrow
+\node[prin,below=8mm of inner,fill=hhbrass!20] (agentB) {AgentB};
+\draw[arr] (inner.south) -- (agentB.north);
+% Side note: invariants
+\node[draw=hhebony,thick,fill=hhpaper,rounded corners=3pt,align=left,
+      inner sep=5pt,minimum width=58mm,right=12mm of agentA,yshift=-12mm]
+  {{\bfseries Attenuation invariants:}\\[2pt]
+   $\bullet$ child cap $\subseteq$ parent cap\\
+   $\bullet$ child TTL $\leq$ parent TTL\\
+   $\bullet$ child cannot re-grant beyond child cap};
+% Forbidden grant attempt
+\node[font=\sffamily\footnotesize\itshape,text=hhcinnabar,below=6mm of agentB,xshift=6mm]
+  (forbid) {AgentB cannot grant \texttt{net:*} downstream};
+\draw[na] (agentB.south) -- (forbid.north);
+\end{tikzpicture}
+\caption{Capability attenuation under delegation. Each child capability is a strict subset of its parent's (rights and TTL both shrink monotonically). AgentB inherits only what AgentA explicitly delegates, and cannot re-grant capabilities it does not hold. This is enforced both at issuance (parent signs over the child's attenuated claim set) and at verification (the verifier checks the chain of \texttt{is\_subset} relations).}
+\label{fig:anchor-capability-attenuation}
+\end{figure}

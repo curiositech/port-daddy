@@ -152,8 +152,13 @@
 \draw[hashflow] (h1.west) -- ($(b0s3.east)+(0.3,0)$);
 \draw[hashflow] (h2.west) -- ($(b3s3.east)+(0.3,0)$);
 \node[slot,fill=hhcinnabar!75,text=white] at (b0s2) {c1};
-\draw[flow,line width=1.4pt] (b0s2.south) to[bend right=20]
-  node[right,font=\sffamily\footnotesize] {kick \texttt{2f}} (b2s2.north);
+% Kick arrow: route straight DOWN through the empty b1s2 cell to b2s2.
+% Label "evict 2f" pinned right at the arrow midpoint, inside the bucket
+% column gutter so it doesn't collide with the formula boxes on the right.
+\draw[flow,line width=1.6pt] (b0s2.south) -- (b2s2.north);
+\node[font=\sffamily\footnotesize\itshape,text=hhcinnabar,
+      anchor=west] at ([xshift=1.5mm,yshift=0mm]b1s2.east)
+  {evict \texttt{2f}};
 \node[draw=hhebony,thick,fill=hhsanddeep,rounded corners=3pt,inner sep=5pt,
       align=left,anchor=north west,minimum width=58mm] at (5.5,0.4)
   {{\bfseries Lookup} $k$: check $i_1, i_2$\\[2pt]
@@ -168,6 +173,8 @@
 \label{fig:cuckoo-diag}
 \end{figure}
 
+% (auction figure now lives inline at §sec:youle:welfare — see fig-auction-inline.tex)
+\iffalse
 % ──────────────────────────────────────────────────────────────────────
 \begin{figure}[H]
 \centering
@@ -184,43 +191,47 @@
   arr/.style={->,>=Latex,thick,draw=hhink},
 ]
 \begin{scope}[xshift=0cm]
-\node[font=\sffamily\bfseries,anchor=west] at (-0.4,3.6) {(a) Static escrow};
-\node[actor] (p1) at (0,2.6) {Principal};
+\node[font=\sffamily\bfseries,anchor=center] at (1.2,4.2) {(a) Static escrow};
+\node[actor] (p1) at (1.2,3.2) {Principal};
 \node[escrow,below=10mm of p1] (esc) {Escrow $B_T = \mu(1+s)$};
 \node[commons,below=10mm of esc] (c1) {Commons};
 \draw[arr] (p1.south) -- node[right,font=\sffamily\footnotesize]
   {deposit $B_T$} (esc.north);
 \draw[arr] (esc.south) -- node[right,font=\sffamily\footnotesize]
   {on loss: $\min(d, B_T)$} (c1.north);
-\node[align=left,font=\sffamily\footnotesize,
-      anchor=north west] at (1.6,0.8)
+\node[align=center,font=\sffamily\footnotesize,
+      draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,inner sep=4pt,
+      below=8mm of c1,minimum width=42mm] (cost1)
   {{\bfseries Principal cost} \\ $= \mathbb{E}[d] + r \cdot B_T$};
 \end{scope}
-\begin{scope}[xshift=7.6cm]
-\node[font=\sffamily\bfseries,anchor=west] at (-0.4,3.6)
+\begin{scope}[xshift=8.2cm]
+\node[font=\sffamily\bfseries,anchor=center] at (1.2,4.2)
   {(b) Competitive Vickrey};
-\node[actor] (p2) at (0,2.6) {Principal};
-\node[ins,fill=hhsand,below=12mm of p2,xshift=-14mm] (i1) {$A$\\$q_A$};
-\node[ins,fill=hhsand,below=12mm of p2] (i2) {$B$\\$q_B$};
-\node[ins,fill=hhsand,below=12mm of p2,xshift=14mm] (i3) {$C$\\$q_C$};
-\node[commons,below=12mm of i2] (c2) {Commons};
+\node[actor] (p2) at (1.2,3.2) {Principal};
+\node[ins,fill=hhsand,below=11mm of p2,xshift=-15mm] (i1) {$A$\\$q_A$};
+\node[ins,fill=hhsand,below=11mm of p2] (i2) {$B$\\$q_B$};
+\node[ins,fill=hhsand,below=11mm of p2,xshift=15mm] (i3) {$C$\\$q_C$};
+\node[commons,below=11mm of i2] (c2) {Commons};
+% Vickrey 2nd-price callout placed to the RIGHT of the cohort, not below it.
 \node[draw=hhcinnabar,thick,fill=hhpaper,rounded corners=2pt,inner sep=2pt,
-      font=\sffamily\footnotesize,right=2mm of i3]
-  (vic) {$q^* = q_{(2)}$};
+      font=\sffamily\footnotesize,right=4mm of i3,align=center]
+  (vic) {Vickrey 2\textsuperscript{nd}-price\\$q^* = q_{(2)}$};
 \draw[arr] (p2.south) -- (i1.north);
 \draw[arr] (p2.south) -- (i2.north);
 \draw[arr] (p2.south) -- (i3.north);
 \draw[arr,line width=1.4pt,draw=hhcinnabar] (i2.south) --
-  node[right,font=\sffamily\footnotesize]
+  node[left,font=\sffamily\footnotesize]
   {underwrites $B_T$} (c2.north);
-\node[align=left,font=\sffamily\footnotesize,
-      anchor=north west] at (1.6,0.8)
+\node[align=center,font=\sffamily\footnotesize,
+      draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,inner sep=4pt,
+      below=8mm of c2,minimum width=42mm] (cost2)
   {{\bfseries Principal cost} \\ $= q^*$ (no idle capital)};
 \end{scope}
 \end{tikzpicture}
-\caption{Static escrow vs.\ competitive Vickrey auction (\S\ref{sec:youle:welfare}). Both regimes underwrite the same coverage $B_T = \mu(1+s)$; only the financing mechanism differs. In (a) the principal ties up $B_T$ for the coverage period, paying an opportunity cost $r \cdot B_T$. In (b) insurers compete; the principal pays only the second-lowest bid $q^*$.}
-\label{fig:auction-diag}
+\caption{(SUPPRESSED — see inline Figure~\ref{fig:auction-inline}.)}
+\label{fig:auction-diag-suppressed}
 \end{figure}
+\fi
 
 % ──────────────────────────────────────────────────────────────────────
 \begin{figure}[H]
@@ -271,6 +282,8 @@
 \label{fig:cartel-game-diag}
 \end{figure}
 
+% (Sybil figure now lives inline at the A5 subsection — see fig-sybil-inline.tex)
+\iffalse
 % ──────────────────────────────────────────────────────────────────────
 \begin{figure}[H]
 \centering
@@ -291,41 +304,56 @@
   arr/.style={->,>=Latex,thick,draw=hhink},
   badarr/.style={->,>=Latex,thick,draw=hhcinnabar,dashed},
 ]
-\node[adv] (attacker) at (0,2.6) {ATTACKER};
-\node[sybil,right=12mm of attacker.east,yshift=12mm] (s1)
+\node[adv] (attacker) at (0,4.2) {ATTACKER};
+\node[sybil,right=10mm of attacker.east,yshift=12mm] (s1)
   {Sybil $S_1$\\dep $B_{\mathrm{dep}}$};
-\node[sybil,right=12mm of attacker.east] (s2)
+\node[sybil,right=10mm of attacker.east] (s2)
   {Sybil $S_2$\\dep $B_{\mathrm{dep}}$};
-\node[sybil,right=12mm of attacker.east,yshift=-12mm] (s3)
+\node[sybil,right=10mm of attacker.east,yshift=-12mm] (s3)
   {Sybil $S_3$\\dep $B_{\mathrm{dep}}$};
 \draw[arr] (attacker.east) -- node[above,font=\sffamily\footnotesize]
   {spawn} (s1.west);
 \draw[arr] (attacker.east) -- (s2.west);
 \draw[arr] (attacker.east) -- (s3.west);
-\node[honest,below=12mm of s3] (h1) {Honest $H_1$};
-\node[honest,left=3mm of h1] (h2) {Honest $H_2$};
-\node[auction,right=14mm of s2] (auction) {Vickrey auction\\$q^* = q_{(2)}$};
-\draw[badarr] (s1.east) to[bend left=6]
-  node[above,font=\sffamily\footnotesize\itshape,text=hhcinnabar]
-  {bid $(1-\varepsilon) q_{\min}^{\mathrm{honest}}$} (auction.west);
-\draw[badarr] (s2.east) to (auction.west);
-\draw[badarr] (s3.east) to[bend right=6] (auction.west);
-\draw[arr] (h1.north) to[bend right=6] (auction.south);
-\draw[arr] (h2.north) to[bend left=6] (auction.south);
+% Honest insurers — placed BELOW the Sybil cluster, on the LEFT side
+\node[honest,below=22mm of s3] (h1) {Honest $H_1$};
+\node[honest,right=3mm of h1] (h2) {Honest $H_2$};
+% Auction in the middle-right
+\node[auction,right=24mm of s2] (auction)
+  {Vickrey auction\\$q^* = q_{(2)}$};
+% Sybil undercut bids (red dashed) converging on auction
+\draw[badarr] (s1.east) to[bend left=8] (auction.west);
+\draw[badarr] (s2.east) -- (auction.west);
+\draw[badarr] (s3.east) to[bend right=8] (auction.west);
+% Honest bids feeding the auction from below-left
+\draw[arr] (h1.north) to[bend left=14] (auction.south);
+\draw[arr] (h2.north) to[bend left=8] (auction.south);
+% Floating callout for the undercut, placed ABOVE the auction
+\node[font=\sffamily\footnotesize\itshape,text=hhcinnabar,
+      align=center,above=2mm of auction.north]
+  {sybils undercut by $(1-\varepsilon)$};
+% Winner — RIGHT of auction (no overlap risk)
 \node[draw=hhcinnabar,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
       align=center,right=10mm of auction,font=\sffamily\bfseries,
       text=hhcinnabar] (winner) {WINNER:\\$S_i$};
 \draw[arr,line width=1.4pt,draw=hhcinnabar] (auction.east) -- (winner.west);
-\node[payout,below=10mm of winner,fill=hhbrass!20]
-  {on loss $d > 0$:\\Sybil pays $0$\\protocol slashes $\min(B_{\mathrm{dep}}, B_T)$};
+% On-loss payout — BELOW the winner
+\node[payout,below=10mm of winner,fill=hhbrass!20,minimum width=42mm,align=left]
+  (lossbox)
+  {{\bfseries on loss $d > 0$:}\\Sybil pays $0$;\\
+   protocol slashes $\min(B_{\mathrm{dep}}, B_T)$};
+\draw[arr,draw=hhcinnabar,dashed] (winner.south) -- (lossbox.north);
+% A5 finding — FULL WIDTH below entire diagram, anchored to the page-relative center
 \node[draw=hhcinnabar,thick,fill=hhpaper,rounded corners=3pt,inner sep=5pt,
-      align=left,minimum width=100mm,below=10mm of attacker.south,xshift=24mm]
-  {{\bfseries A5 finding:} deposit slash is capped at $B_T = \mu(1+s)$.
-   Past $B_{\mathrm{dep}} \geq B_T$, additional deposit provides no extra
-   deterrence.\\[2pt]
-   Closing A5 requires $\mathbf{C_{\mathrm{kyc}} + \text{reputation gating} +
+      align=left,text width=140mm,
+      below=14mm of h1.south,xshift=44mm,anchor=north]
+  {{\bfseries A5 finding:} the deposit slash is capped at the coverage
+   $B_T = \mu(1+s)$. Past $B_{\mathrm{dep}} \geq B_T$, additional deposit
+   provides no extra deterrence. Closing A5 requires a composite
+   mechanism: $\mathbf{C_{\mathrm{kyc}} + \text{reputation gating} +
    \text{per-class}\;B_{\mathrm{dep}}}$.};
 \end{tikzpicture}
-\caption{Sybil attack flow. The attacker spawns $K$ Sybil identities, each posting deposit $B_{\mathrm{dep}}$, then undercuts honest bids by $\varepsilon$ and defaults on loss. The protocol confiscates the Sybil's deposit on default, but the slash amount is capped at the coverage $B_T$ --- so beyond $B_{\mathrm{dep}} \geq B_T$ extra deposit gives no extra deterrence. Empirically demonstrated in Figure~\ref{fig:sybil-deposit-floor}.}
-\label{fig:sybil-diag}
+\caption{(SUPPRESSED — see inline Figure~\ref{fig:sybil-inline}.)}
+\label{fig:sybil-diag-suppressed}
 \end{figure}
+\fi

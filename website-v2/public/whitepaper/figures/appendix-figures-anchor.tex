@@ -98,8 +98,10 @@
 \draw[hashflow] (h1.west) -- ($(b0s3.east)+(0.3,0)$);
 \draw[hashflow] (h2.west) -- ($(b3s3.east)+(0.3,0)$);
 \node[slot,fill=hhcinnabar!75,text=white] at (b0s2) {c1};
-\draw[flow,line width=1.4pt] (b0s2.south) to[bend right=20]
-  node[right,font=\sffamily\footnotesize] {kick \texttt{2f}} (b2s2.north);
+\draw[flow,line width=1.6pt] (b0s2.south) -- (b2s2.north);
+\node[font=\sffamily\footnotesize\itshape,text=hhcinnabar,
+      anchor=west] at ([xshift=1.5mm,yshift=0mm]b1s2.east)
+  {evict \texttt{2f}};
 \node[draw=hhebony,thick,fill=hhsanddeep,rounded corners=3pt,inner sep=5pt,
       align=left,anchor=north west,minimum width=58mm] at (5.5,0.4)
   {{\bfseries Lookup} $k$: check $i_1, i_2$\\[2pt]

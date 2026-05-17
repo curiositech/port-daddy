@@ -131,6 +131,45 @@ There will be no AI economy without trust, and trust cannot be earned peer-to-pe
 \vspace{0.5cm}
 \noindent\textbf{Keywords:} multi-agent coordination, trust infrastructure, capability-based security, social contract, collateralized computation, formal verification, commons governance
 
+\vspace{0.3cm}
+\noindent\textit{Reading time: approximately 50 minutes end-to-end. The Reader's Map below provides shorter paths for specific reader types.}
+
+\vspace{0.6cm}
+
+% ═══════════════════════════════════════════════════════════════════════════════
+\section*{Reader's Map}\label{sec:readers-map}
+% ═══════════════════════════════════════════════════════════════════════════════
+
+The paper builds in four layers; each layer carries a load-bearing theorem or empirical result. If you have less than 50 minutes, the table below tells you where to start.
+
+\vspace{0.4cm}
+\noindent
+\begin{tabular}{p{3.5cm} p{8.5cm} p{3.5cm}}
+\toprule
+\textbf{Layer} & \textbf{Load-bearing artifact} & \textbf{Lives at} \\
+\midrule
+\textbf{(1) Structural prevention} & Capability-attenuated tokens; ProVerif proofs of algorithm-confusion immunity and delegation replay resistance & \S\ref{sec:structural}--\S\ref{sec:isolation}; companion Anchor paper \\
+\textbf{(2) Immutable attribution} & Merkle Forest with cross-daemon inclusion proofs; EasyCrypt binding mechanization (\texttt{binding.ec}) & \S\ref{sec:merkle-forest}; Appendix~\ref{app:mech} \\
+\textbf{(3) Economic alignment} & Competitive-insurance auction; Pareto-dominance theorem (empirical) & \S\ref{sec:youle}; \S\ref{sec:youle:welfare} \\
+\textbf{(4) Governance} & Sen's theorem applied to enforced claims; advisory-claims resolution & \S\ref{sec:sen}--\S\ref{sec:advisory} \\
+\bottomrule
+\end{tabular}
+
+\vspace{0.6cm}
+\noindent\textbf{Suggested reading paths by reader type:}
+\begin{itemize}[nosep,leftmargin=*,topsep=2pt]
+\item \textbf{Formal-methods reviewer / program committee} --- abstract, then jump to Appendix~\ref{app:mech} (Mechanization Status v2.6). The artifact registry is the most concentrated signal of what is and is not proved.
+\item \textbf{Cryptoeconomic protocol designer} --- abstract, then \S\ref{sec:youle} (auction mechanism), \S\ref{sec:youle:welfare} (welfare theorem with inline Pareto Monte Carlo), \S\ref{sec:youle:a5} (A5 Sybil-deterrence is coverage-bounded --- a surprising negative result).
+\item \textbf{AI safety researcher} --- \S\ref{sec:morality} (``What Morality Means When Death Is Cheap''), \S\ref{sec:sen} (Sen's theorem), \S\ref{sec:economic} (collateralized work contracts). Skim Appendix~\ref{app:mech} for the proof posture.
+\item \textbf{Distributed systems engineer} --- \S\ref{sec:structural}--\S\ref{sec:merkle-forest} (primitives), then the companion Anchor Protocol paper for the cryptographic-token protocol detail.
+\item \textbf{Engineering manager evaluating multi-agent infrastructure} --- abstract, \S\ref{sec:why-consent} (``Why Agents Consent''), \S\ref{sec:economic} (bond pricing), \S\ref{sec:youle:welfare} (welfare results). The Appendix~\ref{app:mech} status registry tells you what is production-ready and what is research.
+\item \textbf{Policy / governance analyst} --- abstract, \S\ref{sec:sen}--\S\ref{sec:advisory} (the Sen's-theorem argument for advisory rather than enforced claims), \S\ref{sec:federated-sovereign} (federated sovereign).
+\end{itemize}
+
+\vspace{0.5cm}
+\noindent\textbf{Companion paper.} \emph{The Anchor Protocol: A Formally Verified Control Plane for Local Agent Swarms} (Owens 2026) is the cryptographic-token half of this work --- self-contained ProVerif models of the three Harbor Card phases, cuckoo-filter revocation, and multi-hop delegation. Either paper can be read first; this one carries the economic and governance argument, the companion paper carries the cryptographic protocol detail.
+
+\newpage
 \tableofcontents
 \newpage
 
@@ -192,7 +231,7 @@ The commons authority is a \emph{Hobbesian sovereign}, not an \emph{omniscient c
 
 In the Port Daddy implementation, the commons authority is a daemon running on \texttt{localhost:9876}, backed by SQLite. The simplicity of the implementation is deliberate: the authority's value comes from its \emph{guarantees}, not its complexity.
 
-\subsection{Why Agents Consent}
+\subsection{Why Agents Consent}\label{sec:why-consent}
 
 In Hobbes, consent to the sovereign is rational because the alternative---the state of nature---is worse. For AI agents, consent to the commons authority is rational because agents without it are strictly worse off:
 
@@ -248,7 +287,7 @@ By the Anchor Protocol's Injective Agreement property~\cite{owens2026anchor}, ve
 This is the layer where the metaphor of ``walls, not laws'' applies. A law says ``you shall not write to the production database.'' A wall means your token is not valid for production database writes, and no amount of intent---good or bad---can change that. Laws require enforcement; walls require only construction.
 \end{remark}
 
-\subsection{Isolation Domains}
+\subsection{Isolation Domains}\label{sec:isolation}
 
 Beyond capability tokens, the commons authority supports \textbf{structural isolation} via git worktrees: physically separate copies of the repository where agents operate on disjoint filesystem state.
 
@@ -394,7 +433,7 @@ This is not a contrived scenario. AI agents are \emph{inherently uncertain} abou
   \item \textbf{Under-claim} (request locks only on files they're certain about) $\rightarrow$ produces undetected conflicts, defeating the purpose.
 \end{enumerate}
 
-\subsection{Advisory Claims as Resolution}
+\subsection{Advisory Claims as Resolution}\label{sec:advisory}
 
 Advisory claims resolve the Sen impossibility by sacrificing minimal liberalism to preserve Pareto efficiency:
 
@@ -436,7 +475,7 @@ When agent $\alpha$ is declared dead (no heartbeat for a status-adaptive thresho
 \end{enumerate}
 \end{definition}
 
-\subsection{What Morality Means When Death Is Cheap}
+\subsection{What Morality Means When Death Is Cheap}\label{sec:morality}
 
 Agent death in this system is not an existential event---it is a temporary inconvenience. The agent's body (process) is destroyed, but its mind (evidence trail) survives in the commons. A successor reads the trail and continues. Like Hickman's Krakoa~\cite{hickman2019krakoa}, where mutant minds are backed up to Cerebro and restored in new bodies, the information survives the vessel.
 
@@ -598,10 +637,41 @@ To avoid the classic lemons problem, the mechanism requires:
 \end{itemize}
 
 \paragraph{Welfare properties (claim).}\label{sec:youle:welfare}
-\emph{Under full information and competitive entry, the market-discovered premium Pareto-dominates any authority-chosen static parameter.} An independent theorization with explicit assumptions and a Monte Carlo sweep over 36 parameter configurations is recorded in \texttt{proofs/bonded/pareto/dominance.md} and \texttt{proofs/bonded/pareto/simulation.mjs} (sealed at round v2.5; see \S\ref{app:mech}). The simulation surfaces three quantitative boundaries beyond the qualitative claim: (i) Pareto dominance requires reputation noise $\sigma_r \le 0.1$, coupling \S\ref{sec:merkle-forest} to this section; (ii) a partial cartel is robustly defeated by Vickrey 2nd-price, but a full cartel collapses dominance regardless of detection rate at $p_d = 0.3$; (iii) larger insurer pools exacerbate winner's curse via the order-statistic effect, with the empirical optimum at $n = 3$. A formal Coq/Lean mechanization of the strategic game is carried indefinitely behind the empirical artifact.
+\emph{Under full information and competitive entry, the market-discovered premium Pareto-dominates any authority-chosen static parameter.} The two regimes underwrite identical coverage $B_T = \mu(1+s)$; only the financing mechanism differs (Figure~\ref{fig:auction-inline}).
+
+\input{figures/fig-auction-inline}
+
+An independent theorization with explicit assumptions and a Monte Carlo sweep over 36 parameter configurations is recorded in \texttt{proofs/bonded/pareto/dominance.md} and \texttt{proofs/bonded/pareto/simulation.mjs} (sealed at round v2.5; see \S\ref{app:mech}). The simulation surfaces three quantitative boundaries beyond the qualitative claim, visualized in Figure~\ref{fig:pareto-mc-inline}: (i) Pareto dominance requires reputation noise $\sigma_r \le 0.1$, coupling \S\ref{sec:merkle-forest} to this section; (ii) a partial cartel is robustly defeated by Vickrey 2nd-price, but a full cartel collapses dominance regardless of detection rate at $p_d = 0.3$; (iii) larger insurer pools exacerbate winner's curse via the order-statistic effect, with the empirical optimum at $n = 3$. A formal Coq/Lean mechanization of the strategic game is carried indefinitely behind the empirical artifact.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{figures/fig-pareto-dominance.pdf}
+  \caption{Pareto dominance of competitive auction over static escrow. Left: dominance rate as a function of reputation noise $\sigma_r$ at $n=5$ insurers, split by cartel size. Dominance holds robustly with no cartel even at $\sigma_r = 0.5$; with 3 colluders it collapses past $\sigma_r \approx 0.1$. Right: dominance rate vs.\ $n$ at $\sigma_r = 0$ and no cartel; $n=3$ is the empirical optimum due to the winner's-curse order-statistic effect.}
+  \label{fig:pareto-mc-inline}
+\end{figure}
 
 \paragraph{Relationship to the Bonded Advisor.}
 Under this framing, the Bonded Advisor of \S\ref{sec:bonded-advisor} becomes the matchmaker plus reputation oracle in the insurance market. It does not set prices; it provides information. Pricing is a competitive equilibrium, not an administrative decision.
+
+\subsubsection{A5 --- Sybil deterrence is coverage-bounded}\label{sec:youle:a5}
+
+A pure deposit-based Sybil deterrence policy is \emph{provably insufficient}, and the structure of the protocol explains why. An adversary spawns $K$ Sybil insurer identities, each posting the protocol-mandated deposit $B_{\mathrm{dep}}$, then undercuts honest bids by an arbitrarily small $\varepsilon$ and defaults on loss (Figure~\ref{fig:sybil-inline}).
+
+\input{figures/fig-sybil-inline}
+
+The naive expected-value calculation suggests breakeven at
+$B_{\mathrm{dep}}^{\star} = q^{*} \cdot (1 - P_{\mathrm{loss}}) / P_{\mathrm{loss}}$,
+which for the mixed risk classes used in the simulation gives
+$B_{\mathrm{dep}}^{\star} \approx 316$ USD. \emph{Empirically the attack remains profitable indefinitely.} The reason is structural: the deposit slash is capped at the coverage amount, $\mathrm{slash} = \min(B_{\mathrm{dep}}, B_T)$. Past $B_{\mathrm{dep}} \geq B_T$, any additional deposit posted by the Sybil is recovered intact on no-loss transactions; it never reaches the commons (Figure~\ref{fig:sybil-mc-inline}).
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{figures/fig-sybil-deposit-floor.pdf}
+  \caption{A5 --- Sybil attack: deposit-only deterrence has a coverage-bounded ceiling. Left: attacker net profit per 50-transaction trial stays positive across the entire deposit sweep ($B_{\mathrm{dep}} \in [0.5, 1000]$ USD). Right: commons deficit converges to zero around $B_{\mathrm{dep}} \approx 200$ USD --- the protocol is fully reimbursed, but the attacker still profits because deposit slash is capped at coverage $B_T = \mu(1+s)$. Closing A5 requires a composite mechanism ($C_{\mathrm{kyc}}$ + reputation gating + per-class $B_{\mathrm{dep}}$); pure deposit-based deterrence is provably insufficient.}
+  \label{fig:sybil-mc-inline}
+\end{figure}
+
+\emph{Closing A5 requires a composite mechanism}: an unrecoverable per-identity onboarding cost $C_{\mathrm{kyc}}$ (proof-of-personhood, KYC fee, or NFT mint), reputation gating that caps new identities to low-coverage transactions until they accumulate a track record, and per-class $B_{\mathrm{dep}}$ tuned to saturate the coverage cap exactly. This is a real revision to the \S\ref{sec:youle} mechanism design and is recorded honestly in \texttt{proofs/bonded/pareto/cartel-resilience.md}.
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Coordination as Substrate: An Expressive-Act Taxonomy}\label{sec:taxonomy}
@@ -960,9 +1030,9 @@ The v2.6 round closes the three remaining audit-promoted gaps from v2.5 (cuckoo-
 \begin{itemize}
 \item \textbf{Merkle Forest binding} (\S\ref{sec:merkle-forest}). Reference implementation in \texttt{lib/merkle-tree.ts} (RFC~6962-style domain-separated binary tree, 200 LOC). Eight binding properties verified empirically under fast-check at \texttt{tests/unit/merkle-binding-property.test.js} (100 random cases per property). Game-based spec with reduction sketch to SHA-256 collision resistance: \texttt{proofs/bonded/merkle/binding.md}. \emph{v2.6 update}: the EasyCrypt skeleton has been \emph{discharged} --- \texttt{proofs/bonded/merkle/binding.ec} now closes \texttt{leaf\_collision\_bound}, \texttt{internal\_collision\_bound}, and \texttt{binding\_reduction} via a union bound over leaf and internal collisions. The \texttt{easycrypt -check} run log is captured at \texttt{proofs/bonded/merkle/binding.run.log}.
 
-\item \textbf{Pareto dominance of competitive-insurance pricing} (\S\ref{sec:youle:welfare}). Independent theorization at \texttt{proofs/bonded/pareto/dominance.md} restating the claim with explicit assumptions (public reputation, no collusion, solvency, insurer efficiency) and a sketch reduction by cases. Monte Carlo simulation at \texttt{proofs/bonded/pareto/simulation.mjs} (Vickrey 2nd-price vs.\ static authority bond, identical coverage in both regimes, 36 parameter configurations $\times$ 2{,}000 trials $\times$ 50 transactions). Three quantitative findings: $\sigma_r \le 0.1$ ceiling on reputation noise, partial cartel resilience but full cartel collapse, $n = 3$ insurer optimum due to winner's-curse order-statistic effect. Visualized in Figure~\ref{fig:pareto-dominance} of Appendix~\ref{app:montecarlo}. Formal Coq/Lean mechanization of the strategic game (estimated 1{,}000 LOC $+$ several months) carried indefinitely.
+\item \textbf{Pareto dominance of competitive-insurance pricing} (\S\ref{sec:youle:welfare}). Independent theorization at \texttt{proofs/bonded/pareto/dominance.md} restating the claim with explicit assumptions (public reputation, no collusion, solvency, insurer efficiency) and a sketch reduction by cases. Monte Carlo simulation at \texttt{proofs/bonded/pareto/simulation.mjs} (Vickrey 2nd-price vs.\ static authority bond, identical coverage in both regimes, 36 parameter configurations $\times$ 2{,}000 trials $\times$ 50 transactions). Three quantitative findings: $\sigma_r \le 0.1$ ceiling on reputation noise, partial cartel resilience but full cartel collapse, $n = 3$ insurer optimum due to winner's-curse order-statistic effect. Visualized in Figure~\ref{fig:pareto-mc-inline}. Formal Coq/Lean mechanization of the strategic game (estimated 1{,}000 LOC $+$ several months) carried indefinitely.
 
-\item \textbf{Sybil insurer attack (A5)}. \emph{New in v2.6}: \texttt{proofs/bonded/pareto/simulation-sybil.mjs} extends the Pareto MC with $K$ Sybil identities undercutting honest bids by $10\%$ and defaulting on loss. The headline finding (Figure~\ref{fig:sybil-deposit-floor}) is that pure deposit-based deterrence has a coverage-bounded ceiling: deposit slash is capped at $B_T = \mu(1+s)$, so beyond $B_{\mathrm{dep}} \ge B_T$ additional deposit provides no extra deterrence. Closing A5 requires a composite mechanism --- per-identity onboarding cost $C_{\mathrm{kyc}}$ plus reputation gating plus per-class $B_{\mathrm{dep}}$. The single-instrument deposit policy is provably insufficient; this is a real revision to the \S\ref{sec:youle} mechanism design recorded honestly rather than waved away. Analysis: \texttt{proofs/bonded/pareto/cartel-resilience.md}.
+\item \textbf{Sybil insurer attack (A5)}. \emph{New in v2.6}: \texttt{proofs/bonded/pareto/simulation-sybil.mjs} extends the Pareto MC with $K$ Sybil identities undercutting honest bids by $10\%$ and defaulting on loss. The headline finding (Figure~\ref{fig:sybil-mc-inline}) is that pure deposit-based deterrence has a coverage-bounded ceiling: deposit slash is capped at $B_T = \mu(1+s)$, so beyond $B_{\mathrm{dep}} \ge B_T$ additional deposit provides no extra deterrence. Closing A5 requires a composite mechanism --- per-identity onboarding cost $C_{\mathrm{kyc}}$ plus reputation gating plus per-class $B_{\mathrm{dep}}$. The single-instrument deposit policy is provably insufficient; this is a real revision to the \S\ref{sec:youle} mechanism design recorded honestly rather than waved away. Analysis: \texttt{proofs/bonded/pareto/cartel-resilience.md}.
 
 \item \textbf{Repeated-game cartel folk-theorem (A6)}. \emph{New in v2.6}: \texttt{proofs/bonded/pareto/simulation-cartel.mjs} mechanizes the grim-trigger strategy under per-round detection probability $p_d$ and discount factor $\delta$. The one-shot-deviation principle gives the closed-form threshold $p_d^\star = 1 - (\pi_C - (1 - \delta)\pi_D)/(\delta\,\pi_D)$; the simulation confirms it empirically across a $(p_d, \delta)$ grid (Figure~\ref{fig:cartel-folk}). Headline at the realistic discount factor $\delta = 0.95$: $p_d^\star \approx 0.10$. Protocols must achieve at least 10\% per-round detection to break repeated-game cartel sustainability. This sets a concrete falsifiable goal for the Anchor \S6.4 detection mechanism (Merkle Forest binding $+$ bid-pattern heat). Analysis: \texttt{proofs/bonded/pareto/cartel-resilience.md}.
 \end{itemize}
@@ -995,24 +1065,9 @@ This appendix visualizes the load-bearing algorithms whose correctness is establ
 \input{figures/appendix-figures}
 
 % ═══════════════════════════════════════════════════════════════════════════════
-\section{Monte Carlo Visualizations}\label{app:montecarlo}
+\section{Monte Carlo Visualizations (cartel folk-theorem)}\label{app:montecarlo}
 
-Three figures summarize the empirical evidence behind the §8.4.4 Pareto-dominance theorem and the two new regimes (A5, A6) closed in this round. All raw run logs are tracked at \texttt{proofs/bonded/pareto/*.run.log}; the rendering script is at \texttt{website-v2/public/whitepaper/figures/render\_montecarlo.py}.
-
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=\textwidth]{figures/fig-pareto-dominance.pdf}
-  \caption{Pareto dominance of competitive auction over static escrow.
-  Left: dominance rate as a function of reputation noise $\sigma_r$ at $n=5$ insurers, split by cartel size. Dominance holds robustly with no cartel even at $\sigma_r = 0.5$; with 3 colluders it collapses past $\sigma_r \approx 0.1$. Right: dominance rate vs.\ $n$ at $\sigma_r = 0$ and no cartel; $n=3$ is the empirical optimum due to the winner's-curse order-statistic effect noted in \S\ref{sec:youle:welfare}.}
-  \label{fig:pareto-dominance}
-\end{figure}
-
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=\textwidth]{figures/fig-sybil-deposit-floor.pdf}
-  \caption{A5 --- Sybil attack: deposit-only deterrence has a coverage-bounded ceiling. Left: attacker net profit per 50-transaction trial stays positive across the entire deposit sweep ($B_{\mathrm{dep}} \in [0.5, 1000]$ USD). Right: commons deficit converges to zero around $B_{\mathrm{dep}} \approx 200$ USD --- the protocol is fully reimbursed, but the attacker still profits because deposit slash is capped at coverage $B_T = \mu(1+s)$. Closing A5 requires a composite mechanism ($C_{\mathrm{kyc}} +$ reputation gating $+$ per-class $B_{\mathrm{dep}}$); pure deposit-based deterrence is provably insufficient.}
-  \label{fig:sybil-deposit-floor}
-\end{figure}
+The Pareto-dominance and Sybil-deposit-floor Monte Carlo charts are placed inline next to their respective discussions (Figures~\ref{fig:pareto-mc-inline} and~\ref{fig:sybil-mc-inline} in \S\ref{sec:youle:welfare}--\S\ref{sec:youle:a5}). This appendix carries only the A6 repeated-game cartel sweep, whose finer-grain $(p_d, \delta)$ grid is supplementary to the body discussion. Raw run logs are tracked under \texttt{proofs/bonded/pareto/}; the rendering script is at \texttt{figures/render\_montecarlo.py} (relative to the whitepaper directory).
 
 \begin{figure}[H]
   \centering
