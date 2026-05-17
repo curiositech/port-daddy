@@ -27,7 +27,13 @@ struct FleetControlCenter: View {
 
     private var selectedProjectLabel: String {
         guard let selectedProjectId else { return "All projects" }
-        return store.projects.first(where: { $0.id == selectedProjectId })?.name ?? selectedProjectId
+        guard let project = store.projects.first(where: { $0.id == selectedProjectId }) else {
+            return selectedProjectId
+        }
+        if let worktree = project.worktree, !worktree.isMain, let label = project.worktreeMenuLabel {
+            return "\(project.name) · \(label)"
+        }
+        return project.name
     }
 
     private var selectedProject: FleetProject? {
@@ -657,6 +663,39 @@ struct FleetControlCenter: View {
         return String(format: "$%.0f/d", budget)
     }
 
+    private func projectMenuSort(_ lhs: FleetProject, _ rhs: FleetProject) -> Bool {
+        if lhs.sortRank != rhs.sortRank {
+            return lhs.sortRank < rhs.sortRank
+        }
+        if lhs.worktree?.isMain != rhs.worktree?.isMain {
+            return lhs.worktree?.isMain == true
+        }
+        return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+    }
+
+    private var primaryProjectMenuProjects: [FleetProject] {
+        let groups = Dictionary(grouping: store.projects) { project in
+            if let worktree = project.worktree, worktree.siblingCount > 1 {
+                return worktree.repoKey
+            }
+            return project.projectDir
+        }
+
+        return groups.values.compactMap { projects in
+            projects.sorted(by: projectMenuSort).first(where: { $0.operatorState == .running })
+                ?? projects.first(where: { $0.worktree?.isMain == true })
+                ?? projects.sorted(by: projectMenuSort).first
+        }
+        .sorted(by: projectMenuSort)
+    }
+
+    private func linkedWorktrees(for project: FleetProject) -> [FleetProject] {
+        guard let worktree = project.worktree, worktree.siblingCount > 1 else { return [] }
+        return store.projects
+            .filter { $0.id != project.id && $0.worktree?.repoKey == worktree.repoKey }
+            .sorted(by: projectMenuSort)
+    }
+
     private var projectMenu: some View {
         Menu {
             Button {
@@ -667,11 +706,32 @@ struct FleetControlCenter: View {
 
             if !store.projects.isEmpty {
                 Divider()
-                ForEach(store.projects) { project in
-                    Button {
-                        chooseProject(project.id)
-                    } label: {
-                        projectMenuRow(project)
+                ForEach(primaryProjectMenuProjects) { project in
+                    let linked = linkedWorktrees(for: project)
+                    if linked.isEmpty {
+                        Button {
+                            chooseProject(project.id)
+                        } label: {
+                            projectMenuRow(project)
+                        }
+                    } else {
+                        Menu {
+                            Button {
+                                chooseProject(project.id)
+                            } label: {
+                                Label(project.worktree?.isMain == true ? "Open main worktree" : "Open selected worktree", systemImage: project.statusIcon)
+                            }
+                            Divider()
+                            ForEach(linked) { linkedProject in
+                                Button {
+                                    chooseProject(linkedProject.id)
+                                } label: {
+                                    projectMenuRow(linkedProject)
+                                }
+                            }
+                        } label: {
+                            projectMenuRow(project, linkedCount: linked.count)
+                        }
                     }
                 }
             }
@@ -705,15 +765,22 @@ struct FleetControlCenter: View {
         .fixedSize(horizontal: false, vertical: true)
     }
 
-    private func projectMenuRow(_ project: FleetProject) -> some View {
+    private func projectMenuRow(_ project: FleetProject, linkedCount: Int = 0) -> some View {
         HStack(spacing: Fleet.Space.s) {
             Image(systemName: project.id == selectedProjectId ? "checkmark.circle.fill" : project.statusIcon)
                 .foregroundStyle(project.id == selectedProjectId ? Fleet.Color.active : project.statusColor)
             VStack(alignment: .leading, spacing: 2) {
                 Text(project.name)
-                Text(project.statusLabel)
-                    .font(.caption2)
-                    .foregroundStyle(project.statusColor)
+                HStack(spacing: Fleet.Space.xs) {
+                    Text(project.worktreeMenuLabel ?? project.statusLabel)
+                        .font(.caption2)
+                        .foregroundStyle(project.worktreeMenuLabel == nil ? project.statusColor : .secondary)
+                    if linkedCount > 0 {
+                        Text("+\(linkedCount) linked")
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 2) {

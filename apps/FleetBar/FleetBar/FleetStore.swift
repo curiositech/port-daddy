@@ -39,6 +39,7 @@ struct FleetProject: Identifiable {
     let id: String  // projectDir
     let name: String
     let projectDir: String
+    let worktree: ProjectWorktreeMetadata?
     var agents: [FleetAgent]
     var startedAt: Date?
     var configuredAgentCount: Int = 0
@@ -60,6 +61,11 @@ struct FleetProject: Identifiable {
     var visibleAgentCount: Int { max(agents.count, configuredAgentCount) }
     var isRunning: Bool { operatorState == .running || activeCount > 0 }
     var needsBudget: Bool { fleetConfigStatus == .missingBudget || remediation?.action == "set_budget" }
+    var worktreeMenuLabel: String? {
+        guard let worktree, worktree.siblingCount > 1 else { return nil }
+        if worktree.isMain { return "\(worktree.siblingCount) worktrees" }
+        return worktree.branch ?? worktree.name
+    }
 
     var suggestedBudgetUsdPerDay: Double {
         remediation?.suggestedBudgetUsdPerDay ?? 5
@@ -130,6 +136,16 @@ struct FleetProject: Identifiable {
             return 5
         }
     }
+}
+
+struct ProjectWorktreeMetadata: Decodable {
+    let id: String
+    let name: String
+    let branch: String?
+    let isMain: Bool
+    let repoKey: String
+    let repoRoot: String?
+    let siblingCount: Int
 }
 
 struct FleetAgent: Identifiable {
@@ -217,6 +233,7 @@ struct RegisteredProjectResponse: Decodable {
     let signals: [String]?
     let sources: [String]?
     let exists: Bool?
+    let worktree: ProjectWorktreeMetadata?
     let running: Bool?
     let configuredAgentCount: Int?
     let configuredWatcherCount: Int?
@@ -798,7 +815,8 @@ class FleetStore: ObservableObject {
         configWarnings: [String],
         remediation: ProjectRemediation?,
         signals: [String],
-        sources: [String]
+        sources: [String],
+        worktree: ProjectWorktreeMetadata?
     ) {
         let operatorState = registered?.operatorState.flatMap(ProjectOperatorState.init(rawValue:))
             ?? (fallbackRunning ? .running : .missing)
@@ -826,7 +844,8 @@ class FleetStore: ObservableObject {
             configWarnings: registered?.configWarnings ?? [],
             remediation: remediation,
             signals: registered?.signals ?? [],
-            sources: registered?.sources ?? []
+            sources: registered?.sources ?? [],
+            worktree: registered?.worktree
         )
     }
 
@@ -844,6 +863,7 @@ class FleetStore: ObservableObject {
             id: id,
             name: name,
             projectDir: projectDir,
+            worktree: metadata.worktree,
             agents: agents,
             startedAt: startedAt,
             configuredAgentCount: max(metadata.configuredAgentCount, agents.count),
