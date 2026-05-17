@@ -41,6 +41,15 @@ describe('projects routes', () => {
         signals: ['fleet'],
         sources: ['discovered'],
         exists: true,
+        worktree: {
+          id: 'wt-alpha',
+          name: 'alpha',
+          branch: 'main',
+          isMain: true,
+          repoKey: '/repo/alpha/.git',
+          repoRoot: '/repo/alpha',
+          siblingCount: 3,
+        },
       },
     ]);
 
@@ -89,6 +98,12 @@ describe('projects routes', () => {
       fleetConfigStatus: 'ready',
       budgetUsdPerDay: 5,
       operatorState: 'ready',
+      worktree: {
+        id: 'wt-alpha',
+        branch: 'main',
+        isMain: true,
+        siblingCount: 3,
+      },
     });
     expect(listKnown).toHaveBeenCalledWith(expect.objectContaining({
       serviceRoots: ['/repo/alpha/apps/api'],

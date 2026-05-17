@@ -4,7 +4,7 @@
  * Detects which git worktree we're in and provides identity for session scoping.
  */
 
-import { execSync } from 'node:child_process';
+import { execSync, type ExecSyncOptionsWithStringEncoding } from 'node:child_process';
 import { createHash } from 'node:crypto';
 
 export interface WorktreeInfo {
@@ -22,11 +22,19 @@ export interface WorktreeInfo {
   commonDir: string;
 }
 
+function gitExecOptions(cwd?: string): ExecSyncOptionsWithStringEncoding {
+  return {
+    ...(cwd ? { cwd } : {}),
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'ignore'],
+  };
+}
+
 /**
  * Get the current worktree info, or null if not in a git repo
  */
 export function getWorktreeInfo(cwd?: string): WorktreeInfo | null {
-  const opts = cwd ? { cwd, encoding: 'utf8' as const } : { encoding: 'utf8' as const };
+  const opts = gitExecOptions(cwd);
 
   try {
     // Get worktree root
@@ -66,7 +74,7 @@ export function getWorktreeInfo(cwd?: string): WorktreeInfo | null {
  * Get all worktrees for the current repo
  */
 export function listWorktrees(cwd?: string): WorktreeInfo[] {
-  const opts = cwd ? { cwd, encoding: 'utf8' as const } : { encoding: 'utf8' as const };
+  const opts = gitExecOptions(cwd);
 
   try {
     const output = execSync('git worktree list --porcelain', opts).toString();
