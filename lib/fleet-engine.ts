@@ -13,6 +13,7 @@ import { join, basename } from 'node:path';
 import { spawn, execSync, type ChildProcess } from 'node:child_process';
 import { get as httpGet } from 'node:http';
 import { parse as parseYaml } from 'yaml';
+import { parseFleetSource, astToConfig } from './fleet-ast.js';
 import type { CostTracker } from './cost-tracker.js';
 import { resolveFleetChannel } from './fleet-channels.js';
 import { collectSemanticAliases } from './semantic-terms.js';
@@ -20,7 +21,6 @@ import type { SemanticAlias } from './semantic-terms.js';
 import type { SemanticResolver } from './semantic-resolver.js';
 import type { Tuple, TupleSpace } from './tuples.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
-import { deriveFleetAgentName } from './agent-names.js';
 import { buildPortDaddyShellCommand, resolvePortDaddyInvocation } from './port-daddy-command.js';
 import { resolveRawBackendName } from './llm-backend-resolver.js';
 
@@ -435,129 +435,35 @@ export function loadFleetConfig(projectDir: string): FleetConfig | null {
   if (!configPath) return null;
 
   const raw = readFileSync(configPath, 'utf-8');
-  if (!raw.trim()) return null;  // Bug 4 fix: empty file
+  if (!raw.trim()) return null;
 
+  // Template resolution: parse name first with base vars, then re-resolve the
+  // whole file with the fully-qualified fleet name so {project} etc. expand.
   const baseVars = getTemplateVars(projectDir);
   const initialParsed = parseFleetYaml(raw);
   const initialFleet = initialParsed ? (initialParsed.fleet || initialParsed) : null;
   const rawFleetName = initialFleet && typeof initialFleet.name === 'string'
     ? resolveTemplates(initialFleet.name, baseVars).trim()
     : '';
-  const vars = getTemplateVars(projectDir, rawFleetName || undefined);
+  const vars    = getTemplateVars(projectDir, rawFleetName || undefined);
   const resolved = resolveTemplates(raw, vars);
-  const parsed = parseFleetYaml(resolved);
-  if (!parsed) return null;
 
-  const fleet = parsed.fleet || parsed;
-  const fleetDefaults = (parsed.fleet?.defaults ?? parsed.defaults) || {};
+  // Delegate YAML walking + FleetConfig projection to fleet-ast.ts.
+  const ast = parseFleetSource(resolved);
+  if (!ast) return null;
+  const base = astToConfig(ast);
 
-  // Resolve the worktree default once per agent, honoring three layers:
-  // explicit per-agent `worktree:` -> fleet `defaults.worktree:` ->
-  // inferred from edit intent (default: true for edit-capable agents).
-  const resolveWorktree = (s: FleetYamlAgent): boolean => {
-    if (typeof s.worktree === 'boolean') return s.worktree;
-    if (typeof fleetDefaults.worktree === 'boolean') return fleetDefaults.worktree;
-    return inferWorktreeDefault(s);
-  };
+  // Apply env-var runtime resolution (backend env fallback, tier→model mapping).
+  const agents = base.agents.map(agent => {
+    const rt = resolveFleetAgentRuntime({
+      backend:   agent.backend || undefined,
+      model:     agent.model,
+      modelTier: agent.modelTier,
+    } as Pick<FleetAgent, 'backend' | 'model' | 'modelTier'>);
+    return { ...agent, backend: rt.backend || '', model: rt.model, modelTier: rt.modelTier };
+  });
 
-  // Normalize agents (supports both object and array format)
-  const agents: FleetAgent[] = [];
-  const rawAgents = fleet.agents;
-  const addAgent = (name: string, s: FleetYamlAgent): void => {
-      const agentBackend = cleanEnvValue(s.backend) || cleanEnvValue(fleetDefaults.backend);
-      const defaultsApplyToBackend = !s.backend || !fleetDefaults.backend || cleanEnvValue(s.backend) === cleanEnvValue(fleetDefaults.backend);
-      const agentModel = cleanEnvValue(s.model) || (defaultsApplyToBackend ? cleanEnvValue(fleetDefaults.model) : undefined);
-      const agentModelTier = parseYamlModelTier(s) || (defaultsApplyToBackend ? parseYamlModelTier(fleetDefaults) : undefined);
-      const runtime = resolveFleetAgentRuntime({
-        backend: agentBackend,
-        model: agentModel,
-        modelTier: agentModelTier,
-      } as Pick<FleetAgent, 'backend' | 'model' | 'modelTier'>);
-      agents.push({
-        name,
-        schedule: s.schedule,
-        trigger: s.trigger,
-        triggerTuple: Array.isArray(s.trigger_tuple) ? s.trigger_tuple : undefined,
-        backend: runtime.backend || '',
-        model: runtime.model,
-        modelTier: runtime.modelTier,
-        prompt: typeof s.prompt === 'string' ? s.prompt.trim() : String(s.prompt || ''),
-        worktree: resolveWorktree(s),
-        singleton: s.singleton || false,
-        respawn: s.respawn || false,
-        maxRespawns: s.max_respawns ?? 3,
-        onSuccess: s.on_success,
-        onFailure: s.on_failure,
-        identity: s.identity,
-      timeout: s.timeout,
-      allowedTools: s.allowedTools || s.allowed_tools,
-      fallbacks: parseFallbacks(s.fallbacks),
-      cooldownMs: normalizePositiveMs(s.cooldown_ms),
-      dedupeWindowMs: normalizePositiveMs(s.dedupe_window_ms),
-      backoffBaseMs: normalizePositiveMs(s.backoff_base_ms),
-      backoffMaxMs: normalizePositiveMs(s.backoff_max_ms),
-      backoffMultiplier: normalizeBackoffMultiplier(s.backoff_multiplier),
-      });
-  };
-  if (rawAgents && typeof rawAgents === 'object' && !Array.isArray(rawAgents)) {
-    for (const [name, s] of Object.entries(rawAgents)) {
-      addAgent(name, s);
-    }
-  } else if (Array.isArray(rawAgents)) {
-    rawAgents.forEach((s, index) => {
-      const derivedName = deriveFleetAgentName({
-        name: cleanEnvValue(s.name),
-        identity: cleanEnvValue(s.identity),
-        prompt: typeof s.prompt === 'string' ? s.prompt : undefined,
-        backend: cleanEnvValue(s.backend),
-        index,
-      });
-      addAgent(derivedName, s);
-    });
-  }
-
-  // Normalize watchers
-  const watchers: FleetWatcher[] = [];
-  if (fleet.watchers && typeof fleet.watchers === 'object') {
-    for (const [name, s] of Object.entries(fleet.watchers)) {
-      watchers.push({
-        name,
-        trigger: s.trigger,
-        exec: s.exec,
-        condition: s.condition,
-        confirm: s.confirm || false,
-      });
-    }
-  }
-
-  // Channels
-  const channels: FleetConfig['channels'] = {};
-  if (fleet.channels && typeof fleet.channels === 'object') {
-    for (const [name, s] of Object.entries(fleet.channels)) {
-      channels[name] = {
-        description: s.description || '',
-        consumers: s.consumers,
-        externalProducer: s.external_producer ?? s.externalProducer,
-      };
-    }
-  }
-
-  // Parse limits
-  const rawLimits = fleet.limits;
-  const limits: FleetLimits | undefined = rawLimits ? {
-    maxConcurrentSpawns: rawLimits.max_concurrent_spawns,
-    maxSpawnsPerHour: rawLimits.max_spawns_per_hour,
-    budgetUsdPerDay: normalizeBudgetUsdPerDay(rawLimits.budget_usd_per_day),
-  } : undefined;
-
-  return {
-    name: fleet.name || basename(projectDir),
-    harbor: fleet.harbor,
-    limits,
-    agents,
-    watchers,
-    channels,
-  };
+  return { ...base, name: base.name || basename(projectDir), agents };
 }
 
 // ─── Topology Validation (CSP DAG Property) ────────────────────────────────

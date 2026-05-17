@@ -11,7 +11,7 @@
 import { jest } from '@jest/globals';
 import { readFileSync as realReadFileSync } from 'node:fs';
 import { join as realJoin } from 'node:path';
-import { parse as realYamlParse } from 'yaml';
+import { parse as realYamlParse, parseDocument as realParseDocument, LineCounter as RealLineCounter, isScalar as realIsScalar, isMap as realIsMap, isSeq as realIsSeq } from 'yaml';
 
 // ─── Mocks (must be set up before any import of the module under test) ───────
 
@@ -36,12 +36,20 @@ jest.unstable_mockModule('node:child_process', () => ({
   execFileSync: jest.fn(),
 }));
 
-// yaml must be available for fleet-engine to import
+// yaml must be available for fleet-engine to import.
+// fleet-ast.ts (imported transitively) needs parseDocument, LineCounter,
+// isScalar, isMap, isSeq — pass the real implementations through so that
+// JSON fixtures (valid YAML superset) parse correctly with position tracking.
 jest.unstable_mockModule('yaml', () => ({
   parse: (text) => {
     // Most tests pass JSON. Fall back to real YAML parser for actual YAML.
     try { return JSON.parse(text); } catch { return realYamlParse(text); }
   },
+  parseDocument: realParseDocument,
+  LineCounter:   RealLineCounter,
+  isScalar:      realIsScalar,
+  isMap:         realIsMap,
+  isSeq:         realIsSeq,
 }));
 
 // ─── Imports (after mocks) ───────────────────────────────────────────────────
