@@ -69,7 +69,7 @@ import {
   // Diagnostics
   handleMetrics, handleConfigCmd, handleHealth, handlePorts, handleDashboard, handleDoctor, handleStatus, handleVersion, handleHints,
   // Daemon
-  handleDaemon, handleDaemonCommand, handleDev,
+  handleDaemon, handleDaemonCommand, handleDev, runDaemonInProcess,
   // Benchmarking
   handleBench,
   // Setup
@@ -2330,6 +2330,12 @@ async function main(): Promise<void> {
 
       // Daemon management
       case 'start':
+        if (options.foreground === true) {
+          // launchd / brew-services / `pd start --foreground &`: run the
+          // daemon in-process so the supervisor can manage this PID.
+          await runDaemonInProcess();
+          return;
+        }
         await handleDaemon('start');
         break;
 

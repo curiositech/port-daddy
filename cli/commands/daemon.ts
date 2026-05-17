@@ -33,6 +33,33 @@ import * as ui from '../utils/ui.js';
 // __dirname equivalent for ESM
 const __dirname = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
 const STARTUP_HEALTH_TIMEOUT_MS = 10000;
+
+/**
+ * Detect whether we're running inside a `bun build --compile` binary.
+ * In a bun-compiled bundle, `process.versions.bun` is set AND `import.meta.url`
+ * lives under `/$bunfs/...`. In source-mode dev (bun run / tsx) the latter
+ * is a normal file:// URL on disk.
+ */
+function isBunCompiledBinary(): boolean {
+  if (!process.versions.bun) return false;
+  return import.meta.url.includes('/$bunfs/');
+}
+
+/**
+ * Run the daemon entrypoint in-process. The dynamic import has the side
+ * effect of executing server.ts's top-level body, which binds the Unix
+ * socket and TCP listener and starts servicing requests on this process's
+ * event loop. Returns a promise that never resolves so the process stays
+ * alive under launchd/brew-services KeepAlive.
+ *
+ * The literal-string specifier is required for bun's `--compile` static
+ * analyzer to bundle server.ts (and its transitive imports) into the binary.
+ */
+export async function runDaemonInProcess(): Promise<never> {
+  await import('../../server.js');
+  return new Promise<never>(() => {});
+}
+
 const SHUTDOWN_TIMEOUT_MS = 5000;
 const PROFILE_STARTUP_TIMEOUT_MS = 30000;
 
@@ -492,12 +519,24 @@ async function stopRunningCanonicalDaemon(localCodeHash: string, daemonPort: num
 /**
  * Attempt to spawn the daemon and wait for it to become healthy.
  * Returns true if the daemon started successfully, false otherwise.
+ *
+ * In a bun-compiled binary the source tree (server.ts, node_modules/.bin/tsx)
+ * is not on disk, so we cannot spawn tsx. Instead we re-exec the same binary
+ * with `start --foreground`, which runs the daemon in-process.
  */
 async function attemptDaemonStart(tsxBin: string, serverScript: string): Promise<boolean> {
-  const child: ChildProcess = spawn(tsxBin, [serverScript], {
-    stdio: 'ignore',
-    detached: true,
-  });
+  let child: ChildProcess;
+  if (isBunCompiledBinary()) {
+    child = spawn(process.execPath, ['start', '--foreground'], {
+      stdio: 'ignore',
+      detached: true,
+    });
+  } else {
+    child = spawn(tsxBin, [serverScript], {
+      stdio: 'ignore',
+      detached: true,
+    });
+  }
   child.unref();
 
   const data = await waitForDaemonHealthy();
