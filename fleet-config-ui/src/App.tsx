@@ -1561,6 +1561,7 @@ export default function App() {
                 </div>
                 <AllProjectsList
                   projects={projects}
+                  selected={selectedProjectId}
                   onSelect={selectProject}
                   onStartProject={(project) => void handleStartProject(project.projectDir)}
                   onSetBudget={(project, usdPerDay) => void handleSetProjectBudget(project.projectDir, usdPerDay).catch(() => undefined)}
@@ -1577,6 +1578,7 @@ export default function App() {
                 </div>
                 <AllProjectsList
                   projects={projects}
+                  selected={selectedProjectId}
                   onSelect={selectProject}
                   onStartProject={(project) => void handleStartProject(project.projectDir)}
                   onSetBudget={(project, usdPerDay) => void handleSetProjectBudget(project.projectDir, usdPerDay).catch(() => undefined)}

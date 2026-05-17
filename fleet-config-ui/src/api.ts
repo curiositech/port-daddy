@@ -196,11 +196,13 @@ export function runSetupAction(input: {
   action: SetupActionId;
   confirmed?: boolean;
   projectDir?: string | null;
+  setupToken?: string | null;
 }): Promise<SetupRunResult> {
   return post<SetupRunResult>('/setup/run', {
     action: input.action,
     confirmed: input.confirmed === true,
     ...(input.projectDir ? { projectDir: input.projectDir } : {}),
+    ...(input.setupToken ? { setupToken: input.setupToken } : {}),
   });
 }
 

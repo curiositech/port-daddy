@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 import { spawn } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { homedir, platform } from 'node:os';
 import { basename, join, resolve } from 'node:path';
@@ -10,6 +11,7 @@ interface SetupRunBody {
   action?: SetupAction;
   projectDir?: string;
   confirmed?: boolean;
+  setupToken?: string;
 }
 
 interface SetupRouteDeps {
@@ -25,6 +27,7 @@ interface SetupRouteDeps {
 const MUTATING_ACTIONS = new Set<SetupAction>(['full', 'mcp-skills', 'fleetbar', 'project-init']);
 const MAX_OUTPUT_CHARS = 24_000;
 const SETUP_TIMEOUT_MS = 1000 * 60 * 8;
+const SETUP_TOKEN_BYTES = 32;
 
 function xmlUnescape(value: string): string {
   return value
@@ -93,7 +96,7 @@ function argsForAction(action: SetupAction, projectDir: string | null): string[]
     case 'fleetbar':
       return ['--no-daemon', '--no-mcp', '--no-skill', '--no-init'];
     case 'project-init':
-      return projectDir ? ['--no-daemon', '--no-mcp', '--no-fleetbar', '--project', projectDir] : ['--no-daemon', '--no-mcp', '--no-fleetbar'];
+      return projectDir ? ['--no-daemon', '--no-mcp', '--no-fleetbar', '--project', projectDir] : ['--no-daemon', '--no-mcp', '--no-fleetbar', '--no-init'];
     case 'full':
       return projectDir ? ['--project', projectDir] : ['--no-init'];
   }
@@ -144,8 +147,14 @@ function runCommand(
 export const setupPlugin: FastifyPluginAsync<{ deps: SetupRouteDeps }> = async (fastify, opts) => {
   const deps = opts.deps;
   const repoRoot = deps.repoRoot ?? process.cwd();
+  const setupToken = randomBytes(SETUP_TOKEN_BYTES).toString('base64url');
 
-  fastify.get('/setup/overview', async () => {
+  fastify.get('/setup/overview', async (request: FastifyRequest, reply) => {
+    if (!isLoopbackRequest(request)) {
+      reply.code(403);
+      return { success: false, error: 'Setup overview is only available from the local machine.' };
+    }
+
     const launchAgent = readLaunchAgentProgramArguments();
     const mode = daemonMode(launchAgent.programArguments);
     const stablePath = join(homedir(), 'port-daddy-stable');
@@ -156,6 +165,7 @@ export const setupPlugin: FastifyPluginAsync<{ deps: SetupRouteDeps }> = async (
       success: true,
       version: deps.VERSION ?? null,
       codeHash: deps.CODE_HASH ?? null,
+      setupToken,
       platform: platform(),
       installDir: repoRoot,
       currentProcess: {
@@ -209,8 +219,17 @@ export const setupPlugin: FastifyPluginAsync<{ deps: SetupRouteDeps }> = async (
       reply.code(400);
       return { success: false, error: 'Mutating setup actions require explicit GUI confirmation.' };
     }
+    if (MUTATING_ACTIONS.has(action) && body.setupToken !== setupToken) {
+      reply.code(403);
+      return { success: false, error: 'Mutating setup actions require a current setup capability token.' };
+    }
 
     const projectDir = safeProjectDir(body.projectDir);
+    if (action === 'project-init' && !projectDir) {
+      reply.code(400);
+      return { success: false, error: 'Project initialization requires a valid project directory.' };
+    }
+
     const invocation = setupInvocation(repoRoot);
     const args = [...invocation.baseArgs, ...argsForAction(action, projectDir)];
     const cwd = projectDir ?? repoRoot;

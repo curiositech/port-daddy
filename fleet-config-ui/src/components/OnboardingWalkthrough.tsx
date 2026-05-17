@@ -268,6 +268,7 @@ export default function OnboardingWalkthrough({ projectDir, onOpenShipwright }: 
         action: action.id,
         confirmed: action.mutates,
         projectDir,
+        setupToken: action.mutates ? overview?.setupToken : null,
       });
       setResult(next);
       await refreshOverview();

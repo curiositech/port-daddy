@@ -265,6 +265,7 @@ export interface SetupOverview {
   success: boolean;
   version: string | null;
   codeHash: string | null;
+  setupToken: string;
   platform: string;
   installDir: string;
   currentProcess: {
