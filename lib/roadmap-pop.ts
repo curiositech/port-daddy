@@ -76,7 +76,7 @@ export interface ListClaimsOptions {
 export type RoadmapPopFailure =
   | { reason: 'pile-empty' }
   | { reason: 'slug-not-on-pile'; slug: string }
-  | { reason: 'slug-already-claimed'; slug: string; claim: RoadmapClaim };
+  | { reason: 'slug-already-claimed'; slug: string; claim: RoadmapClaim | null };
 
 export interface RoadmapPopDeps {
   db: Database.Database;
@@ -99,6 +99,19 @@ interface RoadmapClaimRow {
   payload: string | null;
 }
 
+function safeParsePayload(raw: string | null): Record<string, unknown> | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : null;
+  } catch {
+    // Malformed payload (manual edit, partial write, future schema). The claim
+    // row is still valid coordination state — surface it without the payload
+    // rather than 500ing the entire listClaims/pop call.
+    return null;
+  }
+}
+
 function rowToClaim(row: RoadmapClaimRow): RoadmapClaim {
   return {
     id: row.id,
@@ -112,7 +125,7 @@ function rowToClaim(row: RoadmapClaimRow): RoadmapClaim {
     releaseReason: row.release_reason,
     summary: row.summary,
     surface: row.surface,
-    payload: row.payload ? JSON.parse(row.payload) as Record<string, unknown> : null,
+    payload: safeParsePayload(row.payload),
   };
 }
 
@@ -283,11 +296,14 @@ export function createRoadmapPop(deps: RoadmapPopDeps) {
       const result = attemptInsert(cand, claimedBy);
       if (result === 'taken') {
         if (options.slug) {
+          // Race window: the conflicting row could be released between the
+          // failed INSERT and this SELECT. Surface `claim: null` rather than
+          // synthesizing an empty RoadmapClaim that lies about its shape.
           const existing = findActiveBySlugStmt.get(cand.slug) as RoadmapClaimRow | undefined;
           return {
             reason: 'slug-already-claimed',
             slug: cand.slug,
-            claim: existing ? rowToClaim(existing) : ({} as RoadmapClaim),
+            claim: existing ? rowToClaim(existing) : null,
           };
         }
         continue;

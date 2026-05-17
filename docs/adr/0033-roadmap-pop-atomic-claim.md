@@ -103,15 +103,22 @@ event loop and one SQLite file. The pop algorithm is:
 2. Walk candidates in precedence order (or one specific candidate when
    `--slug` is set).
 3. For each candidate, attempt `INSERT INTO roadmap_claims (slug, ...)
-   VALUES (?, ...)` inside `db.transaction(...)`.
-4. If the partial UNIQUE index rejects the insert (`SQLITE_CONSTRAINT`),
-   that slug is already claimed — skip and try the next candidate.
+   VALUES (?, ...)`. A single-statement INSERT is its own atomic unit
+   in SQLite — the partial UNIQUE index is checked as part of the
+   write transaction the statement implicitly opens, so no explicit
+   `db.transaction(...)` wrapper is needed.
+4. If the partial UNIQUE index rejects the insert
+   (`SQLITE_CONSTRAINT_UNIQUE`), that slug is already claimed — skip
+   and try the next candidate.
 5. First successful insert wins. Return the entry plus the claim row id.
-6. If no candidate succeeds, return `404` (`pile empty` or `everything claimed`).
+6. If no candidate succeeds, return `404` (`pile-empty` or
+   `slug-already-claimed`).
 
 This makes the unique index — not application logic — the contention
-boundary. Two callers racing on the same slug result in one INSERT and
-one constraint violation. No application-level read-modify-write window.
+boundary. Two callers racing on the same slug result in one successful
+INSERT (a new row) and one constraint violation on the *other* attempt
+(a separate row that SQLite refuses to write). No application-level
+read-modify-write window.
 
 For tuple-backed `live` feedback we *also* keep the existing
 `feedback:harvested` tuple flow. The pop writes a `roadmap_claims` row;
@@ -148,19 +155,31 @@ This keeps the endpoint composable. CI scripts that just want to know
 
 ```
 POST /cartographer/roadmap-pop
-  body: { claimedBy, kind?, slug?, root? }
-  201: { success: true, entry, claim: { id, claimedBy, claimedAt, kind } }
-  404: { success: false, error: 'pile empty' }
-  409: { success: false, error: 'slug already claimed', claim: {...} }
+  body: { claimedBy, kind?, slug?, root?, feedbackHarbor? }
+  201: { success: true, entry, claim: {...full RoadmapClaim} }
+  400: { success: false, error: '<message>' }                    // missing claimedBy / pop throw
+  404: { success: false, reason: 'pile-empty' }
+  404: { success: false, reason: 'slug-not-on-pile', slug }
+  409: { success: false, reason: 'slug-already-claimed', slug, claim }  // claim may be null on race
+  503: { success: false, error: 'roadmap-pop primitive not available on this daemon' }
 
 POST /cartographer/roadmap-release
   body: { slug, releasedBy, reason? }
-  200: { success: true, released: true }
-  404: { success: false, error: 'no active claim for slug' }
+  200: { success: true, released: true, claim }
+  400: { success: false, error: '<message>' }
+  404: { success: false, error: "no active claim for slug '<slug>'" }
+  503: { success: false, error: 'roadmap-pop primitive not available on this daemon' }
 
-GET /cartographer/roadmap-claims?status=open|released|all&claimedBy=<id>
-  200: { success: true, claims: [...] }
+GET /cartographer/roadmap-claims?status=open|released|all&claimedBy=<id>&limit=<n>
+  200: { success: true, claims: [...], count }
+  503: { success: false, error: 'roadmap-pop primitive not available on this daemon' }
 ```
+
+Failure payloads use a discriminated `reason` field rather than freeform
+`error` strings so CLI clients can branch on `data.reason === 'slug-already-claimed'`
+without parsing prose. Validation failures (missing `claimedBy`, pop throws)
+return `400` with a freeform `error`; the structured `reason` field is reserved
+for the four pop outcomes above.
 
 All three routes mount under the `cartographer` namespace because that
 actor owns roadmap state (ADR-0023).

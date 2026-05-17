@@ -4,9 +4,11 @@
  * already-claimed (409), constraint-driven contention, release, listClaims.
  *
  * Atomicity verified through the partial UNIQUE index `roadmap_claims(slug)
- * WHERE released_at IS NULL`. Two pops on the same slug INSERT into the
- * same row; SQLite rejects the second; the module catches and tries the
- * next candidate (or returns slug-already-claimed when --slug was targeted).
+ * WHERE released_at IS NULL`. Two pops on the same slug each attempt to
+ * INSERT a *separate* row; the partial UNIQUE index rejects the second
+ * insert (SQLITE_CONSTRAINT_UNIQUE); the module catches that error and
+ * tries the next candidate (or returns slug-already-claimed when --slug
+ * was targeted).
  */
 
 import { createTestDb } from '../setup-unit.js';
@@ -187,7 +189,22 @@ describe('pop()', () => {
     const second = pop.pop({ claimedBy: 'agent-b', slug: 'cut-1', rootDir: root });
     expect(second.reason).toBe('slug-already-claimed');
     expect(second.slug).toBe('cut-1');
+    expect(second.claim).not.toBeNull();
     expect(second.claim.claimedBy).toBe('agent-a');
+  });
+
+  test('malformed payload in DB does not crash listClaims or getActiveClaim', () => {
+    const root = writeRoadmapFiles({
+      nextCuts: [{ slug: 'cut-1', summary: 'cut one' }],
+    });
+    pop.pop({ claimedBy: 'agent-a', rootDir: root });
+    // Corrupt the payload as if a manual edit or partial write happened.
+    db.prepare('UPDATE roadmap_claims SET payload = ? WHERE slug = ?').run('not-json{', 'cut-1');
+    expect(() => pop.listClaims()).not.toThrow();
+    const claims = pop.listClaims();
+    expect(claims).toHaveLength(1);
+    expect(claims[0].payload).toBeNull();
+    expect(pop.getActiveClaim('cut-1')?.payload).toBeNull();
   });
 
   test('two concurrent pops on identical 1-item piles cannot both succeed', () => {

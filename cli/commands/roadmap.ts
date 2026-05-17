@@ -20,7 +20,7 @@ interface PopFailureResponse {
   success: false;
   reason?: 'pile-empty' | 'slug-not-on-pile' | 'slug-already-claimed';
   slug?: string;
-  claim?: RoadmapClaim;
+  claim?: RoadmapClaim | null;
   error?: string;
 }
 
@@ -391,9 +391,16 @@ async function handleRoadmapRelease(args: string[], options: CLIOptions): Promis
   if (reason) console.log(`  Reason: ${reason}`);
 }
 
+const VALID_CLAIM_STATUSES = new Set(['open', 'released', 'all']);
+
 async function handleRoadmapClaims(options: CLIOptions): Promise<void> {
   const params = new URLSearchParams();
-  const status = readOption(options, 'status') ?? (options.all ? 'all' : 'open');
+  const statusRaw = readOption(options, 'status') ?? (options.all ? 'all' : 'open');
+  if (!VALID_CLAIM_STATUSES.has(statusRaw)) {
+    ui.error(`Invalid --status: ${statusRaw}. Valid: open, released, all`);
+    process.exit(1);
+  }
+  const status = statusRaw;
   params.set('status', status);
   if (options.mine) params.set('claimedBy', defaultClaimedBy(options));
   else {
