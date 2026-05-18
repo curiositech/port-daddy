@@ -1,0 +1,347 @@
+{
+  "version": 1,
+  "packageVersion": "3.13.0",
+  "sources": [
+    "examples",
+    "templates"
+  ],
+  "count": 56,
+  "files": [
+    {
+      "path": "examples/agent-topologies/README.md",
+      "url": "/samples/files/examples/agent-topologies/README.md",
+      "bytes": 1043,
+      "sha256": "156994cb8a026de000d1fa5126fbcf7eeba611a418cb752adc5e91f28e6171e7"
+    },
+    {
+      "path": "examples/agent-topologies/topology-pubsub.ts",
+      "url": "/samples/files/examples/agent-topologies/topology-pubsub.ts",
+      "bytes": 2802,
+      "sha256": "a8fce384b28ddc37d20832bda3e718856d55f146e457606906a3e8d57a6940c8"
+    },
+    {
+      "path": "examples/agents/sandbox/experiment-log.md",
+      "url": "/samples/files/examples/agents/sandbox/experiment-log.md",
+      "bytes": 681,
+      "sha256": "9d81d9bb6060c2a099fe1fc8f9c18ab2505d6385dfbf2e611402d0e0c298931b"
+    },
+    {
+      "path": "examples/ci/github-actions.yml",
+      "url": "/samples/files/examples/ci/github-actions.yml",
+      "bytes": 6211,
+      "sha256": "b37788d384986fa1b09ddc8ea46b4cfaf2b191a9f0e683883f54f838d00d30ca"
+    },
+    {
+      "path": "examples/coordination/agent-protocol.ts",
+      "url": "/samples/files/examples/coordination/agent-protocol.ts",
+      "bytes": 11298,
+      "sha256": "6657d05a1f5217c35f630c15ac5abc067e1aac5585badcff748d916a7d280540"
+    },
+    {
+      "path": "examples/coordination/file-edit-guard.ts",
+      "url": "/samples/files/examples/coordination/file-edit-guard.ts",
+      "bytes": 6036,
+      "sha256": "88bd488983bafe2ab710bf9c51d0a060894214c7fef6bf9c520e01e2f54f14dc"
+    },
+    {
+      "path": "examples/coordination/README.md",
+      "url": "/samples/files/examples/coordination/README.md",
+      "bytes": 2585,
+      "sha256": "68b8ae70edad55f11d66431c9fa665f8c755e3d58badaacd451825dba38e281f"
+    },
+    {
+      "path": "examples/devtools/agent-workbench.ts",
+      "url": "/samples/files/examples/devtools/agent-workbench.ts",
+      "bytes": 4700,
+      "sha256": "b6e39521a618e75b7fddc4b12351663b17d8e8ca8f8813701880138af25ab984"
+    },
+    {
+      "path": "examples/devtools/README.md",
+      "url": "/samples/files/examples/devtools/README.md",
+      "bytes": 663,
+      "sha256": "cb350bc378b810b9b60d3ee5b57365538721c32c8b914613c8c9f53ac1cbd6af"
+    },
+    {
+      "path": "examples/dns/README.md",
+      "url": "/samples/files/examples/dns/README.md",
+      "bytes": 550,
+      "sha256": "2926e322aa759158769df029c5b35f3e6202d1f2d49c1232ee91e6b1376f3142"
+    },
+    {
+      "path": "examples/dns/service-discovery.ts",
+      "url": "/samples/files/examples/dns/service-discovery.ts",
+      "bytes": 1766,
+      "sha256": "71ac19808b6158c6b57b09910650e53d827e6e879ec597fd6047052e4a4c616c"
+    },
+    {
+      "path": "examples/dns/setup-resolver.sh",
+      "url": "/samples/files/examples/dns/setup-resolver.sh",
+      "bytes": 909,
+      "sha256": "c743fa2da06b93553265286a8343a68eda7beab4637ad9582c474fa71c12b025"
+    },
+    {
+      "path": "examples/editor-lightbulb/explain-selection.html",
+      "url": "/samples/files/examples/editor-lightbulb/explain-selection.html",
+      "bytes": 6641,
+      "sha256": "334621c33b4e9d0e475a662e696716f4735338e2744a98f800380ad170231cb9"
+    },
+    {
+      "path": "examples/editor-lightbulb/README.md",
+      "url": "/samples/files/examples/editor-lightbulb/README.md",
+      "bytes": 853,
+      "sha256": "b90b3e8c2766ab2f3fead40a1463f2cb07ade54ce72a4451991a12c242be4043"
+    },
+    {
+      "path": "examples/ephemeral-ci-db/ephemeral-postgres.sh",
+      "url": "/samples/files/examples/ephemeral-ci-db/ephemeral-postgres.sh",
+      "bytes": 1541,
+      "sha256": "176ca47367bf5e03ad973c3fc76546f61a53ffa5979bb77ffb7bca98fd78bf48"
+    },
+    {
+      "path": "examples/ephemeral-ci-db/README.md",
+      "url": "/samples/files/examples/ephemeral-ci-db/README.md",
+      "bytes": 1137,
+      "sha256": "cee88bc380c954e27e825c9f222d3e70cb89b290d0e0fee3a3259a0f178a8c50"
+    },
+    {
+      "path": "examples/inbox/agent-dm.sh",
+      "url": "/samples/files/examples/inbox/agent-dm.sh",
+      "bytes": 1765,
+      "sha256": "e5982b4c8fc12239f3cba2c2c422b7bd7d22d09e7e8f96c40b41faf8d656aff1"
+    },
+    {
+      "path": "examples/inbox/inbox-monitor.ts",
+      "url": "/samples/files/examples/inbox/inbox-monitor.ts",
+      "bytes": 1299,
+      "sha256": "13347373725a480f50b9c9176f746ffb23b21071d5ada866c3af80f311c1c295"
+    },
+    {
+      "path": "examples/inbox/README.md",
+      "url": "/samples/files/examples/inbox/README.md",
+      "bytes": 1625,
+      "sha256": "322de200b2951648029f756c2883530729ffcf980290fecccba31ae40efbb446"
+    },
+    {
+      "path": "examples/integration/README.md",
+      "url": "/samples/files/examples/integration/README.md",
+      "bytes": 224,
+      "sha256": "3e2e1a4e2f1743c88cec22b7fb8dc0eb93480c39b60b9eb0e59ce692ae0b2aa1"
+    },
+    {
+      "path": "examples/integration/ready-needs.sh",
+      "url": "/samples/files/examples/integration/ready-needs.sh",
+      "bytes": 1512,
+      "sha256": "38f534ca62d3d4f2c2a34d22646bb7b4b31a50ac273620aeddbcb04906f352ed"
+    },
+    {
+      "path": "examples/leader-election/leader-election.ts",
+      "url": "/samples/files/examples/leader-election/leader-election.ts",
+      "bytes": 3144,
+      "sha256": "20f44841e8f1392386a012aaf91a469886d30f0bf1cf9959a5e5a8e7c26862a1"
+    },
+    {
+      "path": "examples/leader-election/README.md",
+      "url": "/samples/files/examples/leader-election/README.md",
+      "bytes": 1141,
+      "sha256": "0a4db4a686b25187eb7dc63f9c0338a19838b96273e7a87e1e2fac65e79bb653"
+    },
+    {
+      "path": "examples/locks/migration-guard.ts",
+      "url": "/samples/files/examples/locks/migration-guard.ts",
+      "bytes": 2333,
+      "sha256": "acb87ca96e65e196857d1b822a1e3661c1a37909e4e91f23849fe165de5f9fcc"
+    },
+    {
+      "path": "examples/locks/README.md",
+      "url": "/samples/files/examples/locks/README.md",
+      "bytes": 180,
+      "sha256": "f228ccd63ceaae4bfd755a8a7c4fab1ed07d34a6f939444f54b60c512a561070"
+    },
+    {
+      "path": "examples/p2p-webrtc/README.md",
+      "url": "/samples/files/examples/p2p-webrtc/README.md",
+      "bytes": 1124,
+      "sha256": "3d35e3a13952b622ce8cb234350d52071bade780ef839e3b22d0e6ee70fc1c29"
+    },
+    {
+      "path": "examples/p2p-webrtc/webrtc-signaling.ts",
+      "url": "/samples/files/examples/p2p-webrtc/webrtc-signaling.ts",
+      "bytes": 4565,
+      "sha256": "e414ea7b31ad29a7e8fe7b52b65a1f0fe936486d0b9498fff9cbb97e30567a86"
+    },
+    {
+      "path": "examples/pd-tube/button-to-agent.html",
+      "url": "/samples/files/examples/pd-tube/button-to-agent.html",
+      "bytes": 6396,
+      "sha256": "43b06a8b7cdf27bcb9d3ab2bcd01ee2938b4449c1346e31b9fb8cae9ce0514af"
+    },
+    {
+      "path": "examples/pd-tube/demo.sh",
+      "url": "/samples/files/examples/pd-tube/demo.sh",
+      "bytes": 1209,
+      "sha256": "da16983a136f0ac04b65f819de4e241e1d680adb7f2afdae26b796913dd02390"
+    },
+    {
+      "path": "examples/pd-tube/README.md",
+      "url": "/samples/files/examples/pd-tube/README.md",
+      "bytes": 2212,
+      "sha256": "acaa352c061d565463716d6a93a9b0dbb792d0b314f869ed85a5e6bfb6b3fe21"
+    },
+    {
+      "path": "examples/phases/README.md",
+      "url": "/samples/files/examples/phases/README.md",
+      "bytes": 221,
+      "sha256": "2ae3223a2d2683de4e5e7691a2f7b6e9ebf011f0575121a0e70b2e2cd75151f4"
+    },
+    {
+      "path": "examples/phases/session-lifecycle.sh",
+      "url": "/samples/files/examples/phases/session-lifecycle.sh",
+      "bytes": 1741,
+      "sha256": "0352e324971f964ed75b55b37c227fd41e2a7a8e941cb70a3a4b16c2f7fa46a1"
+    },
+    {
+      "path": "examples/README.md",
+      "url": "/samples/files/examples/README.md",
+      "bytes": 2564,
+      "sha256": "dbafcd3d2102a3b59d96de3b8cb724130b92650eca9765d592e29c9bf85455be"
+    },
+    {
+      "path": "examples/services/api-server.ts",
+      "url": "/samples/files/examples/services/api-server.ts",
+      "bytes": 4324,
+      "sha256": "84abcd43dc6cd7714ea28759bbba4216614f586ac49cecd1b2f510f51b3124e3"
+    },
+    {
+      "path": "examples/services/frontend.ts",
+      "url": "/samples/files/examples/services/frontend.ts",
+      "bytes": 4120,
+      "sha256": "9f5aac50bd30076f3dbb95f32d7f04ba7f9366d22647bb05319934f793f1932a"
+    },
+    {
+      "path": "examples/services/README.md",
+      "url": "/samples/files/examples/services/README.md",
+      "bytes": 1381,
+      "sha256": "0843a04a7527d6faa5b2d2a451a26e00b561cead996cac3095484168dc571ae0"
+    },
+    {
+      "path": "examples/services/worker.ts",
+      "url": "/samples/files/examples/services/worker.ts",
+      "bytes": 2110,
+      "sha256": "ca5fd06505c300b89413938d4e3b5888bc493d900cfbf8d1268004cc40039945"
+    },
+    {
+      "path": "examples/swarm/coordination-board.ts",
+      "url": "/samples/files/examples/swarm/coordination-board.ts",
+      "bytes": 6935,
+      "sha256": "851c635b2210e16424251219aa1b61ebdadb982696bf55a9a34abe44fe8b4a30"
+    },
+    {
+      "path": "examples/swarm/README.md",
+      "url": "/samples/files/examples/swarm/README.md",
+      "bytes": 939,
+      "sha256": "36c21769b115cac983d149e24937d4b866e047582ba5907235b41d77f7fcf62b"
+    },
+    {
+      "path": "examples/test-reporter/README.md",
+      "url": "/samples/files/examples/test-reporter/README.md",
+      "bytes": 1033,
+      "sha256": "2747e11a02558127fea0fd8e82a5c55b087af8947c7d17aaaf717e482d35eece"
+    },
+    {
+      "path": "examples/test-reporter/test-failure-to-agent.ts",
+      "url": "/samples/files/examples/test-reporter/test-failure-to-agent.ts",
+      "bytes": 5456,
+      "sha256": "875af8d27733f4ad8850cc2eee47b9023716ae430d1038bbd7e3ec8e05a1aab8"
+    },
+    {
+      "path": "examples/tunnel/README.md",
+      "url": "/samples/files/examples/tunnel/README.md",
+      "bytes": 1045,
+      "sha256": "fa3161cc1c5e8093f6824665755b030486f5a500bce9f014f484e7c9a5df16e4"
+    },
+    {
+      "path": "examples/tunnel/share-preview.ts",
+      "url": "/samples/files/examples/tunnel/share-preview.ts",
+      "bytes": 6412,
+      "sha256": "b7ab563f340342e24d2bd1518759f084a52bf11825caab419bdaf3bdf4bd9360"
+    },
+    {
+      "path": "examples/war-room/README.md",
+      "url": "/samples/files/examples/war-room/README.md",
+      "bytes": 1973,
+      "sha256": "751f3565f1b94710cd26c711b0e277a4fce383aec1073953538641bef5a66ef4"
+    },
+    {
+      "path": "examples/war-room/run.sh",
+      "url": "/samples/files/examples/war-room/run.sh",
+      "bytes": 7585,
+      "sha256": "4806dbd2f0fdc0bcf43d6bc38db76e03e69201635d91df4c1391ce77f1140eb9"
+    },
+    {
+      "path": "examples/webhook-adapter/local-webhook-to-agent.ts",
+      "url": "/samples/files/examples/webhook-adapter/local-webhook-to-agent.ts",
+      "bytes": 5184,
+      "sha256": "5fe0463930a2ec14b4a14158124343f9f3af0886ad80b21ad28af72233953a6c"
+    },
+    {
+      "path": "examples/webhook-adapter/README.md",
+      "url": "/samples/files/examples/webhook-adapter/README.md",
+      "bytes": 1009,
+      "sha256": "03d10011a50e7677025badfa31ea563e648d3f635324c087082f6f627241b1f6"
+    },
+    {
+      "path": "templates/ai-ci-pipeline/README.md",
+      "url": "/samples/files/templates/ai-ci-pipeline/README.md",
+      "bytes": 1059,
+      "sha256": "b71c0a2fcbee024618a840294e206928db8d8c78f56451b23fbda0427aae3cd5"
+    },
+    {
+      "path": "templates/always-on-dispatcher/README.md",
+      "url": "/samples/files/templates/always-on-dispatcher/README.md",
+      "bytes": 1224,
+      "sha256": "ac708e317e017d2d02a50eca6e9a3443ad95b06217867c4b2bc7edf06fb6e580"
+    },
+    {
+      "path": "templates/encrypted-messenger/messenger.ts",
+      "url": "/samples/files/templates/encrypted-messenger/messenger.ts",
+      "bytes": 2026,
+      "sha256": "6a947bb40ba6f40354fcdcef28d66eb545ddfdc29e52ae5a8679b52b61e08c7d"
+    },
+    {
+      "path": "templates/event-driven-ops/README.md",
+      "url": "/samples/files/templates/event-driven-ops/README.md",
+      "bytes": 1287,
+      "sha256": "f9db8f5124531d09bced8751c5eda451a51c6ce9f57780779e4ad4696ec5db3a"
+    },
+    {
+      "path": "templates/multiplayer-dev-env/README.md",
+      "url": "/samples/files/templates/multiplayer-dev-env/README.md",
+      "bytes": 1218,
+      "sha256": "d2d4482a644e0563390db013ad95de872c090281659e1ebbb4c6af9ec8b647f8"
+    },
+    {
+      "path": "templates/pd-fleet-always-on.yml",
+      "url": "/samples/files/templates/pd-fleet-always-on.yml",
+      "bytes": 4868,
+      "sha256": "6cfb779854cba780a0051b34c2b2e0c7411bb9e1efb1a44e7b719656bf76a281"
+    },
+    {
+      "path": "templates/pd-fleet-starter.yml",
+      "url": "/samples/files/templates/pd-fleet-starter.yml",
+      "bytes": 7111,
+      "sha256": "2165f1ff2436b27372fc5ff8fe85345608143c1618ddfe08dc71f08560adaecb"
+    },
+    {
+      "path": "templates/post-commit-hook",
+      "url": "/samples/files/templates/post-commit-hook",
+      "bytes": 1773,
+      "sha256": "427ef1055ad53b4f5037f30eb8bbff5d44fc14301a56382de1b1701a7c92632d"
+    },
+    {
+      "path": "templates/swarm-researcher/README.md",
+      "url": "/samples/files/templates/swarm-researcher/README.md",
+      "bytes": 1172,
+      "sha256": "176b3fa05a1ddd12d7904503a1fc9fca56b4b7f766703b105da56c51ba8712e7"
+    }
+  ]
+}

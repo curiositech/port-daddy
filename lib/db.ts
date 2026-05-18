@@ -15,8 +15,18 @@ import Database, { type DatabaseInstance } from './sqlite-runtime.js';
 import { chmodSync } from 'node:fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
+import { resolveDistributionRoot } from '../shared/daemon-binary.js';
 
-const __dirname: string = dirname(fileURLToPath(import.meta.url));
+const MODULE_DIR: string = dirname(fileURLToPath(import.meta.url));
+
+export function resolveDefaultDbRoot(
+  moduleDir: string = MODULE_DIR,
+  env: NodeJS.ProcessEnv = process.env,
+  execPath: string = process.execPath,
+): string {
+  const resourceRoot = resolveDistributionRoot(moduleDir, env, execPath);
+  return resourceRoot === moduleDir ? join(moduleDir, '..') : resourceRoot;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DB path resolution
@@ -33,7 +43,7 @@ export function resolveDbPath(overridePath?: string): string {
   if (overridePath) return overridePath;
   if (process.env.PORT_DADDY_DB) return process.env.PORT_DADDY_DB;
   // lib/ is one level below the project root
-  return join(__dirname, '..', 'port-registry.db');
+  return join(resolveDefaultDbRoot(), 'port-registry.db');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

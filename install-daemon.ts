@@ -14,16 +14,16 @@
 import { spawnSync } from 'child_process';
 import type { SpawnSyncReturns } from 'child_process';
 import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'fs';
-import { join, dirname } from 'path';
+import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { homedir, platform } from 'os';
 import { getDaemonTcpUrl } from './shared/daemon-discovery.js';
+import { daemonBinaryName, resolveDaemonLaunchCommand, resolveDistributionRoot, type DaemonLaunchCommand } from './shared/daemon-binary.js';
 
-const __dirname: string = dirname(fileURLToPath(import.meta.url));
+const MODULE_DIR: string = dirname(fileURLToPath(import.meta.url));
+const __dirname: string = resolveDistributionRoot(MODULE_DIR);
 const PLATFORM: string = platform();
 const NODE_PATH: string = process.execPath;
-const TSX_PATH: string = join(__dirname, 'node_modules', '.bin', 'tsx');
-const SERVER_PATH: string = join(__dirname, 'server.ts');
 const LOG_PATH: string = join(__dirname, 'port-daddy.log');
 const ERROR_LOG_PATH: string = join(__dirname, 'port-daddy-error.log');
 const BOSUN_DIST_BINARY: string = join(__dirname, 'dist', 'core', 'pd-bosun');
@@ -51,6 +51,7 @@ const BOSUN_SYSTEMD_UNIT: string = join(SYSTEMD_USER_DIR, 'port-daddy-bosun.serv
 
 function isPortDaddyProcess(command: string): boolean {
   return command.includes('server.ts') ||
+    command.includes(daemonBinaryName()) ||
     command.includes('port-daddy') ||
     command.includes('port_daddy');
 }
@@ -114,11 +115,24 @@ function servicePath(...requiredDirs: string[]): string {
   ].filter(Boolean))].join(':');
 }
 
+function resolveDaemonCommand(): DaemonLaunchCommand {
+  return resolveDaemonLaunchCommand(__dirname);
+}
+
+function printDaemonCommandError(err: unknown): void {
+  console.error(`  ${(err as Error).message}`);
+  console.error('  Refusing to install a source-backed daemon without an explicit development override.');
+}
+
 // =============================================================================
 // macOS: LaunchAgent plist
 // =============================================================================
 
-function generatePlist(): string {
+function generatePlist(daemon: DaemonLaunchCommand): string {
+  const programArguments = [daemon.program, ...daemon.args]
+    .map(arg => `        <string>${arg}</string>`)
+    .join('\n');
+
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -128,8 +142,7 @@ function generatePlist(): string {
 
     <key>ProgramArguments</key>
     <array>
-        <string>${TSX_PATH}</string>
-        <string>${SERVER_PATH}</string>
+${programArguments}
     </array>
 
     <key>RunAtLoad</key>
@@ -153,7 +166,9 @@ function generatePlist(): string {
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
-        <string>${servicePath(dirname(TSX_PATH), dirname(NODE_PATH))}</string>
+        <string>${servicePath(...daemon.pathDirs, dirname(NODE_PATH))}</string>
+        <key>PORT_DADDY_RESOURCE_DIR</key>
+        <string>${__dirname}</string>
     </dict>
 </dict>
 </plist>`;
@@ -234,7 +249,7 @@ function installBosunMacOS(): boolean {
   return loadLaunchAgent(BOSUN_PLIST_LABEL, BOSUN_PLIST_PATH);
 }
 
-function installMacOS(): boolean {
+function installMacOS(daemon: DaemonLaunchCommand): boolean {
   // Ensure LaunchAgents directory exists
   if (!existsSync(LAUNCH_AGENTS)) {
     mkdirSync(LAUNCH_AGENTS, { recursive: true });
@@ -256,7 +271,7 @@ function installMacOS(): boolean {
   }
 
   // Write plist with correct paths
-  writeFileSync(PLIST_PATH, generatePlist());
+  writeFileSync(PLIST_PATH, generatePlist(daemon));
   console.log(`  Wrote ${PLIST_PATH}`);
 
   return loadLaunchAgent(PLIST_LABEL, PLIST_PATH) && installBosunMacOS();
@@ -306,20 +321,21 @@ function statusBosunMacOS(): ServiceState {
 // Linux: systemd user service
 // =============================================================================
 
-function generateSystemdUnit(): string {
+function generateSystemdUnit(daemon: DaemonLaunchCommand): string {
   return `[Unit]
 Description=Port Daddy - Authoritative Port Management Daemon
 After=network.target
 
 [Service]
 Type=simple
-ExecStart=${TSX_PATH} ${SERVER_PATH}
+ExecStart=${[daemon.program, ...daemon.args].join(' ')}
 WorkingDirectory=${__dirname}
 Restart=on-failure
 RestartSec=5
 StandardOutput=append:${LOG_PATH}
 StandardError=append:${ERROR_LOG_PATH}
-Environment=PATH=${servicePath(dirname(TSX_PATH), dirname(NODE_PATH))}
+Environment=PATH=${servicePath(...daemon.pathDirs, dirname(NODE_PATH))}
+Environment=PORT_DADDY_RESOURCE_DIR=${__dirname}
 
 [Install]
 WantedBy=default.target
@@ -375,14 +391,14 @@ function installBosunLinux(): boolean {
   return true;
 }
 
-function installLinux(): boolean {
+function installLinux(daemon: DaemonLaunchCommand): boolean {
   // Ensure systemd user directory exists
   if (!existsSync(SYSTEMD_USER_DIR)) {
     mkdirSync(SYSTEMD_USER_DIR, { recursive: true });
   }
 
   // Write unit file
-  writeFileSync(SYSTEMD_UNIT, generateSystemdUnit());
+  writeFileSync(SYSTEMD_UNIT, generateSystemdUnit(daemon));
   console.log(`  Wrote ${SYSTEMD_UNIT}`);
 
   // Reload systemd
@@ -469,21 +485,32 @@ function statusBosunLinux(): ServiceState {
 function install(): void {
   console.log('Installing Port Daddy daemon...');
   console.log(`  Platform: ${PLATFORM}`);
-  console.log(`  Node: ${NODE_PATH}`);
-  console.log(`  Server: ${SERVER_PATH}`);
+  let daemon: DaemonLaunchCommand;
+  try {
+    daemon = resolveDaemonCommand();
+  } catch (err) {
+    printDaemonCommandError(err);
+    process.exit(1);
+  }
+  console.log(`  Mode: ${daemon.mode}`);
+  console.log(`  Program: ${daemon.program}`);
+  if (daemon.args.length > 0) console.log(`  Args: ${daemon.args.join(' ')}`);
+  if (daemon.mode === 'source') {
+    console.log('  WARNING: source daemon fallback is development-only.');
+  }
   console.log('');
 
   let success: boolean = false;
 
   if (PLATFORM === 'darwin') {
-    success = installMacOS();
+    success = installMacOS(daemon);
   } else if (PLATFORM === 'linux') {
-    success = installLinux();
+    success = installLinux(daemon);
   } else {
     console.log(`  Platform "${PLATFORM}" does not support auto-start installation.`);
     console.log('  You can still run the daemon manually:');
-    console.log(`    node ${SERVER_PATH}`);
-    console.log('  Or: port-daddy start');
+    console.log(`    ${[daemon.program, ...daemon.args].join(' ')}`);
+    console.log('  Or: pd start');
     return;
   }
 
@@ -593,21 +620,19 @@ function status(): void {
   }
 }
 
-// Parse command
-const command: string | undefined = process.argv[2];
-
-switch (command) {
-  case 'install':
-    install();
-    break;
-  case 'uninstall':
-    uninstall();
-    break;
-  case 'status':
-    status();
-    break;
-  default:
-    console.log(`
+export function runInstallDaemonCli(command: string | undefined = process.argv[2]): void {
+  switch (command) {
+    case 'install':
+      install();
+      break;
+    case 'uninstall':
+      uninstall();
+      break;
+    case 'status':
+      status();
+      break;
+    default:
+      console.log(`
 Port Daddy Daemon Installer
 
 Usage:
@@ -620,4 +645,14 @@ Supported platforms:
   Linux   - systemd user service (auto-start on login)
   Windows - Manual start only (port-daddy start)
     `);
+  }
+}
+
+function isDirectCliInvocation(): boolean {
+  if (!process.argv[1]) return false;
+  return resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+}
+
+if (isDirectCliInvocation()) {
+  runInstallDaemonCli();
 }
