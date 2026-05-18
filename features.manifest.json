@@ -242,11 +242,14 @@
       }
     },
     "cartographer": {
-      "description": "Read-only Cartographer roadmap progress projection",
+      "description": "Cartographer roadmap progress + atomic claim from the curated pile (ADR-0033)",
       "cli": [],
       "sdk": [],
       "routes": [
-        "GET /cartographer/roadmap-progress"
+        "GET /cartographer/roadmap-progress",
+        "POST /cartographer/roadmap-pop",
+        "POST /cartographer/roadmap-release",
+        "GET /cartographer/roadmap-claims"
       ],
       "completions": [],
       "docs": {

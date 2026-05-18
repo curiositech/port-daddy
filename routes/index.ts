@@ -112,6 +112,7 @@ export async function registerAllRoutes(
     deps: {
       daemonDir: (deps as any).repoRoot ?? (deps as any).__dirname ?? process.cwd(),
       feedback: (deps as any).feedback,
+      roadmapPop: (deps as any).roadmapPop,
     },
   });
   await fastify.register(operatorPlugin, { deps } as any);

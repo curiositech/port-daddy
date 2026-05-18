@@ -82,6 +82,7 @@ import { createBudgetGuard } from './lib/budget-guard.js';
 import { createBudgetPause } from './lib/budget-pause.js';
 import { createQuorum } from './lib/quorum.js';
 import { createFeedback } from './lib/feedback.js';
+import { createRoadmapPop } from './lib/roadmap-pop.js';
 import { launchFleetBarIfEnabled } from './lib/fleetbar-launcher.js';
 import { createGraphEdges } from './lib/graph-edges.js';
 import { createEpisodicMemory } from './lib/episodic-memory.js';
@@ -341,6 +342,7 @@ const semanticResolver = createSemanticResolver(db, {
 const episodicMemory = createEpisodicMemory(db, { tuples, graphEdges, semanticResolver });
 const quorum = createQuorum({ tuples });
 const feedback = createFeedback({ tuples });
+const roadmapPop = createRoadmapPop({ db, feedback });
 
 const services = createServices(db, { semanticIndex });
 const messaging = createMessaging(db);
@@ -909,7 +911,7 @@ await registerAllRoutes(
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar,
     harbors, sorties, orchestrator, correlationEngine, spawner, tuples, blobs, fleetDaemon,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, counters, metricsRegistry,
-    quorum, resourceGovernance, feedback,
+    quorum, resourceGovernance, feedback, roadmapPop,
     bonds, budgetGuard, budgetPause,
     arbiter, bosunHeartbeat,
     VERSION, CODE_HASH, STARTED_AT, __dirname, repoRoot: REPO_ROOT,
