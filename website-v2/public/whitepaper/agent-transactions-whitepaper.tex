@@ -28,6 +28,26 @@
 \definecolor{darkgreen}{RGB}{0,100,0}
 \definecolor{darkblue}{RGB}{0,50,100}
 \definecolor{accent}{RGB}{0,128,128}
+\definecolor{hhsand}{HTML}{E9DCC4}
+\definecolor{hhsanddeep}{HTML}{D4C5A9}
+\definecolor{hhebony}{HTML}{1E1B18}
+\definecolor{hhcinnabar}{HTML}{CC3D2E}
+\definecolor{hhbrass}{HTML}{B08D57}
+\definecolor{hhpatina}{HTML}{5C7A6A}
+\definecolor{hhpaper}{HTML}{FBF7EE}
+
+% Pull-quote sidebar: large quote, left-edge accent stripe.
+\newcommand{\pullquote}[1]{%
+  \par\vspace{6pt}%
+  \noindent\begin{tikzpicture}
+    \node[draw=none,fill=hhsand!40,line width=0pt,
+          inner sep=10pt,text width=\dimexpr\textwidth-30pt\relax,
+          align=left] (q) {%
+      \sffamily\itshape\large #1%
+    };
+    \draw[hhcinnabar,line width=2.5pt] (q.north west) -- (q.south west);
+  \end{tikzpicture}\par\vspace{6pt}%
+}
 
 % ─── Listings Setup ──────────────────────────────────────────────────────────
 \lstdefinestyle{tlaplus}{
@@ -208,6 +228,20 @@ We present:
 \end{enumerate}
 
 The security layer (agent authentication and capability delegation) is provided by the Anchor Protocol~\cite{owens2026anchor}, a companion paper. This paper builds the trust, governance, and economic layers on top of that cryptographic foundation.
+
+\subsection{Related Work in Crypto-Economic Bonding}\label{sec:related-bonding}
+
+The architecture sits at the intersection of four bodies of prior work, each of which we extend rather than replicate.
+
+\paragraph{Bonded participation in distributed systems.} Proof-of-stake consensus protocols (Casper~\cite{buterin2017casper}, Tendermint~\cite{buchman2016tendermint}, and the Ethereum 2.0 specification~\cite{ethereum2spec}) introduced \emph{slashing}: validators post collateral that is forfeited on equivocation or liveness failure. The technique is the closest analogue to our bonded-commons settlement, and the proofs of soundness (a rational validator strictly prefers honest behavior when slash $>$ deviation gain) are direct ancestors of \S\ref{sec:economic}. We depart from this lineage on three axes: (i)~the adversary is co-located on a single machine, not a Byzantine network, so consensus reduces to a daemon write rather than a global commit; (ii)~the bonded act is \emph{coordination}, not validation---work that produces side effects in a shared file system, not signatures on blocks; and (iii)~the principal is human-or-LLM mixed, so the mechanism must price two failure modes (malice and confusion) the blockchain lineage collapses into one.
+
+\paragraph{Capability-based security.} Dennis and Van Horn~\cite{dennis1966programming}, Miller's object-capability work~\cite{miller2006robust}, and the SPKI/SDSI line~\cite{ellison1999spki} provide the structural attenuation that we lift wholesale into the Anchor Protocol layer. Our contribution is composing capability attenuation with bonding: a capability without economic settlement still permits the holder to ``correctly'' execute a destructive action; bonding without capability bounding still permits unbounded blast radius before slash. Both layers are necessary.
+
+\paragraph{Commons governance.} Ostrom's eight design principles for governing common-pool resources~\cite{ostrom1990governing} predict that durable cooperation emerges only when boundaries, monitoring, graduated sanctions, and dispute resolution are co-located with the commons. The bonded commons satisfies these requirements as services of the daemon rather than as social institutions, and \S\ref{sec:governance} renders the dispute-resolution and appeals path explicitly.
+
+\paragraph{Cryptoeconomic mechanism design.} Werbach~\cite{werbach2018blockchain}, Buterin~\cite{buterin2014ethereum}, and the broader DAO literature establish ``code is law'' as a posture toward enforcement. Our position is narrower and weaker on purpose: code is the \emph{record}, not the law. Allocation decisions remain with the agents (Sen, \S\ref{sec:sen}); the daemon supplies the evidence and the settlement. This deliberate weakening is what makes coercive enforcement avoidable while keeping accountability intact.
+
+\paragraph{What is novel.} The synthesis: bonded participation $+$ capability attenuation $+$ advisory (not enforced) coordination $+$ immutable attribution, packaged as localhost infrastructure rather than a global protocol. We are not aware of a prior system that does all four together at this scale; each component has precedent, but the composition produces guarantees (Pareto-superior coordination, attribution that survives identity disposal) that no individual component supplies.
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{The Commons Authority}
@@ -457,6 +491,28 @@ The overlap detection query scans all active (unreleased) claims from other acti
 The commons authority's role under advisory claims is that of \emph{town crier}, not \emph{Solomon}. It announces conflicts; it does not resolve them. Resolution requires local knowledge that only the agents possess (``I claimed \texttt{auth.ts} but probably won't need it''; ``I absolutely must modify \texttt{auth.ts} for my task to succeed''). The authority lacks this knowledge. Agents, informed by the conflict graph, make allocation decisions more efficiently than any central enforcer could.
 \end{remark}
 
+\subsection{Governance, Disputes, and Appeals}\label{sec:governance}
+
+Advisory coordination produces consistent allocation when agents share information honestly. It can still produce \emph{disputes}: two agents legitimately need overlapping files; one agent's claim turned out to be precautionary and is now blocking real work; a third agent observed evidence that a claimed task has been abandoned. These disputes do not threaten the commons' integrity---attribution, capability bounds, and settlement records remain intact---but they do require a resolution path. Without one, advisory claims silently degrade into squatter rule (whoever claimed first holds indefinitely) and the Pareto benefit of \S\ref{sec:sen} evaporates.
+
+\paragraph{Resolution path.} The commons authority provides four mechanisms, in order of increasing escalation:
+\begin{enumerate}[nosep]
+  \item \textbf{Direct release.} The original claimant releases the claim. This is the equilibrium when the conflict-graph signal reaches them and the claim was precautionary.
+  \item \textbf{Time-out release.} Claims carry TTLs. A claim whose holder has not heartbeated within the TTL window is released automatically; downstream agents observe the release in their next poll. This is the equilibrium for crashed or abandoned claimants.
+  \item \textbf{Bonded preemption.} A blocked agent may post an additional bond---bounded by the cleanup cost of \S\ref{sec:cleanup-bound}---to force release of an active claim. The preempted claimant receives the bond as compensation; the preemptor accepts the risk that its preemption was wrong (in which case the bond is slashed under settlement). Preemption is rare by design: the bond is large enough that an agent prefers waiting to preempting unless the wait cost dominates.
+  \item \textbf{Human escalation.} If preemption is ambiguous or the stakes exceed the preemption-bond ceiling, the dispute escalates to a human operator via the \texttt{request} channel (\S\ref{sec:taxonomy}). The operator's decision is appended to the evidence chain with the same Merkle-Forest binding as any agent action; the resolution is auditable by all parties post-hoc.
+\end{enumerate}
+
+\paragraph{Appeals.} Settlement events (\S\ref{sec:economic}) are not unilaterally final. Any settled session can be challenged within an appeal window (default: 24~hours of vibe time, \S\ref{sec:vibe}) by any agent with standing---defined as either a counterparty to the settlement or a holder of an overlapping claim. An appeal opens a re-examination of the evidence chain: the appellant posts an \emph{appeal bond} (a fixed fraction of the disputed settlement amount), and the daemon recomputes the settlement against the evidence and any new evidence the appellant produces. If the appeal succeeds, the original settlement is reversed and the appeal bond is returned with the original counterparty's slash. If it fails, the appeal bond is forfeit.
+
+\begin{property}[Appeal Soundness]\label{prop:appeal-sound}
+The appeals path does not weaken the immutability of the evidence chain (\S\ref{sec:attribution}): no record is rewritten. Reversal appends a counter-record signed by the daemon, with a Merkle-Forest proof of the original settlement's position and the appellant's evidence. The chain grows monotonically.
+\end{property}
+
+\paragraph{What the daemon does \emph{not} do.} The daemon does not judge the merits of an appeal in the sense a human court would---it evaluates whether the evidence supports the original settlement under the published rules. Substantive judgments (``was the agent's reasoning sound''; ``was the principal acting in good faith'') remain with humans, escalated through the \texttt{request} channel. The daemon's role is to ensure that all parties have access to the same evidence and that any human decision is recorded with the same finality as any agent decision.
+
+This subsection is intentionally short: full governance design is out of scope for a single paper. The point is that the bonded commons admits a clean, mechanizable appeals path---it is not the case that advisory claims plus bonding produces a regime where mistakes are unappealable.
+
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Crash Recovery as Social Continuation}\label{sec:crash-recovery}
 % ═══════════════════════════════════════════════════════════════════════════════
@@ -548,6 +604,8 @@ Settlement does not evaluate agent intent. It evaluates \emph{outcome against ma
 This is how performance bonds work in construction. This is how futures markets settle. The contractor's moral character is irrelevant. The building either meets code or it doesn't. The bond either covers the damage or it doesn't.
 
 \subsection{Why This Defeats the Three Adversaries}
+
+\pullquote{The Sybil attack is priced: 100 disposable identities means 100 bonds.}
 
 \begin{enumerate}
   \item \textbf{One-shot defectors} must post collateral \emph{before} receiving capabilities. The Sybil attack is priced: creating 100 disposable identities means posting 100 bonds. The cost of defection scales linearly with the number of attack identities.
@@ -1214,6 +1272,41 @@ Adi Shamir.
 Elinor Ostrom.
 \newblock \textit{Governing the Commons: The Evolution of Institutions for Collective Action}.
 \newblock Cambridge University Press, 1990.
+
+\bibitem{buterin2017casper}
+Vitalik Buterin and Virgil Griffith.
+\newblock Casper the Friendly Finality Gadget.
+\newblock arXiv:1710.09437, 2017.
+
+\bibitem{buchman2016tendermint}
+Ethan Buchman.
+\newblock Tendermint: Byzantine Fault Tolerance in the Age of Blockchains.
+\newblock M.A.Sc.\ thesis, University of Guelph, 2016.
+
+\bibitem{ethereum2spec}
+Ethereum Foundation.
+\newblock Ethereum 2.0 Phase 0 -- The Beacon Chain Specification.
+\newblock \url{https://github.com/ethereum/consensus-specs}, 2020.
+
+\bibitem{miller2006robust}
+Mark S.\ Miller.
+\newblock \textit{Robust Composition: Towards a Unified Approach to Access Control and Concurrency Control}.
+\newblock Ph.D.\ dissertation, Johns Hopkins University, 2006.
+
+\bibitem{ellison1999spki}
+Carl Ellison, Bill Frantz, Butler Lampson, Ron Rivest, Brian Thomas, and Tatu Ylonen.
+\newblock SPKI Certificate Theory.
+\newblock RFC~2693, 1999.
+
+\bibitem{werbach2018blockchain}
+Kevin Werbach.
+\newblock \textit{The Blockchain and the New Architecture of Trust}.
+\newblock MIT Press, 2018.
+
+\bibitem{buterin2014ethereum}
+Vitalik Buterin.
+\newblock A Next-Generation Smart Contract and Decentralized Application Platform.
+\newblock Ethereum white paper, 2014.
 
 \end{thebibliography}
 

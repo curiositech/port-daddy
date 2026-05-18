@@ -37,6 +37,19 @@
 \definecolor{hhpatina}{HTML}{5C7A6A}
 \definecolor{hhpaper}{HTML}{FBF7EE}
 
+% Pull-quote sidebar: large quote, left-edge accent stripe.
+\newcommand{\pullquote}[1]{%
+  \par\vspace{6pt}%
+  \noindent\begin{tikzpicture}
+    \node[draw=none,fill=hhsand!40,line width=0pt,
+          inner sep=10pt,text width=\dimexpr\textwidth-30pt\relax,
+          align=left] (q) {%
+      \sffamily\itshape\large #1%
+    };
+    \draw[hhcinnabar,line width=2.5pt] (q.north west) -- (q.south west);
+  \end{tikzpicture}\par\vspace{6pt}%
+}
+
 % ─── Listings Setup ──────────────────────────────────────────────────────────
 \lstdefinestyle{proverif}{
   language=C,
@@ -817,6 +830,8 @@ The v2.6 round closes the cuckoo-filter pollution open item and lands the multi-
 ``Closed'' means the property is mechanized: a verifier or proof assistant has checked the design against an explicit attacker model. ``Partially closed'' means the design is verified but the implementation is exercised empirically rather than proved. ``Open'' means we believe we know the answer but have not written it down formally.
 
 We err toward listing fewer items as closed rather than more. The discipline came from being argued with for five rounds by an adversarial reviewer that does not flatter.
+
+\pullquote{The discipline came from being argued with for five rounds by an adversarial reviewer that does not flatter.}
 
 % ═════════════════════════════════════════════════════════════════════════════
 
