@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **`pd roadmap pop` — atomic claim from the curated pile** (proposed **3.15.0**, minor: new workflow surface + new durable API + new SQL table). Pops one entry from the roadmap pile (live feedback → next-cut → ideas-now → dogfood feedback by default, override with `--kind`), writes a `roadmap_claims` row, and returns the entry. Atomicity is enforced by a partial UNIQUE index `ON roadmap_claims(slug) WHERE released_at IS NULL` — two racers, one INSERT wins, the loser gets `SQLITE_CONSTRAINT` and the daemon picks the next candidate. Companion verbs: `pd roadmap release <slug>` lifts the claim; `pd roadmap claims [--mine]` shows the active claim map. Optional `--begin` flag chains into `pd begin` so a session opens with the claim's slug + summary as purpose. New routes: `POST /cartographer/roadmap-pop`, `POST /cartographer/roadmap-release`, `GET /cartographer/roadmap-claims`. Rationale + alternatives in [ADR-0033](docs/adr/0033-roadmap-pop-atomic-claim.md).
 
+## [3.14.1] - 2026-05-16
+
+### Fixed
+- **Compiled binary can now start the canonical daemon** (Issue #86). v3.14.0's `pd start` shelled out to `tsx server.ts` paths that don't exist inside a `bun build --compile` bundle, so `./pd start` and `brew services start port-daddy` both died with `ENOENT: posix_spawn '/node_modules/.bin/tsx'`. `cli/commands/daemon.ts` now detects a bun-compiled context (`process.versions.bun` set AND `import.meta.url` under `/$bunfs/`) and routes `pd start --foreground` to an in-process daemon via dynamic `import('../../server.js')` — the import side-effect binds the sockets and runs the event loop on the supervisor-managed PID. The interactive `pd start` path re-execs `process.execPath` with `['start', '--foreground']` detached when in a bun bundle, instead of trying to spawn `tsx`. Source-mode dev (`bun run server.ts` / `tsx server.ts`) is unchanged. Brew formula must be updated separately to invoke `pd start --foreground` so `brew services` supervises the daemon PID directly instead of a parent that exits.
+
 ## [3.14.0] - 2026-05-13
 
 ### Added
