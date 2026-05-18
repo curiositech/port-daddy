@@ -2,6 +2,20 @@
 
 Project-specific shibboleths for proficient Port Daddy work. If you learn a new one that materially changes how to operate this repo, add it here immediately.
 
+## Operator vs Agent — know which surface you are
+
+The CLI is for agents and emergencies. **The operator does not run `pd` commands, does not edit `.env.local` files, does not run `launchctl kickstart`, does not tail logs.** That work is yours.
+
+The operator's surface is the **FleetBar app and the dashboard at `localhost:9876`** — buttons, panels, deep-links to provider token pages. If the operator has to drop to a terminal to do something routine (configure credentials, restart the daemon, see open feedback, harvest a roadmap entry, see why the fleet is silently failing), that is a product bug — file it as `high`-severity feedback on the `FleetBar` surface so cartographer promotes it to the roadmap.
+
+Concretely:
+- Secrets live in the macOS Keychain, surfaced through a FleetBar Credentials panel with deep links to the provider's actual token page. No `.env.local`. (See open feedback `fleetbar-secret-management-with-provider-deeplinks`.)
+- Daemon health and restart are buttons in FleetBar, not `launchctl` incantations.
+- Roadmap, open feedback, fleet status, salvage queue — all visible in the dashboard's panels, not via grep on log files.
+- The UI must support zoom and OS text-scaling (Dynamic Type on macOS, browser zoom on the web). Minimum 14px body text. Never `user-scalable=no`. See open feedback `fleetbar-console-must-support-zoom-and-text-scaling`.
+
+Agents read this file. Operators do not. If an agent's instructions push a CLI command at a human, the instruction is wrong; rewrite it to point at the FleetBar/dashboard surface, and file the gap as feedback if no surface exists yet.
+
 ## Skill maintenance is part of every slice
 
 The two Port Daddy skills are the operating instructions for *all* future agents working in port-daddy-protected projects. Treat them as load-bearing code:

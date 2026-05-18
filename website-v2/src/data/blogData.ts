@@ -10,6 +10,7 @@ import passkeyIdentityContent from './blog/passkey-identity-across-machines.md?r
 import pdTubeContent from './blog/pd-tube-event-reply-loop.md?raw';
 import redWhiteIsolationContent from './blog/red-and-white-stay-in-their-lanes.md?raw';
 import telemetryContent from './blog/telemetry-is-a-launch-gate.md?raw';
+import cliIsForRobotsContent from './blog/the-cli-is-for-the-robots.md?raw';
 import { blogPostMetas, deprecatedBlogPosts, type BlogPostMeta } from './blogMetaData';
 
 export interface BlogPost extends BlogPostMeta {
@@ -29,6 +30,7 @@ const contentBySlug: Record<string, string> = {
   'red-and-white-stay-in-their-lanes': redWhiteIsolationContent,
   'running-is-not-current': daemonProvenanceContent,
   'telemetry-is-a-launch-gate': telemetryContent,
+  'the-cli-is-for-the-robots': cliIsForRobotsContent,
 };
 
 function contentForSlug(slug: string) {

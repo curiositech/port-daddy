@@ -41,6 +41,23 @@ Daddy — see the sibling `port-daddy-agent-skill`.
 - Distribution to public skill catalogs.
 - Replacing the live daemon, recovery ledger, or actor inboxes as sources of truth — those still come first.
 
+## Operator vs Agent — the product rule
+
+When designing or changing a Port Daddy surface, the test is "would the
+operator have to drop to a terminal to do this routinely?" If yes, the design
+is wrong. The operator's surface is FleetBar + the dashboard. `pd` CLI exists
+for agents and emergencies. Every routine operator action (configure
+credentials, restart daemon, see open feedback, harvest a roadmap entry, ack a
+salvage item) must have a FleetBar button or dashboard panel as its primary
+surface — CLI is the secondary path for agents and scripts.
+
+Contributor implication: when you add a new actuator or data source, ship the
+FleetBar/dashboard affordance in the same slice when reasonable, or file a
+`high`-severity FleetBar feedback entry so cartographer promotes it to the
+roadmap before the CLI-only path ships to operators. Examples in flight:
+`fleetbar-secret-management-with-provider-deeplinks`,
+`fleetbar-console-must-support-zoom-and-text-scaling`.
+
 ## Core Decision Tree
 
 ```mermaid

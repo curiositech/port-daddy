@@ -150,6 +150,17 @@ export const blogPostMetas: BlogPostMeta[] = [
     heroImage: '/img/generated/blog-backend-readiness.jpg',
     heroAlt: 'Swiss-modern readiness matrix with model tiers, dependency checks, credentials, and blocked launch states',
   },
+  {
+    id: 'cli-is-for-the-robots',
+    slug: 'the-cli-is-for-the-robots',
+    title: 'The CLI Is For The Robots',
+    date: '2026-05-17',
+    author: 'Erich Owens',
+    excerpt: 'I edited an .env.local file today. Wrong one. Three directories away from the one the daemon actually reads. The fleet sat there 401\'ing for an hour while I edited the wrong file and felt productive. That is a product failure, not a user error. The operator does not run `pd` commands; the operator gets buttons. Here is the rule, the two feedback drops that came out of the incident, and what stays in the CLI.',
+    tags: ['Operator UX', 'FleetBar', 'Doctrine', 'Dogfooding'],
+    heroImage: '/img/generated/blog-control-plane.jpg',
+    heroAlt: 'Swiss-modern split panel showing FleetBar credentials UI on the left and a terminal hidden behind a curtain on the right',
+  },
 ];
 
 export const deprecatedBlogPosts: DeprecatedBlogPost[] = [

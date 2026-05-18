@@ -39,6 +39,27 @@ FleetBar/Fleet Control Center evidence, validation, and recoverable handoffs.
 - Replacing repo-authored docs, live daemon truth, tests, or operator evidence.
 - Launching extra agents when one bounded local change is enough.
 
+## Operator vs Agent — know which surface you are
+
+The CLI is for **you** (the agent) and for emergencies. The human operator does
+not run `pd` commands, edit `.env.local` files, run `launchctl kickstart`, or
+tail logs. Their surface is the FleetBar menu-bar app and the dashboard at
+`http://localhost:9876` — buttons, panels, deep-links to provider token pages.
+
+When you tell the operator to do something, point at the **FleetBar button or
+dashboard panel**, not at a shell command. If the surface does not exist yet,
+that is a product gap: file a `high`-severity feedback entry against the
+`FleetBar` surface so cartographer promotes it onto the roadmap. Open examples
+to follow: `fleetbar-secret-management-with-provider-deeplinks`,
+`fleetbar-console-must-support-zoom-and-text-scaling`.
+
+If an agent's output reads like "now run `launchctl ...`" or "edit
+`~/.env.local` and add ...", rewrite it. The right output is "open FleetBar →
+Credentials → Cloudflare → paste token (deep-link: dash.cloudflare.com/
+profile/api-tokens?template=workers-ai)" — with the gap filed as feedback if
+the button is not built yet. Operators do not read AGENTS.md; they should not
+have to.
+
 ## Default Agent Happy Path
 
 Use this path before you reach for advanced coordination. It is the normal
