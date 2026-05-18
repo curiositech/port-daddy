@@ -495,13 +495,15 @@ The commons authority's role under advisory claims is that of \emph{town crier},
 
 Advisory coordination produces consistent allocation when agents share information honestly. It can still produce \emph{disputes}: two agents legitimately need overlapping files; one agent's claim turned out to be precautionary and is now blocking real work; a third agent observed evidence that a claimed task has been abandoned. These disputes do not threaten the commons' integrity---attribution, capability bounds, and settlement records remain intact---but they do require a resolution path. Without one, advisory claims silently degrade into squatter rule (whoever claimed first holds indefinitely) and the Pareto benefit of \S\ref{sec:sen} evaporates.
 
-\paragraph{Resolution path.} The commons authority provides four mechanisms, in order of increasing escalation:
+\paragraph{Resolution path.} The commons authority provides four mechanisms, in order of increasing escalation (Figure~\ref{fig:governance-flow}):
 \begin{enumerate}[nosep]
   \item \textbf{Direct release.} The original claimant releases the claim. This is the equilibrium when the conflict-graph signal reaches them and the claim was precautionary.
   \item \textbf{Time-out release.} Claims carry TTLs. A claim whose holder has not heartbeated within the TTL window is released automatically; downstream agents observe the release in their next poll. This is the equilibrium for crashed or abandoned claimants.
   \item \textbf{Bonded preemption.} A blocked agent may post an additional bond---bounded by the cleanup cost of \S\ref{sec:cleanup-bound}---to force release of an active claim. The preempted claimant receives the bond as compensation; the preemptor accepts the risk that its preemption was wrong (in which case the bond is slashed under settlement). Preemption is rare by design: the bond is large enough that an agent prefers waiting to preempting unless the wait cost dominates.
   \item \textbf{Human escalation.} If preemption is ambiguous or the stakes exceed the preemption-bond ceiling, the dispute escalates to a human operator via the \texttt{request} channel (\S\ref{sec:taxonomy}). The operator's decision is appended to the evidence chain with the same Merkle-Forest binding as any agent action; the resolution is auditable by all parties post-hoc.
 \end{enumerate}
+
+\input{figures/fig-governance-flow}
 
 \paragraph{Appeals.} Settlement events (\S\ref{sec:economic}) are not unilaterally final. Any settled session can be challenged within an appeal window (default: 24~hours of vibe time, \S\ref{sec:vibe}) by any agent with standing---defined as either a counterparty to the settlement or a holder of an overlapping claim. An appeal opens a re-examination of the evidence chain: the appellant posts an \emph{appeal bond} (a fixed fraction of the disputed settlement amount), and the daemon recomputes the settlement against the evidence and any new evidence the appellant produces. If the appeal succeeds, the original settlement is reversed and the appeal bond is returned with the original counterparty's slash. If it fails, the appeal bond is forfeit.
 
@@ -1144,7 +1146,9 @@ The Pareto-dominance and Sybil-deposit-floor Monte Carlo charts are placed inlin
 
 To make the three-layer architecture concrete, this appendix traces one agent---call it $\alpha$---through a single bounded task: \emph{``Fix the login bug in \texttt{auth.ts} and regression-test it.''} The example exercises capability issuance, advisory claims, the evidence chain, a mid-task crash, successor resumption, and final settlement. All values are illustrative rather than tuned.
 
-\paragraph{Setup.} The principal $P$ has a coordination budget and wants $\alpha$ to ship the fix. The commons authority is the local Port Daddy daemon. The acceptance criteria are: (i) the failing test \texttt{login.regression.test.ts} passes, (ii) no other test regresses, (iii) the diff touches only \texttt{auth.ts} and the test file. The estimated cleanup cost if $\alpha$ defects or sabotages is \$5 (one operator-hour at \$5/hr equivalent, since this is a local agent).
+\paragraph{Setup.} The principal $P$ has a coordination budget and wants $\alpha$ to ship the fix. The commons authority is the local Port Daddy daemon. The acceptance criteria are: (i) the failing test \texttt{login.regression.test.ts} passes, (ii) no other test regresses, (iii) the diff touches only \texttt{auth.ts} and the test file. The estimated cleanup cost if $\alpha$ defects or sabotages is \$5 (one operator-hour at \$5/hr equivalent, since this is a local agent). Figure~\ref{fig:worked-example} traces the seven steps below across the three architectural layers.
+
+\input{figures/fig-worked-example}
 
 \paragraph{Step 1: Capability issuance (Layer 1).} $P$ requests a Harbor Card for $\alpha$ via the daemon, specifying the capability set $\{\texttt{fs:read:repo}, \texttt{fs:write:auth.ts}, \texttt{fs:write:tests/**}, \texttt{cmd:test}\}$ and a TTL of $30$~minutes. The Anchor Protocol (\S\ref{sec:structural}, companion paper~\cite{owens2026anchor}) signs the card; $\alpha$ can prove its identity and capabilities to any verifier, but it physically cannot write to, e.g., \texttt{database.ts}---attempts return a capability error before the file system is touched.
 
