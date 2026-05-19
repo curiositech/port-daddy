@@ -150,6 +150,14 @@ interface AncestryDeps {
    * session-id-level cycles are caught (which is still better than nothing).
    */
   resolveIdentity?: SessionIdentityResolver;
+  /**
+   * Optional: resolve the active daemon-wide max-depth ceiling. Called once
+   * per checkSpawn() so a `pd config set spawn.max_depth N` takes effect
+   * immediately without a daemon restart. When unset, falls back to
+   * DEFAULT_MAX_SPAWN_DEPTH. A per-spawn `maxDepth` argument always
+   * overrides this resolver.
+   */
+  getMaxDepth?: () => number;
 }
 
 function ensureSchema(db: DatabaseInstance): void {
@@ -185,6 +193,7 @@ export function createAncestry(
   ensureSchema(db);
 
   const resolveIdentity = deps.resolveIdentity ?? defaultResolveIdentity(db);
+  const getMaxDepth = deps.getMaxDepth;
 
   // Prepared statements — cheaper than re-parsing on every spawn.
   const selRow = db.prepare(
@@ -238,9 +247,23 @@ export function createAncestry(
   }
 
   function checkSpawn(input: CheckSpawnInput): CheckSpawnOk {
-    const maxDepth = Number.isFinite(input.maxDepth) && (input.maxDepth as number) > 0
-      ? Math.floor(input.maxDepth as number)
-      : DEFAULT_MAX_SPAWN_DEPTH;
+    // Priority: explicit per-spawn override > daemon-config getter > built-in default.
+    let maxDepth: number;
+    if (Number.isFinite(input.maxDepth) && (input.maxDepth as number) > 0) {
+      maxDepth = Math.floor(input.maxDepth as number);
+    } else if (getMaxDepth) {
+      let resolved: number;
+      try {
+        resolved = getMaxDepth();
+      } catch {
+        resolved = DEFAULT_MAX_SPAWN_DEPTH;
+      }
+      maxDepth = Number.isFinite(resolved) && resolved > 0
+        ? Math.floor(resolved)
+        : DEFAULT_MAX_SPAWN_DEPTH;
+    } else {
+      maxDepth = DEFAULT_MAX_SPAWN_DEPTH;
+    }
 
     // Root spawn: no parent, depth 0, empty chain.
     if (!input.parentSessionId) {

@@ -2539,7 +2539,7 @@ export async function main(): Promise<void> {
         break;
 
       case 'config':
-        await handleConfigCmd(options);
+        await handleConfigCmd(positional, options);
         break;
 
       case 'health':

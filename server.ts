@@ -54,7 +54,8 @@ import { createTunnel } from './lib/tunnel.js';
 import { createDns } from './lib/dns.js';
 import { createResolver } from './lib/resolver.js';
 import { createSpawner } from './lib/spawner.js';
-import { createAncestry } from './lib/spawn-ancestry.js';
+import { createAncestry, DEFAULT_MAX_SPAWN_DEPTH } from './lib/spawn-ancestry.js';
+import { createDaemonConfig } from './lib/daemon-config.js';
 import { createBriefing } from './lib/briefing.js';
 import { createSugar } from './lib/sugar.js';
 import { createHarbors } from './lib/harbors.js';
@@ -453,7 +454,10 @@ const costTracker = createCostTracker(db, {
     budgetPause.arm({ agentId, project, reason, spentTodayUsd, budgetUsdPerDay });
   },
 });
-const spawnAncestry = createAncestry(db);
+const daemonConfig = createDaemonConfig(db);
+const spawnAncestry = createAncestry(db, {
+  getMaxDepth: () => daemonConfig.getNumber('spawn.max_depth', DEFAULT_MAX_SPAWN_DEPTH),
+});
 const spawner = createSpawner({ costTracker, counters, bonds, harbors, ancestry: spawnAncestry, enforceTelemetryPolicy: true });
 spawnerRef = spawner;
 const resourceGovernance = createResourceGovernance({ repoRoot: REPO_ROOT, startedAt: STARTED_AT });
@@ -922,7 +926,7 @@ await registerAllRoutes(
     db, logger, metrics, config,
     services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar,
-    harbors, sorties, orchestrator, correlationEngine, spawner, spawnAncestry, tuples, blobs, fleetDaemon,
+    harbors, sorties, orchestrator, correlationEngine, spawner, spawnAncestry, daemonConfig, tuples, blobs, fleetDaemon,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, counters, metricsRegistry,
     quorum, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,
     bonds, budgetGuard, budgetPause,

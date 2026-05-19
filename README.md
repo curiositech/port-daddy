@@ -312,7 +312,7 @@ Internal code paths use the same rule: `createSpawner()` defaults telemetry enfo
 Every `pd spawn` records a parent→child link in `spawn_ancestry`. The daemon refuses two foot-guns before any bond is escrowed:
 
 - **Cycles** — if agent A spawns agent B which tries to spawn agent A (or any identity already in the chain), the spawn is refused with a `CycleDetectedError` that prints the full chain.
-- **Depth runaway** — chains beyond the default ceiling (`MAX_SPAWN_DEPTH=4`) are refused with a `MaxDepthError`. Override per-spawn with `--max-depth N`.
+- **Depth runaway** — chains beyond the default ceiling (`MAX_SPAWN_DEPTH=4`) are refused with a `MaxDepthError`. Override per-spawn with `--max-depth N`, or daemon-wide with `pd config set spawn.max_depth N` (validated against the schema in `lib/daemon-config.ts`, takes effect on the next spawn).
 
 When `pd spawn` runs from inside an active session (i.e. `pd begin` wrote `.portdaddy/current.json`, or `PD_SESSION_ID` is set), the parent session id is captured automatically. Pass `--from-session <id>` to override.
 

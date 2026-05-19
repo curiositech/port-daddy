@@ -109,9 +109,27 @@ export async function handleMetrics(options: CLIOptions): Promise<void> {
 }
 
 /**
- * Handle `pd config` command
+ * Handle `pd config` command.
+ *
+ * Subcommands (daemon-wide key/value store):
+ *   pd config list                  — list every known key with current value
+ *   pd config get <key>             — read one key (with metadata)
+ *   pd config set <key> <value>     — set one key (validated against schema)
+ *   pd config unset <key>           — restore the spec default
+ *
+ * With no subcommand, falls back to printing the project-local .portdaddyrc
+ * (legacy behavior — unchanged).
  */
-export async function handleConfigCmd(options: CLIOptions): Promise<void> {
+export async function handleConfigCmd(args: string[], options: CLIOptions): Promise<void> {
+  const sub = args[0];
+
+  if (sub === 'list') return handleDaemonConfigList(options);
+  if (sub === 'get') return handleDaemonConfigGet(args[1], options);
+  if (sub === 'set') return handleDaemonConfigSet(args[1], args.slice(2).join(' '), options);
+  if (sub === 'unset' || sub === 'rm' || sub === 'remove') {
+    return handleDaemonConfigUnset(args[1], options);
+  }
+
   const params = new URLSearchParams();
   if (options.dir) params.append('dir', options.dir as string);
 
@@ -129,7 +147,8 @@ export async function handleConfigCmd(options: CLIOptions): Promise<void> {
   }
 
   console.log('');
-  console.log('Port Daddy Configuration');
+  console.log('Port Daddy Configuration (project .portdaddyrc)');
+  console.log("  Daemon-wide knobs:  pd config list");
   separator(50);
 
   for (const [key, value] of Object.entries(data)) {
@@ -140,6 +159,115 @@ export async function handleConfigCmd(options: CLIOptions): Promise<void> {
     }
   }
   console.log('');
+}
+
+// ---------------------------------------------------------------------------
+// Daemon-config subcommands
+// ---------------------------------------------------------------------------
+
+interface DaemonConfigItem {
+  key: string;
+  value: number | string | boolean;
+  type: string;
+  isDefault: boolean;
+  updatedAt: number | null;
+  spec: { description: string; default: unknown; min?: number; max?: number; oneOf?: string[] };
+}
+
+function printDaemonRow(item: DaemonConfigItem): void {
+  const tag = item.isDefault ? '(default)' : '(set)';
+  console.log(`  ${item.key} = ${item.value}  ${tag}`);
+  console.log(`    type: ${item.type}`);
+  if (item.spec.description) console.log(`    ${item.spec.description}`);
+  if (item.spec.min !== undefined || item.spec.max !== undefined) {
+    const min = item.spec.min !== undefined ? `>= ${item.spec.min}` : '';
+    const max = item.spec.max !== undefined ? `<= ${item.spec.max}` : '';
+    console.log(`    range: ${[min, max].filter(Boolean).join(' ')}`);
+  }
+  if (item.spec.oneOf?.length) console.log(`    allowed: ${item.spec.oneOf.join(', ')}`);
+  console.log(`    default: ${item.spec.default}`);
+}
+
+async function handleDaemonConfigList(options: CLIOptions): Promise<void> {
+  const res: PdFetchResponse = await pdFetch('/config/daemon');
+  const data = await res.json() as { success?: boolean; items?: DaemonConfigItem[]; error?: string };
+  if (!res.ok) {
+    ui.error(data.error || 'Failed to list daemon config');
+    process.exit(1);
+  }
+  if (isJson(options)) {
+    console.log(JSON.stringify(data, null, 2));
+    return;
+  }
+  console.log('');
+  console.log('Port Daddy daemon configuration');
+  separator(50);
+  for (const item of data.items || []) printDaemonRow(item);
+  console.log('');
+}
+
+async function handleDaemonConfigGet(key: string | undefined, options: CLIOptions): Promise<void> {
+  if (!key) {
+    ui.error('Usage: pd config get <key>');
+    process.exit(1);
+  }
+  const res: PdFetchResponse = await pdFetch(`/config/daemon/${encodeURIComponent(key)}`);
+  const data = await res.json() as unknown as DaemonConfigItem & { success?: boolean; error?: string };
+  if (!res.ok) {
+    ui.error(data.error || `Failed to get ${key}`);
+    process.exit(1);
+  }
+  if (isJson(options)) {
+    console.log(JSON.stringify(data, null, 2));
+    return;
+  }
+  printDaemonRow(data);
+}
+
+async function handleDaemonConfigSet(
+  key: string | undefined,
+  rawValue: string,
+  options: CLIOptions,
+): Promise<void> {
+  if (!key || !rawValue) {
+    ui.error('Usage: pd config set <key> <value>');
+    process.exit(1);
+  }
+  const res: PdFetchResponse = await pdFetch(`/config/daemon/${encodeURIComponent(key)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ value: rawValue }),
+  });
+  const data = await res.json() as unknown as DaemonConfigItem & { success?: boolean; error?: string };
+  if (!res.ok) {
+    ui.error(data.error || `Failed to set ${key}`);
+    process.exit(1);
+  }
+  if (isJson(options)) {
+    console.log(JSON.stringify(data, null, 2));
+    return;
+  }
+  ui.success(`Set ${key} = ${data.value}`);
+}
+
+async function handleDaemonConfigUnset(key: string | undefined, options: CLIOptions): Promise<void> {
+  if (!key) {
+    ui.error('Usage: pd config unset <key>');
+    process.exit(1);
+  }
+  const res: PdFetchResponse = await pdFetch(`/config/daemon/${encodeURIComponent(key)}`, {
+    method: 'DELETE',
+  });
+  const data = await res.json() as unknown as DaemonConfigItem & { success?: boolean; error?: string };
+  if (!res.ok) {
+    ui.error(data.error || `Failed to unset ${key}`);
+    process.exit(1);
+  }
+  if (isJson(options)) {
+    console.log(JSON.stringify(data, null, 2));
+    return;
+  }
+  ui.success(`Unset ${key} (default: ${data.spec?.default ?? '?'})`);
 }
 
 /**
