@@ -57,10 +57,14 @@ export interface LLMCompletionResult {
 export type LLMAdapter = (req: LLMCompletionRequest) => Promise<LLMCompletionResult>;
 
 function cloudflareModelPath(model: string): string {
-  return model
+  const normalized = model
     .trim()
-    .replace(/^\/+/, '')
-    .split('/')
+    .replace(/^\/+/, '');
+  const segments = normalized.split('/');
+  if (!normalized || segments.some((segment) => !segment || segment === '.' || segment === '..')) {
+    throw new Error('Cloudflare Workers AI model must be a slash-delimited model id without empty, dot, or dot-dot path segments');
+  }
+  return segments
     .map((segment) => encodeURIComponent(segment).replace(/%40/g, '@'))
     .join('/');
 }
