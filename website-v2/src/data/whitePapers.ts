@@ -54,8 +54,8 @@ export const WHITE_PAPERS: WhitePaper[] = [
     readerHref: '/whitepaper/anchor-protocol',
     overviewHref: '/whitepaper?paper=anchor-protocol',
     date: 'May 2026',
-    pages: 18,
-    sizeKb: 442,
+    pages: 22,
+    sizeKb: 690,
     status: 'Version 1.2',
     order: '01',
     primer:
@@ -154,8 +154,8 @@ export const WHITE_PAPERS: WhitePaper[] = [
     readerHref: '/whitepaper/bonded-commons',
     overviewHref: '/whitepaper?paper=bonded-commons',
     date: 'May 2026',
-    pages: 26,
-    sizeKb: 510,
+    pages: 37,
+    sizeKb: 863,
     status: 'Version 2.5 (pre-print)',
     order: '02',
     primer:
@@ -226,7 +226,7 @@ export const WHITE_PAPERS: WhitePaper[] = [
       {
         title: 'Pricing the deposit',
         content:
-          'The original draft left "how big should the bond be?" open. Version 2 closes part of it with a method (cleanup-cost lower bound times scope multiplier minus reputation discount), then proposes a market: insurers bid to underwrite each transaction, and the auction discovers the price. We show by simulation when this beats a fixed deposit and when it does not.',
+          'The paper gives two answers to "how big should the bond be?" — a closed-form floor (cleanup-cost lower bound times scope multiplier minus reputation discount), and a market: insurer agents bid to underwrite each transaction so the auction discovers the price. Simulation shows when the market beats a flat deposit and when it does not.',
       },
       {
         title: 'Coordination as five separate things',
