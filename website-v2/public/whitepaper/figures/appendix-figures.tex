@@ -18,48 +18,62 @@
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[
-  font=\sffamily\small, node distance=4mm and 6mm,
+  font=\sffamily\small,
   actor/.style={draw=hhebony,fill=hhsand,rounded corners=2pt,
-                inner sep=4pt,minimum height=8mm,thick},
-  ch/.style={draw=hhebony,fill=hhpaper,inner sep=4pt,minimum width=22mm,thick,
-             font=\sffamily\footnotesize},
-  capbox/.style={draw=hhcinnabar,fill=hhpaper,thick,minimum width=10mm,
-              minimum height=6mm,inner sep=2pt},
+                inner sep=5pt,minimum width=20mm,minimum height=9mm,
+                thick,align=center},
+  ch/.style={draw=hhebony,fill=hhpaper,inner sep=5pt,minimum width=28mm,thick,
+             align=center,font=\sffamily\footnotesize},
+  capbox/.style={draw=hhcinnabar,fill=hhpaper,thick,minimum width=14mm,
+                 minimum height=8mm,inner sep=2pt,
+                 font=\sffamily\bfseries\footnotesize,text=hhcinnabar},
+  sql/.style={draw=hhebony,fill=hhsanddeep,thick,rounded corners=2pt,
+              inner sep=6pt,align=center,font=\sffamily\footnotesize},
   ev/.style={ellipse,draw=hhpatina,fill=hhpaper,thick,inner sep=3pt,
              font=\sffamily\footnotesize},
   msg/.style={->,>=Latex,thick,draw=hhink},
   bad/.style={->,>=Latex,thick,draw=hhcinnabar,dashed},
+  mlbl/.style={font=\sffamily\footnotesize,inner sep=1pt,fill=hhpaper},
+  badlbl/.style={font=\sffamily\footnotesize\itshape,text=hhcinnabar,
+                 inner sep=1pt,fill=hhpaper},
 ]
-\node[actor] (issuer) at (0,3.4) {\textbf{Issuer}};
-\node[ev,below=of issuer] (eIssue) {event \texttt{issued\_for}$(a, tk)$};
-\node[ch,right=20mm of issuer.east,anchor=west] (chTk)
-  {private channel \texttt{ch\_tk}};
-\node[capbox,below=2mm of chTk] (capBox) {cap};
-\node[ch,below=14mm of chTk,anchor=north,
-      align=center,fill=hhsanddeep,minimum width=58mm] (sql)
-  {\textbf{atomic UPDATE}\\[1pt]
-   \texttt{UPDATE recovery\_tokens SET}\\
-   \texttt{consumed\_at=? WHERE token=?}\\
-   \texttt{AND consumed\_at IS NULL RETURNING *}};
-\node[actor,right=20mm of chTk.east,anchor=west] (consumer)
-  {\textbf{Consumer}};
-\node[ev,below=of consumer] (eConsume) {event \texttt{consumed\_for}$(a, tk)$};
-\node[ch,fill=hhpaper,above=6mm of chTk] (pub) {public channel \texttt{pub} (Dolev-Yao)};
-\draw[msg] (issuer.east) -- node[above,font=\sffamily\footnotesize]
-  {\texttt{out(ch\_tk, ())}} (chTk.west);
+% Top row: public channel (Dolev-Yao adversary).
+\node[ch,fill=hhpaper] (pub) at (4.7,5.0) {public channel \texttt{pub} (Dolev-Yao)};
+% Left actor: Issuer.
+\node[actor] (issuer) at (-0.2,2.6) {\textbf{Issuer}};
+\node[ev,below=4mm of issuer] (eIssue) {event \texttt{issued\_for}$(a, tk)$};
+% Center column: private channel, cap, SQL update.
+\node[ch] (chTk) at (4.7,3.4) {private channel \texttt{ch\_tk}};
+\node[capbox,below=4mm of chTk] (capBox) {cap};
+\node[sql,below=4mm of capBox,minimum width=72mm] (sql)
+  {\textbf{atomic UPDATE} \emph{(SQLite serializes writers)}\\[2pt]
+   \texttt{UPDATE recovery\_tokens SET consumed\_at=?}\\
+   \texttt{WHERE token=? AND consumed\_at IS NULL RETURNING *}};
+% Right actors: Consumer (wins), 2nd Consumer (rejected).
+\node[actor] (consumer) at (10.0,2.6) {\textbf{Consumer}};
+\node[ev,below=4mm of consumer] (eConsume) {event \texttt{consumed\_for}$(a, tk)$};
+\node[actor,fill=hhpaper,draw=hhcinnabar,
+      below=24mm of consumer.south] (consumer2)
+  {\textbf{2nd Consumer}};
+% Issuer → ch_tk (sends cap).
+\draw[msg] (issuer.east) -- (chTk.west)
+  node[mlbl,pos=0.5] {\texttt{out(ch\_tk, ())}};
+% Issuer → pub (public link). Label sits on the vertical leg so it doesn't
+% mask the start of the pub channel's text.
 \draw[msg] (issuer.north) |- (pub.west)
-  node[pos=0.75,above,font=\sffamily\footnotesize]
-  {\texttt{out(pub, mkLink)}};
+  node[mlbl,pos=0.30,right] {\texttt{out(pub, mkLink)}};
+% pub → Consumer (public link reaches consumer).
 \draw[msg] (pub.east) -| (consumer.north);
-\draw[msg] (chTk.south) -- (sql.north);
+% ch_tk → cap → sql (the cap is physically the gate to the UPDATE).
+\draw[msg] (chTk.south) -- (capBox.north);
+\draw[msg] (capBox.south) -- (sql.north);
+% sql → Consumer (consume succeeds).
 \draw[msg] (sql.east) -| (consumer.south)
-  node[pos=0.25,below,font=\sffamily\footnotesize]
-  {\texttt{in(ch\_tk, cap)}};
-\node[actor,below=14mm of consumer,fill=hhpaper,draw=hhcinnabar]
-  (consumer2) {\textbf{2nd Consumer}};
-\draw[bad] (sql.east) to[bend right=12]
-  node[right,font=\sffamily\footnotesize,text=hhcinnabar]
-  {cap drained $\to$ reject} (consumer2.west);
+  node[mlbl,pos=0.20] {\texttt{in(ch\_tk, cap)}};
+% sql → 2nd Consumer (rejection — cap already drained).
+\draw[bad] (sql.south) |- (consumer2.west);
+\node[badlbl] at ($(sql.south)+(2.0,-4mm)$) {cap drained $\to$ reject};
+% Event dotted lines (provenance).
 \draw[->,>=Latex,thick,draw=hhpatina,dotted] (issuer.south) -- (eIssue.north);
 \draw[->,>=Latex,thick,draw=hhpatina,dotted] (consumer.south) -- (eConsume.north);
 \end{tikzpicture}

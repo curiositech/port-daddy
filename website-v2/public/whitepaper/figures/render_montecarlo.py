@@ -110,19 +110,25 @@ def fig_pareto_dominance(out: Path) -> None:
             by_cartel[cs].append(
                 (float(r["sigma_r"]), float(r["pareto_dominance_rate"]))
             )
-    colors = {0: PATINA, 1: BRASS, 3: CINNABAR}
+    # Distinct, readable colors against the sand background.
+    colors = {0: EBONY, 1: BRASS, 3: CINNABAR}
+    markers = {0: "o", 1: "s", 3: "^"}
     labels = {0: "no cartel", 1: "1 colluder", 3: "3 colluders"}
     for cs in (0, 1, 3):
         pts = sorted(by_cartel[cs])
         xs = [p[0] for p in pts]
         ys = [p[1] for p in pts]
-        ax.plot(xs, ys, "o-", color=colors[cs], linewidth=2.2, markersize=7,
+        ax.plot(xs, ys, marker=markers[cs], linestyle="-",
+                color=colors[cs], linewidth=2.2, markersize=8,
+                markeredgecolor=EBONY, markeredgewidth=0.6,
                 label=labels[cs])
-    ax.axhline(0.5, color=INK, linewidth=0.6, linestyle=":", alpha=0.7)
+    ax.axhline(0.5, color=INK, linewidth=0.7, linestyle="--", alpha=0.7)
+    ax.text(0.51, 0.52, "0.5 dominance threshold",
+            color=INK, fontsize=9, style="italic", va="bottom", ha="right")
     ax.set_xlabel(r"reputation noise $\sigma_r$")
     ax.set_ylabel("Pareto-dominance rate")
     ax.set_title(r"(a) dominance rate vs $\sigma_r$  ($n=5$)")
-    ax.set_ylim(-0.02, 1.08)
+    ax.set_ylim(-0.02, 1.10)
     ax.legend(loc="upper right", framealpha=0.95, facecolor=PAPER,
               edgecolor=SAND_DEEP)
 
@@ -136,13 +142,13 @@ def fig_pareto_dominance(out: Path) -> None:
     by_n.sort()
     xs = [p[0] for p in by_n]
     ys = [p[1] for p in by_n]
-    bars = ax.bar(xs, ys, width=0.6, color=PATINA, edgecolor=EBONY, linewidth=1.0)
+    bars = ax.bar(xs, ys, width=1.6, color=PATINA, edgecolor=EBONY, linewidth=1.0)
     for b, y in zip(bars, ys):
         ax.text(b.get_x() + b.get_width() / 2, y + 0.015,
                 f"{y:.2f}", ha="center", va="bottom",
                 fontsize=10, color=EBONY, fontweight="bold")
     ax.set_xlabel("number of insurers $n$")
-    ax.set_ylabel("Pareto-dominance rate")
+    # No duplicate y-label — left panel already labels the axis.
     ax.set_title(r"(b) dominance rate vs $n$  ($\sigma_r=0$, no cartel)")
     ax.set_xticks(xs)
     ax.set_ylim(0, 1.15)
