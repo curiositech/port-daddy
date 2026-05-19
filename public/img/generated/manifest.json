@@ -1,0 +1,35 @@
+{
+  "generatedAt": "2026-04-29T20:42:01.724Z",
+  "copiedFor": "Fleet Control Center first-run onboarding",
+  "generator": "website-v2/scripts/generate-gemini-assets.mjs",
+  "source": "Google Gemini API Nano Banana image generation",
+  "docs": "https://ai.google.dev/gemini-api/docs/image-generation",
+  "note": "Curated subset copied from website-v2/public/img/generated so the daemon-served Fleet Control Center can render first-run walkthrough art without depending on the website bundle.",
+  "generatedAssets": [
+    {
+      "id": "control-plane-hero",
+      "file": "/img/generated/control-plane-hero.webp",
+      "sourceFile": "website-v2/public/img/generated/control-plane-hero.webp"
+    },
+    {
+      "id": "agent-runtime-map",
+      "file": "/img/generated/agent-runtime-map.webp",
+      "sourceFile": "website-v2/public/img/generated/agent-runtime-map.webp"
+    },
+    {
+      "id": "blog-backend-readiness",
+      "file": "/img/generated/blog-backend-readiness.webp",
+      "sourceFile": "website-v2/public/img/generated/blog-backend-readiness.webp"
+    },
+    {
+      "id": "coordination-guard",
+      "file": "/img/generated/coordination-guard.webp",
+      "sourceFile": "website-v2/public/img/generated/coordination-guard.webp"
+    },
+    {
+      "id": "shipwright-proposal",
+      "file": "/img/generated/shipwright-proposal.webp",
+      "sourceFile": "website-v2/public/img/generated/shipwright-proposal.webp"
+    }
+  ]
+}

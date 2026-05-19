@@ -1361,6 +1361,70 @@ The catalog can list backend implementations that are not currently launchable. 
 
 ---
 
+### GET /setup/overview
+Return local onboarding posture for Fleet Control Center. This route exposes install paths, daemon mode, LaunchAgent details, the setup command shape, available setup actions, and a short-lived setup capability token. It is restricted to loopback callers.
+
+**Response:**
+```json
+{
+  "success": true,
+  "version": "3.14.0",
+  "codeHash": "abc123",
+  "setupToken": "process-local-capability",
+  "installDir": "/Users/you/coding/port-daddy",
+  "daemon": {
+    "mode": "binary",
+    "launchAgentExists": true,
+    "summary": "The installed daemon LaunchAgent appears to run a binary."
+  },
+  "setupCommand": {
+    "label": "pd setup",
+    "command": "pd",
+    "baseArgs": ["setup"]
+  },
+  "actions": [
+    { "id": "status", "label": "Check setup status", "mutates": false },
+    { "id": "fleetbar", "label": "Install FleetBar", "mutates": true }
+  ]
+}
+```
+
+Returns 403 for non-loopback callers.
+
+---
+
+### POST /setup/run
+Run a guarded local setup action from Fleet Control Center. Read-only `status` does not require confirmation or a token. Mutating actions (`full`, `mcp-skills`, `fleetbar`, `project-init`) require both GUI confirmation and the current `setupToken` from `GET /setup/overview`.
+
+**Body:**
+```json
+{
+  "action": "mcp-skills",
+  "confirmed": true,
+  "setupToken": "process-local-capability",
+  "projectDir": "/Users/you/coding/myapp"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "action": "mcp-skills",
+  "command": "pd",
+  "args": ["setup", "--no-daemon", "--no-fleetbar", "--no-init"],
+  "cwd": "/Users/you/coding/port-daddy",
+  "exitCode": 0,
+  "timedOut": false,
+  "stdout": "setup ok\n",
+  "stderr": ""
+}
+```
+
+Returns 400 for unknown actions, missing GUI confirmation on mutating actions, or `project-init` without a valid project directory. Returns 403 for non-loopback callers or missing/stale setup tokens on mutating actions.
+
+---
+
 ### POST /fleet/config/:project/runtime
 Bulk-apply one setup-ready backend/model to fleet agents without hand-editing YAML. The route rejects any backend whose readiness is not `ready`.
 

@@ -1651,7 +1651,10 @@
         "setup"
       ],
       "sdk": [],
-      "routes": [],
+      "routes": [
+        "GET /setup/overview",
+        "POST /setup/run"
+      ],
       "completions": [
         "setup"
       ],
@@ -1659,7 +1662,7 @@
         "readme": true,
         "sdk": false
       },
-      "_note": "CLI-only \u2014 orchestrates daemon install, MCP config, FleetBar install, and project init in one step"
+      "_note": "CLI plus local daemon onboarding surface \u2014 orchestrates daemon install, MCP config, FleetBar install, and project init in one step. Daemon setup routes are loopback-only; mutating actions require a setup capability token from /setup/overview."
     }
   }
 }

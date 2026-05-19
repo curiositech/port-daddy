@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { fetchModels, fetchResourceOverview } from '../api';
 import type { BackendInfo, ResourceOverview } from '../types';
+import OnboardingWalkthrough from './OnboardingWalkthrough';
 
 interface ProjectInfo {
   id: string;
@@ -1038,6 +1039,11 @@ export function AllProjectsList({ projects, selected, onSelect, onStartProject, 
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -20 }} className="mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
+      <OnboardingWalkthrough
+        projectDir={priorityProjects[0]?.projectDir ?? null}
+        onOpenShipwright={onOpenShipwright}
+      />
+
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="text-[10px] font-semibold tracking-wider" style={{ color: 'var(--pd-dim)' }}>FLEET CONTROL CENTER</div>
