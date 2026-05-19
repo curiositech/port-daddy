@@ -239,9 +239,25 @@ async function main() {
 
       const ok = results.filter(r => r.status === 'ok').length
       const failed = results.filter(r => r.status === 'fail').length
-      const skipped = results.length - ok - failed
-      console.log(`snap-routes: ${ok} captured, ${skipped} skipped, ${failed} failed`)
-      if (failed > 0) process.exitCode = 1
+      // `empty` (root rendered nothing) is treated as a failure: a page
+      // that renders no content is a regression, not a skip. `fallback`
+      // (Suspense never resolved within timeout) is a skip — the
+      // existing per-route HTML is left intact and the build continues.
+      const empty = results.filter(r => r.status === 'empty').length
+      const fallback = results.filter(r => r.status === 'fallback').length
+      const skipped = results.length - ok - failed - empty
+      console.log(
+        `snap-routes: ${ok} captured, ${fallback} fallback (kept old body), ` +
+        `${empty} empty (regression), ${skipped} skipped, ${failed} failed`,
+      )
+      // Hard-fail on:
+      //   - any actual fail (Playwright threw, navigation timeout, etc.)
+      //   - any `empty` route (real regression)
+      //   - 0 captures with non-zero target route count (mass-regression
+      //     where every page silently fell back to "Loading route...")
+      if (failed > 0 || empty > 0 || (ok === 0 && results.length > 0)) {
+        process.exitCode = 1
+      }
     } finally {
       await browser.close()
     }
@@ -254,5 +270,8 @@ async function main() {
 
 main().catch(err => {
   console.error(err)
-  process.exit(1)
+  // Use exitCode (not process.exit) so the finally blocks in main()
+  // get to fire — without this, vite preview leaks as a zombie process
+  // and the random reserved port stays held for the rest of the CI run.
+  process.exitCode = 1
 })
