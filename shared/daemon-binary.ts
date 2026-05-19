@@ -33,6 +33,52 @@ export function isBunVirtualPath(path: string): boolean {
 }
 
 /**
+ * Pure detection helper for `bun build --compile` runtime context.
+ *
+ * Why this exists as its own function (not a closure over `process` / `import.meta`):
+ * `import.meta.url` may be inlined at build time by bun's bundler, so a check
+ * that *only* reads `import.meta.url` can wrongly return false at runtime
+ * inside the compiled binary. That regression (issue #86, "fixed" in 3.14.1
+ * but still observed in the field) bypassed the re-exec branch and tried to
+ * spawn `node_modules/.bin/tsx` from inside the bun bundle, producing
+ * `ENOENT: posix_spawn '/node_modules/.bin/tsx'`.
+ *
+ * The multi-signal probe: `process.versions.bun` is necessary but not
+ * sufficient (source-mode bun also sets it). Then any one of:
+ *   - `importMetaUrl` contains `/$bunfs/` (works when bun preserves it)
+ *   - `errorStack` contains `/$bunfs/` (always reflects runtime paths)
+ *   - `execPath` basename is not `bun` or `node` (compiled binaries name themselves)
+ *
+ * Tested via `tests/unit/daemon-bun-detection.test.js`.
+ */
+export interface BunRuntimeSignals {
+  versionsBun: string | undefined;
+  importMetaUrl: string;
+  errorStack: string;
+  execPath: string;
+}
+
+// Source-mode interpreter names. Anything else with process.versions.bun set
+// is treated as a `bun build --compile` bundle by the third signal. We allow
+// versioned bun (Homebrew @-formulae create `bun-1.3.14` symlinks) and the
+// other shapes a developer might invoke: `bunx`, `node`, `tsx`. If a new
+// interpreter ships, we'd rather false-negative here (and surface as the
+// original ENOENT spawn error) than infinite-re-exec on the basename signal.
+const INTERPRETER_BASENAME_RE = /^(bun(?:-[\w.+\-]+)?|bunx|node|tsx)$/i;
+
+export function isBunCompiledRuntime(signals: BunRuntimeSignals): boolean {
+  if (!signals.versionsBun) return false;
+  if (isBunVirtualPath(signals.importMetaUrl)) return true;
+  if (isBunVirtualPath(signals.errorStack)) return true;
+  const execBase = (signals.execPath || '').split(/[\\/]/).pop()?.replace(/\.exe$/i, '') || '';
+  // Empty basename (process.execPath was missing/blank) is not a positive
+  // signal — return false rather than misclassifying a partial signal bag.
+  if (execBase === '') return false;
+  if (!INTERPRETER_BASENAME_RE.test(execBase)) return true;
+  return false;
+}
+
+/**
  * One-shot guard so the unconventional-layout warning doesn't spam
  * stderr every time the resolver is called (CLI invocations chain
  * through it many times per command).

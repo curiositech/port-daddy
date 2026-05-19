@@ -236,15 +236,15 @@ export function BlogPostPage() {
             <div>
               <PostTag>Field log</PostTag>
             </div>
-            <div className="flex flex-wrap items-center gap-4 text-xs font-black uppercase tracking-wider text-text-muted font-mono">
+            <div className="flex flex-wrap items-center gap-5 text-sm sm:text-base font-bold uppercase tracking-wide text-text-secondary font-mono">
               <div className="flex items-center gap-2">
-                <Calendar size={14} className="text-brand-primary" />
+                <Calendar size={18} className="text-brand-primary" />
                 {post.date}
               </div>
-              <div className="h-4 w-px bg-border-strong" />
+              <div className="h-5 w-px bg-border-strong" />
               <div className="flex items-center gap-2">
-                <User size={14} className="text-brand-secondary" />
-                {post.author}
+                <User size={18} className="text-brand-secondary" />
+                <span className="text-text-primary">{post.author}</span>
               </div>
             </div>
 
@@ -270,16 +270,16 @@ export function BlogPostPage() {
 
       {/* Hero Image */}
       {heroImg && (
-        <div className="w-full max-w-5xl mx-auto px-6 -mt-8 relative z-10">
+        <div className="w-full max-w-6xl mx-auto px-6 -mt-8 relative z-10">
           <div className="overflow-hidden border-2 border-border-strong bg-surface-sunken">
-            <img src={heroImg} alt={post.heroAlt} className="w-full h-auto object-cover max-h-[30rem]" />
+            <img src={heroImg} alt={post.heroAlt} className="w-full h-auto object-cover max-h-[36rem]" />
           </div>
         </div>
       )}
 
       {/* Main Content */}
       <motion.main id="main-content" className="flex-1 py-12 lg:py-16 px-6 sm:px-8 lg:px-10 relative">
-        <div className="max-w-prose mx-auto w-full">
+        <div className="max-w-[80ch] mx-auto w-full">
           <motion.article
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -294,7 +294,7 @@ export function BlogPostPage() {
 
         {/* Prev / Next Navigation */}
         {(prevPost || nextPost) && (
-          <div className="mt-16 max-w-prose mx-auto grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="mt-16 max-w-[80ch] mx-auto grid grid-cols-1 sm:grid-cols-2 gap-4">
             {prevPost ? (
               <Link to={`/blog/${prevPost.slug}`} className="no-underline group">
                 <Surface depth="flat" radius="none" padding="md" interactive>
@@ -323,7 +323,7 @@ export function BlogPostPage() {
         )}
 
         {/* Comments */}
-        <div className="mt-16 max-w-prose mx-auto">
+        <div className="mt-16 max-w-[80ch] mx-auto">
           <BlogComments slug={post.slug} />
         </div>
       </motion.main>
