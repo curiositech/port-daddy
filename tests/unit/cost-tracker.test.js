@@ -59,10 +59,63 @@ describe('CostTracker', () => {
     expect(costUsd).toBeCloseTo(0.18, 4);
   });
 
-  test('ollama costs zero', () => {
+  test('ollama without token counts falls back to zero estimate (opaque path)', () => {
+    // No tokens → estimateOpaqueSessionCost returns SESSION_ESTIMATES_USD.ollama (0.00)
     const { costUsd, isEstimate } = costTracker.computeCost('ollama', 'llama3.1:8b');
     expect(costUsd).toBe(0);
     expect(isEstimate).toBe(true);
+  });
+
+  test('ollama with token counts computes exact nonzero cost (electricity proxy)', () => {
+    // qwen2.5-coder:7b matches "qwen" rate (0.05 input / 0.05 output USD/M)
+    //   10000 input × 0.05 / 1M = 0.0005
+    //   2000 output × 0.05 / 1M = 0.0001
+    //   total = 0.0006 USD
+    const { costUsd, isEstimate } = costTracker.computeCost(
+      'ollama', 'qwen2.5-coder:7b', 10000, 2000
+    );
+    expect(isEstimate).toBe(false);
+    expect(costUsd).toBeCloseTo(0.0006, 6);
+    expect(costUsd).toBeGreaterThan(0);
+  });
+
+  test('ollama exact rates match each canonical local family', () => {
+    const cases = [
+      ['llama3.1:8b', 0.0006],
+      ['dolphin-mistral:7b', 0.0006],
+      ['hermes4:14b', 0.0006],
+      ['dolphin-llama3:70b', 0.0006],
+      ['phi3:mini', 0.0006],
+      ['gemma2:9b', 0.0006],
+      ['codellama:13b', 0.0006],
+    ];
+    for (const [model, expected] of cases) {
+      const { costUsd, isEstimate } = costTracker.computeCost(
+        'ollama', model, 10000, 2000
+      );
+      expect(isEstimate).toBe(false);
+      expect(costUsd).toBeCloseTo(expected, 6);
+    }
+  });
+
+  test('ollama nomic-embed uses the smaller embedding rate (0.01 USD/M)', () => {
+    // 10000 input × 0.01 / 1M = 0.0001
+    // 2000 output × 0.01 / 1M = 0.00002
+    // total = 0.00012 USD
+    const { costUsd, isEstimate } = costTracker.computeCost(
+      'ollama', 'nomic-embed-text:latest', 10000, 2000
+    );
+    expect(isEstimate).toBe(false);
+    expect(costUsd).toBeCloseTo(0.00012, 6);
+  });
+
+  test('ollama with unknown model falls back to zero estimate (no rate match)', () => {
+    // unobtanium-7b doesn't match any rate key → falls to estimateOpaqueSessionCost
+    const { costUsd, isEstimate } = costTracker.computeCost(
+      'ollama', 'unobtanium-7b', 10000, 2000
+    );
+    expect(isEstimate).toBe(true);
+    expect(costUsd).toBe(0);
   });
 
   test('custom backend costs zero', () => {

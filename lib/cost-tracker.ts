@@ -76,6 +76,31 @@ const MODEL_RATES: Array<[string, ModelRate]> = [
   ['gemini-2.0-flash',        { input:  0.075, output: 0.30, label: 'Gemini 2.0 Flash' }],
   ['gemini-1.5-pro',          { input:  1.25, output:  5.00, label: 'Gemini 1.5 Pro' }],
   ['gemini-1.5-flash',        { input:  0.075, output: 0.30, label: 'Gemini 1.5 Flash' }],
+  // Ollama (local inference). Rates are an electricity / amortized-hardware
+  // proxy for M4 Max-class hardware:
+  //   ~50W draw * (1 / 100 tok/s) = 0.5 J/tok = 1.39e-4 Wh/tok
+  //   * $0.30/kWh = 4.2e-8 USD/tok = 0.042 USD/M tokens
+  // Rounded up to 0.05 USD/M for input and output. Token counts are exact
+  // (Ollama returns prompt_eval_count + eval_count on /api/chat — see
+  // lib/llm-call.ts ollamaAdapter:148-149). The fail-closed telemetry policy
+  // (lib/backend-telemetry-policy.ts) checks hasExactModelRate() against these
+  // entries; the spawner (lib/spawner.ts:1005-1052) then enforces the full
+  // pipeline (token-count present, computed cost not estimate, costUsd > 0).
+  // Users on different hardware can extend the table with machine-specific
+  // entries; future iteration can move this to a config file.
+  //
+  // Keys come AFTER the @cf/* specific entries above so cloudflare matches
+  // win for cloud-hosted ollama-family models. lc.includes(key) iterates in
+  // order; first match wins.
+  ['qwen',                    { input:  0.05, output:  0.05, label: 'Ollama local Qwen family (electricity proxy)' }],
+  ['llama',                   { input:  0.05, output:  0.05, label: 'Ollama local Llama / dolphin-llama family (electricity proxy)' }],
+  ['mistral',                 { input:  0.05, output:  0.05, label: 'Ollama local Mistral / dolphin-mistral family (electricity proxy)' }],
+  ['hermes',                  { input:  0.05, output:  0.05, label: 'Ollama local Hermes family (electricity proxy)' }],
+  ['dolphin',                 { input:  0.05, output:  0.05, label: 'Ollama local Dolphin family (electricity proxy)' }],
+  ['phi',                     { input:  0.05, output:  0.05, label: 'Ollama local Phi family (electricity proxy)' }],
+  ['gemma',                   { input:  0.05, output:  0.05, label: 'Ollama local Gemma family (electricity proxy)' }],
+  ['codellama',               { input:  0.05, output:  0.05, label: 'Ollama local CodeLlama family (electricity proxy)' }],
+  ['nomic-embed',             { input:  0.01, output:  0.01, label: 'Ollama local nomic-embed (smaller embedding model)' }],
 ];
 
 /**

@@ -58,7 +58,10 @@ describe('backend telemetry policy', () => {
     // Cloudflare is no longer opaque — `lib/cost-tracker.ts` ships exact
     // rates for Workers AI models. Claude CLI still stays blocked because
     // subprocess launches do not yet prove exact token counts end-to-end.
-    for (const backend of ['claude-cli', 'gemini', 'ollama', 'aider', 'custom']) {
+    // Ollama is excluded here because it's no longer in the opaque-blocked
+    // class — the policy now allows it when the model has a known rate
+    // (see "allows Ollama when the model has an exact rate entry" below).
+    for (const backend of ['claude-cli', 'gemini', 'aider', 'custom']) {
       const policy = assessBackendTelemetryPolicy(backend);
       expect(policy.launchAllowed).toBe(false);
       expect(policy.summary).toContain('blocked');
@@ -94,5 +97,47 @@ describe('backend telemetry policy', () => {
     expect(policy.backend).toBe('claude-cli');
     expect(policy.effectiveModel).toBe('claude-mystery-model');
     expect(policy.summary).toContain('blocked until exact token counts');
+  });
+
+  test('allows Ollama when the model has an exact rate entry', () => {
+    const policy = assessBackendTelemetryPolicy('ollama', 'qwen2.5-coder:7b');
+    expect(policy.launchAllowed).toBe(true);
+    expect(policy.backend).toBe('ollama');
+    expect(policy.effectiveModel).toBe('qwen2.5-coder:7b');
+    expect(policy.summary).toContain('Exact telemetry policy satisfied');
+  });
+
+  test('allows Ollama for each canonical local model family', () => {
+    const families = [
+      'qwen2.5-coder:14b',
+      'llama3.1:8b',
+      'dolphin-mistral:7b',
+      'hermes4:14b',
+      'dolphin-llama3:70b',
+      'phi3:mini',
+      'gemma2:9b',
+      'codellama:13b',
+      'nomic-embed-text:latest',
+    ];
+    for (const model of families) {
+      const policy = assessBackendTelemetryPolicy('ollama', model);
+      expect(policy.launchAllowed).toBe(true);
+      expect(policy.effectiveModel).toBe(model);
+    }
+  });
+
+  test('blocks Ollama when no model is supplied', () => {
+    const policy = assessBackendTelemetryPolicy('ollama');
+    expect(policy.launchAllowed).toBe(false);
+    expect(policy.backend).toBe('ollama');
+    expect(policy.summary).toContain('Ollama model is required');
+  });
+
+  test('blocks Ollama when the model has no rate entry', () => {
+    const policy = assessBackendTelemetryPolicy('ollama', 'unobtanium-7b');
+    expect(policy.launchAllowed).toBe(false);
+    expect(policy.backend).toBe('ollama');
+    expect(policy.effectiveModel).toBe('unobtanium-7b');
+    expect(policy.summary).toContain('has no exact cost rate entry');
   });
 });
