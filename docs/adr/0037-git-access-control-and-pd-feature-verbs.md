@@ -42,27 +42,84 @@ checks on top of a shared tree.
 
 Three composing layers.
 
-### Layer 1 — Extend `pd-shim` for git
+### Layer 1 — Extend `pd-shim` for git, with claims as broadcast (not veto)
 
 The shim already intercepts in PD-managed repos (detected by
-`.git/port-daddy/` presence). Expand its verb taxonomy:
+`.git/port-daddy/` presence). Expand its verb taxonomy along **two
+orthogonal axes**: what the verb does, and how strict the response is when
+overlap is detected. Hard refusal is reserved for truly exclusive
+operations; everything else is **broadcast through the context broker**.
 
-| Category | Examples | Behavior in `enforce` mode |
+| Category | Examples | Default response when overlap detected |
 |---|---|---|
 | **Read-only** | `status`, `log`, `diff`, `blame`, `show`, `branch --list`, `worktree list` | pass through, no check |
-| **Local mutation (claim required)** | `add`, `restore`, `stash push`, `mv`, `rm` | refuse if a target file isn't claimed by the active session; emit "Use `pd add` to claim+stage" |
-| **Destructive (session + explicit override)** | `reset --hard`, `clean -f`, `cherry-pick`, `checkout -- <path>`, `revert` | refuse without `PD_SHIM_OFF=1` or `--allow-claim-bypass`; suggest `pd revert <slug>` instead |
-| **Branch / worktree (route to pd verbs)** | `checkout -b`, `branch <new>`, `worktree add` | succeed in `warn` mode with a warning; in `enforce` mode bind the new branch/worktree to a PD session automatically |
-| **Network (session + done required)** | `push`, `push --force` | refuse if `pd done` was not called for the current session; force-push to `main` always refused regardless of override |
+| **Local mutation (claim-soft)** | `add`, `restore`, `stash push`, `mv`, `rm` | **broadcast**: inject overlap warning into the agent's next-turn context naming the other session(s), their scope, last activity, and a coordination command (`pd inbox send`, `pd subscribe actor:<id>`, `pd diff <session>`). Proceed with the verb. |
+| **Destructive (hard refuse)** | `reset --hard`, `clean -f`, `cherry-pick`, `checkout -- <path>`, `revert` | refuse without `PD_SHIM_OFF=1` or `--allow-claim-bypass`; suggest `pd revert <slug>` |
+| **Branch / worktree (route to pd verbs)** | `checkout -b`, `branch <new>`, `worktree add` | succeed in `warn` mode with suggestion; in `enforce` mode bind the new branch/worktree to a PD session automatically |
+| **Network (hard refuse without `done`)** | `push`, `push --force` | refuse if `pd done` was not called for the current session; force-push to `main`/`master`/`stable` always refused regardless of override |
 
-In `warn` mode (the default migration position), every category beyond
-read-only emits a one-line suggestion and continues. In `enforce` mode the
-suggestions become refusals. Operators can downgrade to `warn` or `off` per
-repo via `pd guard set --mode warn`.
+#### The soft-claim broadcast model
 
-The shim writes a one-line entry to the existing `activity_log` table for
-every refusal — that becomes the audit trail of operator overrides and the
-data feed for "agents who keep tripping the shim" reports.
+The pattern was raised by the operator on 2026-05-19 and is materially
+better than blanket hard refusal:
+
+> Hard refusal forces "wait" — bad if the other agent is wedged. Hard
+> refusal creates timing-dependent failures. Soft broadcast lets work
+> proceed in parallel where it's actually fine (different functions in the
+> same file, parallel concerns) and makes coordination the value rather
+> than blocking.
+
+When an agent triggers a claim-soft verb against a target already claimed
+elsewhere, the shim injects a warning block into the agent's next-turn
+context via the ambient-context broker (see ROADMAP § 8):
+
+```
+[PD context — claim overlap warning]
+
+You're about to edit lib/auth.ts. Two other sessions are also working on it:
+
+session-12abc34 (gardener)
+  identity:    port-daddy:cartographer
+  purpose:     "Refactor token signing"
+  scope:       lib/auth.ts:120-180 (function signToken)
+  last edit:   45s ago
+  diff:        pd diff session-12abc34 --paths lib/auth.ts
+
+Your declared scope:
+  lib/auth.ts:200-260 (function refreshToken)
+
+Overlap risk: LOW (different functions, no shared symbols)
+  → Proceed if confident; reconciliation at commit time
+
+Coordination options:
+  pd inbox send session-12abc34 "<msg>"          — DM the agent
+  pd subscribe actor:gardener                    — follow their activity
+  pd diff session-12abc34 --paths lib/auth.ts    — see their WIP now
+```
+
+#### Overlap risk scoring
+
+Risk is computed from claim tree data (see § Forward refs):
+
+| Risk | Conditions | Default response |
+|---|---|---|
+| **LOW** | Different files, OR different symbols in same file, OR non-overlapping line ranges | Warn + proceed |
+| **MEDIUM** | Shared imports / shared transitively-touched symbols, but no direct overlap | Warn + proceed; conflict reconciliation at commit |
+| **HIGH** | Literal line-range overlap, OR same symbol AST claim | Strong warn; recommend `pd inbox send` first; still proceed unless `--strict-claims` set per-repo |
+
+`pd config set claims.strict-on-high true` flips HIGH overlap to refusal;
+default is broadcast for all three.
+
+#### What stays hard refusal
+
+- Force-push to protected branches (`main`/`master`/`stable`) — *always*
+- Destructive working-tree mutations (`reset --hard`, `clean -f`, `cherry-pick`, `checkout -- <path>`) without explicit override
+- Per-worktree session lock contention (only one session-of-record per worktree at a time)
+- True single-resource locks (port number claims, DB migration locks, the daemon socket itself)
+
+Everything else broadcasts and proceeds. The audit lives in
+`activity_log`; every override (`PD_SHIM_OFF=1`, `--allow-claim-bypass`,
+soft-claim overlap proceed) gets a row so retrospectives are real.
 
 ### Layer 2 — New high-level verbs
 
@@ -228,6 +285,81 @@ pd sortie run "<goal>" --backend ... --budget ...
 This eliminates the failure mode the operator triggered on 2026-05-19. A
 sortie *cannot* land in the parent's cwd by accident.
 
+### Layer 4 — Process sandbox via macOS Seatbelt (defense in depth)
+
+Worktree isolation limits where an agent writes *logically*. A sandbox
+profile limits where it can write *physically* — belt-and-suspenders. This
+matters because a buggy or compromised sortie agent might `rm -rf
+~/.ssh`, scan `/etc`, exfiltrate from `~/Library/Keychains/`, or escape
+the worktree via symlink. The shim and the claim system don't catch that.
+
+macOS ships Seatbelt (`sandbox-exec`), the same sandbox Claude Code itself
+runs in (the `dangerouslyDisableSandbox` flag in the Bash tool surface
+implies upstream sandboxing). Free, no extra dependencies.
+
+#### Profile shape
+
+`pd feature` generates a per-worktree Seatbelt profile and launches the
+agent with `sandbox-exec -f <profile> -- <command>`:
+
+```sb
+;; ~/.port-daddy/sandbox/pd-sortie-<session-id>.sb
+(version 1)
+(deny default)
+
+;; Filesystem: write only to this worktree + the PD sandbox-writes bucket
+(allow file-read* file-write*
+  (subpath "/Users/erichowens/coding/tmp/pd-<slug>"))
+(allow file-read*
+  (subpath "/Users/erichowens/coding"))
+(allow file-read*
+  (subpath "/Users/erichowens/.port-daddy"))
+(allow file-write*
+  (subpath "/Users/erichowens/.port-daddy/sandbox-writes/<session-id>"))
+(deny file-read*
+  (subpath "/Users/erichowens/.ssh")
+  (subpath "/Users/erichowens/.aws")
+  (subpath "/Users/erichowens/.config/gh"))
+
+;; Network: needed for LLM API + ollama
+(allow network*)
+
+;; Process: signal self only; no fork outside callout chain
+(deny process-fork (with no-callout))
+(allow signal (target self))
+```
+
+#### Application scope by session kind
+
+| Session kind | Sandbox default |
+|---|---|
+| **operator** | off (operator owns their machine; the cost of broken expected behavior outweighs the marginal safety) |
+| **sortie / spawned** | **on** (these are lower-trust by definition; the constraint is justified) |
+| **research / read-only sub-agent** | on with `(allow network*)` removed when feasible |
+
+`pd feature --sandbox` and `--no-sandbox` override the defaults
+explicitly. `pd config set sandbox.sortie-default off` lets an operator
+disable sortie sandboxing entirely if it's too restrictive.
+
+#### Known footguns the profile must handle
+
+- Writes to `~/.config/<tool>` (npm cache, gemini cache, etc.) — allow a
+  bucket under `~/.port-daddy/sandbox-writes/<session-id>/config-redirect`
+  with TOOL-specific env redirects (`NPM_CONFIG_CACHE=...`, etc.)
+- macOS-specific paths (`/private/var/folders/...` for tempfiles) — allow
+  read+write under a per-session subpath
+- Network requirements vary by backend (Ollama needs localhost:11434,
+  Claude SDK needs `*.anthropic.com`) — the generator can write a stricter
+  profile when the backend is known
+- Postinstall scripts in npm install often touch the host (codesigning,
+  binary downloads) — keep `npm install` outside the sandbox; sandbox only
+  the *agent process*, not the install step
+
+The profile is generated at `pd feature` time, named per session, and
+deleted on `pd done` or `pd prune`. Refused operations get a one-line
+entry in `activity_log` with the denied path or syscall so operators can
+iterate on the profile.
+
 ## Consequences
 
 ### Wins
@@ -279,6 +411,28 @@ sortie *cannot* land in the parent's cwd by accident.
 - Force-push to `main` always refused regardless of override
 - Document `PD_SHIM_OFF=1` as the emergency-only escape with required note
 
+### Forward references
+
+This ADR composes with two follow-up data-structure decisions worth
+naming now even though they're not in scope for the initial
+implementation:
+
+- **Claim tree** (proposed ADR-0038): a hierarchical tree of claimable
+  units — repo / directory / file / region / symbol — where claims at
+  ancestors imply visibility for descendants and claims at descendants
+  bubble up to ancestor queries. Closest formal analog is **Multi-Granularity
+  Locking** from database systems (Gray, 1976) and modern **movable tree
+  CRDTs** (Kleppmann, 2021). PD has the ingredients (`lib/trie.ts` radix
+  trie, `lib/merkle-tree.ts`, the unwired `lib/symbol-index.ts`) but the
+  unification is its own design. The soft-claim broadcast model above
+  consumes this tree to compute overlap risk (LOW / MEDIUM / HIGH); until
+  the tree lands, overlap is flagged at file granularity only.
+- **Ambient context broker** (ROADMAP § 8): the daemon-as-context-server
+  pattern that injects the claim overlap warnings into agent next-turn
+  context. The broadcast model above is moot without the broker; until
+  the broker ships, "broadcast" degrades to "log to activity_log and emit
+  to subscribed channels."
+
 ### Resolved during draft review (2026-05-19)
 
 - **`pd feature` dependency strategy:** symlink `node_modules` from source
@@ -288,6 +442,15 @@ sortie *cannot* land in the parent's cwd by accident.
   heartbeat-released; only sortie sessions are. Mandatory auto-stash to
   `port-daddy/<session-id>` ref before any takeover. Confirmed by
   operator after raising the "leave for 10 hours" scenario.
+- **Claims as broadcast, not veto:** hard refusal is reserved for
+  destructive verbs, force-push to protected branches, per-worktree session
+  lock, and true single-resource locks. File and region claim overlaps
+  inject context warnings via the ambient broker and proceed. Overlap risk
+  is scored LOW / MEDIUM / HIGH from claim-tree data.
+- **macOS Seatbelt sandbox layer:** sortie sessions are wrapped in
+  `sandbox-exec` with a per-session profile by default; operator sessions
+  opt in. The sandbox is defense in depth on top of worktree isolation,
+  not a replacement for it.
 
 ### Open questions
 
