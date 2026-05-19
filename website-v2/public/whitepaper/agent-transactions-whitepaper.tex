@@ -10,6 +10,7 @@
 \usepackage{listings}
 \usepackage{xcolor}
 \usepackage{booktabs}
+\usepackage{array}
 \usepackage{graphicx}
 \usepackage{fancyhdr}
 \usepackage{tikz}
@@ -669,6 +670,82 @@ Principals with a history of clean settlements have lower expected damage:
 \quad \rho(p) \in [0, r_{\max}],\; r_{\max} \leq 0.5,
 \]
 to prevent trivialization. $\rho$ increases with clean settlements, decreases with breaches, decays over time. The functional form is left open.
+
+\subsubsection{Threat-Class Bond Sizing}\label{sec:pricing:threats}
+
+The closed-form bond $\pi(\mathcal{F}, p) = c(1 + \alpha s)(1 - \rho)$ is threat-agnostic: sloppy work, abandonment, and active sabotage all price off the same curve. That is wrong in both directions. A single curve calibrated to deter sabotage prices capable agents out of low-risk work; a single curve calibrated for accessibility underprices the rare adversary who actually intends harm. Real deployments need different multipliers for different threat classes, because the threats have different blast radii and different probabilities of recovery.
+
+Table~\ref{tab:threat-bonds} gives starting bands. These are not parameters, they are calibration targets: production deployments tune from observed failure modes in their own audit log.
+
+\begin{table}[H]
+\centering
+\caption{Threat-class bond sizing. Percentages are bond as a fraction of expected task value. Bands are starting points for calibration, not protocol constants.}
+\label{tab:threat-bonds}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{2.6cm}>{\raggedright\arraybackslash}p{4.2cm}>{\raggedright\arraybackslash}p{1.7cm}>{\raggedright\arraybackslash}p{4.8cm}@{}}
+\toprule
+\textbf{Threat} & \textbf{Description} & \textbf{Bond \%} & \textbf{Rationale} \\
+\midrule
+Careless work & Agent tries; output is sloppy, partial, or fails review. & 10--25\% & Loses some, not all. Bonds at this band incentivize care without freezing out capable agents from cheap tasks. \\
+Abandonment & Agent takes the task and ghosts before completion. & 25--50\% & Covers the cost of onboarding a replacement: scope-note ingestion, partial-diff review, salvage handoff (\S\ref{sec:attribution-survives}). \\
+Active sabotage & Agent intentionally damages shared state. & 100--200\% & Covers full reconstruction of polluted files plus the cleanup of downstream agents that consumed the bad state. Capital-inefficient above 100\%, but acceptable for critical files where reconstruction cost dwarfs the bond. \\
+Data exfiltration & Agent reads and leaks confidential context. & --- (\SpecOnly) & Bonds are an inadequate deterrent: leaked context is worth far more than any feasible bond. Rely on capability scoping (Anchor~\S3.3) and isolation domains (\S\ref{sec:isolation}). \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The exfiltration row is an explicit gap. It exists in the table to make the limitation legible: a bonded commons does not stop information theft, because the value of leaked secrets can vastly exceed any bond a principal will rationally post. Confidentiality is a structural problem, not an economic one, and the answer lives in Layer~1 (capability-attenuated tokens, isolation domains) rather than Layer~3. The economic alignment of this paper is correct about damage to \emph{shared state}; it makes no claim about damage from \emph{disclosure of state to outsiders}.
+
+The threat-class table also informs Phase~2 of the bootstrap path below: graduated access begins by admitting new principals only to the careless-work and abandonment bands, with the active-sabotage band gated on accumulated reputation.
+
+\subsubsection{Bootstrap Path}\label{sec:pricing:bootstrap}
+
+Competitive insurance (\S\ref{sec:youle}) is a thick-market mechanism. It needs insurers with capital, principals with reputation history, and enough transaction volume that bidders can statistically distinguish good risks from bad. A cold-start deployment has none of that. The Pareto-dominance result of \S\ref{sec:youle:welfare} is the end-state; Phases~1--2 below are the path to it, not optional preamble.
+
+\paragraph{Phase 1 --- Subsidized seeding (weeks 1--4).}
+The marketplace operator posts real tasks at above-market rates and invites a small cohort of $5$--$10$ known-capable principals from an existing network. Bonds are fixed at a flat rate per task class; pricing is not a parameter to optimize yet, because there is no data to optimize against. The goal is to produce the first row of the reputation table: clean settlements, breaches, recovery times, observed cleanup cost $c$. The operator is subsidizing the existence of an audit log.
+
+\emph{Transition metric.} Completion rate above $80\%$ sustained for $\geq 2$ consecutive weeks. Below this threshold the cohort is not yet generating usable risk signal, and Phase~2 pricing will overfit to noise.
+
+\paragraph{Phase 2 --- Complexity-proportional pricing with graduated access (months 2--6).}
+The closed-form bond $\pi(\mathcal{F}, p) = c(1 + \alpha s)(1 - \rho)$ activates, with $\alpha$ calibrated from Phase~1 cleanup data and $\rho$ initialized from the Phase~1 reputation table. New principals enter at a low-risk tier: only the careless-work and abandonment bands of Table~\ref{tab:threat-bonds} are available. Promotion to the sabotage-coverage tier gates on accumulated clean settlements, mirroring the A5 composite mechanism (\S\ref{sec:youle:a5}).
+
+Reputation bootstrapping is the hard problem of this phase. A principal with verifiable work history from another deployment should not start at zero, but the operator cannot verify external histories directly. The mechanism is an \emph{attestation import}: external audit trails signed under an Anchor-issued key (\S\ref{sec:attribution}) earn partial reputation credit, capped well below an equivalent in-system history. The credit is partial because cross-deployment reputation does not control for local cleanup cost, and capped because a fraudulent attestation issuer is a single point of failure.
+
+\emph{Transition metric.} New-principal $30$-day retention above $50\%$. Lower retention indicates either the gating is too strict (principals churn before they can earn reputation) or the bond bands are mispriced relative to observed task value. Either way, the system is not ready for competitive bidding on top of these parameters.
+
+\paragraph{Phase 3 --- Competitive insurance (month 6+).}
+The \S\ref{sec:youle} mechanism activates: insurer agents bid on underwriting transactions, static parameters retire as insurer volume grows, and listing fees enable the cartel-resistance regime of \S\ref{sec:youle:a6}. The operator's pricing parameters become fallbacks rather than the primary mechanism; they apply only when fewer than a threshold number of insurer bids arrive on a transaction.
+
+\emph{Transition metric.} Repeat-poster rate above $60\%$. The competitive-insurance equilibrium of \S\ref{sec:youle:welfare} assumes repeated interaction; without repeat posters the insurers cannot recover information costs and will not bid competitively.
+
+\medskip
+
+The Pareto-dominance result of \S\ref{sec:youle:welfare} is conditional on Phase~3 being reached and the listed metrics being met. Phases~1--2 are not bureaucratic preamble: they generate the data the competitive-insurance market needs to price at all. A deployment that skips them is running \S\ref{sec:youle} on uninformative priors, and the dominance claim does not hold.
+
+\subsubsection{Settlement and Dispute}\label{sec:pricing:settlement}
+
+The settlement protocol described so far is one-shot: the daemon's verification result (\S\ref{sec:tlaplus}) triggers slashing, attribution is recorded immutably (\S\ref{sec:attribution}), and the appeals window of \S\ref{sec:economic} allows challenge. That is most of what is needed, but it places the daemon in a position no single component should occupy: simultaneously the verifier, the judge, and the arbiter of evidence. Strong evidence does not make a single oracle correct. It makes a single oracle confidently wrong in the cases where its evidence is incomplete.
+
+The fix is to factor settlement across three oracles with different cost and gameability profiles, and to settle on majority agreement rather than unanimous appeal.
+
+\paragraph{Oracle 1 --- Automated.}
+Test-suite pass/fail, type checks, lints, coverage thresholds, and any deterministic CI signal already recorded on the session. Cheap to run, fast to return, and \emph{gameable}: a principal who knows the test surface can ship work that passes the checks while failing the intent. The daemon already produces this oracle as a side effect of normal operation; the change is to label it as one signal among three rather than the dispositive one.
+
+\paragraph{Oracle 2 --- Evidence-based.}
+A verifier (which may itself be a bonded agent) reviews the Merkle attribution chain (\S\ref{sec:attribution}) for the disputed transaction. The chain is append-only and cryptographically bound, so the oracle's hard problem is not authenticity of the evidence but interpretation: did the recorded actions match the Float Plan's scope, and do the diffs produced match the acceptance criteria? Medium cost, hard to game without colluding with the chain structure itself, which is the threat model of \S\ref{sec:youle:a5}.
+
+\paragraph{Oracle 3 --- Human audit.}
+A randomized sample of contested settlements, at a configurable rate (default $10\%$), is routed to a human auditor. Expensive, slow, and authoritative. The audit produces a labeled outcome that feeds back into reputation history and, critically, into calibrating Oracles 1 and 2: any disagreement between human audit and the cheaper oracles is a training signal for the gameable layers.
+
+\paragraph{Settlement rule.}
+\begin{itemize}[nosep]
+  \item \emph{3-of-3 agreement.} Settle immediately on the agreed outcome. The cheaper oracles carry most of the volume in steady state.
+  \item \emph{2-of-3 agreement.} Settle with the majority. Flag the dissenting trace for review; this is the primary signal for tuning the gameable oracle.
+  \item \emph{No majority (three different verdicts, or one settle / one slash / one abstain).} Escalate to full human arbitration. Bond held in escrow until the human verdict lands.
+\end{itemize}
+
+\paragraph{Composition with cartel resistance.}
+Oracle collusion is itself a collusion problem. If Oracles 1 and 2 are run by agents in the same cartel, a 2-of-3 majority can launder a sabotaged settlement past the human audit, modulo the audit sampling rate. The same insurer-collusion analysis applies (\S\ref{sec:youle:a6}) with the oracles in the role of bidders: the human-audit sampling rate $\sigma$ sets the detection probability $p_d^{\text{oracle}} = \sigma$ for the oracle layer, and the folk-theorem threshold becomes a calibration target on $\sigma$ in the same way it is a calibration target on bid-pattern detection elsewhere in the protocol. The default $10\%$ sample is a starting point; deployments where Oracles 1 and 2 are co-owned should raise it.
 
 \subsubsection{The Bonded Advisor}\label{sec:bonded-advisor}
 
