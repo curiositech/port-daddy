@@ -736,7 +736,24 @@ $B_{\mathrm{dep}}^{\star} \approx 316$ USD. \emph{Empirically the attack remains
   \label{fig:sybil-mc-inline}
 \end{figure}
 
-\emph{Closing A5 requires a composite mechanism}: an unrecoverable per-identity onboarding cost $C_{\mathrm{kyc}}$ (proof-of-personhood, KYC fee, or NFT mint), reputation gating that caps new identities to low-coverage transactions until they accumulate a track record, and per-class $B_{\mathrm{dep}}$ tuned to saturate the coverage cap exactly. This is a real revision to the \S\ref{sec:youle} mechanism design and is recorded honestly in the v2.6 cartel-resilience analysis (see \S\ref{app:mech}).
+\emph{Closing A5 requires a composite mechanism}: an unrecoverable per-identity onboarding cost $C_{\mathrm{kyc}}$ (proof-of-personhood, KYC fee, or NFT mint), reputation gating that caps new identities to low-coverage transactions until they accumulate a track record, and per-class $B_{\mathrm{dep}}$ tuned to saturate the coverage cap exactly. This is a real revision to the \S\ref{sec:youle} mechanism design and is recorded honestly in the cartel-resilience analysis (see \S\ref{app:mech}).
+
+\subsubsection{A6 --- Cartel sustainability under the folk theorem}\label{sec:youle:a6}
+
+A5 considers a single-round attack: a Sybil identity bids low, wins, defaults. A6 generalizes to the \emph{repeated game}: a coalition of insurers maintains a price floor $q_{\mathrm{floor}} > q^*$ above the competitive equilibrium, splits the surplus, and uses grim-trigger punishment to deter unilateral deviation. The folk theorem says any individually rational outcome is sustainable in the limit of infinite repetition; the question for the protocol designer is how strong the daemon's \emph{detection} of cartel pricing has to be to break that sustainability at realistic discount factors.
+
+Figure~\ref{fig:cartel-game-inline} shows the per-round decision node and the closed-form sustainability inequality.
+
+\input{figures/fig-cartel-game-inline}
+
+A Monte Carlo sweep over the $(p_d, \delta)$ grid confirms the closed-form threshold empirically (Figure~\ref{fig:cartel-folk}). The headline at the realistic discount factor $\delta = 0.95$ is $p_d^\star \approx 0.10$: a protocol must achieve at least $10\%$ per-round detection of cartel pricing to break the repeated-game equilibrium. This is a falsifiable goal for the Anchor Protocol's bid-pattern detection (Merkle-Forest binding $+$ bid-pattern heat~\cite{owens2026anchor}, \S6.4).
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{figures/fig-cartel-folk-theorem.pdf}
+  \caption{A6 --- Repeated-game cartel folk-theorem. Left: sustainability map over the $(p_d, \delta)$ grid; red cells are configurations where the grim-trigger cartel beats one-shot defection in expected PV (sustainable), white cells are where it does not (collapses). The thick black vertical bars mark the per-row threshold $p_d^\star$. Right: mean cartel lifespan (rounds until first detection) vs.\ $p_d$, one line per discount factor $\delta$. At the realistic $\delta = 0.95$, $p_d^\star \approx 0.10$: protocols must achieve $\ge 10\%$ per-round detection to break repeated-game cartels.}
+  \label{fig:cartel-folk}
+\end{figure}
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Coordination as Substrate: An Expressive-Act Taxonomy}\label{sec:taxonomy}
@@ -1021,6 +1038,10 @@ The implementation choice (a particular cloud platform, an on-prem HSM, a self-h
 $\mathrm{TB} = \mathit{daemon} \cup \mathcal{K} \cup \mathit{user{\text{-}}email} \cup \mathit{user{\text{-}}passphrase}$.
 Each element is necessary for its role; no element is sufficient alone. The daemon enforces bonds and publishes roots but never sees the unwrapped user master. The KMS stores encrypted blobs and can deny service but cannot decrypt. Email is the recovery root---and is documented as the weakest link, since an adversary with email control can trigger magic-link recovery. The passphrase wraps the user's master with Argon2id, making offline brute force expensive.
 
+\paragraph{Magic-link single-use atomicity.} The email-gated recovery path requires that each emitted magic-link token be redeemable \emph{exactly once}---otherwise a race window between two consumers can produce two valid recovery completions for the same token. The ProVerif model encodes the property as an injective event: $\mathrm{inj\text{-}event}(\texttt{consumed\_for}) \Rightarrow \mathrm{inj\text{-}event}(\texttt{issued\_for})$. The runtime analogue is a single atomic SQL update with a \texttt{WHERE consumed\_at IS NULL RETURNING} clause; SQLite's writer serialization drains the token under the first transaction and returns zero rows to any subsequent transaction. Figure~\ref{fig:magic-link-inline} shows the model and the runtime side by side.
+
+\input{figures/fig-magic-link-inline}
+
 \begin{theorem}[Federated Security, informal]\label{thm:federated-security}
 Assuming Ed25519 and SHA-256 are secure, Argon2id parameters meet the 2026 security floor, and the user's email and passphrase are not simultaneously compromised, an adversary with read access to $\mathcal{K}$'s storage, the daemon's SQLite database, and mesh gossip traffic, but \emph{without} same-user code execution on the daemon's host, cannot:
 (i) forge a Harbor Card without the daemon's private key,
@@ -1104,26 +1125,6 @@ Federated KMS Cloudflare Worker & --- & \SpecOnly\ model exists; no Worker yet &
 \paragraph{Limitations.} Four mechanizations are carried indefinitely behind the empirical evidence above: a PROM-formal Merkle binding in EasyCrypt; a Coq or Lean mechanization of the Pareto strategic game; a formal analysis of the composite Sybil-deterrence mechanism ($C_{\mathrm{kyc}}$ $+$ reputation gating $+$ per-class $B_{\mathrm{dep}}$); and a multi-class generalization of the repeated-game cartel result to heterogeneous coordination classes (\S\ref{sec:taxonomy}). These are documented as known open problems rather than as defects in the present claims, which stand on their stated evidence.
 
 % ═══════════════════════════════════════════════════════════════════════════════
-% ═══════════════════════════════════════════════════════════════════════════════
-\section{Algorithm Diagrams}\label{app:algorithms}
-
-This appendix visualizes the load-bearing algorithms whose correctness is established in Appendix~\ref{app:mech}. Each figure is a normative reference for implementers: the diagram is the contract, the prose around it is commentary.
-
-\input{figures/appendix-figures}
-
-% ═══════════════════════════════════════════════════════════════════════════════
-\section{Monte Carlo Visualizations (cartel folk-theorem)}\label{app:montecarlo}
-
-The Pareto-dominance and Sybil-deposit-floor Monte Carlo charts are placed inline next to their respective discussions (Figures~\ref{fig:pareto-mc-inline} and~\ref{fig:sybil-mc-inline} in \S\ref{sec:youle:welfare}--\S\ref{sec:youle:a5}). This appendix carries only the A6 repeated-game cartel sweep, whose finer-grain $(p_d, \delta)$ grid is supplementary to the body discussion. Raw run logs and the rendering script are bundled at \url{https://portdaddy.dev/whitepaper/artifacts/}.
-
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=\textwidth]{figures/fig-cartel-folk-theorem.pdf}
-  \caption{A6 --- Repeated-game cartel folk-theorem. Left: sustainability map over the $(p_d, \delta)$ grid; red cells are configurations where the grim-trigger cartel beats one-shot defection in expected PV (sustainable), white cells are where it does not (collapses). The thick black vertical bars mark the per-row threshold $p_d^\star$. Right: mean cartel lifespan (rounds until first detection) vs.\ $p_d$, one line per discount factor $\delta$. At the realistic $\delta = 0.95$, $p_d^\star \approx 0.10$: protocols must achieve $\ge 10\%$ per-round detection to break repeated-game cartels.}
-  \label{fig:cartel-folk}
-\end{figure}
-
-% ═══════════════════════════════════════════════════════════════════════════════
 \section{Worked Example: One Agent, All Layers}\label{app:worked}
 % ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1194,7 +1195,7 @@ These exercises are for instructors using this paper in a systems, mechanism-des
 
 \paragraph{E4 (Coverage-bound A5).} The A5 finding (\S\ref{sec:youle:a5}) shows that pure deposit deterrence is bounded by the auction coverage $B_T = \mu(1+s)$. Construct an attacker who exploits this bound directly. Then construct a defense---other than ``raise the deposit''---that defeats the attacker. Hint: see the composite mechanism $C_{kyc} + \text{reputation gating} + B_{dep}^{\text{per-class}}$.
 
-\paragraph{E5 (Cartel folk-theorem).} Using the A6 grid (\S\ref{app:montecarlo}, Figure~\ref{fig:cartel-folk}), compute the minimum per-round detection probability $p_d^\star$ at $\delta = 0.99$. Then argue, qualitatively, what would change if cartel members can re-enter under fresh identities. Does the bond mechanism prevent re-entry, deter it, or merely price it?
+\paragraph{E5 (Cartel folk-theorem).} Using the A6 grid (\S\ref{sec:youle:a6}, Figure~\ref{fig:cartel-folk}), compute the minimum per-round detection probability $p_d^\star$ at $\delta = 0.99$. Then argue, qualitatively, what would change if cartel members can re-enter under fresh identities. Does the bond mechanism prevent re-entry, deter it, or merely price it?
 
 \paragraph{E6 (Capability attenuation).} An agent $\alpha$ holds a Harbor Card with \texttt{fs:write:auth.ts}, \texttt{db:read}, TTL = $15$~minutes. $\alpha$ delegates to $\beta$ a card with \texttt{fs:write:auth.ts}, TTL = $20$~minutes. The verifier rejects this delegation. Cite the specific attenuation invariant violated. Now rewrite $\beta$'s requested card to be acceptable.
 
