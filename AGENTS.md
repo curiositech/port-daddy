@@ -240,6 +240,24 @@ list is the recovery surface.
 - The public website deploy target is Cloudflare Pages project `port-daddy`, serving `port-daddy.pages.dev` and `portdaddy.dev`. Build with `npm --prefix website-v2 run build`, then deploy from `website-v2/` with `npx wrangler pages deploy dist --project-name port-daddy --branch main --commit-hash "$(git rev-parse HEAD)" --commit-message "$(git log -1 --pretty=%s)"`.
 - Deploy from a clean checkout or clean temporary worktree. If `origin/main` moved after your local website commit, deploy latest `origin/main` unless the user explicitly requested a specific commit. After deploy, smoke `https://portdaddy.dev/...` and at least one changed asset/page; for visual work, verify with Playwright or the in-app browser instead of trusting Wrangler success alone.
 
+### Blog Post Hard Requirements
+
+Any PR that adds, rewrites, or runs a "voice pass" on a post under `website-v2/src/data/blog/` MUST satisfy the following before merging. These are floors, not aspirations — a "voice pass" that skips them is a process bug.
+
+1. **Run the `port-daddy-marketing-copy` skill on every touched post.** The skill at `skills/port-daddy-marketing-copy/SKILL.md` is mandatory. Read it before editing. The "Seven rewriting moves" and the "How to know you're done" checklist are the success criteria.
+2. **Cold-start framing in the first three paragraphs.** Port Daddy has zero users. Assume the reader has never heard of it. No insider jargon, no "as we discussed in PR #X," no unexplained primitives. Show the problem before naming the system.
+3. **TL;DR up top.** Two sentences. What does the post argue? Why should the reader care?
+4. **At least 2 nano-banana / Gemini-generated images** — one hero, at least one inline. Use the `nano-banana-image-gen` skill or the existing Qwen Image pipeline. Generic placeholder art from `/img/generated/` does NOT count. Custom imagery only.
+5. **At least 2 diagrams** — mermaid, sequence, flowchart, illustration, doodle, or annotated screenshot. Diagrams explain joinery; prose alone is harder to remember.
+6. **At least 3 deep links** — to the whitepaper, related posts, docs pages, primitive references, or external authority (skill catalog, ADRs). If the post mentions a concept that has its own page, link it inline.
+7. **At least one concrete villain / vivid example.** Not "expected loss"; "the agent that locks every file in the repo and walks away at 4am." Specific scenarios beat abstractions. Make the reader feel the failure mode.
+8. **Closing CTA.** Install command, next post in the series, or a deeper doc. Never end on a sentence that doesn't move the reader.
+
+### Blog post layout
+
+- Article container is `max-w-[80ch]` (~720px). Hero image is `max-w-6xl`. Both are intentional and must not regress to `max-w-prose` (~600px feels like a column in a void on desktop).
+- Byline uses `text-sm sm:text-base` with the author name in `text-text-primary` (NOT muted). The author is the highest-trust signal on the page; treat them that way.
+
 ## Current Gotchas
 
 - If multiple Port Daddy checkouts exist, duplicate fleet names can make project selection and routing look broken unless everything keys by `projectDir`.
