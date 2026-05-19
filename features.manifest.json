@@ -976,12 +976,18 @@
         "cockpit"
       ],
       "sdk": [
-        "cockpitMissions"
+        "cockpitMissions",
+        "cockpitDismissMission",
+        "cockpitSnoozeMission",
+        "cockpitClearMissionState"
       ],
       "routes": [
         "GET /cockpit/missions",
         "GET /cockpit/missions/:param",
-        "POST /cockpit/missions/:param/plan"
+        "POST /cockpit/missions/:param/plan",
+        "POST /cockpit/missions/:param/dismiss",
+        "POST /cockpit/missions/:param/snooze",
+        "DELETE /cockpit/missions/:param/state"
       ],
       "completions": [
         "cockpit"

@@ -418,3 +418,157 @@ describe('GET /cockpit/missions/:id and POST /cockpit/missions/:id/plan', () => 
     }
   });
 });
+
+describe('Cockpit mission-state mutation routes', () => {
+  let app;
+  let fixtureRoot;
+  let stateCalls;
+
+  beforeAll(async () => {
+    fixtureRoot = makeFixture();
+    stateCalls = [];
+    const stateStub = {
+      get: () => null,
+      listForProject: () => new Map(),
+      set: () => null,
+      dismiss: (projectDir, missionId, notes) => {
+        stateCalls.push({ op: 'dismiss', projectDir, missionId, notes });
+        return {
+          missionId,
+          projectDir,
+          dismissedAt: 1700000000000,
+          snoozedUntil: null,
+          plannedSortieId: null,
+          notes,
+          updatedAt: 1700000000000,
+        };
+      },
+      snooze: (projectDir, missionId, until, notes) => {
+        stateCalls.push({ op: 'snooze', projectDir, missionId, until, notes });
+        return {
+          missionId,
+          projectDir,
+          dismissedAt: null,
+          snoozedUntil: until,
+          plannedSortieId: null,
+          notes,
+          updatedAt: 1700000000000,
+        };
+      },
+      clear: (projectDir, missionId, field) => {
+        stateCalls.push({ op: 'clear', projectDir, missionId, field });
+        return field === 'all' ? null : { missionId, projectDir, dismissedAt: null, snoozedUntil: null, plannedSortieId: null, notes: null, updatedAt: 1700000000000 };
+      },
+    };
+    app = Fastify({ logger: false });
+    await app.register(cockpitPlugin, {
+      deps: {
+        repoRoot: fixtureRoot,
+        metrics: { errors: 0 },
+        logger: { info() {}, error() {} },
+        cockpitMissionState: stateStub,
+      },
+    });
+  });
+
+  afterAll(async () => {
+    await app.close();
+    rmSync(fixtureRoot, { recursive: true, force: true });
+  });
+
+  test('POST /dismiss returns 200 with state body', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/cockpit/missions/m-1/dismiss',
+      payload: { notes: 'not now' },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.success).toBe(true);
+    expect(body.state.missionId).toBe('m-1');
+    expect(body.state.dismissedAt).toBeGreaterThan(0);
+    expect(stateCalls.some((c) => c.op === 'dismiss' && c.missionId === 'm-1' && c.notes === 'not now')).toBe(true);
+  });
+
+  test('POST /snooze accepts epoch ms', async () => {
+    const until = Date.now() + 86400000;
+    const res = await app.inject({
+      method: 'POST',
+      url: '/cockpit/missions/m-2/snooze',
+      payload: { until, notes: 'tomorrow' },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().state.snoozedUntil).toBe(until);
+  });
+
+  test('POST /snooze accepts ISO 8601', async () => {
+    const future = new Date(Date.now() + 3600000).toISOString();
+    const res = await app.inject({
+      method: 'POST',
+      url: '/cockpit/missions/m-3/snooze',
+      payload: { until: future },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().state.snoozedUntil).toBe(Date.parse(future));
+  });
+
+  test('POST /snooze rejects past timestamps', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/cockpit/missions/m-4/snooze',
+      payload: { until: Date.now() - 60000 },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toMatch(/future/i);
+  });
+
+  test('DELETE /state with field=all returns null state', async () => {
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/cockpit/missions/m-5/state?field=all',
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().state).toBeNull();
+  });
+
+  test('DELETE /state rejects unknown field', async () => {
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/cockpit/missions/m-6/state?field=bogus',
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  test('mutation routes return 503 when cockpitMissionState dep is absent', async () => {
+    const bare = Fastify({ logger: false });
+    await bare.register(cockpitPlugin, {
+      deps: {
+        repoRoot: fixtureRoot,
+        metrics: { errors: 0 },
+        logger: { info() {}, error() {} },
+      },
+    });
+    try {
+      const res = await bare.inject({
+        method: 'POST',
+        url: '/cockpit/missions/m-x/dismiss',
+        payload: {},
+      });
+      expect(res.statusCode).toBe(503);
+      expect(res.json().error).toMatch(/not wired/);
+    } finally {
+      await bare.close();
+    }
+  });
+
+  test('GET /cockpit/missions merges state into each card when module is wired', async () => {
+    const res = await app.inject({ method: 'GET', url: '/cockpit/missions' });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.success).toBe(true);
+    for (const m of body.intake.missions) {
+      expect(m).toHaveProperty('state');
+      expect(m.state === null || typeof m.state === 'object').toBe(true);
+    }
+  });
+});

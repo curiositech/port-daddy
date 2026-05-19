@@ -59,6 +59,7 @@ import { createSugar } from './lib/sugar.js';
 import { createHarbors } from './lib/harbors.js';
 import { createHarborTokens } from './lib/harbor-tokens.js';
 import { createSorties } from './lib/sorties.js';
+import { createCockpitMissionState } from './lib/cockpit-mission-state.js';
 import { createPheromoneManager } from './lib/pheromone.js';
 import { createReactiveOrchestrator } from './lib/orchestrator.js';
 import { createCorrelationEngine } from './lib/correlation.js';
@@ -396,6 +397,7 @@ const harborTokens = createHarborTokens(db);
 await harborTokens.initDaemonIdentity();
 const harbors = createHarbors(db, { harborTokens });
 const sorties = createSorties(db, { episodicMemory });
+const cockpitMissionState = createCockpitMissionState(db);
 
 // Bond escrow + budget guard — FleetControl hardening. Built BEFORE
 // cost-tracker and spawner so they can inject it as a dep (enforcement
@@ -829,6 +831,7 @@ await registerAllRoutes(
     harbors, sorties, orchestrator, correlationEngine, spawner, tuples, blobs, fleetDaemon,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, counters, metricsRegistry,
     quorum, resourceGovernance, feedback,
+    cockpitMissionState,
     bonds, budgetGuard, budgetPause,
     arbiter, bosunHeartbeat,
     VERSION, CODE_HASH, STARTED_AT, __dirname, repoRoot: REPO_ROOT,

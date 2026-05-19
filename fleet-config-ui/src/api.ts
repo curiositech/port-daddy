@@ -41,6 +41,7 @@ import type {
   UsageTelemetrySummary,
   UsageTraceInput,
   MissionIntake,
+  MissionState,
 } from './types';
 
 const CANONICAL_PREFERRED_DAEMON_URL = 'http://127.0.0.1:9876';
@@ -352,6 +353,47 @@ export async function fetchCockpitMissions(
     `/cockpit/missions${qs ? `?${qs}` : ''}`,
   );
   return payload.intake;
+}
+
+function buildMissionStateUrl(missionId: string, suffix: string, projectDir?: string): string {
+  const params = new URLSearchParams();
+  if (projectDir) params.set('projectDir', projectDir);
+  const qs = params.toString();
+  return `/cockpit/missions/${encodeURIComponent(missionId)}/${suffix}${qs ? `?${qs}` : ''}`;
+}
+
+export async function dismissCockpitMission(input: {
+  missionId: string;
+  projectDir?: string;
+  notes?: string;
+}): Promise<{ success: boolean; state: MissionState | null }> {
+  return post(buildMissionStateUrl(input.missionId, 'dismiss', input.projectDir), {
+    notes: input.notes,
+  });
+}
+
+export async function snoozeCockpitMission(input: {
+  missionId: string;
+  until: number | string;
+  projectDir?: string;
+  notes?: string;
+}): Promise<{ success: boolean; state: MissionState | null }> {
+  return post(buildMissionStateUrl(input.missionId, 'snooze', input.projectDir), {
+    until: input.until,
+    notes: input.notes,
+  });
+}
+
+export async function clearCockpitMissionState(input: {
+  missionId: string;
+  field?: 'dismissed' | 'snoozed' | 'plannedSortie' | 'all';
+  projectDir?: string;
+}): Promise<{ success: boolean; state: MissionState | null }> {
+  const params = new URLSearchParams();
+  if (input.projectDir) params.set('projectDir', input.projectDir);
+  if (input.field) params.set('field', input.field);
+  const qs = params.toString();
+  return del(`/cockpit/missions/${encodeURIComponent(input.missionId)}/state${qs ? `?${qs}` : ''}`);
 }
 
 export async function fetchCoordinationGuard(projectDir: string): Promise<CoordinationGuardEnvelope> {

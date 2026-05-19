@@ -16,6 +16,7 @@ import { basename } from 'node:path';
 import { readFileSync, statSync } from 'node:fs';
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import { readMissions, type MissionCard, type MissionIntake, type MissionStatus } from '../lib/cockpit-missions.js';
+import type { CockpitMissionStateModule, MissionState } from '../lib/cockpit-mission-state.js';
 import { validateProjectRoot } from '../lib/utils.js';
 
 function deriveProjectName(projectDir: string): string {
@@ -60,6 +61,21 @@ interface CockpitDeps {
   sessions?: SessionsDep;
   resurrection?: ResurrectionDep;
   feedback?: FeedbackDep;
+  cockpitMissionState?: CockpitMissionStateModule;
+}
+
+export interface MissionWithState extends MissionCard {
+  state: MissionState | null;
+}
+
+function attachState(
+  missions: MissionCard[],
+  projectDir: string,
+  module?: CockpitMissionStateModule,
+): MissionWithState[] {
+  if (!module) return missions.map((m) => ({ ...m, state: null }));
+  const stateMap = module.listForProject(projectDir);
+  return missions.map((m) => ({ ...m, state: stateMap.get(m.id) ?? null }));
 }
 
 const ALLOWED_STATUSES: ReadonlySet<MissionStatus> = new Set<MissionStatus>([
@@ -362,7 +378,12 @@ export const cockpitPlugin: FastifyPluginAsync<{ deps: CockpitDeps }> = async (f
 
     try {
       const intake = readMissions({ projectDir, status, limit });
-      return { success: true, intake, count: intake.missions.length };
+      const missions = attachState(intake.missions, projectDir, deps.cockpitMissionState);
+      return {
+        success: true,
+        intake: { ...intake, missions },
+        count: missions.length,
+      };
     } catch (error) {
       metrics.errors++;
       logger.error('cockpit_missions_error', { error: (error as Error).message });
@@ -397,8 +418,10 @@ export const cockpitPlugin: FastifyPluginAsync<{ deps: CockpitDeps }> = async (f
         reply.code(404);
         return { success: false, error: `mission '${id}' not found` };
       }
+      const state = deps.cockpitMissionState?.get(projectDir, mission.id) ?? null;
+      const missionWithState: MissionWithState = { ...mission, state };
       const live = buildLiveContext(deps, mission, projectDir);
-      return { success: true, mission, live };
+      return { success: true, mission: missionWithState, live };
     } catch (error) {
       metrics.errors++;
       logger.error('cockpit_mission_detail_error', { error: (error as Error).message });
@@ -444,6 +467,131 @@ export const cockpitPlugin: FastifyPluginAsync<{ deps: CockpitDeps }> = async (f
     } catch (error) {
       metrics.errors++;
       logger.error('cockpit_mission_plan_error', { error: (error as Error).message });
+      reply.code(500);
+      return { success: false, error: 'internal server error' };
+    }
+  });
+
+  function requireStateModule(reply: FastifyReply): CockpitMissionStateModule | null {
+    if (!deps.cockpitMissionState) {
+      reply.code(503);
+      reply.send({ success: false, error: 'cockpit mission state module not wired' });
+      return null;
+    }
+    return deps.cockpitMissionState;
+  }
+
+  function resolveMutationContext(
+    request: FastifyRequest,
+    reply: FastifyReply,
+  ): { projectDir: string; id: string } | null {
+    const params = request.params as Record<string, unknown>;
+    const id = typeof params.id === 'string' ? params.id : '';
+    if (!id) {
+      reply.code(400);
+      reply.send({ success: false, error: 'mission id required' });
+      return null;
+    }
+    const q = (request.query as Record<string, unknown>) ?? {};
+    const projectDir = resolveProjectDir(q, repoRoot);
+    if (!projectDir) {
+      reply.code(400);
+      reply.send({ success: false, error: 'projectDir required (no daemon repoRoot configured)' });
+      return null;
+    }
+    const validation = validateProjectRoot(projectDir);
+    if (!validation.ok) {
+      reply.code(400);
+      reply.send({ success: false, error: validation.error });
+      return null;
+    }
+    return { projectDir, id };
+  }
+
+  function readNotes(body: unknown): string | null {
+    if (!body || typeof body !== 'object') return null;
+    const notes = (body as Record<string, unknown>).notes;
+    if (typeof notes === 'string' && notes.trim().length > 0) return notes.trim().slice(0, 2000);
+    return null;
+  }
+
+  function readUntil(body: unknown): number | { error: string } {
+    if (!body || typeof body !== 'object') {
+      return { error: 'body required with `until` (epoch ms or ISO 8601 string)' };
+    }
+    const raw = (body as Record<string, unknown>).until;
+    const now = Date.now();
+    if (typeof raw === 'number' && Number.isFinite(raw) && raw > now) return Math.floor(raw);
+    if (typeof raw === 'string' && raw.trim()) {
+      const n = Date.parse(raw);
+      if (Number.isFinite(n) && n > now) return n;
+      const asNumber = Number(raw);
+      if (Number.isFinite(asNumber) && asNumber > now) return Math.floor(asNumber);
+    }
+    return { error: '`until` must be a future epoch-ms number or ISO 8601 timestamp' };
+  }
+
+  fastify.post('/cockpit/missions/:id/dismiss', async (request: FastifyRequest, reply: FastifyReply) => {
+    const state = requireStateModule(reply);
+    if (!state) return reply;
+    const ctx = resolveMutationContext(request, reply);
+    if (!ctx) return reply;
+    try {
+      const next = state.dismiss(ctx.projectDir, ctx.id, readNotes(request.body));
+      return { success: true, state: next };
+    } catch (error) {
+      metrics.errors++;
+      logger.error('cockpit_mission_dismiss_error', { error: (error as Error).message });
+      reply.code(500);
+      return { success: false, error: 'internal server error' };
+    }
+  });
+
+  fastify.post('/cockpit/missions/:id/snooze', async (request: FastifyRequest, reply: FastifyReply) => {
+    const state = requireStateModule(reply);
+    if (!state) return reply;
+    const ctx = resolveMutationContext(request, reply);
+    if (!ctx) return reply;
+    const until = readUntil(request.body);
+    if (typeof until !== 'number') {
+      reply.code(400);
+      return { success: false, error: until.error };
+    }
+    try {
+      const next = state.snooze(ctx.projectDir, ctx.id, until, readNotes(request.body));
+      return { success: true, state: next };
+    } catch (error) {
+      metrics.errors++;
+      logger.error('cockpit_mission_snooze_error', { error: (error as Error).message });
+      reply.code(500);
+      return { success: false, error: 'internal server error' };
+    }
+  });
+
+  fastify.delete('/cockpit/missions/:id/state', async (request: FastifyRequest, reply: FastifyReply) => {
+    const stateModule = requireStateModule(reply);
+    if (!stateModule) return reply;
+    const ctx = resolveMutationContext(request, reply);
+    if (!ctx) return reply;
+    const q = (request.query as Record<string, unknown>) ?? {};
+    const rawField = typeof q.field === 'string' ? q.field : 'all';
+    if (!['dismissed', 'snoozed', 'plannedSortie', 'all'].includes(rawField)) {
+      reply.code(400);
+      return {
+        success: false,
+        error: '`field` must be one of: dismissed, snoozed, plannedSortie, all',
+      };
+    }
+    try {
+      const next = stateModule.clear(
+        ctx.projectDir,
+        ctx.id,
+        rawField as 'dismissed' | 'snoozed' | 'plannedSortie' | 'all',
+      );
+      return { success: true, state: next };
+    } catch (error) {
+      metrics.errors++;
+      logger.error('cockpit_mission_clear_state_error', { error: (error as Error).message });
       reply.code(500);
       return { success: false, error: 'internal server error' };
     }

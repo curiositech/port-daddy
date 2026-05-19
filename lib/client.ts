@@ -3226,6 +3226,61 @@ class PortDaddy {
     ) as Promise<CockpitMissionsResponse>;
   }
 
+  /**
+   * Mark a mission card as dismissed. Persists across reloads. Pair with
+   * `cockpitClearMissionState({field: 'dismissed'})` to restore it.
+   */
+  async cockpitDismissMission(options: {
+    missionId: string;
+    projectDir?: string;
+    notes?: string;
+  }): Promise<CockpitMissionStateResponse> {
+    const params = new URLSearchParams();
+    if (options.projectDir) params.set('projectDir', options.projectDir);
+    const suffix = params.toString();
+    const path = `/cockpit/missions/${encodeURIComponent(options.missionId)}/dismiss${suffix ? `?${suffix}` : ''}`;
+    return this._request('POST', path, { notes: options.notes }) as Promise<CockpitMissionStateResponse>;
+  }
+
+  /**
+   * Snooze a mission card until a future timestamp (epoch ms or ISO 8601
+   * string). Mission re-enters the default view once `until` has passed —
+   * the UI is responsible for filtering on snoozedUntil.
+   */
+  async cockpitSnoozeMission(options: {
+    missionId: string;
+    until: number | string;
+    projectDir?: string;
+    notes?: string;
+  }): Promise<CockpitMissionStateResponse> {
+    const params = new URLSearchParams();
+    if (options.projectDir) params.set('projectDir', options.projectDir);
+    const suffix = params.toString();
+    const path = `/cockpit/missions/${encodeURIComponent(options.missionId)}/snooze${suffix ? `?${suffix}` : ''}`;
+    return this._request('POST', path, {
+      until: options.until,
+      notes: options.notes,
+    }) as Promise<CockpitMissionStateResponse>;
+  }
+
+  /**
+   * Clear a single mission-state field, or delete the row entirely with
+   * `field: 'all'`. Use to undo dismiss/snooze or detach a stale sortie
+   * pointer.
+   */
+  async cockpitClearMissionState(options: {
+    missionId: string;
+    field?: 'dismissed' | 'snoozed' | 'plannedSortie' | 'all';
+    projectDir?: string;
+  }): Promise<CockpitMissionStateResponse> {
+    const params = new URLSearchParams();
+    if (options.projectDir) params.set('projectDir', options.projectDir);
+    if (options.field) params.set('field', options.field);
+    const suffix = params.toString();
+    const path = `/cockpit/missions/${encodeURIComponent(options.missionId)}/state${suffix ? `?${suffix}` : ''}`;
+    return this._request('DELETE', path) as Promise<CockpitMissionStateResponse>;
+  }
+
   // Harbors -- Named Permission Namespaces
 
   async createHarbor(name: string, options: CreateHarborOptions = {}): Promise<HarborResponse> {
@@ -4040,6 +4095,22 @@ export type CockpitMissionStatus =
   | 'in-flight'
   | 'unknown';
 
+export interface CockpitMissionState {
+  missionId: string;
+  projectDir: string;
+  dismissedAt: number | null;
+  snoozedUntil: number | null;
+  plannedSortieId: string | null;
+  notes: string | null;
+  updatedAt: number;
+}
+
+export interface CockpitMissionStateResponse {
+  success: boolean;
+  state?: CockpitMissionState | null;
+  error?: string;
+}
+
 export interface CockpitMissionCard {
   id: string;
   title: string;
@@ -4050,6 +4121,13 @@ export interface CockpitMissionCard {
   evidence: string[];
   files: string[];
   updatedAt: number;
+  /**
+   * Persisted operator state for this mission (dismissed/snoozed/planned
+   * sortie). Null when the daemon has no state row for the mission.
+   * Always present in route-layer responses; undefined when the SDK
+   * type is used for a pure markdown reader.
+   */
+  state?: CockpitMissionState | null;
 }
 
 export interface CockpitMissionIntake {

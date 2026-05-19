@@ -455,6 +455,16 @@ export type MissionStatus =
   | 'in-flight'
   | 'unknown';
 
+export interface MissionState {
+  missionId: string;
+  projectDir: string;
+  dismissedAt: number | null;
+  snoozedUntil: number | null;
+  plannedSortieId: string | null;
+  notes: string | null;
+  updatedAt: number;
+}
+
 export interface MissionCard {
   id: string;
   title: string;
@@ -465,6 +475,7 @@ export interface MissionCard {
   evidence: string[];
   files: string[];
   updatedAt: number;
+  state?: MissionState | null;
 }
 
 export interface MissionIntake {
