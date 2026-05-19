@@ -284,8 +284,17 @@ pd spawned
 # Kill a running agent
 pd spawn kill <agent-id>
 
-# Watch a logical channel and auto-trigger scripts
-pd watch git:committed --exec './fleet/qa-adversary.sh'
+# Inspect the parent->child ancestry tree for any session
+pd spawn tree <session-id>
+
+# Fan out N spawns and gather under a policy
+#   first    — wait for first success, kill the rest, return its result
+#   majority — wait for ceil(N/2)+1 successes, kill the rest
+#   quorum=K — wait for K successes, kill the rest
+#   race     — wait for first to settle (success OR failure), kill the rest
+#   all      — wait for all N (current default, preserved)
+pd spawn --parallel 3 --gather first --backend claude --budget 0.25 \
+  --identity myapp:probe -- "Find the root cause of bug 1234"
 ```
 
 Operator-facing launches are fail-closed on telemetry. Port Daddy rejects a launch unless it can attach exact token counts, an exact nonzero rate, and a persisted exact nonzero cost record to the completed run.
@@ -296,7 +305,20 @@ Internal code paths use the same rule: `createSpawner()` defaults telemetry enfo
 
 **Backends in source:** `ollama`, `claude`, `claude-cli`, `gemini`, `cloudflare`, `codex`, `aider`, `custom`
 
-**Key flags:** `--backend`, `--model`, `--tier`, `--identity`, `--purpose`, `--budget`, `--allowedTools` (claude-cli), `--maxTokens`, `--workdir`, `--timeout`
+**Key flags:** `--backend`, `--model`, `--tier`, `--identity`, `--purpose`, `--budget`, `--allowedTools` (claude-cli), `--maxTokens`, `--workdir`, `--timeout`, `--from-session`, `--max-depth`, `--parallel`, `--gather`
+
+### Ancestry tracking + cycle detection
+
+Every `pd spawn` records a parent→child link in `spawn_ancestry`. The daemon refuses two foot-guns before any bond is escrowed:
+
+- **Cycles** — if agent A spawns agent B which tries to spawn agent A (or any identity already in the chain), the spawn is refused with a `CycleDetectedError` that prints the full chain.
+- **Depth runaway** — chains beyond the default ceiling (`MAX_SPAWN_DEPTH=4`) are refused with a `MaxDepthError`. Override per-spawn with `--max-depth N`.
+
+When `pd spawn` runs from inside an active session (i.e. `pd begin` wrote `.portdaddy/current.json`, or `PD_SESSION_ID` is set), the parent session id is captured automatically. Pass `--from-session <id>` to override.
+
+### Gather policies for parallel spawn
+
+`--parallel N --gather <policy>` fans out N spawns and aggregates under a coordination rule. The legacy `--parallel`-less behavior is unchanged. Policy responses use a `mode: 'parallel'` envelope with `winner`, `killed`, and `all` arrays. Killed siblings receive SIGTERM then SIGKILL after a 5s grace.
 
 Quiet mode (`-q`) prints raw output to stdout and exits non-zero on failure — perfect for shell scripts:
 ```bash

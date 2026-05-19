@@ -11,9 +11,18 @@ import type { SpawnSpec, Spawner } from '../lib/spawner.js';
 import { assessSpawnPreflight } from '../lib/spawn-preflight.js';
 import type { CostTracker } from '../lib/cost-tracker.js';
 import type { FleetModelTier, FleetRuntimeTarget } from '../lib/fleet-engine.js';
+import type { Ancestry } from '../lib/spawn-ancestry.js';
+import {
+  parseGatherPolicy,
+  gatherByPolicy,
+  GatherPolicyError,
+  type ChildHandle,
+  type ChildResult,
+} from '../lib/spawn-gather.js';
 
 interface SpawnRouteDeps {
   spawner: Spawner;
+  spawnAncestry?: Ancestry;
   costTracker?: CostTracker;
   metrics: { errors: number };
   logger: {
@@ -29,7 +38,7 @@ const VALID_BACKENDS = new Set(['ollama', 'claude', 'claude-cli', 'gemini', 'clo
 // Fastify plugin (dual-export)
 // ==========================================================================
 export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (fastify, opts) => {
-  const { metrics, logger, spawner, costTracker } = opts.deps;
+  const { metrics, logger, spawner, costTracker, spawnAncestry } = opts.deps;
 
   fastify.post('/spawn/preflight', async (request, reply) => {
     try {
@@ -79,6 +88,10 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
         allowedTools,
         maxTokens,
         budgetUsd: rawBudgetUsd,
+        parentSessionId,
+        maxSpawnDepth,
+        parallel: rawParallel,
+        gather: rawGather,
       } = request.body as any;
 
       if (!backend || typeof backend !== 'string') {
@@ -162,6 +175,99 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
       if (timeout && typeof timeout === 'number') spec.timeout = timeout;
       if (allowedTools && typeof allowedTools === 'string') spec.allowedTools = allowedTools;
       if (maxTokens && typeof maxTokens === 'number') spec.maxTokens = maxTokens;
+      if (typeof parentSessionId === 'string' && parentSessionId.trim()) {
+        spec.parentSessionId = parentSessionId.trim();
+      }
+      if (typeof maxSpawnDepth === 'number' && Number.isFinite(maxSpawnDepth) && maxSpawnDepth > 0) {
+        spec.maxSpawnDepth = Math.floor(maxSpawnDepth);
+      }
+
+      // Parallel + gather branch. When --parallel N (with N > 1) and a
+      // gather policy are present, fan out N spawns and apply the policy.
+      // Backward-compat: missing/=1 parallel falls through to the single
+      // spawner.spawn(spec) path below.
+      const parallelN = typeof rawParallel === 'number'
+        ? Math.floor(rawParallel)
+        : typeof rawParallel === 'string' && rawParallel.trim()
+          ? parseInt(rawParallel, 10)
+          : 1;
+
+      if (Number.isFinite(parallelN) && parallelN > 1) {
+        let parsedGather;
+        try {
+          parsedGather = parseGatherPolicy(typeof rawGather === 'string' ? rawGather : 'all');
+        } catch (err) {
+          reply.code(400);
+          return {
+            success: false,
+            error: (err as GatherPolicyError).message,
+            code: 'VALIDATION_ERROR',
+          };
+        }
+
+        logger.info('spawn_parallel_start', {
+          backend,
+          model: spec.model || null,
+          identity: spec.identity || null,
+          parallel: parallelN,
+          gather: parsedGather.policy + (parsedGather.k !== undefined ? `=${parsedGather.k}` : ''),
+        });
+
+        // Build N independent children. Each gets its OWN spec object so the
+        // spawner's per-child mutation (childProcess wiring, etc.) doesn't
+        // cross-contaminate siblings.
+        const children: ChildHandle[] = [];
+        const childAgentIds: string[] = [];
+        for (let i = 0; i < parallelN; i++) {
+          const childSpec: SpawnSpec = { ...spec };
+          // Stable handle id for the gather layer; the actual agentId is
+          // assigned by the spawner and surfaces via the result.
+          const handleId = `pending-${i}`;
+          const handle: ChildHandle = {
+            agentId: handleId,
+            run: async (): Promise<ChildResult> => {
+              const r = await spawner.spawn(childSpec);
+              childAgentIds[i] = r.agentId;
+              return {
+                agentId: r.agentId,
+                status: r.status,
+                output: r.output,
+                error: r.error,
+                backend: r.backend,
+                model: r.model,
+                telemetry: r.telemetry,
+                startedAt: r.startedAt,
+                completedAt: r.completedAt,
+              };
+            },
+            kill: () => {
+              const realId = childAgentIds[i];
+              if (realId) spawner.kill(realId);
+            },
+          };
+          children.push(handle);
+        }
+
+        const gathered = await gatherByPolicy(children, parsedGather);
+
+        logger.info('spawn_parallel_complete', {
+          parallel: parallelN,
+          gather: parsedGather.policy,
+          winner: gathered.winner.agentId,
+          killed: gathered.killed.length,
+        });
+
+        return {
+          success: true,
+          mode: 'parallel',
+          parallel: parallelN,
+          gather: parsedGather,
+          winner: gathered.winner,
+          killed: gathered.killed,
+          all: gathered.all,
+          gathered_at: gathered.gathered_at,
+        };
+      }
 
       logger.info('spawn_start', {
         backend,
@@ -198,6 +304,34 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
     } catch (error) {
       metrics.errors++;
       logger.error('spawn_list_error', { error: (error as Error).message });
+      reply.code(500); return { error: 'internal server error' };
+    }
+  });
+
+  // GET /spawn/tree/:sessionId — Render ancestry tree rooted at the session
+  fastify.get('/spawn/tree/:sessionId', async (request, reply) => {
+    try {
+      if (!spawnAncestry) {
+        reply.code(503);
+        return { success: false, error: 'spawn ancestry not wired into this daemon' };
+      }
+      const sessionId = String((request.params as any).sessionId);
+      const row = spawnAncestry.getRow(sessionId);
+      const ascii = spawnAncestry.tree(sessionId);
+      return {
+        success: true,
+        sessionId,
+        depth: row?.depth ?? 0,
+        chain: row ? [...row.chain, sessionId] : [sessionId],
+        children: spawnAncestry.childrenOf(sessionId).map((c) => ({
+          sessionId: c.childSessionId,
+          depth: c.depth,
+        })),
+        ascii,
+      };
+    } catch (error) {
+      metrics.errors++;
+      logger.error('spawn_tree_error', { error: (error as Error).message });
       reply.code(500); return { error: 'internal server error' };
     }
   });

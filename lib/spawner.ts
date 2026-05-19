@@ -20,6 +20,8 @@ import type { CostTracker } from './cost-tracker.js';
 import type { Counters } from './counters.js';
 import type { Bonds } from './bonds.js';
 import type { Harbors } from './harbors.js';
+import type { Ancestry } from './spawn-ancestry.js';
+import { CycleDetectedError, MaxDepthError, DEFAULT_MAX_SPAWN_DEPTH } from './spawn-ancestry.js';
 import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
 import { getSecret } from './secret-env.js';
 import { cloudflareAdapter, ollamaAdapter } from './llm-call.js';
@@ -97,6 +99,14 @@ export interface SpawnSpec {
   timeout?: number;    // ms, default 300000
   allowedTools?: string;  // for claude-cli backend: tool permission string
   maxTokens?: number;     // for claude/claude-cli backends
+  /**
+   * Calling session id. If set, the spawner records parent->child ancestry
+   * and refuses cycles or spawns beyond `maxSpawnDepth`. If unset, treated
+   * as a root spawn.
+   */
+  parentSessionId?: string | null;
+  /** Override the default MAX_SPAWN_DEPTH (4) for this spawn only. */
+  maxSpawnDepth?: number;
 }
 
 export interface SpawnResult {
@@ -151,6 +161,13 @@ interface SpawnerDeps {
   counters?: Counters;
   bonds?: Bonds;
   harbors?: Harbors;
+  /**
+   * Optional ancestry tracker. When provided, every spawn validates against
+   * the cycle/depth rules and records a parent->child row on launch. When
+   * absent, ancestry checks are skipped (so legacy callers + unit tests that
+   * never plumb a DB keep working unchanged).
+   */
+  ancestry?: Ancestry;
   enforceTelemetryPolicy?: boolean;
   telemetryBypassApproval?: TelemetryBypassApproval;
   runnerOverrides?: Partial<Record<SpawnSpec['backend'], (spec: SpawnSpec, model: string) => Promise<BackendRunResult>>>;
@@ -220,6 +237,30 @@ async function pdCoordinate(path: string, body: Record<string, unknown>, options
     });
   } catch {
     // Silent — coordination failures never block spawning
+  }
+}
+
+/**
+ * Variant of `pdCoordinate` that returns the parsed JSON response. Used for
+ * the /sugar/begin call so we can capture the session id and link it into
+ * the ancestry tree. Falls back to null on any network or parse error.
+ */
+async function pdCoordinateRead(path: string, body: Record<string, unknown>, options: PdCoordinateOptions = {}): Promise<Record<string, unknown> | null> {
+  try {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    const pid = normalizeCoordinationPid(options.pid);
+    if (pid !== undefined) headers['X-Pid'] = String(pid);
+
+    const res = await fetch(`${getDaemonTcpUrl(process.env.PORT_DADDY_URL)}${path}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) return null;
+    const json = await res.json().catch(() => null);
+    return (json && typeof json === 'object') ? json as Record<string, unknown> : null;
+  } catch {
+    return null;
   }
 }
 
@@ -686,6 +727,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     counters,
     bonds,
     harbors,
+    ancestry,
     enforceTelemetryPolicy = true,
     telemetryBypassApproval,
     runnerOverrides = {},
@@ -774,6 +816,38 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     if (running >= MAX_CONCURRENT_RUNNING) {
       counters?.bump('spawn.blocked', dims);
       return blockedResult(`Spawn blocked: ${running} agents already running (limit: ${MAX_CONCURRENT_RUNNING}). Wait for one to finish.`);
+    }
+
+    // Ancestry / cycle / depth check — runs BEFORE any bond escrow or launch
+    // so a refused spawn doesn't burn a bond. Only enforced when an ancestry
+    // module + a parentSessionId are both provided; otherwise we treat this
+    // as a root spawn (depth 0) and skip recording.
+    let ancestryPlan: { depth: number; chain: string[]; parentSessionId: string | null } | null = null;
+    if (ancestry) {
+      try {
+        const planned = ancestry.checkSpawn({
+          parentSessionId: spec.parentSessionId ?? null,
+          proposedChildIdentity: spec.identity ?? null,
+          maxDepth: spec.maxSpawnDepth ?? DEFAULT_MAX_SPAWN_DEPTH,
+        });
+        ancestryPlan = {
+          depth: planned.depth,
+          chain: planned.chain,
+          parentSessionId: spec.parentSessionId ?? null,
+        };
+      } catch (err) {
+        counters?.bump('spawn.blocked', dims);
+        if (err instanceof CycleDetectedError) {
+          counters?.bump('spawn.cycle_refused', dims);
+          return blockedResult(err.message);
+        }
+        if (err instanceof MaxDepthError) {
+          counters?.bump('spawn.max_depth_refused', dims);
+          return blockedResult(err.message);
+        }
+        // Unexpected error — fail-closed.
+        return blockedResult(`Spawn blocked: ancestry check threw — ${(err as Error).message}`);
+      }
     }
 
     if (!enforceTelemetryPolicy) {
@@ -935,8 +1009,10 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       metadata: coordinationMetadata,
     }, { pid: initialRegistryPid });
 
-    // PD coordination: start session
-    await pdCoordinate('/sugar/begin', {
+    // PD coordination: start session. Capture the sessionId so we can link
+    // ancestry rows — without a session id we can't record a parent->child
+    // edge (ancestry is keyed by session id, not agent id).
+    const beginResponse = await pdCoordinateRead('/sugar/begin', {
       agentId,
       name: displayName,
       type: 'spawned',
@@ -945,6 +1021,23 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       purpose: spec.purpose || spec.task.slice(0, 80),
       metadata: coordinationMetadata,
     }, { pid: initialRegistryPid });
+    const childSessionId = (beginResponse?.sessionId as string) || null;
+
+    // Record ancestry now that we know the child's session id. If the daemon
+    // round-trip didn't return one (network blip, mocked-out coordination),
+    // we still passed the cycle/depth gate above so the spawn proceeds — we
+    // just can't link it into the tree.
+    if (ancestry && ancestryPlan && childSessionId) {
+      try {
+        ancestry.record({
+          childSessionId,
+          parentSessionId: ancestryPlan.parentSessionId,
+          depth: ancestryPlan.depth,
+          chain: ancestryPlan.chain,
+        });
+        counters?.bump('spawn.ancestry_recorded', { ...dims, depth: String(ancestryPlan.depth) });
+      } catch { /* recording is best-effort */ }
+    }
 
     // Start heartbeat interval
     record.heartbeatInterval = setInterval(async () => {

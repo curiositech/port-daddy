@@ -171,6 +171,22 @@ export const CORE_SCHEMA_SQL = `
   );
   CREATE INDEX IF NOT EXISTS idx_session_notes_session ON session_notes(session_id, created_at);
   CREATE INDEX IF NOT EXISTS idx_session_notes_type ON session_notes(type);
+
+  -- Spawn ancestry: parent->child links recorded by pd spawn so the daemon
+  -- can refuse cycles (A spawns B spawns A) and runaway depth. See
+  -- lib/spawn-ancestry.ts. Tracked by child_session_id (PK) to make
+  -- "what's my chain?" a single row read.
+  CREATE TABLE IF NOT EXISTS spawn_ancestry (
+    child_session_id TEXT PRIMARY KEY,
+    parent_session_id TEXT,
+    depth INTEGER NOT NULL,
+    spawn_chain_json TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_spawn_ancestry_parent
+    ON spawn_ancestry(parent_session_id);
+  CREATE INDEX IF NOT EXISTS idx_spawn_ancestry_depth
+    ON spawn_ancestry(depth);
 `;
 
 // ─────────────────────────────────────────────────────────────────────────────

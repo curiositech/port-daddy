@@ -25,6 +25,24 @@ function parseBudgetValue(value: unknown): number | undefined {
   return undefined;
 }
 
+/**
+ * Read .portdaddy/current.json (written by `pd begin`/`pd done`) so a spawn
+ * from inside an active operator session can transparently pick up the
+ * parent session id for ancestry tracking without --from-session boilerplate.
+ */
+async function readLocalSessionId(): Promise<string | undefined> {
+  try {
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const p = path.join(process.cwd(), '.portdaddy', 'current.json');
+    if (!fs.existsSync(p)) return undefined;
+    const parsed = JSON.parse(fs.readFileSync(p, 'utf-8'));
+    return parsed.sessionId || parsed.session_id;
+  } catch {
+    return undefined;
+  }
+}
+
 // =============================================================================
 // handleSpawn — pd spawn --backend ollama -- "my task"
 // =============================================================================
@@ -64,6 +82,48 @@ export async function handleSpawn(
     return;
   }
 
+  // Check for 'tree' subcommand: pd spawn tree [<sessionId>]
+  if (args[0] === 'tree') {
+    let sessionId = args[1];
+    if (!sessionId) {
+      // Fall back to local .portdaddy/current.json — the same place pd begin
+      // / pd done write the operator's active session.
+      try {
+        const { readFileSync, existsSync } = await import('node:fs');
+        const path = await import('node:path');
+        const current = path.join(process.cwd(), '.portdaddy', 'current.json');
+        if (existsSync(current)) {
+          const parsed = JSON.parse(readFileSync(current, 'utf-8'));
+          sessionId = parsed.sessionId || parsed.session_id;
+        }
+      } catch { /* fall through to error */ }
+    }
+    if (!sessionId) {
+      ui.error('pd spawn tree requires a session id (or an active local context)');
+      console.error('Usage: pd spawn tree <sessionId>');
+      process.exit(1);
+    }
+
+    const res: PdFetchResponse = await pdFetch(`/spawn/tree/${encodeURIComponent(sessionId)}`, {
+      method: 'GET',
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      ui.error((data.error as string) || `Failed to load spawn tree for ${sessionId}`);
+      process.exit(1);
+    }
+    if (isJson(options)) {
+      console.log(JSON.stringify(data, null, 2));
+      return;
+    }
+    if (!isQuiet(options)) {
+      console.error(`Spawn tree rooted at ${sessionId} (depth=${data.depth as number}):`);
+      console.error('');
+    }
+    console.log(data.ascii as string);
+    return;
+  }
+
   // Collect task: everything after '--' separator
   const doubleDashIdx = process.argv.indexOf('--');
   let task: string | undefined;
@@ -100,11 +160,25 @@ export async function handleSpawn(
     console.error('  --budget <usd>        Required spend ceiling for this launch');
     console.error('  --allowedTools <str>  Tool permissions for claude-cli backend');
     console.error('  --maxTokens <n>       Max tokens for claude/claude-cli backends');
+    console.error('  --from-session <id>   Calling session id for ancestry tracking');
+    console.error('                        (defaults to PD_SESSION_ID or local context)');
+    console.error('  --max-depth <n>       Override spawn-depth ceiling (default: 4)');
+    console.error('  --parallel <n>        Spawn N children in parallel');
+    console.error('  --gather <policy>     Gather policy when --parallel > 1');
+    console.error('                        all | first | majority | quorum=K | race');
     console.error('  -j, --json            JSON output');
     console.error('  -q, --quiet           Suppress output');
     console.error('');
+    console.error('Gather policies (with --parallel N):');
+    console.error('  all       wait for all N to settle (default; preserves legacy behavior)');
+    console.error('  first     wait for first success; SIGTERM the rest, return its result');
+    console.error('  majority  wait for ceil(N/2)+1 successes; kill the rest');
+    console.error('  quorum=K  wait for exactly K successes; kill the rest');
+    console.error('  race      wait for first to settle (success OR failure); kill the rest');
+    console.error('');
     console.error('Subcommands:');
-    console.error('  pd spawn kill <id>  Kill a running spawned agent');
+    console.error('  pd spawn kill <id>          Kill a running spawned agent');
+    console.error('  pd spawn tree [<sessionId>] Print the ancestry tree for a session');
     process.exit(1);
   }
 
@@ -146,8 +220,32 @@ export async function handleSpawn(
   if (options.allowedTools) body.allowedTools = options.allowedTools;
   if (options.maxTokens) body.maxTokens = parseInt(options.maxTokens as string, 10);
 
+  // Ancestry — prefer explicit --from-session, then PD_SESSION_ID, then the
+  // local .portdaddy/current.json the operator's `pd begin` writes.
+  const fromSession = (options['from-session'] as string)
+    || (options.fromSession as string)
+    || process.env.PD_SESSION_ID
+    || await readLocalSessionId();
+  if (fromSession) body.parentSessionId = fromSession;
+  if (options['max-depth'] !== undefined) {
+    body.maxSpawnDepth = parseInt(String(options['max-depth']), 10);
+  } else if (options.maxDepth !== undefined) {
+    body.maxSpawnDepth = parseInt(String(options.maxDepth), 10);
+  }
+
+  // Parallel + gather. CLI surface mirrors the route body.
+  const parallelN = options.parallel !== undefined ? parseInt(String(options.parallel), 10) : 1;
+  if (Number.isFinite(parallelN) && parallelN > 1) {
+    body.parallel = parallelN;
+    body.gather = (options.gather as string) || 'all';
+  }
+
   if (IS_TTY && !isQuiet(options) && !isJson(options)) {
-    ui.info(`Spawning ${backend} agent...`);
+    if (parallelN > 1) {
+      ui.info(`Spawning ${parallelN}x ${backend} agents (gather: ${body.gather as string})...`);
+    } else {
+      ui.info(`Spawning ${backend} agent...`);
+    }
   }
 
   const res: PdFetchResponse = await pdFetch('/spawn', {
@@ -161,6 +259,49 @@ export async function handleSpawn(
   if (!res.ok) {
     ui.error((data.error as string) || 'Failed to spawn agent');
     process.exit(1);
+  }
+
+  // Parallel + gather response: distinct shape with winner/killed/all.
+  if (data.mode === 'parallel') {
+    const winner = data.winner as {
+      agentId: string;
+      status: string;
+      output: string | null;
+      error: string | null;
+    };
+    const killed = (data.killed as Array<{ agentId: string; status: string }>) || [];
+    const all = (data.all as Array<{ agentId: string; status: string }>) || [];
+
+    if (isJson(options)) {
+      console.log(JSON.stringify(data, null, 2));
+      if (winner.status === 'failed') process.exit(1);
+      return;
+    }
+
+    if (isQuiet(options)) {
+      if (winner.output) console.log(winner.output);
+      else console.log(winner.agentId);
+      if (winner.status === 'failed') process.exit(1);
+      return;
+    }
+
+    const ok = winner.status === 'completed' ? ui.success : winner.status === 'failed' ? ui.error : ui.warn;
+    ok(`Winner: ${winner.agentId} (${winner.status})`);
+    console.error(`  Gather: ${(data.gather as { policy: string }).policy}`);
+    console.error(`  Parallel: ${data.parallel as number}`);
+    console.error(`  Settled: ${all.length}/${data.parallel as number}`);
+    console.error(`  Killed:  ${killed.length}`);
+    for (const k of killed) {
+      console.error(`    - ${k.agentId} (${k.status})`);
+    }
+    if (winner.error) console.error(`  Error: ${winner.error}`);
+    if (winner.output) {
+      console.error('');
+      console.error('--- Winner output ---');
+      console.log(winner.output);
+    }
+    if (winner.status === 'failed') process.exit(1);
+    return;
   }
 
   const failed = data.status === 'failed';
