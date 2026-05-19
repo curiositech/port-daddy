@@ -133,6 +133,11 @@ export async function handleRoadmap(argsOrOptions: string[] | CLIOptions, maybeO
     return;
   }
 
+  if (sub === 'claim-link' || sub === 'link') {
+    await handleRoadmapClaimLink(args.slice(1), options);
+    return;
+  }
+
   const projectDir = resolve(readOption(options, 'dir', 'root', 'projectDir') || process.cwd());
   const limit = parseLimit(options.limit, 8);
   const feedbackStatus = readOption(options, 'feedback-status', 'feedbackStatus') as RoadmapFeedbackStatus | 'all' | undefined;
@@ -250,6 +255,7 @@ function printClaimRow(claim: RoadmapClaim): void {
   const ageStr = ageMin < 60 ? `${ageMin}m` : `${(ageMin / 60).toFixed(1)}h`;
   console.log(`  - ${claim.slug} [${claim.kind}] by ${claim.claimedBy} ${ageStr} ago`);
   if (claim.summary) console.log(`    ${claim.summary}`);
+  if (claim.sessionId) console.log(`    session: ${claim.sessionId}`);
 }
 
 async function handleRoadmapPop(args: string[], options: CLIOptions): Promise<void> {
@@ -355,7 +361,66 @@ async function handleRoadmapPop(args: string[], options: CLIOptions): Promise<vo
       console.error(`  The claim is held. Run: pd roadmap release ${popped.entry.slug}`);
       process.exit(1);
     }
+
+    // ADR-0034: stitch the new session/agent back onto the claim row so
+    // `pd sessions` and `pd whois` can resolve in both directions.
+    const ctx = readCurrentContext();
+    if (ctx?.sessionId) {
+      const linkRes = await pdFetch(`${PORT_DADDY_URL}/cartographer/roadmap-claim-link`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          claimId: popped.claim.id,
+          sessionId: ctx.sessionId,
+          agentId: ctx.agentId,
+        }),
+      });
+      if (!linkRes.ok && !isQuiet(options) && !isJson(options)) {
+        const linkData = await linkRes.json().catch(() => ({})) as { error?: string; reason?: string };
+        console.error(ui.dim(`  Warning: could not link claim to session (${linkData.reason ?? linkData.error ?? linkRes.status}). Rebind: pd roadmap claim-link ${popped.entry.slug} --session ${ctx.sessionId}`));
+      }
+    }
   }
+}
+
+async function handleRoadmapClaimLink(args: string[], options: CLIOptions): Promise<void> {
+  const slug = args[0] || readOption(options, 'slug');
+  if (!slug) {
+    ui.error('Usage: pd roadmap claim-link <slug> [--session <id>] [--agent <id>] [--force]');
+    process.exit(1);
+  }
+  const sessionId = readOption(options, 'session', 'sessionId') ?? readCurrentContext()?.sessionId;
+  const agentIdInput = readOption(options, 'agent', 'agentId');
+  const agentId = agentIdInput ?? readCurrentContext()?.agentId;
+  const force = Boolean(options.force);
+  if (!sessionId && !agentId) {
+    ui.error('No session/agent to link. Pass --session or --agent, or run from a worktree with an active pd begin.');
+    process.exit(1);
+  }
+  const res = await pdFetch(`${PORT_DADDY_URL}/cartographer/roadmap-claim-link`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ slug, sessionId, agentId, force }),
+  });
+  const data = await res.json() as { success: boolean; claim?: RoadmapClaim; reason?: string; error?: string };
+  if (!res.ok || !data.success) {
+    ui.error(data.error || data.reason || `link failed (status ${res.status})`);
+    if (data.reason === 'already-linked' && !force) {
+      console.error(`  Rebind with --force: pd roadmap claim-link ${slug} --session ${sessionId} --force`);
+    }
+    process.exit(1);
+  }
+  if (isJson(options)) {
+    console.log(JSON.stringify(data, null, 2));
+    return;
+  }
+  if (isQuiet(options)) {
+    console.log(slug);
+    return;
+  }
+  ui.success(`Linked ${slug}`);
+  if (data.claim?.sessionId) console.log(`  Session: ${data.claim.sessionId}`);
+  if (data.claim?.agentId) console.log(`  Agent:   ${data.claim.agentId}`);
 }
 
 async function handleRoadmapRelease(args: string[], options: CLIOptions): Promise<void> {

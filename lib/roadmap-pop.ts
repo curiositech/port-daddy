@@ -37,6 +37,10 @@ export interface RoadmapClaim {
   summary: string | null;
   surface: string | null;
   payload: Record<string, unknown> | null;
+  /** Optional FK to sessions(id). Set when `pop --begin` chains, or via `linkClaim`. */
+  sessionId: string | null;
+  /** Optional FK to agents(id). Set alongside sessionId. */
+  agentId: string | null;
 }
 
 export interface RoadmapEntry {
@@ -54,7 +58,24 @@ export interface PopOptions {
   slug?: string;
   rootDir?: string;
   feedbackHarbor?: string;
+  /** Optional session this claim opens. Populated when the CLI's --begin flag chains. */
+  sessionId?: string;
+  /** Optional agent that claims. When omitted, only `claimedBy` is recorded. */
+  agentId?: string;
 }
+
+export interface LinkClaimOptions {
+  slug?: string;
+  claimId?: number;
+  sessionId?: string;
+  agentId?: string;
+  /** Allow rebind even if the claim already has a session/agent. Default false. */
+  force?: boolean;
+}
+
+export type LinkClaimResult =
+  | { ok: true; claim: RoadmapClaim }
+  | { ok: false; reason: 'no-active-claim' | 'already-linked'; claim: RoadmapClaim | null };
 
 export interface PopResult {
   entry: RoadmapEntry;
@@ -97,6 +118,8 @@ interface RoadmapClaimRow {
   summary: string | null;
   surface: string | null;
   payload: string | null;
+  session_id: string | null;
+  agent_id: string | null;
 }
 
 function safeParsePayload(raw: string | null): Record<string, unknown> | null {
@@ -126,6 +149,8 @@ function rowToClaim(row: RoadmapClaimRow): RoadmapClaim {
     summary: row.summary,
     surface: row.surface,
     payload: safeParsePayload(row.payload),
+    sessionId: row.session_id ?? null,
+    agentId: row.agent_id ?? null,
   };
 }
 
@@ -140,7 +165,9 @@ export function createRoadmapPop(deps: RoadmapPopDeps) {
   const { db } = deps;
   const now = deps.now ?? (() => Date.now());
 
-  db.exec(`
+  const runSchema = (sql: string) => db.exec(sql);
+
+  runSchema(`
     CREATE TABLE IF NOT EXISTS roadmap_claims (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       slug TEXT NOT NULL,
@@ -153,22 +180,38 @@ export function createRoadmapPop(deps: RoadmapPopDeps) {
       release_reason TEXT,
       summary TEXT,
       surface TEXT,
-      payload TEXT
+      payload TEXT,
+      session_id TEXT,
+      agent_id TEXT
     )
   `);
-  db.exec(
+  // ADR-0034: idempotent ALTER for databases that pre-date the session/agent columns.
+  const existingCols = new Set(
+    (db.prepare('PRAGMA table_info(roadmap_claims)').all() as { name: string }[]).map((c) => c.name),
+  );
+  if (!existingCols.has('session_id')) {
+    runSchema('ALTER TABLE roadmap_claims ADD COLUMN session_id TEXT');
+  }
+  if (!existingCols.has('agent_id')) {
+    runSchema('ALTER TABLE roadmap_claims ADD COLUMN agent_id TEXT');
+  }
+  runSchema(
     `CREATE UNIQUE INDEX IF NOT EXISTS idx_roadmap_claims_active_slug
      ON roadmap_claims(slug) WHERE released_at IS NULL`,
   );
-  db.exec(
+  runSchema(
     `CREATE INDEX IF NOT EXISTS idx_roadmap_claims_claimed_by
      ON roadmap_claims(claimed_by) WHERE released_at IS NULL`,
+  );
+  runSchema(
+    `CREATE INDEX IF NOT EXISTS idx_roadmap_claims_session
+     ON roadmap_claims(session_id) WHERE session_id IS NOT NULL`,
   );
 
   const insertStmt = db.prepare(`
     INSERT INTO roadmap_claims
-      (slug, kind, feedback_id, claimed_by, claimed_at, summary, surface, payload)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      (slug, kind, feedback_id, claimed_by, claimed_at, summary, surface, payload, session_id, agent_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const releaseStmt = db.prepare(`
     UPDATE roadmap_claims
@@ -178,6 +221,15 @@ export function createRoadmapPop(deps: RoadmapPopDeps) {
   const findActiveBySlugStmt = db.prepare(
     'SELECT * FROM roadmap_claims WHERE slug = ? AND released_at IS NULL',
   );
+  const findActiveByIdStmt = db.prepare(
+    'SELECT * FROM roadmap_claims WHERE id = ? AND released_at IS NULL',
+  );
+  const findById = db.prepare('SELECT * FROM roadmap_claims WHERE id = ?');
+  const linkStmt = db.prepare(`
+    UPDATE roadmap_claims
+       SET session_id = ?, agent_id = ?
+     WHERE id = ? AND released_at IS NULL
+  `);
   const findReleasedThisInstantStmt = db.prepare(
     'SELECT * FROM roadmap_claims WHERE slug = ? AND released_at = ? ORDER BY id DESC LIMIT 1',
   );
@@ -238,7 +290,12 @@ export function createRoadmapPop(deps: RoadmapPopDeps) {
     return out;
   }
 
-  function attemptInsert(cand: RoadmapEntry, claimedBy: string): RoadmapClaim | 'taken' {
+  function attemptInsert(
+    cand: RoadmapEntry,
+    claimedBy: string,
+    sessionId: string | null,
+    agentId: string | null,
+  ): RoadmapClaim | 'taken' {
     const at = now();
     try {
       const result = insertStmt.run(
@@ -250,6 +307,8 @@ export function createRoadmapPop(deps: RoadmapPopDeps) {
         cand.summary,
         cand.surface,
         JSON.stringify(cand.payload),
+        sessionId,
+        agentId,
       );
       return {
         id: Number(result.lastInsertRowid),
@@ -264,6 +323,8 @@ export function createRoadmapPop(deps: RoadmapPopDeps) {
         summary: cand.summary,
         surface: cand.surface,
         payload: cand.payload,
+        sessionId,
+        agentId,
       };
     } catch (err) {
       if (isUniqueViolation(err)) return 'taken';
@@ -275,6 +336,8 @@ export function createRoadmapPop(deps: RoadmapPopDeps) {
     const claimedBy = options.claimedBy?.trim();
     if (!claimedBy) throw new Error('roadmap-pop: claimedBy is required');
     const kind = options.kind ?? 'any';
+    const sessionId = options.sessionId?.trim() || null;
+    const agentId = options.agentId?.trim() || null;
 
     const progress = getRoadmapProgress({
       rootDir: options.rootDir,
@@ -293,7 +356,7 @@ export function createRoadmapPop(deps: RoadmapPopDeps) {
     }
 
     for (const cand of candidates) {
-      const result = attemptInsert(cand, claimedBy);
+      const result = attemptInsert(cand, claimedBy, sessionId, agentId);
       if (result === 'taken') {
         if (options.slug) {
           // Race window: the conflicting row could be released between the
@@ -350,7 +413,65 @@ export function createRoadmapPop(deps: RoadmapPopDeps) {
     return row ? rowToClaim(row) : null;
   }
 
-  return { pop, release, listClaims, getActiveClaim };
+  /**
+   * Link an existing claim to a session and/or agent (ADR-0034). Used by
+   * `pop --begin` after `pd begin` returns the session+agent IDs, and by
+   * the manual `pd roadmap claim-link` rebind verb.
+   *
+   * Idempotent when both fields match what's already on the row.
+   * Refuses to overwrite a different session/agent unless `force: true`.
+   * Returns `reason: 'no-active-claim'` if the claim doesn't exist or is
+   * already released.
+   */
+  function linkClaim(options: LinkClaimOptions): LinkClaimResult {
+    const sessionId = options.sessionId?.trim() || null;
+    const agentId = options.agentId?.trim() || null;
+    if (!sessionId && !agentId) {
+      throw new Error('roadmap-pop.linkClaim: at least one of sessionId/agentId required');
+    }
+
+    let row: RoadmapClaimRow | undefined;
+    if (typeof options.claimId === 'number') {
+      row = findActiveByIdStmt.get(options.claimId) as RoadmapClaimRow | undefined;
+    } else if (options.slug) {
+      row = findActiveBySlugStmt.get(options.slug.trim()) as RoadmapClaimRow | undefined;
+    } else {
+      throw new Error('roadmap-pop.linkClaim: claimId or slug required');
+    }
+
+    if (!row) return { ok: false, reason: 'no-active-claim', claim: null };
+
+    const sameSession = row.session_id === sessionId || (sessionId === null && row.session_id !== null);
+    const sameAgent = row.agent_id === agentId || (agentId === null && row.agent_id !== null);
+    const alreadyLinked = row.session_id !== null || row.agent_id !== null;
+    const requestMatchesExisting = row.session_id === sessionId && row.agent_id === agentId;
+
+    if (alreadyLinked && !requestMatchesExisting && !options.force) {
+      return { ok: false, reason: 'already-linked', claim: rowToClaim(row) };
+    }
+
+    if (requestMatchesExisting) {
+      return { ok: true, claim: rowToClaim(row) };
+    }
+
+    // Suppress unused-var warnings; the same* booleans are kept as
+    // documentation of the conditions feeding the decision above.
+    void sameSession;
+    void sameAgent;
+
+    linkStmt.run(sessionId, agentId, row.id);
+    const updated = findById.get(row.id) as RoadmapClaimRow;
+    return { ok: true, claim: rowToClaim(updated) };
+  }
+
+  function getClaimBySession(sessionId: string): RoadmapClaim | null {
+    const row = db
+      .prepare('SELECT * FROM roadmap_claims WHERE session_id = ? AND released_at IS NULL ORDER BY claimed_at DESC LIMIT 1')
+      .get(sessionId) as RoadmapClaimRow | undefined;
+    return row ? rowToClaim(row) : null;
+  }
+
+  return { pop, release, listClaims, getActiveClaim, linkClaim, getClaimBySession };
 }
 
 export type RoadmapPop = ReturnType<typeof createRoadmapPop>;

@@ -117,9 +117,11 @@ export const cartographerPlugin: FastifyPluginAsync<{ deps: CartographerDeps }> 
     const slug = asString(body.slug);
     const rootDir = asString(body.root) ?? deps.daemonDir;
     const feedbackHarbor = asString(body.feedbackHarbor);
+    const sessionId = asString(body.sessionId);
+    const agentId = asString(body.agentId);
 
     try {
-      const result = deps.roadmapPop.pop({ claimedBy, kind, slug, rootDir, feedbackHarbor });
+      const result = deps.roadmapPop.pop({ claimedBy, kind, slug, rootDir, feedbackHarbor, sessionId, agentId });
       if ('reason' in result) {
         if (result.reason === 'slug-already-claimed') {
           reply.code(409);
@@ -177,5 +179,53 @@ export const cartographerPlugin: FastifyPluginAsync<{ deps: CartographerDeps }> 
     const limit = asPositiveInt(q.limit);
     const claims = deps.roadmapPop.listClaims({ status, claimedBy, limit });
     return { success: true, claims, count: claims.length };
+  });
+
+  /**
+   * Link an existing claim to a session and/or agent (ADR-0034). Used by
+   * `pop --begin` after `pd begin` returns the new IDs, and by the manual
+   * `pd roadmap claim-link` rebind verb.
+   *
+   * Body: { slug? | claimId?, sessionId?, agentId?, force? }
+   *   - one of {slug, claimId} required
+   *   - at least one of {sessionId, agentId} required
+   *
+   * 200 → { success: true, claim }
+   * 404 → { success: false, reason: 'no-active-claim' }
+   * 409 → { success: false, reason: 'already-linked', claim }   (use force:true to rebind)
+   * 503 → claim primitive not wired
+   */
+  fastify.post('/cartographer/roadmap-claim-link', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!deps.roadmapPop) {
+      reply.code(503);
+      return { success: false, error: 'roadmap-pop primitive not available on this daemon' };
+    }
+    const body = (request.body ?? {}) as Record<string, unknown>;
+    const slug = asString(body.slug);
+    const claimId = asPositiveInt(body.claimId);
+    const sessionId = asString(body.sessionId);
+    const agentId = asString(body.agentId);
+    const force = body.force === true;
+
+    if (!slug && !claimId) {
+      reply.code(400);
+      return { success: false, error: 'slug or claimId required' };
+    }
+    if (!sessionId && !agentId) {
+      reply.code(400);
+      return { success: false, error: 'at least one of sessionId or agentId required' };
+    }
+
+    try {
+      const result = deps.roadmapPop.linkClaim({ slug, claimId, sessionId, agentId, force });
+      if (!result.ok) {
+        reply.code(result.reason === 'already-linked' ? 409 : 404);
+        return { success: false, reason: result.reason, claim: result.claim };
+      }
+      return { success: true, claim: result.claim };
+    } catch (error) {
+      reply.code(400);
+      return { success: false, error: error instanceof Error ? error.message : 'link failed' };
+    }
   });
 };

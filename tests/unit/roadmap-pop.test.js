@@ -301,6 +301,189 @@ describe('listClaims()', () => {
   });
 });
 
+describe('session/agent linkage (ADR-0034)', () => {
+  test('pop records sessionId and agentId when provided', () => {
+    const root = writeRoadmapFiles({
+      nextCuts: [{ slug: 'cut-1', summary: 'one' }],
+    });
+    const result = pop.pop({
+      claimedBy: 'agent-a',
+      rootDir: root,
+      sessionId: 'session-xyz',
+      agentId: 'agent-xyz',
+    });
+    expect('entry' in result).toBe(true);
+    expect(result.claim.sessionId).toBe('session-xyz');
+    expect(result.claim.agentId).toBe('agent-xyz');
+  });
+
+  test('pop without sessionId/agentId leaves them null (backward compat)', () => {
+    const root = writeRoadmapFiles({
+      nextCuts: [{ slug: 'cut-1', summary: 'one' }],
+    });
+    const result = pop.pop({ claimedBy: 'agent-a', rootDir: root });
+    expect(result.claim.sessionId).toBeNull();
+    expect(result.claim.agentId).toBeNull();
+  });
+
+  test('linkClaim writes sessionId/agentId after pop', () => {
+    const root = writeRoadmapFiles({
+      nextCuts: [{ slug: 'cut-1', summary: 'one' }],
+    });
+    const popped = pop.pop({ claimedBy: 'agent-a', rootDir: root });
+    const linked = pop.linkClaim({
+      claimId: popped.claim.id,
+      sessionId: 'session-new',
+      agentId: 'agent-new',
+    });
+    expect(linked.ok).toBe(true);
+    expect(linked.claim.sessionId).toBe('session-new');
+    expect(linked.claim.agentId).toBe('agent-new');
+  });
+
+  test('linkClaim by slug works too', () => {
+    const root = writeRoadmapFiles({
+      nextCuts: [{ slug: 'cut-1', summary: 'one' }],
+    });
+    pop.pop({ claimedBy: 'agent-a', rootDir: root });
+    const linked = pop.linkClaim({ slug: 'cut-1', sessionId: 'session-1' });
+    expect(linked.ok).toBe(true);
+    expect(linked.claim.sessionId).toBe('session-1');
+  });
+
+  test('linkClaim refuses to overwrite an existing link without force', () => {
+    const root = writeRoadmapFiles({
+      nextCuts: [{ slug: 'cut-1', summary: 'one' }],
+    });
+    pop.pop({
+      claimedBy: 'agent-a',
+      rootDir: root,
+      sessionId: 'session-original',
+      agentId: 'agent-original',
+    });
+    const result = pop.linkClaim({
+      slug: 'cut-1',
+      sessionId: 'session-different',
+    });
+    expect(result.ok).toBe(false);
+    expect(result.reason).toBe('already-linked');
+    expect(result.claim?.sessionId).toBe('session-original');
+  });
+
+  test('linkClaim --force rebinds an existing link', () => {
+    const root = writeRoadmapFiles({
+      nextCuts: [{ slug: 'cut-1', summary: 'one' }],
+    });
+    pop.pop({
+      claimedBy: 'agent-a',
+      rootDir: root,
+      sessionId: 'session-original',
+    });
+    const result = pop.linkClaim({
+      slug: 'cut-1',
+      sessionId: 'session-new',
+      force: true,
+    });
+    expect(result.ok).toBe(true);
+    expect(result.claim.sessionId).toBe('session-new');
+  });
+
+  test('linkClaim is idempotent when args match existing values', () => {
+    const root = writeRoadmapFiles({
+      nextCuts: [{ slug: 'cut-1', summary: 'one' }],
+    });
+    pop.pop({
+      claimedBy: 'agent-a',
+      rootDir: root,
+      sessionId: 'session-1',
+      agentId: 'agent-1',
+    });
+    const result = pop.linkClaim({ slug: 'cut-1', sessionId: 'session-1', agentId: 'agent-1' });
+    expect(result.ok).toBe(true);
+    expect(result.claim.sessionId).toBe('session-1');
+  });
+
+  test('linkClaim returns no-active-claim when slug is unknown or released', () => {
+    const noClaim = pop.linkClaim({ slug: 'nope', sessionId: 'session-1' });
+    expect(noClaim.ok).toBe(false);
+    expect(noClaim.reason).toBe('no-active-claim');
+
+    const root = writeRoadmapFiles({
+      nextCuts: [{ slug: 'cut-1', summary: 'one' }],
+    });
+    pop.pop({ claimedBy: 'agent-a', rootDir: root });
+    clock += 1;
+    pop.release({ slug: 'cut-1', releasedBy: 'agent-a' });
+    const released = pop.linkClaim({ slug: 'cut-1', sessionId: 'session-1' });
+    expect(released.ok).toBe(false);
+    expect(released.reason).toBe('no-active-claim');
+  });
+
+  test('linkClaim requires at least one of sessionId/agentId', () => {
+    const root = writeRoadmapFiles({
+      nextCuts: [{ slug: 'cut-1', summary: 'one' }],
+    });
+    pop.pop({ claimedBy: 'agent-a', rootDir: root });
+    expect(() => pop.linkClaim({ slug: 'cut-1' })).toThrow(/sessionId\/agentId/);
+  });
+
+  test('getClaimBySession returns the active claim for a session', () => {
+    const root = writeRoadmapFiles({
+      nextCuts: [
+        { slug: 'cut-1', summary: 'one' },
+        { slug: 'cut-2', summary: 'two' },
+      ],
+    });
+    pop.pop({ claimedBy: 'agent-a', rootDir: root, sessionId: 'session-a' });
+    pop.pop({ claimedBy: 'agent-b', rootDir: root, sessionId: 'session-b' });
+    const a = pop.getClaimBySession('session-a');
+    expect(a?.slug).toBe('cut-1');
+    expect(pop.getClaimBySession('session-zzz')).toBeNull();
+  });
+
+  test('migration is idempotent on databases that pre-date the columns', () => {
+    // Drop and recreate roadmap_claims in its pre-ADR-0034 shape, then
+    // re-init the module on top of it. The ALTER TABLE should backfill
+    // the new columns; existing rows survive with NULL sessionId/agentId.
+    const runRaw = db['exec'].bind(db);
+    runRaw('DROP TABLE IF EXISTS roadmap_claims');
+    runRaw(`
+      CREATE TABLE roadmap_claims (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        slug TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        feedback_id TEXT,
+        claimed_by TEXT NOT NULL,
+        claimed_at INTEGER NOT NULL,
+        released_at INTEGER,
+        released_by TEXT,
+        release_reason TEXT,
+        summary TEXT,
+        surface TEXT,
+        payload TEXT
+      )
+    `);
+    runRaw("INSERT INTO roadmap_claims (slug, kind, claimed_by, claimed_at) VALUES ('legacy-1', 'next-cut', 'old-agent', 1)");
+
+    const popMigrated = createRoadmapPop({ db, feedback, now: () => clock });
+    const legacy = popMigrated.listClaims({ status: 'all' });
+    expect(legacy).toHaveLength(1);
+    expect(legacy[0].slug).toBe('legacy-1');
+    expect(legacy[0].sessionId).toBeNull();
+
+    const root = writeRoadmapFiles({
+      nextCuts: [{ slug: 'fresh-1', summary: 'after migration' }],
+    });
+    const result = popMigrated.pop({
+      claimedBy: 'agent-new',
+      rootDir: root,
+      sessionId: 'session-after-migration',
+    });
+    expect('entry' in result).toBe(true);
+    expect(result.claim.sessionId).toBe('session-after-migration');
+  });
+});
+
 describe('getActiveClaim()', () => {
   test('returns null when no claim exists', () => {
     expect(pop.getActiveClaim('nope')).toBeNull();
