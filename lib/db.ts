@@ -193,6 +193,45 @@ export const CORE_SCHEMA_SQL = `
   CREATE INDEX IF NOT EXISTS idx_graph_edges_type ON graph_edges(edge_type, updated_at DESC);
   CREATE UNIQUE INDEX IF NOT EXISTS idx_graph_edges_unique
     ON graph_edges(scope, source_type, source_id, edge_type, target_type, target_id);
+
+  -- Durable DB-of-record for roadmap items. Tuples (roadmap:upserted /
+  -- roadmap:status / roadmap:touched) still fire for subscribers, but the
+  -- row is the truth. Wiping the tuples table leaves roadmap state intact.
+  CREATE TABLE IF NOT EXISTS roadmap_items (
+    id TEXT PRIMARY KEY,
+    slug TEXT NOT NULL,
+    summary_md TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'backlog'
+      CHECK(status IN ('now','backlog','parked','merge','done')),
+    promoted_from_feedback_id TEXT,
+    promoted_by_agent_id TEXT,
+    promoted_at INTEGER,
+    last_touched_at INTEGER NOT NULL,
+    dependencies_json TEXT NOT NULL DEFAULT '[]',
+    notes_json TEXT NOT NULL DEFAULT '[]',
+    harbor TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    UNIQUE(slug, harbor)
+  );
+  CREATE INDEX IF NOT EXISTS idx_roadmap_items_harbor_status
+    ON roadmap_items(harbor, status);
+  CREATE INDEX IF NOT EXISTS idx_roadmap_items_last_touched
+    ON roadmap_items(last_touched_at);
+
+  -- Append-only audit of every status change. Mirrors the
+  -- 'roadmap:status' tuple but durable.
+  CREATE TABLE IF NOT EXISTS roadmap_item_status_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    item_id TEXT NOT NULL REFERENCES roadmap_items(id) ON DELETE CASCADE,
+    slug TEXT NOT NULL,
+    status TEXT NOT NULL
+      CHECK(status IN ('now','backlog','parked','merge','done')),
+    by_agent_id TEXT,
+    at INTEGER NOT NULL,
+    harbor TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_roadmap_status_events_item
+    ON roadmap_item_status_events(item_id, at);
 `;
 
 // ─────────────────────────────────────────────────────────────────────────────
