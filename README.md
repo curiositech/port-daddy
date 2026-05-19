@@ -613,6 +613,8 @@ Two formal white papers are available at `/whitepaper` on the website:
 - **The Anchor Protocol** — Formally verified cryptographic identity for agent swarms (ProVerif + Kani/Rust)
 - **The Bonded Commons** — Pre-transactional trust infrastructure: Hobbes, Sen's impossibility, collateralized work contracts
 
+> After updating PDFs under `website-v2/public/whitepaper/`, run `npx tsx scripts/check-whitepaper-metadata.ts --fix` (from `website-v2/`) to resync `pages` and `sizeKb` in `src/data/whitePapers.ts`. CI fails on drift.
+
 ---
 
 ## 🎛️ The Dashboard (HUD)
