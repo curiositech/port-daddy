@@ -150,7 +150,7 @@
 \vspace{1cm}
 
 \begin{abstract}\noindent
-There will be no AI economy without trust, and trust cannot be earned peer-to-peer at every transaction. This paper argues that multi-agent collaboration at scale requires a \textbf{commons authority}---a pre-transactional trust infrastructure that removes trust negotiation from the critical path of work. We present a three-layer architecture: \emph{structural prevention} via capability-attenuated tokens that physically bound agent scope, \emph{immutable attribution} via Merkle-chained evidence trails that make anonymous harm impossible, and \emph{economic alignment} via collateralized work contracts that pre-fund damage regardless of agent intent. We formalize these layers in the context of Port Daddy, a coordination daemon for local agent swarms, and show that the resulting system does not require agents to be trustworthy, to share values, or to fear punishment. It requires only that their principals post collateral proportional to the risk their agents impose on the commons. We ground the advisory (non-enforced) design of the resource claim system in Sen's Impossibility of a Paretian Liberal, showing that enforced allocation with private agent knowledge is provably suboptimal, and that the commons authority's role is to provide shared information, not to make allocation decisions. We further show how the commons authority can be equipped with a \emph{mutable-signal ledger} (\S\ref{sec:pheromones}) that supports revocation, renaming, and provenance-aware propagation of coordination hints without sacrificing attribution integrity. Finally, we describe a competitive-insurance pricing mechanism (\S\ref{sec:youle}, contributed by Youle) in which insurer agents bid to underwrite agent transactions, replacing static parameter selection with market-discovered bond prices.
+Two autonomous agents working on the same project corrupt each other's state, double-claim the same files, race for the same ports, and leave the operator to do recovery archaeology. The problem is not the agents---it is that they have no coordination substrate. This paper specifies one. We treat coordination as a \emph{correlated equilibrium} in the sense of Aumann~\cite{aumann1974subjectivity}: a daemon as correlating device sends private recommendations to each agent---which files to claim, which to defer, when to settle---and following the recommendation is each agent's best response given that others follow theirs. The substrate is built from three independently load-bearing layers---capability-attenuated tokens that physically bound scope, Merkle-chained evidence trails that make anonymous harm impossible, and collateralized work contracts that pre-fund damage regardless of intent---and the correlating-device reading is what makes the layers cohere. We formalize the construction in the context of Port Daddy, a coordination daemon for local agent swarms, and show that the resulting system does not require agents to be trustworthy, to share values, or to fear punishment. It requires only that their principals post collateral proportional to the risk their agents impose on the commons, and that the daemon's recommendation distribution be common knowledge. We ground the non-enforced design of the resource claim system in Sen's Impossibility of a Paretian Liberal, showing that enforced allocation with private agent knowledge is provably suboptimal: the daemon's job is to broadcast the conflict graph, not to adjudicate it. We further show how the same authority can be equipped with a \emph{mutable-signal ledger} (\S\ref{sec:pheromones}) that supports revocation, renaming, and provenance-aware propagation of coordination hints without sacrificing attribution integrity---revocations are themselves events in the chain. Finally, we describe a competitive-insurance pricing mechanism (\S\ref{sec:youle}, contributed by Youle) in which insurer agents bid to underwrite agent transactions, replacing static parameter selection with market-discovered bond prices; under the correlating-device reading, the same equilibrium structure governs agent obedience and insurer non-collusion, so the price of anarchy stays bounded at both layers. Hobbes had the right idea about sovereigns; he just lacked a way to deploy one on \texttt{localhost:9876}.
 \end{abstract}
 
 \vspace{0.5cm}
@@ -202,7 +202,7 @@ The paper builds in four layers; each layer carries a load-bearing theorem or em
 \section{Introduction: The Trust Problem}
 % ═══════════════════════════════════════════════════════════════════════════════
 
-The emerging landscape of multi-agent AI systems---agents that plan, delegate, execute, crash, and resume across shared codebases---faces a problem that no existing framework adequately addresses. Not a problem of orchestration (LangGraph, CrewAI, and AutoGen handle state graphs and role assignment competently), nor of tool access (the Model Context Protocol provides a universal standard for agent-tool integration). The problem is \textbf{trust}.
+Two autonomous coding agents share a repository. Agent~A is asked to refactor the authentication middleware. Agent~B, spawned ninety seconds later from a sibling worktree, is asked to add a rate-limiter to the same middleware. Neither knows the other exists. They both edit, both commit, both push; one of them gets a merge conflict it cannot interpret, retries with a hallucinated resolution, and corrupts the file. The operator returns from a coffee break to a working tree she does not recognize. This is not a hypothetical---it is the modal failure mode of every multi-agent setup we have inhabited. Existing frameworks do not address it: LangGraph, CrewAI, and AutoGen handle state graphs and role assignment competently; the Model Context Protocol standardizes agent-tool integration. None of them give Agent~A and Agent~B a way to know about each other. The problem is \textbf{trust}---specifically, trust as infrastructure rather than trust as per-transaction ceremony.
 
 When Agent~A delegates a subtask to Agent~B, it implicitly trusts that B will not corrupt the shared state, will not exceed the scope of the delegation, and will not silently fail in a way that poisons A's downstream work. When Agent~B accepts the delegation, it implicitly trusts that A's description of the task is accurate, that the resources A promised are available, and that A will still exist when B finishes. These implicit trust assumptions pervade every multi-agent interaction, and every one of them can be violated.
 
@@ -226,6 +226,7 @@ Peer-to-peer trust fails for agent systems in three specific ways:
 
 We present:
 \begin{enumerate}
+  \item A reading of the coordination daemon as a \textbf{correlating device} in the sense of Aumann~\cite{aumann1974subjectivity}: claim recommendations are private signals drawn from a common-knowledge distribution, and agent obedience is an equilibrium rather than an enforced policy (Section~\ref{sec:commons}, esp.\ \S\ref{sec:correlating-device}). This reframes what earlier drafts called ``advisory'' coordination: the daemon's recommendations are incentive-compatible because the equilibrium structure makes them so, not because a sword is in reserve.
   \item A \textbf{three-layer trust architecture} (structural, evidentiary, economic) that does not depend on agent morality, shared values, or threat of termination (Sections~\ref{sec:structural}--\ref{sec:economic}).
   \item A formal argument, grounded in Sen's Impossibility of a Paretian Liberal~\cite{sen1970impossibility}, for why \textbf{advisory resource claims} are superior to enforced locking in multi-agent systems with private information (Section~\ref{sec:sen}).
   \item A \textbf{TLA$^{+}$ specification} of the coordination lifecycle with crash recovery, verifying safety and liveness properties (Section~\ref{sec:tlaplus}).
@@ -249,7 +250,7 @@ The architecture sits at the intersection of four bodies of prior work, each of 
 \paragraph{What is novel.} The synthesis: bonded participation $+$ capability attenuation $+$ advisory (not enforced) coordination $+$ immutable attribution, packaged as localhost infrastructure rather than a global protocol. We are not aware of a prior system that does all four together at this scale; each component has precedent, but the composition produces guarantees (Pareto-superior coordination, attribution that survives identity disposal) that no individual component supplies.
 
 % ═══════════════════════════════════════════════════════════════════════════════
-\section{The Commons Authority}
+\section{The Commons Authority}\label{sec:commons}
 % ═══════════════════════════════════════════════════════════════════════════════
 
 \begin{definition}[Commons Authority]\label{def:commons}
@@ -269,6 +270,25 @@ The commons authority is a \emph{Hobbesian sovereign}, not an \emph{omniscient c
 \end{remark}
 
 In the Port Daddy implementation, the commons authority is a daemon running on \texttt{localhost:9876}, backed by SQLite. The simplicity of the implementation is deliberate: the authority's value comes from its \emph{guarantees}, not its complexity.
+
+\subsection{The Daemon as Correlating Device}\label{sec:correlating-device}
+
+The daemon's role admits a precise game-theoretic name. Aumann~\cite{aumann1974subjectivity} introduced the \emph{correlated equilibrium}: a randomized strategy profile in which a trusted third party draws a recommendation tuple $(r_1, \ldots, r_n)$ from a joint distribution $\mu$ over action profiles, privately reveals $r_i$ to player $i$, and each player's best response---given posterior beliefs about the other players' recommendations conditional on its own---is to play $r_i$. The construction is strictly more permissive than Nash: every Nash equilibrium is a correlated equilibrium where $\mu$ is a product of marginals, and the correlated set strictly contains it when $\mu$ has non-trivial correlation. The mechanism does not need a sword. The recommendations are obeyed because, given common knowledge of $\mu$ and each player's own draw, deviating is dominated.
+
+This is exactly the daemon's role. The commons authority observes the global claim graph---who wants which resource, who holds which capability, whose history shows what. On a contested file claim, the daemon does not adjudicate; it broadcasts a recommendation pair: \emph{Agent~$\alpha$, you may proceed on \texttt{auth.ts}; Agent~$\beta$, the surface is held, defer or coordinate.} The recommendations are drawn from a deterministic policy over the conflict graph (the pheromone-lineage primitive of \S\ref{sec:pheromones} furnishes the draw; the policy is public). Each agent receives only its own recommendation, but the distribution over recommendations and the dependence on the public conflict graph are common knowledge.
+
+\begin{property}[Daemon-as-Correlating-Device]\label{prop:correlating-device}
+Port Daddy's daemon implements a correlating device for the agent-coordination game. Specifically:
+\begin{enumerate}[nosep]
+  \item \textbf{Common-knowledge distribution.} The daemon's recommendation policy---advise-claim, defer, back-off, settle-now, halt-on-conflict---is public, deterministic given the conflict graph, and reproducible from the evidence trail of \S\ref{sec:attribution}. Agents do not need to trust the daemon's motives; they need only verify the policy and observe its inputs.
+  \item \textbf{Private signal per agent.} On a contested claim, each agent receives only its own recommendation. Other agents' recommendations are observed indirectly through the public conflict graph and the note trail, never read off the wire.
+  \item \textbf{Obedience as best response.} Given that the other agents obey, an agent that defies its own recommendation faces (a) the bond it posted against the harm class it just realized (\S\ref{sec:economic}), (b) the reputation discount that compounds across future settlements (\S\ref{sec:rep-discount}), and (c) the conflict-graph completeness guarantee of \S\ref{thm:advisory}, which makes the deviation visible to every counterparty. Conditional on the others' obedience, deviation is strictly dominated.
+\end{enumerate}
+\end{property}
+
+The reframe is what turns the paper's headline result from a description into a guarantee. Earlier drafts called the daemon ``advisory, not enforcing'' and stopped---leaving the reader to ask the obvious question: what stops the agents from ignoring the advice? The correlated-equilibrium reading answers: nothing stops them, and nothing needs to. The recommendation distribution and the bond structure jointly leave each agent's incentive constraint slack at obedience. Enforcement is the wrong frame; mechanism design is the right one. The detailed deviation analysis lives in Section~\ref{sec:economic}; the safety and liveness properties of the lifecycle are checked formally in Section~\ref{sec:tlaplus}.
+
+A consequence worth surfacing: the \emph{price of anarchy} of this game---worst-case ratio of social cost at any correlated equilibrium to the social optimum---is one to one in the limit where bonds cover full cleanup cost and reputation noise is bounded. The simulation evidence of \S\ref{sec:youle:welfare} supports this empirically for $\sigma_r \le 0.1$. The analytical bound under realistic reputation noise is open; we do not close it here.
 
 \subsection{Why Agents Consent}\label{sec:why-consent}
 
@@ -755,6 +775,8 @@ A Monte Carlo sweep over the $(p_d, \delta)$ grid confirms the closed-form thres
   \label{fig:cartel-folk}
 \end{figure}
 
+This result extends to the agent layer: under the correlating-device interpretation of \S\ref{sec:correlating-device}, deviation incentives for agents and insurers are computed against the same per-round equilibrium structure, so the cartel folk-theorem threshold $p_d^\star$ bounds collusion at both layers.
+
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Coordination as Substrate: An Expressive-Act Taxonomy}\label{sec:taxonomy}
 % ═══════════════════════════════════════════════════════════════════════════════
@@ -1224,6 +1246,12 @@ Amartya Sen.
 \newblock The Impossibility of a Paretian Liberal.
 \newblock \textit{Journal of Political Economy}, 78(1):152--157, 1970.
 \newblock \url{https://doi.org/10.1086/259614}
+
+\bibitem{aumann1974subjectivity}
+Robert~J. Aumann.
+\newblock Subjectivity and Correlation in Randomized Strategies.
+\newblock \textit{Journal of Mathematical Economics}, 1(1):67--96, 1974.
+\newblock \url{https://doi.org/10.1016/0304-4068(74)90037-8}
 
 \bibitem{garciamolina1987sagas}
 Hector Garcia-Molina and Kenneth Salem.
