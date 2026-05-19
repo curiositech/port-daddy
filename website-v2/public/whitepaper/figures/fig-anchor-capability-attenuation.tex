@@ -11,6 +11,7 @@
 
 \begin{figure}[H]
 \centering
+\resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[
   font=\sffamily\small,
   capring/.style={draw=hhebony,thick,rounded corners=4pt,align=center,inner sep=6pt},
@@ -20,40 +21,47 @@
   arr/.style={->,>=Latex,thick,draw=hhink},
   na/.style={->,>=Latex,thick,draw=hhcinnabar,dashed},
 ]
-% Outermost capability: root cap from daemon
-\node[capring,fill=hhsand,minimum width=78mm,minimum height=54mm] (root) at (0,0)
+% Outermost capability: root cap from daemon (80mm wide, 56mm tall, centered).
+\node[capring,fill=hhsand,minimum width=80mm,minimum height=56mm] (root) at (0,0)
   {};
 \node[caplbl,above=1mm of root.north]
   {\textbf{Root cap (daemon)}: \texttt{db:*}, \texttt{fs:*}, \texttt{net:*}, TTL = 1h};
-% Middle capability: attenuated for AgentA
-\node[capring,fill=hhsanddeep,minimum width=56mm,minimum height=36mm] (mid) at (-3,-1)
-  {};
-\node[caplbl,above=1mm of mid.north,xshift=0mm]
+% Middle capability: AgentA cap — STRICT SUBSET of root (smaller and well inside).
+% root spans x in (-4, 4) and y in (-2.8, 2.8). Place mid offset slightly down-left.
+\node[capring,fill=hhsanddeep,minimum width=58mm,minimum height=36mm]
+  (mid) at (-0.6,-0.6) {};
+\node[caplbl,above=0.5mm of mid.north]
   {\textbf{AgentA cap}: \texttt{db:write}, \texttt{fs:read}, TTL = 15m};
-% Innermost capability: AgentB
-\node[capring,fill=hhbrass!40,minimum width=32mm,minimum height=18mm] (inner) at (-4.6,-1.8)
-  {{\bfseries AgentB}\\\texttt{db:write}\\TTL = 5m};
-% Daemon issues to AgentA
-\node[prin,right=10mm of root.east] (daemon) {Daemon};
-\draw[arr] (daemon.west) -- node[above,font=\sffamily\footnotesize] {issue} (root.east);
-% AgentA delegates to AgentB
-\node[prin,right=8mm of mid.east,yshift=-4mm,fill=hhsand!50] (agentA) {AgentA};
-\draw[arr] (agentA.west) -- node[below,font=\sffamily\footnotesize] {delegate} (mid.east);
-% AgentA → AgentB delegation arrow
-\node[prin,below=8mm of inner,fill=hhbrass!20] (agentB) {AgentB};
+% Innermost capability: AgentB cap — STRICT SUBSET of mid.
+% mid spans x in (-3.5, 2.3) and y in (-2.4, 1.2). Place inner offset further down-left.
+\node[capring,fill=hhbrass!40,minimum width=32mm,minimum height=18mm]
+  (inner) at (-1.4,-1.2)
+  {{\bfseries AgentB cap}\\\texttt{db:write}, TTL = 5m};
+% Daemon principal: outside root, issues into root.
+\node[prin,above right=2mm and 10mm of root.east] (daemon) {Daemon};
+\draw[arr] (daemon.west) -- node[above,font=\sffamily\footnotesize] {issue}
+  (root.north east);
+% AgentA principal: outside the rings on the right; delegates the AgentA cap.
+\node[prin,right=12mm of mid.east,fill=hhsand!50] (agentA) {AgentA};
+\draw[arr] (agentA.west) -- node[above,font=\sffamily\footnotesize] {delegate}
+  (mid.east);
+% AgentB principal: outside the rings below; receives the AgentB cap.
+\node[prin,below=12mm of inner.south,fill=hhbrass!20] (agentB) {AgentB};
 \draw[arr] (inner.south) -- (agentB.north);
-% Side note: invariants
+% Invariants side panel.
 \node[draw=hhebony,thick,fill=hhpaper,rounded corners=3pt,align=left,
-      inner sep=5pt,minimum width=58mm,right=12mm of agentA,yshift=-12mm]
+      inner sep=5pt,minimum width=58mm,right=12mm of agentA]
   {{\bfseries Attenuation invariants:}\\[2pt]
-   $\bullet$ child cap $\subseteq$ parent cap\\
-   $\bullet$ child TTL $\leq$ parent TTL\\
+   $\bullet$ child cap $\subsetneq$ parent cap\\
+   $\bullet$ child TTL $<$ parent TTL\\
    $\bullet$ child cannot re-grant beyond child cap};
 % Forbidden grant attempt
-\node[font=\sffamily\footnotesize\itshape,text=hhcinnabar,below=6mm of agentB,xshift=6mm]
+\node[font=\sffamily\footnotesize\itshape,text=hhcinnabar,
+      below=6mm of agentB,align=center]
   (forbid) {AgentB cannot grant \texttt{net:*} downstream};
 \draw[na] (agentB.south) -- (forbid.north);
-\end{tikzpicture}
+\end{tikzpicture}%
+}
 \caption{Capability attenuation under delegation. Each child capability is a strict subset of its parent's (rights and TTL both shrink monotonically). AgentB inherits only what AgentA explicitly delegates, and cannot re-grant capabilities it does not hold. This is enforced both at issuance (parent signs over the child's attenuated claim set) and at verification (the verifier checks the chain of \texttt{is\_subset} relations).}
 \label{fig:anchor-capability-attenuation}
 \end{figure}

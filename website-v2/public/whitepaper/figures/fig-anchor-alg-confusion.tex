@@ -11,6 +11,7 @@
 
 \begin{figure}[H]
 \centering
+\resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[
   font=\sffamily\small,
   actor/.style={draw=hhebony,thick,fill=hhsand,rounded corners=2pt,
@@ -70,7 +71,8 @@
   {(a)};
 \node[font=\sffamily\bfseries,left=2mm of daemon2.west,text=hhpatina]
   {(b)};
-\end{tikzpicture}
-\caption{Algorithm-confusion attack and the pinned-verifier defense. (a) A naive verifier trusts the \texttt{alg} field of the incoming token; an attacker who can intercept the token rewrites \texttt{alg=HS256} to \texttt{alg=none}, strips the signature, and the verifier accepts an unauthenticated message. (b) The pinned verifier records the issuance algorithm out-of-band, then re-checks each token against the pinned algorithm rather than the token's self-described one. The ProVerif model encodes both verifiers and shows the naive path produces a counter-trace witness for the rewrite, while the pinned path admits no such trace. Runtime conformance: \texttt{tests/unit/runtime-conformance/algorithm-pinning.test.js} (5 attack patterns + 2 controls, all pass).}
+\end{tikzpicture}%
+}
+\caption{Algorithm-confusion attack and the pinned-verifier defense. (a) A naive verifier trusts the \texttt{alg} field of the incoming token; an attacker who can intercept the token rewrites \texttt{alg=HS256} to \texttt{alg=none}, strips the signature, and the verifier accepts an unauthenticated message. (b) The pinned verifier records the issuance algorithm out-of-band, then re-checks each token against the pinned algorithm rather than the token's self-described one. The ProVerif model encodes both verifiers and shows the naive path produces a counter-trace witness for the rewrite, while the pinned path admits no such trace. Runtime conformance: 5 attack patterns + 2 controls, all pass.}
 \label{fig:anchor-alg-confusion}
 \end{figure}
