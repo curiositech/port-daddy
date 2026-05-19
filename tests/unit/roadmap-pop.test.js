@@ -388,6 +388,27 @@ describe('session/agent linkage (ADR-0034)', () => {
     expect(result.claim.sessionId).toBe('session-new');
   });
 
+  test('linkClaim preserves the other column when only one is passed', () => {
+    const root = writeRoadmapFiles({
+      nextCuts: [{ slug: 'cut-1', summary: 'one' }],
+    });
+    pop.pop({
+      claimedBy: 'agent-a',
+      rootDir: root,
+      sessionId: 'session-keep',
+      agentId: 'agent-keep',
+    });
+    // Update only session; agent_id must stay 'agent-keep'.
+    const updated = pop.linkClaim({
+      slug: 'cut-1',
+      sessionId: 'session-new',
+      force: true,
+    });
+    expect(updated.ok).toBe(true);
+    expect(updated.claim.sessionId).toBe('session-new');
+    expect(updated.claim.agentId).toBe('agent-keep');
+  });
+
   test('linkClaim is idempotent when args match existing values', () => {
     const root = writeRoadmapFiles({
       nextCuts: [{ slug: 'cut-1', summary: 'one' }],

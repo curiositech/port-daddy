@@ -225,9 +225,14 @@ export function createRoadmapPop(deps: RoadmapPopDeps) {
     'SELECT * FROM roadmap_claims WHERE id = ? AND released_at IS NULL',
   );
   const findById = db.prepare('SELECT * FROM roadmap_claims WHERE id = ?');
+  // COALESCE preserves the existing value when the caller passes NULL for
+  // that column. linkClaim({ sessionId: 'new' }) on a row with agent_id =
+  // 'A1' must NOT clobber agent_id to NULL — partial updates are common
+  // (CLI fills session first, agent later, or vice versa).
   const linkStmt = db.prepare(`
     UPDATE roadmap_claims
-       SET session_id = ?, agent_id = ?
+       SET session_id = COALESCE(?, session_id),
+           agent_id   = COALESCE(?, agent_id)
      WHERE id = ? AND released_at IS NULL
   `);
   const findReleasedThisInstantStmt = db.prepare(
@@ -441,23 +446,23 @@ export function createRoadmapPop(deps: RoadmapPopDeps) {
 
     if (!row) return { ok: false, reason: 'no-active-claim', claim: null };
 
-    const sameSession = row.session_id === sessionId || (sessionId === null && row.session_id !== null);
-    const sameAgent = row.agent_id === agentId || (agentId === null && row.agent_id !== null);
-    const alreadyLinked = row.session_id !== null || row.agent_id !== null;
-    const requestMatchesExisting = row.session_id === sessionId && row.agent_id === agentId;
+    // What would the row look like after the COALESCE merge?
+    const wouldBecome = {
+      session_id: sessionId ?? row.session_id,
+      agent_id: agentId ?? row.agent_id,
+    };
+    const noChange = wouldBecome.session_id === row.session_id && wouldBecome.agent_id === row.agent_id;
+    const wouldOverwrite =
+      (sessionId !== null && row.session_id !== null && row.session_id !== sessionId) ||
+      (agentId !== null && row.agent_id !== null && row.agent_id !== agentId);
 
-    if (alreadyLinked && !requestMatchesExisting && !options.force) {
+    if (wouldOverwrite && !options.force) {
       return { ok: false, reason: 'already-linked', claim: rowToClaim(row) };
     }
 
-    if (requestMatchesExisting) {
+    if (noChange) {
       return { ok: true, claim: rowToClaim(row) };
     }
-
-    // Suppress unused-var warnings; the same* booleans are kept as
-    // documentation of the conditions feeding the decision above.
-    void sameSession;
-    void sameAgent;
 
     linkStmt.run(sessionId, agentId, row.id);
     const updated = findById.get(row.id) as RoadmapClaimRow;
