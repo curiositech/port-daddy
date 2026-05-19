@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [3.15.0] - 2026-05-19
+## [3.15.0] - 2026-05-18
 
 ### Added
 - **Signed binary daemon distribution path** (PR #55, ADR-0028). Port Daddy now ships as `bun build --compile` single-binary daemon + CLI + MCP. New `scripts/build-daemon-binary.mjs` + `scripts/build-single-binary.mjs` produce the unsigned Mach-O; `scripts/sign-and-notarize.mjs` is the wrapper that codesigns with the Curiositech LLC Developer ID, embeds the hardened-runtime entitlements (`scripts/entitlements/port-daddy.plist`, including JIT for bun:sqlite), and submits to Apple notarytool. Three launch modes resolved by `shared/daemon-binary.ts:resolveDaemonLaunchCommand`: `binary` (the shipped, signed daemon), `source` (`PORT_DADDY_ALLOW_SOURCE_DAEMON=1` opt-in for dev), `self` (single-binary self-host via `PORT_DADDY_CAN_SELF_DAEMON=1`). Unconventional bun-virtual-fs layouts now fall back to `dirname(execPath)` with a one-shot warning instead of silently using `process.cwd()`. Existing v3.14.x users running tsx server.ts are unaffected; `pd install` regenerates the LaunchAgent against the new binary.
