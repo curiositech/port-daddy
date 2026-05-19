@@ -87,4 +87,44 @@ describe('isBunCompiledRuntime — bun-compile bundle detection', () => {
       execPath: '',
     })).toBe(false);
   });
+
+  test('empty execPath with bun set is NOT a positive signal (defensive)', () => {
+    // Copilot review #1: a partial signal bag with bun set but execPath blank
+    // would have falsely returned true via the basename check.
+    expect(isBunCompiledRuntime({
+      versionsBun: '1.3.14',
+      importMetaUrl: 'file:///Users/dev/proj/cli.ts',
+      errorStack: 'Error\n    at Object.<anonymous>',
+      execPath: '',
+    })).toBe(false);
+  });
+
+  test('Homebrew versioned bun (bun-1.3.14) is source-mode, not compiled', () => {
+    // Adversary review concern: versioned bun symlinks (Homebrew @-formulae)
+    // would have triggered the basename signal and caused a re-exec loop.
+    expect(isBunCompiledRuntime({
+      versionsBun: '1.3.14',
+      importMetaUrl: 'file:///Users/dev/proj/cli.ts',
+      errorStack: 'Error\n    at Object.<anonymous> (/Users/dev/proj/cli.ts:1:1)',
+      execPath: '/opt/homebrew/bin/bun-1.3.14',
+    })).toBe(false);
+  });
+
+  test('bunx invocation is source-mode', () => {
+    expect(isBunCompiledRuntime({
+      versionsBun: '1.3.14',
+      importMetaUrl: 'file:///Users/dev/proj/cli.ts',
+      errorStack: 'Error\n    at Object.<anonymous>',
+      execPath: '/Users/dev/.bun/bin/bunx',
+    })).toBe(false);
+  });
+
+  test('tsx interpreter is source-mode', () => {
+    expect(isBunCompiledRuntime({
+      versionsBun: '1.3.14',
+      importMetaUrl: 'file:///Users/dev/proj/cli.ts',
+      errorStack: 'Error\n    at Object.<anonymous>',
+      execPath: '/Users/dev/node_modules/.bin/tsx',
+    })).toBe(false);
+  });
 });

@@ -58,12 +58,23 @@ export interface BunRuntimeSignals {
   execPath: string;
 }
 
+// Source-mode interpreter names. Anything else with process.versions.bun set
+// is treated as a `bun build --compile` bundle by the third signal. We allow
+// versioned bun (Homebrew @-formulae create `bun-1.3.14` symlinks) and the
+// other shapes a developer might invoke: `bunx`, `node`, `tsx`. If a new
+// interpreter ships, we'd rather false-negative here (and surface as the
+// original ENOENT spawn error) than infinite-re-exec on the basename signal.
+const INTERPRETER_BASENAME_RE = /^(bun(?:-[\w.+\-]+)?|bunx|node|tsx)$/i;
+
 export function isBunCompiledRuntime(signals: BunRuntimeSignals): boolean {
   if (!signals.versionsBun) return false;
   if (isBunVirtualPath(signals.importMetaUrl)) return true;
   if (isBunVirtualPath(signals.errorStack)) return true;
   const execBase = (signals.execPath || '').split(/[\\/]/).pop()?.replace(/\.exe$/i, '') || '';
-  if (execBase !== 'bun' && execBase !== 'node') return true;
+  // Empty basename (process.execPath was missing/blank) is not a positive
+  // signal — return false rather than misclassifying a partial signal bag.
+  if (execBase === '') return false;
+  if (!INTERPRETER_BASENAME_RE.test(execBase)) return true;
   return false;
 }
 
