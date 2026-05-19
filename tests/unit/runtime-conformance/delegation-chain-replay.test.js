@@ -31,7 +31,7 @@
  */
 
 import { describe, it, expect, beforeEach } from '@jest/globals';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, sign as cryptoSign, createPrivateKey } from 'node:crypto';
 import {
   NonceTable,
   signHop,
@@ -39,6 +39,7 @@ import {
   agentIdFromSeed,
   hashMessage,
   hopBindBytes,
+  HOP_BIND_DST,
 } from '../../../lib/delegation-chain.js';
 
 // ---------------------------------------------------------------------------
@@ -234,6 +235,122 @@ describe('runtime conformance: delegation chain replay (chain-replay.pv ↔ dele
     expect(result.ok).toBe(false);
     expect(result.rejectReason).toBe('principal_mismatch');
     expect(result.hopIndex).toBe(0);
+  });
+
+  // ---------------------------------------------------------------------
+  // (F2) Impersonation via signer-identity decoupling.
+  //
+  // Adversarial-review finding (PR #66): the original implementation had
+  // a redundant `kid` field that the verifier used to load the sig pub
+  // key, while `prevId` carried chain identity. Eve could craft a hop
+  // with prevId=idVictim and kid=idEve, signed under skEve — verifier
+  // accepted it as Victim's delegation. Fixed by eliminating `kid`; the
+  // tests below pin that the verifier now requires prevId itself to be
+  // the signing key.
+  //
+  // We build the malicious hop without going through signHop (which
+  // would lock prevId to the signer's pub key), then verify the chain
+  // rejects it.
+  // ---------------------------------------------------------------------
+  it('(F2a) hop signed by Eve but claiming prevId=Victim is rejected', () => {
+    // Honest hop1 from principal to A
+    const hop1 = signHop(seedP, idA, msgHash, tableH);
+    // Eve forges hop2: prevId says it's from A, but actually signed under seedC (Eve)
+    const eveHop2 = signHop(seedC, idB, msgHash, tableH);
+    const forged = { ...eveHop2, prevId: idA }; // prevId lies — kid is gone, verifier loads idA's key
+
+    // hop3 onward from real B
+    const hop3 = signHop(seedB, idFinal, msgHash, tableH);
+
+    const result = verifyDelegationChain(
+      [hop1, forged, hop3],
+      idP,
+      idFinal,
+      msgHash,
+      tableH,
+    );
+
+    expect(result.ok).toBe(false);
+    // Verifier loads idA's pub key from prevId, sig was made under skC (Eve) → rejected
+    expect(result.rejectReason).toBe('sig_verify_failed');
+    expect(result.hopIndex).toBe(1);
+  });
+
+  it('(F2b) principal impersonation: hop[0] signed by Eve claiming prevId=Principal is rejected', () => {
+    // Eve signs the first hop under her key but claims principal's identity
+    const eveHop1 = signHop(seedC, idA, msgHash, tableH);
+    const forgedHop1 = { ...eveHop1, prevId: idP };
+    const hop2 = signHop(seedA, idB, msgHash, tableH);
+    const hop3 = signHop(seedB, idFinal, msgHash, tableH);
+
+    const result = verifyDelegationChain(
+      [forgedHop1, hop2, hop3],
+      idP,
+      idFinal,
+      msgHash,
+      tableH,
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.rejectReason).toBe('sig_verify_failed');
+    expect(result.hopIndex).toBe(0);
+  });
+
+  // ---------------------------------------------------------------------
+  // (F3) Domain separation.
+  //
+  // The signed payload must include HOP_BIND_DST so a signature made for
+  // a different signed structure (with the same field shape) can never
+  // be replayed as a hop signature. We exercise this by signing the
+  // "wrong" canonical bytes (without DST) and confirming the verifier
+  // rejects.
+  // ---------------------------------------------------------------------
+  it('(F3) signature over hopBind-shaped JSON missing the DST tag is rejected', () => {
+    const hop1 = signHop(seedP, idA, msgHash, tableH);
+    const hop2 = signHop(seedA, idB, msgHash, tableH);
+
+    // Build a "v0-style" payload (no _dst) and sign it with seedA — would have
+    // verified under the pre-fix implementation. With DST in place, the
+    // verifier's hopBindBytes() includes _dst, so this sig fails.
+    const v0Canonical = JSON.stringify({
+      messageHash: msgHash,
+      nextId: idB,
+      nonce: hop2.nonce,
+      prevId: idA,
+    });
+    const v0Bytes = new TextEncoder().encode(v0Canonical);
+    // Re-derive A's signing key the same way the implementation does and sign v0Bytes
+    const ED25519_PKCS8_PREFIX = Buffer.from([
+      0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70,
+      0x04, 0x22, 0x04, 0x20,
+    ]);
+    const der = Buffer.concat([ED25519_PKCS8_PREFIX, Buffer.from(seedA)]);
+    const sk = createPrivateKey({ key: der, format: 'der', type: 'pkcs8' });
+    const v0SigHex = Buffer.from(cryptoSign(null, Buffer.from(v0Bytes), sk)).toString('hex');
+
+    const v0Hop = { ...hop2, sig: v0SigHex };
+    const hop3 = signHop(seedB, idFinal, msgHash, tableH);
+
+    const result = verifyDelegationChain(
+      [hop1, v0Hop, hop3],
+      idP,
+      idFinal,
+      msgHash,
+      tableH,
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.rejectReason).toBe('sig_verify_failed');
+    expect(result.hopIndex).toBe(1);
+  });
+
+  it('(F3-meta) HOP_BIND_DST is part of the signed bytes and leads the canonical form', () => {
+    const bytes = hopBindBytes('n', 'p', 'next', 'm');
+    const txt = new TextDecoder().decode(bytes);
+    expect(txt).toContain(HOP_BIND_DST);
+    // _dst is the first key (sorts before all other keys in canonical form)
+    expect(txt.indexOf('"_dst"')).toBe(1);
+    expect(txt.startsWith(`{"_dst":"${HOP_BIND_DST}",`)).toBe(true);
   });
 
   it('(F1) signature tamper: flipping a byte in hop sig is rejected', () => {

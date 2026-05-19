@@ -35,11 +35,10 @@ import { bytesToHex, hexToBytes } from './merkle-chain.js';
 /** One hop in a delegation chain. */
 export interface DelegationHop {
   nonce: string;       // hex-encoded 16-byte random nonce
-  prevId: string;      // hex-encoded Ed25519 public key of the signer (= signer id)
+  prevId: string;      // hex-encoded Ed25519 public key of the signer (= signer id) — also the verification key
   nextId: string;      // hex-encoded Ed25519 public key of the next agent
   messageHash: string; // hex-encoded SHA-256 of the delegated message
   sig: string;         // hex-encoded Ed25519 signature over hopBind(nonce, prevId, nextId, messageHash)
-  kid: string;         // hex-encoded signer public key (always === prevId)
 }
 
 /** Result of verifying a delegation chain. */
@@ -85,8 +84,21 @@ export class NonceTable {
 // ---------------------------------------------------------------------------
 // hopBind canonical encoding
 // Matches: hopBind(nonce, id, id, message) : bitstring [data] in .pv
-// Keys sorted lexicographically for determinism: messageHash < nextId < nonce < prevId
+//
+// Domain separation is REQUIRED. The .pv uses a typed constructor [data], so
+// the algebraic model rules out collisions with other signed payloads in the
+// system. The TS runtime can't lean on type-level discrimination, so the
+// signed bytes carry an explicit DST string. Any other signer using shared
+// keys + an object shape that happens to match {messageHash, nextId, nonce,
+// prevId} would otherwise produce a forged hop sig — confused deputy.
+//
+// Keys sorted lexicographically for determinism: _dst < messageHash < nextId
+// < nonce < prevId. The leading _dst keeps the byte order obviously DST-led
+// even before parsing.
 // ---------------------------------------------------------------------------
+
+/** Fixed domain-separation tag. Bumping the version is a hard wire-break. */
+export const HOP_BIND_DST = 'anchor.delegation.hopBind.v1';
 
 export function hopBindBytes(
   nonce: string,
@@ -94,7 +106,7 @@ export function hopBindBytes(
   nextId: string,
   messageHash: string,
 ): Uint8Array {
-  const canonical = JSON.stringify({ messageHash, nextId, nonce, prevId });
+  const canonical = JSON.stringify({ _dst: HOP_BIND_DST, messageHash, nextId, nonce, prevId });
   return new TextEncoder().encode(canonical);
 }
 
@@ -192,7 +204,6 @@ export function signHop(
     nextId,
     messageHash,
     sig: bytesToHex(sigBytes),
-    kid: prevId,
   };
 }
 
@@ -261,13 +272,20 @@ export function verifyDelegationChain(
     }
   }
 
-  // Check 7: signature verification for every hop
+  // Check 7: signature verification for every hop.
+  // Verification key is bound to chain identity: the same prevId that carries
+  // chain connectivity is used to verify the hop sig. This is what the .pv's
+  // signer ≡ id_of_pk(pk(skP)) constraint enforces algebraically. A previous
+  // version had a separate `kid` field which the verifier trusted blindly,
+  // allowing an attacker to set prevId = idVictim and kid = idEve and forge
+  // a sig under skEve that the verifier would accept as Victim's delegation.
+  // Eliminated the redundant field; prevId is now the single source of truth.
   for (let i = 0; i < hops.length; i++) {
     const hop = hops[i];
     let pubBytes: Uint8Array;
     let sigBytes: Uint8Array;
     try {
-      pubBytes = hexToBytes(hop.kid);
+      pubBytes = hexToBytes(hop.prevId);
       sigBytes = hexToBytes(hop.sig);
     } catch {
       return { ok: false, rejectReason: 'sig_verify_failed', hopIndex: i };
