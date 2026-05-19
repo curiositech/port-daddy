@@ -4029,16 +4029,14 @@ interface GetSortieLogsResponse {
 // Cockpit types
 // =============================================================================
 
-export type CockpitMissionStatus =
-  | 'closed'
-  | 'blocked'
-  | 'drifting'
-  | 'stalled'
-  | 'mostly-resolved'
-  | 'mostly-committed'
-  | 'uncommitted'
-  | 'in-flight'
-  | 'unknown';
+/**
+ * Cockpit mission status. Mirrors the daemon's `RoadmapStatus` 1:1 since
+ * cockpit reads roadmap_items directly post-Slice-C. The previous 9-bucket
+ * enum (closed/blocked/drifting/stalled/mostly-resolved/mostly-committed/
+ * uncommitted/in-flight/unknown) was derived by regex over markdown tags;
+ * that derivation was never authoritative and is gone.
+ */
+export type CockpitMissionStatus = 'now' | 'backlog' | 'parked' | 'merge' | 'done';
 
 export interface CockpitMissionCard {
   id: string;

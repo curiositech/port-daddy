@@ -13,9 +13,10 @@
  */
 
 import { basename } from 'node:path';
-import { readFileSync, statSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
-import { readMissions, type MissionCard, type MissionIntake, type MissionStatus } from '../lib/cockpit-missions.js';
+import { readMissions, MISSION_STATUSES, type MissionCard, type MissionIntake, type MissionStatus } from '../lib/cockpit-missions.js';
+import type { RoadmapItems } from '../lib/roadmap-items.js';
 import { validateProjectRoot } from '../lib/utils.js';
 
 function deriveProjectName(projectDir: string): string {
@@ -60,19 +61,10 @@ interface CockpitDeps {
   sessions?: SessionsDep;
   resurrection?: ResurrectionDep;
   feedback?: FeedbackDep;
+  roadmapItems?: RoadmapItems;
 }
 
-const ALLOWED_STATUSES: ReadonlySet<MissionStatus> = new Set<MissionStatus>([
-  'closed',
-  'blocked',
-  'drifting',
-  'stalled',
-  'mostly-resolved',
-  'mostly-committed',
-  'uncommitted',
-  'in-flight',
-  'unknown',
-]);
+const ALLOWED_STATUSES: ReadonlySet<MissionStatus> = new Set<MissionStatus>(MISSION_STATUSES);
 
 const ALLOWED_BACKENDS: ReadonlySet<string> = new Set([
   'codex',
@@ -128,48 +120,19 @@ function asArray(raw: unknown): unknown[] {
   return [];
 }
 
-// Per-process memo for readMissions, keyed on projectDir and invalidated
-// when any of the three default source files' mtime/size changes. The
-// detail/plan routes can be polled aggressively; without a cache, every
-// request re-parsed all three roadmap markdown files synchronously. Cost
-// of the cache is one statSync per source per request.
-const DEFAULT_SOURCE_PATHS: ReadonlyArray<string> = [
-  'docs/recovery/CURRENT-WORK.md',
-  'docs/recovery/UNIFIED-ROADMAP.md',
-  '.cartographer/status.md',
-];
+// The mtime-keyed cache that lived here before Slice C cached the
+// markdown-parser output. roadmap_items.list() is a cheap tuple-fold
+// already, so a parallel cockpit-side cache would just be stale layer
+// duplication. If profiling shows list() hot, add caching inside
+// lib/roadmap-items.ts where it can invalidate on tuple writes for free.
 
-interface MissionCacheEntry {
-  fingerprint: string;
-  intake: MissionIntake;
-}
-
-const missionCache = new Map<string, MissionCacheEntry>();
-
-function sourceFingerprint(projectDir: string): string {
-  const parts: string[] = [];
-  for (const rel of DEFAULT_SOURCE_PATHS) {
-    try {
-      const s = statSync(`${projectDir}/${rel}`);
-      parts.push(`${rel}:${s.mtimeMs}:${s.size}`);
-    } catch {
-      parts.push(`${rel}:missing`);
-    }
-  }
-  return parts.join('|');
-}
-
-function readMissionsCached(projectDir: string): MissionIntake {
-  const fingerprint = sourceFingerprint(projectDir);
-  const hit = missionCache.get(projectDir);
-  if (hit && hit.fingerprint === fingerprint) return hit.intake;
-  const intake = readMissions({ projectDir });
-  missionCache.set(projectDir, { fingerprint, intake });
-  return intake;
-}
-
-function findMissionById(projectDir: string, id: string): MissionCard | null {
-  const intake = readMissionsCached(projectDir);
+function findMissionById(
+  deps: CockpitDeps,
+  projectDir: string,
+  id: string,
+): MissionCard | null {
+  if (!deps.roadmapItems) return null;
+  const intake = readMissions({ projectDir, roadmapItems: deps.roadmapItems });
   return intake.missions.find((m) => m.id === id) ?? null;
 }
 
@@ -360,8 +323,18 @@ export const cockpitPlugin: FastifyPluginAsync<{ deps: CockpitDeps }> = async (f
     const status = parseStatusFilter(q.status);
     const limit = parseLimit(q.limit);
 
+    if (!deps.roadmapItems) {
+      reply.code(503);
+      return { success: false, error: 'roadmap_items module not wired into daemon deps' };
+    }
+
     try {
-      const intake = readMissions({ projectDir, status, limit });
+      const intake = readMissions({
+        projectDir,
+        roadmapItems: deps.roadmapItems,
+        status,
+        limit,
+      });
       return { success: true, intake, count: intake.missions.length };
     } catch (error) {
       metrics.errors++;
@@ -392,7 +365,7 @@ export const cockpitPlugin: FastifyPluginAsync<{ deps: CockpitDeps }> = async (f
     }
 
     try {
-      const mission = findMissionById(projectDir, id);
+      const mission = findMissionById(deps, projectDir, id);
       if (!mission) {
         reply.code(404);
         return { success: false, error: `mission '${id}' not found` };
@@ -434,7 +407,7 @@ export const cockpitPlugin: FastifyPluginAsync<{ deps: CockpitDeps }> = async (f
     }
 
     try {
-      const mission = findMissionById(projectDir, id);
+      const mission = findMissionById(deps, projectDir, id);
       if (!mission) {
         reply.code(404);
         return { success: false, error: `mission '${id}' not found` };

@@ -1,254 +1,190 @@
 import { describe, expect, test, beforeAll, afterAll } from '@jest/globals';
 import Fastify from 'fastify';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { readMissions } from '../../lib/cockpit-missions.js';
+import { readMissions, roadmapItemToMissionCard } from '../../lib/cockpit-missions.js';
 import { cockpitPlugin } from '../../routes/cockpit.js';
 
-function makeFixture() {
-  const root = mkdtempSync(join(tmpdir(), 'cockpit-missions-'));
-  mkdirSync(join(root, 'docs', 'recovery'), { recursive: true });
-  mkdirSync(join(root, '.cartographer'), { recursive: true });
-
-  writeFileSync(
-    join(root, 'docs', 'recovery', 'CURRENT-WORK.md'),
-    [
-      '# Current Work',
-      '',
-      '## In Flight',
-      '',
-      '### Cockpit mission intake (UNCOMMITTED)',
-      '',
-      'Build the smallest cockpit slice that reads roadmap docs.',
-      '',
-      '- adds `lib/cockpit-missions.ts`',
-      '- adds `routes/cockpit.ts`',
-      '- updates [features.manifest.json](features.manifest.json)',
-      '',
-      '### Tube prose loop (IN-FLIGHT)',
-      '',
-      'Tube becomes a single-command crank-handle conversation.',
-      '',
-      '- touches `lib/tube.ts`',
-      '',
-    ].join('\n'),
-  );
-
-  writeFileSync(
-    join(root, 'docs', 'recovery', 'UNIFIED-ROADMAP.md'),
-    [
-      '# Unified Roadmap',
-      '',
-      '## Track 1: Cost And Observability Foundation (CLOSED)',
-      '',
-      'Closed.',
-      '',
-      '- `lib/counters.ts`',
-      '',
-      '## Track 5: Unblock Phase 1 By Landing graph_edges',
-      '',
-      'Open.',
-      '',
-      '- `lib/symbol-index.ts`',
-      '',
-    ].join('\n'),
-  );
-
-  writeFileSync(
-    join(root, '.cartographer', 'status.md'),
-    [
-      '# Cartographer Status',
-      '',
-      '## Top 3 Blocked or Drifting',
-      '',
-      '### Phase 1 — Unified Edge Table (1A)',
-      '',
-      'Three modules sit on disk waiting on a migration.',
-      '',
-      '- `lib/symbol-index.ts`',
-      '- `lib/merge-queue.ts`',
-      '',
-      '### Phase 4A — Bun binary (STALLED — 5 days since last commit)',
-      '',
-      'No commits since Apr 4.',
-      '',
-      '- build scripts dormant',
-      '',
-    ].join('\n'),
-  );
-
-  return root;
+function makeItem(overrides = {}) {
+  return {
+    id: 'item-1',
+    slug: 'cockpit-mission-intake',
+    summaryMd: 'Cockpit mission intake\nBuild the smallest cockpit slice that reads roadmap docs.',
+    status: 'now',
+    promotedFromFeedbackId: null,
+    promotedByAgentId: null,
+    promotedAt: null,
+    lastTouchedAt: 1700000000000,
+    dependencies: ['lib/cockpit-missions.ts', 'routes/cockpit.ts'],
+    notes: [
+      { at: 1700000000000, by: 'cartographer', text: 'Reads CURRENT-WORK.md.' },
+      { at: 1700000001000, by: 'cartographer', text: 'Hooks Fleet UI panel.' },
+    ],
+    harbor: 'port-daddy',
+    ...overrides,
+  };
 }
 
+function makeRoadmapItemsStub(items) {
+  return {
+    list: (opts = {}) => {
+      let out = [...items];
+      if (typeof opts.limit === 'number' && opts.limit > 0) out = out.slice(0, opts.limit);
+      return out;
+    },
+    get: (slug) => items.find((i) => i.slug === slug) ?? null,
+    upsert: () => null,
+    updateStatus: () => null,
+    touch: () => null,
+  };
+}
+
+describe('roadmapItemToMissionCard', () => {
+  test('extracts title from first line, summary from rest', () => {
+    const card = roadmapItemToMissionCard(makeItem());
+    expect(card.id).toBe('cockpit-mission-intake');
+    expect(card.title).toBe('Cockpit mission intake');
+    expect(card.summary).toBe('Build the smallest cockpit slice that reads roadmap docs.');
+  });
+
+  test('strips leading markdown hashes from title', () => {
+    const card = roadmapItemToMissionCard(makeItem({ summaryMd: '## Big mission\nWith a body.' }));
+    expect(card.title).toBe('Big mission');
+  });
+
+  test('uses slug as title when summaryMd is empty', () => {
+    const card = roadmapItemToMissionCard(makeItem({ summaryMd: '' }));
+    expect(card.title).toBe('cockpit-mission-intake');
+  });
+
+  test('empty summary when there is no second line', () => {
+    const card = roadmapItemToMissionCard(makeItem({ summaryMd: 'Just a title' }));
+    expect(card.title).toBe('Just a title');
+    expect(card.summary).toBe('');
+  });
+
+  test('evidence = note texts, files = dependencies', () => {
+    const card = roadmapItemToMissionCard(makeItem());
+    expect(card.evidence).toEqual(['Reads CURRENT-WORK.md.', 'Hooks Fleet UI panel.']);
+    expect(card.files).toEqual(['lib/cockpit-missions.ts', 'routes/cockpit.ts']);
+  });
+
+  test('source and sourceAnchor are stable', () => {
+    const card = roadmapItemToMissionCard(makeItem());
+    expect(card.source).toBe('roadmap_items');
+    expect(card.sourceAnchor).toBe('cockpit-mission-intake');
+  });
+
+  test('status passes through unchanged (5-bucket RoadmapStatus)', () => {
+    for (const s of ['now', 'backlog', 'parked', 'merge', 'done']) {
+      expect(roadmapItemToMissionCard(makeItem({ status: s })).status).toBe(s);
+    }
+  });
+
+  test('null/missing notes/dependencies fall back to empty arrays', () => {
+    const card = roadmapItemToMissionCard(makeItem({ notes: null, dependencies: null }));
+    expect(card.evidence).toEqual([]);
+    expect(card.files).toEqual([]);
+  });
+});
+
 describe('readMissions', () => {
-  let fixtureRoot;
+  const items = [
+    makeItem({ slug: 'a', status: 'now' }),
+    makeItem({ slug: 'b', status: 'backlog' }),
+    makeItem({ slug: 'c', status: 'parked' }),
+    makeItem({ slug: 'd', status: 'merge' }),
+    makeItem({ slug: 'e', status: 'done' }),
+  ];
 
-  beforeAll(() => {
-    fixtureRoot = makeFixture();
+  test('returns one mission per item with no filter', () => {
+    const intake = readMissions({ projectDir: '/p', roadmapItems: makeRoadmapItemsStub(items) });
+    expect(intake.missions).toHaveLength(5);
+    expect(intake.sources).toEqual(['roadmap_items']);
+    expect(intake.missing).toEqual([]);
+    expect(intake.sourcesWithNoCards).toEqual([]);
+    expect(intake.projectDir).toBe('/p');
   });
 
-  afterAll(() => {
-    rmSync(fixtureRoot, { recursive: true, force: true });
+  test('status filter narrows results', () => {
+    const intake = readMissions({
+      projectDir: '/p',
+      roadmapItems: makeRoadmapItemsStub(items),
+      status: ['now', 'merge'],
+    });
+    expect(intake.missions.map((m) => m.id).sort()).toEqual(['a', 'd']);
   });
 
-  test('parses status tags from heading suffixes', () => {
-    const intake = readMissions({ projectDir: fixtureRoot });
-    const byId = Object.fromEntries(intake.missions.map((m) => [m.id, m]));
-    expect(byId['cockpit-mission-intake'].status).toBe('uncommitted');
-    expect(byId['tube-prose-loop'].status).toBe('in-flight');
-    expect(byId['track-1-cost-and-observability-foundation'].status).toBe('closed');
-    expect(byId['phase-4a-bun-binary'].status).toBe('stalled');
+  test('limit caps the count', () => {
+    const intake = readMissions({
+      projectDir: '/p',
+      roadmapItems: makeRoadmapItemsStub(items),
+      limit: 2,
+    });
+    expect(intake.missions).toHaveLength(2);
   });
 
-  test('infers blocked status from parent H2 in cartographer status', () => {
-    const intake = readMissions({ projectDir: fixtureRoot });
-    const phase1 = intake.missions.find((m) => m.id === 'phase-1-unified-edge-table-1a');
-    // Suffix `(1A)` is a code reference, not a status tag, so it stays in the slug.
-    expect(phase1).toBeDefined();
-    expect(phase1.status).toBe('blocked');
-    expect(phase1.source).toBe('.cartographer/status.md');
-  });
-
-  test('extracts files from backticks and markdown links', () => {
-    const intake = readMissions({ projectDir: fixtureRoot });
-    const cockpit = intake.missions.find((m) => m.id === 'cockpit-mission-intake');
-    expect(cockpit.files).toEqual(
-      expect.arrayContaining(['lib/cockpit-missions.ts', 'routes/cockpit.ts', 'features.manifest.json']),
-    );
-  });
-
-  test('summary captures the first paragraph and evidence captures bullets', () => {
-    const intake = readMissions({ projectDir: fixtureRoot });
-    const cockpit = intake.missions.find((m) => m.id === 'cockpit-mission-intake');
-    expect(cockpit.summary).toMatch(/smallest cockpit slice/);
-    expect(cockpit.evidence.length).toBeGreaterThanOrEqual(2);
-  });
-
-  test('first source wins on duplicate slugs', () => {
-    const intake = readMissions({ projectDir: fixtureRoot });
-    const ids = intake.missions.map((m) => m.id);
-    const unique = new Set(ids);
-    expect(ids.length).toBe(unique.size);
-  });
-
-  test('status filter narrows the result set', () => {
-    const intake = readMissions({ projectDir: fixtureRoot, status: ['blocked'] });
-    expect(intake.missions.length).toBeGreaterThan(0);
-    for (const m of intake.missions) expect(m.status).toBe('blocked');
-  });
-
-  test('limit truncates after status filter', () => {
-    const intake = readMissions({ projectDir: fixtureRoot, limit: 2 });
-    expect(intake.missions.length).toBeLessThanOrEqual(2);
-  });
-
-  test('missing source files surface in `missing`', () => {
-    const empty = mkdtempSync(join(tmpdir(), 'cockpit-empty-'));
-    try {
-      const intake = readMissions({ projectDir: empty });
-      expect(intake.missing.length).toBe(3);
-      expect(intake.sourcesWithNoCards).toEqual([]);
-      expect(intake.missions).toEqual([]);
-    } finally {
-      rmSync(empty, { recursive: true, force: true });
-    }
-  });
-
-  test('present-but-empty source files surface in `sourcesWithNoCards`', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'cockpit-no-cards-'));
-    try {
-      // Create the three default sources with content that produces zero
-      // mission cards (no headings at the configured level / no status tags).
-      mkdirSync(join(dir, 'docs', 'recovery'), { recursive: true });
-      mkdirSync(join(dir, '.cartographer'), { recursive: true });
-      writeFileSync(join(dir, 'docs', 'recovery', 'CURRENT-WORK.md'), '# Work\n\nNo tagged sections.\n');
-      writeFileSync(join(dir, 'docs', 'recovery', 'UNIFIED-ROADMAP.md'), '# Roadmap\n');
-      writeFileSync(join(dir, '.cartographer', 'status.md'), '# Status\n\nNothing yet.\n');
-
-      const intake = readMissions({ projectDir: dir });
-      expect(intake.missing).toEqual([]);
-      expect(intake.sourcesWithNoCards.sort()).toEqual([
-        '.cartographer/status.md',
-        'docs/recovery/CURRENT-WORK.md',
-        'docs/recovery/UNIFIED-ROADMAP.md',
-      ]);
-      expect(intake.missions).toEqual([]);
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
+  test('empty roadmap returns an empty intake (not an error)', () => {
+    const intake = readMissions({ projectDir: '/p', roadmapItems: makeRoadmapItemsStub([]) });
+    expect(intake.missions).toEqual([]);
+    expect(intake.generatedAt).toBeGreaterThan(0);
   });
 });
 
 describe('GET /cockpit/missions route', () => {
   let app;
-  let fixtureRoot;
+  const items = [
+    makeItem({ slug: 'm-now-1', status: 'now' }),
+    makeItem({ slug: 'm-backlog-1', status: 'backlog' }),
+    makeItem({ slug: 'm-done-1', status: 'done' }),
+  ];
 
   beforeAll(async () => {
-    fixtureRoot = makeFixture();
     app = Fastify({ logger: false });
     await app.register(cockpitPlugin, {
       deps: {
-        repoRoot: fixtureRoot,
+        repoRoot: '/test',
         metrics: { errors: 0 },
         logger: { info() {}, error() {} },
+        roadmapItems: makeRoadmapItemsStub(items),
       },
     });
   });
 
   afterAll(async () => {
     await app.close();
-    rmSync(fixtureRoot, { recursive: true, force: true });
   });
 
-  test('returns the intake using daemon repoRoot when projectDir omitted', async () => {
+  test('200 with mapped mission cards', async () => {
     const res = await app.inject({ method: 'GET', url: '/cockpit/missions' });
     expect(res.statusCode).toBe(200);
     const body = res.json();
     expect(body.success).toBe(true);
-    expect(body.intake.projectDir).toBe(fixtureRoot);
-    expect(Array.isArray(body.intake.missions)).toBe(true);
-    expect(body.count).toBe(body.intake.missions.length);
+    expect(body.count).toBe(3);
+    expect(body.intake.missions.map((m) => m.id).sort()).toEqual(['m-backlog-1', 'm-done-1', 'm-now-1']);
   });
 
-  test('honors status filter and limit query params', async () => {
+  test('honors status filter + limit query params', async () => {
     const res = await app.inject({
       method: 'GET',
-      url: '/cockpit/missions?status=blocked,closed&limit=5',
+      url: '/cockpit/missions?status=now,done&limit=5',
     });
     expect(res.statusCode).toBe(200);
     const body = res.json();
-    expect(body.intake.missions.every((m) => m.status === 'blocked' || m.status === 'closed')).toBe(
-      true,
-    );
-    expect(body.intake.missions.length).toBeLessThanOrEqual(5);
+    expect(body.intake.missions.every((m) => m.status === 'now' || m.status === 'done')).toBe(true);
   });
 
-  test('rejects relative projectDir', async () => {
-    const res = await app.inject({
-      method: 'GET',
-      url: '/cockpit/missions?projectDir=relative/path',
-    });
-    expect(res.statusCode).toBe(400);
-    const body = res.json();
-    expect(body.success).toBe(false);
-    expect(body.error).toMatch(/absolute/);
-  });
-
-  test('returns 400 when projectDir is missing and no repoRoot is configured', async () => {
+  test('503 when roadmapItems dep is absent', async () => {
     const bare = Fastify({ logger: false });
     await bare.register(cockpitPlugin, {
       deps: {
+        repoRoot: '/test',
         metrics: { errors: 0 },
         logger: { info() {}, error() {} },
       },
     });
     try {
       const res = await bare.inject({ method: 'GET', url: '/cockpit/missions' });
-      expect(res.statusCode).toBe(400);
-      const body = res.json();
-      expect(body.success).toBe(false);
-      expect(body.error).toMatch(/projectDir required/);
+      expect(res.statusCode).toBe(503);
+      expect(res.json().error).toMatch(/roadmap_items/);
     } finally {
       await bare.close();
     }
@@ -257,164 +193,50 @@ describe('GET /cockpit/missions route', () => {
 
 describe('GET /cockpit/missions/:id and POST /cockpit/missions/:id/plan', () => {
   let app;
-  let fixtureRoot;
-
-  const liveDeps = {
-    sessions: {
-      list: () => [
-        { sessionId: 'sess-A', purpose: 'cockpit-mission-intake follow-up', project: '/x' },
-        { sessionId: 'sess-B', purpose: 'editing lib/cockpit-missions.ts', project: '/x' },
-        { sessionId: 'sess-C', purpose: 'unrelated work', project: '/x' },
-      ],
-      listAllActiveClaims: () => ({
-        claims: [
-          { sessionId: 'sess-B', filePath: 'lib/cockpit-missions.ts' },
-          { sessionId: 'sess-C', filePath: 'lib/elsewhere.ts' },
-        ],
-      }),
-    },
-    resurrection: {
-      pending: () => [
-        { id: 'r-1', purpose: 'cockpit-mission-intake', note: 'died mid-edit' },
-        { id: 'r-2', purpose: 'unrelated', note: 'nothing to see' },
-      ],
-    },
-    feedback: {
-      list: () => [
-        { feedbackId: 'fb-1', slug: 'cockpit-mission-intake', summary: 'panel needs limit chip', status: 'open' },
-        { feedbackId: 'fb-2', slug: 'unrelated-thing', summary: 'something else', status: 'open' },
-      ],
-    },
-  };
+  const items = [
+    makeItem({ slug: 'mission-alpha', status: 'now' }),
+    makeItem({ slug: 'mission-beta', status: 'backlog' }),
+  ];
 
   beforeAll(async () => {
-    fixtureRoot = makeFixture();
     app = Fastify({ logger: false });
     await app.register(cockpitPlugin, {
       deps: {
-        repoRoot: fixtureRoot,
+        repoRoot: '/test',
         metrics: { errors: 0 },
         logger: { info() {}, error() {} },
-        ...liveDeps,
+        roadmapItems: makeRoadmapItemsStub(items),
       },
     });
   });
 
   afterAll(async () => {
     await app.close();
-    rmSync(fixtureRoot, { recursive: true, force: true });
   });
 
-  test('detail returns 404 for unknown mission', async () => {
-    const res = await app.inject({ method: 'GET', url: '/cockpit/missions/no-such-thing' });
-    expect(res.statusCode).toBe(404);
-    expect(res.json().success).toBe(false);
-  });
-
-  test('detail returns mission + live cross-references', async () => {
-    const res = await app.inject({ method: 'GET', url: '/cockpit/missions/cockpit-mission-intake' });
+  test('GET /:id returns 200 with mission + live context', async () => {
+    const res = await app.inject({ method: 'GET', url: '/cockpit/missions/mission-alpha' });
     expect(res.statusCode).toBe(200);
     const body = res.json();
     expect(body.success).toBe(true);
-    expect(body.mission.id).toBe('cockpit-mission-intake');
-    expect(body.live.sessions.length).toBeGreaterThanOrEqual(2);
-    expect(body.live.claims.length).toBe(1);
-    expect(body.live.claims[0].filePath).toBe('lib/cockpit-missions.ts');
-    expect(body.live.salvage.length).toBe(1);
-    expect(body.live.dogfood.length).toBe(1);
-    expect(body.live.dogfood[0].slug).toBe('cockpit-mission-intake');
+    expect(body.mission.id).toBe('mission-alpha');
+    expect(body.live).toBeDefined();
   });
 
-  test('plan returns proposal with sensible defaults', async () => {
+  test('GET /:id returns 404 for unknown slug', async () => {
+    const res = await app.inject({ method: 'GET', url: '/cockpit/missions/does-not-exist' });
+    expect(res.statusCode).toBe(404);
+  });
+
+  test('POST /:id/plan returns a proposal with mission scaffolding', async () => {
     const res = await app.inject({
       method: 'POST',
-      url: '/cockpit/missions/cockpit-mission-intake/plan',
+      url: '/cockpit/missions/mission-alpha/plan',
       payload: {},
     });
     expect(res.statusCode).toBe(200);
     const body = res.json();
     expect(body.success).toBe(true);
-    expect(body.proposal.missionId).toBe('cockpit-mission-intake');
-    expect(body.proposal.harbor).toBe('cockpit');
-    expect(body.proposal.backend).toBe('codex');
-    expect(body.proposal.modelTier).toBe('mid');
-    expect(body.proposal.budgetUsd).toBe(1.0);
-    expect(body.proposal.goal).toMatch(/Cockpit mission intake/);
-    expect(body.proposal.files.length).toBeGreaterThan(0);
-    expect(body.proposal.context).toMatch(/Status: uncommitted/);
-  });
-
-  test('plan honors valid overrides', async () => {
-    const res = await app.inject({
-      method: 'POST',
-      url: '/cockpit/missions/cockpit-mission-intake/plan',
-      payload: { backend: 'claude-cli', modelTier: 'high', budgetUsd: 2.5, goal: 'custom goal' },
-    });
-    expect(res.statusCode).toBe(200);
-    const body = res.json();
-    expect(body.proposal.backend).toBe('claude-cli');
-    expect(body.proposal.modelTier).toBe('high');
-    expect(body.proposal.budgetUsd).toBe(2.5);
-    expect(body.proposal.goal).toBe('custom goal');
-  });
-
-  test('plan rejects invalid backend', async () => {
-    const res = await app.inject({
-      method: 'POST',
-      url: '/cockpit/missions/cockpit-mission-intake/plan',
-      payload: { backend: 'made-up-backend' },
-    });
-    expect(res.statusCode).toBe(400);
-    expect(res.json().error).toMatch(/backend must be/);
-  });
-
-  test('plan rejects invalid tier', async () => {
-    const res = await app.inject({
-      method: 'POST',
-      url: '/cockpit/missions/cockpit-mission-intake/plan',
-      payload: { modelTier: 'medium' },
-    });
-    expect(res.statusCode).toBe(400);
-    expect(res.json().error).toMatch(/modelTier must be/);
-  });
-
-  test('plan rejects non-positive budget', async () => {
-    const res = await app.inject({
-      method: 'POST',
-      url: '/cockpit/missions/cockpit-mission-intake/plan',
-      payload: { budgetUsd: -1 },
-    });
-    expect(res.statusCode).toBe(400);
-    expect(res.json().error).toMatch(/budgetUsd/);
-  });
-
-  test('detail/plan tolerate missing live deps', async () => {
-    const bare = Fastify({ logger: false });
-    await bare.register(cockpitPlugin, {
-      deps: {
-        repoRoot: fixtureRoot,
-        metrics: { errors: 0 },
-        logger: { info() {}, error() {} },
-      },
-    });
-    try {
-      const detail = await bare.inject({ method: 'GET', url: '/cockpit/missions/cockpit-mission-intake' });
-      expect(detail.statusCode).toBe(200);
-      const detailBody = detail.json();
-      expect(detailBody.live.sessions).toEqual([]);
-      expect(detailBody.live.claims).toEqual([]);
-      expect(detailBody.live.salvage).toEqual([]);
-      expect(detailBody.live.dogfood).toEqual([]);
-
-      const plan = await bare.inject({
-        method: 'POST',
-        url: '/cockpit/missions/cockpit-mission-intake/plan',
-        payload: {},
-      });
-      expect(plan.statusCode).toBe(200);
-      expect(plan.json().proposal.missionId).toBe('cockpit-mission-intake');
-    } finally {
-      await bare.close();
-    }
+    expect(body.proposal.missionId).toBe('mission-alpha');
   });
 });
