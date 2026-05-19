@@ -9,6 +9,8 @@
  *   - .claude-plugin/plugin.json
  *   - mcp-server.json
  *   - mcp/server.ts
+ *   - server.ts (EMBEDDED_PACKAGE_VERSION — fallback used inside the bun bundle
+ *     when __dirname-relative package.json read fails)
  */
 
 import { readFileSync, writeFileSync } from 'fs';
@@ -34,14 +36,27 @@ mcpJson.version = version;
 writeFileSync(mcpJsonPath, JSON.stringify(mcpJson, null, 2) + '\n');
 console.log(`  ✓ mcp-server.json → ${version}`);
 
-// mcp/server.ts
+// mcp/server.ts — same semver-friendly pattern so RC promotions sync cleanly.
 const mcpServerPath = join(ROOT, 'mcp', 'server.ts');
 let mcpContent = readFileSync(mcpServerPath, 'utf-8');
 mcpContent = mcpContent.replace(
-  /(version:\s*['"])[\d.]+(['"])/,
+  /(version:\s*['"])[\w.\-+]+(['"])/,
   `$1${version}$2`
 );
 writeFileSync(mcpServerPath, mcpContent);
 console.log(`  ✓ mcp/server.ts → ${version}`);
+
+// server.ts EMBEDDED_PACKAGE_VERSION
+// Regex covers full semver (including pre-release and build metadata) so the
+// sync still works for RC cycles like 3.15.0-rc.1 → 3.15.0.
+const serverPath = join(ROOT, 'server.ts');
+const embeddedVersionRe = /(const EMBEDDED_PACKAGE_VERSION: string = ['"])[\w.\-+]+(['"])/;
+let serverContent = readFileSync(serverPath, 'utf-8');
+if (!embeddedVersionRe.test(serverContent)) {
+  throw new Error(`sync-version.ts: EMBEDDED_PACKAGE_VERSION literal not found in server.ts — bun-bundle version fallback would silently rot. Restore the const before releasing.`);
+}
+serverContent = serverContent.replace(embeddedVersionRe, `$1${version}$2`);
+writeFileSync(serverPath, serverContent);
+console.log(`  ✓ server.ts EMBEDDED_PACKAGE_VERSION → ${version}`);
 
 console.log(`\nVersion ${version} synced to all surfaces.`);

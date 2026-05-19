@@ -15,7 +15,7 @@ import type { PdFetchResponse } from '../utils/fetch.js';
 import { printBanner, printCompactHeader, printFarewell, WHEEL, ANCHOR, ANSI } from '../../lib/banner.js';
 import { autoFixStartupBlockers, diagnoseStartupBlockers } from '../utils/startup-doctor.js';
 import { LOOPBACK_TCP_HOST, readDaemonPort } from '../../shared/daemon-discovery.js';
-import { resolveDaemonLaunchCommand, type DaemonLaunchCommand } from '../../shared/daemon-binary.js';
+import { resolveDaemonLaunchCommand, isBunCompiledRuntime, type DaemonLaunchCommand } from '../../shared/daemon-binary.js';
 import { calculateRuntimeCodeHash, listRuntimeSourceFiles } from '../../shared/code-hash.js';
 import {
   buildDaemonProfileEnv,
@@ -37,13 +37,16 @@ const STARTUP_HEALTH_TIMEOUT_MS = 10000;
 
 /**
  * Detect whether we're running inside a `bun build --compile` binary.
- * In a bun-compiled bundle, `process.versions.bun` is set AND `import.meta.url`
- * lives under `/$bunfs/...`. In source-mode dev (bun run / tsx) the latter
- * is a normal file:// URL on disk.
+ * Thin runtime-state collector; the actual decision logic lives in
+ * `shared/daemon-binary.ts::isBunCompiledRuntime` so it's unit-testable.
  */
 function isBunCompiledBinary(): boolean {
-  if (!process.versions.bun) return false;
-  return import.meta.url.includes('/$bunfs/');
+  return isBunCompiledRuntime({
+    versionsBun: process.versions.bun,
+    importMetaUrl: import.meta.url,
+    errorStack: new Error().stack ?? '',
+    execPath: process.execPath,
+  });
 }
 
 /**
