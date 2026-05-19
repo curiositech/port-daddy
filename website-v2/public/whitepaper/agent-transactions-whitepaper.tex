@@ -106,6 +106,7 @@
 \newtheorem{definition}{Definition}[section]
 \newtheorem{theorem}{Theorem}[section]
 \newtheorem{lemma}{Lemma}[section]
+\newtheorem{proposition}{Proposition}[section]
 \newtheorem{property}{Property}[section]
 \newtheorem{corollary}{Corollary}[section]
 
@@ -646,6 +647,83 @@ This is how performance bonds work in construction. This is how futures markets 
 The Float Plan does not make sabotage impossible. It makes sabotage \emph{expensive}. A principal willing to burn money to cause damage will burn the bond and cause the damage. The bond raises the price of defection; it does not eliminate it. The defense against existential threats to the commons is not internal governance but external boundary enforcement: who is allowed to post Float Plans at all. That decision is irreducibly political.
 \end{remark}
 
+\subsection{Truthful Claim Signaling as Nash Equilibrium}\label{sec:claim-signaling-ic}
+
+The bond machinery above prices \emph{outcomes}: an agent that destroys files pays for the destruction. The paper's headline claim, however, is upstream of outcomes---that truthful file-claim signaling (\S\ref{sec:attribution-survives}, \S\ref{sec:advisory}) is incentive-compatible in the first place. The cartel analysis of \S\ref{sec:youle:a6} works that argument out for insurer pricing. The corresponding argument for the claim signal itself has been carried on faith until now. This subsection closes that gap.
+
+\paragraph{Stage game.}
+Consider two agents $A$ and $B$ working on a shared project, deciding per round on each file whether to signal:
+\begin{description}[nosep]
+  \item[\textbf{T (Truthful).}] Claim files the agent intends to edit; do not claim files it will not edit.
+  \item[\textbf{F (False).}] Either claim files the agent does not intend to edit (to block a rival), or fail to claim files it does intend to edit (to avoid scrutiny). Either form of misrepresentation counts as $F$.
+\end{description}
+
+The stage-game payoffs, in expected-utility units calibrated to the cleanup cost $c$ of \S\ref{sec:cleanup-bound}, are:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}rcc@{}}
+\toprule
+ & $B$: T & $B$: F \\
+\midrule
+$A$: T & $(3,\,3)$ & $(1,\,4)$ \\
+$A$: F & $(4,\,1)$ & $(0,\,0)$ \\
+\bottomrule
+\end{tabular}
+\caption{One-shot file-claim signaling: a prisoner's dilemma. Mutual truth $(3,3)$ is Pareto-optimal, but $F$ strictly dominates $T$ for each player. The unique one-shot Nash equilibrium is $(F,F)$, which destroys the coordination signal.}
+\label{tab:claim-stage-game}
+\end{table}
+
+The stage game is a prisoner's dilemma: $F$ strictly dominates $T$ for each player, and $(F, F)$ is the unique one-shot Nash equilibrium. \emph{Truthful signaling is not a one-shot equilibrium}; advisory coordination cannot be sustained by stage-game rationality alone.
+
+\paragraph{Move to the repeated game.}
+What rescues truthful signaling is that the agents are not playing the stage game once. The substrate provides:
+\begin{itemize}[nosep]
+  \item \textbf{Observable history.} The Merkle-chained evidence trail of \S\ref{sec:attribution} and heartbeat record of \S\ref{sec:crash-recovery} make each player's prior moves visible to any third party who can verify a 700-byte inclusion proof. Past defection is not deniable.
+  \item \textbf{Persistent identity.} The Anchor Protocol's passkey-bound device pairing~\cite{owens2026anchor} ties an agent ID to a hardware-rooted credential. Sybil re-registration is bounded by the per-identity onboarding cost $C_{\mathrm{kyc}}$ of \S\ref{sec:youle:a5}, so an agent cannot trivially shed a reputation by re-incarnating.
+  \item \textbf{A discount factor $\delta$.} Principals value future interactions: a development project lives over weeks; insurer relationships compound; reputation discounts (\S\ref{sec:rep-discount}) accrue. For long-lived principals we take $\delta \approx 0.9$ as a working operating point, consistent with the discount used in \S\ref{sec:youle:a6}.
+\end{itemize}
+
+\paragraph{Strategy profile (graduated trigger).}
+Each agent plays the following strategy on each file:
+\begin{enumerate}[nosep]
+  \item Begin by playing $T$.
+  \item If the opponent's last observed action on the relevant surface was $T$, play $T$.
+  \item If the opponent's last observed action was $F$, play $F$ for three rounds (punishment phase), then return to $T$.
+  \item If the opponent deviates during the punishment phase, restart the three-round window.
+\end{enumerate}
+
+Graduated trigger, not grim trigger. The cartel analysis of \S\ref{sec:youle:a6} uses grim trigger because that gives the cleanest folk-theorem bound, and the analysis below uses grim trigger for the same reason where the calculation is short enough to be exact. The \emph{production} strategy is graduated for the reason given in \S\ref{sec:crash-recovery}: crashes and deliberate defection are operationally indistinguishable from any third-party observer's vantage. Permanent punishment for a transient infrastructure event would destroy cooperation faster than any saboteur could.
+
+\paragraph{Deviation analysis.}
+Suppose $A$ contemplates playing $F$ in some round when the strategy prescribes $T$. The one-shot gain from defection, paid in the deviation round, is $d - c = 4 - 3 = 1$. The cost is three subsequent rounds of mutual punishment at $(F,F)$ before the relationship resets, each paying $p = 0$ instead of the cooperative $c = 3$. Discounted at $\delta$:
+\[
+\text{PV of lost cooperative payoff} \;=\; (c - p) \cdot (\delta + \delta^2 + \delta^3) \;=\; 3 \cdot (\delta + \delta^2 + \delta^3).
+\]
+At a working discount factor $\delta = 0.9$, the bracketed sum is $0.9 + 0.81 + 0.729 = 2.439$, so the deviator's net payoff is $1 - 3 \cdot 2.439 = 1 - 7.317 = -6.317$, strictly negative. Deviation is strictly unprofitable.
+
+\paragraph{Critical $\delta$.}
+The general sustainability condition under a $k$-round graduated trigger with stage-game payoffs $(c, d, p) = (3, 4, 0)$ is
+\[
+\underbrace{d - c}_{\text{one-shot gain}} \;<\; \underbrace{(c - p) \cdot \frac{\delta(1 - \delta^k)}{1 - \delta}}_{\text{discounted punishment cost}}.
+\]
+Substituting $d - c = 1,\; c - p = 3$ and $k = 3$ gives $1 < 3\delta(1 + \delta + \delta^2)$, which solves numerically to $\delta > \delta^\star_{k=3} \approx 0.253$. Under grim trigger ($k \to \infty$) the bound is the closed-form $\delta > 1/4 = 0.25$, recovering the standard folk-theorem threshold. The graduated bound is therefore only marginally above grim---the three-round window adds barely $0.003$ to the threshold---which is the right result: graduated trigger pays almost nothing for the crash tolerance it buys.
+
+\begin{proposition}[Claim Signaling Incentive Compatibility]\label{prop:claim-signaling-ic}
+Under the observable-history regime of \S\ref{sec:attribution} and the Sybil-resistant identity regime of the Anchor Protocol~\cite{owens2026anchor}, truthful file-claim signaling is a Nash equilibrium of the repeated coordination game with stage-game payoffs as in Table~\ref{tab:claim-stage-game} for any discount factor $\delta > \delta^\star_{k=3} \approx 0.253$, when both players adopt the three-round graduated-trigger strategy described above. The bound is tight: for $\delta \leq \delta^\star_{k=3}$ at least one player has a strictly profitable one-shot deviation under the three-round trigger, and for $\delta \leq 1/4$ no trigger of finite or infinite duration sustains $(T,T)$.
+\end{proposition}
+
+\paragraph{What each condition buys, and what breaks when it is removed.}
+The proposition is conditional, and the conditions matter. Naming what each one is doing makes the dependency on the rest of the architecture explicit rather than implicit.
+\begin{itemize}[nosep]
+  \item \emph{Remove observable history (\S\ref{sec:attribution}).} The repeated game collapses to repeated one-shot play: with no public record of prior actions, no trigger can fire, and both players play $F$ in every round. This is why the Merkle forest of \S\ref{sec:merkle-forest} is load-bearing for the claim signal, not just for post-hoc audit.
+  \item \emph{Remove persistent identity (Anchor~\cite{owens2026anchor}).} An agent who can re-register after each defection effectively faces $\delta = 0$: future punishment falls on a discarded identity. Cooperation is impossible. The Anchor protocol is therefore a precondition of this proposition, not an unrelated artifact; the audit caught that this dependency had been implicit.
+  \item \emph{Drop $\delta$ below $\delta^\star_{k=3} \approx 0.253$.} The three-round graduated trigger is insufficient. Either lengthen the punishment window (each additional round buys further headroom, asymptoting to the grim-trigger bound of $1/4$) or accept that the equilibrium does not bind for very short-lived principals. The latter is the regime where one-shot defectors (\S\ref{sec:crash-recovery}, the first adversary) live; \S\ref{sec:economic} prices them out rather than relying on equilibrium discipline.
+  \item \emph{Drop $\delta$ below $1/4$.} No trigger of any duration sustains $(T, T)$. The repeated game has the same equilibrium structure as the stage game, and only the bond mechanism of this section, not the signal itself, deters defection.
+\end{itemize}
+
+The forward reference is direct. Section~\ref{sec:youle:a6} extends the same analytical pattern---stage game, repeated-game lift via observable history, deviation calculation, $\delta$ threshold---to the insurer pricing layer. The strategy profile, the deviation arithmetic, and the role of $\delta$ have identical form. The cartel result there and the claim-signaling result here are not two separate folk theorems; they are one folk theorem applied at two layers of the architecture.
+
 \subsection{Pricing the Bond}\label{sec:pricing}
 
 What is the right collateral for ``write access to \texttt{auth.ts} for 30 minutes''? The answer requires a pricing function $\pi: \mathcal{F} \rightarrow \mathbb{R}^{+}$ that maps Float Plans to bond amounts. An effective $\pi$ must satisfy:
@@ -722,7 +800,7 @@ To avoid the classic lemons problem, the mechanism requires:
 \end{itemize}
 
 \paragraph{Welfare properties (claim).}\label{sec:youle:welfare}
-\emph{Under full information and competitive entry, the market-discovered premium Pareto-dominates any authority-chosen static parameter.} The two regimes underwrite identical coverage $B_T = \mu(1+s)$; only the financing mechanism differs (Figure~\ref{fig:auction-inline}).
+\emph{Under full information and competitive entry, and under the conditions of a mature market with calibrated reputation history and sufficient insurer volume to support price discovery (see \S\ref{sec:pricing:bootstrap} for the bootstrap path to these conditions), the market-discovered premium Pareto-dominates any authority-chosen static parameter.} The two regimes underwrite identical coverage $B_T = \mu(1+s)$; only the financing mechanism differs (Figure~\ref{fig:auction-inline}).
 
 \input{figures/fig-auction-inline}
 
@@ -761,6 +839,8 @@ $B_{\mathrm{dep}}^{\star} \approx 316$ USD. \emph{Empirically the attack remains
 \subsubsection{A6 --- Cartel sustainability under the folk theorem}\label{sec:youle:a6}
 
 A5 considers a single-round attack: a Sybil identity bids low, wins, defaults. A6 generalizes to the \emph{repeated game}: a coalition of insurers maintains a price floor $q_{\mathrm{floor}} > q^*$ above the competitive equilibrium, splits the surplus, and uses grim-trigger punishment to deter unilateral deviation. The folk theorem says any individually rational outcome is sustainable in the limit of infinite repetition; the question for the protocol designer is how strong the daemon's \emph{detection} of cartel pricing has to be to break that sustainability at realistic discount factors.
+
+Grim trigger is used in the analysis below for analytical tractability---it gives the cleanest folk-theorem bound and the closed-form $p_d^\star$ threshold of Figure~\ref{fig:cartel-folk}. In production, the daemon uses a graduated trigger (the same three-round version applied to the claim-signaling game in Proposition~\ref{prop:claim-signaling-ic}), because crashes (\S\ref{sec:crash-recovery}) are operationally indistinguishable from deliberate defection from any third-party observer's vantage; permanent punishment for a transient infrastructure event would destroy cooperation faster than any saboteur could. The two layers share one folk theorem with two punishment regimes.
 
 Figure~\ref{fig:cartel-game-inline} shows the per-round decision node and the closed-form sustainability inequality.
 

@@ -1,114 +1,120 @@
-\contentsline {section}{\numberline {1}Introduction: The Trust Problem}{6}{section.1}%
-\contentsline {subsection}{\numberline {1.1}The Three Failures of Peer-to-Peer Trust}{6}{subsection.1.1}%
-\contentsline {paragraph}{It doesn't scale.}{6}{section*.3}%
-\contentsline {paragraph}{It doesn't survive death.}{6}{section*.4}%
-\contentsline {paragraph}{It doesn't address misaligned principals.}{6}{section*.5}%
-\contentsline {subsection}{\numberline {1.2}Contributions}{7}{subsection.1.2}%
-\contentsline {subsection}{\numberline {1.3}Related Work in Crypto-Economic Bonding}{7}{subsection.1.3}%
-\contentsline {paragraph}{Bonded participation in distributed systems.}{7}{section*.6}%
-\contentsline {paragraph}{Capability-based security.}{7}{section*.7}%
-\contentsline {paragraph}{Commons governance.}{8}{section*.8}%
-\contentsline {paragraph}{Cryptoeconomic mechanism design.}{8}{section*.9}%
-\contentsline {paragraph}{What is novel.}{8}{section*.10}%
-\contentsline {section}{\numberline {2}The Commons Authority}{8}{section.2}%
-\contentsline {subsection}{\numberline {2.1}The Daemon as Correlating Device}{8}{subsection.2.1}%
-\contentsline {subsection}{\numberline {2.2}Why Agents Consent}{9}{subsection.2.2}%
-\contentsline {section}{\numberline {3}Layer 1: Structural Prevention}{10}{section.3}%
-\contentsline {subsection}{\numberline {3.1}Capability Attenuation}{10}{subsection.3.1}%
-\contentsline {subsection}{\numberline {3.2}Isolation Domains}{11}{subsection.3.2}%
-\contentsline {subsection}{\numberline {3.3}Runtime Invariant Enforcement}{11}{subsection.3.3}%
-\contentsline {section}{\numberline {4}Layer 2: Immutable Attribution}{11}{section.4}%
-\contentsline {subsection}{\numberline {4.1}The Evidence Chain}{11}{subsection.4.1}%
-\contentsline {subsection}{\numberline {4.2}The Merkle Forest: Cross-Daemon Inclusion Proofs}{12}{subsection.4.2}%
-\contentsline {paragraph}{Inclusion proofs.}{12}{section*.12}%
-\contentsline {paragraph}{Witness to an abstract KMS.}{12}{section*.13}%
-\contentsline {paragraph}{Cost.}{12}{section*.14}%
-\contentsline {subsection}{\numberline {4.3}Mutable-Signal Ledger (Pheromone Lineage)}{13}{subsection.4.3}%
-\contentsline {paragraph}{Event-sourced pheromones.}{13}{section*.15}%
-\contentsline {paragraph}{Integration with the forest.}{13}{section*.16}%
-\contentsline {subsection}{\numberline {4.4}Attribution Survives Identity Disposal}{13}{subsection.4.4}%
-\contentsline {section}{\numberline {5}The Impossibility of Enforced Allocation}{13}{section.5}%
-\contentsline {subsection}{\numberline {5.1}Sen's Theorem Applied to Agent Coordination}{14}{subsection.5.1}%
-\contentsline {subsection}{\numberline {5.2}Advisory Claims as Resolution}{14}{subsection.5.2}%
-\contentsline {subsection}{\numberline {5.3}Governance, Disputes, and Appeals}{15}{subsection.5.3}%
-\contentsline {paragraph}{Resolution path.}{15}{section*.17}%
-\contentsline {paragraph}{Appeals.}{15}{section*.19}%
-\contentsline {paragraph}{What the daemon does \emph {not} do.}{16}{section*.20}%
-\contentsline {section}{\numberline {6}Crash Recovery as Social Continuation}{16}{section.6}%
-\contentsline {subsection}{\numberline {6.1}What Morality Means When Death Is Cheap}{16}{subsection.6.1}%
-\contentsline {subsection}{\numberline {6.2}The Limits of Reputation}{17}{subsection.6.2}%
-\contentsline {section}{\numberline {7}Layer 3: Economic Alignment}{17}{section.7}%
-\contentsline {subsection}{\numberline {7.1}The Float Plan}{17}{subsection.7.1}%
-\contentsline {subsection}{\numberline {7.2}Settlement}{18}{subsection.7.2}%
-\contentsline {subsection}{\numberline {7.3}Why This Defeats the Three Adversaries}{18}{subsection.7.3}%
-\contentsline {subsection}{\numberline {7.4}Pricing the Bond}{19}{subsection.7.4}%
-\contentsline {subsubsection}{\numberline {7.4.1}Cleanup Lower Bound}{19}{subsubsection.7.4.1}%
-\contentsline {subsubsection}{\numberline {7.4.2}Consequential-Scope Multiplier}{19}{subsubsection.7.4.2}%
-\contentsline {subsubsection}{\numberline {7.4.3}Reputation Discount}{19}{subsubsection.7.4.3}%
-\contentsline {subsubsection}{\numberline {7.4.4}The Bonded Advisor}{19}{subsubsection.7.4.4}%
-\contentsline {paragraph}{$c$ as a project health metric.}{20}{section*.22}%
-\contentsline {subsubsection}{\numberline {7.4.5}Competitive-Insurance Pricing Mechanism\footnote {This subsection contributed by Thomas Youle (Indiana University, Business Economics \& Public Policy) based on conversations with the primary author in March--April 2026. The mechanism builds on classical competitive-insurance market literature~\cite {rothschildstiglitz1976,wilson1977insurance} adapted to the agent-transactions setting. The text here is a pre-print draft pending economist review of \S \ref {sec:youle:mechanism}--\S \ref {sec:youle:welfare}.}}{20}{subsubsection.7.4.5}%
-\contentsline {paragraph}{The mechanism.}{20}{section*.23}%
-\contentsline {paragraph}{Market-discovered pricing.}{20}{section*.24}%
-\contentsline {paragraph}{Adverse-selection controls.}{20}{section*.25}%
-\contentsline {paragraph}{Welfare properties (claim).}{20}{section*.26}%
-\contentsline {paragraph}{Relationship to the Bonded Advisor.}{22}{section*.29}%
-\contentsline {subsubsection}{\numberline {7.4.6}A5 --- Sybil deterrence is coverage-bounded}{22}{subsubsection.7.4.6}%
-\contentsline {subsubsection}{\numberline {7.4.7}A6 --- Cartel sustainability under the folk theorem}{23}{subsubsection.7.4.7}%
+\contentsline {section}{\numberline {1}Introduction: The Trust Problem}{5}{section.1}%
+\contentsline {subsection}{\numberline {1.1}The Three Failures of Peer-to-Peer Trust}{5}{subsection.1.1}%
+\contentsline {paragraph}{It doesn't scale.}{5}{section*.3}%
+\contentsline {paragraph}{It doesn't survive death.}{5}{section*.4}%
+\contentsline {paragraph}{It doesn't address misaligned principals.}{5}{section*.5}%
+\contentsline {subsection}{\numberline {1.2}Contributions}{5}{subsection.1.2}%
+\contentsline {subsection}{\numberline {1.3}Related Work in Crypto-Economic Bonding}{6}{subsection.1.3}%
+\contentsline {paragraph}{Bonded participation in distributed systems.}{6}{section*.6}%
+\contentsline {paragraph}{Capability-based security.}{6}{section*.7}%
+\contentsline {paragraph}{Commons governance.}{6}{section*.8}%
+\contentsline {paragraph}{Cryptoeconomic mechanism design.}{6}{section*.9}%
+\contentsline {paragraph}{What is novel.}{7}{section*.10}%
+\contentsline {section}{\numberline {2}The Commons Authority}{7}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Why Agents Consent}{7}{subsection.2.1}%
+\contentsline {section}{\numberline {3}Layer 1: Structural Prevention}{8}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Capability Attenuation}{8}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Isolation Domains}{8}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}Runtime Invariant Enforcement}{9}{subsection.3.3}%
+\contentsline {section}{\numberline {4}Layer 2: Immutable Attribution}{9}{section.4}%
+\contentsline {subsection}{\numberline {4.1}The Evidence Chain}{9}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}The Merkle Forest: Cross-Daemon Inclusion Proofs}{9}{subsection.4.2}%
+\contentsline {paragraph}{Inclusion proofs.}{10}{section*.12}%
+\contentsline {paragraph}{Witness to an abstract KMS.}{10}{section*.13}%
+\contentsline {paragraph}{Cost.}{10}{section*.14}%
+\contentsline {subsection}{\numberline {4.3}Mutable-Signal Ledger (Pheromone Lineage)}{10}{subsection.4.3}%
+\contentsline {paragraph}{Event-sourced pheromones.}{10}{section*.15}%
+\contentsline {paragraph}{Integration with the forest.}{11}{section*.16}%
+\contentsline {subsection}{\numberline {4.4}Attribution Survives Identity Disposal}{11}{subsection.4.4}%
+\contentsline {section}{\numberline {5}The Impossibility of Enforced Allocation}{11}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Sen's Theorem Applied to Agent Coordination}{11}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}Advisory Claims as Resolution}{12}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}Governance, Disputes, and Appeals}{12}{subsection.5.3}%
+\contentsline {paragraph}{Resolution path.}{13}{section*.17}%
+\contentsline {paragraph}{Appeals.}{13}{section*.19}%
+\contentsline {paragraph}{What the daemon does \emph {not} do.}{14}{section*.20}%
+\contentsline {section}{\numberline {6}Crash Recovery as Social Continuation}{14}{section.6}%
+\contentsline {subsection}{\numberline {6.1}What Morality Means When Death Is Cheap}{14}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}The Limits of Reputation}{15}{subsection.6.2}%
+\contentsline {section}{\numberline {7}Layer 3: Economic Alignment}{15}{section.7}%
+\contentsline {subsection}{\numberline {7.1}The Float Plan}{15}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}Settlement}{15}{subsection.7.2}%
+\contentsline {subsection}{\numberline {7.3}Why This Defeats the Three Adversaries}{16}{subsection.7.3}%
+\contentsline {subsection}{\numberline {7.4}Truthful Claim Signaling as Nash Equilibrium}{16}{subsection.7.4}%
+\contentsline {paragraph}{Stage game.}{16}{section*.22}%
+\contentsline {paragraph}{Move to the repeated game.}{17}{section*.24}%
+\contentsline {paragraph}{Strategy profile (graduated trigger).}{17}{section*.25}%
+\contentsline {paragraph}{Deviation analysis.}{17}{section*.26}%
+\contentsline {paragraph}{Critical $\delta $.}{18}{section*.27}%
+\contentsline {paragraph}{What each condition buys, and what breaks when it is removed.}{18}{section*.28}%
+\contentsline {subsection}{\numberline {7.5}Pricing the Bond}{18}{subsection.7.5}%
+\contentsline {subsubsection}{\numberline {7.5.1}Cleanup Lower Bound}{19}{subsubsection.7.5.1}%
+\contentsline {subsubsection}{\numberline {7.5.2}Consequential-Scope Multiplier}{19}{subsubsection.7.5.2}%
+\contentsline {subsubsection}{\numberline {7.5.3}Reputation Discount}{19}{subsubsection.7.5.3}%
+\contentsline {subsubsection}{\numberline {7.5.4}The Bonded Advisor}{19}{subsubsection.7.5.4}%
+\contentsline {paragraph}{$c$ as a project health metric.}{20}{section*.29}%
+\contentsline {subsubsection}{\numberline {7.5.5}Competitive-Insurance Pricing Mechanism\footnote {This subsection contributed by Thomas Youle (Indiana University, Business Economics \& Public Policy) based on conversations with the primary author in March--April 2026. The mechanism builds on classical competitive-insurance market literature~\cite {rothschildstiglitz1976,wilson1977insurance} adapted to the agent-transactions setting. The text here is a pre-print draft pending economist review of \S \ref {sec:youle:mechanism}--\S \ref {sec:youle:welfare}.}}{20}{subsubsection.7.5.5}%
+\contentsline {paragraph}{The mechanism.}{20}{section*.30}%
+\contentsline {paragraph}{Market-discovered pricing.}{20}{section*.31}%
+\contentsline {paragraph}{Adverse-selection controls.}{20}{section*.32}%
+\contentsline {paragraph}{Welfare properties (claim).}{20}{section*.33}%
+\contentsline {paragraph}{Relationship to the Bonded Advisor.}{22}{section*.36}%
+\contentsline {subsubsection}{\numberline {7.5.6}A5 --- Sybil deterrence is coverage-bounded}{22}{subsubsection.7.5.6}%
+\contentsline {subsubsection}{\numberline {7.5.7}A6 --- Cartel sustainability under the folk theorem}{23}{subsubsection.7.5.7}%
 \contentsline {section}{\numberline {8}Coordination as Substrate: An Expressive-Act Taxonomy}{25}{section.8}%
 \contentsline {subsection}{\numberline {8.1}Five Expressive Classes}{25}{subsection.8.1}%
 \contentsline {subsection}{\numberline {8.2}Per-Class Bond Profiles}{25}{subsection.8.2}%
 \contentsline {section}{\numberline {9}Vibe Time and Observability}{25}{section.9}%
-\contentsline {paragraph}{Token-rate telemetry as first-class signal.}{26}{section*.34}%
-\contentsline {paragraph}{Replay JSONL as artifact.}{26}{section*.35}%
-\contentsline {paragraph}{Privacy contract.}{26}{section*.36}%
+\contentsline {paragraph}{Token-rate telemetry as first-class signal.}{26}{section*.41}%
+\contentsline {paragraph}{Replay JSONL as artifact.}{26}{section*.42}%
+\contentsline {paragraph}{Privacy contract.}{26}{section*.43}%
 \contentsline {section}{\numberline {10}Formal Model}{26}{section.10}%
 \contentsline {subsection}{\numberline {10.1}State and Actions}{26}{subsection.10.1}%
 \contentsline {subsection}{\numberline {10.2}Properties}{28}{subsection.10.2}%
 \contentsline {subsection}{\numberline {10.3}The Conservation Theorem}{28}{subsection.10.3}%
-\contentsline {paragraph}{Property verification.}{29}{section*.37}%
-\contentsline {paragraph}{Graduated sanctions.}{29}{section*.38}%
+\contentsline {paragraph}{Property verification.}{29}{section*.44}%
+\contentsline {paragraph}{Graduated sanctions.}{29}{section*.45}%
 \contentsline {section}{\numberline {11}Related Work}{29}{section.11}%
-\contentsline {paragraph}{Social contract theory.}{29}{section*.39}%
-\contentsline {paragraph}{Impossibility results.}{29}{section*.40}%
-\contentsline {paragraph}{Long-lived transactions.}{29}{section*.41}%
-\contentsline {paragraph}{BDI agents.}{30}{section*.42}%
-\contentsline {paragraph}{Generative agents.}{30}{section*.43}%
-\contentsline {paragraph}{Capability-based security.}{30}{section*.44}%
-\contentsline {paragraph}{Mechanism design.}{30}{section*.45}%
+\contentsline {paragraph}{Social contract theory.}{29}{section*.46}%
+\contentsline {paragraph}{Impossibility results.}{29}{section*.47}%
+\contentsline {paragraph}{Long-lived transactions.}{29}{section*.48}%
+\contentsline {paragraph}{BDI agents.}{30}{section*.49}%
+\contentsline {paragraph}{Generative agents.}{30}{section*.50}%
+\contentsline {paragraph}{Capability-based security.}{30}{section*.51}%
+\contentsline {paragraph}{Mechanism design.}{30}{section*.52}%
 \contentsline {section}{\numberline {12}Discussion and Limitations}{30}{section.12}%
-\contentsline {paragraph}{The commons authority is a single point of failure.}{30}{section*.46}%
-\contentsline {paragraph}{Collateral does not prevent harm---it prices it.}{30}{section*.47}%
-\contentsline {paragraph}{The Federated Sovereign.}{30}{section*.48}%
-\contentsline {paragraph}{Trust boundary.}{31}{section*.49}%
-\contentsline {paragraph}{Magic-link single-use atomicity.}{31}{section*.50}%
-\contentsline {paragraph}{Recovery and its honest limits.}{32}{section*.52}%
-\contentsline {paragraph}{Passkeys, not passwords.}{32}{section*.53}%
-\contentsline {paragraph}{Multi-node consensus.}{32}{section*.54}%
-\contentsline {paragraph}{Recovery fidelity depends on LLM capability.}{32}{section*.55}%
-\contentsline {paragraph}{Bond pricing is unsolved.}{32}{section*.56}%
+\contentsline {paragraph}{The commons authority is a single point of failure.}{30}{section*.53}%
+\contentsline {paragraph}{Collateral does not prevent harm---it prices it.}{30}{section*.54}%
+\contentsline {paragraph}{The Federated Sovereign.}{30}{section*.55}%
+\contentsline {paragraph}{Trust boundary.}{31}{section*.56}%
+\contentsline {paragraph}{Magic-link single-use atomicity.}{31}{section*.57}%
+\contentsline {paragraph}{Recovery and its honest limits.}{32}{section*.59}%
+\contentsline {paragraph}{Passkeys, not passwords.}{32}{section*.60}%
+\contentsline {paragraph}{Multi-node consensus.}{32}{section*.61}%
+\contentsline {paragraph}{Recovery fidelity depends on LLM capability.}{32}{section*.62}%
+\contentsline {paragraph}{Bond pricing is unsolved.}{32}{section*.63}%
 \contentsline {section}{\numberline {13}Conclusion}{32}{section.13}%
 \contentsline {section}{\numberline {A}Formal Verification Status}{33}{appendix.A}%
-\contentsline {paragraph}{Artifact availability.}{33}{section*.57}%
-\contentsline {paragraph}{Limitations.}{34}{section*.59}%
+\contentsline {paragraph}{Artifact availability.}{33}{section*.64}%
+\contentsline {paragraph}{Limitations.}{34}{section*.66}%
 \contentsline {section}{\numberline {B}Worked Example: One Agent, All Layers}{35}{appendix.B}%
-\contentsline {paragraph}{The task.}{35}{section*.60}%
-\contentsline {paragraph}{Step 1: Capability issuance (Layer 1).}{35}{section*.63}%
-\contentsline {paragraph}{Step 2: Bond posting (Layer 3).}{36}{section*.64}%
-\contentsline {paragraph}{Step 3: Advisory claim (\S \ref {sec:sen}).}{36}{section*.66}%
-\contentsline {paragraph}{Step 4: Evidence chain begins (Layer 2).}{36}{section*.67}%
-\contentsline {paragraph}{Step 5: Mid-task crash (\S \ref {sec:crash-recovery}).}{36}{section*.69}%
-\contentsline {paragraph}{Step 6: Successor agent.}{36}{section*.70}%
-\contentsline {paragraph}{Step 7: Settlement.}{37}{section*.72}%
-\contentsline {paragraph}{What did each layer do?}{37}{section*.73}%
-\contentsline {paragraph}{What did \emph {not} happen.}{37}{section*.74}%
+\contentsline {paragraph}{The task.}{35}{section*.67}%
+\contentsline {paragraph}{Step 1: Capability issuance (Layer 1).}{35}{section*.70}%
+\contentsline {paragraph}{Step 2: Bond posting (Layer 3).}{36}{section*.71}%
+\contentsline {paragraph}{Step 3: Advisory claim (\S \ref {sec:sen}).}{36}{section*.73}%
+\contentsline {paragraph}{Step 4: Evidence chain begins (Layer 2).}{36}{section*.74}%
+\contentsline {paragraph}{Step 5: Mid-task crash (\S \ref {sec:crash-recovery}).}{36}{section*.76}%
+\contentsline {paragraph}{Step 6: Successor agent.}{36}{section*.77}%
+\contentsline {paragraph}{Step 7: Settlement.}{37}{section*.79}%
+\contentsline {paragraph}{What did each layer do?}{37}{section*.80}%
+\contentsline {paragraph}{What did \emph {not} happen.}{37}{section*.81}%
 \contentsline {section}{\numberline {C}Exercises}{37}{appendix.C}%
-\contentsline {paragraph}{E1 (Definitions).}{37}{section*.75}%
-\contentsline {paragraph}{E2 (Mechanism design).}{37}{section*.76}%
-\contentsline {paragraph}{E3 (Formal verification).}{37}{section*.77}%
-\contentsline {paragraph}{E4 (Coverage-bound A5).}{37}{section*.78}%
-\contentsline {paragraph}{E5 (Cartel folk-theorem).}{38}{section*.79}%
-\contentsline {paragraph}{E6 (Capability attenuation).}{38}{section*.80}%
-\contentsline {paragraph}{E7 (Cuckoo-filter pollution).}{38}{section*.81}%
-\contentsline {paragraph}{E8 (Mechanism extension).}{38}{section*.82}%
-\contentsline {paragraph}{E9 (Open problem).}{38}{section*.83}%
+\contentsline {paragraph}{E1 (Definitions).}{37}{section*.82}%
+\contentsline {paragraph}{E2 (Mechanism design).}{37}{section*.83}%
+\contentsline {paragraph}{E3 (Formal verification).}{37}{section*.84}%
+\contentsline {paragraph}{E4 (Coverage-bound A5).}{37}{section*.85}%
+\contentsline {paragraph}{E5 (Cartel folk-theorem).}{38}{section*.86}%
+\contentsline {paragraph}{E6 (Capability attenuation).}{38}{section*.87}%
+\contentsline {paragraph}{E7 (Cuckoo-filter pollution).}{38}{section*.88}%
+\contentsline {paragraph}{E8 (Mechanism extension).}{38}{section*.89}%
+\contentsline {paragraph}{E9 (Open problem).}{38}{section*.90}%
