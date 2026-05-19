@@ -41,9 +41,28 @@ describe('cloudflareAdapter', () => {
         outputTokens: 5,
       });
       const [url, opts] = fetchSpy.mock.calls[0];
-      expect(url).toBe('https://api.cloudflare.com/client/v4/accounts/a/ai/run/%40cf%2Ftest');
+      expect(url).toBe('https://api.cloudflare.com/client/v4/accounts/a/ai/run/@cf/test');
       expect(opts.headers.Authorization).toBe('Bearer t');
       expect(JSON.parse(opts.body).max_tokens).toBe(200);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  test('preserves Cloudflare model path separators while escaping unsafe segment characters', async () => {
+    const env = { CLOUDFLARE_ACCOUNT_ID: 'a', CLOUDFLARE_API_TOKEN: 't' };
+    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ result: { response: 'ok' } }), { status: 200 })
+    );
+    try {
+      const r = await cloudflareAdapter({
+        prompt: 'p',
+        model: '@cf/test org/model?variant#frag',
+        env,
+      });
+      expect(r.ok).toBe(true);
+      const [url] = fetchSpy.mock.calls[0];
+      expect(url).toBe('https://api.cloudflare.com/client/v4/accounts/a/ai/run/@cf/test%20org/model%3Fvariant%23frag');
     } finally {
       fetchSpy.mockRestore();
     }
