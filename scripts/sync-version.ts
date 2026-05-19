@@ -9,6 +9,8 @@
  *   - .claude-plugin/plugin.json
  *   - mcp-server.json
  *   - mcp/server.ts
+ *   - server.ts (EMBEDDED_PACKAGE_VERSION — fallback used inside the bun bundle
+ *     when __dirname-relative package.json read fails)
  */
 
 import { readFileSync, writeFileSync } from 'fs';
@@ -43,5 +45,16 @@ mcpContent = mcpContent.replace(
 );
 writeFileSync(mcpServerPath, mcpContent);
 console.log(`  ✓ mcp/server.ts → ${version}`);
+
+// server.ts EMBEDDED_PACKAGE_VERSION
+const serverPath = join(ROOT, 'server.ts');
+const embeddedVersionRe = /(const EMBEDDED_PACKAGE_VERSION: string = ['"])[\d.]+(['"])/;
+let serverContent = readFileSync(serverPath, 'utf-8');
+if (!embeddedVersionRe.test(serverContent)) {
+  throw new Error(`sync-version.ts: EMBEDDED_PACKAGE_VERSION literal not found in server.ts — bun-bundle version fallback would silently rot. Restore the const before releasing.`);
+}
+serverContent = serverContent.replace(embeddedVersionRe, `$1${version}$2`);
+writeFileSync(serverPath, serverContent);
+console.log(`  ✓ server.ts EMBEDDED_PACKAGE_VERSION → ${version}`);
 
 console.log(`\nVersion ${version} synced to all surfaces.`);
