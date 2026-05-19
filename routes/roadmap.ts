@@ -93,7 +93,7 @@ function harborForProject(project: string | undefined): string | undefined {
   return project ? `${project}:fleet` : undefined;
 }
 
-const STATUS_VALUES = new Set<RoadmapStatus>(['now', 'backlog', 'parked', 'merge', 'done']);
+const STATUS_VALUES = new Set<RoadmapStatus>(['now', 'backlog', 'parked', 'merge', 'done', 'quarantined']);
 
 export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (fastify, opts) => {
   const { roadmapItems, roadmapPromote } = opts.deps;
@@ -184,7 +184,7 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
     const by = asString(body.by);
     if (!statusRaw || !STATUS_VALUES.has(statusRaw as RoadmapStatus)) {
       reply.code(400);
-      return { success: false, error: 'status must be one of now|backlog|parked|merge|done' };
+      return { success: false, error: 'status must be one of now|backlog|parked|merge|done|quarantined' };
     }
     if (!by) {
       reply.code(400);

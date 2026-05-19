@@ -44,7 +44,8 @@ export const DEFAULT_SECTION_HEADER = '## Next Cuts (From Curated Trove)';
 
 export interface RenderOptions {
   /** Status filter applied to items. Defaults to `now`. */
-  status?: 'now' | 'backlog' | 'parked' | 'merge' | 'done' | 'all';
+  /** Default-set value, 'all', or any team-defined workflow string. */
+  status?: 'now' | 'backlog' | 'parked' | 'merge' | 'done' | 'quarantined' | 'all' | string;
   /** Maximum items to render. Defaults to all (no cap). */
   limit?: number;
 }

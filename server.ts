@@ -351,7 +351,7 @@ const semanticResolver = createSemanticResolver(db, {
 const episodicMemory = createEpisodicMemory(db, { tuples, graphEdges, semanticResolver });
 const quorum = createQuorum({ tuples });
 const feedback = createFeedback({ tuples });
-const roadmapItems = createRoadmapItems({ tuples });
+const roadmapItems = createRoadmapItems({ tuples, db });
 const roadmapPromote = createRoadmapPromote({ feedback, roadmapItems });
 const roadmapPop = createRoadmapPop({ db, feedback });
 
