@@ -183,7 +183,7 @@ The paper builds in four layers; each layer carries a load-bearing theorem or em
 \vspace{0.6cm}
 \noindent\textbf{Suggested reading paths by reader type:}
 \begin{itemize}[nosep,leftmargin=*,topsep=2pt]
-\item \textbf{Formal-methods reviewer / program committee} --- abstract, then jump to Appendix~\ref{app:mech} (Mechanization Status v2.6). The artifact registry is the most concentrated signal of what is and is not proved.
+\item \textbf{Formal-methods reviewer / program committee} --- abstract, then jump to Appendix~\ref{app:mech} (Formal Verification Status). The artifact registry is the most concentrated signal of what is and is not proved.
 \item \textbf{Cryptoeconomic protocol designer} --- abstract, then \S\ref{sec:youle} (auction mechanism), \S\ref{sec:youle:welfare} (welfare theorem with inline Pareto Monte Carlo), \S\ref{sec:youle:a5} (A5 Sybil-deterrence is coverage-bounded --- a surprising negative result).
 \item \textbf{AI safety researcher} --- \S\ref{sec:morality} (``What Morality Means When Death Is Cheap''), \S\ref{sec:sen} (Sen's theorem), \S\ref{sec:economic} (collateralized work contracts). Skim Appendix~\ref{app:mech} for the proof posture.
 \item \textbf{Distributed systems engineer} --- \S\ref{sec:structural}--\S\ref{sec:merkle-forest} (primitives), then the companion Anchor Protocol paper for the cryptographic-token protocol detail.
@@ -400,7 +400,7 @@ Once a daemon publishes $R_{\text{harbor},\ell}$, it cannot produce a different 
 
 \paragraph{Cost.} Each settlement adds an $O(1)$ amortized append to the epoch accumulator. Epoch rollover is $O(N)$ hashes plus one signature: at 100 sessions/hour, $\approx 10$ms. Negligible.
 
-This is the structural underpinning the original draft promised in one paragraph (``decentralized verification'') and now substantiates: bonded commons evidence is not just immutable within a daemon, it is verifiable \emph{across} daemons by any party with the daemon's public key and a 700-byte proof.
+This is the structural meaning of ``decentralized verification'' in this paper: bonded commons evidence is not just immutable within a daemon, it is verifiable \emph{across} daemons by any party with the daemon's public key and a 700-byte proof.
 
 \subsection{Mutable-Signal Ledger (Pheromone Lineage)}\label{sec:pheromones}
 
@@ -668,7 +668,7 @@ Principals with a history of clean settlements have lower expected damage:
 \pi(\mathcal{F}, p) \;=\; \pi(\mathcal{F}) \cdot (1 - \rho(p)),
 \quad \rho(p) \in [0, r_{\max}],\; r_{\max} \leq 0.5,
 \]
-to prevent trivialization. $\rho$ increases with clean settlements, decreases with breaches, decays over time. Functional form: future work.
+to prevent trivialization. $\rho$ increases with clean settlements, decreases with breaches, decays over time. The functional form is left open.
 
 \subsubsection{The Bonded Advisor}\label{sec:bonded-advisor}
 
@@ -706,7 +706,7 @@ To avoid the classic lemons problem, the mechanism requires:
 
 \input{figures/fig-auction-inline}
 
-An independent theorization with explicit assumptions and a Monte Carlo sweep over 36 parameter configurations is recorded in the v2.5-sealed Pareto-dominance artifact bundle (see \S\ref{app:mech} for the public artifact index). The simulation surfaces three quantitative boundaries beyond the qualitative claim, visualized in Figure~\ref{fig:pareto-mc-inline}: (i) Pareto dominance requires reputation noise $\sigma_r \le 0.1$, coupling \S\ref{sec:merkle-forest} to this section; (ii) a partial cartel is robustly defeated by Vickrey 2nd-price, but a full cartel collapses dominance regardless of detection rate at $p_d = 0.3$; (iii) larger insurer pools exacerbate winner's curse via the order-statistic effect, with the empirical optimum at $n = 3$. A formal Coq/Lean mechanization of the strategic game is carried indefinitely behind the empirical artifact.
+An independent theorization with explicit assumptions, and a Monte Carlo sweep over 36 parameter configurations, accompanies this paper as a downloadable artifact (Appendix~\ref{app:mech}). The simulation surfaces three quantitative boundaries beyond the qualitative claim, visualized in Figure~\ref{fig:pareto-mc-inline}: (i) Pareto dominance requires reputation noise $\sigma_r \le 0.1$, coupling \S\ref{sec:merkle-forest} to this section; (ii) a partial cartel is robustly defeated by Vickrey 2nd-price, but a full cartel collapses dominance regardless of detection rate at $p_d = 0.3$; (iii) larger insurer pools exacerbate winner's curse via the order-statistic effect, with the empirical optimum at $n = 3$. A Coq or Lean mechanization of the strategic game is not in this paper; the empirical artifact stands on its own.
 
 \begin{figure}[H]
   \centering
@@ -736,7 +736,7 @@ $B_{\mathrm{dep}}^{\star} \approx 316$ USD. \emph{Empirically the attack remains
   \label{fig:sybil-mc-inline}
 \end{figure}
 
-\emph{Closing A5 requires a composite mechanism}: an unrecoverable per-identity onboarding cost $C_{\mathrm{kyc}}$ (proof-of-personhood, KYC fee, or NFT mint), reputation gating that caps new identities to low-coverage transactions until they accumulate a track record, and per-class $B_{\mathrm{dep}}$ tuned to saturate the coverage cap exactly. This is a real revision to the \S\ref{sec:youle} mechanism design and is recorded honestly in the cartel-resilience analysis (see \S\ref{app:mech}).
+\emph{Closing A5 requires a composite mechanism}: an unrecoverable per-identity onboarding cost $C_{\mathrm{kyc}}$ (proof-of-personhood, KYC fee, or NFT mint), reputation gating that caps new identities to low-coverage transactions until they accumulate a track record, and per-class $B_{\mathrm{dep}}$ tuned to saturate the coverage cap exactly. The single-instrument deposit policy is provably insufficient; the mechanism in \S\ref{sec:youle} is correct only with this composite extension. The supporting analysis is bundled as \texttt{cartel-resilience.md} (Appendix~\ref{app:mech}).
 
 \subsubsection{A6 --- Cartel sustainability under the folk theorem}\label{sec:youle:a6}
 
@@ -949,7 +949,7 @@ Spec == Init /\ [][Next]_vars
 
 \subsection{The Conservation Theorem}\label{sec:conservation}
 
-The original specification states the escrow invariant in TLA$^{+}$ but does not commit to an operational accounting. The April 2026 reference implementation in the daemon's bond-accounting subsystem collapses the abstract escrow into three monetary buckets per project---\textbf{wallet}, \textbf{escrow}, and \textbf{commons pool}---and lets us formalize what \texttt{EscrowInvariant} only asserted in prose.
+The TLA$^{+}$ escrow invariant states the property abstractly; the daemon's bond-accounting subsystem realizes it operationally, collapsing the abstract escrow into three monetary buckets per project---\textbf{wallet}, \textbf{escrow}, and \textbf{commons pool}---which together discharge what \texttt{EscrowInvariant} asserts.
 
 \begin{definition}[Accounting State]\label{def:acct-state}
 For project $P$, the accounting state is the triple $(W_P, E_P, C_P) \in \mathbb{R}_{\geq 0}^{3}$, where $W_P$ is wallet balance, $E_P$ is the sum of bond amounts in states $\{\textit{escrowed},\, \textit{running},\, \textit{exiting}\}$, and $C_P$ is the commons pool balance. The \emph{monetary supply} is $S_P := W_P + E_P + C_P$.
@@ -1001,7 +1001,7 @@ Both transactions execute under \texttt{BEGIN EXCLUSIVE}, so SQLite serializes t
 
 \paragraph{Capability-based security.} Dennis and Van Horn~\cite{dennis1966programming} introduced capability-based access control. Birgisson et al.~\cite{birgisson2014macaroons} extended this with Macaroons (chained HMACs for decentralized delegation). The Anchor Protocol~\cite{owens2026anchor} adapts Macaroons for agent coordination with Ed25519 signatures and offline attenuation.
 
-\paragraph{Mechanism design.} The pricing of Float Plan bonds is a mechanism design problem in the tradition of Vickrey~\cite{vickrey1961counterspeculation} and Myerson~\cite{myerson1981optimal}. We identify this as future work requiring collaboration with economists.
+\paragraph{Mechanism design.} The pricing of Float Plan bonds is a mechanism design problem in the tradition of Vickrey~\cite{vickrey1961counterspeculation} and Myerson~\cite{myerson1981optimal}. A full optimal-auction derivation in that tradition is outside the scope of this paper.
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Discussion and Limitations}
@@ -1011,7 +1011,7 @@ Both transactions execute under \texttt{BEGIN EXCLUSIVE}, so SQLite serializes t
 
 \paragraph{Collateral does not prevent harm---it prices it.} A principal willing to burn money to sabotage a competitor will post a bond, cause damage, and accept the loss. The bond makes sabotage expensive, not impossible. The defense against existential threats is not internal governance but \emph{admission control}: who is allowed to participate in the commons at all. This decision is irreducibly political and lies outside the formal model.
 
-\paragraph{The Federated Sovereign.}\label{sec:federated-sovereign} Earlier drafts dismissed the multi-node case as ``unnecessary for local development.'' That was true for single-machine usage and is no longer adequate: users roam across laptop, desktop, and CI machines; machine loss should not destroy encrypted evidence; multiple humans may share a harbor. The daemon remains the authority \emph{within} its machine. Key custody federates.
+\paragraph{The Federated Sovereign.}\label{sec:federated-sovereign} The single-machine model presented so far is insufficient on its own: users roam across laptop, desktop, and CI machines; machine loss should not destroy encrypted evidence; multiple humans may share a harbor. The daemon remains the authority \emph{within} its machine. Key custody federates outward.
 
 We introduce a fourth actor, specified by properties rather than by vendor:
 \begin{description}[nosep]
@@ -1076,11 +1076,11 @@ We have argued that multi-agent collaboration at scale requires a commons author
   \item \textbf{Economic alignment}: Collateralized work contracts make harm expensive, transforming moral questions into economic ones.
 \end{enumerate}
 
-The Version~2 expansion threads six contributions through this skeleton. The Conservation Theorem (\S\ref{sec:conservation}) makes the economic invariant operationally checkable, not just an asserted property of the abstract model. The mutable-signal ledger (\S\ref{sec:pheromones}) shows how coordination signals can be revoked, renamed, and re-attributed without sacrificing the immutability the rest of the architecture depends on. The federated sovereign (\S\ref{sec:federated-sovereign}) replaces single-node scope with an abstract KMS satisfying five named properties, and anchors identity in passkeys rather than passphrases on the critical path. The competitive-insurance pricing mechanism (\S\ref{sec:youle}, contributed by Youle) replaces static parameter selection with market-discovered bond prices, recovering classical Rothschild--Stiglitz equilibria in the agent-transactions setting. The expressive-act taxonomy (\S\ref{sec:taxonomy}) decomposes ``coordination'' into five priceable classes, because uniform pricing collapses the market to its highest-stakes class. Vibe time and replay (\S\ref{sec:vibe}) give the substrate the empirical grounding to iterate on all of the above.
+Six further contributions thread through this skeleton. The Conservation Theorem (\S\ref{sec:conservation}) makes the economic invariant operationally checkable, not just an asserted property of the abstract model. The mutable-signal ledger (\S\ref{sec:pheromones}) shows how coordination signals can be revoked, renamed, and re-attributed without sacrificing the immutability the rest of the architecture depends on. The federated sovereign (\S\ref{sec:federated-sovereign}) replaces single-node scope with an abstract KMS satisfying five named properties, and anchors identity in passkeys rather than passphrases on the critical path. The competitive-insurance pricing mechanism (\S\ref{sec:youle}, contributed by Youle) replaces static parameter selection with market-discovered bond prices, recovering classical Rothschild--Stiglitz equilibria in the agent-transactions setting. The expressive-act taxonomy (\S\ref{sec:taxonomy}) decomposes ``coordination'' into five priceable classes, because uniform pricing collapses the market to its highest-stakes class. Vibe time and replay (\S\ref{sec:vibe}) give the substrate the empirical grounding to iterate on all of the above.
 
-The advisory design of the resource claim system remains the correct resolution of Sen's impossibility result for systems where agents have private knowledge about their own needs. The commons authority provides information, not allocation decisions.
+The advisory design of the resource claim system is the correct resolution of Sen's impossibility result for systems where agents have private knowledge about their own needs. The commons authority provides information, not allocation decisions.
 
-The central open problem---bond pricing---is no longer a single open problem. It is a lattice: a cleanup-cost lower bound (\S\ref{sec:cleanup-bound}), a scope multiplier (\S\ref{sec:scope-multiplier}), a reputation discount (\S\ref{sec:rep-discount}), the Bonded Advisor mechanism (\S\ref{sec:bonded-advisor}), and the competitive-insurance market (\S\ref{sec:youle}). None of these is closed; each is now precise enough to disprove.
+Bond pricing is not a single open problem. It is a lattice: a cleanup-cost lower bound (\S\ref{sec:cleanup-bound}), a scope multiplier (\S\ref{sec:scope-multiplier}), a reputation discount (\S\ref{sec:rep-discount}), the Bonded Advisor mechanism (\S\ref{sec:bonded-advisor}), and the competitive-insurance market (\S\ref{sec:youle}). Each is precise enough to disprove.
 
 The infrastructure is running. The forest is building. The covenants are auditable. The sovereign is legible. The advisor is bondable. The market is open for bids.
 
@@ -1089,7 +1089,7 @@ The infrastructure is running. The forest is building. The covenants are auditab
 
 \section{Formal Verification Status}\label{app:mech}
 
-\paragraph{Artifact availability.} Every artifact named in Table~\ref{tab:verification-status} is bundled at \url{https://portdaddy.dev/whitepaper/artifacts/}. Runtime components are deployed inside the Port Daddy daemon binary and exposed through its public APIs; the source for the verified Rust core is the open-source \texttt{harbor-card-rs} crate (companion paper~\cite{owens2026anchor}, \S5). A review-process changelog, including the round-by-round dialogue between adversarial and white-hat fleets that produced the current status, is rendered at \url{https://portdaddy.dev/whitepaper/rounds}; this paper records only the load-bearing claims and their evidence.
+\paragraph{Artifact availability.} Every artifact named in Table~\ref{tab:verification-status} is bundled at \url{https://portdaddy.dev/whitepaper/artifacts/}. Runtime components are deployed inside the Port Daddy daemon binary and exposed through its public APIs; the source for the verified Rust core is the open-source \texttt{harbor-card-rs} crate (companion paper~\cite{owens2026anchor}, \S5).
 
 \renewcommand{\arraystretch}{1.15}
 \begin{table}[H]
@@ -1111,7 +1111,7 @@ Delegation chain replay & ProVerif at depth 3 & \Closed\ chain authenticity TRUE
 Magic-link single-use (\S\ref{sec:federated-sovereign}) & ProVerif (private-channel cap) & \Closed\ injective-event TRUE; 7/7 runtime conformance & \texttt{magic-link.pv} \\
 Cuckoo-filter pollution resistance & fast-check, 5 invariants & \Closed\ FP rate within $2B/2^f$ at load $0.95$ & cuckoo property tests \\
 \midrule
-Merkle-Forest binding (\S\ref{sec:merkle-forest}) & EasyCrypt + fast-check & \Partial\ skeleton discharged; PROM-formal future work & \texttt{binding.ec} \\
+Merkle-Forest binding (\S\ref{sec:merkle-forest}) & EasyCrypt + fast-check & \Partial\ skeleton discharged; PROM-formal version not in scope & \texttt{binding.ec} \\
 Pareto dominance (\S\ref{sec:youle:welfare}) & Monte Carlo, 36 configs $\times$ 2k trials & \Partial\ empirical; $\sigma_r{\le}0.1$, $n{=}3$ optimum & \texttt{simulation.mjs} \\
 Sybil A5 (\S\ref{sec:youle:a5}) & Monte Carlo over $K$ Sybils & \Partial\ coverage-bounded ceiling at $B_T$ & \texttt{simulation-sybil.mjs} \\
 Cartel folk-theorem A6 & Monte Carlo + closed form & \Partial\ $p_d^\star{\approx}0.10$ at $\delta{=}0.95$ & \texttt{simulation-cartel.mjs} \\
@@ -1122,7 +1122,7 @@ Federated KMS Cloudflare Worker & --- & \SpecOnly\ model exists; no Worker yet &
 \end{tabular}
 \end{table}
 
-\paragraph{Limitations.} Four mechanizations are carried indefinitely behind the empirical evidence above: a PROM-formal Merkle binding in EasyCrypt; a Coq or Lean mechanization of the Pareto strategic game; a formal analysis of the composite Sybil-deterrence mechanism ($C_{\mathrm{kyc}}$ $+$ reputation gating $+$ per-class $B_{\mathrm{dep}}$); and a multi-class generalization of the repeated-game cartel result to heterogeneous coordination classes (\S\ref{sec:taxonomy}). These are documented as known open problems rather than as defects in the present claims, which stand on their stated evidence.
+\paragraph{Limitations.} Four mechanizations are out of scope for this paper but explicitly named so a reader can audit what is and is not proved: a PROM-formal Merkle binding in EasyCrypt; a Coq or Lean mechanization of the Pareto strategic game; a formal analysis of the composite Sybil-deterrence mechanism ($C_{\mathrm{kyc}}$ $+$ reputation gating $+$ per-class $B_{\mathrm{dep}}$); and a multi-class generalization of the repeated-game cartel result to heterogeneous coordination classes (\S\ref{sec:taxonomy}). The present claims stand on the evidence stated in Table~\ref{tab:verification-status}.
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Worked Example: One Agent, All Layers}\label{app:worked}
