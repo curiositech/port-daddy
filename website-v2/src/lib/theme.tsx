@@ -34,7 +34,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <ThemeContext.Provider value={{ theme, toggle }}>
-      <div className={theme}>
+      {/*
+        suppressHydrationWarning: the server prerenders className="dark"
+        (initialTheme()'s SSR fallback). On the client, initialTheme()
+        re-runs in the useState initializer and may pick 'light' from
+        localStorage — same logic as the inline <script> in index.html.
+        React 19 would otherwise flag this as a hydration mismatch, which
+        is exactly what suppressHydrationWarning is for: server-rendered
+        theme guess vs. real client preference.
+      */}
+      <div className={theme} suppressHydrationWarning>
         {children}
       </div>
     </ThemeContext.Provider>
