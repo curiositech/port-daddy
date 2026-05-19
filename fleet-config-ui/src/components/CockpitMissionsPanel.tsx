@@ -6,28 +6,21 @@ import type { MissionCard, MissionIntake, MissionStatus } from '../types';
 
 const FILTERS: ReadonlyArray<{ id: 'all' | MissionStatus; label: string }> = [
   { id: 'all', label: 'All' },
-  { id: 'uncommitted', label: 'Uncommitted' },
-  { id: 'in-flight', label: 'In flight' },
-  { id: 'blocked', label: 'Blocked' },
-  { id: 'drifting', label: 'Drifting' },
-  { id: 'stalled', label: 'Stalled' },
-  { id: 'mostly-committed', label: 'Mostly committed' },
-  { id: 'mostly-resolved', label: 'Mostly resolved' },
-  { id: 'closed', label: 'Closed' },
+  { id: 'now', label: 'Now' },
+  { id: 'backlog', label: 'Backlog' },
+  { id: 'parked', label: 'Parked' },
+  { id: 'merge', label: 'Merge' },
+  { id: 'done', label: 'Done' },
 ];
 
 type StatusTone = 'default' | 'success' | 'warning' | 'critical';
 
 const STATUS_TONE: Record<MissionStatus, StatusTone> = {
-  closed: 'success',
-  'mostly-resolved': 'success',
-  'mostly-committed': 'success',
-  uncommitted: 'warning',
-  'in-flight': 'warning',
-  blocked: 'critical',
-  drifting: 'critical',
-  stalled: 'critical',
-  unknown: 'default',
+  now: 'warning',
+  backlog: 'default',
+  parked: 'default',
+  merge: 'success',
+  done: 'success',
 };
 
 function tonePalette(tone: StatusTone): [string, string, string] {
