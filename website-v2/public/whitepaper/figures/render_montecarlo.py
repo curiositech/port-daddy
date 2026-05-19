@@ -121,9 +121,10 @@ def fig_pareto_dominance(out: Path) -> None:
     ax.axhline(0.5, color=INK, linewidth=0.6, linestyle=":", alpha=0.7)
     ax.set_xlabel(r"reputation noise $\sigma_r$")
     ax.set_ylabel("Pareto-dominance rate")
-    ax.set_title("(a) dominance vs reputation noise  (n=5 insurers)")
-    ax.set_ylim(-0.02, 1.05)
-    ax.legend(loc="lower left")
+    ax.set_title(r"(a) dominance rate vs $\sigma_r$  ($n=5$)")
+    ax.set_ylim(-0.02, 1.08)
+    ax.legend(loc="upper right", framealpha=0.95, facecolor=PAPER,
+              edgecolor=SAND_DEEP)
 
     # Right: dominance rate vs n_insurers at sigma_r=0, no cartel.
     ax = axes[1]
@@ -142,12 +143,11 @@ def fig_pareto_dominance(out: Path) -> None:
                 fontsize=10, color=EBONY, fontweight="bold")
     ax.set_xlabel("number of insurers $n$")
     ax.set_ylabel("Pareto-dominance rate")
-    ax.set_title(r"(b) dominance vs $n$  ($\sigma_r = 0$, no cartel)")
+    ax.set_title(r"(b) dominance rate vs $n$  ($\sigma_r=0$, no cartel)")
     ax.set_xticks(xs)
-    ax.set_ylim(0, 1.1)
+    ax.set_ylim(0, 1.15)
 
-    fig.suptitle("Pareto dominance of competitive auction over static escrow (§8.4.4)",
-                 fontsize=13, fontweight="bold", y=1.05)
+    # NB: no fig.suptitle — the LaTeX caption is the authoritative title.
     fig.savefig(out, bbox_inches="tight")
     plt.close(fig)
     print(f"wrote {out}")
@@ -206,10 +206,10 @@ def fig_sybil_deposit_floor(out: Path) -> None:
     ax.set_xlabel(r"per-identity deposit $B_{\mathrm{dep}}$ (USD)")
     ax.set_ylabel("commons deficit per 50-txn trial (USD)")
     ax.set_title("(b) commons deficit vs deposit")
-    ax.legend(loc="upper right")
+    ax.legend(loc="upper right", framealpha=0.95, facecolor=PAPER,
+              edgecolor=SAND_DEEP)
 
-    fig.suptitle("A5 — Sybil attack: deposit-only deterrence has a coverage-bounded ceiling",
-                 fontsize=13, fontweight="bold", y=1.04)
+    # NB: no fig.suptitle — the LaTeX caption is the authoritative title.
     fig.savefig(out, bbox_inches="tight")
     plt.close(fig)
     print(f"wrote {out}")
@@ -280,10 +280,10 @@ def fig_cartel_folk(out: Path) -> None:
     ax.set_xlabel(r"per-round detection probability $p_d$")
     ax.set_ylabel("mean cartel lifespan (rounds)")
     ax.set_title("(b) lifespan vs detection rate")
-    ax.legend(loc="upper right")
+    ax.legend(loc="upper right", framealpha=0.95, facecolor=PAPER,
+              edgecolor=SAND_DEEP)
 
-    fig.suptitle("A6 — Repeated-game cartel: folk-theorem sustainability",
-                 fontsize=13, fontweight="bold", y=1.04)
+    # NB: no fig.suptitle — the LaTeX caption is the authoritative title.
     fig.savefig(out, bbox_inches="tight")
     plt.close(fig)
     print(f"wrote {out}")

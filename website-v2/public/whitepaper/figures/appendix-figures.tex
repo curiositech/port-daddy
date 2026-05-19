@@ -23,7 +23,7 @@
                 inner sep=4pt,minimum height=8mm,thick},
   ch/.style={draw=hhebony,fill=hhpaper,inner sep=4pt,minimum width=22mm,thick,
              font=\sffamily\footnotesize},
-  cap/.style={draw=hhcinnabar,fill=hhpaper,thick,minimum width=10mm,
+  capbox/.style={draw=hhcinnabar,fill=hhpaper,thick,minimum width=10mm,
               minimum height=6mm,inner sep=2pt},
   ev/.style={ellipse,draw=hhpatina,fill=hhpaper,thick,inner sep=3pt,
              font=\sffamily\footnotesize},
@@ -34,7 +34,7 @@
 \node[ev,below=of issuer] (eIssue) {event \texttt{issued\_for}$(a, tk)$};
 \node[ch,right=20mm of issuer.east,anchor=west] (chTk)
   {private channel \texttt{ch\_tk}};
-\node[cap,below=2mm of chTk] (capBox) {cap};
+\node[capbox,below=2mm of chTk] (capBox) {cap};
 \node[ch,below=14mm of chTk,anchor=north,
       align=center,fill=hhsanddeep,minimum width=58mm] (sql)
   {\textbf{atomic UPDATE}\\[1pt]

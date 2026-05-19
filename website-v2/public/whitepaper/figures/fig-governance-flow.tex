@@ -13,47 +13,60 @@
 \centering
 \begin{tikzpicture}[
   font=\sffamily\small,
-  step/.style={draw=hhebony,thick,fill=hhsand,rounded corners=3pt,
-               inner sep=6pt,minimum width=34mm,minimum height=14mm,
-               align=center,font=\sffamily\bfseries\footnotesize},
-  cost/.style={font=\sffamily\footnotesize\itshape,text=hhink,
-               align=center},
-  arr/.style={->,>=Latex,thick,draw=hhebony},
+  stagebox/.style={draw=hhebony,thick,rounded corners=3pt,
+                inner sep=6pt,minimum width=36mm,minimum height=22mm,
+                align=center},
   esc/.style={->,>=Latex,thick,draw=hhcinnabar,dashed},
-  label/.style={font=\sffamily\footnotesize,text=hhcinnabar,align=center},
+  trig/.style={font=\sffamily\footnotesize,text=hhcinnabar,
+               align=center,inner sep=2pt,fill=hhpaper},
+  term/.style={draw=hhebony,thick,fill=hhpatina!30,rounded corners=3pt,
+               inner sep=6pt,align=left,minimum width=140mm,
+               font=\sffamily\footnotesize},
+  flow/.style={->,>=Latex,thick,draw=hhebony,line width=1pt},
 ]
-% Top: the four resolution steps, left to right
-\node[step,fill=hhsand!70] (s1) at (0,0)
-  {1.\ Direct release\\\footnotesize\itshape\sffamily\mdseries claimant releases};
-\node[step,fill=hhsanddeep!70,right=8mm of s1] (s2)
-  {2.\ Time-out\\\footnotesize\itshape\sffamily\mdseries TTL expires};
-\node[step,fill=hhbrass!40,right=8mm of s2] (s3)
-  {3.\ Bonded preemption\\\footnotesize\itshape\sffamily\mdseries blocked agent posts $B_{\mathrm{preempt}}$};
-\node[step,fill=hhcinnabar!30,right=8mm of s3] (s4)
-  {4.\ Human escalation\\\footnotesize\itshape\sffamily\mdseries via \texttt{request} channel};
-% Arrows + escalation labels
-\draw[esc] (s1.east) -- node[above,label] {claimant\\unresponsive} (s2.west);
-\draw[esc] (s2.east) -- node[above,label] {wait cost\\$>$ preempt bond} (s3.west);
-\draw[esc] (s2.east) -- node[above,label] {} (s3.west);
-\draw[esc] (s3.east) -- node[above,label] {ambiguous /\\stakes $>$ ceiling} (s4.west);
-% Cost annotations underneath
-\node[cost,below=4mm of s1.south] {cost: 0};
-\node[cost,below=4mm of s2.south] {cost: TTL\\latency};
-\node[cost,below=4mm of s3.south] {cost: $B_{\mathrm{preempt}}$\\(slashable)};
-\node[cost,below=4mm of s4.south] {cost: human\\time};
-% Common output: appended to evidence chain
-\node[draw=hhebony,thick,fill=hhpatina!30,rounded corners=3pt,
-      inner sep=5pt,align=left,
-      below=18mm of s2.south,xshift=20mm,
-      minimum width=70mm] (output)
-  {\sffamily\bfseries\footnotesize Resolution recorded on evidence chain\\
-   \footnotesize $\bullet$ Merkle-Forest binding (\S\ref{sec:merkle-forest})\\
-   \footnotesize $\bullet$ Appeal window opens (24h vibe time)\\
-   \footnotesize $\bullet$ Property~\ref{prop:appeal-sound}: chain monotone};
-\draw[arr,line width=1.2pt] (s1.south) -- ++(0,-3mm) -| (output.north);
-\draw[arr,line width=1.2pt] (s2.south) -- ++(0,-3mm) -| (output.north);
-\draw[arr,line width=1.2pt] (s3.south) -- ++(0,-3mm) -| (output.north);
-\draw[arr,line width=1.2pt] (s4.south) -- ++(0,-3mm) -| (output.north);
+% Four step boxes: number / name / description / cost stacked inside each.
+\node[stagebox,fill=hhsand!70] (s1) at (0,0)
+  {\textbf{\footnotesize 1}\\[1pt]
+   \textbf{\small Direct release}\\[2pt]
+   {\footnotesize\itshape claimant releases}\\[3pt]
+   {\footnotesize\color{hhcinnabar} cost: 0}};
+\node[stagebox,fill=hhsanddeep!70,right=12mm of s1] (s2)
+  {\textbf{\footnotesize 2}\\[1pt]
+   \textbf{\small Time-out}\\[2pt]
+   {\footnotesize\itshape TTL expires}\\[3pt]
+   {\footnotesize\color{hhcinnabar} cost: TTL latency}};
+\node[stagebox,fill=hhbrass!40,right=12mm of s2] (s3)
+  {\textbf{\footnotesize 3}\\[1pt]
+   \textbf{\small Bonded preemption}\\[2pt]
+   {\footnotesize\itshape blocked agent posts $B_{\mathrm{preempt}}$}\\[3pt]
+   {\footnotesize\color{hhcinnabar} cost: $B_{\mathrm{preempt}}$ (slashable)}};
+\node[stagebox,fill=hhcinnabar!30,right=12mm of s3] (s4)
+  {\textbf{\footnotesize 4}\\[1pt]
+   \textbf{\small Human escalation}\\[2pt]
+   {\footnotesize\itshape via \texttt{request} channel}\\[3pt]
+   {\footnotesize\color{hhcinnabar} cost: human time}};
+% Dashed escalation arrows between boxes; single-line trigger labels sit on the arrow.
+\draw[esc] (s1.east) -- (s2.west);
+\node[trig] at ($(s1.east)!0.5!(s2.west)$) {claimant\\unresponsive};
+\draw[esc] (s2.east) -- (s3.west);
+\node[trig] at ($(s2.east)!0.5!(s3.west)$) {wait $>$\\preempt bond};
+\draw[esc] (s3.east) -- (s4.west);
+\node[trig] at ($(s3.east)!0.5!(s4.west)$) {stakes $>$\\ceiling};
+% Horizontal collector line below the boxes; single arrow into terminal.
+\coordinate (busC) at ($(s2.south)!0.5!(s3.south)+(0,-10mm)$);
+\draw[flow] (s1.south) -- (s1.south |- busC);
+\draw[flow] (s2.south) -- (s2.south |- busC);
+\draw[flow] (s3.south) -- (s3.south |- busC);
+\draw[flow] (s4.south) -- (s4.south |- busC);
+\draw[flow,line width=1.4pt]
+  (s1.south |- busC) -- (s4.south |- busC);
+% Terminal box centered below the collector bus.
+\node[term,below=8mm of busC] (output)
+  {\textbf{Resolution recorded on evidence chain.}\quad
+   $\bullet$ Merkle-Forest binding (\S\ref{sec:merkle-forest})\quad
+   $\bullet$ 24h appeal window opens\quad
+   $\bullet$ Property~\ref{prop:appeal-sound}: chain monotone};
+\draw[flow,line width=1.4pt] (busC) -- (output.north);
 \end{tikzpicture}
 \caption{Governance and appeals: four-stage escalation path. The daemon resolves most disputes at step~1 or~2 (zero or near-zero cost). Bonded preemption (step~3) prices the blocked agent's claim that the holder is wrong; if the preemption is wrong, the bond is slashed under settlement. Human escalation (step~4) is reserved for the cases the daemon cannot mechanically decide. \emph{Every} resolution is appended to the evidence chain with the same Merkle-Forest binding as any agent action, so all four stages remain auditable.}
 \label{fig:governance-flow}
