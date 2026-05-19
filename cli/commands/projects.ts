@@ -8,6 +8,7 @@ import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import { CLIOptions, isJson } from '../types.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
+import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
 
 /**
  * Handle `pd scan [dir]` command
@@ -105,6 +106,12 @@ export async function handleProjects(subcommand: string | undefined, args: strin
       console.error('Usage: port-daddy projects rm <project-id>');
       process.exit(1);
     }
+
+    const ok = await requireConfirmation({
+      summary: `Projects rm will deregister "${projectId}" from the Port Daddy project registry. Its services, ports, and discovered config are removed from the index (files on disk remain).`,
+      args: options as Record<string, unknown>,
+    });
+    if (!ok) process.exit(DESTRUCTIVE_EXIT_CODE);
 
     const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/projects/${encodeURIComponent(projectId)}`, {
       method: 'DELETE'

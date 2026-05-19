@@ -8,6 +8,7 @@ import { CLIOptions, isQuiet, isJson } from '../types.js';
 import { getDirectLocks } from '../utils/direct-db.js';
 import * as ui from '../utils/ui.js';
 import PortDaddy from '../../lib/client.js';
+import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
 
 /**
  * Handle `pd lock <name-or-path>` command
@@ -102,6 +103,14 @@ export async function handleUnlock(name: string | undefined, options: CLIOptions
   if (!name) {
     console.error('Usage: port-daddy unlock <name-or-path> [--force]');
     process.exit(1);
+  }
+
+  if (options.force === true) {
+    const ok = await requireConfirmation({
+      summary: `Unlock --force will release "${name}" even if you don't own it. Whoever holds it loses their guarantee of exclusive access.`,
+      args: options as Record<string, unknown>,
+    });
+    if (!ok) process.exit(DESTRUCTIVE_EXIT_CODE);
   }
 
   const pd = new PortDaddy({

@@ -13,6 +13,7 @@ import { getDirectServices } from '../utils/direct-db.js';
 import { IS_TTY, separator, tableHeader } from '../utils/output.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
+import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
 
 /**
  * Auto-detect identity from nearest package.json
@@ -117,6 +118,11 @@ export async function handleRelease(id: string | undefined, options: CLIOptions)
 
   if (options.expired) {
     body.expired = true;
+    const ok = await requireConfirmation({
+      summary: 'Release --expired will free every expired port claim across all projects, including other agents\' work.',
+      args: options as Record<string, unknown>,
+    });
+    if (!ok) process.exit(DESTRUCTIVE_EXIT_CODE);
   } else if (!id) {
     console.error('Usage: port-daddy release <identity> [options]');
     console.error('       port-daddy release --expired');
@@ -283,6 +289,12 @@ export async function handleEnv(id: string | undefined, options: CLIOptions): Pr
  */
 export async function handlePorts(subcommand: string | undefined, options: CLIOptions): Promise<void> {
   if (subcommand === 'cleanup') {
+    const ok = await requireConfirmation({
+      summary: 'Ports cleanup will release every stale port assignment across all projects. Active services holding expired claims will be evicted.',
+      args: options as Record<string, unknown>,
+    });
+    if (!ok) process.exit(DESTRUCTIVE_EXIT_CODE);
+
     const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/ports/cleanup`, {
       method: 'POST'
     });
