@@ -1485,12 +1485,19 @@
       }
     },
     "roadmap": {
-      "description": "Cartographer roadmap projection — `pd roadmap` CLI/completion surface paired with the routed `cartographer` feature so operators see Next Cuts + curated now + dogfood feedback in one terminal call",
+      "description": "Tuple-backed roadmap_items DB-of-record + cartographer roadmap projection. `pd roadmap` CLI surfaces the curated Next Cuts/feedback/claim view; `POST /roadmap/promote` is the atomic feedback→item linkage cartographer (and humans) call instead of editing docs/ROADMAP.md prose by regex",
       "cli": [
         "roadmap"
       ],
       "sdk": [],
-      "routes": [],
+      "routes": [
+        "POST /roadmap/items",
+        "GET /roadmap/items",
+        "GET /roadmap/items/:slug",
+        "POST /roadmap/items/:slug/status",
+        "POST /roadmap/items/:slug/touch",
+        "POST /roadmap/promote"
+      ],
       "completions": [
         "roadmap"
       ],
@@ -1498,7 +1505,7 @@
         "readme": false,
         "sdk": false
       },
-      "_note": "Routes for this feature live under the `cartographer` feature to avoid duplication"
+      "_note": "Read-side (Next Cuts/feedback/claims projection) routes live under the `cartographer` feature; this feature owns the structured roadmap_items write side"
     },
     "quorum": {
       "description": "Tuple-backed propose/vote primitive for swarm decisions — agents propose roles, others vote, threshold-cross emits a `quorum:passed` tuple subscribers can react to",

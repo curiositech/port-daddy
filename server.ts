@@ -82,6 +82,8 @@ import { createBudgetGuard } from './lib/budget-guard.js';
 import { createBudgetPause } from './lib/budget-pause.js';
 import { createQuorum } from './lib/quorum.js';
 import { createFeedback } from './lib/feedback.js';
+import { createRoadmapItems } from './lib/roadmap-items.js';
+import { createRoadmapPromote } from './lib/roadmap-promote.js';
 import { createRoadmapPop } from './lib/roadmap-pop.js';
 import { launchFleetBarIfEnabled } from './lib/fleetbar-launcher.js';
 import { createGraphEdges } from './lib/graph-edges.js';
@@ -342,6 +344,8 @@ const semanticResolver = createSemanticResolver(db, {
 const episodicMemory = createEpisodicMemory(db, { tuples, graphEdges, semanticResolver });
 const quorum = createQuorum({ tuples });
 const feedback = createFeedback({ tuples });
+const roadmapItems = createRoadmapItems({ tuples });
+const roadmapPromote = createRoadmapPromote({ feedback, roadmapItems });
 const roadmapPop = createRoadmapPop({ db, feedback });
 
 const services = createServices(db, { semanticIndex });
@@ -911,7 +915,7 @@ await registerAllRoutes(
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar,
     harbors, sorties, orchestrator, correlationEngine, spawner, tuples, blobs, fleetDaemon,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, counters, metricsRegistry,
-    quorum, resourceGovernance, feedback, roadmapPop,
+    quorum, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,
     bonds, budgetGuard, budgetPause,
     arbiter, bosunHeartbeat,
     VERSION, CODE_HASH, STARTED_AT, __dirname, repoRoot: REPO_ROOT,

@@ -118,6 +118,11 @@ export async function handleRoadmap(argsOrOptions: string[] | CLIOptions, maybeO
     return;
   }
 
+  if (sub === 'promote') {
+    await handleRoadmapPromote(args.slice(1), options);
+    return;
+  }
+
   if (sub === 'pop') {
     await handleRoadmapPop(args.slice(1), options);
     return;
@@ -500,4 +505,54 @@ async function handleRoadmapClaims(options: CLIOptions): Promise<void> {
   }
   for (const c of claims) printClaimRow(c);
   console.log('');
+}
+
+async function handleRoadmapPromote(args: string[], options: CLIOptions): Promise<void> {
+  const feedbackId =
+    args[0] && !args[0].startsWith('--')
+      ? args[0]
+      : readOption(options, 'from-feedback', 'fromFeedback', 'feedbackId', 'id');
+  if (!feedbackId) {
+    ui.error('Usage: pd roadmap promote <feedbackId> [--slug <s>] [--summary <md>] [--status <now|backlog|parked|merge|done>] [--as <agentId>]');
+    process.exit(1);
+  }
+  const promotedBy =
+    readOption(options, 'as', 'agent', 'promotedBy')
+    || readCurrentContext()?.agentId
+    || '';
+  if (!promotedBy) {
+    ui.error('--as <agentId> required (or run inside an active pd session)');
+    process.exit(1);
+  }
+  const body: Record<string, unknown> = { feedbackId, promotedBy };
+  const slug = readOption(options, 'slug');
+  if (slug) body.slug = slug;
+  const summary = readOption(options, 'summary', 'summaryMd');
+  if (summary) body.summaryMd = summary;
+  const status = readOption(options, 'status');
+  if (status) body.status = status;
+  const harbor = readOption(options, 'harbor');
+  if (harbor) body.harbor = harbor;
+
+  const res = await pdFetch('/roadmap/promote', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!res.ok || data.success !== true) {
+    ui.error((data.error as string) || `Promote failed: HTTP ${res.status}`);
+    process.exit(1);
+  }
+  if (isJson(options)) {
+    console.log(JSON.stringify(data, null, 2));
+    return;
+  }
+  const item = data.roadmapItem as any;
+  const feedback = data.feedback as any;
+  ui.success(`Promoted feedback ${feedbackId.slice(0, 8)} → roadmap item '${item.slug}'`);
+  console.log(`  status:    ${item.status}`);
+  console.log(`  harbor:    ${item.harbor}`);
+  console.log(`  summary:   ${item.summaryMd.slice(0, 140)}${item.summaryMd.length > 140 ? '…' : ''}`);
+  console.log(`  feedback:  status=${feedback.status} harvestedIntoSlug=${feedback.harvestedIntoSlug}`);
 }

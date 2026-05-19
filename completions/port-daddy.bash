@@ -1759,11 +1759,14 @@ _port_daddy() {
         ack|harvest)
           _pd_opts '--as --into --id --feedbackId --json --quiet'
           ;;
+        promote)
+          _pd_opts '--from-feedback --feedbackId --id --slug --summary --status --as --agent --harbor --json --quiet'
+          ;;
         *)
           if [[ "$cur" == -* ]]; then
             _pd_opts '--dir --root --projectDir --limit --feedback-status --feedback-harbor --feedback-limit --no-excerpts --json --quiet'
           else
-            COMPREPLY=( $(compgen -W "ack harvest help" -- "$cur") )
+            COMPREPLY=( $(compgen -W "ack harvest promote pop release claims help" -- "$cur") )
           fi
           ;;
       esac

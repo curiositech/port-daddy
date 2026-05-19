@@ -249,6 +249,7 @@ const MCP_EXEMPT_FEATURES = new Set([
   'metricsprom',    // Prometheus scrape + browser dashboard endpoints; consumed by Grafana/scrapers and the /metrics.html page, not by MCP-driving agents
   'resource_governance', // Operator UI read model; MCP wrapper deferred until enforcement controls exist
   'cartographer',   // Read-only roadmap projection; surfaced via `pd roadmap` CLI; MCP tool deferred until dashboards consume the endpoint
+  'roadmap',        // Write side of tuple-backed roadmap_items DB-of-record; the `pd roadmap promote` CLI verb is the v1 entry point. MCP wrapper deferred until cartographer fleet agent calls it via tool-use directly rather than shell.
   'quorum',         // New propose/vote primitive; agents drive consensus via SDK calls in v1, MCP wrapper deferred to v4
   'shipwright',     // Survey + propose + apply for fleet authoring; CLI-driven workflow (long-running, interactive review). MCP wrapper deferred until the propose/apply step is non-interactive.
   'setup',          // Local machine onboarding can run installer commands; daemon routes require loopback + GUI capability token, not MCP exposure.

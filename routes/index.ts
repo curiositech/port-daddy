@@ -58,6 +58,7 @@ import { advisorPlugin } from './advisor.js';
 import { quorumPlugin } from './quorum.js';
 import { resourcesPlugin } from './resources.js';
 import { feedbackPlugin } from './feedback.js';
+import { roadmapPlugin } from './roadmap.js';
 import { shipwrightPlugin } from './shipwright.js';
 import { usagePlugin } from './usage.js';
 import { testHooksPlugin } from './test-hooks.js';
@@ -196,6 +197,14 @@ export async function registerAllRoutes(
   // Mounts when the feedback dep is present (depends on tuple space).
   if ((deps as any).feedback) {
     await fastify.register(feedbackPlugin, { deps } as any);
+  }
+
+  // Roadmap — tuple-backed roadmap_items DB-of-record (slices A+B of
+  // roadmap-db-of-record). Mounts when both roadmapItems and
+  // roadmapPromote are present so the promote endpoint can land
+  // atomic feedback→item links.
+  if ((deps as any).roadmapItems && (deps as any).roadmapPromote) {
+    await fastify.register(roadmapPlugin, { deps } as any);
   }
 
   // Shipwright — survey/propose/apply for fleet authoring.
