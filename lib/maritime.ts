@@ -96,6 +96,32 @@ const _ANSI_RAW = {
   dim: '\x1b[2m',
 };
 
+const _ANSI_TRUECOLOR = {
+  reset: '\x1b[0m',
+  // Backgrounds for signal flags, synced to design/tokens/primitives.json
+  bgBlue: '\x1b[48;2;30;58;138m',
+  bgWhite: '\x1b[48;2;250;250;245m',
+  bgRed: '\x1b[48;2;204;61;46m',
+  bgYellow: '\x1b[48;2;237;197;49m',
+  bgBlack: '\x1b[48;2;30;27;24m',
+  // Foregrounds for terminal text, synced to design/tokens/themes/dark.json
+  fgBlue: '\x1b[38;2;127;196;255m',
+  fgYellow: '\x1b[38;2;245;158;11m',
+  fgGreen: '\x1b[38;2;109;211;168m',
+  fgCyan: '\x1b[38;2;127;196;255m',
+  fgWhite: '\x1b[38;2;245;245;240m',
+  fgGray: '\x1b[38;2;209;209;199m',
+  fgRed: '\x1b[38;2;255;144;129m',
+  fgMagenta: '\x1b[38;2;109;40;217m',
+  bold: '\x1b[1m',
+  dim: '\x1b[2m',
+};
+
+export const _ANSI_TABLES = {
+  named: _ANSI_RAW,
+  truecolor: _ANSI_TRUECOLOR,
+} as const;
+
 // Strip all ANSI codes when color is disabled
 function _c(code: string): string {
   return COLOR_ENABLED ? code : '';
