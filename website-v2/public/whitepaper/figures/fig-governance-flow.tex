@@ -11,6 +11,7 @@
 
 \begin{figure}[H]
 \centering
+\resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[
   font=\sffamily\small,
   stagebox/.style={draw=hhebony,thick,rounded corners=3pt,
@@ -79,7 +80,8 @@
   $\bullet$\ Property~\ref{prop:appeal-sound}: chain grows monotonically%
 };
 \draw[flow] (busMid) -- (output.north);
-\end{tikzpicture}
+\end{tikzpicture}%
+}
 \caption{Governance and appeals: four-stage escalation path. The daemon resolves most disputes at stage~1 or~2 (zero or near-zero cost). Bonded preemption (stage~3) prices the blocked agent's claim that the holder is wrong; if the preemption is wrong, the bond is slashed under settlement. Human escalation (stage~4) is reserved for the cases the daemon cannot mechanically decide. \emph{Every} resolution is appended to the evidence chain with the same Merkle-Forest binding as any agent action, so all four stages remain auditable.}
 \label{fig:governance-flow}
 \end{figure}
