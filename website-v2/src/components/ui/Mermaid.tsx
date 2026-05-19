@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useCallback, useId } from 'react'
-import mermaid from 'mermaid'
+import React, { useEffect, useRef, useCallback, useId, useState } from 'react'
+import type { Mermaid as MermaidApi } from 'mermaid'
 import { Surface } from './Surface'
 import { cn } from '@/lib/utils'
 
@@ -12,8 +12,20 @@ export const Mermaid: React.FC<MermaidProps> = ({ chart, className }) => {
   const ref = useRef<HTMLDivElement>(null)
   const idPrefix = useId().replace(/:/g, '')
   const renderCount = useRef(0)
+  // Dynamic import so the `mermaid` module never evaluates during
+  // prerender — it touches `document` / `window` at module scope,
+  // which throws under vite-react-ssg.
+  const [mermaid, setMermaid] = useState<MermaidApi | null>(null)
+  useEffect(() => {
+    let active = true
+    import('mermaid').then((mod) => {
+      if (active) setMermaid(mod.default)
+    })
+    return () => { active = false }
+  }, [])
 
   const renderChart = useCallback(() => {
+    if (!mermaid) return
     const root = document.documentElement
     const style = getComputedStyle(root)
     const token = (name: string) => style.getPropertyValue(name).trim() || `var(${name})`
@@ -88,9 +100,10 @@ export const Mermaid: React.FC<MermaidProps> = ({ chart, className }) => {
         }
       })
     }
-  }, [chart, idPrefix])
+  }, [chart, idPrefix, mermaid])
 
   useEffect(() => {
+    if (!mermaid) return
     renderChart()
 
     // Re-render when theme changes
@@ -104,7 +117,7 @@ export const Mermaid: React.FC<MermaidProps> = ({ chart, className }) => {
     })
     observer.observe(document.documentElement, { attributes: true })
     return () => observer.disconnect()
-  }, [renderChart])
+  }, [renderChart, mermaid])
 
   return (
     <Surface
