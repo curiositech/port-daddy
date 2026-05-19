@@ -74,4 +74,6 @@
 \contentsline {paragraph}{Recovery fidelity depends on LLM capability.}{22}{section*.37}%
 \contentsline {paragraph}{Bond pricing is unsolved.}{22}{section*.38}%
 \contentsline {section}{\numberline {13}Conclusion}{22}{section.13}%
-\contentsline {section}{\numberline {A}Mechanization Status (v2.5)}{23}{appendix.A}%
+\contentsline {section}{\numberline {A}Mechanization Status (v2.6)}{23}{appendix.A}%
+\contentsline {section}{\numberline {B}Algorithm Diagrams}{25}{appendix.B}%
+\contentsline {section}{\numberline {C}Monte Carlo Visualizations}{28}{appendix.C}%
