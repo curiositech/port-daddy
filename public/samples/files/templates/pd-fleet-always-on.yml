@@ -1,0 +1,104 @@
+# pd-fleet-always-on.yml — Always-on agent patterns
+#
+# These agents run continuously or on tight schedules, not just on commits.
+# Good for: monitoring, health checks, ambient awareness, periodic cleanup.
+#
+# Merge these into your pd-fleet.yml or use standalone.
+# Pin `model:` for any agent backend that supports multiple model tiers.
+
+fleet:
+  name: "{project}-always-on"
+  harbor: "{project}:always-on"
+
+  agents:
+    # ── Health Monitor ────────────────────────────────────────────────────
+    # Checks service health every 5 minutes. Posts warnings when services
+    # go unhealthy. Sprays pheromone health signals for other agents to read.
+    health-monitor:
+      schedule: "*/5 * * * *"
+      backend: custom
+      prompt: |
+        PORT_FILE="${PORT_DADDY_PORT_FILE:-$HOME/.port-daddy/daemon.port}"
+        PD_URL="${PORT_DADDY_URL:-http://localhost:$(tr -d '[:space:]' < "$PORT_FILE" 2>/dev/null || echo 9876)}"
+        curl -sf "$PD_URL/services/health" | jq -r '.results[] | select(.healthy==false) | .id'
+      on_failure: publish health:degraded
+      identity: "{project}:always-on:health-monitor"
+
+    # ── Stale Lock Janitor ────────────────────────────────────────────────
+    # Releases locks that have been held longer than their TTL.
+    # Prevents zombie locks from blocking work.
+    lock-janitor:
+      schedule: "*/15 * * * *"
+      backend: custom
+      prompt: |
+        PORT_FILE="${PORT_DADDY_PORT_FILE:-$HOME/.port-daddy/daemon.port}"
+        PD_URL="${PORT_DADDY_URL:-http://localhost:$(tr -d '[:space:]' < "$PORT_FILE" 2>/dev/null || echo 9876)}"
+        curl -sf "$PD_URL/locks" | jq -r '.locks[] | select(.expiresAt < now) | .name' | while read name; do
+          curl -sf -X DELETE "$PD_URL/locks/$name" -H 'Content-Type: application/json' -d '{"force": true}'
+        done
+      identity: "{project}:always-on:lock-janitor"
+
+    # ── Session Reaper ────────────────────────────────────────────────────
+    # Finds sessions that have been active for more than 2 hours without
+    # notes, and flags them as potentially abandoned.
+    session-reaper:
+      schedule: "0 * * * *"
+      backend: claude-cli
+      model: haiku
+      singleton: true
+      allowedTools: "Read,Grep"
+      prompt: |
+        Check for abandoned sessions. Determine the daemon URL from PORT_DADDY_URL
+        or ~/.port-daddy/daemon.port, then call GET /sessions on that live daemon.
+
+        For each active session:
+        - If it has been active > 2 hours AND has 0 notes, it may be abandoned
+        - List these sessions with their purpose and agent ID
+        - Do NOT end them automatically — just report
+
+        If all sessions look healthy, say ALL CLEAR.
+      on_failure: publish sessions:stale
+      identity: "{project}:always-on:session-reaper"
+
+    # ── Dependency Watcher ────────────────────────────────────────────────
+    # Checks for outdated dependencies once a day.
+    dep-watcher:
+      schedule: "0 9 * * *"
+      backend: claude-cli
+      model: haiku
+      singleton: true
+      allowedTools: "Read,Bash(npm outdated*),Bash(npm audit*)"
+      prompt: |
+        Run npm outdated and npm audit.
+        Report any dependencies with:
+        - Known security vulnerabilities
+        - Major version bumps available
+        - Deprecation notices
+        Save a report to .fleet-reports/deps-YYYY-MM-DD.md
+      identity: "{project}:always-on:dep-watcher"
+
+    # ── Changelog Writer ──────────────────────────────────────────────────
+    # After a batch of commits, generates a human-readable changelog entry.
+    # Triggered by a tag event or manually via pd msg release:prepare.
+    changelog-writer:
+      trigger: release:prepare
+      backend: claude-cli
+      model: haiku
+      allowedTools: "Read,Grep,Glob,Write"
+      prompt: |
+        Generate a changelog entry for the next release.
+        Read git log from the last git tag to HEAD.
+        Group changes into: Added, Fixed, Changed, Removed.
+        Write in past tense, user-facing language.
+        Save to .fleet-reports/changelog-draft.md
+      identity: "{project}:always-on:changelog-writer"
+
+  channels:
+    health:degraded:
+      description: "A service health check failed"
+
+    sessions:stale:
+      description: "Sessions found that may be abandoned"
+
+    release:prepare:
+      description: "Trigger to generate release changelog"

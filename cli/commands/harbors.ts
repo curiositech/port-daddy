@@ -15,7 +15,7 @@ import { readCurrentContextFromPaths } from '../utils/current-context.js';
 
 const BASE_URL = getDaemonTcpUrl(process.env.PORT_DADDY_URL);
 
-type ParsedOptions = Record<string, string | boolean | undefined>;
+type ParsedOptions = Record<string, string | string[] | boolean | undefined>;
 
 // ─── Local Context ────────────────────────────────────────────────────────────
 

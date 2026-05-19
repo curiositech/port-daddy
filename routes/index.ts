@@ -58,10 +58,12 @@ import { advisorPlugin } from './advisor.js';
 import { quorumPlugin } from './quorum.js';
 import { resourcesPlugin } from './resources.js';
 import { feedbackPlugin } from './feedback.js';
+import { roadmapPlugin } from './roadmap.js';
 import { shipwrightPlugin } from './shipwright.js';
 import { usagePlugin } from './usage.js';
 import { testHooksPlugin } from './test-hooks.js';
 import { cockpitPlugin } from './cockpit.js';
+import { setupPlugin } from './setup.js';
 
 type AnyDeps = Record<string, unknown>;
 
@@ -112,6 +114,7 @@ export async function registerAllRoutes(
     deps: {
       daemonDir: (deps as any).repoRoot ?? (deps as any).__dirname ?? process.cwd(),
       feedback: (deps as any).feedback,
+      roadmapPop: (deps as any).roadmapPop,
     },
   });
   await fastify.register(operatorPlugin, { deps } as any);
@@ -178,6 +181,9 @@ export async function registerAllRoutes(
   // Deterministic coordination suggestibility for humans and agents.
   await fastify.register(advisorPlugin, { deps } as any);
 
+  // GUI-first local onboarding and setup actions.
+  await fastify.register(setupPlugin, { deps } as any);
+
   // Operator resource governance — observe/advisory mode before enforcement.
   await fastify.register(resourcesPlugin, { deps } as any);
 
@@ -193,6 +199,14 @@ export async function registerAllRoutes(
     await fastify.register(feedbackPlugin, { deps } as any);
   }
 
+  // Roadmap — tuple-backed roadmap_items DB-of-record (slices A+B of
+  // roadmap-db-of-record). Mounts when both roadmapItems and
+  // roadmapPromote are present so the promote endpoint can land
+  // atomic feedback→item links.
+  if ((deps as any).roadmapItems && (deps as any).roadmapPromote) {
+    await fastify.register(roadmapPlugin, { deps } as any);
+  }
+
   // Shipwright — survey/propose/apply for fleet authoring.
   // Always mounts; LLM augmentation is opt-in and degrades if no client wired.
   await fastify.register(shipwrightPlugin, {
@@ -203,9 +217,9 @@ export async function registerAllRoutes(
   });
 
   // Usage telemetry — local product instrumentation for CLI/SDK/MCP/UI/daemon.
-  if ((deps as any).usageTelemetry) {
-    await fastify.register(usagePlugin, { deps } as any);
-  }
+  // The plugin self-degrades when telemetry storage is absent, so UI calls do
+  // not spray 404s in dev/profiling daemon modes.
+  await fastify.register(usagePlugin, { deps } as any);
 
   // Test-only hooks. Self-degrades to no-op when NODE_ENV !== 'test'. Used
   // by the integration suite to drive the budget-kill chain end-to-end

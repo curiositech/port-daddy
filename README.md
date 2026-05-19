@@ -66,7 +66,7 @@ pd done "Auth complete"
 
 ### 1. Requirements
 - **OS:** macOS (recommended) or Linux.
-- **Runtime:** Node.js v18+.
+- **Runtime:** Node.js v20+ for the CLI and build tooling. The installed daemon runs from the distributed `dist/daemon/port-daddy-daemon` executable when that artifact is present.
 
 ### 2. Install CLI
 ```bash
@@ -89,6 +89,10 @@ pd doctor   # Verify environment
 pd start    # Start the daemon
 pd bench 50 # Run performance benchmarks (Target: <1ms latency)
 ```
+
+`pd start` and `pd install` are binary-first. They refuse to start a source-backed `tsx server.ts` daemon unless `PORT_DADDY_ALLOW_SOURCE_DAEMON=1` is set for a local development session. Release promotion builds the daemon executable, builds the public sample bundle, installs the binary service, and checks the macOS LaunchAgent did not regress to `tsx server.ts`.
+
+Single-binary distribution is now an explicit build lane, not a vague future promise. `npm run build:bin` emits `dist/port-daddy` plus `dist/port-daddy-manifest.json`; that binary carries the CLI, the MCP stdio server, and a hidden `__daemon` entrypoint in-process instead of shelling through `tsx`. The build also embeds Fleet UI and the generated public samples into the executable through a generated asset table, then smoke-tests `dist/port-daddy __daemon` with an empty `PORT_DADDY_RESOURCE_DIR` by fetching `/health`, `/samples/manifest.json`, and `/fleet-ui/index.html`. The standalone daemon companion at `dist/daemon/port-daddy-daemon` remains available for daemon-only installs.
 
 ---
 
@@ -310,7 +314,7 @@ Use the right surface for the job:
 
 Canonical operator explanation: [docs/DELEGATION-MODES.md](docs/DELEGATION-MODES.md)
 
-For Port Daddy itself, promotion is the high-signal docs boundary. `./scripts/promote-stable.sh` emits a `promotion:release-surfaces` tuple and pub/sub signal after tests pass and before the stable merge, so the fleet Documentarian/Lookout reviews README, docs, website docs/tutorials, Mac app/FleetBar install and product copy, SDK/CLI references, OpenAPI/MCP surfaces, and the distributed agent skill when those surfaces are about to become live operator truth.
+For Port Daddy itself, the release boundary is the signed-binary cut. Tagging `v<version>` and publishing a GitHub Release triggers the `release.yml` workflow, which rebuilds the daemon, CLI, and MCP server as signed/notarized binaries (per [ADR-0028](docs/adr/0028-signed-binary-distribution.md)). The brew tap (`curiositech/homebrew-tap`) is then bumped via the manual `publish.yml` workflow. Documentarian/Lookout reviews README, docs, website docs/tutorials, Mac app/FleetBar install and product copy, SDK/CLI references, OpenAPI/MCP surfaces, and the distributed agent skill around the same tag, since those surfaces become live operator truth at the moment users run `brew upgrade port-daddy`.
 
 ```bash
 # Preferred single-agent delegation
@@ -658,6 +662,7 @@ Commit this to your repo so every developer gets the same deterministic port map
 | **The Brig** | Automatically isolate or salvage agents who deviate from their manifest. *(planned — see `docs/plans/PHONE-INTEGRATION-MASTER-PLAN.md`)* |
 
 The public site uses **`/examples`** as the single source-backed catalogue for runnable patterns.
+Daemon and single-binary builds also publish those promised examples and templates under `/samples/manifest.json` and `/samples/files/...`, so public tutorial code can be fetched from a binary install without treating the source checkout as the runtime asset server.
 
 ---
 
@@ -668,6 +673,9 @@ The public site uses **`/examples`** as the single source-backed catalogue for r
 git clone https://github.com/curiositech/port-daddy
 npm install
 npm run dev # Starts daemon and website in dev mode
+npm run build:public-samples
+npm run build:daemon
+npm run build:bin
 ```
 
 ### Quality Gates

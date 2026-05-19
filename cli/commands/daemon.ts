@@ -15,6 +15,7 @@ import type { PdFetchResponse } from '../utils/fetch.js';
 import { printBanner, printCompactHeader, printFarewell, WHEEL, ANCHOR, ANSI } from '../../lib/banner.js';
 import { autoFixStartupBlockers, diagnoseStartupBlockers } from '../utils/startup-doctor.js';
 import { LOOPBACK_TCP_HOST, readDaemonPort } from '../../shared/daemon-discovery.js';
+import { resolveDaemonLaunchCommand, type DaemonLaunchCommand } from '../../shared/daemon-binary.js';
 import { calculateRuntimeCodeHash, listRuntimeSourceFiles } from '../../shared/code-hash.js';
 import {
   buildDaemonProfileEnv,
@@ -33,6 +34,33 @@ import * as ui from '../utils/ui.js';
 // __dirname equivalent for ESM
 const __dirname = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
 const STARTUP_HEALTH_TIMEOUT_MS = 10000;
+
+/**
+ * Detect whether we're running inside a `bun build --compile` binary.
+ * In a bun-compiled bundle, `process.versions.bun` is set AND `import.meta.url`
+ * lives under `/$bunfs/...`. In source-mode dev (bun run / tsx) the latter
+ * is a normal file:// URL on disk.
+ */
+function isBunCompiledBinary(): boolean {
+  if (!process.versions.bun) return false;
+  return import.meta.url.includes('/$bunfs/');
+}
+
+/**
+ * Run the daemon entrypoint in-process. The dynamic import has the side
+ * effect of executing server.ts's top-level body, which binds the Unix
+ * socket and TCP listener and starts servicing requests on this process's
+ * event loop. Returns a promise that never resolves so the process stays
+ * alive under launchd/brew-services KeepAlive.
+ *
+ * The literal-string specifier is required for bun's `--compile` static
+ * analyzer to bundle server.ts (and its transitive imports) into the binary.
+ */
+export async function runDaemonInProcess(): Promise<never> {
+  await import('../../server.js');
+  return new Promise<never>(() => {});
+}
+
 const SHUTDOWN_TIMEOUT_MS = 5000;
 const PROFILE_STARTUP_TIMEOUT_MS = 30000;
 
@@ -223,11 +251,29 @@ function isCanonicalDaemonTarget(): boolean {
   return !process.env.PORT_DADDY_URL && !process.env.PORT_DADDY_SOCK && !process.env.PORT_DADDY_PORT_FILE;
 }
 
+function daemonLaunchCommand(libDir: string): DaemonLaunchCommand {
+  try {
+    return resolveDaemonLaunchCommand(libDir);
+  } catch (err) {
+    ui.error((err as Error).message);
+    process.exit(1);
+  }
+}
+
+function spawnDaemon(command: DaemonLaunchCommand, options: Parameters<typeof spawn>[2] = {}): ChildProcess {
+  return spawn(command.program, command.args, {
+    ...options,
+    env: {
+      ...process.env,
+      ...(command.env ?? {}),
+      ...((options.env ?? {}) as NodeJS.ProcessEnv),
+    },
+  });
+}
+
 export async function handleDaemonCommand(positional: string[], options: DaemonCommandOptions = {}): Promise<void> {
   const action = positional[0] || 'list';
   const libDir: string = join(__dirname, '..', '..');
-  const tsxBin: string = join(libDir, 'node_modules', '.bin', 'tsx');
-  const serverScript: string = join(libDir, 'server.ts');
 
   switch (action) {
     case 'list':
@@ -300,7 +346,7 @@ export async function handleDaemonCommand(positional: string[], options: DaemonC
       const logFd = openSync(profile.logFile, 'a');
       let child: ChildProcess;
       try {
-        child = spawn(tsxBin, [serverScript], {
+        child = spawnDaemon(daemonLaunchCommand(libDir), {
           env: buildDaemonProfileEnv(profile, {
             port: preferredPort,
             enableFleet: options.fleet === true,
@@ -492,12 +538,32 @@ async function stopRunningCanonicalDaemon(localCodeHash: string, daemonPort: num
 /**
  * Attempt to spawn the daemon and wait for it to become healthy.
  * Returns true if the daemon started successfully, false otherwise.
+ *
+ * In a bun-compiled binary the source tree (server.ts, node_modules/.bin/tsx)
+ * is not on disk, so we cannot spawn tsx. Instead we re-exec the same binary
+ * with `start --foreground`, which runs the daemon in-process.
  */
-async function attemptDaemonStart(tsxBin: string, serverScript: string): Promise<boolean> {
-  const child: ChildProcess = spawn(tsxBin, [serverScript], {
-    stdio: 'ignore',
-    detached: true,
-  });
+async function attemptDaemonStart(command: DaemonLaunchCommand): Promise<boolean> {
+  // Bun-compiled binary short-circuit (v3.14.1 / PR #94, issue #86):
+  // a launchctl / brew-services context cannot exec
+  // `node_modules/.bin/tsx` because that path doesn't exist inside a
+  // `bun build --compile` bundle. The supervisor must keep our PID,
+  // so re-exec the same binary with `start --foreground` and let the
+  // import side-effect bind the sockets in-process. This wins over
+  // whatever `command` says when we know we're already running as
+  // the compiled binary.
+  let child: ChildProcess;
+  if (isBunCompiledBinary()) {
+    child = spawn(process.execPath, ['start', '--foreground'], {
+      stdio: 'ignore',
+      detached: true,
+    });
+  } else {
+    child = spawnDaemon(command, {
+      stdio: 'ignore',
+      detached: true,
+    });
+  }
   child.unref();
 
   const data = await waitForDaemonHealthy();
@@ -520,7 +586,6 @@ export async function handleDaemon(action: string): Promise<void> {
   const libDir: string = join(__dirname, '..', '..');
   const tsxBin: string = join(libDir, 'node_modules', '.bin', 'tsx');
   const installScript: string = join(libDir, 'install-daemon.ts');
-  const serverScript: string = join(libDir, 'server.ts');
 
   switch (action) {
     case 'start': {
@@ -550,7 +615,8 @@ export async function handleDaemon(action: string): Promise<void> {
       console.log(`  ${WHEEL} Starting daemon...`);
 
       // Attempt 1: Try to start normally
-      if (await attemptDaemonStart(tsxBin, serverScript)) return;
+      const command = daemonLaunchCommand(libDir);
+      if (await attemptDaemonStart(command)) return;
 
       // Attempt 1 failed — diagnose and auto-fix
       console.log(`  ${ANSI.fgYellow}First attempt failed, diagnosing...${ANSI.reset}`);
@@ -600,14 +666,14 @@ export async function handleDaemon(action: string): Promise<void> {
       // Attempt 2: Retry after fixes
       console.log(`  ${WHEEL} Retrying...`);
 
-      if (await attemptDaemonStart(tsxBin, serverScript)) return;
+      if (await attemptDaemonStart(command)) return;
 
       // Still failing — one more diagnostic pass in case socket needs cleanup
       const secondPass = autoFixStartupBlockers(daemonPort);
       if (secondPass.fixed) {
         await new Promise<void>(r => setTimeout(r, 1000));
         console.log(`  ${WHEEL} Final retry...`);
-        if (await attemptDaemonStart(tsxBin, serverScript)) return;
+        if (await attemptDaemonStart(command)) return;
       }
 
       ui.error('Failed to start daemon after auto-fix');
@@ -648,14 +714,24 @@ export async function handleDaemon(action: string): Promise<void> {
     }
 
     case 'install': {
-      const result: SpawnSyncReturns<Buffer> = spawnSync(tsxBin, [installScript, 'install'], { stdio: 'inherit' });
-      process.exit(result.status ?? 1);
+      if (process.env.PORT_DADDY_CAN_SELF_DAEMON === '1') {
+        const { runInstallDaemonCli } = await import('../../install-daemon.js');
+        runInstallDaemonCli('install');
+      } else {
+        const result: SpawnSyncReturns<Buffer> = spawnSync(tsxBin, [installScript, 'install'], { stdio: 'inherit' });
+        process.exit(result.status ?? 1);
+      }
       break;
     }
 
     case 'uninstall': {
-      const result: SpawnSyncReturns<Buffer> = spawnSync(tsxBin, [installScript, 'uninstall'], { stdio: 'inherit' });
-      process.exit(result.status ?? 1);
+      if (process.env.PORT_DADDY_CAN_SELF_DAEMON === '1') {
+        const { runInstallDaemonCli } = await import('../../install-daemon.js');
+        runInstallDaemonCli('uninstall');
+      } else {
+        const result: SpawnSyncReturns<Buffer> = spawnSync(tsxBin, [installScript, 'uninstall'], { stdio: 'inherit' });
+        process.exit(result.status ?? 1);
+      }
       break;
     }
   }

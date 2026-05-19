@@ -6,6 +6,7 @@
 
 import { join } from 'node:path';
 import { existsSync, readFileSync, accessSync, constants } from 'node:fs';
+import { homedir, platform } from 'node:os';
 import { spawnSync, spawn } from 'node:child_process';
 import type { SpawnSyncReturns } from 'node:child_process';
 import { ANSI as marANSI } from '../../lib/maritime.js';
@@ -16,6 +17,11 @@ import type { PdFetchResponse } from '../utils/fetch.js';
 import { diagnoseStartupBlockers, confirmFix } from '../utils/startup-doctor.js';
 import { CANONICAL_TCP_PORT } from '../../shared/daemon-discovery.js';
 import { calculateRuntimeCodeHash } from '../../shared/code-hash.js';
+import {
+  daemonBinaryPath,
+  isBunVirtualPath,
+  resolveDistributionRoot,
+} from '../../shared/daemon-binary.js';
 import * as ui from '../utils/ui.js';
 
 // __dirname equivalent for ESM
@@ -293,7 +299,7 @@ export async function handleVersion(): Promise<void> {
     const pkgFallback: string = join(libDir, 'package.json');
     const ver: string = existsSync(pkgFallback)
       ? (JSON.parse(readFileSync(pkgFallback, 'utf8')) as { version: string }).version
-      : 'unknown';
+      : process.env.PORT_DADDY_PACKAGE_VERSION || 'unknown';
     console.log(`Port Daddy v${ver} (server not running)`);
   }
 }
@@ -301,6 +307,129 @@ export async function handleVersion(): Promise<void> {
 /**
  * Handle `pd doctor` / `pd diagnose` command
  */
+/**
+ * True when a launchd plist still targets the source-running daemon
+ * (`tsx` loader or a bare `server.ts` argument). Both signals indicate
+ * the LaunchAgent hasn't been regenerated since the binary distribution
+ * landed in ADR-0028 — the silent-failure path where a user upgrades
+ * but launchd keeps running the old `tsx server.ts`.
+ *
+ * Pure on the plist contents string so it's trivially testable.
+ *
+ * Scoped to `<string>` element VALUES (with a tolerant pattern for
+ * attribute-bearing tags). A naive whole-document regex would
+ * false-positive on free-form comment lines like
+ * `<key>Comment</key><string>Replaces the old server.ts launcher</string>`
+ * — `port-daddy install` itself has shipped such commentary in the
+ * past. We only care about plist STRING VALUES, which is where
+ * ProgramArguments live.
+ */
+export function plistTargetsLegacyDaemon(plistContents: string): boolean {
+  // Pull every `<string>...</string>` value. A plist <string> in
+  // ProgramArguments is a single argv element — a filesystem path,
+  // not prose — so we can apply path-shaped checks to the trimmed
+  // value rather than substring-match the whole document.
+  //
+  //   - `node_modules/.bin/tsx` anywhere in the value: this token
+  //     wouldn't appear in plausible English commentary, so any
+  //     match is the legacy tsx loader.
+  //   - The value ends with `/server.ts` (i.e. server.ts is the
+  //     final path component): catches `/opt/port-daddy/server.ts`
+  //     and `node server.ts`-style args, but NOT prose like
+  //     "Migrated from server.ts. Do not edit." because that
+  //     <string>'s trimmed tail is "edit.", not "/server.ts".
+  const matches = plistContents.matchAll(/<string[^>]*>([\s\S]*?)<\/string>/g);
+  for (const m of matches) {
+    const value = m[1].trim();
+    if (/node_modules\/\.bin\/tsx/.test(value)) return true;
+    if (/(?:^|\/)server\.ts$/.test(value)) return true;
+  }
+  return false;
+}
+
+export interface ResourceDirBreakdown {
+  envOverride: string | null;
+  moduleDir: string;
+  moduleDirIsBunVirtual: boolean;
+  resolvedRoot: string;
+  expectedBinary: string;
+  binaryExists: boolean;
+}
+
+/**
+ * Computes the four-way resolution of `PORT_DADDY_RESOURCE_DIR` at the
+ * current moment: explicit env override, raw module dir (and whether
+ * Bun's virtual fs is in play), the resolved distribution root, and
+ * the binary path that root implies (plus whether it actually exists).
+ * Pure on inputs so it's easy to test under fake env / paths.
+ */
+export function describeResourceDir(
+  moduleDir: string,
+  env: NodeJS.ProcessEnv = process.env,
+  execPath: string = process.execPath,
+): ResourceDirBreakdown {
+  const envOverride = env.PORT_DADDY_RESOURCE_DIR?.trim() || null;
+  const moduleDirIsBunVirtual = isBunVirtualPath(moduleDir);
+  const resolvedRoot = resolveDistributionRoot(moduleDir, env, execPath);
+  const expectedBinary = daemonBinaryPath(resolvedRoot, env);
+  return {
+    envOverride,
+    moduleDir,
+    moduleDirIsBunVirtual,
+    resolvedRoot,
+    expectedBinary,
+    binaryExists: existsSync(expectedBinary),
+  };
+}
+
+/**
+ * Resolves the canonical LaunchAgent plist path for the daemon on this
+ * platform. Returns null when the platform doesn't use launchd —
+ * systemd-user units (Linux) and Windows services have their own
+ * regression paths to add later; for now this diagnostic is macOS-only.
+ */
+export function userLaunchAgentPlistPath(): string | null {
+  if (platform() === 'darwin') {
+    return join(homedir(), 'Library', 'LaunchAgents', 'com.portdaddy.daemon.plist');
+  }
+  return null;
+}
+
+/**
+ * Reads a plist as XML text, normalizing binary plist format if
+ * necessary. macOS `launchctl load` accepts both XML and binary
+ * plists; `plutil -convert binary1` and several Homebrew install
+ * scripts emit the binary variant. Reading those bytes as UTF-8
+ * yields garbage that would silently false-negative
+ * `plistTargetsLegacyDaemon` — the check would say "looks fine!"
+ * on a stale binary plist that still targets `tsx server.ts`.
+ *
+ * Strategy: read raw bytes. If they start with the binary plist
+ * magic (`bplist`), shell out to `plutil -convert xml1 -o - <path>`
+ * to normalize, then return the XML stdout. Otherwise return the
+ * UTF-8 string directly. Throws on plutil failure so the caller
+ * can surface a real error rather than silently passing.
+ *
+ * macOS-only: `plutil` is shipped with the OS. Other platforms
+ * shouldn't reach here because `userLaunchAgentPlistPath()` returns
+ * null off darwin.
+ */
+export function readPlistAsXml(plistPath: string): string {
+  const raw = readFileSync(plistPath);
+  const isBinaryPlist = raw.length >= 6 && raw.slice(0, 6).toString('ascii') === 'bplist';
+  if (!isBinaryPlist) {
+    return raw.toString('utf8');
+  }
+  const result = spawnSync('plutil', ['-convert', 'xml1', '-o', '-', plistPath], {
+    encoding: 'utf8',
+  });
+  if (result.status !== 0) {
+    const stderr = result.stderr?.trim() || `exit ${result.status}`;
+    throw new Error(`plutil failed to convert binary plist: ${stderr}`);
+  }
+  return result.stdout;
+}
+
 export async function handleDoctor(): Promise<void> {
   interface CheckResult {
     ok: boolean;
@@ -717,6 +846,94 @@ export async function handleDoctor(): Promise<void> {
       check(issue.issue, false, issue.detail,
         issue.fixable ? 'Auto-fixable (will prompt below)' : 'Manual intervention needed');
     }
+  }
+
+  // -------------------------------------------------------------------------
+  // 12. Launch-agent target (binary daemon migration)
+  // -------------------------------------------------------------------------
+  // Catches the silent-upgrade failure where a user installed the binary
+  // distribution but their existing launchd plist still points at the
+  // source daemon (`tsx server.ts`). Without this check, `brew upgrade`
+  // appears to do nothing because launchd keeps spawning the old tsx
+  // path. This replaces the regression guard formerly at
+  // `scripts/promote-stable.sh:144-148`, now reachable for every user
+  // — not just developers running the (now-deleted) promote-stable
+  // script. See ADR-0028 step 11.
+  try {
+    const plistPath = userLaunchAgentPlistPath();
+    if (plistPath && existsSync(plistPath)) {
+      // readPlistAsXml handles both XML and binary plist formats —
+      // a stale binary plist still targeting tsx server.ts would
+      // otherwise read as UTF-8 garbage and silently false-negative.
+      const contents = readPlistAsXml(plistPath);
+      if (plistTargetsLegacyDaemon(contents)) {
+        check(
+          'LaunchAgent target',
+          false,
+          `${plistPath} still targets source daemon (tsx/server.ts)`,
+          'Run: port-daddy install   (regenerates the plist against the current daemon binary)',
+        );
+      } else {
+        check('LaunchAgent target', true, `${plistPath} targets the binary daemon`);
+      }
+    } else if (plistPath) {
+      check('LaunchAgent target', true, `No LaunchAgent installed (${plistPath} absent)`);
+    } else {
+      check('LaunchAgent target', true, `Skipped on ${platform()} (macOS-only diagnostic for now)`);
+    }
+  } catch (err: unknown) {
+    check(
+      'LaunchAgent target',
+      false,
+      `Error reading plist: ${(err as Error).message}`,
+      'Check ~/Library/LaunchAgents/com.portdaddy.daemon.plist permissions',
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // 13. Resource-directory resolution breakdown
+  // -------------------------------------------------------------------------
+  // PORT_DADDY_RESOURCE_DIR is overloaded — it's the explicit env
+  // override, the Bun-virtual-path escape hatch, the install-time plist
+  // env value, AND the runtime asset root. Different layouts (Homebrew
+  // prefix, custom --prefix, Windows) can make those four meanings
+  // diverge silently. This check prints what each pass resolves to right
+  // now so problems are visible at a glance.
+  try {
+    const breakdown = describeResourceDir(libDir);
+    const lines: string[] = [
+      `env=${breakdown.envOverride ?? '<unset>'}`,
+      `moduleDir=${breakdown.moduleDir}${breakdown.moduleDirIsBunVirtual ? ' (bun virtual fs)' : ''}`,
+      `resolvedRoot=${breakdown.resolvedRoot}`,
+      `expectedBinary=${breakdown.expectedBinary}${breakdown.binaryExists ? ' (present)' : ' (MISSING)'}`,
+    ];
+    if (breakdown.binaryExists) {
+      check('Resource directory', true, lines.join('; '));
+    } else if (breakdown.envOverride) {
+      // Explicit override AND binary missing — operator intent is clear,
+      // so the missing binary is a real failure to flag.
+      check(
+        'Resource directory',
+        false,
+        lines.join('; '),
+        'Build the daemon binary: npm run build:daemon:dist',
+      );
+    } else {
+      // Binary missing without an override — typical fresh dev clone.
+      // Not a failure; it just means the developer hasn't built yet.
+      check(
+        'Resource directory',
+        true,
+        `${lines.join('; ')} (binary not built — run npm run build:daemon:dist when you need it)`,
+      );
+    }
+  } catch (err: unknown) {
+    check(
+      'Resource directory',
+      false,
+      `Error: ${(err as Error).message}`,
+      'Inspect PORT_DADDY_RESOURCE_DIR if set, otherwise file a bug',
+    );
   }
 
   // -------------------------------------------------------------------------

@@ -1751,7 +1751,7 @@ _pd_cmd_ideas() {
 
 _pd_cmd_roadmap() {
   _arguments \
-    '1:subcommand:(ack harvest)' \
+    '1:subcommand:(ack harvest promote render pop release claims)' \
     '2:feedback id:' \
     '--dir[project directory]:path:_files -/' \
     '--root[project root]:path:_files -/' \
@@ -1760,8 +1760,16 @@ _pd_cmd_roadmap() {
     '--feedback-status[live tuple feedback status]:(open harvested wontfix all)' \
     '--feedback-harbor[harbor scope for live feedback]:harbor:' \
     '--feedback-limit[max live feedback rows]:limit:' \
-    '--as[harvester agent id]:agent id:' \
+    '--as[harvester or promoter agent id]:agent id:' \
     '--into[roadmap slug the feedback was folded into]:slug:' \
+    '--from-feedback[feedback id to promote]:feedback id:' \
+    '--slug[override roadmap slug for promote]:slug:' \
+    '--summary[markdown summary for promoted item]:text:' \
+    '--status[roadmap item status]:(now backlog parked merge done)' \
+    '--harbor[harbor scope override]:harbor:' \
+    '--write[render: write docs/ROADMAP.md to disk]' \
+    '--rootDir[render: project directory whose docs/ROADMAP.md to update]:path:_files -/' \
+    '--project[render: project name shorthand for harbor scope]:project:' \
     '--no-excerpts[hide current-work and Cartographer excerpts]' \
     '(-j --json)'{-j,--json}'[output JSON]' \
     '(-q --quiet)'{-q,--quiet}'[agent-readable section:slug output]'

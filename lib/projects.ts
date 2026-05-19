@@ -9,9 +9,10 @@
  */
 
 import type Database from 'better-sqlite3';
-import { existsSync, readdirSync, statSync, type Dirent } from 'node:fs';
-import { basename, dirname, join, resolve } from 'node:path';
+import { existsSync, readdirSync, realpathSync, statSync, type Dirent } from 'node:fs';
+import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 import { homedir } from 'node:os';
+import { getWorktreeInfo, listWorktrees } from './worktree.js';
 
 interface ProjectRow {
   id: string;
@@ -52,6 +53,17 @@ interface KnownProject extends ProjectDeserialized {
   signals: string[];
   sources: string[];
   exists: boolean;
+  worktree: ProjectWorktreeMetadata | null;
+}
+
+interface ProjectWorktreeMetadata {
+  id: string;
+  name: string;
+  branch: string | null;
+  isMain: boolean;
+  repoKey: string;
+  repoRoot: string | null;
+  siblingCount: number;
 }
 
 interface ListKnownOptions {
@@ -154,6 +166,82 @@ function matchesPattern(candidate: string, pattern?: string): boolean {
 
 function isEphemeralRoot(root: string): boolean {
   return TEMP_ROOT_PATTERNS.some((pattern) => pattern.test(root));
+}
+
+function normalizeGitPath(root: string, gitPath: string): string {
+  const normalized = normalizeRoot(isAbsolute(gitPath) ? gitPath : join(root, gitPath));
+  try {
+    return realpathSync.native(normalized);
+  } catch {
+    return normalized;
+  }
+}
+
+function repoRootFromCommonDir(root: string, commonDir: string, isMain: boolean): string | null {
+  if (basename(commonDir) === '.git') {
+    return dirname(commonDir);
+  }
+  return isMain ? root : null;
+}
+
+function buildWorktreeMetadata(roots: string[]): Map<string, ProjectWorktreeMetadata> {
+  const records: Array<{
+    root: string;
+    id: string;
+    name: string;
+    branch: string | null;
+    isMain: boolean;
+    repoKey: string;
+    repoRoot: string | null;
+  }> = [];
+
+  for (const root of roots) {
+    const normalizedRoot = normalizeRoot(root);
+    if (!existsSync(join(normalizedRoot, '.git'))) continue;
+    const info = getWorktreeInfo(normalizedRoot);
+    if (!info) continue;
+    const commonDir = normalizeGitPath(normalizedRoot, info.commonDir);
+    records.push({
+      root: normalizedRoot,
+      id: info.id,
+      name: info.name,
+      branch: info.branch,
+      isMain: info.isMain,
+      repoKey: commonDir,
+      repoRoot: repoRootFromCommonDir(normalizedRoot, commonDir, info.isMain),
+    });
+  }
+
+  const byRepo = new Map<string, typeof records>();
+  for (const record of records) {
+    const group = byRepo.get(record.repoKey) ?? [];
+    group.push(record);
+    byRepo.set(record.repoKey, group);
+  }
+
+  const metadata = new Map<string, ProjectWorktreeMetadata>();
+  for (const [repoKey, group] of byRepo) {
+    const worktrees = listWorktrees(group[0].root);
+    const repoMainRoot = worktrees.find((entry) => entry.isMain)?.root ?? null;
+    const siblingCount = Math.max(group.length, worktrees.length);
+    const mainRoot = group.find((entry) => entry.isMain)?.root
+      ?? group.find((entry) => entry.repoRoot)?.repoRoot
+      ?? repoMainRoot
+      ?? null;
+    for (const entry of group) {
+      metadata.set(entry.root, {
+        id: entry.id,
+        name: entry.name,
+        branch: entry.branch,
+        isMain: entry.isMain,
+        repoKey,
+        repoRoot: mainRoot,
+        siblingCount,
+      });
+    }
+  }
+
+  return metadata;
 }
 
 function hasOnlyContextSignal(signals: string[]): boolean {
@@ -447,7 +535,10 @@ export function createProjects(db: Database.Database) {
       upsert(entry.root, 'discovered', null, entry.signals);
     }
 
-    const projects = [...known.entries()]
+    const projectEntries = [...known.entries()];
+    const worktreeByRoot = buildWorktreeMetadata(projectEntries.map(([root]) => root));
+
+    const projects = projectEntries
       .map(([root, entry]) => {
         const exists = isDirectory(root);
         const signals = [...entry.signals].sort();
@@ -471,6 +562,7 @@ export function createProjects(db: Database.Database) {
           signals,
           sources,
           exists,
+          worktree: worktreeByRoot.get(root) ?? null,
         };
         return project;
       })

@@ -129,14 +129,18 @@ describe('createBlobStore', () => {
   });
 
   describe('gc', () => {
-    it('removes old blobs but keeps anything in keepIds', async () => {
+    it('removes old blobs but keeps anything in keepIds', () => {
       const old1 = store.put(Buffer.from('old-1'));
       const old2 = store.put(Buffer.from('old-2'));
-      await new Promise((r) => setTimeout(r, 20));
       const fresh = store.put(Buffer.from('fresh'));
 
+      const now = Date.now();
+      writeFileSync(join(dir, `${old1.id}.meta`), JSON.stringify({ createdAt: now - 1_000 }));
+      writeFileSync(join(dir, `${old2.id}.meta`), JSON.stringify({ createdAt: now - 1_000 }));
+      writeFileSync(join(dir, `${fresh.id}.meta`), JSON.stringify({ createdAt: now }));
+
       const result = store.gc({
-        olderThanMs: 10,
+        olderThanMs: 500,
         keepIds: new Set([old2.id]),
       });
 

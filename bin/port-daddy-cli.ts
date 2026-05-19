@@ -69,7 +69,7 @@ import {
   // Diagnostics
   handleMetrics, handleConfigCmd, handleHealth, handlePorts, handleDashboard, handleDoctor, handleStatus, handleVersion, handleHints,
   // Daemon
-  handleDaemon, handleDaemonCommand, handleDev,
+  handleDaemon, handleDaemonCommand, handleDev, runDaemonInProcess,
   // Benchmarking
   handleBench,
   // Setup
@@ -221,7 +221,7 @@ interface PdFetchResponse {
 }
 
 interface CLIOptions {
-  [key: string]: string | boolean | undefined;
+  [key: string]: string | string[] | boolean | undefined;
 }
 
 // =============================================================================
@@ -1633,9 +1633,11 @@ async function executeDirectMode(
           if (agentId) startOpts.agentId = agentId;
           if (options.force) startOpts.force = true;
 
-          // Collect files
+          // Collect files: --files may appear as a single string (one occurrence)
+          // or an array (repeated --files flags). Positional tail also accepted.
           const files: string[] = [];
           if (typeof options.files === 'string') files.push(options.files);
+          else if (Array.isArray(options.files)) files.push(...(options.files as string[]));
           for (let i = 1; i < rest.length; i++) {
             if (!rest[i].startsWith('-')) files.push(rest[i]);
           }
@@ -1979,7 +1981,7 @@ async function executeDirectMode(
   }
 }
 
-async function main(): Promise<void> {
+export async function main(): Promise<void> {
   const args: string[] = process.argv.slice(2);
   const command: string | undefined = args[0];
 
@@ -2065,6 +2067,26 @@ async function main(): Promise<void> {
     h: 'help'
   };
 
+  // Flags whose repeated occurrences should accumulate into an array
+  // instead of last-write-wins. Add a key here when a consumer is array-aware
+  // (e.g. `--files A --files B`).
+  const REPEATABLE_FLAGS: Set<string> = new Set(['files']);
+
+  const assignOption = (key: string, value: string | true): void => {
+    if (REPEATABLE_FLAGS.has(key) && key in options) {
+      const existing = options[key];
+      if (Array.isArray(existing)) {
+        existing.push(value as string);
+      } else if (typeof existing === 'string') {
+        options[key] = [existing, value as string];
+      } else {
+        options[key] = value;
+      }
+    } else {
+      options[key] = value;
+    }
+  };
+
   for (let i = 1; i < args.length; i++) {
     const arg: string = args[i];
 
@@ -2079,15 +2101,15 @@ async function main(): Promise<void> {
       if (eqIndex !== -1) {
         const key: string = arg.slice(2, eqIndex);
         const value: string = arg.slice(eqIndex + 1);
-        options[key] = value;
+        assignOption(key, value);
       } else {
         const key: string = arg.slice(2);
         const next: string | undefined = args[i + 1];
         if (next && !next.startsWith('-')) {
-          options[key] = next;
+          assignOption(key, next);
           i++;
         } else {
-          options[key] = true;
+          assignOption(key, true);
         }
       }
     } else if (arg.startsWith('-') && arg.length > 1) {
@@ -2100,7 +2122,7 @@ async function main(): Promise<void> {
         const shortKey: string = flagPart.slice(0, eqIndex);
         const value: string = flagPart.slice(eqIndex + 1);
         const longKey: string = shortFlags[shortKey] || shortKey;
-        options[longKey] = value;
+        assignOption(longKey, value);
       } else if (flagPart.length === 1) {
         // Single short flag: -q, -j, or -p 3000
         const longKey: string = shortFlags[flagPart] || flagPart;
@@ -2108,16 +2130,16 @@ async function main(): Promise<void> {
         // Check if this flag expects a value
         const expectsValue: boolean = ['p', 'e'].includes(flagPart);
         if (expectsValue && next && !next.startsWith('-')) {
-          options[longKey] = next;
+          assignOption(longKey, next);
           i++;
         } else {
-          options[longKey] = true;
+          assignOption(longKey, true);
         }
       } else {
         // Multiple short flags combined: -qj (quiet + json)
         for (const char of flagPart) {
           const longKey: string = shortFlags[char] || char;
-          options[longKey] = true;
+          assignOption(longKey, true);
         }
       }
     } else {
@@ -2308,6 +2330,12 @@ async function main(): Promise<void> {
 
       // Daemon management
       case 'start':
+        if (options.foreground === true) {
+          // launchd / brew-services / `pd start --foreground &`: run the
+          // daemon in-process so the supervisor can manage this PID.
+          await runDaemonInProcess();
+          return;
+        }
         await handleDaemon('start');
         break;
 
@@ -2529,20 +2557,10 @@ async function main(): Promise<void> {
           await handleMcpInstall(options);
           break;
         }
-        // Launch MCP server (stdio transport for Claude Code / Desktop)
-        const { spawn } = await import('node:child_process');
-        const mcpPath = new URL('../mcp/server.ts', import.meta.url).pathname;
-        const tsxBin = join(__dirname, '..', 'node_modules', '.bin', 'tsx');
-        const child = spawn(process.execPath, [tsxBin, mcpPath], {
-          stdio: 'inherit',
-          env: {
-            ...process.env,
-            PORT_DADDY_URL: options.port ? `http://localhost:${options.port}` : PORT_DADDY_URL,
-          },
-        });
-        child.on('exit', (code) => process.exit(code ?? 0));
-        // Keep parent alive until MCP server exits
-        await new Promise(() => {});
+        if (options.port) {
+          process.env.PORT_DADDY_URL = `http://localhost:${options.port}`;
+        }
+        await import('../mcp/server.js');
         break;
       }
 
@@ -2798,4 +2816,6 @@ async function main(): Promise<void> {
   }
 }
 
-main();
+if (process.env.PORT_DADDY_SUPPRESS_CLI_MAIN !== '1') {
+  void main();
+}

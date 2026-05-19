@@ -239,6 +239,7 @@ final class FleetPopoverTests: XCTestCase {
             id: "/tmp/port-daddy-test",
             name: "port-daddy-test",
             projectDir: "/tmp/port-daddy-test",
+            worktree: nil,
             agents: agents
         )
     }

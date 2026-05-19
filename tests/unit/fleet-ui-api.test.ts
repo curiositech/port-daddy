@@ -172,6 +172,47 @@ describe('fleet-config-ui api', () => {
     );
   });
 
+  test('runSetupAction forwards the server-issued setup token for mutating actions', async () => {
+    global.fetch = jest.fn(async () => ({
+      ok: true,
+      headers: {
+        get: () => 'application/json',
+      },
+      json: async () => ({
+        success: true,
+        action: 'fleetbar',
+        command: 'pd',
+        args: ['setup', '--no-daemon'],
+        cwd: '/Users/test/port-daddy',
+        exitCode: 0,
+        timedOut: false,
+        stdout: 'ok',
+        stderr: '',
+      }),
+    })) as typeof fetch;
+
+    const { runSetupAction } = await import('../../fleet-config-ui/src/api.ts');
+    await runSetupAction({
+      action: 'fleetbar',
+      confirmed: true,
+      projectDir: '/Users/test/port-daddy',
+      setupToken: 'setup-token-123',
+    });
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      'http://127.0.0.1:9876/setup/run',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'fleetbar',
+          confirmed: true,
+          projectDir: '/Users/test/port-daddy',
+          setupToken: 'setup-token-123',
+        }),
+      }),
+    );
+  });
+
   test('setFleetConfigRuntime posts the ready-runtime bulk update', async () => {
     global.fetch = jest.fn(async () => ({
       ok: true,

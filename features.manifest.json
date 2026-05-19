@@ -242,11 +242,15 @@
       }
     },
     "cartographer": {
-      "description": "Read-only Cartographer roadmap progress projection",
+      "description": "Cartographer roadmap progress + atomic claim from the curated pile (ADR-0033) + session/agent linkage (ADR-0034)",
       "cli": [],
       "sdk": [],
       "routes": [
-        "GET /cartographer/roadmap-progress"
+        "GET /cartographer/roadmap-progress",
+        "POST /cartographer/roadmap-pop",
+        "POST /cartographer/roadmap-release",
+        "GET /cartographer/roadmap-claims",
+        "POST /cartographer/roadmap-claim-link"
       ],
       "completions": [],
       "docs": {
@@ -1481,12 +1485,20 @@
       }
     },
     "roadmap": {
-      "description": "Cartographer roadmap projection — `pd roadmap` CLI/completion surface paired with the routed `cartographer` feature so operators see Next Cuts + curated now + dogfood feedback in one terminal call",
+      "description": "Tuple-backed roadmap_items DB-of-record + cartographer roadmap projection. `pd roadmap` CLI surfaces the curated Next Cuts/feedback/claim view; `POST /roadmap/promote` is the atomic feedback→item linkage cartographer (and humans) call instead of editing docs/ROADMAP.md prose by regex",
       "cli": [
         "roadmap"
       ],
       "sdk": [],
-      "routes": [],
+      "routes": [
+        "POST /roadmap/items",
+        "GET /roadmap/items",
+        "GET /roadmap/items/:slug",
+        "POST /roadmap/items/:slug/status",
+        "POST /roadmap/items/:slug/touch",
+        "POST /roadmap/promote",
+        "POST /roadmap/render"
+      ],
       "completions": [
         "roadmap"
       ],
@@ -1494,7 +1506,7 @@
         "readme": false,
         "sdk": false
       },
-      "_note": "Routes for this feature live under the `cartographer` feature to avoid duplication"
+      "_note": "Read-side (Next Cuts/feedback/claims projection) routes live under the `cartographer` feature; this feature owns the structured roadmap_items write side"
     },
     "quorum": {
       "description": "Tuple-backed propose/vote primitive for swarm decisions — agents propose roles, others vote, threshold-cross emits a `quorum:passed` tuple subscribers can react to",
@@ -1581,11 +1593,12 @@
       "_note": "Composite feature \u2014 routes module wiring cost-tracker + counters together. API-only (no SDK methods or CLI commands)."
     },
     "metricsprom": {
-      "description": "Prometheus text exposition + per-route HTTP histograms with outlier ring buffer and time-aligned annotation feed (git commits, pd notes, session purposes). Powers the /metrics.html in-house dashboard and any external Prometheus scraper. Replaces the unbounded winston request-log firehose.",
+      "description": "Prometheus text exposition + per-route HTTP histograms with outlier ring buffer, skill freshness/distribution gauges, and time-aligned annotation feed (git commits, pd notes, session purposes). Powers the /metrics.html in-house dashboard and any external Prometheus scraper. Replaces the unbounded winston request-log firehose.",
       "cli": [],
       "sdk": [],
       "routes": [
         "GET /metrics/prom",
+        "GET /metrics/skills",
         "GET /metrics/http/routes",
         "GET /metrics/http/outliers",
         "GET /metrics/http/now",
@@ -1596,7 +1609,7 @@
         "readme": false,
         "sdk": false
       },
-      "_note": "Browser-served at /metrics.html. /metrics/prom is the Prometheus scrape path (the bare /metrics path is owned by the older info.ts daemon-stats endpoint that the SDK and MCP depend on)."
+      "_note": "Browser-served at /metrics.html. /metrics/prom is the Prometheus scrape path (the bare /metrics path is owned by the older info.ts daemon-stats endpoint that the SDK and MCP depend on). /metrics/skills is the JSON skill-distribution audit feeding the dashboard panel and Prometheus gauge export."
     },
     "usage": {
       "description": "Local product-usage telemetry for developer-pane diagnostics and operator UX instrumentation",
@@ -1647,7 +1660,10 @@
         "setup"
       ],
       "sdk": [],
-      "routes": [],
+      "routes": [
+        "GET /setup/overview",
+        "POST /setup/run"
+      ],
       "completions": [
         "setup"
       ],
@@ -1655,7 +1671,7 @@
         "readme": true,
         "sdk": false
       },
-      "_note": "CLI-only \u2014 orchestrates daemon install, MCP config, FleetBar install, and project init in one step"
+      "_note": "CLI plus local daemon onboarding surface \u2014 orchestrates daemon install, MCP config, FleetBar install, and project init in one step. Daemon setup routes are loopback-only; mutating actions require a setup capability token from /setup/overview."
     }
   }
 }

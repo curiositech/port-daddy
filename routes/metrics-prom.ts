@@ -5,6 +5,7 @@
  *                                 Configure scrapers with metrics_path: /metrics/prom — the bare
  *                                 /metrics path is occupied by the older JSON daemon-stats endpoint
  *                                 (info.ts) which the SDK, MCP, and CLI diagnostics depend on.
+ * GET /metrics/skills             JSON snapshot of skill freshness and cross-runtime distribution
  * GET /metrics/http/routes        JSON snapshot of per-route histograms (used by /metrics.html dashboard)
  * GET /metrics/http/outliers      Recent slow requests, newest first
  * GET /metrics/annotations        Time-aligned annotation events: git commits + recent pd notes
@@ -16,13 +17,33 @@
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import { spawn } from 'node:child_process';
+import { homedir } from 'node:os';
 import type { MetricsRegistry } from '../lib/metrics-registry.js';
 import type { Database } from 'better-sqlite3';
+import {
+  formatSkillSyncSummary,
+  syncAgentSkills,
+  type RuntimeSkillTarget,
+  type SkillCatalogRoot,
+  type SyncAgentSkillsResult,
+  type SkillSyncScope,
+} from '../lib/skill-sync.js';
 
 interface MetricsRouteDeps {
   metricsRegistry: MetricsRegistry;
   db: Database;
   repoRoot: string;
+  skillDistribution?: SkillDistributionConfig;
+}
+
+interface SkillDistributionConfig {
+  audit?: () => SyncAgentSkillsResult;
+  baseDir?: string;
+  projectRoot?: string;
+  scope?: SkillSyncScope;
+  sourceRoots?: SkillCatalogRoot[];
+  targets?: RuntimeSkillTarget[];
+  cacheTtlMs?: number;
 }
 
 interface AnnotationEvent {
@@ -31,6 +52,28 @@ interface AnnotationEvent {
   title: string;
   detail?: string;
   ref?: string;     // git sha, session id, etc.
+}
+
+interface SkillDistributionMetrics {
+  generatedAt: number;
+  status: 'fresh' | 'drift' | 'error';
+  scope: SkillSyncScope;
+  skillCount: number;
+  sourceCount: number;
+  targetCount: number;
+  expectedLinks: number;
+  currentLinks: number;
+  missingLinks: number;
+  staleSymlinks: number;
+  blockedNonSymlinks: number;
+  errorCount: number;
+  freshnessPct: number;
+  sources: Array<{ label: string; path: string }>;
+  targets: Array<{ label: string; path: string }>;
+  collisions: number;
+  examples: SyncAgentSkillsResult['audit']['examples'];
+  summary: string[];
+  error?: string;
 }
 
 // ─── Query-param helpers ─────────────────────────────────────────────────────
@@ -57,6 +100,7 @@ function parseBoundedInt(raw: string | undefined, fallback: number, cap: number)
 //   2. Cache results in-process for ANNOTATION_TTL_MS so repeated dashboard
 //      polls share a single git invocation.
 const ANNOTATION_TTL_MS = 30_000;
+const SKILL_AUDIT_TTL_MS = 60_000;
 type GitAnnotationCacheKey = string;
 interface CachedGit { ts: number; events: AnnotationEvent[] }
 const gitAnnotationCache = new Map<GitAnnotationCacheKey, CachedGit>();
@@ -131,16 +175,158 @@ async function loadGitAnnotations(repoRoot: string, sinceSecs: number, sinceMs: 
   return events.filter(e => e.ts >= sinceMs);
 }
 
+function toSkillDistribution(result: SyncAgentSkillsResult): SkillDistributionMetrics {
+  const audit = result.audit;
+  const driftCount = audit.missingLinks + audit.staleSymlinks + audit.blockedNonSymlinks;
+  const status = audit.errors.length > 0
+    ? 'error'
+    : driftCount > 0
+      ? 'drift'
+      : 'fresh';
+
+  return {
+    generatedAt: Date.now(),
+    status,
+    scope: result.scope,
+    skillCount: result.skillCount,
+    sourceCount: result.sources.length,
+    targetCount: result.targets.length,
+    expectedLinks: audit.expectedLinks,
+    currentLinks: audit.currentLinks,
+    missingLinks: audit.missingLinks,
+    staleSymlinks: audit.staleSymlinks,
+    blockedNonSymlinks: audit.blockedNonSymlinks,
+    errorCount: audit.errors.length,
+    freshnessPct: audit.freshnessPct,
+    sources: result.sources.map((source) => ({ label: source.label, path: source.path })),
+    targets: result.targets.map((target) => ({ label: target.label, path: target.path })),
+    collisions: result.collisions.length,
+    examples: audit.examples,
+    summary: formatSkillSyncSummary(result),
+  };
+}
+
+function skillDistributionError(scope: SkillSyncScope, error: unknown): SkillDistributionMetrics {
+  const message = error instanceof Error ? error.message : String(error);
+  return {
+    generatedAt: Date.now(),
+    status: 'error',
+    scope,
+    skillCount: 0,
+    sourceCount: 0,
+    targetCount: 0,
+    expectedLinks: 0,
+    currentLinks: 0,
+    missingLinks: 0,
+    staleSymlinks: 0,
+    blockedNonSymlinks: 0,
+    errorCount: 1,
+    freshnessPct: 0,
+    sources: [],
+    targets: [],
+    collisions: 0,
+    examples: {
+      missing: [],
+      staleSymlinks: [],
+      blockedNonSymlinks: [],
+      errors: [{
+        skill: '<audit>',
+        runtime: '<metrics>',
+        target: '<skill-distribution>',
+        source: '<skill-distribution>',
+        error: message,
+      }],
+    },
+    summary: [`Skill distribution audit failed: ${message}`],
+    error: message,
+  };
+}
+
+function escapePromLabel(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/"/g, '\\"');
+}
+
+function skillDistributionPrometheus(metrics: SkillDistributionMetrics): string {
+  const scope = escapePromLabel(metrics.scope);
+  const labels = `scope="${scope}"`;
+  const statusLabels = `scope="${scope}",status="${escapePromLabel(metrics.status)}"`;
+  return [
+    '# HELP port_daddy_skill_distribution_expected_links Expected runtime skill symlinks for the audited scope',
+    '# TYPE port_daddy_skill_distribution_expected_links gauge',
+    `port_daddy_skill_distribution_expected_links{${labels}} ${metrics.expectedLinks}`,
+    '# HELP port_daddy_skill_distribution_current_links Runtime skill symlinks that point at the selected source of truth',
+    '# TYPE port_daddy_skill_distribution_current_links gauge',
+    `port_daddy_skill_distribution_current_links{${labels}} ${metrics.currentLinks}`,
+    '# HELP port_daddy_skill_distribution_missing_links Expected runtime skill links that are absent',
+    '# TYPE port_daddy_skill_distribution_missing_links gauge',
+    `port_daddy_skill_distribution_missing_links{${labels}} ${metrics.missingLinks}`,
+    '# HELP port_daddy_skill_distribution_stale_symlinks Runtime skill symlinks that point at a stale source',
+    '# TYPE port_daddy_skill_distribution_stale_symlinks gauge',
+    `port_daddy_skill_distribution_stale_symlinks{${labels}} ${metrics.staleSymlinks}`,
+    '# HELP port_daddy_skill_distribution_blocked_non_symlinks Runtime skill targets blocked by local non-symlink files',
+    '# TYPE port_daddy_skill_distribution_blocked_non_symlinks gauge',
+    `port_daddy_skill_distribution_blocked_non_symlinks{${labels}} ${metrics.blockedNonSymlinks}`,
+    '# HELP port_daddy_skill_distribution_errors Audit errors while checking runtime skill distribution',
+    '# TYPE port_daddy_skill_distribution_errors gauge',
+    `port_daddy_skill_distribution_errors{${labels}} ${metrics.errorCount}`,
+    '# HELP port_daddy_skill_distribution_freshness_ratio Current links divided by expected links',
+    '# TYPE port_daddy_skill_distribution_freshness_ratio gauge',
+    `port_daddy_skill_distribution_freshness_ratio{${labels}} ${(metrics.freshnessPct / 100).toFixed(4)}`,
+    '# HELP port_daddy_skill_distribution_status Skill distribution status, labelled fresh, drift, or error',
+    '# TYPE port_daddy_skill_distribution_status gauge',
+    `port_daddy_skill_distribution_status{${statusLabels}} 1`,
+  ].join('\n') + '\n';
+}
+
 export const metricsPromPlugin: FastifyPluginAsync<{ deps: MetricsRouteDeps }> = async (
   fastify,
   opts,
 ) => {
   const { metricsRegistry, db, repoRoot } = opts.deps;
+  const skillDistribution = opts.deps.skillDistribution ?? {};
+  const skillCacheTtlMs = skillDistribution.cacheTtlMs ?? SKILL_AUDIT_TTL_MS;
+  let skillCache: { ts: number; value: SkillDistributionMetrics } | null = null;
+
+  function loadSkillDistribution(): SkillDistributionMetrics {
+    const now = Date.now();
+    if (skillCache && now - skillCache.ts < skillCacheTtlMs) return skillCache.value;
+
+    const scope = skillDistribution.scope ?? 'user';
+    let value: SkillDistributionMetrics;
+    try {
+      const result = skillDistribution.audit
+        ? skillDistribution.audit()
+        : syncAgentSkills({
+            baseDir: skillDistribution.baseDir ?? homedir(),
+            projectRoot: skillDistribution.projectRoot ?? repoRoot,
+            scope,
+            statusOnly: true,
+            sourceRoots: skillDistribution.sourceRoots,
+            targets: skillDistribution.targets,
+          });
+      value = toSkillDistribution(result);
+    } catch (error) {
+      value = skillDistributionError(scope, error);
+    }
+
+    metricsRegistry.incCounter(
+      'port_daddy_skill_distribution_audits_total',
+      'Skill distribution audits computed by the metrics plugin',
+      { scope: value.scope, status: value.status },
+    );
+    skillCache = { ts: now, value };
+    return value;
+  }
 
   // ── /metrics/prom — Prometheus text ─────────────────────────────────────────
   fastify.get('/metrics/prom', async (_request: FastifyRequest, reply: FastifyReply) => {
     reply.header('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
-    return metricsRegistry.toPrometheus();
+    return metricsRegistry.toPrometheus() + skillDistributionPrometheus(loadSkillDistribution());
+  });
+
+  // ── /metrics/skills — skill freshness + cross-runtime distribution ──────────
+  fastify.get('/metrics/skills', async () => {
+    return loadSkillDistribution();
   });
 
   // ── /metrics/http/routes — JSON snapshot for the dashboard ──────────────────

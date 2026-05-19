@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { fetchModels, fetchResourceOverview } from '../api';
 import type { BackendInfo, ResourceOverview } from '../types';
+import OnboardingWalkthrough from './OnboardingWalkthrough';
 
 interface ProjectInfo {
   id: string;
@@ -32,6 +33,15 @@ interface ProjectInfo {
   configuredWatcherCount?: number;
   signals?: string[];
   sources?: string[];
+  worktree?: {
+    id: string;
+    name: string;
+    branch: string | null;
+    isMain: boolean;
+    repoKey: string;
+    repoRoot: string | null;
+    siblingCount: number;
+  } | null;
   operatorState?: 'running' | 'ready' | 'blocked' | 'service_only' | 'context_only' | 'missing';
   operatorSummary?: string;
   operatorNextAction?: string;
@@ -60,6 +70,7 @@ interface Props {
 
 interface AllProjectsProps {
   projects: ProjectInfo[];
+  selected: string | null;
   onSelect: (id: string) => void;
   onStartProject?: (project: ProjectInfo) => void;
   onSetBudget?: (project: ProjectInfo, usdPerDay: number) => void;
@@ -131,6 +142,27 @@ function formatUsd(value: number | null | undefined): string {
 
 function positiveBudget(value: number | null | undefined): number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+function worktreeLabel(project: ProjectInfo): string | null {
+  const worktree = project.worktree;
+  if (!worktree || worktree.siblingCount <= 1) return null;
+  if (worktree.isMain) return `${worktree.siblingCount} worktrees`;
+  return worktree.branch ?? worktree.name;
+}
+
+function worktreeGroupLabel(project: ProjectInfo, linkedWorktreeCount: number): string | null {
+  const worktree = project.worktree;
+  const siblingCount = Math.max(worktree?.siblingCount ?? 0, linkedWorktreeCount + 1);
+  return siblingCount > 1 ? `${siblingCount} worktrees` : null;
+}
+
+function sortProjects(lhs: ProjectInfo, rhs: ProjectInfo): number {
+  const order = { running: 0, blocked: 1, ready: 2, service_only: 3, context_only: 4, missing: 5 } as const;
+  const lhsState = projectState(lhs);
+  const rhsState = projectState(rhs);
+  if (order[lhsState] !== order[rhsState]) return order[lhsState] - order[rhsState];
+  return lhs.name.localeCompare(rhs.name);
 }
 
 function toneStyle(tone: OperatorTone): { backgroundColor: string; color: string; border: string } {
@@ -662,9 +694,16 @@ export default function ProjectPicker({ projects, selected, onSelect, onStartPro
           whileHover={{ scale: 1.01 }} transition={{ type: 'spring', stiffness: 400, damping: 30 }}>
           <div className="flex items-center justify-between gap-2">
             <span className="min-w-0 truncate font-mono font-bold text-sm" style={{ color: 'var(--pd-accent)' }}>{active.name}</span>
-            <span className="inline-flex shrink-0 items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full font-bold" style={stateStyle(active)}>
-              <StateIcon project={active} />
-              {stateLabel(active)}
+            <span className="inline-flex shrink-0 items-center gap-1.5">
+              {worktreeLabel(active) && (
+                <span className="rounded-md px-1.5 py-0.5 text-[9px] font-bold" style={{ backgroundColor: 'var(--pd-bg)', color: 'var(--pd-muted)', border: '1px solid var(--pd-border)' }}>
+                  {worktreeLabel(active)}
+                </span>
+              )}
+              <span className="inline-flex shrink-0 items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full font-bold" style={stateStyle(active)}>
+                <StateIcon project={active} />
+                {stateLabel(active)}
+              </span>
             </span>
           </div>
           <div className="text-[10px] mt-0.5 font-mono truncate" style={{ color: 'var(--pd-muted)' }}>{active.fleetPath}</div>
@@ -690,9 +729,16 @@ export default function ProjectPicker({ projects, selected, onSelect, onStartPro
               transition={{ type: 'spring', stiffness: 400, damping: 30, delay: i * 0.04 }}>
               <div className="flex items-center justify-between gap-2">
                 <span className="min-w-0 truncate font-mono text-sm" style={{ color: 'var(--pd-muted)' }}>{p.name}</span>
-                <span className="inline-flex shrink-0 items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full font-bold" style={stateStyle(p)}>
-                  <StateIcon project={p} />
-                  {stateLabel(p)}
+                <span className="inline-flex shrink-0 items-center gap-1.5">
+                  {worktreeLabel(p) && (
+                    <span className="rounded-md px-1.5 py-0.5 text-[9px] font-bold" style={{ backgroundColor: 'var(--pd-bg)', color: 'var(--pd-muted)', border: '1px solid var(--pd-border)' }}>
+                      {worktreeLabel(p)}
+                    </span>
+                  )}
+                  <span className="inline-flex shrink-0 items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full font-bold" style={stateStyle(p)}>
+                    <StateIcon project={p} />
+                    {stateLabel(p)}
+                  </span>
                 </span>
               </div>
             </motion.div>
@@ -703,7 +749,7 @@ export default function ProjectPicker({ projects, selected, onSelect, onStartPro
   );
 }
 
-export function AllProjectsList({ projects, onSelect, onStartProject, onSetBudget, onOpenYaml, onOpenShipwright }: AllProjectsProps) {
+export function AllProjectsList({ projects, selected, onSelect, onStartProject, onSetBudget, onOpenYaml, onOpenShipwright }: AllProjectsProps) {
   const [overview, setOverview] = useState<ResourceOverview | null>(null);
   const [backends, setBackends] = useState<BackendInfo[]>([]);
   const [liveDataError, setLiveDataError] = useState<string | null>(null);
@@ -955,18 +1001,49 @@ export function AllProjectsList({ projects, onSelect, onStartProject, onSetBudge
     runningProjects,
   ]);
 
-  const priorityProjects = useMemo(() => {
-    return [...projects].sort((a, b) => {
-      const order = { running: 0, blocked: 1, ready: 2, service_only: 3, context_only: 4, missing: 5 } as const;
-      const aState = projectState(a);
-      const bState = projectState(b);
-      if (order[aState] !== order[bState]) return order[aState] - order[bState];
-      return a.name.localeCompare(b.name);
-    });
+  const { priorityProjects, worktreeChildrenByProject } = useMemo(() => {
+    const plainProjects: ProjectInfo[] = [];
+    const grouped = new Map<string, ProjectInfo[]>();
+
+    for (const project of projects) {
+      const key = project.worktree && project.worktree.siblingCount > 1 ? project.worktree.repoKey : null;
+      if (!key) {
+        plainProjects.push(project);
+        continue;
+      }
+      const siblings = grouped.get(key) ?? [];
+      siblings.push(project);
+      grouped.set(key, siblings);
+    }
+
+    const childrenByProject = new Map<string, ProjectInfo[]>();
+    const primaries: ProjectInfo[] = [];
+
+    for (const siblings of grouped.values()) {
+      const sorted = [...siblings].sort((a, b) => {
+        if (!!a.worktree?.isMain !== !!b.worktree?.isMain) return a.worktree?.isMain ? -1 : 1;
+        return sortProjects(a, b);
+      });
+      const primary = sorted.find((project) => projectState(project) === 'running')
+        ?? sorted.find((project) => project.worktree?.isMain)
+        ?? sorted[0];
+      primaries.push(primary);
+      childrenByProject.set(primary.id, sorted.filter((project) => project.id !== primary.id));
+    }
+
+    return {
+      priorityProjects: [...plainProjects, ...primaries].sort(sortProjects),
+      worktreeChildrenByProject: childrenByProject,
+    };
   }, [projects]);
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -20 }} className="mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
+      <OnboardingWalkthrough
+        projectDir={priorityProjects[0]?.projectDir ?? null}
+        onOpenShipwright={onOpenShipwright}
+      />
+
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="text-[10px] font-semibold tracking-wider" style={{ color: 'var(--pd-dim)' }}>FLEET CONTROL CENTER</div>
@@ -1033,6 +1110,8 @@ export function AllProjectsList({ projects, onSelect, onStartProject, onSetBudge
         {priorityProjects.map((p, i) => {
           const activeCount = deployedCount(p);
           const warningCount = p.configWarnings?.length ?? 0;
+          const linkedWorktrees = worktreeChildrenByProject.get(p.id) ?? [];
+          const groupLabel = worktreeGroupLabel(p, linkedWorktrees.length);
           return (
             <motion.div key={p.id} layoutId={`project-${p.id}`} onClick={() => onSelect(p.id)}
               className="cursor-pointer rounded-lg border px-4 py-3"
@@ -1054,6 +1133,11 @@ export function AllProjectsList({ projects, onSelect, onStartProject, onSetBudge
                         {warningCount} warning{warningCount === 1 ? '' : 's'}
                       </span>
                     )}
+                    {groupLabel && (
+                      <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: 'var(--pd-bg)', color: 'var(--pd-muted)', border: '1px solid var(--pd-border)' }}>
+                        {groupLabel}
+                      </span>
+                    )}
                   </div>
                   <div className="mt-1 truncate font-mono text-[11px]" style={{ color: 'var(--pd-muted)' }}>{p.fleetPath}</div>
                 </div>
@@ -1071,6 +1155,40 @@ export function AllProjectsList({ projects, onSelect, onStartProject, onSetBudge
               <div className="mt-1 text-xs leading-relaxed" style={{ color: 'var(--pd-muted)' }}>
                 {p.operatorNextAction ?? 'Select this project to inspect it.'}
               </div>
+
+              {linkedWorktrees.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  <span className="px-2 py-0.5 text-[10px] font-semibold" style={{ color: 'var(--pd-dim)' }}>
+                    Linked worktrees
+                  </span>
+                  {linkedWorktrees.slice(0, 8).map((worktreeProject) => {
+                    const isSelectedWorktree = selected === worktreeProject.id;
+                    return (
+                      <button
+                        type="button"
+                        key={worktreeProject.id}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onSelect(worktreeProject.id);
+                        }}
+                        className="rounded-md px-2 py-0.5 text-[10px] font-semibold"
+                        style={{
+                          backgroundColor: isSelectedWorktree ? 'var(--pd-accent-surface)' : 'var(--pd-surface-2)',
+                          color: isSelectedWorktree ? 'var(--pd-accent)' : 'var(--pd-text)',
+                          border: `1px solid ${isSelectedWorktree ? 'var(--pd-accent-border)' : 'var(--pd-border)'}`,
+                        }}
+                      >
+                        {worktreeProject.worktree?.branch ?? worktreeProject.name}
+                      </button>
+                    );
+                  })}
+                  {linkedWorktrees.length > 8 && (
+                    <span className="rounded-md px-2 py-0.5 text-[10px] font-semibold" style={{ backgroundColor: 'var(--pd-bg)', color: 'var(--pd-muted)', border: '1px solid var(--pd-border)' }}>
+                      +{linkedWorktrees.length - 8} more
+                    </span>
+                  )}
+                </div>
+              )}
 
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {(p.signals ?? []).map((signal) => (

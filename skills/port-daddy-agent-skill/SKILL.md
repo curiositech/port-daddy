@@ -39,6 +39,27 @@ FleetBar/Fleet Control Center evidence, validation, and recoverable handoffs.
 - Replacing repo-authored docs, live daemon truth, tests, or operator evidence.
 - Launching extra agents when one bounded local change is enough.
 
+## Operator vs Agent — know which surface you are
+
+The CLI is for **you** (the agent) and for emergencies. The human operator does
+not run `pd` commands, edit `.env.local` files, run `launchctl kickstart`, or
+tail logs. Their surface is the FleetBar menu-bar app and the dashboard at
+`http://localhost:9876` — buttons, panels, deep-links to provider token pages.
+
+When you tell the operator to do something, point at the **FleetBar button or
+dashboard panel**, not at a shell command. If the surface does not exist yet,
+that is a product gap: file a `high`-severity feedback entry against the
+`FleetBar` surface so cartographer promotes it onto the roadmap. Open examples
+to follow: `fleetbar-secret-management-with-provider-deeplinks`,
+`fleetbar-console-must-support-zoom-and-text-scaling`.
+
+If an agent's output reads like "now run `launchctl ...`" or "edit
+`~/.env.local` and add ...", rewrite it. The right output is "open FleetBar →
+Credentials → Cloudflare → paste token (deep-link: dash.cloudflare.com/
+profile/api-tokens?template=workers-ai)" — with the gap filed as feedback if
+the button is not built yet. Operators do not read AGENTS.md; they should not
+have to.
+
 ## Default Agent Happy Path
 
 Use this path before you reach for advanced coordination. It is the normal
@@ -293,6 +314,19 @@ ambiguous handoffs, and local green checks that do not match the installed app.
 
 - If `pd status` is green but the browser or FleetBar is stale, suspect install
   root or daemon freshness before rewriting source.
+- Daemon installation is binary-first. `pd start`, `pd daemon start`, and
+  `pd install` should launch `dist/daemon/port-daddy-daemon` when present;
+  source-backed `tsx server.ts` is a development-only fallback gated by
+  `PORT_DADDY_ALLOW_SOURCE_DAEMON=1`.
+- Single-binary builds use `npm run build:bin` and emit `dist/port-daddy`.
+  That executable carries CLI dispatch, the MCP stdio server, and a hidden
+  `__daemon` entrypoint without a `tsx` subprocess. The build embeds Fleet UI
+  and public samples into the executable through a generated asset table, then
+  smoke-tests daemon health plus `/samples/manifest.json` and
+  `/fleet-ui/index.html` with an empty `PORT_DADDY_RESOURCE_DIR`.
+- Public tutorial samples are served from the generated `/samples/manifest.json`
+  bundle. Rebuild it with `npm run build:public-samples` before claiming a
+  binary install can serve promised example code.
 - If a file looks unclaimed but a recent note says someone owns that surface,
   trust the coordination story enough to inspect before editing.
 - If your fix needs a phrase like "probably unrelated," separate it from the
@@ -413,6 +447,7 @@ starting:
 2. *What background helpers would make this delightful instead of a slog?* (See Useful Background Agents below.)
 3. *What pheromone trail / tuple / actor message would future-me wish I had left?*
 4. *What ambient signal (file heat, recent notes, claim density) tells me where the danger is?*
+5. *Did anything in this skill mislead, mis-instruct, or under-equip me last time?* If yes, plan a 2-line edit alongside the work — see "Maintain These Skills".
 
 Coordination is cheap when it is durable and machine-readable. It is
 expensive when it is conversational ("hey did you finish X?"). Default to:
@@ -492,26 +527,49 @@ Default reflexes:
 If you go a whole session without a single `windags_skill_search`, that's
 probably a missed leverage opportunity.
 
-## Maintain These Skills (living documents)
+## Maintain These Skills (standing invitation)
 
-The skills you read are not finished products. They are **living instructions**
-that improve when their users update them. When you discover wisdom that
-would have helped past-you, write it back into the skill that should have
-carried it.
+**This skill is yours to edit.** It is a living instruction set, not a sacred
+text, and the canonical copy lives in-repo at
+`skills/port-daddy-agent-skill/SKILL.md`. If something here misled you, is out
+of date, is unclear, or could be tighter, **fix it in the same slice as the
+work that revealed the problem**. Drive-by improvements are explicitly
+welcome — you do not need an issue, a ticket, or permission.
 
-When to update:
+The bar is low on purpose: small, frequent, evidence-backed edits compound.
+The bar that stays high: change the public skill only when the lesson would
+help an agent on *any* project (not just port-daddy itself). Internal/contributor
+wisdom belongs in `port-daddy-internal-dev` — see "Internal-only vs. public"
+below.
 
-- **Anti-pattern discovery** — you hit a failure mode that should have been a warning. Add it to the Anti-Patterns section.
-- **Tooling change** — Port Daddy ships a new command, deprecates an old one, or changes a flag. Update the relevant section + `references/cli-reference.md`.
-- **Decision-table gap** — a Situation→Move row would have saved you 10 minutes. Add it to the Decision Table.
-- **Feedback pattern** — if `pd feedback` reveals recurring friction, propose the systemic fix in the relevant skill section.
+When to edit — if any of these are true after a session, the edit is owed:
 
-When the update is internal-only (port-daddy contributors), update
-`port-daddy-internal-dev` instead. Don't mix internal wisdom into the
-public skill. If unsure: *would an agent on a non-port-daddy project
-benefit?* Yes → public. No → internal.
+- **You hit a failure mode that should have been a warning.** Add it to Anti-Patterns with detection + fix.
+- **Port Daddy shipped a new command, deprecated one, or changed a flag.** Update the relevant section *and* `references/cli-reference.md`.
+- **A Decision-Point row would have saved past-you ≥10 minutes.** Add it.
+- **`pd feedback` reveals a recurring friction.** Propose the systemic fix here, not just in the feedback stream.
+- **Something here is just *wrong* — stale syntax, broken example, dead link, contradiction with the code.** Fix it. Cite the source-of-truth file (e.g. `cli/commands/feedback.ts`) in the commit message.
+- **Something here is *inefficient* — three commands where one verb now exists, a worked example that takes 8 lines for what `pd advise` does in 1.** Tighten it.
 
-After landing, `pd actor cartographer --message "Skill update: <one-line>."` so the wisdom propagates.
+How to edit (the small ceremony, not a gate):
+
+1. Edit `skills/port-daddy-agent-skill/SKILL.md` directly in a worktree (Git Discipline, Rule 1).
+2. Keep the change *small and named*: one rule, one section, one Anti-Pattern.
+3. Commit with a body that explains *what changed and why this slice surfaced it* — past-you is the audience.
+4. Run `pnpm test -- tests/unit/distribution-freshness.test.js tests/unit/port-daddy-skill-authority.test.js` before pushing; both are structural contracts the public skill must satisfy.
+5. After landing, message Cartographer once so the wisdom propagates to the next session: `pd actor cartographer --message "Skill update: <one-line>."`
+
+**Internal-only vs. public.** If the lesson is about *editing the port-daddy
+codebase itself* — build commands, release ceremony, Coordination Guard
+internals, contributor-only test patterns — edit `port-daddy-internal-dev`
+instead. Don't mix internal wisdom into the public skill. The litmus test:
+*would an agent working on an unrelated project benefit from this?* Yes →
+public. No → internal.
+
+**Retrospective edits welcome.** If you read this skill, did the work, and
+only realized days later what should have been here, the edit is still owed.
+Open a tiny PR. The freshness of the lesson matters less than landing it
+before the next agent steps on the same rake.
 
 ## Feedback Loop (you owe the user this)
 
@@ -588,4 +646,4 @@ pd feedback "SKIPPED: pd salvage. Reason: I judged the task too small. In hindsi
 - [ ] You ended with `pd done` AND `pd feedback "..."` (or MCP `drop_feedback`).
 - [ ] If you skipped any of the above, you owned up to it explicitly in the feedback.
 - [ ] You ran at least one `windags_skill_search` for the task domain before starting.
-- [ ] If you discovered wisdom this skill should have carried, you committed it back into the skill in the same slice.
+- [ ] **You asked yourself: "did this skill mislead, mis-instruct, or under-equip me?"** If yes, you committed the fix to `skills/port-daddy-agent-skill/SKILL.md` (or `port-daddy-internal-dev` for contributor-only wisdom) in the same slice — no separate ticket, no permission needed. The bar is "would past-me have wanted to know this?", not "is this big enough to be its own PR." See "Maintain These Skills".

@@ -102,11 +102,19 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Use Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
       - name: Install recorder tools
         run: |
           python3 -m pip install --user asciinema
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           cargo install --locked --git https://github.com/asciinema/agg
+
+      - name: Build daemon binary
+        run: npm run build:daemon:dist
 
       - name: Start daemon and recording session
         run: |

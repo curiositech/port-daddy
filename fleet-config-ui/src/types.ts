@@ -259,6 +259,58 @@ export interface FilePreview {
 export type CoordinationGuardMode = 'off' | 'warn' | 'enforce';
 export type CoordinationGuardAction = 'status' | 'check' | 'enable' | 'install';
 
+export type SetupActionId = 'status' | 'full' | 'mcp-skills' | 'fleetbar' | 'project-init';
+
+export interface SetupOverview {
+  success: boolean;
+  version: string | null;
+  codeHash: string | null;
+  setupToken: string;
+  platform: string;
+  installDir: string;
+  currentProcess: {
+    execPath: string;
+    argv: string[];
+  };
+  daemon: {
+    mode: 'binary' | 'source' | 'unknown';
+    launchAgentPath: string;
+    launchAgentExists: boolean;
+    programArguments: string[] | null;
+    binaryCandidate: string;
+    binaryCandidateExists: boolean;
+    summary: string;
+  };
+  stableTree: {
+    path: string;
+    exists: boolean;
+    cleanupPolicy: string;
+  };
+  setupCommand: {
+    label: string;
+    command: string;
+    baseArgs: string[];
+  };
+  actions: Array<{
+    id: SetupActionId;
+    label: string;
+    mutates: boolean;
+  }>;
+}
+
+export interface SetupRunResult {
+  success: boolean;
+  action: SetupActionId;
+  command: string;
+  args: string[];
+  cwd: string;
+  exitCode: number | null;
+  timedOut: boolean;
+  stdout: string;
+  stderr: string;
+  error?: string;
+}
+
 export interface CoordinationGuardOwner {
   sessionId?: string | null;
   agentId?: string | null;
@@ -471,6 +523,11 @@ export interface MissionIntake {
   projectDir: string;
   sources: string[];
   missing: string[];
+  /**
+   * Source files present on disk that produced zero mission cards.
+   * Optional for back-compat with daemons that don't surface this field.
+   */
+  sourcesWithNoCards?: string[];
   missions: MissionCard[];
   generatedAt: number;
 }
@@ -545,6 +602,7 @@ export interface ProjectSummary {
   signals?: string[];
   sources?: string[];
   exists?: boolean;
+  worktree?: ProjectWorktreeSummary | null;
   running?: boolean;
   configuredAgentCount?: number;
   configuredWatcherCount?: number;
@@ -562,6 +620,16 @@ export interface ProjectSummary {
     command?: string;
     suggestedBudgetUsdPerDay?: number;
   } | null;
+}
+
+export interface ProjectWorktreeSummary {
+  id: string;
+  name: string;
+  branch: string | null;
+  isMain: boolean;
+  repoKey: string;
+  repoRoot: string | null;
+  siblingCount: number;
 }
 
 export interface BackendInfo {

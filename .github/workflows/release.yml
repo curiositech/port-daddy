@@ -3,6 +3,11 @@ name: Release
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to build binaries for (e.g. v3.14.0)'
+        required: true
 
 jobs:
   build-binaries:
@@ -23,11 +28,20 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+
+      # Bun's compile path resolves bare imports against node_modules. Without
+      # this step, specifiers like 'yaml', 'msgpackr', '@clack/prompts' fail
+      # with "Could not resolve" and the binary build aborts. The repo doesn't
+      # ship a bun.lockb (npm is canonical), so Bun resolves against package.json.
+      - name: Install dependencies
+        run: bun install
 
       - name: Build binary
         run: |
@@ -38,6 +52,7 @@ jobs:
       - name: Upload binary to release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           files: dist/${{ matrix.artifact }}.tar.gz
 
   build-fleetbar-preview:
@@ -46,6 +61,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
 
       - name: Package FleetBar app
         run: |
@@ -54,12 +71,14 @@ jobs:
       - name: Upload FleetBar preview to release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           files: |
             dist/fleetbar/PortDaddy-FleetBar-macOS-*-dev.zip
             dist/fleetbar/PortDaddy-FleetBar-macOS-*-dev.zip.sha256
             dist/fleetbar/fleetbar-preview-manifest.json
 
   publish-npm:
+    if: github.event_name == 'release'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -87,6 +106,7 @@ jobs:
   update-homebrew:
     runs-on: ubuntu-latest
     needs: [build-binaries, build-fleetbar-preview, publish-npm]
+    if: always() && needs.build-binaries.result == 'success' && needs.build-fleetbar-preview.result == 'success' && github.event_name == 'release'
     steps:
       - name: Set release version
         id: release

@@ -41,6 +41,23 @@ Daddy — see the sibling `port-daddy-agent-skill`.
 - Distribution to public skill catalogs.
 - Replacing the live daemon, recovery ledger, or actor inboxes as sources of truth — those still come first.
 
+## Operator vs Agent — the product rule
+
+When designing or changing a Port Daddy surface, the test is "would the
+operator have to drop to a terminal to do this routinely?" If yes, the design
+is wrong. The operator's surface is FleetBar + the dashboard. `pd` CLI exists
+for agents and emergencies. Every routine operator action (configure
+credentials, restart daemon, see open feedback, harvest a roadmap entry, ack a
+salvage item) must have a FleetBar button or dashboard panel as its primary
+surface — CLI is the secondary path for agents and scripts.
+
+Contributor implication: when you add a new actuator or data source, ship the
+FleetBar/dashboard affordance in the same slice when reasonable, or file a
+`high`-severity FleetBar feedback entry so cartographer promotes it to the
+roadmap before the CLI-only path ships to operators. Examples in flight:
+`fleetbar-secret-management-with-provider-deeplinks`,
+`fleetbar-console-must-support-zoom-and-text-scaling`.
+
 ## Core Decision Tree
 
 ```mermaid
@@ -85,6 +102,15 @@ When Port Daddy itself ships, the cost of inconsistency lands on every
 project on the user's machine. **Every change to a public surface MUST
 update every mirror in the same coherent slice.**
 
+For the actual release ceremony (tagging, GitHub Release, `release.yml`,
+brew tap roll via `publish.yml`), follow [`docs/RELEASING.md`](../../docs/RELEASING.md).
+For semver policy and the canonical list of *version surfaces* that must
+all bump in lockstep, see [`docs/VERSIONING.md`](../../docs/VERSIONING.md).
+
+The list below is the broader surface area a contributor touches *before*
+the release ceremony fires — the docs, examples, manifests, and CLI help
+that lie about behavior if not updated alongside the code.
+
 Public surfaces, in approximate update order:
 
 1. Source code (`lib/`, `routes/`, `mcp/`, `apps/FleetBar/`).
@@ -92,10 +118,11 @@ Public surfaces, in approximate update order:
 3. The skill bundle (this repo's `skills/port-daddy-agent-skill/SKILL.md`, references, templates, examples).
 4. The website (`apps/website-v2/` — `/docs/cli`, `/docs/api`, `/docs/mcp`, command detail routes, screenshots).
 5. The OpenAPI spec, SDK reference, MCP tool catalog.
-6. The Homebrew formula. The **primary** is the in-repo `Formula/port-daddy.rb` (also serves as a repo marker). The external tap repo `homebrew-port-daddy` is a downstream sync — push the in-repo formula update first, then mirror to the tap repo (see `references/release-surface-drift-protocol.md` for the cross-repo sequence).
-7. The Mac app distribution (`apps/FleetBar/install.sh`, icon refresh, codesign + notarize if needed).
-8. README + CHANGELOG + version stamps in package.json / Cargo.toml.
-9. Any plugin/extension manifests (Codex `.codex/skills/`, Gemini `.gemini/extensions/port-daddy/`, Claude `.claude/skills/`).
+6. README + CHANGELOG + the eight version surfaces in `docs/VERSIONING.md`.
+7. Any plugin/extension manifests (Codex `.codex/skills/`, Gemini `.gemini/extensions/port-daddy/`, Claude `.claude/skills/`).
+8. **Binary smoke-test** (per [`RELEASING.md` §3](../../docs/RELEASING.md#3-local-feature-dev)) for any change in `lib/`, `routes/`, `server.ts`, or `mcp/`. Source-mode `tsx server.ts` lies about what users actually run.
+
+The Homebrew formula is no longer a per-PR concern — it rolls during the release ceremony via the `curiositech/homebrew-tap` repo and `publish.yml`. See [`RELEASING.md` §1](../../docs/RELEASING.md#1-public-release) step J.
 
 If you cannot land all of these in one commit, leave a `pd actor lookout`
 message naming the gaps and link the follow-up issue. Lookout is the role
@@ -179,8 +206,20 @@ issue: `pd actor cartographer --message "Catalog gap: <what skill should exist>.
 ## Maintain These Skills (port-daddy-internal-dev edition)
 
 This skill is alive. It improves when contributors update it. **When you
-finish a slice, ask: did I just learn something that this skill should
-have warned me about?**
+finish a slice — any slice on this repo — ask: did I just learn something
+that this skill *or* `port-daddy-agent-skill` should have warned me about?**
+
+Contributors are the only agents who write to *both* surfaces. As an
+internal agent you own a continuous maintenance duty for both:
+
+- **Public** (`skills/port-daddy-agent-skill/SKILL.md`) — anything that helps an agent on *any* project using Port Daddy. New verb, deprecated flag, decision row, anti-pattern, clarification, brevity win.
+- **Internal** (this skill) — anything specific to *editing this repo*: release ceremony, internal actor embodiments, drift protocol, worked contributor examples.
+
+Drive-by edits are explicitly welcome on both. No issue required, no
+permission required. Same-slice fixes — landing the skill update alongside
+the code change that revealed the problem — are the default; that is what
+keeps the documentation from going stale between releases. Retrospective
+edits (the lesson surfaced days later) are still owed; open a tiny PR.
 
 Concrete triggers:
 
@@ -240,18 +279,20 @@ pd guard check --staged
 node scripts/release-surface-audit.mjs   # if present
 # OR walk the Release-Surface Drift list above by hand
 
-# 7. Commit + tag + push
+# 7. Commit + push (NOT tag — tags are release work, see RELEASING.md §1)
 git add <explicit paths>
 git status --porcelain          # MUST be clean of foreign files
 git commit -m "<scope>: <change>"
-git tag -a v<X.Y.Z> -m "<one-liner>"
-git push origin v<X.Y.Z>        # tag, not branch — see Rule 5
+git push -u origin <feature-branch>
+gh pr create ...                # standard PR flow
 
 # 8. Close
 pd note "Result: <change>. Validation: <evidence>. Remaining: <Lookout drifts, follow-ups>."
 pd done "<outcome>"
 pd feedback "<contributor experience report>"   # bare form; auto slug + agent
 ```
+
+**For releases** (cutting `v3.X.Y`, building binaries, rolling the brew tap): follow [`docs/RELEASING.md`](../../docs/RELEASING.md), not this loop. Tagging here is a footgun — feature branches must not push tags. The "binary smoke-test before merging anything in `lib/`, `routes/`, `server.ts`, or `mcp/`" rule is in RELEASING.md §3; honor it.
 
 ## Anti-Patterns (port-daddy contributor edition)
 
@@ -336,7 +377,7 @@ it in one commit.** Land the rename in phases through Cartographer:
 - [ ] You ended with `pd done` AND `pd feedback "..."` (CLI bare form) or MCP `drop_feedback`.
 - [ ] If you skipped any of the above, you owned up to it explicitly in the feedback.
 - [ ] You ran `windags_skill_search` for the slice's domain before starting.
-- [ ] If you discovered wisdom this skill should have carried, you committed it back into the relevant section in the same slice (or filed a Cartographer follow-up).
+- [ ] **Two-skill maintenance check.** You asked: "did the public `port-daddy-agent-skill` or this internal skill mislead me, mis-instruct me, or under-equip me?" If yes, you landed the fix on the correct surface (public vs. internal — see "Maintain These Skills") *in the same slice*. Drive-by edits are explicitly welcome; no separate ticket required.
 - [ ] You did NOT propagate internal-only wisdom into `port-daddy-agent-skill` (that's the public skill's split-decision rule).
 
 ## Sources

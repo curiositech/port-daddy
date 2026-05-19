@@ -4,6 +4,17 @@ Base URL: `http://localhost:9876` by default. If your daemon is running elsewher
 Unix Socket: `~/.port-daddy/daemon.sock`
 IPC Socket: `~/.port-daddy/daemon.ipc` (binary MessagePack, for high-frequency operations)
 
+Runtime packaging: operator installs are binary-first. The daemon service should
+launch `dist/daemon/port-daddy-daemon`; `tsx server.ts` is only allowed when
+`PORT_DADDY_ALLOW_SOURCE_DAEMON=1` is set for local development. Binary builds
+also serve the generated public sample bundle at `/samples/manifest.json` and
+`/samples/files/...`. The single-binary lane (`npm run build:bin`) emits
+`dist/port-daddy`, whose CLI can run the MCP stdio server in-process and start
+the daemon through a hidden `__daemon` entrypoint. Fleet UI and public samples
+are embedded into that executable through a generated asset table, with
+external `PORT_DADDY_RESOURCE_DIR/public/...` files still preferred when
+present.
+
 All HTTP endpoints accept and return JSON. Rate limited to 100 req/min per IP.
 
 **Transport options:**
@@ -1347,6 +1358,70 @@ List available backends, model choices, readiness, and whether each backend is l
 ```
 
 The catalog can list backend implementations that are not currently launchable. Use `launchable` and `readinessStatus` for runtime selection.
+
+---
+
+### GET /setup/overview
+Return local onboarding posture for Fleet Control Center. This route exposes install paths, daemon mode, LaunchAgent details, the setup command shape, available setup actions, and a short-lived setup capability token. It is restricted to loopback callers.
+
+**Response:**
+```json
+{
+  "success": true,
+  "version": "3.14.0",
+  "codeHash": "abc123",
+  "setupToken": "process-local-capability",
+  "installDir": "/Users/you/coding/port-daddy",
+  "daemon": {
+    "mode": "binary",
+    "launchAgentExists": true,
+    "summary": "The installed daemon LaunchAgent appears to run a binary."
+  },
+  "setupCommand": {
+    "label": "pd setup",
+    "command": "pd",
+    "baseArgs": ["setup"]
+  },
+  "actions": [
+    { "id": "status", "label": "Check setup status", "mutates": false },
+    { "id": "fleetbar", "label": "Install FleetBar", "mutates": true }
+  ]
+}
+```
+
+Returns 403 for non-loopback callers.
+
+---
+
+### POST /setup/run
+Run a guarded local setup action from Fleet Control Center. Read-only `status` does not require confirmation or a token. Mutating actions (`full`, `mcp-skills`, `fleetbar`, `project-init`) require both GUI confirmation and the current `setupToken` from `GET /setup/overview`.
+
+**Body:**
+```json
+{
+  "action": "mcp-skills",
+  "confirmed": true,
+  "setupToken": "process-local-capability",
+  "projectDir": "/Users/you/coding/myapp"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "action": "mcp-skills",
+  "command": "pd",
+  "args": ["setup", "--no-daemon", "--no-fleetbar", "--no-init"],
+  "cwd": "/Users/you/coding/port-daddy",
+  "exitCode": 0,
+  "timedOut": false,
+  "stdout": "setup ok\n",
+  "stderr": ""
+}
+```
+
+Returns 400 for unknown actions, missing GUI confirmation on mutating actions, or `project-init` without a valid project directory. Returns 403 for non-loopback callers or missing/stale setup tokens on mutating actions.
 
 ---
 

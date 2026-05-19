@@ -30,7 +30,7 @@ import fastifyRateLimit from '@fastify/rate-limit';
 import fastifyStatic from '@fastify/static';
 import http from 'node:http';
 import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { dirname, join, extname } from 'path';
 import { readFileSync, existsSync, readdirSync, unlinkSync, writeFileSync, mkdirSync, accessSync, constants as fsConstants } from 'fs';
 import type { DatabaseInstance } from './lib/sqlite-runtime.js';
 import { createConnection } from 'net';
@@ -82,6 +82,9 @@ import { createBudgetGuard } from './lib/budget-guard.js';
 import { createBudgetPause } from './lib/budget-pause.js';
 import { createQuorum } from './lib/quorum.js';
 import { createFeedback } from './lib/feedback.js';
+import { createRoadmapItems } from './lib/roadmap-items.js';
+import { createRoadmapPromote } from './lib/roadmap-promote.js';
+import { createRoadmapPop } from './lib/roadmap-pop.js';
 import { launchFleetBarIfEnabled } from './lib/fleetbar-launcher.js';
 import { createGraphEdges } from './lib/graph-edges.js';
 import { createEpisodicMemory } from './lib/episodic-memory.js';
@@ -97,8 +100,10 @@ import { registerAllRoutes } from './routes/index.js';
 import { getSystemPorts, startSystemPortsRefresh } from './shared/port-utils.js';
 import { LOOPBACK_TCP_HOST } from './shared/daemon-discovery.js';
 import { calculateRuntimeCodeHash } from './shared/code-hash.js';
+import { resolveDistributionRoot } from './shared/daemon-binary.js';
 
-const __dirname: string = dirname(fileURLToPath(import.meta.url));
+const MODULE_DIR: string = dirname(fileURLToPath(import.meta.url));
+const __dirname: string = resolveDistributionRoot(MODULE_DIR);
 const REPO_ROOT: string = existsSync(join(__dirname, 'apps', 'FleetBar'))
   ? __dirname
   : dirname(__dirname);
@@ -339,6 +344,9 @@ const semanticResolver = createSemanticResolver(db, {
 const episodicMemory = createEpisodicMemory(db, { tuples, graphEdges, semanticResolver });
 const quorum = createQuorum({ tuples });
 const feedback = createFeedback({ tuples });
+const roadmapItems = createRoadmapItems({ tuples });
+const roadmapPromote = createRoadmapPromote({ feedback, roadmapItems });
+const roadmapPop = createRoadmapPop({ db, feedback });
 
 const services = createServices(db, { semanticIndex });
 const messaging = createMessaging(db);
@@ -707,12 +715,91 @@ await app.register(fastifyRateLimit, {
   errorResponseBuilder: () => ({ error: 'Too many requests, please slow down' }),
 });
 
+type EmbeddedPublicAsset = {
+  path?: string;
+  name?: string;
+  type?: string;
+  dataBase64?: string;
+  arrayBuffer?: () => Promise<ArrayBuffer>;
+};
+
+function contentTypeForPublicPath(path: string, fallback?: string): string {
+  if (fallback) return fallback;
+  switch (extname(path).toLowerCase()) {
+    case '.css': return 'text/css; charset=utf-8';
+    case '.html': return 'text/html; charset=utf-8';
+    case '.js': return 'text/javascript; charset=utf-8';
+    case '.json': return 'application/json; charset=utf-8';
+    case '.md': return 'text/markdown; charset=utf-8';
+    case '.svg': return 'image/svg+xml';
+    case '.ts': return 'text/plain; charset=utf-8';
+    case '.txt': return 'text/plain; charset=utf-8';
+    case '.yml':
+    case '.yaml': return 'text/yaml; charset=utf-8';
+    default: return 'application/octet-stream';
+  }
+}
+
+function embeddedPublicAssets(): Map<string, EmbeddedPublicAsset> {
+  const globalAssets = (globalThis as typeof globalThis & {
+    __PORT_DADDY_EMBEDDED_PUBLIC_ASSETS__?: readonly EmbeddedPublicAsset[];
+  }).__PORT_DADDY_EMBEDDED_PUBLIC_ASSETS__;
+  const bun = (globalThis as typeof globalThis & {
+    Bun?: { embeddedFiles?: readonly EmbeddedPublicAsset[] };
+  }).Bun;
+  const assets = new Map<string, EmbeddedPublicAsset>();
+  for (const asset of globalAssets ?? []) {
+    if (asset.path?.startsWith('/')) assets.set(asset.path, asset);
+  }
+  for (const blob of bun?.embeddedFiles ?? []) {
+    const name = blob.name?.replace(/\\/g, '/');
+    if (!name?.startsWith('public/')) continue;
+    assets.set(`/${name.slice('public/'.length)}`, blob);
+  }
+  return assets;
+}
+
+async function registerEmbeddedPublicAssets(appInstance: FastifyInstance): Promise<boolean> {
+  const assets = embeddedPublicAssets();
+  if (assets.size === 0) return false;
+
+  const registered = new Set<string>();
+  const registerAssetRoute = (route: string, asset: EmbeddedPublicAsset): void => {
+    if (registered.has(route)) return;
+    registered.add(route);
+    appInstance.get(route, async (_request: FastifyRequest, reply: FastifyReply) => {
+      const body = asset.dataBase64
+        ? Buffer.from(asset.dataBase64, 'base64')
+        : Buffer.from(await asset.arrayBuffer!());
+      reply.header('Cache-Control', route.includes('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache');
+      reply.type(contentTypeForPublicPath(route, asset.type));
+      return reply.send(body);
+    });
+  };
+
+  for (const [route, blob] of assets) {
+    registerAssetRoute(route, blob);
+    if (route.endsWith('/index.html')) {
+      const directoryRoute = route.slice(0, -'index.html'.length);
+      registerAssetRoute(directoryRoute, blob);
+      registerAssetRoute(directoryRoute.replace(/\/$/, ''), blob);
+    }
+  }
+  logger.info('embedded_public_assets_registered', { count: assets.size });
+  return true;
+}
+
 // --- Static Files (replaces express.static) ---
-await app.register(fastifyStatic, {
-  root: join(__dirname, 'public'),
-  prefix: '/',
-  decorateReply: false,  // Don't decorate reply with sendFile — we only serve static
-});
+const publicRoot = join(__dirname, 'public');
+if (existsSync(publicRoot)) {
+  await app.register(fastifyStatic, {
+    root: publicRoot,
+    prefix: '/',
+    decorateReply: false,  // Don't decorate reply with sendFile — we only serve static
+  });
+} else if (!(await registerEmbeddedPublicAssets(app))) {
+  logger.warn('public_assets_missing', { publicRoot });
+}
 
 // --- DNS Rebinding Protection (replaces custom middleware) ---
 app.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -727,11 +814,16 @@ app.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) =>
 // --- Security Headers (replaces custom middleware) ---
 app.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) => {
   reply.header('X-Content-Type-Options', 'nosniff');
-  reply.header('X-Frame-Options', 'DENY');
+  // Allow same-origin framing so fleet-ui (/fleet-ui/) can embed /metrics.html.
+  // The DNS rebinding hook above restricts requests to loopback hosts plus any
+  // host ending in `.local` (mDNS / Bonjour names used by FleetBar and local
+  // tooling). SAMEORIGIN is the strictest framing policy that still allows the
+  // in-app Metrics tab to render; tightening back to DENY breaks that path.
+  reply.header('X-Frame-Options', 'SAMEORIGIN');
   reply.header('Referrer-Policy', 'no-referrer');
   reply.header(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://localhost:* http://localhost:* ws://127.0.0.1:* http://127.0.0.1:* ws://[::1]:* http://[::1]:*; img-src 'self' data:; frame-ancestors 'none';"
+    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' ws://localhost:* http://localhost:* ws://127.0.0.1:* http://127.0.0.1:* ws://[::1]:* http://[::1]:*; img-src 'self' data:; frame-ancestors 'self';"
   );
 });
 
@@ -823,7 +915,7 @@ await registerAllRoutes(
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar,
     harbors, sorties, orchestrator, correlationEngine, spawner, tuples, blobs, fleetDaemon,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, counters, metricsRegistry,
-    quorum, resourceGovernance, feedback,
+    quorum, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,
     bonds, budgetGuard, budgetPause,
     arbiter, bosunHeartbeat,
     VERSION, CODE_HASH, STARTED_AT, __dirname, repoRoot: REPO_ROOT,

@@ -19,6 +19,7 @@ import CockpitMissionsPanel from './components/CockpitMissionsPanel';
 import ResourceGovernancePanel from './components/ResourceGovernancePanel';
 import TubeConsolePanel from './components/TubeConsolePanel';
 import EventsRegistryPanel from './components/EventsRegistryPanel';
+import { MetricsPanel } from './components/MetricsPanel';
 import ShipwrightPanel from './shipwright/ShipwrightPanel';
 import { extractMentionedPaths } from './fileMentions';
 import {
@@ -58,8 +59,8 @@ import type {
   TopologyValidation,
 } from './types';
 
-type MainTab = 'Flow' | 'Roadmap' | 'Agents' | 'Resources' | 'Activity' | 'Channels' | 'Tube' | 'Events' | 'Inbox' | 'Sorties' | 'Memory' | 'Shipwright' | 'YAML';
-type ControlSurface = 'flow' | 'roadmap' | 'agents' | 'resources' | 'activity' | 'channels' | 'tube' | 'events' | 'inbox' | 'sorties' | 'memory' | 'shipwright' | 'yaml';
+type MainTab = 'Flow' | 'Roadmap' | 'Agents' | 'Resources' | 'Activity' | 'Channels' | 'Tube' | 'Events' | 'Inbox' | 'Sorties' | 'Memory' | 'Metrics' | 'Shipwright' | 'YAML';
+type ControlSurface = 'flow' | 'roadmap' | 'agents' | 'resources' | 'activity' | 'channels' | 'tube' | 'events' | 'inbox' | 'sorties' | 'memory' | 'metrics' | 'shipwright' | 'yaml';
 
 function canUseWindow(): boolean {
   return typeof window !== 'undefined';
@@ -74,6 +75,7 @@ function normalizeSurface(value: string | null): ControlSurface {
     case 'inbox':
     case 'sorties':
     case 'memory':
+    case 'metrics':
     case 'roadmap':
     case 'shipwright':
     case 'yaml':
@@ -110,6 +112,8 @@ function surfaceToMainTab(surface: ControlSurface): MainTab {
       return 'Sorties';
     case 'memory':
       return 'Memory';
+    case 'metrics':
+      return 'Metrics';
     case 'shipwright':
       return 'Shipwright';
     case 'yaml':
@@ -130,6 +134,7 @@ function mainTabToSurface(activeTab: MainTab): ControlSurface {
   if (activeTab === 'Inbox') return 'inbox';
   if (activeTab === 'Sorties') return 'sorties';
   if (activeTab === 'Memory') return 'memory';
+  if (activeTab === 'Metrics') return 'metrics';
   if (activeTab === 'Shipwright') return 'shipwright';
   if (activeTab === 'YAML') return 'yaml';
   return 'flow';
@@ -973,6 +978,15 @@ export default function App() {
       configuredWatcherCount: number;
       signals: string[];
       sources: string[];
+      worktree: {
+        id: string;
+        name: string;
+        branch: string | null;
+        isMain: boolean;
+        repoKey: string;
+        repoRoot: string | null;
+        siblingCount: number;
+      } | null;
       operatorState?: 'running' | 'ready' | 'blocked' | 'service_only' | 'context_only' | 'missing';
       operatorSummary?: string;
       operatorNextAction?: string;
@@ -1003,6 +1017,7 @@ export default function App() {
         configuredWatcherCount: project.configuredWatcherCount ?? 0,
         signals: project.signals ?? [],
         sources: project.sources ?? [],
+        worktree: project.worktree ?? null,
         operatorState: project.operatorState,
         operatorSummary: project.operatorSummary,
         operatorNextAction: project.operatorNextAction,
@@ -1028,6 +1043,7 @@ export default function App() {
         configuredWatcherCount: existing?.configuredWatcherCount ?? 0,
         signals: existing?.signals ?? [],
         sources: [...new Set([...(existing?.sources ?? []), 'runtime'])],
+        worktree: existing?.worktree ?? null,
         operatorState: existing?.operatorState ?? 'running',
         operatorSummary: existing?.operatorSummary,
         operatorNextAction: existing?.operatorNextAction,
@@ -1415,8 +1431,10 @@ export default function App() {
 
   const configAgentData = fleetConfig?.agents.find(a => a.name === configAgent);
   const daemonRunning = fleet.status?.running ?? false;
-  const surfaceTabs: MainTab[] = ['Flow', 'Roadmap', 'Agents', 'Resources', 'Activity', 'Channels', 'Tube', 'Events', 'Inbox', 'Sorties', 'Memory', 'Shipwright', 'YAML'];
-  const allProjectSurfaceTabs: MainTab[] = ['Flow', 'Shipwright'];
+  const surfaceTabs: MainTab[] = ['Flow', 'Roadmap', 'Agents', 'Resources', 'Activity', 'Channels', 'Tube', 'Events', 'Inbox', 'Sorties', 'Memory', 'Metrics', 'Shipwright', 'YAML'];
+  // Metrics are daemon-wide (request volume, latency, seasonality), so they're useful even
+  // before a project is picked. Shipwright is the other daemon-level tab.
+  const allProjectSurfaceTabs: MainTab[] = ['Flow', 'Metrics', 'Shipwright'];
   const showProjectSidebar = activeTab === 'Flow' && !embedded;
   const visibleSurfaceTabs = selectedProjectId ? surfaceTabs : allProjectSurfaceTabs;
   const handleProjectRefresh = useCallback(() => {
@@ -1486,7 +1504,12 @@ export default function App() {
         onBack={selectedProjectId ? goHome : undefined}
       />
 
-      {(selectedProjectId || activeTab === 'Shipwright') && !embedded && (
+      {!embedded && (
+        // Always show the TabBar in non-embedded mode. `visibleSurfaceTabs`
+        // narrows to daemon-level tabs (Flow / Metrics / Shipwright) when no
+        // project is selected, so the bar stays useful as the entry point for
+        // daemon-level surfaces (previously you had no way to reach Metrics
+        // from the default Flow tab without picking a project first).
         <TabBar tabs={visibleSurfaceTabs} active={activeTab} onChange={(tab) => setActiveTab(tab as MainTab)} />
       )}
 
@@ -1516,6 +1539,11 @@ export default function App() {
 
       <AnimatePresence mode="wait">
         {!selectedProjectId ? (
+          activeTab === 'Metrics' ? (
+            <motion.div key="metrics-all-wrap" className="flex-1 overflow-hidden flex flex-col" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -20 }}>
+              <MetricsPanel key="metrics-all" theme={theme} embedded={embedded} daemonUrl={daemonUrl} />
+            </motion.div>
+          ) : (
           <motion.div key="all" className="flex-1 overflow-y-auto" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -20 }}>
             {activeTab === 'Shipwright' ? (
               <ShipwrightPanel
@@ -1525,14 +1553,43 @@ export default function App() {
                 onOpenYaml={() => setActiveTab('YAML')}
               />
             ) : fleet.loading ? (
-              <div className="flex items-center justify-center h-full opacity-30" style={{ color: 'var(--pd-text)' }}>Loading...</div>
+              <>
+                <div className="mx-auto mt-4 w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+                  <div className="rounded-lg border px-4 py-3 text-sm" style={{ backgroundColor: 'var(--pd-warning-surface)', borderColor: 'var(--pd-warning-border)', color: 'var(--pd-warning)' }}>
+                    Fleet discovery is still loading. The first-run guide stays available while Port Daddy checks the daemon.
+                  </div>
+                </div>
+                <AllProjectsList
+                  projects={projects}
+                  selected={selectedProjectId}
+                  onSelect={selectProject}
+                  onStartProject={(project) => void handleStartProject(project.projectDir)}
+                  onSetBudget={(project, usdPerDay) => void handleSetProjectBudget(project.projectDir, usdPerDay).catch(() => undefined)}
+                  onOpenYaml={(project) => handleOpenProjectYaml(project.id)}
+                  onOpenShipwright={() => setActiveTab('Shipwright')}
+                />
+              </>
             ) : fleet.error ? (
-              <div className="flex items-center justify-center h-full text-sm" style={{ color: 'var(--pd-text)' }}>
-                <span style={{ color: 'var(--pd-accent)' }}>Daemon offline</span>&nbsp;at {formatDaemonLabel(daemonUrl)}: {fleet.error}
-              </div>
+              <>
+                <div className="mx-auto mt-4 w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+                  <div className="rounded-lg border px-4 py-3 text-sm" style={{ backgroundColor: 'var(--pd-accent-surface)', borderColor: 'var(--pd-accent-border)', color: 'var(--pd-accent)' }}>
+                    Daemon offline at {formatDaemonLabel(daemonUrl)}: {fleet.error}
+                  </div>
+                </div>
+                <AllProjectsList
+                  projects={projects}
+                  selected={selectedProjectId}
+                  onSelect={selectProject}
+                  onStartProject={(project) => void handleStartProject(project.projectDir)}
+                  onSetBudget={(project, usdPerDay) => void handleSetProjectBudget(project.projectDir, usdPerDay).catch(() => undefined)}
+                  onOpenYaml={(project) => handleOpenProjectYaml(project.id)}
+                  onOpenShipwright={() => setActiveTab('Shipwright')}
+                />
+              </>
             ) : (
               <AllProjectsList
                 projects={projects}
+                selected={selectedProjectId}
                 onSelect={selectProject}
                 onStartProject={(project) => void handleStartProject(project.projectDir)}
                 onSetBudget={(project, usdPerDay) => void handleSetProjectBudget(project.projectDir, usdPerDay).catch(() => undefined)}
@@ -1541,6 +1598,7 @@ export default function App() {
               />
             )}
           </motion.div>
+          )
         ) : (
           <motion.div key={`proj-${selectedProjectId}-${activeTab}`} className="flex-1 overflow-hidden"
             initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
@@ -1798,6 +1856,9 @@ export default function App() {
                         projectName={selectedProjectName ?? undefined}
                         harbor={fleetConfig?.harbor}
                       />
+                    )}
+                    {activeTab === 'Metrics' && (
+                      <MetricsPanel theme={theme} embedded={embedded} daemonUrl={daemonUrl} />
                     )}
                     {activeTab === 'Shipwright' && (
                       <ShipwrightPanel

@@ -1,5 +1,5 @@
 import { describe, expect, test } from '@jest/globals';
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -7,6 +7,7 @@ import {
   DEFAULT_GUARD_CONFIG,
   evaluateGuardFacts,
   extractClaimPaths,
+  filterClaimsToRepo,
   localGuardConfigPath,
   mergePostCommitHook,
   mergePreCommitHook,
@@ -287,5 +288,155 @@ describe('Coordination Guard', () => {
     const reapplied = mergePostCommitHook(initial);
     const startMarkers = reapplied.match(/# >>> Port Daddy Coordination Guard/g) ?? [];
     expect(startMarkers).toHaveLength(1);
+  });
+
+  describe('filterClaimsToRepo', () => {
+    // Regression coverage for the host-global claim-DB leak that blocked
+    // a port-daddy rebase because a marketing agent in some unrelated
+    // repo had claimed `apps/marketing/src/app/page.tsx`. The destructive-
+    // verb path of runCheck() now filters claims through this helper so
+    // only claims that actually belong to the caller's repo get evaluated.
+
+    test('drops a claim path whose absolute form is outside the repo root', () => {
+      const repo = mkdtempSync(join(tmpdir(), 'pd-guard-filter-outside-'));
+      try {
+        // A path that resolves outside the repo via .. escaping
+        const result = filterClaimsToRepo(['../elsewhere/file.ts'], repo);
+        expect(result).toEqual([]);
+      } finally {
+        rmSync(repo, { recursive: true, force: true });
+      }
+    });
+
+    test('drops a relative claim path for a file that does not exist in this repo', () => {
+      // This is the exact production bug: a marketing agent in some
+      // other repo claimed `apps/marketing/src/app/page.tsx`. That path
+      // does NOT exist under our port-daddy worktree, so the filter
+      // must drop it before it can refuse our rebase.
+      const repo = mkdtempSync(join(tmpdir(), 'pd-guard-filter-ghost-'));
+      try {
+        const result = filterClaimsToRepo(['apps/marketing/src/app/page.tsx'], repo);
+        expect(result).toEqual([]);
+      } finally {
+        rmSync(repo, { recursive: true, force: true });
+      }
+    });
+
+    test('keeps a relative claim that resolves to a real file inside the repo', () => {
+      const repo = mkdtempSync(join(tmpdir(), 'pd-guard-filter-inside-'));
+      try {
+        mkdirSync(join(repo, 'src'), { recursive: true });
+        writeFileSync(join(repo, 'src', 'real.ts'), '// real\n');
+        const result = filterClaimsToRepo(['src/real.ts'], repo);
+        expect(result).toEqual(['src/real.ts']);
+      } finally {
+        rmSync(repo, { recursive: true, force: true });
+      }
+    });
+
+    test('keeps an absolute claim that lives inside the repo', () => {
+      const repo = mkdtempSync(join(tmpdir(), 'pd-guard-filter-abs-'));
+      try {
+        const filePath = join(repo, 'kept.ts');
+        writeFileSync(filePath, '// kept\n');
+        const result = filterClaimsToRepo([filePath], repo);
+        expect(result).toEqual([filePath]);
+      } finally {
+        rmSync(repo, { recursive: true, force: true });
+      }
+    });
+
+    test('drops an absolute claim that lives outside the repo even if the file exists', () => {
+      const repo = mkdtempSync(join(tmpdir(), 'pd-guard-filter-other-repo-'));
+      const otherRepo = mkdtempSync(join(tmpdir(), 'pd-guard-filter-other-'));
+      try {
+        const filePath = join(otherRepo, 'foreign.ts');
+        writeFileSync(filePath, '// foreign\n');
+        const result = filterClaimsToRepo([filePath], repo);
+        expect(result).toEqual([]);
+      } finally {
+        rmSync(repo, { recursive: true, force: true });
+        rmSync(otherRepo, { recursive: true, force: true });
+      }
+    });
+
+    test('mixed input keeps only the in-repo extant claims', () => {
+      const repo = mkdtempSync(join(tmpdir(), 'pd-guard-filter-mixed-'));
+      try {
+        writeFileSync(join(repo, 'a.ts'), '// a\n');
+        writeFileSync(join(repo, 'b.ts'), '// b\n');
+        const result = filterClaimsToRepo([
+          'a.ts',                            // in-repo, exists → keep
+          'apps/marketing/page.tsx',         // in-repo path but ghost → drop
+          'b.ts',                            // in-repo, exists → keep
+          '../escape.ts',                    // outside via .. → drop
+          '',                                // empty → drop
+          '   ',                             // whitespace → drop
+        ], repo);
+        expect(result.sort()).toEqual(['a.ts', 'b.ts']);
+      } finally {
+        rmSync(repo, { recursive: true, force: true });
+      }
+    });
+
+    // Regression coverage for the symlink-escape vector flagged in
+    // skeptical review of PR #74: `path.resolve()` collapses `..` but
+    // does NOT follow symlinks. Without `realpathSync` canonicalization,
+    // a symlink claim that LIVES inside the repo but POINTS outside
+    // would pass `relativePathInside(root, abs)` (because `abs` itself
+    // is inside) and re-enable the cross-project leak the PR fixes.
+
+    test('drops a symlink-claim that points outside the repo', () => {
+      const repo = mkdtempSync(join(tmpdir(), 'pd-guard-filter-symlink-out-'));
+      const elsewhere = mkdtempSync(join(tmpdir(), 'pd-guard-filter-elsewhere-'));
+      try {
+        const realTarget = join(elsewhere, 'foreign.ts');
+        writeFileSync(realTarget, '// foreign\n');
+        const linkPath = join(repo, 'looks-local.ts');
+        symlinkSync(realTarget, linkPath);
+        // The link path is inside `repo`, the target is not.
+        // `realpathSync` must canonicalize the link before containment.
+        const result = filterClaimsToRepo(['looks-local.ts'], repo);
+        expect(result).toEqual([]);
+      } finally {
+        rmSync(repo, { recursive: true, force: true });
+        rmSync(elsewhere, { recursive: true, force: true });
+      }
+    });
+
+    test('keeps a real file in a repo whose root path contains a symlink component', () => {
+      // On macOS, `os.tmpdir()` returns `/var/folders/...`, but `/var`
+      // is a symlink to `/private/var`. Without canonicalizing the
+      // repo root itself, paths under the resolved real root would
+      // appear "outside" the un-resolved root prefix and be dropped.
+      const repo = mkdtempSync(join(tmpdir(), 'pd-guard-filter-tmpdir-symlink-'));
+      try {
+        writeFileSync(join(repo, 'kept.ts'), '// kept\n');
+        const result = filterClaimsToRepo(['kept.ts'], repo);
+        expect(result).toEqual(['kept.ts']);
+      } finally {
+        rmSync(repo, { recursive: true, force: true });
+      }
+    });
+
+    test('drops a broken symlink (target does not exist)', () => {
+      const repo = mkdtempSync(join(tmpdir(), 'pd-guard-filter-broken-link-'));
+      try {
+        const linkPath = join(repo, 'dangling.ts');
+        symlinkSync(join(repo, 'never-existed.ts'), linkPath);
+        const result = filterClaimsToRepo(['dangling.ts'], repo);
+        expect(result).toEqual([]);
+      } finally {
+        rmSync(repo, { recursive: true, force: true });
+      }
+    });
+
+    test('returns [] when repoRoot itself does not exist', () => {
+      // Catches the realpathSync-on-root throw path. Without the
+      // try/catch the entire filter would error instead of degrading
+      // to "no claims belong here".
+      const result = filterClaimsToRepo(['anything.ts'], '/nonexistent-repo-root-pd-guard-test');
+      expect(result).toEqual([]);
+    });
   });
 });

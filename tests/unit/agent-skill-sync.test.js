@@ -6,17 +6,18 @@ import {
   readFileSync,
   readlinkSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 
 const {
   collectSkillUnion,
   ensureGeminiPortDaddyExtension,
   runtimeSkillTargets,
   syncAgentSkills,
-} = await import('../../cli/utils/skill-sync.js');
+} = await import('../../lib/skill-sync.js');
 
 let tmpRoot;
 
@@ -109,6 +110,8 @@ describe('cross-tool agent skill sync', () => {
 
     expect(result.skillCount).toBe(2);
     expect(result.created).toBe(4);
+    expect(result.audit.currentLinks).toBe(4);
+    expect(result.audit.freshnessPct).toBe(100);
     expect(lstatSync(join(home, '.codex', 'skills', 'alpha')).isSymbolicLink()).toBe(true);
     expect(readlinkSync(join(home, '.codex', 'skills', 'alpha'))).toBe(alphaDir);
     expect(existsSync(join(home, '.gemini', 'skills', 'beta', 'SKILL.md'))).toBe(true);
@@ -132,7 +135,69 @@ describe('cross-tool agent skill sync', () => {
 
     expect(result.created).toBe(0);
     expect(result.skippedExisting).toHaveLength(1);
+    expect(result.audit.blockedNonSymlinks).toBe(1);
     expect(readFileSync(join(localAlpha, 'SKILL.md'), 'utf8')).toBe('local copy\n');
+  });
+
+  test('syncAgentSkills audits missing, stale, and blocked runtime links without writing in status mode', () => {
+    const source = join(tmpRoot, 'source');
+    const home = join(tmpRoot, 'home');
+    const targetRoot = join(home, '.codex', 'skills');
+    const alphaDir = writeSkill(source, 'alpha', 'alpha');
+    writeSkill(source, 'beta', 'beta');
+    writeSkill(source, 'gamma', 'gamma');
+    writeSkill(source, 'delta', 'delta');
+    mkdirSync(targetRoot, { recursive: true });
+    symlinkSync(alphaDir, join(targetRoot, 'alpha'), 'dir');
+    symlinkSync(alphaDir, join(targetRoot, 'gamma'), 'dir');
+    mkdirSync(join(targetRoot, 'delta'), { recursive: true });
+    writeFileSync(join(targetRoot, 'delta', 'SKILL.md'), 'local copy\n');
+
+    const result = syncAgentSkills({
+      baseDir: home,
+      projectRoot: tmpRoot,
+      scope: 'user',
+      statusOnly: true,
+      sourceRoots: [{ label: 'source', path: source }],
+      targets: [{ label: 'Codex', path: targetRoot }],
+    });
+
+    expect(result.created).toBe(0);
+    expect(result.replaced).toBe(0);
+    expect(result.audit.expectedLinks).toBe(4);
+    expect(result.audit.currentLinks).toBe(1);
+    expect(result.audit.missingLinks).toBe(1);
+    expect(result.audit.staleSymlinks).toBe(1);
+    expect(result.audit.blockedNonSymlinks).toBe(1);
+    expect(result.audit.freshnessPct).toBe(25);
+    expect(existsSync(join(targetRoot, 'beta'))).toBe(false);
+    expect(readlinkSync(join(targetRoot, 'gamma'))).toBe(alphaDir);
+    expect(readFileSync(join(targetRoot, 'delta', 'SKILL.md'), 'utf8')).toBe('local copy\n');
+  });
+
+  test('syncAgentSkills treats equivalent relative symlinks as already current', () => {
+    const source = join(tmpRoot, 'source');
+    const home = join(tmpRoot, 'home');
+    const targetRoot = join(home, '.codex', 'skills');
+    const alphaDir = writeSkill(source, 'alpha', 'alpha');
+    mkdirSync(targetRoot, { recursive: true });
+    const relativeAlpha = relative(targetRoot, alphaDir);
+    symlinkSync(relativeAlpha, join(targetRoot, 'alpha'), 'dir');
+
+    const result = syncAgentSkills({
+      baseDir: home,
+      projectRoot: tmpRoot,
+      scope: 'user',
+      sourceRoots: [{ label: 'source', path: source }],
+      targets: [{ label: 'Codex', path: targetRoot }],
+    });
+
+    expect(result.created).toBe(0);
+    expect(result.replaced).toBe(0);
+    expect(result.alreadyLinked).toBe(1);
+    expect(result.audit.currentLinks).toBe(1);
+    expect(result.audit.freshnessPct).toBe(100);
+    expect(readlinkSync(join(targetRoot, 'alpha'))).toBe(relativeAlpha);
   });
 
   test('runtimeSkillTargets includes Codex, Claude, Gemini, and AGENTS-aware targets', () => {

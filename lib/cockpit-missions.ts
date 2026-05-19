@@ -236,6 +236,14 @@ export interface MissionIntake {
   projectDir: string;
   sources: string[];
   missing: string[];
+  /**
+   * Source files that exist on disk but produced zero mission cards.
+   * Distinct from `missing` (which lists absent files). A source lands
+   * here when the file is present but has no headings at the configured
+   * level, or no recognized status tags — the common failure mode for a
+   * freshly initialised roadmap that the user hasn't tagged yet.
+   */
+  sourcesWithNoCards: string[];
   missions: MissionCard[];
   generatedAt: number;
 }
@@ -246,6 +254,7 @@ export function readMissions(options: ReadMissionsOptions): MissionIntake {
   const taken = new Set<string>();
   const all: MissionCard[] = [];
   const missing: string[] = [];
+  const sourcesWithNoCards: string[] = [];
 
   for (const spec of sources) {
     const cards = readSourceCards(projectDir, spec, taken);
@@ -253,6 +262,7 @@ export function readMissions(options: ReadMissionsOptions): MissionIntake {
       const abs = isAbsolute(spec.relPath) ? spec.relPath : join(projectDir, spec.relPath);
       try {
         statSync(abs);
+        sourcesWithNoCards.push(spec.relPath);
       } catch {
         missing.push(spec.relPath);
       }
@@ -274,6 +284,7 @@ export function readMissions(options: ReadMissionsOptions): MissionIntake {
     projectDir,
     sources: sources.map((s) => s.relPath),
     missing,
+    sourcesWithNoCards,
     missions: filtered,
     generatedAt: Date.now(),
   };

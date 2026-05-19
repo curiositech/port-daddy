@@ -20,7 +20,7 @@ import {
   ensureGeminiPortDaddyExtension,
   formatSkillSyncSummary,
   syncAgentSkills,
-} from '../utils/skill-sync.js';
+} from '../../lib/skill-sync.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // Walk up from __dirname looking for the repo marker (Formula/port-daddy.rb

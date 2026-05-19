@@ -13,9 +13,9 @@
  */
 
 import { basename } from 'node:path';
-import { readFileSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
-import { readMissions, type MissionCard, type MissionStatus } from '../lib/cockpit-missions.js';
+import { readMissions, type MissionCard, type MissionIntake, type MissionStatus } from '../lib/cockpit-missions.js';
 import { validateProjectRoot } from '../lib/utils.js';
 
 function deriveProjectName(projectDir: string): string {
@@ -128,8 +128,48 @@ function asArray(raw: unknown): unknown[] {
   return [];
 }
 
-function findMissionById(projectDir: string, id: string): MissionCard | null {
+// Per-process memo for readMissions, keyed on projectDir and invalidated
+// when any of the three default source files' mtime/size changes. The
+// detail/plan routes can be polled aggressively; without a cache, every
+// request re-parsed all three roadmap markdown files synchronously. Cost
+// of the cache is one statSync per source per request.
+const DEFAULT_SOURCE_PATHS: ReadonlyArray<string> = [
+  'docs/recovery/CURRENT-WORK.md',
+  'docs/recovery/UNIFIED-ROADMAP.md',
+  '.cartographer/status.md',
+];
+
+interface MissionCacheEntry {
+  fingerprint: string;
+  intake: MissionIntake;
+}
+
+const missionCache = new Map<string, MissionCacheEntry>();
+
+function sourceFingerprint(projectDir: string): string {
+  const parts: string[] = [];
+  for (const rel of DEFAULT_SOURCE_PATHS) {
+    try {
+      const s = statSync(`${projectDir}/${rel}`);
+      parts.push(`${rel}:${s.mtimeMs}:${s.size}`);
+    } catch {
+      parts.push(`${rel}:missing`);
+    }
+  }
+  return parts.join('|');
+}
+
+function readMissionsCached(projectDir: string): MissionIntake {
+  const fingerprint = sourceFingerprint(projectDir);
+  const hit = missionCache.get(projectDir);
+  if (hit && hit.fingerprint === fingerprint) return hit.intake;
   const intake = readMissions({ projectDir });
+  missionCache.set(projectDir, { fingerprint, intake });
+  return intake;
+}
+
+function findMissionById(projectDir: string, id: string): MissionCard | null {
+  const intake = readMissionsCached(projectDir);
   return intake.missions.find((m) => m.id === id) ?? null;
 }
 

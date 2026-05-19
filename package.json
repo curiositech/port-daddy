@@ -1,6 +1,6 @@
 {
   "name": "port-daddy",
-  "version": "3.13.0",
+  "version": "3.14.1",
   "description": "Authoritative port management and service orchestration for multi-agent development — port-daddy up/down, atomic assignment, pub/sub messaging, distributed locks, agent registry, and project:stack:context semantic identities",
   "main": "./dist/server.js",
   "type": "module",
@@ -37,12 +37,15 @@
     "preversion": "npm run parity && npm test -- --no-coverage",
     "postversion": "tsx scripts/sync-version.ts && git add .claude-plugin/plugin.json mcp-server.json mcp/server.ts && git commit --amend --no-edit",
     "build": "tsc",
-    "prepublishOnly": "npm run build",
+    "prepublishOnly": "npm run build && npm run build:daemon:dist && npm run build:bin",
     "build:core:dist": "bash scripts/build-core.sh",
     "build:bosun": "cargo build --manifest-path core/pd-bosun/Cargo.toml --release -j 1",
     "build:bosun:dist": "npm run build:bosun && mkdir -p dist/core && cp core/pd-bosun/target/release/pd-bosun dist/core/pd-bosun",
-    "build:bin": "bun build --compile bin/port-daddy-cli.ts --outfile dist/pd-binary",
-    "build:bin:all": "bun build --compile bin/port-daddy-cli.ts --outfile dist/pd-darwin-arm64 && bun build --compile --target=bun-linux-x64 bin/port-daddy-cli.ts --outfile dist/pd-linux-x64",
+    "build:public-samples": "node scripts/build-public-samples.mjs",
+    "build:daemon": "node scripts/build-daemon-binary.mjs",
+    "build:daemon:dist": "npm run build:public-samples && node scripts/build-daemon-binary.mjs",
+    "build:bin": "node scripts/build-single-binary.mjs",
+    "build:bin:all": "node scripts/build-single-binary.mjs --outfile=dist/port-daddy-darwin-arm64 && node scripts/build-single-binary.mjs --target=bun-linux-x64 --outfile=dist/port-daddy-linux-x64",
     "package:fleetbar-preview": "bash scripts/package-fleetbar-preview.sh"
   },
   "repository": {
@@ -83,6 +86,10 @@
     "routes/",
     "shared/",
     "public/",
+    "scripts/build-core.sh",
+    "scripts/build-daemon-binary.mjs",
+    "scripts/build-public-samples.mjs",
+    "scripts/build-single-binary.mjs",
     "mcp/",
     "config.json",
     "completions/",
@@ -113,7 +120,8 @@
     "tree-sitter-wasms": "^0.1.13",
     "tsx": "^4.21.0",
     "web-tree-sitter": "^0.24.7",
-    "winston": "^3.19.0"
+    "winston": "^3.19.0",
+    "yaml": "^2.8.3"
   },
   "engines": {
     "node": ">=20.0.0"
@@ -127,8 +135,7 @@
     "@types/react": "^19.2.14",
     "fast-check": "^4.7.0",
     "jest": "^30.2.0",
-    "typescript": "^5.9.3",
-    "yaml": "^2.8.3"
+    "typescript": "^5.9.3"
   },
   "overrides": {
     "glob": "^13.0.0"

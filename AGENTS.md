@@ -2,6 +2,29 @@
 
 Project-specific shibboleths for proficient Port Daddy work. If you learn a new one that materially changes how to operate this repo, add it here immediately.
 
+## Operator vs Agent — know which surface you are
+
+The CLI is for agents and emergencies. **The operator does not run `pd` commands, does not edit `.env.local` files, does not run `launchctl kickstart`, does not tail logs.** That work is yours.
+
+The operator's surface is the **FleetBar app and the dashboard at `localhost:9876`** — buttons, panels, deep-links to provider token pages. If the operator has to drop to a terminal to do something routine (configure credentials, restart the daemon, see open feedback, harvest a roadmap entry, see why the fleet is silently failing), that is a product bug — file it as `high`-severity feedback on the `FleetBar` surface so cartographer promotes it to the roadmap.
+
+Concretely:
+- Secrets live in the macOS Keychain, surfaced through a FleetBar Credentials panel with deep links to the provider's actual token page. No `.env.local`. (See open feedback `fleetbar-secret-management-with-provider-deeplinks`.)
+- Daemon health and restart are buttons in FleetBar, not `launchctl` incantations.
+- Roadmap, open feedback, fleet status, salvage queue — all visible in the dashboard's panels, not via grep on log files.
+- The UI must support zoom and OS text-scaling (Dynamic Type on macOS, browser zoom on the web). Minimum 14px body text. Never `user-scalable=no`. See open feedback `fleetbar-console-must-support-zoom-and-text-scaling`.
+
+Agents read this file. Operators do not. If an agent's instructions push a CLI command at a human, the instruction is wrong; rewrite it to point at the FleetBar/dashboard surface, and file the gap as feedback if no surface exists yet.
+
+## Skill maintenance is part of every slice
+
+The two Port Daddy skills are the operating instructions for *all* future agents working in port-daddy-protected projects. Treat them as load-bearing code:
+
+- **`skills/port-daddy-agent-skill/SKILL.md`** — the public skill. Edit when the lesson would help any agent on any project (new verb, deprecated flag, anti-pattern, decision-table gap, inefficient worked example, stale or wrong content).
+- **`skills/port-daddy-internal-dev/SKILL.md`** — the contributor-only skill. Edit when the lesson is specific to editing *this* repo (release ceremony, internal actor embodiments, drift protocol, worked contributor examples).
+
+You are explicitly invited to fix errors, sharpen inefficient passages, and add anti-patterns the moment you notice them — no issue, ticket, or permission required. Same-slice edits (landing the doc fix alongside the code change that revealed the problem) are the default; retrospective edits days later are still owed and welcome. Both skills carry their own "Maintain These Skills" sections with the small ceremony (worktree, explicit-path staging, tests, Cartographer ping). Internal agents working on port-daddy itself own *both* surfaces continuously — split-decision rule lives in `port-daddy-internal-dev`.
+
 ## Port Daddy First
 
 - On this computer, use Port Daddy for repo work by default, not only when a task already looks multi-agent.
@@ -90,19 +113,52 @@ Project-specific shibboleths for proficient Port Daddy work. If you learn a new 
 - If a command exists in source but the installed CLI gets `Not Found`, suspect a stale daemon or stale `dist/` before assuming the feature is imaginary.
 - Very long daemon uptime after runtime-route work is a smell. If the daemon has been up for hours and new routes/surfaces are “missing,” verify build + restart first.
 
-## Promotion
+## Pull Request Operating Procedure
 
-- The real promotion path is `./scripts/promote-stable.sh`.
-- Do not hand-roll daemon promotion with ad hoc `launchctl` commands if the script exists.
-- If the user asks to "promote the daemon", run the script first and report the exact blocker if it fails.
-- Promotion to stable is not a rare release ceremony here; user-facing runtime/control-plane fixes often need prompt promotion, or the live daemon/UI will keep lying from an older checkout.
-- `/Users/erichowens/port-daddy-stable` is a clean promotion target, not a live dogfood sandbox.
-- Do not run fleets, background daemons, Spark, Spider, or local build outputs in the stable checkout.
-- If stable accumulates `.spark/`, `.spider/`, `port-daddy.log`, `port-registry.db`, `public/fleet-ui`, or tracked build garbage, treat that as operator misuse to rehabilitate before the next promotion.
-- If promotion is blocked by dirty archaeology, split green feature/parity slices from intentionally red bug-battery tests; do not bundle known-red test files into an otherwise promotable commit.
-- The script expects:
-  - current branch is `main`
-  - no uncommitted source changes in `lib/`, `server.ts`, `mcp/`, `routes/`, `bin/`, or `tests/`
+Every PR opened in this repo MUST go through skeptical adversarial review
+before merging. The author cannot self-approve by typing "looks good." The
+flow is:
+
+1. **Open the PR.** Branch claimed via `pd begin --identity` + `pd session
+   files add ...`. CI must be green (or you must explicitly justify each
+   red check in the PR body).
+2. **Spawn a skeptical reviewer agent.** Use the `feature-dev:code-reviewer`
+   subagent type (or `auditor` for whole-codebase concerns). Brief it with
+   the PR's context, the change's invariants, the failure modes you're
+   worried about, and SPECIFIC hunting prompts ("could this leak X? does
+   this handle symlinks? what about Windows path separators?"). Demand a
+   verdict prefix: `SHIP / SHIP-AFTER-FIX / DO-NOT-SHIP`. Cap word count so
+   you get signal, not a wall of text.
+3. **Address every HIGH-confidence finding** as a fixup commit on the
+   branch. Don't squash until merge. Each fixup commit message names the
+   finding it addresses so the audit trail survives.
+4. **Comment on the PR** with what changed, the validation evidence
+   (test counts, `tsc --noEmit` exit, focused jest output), and an explicit
+   line for each reviewer finding marked done / deferred / contested-because.
+5. **Re-spawn the reviewer** (or a fresh one) if the change set is
+   non-trivial. Don't ship with a stale verdict.
+6. **`pd note` the result + `pd done`** before merge. The PD audit trail
+   is part of the ship contract — a merge without it is not durable.
+7. **Merge in the right order.** When PRs stack (e.g. a doctor PR bases on
+   a binary-daemon PR), merge the base first, rebase the dependent onto
+   `main`, re-run CI, then merge.
+
+Skeptical review is parallelizable: when multiple PRs are in flight, fire
+the reviewer agents in a single message so they run concurrently. Always
+read the diff yourself before delegating — the reviewer can't catch what
+you don't brief it on.
+
+For multi-PR ship campaigns, track the state in `TaskCreate` so the merge
+sequence is explicit. The user can interrupt at any boundary; the task
+list is the recovery surface.
+
+## Release
+
+- **Full playbook lives in [`docs/RELEASING.md`](docs/RELEASING.md).** It covers public releases, candidate/hotfix builds, and local feature dev (with the binary smoke-test path you must run before merging anything in `lib/`, `routes/`, `server.ts`, or `mcp/`). [`docs/VERSIONING.md`](docs/VERSIONING.md) is the canonical list of version surfaces and the semver policy.
+- Port Daddy ships as **signed binaries** per [ADR-0028](docs/adr/0028-signed-binary-distribution.md). There is no `~/port-daddy-stable` worktree, no `promote-stable.sh`, and no `npm link` install path.
+- The release boundary is a git tag plus a GitHub Release. `.github/workflows/release.yml` builds notarized binaries on the tag; `.github/workflows/publish.yml` is the manual companion that rolls the `curiositech/homebrew-tap` formula. Hold `pd lock release-publish` for the duration of the brew-tap roll — the formula is shared state.
+- Versioning is operator-trust. If users will get a behavior change after `brew upgrade port-daddy`, the binary they download must report a newer version than the one they had.
+- User-facing runtime/control-plane fixes still need a prompt cut, or the live daemon/UI will keep lying from an older binary.
 
 ## Fleet Identity
 
