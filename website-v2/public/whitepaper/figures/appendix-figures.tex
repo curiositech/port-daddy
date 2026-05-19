@@ -38,22 +38,23 @@
                  inner sep=1pt,fill=hhpaper},
 ]
 % Top row: public channel (Dolev-Yao adversary).
-\node[ch,fill=hhpaper] (pub) at (4.7,5.0) {public channel \texttt{pub} (Dolev-Yao)};
-% Left actor: Issuer.
-\node[actor] (issuer) at (-0.2,2.6) {\textbf{Issuer}};
-\node[ev,below=4mm of issuer] (eIssue) {event \texttt{issued\_for}$(a, tk)$};
+\node[ch,fill=hhpaper] (pub) at (5.0,5.2) {public channel \texttt{pub} (Dolev-Yao)};
+% Left actor: Issuer (shifted further left so its event ellipse clears the SQL box).
+\node[actor] (issuer) at (-1.4,2.6) {\textbf{Issuer}};
+\node[ev,below=10mm of issuer] (eIssue) {event \texttt{issued\_for}$(a, tk)$};
 % Center column: private channel, cap, SQL update.
-\node[ch] (chTk) at (4.7,3.4) {private channel \texttt{ch\_tk}};
+\node[ch] (chTk) at (5.0,3.4) {private channel \texttt{ch\_tk}};
 \node[capbox,below=4mm of chTk] (capBox) {cap};
-\node[sql,below=4mm of capBox,minimum width=72mm] (sql)
+\node[sql,below=4mm of capBox,minimum width=60mm] (sql)
   {\textbf{atomic UPDATE} \emph{(SQLite serializes writers)}\\[2pt]
-   \texttt{UPDATE recovery\_tokens SET consumed\_at=?}\\
-   \texttt{WHERE token=? AND consumed\_at IS NULL RETURNING *}};
+   \texttt{UPDATE recovery\_tokens}\\
+   \texttt{SET consumed\_at=? WHERE token=?}\\
+   \texttt{AND consumed\_at IS NULL RETURNING *}};
 % Right actors: Consumer (wins), 2nd Consumer (rejected).
-\node[actor] (consumer) at (10.0,2.6) {\textbf{Consumer}};
-\node[ev,below=4mm of consumer] (eConsume) {event \texttt{consumed\_for}$(a, tk)$};
+\node[actor] (consumer) at (11.0,2.6) {\textbf{Consumer}};
+\node[ev,below=10mm of consumer] (eConsume) {event \texttt{consumed\_for}$(a, tk)$};
 \node[actor,fill=hhpaper,draw=hhcinnabar,
-      below=24mm of consumer.south] (consumer2)
+      below=26mm of consumer.south] (consumer2)
   {\textbf{2nd Consumer}};
 % Issuer → ch_tk (sends cap).
 \draw[msg] (issuer.east) -- (chTk.west)

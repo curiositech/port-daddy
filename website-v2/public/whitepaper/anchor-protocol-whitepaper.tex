@@ -37,6 +37,11 @@
 \definecolor{hhpatina}{HTML}{5C7A6A}
 \definecolor{hhpaper}{HTML}{FBF7EE}
 
+% Verification-status markers for the Appendix A status table.
+\newcommand{\Closed}{{\textcolor{hhpatina}{\textbf{\textsf{closed}}}}}
+\newcommand{\Partial}{{\textcolor{hhbrass}{\textbf{\textsf{partial}}}}}
+\newcommand{\Open}{{\textcolor{hhcinnabar}{\textbf{\textsf{open}}}}}
+
 % Pull-quote sidebar: large quote, left-edge accent stripe.
 \newcommand{\pullquote}[1]{%
   \par\vspace{6pt}%
@@ -468,13 +473,13 @@ function Harbor.VerifyChain(chain, pk_root):
 \section{Implementation: Deployed Rust Core}
 % ═════════════════════════════════════════════════════════════════════════════
 
-The verified cryptographic core is not a reference implementation---it is the \textbf{deployed production code}. The Rust crate \texttt{harbor-card-rs} (\texttt{core/harbor-card-rs/src/lib.rs}) is compiled to a C dynamic library (\texttt{cdylib}) and called from the Node.js daemon via FFI through the \texttt{arbiter} module (\texttt{lib/arbiter.ts}).
+The verified cryptographic core is not a reference implementation---it is the \textbf{deployed production code}. The open-source Rust crate \texttt{harbor-card-rs} is compiled to a C dynamic library (\texttt{cdylib}) and called from the Node.js daemon via FFI through the daemon's runtime-enforcement (Arbiter) module.
 
 This architecture eliminates the gap between ``verified code'' and ``running code'' that weakens many formal verification efforts. The same binary that Kani model-checks is the same binary that the daemon loads at runtime.
 
 \subsection{Core Verification Logic}
 
-\begin{lstlisting}[style=rust, caption={Deployed Rust Implementation — Harbor Card Verifier (abridged from \texttt{core/harbor-card-rs/src/lib.rs})}]
+\begin{lstlisting}[style=rust, caption={Deployed Rust Implementation — Harbor Card Verifier (abridged from the \texttt{harbor-card-rs} crate)}]
 pub fn verify(&self, token: &str, now_ts: i64)
     -> Result<HarborCardClaims, HarborError> {
     let parts: Vec<&str> = token.split('.').collect();
@@ -511,7 +516,7 @@ Key implementation details: \texttt{zeroize} scrubs cryptographic material from 
 
 The Rust crate exports two C-ABI functions consumed by the TypeScript daemon:
 
-\begin{lstlisting}[style=rust, caption={FFI Exports — Called from \texttt{lib/arbiter.ts} in the Running Daemon}]
+\begin{lstlisting}[style=rust, caption={FFI Exports — Called from the daemon's Arbiter module}]
 #[no_mangle]
 pub extern "C" fn harbor_constant_time_compare(
     a: *const u8, a_len: usize,
@@ -527,7 +532,7 @@ pub extern "C" fn harbor_verify_caps_subset_json(
 
 The daemon's \texttt{arbiter} module binds these at startup:
 
-\begin{lstlisting}[caption={TypeScript FFI Binding (\texttt{lib/arbiter.ts})}]
+\begin{lstlisting}[caption={TypeScript FFI Binding (daemon-side Arbiter)}]
 constantTimeCompare: lib.func(
   'bool harbor_constant_time_compare(
      const uint8_t *a, size_t a_len,
@@ -622,7 +627,7 @@ Constant-Time Comparison & Yes & Kani & Yes (FFI) & \cite{brumley2011remote} \\
 Capability Attenuation & Yes & Kani & Yes (FFI) & \cite{birgisson2014macaroons} \\
 \bottomrule
 \end{tabular}
-\caption{Verified Security Properties. ``Deployed'' indicates the verified Rust code is called by the production daemon via FFI (\texttt{lib/arbiter.ts} $\to$ \texttt{harbor-card-rs}).}
+\caption{Verified Security Properties. ``Deployed'' indicates the verified Rust code is called by the production daemon via FFI from the Arbiter module into the \texttt{harbor-card-rs} crate.}
 \label{tab:properties}
 \end{table}
 
@@ -792,46 +797,36 @@ Alan Demers, Dan Greene, Carl Hauser, Wes Irish, John Larson, Scott Shenker, How
 \appendix
 % ═════════════════════════════════════════════════════════════════════════════
 
-\section{Mechanization Status}\label{app:mech}
+\section{Formal Verification Status}\label{app:mech}
 
-This appendix records the formal-verification status of the load-bearing claims in this paper, sealed at adversarial-review round v2.6 (May 2026). The companion paper, \emph{The Bonded Commons}, carries the cross-paper master table at \S A; this appendix lists only the artifacts that pertain specifically to the Anchor Protocol. The full round-by-round dialogue between the red-team and white-hat review fleets is rendered at \url{https://portdaddy.dev/whitepaper/rounds}.
+\paragraph{Artifact availability.} Every artifact named in Table~\ref{tab:anchor-status} is bundled at \url{https://portdaddy.dev/whitepaper/artifacts/}. The verified Rust core is the open-source \texttt{harbor-card-rs} crate; runtime components are deployed inside the Port Daddy daemon binary. The companion paper, \emph{The Bonded Commons}, carries the cross-paper status table; this appendix lists only the items that pertain specifically to the Anchor Protocol.
 
-The v2.6 round closes the cuckoo-filter pollution open item and lands the multi-hop delegation walker that binds runtime to the depth-$N$ ProVerif chain-replay proof. Algorithm diagrams for both are placed inline near their discussion in \S\ref{sec:revocation} (cuckoo) and \S\ref{sec:delegation} (delegation walker).
+\renewcommand{\arraystretch}{1.15}
+\begin{table}[H]
+\centering
+\caption{Anchor Protocol verification status. \Closed: model verified \emph{and} runtime conformance test passes. \Partial: design verified, runtime empirically tested rather than proved. \Open: known unmechanized.}
+\label{tab:anchor-status}
+\small
+\begin{tabular}{@{}p{56mm}p{32mm}p{28mm}p{30mm}@{}}
+\toprule
+\textbf{Claim} & \textbf{Method} & \textbf{Result} & \textbf{Artifact} \\
+\midrule
+Authentication + injective agreement, all three phases (\S\ref{sec:algorithms}) & ProVerif 2.05 & \Closed\ all three phases & \texttt{harbor\_card\_v\{1,2,3\}*.pv} \\
+Algorithm-confusion immunity & ProVerif pinned vs.\ naive & \Closed\ pinned TRUE; counter-trace witnessed & \texttt{algconfusion.pv} \\
+Delegation chain replay (\S\ref{sec:delegation}) & ProVerif at depth 3 & \Closed\ chain authenticity TRUE; 17-case runtime conformance & \texttt{chain-replay.pv} \\
+Cuckoo-filter pollution resistance (\S\ref{sec:revocation}) & 5-invariant property test & \Closed\ FP rate within $2B/2^f$ at load $0.95$ & cuckoo property tests \\
+\midrule
+Cuckoo-filter revocation soundness & inspection + empirical & \Partial\ gate strictly narrows acceptance; gossip bound reproduced from~\cite{demers1987epidemic} & runtime test \\
+Constant-time signature comparison & audited library (\texttt{subtle::ConstantTimeEq}) & \Partial\ no side-channel proof; library trust documented & --- \\
+\midrule
+Formal gossip-convergence bound & --- & \Open\ leaning on standard anti-entropy analysis~\cite{demers1987epidemic} & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-\subsection*{Closed (mechanized in ProVerif 2.05, results reproduced in this paper)}
+\paragraph{Limitations.} The cuckoo-filter pollution closure handles the local-filter side; cross-peer gossip propagation still leans on the standard anti-entropy analysis rather than a mechanized proof. The side-channel resistance of signature comparison is inherited from an audited library rather than re-proved. These deferrals are documented as known open problems rather than as defects in the present claims.
 
-\begin{itemize}
-\item \textbf{Authentication and injective agreement} (\S\ref{sec:algorithms}, all three protocol phases). ProVerif 2.05 verifies that an honest verifier accepts only tokens minted by an honest issuer, and that the same minted token cannot be accepted twice for distinct sessions. Artifacts: Phase~1 \texttt{harbor\_card\_v1\_refined.pv} (Appendix~\ref{app:proverif}); Phase~2 \texttt{harbor\_card\_v2\_asymmetric.pv} (Appendix~\ref{app:phase2}); Phase~3 \texttt{harbor\_card\_v3\_delegation.pv} (Appendix~\ref{app:phase3}).
-\item \textbf{Algorithm-confusion immunity} (\S\ref{sec:algorithms}). The pinned-verifier model authenticates only when the algorithm field is bound at issuance time and re-checked at verification time; an explicit naive-verifier counter-trace witnesses the JWT \texttt{alg=}-rewriting attack the pinning defends against. Result: pinned-verifier authenticity TRUE; naive-verifier counter-trace produced. Artifact: \texttt{proofs/anchor/token-verify/algconfusion.pv}. Runtime conformance against \texttt{lib/harbor-tokens.ts}: \texttt{tests/unit/runtime-conformance/algorithm-pinning.test.js} exercises five attack patterns plus two controls; all pass.
-\item \textbf{Delegation chain replay} (\S\ref{sec:algorithms}, Phase~3). ProVerif at chain depth 3 verifies that a chain authenticated under nonce $+$ \texttt{(prev\_id, next\_id, message)} binding cannot be replayed across sessions or have its hops reordered. Result: chain authenticity TRUE. Artifact: \texttt{proofs/anchor/delegation/chain-replay.pv}. \emph{v2.6 update}: multi-hop runtime walker landed at \texttt{lib/delegation-chain.ts} (297 LOC) with conformance test \texttt{tests/unit/runtime-conformance/delegation-chain-replay.test.js} (17/17 pass, exercising nonce reuse, hop swap, signature forgery, chain truncation). Diagram in Figure~\ref{fig:anchor-delegation-inline}.
-\end{itemize}
-
-\subsection*{Partially closed (empirical or implementation-bound; full mechanization deferred)}
-
-\begin{itemize}
-\item \textbf{Cuckoo-filter revocation soundness} (\S\ref{sec:algorithms}). The revocation gate strictly narrows acceptance, so the existing soundness proofs are unaffected by inspection. We have not yet mechanized the gossip convergence bound; the empirical bound in the paper ($O(\log m)$ rounds for $m$ peers) is from the standard anti-entropy analysis~\cite{demers1987epidemic} and is reproduced rather than reproved. A formal mechanization is carried indefinitely; the runtime path is exercised by \texttt{tests/unit/cuckoo-revocation.test.js}.
-\item \textbf{Constant-time signature comparison} (\S\ref{sec:algorithms}). The Rust implementation uses \texttt{subtle::ConstantTimeEq}. We have not produced a side-channel proof; we rely on the audited library and document that reliance here.
-\end{itemize}
-
-\subsection*{Closed in v2.6 (was open in v2.5)}
-
-\begin{itemize}
-\item \textbf{Cuckoo-filter pollution attack}. Implementation landed at \texttt{lib/cuckoo-filter.ts} per Fan, Andersen, Kaminsky, Mitzenmacher~\cite{fan2014cuckoo}: 8-bit fingerprints, 4 entries per bucket, MaxKicks $= 500$, load-factor ceiling $0.95$. Property test \texttt{tests/unit/cuckoo-pollution-property.test.js} exercises five adversarial invariants under fast-check (C1 no false negatives, C2 false-positive rate within the theoretical bound $2B/2^f = 0.03125$ at the load ceiling, C3 insert rejection, C4 delete safety, C5 capacity ceiling against a duplicate-fingerprint adversary). The load-factor cap keeps occupancy inside the regime where the FP bound holds. Diagram in Figure~\ref{fig:anchor-cuckoo-inline}.
-\end{itemize}
-
-\subsection*{Open (acknowledged, not yet started)}
-
-\begin{itemize}
-\item \textbf{Formal model of the gossip convergence bound}. The cuckoo-filter pollution closure handles the local-filter side; cross-peer gossip propagation is still leaning on the standard anti-entropy analysis~\cite{demers1987epidemic} rather than a mechanized proof. Carried indefinitely.
-\end{itemize}
-
-\subsection*{How to read these claims}
-
-``Closed'' means the property is mechanized: a verifier or proof assistant has checked the design against an explicit attacker model. ``Partially closed'' means the design is verified but the implementation is exercised empirically rather than proved. ``Open'' means we believe we know the answer but have not written it down formally.
-
-We err toward listing fewer items as closed rather than more. The discipline came from being argued with for five rounds by an adversarial reviewer that does not flatter.
-
-\pullquote{The discipline came from being argued with for five rounds by an adversarial reviewer that does not flatter.}
+\pullquote{We err toward listing fewer items as closed rather than more.}
 
 % ═════════════════════════════════════════════════════════════════════════════
 

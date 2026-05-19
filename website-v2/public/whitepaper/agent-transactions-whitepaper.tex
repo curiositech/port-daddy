@@ -36,6 +36,11 @@
 \definecolor{hhpatina}{HTML}{5C7A6A}
 \definecolor{hhpaper}{HTML}{FBF7EE}
 
+% Verification-status markers for the Appendix A status table.
+\newcommand{\Closed}{{\textcolor{hhpatina}{\textbf{\textsf{closed}}}}}
+\newcommand{\Partial}{{\textcolor{hhbrass}{\textbf{\textsf{partial}}}}}
+\newcommand{\SpecOnly}{{\textcolor{hhcinnabar}{\textbf{\textsf{spec-only}}}}}
+
 % Pull-quote sidebar: large quote, left-edge accent stripe.
 \newcommand{\pullquote}[1]{%
   \par\vspace{6pt}%
@@ -701,7 +706,7 @@ To avoid the classic lemons problem, the mechanism requires:
 
 \input{figures/fig-auction-inline}
 
-An independent theorization with explicit assumptions and a Monte Carlo sweep over 36 parameter configurations is recorded in \texttt{proofs/bonded/pareto/dominance.md} and \texttt{proofs/bonded/pareto/simulation.mjs} (sealed at round v2.5; see \S\ref{app:mech}). The simulation surfaces three quantitative boundaries beyond the qualitative claim, visualized in Figure~\ref{fig:pareto-mc-inline}: (i) Pareto dominance requires reputation noise $\sigma_r \le 0.1$, coupling \S\ref{sec:merkle-forest} to this section; (ii) a partial cartel is robustly defeated by Vickrey 2nd-price, but a full cartel collapses dominance regardless of detection rate at $p_d = 0.3$; (iii) larger insurer pools exacerbate winner's curse via the order-statistic effect, with the empirical optimum at $n = 3$. A formal Coq/Lean mechanization of the strategic game is carried indefinitely behind the empirical artifact.
+An independent theorization with explicit assumptions and a Monte Carlo sweep over 36 parameter configurations is recorded in the v2.5-sealed Pareto-dominance artifact bundle (see \S\ref{app:mech} for the public artifact index). The simulation surfaces three quantitative boundaries beyond the qualitative claim, visualized in Figure~\ref{fig:pareto-mc-inline}: (i) Pareto dominance requires reputation noise $\sigma_r \le 0.1$, coupling \S\ref{sec:merkle-forest} to this section; (ii) a partial cartel is robustly defeated by Vickrey 2nd-price, but a full cartel collapses dominance regardless of detection rate at $p_d = 0.3$; (iii) larger insurer pools exacerbate winner's curse via the order-statistic effect, with the empirical optimum at $n = 3$. A formal Coq/Lean mechanization of the strategic game is carried indefinitely behind the empirical artifact.
 
 \begin{figure}[H]
   \centering
@@ -731,7 +736,7 @@ $B_{\mathrm{dep}}^{\star} \approx 316$ USD. \emph{Empirically the attack remains
   \label{fig:sybil-mc-inline}
 \end{figure}
 
-\emph{Closing A5 requires a composite mechanism}: an unrecoverable per-identity onboarding cost $C_{\mathrm{kyc}}$ (proof-of-personhood, KYC fee, or NFT mint), reputation gating that caps new identities to low-coverage transactions until they accumulate a track record, and per-class $B_{\mathrm{dep}}$ tuned to saturate the coverage cap exactly. This is a real revision to the \S\ref{sec:youle} mechanism design and is recorded honestly in \texttt{proofs/bonded/pareto/cartel-resilience.md}.
+\emph{Closing A5 requires a composite mechanism}: an unrecoverable per-identity onboarding cost $C_{\mathrm{kyc}}$ (proof-of-personhood, KYC fee, or NFT mint), reputation gating that caps new identities to low-coverage transactions until they accumulate a track record, and per-class $B_{\mathrm{dep}}$ tuned to saturate the coverage cap exactly. This is a real revision to the \S\ref{sec:youle} mechanism design and is recorded honestly in the v2.6 cartel-resilience analysis (see \S\ref{app:mech}).
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Coordination as Substrate: An Expressive-Act Taxonomy}\label{sec:taxonomy}
@@ -927,7 +932,7 @@ Spec == Init /\ [][Next]_vars
 
 \subsection{The Conservation Theorem}\label{sec:conservation}
 
-The original specification states the escrow invariant in TLA$^{+}$ but does not commit to an operational accounting. The April 2026 implementation in \texttt{lib/bonds.ts} collapses the abstract escrow into three monetary buckets per project---\textbf{wallet}, \textbf{escrow}, and \textbf{commons pool}---and lets us formalize what \texttt{EscrowInvariant} only asserted in prose.
+The original specification states the escrow invariant in TLA$^{+}$ but does not commit to an operational accounting. The April 2026 reference implementation in the daemon's bond-accounting subsystem collapses the abstract escrow into three monetary buckets per project---\textbf{wallet}, \textbf{escrow}, and \textbf{commons pool}---and lets us formalize what \texttt{EscrowInvariant} only asserted in prose.
 
 \begin{definition}[Accounting State]\label{def:acct-state}
 For project $P$, the accounting state is the triple $(W_P, E_P, C_P) \in \mathbb{R}_{\geq 0}^{3}$, where $W_P$ is wallet balance, $E_P$ is the sum of bond amounts in states $\{\textit{escrowed},\, \textit{running},\, \textit{exiting}\}$, and $C_P$ is the commons pool balance. The \emph{monetary supply} is $S_P := W_P + E_P + C_P$.
@@ -961,7 +966,7 @@ Given two concurrent invocations $\mathrm{escrow}(b_1)$ and $\mathrm{escrow}(b_2
 Both transactions execute under \texttt{BEGIN EXCLUSIVE}, so SQLite serializes them. Suppose $T_1$ wins. After commit, $W_P = W_P^{\text{pre}} - b_1$. $T_2$ now reads the updated balance and rejects iff $b_2 > W_P^{\text{pre}} - b_1$, which by assumption is true. \qed
 \end{proof}
 
-\paragraph{Graduated sanctions.} The TLA$^{+}$ model abstracts settlement into \texttt{Commit} and \texttt{Crash}. Reality has an intermediate state: an agent whose spend is approaching its daily budget. \texttt{lib/budget-guard.ts} introduces \textbf{throttle} as a soft signal at 80\% spend (publishes \texttt{budget:decisions:throttle}; structurally non-coercive, advisory in Sen's sense) and \textbf{kill} as the hard signal at 100\% (refuses new spawns until UTC midnight; existing spawns SIGTERMed; bond slashed). The throttle/kill split is the commons' analogue of Ostrom's graduated sanctions~\cite{ostrom1990governing}: response scales with violation severity. Settlement is not binary; it is a three-state machine $\textit{nominal} \to \textit{throttled} \to \textit{killed}$, with $\textit{nominal} \to \textit{killed}$ reachable only on hard evidence (e.g., a direct Arbiter violation).
+\paragraph{Graduated sanctions.} The TLA$^{+}$ model abstracts settlement into \texttt{Commit} and \texttt{Crash}. Reality has an intermediate state: an agent whose spend is approaching its daily budget. The daemon's budget-guard component introduces \textbf{throttle} as a soft signal at 80\% spend (publishes a \texttt{budget:decisions:throttle} event; structurally non-coercive, advisory in Sen's sense) and \textbf{kill} as the hard signal at 100\% (refuses new spawns until UTC midnight; existing spawns SIGTERMed; bond slashed). The throttle/kill split is the commons' analogue of Ostrom's graduated sanctions~\cite{ostrom1990governing}: response scales with violation severity. Settlement is not binary; it is a three-state machine $\textit{nominal} \to \textit{throttled} \to \textit{killed}$, with $\textit{nominal} \to \textit{killed}$ reachable only on hard evidence (e.g., a direct Arbiter violation).
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Related Work}\label{sec:related}
@@ -1061,64 +1066,42 @@ The infrastructure is running. The forest is building. The covenants are auditab
 % ═══════════════════════════════════════════════════════════════════════════════
 \appendix
 
-\section{Mechanization Status (v2.6)}\label{app:mech}
+\section{Formal Verification Status}\label{app:mech}
 
-This appendix records the formal-verification status of the load-bearing claims in the body of this paper, sealed at adversarial-review round v2.6. Each row names the claim, the artifact (or the explicit deferral), and the runtime conformance test (or \emph{spec-only} marker if no implementation exists yet). The full round-by-round dialogue lives at \texttt{docs/shipwright/dialogue-v(N)-to-v(N+1).\{md,json\}} and is rendered at \url{https://portdaddy.dev/whitepaper/rounds}.
+\paragraph{Artifact availability.} Every artifact named in Table~\ref{tab:verification-status} is bundled at \url{https://portdaddy.dev/whitepaper/artifacts/}. Runtime components are deployed inside the Port Daddy daemon binary and exposed through its public APIs; the source for the verified Rust core is the open-source \texttt{harbor-card-rs} crate (companion paper~\cite{owens2026anchor}, \S5). A review-process changelog, including the round-by-round dialogue between adversarial and white-hat fleets that produced the current status, is rendered at \url{https://portdaddy.dev/whitepaper/rounds}; this paper records only the load-bearing claims and their evidence.
 
-The v2.6 round closes the three remaining audit-promoted gaps from v2.5 (cuckoo-filter pollution, Sybil insurer attack, repeated-game cartel folk-theorem) and promotes the magic-link and delegation runtime bindings out of \emph{spec-only}. The Merkle binding EasyCrypt skeleton has been discharged. The Pareto Monte Carlo has been extended with two new regimes (A5 Sybil, A6 cartel). The algorithms and the empirical Monte Carlo evidence are visualized in Appendix~\ref{app:algorithms} and Appendix~\ref{app:montecarlo} respectively.
+\renewcommand{\arraystretch}{1.15}
+\begin{table}[H]
+\centering
+\caption{Verification status of load-bearing claims. ``Method'' is the formal technique; ``Result'' is its outcome; ``Artifact'' names the public bundle file. A claim with both a formal artifact \emph{and} a runtime conformance test is fully closed (\Closed); a claim with formal model but no deployed runtime is spec-only (\SpecOnly); a claim with empirical evidence but no formal mechanization is partial (\Partial).}
+\label{tab:verification-status}
+\small
+\begin{tabular}{@{}p{52mm}p{30mm}p{32mm}p{30mm}@{}}
+\toprule
+\textbf{Claim} & \textbf{Method} & \textbf{Result} & \textbf{Artifact} \\
+\midrule
+Coordination channel isolation (\S\ref{sec:merkle-forest}) & ProVerif (Dolev-Yao) & \Closed\ 3 properties TRUE & \texttt{isolation.pv} \\
+Passkey device pairing & ProVerif & \Closed\ 3 properties TRUE & \texttt{passkey-pair.pv} \\
+Federated security (\S\ref{sec:federated-sovereign}) & ProVerif, 3-of-4 compromise & \Closed\ no attacker reach & \texttt{federated.pv} \\
+Conservation Theorem (\S\ref{sec:conservation}) & TLA+ bounded TLC & \Closed\ 26{,}818 states, invariant holds & \texttt{Conservation.tla} \\
+No-overdraft lemma (\S\ref{sec:economic}) & fast-check property test & \Closed\ 4 invariants, randomized ops & bonds-property tests \\
+Algorithm-confusion immunity & ProVerif (pinned vs.\ naive) & \Closed\ pinned TRUE; counter-trace produced & \texttt{algconfusion.pv} \\
+Delegation chain replay & ProVerif at depth 3 & \Closed\ chain authenticity TRUE & \texttt{chain-replay.pv} \\
+Magic-link single-use (\S\ref{sec:federated-sovereign}) & ProVerif (private-channel cap) & \Closed\ injective-event TRUE; 7/7 runtime conformance & \texttt{magic-link.pv} \\
+Cuckoo-filter pollution resistance & fast-check, 5 invariants & \Closed\ FP rate within $2B/2^f$ at load $0.95$ & cuckoo property tests \\
+\midrule
+Merkle-Forest binding (\S\ref{sec:merkle-forest}) & EasyCrypt + fast-check & \Partial\ skeleton discharged; PROM-formal future work & \texttt{binding.ec} \\
+Pareto dominance (\S\ref{sec:youle:welfare}) & Monte Carlo, 36 configs $\times$ 2k trials & \Partial\ empirical; $\sigma_r{\le}0.1$, $n{=}3$ optimum & \texttt{simulation.mjs} \\
+Sybil A5 (\S\ref{sec:youle:a5}) & Monte Carlo over $K$ Sybils & \Partial\ coverage-bounded ceiling at $B_T$ & \texttt{simulation-sybil.mjs} \\
+Cartel folk-theorem A6 & Monte Carlo + closed form & \Partial\ $p_d^\star{\approx}0.10$ at $\delta{=}0.95$ & \texttt{simulation-cartel.mjs} \\
+\midrule
+Passkey pairing runtime & --- & \SpecOnly\ model exists; no runtime & \texttt{passkey-pair.pv} \\
+Federated KMS Cloudflare Worker & --- & \SpecOnly\ model exists; no Worker yet & \texttt{federated.pv} \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-\subsection*{Summary of closed claims}
-
-\begin{itemize}
-\item \textbf{Coordination channel isolation} (\S\ref{sec:merkle-forest}, between adversarial and white-hat fleets). Verified in ProVerif under a Dolev-Yao adversary controlling the daemon. Three properties (red secrecy, defense secrecy, Gate B uniqueness via injective event) verified TRUE. Artifact: \texttt{proofs/coordination/isolation.pv}.
-
-\item \textbf{Passkey device pairing} (\S\ref{sec:youle}, prerequisite for federated identity). Verified in ProVerif. Three properties (passkey secrecy, pairing authenticity, replay resistance) TRUE. Artifact: \texttt{proofs/bonded/pairing/passkey-pair.pv}.
-
-\item \textbf{Federated Security Theorem} (Theorem~\ref{thm:federated-security} informal in \S\ref{sec:federated-sovereign}). ProVerif model of the four-principal split (daemon, KMS, email, passphrase) under a 3-of-4 compromise scenario. Result: \texttt{not attacker(account\_root) is true}. Artifact: \texttt{proofs/bonded/federated/federated.pv}.
-
-\item \textbf{Conservation Theorem} (\S\ref{sec:conservation}). TLA+ specification with bounded TLC model checking (3 agents, MaxBalance=3, MaxMint=6): 26{,}818 states explored, no error found. Conservation invariant $\mathit{TotalFree} + \mathit{TotalEscrow} + \mathit{burned} = \mathit{minted}$ and $\mathit{NoNegative}$ both hold under exhaustive bounded search. Artifact: \texttt{proofs/bonded/conservation/Conservation.tla}. Property test against the real \texttt{lib/bonds.ts} at \texttt{tests/unit/bonds-conservation-property.test.js} (6 properties under fast-check, 100 cases each).
-
-\item \textbf{No-Overdraft Lemma} (\S\ref{sec:economic}). fast-check property test against the real \texttt{lib/bonds.ts} code, exercising 4 invariants under randomized op sequences. Artifact: \texttt{tests/unit/bonds-conservation-property.test.js}.
-
-\item \textbf{Algorithm-confusion in token verification} (Anchor companion, \S3). ProVerif: pinned-verifier authenticity TRUE; naive-verifier counter-trace witnessed (the JWT \texttt{alg=}-rewriting attack the pinning defends against). Artifact: \texttt{proofs/anchor/token-verify/algconfusion.pv}. Runtime conformance against \texttt{lib/harbor-tokens.ts}: \texttt{tests/unit/runtime-conformance/algorithm-pinning.test.js} (5 attack patterns + 2 controls, all pass).
-
-\item \textbf{Delegation chain replay} (Anchor companion, \S3). ProVerif at depth 3: chain authenticity TRUE under nonce $+$ (prev\_id, next\_id, message) binding. Artifact: \texttt{proofs/anchor/delegation/chain-replay.pv}. \emph{v2.6 update}: multi-hop runtime walker in \texttt{lib/delegation-chain.ts} (297 LOC) with conformance test \texttt{tests/unit/runtime-conformance/delegation-chain-replay.test.js} (17/17 pass, exercises nonce reuse, hop swap, signature forgery, chain truncation).
-
-\item \textbf{Email magic-link single-use} (\S\ref{sec:federated-sovereign}). ProVerif: injective-event single-use TRUE under per-token private-channel cap (modeling the SQL \texttt{UPDATE WHERE consumed\_at IS NULL RETURNING} atomicity); binding TRUE. Artifact: \texttt{proofs/bonded/recovery/magic-link.pv}. \emph{v2.6 update}: runtime in \texttt{lib/recovery-magic-link.ts} (131 LOC) $+$ SQL migration $+$ route. Conformance test at \texttt{tests/unit/runtime-conformance/magic-link-single-use.test.js} exercises the four ProVerif counter-traces (double-consume, unknown token, TTL expiry, race) plus three controls; 7/7 pass.
-
-\item \textbf{Cuckoo-filter pollution resistance} (A3 attack catalog, \S\ref{sec:merkle-forest} rate-limit gate). \emph{New in v2.6}: \texttt{lib/cuckoo-filter.ts} implements Fan, Andersen, Kaminsky, Mitzenmacher~\cite{fan2014cuckoo} with 8-bit fingerprints, 4 entries per bucket, MaxKicks $= 500$, and load-factor ceiling $0.95$. Property test \texttt{tests/unit/cuckoo-pollution-property.test.js} exercises five adversarial invariants under fast-check: no false negatives (C1), false-positive rate within the theoretical bound $2B/2^f = 0.03125$ at the load ceiling (C2), insert rejection at $0.95$ (C3), delete safety (C4), and capacity ceiling against a duplicate-fingerprint adversary (C5).
-\end{itemize}
-
-\subsection*{Partially closed (empirical $+$ game spec; formal mechanization deferred)}
-
-\begin{itemize}
-\item \textbf{Merkle Forest binding} (\S\ref{sec:merkle-forest}). Reference implementation in \texttt{lib/merkle-tree.ts} (RFC~6962-style domain-separated binary tree, 200 LOC). Eight binding properties verified empirically under fast-check at \texttt{tests/unit/merkle-binding-property.test.js} (100 random cases per property). Game-based spec with reduction sketch to SHA-256 collision resistance: \texttt{proofs/bonded/merkle/binding.md}. \emph{v2.6 update}: the EasyCrypt skeleton has been \emph{discharged} --- \texttt{proofs/bonded/merkle/binding.ec} now closes \texttt{leaf\_collision\_bound}, \texttt{internal\_collision\_bound}, and \texttt{binding\_reduction} via a union bound over leaf and internal collisions. The \texttt{easycrypt -check} run log is captured at \texttt{proofs/bonded/merkle/binding.run.log}.
-
-\item \textbf{Pareto dominance of competitive-insurance pricing} (\S\ref{sec:youle:welfare}). Independent theorization at \texttt{proofs/bonded/pareto/dominance.md} restating the claim with explicit assumptions (public reputation, no collusion, solvency, insurer efficiency) and a sketch reduction by cases. Monte Carlo simulation at \texttt{proofs/bonded/pareto/simulation.mjs} (Vickrey 2nd-price vs.\ static authority bond, identical coverage in both regimes, 36 parameter configurations $\times$ 2{,}000 trials $\times$ 50 transactions). Three quantitative findings: $\sigma_r \le 0.1$ ceiling on reputation noise, partial cartel resilience but full cartel collapse, $n = 3$ insurer optimum due to winner's-curse order-statistic effect. Visualized in Figure~\ref{fig:pareto-mc-inline}. Formal Coq/Lean mechanization of the strategic game (estimated 1{,}000 LOC $+$ several months) carried indefinitely.
-
-\item \textbf{Sybil insurer attack (A5)}. \emph{New in v2.6}: \texttt{proofs/bonded/pareto/simulation-sybil.mjs} extends the Pareto MC with $K$ Sybil identities undercutting honest bids by $10\%$ and defaulting on loss. The headline finding (Figure~\ref{fig:sybil-mc-inline}) is that pure deposit-based deterrence has a coverage-bounded ceiling: deposit slash is capped at $B_T = \mu(1+s)$, so beyond $B_{\mathrm{dep}} \ge B_T$ additional deposit provides no extra deterrence. Closing A5 requires a composite mechanism --- per-identity onboarding cost $C_{\mathrm{kyc}}$ plus reputation gating plus per-class $B_{\mathrm{dep}}$. The single-instrument deposit policy is provably insufficient; this is a real revision to the \S\ref{sec:youle} mechanism design recorded honestly rather than waved away. Analysis: \texttt{proofs/bonded/pareto/cartel-resilience.md}.
-
-\item \textbf{Repeated-game cartel folk-theorem (A6)}. \emph{New in v2.6}: \texttt{proofs/bonded/pareto/simulation-cartel.mjs} mechanizes the grim-trigger strategy under per-round detection probability $p_d$ and discount factor $\delta$. The one-shot-deviation principle gives the closed-form threshold $p_d^\star = 1 - (\pi_C - (1 - \delta)\pi_D)/(\delta\,\pi_D)$; the simulation confirms it empirically across a $(p_d, \delta)$ grid (Figure~\ref{fig:cartel-folk}). Headline at the realistic discount factor $\delta = 0.95$: $p_d^\star \approx 0.10$. Protocols must achieve at least 10\% per-round detection to break repeated-game cartel sustainability. This sets a concrete falsifiable goal for the Anchor \S6.4 detection mechanism (Merkle Forest binding $+$ bid-pattern heat). Analysis: \texttt{proofs/bonded/pareto/cartel-resilience.md}.
-\end{itemize}
-
-\subsection*{Spec-only (proof landed; runtime not yet implemented)}
-
-The following \texttt{.pv} files prove their respective claims, but the corresponding runtime modules do not yet exist. When implementations land, the implementer is expected to re-read the \texttt{.pv} file and bind the runtime to the verified pattern. Bindings are tracked in \texttt{docs/shipwright/RUNTIME-CONFORMANCE.md}.
-
-\begin{itemize}
-\item Passkey pairing handshake (\texttt{proofs/bonded/pairing/passkey-pair.pv}): no \texttt{lib/passkey-pairing.ts} yet.
-\item Federated KMS Cloudflare Worker (\texttt{proofs/bonded/federated/federated.pv}): only design doc \texttt{USER-ACCOUNTS-KMS.md}; no Worker code yet.
-\end{itemize}
-
-\subsection*{Audit-promoted gaps remaining (v2.6 carry list)}
-
-The v2.4 self-audit surfaced six v2.1 smells. Three closed in v2.5 (algorithm confusion, delegation replay, magic-link race). The three remaining closed in v2.6: cuckoo-filter pollution (\texttt{lib/cuckoo-filter.ts} $+$ property test), Sybil insurer attack (\texttt{simulation-sybil.mjs} with the surface finding on the coverage-bounded deposit ceiling), and the repeated-game cartel folk-theorem (\texttt{simulation-cartel.mjs} closing the empirical $p_d^\star$ at the closed-form threshold).
-
-The v2.6 carry list therefore contains only the \emph{two spec-only items} above (passkey runtime, federated KMS Worker), plus four formal-mechanization deferrals carried indefinitely behind the empirical evidence: full Merkle binding under EasyCrypt PROM (skeleton discharged; PROM-formal version remains future work), Coq/Lean mechanization of the Pareto strategic game, mechanized A5 composite-mechanism analysis, and the multi-class repeated-game generalization.
-
-\subsection*{Reading the registry}
-
-A claim with both a formal artifact \emph{and} a runtime conformance test is honestly closed: a future regression in \texttt{lib/} will register as a red CI signal and force a review against the \texttt{.pv} model. A claim with only a formal artifact is spec-only and must be flagged as such until a runtime exists. A claim that is only empirical (Pareto, Merkle binding) is honestly partial and is documented to be carried indefinitely behind the empirical evidence. The intent is that no claim drifts silently from ``proven'' to ``hand-waved'' between rounds.
+\paragraph{Limitations.} Four mechanizations are carried indefinitely behind the empirical evidence above: a PROM-formal Merkle binding in EasyCrypt; a Coq or Lean mechanization of the Pareto strategic game; a formal analysis of the composite Sybil-deterrence mechanism ($C_{\mathrm{kyc}}$ $+$ reputation gating $+$ per-class $B_{\mathrm{dep}}$); and a multi-class generalization of the repeated-game cartel result to heterogeneous coordination classes (\S\ref{sec:taxonomy}). These are documented as known open problems rather than as defects in the present claims, which stand on their stated evidence.
 
 % ═══════════════════════════════════════════════════════════════════════════════
 % ═══════════════════════════════════════════════════════════════════════════════
@@ -1131,7 +1114,7 @@ This appendix visualizes the load-bearing algorithms whose correctness is establ
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Monte Carlo Visualizations (cartel folk-theorem)}\label{app:montecarlo}
 
-The Pareto-dominance and Sybil-deposit-floor Monte Carlo charts are placed inline next to their respective discussions (Figures~\ref{fig:pareto-mc-inline} and~\ref{fig:sybil-mc-inline} in \S\ref{sec:youle:welfare}--\S\ref{sec:youle:a5}). This appendix carries only the A6 repeated-game cartel sweep, whose finer-grain $(p_d, \delta)$ grid is supplementary to the body discussion. Raw run logs are tracked under \texttt{proofs/bonded/pareto/}; the rendering script is at \texttt{figures/render\_montecarlo.py} (relative to the whitepaper directory).
+The Pareto-dominance and Sybil-deposit-floor Monte Carlo charts are placed inline next to their respective discussions (Figures~\ref{fig:pareto-mc-inline} and~\ref{fig:sybil-mc-inline} in \S\ref{sec:youle:welfare}--\S\ref{sec:youle:a5}). This appendix carries only the A6 repeated-game cartel sweep, whose finer-grain $(p_d, \delta)$ grid is supplementary to the body discussion. Raw run logs and the rendering script are bundled at \url{https://portdaddy.dev/whitepaper/artifacts/}.
 
 \begin{figure}[H]
   \centering
