@@ -1,6 +1,6 @@
 # Unified Recovery Roadmap
 
-Last updated: 2026-04-11
+Last updated: 2026-05-15 16:46 UTC (Cartographer mapping pass — Phase 1 closure, Phase 3 visibility, Phase 6 telos suggestion, the 2026-05-14 `tuple-driven-fleet` routing lane plus the `operator-manual-fleet-dispatch` workbench, the 2026-05-11 Spark promotion of `graph-based-merge-conflict-predictor` + `ambient-anomaly-signaling`, the 2026-05-12 Spark promotion of `symbol-graph-visualization`, `incremental-symbol-index-refresh`, `operator-hint-engine`, and `symbol-claim-isolation-validator`, the 2026-05-13 Spark promotion of `graph-integrity-auditor`, `daemon-fleet-auto-recovery`, `cost-forecast-alert`, `agent-skills-quality-gates`, and `ipc-queue-saturation-promotion`, the 2026-05-13 extended Spark promotion of `cost-gated-spawning`, `empirical-model-efficiency-routing`, `operator-decision-journal`, and `sandboxed-adversarial-test-harness`, plus the 2026-05-14 promotion of `tuple-store-query-api`, `governance-coordination-hub`, `phase-3-auto-remediation-executor`, `cost-aware-model-training-loop`, and `unified-spawn-risk-synthesis`; `skill-degradation-contagion-early-warning` stays backlog, and the 2026-05-12 continuation passes (`857f225c`, `d017bc28`), verification pass (`f0398b9a`), extended promotion pass (`bbbd19be`), and mapping pass (`4e2a9f01`) now head the branch)
 
 This is the single execution-order roadmap for the active Port Daddy recovery and consolidation effort.
 
@@ -22,6 +22,50 @@ Port Daddy should feel like one coherent system:
 - Deep fleet control plane: `fleet-config-ui`
 - Canonical Port Daddy skill doc: `skills/port-daddy-agent-skill/SKILL.md`
 - Raw idea streams remain useful local inputs, but curated recovery docs are the authority: `.spark/ideas/`, `.spider/connections/`, `.cartographer/status.md`
+
+The 2026-05-13 Spark promotion added `graph-integrity-auditor`,
+`daemon-fleet-auto-recovery`, `cost-forecast-alert`,
+`agent-skills-quality-gates`, and `ipc-queue-saturation-promotion` to the
+curated queue; the raw files remain on disk as provenance.
+
+The 2026-05-14 promotion added `tuple-store-query-api`,
+`governance-coordination-hub`, `phase-3-auto-remediation-executor`,
+`cost-aware-model-training-loop`, and `unified-spawn-risk-synthesis`
+to the curated queue; `skill-degradation-contagion-early-warning`
+remains a backlog extension of the Phase 3 governance lane.
+
+The same 2026-05-14 Spark promotion also surfaced
+`episodic-memory-query-surfaces` as the Phase 3B memory cut, so Fleet &
+Memory can finally remember across sessions instead of staying a spec.
+
+The 2026-05-11 Spark promotion added `graph-based-merge-conflict-predictor` and
+`ambient-anomaly-signaling` to the curated queue; the 2026-05-10 raw Spider
+exhaust (`S41`/`S42`/`S43`) remains uncurated.
+
+The 2026-05-12 Spark promotion added `symbol-graph-visualization` as the
+Phase 1 visual operator slice.
+
+The same 2026-05-12 Spark promotion added `incremental-symbol-index-refresh`
+as the Phase 1 predictive coordination cut and `operator-hint-engine` as
+the Phase 3 operator decision-velocity cut.
+
+The same 2026-05-12 curation pass added `symbol-claim-isolation-validator`
+as the Phase 1/4 claim-safety cut.
+
+The same 2026-05-14 promotion adds `tuple-store-query-api` as the Phase 3
+queue-depth substrate, `governance-coordination-hub` as the Phase 3
+governance rollup, `phase-3-auto-remediation-executor` as the Phase 3
+operational automation cut, `cost-aware-model-training-loop` as the Phase
+2 cost-feedback loop, and `unified-spawn-risk-synthesis` as the Phase 4B
+preflight synthesis cut.
+
+The same 2026-05-14 curated trove also surfaced
+`operator-manual-fleet-dispatch` as the proactive Phase 3 dispatch
+workbench beside `tuple-driven-fleet`, so operators can route pending
+work intentionally before auto-routing takes over.
+
+Fresh 2026-05-16 raw Spark/Spider exhaust is present on disk as research
+provenance, but it remains uncurated until Spark/Spider dedupe it.
 
 ## Near-Term Release Cuts
 
@@ -96,6 +140,8 @@ Immediate ships:
 - daemon health and error surfacing
 - fleet config warnings
 - cost warnings and budget exhaustion
+- `cost-forecast-alert` so FleetBar can show projected budget trouble before the economist layer catches up
+- `cost-aware-model-training-loop` so operator overrides and budget breaches feed the model-routing history instead of just being logged
 - native control window that shells the real `/fleet-ui/` surface instead of a second shadow dashboard
 - QA/Spark/Spider/documentarian briefings
 - suggestion cards for onboarding and remediation
@@ -120,6 +166,20 @@ Immediate ships:
 - keep real channel logs alive
 - make Flow, YAML, inbox, and sortie surfaces deep-linkable from the native companion
 - restore stronger story, causality, and suggestion affordances
+- surface `daemon-introspection-api` as the shared health rollup for Crew and Scorecard
+- surface `operator-hint-engine` as the synchronous "what to do next" hint layer on top of daemon introspection
+- surface `tuple-store-query-api` as the queue-depth substrate for Fleet Health Scorecard
+- surface `governance-coordination-hub` as the rollup of dispute, liquidation, and skills-vote signals
+- surface `phase-3-auto-remediation-executor` as the operator-approved automation layer after hints
+- surface `symbol-graph-visualization` as the visual companion to graph-backed merge risk and Phase 1 contentions
+- surface `fleet-health-scorecard` as the one-glance swarm health panel in the same fleet UI shell
+- persist `fleet-run-journal` so role history survives restarts instead of disappearing with the process table
+- surface `salvage-root-cause-classifier` in the Salvage panel so operators can see why agents failed, not just that they failed
+- surface `ambient-anomaly-signaling` as the passive anomaly feed that powers the same control-plane shell
+- `daemon-fleet-auto-recovery` so persistent fleet roles come back after daemon restarts without manual `pd fleet up` ceremony
+- `crew-screen-roles-not-pids` and `coordination-ticker-as-high-signal-feed` so operators can read role truth and cross-slice contradictions at a glance
+- `tuple-driven-fleet` so tuple coordination turns into actual swarm routing instead of broadcast-only work distribution
+- `operator-decision-journal` so approvals, overrides, and pauses have an immutable "why" trail
 - merge the best of `public/fleet-live.html` and `public/fleet-config.html` into `fleet-config-ui`
 - turn `SortiePanel` into a mission workspace, not just a raw launch form
 
@@ -151,6 +211,19 @@ Immediate ships:
 - next event sources: `file:saved`, `build:error`, `test:result`
 - next declarative trigger primitives: `trigger: webhook:<event>` and `trigger: files:<glob>`
 - preflight-backed single-use mission launches so `pd agent` and sorties show readiness, budget, and fallback choices before work starts
+- `cost-gated-spawning` so launch-time budget ceilings are enforced before work starts instead of only warned about
+- `empirical-model-efficiency-routing` so spawn-time model choice uses historical cost and success data instead of guesswork
+- `unified-spawn-risk-synthesis` so cost, skill, dependency, harbor, and learning risk are combined before spawn
+- `claim-preserving-git-safety` so destructive git verbs stop bulldozing another session's edits
+- `fleet-launchability-and-cadence` so `pd status` and spawn/preflight show blocked vs launchable truth
+- `incremental-symbol-index-refresh` — keep graph conflict prediction current as files change instead of waiting for explicit graph queries
+- `graph-based-merge-conflict-predictor` — predict graph-backed merge risk before git attempts a merge so repeated trigger storms do not turn into repeated conflict churn
+- `symbol-claim-isolation-validator` — validate symbol ownership before a claim or lock is accepted so pre-flight work can stop contention before merge time
+- `graph-integrity-auditor` — audit the graph substrate so silent corruption does not poison merge prediction or claim safety
+- `agent-skills-quality-gates` — validate skill trust before spawn confidence is trusted
+- `ipc-queue-saturation-promotion` — shed load before the IPC queue becomes the daemon bottleneck
+- `sandboxed-adversarial-test-harness` so hardening and chaos runs can stay off the live daemon
+- `forensic-context-windows` — attach recent timeline context to Arbiter violations so failures explain themselves
 
 Representative idea pressure:
 - budget-gated fleet spawning
@@ -169,19 +242,23 @@ Why now:
 - substantial dormant code is already waiting on this
 - symbol index, merge queue, and orchestrator-adjacent work will keep drifting until the table exists
 
-Immediate ships:
-- add the `graph_edges` migration
-- wire it into symbol indexing and merge orchestration
-- start making graph-aware coordination real instead of archival
-- after the current locks / tuples tranche, upgrade session/file claims from line-range overlap to Tree-sitter symbol-backed identity where symbol data exists
-- keep line spans only as fallback and display data, not the durable semantic authority for indexed code
+Status:
+- closed on 2026-05-07 after `f265fcb5` landed the `graph_edges` migration/schema slice and `2ad20f32` reflected it in the roadmaps
+
+What landed:
+- the `graph_edges` migration landed
+- it was wired into symbol indexing and merge orchestration
+- graph-aware coordination started becoming real instead of archival
+- after the current locks / tuples tranche, session/file claims can upgrade from line-range overlap to Tree-sitter symbol-backed identity where symbol data exists
+- line spans remain only as fallback and display data, not the durable semantic authority for indexed code
+- `capability-discovery-dns-harbor` is the next Phase 5 discovery cut: turn existing DNS + harbor capability data into actual agent discovery instead of hard-coded peer naming
 
 Representative idea pressure:
 - graph-centric watch
 - stigmergic merging
 - semantic synonym registry
 
-Done when:
+Outcome:
 - graph-backed coordination features can ship against one shared edge table
 - symbolic claims, graph edges, memory attribution, and control-plane visualizations agree on what code region an agent actually owns
 
