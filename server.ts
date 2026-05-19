@@ -146,8 +146,15 @@ const config: PortDaddyServerConfig = existsSync(configPath)
       security: { rate_limit: { window_ms: 60000, max_requests: 1000 } }
     };
 
+// Build-time version constant. sync-version.ts keeps this literal in lockstep
+// with package.json via the `postversion` hook. The runtime package.json read
+// is still tried first so source-mode dev (tsx server.ts) reflects an edited
+// package.json without a sync step, but the embedded constant is what the
+// bun-compiled binary actually serves — inside the /$bunfs/ bundle, __dirname
+// resolves to a virtual path where package.json doesn't exist on disk.
+const EMBEDDED_PACKAGE_VERSION: string = '3.14.1';
 const pkgPath: string = join(__dirname, 'package.json');
-const pkg: { version: string } = existsSync(pkgPath) ? JSON.parse(readFileSync(pkgPath, 'utf8')) as { version: string } : { version: '2.0.0' };
+const pkg: { version: string } = existsSync(pkgPath) ? JSON.parse(readFileSync(pkgPath, 'utf8')) as { version: string } : { version: EMBEDDED_PACKAGE_VERSION };
 const VERSION: string = pkg.version;
 
 // =============================================================================

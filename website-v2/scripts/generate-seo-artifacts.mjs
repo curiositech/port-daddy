@@ -30,9 +30,29 @@ function escapeXml(value) {
     .replaceAll("'", '&apos;')
 }
 
+function lastmodFor(route) {
+  // Only blog posts carry an authored date today. Emitting <lastmod>
+  // for them helps Googlebot prioritize re-crawls when posts ship or
+  // get edited. For other routes we deliberately omit it — guessing
+  // (build time, file mtime, today) creates a churn signal that misleads.
+  if (route.section === 'blog' && route.publishedAt) {
+    // route.publishedAt may be 'YYYY-MM-DD' or a full ISO timestamp.
+    // Sitemaps accept either, but normalize bare dates to start-of-day UTC.
+    return /^\d{4}-\d{2}-\d{2}$/.test(route.publishedAt)
+      ? `${route.publishedAt}T00:00:00Z`
+      : route.publishedAt
+  }
+  return null
+}
+
 function sitemapXml() {
   const urls = indexableRoutes
-    .map((route) => `  <url>\n    <loc>${escapeXml(canonicalUrlForRoute(route))}</loc>\n  </url>`)
+    .map((route) => {
+      const loc = `    <loc>${escapeXml(canonicalUrlForRoute(route))}</loc>`
+      const lastmod = lastmodFor(route)
+      const lastmodLine = lastmod ? `\n    <lastmod>${escapeXml(lastmod)}</lastmod>` : ''
+      return `  <url>\n${loc}${lastmodLine}\n  </url>`
+    })
     .join('\n')
 
   return [

@@ -496,16 +496,13 @@ export interface RoadmapProgress {
  * `lib/cockpit-missions.ts` on the daemon side; the type is duplicated at
  * the UI/API boundary so we don't import from `lib/`.
  */
-export type MissionStatus =
-  | 'closed'
-  | 'blocked'
-  | 'drifting'
-  | 'stalled'
-  | 'mostly-resolved'
-  | 'mostly-committed'
-  | 'uncommitted'
-  | 'in-flight'
-  | 'unknown';
+/**
+ * Cockpit mission status. Mirrors the daemon's RoadmapStatus 1:1 since
+ * cockpit reads roadmap_items directly post-Slice-C. The previous 9-bucket
+ * enum was derived by regex over markdown tags; that derivation was never
+ * authoritative and is gone.
+ */
+export type MissionStatus = 'now' | 'backlog' | 'parked' | 'merge' | 'done';
 
 export interface MissionCard {
   id: string;

@@ -45,17 +45,7 @@ interface CockpitMissionsResponse {
   error?: string;
 }
 
-const STATUS_ORDER: ReadonlyArray<string> = [
-  'uncommitted',
-  'in-flight',
-  'blocked',
-  'drifting',
-  'stalled',
-  'mostly-committed',
-  'mostly-resolved',
-  'closed',
-  'unknown',
-];
+const STATUS_ORDER: ReadonlyArray<string> = ['now', 'backlog', 'parked', 'merge', 'done'];
 
 function buildQuery(options: CLIOptions): string {
   const params = new URLSearchParams();

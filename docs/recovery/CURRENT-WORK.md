@@ -1,23 +1,56 @@
 # Current Recovery Work
 
-Last updated: 2026-05-15
-Owner: Codex website docs task-list provenance refresh
+Last updated: 2026-05-16 19:10 UTC (Cartographer harvest/promotion pass — fresh 2026-05-16 Spark ideas curated; `orchestrator-decision-attribution` promoted to execution wave (#34); `symbol-staleness-merge-safety` marked EXTENDS: operator-hint-engine. Snapshot remains: `graph-based-merge-conflict-predictor`, `ambient-anomaly-signaling`, `symbol-graph-visualization`, `incremental-symbol-index-refresh`, `operator-hint-engine`, `symbol-claim-isolation-validator`, `orchestrator-plugin-lifecycle`, `daemon-fleet-auto-recovery`, `graph-integrity-auditor`, `agent-skills-quality-gates`, `cost-forecast-alert`, and `ipc-queue-saturation-promotion` in curated execution wave; 2026-05-13 extended promotion: `cost-gated-spawning`, `empirical-model-efficiency-routing`, `operator-decision-journal`, `sandboxed-adversarial-test-harness`; 2026-05-14 promotion: `tuple-store-query-api`, `governance-coordination-hub`, `phase-3-auto-remediation-executor`, `cost-aware-model-training-loop`, `unified-spawn-risk-synthesis`, plus `episodic-memory-query-surfaces` as Phase 3B memory cut and `operator-manual-fleet-dispatch` as Phase 3 dispatch workbench; 2026-05-10 Phase 4 resilience: `salvage-root-cause-classifier`; raw 2026-05-10 Spider exhaust (S41/S42/S43) still uncurated; fresh 2026-05-16 Spark/Spider exhaust mostly processed (orchestrator-decision-attribution curated, symbol-staleness marked extension); origin/main: 35 non-shared commits on release-prep / metrics / docs-polish; Phase 4A binary/doctor on feature branches, not promoted; prior: continuation `d017bc28`, verification `f0398b9a`, extended promotion `bbbd19be`, mapping `4e2a9f01`)
+Owner: Cartographer maintenance pass + curated dogfood queue (2 now-status items: `claim-preserving-git-safety`, `fleet-launchability-and-cadence`); live tuple-backed feedback projection is empty (`open: 0`, `harvested: 11`); direct `pd feedback list --status open --json` still hits `EPERM` on `~/.port-daddy/daemon.sock`; there is no `.spark/feedback/` tree
+Authority: git log (1.3/day, 9 commits trailing 7d) > committed code > V4-UNIFIED-ROADMAP.md
 
 This is the active execution ledger. If a task is in flight, it belongs here before it belongs in chat.
 
-## Cartographer Snapshot
+## Cartographer Snapshot (2026-05-16 Mapping Pass)
 
-- Current phase: Recovery Track dominates; within V4, Phase 3 is the hottest mapped phase.
-- Velocity: 174 commits in the last 7 days = 24.9/day.
-- Closest to completion:
-  - `claim-preserving-git-safety`
-  - `fleet-launchability-and-cadence`
-  - `coordination-guard-extended-enforcement`
-- Blocked or drifting:
-  - Phase 5 network / remote harbors
-  - Phase 6 connectors / coaching
-  - Phase 4E `pd self-test --adversarial` / 4F Windows IPC
-- Open dogfood now: 3 slugs (`claim-preserving-git-safety`, `fleet-launchability-and-cadence`, `session-context-cwd-reset`)
+- **Current phase**: Phase 3 visibility / operational automation is the hottest mapped phase (`daemon-introspection-api`, `crew-screen-roles-not-pids`, `fleet-health-scorecard`, `coordination-ticker-as-high-signal-feed`, `fleet-run-journal`, `daemon-fleet-auto-recovery`, `operator-hint-engine`, `tuple-store-query-api`, `governance-coordination-hub`, `phase-3-auto-remediation-executor`). Phase 1 COMPLETE is still verified 2026-05-07 via `f265fcb5` and `2ad20f32`; the Phase 1-adjacent `ideas-trove-queryable-surface`, `orchestrator-plugin-lifecycle`, `incremental-symbol-index-refresh`, `symbol-graph-visualization`, and `symbol-claim-isolation-validator` support slices keep the semantic-graph/tooling lane active. Phase 2 cost optimization gained `cost-aware-model-training-loop`, and Phase 4B preflight hardening gained `unified-spawn-risk-synthesis`; `skill-degradation-contagion-early-warning` stays backlog under the Phase 3 governance lane. The 2026-05-14 `tuple-driven-fleet` routing cut adds a lower-priority Phase 3 dispatch lane beneath that visibility cluster, and `operator-manual-fleet-dispatch` adds the proactive workbench for routing pending tuples before the lane auto-routes; `episodic-memory-query-surfaces` keeps the Phase 3B Fleet & Memory lane from staying dormant. Phase 5 ARCHITECTURE and Phase 6 ACTIVE remain open; Phase 4A is active on feature branches but not yet promoted to origin/main or stable, while 4E/4F remain STALE (46 days, no commits). Fresh 2026-05-16 raw Spark/Spider exhaust is present but still uncurated, so it does not move the phase ranking this pass. The 2026-05-13 Spark promotion adds the latest five curated candidates to the phase map, and the 2026-05-13 extended Spark promotion adds `cost-gated-spawning`, `empirical-model-efficiency-routing`, `operator-decision-journal`, and `sandboxed-adversarial-test-harness`, so the queue shape changed again even though the phase ranking did not.
+- **Velocity**: 9 commits in last 7 days = **1.3/day** (still post-May-1 heavy, but lower than the earlier 107-commit window). May 1–2 burst: 7 fleet-model/telos commits + 15+ docs content pages + cost-tracker work.
+- **Unplanned work** (signal of where energy actually goes): Cartographer verification / status reconciliation (`f4624ebd`, `05e94639`, `3b9d17ce`, `e6bd1b88`, `670ab97b`, `f0398b9a`, `857f225c`, `d017bc28`, `bbbd19be`, `4e2a9f01`); May 1 fleet-model / telos hardening (`ffe098fe` through `2fc96f8b`); docs content fill (15+ new leaf pages in `/docs/concepts`, `/docs/best-practices`); relay/harbor mesh ADR (`60f72edd`, `48b6c54c`); whitepaper rewrite v2.5 (`e5226d1a`, `f9a422f5`, `637cecce`) plus the proof/conformance tranche (`18198c46`, `36af999b`, `d4484135`, `e973bbd2`, `8ea60834`, `27dce34f`, `b4a0fe50`); Phase 1 completion (`f265fcb5`, `2ad20f32`); 2026-05-11 Spark promotion (`5ee873cd`) that added `graph-based-merge-conflict-predictor` and `ambient-anomaly-signaling` to the curated wave; 2026-05-13 extended Spark promotion (`bbbd19be`) that added `cost-gated-spawning`, `empirical-model-efficiency-routing`, `operator-decision-journal`, and `sandboxed-adversarial-test-harness` to the curated wave.
+- **Closest to completion** (33 execution-ready items; top 3 are the most immediate slices):
+  1. `incremental-symbol-index-refresh` (Spark, 2026-05-12) — ~150 LOC incremental file-write watcher; keeps graph conflict prediction current as files change
+  2. `symbol-graph-visualization` (Spark, 2026-05-12) — ~4 hours visual Phase 1 graph explorer; makes graph_edges visible instead of query-only
+  3. `daemon-introspection-api` (Spark, 2026-05-09) — ~150 LOC unified `GET /daemon/introspect` endpoint; enables crew-screen-roles-not-pids and fleet-health-scorecard
+  4. `operator-hint-engine` (Spark, 2026-05-11) — ~160 LOC decision layer; turns daemon anomalies into suggested next actions
+  5. `ideas-trove-queryable-surface` (Spark, 2026-05-09) — ~180 LOC `pd ideas` CLI + HTTP API; enables Spark/Spider deduplication enforcement
+  6. `orchestrator-plugin-lifecycle` (Spark, 2026-05-12) — Phase 1.5 user-extensibility wire; hot-load custom orchestrators without forking the daemon
+  7. `daemon-fleet-auto-recovery` (Spark, 2026-05-13) — Phase 3 automation cut; persistent roles come back after daemon restart
+  8. `graph-integrity-auditor` (Spark, 2026-05-13) — Phase 1 health cut; daily audit keeps graph quality trustworthy
+  9. `agent-skills-quality-gates` (Spark, 2026-05-13) — Phase 2.5 bridge; validates skill trust before spawn confidence is trusted
+  10. `cost-forecast-alert` (Spark, 2026-05-13) — Phase 2 forward-visibility cut; projects spend before budget surprises
+  11. `ipc-queue-saturation-promotion` (Spark, 2026-05-13) — Phase 4B backpressure cut; saturation-aware spawn gating
+  12. `cost-gated-spawning` (Spark, 2026-05-13) — Phase 2 spawn-time budget gate; enforces role budgets before runs start
+  13. `empirical-model-efficiency-routing` (Spark, 2026-05-13) — Phase 2 efficiency routing; chooses the cheapest successful model from history
+  14. `operator-decision-journal` (Spark, 2026-05-13) — Phase 2/3 governance trail; records approvals, overrides, and pauses
+  15. `sandboxed-adversarial-test-harness` (Spark, 2026-05-13) — Phase 4E/4F isolated chaos harness; runs hardening tests off the live daemon
+  16. `tuple-store-query-api` (trove, 2026-05-14) — Phase 3 queue-depth substrate for fleet-health-scorecard; exposes tuple backlog truth without raw tuple spill
+  17. `governance-coordination-hub` (trove, 2026-05-14) — Phase 3 governance rollup; unifies dispute, liquidation, and skills-vote signals into one view
+  18. `phase-3-auto-remediation-executor` (trove, 2026-05-14) — Phase 3 operational automation; executes operator-approved remediations after visibility and hints
+  19. `cost-aware-model-training-loop` (trove, 2026-05-14) — Phase 2 cost feedback loop; teaches routing from operator overrides and budget breaches
+  20. `unified-spawn-risk-synthesis` (trove, 2026-05-14) — Phase 4B preflight synthesis; combines cost, skill, dependency, harbor, and learning risk before spawn
+  21. `claim-preserving-git-safety` (dogfood)
+  22. `fleet-launchability-and-cadence` (dogfood)
+  23. `coordination-guard-extended-enforcement` (trove)
+  24. `crew-screen-roles-not-pids` (trove)
+  25. `fleet-health-scorecard` (trove)
+  26. `coordination-ticker-as-high-signal-feed` (trove)
+  27. `quorum-driven-dynamic-launch` (trove; Phase 1 shipped in `cea02e1`, Phase 2 auto-spawn remains)
+  28. `ipc-disconnect-instant-salvage` (trove)
+  29. `telos-driven-model-selection` (trove)
+  30. `graph-based-merge-conflict-predictor` (Spark, 2026-05-11) — Phase 4 merge-risk predictor on Phase 1 graph edges
+  31. `ambient-anomaly-signaling` (Spark, 2026-05-11) — Phase 2 self-healing feed from daemon introspection and coordination-judge
+  32. `symbol-claim-isolation-validator` (IDEAS-TROVE, 2026-05-12) — Phase 1/4 claim-safety validator; catches symbol ownership conflicts before a new lock or merge attempt
+  33. `episodic-memory-query-surfaces` (trove, 2026-05-14) — Phase 3B memory surface; exposes cross-session recall/search across the already-shipped fleet/memory substrate
+  34. `operator-manual-fleet-dispatch` (trove, 2026-05-14) — Phase 3 dispatch workbench; lets operators route pending tuples to a target agent or role before tuple-driven-fleet auto-routing takes over
+- **Blocked or drifting**:
+  - Phase 2 economy: economist (Thomas Youle) — no follow-up since 2026-03-30 (47 days idle)
+  - Phase 4A binary / doctor slice: active on feature branches, not yet promoted to origin/main or stable
+  - Phase 4E/4F `pd self-test --adversarial` + Windows IPC hardening: design complete, zero commits (2026-03-31 → 2026-05-16, 46 days)
+- **Feedback harvest status**: 2026-05-14 Spark promotion complete — promoted 2 new Spark ideas from `.spark/ideas/` to execution wave on 2026-05-09 (`daemon-introspection-api`, `ideas-trove-queryable-surface`), 2 more on 2026-05-11 (`graph-based-merge-conflict-predictor`, `ambient-anomaly-signaling`), 5 on 2026-05-12 (`symbol-graph-visualization`, `incremental-symbol-index-refresh`, `operator-hint-engine`, `symbol-claim-isolation-validator`, `orchestrator-plugin-lifecycle`), 5 on 2026-05-13 (`daemon-fleet-auto-recovery`, `graph-integrity-auditor`, `agent-skills-quality-gates`, `cost-forecast-alert`, `ipc-queue-saturation-promotion`), 4 on 2026-05-13 extended promotion (`cost-gated-spawning`, `empirical-model-efficiency-routing`, `operator-decision-journal`, `sandboxed-adversarial-test-harness`), and 5 on 2026-05-14 (`tuple-store-query-api`, `governance-coordination-hub`, `phase-3-auto-remediation-executor`, `cost-aware-model-training-loop`, `unified-spawn-risk-synthesis`) plus `episodic-memory-query-surfaces` as the Phase 3B memory cut and `operator-manual-fleet-dispatch` as the Phase 3 dispatch workbench; 2 dogfood now-items already curated (`claim-preserving-git-safety`, `fleet-launchability-and-cadence`); live tuple-backed feedback projection is empty (`open: 0`, `harvested: 11`), while direct `pd feedback list --status open --json` still hits `EPERM` on `~/.port-daddy/daemon.sock`; raw `.spark/feedback/` tree not present. `skill-degradation-contagion-early-warning` is still backlog, the 2026-05-10 raw Spider exhaust remains present on disk, and the five lower-priority now-status trove entries still queued below the execution wave are `fleet-run-journal`, `salvage-root-cause-classifier`, `forensic-context-windows`, `tuple-driven-fleet`, and `capability-discovery-dns-harbor`.
 
 ## Active Side Thread
 
@@ -36,14 +69,8 @@ New public-site reset work for `agentsd.ai` is now captured on disk:
 - `docs/AGENTSD_AI_SITE_CONTRACT.md`
 - `docs/AGENTSD_BRAND_IDENTITY.md`
 - `docs/AGENTSD_DEVELOPER_DOCS_SYSTEM_PLAN.md`
-- `docs/recovery/WEBSITE_DOCS_TASK_LIST.html`
 
 This research thread remains on disk, but it is not the current implementation direction. The user explicitly rejected using it to replace the active site.
-
-`docs/recovery/WEBSITE_DOCS_TASK_LIST.html` is a browser-openable checklist for
-this same reset-research thread, not a separate Cartographer queue. If one of
-its tasks becomes live again, promote that specific item back into this ledger,
-the roadmap, or a fresh Cartographer refresh before treating it as active work.
 
 Key constraints now captured there:
 
@@ -99,6 +126,12 @@ The `agentsd.ai` public-site reset is now explicit repo work, not chat residue.
 
 ## Current Thread
 
+- 2026-05-08 fleet-health-scorecard:
+  - raw Spark idea promoted into `IDEAS-TROVE.md` and `docs/ROADMAP.md`
+  - new Phase 3 dashboard follow-on for role health, cost burn, queue depth,
+    and recent violations
+  - `tuple-namespace-hierarchies` extends `tuple-driven-fleet` instead of
+    minting a duplicate family
 - 2026-04-29 app-native development cockpit sketch:
   - New product sketch at `docs/shipwright/APP-NATIVE-DEVELOPMENT-COCKPIT.md`.
   - It ties roadmap intake, Idea Lab/Trove curation, Windags skill-grafted planning, Coordination Guard, multi-backend launches, worktree collapse, editor claim overlays, HITL decisions, Tube, and day-over-day progress logs into one Fleet Control Center cockpit.
@@ -115,18 +148,23 @@ The `agentsd.ai` public-site reset is now explicit repo work, not chat residue.
 - 2026-04-29 cartographer map refresh:
   - `cartographer-roadmap-progress-screen` is now shipped via `7ba8d84`, `8fcf93e`, `4807cb5`, and `bd4fc6f`.
   - Closeout commits now pushed on `codex/agents-flow-guard-readable-ids`: `5f01294` (Agents pages + readable IDs), `eac3fc3` (live roadmap feedback), `4dba2a3` (Port Daddy agent skill bundle), and `629de64` (website content/proof media + FleetBar preview package metadata).
-  - `pd feedback list --status open --json` still fails on this daemon (`connect EPERM`), so the raw `.spark/feedback/` harvest remained the fallback source of truth for this pass.
-  - No new dogfood slugs were minted; the raw drops were already represented in `DOGFOOD-FEEDBACK.md` or `IDEAS-TROVE.md`.
-  - `9e7d458` landed after the previous pass; the latest burst is maritime-layer hardening, website/release polish, and examples/navigation cleanup, so those commits are recorded as unplanned work below.
+- 2026-05-07 follow-up:
+  - `pd feedback list --status open --json` is unavailable here because `pd roadmap --feedback-status open --json` and `pd feedback list --status open --json` both hit `EPERM` on `~/.port-daddy/daemon.sock`, and this checkout does not contain a `.spark/feedback/` tree, so there were no markdown drops to mint or dedupe.
+  - No new dogfood slugs were minted; there was no `.spark/feedback/` tree to curate on this checkout.
+  - `f265fcb5` landed the `graph_edges` migration/schema slice and `2ad20f32` reflected it in the roadmaps, so `graph_edges migration` moved out of the close queue.
+  - `50fe92ff` shipped the slot-scoped session-context hardening; `session-context-cwd-reset` was demoted out of the `now` bucket and the remaining follow-up is docs/help alignment.
+  - `9e7d458` remains in the earlier maritime-layer unplanned bucket below; the newest burst is the salvage / release-surface / whitepaper / docs cleanup cluster above, so those commits are recorded as unplanned work below.
+  - `pd roadmap --feedback-status open --json` and `pd feedback list --status open --json` both hit `EPERM` on `~/.port-daddy/daemon.sock`, so tuple-backed feedback projection was unavailable; there were no raw markdown drops to inspect because the checkout lacks `.spark/feedback/`.
+  - The 2026-05-07 Spider extension pass (S17-S29, plus `remaining-spaces`) extends existing quorum / pheromone / graph / budget / incident families rather than minting a new backlog slug.
 
-## Recovery Radar
+## Historical Recovery Radar (2026-04-28)
 
-- Current phase: Recovery Track dominates; among V4 lanes, Phase 3 is the hottest mapped phase, Phase 2 is the closest to closure, and Phase 1 remains in-tree but not fully promoted.
-- Velocity: 174 commits in the last 7 days = 24.9/day.
+- Current phase: Recovery Track dominates; among V4 lanes, Phase 3 is the hottest mapped phase, Phase 2 is the closest to closure, and Phase 1 remains in-tree but not fully promoted. The freshest commit burst is still mostly outside V4, centered on salvage/recovery triage, website / release-surface / phone-integration work, and maritime actor / launchability hardening.
+- Velocity: 132 commits in the last 7 days = 18.9/day.
 - Closest to completion:
   - `claim-preserving-git-safety`
   - `fleet-launchability-and-cadence`
-  - `coordination-guard-extended-enforcement`
+  - `session-context-cwd-reset`
 - Blocked or drifting:
   - Phase 5 network / remote harbors
   - Phase 6 connectors / coaching
@@ -155,9 +193,8 @@ Current coordination session: `docs/ROADMAP.md`, `docs/V4-UNIFIED-ROADMAP.md`,
 - Reconciled the V4 roadmap, public roadmap, and cartographer status against
   the latest commit stream so the map matches the build instead of the stale
   March snapshot.
-- `pd feedback list --status open --json` was unavailable on this daemon socket
-  (`connect EPERM`), so the raw `.spark/feedback/` harvest was the source of
-  truth for this pass.
+  - `pd feedback list --status open --json` was unavailable on this shell, so
+    the raw `.spark/feedback/` harvest was the source of truth for this pass.
 - Promoted `claim-preserving-git-safety`, `fleet-launchability-and-cadence`,
   and `session-context-cwd-reset` into `docs/ROADMAP.md`;
   `feedback-route-stable-gap` stayed backlog.
@@ -1100,6 +1137,12 @@ This is the normalized remaining-slice inventory as of 2026-04-24. It supersedes
      gates before the operator has to inspect raw JSON
    - keep cartographer cadence visible so a "healthy" fleet cannot hide
      the reason nothing actually ran
+10. Surface telos-driven model suggestions at spawn time:
+   - derive the hint from durable telos, the live backend resolver, and
+     the fleet model catalog
+   - keep the suggestion explicit and overridable; never hide the
+     actual backend the operator selected
+   - surface the hint in `pd spawn`, FleetBar, and Fleet Control Center
 
 ### H. Harbormaster: Promotion, Distribution, Daemon Freshness, And Runtime Truth
 
@@ -1320,15 +1363,15 @@ This is the normalized remaining-slice inventory as of 2026-04-24. It supersedes
   - Claude CLI: haiku / sonnet / opus
   - Gemini: 2.0 Flash / 2.5 Flash / 2.5 Pro
   - Codex: gpt-5.4-mini / gpt-5.3-codex / gpt-5.4
+  - Ollama: qwen2.5-coder:7b / llama3.1:8b / qwen2.5-coder:14b
   - Aider: gpt-4.1-mini / gpt-4.1 / gpt-5
-  - Cloudflare Workers AI: GLM flash / Qwen mid / Kimi high
   - Custom: custom-low / custom-mid / custom-high (forwarded via env so wrappers can honor it)
 - The live Codex dogfood also surfaced two operator bugs that belong in the recovery queue, not chat memory:
   - file actions still fail on some relative mutation paths (`Not Found`)
   - fleet spawn counts can still run too hot for real model-usage scarcity
-- Port Daddy's own `pd-fleet.yml` should only pin setup-ready, exact-telemetry runtimes for LLM-powered agents. Use Fleet Control Center to bulk-move the fleet when another backend becomes ready.
-- Local/manual runtimes are implementation surfaces until readiness and exact telemetry are proven through preflight. Do not treat "installed locally" as enough to power agents.
-- Source truth and live-daemon truth still have to be checked separately for backend readiness. Stale manual daemons can serve old model-tier mappings until the canonical runtime is restarted.
+- Port Daddy's own `pd-fleet.yml` is now local-first by default: background/read-only agents use Ollama, code-changing agents use cheaper Codex tiers, and hosted backends are opt-in instead of the silent default.
+- The local runtime ladder is now actually provisioned on this machine: Aider is installed, Ollama is healthy again, and the recommended Ollama models (`qwen2.5-coder:7b`, `llama3.1:8b`, `qwen2.5-coder:14b`) are pulled locally.
+- Source truth and live-daemon truth still have to be checked separately for Ollama tiers. The repo now points mid-tier Ollama to `llama3.1:8b`, but stale manual daemons can still serve the old invalid `llama3.2:8b` mapping until the canonical runtime is restarted.
 - Embedded FleetBar routing needs two signals, not one: query-param embed plus an explicit WebView identity. Relying on `?embed=fleetbar` alone is brittle enough that duplicate chrome can come back.
 - The modern fleet engine already scopes logical channels like `git:committed` through `lib/fleet-channels.ts`. If cross-project triggers still bleed, the likely culprit is leaked legacy detached watcher processes, not missing scoping code in the current runner.
 - `port-daddy status` and browser reachability are separate truths. The CLI can look healthy over the Unix socket while TCP/browser consumers are still pointed at a brittle loopback URL or stale port assumption.
