@@ -140,17 +140,27 @@
 \bibcite{barbosa2021sok}{24}
 \bibcite{fan2014cuckoo}{25}
 \bibcite{demers1987epidemic}{26}
+\citation{fan2014cuckoo}
+\citation{fan2014cuckoo}
+\@writefile{toc}{\contentsline {section}{\numberline {9}Algorithm Diagrams (v2.6)}{14}{section.9}\protected@file@percent }
+\newlabel{app:algorithms-anchor}{{9}{14}{Algorithm Diagrams (v2.6)}{section.9}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Multi-hop delegation walker (Phase~3). Each hop $k$ signs the binding tuple $(n_k, \mathrm  {id}_{k-1}, \mathrm  {id}_k, h)$ under Ed25519. The walker verifies depth-$N$ chains with a nonce-freshness table and rejects splices, replays, hop-swaps, and substitution. Runtime: \texttt  {lib/delegation-chain.ts}; conformance test: 17 / 17.}}{14}{figure.caption.10}\protected@file@percent }
+\newlabel{fig:anchor-delegation-diag}{{1}{14}{Multi-hop delegation walker (Phase~3). Each hop $k$ signs the binding tuple $(n_k, \mathrm {id}_{k-1}, \mathrm {id}_k, h)$ under Ed25519. The walker verifies depth-$N$ chains with a nonce-freshness table and rejects splices, replays, hop-swaps, and substitution. Runtime: \texttt {lib/delegation-chain.ts}; conformance test: 17 / 17}{figure.caption.10}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Cuckoo filter revocation gate (Fan et al.~\cite  {fan2014cuckoo}) with the v2.6 load-factor ceiling defeating the pollution attack. Insert lands at either of two candidate buckets $i_1, i_2 = i_1 \oplus h(\mathrm  {fp})$; on full, evict and re-insert at the kicked fingerprint's alternate. Insert rejection at $0.95$ caps occupancy inside the regime where the false-positive bound holds.}}{15}{figure.caption.11}\protected@file@percent }
+\newlabel{fig:anchor-cuckoo-diag}{{2}{15}{Cuckoo filter revocation gate (Fan et al.~\cite {fan2014cuckoo}) with the v2.6 load-factor ceiling defeating the pollution attack. Insert lands at either of two candidate buckets $i_1, i_2 = i_1 \oplus h(\mathrm {fp})$; on full, evict and re-insert at the kicked fingerprint's alternate. Insert rejection at $0.95$ caps occupancy inside the regime where the false-positive bound holds}{figure.caption.11}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {A}Mechanization Status}{15}{appendix.A}\protected@file@percent }
+\newlabel{app:mech}{{A}{15}{Mechanization Status}{appendix.A}{}}
 \citation{demers1987epidemic}
-\@writefile{toc}{\contentsline {section}{\numberline {A}Mechanization Status}{14}{appendix.A}\protected@file@percent }
-\newlabel{app:mech}{{A}{14}{Mechanization Status}{appendix.A}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {B}Full ProVerif Models}{15}{appendix.B}\protected@file@percent }
-\newlabel{app:proverif}{{B}{15}{Full ProVerif Models}{appendix.B}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {B.1}Phase 1: Symmetric HS256}{15}{subsection.B.1}\protected@file@percent }
-\@writefile{lol}{\contentsline {lstlisting}{\numberline {9}{\ignorespaces \texttt  {harbor\_card\_v1\_refined.pv}}}{15}{lstlisting.9}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {C}Phase 2: Asymmetric Ed25519}{16}{appendix.C}\protected@file@percent }
-\newlabel{app:phase2}{{C}{16}{Phase 2: Asymmetric Ed25519}{appendix.C}{}}
-\@writefile{lol}{\contentsline {lstlisting}{\numberline {10}{\ignorespaces \texttt  {harbor\_card\_v2\_asymmetric.pv} --- Verified in ProVerif 2.05}}{16}{lstlisting.10}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {D}Phase 3: Multi-hop Delegation}{17}{appendix.D}\protected@file@percent }
-\newlabel{app:phase3}{{D}{17}{Phase 3: Multi-hop Delegation}{appendix.D}{}}
-\@writefile{lol}{\contentsline {lstlisting}{\numberline {11}{\ignorespaces \texttt  {harbor\_card\_v3\_delegation.pv} --- Verified in ProVerif 2.05}}{17}{lstlisting.11}\protected@file@percent }
-\gdef \@abspage@last{18}
+\citation{fan2014cuckoo}
+\citation{demers1987epidemic}
+\@writefile{toc}{\contentsline {section}{\numberline {B}Full ProVerif Models}{16}{appendix.B}\protected@file@percent }
+\newlabel{app:proverif}{{B}{16}{Full ProVerif Models}{appendix.B}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.1}Phase 1: Symmetric HS256}{17}{subsection.B.1}\protected@file@percent }
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {9}{\ignorespaces \texttt  {harbor\_card\_v1\_refined.pv}}}{17}{lstlisting.9}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {C}Phase 2: Asymmetric Ed25519}{17}{appendix.C}\protected@file@percent }
+\newlabel{app:phase2}{{C}{17}{Phase 2: Asymmetric Ed25519}{appendix.C}{}}
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {10}{\ignorespaces \texttt  {harbor\_card\_v2\_asymmetric.pv} --- Verified in ProVerif 2.05}}{17}{lstlisting.10}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {D}Phase 3: Multi-hop Delegation}{18}{appendix.D}\protected@file@percent }
+\newlabel{app:phase3}{{D}{18}{Phase 3: Multi-hop Delegation}{appendix.D}{}}
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {11}{\ignorespaces \texttt  {harbor\_card\_v3\_delegation.pv} --- Verified in ProVerif 2.05}}{18}{lstlisting.11}\protected@file@percent }
+\gdef \@abspage@last{20}

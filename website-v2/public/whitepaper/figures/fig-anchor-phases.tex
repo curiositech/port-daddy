@@ -1,0 +1,59 @@
+% Three-phase Harbor Card progression — inline at top of §3 Verification Algorithms.
+
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D4C5A9}
+\providecolor{hhebony}{HTML}{1E1B18}
+\providecolor{hhink}{HTML}{2C2A26}
+\providecolor{hhcinnabar}{HTML}{CC3D2E}
+\providecolor{hhbrass}{HTML}{B08D57}
+\providecolor{hhpatina}{HTML}{5C7A6A}
+\providecolor{hhpaper}{HTML}{FBF7EE}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  font=\sffamily\small,
+  phase/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=3pt,
+                inner sep=6pt,minimum width=46mm,align=left},
+  hdr/.style={font=\sffamily\bfseries,anchor=west,inner sep=2pt},
+  badge/.style={draw=hhcinnabar,fill=hhpaper,thick,rounded corners=1pt,
+                inner sep=2pt,font=\sffamily\footnotesize,text=hhcinnabar},
+  okbadge/.style={draw=hhpatina,fill=hhpaper,thick,rounded corners=1pt,
+                  inner sep=2pt,font=\sffamily\footnotesize,text=hhpatina},
+]
+% Phase 1
+\node[phase,fill=hhsand!50] (p1) at (0,0)
+  {\textbf{Phase 1 --- HS256}\\[2pt]
+   shared symmetric key\\
+   1 daemon $\leftrightarrow$ 1 harbor\\
+   no delegation\\[4pt]
+   {\footnotesize\itshape good for: local dev, 1 process}};
+% Phase 2
+\node[phase,fill=hhsanddeep!60,right=8mm of p1] (p2)
+  {\textbf{Phase 2 --- Ed25519}\\[2pt]
+   asymmetric (pk, sk)\\
+   harbor only stores pk\\
+   no shared secrets\\[4pt]
+   {\footnotesize\itshape good for: multi-process, machine boundary}};
+% Phase 3
+\node[phase,fill=hhbrass!30,right=8mm of p2] (p3)
+  {\textbf{Phase 3 --- Delegation}\\[2pt]
+   capability-attenuated\\
+   parent token signs child\\
+   nonce + prev/next binding\\[4pt]
+   {\footnotesize\itshape good for: multi-hop agent chains}};
+% Phase badges (verification properties)
+\node[okbadge,below=2mm of p1.south] {ProVerif: auth + injective};
+\node[okbadge,below=2mm of p2.south] {ProVerif: alg-pinning safe};
+\node[okbadge,below=2mm of p3.south] {ProVerif: 17/17 replay-safe};
+% Arrows showing progression
+\draw[->,>=Latex,thick,draw=hhcinnabar] (p1.east) -- ($(p2.west)+(0,0)$);
+\draw[->,>=Latex,thick,draw=hhcinnabar] (p2.east) -- ($(p3.west)+(0,0)$);
+\node[font=\sffamily\footnotesize\itshape,text=hhcinnabar,above=1mm of $(p1.east)!0.5!(p2.west)$]
+  {trust split};
+\node[font=\sffamily\footnotesize\itshape,text=hhcinnabar,above=1mm of $(p2.east)!0.5!(p3.west)$]
+  {chain extension};
+\end{tikzpicture}
+\caption{The three Harbor Card phases. Each phase is a refinement of the previous, both in capability and in adversary model. Phase~1 (HS256) is a teaching baseline; Phase~2 (Ed25519) removes the shared-secret trust boundary; Phase~3 (delegation) adds capability attenuation across an agent chain. All three are mechanized in ProVerif (\S\ref{app:mech}).}
+\label{fig:anchor-phases}
+\end{figure}
