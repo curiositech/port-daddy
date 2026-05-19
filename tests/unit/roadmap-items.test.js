@@ -11,7 +11,7 @@ beforeEach(() => {
   db = createTestDb();
   tuples = createTupleSpace(db);
   clock = 1_700_000_000_000;
-  roadmap = createRoadmapItems({ tuples, now: () => clock });
+  roadmap = createRoadmapItems({ db, tuples, now: () => clock });
 });
 
 afterEach(() => {
@@ -168,5 +168,38 @@ describe('touch', () => {
 
   test('touch on a missing slug returns null', () => {
     expect(roadmap.touch('absent', 'fleet')).toBeNull();
+  });
+});
+
+describe('durability', () => {
+  test('roadmap state survives a wiped tuple space', () => {
+    roadmap.upsert({ slug: 'a', summaryMd: 'A', status: 'now', harbor: 'fleet' });
+    roadmap.upsert({ slug: 'b', summaryMd: 'B', status: 'backlog', harbor: 'fleet' });
+    roadmap.updateStatus({ slug: 'b', status: 'merge', by: 'agent-x', harbor: 'fleet' });
+
+    // Wipe tuples — simulating a tuple GC, schema reset, or attacker
+    // truncating the subscription log. The roadmap table is the
+    // database-of-record, so reads MUST still work.
+    db.prepare('DELETE FROM tuples').run();
+
+    const items = roadmap.list({ harbor: 'fleet' });
+    expect(items.map((i) => i.slug).sort()).toEqual(['a', 'b']);
+    expect(roadmap.get('b', 'fleet')?.status).toBe('merge');
+    expect(roadmap.get('a', 'fleet')?.summaryMd).toBe('A');
+  });
+
+  test('audit trail rows land in roadmap_item_status_events', () => {
+    roadmap.upsert({ slug: 'audit', summaryMd: 'x', status: 'backlog', harbor: 'fleet' });
+    roadmap.updateStatus({ slug: 'audit', status: 'now', by: 'agent-1', harbor: 'fleet' });
+    roadmap.updateStatus({ slug: 'audit', status: 'done', by: 'agent-2', harbor: 'fleet' });
+
+    const events = db
+      .prepare(`SELECT status, by_agent_id FROM roadmap_item_status_events
+                WHERE slug = ? ORDER BY id ASC`)
+      .all('audit');
+    expect(events).toEqual([
+      { status: 'now', by_agent_id: 'agent-1' },
+      { status: 'done', by_agent_id: 'agent-2' },
+    ]);
   });
 });

@@ -17,7 +17,7 @@ beforeEach(() => {
   clock = 1_700_000_000_000;
   const now = () => clock;
   feedback = createFeedback({ tuples, now });
-  roadmapItems = createRoadmapItems({ tuples, now });
+  roadmapItems = createRoadmapItems({ db, tuples, now });
   promote = createRoadmapPromote({ feedback, roadmapItems, now });
 });
 
