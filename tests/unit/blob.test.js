@@ -129,22 +129,18 @@ describe('createBlobStore', () => {
   });
 
   describe('gc', () => {
-    it('removes old blobs but keeps anything in keepIds', async () => {
-      // Margins widened from the original 20ms sleep + 10ms threshold.
-      // On macOS-latest node-24 the previous gap was tight enough that
-      // GitHub Actions runners — under load and slower fork/promise
-      // scheduling on node 24 — occasionally took >10ms between
-      // `store.put(fresh)` and `store.gc()`, causing fresh to fall on
-      // the wrong side of the cutoff and the assertion at "too new to
-      // reap" to fail. Bumping the sleep to 100ms and the cutoff to
-      // 50ms keeps the test deterministic without slowing it materially.
+    it('removes old blobs but keeps anything in keepIds', () => {
       const old1 = store.put(Buffer.from('old-1'));
       const old2 = store.put(Buffer.from('old-2'));
-      await new Promise((r) => setTimeout(r, 100));
       const fresh = store.put(Buffer.from('fresh'));
 
+      const now = Date.now();
+      writeFileSync(join(dir, `${old1.id}.meta`), JSON.stringify({ createdAt: now - 1_000 }));
+      writeFileSync(join(dir, `${old2.id}.meta`), JSON.stringify({ createdAt: now - 1_000 }));
+      writeFileSync(join(dir, `${fresh.id}.meta`), JSON.stringify({ createdAt: now }));
+
       const result = store.gc({
-        olderThanMs: 50,
+        olderThanMs: 500,
         keepIds: new Set([old2.id]),
       });
 
