@@ -157,8 +157,8 @@ export const WHITE_PAPERS: WhitePaper[] = [
     readerHref: '/whitepaper/bonded-commons',
     overviewHref: '/whitepaper?paper=bonded-commons',
     date: 'May 2026',
-    pages: 37,
-    sizeKb: 863,
+    pages: 46,
+    sizeKb: 902,
     status: 'Version 2.5 (pre-print)',
     order: '02',
     primer:
