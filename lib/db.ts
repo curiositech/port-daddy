@@ -171,6 +171,28 @@ export const CORE_SCHEMA_SQL = `
   );
   CREATE INDEX IF NOT EXISTS idx_session_notes_session ON session_notes(session_id, created_at);
   CREATE INDEX IF NOT EXISTS idx_session_notes_type ON session_notes(type);
+
+  CREATE TABLE IF NOT EXISTS graph_edges (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    scope TEXT NOT NULL,
+    project_dir TEXT,
+    source_type TEXT NOT NULL,
+    source_id TEXT NOT NULL,
+    edge_type TEXT NOT NULL,
+    target_type TEXT NOT NULL,
+    target_id TEXT NOT NULL,
+    weight REAL NOT NULL DEFAULT 1,
+    metadata TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_graph_edges_scope ON graph_edges(scope);
+  CREATE INDEX IF NOT EXISTS idx_graph_edges_project ON graph_edges(project_dir, updated_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_graph_edges_source ON graph_edges(source_type, source_id);
+  CREATE INDEX IF NOT EXISTS idx_graph_edges_target ON graph_edges(target_type, target_id);
+  CREATE INDEX IF NOT EXISTS idx_graph_edges_type ON graph_edges(edge_type, updated_at DESC);
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_graph_edges_unique
+    ON graph_edges(scope, source_type, source_id, edge_type, target_type, target_id);
 `;
 
 // ─────────────────────────────────────────────────────────────────────────────

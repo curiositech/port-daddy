@@ -317,7 +317,7 @@ describe('CLI Integration Tests', () => {
 
   describe('Ideas Command', () => {
     test('ideas list returns curated trove entries', () => {
-      const result = runCli(['ideas', 'list', '--dir', repoRoot, '--limit', '6', '--json']);
+      const result = runCli(['ideas', 'list', '--dir', repoRoot, '--limit', '100', '--json']);
       expect(result.success).toBe(true);
 
       const data = JSON.parse(result.stdout);
