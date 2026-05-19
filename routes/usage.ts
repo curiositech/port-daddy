@@ -10,7 +10,9 @@ import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import type { UsageTelemetry, UsageTelemetryRecordInput } from '../lib/usage-telemetry.js';
 
 interface UsageDeps {
-  usageTelemetry: UsageTelemetry;
+  usageTelemetry?: UsageTelemetry;
+  VERSION?: string;
+  CODE_HASH?: string;
 }
 
 function parseWindowMs(value: string | undefined): number {
@@ -53,6 +55,10 @@ export const usagePlugin: FastifyPluginAsync<{ deps: UsageDeps }> = async (fasti
   const { usageTelemetry } = opts.deps;
 
   fastify.post('/usage/trace', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!usageTelemetry) {
+      return { success: false, disabled: true };
+    }
+
     const body = (request.body ?? {}) as Partial<UsageTelemetryRecordInput>;
     if (typeof body.surface !== 'string' || typeof body.kind !== 'string') {
       reply.code(400);
@@ -99,8 +105,45 @@ export const usagePlugin: FastifyPluginAsync<{ deps: UsageDeps }> = async (fasti
 
   fastify.get('/usage/summary', async (request: FastifyRequest) => {
     const query = request.query as Record<string, string | undefined>;
+    const since = parseSince(query);
+    if (!usageTelemetry) {
+      return {
+        success: true,
+        generatedAt: Date.now(),
+        since,
+        periodMs: Date.now() - since,
+        build: {
+          version: opts.deps.VERSION ?? 'unknown',
+          codeHash: opts.deps.CODE_HASH ?? 'unknown',
+          buildDate: 'unknown',
+        },
+        totals: {
+          events: 0,
+          uniqueAgents: 0,
+          uniqueProjects: 0,
+          uniqueModels: 0,
+          inputTokens: 0,
+          cachedInputTokens: 0,
+          outputTokens: 0,
+          totalTokens: 0,
+          turns: 0,
+          toolCalls: 0,
+          costUsd: 0,
+        },
+        costByScope: [],
+        bySurface: [],
+        byKind: [],
+        byCategory: [],
+        topNames: [],
+        agentModels: [],
+        capabilities: [],
+        agentCapabilityMatrix: [],
+        unusedCapabilities: [],
+        recent: [],
+      };
+    }
     return usageTelemetry.summary({
-      since: parseSince(query),
+      since,
       limit: parseLimit(query.limit, 80),
     });
   });
@@ -109,6 +152,13 @@ export const usagePlugin: FastifyPluginAsync<{ deps: UsageDeps }> = async (fasti
     const query = request.query as Record<string, string | undefined>;
     const since = parseSince(query);
     const limit = parseLimit(query.limit, 120);
+    if (!usageTelemetry) {
+      return {
+        success: true,
+        since,
+        events: [],
+      };
+    }
     return {
       success: true,
       since,

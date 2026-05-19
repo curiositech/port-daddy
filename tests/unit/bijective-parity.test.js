@@ -331,6 +331,7 @@ describe('Test Group 3: API -> CLI Parity', () => {
     panic: ['fleet'],
     budget: ['wallet'],
     shipwright: ['shipwright'],
+    setup: ['setup'],
     cockpit: ['cockpit'],
   };
 
