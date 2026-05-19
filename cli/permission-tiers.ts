@@ -1,0 +1,434 @@
+/**
+ * CLI Permission Tiers
+ *
+ * Authoritative classification of every `pd` command into one of four tiers,
+ * by impact on shared state and other agents:
+ *
+ *   silent       Read-only. No observable side effects.
+ *   notify       Mutates caller-scoped state. Reversible.
+ *   approval     Mutates state that affects another agent. No data loss.
+ *   destructive  Releases another agent's resources, OR removes/expires records.
+ *
+ * The audit that motivated this file caught `pd salvage` releasing another
+ * agent's claims with no user-facing warning. Anything destructive must now
+ * go through `requireConfirmation()` (see cli/utils/destructive-confirm.ts)
+ * and surface its tier in --help.
+ *
+ * Commands here are keyed by what the operator types after `pd `. For
+ * subcommands that change tier mid-command (e.g. `pd salvage` is silent in
+ * its default list form but `pd salvage claim` is destructive), the registry
+ * stores the WORST-CASE tier for the top-level entry and the per-subcommand
+ * tiers under `SUBCOMMAND_TIERS`. Use `resolveTier()` to get the right answer
+ * for an actual invocation.
+ */
+
+export type Tier = 'silent' | 'notify' | 'approval' | 'destructive';
+
+export const ALL_TIERS: readonly Tier[] = ['silent', 'notify', 'approval', 'destructive'];
+
+/**
+ * Top-level command -> tier. For top-level verbs (e.g. `pd claim`), this is
+ * the operative tier. For top-level groups whose subcommands span tiers
+ * (e.g. `pd salvage`, `pd session`, `pd agent`), this is the WORST case the
+ * group can produce; `SUBCOMMAND_TIERS` then refines per subcommand.
+ */
+export const TIER_REGISTRY: Record<string, Tier> = {
+  // ── silent: read-only ────────────────────────────────────────────────────
+  status: 'silent',
+  version: 'silent',
+  whoami: 'silent',
+  w: 'silent',
+  find: 'silent',
+  f: 'silent',
+  l: 'silent',
+  list: 'silent',
+  ps: 'silent',
+  services: 'silent',
+  url: 'silent',
+  env: 'silent',
+  ports: 'silent',          // refined below: `ports cleanup` is destructive
+  locks: 'silent',
+  sessions: 'silent',
+  notes: 'silent',
+  agents: 'silent',
+  swarm: 'silent',
+  actors: 'silent',
+  actor: 'silent',
+  changelog: 'silent',
+  log: 'silent',
+  activity: 'silent',
+  briefing: 'silent',
+  history: 'silent',
+  dashboard: 'silent',
+  health: 'silent',
+  metrics: 'silent',
+  config: 'silent',
+  hints: 'silent',
+  bench: 'silent',
+  demo: 'silent',
+  doctor: 'silent',
+  diagnose: 'silent',
+  'ci-gate': 'silent',
+  help: 'silent',
+  learn: 'silent',
+  tutorial: 'silent',
+  sitrep: 'silent',
+  look: 'silent',
+  advise: 'silent',
+  preflight: 'silent',
+  compass: 'silent',
+  roadmap: 'silent',
+  ideas: 'silent',
+  graph: 'silent',
+  memory: 'silent',
+  'who-owns': 'silent',
+  harbors: 'silent',
+  spawned: 'silent',
+  feedback: 'silent',       // default form is `feedback list/show/summary`; writes are `notify`
+  quorum: 'silent',
+  tuple: 'silent',
+  pheromone: 'silent',
+  ph: 'silent',
+  scan: 'silent',
+  s: 'silent',
+  projects: 'silent',       // refined: `projects rm` is destructive
+  p: 'silent',
+  channels: 'silent',       // refined: `channels clear` is destructive
+  webhook: 'silent',
+  webhooks: 'silent',
+  dns: 'silent',            // refined: `dns cleanup`, `dns register` are mutations
+  snapshots: 'silent',
+  snapshot: 'silent',
+  cockpit: 'silent',
+  shipwright: 'silent',
+  inbox: 'silent',
+  integration: 'silent',
+  wallet: 'silent',
+  bond: 'silent',
+  fleet: 'silent',          // refined: `fleet down`, `fleet panic` are destructive
+  tube: 'silent',
+  tunnel: 'silent',
+  init: 'notify',
+  setup: 'notify',
+
+  // ── notify: caller-scoped, reversible ────────────────────────────────────
+  claim: 'notify',
+  c: 'notify',
+  release: 'notify',        // refined: `release --expired` is destructive (releases stale claims globally)
+  r: 'notify',
+  lock: 'notify',
+  unlock: 'notify',         // refined: `unlock --force` is destructive
+  session: 'notify',        // refined: `session rm`, `session abandon` are destructive
+  note: 'notify',
+  n: 'notify',
+  begin: 'notify',
+  b: 'notify',
+  done: 'notify',
+  'with-lock': 'notify',
+  say: 'notify',
+  add: 'notify',
+  semantic: 'notify',
+  watch: 'notify',
+
+  // ── approval: mutates another agent's state, no data loss ────────────────
+  // Top-level entries; subcommand refinement may downgrade.
+  pub: 'approval',
+  publish: 'approval',
+  broadcast: 'approval',
+  sub: 'silent',            // subscribe is read-only stream
+  subscribe: 'silent',
+  listen: 'silent',
+  wait: 'silent',
+  up: 'approval',           // brings up multi-service stacks; effects on shared ports
+  u: 'approval',
+  spawn: 'approval',        // refined: `spawn kill` is destructive
+  sortie: 'approval',
+  agent: 'approval',        // refined: `agent unregister`, `agent inbox clear` are destructive
+  mcp: 'approval',
+  harbor: 'approval',       // refined: `harbor destroy` is destructive
+
+  // ── destructive: releases another's resources OR removes records ─────────
+  salvage: 'destructive',           // refined: bare `salvage` list is silent; subcommands vary
+  resurrection: 'destructive',
+  down: 'destructive',
+  d: 'destructive',
+  stop: 'destructive',
+  start: 'notify',                  // starts the daemon, not destructive
+  restart: 'destructive',           // kills the running daemon
+  install: 'notify',                // installs launchd plist; not destructive on its own
+  uninstall: 'destructive',
+  guard: 'silent',                  // refined: `guard install`, `guard enable/disable` are destructive
+  dev: 'approval',                  // refined: `dev stop` is destructive
+  daemon: 'silent',                 // refined: subcommands vary
+
+  // unmapped fallback handlers
+  message: 'approval',
+};
+
+/**
+ * Tier overrides keyed by `"<command> <subcommand>"`. Looked up FIRST by
+ * resolveTier() before falling back to TIER_REGISTRY[command].
+ *
+ * Two-token keys only. If the second positional arg disambiguates the tier,
+ * it goes here. Three-token keys (e.g. distinguishing `agent inbox clear`
+ * from `agent inbox list`) use the special longer-key form and are matched
+ * by best-effort prefix.
+ */
+export const SUBCOMMAND_TIERS: Record<string, Tier> = {
+  // salvage: list is read-only, mutations are destructive
+  'salvage': 'silent',              // default subcommand = listing
+  'salvage triage': 'silent',
+  'salvage next': 'silent',
+  'salvage claim': 'destructive',   // claims another agent's session+files
+  'salvage complete': 'destructive',// finalizes an inherited session
+  'salvage abandon': 'destructive', // forces session back to queue
+  'salvage dismiss': 'destructive', // permanently removes from queue
+
+  // session: most are notify, removals are destructive
+  'session start': 'notify',
+  'session end': 'notify',
+  'session done': 'notify',
+  'session abandon': 'destructive', // marks session abandoned — affects others reading the trail
+  'session rm': 'destructive',      // deletes session + notes
+  'session files': 'notify',        // add/rm of caller's own claims
+
+  // release: bare release of caller's own port is notify; --expired is global
+  'release --expired': 'destructive',
+
+  // unlock --force breaks another agent's lock
+  'unlock --force': 'destructive',
+
+  // ports cleanup releases stale ports across projects
+  'ports cleanup': 'destructive',
+
+  // projects rm removes a registered project
+  'projects rm': 'destructive',
+  'p rm': 'destructive',
+
+  // channels clear blows away message history on a channel
+  'channels clear': 'destructive',
+  'channels ensure': 'notify',
+  'channels describe': 'silent',
+  'channels discover': 'silent',
+
+  // dns mutations
+  'dns register': 'notify',
+  'dns lookup': 'silent',
+  'dns list': 'silent',
+  'dns cleanup': 'destructive',
+  'dns status': 'silent',
+
+  // agent subcommands
+  'agent register': 'notify',
+  'agent heartbeat': 'notify',
+  'agent unregister': 'destructive',
+  'agent inbox': 'silent',
+  'agent inbox list': 'silent',
+  'agent inbox stats': 'silent',
+  'agent inbox send': 'approval',
+  'agent inbox clear': 'destructive',
+  'agent inbox read-all': 'notify',
+
+  // harbor subcommands
+  'harbor create': 'notify',
+  'harbor enter': 'notify',
+  'harbor leave': 'notify',
+  'harbor show': 'silent',
+  'harbor destroy': 'destructive',
+  'harbor delete': 'destructive',
+
+  // spawn subcommands
+  'spawn kill': 'destructive',
+
+  // fleet subcommands
+  'fleet up': 'approval',
+  'fleet down': 'destructive',
+  'fleet status': 'silent',
+  'fleet validate': 'silent',
+  'fleet models': 'silent',
+  'fleet init': 'notify',
+  'fleet prompt': 'silent',
+  'fleet panic': 'destructive',
+  'fleet unpanic': 'notify',
+
+  // guard subcommands
+  'guard status': 'silent',
+  'guard check': 'silent',
+  'guard enable': 'destructive',    // changes enforcement mode for everyone
+  'guard on': 'destructive',
+  'guard disable': 'destructive',
+  'guard off': 'destructive',
+  'guard install': 'destructive',   // writes git hooks
+  'guard install-shim': 'destructive',
+  'guard shim-install': 'destructive',
+  'guard uninstall-shim': 'destructive',
+  'guard shim-uninstall': 'destructive',
+  'guard help': 'silent',
+
+  // dev subcommands
+  'dev start': 'approval',
+  'dev stop': 'destructive',
+  'dev status': 'silent',
+
+  // daemon subcommands
+  'daemon list': 'silent',
+  'daemon status': 'silent',
+  'daemon install': 'notify',
+  'daemon uninstall': 'destructive',
+  'daemon stop': 'destructive',
+  'daemon start': 'notify',
+  'daemon restart': 'destructive',
+
+  // feedback writes
+  'feedback list': 'silent',
+  'feedback show': 'silent',
+  'feedback summary': 'silent',
+  'feedback harvest': 'notify',
+
+  // mcp
+  'mcp install': 'notify',
+
+  // session files claim/rm are caller-scoped
+  'session files add': 'notify',
+  'session files claim': 'notify',
+  'session files rm': 'notify',
+  'session files release': 'notify',
+};
+
+/**
+ * Resolve the tier for a concrete invocation.
+ *
+ * @param command   Top-level verb (e.g. "salvage", "release")
+ * @param argv      Positional args AFTER the command (e.g. ["claim", "agent-99"])
+ *                  Pass [] for bare verbs. Pass options-as-flags strings like
+ *                  "--expired" if the flag changes the tier (rare).
+ *
+ * Resolution order:
+ *   1. Three-token key:  "<command> <argv0> <argv1>"   (e.g. "agent inbox clear")
+ *   2. Two-token key:    "<command> <argv0>"           (e.g. "salvage claim")
+ *   3. Flag-suffix key:  "<command> --<flag>"          (e.g. "release --expired")
+ *   4. Bare command:     TIER_REGISTRY[command]
+ *   5. Fallback:         "silent" (so unmapped lookups don't accidentally
+ *                        gate a read with a confirmation prompt)
+ */
+export function resolveTier(
+  command: string,
+  argv: readonly string[] = [],
+  flags: readonly string[] = []
+): Tier {
+  // 1. Three-token key
+  if (argv.length >= 2) {
+    const k3 = `${command} ${argv[0]} ${argv[1]}`;
+    if (SUBCOMMAND_TIERS[k3]) return SUBCOMMAND_TIERS[k3];
+  }
+
+  // 2. Two-token key
+  if (argv.length >= 1) {
+    const k2 = `${command} ${argv[0]}`;
+    if (SUBCOMMAND_TIERS[k2]) return SUBCOMMAND_TIERS[k2];
+  }
+
+  // 3. Flag-suffix key (only for the small set of flags that change tier)
+  for (const f of flags) {
+    const norm = f.startsWith('--') ? f : `--${f}`;
+    const kf = `${command} ${norm}`;
+    if (SUBCOMMAND_TIERS[kf]) return SUBCOMMAND_TIERS[kf];
+  }
+
+  // 4. Bare-command override in SUBCOMMAND_TIERS — used when the top-level
+  //    verb's "no subcommand" form is safer than the worst-case TIER_REGISTRY
+  //    entry. Notably: `pd salvage` with no args is silent (list), but the
+  //    `salvage <claim|dismiss|...>` family is destructive.
+  if (argv.length === 0 && SUBCOMMAND_TIERS[command]) {
+    return SUBCOMMAND_TIERS[command];
+  }
+
+  // 5. Bare command
+  if (TIER_REGISTRY[command]) return TIER_REGISTRY[command];
+
+  // 6. Fallback
+  return 'silent';
+}
+
+/**
+ * All commands grouped by tier. Useful for `pd help` rendering, README
+ * generation, and tests that need to assert "every destructive command is
+ * wired through requireConfirmation".
+ */
+export function commandsByTier(): Record<Tier, string[]> {
+  const out: Record<Tier, string[]> = {
+    silent: [],
+    notify: [],
+    approval: [],
+    destructive: [],
+  };
+
+  for (const [cmd, tier] of Object.entries(TIER_REGISTRY)) {
+    out[tier].push(cmd);
+  }
+  for (const [key, tier] of Object.entries(SUBCOMMAND_TIERS)) {
+    out[tier].push(key);
+  }
+
+  for (const tier of ALL_TIERS) {
+    out[tier].sort();
+  }
+  return out;
+}
+
+/**
+ * Short single-word label rendered in --help next to a command's description.
+ * Format: `[silent]`, `[notify]`, `[approval]`, `[destructive]`.
+ */
+export function tierBadge(tier: Tier): string {
+  return `[${tier}]`;
+}
+
+/**
+ * The canonical, user-facing list of commands that REQUIRE
+ * requireConfirmation() to be invoked before any side effect. Tests use this
+ * to verify the helper is actually wired into each command's handler.
+ */
+export const DESTRUCTIVE_COMMANDS: readonly string[] = Object.freeze([
+  'salvage claim',
+  'salvage complete',
+  'salvage abandon',
+  'salvage dismiss',
+  'session abandon',
+  'session rm',
+  'release --expired',
+  'unlock --force',
+  'ports cleanup',
+  'projects rm',
+  'channels clear',
+  'dns cleanup',
+  'agent unregister',
+  'agent inbox clear',
+  'harbor destroy',
+  'spawn kill',
+  'fleet down',
+  'fleet panic',
+  'guard install',
+  'guard install-shim',
+  'guard uninstall-shim',
+  'guard enable',
+  'guard disable',
+  'dev stop',
+  'daemon stop',
+  'daemon restart',
+  'daemon uninstall',
+  'restart',
+  'stop',
+  'uninstall',
+  'down',
+]);
+
+/**
+ * Short, one-line legend for the four tiers. Embedded in `pd help` output.
+ */
+export const TIER_LEGEND = [
+  '  [silent]      Read-only. Safe to run anywhere.',
+  '  [notify]      Mutates your own state. Reversible.',
+  '  [approval]    Affects other agents. No data loss.',
+  '  [destructive] Releases someone else\'s resources or removes records. Prompts for confirmation; pass --yes to skip.',
+].join('\n');
