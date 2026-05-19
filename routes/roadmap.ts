@@ -22,6 +22,7 @@ import type {
   UpsertRoadmapItemInput,
 } from '../lib/roadmap-items.js';
 import type { RoadmapPromote, PromoteFromFeedbackInput } from '../lib/roadmap-promote.js';
+import { renderNextCutsMarkdown, applyRoadmapMarkdown } from '../lib/roadmap-render.js';
 
 interface RoadmapDeps {
   roadmapItems: RoadmapItems;
@@ -221,6 +222,48 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
       return { success: false, error: `roadmap item '${slug}' not found` };
     }
     return { success: true, item };
+  });
+
+  fastify.post('/roadmap/render', async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = (request.body ?? {}) as Record<string, unknown>;
+    const harbor = asString(body.harbor);
+    const project = asString(body.project);
+    const effectiveHarbor = harbor ?? harborForProject(project);
+    const statusRaw = asString(body.status);
+    const status =
+      statusRaw === 'all'
+        ? 'all'
+        : statusRaw && STATUS_VALUES.has(statusRaw as RoadmapStatus)
+          ? (statusRaw as RoadmapStatus)
+          : 'now';
+    const limit = asPosInt(body.limit);
+    const items = roadmapItems.list({ harbor: effectiveHarbor, status, limit });
+    const markdown = renderNextCutsMarkdown(items, { status, limit });
+
+    const rootDir = asString(body.rootDir);
+    const write = body.write === true;
+    if (write && !rootDir) {
+      reply.code(400);
+      return { success: false, error: 'write=true requires rootDir' };
+    }
+    if (write && rootDir) {
+      try {
+        const result = applyRoadmapMarkdown(rootDir, items, { status, limit });
+        return {
+          success: true,
+          markdown,
+          count: items.length,
+          write: { path: result.path, changed: result.changed, insertedMarkers: result.insertedMarkers },
+        };
+      } catch (error) {
+        reply.code(500);
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'render write failed',
+        };
+      }
+    }
+    return { success: true, markdown, count: items.length };
   });
 
   fastify.post('/roadmap/promote', async (request: FastifyRequest, reply: FastifyReply) => {

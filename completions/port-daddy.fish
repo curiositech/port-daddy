@@ -782,7 +782,12 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command ideas" -s q -l quiet -d 'Suppress output'
 
     # roadmap
-    complete -c $prog -n "__pd_using_command roadmap; and not __fish_seen_subcommand_from ack harvest promote pop release claims" -a "ack harvest promote pop release claims" -d 'roadmap subcommand'
+    complete -c $prog -n "__pd_using_command roadmap; and not __fish_seen_subcommand_from ack harvest promote render pop release claims" -a "ack harvest promote render pop release claims" -d 'roadmap subcommand'
+    complete -c $prog -n "__pd_using_command roadmap; and __fish_seen_subcommand_from render" -l write -d 'Write docs/ROADMAP.md to disk'
+    complete -c $prog -n "__pd_using_command roadmap; and __fish_seen_subcommand_from render" -l rootDir -x -d 'Project directory whose docs/ROADMAP.md to update'
+    complete -c $prog -n "__pd_using_command roadmap; and __fish_seen_subcommand_from render" -l status -x -a 'now backlog parked merge done all' -d 'Status filter'
+    complete -c $prog -n "__pd_using_command roadmap; and __fish_seen_subcommand_from render" -l harbor -x -d 'Harbor scope'
+    complete -c $prog -n "__pd_using_command roadmap; and __fish_seen_subcommand_from render" -l project -x -d 'Project name (harbor shorthand)'
     complete -c $prog -n "__pd_using_command roadmap; and __fish_seen_subcommand_from promote" -l from-feedback -x -d 'Feedback id to promote'
     complete -c $prog -n "__pd_using_command roadmap; and __fish_seen_subcommand_from promote" -l slug -x -d 'Override roadmap slug'
     complete -c $prog -n "__pd_using_command roadmap; and __fish_seen_subcommand_from promote" -l summary -x -d 'Markdown summary for promoted item'

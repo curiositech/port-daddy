@@ -297,26 +297,38 @@ fleet:
         - Leave raw .spark/feedback/*.md files in place as provenance.
           Never edit another agent's raw drop.
 
-        Auto-promote daemon feedback (tuple-backed feedback):
-        - Run `pd roadmap --feedback-status open --json` first so you see
-          the same live feedback projection Fleet Control Center shows.
-          Fall back to `pd feedback list --status open --json` only if the
+        Auto-promote daemon feedback (DB-of-record path, slices A+B+C):
+        - Run `pd roadmap --feedback-status open --json` first to see the
+          same live feedback projection Fleet Control Center shows. Fall
+          back to `pd feedback list --status open --json` only if the
           roadmap projection is unavailable.
-        - Each entry has feedbackId, severity, status, surface, summary,
-          source, droppedAt/at, and optional suggested next cut.
-        - For every `severity: critical` or `severity: high` entry, mint
-          (or extend) the matching slug in DOGFOOD-FEEDBACK.md with
-          `status: now` and a "via pd feedback" provenance pointer that
-          includes the feedbackId. Add a "Next Cuts" line in ROADMAP.md.
-        - For `medium`, mint at `status: backlog` (skip if already covered).
-        - For `low`, append a one-line bullet to the curated entry's
-          provenance only — don't mint new slugs.
-        - After promoting an entry, run
-          `pd roadmap ack <feedbackId> --as cartographer --into <slug>`
-          so the tuple-backed queue records the harvest and the roadmap
-          projection changes on the next read.
-        - If `pd feedback` is unavailable, skip this block entirely; do
-          not abort the rest of the cartographer pass.
+        - Each feedback entry has feedbackId, severity, status, surface,
+          summary, source, droppedAt/at, and optional `suggested` next cut.
+        - For every `severity: critical` or `severity: high` entry, run
+          `pd roadmap promote <feedbackId> --as cartographer --status now \
+            --summary "<a one-line synthesized markdown line>"`
+          This single call (atomic) upserts a `roadmap_items` tuple with
+          `promotedFromFeedbackId` and marks the feedback harvested with
+          `harvestedIntoSlug` pointing at the new slug. Do NOT hand-edit
+          docs/ROADMAP.md for these — the next render step below writes
+          the Next Cuts block from the tuple stream.
+        - For `medium`, run the same `pd roadmap promote` with
+          `--status backlog`.
+        - For `low`, do not promote; append a one-line bullet to the
+          matching curated entry in DOGFOOD-FEEDBACK.md as provenance.
+        - Once all promotions in this pass are done, run
+          `pd roadmap render --write --rootDir <projectDir> --status now`
+          which reads the tuple stream and rewrites the marker-bounded
+          block under "## Next Cuts (From Curated Trove)" in
+          docs/ROADMAP.md. Markers: `<!-- pd-roadmap:items-start -->`
+          and `<!-- pd-roadmap:items-end -->`. Human-authored prose
+          outside the markers is preserved.
+        - You can also call render without `--write` to preview the
+          markdown the next render would produce.
+        - If `pd roadmap promote` or `pd roadmap render` are unavailable
+          (older daemon), fall back to the legacy markdown-edit path and
+          file a high-severity FleetBar feedback entry so the gap is
+          tracked.
 
         Also maintain docs/recovery/CURRENT-WORK.md and .cartographer/status.md with:
         - Current phase (which phase has the most active work)

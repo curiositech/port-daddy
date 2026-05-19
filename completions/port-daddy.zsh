@@ -1751,7 +1751,7 @@ _pd_cmd_ideas() {
 
 _pd_cmd_roadmap() {
   _arguments \
-    '1:subcommand:(ack harvest promote pop release claims)' \
+    '1:subcommand:(ack harvest promote render pop release claims)' \
     '2:feedback id:' \
     '--dir[project directory]:path:_files -/' \
     '--root[project root]:path:_files -/' \
@@ -1767,6 +1767,9 @@ _pd_cmd_roadmap() {
     '--summary[markdown summary for promoted item]:text:' \
     '--status[roadmap item status]:(now backlog parked merge done)' \
     '--harbor[harbor scope override]:harbor:' \
+    '--write[render: write docs/ROADMAP.md to disk]' \
+    '--rootDir[render: project directory whose docs/ROADMAP.md to update]:path:_files -/' \
+    '--project[render: project name shorthand for harbor scope]:project:' \
     '--no-excerpts[hide current-work and Cartographer excerpts]' \
     '(-j --json)'{-j,--json}'[output JSON]' \
     '(-q --quiet)'{-q,--quiet}'[agent-readable section:slug output]'

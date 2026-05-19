@@ -123,6 +123,11 @@ export async function handleRoadmap(argsOrOptions: string[] | CLIOptions, maybeO
     return;
   }
 
+  if (sub === 'render') {
+    await handleRoadmapRender(args.slice(1), options);
+    return;
+  }
+
   if (sub === 'pop') {
     await handleRoadmapPop(args.slice(1), options);
     return;
@@ -555,4 +560,47 @@ async function handleRoadmapPromote(args: string[], options: CLIOptions): Promis
   console.log(`  harbor:    ${item.harbor}`);
   console.log(`  summary:   ${item.summaryMd.slice(0, 140)}${item.summaryMd.length > 140 ? '…' : ''}`);
   console.log(`  feedback:  status=${feedback.status} harvestedIntoSlug=${feedback.harvestedIntoSlug}`);
+}
+
+async function handleRoadmapRender(args: string[], options: CLIOptions): Promise<void> {
+  const write = Boolean(options.write) || args.includes('--write');
+  const rootDir = write ? resolve(readOption(options, 'dir', 'root', 'rootDir', 'projectDir') || process.cwd()) : undefined;
+  const status = readOption(options, 'status') ?? 'now';
+  const harbor = readOption(options, 'harbor');
+  const project = readOption(options, 'project');
+  const limit = options.limit !== undefined ? parseLimit(options.limit, 0) : undefined;
+
+  const body: Record<string, unknown> = { status };
+  if (harbor) body.harbor = harbor;
+  if (project) body.project = project;
+  if (limit && limit > 0) body.limit = limit;
+  if (write && rootDir) {
+    body.write = true;
+    body.rootDir = rootDir;
+  }
+
+  const res = await pdFetch('/roadmap/render', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!res.ok || data.success !== true) {
+    ui.error((data.error as string) || `Render failed: HTTP ${res.status}`);
+    process.exit(1);
+  }
+  if (isJson(options)) {
+    console.log(JSON.stringify(data, null, 2));
+    return;
+  }
+  if (write && (data.write as any)?.path) {
+    const writeInfo = data.write as { path: string; changed: boolean; insertedMarkers: boolean };
+    if (writeInfo.changed) {
+      ui.success(`Wrote ${data.count} item(s) to ${writeInfo.path}${writeInfo.insertedMarkers ? ' (markers inserted)' : ''}`);
+    } else {
+      ui.success(`${writeInfo.path} already current (${data.count} item(s), no change)`);
+    }
+    return;
+  }
+  console.log(data.markdown as string);
 }

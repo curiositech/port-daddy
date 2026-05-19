@@ -1496,7 +1496,8 @@
         "GET /roadmap/items/:slug",
         "POST /roadmap/items/:slug/status",
         "POST /roadmap/items/:slug/touch",
-        "POST /roadmap/promote"
+        "POST /roadmap/promote",
+        "POST /roadmap/render"
       ],
       "completions": [
         "roadmap"
