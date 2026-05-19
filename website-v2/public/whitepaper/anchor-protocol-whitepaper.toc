@@ -1,38 +1,40 @@
 \contentsline {section}{\numberline {1}Introduction: The ``Local Swarm'' Problem}{3}{section.1}%
 \contentsline {section}{\numberline {2}The Anchor Protocol Architecture}{3}{section.2}%
-\contentsline {subsection}{\numberline {2.1}Phase 1: Symmetric Pinning}{3}{subsection.2.1}%
-\contentsline {subsection}{\numberline {2.2}Phase 2: Asymmetric Identity (Ed25519)}{3}{subsection.2.2}%
-\contentsline {subsection}{\numberline {2.3}Phase 3: Stigmergic Delegation (The ``Biscuit'' Pattern)}{3}{subsection.2.3}%
-\contentsline {subsection}{\numberline {2.4}Phase 4: Revocation via Cuckoo Filter}{4}{subsection.2.4}%
-\contentsline {paragraph}{Why cuckoo, not Bloom.}{4}{section*.2}%
-\contentsline {paragraph}{Space.}{4}{section*.3}%
-\contentsline {paragraph}{Gossip-based synchronization.}{4}{section*.4}%
-\contentsline {paragraph}{Soundness preservation.}{5}{section*.5}%
-\contentsline {paragraph}{Privacy.}{5}{section*.6}%
-\contentsline {section}{\numberline {3}Related Work}{5}{section.3}%
-\contentsline {subsection}{\numberline {3.1}Formal Verification of Security Protocols}{5}{subsection.3.1}%
-\contentsline {subsection}{\numberline {3.2}Capability-Based Authorization}{5}{subsection.3.2}%
-\contentsline {subsection}{\numberline {3.3}JWT Security}{5}{subsection.3.3}%
-\contentsline {section}{\numberline {4}Formal Verification Strategy}{5}{section.4}%
-\contentsline {subsection}{\numberline {4.1}Symbolic Analysis with ProVerif}{6}{subsection.4.1}%
-\contentsline {subsection}{\numberline {4.2}Runtime Enforcement: The Arbiter}{6}{subsection.4.2}%
-\contentsline {subsection}{\numberline {4.3}Implementation Verification}{7}{subsection.4.3}%
-\contentsline {section}{\numberline {5}Verification Algorithms}{7}{section.5}%
-\contentsline {subsection}{\numberline {5.1}Phase 1: Symmetric HS256 with Algorithm Pinning}{7}{subsection.5.1}%
-\contentsline {subsection}{\numberline {5.2}Phase 2: Asymmetric Ed25519}{8}{subsection.5.2}%
-\contentsline {subsection}{\numberline {5.3}Phase 3: Multi-hop Delegation}{8}{subsection.5.3}%
-\contentsline {section}{\numberline {6}Implementation: Deployed Rust Core}{9}{section.6}%
-\contentsline {subsection}{\numberline {6.1}Core Verification Logic}{9}{subsection.6.1}%
-\contentsline {subsection}{\numberline {6.2}FFI Bridge to the Node.js Daemon}{10}{subsection.6.2}%
-\contentsline {subsection}{\numberline {6.3}Kani Verification Harnesses}{10}{subsection.6.3}%
-\contentsline {section}{\numberline {7}Security Analysis}{11}{section.7}%
-\contentsline {subsection}{\numberline {7.1}Threat Model}{11}{subsection.7.1}%
-\contentsline {subsection}{\numberline {7.2}Security Properties}{12}{subsection.7.2}%
-\contentsline {subsection}{\numberline {7.3}Limitations}{12}{subsection.7.3}%
-\contentsline {section}{\numberline {8}Conclusion}{12}{section.8}%
-\contentsline {section}{\numberline {9}Algorithm Diagrams (v2.6)}{14}{section.9}%
-\contentsline {section}{\numberline {A}Mechanization Status}{15}{appendix.A}%
-\contentsline {section}{\numberline {B}Full ProVerif Models}{16}{appendix.B}%
-\contentsline {subsection}{\numberline {B.1}Phase 1: Symmetric HS256}{17}{subsection.B.1}%
-\contentsline {section}{\numberline {C}Phase 2: Asymmetric Ed25519}{17}{appendix.C}%
-\contentsline {section}{\numberline {D}Phase 3: Multi-hop Delegation}{18}{appendix.D}%
+\contentsline {subsection}{\numberline {2.1}Phase 1: Symmetric Pinning}{4}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}Phase 2: Asymmetric Identity (Ed25519)}{5}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}Phase 3: Stigmergic Delegation (The ``Biscuit'' Pattern)}{5}{subsection.2.3}%
+\contentsline {subsection}{\numberline {2.4}Phase 4: Revocation via Cuckoo Filter}{6}{subsection.2.4}%
+\contentsline {paragraph}{Cuckoo filters in one paragraph.}{6}{section*.6}%
+\contentsline {paragraph}{Why cuckoo, not Bloom.}{7}{section*.8}%
+\contentsline {paragraph}{Space.}{7}{section*.9}%
+\contentsline {paragraph}{Gossip-based synchronization.}{7}{section*.10}%
+\contentsline {paragraph}{Soundness preservation.}{8}{section*.11}%
+\contentsline {paragraph}{Privacy.}{8}{section*.12}%
+\contentsline {section}{\numberline {3}Related Work}{8}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Formal Verification of Security Protocols}{8}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Capability-Based Authorization}{8}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}JWT Security}{8}{subsection.3.3}%
+\contentsline {section}{\numberline {4}Formal Verification Strategy}{9}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Symbolic Analysis with ProVerif}{9}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Runtime Enforcement: The Arbiter}{9}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}Implementation Verification}{10}{subsection.4.3}%
+\contentsline {section}{\numberline {5}Verification Algorithms}{10}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Phase 1: Symmetric HS256 with Algorithm Pinning}{10}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}Phase 2: Asymmetric Ed25519}{11}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}Phase 3: Multi-hop Delegation}{11}{subsection.5.3}%
+\contentsline {section}{\numberline {6}Implementation: Deployed Rust Core}{12}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Core Verification Logic}{12}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}FFI Bridge to the Node.js Daemon}{13}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}Kani Verification Harnesses}{13}{subsection.6.3}%
+\contentsline {section}{\numberline {7}Security Analysis}{14}{section.7}%
+\contentsline {subsection}{\numberline {7.1}Threat Model}{14}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}Security Properties}{15}{subsection.7.2}%
+\contentsline {subsection}{\numberline {7.3}Limitations}{15}{subsection.7.3}%
+\contentsline {section}{\numberline {8}Conclusion}{15}{section.8}%
+\contentsline {section}{\numberline {A}Formal Verification Status}{17}{appendix.A}%
+\contentsline {paragraph}{Artifact availability.}{17}{section*.16}%
+\contentsline {paragraph}{Limitations.}{18}{section*.18}%
+\contentsline {section}{\numberline {B}Full ProVerif Models}{18}{appendix.B}%
+\contentsline {subsection}{\numberline {B.1}Phase 1: Symmetric HS256}{18}{subsection.B.1}%
+\contentsline {section}{\numberline {C}Phase 2: Asymmetric Ed25519}{19}{appendix.C}%
+\contentsline {section}{\numberline {D}Phase 3: Multi-hop Delegation}{20}{appendix.D}%

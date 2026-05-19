@@ -36,6 +36,8 @@ export interface WhitePaper {
   highlights: Array<{ icon: LucideIcon; label: string }>
   sections: Array<{ title: string; content: string }>
   takeaways: Array<{ title: string; body: string }>
+  /** Honest list of what this paper does NOT do — read before installing so nothing later feels like a surprise. */
+  limitations: Array<{ title: string; body: string }>
 }
 
 export const WHITE_PAPERS: WhitePaper[] = [
@@ -54,12 +56,12 @@ export const WHITE_PAPERS: WhitePaper[] = [
     readerHref: '/whitepaper/anchor-protocol',
     overviewHref: '/whitepaper?paper=anchor-protocol',
     date: 'May 2026',
-    pages: 18,
-    sizeKb: 442,
+    pages: 22,
+    sizeKb: 690,
     status: 'Version 1.2',
     order: '01',
     primer:
-      'Your laptop is — at this exact moment, while you are reading this — running about twenty programs you did not consciously start. Some you wanted (the language model in your editor, the build watcher, that weird Electron app you forgot you installed). Some are vestigial. A small but rapidly growing handful are *autonomous* — little agents your tools spawned to act on your behalf, with the same standing on your machine as you. This is the cryptographic equivalent of giving every guest at a party your house keys because they showed up with the same Uber driver. The Anchor Protocol is the boring, important plumbing that hands each program a guest pass instead — a tiny signed card listing exactly which rooms it may enter, for how long, and from whom. The card is checked at every door. The card cannot be forged. The paper is short because the idea is small; it is more careful than it had to be, because cryptography is one of those domains where 99%-correct is functionally 0%-correct. (We made a machine — ProVerif — check our work. Output in the appendix.)',
+      'Your laptop is — at this exact moment, while you are reading this — running about twenty programs you did not consciously start. Some you wanted (the language model in your editor, the build watcher, that weird Electron app you forgot you installed). Some are vestigial. A small but rapidly growing handful are *autonomous* — little agents your tools spawned to act on your behalf, with the same standing on your machine as you. This is the cryptographic equivalent of giving every guest at a party your house keys because they showed up with the same Uber driver. The Anchor Protocol is the boring, important plumbing that hands each program a guest pass instead — a tiny signed card listing exactly which rooms it may enter, for how long, and from whom. The card is checked at every door. The card cannot be forged. The paper is short because the idea is small; it is more careful than it had to be, because cryptography is one of those domains where 99%-correct is functionally 0%-correct. (We made a machine — ProVerif — check our work. Output in the appendix.) Anchor authenticates *who is acting* and refuses unauthorized actions at the boundary; the companion paper, Bonded Commons, prices the *authorized-but-harmful* ones via collateral. Together they are defense-in-depth without OS-level process isolation.',
     glossary: [
       {
         term: 'Capability',
@@ -121,7 +123,7 @@ export const WHITE_PAPERS: WhitePaper[] = [
       {
         title: 'Where this stops',
         content:
-          'The protocol authenticates and authorizes. It does not isolate processes from each other at the OS level, supervise them, or replace your security policy. We are explicit about that line so the paper does not over-claim.',
+          'The protocol authenticates and authorizes. It does not isolate processes from each other at the OS level, supervise them, or replace your security policy. What it does NOT prevent — an authorized agent doing harm inside its scope — is exactly what the Bonded Commons paper prices via collateral. The two compose.',
       },
     ],
     takeaways: [
@@ -136,6 +138,20 @@ export const WHITE_PAPERS: WhitePaper[] = [
       {
         title: 'Proofs are leverage, not decoration',
         body: 'Putting the protocol through a formal verifier is not a flex — it is what lets the daemon say sharper things to its UI ("this token is valid, scoped to /tmp/build, expires at 5:14pm") instead of vague reassurances. Users notice. Engineers notice when they go to integrate. The math earns its keep at the seams.',
+      },
+    ],
+    limitations: [
+      {
+        title: 'Does not isolate processes at the OS level',
+        body: 'Anchor answers "may this program do that?" — it does not stop a program that has been authorized from misbehaving inside its scope. For that, see the companion Bonded Commons paper (prices authorized-but-harmful actions via collateral) and OS-level sandboxes (seatbelt, gVisor, firejail) when the threat model demands hard containment.',
+      },
+      {
+        title: 'Email-gated recovery is the weakest link',
+        body: 'The federated-sovereign recovery path uses single-use email magic-link tokens, formally verified for atomicity. An attacker with email control can trigger that recovery. The paper says this out loud in §"Federated Sovereign." Pair with hardware-key second factors when the threat model demands.',
+      },
+      {
+        title: 'Localhost trust model, not internet-facing',
+        body: 'The threat model is "many programs on one developer machine." A public-internet identity service has different requirements (DDoS, cross-organization revocation gossip, regulatory KYC). Anchor borrows from that body of work but does not solve it.',
       },
     ],
   },
@@ -154,9 +170,9 @@ export const WHITE_PAPERS: WhitePaper[] = [
     readerHref: '/whitepaper/bonded-commons',
     overviewHref: '/whitepaper?paper=bonded-commons',
     date: 'May 2026',
-    pages: 26,
-    sizeKb: 510,
-    status: 'Version 2.5 (pre-print)',
+    pages: 37,
+    sizeKb: 862,
+    status: 'Pre-print',
     order: '02',
     primer:
       'Picture four roommates sharing a kitchen. There are two tempting solutions and they are both bad. The first is to put a lock on every drawer (slow, miserable, ruins dinner). The second is to trust everyone implicitly to never take the last egg or leave the pan in the sink (fragile, scales poorly, ends in tears). The thing that actually works in real shared kitchens — and has worked for as long as humans have shared kitchens — is the boring third option: a chore wheel on the fridge, receipts kept where everybody can see them, and a small communal kitty that pays for breakage when it happens. Elinor Ostrom won a Nobel Prize for noticing that this same pattern is how fisheries and pastures avoid the *tragedy of the commons*. We are transplanting it into the directory where your autonomous programs work. Each agent posts a small refundable deposit (the *bond*), announces what it is about to do (the *commons*), and leaves a tamper-evident record of what actually happened (the *ledger*). Clean work, the deposit comes back. Mess, the deposit pays for the cleanup. The clever part is not the deposit — that is just escrow. The clever part is that you do not need a judge.',
@@ -233,6 +249,21 @@ export const WHITE_PAPERS: WhitePaper[] = [
         content:
           'Treating "all coordination" the same way makes the deposit either too cheap for the dangerous cases or too expensive for the trivial ones. The paper splits it into five categories — broadcast, request-for-help, distress, shared-resource claim, and proposal — each with its own profile. A passing wave costs less than a cry for help, which costs less than locking shared state.',
       },
+      {
+        title: 'Why allocation cannot be enforced',
+        content:
+          'A short detour through Sen\'s Impossibility of a Paretian Liberal. With private agent preferences, any authority that tries to enforce who gets what is provably suboptimal. The daemon\'s role is therefore to publish shared information and let agents decide — claims are advisory, not binding. The argument is the load-bearing reason the daemon does not act like a kernel.',
+      },
+      {
+        title: 'Crash recovery as social continuation',
+        content:
+          'Agents die. The paper treats death as routine and asks: what does the successor inherit? Float Plans, bonded scope, and the Merkle-chained evidence trail combine so the next agent picks up with full provenance — including the deposit, the lock state, and the vibe-time replay buffer. The metaphor is shift change at a hospital, not a process restart.',
+      },
+      {
+        title: 'A worked example, end-to-end',
+        content:
+          'The appendix runs one agent through every layer in sequence: identity issuance, Float Plan, bond posting, work, partial crash, salvage, settlement. Three swimlanes, twenty-four-hour timeline. It is the fastest way to see how the parts compose without reading the formal model first.',
+      },
     ],
     takeaways: [
       {
@@ -246,6 +277,28 @@ export const WHITE_PAPERS: WhitePaper[] = [
       {
         title: 'Evidence makes recovery from failure boring',
         body: 'When an agent dies mid-task — and they will — the next one inherits a precise record of what was done and what is left. Today this is achieved through chat archaeology and a hopeful re-run; in the world this paper describes, it is the routine. Boring is the goal. Boring is what scales.',
+      },
+      {
+        title: 'Insurer collusion is unprofitable above a closed-form threshold',
+        body: 'The cartel folk-theorem subsection derives a detection probability p_d* such that for any p_d above it, the discounted future stream of cooperative profits exceeds the one-shot gain from undercutting. Simulated to convergence over the parameter space. This is the most original quantitative result in the paper, and the answer to the natural question "what stops the insurers from collectively raising premiums?"',
+      },
+    ],
+    limitations: [
+      {
+        title: 'Competitive insurance needs a thick market',
+        body: 'The §"Pricing the deposit" market mechanism Pareto-dominates static parameters only when the market is mature: enough insurers to support price discovery, enough reputation history to calibrate discounts. In cold-start, the paper falls back to the closed-form floor and graduated task access. The path from cold-start to thick market is named explicitly — it is not free.',
+      },
+      {
+        title: 'New agents pay the highest premiums',
+        body: 'Reputation-adjusted bonds reward agents with clean history. The flip side: an unknown agent posts a higher deposit for the same work. This is the correct economic signal (information about an unproven actor is genuinely missing) but it can feel like an onboarding tax. The paper acknowledges it; production deployments typically subsidize the first cohort.',
+      },
+      {
+        title: 'Does not authenticate the binary, only the principal',
+        body: 'A bonded agent running a poisoned plugin is still bonded — but the bond signs the action, not the code. Supply-chain provenance for the agent binary itself is out of scope here. The threat model is misbehavior by the principal, not by code the principal trusted in good faith.',
+      },
+      {
+        title: 'Advisory, not enforced — by design',
+        body: 'The Sen\'s-theorem detour proves that enforced allocation with private agent preferences is provably suboptimal. So the daemon publishes information and lets agents decide. This is a deliberate choice that some operators expect to be "kernel-like" hard enforcement. It is not. If your threat model needs hard isolation, pair this with OS-level sandboxing.',
       },
     ],
   },

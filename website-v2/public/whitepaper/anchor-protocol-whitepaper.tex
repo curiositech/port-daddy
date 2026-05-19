@@ -633,9 +633,13 @@ Capability Attenuation & Yes & Kani & Yes (FFI) & \cite{birgisson2014macaroons} 
 
 \subsection{Limitations}
 
+The protocol authenticates and authorizes; it does not isolate. An agent acting \emph{within} its capability scope can still cause harm --- corrupting shared state, exhausting a resource, exfiltrating sensitive context. Anchor refuses unauthorized actions at the boundary; pricing authorized-but-harmful actions is the role of the companion \emph{Bonded Commons} paper (see the companion-paper note in §1), where collateralized work contracts make the cost of damage exceed any gain. The two papers compose: Anchor is the gate; Bonded is the surety bond posted by anyone who walks through it.
+
 \begin{enumerate}
+  \item \textbf{No OS-level process isolation.} The protocol assumes that capability scope, not kernel sandboxing, bounds behavior. For threat models that require hard containment (untrusted code, multi-tenant workloads), pair Anchor with seatbelt, gVisor, or firejail.
   \item \textbf{PID Binding:} The ``Ghost in the Harbor'' scenario requires binding tokens to the requesting PID, which is handled at the OS level.
   \item \textbf{Local Transport Security:} On multi-user systems, local unix sockets or loopback TLS should be used to prevent local bearer token sniffing.
+  \item \textbf{Email-gated recovery is the weakest link.} The federated-sovereign recovery path uses single-use email magic-link tokens, formally verified for atomicity. An attacker with email control can trigger the recovery flow; we name this in §``Federated Sovereign'' of the Bonded paper and recommend hardware-key second factors for threat models that demand them.
 \end{enumerate}
 
 % ═════════════════════════════════════════════════════════════════════════════
