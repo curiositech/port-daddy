@@ -1,0 +1,101 @@
+% Magic-link single-use atomicity diagram (binds runtime to .pv private channel).
+\documentclass[border=10pt,tikz]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc,decorations.pathmorphing,shapes.symbols}
+
+% Harbor Heritage palette
+\definecolor{sand}{HTML}{E9DCC4}
+\definecolor{sanddeep}{HTML}{D4C5A9}
+\definecolor{ebony}{HTML}{1E1B18}
+\definecolor{ink}{HTML}{2C2A26}
+\definecolor{cinnabar}{HTML}{CC3D2E}
+\definecolor{brass}{HTML}{B08D57}
+\definecolor{patina}{HTML}{5C7A6A}
+\definecolor{paper}{HTML}{FBF7EE}
+
+\begin{document}
+\begin{tikzpicture}[
+  font=\sffamily\small,
+  node distance=4mm and 6mm,
+  actor/.style={draw=ebony,fill=sand,rounded corners=2pt,
+                inner sep=4pt,minimum height=8mm,thick},
+  ch/.style={draw=ebony,fill=paper,inner sep=4pt,minimum width=22mm,thick,
+             font=\sffamily\footnotesize},
+  cap/.style={draw=cinnabar,fill=paper,thick,minimum width=10mm,
+              minimum height=6mm,inner sep=2pt},
+  ev/.style={ellipse,draw=patina,fill=paper,thick,inner sep=3pt,
+             font=\sffamily\footnotesize},
+  msg/.style={->,>=Latex,thick,draw=ink},
+  bad/.style={->,>=Latex,thick,draw=cinnabar,dashed},
+]
+
+% Title
+\node[font=\sffamily\bfseries,anchor=west]
+  at (-0.4,5.6) {Magic-link single-use: runtime $\leftrightarrow$ ProVerif binding};
+
+% Issuer side
+\node[actor] (issuer) at (0,4) {\textbf{Issuer}\\\footnotesize lib/recovery-magic-link.ts};
+\node[ev,below=of issuer] (eIssue) {event \texttt{issued\_for}$(a, tk)$};
+
+% Channel cap (private channel ch\_tk holds exactly one cap)
+\node[ch,right=22mm of issuer.east,anchor=west] (chTk)
+  {private channel \texttt{ch\_tk}};
+\node[cap,below=2mm of chTk] (capBox) {cap};
+
+% SQL UPDATE statement box
+\node[ch,below=18mm of chTk,anchor=north,
+      align=center,fill=sanddeep,minimum width=66mm] (sql)
+  {\textbf{atomic UPDATE}\\[1pt]
+   \texttt{UPDATE recovery\_tokens}\\
+   \texttt{SET consumed\_at=? WHERE token=?}\\
+   \texttt{AND consumed\_at IS NULL RETURNING *}};
+
+% Consumer side
+\node[actor,right=22mm of chTk.east,anchor=west] (consumer)
+  {\textbf{Consumer}\\\footnotesize routes/recovery.ts};
+\node[ev,below=of consumer] (eConsume) {event \texttt{consumed\_for}$(a, tk)$};
+
+% Public adversary channel
+\node[ch,fill=paper,above=8mm of chTk] (pub) {public channel \texttt{pub}};
+\node[font=\sffamily\footnotesize\itshape,
+      below=0mm of pub] (advNote) {(Dolev-Yao adversary)};
+
+% Arrows
+\draw[msg] (issuer.east) -- node[above,font=\sffamily\footnotesize]
+  {\texttt{new tk}; \texttt{out(ch\_tk, ())}} (chTk.west);
+\draw[msg] (issuer.north) |- (pub.west)
+  node[pos=0.75,above,font=\sffamily\footnotesize]
+  {\texttt{out(pub, mkLink(tk, a))}};
+\draw[msg] (pub.east) -| (consumer.north);
+\draw[msg] (chTk.south) -- (sql.north);
+\draw[msg] (sql.east) -| (consumer.south)
+  node[pos=0.25,below,font=\sffamily\footnotesize]
+  {\texttt{in(ch\_tk, cap)}};
+
+% Bad path (second consumer)
+\node[actor,below=20mm of consumer,fill=paper,draw=cinnabar]
+  (consumer2) {\textbf{Second Consumer}};
+\draw[bad] (sql.east) to[bend right=18]
+  node[right,font=\sffamily\footnotesize,text=cinnabar]
+  {cap drained $\rightarrow$ rejected} (consumer2.west);
+
+% Event arrows
+\draw[->,>=Latex,thick,draw=patina,dotted]
+  (issuer.south) -- (eIssue.north);
+\draw[->,>=Latex,thick,draw=patina,dotted]
+  (consumer.south) -- (eConsume.north);
+
+% Property
+\node[align=left,font=\sffamily\footnotesize,
+      anchor=north west,xshift=0pt,yshift=-2mm] at (-0.4,-3.2)
+  {\textbf{Property (S, injective single-use):}
+   $\mathrm{inj\text{-}event}(\texttt{consumed\_for}(a,tk))
+   \Rightarrow \mathrm{inj\text{-}event}(\texttt{issued\_for}(a,tk))$};
+\node[align=left,font=\sffamily\footnotesize,
+      anchor=north west,xshift=0pt,yshift=-9mm] at (-0.4,-3.2)
+  {\textbf{Property (B, binding):}
+   $\mathrm{event}(\texttt{consumed\_for}(a,tk))
+   \Rightarrow \mathrm{event}(\texttt{issued\_for}(a,tk))$};
+
+\end{tikzpicture}
+\end{document}

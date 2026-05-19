@@ -1,0 +1,76 @@
+% Algorithm-confusion attack defense — inline in §3.1 (Phase 1).
+
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D4C5A9}
+\providecolor{hhebony}{HTML}{1E1B18}
+\providecolor{hhink}{HTML}{2C2A26}
+\providecolor{hhcinnabar}{HTML}{CC3D2E}
+\providecolor{hhbrass}{HTML}{B08D57}
+\providecolor{hhpatina}{HTML}{5C7A6A}
+\providecolor{hhpaper}{HTML}{FBF7EE}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  font=\sffamily\small,
+  actor/.style={draw=hhebony,thick,fill=hhsand,rounded corners=2pt,
+                inner sep=4pt,minimum width=22mm,align=center,font=\sffamily\bfseries\footnotesize},
+  bad/.style={draw=hhcinnabar,thick,fill=hhpaper,rounded corners=2pt,
+              inner sep=4pt,minimum width=22mm,align=center,
+              font=\sffamily\bfseries\footnotesize,text=hhcinnabar},
+  token/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
+                font=\sffamily\footnotesize\ttfamily,align=left},
+  arr/.style={->,>=Latex,thick,draw=hhink},
+  badarr/.style={->,>=Latex,thick,draw=hhcinnabar,dashed},
+  ok/.style={draw=hhpatina,fill=hhpaper,thick,rounded corners=2pt,
+             font=\sffamily\footnotesize,text=hhpatina,inner sep=3pt},
+  rejected/.style={draw=hhcinnabar,fill=hhpaper,thick,rounded corners=2pt,
+                   font=\sffamily\bfseries\footnotesize,text=hhcinnabar,inner sep=3pt},
+]
+% Top row: naive verifier path (attack succeeds)
+\node[actor] (daemon1) at (0,3.4) {Daemon};
+\node[token,right=8mm of daemon1] (tok1)
+  {\{alg: HS256, ...\}\\.signature($k$)};
+\node[bad,right=8mm of tok1] (attacker1) {ATTACKER};
+\node[token,right=8mm of attacker1] (tok1b)
+  {\{alg: \textbf{none}, ...\}\\.``''};
+\node[actor,right=8mm of tok1b] (naive) {Naive verifier};
+\node[rejected,right=4mm of naive,fill=hhcinnabar!20] (accept-bad) {ACCEPT (bad!)};
+\draw[arr] (daemon1.east) -- node[above,font=\sffamily\footnotesize]
+  {issue} (tok1.west);
+\draw[badarr] (tok1.east) -- node[above,font=\sffamily\footnotesize\itshape,
+                                  text=hhcinnabar] {rewrite alg} (attacker1.west);
+\draw[badarr] (attacker1.east) -- (tok1b.west);
+\draw[badarr] (tok1b.east) -- (naive.west);
+\draw[badarr] (naive.east) -- (accept-bad.west);
+\node[font=\sffamily\footnotesize\itshape,text=hhcinnabar,
+      above=2mm of naive.north,align=center]
+  {trusts alg header\\ from token};
+% Bottom row: pinned verifier path (attack rejected)
+\node[actor,below=22mm of daemon1] (daemon2) {Daemon};
+\node[token,right=8mm of daemon2] (tok2)
+  {\{alg: HS256, ...\}\\.signature($k$)};
+\node[bad,right=8mm of tok2] (attacker2) {ATTACKER};
+\node[token,right=8mm of attacker2] (tok2b)
+  {\{alg: \textbf{none}, ...\}\\.``''};
+\node[actor,right=8mm of tok2b,fill=hhpatina!20] (pinned)
+  {Pinned verifier};
+\node[ok,right=4mm of pinned] (reject) {REJECT (good)};
+\draw[arr] (daemon2.east) -- (tok2.west);
+\draw[badarr] (tok2.east) -- node[above,font=\sffamily\footnotesize\itshape,
+                                  text=hhcinnabar] {rewrite alg} (attacker2.west);
+\draw[badarr] (attacker2.east) -- (tok2b.west);
+\draw[badarr] (tok2b.east) -- (pinned.west);
+\draw[arr,draw=hhpatina,line width=1.4pt] (pinned.east) -- (reject.west);
+\node[font=\sffamily\footnotesize\itshape,text=hhpatina,
+      above=2mm of pinned.north,align=center]
+  {pins alg at issuance,\\ ignores token's alg field};
+% Header labels
+\node[font=\sffamily\bfseries,left=2mm of daemon1.west,text=hhcinnabar]
+  {(a)};
+\node[font=\sffamily\bfseries,left=2mm of daemon2.west,text=hhpatina]
+  {(b)};
+\end{tikzpicture}
+\caption{Algorithm-confusion attack and the pinned-verifier defense. (a) A naive verifier trusts the \texttt{alg} field of the incoming token; an attacker who can intercept the token rewrites \texttt{alg=HS256} to \texttt{alg=none}, strips the signature, and the verifier accepts an unauthenticated message. (b) The pinned verifier records the issuance algorithm out-of-band, then re-checks each token against the pinned algorithm rather than the token's self-described one. The ProVerif model encodes both verifiers and shows the naive path produces a counter-trace witness for the rewrite, while the pinned path admits no such trace. Runtime conformance: \texttt{tests/unit/runtime-conformance/algorithm-pinning.test.js} (5 attack patterns + 2 controls, all pass).}
+\label{fig:anchor-alg-confusion}
+\end{figure}

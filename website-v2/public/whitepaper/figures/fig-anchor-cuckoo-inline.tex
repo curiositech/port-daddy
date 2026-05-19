@@ -1,0 +1,71 @@
+% Cuckoo filter revocation gate — inline in Anchor §sec:revocation (Phase 4).
+
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D4C5A9}
+\providecolor{hhebony}{HTML}{1E1B18}
+\providecolor{hhink}{HTML}{2C2A26}
+\providecolor{hhcinnabar}{HTML}{CC3D2E}
+\providecolor{hhbrass}{HTML}{B08D57}
+\providecolor{hhpatina}{HTML}{5C7A6A}
+\providecolor{hhpaper}{HTML}{FBF7EE}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  font=\sffamily\small,
+  slot/.style={draw=hhebony,thick,minimum width=8mm,minimum height=7mm,
+               fill=hhpaper,inner sep=0pt,font=\sffamily\footnotesize},
+  empty/.style={draw=hhebony,thick,minimum width=8mm,minimum height=7mm,
+                fill=hhsand,inner sep=0pt},
+  bucketlbl/.style={font=\sffamily\footnotesize\bfseries,anchor=east},
+  flow/.style={->,>=Latex,thick,draw=hhcinnabar},
+  hashflow/.style={->,>=Latex,thick,draw=hhpatina},
+]
+\foreach \i/\y in {0/3.6, 1/2.7, 2/1.8, 3/0.9, 4/0.0, 5/-0.9} {
+  \node[bucketlbl] at (-0.2,\y+0.2) {bucket~$i_\i$};
+  \foreach \s/\xoff in {0/0, 1/0.85, 2/1.7, 3/2.55} {
+    \node[empty] (b\i s\s) at (\xoff+0.7, \y) {};
+  }
+}
+\node[slot,fill=hhbrass!50] at (b0s0) {a3};
+\node[slot,fill=hhbrass!50] at (b0s1) {7e};
+\node[slot,fill=hhbrass!50] at (b0s2) {2f};
+\node[slot,fill=hhbrass!50] at (b0s3) {91};
+\node[slot,fill=hhbrass!50] at (b3s0) {ca};
+\node[slot,fill=hhbrass!50] at (b3s1) {1b};
+\node[slot,fill=hhbrass!50] at (b3s2) {ff};
+\node[slot,fill=hhbrass!50] at (b3s3) {44};
+\node[slot,fill=hhbrass!30] at (b1s0) {6c};
+\node[slot,fill=hhbrass!30] at (b2s2) {8a};
+\node[slot,fill=hhbrass!30] at (b4s1) {19};
+\node[slot,fill=hhbrass!30] at (b5s3) {b2};
+\node[draw=hhebony,thick,fill=hhsanddeep,rounded corners=2pt,
+      minimum width=22mm,inner sep=3pt,anchor=west,align=left] (key) at (5.5,3.6)
+  {insert $k$:\\\quad $\mathrm{fp}(k)=\mathtt{c1}$};
+\node[draw=hhpatina,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
+      anchor=west,below=2mm of key] (h1)
+  {$i_1 = h(k) \bmod M = \mathbf{i_0}$};
+\node[draw=hhpatina,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
+      anchor=west,below=2mm of h1] (h2)
+  {$i_2 = i_1 \oplus h(\mathrm{fp}) = \mathbf{i_3}$};
+\draw[hashflow] (h1.west) -- ($(b0s3.east)+(0.3,0)$);
+\draw[hashflow] (h2.west) -- ($(b3s3.east)+(0.3,0)$);
+\node[slot,fill=hhcinnabar!75,text=white] at (b0s2) {c1};
+\draw[flow,line width=1.4pt]
+  (b0s2.west) to[out=180,in=180,looseness=1.8]
+  node[left=1mm,font=\sffamily\footnotesize,text=hhcinnabar,align=right]
+  {evict\\\texttt{2f}}
+  (b2s2.west);
+\node[draw=hhebony,thick,fill=hhsanddeep,rounded corners=3pt,inner sep=5pt,
+      align=left,anchor=north west,minimum width=58mm] at (5.5,0.4)
+  {{\bfseries Lookup} $k$: check $i_1, i_2$\\[2pt]
+   {\bfseries No false negatives.}\\
+   FP rate $\leq 2B / 2^f = 0.03125$};
+\node[draw=hhcinnabar,thick,fill=hhpaper,rounded corners=3pt,inner sep=4pt,
+      align=left,anchor=north west] at (5.5,-2.6)
+  {{\bfseries Insert rejection at load $0.95$}\\
+   (cap holds FP bound under adversarial fill).};
+\end{tikzpicture}
+\caption{Cuckoo-filter revocation gate (Fan et al.~\cite{fan2014cuckoo}) with the load-factor ceiling that defeats the pollution attack. Insert lands at either of two candidate buckets $i_1, i_2 = i_1 \oplus h(\mathrm{fp})$; on full, evict and re-insert at the kicked fingerprint's alternate. Insert rejection at $0.95$ caps occupancy inside the regime where the false-positive bound holds.}
+\label{fig:anchor-cuckoo-inline}
+\end{figure}
