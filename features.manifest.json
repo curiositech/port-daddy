@@ -242,14 +242,15 @@
       }
     },
     "cartographer": {
-      "description": "Cartographer roadmap progress + atomic claim from the curated pile (ADR-0033)",
+      "description": "Cartographer roadmap progress + atomic claim from the curated pile (ADR-0033) + session/agent linkage (ADR-0034)",
       "cli": [],
       "sdk": [],
       "routes": [
         "GET /cartographer/roadmap-progress",
         "POST /cartographer/roadmap-pop",
         "POST /cartographer/roadmap-release",
-        "GET /cartographer/roadmap-claims"
+        "GET /cartographer/roadmap-claims",
+        "POST /cartographer/roadmap-claim-link"
       ],
       "completions": [],
       "docs": {
