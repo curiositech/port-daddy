@@ -36,10 +36,11 @@ struct FleetBarApp: App {
     @StateObject private var costStore = CostStore()
     @StateObject private var secretsStore = SecretsStore()
     @StateObject private var dispatchStore = DispatchStore()
+    @StateObject private var backendStore = BackendStore()
 
     var body: some Scene {
         MenuBarExtra {
-            FleetPopover(store: store, costStore: costStore, secretsStore: secretsStore)
+            FleetPopover(store: store, costStore: costStore, secretsStore: secretsStore, backendStore: backendStore)
                 .frame(width: 440, height: 760)
         } label: {
             FleetMenuBarLabel(icon: store.menuBarIcon, color: store.menuBarColor)
