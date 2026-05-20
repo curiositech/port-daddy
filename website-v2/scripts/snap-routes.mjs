@@ -201,12 +201,18 @@ async function main() {
   const port = await reservePort()
   const baseUrl = `http://127.0.0.1:${port}`
 
-  // Start `vite preview` against the existing dist/. The server
-  // exits when we kill it after the run.
-  const preview = spawn('npx', ['vite', 'preview', '--port', String(port), '--strictPort'], {
+  // Start `vite preview` against the existing dist/. We invoke the
+  // vite binary directly (not via `npx`) and start it in its own
+  // process group via `detached: true`. The whole group can then be
+  // SIGTERMed together later; otherwise `npx` would catch the signal
+  // and leave the actual vite child running, hanging the workflow
+  // until the runner's hard timeout fires.
+  const vitePath = resolve(websiteRoot, 'node_modules', '.bin', process.platform === 'win32' ? 'vite.cmd' : 'vite')
+  const preview = spawn(vitePath, ['preview', '--port', String(port), '--strictPort'], {
     cwd: websiteRoot,
     stdio: ['ignore', 'pipe', 'pipe'],
     env: { ...process.env },
+    detached: process.platform !== 'win32',
   })
   const previewErr = []
   let intentionalShutdown = false
@@ -295,8 +301,44 @@ async function main() {
     }
   } finally {
     markShutdown()
-    preview.kill('SIGTERM')
-    await new Promise(resolveExit => preview.once('exit', resolveExit))
+    // Kill the entire process group (negative PID) so vite exits even
+    // if it was spawned under a wrapper. Fall back to single-process
+    // kill on Windows where process groups don't apply.
+    try {
+      if (process.platform === 'win32') {
+        preview.kill('SIGTERM')
+      } else if (preview.pid !== undefined) {
+        process.kill(-preview.pid, 'SIGTERM')
+      }
+    } catch {
+      // Already dead. Fine.
+    }
+    // Wait up to 5s for a clean exit, then SIGKILL the group. Without
+    // this hard upper bound, a stuck vite preview (or its grandchild)
+    // would hang the workflow until the runner's job timeout fires —
+    // exactly the bug this fix targets.
+    const exitDeadline = new Promise(resolveExit => preview.once('exit', resolveExit))
+    const killDeadline = new Promise(resolveTimeout => setTimeout(resolveTimeout, 5_000))
+    const winner = await Promise.race([
+      exitDeadline.then(() => 'exit'),
+      killDeadline.then(() => 'timeout'),
+    ])
+    if (winner === 'timeout') {
+      try {
+        if (process.platform === 'win32') {
+          preview.kill('SIGKILL')
+        } else if (preview.pid !== undefined) {
+          process.kill(-preview.pid, 'SIGKILL')
+        }
+      } catch {
+        // Already dead.
+      }
+      // Wait briefly for the SIGKILL to land, but don't block forever.
+      await Promise.race([
+        exitDeadline,
+        new Promise(resolveTimeout => setTimeout(resolveTimeout, 2_000)),
+      ])
+    }
   }
 }
 
