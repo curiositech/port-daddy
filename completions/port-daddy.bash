@@ -111,6 +111,8 @@ _port_daddy() {
     inbox
     # AI Agent Spawner + Watch
     spawn spawned sortie watch
+    # Nightshift -- autonomous overnight feature dev
+    nightshift morning
     # App-Native Development Cockpit
     cockpit
     # Harbors (named permission namespaces)

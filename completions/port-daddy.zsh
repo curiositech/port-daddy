@@ -1913,6 +1913,8 @@ _port_daddy() {
     'spawn:launch an AI agent (Ollama/Claude/Gemini/Aider/custom)'
     'spawned:list active spawned agents'
     'sortie:launch and inspect tracked mission records'
+    'nightshift:queue and run autonomous overnight feature dev intents'
+    'morning:start-of-day summary of overnight nightshift completions'
     'cockpit:App-Native Development Cockpit — read roadmap into mission cards'
     'watch:subscribe to a channel and run a script on each message'
     # Harbors (named permission namespaces)
