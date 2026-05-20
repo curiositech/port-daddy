@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fh-whitehat/defense-template.json",
+  "title": "Federated Harbor — whitehat defense (counter) template",
+  "description": "Every counter filed by a whitehat persona must validate against this schema. Counters missing `refuses` or `prices` are hand-waving and the bond is at risk.",
+  "type": "object",
+  "required": ["id", "counters", "class", "section", "persona", "mechanization", "refuses", "prices"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^fix:fh:[a-z-]+:§fh-[0-9]+(\\.[0-9]+)*:[0-9]{4}$",
+      "description": "Canonical counter identifier. Class matches persona's spray-prefix."
+    },
+    "counters": {
+      "type": "string",
+      "pattern": "^smell:fh:[a-z-]+:§fh-[0-9]+(\\.[0-9]+)*:[0-9]{4}$",
+      "description": "The redteam smell-id this counter answers."
+    },
+    "class": {
+      "type": "string",
+      "enum": ["trust", "tokens", "revocation", "econ", "proofs"],
+      "description": "Defense class. 1:1 with redteam probe-class."
+    },
+    "section": {
+      "type": "string",
+      "pattern": "^§fh-[0-9]+(\\.[0-9]+)*$"
+    },
+    "persona": {
+      "type": "string",
+      "enum": ["fh-whitehat-trust", "fh-whitehat-tokens", "fh-whitehat-revocation", "fh-whitehat-econ", "fh-proof-completer", "fh-secops-lead"]
+    },
+    "mechanization": {
+      "type": "object",
+      "required": ["artifact", "tool", "status"],
+      "properties": {
+        "artifact": {
+          "type": "string",
+          "pattern": "^proofs/federated/.+\\.(pv|spthy|tla|cfg|py|rs|md|smt2)$"
+        },
+        "tool": {
+          "type": "string",
+          "enum": ["proverif", "tamarin", "tlaplus", "apalache", "mesa", "kani", "z3", "cryptoverif", "easycrypt", "protocol-commitment"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["PENDING", "LANDED", "FAILING", "PARTIAL"]
+        },
+        "result_line": {
+          "type": "string",
+          "description": "Verbatim copy of the RESULT/invariant-holds line. Required for status=LANDED. Empty for status=PENDING."
+        },
+        "queries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "expected"],
+            "properties": {
+              "name": {"type": "string"},
+              "expected": {"type": "string", "enum": ["true", "false-by-design", "invariant-holds"]},
+              "actual":   {"type": "string", "enum": ["true", "false", "counterexample-found"]}
+            }
+          }
+        }
+      }
+    },
+    "substitution": {
+      "type": ["object", "null"],
+      "properties": {
+        "source": {"type": "string", "pattern": "^(anchor|bonded) §[A-Z0-9.-]+$"},
+        "substitution": {"type": "string"}
+      },
+      "description": "If the defense rests on an Anchor or Bonded claim, the canonical substitution form."
+    },
+    "hedge": {
+      "type": ["object", "null"],
+      "required": ["class", "narrows"],
+      "properties": {
+        "class": {"type": "string", "enum": ["adversary", "protocol", "threat-model", "scope"]},
+        "narrows": {"type": "string", "minLength": 10, "description": "Explicitly names what is no longer defended. Required for class=threat-model."}
+      }
+    },
+    "refuses": {
+      "type": "string",
+      "minLength": 10,
+      "description": "What adversary behavior the defense layer refuses. SKILL.md shibboleth: every counter names what it refuses."
+    },
+    "prices": {
+      "type": "string",
+      "minLength": 10,
+      "description": "What adversary behavior the defense layer prices. SKILL.md shibboleth: every counter names what it prices."
+    },
+    "retreat": {
+      "type": ["object", "null"],
+      "properties": {
+        "class": {"type": "string", "enum": ["claim-narrowed", "threat-model-narrowed", "feature-deferred"]},
+        "what": {"type": "string", "minLength": 10, "description": "Explicitly names what is being walked back."}
+      },
+      "description": "If the defense walks back a claim, RETREAT is explicit. Silent weakening is forbidden."
+    },
+    "placeholder_pin": {
+      "type": ["object", "null"],
+      "required": ["name", "value", "witness"],
+      "properties": {
+        "name": {"type": "string", "pattern": "^PLACEHOLDER-[A-Z][A-Z0-9-]+$"},
+        "value": {"type": ["number", "string"]},
+        "witness": {"type": "string", "description": "Artifact path that witnesses the pinned value as safe."}
+      }
+    },
+    "preempt_analogy": {
+      "type": ["object", "null"],
+      "required": ["analog", "differentiator"],
+      "properties": {
+        "analog": {"type": "string", "description": "e.g., 'Certificate Transparency'"},
+        "differentiator": {"type": "string", "description": "e.g., 'FH adds bonds on witness honesty; CT does not.'"}
+      },
+      "description": "Required for any §fh-4 defense (CT analogy), §fh-6 defense (HTLC analogy), §fh-5 defense (SPKI/SDSI)."
+    },
+    "bond": {
+      "type": ["object", "null"],
+      "properties": {
+        "amount": {"type": "number"},
+        "currency": {"type": "string", "enum": ["pd-reputation", "pd-bond-token"]}
+      }
+    }
+  }
+}
