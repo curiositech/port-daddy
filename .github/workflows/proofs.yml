@@ -1,0 +1,164 @@
+name: Proofs (TLA+ / Z3 / Monte Carlo)
+
+# Runs the v2.6 mechanization artifacts that close the credibility loan
+# from the game-theory expository page
+# (website-v2/src/pages/whitepaper/HowWeProveGameTheory.tsx).
+#
+# Three artifacts, one workflow:
+#   - proofs/economics/delta-threshold.z3   (Z3 SMT)
+#   - proofs/economics/claim-signaling.tla  (TLA+ via TLC)
+#   - proofs/bonded/pareto/threat-bands.mjs (Monte Carlo)
+#
+# Failure of any job fails the PR. No untrusted inputs are used.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'proofs/**'
+      - '.github/workflows/proofs.yml'
+      - 'website-v2/public/whitepaper/agent-transactions-whitepaper.tex'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'proofs/**'
+      - '.github/workflows/proofs.yml'
+      - 'website-v2/public/whitepaper/agent-transactions-whitepaper.tex'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  z3-delta-threshold:
+    name: Z3 / delta-threshold cubic
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Z3
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y z3
+          z3 --version
+
+      - name: Run delta-threshold.z3
+        working-directory: proofs/economics
+        run: |
+          set -euo pipefail
+          z3 delta-threshold.z3 | tee delta-threshold.actual.txt
+
+      - name: Assert sat / sat / unsat triple
+        working-directory: proofs/economics
+        run: |
+          set -euo pipefail
+          # Expected sequence: sat, sat, unsat (three check-sat results).
+          # Match only lone 'sat'/'unsat' lines (ignore tokens inside
+          # (define-fun ...)).
+          results=$(grep -E '^(sat|unsat)$' delta-threshold.actual.txt | tr '\n' ' ' | sed 's/ *$//')
+          echo "results = [$results]"
+          if [ "$results" != "sat sat unsat" ]; then
+            echo "FAIL: expected 'sat sat unsat', got '$results'"
+            echo "Full output:"
+            cat delta-threshold.actual.txt
+            exit 1
+          fi
+          echo "PASS: delta-threshold cubic has a unique root in [0.25, 0.26]."
+
+      - name: Upload Z3 output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: delta-threshold-z3-output
+          path: proofs/economics/delta-threshold.actual.txt
+
+  tla-claim-signaling:
+    name: TLA+ / claim-signaling (TLC)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Download TLA+ tools
+        run: |
+          set -euo pipefail
+          mkdir -p "${HOME}/tla"
+          # Pinned to v1.8.0 — same line the Conservation.tla artifact
+          # was validated against.
+          curl -sSL -o "${HOME}/tla/tla2tools.jar" \
+            https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar
+          echo "TLA_TOOLS_JAR=${HOME}/tla/tla2tools.jar" >> "$GITHUB_ENV"
+
+      - name: Run claim-signaling under TLC
+        working-directory: proofs/economics
+        run: |
+          set -euo pipefail
+          java -XX:+UseParallelGC -cp "${TLA_TOOLS_JAR}" tlc2.TLC \
+            -config claim-signaling.cfg claim-signaling.tla \
+            | tee claim-signaling.tlc.log
+
+      - name: Assert no invariant violation
+        working-directory: proofs/economics
+        run: |
+          set -euo pipefail
+          if grep -q "No error has been found" claim-signaling.tlc.log; then
+            echo "PASS: TLC found no invariant violation."
+          else
+            echo "FAIL: TLC did not report 'No error has been found'."
+            tail -50 claim-signaling.tlc.log
+            exit 1
+          fi
+
+      - name: Upload TLC log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: claim-signaling-tlc-log
+          path: proofs/economics/claim-signaling.tlc.log
+
+  monte-carlo-threat-bands:
+    name: Monte Carlo / threat-bands
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run threat-bands.mjs (text + JSON)
+        run: |
+          set -euo pipefail
+          node proofs/bonded/pareto/threat-bands.mjs --samples=1000 \
+            | tee proofs/bonded/pareto/threat-bands.ci.log
+          node proofs/bonded/pareto/threat-bands.mjs --samples=1000 --json \
+            > proofs/bonded/pareto/threat-bands.ci.json
+
+      - name: Assert zero matched-band failures
+        run: |
+          set -euo pipefail
+          matched_failures=$(jq '.matched_failures | length' proofs/bonded/pareto/threat-bands.ci.json)
+          echo "matched_failures = $matched_failures"
+          if [ "$matched_failures" != "0" ]; then
+            echo "FAIL: matched-band assertion violated."
+            jq '.matched_failures' proofs/bonded/pareto/threat-bands.ci.json
+            exit 1
+          fi
+          widening=$(jq '.widening_recommendations | length' proofs/bonded/pareto/threat-bands.ci.json)
+          echo "widening_recommendations = $widening (informational)"
+          echo "PASS: all matched-band rows within the assertion ceiling."
+
+      - name: Upload Monte Carlo artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: threat-bands-output
+          path: |
+            proofs/bonded/pareto/threat-bands.ci.log
+            proofs/bonded/pareto/threat-bands.ci.json
