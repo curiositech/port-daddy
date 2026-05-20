@@ -50,12 +50,12 @@ A short glossary, then the patterns.
 | ------------- | ------------------------------------------------------------ | --------------------------------------------------------- | ------------------------------------------------------------ |
 | Session       | `pd begin` / `pd done` / `pd whoami`                         | DB row, files released on `done`                          | `--identity`, `--purpose`, `--files`, `--agent`              |
 | File claim    | `pd session files add` / `pd session files rm`               | DB row scoped to session                                  | `<path>`, `--start-line/--end-line`, `--symbol-path`, `--symbol` |
-| Note          | `pd note` / `pd say`                                         | DB row, Merkle-chained per session                        | `--type`, `--session`, `--agent`                             |
+| Note          | `pd note` / `pd say`                                         | DB row, Merkle-chained per *active* session               | `--type` only; notes attach to the active session implicitly |
 | Pub/sub       | `pd pub` / `pd sub` / `pd watch`                             | Ephemeral SSE; messages live on the channel until cleared | `<channel>` (logical or physical), `--signal`, `--sender`    |
 | Tube          | `pd tube`                                                    | Same channel storage; long-polling crank-handle           | `--reply`, `--reply-to`, `--send`, `--wait-for`, `--tail`    |
 | Tuple space   | `pd tuple out` / `pd tuple rd` / `pd tuple in`               | DB row, optional TTL                                      | `--harbor`, JSON-array pattern, `--limit`                    |
-| Inbox (DM)    | `pd inbox send` / `pd inbox` / `pd inbox watch`              | DB row per agent                                          | `--agent`                                                    |
-| Actor mailbox | `pd actor <id> --message`                                    | DB row per canonical actor                                | actor id                                                     |
+| Inbox (DM)    | `pd inbox send <agent-id>` / `pd inbox` / `pd inbox watch`   | DB row per agent (recipient is any identity, free-form)   | `<agent-id>` positional                                      |
+| Actor mailbox | `pd actor <id> --message`                                    | DB row per *canonical* actor — fixed roster, not arbitrary ids | actor id from `pd actors` (gardener, qa, cartographer, ...)  |
 | Spawn         | `pd spawn --backend <b> --identity <id> --budget <usd> -- <task>` | Sub-process; agent registered                             | `--backend`, `--model`, `--tier`, `--budget`, `--purpose`    |
 | Sortie        | `pd sortie run <goal> --backend <b> --budget <usd>`          | DB row + spawn; full coordination wired                   | `--recipe`, `--expected`, `--context`, `--dir`               |
 | Watch         | `pd watch <channel> --exec <script>`                         | Long-running SSE subscriber                               | `--once`, `--max-concurrent`, `--timeout`, `--min-interval`  |
@@ -242,11 +242,12 @@ pd spawn --backend claude-cli --identity myrepo:claude:sublead-backend \
 - Each level is a `pd begin` session whose `--identity` encodes the depth:
   `myrepo:claude:platform-lead` → `myrepo:claude:sublead-frontend` → `myrepo:claude:leaf-fe-checkout`.
 - Parent/child linkage lives implicitly in the spawn chain (the spawning agent
-  is recorded in the activity log) and explicitly via `pd note --type
-  delegation` on the parent when it dispatches.
-- Aggregation up the tree: each level reads `pd notes --type result --limit 50`
-  filtered to the project, and (when needed) re-filters client-side by
-  child agent id from the activity log.
+  is recorded in the activity log) and explicitly via a `--type delegation` note
+  the parent writes on its own session when it dispatches.
+- Roll-up *across session boundaries* uses `pd inbox send <parent-identity>
+  "<JSON payload>"`. Notes are Merkle-chained *per session* — they cannot be
+  written into another session's chain. The inbox is the durable cross-session
+  channel.
 
 **When to use.** The decomposition has natural strata (frontend / backend /
 infra; or design / implement / test) and each stratum benefits from a
@@ -257,10 +258,12 @@ flat star is probably better as a 3-deep tree.
 to make the diagram look smart.
 
 **Failure mode.** A sub-lead dies and its leaves keep running with no one to
-report to — orphan work. PD's response: sub-leaf agents detect missing parent
-via `pd whoami --agent <parent>`; on stale, they fall through to the
-depth-0 lead's identity and write notes directly there. The `pd salvage`
-queue surfaces the dead sub-lead so a human can replace it.
+report to — orphan work. PD's response: leaves probe sub-lead liveness with
+`pd agents --active -j | jq '.agents[] | select(.identity == "<parent>")'` (a
+present row with a recent `lastHeartbeat` = alive; empty or stale = dead). On
+"dead", the leaf falls through to the depth-0 lead by sending its result via
+`pd inbox send myrepo:claude:l0-lead "<payload>"` instead of the sub-lead. The
+`pd salvage` queue surfaces the dead sub-lead so a human can replace it.
 
 **Worked example — "Migrate 60 packages across FE/BE/infra in one sweep."**
 
@@ -272,14 +275,21 @@ pd note "Decomposition: 3 sub-leads, ~20 packages each" --type plan
 # L1 — FE sub-lead (spawned by L0)
 pd spawn --backend claude-cli --identity myrepo:claude:l1-fe --budget 8 \
   --purpose "lead FE 20-pkg migration" \
-  -- "Spawn one myrepo:claude:l2-fe-<pkg> per FE package. Aggregate their pd notes type=result. Report up via pd note --agent myrepo:claude:l0-lead --type result when 100%."
+  -- "Spawn one myrepo:claude:l2-fe-<pkg> per FE package. \
+      Aggregate child results from your own inbox: \
+        pd inbox --agent myrepo:claude:l1-fe -j | \
+          jq '.messages[] | select(.content | fromjson? | .type == \"result\")' \
+      When 100%, roll up to L0: \
+        pd inbox send myrepo:claude:l0-lead '{\"type\":\"result\",\"stratum\":\"FE\",\"pkgs\":20,\"passed\":N}'"
 
-# L2 — leaves (spawned by L1 inside its prompt)
-# e.g. pd spawn --backend claude-cli --identity myrepo:claude:l2-fe-checkout --budget 0.50 -- "migrate checkout"
+# L2 — leaves (spawned by L1 inside its prompt). Each leaf, when done:
+# e.g. pd spawn --backend claude-cli --identity myrepo:claude:l2-fe-checkout --budget 0.50 \
+#        -- "migrate checkout; on success: \
+#            pd inbox send myrepo:claude:l1-fe '{\"type\":\"result\",\"pkg\":\"checkout\",\"status\":\"ok\"}'"
 
-# L0 watches roll-up notes
-pd notes --type result --limit 50 -j | \
-  jq '.notes[] | select(.sessionPurpose | test("FE"))'
+# L0 reads its own inbox for the three sub-lead rollups
+pd inbox --agent myrepo:claude:l0-lead -j | \
+  jq '.messages[] | select(.content | fromjson? | .type == "result")'
 ```
 
 ---
@@ -470,25 +480,33 @@ project manager pattern.
 # Supervisor
 pd begin "schedule release" --identity myrepo:claude:supervisor
 
-# Direct dispatch via actor mailbox (durable, addressable)
+# Two dispatch modes — pick the right one per recipient:
+#   (a) Canonical role on the actor roster → actor mailbox
 pd actor cartographer --message "Re-run cartographer scan over apps/marketing for the v4.2 promote."
-
-# Or via spawn for ephemeral worker
+#   (b) Ephemeral worker spawned for this run → DM via inbox
 pd spawn --backend codex --identity myrepo:codex:release-notes --budget 1.50 \
   --purpose "draft v4.2 release notes from changelog" \
-  -- "Read CHANGELOG.md, draft the v4.2 notes section, pd note --type result on completion."
+  -- "Read CHANGELOG.md, draft the v4.2 notes section. \
+      On completion: pd inbox send myrepo:claude:supervisor \
+        '{\"type\":\"result\",\"path\":\"docs/release/v4.2.md\",\"summary\":\"...\"}'."
 
-# Watch for completion
+# Watch the supervisor's inbox for incoming results
 pd inbox watch --agent myrepo:claude:supervisor &
 ```
 
 **Primitive mapping.**
 
-- The "task order" goes into a structured note or actor message — not chat.
-- Acceptance criteria live as a `pd note --type acceptance` on the supervisor's
-  session. Workers `pd notes --session <supervisor>` to read them.
-- Completion comes back via `pd inbox send myrepo:claude:supervisor` (DM) or via
-  `pd note --type result` on the worker session.
+- The "task order" goes into either an actor message (canonical actor) or the
+  spawned worker's prompt (ephemeral worker). It is not chat.
+- Acceptance criteria live as a `pd note --type acceptance` on the
+  supervisor's own session. Sub-workers cannot write into the supervisor's
+  note chain (notes are Merkle-chained *per session* and per-session ownership
+  is load-bearing for the ledger). When workers need to read those criteria,
+  the supervisor includes them inline in the worker's prompt or actor message.
+- Completion comes back over the **inbox** (`pd inbox send
+  myrepo:claude:supervisor "<payload>"`) for ephemeral workers, or via the
+  recipient actor's mailbox when the worker was a canonical actor. The
+  supervisor drains its own inbox with `pd inbox --agent myrepo:claude:supervisor`.
 
 **When to use.** Tasks have a single accountable owner and the supervisor must
 verify before declaring done. Code review with a defined checklist.
@@ -497,9 +515,10 @@ verify before declaring done. Code review with a defined checklist.
 router, not a supervisor — use the star topology with no acceptance gate.
 
 **Failure mode.** Supervisor dies mid-flight; workers complete and report to a
-ghost mailbox. PD's mitigation: actor mailboxes (`pd actors` roster) are
-durable and survive session death — the messages are still readable when a new
-supervisor takes over via `pd salvage claim`.
+ghost identity. PD's mitigation: inbox messages and actor mailbox messages
+both persist in the DB and survive the session ending. When a new supervisor
+takes over via `pd salvage claim`, it can read the dead identity's inbox with
+`pd inbox --agent <dead-identity>` and continue from there.
 
 **Worked example — "Two-author code review on a feature branch."**
 
@@ -508,30 +527,34 @@ supervisor takes over via `pd salvage claim`.
 pd begin "feature: TOTP login" --identity myrepo:claude:author-totp \
   --files apps/auth/totp.ts apps/auth/totp.test.ts
 
-# Author signals "ready for review"
+# Author signals "ready for review" on a declared channel
 pd say "TOTP login ready for review on branch feat-totp" \
-  --pin --broadcast review:requests \
-  --kind review-request
+  --pin --broadcast review:requests
 
-# Reviewer claims
+# Reviewer claims a session and writes acceptance criteria into ITS OWN
+# session — notes are per-session, so the reviewer keeps the checklist local.
 pd begin "review feat-totp" --identity myrepo:codex:reviewer-totp
-pd note --type acceptance \
-  "Acceptance: TOTP window=30s, secret length=160 bits, test covers replay" \
-  --session $(pd whoami -q | cut -d: -f2)
+pd note "Acceptance: TOTP window=30s, secret length=160 bits, test covers replay" \
+  --type acceptance
 
-# Reviewer reads author's session notes & files
+# Reviewer reads the author's session notes (by session id — pd notes is
+# session-scoped) and inspects the author's claimed files
 pd sessions --agent myrepo:claude:author-totp -j | jq -r '.sessions[].id' | \
   xargs -I {} pd notes {} --limit 50
 pd files | grep totp                    # see what author claimed
 
-# Reviewer issues findings
-pd inbox send myrepo:claude:author-totp "Block: replay test missing. See note 14b3."
+# Reviewer DMs the author with findings (durable, addressable)
+pd inbox send myrepo:claude:author-totp \
+  '{"verdict":"block","reason":"replay test missing","ref":"note 14b3"}'
 pd note "Found 1 blocking issue: missing replay test" --type review
 
-# Author fixes, signals re-review
+# Author drains their inbox, fixes, signals re-review
+pd inbox --agent myrepo:claude:author-totp -j | \
+  jq '.messages[] | select(.content | fromjson? | .verdict == "block")'
 pd say "re-pushed: replay test added (commit abc1234)" --pin --broadcast review:requests
+
 # Reviewer re-runs the acceptance check, then:
-pd inbox send myrepo:claude:author-totp "Approved. Merge when green."
+pd inbox send myrepo:claude:author-totp '{"verdict":"approve","note":"Merge when green."}'
 pd done "approved feat-totp"
 ```
 
@@ -564,19 +587,27 @@ pd tube debate:auth --tail --wait-for=900
 # Judge step
 pd spawn --backend gemini --identity myrepo:gemini:judge-auth \
   --purpose "judge the auth debate" --budget 0.80 \
-  -- "Read pd tube debate:auth --once and pd notes --type argument. \
-      Write final verdict via pd note --type verdict. Cite specific arguments by id."
+  -- "Read the debate transcript: \
+        pd tube debate:auth --tail --wait-for=60 --json > /tmp/transcript.json \
+      Read each advocate's argument notes by walking their sessions: \
+        pd sessions --agent myrepo:claude:advocate-rewrite -j | \
+          jq -r '.sessions[].id' | xargs -I S pd notes S --type argument \
+      Write the verdict TWO places: \
+        (1) a --type verdict note on your own (judge's) session — for the audit chain \
+        (2) pd inbox send myrepo:claude:moderator '<JSON verdict payload>' — for the moderator"
 ```
 
 **Primitive mapping.**
 
 - Debate channel: a logical `pd channels ensure debate:<topic>`.
 - Each turn: `pd pub debate:<topic>` with `--signal report`; rebuttals use the
-  tube's `--reply-to` correlation so the judge can reconstruct the thread.
-- Arguments-as-evidence: `pd note --type argument` on each advocate session so
-  the chain is Merkle-attestable.
-- Verdict: `pd note --type verdict --session <moderator>`; this is the
-  load-bearing artifact and lives in the durable note chain.
+  tube's `--reply-to=<id>` correlation so the judge can reconstruct the thread.
+- Arguments-as-evidence: `pd note --type argument` on each advocate's own
+  session so each advocate's note chain is Merkle-attestable.
+- Verdict: a `--type verdict` note on the **judge's** own session (durable,
+  Merkle-attestable on the judge's chain) **plus** a `pd inbox send
+  myrepo:claude:moderator '<verdict-json>'` so the moderator gets the result
+  in its own inbox. Notes cannot cross session boundaries; the inbox can.
 
 **When to use.** The decision is genuinely contested, single-model bias is a
 known risk, and you can afford 3-5x the tokens of a single CoT pass.
@@ -609,9 +640,12 @@ pd tube debate:rsc --tail --wait-for=1200 | tee /dev/stderr | \
 
 pd spawn --backend gemini --identity myrepo:gemini:rsc-judge --budget 1.00 \
   -- "Read the debate. Score balance (0-1), name the strongest unanswered argument, \
-      issue verdict. Write via pd note --type verdict."
+      issue verdict. Write a --type verdict note on your own session AND \
+      pd inbox send myrepo:claude:moderator '{\"verdict\":\"pro|anti\",\"balance\":0.X,\"reason\":\"...\"}'."
 
-pd notes --type verdict --limit 1
+# Moderator drains its inbox for the judge's verdict
+pd inbox --agent myrepo:claude:moderator -j | \
+  jq -r '.messages[] | select(.content | fromjson? | .verdict) | .content' | tail -1
 pd done "decided"
 ```
 
