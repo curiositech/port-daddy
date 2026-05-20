@@ -19,6 +19,17 @@ export interface DeprecatedBlogPost {
 
 export const blogPostMetas: BlogPostMeta[] = [
   {
+    id: 'pr-that-reviews-itself',
+    slug: 'the-pr-that-reviews-itself',
+    title: 'The PR That Reviews Itself',
+    date: '2026-05-20',
+    author: 'Erich Owens',
+    excerpt: 'You push at eleven at night. The CI gear-wheel is the only critic in the room. What if every PR you opened arrived with the adversarial review you would have asked for — six paid critics on the same git push you were already doing? The GitHub fleet, the bug it caught (14 green tests against a count that was structurally always 0), and what stays in your hands.',
+    tags: ['GitHub Fleet', 'Code Review', 'Adversarial Review', 'Dogfooding'],
+    heroImage: '/img/generated/pr-reviews-itself/hero.png',
+    heroAlt: 'A hooded contributor opens a laptop and finds a kitchen brigade of six chefs already at work on their pull request, each labeled with the name of a Port Daddy review ship',
+  },
+  {
     id: 'ai-subscription-fleet',
     slug: 'your-ai-subscription-powers-the-fleet',
     title: 'Your AI Subscription Already Powers A Fleet',

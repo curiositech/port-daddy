@@ -12,6 +12,7 @@ import redWhiteIsolationContent from './blog/red-and-white-stay-in-their-lanes.m
 import telemetryContent from './blog/telemetry-is-a-launch-gate.md?raw';
 import cliIsForRobotsContent from './blog/the-cli-is-for-the-robots.md?raw';
 import aiSubscriptionFleetContent from './blog/your-ai-subscription-powers-the-fleet.md?raw';
+import prReviewsItselfContent from './blog/the-pr-that-reviews-itself.md?raw';
 import { blogPostMetas, deprecatedBlogPosts, type BlogPostMeta } from './blogMetaData';
 
 export interface BlogPost extends BlogPostMeta {
@@ -33,6 +34,7 @@ const contentBySlug: Record<string, string> = {
   'telemetry-is-a-launch-gate': telemetryContent,
   'the-cli-is-for-the-robots': cliIsForRobotsContent,
   'your-ai-subscription-powers-the-fleet': aiSubscriptionFleetContent,
+  'the-pr-that-reviews-itself': prReviewsItselfContent,
 };
 
 function contentForSlug(slug: string) {
