@@ -90,6 +90,8 @@ import {
   handleSpawn, handleSpawned, handleWatch, handleSortie,
   // Transcripts
   handleTranscripts,
+  // Nightshift -- autonomous overnight feature dev
+  handleNightshift, handleMorning,
   // Harbors
   handleHarborCreate, handleHarborEnter, handleHarborLeave, handleHarborShow, handleHarborDestroy, handleHarbors,
   // Demo
@@ -1258,6 +1260,7 @@ const ALL_COMMANDS: string[] = [
   'secret', 'secrets',
   'cockpit',
   'popper',
+  'nightshift', 'morning',
 ];
 
 /** Simple Levenshtein distance for short strings */
@@ -2752,6 +2755,15 @@ export async function main(): Promise<void> {
 
       case 'sortie':
         await handleSortie(positional, options);
+        break;
+
+      // Nightshift -- autonomous overnight feature dev queue
+      case 'nightshift':
+        await handleNightshift(positional, options);
+        break;
+
+      case 'morning':
+        await handleMorning(positional, options);
         break;
 
       // Watch — ambient agent kernel (SSE subscriber)

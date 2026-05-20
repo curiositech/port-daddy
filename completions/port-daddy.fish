@@ -97,7 +97,7 @@ set -l __pd_commands \
     'agent' 'agents' 'actor' 'actors' 'swarm' 'log' 'activity' \
     'session' 'sessions' 'note' 'notes' \
     'salvage' 'resurrection' 'changelog' 'dns' 'files' 'add' 'who-owns' 'integration' 'briefing' 'history' 'inbox' \
-    'begin' 'b' 'done' 'whoami' 'w' 'attention' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'cockpit' 'popper' 'secret' 'secrets' 'watch' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' 'roadmap' 'quorum' 'feedback' 'commit' 'obligations' \
+    'begin' 'b' 'done' 'whoami' 'w' 'attention' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'nightshift' 'morning' 'cockpit' 'popper' 'secret' 'secrets' 'watch' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' 'roadmap' 'quorum' 'feedback' 'commit' 'obligations' \
     'say' 'look' 'sitrep' 'advise' 'preflight' 'compass' 'guard' 'snapshots' 'snapshot' 'shipwright' 'pheromone' 'ph' \
     'wallet' 'bond' \
     'up' 'down' \
@@ -186,6 +186,18 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a spawn -d 'Launch an AI agent (Ollama/Claude/Gemini/Aider/custom)'
     complete -c $prog -n __pd_needs_command -a spawned -d 'List active spawned agents'
     complete -c $prog -n __pd_needs_command -a sortie -d 'Launch and inspect tracked mission records'
+    complete -c $prog -n __pd_needs_command -a nightshift -d 'Queue and run autonomous overnight feature dev intents'
+    complete -c $prog -n "__pd_using_command nightshift" -x -a 'propose queue list show run review cancel help' -d 'Nightshift subcommand'
+    complete -c $prog -n "__pd_using_command nightshift; and __fish_seen_subcommand_from run" -l really-run -d 'Actually spawn the autonomous agent (default is dry-run)'
+    complete -c $prog -n "__pd_using_command nightshift; and __fish_seen_subcommand_from run" -l next -d 'Pop and run the next queued intent'
+    complete -c $prog -n "__pd_using_command nightshift" -l backend -x -a 'cli:claude-code cli:codex' -d 'Backend override'
+    complete -c $prog -n "__pd_using_command nightshift" -l budget -x -d 'Per-intent USD ceiling'
+    complete -c $prog -n "__pd_using_command nightshift" -l timeout -x -d 'Per-intent timeout (seconds)'
+    complete -c $prog -n "__pd_using_command nightshift" -l tags -x -d 'Comma-separated tags'
+    complete -c $prog -n "__pd_using_command nightshift" -l status -x -a 'proposed queued running open terminal all' -d 'Status filter'
+    complete -c $prog -n __pd_needs_command -a morning -d 'Start-of-day summary of overnight nightshift completions'
+    complete -c $prog -n "__pd_using_command morning" -l since -x -d 'Lookback start (ISO or epoch ms)'
+    complete -c $prog -n "__pd_using_command morning" -l json -d 'JSON output'
     complete -c $prog -n __pd_needs_command -a cockpit -d 'App-Native Development Cockpit — read roadmap into mission cards'
     complete -c $prog -n "__pd_using_command cockpit" -x -a 'missions' -d 'List mission cards parsed from the project roadmap'
     complete -c $prog -n "__pd_using_command cockpit; and __fish_seen_subcommand_from missions" -l project -x -d 'Project directory to read'
