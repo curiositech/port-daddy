@@ -288,6 +288,62 @@ describe('pd memory dispatcher', () => {
 });
 
 // =============================================================================
+// JSON schema snapshots — closure for PR #114 finding 5.
+// =============================================================================
+describe('--json schema snapshots', () => {
+  const KEY_COUNTS = {
+    'active-sessions': 1,
+    'active-file-claims': 2,
+    'active-notes': 3,
+    'archived-notes': 4,
+    blobs: 5,
+    'episodic-memory': 6,
+    'salvageable-sessions': 7,
+  };
+
+  test('pd memory tiers --json shape is stable', async () => {
+    stubAllCounts(KEY_COUNTS);
+    await handleMemoryTiers({ json: true });
+    const out = lastJsonLog();
+    expect(Object.keys(out).sort()).toEqual(['rows']);
+    expect(Array.isArray(out.rows)).toBe(true);
+    for (const row of out.rows) {
+      // Top-level keys must be a subset of the documented schema; no extras.
+      const allowed = new Set(['construct', 'tier', 'eviction', 'access', 'count', 'countError']);
+      for (const k of Object.keys(row)) expect(allowed.has(k)).toBe(true);
+      expect(typeof row.construct).toBe('string');
+      expect(['Core', 'Recall', 'Archival', 'Recall→Archival']).toContain(row.tier);
+      expect(typeof row.eviction).toBe('string');
+      expect(typeof row.access).toBe('string');
+      expect((row.count === undefined) !== (row.countError === undefined)).toBe(true); // exactly one
+    }
+  });
+
+  test('pd memory tier <construct> --json shape is stable', async () => {
+    await handleMemoryTier('active-file-claims', { json: true });
+    const out = lastJsonLog();
+    expect(Object.keys(out).sort()).toEqual(['access', 'construct', 'eviction', 'tier']);
+    expect(out.construct).toBe('active-file-claims');
+    expect(out.tier).toBe('Core');
+  });
+
+  test('pd memory summary --json shape is stable', async () => {
+    stubAllCounts(KEY_COUNTS);
+    await handleMemorySummary({ json: true });
+    const out = lastJsonLog();
+    expect(Object.keys(out).sort()).toEqual(['tiers']);
+    expect(Array.isArray(out.tiers)).toBe(true);
+    for (const t of out.tiers) {
+      const allowed = new Set(['tier', 'count', 'constructs', 'errors']);
+      for (const k of Object.keys(t)) expect(allowed.has(k)).toBe(true);
+      expect(['Core', 'Recall', 'Archival', 'Recall→Archival']).toContain(t.tier);
+      expect(Array.isArray(t.constructs)).toBe(true);
+      expect(Array.isArray(t.errors)).toBe(true);
+    }
+  });
+});
+
+// =============================================================================
 // Recall/Archival partition invariant — explicit closure for PR #114 finding 3.
 // =============================================================================
 describe('Recall/Archival partition invariant', () => {
