@@ -57,6 +57,19 @@ const CONCURRENCY = Number(process.env.SNAP_CONCURRENCY ?? 4)
 const NAV_TIMEOUT_MS = Number(process.env.SNAP_NAV_TIMEOUT_MS ?? 30_000)
 const SETTLE_TIMEOUT_MS = Number(process.env.SNAP_SETTLE_TIMEOUT_MS ?? 20_000)
 const ROOT_MARKER = '<div id="root"></div>'
+// Some deploy environments (notably Cloudflare Pages' default build
+// image) don't bundle the Playwright chromium binary. When set, this
+// flag converts a browser-launch failure into a warning + exit 0,
+// so the deploy still ships — with the un-snapped empty bodies. The
+// SEO regression is the cost; the alternative is "deploy fails, no
+// site updates at all" which is worse. CI runners that DO have
+// chromium should leave this unset so genuine breakage surfaces.
+//
+// Cloudflare Pages sets CF_PAGES=1 during build. Auto-skip there
+// until chromium is installed in the Pages build env (see PR comment).
+const SKIP_ON_BROWSER_ERROR =
+  process.env.SNAP_SKIP_ON_BROWSER_ERROR === '1' ||
+  process.env.CF_PAGES === '1'
 // The Suspense fallback (in main.tsx → RouteFallback) renders this
 // while lazy chunks load. If we capture before chunks resolve, we
 // snap "Loading route..." into the static HTML — useless to crawlers.
@@ -211,7 +224,26 @@ async function main() {
 
   try {
     await waitForServer(`${baseUrl}/`)
-    const browser = await chromium.launch({ headless: true })
+    let browser
+    try {
+      browser = await chromium.launch({ headless: true })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      if (SKIP_ON_BROWSER_ERROR) {
+        console.warn(
+          `snap-routes: chromium failed to launch (${msg}). ` +
+          `SNAP_SKIP_ON_BROWSER_ERROR=1 is set — skipping the snap pass. ` +
+          `Empty-body HTML will ship until chromium is available.`,
+        )
+        return
+      }
+      throw new Error(
+        `snap-routes: chromium failed to launch. Either install it ` +
+        `(\`npx playwright install chromium\`) or set ` +
+        `SNAP_SKIP_ON_BROWSER_ERROR=1 to deploy without snapping. ` +
+        `Underlying error: ${msg}`,
+      )
+    }
     try {
       // Concurrency: a small worker pool. Playwright pages share
       // the browser; new pages are cheap.
@@ -269,6 +301,14 @@ async function main() {
 }
 
 main().catch(err => {
+  const msg = err instanceof Error ? err.message : String(err)
+  if (SKIP_ON_BROWSER_ERROR) {
+    console.warn(
+      `snap-routes: failed (${msg}). SNAP_SKIP_ON_BROWSER_ERROR=1 (or CF_PAGES=1) — ` +
+      `treating as warning. Empty-body HTML will ship until the failure is fixed.`,
+    )
+    return
+  }
   console.error(err)
   // Use exitCode (not process.exit) so the finally blocks in main()
   // get to fire — without this, vite preview leaks as a zombie process
