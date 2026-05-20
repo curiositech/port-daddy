@@ -93,7 +93,7 @@ import {
   // Tuples
   handleTuple,
   // Semantic graph + episodic memory
-  handleGraph, handleMemory, handleIdeas,
+  handleGraph, handleIdeas,
   handleRoadmap,
   handleQuorum,
   handleFeedback,
@@ -116,6 +116,10 @@ import {
   // App-Native Development Cockpit
   handleCockpit,
 } from '../cli/commands/index.js';
+// pd memory — Core/Recall/Archival vocabulary + episodic memory dispatcher.
+// Imported directly (not via index.js) so the tier subcommands take precedence
+// over the older semantic.ts export. See docs/adr/0035-three-tier-memory-vocabulary.md
+import { handleMemory } from '../cli/commands/memory.js';
 import { getDaemonTcpUrl, readDaemonPort, resolveDaemonTcpTarget } from '../shared/daemon-discovery.js';
 import { calculateRuntimeCodeHash } from '../shared/code-hash.js';
 import { DEFAULT_SOCK as _DEFAULT_SOCK, DEFAULT_PORT_FILE as _DEFAULT_PORT_FILE } from '../shared/paths.js';
@@ -623,6 +627,7 @@ function buildHelp(): string {
     `  ${G}pd guard${Z}                 Enforce session + file-claim discipline`,
     `  ${G}pd graph stats${Z}           Inspect semantic graph totals`,
     `  ${G}pd memory episodes${Z}       Inspect episodic memory`,
+    `  ${G}pd memory tiers${Z}          Core/Recall/Archival mapping with live counts`,
     `  ${G}pd ideas search${Z} "text"   Search ideas, notes, tuples, and repo markdown`,
     `  ${G}pd roadmap${Z}               Show Cartographer's current roadmap projection`,
     `  ${G}pd daemon list${Z}           Inspect named sidecar daemon profiles`,
@@ -1028,11 +1033,22 @@ Commands:
     --dir <path>            Project directory filter
     --project <name>        Logical project filter
 
+  memory tiers              Print Core/Recall/Archival mapping with live counts
+  memory tier <construct>   Print the tier for one construct
+  memory summary            One-line-per-tier rollup
+    --json, -j              Machine-readable output (stable schema)
+    --quiet, -q             Bare value
+
 Examples:
   pd graph edges --scope symbols:file:/abs/path.ts
   pd graph stats --dir /Users/you/coding/port-daddy
   pd memory episodes --project port-daddy --type handoff
-  pd memory stats --dir /Users/you/coding/port-daddy`,
+  pd memory stats --dir /Users/you/coding/port-daddy
+  pd memory tiers
+  pd memory tier active-file-claims
+  pd memory summary --json
+
+See: docs/adr/0035-three-tier-memory-vocabulary.md`,
 
   advisor: `Advisor / Compass \u2014 Suggest coordination moves before editing
 
