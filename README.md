@@ -446,6 +446,24 @@ pd memory stats --dir /Users/you/coding/port-daddy
 
 These are read surfaces for now. The point is operator truth: if graph/memory is part of the product, it must be inspectable from the CLI and not only via raw daemon routes.
 
+#### Memory Tier Vocabulary (Core / Recall / Archival)
+
+Port Daddy's storage is a three-tier hierarchy borrowed from the Letta-style
+agent-architecture literature. `pd memory tiers` prints the current mapping
+with live counts; `pd memory tier <construct>` answers "where does this
+specific construct live?"; `pd memory summary` rolls up totals per tier.
+
+```bash
+pd memory tiers                       # full table + counts
+pd memory tier active-file-claims     # → Core
+pd memory tier archived-notes         # → Archival
+pd memory summary --json              # programmable per-tier totals
+```
+
+The mapping and the reasoning behind it are documented in
+[ADR-0035](docs/adr/0035-three-tier-memory-vocabulary.md). The substrate is
+unchanged; this is a vocabulary overlay over the same SQLite tables.
+
 ### Semantic Trie (O(k) Identity Lookups)
 Port Daddy indexes all identities (services, agents, sessions, harbors) in an in-memory Adaptive Radix Tree. Lookups are O(k) where k is key length — replacing SQL `LIKE` scans that degrade as the registry grows.
 
@@ -612,6 +630,8 @@ Session notes are encrypted at rest with AES-256-GCM. Master key stored at `~/.p
 Two formal white papers are available at `/whitepaper` on the website:
 - **The Anchor Protocol** — Formally verified cryptographic identity for agent swarms (ProVerif + Kani/Rust)
 - **The Bonded Commons** — Pre-transactional trust infrastructure: Hobbes, Sen's impossibility, collateralized work contracts
+
+> After updating PDFs under `website-v2/public/whitepaper/`, run `npx tsx scripts/check-whitepaper-metadata.ts --fix` (from `website-v2/`) to resync `pages` and `sizeKb` in `src/data/whitePapers.ts`. CI fails on drift.
 
 ---
 

@@ -56,6 +56,19 @@ export interface LLMCompletionResult {
 
 export type LLMAdapter = (req: LLMCompletionRequest) => Promise<LLMCompletionResult>;
 
+function cloudflareModelPath(model: string): string {
+  const normalized = model
+    .trim()
+    .replace(/^\/+/, '');
+  const segments = normalized.split('/');
+  if (!normalized || segments.some((segment) => !segment || segment === '.' || segment === '..')) {
+    throw new Error('Cloudflare Workers AI model must be a slash-delimited model id without empty, dot, or dot-dot path segments');
+  }
+  return segments
+    .map((segment) => encodeURIComponent(segment).replace(/%40/g, '@'))
+    .join('/');
+}
+
 /**
  * Cloudflare Workers AI adapter. Reads creds from `getSecret` first
  * (encrypted managed store), falls back to `process.env`. Returns
@@ -78,7 +91,7 @@ export const cloudflareAdapter: LLMAdapter = async ({ prompt, model, maxTokens, 
   if (!token) return { ok: false, error: 'CLOUDFLARE_API_TOKEN or CLOUDFLARE_API_KEY is not set' };
 
   try {
-    const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${encodeURIComponent(model)}`, {
+    const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${cloudflareModelPath(model)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({

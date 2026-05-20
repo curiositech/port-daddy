@@ -185,9 +185,9 @@ To solve this, Port Daddy introduces the concept of a \textbf{Harbor}—a zero-t
 \section{The Anchor Protocol Architecture}
 % ═════════════════════════════════════════════════════════════════════════════
 
-The Anchor Protocol defines how agents authenticate to a Harbor and to each other. It issues \textbf{Harbor Cards} (highly constrained JSON Web Tokens) and evolves them across four phases, each adding a capability that closes a specific attack surface from the previous phase (Figure~\ref{fig:anchor-phases}).
+The Anchor Protocol defines how agents authenticate to a Harbor and to each other. It issues \textbf{Harbor Cards} (highly constrained JSON Web Tokens) and evolves them across four phases, each adding a capability that closes a specific attack surface from the previous phase (Figure~\ref{fig:anchor-four-phases}).
 
-\input{figures/fig-anchor-phases}
+\input{figures/fig-anchor-four-phases}
 
 A common thread across all phases is \emph{capability attenuation}: a delegated token never carries more authority than its parent, and TTL only shrinks. Figure~\ref{fig:anchor-capability-attenuation} shows the nested-cap structure that the verifier enforces on every chain.
 
@@ -247,7 +247,9 @@ Let $R_t$ denote the set of revoked Harbor Card IDs at time $t$. Each daemon $d$
 \end{enumerate}
 \end{definition}
 
-\paragraph{Gossip-based synchronization.} Daemons in a mesh synchronize filters by anti-entropy gossip~\cite{demers1987epidemic}: each daemon maintains a version vector over peers, periodically picks a random peer, exchanges vectors, ships deltas (cards revoked since the peer's last seen version), and applies them. A revocation reaches all $m$ peers in expected $O(\log m)$ gossip rounds. For $m = 10$ daemons at 30-second intervals, all nodes see a new revocation within $\approx 2$ minutes. Security-critical revocations can trigger immediate push (the issuer broadcasts to every known peer).
+\paragraph{Gossip-based synchronization.} Daemons in a mesh synchronize filters by anti-entropy gossip~\cite{demers1987epidemic}: each daemon maintains a version vector over peers, periodically picks a random peer, exchanges vectors, ships deltas (cards revoked since the peer's last seen version), and applies them. A revocation reaches all $m$ peers in expected $O(\log m)$ gossip rounds. For $m = 10$ daemons at 30-second intervals, all nodes see a new revocation within $\approx 2$ minutes. Security-critical revocations can trigger immediate push (the issuer broadcasts to every known peer). Figure~\ref{fig:anchor-revocation-gossip} traces a single revocation through a five-daemon mesh frame-by-frame.
+
+\input{figures/fig-anchor-revocation-gossip}
 
 \begin{property}[Filter Monotonicity over a TTL Epoch]\label{prop:filter-mono}
 For any Harbor Card $c$ with issue time $t_0$ and TTL $\tau$, if $c \in R_t$ for some $t \in [t_0, t_0+\tau]$, then $c \in R_{t'}$ for all $t' \in [t, t_0+\tau]$. After $t_0+\tau$, $c$ may be removed from $R$ since the card has expired.
@@ -295,7 +297,9 @@ JSON Web Tokens have been the subject of extensive security analysis. Algorithm 
 \section{Formal Verification Strategy}
 % ═════════════════════════════════════════════════════════════════════════════
 
-Following the industry standard set by AWS (s2n-tls~\cite{aws2022s2n}) and Microsoft (Project Everest~\cite{bhargavan2017everest}), we decoupled the verification of the \textit{protocol design} from the verification of the \textit{implementation}.
+Following the industry standard set by AWS (s2n-tls~\cite{aws2022s2n}) and Microsoft (Project Everest~\cite{bhargavan2017everest}), we decoupled the verification of the \textit{protocol design} from the verification of the \textit{implementation}. The full stack has three layers (Figure~\ref{fig:anchor-verification-stack}): symbolic protocol analysis at the top, bounded model checking on the Rust source in the middle, and runtime conformance tests against the deployed binary at the bottom. Each layer's obligations flow downward; each layer's evidence flows back up. The stack is sound only if every bridge --- symbolic-to-source and source-to-deployed --- holds.
+
+\input{figures/fig-anchor-verification-stack}
 
 \subsection{Symbolic Analysis with ProVerif}
 

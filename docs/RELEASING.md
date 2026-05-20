@@ -280,6 +280,22 @@ rm -rf ~/port-daddy-stable
 
 If `pd status` after step 4 still shows the old PID/version, the old daemon hasn't been killed. `pgrep -fl 'port-daddy-stable'` should be empty before you proceed.
 
+### Picking up a formula change (env vars, run line, service block)
+
+`brew services restart port-daddy` does **not** re-derive `~/Library/LaunchAgents/homebrew.mxcl.port-daddy.plist` from the current formula. The launchd plist is generated once at install and reused on subsequent restarts; service-block changes (`environment_variables`, `run [...]`, `keep_alive`, etc.) only take effect after a fresh install.
+
+If a tap PR updates the service block (e.g. adds `PORT_DADDY_DB`), pick it up locally with:
+
+```bash
+brew update                                            # pull the tap's latest formula
+brew services stop port-daddy
+brew reinstall port-daddy                              # regenerates plist from the new formula
+brew services start port-daddy
+grep -A 1 EnvironmentVariables ~/Library/LaunchAgents/homebrew.mxcl.port-daddy.plist
+```
+
+`brew services restart` alone is enough for picking up binary changes (new version, new SHA) but NOT for plist-shape changes. The asymmetry is real and tripping up at least one operator per release; a future `pd doctor` check should compare the live plist against the formula spec and warn on drift.
+
 ## See also
 
 - [`VERSIONING.md`](VERSIONING.md) — semver policy + the canonical list of version surfaces

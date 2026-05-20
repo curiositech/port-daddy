@@ -41,9 +41,45 @@ describe('cloudflareAdapter', () => {
         outputTokens: 5,
       });
       const [url, opts] = fetchSpy.mock.calls[0];
-      expect(url).toBe('https://api.cloudflare.com/client/v4/accounts/a/ai/run/%40cf%2Ftest');
+      expect(url).toBe('https://api.cloudflare.com/client/v4/accounts/a/ai/run/@cf/test');
       expect(opts.headers.Authorization).toBe('Bearer t');
       expect(JSON.parse(opts.body).max_tokens).toBe(200);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  test('preserves Cloudflare model path separators while escaping unsafe segment characters', async () => {
+    const env = { CLOUDFLARE_ACCOUNT_ID: 'a', CLOUDFLARE_API_TOKEN: 't' };
+    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ result: { response: 'ok' } }), { status: 200 })
+    );
+    try {
+      const r = await cloudflareAdapter({
+        prompt: 'p',
+        model: '@cf/test org/model?variant#frag',
+        env,
+      });
+      expect(r.ok).toBe(true);
+      const [url] = fetchSpy.mock.calls[0];
+      expect(url).toBe('https://api.cloudflare.com/client/v4/accounts/a/ai/run/@cf/test%20org/model%3Fvariant%23frag');
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  test('rejects unsafe model path segments before sending the bearer token', async () => {
+    const env = { CLOUDFLARE_ACCOUNT_ID: 'a', CLOUDFLARE_API_TOKEN: 't' };
+    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ result: { response: 'should-not-call' } }), { status: 200 })
+    );
+    try {
+      for (const model of ['@cf/../model', '@cf//model', '.', '']) {
+        const r = await cloudflareAdapter({ prompt: 'p', model, env });
+        expect(r.ok).toBe(false);
+        expect(r.error).toContain('model must be a slash-delimited model id');
+      }
+      expect(fetchSpy).not.toHaveBeenCalled();
     } finally {
       fetchSpy.mockRestore();
     }

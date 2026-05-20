@@ -23,6 +23,8 @@
     "test:a11y:shell": "node scripts/check-public-shell-a11y.mjs",
     "crawl:docs": "node scripts/crawl-docs-surface.mjs",
     "test:tutorial-command-surfaces": "node scripts/check-tutorial-command-surfaces.mjs",
+    "test:whitepaper-metadata": "tsx scripts/check-whitepaper-metadata.ts",
+    "fix:whitepaper-metadata": "tsx scripts/check-whitepaper-metadata.ts --fix",
     "record:gifs": "bash scripts/record-site-terminal-gifs.sh --all && bash scripts/record-agent-terminal-gifs.sh --all",
     "test:gifs": "node scripts/check-terminal-recordings.mjs"
   },

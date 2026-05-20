@@ -126,12 +126,23 @@ The `agentsd.ai` public-site reset is now explicit repo work, not chat residue.
 
 ## Current Thread
 
+- 2026-05-19 three-tier memory vocabulary (Core/Recall/Archival):
+  - ADR-0035 (`docs/adr/0035-three-tier-memory-vocabulary.md`) maps every
+    PD construct (active sessions, file claims, notes, blobs, skill index,
+    salvageable sessions) to a tier with eviction + access semantics.
+  - `pd memory tiers` / `tier <construct>` / `summary` introspect the
+    mapping with live counts against existing read-only endpoints. No
+    schema, no substrate touch — vocabulary overlay only.
+  - The briefing assembler is the next consumer; ADR-0035 lays out the
+    "Core fully included, Recall TTL-ordered, Archival by pointer" rule.
+
 - 2026-05-08 fleet-health-scorecard:
   - raw Spark idea promoted into `IDEAS-TROVE.md` and `docs/ROADMAP.md`
   - new Phase 3 dashboard follow-on for role health, cost burn, queue depth,
     and recent violations
   - `tuple-namespace-hierarchies` extends `tuple-driven-fleet` instead of
     minting a duplicate family
+
 - 2026-04-29 app-native development cockpit sketch:
   - New product sketch at `docs/shipwright/APP-NATIVE-DEVELOPMENT-COCKPIT.md`.
   - It ties roadmap intake, Idea Lab/Trove curation, Windags skill-grafted planning, Coordination Guard, multi-backend launches, worktree collapse, editor claim overlays, HITL decisions, Tube, and day-over-day progress logs into one Fleet Control Center cockpit.

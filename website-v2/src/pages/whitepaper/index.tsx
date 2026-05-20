@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { motion } from 'framer-motion'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ArrowRight, BookOpen, Download, FileText } from 'lucide-react'
+import { ArrowRight, BookOpen, Download, FileText, Layers } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
 import {
   BracketLabel,
@@ -106,25 +106,41 @@ export default function WhitepaperPage() {
                   Bring whatever you bring.
                 </p>
 
-                <Link
-                  to="/whitepaper/rounds"
-                  className="group inline-flex max-w-[60ch] items-start gap-[var(--space-3)] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-4)] text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-strong)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]"
-                >
-                  <BookOpen aria-hidden="true" size={18} className="mt-[var(--space-1)] shrink-0 text-[var(--brand-primary)]" />
-                  <span className="space-y-[var(--space-1)] min-w-0">
-                    <span className="block font-display text-[length:var(--type-panel-title-nav-size)] font-black leading-[var(--leading-nav)] tracking-[var(--tracking-display-nav)]">
-                      Read the review history →
+                <div className="grid max-w-[60ch] gap-[var(--space-3)] sm:grid-cols-2">
+                  <Link
+                    to="/whitepaper/rounds"
+                    className="group inline-flex items-start gap-[var(--space-3)] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-4)] text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-strong)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]"
+                  >
+                    <BookOpen aria-hidden="true" size={18} className="mt-[var(--space-1)] shrink-0 text-[var(--brand-primary)]" />
+                    <span className="space-y-[var(--space-1)] min-w-0">
+                      <span className="block font-display text-[length:var(--type-panel-title-nav-size)] font-black leading-[var(--leading-nav)] tracking-[var(--tracking-display-nav)]">
+                        Read the review history →
+                      </span>
+                      <span className="block text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
+                        Both papers spent five months getting argued with by two
+                        AI review teams — one playing attacker, one playing defender,
+                        neither allowed to read the other&apos;s notes. Every objection
+                        that landed, every fix, every still-open gap is on the record.
+                      </span>
                     </span>
-                    <span className="block text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
-                      Both papers spent five months getting argued with by two
-                      AI review teams — one playing attacker, one playing defender,
-                      neither allowed to read the other&apos;s notes. Every objection
-                      that landed, every fix, every still-open gap is on the record.
-                      Useful for the kind of reader who wants to see where we
-                      changed our minds.
+                  </Link>
+                  <Link
+                    to="/landscape"
+                    className="group inline-flex items-start gap-[var(--space-3)] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-4)] text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-strong)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]"
+                  >
+                    <Layers aria-hidden="true" size={18} className="mt-[var(--space-1)] shrink-0 text-[var(--brand-primary)]" />
+                    <span className="space-y-[var(--space-1)] min-w-0">
+                      <span className="block font-display text-[length:var(--type-panel-title-nav-size)] font-black leading-[var(--leading-nav)] tracking-[var(--tracking-display-nav)]">
+                        Where Port Daddy fits — multi-agent landscape →
+                      </span>
+                      <span className="block text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
+                        Cursor 2.0, Claude Code Task, ccswarm, WinDAGs — and where the
+                        coordination layer underneath all of them goes. With a
+                        sixty-second walkthrough of two agents on one repo.
+                      </span>
                     </span>
-                  </span>
-                </Link>
+                  </Link>
+                </div>
               </div>
 
               <aside className="border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
