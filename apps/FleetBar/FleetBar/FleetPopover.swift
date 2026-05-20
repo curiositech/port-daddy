@@ -37,15 +37,17 @@ struct FleetPopover: View {
     @ObservedObject var store: FleetStore
     @ObservedObject var costStore: CostStore
     @ObservedObject var secretsStore: SecretsStore
+    @ObservedObject var backendStore: BackendStore
     @StateObject private var budgetStore = BudgetPauseStore()
     @AppStorage("fleet.control.theme") private var selectedThemeRaw = "dark"
     @State private var appeared = false
     @State private var showingSettings = false
 
-    init(store: FleetStore, costStore: CostStore, secretsStore: SecretsStore = SecretsStore(autoStart: false)) {
+    init(store: FleetStore, costStore: CostStore, secretsStore: SecretsStore = SecretsStore(autoStart: false), backendStore: BackendStore = BackendStore()) {
         self.store = store
         self.costStore = costStore
         self.secretsStore = secretsStore
+        self.backendStore = backendStore
     }
 
     private var recentAgentHighlights: [RecentAgentHighlight] {
@@ -103,6 +105,10 @@ struct FleetPopover: View {
                 budgetPauseBanner
                 Divider().opacity(0.5)
             }
+            if store.isDaemonRunning {
+                BackendStatusRow(store: backendStore)
+                Divider().opacity(0.5)
+            }
             if let daemonStatus = store.daemonStatus, store.isDaemonRunning {
                 daemonReportSection(status: daemonStatus)
                 Divider().opacity(0.5)
@@ -118,6 +124,8 @@ struct FleetPopover: View {
                 Divider().opacity(0.5)
             }
             if showingSettings {
+                BackendPicker(store: backendStore)
+                Divider().opacity(0.5)
                 settingsPanel
                 Divider().opacity(0.5)
             }
@@ -1435,6 +1443,9 @@ struct StatusCapsule: View {
         return store
     }(), costStore: {
         let store = CostStore()
+        return store
+    }(), backendStore: {
+        let store = BackendStore(autoStart: false)
         return store
     }())
     .frame(width: 380, height: 520)

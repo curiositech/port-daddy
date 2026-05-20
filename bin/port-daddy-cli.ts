@@ -2805,6 +2805,13 @@ export async function main(): Promise<void> {
         break;
       }
 
+      // Backend — surface CLI/SDK backend route, switch, and per-backend cost.
+      case 'backend': {
+        const { handleBackend } = await import('../cli/commands/backend.js');
+        await handleBackend(positional, options);
+        break;
+      }
+
       case 'wallet': {
         const { handleWallet } = await import('../cli/commands/wallet.js');
         await handleWallet(positional, options);

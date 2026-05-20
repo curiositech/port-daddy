@@ -32,6 +32,11 @@ import {
 import { ensureStarterFleetProject } from '../lib/fleet-bootstrap.js';
 import { resolveFleetChannel } from '../lib/fleet-channels.js';
 import { assessBackendReadiness } from '../lib/backend-readiness.js';
+import {
+  BACKEND_CATALOG as SHARED_BACKEND_CATALOG,
+  KNOWN_BACKEND_IDS,
+  detectForcedCliBackend,
+} from '../lib/backend-catalog.js';
 import { managedSecretStorageStatus, saveManagedSecret } from '../lib/secret-env.js';
 import { validateProjectRoot } from '../lib/utils.js';
 import {
@@ -51,32 +56,15 @@ interface FleetRouteDeps {
   };
 }
 
-const BACKEND_CATALOG = [
-  { id: 'claude-cli', name: 'Claude CLI', models: ['haiku', 'sonnet', 'opus'] },
-  { id: 'claude', name: 'Claude SDK', models: ['claude-haiku-4-5-20251001', 'claude-sonnet-4-5-20250929', 'claude-opus-4-1-20250805'] },
-  { id: 'gemini', name: 'Google Gemini', models: ['gemini-2.0-flash-exp', 'gemini-2.5-flash', 'gemini-2.5-pro'] },
-  {
-    id: 'cloudflare',
-    name: 'Cloudflare Workers AI',
-    models: [
-      '@cf/zai-org/glm-4.7-flash',
-      '@cf/openai/gpt-oss-120b',
-      '@cf/moonshotai/kimi-k2.6',
-      '@cf/qwen/qwen3-30b-a3b-fp8',
-      '@cf/nvidia/nemotron-3-120b-a12b',
-      '@cf/meta/llama-4-scout-17b-16e-instruct',
-    ],
-  },
-  { id: 'codex', name: 'OpenAI Codex CLI', models: ['gpt-5.4-mini', 'gpt-5.3-codex', 'gpt-5.4'] },
-  { id: 'ollama', name: 'Ollama (local)', models: [] as string[] },
-  { id: 'aider', name: 'Aider', models: ['gpt-4.1-mini', 'gpt-4.1', 'gpt-5'] },
-  { id: 'custom', name: 'Custom command', models: ['custom-low', 'custom-mid', 'custom-high'] },
-] as const;
+// Backend catalog is shared with the CLI and FleetBar/dashboard surfaces;
+// see lib/backend-catalog.ts for the source of truth.
+const BACKEND_CATALOG = SHARED_BACKEND_CATALOG;
 
 const BACKEND_SECRET_KEYS: Record<string, string[]> = {
   claude: ['ANTHROPIC_API_KEY'],
   gemini: ['GEMINI_API_KEY', 'GOOGLE_API_KEY'],
   cloudflare: ['CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_API_KEY', 'CF_API_TOKEN', 'CF_ACCOUNT_ID'],
+  openai: ['OPENAI_API_KEY'],
 };
 
 function allowedSecretKeysForBackend(backend: string): Set<string> {
@@ -546,7 +534,7 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
       reply.code(400);
       return { success: false, error: 'backend is required' };
     }
-    if (!BACKEND_CATALOG.some((entry) => entry.id === backend)) {
+    if (!KNOWN_BACKEND_IDS.has(backend)) {
       reply.code(400);
       return { success: false, error: `Unknown backend "${backend}"` };
     }
@@ -627,6 +615,7 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
       ollamaCache = { models: ollamaModels, at: now };
     }
 
+    const forcedCliBackend = detectForcedCliBackend();
     const backends = await Promise.all(
       BACKEND_CATALOG.map(async (backend) => {
         const readiness = await assessBackendReadiness(backend.id);
@@ -638,13 +627,28 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
         if (backend.id === 'ollama') {
           models = [...new Set([...ollamaModels, ...models])];
         }
+        const isReady =
+          readiness.status === 'ready' || readiness.status === 'manual_check';
         return {
           id: backend.id,
           name: backend.name,
           models,
           modelTiers: tierDefaults || undefined,
           supported: true,
+          // `launchable` historically meant "credentials are present"; we keep
+          // that strict definition, but expose `available` as the broader
+          // "PD can spawn through this right now (binary present / key present
+          // / SDK installed)" signal that UIs should branch on.
           launchable: readiness.status === 'ready',
+          available: isReady,
+          // New shared-catalog metadata. Drives FleetBar + dashboard framing.
+          costModel: backend.costModel,
+          framing: backend.framing,
+          description: backend.description,
+          tagline: backend.tagline,
+          recommended: Boolean(backend.recommended),
+          pdUseCliBackendValue: backend.pdUseCliBackendValue,
+          isForcedByEnv: forcedCliBackend === backend.id,
           readinessStatus: readiness.status,
           readinessSummary: readiness.summary,
           readinessNextStep: readiness.nextStep,
@@ -658,7 +662,12 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
       })
     );
 
-    return { success: true, backends };
+    return {
+      success: true,
+      forcedCliBackend,
+      pdUseCliBackend: process.env.PD_USE_CLI_BACKEND || null,
+      backends,
+    };
   });
 
   // POST /fleet/backend-secrets - save provider credentials in encrypted local storage.

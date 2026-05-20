@@ -960,6 +960,11 @@
         <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-file"/></svg></span>
         <span class="nav-label">Briefing</span>
       </div>
+      <div class="nav-item" data-panel="backend" tabindex="0" role="tab" title="LLM backend route: free-via-subscription, metered, or local">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-pulse"/></svg></span>
+        <span class="nav-label">Backend</span>
+        <span id="nav-backend-badge" class="nav-badge" style="display:none;background:var(--success);color:#0a0a0a;border-radius:8px;padding:1px 6px;font-size:10px;margin-left:4px;font-weight:700">FREE</span>
+      </div>
     </div>
 
     <div class="sidebar-section">
@@ -1170,6 +1175,22 @@
         <div id="briefing-content"></div>
       </div>
 
+      <!-- Backend Panel — fleet LLM route + cost framing -->
+      <div class="panel" id="panel-backend">
+        <div class="panel-header">
+          <div class="panel-title">Backend</div>
+          <div class="panel-actions">
+            <select id="backend-cost-window" onchange="refreshBackend()" title="Cost rollup window">
+              <option value="86400" selected>Today</option>
+              <option value="604800">This week</option>
+              <option value="2592000">This month</option>
+            </select>
+            <button class="cmd-btn" onclick="refreshBackend()">Refresh</button>
+          </div>
+        </div>
+        <div id="backend-content"></div>
+      </div>
+
       <!-- Webhooks Panel -->
       <div class="panel" id="panel-webhooks">
         <div class="panel-header">
@@ -1287,7 +1308,7 @@
         overview: refreshDashboard, services: refreshServices, agents: refreshAgents,
         sessions: refreshSessions, locks: refreshLocks, channels: refreshChannels,
         activity: refreshActivity, roadmap: refreshRoadmap, salvage: refreshSalvage, briefing: refreshBriefing,
-        budget: refreshBudget, transcripts: refreshTranscripts,
+        budget: refreshBudget, transcripts: refreshTranscripts, backend: refreshBackend,
         webhooks: refreshWebhooks, projects: refreshProjects, changelog: refreshChangelog,
         config: refreshConfig
       };
@@ -2210,6 +2231,181 @@
       setHtml('briefing-content', html);
     }
 
+    /* ── Backend (LLM route + cost framing) ──
+     *
+     * Surfaces GET /fleet/models + GET /metrics/cost?since=<window>.
+     * Highlights free-via-subscription backends (cli:claude-code / cli:codex)
+     * because those ride the operator's Claude Max / ChatGPT Pro subscription
+     * at $0 marginal cost — the whole pitch of PR #109.
+     */
+    function backendCostBadge(costModel) {
+      if (costModel === 'subscription') return '<span class="badge" style="background:var(--success);color:#0a0a0a;font-weight:700">FREE — subscription</span>';
+      if (costModel === 'local') return '<span class="badge" style="background:var(--success);color:#0a0a0a;font-weight:700">FREE — local</span>';
+      if (costModel === 'metered') return '<span class="badge" style="background:var(--warning);color:#0a0a0a">metered</span>';
+      if (costModel === 'cli') return '<span class="badge" style="background:var(--accent);color:#0a0a0a">cli</span>';
+      return '<span class="badge">—</span>';
+    }
+
+    function backendReadinessBadge(entry) {
+      if (entry.isForcedByEnv) return '<span class="badge" style="background:var(--accent);color:#0a0a0a;font-weight:700">ACTIVE</span>';
+      if (entry.available || entry.launchable) return '<span class="badge badge-active">ready</span>';
+      if (entry.readinessStatus === 'manual_check') return '<span class="badge" style="background:var(--brass);color:#0a0a0a">check</span>';
+      if (entry.readinessStatus === 'needs_setup') return '<span class="badge" style="background:var(--text-muted);color:#0a0a0a">setup</span>';
+      return '<span class="badge">unknown</span>';
+    }
+
+    async function refreshBackend() {
+      var windowSel = document.getElementById('backend-cost-window');
+      var sinceSecs = windowSel ? parseInt(windowSel.value, 10) || 86400 : 86400;
+      var windowLabel = ({ 86400: 'today', 604800: 'this week', 2592000: 'this month' })[sinceSecs] || (sinceSecs + 's');
+
+      var results = await Promise.all([
+        apiFetch('/fleet/models'),
+        apiFetch('/metrics/cost?since=' + sinceSecs)
+      ]);
+      var modelsData = results[0] || {};
+      var costData = results[1] || {};
+
+      var backends = (modelsData.backends || []).slice();
+      // Rank: forced first, then subscription, then ready, then by id
+      backends.sort(function(a, b) {
+        if ((a.isForcedByEnv ? 1 : 0) !== (b.isForcedByEnv ? 1 : 0)) return (b.isForcedByEnv ? 1 : 0) - (a.isForcedByEnv ? 1 : 0);
+        var aSub = (a.costModel === 'subscription') ? 1 : 0;
+        var bSub = (b.costModel === 'subscription') ? 1 : 0;
+        if (aSub !== bSub) return bSub - aSub;
+        var aReady = (a.available || a.launchable) ? 1 : 0;
+        var bReady = (b.available || b.launchable) ? 1 : 0;
+        if (aReady !== bReady) return bReady - aReady;
+        return (a.id || '').localeCompare(b.id || '');
+      });
+
+      var byBackend = (costData.byBackend || []).slice().sort(function(a, b) {
+        return (b.totalUsd || b.total_usd || 0) - (a.totalUsd || a.total_usd || 0);
+      });
+      var totalUsd = (costData.totals && (costData.totals.totalUsd || costData.totals.total_usd)) || 0;
+      var totalSpawns = (costData.totals && (costData.totals.spawnCount || costData.totals.spawn_count)) || 0;
+
+      // ── Headline ────────────────────────────────────────────────────────
+      var forced = modelsData.forcedCliBackend;
+      var headlineEntry = null;
+      if (forced) headlineEntry = backends.find(function(b) { return b.id === forced; });
+      if (!headlineEntry && byBackend[0]) {
+        var topSpend = byBackend[0];
+        headlineEntry = backends.find(function(b) { return b.id === topSpend.backend; });
+      }
+      if (!headlineEntry) headlineEntry = backends.find(function(b) { return (b.costModel === 'subscription') && (b.available || b.launchable); });
+      if (!headlineEntry) headlineEntry = backends.find(function(b) { return b.available || b.launchable; });
+
+      var allFreeToday = byBackend.length > 0 && byBackend.every(function(row) {
+        var entry = backends.find(function(b) { return b.id === row.backend; });
+        return entry && (entry.costModel === 'subscription' || entry.costModel === 'local');
+      });
+
+      var navBadge = document.getElementById('nav-backend-badge');
+      if (navBadge) {
+        if (headlineEntry && headlineEntry.costModel === 'subscription') {
+          navBadge.textContent = 'FREE';
+          navBadge.style.display = '';
+          navBadge.style.background = 'var(--success)';
+          navBadge.style.color = '#0a0a0a';
+        } else if (totalUsd > 0) {
+          navBadge.textContent = '$' + totalUsd.toFixed(2);
+          navBadge.style.display = '';
+          navBadge.style.background = 'var(--warning)';
+          navBadge.style.color = '#0a0a0a';
+        } else {
+          navBadge.style.display = 'none';
+        }
+      }
+
+      var html = '';
+
+      // Hero card
+      html += '<div class="card" style="margin-bottom:16px;background:linear-gradient(135deg, var(--bg-card), var(--bg-elevated));border:1px solid var(--accent-glow);">';
+      if (forced) {
+        html += '<div style="font-size:11px;color:var(--accent);font-weight:600;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Forced via PD_USE_CLI_BACKEND=' + escHtml(modelsData.pdUseCliBackend || forced) + '</div>';
+      }
+      if (headlineEntry) {
+        html += '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap;">';
+        html += '<div>';
+        html += '<div style="font-size:22px;font-weight:700;color:var(--text);margin-bottom:4px;">' + escHtml(headlineEntry.name) + '</div>';
+        if (headlineEntry.framing) {
+          html += '<div style="font-size:14px;color:var(--success);font-weight:600;">' + escHtml(headlineEntry.framing) + '</div>';
+        }
+        if (headlineEntry.tagline) {
+          html += '<div style="font-size:13px;color:var(--text-dim);margin-top:4px;font-style:italic;">' + escHtml(headlineEntry.tagline) + '</div>';
+        }
+        html += '</div>';
+        html += '<div style="text-align:right;">';
+        html += '<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;">Spend ' + escHtml(windowLabel) + '</div>';
+        if (allFreeToday && totalUsd < 0.005) {
+          html += '<div style="font-size:24px;font-weight:700;color:var(--success);font-family:monospace;">$0</div>';
+          html += '<div style="font-size:11px;color:var(--success);">paid by your subscription</div>';
+        } else {
+          html += '<div style="font-size:24px;font-weight:700;color:' + (totalUsd > 0 ? 'var(--brass)' : 'var(--text-muted)') + ';font-family:monospace;">$' + totalUsd.toFixed(4) + '</div>';
+          html += '<div style="font-size:11px;color:var(--text-muted);">' + totalSpawns + ' spawn' + (totalSpawns === 1 ? '' : 's') + '</div>';
+        }
+        html += '</div>';
+        html += '</div>';
+      } else {
+        html += '<div style="font-size:16px;color:var(--text-dim);">No backend ready. Install <code>claude</code> or <code>codex</code> to ride your $200/mo Claude Max or $20/mo ChatGPT Pro at $0 marginal cost.</div>';
+      }
+      html += '</div>';
+
+      // Backend picker (cards grid)
+      html += '<div class="card" style="margin-bottom:16px;">';
+      html += '<div class="card-title">Switch backend</div>';
+      html += '<div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">PD_USE_CLI_BACKEND forces every fleet spawn through a single CLI route, regardless of pd-fleet.yml. Subscription backends are recommended — they ride your existing Claude Max / ChatGPT Pro at $0 marginal cost.</div>';
+      html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;">';
+      backends.forEach(function(b) {
+        var canUse = !!b.pdUseCliBackendValue;
+        var borderColor = b.isForcedByEnv ? 'var(--accent)' : (b.costModel === 'subscription' && (b.available || b.launchable) ? 'var(--success)' : 'var(--border)');
+        var bg = b.isForcedByEnv ? 'var(--accent-glow)' : 'var(--bg-card)';
+        html += '<div style="background:' + bg + ';border:1px solid ' + borderColor + ';border-radius:8px;padding:12px;">';
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;">';
+        html += '<div style="font-weight:600;color:var(--text);">' + escHtml(b.name) + '</div>';
+        html += backendReadinessBadge(b);
+        html += '</div>';
+        html += '<div style="margin-bottom:8px;">' + backendCostBadge(b.costModel) + '</div>';
+        if (b.framing) html += '<div style="font-size:12px;color:var(--text-dim);margin-bottom:6px;">' + escHtml(b.framing) + '</div>';
+        if (b.tagline) html += '<div style="font-size:11px;color:var(--text-muted);font-style:italic;margin-bottom:8px;">' + escHtml(b.tagline) + '</div>';
+        if (canUse) {
+          var cmd = 'eval "$(pd backend use ' + b.pdUseCliBackendValue + ')"';
+          html += '<div style="font-family:monospace;font-size:11px;background:var(--bg-input);padding:6px 8px;border-radius:4px;color:var(--accent);overflow-x:auto;">' + escHtml(cmd) + '</div>';
+        } else if (!b.available && !b.launchable && b.readinessNextStep) {
+          html += '<div style="font-size:11px;color:var(--text-muted);">' + escHtml(b.readinessNextStep) + '</div>';
+        }
+        html += '</div>';
+      });
+      html += '</div>';
+
+      if (forced) {
+        html += '<div style="margin-top:12px;font-size:12px;color:var(--text-muted);">';
+        html += 'To stop forcing: <code style="background:var(--bg-input);padding:2px 6px;border-radius:3px;color:var(--accent);">eval "$(pd backend use none)"</code> then restart the daemon.';
+        html += '</div>';
+      }
+      html += '</div>';
+
+      // Spend by backend
+      html += '<div class="card">';
+      html += '<div class="card-title">Spend by backend — ' + escHtml(windowLabel) + '</div>';
+      if (byBackend.length === 0) {
+        html += '<div style="font-size:13px;color:var(--text-muted);">No spawns recorded in this window.</div>';
+      } else {
+        html += '<table><thead><tr><th>Backend</th><th>Cost model</th><th style="text-align:right;">Spend</th><th style="text-align:right;">Spawns</th><th>Framing</th></tr></thead><tbody>';
+        byBackend.forEach(function(row) {
+          var entry = backends.find(function(b) { return b.id === row.backend; }) || { costModel: 'unknown', framing: '—' };
+          var usd = (row.totalUsd || row.total_usd || 0).toFixed(4);
+          var spawns = row.spawnCount || row.spawn_count || 0;
+          html += '<tr><td class="mono">' + escHtml(row.backend) + '</td><td>' + backendCostBadge(entry.costModel) + '</td><td class="mono" style="text-align:right;">$' + usd + '</td><td class="mono" style="text-align:right;">' + spawns + '</td><td style="font-size:12px;color:var(--text-dim);">' + escHtml(entry.framing || '—') + '</td></tr>';
+        });
+        html += '</tbody></table>';
+      }
+      html += '</div>';
+
+      setHtml('backend-content', html);
+    }
+
     /* ── Webhooks ── */
     async function refreshWebhooks() {
       var data = await apiFetch('/webhooks');
@@ -2392,7 +2588,8 @@
       await refreshAll();
       // Fire-and-forget background loads for panels that refreshAll doesn't cover
       var bgPanels = ['services', 'agents', 'sessions', 'locks', 'channels',
-                      'activity', 'transcripts', 'salvage', 'webhooks', 'projects', 'changelog'];
+                      'activity', 'transcripts', 'salvage', 'webhooks', 'projects', 'changelog',
+                      'backend'];
       var currentHash = hash || 'overview';
       bgPanels.forEach(function(p) {
         if (p !== currentHash) {
@@ -2401,7 +2598,8 @@
             locks: refreshLocks, channels: refreshChannels,
             activity: refreshActivity, roadmap: refreshRoadmap, salvage: refreshSalvage,
             transcripts: refreshTranscripts,
-            webhooks: refreshWebhooks, projects: refreshProjects, changelog: refreshChangelog
+            webhooks: refreshWebhooks, projects: refreshProjects, changelog: refreshChangelog,
+            backend: refreshBackend
           };
           if (fn[p]) fn[p]();
         }
