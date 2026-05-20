@@ -4,10 +4,12 @@ name: Proofs (TLA+ / Z3 / Monte Carlo)
 # from the game-theory expository page
 # (website-v2/src/pages/whitepaper/HowWeProveGameTheory.tsx).
 #
-# Three artifacts, one workflow:
-#   - proofs/economics/delta-threshold.z3   (Z3 SMT)
-#   - proofs/economics/claim-signaling.tla  (TLA+ via TLC)
-#   - proofs/bonded/pareto/threat-bands.mjs (Monte Carlo)
+# Five artifacts, one workflow:
+#   - proofs/economics/delta-threshold.z3          (Z3 SMT)
+#   - proofs/economics/claim_signaling.tla         (TLA+ via TLC)
+#   - proofs/economics/claim_signaling.tla         (TLA+ via Apalache)
+#   - proofs/bonded/conservation/Conservation.tla  (TLA+ via TLC)
+#   - proofs/bonded/pareto/threat-bands.mjs        (Monte Carlo)
 #
 # Failure of any job fails the PR. No untrusted inputs are used.
 
@@ -94,32 +96,156 @@ jobs:
             https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar
           echo "TLA_TOOLS_JAR=${HOME}/tla/tla2tools.jar" >> "$GITHUB_ENV"
 
-      - name: Run claim-signaling under TLC
+      - name: Run claim_signaling under TLC
         working-directory: proofs/economics
         run: |
           set -euo pipefail
           java -XX:+UseParallelGC -cp "${TLA_TOOLS_JAR}" tlc2.TLC \
-            -config claim-signaling.cfg claim-signaling.tla \
-            | tee claim-signaling.tlc.log
+            -config claim_signaling.cfg claim_signaling.tla \
+            | tee claim_signaling.tlc.log
 
       - name: Assert no invariant violation
         working-directory: proofs/economics
         run: |
           set -euo pipefail
-          if grep -q "No error has been found" claim-signaling.tlc.log; then
+          if grep -q "No error has been found" claim_signaling.tlc.log; then
             echo "PASS: TLC found no invariant violation."
           else
             echo "FAIL: TLC did not report 'No error has been found'."
-            tail -50 claim-signaling.tlc.log
+            tail -50 claim_signaling.tlc.log
             exit 1
           fi
+
+      - name: Run sweep across delta (TLC)
+        working-directory: proofs/economics
+        env:
+          TLA_TOOLS_JAR: ${{ env.TLA_TOOLS_JAR }}
+        run: |
+          set -euo pipefail
+          chmod +x sweep-delta.sh
+          ./sweep-delta.sh | tee sweep-delta.tlc.log
 
       - name: Upload TLC log
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: claim-signaling-tlc-log
-          path: proofs/economics/claim-signaling.tlc.log
+          path: |
+            proofs/economics/claim_signaling.tlc.log
+            proofs/economics/sweep-delta.tlc.log
+
+  tla-claim-signaling-apalache:
+    name: TLA+ / claim_signaling (Apalache)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Download Apalache
+        run: |
+          set -euo pipefail
+          mkdir -p "${HOME}/apalache"
+          # Pinned to v0.57.0 — the version this artifact was validated
+          # against locally on macOS Darwin 26.1 / OpenJDK 26 on 2026-05-20.
+          # SMT/Z3 is bundled. ~130 MB.
+          curl -sSL -o /tmp/apalache.tgz \
+            https://github.com/apalache-mc/apalache/releases/download/v0.57.0/apalache.tgz
+          tar -xzf /tmp/apalache.tgz -C "${HOME}/apalache"
+          echo "${HOME}/apalache/apalache/bin" >> "$GITHUB_PATH"
+
+      - name: Verify Apalache install
+        run: apalache-mc version
+
+      - name: Run claim_signaling under Apalache
+        working-directory: proofs/economics
+        run: |
+          set -euo pipefail
+          apalache-mc check \
+            --inv=NoUnilateralDeviationPositive \
+            --length=10 \
+            --config=claim_signaling.cfg \
+            claim_signaling.tla \
+            | tee claim_signaling.apalache.log
+
+      - name: Assert no Apalache error
+        working-directory: proofs/economics
+        run: |
+          set -euo pipefail
+          if grep -q "The outcome is: NoError" claim_signaling.apalache.log; then
+            echo "PASS: Apalache reports NoError on the IC invariant at delta=0.26."
+          else
+            echo "FAIL: Apalache did not report NoError."
+            tail -100 claim_signaling.apalache.log
+            exit 1
+          fi
+
+      - name: Run sweep across delta (Apalache)
+        working-directory: proofs/economics
+        run: |
+          set -euo pipefail
+          chmod +x sweep-delta.sh
+          TLA_CHECKER=apalache ./sweep-delta.sh | tee sweep-delta.apalache.log
+
+      - name: Upload Apalache logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: claim-signaling-apalache-log
+          path: |
+            proofs/economics/claim_signaling.apalache.log
+            proofs/economics/sweep-delta.apalache.log
+
+  tla-conservation:
+    name: TLA+ / bonded Conservation (TLC)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Download TLA+ tools
+        run: |
+          set -euo pipefail
+          mkdir -p "${HOME}/tla"
+          curl -sSL -o "${HOME}/tla/tla2tools.jar" \
+            https://github.com/tlaplus/tlaplus/releases/download/v1.8.0/tla2tools.jar
+          echo "TLA_TOOLS_JAR=${HOME}/tla/tla2tools.jar" >> "$GITHUB_ENV"
+
+      - name: Run Conservation under TLC
+        working-directory: proofs/bonded/conservation
+        run: |
+          set -euo pipefail
+          java -XX:+UseParallelGC -cp "${TLA_TOOLS_JAR}" tlc2.TLC \
+            -config Conservation.cfg Conservation.tla \
+            | tee Conservation.tlc.log
+
+      - name: Assert no invariant violation
+        working-directory: proofs/bonded/conservation
+        run: |
+          set -euo pipefail
+          if grep -q "No error has been found" Conservation.tlc.log; then
+            echo "PASS: TLC found no invariant violation on Conservation."
+          else
+            echo "FAIL: TLC did not report 'No error has been found'."
+            tail -50 Conservation.tlc.log
+            exit 1
+          fi
+
+      - name: Upload Conservation log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: conservation-tlc-log
+          path: proofs/bonded/conservation/Conservation.tlc.log
 
   monte-carlo-threat-bands:
     name: Monte Carlo / threat-bands

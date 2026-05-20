@@ -5,14 +5,14 @@ Mechanization artifacts for the repeated claim-signaling game described in
 page `website-v2/src/pages/whitepaper/HowWeProveGameTheory.tsx`.
 
 Closes the credibility loan the expository page takes on Apalache + Z3.
-Two artifacts, two checkers, one closed-form threshold.
+Two artifacts, three checkers (Z3, TLC, Apalache), one closed-form threshold.
 
 ## Files
 
 | File                            | What it is                                             | How to run                                  |
 | ------------------------------- | ------------------------------------------------------ | ------------------------------------------- |
-| `claim-signaling.tla`           | TLA+ model of the repeated game + graduated trigger    | `tlc -config claim-signaling.cfg claim-signaling.tla` (or Apalache, see below) |
-| `claim-signaling.cfg`           | TLC / Apalache config; defaults to δ = 0.26            | (consumed by the model checker)             |
+| `claim_signaling.tla`           | TLA+ model of the repeated game + graduated trigger    | `tlc -config claim_signaling.cfg claim_signaling.tla` (or Apalache, see below) |
+| `claim_signaling.cfg`           | TLC / Apalache config; defaults to δ = 0.26, Horizon=4 | (consumed by the model checker)             |
 | `sweep-delta.sh`                | Sweeps δ ∈ {0.20, …, 0.30}; reports crossover          | `./sweep-delta.sh`                          |
 | `delta-threshold.z3`            | SMT-LIB script: the IC cubic + uniqueness in (0, 1)    | `z3 delta-threshold.z3`                     |
 | `delta-threshold.expected.txt`  | Expected Z3 output (3 `(check-sat)` results)           | (reference; CI greps it)                    |
@@ -46,9 +46,9 @@ the unique real root of
 
 in (0, 1). Numerically δ\* ≈ 0.2531.
 
-A spot-check (Python, δ = 0.26, Horizon = 8, PunishmentRounds = 3):
-follow-only A-score = 4.0540, deviate-once A-score = 4.0184 — IC holds by
-0.036. At δ = 0.25 the gap reverses: deviation gains 0.016. The crossover
+A spot-check (Python, δ = 0.26, Horizon = 4, PunishmentRounds = 3):
+follow-only A-score = 4.0355, deviate-once A-score = 4.0000 — IC holds by
+0.0355. At δ = 0.25 the gap reverses: deviation gains 0.0156. The crossover
 is at δ = 0.26 on the integer grid, matching the closed-form root δ\*
 within rounding.
 
@@ -57,11 +57,33 @@ The two artifacts close this proposition from two angles:
 - **`delta-threshold.z3`** (closed-form): proves the cubic has a unique
   real root in (0, 1), and that the root lies in [0.25, 0.26]. This is
   the threshold itself.
-- **`claim-signaling.tla`** (model-check): rebuilds the discounted
+- **`claim_signaling.tla`** (model-check): rebuilds the discounted
   one-shot-deviation comparison as a state machine and shows the IC
   invariant `NoUnilateralDeviationPositive` holds at δ = 0.26 and fails
   below the threshold. `sweep-delta.sh` finds the empirical crossover
   and asserts it matches the closed-form root to integer-grid rounding.
+
+## Horizon = 4, why
+
+The cfg sets `Horizon = 4`. This is the *minimal* horizon that exercises
+the IC argument: one round of deviation (the +4 grab) followed by the
+3-round graduated trigger (three mutual-claim rounds of 0). At this
+horizon
+
+- follow-path A-score = 3 + 3δ + 3δ² + 3δ³ (cooperate every round),
+- deviate-then-punished A-score = 4 + 0 + 0 + 0 (defect, eat 3 rounds of 0),
+
+so the IC inequality is *exactly* 1 ≤ 3·(δ + δ² + δ³), the same cubic
+Z3 analyses. Larger horizons do not change the IC inequality (after the
+3-round punishment both agents return to cooperation, contributing
+equally to follow and actual scores), and they cost a lot of integer
+range in TLC: at `Horizon = 8` the discount weight `DeltaDen^Horizon =
+100^8 = 10^16` overflows TLC's 32-bit signed integers (max 2.1·10⁹).
+At `Horizon = 4` the largest weight is `100^4 = 10⁸`, comfortably in
+range. The `.tla` `ASSUME Horizon = 4` enforces this; if you want to
+re-run at a different horizon you'll need to update the `DiscountWeight`
+function literal in the spec to match (it is unrolled by hand because
+Apalache rejects user-defined `RECURSIVE` operators).
 
 ## Running locally
 
@@ -95,42 +117,52 @@ that root is in [0.25, 0.26], (iii) no SECOND distinct root exists in
 ### TLA+ (TLC)
 
 ```bash
-# Homebrew: brew install tla-tools
-tlc -config claim-signaling.cfg claim-signaling.tla
+# Homebrew: brew install tla-tools (or download tla2tools.jar)
+tlc -config claim_signaling.cfg claim_signaling.tla
 ```
 
-At the default constants (δ = 26/100, Horizon = 8, PunishmentRounds = 3)
-TLC explores a bounded state space and reports
+If you have a local `tla2tools.jar` (e.g. under `tools/tla2tools.jar`):
+
+```bash
+java -cp tools/tla2tools.jar tlc2.TLC \
+  -config claim_signaling.cfg claim_signaling.tla
+```
+
+At the default constants (δ = 26/100, Horizon = 4, PunishmentRounds = 3)
+TLC explores 13 states (11 distinct) and reports
 
 ```text
 Model checking completed. No error has been found.
 ```
 
-Wall-clock on M4 Max: a few seconds. The state space is small because
-the model is parameterised over a fixed horizon and the discount weights
-are precomputed integer powers.
+Wall-clock on M4 Max: under one second.
 
 ### TLA+ (Apalache)
 
 ```bash
 # Install: https://apalache.informal.systems/docs/apalache/installation/jvm.html
+# (or download the v0.57.0 release tarball — used here)
 apalache-mc check \
   --inv=NoUnilateralDeviationPositive \
-  --config=claim-signaling.cfg \
-  claim-signaling.tla
+  --length=10 \
+  --config=claim_signaling.cfg \
+  claim_signaling.tla
 ```
 
-Apalache works on the same module thanks to the `@type:` annotations.
 Expected output ends with
 
 ```text
 The outcome is: NoError
+Checker reports no error up to computation length 10
+EXITCODE: OK
 ```
 
-> **If you don't have Apalache installed**, the TLC path is sufficient
-> for CI. The expository page can honestly say "TLA+ model, checked with
-> TLC; Apalache port available". Apalache scales to higher horizons; TLC
-> is fine at the horizon this model uses.
+Apalache uses SMT/Z3 (bundled in the release tarball) and arbitrary
+precision integer arithmetic, so it has no overflow concern. The model
+was massaged to be Apalache-compatible: `DiscountWeight` is an unrolled
+function literal (Apalache rejects user-defined `RECURSIVE` operators
+and dynamic ranges in folds) and every state variable carries a
+`@type:` annotation.
 
 ### Sweep across δ
 
@@ -144,18 +176,51 @@ Generates per-δ cfg files under `.sweep/` and prints a table. The
 crossover (smallest δ for which the invariant HOLDS) should land at
 0.25 or 0.26, matching the closed-form root δ\* ≈ 0.2531.
 
+Sample output (Horizon = 4):
+
+```text
+sweep-delta.sh — sweeping delta over {0.20, 0.21, ..., 0.30}
+checker      = tlc
+horizon      = 4 rounds (minimal IC-exercising horizon)
+punishment   = 3 rounds (graduated trigger)
+----
+delta   status
+0.20   VIOLATED
+0.21   VIOLATED
+0.22   VIOLATED
+0.23   VIOLATED
+0.24   VIOLATED
+0.25   VIOLATED
+0.26   HOLDS
+0.27   HOLDS
+0.28   HOLDS
+0.29   HOLDS
+0.30   HOLDS
+----
+crossover (smallest delta where invariant HOLDS) = 0.26
+closed-form root (delta-threshold.z3)            = 0.2531
+PASS: crossover matches closed-form within integer-grid rounding.
+```
+
 ## CI
 
-`.github/workflows/proofs.yml` runs both checks on every PR:
+`.github/workflows/proofs.yml` runs five jobs on every PR touching
+`proofs/**`:
 
-- Installs Z3 via `apt-get install z3` and runs `z3 delta-threshold.z3`,
-  grepping for the expected `sat … sat … unsat` triple.
-- Installs TLA+ tools (`tla-tools` package on Ubuntu) and runs
-  `tlc -config claim-signaling.cfg claim-signaling.tla`, grepping for
-  the "No error has been found" line.
+- **z3-delta-threshold** — installs Z3 via `apt-get`, runs
+  `z3 delta-threshold.z3`, greps for the expected `sat … sat … unsat` triple.
+- **tla-claim-signaling** — sets up JDK 17, downloads
+  `tla2tools.jar v1.8.0`, runs TLC on `claim_signaling.{tla,cfg}` and
+  then the sweep script.
+- **tla-claim-signaling-apalache** — sets up JDK 17, downloads Apalache
+  v0.57.0 (~130 MB) and runs the same model under SMT. Greps for
+  `The outcome is: NoError`.
+- **tla-conservation** — runs TLC on `proofs/bonded/conservation/Conservation.tla`
+  (the bonded-commons conservation invariant).
+- **monte-carlo-threat-bands** — runs `proofs/bonded/pareto/threat-bands.mjs`
+  with 1000 samples and asserts zero matched-band failures.
 
-Failing either grep fails the PR. There is no manual sign-off; the
-artifacts run unattended.
+Failing any check fails the PR.
 
 ## Why this isn't aspirational
 
@@ -164,7 +229,8 @@ artifacts. As of the commit that adds this directory, the artifacts:
 
 1. **exist** (this directory),
 2. **run unattended** (CI workflow),
-3. **agree with the closed-form root** (the sweep script asserts this).
+3. **agree with the closed-form root** (the sweep script asserts this),
+4. **pass under both checkers** (TLC and Apalache).
 
 If the page or the whitepaper ever re-introduces an "[planned]" marker
 next to an artifact in this directory, that is a bug. The artifact

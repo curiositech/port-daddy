@@ -67,10 +67,10 @@
  * ---------------------------------------------------------------------------
  *
  *   - TLC: enumerative explicit-state. Use the supplied
- *     `claim-signaling.cfg` and run `tlc claim-signaling.tla`.
+ *     `claim_signaling.cfg` and run `tlc claim_signaling.tla`.
  *   - Apalache: symbolic SMT. Use
  *       apalache-mc check --inv=NoUnilateralDeviationPositive
- *                       --config=claim-signaling.cfg claim-signaling.tla
+ *                       --config=claim_signaling.cfg claim_signaling.tla
  *     The `@type:` annotations below are Apalache-compatible.
  *
  *   The score variables are scaled by DeltaDen^Horizon so that all
@@ -151,11 +151,58 @@ vars == << round, followScore, actualScore, punishCountdown, deviated, deviatorI
 
 \* DiscountWeight(k) = DeltaNum^k * DeltaDen^(Horizon - k). All rounds
 \* are on the common scale DeltaDen^Horizon so they can be added.
-RECURSIVE Pow(_, _)
-Pow(b, n) == IF n = 0 THEN 1 ELSE b * Pow(b, n - 1)
+\*
+\* Implementation note: Apalache does not support user-defined
+\* `RECURSIVE` operators, and it also rejects `ApaFoldSet` over a
+\* dynamic range like `1..n` where n is a state-dependent expression
+\* ("Expected a constant integer range in [ .. ]"). We therefore
+\* compute `DiscountWeight` as a *function* keyed on the constant
+\* range `0..(Horizon - 1)`, using `ApaFoldSet` once over a constant
+\* range `1..Horizon` to build the values iteratively. The result is
+\* indexable as `DiscountWeight[round]` (a function lookup), which
+\* both checkers handle.
+\*
+\* Concretely, with Horizon = 4 and (DeltaNum, DeltaDen) = (26, 100):
+\*   DiscountWeight[0] = DeltaDen^4                = 100_000_000
+\*   DiscountWeight[1] = DeltaNum * DeltaDen^3     =  26_000_000
+\*   DiscountWeight[2] = DeltaNum^2 * DeltaDen^2   =   6_760_000
+\*   DiscountWeight[3] = DeltaNum^3 * DeltaDen^1   =   1_757_600
+\* All values comfortably fit in TLC's 32-bit signed integer range.
+\*
+\* Implementation: we explicitly unroll the powers for Horizon = 4.
+\* This is the *only* horizon the cfg supports, and unrolling is
+\* required for Apalache (which rejects user-defined RECURSIVE
+\* operators and dynamic ranges in folds). If you change `Horizon` in
+\* the cfg, update the function literal below to match.
+\*
+\* Mathematically:
+\*   DiscountWeight[k] = DeltaNum^k * DeltaDen^(Horizon - k)
+\*
+\* Concretely, with Horizon = 4 and (DeltaNum, DeltaDen) = (26, 100):
+\*   DiscountWeight[0] = 1 * DeltaDen^4 = 100*100*100*100 = 100_000_000
+\*   DiscountWeight[1] = DeltaNum * DeltaDen^3 =  26*100*100*100 = 26_000_000
+\*   DiscountWeight[2] = DeltaNum^2 * DeltaDen^2 = 26*26*100*100 = 6_760_000
+\*   DiscountWeight[3] = DeltaNum^3 * DeltaDen   = 26*26*26*100  = 1_757_600
+\* All values comfortably fit in TLC's 32-bit signed integer range
+\* (max ~2.1e9). Apalache uses arbitrary-precision arithmetic so it
+\* has no overflow concern; the cap on Horizon is purely a TLC
+\* constraint.
 
-\* @type: Int => Int;
-DiscountWeight(k) == Pow(DeltaNum, k) * Pow(DeltaDen, Horizon - k)
+ASSUME Horizon = 4
+  \* The unrolled DiscountWeight below assumes Horizon = 4. To run at
+  \* a different horizon, replace the function literal with one of
+  \* matching length. This ASSUME makes the assumption explicit so
+  \* TLC fails fast if the cfg is changed without updating the spec.
+
+\* @type: Int -> Int;
+DiscountWeight ==
+  LET dn == DeltaNum
+      dd == DeltaDen
+  IN  [ k \in 0..3 |->
+          IF k = 0 THEN dd * dd * dd * dd
+          ELSE IF k = 1 THEN dn * dd * dd * dd
+          ELSE IF k = 2 THEN dn * dn * dd * dd
+          ELSE dn * dn * dn * dd ]
 
 ----------------------------------------------------------------------------
 Init ==
@@ -198,7 +245,7 @@ Step ==
   /\ deviatorId \in Agents
   /\ LET actA      == ActualActionOf("A", deviated \/ deviatorId # "A")
          actB      == ActualActionOf("B", deviated \/ deviatorId # "B")
-         w         == DiscountWeight(round)
+         w         == DiscountWeight[round]
          deviatedNow ==
            \/ (deviatorId = "A" /\ actA = "claim" /\ ~deviated)
            \/ (deviatorId = "B" /\ actB = "claim" /\ ~deviated)
@@ -211,7 +258,7 @@ Step ==
               IF deviatedNow THEN PunishmentRounds
               ELSE IF punishCountdown > 0 THEN punishCountdown - 1
               ELSE 0
-         /\ deviated' = deviated \/ deviatedNow
+         /\ deviated' = (deviated \/ deviatedNow)
          /\ UNCHANGED deviatorId
 
 Terminal ==
@@ -225,19 +272,30 @@ Spec == Init /\ [][Next]_vars
 ----------------------------------------------------------------------------
 (* The invariant.
 
-   At every reachable state where the deviator has actually deviated at
-   least once, their actual accumulated discounted score does not
-   strictly exceed their follow-the-recommendation score.
+   At the *terminal* state (round = Horizon, the full graduated-trigger
+   window has played out) and on any execution where the deviator has
+   actually deviated, their actual accumulated discounted score must
+   not strictly exceed their follow-the-recommendation score.
+
+   We check the invariant only at the terminal state because the IC
+   condition is a statement about the *total* discounted payoff over
+   the full deviation+punishment window — at intermediate states the
+   deviator's score is transiently ahead (they grabbed +4 in round 0
+   before the punishment subtracts -3 per round in rounds 1..3). The
+   one-shot deviation principle, by contrast, compares the full-window
+   sums, which is exactly what `actualScore[deviator] <=
+   followScore[deviator]` at round = Horizon says.
 
    This is the discrete-state analogue of the closed-form inequality
-   proved by `delta-threshold.z3`. At δ = DeltaNum/DeltaDen = 0.26 (just
-   above δ* ≈ 0.2531) the invariant should HOLD. At δ = 0.20 it should
-   FAIL (TLC will print a counterexample trace where the deviator's
-   actual score exceeds their follow score). `sweep-delta.sh` automates
-   the sweep across δ ∈ {0.20, …, 0.30}. *)
+   proved by `delta-threshold.z3`. At δ = DeltaNum/DeltaDen = 0.26
+   (just above δ* ≈ 0.2531) the invariant should HOLD. At δ = 0.20
+   it should FAIL (TLC will print a counterexample trace where the
+   deviator's actual score exceeds their follow score at round =
+   Horizon). `sweep-delta.sh` automates the sweep across
+   δ ∈ {0.20, …, 0.30}. *)
 
 NoUnilateralDeviationPositive ==
-  ( deviated /\ deviatorId \in Agents ) =>
+  ( round = Horizon /\ deviated /\ deviatorId \in Agents ) =>
     actualScore[deviatorId] <= followScore[deviatorId]
 
 Safety == NoUnilateralDeviationPositive

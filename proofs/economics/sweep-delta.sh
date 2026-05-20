@@ -9,6 +9,11 @@
 #   TLA_CHECKER=apalache ./sweep-delta.sh   # use apalache-mc
 #   TLA_CHECKER=tlc      ./sweep-delta.sh   # explicit tlc
 #
+# To use the JAR directly (no `tlc` wrapper on PATH), set
+#   TLA_TOOLS_JAR=/path/to/tla2tools.jar
+# We will invoke it as
+#   java -cp $TLA_TOOLS_JAR tlc2.TLC -config <cfg> claim_signaling.tla
+#
 # Expected output: a table of (delta, status) rows. The crossover row is
 # the smallest delta for which NoUnilateralDeviationPositive holds; that
 # value should land at delta ≈ 0.26 (the integer-grid rounding of the
@@ -37,6 +42,8 @@ case "$CHECKER" in
       RUN_TLC=(tlc2)
     elif [[ -n "${TLA_TOOLS_JAR:-}" ]] && [[ -f "$TLA_TOOLS_JAR" ]]; then
       RUN_TLC=(java -cp "$TLA_TOOLS_JAR" tlc2.TLC)
+    elif [[ -f "$SCRIPT_DIR/../../tools/tla2tools.jar" ]]; then
+      RUN_TLC=(java -cp "$SCRIPT_DIR/../../tools/tla2tools.jar" tlc2.TLC)
     else
       echo "ERROR: tlc not found. Install via brew (brew install tla-tools) or set TLA_TOOLS_JAR." >&2
       exit 1
@@ -45,6 +52,8 @@ case "$CHECKER" in
   apalache)
     if command -v apalache-mc >/dev/null 2>&1; then
       RUN_TLC=(apalache-mc)
+    elif [[ -f "$SCRIPT_DIR/../../tools/apalache/bin/apalache-mc" ]]; then
+      RUN_TLC=("$SCRIPT_DIR/../../tools/apalache/bin/apalache-mc")
     else
       echo "ERROR: apalache-mc not found. See https://apalache.informal.systems/docs/apalache/installation/jvm.html" >&2
       exit 1
@@ -58,7 +67,7 @@ esac
 
 printf 'sweep-delta.sh — sweeping delta over {0.20, 0.21, ..., 0.30}\n'
 printf 'checker      = %s\n' "$CHECKER"
-printf 'horizon      = 8 rounds\n'
+printf 'horizon      = 4 rounds (minimal IC-exercising horizon)\n'
 printf 'punishment   = 3 rounds (graduated trigger)\n'
 printf -- '----\n'
 printf 'delta   status\n'
@@ -77,14 +86,14 @@ CHECK_DEADLOCK FALSE
 CONSTANTS
   DeltaNum = $n
   DeltaDen = 100
-  Horizon = 8
+  Horizon = 4
   PunishmentRounds = 3
 INVARIANTS
   NoUnilateralDeviationPositive
 EOF
 
   if [[ "$CHECKER" == "tlc" ]]; then
-    if "${RUN_TLC[@]}" -config "$cfg_file" claim-signaling.tla > "$log_file" 2>&1; then
+    if "${RUN_TLC[@]}" -config "$cfg_file" claim_signaling.tla > "$log_file" 2>&1; then
       if grep -q "No error has been found" "$log_file"; then
         status="HOLDS"
       else
@@ -100,7 +109,7 @@ EOF
   else
     # apalache-mc
     if "${RUN_TLC[@]}" check --inv=NoUnilateralDeviationPositive \
-         --config="$cfg_file" claim-signaling.tla > "$log_file" 2>&1; then
+         --config="$cfg_file" claim_signaling.tla > "$log_file" 2>&1; then
       status="HOLDS"
     else
       if grep -qi "counterexample\|violation\|EXITCODE: ERROR" "$log_file"; then
