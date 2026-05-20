@@ -1,0 +1,113 @@
+name: Deploy website-v2 (snap + wrangler)
+
+# Why this workflow exists:
+#   Cloudflare Pages' git integration runs `npm run build` in a Node
+#   image that doesn't ship the Playwright chromium binary. That makes
+#   the snap step impossible there. This workflow runs the FULL build
+#   (build:full = vite build + inject-route-html + snap-routes) on a
+#   GitHub-hosted Ubuntu runner (which DOES have chromium), then
+#   deploys the resulting dist/ directly to the existing Cloudflare
+#   Pages project via wrangler.
+#
+#   The CF Pages git integration still fires on push to main and may
+#   produce an empty-body deploy as a safety net. This workflow runs
+#   afterward and overwrites the deployment with snapped HTML, so the
+#   last-writer-wins outcome is: full content shipped to Google.
+#
+# Required repository secrets:
+#   - CLOUDFLARE_API_TOKEN — a token with Pages:Edit on the port-daddy
+#     project. Create in CF dashboard → My Profile → API Tokens →
+#     "Create Custom Token" → permission "Account > Cloudflare Pages > Edit".
+#   - CLOUDFLARE_ACCOUNT_ID — visible in the Pages dashboard URL.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'website-v2/**'
+      - '.github/workflows/deploy-website-v2.yml'
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Deploy target branch on Cloudflare Pages'
+        required: false
+        default: 'main'
+
+permissions:
+  contents: read
+  deployments: write
+
+concurrency:
+  # Serialize deploys against the same Pages project so two pushes in
+  # rapid succession don't race to overwrite each other.
+  group: deploy-website-v2-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: website-v2/package-lock.json
+
+      - name: Install website-v2 dependencies
+        working-directory: website-v2
+        run: npm ci
+
+      - name: Install Playwright chromium
+        working-directory: website-v2
+        # --with-deps grabs apt packages chromium needs on Ubuntu runners.
+        run: npx playwright install --with-deps chromium
+
+      - name: Build + snap rendered HTML
+        working-directory: website-v2
+        # build:full = `npm run build` + `npm run snap:routes`.
+        # snap-routes spins up vite preview, walks every indexable
+        # route in a headless chromium, captures the post-mount HTML,
+        # and writes it back into dist/<route>/index.html.
+        run: npm run build:full
+
+      - name: Assert snap landed real content (defense in depth)
+        working-directory: website-v2
+        # If snap silently no-op'd, dist/index.html would still have an
+        # empty <div id="root">. Hard-fail rather than deploy an empty
+        # site that pretends to ship full content.
+        run: |
+          set -euo pipefail
+          for route in dist/index.html dist/blog/control-plane-is-the-product/index.html dist/docs/quickstart/index.html; do
+            if [ ! -f "$route" ]; then
+              echo "Missing post-snap file: $route" >&2
+              exit 1
+            fi
+            if grep -q '<div id="root"></div>' "$route"; then
+              echo "Empty root in $route — snap did not run or failed silently" >&2
+              exit 1
+            fi
+            size=$(wc -c < "$route")
+            if [ "$size" -lt 10000 ]; then
+              echo "Suspiciously small file: $route ($size bytes)" >&2
+              exit 1
+            fi
+            echo "  ok: $route ($size bytes)"
+          done
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        env:
+          # The dispatch-input branch is validated indirectly: wrangler
+          # only accepts plain ASCII branch names; anything weird will
+          # fail the deploy. Keeping it in env (not interpolated into a
+          # run: string) protects against shell injection if a future
+          # editor switches this to a script step.
+          DEPLOY_BRANCH: ${{ github.event.inputs.branch || 'main' }}
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy website-v2/dist --project-name=port-daddy --branch=$DEPLOY_BRANCH --commit-dirty=true
