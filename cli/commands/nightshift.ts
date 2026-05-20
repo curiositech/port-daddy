@@ -22,6 +22,14 @@ import {
   runNext,
   type NightshiftBackend,
 } from '../../lib/nightshift/runner.js';
+import {
+  disableNightshift,
+  enableNightshift,
+  getStatusReport,
+  haltAll,
+  haltIntent,
+  readDisableState,
+} from '../../lib/nightshift/control.js';
 
 import type { CLIOptions } from '../types.js';
 import { isJson, isQuiet } from '../types.js';
@@ -39,6 +47,10 @@ function usage(): never {
   console.error('  run --next              Run the next queued intent (default --dry-run)');
   console.error('  review <id>             Stamp the operator review timestamp + print PR / branch');
   console.error('  cancel <id> [--reason]  Cancel a non-terminal intent');
+  console.error('  halt [id]               Send SIGTERM to running spawn(s); no id = halt all');
+  console.error('  disable [--reason text] Refuse new spawns until pd nightshift enable');
+  console.error('  enable                  Clear the disable flag, allow new spawns');
+  console.error('  status                  Show kill-switch state + active spawns + recent results');
   console.error('  help                    Show this help');
   console.error('');
   console.error('Options:');
@@ -50,7 +62,8 @@ function usage(): never {
   console.error('  --limit <n>             Limit list results');
   console.error('  --auto-queue            propose: skip the proposed step, go straight to queued');
   console.error('  --really-run            run: actually spawn (default is dry-run -- prints plan only)');
-  console.error('  --reason <text>         cancel: record a reason');
+  console.error('  --reason <text>         cancel/disable: record a reason');
+  console.error('  --kill                  halt: send SIGKILL instead of SIGTERM');
   console.error('  -j, --json              JSON output');
   console.error('  -q, --quiet             Quiet output');
   process.exit(1);
@@ -292,6 +305,11 @@ export async function handleNightshift(args: string[], options: CLIOptions): Pro
       const result = await runNext(queue, {
         dryRun,
         backend: parseBackend(options.backend),
+        // Safety layers are opt-in at the plan layer; the CLI's real-run
+        // path turns them all on. Tests can still call planRunFor / runNext
+        // directly with the defaults to inspect the inner spawn argv.
+        wrapWithSandboxExec: !dryRun,
+        wrapGit: !dryRun,
       });
       if (!result) {
         if (isJson(options)) {
@@ -327,6 +345,8 @@ export async function handleNightshift(args: string[], options: CLIOptions): Pro
     }
     const plan = planRunFor(intent, {
       backend: parseBackend(options.backend),
+      wrapWithSandboxExec: !dryRun,
+      wrapGit: !dryRun,
     });
     if (isJson(options)) {
       console.log(JSON.stringify({ plan, dryRun }, null, 2));
@@ -338,6 +358,116 @@ export async function handleNightshift(args: string[], options: CLIOptions): Pro
         '`--really-run` is wired but the first-cut runner only prints the plan. ' +
           'See docs/proposals/pd-nightshift.md "stubbed" section.',
       );
+    }
+    return;
+  }
+
+  // ── halt ───────────────────────────────────────────────────────────────
+  if (subcommand === 'halt') {
+    const id = args[1];
+    const kill = !!options.kill;
+    if (id) {
+      const result = haltIntent(queue, id, { kill });
+      if (isJson(options)) {
+        console.log(JSON.stringify({ result }, null, 2));
+        return;
+      }
+      if (result.error && !result.signaled) {
+        ui.error(`halt ${id.slice(0, 8)}: ${result.error}`);
+        process.exit(1);
+      }
+      if (result.signaled) {
+        ui.success(`Sent ${result.signal} to pid ${result.pid} (intent ${id.slice(0, 8)})`);
+      } else if (result.alreadyGone) {
+        ui.warn(`Intent ${id.slice(0, 8)} was not running; cleaned up.`);
+      }
+      return;
+    }
+    const all = haltAll(queue, { kill });
+    if (isJson(options)) {
+      console.log(JSON.stringify(all, null, 2));
+      return;
+    }
+    if (all.total === 0) {
+      console.log('No running nightshift spawns to halt.');
+      return;
+    }
+    for (const r of all.results) {
+      if (r.signaled) {
+        ui.success(`Sent ${r.signal} to pid ${r.pid} (intent ${r.intentId.slice(0, 8)})`);
+      } else if (r.error) {
+        ui.warn(`Intent ${r.intentId.slice(0, 8)}: ${r.error}`);
+      }
+    }
+    return;
+  }
+
+  // ── disable ────────────────────────────────────────────────────────────
+  if (subcommand === 'disable') {
+    const reason = typeof options.reason === 'string' ? options.reason : null;
+    const info = disableNightshift(reason);
+    if (isJson(options)) {
+      console.log(JSON.stringify({ disabled: info }, null, 2));
+      return;
+    }
+    ui.success(`Nightshift DISABLED. New spawns refused until 'pd nightshift enable'.`);
+    console.log(`  flag:     ${info.flagPath}`);
+    if (info.reason) console.log(`  reason:   ${info.reason}`);
+    if (info.disabledAt) console.log(`  at:       ${info.disabledAt}`);
+    return;
+  }
+
+  // ── enable ─────────────────────────────────────────────────────────────
+  if (subcommand === 'enable') {
+    const before = readDisableState();
+    const after = enableNightshift();
+    if (isJson(options)) {
+      console.log(JSON.stringify({ before, after }, null, 2));
+      return;
+    }
+    if (!before.disabled) {
+      ui.warn('Nightshift was already enabled.');
+      return;
+    }
+    ui.success('Nightshift ENABLED. New spawns will be accepted again.');
+    return;
+  }
+
+  // ── status ─────────────────────────────────────────────────────────────
+  if (subcommand === 'status') {
+    const report = getStatusReport(queue);
+    if (isJson(options)) {
+      console.log(JSON.stringify(report, null, 2));
+      return;
+    }
+    if (report.disabled.disabled) {
+      ui.warn(`Nightshift is DISABLED (since ${report.disabled.disabledAt ?? 'unknown'}).`);
+      if (report.disabled.reason) console.log(`  reason:   ${report.disabled.reason}`);
+      console.log(`  re-enable: pd nightshift enable`);
+    } else {
+      console.log('Nightshift: enabled');
+    }
+    console.log('');
+    if (report.active.length === 0) {
+      console.log('Active spawns: none');
+    } else {
+      console.log(`Active spawns (${report.active.length}):`);
+      for (const a of report.active) {
+        const elapsedMin = a.elapsedMs != null ? Math.round(a.elapsedMs / 60000) : null;
+        const remainingMin = a.timeRemainingMs != null ? Math.round(a.timeRemainingMs / 60000) : null;
+        const cost = a.costSoFarUsd != null ? `$${a.costSoFarUsd.toFixed(2)}` : '$0.00';
+        const budget = a.budgetUsd != null ? `$${a.budgetUsd.toFixed(2)}` : '—';
+        const pid = a.pid != null ? `pid ${a.pid}` : 'pid ?';
+        console.log(`  ${a.intentId.slice(0, 8)}  ${a.slug.padEnd(28)}  ${pid.padEnd(10)}  ${cost} / ${budget}  ${elapsedMin ?? '?'} min elapsed${remainingMin != null ? ` (${remainingMin} min remaining)` : ''}`);
+      }
+    }
+    if (report.recentTerminal.length > 0) {
+      console.log('');
+      console.log(`Recent (last ${report.recentTerminal.length}):`);
+      for (const r of report.recentTerminal) {
+        const cost = r.costSoFarUsd != null ? `$${r.costSoFarUsd.toFixed(2)}` : '   --';
+        console.log(`  ${r.intentId.slice(0, 8)}  ${r.status.padEnd(10)}  ${r.slug.padEnd(28)}  ${cost}`);
+      }
     }
     return;
   }

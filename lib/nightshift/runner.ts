@@ -32,6 +32,8 @@ import { homedir } from 'node:os';
 
 import type { NightshiftIntent, NightshiftQueue } from './queue.js';
 import { deriveBranchName } from './queue.js';
+import { readDisableState } from './control.js';
+import { wrapWithSandbox } from './sandbox-profile.js';
 
 export const DEFAULT_BUDGET_USD = 5;
 export const DEFAULT_TIMEOUT_MS = 3 * 60 * 60 * 1000; // 3 hours
@@ -76,6 +78,18 @@ export interface RunnerOptions {
    * Production operator flips this via `pd nightshift run --really-run`.
    */
   dryRun?: boolean;
+  /**
+   * When true, the plan's command + args are wrapped in
+   * `sandbox-exec -p '<profile>' --`. Default false at the planning layer to
+   * keep `planRunFor` deterministic across platforms and test environments;
+   * the CLI's --really-run path opts in. Silently no-ops on non-macOS.
+   */
+  wrapWithSandboxExec?: boolean;
+  /**
+   * When true, the plan declares the git-wrapper PATH override env var.
+   * Default false at the planning layer; the CLI opts in.
+   */
+  wrapGit?: boolean;
   /**
    * Backend override. Falls back to the intent's stored backend, then to
    * DEFAULT_BACKEND.
@@ -176,7 +190,40 @@ export function planRunFor(intent: NightshiftIntent, opts: RunnerOptions = {}): 
   const worktreePath = deriveWorktreePath(intent.id);
   const timeoutMs = clampTimeout(intent.timeoutMs);
   const budgetUsd = clampBudget(intent.budgetUsd);
-  const { command, args } = buildSpawnArgv(backend, worktreePath, intent.intent);
+  const { command: innerCommand, args: innerArgs } = buildSpawnArgv(backend, worktreePath, intent.intent);
+
+  // Safety layers wired here:
+  //   - sandbox-exec wrapper (macOS only) -- defense-in-depth on top of
+  //     codex/claude's own bypasses.
+  //   - git wrapper PATH -- intercepts destructive git invocations.
+  // Both are opt-out so tests stay deterministic.
+  const wantSandbox = opts.wrapWithSandboxExec === true && process.platform === 'darwin';
+  const wantGitWrap = opts.wrapGit === true;
+
+  let command = innerCommand;
+  let args = innerArgs;
+  if (wantSandbox) {
+    const wrapped = wrapWithSandbox(worktreePath, innerCommand, innerArgs);
+    command = wrapped.command;
+    args = wrapped.args;
+  }
+
+  const env: Record<string, string> = {
+    PD_NIGHTSHIFT_ID: intent.id,
+    PD_NIGHTSHIFT_SLUG: intent.slug,
+    PD_NIGHTSHIFT_BRANCH: branchName,
+    // Hard file-size cap (1GB) for the spawn -- belt-and-suspenders on top
+    // of the timeout. The adapter is responsible for `ulimit -f` if it
+    // shells out; we surface the value here so it cannot be forgotten.
+    PD_NIGHTSHIFT_ULIMIT_F_BYTES: '1073741824',
+  };
+  if (wantGitWrap) {
+    // The git wrapper lives at `${repoRoot}/bin/git-nightshift`. We append
+    // its containing dir to the PATH front. The runner does not know the
+    // repo root at plan time; it leaves a placeholder env var the adapter
+    // is expected to materialize.
+    env.PD_NIGHTSHIFT_GIT_WRAPPER_DIR = '__SET_BY_ADAPTER__';
+  }
 
   const rationale: string[] = [];
   rationale.push(`backend = ${backend}`);
@@ -186,11 +233,14 @@ export function planRunFor(intent: NightshiftIntent, opts: RunnerOptions = {}): 
   rationale.push(`budget = $${budgetUsd.toFixed(2)}`);
   if (backend === 'cli:claude-code') {
     rationale.push('claude bypass = --dangerously-skip-permissions');
-    rationale.push('blast-radius = wrapper deny-list (NOT YET WIRED in first cut)');
+    rationale.push('blast-radius = worktree boundary + git-nightshift wrapper (when wrapGit) + sandbox-exec (when wrapWithSandboxExec)');
   } else {
     rationale.push('codex bypass = --full-auto --sandbox workspace-write');
-    rationale.push('blast-radius = codex sandbox enforces workspace-write');
+    rationale.push('blast-radius = codex workspace-write sandbox + git-nightshift wrapper (when wrapGit) + sandbox-exec (when wrapWithSandboxExec)');
   }
+  if (wantSandbox) rationale.push('outer wrap = /usr/bin/sandbox-exec -p <profile> --');
+  if (wantGitWrap) rationale.push('git wrapper = bin/git-nightshift ahead of PATH');
+  rationale.push('ulimit f = 1 GB (file size cap)');
 
   return {
     intent,
@@ -200,11 +250,7 @@ export function planRunFor(intent: NightshiftIntent, opts: RunnerOptions = {}): 
     baseRef,
     command,
     args,
-    env: {
-      PD_NIGHTSHIFT_ID: intent.id,
-      PD_NIGHTSHIFT_SLUG: intent.slug,
-      PD_NIGHTSHIFT_BRANCH: branchName,
-    },
+    env,
     timeoutMs,
     budgetUsd,
     rationale,
@@ -242,6 +288,16 @@ export async function runNext(
   }
   if (!opts.spawnAdapter) {
     throw new Error('runNext: dryRun=false requires a spawnAdapter');
+  }
+  // Honor the operator-controlled kill switch before claiming anything from
+  // the queue. The flag file at ~/.pd/nightshift-disabled is the lowest-
+  // infrastructure halt mechanism: zero daemon, zero DB, one touch.
+  const disabled = readDisableState();
+  if (disabled.disabled) {
+    throw new Error(
+      `runNext: nightshift is disabled (flag at ${disabled.flagPath}). ` +
+      `Run 'pd nightshift enable' to allow new spawns.`,
+    );
   }
   // Real path: ensure the worktree root exists, atomically claim, plan,
   // hand off to the adapter, record the result.

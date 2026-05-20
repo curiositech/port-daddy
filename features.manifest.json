@@ -1672,6 +1672,38 @@
         "sdk": false
       },
       "_note": "CLI plus local daemon onboarding surface \u2014 orchestrates daemon install, MCP config, FleetBar install, and project init in one step. Daemon setup routes are loopback-only; mutating actions require a setup capability token from /setup/overview."
+    },
+    "nightshift": {
+      "description": "Autonomous overnight feature-dev queue \u2014 operator drops vague hopes, runner drains them under sandbox + git-wrapper + pre-commit-hook circuit breakers, halt/disable/enable/status kill switches included.",
+      "cli": [
+        "nightshift"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "nightshift"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "Subcommands: propose, queue, list, show, run, review, cancel, halt, disable, enable, status. Daemon HTTP routes deferred to the follow-up PR; first cut + safety-net are CLI-direct against the local SQLite. Safety layers live in lib/nightshift/{sandbox-profile,control}.ts, bin/git-nightshift, and lib/nightshift/precommit-hook.sh; see docs/proposals/pd-nightshift-safety.md."
+    },
+    "morning": {
+      "description": "Operator briefing of overnight nightshift completions \u2014 succeeded, failed, in-flight, cost spent vs cap, PR/branch surface for review.",
+      "cli": [
+        "morning"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "morning"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "Companion CLI for nightshift. Reads nightshift_intents directly; no daemon route yet."
     }
   }
 }
