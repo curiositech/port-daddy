@@ -1258,6 +1258,7 @@ const ALL_COMMANDS: string[] = [
   'secret', 'secrets',
   'cockpit',
   'popper',
+  'backend',
 ];
 
 /** Simple Levenshtein distance for short strings */
