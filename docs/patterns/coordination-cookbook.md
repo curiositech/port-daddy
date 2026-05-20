@@ -32,7 +32,7 @@ Each entry is built the same way so you can grep, skim, or paste-and-go:
 6. **Worked example** — a concrete scenario with end-to-end commands.
 
 Identities in examples follow the daemon's `project:stack:context` three-segment
-convention (`myrepo:claude:auth-rewrite`, `myrepo:myrepo:codex:test-gen`,
+convention (`myrepo:claude:auth-rewrite`, `myrepo:codex:test-gen`,
 `port-daddy:aider:sweep`). The first segment is the project slug — leaving it
 out (a two-segment form like `claude:auth-rewrite`) collapses the runtime into
 the project slot and silently breaks project-scoped briefings, cartographer
