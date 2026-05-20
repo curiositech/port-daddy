@@ -472,6 +472,20 @@ Federation-specific:
 - Leaving placeholders unpinned across rounds. Every placeholder
   has at most one round of grace.
 
+## Voice for published counters
+
+Counters are prose, not just artifact paths. They are read by the
+redteam fleet, by reviewers, and eventually by readers of the
+dialogue artifact. Voice is governed by the
+`federated-harbor-author` skill's *Voice rules* section, which in
+turn references the canonical
+`~/.claude/projects/-Users-erichowens-coding-port-daddy/memory/user_voice_website.md`.
+For whitehat prose specifically: more collected than blog tone,
+cathedral build still applies (set the defense before the proof
+artifact lands), em-dash asides earn their keep, no hedging
+adverbs around the closure claim itself — the proof either runs
+or it does not.
+
 ## SHIBBOLETHS
 
 A defender's counter has these markers:

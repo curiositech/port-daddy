@@ -377,6 +377,19 @@ Mirrors the redteam-review cadence:
   Bonded carries unresolved smells round-to-round transparently;
   the same applies here.
 
+## Voice for published smell-notes
+
+Smell-notes are prose, not just JSON. They are read by the
+whitehat fleet, by reviewers, and eventually by readers of the
+dialogue artifact. Voice is governed by the
+`federated-harbor-author` skill's *Voice rules* section, which in
+turn references the canonical
+`~/.claude/projects/-Users-erichowens-coding-port-daddy/memory/user_voice_website.md`.
+For redteam prose specifically: more collected than blog tone,
+cathedral build still applies (set the scene before the smell
+lands), em-dash asides are welcome when they sharpen the claim,
+no hedging adverbs in the falsifiable form itself.
+
 ## SHIBBOLETHS
 
 When the redteam finds a real smell against the Federated Harbor,

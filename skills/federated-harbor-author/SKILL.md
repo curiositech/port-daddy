@@ -35,9 +35,9 @@ expecting they will be hostile readers in the next round.
 - Drafting Anchor or Bonded Commons text — those have their own
   authoring loops; reference them, don't rewrite them.
 - Marketing copy, landing-page text, or blog-post-shaped surfaces.
-  Those go through `next-move-marketing` and the property-specific
-  voice skills. The paper is precise; the blog post that announces
-  it can be readable.
+  Those go through `port-daddy-marketing-copy` (the Port Daddy
+  voice/copy guide for portdaddy.dev and adjacent surfaces). The
+  paper is precise; the blog post that announces it can be readable.
 - Production incident response — that lives in `SECURITY.md`.
 - "Make the federation sound impressive" rewrites without a falsifiable
   delta. Voice-only PRs without a substantive change are out of scope.
@@ -47,34 +47,80 @@ expecting they will be hostile readers in the next round.
 
 ## Voice rules
 
-The paper has Erich's voice or it does not ship. Seven tells, every
-one of them load-bearing:
+The paper has Erich's voice or it does not ship. The canonical
+source is:
 
-1. **No corporate evenness.** A monotone register is the failure
-   mode. High-register technical claims sit alongside low-register
-   asides ("this is the part where you should be suspicious"). Don't
-   smooth the seam.
-2. **No "we believe."** Either prove it, model it, or hedge with a
-   scope condition. "We believe" is a sign you skipped the work.
-3. **No hedging adverbs around real claims.** "Arguably," "perhaps,"
-   "in some sense," and "essentially" are banned in front of a
-   theorem statement. They are fine in commentary; they are fatal in
-   the claim itself.
-4. **High-low collisions OK.** A protocol diagram next to a one-liner
-   about how the real-world version will hit the wall. Welcome.
-5. **Cathedral build.** Sections accumulate intuition before
-   formalism. Install/try-it/intuition comes early; the theorem and
-   proof come after the reader has a foothold.
-6. **Em-dash asides earn their keep.** One per paragraph max. If the
-   sentence works without it, remove it.
-7. **Self-deprecation as ballast.** When the paper claims something
-   strong, the next sentence names what would knock it down. This
-   is where the redteam round earns its keep — flag the weakness in
-   the text, don't bury it in an appendix.
+`~/.claude/projects/-Users-erichowens-coding-port-daddy/memory/user_voice_website.md`
 
-The user has explicit voice DNA notes in `~/.claude` memory under
-`user_voice_website.md`. Apply those tells on every rewrite, not
-just the marketing surface.
+Read it before drafting; re-read it before any rewrite. Do not
+duplicate its content here — the seven tells (high-low collisions,
+cathedral build, em-dash asides as the clarity, wild analogies,
+lists-with-personality, word-as-affection, self-deprecation as
+ballast) are defined there and that doc is the live spec.
+
+### Whitepaper register vs blog register
+
+The whitepaper inherits the same seven tells, but a different
+*register* than the blog:
+
+- **More collected, more focused.** A paper paragraph carries one
+  claim and one falsification path; a blog paragraph can detour.
+  The asides still earn their keep — they just earn it faster, and
+  they hand control back to the formal argument inside the same
+  paragraph.
+- **Still embraces excitement, pedagogical analogy, and cross-
+  domain connection.** The cathedral build is non-negotiable: open
+  with the connective tissue (what made the federation primitive
+  necessary in the world), then drop the formal definition into
+  the story. Analogies to CT logs, Macaroons, atomic swaps, SPKI —
+  pull them in; the whitehat skill's *Pre-emptive analogies*
+  section will pick up the long-form comparison.
+- **Em-dash asides and parentheticals are welcome in the paper.**
+  They are not "blog mode." They are how the reader can tell a
+  human wrote this. Cap at one per paragraph and require each one
+  to do work; do not scrub them in the name of "academic tone."
+- **What changes from the blog:** fewer SAT-prep/basement-word
+  collisions per page (use them where they teach, not as texture);
+  no first-person-plural-as-"we-the-team"; every claim names its
+  falsification path; theorem statements have no hedging adverbs.
+
+### What "cathedral build" looks like in a federation paragraph
+
+> Two harbors that have never met still have to settle a dispute.
+> Macaroons can attenuate a capability along a delegation chain,
+> but they do not say *whose* chain, and certificate transparency
+> can publish a tree-head but cannot bond its witnesses. The
+> Federated Harbor borrows the shape of both: capability tokens
+> with epoch-binding, tree-heads with cross-witnesses — and posts
+> a *bond* on every witness signature, so that equivocation is not
+> merely detectable, it is slashable. The formal statement is in
+> §[PLACEHOLDER-FEDLOG-§]; the part to feel in your chest is that
+> a witness who lies pays.
+
+Diagnosis: (a) connective tissue first (two harbors, a dispute);
+(b) the analogies (Macaroons, CT) arrive before the new primitive,
+not after; (c) the new contribution (bonded witnesses, slashable
+equivocation) lands as the punchline; (d) forward-reference to the
+formal section instead of inflating the paragraph with arithmetic;
+(e) the closing aside — *the part to feel in your chest* — is the
+self-deprecation/warmth ballast that keeps the paragraph human.
+This is the register the paper aims for; lose the closing aside
+and it becomes the corporate-evenness failure mode.
+
+### Whitepaper-specific guardrails
+
+These are the paper-only constraints layered on top of the seven
+tells:
+
+- **No "we believe."** Either prove it, model it, or hedge with a
+  named scope condition.
+- **No hedging adverbs around real claims.** "Arguably," "perhaps,"
+  "in some sense," "essentially" are banned in front of a theorem
+  statement. Fine in commentary; fatal in the claim itself.
+- **Self-deprecation as ballast applies to claims, not to the
+  whole paper.** When the paper claims something strong, the next
+  sentence names what would knock it down. Flag the weakness in
+  the text; do not bury it in an appendix.
 
 ## The four cardinal sins
 
