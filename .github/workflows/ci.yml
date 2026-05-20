@@ -88,6 +88,34 @@ jobs:
           test -f .claude-plugin/plugin.json && echo "plugin.json exists" || exit 1
           node -e "JSON.parse(require('fs').readFileSync('.claude-plugin/plugin.json'))" && echo "plugin.json is valid JSON" || exit 1
 
+  skill-hygiene:
+    # Audit every skill bundle for drift on every PR. Fails the build if any
+    # bundle has orphaned docs, broken links, INDEX drift, or a missing INDEX
+    # hub. Uploads the snapshot JSON as a build artifact for inspection.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Python 3
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Audit every skill bundle
+        run: |
+          python3 skills/skill-hygiene/scripts/audit_skill_library.py \
+            --root skills \
+            --snapshot /tmp/skill-audit.json \
+            --no-persist
+
+      - name: Upload audit snapshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: skill-audit-snapshot
+          path: /tmp/skill-audit.json
+          if-no-files-found: warn
+
   website-terminal-recordings:
     runs-on: ubuntu-latest
     steps:
