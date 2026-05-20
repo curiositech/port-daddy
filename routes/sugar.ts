@@ -73,6 +73,7 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         const status = result.code === 'AGENT_REGISTRATION_FAILED'
           || result.code === 'WORKTREE_REQUIRED'
           || result.code === 'MAIN_WORKTREE_SESSION_FORBIDDEN'
+          || result.code === 'MAIN_WORKTREE_CROWDED'
           ? 400
           : 500;
         reply.code(status);

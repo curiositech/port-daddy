@@ -146,6 +146,38 @@ describe('sugar.begin', () => {
     expect(result.code).toBe('MAIN_WORKTREE_SESSION_FORBIDDEN');
   });
 
+  test('refuses main-worktree session when another agent is already there even with --allow-main-worktree', () => {
+    const { sugar } = setup();
+    const worktree = {
+      id: 'main1234',
+      root: '/repo/port-daddy',
+      name: 'port-daddy',
+      branch: 'main',
+      isMain: true,
+    };
+
+    // First solo session on main with explicit allow — fine (no one else here).
+    const first = sugar.begin({
+      purpose: 'Solo on main',
+      requireLinkedWorktree: true,
+      allowMainWorktree: true,
+      worktree,
+    });
+    expect(first.success).toBe(true);
+
+    // Second agent arrives. --allow-main-worktree no longer saves them.
+    const second = sugar.begin({
+      purpose: 'Second agent piling onto main',
+      requireLinkedWorktree: true,
+      allowMainWorktree: true,
+      worktree,
+    });
+    expect(second.success).toBe(false);
+    expect(second.code).toBe('MAIN_WORKTREE_CROWDED');
+    expect(second.error).toMatch(/other active session/);
+    expect(second.hint).toContain('git worktree add');
+  });
+
   test('stores linked worktree context on agent, session, and metadata', () => {
     const { sugar, agents, sessions } = setup();
     const worktree = {

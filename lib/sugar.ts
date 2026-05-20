@@ -141,6 +141,43 @@ export function createSugar(deps: SugarDeps) {
       };
     }
 
+    // Crowded-main-worktree gate. `--allow-main-worktree` survives only
+    // when the operator is alone in the main worktree. As soon as another
+    // live session exists in the same main worktree, both must move to
+    // linked worktrees — concurrent agents in one tree corrupt each
+    // other's edits via shared `.git` state (branch switches, rebases,
+    // unstaged-file wipes).
+    if (
+      worktreePolicy.worktree
+      && worktreePolicy.worktree.isMain
+      && options.allowMainWorktree === true
+    ) {
+      const colliding = sessions.list({
+        status: 'active',
+        worktreeId: worktreePolicy.worktree.id,
+        allWorktrees: false,
+        limit: 5,
+      });
+      const rows = (colliding && typeof colliding === 'object' && 'sessions' in colliding
+        ? (colliding as { sessions?: unknown[] }).sessions
+        : Array.isArray(colliding) ? colliding : null);
+      const otherCount = Array.isArray(rows) ? rows.length : 0;
+      if (otherCount > 0) {
+        return {
+          success: false,
+          error:
+            `Refusing main-worktree session: ${otherCount} other active session(s) already in this worktree (${worktreePolicy.worktree.root}). `
+            + `Concurrent agents on the same main worktree corrupt each other via shared .git state.`,
+          code: 'MAIN_WORKTREE_CROWDED',
+          hint:
+            `Create a linked worktree and run pd begin there:\n`
+            + `  git worktree add ~/coding/tmp/${(options.identity ?? options.name ?? 'work').replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 40) || 'work'} -b <branch>\n`
+            + `then cd into it before calling pd begin. --allow-main-worktree is only honored when no one else is on this main worktree.`,
+          worktree: worktreePolicy.worktree,
+        };
+      }
+    }
+
     const metadata = mergeSessionWorktreeMetadata(options.metadata, worktreePolicy.worktree, {
       requireLinkedWorktree: options.requireLinkedWorktree,
       allowMainWorktree: options.allowMainWorktree,
