@@ -40,6 +40,29 @@ export function Hero() {
               bodyClassName="max-w-[34rem]"
             />
 
+            {/* CLI-backend pitch — the operator's load-bearing line. */}
+            <Link
+              to="/cli-backend"
+              className="group block max-w-[34rem] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-4)] no-underline transition-colors hover:bg-[var(--brand-primary)] hover:text-[var(--brand-primary-foreground)]"
+            >
+              <div className="flex items-start justify-between gap-[var(--space-3)]">
+                <div className="space-y-[var(--space-2)]">
+                  <span className="font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)] group-hover:text-[color:var(--brand-primary-foreground-muted)]">
+                    Already pay for Claude Max or ChatGPT Pro?
+                  </span>
+                  <p className="font-sans text-[length:var(--type-panel-body-size)] leading-[var(--leading-body)] text-[var(--text-primary)] group-hover:text-[var(--brand-primary-foreground)]">
+                    <strong>The fleet rides on your subscription at $0 marginal cost.</strong>{' '}
+                    Claude Code and Codex as first-class backends — setup takes two minutes.
+                  </p>
+                </div>
+                <ArrowRight
+                  size={18}
+                  aria-hidden="true"
+                  className="mt-1 shrink-0 text-[var(--text-muted)] transition-transform group-hover:translate-x-0.5 group-hover:text-[var(--brand-primary-foreground)]"
+                />
+              </div>
+            </Link>
+
             {/* Feature pills */}
             <div className="flex max-w-[34rem] flex-wrap gap-2">
               {[

@@ -24,6 +24,7 @@ const ExamplesPage = lazyNamed(() => import('@/pages/ExamplesPage'), 'ExamplesPa
 const ExampleDetailPage = lazyNamed(() => import('@/pages/ExampleDetailPage'), 'ExampleDetailPage')
 const McpPage = lazy(() => import('@/pages/MCPPage'))
 const WhitepaperPage = lazy(() => import('@/pages/whitepaper'))
+const CliBackendPage = lazy(() => import('@/pages/cli-backend'))
 const WhitepaperDetailPage = lazy(() => import('@/pages/whitepaper/PaperDetailPage'))
 const WhitepaperRoundsPage = lazy(() => import('@/pages/whitepaper/RoundsPage'))
 const LandscapePage = lazy(() => import('@/pages/landscape'))
@@ -234,6 +235,8 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/whitepaper/:paperSlug" element={<WhitepaperDetailPage />} />
 
               <Route path="/landscape" element={<LandscapePage />} />
+
+              <Route path="/cli-backend" element={<CliBackendPage />} />
             </Route>
 
             <Route path="/docs" element={<DocsLayout />}>
