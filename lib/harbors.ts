@@ -141,6 +141,11 @@ export function createHarbors(db: Database.Database, deps: HarborsDeps = {}) {
     isMember: db.prepare('SELECT 1 FROM harbor_members WHERE harbor_name = ? AND agent_id = ?'),
   };
 
+  // Capability listener — fires when an agent enters a harbor with
+  // declared capabilities. Used to ferry phrases into the whois sidecar
+  // embedder without coupling harbors.ts directly to that module.
+  let capabilityListener: ((agentId: string, harborName: string, phrases: string[]) => void) | null = null;
+
   function parseHarbor(row: HarborRow, members: HarborMemberRow[]): Harbor {
     return {
       name: row.name,
@@ -264,6 +269,13 @@ export function createHarbors(db: Database.Database, deps: HarborsDeps = {}) {
         options.capabilities ? JSON.stringify(options.capabilities) : null,
         Date.now()
       );
+
+      // Notify capability listener — wired by server.ts to embed phrases
+      // into the whois sidecar. Errors here are not fatal to harbor entry.
+      if (capabilityListener && options.capabilities && options.capabilities.length > 0) {
+        try { capabilityListener(agentId, harborName, options.capabilities); }
+        catch { /* listener errors are not fatal */ }
+      }
 
       const members = stmts.listMembers.all(harborName) as HarborMemberRow[];
       const harbor = parseHarbor(row, members);
