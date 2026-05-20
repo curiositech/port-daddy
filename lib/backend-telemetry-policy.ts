@@ -11,6 +11,7 @@ export interface BackendTelemetryPolicy {
 export const DEFAULT_OPERATOR_CLAUDE_MODEL = 'claude-haiku-4-5-20251001';
 export const DEFAULT_OPERATOR_CODEX_MODEL = 'gpt-5.4-mini';
 export const DEFAULT_OPERATOR_CLOUDFLARE_MODEL = '@cf/zai-org/glm-4.7-flash';
+export const DEFAULT_OPERATOR_OPENAI_MODEL = 'gpt-5-mini';
 
 function blocked(backend: string, summary: string, nextStep?: string): BackendTelemetryPolicy {
   return {
@@ -83,6 +84,41 @@ export function assessBackendTelemetryPolicy(backend: string, model?: string | n
         backend,
         launchAllowed: true,
         summary: `Exact telemetry policy satisfied for Cloudflare model "${effectiveModel}"`,
+        effectiveModel,
+      };
+    }
+
+    case 'openai': {
+      const effectiveModel = model?.trim() || DEFAULT_OPERATOR_OPENAI_MODEL;
+      if (!hasExactModelRate(effectiveModel)) {
+        return blocked(
+          backend,
+          `OpenAI model "${effectiveModel}" has no exact cost rate entry; fail-closed telemetry policy blocks launch.`,
+          'Add an exact model rate before enabling this model.'
+        );
+      }
+      return {
+        backend,
+        launchAllowed: true,
+        summary: `Exact telemetry policy satisfied for OpenAI model "${effectiveModel}"`,
+        effectiveModel,
+      };
+    }
+
+    case 'cli:claude-code':
+    case 'cli:codex': {
+      // CLI-tube backends route through the operator's local Claude
+      // Code / Codex CLI. Auth + billing live in that CLI; this app
+      // doesn't see per-token cost. We mark these as flat-rate
+      // "subscription" backends — launch is allowed under the
+      // assumption the operator pays for Claude Max / ChatGPT Pro.
+      // Operators MUST still set a daily project budget; the kill-switch
+      // monitors call count and per-spawn timeouts.
+      const effectiveModel = model?.trim() || (backend === 'cli:claude-code' ? 'claude-code' : 'codex');
+      return {
+        backend,
+        launchAllowed: true,
+        summary: `CLI-tube backend "${backend}" — flat-rate via local CLI subscription. No per-token telemetry available; cost recorded as flat session estimate.`,
         effectiveModel,
       };
     }

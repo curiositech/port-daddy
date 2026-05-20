@@ -49,7 +49,7 @@
   "$defs": {
     "backend": {
       "type": "string",
-      "enum": ["ollama", "cloudflare", "claude", "claude-cli", "codex", "gemini", "aider", "custom"]
+      "enum": ["ollama", "cloudflare", "claude", "cli:claude-code", "cli:codex", "gemini", "aider", "custom"]
     },
     "modelTier": {
       "type": "string",
