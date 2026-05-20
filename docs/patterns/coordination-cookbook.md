@@ -204,7 +204,7 @@ while true; do
   path=$(echo $claimed | jq -r '.taken[0].fields[2]')
   pd session files add "$path"
   ./rewrite-stale-todo.sh "$path" && \
-    pd say "harvested $path" --pin --harbor harvest && \
+    pd say "harvested $path" --pin --broadcast harvest && \
     pd tuple out "[\"todo\",\"done\",\"$path\",\"$HOSTNAME\"]" --harbor harvest
 done
 pd done "peer $HOSTNAME drained the queue"
@@ -437,34 +437,11 @@ blackboard. What follows are the seven recurring protocols.
 
 ## 1. FAN-OUT/FAN-IN (redundant or partitioned execution)
 
-**What it is.** Already covered as a topology; the *pattern* version emphasizes
-the protocol contract: every worker's output lands on a single rendezvous, and
-the lead applies a deterministic gather policy (all / majority / first / N).
-The redundant variant runs the same task on three backends; the partitioned
-variant runs different inputs on the same backend.
-
-**PD command sequence.** See topology #5. Add a discriminator: pin durably so
-late-arriving results can still be aggregated.
-
-```bash
-pd say "shard 7 complete: 3 failing tests" \
-  --pin --harbor audit \
-  --broadcast audit:results
-```
-
-**Primitive mapping.** `pd spawn` for dispatch; `pd say --pin --broadcast` for
-the dual-write (tuple + channel) so the gather step has both real-time and
-durable views.
-
-**When to use.** Variance in worker quality is high and you want to vote;
-inputs are independent and you want to parallelize.
-
-**When NOT to use.** You only have one worker. (You'd be surprised.)
-
-**Failure mode.** Silent stragglers. Mitigation: `pd spawned -j` to enumerate
-all dispatched agents, diff against received results, declare partial.
-
-**Worked example.** See topology #5.
+Covered as a topology in #5 above. The *pattern* version adds one
+discriminator over the topology: pin results durably (`pd say --pin
+--broadcast audit:results`) so a slow gatherer can still aggregate late
+arrivals from the tuple space. Failure mode is silent stragglers — diff
+`pd spawned -j` against the result channel to detect them.
 
 ## 2. SUPERVISOR-WORKER (delegation chains)
 
@@ -768,10 +745,20 @@ implementations.
 qualified. Don't vote on what color the button should be when the designer is
 in the room.
 
-**Failure mode.** Quorum never resolves because not enough voters show up.
-Mitigation: `--ttl-ms` on the proposal so it expires; `pd quorum show` reports
-`expired: true`, and the convener can re-propose with a lower threshold or a
-different voter pool.
+**Failure mode (no-shows).** Quorum never resolves because not enough voters
+show up. Mitigation: `--ttl-ms` on the proposal so it expires; `pd quorum show`
+reports `expired: true`, and the convener can re-propose with a lower
+threshold or a different voter pool.
+
+**Failure mode (Sybil voting).** An attacker (or a confused orchestrator)
+spawns N identities and votes from each. PD's quorum is voter-flat — it
+trusts whatever identity calls `pd quorum vote --as <id>` and does not
+verify that identity exists, is alive, or is part of an authorized panel.
+Mitigation: define the eligible voter pool out-of-band (e.g. a JSON file or
+a separate `pd quorum propose --role` whose semantics restrict to a known
+list) and post-filter votes client-side before trusting `passed`. PD's
+current quorum is a *counting* primitive, not an *authorization* primitive;
+this is tracked in the gaps section under "panel of judges."
 
 **Worked example — "Three reviewers vote on PR 482; majority approves; auto-merge."**
 
@@ -817,7 +804,10 @@ pd note "lib/cache.ts uses Date.now() in 4 places — flaky in tests" \
   --type discovery
 
 pd say "Found duplicated retry logic in services/http and lib/api-client" \
-  --pin --kind duplication --harbor refactor-2026
+  --pin --broadcast refactor:findings
+# For a typed tuple in parallel, write directly:
+pd tuple out '["duplication","retry-logic","services/http","lib/api-client"]' \
+  --harbor refactor-2026
 
 # Any agent reads
 pd notes --type discovery --limit 50
@@ -827,8 +817,11 @@ pd tuple rd '["duplication","*",{"text":"*"}]' --harbor refactor-2026 --limit 20
 **Primitive mapping.**
 
 - The blackboard *is* `pd notes` filtered by `--type` (and optionally
-  `--project`). Notes are durable, Merkle-chained, and free-form on the `type`
-  column.
+  `--project`). Notes are durable and free-form on the `type` column. The
+  Merkle chain is **per session** — each session's notes form one chain;
+  there is no cross-session Merkle root. For a blackboard with N writers,
+  each writer's contributions are independently attestable, but you cannot
+  cryptographically prove a global ordering across writers.
 - For cross-session findings that should survive note-pruning, also pin to the
   tuple space (`pd say --pin` does both in one shot).
 - For heat-map intuition over which files are getting attention, sprinkle
@@ -843,10 +836,19 @@ synchronizing.
 read order is "by createdAt" — if two agents must observe the *exact* same
 sequence, use a channel with `pd tube --tail` instead.
 
-**Failure mode.** Blackboard pollution — agents write speculative junk that
-crowds out real findings. PD's mitigation: scope reads with `--type` (so
-`discovery` and `speculation` live separately) and use the activity log
-(`pd history --agent <name>`) to audit who's flooding.
+**Failure mode (pollution).** Agents write speculative junk that crowds out
+real findings. PD's mitigation: scope reads with `--type` (so `discovery` and
+`speculation` live separately) and use the activity log (`pd history --agent
+<name>`) to audit who's flooding.
+
+**Failure mode (staleness).** Notes do not TTL by default — a finding from
+three days ago about a file that has since been deleted will still show up
+in `pd notes --type discovery`. Downstream agents can act on phantom code.
+Mitigation: filter on `createdAt` client-side after reading (`pd notes -j |
+jq 'select((now - .createdAt/1000) < 86400)'`), and prefer the pheromone
+view (`pd pheromone files`) when you want a *decaying* signal — pheromones
+fade naturally, so a stale "hot" file cools out of the heat-map without you
+needing to garbage-collect it.
 
 **Worked example — "Five agents audit a 50k-line monorepo for security
 issues."**
@@ -860,9 +862,8 @@ for scope in routes models services workers config; do
   pd spawn --backend claude-cli --identity myrepo:claude:audit-$scope --budget 1.50 \
     --purpose "audit $scope" \
     -- "Audit apps/**/$scope/** for OWASP issues. For each finding: \
-        pd say '<one-line>' --pin --harbor sec-audit --kind vuln \
-        --heat <path>=0.8 \
-        --broadcast sec:findings."
+        pd note '<one-line>' --type vuln && \
+        pd say '<one-line>' --pin --heat <path>=0.8 --broadcast sec:findings."
 done
 
 # Cross-cutting consumer (read-only, runs while auditors work)
