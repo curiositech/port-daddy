@@ -110,26 +110,56 @@ information "something is claimed under here" without locking everything.
   bubbles up to find IX or X on ancestors; walks down to find S, X, or
   descendant claims that overlap line range.
 
-### Identity and stability
+### Identity and stability — anchor to AST, not lines
 
-Node IDs are *content-keyed* where possible to survive rename/refactor:
+Line numbers are the wrong frame of reference. A claim on `lib/auth.ts:120-180`
+breaks when someone adds an import above (everything shifts). The canonical
+node identity is **AST-anchored**, with line-number regions kept only as a
+degraded fallback when the AST isn't available.
+
+Node ID hierarchy:
 
 - `repo:<name>` for the root
-- `dir:<path>` for directories — path-stable; renaming a dir invalidates
-  the old id and migrates active claims to the new id via the file-move
-  event from the shim
+- `dir:<path>` for directories — path-stable; renaming a dir migrates
+  active claims to the new id via the file-move event from the shim
 - `file:<path>` for files — same
-- `region:<path>:<start>-<end>` for line ranges — *not* stable across
-  refactors; soft-expires when the file's content hash changes
-- `symbol:<path>:<symbol_path>` for symbols — stable across line shifts
-  inside the file, expires when the symbol is renamed or removed (tracked
-  via tree-sitter symbol-index events)
-- `symbol-region:<path>:<symbol_path>:<offset>-<length>` for in-symbol
-  regions — used when an agent claims a chunk inside a large function
+- `symbol:<path>:<symbol_path>` for functions / classes / methods — the
+  PRIMARY claim unit; identity derived from tree-sitter symbol-index events
+  (`AuthService.signToken`, not lines). Survives reformatting, comment
+  changes, and line shifts; expires only on rename or removal (tracked).
+- `block:<path>:<anchor>` for AST blocks that aren't named symbols — e.g.
+  the body of a switch case, an arrow-function expression, a top-level
+  `{}` block. Anchor is derived from the smallest enclosing AST node plus
+  a stable AST path (`auth.ts > FunctionDeclaration[signToken] > BlockStatement > SwitchStatement > SwitchCase[2]`).
+- `fenced:<path>:<begin-marker>` for comment-fenced regions — explicit
+  operator markers like `// PD-CLAIM-BEGIN auth-validation` / `// PD-CLAIM-END`.
+  Stable as long as the markers stay; survives any reformatting between
+  them. The fence syntax is language-agnostic (any line comment plus the
+  `PD-CLAIM-BEGIN`/`END` tokens).
+- `region:<path>:<start>-<end>` — **fallback only**, used when neither
+  symbol-index nor fenced markers are available (e.g., languages without
+  tree-sitter support, parse errors, plain-text files). Soft-expires when
+  the file's content hash changes.
 
-Node-id stability is the hard problem. The compromise: stable for
-directories/files (paths), best-effort for regions (lines), reasonable
-for symbols (renames detected; cosmetic re-indenting absorbed).
+#### Why same-frame-of-reference matters
+
+Every comparison the daemon makes — "do these two claims overlap?",
+"does this commit touch a claimed symbol?", "is this `pd diff` against the
+claimed scope?" — must use the SAME anchoring scheme on both sides. Mixing
+line-range claims with AST-resolved diffs is the failure mode where the
+daemon says "no overlap" because the line numbers technically don't match
+while the agents are literally touching the same function. **The rule:
+when both sides have an AST resolution, compare at AST; when one side
+doesn't, downgrade BOTH sides to line-range comparison and emit a
+LOW-confidence flag in the overlap result.**
+
+Node-id stability is the hard problem. The compromise:
+- `repo` / `dir` / `file` — fully stable (path-keyed)
+- `symbol` — high stability (rename detected, formatting absorbed)
+- `block` — high stability when AST path is short and unique; degrades
+  for deeply-nested blocks where insertion shifts AST node indices
+- `fenced` — operator-visible stability (the markers are explicit)
+- `region` — low stability; expected to soft-expire frequently
 
 ### Storage
 
@@ -376,30 +406,231 @@ which sessions are burning where.
   side by side, operator toggles primary axis
 - FleetBar tile B + G
 
-### Open questions
+### Resolved during draft review (2026-05-19, operator pass 2)
 
-1. **Region content stability:** when `lib/auth.ts` lines 120-180 shift
-   to 130-190 because someone added imports above, does the claim
-   migrate? Lean yes via content-hash matching on the claimed slice; soft-expire if no match.
-2. **Lock escalation policy:** when an agent holds 80% of files in `lib/`
-   as `IX`, should the daemon offer to escalate to a single `IX` on
-   `lib/`? Lean yes with a one-line operator prompt; auto-escalate when
-   ≥5 sibling claims under the same parent.
-3. **GC policy:** prune nodes with no active claims after 30d? Or keep
-   forever for audit? Lean: prune nodes from the tree, archive their
-   claim records to a sidecar `claim_tree_claims_archive` table for the
-   audit story.
-4. **Subscription granularity:** should subscribers be able to follow "any
-   claim on `lib/auth.ts`" with descendant fan-in? Lean yes; that's the
-   point of the tree. Subscribers register on a node id with
-   `scope: 'subtree'`.
-5. **CRDT consideration:** if PD ever distributes (multiple daemons across
-   machines), the tree becomes a candidate for movable-tree CRDT
-   semantics (Kleppmann 2021). Out of scope for v1; flagged.
-6. **Cross-repo claim trees:** when an agent works across two harbors,
-   is there one tree per repo or one global tree? Lean: per-repo (the
-   `repo:` root distinguishes); cross-repo claims are an edge case
-   handled via independent claims in each tree.
+- **Region anchoring:** line numbers are the wrong primitive; AST symbols,
+  AST blocks, and comment-fenced regions are the right ones. Same frame
+  of reference required for both sides of any overlap comparison. See
+  "Identity and stability — anchor to AST, not lines" above.
+- **Lock escalation:** auto-escalate to a parent `IX` when ≥5 sibling
+  claims active under the same parent. The auto-escalated claim has
+  `intent: "auto-escalated from 5+ sibling claims"` for audit
+  transparency.
+- **GC + dynamic pruning + owner notifications:** claims are advisory
+  (no hard lock; ADR-0037 enforces worktree-level lock separately). GC
+  default 30 days, but contested claims accelerate. The claim owner
+  receives top-of-context messages whenever another session attempts to
+  touch their claimed asset — gentle nudge to release if done. See
+  "Claims as advisory + dynamic pruning + owner nudges" subsection below.
+- **Auto-subscribe owners + subtree subscriptions:** claim owners are
+  automatically subscribed to all activity on their claimed assets (file
+  / region / symbol / block / fenced). Subscriptions support subtree
+  fan-in via `scope: 'subtree'`. See "Auto-subscribe semantics" below.
+- **CRDT semantics planned now, not deferred:** the storage schema is
+  reshaped around an op log so the tree state is a fold over operations.
+  Movable-tree CRDT (Kleppmann 2021) semantics for tree-shaped ops;
+  Lamport-clock-ordered op log. See "CRDT-ready storage" subsection.
+- **Per-repo trees:** confirmed; `repo:` root distinguishes. Cross-repo
+  claims are handled via independent claims in each tree.
+
+### Claims as advisory + dynamic pruning + owner nudges
+
+Claims are advisory by design. Hard enforcement lives in two adjacent
+places only:
+- **ADR-0037 per-worktree session lock** — one session-of-record per
+  worktree at a time (the unit of "I am editing here right now")
+- **ADR-0037 hard-refuse verbs** — destructive git verbs, force-push to
+  protected branches, true single-resource locks
+
+Inside a worktree the claim tree is informational. Overlapping claims
+don't block; they broadcast (ADR-0037 soft-claim model). The value of a
+claim is its advertisement function: declaring intent, surfacing the
+risk score, giving the ambient context broker something to project.
+
+#### Owner top-of-context notifications
+
+Whenever a session other than the claim owner attempts to touch a
+claimed asset (file write, region edit, symbol modification, `pd add`),
+the daemon emits a `claim:approach` event. The claim owner gets this in
+their next-turn ambient context:
+
+```
+[PD context — your claim is being approached]
+
+session-Y-56def78 (qa) is about to edit symbol AuthService.signToken
+which you have claimed since 4h ago for "Refactor token signing".
+
+Their declared scope: "Add tests for token expiry" (touches your symbol
+via test imports, not direct edit).
+
+Overlap risk for them: LOW
+
+If you're done with this claim, run:
+  pd release claim-<id>                        — release
+  pd release claim-<id> --note "msg"           — release with handoff note
+
+If you still need it, no action needed; they'll proceed with the soft
+warning. To DM them:
+  pd inbox send session-Y-56def78 "I'll be done in ~15 min"
+```
+
+The nudge is gentle. The point is to give the holder a chance to release
+the claim when they're actually done, instead of leaving zombie claims
+that the GC must reap.
+
+#### Contest-driven dynamic pruning
+
+The GC half-life on a claim is not static at 30 days. It accelerates
+when the claim is contested:
+
+```
+effective_idle_threshold = base_threshold * exp(-k * contest_pressure)
+
+base_threshold       = 30 days
+contest_pressure     = count(claim:approach events on this claim in last 24h)
+k                    = 0.3 (tunable)
+
+contest=0  → 30d
+contest=1  → 22d
+contest=3  → 12d
+contest=5  → 7d
+contest=10 → 1.5d
+```
+
+A claim that nobody else cares about persists for the full 30 days. A
+claim that 10 other sessions are trying to work around in a day gets
+pruned in ~36 hours. This makes the GC adaptive: low-traffic claims
+behave as advisory long-term markers; contested claims behave as
+short-term reservations that decay if the owner doesn't actively use
+them.
+
+When the GC reaps a contested claim, the owner gets a final
+`claim:expired-under-contest` event with the prune timing and the
+sessions that contested. They can re-claim immediately if they're still
+active; the re-claim resets contest pressure to 0.
+
+### Auto-subscribe semantics
+
+When session X claims node N, X is automatically subscribed to events on
+N with `scope: 'subtree'`. The subscription is bound to the claim
+record, not to X explicitly — releasing the claim releases the
+subscription. Events delivered:
+
+| Event | Trigger | Default delivery |
+|---|---|---|
+| `claim:approach` | Another session about to touch N | top-of-context next turn |
+| `claim:overlap-detected` | The shim's overlap check fires elsewhere | top-of-context next turn |
+| `claim:contested` | claim:approach count crosses threshold | top-of-context next turn |
+| `node:edited` | A commit lands touching N | next turn ambient |
+| `node:tested` | Test results land referencing N | next turn ambient |
+| `node:reverted` | A revert touching N is committed | top-of-context next turn |
+| `subtree:claim` | New claim under N's subtree by another session | next turn ambient |
+
+The subscription composes with the ambient-context-broker budget (see
+ROADMAP § 8). Owner notifications get priority allocation — they're
+explicit reservations, not opt-in streams.
+
+Manual subscriptions via `pd subscribe node:<id> --scope subtree` exist
+for sessions that want to follow nodes they don't claim (e.g., a QA
+session subscribing to a feature branch's claim subtree).
+
+### CRDT-ready storage
+
+To keep the tree distributable in the future (multiple daemons across
+machines, V4 remote-harbor scenarios), store the state as an **op log
+plus materialized view**. The op log is the source of truth; the
+relational tables in the schema below are a cache materialized by
+folding the log in causal order.
+
+```sql
+CREATE TABLE claim_tree_ops (
+  op_id          TEXT PRIMARY KEY,         -- ULID, lexicographically sorted by time
+  lamport_clock  INTEGER NOT NULL,         -- Lamport timestamp for causal ordering
+  origin_node    TEXT NOT NULL,            -- daemon node id where op originated
+  op_kind        TEXT NOT NULL,            -- 'claim' | 'release' | 'move' | 'rename' | 'split' | 'merge'
+  payload        TEXT NOT NULL,            -- JSON: op-kind-specific fields
+  created_at     INTEGER NOT NULL,
+  applied_at     INTEGER                   -- when materialization caught up
+);
+CREATE INDEX idx_cto_lamport ON claim_tree_ops(lamport_clock);
+CREATE INDEX idx_cto_unapplied ON claim_tree_ops(applied_at) WHERE applied_at IS NULL;
+```
+
+Op kinds:
+
+- `claim` — `{ node_spec, session_id, mode, scope, intent }`
+- `release` — `{ claim_id, reason? }`
+- `move` — `{ from_node_id, to_node_spec }` — file/dir rename, symbol rename
+- `rename` — `{ node_id, new_symbol_path }` — symbol-only rename within file
+- `split` — `{ parent_node_id, child_specs[] }` — a new symbol appears inside a claimed block
+- `merge` — `{ from_node_ids[], target_node_id }` — symbols collapse during refactor
+
+#### Movable-tree CRDT semantics (Kleppmann 2021)
+
+The hard CRDT problem is `move`. When two daemons concurrently move
+overlapping subtrees, naïve approaches can produce cycles (A becomes a
+child of B AND B becomes a child of A). Kleppmann's algorithm uses a
+timestamped log with conflict resolution:
+
+1. Each op has `(lamport_clock, origin_node)` as its unique identifier
+2. Ops are applied in lamport order across all daemons
+3. A `move` that would create a cycle is **undone on the loser** when a
+   conflicting earlier op surfaces
+4. The log retains undone ops with `tombstoned: true` for replay
+   determinism
+
+For PD's single-daemon-today case, this is overhead — but the storage
+shape doesn't change. The lamport clock is set from a monotonic local
+counter; conflict resolution is a no-op because no concurrent ops exist.
+When PD distributes, the algorithm activates without a schema migration.
+
+#### Materialized view refresh
+
+The relational tables (`claim_tree_nodes`, `claim_tree_claims`) are
+rebuilt by replaying ops from the last applied op. Refresh is
+incremental in normal operation (apply the latest N ops); periodically
+the daemon does a full rebuild for catch-up after long downtime or
+schema migration.
+
+`pd claims tree` reads from the materialized view; writes go to the op
+log first and then update the view in the same transaction. The view is
+always consistent with the log; the log can be replayed standalone for
+debugging.
+
+#### Snapshots
+
+To keep the op log bounded, the daemon snapshots the materialized view
+periodically (default daily) and prunes ops older than the snapshot.
+Snapshots include the full tree state at a lamport clock; restoring
+from a snapshot + tail of ops since the snapshot fully reconstructs
+state. This is the standard event-sourcing pattern; no novel design
+here.
+
+### Documentation
+
+A reader-friendly documentation page at `docs/concepts/claim-tree.md`
+explains the tree, the claim modes, the visualizations, and worked
+examples with prose and diagrams. The ADR is the *specification*; the
+docs page is the *explanation*. See follow-up PR.
+
+### Open questions remaining
+
+(Most originals resolved during draft review; what's left:)
+
+1. **AST block stability under heavy refactor:** if a function is split
+   in two during a refactor, does the claim on its body migrate to one
+   of the halves or split into two claims? Lean: emit a `split` op,
+   create two child claims, notify the owner top-of-context.
+2. **Fence marker convention across languages:** propose `// PD-CLAIM-BEGIN <slug>` /
+   `// PD-CLAIM-END` for C-family; `# PD-CLAIM-BEGIN` for Python/Ruby/shell;
+   `<!-- PD-CLAIM-BEGIN -->` for HTML/XML. Codify or leave as convention?
+   Lean: codify in the shim so editors / linters can lint the markers.
+3. **Snapshot frequency / op log size:** daily snapshots probably fine
+   for single-daemon; when distributed, snapshots should align with
+   network sync windows. Defer to the distribution ADR.
+4. **Materialized view vs query-the-log:** for small repos the log is
+   tiny and you could skip the materialized view. Lean: always
+   materialize; the view is the read path everywhere.
 
 ### Related work and prior art
 
