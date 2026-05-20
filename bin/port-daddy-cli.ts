@@ -88,6 +88,8 @@ import {
   handleHistory,
   // Spawn + Watch
   handleSpawn, handleSpawned, handleWatch, handleSortie,
+  // Transcripts
+  handleTranscripts,
   // Harbors
   handleHarborCreate, handleHarborEnter, handleHarborLeave, handleHarborShow, handleHarborDestroy, handleHarbors,
   // Demo
@@ -396,7 +398,7 @@ function traceCategoryForCommand(command: string): string {
   if (['pub', 'publish', 'broadcast', 'sub', 'subscribe', 'listen', 'channels', 'tube'].includes(command)) return 'channels';
   if (['agent', 'agents', 'spawn', 'spawned'].includes(command)) return 'agents';
   if (['session', 'begin', 'done', 'whoami', 'note', 'notes', 'files', 'who-owns', 'advise'].includes(command)) return 'sessions';
-  if (['fleet', 'watch', 'sortie'].includes(command)) return 'fleet';
+  if (['fleet', 'watch', 'sortie', 'transcripts'].includes(command)) return 'fleet';
   if (['lock', 'unlock', 'locks', 'with-lock'].includes(command)) return 'locks';
   if (['claim', 'c', 'release', 'r', 'find', 'list', 'ps', 'services', 'url', 'env', 'ports'].includes(command)) return 'ports';
   if (['salvage'].includes(command)) return 'salvage';
@@ -1236,7 +1238,7 @@ const ALL_COMMANDS: string[] = [
   'salvage', 'resurrection', 'changelog', 'tunnel',
   'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
   'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'shipwright',
-  'spawn', 'spawned', 'watch',
+  'spawn', 'spawned', 'watch', 'transcripts',
   'harbor', 'harbors', 'demo', 'fleet', 'tuple', 'sortie', 'graph', 'memory', 'ideas',
   'quorum',
   'feedback',
@@ -2732,6 +2734,12 @@ export async function main(): Promise<void> {
       // Watch — ambient agent kernel (SSE subscriber)
       case 'watch':
         await handleWatch(positional[0], options);
+        break;
+
+      // Fleet transcripts — chat-record viewer for every ship run
+      case 'transcripts':
+      case 'transcript':
+        await handleTranscripts(positional, options);
         break;
 
       // Harbors — named permission namespaces

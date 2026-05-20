@@ -925,6 +925,11 @@
         <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-activity"/></svg></span>
         <span class="nav-label">Activity</span>
       </div>
+      <div class="nav-item" data-panel="transcripts" tabindex="0" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-list"/></svg></span>
+        <span class="nav-label">Fleet Transcripts</span>
+        <span class="nav-badge" id="badge-transcripts">0</span>
+      </div>
       <!--
         Metrics opens the standalone /metrics.html page (Prometheus + per-route
         histograms + charts dashboard). Rendered as an anchor rather than a
@@ -1098,6 +1103,37 @@
         <div id="activity-content"></div>
       </div>
 
+      <!--
+        Fleet Transcripts Panel — every spawn's full chat recorded to SQLite,
+        surfaced as a scrollable feed with expand-to-conversation. Backed by
+        /transcripts and /transcripts/stream (SSE).
+      -->
+      <div class="panel" id="panel-transcripts">
+        <div class="panel-header">
+          <div class="panel-title">Fleet Transcripts</div>
+          <div class="panel-actions">
+            <select id="transcripts-ship-filter" onchange="refreshTranscripts()">
+              <option value="">All ships</option>
+            </select>
+            <select id="transcripts-status-filter" onchange="refreshTranscripts()">
+              <option value="">All statuses</option>
+              <option value="running">Running</option>
+              <option value="completed">Completed</option>
+              <option value="failed">Failed</option>
+              <option value="killed">Killed</option>
+            </select>
+            <input type="text" id="transcripts-pr-filter" placeholder="PR #" style="width:70px" onchange="refreshTranscripts()" />
+            <button class="cmd-btn" onclick="refreshTranscripts()">Refresh</button>
+            <span id="transcripts-stream-status" class="kbd" title="SSE live tail">● Live</span>
+          </div>
+        </div>
+        <div class="card" id="transcripts-cost-card" style="margin-bottom:16px">
+          <div class="card-title">Today's fleet spend</div>
+          <div id="transcripts-cost-summary" style="font-size:14px;line-height:1.6">Loading cost rollup…</div>
+        </div>
+        <div id="transcripts-feed">Loading transcripts…</div>
+      </div>
+
       <!-- Budget Panel — Pending kills + wallets -->
       <div class="panel" id="panel-budget">
         <div class="panel-header">
@@ -1251,7 +1287,7 @@
         overview: refreshDashboard, services: refreshServices, agents: refreshAgents,
         sessions: refreshSessions, locks: refreshLocks, channels: refreshChannels,
         activity: refreshActivity, roadmap: refreshRoadmap, salvage: refreshSalvage, briefing: refreshBriefing,
-        budget: refreshBudget,
+        budget: refreshBudget, transcripts: refreshTranscripts,
         webhooks: refreshWebhooks, projects: refreshProjects, changelog: refreshChangelog,
         config: refreshConfig
       };
@@ -1711,6 +1747,193 @@
       }).join('') + '</div>');
     }
 
+    /* ── Fleet Transcripts ── */
+    // Each row is one ship-run (spawn). Click expands the full conversation.
+    // Backed by /transcripts (list), /transcripts/:id (detail),
+    // /transcripts/cost (rollup), /transcripts/stream (SSE live tail).
+    //
+    // Security note: all dynamic content flows through escHtml() the same
+    // way every other panel in this dashboard does. setHtml() is the
+    // single innerHTML choke point used by the rest of the page.
+    var transcriptsExpanded = new Set();
+    var transcriptsStreamSource = null;
+    var transcriptsKnownShips = new Set();
+
+    function renderConversation(tx) {
+      if (!tx.messages || !tx.messages.length) {
+        return '<div class="empty-state">No messages recorded</div>';
+      }
+      return tx.messages.map(function(m) {
+        var roleClass = m.role === 'user' ? 'teal' :
+                        m.role === 'assistant' ? 'green' :
+                        m.role === 'system' ? 'yellow' : 'blue';
+        var ts = m.timestamp ? new Date(m.timestamp).toISOString().slice(11, 19) : '';
+        var body = '<pre style="white-space:pre-wrap;word-wrap:break-word;margin:4px 0 0 0;font-size:13px;line-height:1.5">' +
+                   escHtml(m.content || '') + '</pre>';
+        var toolCallsHtml = '';
+        if (m.tool_calls && m.tool_calls.length) {
+          toolCallsHtml = m.tool_calls.map(function(tc) {
+            var argsStr = '';
+            try { argsStr = JSON.stringify(tc.args, null, 2); } catch (e) { argsStr = '<unprintable>'; }
+            var resStr = '';
+            if (tc.result !== undefined) {
+              try { resStr = JSON.stringify(tc.result, null, 2); } catch (e) { resStr = '<unprintable>'; }
+            }
+            return '<details style="margin-left:12px;margin-top:6px;font-size:12px"><summary>&#8627; tool: ' +
+                   escHtml(tc.name) + '</summary>' +
+                   '<pre style="white-space:pre-wrap;margin:6px 0;opacity:0.85">' + escHtml(argsStr) + '</pre>' +
+                   (resStr ? '<div style="opacity:0.7">&#8658;</div><pre style="white-space:pre-wrap;margin:6px 0;opacity:0.75">' + escHtml(resStr) + '</pre>' : '') +
+                   '</details>';
+          }).join('');
+        }
+        return '<div style="margin:12px 0;padding:8px;border-left:3px solid var(--accent);background:rgba(255,255,255,0.02)">' +
+               '<div style="display:flex;align-items:baseline;gap:8px">' +
+               '<span class="activity-dot ' + roleClass + '"></span>' +
+               '<strong>' + escHtml(m.role) + '</strong>' +
+               '<span class="activity-time">' + escHtml(ts) + '</span>' +
+               '</div>' + body + toolCallsHtml + '</div>';
+      }).join('');
+    }
+
+    function renderTranscriptOutputs(tx) {
+      if (!tx.outputs || !tx.outputs.length) return '';
+      return '<div style="margin-top:8px"><strong>Outputs</strong>' +
+        '<ul style="margin:6px 0 0 0;padding-left:20px">' +
+        tx.outputs.map(function(o) {
+          var link = o.url ? ' &mdash; <a href="' + escHtml(o.url) + '" target="_blank" rel="noopener">link</a>' : '';
+          return '<li><code>[' + escHtml(o.type) + ']</code> ' + escHtml(o.summary) + link + '</li>';
+        }).join('') + '</ul></div>';
+    }
+
+    function renderTranscriptRow(t) {
+      var pr = t.pr_number != null ? 'PR #' + String(t.pr_number) : '&mdash;';
+      var cost = t.cost_usd != null ? '$' + Number(t.cost_usd).toFixed(4) : '&mdash;';
+      var status = t.status || 'running';
+      var statusColor = status === 'completed' ? 'green' :
+                        status === 'failed' ? 'red' :
+                        status === 'killed' ? 'yellow' : 'blue';
+      var age = fmtDate(t.started_at);
+      var dur = t.ended_at ? Math.round((t.ended_at - t.started_at) / 1000) + 's' : '&mdash;';
+      var expanded = transcriptsExpanded.has(t.id);
+      var idAttr = escHtml(t.id);
+      var header = '<div class="activity-item" style="cursor:pointer" data-transcript-id="' + idAttr + '">' +
+                   '<div class="activity-dot ' + statusColor + '"></div>' +
+                   '<div class="activity-text" style="flex:1">' +
+                   '<strong>' + escHtml(t.ship) + '</strong> ' +
+                   '<span class="kbd">' + escHtml(t.backend) + '</span> ' +
+                   escHtml(t.trigger) +
+                   ' &middot; ' + pr +
+                   ' &middot; ' + escHtml(status) +
+                   ' &middot; cost ' + cost +
+                   ' &middot; ran ' + dur +
+                   '</div>' +
+                   '<div class="activity-time">' + escHtml(age) + '</div>' +
+                   '</div>';
+      var body = '<div id="transcript-body-' + idAttr + '" style="display:' + (expanded ? 'block' : 'none') +
+                 ';padding:12px 16px 16px 16px;border-bottom:1px solid var(--border)">' +
+                 (expanded && t.__full ? renderConversation(t.__full) + renderTranscriptOutputs(t.__full)
+                                       : '<div class="empty-state">Loading conversation&hellip;</div>') +
+                 '</div>';
+      return '<div style="border-bottom:1px solid var(--border)">' + header + body + '</div>';
+    }
+
+    async function toggleTranscript(id) {
+      if (transcriptsExpanded.has(id)) {
+        transcriptsExpanded.delete(id);
+        var el = document.getElementById('transcript-body-' + id);
+        if (el) el.style.display = 'none';
+        return;
+      }
+      transcriptsExpanded.add(id);
+      var el = document.getElementById('transcript-body-' + id);
+      if (el) el.style.display = 'block';
+      var data = await apiFetch('/transcripts/' + encodeURIComponent(id));
+      if (data && data.transcript && el) {
+        el.innerHTML = renderConversation(data.transcript) + renderTranscriptOutputs(data.transcript);
+      }
+    }
+
+    // Delegated click handler — keeps row HTML free of inline onclicks
+    document.addEventListener('click', function(e) {
+      var node = e.target;
+      while (node && node !== document.body) {
+        if (node.dataset && node.dataset.transcriptId) {
+          toggleTranscript(node.dataset.transcriptId);
+          return;
+        }
+        node = node.parentNode;
+      }
+    });
+
+    function updateTranscriptShipFilter(rows) {
+      var sel = document.getElementById('transcripts-ship-filter');
+      if (!sel) return;
+      var current = sel.value;
+      rows.forEach(function(t) { if (t.ship) transcriptsKnownShips.add(t.ship); });
+      var all = Array.from(transcriptsKnownShips).sort();
+      var html = '<option value="">All ships</option>' +
+        all.map(function(s) { return '<option value="' + escHtml(s) + '"' + (s === current ? ' selected' : '') + '>' + escHtml(s) + '</option>'; }).join('');
+      sel.innerHTML = html;
+    }
+
+    async function refreshTranscripts() {
+      var ship = document.getElementById('transcripts-ship-filter').value;
+      var status = document.getElementById('transcripts-status-filter').value;
+      var pr = document.getElementById('transcripts-pr-filter').value;
+      var params = new URLSearchParams();
+      if (ship) params.set('ship', ship);
+      if (status) params.set('status', status);
+      if (pr && /^\d+$/.test(pr)) params.set('pr', pr);
+      params.set('limit', '50');
+      var data = await apiFetch('/transcripts?' + params.toString());
+      var rows = data ? (data.transcripts || []) : [];
+      updateTranscriptShipFilter(rows);
+      if (!rows.length) {
+        setHtml('transcripts-feed', '<div class="empty-state"><p>No transcripts yet. Spawn a fleet ship to start recording.</p></div>');
+      } else {
+        setHtml('transcripts-feed', rows.map(renderTranscriptRow).join(''));
+      }
+      updateBadge('transcripts', rows.length);
+      refreshTranscriptsCost();
+      ensureTranscriptStream();
+    }
+
+    async function refreshTranscriptsCost() {
+      var since = Date.now() - 24 * 60 * 60 * 1000;
+      var data = await apiFetch('/transcripts/cost?since=' + since);
+      var el = document.getElementById('transcripts-cost-summary');
+      if (!data || !el) return;
+      var byShipHtml = (data.by_ship || []).slice(0, 6).map(function(s) {
+        return '<span style="display:inline-block;margin-right:18px"><strong>' + escHtml(s.ship) + '</strong> ' +
+               '<span class="kbd">' + Number(s.runs) + ' runs</span> $' + Number(s.cost_usd).toFixed(4) + '</span>';
+      }).join('');
+      el.innerHTML = '<div><strong>$' + Number(data.total_cost_usd || 0).toFixed(4) +
+                    '</strong> across <strong>' + Number(data.total_runs || 0) + '</strong> runs &middot; ' +
+                    Number(data.total_tokens_in || 0) + ' tokens in &middot; ' + Number(data.total_tokens_out || 0) + ' tokens out</div>' +
+                    (byShipHtml ? '<div style="margin-top:6px">' + byShipHtml + '</div>' : '');
+    }
+
+    function ensureTranscriptStream() {
+      if (transcriptsStreamSource) return;
+      try {
+        transcriptsStreamSource = new EventSource(API + '/transcripts/stream');
+        var statusEl = document.getElementById('transcripts-stream-status');
+        transcriptsStreamSource.addEventListener('connected', function() {
+          if (statusEl) { statusEl.textContent = '● Live'; statusEl.style.color = 'var(--success, #2ecc71)'; }
+        });
+        var handleEvt = function() { refreshTranscripts(); };
+        transcriptsStreamSource.addEventListener('start', handleEvt);
+        transcriptsStreamSource.addEventListener('update', handleEvt);
+        transcriptsStreamSource.addEventListener('end', handleEvt);
+        transcriptsStreamSource.onerror = function() {
+          if (statusEl) { statusEl.textContent = '● Disconnected'; statusEl.style.color = 'var(--danger, #e74c3c)'; }
+          try { transcriptsStreamSource.close(); } catch (e) {}
+          transcriptsStreamSource = null;
+          setTimeout(ensureTranscriptStream, 5000);
+        };
+      } catch (e) { /* SSE unsupported */ }
+    }
+
     /* ── Salvage ── */
     // ── Budget Control: pending kills + wallets ───────────────────────────
     var budgetEventSource = null;
@@ -2146,7 +2369,7 @@
     document.getElementById('command-input').addEventListener('keydown', function(e) {
       if (e.key === 'Enter') {
         var val = this.value.trim().toLowerCase();
-        var panels = ['dashboard','services','agents','sessions','locks','channels','activity','salvage','briefing','webhooks','projects','changelog','config'];
+        var panels = ['dashboard','services','agents','sessions','locks','channels','activity','transcripts','salvage','briefing','webhooks','projects','changelog','config'];
         var match = panels.find(function(p) { return p.indexOf(val) === 0; });
         if (match) { switchPanel(match); this.value = ''; this.blur(); }
       }
@@ -2169,7 +2392,7 @@
       await refreshAll();
       // Fire-and-forget background loads for panels that refreshAll doesn't cover
       var bgPanels = ['services', 'agents', 'sessions', 'locks', 'channels',
-                      'activity', 'salvage', 'webhooks', 'projects', 'changelog'];
+                      'activity', 'transcripts', 'salvage', 'webhooks', 'projects', 'changelog'];
       var currentHash = hash || 'overview';
       bgPanels.forEach(function(p) {
         if (p !== currentHash) {
@@ -2177,6 +2400,7 @@
             services: refreshServices, agents: refreshAgents, sessions: refreshSessions,
             locks: refreshLocks, channels: refreshChannels,
             activity: refreshActivity, roadmap: refreshRoadmap, salvage: refreshSalvage,
+            transcripts: refreshTranscripts,
             webhooks: refreshWebhooks, projects: refreshProjects, changelog: refreshChangelog
           };
           if (fn[p]) fn[p]();
