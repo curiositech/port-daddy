@@ -727,6 +727,8 @@ The proposition is conditional, and the conditions matter. Naming what each one 
 
 The forward reference is direct. Section~\ref{sec:youle:a6} extends the same analytical pattern---stage game, repeated-game lift via observable history, deviation calculation, $\delta$ threshold---to the insurer pricing layer. The strategy profile, the deviation arithmetic, and the role of $\delta$ have identical form. The cartel result there and the claim-signaling result here are not two separate folk theorems; they are one folk theorem applied at two layers of the architecture.
 
+\paragraph{Mechanized claim-signaling.} The argument above is also checked by machine. Standard one-shot-deviation analysis yields the discount-factor threshold $\delta^\star$ as the unique real root in $(0,1)$ of $3\delta^3 + 3\delta^2 + 3\delta - 1 = 0$, numerically $\delta^\star \approx 0.2531$ (matching $\delta^\star_{k=3}$ above). The cubic, the existence-and-uniqueness of its root in $[0.25,\,0.26]$, and a TLA$^{+}$ model checking that no one-shot deviation produces positive discounted payoff at $\delta = 0.26$ are mechanized as \texttt{proofs/economics/delta-threshold.z3} and \texttt{proofs/economics/claim\_signaling.tla}. Both run unattended in CI (\S\ref{app:mech}, Table~\ref{tab:verification-status}).
+
 \subsection{Pricing the Bond}\label{sec:pricing}
 
 What is the right collateral for ``write access to \texttt{auth.ts} for 30 minutes''? The answer requires a pricing function $\pi: \mathcal{F} \rightarrow \mathbb{R}^{+}$ that maps Float Plans to bond amounts. An effective $\pi$ must satisfy:
@@ -859,6 +861,15 @@ One direction for solving $\pi$ is to delegate its computation to a specialized 
 The pricer is priced. Convergence depends on (i) whether the advisor has access to sufficient prior-fleet audit data to pattern-match new projects, (ii) whether reputation history is long enough for discounting to be meaningful, and (iii) whether the population of advisors is large enough for competition to discipline outliers.
 
 \paragraph{$c$ as a project health metric.} A project whose observed $c$ is rising is fraying---breaches cost more to recover from, implying coordination is decaying. The authority can publish $c$ alongside the bond pool and raise required bonds automatically when $c$ crosses a threshold. Homeostatic feedback: risky spawns become expensive when the project needs them least.
+
+\paragraph{Threat-class bond bands and their defensibility.}\label{sec:pricing:threats}
+The pricing function $\pi$ resolves to one of three nominal bands, calibrated to the threat class the bond is defending against:
+\begin{itemize}[nosep]
+  \item \textbf{Careless} (accidental damage during honest attempts): $\pi \in [10\%,\,25\%]$ of the claim ceiling.
+  \item \textbf{Abandonment} (walk-away mid-task; cleanup dominates): $\pi \in [25\%,\,50\%]$ of the claim ceiling.
+  \item \textbf{Sabotage} (intentional destruction; can exceed face value): $\pi \in [100\%,\,200\%]$ of the claim ceiling.
+\end{itemize}
+A Monte Carlo sweep over the cross product of seven plausible threat-distribution mixes and the three bands quantifies defensibility: for every \emph{matched} (mix, band) pair---where the mix concentrates on the class the band is designed to defend against---observed extraction stays within $1.10\times$ the band's upper bound (10\% stochastic tolerance). Off-diagonal cells (e.g. a sabotage-heavy mix posted against the careless band) are surfaced as widening recommendations rather than silent failures. The simulation is mechanized as \texttt{proofs/bonded/pareto/threat-bands.mjs} and runs on every PR (\S\ref{app:mech}, Table~\ref{tab:verification-status}).
 
 \subsubsection{Competitive-Insurance Pricing Mechanism\protect\footnote{This subsection contributed by Thomas Youle (Indiana University, Business Economics \& Public Policy) based on conversations with the primary author in March--April 2026. The mechanism builds on classical competitive-insurance market literature~\cite{rothschildstiglitz1976,wilson1977insurance} adapted to the agent-transactions setting. The text here is a pre-print draft pending economist review of \S\ref{sec:youle:mechanism}--\S\ref{sec:youle:welfare}.}}\label{sec:youle}
 
@@ -1296,6 +1307,8 @@ Merkle-Forest binding (\S\ref{sec:merkle-forest}) & EasyCrypt + fast-check & \Pa
 Pareto dominance (\S\ref{sec:youle:welfare}) & Monte Carlo, 36 configs $\times$ 2k trials & \Partial\ empirical; $\sigma_r{\le}0.1$, $n{=}3$ optimum & \texttt{simulation.mjs} \\
 Sybil A5 (\S\ref{sec:youle:a5}) & Monte Carlo over $K$ Sybils & \Partial\ coverage-bounded ceiling at $B_T$ & \texttt{simulation-sybil.mjs} \\
 Cartel folk-theorem A6 & Monte Carlo + closed form & \Partial\ $p_d^\star{\approx}0.10$ at $\delta{=}0.95$ & \texttt{simulation-cartel.mjs} \\
+Claim-signaling IC (\S\ref{sec:economic}) & TLA+ (TLC) + Z3 SMT & \Closed\ unique root $\delta^\star{\approx}0.2531$; IC invariant holds at $\delta = 0.26$ & \texttt{claim-signaling.tla}, \texttt{delta-threshold.z3} \\
+Threat-band defensibility (\S\ref{sec:pricing}) & Monte Carlo, $7{\times}3$ grid & \Closed\ matched bands absorb target class within $1.10\times$ upper bound & \texttt{threat-bands.mjs} \\
 \midrule
 Passkey pairing runtime & --- & \SpecOnly\ model exists; no runtime & \texttt{passkey-pair.pv} \\
 Federated KMS Cloudflare Worker & --- & \SpecOnly\ model exists; no Worker yet & \texttt{federated.pv} \\
