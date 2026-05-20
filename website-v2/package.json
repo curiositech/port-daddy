@@ -8,6 +8,8 @@
     "prebuild": "npm run generate:seo",
     "build": "tsc -b && vite build",
     "postbuild": "tsx scripts/inject-route-html.mjs",
+    "snap:routes": "tsx scripts/snap-routes.mjs",
+    "build:full": "npm run build && npm run snap:routes",
     "lint": "eslint .",
     "preview": "vite preview",
     "generate:visuals": "node scripts/generate-gemini-assets.mjs",
