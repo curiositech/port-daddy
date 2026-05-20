@@ -1,14 +1,16 @@
 ---
 license: Apache-2.0
-name: smith-1980-contract-net-protocol
-description: Distributed task allocation protocol where agents negotiate task assignments through contract bidding
+name: charrier-et-al-big-brother-logic
+description: Epistemic logic for multi-agent perceptual systems — Kripke models, vision sets, public announcement as coordination primitive, and satisfiability-as-reconfiguration applied to agents with limited observability. From Charrier, Ouchet, Schwarzentruber's "Big Brother Logic" demonstration paper (ENS Rennes / IRISA).
 category: Research & Academic
 tags:
-  - contract-net
-  - distributed-systems
-  - task-allocation
-  - negotiation
-  - agents
+  - epistemic-logic
+  - multi-agent-perception
+  - kripke-models
+  - public-announcement
+  - distributed-knowledge
+  - model-checking
+  - satisfiability
 ---
 
 # SKILL.md — Big Brother Logic: Epistemic Reasoning for Multi-Agent Systems
@@ -16,6 +18,8 @@ tags:
 ## DECISION POINTS
 
 ### Primary Decision Tree: Responding to Partial Information States
+
+> See `diagrams/01_flowchart_knowledge_state_decision_tree.md` for a full branching chart organized by coordination type (tight vs. loose coupling, observable vs. unobservable observers).
 
 ```
 Given: Agent state S, Goal G, Available actions A
@@ -46,6 +50,8 @@ ELSE IF satisfiability_check(S, G) == UNKNOWN
 
 ### Coordination Failure Recovery Decision Tree
 
+> See `diagrams/02_sequenceDiagram_knowledge_propagation_public.md` for a step-by-step view of how public announcement and point-to-point messaging produce different epistemic outcomes.
+
 ```
 When coordination attempt fails between agents A and B:
 
@@ -73,10 +79,10 @@ IF coordination succeeds but action fails
 **Detection Rule:** If agent acts on belief X but cannot rule out scenarios where ¬X, it has false knowledge
 **Fix:** Map agent's vision set; expand perceptual boundaries or add verification step before action
 
-### 2. "Mutual Knowledge Masquerade" 
+### 2. "Mutual Knowledge Masquerade"
 **Symptom:** System assumes coordination after broadcasting message to all agents
 **Detection Rule:** If coordination fails despite "shared" information, check if agents know that others received the message
-**Fix:** Replace broadcast with public announcement protocol; verify common knowledge establishment
+**Fix:** Replace broadcast with public announcement protocol; verify common knowledge establishment (see `references/public-announcement-as-coordination-primitive.md` for the formal mechanism and `references/common-knowledge-coordination-failures.md` for canonical examples including the muddy children puzzle)
 
 ### 3. "Epistemic Goal Drift"
 **Symptom:** Agents follow procedures correctly but system fails to achieve intended outcome
@@ -86,12 +92,12 @@ IF coordination succeeds but action fails
 ### 4. "Centralization Denial"
 **Symptom:** System uses central knowledge computation but claims to be "distributed"
 **Detection Rule:** If any single point of failure can corrupt all agents' knowledge states
-**Fix:** Either accept centralized architecture with honest trade-off documentation, or redesign for true distributed epistemic reasoning
+**Fix:** Either accept centralized architecture with honest trade-off documentation, or redesign for true distributed epistemic reasoning (see `references/centralization-vs-distribution-epistemic-tradeoffs.md` for the paper's own frank admission of this compromise)
 
 ### 5. "Vision Set Mismatch"
 **Symptom:** Agent assigned task requiring information outside its perceptual boundaries
 **Detection Rule:** If agent cannot distinguish scenarios relevant to its assigned task
-**Fix:** Either expand agent's vision set or reassign task to agent with appropriate perceptual access
+**Fix:** Either expand agent's vision set or reassign task to agent with appropriate perceptual access (see `references/vision-sets-and-perceptual-boundary-design.md`)
 
 ## WORKED EXAMPLES
 
@@ -106,13 +112,13 @@ IF coordination succeeds but action fails
 1. satisfiability_check(current_state, "area_secure") → UNKNOWN (A2's sector unverified)
 2. gather_info_viable() → FALSE (A2 cannot provide info)
 3. Reconfigure: A1 and A3 adjust positions to overlap A2's sector
-4. New vision sets: A1 covers east + center, A3 covers west + center  
+4. New vision sets: A1 covers east + center, A3 covers west + center
 5. satisfiability_check(new_state, "area_secure") → TRUE
 6. Execute: Allow human entry
 
 **Expert Insight:** Novice would wait for A2 to recover or manually check the area. Expert recognizes this as satisfiability problem and solves via reconfiguration.
 
-### Example 2: Common Knowledge Coordination 
+### Example 2: Common Knowledge Coordination
 
 **Scenario:** Financial trading agents must execute synchronized trades across markets
 
@@ -123,6 +129,8 @@ IF coordination succeeds but action fails
 - Each agent received message (mutual knowledge)
 - But agents don't know others received it (no common knowledge)
 - Without common knowledge, coordination fails in adversarial environment
+
+> The distinction between distributed knowledge (D{a1,a2}φ) and common knowledge is load-bearing here — see `references/distributed-vs-common-knowledge.md` for the formal treatment.
 
 **Solution:**
 1. Replace broadcast with public announcement requiring confirmation
@@ -141,7 +149,7 @@ Task completion requires ALL conditions satisfied:
 - [ ] Failure mode coverage: System behavior defined for all epistemic failure cases (unknown, false knowledge, coordination failure)
 - [ ] Centralization trade-off documented: If using centralized computation, failure modes and limitations explicitly stated
 - [ ] Communication epistemic effect: Each message's impact on agent Kripke models formally specified
-- [ ] Runtime verification active: Epistemic properties checked before irreversible actions
+- [ ] Runtime verification active: Epistemic properties checked before irreversible actions (see `references/model-checking-as-runtime-verification.md`)
 - [ ] Goal achievability confirmed: All epistemic goals are satisfiable given current system constraints
 - [ ] Boundary condition handling: System behavior defined when goals become unsatisfiable
 
@@ -150,7 +158,7 @@ Task completion requires ALL conditions satisfied:
 **This skill should NOT be used for:**
 
 - Single-agent reasoning tasks → Use standard planning/decision-making frameworks
-- Task coordination with complete shared information → Use workflow management systems  
+- Task coordination with complete shared information → Use workflow management systems
 - Performance optimization of existing working systems → Use profiling/optimization tools
 - Simple message passing between components → Use standard communication patterns
 - Systems where "good enough" coordination is acceptable → Use eventual consistency patterns
@@ -158,7 +166,7 @@ Task completion requires ALL conditions satisfied:
 **Delegate to other skills when:**
 
 - Need real-time performance optimization → [performance-optimization-skill]
-- Designing human-AI interaction workflows → [human-ai-collaboration-skill]  
+- Designing human-AI interaction workflows → [human-ai-collaboration-skill]
 - Building fault-tolerant distributed systems → [distributed-systems-resilience-skill]
 - Implementing security/access control → [multi-agent-security-skill]
 
@@ -167,3 +175,10 @@ Task completion requires ALL conditions satisfied:
 - Coordination failures occur despite agents having "correct" information
 - System must guarantee epistemic properties, not just attempt coordination
 - Need formal verification that agents "know enough" before acting
+
+## Bundled Assets
+
+| Subdirectory | INDEX | What's inside |
+|---|---|---|
+| `diagrams/` | [diagrams/INDEX.md](diagrams/INDEX.md) | Three Mermaid diagrams: knowledge-state decision tree, public-announcement vs. point-to-point sequence, and agent knowledge-state evolution state machine |
+| `references/` | [references/INDEX.md](references/INDEX.md) | Fifteen deep-dive reference docs covering Kripke models, vision sets, public announcement, satisfiability-as-reconfiguration, model checking, centralization trade-offs, and two-phase architecture |
