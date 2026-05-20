@@ -868,8 +868,12 @@ done
 # Cross-cutting consumer (read-only, runs while auditors work)
 pd watch sec:findings --exec 'echo "$PD_MESSAGE_CONTENT" >> .audit/live-feed.log'
 
-# Read the consolidated blackboard
+# Read the consolidated blackboard. `pd notes` filters: --type and --project
+# are wired; --agent and --since are NOT (see gaps). For per-agent filtering,
+# enumerate the agent's sessions and read each:
 pd notes --type vuln --project port-daddy --limit 200
+pd sessions --agent myrepo:claude:audit-routes -j | jq -r '.sessions[].id' | \
+  xargs -I S pd notes S --type vuln --limit 50
 pd pheromone files --limit 20    # which files are hottest right now
 ```
 
@@ -882,29 +886,41 @@ continues. The simplest possible coordination — but easy to do badly. Most
 **PD command sequence.**
 
 ```bash
-# Requester
-pd tube ask:reviewer --send "Is this commit safe to deploy to prod? sha=abc1234"
+# Requester — posts the question and grabs the parent event id back
+qid=$(pd tube ask:reviewer --send "Is this commit safe to deploy to prod? sha=abc1234" \
+        --json | jq -r .id)
 
 # Block on reply (default --wait-for is 600s; the tube long-polls)
 reply=$(pd tube ask:reviewer --once --wait-for=300 --json | \
-  jq -r 'select(.inReplyTo) | .body')
+  jq -r --arg q "$qid" 'select(.inReplyTo == ($q|tonumber)) | .body')
 
-# Responder (long-running)
-pd tube ask:reviewer --tail | while read -r line; do
+# Responder (long-running). Each iteration is a fresh process, so the cursor
+# from --tail does NOT persist into the child --reply invocation — we must
+# pass --reply-to=<id> explicitly with the parent event id from the message.
+pd tube ask:reviewer --tail --json | jq -rc '. | {id, body}' | while read -r line; do
+  pid=$(echo "$line" | jq -r .id)
   msg=$(echo "$line" | jq -r .body)
   verdict=$(./safety-check.sh "$msg")
-  pd tube ask:reviewer --reply "$verdict" --send
+  echo "$verdict" | pd tube ask:reviewer --reply-to=$pid --once
 done
 ```
 
 **Primitive mapping.**
 
-- The channel + the tube's `--reply-to` correlation give you request/response
-  semantics over the daemon's pub/sub: each reply carries the parent id, so
-  the requester can filter responses to its own questions.
-- For direct one-to-one calls where the responder is a known actor, prefer
-  `pd actor <id> --message "..."` — the actor mailbox is durable and
-  addressable.
+- The channel + the tube's `--reply-to=<id>` correlation give you
+  request/response semantics over the daemon's pub/sub: each reply carries
+  the parent event id, so the requester can filter responses to its own
+  questions.
+- The implicit `--reply` (without `--reply-to`) only works when the *same*
+  tube invocation has already received an event via `--tail` (the cursor is
+  process-local). The daemon will refuse it otherwise with: *"no event to
+  reply to yet — listen first ... or pass --reply-to=<id>"*. In a shell
+  pipeline where the listener and the replier are different processes, always
+  pass `--reply-to=<id>` explicitly.
+- For direct one-to-one calls where the responder is a *canonical* actor on
+  the roster, prefer `pd actor <id> --message "..."` — the actor mailbox is
+  durable and addressable. For free-form identities, `pd inbox send <id>` is
+  the equivalent.
 
 **When to use.** Tight question/answer turns with one known responder. Tool
 calls that happen to be implemented by another agent. Quick "is this safe?"
@@ -914,22 +930,32 @@ gates.
 the tube in its full crank-handle mode (debate, critique-refine), not a
 one-shot.
 
-**Failure mode.** Responder is offline; requester blocks until `--wait-for`
-expires. Mitigation: always pass `--wait-for` explicitly with a number you can
-defend; on timeout, fall through to a fallback path. For genuinely critical
-requests, fan out to multiple responders and take the first (see fan-out/fan-in
-worked example with `--signal roger`).
+**Failure mode (offline responder).** Responder is offline; requester blocks
+until `--wait-for` expires. Mitigation: always pass `--wait-for` explicitly
+with a number you can defend; on timeout, fall through to a fallback path.
+For genuinely critical requests, fan out to multiple responders and take the
+first (see fan-out/fan-in worked example).
+
+**Failure mode (silent partial success).** If you mix `pd say` (which writes
+both a tuple and a broadcast event in one shot) into an R/R recipe and there
+is *no active session*, the tuple write succeeds and the note half silently
+fails. Symptom: subscribers see the broadcast, but `pd notes` shows nothing.
+Mitigation: only use `pd say` from inside a `pd begin`/`pd done` session, and
+prefer `pd inbox send` / `pd tube --send` for cross-agent signaling that
+should not be conditional on session presence.
 
 **Worked example — "Deploy gate: ask the on-call reviewer if a hotfix is safe."**
 
 ```bash
 # Deployer
 question='{"sha":"abc1234","files":["lib/auth.ts"],"diff_url":"https://…","severity":"high"}'
-pd tube ask:safety --send "$question"
+qid=$(pd tube ask:safety --send "$question" --json | jq -r .id)
 
-# Block up to 5 minutes for a response
+# Block up to 5 minutes for a response. Match by inReplyTo == qid so a stale
+# message from a previous run does not poison this gate.
 verdict=$(pd tube ask:safety --once --wait-for=300 --json | \
-  jq -r 'select(.inReplyTo and (.body | test("^(approve|reject)"))) | .body')
+  jq -r --arg q "$qid" 'select(.inReplyTo == ($q|tonumber) and \
+                                (.body | test("^(approve|reject)"))) | .body')
 
 case "$verdict" in
   approve*) ./deploy.sh ;;
@@ -938,13 +964,15 @@ case "$verdict" in
             ./canary.sh ;;
 esac
 
-# On-call responder (always-on)
-pd tube ask:safety --tail --json | while read -r line; do
+# On-call responder (always-on). Replies use --reply-to=<id> with the
+# requester's event id so the cursor scope is correct across processes.
+pd tube ask:safety --tail --json | jq -rc '. | {id, body}' | while read -r line; do
+  pid=$(echo "$line" | jq -r .id)
   q=$(echo "$line" | jq -r .body)
   if ./safety-check.sh "$q"; then
-    pd tube ask:safety --reply "approve: passed safety-check.sh" --send
+    echo "approve: passed safety-check.sh" | pd tube ask:safety --reply-to=$pid --once
   else
-    pd tube ask:safety --reply "reject: failed safety-check.sh" --send
+    echo "reject: failed safety-check.sh" | pd tube ask:safety --reply-to=$pid --once
   fi
 done
 ```
@@ -988,6 +1016,17 @@ close.
 - **Actor message-typing is freeform.** `pd actor <id> --message` takes a string;
   it does not enforce a schema. For RPC-shaped supervisor-worker, both sides
   must agree on a JSON shape out-of-band.
+- **`pd notes` filter coverage is partial.** Only `--type` and `--project`
+  actually filter the result set today; `--agent` and `--since` parse cleanly
+  but silently no-op (output is identical with or without them). For
+  per-agent reads, enumerate that agent's sessions via `pd sessions --agent
+  <id> -j` then read each session's notes; for time windows, post-filter on
+  the JSON output.
+- **Cross-session notes cannot exist.** A note is Merkle-chained on exactly
+  one session and ownership is load-bearing for the audit ledger. Recipes that
+  look like they want a `pd note --session <other>` write actually want either
+  `pd inbox send <recipient-identity>` (cross-agent DM, persisted) or
+  `pd actor <canonical-id> --message` (when the recipient is a roster actor).
 
 None of these are blockers. They're the seams. When you hit one, the answer is
 almost always "wrap a thin shell loop around the primitive that's closest" —
