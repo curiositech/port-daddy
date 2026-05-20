@@ -31,9 +31,14 @@ Each entry is built the same way so you can grep, skim, or paste-and-go:
 5. **Failure mode + PD-native mitigation** — the most likely thing that breaks.
 6. **Worked example** — a concrete scenario with end-to-end commands.
 
-Identities in examples follow the project's `<runtime>:<task>` convention
-(`claude:auth-rewrite`, `codex:test-gen`, `aider:sweep`). Real worktrees, real
-file paths, no placeholder `agent-1`s.
+Identities in examples follow the daemon's `project:stack:context` three-segment
+convention (`myrepo:claude:auth-rewrite`, `myrepo:myrepo:codex:test-gen`,
+`port-daddy:aider:sweep`). The first segment is the project slug — leaving it
+out (a two-segment form like `claude:auth-rewrite`) collapses the runtime into
+the project slot and silently breaks project-scoped briefings, cartographer
+aggregation, and the salvage queue. See
+[ADR-0003 on semantic identities](../adr/0003-semantic-identity-system.md) for
+the rationale. Real worktrees, real file paths, no placeholder `agent-1`s.
 
 A short glossary, then the patterns.
 
@@ -81,11 +86,11 @@ agent + tool-using subagents" you've ever written.
 
 ```bash
 # Coordinator
-pd begin "ship v4.2" --identity claude:lead --files docs/ROADMAP.md
-pd spawn --backend claude-cli --identity claude:auth-rewrite \
+pd begin "ship v4.2" --identity myrepo:claude:lead --files docs/ROADMAP.md
+pd spawn --backend claude-cli --identity myrepo:claude:auth-rewrite \
   --purpose "rewrite token refresh" --budget 2.50 \
   -- "Refactor refreshToken() in lib/auth.ts. Acceptance: tests pass, no Date.now()."
-pd spawn --backend codex --identity codex:test-gen \
+pd spawn --backend codex --identity myrepo:codex:test-gen \
   --purpose "generate missing tests" --budget 1.00 \
   -- "Add unit tests for refreshToken() — must exercise the 401 retry path."
 pd spawned                                # poll until both report status=completed
@@ -118,10 +123,10 @@ activity log.
 
 ```bash
 # Coordinator
-pd begin "shard jest run across 12 packages" --identity claude:test-runner
+pd begin "shard jest run across 12 packages" --identity myrepo:claude:test-runner
 
 for pkg in apps/* packages/*; do
-  pd spawn --backend claude-cli --identity claude:shard-$(basename $pkg) \
+  pd spawn --backend claude-cli --identity myrepo:claude:shard-$(basename $pkg) \
     --purpose "run tests in $pkg" --budget 0.40 \
     -- "cd $pkg && npm test --json > .test-out.json; pd note \"shard $pkg \$(jq -r .success .test-out.json)\""
 done
@@ -149,7 +154,7 @@ distributed work where any agent is allowed to grab any unit of work, and the
 
 ```bash
 # Every peer registers and subscribes — symmetric
-pd begin "harvest stale TODOs" --identity codex:harvest-${SHARD}
+pd begin "harvest stale TODOs" --identity myrepo:codex:harvest-${SHARD}
 pd watch coord:harvest --exec ./peer-tick.sh --max-concurrent 1 &
 # inside peer-tick.sh: try to claim a TODO via the tuple space
 #   pd tuple in '["todo","pending","*"]' --limit 1 --harbor harvest
@@ -192,7 +197,7 @@ for f in $(rg -l 'TODO\(stale\)' --type-add 'src:*.{ts,tsx}' -tsrc); do
 done
 
 # Each peer (run on three workstations)
-pd begin "harvest" --identity codex:peer-$HOSTNAME
+pd begin "harvest" --identity myrepo:codex:peer-$HOSTNAME
 while true; do
   claimed=$(pd tuple in '["todo","pending","*"]' --harbor harvest --limit 1 -j)
   [ "$(echo $claimed | jq '.taken | length')" = "0" ] && break
@@ -218,14 +223,14 @@ ChatDev's "Designer → Coder → Tester" really runs when each layer can fan ou
 
 ```bash
 # Depth-0 lead
-pd begin "v5 platform migration" --identity claude:platform-lead
+pd begin "v5 platform migration" --identity myrepo:claude:platform-lead
 
 # Depth-1 sub-leads spawn from inside the lead
-pd spawn --backend claude-cli --identity claude:sublead-frontend \
+pd spawn --backend claude-cli --identity myrepo:claude:sublead-frontend \
   --purpose "drive frontend migration" --budget 5.00 \
   -- "You are sub-lead for FE migration. Use pd spawn to fan out per package. Budget 5 USD."
 
-pd spawn --backend claude-cli --identity claude:sublead-backend \
+pd spawn --backend claude-cli --identity myrepo:claude:sublead-backend \
   --purpose "drive backend migration" --budget 5.00 \
   -- "You are sub-lead for BE migration. Use pd spawn for db, api, workers."
 
@@ -235,7 +240,7 @@ pd spawn --backend claude-cli --identity claude:sublead-backend \
 **Primitive mapping.**
 
 - Each level is a `pd begin` session whose `--identity` encodes the depth:
-  `claude:platform-lead` → `claude:sublead-frontend` → `claude:leaf-fe-checkout`.
+  `myrepo:claude:platform-lead` → `myrepo:claude:sublead-frontend` → `myrepo:claude:leaf-fe-checkout`.
 - Parent/child linkage lives implicitly in the spawn chain (the spawning agent
   is recorded in the activity log) and explicitly via `pd note --type
   delegation` on the parent when it dispatches.
@@ -261,16 +266,16 @@ queue surfaces the dead sub-lead so a human can replace it.
 
 ```bash
 # L0
-pd begin "v5 sweep" --identity claude:l0-lead
+pd begin "v5 sweep" --identity myrepo:claude:l0-lead
 pd note "Decomposition: 3 sub-leads, ~20 packages each" --type plan
 
 # L1 — FE sub-lead (spawned by L0)
-pd spawn --backend claude-cli --identity claude:l1-fe --budget 8 \
+pd spawn --backend claude-cli --identity myrepo:claude:l1-fe --budget 8 \
   --purpose "lead FE 20-pkg migration" \
-  -- "Spawn one claude:l2-fe-<pkg> per FE package. Aggregate their pd notes type=result. Report up via pd note --agent claude:l0-lead --type result when 100%."
+  -- "Spawn one myrepo:claude:l2-fe-<pkg> per FE package. Aggregate their pd notes type=result. Report up via pd note --agent myrepo:claude:l0-lead --type result when 100%."
 
 # L2 — leaves (spawned by L1 inside its prompt)
-# e.g. pd spawn --backend claude-cli --identity claude:l2-fe-checkout --budget 0.50 -- "migrate checkout"
+# e.g. pd spawn --backend claude-cli --identity myrepo:claude:l2-fe-checkout --budget 0.50 -- "migrate checkout"
 
 # L0 watches roll-up notes
 pd notes --type result --limit 50 -j | \
@@ -353,14 +358,14 @@ search, redundant-execution-with-vote.
 
 ```bash
 # Fan out
-pd begin "audit all 47 routes" --identity claude:audit-lead
+pd begin "audit all 47 routes" --identity myrepo:claude:audit-lead
 pd channels ensure audit:results --scope repo
 
 for route in $(rg -l '/api/v[0-9]+/' --type ts | sort -u); do
-  pd spawn --backend claude-cli --identity claude:audit-$(basename $route .ts) \
+  pd spawn --backend claude-cli --identity myrepo:claude:audit-$(basename $route .ts) \
     --purpose "audit $route" --budget 0.30 \
     -- "Audit $route for OWASP top-10. Append findings: pd pub audit:results \
-        '{\"route\":\"$route\",\"issues\":N}' --sender audit-$(basename $route .ts)"
+        '{\"route\":\"$route\",\"issues\":N}' --sender myrepo:claude:audit-$(basename $route .ts)"
 done
 
 # Fan in — block until 47 messages land or budget expires
@@ -397,11 +402,11 @@ all|majority|first|N`) — the gather logic is yours to write. See gaps below.
 clean approval."**
 
 ```bash
-pd begin "first-clean PR review" --identity claude:review-lead
+pd begin "first-clean PR review" --identity myrepo:claude:review-lead
 pd channels ensure review:verdict --scope branch
 
 for r in claude codex gemini; do
-  pd spawn --backend $r --identity $r:review-pr-482 --budget 0.80 \
+  pd spawn --backend $r --identity myrepo:$r:review-pr-482 --budget 0.80 \
     --purpose "review PR 482" \
     -- "Run lint, tests, and a security check on PR 482. \
         On approval: pd pub review:verdict '{\"verdict\":\"approve\",\"by\":\"$r\"}' --signal roger. \
@@ -463,18 +468,18 @@ project manager pattern.
 
 ```bash
 # Supervisor
-pd begin "schedule release" --identity claude:supervisor
+pd begin "schedule release" --identity myrepo:claude:supervisor
 
 # Direct dispatch via actor mailbox (durable, addressable)
 pd actor cartographer --message "Re-run cartographer scan over apps/marketing for the v4.2 promote."
 
 # Or via spawn for ephemeral worker
-pd spawn --backend codex --identity codex:release-notes --budget 1.50 \
+pd spawn --backend codex --identity myrepo:codex:release-notes --budget 1.50 \
   --purpose "draft v4.2 release notes from changelog" \
   -- "Read CHANGELOG.md, draft the v4.2 notes section, pd note --type result on completion."
 
 # Watch for completion
-pd inbox watch --agent claude:supervisor &
+pd inbox watch --agent myrepo:claude:supervisor &
 ```
 
 **Primitive mapping.**
@@ -482,7 +487,7 @@ pd inbox watch --agent claude:supervisor &
 - The "task order" goes into a structured note or actor message — not chat.
 - Acceptance criteria live as a `pd note --type acceptance` on the supervisor's
   session. Workers `pd notes --session <supervisor>` to read them.
-- Completion comes back via `pd inbox send claude:supervisor` (DM) or via
+- Completion comes back via `pd inbox send myrepo:claude:supervisor` (DM) or via
   `pd note --type result` on the worker session.
 
 **When to use.** Tasks have a single accountable owner and the supervisor must
@@ -500,7 +505,7 @@ supervisor takes over via `pd salvage claim`.
 
 ```bash
 # Author opens session
-pd begin "feature: TOTP login" --identity claude:author-totp \
+pd begin "feature: TOTP login" --identity myrepo:claude:author-totp \
   --files apps/auth/totp.ts apps/auth/totp.test.ts
 
 # Author signals "ready for review"
@@ -509,24 +514,24 @@ pd say "TOTP login ready for review on branch feat-totp" \
   --kind review-request
 
 # Reviewer claims
-pd begin "review feat-totp" --identity codex:reviewer-totp
+pd begin "review feat-totp" --identity myrepo:codex:reviewer-totp
 pd note --type acceptance \
   "Acceptance: TOTP window=30s, secret length=160 bits, test covers replay" \
   --session $(pd whoami -q | cut -d: -f2)
 
 # Reviewer reads author's session notes & files
-pd sessions --agent claude:author-totp -j | jq -r '.sessions[].id' | \
+pd sessions --agent myrepo:claude:author-totp -j | jq -r '.sessions[].id' | \
   xargs -I {} pd notes {} --limit 50
 pd files | grep totp                    # see what author claimed
 
 # Reviewer issues findings
-pd inbox send claude:author-totp "Block: replay test missing. See note 14b3."
+pd inbox send myrepo:claude:author-totp "Block: replay test missing. See note 14b3."
 pd note "Found 1 blocking issue: missing replay test" --type review
 
 # Author fixes, signals re-review
 pd say "re-pushed: replay test added (commit abc1234)" --pin --broadcast review:requests
 # Reviewer re-runs the acceptance check, then:
-pd inbox send claude:author-totp "Approved. Merge when green."
+pd inbox send myrepo:claude:author-totp "Approved. Merge when green."
 pd done "approved feat-totp"
 ```
 
@@ -542,14 +547,14 @@ is rigid: argue → rebut → judge → record.
 
 ```bash
 # Convening agent
-pd begin "decide: rewrite vs patch the auth module" --identity claude:moderator
+pd begin "decide: rewrite vs patch the auth module" --identity myrepo:claude:moderator
 pd channels ensure debate:auth --scope branch
 
-pd spawn --backend claude-cli --identity claude:advocate-rewrite \
+pd spawn --backend claude-cli --identity myrepo:claude:advocate-rewrite \
   --purpose "advocate for full rewrite" --budget 1.50 \
   -- "Argue for rewriting lib/auth.ts. Post each argument: pd pub debate:auth …"
 
-pd spawn --backend codex --identity codex:advocate-patch \
+pd spawn --backend codex --identity myrepo:codex:advocate-patch \
   --purpose "advocate for in-place patch" --budget 1.50 \
   -- "Argue for patching lib/auth.ts. Post each argument: pd pub debate:auth …"
 
@@ -557,7 +562,7 @@ pd spawn --backend codex --identity codex:advocate-patch \
 pd tube debate:auth --tail --wait-for=900
 
 # Judge step
-pd spawn --backend gemini --identity gemini:judge-auth \
+pd spawn --backend gemini --identity myrepo:gemini:judge-auth \
   --purpose "judge the auth debate" --budget 0.80 \
   -- "Read pd tube debate:auth --once and pd notes --type argument. \
       Write final verdict via pd note --type verdict. Cite specific arguments by id."
@@ -588,21 +593,21 @@ runs out before they can dominate, and have the judge explicitly score
 **Worked example — "Should we adopt React Server Components in apps/marketing?"**
 
 ```bash
-pd begin "RSC adoption decision" --identity claude:moderator
+pd begin "RSC adoption decision" --identity myrepo:claude:moderator
 pd channels ensure debate:rsc --scope repo
 
-pd spawn --backend claude --identity claude:pro-rsc --budget 2.00 \
+pd spawn --backend claude --identity myrepo:claude:pro-rsc --budget 2.00 \
   -- "Make the strongest case for RSC in apps/marketing. 3 arguments max, each as \
       pd pub debate:rsc with structure {position:'pro', point:N, claim:…, evidence:…}."
 
-pd spawn --backend codex --identity codex:anti-rsc --budget 2.00 \
+pd spawn --backend codex --identity myrepo:codex:anti-rsc --budget 2.00 \
   -- "Make the strongest case against. Same shape, position:'anti'. \
       Use pd tube debate:rsc --once between turns to read the latest pro argument and rebut."
 
 pd tube debate:rsc --tail --wait-for=1200 | tee /dev/stderr | \
   jq -c 'select(.body | fromjson? | .point == 3)' | head -2  # wait for both 3rd points
 
-pd spawn --backend gemini --identity gemini:rsc-judge --budget 1.00 \
+pd spawn --backend gemini --identity myrepo:gemini:rsc-judge --budget 1.00 \
   -- "Read the debate. Score balance (0-1), name the strongest unanswered argument, \
       issue verdict. Write via pd note --type verdict."
 
@@ -620,14 +625,14 @@ asymmetric roles and they're cooperating, not opposing.
 **PD command sequence.**
 
 ```bash
-pd begin "draft v4.2 announcement" --identity claude:author
+pd begin "draft v4.2 announcement" --identity myrepo:claude:author
 pd channels ensure refine:announce --scope branch
 
 # Author posts draft N
 pd pub refine:announce '{"round":1,"draft":"…"}' --signal report
 
 # Critic
-pd spawn --backend codex --identity codex:critic-announce --budget 1.20 \
+pd spawn --backend codex --identity myrepo:codex:critic-announce --budget 1.20 \
   -- "Loop: pd tube refine:announce --once → critique latest draft against \
       style guide → pd tube refine:announce --reply '{...feedback...}'. \
       Exit when you can sign off."
@@ -663,10 +668,10 @@ too — when the critic's `--budget` runs out, it's done arguing.
 **Worked example — "Draft the v4.2 release blog post."**
 
 ```bash
-pd begin "v4.2 release blog" --identity claude:blog-author --files content/blog/v4.2.md
+pd begin "v4.2 release blog" --identity myrepo:claude:blog-author --files content/blog/v4.2.md
 
 # Spawn critic — long-running loop
-pd spawn --backend codex --identity codex:blog-critic --budget 2.00 \
+pd spawn --backend codex --identity myrepo:codex:blog-critic --budget 2.00 \
   --purpose "iterate v4.2 blog with author" \
   -- "Critique style/voice/accuracy vs other posts in content/blog. Sign off when ready."
 
@@ -700,14 +705,14 @@ pid=$(pd quorum propose \
   --role merge-pr-482 \
   --reason "PR-482 reviewed by 3 agents, requesting merge" \
   --threshold 2 \
-  --as claude:supervisor \
+  --as myrepo:claude:supervisor \
   --harbor release \
   --ttl-ms 3600000 -q)
 
 # Voters
-pd quorum vote --proposal $pid --as claude:reviewer-1 --stance yes
-pd quorum vote --proposal $pid --as codex:reviewer-2  --stance yes --weight 2
-pd quorum vote --proposal $pid --as gemini:reviewer-3 --stance abstain
+pd quorum vote --proposal $pid --as myrepo:claude:reviewer-1 --stance yes
+pd quorum vote --proposal $pid --as myrepo:codex:reviewer-2  --stance yes --weight 2
+pd quorum vote --proposal $pid --as myrepo:gemini:reviewer-3 --stance abstain
 
 # Check
 pd quorum show $pid    # passed: true/false, remainingNeeded: N
@@ -742,7 +747,7 @@ pid=$(pd quorum propose \
   --role merge-pr-482 \
   --reason "Auto-merge if 2 of 3 reviewers approve" \
   --threshold 2 \
-  --as ci:merger \
+  --as myrepo:ci:merger \
   --harbor release \
   --ttl-ms 7200000 \
   --auto-spawn -q)
@@ -757,8 +762,8 @@ while sleep 60; do
 done
 
 # Reviewers (any time before TTL)
-pd quorum vote --proposal $pid --as claude:reviewer-1 --stance yes
-pd quorum vote --proposal $pid --as codex:reviewer-2  --stance yes
+pd quorum vote --proposal $pid --as myrepo:claude:reviewer-1 --stance yes
+pd quorum vote --proposal $pid --as myrepo:codex:reviewer-2  --stance yes
 # Third reviewer optional — threshold already met after #2
 ```
 
@@ -818,7 +823,7 @@ pd note "Threat model: OWASP Top-10 + supply-chain. Pin findings with --type vul
 
 # Spawn five auditors with non-overlapping scopes
 for scope in routes models services workers config; do
-  pd spawn --backend claude-cli --identity claude:audit-$scope --budget 1.50 \
+  pd spawn --backend claude-cli --identity myrepo:claude:audit-$scope --budget 1.50 \
     --purpose "audit $scope" \
     -- "Audit apps/**/$scope/** for OWASP issues. For each finding: \
         pd say '<one-line>' --pin --harbor sec-audit --kind vuln \
