@@ -558,6 +558,8 @@ Fleet status now reflects mailbox semantics: repeated trigger bursts collapse in
 
 The daemon-served control plane now has an explicit `Agents` surface alongside the fleet graph. It is the operator view for all agents in a project slice: configured fleet agents, live registry entries, spawned runs, salvage ghosts, inbox traffic, recent sessions/notes, known pub/sub bindings, and active file claims.
 
+**Fleet output goes to GitHub, not channels.** As of the 2026-05-20 retool, ships in `pd-fleet.yml` write to GitHub PR comments, issues, and draft PRs — not pub/sub channels. The shared primitive is `lib/fleet/github-output.ts` (`postPRComment`, `openIssue`, `openDraftPR`, `closeIssue`). Each ship posts at most one comment per PR, edited in place on resync. Channels still exist — they're how ships chain to other ships — but they're internal plumbing, not the operator surface. See `docs/fleet/2026-05-20-retool.md` for the full migration and `fleet/ships/*.md` for individual behavior contracts. Port Daddy's own fleet now runs eleven ships: `gardener`, `qa`, `test-hunter`, `documentarian`, `cartographer`, `spider` plus the five added in the retool — `code-reviewer`, `red-team`, `test-author`, `tautology-sniffer`, `unspider`. `simplifier` and `spark` ship paused; unpause when you want them.
+
 ### Bonds & Budget Guard
 
 Port Daddy escrows virtual USD before each agent spawn and can SIGTERM live spawns that breach their daily budget. Spend is observable (cost-tracker); enforcement is separate (bonds). You top up a project wallet; every spawn debits a small bond; clean exits refund it; misbehavior slashes it. `pd fleet panic` arms a two-step global kill-switch that **refunds** (not slashes) every running bond — operator action is not agent misbehavior.
