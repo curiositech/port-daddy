@@ -1,0 +1,160 @@
+# pd-fleet-personal.example.yml
+#
+# A starter pd-fleet.yml for the *personal-agent* shape — always-on agents
+# that live outside any dev repo. Their triggers come from email, SMS,
+# calendar, file-watch, and webhooks; their outputs write to your
+# notifications, your calendar, your notes folder, your phone.
+#
+# COPY-AND-ADAPT:
+#   cp pd-fleet-personal.example.yml ~/personal/pd-fleet.yml
+#   cd ~/personal
+#   pd fleet up
+#
+# This yml is a SUPERSET of the dev-repo fleet shape. Every existing field
+# (schedule:, trigger:, on_success:, etc.) still works. The new bits are:
+#   - `triggers:` (list) replacing `trigger:` (singular) so a ship can
+#     fire on any of several events
+#   - `outputs:` (list) declaring where the ship's answer goes
+#   - `daily_cap_usd:` per ship as a hard budget ceiling
+#   - extended trigger source syntax (email:, sms:, calendar:, file:,
+#     webhook:, pd:)
+#   - extended output sink syntax (notify:, calendar:, email:, sms:,
+#     webhook:, file:, pd:)
+#
+# CONSENT: every output sink that touches PII calls through
+# lib/fleet/consent-gate.ts before dispatching. The first time a ship
+# tries to write to a calendar or send an email, the gate refuses and
+# tells you the exact `pd fleet consent grant` command to run.
+
+fleet:
+  name: personal
+  harbor: personal:fleet
+
+  limits:
+    max_concurrent_spawns: 2
+    max_spawns_per_hour: 20
+    budget_usd_per_day: 1.00          # personal fleets stay cheap
+
+  agents:
+
+    # ── 1. Morning Briefing ──────────────────────────────────────────────
+    # Every weekday at 8am AND on any overnight newsletter, build a
+    # one-page briefing. Writes a markdown file + fires a macOS banner.
+    morning-briefing:
+      triggers:
+        - schedule:0 8 * * 1-5
+        - email:received(from:newsletter@*)
+      outputs:
+        - notify:os
+        - file:write(~/notes/morning-{date}.md)
+      backend_preference:
+        - cli:claude-code           # use your Claude Max subscription
+        - cli:codex
+        - cloudflare/qwen3-30b
+      singleton: true
+      daily_cap_usd: 0.10
+      identity: personal:fleet:morning-briefing
+      telos: "Be the operator's first calm signal at 8am."
+      prompt: |
+        See fleet/ships/morning-briefing.md for the full prompt.
+
+    # ── 2. Commitment Extractor ──────────────────────────────────────────
+    # Watch outbound iMessages. When the operator writes "I'll do X by
+    # Friday", extract the promise into a journal + a calendar reminder.
+    commitment-extractor:
+      triggers:
+        - sms:received
+      outputs:
+        - file:write(~/notes/commitments.md)
+        - calendar:create-event
+      backend_preference:
+        - cli:claude-code
+        - cli:codex
+      daily_cap_usd: 0.20
+      cooldown_ms: 60000
+      identity: personal:fleet:commitment-extractor
+      telos: "Catch the promises before they leave the conversation."
+      prompt: |
+        See fleet/ships/commitment-extractor.md for the full prompt.
+
+    # ── 3. End-of-Day Reflector ──────────────────────────────────────────
+    # 6pm weekdays: read the morning briefing + commitments + today's
+    # calendar, write a short reflection.
+    eod-reflector:
+      triggers:
+        - schedule:0 18 * * 1-5
+      outputs:
+        - file:write(~/notes/reflection-{date}.md)
+        - notify:os
+      backend_preference:
+        - cli:claude-code
+        - cli:codex
+      singleton: true
+      daily_cap_usd: 0.05
+      identity: personal:fleet:eod-reflector
+      prompt: |
+        Read the morning briefing at ~/notes/morning-{date}.md, today's
+        ~/notes/commitments.md additions (grep for today's date), and the
+        operator's calendar history for today. Write a 5-line reflection
+        in this exact shape, no preamble:
+
+          # Reflection — {date}
+          - Did:    {what got moved}
+          - Open:   {biggest unmet commitment from today}
+          - Tomorrow's anchor: {one sentence}
+
+        Write to file:write with pii=low. Then fire a notify:os with the
+        "Tomorrow's anchor" line as the body so the operator's last touch
+        of the workday is a clear signal about morning's first move.
+
+    # ── 4. Important-Email Notifier ──────────────────────────────────────
+    # File-watch trigger on the operator's notes folder, in case the
+    # operator likes the "drop a file in inbox/ and let the fleet handle
+    # it" pattern. Demonstrates file:changed as a trigger.
+    notes-inbox-handler:
+      triggers:
+        - file:changed(~/notes/inbox/)
+      outputs:
+        - notify:os
+        - file:write(~/notes/processed/{date}-handled.md)
+      backend_preference:
+        - cli:claude-code
+      daily_cap_usd: 0.05
+      identity: personal:fleet:notes-inbox
+      prompt: |
+        A file just landed in ~/notes/inbox/. Read it. Classify it
+        ("idea", "task", "reference", "noise"). If it's a task, append
+        the task line to ~/notes/today.md (file:write append). If it's a
+        reference, move it to ~/notes/reference/ via file:write. If it's
+        an idea, append to ~/notes/ideas.md. Either way fire a notify:os
+        with the classification.
+
+    # ── 5. Webhook Catchall ──────────────────────────────────────────────
+    # Generic escape hatch. POST anything to
+    # http://localhost:9876/webhooks/zapier and this ship will answer.
+    # Lets the operator wire Zapier, Tasker, Shortcuts, etc. into the
+    # fleet without writing code.
+    zapier-catchall:
+      triggers:
+        - webhook:zapier(secret:PD_ZAPIER_SECRET)
+      outputs:
+        - file:write(~/notes/inbound-{date}-{time}.md)
+        - notify:os
+      backend_preference:
+        - cli:claude-code
+      daily_cap_usd: 0.05
+      identity: personal:fleet:zapier
+      prompt: |
+        A webhook payload arrived from Zapier. The body is in
+        event.payload.body. Summarize in 3 lines, decide what kind of
+        signal it is, and write a stub to disk so the operator can
+        review on their next pass. notify:os only for HIGH-priority
+        signals (decide what counts; default is to NOT notify).
+
+  channels:
+    # Personal fleets rarely need cross-agent channels — the file system
+    # is the bulletin board. But if you want a ship to fan out to two
+    # others, declare it here the same way the dev-repo fleet does.
+    important:detected:
+      description: "Used by agents to escalate to a notify-everywhere watcher."
+      consumers: []
