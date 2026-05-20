@@ -1,0 +1,11 @@
+A central admiralty anchor surrounded by seven small ship silhouettes orbiting it in a clean circular arrangement, rendered as a flat architectural-blueprint illustration on a cream background.
+
+The anchor: centered, drawn in cobalt blue #003fb8 with near-black #1f1f1f crisp thin outlines and hatched shading on the shank. Classic admiralty pattern — curved crown, two flukes, a horizontal stock at the top. Geometric and ruler-clean, not ornate.
+
+The seven ships: small simple sailboat silhouettes (one hull + one triangular sail each), arranged evenly around the anchor on an invisible circle. Each ship is a flat fill in deep teal / sage green #006b5f with a thin near-black outline. The ships are tiny relative to the anchor — they read as a constellation, not as individual subjects. Each ship's bow points along the orbit (i.e. they're sailing around, not pointing at the anchor).
+
+Background: pure cream #f2eee6 dominates. A faint cobalt circular guide line through the centers of the seven ships — barely visible, thin, dashed.
+
+Composition: strict bilateral symmetry around the anchor's vertical axis. Square 1:1 framing. Generous cream margin. The seven ships must remain legible at 60×60px — keep them simple silhouettes, never detailed.
+
+No text, no labels, no numbers, no watermarks. No 3D, no photorealism, no painterly rendering, no amber/warm/cinnabar palette. Strict flat blueprint language: cobalt, sage, near-black, on cream.
