@@ -2067,6 +2067,13 @@ export async function main(): Promise<void> {
     process.exit(0);
   }
 
+  // Splash flag — 90s title-card flourish. Honors NO_COLOR + non-TTY for CI.
+  if (command === '--splash' || command === 'splash') {
+    const { renderSplash } = await import('../lib/splash.js');
+    console.log(renderSplash());
+    process.exit(0);
+  }
+
   const isQuiet: boolean = args.includes('--quiet') || args.includes('-q') || args.includes('--json') || args.includes('-j');
   
   if (shouldCheckDaemonFreshness(command as string, args)) {
