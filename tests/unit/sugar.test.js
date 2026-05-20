@@ -178,6 +178,40 @@ describe('sugar.begin', () => {
     expect(second.hint).toContain('git worktree add');
   });
 
+  test('main-worktree gate releases once the first session ends', () => {
+    const { sugar } = setup();
+    const worktree = {
+      id: 'main1234',
+      root: '/repo/port-daddy',
+      name: 'port-daddy',
+      branch: 'main',
+      isMain: true,
+    };
+
+    const first = sugar.begin({
+      purpose: 'Solo on main',
+      requireLinkedWorktree: true,
+      allowMainWorktree: true,
+      worktree,
+    });
+    expect(first.success).toBe(true);
+
+    const ended = sugar.done({ sessionId: first.sessionId });
+    expect(ended.success).toBe(true);
+
+    // After the first session ends a second solo agent should be able
+    // to take over the main worktree. Without this guarantee the gate
+    // would degrade into "main is permanently poisoned by any past
+    // session", breaking the solo-developer path.
+    const second = sugar.begin({
+      purpose: 'New solo agent after handoff',
+      requireLinkedWorktree: true,
+      allowMainWorktree: true,
+      worktree,
+    });
+    expect(second.success).toBe(true);
+  });
+
   test('stores linked worktree context on agent, session, and metadata', () => {
     const { sugar, agents, sessions } = setup();
     const worktree = {

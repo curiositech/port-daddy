@@ -147,6 +147,16 @@ export function createSugar(deps: SugarDeps) {
     // linked worktrees — concurrent agents in one tree corrupt each
     // other's edits via shared `.git` state (branch switches, rebases,
     // unstaged-file wipes).
+    //
+    // Known gaps (acceptable for v1, follow-ups tracked):
+    //   - SELECT-then-INSERT race: two begin() calls within ~ms both
+    //     see 0 collisions and both register. Window is small; atomic
+    //     fix would need a tx around sessions.start or a unique idx.
+    //   - Zombie sessions (active row, dead process) block legitimate
+    //     next agents until reaped. Same pattern in sessions.ts:1199.
+    //   - sessions.start() called via routes/sessions.ts:351 bypasses
+    //     this gate. Tracked as a follow-up; users hitting /sessions/start
+    //     directly are aware of the policy already.
     if (
       worktreePolicy.worktree
       && worktreePolicy.worktree.isMain
