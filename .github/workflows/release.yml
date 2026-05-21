@@ -92,6 +92,16 @@ jobs:
           node-version: 20
           registry-url: 'https://registry.npmjs.org'
 
+      # npm publish runs prepublishOnly which calls build:daemon:dist, which
+      # shells out to `bun` to compile the standalone daemon binary that ships
+      # in the npm tarball. v3.14.1's release run failed here with
+      # `Error: bun --version failed` because the ubuntu-latest runner doesn't
+      # ship with bun. Mirror the bun setup that build-binaries uses above.
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
       - name: Install dependencies
         run: npm ci
 
