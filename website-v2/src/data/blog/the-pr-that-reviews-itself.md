@@ -18,6 +18,7 @@ That's this post. Six ships, all on the same PR. They are not nice. They are not
 
 Here is what code review actually is when you strip the org-chart away from it. Someone reads your diff. They check it against a model of the system that they hold in their head. When the diff diverges from that model — by accident, by laziness, by something the author didn't see — they say so, in writing, on the PR.
 
+<!-- sidenote: 1 -->
 > The thing your CI does is necessary and unloved: it runs the same suite against your branch that it ran against `main`. The thing a reviewer does is the *interesting* part: they bring outside knowledge to bear on inside changes. Code review is a hostile-environment epistemic check. CI is a vital-signs monitor.
 
 The trouble is that reviewers are expensive. A staff engineer who could spot the regression *also* has their own PR open, their own oncall page going off, their own children to feed. So the review you actually get is some compromise between the review your code deserved and the review the reviewer had time to give.
@@ -65,6 +66,7 @@ The fan-out is the whole shape of it. One push, six critics, one operator at the
 
 The fleet is six members because six is the number of axes that empirically matter when somebody opens a non-trivial pull request. Fewer than six and you miss a class. More than six and reviewers stop reading. The names are deliberately *human*: a ship is not a bot, it is a role in a kitchen, a role in a courtroom, a role in a chorus. Each ship has a job, a fire-condition, and a voice.
 
+<!-- sidenote: 2 -->
 > Every ship runs on the same fleet primitive that runs the personal agents elsewhere in Port Daddy. The substrate is identical. The *opinions* are the differentiator. See [the personal fleet post](#) for the morning-briefing variant of the same pattern.
 
 ### code-reviewer — the opinionated senior who actually read your code
@@ -73,6 +75,7 @@ The fleet is six members because six is the number of axes that empirically matt
 
 The `code-reviewer` ship is the one that posts the single, severity-ranked PR comment. It is loaded with **operator-priors** — your `AGENTS.md`, your project ADRs, your house style for that repo — and it reviews the diff the way a senior engineer reviews it: as someone who already has opinions and is unafraid to use them.
 
+<!-- sidenote: 3 -->
 > Operator-priors are how the ship sounds like *you* and not like a generic bot. The priors include: ADR catalog, banned-pattern list, "the way we do things" notes from your project's CLAUDE.md, and the post-mortem corpus of bugs you've already paid for once.
 
 What makes this ship survive contact with reality is severity ranking. A PR comment that reads "blocking: ADR-0017 says we don't use mutable globals; this change introduces one in `lib/spawner.ts:142`" is *useful*. A PR comment that reads "nit: consider extracting this into a helper" is *noise*. The ship is allowed exactly one comment per PR, and the comment is forced into the schema `BLOCKING / CONCERN / NIT`. If it has nothing blocking and nothing of concern, it says so out loud, and the operator reads "no findings" instead of a wall of nits and thinks *good, this one's clean*.
@@ -101,6 +104,7 @@ That is the format. The voice is the senior who actually read the diff. The bloc
 
 `red-team` is sampled — not on every PR, but on every PR that touches an adversarial surface. Auth code, file-claim mutations, token issuance, anything that crosses a trust boundary. The ship's job is not to *think* about attacks. It is to **construct them**.
 
+<!-- sidenote: 4 -->
 > A PR touches an adversarial surface if it modifies a file under `auth/`, `routes/identity/`, `lib/sessions.ts`, the bond ledger, or any file the operator has tagged `surface: trust-boundary` in the repo manifest. The sampler is deterministic per-commit-hash, so reruns are stable.
 
 The output is an attack story. The ship writes the smallest plausible attack against the change and then *tries it* in a scratch worktree. If the attack lands — if the test it wrote against the new code passes when it should fail — the ship files a blocking comment with the failing exploit attached. If the attack fails to land, the ship files a small green "tried X, didn't work, here is why" note so the next reviewer can see the territory was checked.
@@ -113,6 +117,7 @@ The line between this ship and the `code-reviewer` is the line between *opinion*
 
 The `test-author` ship is downstream of `test-hunter` (which lives in the local fleet and runs continuously against `main`). When test-hunter flags an uncovered code path that the current PR has *added* code to, `test-author` opens a draft *sibling* PR with proposed tests for the path.
 
+<!-- sidenote: 5 -->
 > The "sibling PR" pattern matters. The tests do not go *into* your PR — they go into a separate PR that depends on yours. You can ignore them, you can pull them in by merging the sibling into your branch, or you can dismiss the sibling with a reason. The original PR is never modified by the ship.
 
 The draft sibling lands with a comment on the parent PR: *"I drafted three tests for the new code path in `lib/spawner.ts`. Branch: `pr/auto-tests-2814`. Pull at will."* No moralizing about your test discipline. No "you should have written these." It just drafts the tests.
@@ -139,6 +144,7 @@ This is the ship that catches the bug below.
 
 `tenderfoot` is the new-developer auditor. On any PR that touches the README, the install path, the docs, or any onboarding surface, this ship spins up a *fresh* worktree — no shell history, no cached credentials, no operator memory — and tries to follow the docs from scratch. End to end. Until something breaks or it gets all the way to a working setup.
 
+<!-- sidenote: 6 -->
 > The crucial property is *no operator memory*. Most "does the README work" checks fail because the person running the check has implicit knowledge — they know to set `GEMINI_API_KEY`, they know which directory the daemon reads `.env.local` from, they know the brew tap name. `tenderfoot` knows none of that. It only knows what the README told it.
 
 If `tenderfoot` gets stuck — a missing step, a wrong path, a command that the docs claim works but doesn't — it files an issue (not a PR comment, an *issue*, because the bug is in the docs, not the code) and links it from the PR. The author of the PR sees the link and can decide whether to fix the docs in this PR or in a follow-up.
@@ -151,6 +157,7 @@ The single most valuable property of `tenderfoot` is that it *cannot* lie to you
 
 `augur` (the name is sibling-pending; it may end up as `unspider` instead) is the contradiction-finder. Its input is not just the PR diff — it's the PR diff *plus* the roadmap docs, the recent commit history, the open issues, and the ADRs. Its job is to spot **contradictions between what the PR claims and what other documents in the repo claim is true**.
 
+<!-- sidenote: 7 -->
 > Concrete fire-conditions: PR changes a function that an ADR documented as frozen; PR adds a behavior the roadmap says is deprecated; PR introduces a dependency that the architecture doc bans; PR claims to close an issue that the issue body says requires three other things first.
 
 A pure code-review ship can't catch any of those, because they don't live in the diff. They live in the *relationship between* the diff and everything else. The ship's comment is the small, irritating, valuable kind: *"This PR is marked 'closes #487' but #487 also requires the rate-limit work in #492, which is still open. Are we intentionally partial-closing?"*
@@ -180,6 +187,7 @@ The count was structurally always zero.
 
 The new code computed the count from an in-memory map that the live daemon never populated, because the daemon writes salvageable sessions to a separate table in SQLite and the in-memory map was a vestigial cache from an earlier iteration. The tests passed because *they used the same in-memory map* — every fixture in the test suite seeded the map directly, asserted the count, and tore the map down. The test author had not lied. They had simply tested the only thing they had wired up.
 
+<!-- sidenote: 8 -->
 > This is the textbook tautology. The test pinned the function's behavior to a data structure (`in-memory map → count`) that the production daemon did not use. Production reality lived in a SQLite table containing, at the time of the bug's discovery, **181 salvageable agent sessions** — none of which the new endpoint ever saw.
 
 Against the live daemon, the new endpoint returned `0` to every operator who hit it, for as long as the bug lived. The dashboard panel that depended on the field rendered an empty list. The operator looked at "0 salvageable sessions" and assumed the salvage system was working. It wasn't.
@@ -200,6 +208,7 @@ TAUTOLOGY (high — score 0.91)
 
 Fourteen green tests, one PR comment, one paragraph in plain English. The bug never ships. The operator never sees "0" and assumes anything.
 
+<!-- sidenote: 9 -->
 > The point is not that the test author was bad. The point is that *writing the test alone* and *judging whether the test verifies external reality* are different cognitive tasks, and the second one is almost never done. A ship that does only the second task is enormously valuable for a tiny amount of compute.
 
 ## What happens to your time
@@ -225,6 +234,7 @@ The operator's time *with* the fleet:
 
 The arithmetic that matters is on step 6. *Most* of what a senior engineer used to do during code review was the work the fleet now does — ADR divergence, missing tests, tautology detection, "does the README still work." The senior's actual scarce skill is judgment on the hard calls. The fleet hands them back the hours they used to spend on the easy ones.
 
+<!-- sidenote: 10 -->
 > Time-budget math, on a real PR cadence: a team of five doing ten PRs a week spends roughly fifteen reviewer-hours on PR review. About eight of those hours are the easy findings the fleet now lands automatically. That's a working *day per week* of senior engineer time, returned to the senior engineer. Not because the fleet is smart; because the fleet doesn't get tired of looking for ADR divergences at 4pm on a Friday.
 
 ## The honest fine print
@@ -253,12 +263,14 @@ Three properties the operator has to be able to rely on:
 
 The civility property is also load-bearing. The ships are opinionated — that's the whole point — but they are *not* cruel. The system prompt for `code-reviewer` includes the instruction to write the comment a senior engineer would write to a colleague they respected: blunt, citing evidence, calling the change wrong when it's wrong, and *not* sneering. A paid critic is allowed to disagree. A paid critic is not allowed to be a dick.
 
+<!-- sidenote: 11 -->
 > "Adversarial" means *adversarial in the legal-process sense*, not adversarial in the playground sense. The defense lawyer and the prosecutor are adversaries. They are also expected to be civil, to cite their authorities, and to address the bench in complete sentences. That is the bar.
 
 ## Connecting to the universe of fleets
 
 Everything in this post runs on the same fleet primitive that runs the personal agents in Port Daddy. The `morning-briefing` agent that reads your calendar and prepares your day is the same shape as `code-reviewer` reading your diff and preparing your review. Different prompts. Different priors. Same substrate.
 
+<!-- sidenote: 12 -->
 > The unified fleet is the bet. Personal agents and dev-repo agents look like different products, but they are the same animal eating different food. Sharing the substrate means the cost model, the cap, the dashboard, and the dismiss-with-reason loop are all one system instead of six.
 
 If you want the morning-briefing version, see the [personal-fleet post](#) (sibling, in flight). If you want the CLI-backed view of how the GitHub fleet is wired into push events, see [The CLI Is For The Robots](/blog/the-cli-is-for-the-robots) and the [`/cli-backend` reference](/cli-backend).
