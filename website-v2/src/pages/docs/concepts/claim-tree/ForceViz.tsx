@@ -105,7 +105,7 @@ export function ForceViz() {
     return () => { sim.stop(); simRef.current = null }
   }, [nodes, links])
 
-  // Wire drag + zoom/pan on the SVG once mounted.
+  // Wire zoom/pan on the SVG once mounted.
   useEffect(() => {
     const svg = svgRef.current
     if (!svg) return
@@ -114,8 +114,8 @@ export function ForceViz() {
     const zoom = d3.zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.4, 4])
       .filter((event) => {
-        // Only initiate pan on background drag, not on node grab.
         if (event.type === 'wheel') return true
+        // Only initiate pan on background drag, not on node grab.
         return !(event.target as Element).closest('[data-node="1"]')
       })
       .on('zoom', (event) => {
@@ -126,30 +126,47 @@ export function ForceViz() {
     return () => { sel.on('.zoom', null) }
   }, [])
 
-  // Drag handler — attached imperatively so React doesn't fight d3.
-  useEffect(() => {
-    const g = gRef.current
-    if (!g) return
-    const sim = simRef.current
-    const drag = d3.drag<SVGGElement, GNode>()
-      .on('start', (event, d) => {
-        if (!event.active) sim?.alphaTarget(0.3).restart()
-        d.fx = d.x
-        d.fy = d.y
-      })
-      .on('drag', (event, d) => {
-        d.fx = event.x
-        d.fy = event.y
-      })
-      .on('end', (event, d) => {
-        if (!event.active) sim?.alphaTarget(0)
-        d.fx = null
-        d.fy = null
-      })
+  // Drag via native React + SVG coordinate math (no d3-selection .data()
+  // binding so we don't fight React over the DOM).
+  const dragState = useRef<{ id: string | null; startMouse: [number, number]; startNode: [number, number] }>({
+    id: null, startMouse: [0, 0], startNode: [0, 0],
+  })
 
-    const nodeGroups = d3.select(g).selectAll<SVGGElement, GNode>('[data-node="1"]')
-    nodeGroups.data(nodes, (d: any) => d.id).call(drag as any)
-  }, [nodes, tick])
+  function svgPoint(e: { clientX: number; clientY: number }): [number, number] {
+    const svg = svgRef.current
+    if (!svg) return [e.clientX, e.clientY]
+    const rect = svg.getBoundingClientRect()
+    // Convert client → viewBox coords, accounting for current zoom transform
+    const vbX = (e.clientX - rect.left) * (W / rect.width)
+    const vbY = (e.clientY - rect.top) * (H / rect.height)
+    return [(vbX - transform.x) / transform.k, (vbY - transform.y) / transform.k]
+  }
+
+  function startDrag(n: GNode, e: React.PointerEvent) {
+    e.stopPropagation()
+    ;(e.target as Element).setPointerCapture?.(e.pointerId)
+    const sim = simRef.current
+    sim?.alphaTarget(0.3).restart()
+    const m = svgPoint(e)
+    dragState.current = { id: n.id, startMouse: m, startNode: [n.x ?? 0, n.y ?? 0] }
+  }
+  function moveDrag(e: React.PointerEvent) {
+    const ds = dragState.current
+    if (!ds.id) return
+    const node = nodes.find(x => x.id === ds.id)
+    if (!node) return
+    const m = svgPoint(e)
+    node.fx = ds.startNode[0] + (m[0] - ds.startMouse[0])
+    node.fy = ds.startNode[1] + (m[1] - ds.startMouse[1])
+  }
+  function endDrag(_e: React.PointerEvent) {
+    const ds = dragState.current
+    if (!ds.id) return
+    const node = nodes.find(x => x.id === ds.id)
+    if (node) { node.fx = null; node.fy = null }
+    simRef.current?.alphaTarget(0)
+    dragState.current = { id: null, startMouse: [0, 0], startNode: [0, 0] }
+  }
 
   // Build a 1-hop neighborhood index for hover highlight.
   const neighbors = useMemo(() => {
@@ -211,6 +228,10 @@ export function ForceViz() {
                 <g key={n.id}
                    data-node="1"
                    transform={`translate(${n.x}, ${n.y})`}
+                   onPointerDown={(e) => startDrag(n, e)}
+                   onPointerMove={moveDrag}
+                   onPointerUp={endDrag}
+                   onPointerCancel={endDrag}
                    onMouseEnter={() => { setNodeId(n.id); if (n.claim) setSession(n.claim.session as any) }}
                    onMouseLeave={() => { setNodeId(null); setSession(null) }}
                    style={{ cursor: 'grab', opacity, transition: 'opacity 180ms ease' }}>
