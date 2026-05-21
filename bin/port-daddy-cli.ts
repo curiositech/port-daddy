@@ -117,6 +117,9 @@ import {
   handleAdd,
   // Claim-watcher snapshot list/restore/prune
   handleSnapshots,
+  // Durable backups of port-registry.db (ADR-0037)
+  handleBackup,
+  handleRestore,
   // Shipwright — survey/propose/apply for fleet authoring
   handleShipwright,
   // App-Native Development Cockpit
@@ -1249,7 +1252,7 @@ const ALL_COMMANDS: string[] = [
   'advise', 'preflight', 'compass', 'guard',
   'salvage', 'resurrection', 'changelog', 'tunnel',
   'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
-  'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'shipwright',
+  'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'backup', 'restore', 'shipwright',
   'spawn', 'spawned', 'watch', 'transcripts',
   'harbor', 'harbors', 'demo', 'fleet', 'tuple', 'sortie', 'graph', 'memory', 'ideas',
   'quorum',
@@ -2693,6 +2696,14 @@ export async function main(): Promise<void> {
       case 'snapshots':
       case 'snapshot':
         await handleSnapshots(positional, options);
+        break;
+
+      case 'backup':
+        await handleBackup(positional, options);
+        break;
+
+      case 'restore':
+        await handleRestore(positional, options);
         break;
 
       case 'shipwright':
