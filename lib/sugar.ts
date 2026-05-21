@@ -162,21 +162,24 @@ export function createSugar(deps: SugarDeps) {
       && worktreePolicy.worktree.isMain
       && options.allowMainWorktree === true
     ) {
+      // Yes/no collision check — limit: 1 keeps it cheap. We deliberately
+      // don't surface a count because list() with a low limit would
+      // under-report; senders just need to know they're not alone.
       const colliding = sessions.list({
         status: 'active',
         worktreeId: worktreePolicy.worktree.id,
         allWorktrees: false,
-        limit: 5,
+        limit: 1,
       });
       const rows = (colliding && typeof colliding === 'object' && 'sessions' in colliding
         ? (colliding as { sessions?: unknown[] }).sessions
         : Array.isArray(colliding) ? colliding : null);
-      const otherCount = Array.isArray(rows) ? rows.length : 0;
-      if (otherCount > 0) {
+      const hasCollision = Array.isArray(rows) && rows.length > 0;
+      if (hasCollision) {
         return {
           success: false,
           error:
-            `Refusing main-worktree session: ${otherCount} other active session(s) already in this worktree (${worktreePolicy.worktree.root}). `
+            `Refusing main-worktree session: another active session is already in this worktree (${worktreePolicy.worktree.root}). `
             + `Concurrent agents on the same main worktree corrupt each other via shared .git state.`,
           code: 'MAIN_WORKTREE_CROWDED',
           hint:
