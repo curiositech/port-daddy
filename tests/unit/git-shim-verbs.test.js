@@ -15,13 +15,13 @@
 import { describe, expect, test } from '@jest/globals';
 import { GIT_SHIM_CONTENT, SHIM_VERSION } from '../../cli/utils/git-shim.js';
 
-describe('git shim v2 destructive-verb coverage', () => {
-  test('SHIM_VERSION is bumped to 2', () => {
-    expect(SHIM_VERSION).toBe('2');
+describe('git shim v3 destructive-verb coverage', () => {
+  test('SHIM_VERSION is bumped to 3', () => {
+    expect(SHIM_VERSION).toBe('3');
   });
 
-  test('shim header documents v2', () => {
-    expect(GIT_SHIM_CONTENT).toContain('Port Daddy git shim v2');
+  test('shim header documents v3', () => {
+    expect(GIT_SHIM_CONTENT).toContain('Port Daddy git shim v3');
   });
 
   test('shim intercepts the original v1 verbs', () => {
@@ -67,5 +67,47 @@ describe('git shim v2 destructive-verb coverage', () => {
 
   test('shim refers operators to pd guard status on refusal', () => {
     expect(GIT_SHIM_CONTENT).toContain('pd guard status');
+  });
+
+  // -------------------------------------------------------------------------
+  // v3 — public-history destructive verbs
+  // -------------------------------------------------------------------------
+
+  test('v3: shim intercepts push --force / -f / --force-with-lease (any branch)', () => {
+    expect(GIT_SHIM_CONTENT).toContain('verb="push-force"');
+    expect(GIT_SHIM_CONTENT).toMatch(/--force\|-f\|--force-with-lease/);
+  });
+
+  test('v3: shim intercepts push --mirror / --all / --prune (mass deletion)', () => {
+    expect(GIT_SHIM_CONTENT).toContain('verb="push-mass"');
+    expect(GIT_SHIM_CONTENT).toMatch(/--mirror\|--all\|--prune/);
+  });
+
+  test('v3: shim intercepts direct push to protected branches', () => {
+    expect(GIT_SHIM_CONTENT).toContain('verb="push-protected"');
+    // protected branches recognized literally + as refs/heads
+    expect(GIT_SHIM_CONTENT).toContain('main|master|refs/heads/main|refs/heads/master');
+    expect(GIT_SHIM_CONTENT).toContain('release/*|refs/heads/release/*');
+  });
+
+  test('v3: shim refuses filter-branch and filter-repo outright', () => {
+    expect(GIT_SHIM_CONTENT).toContain('verb="history-rewrite"');
+    expect(GIT_SHIM_CONTENT).toMatch(/filter-branch\|filter-repo/);
+  });
+
+  test('v3: shim intercepts update-ref on protected branches only', () => {
+    expect(GIT_SHIM_CONTENT).toContain('verb="update-ref-protected"');
+    expect(GIT_SHIM_CONTENT).toContain('refs/heads/main|refs/heads/master');
+  });
+
+  test('v3: shim intercepts branch -D on protected branches', () => {
+    expect(GIT_SHIM_CONTENT).toContain('verb="branch-delete-protected"');
+    // -D and --delete both trigger the saw_force_delete flag
+    expect(GIT_SHIM_CONTENT).toMatch(/-D\|--delete/);
+  });
+
+  test('v3: PD_SHIM_OFF bypass writes an audit log entry', () => {
+    expect(GIT_SHIM_CONTENT).toContain('.port-daddy/destructive-ops.log');
+    expect(GIT_SHIM_CONTENT).toContain('PD_SHIM_OFF=1');
   });
 });
