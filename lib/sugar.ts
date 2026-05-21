@@ -14,6 +14,12 @@ import {
   mergeSessionWorktreeMetadata,
   type SessionWorktreeContext,
 } from './worktree-policy.js';
+import {
+  createGitOriginChecker,
+  checkResultNoteSentinel,
+  noteSentinelErrorMessage,
+  type GitOriginChecker,
+} from './git-origin-check.js';
 
 // =============================================================================
 // Types
@@ -46,6 +52,12 @@ interface SugarDeps {
   agents: AgentsModule;
   sessions: SessionsModule;
   activityLog: ActivityLogModule;
+  /**
+   * Optional git-origin checker. Defaults to a real-git implementation.
+   * Tests inject a stub to simulate ahead / no-upstream / clean states
+   * without touching a real repo.
+   */
+  gitOriginChecker?: GitOriginChecker;
 }
 
 interface BeginOptions {
@@ -67,6 +79,13 @@ interface DoneOptions {
   sessionId?: string;
   note?: string;
   status?: string;
+  /**
+   * Operator escape hatch. When true, the origin-push + result-note
+   * preconditions are skipped. `skipOriginCheckReason` is REQUIRED — the
+   * override is loud (the final note gets a [OPERATOR-OVERRIDE] prefix).
+   */
+  skipOriginCheck?: boolean;
+  skipOriginCheckReason?: string;
 }
 
 interface WhoamiOptions {
@@ -80,6 +99,7 @@ interface WhoamiOptions {
 
 export function createSugar(deps: SugarDeps) {
   const { agents, sessions, activityLog } = deps;
+  const gitOriginChecker: GitOriginChecker = deps.gitOriginChecker || createGitOriginChecker();
 
   function sessionTarget(identityProject: string | null | undefined, sessionId: string): string {
     return identityProject ? `${identityProject}:session:${sessionId}` : sessionId;
@@ -259,10 +279,21 @@ export function createSugar(deps: SugarDeps) {
   /**
    * Done — end session + unregister agent.
    * Finds active session by agentId if sessionId not provided.
+   *
+   * Hard preconditions (enforced unless `skipOriginCheck` is set):
+   *   1. The session's branch is not ahead of its upstream on origin.
+   *   2. The result note contains one of: a PR URL, "no-pr-yet: <reason>",
+   *      or "not-applicable: <reason>".
+   *
+   * See lib/git-origin-check.ts for the motivation and details.
    */
   function done(options: DoneOptions) {
     const { agentId, note, status = 'completed' } = options;
     let { sessionId } = options;
+    const skipOriginCheck = options.skipOriginCheck === true;
+    const skipOriginCheckReason = typeof options.skipOriginCheckReason === 'string'
+      ? options.skipOriginCheckReason.trim()
+      : '';
 
     // Find session by agent if not provided
     if (!sessionId && agentId) {
@@ -307,13 +338,81 @@ export function createSugar(deps: SugarDeps) {
       }
     }
 
+    // =========================================================================
+    // Hard preconditions — only applied for "completed" status. Abandoned
+    // sessions are explicitly a "this work is not landing" handoff; we let
+    // those through without the push/PR-URL gate.
+    // =========================================================================
+    let effectiveNote = typeof note === 'string' ? note : undefined;
+
+    if (status === 'completed') {
+      if (!skipOriginCheck) {
+        // 1) Note-sentinel check (cheap, do it first so operators get the most
+        //    actionable error when they forget BOTH things).
+        const sentinel = checkResultNoteSentinel(effectiveNote);
+        if (!sentinel.ok) {
+          return {
+            success: false,
+            code: 'RESULT_NOTE_MISSING_SENTINEL',
+            error: 'pd done refused — ' + noteSentinelErrorMessage(),
+            hint: noteSentinelErrorMessage(),
+          };
+        }
+
+        // 2) Origin-push check. The cwd we run git in is the session's
+        //    worktree root when we know it, otherwise the daemon's cwd.
+        const sessionInfo = sessions.get(sessionId);
+        const sessionRow = sessionInfo.success && sessionInfo.session
+          ? sessionInfo.session as Record<string, unknown>
+          : null;
+        const meta = sessionRow && typeof sessionRow.metadata === 'object' && sessionRow.metadata !== null
+          ? sessionRow.metadata as Record<string, unknown>
+          : null;
+        const worktreeMeta = meta && typeof meta.worktree === 'object' && meta.worktree !== null
+          ? meta.worktree as Record<string, unknown>
+          : null;
+        const worktreeRoot = worktreeMeta && typeof worktreeMeta.root === 'string' && worktreeMeta.root.trim()
+          ? worktreeMeta.root
+          : undefined;
+
+        const originCheck = gitOriginChecker.checkBranchOnOrigin(worktreeRoot);
+        if (!originCheck.ok) {
+          return {
+            success: false,
+            code: 'BRANCH_NOT_ON_ORIGIN',
+            error: `pd done refused — ${originCheck.error}`,
+            hint: originCheck.hint,
+            branch: originCheck.branch ?? null,
+            upstream: originCheck.upstream ?? null,
+            ahead: originCheck.ahead ?? null,
+            originCheckCode: originCheck.code,
+          };
+        }
+      } else {
+        // Skip-origin-check requested. Require a reason and stamp the note.
+        if (!skipOriginCheckReason) {
+          return {
+            success: false,
+            code: 'SKIP_ORIGIN_CHECK_REASON_REQUIRED',
+            error: 'pd done --skip-origin-check requires --reason "<reason>".',
+            hint: 'Provide a one-line reason describing why the origin-push gate is being bypassed (e.g., "local experiment, not shipping").',
+          };
+        }
+        // Prepend a loud override marker so audits can grep for them.
+        const overrideStamp = `[OPERATOR-OVERRIDE skip-origin-check] reason: ${skipOriginCheckReason}`;
+        effectiveNote = effectiveNote && effectiveNote.length > 0
+          ? `${overrideStamp}\n${effectiveNote}`
+          : overrideStamp;
+      }
+    }
+
     // Count notes before ending (end adds the handoff note)
     const notesBefore = sessions.getNotes(sessionId);
     const beforeCount = (notesBefore.notes as unknown[] || []).length;
 
     // End the session
     const endOpts: Record<string, unknown> = { status };
-    if (note) endOpts.note = note;
+    if (effectiveNote) endOpts.note = effectiveNote;
     const sessionResult = sessions.end(sessionId, endOpts);
 
     if (!sessionResult.success) {
@@ -332,7 +431,7 @@ export function createSugar(deps: SugarDeps) {
       agentUnregistered = !!unregResult.unregistered;
     }
 
-    const totalNotes = beforeCount + (note ? 1 : 0);
+    const totalNotes = beforeCount + (effectiveNote ? 1 : 0);
 
     const sessionInfo = sessions.get(sessionId);
     const session = sessionInfo.success && sessionInfo.session ? sessionInfo.session as Record<string, unknown> : null;
@@ -357,7 +456,7 @@ export function createSugar(deps: SugarDeps) {
       sessionStatus: status,
       agentUnregistered,
       notesCount: totalNotes,
-      finalNote: !!note,
+      finalNote: !!effectiveNote,
     };
   }
 
