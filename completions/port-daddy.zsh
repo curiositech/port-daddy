@@ -1983,6 +1983,7 @@ _port_daddy() {
     'bench:run performance benchmarks'
     'demo:interactive demos of Port Daddy features'
     'fleet:manage background agent fleet (gardener, QA, docs, research)'
+    'backend:list/use/cost — fleet backend route, framing, and spend'
     # Project (+ aliases)
     'scan:deep-scan project for frameworks and register with daemon'
     's:deep-scan project (alias for scan)'

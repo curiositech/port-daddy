@@ -136,7 +136,7 @@ _port_daddy() {
     # Orchestration
     up down
     # Benchmarking, Demos & Fleet
-    bench demo fleet
+    bench demo fleet backend
     # Project (+ alias)
     scan s projects p doctor diagnose hints
     # Project onboarding
