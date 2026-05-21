@@ -280,21 +280,25 @@ rm -rf ~/port-daddy-stable
 
 If `pd status` after step 4 still shows the old PID/version, the old daemon hasn't been killed. `pgrep -fl 'port-daddy-stable'` should be empty before you proceed.
 
-### Picking up a formula change (env vars, run line, service block)
+## Picking up a brew formula change (env vars, run line, service block)
 
-`brew services restart port-daddy` does **not** re-derive `~/Library/LaunchAgents/homebrew.mxcl.port-daddy.plist` from the current formula. The launchd plist is generated once at install and reused on subsequent restarts; service-block changes (`environment_variables`, `run [...]`, `keep_alive`, etc.) only take effect after a fresh install.
+`brew services restart port-daddy` regenerates `~/Library/LaunchAgents/homebrew.mxcl.port-daddy.plist` on every invocation — but from the **installed keg under `Cellar/`**, not from the tap's current formula. `brew services` doesn't know about the tap. Service-block changes (`environment_variables`, `run [...]`, `keep_alive`, etc.) only land after `brew reinstall` pulls a new keg.
 
-If a tap PR updates the service block (e.g. adds `PORT_DADDY_DB`), pick it up locally with:
+The trap: if you make a manual edit to the plist, `brew services restart` will silently overwrite it on the next restart (regenerated from the keg). If a tap PR updates the service block, `brew update && brew services restart` will *not* apply the change (keg unchanged, regenerated plist looks the same).
+
+To pick up a tap service-block change locally:
 
 ```bash
 brew update                                            # pull the tap's latest formula
 brew services stop port-daddy
-brew reinstall port-daddy                              # regenerates plist from the new formula
-brew services start port-daddy
+brew reinstall port-daddy                              # replace the keg
+brew services start port-daddy                         # plist regenerates from the new keg
 grep -A 1 EnvironmentVariables ~/Library/LaunchAgents/homebrew.mxcl.port-daddy.plist
 ```
 
-`brew services restart` alone is enough for picking up binary changes (new version, new SHA) but NOT for plist-shape changes. The asymmetry is real and tripping up at least one operator per release; a future `pd doctor` check should compare the live plist against the formula spec and warn on drift.
+`brew services restart` alone is enough for routine restarts and for binary changes that come with a normal `brew upgrade` (which replaces the keg). It is **not** enough when a tap PR changes the service block without a version bump — `brew update` won't pull a new keg for an unchanged version, so neither will `restart`.
+
+A future `pd doctor` check should diff the live plist against the current formula spec and hint at `brew reinstall` on drift — tracked as roadmap item [`pd-doctor-detect-drift-between-live`](https://github.com/curiositech/port-daddy/issues?q=label%3Aroadmap+pd-doctor-detect-drift) (severity MEDIUM).
 
 ## See also
 
