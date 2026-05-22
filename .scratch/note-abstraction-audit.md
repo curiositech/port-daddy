@@ -74,7 +74,7 @@ So we have the *infrastructure* for telemetry (the table, the buckets, the API) 
 | `signals` | Integration ADRs | No table. May be folded into `messages` or `tuples` as `signal` envelopes — needs verification. |
 | `coordination_inconsistencies` | User's coordination feedback channel rule | No table. Likely a `messages` channel pattern. |
 | `briefing` | `pd briefing` command | File-only (`.portdaddy/briefing.md`). Not coordination-readable by other agents. |
-| `transcript_events` | `lib/transcript-store.ts`, `cost-ledger.ts:117-118` | **Schema exists in code, table does NOT exist in prod DB.** Orphan. Wiring missing. |
+| `transcript_events` | `lib/transcript-store.ts`, `cost-ledger.ts:117-118` (read) + `cost-ledger.ts:387` (`ensureSourceTables` create) | **Double orphan: schema exists in code, neither `createTranscriptStore` nor `createCostLedger` is wired into `server.ts`, so the table is never created in the production DB.** |
 | `roadmap_claims` | ADR-0033 (status: SHIPPED) | Table does **not** exist in prod DB. Either renamed, stored in tuples under a key pattern, or the ADR is wrong about shipped status. |
 
 **This is the biggest finding.** When agents try to "drop a pheromone" or "flag a coordination inconsistency" or "claim a roadmap item," there is no primitive. They fall back to `messages` or a free-text `session_note`, which is why coordination decays into poking.

@@ -407,7 +407,7 @@ transcript-recon.md and transcript-ingestion-design.md anchor this track.
 - **`group-chat-four-modes`** — Channel (pull, default), huddle (push to
   non-idle), REQUEST (compelled response, bonded, with timeout), observer
   (lurk). All four map onto existing primitives — no new transport.
-- **`ast-claim-wiring`** — `lib/symbol-index.ts` (988 lines, no tree-sitter
+- **`ast-claim-wiring`** — `lib/symbol-index.ts` (1,457 lines, uses web-tree-sitter WASM
   dependency) is defined but not wired into `server.ts`. 0 of 1,637 production
   claims use `start_line` / `end_line` / `symbol`. Phase 1: audit parser, settle
   language coverage (TS/JS/Python/Go for v1). Phase 2: lazy-index on first claim
