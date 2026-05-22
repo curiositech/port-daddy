@@ -100,15 +100,45 @@ function getAppAuth() {
 // ---------------------------------------------------------------------------
 // Public surface
 
+// Back-date the JWT's `iat` by this many seconds so a clock that's slightly
+// ahead of GitHub's still produces a JWT GitHub will accept. GitHub rejects
+// JWTs whose `iat` is even one second in its future with a confusingly-worded
+// "JSON web token could not be decoded" 401. 60s is the canonical safe margin.
+const JWT_BACKDATE_SECONDS = 60
+
 /**
  * Get a short-lived JWT authenticated AS THE APP itself.
  * Use only for App-level operations (list installations, etc).
  * For actual posting, use `getInstallationToken` / `getOctokitForInstallation`.
+ *
+ * Signs the JWT directly via node:crypto rather than going through
+ * @octokit/auth-app so we can control `iat` back-dating (the lib sets
+ * `iat = now` which fails against any laptop clock running slightly ahead
+ * of GitHub's).
  */
 export async function getAppJwt(): Promise<string> {
-  const auth = getAppAuth()
-  const result = (await auth({ type: 'app' })) as AppAuthentication
-  return result.token
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { createSign } = await import('node:crypto')
+  const appId = Number(readEnv('GITHUB_APP_ID')!)
+  if (!Number.isFinite(appId)) {
+    throw new Error('[github-app-fleet] GITHUB_APP_ID is not a number')
+  }
+  const privateKey = decodePrivateKey(readEnv('GITHUB_APP_PRIVATE_KEY')!)
+  const now = Math.floor(Date.now() / 1000)
+  const header = { alg: 'RS256', typ: 'JWT' }
+  const payload = {
+    iat: now - JWT_BACKDATE_SECONDS,
+    exp: now + 540 - JWT_BACKDATE_SECONDS, // 9-minute lifetime; GitHub's max is 10
+    iss: String(appId),
+  }
+  const b64u = (o: unknown): string =>
+    Buffer.from(JSON.stringify(o)).toString('base64url')
+  const unsigned = `${b64u(header)}.${b64u(payload)}`
+  const signer = createSign('RSA-SHA256')
+  signer.update(unsigned)
+  signer.end()
+  const sig = signer.sign(privateKey).toString('base64url')
+  return `${unsigned}.${sig}`
 }
 
 /**
@@ -134,16 +164,31 @@ export async function getInstallationToken(
     return cached.token
   }
 
-  const auth = getAppAuth()
-  const result = (await auth({
-    type: 'installation',
-    installationId: id,
-  })) as InstallationAccessTokenAuthentication
-
-  // expiresAt is ISO-8601
-  const expiresAt = new Date(result.expiresAt).getTime()
-  tokenCache.set(id, { token: result.token, expiresAt })
-  return result.token
+  // Mint an installation token by POSTing to GitHub with our App JWT.
+  // Bypasses @octokit/auth-app for the same reason getAppJwt does: we
+  // need the JWT back-dated to absorb any laptop-vs-GitHub clock skew.
+  const jwt = await getAppJwt()
+  const res = await fetch(
+    `https://api.github.com/app/installations/${id}/access_tokens`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${jwt}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'User-Agent': 'pd-fleet/github-app',
+      },
+    },
+  )
+  if (!res.ok) {
+    throw new Error(
+      `[github-app-fleet] installation-token mint failed: ${res.status} ${await res.text()}`,
+    )
+  }
+  const data = (await res.json()) as { token: string; expires_at: string }
+  const expiresAt = new Date(data.expires_at).getTime()
+  tokenCache.set(id, { token: data.token, expiresAt })
+  return data.token
 }
 
 /**
