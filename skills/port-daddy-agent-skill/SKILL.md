@@ -462,6 +462,58 @@ If the user has to remind you to coordinate, the process has already
 failed: pull against the canonical branch, read the live fleet, leave a
 durable note, and make the standing instruction stronger before continuing.
 
+### Coordination is continuous, not a session-start ritual
+
+Sessions TTL out. File claims expire. Other agents start and stop while
+your work is in flight. Anchoring once at the top of a session is **not
+enough**. Re-check at every checkpoint:
+
+- **Before any commit, push, or rebase** — `pd guard check --staged`. If
+  the session timed out, `pd begin` again; if files lost their claim,
+  `pd session files add` them back.
+- **Before pulling against `origin/main`** — `pd sessions --all-worktrees`
+  and `pd notes --limit 20`. New work may have landed in your slice
+  while you were typing.
+- **When the pd-shim refuses a destructive verb** — read the refusal.
+  It names exactly which files are claimed by which sessions. See
+  `references/git-discipline.md` § *The pd-shim*.
+- **After a long-running build or test run** — re-anchor before pushing.
+  A 20-minute test suite is plenty of time for a session to expire and
+  for someone else to claim your files.
+
+The cost of a redundant `pd begin` is zero. The cost of pushing past a
+stale claim is rebasing under conflict pressure or, worse, silently
+overwriting another agent's WIP.
+
+### Slicing work into reviewable PRs
+
+For anything structural, the default is **ADR-first** followed by
+slice-by-slice PRs:
+
+1. Write the ADR. Lock the design with the user before any code lands.
+2. **PR-α** — schema / interface / foundational change. No migration,
+   no read-path rewires. Reviewable in isolation.
+3. **PR-β** — migration + read-path rewires + file deletions. Bisectable
+   if the migration mis-parses.
+4. **PR-γ / PR-δ** — follow-on capability layers (cloud backends, fleet
+   integration, dashboard surfaces) against the now-stable interface.
+
+Bundling all of these into one PR is the failure mode this slicing
+exists to prevent. Each slice should land green CI on its own.
+
+### Picking work: `pd roadmap pop`
+
+When the operator says "go on" or "pop something off the roadmap," the
+canonical move is `pd roadmap pop`. It atomically claims a single entry
+under a partial UNIQUE index (so concurrent pops race-safely), prints
+the suggested release verb, and — with `--begin` — chains directly into
+`pd begin` and links the new session + agent onto the claim row. See
+ADR-0033 (atomicity) and ADR-0034 (session linkage), plus the roadmap
+section in `references/cli-reference.md` for the full surface.
+
+When done with the popped item: `pd roadmap release <slug>`. Letting a
+`--begin`-linked session end naturally also releases the claim.
+
 ## Actor Roster (universal Port Daddy concepts)
 
 Port Daddy exposes a small set of durable actor inboxes. They are roles,
