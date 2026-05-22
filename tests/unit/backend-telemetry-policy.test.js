@@ -140,4 +140,20 @@ describe('backend telemetry policy', () => {
     expect(policy.effectiveModel).toBe('unobtanium-7b');
     expect(policy.summary).toContain('has no exact cost rate entry');
   });
+
+  test('does NOT let Ollama family keys false-match non-ollama backends', () => {
+    // Substrings like "llama" / "qwen" / "mistral" must NEVER allow a paid
+    // remote backend to bypass the telemetry gate just because a future
+    // model name contains those tokens.
+    for (const evilModel of [
+      'claude-llama-experimental',
+      'claude-3-7-qwen-tune',
+      'gemini-mistral-7b-distill',
+    ]) {
+      const policy = assessBackendTelemetryPolicy('claude', evilModel);
+      expect(policy.launchAllowed).toBe(false);
+      // Claude case message: "no exact cost rate entry"
+      expect(policy.summary).toContain('no exact cost rate entry');
+    }
+  });
 });

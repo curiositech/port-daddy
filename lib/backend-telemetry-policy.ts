@@ -101,12 +101,12 @@ export function assessBackendTelemetryPolicy(backend: string, model?: string | n
           'Re-run with --model <name>, e.g. --model qwen2.5-coder:7b.'
         );
       }
-      if (!hasExactModelRate(effectiveModel)) {
+      if (!hasExactModelRate(effectiveModel, 'ollama')) {
         return {
           ...blocked(
             backend,
             `Ollama model "${effectiveModel}" has no exact cost rate entry; fail-closed telemetry policy blocks launch.`,
-            'Add a rate for this model family to cost-tracker MODEL_RATES before enabling it.'
+            'Add a rate for this model family to cost-tracker OLLAMA_MODEL_RATES before enabling it.'
           ),
           effectiveModel,
         };

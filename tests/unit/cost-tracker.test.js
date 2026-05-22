@@ -118,6 +118,29 @@ describe('CostTracker', () => {
     expect(costUsd).toBe(0);
   });
 
+  test('ollama family keys do NOT false-match across backends', () => {
+    // A paid remote model whose name happens to contain an Ollama family
+    // substring must use the Claude/Gemini fallback rate (estimate), not
+    // the Ollama $0.05/M rate.
+    const { costUsd, isEstimate } = costTracker.computeCost(
+      'claude', 'claude-llama-experimental', 10000, 2000
+    );
+    expect(isEstimate).toBe(true);
+    // The Claude FALLBACK rate (sonnet-class estimate) — should be > 0
+    // (paid backend) but NOT the Ollama 0.0006 rate.
+    expect(costUsd).toBeGreaterThan(0.001);
+  });
+
+  test('gemini-llama would not be falsely classified as ollama rate', () => {
+    const { isEstimate, costUsd } = costTracker.computeCost(
+      'gemini', 'gemini-llama-distill', 10000, 2000
+    );
+    expect(isEstimate).toBe(true);
+    // Must use Gemini fallback rate, not the Ollama 0.05 USD/M family rate
+    // (which would be 0.0006 for 12k tokens).
+    expect(costUsd).toBeGreaterThan(0.001);
+  });
+
   test('custom backend costs zero', () => {
     const { costUsd } = costTracker.computeCost('custom', 'custom');
     expect(costUsd).toBe(0);
