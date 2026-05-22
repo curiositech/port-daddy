@@ -64,6 +64,7 @@ import { shipwrightPlugin } from './shipwright.js';
 import { usagePlugin } from './usage.js';
 import { testHooksPlugin } from './test-hooks.js';
 import { cockpitPlugin } from './cockpit.js';
+import { popperPlugin } from './popper.js';
 import { setupPlugin } from './setup.js';
 
 type AnyDeps = Record<string, unknown>;
@@ -233,4 +234,10 @@ export async function registerAllRoutes(
   // App-Native Development Cockpit — read-only roadmap intake. Pure-function
   // markdown reader, no extra deps required.
   await fastify.register(cockpitPlugin, { deps } as any);
+
+  // Roadmap popper HTTP surface — operator's pd popper CLI + FleetBar
+  // Nightshift status banner. Conditional on deps.popper being supplied.
+  if ((deps as { popper?: unknown }).popper) {
+    await fastify.register(popperPlugin, { deps } as any);
+  }
 }
