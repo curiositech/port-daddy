@@ -679,9 +679,12 @@ describe('createFleetDaemon', () => {
           trigger: 'git:committed',
         },
         {
+          // Use a model with no exact rate so the policy still blocks it,
+          // exercising the partial-launchable code path. Known ollama
+          // family models (qwen, llama, etc.) are now policy-allowed.
           name: 'local-dreamer',
           backend: 'ollama',
-          model: 'qwen2.5-coder:7b',
+          model: 'unobtanium-7b',
           prompt: 'Generate local ideas',
           schedule: '*/30 * * * *',
         },
@@ -708,7 +711,7 @@ describe('createFleetDaemon', () => {
         expect.objectContaining({
           agent: 'local-dreamer',
           backend: 'ollama',
-          reason: expect.stringContaining('blocked until'),
+          reason: expect.stringContaining('no exact cost rate entry'),
         }),
       ],
     }));

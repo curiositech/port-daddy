@@ -87,12 +87,37 @@ export function assessBackendTelemetryPolicy(backend: string, model?: string | n
       };
     }
 
-    case 'ollama':
-      return blocked(
+    case 'ollama': {
+      // Ollama's HTTP /api/chat returns exact prompt_eval_count + eval_count
+      // (see lib/llm-call.ts ollamaAdapter:148-149). The spawner enforces the
+      // full pipeline end-to-end (lib/spawner.ts:1005-1052) including the
+      // costUsd > 0 check, so the policy gate flips on the model having a
+      // known rate in cost-tracker MODEL_RATES.
+      const effectiveModel = model?.trim() || '';
+      if (!effectiveModel) {
+        return blocked(
+          backend,
+          'Ollama model is required; pass --model to anchor an exact rate.',
+          'Re-run with --model <name>, e.g. --model qwen2.5-coder:7b.'
+        );
+      }
+      if (!hasExactModelRate(effectiveModel, 'ollama')) {
+        return {
+          ...blocked(
+            backend,
+            `Ollama model "${effectiveModel}" has no exact cost rate entry; fail-closed telemetry policy blocks launch.`,
+            'Add a rate for this model family to cost-tracker OLLAMA_MODEL_RATES before enabling it.'
+          ),
+          effectiveModel,
+        };
+      }
+      return {
         backend,
-        'Ollama is blocked until Port Daddy can attach exact token counts and a nonzero cost rate to every operation.',
-        'Keep Ollama disabled until the telemetry contract explicitly supports nonzero rate accounting for local inference.'
-      );
+        launchAllowed: true,
+        summary: `Exact telemetry policy satisfied for Ollama model "${effectiveModel}"`,
+        effectiveModel,
+      };
+    }
 
     case 'custom':
       return blocked(
