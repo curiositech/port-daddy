@@ -180,7 +180,14 @@ export function TerminalDemos() {
                     {demo.title}
                   </PanelTitle>
                 </div>
-                <PanelBody size="compact" className="ml-[22px] mt-[var(--space-1)] max-w-none text-[0.875rem]">
+                {/*
+                  Indent aligns the description under the demo title
+                  (clearing the 14px Square icon + gap). Snapped from
+                  the arbitrary `ml-[22px]` to the token scale: 24px
+                  is the closest --space-5 step, overshoots by 2px but
+                  keeps the spacing system consistent.
+                */}
+                <PanelBody size="compact" className="ml-[var(--space-5)] mt-[var(--space-1)] max-w-none text-[0.875rem]">
                   {demo.description}
                 </PanelBody>
               </button>

@@ -401,4 +401,82 @@ describe('design system contracts', () => {
     const lightDocCount = Array.from(lightSection.matchAll(/\|\s*`--[a-z0-9-]+`\s*\|\s*`#/g)).length
     expect(lightDocCount).toBeGreaterThanOrEqual(10)
   })
+
+  // ---------------------------------------------------------------
+  // Spacing system contract — landing components
+  // ---------------------------------------------------------------
+  // The Gestalt audit (2026-05-21) found 13 distinct spacing values
+  // in use, breaking the ≤3-level mandate. Most usage already went
+  // through the --space-N tokens (--space-0..10 = 0/4/8/12/16/24/32/
+  // 48/64/96/128). The offenders were two off-scale slipups:
+  //   - Features.tsx:290           gap-5         (= 20px, not in scale)
+  //   - TerminalDemos.tsx:183      ml-[22px]     (arbitrary px)
+  // This test pins the landing components to the token scale so the
+  // next 20px-arbitrary regression fails CI before it ships.
+  //
+  // Allowed escapes:
+  //   - mt-[0.45em] and similar em-relative inline-bullet alignment
+  //     (these are font-relative, not px-rigid)
+  //   - 0px / 2px borders, which are border-width concerns not spacing
+  //   - The reduced-motion / scroll-snap utilities don't apply here
+  test('landing components only use --space-N tokens for px-level spacing', () => {
+    const landingDir = './components/landing'
+    const files = collectSourceFiles(landingDir)
+    // Only the components currently mounted by App.tsx — other
+    // landing modules in the directory may be dead/legacy code we
+    // haven't cleaned up. The contract applies to what ships.
+    const mounted = [
+      'Hero.tsx',
+      'TerminalDemos.tsx',
+      'CoordinationEnforcementSection.tsx',
+      'AgentConversationSection.tsx',
+      'TubeShowcase.tsx',
+      'AgenticSocialProofSection.tsx',
+      'Features.tsx',
+      'CTABanner.tsx',
+    ]
+    const live = files.filter((path) =>
+      mounted.some((name) => path.endsWith(name)),
+    )
+    expect(live.length).toBe(mounted.length)
+
+    // Tailwind numeric escape hatches that bypass the token scale.
+    // gap-5 = 20px (not in --space-N), p-5 = 20px, etc.
+    const tailwindEscape = /\b(?:gap|p|m|space-y|space-x)-(?:5|7|9|11|13|14|15|17|18|19|20|22|24)\b/
+    // Bare-px arbitrary values: gap-[20px], p-[14px], mt-[3px], etc.
+    // Excludes em-relative values which are intentional (line-up to
+    // baseline / x-height).
+    const barePxArbitrary = /\b(?:gap|p|py|px|pt|pb|pl|pr|m|my|mx|mt|mb|ml|mr|space-y|space-x)-\[\d+(?:\.\d+)?px\]/
+
+    // Strip JS/TS comments before matching — explanatory comments
+    // routinely quote old (forbidden) class names like `ml-[22px]`
+    // to document why they were changed, and those quotes are
+    // intentional. The contract is about live JSX, not prose.
+    const stripComments = (source: string) =>
+      source
+        // /* … */ block comments (including JSX {/* … */} which still
+        // contain the inner comment as text — the {/* and */} are JSX
+        // delimiters but the /* */ is a real JS comment; stripping
+        // the /* */ payload covers both forms cleanly)
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        // // line comments
+        .replace(/(^|[^:])\/\/[^\n]*/g, '$1')
+
+    for (const path of live) {
+      const source = stripComments(read(path))
+      const tailwindHits = source.match(new RegExp(tailwindEscape.source, 'g')) ?? []
+      expect(
+        tailwindHits.length === 0
+          ? 'ok'
+          : `${path} uses off-scale Tailwind spacing: ${tailwindHits.join(', ')}`,
+      ).toBe('ok')
+
+      const barePxHits = source.match(new RegExp(barePxArbitrary.source, 'g')) ?? []
+      expect(
+        barePxHits.length === 0
+          ? 'ok'
+          : `${path} uses bare-px spacing (use --space-N tokens): ${barePxHits.join(', ')}`,
+      ).toBe('ok')
+    }
+  })
 })

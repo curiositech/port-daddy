@@ -142,11 +142,23 @@ listening. Use --raw / --json for machine output. Ctrl+C to exit.
         </SwissGrid>
 
         <div className="mt-[var(--space-8)] border-t-2 border-[var(--border-strong)] pt-[var(--space-6)]">
+          {/*
+            Gestalt similarity fix: `SectionIntro` defaults titleSize
+            to "display" (≈53.6px) which is identical to the page's
+            section H2s. Combined with titleAs="h3", that rendered a
+            subsection heading at the visual rank of a top-level
+            section header — false similarity. The reader's eye reads
+            it as a new section starting, then has to reconcile that
+            with the surrounding context. Step down to "card" size
+            (≈29.6px) which matches the actual H3 rank used in
+            CoordinationEnforcementSection and AgentConversationSection.
+          */}
           <SectionIntro
             eyebrow="What this unlocks"
             title="Publishers that already exist on every dev machine."
             description="The same primitive turns each of these into a real agent integration with no new infrastructure. The agent that's already running is the backend."
             titleAs="h3"
+            titleSize="card"
           />
           <div className="mt-[var(--space-5)] grid gap-[var(--space-4)] md:grid-cols-2 lg:grid-cols-3">
             <UnlockCard
@@ -222,7 +234,13 @@ function UnlockCard({
 }) {
   return (
     <div className="flex h-full flex-col gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-4)]">
-      <code className="self-start border border-[var(--border-strong)] bg-[var(--surface-inset)] px-2 py-0.5 text-xs">
+      {/*
+        text-xs (12px) on a code element reading a channel name is
+        prose-rank text, not an eyebrow — fails the user-level
+        14px-minimum rule (CLAUDE.md). Stepped up to text-sm (14px).
+        Flagged by skeptical-reviewer on PR #168.
+      */}
+      <code className="self-start border border-[var(--border-strong)] bg-[var(--surface-inset)] px-2 py-0.5 text-sm">
         {channel}
       </code>
       <PanelTitle as="h4" className="text-base">
