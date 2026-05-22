@@ -17,12 +17,15 @@ jobs:
           - os: macos-latest
             target: bun-darwin-arm64
             artifact: pd-darwin-arm64
-          - os: macos-13
-            target: bun-darwin-x64
-            artifact: pd-darwin-x64
           - os: ubuntu-latest
             target: bun-linux-x64
             artifact: pd-linux-x64
+          # darwin-x64 (Intel Mac) was dropped 2026-05-22. macos-13 runners in
+          # the GHA pool routinely queue for 24+ hours (wedged v3.14.1 +
+          # v3.15.0). The brew formula already ships only darwin-arm64 +
+          # linux-x64, so the artifact was dead weight. Intel Mac users can
+          # install from npm or build from source until we add it back via
+          # a different runner pool.
     runs-on: ${{ matrix.os }}
     permissions:
       contents: write
