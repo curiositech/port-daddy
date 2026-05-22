@@ -60,6 +60,14 @@ interface BeginOptions {
   worktree?: SessionWorktreeContext;
   requireLinkedWorktree?: boolean;
   allowMainWorktree?: boolean;
+  /**
+   * Skip the crowded-main-worktree collision check. Set by the CLI when
+   * allowMainWorktree was triggered by the long-standing env var
+   * (PORT_DADDY_ALLOW_MAIN_WORKTREE_SESSION) rather than the
+   * --allow-main-worktree flag. CI / single-user setups don't need the
+   * interactive collision check; humans opting in explicitly still do.
+   */
+  bypassCrowdedGate?: boolean;
 }
 
 interface DoneOptions {
@@ -161,6 +169,7 @@ export function createSugar(deps: SugarDeps) {
       worktreePolicy.worktree
       && worktreePolicy.worktree.isMain
       && options.allowMainWorktree === true
+      && options.bypassCrowdedGate !== true
     ) {
       // Yes/no collision check — limit: 1 keeps it cheap. We deliberately
       // don't surface a count because list() with a low limit would

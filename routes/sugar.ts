@@ -44,6 +44,7 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         worktree,
         requireLinkedWorktree,
         allowMainWorktree,
+        bypassCrowdedGate,
       } = request.body as any;
 
       if (!purpose || typeof purpose !== 'string') {
@@ -67,6 +68,7 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         worktree,
         requireLinkedWorktree,
         allowMainWorktree,
+        bypassCrowdedGate,
       });
 
       if (!result.success) {

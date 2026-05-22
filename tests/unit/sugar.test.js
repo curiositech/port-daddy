@@ -178,6 +178,38 @@ describe('sugar.begin', () => {
     expect(second.hint).toContain('git worktree add');
   });
 
+  test('bypassCrowdedGate=true skips the crowded check (env-sourced allow)', () => {
+    const { sugar } = setup();
+    const worktree = {
+      id: 'main1234',
+      root: '/repo/port-daddy',
+      name: 'port-daddy',
+      branch: 'main',
+      isMain: true,
+    };
+
+    const first = sugar.begin({
+      purpose: 'CI session 1',
+      requireLinkedWorktree: true,
+      allowMainWorktree: true,
+      bypassCrowdedGate: true,
+      worktree,
+    });
+    expect(first.success).toBe(true);
+
+    // Second CI/single-user session would normally be refused, but the
+    // bypass flag (env-sourced allow) skips the gate so existing CI
+    // suites keep working.
+    const second = sugar.begin({
+      purpose: 'CI session 2',
+      requireLinkedWorktree: true,
+      allowMainWorktree: true,
+      bypassCrowdedGate: true,
+      worktree,
+    });
+    expect(second.success).toBe(true);
+  });
+
   test('main-worktree gate releases once the first session ends', () => {
     const { sugar } = setup();
     const worktree = {
