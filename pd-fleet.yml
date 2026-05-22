@@ -368,28 +368,29 @@ fleet:
       identity: "{project}:fleet:spark"
       telos: "Propose one novel, buildable improvement with traceable lineage."
 
-    # ─── Nightshift runner (DISABLED by default; see docs/proposals/pd-nightshift.md) ──
-    # This ship is the cron path for `pd nightshift`. It fires once a night at
-    # 1am, pops the next queued intent, and runs it autonomously in a fresh
-    # worktree under ~/coding/tmp/nightshift/<id>.
+    # ─── Dispatch runner (DISABLED by default; see docs/proposals/pd-nightshift.md) ──
+    # Renamed from `nightshift-runner` per ADR-0035 -- the verb generalized. This
+    # ship is the cron path for `pd dispatch`. It fires once a night at 1am,
+    # pops the next proposed dispatch, and runs it autonomously in a fresh
+    # worktree under ~/coding/tmp/port-daddy-dispatch-<idShort>.
     #
     # Uncomment after:
-    #   1. operator has reviewed the first PR opened by a nightshift run,
-    #   2. the pre-receive hook denying push-to-main inside nightshift worktrees
-    #      is wired (see proposal "stubbed" section),
+    #   1. operator has reviewed the first PR opened by a dispatch run,
+    #   2. the pre-receive hook denying push-to-main inside dispatch worktrees
+    #      is wired (PR #161's destructive-op shim is the current floor),
     #   3. the fleet engine's cron parser supports absolute hour-of-day
     #      patterns (PR #137).
     #
-    # nightshift-runner:
+    # dispatch-runner:
     #   schedule: "0 1 * * *"        # 1am daily; one tick per night
-    #   backend: custom              # runs `pd nightshift run --next --really-run`
+    #   backend: custom              # runs `pd dispatch run --next --really-run`
     #   singleton: true
     #   cooldown_ms: 21600000        # 6h cooldown between runs
     #   timeout: 14400000            # 4h max wall-clock per spawn
-    #   daily_cap_usd: 10            # fleet-level ceiling; per-intent budget also applies
-    #   prompt: "pd nightshift run --next --really-run"
-    #   identity: "{project}:fleet:nightshift-runner"
-    #   telos: "Drain the operator's overnight queue without supervision, bounded by cost and time."
+    #   daily_cap_usd: 10            # fleet-level ceiling; per-dispatch budget also applies
+    #   prompt: "pd dispatch run --next --really-run"
+    #   identity: "{project}:fleet:dispatch-runner"
+    #   telos: "Drain the operator's dispatch queue without supervision, bounded by cost and time."
 
     spider:
       # Stays scheduled every 2 hours. Output: writes syllogisms to

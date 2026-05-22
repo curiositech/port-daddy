@@ -1,6 +1,11 @@
+/**
+ * Tests for lib/dispatch/runner.ts -- planning the autonomous spawn for a
+ * dispatch. Renamed + rebased from nightshift-slug.test.js.
+ */
+
 import { jest } from '@jest/globals';
 import { createTestDb } from '../setup-unit.js';
-import { createNightshiftQueue, deriveSlug, deriveBranchName } from '../../lib/nightshift/queue.js';
+import { createDispatchQueue, deriveSlug, deriveBranchName } from '../../lib/dispatch/queue.js';
 import {
   planRunFor,
   runNext,
@@ -11,8 +16,8 @@ import {
   DEFAULT_TIMEOUT_MS,
   MAX_TIMEOUT_MS,
   MIN_TIMEOUT_MS,
-  NIGHTSHIFT_WORKTREE_ROOT,
-} from '../../lib/nightshift/runner.js';
+  DISPATCH_WORKTREE_ROOT,
+} from '../../lib/dispatch/runner.js';
 
 describe('deriveSlug', () => {
   test('lowercases + replaces non-alphanumerics with -', () => {
@@ -44,7 +49,6 @@ describe('deriveSlug', () => {
   });
 
   test('strips trailing dashes after truncation', () => {
-    // 60-char boundary lands on a dash; slug should not end with -
     const input = 'a'.repeat(60) + '-extra-words-that-fall-off';
     const slug = deriveSlug(input);
     expect(slug.endsWith('-')).toBe(false);
@@ -52,24 +56,25 @@ describe('deriveSlug', () => {
 });
 
 describe('deriveBranchName', () => {
-  test('produces a night-shift/ prefixed branch with slug + idShort', () => {
-    expect(deriveBranchName('foo-bar', 'abcdef0123456789')).toBe('night-shift/foo-bar-abcdef01');
+  test('produces a dispatch/ prefixed branch with slug + idShort', () => {
+    expect(deriveBranchName('foo-bar', 'abcdef0123456789')).toBe('dispatch/foo-bar-abcdef01');
   });
 
   test('handles short ids by padding with noid-ish fallback', () => {
-    expect(deriveBranchName('s', '')).toBe('night-shift/s-noid');
+    expect(deriveBranchName('s', '')).toBe('dispatch/s-noid');
   });
 
   test('strips non-alphanumerics from id portion', () => {
-    expect(deriveBranchName('s', 'aa-bb-cc-dd-ee')).toBe('night-shift/s-aabbccdd');
+    expect(deriveBranchName('s', 'aa-bb-cc-dd-ee')).toBe('dispatch/s-aabbccdd');
   });
 });
 
 describe('deriveWorktreePath', () => {
-  test('sits under the nightshift worktree root', () => {
-    const p = deriveWorktreePath('abcd-1234');
-    expect(p.startsWith(NIGHTSHIFT_WORKTREE_ROOT)).toBe(true);
-    expect(p.endsWith('abcd-1234')).toBe(true);
+  test('sits under the dispatch worktree root', () => {
+    const p = deriveWorktreePath('abcd1234ef56');
+    expect(p.startsWith(DISPATCH_WORKTREE_ROOT)).toBe(true);
+    // Path uses port-daddy-dispatch-<shortId> naming.
+    expect(p).toMatch(/port-daddy-dispatch-/);
   });
 
   test('never lands under /tmp', () => {
@@ -89,7 +94,6 @@ describe('buildSpawnArgv', () => {
     expect(command).toBe('claude');
     expect(args).toContain('--dangerously-skip-permissions');
     expect(args).toContain('-p');
-    // intent must be passed as its own arg, never concatenated into a shell string
     expect(args[args.indexOf('-p') + 1]).toBe('do the thing');
   });
 
@@ -104,7 +108,6 @@ describe('buildSpawnArgv', () => {
     expect(args.indexOf('--sandbox')).toBeGreaterThanOrEqual(0);
     expect(args[args.indexOf('--sandbox') + 1]).toBe('workspace-write');
     expect(args).toContain('/scratch/x');
-    // intent must be the last positional, untouched
     expect(args[args.length - 1]).toBe('do the thing');
   });
 
@@ -124,64 +127,84 @@ describe('planRunFor', () => {
   beforeEach(() => {
     db = createTestDb();
     clock = 1_700_000_000_000;
-    queue = createNightshiftQueue({ db, now: () => clock });
+    queue = createDispatchQueue({ db, now: () => clock });
   });
   afterEach(() => {
     db.close();
   });
 
-  test('produces a deterministic plan keyed off the intent', () => {
-    const intent = queue.propose({ intent: 'normalize design tokens' });
-    const plan = planRunFor(intent);
-    expect(plan.intent.id).toBe(intent.id);
+  test('produces a deterministic plan keyed off the dispatch', () => {
+    const d = queue.propose({ goal: 'normalize design tokens' });
+    const plan = planRunFor(d);
+    expect(plan.dispatch.id).toBe(d.id);
     expect(plan.backend).toBe(DEFAULT_BACKEND);
-    expect(plan.worktreePath).toContain(intent.id);
-    expect(plan.branchName.startsWith('night-shift/normalize-design-tokens-')).toBe(true);
+    expect(plan.worktreePath).toContain('port-daddy-dispatch-');
+    expect(plan.branch.startsWith('dispatch/normalize-design-tokens-')).toBe(true);
     expect(plan.baseRef).toBe('origin/main');
     expect(plan.command === 'claude' || plan.command === 'codex').toBe(true);
   });
 
-  test('applies the default budget when intent does not set one', () => {
-    const intent = queue.propose({ intent: 'foo' });
-    const plan = planRunFor(intent);
+  test('uses dispatch.baseBranch for baseRef', () => {
+    const d = queue.propose({ goal: 'foo', baseBranch: 'release/2026.05' });
+    const plan = planRunFor(d);
+    expect(plan.baseRef).toBe('origin/release/2026.05');
+  });
+
+  test('rationale calls out the merge_policy', () => {
+    const d = queue.propose({ goal: 'foo', mergePolicy: 'never' });
+    const plan = planRunFor(d);
+    expect(plan.rationale.some((line) => line.includes('merge_policy = never'))).toBe(true);
+  });
+
+  test('applies the default budget when dispatch does not set one', () => {
+    const d = queue.propose({ goal: 'foo' });
+    const plan = planRunFor(d);
     expect(plan.budgetUsd).toBe(DEFAULT_BUDGET_USD);
   });
 
   test('clamps timeout below MIN and above MAX', () => {
-    const tiny = queue.propose({ intent: 'a', timeoutMs: 1 });
+    const tiny = queue.propose({ goal: 'a', timeoutMs: 1 });
     expect(planRunFor(tiny).timeoutMs).toBe(MIN_TIMEOUT_MS);
-    const huge = queue.propose({ intent: 'b', timeoutMs: 10 * MAX_TIMEOUT_MS });
+    const huge = queue.propose({ goal: 'b', timeoutMs: 10 * MAX_TIMEOUT_MS });
     expect(planRunFor(huge).timeoutMs).toBe(MAX_TIMEOUT_MS);
   });
 
-  test('uses the default timeout when intent does not set one', () => {
-    const intent = queue.propose({ intent: 'foo' });
-    expect(planRunFor(intent).timeoutMs).toBe(DEFAULT_TIMEOUT_MS);
+  test('uses the default timeout when dispatch does not set one', () => {
+    const d = queue.propose({ goal: 'foo' });
+    expect(planRunFor(d).timeoutMs).toBe(DEFAULT_TIMEOUT_MS);
   });
 
   test('honours backend override from caller', () => {
-    const intent = queue.propose({ intent: 'foo' });
-    expect(planRunFor(intent, { backend: 'cli:claude-code' }).backend).toBe('cli:claude-code');
-    expect(planRunFor(intent, { backend: 'cli:codex' }).backend).toBe('cli:codex');
+    const d = queue.propose({ goal: 'foo' });
+    expect(planRunFor(d, { backend: 'cli:claude-code' }).backend).toBe('cli:claude-code');
+    expect(planRunFor(d, { backend: 'cli:codex' }).backend).toBe('cli:codex');
   });
 
-  test('honours backend stored on the intent', () => {
-    const intent = queue.propose({ intent: 'foo', backend: 'cli:claude-code' });
-    expect(planRunFor(intent).backend).toBe('cli:claude-code');
+  test('honours backend stored on the dispatch', () => {
+    const d = queue.propose({ goal: 'foo', backend: 'cli:claude-code' });
+    expect(planRunFor(d).backend).toBe('cli:claude-code');
   });
 
   test('throws on unsupported backend', () => {
-    const intent = queue.propose({ intent: 'foo' });
-    expect(() => planRunFor(intent, { backend: 'cli:weird' })).toThrow(/backend/);
+    const d = queue.propose({ goal: 'foo' });
+    expect(() => planRunFor(d, { backend: 'cli:weird' })).toThrow(/backend/);
   });
 
   test('rationale enumerates the blast-radius decisions', () => {
-    const intent = queue.propose({ intent: 'foo', backend: 'cli:codex' });
-    const plan = planRunFor(intent);
+    const d = queue.propose({ goal: 'foo', backend: 'cli:codex' });
+    const plan = planRunFor(d);
     const rationaleText = plan.rationale.join('\n');
     expect(rationaleText).toContain('codex');
     expect(rationaleText).toContain('workspace-write');
     expect(rationaleText).toContain('budget');
+    expect(rationaleText).toContain('base_branch');
+  });
+
+  test('env includes PD_DISPATCH_BASE_BRANCH for the worker', () => {
+    const d = queue.propose({ goal: 'foo', baseBranch: 'develop' });
+    const plan = planRunFor(d);
+    expect(plan.env.PD_DISPATCH_BASE_BRANCH).toBe('develop');
+    expect(plan.env.PD_DISPATCH_ID).toBe(d.id);
   });
 });
 
@@ -192,7 +215,7 @@ describe('runNext (dry-run mode)', () => {
   beforeEach(() => {
     db = createTestDb();
     clock = 1_700_000_000_000;
-    queue = createNightshiftQueue({ db, now: () => clock });
+    queue = createDispatchQueue({ db, now: () => clock });
   });
   afterEach(() => {
     db.close();
@@ -204,63 +227,63 @@ describe('runNext (dry-run mode)', () => {
   });
 
   test('returns a plan but does NOT consume the queue when dryRun=true', async () => {
-    const intent = queue.propose({ intent: 'a', autoQueue: true });
+    const d = queue.propose({ goal: 'a' });
     const result = await runNext(queue);
     expect(result).not.toBeNull();
-    expect(result.plan.intent.id).toBe(intent.id);
-    const reloaded = queue.get(intent.id);
-    expect(reloaded.status).toBe('queued'); // not running
+    expect(result.plan.dispatch.id).toBe(d.id);
+    const reloaded = queue.get(d.id);
+    expect(reloaded.state).toBe('proposed'); // not claimed
   });
 
-  test('picks the oldest queued intent first', async () => {
-    const first = queue.propose({ intent: 'first', autoQueue: true });
+  test('picks the oldest proposed dispatch first', async () => {
+    const first = queue.propose({ goal: 'first' });
     clock += 1000;
-    queue.propose({ intent: 'second', autoQueue: true });
+    queue.propose({ goal: 'second' });
     const result = await runNext(queue);
-    expect(result.plan.intent.id).toBe(first.id);
+    expect(result.plan.dispatch.id).toBe(first.id);
   });
 
   test('errors when dryRun=false but no spawnAdapter is supplied', async () => {
-    queue.propose({ intent: 'a', autoQueue: true });
+    queue.propose({ goal: 'a' });
     await expect(runNext(queue, { dryRun: false })).rejects.toThrow(/spawnAdapter/);
   });
 
   test('with dryRun=false + adapter, consumes queue and records adapter result', async () => {
-    const intent = queue.propose({ intent: 'a', autoQueue: true });
+    const d = queue.propose({ goal: 'a' });
     const adapter = jest.fn(async () => ({
-      status: 'succeeded',
+      state: 'settled',
       costUsd: 0.42,
-      prUrl: 'https://example.com/pr/1',
+      resultArtifact: 'https://example.com/pr/1',
     }));
     const result = await runNext(queue, { dryRun: false, spawnAdapter: adapter });
     expect(adapter).toHaveBeenCalledTimes(1);
-    expect(result.result.status).toBe('succeeded');
-    const reloaded = queue.get(intent.id);
-    expect(reloaded.status).toBe('succeeded');
+    expect(result.result.state).toBe('settled');
+    const reloaded = queue.get(d.id);
+    expect(reloaded.state).toBe('settled');
     expect(reloaded.costUsd).toBeCloseTo(0.42);
-    expect(reloaded.prUrl).toBe('https://example.com/pr/1');
+    expect(reloaded.resultArtifact).toBe('https://example.com/pr/1');
   });
 
-  test('adapter exception marks intent failed with the error message', async () => {
-    const intent = queue.propose({ intent: 'b', autoQueue: true });
+  test('adapter exception marks dispatch failed with the error message', async () => {
+    const d = queue.propose({ goal: 'b' });
     const adapter = jest.fn(async () => {
       throw new Error('spawn blew up');
     });
     const result = await runNext(queue, { dryRun: false, spawnAdapter: adapter });
-    expect(result.result.status).toBe('failed');
-    const reloaded = queue.get(intent.id);
-    expect(reloaded.status).toBe('failed');
+    expect(result.result.state).toBe('failed');
+    const reloaded = queue.get(d.id);
+    expect(reloaded.state).toBe('failed');
     expect(reloaded.errorMessage).toMatch(/spawn blew up/);
   });
 
-  test('the adapter receives a plan whose intent has status=running', async () => {
-    queue.propose({ intent: 'c', autoQueue: true });
-    let observedStatus = null;
+  test('the adapter receives a plan whose dispatch state is claimed', async () => {
+    queue.propose({ goal: 'c' });
+    let observedState = null;
     const adapter = jest.fn(async ({ plan }) => {
-      observedStatus = plan.intent.status;
-      return { status: 'succeeded' };
+      observedState = plan.dispatch.state;
+      return { state: 'settled' };
     });
     await runNext(queue, { dryRun: false, spawnAdapter: adapter });
-    expect(observedStatus).toBe('running');
+    expect(observedState).toBe('claimed');
   });
 });

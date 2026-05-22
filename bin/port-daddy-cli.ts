@@ -90,8 +90,10 @@ import {
   handleSpawn, handleSpawned, handleWatch, handleSortie,
   // Transcripts
   handleTranscripts,
-  // Nightshift -- autonomous overnight feature dev
-  handleNightshift, handleMorning,
+  // Dispatch (renamed from nightshift per ADR-0035) + morning summary +
+  // review (pd review --accept|--reject contract). `handleNightshift` is
+  // kept as a back-compat alias that delegates to `handleDispatch`.
+  handleDispatch, handleNightshift, handleReview, handleMorning,
   // Harbors
   handleHarborCreate, handleHarborEnter, handleHarborLeave, handleHarborShow, handleHarborDestroy, handleHarbors,
   // Demo
@@ -1260,7 +1262,7 @@ const ALL_COMMANDS: string[] = [
   'secret', 'secrets',
   'cockpit',
   'popper',
-  'nightshift', 'morning',
+  'dispatch', 'nightshift', 'review', 'morning',
 ];
 
 /** Simple Levenshtein distance for short strings */
@@ -2757,9 +2759,19 @@ export async function main(): Promise<void> {
         await handleSortie(positional, options);
         break;
 
-      // Nightshift -- autonomous overnight feature dev queue
+      // Dispatch -- autonomous feature dev queue (renamed from nightshift per
+      // ADR-0035). `nightshift` is an alias kept for one minor version.
+      case 'dispatch':
+        await handleDispatch(positional, options);
+        break;
+
       case 'nightshift':
         await handleNightshift(positional, options);
+        break;
+
+      // Review -- pd review <id> --accept|--reject contract (ADR-0035).
+      case 'review':
+        await handleReview(positional, options);
         break;
 
       case 'morning':

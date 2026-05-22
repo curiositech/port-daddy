@@ -1,17 +1,28 @@
 /**
- * pd morning -- start-of-day summary of overnight nightshift completions.
+ * pd morning -- start-of-day summary of overnight dispatch activity.
  *
- * The Bostock-density variant (small multiples, sparkline of cost vs cap,
- * inline transcript previews) is a follow-up. This first cut prints a
- * plain-text table that is honest about what ran, what cost it, and what
- * needs operator attention.
+ * Renamed-table-aware: reads from `dispatches`, falls back to the
+ * (now-migrated) `nightshift_intents` rows via lib/dispatch/queue's
+ * migrateNightshiftIntents() which runs at queue construction.
  *
- * Default time window is the last 18 hours (covers an overnight from
- * yesterday evening through breakfast). Override with --since <iso|ms>.
+ * Shows the full 8-state machine, not just "is there a PR":
+ *
+ *   queued / running / awaiting-review / accepted / rejected / failed
+ *
+ * Plus a "needs your review" callout listing dispatches in `review_pending`,
+ * with the `pd review <id> --accept|--reject` commands ready to copy.
+ *
+ * Default time window is the last 18 hours (overnight from yesterday
+ * evening through breakfast). Override with --since <iso|ms>.
  */
 
 import { initDatabase } from '../../lib/db.js';
-import { createNightshiftQueue, type NightshiftIntent } from '../../lib/nightshift/queue.js';
+import {
+  createDispatchQueue,
+  type Dispatch,
+  type DispatchState,
+} from '../../lib/dispatch/queue.js';
+import { stateGlyph } from '../../lib/dispatch/state-machine.js';
 
 import type { CLIOptions } from '../types.js';
 import { isJson, isQuiet } from '../types.js';
@@ -22,27 +33,12 @@ const DEFAULT_LOOKBACK_HOURS = 18;
 function parseSince(value: unknown): number {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   if (typeof value === 'string' && value.trim()) {
-    // Try ISO first
     const iso = Date.parse(value);
     if (Number.isFinite(iso)) return iso;
     const numeric = Number.parseInt(value, 10);
     if (Number.isFinite(numeric) && numeric > 0) return numeric;
   }
   return Date.now() - DEFAULT_LOOKBACK_HOURS * 60 * 60 * 1000;
-}
-
-function statusGlyph(status: NightshiftIntent['status']): string {
-  switch (status) {
-    case 'succeeded': return '+';
-    case 'failed':
-    case 'aborted':
-    case 'timeout': return 'x';
-    case 'cancelled': return '-';
-    case 'running': return '>';
-    case 'queued':
-    case 'proposed': return '.';
-    default: return '?';
-  }
 }
 
 function formatDuration(ms: number | null): string {
@@ -63,55 +59,68 @@ function formatCost(usd: number | null): string {
 interface MorningSummary {
   windowStart: number;
   windowEnd: number;
-  intents: NightshiftIntent[];
+  dispatches: Dispatch[];
   totals: {
-    completed: number;
-    succeeded: number;
-    failed: number;
-    inFlight: number;
-    cancelled: number;
+    /** Total dispatches in window (any state). */
+    total: number;
+    /** Per-state breakdown. */
+    byState: Record<DispatchState, number>;
+    /** Convenience: how many need operator attention right now. */
+    awaitingReview: number;
+    /** Convenience: terminal-but-not-good. */
+    failedOrRejected: number;
+    /** Sum of cost_usd for dispatches in window. */
     totalCostUsd: number;
   };
 }
 
-export function summarize(intents: NightshiftIntent[], windowStart: number, windowEnd: number): MorningSummary {
-  let succeeded = 0;
-  let failed = 0;
-  let inFlight = 0;
-  let cancelled = 0;
+const STATE_ORDER: DispatchState[] = [
+  'proposed',
+  'claimed',
+  'in_progress',
+  'produced',
+  'review_pending',
+  'accepted',
+  'rejected',
+  'settled',
+  'failed',
+  'salvage',
+];
+
+export function summarize(
+  dispatches: Dispatch[],
+  windowStart: number,
+  windowEnd: number,
+): MorningSummary {
+  const byState = Object.fromEntries(STATE_ORDER.map((s) => [s, 0])) as Record<DispatchState, number>;
   let totalCostUsd = 0;
-  for (const intent of intents) {
-    if (intent.status === 'succeeded') succeeded += 1;
-    else if (intent.status === 'failed' || intent.status === 'aborted' || intent.status === 'timeout') failed += 1;
-    else if (intent.status === 'running') inFlight += 1;
-    else if (intent.status === 'cancelled') cancelled += 1;
-    if (intent.costUsd != null && Number.isFinite(intent.costUsd)) totalCostUsd += intent.costUsd;
+  for (const d of dispatches) {
+    byState[d.state] = (byState[d.state] ?? 0) + 1;
+    if (d.costUsd != null && Number.isFinite(d.costUsd)) totalCostUsd += d.costUsd;
   }
   return {
     windowStart,
     windowEnd,
-    intents,
+    dispatches,
     totals: {
-      completed: succeeded + failed + cancelled,
-      succeeded,
-      failed,
-      inFlight,
-      cancelled,
+      total: dispatches.length,
+      byState,
+      awaitingReview: byState.review_pending,
+      failedOrRejected: byState.failed + byState.rejected + byState.salvage,
       totalCostUsd,
     },
   };
 }
 
 export async function handleMorning(args: string[], options: CLIOptions): Promise<void> {
-  // args may carry --since-relative shorthand later; not used today.
   void args;
   const windowStart = parseSince(options.since);
   const windowEnd = Date.now();
 
   const db = initDatabase();
-  const queue = createNightshiftQueue({ db });
-  const intents = queue.list({ since: windowStart });
-  const summary = summarize(intents, windowStart, windowEnd);
+  const queue = createDispatchQueue({ db });
+  const dispatches = queue.list({ since: windowStart });
+  const summary = summarize(dispatches, windowStart, windowEnd);
 
   if (isJson(options)) {
     console.log(JSON.stringify(summary, null, 2));
@@ -119,9 +128,10 @@ export async function handleMorning(args: string[], options: CLIOptions): Promis
   }
 
   if (isQuiet(options)) {
+    const t = summary.totals;
     console.log(
-      `${summary.totals.succeeded} succeeded, ${summary.totals.failed} failed, ` +
-        `${summary.totals.inFlight} in flight, ${formatCost(summary.totals.totalCostUsd)} total`,
+      `${t.byState.settled} settled, ${t.failedOrRejected} failed/rejected, ` +
+        `${t.awaitingReview} awaiting review, ${formatCost(t.totalCostUsd)} total`,
     );
     return;
   }
@@ -132,50 +142,74 @@ export async function handleMorning(args: string[], options: CLIOptions): Promis
   console.log(`Window: ${startIso} -> ${endIso}`);
   console.log('');
 
-  if (summary.intents.length === 0) {
+  if (summary.dispatches.length === 0) {
     console.log('Nothing ran in this window.');
     console.log('');
-    console.log('Drop an intent for tonight:');
-    console.log('  pd nightshift propose "<what you wish was done by morning>"');
+    console.log('Drop a goal for the next run:');
+    console.log('  pd dispatch propose "<what you wish was done by morning>"');
     return;
   }
 
-  console.log('  id        status       slug                              duration   cost   pr/branch');
-  console.log('  --------  -----------  --------------------------------  ---------  -----  ----------');
-  for (const intent of summary.intents) {
-    const idShort = intent.id.slice(0, 8);
-    const glyph = statusGlyph(intent.status);
-    const status = `${glyph} ${intent.status}`.padEnd(11);
-    const slug = intent.slug.slice(0, 32).padEnd(32);
-    const dur = formatDuration(intent.durationMs).padEnd(9);
-    const cost = formatCost(intent.costUsd).padEnd(5);
-    const trailer = intent.prUrl
-      ? intent.prUrl
-      : intent.branchName
-        ? `branch:${intent.branchName}`
+  console.log('  id        state             slug                              duration   cost   artifact/branch');
+  console.log('  --------  ----------------  --------------------------------  ---------  -----  ---------------');
+  for (const d of summary.dispatches) {
+    const idShort = d.id.slice(0, 8);
+    const glyph = stateGlyph(d.state);
+    const state = `${glyph} ${d.state}`.padEnd(16);
+    const slug = d.slug.slice(0, 32).padEnd(32);
+    const dur = formatDuration(d.durationMs).padEnd(9);
+    const cost = formatCost(d.costUsd).padEnd(5);
+    const trailer = d.resultArtifact
+      ? d.resultArtifact
+      : d.branch
+        ? `branch:${d.branch}`
         : '(no branch yet)';
-    console.log(`  ${idShort}  ${status}  ${slug}  ${dur}  ${cost}  ${trailer}`);
+    console.log(`  ${idShort}  ${state}  ${slug}  ${dur}  ${cost}  ${trailer}`);
   }
 
   console.log('');
-  console.log(
-    `${summary.totals.succeeded} succeeded  ` +
-      `${summary.totals.failed} failed  ` +
-      `${summary.totals.inFlight} in flight  ` +
-      `${summary.totals.cancelled} cancelled  ` +
-      `total cost ${formatCost(summary.totals.totalCostUsd)}`,
-  );
+  const t = summary.totals;
+  // State-machine roll-up: print every non-zero state. Order is the canonical
+  // 8-state walk so the operator can read top-to-bottom and see where work
+  // is sitting.
+  const parts: string[] = [];
+  for (const state of STATE_ORDER) {
+    const n = t.byState[state];
+    if (n > 0) parts.push(`${n} ${state}`);
+  }
+  console.log(parts.join('  '));
+  console.log(`total cost ${formatCost(t.totalCostUsd)}`);
 
-  const needsReview = summary.intents.filter(
-    (i) =>
-      (i.status === 'succeeded' || i.status === 'failed' || i.status === 'aborted' || i.status === 'timeout') &&
-      i.reviewedAt == null,
-  );
-  if (needsReview.length > 0) {
+  // Operator-action callouts.
+  if (t.awaitingReview > 0) {
     console.log('');
-    console.log(`${needsReview.length} intent(s) need review:`);
-    for (const intent of needsReview) {
-      console.log(`  pd nightshift review ${intent.id}`);
+    console.log(`${t.awaitingReview} dispatch(es) awaiting review:`);
+    for (const d of summary.dispatches) {
+      if (d.state !== 'review_pending') continue;
+      console.log(`  pd review ${d.id} --accept`);
+      console.log(`  pd review ${d.id} --reject "<reason>"`);
+    }
+  }
+
+  const stuckProduced = summary.dispatches.filter(
+    (d) => d.state === 'produced' && d.producedAt && (Date.now() - d.producedAt) > 30 * 60 * 1000,
+  );
+  if (stuckProduced.length > 0) {
+    console.log('');
+    console.log(`${stuckProduced.length} dispatch(es) stuck in "produced" >30min:`);
+    for (const d of stuckProduced) {
+      console.log(`  ${d.id.slice(0, 8)} ${d.slug} (artifact: ${d.resultArtifact ?? 'none'})`);
+    }
+  }
+
+  const failed = summary.dispatches.filter(
+    (d) => d.state === 'failed' && !d.reviewedAt,
+  );
+  if (failed.length > 0) {
+    console.log('');
+    console.log(`${failed.length} dispatch(es) failed -- see error_message via:`);
+    for (const d of failed) {
+      console.log(`  pd dispatch show ${d.id}`);
     }
   }
 }
