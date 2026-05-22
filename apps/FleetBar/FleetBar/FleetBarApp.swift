@@ -48,7 +48,7 @@ struct FleetBarApp: App {
         .menuBarExtraStyle(.window)
 
         WindowGroup("Fleet Control Center", id: Self.controlCenterWindowID) {
-            FleetControlCenter(store: store, costStore: costStore, dispatchStore: dispatchStore)
+            FleetControlCenter(store: store, costStore: costStore, dispatchStore: dispatchStore, backendStore: backendStore)
         }
         .defaultSize(width: 1360, height: 860)
 
