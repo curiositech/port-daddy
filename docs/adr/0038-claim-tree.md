@@ -504,6 +504,25 @@ behave as advisory long-term markers; contested claims behave as
 short-term reservations that decay if the owner doesn't actively use
 them.
 
+#### Rate-limiting `claim:approach` to prevent prune-storm DoS
+
+A naive implementation lets a single agent polling once per second
+saturate contest_pressure to 86,400 in a day, dropping the effective
+idle threshold to near-zero and pruning any claim in milliseconds. That
+turns the soft-claim broadcast into a DoS primitive.
+
+Two rate limits prevent this:
+
+- **Per-(session, target) cooldown** — only one `claim:approach` event
+  per (originating session, target node) pair is counted per `claim:approach.cooldown_seconds` (default **300 s**). A polling agent saturates at one event per five minutes per target it's actually trying to touch.
+- **Global pressure cap** — `contest_pressure` is min(N_distinct_sessions, 24h-event-count). A single repeated offender can never push pressure past `N_distinct_sessions`. Three distinct sessions trying to touch the claim caps pressure at 3 even if they collectively emit 600 events.
+
+The first cap is the one that matters in practice: it makes
+`claim:approach` a coarse-grained signal of "is someone else
+genuinely interested in this work right now," not a hot loop.
+Audit-trail: every cooldown-suppressed event still gets a row in
+`activity_log` for retrospectives.
+
 When the GC reaps a contested claim, the owner gets a final
 `claim:expired-under-contest` event with the prune timing and the
 sessions that contested. They can re-claim immediately if they're still
