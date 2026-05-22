@@ -33,19 +33,25 @@ interface InboxAPI {
   stats(agentId: string): { success: boolean; total: number; unread: number };
 }
 
+interface MessagingMessage {
+  id: number;
+  payload: unknown;
+  contentType: string;
+  sender: string | null;
+  createdAt: number;
+}
+
+// Loose type — the real lib/messaging.ts module returns a union (validation error
+// OR success-with-messages); narrowing here would force us to import every code
+// branch. We only care about `.success` and `.messages` so this is what we need.
 interface MessagingAPI {
-  getMessages(channel: string, options?: { limit?: number; after?: number | null }): {
+  getMessages(
+    channel: string,
+    options?: { limit?: number; after?: number | null },
+  ): {
     success: boolean;
-    channel?: string;
-    messages?: Array<{
-      id: number;
-      payload: unknown;
-      contentType: string;
-      sender: string;
-      createdAt: number;
-    }>;
-    count?: number;
-    error?: string;
+    messages?: MessagingMessage[];
+    [key: string]: unknown;
   };
 }
 

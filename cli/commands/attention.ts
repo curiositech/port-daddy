@@ -225,7 +225,7 @@ export async function handleAttention(options: CLIOptions): Promise<void> {
   if (options.limit !== undefined) params.set('limit', String(options.limit));
 
   const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/attention?${params}`);
-  const data = (await res.json()) as AttentionSummary;
+  const data = (await res.json()) as unknown as AttentionSummary;
   if (!res.ok || !data.success) {
     ui.error(data.error || 'attention fetch failed');
     process.exit(1);
