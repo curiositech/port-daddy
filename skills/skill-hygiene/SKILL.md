@@ -153,6 +153,21 @@ python3 skills/skill-hygiene/scripts/audit_skill_bundle.py skills/skill-hygiene
 The hygiene skill audits itself. It should always pass; if it doesn't, fix
 its own surface area before fixing anyone else's.
 
+## Installing The Pre-Commit Guard
+
+The pre-commit hook is the highest-leverage drift catcher: it runs the
+auditor on every skill bundle touched by a commit and blocks the commit if
+any bundle fails. Install once per checkout:
+
+```bash
+bash skills/skill-hygiene/scripts/install_hooks.sh
+```
+
+The installer is idempotent. It writes to the shared common-hooks dir
+(`git rev-parse --git-common-dir`), so linked git worktrees pick it up
+automatically. Bypass once with `git commit --no-verify` when the drift is
+intentional and a follow-up fix is queued.
+
 ## Healing Drift In Bulk
 
 For libraries with many drifted skills, see `scripts/heal_skill_bundle.py`.
@@ -161,6 +176,14 @@ content into a prompt, and dispatches to `claude` (haiku for one-orphan
 quick wins, sonnet for content integration). The model emits a JSON write
 plan; the script applies it and re-runs the auditor to verify. Use
 `--apply` to mutate; default is dry-run.
+
+**Healer auth requirements.** `heal_skill_bundle.py` shells out to the
+`claude` CLI. That binary must be installed and authed on the operator's
+machine — there's no API-key-only fallback today. Concretely: CI cannot
+run the healer. CI catches drift via the auditor; the operator fixes drift
+locally with the healer, commits, and pushes. If a contributor doesn't
+have a working `claude` CLI, they hand-fix the failing bundle or wait for
+someone with credits to run the healer.
 
 ```bash
 python3 skills/skill-hygiene/scripts/heal_skill_bundle.py skills/<name> --model sonnet --apply

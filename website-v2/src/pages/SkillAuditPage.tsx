@@ -37,8 +37,10 @@ type SkillReport = {
 }
 
 type Snapshot = {
-  run_id: number
-  generated_at: string
+  // Optional in deterministic mode (when the snapshot is committed to git
+  // and we don't want metadata churn). Present in interactive/SQLite mode.
+  run_id?: number
+  generated_at?: string
   auditor_version: string
   summary: {
     total: number
@@ -194,10 +196,12 @@ export function SkillAuditPage() {
   const cohortLabel =
     filter === 'failing' ? 'Failing' : filter === 'warning' ? 'Passing with warnings' : 'All skills'
 
-  const formatted = new Date(generated_at).toLocaleString(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  })
+  const formatted = generated_at
+    ? new Date(generated_at).toLocaleString(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      })
+    : null
 
   return (
     <div className="min-h-screen bg-[var(--surface-base)] selection:bg-[var(--brand-primary)] selection:text-[var(--brand-primary-foreground)]">
@@ -224,9 +228,9 @@ export function SkillAuditPage() {
                 <SurfacePanel elevation="quiet" padding="compact" className="grid gap-[var(--space-2)]">
                   <p className="flex items-center gap-[var(--space-2)] font-mono text-[length:var(--text-xs)] uppercase tracking-[0.15em] opacity-70">
                     <RefreshCw size={14} />
-                    Run #{run_id}
+                    {run_id != null ? `Run #${run_id}` : 'Latest audit'}
                   </p>
-                  <p className="font-mono text-[length:var(--text-sm)]">{formatted}</p>
+                  {formatted && <p className="font-mono text-[length:var(--text-sm)]">{formatted}</p>}
                   <p className="font-mono text-[length:var(--text-xs)] opacity-70">
                     auditor v{auditor_version}
                   </p>

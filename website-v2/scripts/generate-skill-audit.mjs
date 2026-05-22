@@ -36,6 +36,8 @@ if (!existsSync(skillsRoot)) {
 
 console.log(`[generate-skill-audit] regenerating ${snapshotPath}`)
 
+// --deterministic strips run_id and generated_at so this committed file
+// only diffs when actual audit findings change — no churn on rebuilds.
 const result = spawnSync(
   'python3',
   [
@@ -45,6 +47,7 @@ const result = spawnSync(
     '--snapshot',
     snapshotPath,
     '--no-persist',
+    '--deterministic',
   ],
   {
     cwd: repoRoot,

@@ -101,12 +101,16 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Auditor unit tests
+        run: python3 -m unittest discover -s skills/skill-hygiene/tests -p 'test_*.py' -v
+
       - name: Audit every skill bundle
         run: |
           python3 skills/skill-hygiene/scripts/audit_skill_library.py \
             --root skills \
             --snapshot /tmp/skill-audit.json \
-            --no-persist
+            --no-persist \
+            --deterministic
 
       - name: Upload audit snapshot
         if: always()

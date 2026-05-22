@@ -1,11 +1,11 @@
 {
-  "run_id": 0,
-  "generated_at": "2026-05-20T17:39:31+00:00",
   "auditor_version": "0.2.0",
   "summary": {
     "total": 111,
     "passing": 111,
-    "failing": 0
+    "failing": 0,
+    "warning_only": 6,
+    "failing_skills": []
   },
   "skills": [
     {
