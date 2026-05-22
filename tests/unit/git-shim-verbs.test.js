@@ -73,9 +73,22 @@ describe('git shim v3 destructive-verb coverage', () => {
   // v3 — public-history destructive verbs
   // -------------------------------------------------------------------------
 
-  test('v3: shim intercepts push --force / -f / --force-with-lease (any branch)', () => {
+  test('v3: shim intercepts plain --force / -f (refused on any branch)', () => {
     expect(GIT_SHIM_CONTENT).toContain('verb="push-force"');
-    expect(GIT_SHIM_CONTENT).toMatch(/--force\|-f\|--force-with-lease/);
+    // plain --force / -f are detected separately from --force-with-lease so
+    // the latter can be allowed on feature branches
+    expect(GIT_SHIM_CONTENT).toContain('saw_plain_force');
+  });
+
+  test('v3: --force-with-lease is allowed on feature branches, refused on protected', () => {
+    // The shim sets verb="push-force-lease-protected" only when
+    // --force-with-lease combines with a protected branch target.
+    // Without that combination, --force-with-lease falls through.
+    expect(GIT_SHIM_CONTENT).toContain('verb="push-force-lease-protected"');
+    expect(GIT_SHIM_CONTENT).toContain('saw_lease_force');
+    expect(GIT_SHIM_CONTENT).toContain('--force-with-lease');
+    // The "feature branch allowed" path is documented in the source comment
+    expect(GIT_SHIM_CONTENT).toMatch(/--force-with-lease on a feature branch falls through/);
   });
 
   test('v3: shim intercepts push --mirror / --all / --prune (mass deletion)', () => {

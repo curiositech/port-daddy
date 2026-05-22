@@ -152,44 +152,67 @@ case "\${1:-}" in
     ;;
   push)
     # v3: public-history destructive forms of push.
-    # --force / -f / --force-with-lease overwrite remote ref content.
+    # --force / -f are refused on ANY branch (plain force-push is unsafe even
+    # on feature branches — silently overwrites concurrent work).
+    # --force-with-lease is refused only on protected branches (main/master/
+    # release/*); on feature branches it's the standard race-safe force.
     # --mirror / --all / --prune can mass-delete remote branches.
-    # push <remote> main|master|release/* is a direct push to a protected
-    # branch (operators should PR instead).
+    # push <remote> main|master|release/* without force is also refused
+    # (operators should PR instead).
+
+    # First pass: classify the force/mass intent, and capture the remote ref.
+    saw_plain_force=""
+    saw_lease_force=""
+    saw_mass=""
     for arg in "$@"; do
       case "$arg" in
-        --force|-f|--force-with-lease|--force-with-lease=*)
-          verb="push-force"; break ;;
+        --force|-f)
+          saw_plain_force="1" ;;
+        --force-with-lease|--force-with-lease=*)
+          saw_lease_force="1" ;;
         --mirror|--all|--prune)
-          verb="push-mass"; break ;;
+          saw_mass="1" ;;
       esac
     done
-    if [ -z "$verb" ]; then
-      # detect direct push to protected branch: 'push <remote> <branch>' or
-      # 'push <remote> <local>:<remote-branch>'. Cheap argv walk skipping
-      # flags; protected-check applies to the remote half (after the colon).
-      target=""
-      saw_remote=""
-      for arg in "$@"; do
-        case "$arg" in
-          --*|-*) continue ;;
-          push) continue ;;
-        esac
-        if [ -z "$saw_remote" ]; then
-          saw_remote="1"
-          continue
-        fi
-        target="$arg"
-        break
-      done
-      if [ -n "$target" ]; then
-        remote_ref="\${target##*:}"
-        case "$remote_ref" in
-          main|master|refs/heads/main|refs/heads/master) verb="push-protected" ;;
-          release/*|refs/heads/release/*) verb="push-protected" ;;
-        esac
+
+    # Detect the remote ref: 'push <remote> <branch>' or 'push <remote> <local>:<remote-branch>'.
+    target=""
+    saw_remote=""
+    for arg in "$@"; do
+      case "$arg" in
+        --*|-*) continue ;;
+        push) continue ;;
+      esac
+      if [ -z "$saw_remote" ]; then
+        saw_remote="1"
+        continue
       fi
+      target="$arg"
+      break
+    done
+    is_protected=""
+    if [ -n "$target" ]; then
+      remote_ref="\${target##*:}"
+      case "$remote_ref" in
+        main|master|refs/heads/main|refs/heads/master) is_protected="1" ;;
+        release/*|refs/heads/release/*) is_protected="1" ;;
+      esac
     fi
+
+    # Verb resolution.
+    if [ -n "$saw_mass" ]; then
+      verb="push-mass"
+    elif [ -n "$saw_plain_force" ]; then
+      # plain --force / -f refused on any branch
+      verb="push-force"
+    elif [ -n "$saw_lease_force" ] && [ -n "$is_protected" ]; then
+      # --force-with-lease refused only on protected branches
+      verb="push-force-lease-protected"
+    elif [ -z "$saw_lease_force" ] && [ -n "$is_protected" ]; then
+      # direct (non-force) push to protected branch — refused (use a PR)
+      verb="push-protected"
+    fi
+    # --force-with-lease on a feature branch falls through cleanly.
     ;;
   filter-branch|filter-repo)
     # History rewrite. Refused outright.
