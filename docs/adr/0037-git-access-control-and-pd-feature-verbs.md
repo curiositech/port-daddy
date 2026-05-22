@@ -44,11 +44,15 @@ Three composing layers.
 
 ### Layer 1 — Extend `pd-shim` for git, with claims as broadcast (not veto)
 
-The shim already intercepts in PD-managed repos (detected by
-`.git/port-daddy/` presence). Expand its verb taxonomy along **two
-orthogonal axes**: what the verb does, and how strict the response is when
-overlap is detected. Hard refusal is reserved for truly exclusive
-operations; everything else is **broadcast through the context broker**.
+The shim is invoked globally — `pd install` puts `~/.port-daddy/bin` on
+PATH ahead of the system `git`, so every `git` call routes through
+`cli/utils/git-shim.ts` regardless of cwd. Enforcement is gated
+per-repo by the presence of `.git/port-daddy/coordination-guard.json`
+(see `cli/commands/guard.ts:116`); repos without a guard config are
+pass-through. Expand the shim's verb taxonomy along **two orthogonal
+axes**: what the verb does, and how strict the response is when overlap
+is detected. Hard refusal is reserved for truly exclusive operations;
+everything else is **broadcast through the context broker**.
 
 | Category | Examples | Default response when overlap detected |
 |---|---|---|
