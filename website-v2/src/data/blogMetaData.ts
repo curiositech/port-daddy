@@ -19,6 +19,17 @@ export interface DeprecatedBlogPost {
 
 export const blogPostMetas: BlogPostMeta[] = [
   {
+    id: 'ai-subscription-fleet',
+    slug: 'your-ai-subscription-powers-the-fleet',
+    title: 'Your AI Subscription Already Powers A Fleet',
+    date: '2026-05-20',
+    author: 'Erich Owens',
+    excerpt: "I'm in Claude Code or Codex about ten hours a day. The subscription isn't idle — but a person can only hold one cursor at a time, and the other streams (worktrees, midnight agents, post-commit hooks) are free to share the same hourly budget. The killer experience isn't 'saves money.' It's waking up to a feature that wasn't there last night. Here's the math, the rate-limit contention honesty, and where `pd nightshift` is going.",
+    tags: ['Fleet', 'CLI Backends', 'Economics', 'pd tube', 'pd nightshift'],
+    heroImage: '/img/generated/blog-ai-subscription-fleet-hero.jpg',
+    heroAlt: 'Cream-blueprint hero showing a single Claude Max subscription badge fanning into a fleet of small ship-shaped agents',
+  },
+  {
     id: 'red-and-white-isolation',
     slug: 'red-and-white-stay-in-their-lanes',
     title: 'Red and White Stay In Their Lanes',
