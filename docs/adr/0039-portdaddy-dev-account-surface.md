@@ -95,11 +95,20 @@ The whitepaper sells this; the receipt page is where someone evaluating it for t
 
 ### Surface 3 — Fleet steering (`portdaddy.dev/fleet` and `portdaddy.dev/devices/<label>`)
 
+Real operator console. Not a dashboard. Pause an agent from a train. Approve a sortie at dinner. Write a session note from a bedside phone. Spawn a fresh sortie with a one-line purpose at a coffee shop.
+
 - One view per device, plus a "union" view across all devices on the account.
-- Live streams use the relay (ADR-0027). The web view is a *subscriber* to the relay channels the daemon already publishes for sessions, claims, agents, notes.
-- Read interactions (what's running, recent activity, current claims) require only an authenticated SSE subscription.
-- Write interactions (pause an agent, drain a fleet, promote a stable, kill a session) require the account holder to confirm via a pairing-receipt-style flow on the device — the daemon shows a 4-digit code matching what the web shows. Defends against a compromised web session steering my fleet.
-- Mobile-friendly. The phone is just another device that's already paired; the relay handles routing.
+- Live streams use the relay (ADR-0027). The web is a *subscriber* to the relay channels the daemon already publishes for sessions, claims, agents, notes, sortie progress.
+- Read interactions (what's running, recent activity, current claims, cost burn) are an authenticated SSE subscription.
+- **Write interactions are first-class, not afterthought:**
+  - **Spawn:** new sortie purpose, target device, confirm. Daemon receives via relay, runs.
+  - **Steer:** pause / drain / kill an agent; promote a worktree to stable; reassign a claim.
+  - **Note:** type a `pd note` from the phone, attach to the current session.
+  - **Approve:** sortie wants to do something requiring HITL — phone gets a notification, operator approves or rejects with a comment.
+  - **Budget:** raise a per-day budget mid-burn from the phone.
+- **Confirmation model** for write operations defends against compromised web sessions. Sensitive writes (kill agent, drain fleet, rotate keys) show a 4-digit code on the web; the daemon shows the matching code locally; operator confirms. Routine writes (write a note, approve a HITL prompt for an agent the operator just spawned) can use the standard authenticated session.
+- **Phone is a peer, not a thin client.** The phone runs a real PWA that can queue write operations when offline, retry over the relay when reconnected, and show local state from the last sync. Operators on trains stay productive.
+- Audit trail: every write from the web/phone writes a leaf to the audit tree with `actor: web:portdaddy.dev` or `actor: phone:<device-label>` so the audit page later shows "the phone paused this agent at 14:32 PDT."
 
 ### Surface 4 — Fleet ship marketplace (`portdaddy.dev/@<account>/fleets/<name>`)
 
@@ -110,13 +119,19 @@ The whitepaper sells this; the receipt page is where someone evaluating it for t
 - Cryptographic provenance — you know who published it, and the relay can serve a "what fleets has @erichowens published" feed that's verifiable, not arbitrary metadata.
 - This is the cultural lever for sharing operational knowledge. Engineers love good defaults; signed forkable defaults are how good defaults spread. Think Brewfile-for-coordination.
 
-### Surface 5 — Localhost tunnel (`portdaddy.dev/devices/<label>/at/<port>/`)
+### Surface 5 — Localhost tunnel, full interaction (`portdaddy.dev/devices/<label>/at/<port>/`)
 
-- `pd tunnel expose 5173 --to relay --label dev` on the laptop registers a tunnel through the relay. The relay opens a TCP forwarder addressable as `tunnel:{daemonFingerprint}:5173`.
-- The web view at `portdaddy.dev/devices/macbook-pro/at/5173/` either iframes the tunneled content (for HTTP) or shows a viewer (for other protocols).
-- The account scopes who can address the tunnel; the relay enforces.
-- "I'm on the train and I want to see what my vite dev server looks like on my laptop" — that's the user story.
-- Bonus: if both phone and laptop are paired to the same account, the phone gets a `pd-phone://` deep link that opens the right device tunnel without typing URLs.
+This is **not** "view your laptop's dev server from the phone." It is "your phone is now an operator surface that drives the laptop's running app." Two-way. Real input. WebSocket upgrades. POST/PUT/DELETE forwarded. Service workers proxied.
+
+- `pd tunnel expose 5173 --to relay --label dev` on the laptop registers an HTTP tunnel through the relay. The relay opens a connection mux addressable as `tunnel:{daemonFingerprint}:5173`.
+- The web view at `portdaddy.dev/devices/macbook-pro/at/5173/` is a **full proxy**, not an iframe — every method is forwarded, every header preserved, WebSocket upgrade negotiated (so HMR works, so live state syncs, so dev-server reload pings work). Touch-target sizing and viewport meta tags get injected for phone-rendering correctness without changing the underlying app.
+- Input is native. Touch events become click events on the laptop's served HTML. Hardware keyboard on the phone types into the app. Pinch-zoom is intercepted at the phone OS layer so it doesn't fight CSS scaling.
+- File uploads (camera, photo library) are sent back through the tunnel so a "test the image-upload flow on a phone" interaction actually exercises the laptop's code path.
+- The account scopes who can address the tunnel; the relay enforces. Tunnel sessions expire by default in 1 hour; longer requires `--no-confirm` and writes a warning leaf to the audit tree.
+- User story 1: "I'm on the train, my AI agent has been running for two hours, I want to *interact* with the staging build to see if its diff is right — not just look at a screenshot."
+- User story 2: "I want to demo my product to someone at a coffee shop with my phone, not my laptop."
+- User story 3: "I want to debug a mobile layout issue by actually using my own phone's hardware while editing on the laptop, with HMR firing on every save."
+- Bonus: paired account → `pd-phone://` deep links that open the right device tunnel without typing URLs. Phone-side device list shows every laptop currently advertising a tunnel.
 
 ---
 
