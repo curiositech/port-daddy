@@ -56,7 +56,7 @@ export function ForceViz() {
   const gRef = useRef<SVGGElement>(null)
   const simRef = useRef<d3.Simulation<GNode, any> | null>(null)
   const { session: hovered, setSession, setNodeId, nodeId: hoveredNodeId } = useHover()
-  const [tick, setTick] = useState(0)
+  const [, setTick] = useState(0)
   const [transform, setTransform] = useState<{ k: number; x: number; y: number }>({ k: 1, x: 0, y: 0 })
 
   const { nodes, links } = useMemo(() => {
@@ -101,7 +101,7 @@ export function ForceViz() {
       .alpha(0.25)
       .alphaDecay(0.04)
       .on('tick', () => setTick(t => t + 1))
-    simRef.current = sim
+    simRef.current = sim as unknown as d3.Simulation<GNode, any>
     return () => { sim.stop(); simRef.current = null }
   }, [nodes, links])
 

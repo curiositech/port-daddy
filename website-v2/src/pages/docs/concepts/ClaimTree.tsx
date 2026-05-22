@@ -23,7 +23,7 @@ export default function ClaimTree() {
         <section className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="teal">Concept</Badge>
-            <Badge variant="accent">Substrate</Badge>
+            <Badge variant="gold">Substrate</Badge>
             <Badge variant="success">Proposed v1</Badge>
           </div>
           <h1 className="text-4xl font-semibold tracking-tight text-[var(--text-primary)] md:text-5xl">

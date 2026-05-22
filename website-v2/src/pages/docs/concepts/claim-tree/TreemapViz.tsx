@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import * as d3 from 'd3'
 import { TREE, SESSIONS, type ClaimNode, type Session } from './data'
 import { useHover, dimFor } from './HoverContext'

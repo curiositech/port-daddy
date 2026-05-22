@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef } from 'react'
+import { useMemo } from 'react'
 import * as d3 from 'd3'
 import { GANTT_SPANS, SESSIONS, type SessionId } from './data'
 import { useHover, dimFor } from './HoverContext'
@@ -26,7 +26,6 @@ export function GanttViz() {
   const x = useMemo(() => d3.scaleTime().domain([new Date(minT), new Date(0)]).range([0, innerW]).nice(), [innerW, minT])
   const y = useMemo(() => d3.scaleBand<SessionId>().domain(SESSIONS.map(s => s.id)).range([0, innerH]).padding(0.25), [innerH])
 
-  const tickFmt = d3.timeFormat('%-Mm')
   const ticks = x.ticks(6)
 
   return (
