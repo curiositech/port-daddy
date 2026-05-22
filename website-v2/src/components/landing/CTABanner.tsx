@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, FileDown, FileText, Github, MonitorCheck, RadioTower, ShieldCheck, Terminal } from 'lucide-react'
+import { ArrowRight, FileDown, FileText, Github, MonitorCheck, ShieldCheck, Terminal } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import {
   PageContainer,
@@ -10,12 +10,6 @@ import {
 } from '@/components/site/primitives'
 import { RoleTerm } from '@/components/site/RoleTerm'
 import { WHITE_PAPERS } from '@/data/whitePapers'
-
-const COORDINATION_FEEDBACK = [
-  'The paper assets and /whitepaper route were still alive; the homepage rewrite had buried the entry point.',
-  'Port Daddy showed the landing shell was already claimed, so this restore stayed in a bounded CTA and dossier route.',
-  'Live render proof caught the header clipping Whitepaper to WHITE; the nav now points to Papers without hiding the route.',
-] as const
 
 const START_PATHS = [
   {
@@ -149,31 +143,18 @@ export function CTABanner() {
           </SurfacePanel>
         </div>
 
-        <div className="mt-[var(--space-6)] grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,0.72fr)_minmax(0,1.28fr)]">
-          <div className="grid content-start gap-[var(--space-3)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-4)]">
-            <div className="flex flex-wrap items-center justify-between gap-[var(--space-3)] border-b-2 border-[var(--border-default)] pb-[var(--space-3)]">
-              <PanelEyebrow>Coordination feedback</PanelEyebrow>
-              <span className="font-mono text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
-                Dogfood restore
-              </span>
-            </div>
-            <PanelBody className="max-w-none">
-              This restore used Port Daddy as the coordination layer: inspect live ownership, avoid
-              contested edits, then put both papers back where a visitor can actually find them.
-            </PanelBody>
-            <ul className="grid gap-[var(--space-2)]">
-              {COORDINATION_FEEDBACK.map((item) => (
-                <li
-                  key={item}
-                  className="flex gap-[var(--space-2)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]"
-                >
-                  <RadioTower aria-hidden="true" size={14} className="mt-[0.2em] shrink-0 text-[var(--brand-primary)]" />
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
+        {/*
+          The "Coordination Feedback" sub-panel that previously sat to
+          the left of the whitepaper cards was stripped per IA audit
+          (2026-05-20): it was internal build-process commentary in
+          incident-report voice ("Port Daddy showed the landing shell
+          was already claimed, so this restore stayed in a bounded CTA
+          and dossier route"). Readers at this scroll position cannot
+          act on dogfood-as-meta-commentary; the page should be
+          converting, not explaining how it was built. The whitepaper
+          grid takes the full width and does the closing-CTA job alone.
+        */}
+        <div className="mt-[var(--space-6)] grid gap-[var(--space-5)]">
           <div className="grid gap-[var(--space-3)] md:grid-cols-2">
             {WHITE_PAPERS.map((paper) => (
               <article
