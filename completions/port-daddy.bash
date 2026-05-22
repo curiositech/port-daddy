@@ -106,7 +106,7 @@ _port_daddy() {
     # Briefing & History
     briefing history
     # Consolidated read/write (3.8.4)
-    say look sitrep pheromone ph advise preflight compass guard snapshots snapshot shipwright
+    say look sitrep pheromone ph advise preflight compass guard snapshots snapshot backup restore shipwright
     # Agent Inbox
     inbox
     # AI Agent Spawner + Watch

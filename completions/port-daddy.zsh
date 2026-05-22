@@ -1904,6 +1904,8 @@ _port_daddy() {
     'guard:enforce Port Daddy session and file-claim discipline'
     'snapshots:list/show/restore/prune claim-watcher snapshots'
     'snapshot:alias for snapshots'
+    'backup:durable snapshots of port-registry.db (ADR-0037)'
+    'restore:restore a port-registry.db snapshot (ADR-0037)'
     'shipwright:survey + propose + apply for fleet authoring'
     'pheromone:stigmergic coordination (spray, files, show, ls)'
     'ph:alias for pheromone'
