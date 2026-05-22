@@ -68,14 +68,20 @@ describe('spawner telemetry enforcement', () => {
       enforceTelemetryPolicy: true,
     });
 
+    // Use a model whose name doesn't match any Ollama family key, so the
+    // backend-scoped policy still blocks (no exact rate available). The
+    // default 'llama3.1:8b' would unblock since 'llama' matches in
+    // OLLAMA_MODEL_RATES — that's working as intended, so we exercise the
+    // blocked path with an unrecognized model.
     const result = await spawner.spawn({
       backend: 'ollama',
+      model: 'unobtanium-7b',
       task: 'say hello',
     });
 
     expect(result.status).toBe('failed');
     expect(result.error).toContain('Spawn blocked');
-    expect(result.error).toContain('Ollama is blocked');
+    expect(result.error).toContain('no exact cost rate entry');
     expect(result.telemetry).toBeNull();
     expect(global.fetch).not.toHaveBeenCalled();
     expect(costTracker.record).not.toHaveBeenCalled();

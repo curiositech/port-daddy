@@ -196,7 +196,11 @@ describe('backend readiness', () => {
       status: 'needs_setup',
     });
     expect(readiness.summary).toContain('Ollama CLI found, but local API is not reachable');
-    expect(readiness.summary).toContain('blocked until Port Daddy can attach exact token counts');
+    // Policy now needs a --model to anchor an exact rate (since the
+    // ollama-only family table is backend-scoped). Without a model, the
+    // policy returns "Ollama model is required" rather than the old
+    // hardcoded-blocked text.
+    expect(readiness.summary).toContain('Ollama model is required');
     expect(readiness.setupCommand).toBe('ollama serve');
     expect(mockSpawnSync).toHaveBeenCalled();
     expect(global.fetch).toHaveBeenCalled();
