@@ -128,8 +128,8 @@ fleet:
       model: qwen2.5-coder
 ```
 
-These map onto the seven archetypes that used to be hardcoded in the
-App. They live here because they are port-daddy's roster, not the App's.
+These are port-daddy's own roster — they live here because the roster is
+per-repository, not per-App.
 
 ---
 

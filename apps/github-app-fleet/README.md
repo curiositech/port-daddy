@@ -41,11 +41,10 @@ matters — readers can scan a thread and tell `pd-reviewer` apart from
 introduce new ships per repository without registering anything with
 GitHub.
 
-A closed enum of ships hardcoded into this App was an earlier design.
-That design did not survive contact with the second repository. A legal
+A repository's ship roster lives in its own `pd-fleet.yml`. A legal
 content site needs Unauthorized Practice of Law checks. A media-heavy
 documentation site needs an illustration generator. Neither belongs in a
-GitHub App's source tree. Both belong in the installed repo's own config.
+GitHub App's source tree; both belong in the installed repo's own config.
 
 ---
 
