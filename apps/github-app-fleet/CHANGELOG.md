@@ -6,6 +6,60 @@ and the ship-identity wrapper only.
 
 ## [Unreleased]
 
+### Changed
+
+- **Ship roster is now per-repository.** The App no longer ships a closed
+  enum of seven ships. `lib/post-as.ts` accepts a caller-supplied
+  `ShipMeta` value (handle, role, optional mark); the App receiver
+  resolves it from the installed repository's `pd-fleet.yml` at dispatch
+  time. The seven port-daddy ships are retained in
+  `DEFAULT_PORT_DADDY_SHIPS` as a convenience for the port-daddy runtime
+  only — nothing in the App reads that registry by default.
+- **`postAs(ship, op)` signature changed.** The `ship` parameter is now
+  `ShipMeta`, not a `ShipIdentity` enum. Callers compute the meta
+  themselves (typically from `fleet.agents.<key>` in the installed
+  repository's `pd-fleet.yml`). The result type's `ship` field is the
+  bare handle string instead of an enum value.
+- **README rewritten.** Replaced first-person familiar register with a
+  GitHub-App documentation register. Removed the seven-ship gallery in
+  favor of a generic comment-shape description; the per-project examples
+  live in `docs/per-project-ships.md`.
+- **`manifest.json > description` no longer enumerates ships.** The
+  description names the App, the rendering contract
+  (`**[pd-<ship>]**`), and the per-repo `pd-fleet.yml` source of truth.
+
+### Added
+
+- **`docs/per-project-ships.md`** — schema reference for the per-repo
+  ship roster, plus three worked examples: port-daddy's seven code
+  reviewers, expungement-guide's UPL/citation/plain-language/
+  accessibility checkers, windags' skill-media/mermaid-author/
+  skill-grammar ships.
+- **`isValidShipHandle(handle)`** — exported helper for caller-side
+  validation against the lower-kebab-case grammar.
+
+### Migration
+
+Callers that previously wrote
+
+```ts
+await postAs('reviewer', { kind: 'pr-comment', payload: {...} })
+```
+
+should now resolve a `ShipMeta` and pass it:
+
+```ts
+import { postAs, DEFAULT_PORT_DADDY_SHIPS } from './lib/post-as'
+
+await postAs(DEFAULT_PORT_DADDY_SHIPS.reviewer, {
+  kind: 'pr-comment',
+  payload: {...},
+})
+```
+
+A per-repo runtime resolves `ShipMeta` from the installed repo's
+`pd-fleet.yml` rather than from `DEFAULT_PORT_DADDY_SHIPS`.
+
 ## [0.1.0] — 2026-05-20
 
 Initial scaffolding. Not yet a registered App on github.com; the operator

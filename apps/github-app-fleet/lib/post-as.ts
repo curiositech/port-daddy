@@ -1,21 +1,28 @@
 /**
  * Post to GitHub as a specific fleet ship.
  *
- * GitHub Apps post as a single `<app-slug>[bot]` user. We get per-ship
- * differentiation by prefixing every body with a `**[pd-${ship}]**` tag and
- * appending a small signed footer. This is the fallback identity scheme — if
- * GitHub ever exposes per-message bot identity to Apps, we swap the rendering
- * layer and the call sites don't change.
+ * The App posts as `<app-slug>[bot]` — a single GitHub identity. Per-ship
+ * differentiation is rendered into the comment body: a `**[pd-<ship>]**`
+ * header tag, an optional unicode mark, a one-line role description, and a
+ * signed footer. If GitHub ever exposes per-message identities for Apps,
+ * the rendering layer changes; the call sites stay the same.
  *
- * The seven ships:
+ * The roster of ships is per-repo, not hardcoded here. Each installed repo
+ * supplies its own ship definitions via `pd-fleet.yml` (or any equivalent
+ * caller-side config). `postAs` accepts a `ShipMeta` value the caller has
+ * resolved; it does not consult a closed enum.
  *
- *   reviewer       — reads a diff like a careful colleague; surfaces risk
- *   redteam        — assumes the worst; looks for security, abuse, sharp edges
- *   qa             — runs tests in its head; flags missing coverage
- *   test-author    — writes the test that was missing (proposes a patch)
- *   tautology      — flags vacuous assertions ("expect(true).toBe(true)")
- *   unspider       — finds dead code paths the spider doesn't reach anymore
- *   documentarian  — flags drift between code and docs, proposes diffs
+ * Examples of valid ship handles, by project:
+ *
+ *   port-daddy        pd-reviewer, pd-redteam, pd-qa, pd-test-author, ...
+ *   expungement-guide pd-upl-checker, pd-citation-checker, pd-plain-language
+ *   windags           pd-skill-media, pd-mermaid-author, pd-skill-grammar
+ *
+ * The grammar contract is the only constant: `pd-<lower-kebab-case>` for the
+ * handle, mark unicode-only (no emoji), role under ~80 chars.
+ *
+ * See `apps/github-app-fleet/docs/per-project-ships.md` for worked examples
+ * and the YAML schema the App reads at runtime.
  */
 
 import { getOctokitForInstallation } from './auth.js'
@@ -23,32 +30,54 @@ import { getOctokitForInstallation } from './auth.js'
 // ---------------------------------------------------------------------------
 // Types
 
-export type ShipIdentity =
-  | 'reviewer'
-  | 'redteam'
-  | 'qa'
-  | 'test-author'
-  | 'tautology'
-  | 'unspider'
-  | 'documentarian'
+/**
+ * A ship handle is a lower-kebab-case identifier without the `pd-` prefix
+ * (the prefix is rendered on, not stored). Per-repo configuration supplies
+ * the canonical list; runtime validation is light — anything matching the
+ * grammar passes.
+ */
+export type ShipHandle = string
 
-export interface ShipMeta {
-  /** Short human name used in the body prefix. */
-  handle: string
-  /** One-line role description for the signed footer. */
-  role: string
-  /** Emoji-free unicode mark for visual differentiation in the body prefix. */
-  mark: string
+const SHIP_HANDLE_RE = /^[a-z][a-z0-9-]*[a-z0-9]$|^[a-z]$/
+
+export function isValidShipHandle(handle: string): boolean {
+  return SHIP_HANDLE_RE.test(handle)
 }
 
-export const SHIPS: Record<ShipIdentity, ShipMeta> = {
-  reviewer:       { handle: 'pd-reviewer',       role: 'reads diffs like a careful colleague',                 mark: '◆' },
-  redteam:        { handle: 'pd-redteam',        role: 'assumes the worst; looks for sharp edges',             mark: '▲' },
-  qa:             { handle: 'pd-qa',             role: 'runs tests in its head; flags missing coverage',       mark: '●' },
-  'test-author':  { handle: 'pd-test-author',    role: 'writes the test that was missing',                     mark: '✚' },
-  tautology:      { handle: 'pd-tautology',      role: 'flags vacuous assertions and circular logic',          mark: '◇' },
-  unspider:       { handle: 'pd-unspider',       role: 'finds dead code paths the spider can no longer reach', mark: '◐' },
-  documentarian:  { handle: 'pd-documentarian',  role: 'watches the drift between code and docs',              mark: '✦' },
+export interface ShipMeta {
+  /**
+   * Bare ship handle (without `pd-` prefix). Lower-kebab-case. The handle
+   * also serves as the `pd-ship:<handle>` issue label so callers can filter.
+   */
+  handle: ShipHandle
+  /**
+   * One-line role description rendered into the header. Keep it under ~80
+   * characters; it sits next to the handle on a single line.
+   */
+  role: string
+  /**
+   * Optional unicode mark for visual differentiation. Geometric primitives
+   * only — no emoji. The grammar (`docs/shipwright/SHIP-GRAMMAR.md`) lists
+   * eight canonical primitives; any single character that is not an emoji
+   * is acceptable.
+   */
+  mark?: string
+}
+
+/**
+ * A small default registry, retained for convenience when callers wire the
+ * port-daddy fleet without supplying their own meta. Per-repo configuration
+ * SHOULD override these. Nothing in this module reads the registry by
+ * default — callers pass `ShipMeta` directly.
+ */
+export const DEFAULT_PORT_DADDY_SHIPS: Record<string, ShipMeta> = {
+  reviewer:      { handle: 'reviewer',      role: 'reads diffs like a careful colleague',                 mark: '◆' },
+  redteam:       { handle: 'redteam',       role: 'assumes the worst; looks for sharp edges',             mark: '▲' },
+  qa:            { handle: 'qa',            role: 'runs tests in its head; flags missing coverage',       mark: '●' },
+  'test-author': { handle: 'test-author',   role: 'writes the test that was missing',                     mark: '✚' },
+  tautology:     { handle: 'tautology',     role: 'flags vacuous assertions and circular logic',          mark: '◇' },
+  unspider:      { handle: 'unspider',      role: 'finds dead code paths the spider can no longer reach', mark: '◐' },
+  documentarian: { handle: 'documentarian', role: 'watches the drift between code and docs',              mark: '✦' },
 }
 
 export interface BaseTarget {
@@ -112,19 +141,26 @@ export type Operation =
 // Body framing
 
 /**
- * Wrap a body in the ship's identity prefix + signed footer.
- * Idempotent — wrapping twice produces a single header.
+ * Wrap a body in the ship's identity prefix and signed footer. Idempotent —
+ * wrapping a body that already starts with the same `**[pd-<handle>]**`
+ * prefix returns the body unchanged.
  */
-export function frameBody(ship: ShipIdentity, body: string): string {
-  const meta = SHIPS[ship]
-  if (!meta) throw new Error(`Unknown fleet ship: ${ship}`)
+export function frameBody(ship: ShipMeta, body: string): string {
+  if (!isValidShipHandle(ship.handle)) {
+    throw new Error(
+      `Invalid ship handle: ${JSON.stringify(ship.handle)}. ` +
+        `Expected lower-kebab-case (e.g. 'reviewer', 'upl-checker').`,
+    )
+  }
 
-  const headerPrefix = `**[${meta.handle}]**`
+  const fullHandle = `pd-${ship.handle}`
+  const headerPrefix = `**[${fullHandle}]**`
   if (body.startsWith(headerPrefix)) return body
 
-  const header = `${headerPrefix} ${meta.mark}  _${meta.role}_`
+  const mark = ship.mark ? ` ${ship.mark}` : ''
+  const header = `${headerPrefix}${mark}  _${ship.role}_`
   const footer =
-    `\n\n<sub>posted by the Port Daddy fleet — \`${meta.handle}\` ` +
+    `\n\n<sub>posted by the Port Daddy fleet — \`${fullHandle}\` ` +
     `· [silence this ship](https://portdaddy.dev/docs/fleet/silence)</sub>`
 
   return `${header}\n\n${body.trim()}${footer}`
@@ -134,7 +170,7 @@ export function frameBody(ship: ShipIdentity, body: string): string {
 // Posters
 
 export interface PostResult {
-  ship: ShipIdentity
+  ship: ShipHandle
   op: Operation['kind']
   /** URL of the GitHub resource that was created, when applicable. */
   url?: string
@@ -143,22 +179,28 @@ export interface PostResult {
 }
 
 /**
- * Post anything as the named ship. Single entry point so call sites don't have
- * to thread the Octokit setup themselves.
+ * Post anything as the named ship. The caller supplies the `ShipMeta`
+ * resolved from the installed repo's `pd-fleet.yml` (or equivalent
+ * caller-side config) — this function does not consult a global registry.
  *
- *   await postAs('reviewer', {
+ *   const ship = resolveShip('reviewer')  // caller-side
+ *   await postAs(ship, {
  *     kind: 'pr-comment',
- *     payload: { owner: 'curiositech', repo: 'port-daddy', pull_number: 42, body: '...' }
+ *     payload: { owner: 'curiositech', repo: 'port-daddy', pull_number: 42, body: '...' },
  *   })
  */
 export async function postAs(
-  ship: ShipIdentity,
+  ship: ShipMeta,
   op: Operation,
 ): Promise<PostResult> {
-  if (!(ship in SHIPS)) {
-    throw new Error(`Unknown fleet ship: ${ship}`)
+  if (!isValidShipHandle(ship.handle)) {
+    throw new Error(
+      `Invalid ship handle: ${JSON.stringify(ship.handle)}. ` +
+        `Expected lower-kebab-case.`,
+    )
   }
   const octokit = await getOctokitForInstallation(op.payload.installationId)
+  const fullHandle = `pd-${ship.handle}`
 
   switch (op.kind) {
     case 'pr-comment': {
@@ -169,7 +211,7 @@ export async function postAs(
         issue_number: pull_number,
         body: frameBody(ship, body),
       })
-      return { ship, op: op.kind, url: r.data.html_url, id: r.data.id }
+      return { ship: ship.handle, op: op.kind, url: r.data.html_url, id: r.data.id }
     }
 
     case 'pr-review-comment': {
@@ -185,7 +227,7 @@ export async function postAs(
         start_line,
         side: side ?? 'RIGHT',
       })
-      return { ship, op: op.kind, url: r.data.html_url, id: r.data.id }
+      return { ship: ship.handle, op: op.kind, url: r.data.html_url, id: r.data.id }
     }
 
     case 'issue': {
@@ -193,11 +235,11 @@ export async function postAs(
       const r = await octokit.issues.create({
         owner,
         repo,
-        title: `[${SHIPS[ship].handle}] ${title}`,
+        title: `[${fullHandle}] ${title}`,
         body: frameBody(ship, body),
-        labels: ['port-daddy-fleet', `pd-ship:${ship}`, ...(labels ?? [])],
+        labels: ['port-daddy-fleet', `pd-ship:${ship.handle}`, ...(labels ?? [])],
       })
-      return { ship, op: op.kind, url: r.data.html_url, id: r.data.number }
+      return { ship: ship.handle, op: op.kind, url: r.data.html_url, id: r.data.number }
     }
 
     case 'issue-comment': {
@@ -208,7 +250,7 @@ export async function postAs(
         issue_number,
         body: frameBody(ship, body),
       })
-      return { ship, op: op.kind, url: r.data.html_url, id: r.data.id }
+      return { ship: ship.handle, op: op.kind, url: r.data.html_url, id: r.data.id }
     }
 
     case 'draft-pr': {
@@ -216,13 +258,13 @@ export async function postAs(
       const r = await octokit.pulls.create({
         owner,
         repo,
-        title: `[${SHIPS[ship].handle}] ${title}`,
+        title: `[${fullHandle}] ${title}`,
         body: frameBody(ship, body),
         head,
         base,
         draft: true,
       })
-      return { ship, op: op.kind, url: r.data.html_url, id: r.data.number }
+      return { ship: ship.handle, op: op.kind, url: r.data.html_url, id: r.data.number }
     }
   }
 }
