@@ -875,6 +875,26 @@
         "sdk": true
       }
     },
+    "attention": {
+      "description": "Single-call aggregator of unread inbox + subscribed channel messages for the current agent. Mark-read-on-fetch semantics; --peek leaves cursors in place. Designed to be the first command of every harness session (Claude Code SessionStart hook wires it automatically).",
+      "cli": [
+        "attention"
+      ],
+      "sdk": [],
+      "routes": [
+        "GET /attention",
+        "POST /attention/subscribe",
+        "POST /attention/unsubscribe",
+        "GET /attention/subscriptions"
+      ],
+      "completions": [
+        "attention"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
     "sugar": {
       "description": "Compound commands for common workflows (begin/done/whoami)",
       "cli": [

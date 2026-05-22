@@ -27,6 +27,7 @@ import { changelogPlugin } from './changelog.js';
 import { tunnelPlugin } from './tunnel.js';
 import { dnsPlugin } from './dns.js';
 import { sugarPlugin } from './sugar.js';
+import { attentionPlugin } from './attention.js';
 import { launchPlugin } from './launch.js';
 import { spawnPlugin } from './spawn.js';
 import { harborsPlugin } from './harbors.js';
@@ -102,6 +103,7 @@ export async function registerAllRoutes(
   await fastify.register(tunnelPlugin, { deps } as any);
   await fastify.register(dnsPlugin, { deps } as any);
   await fastify.register(sugarPlugin, { deps } as any);
+  await fastify.register(attentionPlugin, { deps } as any);
   await fastify.register(launchPlugin, { deps } as any);
   await fastify.register(spawnPlugin, { deps } as any);
   await fastify.register(sortiesPlugin, { deps } as any);

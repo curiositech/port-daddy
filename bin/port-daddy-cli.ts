@@ -78,6 +78,8 @@ import {
   handleDns, handleBriefing, handleIntegration,
   // Sugar commands
   handleBegin, handleDone, handleWhoami, handleWithLock,
+  // Attention (inbox + subscribed channels — see docs/RELEASING.md for hook wiring)
+  handleAttention,
   // Tutorial
   handleLearn,
   // File claims
@@ -605,6 +607,7 @@ function buildHelp(): string {
     `  ${G}pd begin${Z} "purpose"       I'll set up your agent + session`,
     `  ${G}pd done${Z} "summary"        Finish up — I'll clean everything`,
     `  ${G}pd whoami${Z}                See your current context`,
+    `  ${G}pd attention${Z}             What other agents queued for you (run first thing!)`,
     '',
     `${A}Ports:${Z}`,
     `  ${G}pd claim${Z} <id>            I'll assign a port  ${D}(c)${Z}`,
@@ -1193,7 +1196,7 @@ const ALL_COMMANDS: string[] = [
   'agent', 'agents', 'actor', 'actors', 'swarm', 'inbox', 'log', 'activity',
   'wallet', 'bond',
   'session', 'sessions', 'note', 'notes', 'say',
-  'begin', 'done', 'whoami', 'with-lock', 'learn',
+  'begin', 'done', 'whoami', 'attention', 'with-lock', 'learn',
   'n', 'u', 'd',
   'dashboard', 'channels', 'webhook', 'webhooks', 'metrics', 'config', 'health', 'ports',
   'start', 'stop', 'restart', 'status', 'install', 'uninstall', 'dev', 'daemon', 'ci-gate',
@@ -2657,6 +2660,10 @@ export async function main(): Promise<void> {
       case 'w':
       case 'whoami':
         await handleWhoami(options);
+        break;
+
+      case 'attention':
+        await handleAttention(options);
         break;
 
       case 'with-lock':

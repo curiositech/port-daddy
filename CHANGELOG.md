@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`pd attention` — first-command-of-every-session aggregator.** Returns unread inbox messages + new messages on subscribed channels for the current agent in one call, with mark-read-on-fetch semantics (`--peek` skips). Stable JSON schema in `lib/attention.ts` so harness SessionStart hooks (and any other integrator) can pin the result into prompt context. `.claude/settings.json`'s SessionStart hook wires it automatically for Claude Code. Subscriptions are durable in a new SQLite table (`attention_subscriptions`) keyed on `(agent_id, channel)` with a per-subscription cursor that advances on non-peek reads. New routes: `GET /attention`, `POST /attention/subscribe`, `POST /attention/unsubscribe`, `GET /attention/subscriptions`. AGENTS.md § Port Daddy First updated to make `pd attention` doctrine. Closes roadmap item `pd-attention-mailbox-for-harness-agents` (HIGH).
+
 ## [3.15.0] - 2026-05-20
 
 ### Added

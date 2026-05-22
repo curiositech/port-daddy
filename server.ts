@@ -47,6 +47,7 @@ import { createWebhooks, WebhookEvent } from './lib/webhooks.js';
 import { createProjects } from './lib/projects.js';
 import { createSessions } from './lib/sessions.js';
 import { createAgentInbox } from './lib/agent-inbox.js';
+import { createAttention } from './lib/attention.js';
 import { createClaimWatcher } from './lib/claim-watcher.js';
 import { createResurrection } from './lib/resurrection.js';
 import { createChangelog } from './lib/changelog.js';
@@ -407,6 +408,7 @@ const resolver = createResolver(db);
 dns.setResolver(resolver);
 const briefing = createBriefing(db, { sessions, agents, resurrection, activityLog, services, messaging });
 const sugar = createSugar({ agents, sessions, activityLog });
+const attention = createAttention({ db, inbox: agentInbox, messaging });
 const harborTokens = createHarborTokens(db);
 await harborTokens.initDaemonIdentity();
 const harbors = createHarbors(db, { harborTokens });
@@ -919,7 +921,7 @@ await registerAllRoutes(
   {
     db, logger, metrics, config,
     services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
-    agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar,
+    agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar, attention,
     harbors, sorties, orchestrator, correlationEngine, spawner, tuples, blobs, fleetDaemon,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, counters, metricsRegistry,
     quorum, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,

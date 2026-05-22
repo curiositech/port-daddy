@@ -1884,6 +1884,7 @@ _port_daddy() {
     'done:end a work session (end session + unregister agent)'
     'whoami:show current agent/session context'
     'w:show current context (alias for whoami)'
+    'attention:read inbox + subscribed channels in one call (run first thing every session)'
     'with-lock:run a command while holding a lock'
     'n:add a quick note (alias for note)'
     'u:start all services (alias for up)'
