@@ -1,9 +1,15 @@
-A single stylized lighthouse standing centered on a cream background, rendered as a flat architectural-blueprint illustration.
+A single tall lighthouse silhouette on rocky shoals, rendered as flat editorial illustration on a fully transparent canvas (PNG alpha — the canvas is empty, only the lighthouse and its beam carry pixels). Square 1:1 framing.
 
-The lighthouse: tall slender tower in cobalt blue #003fb8 with three thin horizontal hatched bands (cross-hatching pattern) marking floors. Near-black #1f1f1f crisp thin outlines, ruler-drawn. A small flat-roofed lantern room at the top in deep teal / sage green #006b5f, with a directional beam of light fanning out to the right side — the beam is a pale wash of #006b5f with thin black ray lines, never painterly, geometric only. A small flag silhouette in cobalt blue on top.
+The tower: tall and slender, centered, drawn as crisp cobalt blue #003fb8 line art with a near-black #1f1f1f thin outline. Three thin horizontal hatched bands mark floors on the tower. Base of the tower sits on a small rocky shoal rendered in deep teal / sage green #006b5f with diagonal cross-hatching for stone texture. A small flat-roofed lantern room caps the tower in deep teal / sage #006b5f.
 
-Background: pure cream #f2eee6 fills the majority of the square canvas (the icon must read at favicon size). A single thin horizontal sea-line at the lower third, hand-drawn, with a few short tally-mark vertical strokes suggesting waves.
+The beam: from the lantern room a wide warm amber beam (#e8a23a) sweeps to the right side of the canvas — a soft luminous gradient from #e8a23a at the source fading toward fully transparent at the outer edge of the beam. The beam is conical, the widest spread at the far edge. Thin black ray lines crisp the beam's geometry without painting over the amber gradient. The beam communicates BOTH welcome (warmth) and direction (safe approach).
 
-Composition: the lighthouse occupies the central vertical axis. The beam reads as a directional gesture from upper center toward middle right. Square 1:1 framing, generous cream margin on all four sides. No text, no labels, no numbers, no watermarks. No 3D, no photorealism, no painterly chiaroscuro, no warm amber lighting — strict flat blueprint language only.
+The fleet at sea: three or four tiny line-drawn sailboat silhouettes on the horizon at the lower right, each a hull + single triangular sail in cobalt blue #003fb8 with a near-black outline. The boats are turning TOWARD the beam — bows angled toward the lighthouse — signaling safe approach under watchful infrastructure.
 
-Style discipline: this is a civic icon (think a small-town harbormaster's office logo), not a cinematic poster. Crisp thin black linework, hatching for shading, geometric flat fills, hand-drawn-but-precise feel.
+A single thin near-black horizontal sea-line at the lower third, hand-drawn, with a few short tally-mark vertical strokes suggesting waves. Sea-line stops at the shoal base; does not bisect the whole canvas.
+
+The amber is the warmth signal. Cobalt and sage carry the structure; amber carries the trust. The icon must read at 60×60 — keep all elements crisp, geometric, ruler-clean. Hand-drawn-but-precise feel.
+
+Strict no-fill rules: the background is FULLY TRANSPARENT — alpha zero — no cream, no white, no sky color. Only the lighthouse, its beam, the shoals, the sea-line, and the boats carry pixels. No text. No labels. No watermarks. No 3D, no photorealism, no painterly chiaroscuro.
+
+Style discipline: this is a civic icon for a harbormaster's office, sized to live on GitHub marketplace where it will appear on light, dark, and tinted backgrounds. The amber beam plus transparent canvas must work in all three contexts.

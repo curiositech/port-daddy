@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
-# Generate the three icon directions × three sizes for the Port Daddy Fleet
+# Generate the icon directions × three sizes for the Port Daddy Fleet
 # GitHub App, using Nano Banana Pro via the nano-banana-image-gen skill.
 #
 # Re-runnable. Skips directions whose 1024px output already exists unless
-# --force is passed. Downsamples to 256px and 60px via sips (macOS stdlib).
+# --force is passed. Post-processes each 1024 to enforce alpha transparency
+# (Nano Banana sometimes paints a near-white/cream backdrop even when asked
+# not to — we knock that out by color-threshold). Downsamples to 256 and 60
+# via Pillow Lanczos so alpha is preserved through the chain.
 #
 # Usage:
 #   GEMINI_API_KEY=... bash scripts/generate-icons.sh           # generate missing
@@ -33,10 +36,11 @@ for arg in "$@"; do
 done
 
 # Each direction: <slug>:<prompt-file>:<output-dir>
+# C-lantern is retained on disk as reference but is not in the active
+# generation list — the active directions are lighthouse and anchor.
 DIRECTIONS=(
   "A-lighthouse:A-lighthouse.txt:A-lighthouse"
   "B-anchor:B-anchor.txt:B-anchor"
-  "C-lantern:C-lantern.txt:C-lantern"
 )
 
 if [[ $RESIZE_ONLY -eq 0 ]]; then
@@ -51,6 +55,58 @@ if [[ $RESIZE_ONLY -eq 0 ]]; then
     fi
   fi
 fi
+
+post_process() {
+  # $1 = path to 1024 src, $2 = path to 256 out, $3 = path to 60 out
+  python3 - "$1" "$2" "$3" <<'PY'
+import sys
+from PIL import Image
+
+src = sys.argv[1]
+out256 = sys.argv[2]
+out60 = sys.argv[3]
+
+img = Image.open(src).convert("RGBA")
+px = img.load()
+W, H = img.size
+
+# Knock out near-white / cream / fake-checker backgrounds. Nano Banana
+# sometimes paints a checkered or pale-gray "transparency" pattern (~RGB
+# 192,192,192) instead of true alpha. Anything desaturated above the
+# lightness floor gets zeroed — cobalt #003fb8, sage #006b5f, amber
+# #e8a23a, and near-black #1f1f1f are all either saturated or dark, so
+# they survive the threshold. No legitimate medium gray exists in the
+# active palette.
+LIGHTNESS_MIN = 150   # 0-255; pixels brighter than this are candidates
+SAT_MAX = 24          # max(R,G,B) - min(R,G,B); only desaturated pixels qualify
+for y in range(H):
+    for x in range(W):
+        r, g, b, a = px[x, y]
+        if a == 0:
+            continue
+        mx, mn = max(r, g, b), min(r, g, b)
+        if mx >= LIGHTNESS_MIN and (mx - mn) <= SAT_MAX:
+            px[x, y] = (r, g, b, 0)
+
+img.save(src, format="PNG", optimize=True)
+
+# Lanczos downscale preserves alpha through the chain (sips flattens).
+img.resize((256, 256), Image.LANCZOS).save(out256, format="PNG", optimize=True)
+img.resize((60, 60),  Image.LANCZOS).save(out60,  format="PNG", optimize=True)
+
+# Snap near-zero alpha to zero on downsamples so partial-transparency haze
+# doesn't bleed onto dark backgrounds.
+for out_path in (out256, out60):
+    di = Image.open(out_path).convert("RGBA")
+    dpx = di.load()
+    for y in range(di.height):
+        for x in range(di.width):
+            r, g, b, a = dpx[x, y]
+            if 0 < a <= 24:
+                dpx[x, y] = (r, g, b, 0)
+    di.save(out_path, format="PNG", optimize=True)
+PY
+}
 
 for entry in "${DIRECTIONS[@]}"; do
   IFS=: read -r slug prompt_file out_subdir <<< "$entry"
@@ -82,9 +138,8 @@ for entry in "${DIRECTIONS[@]}"; do
     continue
   fi
 
-  echo "[size] $slug → 256, 60"
-  sips -Z 256 "$src_1024" --out "$src_256"  > /dev/null
-  sips -Z 60  "$src_1024" --out "$src_60"   > /dev/null
+  echo "[post] $slug → alpha-clean + resize (256, 60)"
+  post_process "$src_1024" "$src_256" "$src_60"
 done
 
 echo
