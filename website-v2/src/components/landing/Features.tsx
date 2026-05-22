@@ -287,7 +287,7 @@ export function Features() {
         </div>
 
         <motion.div
-          className="grid gap-5 sm:grid-cols-2 lg:grid-cols-6"
+          className="grid gap-[var(--space-5)] sm:grid-cols-2 lg:grid-cols-6"
           variants={container}
           initial="hidden"
           animate="show"
