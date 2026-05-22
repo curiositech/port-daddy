@@ -266,7 +266,7 @@ export function Features() {
   }, [selectedFeature])
 
   return (
-    <section id="features" className="relative py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+    <section id="features" className="relative border-t-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
       <PageContainer width="wide">
         <div className="mb-[var(--space-7)] grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,0.9fr)_minmax(18rem,0.55fr)] lg:items-end">
           <SectionIntro
