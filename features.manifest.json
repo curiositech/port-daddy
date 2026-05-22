@@ -1523,6 +1523,38 @@
         "sdk": false
       }
     },
+    "db_backup": {
+      "description": "Durable snapshots of port-registry.db with online-Backup-API atomicity, gzipped artifacts + sha256-verified manifests, and GFS retention. `pd backup` runs a snapshot; `pd backup list/show/prune` inspect and trim. URI-addressed backend interface (file:// in PR-α; s3:// and gcs:// in PR-γ). Encryption-at-rest lands in PR-β. See ADR-0037.",
+      "module": "lib/backup.ts",
+      "cli": [
+        "backup"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "backup"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
+    },
+    "db_restore": {
+      "description": "Restore a port-registry.db snapshot taken by `pd backup`. Live DB is renamed to `<dbPath>.pre-restore-<timestamp>` so the operation is reversible; `PRAGMA integrity_check` auto-rolls back on failure. See ADR-0037.",
+      "module": "lib/backup.ts",
+      "cli": [
+        "restore"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "restore"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
+    },
     "ideas": {
       "description": "Canonical ideation trove inspection and dedupe over docs/recovery/IDEAS-TROVE.md with optional local Spark/Spider residue",
       "cli": [
