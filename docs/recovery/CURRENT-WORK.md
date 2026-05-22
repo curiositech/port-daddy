@@ -1,6 +1,6 @@
 # Current Recovery Work
 
-Last updated: 2026-05-16 19:10 UTC (Cartographer harvest/promotion pass — fresh 2026-05-16 Spark ideas curated; `orchestrator-decision-attribution` promoted to execution wave (#34); `symbol-staleness-merge-safety` marked EXTENDS: operator-hint-engine. Snapshot remains: `graph-based-merge-conflict-predictor`, `ambient-anomaly-signaling`, `symbol-graph-visualization`, `incremental-symbol-index-refresh`, `operator-hint-engine`, `symbol-claim-isolation-validator`, `orchestrator-plugin-lifecycle`, `daemon-fleet-auto-recovery`, `graph-integrity-auditor`, `agent-skills-quality-gates`, `cost-forecast-alert`, and `ipc-queue-saturation-promotion` in curated execution wave; 2026-05-13 extended promotion: `cost-gated-spawning`, `empirical-model-efficiency-routing`, `operator-decision-journal`, `sandboxed-adversarial-test-harness`; 2026-05-14 promotion: `tuple-store-query-api`, `governance-coordination-hub`, `phase-3-auto-remediation-executor`, `cost-aware-model-training-loop`, `unified-spawn-risk-synthesis`, plus `episodic-memory-query-surfaces` as Phase 3B memory cut and `operator-manual-fleet-dispatch` as Phase 3 dispatch workbench; 2026-05-10 Phase 4 resilience: `salvage-root-cause-classifier`; raw 2026-05-10 Spider exhaust (S41/S42/S43) still uncurated; fresh 2026-05-16 Spark/Spider exhaust mostly processed (orchestrator-decision-attribution curated, symbol-staleness marked extension); origin/main: 35 non-shared commits on release-prep / metrics / docs-polish; Phase 4A binary/doctor on feature branches, not promoted; prior: continuation `d017bc28`, verification `f0398b9a`, extended promotion `bbbd19be`, mapping `4e2a9f01`)
+Last updated: 2026-05-22 UTC (Cartographer plan-backlog ingestion follow-up to PR #166 — gap-fill pass over 4 long-form `docs/plans/` files: TUBE-as-coordination-substrate roadmap, phone-integration master plan, anchor protocol workstream backlog, worktree-swarms. New section "Plan-backlog ingestion 2026-05-22" enumerates ~60 still-open deliverables not covered by PR #166's hanging-chad sweep, organized into 4 clusters: TUBE (3 blockers + Phase 0 + Phases 1-8), PHONE (Tracks B3/C/D/E + PKI v1/v2), ANCHOR (AP-001..AP-022 in clusters A-F), WORKTREE-SWARMS (worktree-harbor binding, metadata decay daemon, swarm dashboard). Prior 2026-05-16 19:10 UTC pass: harvest/promotion — fresh 2026-05-16 Spark ideas curated; `orchestrator-decision-attribution` promoted to execution wave (#34); `symbol-staleness-merge-safety` marked EXTENDS: operator-hint-engine. Snapshot remains: `graph-based-merge-conflict-predictor`, `ambient-anomaly-signaling`, `symbol-graph-visualization`, `incremental-symbol-index-refresh`, `operator-hint-engine`, `symbol-claim-isolation-validator`, `orchestrator-plugin-lifecycle`, `daemon-fleet-auto-recovery`, `graph-integrity-auditor`, `agent-skills-quality-gates`, `cost-forecast-alert`, and `ipc-queue-saturation-promotion` in curated execution wave; 2026-05-13 extended promotion: `cost-gated-spawning`, `empirical-model-efficiency-routing`, `operator-decision-journal`, `sandboxed-adversarial-test-harness`; 2026-05-14 promotion: `tuple-store-query-api`, `governance-coordination-hub`, `phase-3-auto-remediation-executor`, `cost-aware-model-training-loop`, `unified-spawn-risk-synthesis`, plus `episodic-memory-query-surfaces` as Phase 3B memory cut and `operator-manual-fleet-dispatch` as Phase 3 dispatch workbench; 2026-05-10 Phase 4 resilience: `salvage-root-cause-classifier`; raw 2026-05-10 Spider exhaust (S41/S42/S43) still uncurated; fresh 2026-05-16 Spark/Spider exhaust mostly processed (orchestrator-decision-attribution curated, symbol-staleness marked extension); origin/main: 35 non-shared commits on release-prep / metrics / docs-polish; Phase 4A binary/doctor on feature branches, not promoted; prior: continuation `d017bc28`, verification `f0398b9a`, extended promotion `bbbd19be`, mapping `4e2a9f01`)
 Owner: Cartographer maintenance pass + curated dogfood queue (2 now-status items: `claim-preserving-git-safety`, `fleet-launchability-and-cadence`); live tuple-backed feedback projection is empty (`open: 0`, `harvested: 11`); direct `pd feedback list --status open --json` still hits `EPERM` on `~/.port-daddy/daemon.sock`; there is no `.spark/feedback/` tree
 Authority: git log (1.3/day, 9 commits trailing 7d) > committed code > V4-UNIFIED-ROADMAP.md
 
@@ -1342,6 +1342,118 @@ This is the normalized remaining-slice inventory as of 2026-04-24. It supersedes
    - remote harbor threat model before lighthouse implementation: key custody, attestation, delegated tokens, Merkle receipts, revocation filters, and replay resistance
    - resilience pattern pass using the Nygard skill before adding circuit breakers/backpressure across spawn, tunnel, Cloudflare, IPC, and webhook integration points
    - deeper implementation read of `google/agents-cli` templates, skill files, eval result formats, and upgrade/merge behavior before copying any lifecycle surface
+
+## Plan-backlog ingestion 2026-05-22 (Cartographer follow-up to PR #166)
+
+Gap-fill pass over four long-form `docs/plans/` files that the 2026-05-21
+hanging-chad sweep (PR #166) did not enumerate. Each item below is a
+still-open deliverable from one of those plans that is NOT already
+covered by PR #166's `Session backlog 2026-05-21` section. Source plan
+file is cross-referenced on each cluster. Priority stamps match PR #166's
+convention: HIGH / MEDIUM / LOW / BLOCKED.
+
+### Cluster TUBE — Coordination substrate roadmap
+
+Source: `docs/plans/TUBE-AS-COORDINATION-SUBSTRATE-ROADMAP.md` (updated 2026-05-02).
+
+**Phase 0 prerequisites / blockers (Spider 2026-05-02 harvest):**
+
+- [ ] **Activity-attribution `target_id` nullability fix** — HIGH — trove ticket `activity-target-id-nullability-fix` (status `now`). Sugar/session/sortie writers stamp `target_id = null` for many rows; roadmap claim "audit trail is automatic, replay is free" is false on this path. **Gates TUBE Phase 3.** Note line 1399 acknowledges the bug at source level but the TUBE-gating dependency is not tracked anywhere else.
+- [ ] **Harbor-token capability enforcement** — HIGH — `harbor-tokens.ts` JWTs encode `capabilities[]` but no route or IPC handler reads the array. Spider rediscovered this five times across runs (`2026-03-31-v2`, `2026-04-05-eighth`, `2026-04-07-seventeenth`, `2026-04-07-eighteenth`, `2026-03-31-third-run`). **Gates TUBE Phase 4.** Either ship capability binding with `tube-acl-v1.md` or explicitly declare "all participants on a channel are mutually trusted."
+- [ ] **Channel scoping engine vs archaeology** — MEDIUM — stale watchers in foreign worktrees wake on logical-not-physical channel keys. **Gates TUBE Phase 6** (cross-project leakage breaks the connector substrate).
+- [ ] **Blob store is Phase 0 mandatory** — HIGH — `lib/blob.ts` + `routes/blob.ts`, content-addressed at `~/.port-daddy/blobs/<sha>`, `POST /blob` multipart returning `{id, sha256, size}`, `GET /blob/:id`. ~80 LOC. Spider 2026-05-02 reversed the V1-punt decision. Codex CLI branch `codex/main-ci-blob-gc-boundary` may have started this — verify before duplicating. Unblocks every artifact-bearing tube use case and Spark `shipping receipts` / `autodraft release notes` items.
+
+**Phase 0 deliverables (this week per the plan):**
+
+- [ ] **`docs/coordination/primitives.md`** — MEDIUM — codify the pub/sub vs inbox vs tuples vs tube distinction matrix as durable docs. Replaces ad-hoc explanations in tutorials.
+- [ ] **`docs/tutorials/pd-tube-as-ui-button.md`** — LOW — second tube tutorial showing channel-as-UI-button pattern (post-from-curl, react-from-listener).
+- [ ] **Three-horizon briefings absorption** — LOW — `pd briefing` consumes `tuples.scan()` to surface the live-tuple horizon alongside the activity-log horizon. Absorbs Spark item `spider-2026-04-07-three-horizon-briefing.md`.
+
+**Phases 1+ (post-foundation):**
+
+- [ ] **Phase 1 Scout Chrome extension** — MEDIUM — `apps/pd-scout-extension/`, Manifest V3, `Cmd+Shift+K` project picker, capture modes (Page/Selection/Region), Readability.js extract, `chrome.tabs.captureVisibleTab`, POST to `<project>:scout:inbox`, reference triage agent `fleet/triage.sh`. ~1 week scope.
+- [ ] **Phase 2 Stevedore V1 (feedback extension)** — MEDIUM — `apps/pd-feedback-extension/`, localhost-only enforcement at three layers, drag-rect overlay, 3-second decompose pipeline, React fiber bones overlay, repro recorder emitting `repro.spec.ts`. ~2 weeks scope. Depends on blob store.
+- [ ] **Phase 3 tube-as-UI rewire** — MEDIUM — migrate destructive dashboard and FleetBar actions (claim/release/lock/spawn/abort) from RPC to tube performatives on `<project>:ui:requests`. Reads stay RPC. ~1 week, parallelizable. Blocked on activity-attribution fix above.
+- [ ] **Phase 4 A2A protocol layer** — MEDIUM — extend envelope with `pd tube --act <performative> --protocol <name>` (FIPA-00037 performatives, FIPA-00025 protocol templates). Ship `pd auction <channel>` as first-class CFP/bid/award helper. `coordination-judge.ts` learns thread-shape templates. ~2 weeks. Blocked on harbor capability enforcement above.
+- [ ] **Publish `tube-acl-v1.md` spec** — LOW — durable wire-format doc for Phase 4. Pairs with Phase 8.
+- [ ] **Phase 5 Stevedore V2** — LOW — Vue/Svelte source-map adapters, generic source-map fallback, DevTools panel, CDP screenshot, Playwright `trace.zip`, voice memo + Whisper, redaction rule editor. ~3 weeks.
+- [ ] **Phase 6 external connector zoo** — LOW — Slack `/pd` slash, iMessage/SMS (existing Track B1), Linear webhook, `git post-commit`, Sentry, calendar, cron/launchd, FleetBar context menu. ~50 LOC of glue each. Note: GitHub webhook connector overlaps PR #166's "GitHub App webhook receiver" chad.
+- [ ] **Phase 7 Thread-as-Argument-Graph viewer** — LOW — render any tube thread as a Toulmin/Lakatos tree in the dashboard; `coordination-judge.ts` scores subtree quality. The wow feature only tube can produce. ~3 weeks.
+- [ ] **Phase 8 Open Spec publication** — LOW — publish `tube-acl-v1.md` externally; long bet on vendor-neutral A2A substrate.
+
+### Cluster PHONE — Phone-integration master plan
+
+Source: `docs/plans/PHONE-INTEGRATION-MASTER-PLAN.md` (updated 2026-04-26). Tracks A1, B1, B2 are shipped; remaining tracks are open.
+
+- [ ] **B3 button-click HTML demo** — LOW — `examples/button-click-demo/` (HTML + README); recorded GIF deferred to GIF-CI work. ~half-day; depends on B1 (shipped).
+- [ ] **C1 ADR-0026 Relay Architecture** — MEDIUM — use `templates/ADR-Relay-Architecture.md`; lands as `docs/adr/0026-relay-architecture.md`. Gates C2.
+- [ ] **C2 Relay v0 implementation** — MEDIUM — `lib/relay-envelope.ts` (pure-fn wire format), Cloudflare Worker + Durable Object scaffolding, identity registry per ADR-0025 OIDC choice, `lib/relay-client.ts` outbound-only daemon SSE client. ~3-4 weeks initial scope. Blocked on C1.
+- [ ] **D1 VS Code extension `port-daddy-vscode`** — MEDIUM — selection-based publish, right-click "Ask Claude about this", diagnostic-reactive publish, subscribe to `editor:reply:<id>` for inline rendering. ~1 week; separate repo. Depends on B1 (shipped).
+- [ ] **D2 Test runner publishers** — LOW — `@port-daddy/jest-reporter` and `port-daddy-pytest`; both publish on first failure to `test:failed`. ~3-4 days each; parallelizable. Depends on B1 (shipped).
+- [ ] **E1 Phase 3 attenuation in production code** — LOW — promote `scripts/attenuate_card.py` algorithm to `lib/`; OIDC exchange endpoint on relay; GH Actions integration walkthrough lifts `examples/attenuation-walkthrough.md`. Depends on Tracks B + C.
+- [ ] **E2 ProVerif extension** — LOW — copy `templates/proverif-relay.pv` into `analyses/relay-handshake.pv`, fill in queries from `references/proverif-relay-extension.md`, iterate until I1 + authentication pass. Depends on Tracks B + C.
+- [ ] **E3 ADR-0027 V4 Remote Harbor Redefinition** — LOW — use `templates/ADR-V4-Remote-Harbor-Redefinition.md`; update `V4-DAG.md`, `v4.dag.yaml`, `V4-MASTER-PLAN.md`, `README.md`; implement `pd harbor share` / `pd harbor join`. Depends on Tracks B + C.
+- [ ] **ACME on self-hosted `step-ca` (PKI v1)** — LOW — ADR-0025 phased plan; v1 follows the shipped v0 OIDC. No dispatch yet.
+- [ ] **Self-hosted OIDC issuers + BYO-domain ACME (PKI v2)** — LOW — ADR-0025 v2 phase; far future.
+
+### Cluster ANCHOR — Anchor protocol workstream backlog (AP-001..AP-022)
+
+Source: `docs/plans/anchor-protocol-workstream-backlog.md` (updated 2026-04-11). PR #166 captures the Task #100 ("Anchor paper Bonded-style upgrade") umbrella but does not enumerate the 22 AP-tagged sub-tasks. The plan's own "Immediate Next Slice" recommendation is AP-001 / AP-002 / AP-003 / AP-010 / AP-016 / AP-018.
+
+**Cluster A — Protocol truth (whitepaper honesty):**
+
+- [ ] **AP-001 Rewrite Anchor whitepaper limitations around semantic gap** — MEDIUM — replace current limitations framing with explicit "formal models reason about logical identities, real swarms run as ephemeral OS processes." Files: `docs/reports/PORT_DADDY_ANCHOR_WHITEPAPER.md`, `website-v2/public/whitepaper/anchor-protocol-whitepaper.tex`. Recommended in plan's "Immediate Next Slice."
+- [ ] **AP-002 Expand verification-stack explanation (ProVerif / Kani / TLA+)** — MEDIUM — present verification as a layered stack; mention TLA+ only if real artifacts exist. Recommended in "Immediate Next Slice."
+- [ ] **AP-003 Close ProVerif-to-Kani proof gap explicitly** — MEDIUM — one bridging sentence near subset-logic discussion. Recommended in "Immediate Next Slice."
+- [ ] **AP-004 Align phase numbering / algorithm numbering / protocol evolution language** — LOW — renumber to remove cross-map effort for readers.
+- [ ] **AP-005 Add control-plane architecture paragraph to introduction** — LOW — reframe paper as systems architecture.
+
+**Cluster B — Daemon hardening roadmap:**
+
+- [ ] **AP-006 Daemon-hardening sub-roadmap (OS/process binding)** — MEDIUM — PID/process identity binding, socket ownership, race windows around crashed agents reclaiming ports, Linux-first vs macOS parity. Likely lands as new ADR.
+- [ ] **AP-007 Define root-key custody modes** — LOW — local software / Secure Enclave-TPM / cloud KMS-HSM mode table; threat + packaging implications.
+- [ ] **AP-008 Specify revocation architecture honestly** — LOW — in-memory revoked-jti set vs persisted revocation log vs probabilistic structures; first impl path must be simple/debuggable, no Bloom-filter cargo culting.
+- [ ] **AP-009 Clarify local vs remote transport defaults** — LOW — local IPC/UDS vs networked harbor-to-harbor are different transport problems.
+
+**Cluster C — Economy and monetization:**
+
+- [ ] **AP-010 Separate protocol / economy / monetization in roadmap** — MEDIUM — explicit section boundaries in `V4-UNIFIED-ROADMAP.md` and ADR-0014. Recommended in "Immediate Next Slice"; plan calls this "the single biggest conceptual cleanup."
+- [ ] **AP-011 Build honest readiness ladder for the economy** — LOW — tied to graph activation, observability, trust-boundary mode.
+- [ ] **AP-012 Redesign packaging around open-core + hosted trust ops** — LOW — Community/Pro/Team-Enterprise matrix; pricing metric must not be "per active agent session."
+- [ ] **AP-013 De-risk economy language in ADR-0014** — LOW — explicit layering of work agreements / evidence / escrow / receipts / credit economy.
+
+**Cluster D — Brand and narrative:**
+
+- [ ] **AP-014 Decide external narrative center of gravity** — LOW — pick one of: practical local coordination / formal trust-control plane / agentic-economy infrastructure.
+- [ ] **AP-015 Evaluate `agentsd.ai` as external brand** — LOW — brand decision memo. Partially in flight per existing `docs/AGENTSD_*` quarantine.
+- [ ] **AP-016 Create claims taxonomy for site language** — MEDIUM — registry table dividing claims into true-now / true-but-rough / planned / prohibited overclaims. Recommended in "Immediate Next Slice."
+
+**Cluster E — Website and rebrand execution:**
+
+- [ ] **AP-017 Preserve agentsd mock visual system without inflated claims** — LOW — design carry-forward memo.
+- [ ] **AP-018 Audit protocol-version / verification claims across `website-v2`** — MEDIUM — per-file audit + claim-by-claim corrections. Known contradictions: `website-v2/src/data/product.ts` still describes harbors as HMAC while protocol is Ed25519; `website-v2/src/pages/RoadmapPage.tsx` reflects older phase model; whitepaper page count disagrees between site and repo. Recommended in "Immediate Next Slice"; depends on AP-016.
+- [ ] **AP-019 Rebuild website IA around operator trust** — LOW — preserve hero / proof / architecture / monetization / docs sequence.
+- [ ] **AP-020 Choose right typography + identity system** — LOW — structural/industrial, not trendy.
+
+**Cluster F — Public roadmap translation:**
+
+- [ ] **AP-021 Reconcile public roadmap with current recovery authority** — LOW — public roadmap is diverging from `docs/recovery/CURRENT-WORK.md`.
+- [ ] **AP-022 Map graph activation to economic + marketing readiness** — LOW — explicit dependency note: `graph_edges` → episodic memory → merge queue → evidence-backed economy claims → pricing/risk language. Plan warns future agents are likely to misread this as copy work.
+
+### Cluster WORKTREE-SWARMS — Stigmergic isolation + parallel coordination
+
+Source: `docs/plans/WORKTREE_SWARMS.md` (updated 2026-03-12). Harbormaster (ADR-0037 / PR #141) is the named implementation of the Janitor Agent idea from §4 of this plan; the remaining three roadmap items are unmapped elsewhere.
+
+- [ ] **Worktree-Harbor binding** — MEDIUM — update `lib/harbors.ts` to allow pinning a Harbor to a specific set of `worktree_ids`. Currently Port Daddy auto-detects `worktree_id` on agent registration but harbors are not worktree-scoped. Roadmap item §6.1.
+- [ ] **Metadata decay daemon (Evaporation)** — LOW — background process in the daemon that slowly reduces the weight of stale metadata pheromones. Pheromone read-time decay shipped (V4 roadmap §3-27); background evaporation is the missing companion piece. Roadmap item §6.2.
+- [ ] **Swarm visualization dashboard** — LOW — update `website-v2` dashboard to show agents swarming across worktrees in real-time. Pairs with V4 roadmap's "Remaining: Dashboard visualization panel" note for the pheromone primitive (line 438). Roadmap item §6.3.
+
+Owner: Cartographer (this ingestion). Each item's actual owner is whoever
+picks it up. Cross-references: TUBE blockers gate Phases 3/4/6 of the
+substrate roadmap; phone-integration C2 (Cloudflare Worker relay) is the
+natural shape for the GitHub App webhook receiver chad in PR #166; AP-006
+(daemon-hardening) is the protocol-truth counterpart to the runtime
+hardening work already tracked in CURRENT-WORK queue items.
 
 ## Immediate Next Cuts
 
