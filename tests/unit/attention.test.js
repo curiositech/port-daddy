@@ -85,6 +85,27 @@ describe('attention.compose', () => {
     expect(third.items[0].channel).toBe(ch);
   });
 
+  test('subscribe snapshots channel state: history NOT replayed to new subscribers', () => {
+    const { attention, messaging } = setup();
+    // Publish to a channel BEFORE anyone subscribes
+    for (let i = 0; i < 5; i += 1) {
+      messaging.publish('long-running:channel', `pre-existing-${i}`, { sender: 'historical' });
+    }
+
+    // New subscriber should NOT see the 5 prior messages
+    const subResult = attention.subscribe('agent-newcomer', 'long-running:channel');
+    expect(subResult.cursor).toBeGreaterThan(0);  // snapshot took the max id
+
+    const first = attention.compose('agent-newcomer');
+    expect(first.counts.channels).toBe(0);
+
+    // Future messages DO surface
+    messaging.publish('long-running:channel', 'post-subscribe', { sender: 'fresh' });
+    const second = attention.compose('agent-newcomer');
+    expect(second.counts.channels).toBe(1);
+    expect(second.items[0].content).toBe('post-subscribe');
+  });
+
   test('peek leaves channel cursor in place', () => {
     const { attention, messaging } = setup();
     attention.subscribe('agent-x', 'broadcast');

@@ -113,8 +113,11 @@ export function createAttention(deps: CreateAttentionDeps) {
     ),
     upsertSub: db.prepare(
       `INSERT INTO attention_subscriptions (agent_id, channel, cursor, created_at)
-       VALUES (?, ?, 0, ?)
+       VALUES (?, ?, ?, ?)
        ON CONFLICT(agent_id, channel) DO NOTHING`,
+    ),
+    channelMaxId: db.prepare<[string]>(
+      'SELECT COALESCE(MAX(id), 0) AS max_id FROM messages WHERE channel = ?',
     ),
     deleteSub: db.prepare(
       'DELETE FROM attention_subscriptions WHERE agent_id = ? AND channel = ?',
@@ -135,13 +138,20 @@ export function createAttention(deps: CreateAttentionDeps) {
     return stmts.listSubs.all(agentId);
   }
 
-  function subscribe(agentId: string, channel: string): { success: boolean; subscribed?: boolean; error?: string } {
+  function subscribe(agentId: string, channel: string): { success: boolean; subscribed?: boolean; cursor?: number; error?: string } {
     if (!agentId || typeof agentId !== 'string') return { success: false, error: 'agentId required' };
     if (!channel || typeof channel !== 'string') return { success: false, error: 'channel required' };
     const trimmed = channel.trim();
     if (!trimmed) return { success: false, error: 'channel required' };
-    const result = stmts.upsertSub.run(agentId, trimmed, Date.now());
-    return { success: true, subscribed: result.changes > 0 };
+    // Snapshot-isolate: start the cursor at the channel's current max so a new
+    // subscriber sees future messages only, not the channel's entire history
+    // (which would otherwise be drained one CHANNEL_FETCH_LIMIT at a time, and
+    // orphaned beyond that). Subscribers who want backfill should call
+    // `pd attention` repeatedly or fetch the channel via the messaging API.
+    const maxRow = stmts.channelMaxId.get(trimmed) as { max_id: number } | undefined;
+    const cursor = maxRow?.max_id ?? 0;
+    const result = stmts.upsertSub.run(agentId, trimmed, cursor, Date.now());
+    return { success: true, subscribed: result.changes > 0, cursor };
   }
 
   function unsubscribe(agentId: string, channel: string): { success: boolean; removed?: boolean; error?: string } {
@@ -156,6 +166,10 @@ export function createAttention(deps: CreateAttentionDeps) {
     options: { peek?: boolean; limit?: number } = {},
   ): AttentionSummary {
     const peek = options.peek === true;
+    // Defensive clamp for direct lib callers; the HTTP route rejects ≤0 with
+    // a 400 before reaching here, so this path is exercised only by tests and
+    // any future in-process callers (e.g. an MCP wrapper, despite the current
+    // MCP-exempt decision in tests/unit/mcp-parity.test.js).
     const limit = Math.max(1, Math.min(options.limit ?? ITEM_DEFAULT_LIMIT, 500));
     const now = Date.now();
 
@@ -176,18 +190,34 @@ export function createAttention(deps: CreateAttentionDeps) {
     }));
     items.push(...inboxItems);
 
-    // 2. Subscribed channels — messages newer than this agent's cursor
+    // 2. Subscribed channels — messages newer than this agent's cursor.
+    //    Each channel's read-then-advance must be atomic; otherwise two
+    //    concurrent compose() calls for the same agent both see cursor=N,
+    //    both fetch the same messages, and both think they marked them seen.
     const subs = listSubscriptionsWithCursors(agentId);
     let channelTotal = 0;
-    for (const sub of subs) {
+    const composeChannel = db.transaction((sub: SubscriptionRow): Array<{ msg: any; cursor: number }> => {
+      // Re-read cursor inside the txn to defeat the read-then-update race.
+      const fresh = stmts.listSubs.all(sub.agent_id).find((s) => s.channel === sub.channel);
+      const cursor = fresh?.cursor ?? sub.cursor;
       const msgRes = messaging.getMessages(sub.channel, {
-        after: sub.cursor || null,
+        after: cursor || null,
         limit: CHANNEL_FETCH_LIMIT,
       });
       const msgs = msgRes.success && msgRes.messages ? msgRes.messages : [];
-      if (msgs.length === 0) continue;
+      if (msgs.length === 0) return [];
+      if (!peek) {
+        const maxId = msgs.reduce((acc, m) => (m.id > acc ? m.id : acc), cursor);
+        if (maxId > cursor) {
+          stmts.advanceCursor.run(maxId, sub.agent_id, sub.channel, maxId);
+        }
+      }
+      return msgs.map((m) => ({ msg: m, cursor }));
+    });
 
-      for (const m of msgs) {
+    for (const sub of subs) {
+      const chMsgs = composeChannel(sub);
+      for (const { msg: m } of chMsgs) {
         items.push({
           source: 'channel',
           id: `channel:${sub.channel}:${m.id}`,
@@ -200,22 +230,19 @@ export function createAttention(deps: CreateAttentionDeps) {
           receivedAt: m.createdAt,
         });
       }
-      channelTotal += msgs.length;
-
-      if (!peek) {
-        const maxId = msgs.reduce((acc, m) => (m.id > acc ? m.id : acc), sub.cursor);
-        if (maxId > sub.cursor) {
-          stmts.advanceCursor.run(maxId, agentId, sub.channel, maxId);
-        }
-      }
+      channelTotal += chMsgs.length;
     }
 
-    // 3. Mark only the surfaced inbox items as read (NOT markAllRead — would
-    //    silently consume unread messages beyond the limit).
-    if (!peek) {
-      for (const m of inboxResult.messages || []) {
-        inbox.markRead(agentId, m.id);
-      }
+    // 3. Mark only the surfaced inbox items as read in a single transaction
+    //    so an N-message fetch is one fsync, not N. Per-message markRead is
+    //    deliberate (NOT markAllRead) so messages beyond the limit stay unread.
+    if (!peek && inboxItems.length > 0) {
+      const markBatch = db.transaction((messages: Array<{ id: number }>) => {
+        for (const m of messages) {
+          inbox.markRead(agentId, m.id);
+        }
+      });
+      markBatch(inboxResult.messages || []);
     }
 
     // Sort newest-first so the SessionStart hook pins the freshest things first
