@@ -29,6 +29,7 @@ You are explicitly invited to fix errors, sharpen inefficient passages, and add 
 
 - On this computer, use Port Daddy for repo work by default, not only when a task already looks multi-agent.
 - Start recovery, debugging, and parallel-work sessions with Port Daddy before doing local archaeology:
+  - `pd attention` — **first command of every session.** Reads unread inbox + subscribed channels in one call, marks them seen. Without this, other agents can route messages, file conflicts, or coordination signals at your agent id and you will never see them. The Claude Code SessionStart hook in `.claude/settings.json` runs this automatically and pins the output into context; for other harnesses, run it manually.
   - `pd status`
   - `pd briefing`
   - `pd salvage` when crash residue or abandoned work might matter

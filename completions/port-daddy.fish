@@ -97,7 +97,7 @@ set -l __pd_commands \
     'agent' 'agents' 'actor' 'actors' 'swarm' 'log' 'activity' \
     'session' 'sessions' 'note' 'notes' \
     'salvage' 'resurrection' 'changelog' 'dns' 'files' 'add' 'who-owns' 'integration' 'briefing' 'history' 'inbox' \
-    'begin' 'b' 'done' 'whoami' 'w' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'cockpit' 'watch' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' 'roadmap' 'quorum' 'feedback' \
+    'begin' 'b' 'done' 'whoami' 'w' 'attention' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'cockpit' 'watch' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' 'roadmap' 'quorum' 'feedback' \
     'say' 'look' 'sitrep' 'advise' 'preflight' 'compass' 'guard' 'snapshots' 'snapshot' 'shipwright' 'pheromone' 'ph' \
     'wallet' 'bond' \
     'up' 'down' \
@@ -385,6 +385,7 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a done -d 'End a work session (end + unregister)'
     complete -c $prog -n __pd_needs_command -a whoami -d 'Show current agent/session context'
     complete -c $prog -n __pd_needs_command -a w -d 'Show current context (alias for whoami)'
+    complete -c $prog -n __pd_needs_command -a attention -d 'Inbox + subscribed channels in one call (run first thing every session)'
     complete -c $prog -n __pd_needs_command -a with-lock -d 'Run a command while holding a lock'
     complete -c $prog -n __pd_needs_command -a n -d 'Add a quick note (alias for note)'
     complete -c $prog -n __pd_needs_command -a u -d 'Start all services (alias for up)'

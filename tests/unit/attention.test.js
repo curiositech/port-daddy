@@ -1,0 +1,195 @@
+/**
+ * Attention composer tests
+ *
+ * Verifies: inbox-only happy path, channel-subscription cursor advance, peek vs
+ * mark-read semantics, and subscription persistence.
+ */
+
+import { createTestDb } from '../setup-unit.js';
+import { createAgentInbox } from '../../lib/agent-inbox.js';
+import { createMessaging } from '../../lib/messaging.js';
+import { createAttention } from '../../lib/attention.js';
+
+function setup() {
+  const db = createTestDb();
+  const inbox = createAgentInbox(db);
+  const messaging = createMessaging(db);
+  const attention = createAttention({ db, inbox, messaging });
+  return { db, inbox, messaging, attention };
+}
+
+describe('attention.compose', () => {
+  test('empty inbox + no subscriptions → zero items', () => {
+    const { attention } = setup();
+    const result = attention.compose('agent-x');
+    expect(result.success).toBe(true);
+    expect(result.agentId).toBe('agent-x');
+    expect(result.items).toEqual([]);
+    expect(result.counts).toEqual({ total: 0, inbox: 0, channels: 0, inboxUnreadRemaining: 0 });
+    expect(result.subscriptions).toEqual([]);
+    expect(result.peek).toBe(false);
+  });
+
+  test('inbox messages addressed to agent surface with source=inbox and mark read', () => {
+    const { attention, inbox } = setup();
+    inbox.send('agent-x', 'hello-1', { from: 'agent-a' });
+    inbox.send('agent-x', 'hello-2', { from: 'agent-b' });
+
+    const first = attention.compose('agent-x');
+    expect(first.counts.inbox).toBe(2);
+    expect(first.items.length).toBe(2);
+    expect(first.items.every((i) => i.source === 'inbox')).toBe(true);
+    expect(first.items.every((i) => i.agentId === 'agent-x')).toBe(true);
+    expect(first.items.every((i) => i.id.startsWith('inbox:'))).toBe(true);
+
+    // Mark-read side effect: next call returns nothing
+    const second = attention.compose('agent-x');
+    expect(second.counts.inbox).toBe(0);
+    expect(second.items).toEqual([]);
+  });
+
+  test('peek does NOT mark inbox read', () => {
+    const { attention, inbox } = setup();
+    inbox.send('agent-x', 'hello', { from: 'agent-a' });
+
+    const peeked = attention.compose('agent-x', { peek: true });
+    expect(peeked.peek).toBe(true);
+    expect(peeked.counts.inbox).toBe(1);
+
+    const followup = attention.compose('agent-x');
+    expect(followup.counts.inbox).toBe(1);  // still unread
+  });
+
+  test('subscribed channels return new messages and advance cursor', () => {
+    const { attention, messaging } = setup();
+    attention.subscribe('agent-x', 'coordination:inconsistency');
+
+    const ch = 'coordination:inconsistency';
+    messaging.publish(ch, { kind: 'symbol-conflict', detail: 'foo.ts:42' }, { sender: 'cartographer' });
+    messaging.publish(ch, { kind: 'lock-stale', detail: 'release-publish' }, { sender: 'coxswain' });
+
+    const first = attention.compose('agent-x');
+    expect(first.counts.channels).toBe(2);
+    expect(first.items.length).toBe(2);
+    expect(first.items.some((i) => i.source === 'channel' && i.channel === ch)).toBe(true);
+    expect(first.subscriptions).toEqual([ch]);
+
+    // Second call: cursor advanced, nothing new
+    const second = attention.compose('agent-x');
+    expect(second.counts.channels).toBe(0);
+
+    // New message after cursor: surfaces on third call
+    messaging.publish(ch, { kind: 'fresh' }, { sender: 'spider' });
+    const third = attention.compose('agent-x');
+    expect(third.counts.channels).toBe(1);
+    expect(third.items[0].channel).toBe(ch);
+  });
+
+  test('subscribe snapshots channel state: history NOT replayed to new subscribers', () => {
+    const { attention, messaging } = setup();
+    // Publish to a channel BEFORE anyone subscribes
+    for (let i = 0; i < 5; i += 1) {
+      messaging.publish('long-running:channel', `pre-existing-${i}`, { sender: 'historical' });
+    }
+
+    // New subscriber should NOT see the 5 prior messages
+    const subResult = attention.subscribe('agent-newcomer', 'long-running:channel');
+    expect(subResult.cursor).toBeGreaterThan(0);  // snapshot took the max id
+
+    const first = attention.compose('agent-newcomer');
+    expect(first.counts.channels).toBe(0);
+
+    // Future messages DO surface
+    messaging.publish('long-running:channel', 'post-subscribe', { sender: 'fresh' });
+    const second = attention.compose('agent-newcomer');
+    expect(second.counts.channels).toBe(1);
+    expect(second.items[0].content).toBe('post-subscribe');
+  });
+
+  test('peek leaves channel cursor in place', () => {
+    const { attention, messaging } = setup();
+    attention.subscribe('agent-x', 'broadcast');
+    messaging.publish('broadcast', 'first', { sender: 'a' });
+
+    const peeked = attention.compose('agent-x', { peek: true });
+    expect(peeked.counts.channels).toBe(1);
+
+    const followup = attention.compose('agent-x', { peek: true });
+    expect(followup.counts.channels).toBe(1);  // cursor unchanged, same message
+  });
+
+  test('inbox + channel items are sorted newest-first', () => {
+    const { attention, inbox, messaging } = setup();
+    attention.subscribe('agent-x', 'broadcast');
+
+    inbox.send('agent-x', 'old-inbox', { from: 'a' });
+    // Pause so subsequent timestamps differ
+    const before = Date.now();
+    while (Date.now() === before) { /* spin until clock ticks */ }
+    messaging.publish('broadcast', 'newer-channel', { sender: 'b' });
+
+    const result = attention.compose('agent-x');
+    expect(result.items.length).toBe(2);
+    expect(result.items[0].receivedAt).toBeGreaterThanOrEqual(result.items[1].receivedAt);
+    expect(result.items[0].source).toBe('channel');
+    expect(result.items[1].source).toBe('inbox');
+  });
+
+  test('inboxUnreadRemaining reports overflow beyond limit', () => {
+    const { attention, inbox } = setup();
+    for (let i = 0; i < 5; i += 1) {
+      inbox.send('agent-x', `msg-${i}`, { from: 'sender' });
+    }
+
+    const result = attention.compose('agent-x', { limit: 3 });
+    expect(result.counts.inbox).toBe(3);
+    expect(result.counts.inboxUnreadRemaining).toBe(2);
+  });
+});
+
+describe('attention.subscribe / unsubscribe / listSubscriptions', () => {
+  test('subscribe is idempotent and listSubscriptions reflects state', () => {
+    const { attention } = setup();
+    expect(attention.subscribe('agent-x', 'ch1').subscribed).toBe(true);
+    expect(attention.subscribe('agent-x', 'ch1').subscribed).toBe(false);
+    expect(attention.subscribe('agent-x', 'ch2').subscribed).toBe(true);
+
+    expect(attention.listSubscriptions('agent-x')).toEqual(['ch1', 'ch2']);
+  });
+
+  test('unsubscribe removes only the named channel', () => {
+    const { attention } = setup();
+    attention.subscribe('agent-x', 'ch1');
+    attention.subscribe('agent-x', 'ch2');
+
+    const removed = attention.unsubscribe('agent-x', 'ch1');
+    expect(removed.success).toBe(true);
+    expect(removed.removed).toBe(true);
+    expect(attention.listSubscriptions('agent-x')).toEqual(['ch2']);
+
+    // Idempotent on already-removed
+    const repeat = attention.unsubscribe('agent-x', 'ch1');
+    expect(repeat.success).toBe(true);
+    expect(repeat.removed).toBe(false);
+  });
+
+  test('subscriptions are scoped per agent', () => {
+    const { attention } = setup();
+    attention.subscribe('agent-x', 'shared-channel');
+    attention.subscribe('agent-y', 'shared-channel');
+
+    expect(attention.listSubscriptions('agent-x')).toEqual(['shared-channel']);
+    expect(attention.listSubscriptions('agent-y')).toEqual(['shared-channel']);
+
+    attention.unsubscribe('agent-x', 'shared-channel');
+    expect(attention.listSubscriptions('agent-x')).toEqual([]);
+    expect(attention.listSubscriptions('agent-y')).toEqual(['shared-channel']);
+  });
+
+  test('subscribe rejects empty agentId or channel', () => {
+    const { attention } = setup();
+    expect(attention.subscribe('', 'ch').success).toBe(false);
+    expect(attention.subscribe('agent-x', '').success).toBe(false);
+    expect(attention.subscribe('agent-x', '   ').success).toBe(false);
+  });
+});

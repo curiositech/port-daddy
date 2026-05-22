@@ -43,5 +43,16 @@
       "Bash(rm:*)"
     ]
   },
-  "hooks": {}
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pd attention --json 2>/dev/null || true"
+          }
+        ]
+      }
+    ]
+  }
 }

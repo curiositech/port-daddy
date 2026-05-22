@@ -255,6 +255,7 @@ const MCP_EXEMPT_FEATURES = new Set([
   'setup',          // Local machine onboarding can run installer commands; daemon routes require loopback + GUI capability token, not MCP exposure.
   'usage',          // Local developer-pane telemetry ingestion; not a user-facing MCP tool.
   'blob',           // Phase 0 tube-as-coordination-substrate: content-addressed object storage; agents use the SDK or HTTP directly, MCP wrapper deferred to Phase 1+
+  'attention',      // Session-start convention surface; agents consume it via harness SessionStart hooks (Claude Code) or by running `pd attention` at the top of every session. An MCP tool would invert the dependency — the model would have to decide to call it mid-turn, which is exactly the polling problem this feature is supposed to remove. Deferred indefinitely.
 ]);
 
 // ============================================================================
