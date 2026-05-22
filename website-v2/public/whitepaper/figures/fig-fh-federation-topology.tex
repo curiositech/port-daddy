@@ -1,0 +1,99 @@
+% Federation topology — the basic gestalt: two harbors, neither root for the other,
+% a shared witness log, and a settlement escrow that is structurally bounded.
+
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D4C5A9}
+\providecolor{hhebony}{HTML}{1E1B18}
+\providecolor{hhink}{HTML}{2C2A26}
+\providecolor{hhcinnabar}{HTML}{CC3D2E}
+\providecolor{hhbrass}{HTML}{B08D57}
+\providecolor{hhpatina}{HTML}{5C7A6A}
+\providecolor{hhpaper}{HTML}{FBF7EE}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\sffamily\small,
+  harbor/.style={draw=hhebony,thick,rounded corners=4pt,
+                 fill=hhsand!50,inner sep=8pt,minimum width=46mm,
+                 minimum height=28mm,align=center},
+  harborlbl/.style={draw=hhebony,thick,fill=hhpaper,
+                    rounded corners=2pt,font=\sffamily\bfseries\small,
+                    inner sep=3pt},
+  witness/.style={draw=hhpatina,very thick,fill=hhpaper,
+                  rounded corners=3pt,inner sep=6pt,
+                  minimum width=70mm,minimum height=16mm,align=center},
+  escrow/.style={draw=hhcinnabar,thick,fill=hhpaper,
+                 rounded corners=3pt,inner sep=6pt,
+                 minimum width=46mm,minimum height=16mm,align=center,
+                 font=\sffamily\small},
+  agentdot/.style={circle,draw=hhebony,fill=hhsanddeep,inner sep=1.5pt},
+  edge/.style={->,>=Latex,thick,draw=hhebony},
+  gossipedge/.style={->,>=Latex,thick,draw=hhpatina,dashed},
+  settledge/.style={->,>=Latex,thick,draw=hhcinnabar},
+]
+
+% ─── Two harbors ───────────────────────────────────────────────────
+\node[harbor] (HA) at (0,0) {%
+  \textbf{Harbor $A$}\\[2pt]
+  \footnotesize Alice's laptop\\
+  \footnotesize signing key $\mathit{sk}_A$\\[3pt]
+  \begin{tikzpicture}[overlay,remember picture]
+  \end{tikzpicture}};
+\node[agentdot] at ($(HA.south west)+(8mm,7mm)$) {};
+\node[agentdot] at ($(HA.south)+(0,7mm)$) {};
+\node[agentdot] at ($(HA.south east)+(-8mm,7mm)$) {};
+\node[font=\sffamily\scriptsize\itshape,below=1pt of HA.south,yshift=4mm] {agents under $A$};
+
+\node[harbor,right=44mm of HA] (HB) {%
+  \textbf{Harbor $B$}\\[2pt]
+  \footnotesize Bob's laptop\\
+  \footnotesize signing key $\mathit{sk}_B$\\[3pt]
+  };
+\node[agentdot] at ($(HB.south west)+(8mm,7mm)$) {};
+\node[agentdot] at ($(HB.south)+(0,7mm)$) {};
+\node[font=\sffamily\scriptsize\itshape,below=1pt of HB.south,yshift=4mm] {agents under $B$};
+
+% ─── Witness log above ─────────────────────────────────────────────
+\node[witness,above=14mm of $(HA)!0.5!(HB)$] (W) {%
+  \textbf{Federated Witness Log} \quad \footnotesize (auditor-verifiable, append-only)\\
+  \footnotesize epoch roots $R_A^{(e)}, R_B^{(e)}$ \,$\cdot$\, cross-signatures \,$\cdot$\, equivocation evidence};
+
+% ─── Settlement escrow below ───────────────────────────────────────
+\node[escrow,below=14mm of $(HA)!0.5!(HB)$] (E) {%
+  \textbf{Settlement Escrow}\\[1pt]
+  \footnotesize bounded: can refuse, cannot redirect};
+
+% ─── Edges: harbors publish roots up; witness gossips; settlement closes ─
+\draw[edge] (HA.north) -- node[font=\sffamily\scriptsize\itshape,above,sloped,xshift=-3mm]{publish $R_A^{(e)}$} (W.south west);
+\draw[edge] (HB.north) -- node[font=\sffamily\scriptsize\itshape,above,sloped,xshift=3mm]{publish $R_B^{(e)}$} (W.south east);
+\draw[gossipedge] (HA.east) to[bend left=12]
+  node[font=\sffamily\scriptsize\itshape,above,midway]{revocation gossip $\Delta$}
+  (HB.west);
+\draw[settledge] (HA.south) to[bend right=14]
+  node[font=\sffamily\scriptsize\itshape,below,sloped,midway]{bond posted at $A$}
+  (E.north west);
+\draw[settledge] (E.north east) to[bend right=14]
+  node[font=\sffamily\scriptsize\itshape,below,sloped,midway]{damage measured at $B$}
+  (HB.south);
+
+% ─── Margin annotation: capability transfer ──────────────────────────
+\draw[->,>=Latex,thick,draw=hhbrass] (HA.east) to[bend left=0]
+  node[font=\sffamily\scriptsize\itshape,above,midway,yshift=-1mm,fill=hhpaper,inner sep=1pt]{$\mathsf{xfer}_{A\to B}$ ceremony}
+  (HB.west);
+
+\end{tikzpicture}%
+}
+\caption{The Federated Harbor as a four-element gestalt. Neither harbor is a
+root of authority for the other. The witness log above is the shared
+correlation device — each harbor publishes its epoch root, and any third party
+can audit for equivocation. The escrow below is structurally bounded (it can
+refuse to clear, but it cannot redirect funds or equivocate about its
+decisions). The brass arrow between the harbors is the cross-harbor capability
+transfer ceremony of \S\ref{sec:fh-xfer}; the dashed sage line is the
+federated revocation gossip of \S\ref{sec:fh-revocation}. The diagram is
+deliberately small: every primitive in the paper attaches to one of these four
+elements.}
+\label{fig:fh-topology}
+\end{figure}
