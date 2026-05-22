@@ -11,6 +11,7 @@ final class FleetPopoverTests: XCTestCase {
             [
                 "flow",
                 "roadmap",
+                "nightshift",
                 "agents",
                 "resources",
                 "activity",
@@ -27,6 +28,7 @@ final class FleetPopoverTests: XCTestCase {
             [
                 "Flow",
                 "Roadmap",
+                "Nightshift",
                 "Agents",
                 "Resources",
                 "Activity",
@@ -38,6 +40,19 @@ final class FleetPopoverTests: XCTestCase {
                 "YAML",
             ]
         )
+    }
+
+    /// Native surfaces render via SwiftUI inside FleetBar; web surfaces are
+    /// loaded through the embedded `/fleet-ui/` webview. Nightshift is the
+    /// first operator-facing surface to go fully native — the loop must work
+    /// even when the web bundle is stale or offline.
+    func testNightshiftIsNativeAndOtherSurfacesAreWeb() {
+        let nativeRaws = FleetControlSurface.allCases.filter(\.isNative).map(\.rawValue)
+        XCTAssertEqual(nativeRaws, ["nightshift"])
+
+        for surface in FleetControlSurface.allCases where surface != .nightshift {
+            XCTAssertFalse(surface.isNative, "Expected \(surface.rawValue) to be a web surface")
+        }
     }
 
     func testFooterControlsStayOutsideScrollView() throws {

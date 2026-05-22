@@ -3,6 +3,7 @@ import SwiftUI
 struct FleetControlCenter: View {
     @ObservedObject var store: FleetStore
     @ObservedObject var costStore: CostStore
+    @ObservedObject var dispatchStore: DispatchStore
     @Environment(\.openURL) private var openURL
 
     @AppStorage(FleetControlRoute.surfaceKey) private var selectedSurfaceRaw = FleetControlSurface.flow.rawValue
@@ -552,7 +553,27 @@ struct FleetControlCenter: View {
         }
     }
 
+    @ViewBuilder
     private var content: some View {
+        if selectedSurface.isNative {
+            nativeSurfaceContent
+        } else {
+            embeddedSurfaceContent
+        }
+    }
+
+    @ViewBuilder
+    private var nativeSurfaceContent: some View {
+        switch selectedSurface {
+        case .nightshift:
+            FleetControlNightshiftSection(store: dispatchStore)
+        default:
+            // Fallback should never trigger — every native case must be wired.
+            embeddedSurfaceContent
+        }
+    }
+
+    private var embeddedSurfaceContent: some View {
         ZStack {
             if store.isDaemonRunning, let embeddedControlPlaneURL {
                 FleetControlPlaneWebView(
@@ -826,6 +847,7 @@ struct FleetControlCenter: View {
     private func refreshAll() async {
         await store.refresh()
         await costStore.refresh()
+        await dispatchStore.refresh()
         syncProjectSelection()
     }
 
