@@ -60,6 +60,14 @@ interface BeginOptions {
   worktree?: SessionWorktreeContext;
   requireLinkedWorktree?: boolean;
   allowMainWorktree?: boolean;
+  /**
+   * Skip the crowded-main-worktree collision check. Set by the CLI when
+   * allowMainWorktree was triggered by the long-standing env var
+   * (PORT_DADDY_ALLOW_MAIN_WORKTREE_SESSION) rather than the
+   * --allow-main-worktree flag. CI / single-user setups don't need the
+   * interactive collision check; humans opting in explicitly still do.
+   */
+  bypassCrowdedGate?: boolean;
 }
 
 interface DoneOptions {
@@ -139,6 +147,57 @@ export function createSugar(deps: SugarDeps) {
         hint: worktreePolicy.hint,
         worktree: worktreePolicy.worktree,
       };
+    }
+
+    // Crowded-main-worktree gate. `--allow-main-worktree` survives only
+    // when the operator is alone in the main worktree. As soon as another
+    // live session exists in the same main worktree, both must move to
+    // linked worktrees — concurrent agents in one tree corrupt each
+    // other's edits via shared `.git` state (branch switches, rebases,
+    // unstaged-file wipes).
+    //
+    // Known gaps (acceptable for v1, follow-ups tracked):
+    //   - SELECT-then-INSERT race: two begin() calls within ~ms both
+    //     see 0 collisions and both register. Window is small; atomic
+    //     fix would need a tx around sessions.start or a unique idx.
+    //   - Zombie sessions (active row, dead process) block legitimate
+    //     next agents until reaped. Same pattern in sessions.ts:1199.
+    //   - sessions.start() called via routes/sessions.ts:351 bypasses
+    //     this gate. Tracked as a follow-up; users hitting /sessions/start
+    //     directly are aware of the policy already.
+    if (
+      worktreePolicy.worktree
+      && worktreePolicy.worktree.isMain
+      && options.allowMainWorktree === true
+      && options.bypassCrowdedGate !== true
+    ) {
+      // Yes/no collision check — limit: 1 keeps it cheap. We deliberately
+      // don't surface a count because list() with a low limit would
+      // under-report; senders just need to know they're not alone.
+      const colliding = sessions.list({
+        status: 'active',
+        worktreeId: worktreePolicy.worktree.id,
+        allWorktrees: false,
+        limit: 1,
+      });
+      const rows = (colliding && typeof colliding === 'object' && 'sessions' in colliding
+        ? (colliding as { sessions?: unknown[] }).sessions
+        : Array.isArray(colliding) ? colliding : null);
+      const hasCollision = Array.isArray(rows) && rows.length > 0;
+      if (hasCollision) {
+        return {
+          success: false,
+          error:
+            `Refusing main-worktree session: another active session is already in this worktree (${worktreePolicy.worktree.root}). `
+            + `Concurrent agents on the same main worktree corrupt each other via shared .git state.`,
+          code: 'MAIN_WORKTREE_CROWDED',
+          hint:
+            `Create a linked worktree and run pd begin there:\n`
+            + `  git worktree add ~/coding/tmp/${(options.identity ?? options.name ?? 'work').replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 40) || 'work'} -b <branch>\n`
+            + `then cd into it before calling pd begin. --allow-main-worktree is only honored when no one else is on this main worktree.`,
+          worktree: worktreePolicy.worktree,
+        };
+      }
     }
 
     const metadata = mergeSessionWorktreeMetadata(options.metadata, worktreePolicy.worktree, {
