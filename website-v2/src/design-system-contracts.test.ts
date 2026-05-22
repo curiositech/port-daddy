@@ -323,4 +323,82 @@ describe('design system contracts', () => {
     expect(joined).toContain('post.heroImage')
     expect(joined).toContain('post.heroAlt')
   })
+
+  // ---------------------------------------------------------------
+  // BRAND.md must agree with tokens.semantic.css
+  // ---------------------------------------------------------------
+  // The 2026-05-22 fix: docs/design/BRAND.md is the canonical
+  // human-readable palette doc — what blog hero prompt engineers,
+  // OG-card generators, and outside designers read. The previous
+  // failure mode was prose snapshots drifting from the CSS by
+  // months while authors kept citing them. This test scans every
+  // `--token: #hex` row in BRAND.md's tables and asserts the value
+  // matches what tokens.semantic.css declares. If you change a
+  // brand color, change BOTH files in the same commit.
+  test('docs/design/BRAND.md hex values match tokens.semantic.css', () => {
+    const brand = read('../docs/design/BRAND.md')
+    const tokens = read('./styles/tokens.semantic.css')
+
+    // Light-theme block ends where the dark-theme block begins.
+    const lightThemeBlock = tokens.split(/\[data-theme='dark'\]/)[0]
+    const tokenLineRe = /(--[a-z0-9-]+)\s*:\s*(#[0-9a-fA-F]{3,8})\s*;/g
+
+    const tokenLightHex = new Map<string, string>()
+    for (const match of lightThemeBlock.matchAll(tokenLineRe)) {
+      tokenLightHex.set(match[1], match[2].toLowerCase())
+    }
+
+    const darkThemeMatch = tokens.match(/\[data-theme='dark'\]\s*\{([\s\S]*?)\n\}/)
+    const tokenDarkHex = new Map<string, string>()
+    if (darkThemeMatch) {
+      for (const match of darkThemeMatch[1].matchAll(tokenLineRe)) {
+        tokenDarkHex.set(match[1], match[2].toLowerCase())
+      }
+    }
+
+    // BRAND.md table rows: `| \`--token\` | \`#hex\` | ... |`
+    // First table = light, second = dark. Split on "### Dark theme".
+    const [lightSection, darkSection = ''] = brand.split(/^### Dark theme/m)
+    const tableRowRe = /\|\s*`(--[a-z0-9-]+)`\s*\|\s*`(#[0-9a-fA-F]{3,8})`\s*\|/g
+
+    const lightMismatches: string[] = []
+    for (const match of lightSection.matchAll(tableRowRe)) {
+      const [, token, hex] = match
+      const docHex = hex.toLowerCase()
+      const cssHex = tokenLightHex.get(token)
+      if (!cssHex) {
+        lightMismatches.push(`${token}: BRAND.md (${docHex}) missing from light theme in tokens.semantic.css`)
+      } else if (cssHex !== docHex) {
+        lightMismatches.push(`${token}: BRAND.md says ${docHex}, tokens.semantic.css light theme has ${cssHex}`)
+      }
+    }
+    expect(
+      lightMismatches.length === 0
+        ? 'ok'
+        : `Light theme drift between BRAND.md and tokens.semantic.css:\n  ${lightMismatches.join('\n  ')}`,
+    ).toBe('ok')
+
+    const darkMismatches: string[] = []
+    for (const match of darkSection.matchAll(tableRowRe)) {
+      const [, token, hex] = match
+      const docHex = hex.toLowerCase()
+      const cssHex = tokenDarkHex.get(token)
+      if (!cssHex) {
+        darkMismatches.push(`${token}: BRAND.md (${docHex}) missing from dark theme in tokens.semantic.css`)
+      } else if (cssHex !== docHex) {
+        darkMismatches.push(`${token}: BRAND.md says ${docHex}, tokens.semantic.css dark theme has ${cssHex}`)
+      }
+    }
+    expect(
+      darkMismatches.length === 0
+        ? 'ok'
+        : `Dark theme drift between BRAND.md and tokens.semantic.css:\n  ${darkMismatches.join('\n  ')}`,
+    ).toBe('ok')
+
+    // Sanity floor: at least 10 light-theme tokens documented.
+    // Catches an empty/truncated BRAND.md that would silently pass
+    // the no-mismatch check above.
+    const lightDocCount = Array.from(lightSection.matchAll(/\|\s*`--[a-z0-9-]+`\s*\|\s*`#/g)).length
+    expect(lightDocCount).toBeGreaterThanOrEqual(10)
+  })
 })

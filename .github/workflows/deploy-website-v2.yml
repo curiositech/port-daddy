@@ -27,11 +27,6 @@ on:
       - 'website-v2/**'
       - '.github/workflows/deploy-website-v2.yml'
   workflow_dispatch:
-    inputs:
-      branch:
-        description: 'Deploy target branch on Cloudflare Pages'
-        required: false
-        default: 'main'
 
 permissions:
   contents: read
@@ -100,14 +95,13 @@ jobs:
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
-        env:
-          # The dispatch-input branch is validated indirectly: wrangler
-          # only accepts plain ASCII branch names; anything weird will
-          # fail the deploy. Keeping it in env (not interpolated into a
-          # run: string) protects against shell injection if a future
-          # editor switches this to a script step.
-          DEPLOY_BRANCH: ${{ github.event.inputs.branch || 'main' }}
+        # wrangler-action@v3 does NOT expand env vars in `command:` —
+        # the prior `--branch=$DEPLOY_BRANCH` shipped the literal string
+        # and CF promoted to its fallback `deploy-branch.*.pages.dev`
+        # alias instead of the production `portdaddy.dev`. Hardcode
+        # `main` (matching the project's production_branch) to deploy
+        # straight to prod.
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy website-v2/dist --project-name=port-daddy --branch=$DEPLOY_BRANCH --commit-dirty=true
+          command: pages deploy website-v2/dist --project-name=port-daddy --branch=main --commit-dirty=true

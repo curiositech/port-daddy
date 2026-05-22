@@ -366,6 +366,83 @@ pre code {
   max-width: 100%;
 }
 
+/* ─── Tufte sidenotes ─────────────────────────────────────────────────────
+ * A `<!-- sidenote: LABEL? -->` directive in markdown wraps the next
+ * paragraph or blockquote, replacing it with an <aside class="sidenote">.
+ *
+ * Reading model:
+ *   • lg+ viewports: aside floats into the right gutter, anchored vertically
+ *     at its source-order position in the prose. The body of the article
+ *     column is 80ch; the gutter slot is 18ch with a 4ch separator. We use
+ *     `float: right` with a negative right margin so the float lands in the
+ *     gutter region without disturbing the prose column.
+ *   • narrow / mobile viewports: float disabled, aside renders inline below
+ *     its anchor paragraph with a brand-coloured left border separator.
+ *
+ * Typography respects the vision-accessibility rule: body text ≥ 13px,
+ * label text 11-12px ONLY because it is uppercase + bold + wide-tracked
+ * (apparent size reads larger).
+ * --------------------------------------------------------------------------*/
+
+.blog-article .sidenote {
+  display: block;
+  margin: var(--space-3) 0 var(--space-5);
+  padding: var(--space-2) var(--space-4);
+  border-left: 2px solid var(--brand-primary);
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;            /* 15px — well above 13px floor. */
+  line-height: 1.55;
+  font-style: normal;
+}
+
+.blog-article .sidenote .sidenote-label {
+  display: block;
+  margin-bottom: var(--space-1);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;              /* 12px — uppercase+bold+tracked per vision rule. */
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+}
+
+.blog-article .sidenote .sidenote-body {
+  display: block;
+}
+
+.blog-article .sidenote .sidenote-body p {
+  margin: 0 0 var(--space-2);
+}
+.blog-article .sidenote .sidenote-body p:last-child {
+  margin-bottom: 0;
+}
+
+/* ── lg+: float into the right gutter ─────────────────────────────────── */
+@media (min-width: 1024px) {
+  .blog-article .sidenote {
+    float: right;
+    clear: right;
+    width: 18ch;
+    /* The article column is 80ch wide; the gutter sits 4ch to its right
+     * and is itself 18ch wide. Push the float 4 + 18 = 22ch beyond the
+     * right edge of its containing column, so it lands cleanly in the
+     * gutter slot. */
+    margin: 0 -22ch var(--space-4) var(--space-3);
+    padding: 0 0 0 var(--space-3);
+    border-left: 1px solid var(--border-default);
+    background: transparent;
+    /* Tufte caption baseline. 13px floor, line-height generous. */
+    font-size: 0.8125rem;           /* 13px */
+    line-height: 1.5;
+  }
+
+  .blog-article .sidenote .sidenote-label {
+    font-size: 0.6875rem;           /* 11px — uppercase+bold+tracked. */
+  }
+}
+
 .pd-docs-section-block {
   position: relative;
   overflow: hidden;
