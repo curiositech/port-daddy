@@ -1455,6 +1455,24 @@ natural shape for the GitHub App webhook receiver chad in PR #166; AP-006
 (daemon-hardening) is the protocol-truth counterpart to the runtime
 hardening work already tracked in CURRENT-WORK queue items.
 
+### Fleet CSP protocol gaps (from docs/FLEET-CSP-PROTOCOL.md)
+
+Concrete invariants and primitives the protocol spec promises that aren't fully wired today.
+
+- [ ] **FleetDAG static validation** on YAML load — `fleet-engine.ts loadFleetConfig()` should run a topological sort of the trigger graph and refuse cyclic configs. Today the rule is enforced "by construction" via humans reading the yml; no static check.
+- [ ] **Singleton enforcement audit** — spec says `running.has(agent.name)` gate exists for `singleton: true` agents. Verify it actually fires for Spark + Spider on the live daemon; today's salvage queue suggests concurrent instances have shipped before.
+- [ ] **Channel-bounded sampler** — Arbiter invariant `ChannelBounded` (every channel `<= MaxMessages`) is documented but not wired as a sampled (10s) check.
+- [ ] **AgentTerminates sampler** — same: 60s sampled check for agents running past timeout, with auto-kill, isn't wired.
+- [ ] **BlackboardSWMR static validation** — single-writer-multiple-reader per output dir (e.g., `.spark/ideas/` written only by Spark). YAML-load validator should refuse two writers to same dir.
+- [ ] **Typed channels** (FleetChannelMap discriminated union) — channels are still untyped JSON. Producer/consumer agreement is by convention.
+- [ ] **Confidence scoring in message envelope** — protocol promises `{agent, channel, confidence, coverage, duration_ms, files_examined, issues_found, payload}` shape. Today fleet messages don't carry confidence/coverage fields.
+- [ ] **TLA+ FleetProtocol.tla mechanization** — spec is written inline in the doc (section 6). Should live at `proofs/fleet/FleetProtocol.tla` and run in CI alongside the claim_signaling.tla model from PR #136.
+- [ ] **Gather policies** (`gates:` YAML stanza with `requires: / policy: all|majority|any / timeout:`) — proposed but not implemented. The "release readiness" RELEASE_CHECK example in §3 is aspirational.
+- [ ] **Conversation protocols** (FIPA-style CRITIQUE_REFINE state machines) — §9.2 future work. PR #163's dispatch state machine is the closest live implementation.
+- [ ] **Semantic channel routing via trie** — §9.3 future work. PR #122's `pd whois` scaffolding is the substrate; channel-subscribe-by-pattern (`port-daddy:fleet:qa:*`) isn't wired.
+
+Provenance: `docs/FLEET-CSP-PROTOCOL.md` v1.0 draft 2026-03-27. Section 7's enforcement table maps each invariant to its check strategy.
+
 ## Immediate Next Cuts
 
 1. Cut and validate the maritime actor foundation slice, then promote/restart so live `/actors` and `pd actor(s)` match source.
