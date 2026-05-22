@@ -67,6 +67,7 @@ import { usagePlugin } from './usage.js';
 import { testHooksPlugin } from './test-hooks.js';
 import { cockpitPlugin } from './cockpit.js';
 import { popperPlugin } from './popper.js';
+import { dispatchesPlugin } from './dispatches.js';
 import { setupPlugin } from './setup.js';
 import { secretsPlugin } from './secrets.js';
 
@@ -253,5 +254,11 @@ export async function registerAllRoutes(
   // Nightshift status banner. Conditional on deps.popper being supplied.
   if ((deps as { popper?: unknown }).popper) {
     await fastify.register(popperPlugin, { deps } as any);
+  }
+
+  // Dispatch queue HTTP surface — operator's POST /dispatches +
+  // accept/reject/cancel buttons. Requires `dispatchQueue` in deps.
+  if ((deps as { dispatchQueue?: unknown }).dispatchQueue) {
+    await fastify.register(dispatchesPlugin, { deps } as any);
   }
 }
