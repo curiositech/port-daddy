@@ -17,12 +17,15 @@ jobs:
           - os: macos-latest
             target: bun-darwin-arm64
             artifact: pd-darwin-arm64
-          - os: macos-13
-            target: bun-darwin-x64
-            artifact: pd-darwin-x64
           - os: ubuntu-latest
             target: bun-linux-x64
             artifact: pd-linux-x64
+          # darwin-x64 (Intel Mac) was dropped 2026-05-22. macos-13 runners in
+          # the GHA pool routinely queue for 24+ hours (wedged v3.14.1 +
+          # v3.15.0). The brew formula already ships only darwin-arm64 +
+          # linux-x64, so the artifact was dead weight. Intel Mac users can
+          # install from npm or build from source until we add it back via
+          # a different runner pool.
     runs-on: ${{ matrix.os }}
     permissions:
       contents: write
@@ -78,19 +81,36 @@ jobs:
             dist/fleetbar/fleetbar-preview-manifest.json
 
   publish-npm:
-    if: github.event_name == 'release'
+    # Run on real release events and on operator-triggered workflow_dispatch.
+    # workflow_dispatch is privileged (repo-write required), so this isn't a
+    # broadening of who can publish — it's a recovery path for releases where
+    # the original `release: published` run failed partway through (e.g. the
+    # bun-missing-in-publish-npm regression that wedged v3.14.1 + v3.15.0).
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
 
       - name: Use Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: 20
           registry-url: 'https://registry.npmjs.org'
+
+      # npm publish runs prepublishOnly which calls build:daemon:dist, which
+      # shells out to `bun` to compile the standalone daemon binary that ships
+      # in the npm tarball. v3.14.1's release run failed here with
+      # `Error: bun --version failed` because the ubuntu-latest runner doesn't
+      # ship with bun. Mirror the bun setup that build-binaries uses above.
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
 
       - name: Install dependencies
         run: npm ci
@@ -106,12 +126,15 @@ jobs:
   update-homebrew:
     runs-on: ubuntu-latest
     needs: [build-binaries, build-fleetbar-preview, publish-npm]
-    if: always() && needs.build-binaries.result == 'success' && needs.build-fleetbar-preview.result == 'success' && github.event_name == 'release'
+    if: always() && needs.build-binaries.result == 'success' && needs.build-fleetbar-preview.result == 'success' && (github.event_name == 'release' || github.event_name == 'workflow_dispatch')
     steps:
       - name: Set release version
         id: release
         env:
-          REF_NAME: ${{ github.ref_name }}
+          # On workflow_dispatch, github.ref_name is the dispatch branch, not
+          # the release tag — use the explicit `tag` input. On release events,
+          # the input is absent and github.ref_name IS the tag.
+          REF_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
         run: echo "version=${REF_NAME}" >> "$GITHUB_OUTPUT"
 
       - name: Update Homebrew formula
