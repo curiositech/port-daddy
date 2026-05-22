@@ -234,7 +234,13 @@ function UnlockCard({
 }) {
   return (
     <div className="flex h-full flex-col gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-4)]">
-      <code className="self-start border border-[var(--border-strong)] bg-[var(--surface-inset)] px-2 py-0.5 text-xs">
+      {/*
+        text-xs (12px) on a code element reading a channel name is
+        prose-rank text, not an eyebrow — fails the user-level
+        14px-minimum rule (CLAUDE.md). Stepped up to text-sm (14px).
+        Flagged by skeptical-reviewer on PR #168.
+      */}
+      <code className="self-start border border-[var(--border-strong)] bg-[var(--surface-inset)] px-2 py-0.5 text-sm">
         {channel}
       </code>
       <PanelTitle as="h4" className="text-base">
