@@ -1258,6 +1258,32 @@ _pd_cmd_popper() {
     '--json[emit raw JSON]'
 }
 
+_pd_cmd_harbormaster() {
+  local -a hm_subcmds
+  hm_subcmds=(
+    'start:launch the harbormaster body'
+    'stop:graceful SIGTERM to a running body'
+    'status:queue summary + body liveness'
+    'queue:pretty-print the merge queue'
+    'help:show usage'
+  )
+
+  if (( CURRENT == 2 )); then
+    _describe 'subcommand' hm_subcmds
+    return
+  fi
+
+  local subcmd="${words[2]}"
+  case "$subcmd" in
+    start)
+      _arguments '--foreground[run attached (no detach)]'
+      ;;
+    status|queue)
+      _arguments '--json[emit raw JSON]'
+      ;;
+  esac
+}
+
 _pd_cmd_sortie() {
   local -a sortie_subcmds
   sortie_subcmds=(
@@ -1949,6 +1975,9 @@ _port_daddy() {
     'secret:manage keychain-backed provider credentials (set/list/reveal/rm)'
     'secrets:alias for secret — manage keychain-backed provider credentials'
     'watch:subscribe to a channel and run a script on each message'
+    # Harbormaster — canonical merge-owning actor body (ADR-0037)
+    'harbormaster:harbormaster body — start/stop/status/queue (ADR-0037)'
+    'hm:alias for harbormaster'
     # Harbors (named permission namespaces)
     'harbor:create, enter, leave, show, or destroy a harbor'
     'harbors:list all active harbors'
@@ -2096,6 +2125,7 @@ _port_daddy() {
         sortie)                 _pd_cmd_sortie ;;
         cockpit)                _pd_cmd_cockpit ;;
         popper)                 _pd_cmd_popper ;;
+        harbormaster|hm)        _pd_cmd_harbormaster ;;
         spawned)                _pd_cmd_spawned ;;
         watch)                  _pd_cmd_watch ;;
         harbor)                 _pd_cmd_harbor ;;

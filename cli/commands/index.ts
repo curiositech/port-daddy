@@ -55,3 +55,4 @@ export * from './snapshots.js';
 export * from './shipwright.js';
 export * from './cockpit.js';
 export * from './popper.js';
+export * from './harbormaster.js';
