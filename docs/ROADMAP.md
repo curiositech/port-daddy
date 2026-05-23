@@ -87,6 +87,50 @@ Fresh 2026-05-16 raw Spark/Spider exhaust exists on disk as research-only
 provenance. It stays outside "Next Cuts" until Spark/Spider dedupe it into
 `IDEAS-TROVE.md`.
 
+## Operator-Direct: Accounts Arc (2026-05-23)
+
+**Provenance:** operator-direct, not Spark/Spider promoted. Cartographer should preserve this section verbatim across mapping passes.
+
+The cryptographic substrate is in tree (`lib/merkle-chain.ts`, the delegation walker from PR #66, Ed25519 helpers, daemon fingerprint). The design is in tree as two ADRs: [`0029-user-accounts-and-merkle-audit.md`](adr/0029-user-accounts-and-merkle-audit.md) (local primitives) and [`0039-portdaddy-dev-account-surface.md`](adr/0039-portdaddy-dev-account-surface.md) (web surface, security model, version-skew dance). What's left is to actually build it. Phases below are independently shippable.
+
+### Phase A0 — `pd account create` (LOCAL, ~150 LOC)
+**The smallest meaningful piece.** Local Ed25519 keypair generation, written to `~/.port-daddy/account.json`. Derives the accountId as `pd_acc_<base58btc(SHA-256(pubkey))>`. No daemon changes. No web changes. After this lands, every later piece has an accountId to bind to.
+
+### Phase A1 — `pd account pair` + `~/.portdaddy.dev/account/devices` (LOCAL + DAEMON)
+Daemon side of the pairing-receipt ceremony. Daemon signs a `PairingReceipt` over `{daemonFingerprint, accountId, nonce, deviceLabel, expiresAt}`. CLI displays a 4-digit confirmation code; daemon writes the receipt to `~/.port-daddy/account/pairings/<accountId>.json` once both sides verify.
+
+### Phase W0 — portdaddy.dev account page (WEB, ~2 weeks)
+GitHub OIDC sign-in. `/account` page: profile, device list, pairing flow that accepts the receipt from `pd account pair`. CSP, rate limits, Sentry-equivalent. Per ADR-0039 §III security model.
+
+### Phase A2 — Audit-tree sealing + signed receipts (DAEMON, ~1 week)
+Daemon writes monthly audit trees per `(accountId, repoRoot, calendarMonth)`. Each sortie completion writes a signed leaf. `pd verify --account <id> --since <date>` runs the verification locally.
+
+### Phase W1 — Receipts as URLs (WEB, ~3 weeks)
+`pd receipt publish <id>` uploads a signed receipt to portdaddy.dev. `portdaddy.dev/r/<receiptId>` resolves it and verifies in-browser via Ed25519. The minimum-viable cultural moment for accounts: a shareable, verifiable URL for agent work.
+
+### Phase W2 — Audit page + scoped sharing (WEB, ~4 weeks)
+`portdaddy.dev/audit` for the owner. `…/audit/share/<token>` for auditors, time-limited, scoped to a repo or date range. Renders the per-month Merkle tree as a timeline.
+
+### Phase W3 — Fleet steering from web/phone (WEB + DAEMON, ~3 weeks)
+The phone is an operator surface. Spawn / steer / note / approve / budget from any paired device, via the relay. Write operations require 4-digit-code confirmation for sensitive surfaces (kill agent, drain fleet). Per ADR-0039 §II surface 3.
+
+### Phase W4 — Fleet ship marketplace (WEB + DAEMON, ~3 weeks)
+`pd fleet publish` packages signed fleet YAML + skills + prompts; `pd fleet install @user/name` pulls and forks. `portdaddy.dev/@<account>/fleets/<name>` resolves the signed package. Account is the publisher identity.
+
+### Phase W5 — Localhost tunnel for interactive web/phone (WEB + DAEMON + RELAY, ~2 weeks)
+`pd tunnel expose <port> --to relay --label <name>` registers an HTTP tunnel. `portdaddy.dev/devices/<label>/at/<port>/` is a **full bidirectional proxy** — touch becomes click, hardware keyboard types, WebSocket upgrades for HMR, file uploads pipe back. Phone-as-operator for a dev server running on a laptop.
+
+### Phase W6 — Transparency log opt-in (WEB, ~6 weeks)
+Optional: publish Merkle roots to a Rekor-style transparency log. Closes the "trust no one, not even the operator" backstop. Unlocks the AI-safety-auditor pitch concretely.
+
+**Total scope:** roughly 4–5 months of focused work, but each phase ships standalone. After **A0 + A1** the substrate exists; after **W0 + W1** the cultural artifact (verifiable receipt URL) exists; after **W3 + W5** the phone-as-operator story closes.
+
+**Open process questions:**
+- Should each phase get its own ADR (so deviations from 0029/0039 are tracked) or share these two? My current take: yes for W4 (marketplace abuse policy), W5 (tunnel-security defaults), W6 (transparency log architecture). The rest fold into 0029/0039.
+- Custodial publish-key model (W1) vs full non-custodial — needs a separate decision before W1 starts.
+
+---
+
 ## Next Cuts (From Curated Trove)
 
 Mirrored from `docs/recovery/IDEAS-TROVE.md` § Immediate Implementation
