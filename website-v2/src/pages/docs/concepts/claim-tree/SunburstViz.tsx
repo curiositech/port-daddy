@@ -14,10 +14,12 @@ import { useHover, dimFor } from './HoverContext'
  */
 const SIZE = 540
 
-interface Node extends d3.HierarchyRectangularNode<ClaimNode> {
-  current: { x0: number; y0: number; x1: number; y1: number }
-  target?: { x0: number; y0: number; x1: number; y1: number }
-}
+// Local node shape (currently unused — kept commented for future
+// zoom/animation work so a later commit doesn't re-derive it).
+// interface Node extends d3.HierarchyRectangularNode<ClaimNode> {
+//   current: { x0: number; y0: number; x1: number; y1: number }
+//   target?: { x0: number; y0: number; x1: number; y1: number }
+// }
 
 export function SunburstViz() {
   const { session: hovered, setSession, setNodeId, nodeId: hoveredNodeId } = useHover()

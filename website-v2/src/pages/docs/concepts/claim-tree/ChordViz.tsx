@@ -30,7 +30,7 @@ export function ChordViz() {
       m[j][i] = p.weight
     }
     // Color: ordinal mapping per file with a curated palette.
-    const palette = d3.quantize(d3.interpolateRainbow, names.length).map((c, i) =>
+    const palette = d3.quantize(d3.interpolateRainbow, names.length).map((c) =>
       d3.cubehelix(c).darker(0.2).formatHex()
     )
     return { names, matrix: m, palette }
