@@ -10,6 +10,9 @@ Nobody was checking the mail.
 
 The mailbox sat there full because each agent turn is a fresh process. Claude Code spawns, reads its prompt, does the thing, exits. Codex CLI is the same. Gemini, the same. Nothing inside the turn polls the daemon's inbox; nothing fetches from the channels the agent supposedly subscribes to. So senders wrote to a wall, and receivers — the agents we'd actually expected to receive — never even saw the wall.
 
+<!-- sidenote: 1 -->
+> A long-running daemon process could have done this trivially — sit there, poll, ring a bell. The problem is the *receiving* end of the protocol is not a daemon. It's a one-shot agent turn. The substrate's coordination model was designed for processes that hang around; the agents themselves are processes that don't.
+
 This is the absurd shape of the problem: the post office is staffed, the carriers are correctly addressing letters, the recipients are *literally on the other side of the door*, and the door has no peephole. We needed a peephole. That is `pd attention`.
 
 ---
@@ -33,11 +36,16 @@ Subscribed: coordination:inconsistency
 
 It is, on purpose, the least clever verb I have written in a year. Inbox unread + per-channel cursor advance, sorted newest-first. `--peek` if you want to dry-run. `--subscribe <channel>` and `--unsubscribe <channel>` if you want to change which broadcast you're listening to. `--json` if you're a machine.
 
+<!-- sidenote: 2 -->
+> "Sorted newest-first" is a small choice that matters more than it sounds. The SessionStart hook pins this into the model's context. The model reads top-down, so the freshest signal lands earliest in the window — exactly where attention budget is highest. The reverse order would have been arbitrary.
+
 The cleverness is not in the verb. The cleverness is in *who calls it and when*.
 
 ---
 
 ## The convention is the product
+
+![A simple cutaway diagram of a wooden door at the end of a hallway. A small brass peephole is set at eye level. On the operator side of the door sits a freshly-installed brass plaque labeled "SessionStart"; through the peephole you can see the post office on the other side, with the clerk and the pigeonholes faintly visible. A single envelope is being slid through a slot beneath the plaque. Warm-painterly editorial style, oak and brass palette, matching the hero.](/img/generated/attention-first-command/peephole.png)
 
 The verb is necessary. The verb is not sufficient. A verb you forget to run is a verb the senders are still writing to a wall.
 
@@ -49,15 +57,23 @@ So the second half of this slice is a convention, codified one place at a time:
 
 - **The JSON schema is documented and stable.** Any harness that can run a shell command at session start can adopt this. Cursor users: add `pd attention --json` to your equivalent hook. Aider users: same. There are no Anthropic-specific bits in the verb — it talks to a local daemon, returns plain JSON, and gets out of the way.
 
+<!-- sidenote: 3 -->
+> Hooks are the kind of feature that everyone agrees is useful and nobody markets. Claude Code has them; Cursor has workspace lifecycle events; even VS Code has `onDidStartTerminal`. Every harness has a place where "do this thing once before the user starts talking" can live. The mistake is to treat hooks as harness-specific and the convention as ours. The hook is the harness's; the convention is the *agent ecosystem's*.
+
 This is the part I want adoption on. The verb is mine to maintain; the convention is everyone's to inherit. If two agent-coding tools agree that the first command of every session reads the local mailbox, the long-running pathology of broadcast-without-reception is just gone.
 
 ---
 
 ## Why this is not an MCP tool
 
+![A split-pane editorial illustration. On the LEFT: a model-shaped silhouette sitting at a desk, surrounded by tool icons labeled "pd_status", "pd_claim", "pd_session_start", "pd_attention" — the model is reaching for the attention tool with visible hesitation, a thought bubble showing a question mark. On the RIGHT: the same desk, but the attention tool has been removed; in its place a window above the desk is open, and through it a paper note is being passed in by an unseen hand labeled "SessionStart". The note lands on the desk before the model even sits down. Warm-painterly editorial style. The visual argument is clear: on the left, the model decides whether to check the mailbox; on the right, the mailbox check is delivered upstream of the decision.](/img/generated/attention-first-command/mcp-vs-hook.png)
+
 It would be the most natural thing in the world to expose `pd attention` as an MCP tool. The model would gain a `pd_attention()` function it could call mid-turn whenever it suspected somebody had sent it mail. Beautiful. Symmetric. Wrong.
 
 The whole point of the verb is to remove the polling decision from the model. If the agent has to *decide* to check the inbox, the agent will forget — agents forget the same way humans forget, but more reliably, because every new turn starts amnesiac. The SessionStart hook fires the verb before the model's first token. The model never has the opportunity to skip.
+
+<!-- sidenote: 4 -->
+> This is the same logic as why your fire alarm is not "ask the smoke detector to consider whether it might be on fire." The model is competent at deciding things; the model is *also* capable of forgetting to decide. For safety-relevant signal — and coordination, in a multi-agent system, is squarely safety-relevant — you remove the decision and replace it with a schedule the harness controls.
 
 Exposing this as an MCP tool would put the decision *back* on the model. That's the exact failure mode this whole slice is supposed to fix. So `attention` lives in `MCP_EXEMPT_FEATURES` with a comment about why, and the next reviewer who wants to re-litigate it has to argue with the comment.
 
@@ -98,6 +114,9 @@ If you want to wire this into something — a VS Code extension that surfaces un
 Two correctness bits I'll call out because the adversarial reviewer caught them:
 
 1. **The inbox marks individual messages read, not all-at-once.** If you fetch with `--limit 5` and have 12 unread, the other 7 stay unread. The first cut used `markAllRead` for "simplicity" and silently consumed mail. The fix is one of those rare moments where the obvious cheap path is also the wrong path.
+
+<!-- sidenote: 5 -->
+> Caught by a unit test that I almost didn't write. The test asserts `counts.inboxUnreadRemaining` ≥ the count of messages beyond the limit. Without it, the bug would have been invisible — the verb would have returned the right number of items, the mark-read endpoint would have returned `{success:true}`, and a quiet 7 messages would have evaporated. Unit tests against the *contract* of a verb catch more than unit tests against its return value.
 
 2. **The channel cursor advances inside a SQLite transaction per channel.** Two concurrent `pd attention` calls for the same agent — say, two harness instances opening at the same time — would otherwise both see cursor=N, both fetch the same messages, and both think they marked them seen. Now they don't.
 
