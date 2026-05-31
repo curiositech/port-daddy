@@ -2,6 +2,8 @@ import { resolve } from 'node:path';
 
 import type { RoadmapProgress, FeedbackEntry, RoadmapFeedbackStatus } from '../../lib/roadmap-progress.js';
 import type { RoadmapClaim, RoadmapEntry, RoadmapPopKind } from '../../lib/roadmap-pop.js';
+import type { RoadmapItem, RoadmapStatus } from '../../lib/roadmap-items.js';
+import type { ImportMarkdownResult } from '../../lib/roadmap-import.js';
 import { CLIOptions, isJson, isQuiet } from '../types.js';
 import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import { readCurrentContext } from '../utils/current-context.js';
@@ -77,6 +79,36 @@ export async function fetchRoadmapProgress(projectDir: string, options: {
   return data;
 }
 
+/**
+ * Read the authoritative roadmap from the `roadmap_items` SQL table via the
+ * daemon. ADR-0033 / lib/roadmap-items.ts: the table is the source of truth;
+ * `docs/ROADMAP.md` is a downstream render. `pd roadmap` therefore lists from
+ * here, NOT by re-parsing the markdown.
+ */
+export async function fetchRoadmapItems(options: {
+  status?: RoadmapStatus | 'all';
+  harbor?: string;
+  project?: string;
+  limit?: number;
+} = {}): Promise<RoadmapItem[]> {
+  const params = new URLSearchParams();
+  if (options.status) params.set('status', options.status);
+  if (options.harbor) params.set('harbor', options.harbor);
+  if (options.project) params.set('project', options.project);
+  if (options.limit) params.set('limit', String(options.limit));
+  const qs = params.toString();
+  const res = await pdFetch(`${PORT_DADDY_URL}/roadmap/items${qs ? `?${qs}` : ''}`);
+  const data = (await res.json().catch(() => ({}))) as {
+    success?: boolean;
+    items?: RoadmapItem[];
+    error?: string;
+  };
+  if (!res.ok || data.success === false) {
+    throw new Error(data.error || `Failed to read roadmap_items (status ${res.status})`);
+  }
+  return data.items ?? [];
+}
+
 async function harvestRoadmapFeedback(feedbackId: string, options: CLIOptions): Promise<void> {
   const harvestedBy = readOption(options, 'as', 'harvestedBy', 'agent') ?? 'operator-cli';
   const intoSlug = readOption(options, 'into', 'intoSlug');
@@ -128,6 +160,11 @@ export async function handleRoadmap(argsOrOptions: string[] | CLIOptions, maybeO
     return;
   }
 
+  if (sub === 'import-markdown' || sub === 'import') {
+    await handleRoadmapImportMarkdown(args.slice(1), options);
+    return;
+  }
+
   if (sub === 'pop') {
     await handleRoadmapPop(args.slice(1), options);
     return;
@@ -148,103 +185,50 @@ export async function handleRoadmap(argsOrOptions: string[] | CLIOptions, maybeO
     return;
   }
 
-  const projectDir = resolve(readOption(options, 'dir', 'root', 'projectDir') || process.cwd());
   const limit = parseLimit(options.limit, 8);
-  const feedbackStatus = readOption(options, 'feedback-status', 'feedbackStatus') as RoadmapFeedbackStatus | 'all' | undefined;
-  const feedbackHarbor = readOption(options, 'feedback-harbor', 'feedbackHarbor', 'harbor');
-  const feedbackLimitValue = options['feedback-limit'] ?? options.feedbackLimit;
-  const feedbackLimit = feedbackLimitValue === undefined ? undefined : parseLimit(feedbackLimitValue, 100);
+  const harbor = readOption(options, 'harbor');
+  const project = readOption(options, 'project');
+  const statusRaw = readOption(options, 'status') as RoadmapStatus | 'all' | undefined;
+  const status = statusRaw ?? 'now';
 
-  let progress: RoadmapProgress;
+  // ADR-0033: the `roadmap_items` SQL table is the single source of truth.
+  // `pd roadmap` lists from the table via the daemon, NOT by re-parsing
+  // docs/ROADMAP.md / IDEAS-TROVE.md (those are render/curation inputs that
+  // get folded into the table via `pd roadmap import-markdown` / `promote`).
+  let items: RoadmapItem[];
   try {
-    progress = await fetchRoadmapProgress(projectDir, {
-      feedbackStatus,
-      feedbackHarbor,
-      feedbackLimit,
-    });
+    items = await fetchRoadmapItems({ status, harbor, project, limit: limit > 0 ? limit : undefined });
   } catch (error) {
-    ui.error(error instanceof Error ? error.message : 'Failed to fetch Cartographer roadmap progress');
+    ui.error(error instanceof Error ? error.message : 'Failed to read roadmap_items from the daemon');
     process.exit(1);
   }
 
   if (isJson(options)) {
-    console.log(JSON.stringify(progress, null, 2));
+    console.log(JSON.stringify(items, null, 2));
     return;
   }
-
-  const nextCuts = progress.nextCuts.slice(0, limit);
-  const ideasNow = progress.ideasNow.slice(0, limit);
-  const liveFeedback = progress.liveFeedback.slice(0, limit);
-  const feedback = progress.dogfoodFeedback.slice(0, limit);
 
   if (isQuiet(options)) {
-    const rows = [
-      ...nextCuts.map((entry) => `next:${entry.slug}`),
-      ...ideasNow.map((entry) => `now:${entry.slug}`),
-      ...liveFeedback.map((entry) => `live:${entry.slug}`),
-      ...feedback.map((entry) => `feedback:${entry.slug}`),
-    ];
-    console.log(rows.join('\n'));
+    console.log(items.map((item) => item.slug).join('\n'));
     return;
   }
 
   console.log('');
-  const openFeedback = progress.feedbackSummary?.open ?? progress.liveFeedback.length;
-  console.log(`ROADMAP · ${progress.nextCuts.length} next cuts · ${progress.ideasNow.length} now · ${openFeedback} live feedback · ${progress.dogfoodFeedback.length} curated · ${formatAge(progress.freshness.hoursSinceLastUpdate)}`);
+  console.log(`ROADMAP · ${items.length} item(s) · status=${status}${harbor ? ` · harbor=${harbor}` : ''}`);
   console.log('-'.repeat(80));
-  console.log(ui.dim(`source: ${projectDir}`));
+  console.log(ui.dim('source: roadmap_items SQL table (docs/ROADMAP.md is a render of this)'));
 
-  if (progress.warnings.length > 0) {
+  console.log('');
+  if (items.length === 0) {
+    console.log(ui.dim('  (no roadmap items at this status)'));
     console.log('');
-    console.log('Warnings:');
-    for (const warning of progress.warnings) console.log(`  - ${warning}`);
-  }
-
-  console.log('');
-  console.log('Next cuts:');
-  if (nextCuts.length === 0) {
-    console.log(ui.dim('  (none surfaced)'));
+    console.log(ui.dim('  Backfill from the curated markdown piles: pd roadmap import-markdown'));
+    console.log(ui.dim('  Promote high-severity feedback:          pd roadmap promote <feedbackId>'));
   } else {
-    for (const cut of nextCuts) {
-      console.log(`  - ${cut.slug}`);
-      console.log(`    ${cut.summary}`);
-    }
-  }
-
-  console.log('');
-  console.log('Curated now:');
-  if (ideasNow.length === 0) {
-    console.log(ui.dim('  (none surfaced)'));
-  } else {
-    for (const entry of ideasNow) printFeedbackEntry(entry);
-  }
-
-  console.log('');
-  console.log('Live feedback:');
-  if (liveFeedback.length === 0) {
-    console.log(ui.dim('  (none surfaced)'));
-  } else {
-    for (const entry of liveFeedback) printFeedbackEntry(entry);
-  }
-
-  console.log('');
-  console.log('Dogfood feedback:');
-  if (feedback.length === 0) {
-    console.log(ui.dim('  (none surfaced)'));
-  } else {
-    for (const entry of feedback) printFeedbackEntry(entry);
-  }
-
-  if (!options['no-excerpts']) {
-    if (progress.currentWorkExcerpt) {
-      console.log('');
-      console.log('Current work excerpt:');
-      console.log(progress.currentWorkExcerpt.trimEnd().split('\n').map((line) => `  ${line}`).join('\n'));
-    }
-    if (progress.cartographerStatusExcerpt) {
-      console.log('');
-      console.log('Cartographer status excerpt:');
-      console.log(progress.cartographerStatusExcerpt.trimEnd().split('\n').map((line) => `  ${line}`).join('\n'));
+    for (const item of items) {
+      const head = item.summaryMd.trim().split('\n')[0] ?? '';
+      console.log(`  - ${item.slug} [${item.status}]`);
+      if (head) console.log(`    ${head}`);
     }
   }
 
@@ -560,6 +544,64 @@ async function handleRoadmapPromote(args: string[], options: CLIOptions): Promis
   console.log(`  harbor:    ${item.harbor}`);
   console.log(`  summary:   ${item.summaryMd.slice(0, 140)}${item.summaryMd.length > 140 ? '…' : ''}`);
   console.log(`  feedback:  status=${feedback.status} harvestedIntoSlug=${feedback.harvestedIntoSlug}`);
+}
+
+async function handleRoadmapImportMarkdown(args: string[], options: CLIOptions): Promise<void> {
+  const rootDir = resolve(readOption(options, 'dir', 'root', 'rootDir', 'projectDir') || process.cwd());
+  const harbor = readOption(options, 'harbor');
+  const project = readOption(options, 'project');
+  const by = readOption(options, 'as', 'agent', 'by') ?? readCurrentContext()?.agentId;
+  const dryRun = Boolean((options['dry-run'] ?? options.dryRun) || args.includes('--dry-run'));
+
+  const body: Record<string, unknown> = { rootDir };
+  if (harbor) body.harbor = harbor;
+  if (project) body.project = project;
+  if (by) body.by = by;
+  if (dryRun) body.dryRun = true;
+
+  const res = await pdFetch(`${PORT_DADDY_URL}/roadmap/import-markdown`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = (await res.json().catch(() => ({}))) as
+    | ({ success: true } & ImportMarkdownResult)
+    | { success: false; error?: string };
+
+  if (!res.ok || data.success !== true) {
+    ui.error((data as { error?: string }).error || `import-markdown failed (status ${res.status})`);
+    process.exit(1);
+  }
+
+  if (isJson(options)) {
+    console.log(JSON.stringify(data, null, 2));
+    return;
+  }
+  if (isQuiet(options)) {
+    for (const c of data.candidates) console.log(c.slug);
+    return;
+  }
+
+  console.log('');
+  const verb = data.dryRun ? 'Would import' : 'Imported';
+  ui.success(
+    `${verb} ${data.candidates.length} roadmap item(s) from markdown ` +
+      `(${data.inserted.length} new, ${data.updated.length} updated)`,
+  );
+  console.log(
+    ui.dim(
+      `  parsed: ${data.parsed.nextCuts} next-cuts · ${data.parsed.ideasNow} ideas-now · ${data.parsed.dogfood} dogfood`,
+    ),
+  );
+  if (data.missingFiles.length > 0) {
+    console.log(ui.dim(`  missing (skipped): ${data.missingFiles.join(', ')}`));
+  }
+  if (data.dryRun) {
+    console.log(ui.dim('  (dry-run — no rows written; re-run without --dry-run to persist)'));
+  } else {
+    console.log(ui.dim('  Render markdown back out: pd roadmap render --write'));
+  }
+  console.log('');
 }
 
 async function handleRoadmapRender(args: string[], options: CLIOptions): Promise<void> {
