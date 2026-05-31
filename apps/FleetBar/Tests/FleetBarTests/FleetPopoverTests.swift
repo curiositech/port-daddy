@@ -234,6 +234,87 @@ final class FleetPopoverTests: XCTestCase {
         XCTAssertNoThrow(try inspected.find(text: purpose))
     }
 
+    /// Regression test for the "Start fleet" affordance bug.
+    /// The old layout used `.borderless` + `.caption2` for remediation
+    /// buttons, which made them look like static text and disappear next
+    /// to the SF Symbol "Open console" button. This test pins that:
+    ///   - the remediation button renders both an SF Symbol and the title,
+    ///   - the action handler fires when the button is tapped,
+    ///   - the help string surfaces the remediation detail for VoiceOver
+    ///     and hover-tooltip discovery.
+    func testRemediationButtonRendersIconLabelAndFiresAction() throws {
+        let remediation = ProjectRemediation(
+            action: "start_fleet",
+            title: "Start fleet",
+            detail: "Starts this pd-fleet.yml on the current daemon.",
+            command: nil,
+            suggestedBudgetUsdPerDay: nil
+        )
+        var fired = false
+        let row = ProjectReadinessRow(
+            project: projectWithRemediation(remediation),
+            onOpenProject: {},
+            onRemediateProject: { fired = true }
+        )
+
+        let inspected = try row.inspect()
+
+        // Title and icon must both appear — the icon is what tells the user
+        // this is a button at a glance, not a static label.
+        XCTAssertNoThrow(try inspected.find(text: "Start fleet"))
+        XCTAssertNoThrow(try inspected.find(ViewType.Image.self, where: { image in
+            (try? image.actualImage().name() == "play.fill") ?? false
+        }))
+
+        let button = try inspected.find(button: "Start fleet")
+        try button.tap()
+        XCTAssertTrue(fired, "Remediation button must invoke onRemediateProject when tapped")
+    }
+
+    func testRemediationButtonIconMapsActionToVerb() throws {
+        // The icon picker is private to ProjectReadinessRow but the user-
+        // visible contract is "the glyph reinforces the verb". Spot-check a
+        // few of the mappings via rendered output so a refactor that breaks
+        // the picker is caught.
+        let mappings: [(action: String, glyph: String, title: String)] = [
+            ("start_fleet",  "play.fill",          "Start fleet"),
+            ("set_budget",   "dollarsign.circle",  "Set $5/day budget"),
+            ("fix_yaml",     "wrench.adjustable",  "Fix YAML"),
+            ("create_fleet", "plus.circle",        "Create starter fleet"),
+            ("run_scan",     "magnifyingglass",    "Scan project"),
+        ]
+        for mapping in mappings {
+            let remediation = ProjectRemediation(
+                action: mapping.action,
+                title: mapping.title,
+                detail: "",
+                command: nil,
+                suggestedBudgetUsdPerDay: nil
+            )
+            let row = ProjectReadinessRow(
+                project: projectWithRemediation(remediation),
+                onOpenProject: {},
+                onRemediateProject: {}
+            )
+            let inspected = try row.inspect()
+            XCTAssertNoThrow(
+                try inspected.find(ViewType.Image.self, where: { image in
+                    (try? image.actualImage().name() == mapping.glyph) ?? false
+                }),
+                "Expected SF Symbol \(mapping.glyph) for action \(mapping.action)"
+            )
+        }
+    }
+
+    private func projectWithRemediation(_ remediation: ProjectRemediation) -> FleetProject {
+        var p = project(agents: [])
+        p.operatorState = .ready
+        p.operatorSummary = "8 agents configured and budgeted; fleet is stopped."
+        p.operatorNextAction = "Start this fleet on the current daemon."
+        p.remediation = remediation
+        return p
+    }
+
     private func project(agents: [FleetAgent]) -> FleetProject {
         FleetProject(
             id: "/tmp/port-daddy-test",

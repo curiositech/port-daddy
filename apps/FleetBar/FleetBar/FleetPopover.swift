@@ -979,10 +979,28 @@ struct ProjectSection: View {
     }
 }
 
-private struct ProjectReadinessRow: View {
+// Internal (not private) so @testable FleetBar can inspect the row directly.
+// The remediation button's affordance regressed once before (caption2 +
+// borderless); pinning it via unit tests is worth the broader visibility.
+struct ProjectReadinessRow: View {
     let project: FleetProject
     let onOpenProject: () -> Void
     let onRemediateProject: () -> Void
+
+    /// SF Symbol for each remediation action. Picked so the icon reinforces
+    /// the verb (a play-glyph for "Start fleet", a dollar-sign for "Set
+    /// budget", a wrench for "Fix YAML", etc.) and the button reads as a
+    /// button at a glance, not as static text.
+    private func remediationIcon(for action: String) -> String {
+        switch action {
+        case "start_fleet":  return "play.fill"
+        case "set_budget":   return "dollarsign.circle"
+        case "fix_yaml":     return "wrench.adjustable"
+        case "create_fleet": return "plus.circle"
+        case "run_scan":     return "magnifyingglass"
+        default:             return "arrow.right.circle"
+        }
+    }
 
     var body: some View {
         HStack(alignment: .top, spacing: Fleet.Space.s) {
@@ -1015,10 +1033,33 @@ private struct ProjectReadinessRow: View {
             .help("Open console")
 
             if let remediation = project.remediation {
-                Button(remediation.title, action: onRemediateProject)
-                    .buttonStyle(.borderless)
-                    .font(.caption2.weight(.semibold))
+                // Remediation calls (Start fleet, Set budget, etc.) used to be
+                // borderless caption2 text — they looked like static labels and
+                // disappeared next to the SF Symbol "Open console" button.
+                // Capsule + chrome border + semibold callout makes it obvious
+                // this is a button and respects the 14pt-equivalent floor for
+                // interactive text. Icon picked per remediation action so the
+                // affordance is reinforced visually.
+                Button(action: onRemediateProject) {
+                    HStack(spacing: 4) {
+                        Image(systemName: remediationIcon(for: remediation.action))
+                            .font(.system(size: 11, weight: .semibold))
+                        Text(remediation.title)
+                            .font(.callout.weight(.semibold))
+                    }
+                    .padding(.horizontal, Fleet.Space.s)
+                    .padding(.vertical, 4)
+                    .background(
+                        project.statusColor.opacity(0.12),
+                        in: Capsule()
+                    )
+                    .overlay(
+                        Capsule().stroke(project.statusColor.opacity(0.55), lineWidth: 1)
+                    )
                     .foregroundStyle(project.statusColor)
+                }
+                .buttonStyle(.plain)
+                .help(remediation.detail.isEmpty ? remediation.title : remediation.detail)
             }
         }
         .padding(.horizontal, Fleet.Space.l)

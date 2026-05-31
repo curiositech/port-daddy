@@ -12,6 +12,7 @@ import type { Arbiter } from '../lib/arbiter.js';
 import type { BosunHeartbeatStatus } from '../lib/bosun-heartbeat.js';
 import type { createFleetDaemon } from '../lib/fleet-daemon.js';
 import { formatUptime } from '../shared/port-utils.js';
+import { detectDrift } from '../lib/binary-drift-detector.js';
 
 interface SystemPort {
   port: number;
@@ -59,6 +60,16 @@ interface InfoRouteDeps {
   CODE_HASH: string;
   STARTED_AT: number;
   __dirname: string;
+  /**
+   * Snapshot of the daemon's binary at startup, used by /health to detect
+   * brew-upgrade-style binary drift. Optional so older route wirings stay
+   * compatible — when absent, /health simply omits the binaryDrift field.
+   */
+  runningBinarySnapshot?: {
+    runningPath: string;
+    runningHash: string | null;
+    runningSizeBytes: number | null;
+  };
   cleanupStale: () => unknown[];
   getSystemPorts: () => SystemPort[];
   fleetDaemon?: ReturnType<typeof createFleetDaemon>;
@@ -292,6 +303,12 @@ export const infoPlugin: FastifyPluginAsync<{ deps: InfoRouteDeps }> = async (fa
   fastify.get('/health', async (_request: FastifyRequest, _reply: FastifyReply) => {
     const active_ports = services.count();
     const fleet = deps.fleetDaemon?.getStatus();
+    // Cheap drift check: one realpath + one hash of the on-disk pd binary.
+    // Tells callers (FleetBar, dashboards, `pd doctor`) whether the running
+    // daemon is now older than what `pd` resolves to on PATH.
+    const binaryDrift = deps.runningBinarySnapshot
+      ? detectDrift({ runningSnapshot: deps.runningBinarySnapshot })
+      : undefined;
     return {
       status: 'ok',
       version: VERSION,
@@ -307,6 +324,15 @@ export const infoPlugin: FastifyPluginAsync<{ deps: InfoRouteDeps }> = async (fa
         skippedProjects: fleet.skipped.length,
       } : undefined,
       runtime: buildRuntimeSummary(deps),
+      binaryDrift: binaryDrift ? {
+        drifted: binaryDrift.drifted,
+        runningHash: binaryDrift.runningHash,
+        onDiskHash: binaryDrift.onDiskHash,
+        runningPath: binaryDrift.runningPath,
+        onDiskPath: binaryDrift.onDiskPath,
+        reason: binaryDrift.reason,
+        checkedAt: binaryDrift.checkedAt,
+      } : undefined,
     };
   });
 

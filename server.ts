@@ -101,6 +101,7 @@ import { registerAllRoutes } from './routes/index.js';
 import { getSystemPorts, startSystemPortsRefresh } from './shared/port-utils.js';
 import { LOOPBACK_TCP_HOST } from './shared/daemon-discovery.js';
 import { calculateRuntimeCodeHash } from './shared/code-hash.js';
+import { snapshotRunningBinary, detectDrift, type BinaryDriftSnapshot } from './lib/binary-drift-detector.js';
 import { resolveDistributionRoot } from './shared/daemon-binary.js';
 
 const MODULE_DIR: string = dirname(fileURLToPath(import.meta.url));
@@ -168,6 +169,12 @@ function calculateCodeHash(): string {
 
 const CODE_HASH: string = calculateCodeHash();
 const STARTED_AT: number = Date.now();
+
+// Snapshot the running binary once at boot. We hash process.execPath BEFORE
+// any `brew upgrade` (or other in-place swap) can land a newer binary at the
+// canonical pd path. Later drift checks compare this baseline to whatever
+// `command -v pd` currently resolves to. See lib/binary-drift-detector.ts.
+const RUNNING_BINARY_SNAPSHOT = snapshotRunningBinary();
 
 // =============================================================================
 // LOGGING (identical to server.ts)
@@ -928,6 +935,7 @@ await registerAllRoutes(
     bonds, budgetGuard, budgetPause,
     arbiter, bosunHeartbeat,
     VERSION, CODE_HASH, STARTED_AT, __dirname, repoRoot: REPO_ROOT,
+    runningBinarySnapshot: RUNNING_BINARY_SNAPSHOT,
     cleanupStale, getSystemPorts,
   },
   arbiter,
@@ -1244,6 +1252,26 @@ sockServer.listen(SOCK_PATH, async () => {
       tcpServer.on('listening', () => {
         try { writeFileSync(PORT_FILE, String(tryPort), { mode: 0o644 }); } catch {}
         logger.info('tcp_started', { port: tryPort, host: tcpHost, version: VERSION });
+        // Surface binary drift on the boot path so an operator running
+        // `tail -f port-daddy.log` after `brew upgrade` sees it immediately.
+        // The check is cheap (one hash) and the snapshot is already taken.
+        try {
+          const drift = detectDrift({ runningSnapshot: RUNNING_BINARY_SNAPSHOT });
+          if (drift.drifted) {
+            logger.warn('binary_drift_detected', {
+              runningHash: drift.runningHash,
+              onDiskHash: drift.onDiskHash,
+              runningPath: drift.runningPath,
+              onDiskPath: drift.onDiskPath,
+              reason: drift.reason,
+            });
+            if (!isSilent) {
+              console.warn(`\n  ⚠️  Binary drift detected. Restart: pd stop && pd start\n     ${drift.reason}\n`);
+            }
+          }
+        } catch (err) {
+          logger.warn('binary_drift_check_failed', { error: (err as Error).message });
+        }
         onReady();
         if (!isSilent) {
           const portNote: string = tryPort !== PORT ? ` (fallback from ${PORT})` : '';
