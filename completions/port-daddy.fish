@@ -785,11 +785,12 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command ideas" -s j -l json -d 'JSON output'
     complete -c $prog -n "__pd_using_command ideas" -s q -l quiet -d 'Suppress output'
 
-    # secret
-    complete -c $prog -n "__pd_using_command secret; and not __fish_seen_subcommand_from set list reveal rm" -a "set list reveal rm" -d 'secret subcommand'
-    complete -c $prog -n "__pd_using_command secret; and __fish_seen_subcommand_from set" -l backend -x -a 'claude gemini cloudflare codex ngrok voyage' -d 'Backend label'
-    complete -c $prog -n "__pd_using_command secret; and __fish_seen_subcommand_from reveal" -l copy -d 'Copy to clipboard instead of printing'
-    complete -c $prog -n "__pd_using_command secret" -l json -d 'Output JSON'
+    # secret (alias: secrets) — match both names so `pd secrets ...` completes too.
+    complete -c $prog -n "__pd_using_command secret secrets; and not __fish_seen_subcommand_from set list ls reveal show rm remove delete" -a "set list reveal rm" -d 'secret subcommand'
+    complete -c $prog -n "__pd_using_command secret secrets; and __fish_seen_subcommand_from set" -l backend -x -a 'claude gemini cloudflare codex ngrok voyage' -d 'Backend label'
+    complete -c $prog -n "__pd_using_command secret secrets; and __fish_seen_subcommand_from reveal show" -l copy -d 'Copy to clipboard instead of printing'
+    complete -c $prog -n "__pd_using_command secret secrets; and __fish_seen_subcommand_from list ls" -l quiet -d 'Machine-readable KEY<TAB>set/unset output'
+    complete -c $prog -n "__pd_using_command secret secrets" -l json -d 'Output JSON'
 
     # roadmap
     complete -c $prog -n "__pd_using_command roadmap; and not __fish_seen_subcommand_from ack harvest promote render pop release claims" -a "ack harvest promote render pop release claims" -d 'roadmap subcommand'

@@ -166,6 +166,46 @@ describe('secrets routes', () => {
     await app.close();
   });
 
+  test('POST /secrets rejects a non-loopback caller (403) and does NOT write', async () => {
+    const app = await buildApp();
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/secrets',
+      payload: { key: ALLOWED, value: SECRET_VALUE },
+      headers: { 'x-forwarded-for': '203.0.113.7' },
+      remoteAddress: '203.0.113.7',
+    });
+    expect(res.statusCode).toBe(403);
+    // The handler must not have run: the credential is still unset.
+    const list = await app.inject({ method: 'GET', url: '/secrets' });
+    const entry = list.json().secrets.find((s) => s.key === ALLOWED);
+    expect(entry.set).toBe(false);
+    await app.close();
+  });
+
+  test('DELETE /secrets/:key rejects a non-loopback caller (403) and does NOT delete', async () => {
+    const app = await buildApp();
+    secretEnv.saveManagedSecret(ALLOWED, SECRET_VALUE);
+
+    const res = await app.inject({
+      method: 'DELETE',
+      url: `/secrets/${ALLOWED}`,
+      headers: { 'x-forwarded-for': '203.0.113.7' },
+      remoteAddress: '203.0.113.7',
+    });
+    expect(res.statusCode).toBe(403);
+    // The handler must not have run: the credential is still present (loopback reveal works).
+    const reveal = await app.inject({
+      method: 'POST',
+      url: `/secrets/${ALLOWED}/reveal`,
+      payload: {},
+    });
+    expect(reveal.statusCode).toBe(200);
+    expect(reveal.json().value).toBe(SECRET_VALUE);
+    await app.close();
+  });
+
   test('DELETE /secrets/:key removes the value', async () => {
     const app = await buildApp();
     secretEnv.saveManagedSecret(ALLOWED, SECRET_VALUE);

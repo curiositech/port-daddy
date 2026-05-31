@@ -14,10 +14,14 @@
  * `saveManagedSecret()` implementation; the fleet route stays working for
  * the existing FleetBar backend-credentials flow.
  *
- *   GET    /secrets            — names + status ONLY, never values.
- *   POST   /secrets            — set a value (allow-list validated). Never echoes it.
- *   POST   /secrets/:key/reveal — return a value. SENSITIVE; loopback-guarded.
- *   DELETE /secrets/:key       — remove a value from the keychain.
+ *   GET    /secrets            — names + status ONLY, never values. (read-only)
+ *   POST   /secrets            — set a value (allow-list validated). Loopback-only. Never echoes it.
+ *   POST   /secrets/:key/reveal — return a value. SENSITIVE; loopback-only.
+ *   DELETE /secrets/:key       — remove a value from the keychain. Loopback-only.
+ *
+ * Every MUTATING route (set/reveal/delete) carries a loopback preHandler.
+ * Only the status-only GET is reachable from a (Host-validated) non-loopback
+ * caller, and it never exposes a value.
  *
  * ════════════════════════════════════════════════════════════════════════
  *  WHY A REVEAL ROUTE EXISTS (and how it is guarded)
@@ -77,6 +81,30 @@ function isLoopbackRequest(request: FastifyRequest): boolean {
 }
 
 /**
+ * Hard-reject any non-loopback caller. Applied as a `preHandler` to every
+ * SENSITIVE secret route — reveal (returns plaintext) AND the mutating
+ * routes (write/delete a managed credential). The DNS-rebinding hook in
+ * server.ts is the first line; this is defense in depth that holds even if
+ * the daemon is ever bound beyond loopback.
+ *
+ * CRITICAL Fastify footgun: a preHandler that only sets `reply.code()` and
+ * returns does NOT stop the route handler — the handler still runs and would
+ * write/leak the credential. `reply.send()` is what halts the lifecycle, so
+ * we must `return reply.code(403).send(...)` here.
+ */
+function makeLoopbackGuard(
+  logger: SecretsRouteDeps['logger'] | undefined,
+  event: string,
+) {
+  return async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!isLoopbackRequest(request)) {
+      logger?.warn?.(event, { ip: request.ip });
+      return reply.code(403).send({ success: false, error: 'secret operation is loopback-only' });
+    }
+  };
+}
+
+/**
  * Map a backend hint onto the "best" managed key to set, used only to keep
  * `POST /fleet/backend-secrets` semantics reachable here. The dedicated
  * `/secrets` write path validates the key directly, so callers can also just
@@ -99,7 +127,11 @@ export const secretsPlugin: FastifyPluginAsync<{ deps?: SecretsRouteDeps }> = as
   });
 
   // POST /secrets — set a value. Allow-list validated. Never echo the value.
-  fastify.post('/secrets', async (request: FastifyRequest, reply: FastifyReply) => {
+  // Loopback-only: writing a managed credential is mutating + sensitive (a
+  // remote caller could poison ANTHROPIC_API_KEY to exfiltrate prompts).
+  fastify.post('/secrets', {
+    preHandler: makeLoopbackGuard(logger, 'secret_set_blocked_non_loopback'),
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = (request.body as Record<string, unknown>) || {};
     const key = typeof body.key === 'string' ? body.key.trim() : '';
     const value = typeof body.value === 'string' ? body.value : '';
@@ -149,15 +181,7 @@ export const secretsPlugin: FastifyPluginAsync<{ deps?: SecretsRouteDeps }> = as
   fastify.post(
     '/secrets/:key/reveal',
     {
-      preHandler: async (request: FastifyRequest, reply: FastifyReply) => {
-        if (!isLoopbackRequest(request)) {
-          logger?.warn?.('secret_reveal_blocked_non_loopback', { ip: request.ip });
-          // Must send from the hook to short-circuit the lifecycle — merely
-          // setting the status code and returning lets the route handler run
-          // and would leak the value. `reply.send()` halts it.
-          return reply.code(403).send({ success: false, error: 'secret reveal is loopback-only' });
-        }
-      },
+      preHandler: makeLoopbackGuard(logger, 'secret_reveal_blocked_non_loopback'),
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const key = ((request.params as Record<string, string>)?.key || '').trim();
@@ -179,8 +203,12 @@ export const secretsPlugin: FastifyPluginAsync<{ deps?: SecretsRouteDeps }> = as
     },
   );
 
-  // DELETE /secrets/:key — remove from keychain + cache.
-  fastify.delete('/secrets/:key', async (request: FastifyRequest, reply: FastifyReply) => {
+  // DELETE /secrets/:key — remove from keychain + cache. Loopback-only:
+  // deleting a managed credential is mutating (a remote caller could DoS the
+  // operator's configured backends).
+  fastify.delete('/secrets/:key', {
+    preHandler: makeLoopbackGuard(logger, 'secret_delete_blocked_non_loopback'),
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const key = ((request.params as Record<string, string>)?.key || '').trim();
     if (!isManagedSecretKey(key)) {
       reply.code(400);

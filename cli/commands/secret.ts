@@ -59,15 +59,28 @@ function readOption(options: CLIOptions, ...keys: string[]): string | undefined 
 function promptHiddenValue(label: string): Promise<string | null> {
   const input = process.stdin;
 
-  // Non-interactive: consume one line from the pipe.
+  // Non-interactive: consume exactly one line from the pipe. Close the
+  // interface as soon as the first line arrives so a long-running producer
+  // (e.g. `yes "$TOKEN" | pd secret set KEY`) doesn't hang waiting for EOF.
   if (!input.isTTY) {
     return new Promise((resolve) => {
       const rl = readline.createInterface({ input, terminal: false });
       let firstLine: string | null = null;
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        rl.close();
+        resolve(firstLine !== null ? firstLine.trim() : null);
+      };
       rl.on('line', (line) => {
-        if (firstLine === null) firstLine = line;
+        if (firstLine === null) {
+          firstLine = line;
+          finish();
+        }
       });
-      rl.on('close', () => resolve(firstLine !== null ? firstLine.trim() : null));
+      // EOF before any line (empty pipe) → resolve null via the same path.
+      rl.on('close', finish);
     });
   }
 
