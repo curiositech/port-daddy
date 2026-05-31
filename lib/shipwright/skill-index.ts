@@ -237,11 +237,16 @@ export function createSkillIndex(options: SkillIndexOptions = {}): SkillIndex {
 
       if (toEmbed.length > 0) {
         const enc = await ensureEmbedder();
+        // Positional `?` params (bound with an ordered array below), NOT
+        // `@named` object binding. `@named` works under better-sqlite3 but
+        // SILENTLY BINDS NULL under bun:sqlite (the compiled daemon — see
+        // lib/sqlite-runtime.ts). Keep column order in sync with the .run()
+        // array. `excluded.*` in the DO UPDATE clause takes no params.
         const upsert = db.prepare(`
           INSERT INTO shipwright_skill_vectors
             (skill_id, source_path, name, description, category, tags, vector_json, content_hash, model_id, embedded_at)
           VALUES
-            (@skill_id, @source_path, @name, @description, @category, @tags, @vector_json, @content_hash, @model_id, @embedded_at)
+            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT(skill_id) DO UPDATE SET
             source_path = excluded.source_path,
             name = excluded.name,
@@ -261,18 +266,20 @@ export function createSkillIndex(options: SkillIndexOptions = {}): SkillIndex {
           const now = Date.now();
           const tx = db.transaction((batch: SkillEntry[], vecs: number[][]) => {
             for (let j = 0; j < batch.length; j++) {
-              upsert.run({
-                skill_id: batch[j].id,
-                source_path: batch[j].sourcePath,
-                name: batch[j].name,
-                description: batch[j].description,
-                category: batch[j].category,
-                tags: JSON.stringify(batch[j].tags),
-                vector_json: JSON.stringify(vecs[j]),
-                content_hash: batch[j].contentHash,
-                model_id: enc.modelId,
-                embedded_at: now,
-              });
+              // Column order: skill_id, source_path, name, description,
+              // category, tags, vector_json, content_hash, model_id, embedded_at.
+              upsert.run(
+                batch[j].id,
+                batch[j].sourcePath,
+                batch[j].name,
+                batch[j].description,
+                batch[j].category,
+                JSON.stringify(batch[j].tags),
+                JSON.stringify(vecs[j]),
+                batch[j].contentHash,
+                enc.modelId,
+                now,
+              );
             }
           });
           tx(slice, vectors);
