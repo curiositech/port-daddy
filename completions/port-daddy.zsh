@@ -1931,6 +1931,9 @@ _port_daddy() {
     'quorum:propose, vote, list, or inspect swarm proposals'
     # Feedback (central agentic-feedback primitive)
     'feedback:drop, list, show, or harvest structured agentic feedback'
+    # Durable commitments + obligation monitor (ADR-0041)
+    'commit:create a durable commitment (or close one against an oracle)'
+    'obligations:list commitments, or sweep for overdue ones with --overdue'
     # System & Monitoring
     'dashboard:open web dashboard in browser'
     'channels:list pub/sub channels'

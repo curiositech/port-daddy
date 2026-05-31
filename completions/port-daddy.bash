@@ -125,6 +125,8 @@ _port_daddy() {
     quorum
     # Feedback (central agentic-feedback primitive)
     feedback
+    # Durable commitments + obligation monitor (ADR-0041)
+    commit obligations
     # System & Monitoring
     dashboard channels webhook webhooks metrics config health ports
     # Orchestration
