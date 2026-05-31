@@ -11,8 +11,10 @@
  *   - HALT:  Trigger man-overboard salvage (strictMode: true)
  */
 
+import { createHash } from 'node:crypto';
 import { join, dirname } from 'node:path';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { ActivityType, type createActivityLog } from './activity.js';
@@ -23,14 +25,107 @@ import type { createResurrection } from './resurrection.js';
 import type { Bonds } from './bonds.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const require = createRequire(import.meta.url);
 
 // ─── Rust Enforcer Bridge (FFI) ─────────────────────────────────────────────
 
-const libPath = join(
-  __dirname,
-  '../dist/core/libharbor_card_rs.' + (process.platform === 'darwin' ? 'dylib' : 'so')
-);
+const nativeLibName = 'libharbor_card_rs.' + (process.platform === 'darwin' ? 'dylib' : 'so');
+
+interface EmbeddedNativeCoreAsset {
+  name: string;
+  platform: NodeJS.Platform;
+  arch: NodeJS.Architecture;
+  sha256: string;
+  dataBase64: string;
+}
+
+interface KoffiLibrary {
+  func: (signature: string) => (...args: any[]) => any;
+}
+
+interface KoffiModule {
+  load: (path: string) => KoffiLibrary;
+}
+
+declare global {
+  // Set by dist/embedded-native-core.generated.js when the Bun single-binary
+  // build embeds the Rust FFI core. Source installs leave it undefined.
+  // eslint-disable-next-line no-var
+  var __PORT_DADDY_EMBEDDED_NATIVE_CORE__: EmbeddedNativeCoreAsset | undefined;
+  // Preloaded by the Bun single-binary entrypoint so the dependency is bundled,
+  // but still optional for source installs that should degrade gracefully.
+  // eslint-disable-next-line no-var
+  var __PORT_DADDY_KOFFI__: KoffiModule | undefined;
+  // eslint-disable-next-line no-var
+  var __PORT_DADDY_KOFFI_LOAD_ERROR__: string | undefined;
+}
+
+const require = createRequire(import.meta.url);
+
+function sha256(bytes: Buffer): string {
+  return createHash('sha256').update(bytes).digest('hex');
+}
+
+function candidateNativeEnforcerPaths(): string[] {
+  const candidates = [
+    join(__dirname, '../dist/core', nativeLibName),
+  ];
+
+  const resourceDir = process.env.PORT_DADDY_RESOURCE_DIR?.trim();
+  if (resourceDir) {
+    candidates.push(join(resourceDir, 'dist/core', nativeLibName));
+  }
+
+  if (process.execPath) {
+    const executableDir = dirname(process.execPath);
+    candidates.push(join(executableDir, 'dist/core', nativeLibName));
+    candidates.push(join(executableDir, 'core', nativeLibName));
+  }
+
+  return [...new Set(candidates)];
+}
+
+function embeddedNativeEnforcer(): EmbeddedNativeCoreAsset | null {
+  const asset = globalThis.__PORT_DADDY_EMBEDDED_NATIVE_CORE__;
+  if (!asset) return null;
+  if (asset.name !== nativeLibName) return null;
+  if (asset.platform !== process.platform) return null;
+  if (asset.arch !== process.arch) return null;
+  return asset as EmbeddedNativeCoreAsset;
+}
+
+function materializeEmbeddedNativeEnforcer(): string | null {
+  const asset = embeddedNativeEnforcer();
+  if (!asset) return null;
+
+  const bytes = Buffer.from(asset.dataBase64, 'base64');
+  const digest = sha256(bytes);
+  if (digest !== asset.sha256) {
+    enforcerLoadError = `Embedded Rust enforcer checksum mismatch: expected ${asset.sha256}, got ${digest}`;
+    return null;
+  }
+
+  const dir = mkdtempSync(join(tmpdir(), 'port-daddy-native-core-'));
+  const path = join(dir, asset.name);
+  writeFileSync(path, bytes, { mode: 0o700, flag: 'wx' });
+
+  return path;
+}
+
+function resolveNativeEnforcerPath(): string | null {
+  const filePath = candidateNativeEnforcerPaths().find(candidate => existsSync(candidate));
+  if (filePath) return filePath;
+
+  try {
+    return materializeEmbeddedNativeEnforcer();
+  } catch (err) {
+    enforcerLoadError = `Embedded Rust enforcer materialization failed: ${(err as Error).message}`;
+    return null;
+  }
+}
+
+function loadKoffi(): KoffiModule {
+  return globalThis.__PORT_DADDY_KOFFI__ ?? require('koffi');
+}
 
 type NativeEnforcer = {
   constantTimeCompare: (a: Buffer, aLen: number, b: Buffer, bLen: number) => boolean;
@@ -45,13 +140,17 @@ function loadNativeEnforcer(): NativeEnforcer | null {
   if (enforcerLoadAttempted) return enforcer;
   enforcerLoadAttempted = true;
 
-  if (!existsSync(libPath)) {
-    enforcerLoadError = `Rust enforcer library missing at ${libPath}`;
+  const libPath = resolveNativeEnforcerPath();
+  if (!libPath) {
+    const embeddedHint = embeddedNativeEnforcer()
+      ? enforcerLoadError ?? 'embedded native core could not be materialized'
+      : 'no matching embedded native core asset present';
+    enforcerLoadError = `Rust enforcer library missing; checked ${candidateNativeEnforcerPaths().join(', ')}; ${embeddedHint}`;
     return null;
   }
 
   try {
-    const koffi = require('koffi');
+    const koffi = loadKoffi();
     const lib = koffi.load(libPath);
     enforcer = {
       constantTimeCompare: lib.func(

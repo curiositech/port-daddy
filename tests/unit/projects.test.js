@@ -392,5 +392,37 @@ describe('Projects Module', () => {
       });
       expect(feature?.worktree?.repoKey).toBe(main?.worktree?.repoKey);
     });
+
+    itIfGit('bypasses cached worktree metadata when fresh is requested', () => {
+      const workspace = mkdtempSync(join(tmpdir(), 'pd-projects-worktrees-fresh-'));
+      const mainRoot = join(workspace, 'port-daddy');
+      const featureRoot = join(workspace, 'port-daddy-feature');
+      tempRoots.push(workspace);
+
+      mkdirSync(mainRoot, { recursive: true });
+      execSync('git init', { cwd: mainRoot, stdio: 'ignore' });
+      execSync('git config user.email test@example.com', { cwd: mainRoot });
+      execSync('git config user.name "Port Daddy Test"', { cwd: mainRoot });
+      writeFileSync(join(mainRoot, 'pd-fleet.yml'), 'name: port-daddy\nagents: []\nwatchers: []\nchannels: {}\n');
+      execSync('git add pd-fleet.yml && git commit -m init', { cwd: mainRoot, stdio: 'ignore' });
+      execSync(`git worktree add -b feature-ui ${featureRoot}`, { cwd: mainRoot, stdio: 'ignore' });
+      writeFileSync(join(featureRoot, 'pd-fleet.yml'), 'name: port-daddy\nagents: []\nwatchers: []\nchannels: {}\n');
+
+      const cached = projects.listKnown({
+        discoveryRoots: [workspace],
+        maxDepth: 2,
+      });
+      expect(cached.find((entry) => entry.root === featureRoot)?.worktree?.branch).toBe('feature-ui');
+
+      execSync('git checkout -b feature-api', { cwd: featureRoot, stdio: 'ignore' });
+
+      const fresh = projects.listKnown({
+        discoveryRoots: [workspace],
+        maxDepth: 2,
+        fresh: true,
+      });
+
+      expect(fresh.find((entry) => entry.root === featureRoot)?.worktree?.branch).toBe('feature-api');
+    });
   });
 });
