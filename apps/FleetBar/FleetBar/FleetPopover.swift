@@ -33,12 +33,20 @@ private func agentStatusColor(_ status: FleetAgent.AgentStatus) -> Color {
 
 struct FleetPopover: View {
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.openSettings) private var openSettings
     @ObservedObject var store: FleetStore
     @ObservedObject var costStore: CostStore
+    @ObservedObject var secretsStore: SecretsStore
     @StateObject private var budgetStore = BudgetPauseStore()
     @AppStorage("fleet.control.theme") private var selectedThemeRaw = "dark"
     @State private var appeared = false
     @State private var showingSettings = false
+
+    init(store: FleetStore, costStore: CostStore, secretsStore: SecretsStore = SecretsStore(autoStart: false)) {
+        self.store = store
+        self.costStore = costStore
+        self.secretsStore = secretsStore
+    }
 
     private var recentAgentHighlights: [RecentAgentHighlight] {
         store.projects
@@ -783,6 +791,17 @@ struct FleetPopover: View {
             .font(.caption2)
             .foregroundStyle(Fleet.Color.active)
             .help("Open the fleet control plane")
+
+            Button {
+                openSettings()
+            } label: {
+                Label("Secrets", systemImage: "key.fill")
+            }
+            .buttonStyle(.borderless)
+            .font(.caption2)
+            .foregroundStyle(Fleet.Color.active)
+            .help("Manage daemon secrets and credentials")
+            .accessibilityLabel("Open secrets manager")
 
             Button {
                 withAnimation(Fleet.Motion.snappy) {

@@ -34,10 +34,11 @@ struct FleetBarApp: App {
     private static let controlCenterWindowID = "fleet-control-center"
     @StateObject private var store = FleetStore()
     @StateObject private var costStore = CostStore()
+    @StateObject private var secretsStore = SecretsStore()
 
     var body: some Scene {
         MenuBarExtra {
-            FleetPopover(store: store, costStore: costStore)
+            FleetPopover(store: store, costStore: costStore, secretsStore: secretsStore)
                 .frame(width: 440, height: 760)
         } label: {
             FleetMenuBarLabel(icon: store.menuBarIcon, color: store.menuBarColor)
@@ -48,6 +49,28 @@ struct FleetBarApp: App {
             FleetControlCenter(store: store, costStore: costStore)
         }
         .defaultSize(width: 1360, height: 860)
+
+        // Standard macOS Settings window hosts the Secrets pane. Reachable via
+        // the popover footer and the app menu (Cmd-,).
+        Settings {
+            FleetSettingsWindow(secretsStore: secretsStore)
+        }
+    }
+}
+
+/// Settings (Preferences) window. Currently a single Secrets pane; structured
+/// as a TabView so future panes drop in alongside it.
+struct FleetSettingsWindow: View {
+    @ObservedObject var secretsStore: SecretsStore
+
+    var body: some View {
+        TabView {
+            SecretsView(store: secretsStore)
+                .tabItem {
+                    Label("Secrets", systemImage: "key.fill")
+                }
+        }
+        .frame(width: 520, height: 600)
     }
 }
 
