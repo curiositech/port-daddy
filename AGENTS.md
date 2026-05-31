@@ -163,6 +163,55 @@ For multi-PR ship campaigns, track the state in `TaskCreate` so the merge
 sequence is explicit. The user can interrupt at any boundary; the task
 list is the recovery surface.
 
+### Create / Update / Land mechanics
+
+The numbered flow above is the *review contract*. This subsection is the
+*mechanical contract* — the exact command sequence each phase resolves to.
+
+- **Create.** Branch in a linked Git worktree off `origin/main` under
+  `~/coding/tmp/wt-<slug>` (never the main checkout — the main checkout
+  carries the operator's WIP). Then `pd begin "<purpose>" --identity
+  port-daddy:<type>:<slug>` → a scope `pd note` → `pd session files add
+  <files>` *before* editing → edit → `pd guard check --staged` → commit
+  (no Claude co-author trailer) → `git push -u origin <branch>` → `gh pr
+  create` → `pd done`.
+- **Update** (review + CI). Pull bot review comments with `gh api
+  repos/curiositech/port-daddy/pulls/<n>/comments` and fix the real ones.
+  Address every HIGH adversarial-review finding as a named fixup commit.
+  Make `npx tsc --noEmit`, jest, `npm run parity`, and the build all
+  green. Rebase onto the latest `origin/main`, resolving conflicts. Push.
+- **Land.** Merge in dependency order: base PR before dependent PR, and
+  *rebase the dependent after each merge* — mergeability can flip from
+  MERGEABLE to CONFLICTING the instant the base lands. `gh pr merge <n>
+  --squash --admin`. **`--admin` is correct here** because it bypasses both
+  the BEHIND/up-to-date branch gate and the Cloudflare Pages check. The
+  Cloudflare Pages check is an **external gate** (it lives in the Pages
+  build pipeline, not the repo's CI) that always reports failure on PRs and
+  is *never* a merge blocker — see the `## Website And Public Content`
+  notes on the `port-daddy` Pages project.
+- **Cleanup.** Delete a worktree ONLY when its branch is merged AND `git -C
+  <wt> status --porcelain` is clean. Never delete a worktree that still has
+  uncommitted work. Never `git reset` or otherwise clobber the main
+  checkout — it carries WIP that is not yours.
+
+### Shell gotchas (real and recurring)
+
+These bite every contributor session; they are not theoretical.
+
+- **`git add -A` is refused by the pd-shim.** When you truly mean "stage
+  everything" (rare — prefer explicit paths), set `PD_SHIM_OFF=1 git add`
+  deliberately so the bypass is intentional and visible in the command.
+- **The `~/.port-daddy/bin/git` shim sets `core.pager=delta`, which falls
+  back to `bat`.** If `bat` is not installed, `git log` / `git show` /
+  `git commit` emit `command not found: bat` and can swallow output. Run
+  those through `git -c core.pager=cat …` or export `GIT_PAGER=cat`.
+- **Inline `node -e` and heredocs get mangled by zsh.** Write a `.cjs`
+  helper under the repo's `.scratch/` (gitignored, and it resolves
+  `node_modules` because it is inside the repo) and run that instead.
+- **Secrets go through `pd secret set`** (hidden stdin prompt). Never pass
+  a secret as an argv argument — it leaks into shell history and process
+  listings.
+
 ## Release
 
 - **Full playbook lives in [`docs/RELEASING.md`](docs/RELEASING.md).** It covers public releases, candidate/hotfix builds, and local feature dev (with the binary smoke-test path you must run before merging anything in `lib/`, `routes/`, `server.ts`, or `mcp/`). [`docs/VERSIONING.md`](docs/VERSIONING.md) is the canonical list of version surfaces and the semver policy.
