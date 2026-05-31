@@ -1,4 +1,4 @@
-# ADR-0040: Team Secret Sharing — Permissions, Envelope Re-Wrapping, and Use-Without-See
+# ADR-0042: Team Secret Sharing — Permissions, Envelope Re-Wrapping, and Use-Without-See
 
 ## Status
 

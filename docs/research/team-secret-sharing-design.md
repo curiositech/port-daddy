@@ -3,7 +3,7 @@
 **Status:** Design draft (explanation document, not a tutorial or how-to).
 **Date:** 2026-05-31.
 **Audience:** an experienced software engineer who has never used Port Daddy.
-**Companion:** a proposal-status ADR, `docs/adr/0040-team-secret-sharing.md`,
+**Companion:** a proposal-status ADR, `docs/adr/0042-team-secret-sharing.md`,
 captures the decision record; this document is the longer-form reasoning behind
 it.
 
@@ -523,7 +523,7 @@ load-bearing "use without see" capability. Nothing forces a solo user past P0.
 
 ## 9. Related ADRs / references
 
-- `docs/adr/0040-team-secret-sharing.md` — companion decision record (proposal).
+- `docs/adr/0042-team-secret-sharing.md` — companion decision record (proposal).
 - `docs/adr/0029-user-accounts-and-merkle-audit.md` — accounts, pairing
   receipts, Merkle audit forest.
 - `docs/adr/0027-relay-harbor-mesh.md` — harbors as sharing scopes, capability
