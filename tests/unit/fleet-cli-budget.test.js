@@ -162,6 +162,11 @@ describe('pd fleet run budget forwarding', () => {
     });
 
     mockPdFetch
+      // `pd fleet status` now consults the daemon's /fleet endpoint first
+      // (lib/fleet-running-state.ts). An empty fleets payload means the
+      // resolver falls back to the standalone state-file path, preserving
+      // the original "not running" branch this test was written against.
+      .mockResolvedValueOnce(response(true, { running: false, fleets: [] }))
       .mockResolvedValueOnce(response(true, {
         members: [{ agentId: 'workgroup-ai:fleet:qa', identity: 'workgroup-ai:fleet:qa' }],
       }))
