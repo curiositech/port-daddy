@@ -72,6 +72,8 @@ describe('single binary distribution path', () => {
     expect(buildScript).toContain('target: target || null');
     expect(buildScript).toContain('/arbiter/status');
     expect(buildScript).toContain('embedded native Arbiter enforcer was not loaded cleanly');
+    expect(buildScript).toContain('isolated-bin');
+    expect(buildScript).toContain('copyFileSync(outfile, isolatedOutfile)');
   });
 
   test('release workflow uses the single-binary builder instead of compiling the CLI shim directly', () => {

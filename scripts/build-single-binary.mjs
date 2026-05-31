@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
-import { dirname, join, relative, resolve, sep } from 'node:path';
+import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 
 const ROOT_DIR = resolve(new URL('..', import.meta.url).pathname);
@@ -223,12 +223,17 @@ async function waitForText(url, child, stderrChunks, timeoutMs = 15000) {
 async function smokeSelfHostedDaemon(outfile) {
   const port = await reservePort();
   const prefix = join(tmpdir(), `pd-sb-${process.pid}`);
+  const isolatedBinDir = join(prefix, 'isolated-bin');
+  const isolatedOutfile = join(isolatedBinDir, basename(outfile));
   const resourceDir = join(prefix, 'empty-resource-root');
   rmSync(prefix, { recursive: true, force: true });
+  mkdirSync(isolatedBinDir, { recursive: true });
   mkdirSync(resourceDir, { recursive: true });
+  copyFileSync(outfile, isolatedOutfile);
+  chmodSync(isolatedOutfile, 0o755);
 
   const stderrChunks = [];
-  const child = spawn(outfile, ['__daemon'], {
+  const child = spawn(isolatedOutfile, ['__daemon'], {
     cwd: ROOT_DIR,
     env: {
       ...process.env,
@@ -265,6 +270,7 @@ async function smokeSelfHostedDaemon(outfile) {
         enforcedRules: arbiter.summary?.enforcedRules ?? null,
         degradedRules: arbiter.summary?.degradedRules ?? null,
       },
+      isolatedBinaryDir: isolatedBinDir,
       samples: { count: samples.count },
       fleetUi: { indexHtmlBytes: Buffer.byteLength(fleetHtml) },
     };
