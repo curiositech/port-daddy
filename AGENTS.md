@@ -232,6 +232,15 @@ list is the recovery surface.
 - Successful launch flows must preserve the operator’s chosen backend/model in the draft UI. If the launch fails, surface the daemon’s real error inline instead of collapsing to a generic HTTP status.
 - Backend readiness must verify dependencies too, not only env/auth. Do not claim Claude SDK is ready unless `@anthropic-ai/sdk` is actually installed, and do not claim Gemini is ready unless `@google/generative-ai` exists.
 
+## Writing Technical Documents
+
+This applies to every technical document, design doc, tutorial, blog post, ADR, and reference page — not just the website.
+
+- **Cite-and-define on first use.** The *first* time a document uses an external technical term (e.g. *Goodhart's law*, *fail-closed*, *Sybil attack*, *liveness*, *closure*, *idempotent*), **bold the term, give a citation, and add a one-line gloss** (parenthetical is fine). The reader is a sharp engineer who may not share our exact background; a document should be legible without a glossary lookup.
+- **Cite the code for our own abstractions.** The *first* mention of a Port Daddy abstraction (e.g. *daemon*, *Arbiter*, *Coordination Guard*, *claim-tree*, *actor-soul*, *bonds*, *resurrection*) gets **bold + the source-file path relative to repo root + one sentence** on what it is. This forces every claim to be checked against real code and keeps docs honest as code moves.
+- **Why this rule exists.** It makes documents portable to readers outside the immediate context, and the act of citing the file is a built-in correctness check — a path that no longer exists is a caught lie. The exemplar is `docs/research/agent-accountability-proposal.md`.
+- Pick a Diátaxis mode and stay in it: tutorial (learning), how-to (task), explanation (understanding), or reference (lookup). Do not blend an explanation into a tutorial.
+
 ## Website And Public Content
 
 - When adding or refreshing website, docs, blog, examples, tutorial, or launch pages, include Nano Banana/Gemini-generated imagery by default to keep the page visually alive. Treat generated images as product-supporting assets: they should clarify the real Port Daddy workflow, not replace screenshots, CLI proof, or live product truth.
