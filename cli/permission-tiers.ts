@@ -129,6 +129,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   add: 'notify',
   semantic: 'notify',
   watch: 'notify',
+  attention: 'notify',      // default fetch marks inbox/channel items read for this agent
 
   // ── approval: mutates another agent's state, no data loss ────────────────
   // Top-level entries; subcommand refinement may downgrade.
@@ -287,6 +288,12 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
 
   // mcp
   'mcp install': 'notify',
+
+  // attention: default fetch marks items read; peek/list forms are read-only
+  'attention --peek': 'silent',
+  'attention --subscriptions': 'silent',
+  'attention --subscribe': 'notify',
+  'attention --unsubscribe': 'notify',
 
   // session files claim/rm are caller-scoped
   'session files add': 'notify',

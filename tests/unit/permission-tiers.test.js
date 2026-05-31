@@ -254,6 +254,14 @@ describe('resolveTier', () => {
     expect(resolveTier('daemon', ['list'])).toBe('silent');
   });
 
+  test('pd attention default marks items read; peek/list forms are silent', () => {
+    expect(resolveTier('attention', [])).toBe('notify');
+    expect(resolveTier('attention', [], ['peek'])).toBe('silent');
+    expect(resolveTier('attention', [], ['subscriptions'])).toBe('silent');
+    expect(resolveTier('attention', [], ['subscribe'])).toBe('notify');
+    expect(resolveTier('attention', [], ['unsubscribe'])).toBe('notify');
+  });
+
   test('unmapped command falls back to silent (read-friendly default)', () => {
     expect(resolveTier('this-command-does-not-exist', [])).toBe('silent');
   });

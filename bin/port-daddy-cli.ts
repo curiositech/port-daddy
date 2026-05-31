@@ -618,7 +618,7 @@ function buildHelp(): string {
     `  ${G}pd begin${Z} "purpose"       ${tag('notify')} I'll set up your agent + session`,
     `  ${G}pd done${Z} "summary"        ${tag('notify')} Finish up — I'll clean everything`,
     `  ${G}pd whoami${Z}                ${tag('silent')} See your current context`,
-    `  ${G}pd attention${Z}             ${tag('silent')} What other agents queued for you (run first thing!)`,
+    `  ${G}pd attention${Z}             ${tag('notify')} What other agents queued for you (run first thing!)`,
     '',
     `${A}Ports:${Z}`,
     `  ${G}pd claim${Z} <id>            ${tag('notify')} I'll assign a port  ${D}(c)${Z}`,
