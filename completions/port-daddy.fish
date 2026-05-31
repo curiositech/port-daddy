@@ -97,7 +97,7 @@ set -l __pd_commands \
     'agent' 'agents' 'actor' 'actors' 'swarm' 'log' 'activity' \
     'session' 'sessions' 'note' 'notes' \
     'salvage' 'resurrection' 'changelog' 'dns' 'files' 'add' 'who-owns' 'integration' 'briefing' 'history' 'inbox' \
-    'begin' 'b' 'done' 'whoami' 'w' 'attention' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'cockpit' 'watch' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' 'roadmap' 'quorum' 'feedback' 'commit' 'obligations' \
+    'begin' 'b' 'done' 'whoami' 'w' 'attention' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'cockpit' 'secret' 'secrets' 'watch' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' 'roadmap' 'quorum' 'feedback' 'commit' 'obligations' \
     'say' 'look' 'sitrep' 'advise' 'preflight' 'compass' 'guard' 'snapshots' 'snapshot' 'shipwright' 'pheromone' 'ph' \
     'wallet' 'bond' \
     'up' 'down' \
@@ -190,6 +190,7 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command cockpit" -x -a 'missions' -d 'List mission cards parsed from the project roadmap'
     complete -c $prog -n "__pd_using_command cockpit; and __fish_seen_subcommand_from missions" -l project -x -d 'Project directory to read'
     complete -c $prog -n "__pd_using_command cockpit; and __fish_seen_subcommand_from missions" -l status -x -d 'Comma-separated status filter'
+    complete -c $prog -n __pd_needs_command -a secret -d 'Manage keychain-backed provider credentials'
     complete -c $prog -n "__pd_using_command cockpit; and __fish_seen_subcommand_from missions" -l limit -x -d 'Cap returned missions'
     complete -c $prog -n "__pd_using_command cockpit; and __fish_seen_subcommand_from missions" -l json -d 'Emit raw intake envelope'
     complete -c $prog -n __pd_needs_command -a watch -d 'Subscribe to a channel and run a script on each message'
@@ -783,6 +784,12 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command ideas; and __fish_seen_subcommand_from list search show" -l include-raw -d 'Include local .spark/.spider residue'
     complete -c $prog -n "__pd_using_command ideas" -s j -l json -d 'JSON output'
     complete -c $prog -n "__pd_using_command ideas" -s q -l quiet -d 'Suppress output'
+
+    # secret
+    complete -c $prog -n "__pd_using_command secret; and not __fish_seen_subcommand_from set list reveal rm" -a "set list reveal rm" -d 'secret subcommand'
+    complete -c $prog -n "__pd_using_command secret; and __fish_seen_subcommand_from set" -l backend -x -a 'claude gemini cloudflare codex ngrok voyage' -d 'Backend label'
+    complete -c $prog -n "__pd_using_command secret; and __fish_seen_subcommand_from reveal" -l copy -d 'Copy to clipboard instead of printing'
+    complete -c $prog -n "__pd_using_command secret" -l json -d 'Output JSON'
 
     # roadmap
     complete -c $prog -n "__pd_using_command roadmap; and not __fish_seen_subcommand_from ack harvest promote render pop release claims" -a "ack harvest promote render pop release claims" -d 'roadmap subcommand'

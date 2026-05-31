@@ -1456,6 +1456,75 @@ Omit `agentNames` to update every non-`custom` agent. `custom` command agents ar
 
 ---
 
+## Managed Secrets
+
+Keychain-backed provider credential store. Values are encrypted at rest in the
+OS keychain (macOS Keychain) and the store fails closed when keychain is
+unavailable. Only an explicit allow-list of provider keys is accepted. This
+generalizes the older `POST /fleet/backend-secrets` route; both write paths
+share the same implementation.
+
+### GET /secrets
+List every allow-listed key with its storage status. Names and status ONLY —
+never values.
+
+**Response:**
+```json
+{
+  "success": true,
+  "secrets": [
+    { "key": "ANTHROPIC_API_KEY", "backend": "claude", "storage": "keychain", "encryptedAtRest": true, "set": true },
+    { "key": "GEMINI_API_KEY", "backend": "gemini", "storage": "keychain", "encryptedAtRest": true, "set": false }
+  ]
+}
+```
+
+---
+
+### POST /secrets
+Store a provider secret. The key is validated against the allow-list. The
+response NEVER echoes the value.
+
+**Body:**
+```json
+{ "key": "ANTHROPIC_API_KEY", "value": "sk-ant-...", "backend": "claude" }
+```
+
+**Response:**
+```json
+{ "success": true, "key": "ANTHROPIC_API_KEY", "encryptedAtRest": true, "storage": "keychain" }
+```
+
+Returns 400 for an unknown key (with an `allowedKeys` list) or an empty value;
+503 when keychain storage is unavailable (fail-closed).
+
+---
+
+### POST /secrets/:key/reveal
+Return a secret's plaintext value. This is the one sensitive read on the
+secrets surface — it exists for the FleetBar "Copy" affordance. It is
+loopback-only (per-route `preHandler` plus the global DNS-rebinding guard) and
+returns 404 when the key is allow-listed but unset.
+
+**Response:**
+```json
+{ "success": true, "key": "ANTHROPIC_API_KEY", "value": "sk-ant-..." }
+```
+
+Returns 403 for non-loopback callers, 404 when unset, 400 for an unknown key.
+
+---
+
+### DELETE /secrets/:key
+Remove a secret from the keychain and the in-process cache. Idempotent.
+
+**Response:**
+```json
+{ "success": true, "key": "ANTHROPIC_API_KEY", "removed": true }
+```
+
+---
+
 ## Observability (Counters, Cost Tracking, Golden Signals)
 
 As of v3.8.3, Port Daddy records operational metrics (counters) and LLM cost events automatically. These endpoints expose that data for dashboards, budget alerts, and fleet health monitoring.

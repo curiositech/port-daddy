@@ -1716,6 +1716,27 @@
         "sdk": false
       },
       "_note": "CLI plus local daemon onboarding surface \u2014 orchestrates daemon install, MCP config, FleetBar install, and project init in one step. Daemon setup routes are loopback-only; mutating actions require a setup capability token from /setup/overview."
+    },
+    "secrets": {
+      "description": "Managed provider secret store \u2014 keychain-backed CRUD over allow-listed provider keys (generalizes /fleet/backend-secrets)",
+      "cli": [
+        "secret"
+      ],
+      "sdk": [],
+      "routes": [
+        "GET /secrets",
+        "POST /secrets",
+        "POST /secrets/:param/reveal",
+        "DELETE /secrets/:param"
+      ],
+      "completions": [
+        "secret"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      },
+      "_note": "Store is the macOS Keychain (encrypted at rest, fail-closed) via lib/keychain.ts. `pd secret set` reads the value from a hidden stdin prompt, never argv (audit finding L1). Reveal returns plaintext for the FleetBar Copy flow and is loopback-only on the daemon (preHandler) plus the global DNS-rebinding guard."
     }
   }
 }

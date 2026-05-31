@@ -66,6 +66,7 @@ import { usagePlugin } from './usage.js';
 import { testHooksPlugin } from './test-hooks.js';
 import { cockpitPlugin } from './cockpit.js';
 import { setupPlugin } from './setup.js';
+import { secretsPlugin } from './secrets.js';
 
 type AnyDeps = Record<string, unknown>;
 
@@ -186,6 +187,10 @@ export async function registerAllRoutes(
 
   // GUI-first local onboarding and setup actions.
   await fastify.register(setupPlugin, { deps } as any);
+
+  // Managed provider secret store — keychain-backed CRUD over the
+  // allow-listed keys. Reveal is loopback-guarded inside the plugin.
+  await fastify.register(secretsPlugin, { deps } as any);
 
   // Operator resource governance — observe/advisory mode before enforcement.
   await fastify.register(resourcesPlugin, { deps } as any);
