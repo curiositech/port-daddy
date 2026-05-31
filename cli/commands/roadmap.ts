@@ -96,8 +96,12 @@ export async function fetchRoadmapItems(options: {
   if (options.harbor) params.set('harbor', options.harbor);
   if (options.project) params.set('project', options.project);
   if (options.limit) params.set('limit', String(options.limit));
-  const qs = params.toString();
-  const res = await pdFetch(`${PORT_DADDY_URL}/roadmap/items${qs ? `?${qs}` : ''}`);
+  const raw = params.toString();
+  // Build the query suffix with the `?` already attached so the call site is a
+  // flat `${PORT_DADDY_URL}/roadmap/items${qs}` — a nested-backtick ternary
+  // here is invisible to the endpoint-parity scanner and reads as a ghost route.
+  const qs = raw ? `?${raw}` : '';
+  const res = await pdFetch(`${PORT_DADDY_URL}/roadmap/items${qs}`);
   const data = (await res.json().catch(() => ({}))) as {
     success?: boolean;
     items?: RoadmapItem[];

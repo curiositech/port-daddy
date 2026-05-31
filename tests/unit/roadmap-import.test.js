@@ -205,4 +205,58 @@ describe('importMarkdownRoadmap (backfill into roadmap_items)', () => {
     expect(item.status).toBe('now');
     expect(item.promotedByAgentId).toBe('roadmap-import');
   });
+
+  test('re-import never clobbers richer provenance/summary recorded after first import', () => {
+    // First backfill stamps the import agent.
+    importMarkdownRoadmap(roadmap, { rootDir: root, harbor: 'fleet', by: 'roadmap-import' });
+
+    // A real agent then enriches the row (as `pd roadmap promote` / an
+    // interactive upsert would): a different promoter, a richer summary, and a
+    // moved status.
+    roadmap.upsert({
+      slug: 'incremental-symbol-index-refresh',
+      summaryMd: 'Hand-curated detail an agent added after triage.',
+      status: 'backlog',
+      promotedByAgentId: 'alice:cartographer',
+      harbor: 'fleet',
+    });
+
+    // Re-running the import must NOT erase any of that.
+    const second = importMarkdownRoadmap(roadmap, { rootDir: root, harbor: 'fleet', by: 'roadmap-import' });
+    expect(second.updated).toContain('incremental-symbol-index-refresh');
+
+    const item = roadmap.get('incremental-symbol-index-refresh', 'fleet');
+    expect(item.promotedByAgentId).toBe('alice:cartographer');
+    expect(item.summaryMd).toBe('Hand-curated detail an agent added after triage.');
+    expect(item.status).toBe('backlog');
+  });
+
+  test('dogfood entries are filtered to status:now (symmetry with ideas-trove)', () => {
+    writeFixtures(root, {
+      dogfood: `# Dogfood Feedback
+
+### \`dogfood-now-entry\`
+
+- status: \`now\`
+- surface: Fleet UI
+  - should be imported
+
+### \`dogfood-backlog-entry\`
+
+- status: \`backlog\`
+- surface: nowhere
+  - should NOT be imported
+
+### \`dogfood-no-status-entry\`
+
+- surface: nowhere
+  - unknown status, should NOT be imported
+`,
+    });
+    importMarkdownRoadmap(roadmap, { rootDir: root, harbor: 'fleet' });
+    const slugs = roadmap.list({ harbor: 'fleet', status: 'all' }).map((i) => i.slug);
+    expect(slugs).toContain('dogfood-now-entry');
+    expect(slugs).not.toContain('dogfood-backlog-entry');
+    expect(slugs).not.toContain('dogfood-no-status-entry');
+  });
 });

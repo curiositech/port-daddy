@@ -14,17 +14,24 @@
  * (`parseNextCuts` / `parseFeedbackEntries` from roadmap-progress.ts — no
  * parallel parser), and upsert each entry into `roadmap_items`.
  *
- * Idempotency: `roadmapItems.upsert` keys on UNIQUE(slug, harbor). Re-running
- * with the same markdown updates the existing rows in place (refreshing
- * summary + last_touched_at) rather than minting duplicates. The summary is
- * only written when the markdown actually carries one, so a re-run never
- * clobbers a richer summary with an empty string.
+ * Idempotency: `roadmapItems.upsert` keys on UNIQUE(slug, harbor). A row is
+ * written from the markdown exactly once — on first insert. Re-running bumps
+ * `last_touched_at` but NEVER rewrites an existing row's summary, status, or
+ * `promotedByAgentId`: those may since have been enriched by `pd roadmap
+ * promote` or an interactive upsert, and a backfill must not erase real
+ * provenance. (Freshly inserted rows get the parsed summary + status `now` +
+ * the import agent stamp; everything else is left untouched.) So re-running
+ * `pd roadmap import-markdown` is safe even after rows have been promoted.
+ *
+ * What counts as near-term: Next Cuts are imported wholesale (they are
+ * Cartographer's promoted "do this next"); IDEAS-TROVE and DOGFOOD-FEEDBACK
+ * are filtered to entries the operator flagged `status: now` — the rest stay
+ * in their files as backlog/parked. This keeps the three piles symmetric.
  *
  * Precedence when a slug appears in more than one pile: Next Cuts win over
- * ideas-now, which win over dogfood — Next Cuts are Cartographer's promoted
- * "do this next", the strongest curated signal. Status defaults to `now`
- * (these are all curated, near-term piles) but an explicit status in the
- * markdown is honored.
+ * ideas-now, which win over dogfood — Next Cuts are the strongest curated
+ * signal. Status defaults to `now` (these are all curated, near-term piles)
+ * but an explicit status in the markdown is honored.
  */
 
 import { join, isAbsolute } from 'node:path';
@@ -121,7 +128,14 @@ export function collectImportCandidates(input: {
   // near-term roadmap. The rest are backlog/parked and stay in the trove.
   const allIdeas = input.ideasTroveMd ? parseFeedbackEntries(input.ideasTroveMd) : [];
   const ideasNow = allIdeas.filter((e) => e.status === 'now');
-  const dogfood = input.dogfoodMd ? parseFeedbackEntries(input.dogfoodMd) : [];
+  // DOGFOOD-FEEDBACK: same rule as ideas-trove. Only entries the operator
+  // flagged `now` belong on the near-term roadmap; `backlog`/`parked`/`unknown`
+  // dogfood entries stay in the feedback file (parseFeedbackEntries emits
+  // `unknown` for any unrecognized status — see roadmap-progress.ts). Filtering
+  // here keeps the three piles symmetric and matches the "curated, near-term"
+  // framing in this module's header.
+  const allDogfood = input.dogfoodMd ? parseFeedbackEntries(input.dogfoodMd) : [];
+  const dogfood = allDogfood.filter((e) => e.status === 'now');
 
   const bySlug = new Map<string, ImportCandidate>();
 
@@ -220,12 +234,27 @@ export function importMarkdownRoadmap(
 
     if (input.dryRun) continue;
 
-    const upsertInput: UpsertRoadmapItemInput = {
-      slug: candidate.slug,
-      summaryMd: candidate.summaryMd,
-      status: candidate.status,
-      promotedByAgentId: by,
-    };
+    // Provenance / summary preservation. The import is a backfill, not an
+    // edit: it must never erase richer data recorded by `pd roadmap promote`
+    // or an interactive upsert. `roadmapItems.upsert` keeps existing
+    // `promotedByAgentId` only when we pass it null/undefined, so for a row
+    // that already exists we OMIT `promotedByAgentId` (preserving the real
+    // promoter) and keep the existing summary verbatim rather than rewriting
+    // it with the markdown bullet. Fresh inserts get the import stamp + the
+    // parsed summary. (See the idempotency contract in this file's header.)
+    const upsertInput: UpsertRoadmapItemInput = existing
+      ? {
+          slug: candidate.slug,
+          summaryMd: existing.summaryMd,
+          // Preserve the existing status — a re-import never demotes/promotes.
+          status: existing.status,
+        }
+      : {
+          slug: candidate.slug,
+          summaryMd: candidate.summaryMd,
+          status: candidate.status,
+          promotedByAgentId: by,
+        };
     if (input.harbor) upsertInput.harbor = input.harbor;
     if (!input.harbor && input.project) upsertInput.project = input.project;
     roadmapItems.upsert(upsertInput);
