@@ -1,0 +1,45 @@
+STATS:
+
+---
+LAST COMMIT:
+809a8133a7c6b6b00556dd5f61edecbdd14d32da
+Erich Owens <erich.owens@gmail.com>
+2026-05-19 06:35:52 -0700
+blog: rewrite bond-pricing-is-a-market under marketing-copy floor (#69)
+
+Apply port-daddy-marketing-copy + the new AGENTS.md blog floor to
+the bond-pricing post as the proving ground for PR #67. The previous
+voice pass shipped without invoking the skill; this rewrite does.
+
+Content:
+- 2853 words (was ~750). Aim per AGENTS floor was 2500-3500.
+- Cold-start opening: explicit "what Port Daddy is in two sentences"
+  before any whitepaper jargon. No assumed prior knowledge.
+- TL;DR up top (two sentences).
+- Concrete villains gallery: Hoarder, Slow Walker, Nuker, Quitter.
+  Each one is a damage mode a daily budget cannot price. This is the
+  vivid-example floor the AGENTS.md mandate requires.
+- 11 deep links: whitepaper landing, evidence-that-survives-machines,
+  Shipwright concept, salvage CLI, agents CLI, install command, etc.
+- Closing CTA with brew install + next-post link.
+
+Imagery:
+- New hero generated via Nano Banana Pro (gemini-3-pro-image-preview):
+  the immortal motionless agent inside a server rack with chained
+  cabinets. Replaces the generic /img/generated/blog-control-plane-
+  product.jpg the previous version reused.
+- New inline 4-panel rogues gallery painting the four villains.
+- Both rendered painterly / cinematic per the corrected style notes
+  in user CLAUDE.md (NOT pixel art).
+
+Diagrams (mermaid):
+- Today-vs-Tomorrow flowchart: daily-budget kill flow vs bonded
+  pricing flow, side by side.
+- Insurer market sequence diagram: principal -> daemon -> insurer
+  quotes -> binding -> breach handling.
+
+Layout consumes the new max-w-[80ch] container shipped in PR #67
+(or whatever number it lands as). Built clean, 301 routes injected.
+
+---
+DIFF (first 300 lines):

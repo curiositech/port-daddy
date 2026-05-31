@@ -1,0 +1,340 @@
+STATS:
+ cli/commands/whois.ts | 145 +++++++++++++
+ lib/harbors.ts        |  12 ++
+ lib/whois.ts          | 569 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ routes/whois.ts       |  71 +++++++
+ 4 files changed, 797 insertions(+)
+
+---
+LAST COMMIT:
+e359f647d99631f6eb3aacf1924433fa513638dd
+Erich Owens <erich.owens@gmail.com>
+2026-05-19 23:36:50 -0700
+feat(whois): WIP salvage — pd whois scaffolding + harbor capability hook
+
+Salvaged from the killed sortie that landed in the wrong worktree. Roughly
+50-60% of the brief at /Users/erichowens/coding/tmp/pd-substrate-publish/sortie1-whois.md:
+
+- lib/whois.ts: 569 lines — initial whois module scaffold
+- routes/whois.ts: 71 lines — route stub
+- cli/commands/whois.ts: 145 lines — CLI verb scaffold
+- lib/harbors.ts: capabilityListener hook to ferry phrases to the
+  whois sidecar embedder
+
+Not ready to merge as-is. Needs:
+- Sidecar table (harbor_member_capability_embeddings) migration
+- Capability embedding via lib/semantic-resolver.ts
+- Cascade ranker (exact / BM25 / cosine / LLM tiebreak)
+- Freshness gate (30 min full weight, exp decay to 24h, floor at 7d)
+- Tests
+- Backfill job for existing harbor_members.capabilities rows
+
+This is published as a DRAFT PR so the operator can review the scaffolding
+before deciding whether to finish-in-place or redo end-to-end via pd
+feature once #111 lands and pd sortie/spawn is unblocked.
+
+
+---
+DIFF (first 300 lines):
+diff --git a/cli/commands/whois.ts b/cli/commands/whois.ts
+new file mode 100644
+index 00000000..163d98fe
+--- /dev/null
++++ b/cli/commands/whois.ts
+@@ -0,0 +1,145 @@
++/**
++ * Whois CLI Command — Semantic Phonebook lookup
++ *
++ * pd whois <query> [--kind agent|human|any] [--fresh <seconds>] [--limit <n>] [--json]
++ *
++ * Pretty-prints up to `limit` (default 10) ranked hits with similarity,
++ * harbor, freshness, and the cascade stage that ranked each hit.
++ */
++
++import { getDaemonTcpUrl } from '../../shared/daemon-discovery.js';
++
++const BASE_URL = getDaemonTcpUrl(process.env.PORT_DADDY_URL);
++
++type ParsedOptions = Record<string, string | string[] | boolean | undefined>;
++
++interface WhoisHit {
++  agentId: string;
++  agentName: string | null;
++  harbor: string;
++  phrase: string;
++  score: number;
++  similarity: number;
++  bm25Score: number | null;
++  freshnessWeight: number;
++  lastHeartbeat: number | null;
++  stage: 'exact' | 'bm25' | 'semantic' | 'llm';
++  source: 'declared' | 'inferred' | 'earned';
++}
++
++interface WhoisResponse {
++  success: boolean;
++  query: string;
++  kind: string;
++  count: number;
++  hits: WhoisHit[];
++  error?: string;
++}
++
++async function api(path: string): Promise<WhoisResponse> {
++  const res = await fetch(BASE_URL + path, {
++    method: 'GET',
++    headers: { 'Content-Type': 'application/json' },
++  });
++  return res.json() as Promise<WhoisResponse>;
++}
++
++function readKindOption(options: ParsedOptions): 'agent' | 'human' | 'any' {
++  const raw = options['kind'];
++  if (raw === 'agent' || raw === 'human' || raw === 'any') return raw;
++  return 'agent';
++}
++
++function readNumericOption(options: ParsedOptions, key: string): number | undefined {
++  const raw = options[key];
++  if (raw === undefined || raw === true || raw === false) return undefined;
++  const value = Array.isArray(raw) ? raw[0] : raw;
++  if (typeof value !== 'string') return undefined;
++  const n = parseInt(value, 10);
++  return Number.isFinite(n) && n > 0 ? n : undefined;
++}
++
++function formatHeartbeat(lastHeartbeat: number | null): string {
++  if (lastHeartbeat === null) return 'unknown';
++  const diff = Date.now() - lastHeartbeat;
++  if (diff < 60_000) return Math.floor(diff / 1000) + 's ago';
++  if (diff < 3_600_000) return Math.floor(diff / 60_000) + 'm ago';
++  if (diff < 86_400_000) return Math.floor(diff / 3_600_000) + 'h ago';
++  return Math.floor(diff / 86_400_000) + 'd ago';
++}
++
++function padRight(text: string, width: number): string {
++  if (text.length >= width) return text.slice(0, Math.max(0, width - 1)) + '…';
++  return text + ' '.repeat(width - text.length);
++}
++
++export async function handleWhois(args: string[], options: ParsedOptions): Promise<void> {
++  const query = args.join(' ').trim();
++  if (!query) {
++    console.error('Usage: pd whois <query> [--kind agent|human|any] [--fresh <seconds>] [--limit <n>] [--json]');
++    process.exit(1);
++  }
++
++  const kind = readKindOption(options);
++  const limit = readNumericOption(options, 'limit') ?? 10;
++  const freshMin = readNumericOption(options, 'fresh');
++
++  const params = new URLSearchParams();
++  params.set('q', query);
++  params.set('kind', kind);
++  params.set('limit', String(limit));
++  if (freshMin !== undefined) params.set('fresh_min', String(freshMin));
++
++  let response: WhoisResponse;
++  try {
++    response = await api('/whois?' + params.toString());
++  } catch (err) {
++    console.error('Error contacting Port Daddy daemon:', (err as Error).message);
++    process.exit(1);
++    return;
++  }
++
++  if (options['json'] || options['j']) {
++    console.log(JSON.stringify(response, null, 2));
++    return;
++  }
++
++  if (!response.success) {
++    console.error('Error:', response.error ?? 'unknown error');
++    process.exit(1);
++  }
++
++  if (response.count === 0) {
++    console.log(`pd whois "${query}" — no matches.`);
++    console.log('');
++    console.log('Hints:');
++    console.log('  - Try a different phrasing, or relax --fresh (currently ' + (freshMin ?? 'default 7d') + ').');
++    console.log('  - Have any agents registered capabilities yet?  pd harbor enter <name> --cap ...');
++    return;
++  }
++
++  console.log(`pd whois "${query}" — ${response.count} match${response.count === 1 ? '' : 'es'}`);
++  console.log('');
++  console.log(
++    padRight('AGENT', 42),
++    padRight('HARBOR', 24),
++    padRight('SCORE', 8),
++    padRight('SIM', 8),
++    padRight('STAGE', 9),
++    padRight('HEARTBEAT', 12),
++    'PHRASE',
++  );
++  console.log('-'.repeat(120));
++  for (const hit of response.hits) {
++    const display = hit.agentName ? `${hit.agentName} (${hit.agentId})` : hit.agentId;
++    console.log(
++      padRight(display, 42),
++      padRight(hit.harbor, 24),
++      padRight(hit.score.toFixed(3), 8),
++      padRight(hit.similarity.toFixed(3), 8),
++      padRight(hit.stage, 9),
++      padRight(formatHeartbeat(hit.lastHeartbeat), 12),
++      hit.phrase,
++    );
++  }
++}
+diff --git a/lib/harbors.ts b/lib/harbors.ts
+index 30f9e5a2..c635ca4f 100644
+--- a/lib/harbors.ts
++++ b/lib/harbors.ts
+@@ -141,6 +141,11 @@ export function createHarbors(db: Database.Database, deps: HarborsDeps = {}) {
+     isMember: db.prepare('SELECT 1 FROM harbor_members WHERE harbor_name = ? AND agent_id = ?'),
+   };
+ 
++  // Capability listener — fires when an agent enters a harbor with
++  // declared capabilities. Used to ferry phrases into the whois sidecar
++  // embedder without coupling harbors.ts directly to that module.
++  let capabilityListener: ((agentId: string, harborName: string, phrases: string[]) => void) | null = null;
++
+   function parseHarbor(row: HarborRow, members: HarborMemberRow[]): Harbor {
+     return {
+       name: row.name,
+@@ -265,6 +270,13 @@ export function createHarbors(db: Database.Database, deps: HarborsDeps = {}) {
+         Date.now()
+       );
+ 
++      // Notify capability listener — wired by server.ts to embed phrases
++      // into the whois sidecar. Errors here are not fatal to harbor entry.
++      if (capabilityListener && options.capabilities && options.capabilities.length > 0) {
++        try { capabilityListener(agentId, harborName, options.capabilities); }
++        catch { /* listener errors are not fatal */ }
++      }
++
+       const members = stmts.listMembers.all(harborName) as HarborMemberRow[];
+       const harbor = parseHarbor(row, members);
+ 
+diff --git a/lib/whois.ts b/lib/whois.ts
+new file mode 100644
+index 00000000..9cc8067b
+--- /dev/null
++++ b/lib/whois.ts
+@@ -0,0 +1,569 @@
++/**
++ * Whois — Semantic Phonebook over the Existing Resolver
++ *
++ * `pd whois <query>` is the routing primitive that turns Port Daddy's
++ * registration substrate (harbor capabilities + agent skills + heartbeats)
++ * into an answer to "which agent do I send this work to?".
++ *
++ * Architecture
++ * ────────────
++ * - Capability phrases enter via `harbor_members.capabilities` (already a
++ *   first-class registration surface). When a harbor write happens we
++ *   embed each phrase via the shared semantic resolver and persist to a
++ *   small sidecar table: `harbor_member_capability_embeddings`.
++ * - Queries flow through a deterministic cascade:
++ *     1. Exact phrase match  (similarity 1.0)
++ *     2. BM25 over the phrase corpus (top 20 candidates)
++ *     3. Cosine over candidate embeddings (rerank)
++ *     4. LLM tiebreak only when top-2 cosine is within `TIEBREAK_MARGIN`
++ *
++ * Freshness gate (from the brief, anchor:
++ *  docs/ROADMAP.md §8 + .scratch/agent-coordination-research.md §2.3):
++ *   - last heartbeat ≤ 30 min  → weight 1.0
++ *   - 30 min < hb ≤ 24 h       → exp decay
++ *   - 24 h < hb ≤ 7 d          → 0.1 floor
++ *   - hb > 7 d                  → excluded
++ *
++ * The cascade is intentionally a single canonical pattern. No regex
++ * fallbacks. The rule from CLAUDE.md/feedback applies: no keyword-list
++ * NLP at the route level.
++ */
++
++import type Database from 'better-sqlite3';
++import type { SemanticResolver } from './semantic-resolver.js';
++
++// ─── Constants ───────────────────────────────────────────────────────────────
++
++/** Heartbeat window during which an agent is considered fully fresh. */
++const FRESH_WINDOW_MS = 30 * 60 * 1000;          // 30 min — weight 1.0
++/** End of the exponential-decay window. Past this we floor. */
++const DECAY_HORIZON_MS = 24 * 60 * 60 * 1000;    // 24 h
++/** Past `DECAY_HORIZON_MS`, results drop to a 0.1 floor. */
++const STALE_FLOOR_WEIGHT = 0.1;
++/** Past this point an agent is excluded from default whois results. */
++const HARD_CUTOFF_MS = 7 * 24 * 60 * 60 * 1000;  // 7 d
++
++/** Top-K phrases the BM25 stage forwards to cosine rerank. */
++const BM25_CANDIDATE_LIMIT = 20;
++/** Cosine difference within which we consider top-2 a tie. */
++const TIEBREAK_MARGIN = 0.02;
++
++// ─── Types ───────────────────────────────────────────────────────────────────
++
++export type WhoisKind = 'agent' | 'human' | 'any';
++
++/** Source of the capability claim. Matches the research-doc taxonomy. */
++export type WhoisSource = 'declared' | 'inferred' | 'earned';
++
++/** A capability-phrase row that was matched by the cascade. */
++export interface WhoisHit {
++  /** Agent ID resolved by the phonebook. */
++  agentId: string;
++  /** Agent display name when available. */
++  agentName: string | null;
++  /** Harbor name where this capability phrase was declared. */
++  harbor: string;
++  /** The phrase that matched. */
++  phrase: string;
++  /** Composite ranker score in [0, 1]; higher is better. */
++  score: number;
++  /** Raw cosine similarity (or 1.0 for exact match). */
++  similarity: number;
++  /** BM25 score that promoted this phrase to the rerank stage, when used. */
++  bm25Score: number | null;
++  /** Freshness weight applied. [0.1, 1.0] for stale-but-eligible agents. */
++  freshnessWeight: number;
++  /** ms since epoch of the agent's last heartbeat, or null when unknown. */
++  lastHeartbeat: number | null;
++  /** Which stage of the cascade ultimately ranked this hit. */
++  stage: 'exact' | 'bm25' | 'semantic' | 'llm';
++  /** Provenance — kept simple in v1 (always 'declared'). */
++  source: WhoisSource;
++}
++
++/** Search options. */
++export interface WhoisSearchOptions {
++  /** Filter by entity kind. v1 only persists agents; 'human' returns []. */
++  kind?: WhoisKind;
++  /** Minimum freshness in seconds (overrides default 7 d cutoff). */
++  freshMinSeconds?: number;
++  /** Cap the response. Defaults to 10. */
++  limit?: number;
++  /** Override the wall clock — tests pin time for deterministic decay. */
++  nowMs?: number;
++  /**
++   * Optional pluggable LLM tiebreak. Returns the ranked agent IDs from
++   * `candidates`. Only consulted when top-2 cosine within TIEBREAK_MARGIN.
++   * If omitted the cosine order is left untouched.
++   */
++  llmTiebreak?: (
++    query: string,
++    candidates: WhoisHit[],
++  ) => Promise<string[]>;
++}
++
++/** Public Whois API. */
++export interface Whois {
++  /**
++   * Persist capability phrases for an (agent, harbor) pair. Embeds each
++   * phrase via the shared resolver and writes a row into the sidecar.
++   *
++   * Idempotent — re-registering the same phrase refreshes `created_at`.
++   */
++  registerCapabilities(
+
+... [534 more lines truncated]

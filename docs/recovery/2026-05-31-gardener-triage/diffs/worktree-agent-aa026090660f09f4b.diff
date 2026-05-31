@@ -1,0 +1,35 @@
+STATS:
+
+---
+LAST COMMIT:
+64b2810d14c4dfd1df7212b83bacbc5780798009
+Erich Owens <erich.owens@gmail.com>
+2026-05-19 21:37:27 -0700
+whitepaper(anchor): add four-phases, verification-stack, revocation-gossip figures
+
+Three new figures for the Anchor Protocol paper:
+
+- fig-anchor-four-phases.tex (replaces 3-phase predecessor at section 2 head):
+  each phase as a labeled card with primitive in the header, property in the
+  body, the threat it forecloses in a cinnabar callout, and a patina "needs"
+  rationale pill on the arrow into the next phase. Bottom band carries the
+  ProVerif mechanization status across all four phases.
+
+- fig-anchor-verification-stack.tex (new at section 4 head): three-layer
+  stack (ProVerif symbolic / Kani bounded model checking on harbor-card-rs /
+  runtime conformance on the deployed binary). Cinnabar down-arrows carry
+  design obligations; patina up-arrows carry implementation evidence. Bridge
+  labels make the specification-gap and deployment-gap closures explicit.
+
+- fig-anchor-revocation-gossip.tex (new at section 2.4, downstream of the
+  cuckoo mechanics figure): five-panel time series (t = 0, 30s, 60s, 90s,
+  120s) tracing a single revocation across a 5-daemon mesh via anti-entropy
+  gossip. Version-vector labels per panel; legend and mechanism band below.
+
+All three follow the Harbor Heritage palette and the flat-blueprint TikZ
+voice. Every figure is wrapped in resizebox(textwidth, !). PDF rebuilt
+three passes; paper grows from 22 to 23 pages.
+
+
+---
+DIFF (first 300 lines):

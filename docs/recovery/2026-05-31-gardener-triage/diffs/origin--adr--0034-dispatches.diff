@@ -1,0 +1,357 @@
+STATS:
+ docs/adr/0035-dispatches.md | 469 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 469 insertions(+)
+
+---
+LAST COMMIT:
+3d6e7a0fb169c1b501c38fde56fe974cde071036
+Erich Owens <erich.owens@gmail.com>
+2026-05-20 09:40:54 -0700
+docs(adr): apply redteam round-1 to ADR-0035 dispatches (renumber from 0034)
+
+Redteam pass surfaced 18 findings; top blockers:
+- F3: ADR-0034 was already taken (roadmap-claim-session-link). Renumber
+  to 0035 + bump sister ADR refs to 0036-0039.
+- F1+F2: routing fallback referenced a non-existent
+  `lib/semantic-matcher.ts` and claimed "BM25 over ~10 actor mission
+  strings" — statistically degenerate (IDF collapses on a corpus that
+  small). Replaced with MiniLM cosine over actor profile string via
+  `lib/shipwright/skill-index.ts`. The operator was correct to flag
+  the missing corpus spec; honest fix is to not use BM25 at all here.
+- F4: crypto envelope was fabricated — `coordination-crypto.ts` AAD
+  is `(fleet, project, round, ts)`, not what the ADR claimed. Scoped
+  dispatch-crypto to its own future ADR; this ADR commits to the AAD
+  shape + nonce table only.
+- F7: worktree teardown is NOT atomic across fs/git/gh/sqlite. Spec'd
+  forward-only reconciler with `teardown_state` column + 30s sweeper +
+  24h orphan GC. Removed "atomic" claims.
+
+Plus the smaller fixes:
+- F5: replay defense procedure (4 numbered steps)
+- F9: tightened routing telemetry gate (N≥100, Wilson lower bound ≥60,
+  defined correctness criterion)
+- F10: `--reviewer qa` hard-rejects in Phase B, no silent downgrade
+- F13: dispatch ID widened 8→10 char base32 (40→50 bits)
+- F14: `--reviewer` accepts repetition, not comma-joined
+- F15: notifications add `dispatch_failed_terminal` and
+  `dispatch_stuck_no_progress_30min`
+- F17: diff-counting contract for merge_policy='auto'
+- F12: migration runner contract (BEGIN IMMEDIATE) + 083 guard
+- F16: dropped phantom `windags_skills` references; use `agents.skills`
+- F11: cost tracks on body_leases (per ADR-0022 amend), not on dispatch
+- F18: `routing_blocked` not a state; rejected at HTTP 422 instead
+
+Deferred to follow-up rounds:
+- F6 (state-machine collapse) — added safety argument in §Notes; full
+  collapse considered against `LEASE_VALID_FOR_ACTOR` invariant
+- F8 (parent_dispatch_id multi-reviewer expressiveness) — deferred to
+  ADR-0038 (qa-gate) which introduces `dispatch_reviews` join table
+
+PR #99 will get a force-push after this commit; redteam round-2 will
+focus on the reconciler design and the dispatch-crypto scoping.
+
+
+---
+DIFF (first 300 lines):
+diff --git a/docs/adr/0035-dispatches.md b/docs/adr/0035-dispatches.md
+new file mode 100644
+index 00000000..1b649581
+--- /dev/null
++++ b/docs/adr/0035-dispatches.md
+@@ -0,0 +1,469 @@
++# 0035. Dispatches — Intent-to-PR in One Command
++
++## Status
++
++Draft (Q6.2 of the Path B actor-system rebuild plan; sister ADRs 0036–0039
++plus an in-place amendment to 0022 are tracked alongside).
++
++Renumbered from 0034 after redteam pass: `0034-roadmap-claim-session-link.md`
++already owns that slot. The ADR cluster repeats the existing 0028
++collision pattern unless future ADRs are allocated against a single-writer
++registry — see Phase A scope note in the plan.
++
++## Context
++
++The operator's recurring complaint about Port Daddy is that there is no
++verb that takes a sentence-shaped goal ("fix the timeout bug in
++`lib/spawner.ts`") and produces a reviewable PR without the human in the
++loop for every intermediate step. Today the operator composes the result
++by hand: `pd spawn` a worker, leave `pd note` breadcrumbs, poll `pd
++status`, push a branch, open the PR, watch it, merge it. Each of those
++steps is a useful primitive in isolation; together they are a chore.
++
++The product the operator actually asked for, verbatim:
++
++> pd sugar for asking the daemon to create a worktree, task an agent
++> with a task, assigning another agent with assessment for completion
++> (or self?), and then the urgency to complete and merge the PR as soon
++> as they can.
++
++That request is a single verb with three obligations and a clock:
++
++1. Create a worktree off `origin/main`.
++2. Route the work to a capable actor and start a body in that worktree.
++3. Assign a reviewer (a different actor, or the operator) to assess the
++   result and merge the resulting PR with whatever urgency was attached.
++
++Today's stack has every piece except the verb that binds them: actors
++(ADR-0028), bodies and leases (ADR-0022 once Phase A ships them), the
++spawner (`lib/spawner.ts`), session notes, `gh` for PRs, the merge queue
++that ADR-0036 will land. The dispatch is the shape of the request that
++flows through all of them.
++
++The cost of not having it is what the operator already lives with: every
++worktree-and-PR loop is hand-rolled, no two are coordinated, and there
++is no record-of-intent to look back at when the PR's diff has drifted
++from the original ask.
++
++## Decision
++
++Introduce a first-class **dispatch** entity. A dispatch is an addressed,
++durable record of "this actor should produce this artifact; that actor
++(or the operator) should sign off; here is the urgency." The daemon owns
++the state machine; the CLI, MCP, and HTTP surfaces all bind to the same
++record. The operator-facing verb is `pd dispatch`.
++
++### Data model
++
++New table `dispatches` (migration `083_dispatches.sql`, sequenced after
++`082_actor_model.sql` which lands the actor and lease tables; runner
++guarantees each file runs in a single `BEGIN IMMEDIATE; ... COMMIT;`
++transaction):
++
++```sql
++CREATE TABLE dispatches (
++  id                  TEXT PRIMARY KEY,            -- d-<10-char-base32> (50 bits)
++  requested_by        TEXT NOT NULL,               -- actor_id or 'operator'
++  target_actor_id     TEXT REFERENCES actors(id),  -- NULL rejected at HTTP layer pre-gate
++  worker_actor_id     TEXT REFERENCES actors(id),  -- filled at claim
++  reviewer_actor_id   TEXT REFERENCES actors(id),  -- NULL until reviewer chosen
++  required_caps       TEXT NOT NULL DEFAULT '[]',  -- JSON capability tokens
++  goal                TEXT NOT NULL,
++  artifacts_in        TEXT NOT NULL DEFAULT '[]',  -- JSON paths/refs
++  state               TEXT NOT NULL,               -- see state machine
++  teardown_state      TEXT NOT NULL DEFAULT 'pending',  -- forward-only reconciler
++  claimed_lease_id    TEXT REFERENCES body_leases(id),
++  result_session_id   TEXT REFERENCES sessions(id),
++  result_artifact     TEXT,                        -- usually a PR ref
++  worktree_path       TEXT,                        -- absolute path under ~/coding/tmp
++  branch              TEXT,
++  merge_policy        TEXT NOT NULL DEFAULT 'review', -- 'auto' | 'review' | 'never'
++  max_lines           INTEGER NOT NULL DEFAULT 50, -- diff cap for merge_policy='auto'
++  priority            INTEGER NOT NULL DEFAULT 0,
++  deadline            INTEGER,                     -- unix ms; NULL = none
++  parent_dispatch_id  TEXT REFERENCES dispatches(id),
++  qa_verdict          TEXT,                        -- JSON QAVerdict; NULL until set
++  budget_usd          REAL,                        -- cap, set at creation; NULL = no cap
++  created_at          INTEGER NOT NULL,
++  routed_at           INTEGER,
++  closed_at           INTEGER
++);
++
++-- Per-dispatch cost is computed from body_leases (see ADR-0022 amendment),
++-- not denormalized on dispatches. Retries attach new leases; multi-dispatch
++-- bodies share one lease; querying SUM(cost_usd) FROM body_leases WHERE
++-- dispatch_id = ? is the source of truth. `budget_usd` here is the cap,
++-- not the running total.
++
++CREATE INDEX idx_dispatches_state ON dispatches(state, created_at);
++CREATE INDEX idx_dispatches_target ON dispatches(target_actor_id, state);
++CREATE INDEX idx_dispatches_parent ON dispatches(parent_dispatch_id);
++```
++
++Replay defense for the encrypted envelope that addresses a dispatch to
++an actor's body:
++
++```sql
++CREATE TABLE dispatch_nonces (
++  nonce         TEXT PRIMARY KEY,
++  dispatch_id   TEXT NOT NULL REFERENCES dispatches(id),
++  expires_at    INTEGER NOT NULL
++);
++CREATE INDEX idx_dispatch_nonces_expiry ON dispatch_nonces(expires_at);
++```
++
++**Replay defense procedure** (the table alone is not the contract):
++
++1. Sender generates `nonce = randomBytes(16)` and includes it in the
++   envelope's associated data.
++2. Receiver attempts `INSERT OR ABORT INTO dispatch_nonces(nonce,
++   dispatch_id, expires_at = now() + lease_ttl)` **before** decrypt-verify.
++3. On `ABORT` (PRIMARY KEY conflict), drop the envelope and log
++   `replay_rejected{nonce, dispatch_id}`.
++4. A daemon sweeper deletes `WHERE expires_at < now()` every 60s; rows are
++   cheap and bounded by `(dispatches/hour × lease_ttl_hours)`.
++
++**Crypto envelope is net-new surface, not a reuse of
++`lib/coordination-crypto.ts`.** The existing module's AAD is bound to
++`(fleet, project, round, ts)` and its keys are keyed by `(fleet, round)`,
++loaded from macOS Keychain via `loadFleetKey`. The fleet/round model is
++incompatible with the actor/generation model dispatches need:
++
++- Per-actor key derivation (HKDF from a master, info string
++  `dispatch/${actor_id}/${generation}`) — to be specified in a separate
++  dispatch-crypto ADR before any code lands.
++- New AAD shape `(dispatch_id, target_actor_id, generation, nonce)`.
++- Lives at `lib/dispatch-crypto.ts` (new file in Phase B).
++
++This ADR commits to the AAD shape and the nonce table; the key-tree
++construction is deferred to the dispatch-crypto ADR so the crypto review
++happens against a focused PR, not buried inside the dispatches state-
++machine PR.
++
++### State machine
++
++```
++pending ──route──► routed ──claim──► claimed ──work──► executing
++                                                          │
++                                                  mark_ready
++                                                          ▼
++                                                  review_ready
++                                                          │
++                          ┌─── (qa-gate, Phase B.5) ──────┤
++                          ▼                                │
++                  qa_passed | qa_failed                    │
++                          │                                │
++                          └─► human_review_ready ◄─────────┘
++                                          │
++                                  accept │ reject │ retry
++                                          ▼
++                                  human_approved
++                                          │
++                              handoff to harbormaster
++                                          ▼
++                                       closed
++                                          ▲
++                                  failed ─┘  (terminal on hard error)
++```
++
++Transitions are guarded by the Arbiter's `LEASE_VALID_FOR_ACTOR`
++invariant (introduced in Phase A); only the claimed body can transition
++its own dispatch through `executing → review_ready`.
++
++### Worktree lifecycle
++
++When a dispatch is routed the daemon creates
++`~/coding/tmp/port-daddy-dispatch-<short-id>` via `git worktree add`,
++branched from current `origin/main`. The worktree path and branch name
++are recorded on the dispatch row. The path lives under `~/coding/tmp/`
++(per the user-level rule against `/tmp`).
++
++**Teardown is not atomic.** It spans four non-transactional systems —
++the local filesystem (`git worktree remove`), git refs (`git branch -D`),
++the GitHub API (`gh pr close`), and the SQLite dispatch row. No 2PC
++exists across these. The previous draft of this ADR called teardown
++"atomic"; that was wrong.
++
++Instead, teardown is **forward-only, eventually reconciled**:
++
++1. Add a `teardown_state` column to `dispatches` with the ordered enum
++   `pending | pr_finalized | branch_deleted | worktree_removed | row_finalized`.
++2. On `closed` or `failed`, the daemon advances `teardown_state` one
++   step at a time via idempotent operations:
++   - `pr_finalized`: ensure the PR is merged or closed (idempotent —
++     `gh pr view --json state` first, only act on mismatch).
++   - `branch_deleted`: `git branch -D` (idempotent — missing branch
++     returns success in our wrapper).
++   - `worktree_removed`: `git worktree remove --force` (idempotent
++     similarly).
++   - `row_finalized`: SET `closed_at = now()`, COMMIT.
++3. A background sweeper runs every 30s: `SELECT * FROM dispatches
++   WHERE state IN ('closed','failed') AND teardown_state != 'row_finalized'
++   ORDER BY closed_at ASC LIMIT 10`. Retries the next step. Failures
++   log and re-queue; no step is skipped.
++4. Orphan worktree GC: if a path under `~/coding/tmp/port-daddy-dispatch-*`
++   exists on disk but no dispatch row references it, delete after a 24h
++   grace window. Surfaces a warning in `pd status` during the grace.
++
++The ADR commits to "eventually reconciled, with a defined recovery
++path." Do not call it atomic in marketing copy, CLI help, or anywhere
++else; the word is reserved for things that actually are.
++
++### Reviewer assignment (Path B fix #1)
++
++The `--reviewer` flag selects who signs off when the worker marks
++`review_ready`:
++
++- `--reviewer self` (Phase B default): the operator reviews. The state
++  machine collapses to `review_ready → human_review_ready` immediately;
++  no qa sub-dispatch is created.
++- `--reviewer qa` (target after Phase B.5): the daemon auto-creates a
++  sub-dispatch addressed to the `qa` actor, with the original dispatch
++  as `parent_dispatch_id`. The qa verdict is written into the parent's
++  `qa_verdict` column; pass routes to `human_review_ready`, fail routes
++  back to `pending` (with a 3-strike escalation to `human_review_ready`
++  with `failed_qa_attempts: 3` so the operator can break the loop).
++- `--reviewer <actor>` or `--reviewer qa,cartographer`: arbitrary actor
++  set; all must pass.
++
++The Phase B.5 gate is intentional: shipping the auto-qa step before
++`qa` has been running as a long-lived body for a week creates a
++bootstrap deadlock (every dispatch waits on a qa body that itself
++needs a dispatch to start). **In Phase B the CLI rejects `--reviewer qa`
++with a non-zero exit and a pointer to ADR-0038** — silent downgrade to
++`--reviewer self` is a UX trap, because the operator's whole reason for
++using `pd dispatch` is to walk away. Silent downgrade means they DO
++walk away and discover later that no review ran. The hard reject is
++consistent with the routing layer's hard reject for missing `--to`.
++
++The flag accepts repetition, not comma-joined: `--reviewer qa
++--reviewer cartographer` is legal; `--reviewer "qa,cartographer"` is
++rejected with a message naming the repeat form. This mirrors the
++existing `--files` fix (PR #79) so the operator's reflexes carry over.
++
++### Routing (Path B fix #3)
++
++The default for Phase B is `--to <actor>` required. Auto-routing via
++`mcp__windags__windags_skill_search` (see ADR-0039) is behind a feature
++flag with a quantitatively defined gate:
++
++> Auto-routing enables when all three hold:
++>
++> 1. ≥100 dispatches have been labeled by the operator at `pd review`
++>    time with one of `routed_correctly | wrong_actor | routing_irrelevant`.
++> 2. Excluding `routing_irrelevant`, the **top-1** hit-rate is ≥70% with
++>    a 95% Wilson lower bound ≥60% (at N=100 the Wilson interval pulls
++>    the threshold honestly tight; at N=50 a 70% point estimate has a
++>    95% CI of roughly ±13pp, which is theatre — that's why N≥100).
++> 3. The labeled set spans ≥3 distinct actor types.
++
++"Correctness" is defined as: the operator's would-have-chosen actor at
++`pd review` time matches the router's top-1 pick. The same `pd review`
++prompt captures the label.
++
++Until the gate opens, `POST /dispatch` without `--to` is rejected at the
++HTTP layer (422) before any row is written — the daemon does **not**
++write a `routing_blocked` row and then sweep it. The CLI surfaces the
++candidate actors (from `agents.skills` and recent `session_notes`) in
++the error message so the operator's next attempt is informed.
++
++Routing has two stages once the gate opens:
++
++1. **Stage 1 — Skill match via Windags.** Call
++   `mcp__windags__windags_skill_search` with the goal as query.
++   Intersect the ranked skills with each actor's `agents.skills` array
++   (the existing JSON column; the plan's earlier `windags_skills`
++   framing was a phantom — `agents.skills` is the real column).
++   Produce a ranked actor list.
++2. **Stage 2 — Capability + availability filter.** Drop actors whose
++   capability tokens don't satisfy `required_caps`. Drop actors with
++   no live attached lease. Drop actors over their in-flight dispatch
++   cap.
++
++If Windags is unreachable, fall back to **MiniLM cosine similarity over
++the actor profile string** `concat(purpose, skills, identity_context,
++last-48h session_notes window capped at 500 notes)`, reusing the
++embedder in `lib/shipwright/skill-index.ts`. Log
++`routing_fallback_cosine`.
++
++The previous draft of this ADR specified "BM25 over actor mission
++strings via `lib/semantic-matcher.ts`." Both halves were wrong:
++`semantic-matcher.ts` does not exist in the repo, and BM25 over the
++~10 short actor profile strings is statistically degenerate (IDF
++collapses on a corpus that small — every token has near-uniform
++document frequency, so ranking degrades to keyword overlap with a
+
+... [176 more lines truncated]

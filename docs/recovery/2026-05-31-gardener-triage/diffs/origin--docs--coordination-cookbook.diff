@@ -1,0 +1,317 @@
+STATS:
+ docs/patterns/coordination-cookbook.md | 1070 ++++++++++++++++++++++++++++++++
+ 1 file changed, 1070 insertions(+)
+
+---
+LAST COMMIT:
+5a5bb35dbb650e44604ab0dae06162820d712ebd
+Erich Owens <erich.owens@gmail.com>
+2026-05-20 00:04:11 -0700
+docs(cookbook): fix doubled myrepo prefix in identity convention example
+
+
+
+---
+DIFF (first 300 lines):
+diff --git a/docs/patterns/coordination-cookbook.md b/docs/patterns/coordination-cookbook.md
+new file mode 100644
+index 00000000..29ac4178
+--- /dev/null
++++ b/docs/patterns/coordination-cookbook.md
+@@ -0,0 +1,1070 @@
++# Port Daddy Coordination Cookbook
++
++A pattern catalog for composing multi-agent workloads on top of the primitives
++Port Daddy already ships. The reader: a senior engineer who has heard the elevator
++pitch, has `pd` on their `$PATH`, and now wants to decompose a real workload —
++adversarial QA, code-review-as-debate, blackboard research, partitioned refactors —
++onto the daemon without inventing a coordination layer from scratch.
++
++The thesis is small: **the daemon does the boring part — leases, claims, durable
++notes, pub/sub, salvage — so you can spend your tokens on the parts that matter.**
++What follows is a translation guide between the multi-agent literature you already
++know (Foundation Models for Multi-Agent Systems, AutoGen, ChatDev, the
++critique-refine and debate papers) and the actual flags Port Daddy exposes.
++
++If you are looking for an introduction to the primitives themselves, read
++[ADR-0028](../adr/0028-actor-fleet-agent-session-three-layers.md) first; this
++document assumes you know that an *actor* is a durable role, a *fleet agent* is
++an optional live body, and a *session* is an ephemeral `pd begin` / `pd done`
++work-slice.
++
++---
++
++## How to read this catalog
++
++Each entry is built the same way so you can grep, skim, or paste-and-go:
++
++1. **What it is** — the pattern in protocol terms, one paragraph.
++2. **PD command sequence** — the actual flags an operator runs.
++3. **Primitive mapping** — which PD primitive plays which role.
++4. **When to use / When NOT to use** — decision criteria.
++5. **Failure mode + PD-native mitigation** — the most likely thing that breaks.
++6. **Worked example** — a concrete scenario with end-to-end commands.
++
++Identities in examples follow the daemon's `project:stack:context` three-segment
++convention (`myrepo:claude:auth-rewrite`, `myrepo:codex:test-gen`,
++`port-daddy:aider:sweep`). The first segment is the project slug — leaving it
++out (a two-segment form like `claude:auth-rewrite`) collapses the runtime into
++the project slot and silently breaks project-scoped briefings, cartographer
++aggregation, and the salvage queue. See
++[ADR-0003 on semantic identities](../adr/0003-semantic-identity-system.md) for
++the rationale. Real worktrees, real file paths, no placeholder `agent-1`s.
++
++A short glossary, then the patterns.
++
++---
++
++## Primitive cheat sheet (verified against the CLI)
++
++| Primitive     | Verb                                                         | Persistence                                               | Selector                                                     |
++| ------------- | ------------------------------------------------------------ | --------------------------------------------------------- | ------------------------------------------------------------ |
++| Session       | `pd begin` / `pd done` / `pd whoami`                         | DB row, files released on `done`                          | `--identity`, `--purpose`, `--files`, `--agent`              |
++| File claim    | `pd session files add` / `pd session files rm`               | DB row scoped to session                                  | `<path>`, `--start-line/--end-line`, `--symbol-path`, `--symbol` |
++| Note          | `pd note` / `pd say`                                         | DB row, Merkle-chained per *active* session               | `--type` only; notes attach to the active session implicitly |
++| Pub/sub       | `pd pub` / `pd sub` / `pd watch`                             | Ephemeral SSE; messages live on the channel until cleared | `<channel>` (logical or physical), `--signal`, `--sender`    |
++| Tube          | `pd tube`                                                    | Same channel storage; long-polling crank-handle           | `--reply`, `--reply-to`, `--send`, `--wait-for`, `--tail`    |
++| Tuple space   | `pd tuple out` / `pd tuple rd` / `pd tuple in`               | DB row, optional TTL                                      | `--harbor`, JSON-array pattern, `--limit`                    |
++| Inbox (DM)    | `pd inbox send <agent-id>` / `pd inbox` / `pd inbox watch`   | DB row per agent (recipient is any identity, free-form)   | `<agent-id>` positional                                      |
++| Actor mailbox | `pd actor <id> --message`                                    | DB row per *canonical* actor — fixed roster, not arbitrary ids | actor id from `pd actors` (gardener, qa, cartographer, ...)  |
++| Spawn         | `pd spawn --backend <b> --identity <id> --budget <usd> -- <task>` | Sub-process; agent registered                             | `--backend`, `--model`, `--tier`, `--budget`, `--purpose`    |
++| Sortie        | `pd sortie run <goal> --backend <b> --budget <usd>`          | DB row + spawn; full coordination wired                   | `--recipe`, `--expected`, `--context`, `--dir`               |
++| Watch         | `pd watch <channel> --exec <script>`                         | Long-running SSE subscriber                               | `--once`, `--max-concurrent`, `--timeout`, `--min-interval`  |
++| Quorum        | `pd quorum propose` / `pd quorum vote`                       | DB row, threshold-driven                                  | `--role`, `--threshold`, `--stance`, `--weight`, `--ttl-ms`  |
++| Salvage       | `pd salvage` / `pd salvage claim` / `pd salvage complete`    | Reads stale agents, transfers context                     | `--project`, `--bucket`, `--claim`                           |
++| Briefing      | `pd briefing` / `pd briefing --json`                         | Writes `.portdaddy/briefing.md`                           | `--full`, `--project`                                        |
++| Guard         | `pd guard check --staged`                                    | Pre-commit enforcement                                    | `--hook`, `--mode enforce`                                   |
++| Lock          | `pd with-lock <name> <cmd...>`                               | DB row with TTL                                           | `--ttl`, `--owner`                                           |
++| Pheromone     | `pd pheromone spray <table> <id> <key> <strength>`           | Decaying scalar                                           | `files` / `services` / `sessions`                            |
++
++That table is the rosetta stone for what follows.
++
++---
++
++# Five topologies
++
++The topology is the *shape of the conversation graph*. Five shapes cover almost
++everything practical agents do.
++
++## 1. STAR — one coordinator, N workers
++
++**What it is.** A single coordinator session decomposes the work, hands subtasks
++out, gathers results. Workers don't talk to each other; they talk to the
++coordinator. This is AutoGen's `GroupChatManager`, ChatDev's CEO, every "lead
++agent + tool-using subagents" you've ever written.
++
++**PD command sequence.**
++
++```bash
++# Coordinator
++pd begin "ship v4.2" --identity myrepo:claude:lead --files docs/ROADMAP.md
++pd spawn --backend claude-cli --identity myrepo:claude:auth-rewrite \
++  --purpose "rewrite token refresh" --budget 2.50 \
++  -- "Refactor refreshToken() in lib/auth.ts. Acceptance: tests pass, no Date.now()."
++pd spawn --backend codex --identity myrepo:codex:test-gen \
++  --purpose "generate missing tests" --budget 1.00 \
++  -- "Add unit tests for refreshToken() — must exercise the 401 retry path."
++pd spawned                                # poll until both report status=completed
++pd done "v4.2 work dispatched"
++```
++
++**Primitive mapping.**
++
++- Coordinator state lives in a `pd begin` session; the session id is the star's center.
++- Each worker is a `pd spawn` row. The spawner auto-injects PD coordination env vars
++  so the spawned agent registers and runs `pd begin` on its own.
++- Worker completion shows up in `pd spawned` and in the activity log; the
++  coordinator polls instead of being told.
++
++**When to use.** The task naturally decomposes into independent sub-jobs, and
++you want one accountable owner who reads all the outputs. Code review with a
++human-in-the-loop is a star. So is "run these 12 tests in parallel."
++
++**When NOT to use.** Subtasks need to talk to each other (use mesh). Or the
++"coordinator" is just a router — at that point a worker pool driven by tuples
++is leaner.
++
++**Failure mode.** Coordinator dies mid-flight, the workers complete, nobody
++reads their output. PD's response: `pd salvage --project <name>` shows the
++orphan coordinator with its session notes intact; a fresh coordinator can
++`pd salvage claim <agent-id>` and pick up the dangling worker results from the
++activity log.
++
++**Worked example — "Sharded test suite, 12 packages."**
++
++```bash
++# Coordinator
++pd begin "shard jest run across 12 packages" --identity myrepo:claude:test-runner
++
++for pkg in apps/* packages/*; do
++  pd spawn --backend claude-cli --identity myrepo:claude:shard-$(basename $pkg) \
++    --purpose "run tests in $pkg" --budget 0.40 \
++    -- "cd $pkg && npm test --json > .test-out.json; pd note \"shard $pkg \$(jq -r .success .test-out.json)\""
++done
++
++# Block until they're all in
++until [ "$(pd spawned -j | jq '[.agents[] | select(.status=="running")] | length')" = "0" ]; do
++  sleep 5
++done
++
++pd notes --type shard --limit 50         # gather the per-shard results
++pd done "12-shard run complete"
++```
++
++---
++
++## 2. MESH — peers, no central coordinator
++
++**What it is.** Every agent is a peer. There is no privileged "manager"; agents
++discover each other through a shared rendezvous (channel, tuple space, actor
++mailboxes) and coordinate by leaving signed traces. Useful for genuinely
++distributed work where any agent is allowed to grab any unit of work, and the
++*ordering* of who-does-what is decided by who-shows-up-first.
++
++**PD command sequence.**
++
++```bash
++# Every peer registers and subscribes — symmetric
++pd begin "harvest stale TODOs" --identity myrepo:codex:harvest-${SHARD}
++pd watch coord:harvest --exec ./peer-tick.sh --max-concurrent 1 &
++# inside peer-tick.sh: try to claim a TODO via the tuple space
++#   pd tuple in '["todo","pending","*"]' --limit 1 --harbor harvest
++#   ...do the work...
++#   pd tuple out '["todo","done","'$id'","'$peer'"]' --harbor harvest
++```
++
++**Primitive mapping.**
++
++- Rendezvous: a tuple space scoped by `--harbor`, OR a declared channel.
++- Mutual exclusion on work units: `pd tuple in` is atomic-take — only one peer
++  wins per pattern match.
++- Cross-peer announcements: a shared channel (`pd pub coord:harvest …`) plus
++  `pd watch coord:harvest --exec …` on every peer.
++- Cross-peer durable context: `pd note --type discovery` so the audit trail
++  survives any single peer dying.
++
++**When to use.** The work is genuinely homogeneous (every peer can do any
++shard), peer count varies at runtime, and you want graceful degradation when
++peers die. Crawlers, swarm refactors, harvest jobs.
++
++**When NOT to use.** The work has real dependencies between steps — at that
++point you want a tree or a DAG, not a mesh. Also: mesh with two peers is just
++two strangers fighting over a tuple; don't bother below three.
++
++**Failure mode.** Two peers race on the same work unit because one of them
++forgot to `pd tuple in` (take) and used `pd tuple rd` (read-only) instead. PD's
++response: `pd tuple in` is destructive by design — only one of the racing peers
++can succeed. If a peer dies *between* taking the tuple and writing the result,
++the work item is "leaked" and shows up nowhere; budget for a reaper that
++periodically `pd salvage`s peers and re-emits their pending units back into the
++tuple space.
++
++**Worked example — "Three peers harvest stale TODO comments from a monorepo."**
++
++```bash
++# Seed step (any peer, idempotent)
++for f in $(rg -l 'TODO\(stale\)' --type-add 'src:*.{ts,tsx}' -tsrc); do
++  pd tuple out "[\"todo\",\"pending\",\"$f\"]" --harbor harvest --ttl 3600000
++done
++
++# Each peer (run on three workstations)
++pd begin "harvest" --identity myrepo:codex:peer-$HOSTNAME
++while true; do
++  claimed=$(pd tuple in '["todo","pending","*"]' --harbor harvest --limit 1 -j)
++  [ "$(echo $claimed | jq '.taken | length')" = "0" ] && break
++  path=$(echo $claimed | jq -r '.taken[0].fields[2]')
++  pd session files add "$path"
++  ./rewrite-stale-todo.sh "$path" && \
++    pd say "harvested $path" --pin --broadcast harvest && \
++    pd tuple out "[\"todo\",\"done\",\"$path\",\"$HOSTNAME\"]" --harbor harvest
++done
++pd done "peer $HOSTNAME drained the queue"
++```
++
++---
++
++## 3. TREE — hierarchical decomposition with depth > 1
++
++**What it is.** A star where the workers are themselves coordinators. Lead
++agent spawns sub-leads, each sub-lead spawns leaf workers. The literature
++calls this "hierarchical delegation" or "supervisor of supervisors." It's how
++ChatDev's "Designer → Coder → Tester" really runs when each layer can fan out.
++
++**PD command sequence.**
++
++```bash
++# Depth-0 lead
++pd begin "v5 platform migration" --identity myrepo:claude:platform-lead
++
++# Depth-1 sub-leads spawn from inside the lead
++pd spawn --backend claude-cli --identity myrepo:claude:sublead-frontend \
++  --purpose "drive frontend migration" --budget 5.00 \
++  -- "You are sub-lead for FE migration. Use pd spawn to fan out per package. Budget 5 USD."
++
++pd spawn --backend claude-cli --identity myrepo:claude:sublead-backend \
++  --purpose "drive backend migration" --budget 5.00 \
++  -- "You are sub-lead for BE migration. Use pd spawn for db, api, workers."
++
++# Inside the sub-lead's prompt, the model itself runs pd spawn for its leaves.
++```
++
++**Primitive mapping.**
++
++- Each level is a `pd begin` session whose `--identity` encodes the depth:
++  `myrepo:claude:platform-lead` → `myrepo:claude:sublead-frontend` → `myrepo:claude:leaf-fe-checkout`.
++- Parent/child linkage lives implicitly in the spawn chain (the spawning agent
++  is recorded in the activity log) and explicitly via a `--type delegation` note
++  the parent writes on its own session when it dispatches.
++- Roll-up *across session boundaries* uses `pd inbox send <parent-identity>
++  "<JSON payload>"`. Notes are Merkle-chained *per session* — they cannot be
++  written into another session's chain. The inbox is the durable cross-session
++  channel.
++
++**When to use.** The decomposition has natural strata (frontend / backend /
++infra; or design / implement / test) and each stratum benefits from a
++domain-specific lead who can re-decompose. Anything that would be a 30-step
++flat star is probably better as a 3-deep tree.
++
++**When NOT to use.** Two levels deep is a star with a hat. Don't add tree depth
++to make the diagram look smart.
++
++**Failure mode.** A sub-lead dies and its leaves keep running with no one to
++report to — orphan work. PD's response: leaves probe sub-lead liveness with
++`pd agents --active -j | jq '.agents[] | select(.identity == "<parent>")'` (a
++present row with a recent `lastHeartbeat` = alive; empty or stale = dead). On
++"dead", the leaf falls through to the depth-0 lead by sending its result via
++`pd inbox send myrepo:claude:l0-lead "<payload>"` instead of the sub-lead. The
++`pd salvage` queue surfaces the dead sub-lead so a human can replace it.
++
++**Worked example — "Migrate 60 packages across FE/BE/infra in one sweep."**
++
++```bash
++# L0
++pd begin "v5 sweep" --identity myrepo:claude:l0-lead
++pd note "Decomposition: 3 sub-leads, ~20 packages each" --type plan
++
++# L1 — FE sub-lead (spawned by L0)
++pd spawn --backend claude-cli --identity myrepo:claude:l1-fe --budget 8 \
++  --purpose "lead FE 20-pkg migration" \
++  -- "Spawn one myrepo:claude:l2-fe-<pkg> per FE package. \
++      Aggregate child results from your own inbox: \
++        pd inbox --agent myrepo:claude:l1-fe -j | \
++          jq '.messages[] | select(.content | fromjson? | .type == \"result\")' \
++      When 100%, roll up to L0: \
++        pd inbox send myrepo:claude:l0-lead '{\"type\":\"result\",\"stratum\":\"FE\",\"pkgs\":20,\"passed\":N}'"
++
++# L2 — leaves (spawned by L1 inside its prompt). Each leaf, when done:
++# e.g. pd spawn --backend claude-cli --identity myrepo:claude:l2-fe-checkout --budget 0.50 \
++#        -- "migrate checkout; on success: \
++#            pd inbox send myrepo:claude:l1-fe '{\"type\":\"result\",\"pkg\":\"checkout\",\"status\":\"ok\"}'"
++
++# L0 reads its own inbox for the three sub-lead rollups
++pd inbox --agent myrepo:claude:l0-lead -j | \
++  jq '.messages[] | select(.content | fromjson? | .type == "result")'
++```
++
+
+... [777 more lines truncated]

@@ -1,0 +1,334 @@
+STATS:
+ .claude/settings.json               |  13 +-
+ AGENTS.md                           |   1 +
+ CHANGELOG.md                        |   3 +
+ bin/port-daddy-cli.ts               |   9 +-
+ cli/commands/attention.ts           | 239 ++++++++++++++++++++++++++++++
+ cli/commands/index.ts               |   1 +
+ completions/port-daddy.bash         |   2 +-
+ completions/port-daddy.fish         |   3 +-
+ completions/port-daddy.zsh          |   1 +
+ features.manifest.json              |  20 +++
+ lib/attention.ts                    | 285 ++++++++++++++++++++++++++++++++++++
+ lib/messaging.ts                    |  15 +-
+ routes/attention.ts                 | 123 ++++++++++++++++
+ routes/index.ts                     |   2 +
+ server.ts                           |   4 +-
+ tests/unit/attention.test.js        | 195 ++++++++++++++++++++++++
+ tests/unit/bijective-parity.test.js |   1 +
+ tests/unit/mcp-parity.test.js       |   1 +
+ 18 files changed, 906 insertions(+), 12 deletions(-)
+
+---
+LAST COMMIT:
+e33ba934ba5c73dbc8cabcfe093310ccc5c7e106
+Erich Owens <erich.owens@gmail.com>
+2026-05-22 07:08:46 -0700
+Merge remote-tracking branch 'origin/main' into feat/pd-attention
+
+
+
+---
+DIFF (first 300 lines):
+diff --git a/.claude/settings.json b/.claude/settings.json
+index 229373fb..624e0712 100644
+--- a/.claude/settings.json
++++ b/.claude/settings.json
+@@ -43,5 +43,16 @@
+       "Bash(rm:*)"
+     ]
+   },
+-  "hooks": {}
++  "hooks": {
++    "SessionStart": [
++      {
++        "hooks": [
++          {
++            "type": "command",
++            "command": "pd attention --json 2>/dev/null || true"
++          }
++        ]
++      }
++    ]
++  }
+ }
+diff --git a/AGENTS.md b/AGENTS.md
+index 2d1dbeec..870d1c5b 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -29,6 +29,7 @@ You are explicitly invited to fix errors, sharpen inefficient passages, and add
+ 
+ - On this computer, use Port Daddy for repo work by default, not only when a task already looks multi-agent.
+ - Start recovery, debugging, and parallel-work sessions with Port Daddy before doing local archaeology:
++  - `pd attention` — **first command of every session.** Reads unread inbox + subscribed channels in one call, marks them seen. Without this, other agents can route messages, file conflicts, or coordination signals at your agent id and you will never see them. The Claude Code SessionStart hook in `.claude/settings.json` runs this automatically and pins the output into context; for other harnesses, run it manually.
+   - `pd status`
+   - `pd briefing`
+   - `pd salvage` when crash residue or abandoned work might matter
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index f1d53f13..e0148372 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
+ 
+ ## [Unreleased]
+ 
++### Added
++- **`pd attention` — first-command-of-every-session aggregator.** Returns unread inbox messages + new messages on subscribed channels for the current agent in one call, with mark-read-on-fetch semantics (`--peek` skips). Stable JSON schema in `lib/attention.ts` so harness SessionStart hooks (and any other integrator) can pin the result into prompt context. `.claude/settings.json`'s SessionStart hook wires it automatically for Claude Code. Subscriptions are durable in a new SQLite table (`attention_subscriptions`) keyed on `(agent_id, channel)` with a per-subscription cursor that advances on non-peek reads. New routes: `GET /attention`, `POST /attention/subscribe`, `POST /attention/unsubscribe`, `GET /attention/subscriptions`. AGENTS.md § Port Daddy First updated to make `pd attention` doctrine. Closes roadmap item `pd-attention-mailbox-for-harness-agents` (HIGH).
++
+ ## [3.15.0] - 2026-05-20
+ 
+ ### Added
+diff --git a/bin/port-daddy-cli.ts b/bin/port-daddy-cli.ts
+index 2349beb5..8892ded0 100755
+--- a/bin/port-daddy-cli.ts
++++ b/bin/port-daddy-cli.ts
+@@ -78,6 +78,8 @@ import {
+   handleDns, handleBriefing, handleIntegration,
+   // Sugar commands
+   handleBegin, handleDone, handleWhoami, handleWithLock,
++  // Attention (inbox + subscribed channels — see docs/RELEASING.md for hook wiring)
++  handleAttention,
+   // Tutorial
+   handleLearn,
+   // File claims
+@@ -605,6 +607,7 @@ function buildHelp(): string {
+     `  ${G}pd begin${Z} "purpose"       I'll set up your agent + session`,
+     `  ${G}pd done${Z} "summary"        Finish up — I'll clean everything`,
+     `  ${G}pd whoami${Z}                See your current context`,
++    `  ${G}pd attention${Z}             What other agents queued for you (run first thing!)`,
+     '',
+     `${A}Ports:${Z}`,
+     `  ${G}pd claim${Z} <id>            I'll assign a port  ${D}(c)${Z}`,
+@@ -1193,7 +1196,7 @@ const ALL_COMMANDS: string[] = [
+   'agent', 'agents', 'actor', 'actors', 'swarm', 'inbox', 'log', 'activity',
+   'wallet', 'bond',
+   'session', 'sessions', 'note', 'notes', 'say',
+-  'begin', 'done', 'whoami', 'with-lock', 'learn',
++  'begin', 'done', 'whoami', 'attention', 'with-lock', 'learn',
+   'n', 'u', 'd',
+   'dashboard', 'channels', 'webhook', 'webhooks', 'metrics', 'config', 'health', 'ports',
+   'start', 'stop', 'restart', 'status', 'install', 'uninstall', 'dev', 'daemon', 'ci-gate',
+@@ -2659,6 +2662,10 @@ export async function main(): Promise<void> {
+         await handleWhoami(options);
+         break;
+ 
++      case 'attention':
++        await handleAttention(options);
++        break;
++
+       case 'with-lock':
+         await handleWithLock(positional[0], positional.slice(1), options);
+         break;
+diff --git a/cli/commands/attention.ts b/cli/commands/attention.ts
+new file mode 100644
+index 00000000..23b69386
+--- /dev/null
++++ b/cli/commands/attention.ts
+@@ -0,0 +1,239 @@
++/**
++ * pd attention — single-call aggregator of inbox + subscribed channels
++ *
++ * Convention: run this as the first command of every session (or wire it into
++ * the harness's SessionStart hook). One call returns everything other agents
++ * have queued for you and marks it seen.
++ *
++ * Subcommands / flags:
++ *   pd attention                       fetch + mark-read (default pretty output)
++ *   pd attention --json                machine-readable, stable schema
++ *   pd attention --peek                fetch without marking read
++ *   pd attention --limit N             cap items (default 50, max 500)
++ *   pd attention --subscribe <ch>      register a channel to watch
++ *   pd attention --unsubscribe <ch>    remove a subscription
++ *   pd attention --subscriptions       list current subscriptions
++ *
++ * Identity resolution: --agent <id> > $PD_AGENT_ID > .portdaddy/current.json
++ * If no identity is resolvable, the command errors instead of silently
++ * fetching nothing.
++ */
++
++import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
++import { CLIOptions, isQuiet, isJson } from '../types.js';
++import { readCurrentContext } from '../utils/current-context.js';
++import type { PdFetchResponse } from '../utils/fetch.js';
++import * as ui from '../utils/ui.js';
++
++interface AttentionItem {
++  source: 'inbox' | 'channel';
++  id: string;
++  agentId: string;
++  from: string | null;
++  channel: string | null;
++  type: string | null;
++  content: unknown;
++  contentType: string;
++  receivedAt: number;
++}
++
++interface AttentionSummary {
++  success: boolean;
++  agentId?: string;
++  items?: AttentionItem[];
++  counts?: {
++    total: number;
++    inbox: number;
++    channels: number;
++    inboxUnreadRemaining: number;
++  };
++  subscriptions?: string[];
++  peek?: boolean;
++  generatedAt?: number;
++  error?: string;
++  code?: string;
++}
++
++function resolveAgentId(options: CLIOptions): string | null {
++  const explicit = typeof options.agent === 'string' ? options.agent.trim() : '';
++  if (explicit) return explicit;
++  const env = (process.env.PD_AGENT_ID || '').trim();
++  if (env) return env;
++  const ctx = readCurrentContext();
++  if (ctx && typeof ctx.agentId === 'string' && ctx.agentId.trim()) return ctx.agentId.trim();
++  return null;
++}
++
++function formatRelative(ms: number, now: number): string {
++  const delta = Math.max(0, now - ms);
++  if (delta < 60_000) return `${Math.floor(delta / 1000)}s`;
++  if (delta < 3_600_000) return `${Math.floor(delta / 60_000)}m`;
++  if (delta < 86_400_000) return `${Math.floor(delta / 3_600_000)}h`;
++  return `${Math.floor(delta / 86_400_000)}d`;
++}
++
++function renderContent(content: unknown, contentType: string): string {
++  if (content === null || content === undefined) return '';
++  if (typeof content === 'string') return content;
++  if (contentType === 'json' || typeof content === 'object') {
++    try {
++      return JSON.stringify(content);
++    } catch {
++      return String(content);
++    }
++  }
++  return String(content);
++}
++
++function printPretty(summary: AttentionSummary): void {
++  if (!summary.success) {
++    ui.error(summary.error || 'attention fetch failed');
++    process.exit(1);
++  }
++  const items = summary.items || [];
++  const counts = summary.counts || { total: 0, inbox: 0, channels: 0, inboxUnreadRemaining: 0 };
++  const subs = summary.subscriptions || [];
++  const now = Date.now();
++
++  if (items.length === 0) {
++    console.log('Nothing new.');
++    if (subs.length > 0) {
++      console.log(`  Subscribed: ${subs.join(', ')}`);
++    } else {
++      console.log('  (no channel subscriptions — try `pd attention --subscribe <channel>`)');
++    }
++    if (counts.inboxUnreadRemaining > 0) {
++      console.log(`  ${counts.inboxUnreadRemaining} inbox message(s) remaining beyond fetch limit`);
++    }
++    return;
++  }
++
++  const banner = summary.peek
++    ? `${counts.total} item(s) waiting (peek — NOT marked read)`
++    : `${counts.total} item(s) (now marked read)`;
++  console.log(banner);
++  console.log('');
++
++  for (const item of items) {
++    const age = formatRelative(item.receivedAt, now);
++    const origin = item.source === 'inbox'
++      ? `inbox ← ${item.from || 'unknown'}`
++      : `channel ${item.channel}${item.from ? ` ← ${item.from}` : ''}`;
++    const meta = item.type ? `[${item.type}] ` : '';
++    const body = renderContent(item.content, item.contentType);
++    console.log(`  • ${age.padStart(4)}  ${origin}`);
++    console.log(`         ${meta}${body}`);
++  }
++
++  console.log('');
++  console.log(`Counts: inbox=${counts.inbox}  channels=${counts.channels}` + (counts.inboxUnreadRemaining > 0 ? `  inbox-remaining=${counts.inboxUnreadRemaining}` : ''));
++  if (subs.length > 0) {
++    console.log(`Subscribed: ${subs.join(', ')}`);
++  }
++}
++
++async function handleSubscribe(agentId: string, channel: string, options: CLIOptions): Promise<void> {
++  const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/attention/subscribe`, {
++    method: 'POST',
++    headers: { 'Content-Type': 'application/json' },
++    body: JSON.stringify({ agentId, channel }),
++  });
++  const data = (await res.json()) as { success: boolean; subscribed?: boolean; error?: string };
++  if (!res.ok || !data.success) {
++    ui.error(data.error || 'subscribe failed');
++    process.exit(1);
++  }
++  if (isJson(options)) {
++    console.log(JSON.stringify(data, null, 2));
++    return;
++  }
++  if (!isQuiet(options)) {
++    if (data.subscribed) {
++      ui.success(`Subscribed ${agentId} to ${channel}`);
++    } else {
++      console.log(`Already subscribed: ${agentId} -> ${channel}`);
++    }
++  }
++}
++
++async function handleUnsubscribe(agentId: string, channel: string, options: CLIOptions): Promise<void> {
++  const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/attention/unsubscribe`, {
++    method: 'POST',
++    headers: { 'Content-Type': 'application/json' },
++    body: JSON.stringify({ agentId, channel }),
++  });
++  const data = (await res.json()) as { success: boolean; removed?: boolean; error?: string };
++  if (!res.ok || !data.success) {
++    ui.error(data.error || 'unsubscribe failed');
++    process.exit(1);
++  }
++  if (isJson(options)) {
++    console.log(JSON.stringify(data, null, 2));
++    return;
++  }
++  if (!isQuiet(options)) {
++    if (data.removed) {
++      ui.success(`Unsubscribed ${agentId} from ${channel}`);
++    } else {
++      console.log(`Not subscribed: ${agentId} -> ${channel}`);
++    }
++  }
++}
++
++async function handleListSubscriptions(agentId: string, options: CLIOptions): Promise<void> {
++  const params = new URLSearchParams({ agentId });
++  const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/attention/subscriptions?${params}`);
++  const data = (await res.json()) as { success: boolean; agentId?: string; channels?: string[]; error?: string };
++  if (!res.ok || !data.success) {
++    ui.error(data.error || 'failed to list subscriptions');
++    process.exit(1);
++  }
++  if (isJson(options)) {
++    console.log(JSON.stringify(data, null, 2));
++    return;
++  }
++  const channels = data.channels || [];
++  if (channels.length === 0) {
++    console.log(`No subscriptions for ${agentId}`);
++  } else {
++    console.log(`Subscriptions for ${agentId}:`);
++    for (const ch of channels) console.log(`  - ${ch}`);
++  }
++}
++
++export async function handleAttention(options: CLIOptions): Promise<void> {
++  const agentId = resolveAgentId(options);
+
+... [871 more lines truncated]

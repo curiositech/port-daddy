@@ -1,0 +1,324 @@
+STATS:
+ cli/commands/popper.ts                    |  93 +++++++++++++++
+ docs/operator/roadmap-popper.md           |  92 +++++++++++++++
+ lib/roadmap-popper.ts                     | 185 ++++++++++++++++++++++++++++++
+ migrations/004_roadmap_popper_columns.sql |  21 ++++
+ routes/index.ts                           |   7 ++
+ routes/popper.ts                          |  85 ++++++++++++++
+ tests/unit/roadmap-popper.test.js         |  41 +++++++
+ 7 files changed, 524 insertions(+)
+
+---
+LAST COMMIT:
+3b094012c8a49956be1be0c0d2c50dabce832b95
+Erich Owens <erich.owens@gmail.com>
+2026-05-22 11:19:30 -0700
+feat(popper): HTTP routes for /popper over the popper library
+
+Four endpoints: GET /popper/status, GET /popper/next, POST /popper/pop, POST /popper/eligibility. Operator-facing surface the pd popper CLI hits and FleetBar's Nightshift status banner reads. Conditional registration on deps.popper so the daemon doesn't 500 if not wired.
+
+
+---
+DIFF (first 300 lines):
+diff --git a/cli/commands/popper.ts b/cli/commands/popper.ts
+new file mode 100644
+index 00000000..7ffa2f39
+--- /dev/null
++++ b/cli/commands/popper.ts
+@@ -0,0 +1,93 @@
++/**
++ * `pd popper` — autonomous roadmap task puller.
++ *
++ * Subcommands:
++ *   pd popper status       — counts + next candidate + pause flag
++ *   pd popper next         — show what would pop next (dry-run, no side effects)
++ *   pd popper pop          — pop one item now (operator override)
++ *   pd popper enable <slug>  — set nightshift_eligible=1 on a roadmap item
++ *   pd popper disable <slug> — set nightshift_eligible=0
++ *
++ * Daemon-side wiring of the dispatchProposer happens in lib/server.ts; here
++ * we just shape the CLI surface. The popper itself ships in lib/roadmap-popper.ts.
++ */
++
++import type { PortDaddyClient } from '../../lib/client.js';
++
++export interface PopperCommandDeps {
++  client: PortDaddyClient;
++}
++
++export async function runPopperCommand(
++  args: string[],
++  deps: PopperCommandDeps,
++): Promise<void> {
++  const sub = args[0];
++  switch (sub) {
++    case 'status': {
++      const r = await deps.client.request('/popper/status');
++      console.log(`Eligible items   : ${r.eligibleCount}`);
++      console.log(`Popped this run  : ${r.poppedCount}`);
++      console.log(`Paused           : ${r.pausedByFlag ? 'yes (~/.pd/popper-disabled present)' : 'no'}`);
++      if (r.nextCandidate) {
++        console.log(`Next candidate   : ${r.nextCandidate.slug} (${r.nextCandidate.id})`);
++        console.log(`  summary        : ${r.nextCandidate.summary_md.slice(0, 80)}…`);
++      } else {
++        console.log('Next candidate   : (none eligible)');
++      }
++      return;
++    }
++    case 'next': {
++      const r = await deps.client.request('/popper/next');
++      if (!r.candidate) {
++        console.log('No eligible candidates. Tag items with `pd popper enable <slug>`.');
++        return;
++      }
++      console.log(`Next would pop : ${r.candidate.slug} (${r.candidate.id})`);
++      console.log(`  summary      : ${r.candidate.summary_md}`);
++      console.log(`  last touched : ${new Date(r.candidate.last_touched_at).toISOString()}`);
++      console.log(`  harbor       : ${r.candidate.harbor}`);
++      console.log('Dry-run only. Use `pd popper pop` to actually fire a dispatch.');
++      return;
++    }
++    case 'pop': {
++      const r = await deps.client.request('/popper/pop', { method: 'POST' });
++      if (!r.popped) {
++        console.log('Nothing to pop.');
++        return;
++      }
++      console.log(`Popped: ${r.popped.itemSlug} → dispatch ${r.popped.dispatchId}`);
++      console.log(`Watch progress with: pd dispatch show ${r.popped.dispatchId}`);
++      return;
++    }
++    case 'enable':
++    case 'disable': {
++      const slug = args[1];
++      if (!slug) {
++        console.error(`Usage: pd popper ${sub} <slug>`);
++        process.exit(2);
++      }
++      const r = await deps.client.request('/popper/eligibility', {
++        method: 'POST',
++        body: { slug, eligible: sub === 'enable' },
++      });
++      if (!r.ok) {
++        console.error(`Failed: ${r.error}`);
++        process.exit(1);
++      }
++      console.log(`${sub === 'enable' ? 'Enabled' : 'Disabled'} popper eligibility on ${slug}.`);
++      return;
++    }
++    default:
++      console.log(
++        'Usage: pd popper <status|next|pop|enable|disable> [args]\n' +
++          '\n' +
++          '  status              counts + next candidate + pause flag\n' +
++          '  next                show what would pop next (dry-run)\n' +
++          '  pop                 pop one item now (operator override)\n' +
++          '  enable <slug>       mark a roadmap item nightshift-eligible\n' +
++          '  disable <slug>      remove nightshift-eligible from a roadmap item\n',
++      );
++      process.exit(sub ? 2 : 0);
++  }
++}
+diff --git a/docs/operator/roadmap-popper.md b/docs/operator/roadmap-popper.md
+new file mode 100644
+index 00000000..2e26469b
+--- /dev/null
++++ b/docs/operator/roadmap-popper.md
+@@ -0,0 +1,92 @@
++# Roadmap-popper
++
++The popper is the bridge between the operator's curated roadmap and the autonomous nightshift dispatch queue. Tag a roadmap item as nightshift-eligible; the popper hands it to the dispatch runner on its next tick.
++
++## Mental model
++
++```
++roadmap_items (status='backlog', nightshift_eligible=1, no dispatch yet)
++     │
++     ▼   popper picks the most-recent, dependency-satisfied row
++     │
++     ├──> pd dispatch propose <summary> --roadmap-item-id=<id>
++     │
++     ▼   the dispatch row enters the runner's queue
++     │
++     │   (nightshift runner spawns claude-code in a fresh worktree, etc.)
++     │
++     ▼   on completion the dispatch state machine carries on
++```
++
++## CLI
++
++```
++pd popper status              counts + next candidate
++pd popper next                what would pop next (dry-run)
++pd popper pop                 pop one now (operator override)
++pd popper enable <slug>       opt a roadmap item into nightshift
++pd popper disable <slug>      opt out
++```
++
++## Configuration
++
++Two knobs:
++
++1. **`nightshift_eligible` on the roadmap row.** Default `0`. Toggle via `pd popper enable <slug>`. Items stay invisible to the popper until you opt them in.
++2. **Fleet cron schedule.** In `pd-fleet.yml`:
++   ```yaml
++   popper:
++     trigger: cron
++     schedule: "0 */4 * * *"     # every 4 hours
++     body: lib/roadmap-popper.ts
++     daily_cap_usd: 0.50         # bounds the popper itself, not the dispatches it creates
++   ```
++   The dispatches the popper creates have their own per-spawn caps (see `pd dispatch propose --cost-cap`).
++
++## Eligibility rules
++
++A row is eligible iff ALL of these hold:
++
++- `nightshift_eligible = 1`
++- `status = 'backlog'`
++- `dispatch_id IS NULL` (never popped before)
++- every slug in `dependencies_json` exists at `status = 'done'`
++
++The most-recent (highest `last_touched_at`) eligible row wins. Ties break by slug alphabetical.
++
++## Pause
++
++Two ways to pause:
++
++- **Temporary** — stop the fleet ship: `pd fleet down --ship popper`.
++- **Hard stop** — create `~/.pd/popper-disabled`; the popper refuses to start until you remove the flag file. Survives daemon restart.
++
++## How items become eligible
++
++Three sources today:
++
++1. **Manual** — operator runs `pd popper enable <slug>` after deciding a backlog item is autonomous-safe.
++2. **Cartographer ingestion** — when adding a chad to `docs/recovery/CURRENT-WORK.md`, tag it `[autonomous-eligible]` in the heading; the cartographer ingester (PR #166 / #170 conventions) writes `nightshift_eligible=1` on the resulting roadmap row.
++3. **GitHub label** — a future iteration: a `pd-fleet:nightshift-eligible` label on an issue auto-marks the row.
++
++## What the popper will never do
++
++- Touch a row with `nightshift_eligible = 0`
++- Pop the same item twice (the `dispatch_id IS NOT NULL` gate)
++- Bypass the dispatch state machine (it only writes `state='proposed'` rows)
++- Spawn work itself — that's the runner's job
++- Merge or accept — those are harbormaster's and operator's jobs
++- Touch any roadmap item whose dependencies are still in flight
++
++## Failure modes
++
++| Symptom | Cause | Fix |
++|---|---|---|
++| `pd popper next` returns nothing despite eligible-looking items | Dependencies unsatisfied — check `dependencies_json` | Mark deps done, or remove the dep edge |
++| Popped item never makes progress | Dispatch runner not running, or backend unavailable | `pd fleet status` and `pd backend list` |
++| Two pops of the same item | Race lost — the `dispatch_id IS NULL` guard kicked in; orphan dispatch will be reaped by teardown_state reconciler | Nothing to do; reconciler handles it |
++| Popper firing too fast | Lower the cron rate in pd-fleet.yml or `pd fleet down --ship popper` | |
++
++## Coordination with harbormaster
++
++The popper produces dispatches. The harbormaster consumes dispatches that reach `state='accepted'`. They share the dispatch state machine but never touch each other's writes — the popper writes `state='proposed'`, the runner walks it forward, the operator's `pd review --accept` flips it to `accepted`, and harbormaster takes over from there.
+diff --git a/lib/roadmap-popper.ts b/lib/roadmap-popper.ts
+new file mode 100644
+index 00000000..11653773
+--- /dev/null
++++ b/lib/roadmap-popper.ts
+@@ -0,0 +1,185 @@
++/**
++ * Roadmap-popper — autonomous task puller.
++ *
++ * The operator tags roadmap items `nightshift_eligible=1`. The popper picks
++ * the next one (by status='backlog', no dispatch yet, dependencies satisfied),
++ * hands it to the dispatch queue (lib/dispatch/queue.ts on PR #143/#163), and
++ * stamps the dispatch id back on the roadmap row.
++ *
++ * Discipline: the popper is a PRODUCER of dispatch.state='proposed' rows.
++ * It never spawns work itself, never bypasses the dispatch state machine,
++ * never auto-merges. The downstream chain (runner → adversarial review →
++ * harbormaster) carries the work the rest of the way.
++ *
++ * Safety properties:
++ *   - Only items explicitly opted-in via nightshift_eligible=1 are touched.
++ *   - Items with unmet dependencies are skipped (dependencies_json is read).
++ *   - Same item is never popped twice (dispatch_id IS NOT NULL gate).
++ *   - daily_cap_usd lives on the dispatched ship, not the popper itself.
++ *
++ * Wiring: in production the daemon supplies a `dispatchProposer` that calls
++ * lib/dispatch/queue.ts. In tests we inject a mock. Same factory pattern as
++ * createSpawner / createSugar in lib/.
++ */
++
++import type { Database } from 'better-sqlite3';
++
++export interface RoadmapItemRow {
++  id: string;
++  slug: string;
++  summary_md: string;
++  status: 'now' | 'backlog' | 'parked' | 'merge' | 'done';
++  nightshift_eligible: 0 | 1;
++  dispatch_id: string | null;
++  dependencies_json: string;
++  last_touched_at: number;
++  harbor: string;
++  created_at: number;
++}
++
++export interface PopperDeps {
++  /** SQLite handle (better-sqlite3). */
++  db: Database;
++  /** Called with the roadmap-item text → returns the new dispatch id. */
++  dispatchProposer: (input: {
++    goal: string;
++    roadmapItemId: string;
++    requestedBy: string;
++  }) => Promise<{ dispatchId: string }>;
++  /** Identity the popper records on the dispatch. Defaults to 'roadmap-popper'. */
++  popperIdentity?: string;
++  /** Logger; defaults to console.log. */
++  log?: (msg: string, ...rest: unknown[]) => void;
++}
++
++export interface PoppedResult {
++  itemId: string;
++  itemSlug: string;
++  dispatchId: string;
++}
++
++export interface PopperStatus {
++  eligibleCount: number;
++  poppedCount: number;
++  nextCandidate: RoadmapItemRow | null;
++  pausedByFlag: boolean;
++}
++
++export function createRoadmapPopper(deps: PopperDeps) {
++  const db = deps.db;
++  const log = deps.log ?? ((msg: string, ...rest: unknown[]) => console.log(`[popper] ${msg}`, ...rest));
++  const popperIdentity = deps.popperIdentity ?? 'roadmap-popper';
++
++  /**
++   * Return the next item the popper would pop, without actually popping.
++   * Useful for dry-runs and the `pd popper next` CLI command.
++   */
++  function nextCandidate(harbor?: string): RoadmapItemRow | null {
++    const stmt = harbor
++      ? db.prepare(`SELECT * FROM roadmap_items
++                    WHERE nightshift_eligible = 1
++                      AND status = 'backlog'
++                      AND dispatch_id IS NULL
++                      AND harbor = ?
++                    ORDER BY last_touched_at DESC`)
++      : db.prepare(`SELECT * FROM roadmap_items
++                    WHERE nightshift_eligible = 1
++                      AND status = 'backlog'
++                      AND dispatch_id IS NULL
++                    ORDER BY last_touched_at DESC`);
++    const rows = (harbor ? stmt.all(harbor) : stmt.all()) as RoadmapItemRow[];
++    // Filter by dependency satisfaction: skip items whose deps are not all 'done'.
++    for (const row of rows) {
++      if (dependenciesSatisfied(row)) return row;
++    }
++    return null;
++  }
++
+
+... [277 more lines truncated]

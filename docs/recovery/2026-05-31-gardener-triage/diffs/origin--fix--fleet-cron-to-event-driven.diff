@@ -1,0 +1,52 @@
+STATS:
+ pd-fleet.yml | 19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)
+
+---
+LAST COMMIT:
+c76e4de609664bae7aae326ba73aae89d623910c
+Erich Owens <erich.owens@gmail.com>
+2026-05-19 05:39:11 -0700
+Merge remote-tracking branch 'origin/main' into fix/fleet-cron-to-event-driven
+
+
+
+---
+DIFF (first 300 lines):
+diff --git a/pd-fleet.yml b/pd-fleet.yml
+index b5c6a588..7058e724 100644
+--- a/pd-fleet.yml
++++ b/pd-fleet.yml
+@@ -24,7 +24,13 @@ fleet:
+ 
+   agents:
+     gardener:
+-      schedule: "*/10 * * * *"
++      # Event-driven, not cron: gardener only matters after a commit
++      # changes the tree. Cron every 10min meant 144 fires/day on an
++      # idle repo — pure noise even at zero LLM cost. Now fires at most
++      # once per 30min, only when there's a commit to react to.
++      trigger: git:committed
++      cooldown_ms: 1800000
++      dedupe_window_ms: 1800000
+       backend: custom
+       singleton: true
+       prompt: "git status --porcelain"
+@@ -358,7 +364,16 @@ fleet:
+       telos: "Keep the roadmap, recovery queue, and live work map aligned."
+ 
+     spark:
+-      schedule: "*/30 * * * *"
++      # Event-driven, not cron: ideation is correlated with new code
++      # landing or new spider connections, not with wall-clock minutes.
++      # Cron every 30min meant 48 LLM calls/day on an idle repo, and the
++      # operator (rightly) called this "fires every 30 minutes god these
++      # rules are stupid... what if there's no agents doing anything?"
++      # 2hr cooldown means spark fires at most 12 times/day even on a
++      # commit-heavy day, and zero times when nothing's happening.
++      trigger: git:committed
++      cooldown_ms: 7200000
++      dedupe_window_ms: 7200000
+       backend: cloudflare
+       model: '@cf/moonshotai/kimi-k2.6'
+       singleton: true

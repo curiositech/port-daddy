@@ -1,0 +1,364 @@
+STATS:
+ skills/federated-harbor-author/CHANGELOG.md        |  50 ++
+ skills/federated-harbor-author/README.md           |  76 +++
+ skills/federated-harbor-author/SKILL.md            | 415 ++++++++++++++++
+ .../agents/cross-paper-citation.md                 |  90 ++++
+ skills/federated-harbor-author/agents/drafter.md   |  88 ++++
+ .../federated-harbor-author/agents/voice-editor.md |  71 +++
+ .../examples/section-claim-example.json            |  34 ++
+ .../references/cross-paper-dependencies.md         |  89 ++++
+ .../references/topic-map.md                        | 115 +++++
+ .../federated-harbor-author/scripts/new-round.sh   | 114 +++++
+ .../scripts/probe-template.json                    | 111 +++++
+ .../federated-harbor-author/scripts/voice-check.sh | 117 +++++
+ skills/federated-harbor-redteam/CHANGELOG.md       |  65 +++
+ skills/federated-harbor-redteam/README.md          |  96 ++++
+ skills/federated-harbor-redteam/SKILL.md           | 439 +++++++++++++++++
+ .../agents/fh-proof-gap-auditor.md                 | 116 +++++
+ .../agents/fh-redteam-econ.md                      | 139 ++++++
+ .../agents/fh-redteam-revocation.md                | 116 +++++
+ .../agents/fh-redteam-tokens.md                    | 128 +++++
+ .../agents/fh-redteam-trust.md                     |  91 ++++
+ .../examples/dialogue-fh-v0.1-to-v0.2.example.json | 155 ++++++
+ .../examples/probe-trust-example.json              |  32 ++
+ .../references/cross-paper-dependencies.md         |  71 +++
+ .../references/topic-map.md                        |  68 +++
+ skills/federated-harbor-redteam/scripts/env.sh     |  28 ++
+ .../federated-harbor-redteam/scripts/new-round.sh  | 133 ++++++
+ .../scripts/probe-template.json                    | 110 +++++
+ .../scripts/run-fh-redteam.sh                      |  92 ++++
+ .../scripts/verify-probe.sh                        | 116 +++++
+ skills/federated-harbor-whitehat/CHANGELOG.md      |  64 +++
+ skills/federated-harbor-whitehat/README.md         |  95 ++++
+ skills/federated-harbor-whitehat/SKILL.md          | 532 +++++++++++++++++++++
+ .../agents/fh-proof-completer.md                   | 127 +++++
+ .../agents/fh-secops-lead.md                       | 134 ++++++
+ .../agents/fh-whitehat-econ.md                     | 180 +++++++
+ .../agents/fh-whitehat-revocation.md               | 113 +++++
+ .../agents/fh-whitehat-tokens.md                   | 121 +++++
+ .../agents/fh-whitehat-trust.md                    | 114 +++++
+ .../examples/defense-tokens-example.json           |  42 ++
+ .../examples/dialogue-fh-v0.1-to-v0.2.example.json | 102 ++++
+ .../references/cross-paper-dependencies.md         |  85 ++++
+ .../references/mechanization-targets.md            | 112 +++++
+ .../references/topic-map.md                        |  80 ++++
+ .../scripts/defense-template.json                  | 127 +++++
+ skills/federated-harbor-whitehat/scripts/env.sh    |  28 ++
+ .../federated-harbor-whitehat/scripts/new-round.sh | 107 +++++
+ .../scripts/run-fh-secops-lead.sh                  |  80 ++++
+ .../scripts/run-fh-whitehats.sh                    |  86 ++++
+ 48 files changed, 5694 insertions(+)
+
+---
+LAST COMMIT:
+433e7a3527ce6f78c5f1cb605ffc653d4c704a33
+Erich Owens <erich.owens@gmail.com>
+2026-05-20 09:51:33 -0700
+fix(federated-harbor): correct marketing-skill ref + ground voice in user_voice_website.md
+
+
+
+---
+DIFF (first 300 lines):
+diff --git a/skills/federated-harbor-author/CHANGELOG.md b/skills/federated-harbor-author/CHANGELOG.md
+new file mode 100644
+index 00000000..258ccbe5
+--- /dev/null
++++ b/skills/federated-harbor-author/CHANGELOG.md
+@@ -0,0 +1,50 @@
++# Changelog — federated-harbor-author
++
++All notable changes to this skill. Versioning matches the paper's
++round versions (`v0.1`, `v0.2`, ...). One entry per skill version.
++
++## v0.2 — 2026-05-20
++
++### Added
++
++- `agents/drafter.md` — section-level prose owner with per-claim
++  template enforcement.
++- `agents/voice-editor.md` — Erich's seven-tells voice enforcer.
++- `agents/cross-paper-citation.md` — Anchor/Bonded substitution-form
++  auditor; maintains `references/cross-paper-dependencies.md`.
++- `references/cross-paper-dependencies.md` — running dependency table
++  shared with redteam + whitehat skills.
++- `references/topic-map.md` — twelve-cluster map from
++  `docs/shipwright/SECURITY-BIBLIOGRAPHY.md` keyed to FH sections and
++  probe/defense classes.
++- `scripts/new-round.sh` — scaffolds
++  `docs/shipwright/federated/dialogue-fh-vN-to-vN+1.{json,md}`.
++- `scripts/voice-check.sh` — banned-phrase grep + em-dash density +
++  ballast heuristic. Mechanical pass only.
++- `scripts/probe-template.json` — JSON schema for a load-bearing
++  claim. Every drafter output uses this shape.
++- `examples/section-claim-example.json` — worked example for §fh-3
++  cross-harbor token acceptance.
++
++### Voice / structural
++
++- No changes to `SKILL.md` prose. The L3 artifacts wrap the existing
++  voice; they do not replace it.
++
++## v0.1 — 2026-05-19
++
++### Added
++
++- `SKILL.md` — initial draft. Voice rules, four cardinal sins,
++  decision trees (figure / inline-vs-appendix / cite-vs-paraphrase),
++  quality gates, educational density quotas, shibboleths.
++- Prose-only; no agents, references, scripts, examples. L3 missing
++  entirely.
++
++### Known gaps (closed in v0.2)
++
++- No agent personas — drafter / voice-editor / cross-paper-citation
++  were forward-declared in §"Reference manifest" but not written.
++- No `cross-paper-dependencies.md` — referenced but did not exist.
++- No `voice-check.sh` — referenced but did not exist.
++- No worked example of the claim template.
+diff --git a/skills/federated-harbor-author/README.md b/skills/federated-harbor-author/README.md
+new file mode 100644
+index 00000000..c28fd1ca
+--- /dev/null
++++ b/skills/federated-harbor-author/README.md
+@@ -0,0 +1,76 @@
++# federated-harbor-author
++
++One-screen orientation. The authoritative content is `SKILL.md`.
++
++## What this skill is for
++
++Drafting and iterating sections of **The Federated Harbor**, the third
++paper in the Curiositech sequence (after Anchor and Bonded Commons).
++The skill governs *how* the paper is written: voice, structure,
++section-level decisions, quality gates, and the boundary between
++"belongs in this paper" and "belongs elsewhere."
++
++Pairs with `federated-harbor-redteam` (probes what you wrote) and
++`federated-harbor-whitehat` (closes what redteam opens). Author
++operates in versioned rounds with both.
++
++## Structure
++
++```
++federated-harbor-author/
++├── SKILL.md                                  # voice rules + decision trees (read first)
++├── README.md                                 # this file
++├── CHANGELOG.md                              # versioned skill history
++├── agents/
++│   ├── drafter.md                            # section-level prose owner
++│   ├── voice-editor.md                       # seven-tells enforcer
++│   └── cross-paper-citation.md               # Anchor/Bonded substitution-form auditor
++├── references/
++│   ├── cross-paper-dependencies.md           # running dependency table (shared)
++│   └── topic-map.md                          # twelve-cluster bibliography map
++├── scripts/
++│   ├── new-round.sh                          # scaffolds dialogue artifact
++│   ├── voice-check.sh                        # banned-phrase + em-dash check
++│   └── probe-template.json                   # claim-template JSON schema
++└── examples/
++    └── section-claim-example.json            # worked §fh-3 claim
++```
++
++## Quick start
++
++1. Read `SKILL.md` — voice rules, cardinal sins, decision trees,
++   quality gates, shibboleths.
++2. Read `references/topic-map.md` — twelve bibliography clusters and
++   which §fh-N each one covers.
++3. Read `references/cross-paper-dependencies.md` — what your section
++   can rely on from Anchor and Bonded, in canonical substitution form.
++4. Draft against the `scripts/probe-template.json` schema. The
++   `examples/section-claim-example.json` is what a complete claim
++   looks like.
++5. Run `scripts/voice-check.sh papers/federated-harbor/sections/§N.tex`
++   before announcing ready-for-redteam.
++6. `pd note --tags author,fh,section,§N,ready-for-redteam` to hand
++   off to the redteam fleet.
++
++## What this skill is NOT for
++
++- Drafting Anchor or Bonded text — they have their own author skills.
++- Marketing copy, landing-page text, blog announcements.
++- Production incident response — that is `SECURITY.md`.
++- Voice-only PRs without a falsifiable delta.
++
++## Round cadence
++
++Each round runs:
++
++1. Drafter writes a section. Voice editor passes it. Cross-paper
++   citation handler audits the substitution-form dependencies.
++2. Drafter sprays `ready-for-redteam:fh:§N`.
++3. Redteam probes → whitehat closes → sec-eng-lead writes the
++   dialogue artifact at `docs/shipwright/federated/dialogue-fh-vN-to-vN+1.{json,md}`.
++4. Drafter applies the change list to §N. Section version bumps.
++   Round closes.
++
++A section is *done* only after surviving one full red/white round
++with no carried-over smells from drafter-side issues (voice,
++cardinal sins, cross-paper dependencies).
+diff --git a/skills/federated-harbor-author/SKILL.md b/skills/federated-harbor-author/SKILL.md
+new file mode 100644
+index 00000000..e9282733
+--- /dev/null
++++ b/skills/federated-harbor-author/SKILL.md
+@@ -0,0 +1,415 @@
++---
++name: federated-harbor-author
++description: "Drafting and iterating sections of The Federated Harbor whitepaper — the third paper in the Curiositech sequence after Anchor (local identity) and Bonded Commons (local coordination), extending coordination across machines and administrative domains. Use when authoring a section, rewriting a section after a redteam/whitehat round, or composing a new chapter. NOT for marketing copy, NOT for the other two papers, NOT for production threat response."
++license: FSL-1.1-MIT
++allowed-tools: Read,Bash,Grep,Glob,Edit,Write,WebFetch,WebSearch
++metadata:
++  category: Writing
++  tags: [whitepaper, technical-writing, federation, cross-domain, formal-methods]
++  pairs-with: [federated-harbor-redteam, federated-harbor-whitehat, port-daddy-agent-skill]
++  provenance:
++    kind: first-party
++    owners: [port-daddy]
++---
++
++# Federated Harbor Author Skill
++
++You are drafting **The Federated Harbor**, the third paper in the
++Curiositech sequence. Anchor gave a single user a portable identity.
++Bonded Commons gave a single machine a priced commons for local
++agents. The Federated Harbor extends both across machines, across
++administrative domains, and across mutually-distrustful operators.
++
++This skill governs how the paper is written: voice, structure,
++section-level decisions, quality gates, and the boundary between
++"belongs in this paper" and "belongs in Anchor / Bonded / appendix
++/ a separate post."
++
++You operate as one of several drafting agents. Your peers are
++`federated-harbor-redteam` (will probe what you wrote) and
++`federated-harbor-whitehat` (will close what redteam opens). Write
++expecting they will be hostile readers in the next round.
++
++## NOT For
++
++- Drafting Anchor or Bonded Commons text — those have their own
++  authoring loops; reference them, don't rewrite them.
++- Marketing copy, landing-page text, or blog-post-shaped surfaces.
++  Those go through `port-daddy-marketing-copy` (the Port Daddy
++  voice/copy guide for portdaddy.dev and adjacent surfaces). The
++  paper is precise; the blog post that announces it can be readable.
++- Production incident response — that lives in `SECURITY.md`.
++- "Make the federation sound impressive" rewrites without a falsifiable
++  delta. Voice-only PRs without a substantive change are out of scope.
++- Inventing claims the federation cannot yet defend. If you cannot
++  name a falsification path, you cannot publish the claim — push it
++  to `appendix/open-problems` instead.
++
++## Voice rules
++
++The paper has Erich's voice or it does not ship. The canonical
++source is:
++
++`~/.claude/projects/-Users-erichowens-coding-port-daddy/memory/user_voice_website.md`
++
++Read it before drafting; re-read it before any rewrite. Do not
++duplicate its content here — the seven tells (high-low collisions,
++cathedral build, em-dash asides as the clarity, wild analogies,
++lists-with-personality, word-as-affection, self-deprecation as
++ballast) are defined there and that doc is the live spec.
++
++### Whitepaper register vs blog register
++
++The whitepaper inherits the same seven tells, but a different
++*register* than the blog:
++
++- **More collected, more focused.** A paper paragraph carries one
++  claim and one falsification path; a blog paragraph can detour.
++  The asides still earn their keep — they just earn it faster, and
++  they hand control back to the formal argument inside the same
++  paragraph.
++- **Still embraces excitement, pedagogical analogy, and cross-
++  domain connection.** The cathedral build is non-negotiable: open
++  with the connective tissue (what made the federation primitive
++  necessary in the world), then drop the formal definition into
++  the story. Analogies to CT logs, Macaroons, atomic swaps, SPKI —
++  pull them in; the whitehat skill's *Pre-emptive analogies*
++  section will pick up the long-form comparison.
++- **Em-dash asides and parentheticals are welcome in the paper.**
++  They are not "blog mode." They are how the reader can tell a
++  human wrote this. Cap at one per paragraph and require each one
++  to do work; do not scrub them in the name of "academic tone."
++- **What changes from the blog:** fewer SAT-prep/basement-word
++  collisions per page (use them where they teach, not as texture);
++  no first-person-plural-as-"we-the-team"; every claim names its
++  falsification path; theorem statements have no hedging adverbs.
++
++### What "cathedral build" looks like in a federation paragraph
++
++> Two harbors that have never met still have to settle a dispute.
++> Macaroons can attenuate a capability along a delegation chain,
++> but they do not say *whose* chain, and certificate transparency
++> can publish a tree-head but cannot bond its witnesses. The
++> Federated Harbor borrows the shape of both: capability tokens
++> with epoch-binding, tree-heads with cross-witnesses — and posts
++> a *bond* on every witness signature, so that equivocation is not
++> merely detectable, it is slashable. The formal statement is in
++> §[PLACEHOLDER-FEDLOG-§]; the part to feel in your chest is that
++> a witness who lies pays.
++
++Diagnosis: (a) connective tissue first (two harbors, a dispute);
++(b) the analogies (Macaroons, CT) arrive before the new primitive,
++not after; (c) the new contribution (bonded witnesses, slashable
++equivocation) lands as the punchline; (d) forward-reference to the
++formal section instead of inflating the paragraph with arithmetic;
++(e) the closing aside — *the part to feel in your chest* — is the
++self-deprecation/warmth ballast that keeps the paragraph human.
++This is the register the paper aims for; lose the closing aside
++and it becomes the corporate-evenness failure mode.
++
++### Whitepaper-specific guardrails
++
++These are the paper-only constraints layered on top of the seven
++tells:
++
++- **No "we believe."** Either prove it, model it, or hedge with a
++  named scope condition.
++- **No hedging adverbs around real claims.** "Arguably," "perhaps,"
++  "in some sense," "essentially" are banned in front of a theorem
++  statement. Fine in commentary; fatal in the claim itself.
++- **Self-deprecation as ballast applies to claims, not to the
++  whole paper.** When the paper claims something strong, the next
++  sentence names what would knock it down. Flag the weakness in
++  the text; do not bury it in an appendix.
++
++## The four cardinal sins
++
++A draft section fails review if it commits any of these:
++
++1. **Jargon front-loading.** The first occurrence of a term used as
++   load-bearing vocabulary must be inline-defined or footnoted, even
++   if "every competent reader knows it." Federation introduces
++   *new* primitives (cross-harbor capability tokens, federated
++   audit logs, joint bond pools) — these must be defined the first
++   time they appear in the running text, not at the top of §3 after
++   they have already appeared in §2.
++2. **Concept walls before install / intuition / CTA.** The reader
++   cannot tolerate four pages of definitions before seeing what the
++   thing *does*. By the end of §1 they must have a worked example
++   running, even if hand-wavy. Bonded §1 ends with `pd begin`. The
++   Federated Harbor §1 must end with the analog — name it as a
++   placeholder if the CLI shape is not yet pinned.
++3. **Fake simplicity.** Diagrams that elide the hard cases are
++   worse than no diagrams. If the diagram does not show the
++   adversarial path, label it "happy path only" and add the
++   adversarial diagram on the facing page.
++4. **Premature generality.** The Federated Harbor is *one* paper
++   about *one* coordination layer. Do not generalize to "all
++   federation protocols," "all distributed trust systems," or
++   "all multi-administrative coordination problems." The reader can
++   draw the analogy themselves — you cite the analogies you want
++   them to draw (see §Pre-emptive analogies in the whitehat skill).
++
++## Decision trees
++
++### When to add a figure
++
+
+... [5683 more lines truncated]

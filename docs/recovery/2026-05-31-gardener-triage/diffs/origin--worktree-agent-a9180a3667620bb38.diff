@@ -1,0 +1,384 @@
+STATS:
+ assets/ship-avatars/ROSTER.md                      |  87 +++++
+ assets/ship-avatars/augur/avatar-128.png           | Bin 0 -> 23339 bytes
+ assets/ship-avatars/augur/avatar-512.png           | Bin 0 -> 304279 bytes
+ assets/ship-avatars/augur/avatar-64.png            | Bin 0 -> 6967 bytes
+ assets/ship-avatars/cartographer/avatar-128.png    | Bin 0 -> 21919 bytes
+ assets/ship-avatars/cartographer/avatar-512.png    | Bin 0 -> 286991 bytes
+ assets/ship-avatars/cartographer/avatar-64.png     | Bin 0 -> 6779 bytes
+ assets/ship-avatars/code-reviewer/avatar-128.png   | Bin 0 -> 24426 bytes
+ assets/ship-avatars/code-reviewer/avatar-512.png   | Bin 0 -> 329891 bytes
+ assets/ship-avatars/code-reviewer/avatar-64.png    | Bin 0 -> 7123 bytes
+ assets/ship-avatars/documentarian/avatar-128.png   | Bin 0 -> 22228 bytes
+ assets/ship-avatars/documentarian/avatar-512.png   | Bin 0 -> 311100 bytes
+ assets/ship-avatars/documentarian/avatar-64.png    | Bin 0 -> 6854 bytes
+ assets/ship-avatars/gardener/avatar-128.png        | Bin 0 -> 22887 bytes
+ assets/ship-avatars/gardener/avatar-512.png        | Bin 0 -> 311761 bytes
+ assets/ship-avatars/gardener/avatar-64.png         | Bin 0 -> 6929 bytes
+ assets/ship-avatars/qa/avatar-128.png              | Bin 0 -> 21512 bytes
+ assets/ship-avatars/qa/avatar-512.png              | Bin 0 -> 266137 bytes
+ assets/ship-avatars/qa/avatar-64.png               | Bin 0 -> 7036 bytes
+ assets/ship-avatars/red-team/avatar-128.png        | Bin 0 -> 21819 bytes
+ assets/ship-avatars/red-team/avatar-512.png        | Bin 0 -> 346943 bytes
+ assets/ship-avatars/red-team/avatar-64.png         | Bin 0 -> 6674 bytes
+ assets/ship-avatars/simplifier/avatar-128.png      | Bin 0 -> 22376 bytes
+ assets/ship-avatars/simplifier/avatar-512.png      | Bin 0 -> 293571 bytes
+ assets/ship-avatars/simplifier/avatar-64.png       | Bin 0 -> 6949 bytes
+ assets/ship-avatars/spark/avatar-128.png           | Bin 0 -> 21572 bytes
+ assets/ship-avatars/spark/avatar-512.png           | Bin 0 -> 313549 bytes
+ assets/ship-avatars/spark/avatar-64.png            | Bin 0 -> 6346 bytes
+ assets/ship-avatars/spider/avatar-128.png          | Bin 0 -> 20421 bytes
+ assets/ship-avatars/spider/avatar-512.png          | Bin 0 -> 309973 bytes
+ assets/ship-avatars/spider/avatar-64.png           | Bin 0 -> 5653 bytes
+ .../ship-avatars/tautology-sniffer/avatar-128.png  | Bin 0 -> 20805 bytes
+ .../ship-avatars/tautology-sniffer/avatar-512.png  | Bin 0 -> 289424 bytes
+ .../ship-avatars/tautology-sniffer/avatar-64.png   | Bin 0 -> 6346 bytes
+ assets/ship-avatars/tenderfoot/avatar-128.png      | Bin 0 -> 21258 bytes
+ assets/ship-avatars/tenderfoot/avatar-512.png      | Bin 0 -> 307098 bytes
+ assets/ship-avatars/tenderfoot/avatar-64.png       | Bin 0 -> 6335 bytes
+ assets/ship-avatars/test-author/avatar-128.png     | Bin 0 -> 23821 bytes
+ assets/ship-avatars/test-author/avatar-512.png     | Bin 0 -> 303240 bytes
+ assets/ship-avatars/test-author/avatar-64.png      | Bin 0 -> 7550 bytes
+ assets/ship-avatars/test-hunter/avatar-128.png     | Bin 0 -> 27001 bytes
+ assets/ship-avatars/test-hunter/avatar-512.png     | Bin 0 -> 366384 bytes
+ assets/ship-avatars/test-hunter/avatar-64.png      | Bin 0 -> 7768 bytes
+ scripts/ship-avatars/generate_fleet.py             | 386 +++++++++++++++++++++
+ 44 files changed, 473 insertions(+)
+
+---
+LAST COMMIT:
+ec8a0542bfdf23526e52ba7388a32b334adea0d3
+Erich Owens <erich.owens@gmail.com>
+2026-05-20 11:08:32 -0700
+feat(fleet): add 14 ship-avatar personae for bot identity
+
+Generates the visual identity for each of the 14 fleet ships - used as the
+bot user avatar on GitHub PR comments (pd-code-reviewer[bot], etc.) and as
+the chip art in the PD dashboard.
+
+Each ship has three sizes:
+  assets/ship-avatars/<name>/avatar-512.png   GitHub-bot avatar
+  assets/ship-avatars/<name>/avatar-128.png   dashboard chip
+  assets/ship-avatars/<name>/avatar-64.png    inline mention chip
+
+Ships: code-reviewer, red-team, test-author, tautology-sniffer, tenderfoot,
+augur, gardener, qa, test-hunter, documentarian, simplifier, cartographer,
+spark, spider - grouped by family in ROSTER.md.
+
+Style: flat editorial illustration with an architectural-blueprint sensibility,
+strict four-color brand palette (cobalt #003fb8, sage #006b5f, cream #f2eee6,
+ebony #1f1f1f). Each avatar is a character (face + role-prop), not a logo.
+Distinct silhouette at 64px so the avatar tells you who is talking at a glance.
+
+Generated via Nano Banana Pro (gemini-3-pro-image-preview). The runnable
+script is preserved at scripts/ship-avatars/generate_fleet.py so any single
+ship can be regenerated with `python3 scripts/ship-avatars/generate_fleet.py
+--only <name> --force` without disturbing the others.
+
+42 PNGs (14 ships * 3 sizes) + ROSTER.md + generator script.
+
+
+---
+DIFF (first 300 lines):
+diff --git a/assets/ship-avatars/ROSTER.md b/assets/ship-avatars/ROSTER.md
+new file mode 100644
+index 00000000..9d246f56
+--- /dev/null
++++ b/assets/ship-avatars/ROSTER.md
+@@ -0,0 +1,87 @@
++# Fleet Ship Roster
++
++The fourteen ship-avatar personae of the Port Daddy fleet. These are the **faces**
++that appear on GitHub PR comments (`pd-code-reviewer[bot]`, etc.), in the PD
++dashboard, and anywhere a ship speaks.
++
++Visual DNA: cobalt `#003fb8`, deep teal/sage `#006b5f`, cream `#f2eee6`, near-black
++`#1f1f1f`. Style: flat editorial illustration with an architectural-blueprint
++sensibility — confident linework, halftone shading, no painterly rendering. Each
++ship is **a character**, not a logo. When you see all fourteen in a row you can
++tell them apart at thumbnail size.
++
++> Render the avatars below at `./<ship>/avatar-128.png` or `./<ship>/avatar-512.png`.
++> The repo also ships `avatar-64.png` for inline chip / mention use.
++
++## Critical Family — the honest ones
++
++| | Ship | Personality |
++|---|---|---|
++| <img src="./code-reviewer/avatar-128.png" width="96"> | **code-reviewer** | Opinionated senior eng with the operator's priors. Carries the weight of every ADR. |
++| <img src="./red-team/avatar-128.png" width="96"> | **red-team** | The honest adversary. Looks for what could go wrong. Civil but not cuddly. |
++| <img src="./tautology-sniffer/avatar-128.png" width="96"> | **tautology-sniffer** | The unsentimental copyeditor of tests. Suspicious of green ticks. |
++| <img src="./augur/avatar-128.png" width="96"> | **augur** | Diviner who reads contradictions in plans. Predicts future bugs. |
++| <img src="./qa/avatar-128.png" width="96"> | **qa** | Post-commit smoke-tester. Boring, deterministic, useful. |
++
++## Generative Family — the productive ones
++
++| | Ship | Personality |
++|---|---|---|
++| <img src="./test-author/avatar-128.png" width="96"> | **test-author** | Patient craftsperson. Writes the tests you knew you needed. |
++| <img src="./spark/avatar-128.png" width="96"> | **spark** | Idea spotter. Lights up when a pattern surfaces. |
++| <img src="./spider/avatar-128.png" width="96"> | **spider** | External crawler. Brings news from outside the harbor. |
++
++## Observational Family — the cartographers
++
++| | Ship | Personality |
++|---|---|---|
++| <img src="./tenderfoot/avatar-128.png" width="96"> | **tenderfoot** | Fresh-eyes new developer. Hopeful, asks dumb questions, finds real lies in docs. |
++| <img src="./test-hunter/avatar-128.png" width="96"> | **test-hunter** | Coverage cartographer. Maps gaps. |
++| <img src="./cartographer/avatar-128.png" width="96"> | **cartographer** | Roadmap mapmaker. Sees the project as a territory. |
++
++## Maintenance Family — the tenders
++
++| | Ship | Personality |
++|---|---|---|
++| <img src="./gardener/avatar-128.png" width="96"> | **gardener** | Quiet, methodical. Tends git history like a garden. |
++| <img src="./documentarian/avatar-128.png" width="96"> | **documentarian** | Scribe. Watches code–doc drift. |
++| <img src="./simplifier/avatar-128.png" width="96"> | **simplifier** | Refactor monk. Cuts what can be cut. |
++
++---
++
++## File map
++
++```
++assets/ship-avatars/
++├── ROSTER.md                       # this file
++├── augur/
++│   ├── avatar-512.png              # primary, GitHub-bot size
++│   ├── avatar-128.png              # dashboard chip
++│   └── avatar-64.png               # inline mention chip
++├── cartographer/{512,128,64}
++├── code-reviewer/{512,128,64}
++├── documentarian/{512,128,64}
++├── gardener/{512,128,64}
++├── qa/{512,128,64}
++├── red-team/{512,128,64}
++├── simplifier/{512,128,64}
++├── spark/{512,128,64}
++├── spider/{512,128,64}
++├── tautology-sniffer/{512,128,64}
++├── tenderfoot/{512,128,64}
++├── test-author/{512,128,64}
++└── test-hunter/{512,128,64}
++```
++
++## Provenance
++
++- Generated 2026-05-20 via **Nano Banana Pro** (`gemini-3-pro-image-preview`).
++- Palette enforced strictly via prompt preamble — no style-reference image was
++  used (none of the canonical brand references existed at the path the operator
++  memory expected; we instead encoded the four-color palette as a hard
++  constraint in the prompt).
++- Generation script: `scripts/ship-avatars/generate_fleet.py`. Re-runnable with
++  `python3 scripts/ship-avatars/generate_fleet.py --only <name> --force` to
++  regenerate any single ship without touching the others.
++- 512×512 is the model output (normalized via Lanczos if returned at a different
++  size); 128×128 and 64×64 are Lanczos downscales from the 512.
+diff --git a/assets/ship-avatars/augur/avatar-128.png b/assets/ship-avatars/augur/avatar-128.png
+new file mode 100644
+index 00000000..8cc0bdb2
+Binary files /dev/null and b/assets/ship-avatars/augur/avatar-128.png differ
+diff --git a/assets/ship-avatars/augur/avatar-512.png b/assets/ship-avatars/augur/avatar-512.png
+new file mode 100644
+index 00000000..06ff9fcc
+Binary files /dev/null and b/assets/ship-avatars/augur/avatar-512.png differ
+diff --git a/assets/ship-avatars/augur/avatar-64.png b/assets/ship-avatars/augur/avatar-64.png
+new file mode 100644
+index 00000000..b7d0f68c
+Binary files /dev/null and b/assets/ship-avatars/augur/avatar-64.png differ
+diff --git a/assets/ship-avatars/cartographer/avatar-128.png b/assets/ship-avatars/cartographer/avatar-128.png
+new file mode 100644
+index 00000000..0c444edc
+Binary files /dev/null and b/assets/ship-avatars/cartographer/avatar-128.png differ
+diff --git a/assets/ship-avatars/cartographer/avatar-512.png b/assets/ship-avatars/cartographer/avatar-512.png
+new file mode 100644
+index 00000000..3af37117
+Binary files /dev/null and b/assets/ship-avatars/cartographer/avatar-512.png differ
+diff --git a/assets/ship-avatars/cartographer/avatar-64.png b/assets/ship-avatars/cartographer/avatar-64.png
+new file mode 100644
+index 00000000..31a89026
+Binary files /dev/null and b/assets/ship-avatars/cartographer/avatar-64.png differ
+diff --git a/assets/ship-avatars/code-reviewer/avatar-128.png b/assets/ship-avatars/code-reviewer/avatar-128.png
+new file mode 100644
+index 00000000..68e510f7
+Binary files /dev/null and b/assets/ship-avatars/code-reviewer/avatar-128.png differ
+diff --git a/assets/ship-avatars/code-reviewer/avatar-512.png b/assets/ship-avatars/code-reviewer/avatar-512.png
+new file mode 100644
+index 00000000..fde28fe3
+Binary files /dev/null and b/assets/ship-avatars/code-reviewer/avatar-512.png differ
+diff --git a/assets/ship-avatars/code-reviewer/avatar-64.png b/assets/ship-avatars/code-reviewer/avatar-64.png
+new file mode 100644
+index 00000000..1b147a4e
+Binary files /dev/null and b/assets/ship-avatars/code-reviewer/avatar-64.png differ
+diff --git a/assets/ship-avatars/documentarian/avatar-128.png b/assets/ship-avatars/documentarian/avatar-128.png
+new file mode 100644
+index 00000000..92050839
+Binary files /dev/null and b/assets/ship-avatars/documentarian/avatar-128.png differ
+diff --git a/assets/ship-avatars/documentarian/avatar-512.png b/assets/ship-avatars/documentarian/avatar-512.png
+new file mode 100644
+index 00000000..e9d3b073
+Binary files /dev/null and b/assets/ship-avatars/documentarian/avatar-512.png differ
+diff --git a/assets/ship-avatars/documentarian/avatar-64.png b/assets/ship-avatars/documentarian/avatar-64.png
+new file mode 100644
+index 00000000..5b7e7647
+Binary files /dev/null and b/assets/ship-avatars/documentarian/avatar-64.png differ
+diff --git a/assets/ship-avatars/gardener/avatar-128.png b/assets/ship-avatars/gardener/avatar-128.png
+new file mode 100644
+index 00000000..aea45c8b
+Binary files /dev/null and b/assets/ship-avatars/gardener/avatar-128.png differ
+diff --git a/assets/ship-avatars/gardener/avatar-512.png b/assets/ship-avatars/gardener/avatar-512.png
+new file mode 100644
+index 00000000..bfb5832a
+Binary files /dev/null and b/assets/ship-avatars/gardener/avatar-512.png differ
+diff --git a/assets/ship-avatars/gardener/avatar-64.png b/assets/ship-avatars/gardener/avatar-64.png
+new file mode 100644
+index 00000000..7b6c8ed0
+Binary files /dev/null and b/assets/ship-avatars/gardener/avatar-64.png differ
+diff --git a/assets/ship-avatars/qa/avatar-128.png b/assets/ship-avatars/qa/avatar-128.png
+new file mode 100644
+index 00000000..91f0f4f4
+Binary files /dev/null and b/assets/ship-avatars/qa/avatar-128.png differ
+diff --git a/assets/ship-avatars/qa/avatar-512.png b/assets/ship-avatars/qa/avatar-512.png
+new file mode 100644
+index 00000000..cc465fed
+Binary files /dev/null and b/assets/ship-avatars/qa/avatar-512.png differ
+diff --git a/assets/ship-avatars/qa/avatar-64.png b/assets/ship-avatars/qa/avatar-64.png
+new file mode 100644
+index 00000000..f46d4dff
+Binary files /dev/null and b/assets/ship-avatars/qa/avatar-64.png differ
+diff --git a/assets/ship-avatars/red-team/avatar-128.png b/assets/ship-avatars/red-team/avatar-128.png
+new file mode 100644
+index 00000000..a79d1d0f
+Binary files /dev/null and b/assets/ship-avatars/red-team/avatar-128.png differ
+diff --git a/assets/ship-avatars/red-team/avatar-512.png b/assets/ship-avatars/red-team/avatar-512.png
+new file mode 100644
+index 00000000..5147ccc5
+Binary files /dev/null and b/assets/ship-avatars/red-team/avatar-512.png differ
+diff --git a/assets/ship-avatars/red-team/avatar-64.png b/assets/ship-avatars/red-team/avatar-64.png
+new file mode 100644
+index 00000000..07735976
+Binary files /dev/null and b/assets/ship-avatars/red-team/avatar-64.png differ
+diff --git a/assets/ship-avatars/simplifier/avatar-128.png b/assets/ship-avatars/simplifier/avatar-128.png
+new file mode 100644
+index 00000000..47b50920
+Binary files /dev/null and b/assets/ship-avatars/simplifier/avatar-128.png differ
+diff --git a/assets/ship-avatars/simplifier/avatar-512.png b/assets/ship-avatars/simplifier/avatar-512.png
+new file mode 100644
+index 00000000..0321f8a5
+Binary files /dev/null and b/assets/ship-avatars/simplifier/avatar-512.png differ
+diff --git a/assets/ship-avatars/simplifier/avatar-64.png b/assets/ship-avatars/simplifier/avatar-64.png
+new file mode 100644
+index 00000000..87da46c0
+Binary files /dev/null and b/assets/ship-avatars/simplifier/avatar-64.png differ
+diff --git a/assets/ship-avatars/spark/avatar-128.png b/assets/ship-avatars/spark/avatar-128.png
+new file mode 100644
+index 00000000..d9d0c9cd
+Binary files /dev/null and b/assets/ship-avatars/spark/avatar-128.png differ
+diff --git a/assets/ship-avatars/spark/avatar-512.png b/assets/ship-avatars/spark/avatar-512.png
+new file mode 100644
+index 00000000..70c73986
+Binary files /dev/null and b/assets/ship-avatars/spark/avatar-512.png differ
+diff --git a/assets/ship-avatars/spark/avatar-64.png b/assets/ship-avatars/spark/avatar-64.png
+new file mode 100644
+index 00000000..a8b2b45b
+Binary files /dev/null and b/assets/ship-avatars/spark/avatar-64.png differ
+diff --git a/assets/ship-avatars/spider/avatar-128.png b/assets/ship-avatars/spider/avatar-128.png
+new file mode 100644
+index 00000000..95120814
+Binary files /dev/null and b/assets/ship-avatars/spider/avatar-128.png differ
+diff --git a/assets/ship-avatars/spider/avatar-512.png b/assets/ship-avatars/spider/avatar-512.png
+new file mode 100644
+index 00000000..455b04fc
+Binary files /dev/null and b/assets/ship-avatars/spider/avatar-512.png differ
+diff --git a/assets/ship-avatars/spider/avatar-64.png b/assets/ship-avatars/spider/avatar-64.png
+new file mode 100644
+index 00000000..795e7760
+Binary files /dev/null and b/assets/ship-avatars/spider/avatar-64.png differ
+diff --git a/assets/ship-avatars/tautology-sniffer/avatar-128.png b/assets/ship-avatars/tautology-sniffer/avatar-128.png
+new file mode 100644
+index 00000000..80160b33
+Binary files /dev/null and b/assets/ship-avatars/tautology-sniffer/avatar-128.png differ
+diff --git a/assets/ship-avatars/tautology-sniffer/avatar-512.png b/assets/ship-avatars/tautology-sniffer/avatar-512.png
+new file mode 100644
+index 00000000..3703d167
+Binary files /dev/null and b/assets/ship-avatars/tautology-sniffer/avatar-512.png differ
+diff --git a/assets/ship-avatars/tautology-sniffer/avatar-64.png b/assets/ship-avatars/tautology-sniffer/avatar-64.png
+new file mode 100644
+index 00000000..0baa2423
+Binary files /dev/null and b/assets/ship-avatars/tautology-sniffer/avatar-64.png differ
+diff --git a/assets/ship-avatars/tenderfoot/avatar-128.png b/assets/ship-avatars/tenderfoot/avatar-128.png
+new file mode 100644
+index 00000000..a21440b3
+Binary files /dev/null and b/assets/ship-avatars/tenderfoot/avatar-128.png differ
+diff --git a/assets/ship-avatars/tenderfoot/avatar-512.png b/assets/ship-avatars/tenderfoot/avatar-512.png
+new file mode 100644
+index 00000000..328fce2f
+Binary files /dev/null and b/assets/ship-avatars/tenderfoot/avatar-512.png differ
+diff --git a/assets/ship-avatars/tenderfoot/avatar-64.png b/assets/ship-avatars/tenderfoot/avatar-64.png
+new file mode 100644
+index 00000000..1bd386a4
+Binary files /dev/null and b/assets/ship-avatars/tenderfoot/avatar-64.png differ
+diff --git a/assets/ship-avatars/test-author/avatar-128.png b/assets/ship-avatars/test-author/avatar-128.png
+new file mode 100644
+index 00000000..8ff74b83
+Binary files /dev/null and b/assets/ship-avatars/test-author/avatar-128.png differ
+diff --git a/assets/ship-avatars/test-author/avatar-512.png b/assets/ship-avatars/test-author/avatar-512.png
+new file mode 100644
+index 00000000..230ade18
+Binary files /dev/null and b/assets/ship-avatars/test-author/avatar-512.png differ
+diff --git a/assets/ship-avatars/test-author/avatar-64.png b/assets/ship-avatars/test-author/avatar-64.png
+new file mode 100644
+index 00000000..31b3bf61
+Binary files /dev/null and b/assets/ship-avatars/test-author/avatar-64.png differ
+diff --git a/assets/ship-avatars/test-hunter/avatar-128.png b/assets/ship-avatars/test-hunter/avatar-128.png
+new file mode 100644
+index 00000000..2da67f06
+Binary files /dev/null and b/assets/ship-avatars/test-hunter/avatar-128.png differ
+diff --git a/assets/ship-avatars/test-hunter/avatar-512.png b/assets/ship-avatars/test-hunter/avatar-512.png
+new file mode 100644
+index 00000000..eaa3aadf
+Binary files /dev/null and b/assets/ship-avatars/test-hunter/avatar-512.png differ
+diff --git a/assets/ship-avatars/test-hunter/avatar-64.png b/assets/ship-avatars/test-hunter/avatar-64.png
+new file mode 100644
+index 00000000..1709e311
+Binary files /dev/null and b/assets/ship-avatars/test-hunter/avatar-64.png differ
+diff --git a/scripts/ship-avatars/generate_fleet.py b/scripts/ship-avatars/generate_fleet.py
+new file mode 100644
+index 00000000..691b6bf1
+--- /dev/null
++++ b/scripts/ship-avatars/generate_fleet.py
+@@ -0,0 +1,386 @@
++#!/usr/bin/env python3
++"""
++Generate 14 ship-avatar personae for the Port Daddy fleet via Nano Banana Pro.
++
++Each ship gets a character avatar in the brand palette (cobalt #003fb8,
++deep teal/sage #006b5f, cream #f2eee6, near-black #1f1f1f). The style is
++editorial-illustration-meets-architectural-blueprint: flat shapes, decisive
++linework, halftone shading accents, a single readable figure.
++
++Outputs:
++  assets/ship-avatars/<ship>/avatar-512.png  (Nano Banana Pro, 1:1)
++  assets/ship-avatars/<ship>/avatar-128.png  (PIL Lanczos downscale)
++  assets/ship-avatars/<ship>/avatar-64.png   (PIL Lanczos downscale)
++
++Runs SEQUENTIALLY (per CLAUDE.md image-gen guidance), with retry-on-fail.
++"""
++from __future__ import annotations
++
++import base64
++import json
++import os
++import subprocess
++import sys
++import time
++import urllib.error
++import urllib.request
++from pathlib import Path
++
++from PIL import Image
++
++# Repo root resolves relative to this script (scripts/ship-avatars/generate_fleet.py)
++REPO_ROOT = Path(__file__).resolve().parents[2]
++OUT_ROOT = REPO_ROOT / "assets" / "ship-avatars"
+
+... [354 more lines truncated]

@@ -1,0 +1,377 @@
+STATS:
+ docs/fleet/2026-05-20-retool.md  |  368 ++++++++++++++
+ fleet/qa-adversary.sh            |   92 ----
+ fleet/ships/code-reviewer.md     |   98 ++++
+ fleet/ships/red-team.md          |   97 ++++
+ fleet/ships/tautology-sniffer.md |   79 +++
+ fleet/ships/tenderfoot.md        |  140 +++++
+ fleet/ships/test-author.md       |   76 +++
+ fleet/ships/unspider.md          |   68 +++
+ fleet/test-gap-hunter.sh         |  112 ----
+ lib/fleet/github-output.ts       |  361 +++++++++++++
+ pd-fleet.yml                     | 1039 +++++++++++++++++++++++---------------
+ 11 files changed, 1905 insertions(+), 625 deletions(-)
+
+---
+LAST COMMIT:
+163c5fec66952e67c21ad766eb8b307b3f66f47c
+Erich Owens <erich.owens@gmail.com>
+2026-05-20 11:03:52 -0700
+feat(fleet): retool with runtime backend detection and tenderfoot ship
+
+Replaces the pre-2026-05-20 fleet's pub/sub-channel output (nobody
+read it) with GitHub PR comments, issues, and draft PRs. Introduces
+runtime backend detection via the pd-tube cli:claude-code /
+cli:codex route, dropping the hard Anthropic Haiku / Sonnet pins
+that the operator rejected on first push.
+
+Key changes:
+
+- pd-fleet.yml: every LLM ship now carries backend: +
+  fallbacks: as a preference array (cli:claude-code ->
+  cli:codex -> cloudflare -> openai -> anthropic-soft). Spawner
+  picks first available + healthy + under-cap entry. No hard
+  pins. budget_usd_per_day: 9.76 -> 8.50. Anthropic moved BELOW
+  CLI and cheaper-cloud tiers; included only as soft preference
+  for voice-sensitive ships (code-reviewer, red-team, test-author,
+  tenderfoot).
+
+- fleet/ships/: five behavior contracts. code-reviewer.md,
+  red-team.md, test-author.md, tautology-sniffer.md cover the
+  five-new-ship set. tenderfoot.md replaces the first draft's
+  unspider.md (collided with ADR-0032). unspider.md is now a
+  stub pointing at the ADR-0032 contradiction-finder spec, with
+  a TODO for when that ship is actually built.
+
+- lib/fleet/github-output.ts: shared GitHub primitive --
+  postPRComment (edit-in-place via marker), openIssue
+  (dedupeByTitle), openDraftPR, closeIssue. Backed by gh CLI;
+  will flip to App credentials when the Port Daddy GitHub App
+  lands. Ships call this instead of reinventing the API client.
+
+- docs/fleet/2026-05-20-retool.md: full retool spec -- what
+  changed, why, the runtime backend detection design, the
+  new-ship table, the rollback path, acknowledged debt.
+
+- fleet/qa-adversary.sh and fleet/test-gap-hunter.sh: deleted
+  zombies. Both hardcoded ollama and did not run. Their behavior
+  is captured by the new yml-based ships.
+
+Acknowledged debt (full list in docs/fleet/2026-05-20-retool.md):
+- GitHub-event channel bridge not built; channels are
+  manually-fired today.
+- pd-tube CLI-backend route is sibling PR work; today the cli:*
+  entries work for solo runs but need that PR for the daemon
+  event loop.
+- lib/fleet/github-output.ts has no unit tests yet.
+- backend_preference: as a single-array yml key is the cleaner
+  schema; today we ride on backend: + fallbacks: which the AST
+  already supports. AST migration deferred.
+
+pd fleet validate passes: 13 agents, 12 channels, budget 8.50.
+
+
+---
+DIFF (first 300 lines):
+diff --git a/docs/fleet/2026-05-20-retool.md b/docs/fleet/2026-05-20-retool.md
+new file mode 100644
+index 00000000..5960722e
+--- /dev/null
++++ b/docs/fleet/2026-05-20-retool.md
+@@ -0,0 +1,368 @@
++# Fleet Retool — 2026-05-20
++
++> The old fleet shouted into pub/sub channels nobody read. The new
++> fleet writes where Erich already lives: GitHub PR comments,
++> issues, and draft PRs. Channels stay — they're how ships chain to
++> other ships — but they're internal plumbing now, not the operator
++> surface.
++
++## The problem this fixes
++
++Pre-2026-05-20, every ship in `pd-fleet.yml` published findings to
++pub/sub channels: `port-daddy:fleet:qa`, `notify-findings`,
++`tests:gap-found`, on and on. They were durable in SQLite. They had
++SSE streams. They had a dashboard panel. And the operator never
++read them.
++
++That's not a tooling problem. That's a delivery-channel problem.
++Findings live where the operator already lives, or they don't live.
++Erich lives in GitHub PRs. The fleet now writes to GitHub PRs.
++
++## Headline feature — runtime backend detection via pd-tube
++
++The pre-retool fleet had hard per-ship backend pins (Anthropic Haiku
++on code-reviewer and test-author, Sonnet on red-team, Haiku on
++unspider). The operator rejected that on first push and was correct
++to: it was brand-reach masquerading as analysis. Hard pins ignore
++that Erich has a Claude Max subscription, a ChatGPT Pro
++subscription, a Cloudflare account, and OpenAI / Anthropic API
++keys. Routing every PR review through a paid Anthropic API call
++when the same machine has free-at-margin CLI subscriptions is the
++wrong default.
++
++The retool replaces hard pins with **runtime backend detection**.
++Every LLM-powered ship now carries a `backend:` + `fallbacks:`
++preference array. At spawn time the spawner walks the list and
++picks the first entry that is (a) available on this machine,
++(b) healthy on its last heartbeat, and (c) under its daily cap.
++Ships fail loudly if no entry is serviceable — they do NOT silently
++degrade to a hardcoded default.
++
++The standard preference order, top to bottom:
++
++1. **`cli:claude-code`** — routed through `pd-tube` (the daemon's
++   CLI-backend route). Free at margin if the operator is a Claude
++   Max subscriber and `claude-code` is on PATH (or
++   `PD_USE_CLI_BACKEND=claude-code` is set). The sibling PR #109
++   work wires this end-to-end.
++2. **`cli:codex`** — also routed through `pd-tube`. Free at margin
++   if the operator has a ChatGPT Pro subscription and `codex` is on
++   PATH (or `PD_USE_CLI_BACKEND=codex` is set).
++3. **`cloudflare`** — cheapest cloud option per ship task
++   (`@cf/qwen/qwen3-30b-a3b-fp8` for general work,
++   `@cf/qwen/qwen2.5-coder-32b-instruct` for code work,
++   `@cf/moonshotai/kimi-k2.6` for ideation). Requires
++   `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN`.
++4. **`openai`** — `gpt-5-mini` for pattern recognition / tautology
++   detection; `gpt-5` for red-team's attack-construction tier.
++5. **`anthropic`** — included only for voice-sensitive ships
++   (`code-reviewer`, `red-team`, `test-author`, `tenderfoot`) as a
++   *soft* preference because Claude tracks operator voice well. It
++   is **never** a hard requirement. If only Cloudflare is healthy,
++   the ship runs on Cloudflare and accepts the quality tradeoff.
++
++### What this means for the operator in three scenarios
++
++| Setup                                                | Where the fleet runs           | Cost          |
++|------------------------------------------------------|--------------------------------|---------------|
++| Max subscriber + `claude-code` on PATH               | `cli:claude-code` via pd-tube  | $0 marginal   |
++| Pro subscriber, no Max + `codex` on PATH             | `cli:codex` via pd-tube        | $0 marginal   |
++| Cloudflare keys only, no CLI subscriptions, no API keys | Cloudflare qwen + cf coder  | ~$5/day cap   |
++| API keys only (Anthropic + OpenAI + Cloudflare)      | Cheapest competent per ship    | ~$5.50/day cap |
++
++The product promise: fleet works on whatever the operator already
++has. If they have Max + Pro, fleet is free. If they have Cloudflare
++only, fleet runs on Cloudflare and is honest about the voice
++tradeoff. There is no silent Anthropic preference.
++
++### Schema note (debt)
++
++The existing `lib/fleet-ast.ts` AST already supports `backend:` +
++`fallbacks:` (an ordered array of `{ backend, model, modelTier }`).
++That carries the preference order today without a schema change.
++
++A future cleanup may rename the pair to a single
++`backend_preference:` array for clarity (it's literally what it
++is). That's a YAML-schema migration plus AST extractor work, and
++the live retool doesn't need it. Flagged in the operator-review
++section.
++
++## What changed, in one paragraph
++
++- Five new ships (`code-reviewer`, `red-team`, `test-author`,
++  `tautology-sniffer`, `tenderfoot`) trigger on `pull_request:*`
++  events and write PR comments, issues, or draft PRs.
++- Eight existing ships (`gardener`, `qa`, `test-hunter`,
++  `documentarian`, `simplifier`, `cartographer`, `spark`, `spider`)
++  had their backends moved to the preference-array shape and their
++  outputs rewired to GitHub primitives or operator-readable repo
++  files where appropriate. `spark` and `spider` keep their
++  internal-only output paths because they're research input for
++  other ships, not for Erich.
++- A single shared primitive (`lib/fleet/github-output.ts`) implements
++  `postPRComment`, `openIssue`, `openDraftPR`, `closeIssue`. Ships
++  call this; they do not reinvent the API client.
++- Two zombie shell scripts (`fleet/qa-adversary.sh`,
++  `fleet/test-gap-hunter.sh`) hardcoded `ollama` and didn't run.
++  Deleted. Their behavior is captured in the new yml-based config.
++
++## The new ships
++
++| Ship                | Triggers                                          | Output                          | Cap/day |
++|---------------------|---------------------------------------------------|---------------------------------|---------|
++| `code-reviewer`     | `pull_request:opened`, `pull_request:synchronize` | One PR comment, edited in place | $1.50   |
++| `red-team`          | `pull_request:opened` (gated on adversarial surface) | One PR comment OR silence    | $1.00   |
++| `test-author`       | `pull_request:opened` if test-hunter flagged, OR label `needs-tests` | Sibling draft PR | $1.00 |
++| `tautology-sniffer` | `pull_request:opened` if diff touches tests       | One PR comment                  | $0.50   |
++| `tenderfoot`        | `schedule: 0 8 * * 1` AND `pull_request:merged`   | GitHub issues                   | $0.25   |
++
++Backends are now preference arrays per ship (see the yml). Full
++behavior contracts live in `fleet/ships/*.md`. Read those for voice
++rules, severity tiers, quality gates, and failure modes.
++
++### About `tenderfoot` (and the unspider rename)
++
++The fresh-eyes new-developer UX audit ship was named `unspider` in
++this retool's first draft. That collided with **ADR-0032**, which
++had already defined **unSpider** as the contradiction-finder — a
++different and more ambitious role (auditing the roadmap for
++internal drift, overlapping plans, stale references).
++
++Renamed the UX ship to **`tenderfoot`** (old-western for greenhorn;
++high-low cathedral collision — homely word, careful job). The
++ADR-0032 unSpider retains its name and its label namespace
++(`unspider:open`). Tenderfoot uses its own label namespace
++(`tenderfoot:open`). The two ships share read surfaces but write
++to different places; they can run side by side.
++
++`fleet/ships/unspider.md` is now a stub that points at ADR-0032
++with a TODO list for when the contradiction-finder is actually
++built. This keeps the slot reserved.
++
++## What got retooled
++
++| Ship           | Before                            | After                                                              |
++|----------------|-----------------------------------|--------------------------------------------------------------------|
++| `gardener`     | Publishes `git:status` (nobody reads) | Opens GitHub issue per non-trivial finding; auto-closes when resolved |
++| `qa`           | Publishes `qa:findings` (nobody reads) | Trigger moved to `pull_request:opened`; posts PR comment      |
++| `test-hunter`  | Publishes `tests:gap-found` (nobody reads), writes tests directly | Opens `coverage-gap` GitHub issue; `test-author` picks up |
++| `documentarian`| Edits docs in place on promotion  | Opens draft PR `documentarian/<sha>-sync`; never pushes to main    |
++| `simplifier`   | Same channels-only loop           | Paused; when unpaused, opens draft PR not in-place edit            |
++| `cartographer` | Edits docs/V4-UNIFIED-ROADMAP.md  | Same edits PLUS writes `cartographer/INDEX.md` to `cartographer-state` branch |
++| `spark`        | Writes `.spark/ideas/`            | Paused (execution is the bottleneck, not ideation)                  |
++| `spider`       | Writes `.spider/connections/`     | Unchanged (research exhaust; not operator-facing by design)        |
++
++## Backend preference matrix
++
++The ordering for each ship lives in `pd-fleet.yml`. Summary:
++
++| Ship                | Preference order (top = first tried)                                                                    |
++|---------------------|---------------------------------------------------------------------------------------------------------|
++| cartographer        | cli:claude-code → cli:codex → cloudflare qwen3-30b-a3b-fp8                                              |
++| spider              | cli:claude-code → cli:codex → cloudflare qwen3-30b-a3b-fp8                                              |
++| gardener            | cli:claude-code → cli:codex → cloudflare qwen3-30b-a3b-fp8                                              |
++| documentarian       | cli:claude-code → cli:codex → cloudflare qwen2.5-coder                                                  |
++| qa                  | cli:claude-code → cli:codex → openai gpt-5-mini → cloudflare qwen3-30b-a3b-fp8                          |
++| test-hunter         | cli:claude-code → cli:codex → cloudflare qwen2.5-coder                                                  |
++| simplifier (paused) | cli:claude-code → cli:codex → cloudflare qwen2.5-coder                                                  |
++| spark (paused)      | cli:claude-code → cli:codex → cloudflare kimi-k2.6                                                      |
++| code-reviewer       | cli:claude-code → cli:codex → anthropic haiku → openai gpt-5-mini → cloudflare qwen2.5-coder           |
++| red-team            | cli:claude-code → cli:codex → anthropic sonnet → openai gpt-5 → cloudflare qwen3-30b-a3b-fp8           |
++| test-author         | cli:claude-code → cli:codex → anthropic haiku → openai gpt-5-mini → cloudflare qwen2.5-coder           |
++| tautology-sniffer   | cli:claude-code → cli:codex → openai gpt-5-mini → cloudflare qwen2.5-coder                              |
++| tenderfoot          | cli:claude-code → cli:codex → anthropic haiku → openai gpt-5-mini → cloudflare qwen3-30b-a3b-fp8       |
++
++**Total daily ceiling:** $8.50/day. If `pd-tube` routes everything
++through `cli:claude-code` on a Max subscription, marginal cost is
++~$0 and the cap is a safety net rather than a forecast. If the
++operator has only Cloudflare keys, every ship runs on Cloudflare
++and the daily spend lands well under $5.
++
++### The pd-tube CLI-backend route
++
++`cli:claude-code` and `cli:codex` are implemented in
++`lib/spawner.ts:runCliTube()` (the **pd-tube** path). When the
++spawner picks a `cli:*` backend, it shells the ship's prompt out to
++the operator's local CLI binary (`claude-code` or `codex`) which
++authenticates against the operator's existing subscription. The
++daemon does not need API keys.
++
++The sibling PR (#109 work) is wiring the pd-tube transport
++end-to-end with telemetry and bond accounting. Once that lands,
++the `cli:*` entries in every ship's `fallbacks:` array gain real
++teeth — today they work for solo runs (`pd fleet run <ship>`) but
++the full daemon-mediated event loop needs the sibling PR's
++runtime.
++
++## The shared primitive
++
++```ts
++// lib/fleet/github-output.ts
++export interface GitHubOutput {
++  postPRComment(prNumber, body, opts?): Promise<{ url, commentId?, edited }>;
++  openIssue(title, body, labels, opts?): Promise<{ number, url, created }>;
++  openDraftPR(branchName, title, body, baseBranch?): Promise<{ number, url }>;
++  closeIssue(number, reason): Promise<void>;
++}
++```
++
++Backed by `gh` CLI, inherits the operator's auth. When the Port
++Daddy GitHub App lands, the helper flips to App credentials via the
++`GH_TOKEN` env injected by the daemon. The interface does not
++change.
++
++Two sub-features matter:
++
++1. **One-comment-per-ship-per-PR.** Every comment carries a marker
++   line `<!-- pd-fleet:ship=<name> -->`. `postPRComment` with
++   `editIfExists: true` (the default) finds the marker and edits in
++   place. PRs stay scannable; ships don't carpet-bomb.
++
++2. **Issue dedup by title.** `openIssue` with `dedupeByTitle: true`
++   (default) searches open issues for an exact title match before
++   filing. `tenderfoot` running every Monday won't refile the same
++   drift complaint.
++
++## GitHub-event channel bridge
++
++The fleet engine doesn't natively know about GitHub events. The
++`pull_request:*` channels in `pd-fleet.yml` are marked
++`external_producer: github-webhook-bridge`. Today they can be fired
++manually:
++
++```bash
++pd pub pull_request:opened '{
++  "prNumber": 117,
++  "headRef": "fix/wire-shape-bug",
++  "baseRef": "main",
++  "title": "fix: SDK claim wire shape",
++  "author": "erichowens",
++  "changedFiles": ["lib/sdk.ts", "tests/unit/sdk.test.ts"]
++}'
++```
++
++That's the test harness path (see the end-to-end test below). The
++persistent path is a webhook receiver or a `gh` polling watcher,
++which is sibling work in flight. Until that lands, ships fire when
++the channels are manually published, or when a future
++`scripts/gh-event-pump.sh` cron job pumps them.
++
++## End-to-end test (PR-opened → ship fires → comment lands)
++
++Prerequisite: daemon running, fleet up, `gh` authenticated, a test
++PR open.
++
++```bash
++# 1. Pick an open PR
++PR=117
++
++# 2. Bring fleet up
++pd fleet up
++
++# 3. Manually fire the channel
++pd pub pull_request:opened "{
++  \"prNumber\": $PR,
++  \"headRef\": \"test/fleet-retool-smoke\",
++  \"baseRef\": \"main\",
++  \"title\": \"smoke: fleet retool e2e\",
++  \"changedFiles\": [\"lib/sdk.ts\"]
++}"
++
++# 4. Watch fleet events
++curl -N http://localhost:9876/fleet/events
++
++# 5. Verify the comment landed
++gh pr view $PR --comments | grep "pd-fleet:ship=code-reviewer"
++```
++
++Expected timeline: `code-reviewer` spawns within ~5s of the
++channel pub; comment lands within 30-90s depending on PR diff size.
++`tautology-sniffer` and `red-team` may or may not fire depending
++on whether the diff touches tests / adversarial surface.
++
++Re-running step 3 (or running a real `git push` against the PR
++branch and publishing `pull_request:synchronize`) edits the same
++comment in place. Verify the comment count on the PR did NOT
++increase.
++
++## What needs operator review before promotion to main
++
++1. **The `pull_request:*` channel bridge.** The yml declares the
++   channels with `external_producer: github-webhook-bridge`, but
++   that bridge isn't built. Three options for the operator:
++   - Ship the webhook receiver as a separate concern
++   - Wire a `gh` polling watcher in the daemon (every 30s)
+
+... [2424 more lines truncated]

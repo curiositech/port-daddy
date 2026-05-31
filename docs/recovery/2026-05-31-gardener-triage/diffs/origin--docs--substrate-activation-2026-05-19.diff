@@ -1,0 +1,332 @@
+STATS:
+ .scratch/agent-coordination-research.md      | 665 +++++++++++++++++++++++++++
+ .scratch/multiplayer-input-research.md       | 580 +++++++++++++++++++++++
+ .scratch/note-abstraction-audit.md           | 223 +++++++++
+ .scratch/pheromone-visualization-research.md | 332 +++++++++++++
+ .scratch/transcript-ingestion-design.md      | 543 ++++++++++++++++++++++
+ .scratch/transcript-recon.md                 | 415 +++++++++++++++++
+ docs/ROADMAP.md                              | 265 +++++++++++
+ docs/recovery/CURRENT-WORK.md                |  50 +-
+ 8 files changed, 3069 insertions(+), 4 deletions(-)
+
+---
+LAST COMMIT:
+eb056e1cdb43c958013452c45e6e58bd67dbc72e
+Erich Owens <erich.owens@gmail.com>
+2026-05-21 19:42:04 -0700
+docs: correct two facts surfaced by adversarial review
+
+ROADMAP.md section 8 ast-claim-wiring slug: lib/symbol-index.ts is
+1,457 lines, not 988, and DOES use web-tree-sitter (WASM bindings) per
+its header comment. Original audit got both wrong.
+
+.scratch/note-abstraction-audit.md: transcript_events is a DOUBLE
+orphan — both createTranscriptStore and createCostLedger are unwired in
+server.ts, so the table is never created in prod. The original entry
+underdescribed the depth of the orphan.
+
+
+---
+DIFF (first 300 lines):
+diff --git a/.scratch/agent-coordination-research.md b/.scratch/agent-coordination-research.md
+new file mode 100644
+index 00000000..e211b6e1
+--- /dev/null
++++ b/.scratch/agent-coordination-research.md
+@@ -0,0 +1,665 @@
++# Agent Coordination: Directory Services, Working Groups, Group Chats, Shared Data
++
++**Status:** research / design exploration — NOT a build plan
++**Author:** researcher subagent (read-only orientation)
++**Date:** 2026-05-19
++**Audience:** operator + future PD-architect agents
++
++---
++
++## Executive Summary
++
++PD already has most of the substrate it needs for a real agent directory + ad-hoc working-group system. What it lacks is:
++
++1. A **directory query path** that combines `agents.skills` / `agents.identity_*` / `harbor_members.capabilities` with the existing semantic resolver into a single `pd whois` lookup. The semantic table is the most-used coordination surface in the daemon (8k/week); the inbox is the least-used (46 lifetime). The phonebook should ride the busy rail, not the dead one.
++2. A **group abstraction** distinct from harbors (cryptographic identity scope) and channels (pub/sub topic). Harbors are too heavyweight to spawn per-incident; channels are too anonymous to know who's listening. The missing primitive is the *working group* — a named, TTL'd set of agents pinned to a concern (file, roadmap item, incident, file claim cluster).
++3. **Layered delivery semantics**, not yet another delivery API. The current options (channel pub/sub, agent inbox DM, tuples) all assume the recipient pulls. The "ambient context streams" idea — what arrives in an agent's next turn — is the actual UX problem, and it cuts across all three.
++4. **Honesty about conscription.** Drafting agents into groups is plausible only because PD has bonds, budget ledger, and project wallets. Without those, conscription would be lawless. Even with them, the default should be **observed, not compelled** — push notice, do not require response. Compelled response only when the operator explicitly signs the dragoon.
++
++The 46-inbox-message lifetime is the cautionary tale: agents don't check things they aren't surfaced into their working context. Any new primitive that requires explicit polling will see the same fate. Everything below is designed to attach to existing high-traffic paths (semantic resolution, claim watchers, session briefings) rather than create a new one.
++
++---
++
++## 1. Prior Art Survey
++
++### 1.1 FIPA Directory Facilitator (DF) and Agent Management Service (AMS)
++
++The canonical multi-agent yellow-pages pattern. Two mandatory agents per platform:
++
++- **AMS** owns agent identity, lifecycle, and naming (the white pages).
++- **DF** owns capability advertisements (the yellow pages).
++
++**Registration:** Each agent posts a `DFAgentDescription` containing service name, type, ontologies, languages, protocols, and a property bag. Registration is explicit, self-asserted, and modifiable.
++
++**Query:** Agents call `DFService.search(template)` with a partial `DFAgentDescription` as a constraint. The DF returns all matching agent descriptions. There is no ranking — you get the matching set and the caller picks.
++
++**Freshness:** Largely absent. The DF entry persists until the agent deregisters or the platform shuts down. Stale entries are a known weakness — research papers cited (Ahmed et al., 2009; context-aware DFs) propose heartbeat-gated and context-sensitive extensions.
++
++**Federation:** A DF can register itself with parent DFs to form a hierarchy. JADE provides a GUI for federated DF management.
++
++**What survives in our setting:** the `register / search` API shape and the property-bag service description. What doesn't survive: the FIPA assumption that agents are stable processes on a distributed enterprise platform. PD agents are ephemeral — many die after a single CLI session. Freshness becomes existential, not a footnote.
++
++Sources: [FIPA Agent Management Specification (FIPA00023)](http://www.fipa.org/specs/fipa00023/XC00023H.html), [Directory Facilitator and Service Discovery Agent](https://fipa.org/docs/input/f-in-00070/f-in-00070.pdf).
++
++### 1.2 KQML vs FIPA-ACL Performatives
++
++KQML embedded community-management performatives directly in the language: `register`, `unregister`, `forward`, `broadcast`, `advertise`, `recommend`, `recruit`, `subscribe`, `broker`. FIPA-ACL stripped those out and pushed them into the AMS/DF — the language stays about content, the platform handles directory. PD's `tube` performatives (REQUEST / CFP / PROPOSE / INFORM / AGREE / REFUSE / FAILURE) are FIPA-ACL-style: pure content acts, no register/advertise. That's the right call — but it means the platform (PD itself) has to be the directory, because the protocol has been deliberately stripped of `advertise`.
++
++**Key KQML primitive PD does not yet have:** `subscribe` — "persistent intention to notify me of value, and again when it changes." FIPA promoted this to a full interaction protocol (FIPA00035). For an agent that wants to be looped in on all `harbor=expungement-guide` activity, this is the missing semantic. Today PD has SSE on `msg/:channel/subscribe` — channel-typed and pull-based. A FIPA-style subscribe over a *query* (not a channel) is a strict superset.
++
++Sources: [FIPA Subscribe Interaction Protocol (FIPA00035)](http://www.fipa.org/specs/fipa00035/SC00035H.html), [Agent Communication Languages Comparison — KQML / FIPA-ACL](http://www.objs.com/agility/tech-reports/9807-comparing-ACLs.html).
++
++### 1.3 JADE — DF in production
++
++JADE is the most-deployed FIPA-compliant runtime. Lessons:
++
++- The DF GUI ships out of the box and is used heavily — operators *do* want to inspect/edit the directory by hand. PD's dashboard panels are the analog.
++- DF federation works but is rarely used; teams collapse to a single DF in practice.
++- `DFService.searchUntilFound` is a polling loop that has been criticized in literature for stale-data thrashing.
++
++Lesson for PD: ship a great single-node directory. Don't waste design on federation until the operator hits the limit of one daemon.
++
++Sources: [Introduction to the DF — JADE](https://jade.tilab.com/documentation/tutorials-guides/dfgui/introduction/), [Java Agent Development Framework — Wikipedia](https://en.wikipedia.org/wiki/Java_Agent_Development_Framework).
++
++### 1.4 ActivityPub / Mastodon — pull-based, follow-graph discovery
++
++Each actor exposes an `outbox` (their public stream) and an `inbox` (delivery target). Discovery is **pull on demand** (any server can fetch any actor's outbox) augmented by **push delivery** to subscribed inboxes. There is no global registry — discovery starts from a chosen instance.
++
++Relevant patterns:
++
++- **Outbox = public capability advertisement.** An agent's outbox is its self-declared activity feed. PD's per-agent `agent_card` and `purpose` are the analog.
++- **Inbox = guaranteed delivery point.** `agent_inbox` is correctly named — it is precisely an ActivityPub-style inbox. The reason it's at 46 messages lifetime is that nothing pushes to it on the busy rail.
++- **Follow as subscribe.** A follow is a persistent subscribe on an actor's outbox.
++
++For PD, this maps to "agent A wants to subscribe to all activity from agent B (or all agents matching capability X)" — a working-group primitive without explicit group formation. The group *is* the follow graph.
++
++Source: [Understanding ActivityPub — Sebastian Jambor](https://seb.jambor.dev/posts/understanding-activitypub/), [ActivityPub — W3C](https://www.w3.org/TR/2016/WD-activitypub-20160128/).
++
++### 1.5 Discord — role-based mentions, presence-gated broadcast
++
++`@everyone` notifies all; `@here` notifies only non-idle online. Custom roles can be mentionable or not. Importantly, **presence** is first-class: a `@here` is fundamentally different from `@everyone` because it respects who is *currently* available.
++
++Translation: PD already has `agents.last_heartbeat` and `agents.status`. "Online" maps to "heartbeat within N seconds AND status != stopped." A `pd group huddle frontend` should default to `@here` semantics — notify the alive-and-ready subset, not the historical roster.
++
++Sources: [Discord — Notifications Settings 101](https://support.discord.com/hc/en-us/articles/215253258-Notifications-Settings-101), [Discord — @everyone & @here difference](https://www.remote.tools/remote-work/discord-everyone-here).
++
++### 1.6 Slack — huddles and ad-hoc group formation
++
++The Slack huddles model is the *closest existing UX analog* for what's being asked. Properties:
++
++- **Huddles spawn in context** — they start from a channel or DM you're already in.
++- **Drop-in / drop-out** — no explicit invite. Anyone in the parent channel can join the huddle.
++- **Side-by-side persistence** — messages, files, and reference threads stay in the parent channel even after the huddle ends.
++- **The group is implicit in the parent channel membership.** Slack doesn't make you re-declare who can join.
++
++This maps cleanly onto: *the working group is implicit in the file-claim cluster, the harbor membership, or the roadmap-item subscription set.* The huddle is the synchronous foreground; the channel is the asynchronous record.
++
++Source: [Slack — Solve problems aloud with Huddles](https://slack.com/resources/using-slack/solve-problems-aloud-with-slack-huddles), [Ad Hoc Meetings — Slack blog](https://slack.com/blog/productivity/ad-hoc-meetings-how-to-transform-impromptu-conversations-into-action).
++
++### 1.7 GitHub CODEOWNERS — file-path → reviewer routing
++
++A `CODEOWNERS` file is a gitignore-pattern → owner-list registry. PRs touching matching paths auto-assign owners as reviewers. Precedence: last matching pattern wins. GitHub extended this with **SERVICEOWNERS** for cross-repo service ownership.
++
++Mechanically this is **the simplest possible expertise phonebook** — and the most successful. It works because:
++
++1. Patterns are *automatic* — no agent has to advertise; ownership is declared in a file.
++2. Routing is *triggered by activity* — a PR touching `apps/frontend/**` pulls in `@frontend-team`, not by query but by event.
++3. Patterns are *additive and inheritable* — broad rules with specific overrides.
++
++For PD, the equivalent is: a project-local `.portdaddy/owners.yml` (or stored as harbor metadata) mapping path/symbol patterns to agent identities or capability tokens. Then a file claim or symbol claim *automatically* triggers a notification to the matching identities. This is the missing "push" pattern.
++
++Source: [About code owners — GitHub Docs](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners), [SERVICEOWNERS at GitHub — Engineering Blog](https://github.blog/engineering/architecture-optimization/how-we-organize-and-get-things-done-with-serviceowners/).
++
++### 1.8 LangGraph Supervisor / Swarm
++
++- **Supervisor:** a single orchestrator routes to workers; each call is a routing decision plus optional state synthesis. One observable choke point.
++- **Swarm:** agents hand off directly via `Command(goto=..., graph=Command.PARENT)`. No central router; routing logic is distributed in handoff tools.
++
++Current production guidance: **start with supervisor**, graduate to swarm when latency forces it. PD already runs both shapes in disguise — orchestrator-plugins (supervisor) and pd-spawn-aware fleet agents that DM each other (swarm-ish). The directory is what makes a swarm *legible* — without it, swarm handoffs are by hard-coded name.
++
++Source: [LangGraph Multi-Agent Supervisor](https://reference.langchain.com/python/langgraph-supervisor), [Multi-Agent Orchestration in LangGraph — DEV community](https://dev.to/focused_dot_io/multi-agent-orchestration-in-langgraph-supervisor-vs-swarm-tradeoffs-and-architecture-1b7e).
++
++### 1.9 AutoGen GroupChat
++
++`GroupChatManager` picks the next speaker via `speaker_selection_method ∈ {auto, manual, random, round_robin, custom}`. The `auto` method is itself an LLM call ("which agent should speak next?") — explicit acknowledgment that **selection is a model decision when there is no obvious rule.** `SelectorGroupChat` extends this with conversation-context-aware selection over agent descriptions.
++
++For PD: the `pd whois`-style ranker should expose a `method` knob with at least `{semantic, recency, success_rate, llm}` — and the LLM method should be a cheap Haiku call when the cheap rankers tie. This mirrors the windags skill-search cascade pattern the operator already uses.
++
++Source: [AutoGen GroupChat — AG2 docs](https://docs.ag2.ai/latest/docs/api-reference/autogen/GroupChat/), [Selector Group Chat — AutoGen](https://microsoft.github.io/autogen/dev//user-guide/agentchat-user-guide/selector-group-chat.html).
++
++### 1.10 CrewAI roles + hierarchical delegation
++
++Each agent has `role`, `goal`, `backstory`, and `allow_delegation`. When delegation is on, agents get a `delegate-to-coworker` tool. Two pathologies they explicitly warn about:
++
++- **Buck-passing loops.** Agents delegate back and forth until budget exhausts. Fix: limit `max_iter` and turn off `allow_delegation` for executors.
++- **Vague role boundaries.** "Researcher" vs "Senior Data Researcher" matters — the model uses the role string as a routing prior.
++
++For PD, the takeaway is: **the directory entry's identity_context / purpose / agent_card text is load-bearing.** Whatever the agent self-declares becomes the routing prior. Generic identities will round-robin; specific ones will get hits.
++
++Source: [CrewAI Collaboration docs](https://docs.crewai.com/en/concepts/collaboration), [Hierarchical AI Agents — ActiveWizards](https://activewizards.com/blog/hierarchical-ai-agents-a-guide-to-crewai-delegation).
++
++### 1.11 OpenAI Swarm → Agents SDK
++
++Handoffs are just **functions returning Agent objects**. No protocol. No registry. The triage agent has a tool `transfer_to_refunds_agent()` which returns the refunds agent — control passes. Now superseded by the OpenAI Agents SDK.
++
++This is the most stripped-down model and reveals a truth: **if your set of agents is small and known, you don't need a directory.** PD's audience is the opposite — long-tail of ephemeral agents — so the directory is non-optional. But: for the *static* core agents (gardener, qa, dock-master, etc.), a pure-handoff approach is fine and probably already de facto in use.
++
++Source: [Swarm — OpenAI's Experimental Approach — Arize](https://arize.com/blog/swarm-openai-experimental-approach-to-multi-agent-systems/), [openai/swarm GitHub](https://github.com/openai/swarm).
++
++### 1.12 Anthropic multi-agent research system
++
++The Anthropic blueprint (April–June 2025): lead agent plans, **spawns parallel subagents with private context windows**, each subagent does breadth-first exploration, results return as **condensed findings via shared memory**, lead synthesizes. Outperformed single-agent Opus 4 by 90.2% on internal eval.
++
++Two patterns directly relevant:
++
++- **Parallel breadth-first subagents** — the lead acts as a one-shot supervisor, not a continuous orchestrator. PD's `pd spawn` already does this; the gap is that subagent findings don't reliably bubble up.
++- **Shared memory return path** — the subagents write to a known location; the lead reads. Avoids long-chat retention.
++
++Anthropic's "Outcomes" (rubrics) and "Multi-Agent Orchestration" (decompose + delegate) capabilities, launched May 2026, are essentially first-party versions of what PD's orchestrator-plugins + bonds + telos already aim at.
++
++Source: [How we built our multi-agent research system — Anthropic Engineering](https://www.anthropic.com/engineering/multi-agent-research-system), [Claude Managed Agents — ChatForest](https://chatforest.com/guides/claude-managed-agents-dreaming-outcomes-multiagent/).
++
++### 1.13 Vector-embedding agent selection (STRMAC, AgentRouter, Tool-to-Agent)
++
++State of the art (late 2025 / early 2026):
++
++- **STRMAC (Optimal-Agent-Selection, arXiv 2511.02200):** lightweight LM encodes problem state; LLM-derived embeddings encode agent expertise; learned router picks best agent per task. Demonstrably better than hand-coded routing.
++- **AgentRouter (arXiv 2510.05445):** queries, entities, agents in a unified graph; heterogeneous GNN propagates and produces routing distributions.
++- **Tool-to-Agent Retrieval (arXiv 2511.01854):** embed tools and parent agents in the same space, link via metadata, retrieve either depending on query fit. Avoids "context dilution" when many tools collapse into one agent description.
++
++Direct implication for PD: **the agent description should be embedded at the same granularity as its skills.** If an agent declares 8 skills, embed 9 vectors (one per skill + one for the agent identity), not 1. PD's `semantic_terms` table is already keyed by `(term, model)` — adding agent identity terms and skill terms to the same table is mechanically trivial.
++
++Source: [Optimal-Agent-Selection (STRMAC, arXiv)](https://arxiv.org/html/2511.02200v1), [AgentRouter (arXiv)](https://arxiv.org/html/2510.05445v1), [Tool-to-Agent Retrieval (arXiv)](https://arxiv.org/pdf/2511.01854).
++
++### 1.14 Service mesh (Istio) — relevant or not?
++
++Istio's service registry pattern (control plane watches platform, pushes registry to all sidecars via EDS) is **structurally identical** to what PD does: daemon (control plane) maintains `agents` table; CLI/MCP clients (sidecars) query.
++
++The key insight from Istio is **separation between the registry (what's there) and the routing policy (what to do).** PD currently conflates the two — `pd agents list` is both the registry view and the routing surface. A `pd whois` query needs to be the routing surface; `pd agents` stays the registry.
++
++What does *not* translate: service mesh assumes long-lived service identities and L4/L7 traffic. PD agents are conversational, not request-response loadbalanced. The mesh metaphor leaks if pushed too far.
++
++Source: [Istio / Architecture](https://istio.io/latest/docs/ops/deployment/architecture/), [How to Implement Service Discovery with Istio — OneUptime](https://oneuptime.com/blog/post/2026-02-24-how-to-implement-service-discovery-pattern-with-istio/view).
++
++### 1.15 Blackboard systems (HEARSAY-II)
++
++The original 1970s pattern: shared hierarchical workspace, knowledge-source modules monitor and post, a central scheduler picks which knowledge source to activate next. Modern reincarnations: Terrarium (arXiv 2510.14312) puts an LLM blackboard at the center of a multi-agent safety study; LLM-based blackboard data-science multi-agent systems (arXiv 2510.01285) coordinate analysis tasks.
++
++PD's `tuples` table is a Linda tuple-space, not a HEARSAY blackboard — Linda is flat key-pattern matching, HEARSAY is hierarchical with abstraction levels. The blackboard pattern is what you'd *want* for a sustained coordination concern (e.g., "the in-progress design for the FleetBar redesign") where multiple agents post partial contributions at different abstraction levels (sketches → schema → code → tests).
++
++Source: [Terrarium: Revisiting the Blackboard (arXiv)](https://arxiv.org/html/2510.14312v1), [LLM-based Multi-Agent Blackboard System (arXiv)](https://arxiv.org/html/2510.01285v1), [Resurgence of Blackboard Systems — Medium](https://medium.com/@shawncutter/the-resurgence-of-blackboard-systems-b10ea72a8326).
++
++### 1.16 Contract Net Protocol (Smith 1980, FIPA00029)
++
++Manager broadcasts `CFP` → contractors bid → manager awards. PD already has the performatives (CFP, PROPOSE, AGREE, REFUSE) via the tube envelope. What's missing is the **bidding semantics on top of bonds.** A CFP that says "I need a frontend agent for ~$0.20 of budget, who'll take it for less?" is a real contract net — and PD's `bond_escrow` + `budget_ledger` are exactly the substrate.
++
++This is the path to *paid* working-group formation, distinct from the operator-dragoon case.
++
++Source: [Contract Net Protocol — Wikipedia](https://en.wikipedia.org/wiki/Contract_Net_Protocol), [Contract Net Protocol — Grokipedia](https://grokipedia.com/page/contract_net_protocol).
++
++### 1.17 CRDT-backed shared docs (Yjs, Automerge)
++
++By 2026, **AI agents as CRDT peers** is an established pattern: the agent opens a Yjs doc on the server side and participates as just another peer alongside human editors. Convergence guarantees that human and agent edits compose without a coordinator.
++
++This is the right *shared data structure* model for things like a shared roadmap, a shared plan, a shared TODO list that multiple agents iterate. The pattern: server-side CRDT doc with multiple agent peers, optional human peer, conflict-free convergence.
++
++For PD this would be a heavyweight addition (Yjs has a substantial dependency footprint), but the alternative — versioned shared state with explicit conflict resolution — is what `merge-queue` and `symbol-index` already provide. The choice is between "true CRDT" (no conflicts, eventual convergence, no rebase) and "git-style merge with explicit conflict markers" (conflicts visible, agent reconciles). For development work, git-style is more honest; agents *need* to see conflicts to reason about them.
++
++Source: [AI agents as CRDT peers — Electric](https://electric.ax/blog/2026/04/08/ai-agents-as-crdt-peers-with-yjs), [Real-Time Data Sync — Fordel Studios](https://fordelstudios.com/research/real-time-data-sync-patterns).
++
++---
++
++## 2. Expertise Phonebook — Concrete Design
++
++### 2.1 What "capability" means in PD
++
++A capability claim in PD should be **multi-rooted** — drawn from several sources, ranked together. Sources, in order of trust:
++
++1. **Earned (highest):** successful completion of a sortie tagged with capability X. From `sorties`, `roadmap_progress`, `episodic_memory`. Weight: high; decays with recency.
++2. **Self-declared with evidence:** `agents.skills` JSON list, justified by the agent's identity / purpose / agent_card. Weight: medium.
++3. **Self-declared without evidence:** `agents.skills` alone. Weight: low — but this is what most agents will have at registration time.
++4. **Inferred:** files claimed, symbols claimed, harbors joined. An agent that has only ever touched `apps/frontend/**` and joined `harbor=fleetbar` has implicit frontend capability whether it declared so or not. This is the CODEOWNERS pattern in reverse.
++
++The phonebook should never trust (3) on its own. The ranker must weight (1) + (4) above (3).
++
++### 2.2 Schema additions (proposed)
++
++Reuse the existing `semantic_terms` table. Add a join table linking terms to agents with a context label:
++
++```sql
++CREATE TABLE IF NOT EXISTS agent_capabilities (
++  agent_id        TEXT NOT NULL,
++  term            TEXT NOT NULL,
++  source          TEXT NOT NULL,    -- 'earned' | 'declared' | 'inferred'
++  evidence        TEXT,             -- JSON pointer to sortie/roadmap/files
++  strength        REAL NOT NULL,    -- 0..1
++  last_seen       INTEGER NOT NULL, -- ms
++  expires_at      INTEGER,          -- ms, null = no TTL
++  PRIMARY KEY (agent_id, term, source)
++);
++CREATE INDEX idx_agent_capabilities_term ON agent_capabilities(term, last_seen DESC);
++CREATE INDEX idx_agent_capabilities_agent ON agent_capabilities(agent_id);
++```
++
++This rides the existing `semantic_terms` table for embeddings. New writes from `agents.skills` registration, sortie completion hooks, and file-claim watchers go here.
++
++### 2.3 Freshness
++
++Hard rules:
++
++- **Heartbeat gate.** Any agent with `last_heartbeat < now - 5min` is filtered out of `pd whois` results by default. Override with `--include-stale`.
++- **Recency-decayed strength.** `effective = strength * exp(-(now - last_seen) / TAU)` with `TAU = 7 days` for earned, `48h` for declared, `30 days` for inferred (file ownership ages slowly).
++- **Bound on stale rows.** `expires_at` defaults to 30 days for `declared`, null for `earned` (kept indefinitely as evidence), 60 days for `inferred`. Background sweep deletes expired rows.
++
++The phonebook entry for an agent that died 3 days ago is gracefully degraded, not silently wrong: the entry stays visible in `pd whois --include-stale` but is excluded from default results.
++
++### 2.4 Ranking — cascade
++
++Default `pd whois <query>` cascade (mirrors windags skill-search):
++
++1. **Exact match** on `agent_capabilities.term` → return immediately, ranked by `effective_strength DESC`.
++2. **Lexical (BM25/TF-IDF)** over `agents.purpose`, `agents.agent_card`, `agents.skills` joined. Cheap, fast.
++3. **Semantic (embedding)** via existing `semantic-resolver` — embed the query, cosine-rank against `semantic_terms` rows that join to `agent_capabilities`. The semantic resolver already does this for term reconciliation; reuse the same path.
++4. **LLM tiebreak** — when top-K embedding results are within 0.02 cosine, hand the K candidates and the query to a Haiku call: "Which is best fit and why?" Cached.
++
++Output is always ranked, never a raw set. Always includes the `source` (earned/declared/inferred) per result so callers can decide whether to trust.
++
++### 2.5 Conflict resolution — three agents claim "frontend expert"
++
++Three layers:
++
++1. **Default policy:** rank-and-return, let the caller (or the LLM) pick. This is the FIPA approach and the right default — PD does not need to be opinionated here.
++2. **Operator pinning:** `pd whois set-preferred frontend <agent-id>` writes a row in a new `phonebook_overrides` table. Future queries resolve the operator pick first.
++3. **Bond-weighted tiebreak:** when capabilities tie, sort by `bond_balance DESC` — agents that have skin in the game outrank empty-pocketed ones. This is *only* triggered when the operator explicitly opts in via `pd whois --bond-weighted` or sets it as the project default.
++
++### 2.6 Could the existing semantic resolver already be the phonebook?
++
++**Mostly yes.** The semantic resolver already:
++
++- Stores embeddings for arbitrary terms.
++- Resolves a query string to canonical terms via cosine ranking.
++- Logs decisions for operator review.
++- Has an override table for operator pinning.
++
++The gap is purely the **agent join**. There is no edge from a `semantic_term` to an `agent_id`. Adding `agent_capabilities` (above) is the minimum delta to turn the existing infrastructure into a phonebook. No new embedding pipeline. No new ranking pipeline. Just a join table and a CLI wrapper.
++
++### 2.7 API sketch
++
++```bash
++# Query
++pd whois "frontend expertise"
++# → ranked list of agents with source, strength, last_seen, status
++#   --json for machine consumption
++#   --include-stale to override heartbeat gate
++#   --bond-weighted for skin-in-the-game tiebreak
+
+... [2869 more lines truncated]

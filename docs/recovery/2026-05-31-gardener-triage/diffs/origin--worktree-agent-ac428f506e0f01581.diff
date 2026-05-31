@@ -1,0 +1,360 @@
+STATS:
+ skills/port-daddy-expository-writer/CHANGELOG.md   |  50 ++++
+ skills/port-daddy-expository-writer/README.md      |  63 +++++
+ skills/port-daddy-expository-writer/SKILL.md       | 261 +++++++++++++++++++++
+ .../affordance-scorecard.json                      |  52 ++++
+ .../agents/expositor-explainer.md                  |  49 ++++
+ .../agents/expositor-fact-checker.md               |  86 +++++++
+ .../agents/expositor-voice-editor.md               |  70 ++++++
+ .../examples/analogy-bank.md                       |  82 +++++++
+ .../examples/worked-rewrite.md                     | 234 ++++++++++++++++++
+ .../references/analogy-toolkit.md                  | 163 +++++++++++++
+ .../references/verifier-cheat-sheet.md             | 170 ++++++++++++++
+ .../references/voice-references.md                 |  74 ++++++
+ .../scripts/audit-voice.sh                         |  95 ++++++++
+ .../scripts/count-analogies.sh                     |  67 ++++++
+ 14 files changed, 1516 insertions(+)
+
+---
+LAST COMMIT:
+48b8406cdf423f22efbbea10afc9b7e4eb0be65a
+Erich Owens <erich.owens@gmail.com>
+2026-05-20 09:58:36 -0700
+feat(skills): add port-daddy-expository-writer
+
+A voice and structure guide for expository writing about Port Daddy's
+formal-methods underpinnings — pieces that take a hard technical claim
+(ProVerif proof, TLA+ invariant, mechanism-design theorem) and turn it
+into an essay an educated reader can follow with pleasure.
+
+Sits in register between port-daddy-marketing-copy (quieter, design-led)
+and the whitepaper LaTeX itself (terser, refereed). Targets docs/concepts/
+and docs/tutorials/ surfaces.
+
+Contents:
+- SKILL.md — seven voice tells with formal-methods-specific anti-patterns,
+  six pedagogical moves (named-then-defined, cathedral build, "the trick"
+  reveals, syntax-then-translation, sidenote discipline, per-section
+  cathedral), structure decision tree, quality gates, where-to-apply.
+- agents/ — drafter (expositor-explainer), voice-editor, fact-checker.
+- references/voice-references.md — verbatim user_voice_website quotes plus
+  four operator-aligned example paragraphs (ProVerif, TLA+, Kani, Pareto).
+- references/verifier-cheat-sheet.md — "you reach for this when..." on
+  ProVerif, Tamarin, TLA+/TLC, Apalache, Spin, Kani, AFL++, Z3, Jepsen.
+- references/analogy-toolkit.md — fifteen pre-vetted analogies with
+  use-when / don't-use-when / provenance.
+- scripts/audit-voice.sh — banned-phrase grep with exception support.
+- scripts/count-analogies.sh — analogy density heuristic, >=1 per 500 words.
+- examples/worked-rewrite.md — three before/after rewrites taken from real
+  paragraphs in agent-transactions-whitepaper.tex sec:youle, annotated
+  with which tells fired.
+- examples/analogy-bank.md — twelve drop-in analogies.
+
+The voice rules link to user_voice_website.md rather than duplicating;
+the worked rewrites use real paper text rather than invented examples.
+
+
+---
+DIFF (first 300 lines):
+diff --git a/skills/port-daddy-expository-writer/CHANGELOG.md b/skills/port-daddy-expository-writer/CHANGELOG.md
+new file mode 100644
+index 00000000..a45dca90
+--- /dev/null
++++ b/skills/port-daddy-expository-writer/CHANGELOG.md
+@@ -0,0 +1,50 @@
++# Changelog
++
++All notable changes to `port-daddy-expository-writer`.
++
++## [0.1.0] — 2026-05-20
++
++Initial structure.
++
++- `SKILL.md` — voice rules (the seven tells, anti-pattern examples for each),
++  pedagogical moves (named-then-defined, cathedral build, "the trick" reveals,
++  syntax-then-translation, sidenotes), structure decision tree (one-pager →
++  multi-section → multi-page tutorial), quality gates, anti-patterns, where to
++  apply / where not to apply.
++- `agents/expositor-explainer.md` — main drafting persona; patient peer-addressing.
++- `agents/expositor-voice-editor.md` — second-pass voice audit persona.
++- `agents/expositor-fact-checker.md` — third-pass claim-against-paper audit persona.
++- `references/voice-references.md` — verbatim user_voice_website quotes + four
++  operator-aligned example paragraphs (ProVerif, TLA+, Kani, Pareto dominance).
++- `references/verifier-cheat-sheet.md` — one-paragraph "you reach for this when…"
++  treatment of ProVerif, Tamarin, TLA+/TLC, Apalache, Spin, Kani, AFL++/libFuzzer,
++  KLEE, Z3, CVC5, Hypothesis/fast-check/proptest, Jepsen.
++- `references/analogy-toolkit.md` — fifteen pre-vetted analogies with
++  "use when / don't use when / provenance" framing.
++- `scripts/audit-voice.sh` — banned-phrase grep with exception-comment support.
++- `scripts/count-analogies.sh` — heuristic analogy-density signal, threshold ≥1 per
++  500 words.
++- `examples/worked-rewrite.md` — three before/after rewrites from
++  `agent-transactions-whitepaper.tex §sec:youle`, annotated with which tells fired.
++- `examples/analogy-bank.md` — twelve workhorse analogies sized for drop-in use.
++- `README.md` — one-screen orientation.
++- `affordance-scorecard.json` — structural metadata for the skill registry.
++
++### Pairs with
++
++- `port-daddy-marketing-copy` (one register up: marketing is quieter, expository is the cathedral)
++- `port-daddy-agent-skill` (canonical PD coordination conventions)
++- `redteam-review` (its `references/computational-tooling.md` is the deeper reference for verifier choice)
++- `proverif-tamarin-protocol-modeling` (the *how to write the .pv file* skill;
++  this skill explains the result to a reader)
++- `tlaplus-practitioner` (analogous for TLA+)
++- `knot-theory-educator` (the structural exemplar for visual-pedagogy skills)
++
++### Operator-stated rules honored
++
++- No keyword-based NLP — the audit script greps for *exact* banned phrases (structured field),
++  not for semantic intent classification.
++- No tiny fonts — the skill prescribes Tufte-sidenote density but does not specify font
++  sizes; that lives in the website's design tokens.
++- Voice rules link to the canonical `user_voice_website.md` rather than duplicating.
++- All worked-rewrite content sourced from real paper text, not invented.
+diff --git a/skills/port-daddy-expository-writer/README.md b/skills/port-daddy-expository-writer/README.md
+new file mode 100644
+index 00000000..6eafb46b
+--- /dev/null
++++ b/skills/port-daddy-expository-writer/README.md
+@@ -0,0 +1,63 @@
++# port-daddy-expository-writer
++
++The voice and structure guide for expository writing about Port Daddy's formal-methods underpinnings — the kind of piece that takes a hard technical claim (a ProVerif proof, a TLA+ invariant, a mechanism-design theorem) and turns it into an essay an educated reader can follow with pleasure.
++
++The first artifact this skill is built to support: a `docs/concepts/` page that explains how the Port Daddy whitepaper's computational verification of mechanism-design and cryptographic claims actually works. The reader took political game theory in college, liked it, and wants the computational side to land as alive as that did.
++
++## When to use
++
++- Drafting under `website-v2/src/pages/docs/concepts/` or `docs/tutorials/`.
++- Writing companion HTML pages for whitepaper sections.
++- Any piece whose register sits *between* landing-page marketing and a published paper — slightly more cleaned-up than personal Erich, recognizably him, allowed to be long and discursive when the topic earns it.
++
++## When *not* to use
++
++- Landing-page / hero / CTA copy → `port-daddy-marketing-copy`.
++- Whitepaper LaTeX itself → that has its own register, set by the paper.
++- ADR bodies → internal register, terse.
++- Blog posts on portdaddy.dev → marketing-copy's blog rules.
++- README user-facing sections → marketing-copy.
++- CHANGELOG entries → separate convention.
++
++## Quick orientation
++
++1. Read `SKILL.md` end to end. The seven tells, the pedagogical moves, and the quality gates live there.
++2. Re-read `/Users/erichowens/.claude/projects/-Users-erichowens-coding-port-daddy/memory/user_voice_website.md`. It is the canonical voice source; this skill *points at it*, doesn't replace it.
++3. Skim `examples/worked-rewrite.md` for the calibration register.
++4. Skim `references/verifier-cheat-sheet.md` for the one-liner you'll need on each tool.
++5. Pull from `examples/analogy-bank.md` when a section needs a handhold; reach into `references/analogy-toolkit.md` for variants and provenance.
++
++## Files at a glance
++
++- **`SKILL.md`** — the doctrine.
++- **`agents/`** — three personas: drafter, voice-editor, fact-checker.
++- **`references/`** — voice quotes, verifier cheat sheet, analogy toolkit.
++- **`examples/`** — worked rewrites, analogy bank.
++- **`scripts/`** — `audit-voice.sh` (banned phrases), `count-analogies.sh` (analogy density).
++- **`CHANGELOG.md`** — version history.
++- **`affordance-scorecard.json`** — structural metadata.
++
++## How to invoke
++
++The skill is meant to be loaded by an agent drafting a `docs/concepts/` or `docs/tutorials/` piece, not invoked at the CLI. The drafter pulls `SKILL.md` for doctrine, the editor pulls `agents/expositor-voice-editor.md` plus `scripts/audit-voice.sh`, and the fact-checker pulls `agents/expositor-fact-checker.md` with the paper open alongside.
++
++Workflow inside a PD session:
++
++```bash
++pd begin --identity port-daddy:claude:expository-draft \
++         --files docs/concepts/<piece>.md
++pd note "Loading port-daddy-expository-writer for <topic>. Voice tells targeted: <list>. Verifiers: <list>."
++# ... draft ...
++scripts/audit-voice.sh docs/concepts/<piece>.md
++scripts/count-analogies.sh docs/concepts/<piece>.md
++pd note "Draft complete: <words> words, <analogies> analogies, <sidenotes> sidenotes. Audit: clean."
++pd done "expository piece on <topic>"
++```
++
++## Hard rules (carried over from operator instructions)
++
++- The voice rules link to `user_voice_website.md`, they do not duplicate it.
++- The worked-rewrite example uses a real paragraph from `agent-transactions-whitepaper.tex`, not an invented one.
++- The skill does not specialize toward blog posts (that's marketing-copy's job).
++- The skill does not pick a medium (HTML vs MDX vs LaTeX) — the calling agent does.
++- The marketing peer is `port-daddy-marketing-copy`, not `next-move-marketing`.
+diff --git a/skills/port-daddy-expository-writer/SKILL.md b/skills/port-daddy-expository-writer/SKILL.md
+new file mode 100644
+index 00000000..890365d0
+--- /dev/null
++++ b/skills/port-daddy-expository-writer/SKILL.md
+@@ -0,0 +1,261 @@
++---
++name: port-daddy-expository-writer
++description: "Voice and structure guide for Port Daddy expository writing — the kind of essay that takes a hard technical claim (formal verification, mechanism design, cryptographic protocol) and turns it into something an educated reader can follow with pleasure. Use when authoring docs/concepts/* or docs/tutorials/* pieces that explain how the Port Daddy whitepapers' formal proofs actually work. NOT for landing-page marketing (use port-daddy-marketing-copy), NOT for ADR bodies (those stay internal), NOT for academic paper drafting (the paper itself is its own thing). The register sits between marketing and paper: slightly more cleaned-up and technical than personal Erich, recognizably him."
++license: FSL-1.1-MIT
++allowed-tools: Read,Write,Edit,Bash,Grep,Glob,WebFetch,WebSearch
++metadata:
++  category: Writing
++  tags: [writing, exposition, formal-methods, game-theory, pedagogy, voice, port-daddy]
++  pairs-with: [port-daddy-marketing-copy, port-daddy-agent-skill, redteam-review, proverif-tamarin-protocol-modeling, tlaplus-practitioner, knot-theory-educator]
++  provenance:
++    kind: first-party
++    owners: [port-daddy]
++  authorship:
++    maintainers: [port-daddy]
++---
++
++# Port Daddy Expository Writer
++
++You are writing for the reader who took political game theory in college, liked it, and never got the computational side. They are an educated software engineer with a working memory of Nash equilibria, Pareto frontiers, and the prisoner's dilemma, and they want to know what *machine-checked* equilibrium looks like — what it means when a paper says "verified in ProVerif" or "Pareto dominance, Monte Carlo over 36 configurations" or "TLA+ invariant `EscrowInvariant`." They want to feel the same thing the political-theory professor made them feel, but pointed at code and proofs.
++
++Your job is to make that reader excited and competent. Patient, generous, technically alive. Cathedral on the way to the punchline. The taxonomy is the love.
++
++## NOT For
++
++- **Landing-page marketing copy.** That belongs to `port-daddy-marketing-copy`. The register over there is quieter, the design carries weight. Expository writing leans on the reader's attention for longer.
++- **The whitepaper itself.** The paper is the load-bearing artifact; the expository piece *explains* the paper. Don't try to write the paper inside `docs/concepts/`.
++- **ADR bodies.** Those have their own register (terse, decision-first, internal). See `docs/adr/*`.
++- **Blog posts.** A blog post on portdaddy.dev gets the marketing-copy blog rules (problem-first hook, install CTA). An expository piece is allowed to be longer, slower, more discursive, and to assume the reader chose to be there.
++- **CHANGELOG entries.** Different convention entirely.
++
++## The reader, named
++
++Imagine an engineer five years out of college. Took one game theory course. Has shipped distributed systems but never written a TLA+ spec. Has heard of Nash equilibria, Pareto improvements, mechanism design, the folk theorem — but has never seen any of them mechanized. They probably read a paper once for fun. They follow specifications by *energy*, not by ritual.
++
++Write to that person, not to a referee. Not to a target persona. Not to the LLM that will summarize your post for someone else.
++
++## Voice rules — the cathedral
++
++The canonical statement of Erich's voice lives in
++`/Users/erichowens/.claude/projects/-Users-erichowens-coding-port-daddy/memory/user_voice_website.md`.
++Re-read it every time. The seven tells operationalize there. They reappear here, applied to expository writing about formal methods.
++
++A draft that has zero of these tells is not done. A draft that has all seven is probably trying too hard; pick the ones the topic asks for.
++
++### Tell 1 — High-low collisions in the same breath
++
++A SAT-prep word next to a basement-hole word. The fancy word and the homely word together signal a person wrote this — someone who reads, who notices, who isn't going to perform a register. **Apply to formal methods:** the language of verifiers is naturally Latinate (*injective agreement*, *bounded model checking*, *coverage-bounded*). Pair it. *Counterexample trace* lives in the same paragraph as *the gnarly Tuesday-afternoon bug*. *Dolev-Yao adversary* sits next to *the noisy roommate who knows everyone's mail*.
++
++- **Anti-pattern (corporate even):** *"ProVerif provides symbolic protocol analysis to verify cryptographic properties of distributed systems."*
++- **In voice:** *"ProVerif is a small, very serious program that pretends an arbitrarily clever attacker — the one who reads all your mail, replays your messages, and never sleeps — has been let loose on your protocol, and asks: can the attacker pry out the secret? If the proof says no, no means no for all attackers within the model. The model is the load-bearing word."*
++
++### Tell 2 — Cathedral build, then punchline
++
++Long-form Erich never arrives at the ask directly. Six floors of context — constraints, history, delicious tangents, analogies — then a clean line near the bottom that delivers. **Apply to formal methods:** introduce the *problem in the world* before the theorem. Walk through a thing that goes wrong. Sketch what would make it not go wrong. Then name the verifier and the property. The reader earns the name; the name doesn't get spent before the reader knows what it's for.
++
++This is the inverse of the academic move (theorem first, motivation later). Expository order: problem → small story → analogy → mechanism → name. The name lands like a key turning.
++
++- **Section structure for one teaching beat:**
++  1. The mess in the world (3–6 sentences).
++  2. A small story or analogy that reframes the mess.
++  3. The primitive that resolves it.
++  4. The name of the primitive, dropped in like a punchline.
++  5. A single concrete example with real syntax.
++
++### Tell 3 — The em-dash, the parenthetical, the aside-as-genre
++
++Asides are not noise to clean up; they ARE the clarity. The reader knows a person wrote this because of the asides. Em-dashes in clusters. Parentheticals that carry the actual wit. Sentence fragments. *(Generic editors cut these for "flow." The asides are the flow.)*
++
++**Apply to formal methods:** an aside is the right place to hold the reader's hand on jargon. ("This is the same `inj-event` you'd see in the ProVerif output; treat the `inj-` prefix as *exactly once* and you'll be reading right.") The aside lets you teach without slowing the main argument. Use it liberally.
++
++- **Anti-pattern (no asides):** *"ProVerif models the protocol as applied pi-calculus terms with equational theory over signatures."*
++- **In voice:** *"ProVerif takes your protocol as a little program — its dialect is called applied pi-calculus, which is exactly as terrifying as it sounds and exactly as friendly once you've spent a Saturday with it — and treats each cryptographic operation (`sign`, `verify`, `senc`, `sdec`) as a black box that the adversary can compose but cannot peek inside."*
++
++### Tell 4 — Wild analogies between disparate things
++
++Pull from physics, biology, kitchen chemistry, law, history, comics. The reader doesn't have to recognize the analogy; the analogy's *energy* is what carries. **Apply to formal methods:** this domain *begs* for analogies. Symbolic protocol analysis is a *taste test* — the adversary licks the message and tells you whether the secret leaks. Bounded model checking is a *room of mirrors* — every reachable state is reflected back at the prover and asked to confess. Apalache is *Spinoza* — same axioms, faster at finding the contradiction.
++
++Minimum: one analogy per major section. Better: an analogy per primitive being introduced. See `references/analogy-toolkit.md` for pre-vetted ones.
++
++### Tell 5 — Lists with personality, never bullets-as-spec
++
++Each item a tiny short story. If a bullet has no voice, dissolve into prose.
++
++- **Anti-pattern (spec-bullets):**
++  > - ProVerif: symbolic protocol analysis
++  > - TLA+: distributed system specification
++  > - Kani: Rust bounded model checking
++
++- **In voice:**
++  > - **ProVerif** is the bouncer at the protocol door. It reads the script (your `.pv` file), imagines a perfectly malicious party guest (Dolev-Yao, who knows everyone's name and can rewrite the invitations), and tells you whether the door holds. Good for: signature schemes, authentication, capability delegation. Bad at: counters, timestamps, anything that needs the bouncer to *remember* between guests.
++  > - **TLA+** is the daydream. You write down what the system *means* — not what it does, what it *means* — and the model checker walks every possible interleaving of your daydream looking for a thing you said couldn't happen. Good for: anything with concurrent state, eventual consistency, escrow lifecycles. Slow on parameterized models; reach for Apalache when TLC chokes.
++  > - **Kani** is the gnat that lives inside your Rust. It picks one function, treats every input as symbolic, and lets a SAT solver hunt for the byte that crashes you. Good for: parsers, capability checks, anything where "no panic on any input" is the real spec.
++
++### Tell 6 — Word-as-affection
++
++Precise diction is how this voice loves a thing. Calling a primitive by its real name is the move. `inj-event`, not "the special ProVerif event." `EUF-CMA`, not "the standard signature security notion." The taxonomy is the love. **Caveat:** the precise name is the *second* thing in the paragraph, never the first. Earn the name with the analogy.
++
++- **In voice:** *"What ProVerif gives you, when the proof closes, is not a guarantee that no attack exists in the universe. It is a guarantee that no attack exists within a particular model of the world — call it Dolev-Yao after the 1981 paper that named it — where the adversary controls the network, can compose messages freely, and runs in unbounded time, but cannot break cryptography by guessing keys or factoring large numbers. Dolev-Yao is the bouncer's idea of an adversary."*
++
++### Tell 7 — Self-deprecation as ballast
++
++Confident and warm in the same sentence. The verifier story has *plenty* of wobble — papers cite proofs that don't quite match the deployed code, models leave out the side-channels, the Monte Carlo regime that confirms a claim is also the regime where the result is least surprising. Say so. The reader has to trust that you'll tell them when the proof is partial or the model is unrealistic. Then they'll trust you when you say it isn't.
++
++- **In voice:** *"This is where I have to come clean: the welfare claim is empirical, not proved. We ran 72,000 Monte Carlo trials and watched dominance hold under reputation noise σ_r ≤ 0.1. Past that, it bends, and with three colluding insurers it breaks. The paper says 'claim' for a reason."*
++
++## Pedagogical moves
++
++The seven tells are the *voice*; these are the *moves*. The voice rules tell you what a sentence sounds like; the pedagogical moves tell you how to assemble a teaching paragraph.
++
++### Move 1 — Named-then-defined-then-used
++
++Introduce the term, define it in the *next* sentence, then immediately use it in a small example. Never let a definition wait for the next section.
++
++> The protocol is *injectively agreed* on a session if both parties end the run with the same view of the session and there is no way to make one of them end twice on the same session against the other's wishes. In ProVerif syntax, that's `inj-event(EndedSession(a, b, k)) ==> inj-event(BeganSession(a, b, k))`. The little `inj-` prefix is the load-bearing thing: it says *one-for-one*.
++
++### Move 2 — Work through one concrete example before stating the theorem
++
++This is the most reliable move in the toolkit. Don't say *"under competitive entry, the market-discovered premium Pareto-dominates the authority-chosen static parameter."* First. Take a transaction with $B_T = 100$, three insurers, one risky agent, walk the bids, then state the theorem. The theorem hits harder when the reader has just lived through the numbers.
++
++### Move 3 — "The trick" reveals
++
++Formal-method papers have *tricks* — choices that look arbitrary until you see what they're preventing. Name the trick. *"The trick in the magic-link model is that the redeemable bit is a private channel between issuer and verifier, not a flag on the token itself — because the token can be read freely on the wire, but the channel can't be."* Tricks are pedagogically delicious. Hunt for them; reveal them.
++
++### Move 4 — Show the syntax, then a translation of the syntax
++
++Every code snippet from a verifier gets a line-by-line translation in prose. The reader does not yet know how to read `.pv` files. Two columns or alternating fences both work.
++
++```proverif
++event BeganSession(host, host, key).
++event EndedSession(host, host, key).
++query a:host, b:host, k:key;
++  inj-event(EndedSession(a, b, k)) ==>
++  inj-event(BeganSession(a, b, k)).
++```
++
++> *Line by line:* the two `event`s are markers — flags ProVerif can later look for in the execution trace. The `query` is the actual property: every time the protocol ends a session between `a` and `b` with key `k`, there must be exactly one matching begin (`inj-event`, one-for-one). If ProVerif can construct *any* trace where an end fires without a matching begin, the property fails and ProVerif hands you the trace to read.
++
++### Move 5 — Sidenotes, not footnotes
++
++Use right-gutter Tufte sidenotes (or the property's equivalent component) for definitional asides, gentle pronunciation guides, and "if you're curious" tangents. 4–6 per long piece. Footnotes are for papers; sidenotes are for the reader who wants to follow the aside without leaving the column.
++
++### Move 6 — Cathedral build inside the section, not just across them
++
++Each section gets its own cathedral. Don't open every section with the conclusion. Open with the situation in that section's piece of the world, build toward the section's claim, land it at the bottom.
++
++## Structure decision tree
++
++```
++What is the piece doing?
++├── Explaining ONE primitive (one verifier, one mechanism, one theorem)
++│   └── One-pager. 800–1500 words. Hero, three sections, worked example, "where to next."
++│
++├── Explaining how two or three primitives compose
++│   └── Multi-section essay. 2000–4000 words. 5–7 sections. Two figures minimum.
++│       4–6 sidenotes. One Mermaid sequence diagram if there's a protocol.
++│
++└── Teaching a full subsystem (Anchor Protocol, Bonded Commons §sec:youle,
++    the federated sovereign)
++    └── Multi-page tutorial. 5–10 pages of HTML/MDX. Each page is its own
++        cathedral; the sequence is the second-order cathedral. Cross-link
++        liberally. Open the first page with the *system* problem; close
++        the last page with what it composes with next.
++```
++
++**Choosing medium.** The skill itself has no opinion on whitepaper LaTeX vs HTML vs MDX. The calling agent picks the medium based on where the piece will live. For `docs/concepts/` the medium is whatever the website's docs renderer wants (currently TSX with markdown sources; check `website-v2/src/docs-content/` for the live shape before writing).
++
++## Quality gates
++
++A draft is not done until it passes all of these. Run them as a checklist before handoff.
+
+... [1301 more lines truncated]

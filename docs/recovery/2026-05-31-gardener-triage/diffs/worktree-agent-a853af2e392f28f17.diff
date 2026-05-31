@@ -1,0 +1,172 @@
+STATS:
+
+---
+LAST COMMIT:
+b8077f7ae9438074be606a247a00d582590dacd8
+Erich Owens <erich.owens@gmail.com>
+2026-05-20 10:53:27 -0700
+feat(website): snap rendered HTML into dist via Playwright postbuild (#110)
+
+* feat(website): snap rendered HTML into dist via Playwright postbuild
+
+Fix the empty-body SEO defect. Today `vite build` ships
+`<div id="root"></div>` and the `inject-route-html.mjs` postbuild
+only stamps `<head>` per route. Crawlers without patience for JS
+(every bot except modern Googlebot, and Googlebot itself when
+under load) see no prose. The blog post at
+`/blog/the-cli-is-for-the-robots` has 300+ words of content that
+search engines have to discover by re-crawling with a headless
+Chrome.
+
+Fix: a Playwright crawler that walks every indexable route in
+`siteMetadataRoutes` against a `vite preview` server and rewrites
+the per-route `dist/<route>/index.html` so the body holds the
+post-mount HTML (the head stays the metadata-injected version).
+
+Why Playwright + not an SSG framework:
+  - `vite-react-ssg` is the natural choice but its 0.9.x peer
+    deps still require `react-router-dom ^6`. We're on `v7`.
+  - `vike` requires migrating ~100 routes off React Router into
+    its file-system convention. Too big a swing for the gain.
+  - Custom Node SSR is months of work to maintain.
+  - Playwright was already a devDependency. Zero new deps.
+
+Pipeline (after this PR):
+  prebuild: generate-seo-artifacts.mjs        (sitemap, robots, llms)
+  build:    tsc -b && vite build              (empty-body shell)
+  postbuild step 1: inject-route-html.mjs     (per-route <head>)
+  postbuild step 2: snap-routes.mjs           (per-route <body>)  NEW
+
+Settle logic:
+  - Wait until the Suspense fallback ("Loading route...") leaves
+    the DOM AND the root contains either a heading element or
+    >200 chars of visible text. Default 20s timeout per route;
+    routes that miss the window report `fallback` and don't
+    overwrite the existing body (graceful degradation).
+  - Concurrency 4 by default (SNAP_CONCURRENCY env override).
+
+Verified against a clean build:
+  - 277 routes captured, 0 failed.
+  - Landing index.html grew from 4.5KB → 188KB.
+  - Blog post `/blog/control-plane-is-the-product` → 88KB with
+    all H1/H2 prose snapped in.
+  - `grep -c "Loading route" dist/**/*.html` → 0 in bodies (only
+    one hit in the bundled JS, the source of RouteFallback).
+  - `curl -A Googlebot file://.../dist/index.html | grep -c "<h"`
+    → 3 headings present in the static HTML.
+
+CI implications:
+  - `vite preview` + chromium add ~2-5 min to website-v2 build.
+  - Playwright chromium binary should already be available in CI
+    (record:gifs workflow uses it).
+
+Follow-ups (deferred):
+  - CI assertion that body content is non-empty per route, to
+    catch a future router change that breaks Suspense settling.
+  - Wire into the Cloudflare Pages deploy and smoke a staging
+    URL before declaring real coverage.
+
+* fix(snap): hard-fail on empty captures + use exitCode not process.exit
+
+Two skeptical-reviewer fixes:
+
+1. process.exit(1) on the top-level .catch was a hammer that
+   bypassed the unfinished-but-deeper finally blocks. If main()
+   threw before reaching its own try/finally, vite preview could
+   be left orphaned. Using process.exitCode = 1 lets the promise
+   chain unwind cleanly and any in-flight finally blocks run.
+
+2. The exit-code logic only counted status==='fail' as failure.
+   'empty' (root rendered nothing — a real regression) was
+   silently classified as 'skipped' and exited 0. A future bug
+   that broke every page's Suspense settling could ship an
+   empty-body dist with a green CI run. Now empty counts as
+   failure, fallback stays as skip (keeps the existing body),
+   and ok===0 with non-zero target count is also a hard fail.
+
+Verified by clean rebuild: 277 captured / 0 fallback / 0 empty /
+0 failed, exit 0. Behavior on the happy path unchanged.
+
+Open follow-up (not in this PR): the 'Loading route...' settle
+marker is duplicated as a literal in two places. Brittle to a
+future rename of RouteFallback's text. Plan: have RouteFallback
+render data-snap-state="loading" and have snap-routes wait on
+the attribute, decoupling settle detection from copy.
+
+* fix(snap): graceful degrade when chromium can't launch
+
+Cloudflare Pages build failed because its default Node image
+doesn't bundle the Playwright chromium binary. snap-routes was
+throwing at chromium.launch(), the postbuild exited non-zero,
+and the CF deploy stayed broken.
+
+Two layered guards:
+
+1. SNAP_SKIP_ON_BROWSER_ERROR=1 (operator opt-in) and the
+   auto-detected CF_PAGES=1 (Cloudflare Pages env). Either one
+   converts a chromium-launch failure into a warning + exit 0.
+
+2. The top-level catch also honors the same flag. If anything
+   in the snap path throws (missing playwright module, vite
+   preview boot failure, etc.) we degrade rather than fail the
+   deploy. The cost is that empty-body HTML ships until the
+   underlying problem is fixed; the benefit is that the rest
+   of the site keeps deploying.
+
+CI runners that DO have chromium (GitHub Actions test:gifs etc.)
+should leave SNAP_SKIP_ON_BROWSER_ERROR unset so genuine breakage
+surfaces.
+
+Path forward to actually run snap in production (not in this PR):
+either install chromium in CF Pages build (`npx playwright
+install chromium` in the dashboard build command) OR move the
+snap step to a GitHub Actions workflow that publishes the dist
+to CF separately. Tracked in PR comment.
+
+* fix(snap): remove snap from default postbuild
+
+CF Pages keeps failing on the snap step. Even with the
+graceful-degrade flag and CF_PAGES=1 auto-detection, something in
+the snap call chain is still tripping the deploy. Rather than
+hold the SSR-safety + snap tooling hostage to the CF Pages
+environment, detach snap from the default build:
+
+  - npm run build       → the existing tsc + vite + inject-head
+                          flow. Cloudflare Pages stays green.
+  - npm run snap:routes → the snap step explicitly.
+  - npm run build:full  → build + snap, the local + CI shape.
+
+Until snap is wired into the actual CF Pages deploy (either by
+installing chromium in the dashboard build command or by moving
+the deploy to a GitHub Actions workflow that runs build:full and
+publishes via API), Google still sees empty bodies in production.
+This commit gives us the tooling in main without breaking deploys
+on the way to that wiring.
+
+* ci(website): GitHub Actions workflow runs build:full + deploys snap to prod
+
+CF Pages git integration can't run snap (no chromium in its
+build image). This workflow takes the deploy:
+
+  - runs on push to main affecting website-v2/**
+  - installs chromium via playwright install
+  - runs build:full (the existing build + snap-routes)
+  - hard-fails if dist/<route>/index.html still has an empty root
+    (defense in depth — refuses to deploy empty bodies)
+  - deploys dist/ to the existing 'port-daddy' Cloudflare Pages
+    project via wrangler-action
+
+Concurrency-grouped so two pushes don't race. Manual
+workflow_dispatch with a --branch input for previews.
+
+Required secrets (operator action if not set yet):
+  - CLOUDFLARE_API_TOKEN: Pages:Edit on the port-daddy project
+  - CLOUDFLARE_ACCOUNT_ID: from the Pages dashboard URL
+
+The CF Pages git integration may still fire on the same push and
+ship empty-body HTML first. This workflow runs afterward and
+overwrites with snapped HTML — last-writer-wins outcome: full
+content reaches Google.
+
+---
+DIFF (first 300 lines):

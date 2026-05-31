@@ -1,0 +1,356 @@
+STATS:
+ cli/commands/sugar.ts                  |  19 +++
+ lib/client.ts                          |   9 ++
+ lib/git-origin-check.ts                | 206 +++++++++++++++++++++++++++
+ lib/spawner.ts                         |  19 ++-
+ lib/sugar.ts                           | 105 +++++++++++++-
+ routes/sugar.ts                        |  24 +++-
+ tests/integration/cli.test.js          |  24 +++-
+ tests/integration/demo-scripts.test.js |  22 ++-
+ tests/integration/sugar.test.js        |  22 ++-
+ tests/unit/sugar.test.js               | 251 +++++++++++++++++++++++++++++++--
+ 10 files changed, 672 insertions(+), 29 deletions(-)
+
+---
+LAST COMMIT:
+0bebedeb58c3935c9cc970ed29145ebcfe4c0069
+Erich Owens <erich.owens@gmail.com>
+2026-05-20 23:19:19 -0700
+feat(coordination): pd done refuses unpushed branches + requires PR url in result
+
+Hard precondition for `pd done`: refuse to mark a session complete unless
+the branch is fully pushed to origin AND the result note carries one of
+three sentinels (PR URL, no-pr-yet:, not-applicable:). Escape hatch:
+--skip-origin-check --reason "<reason>" stamps [OPERATOR-OVERRIDE] into
+the note for auditability.
+
+Motivated by the 2026-05-20 incident where 9 worktree branches were
+orphaned because agents wrote pd done without ever pushing.
+
+Implementation:
+- lib/git-origin-check.ts (NEW): execFileSync-based check of
+  rev-list @{u}..HEAD --count plus PR-URL / sentinel regexes.
+- lib/sugar.ts: precondition gate in done() applied only for
+  status=completed; abandoned sessions pass through unchanged.
+- routes/sugar.ts: new HTTP 400 codes for the refusals.
+- cli/commands/sugar.ts: --skip-origin-check + --reason flags,
+  prints the structured hint indented under the error.
+- lib/client.ts (DoneSugarOptions): new skipOriginCheck fields.
+- lib/spawner.ts: spawner-managed agents auto-bypass with reason
+  (subprocess lifecycle, not feature-branch lifecycle).
+
+Tests:
+- 5 new unit cases in tests/unit/sugar.test.js exercising the gate
+  via an injected gitOriginChecker stub.
+- Existing unit tests + integration tests updated to either include
+  a sentinel in their note or use the documented escape hatch.
+
+Validation:
+- 202 unit suites pass (5810 tests).
+- tsc --noEmit clean.
+
+
+---
+DIFF (first 300 lines):
+diff --git a/cli/commands/sugar.ts b/cli/commands/sugar.ts
+index 8b92e15e..c5f4d7ad 100644
+--- a/cli/commands/sugar.ts
++++ b/cli/commands/sugar.ts
+@@ -192,15 +192,34 @@ export async function handleDone(
+   if (note) body.note = note;
+   if (options.status) body.status = options.status;
+ 
++  // pd done origin-rule escape hatch (substrate fix 2026-05-20).
++  // --skip-origin-check requires --reason "<reason>". The reason is
++  // stamped into the result note with a loud [OPERATOR-OVERRIDE] prefix.
++  const skipOriginCheck = options.skipOriginCheck === true || options['skip-origin-check'] === true;
++  const skipOriginCheckReason = (options.reason as string | undefined) || undefined;
++  if (skipOriginCheck) {
++    body.skipOriginCheck = true;
++    if (skipOriginCheckReason) body.skipOriginCheckReason = skipOriginCheckReason;
++  }
++
+   const pd = new PortDaddy({ agentId: typeof body.agentId === 'string' ? body.agentId : undefined });
+   const data = await pd.done(note, {
+     agentId: typeof body.agentId === 'string' ? body.agentId : undefined,
+     sessionId: typeof body.sessionId === 'string' ? body.sessionId : undefined,
+     status: typeof body.status === 'string' ? body.status : undefined,
++    skipOriginCheck: skipOriginCheck ? true : undefined,
++    skipOriginCheckReason: skipOriginCheck ? skipOriginCheckReason : undefined,
+   });
+ 
+   if (!data?.success) {
++    // For the new precondition refusals, print the structured remediation
++    // hint on its own line so operators see the actionable next step.
+     ui.error(data?.error || 'Failed to end session');
++    const hint = (data as unknown as { hint?: unknown } | null)?.hint;
++    if (typeof hint === 'string') {
++      // Indent each line for readability beneath the error header.
++      console.error(hint.split('\n').map((line) => (line.startsWith('  ') ? line : `  ${line}`)).join('\n'));
++    }
+     process.exit(1);
+   }
+ 
+diff --git a/lib/client.ts b/lib/client.ts
+index 7b454805..4fd5643b 100644
+--- a/lib/client.ts
++++ b/lib/client.ts
+@@ -2660,6 +2660,8 @@ class PortDaddy {
+     if (options.sessionId) body.sessionId = options.sessionId;
+     if (note) body.note = note;
+     if (options.status) body.status = options.status;
++    if (options.skipOriginCheck) body.skipOriginCheck = true;
++    if (options.skipOriginCheckReason) body.skipOriginCheckReason = options.skipOriginCheckReason;
+ 
+     const ipcResult = await this._requestViaIpc<DoneSugarResponse>(IpcAction.DONE, body, {
+       agentId: options.agentId || this.agentId,
+@@ -3735,6 +3737,13 @@ interface DoneSugarOptions {
+   agentId?: string;
+   sessionId?: string;
+   status?: string;
++  /**
++   * Operator escape hatch for the origin-push + PR-URL precondition.
++   * When true, pass `skipOriginCheckReason` as well — it is required
++   * server-side and gets stamped into the result note.
++   */
++  skipOriginCheck?: boolean;
++  skipOriginCheckReason?: string;
+ }
+ 
+ interface DoneSugarResponse {
+diff --git a/lib/git-origin-check.ts b/lib/git-origin-check.ts
+new file mode 100644
+index 00000000..960f7e4c
+--- /dev/null
++++ b/lib/git-origin-check.ts
+@@ -0,0 +1,206 @@
++/**
++ * Git Origin Check — Precondition gate for pd done.
++ *
++ * This module verifies, before pd done is allowed to mark a session
++ * complete, that:
++ *   1. The session's branch is not ahead of its upstream on origin
++ *      (i.e. all local commits have been pushed).
++ *   2. The result note ("Result: ...") includes one of three sentinels
++ *      describing where the work lands:
++ *        - A PR URL (https://github.com/.../pull/<n>)
++ *        - "no-pr-yet: <reason>"
++ *        - "not-applicable: <reason>"
++ *
++ * The 2026-05-20 incident that motivated this rule: 9 worktree branches
++ * were orphaned because agents wrote pd done without ever pushing. No
++ * one audited until the operator did it himself. This precondition is
++ * the substrate fix.
++ *
++ * Implementation note: we use execFileSync (no shell) with hard-coded
++ * argv arrays so no user input is interpolated into a shell command.
++ * This mirrors the convention in lib/worktree.ts.
++ */
++
++import { execFileSync, type ExecFileSyncOptionsWithStringEncoding } from 'node:child_process';
++
++export interface OriginCheckResult {
++  ok: boolean;
++  /** A short machine-readable code when ok=false */
++  code?:
++    | 'NO_REPO'
++    | 'NO_UPSTREAM'
++    | 'BRANCH_AHEAD'
++    | 'GIT_ERROR';
++  /** Human-readable explanation when ok=false */
++  error?: string;
++  /** Remediation hint, ready to print to operator */
++  hint?: string;
++  /** Current branch name, when detectable */
++  branch?: string | null;
++  /** Upstream ref (e.g. "origin/feat/foo"), when detectable */
++  upstream?: string | null;
++  /** Number of commits ahead of upstream (0 means clean) */
++  ahead?: number;
++}
++
++export interface GitOriginChecker {
++  /** Returns ok=true only when the branch is fully pushed to its upstream. */
++  checkBranchOnOrigin(cwd?: string): OriginCheckResult;
++}
++
++function gitExecOptions(cwd?: string): ExecFileSyncOptionsWithStringEncoding {
++  return {
++    ...(cwd ? { cwd } : {}),
++    encoding: 'utf8',
++    stdio: ['ignore', 'pipe', 'pipe'],
++  };
++}
++
++function tryGit(args: string[], opts: ExecFileSyncOptionsWithStringEncoding): { ok: true; out: string } | { ok: false; err: string } {
++  try {
++    const out = execFileSync('git', args, opts).toString().trim();
++    return { ok: true, out };
++  } catch (err) {
++    const message = err instanceof Error ? err.message : String(err);
++    return { ok: false, err: message };
++  }
++}
++
++/**
++ * Production implementation — runs real git commands.
++ */
++export function createGitOriginChecker(): GitOriginChecker {
++  return {
++    checkBranchOnOrigin(cwd?: string): OriginCheckResult {
++      const opts = gitExecOptions(cwd);
++
++      // 1) Are we even in a git repo?
++      const rootRes = tryGit(['rev-parse', '--show-toplevel'], opts);
++      if (!rootRes.ok) {
++        return {
++          ok: false,
++          code: 'NO_REPO',
++          error: 'Not inside a Git repository (or git is unavailable).',
++          hint: 'pd done cannot enforce origin push outside a Git repo. Use --skip-origin-check --reason "<reason>" if this is intentional.',
++        };
++      }
++
++      // 2) Current branch (skip detached HEAD)
++      const branchRes = tryGit(['rev-parse', '--abbrev-ref', 'HEAD'], opts);
++      if (!branchRes.ok) {
++        return {
++          ok: false,
++          code: 'GIT_ERROR',
++          error: `Could not resolve current branch: ${branchRes.err}`,
++          hint: 'Check the worktree state, or use --skip-origin-check --reason "<reason>".',
++        };
++      }
++      const branch = branchRes.out === 'HEAD' ? null : branchRes.out;
++      if (!branch) {
++        return {
++          ok: false,
++          code: 'GIT_ERROR',
++          error: 'Detached HEAD: cannot verify origin push.',
++          hint: 'Check out a branch (or use --skip-origin-check --reason "<reason>").',
++          branch: null,
++        };
++      }
++
++      // 3) Upstream
++      const upstreamRes = tryGit(['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'], opts);
++      if (!upstreamRes.ok) {
++        return {
++          ok: false,
++          code: 'NO_UPSTREAM',
++          error: `Branch "${branch}" has no upstream — nothing has been pushed.`,
++          hint: `Push the branch and set its upstream:\n    git push -u origin ${branch}\n  Then re-run pd done.`,
++          branch,
++          upstream: null,
++        };
++      }
++      const upstream = upstreamRes.out;
++
++      // 4) Ahead-of-upstream count
++      const aheadRes = tryGit(['rev-list', '@{u}..HEAD', '--count'], opts);
++      if (!aheadRes.ok) {
++        return {
++          ok: false,
++          code: 'GIT_ERROR',
++          error: `Could not compute ahead-of-upstream count: ${aheadRes.err}`,
++          hint: 'Check the worktree state, or use --skip-origin-check --reason "<reason>".',
++          branch,
++          upstream,
++        };
++      }
++      const ahead = Number.parseInt(aheadRes.out, 10);
++      if (!Number.isFinite(ahead) || ahead < 0) {
++        return {
++          ok: false,
++          code: 'GIT_ERROR',
++          error: `Unexpected ahead count: "${aheadRes.out}"`,
++          hint: 'Check the worktree state, or use --skip-origin-check --reason "<reason>".',
++          branch,
++          upstream,
++        };
++      }
++      if (ahead > 0) {
++        return {
++          ok: false,
++          code: 'BRANCH_AHEAD',
++          error: `Branch "${branch}" is ahead of ${upstream} by ${ahead} commit${ahead === 1 ? '' : 's'}.`,
++          hint: `Push the branch first:\n    git push -u origin ${branch}\n  Then re-run pd done.`,
++          branch,
++          upstream,
++          ahead,
++        };
++      }
++
++      return { ok: true, branch, upstream, ahead: 0 };
++    },
++  };
++}
++
++// =============================================================================
++// Result-note sentinel detection
++// =============================================================================
++
++/**
++ * Matches GitHub-style PR URLs. We accept https://github.com/<owner>/<repo>/pull/<n>.
++ * (GitLab and other forges can be added if/when needed; sentinels are also accepted
++ * for those cases via no-pr-yet / not-applicable.)
++ */
++const PR_URL_RE = /https?:\/\/github\.com\/[^\s/]+\/[^\s/]+\/pull\/\d+/i;
++const NO_PR_YET_RE = /\bno-pr-yet\s*:/i;
++const NOT_APPLICABLE_RE = /\bnot-applicable\s*:/i;
++
++export type NoteSentinelKind = 'pr-url' | 'no-pr-yet' | 'not-applicable';
++
++export interface NoteSentinelResult {
++  ok: boolean;
++  kind?: NoteSentinelKind;
++  match?: string;
++}
++
++/**
++ * Returns ok=true if the note contains one of the three accepted sentinels.
++ * Returns ok=false (with no kind/match) when the note is missing or lacks any sentinel.
++ */
++export function checkResultNoteSentinel(note: string | null | undefined): NoteSentinelResult {
++  if (typeof note !== 'string' || !note.trim()) {
++    return { ok: false };
++  }
++  const m1 = note.match(PR_URL_RE);
++  if (m1) return { ok: true, kind: 'pr-url', match: m1[0] };
++  if (NO_PR_YET_RE.test(note)) return { ok: true, kind: 'no-pr-yet' };
++  if (NOT_APPLICABLE_RE.test(note)) return { ok: true, kind: 'not-applicable' };
++  return { ok: false };
++}
++
++export function noteSentinelErrorMessage(): string {
++  return [
++    'Result note must include one of:',
++    '  - A PR URL                 (e.g., "Result: ... PR opened: https://github.com/owner/repo/pull/143")',
++    '  - no-pr-yet: <reason>      (e.g., "Result: ... no-pr-yet: blocked on operator approval")',
++    '  - not-applicable: <reason> (e.g., "Result: ... not-applicable: docs-only sync")',
++  ].join('\n');
++}
+diff --git a/lib/spawner.ts b/lib/spawner.ts
+index ee19fd06..6fb5b58f 100644
+--- a/lib/spawner.ts
++++ b/lib/spawner.ts
+@@ -1079,7 +1079,16 @@ export function createSpawner(deps: SpawnerDeps = {}) {
+ 
+     if (!wasKilled) {
+       const doneNote = error ? `Failed: ${error.slice(0, 200)}` : `Completed: ${(output || '').slice(0, 200)}`;
+-      await pdCoordinate('/sugar/done', { agentId, note: doneNote });
++      // Spawner-managed agents bypass the pd-done origin-push rule: they
++      // are ephemeral workflow agents whose lifetime is tied to a
++      // subprocess, not a feature branch. The override marker makes the
++      // bypass auditable in session notes.
++      await pdCoordinate('/sugar/done', {
++        agentId,
++        note: doneNote,
++        skipOriginCheck: true,
++        skipOriginCheckReason: 'spawner-managed agent — lifecycle is subprocess, not feature branch',
++      });
+     }
+ 
+     // Resolve bond. Clean exit → full refund; error → slash full bond with reason.
+
+... [725 more lines truncated]

@@ -1,0 +1,339 @@
+STATS:
+ lib/backend-telemetry-policy.ts             | 35 +++++++++++--
+ lib/cost-tracker.ts                         | 51 +++++++++++++++++--
+ tests/unit/backend-readiness.test.js        |  6 ++-
+ tests/unit/backend-telemetry-policy.test.js | 63 ++++++++++++++++++++++-
+ tests/unit/cost-tracker.test.js             | 78 ++++++++++++++++++++++++++++-
+ tests/unit/fleet-daemon.test.js             |  7 ++-
+ tests/unit/spawner-telemetry-policy.test.js |  8 ++-
+ 7 files changed, 233 insertions(+), 15 deletions(-)
+
+---
+LAST COMMIT:
+d4e23c75a81c1dcf282c583ce4dbb0fb1ac8d60f
+Erich Owens <erich.owens@gmail.com>
+2026-05-22 06:02:05 -0700
+test: update tests that assumed ollama is always policy-blocked
+
+The original PR #111 commit unblocked ollama when a known family model
+is provided. Three pre-existing tests assumed ollama is hardcoded-blocked:
+
+  - backend-readiness.test.js: 'keeps ollama probe details while still
+    blocking launch under telemetry policy' — now expects the no-model
+    'Ollama model is required' summary instead of the old hardcoded text.
+  - spawner-telemetry-policy.test.js: 'blocks opaque backends' — uses
+    'unobtanium-7b' (no family match) to keep exercising the blocked
+    code path now that 'llama3.1:8b' (the spawner default) is allowed.
+  - fleet-daemon.test.js: 'getStatus() exposes launchability and warns
+    when a fleet has blocked backends' — model swapped from
+    'qwen2.5-coder:7b' (now allowed) to 'unobtanium-7b' (still blocked)
+    so the partial-launchable assertion holds.
+
+48/48 in the three impacted suites; 60/60 in the policy + cost-tracker
+suites added by this PR.
+
+
+---
+DIFF (first 300 lines):
+diff --git a/lib/backend-telemetry-policy.ts b/lib/backend-telemetry-policy.ts
+index 4dea8616..e76e544a 100644
+--- a/lib/backend-telemetry-policy.ts
++++ b/lib/backend-telemetry-policy.ts
+@@ -87,12 +87,37 @@ export function assessBackendTelemetryPolicy(backend: string, model?: string | n
+       };
+     }
+ 
+-    case 'ollama':
+-      return blocked(
++    case 'ollama': {
++      // Ollama's HTTP /api/chat returns exact prompt_eval_count + eval_count
++      // (see lib/llm-call.ts ollamaAdapter:148-149). The spawner enforces the
++      // full pipeline end-to-end (lib/spawner.ts:1005-1052) including the
++      // costUsd > 0 check, so the policy gate flips on the model having a
++      // known rate in cost-tracker MODEL_RATES.
++      const effectiveModel = model?.trim() || '';
++      if (!effectiveModel) {
++        return blocked(
++          backend,
++          'Ollama model is required; pass --model to anchor an exact rate.',
++          'Re-run with --model <name>, e.g. --model qwen2.5-coder:7b.'
++        );
++      }
++      if (!hasExactModelRate(effectiveModel, 'ollama')) {
++        return {
++          ...blocked(
++            backend,
++            `Ollama model "${effectiveModel}" has no exact cost rate entry; fail-closed telemetry policy blocks launch.`,
++            'Add a rate for this model family to cost-tracker OLLAMA_MODEL_RATES before enabling it.'
++          ),
++          effectiveModel,
++        };
++      }
++      return {
+         backend,
+-        'Ollama is blocked until Port Daddy can attach exact token counts and a nonzero cost rate to every operation.',
+-        'Keep Ollama disabled until the telemetry contract explicitly supports nonzero rate accounting for local inference.'
+-      );
++        launchAllowed: true,
++        summary: `Exact telemetry policy satisfied for Ollama model "${effectiveModel}"`,
++        effectiveModel,
++      };
++    }
+ 
+     case 'custom':
+       return blocked(
+diff --git a/lib/cost-tracker.ts b/lib/cost-tracker.ts
+index bfbbb13f..47a92629 100644
+--- a/lib/cost-tracker.ts
++++ b/lib/cost-tracker.ts
+@@ -78,6 +78,37 @@ const MODEL_RATES: Array<[string, ModelRate]> = [
+   ['gemini-1.5-flash',        { input:  0.075, output: 0.30, label: 'Gemini 1.5 Flash' }],
+ ];
+ 
++// ─── Ollama-only model rates ──────────────────────────────────────────────────
++//
++// Held in a SEPARATE table from the cross-backend MODEL_RATES so bare-word
++// family keys like `qwen` / `llama` / `mistral` cannot false-match a future
++// non-ollama paid model whose name happens to contain those substrings
++// (e.g. `claude-llama-experimental`). findRate() consults this table only
++// when the backend argument is 'ollama'.
++//
++// Rates are an electricity / amortized-hardware proxy for M4 Max-class
++// hardware:
++//   ~50W draw * (1 / 100 tok/s) = 0.5 J/tok = 1.39e-4 Wh/tok
++//   * $0.30/kWh = 4.2e-8 USD/tok = 0.042 USD/M tokens
++// Rounded up to 0.05 USD/M for input and output. Token counts are exact
++// (Ollama returns prompt_eval_count + eval_count on /api/chat — see
++// lib/llm-call.ts ollamaAdapter:148-149). The fail-closed telemetry policy
++// (lib/backend-telemetry-policy.ts) checks hasExactModelRate(model, 'ollama')
++// against these entries; the spawner (lib/spawner.ts:1005-1052) then
++// enforces the full pipeline (token-count present, computed cost not
++// estimate, costUsd > 0).
++const OLLAMA_MODEL_RATES: Array<[string, ModelRate]> = [
++  ['qwen',        { input:  0.05, output:  0.05, label: 'Ollama local Qwen family (electricity proxy)' }],
++  ['llama',       { input:  0.05, output:  0.05, label: 'Ollama local Llama / dolphin-llama family (electricity proxy)' }],
++  ['mistral',     { input:  0.05, output:  0.05, label: 'Ollama local Mistral / dolphin-mistral family (electricity proxy)' }],
++  ['hermes',      { input:  0.05, output:  0.05, label: 'Ollama local Hermes family (electricity proxy)' }],
++  ['dolphin',     { input:  0.05, output:  0.05, label: 'Ollama local Dolphin family (electricity proxy)' }],
++  ['phi',         { input:  0.05, output:  0.05, label: 'Ollama local Phi family (electricity proxy)' }],
++  ['gemma',       { input:  0.05, output:  0.05, label: 'Ollama local Gemma family (electricity proxy)' }],
++  ['codellama',   { input:  0.05, output:  0.05, label: 'Ollama local CodeLlama family (electricity proxy)' }],
++  ['nomic-embed', { input:  0.01, output:  0.01, label: 'Ollama local nomic-embed (smaller embedding model)' }],
++];
++
+ /**
+  * Flat per-session cost estimates for backends that don't expose token counts.
+  * These are conservative estimates meant to flag usage, not for billing.
+@@ -170,16 +201,25 @@ export interface BudgetStatus {
+ 
+ // ─── Internal helpers ─────────────────────────────────────────────────────────
+ 
+-function findRate(model: string): ModelRate | null {
++function findRate(model: string, backend?: string): ModelRate | null {
+   const lc = model.toLowerCase();
++  // Ollama family rates are checked ONLY for the ollama backend so bare-word
++  // keys like 'qwen' / 'llama' / 'mistral' can never false-match a paid
++  // remote model that happens to contain those substrings.
++  if (backend === 'ollama') {
++    for (const [key, rate] of OLLAMA_MODEL_RATES) {
++      if (lc.includes(key)) return rate;
++    }
++    return null;
++  }
+   for (const [key, rate] of MODEL_RATES) {
+     if (lc.includes(key)) return rate;
+   }
+   return null;
+ }
+ 
+-export function hasExactModelRate(model: string): boolean {
+-  return findRate(model) !== null;
++export function hasExactModelRate(model: string, backend?: string): boolean {
++  return findRate(model, backend) !== null;
+ }
+ 
+ function findFallbackRate(backend: string, model: string): ModelRate | null {
+@@ -206,7 +246,10 @@ function computeCost(
+   const normalizedInput = normalizeTokenCount(inputTokens);
+   const normalizedOutput = normalizeTokenCount(outputTokens);
+   const normalizedCachedInput = normalizeTokenCount(cachedInputTokens);
+-  const exactRate = findRate(model);
++  // Pass backend through so ollama-family substring keys (qwen / llama /
++  // mistral / etc.) only match for the ollama backend; a paid model like
++  // `claude-llama-experimental` won't false-match the ollama rate.
++  const exactRate = findRate(model, backend);
+   const fallbackRate = findFallbackRate(backend, model);
+   const knownRate = exactRate || fallbackRate;
+   const sessionEstimate = estimateOpaqueSessionCost(backend, model);
+diff --git a/tests/unit/backend-readiness.test.js b/tests/unit/backend-readiness.test.js
+index 5b46e6fd..f8965b8a 100644
+--- a/tests/unit/backend-readiness.test.js
++++ b/tests/unit/backend-readiness.test.js
+@@ -196,7 +196,11 @@ describe('backend readiness', () => {
+       status: 'needs_setup',
+     });
+     expect(readiness.summary).toContain('Ollama CLI found, but local API is not reachable');
+-    expect(readiness.summary).toContain('blocked until Port Daddy can attach exact token counts');
++    // Policy now needs a --model to anchor an exact rate (since the
++    // ollama-only family table is backend-scoped). Without a model, the
++    // policy returns "Ollama model is required" rather than the old
++    // hardcoded-blocked text.
++    expect(readiness.summary).toContain('Ollama model is required');
+     expect(readiness.setupCommand).toBe('ollama serve');
+     expect(mockSpawnSync).toHaveBeenCalled();
+     expect(global.fetch).toHaveBeenCalled();
+diff --git a/tests/unit/backend-telemetry-policy.test.js b/tests/unit/backend-telemetry-policy.test.js
+index 9867fa87..2497ae79 100644
+--- a/tests/unit/backend-telemetry-policy.test.js
++++ b/tests/unit/backend-telemetry-policy.test.js
+@@ -58,7 +58,10 @@ describe('backend telemetry policy', () => {
+     // Cloudflare is no longer opaque — `lib/cost-tracker.ts` ships exact
+     // rates for Workers AI models. Claude CLI still stays blocked because
+     // subprocess launches do not yet prove exact token counts end-to-end.
+-    for (const backend of ['claude-cli', 'gemini', 'ollama', 'aider', 'custom']) {
++    // Ollama is excluded here because it's no longer in the opaque-blocked
++    // class — the policy now allows it when the model has a known rate
++    // (see "allows Ollama when the model has an exact rate entry" below).
++    for (const backend of ['claude-cli', 'gemini', 'aider', 'custom']) {
+       const policy = assessBackendTelemetryPolicy(backend);
+       expect(policy.launchAllowed).toBe(false);
+       expect(policy.summary).toContain('blocked');
+@@ -95,4 +98,62 @@ describe('backend telemetry policy', () => {
+     expect(policy.effectiveModel).toBe('claude-mystery-model');
+     expect(policy.summary).toContain('blocked until exact token counts');
+   });
++
++  test('allows Ollama when the model has an exact rate entry', () => {
++    const policy = assessBackendTelemetryPolicy('ollama', 'qwen2.5-coder:7b');
++    expect(policy.launchAllowed).toBe(true);
++    expect(policy.backend).toBe('ollama');
++    expect(policy.effectiveModel).toBe('qwen2.5-coder:7b');
++    expect(policy.summary).toContain('Exact telemetry policy satisfied');
++  });
++
++  test('allows Ollama for each canonical local model family', () => {
++    const families = [
++      'qwen2.5-coder:14b',
++      'llama3.1:8b',
++      'dolphin-mistral:7b',
++      'hermes4:14b',
++      'dolphin-llama3:70b',
++      'phi3:mini',
++      'gemma2:9b',
++      'codellama:13b',
++      'nomic-embed-text:latest',
++    ];
++    for (const model of families) {
++      const policy = assessBackendTelemetryPolicy('ollama', model);
++      expect(policy.launchAllowed).toBe(true);
++      expect(policy.effectiveModel).toBe(model);
++    }
++  });
++
++  test('blocks Ollama when no model is supplied', () => {
++    const policy = assessBackendTelemetryPolicy('ollama');
++    expect(policy.launchAllowed).toBe(false);
++    expect(policy.backend).toBe('ollama');
++    expect(policy.summary).toContain('Ollama model is required');
++  });
++
++  test('blocks Ollama when the model has no rate entry', () => {
++    const policy = assessBackendTelemetryPolicy('ollama', 'unobtanium-7b');
++    expect(policy.launchAllowed).toBe(false);
++    expect(policy.backend).toBe('ollama');
++    expect(policy.effectiveModel).toBe('unobtanium-7b');
++    expect(policy.summary).toContain('has no exact cost rate entry');
++  });
++
++  test('does NOT let Ollama family keys false-match non-ollama backends', () => {
++    // Substrings like "llama" / "qwen" / "mistral" must NEVER allow a paid
++    // remote backend to bypass the telemetry gate just because a future
++    // model name contains those tokens.
++    for (const evilModel of [
++      'claude-llama-experimental',
++      'claude-3-7-qwen-tune',
++      'gemini-mistral-7b-distill',
++    ]) {
++      const policy = assessBackendTelemetryPolicy('claude', evilModel);
++      expect(policy.launchAllowed).toBe(false);
++      // Claude case message: "no exact cost rate entry"
++      expect(policy.summary).toContain('no exact cost rate entry');
++    }
++  });
+ });
+diff --git a/tests/unit/cost-tracker.test.js b/tests/unit/cost-tracker.test.js
+index ff59a0a9..c828ba45 100644
+--- a/tests/unit/cost-tracker.test.js
++++ b/tests/unit/cost-tracker.test.js
+@@ -59,12 +59,88 @@ describe('CostTracker', () => {
+     expect(costUsd).toBeCloseTo(0.18, 4);
+   });
+ 
+-  test('ollama costs zero', () => {
++  test('ollama without token counts falls back to zero estimate (opaque path)', () => {
++    // No tokens → estimateOpaqueSessionCost returns SESSION_ESTIMATES_USD.ollama (0.00)
+     const { costUsd, isEstimate } = costTracker.computeCost('ollama', 'llama3.1:8b');
+     expect(costUsd).toBe(0);
+     expect(isEstimate).toBe(true);
+   });
+ 
++  test('ollama with token counts computes exact nonzero cost (electricity proxy)', () => {
++    // qwen2.5-coder:7b matches "qwen" rate (0.05 input / 0.05 output USD/M)
++    //   10000 input × 0.05 / 1M = 0.0005
++    //   2000 output × 0.05 / 1M = 0.0001
++    //   total = 0.0006 USD
++    const { costUsd, isEstimate } = costTracker.computeCost(
++      'ollama', 'qwen2.5-coder:7b', 10000, 2000
++    );
++    expect(isEstimate).toBe(false);
++    expect(costUsd).toBeCloseTo(0.0006, 6);
++    expect(costUsd).toBeGreaterThan(0);
++  });
++
++  test('ollama exact rates match each canonical local family', () => {
++    const cases = [
++      ['llama3.1:8b', 0.0006],
++      ['dolphin-mistral:7b', 0.0006],
++      ['hermes4:14b', 0.0006],
++      ['dolphin-llama3:70b', 0.0006],
++      ['phi3:mini', 0.0006],
++      ['gemma2:9b', 0.0006],
++      ['codellama:13b', 0.0006],
++    ];
++    for (const [model, expected] of cases) {
++      const { costUsd, isEstimate } = costTracker.computeCost(
++        'ollama', model, 10000, 2000
++      );
++      expect(isEstimate).toBe(false);
++      expect(costUsd).toBeCloseTo(expected, 6);
++    }
++  });
++
++  test('ollama nomic-embed uses the smaller embedding rate (0.01 USD/M)', () => {
++    // 10000 input × 0.01 / 1M = 0.0001
++    // 2000 output × 0.01 / 1M = 0.00002
++    // total = 0.00012 USD
++    const { costUsd, isEstimate } = costTracker.computeCost(
++      'ollama', 'nomic-embed-text:latest', 10000, 2000
++    );
++    expect(isEstimate).toBe(false);
++    expect(costUsd).toBeCloseTo(0.00012, 6);
++  });
++
++  test('ollama with unknown model falls back to zero estimate (no rate match)', () => {
++    // unobtanium-7b doesn't match any rate key → falls to estimateOpaqueSessionCost
++    const { costUsd, isEstimate } = costTracker.computeCost(
++      'ollama', 'unobtanium-7b', 10000, 2000
++    );
++    expect(isEstimate).toBe(true);
++    expect(costUsd).toBe(0);
++  });
++
++  test('ollama family keys do NOT false-match across backends', () => {
++    // A paid remote model whose name happens to contain an Ollama family
++    // substring must use the Claude/Gemini fallback rate (estimate), not
++    // the Ollama $0.05/M rate.
++    const { costUsd, isEstimate } = costTracker.computeCost(
++      'claude', 'claude-llama-experimental', 10000, 2000
+
+... [74 more lines truncated]

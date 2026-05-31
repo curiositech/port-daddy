@@ -1,0 +1,389 @@
+STATS:
+ .github/workflows/whitepaper-metadata.yml       |  71 +++++++++++
+ README.md                                       |   2 +-
+ website-v2/package-lock.json                    |  77 ++++++++++++
+ website-v2/package.json                         |   1 +
+ website-v2/scripts/check-whitepaper-metadata.ts | 160 +++++++++++++++++-------
+ website-v2/src/data/whitePapers.test.ts         | 106 +++++++++-------
+ website-v2/src/data/whitePapers.ts              | 155 ++++++++++++++++++++++-
+ 7 files changed, 476 insertions(+), 96 deletions(-)
+
+---
+LAST COMMIT:
+0079fb61f28b12a62042eaf0cc1312be104e2874
+Erich Owens <erich.owens@gmail.com>
+2026-05-20 10:04:39 -0700
+ci(whitepaper): close PR #117 review findings — schema-level phrase ban, CI wiring, AST rewrite
+
+PR #117 merged 2026-05-20 with an adversarial-review thread that the
+operator-response comment promised to address in a follow-up. This is
+that follow-up. The original merge happened while a plenipotentiary
+Claude was waving things through; this PR repays the debt.
+
+Findings closed:
+
+  High 1 — Drift check not actually wired into CI.
+    Added .github/workflows/whitepaper-metadata.yml: path-scoped trigger
+    on whitepaper PDFs / registry / script / test changes, installs
+    poppler-utils via apt, runs npm run test:whitepaper-metadata and
+    the vitest suite under CI=true. Without this, the README's "CI
+    fails on drift" sentence was aspirational.
+
+  High 2 — pdfinfo missing returned 0 with warning, even in CI.
+    Script now reads process.env.CI; absent pdfinfo with CI=true is a
+    hard return-code-1 with an explicit error message. Local dev keeps
+    the warn-and-skip behavior.
+
+  High 3 — Forbidden-phrase grep violated NO KEYWORD-BASED NLP rule.
+    Replaced the runtime substring scan with a TypeScript
+    template-literal type. ForbiddenPhrase is a literal union; the
+    NoForbidden<S> conditional type emits an explicit error string when
+    a body field matches; defineWhitePapers<const T>(...) threads
+    literal types through inference (DeepReadonly<WhitePaper>
+    constraint preserves them) and intersects each paper with its
+    validated form. A forbidden phrase anywhere in body prose collapses
+    the offending paper's intersection to never at compile time. The
+    `status` field stays plain string (explicitly exempt). The test
+    file's role shrinks to "if tsc compiled, the constraint held."
+    The hygiene block in whitePapers.test.ts now documents this as the
+    canonical pattern for future keyword bans on data files.
+
+  Medium 4 — sizeKb tolerance was 5% (±43 KB on 863 KB PDF).
+    Tightened to max(2%, 4 KB): percentage catches drift on large PDFs
+    (±17 KB on 863 KB), 4 KB floor keeps small LaTeX rebuilds from
+    spurious failures. Updated size-tolerance tests accordingly.
+
+  Medium 5 — rewriteMetadata regex was fragile (indent + first-match).
+    Replaced the slice-finder + .replace() with a ts-morph AST rewrite.
+    setInitializer() on the pages/sizeKb PropertyAssignment under each
+    matching `id: '<known>'` object literal. ts-morph added to
+    devDependencies. The new path also fixed the already-drifted anchor
+    paper metadata (22→23 pages, 690→805 KB) — the AST rewrite proved
+    itself in passing.
+
+  Low 6 — pdfinfoAvailable() only caught ENOENT.
+    Now catches any non-zero-status-99 failure (EACCES, ETIMEDOUT,
+    EPIPE, corrupted binary), logs the specific code/message, and
+    returns false. Lets the caller decide CI hard-fail vs local skip
+    based on a real signal, not a partial one.
+
+  Low 7 — README cited `pnpm --filter website-v2 test`.
+    No pnpm-workspace.yaml exists. Replaced with
+    `cd website-v2 && npm run fix:whitepaper-metadata` and added a
+    pointer to the new GitHub Actions workflow.
+
+Validation:
+  cd website-v2
+  npx tsc --noEmit            # clean
+  npx vitest run src/data/whitePapers.test.ts   # 9/9 pass
+  npm run test:whitepaper-metadata              # "in sync"
+
+Adversarial review on PR #117 (review id PRR_kwDOROCq1c8AAAABAdR3BA)
+and operator-response comment IC_kwDOROCq1c8AAAABDDzWOg. Umbrella
+tracking issue: #126 (test-discipline).
+
+
+---
+DIFF (first 300 lines):
+diff --git a/.github/workflows/whitepaper-metadata.yml b/.github/workflows/whitepaper-metadata.yml
+new file mode 100644
+index 00000000..9f4cd0c0
+--- /dev/null
++++ b/.github/workflows/whitepaper-metadata.yml
+@@ -0,0 +1,71 @@
++name: Whitepaper Metadata
++
++# Runs the whitepaper metadata drift check (PR #117 follow-up) on any PR or
++# push that touches the published PDFs or the registry that describes them.
++# The check itself lives at website-v2/scripts/check-whitepaper-metadata.ts
++# and is exercised by website-v2/src/data/whitePapers.test.ts.
++#
++# Two guards are in place against the "silent green" failure mode flagged
++# in the PR #117 adversarial review:
++#   1. `apt-get install -y poppler-utils` is required for `pdfinfo`.
++#   2. The script itself hard-fails when CI=true and pdfinfo is missing,
++#      so an image change that drops poppler still surfaces a red build.
++
++on:
++  pull_request:
++    branches: [main]
++    paths:
++      - 'website-v2/public/whitepaper/**'
++      - 'website-v2/src/data/whitePapers.ts'
++      - 'website-v2/src/data/whitePapers.test.ts'
++      - 'website-v2/scripts/check-whitepaper-metadata.ts'
++      - 'website-v2/package.json'
++      - '.github/workflows/whitepaper-metadata.yml'
++  push:
++    branches: [main]
++    paths:
++      - 'website-v2/public/whitepaper/**'
++      - 'website-v2/src/data/whitePapers.ts'
++      - 'website-v2/src/data/whitePapers.test.ts'
++      - 'website-v2/scripts/check-whitepaper-metadata.ts'
++      - 'website-v2/package.json'
++      - '.github/workflows/whitepaper-metadata.yml'
++
++jobs:
++  whitepaper-metadata-drift:
++    runs-on: ubuntu-latest
++    defaults:
++      run:
++        working-directory: website-v2
++
++    steps:
++      - uses: actions/checkout@v4
++
++      - name: Use Node.js 22
++        uses: actions/setup-node@v4
++        with:
++          node-version: 22
++          cache: 'npm'
++          cache-dependency-path: website-v2/package-lock.json
++
++      - name: Install poppler (provides pdfinfo)
++        run: sudo apt-get update && sudo apt-get install -y poppler-utils
++        working-directory: .
++
++      - name: Verify pdfinfo present
++        run: pdfinfo -v 2>&1 | head -1 || true
++
++      - name: Install website-v2 dependencies
++        run: npm ci
++
++      - name: Run whitepaper metadata drift check
++        # The script honors CI=true and hard-fails if pdfinfo is missing.
++        # GitHub Actions sets CI=true by default; this is belt-and-braces.
++        env:
++          CI: 'true'
++        run: npm run test:whitepaper-metadata
++
++      - name: Run vitest coverage for whitepaper metadata
++        env:
++          CI: 'true'
++        run: npx vitest run src/data/whitePapers.test.ts
+diff --git a/README.md b/README.md
+index b8fa9aa3..cb8e1fe3 100644
+--- a/README.md
++++ b/README.md
+@@ -631,7 +631,7 @@ Two formal white papers are available at `/whitepaper` on the website:
+ - **The Anchor Protocol** — Formally verified cryptographic identity for agent swarms (ProVerif + Kani/Rust)
+ - **The Bonded Commons** — Pre-transactional trust infrastructure: Hobbes, Sen's impossibility, collateralized work contracts
+ 
+-> After updating PDFs under `website-v2/public/whitepaper/`, run `npx tsx scripts/check-whitepaper-metadata.ts --fix` (from `website-v2/`) to resync `pages` and `sizeKb` in `src/data/whitePapers.ts`. CI fails on drift.
++> After updating PDFs under `website-v2/public/whitepaper/`, run `cd website-v2 && npm run fix:whitepaper-metadata` to resync `pages` and `sizeKb` in `src/data/whitePapers.ts`. The check runs in CI via `.github/workflows/whitepaper-metadata.yml` (Ubuntu + poppler) and fails the PR on drift; locally, `cd website-v2 && npm test` exercises the same drift detection (see `src/data/whitePapers.test.ts`).
+ 
+ ---
+ 
+diff --git a/website-v2/package-lock.json b/website-v2/package-lock.json
+index 702f96e7..85afcfa9 100644
+--- a/website-v2/package-lock.json
++++ b/website-v2/package-lock.json
+@@ -56,6 +56,7 @@
+         "playwright": "^1.58.2",
+         "storybook": "^10.2.19",
+         "tailwindcss": "^4.2.1",
++        "ts-morph": "^28.0.0",
+         "tsx": "^4.21.0",
+         "typescript": "~5.9.3",
+         "typescript-eslint": "^8.48.0",
+@@ -3978,6 +3979,57 @@
+         "@testing-library/dom": ">=7.21.4"
+       }
+     },
++    "node_modules/@ts-morph/common": {
++      "version": "0.29.0",
++      "resolved": "https://registry.npmjs.org/@ts-morph/common/-/common-0.29.0.tgz",
++      "integrity": "sha512-35oUmphHbJvQ/+UTwFNme/t2p3FoKiGJ5auTjjpNTop2dyREspirjMy82PLSC1pnDJ8ah1GU98hwpVt64YXQsg==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "minimatch": "^10.0.1",
++        "path-browserify": "^1.0.1",
++        "tinyglobby": "^0.2.14"
++      }
++    },
++    "node_modules/@ts-morph/common/node_modules/balanced-match": {
++      "version": "4.0.4",
++      "resolved": "https://registry.npmjs.org/balanced-match/-/balanced-match-4.0.4.tgz",
++      "integrity": "sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA==",
++      "dev": true,
++      "license": "MIT",
++      "engines": {
++        "node": "18 || 20 || >=22"
++      }
++    },
++    "node_modules/@ts-morph/common/node_modules/brace-expansion": {
++      "version": "5.0.6",
++      "resolved": "https://registry.npmjs.org/brace-expansion/-/brace-expansion-5.0.6.tgz",
++      "integrity": "sha512-kLpxurY4Z4r9sgMsyG0Z9uzsBlgiU/EFKhj/h91/8yHu0edo7XuixOIH3VcJ8kkxs6/jPzoI6U9Vj3WqbMQ94g==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "balanced-match": "^4.0.2"
++      },
++      "engines": {
++        "node": "18 || 20 || >=22"
++      }
++    },
++    "node_modules/@ts-morph/common/node_modules/minimatch": {
++      "version": "10.2.5",
++      "resolved": "https://registry.npmjs.org/minimatch/-/minimatch-10.2.5.tgz",
++      "integrity": "sha512-MULkVLfKGYDFYejP07QOurDLLQpcjk7Fw+7jXS2R2czRQzR56yHRveU5NDJEOviH+hETZKSkIk5c+T23GjFUMg==",
++      "dev": true,
++      "license": "BlueOak-1.0.0",
++      "dependencies": {
++        "brace-expansion": "^5.0.5"
++      },
++      "engines": {
++        "node": "18 || 20 || >=22"
++      },
++      "funding": {
++        "url": "https://github.com/sponsors/isaacs"
++      }
++    },
+     "node_modules/@tweenjs/tween.js": {
+       "version": "23.1.3",
+       "resolved": "https://registry.npmjs.org/@tweenjs/tween.js/-/tween.js-23.1.3.tgz",
+@@ -5492,6 +5544,13 @@
+         "node": ">=6"
+       }
+     },
++    "node_modules/code-block-writer": {
++      "version": "13.0.3",
++      "resolved": "https://registry.npmjs.org/code-block-writer/-/code-block-writer-13.0.3.tgz",
++      "integrity": "sha512-Oofo0pq3IKnsFtuHqSF7TqBfr71aeyZDVJ0HpmqB7FBM2qEigL0iPONSCZSO9pE9dZTAxANe5XHG9Uy0YMv8cg==",
++      "dev": true,
++      "license": "MIT"
++    },
+     "node_modules/color-convert": {
+       "version": "2.0.1",
+       "resolved": "https://registry.npmjs.org/color-convert/-/color-convert-2.0.1.tgz",
+@@ -9179,6 +9238,13 @@
+         "url": "https://github.com/inikulin/parse5?sponsor=1"
+       }
+     },
++    "node_modules/path-browserify": {
++      "version": "1.0.1",
++      "resolved": "https://registry.npmjs.org/path-browserify/-/path-browserify-1.0.1.tgz",
++      "integrity": "sha512-b7uo2UCUOYZcnF/3ID0lulOJi/bafxa1xPe7ZPsammBSpjSWQkjNxlt635YGS2MiR9GjvuXCtz2emr3jbsz98g==",
++      "dev": true,
++      "license": "MIT"
++    },
+     "node_modules/path-data-parser": {
+       "version": "0.1.0",
+       "resolved": "https://registry.npmjs.org/path-data-parser/-/path-data-parser-0.1.0.tgz",
+@@ -10595,6 +10661,17 @@
+         "node": ">=6.10"
+       }
+     },
++    "node_modules/ts-morph": {
++      "version": "28.0.0",
++      "resolved": "https://registry.npmjs.org/ts-morph/-/ts-morph-28.0.0.tgz",
++      "integrity": "sha512-Wp3tnZ2bzwxyTZMtgWVzXDfm7lB1Drz+y9DmmYH/L702PQhPyVrp3pkou3yIz4qjS14GY9kcpmLiOOMvl8oG1g==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "@ts-morph/common": "~0.29.0",
++        "code-block-writer": "^13.0.3"
++      }
++    },
+     "node_modules/tsconfig-paths": {
+       "version": "4.2.0",
+       "resolved": "https://registry.npmjs.org/tsconfig-paths/-/tsconfig-paths-4.2.0.tgz",
+diff --git a/website-v2/package.json b/website-v2/package.json
+index 0f2fd251..25bff8a0 100644
+--- a/website-v2/package.json
++++ b/website-v2/package.json
+@@ -75,6 +75,7 @@
+     "playwright": "^1.58.2",
+     "storybook": "^10.2.19",
+     "tailwindcss": "^4.2.1",
++    "ts-morph": "^28.0.0",
+     "tsx": "^4.21.0",
+     "typescript": "~5.9.3",
+     "typescript-eslint": "^8.48.0",
+diff --git a/website-v2/scripts/check-whitepaper-metadata.ts b/website-v2/scripts/check-whitepaper-metadata.ts
+index f2c6a361..d3d3b409 100644
+--- a/website-v2/scripts/check-whitepaper-metadata.ts
++++ b/website-v2/scripts/check-whitepaper-metadata.ts
+@@ -8,12 +8,18 @@
+  *
+  * Tolerances:
+  *   - `pages`  : exact match required.
+- *   - `sizeKb` : within 5% of the on-disk size (LaTeX rebuilds produce
+- *                small byte-level shifts even when content is unchanged).
++ *   - `sizeKb` : within `max(2%, 4 KB)` of the on-disk size. Percentage
++ *                catches drift on large PDFs; the 4 KB floor keeps small
++ *                LaTeX rebuilds (where the same content can wobble by a
++ *                kilobyte or two) from spuriously failing.
+  *
+  * Exit codes:
+- *   0  metadata is in sync (or pdfinfo unavailable in CI — warning only).
+- *   1  drift detected.
++ *   0  metadata is in sync.
++ *   1  drift detected, or pdfinfo missing under CI (CI=true).
++ *
++ * Behavior on missing pdfinfo:
++ *   - Local dev (CI != 'true'): warn and skip (return 0).
++ *   - CI         (CI === 'true'): hard fail (return 1).
+  *
+  * Usage:
+  *   npx tsx scripts/check-whitepaper-metadata.ts          # check-only
+@@ -28,6 +34,7 @@ import { execFileSync } from 'node:child_process'
+ import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+ import { dirname, resolve } from 'node:path'
+ import { fileURLToPath } from 'node:url'
++import { Project, SyntaxKind, type ObjectLiteralExpression } from 'ts-morph'
+ import { WHITE_PAPERS } from '../src/data/whitePapers'
+ 
+ const __dirname = dirname(fileURLToPath(import.meta.url))
+@@ -35,7 +42,18 @@ const websiteRoot = resolve(__dirname, '..')
+ const publicDir = resolve(websiteRoot, 'public')
+ const whitePapersSrc = resolve(websiteRoot, 'src/data/whitePapers.ts')
+ 
+-const SIZE_TOLERANCE = 0.05 // 5%
++/**
++ * sizeKb drift tolerance is `max(SIZE_TOLERANCE_PCT * expected, SIZE_FLOOR_KB)`.
++ * - 2% catches real content drift on the 800+KB papers (±17 KB on 863 KB).
++ * - 4 KB floor keeps tiny PDFs from tripping on deterministic LaTeX wobble.
++ */
++const SIZE_TOLERANCE_PCT = 0.02
++const SIZE_FLOOR_KB = 4
++
++function sizeWithinTolerance(actualKb: number, expectedKb: number): boolean {
++  const allowed = Math.max(expectedKb * SIZE_TOLERANCE_PCT, SIZE_FLOOR_KB)
++  return Math.abs(actualKb - expectedKb) <= allowed
++}
+ 
+ export interface PdfFacts {
+   pages: number
+@@ -53,17 +71,25 @@ export interface DriftReport {
+ 
+ /**
+  * Returns true if `pdfinfo` is on PATH and runnable.
++ *
++ * `pdfinfo -v` writes to stderr and exits with status 99 on poppler builds;
++ * that is a "present, just talked back" case and counts as available.
++ * Any other failure mode (ENOENT, EACCES, ETIMEDOUT, EPIPE, corrupted
++ * binary, sandboxed PATH...) returns false with the reason logged so the
++ * caller can decide whether to soft-skip or hard-fail.
+  */
+ export function pdfinfoAvailable(): boolean {
+   try {
+     execFileSync('pdfinfo', ['-v'], { stdio: 'pipe' })
+     return true
+   } catch (err) {
+-    // `pdfinfo -v` writes to stderr and exits 99 on poppler builds; the
+-    // binary IS present in that case. Only treat ENOENT as missing.
+-    const code = (err as NodeJS.ErrnoException).code
+-    if (code === 'ENOENT') return false
+-    return true
++    const e = err as NodeJS.ErrnoException & { status?: number | null }
++    // poppler's `pdfinfo -v` exits 99 with version info on stderr. That's
++    // "binary present" — not an error from our perspective.
++    if (typeof e.status === 'number' && e.status === 99) return true
++    const code = e.code ?? 'unknown'
++    console.warn(`pdfinfoAvailable: treating as missing (code=${code}, msg=${e.message})`)
+
+... [504 more lines truncated]

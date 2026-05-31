@@ -1,0 +1,48 @@
+STATS:
+
+---
+LAST COMMIT:
+fe0e258d020076ecb14f1e939a2136ca74be675f
+Erich Owens <erich.owens@gmail.com>
+2026-05-19 04:08:19 -0700
+whitepaper: cap-attenuation subset geometry, anchor Fig 3 fit, worked-example pacing
+
+Three issues caught on visual review of the merged paper.
+
+Anchor Fig 2 (capability attenuation):
+Previous geometry was wrong — AgentA cap and AgentB cap were
+positioned so they stuck out past the Root cap on the left,
+violating the strict-subset semantics the figure is trying to
+convey (and the very invariant listed in its own side panel).
+Repositioned with truly nested boxes:
+  root  at (0, 0)        spans x in (-4.0, 4.0) y in (-2.8, 2.8)
+  mid   at (-0.6, -0.6)  spans x in (-3.5, 2.3) y in (-2.4, 1.2)
+  inner at (-1.4, -1.2)  spans x in (-3.0, 0.2) y in (-2.1, 0.3)
+inner ⊊ mid ⊊ root holds geometrically. Updated invariants to use
+the strict-subset symbol (⊊, not ⊆) and < TTL (not ≤).
+Wrapped in \\resizebox{\\textwidth}{!} to stay inside text width.
+
+Anchor Fig 3 (alg-confusion attack):
+Two-row sequence overflowed the right text margin so ACCEPT (bad)
+and REJECT (good) endpoints were clipped. Wrapped in
+\\resizebox{\\textwidth}{!} to scale to fit. Also dropped the
+tests/unit/runtime-conformance/algorithm-pinning.test.js path from
+the caption (consistent with the rest of the publish-shape pass).
+
+Bonded Fig 1 (governance flow):
+Same \\resizebox wrap so Stage 4 doesn't clip on narrower text
+columns.
+
+Bonded App D (worked example):
+Previous version was seven rapid-fire \\paragraph headers with no
+transitions. Restructured into four phases (Setup, Work begins,
+Crash and recovery, Settlement) with timing in the heading
+(minutes 0–1, 1–12, 12–13, 24) and a short framing sentence at
+each phase boundary. Added a substantive intro that motivates the
+example as "watch the layers compose" and made the acceptance
+criteria a proper enumerate. Each step now contains a "why this
+matters" beat instead of just stating what happens.
+
+
+---
+DIFF (first 300 lines):

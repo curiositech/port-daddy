@@ -1,0 +1,47 @@
+STATS:
+
+---
+LAST COMMIT:
+03f452aee53c04a91b26f00a0d8f2b38d62cf359
+Erich Owens <erich.owens@gmail.com>
+2026-05-19 06:34:37 -0700
+chore(website): SSR-safety prep — defer browser APIs out of module scope (#107)
+
+Two small refactors that make the existing SPA SSR-prerender-safe.
+Independent of which SSG framework we ultimately pick (vite-react-ssg,
+vike, react-snap, etc.) — these unblock all of them.
+
+1. ThemeProvider initial state no longer touches localStorage /
+   window.matchMedia from useState's initializer (which would
+   run on the server during prerender and throw). Extracted to
+   initialTheme() with a `typeof window === 'undefined'` guard
+   that returns 'dark' on the server. The existing useEffect
+   reconciles from real localStorage on hydration, so the
+   server default is short-lived. Matches the inline
+   `<script>` in index.html that sets data-theme=dark before
+   first paint, so no FOUC.
+
+2. Mermaid no longer top-level imports the `mermaid` package.
+   The module touches `document` / `window` at module
+   evaluation time, which throws under SSG. Converted to a
+   dynamic `import('mermaid')` inside an effect; the `mermaid`
+   handle gets stored in component state and renderChart()
+   short-circuits when it's not ready yet. Type-only import
+   from 'mermaid' is kept so the API surface stays typed.
+
+Validation:
+  - npx tsc --noEmit clean
+  - vitest src/lib src/components/ui → 10/10 pass (existing
+    Mermaid + theme tests cover both changes)
+
+Not in this PR (follow-up):
+  - The actual SSG framework + prerender pipeline.
+    vite-react-ssg 0.9.0 was the first choice, but its peer
+    deps still require react-router-dom ^6 and we're on v7.
+    Re-evaluating between (a) wait for upstream, (b) Puppeteer-
+    based post-build crawler (react-snap shape), (c) custom
+    Vite SSR with react 19 renderToPipeableStream, (d) Vike
+    migration. Will surface that decision in a separate PR.
+
+---
+DIFF (first 300 lines):

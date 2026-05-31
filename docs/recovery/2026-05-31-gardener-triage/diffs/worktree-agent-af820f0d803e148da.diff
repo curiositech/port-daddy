@@ -1,0 +1,93 @@
+STATS:
+
+---
+LAST COMMIT:
+fe9e1908e5834b082a43850e040957ff6ea08ad1
+Erich Owens <erich.owens@gmail.com>
+2026-05-19 15:07:28 -0700
+cockpit: swap data source from markdown reader to roadmap_items (Phase 1) (#113)
+
+The cockpit shipped in PR #25 with a markdown reader that consumed three
+files (CURRENT-WORK.md, UNIFIED-ROADMAP.md, .cartographer/status.md) and
+synthesized "mission cards" by regex over status tags. Slice C
+(0d06df72) made roadmap_items the source of record: the cartographer now
+writes there directly, and docs/ROADMAP.md is a projection rendered out
+of the tuple stream.
+
+That left the cockpit reading a stale-by-one-render-cycle copy of the
+DB. Six hops where two would do. This PR cuts the chain.
+
+What changed
+------------
+- `lib/cockpit-missions.ts` (291 → 125 lines): pure mapping layer.
+  `roadmapItemToMissionCard(item)` + `readMissions({roadmapItems, ...})`.
+  No filesystem I/O. No regex. No three-source aggregation.
+- `routes/cockpit.ts`: receives `roadmapItems` via deps (already in the
+  server.ts dep map from Slice B/2), passes it through to readMissions
+  and findMissionById. The 503 case is new — returned when the daemon
+  wasn't wired with roadmap_items, which would only happen in tests or
+  malformed startup.
+- The mtime-keyed `readMissionsCached` is gone. `roadmap_items.list()`
+  is already a cheap tuple-fold; a parallel cockpit-side cache would be
+  stale-layer duplication. If profiling shows list() hot, cache inside
+  lib/roadmap-items.ts where it can invalidate on tuple writes for free.
+
+Status enum collapse
+--------------------
+`MissionStatus` was 9 markdown-derived buckets (uncommitted, in-flight,
+blocked, drifting, stalled, mostly-committed, mostly-resolved, closed,
+unknown). It's now the 5-bucket RoadmapStatus (now, backlog, parked,
+merge, done) — mirrored 1:1 from the daemon. The richer derivation was
+never authoritative; it was regex over the cartographer's prose. The
+single source of truth wins.
+
+UI carries through:
+- `FILTERS` in CockpitMissionsPanel.tsx swapped to the 5 buckets.
+- `STATUS_TONE` mapping reassigned (now → warning, merge/done → success,
+  backlog/parked → default).
+- SDK `CockpitMissionStatus` type updated in `lib/client.ts`.
+- UI `MissionStatus` type updated in `fleet-config-ui/src/types.ts`.
+
+Field mapping
+-------------
+RoadmapItem → MissionCard:
+- `slug`            → `id`, `sourceAnchor`
+- `summaryMd`       → `title` (first line) + `summary` (rest)
+- `status`          → `status` (passthrough; same 5-bucket enum now)
+- `notes[].text`    → `evidence[]`
+- `dependencies[]`  → `files[]`
+- `lastTouchedAt`   → `updatedAt`
+- (constant)        → `source: 'roadmap_items'`
+
+Loss vs the markdown reader: per-mission `source`/`sourceAnchor` no
+longer point at a specific markdown file/heading, because the data
+doesn't come from a markdown file anymore. The DB doesn't know which
+file the cartographer once rendered the item to. If the panel needed
+that linkage, the right place to put it is back on roadmap_items as a
+first-class field, not derived from markdown.
+
+Test surface
+------------
+- `tests/unit/cockpit-missions.test.js` (420 → 242 lines): rewritten
+  against a stubbed `roadmapItems` module. 18 tests cover mapping
+  (title extraction, hash stripping, slug fallback, evidence/files
+  passthrough, status preservation), readMissions (status filter,
+  limit, empty case), and routes (200 success, 503 missing dep, 404
+  unknown slug, GET detail, POST plan still works).
+- 490/490 cockpit + parity tests pass; typecheck clean; vite build
+  clean.
+
+Not in this PR
+--------------
+- Phase 2: dismiss/snooze as tuple events on roadmap_items (operator
+  curation). This is the table I closed in PR #96 — rebuilt the right
+  way on the tuple stream.
+- Phase 3: `POST /cockpit/missions/:id/plan` actually calls
+  `spawner.spawn()`, claims mission files, writes the resulting
+  `roadmap_claims.session_id`/`agent_id` (PR #97's columns), updates
+  `roadmap_items.status` to `'now'`.
+- Phase 4: SSE on the cockpit panel subscribing to roadmap_items tuple
+  changes — replaces the manual Reload button.
+
+---
+DIFF (first 300 lines):

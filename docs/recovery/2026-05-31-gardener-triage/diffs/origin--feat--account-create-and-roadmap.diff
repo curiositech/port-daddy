@@ -1,0 +1,129 @@
+STATS:
+ .github/workflows/release.yml |  9 ++++++---
+ docs/ROADMAP.md               | 44 +++++++++++++++++++++++++++++++++++++++++++
+ docs/recovery/CURRENT-WORK.md |  8 ++++++++
+ 3 files changed, 58 insertions(+), 3 deletions(-)
+
+---
+LAST COMMIT:
+d5ca884cdad2328c8dd8476f74b24c4d878115db
+Erich Owens <erich.owens@gmail.com>
+2026-05-22 23:25:45 -0700
+docs(roadmap): operator-direct accounts arc — A0/A1 + W0-W6 phases
+
+Adds the build plan that follows ADR-0029 + ADR-0039 to the roadmap and
+current-work surfaces. Marked operator-direct so Cartographer mapping
+passes preserve the section verbatim.
+
+Phases (each independently shippable):
+  A0 pd account create     - local Ed25519 keypair + accountId, ~150 LOC
+  A1 pd account pair       - pairing receipts, daemon-side
+  W0 portdaddy.dev /account - OIDC sign-in + device list, ~2 weeks
+  A2 audit-tree sealing    - monthly Merkle trees + pd verify
+  W1 receipts as URLs      - portdaddy.dev/r/<id>, in-browser verify
+  W2 audit page + share    - scoped time-limited share tokens
+  W3 fleet steering        - phone-as-operator surface via relay
+  W4 fleet ship marketplace - pd fleet install @user/name
+  W5 localhost tunnel      - bidirectional HTTP proxy for dev servers
+  W6 transparency log opt-in
+
+
+---
+DIFF (first 300 lines):
+diff --git a/.github/workflows/release.yml b/.github/workflows/release.yml
+index 6ee025e6..e62262c8 100644
+--- a/.github/workflows/release.yml
++++ b/.github/workflows/release.yml
+@@ -17,12 +17,15 @@ jobs:
+           - os: macos-latest
+             target: bun-darwin-arm64
+             artifact: pd-darwin-arm64
+-          - os: macos-13
+-            target: bun-darwin-x64
+-            artifact: pd-darwin-x64
+           - os: ubuntu-latest
+             target: bun-linux-x64
+             artifact: pd-linux-x64
++          # darwin-x64 (Intel Mac) was dropped 2026-05-22. macos-13 runners in
++          # the GHA pool routinely queue for 24+ hours (wedged v3.14.1 +
++          # v3.15.0). The brew formula already ships only darwin-arm64 +
++          # linux-x64, so the artifact was dead weight. Intel Mac users can
++          # install from npm or build from source until we add it back via
++          # a different runner pool.
+     runs-on: ${{ matrix.os }}
+     permissions:
+       contents: write
+diff --git a/docs/ROADMAP.md b/docs/ROADMAP.md
+index 0968eafc..0f32b51a 100644
+--- a/docs/ROADMAP.md
++++ b/docs/ROADMAP.md
+@@ -87,6 +87,50 @@ Fresh 2026-05-16 raw Spark/Spider exhaust exists on disk as research-only
+ provenance. It stays outside "Next Cuts" until Spark/Spider dedupe it into
+ `IDEAS-TROVE.md`.
+ 
++## Operator-Direct: Accounts Arc (2026-05-23)
++
++**Provenance:** operator-direct, not Spark/Spider promoted. Cartographer should preserve this section verbatim across mapping passes.
++
++The cryptographic substrate is in tree (`lib/merkle-chain.ts`, the delegation walker from PR #66, Ed25519 helpers, daemon fingerprint). The design is in tree as two ADRs: [`0029-user-accounts-and-merkle-audit.md`](adr/0029-user-accounts-and-merkle-audit.md) (local primitives) and [`0039-portdaddy-dev-account-surface.md`](adr/0039-portdaddy-dev-account-surface.md) (web surface, security model, version-skew dance). What's left is to actually build it. Phases below are independently shippable.
++
++### Phase A0 — `pd account create` (LOCAL, ~150 LOC)
++**The smallest meaningful piece.** Local Ed25519 keypair generation, written to `~/.port-daddy/account.json`. Derives the accountId as `pd_acc_<base58btc(SHA-256(pubkey))>`. No daemon changes. No web changes. After this lands, every later piece has an accountId to bind to.
++
++### Phase A1 — `pd account pair` + `~/.portdaddy.dev/account/devices` (LOCAL + DAEMON)
++Daemon side of the pairing-receipt ceremony. Daemon signs a `PairingReceipt` over `{daemonFingerprint, accountId, nonce, deviceLabel, expiresAt}`. CLI displays a 4-digit confirmation code; daemon writes the receipt to `~/.port-daddy/account/pairings/<accountId>.json` once both sides verify.
++
++### Phase W0 — portdaddy.dev account page (WEB, ~2 weeks)
++GitHub OIDC sign-in. `/account` page: profile, device list, pairing flow that accepts the receipt from `pd account pair`. CSP, rate limits, Sentry-equivalent. Per ADR-0039 §III security model.
++
++### Phase A2 — Audit-tree sealing + signed receipts (DAEMON, ~1 week)
++Daemon writes monthly audit trees per `(accountId, repoRoot, calendarMonth)`. Each sortie completion writes a signed leaf. `pd verify --account <id> --since <date>` runs the verification locally.
++
++### Phase W1 — Receipts as URLs (WEB, ~3 weeks)
++`pd receipt publish <id>` uploads a signed receipt to portdaddy.dev. `portdaddy.dev/r/<receiptId>` resolves it and verifies in-browser via Ed25519. The minimum-viable cultural moment for accounts: a shareable, verifiable URL for agent work.
++
++### Phase W2 — Audit page + scoped sharing (WEB, ~4 weeks)
++`portdaddy.dev/audit` for the owner. `…/audit/share/<token>` for auditors, time-limited, scoped to a repo or date range. Renders the per-month Merkle tree as a timeline.
++
++### Phase W3 — Fleet steering from web/phone (WEB + DAEMON, ~3 weeks)
++The phone is an operator surface. Spawn / steer / note / approve / budget from any paired device, via the relay. Write operations require 4-digit-code confirmation for sensitive surfaces (kill agent, drain fleet). Per ADR-0039 §II surface 3.
++
++### Phase W4 — Fleet ship marketplace (WEB + DAEMON, ~3 weeks)
++`pd fleet publish` packages signed fleet YAML + skills + prompts; `pd fleet install @user/name` pulls and forks. `portdaddy.dev/@<account>/fleets/<name>` resolves the signed package. Account is the publisher identity.
++
++### Phase W5 — Localhost tunnel for interactive web/phone (WEB + DAEMON + RELAY, ~2 weeks)
++`pd tunnel expose <port> --to relay --label <name>` registers an HTTP tunnel. `portdaddy.dev/devices/<label>/at/<port>/` is a **full bidirectional proxy** — touch becomes click, hardware keyboard types, WebSocket upgrades for HMR, file uploads pipe back. Phone-as-operator for a dev server running on a laptop.
++
++### Phase W6 — Transparency log opt-in (WEB, ~6 weeks)
++Optional: publish Merkle roots to a Rekor-style transparency log. Closes the "trust no one, not even the operator" backstop. Unlocks the AI-safety-auditor pitch concretely.
++
++**Total scope:** roughly 4–5 months of focused work, but each phase ships standalone. After **A0 + A1** the substrate exists; after **W0 + W1** the cultural artifact (verifiable receipt URL) exists; after **W3 + W5** the phone-as-operator story closes.
++
++**Open process questions:**
++- Should each phase get its own ADR (so deviations from 0029/0039 are tracked) or share these two? My current take: yes for W4 (marketplace abuse policy), W5 (tunnel-security defaults), W6 (transparency log architecture). The rest fold into 0029/0039.
++- Custodial publish-key model (W1) vs full non-custodial — needs a separate decision before W1 starts.
++
++---
++
+ ## Next Cuts (From Curated Trove)
+ 
+ Mirrored from `docs/recovery/IDEAS-TROVE.md` § Immediate Implementation
+diff --git a/docs/recovery/CURRENT-WORK.md b/docs/recovery/CURRENT-WORK.md
+index e30c30df..f72f174a 100644
+--- a/docs/recovery/CURRENT-WORK.md
++++ b/docs/recovery/CURRENT-WORK.md
+@@ -52,6 +52,14 @@ This is the active execution ledger. If a task is in flight, it belongs here bef
+   - Phase 4E/4F `pd self-test --adversarial` + Windows IPC hardening: design complete, zero commits (2026-03-31 → 2026-05-16, 46 days)
+ - **Feedback harvest status**: 2026-05-14 Spark promotion complete — promoted 2 new Spark ideas from `.spark/ideas/` to execution wave on 2026-05-09 (`daemon-introspection-api`, `ideas-trove-queryable-surface`), 2 more on 2026-05-11 (`graph-based-merge-conflict-predictor`, `ambient-anomaly-signaling`), 5 on 2026-05-12 (`symbol-graph-visualization`, `incremental-symbol-index-refresh`, `operator-hint-engine`, `symbol-claim-isolation-validator`, `orchestrator-plugin-lifecycle`), 5 on 2026-05-13 (`daemon-fleet-auto-recovery`, `graph-integrity-auditor`, `agent-skills-quality-gates`, `cost-forecast-alert`, `ipc-queue-saturation-promotion`), 4 on 2026-05-13 extended promotion (`cost-gated-spawning`, `empirical-model-efficiency-routing`, `operator-decision-journal`, `sandboxed-adversarial-test-harness`), and 5 on 2026-05-14 (`tuple-store-query-api`, `governance-coordination-hub`, `phase-3-auto-remediation-executor`, `cost-aware-model-training-loop`, `unified-spawn-risk-synthesis`) plus `episodic-memory-query-surfaces` as the Phase 3B memory cut and `operator-manual-fleet-dispatch` as the Phase 3 dispatch workbench; 2 dogfood now-items already curated (`claim-preserving-git-safety`, `fleet-launchability-and-cadence`); live tuple-backed feedback projection is empty (`open: 0`, `harvested: 11`), while direct `pd feedback list --status open --json` still hits `EPERM` on `~/.port-daddy/daemon.sock`; raw `.spark/feedback/` tree not present. `skill-degradation-contagion-early-warning` is still backlog, the 2026-05-10 raw Spider exhaust remains present on disk, and the five lower-priority now-status trove entries still queued below the execution wave are `fleet-run-journal`, `salvage-root-cause-classifier`, `forensic-context-windows`, `tuple-driven-fleet`, and `capability-discovery-dns-harbor`.
+ 
++## Active Thread — Accounts Arc (Operator-Direct, 2026-05-23)
++
++Per ROADMAP.md § Operator-Direct: Accounts Arc. Cartographer should preserve this entry verbatim.
++
++**Currently in flight:** Phase A0 — `pd account create`. ~150 LOC, local-only Ed25519 keypair generation written to `~/.port-daddy/account.json`. Branch: `feat/account-create-and-roadmap`. ADR-0029 v0 step 1.
++
++**Next after A0 lands:** A1 (`pd account pair` + daemon-side pairing receipts), then W0 (portdaddy.dev OIDC sign-in + account page).
++
+ ## Active Side Thread
+ 
+ Public-site direction is now a hybrid preservation pass, not an `agentsd.ai` replacement:

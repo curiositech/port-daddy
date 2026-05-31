@@ -1,0 +1,134 @@
+STATS:
+ docs/shipwright/dialogue-v2.5-to-v2.6.RED.json | 102 +++++++++++++++++++++++++
+ 1 file changed, 102 insertions(+)
+
+---
+LAST COMMIT:
+c25bd5416d5e980d1d3659cb8993121744edd0fd
+Erich Owens <erich.owens@gmail.com>
+2026-05-19 08:02:46 -0700
+redteam(v2.5->v2.6): probe list for paper/wave3-bundle review round
+
+8 probes against the Wave 3 bundle (head 141b509f):
+- RT-001 correlating-device: deterministic mu collapses Aumann reframe (high)
+- RT-002 poa-bound: PoA ~ 1 claim contradicted by paper's own cartel sim (high)
+- RT-003 nash-math: delta ~ 0.253 tightness depends on illustrative (c,d,p) (medium)
+- RT-004 bond-sizing: 10-25/25-50/100-200% bands lack derivation or cite (medium)
+- RT-005 bootstrap-metrics: 80%/50%/60% thresholds appear without source (medium)
+- RT-006 oracle-collusion: "same insurer-cartel analysis" asserted, not proven (high)
+- RT-007 anchor-dependency: compromised-Anchor regime worse than no-Anchor (high)
+- RT-008 citation-placement: Aumann 1974 vs 1987 formalization mismatch (low)
+
+Sealed namespace; no white-team output read during derivation.
+
+
+---
+DIFF (first 300 lines):
+diff --git a/docs/shipwright/dialogue-v2.5-to-v2.6.RED.json b/docs/shipwright/dialogue-v2.5-to-v2.6.RED.json
+new file mode 100644
+index 00000000..787539eb
+--- /dev/null
++++ b/docs/shipwright/dialogue-v2.5-to-v2.6.RED.json
+@@ -0,0 +1,102 @@
++{
++  "round_from": "v2.5",
++  "round_to": "v2.6",
++  "kind": "normal",
++  "sealed_at": "2026-05-19T14:59:49Z",
++  "lead": "sec-eng-lead",
++  "red_team": "redteam-review-fleet",
++  "branch_under_review": "paper/wave3-bundle",
++  "head_commit": "141b509f",
++  "exchanges_red": [
++    {
++      "id": "RT-v25v26-001",
++      "class": "correlating-device",
++      "section": "\\S2.X prop:correlating-device + \\S1 abstract",
++      "severity": "high",
++      "title": "Deterministic recommendation policy is a degenerate μ, not a correlated equilibrium",
++      "smell": "\\S2.X (line 282) states the daemon's recommendation policy is 'deterministic given the conflict graph'. Aumann's correlated equilibrium is strictly more permissive than Nash precisely when μ has non-trivial correlation across recommendation tuples. A deterministic policy reduces μ to a point mass conditional on the public conflict graph, which is observationally equivalent to a Nash equilibrium of the augmented game where the conflict graph is a public state variable. The 'strictly more permissive than Nash' rhetoric in line 280, and the abstract's load-bearing 'correlated equilibrium with PoA ≈ 1' reframe, both rest on a non-degenerate μ that the paper does not exhibit anywhere. If the recommendation is a deterministic function of public state, the paper has discovered a Nash equilibrium under a richer state space, not a correlated equilibrium. The reframing of the headline result is therefore vacuous in the technical sense, even if useful pedagogically.",
++      "demand": "Either (a) exhibit a concrete μ on the conflict-resolution policy that is non-trivially correlated across agents (e.g., explicit randomization at symmetric-conflict tie-breaks with the joint distribution differing from the product of marginals), and prove obedience is a best response under that μ; or (b) downgrade the abstract and \\S2.X to claim 'Nash equilibrium under the conflict-graph-augmented game', dropping the Aumann reframe to a structural analogy rather than a load-bearing theorem.",
++      "fix_status": "open"
++    },
++    {
++      "id": "RT-v25v26-002",
++      "class": "poa-bound",
++      "section": "\\S1 abstract + \\S2.X prop:correlating-device + \\S8.4.4 fig:pareto-mc-inline",
++      "severity": "high",
++      "title": "PoA ≈ 1 claim asserts mature-market regime then cites simulation that fails in the regime A6 actually models",
++      "smell": "The abstract (line 155) ends with 'the price of anarchy stays bounded at both layers'. \\S2.X line 295 sharpens this to 'one to one in the limit where bonds cover full cleanup cost and reputation noise is bounded', with empirical support cited as 'simulation evidence of \\S\\ref{sec:youle:welfare} supports this empirically for σ_r ≤ 0.1'. But Figure \\ref{fig:pareto-mc-inline} (line 891) explicitly states 'with 3 colluders it collapses past σ_r ≈ 0.1' — i.e. the cited evidence shows PoA ≈ 1 only in the no-cartel regime. \\S8.4 A6 (line 920) is the section that specifically models cartel behavior. So the PoA ≈ 1 claim is supported by a simulation that excludes the regime A6 itself argues is the realistic threat. Reader is invited to believe 'PoA ≈ 1' while the paper's own A6 analysis says collusion bites at σ_r > 0.1 with three colluders. The 'analytical bound under realistic reputation noise is open; we do not close it here' caveat is good faith, but it does not rescue the abstract's bound-claim, which is operationally false under partial cartels the paper itself takes seriously.",
++      "demand": "Either (a) furnish an analytical PoA bound that admits non-zero cartel fraction κ ∈ (0, n/3] and σ_r up to the calibrated reputation-noise observed in production, with the bound stated explicitly in \\S2.X (e.g. 'PoA ≤ 1 + f(κ, σ_r, p_d) with f given by ...'); or (b) rewrite the abstract sentence to 'PoA ≈ 1 in the no-cartel, low-noise regime; partial cartels degrade gracefully to the bound of \\S8.4 A6'; or (c) drop the 'at both layers' phrasing entirely from the abstract and route the bound claim through the A6 folk-theorem threshold p_d^⋆ ≈ 0.10 only, with no cleaner-sounding limit asserted.",
++      "fix_status": "open"
++    },
++    {
++      "id": "RT-v25v26-003",
++      "class": "nash-math",
++      "section": "\\S7.4 prop:claim-signaling-ic + Table \\ref{tab:claim-stage-game}",
++      "severity": "medium",
++      "title": "δ ≈ 0.253 is tight only for the illustrative payoffs (3,4,0,1); proposition silent on calibration sensitivity",
++      "smell": "The cubic 3δ(1+δ+δ²) = 1 derives directly from the stage-game payoffs (c,d,p) = (3,4,0) and one-shot gain d-c = 1, all hard-coded into the proposition statement via Table \\ref{tab:claim-stage-game}. The arithmetic is correct (numerical root ~0.2534, paper rounds to 0.253). But the proposition's tightness claim — 'for δ ≤ δ*_{k=3} at least one player has a strictly profitable one-shot deviation' — is parametric in (c, d, p), not absolute. Real claim-conflict payoffs are not 3/4/0/1; on a hot file like auth.ts the one-shot gain from a false claim (blocking a rival's release) can dwarf the cooperative payoff, e.g. d-c ≥ 10 with c-p = 1. The cubic becomes δ(1+δ+δ²) = 10, requiring δ > ~0.78 — a regime where most real principals (operator-supervised dev sessions lasting hours, not weeks) do not have sufficient discount factor. The proposition currently reads as 'truthful claim signaling is a Nash equilibrium' without flagging that this is sensitive to the payoff calibration, which the paper does not derive from the cleanup-cost lower bound \\S7.2.",
++      "demand": "(a) Rephrase the proposition to make the dependence on (c,d,p) explicit, e.g. 'truthful signaling is a Nash equilibrium for any (c,d,p) and any δ satisfying d-c < (c-p)·δ(1-δ^k)/(1-δ)'; (b) provide at least one calibration anchor tying d, c, p to the cleanup-cost-per-breach metric c of \\S7.2 and the scope multiplier α of \\S7.4, so a reader can audit whether the (3,4,0) values are conservative or aggressive; (c) state the proposition's robustness regime in terms of the (d-c)/(c-p) ratio rather than as a single δ* number.",
++      "fix_status": "open"
++    },
++    {
++      "id": "RT-v25v26-004",
++      "class": "bond-sizing",
++      "section": "\\S7.5 tab:threat-bonds",
++      "severity": "medium",
++      "title": "Bond bands 10-25 / 25-50 / 100-200% are Schelling-point round numbers, not calibrated targets",
++      "smell": "Table \\ref{tab:threat-bonds} (line 783) presents three threat-class bands as 'starting points for calibration, not protocol constants', but the bands are presented without citation, simulation reference, or marketplace-literature anchor. The three bands are powers of two starting from 10–25 — a Schelling-point pattern that suggests authorial intuition rather than analytical derivation. The careless-work band (10-25%) is asserted to 'incentivize care without freezing out capable agents' without simulation evidence on the freeze-out threshold. The active-sabotage band (100-200%) is hedged with 'capital-inefficient above 100%' — but the paper's own \\S7.4 cleanup lower bound theorem (\\thm{cleanup-bound}) gives π ≥ c, and 100% of expected task value bears no necessary relation to c. Mixing units (bond % of task value vs. multiple-of-c) is a smell. The abandonment-band rationale (line 789) says it 'covers the cost of onboarding a replacement', which is a real quantity from \\S5 salvage — but no derivation is shown.",
++      "demand": "Either (a) cite at least one marketplace-bond study, insurance-actuarial literature, or simulation script that calibrates these bands from observed task-value-to-cleanup ratios; or (b) derive each band from \\S7.4's c (cleanup cost) and \\S7.5's α (scope multiplier) so the bands fall out of the existing theory rather than appearing as new parameters; or (c) re-label the table 'illustrative starting bands; production deployments must calibrate from local data before relying on these as defaults' and remove any prose that treats them as analytical results. Bonus probe: simulate freeze-out at 10% vs 25% on a fixed cohort and report freeze-out rate.",
++      "fix_status": "open"
++    },
++    {
++      "id": "RT-v25v26-005",
++      "class": "bootstrap-metrics",
++      "section": "\\S7.6 sec:pricing:bootstrap",
++      "severity": "medium",
++      "title": "Bootstrap transition metrics (80% / 50% / 60%) appear without source",
++      "smell": "\\S7.6 specifies three transition thresholds for Phase 1→2→3: completion >80% sustained ≥2 weeks, new-principal 30-day retention >50%, repeat-poster rate >60%. None of these is cited to marketplace literature, A/B-test data, or simulation. The numerical specificity ('30-day', '2 weeks', '60%') invites the reader to believe these are calibrated targets; without citation they are operator intuition. The 80% completion threshold for Phase 1→2 is particularly load-bearing because the prose argues that 'below this threshold the cohort is not yet generating usable risk signal, and Phase 2 pricing will overfit to noise' — a quantitative claim about signal-to-noise that requires either a derivation (variance of α estimator vs. completion rate) or empirical reference. The Pareto-dominance conclusion of \\S8.4.4 is then conditioned on reaching Phase 3 'and the listed metrics being met' (line 823) — so the entire mature-market regime the abstract banks on inherits the un-sourced metric stack.",
++      "demand": "For each of the three thresholds, provide: (a) at least one citation to two-sided marketplace literature (Uber, Airbnb, Mechanical Turk bootstrap studies) or insurance-pool cold-start literature anchoring the chosen number; or (b) a simulation in proofs/bonded/bootstrap/ that derives the threshold from a target signal-to-noise ratio for the α / ρ estimators of \\S7.4-7.5; or (c) softer prose: 'illustrative thresholds; production deployments calibrate from observed estimator variance', and drop the implication that these numbers are tight.",
++      "fix_status": "open"
++    },
++    {
++      "id": "RT-v25v26-006",
++      "class": "oracle-collusion",
++      "section": "\\S7.7 sec:pricing:settlement, \"Composition with cartel resistance\"",
++      "severity": "high",
++      "title": "Oracle collusion ~ insurer cartel: claim of structural identity is asserted, not proved",
++      "smell": "\\S7.7 line 848 claims 'the same insurer-collusion analysis applies (\\S8.4 A6) with the oracles in the role of bidders'. But the structural objects are not the same. The A6 folk theorem (line 920) models a coalition of insurers maintaining a price floor q_floor > q*, with grim-trigger punishment on observed bid patterns. Oracle collusion involves Oracles 1 and 2 colluding to misreport binary verdicts (settle / slash), with Oracle 3 (human audit) detecting at sampling rate σ. The detection mechanism is fundamentally different: bid-pattern heat is a continuous price-distribution test; oracle-disagreement is binomial detection of categorical disagreement against a random sample. The closed-form p_d^⋆ ≈ 0.10 derived in A6 for δ = 0.95 used a specific deviation calculation on the surplus split; the paper now asserts the same threshold transfers to oracle audit-sampling without re-deriving the deviation calculation under the different surplus structure. The 'p_d^{oracle} = σ' identification (line 848) papers over this. A 10% audit sample of oracle disagreements is not obviously the same threshold as a 10% bid-pattern detection rate — the per-round expected-PV calculation rests on different deviation gains and different punishment payoffs.",
++      "demand": "Re-derive A6's deviation-payoff inequality with oracle-specific quantities: per-round surplus from colluding to mis-settle (call it d_oracle), cooperative payoff under honest verdicts (c_oracle), and detection probability p_d^{oracle} = σ against the binomial sampling. Either (a) the inequality reduces to the same threshold p_d^⋆ ≈ 0.10 at δ = 0.95 under explicit, stated payoff calibration; or (b) it does not, and \\S7.7 must surface the actual oracle-threshold (possibly higher, possibly lower) and update 'default 10% sample is a starting point' with the derived target. A two-page proof or a simulation in proofs/bonded/settlement/oracle-cartel.{md,mjs} would close this.",
++      "fix_status": "open"
++    },
++    {
++      "id": "RT-v25v26-007",
++      "class": "anchor-dependency",
++      "section": "\\S7.4 prop:claim-signaling-ic, condition 'Persistent identity (Anchor)' + \\S\\ref{sec:youle:a6}",
++      "severity": "high",
++      "title": "Proposition 7.1 depends on Anchor, but inherits Anchor's worst-case threat model un-acknowledged",
++      "smell": "The 'What each condition buys' bullet (line 723) makes the dependency explicit: 'An agent who can re-register after each defection effectively faces δ = 0; future punishment falls on a discarded identity. Cooperation is impossible. The Anchor protocol is therefore a precondition of this proposition'. Good honesty. But the audit chain v2.0-v2.5 of Anchor (dialogues v2.0→v2.5) has documented gaps: email magic-link is the recovery weak link, and the federated-sovereign recovery (\\S{sec:federated-sovereign}) requires email-bound authentication whose worst-case attacker can re-register an existing Anchor ID. In that worst case, an attacker who compromises a victim's email becomes a Sybil-with-laundered-history: they inherit the reputation rather than re-registering at zero. The Anchor compromise pattern is not a fresh identity at δ = 0 — it is an aliased identity at the victim's accumulated reputation, which is a worse failure mode for Proposition 7.1 than the one the proposition contemplates. The current bullet treats 'no Anchor' and 'compromised Anchor' as the same regime; they are not.",
++      "demand": "Add a third bullet to the 'What each condition buys' enumeration explicitly addressing the Anchor-compromise regime, citing dialogue-v2.4-to-v2.5.json's email-magic-link analysis (proofs/bonded/recovery/magic-link.pv) and stating what Proposition 7.1's conclusion is under each of: (i) Anchor's ProVerif-confirmed single-use property holds (single-use bounded reputation laundering); (ii) Anchor's federated-sovereign threat model is realized (full reputation hijack). Whether the Bonded proposition still binds in case (ii), and at what δ threshold, must be stated explicitly. If it does not bind, the abstract's correlating-device reframe inherits that scope limitation.",
++      "fix_status": "open"
++    },
++    {
++      "id": "RT-v25v26-008",
++      "class": "citation-placement",
++      "section": "\\bibitem{aumann1974subjectivity} (line 1409) referenced \\S1 abstract, \\S2.0 intro item 4, \\S2.X",
++      "severity": "low",
++      "title": "Aumann 1974 is the introduction of the concept; the formalization the paper relies on is Aumann 1987",
++      "smell": "The new bibitem 'aumann1974subjectivity' is cited three times in load-bearing positions (abstract, intro contributions, and the §2.X correlating-device subsection). Aumann (1974) 'Subjectivity and correlation in randomized strategies' introduces the correlated-equilibrium concept but couches it in a subjectivist-Bayesian framework that the paper does not engage. The 'correlating device' formulation the paper actually uses — trusted third party draws joint signal, privately reveals component, common-knowledge μ, best-response under posterior — is the formalization from Aumann (1987), 'Correlated Equilibrium as an Expression of Bayesian Rationality' (Econometrica 55:1). Citing 1974 makes the citation decorative-historical rather than supporting-the-mechanism. A reader checking the cite for the precise definition the paper relies on will not find it where pointed.",
++      "demand": "Add \\bibitem{aumann1987correlated} (Econometrica 55:1, 1987) and route the technical citations in \\S2.X (the joint-distribution formalization, the best-response argument) to the 1987 paper. Keep aumann1974 for the conceptual-origin citation in the intro. A two-line fix that materially improves audit hygiene.",
++      "fix_status": "open"
++    }
++  ],
++  "out_of_scope_or_skipped": [
++    {
++      "id": "RT-v25v26-skip-001",
++      "reason": "Figure 1 (fig-bonded-three-layer) visual correctness — cannot audit a PDF render without compiling LaTeX; deferred to a visual-audit probe in a future round if needed."
++    },
++    {
++      "id": "RT-v25v26-skip-002",
++      "reason": "Multi-oracle 3-of-3 / 2-of-3 / no-majority rule game-theoretic robustness against strategic abstention (one oracle abstains to deny majority) — wanted to probe but could not articulate the sharpest version without simulating the strategic-abstention payoff."
++    }
++  ]
++}

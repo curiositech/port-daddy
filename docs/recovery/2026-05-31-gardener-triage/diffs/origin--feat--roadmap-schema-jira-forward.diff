@@ -1,0 +1,358 @@
+STATS:
+ docs/adr/0036-roadmap-schema-expansion.md | 333 +++++++++++++
+ lib/roadmap-items.ts                      | 746 ++++++++++++++++++++++++++++--
+ lib/roadmap-render.ts                     |   3 +-
+ routes/roadmap.ts                         |   4 +-
+ server.ts                                 |   2 +-
+ tests/unit/roadmap-items.test.js          | 278 ++++++++++-
+ tests/unit/roadmap-promote.test.js        |   2 +-
+ 7 files changed, 1322 insertions(+), 46 deletions(-)
+
+---
+LAST COMMIT:
+197b62430417b5102d29a4d95b74e7eb05c159bc
+Erich Owens <erich.owens@gmail.com>
+2026-05-19 06:41:12 -0700
+feat(roadmap): schema expansion for Jira-forward + team-ready coordination (ADR-0036)
+
+Extend roadmap_items with the structural surface area markdown carried but the
+tuple-projected table couldn't: split-content (title/why/next-cut/description),
+hierarchy (parent_id/ordering), 4-valued visibility, four timeline fields, and
+nullable team_id/workspace_id/workflow_id for the eventual multi-tenant story.
+
+Status becomes an open string so team-defined workflows ("blocked", "in-review")
+round-trip; the six built-in values still sort first via a known-rank table.
+Adds `quarantined` as a sixth canonical status for un-spider findings.
+
+New relational tables (projections + relations, tuples remain the write log):
+
+  - roadmap_item_edges     : blocks/depends-on/parent-of/relates-to/duplicates
+  - roadmap_item_owners    : principal_type × principal_id × role
+  - roadmap_item_artifacts : PRs, ADRs, screenshots, operator-quotes
+  - roadmap_item_tags      : free-form labels
+  - roadmap_item_events    : append-only audit timeline (auto-minted on writes)
+
+Fourteen new factory APIs (addEdge/removeEdge/listEdges, addOwner/…,
+addArtifact/…, addTag/…, addEvent/events) all guard `relationalOrThrow()` so
+callers without a SQLite handle get a clear error instead of a silent no-op.
+Relational writes auto-mint events; events are the cheap way to ask "what
+happened to this item" without replaying the global tuple log.
+
+Cartographer remains the sole authoritative writer of status (via tuples);
+nothing in this PR changes that contract.
+
+PR-β (next) carries the markdown→DB migration, read-path rewires (cartographer
+prompt, getRoadmapProgress, `pd roadmap` CLI, website docs surface), and the
+file deletions. ADR-0036 documents the split.
+
+Tests: 14 new in roadmap-items.test.js covering content split, legacy
+summaryMd fallback, hierarchy, team-forward fields, timeline fields, arbitrary
+status strings, and all 14 relational APIs (incl. no-db throw guards).
+All 82 unit tests across roadmap-items/promote/pop/cartographer-routes pass.
+`tsc --noEmit` clean.
+
+
+---
+DIFF (first 300 lines):
+diff --git a/docs/adr/0036-roadmap-schema-expansion.md b/docs/adr/0036-roadmap-schema-expansion.md
+new file mode 100644
+index 00000000..e1d27a75
+--- /dev/null
++++ b/docs/adr/0036-roadmap-schema-expansion.md
+@@ -0,0 +1,333 @@
++# 0036. Roadmap Items Schema Expansion — Jira-forward, Team-ready
++
++## Status
++
++Accepted
++
++## Context
++
++`roadmap_items` (`lib/roadmap-items.ts`, introduced PR #94) carries a
++narrow per-item shape — slug, summary blob, status enum,
++single-promoter provenance, flat dependencies list. That was right for
++slice A; it is **not** right as the destination for the markdown
++migration the operator asked for ("dump its contents into SQL and
++delete it") nor for the team-product trajectory the operator named
++("think forward for selling this, teams will need it").
++
++Four markdown surfaces (`docs/ROADMAP.md`,
++`docs/recovery/IDEAS-TROVE.md`, `docs/recovery/DOGFOOD-FEEDBACK.md`,
++`docs/recovery/CURRENT-WORK.md`) carry 14 distinct structural facts the
++current schema cannot absorb. A schema gap analysis
++(`~/coding/tmp/roadmap-schema-gap-analysis.md`, see PR description)
++inventories them. This ADR is the destination-schema decision; PR-β
++will land the migration script + read-path rewires + file deletions
++on top of this foundation.
++
++## Decision
++
++The roadmap-items domain grows from one entity to **one entity + four
++related tables + one events table**, with breathing room baked in for
++multi-tenant deployment. All schema work lands in PR-α; nothing reads
++or writes the new shapes yet beyond unit tests.
++
++### 1. Extend `RoadmapItem`
++
++```ts
++interface RoadmapItem {
++  // === existing (unchanged) ===
++  id: string;                    // UUID, preserved across upserts
++  slug: string;                  // identity key
++  status: RoadmapStatus;         // see §1.1 (default set) + arbitrary string
++  promotedFromFeedbackId: string | null;
++  promotedByAgentId: string | null;
++  promotedAt: number | null;
++  lastTouchedAt: number;
++  harbor: string;                // see §1.5 (hierarchy doc'd, not enforced)
++
++  // === content split — replaces summaryMd blob ===
++  title: string;                 // human-readable display name
++  whyMd: string | null;          // "why it matters" prose
++  nextCutMd: string | null;      // "next cut" / what-to-do-next prose
++  descriptionMd: string | null;  // long-form, optional
++
++  // === hierarchy (option α from gap analysis) ===
++  parentId: string | null;       // points at another item; nulls = top level
++  ordering: number;              // sort within parent; defaults to 0
++
++  // === team-forward breathing room (nullable today) ===
++  teamId: string | null;
++  workspaceId: string | null;
++  workflowId: string | null;     // future per-workspace status workflow
++
++  // === lifecycle / visibility ===
++  visibility: 'private' | 'team' | 'org' | 'public';   // default 'fleet'-equivalent
++                                                       // = 'team' in team mode,
++                                                       //   'private' in solo mode
++  scheduledAt: number | null;
++  startedAt:   number | null;
++  dueAt:       number | null;
++  completedAt: number | null;
++}
++```
++
++#### 1.1 Status — default set plus open string
++
++The default 6 values: `now | merge | backlog | parked | done | quarantined`.
++
++`quarantined` is the 6th (operator-confirmed): for research / reset
++threads that the operator explicitly rejects but doesn't want deleted.
++Today's CURRENT-WORK.md "Quarantined Reset Research" maps cleanly onto
++it.
++
++The `status` column accepts **any string**, not just the default set.
++Teams pay for the right to define their own workflows
++(`draft → in-review → approved → shipped`). A future `workflowId`
++column points at a per-workspace `workflows` table; until then, the
++default 6 are the canonical set and CLI tools validate against them.
++Arbitrary strings round-trip through the tuple stream unchanged.
++
++#### 1.2 Content split — why we splice the blob
++
++`summaryMd` collapsed three distinct fields the markdown carried
++separately: "why it matters", "next cut", and a leading title. Splitting
++them is cheap migration (regex-parse the markdown), gives the CLI three
++queryable surfaces, and matches the natural reader flow ("what is this,
++why does it matter, what's the next step").
++
++Backward compat: `summaryMd` stays as a computed alias for the trio,
++returned by the read path so existing callers don't break:
++```
++summaryMd = title + '\n\n' + whyMd + '\n\n' + nextCutMd
++```
++
++#### 1.3 Hierarchy — alpha (containers are items)
++
++Operator chose alpha. A "## section" in ROADMAP.md, an "Active Side
++Thread" narrative in CURRENT-WORK.md, and an actionable "next cut"
++slug all live in the same table. The container is an item whose
++children point at it via `parentId`. Depth is unbounded.
++
++`ordering` is per-parent. Items with the same `parentId` sort by
++`ordering` ascending, then `lastTouchedAt` descending for ties.
++
++#### 1.4 Visibility — 4-valued for team-forward
++
++`private | team | org | public`. In solo mode (no `teamId`), only
++`private` and `public` are meaningful; `team` and `org` are no-ops the
++solo client treats as `private`. The schema accommodates the team
++case today so no migration is needed when teams arrive.
++
++#### 1.5 Harbor — current shape stays, future shape doc'd
++
++Current `harbor` = `<project>:fleet` (flat string). Future shape:
++`<org>:<team>:<project>:<fleet>`. We do not migrate the namespace in
++this PR. Constraint: nothing in PR-α makes a decision that prevents
++that future migration (e.g., we do not parse `harbor` as anything
++other than an opaque string).
++
++### 2. Four relational tables
++
++```sql
++-- typed edges between items
++CREATE TABLE IF NOT EXISTS roadmap_item_edges (
++  from_id TEXT NOT NULL,
++  to_id   TEXT NOT NULL,
++  kind    TEXT NOT NULL,          -- blocks | depends-on | extends |
++                                  -- supersedes | duplicates | related-to |
++                                  -- split-from | splits-to
++  by      TEXT,                   -- agent_id of who created the edge
++  at      INTEGER NOT NULL,
++  PRIMARY KEY (from_id, to_id, kind)
++);
++CREATE INDEX IF NOT EXISTS idx_roadmap_edges_to ON roadmap_item_edges(to_id);
++
++-- N principals with roles (replaces the single promotedByAgentId slot
++-- for "current owner" / "contributor" / "reviewer" semantics; the
++-- promoter stays on the item for source provenance)
++CREATE TABLE IF NOT EXISTS roadmap_item_owners (
++  item_id        TEXT NOT NULL,
++  principal_id   TEXT NOT NULL,
++  principal_type TEXT NOT NULL,    -- agent | user | team
++  role           TEXT NOT NULL,    -- owner | contributor | reviewer | worker
++  at             INTEGER NOT NULL,
++  PRIMARY KEY (item_id, principal_id, role)
++);
++CREATE INDEX IF NOT EXISTS idx_roadmap_owners_principal
++  ON roadmap_item_owners(principal_id, role);
++
++-- typed pointers to external artifacts (the universal join surface)
++CREATE TABLE IF NOT EXISTS roadmap_item_artifacts (
++  item_id TEXT NOT NULL,
++  kind    TEXT NOT NULL,           -- see §2.1 for the kind glossary
++  ref     TEXT NOT NULL,           -- URL, SHA, file path, quote text, etc.
++  label   TEXT,                    -- optional human label
++  at      INTEGER NOT NULL,
++  PRIMARY KEY (item_id, kind, ref)
++);
++CREATE INDEX IF NOT EXISTS idx_roadmap_artifacts_kind_ref
++  ON roadmap_item_artifacts(kind, ref);
++
++-- flat tags (phase membership, ad-hoc labels, GTM categorization)
++CREATE TABLE IF NOT EXISTS roadmap_item_tags (
++  item_id TEXT NOT NULL,
++  tag     TEXT NOT NULL,
++  PRIMARY KEY (item_id, tag)
++);
++CREATE INDEX IF NOT EXISTS idx_roadmap_tags_tag ON roadmap_item_tags(tag);
++```
++
++#### 2.1 Artifact `kind` glossary
++
++The kind column accepts arbitrary strings; documented set:
++- `pr` (ref = PR URL or `owner/repo#NN`)
++- `commit` (ref = SHA, label = subject)
++- `adr` (ref = `ADR-NNNN` slug)
++- `doc` (ref = repo-relative path, e.g., `docs/recovery/CURRENT-WORK.md`)
++- `url` (ref = absolute URL)
++- `session` (ref = PD session id)
++- `note` (ref = PD note id)
++- `spark-feedback` (ref = `.spark/feedback/<filename>`)
++- `spider-connection` (ref = `.spider/connections/<filename>`)
++- `operator-quote` (ref = the quote text; label = date + context)
++- **team-forward (no schema change needed):** `linear-issue`,
++  `jira-ticket`, `github-issue`, `notion-page`, `slack-message`,
++  `figma-frame`, etc.
++
++### 3. Events table replaces inline notes
++
++```sql
++CREATE TABLE IF NOT EXISTS roadmap_item_events (
++  id        INTEGER PRIMARY KEY AUTOINCREMENT,
++  item_id   TEXT NOT NULL,
++  kind      TEXT NOT NULL,          -- note | status-change | edge-added |
++                                    -- owner-added | tag-added | artifact-added
++  by        TEXT,                   -- agent_id / user_id / 'system'
++  at        INTEGER NOT NULL,
++  payload   TEXT                    -- JSON; shape varies by kind
++);
++CREATE INDEX IF NOT EXISTS idx_roadmap_events_item ON roadmap_item_events(item_id, at DESC);
++```
++
++Inline `notes` on `RoadmapItem` deprecates; the read path materializes
++notes from `roadmap_item_events WHERE kind = 'note'` and returns the
++same shape callers expect today. **Compliance + audit for paid teams
++is non-negotiable;** this is the table that earns the right to charge.
++
++### 4. Tuple stream evolves alongside (not instead)
++
++Existing tuples (`roadmap:upserted`, `roadmap:status`, `roadmap:touched`)
++remain as the **write log + cross-process notification channel**. The
++new tables are **read indexes computed from the tuples** plus the
++relational concepts the tuples don't model (edges, owners, artifacts,
++tags, events).
++
++Cartographer continues to be the only writer of the items domain.
++Subscribers continue to see `roadmap:upserted` etc. and can react. The
++SQL tables are projections + relations that callers query for the
++shapes tuples can't express in a single read.
++
++## Rationale
++
++Three designs were considered:
++
++1. **One big table** — pack every field into `roadmap_items` (one row
++   per item, JSON columns for edges/owners/artifacts/tags). Rejected:
++   the cross-table JOIN gives us indexed lookups Linear/Jira-style
++   ("show me every item @alice owns") that JSON columns can't.
++2. **Replace `roadmap_items` entirely with a new `work_items` model.**
++   Rejected: the existing tuple stream is the audit trail; throwing it
++   away to rename the entity costs the move-fast invariant Cartographer
++   relies on.
++3. **Extend `roadmap_items` + add relational tables alongside the
++   tuple stream.** *(chosen.)* Backward-compatible. Tuples stay
++   authoritative for status + audit. Tables carry the
++   relational/cross-cutting shapes. Each addition is a single ALTER
++   or CREATE; nothing else moves.
++
++The "team-forward breathing room" choice (nullable `teamId` /
++`workspaceId` / `workflowId` + 4-valued visibility) costs ~20 LOC and
++buys the future migration. We do not pay for unused columns today
++(SQLite ignores NULLs), and the alternative (rewriting the schema when
++teams arrive) is a much bigger move.
++
++## Consequences
++
++### Positive
++
++- **Markdown migration becomes mechanical** — every structural fact in
++  the four markdown files has a home in the new schema.
++- **Indexed cross-cutting queries** — "every item @alice owns",
++  "every item tagged `phase-3`", "every item with an active PR
++  artifact" — all single-table lookups.
++- **Compliance-ready audit trail** via `roadmap_item_events`.
++- **Team-mode migration is additive**, not rewrite — `teamId` /
++  `workspaceId` / `workflowId` columns already exist; team mode
++  populates them.
++- **The whitepaper / GTM story** ("Port Daddy is the local DB-of-record
++  for agentic coordination") gets concrete schema to point at.
++
++### Negative
++
++- **Five new tables + one expanded interface** is real schema surface.
++  Backups, migrations, dump/restore tooling all grow.
++- **Two writers on the items domain** — Cartographer via tuples (still
++  authoritative for status) AND the relational write paths
++  (`linkOwner`, `addArtifact`, `addEdge`, `addTag`). The contract:
++  relational writes never change `status` — that stays
++  tuple-authoritative — but they CAN add/remove relations.
++- **Inline `notes` deprecation** is a breaking change for any caller
++  that mutates `RoadmapItem.notes` directly. PR-α keeps the read-side
++  alias intact; PR-β rewires writers.
++
++### Neutral
++
++- The tuple stream is unchanged.
++- The `id` (UUID) remains the durable identity. Slug stays the
++  human-readable handle.
++- The migration script in PR-β is a one-shot file-walker; no ongoing
++  bidirectional sync between markdown and SQL.
++
++## What lands where
++
++- **PR-α (this PR)**: ADR-0036, schema additions in `lib/roadmap-items.ts`
++  (extended interface + 5 new tables + events overlay in read path),
++  factory updates (new functions: `addEdge`, `addOwner`, `addArtifact`,
+
+... [1291 more lines truncated]

@@ -1,0 +1,72 @@
+STATS:
+
+---
+LAST COMMIT:
+718019f84b6e0607e309f839a6a1278b6998f291
+Erich Owens <erich.owens@gmail.com>
+2026-05-19 04:39:16 -0700
+whitepaper: strip version/history language; cold-open present-tense
+
+The paper was leaking review-process and self-history vocabulary
+that breaks the cold-open contract: the reader has not read a
+previous version, does not know about review rounds, and does not
+need anxious gestures toward future work.
+
+Stripped:
+- "Mechanization Status v2.6" in the Reader's Map → "Formal
+  Verification Status".
+- "the v2.5-sealed Pareto-dominance artifact bundle" → the artifact
+  bundle, accompanies this paper.
+- "This is a real revision to the §youle mechanism design and is
+  recorded honestly in the v2.6 cartel-resilience analysis" →
+  "The single-instrument deposit policy is provably insufficient;
+  the mechanism in §youle is correct only with this composite
+  extension." (drops both the "real revision" and the "v2.6"
+  framing.)
+- "A formal Coq/Lean mechanization … is carried indefinitely
+  behind the empirical artifact" → "is not in this paper; the
+  empirical artifact stands on its own."
+- "We identify this as future work requiring collaboration with
+  economists" → "A full optimal-auction derivation in that
+  tradition is outside the scope of this paper."
+- "A review-process changelog, including the round-by-round
+  dialogue between adversarial and white-hat fleets that produced
+  the current status, is rendered at …" → dropped entirely from
+  the Artifact Availability paragraph.
+- "Earlier drafts dismissed the multi-node case as 'unnecessary
+  for local development'" → present-tense framing of the federated
+  trust model without the "earlier drafts" self-history.
+- "Functional form: future work" → "The functional form is left
+  open."
+- "The Version~2 expansion threads six contributions through this
+  skeleton" → "Six further contributions thread through this
+  skeleton."
+- "The advisory design … remains the correct resolution" → "is
+  the correct resolution".
+- "The central open problem---bond pricing---is no longer a single
+  open problem" → "Bond pricing is not a single open problem."
+- "Four mechanizations are carried indefinitely behind the
+  empirical evidence" → "Four mechanizations are out of scope for
+  this paper but explicitly named so a reader can audit what is
+  and is not proved."
+- "PROM-formal future work" → "PROM-formal version not in scope"
+  (status-table cell).
+- "the original draft promised in one paragraph … and now
+  substantiates" → "This is the structural meaning of
+  'decentralized verification' in this paper".
+- "The original specification states the escrow invariant in TLA+
+  but does not commit to an operational accounting. The April 2026
+  implementation in lib/bonds.ts collapses…" → present-tense
+  framing of the same content without dating the implementation
+  or contrasting with an "original".
+
+The remaining occurrences of "earlier" / "originally" / "previously"
+in the text all refer to time-ordered events within the system
+being described (a previously-assigned port, a capability originally
+granted) rather than to paper revisions; those stay.
+
+Page count: 37, build clean.
+
+
+---
+DIFF (first 300 lines):
