@@ -152,6 +152,15 @@ final class SecretsStore: ObservableObject {
     private nonisolated(unsafe) var clipboardTimer: Timer?
     private var revealTimers: [String: Timer] = [:]
 
+    /// Nonisolated mirror of the active clipboard hold so `deinit` (which cannot
+    /// touch MainActor state) can attempt a best-effort clear if a secret is
+    /// still on the pasteboard when the store is torn down. Kept in lockstep
+    /// with `clipboardHold`.
+    private nonisolated(unsafe) var teardownHold: ClipboardHold?
+    /// Nonisolated mirror of scheduled reveal-remask timers, so `deinit` can
+    /// invalidate them without leaking. Kept in lockstep with `revealTimers`.
+    private nonisolated(unsafe) var teardownRevealTimers: [Timer] = []
+
     init(
         autoStart: Bool = true,
         baseURL: String? = nil,
@@ -173,7 +182,20 @@ final class SecretsStore: ObservableObject {
     }
 
     deinit {
+        // Invalidate every scheduled timer so nothing fires against a dead store.
         clipboardTimer?.invalidate()
+        for timer in teardownRevealTimers { timer.invalidate() }
+
+        // Best-effort: if a secret WE wrote is still on the pasteboard, clear it.
+        // Only clear when both the changeCount matches and the exact value is
+        // still present, so we never clobber something the operator copied
+        // afterward. In-memory revealed values are class-local and released with
+        // the store; the clipboard is the one place a secret can outlive us.
+        if let hold = teardownHold,
+           pasteboard.changeCount == hold.changeCount,
+           pasteboard.currentString == hold.value {
+            pasteboard.clear()
+        }
     }
 
     // MARK: - Fetch
@@ -246,6 +268,7 @@ final class SecretsStore: ObservableObject {
         revealedValues[key] = nil
         revealTimers[key]?.invalidate()
         revealTimers[key] = nil
+        syncTeardownRevealTimers()
     }
 
     /// Clear every revealed value. Called on app blur / popover close.
@@ -253,6 +276,7 @@ final class SecretsStore: ObservableObject {
         for (_, timer) in revealTimers { timer.invalidate() }
         revealTimers.removeAll()
         revealedValues.removeAll()
+        syncTeardownRevealTimers()
     }
 
     private func scheduleRemask(for key: String) {
@@ -263,6 +287,13 @@ final class SecretsStore: ObservableObject {
             }
         }
         revealTimers[key] = timer
+        syncTeardownRevealTimers()
+    }
+
+    /// Mirror the live reveal timers into the nonisolated array so `deinit` can
+    /// invalidate them without touching MainActor state.
+    private func syncTeardownRevealTimers() {
+        teardownRevealTimers = Array(revealTimers.values)
     }
 
     // MARK: - Copy with auto-clear
@@ -282,12 +313,14 @@ final class SecretsStore: ObservableObject {
         }
 
         let changeCount = pasteboard.write(value)
-        clipboardHold = ClipboardHold(
+        let hold = ClipboardHold(
             key: key,
             value: value,
             clearsAt: now().addingTimeInterval(clipboardTTL),
             changeCount: changeCount
         )
+        clipboardHold = hold
+        teardownHold = hold
         scheduleClipboardClear()
     }
 
@@ -314,6 +347,7 @@ final class SecretsStore: ObservableObject {
         clipboardTimer = nil
         guard let hold = clipboardHold else { return false }
         clipboardHold = nil
+        teardownHold = nil
 
         // Only clear if the pasteboard is unchanged since our write AND still
         // contains our exact value. Either guard alone can yield a false
@@ -340,9 +374,18 @@ final class SecretsStore: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        var payload: [String: Any] = ["key": key, "value": value]
+        var payload: [String: String] = ["key": key, "value": value]
         if let backend, !backend.isEmpty { payload["backend"] = backend }
-        request.httpBody = try? JSONSerialization.data(withJSONObject: payload)
+        // Encode explicitly: a silent `try?` failure would POST an empty body,
+        // the daemon would reject it, and the user would see no reason why.
+        // A typed [String: String] payload is always JSON-serializable, but we
+        // surface any encoding failure rather than swallowing it.
+        do {
+            request.httpBody = try JSONEncoder().encode(payload)
+        } catch {
+            lastError = "Could not save \(key): invalid value"
+            return false
+        }
 
         do {
             let (_, response) = try await session.data(for: request)
@@ -411,7 +454,7 @@ final class SecretsStore: ObservableObject {
 // Wrapping NSPasteboard lets us unit-test the auto-clear logic deterministically
 // without touching the real system clipboard.
 
-protocol SecretPasteboard {
+protocol SecretPasteboard: Sendable {
     /// Writes the string and returns the resulting changeCount.
     func write(_ string: String) -> Int
     var changeCount: Int { get }
@@ -420,7 +463,9 @@ protocol SecretPasteboard {
 }
 
 struct SystemPasteboard: SecretPasteboard {
-    private let board = NSPasteboard.general
+    // No stored state: NSPasteboard.general is a process-global singleton, so
+    // this struct is trivially Sendable. Accessing it from `deinit` is sound.
+    private var board: NSPasteboard { .general }
 
     func write(_ string: String) -> Int {
         board.clearContents()

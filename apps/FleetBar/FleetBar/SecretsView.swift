@@ -38,6 +38,7 @@ struct SecretsView: View {
                                 clipboardSecondsRemaining: store.clipboardHold?.key == secret.key
                                     ? store.clipboardSecondsRemaining
                                     : nil,
+                                clipboardTTLSeconds: Int(store.clipboardTTL.rounded()),
                                 onToggleReveal: { toggleReveal(secret) },
                                 onCopy: { Task { await store.copyToClipboard(secret.key) } },
                                 onEdit: { editorTarget = .edit(secret) },
@@ -189,6 +190,7 @@ private struct SecretRow: View {
     let isRevealed: Bool
     let revealedValue: String?
     let clipboardSecondsRemaining: Int?
+    let clipboardTTLSeconds: Int
     let onToggleReveal: () -> Void
     let onCopy: () -> Void
     let onEdit: () -> Void
@@ -238,7 +240,12 @@ private struct SecretRow: View {
                     .foregroundStyle(isRevealed ? .primary : .secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
-                    .textSelection(.enabled)
+                    // Security: text selection is deliberately NOT enabled. A
+                    // selectable revealed value lets Cmd-C copy the secret to
+                    // the pasteboard outside the Copy button, bypassing the
+                    // auto-clear logic and stranding the secret indefinitely.
+                    // Copy is the only sanctioned path onto the clipboard.
+                    .textSelection(.disabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, Fleet.Space.s)
                     .padding(.vertical, 6)
@@ -331,9 +338,9 @@ private struct SecretRow: View {
         .buttonStyle(.borderless)
         .foregroundStyle(clipboardSecondsRemaining == nil ? Fleet.Color.active : Fleet.Color.healthy)
         .disabled(!secret.set)
-        .help("Copy value to clipboard (auto-clears in 45s)")
+        .help("Copy value to clipboard (auto-clears in \(clipboardTTLSeconds)s)")
         .accessibilityLabel("Copy value for \(secret.key) to clipboard")
-        .accessibilityHint("Clears from the clipboard automatically after 45 seconds")
+        .accessibilityHint("Clears from the clipboard automatically after \(clipboardTTLSeconds) seconds")
         .accessibilityValue(clipboardSecondsRemaining == nil ? "" : "Copied")
     }
 
@@ -361,7 +368,9 @@ private struct StatusBadge: View {
             // place the project font policy permits sub-13pt apparent size.
             Text(text.uppercased())
                 .font(.system(size: 10, weight: .semibold))
-                .tracking(0.4)
+                // Eyebrow exception requires letter-spacing >= 0.1em so the
+                // apparent size reads larger than the nominal 10pt.
+                .tracking(1.0)
         }
         .foregroundStyle(color)
         .padding(.horizontal, Fleet.Space.xs + 1)
@@ -520,7 +529,8 @@ private struct FieldLabel: View {
     var body: some View {
         Text(text.uppercased())
             .font(.system(size: 11, weight: .semibold))
-            .tracking(0.5)
+            // Eyebrow exception: >= 0.1em tracking at 11pt.
+            .tracking(1.2)
             .foregroundStyle(.secondary)
             .accessibilityHidden(true)
     }

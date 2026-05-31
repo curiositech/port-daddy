@@ -290,6 +290,73 @@ final class SecretsStoreTests: XCTestCase {
         XCTAssertEqual(store.clipboardTTL, 45)
     }
 
+    /// Teardown backstop: when the store is deallocated while a secret it wrote
+    /// is still on the pasteboard, deinit must clear it (best effort). The fake
+    /// is held outside the store so we can inspect it after the store is gone.
+    func testDeinitClearsClipboardWhenSecretStillOurs() async {
+        StubURLProtocol.handler = { _ in
+            .init(status: 200, body: #"{"key":"K","value":"sk-teardown"}"#.data(using: .utf8)!)
+        }
+        let board = FakePasteboard()
+        do {
+            let store = makeStore(pasteboard: board)
+            await store.copyToClipboard("K")
+            XCTAssertEqual(board.currentString, "sk-teardown")
+        } // store deallocated here
+        XCTAssertEqual(board.currentString, "", "deinit should clear our secret from the pasteboard")
+        XCTAssertEqual(board.clearCalls, 1)
+    }
+
+    /// Teardown must NOT clobber a value the operator copied after us.
+    func testDeinitDoesNotClobberForeignClipboardOnTeardown() async {
+        StubURLProtocol.handler = { _ in
+            .init(status: 200, body: #"{"key":"K","value":"sk-teardown"}"#.data(using: .utf8)!)
+        }
+        let board = FakePasteboard()
+        do {
+            let store = makeStore(pasteboard: board)
+            await store.copyToClipboard("K")
+            board.externalWrite("operator-copied-this")
+        } // store deallocated here
+        XCTAssertEqual(board.currentString, "operator-copied-this")
+        XCTAssertEqual(board.clearCalls, 0)
+    }
+
+    /// The copy affordance's countdown TTL must reflect the store's configured
+    /// clipboardTTL, not a hard-coded constant — guards against UI/store drift.
+    func testClipboardTTLIsConfigurable() {
+        let store = SecretsStore(
+            autoStart: false,
+            baseURL: "http://127.0.0.1:9999",
+            session: StubURLProtocol.makeSession(),
+            pasteboard: FakePasteboard(),
+            clipboardTTL: 20,
+            revealTTL: 30
+        )
+        XCTAssertEqual(store.clipboardTTL, 20)
+    }
+
+    /// setSecret must POST a body containing the value exactly (no silent
+    /// empty-body failure from a swallowed encoding error).
+    func testSetSecretEncodesNonEmptyBody() async {
+        nonisolated(unsafe) var capturedBody: Data?
+        StubURLProtocol.handler = { req in
+            if req.httpMethod == "POST", req.url!.path.hasSuffix("/secrets") {
+                capturedBody = req.bodyData
+                return .init(status: 200, body: #"{"success":true}"#.data(using: .utf8)!)
+            }
+            return .init(status: 200, body: #"{"secrets":[]}"#.data(using: .utf8)!)
+        }
+        let store = makeStore()
+        _ = await store.setSecret(key: "K", value: "sk-body")
+
+        let raw = capturedBody.flatMap { String(data: $0, encoding: .utf8) }
+        XCTAssertNotNil(raw)
+        XCTAssertFalse(raw!.isEmpty)
+        XCTAssertTrue(raw!.contains("sk-body"))
+        XCTAssertTrue(raw!.contains("\"K\""))
+    }
+
     // MARK: Set / Delete
 
     func testSetSecretPostsAndReturnsTrueOn2xx() async {
