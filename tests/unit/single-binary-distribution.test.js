@@ -11,6 +11,8 @@ describe('single binary distribution path', () => {
     expect(script).toContain("bin/port-daddy-bundle.ts");
     expect(script).toContain('writeEmbeddedAssetsModule');
     expect(script).toContain('writeEmbeddedNativeCoreModule');
+    expect(script).toContain('targetArch');
+    expect(script).toContain('requestedArch !== process.arch');
     expect(script).toContain("run('bash', ['scripts/build-core.sh']");
     expect(script).toContain('dataBase64');
     expect(script).toContain('embeddedNativeCore');
@@ -22,6 +24,8 @@ describe('single binary distribution path', () => {
 
     expect(bundle).toContain("process.env.PORT_DADDY_CAN_SELF_DAEMON = '1'");
     expect(bundle).toContain('embedded-native-core.generated.js');
+    expect(bundle).toContain("await import('koffi')");
+    expect(bundle).toContain('__PORT_DADDY_KOFFI_LOAD_ERROR__');
     expect(bundle).toContain("process.argv[2] === '__daemon'");
     expect(bundle).toContain("await import('../server.js')");
     expect(bundle).toContain('PORT_DADDY_SUPPRESS_CLI_MAIN');
