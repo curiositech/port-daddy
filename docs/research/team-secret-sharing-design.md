@@ -49,15 +49,23 @@ in two files:
 
 - **`lib/keychain.ts`** — a thin accessor over the OS keystore. On macOS it
   shells out to `/usr/bin/security`; on other platforms `available()` returns
-  `false` and callers fall back to a file. Its own header states the design
-  intent plainly: *"UNIX file permissions are a boundary between users, not
-  between processes of the same user."*
+  `false`, and the accessor's contract is that *callers* who want a non-keychain
+  path must supply one themselves (its header: callers "are expected to have a
+  file fallback ready"). The accessor never silently writes a plaintext file on
+  its own. Its header also states the design intent plainly: *"UNIX file
+  permissions are a boundary between users, not between processes of the same
+  user."*
 - **`lib/secret-env.ts`** — the managed-secret store. At daemon startup
   `snapshotSensitiveEnv()` copies a fixed allowlist of provider tokens
   (`ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `NGROK_AUTHTOKEN`, …) into a sealed
   in-process cache and `delete`s them from `process.env`. `saveManagedSecret()`
-  persists a token into the keychain under an `env:<KEY>` account and fails
-  closed when no keychain is available.
+  persists a token into the keychain under an `env:<KEY>` account and **fails
+  closed** ([the secure-default discipline](https://en.wikipedia.org/wiki/Fail-safe#Fail-secure)
+  — when the protective mechanism is unavailable, deny the operation rather than
+  degrade to a weaker path) when no keychain is available: it throws rather than
+  auto-writing a file, and directs the operator to `~/.port-daddy-env` as a
+  *separate, opt-in portable configuration path*, not an automatic fallback the
+  store reaches for.
 
 This is a good single-user design. It is also a hard ceiling:
 
@@ -109,8 +117,10 @@ payloads are encrypted to the account key before transmission"* (ADR-0029 §3).
 > deterministically from the principal's Ed25519 key. Ed25519 is a signature
 > key; sealing a data key to a recipient needs a key-agreement key. The standard
 > birational map (Ed25519 → X25519) lets one published key serve both roles, so
-> no new key distribution is required. This is exactly what NaCl's `crypto_box`
-> / libsodium sealed boxes assume.
+> no new key *distribution* is required. It does, however, require new *code*: a
+> sealed-box / key-agreement library this repo does not yet depend on (see §6.2),
+> since `node:crypto` ships no `crypto_box_seal`. This is exactly what NaCl's
+> `crypto_box` / libsodium sealed boxes assume.
 
 ### 2.2 Scopes = harbors
 
@@ -439,9 +449,19 @@ Modes", and ADR-0029 §"Threat Model Delta".
 - **Quota/RBAC enforcement is advisory in early phases**, inheriting ADR-0029's
   I-A5. The *cryptography* is the boundary; the capability strings are assertions
   the key-holding daemon re-checks, not a network-level fence.
-- **We do not invent new crypto.** If a primitive is needed that
-  `note-encryption.ts` / `coordination-crypto.ts` / libsodium do not already
-  provide, that is a signal to stop and re-scope, not to hand-roll it.
+- **We do not *hand-roll* new crypto — but we do add one new vetted
+  dependency.** The existing modules (`note-encryption.ts`,
+  `coordination-crypto.ts`) use only `node:crypto` primitives: AES-256-GCM,
+  HMAC-SHA256, HKDF, and Ed25519 sign/verify. They do **not** implement X25519
+  key agreement or sealed boxes. The per-recipient wrapping in §2.1/§4.2
+  (`seal(K_s -> X25519(PK_p))`, plus the Ed25519→X25519 birational conversion)
+  is therefore a **new cryptographic surface** for this repo, and it requires a
+  vetted key-agreement / sealed-box library (libsodium via `sodium-native`, or
+  `@noble/curves` + `@noble/ciphers`) — not anything `node:crypto` already
+  exposes. The rule is: pull in an audited implementation of a standard
+  construction (`crypto_box_seal`), never author the curve math or the AEAD
+  composition ourselves. Adding that dependency, and modeling I-S1/I-S2 against
+  it (§6.3), is in-scope, reviewable work — *not* a primitive we already have.
 
 ### 6.3 New invariants (proposed, in ADR-0029's style)
 
@@ -473,7 +493,7 @@ superset that only activate when an account and harbor exist.
 | Phase | Ships | New surface | Depends on |
 |-------|-------|-------------|------------|
 | **P0 — model + personal parity (~1w)** | `SharedSecretRecord` schema; `pd secret {add,list,reveal,rm}` over today's keychain for `scope=personal`; secret audit leaves written to the *local* forest (ADR-0029 v0) | CLI `pd secret`; SQLite `shared_secrets` table | ADR-0029 v0 local forest |
-| **P1 — harbor-shared, same-account multi-device (~1.5w)** | wrap `K_s` to each bound daemon of *one* account; `pd secret share --harbor <h>`; rotation/revocation re-wrap | account X25519 derivation; harbor membership read | ADR-0029 pairing receipts; ADR-0027 harbor membership |
+| **P1 — harbor-shared, same-account multi-device (~1.5w)** | wrap `K_s` to each bound daemon of *one* account; `pd secret share --harbor <h>`; rotation/revocation re-wrap | account X25519 derivation; harbor membership read; **first sealed-box dependency lands here** (libsodium / `@noble`, §6.2) | ADR-0029 pairing receipts; ADR-0027 harbor membership; new sealed-box library |
 | **P2 — `use`-without-see, cross-account (~2w)** | daemon-mediated `pd secret use --op …`; `secret:use:<pattern>` capability in harbor cards; multi-account wrap targets | `use` request/reply over relay (ADR-0027 §request/accept); op allowlist enforcement | ADR-0027 relay transport; ADR-0025 OIDC for foreign accounts |
 | **P3 — org scope + RBAC + public audit (~2w)** | org/account-group recipient sets; `owner/member/viewer` RBAC gating `manage`; account-co-signed secret audit roots published per ADR-0029 v2 | account groups; relay-level grant checks | ADR-0029 v2/v3; ADR-0027 attenuation |
 | **P4 — hardware-backed `use` (future)** | Secure Enclave / TPM-held `K_s`; daemon performs `use` without ever exposing the key to its own userland | platform keystore integration | beyond ADR-0029 scope |

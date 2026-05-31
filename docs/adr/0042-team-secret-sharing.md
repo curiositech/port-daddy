@@ -170,16 +170,20 @@ leaves).
   metadata (ADR-0029 T1, unmitigated here).
 - **Capability enforcement is advisory at non-key-holding daemons** (ADR-0029
   I-A5); the cryptography is the real boundary.
-- **No new crypto is invented**; if a needed primitive is absent from the
-  existing modules / libsodium, that is a re-scope signal, not a hand-roll
-  signal.
+- **No crypto is hand-rolled, but one new vetted dependency is added.** The
+  existing modules use only `node:crypto` (AES-256-GCM, HMAC, HKDF, Ed25519);
+  they do *not* implement X25519 sealed boxes. The per-recipient `seal(K_s ->
+  X25519(PK_p))` wrapping is a new cryptographic surface requiring an audited
+  sealed-box library (libsodium / `@noble`), first landing in P1. Pulling in an
+  audited `crypto_box_seal` is in-scope; authoring curve math is not. See the
+  design doc §6.2.
 
 ## Phasing
 
 | Phase | Ships | Depends on |
 |-------|-------|-----------|
 | P0 (~1w) | `SharedSecretRecord` schema; `pd secret {add,list,reveal,rm}` over today's keychain for `personal`; local Merkle audit leaves | ADR-0029 v0 local forest |
-| P1 (~1.5w) | wrap to each bound daemon of one account; `pd secret share --harbor`; rotate/revoke re-wrap | ADR-0029 pairing receipts; ADR-0027 membership |
+| P1 (~1.5w) | wrap to each bound daemon of one account; `pd secret share --harbor`; rotate/revoke re-wrap | ADR-0029 pairing receipts; ADR-0027 membership; **new sealed-box library** (libsodium / `@noble`) |
 | P2 (~2w) | daemon-mediated `pd secret use`; `secret:use:<pattern>` cards; cross-account wrap targets | ADR-0027 relay transport; ADR-0025 OIDC |
 | P3 (~2w) | org scope; `owner/member/viewer` RBAC gating `manage`; account-co-signed public audit roots | ADR-0029 v2/v3; ADR-0027 attenuation |
 | P4 (future) | hardware-backed `use` (Secure Enclave/TPM-held `K_s`) | platform keystore |
@@ -199,7 +203,9 @@ A solo user is never forced past P0.
 - Audit answers "did the boundary hold?" with tamper-evident, value-free
   evidence.
 - Reuses accounts, harbors, harbor cards, envelope crypto, and the Merkle forest
-  — no new identity type, no new PKI, no new crypto.
+  — no new identity type and no new PKI. The one genuinely new surface is an
+  audited X25519 sealed-box library for per-recipient wrapping (P1+); no crypto
+  is hand-rolled.
 - Single-user path is unchanged (personal scope = harbor of one).
 
 ### Negative
