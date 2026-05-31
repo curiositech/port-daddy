@@ -37,7 +37,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "docs(roadmap): operator-direct accounts arc \u2014 A0/A1 + W0-W6 phases",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -65,7 +67,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 63
+      "age_days": 63,
+      "what_it_is": "Add Claude Code GitHub Workflow",
+      "what_it_does": "2 files \u00b7 +94/-0 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -93,7 +97,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 31
+      "age_days": 31,
+      "what_it_is": "Add ADR-0026 Fleet AST + diagnostic taxonomy",
+      "what_it_does": "1 file \u00b7 +364/-0 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -121,7 +127,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 14
+      "age_days": 14,
+      "what_it_is": "Add fleet AST foundation (ADR-0026 step 1)",
+      "what_it_does": "Touches bug fix \u00b7 6 files \u00b7 +2,738/-1,472 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -153,7 +161,9 @@
       "checks_passed_count": 11,
       "checks_failed": [],
       "checks_pending": [],
-      "required_passed": true
+      "required_passed": true,
+      "what_it_is": "[draft] ADR-0035 \u2014 Dispatches: intent-to-PR in one command (renumbered from 0034 after redteam)",
+      "what_it_does": "Touches ADR \u00b7 1 file \u00b7 +469/-0 lines \u00b7 design/research artifact"
     },
     {
       "kind": "branch",
@@ -185,7 +195,9 @@
       "checks_passed_count": 11,
       "checks_failed": [],
       "checks_pending": [],
-      "required_passed": true
+      "required_passed": true,
+      "what_it_is": "[draft] ADR-0036 \u2014 pd-bosun minimalist daemon supervisor",
+      "what_it_does": "Touches ADR \u00b7 1 file \u00b7 +206/-0 lines \u00b7 design/research artifact"
     },
     {
       "kind": "branch",
@@ -213,7 +225,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "docs(adr): ADR-0037 git access control + pd feature verbs",
+      "what_it_does": "Touches ADR \u00b7 1 file \u00b7 +481/-0 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -245,7 +259,9 @@
       "checks_passed_count": 11,
       "checks_failed": [],
       "checks_pending": [],
-      "required_passed": true
+      "required_passed": true,
+      "what_it_is": "[draft] ADR-0037 \u2014 Harbormaster: serialized merge ownership for dispatched work",
+      "what_it_does": "Touches ADR \u00b7 1 file \u00b7 +227/-0 lines \u00b7 design/research artifact"
     },
     {
       "kind": "branch",
@@ -273,7 +289,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "docs(adr): ADR-0038 claim tree \u2014 multi-granularity coordination",
+      "what_it_does": "Touches ADR \u00b7 1 file \u00b7 +434/-0 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -301,7 +319,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "docs(adr): ADR-0039 portdaddy.dev account surface \u2014 receipts, security, version-skew dance",
+      "what_it_does": "2 files \u00b7 +351/-3 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -335,7 +355,9 @@
         "Cloudflare Pages"
       ],
       "checks_pending": [],
-      "required_passed": false
+      "required_passed": false,
+      "what_it_is": "adr(draft): 0039 suggestibility layer + 0040 pd-encompassing shell",
+      "what_it_does": "Touches ADR \u00b7 2 files \u00b7 +465/-0 lines \u00b7 design/research artifact"
     },
     {
       "kind": "branch",
@@ -363,7 +385,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 33
+      "age_days": 33,
+      "what_it_is": "Wire cartographer to /feedback + add Roadmap dashboard panel",
+      "what_it_does": "untouched 33d"
     },
     {
       "kind": "branch",
@@ -398,7 +422,9 @@
         "Cloudflare Pages"
       ],
       "checks_pending": [],
-      "required_passed": false
+      "required_passed": false,
+      "what_it_is": "blog: attention-is-the-first-command \u2014 adoption piece for pd attention",
+      "what_it_does": "Touches WIP \u00b7 5 files \u00b7 +169/-0 lines \u00b7 design/research artifact"
     },
     {
       "kind": "branch",
@@ -433,7 +459,9 @@
         "Cloudflare Pages"
       ],
       "checks_pending": [],
-      "required_passed": false
+      "required_passed": false,
+      "what_it_is": "skill-hygiene follow-up: installable hook, deterministic snapshot, tests, healer auth doc",
+      "what_it_does": "Touches WIP \u00b7 11 files \u00b7 +361/-17 lines \u00b7 overlaps with another live branch \u226580%"
     },
     {
       "kind": "branch",
@@ -468,7 +496,9 @@
         "Cloudflare Pages"
       ],
       "checks_pending": [],
-      "required_passed": false
+      "required_passed": false,
+      "what_it_is": "skill-hygiene: audit, healer, library SQLite, audit webpage, CI gate (111/111 passing)",
+      "what_it_does": "116 files \u00b7 +4,115/-179 lines \u00b7 overlaps with another live branch \u226580%"
     },
     {
       "kind": "branch",
@@ -496,7 +526,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "chore(website): SSR-safety prep \u2014 defer browser APIs out of module scope",
+      "what_it_does": "Touches bug fix \u00b7 2 files \u00b7 +30/-9 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -524,7 +556,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 17
+      "age_days": 17,
+      "what_it_is": "chore(release): bump to 3.14.0",
+      "what_it_does": "Touches tests \u00b7 15 files \u00b7 +73/-886 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -552,7 +586,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 17
+      "age_days": 17,
+      "what_it_is": "ci(release): add workflow_dispatch for manual re-runs",
+      "what_it_does": "Touches CI \u00b7 1 file \u00b7 +13/-0 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -580,7 +616,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 21
+      "age_days": 21,
+      "what_it_is": "ci: bypass worktree-policy in integration test helper",
+      "what_it_does": "Touches tests \u00b7 2 files \u00b7 +26/-2 lines \u00b7 done but off-direction"
     },
     {
       "kind": "branch",
@@ -608,7 +646,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "ci(whitepaper): metadata drift check + vitest coverage",
+      "what_it_does": "Touches CI \u00b7 5 files \u00b7 +420/-5 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -642,7 +682,9 @@
         "whitepaper-metadata-drift"
       ],
       "checks_pending": [],
-      "required_passed": true
+      "required_passed": true,
+      "what_it_is": "ci(whitepaper): close PR #117 review findings (CI wiring + schema-level phrase ban + AST rewrite)",
+      "what_it_does": "Touches CI \u00b7 7 files \u00b7 +476/-96 lines \u00b7 PR is BEHIND"
     },
     {
       "kind": "branch",
@@ -670,7 +712,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 66
+      "age_days": 66,
+      "what_it_is": "feat(website): add OG meta tags, neumorphic standardization, and mobile fixes",
+      "what_it_does": "Touches bug fix \u00b7 12 files \u00b7 +1,447/-1,316 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -698,7 +742,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 74
+      "age_days": 74,
+      "what_it_is": "Add V4 implementation plan and dependency DAG documentation",
+      "what_it_does": "36 files \u00b7 +12,157/-507 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -726,7 +772,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 64
+      "age_days": 64,
+      "what_it_is": "refactor(website): unify neumorphic design system across all components",
+      "what_it_does": "Touches bug fix \u00b7 95 files \u00b7 +3,488/-2,379 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -754,7 +802,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 15
+      "age_days": 15,
+      "what_it_is": "cockpit: address self-review findings (5 fixes)",
+      "what_it_does": "Touches CLI, bug fix \u00b7 8 files \u00b7 +135/-25 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -782,7 +832,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "cockpit: swap data source from markdown to roadmap_items (Phase 1)",
+      "what_it_does": "9 files \u00b7 +285/-678 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -810,7 +862,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 0
+      "age_days": 0,
+      "what_it_is": "wip: preserve uncommitted edits from 2026-05-31 batch-merge re-triage",
+      "what_it_does": "Touches WIP \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -838,7 +892,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 13
+      "age_days": 13,
+      "what_it_is": "cockpit: persist per-mission operator state (PR A of 2: dismiss/snooze)",
+      "what_it_does": "14 files \u00b7 +898/-75 lines \u00b7 done but off-direction"
     },
     {
       "kind": "branch",
@@ -866,7 +922,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 10
+      "age_days": 10,
+      "what_it_is": "fix(ci): install bun in publish-npm (release.yml) (#159)",
+      "what_it_does": "Touches bug fix \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -894,7 +952,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "feat(roadmap): pd roadmap promote + /roadmap/* routes (slice B/2 of DB-of-record)",
+      "what_it_does": "Touches roadmap \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -922,7 +982,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 0
+      "age_days": 0,
+      "what_it_is": "wip: preserve uncommitted edits from 2026-05-31 batch-merge re-triage",
+      "what_it_does": "Touches WIP \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -950,7 +1012,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 26
+      "age_days": 26,
+      "what_it_is": "Merge pull request #27 from curiositech/fix/restore-ci-green-on-main",
+      "what_it_does": "untouched 26d"
     },
     {
       "kind": "branch",
@@ -978,7 +1042,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 33
+      "age_days": 33,
+      "what_it_is": "Expand Documentarian release surfaces",
+      "what_it_does": "untouched 33d"
     },
     {
       "kind": "branch",
@@ -1012,7 +1078,9 @@
         "Cloudflare Pages"
       ],
       "checks_pending": [],
-      "required_passed": false
+      "required_passed": false,
+      "what_it_is": "fix: package daemon binary runtime repair",
+      "what_it_does": "9 files \u00b7 +298/-22 lines \u00b7 PR is BLOCKED"
     },
     {
       "kind": "branch",
@@ -1040,7 +1108,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 25
+      "age_days": 25,
+      "what_it_is": "Design secure relay harbor architecture",
+      "what_it_does": "untouched 25d"
     },
     {
       "kind": "branch",
@@ -1068,7 +1138,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Add generated CLI detail reference pages",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -1096,7 +1168,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "Fix Cloudflare Workers AI model route encoding",
+      "what_it_does": "2 files \u00b7 +51/-2 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -1124,7 +1198,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 31
+      "age_days": 31,
+      "what_it_is": "Tighten homepage shared-state section layout",
+      "what_it_does": "untouched 31d"
     },
     {
       "kind": "branch",
@@ -1152,7 +1228,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 31
+      "age_days": 31,
+      "what_it_is": "Add encrypted backend secret onboarding",
+      "what_it_does": "24 files \u00b7 +660/-153 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -1180,7 +1258,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 30
+      "age_days": 30,
+      "what_it_is": "Wire pd cockpit CLI + cockpit_missions_list MCP tool + SDK helper (slice 2c)",
+      "what_it_does": "untouched 30d"
     },
     {
       "kind": "branch",
@@ -1208,7 +1288,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 30
+      "age_days": 30,
+      "what_it_is": "Add cockpit mission detail + plan-draft routes (App-Native Cockpit slice 2a)",
+      "what_it_does": "untouched 30d"
     },
     {
       "kind": "branch",
@@ -1236,7 +1318,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 31
+      "age_days": 31,
+      "what_it_is": "Add Cockpit roadmap intake (App-Native Cockpit slice 1)",
+      "what_it_does": "untouched 31d"
     },
     {
       "kind": "branch",
@@ -1264,7 +1348,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 30
+      "age_days": 30,
+      "what_it_is": "Add CockpitMissionsPanel to fleet-config-ui (App-Native Cockpit slice 2b)",
+      "what_it_does": "untouched 30d"
     },
     {
       "kind": "branch",
@@ -1292,7 +1378,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 25
+      "age_days": 25,
+      "what_it_is": "Merge branch 'main' into feat/pr-a-foundation-transcripts-cost-ledger",
+      "what_it_does": "untouched 25d"
     },
     {
       "kind": "branch",
@@ -1320,7 +1408,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 25
+      "age_days": 25,
+      "what_it_is": "Polish docs sidebar navigation map",
+      "what_it_does": "untouched 25d"
     },
     {
       "kind": "branch",
@@ -1348,7 +1438,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 15
+      "age_days": 15,
+      "what_it_is": "test: make harbor token signature tamper deterministic",
+      "what_it_does": "Touches tests \u00b7 1 file \u00b7 +2/-1 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -1376,7 +1468,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 31
+      "age_days": 31,
+      "what_it_is": "Fix pd launcher tsx resolution",
+      "what_it_does": "untouched 31d"
     },
     {
       "kind": "branch",
@@ -1405,7 +1499,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 33
+      "age_days": 33,
+      "what_it_is": "Persist Fleet conversation archive",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -1433,7 +1529,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Show CLI outputs in MCP install terminal",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -1461,7 +1559,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 20
+      "age_days": 20,
+      "what_it_is": "fix(sessions): require agent identity for file claims",
+      "what_it_does": "Touches bug fix \u00b7 16 files \u00b7 +597/-80 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -1489,7 +1589,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 31
+      "age_days": 31,
+      "what_it_is": "Polish hiring-site mobile surfaces",
+      "what_it_does": "untouched 31d"
     },
     {
       "kind": "branch",
@@ -1517,7 +1619,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 31
+      "age_days": 31,
+      "what_it_is": "Polish homepage hero and agent quotes",
+      "what_it_does": "untouched 31d"
     },
     {
       "kind": "branch",
@@ -1545,7 +1649,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 31
+      "age_days": 31,
+      "what_it_is": "Retune homepage for AI tooling engineers",
+      "what_it_does": "untouched 31d"
     },
     {
       "kind": "branch",
@@ -1574,7 +1680,9 @@
       ],
       "hitl": false,
       "archive_safe": false,
-      "age_days": 31
+      "age_days": 31,
+      "what_it_is": "Dedupe homepage pd-tube teaser, drop \"eleven primitives\" copy",
+      "what_it_does": "untouched 31d"
     },
     {
       "kind": "branch",
@@ -1602,7 +1710,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 31
+      "age_days": 31,
+      "what_it_is": "Tighten homepage shared-state section layout",
+      "what_it_does": "untouched 31d"
     },
     {
       "kind": "branch",
@@ -1630,7 +1740,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 25
+      "age_days": 25,
+      "what_it_is": "Merge pull request #36 from curiositech/codex/salvage-triage",
+      "what_it_does": "untouched 25d"
     },
     {
       "kind": "branch",
@@ -1658,7 +1770,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 31
+      "age_days": 31,
+      "what_it_is": "Tighten MCP skill layout density",
+      "what_it_does": "untouched 31d"
     },
     {
       "kind": "branch",
@@ -1686,7 +1800,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Update stash salvage absorption status",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -1714,7 +1830,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 31
+      "age_days": 31,
+      "what_it_is": "Add live-glory hero video",
+      "what_it_does": "untouched 31d"
     },
     {
       "kind": "branch",
@@ -1742,7 +1860,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 13
+      "age_days": 13,
+      "what_it_is": "test(blob): make GC cutoff test deterministic",
+      "what_it_does": "Touches tests \u00b7 1 file \u00b7 +7/-11 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -1770,7 +1890,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 31
+      "age_days": 31,
+      "what_it_is": "Clarify MCP page coordination concepts",
+      "what_it_does": "untouched 31d"
     },
     {
       "kind": "branch",
@@ -1798,7 +1920,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 0
+      "age_days": 0,
+      "what_it_is": "Fix metrics dashboard empty states",
+      "what_it_does": "Touches WIP \u00b7 2 files \u00b7 +371/-19 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -1826,7 +1950,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 19
+      "age_days": 19,
+      "what_it_is": "ship notarized FleetBar preview artifact",
+      "what_it_does": "untouched 19d"
     },
     {
       "kind": "branch",
@@ -1854,7 +1980,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Fit OG card text without truncation",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -1882,7 +2010,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 13
+      "age_days": 13,
+      "what_it_is": "Add Fleet Control Center onboarding walkthrough",
+      "what_it_does": "Touches bug fix \u00b7 27 files \u00b7 +1,380/-75 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -1910,7 +2040,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 15
+      "age_days": 15,
+      "what_it_is": "fix(fleet-ui): declare yaml dependency",
+      "what_it_does": "Touches bug fix \u00b7 untouched 15d"
     },
     {
       "kind": "branch",
@@ -1938,7 +2070,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 31
+      "age_days": 31,
+      "what_it_is": "Harden claim-aware pd add staging",
+      "what_it_does": "untouched 31d"
     },
     {
       "kind": "branch",
@@ -1966,7 +2100,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 31
+      "age_days": 31,
+      "what_it_is": "Tighten homepage shared-state section layout",
+      "what_it_does": "untouched 31d"
     },
     {
       "kind": "branch",
@@ -1994,7 +2130,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 33
+      "age_days": 33,
+      "what_it_is": "Neutralize website soft-glow residue",
+      "what_it_does": "untouched 33d"
     },
     {
       "kind": "branch",
@@ -2022,7 +2160,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Expand canonical Port Daddy agent skill",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -2050,7 +2190,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Tighten landing live-glory narration cards",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -2078,7 +2220,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 20
+      "age_days": 20,
+      "what_it_is": "fix(actors): finish actor roster SDK rename",
+      "what_it_does": "Touches bug fix \u00b7 untouched 20d"
     },
     {
       "kind": "branch",
@@ -2106,7 +2250,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 20
+      "age_days": 20,
+      "what_it_is": "fix(daemon): resolve binary db root",
+      "what_it_does": "Touches daemon, bug fix \u00b7 untouched 20d"
     },
     {
       "kind": "branch",
@@ -2134,7 +2280,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 20
+      "age_days": 20,
+      "what_it_is": "fix(cost-ledger): address review validation gaps",
+      "what_it_does": "Touches bug fix \u00b7 untouched 20d"
     },
     {
       "kind": "branch",
@@ -2162,7 +2310,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 15
+      "age_days": 15,
+      "what_it_is": "feat(metrics): measure skill distribution freshness",
+      "what_it_does": "untouched 15d"
     },
     {
       "kind": "branch",
@@ -2190,7 +2340,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 15
+      "age_days": 15,
+      "what_it_is": "fix(metrics): modernize dashboard empty states",
+      "what_it_does": "Touches bug fix \u00b7 untouched 15d"
     },
     {
       "kind": "branch",
@@ -2218,7 +2370,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Stabilize website terminal recordings",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -2246,7 +2400,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 25
+      "age_days": 25,
+      "what_it_is": "Add operator examples to reference architectures",
+      "what_it_does": "untouched 25d"
     },
     {
       "kind": "branch",
@@ -2274,7 +2430,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 25
+      "age_days": 25,
+      "what_it_is": "docs: add relay harbor mesh ADR",
+      "what_it_does": "untouched 25d"
     },
     {
       "kind": "branch",
@@ -2302,7 +2460,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Merge origin/main + add CLI Quick Reference + fix skill-authority test",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -2330,7 +2490,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 25
+      "age_days": 25,
+      "what_it_is": "Merge pull request #42 from curiositech/whitepaper-rewrite-and-design-pass",
+      "what_it_does": "untouched 25d"
     },
     {
       "kind": "branch",
@@ -2359,7 +2521,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 15
+      "age_days": 15,
+      "what_it_is": "Add Rust desktop skill and runtime skill audit",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -2387,7 +2551,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 26
+      "age_days": 26,
+      "what_it_is": "Merge pull request #27 from curiositech/fix/restore-ci-green-on-main",
+      "what_it_does": "untouched 26d"
     },
     {
       "kind": "branch",
@@ -2415,7 +2581,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 20
+      "age_days": 20,
+      "what_it_is": "Guard stable install from fleet writes",
+      "what_it_does": "7 files \u00b7 +198/-29 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -2443,7 +2611,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stable promotion stash work",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -2471,7 +2641,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stash 01: On main: promotion-hold-port-daddy-agent-skill-mirrors-2026-04-29",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -2499,7 +2671,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stash 02: On main: promotion-hold-readable-id-wip-2026-04-29",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -2527,7 +2701,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stash 03: On main: promotion-blocking-cli-test-2026-04-29",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -2555,7 +2731,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stash 04: On main: promotion-blocking-sugar-test-2026-04-29",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -2583,7 +2761,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stash 05: On main: promotion-blocking-readable-session-test-2026-04-29",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -2611,7 +2791,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stash 06: On main: promotion-blocking-readable-id-tests-2026-04-29",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -2639,7 +2821,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stash 07: On main: promotion-blocking-source-2026-04-29",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -2667,7 +2851,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stash 08: On codex/pd-tube-tutorial: scratch PNGs before closing pd-tube branch",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -2695,7 +2881,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stash 09: On codex/pd-tube-tutorial: auto-stash other agents' WIP while committing HashScroll fix",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -2723,7 +2911,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stash 10: On codex/pd-tube-tutorial: pre-main-catchup active-session-wip",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -2751,7 +2941,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stash 11: On codex/pd-tube-tutorial: pre-main-catchup examples-page-wip",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -2779,7 +2971,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stash 12: On stable: salvage stable roadmap docs before promotion 2026-04-29",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -2807,7 +3001,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stash 13: On codex/pr-5-pki-ui-docs: pr5-tube-pki-docs-demo-wip-before-main-pull",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -2835,7 +3031,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stash 14: On main: pre-promote-1b.3-stash",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -2863,7 +3061,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stash 15: On main: pre-promote-track1b-stashed-info-routes",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -2891,7 +3091,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stash 16: On main: temporary-dirty-tree-before-pushing-verified-release",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -2919,7 +3121,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stash 17: On stable: stable-package-lock-before-3.9.0-promotion",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -2947,7 +3151,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stash 18: On stable: pre-promote stash 20260404",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -2975,7 +3181,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stash 19: generated media before rebase",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -3003,7 +3211,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stash 20: more recordings before rebase",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -3031,7 +3241,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Polish homepage coordination strip and FleetBar icon",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -3059,7 +3271,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 20
+      "age_days": 20,
+      "what_it_is": "Strip blocked runtimes from agent defaults",
+      "what_it_does": "59 files \u00b7 +1,787/-390 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -3087,7 +3301,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 15
+      "age_days": 15,
+      "what_it_is": "Sync skills across agent runtimes",
+      "what_it_does": "15 files \u00b7 +902/-26 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -3115,7 +3331,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 20
+      "age_days": 20,
+      "what_it_is": "feat(setup): sync skills across agent runtimes",
+      "what_it_does": "untouched 20d"
     },
     {
       "kind": "branch",
@@ -3143,7 +3361,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Refresh Fleet UI on current main",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -3171,7 +3391,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Add Tube Console and event registry surfaces",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -3199,7 +3421,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 13
+      "age_days": 13,
+      "what_it_is": "Preserve TUI FleetBar design WIP",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -3227,7 +3451,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 27
+      "age_days": 27,
+      "what_it_is": "fleet: FLEETCONTROL hardening primitives + 8 prior orphan commits",
+      "what_it_does": "198 files \u00b7 +9,930/-7,102 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -3255,7 +3481,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 31
+      "age_days": 31,
+      "what_it_is": "Harden website terminal command surfaces",
+      "what_it_does": "untouched 31d"
     },
     {
       "kind": "branch",
@@ -3283,7 +3511,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 15
+      "age_days": 15,
+      "what_it_is": "fix(projects): group linked worktrees in project pickers",
+      "what_it_does": "Touches bug fix \u00b7 13 files \u00b7 +490/-91 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -3311,7 +3541,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Snapshot dirty FCC control-plane build worktree",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -3339,7 +3571,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Add branded route OG cards",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -3367,7 +3601,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Snapshot dirty PR5 Tube PKI UI worktree",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -3395,7 +3631,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Snapshot dirty root recording rebase",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -3423,7 +3661,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Snapshot salvage autostash screenshots",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -3451,7 +3691,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Record exact MCP preview preservation",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -3479,7 +3721,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 25
+      "age_days": 25,
+      "what_it_is": "cost-tracker: add tier-shorthand aliases (opus/sonnet/haiku) to unblock claude-cli spawns",
+      "what_it_does": "2 files \u00b7 +52/-0 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -3507,7 +3751,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "design(pheromones): vocabulary v1 \u2014 18-kind catalog + per-kind decay model",
+      "what_it_does": "1 file \u00b7 +378/-0 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -3535,7 +3781,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 17
+      "age_days": 17,
+      "what_it_is": "docs(adr): 0028 \u2014 actor / fleet agent / session three-layer model",
+      "what_it_does": "Touches ADR \u00b7 1 file \u00b7 +168/-0 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -3563,7 +3811,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "docs(concepts): claim tree explainer with 10-mode visualization gallery",
+      "what_it_does": "1 file \u00b7 +673/-0 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -3591,7 +3841,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 11
+      "age_days": 11,
+      "what_it_is": "docs(website): claim tree concept page with 10-mode visualization gallery",
+      "what_it_does": "Touches bug fix \u00b7 17 files \u00b7 +2,390/-0 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -3619,7 +3871,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 11
+      "age_days": 11,
+      "what_it_is": "docs(patterns): coordination cookbook \u2014 5 topologies x 7 patterns",
+      "what_it_does": "1 file \u00b7 +991/-0 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -3653,7 +3907,9 @@
         "Cloudflare Pages"
       ],
       "checks_pending": [],
-      "required_passed": false
+      "required_passed": false,
+      "what_it_is": "docs(roadmap): ingest 24 hanging chads from session 2026-05-21",
+      "what_it_does": "1 file \u00b7 +52/-1 lines \u00b7 design/research artifact"
     },
     {
       "kind": "branch",
@@ -3687,7 +3943,9 @@
         "Cloudflare Pages"
       ],
       "checks_pending": [],
-      "required_passed": false
+      "required_passed": false,
+      "what_it_is": "docs(roadmap): ingest 4 long-form plans into CURRENT-WORK (gap fill on PR #166)",
+      "what_it_does": "1 file \u00b7 +131/-1 lines \u00b7 design/research artifact"
     },
     {
       "kind": "branch",
@@ -3719,7 +3977,9 @@
       "checks_passed_count": 1,
       "checks_failed": [],
       "checks_pending": [],
-      "required_passed": false
+      "required_passed": false,
+      "what_it_is": "docs: substrate activation roadmap + research anchors",
+      "what_it_does": "8 files \u00b7 +3,069/-4 lines \u00b7 PR is DIRTY"
     },
     {
       "kind": "branch",
@@ -3747,7 +4007,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 0
+      "age_days": 0,
+      "what_it_is": "wip: preserve uncommitted edits from 2026-05-31 batch-merge re-triage",
+      "what_it_does": "Touches WIP \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -3775,7 +4037,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "feat(attention): pd attention \u2014 harness-agent mailbox aggregator (#169)",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -3803,7 +4067,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 20
+      "age_days": 20,
+      "what_it_is": "feat(dist): unblock daemon binary build (ADR-0028 steps 1+2)",
+      "what_it_does": "5 files \u00b7 +480/-13 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -3831,7 +4097,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 10
+      "age_days": 10,
+      "what_it_is": "feat(blog): Tufte right-gutter sidenote directive in renderer",
+      "what_it_does": "Touches blog post \u00b7 3 files \u00b7 +472/-27 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -3859,7 +4127,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 18
+      "age_days": 18,
+      "what_it_is": "blog: widen content + bigger byline + mandate marketing-copy skill",
+      "what_it_does": "Touches blog post \u00b7 2 files \u00b7 +28/-10 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -3887,7 +4157,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 0
+      "age_days": 0,
+      "what_it_is": "blog: rewrite bond-pricing-is-a-market under marketing-copy + AGENTS.md floor",
+      "what_it_does": "Touches WIP \u00b7 3 files \u00b7 +188/-58 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -3921,7 +4193,9 @@
         "Cloudflare Pages"
       ],
       "checks_pending": [],
-      "required_passed": false
+      "required_passed": false,
+      "what_it_is": "feat(cli): permission tiers + destructive-confirm helper (136 commands classified)",
+      "what_it_does": "Touches tests \u00b7 22 files \u00b7 +1,508/-56 lines \u00b7 PR is BLOCKED"
     },
     {
       "kind": "branch",
@@ -3949,7 +4223,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "docs(patterns): coordination cookbook \u2014 5 topologies + 7 patterns on pd primitives",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -3987,7 +4263,9 @@
         "unit-tests (ubuntu-latest, 24)"
       ],
       "checks_pending": [],
-      "required_passed": false
+      "required_passed": false,
+      "what_it_is": "feat(dispatch): rename nightshift->dispatch, rebase onto ADR-0035 schema, wire pd review",
+      "what_it_does": "21 files \u00b7 +3,701/-1 lines \u00b7 PR is BEHIND"
     },
     {
       "kind": "branch",
@@ -4015,7 +4293,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 17
+      "age_days": 17,
+      "what_it_is": "feat(doctor): detect stale LaunchAgent plists + show resource-dir breakdown",
+      "what_it_does": "Touches bug fix \u00b7 2 files \u00b7 +427/-0 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -4051,7 +4331,9 @@
         "claude-review"
       ],
       "checks_pending": [],
-      "required_passed": false
+      "required_passed": false,
+      "what_it_is": "feat(fleetbar): port Backend section into Fleet Control Center (task #137)",
+      "what_it_does": "Touches FleetBar \u00b7 20 files \u00b7 +2,669/-42 lines \u00b7 overlaps with another live branch \u226580%"
     },
     {
       "kind": "branch",
@@ -4083,7 +4365,9 @@
       "checks_passed_count": 11,
       "checks_failed": [],
       "checks_pending": [],
-      "required_passed": true
+      "required_passed": true,
+      "what_it_is": "feat(whitepaper): The Federated Harbor \u2014 third paper in the series",
+      "what_it_does": "Touches whitepaper \u00b7 8 files \u00b7 +1,532/-1 lines \u00b7 PR is BEHIND"
     },
     {
       "kind": "branch",
@@ -4118,7 +4402,9 @@
         "Cloudflare Pages"
       ],
       "checks_pending": [],
-      "required_passed": false
+      "required_passed": false,
+      "what_it_is": "feat(operator): fleet-loop end-to-end smoke test + day-one runbook",
+      "what_it_does": "3 files \u00b7 +889/-0 lines \u00b7 PR is BLOCKED"
     },
     {
       "kind": "branch",
@@ -4150,7 +4436,9 @@
       "checks_passed_count": 11,
       "checks_failed": [],
       "checks_pending": [],
-      "required_passed": true
+      "required_passed": true,
+      "what_it_is": "feat(fleet): retool with runtime backend detection + tenderfoot rename",
+      "what_it_does": "Touches fleet \u00b7 11 files \u00b7 +1,905/-625 lines \u00b7 PR is BEHIND"
     },
     {
       "kind": "branch",
@@ -4178,7 +4466,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 18
+      "age_days": 18,
+      "what_it_is": "feat(fleet-ui): add Metrics tab; deprecate legacy /index.html",
+      "what_it_does": "Touches bug fix \u00b7 7 files \u00b7 +235/-66 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -4210,7 +4500,9 @@
       "checks_passed_count": 11,
       "checks_failed": [],
       "checks_pending": [],
-      "required_passed": true
+      "required_passed": true,
+      "what_it_is": "feat(guard): pd-shim v3 \u2014 refuse public-history destructive git ops + pre-push hook",
+      "what_it_does": "Touches bug fix \u00b7 4 files \u00b7 +330/-11 lines \u00b7 PR is BEHIND"
     },
     {
       "kind": "branch",
@@ -4242,7 +4534,9 @@
       "checks_passed_count": 11,
       "checks_failed": [],
       "checks_pending": [],
-      "required_passed": true
+      "required_passed": true,
+      "what_it_is": "feat(github-app): Cloudflare Worker webhook receiver",
+      "what_it_does": "10 files \u00b7 +4,364/-0 lines \u00b7 PR is BEHIND"
     },
     {
       "kind": "branch",
@@ -4276,7 +4570,9 @@
         "Cloudflare Pages"
       ],
       "checks_pending": [],
-      "required_passed": false
+      "required_passed": false,
+      "what_it_is": "feat(harbormaster): canonical merge-owning actor body (ADR-0037)",
+      "what_it_does": "11 files \u00b7 +1,694/-1 lines \u00b7 PR is BLOCKED"
     },
     {
       "kind": "branch",
@@ -4304,7 +4600,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "feat(landscape): multi-agent comparison page + whitepaper cross-link",
+      "what_it_does": "5 files \u00b7 +709/-18 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -4342,7 +4640,9 @@
         "unit-tests (ubuntu-latest, 22)"
       ],
       "checks_pending": [],
-      "required_passed": false
+      "required_passed": false,
+      "what_it_is": "feat(nightshift): autonomous overnight feature-level dev \u2014 first cut",
+      "what_it_does": "13 files \u00b7 +2,194/-1 lines \u00b7 design/research artifact"
     },
     {
       "kind": "branch",
@@ -4370,7 +4670,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 11
+      "age_days": 11,
+      "what_it_is": "feat(nightshift): circuit breakers + sandbox layers",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -4398,7 +4700,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 0
+      "age_days": 0,
+      "what_it_is": "feat(telemetry): unblock ollama backend with exact rates + policy switch",
+      "what_it_does": "Touches WIP \u00b7 7 files \u00b7 +233/-15 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -4436,7 +4740,9 @@
         "unit-tests (ubuntu-latest, 22)"
       ],
       "checks_pending": [],
-      "required_passed": false
+      "required_passed": false,
+      "what_it_is": "feat(backup): pd backup / pd restore \u2014 durable snapshots of port-registry.db (ADR-0037)",
+      "what_it_does": "Touches bug fix \u00b7 13 files \u00b7 +1,397/-3 lines \u00b7 PR is DIRTY"
     },
     {
       "kind": "branch",
@@ -4470,7 +4776,9 @@
         "website-terminal-recordings"
       ],
       "checks_pending": [],
-      "required_passed": false
+      "required_passed": false,
+      "what_it_is": "feat(coordination): pd done refuses unpushed branches + requires PR url in result",
+      "what_it_does": "10 files \u00b7 +672/-29 lines \u00b7 PR is BEHIND"
     },
     {
       "kind": "branch",
@@ -4498,7 +4806,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 26
+      "age_days": 26,
+      "what_it_is": "feat(cli): pd feedback bare-form for ergonomic structured drops",
+      "what_it_does": "Touches CLI \u00b7 3 files \u00b7 +490/-21 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -4526,7 +4836,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "blog: rewrite bond-pricing-is-a-market under marketing-copy floor (#69)",
+      "what_it_does": "Touches blog post \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -4564,7 +4876,9 @@
         "unit-tests (ubuntu-latest, 24)"
       ],
       "checks_pending": [],
-      "required_passed": false
+      "required_passed": false,
+      "what_it_is": "[DRAFT] feat(whois): WIP salvage \u2014 pd whois scaffolding + harbor capability hook",
+      "what_it_does": "4 files \u00b7 +797/-0 lines \u00b7 design/research artifact"
     },
     {
       "kind": "branch",
@@ -4592,7 +4906,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 0
+      "age_days": 0,
+      "what_it_is": "feat(cost-ledger): unified rollup over transcript_events + cost_events",
+      "what_it_does": "Touches WIP \u00b7 2 files \u00b7 +734/-0 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -4620,7 +4936,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 0
+      "age_days": 0,
+      "what_it_is": "feat(foundation): PR-A \u2014 transcripts + cost ledger + cheap-classifier + HITL + MCP wrappers",
+      "what_it_does": "Touches WIP \u00b7 18 files \u00b7 +3,556/-13 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -4658,7 +4976,9 @@
         "unit-tests (macos-latest, 20)"
       ],
       "checks_pending": [],
-      "required_passed": false
+      "required_passed": false,
+      "what_it_is": "feat(popper): autonomous roadmap-to-dispatch task puller (MVP)",
+      "what_it_does": "7 files \u00b7 +524/-0 lines \u00b7 PR is BLOCKED"
     },
     {
       "kind": "branch",
@@ -4690,7 +5010,9 @@
       "checks_passed_count": 11,
       "checks_failed": [],
       "checks_pending": [],
-      "required_passed": true
+      "required_passed": true,
+      "what_it_is": "feat(roadmap): schema expansion \u2014 Jira-forward + team-ready (ADR-0036)",
+      "what_it_does": "Touches roadmap \u00b7 7 files \u00b7 +1,322/-46 lines \u00b7 PR is DIRTY"
     },
     {
       "kind": "branch",
@@ -4718,7 +5040,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 13
+      "age_days": 13,
+      "what_it_is": "feat(roadmap): link claims to sessions + agents (ADR-0034) (#97)",
+      "what_it_does": "Touches roadmap \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -4746,7 +5070,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 20
+      "age_days": 20,
+      "what_it_is": "ADR-0027 + salvage envelope prototype",
+      "what_it_does": "Touches ADR \u00b7 3 files \u00b7 +433/-0 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -4774,7 +5100,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 19
+      "age_days": 19,
+      "what_it_is": "bosun-heartbeat: self-stop on canonical-pid displacement (#32)",
+      "what_it_does": "untouched 19d"
     },
     {
       "kind": "branch",
@@ -4802,7 +5130,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 18
+      "age_days": 18,
+      "what_it_is": "skills: standing invitation for ongoing skill maintenance",
+      "what_it_does": "Touches skill bundle \u00b7 3 files \u00b7 +69/-24 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -4830,7 +5160,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "feat(memory): three-tier vocabulary (Core/Recall/Archival) + pd memory tiers",
+      "what_it_does": "6 files \u00b7 +841/-2 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -4858,7 +5190,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Retry pdFetch through launchd respawn window",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -4887,7 +5221,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "whitepaper: add canonical three-layer architecture as Fig 1",
+      "what_it_does": "Touches whitepaper \u00b7 overlaps with another live branch \u226580%"
     },
     {
       "kind": "branch",
@@ -4915,7 +5251,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 23
+      "age_days": 23,
+      "what_it_is": "skills: split port-daddy-agent-skill (public) + add port-daddy-internal-dev (private) (#28)",
+      "what_it_does": "Touches skill bundle \u00b7 untouched 23d"
     },
     {
       "kind": "branch",
@@ -4943,7 +5281,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 25
+      "age_days": 25,
+      "what_it_is": "Merge pull request #36 from curiositech/codex/salvage-triage",
+      "what_it_does": "untouched 25d"
     },
     {
       "kind": "branch",
@@ -4971,7 +5311,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "fix(bun-bundle): multi-signal compile detection + embedded version fallback (issue #86 follow-up)",
+      "what_it_does": "Touches bug fix \u00b7 7 files \u00b7 +247/-10 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -4999,7 +5341,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 26
+      "age_days": 26,
+      "what_it_is": "ci: pass --allow-main-worktree to website-terminal-recordings session",
+      "what_it_does": "Touches CI \u00b7 1 file \u00b7 +4/-1 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -5027,7 +5371,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 15
+      "age_days": 15,
+      "what_it_is": "fix(cli): make repeated --files flags accumulate (was last-write-wins)",
+      "what_it_does": "Touches CLI, bug fix \u00b7 3 files \u00b7 +40/-10 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -5062,7 +5408,9 @@
         "unit-tests (ubuntu-latest, 24)"
       ],
       "checks_pending": [],
-      "required_passed": false
+      "required_passed": false,
+      "what_it_is": "fix(fleet): cloudflare 7000 + spider ship \u2014 root cause and remediation",
+      "what_it_does": "1 file \u00b7 +163/-0 lines \u00b7 PR is BLOCKED"
     },
     {
       "kind": "branch",
@@ -5090,7 +5438,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 11
+      "age_days": 11,
+      "what_it_is": "fixup: correct plist-regen prose (HIGH); promote to top-level section (MEDIUM); link followup (LOW) (#133)",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -5118,7 +5468,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 11
+      "age_days": 11,
+      "what_it_is": "fixup: correct plist-regen prose (HIGH); promote to top-level section (MEDIUM); link followup (LOW) (#133)",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -5152,7 +5504,9 @@
         "Cloudflare Pages"
       ],
       "checks_pending": [],
-      "required_passed": false
+      "required_passed": false,
+      "what_it_is": "fix(dashboard): allow Fleet Control Center to scroll",
+      "what_it_does": "Touches bug fix \u00b7 1 file \u00b7 +12/-0 lines \u00b7 PR is BLOCKED"
     },
     {
       "kind": "branch",
@@ -5180,7 +5534,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "docs(roadmap): operator-direct accounts arc \u2014 A0/A1 + W0-W6 phases",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -5208,7 +5564,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "fix(ci): drop macos-13 darwin-x64 from release matrix",
+      "what_it_does": "Touches bug fix \u00b7 1 file \u00b7 +6/-3 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -5236,7 +5594,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 11
+      "age_days": 11,
+      "what_it_is": "fix(ci): install bun in publish-npm (release.yml)",
+      "what_it_does": "Touches bug fix \u00b7 1 file \u00b7 +23/-3 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -5264,7 +5624,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 26
+      "age_days": 26,
+      "what_it_is": "fix: restore CI green on main after PR #20",
+      "what_it_does": "Touches bug fix \u00b7 11 files \u00b7 +221/-13 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -5292,7 +5654,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "fix(seo): quickwins from landing-page audit",
+      "what_it_does": "Touches bug fix \u00b7 5 files \u00b7 +48/-17 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -5320,7 +5684,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 0
+      "age_days": 0,
+      "what_it_is": "wip: preserve uncommitted edits from 2026-05-31 batch-merge re-triage",
+      "what_it_does": "Touches WIP \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -5348,7 +5714,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "whitepaper: figure overflow fixes + worked-example pacing",
+      "what_it_does": "Touches whitepaper \u00b7 6 files \u00b7 +70/-34 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -5382,7 +5750,9 @@
         "Cloudflare Pages"
       ],
       "checks_pending": [],
-      "required_passed": false
+      "required_passed": false,
+      "what_it_is": "fix(worktree): stop refusal hints from leaking the --allow-main-worktree bypass",
+      "what_it_does": "Touches bug fix \u00b7 4 files \u00b7 +29/-3 lines \u00b7 PR is BLOCKED"
     },
     {
       "kind": "branch",
@@ -5410,7 +5780,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 74
+      "age_days": 74,
+      "what_it_is": "fix: fleet agent reliability \u2014 session leak, singleton enforcement, error reporting",
+      "what_it_does": "untouched 74d"
     },
     {
       "kind": "branch",
@@ -5438,7 +5810,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 70
+      "age_days": 70,
+      "what_it_is": "fix: spawner uses /bin/sh -c instead of shell:true, update tests to match",
+      "what_it_does": "untouched 70d"
     },
     {
       "kind": "branch",
@@ -5466,7 +5840,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 74
+      "age_days": 74,
+      "what_it_is": "Merge branch 'worktree-agent-a5e9ba82' \u2014 shadcn/ui component migration",
+      "what_it_does": "untouched 74d"
     },
     {
       "kind": "branch",
@@ -5494,7 +5870,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 70
+      "age_days": 70,
+      "what_it_is": "fix: spawner uses /bin/sh -c instead of shell:true, update tests to match",
+      "what_it_does": "untouched 70d"
     },
     {
       "kind": "branch",
@@ -5528,7 +5906,9 @@
         "Cloudflare Pages"
       ],
       "checks_pending": [],
-      "required_passed": false
+      "required_passed": false,
+      "what_it_is": "feat(fleetbar): Nightshift dispatch surface \u2014 propose, review, settle from the app",
+      "what_it_does": "Touches FleetBar \u00b7 7 files \u00b7 +1,471/-1 lines \u00b7 PR is BLOCKED"
     },
     {
       "kind": "branch",
@@ -5556,7 +5936,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "docs(blog): the-pr-that-reviews-itself \u2014 long-form GitHub-fleet post (#134)",
+      "what_it_does": "Touches blog post \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -5585,7 +5967,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 0
+      "age_days": 0,
+      "what_it_is": "wip: preserve uncommitted edits from 2026-05-31 batch-merge re-triage",
+      "what_it_does": "Touches WIP \u00b7 overlaps with another live branch \u226580%"
     },
     {
       "kind": "branch",
@@ -5617,7 +6001,9 @@
       "checks_passed_count": 1,
       "checks_failed": [],
       "checks_pending": [],
-      "required_passed": false
+      "required_passed": false,
+      "what_it_is": "paper(v2.6): wave3 whitepaper bundle \u2014 15 commits",
+      "what_it_does": "Touches WIP \u00b7 18 files \u00b7 +1,671/-504 lines \u00b7 design/research artifact"
     },
     {
       "kind": "branch",
@@ -5645,7 +6031,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "docs(memory): document --json schema + add snapshot tests (closes #114 finding 5)",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -5673,7 +6061,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "feat(landscape): multi-agent comparison page positioning PD as coordination layer",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -5701,7 +6091,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "ci(whitepaper): metadata drift check + vitest coverage + auto-fixed metadata",
+      "what_it_does": "Touches CI \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -5729,7 +6121,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 25
+      "age_days": 25,
+      "what_it_is": "skills: address Copilot review on PR #28 + restore required SKILL structure",
+      "what_it_does": "Touches skill bundle \u00b7 untouched 25d"
     },
     {
       "kind": "branch",
@@ -5757,7 +6151,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 31
+      "age_days": 31,
+      "what_it_is": "Add website terminal highlighting and output contract",
+      "what_it_does": "untouched 31d"
     },
     {
       "kind": "branch",
@@ -5785,7 +6181,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 27
+      "age_days": 27,
+      "what_it_is": "Red/white isolation: envelope crypto + ProVerif proof + route enforcement",
+      "what_it_does": "88 files \u00b7 +11,904/-5 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -5813,7 +6211,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 23
+      "age_days": 23,
+      "what_it_is": "refactor(actors): drop maritime prefix, retire deprecated IDs, fix help text",
+      "what_it_does": "Touches refactor \u00b7 8 files \u00b7 +126/-112 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -5842,7 +6242,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "whitepaper: reframe daemon as correlating device; drop AI-economy opener",
+      "what_it_does": "Touches whitepaper \u00b7 overlaps with another live branch \u226580%"
     },
     {
       "kind": "branch",
@@ -5870,7 +6272,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "whitepaper: inline appendices B and C into body",
+      "what_it_does": "Touches whitepaper \u00b7 4 files \u00b7 +150/-22 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -5898,7 +6302,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 0
+      "age_days": 0,
+      "what_it_is": "whitepaper: present-tense cold-open; strip version/history language",
+      "what_it_does": "Touches WIP \u00b7 2 files \u00b7 +14/-14 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -5926,7 +6332,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 11
+      "age_days": 11,
+      "what_it_is": "chore(release): 3.15.0",
+      "what_it_does": "7 files \u00b7 +37/-9 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -5954,7 +6362,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 0
+      "age_days": 0,
+      "what_it_is": "wip: preserve uncommitted edits from 2026-05-31 batch-merge re-triage",
+      "what_it_does": "Touches WIP \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -5982,7 +6392,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 20
+      "age_days": 20,
+      "what_it_is": "research: hyperplan for 12-feature execution",
+      "what_it_does": "Touches research \u00b7 untouched 20d"
     },
     {
       "kind": "branch",
@@ -6011,7 +6423,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 15
+      "age_days": 15,
+      "what_it_is": "research: setup-waves.sh symlinks node_modules per worktree",
+      "what_it_does": "Touches research \u00b7 design/research artifact"
     },
     {
       "kind": "branch",
@@ -6039,7 +6453,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 20
+      "age_days": 20,
+      "what_it_is": "research: hyperplan for 12-feature execution",
+      "what_it_does": "Touches research \u00b7 untouched 20d"
     },
     {
       "kind": "branch",
@@ -6067,7 +6483,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 20
+      "age_days": 20,
+      "what_it_is": "research: hyperplan for 12-feature execution",
+      "what_it_does": "Touches research \u00b7 untouched 20d"
     },
     {
       "kind": "branch",
@@ -6095,7 +6513,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 20
+      "age_days": 20,
+      "what_it_is": "research: hyperplan for 12-feature execution",
+      "what_it_does": "Touches research \u00b7 untouched 20d"
     },
     {
       "kind": "branch",
@@ -6123,7 +6543,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 20
+      "age_days": 20,
+      "what_it_is": "research: hyperplan for 12-feature execution",
+      "what_it_does": "Touches research \u00b7 untouched 20d"
     },
     {
       "kind": "branch",
@@ -6151,7 +6573,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 20
+      "age_days": 20,
+      "what_it_is": "research: hyperplan for 12-feature execution",
+      "what_it_does": "Touches research \u00b7 untouched 20d"
     },
     {
       "kind": "branch",
@@ -6179,7 +6603,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 20
+      "age_days": 20,
+      "what_it_is": "research: hyperplan for 12-feature execution",
+      "what_it_does": "Touches research \u00b7 untouched 20d"
     },
     {
       "kind": "branch",
@@ -6207,7 +6633,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 20
+      "age_days": 20,
+      "what_it_is": "research: hyperplan for 12-feature execution",
+      "what_it_does": "Touches research \u00b7 untouched 20d"
     },
     {
       "kind": "branch",
@@ -6235,7 +6663,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 20
+      "age_days": 20,
+      "what_it_is": "research: hyperplan for 12-feature execution",
+      "what_it_does": "Touches research \u00b7 untouched 20d"
     },
     {
       "kind": "branch",
@@ -6263,7 +6693,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 20
+      "age_days": 20,
+      "what_it_is": "research: hyperplan for 12-feature execution",
+      "what_it_does": "Touches research \u00b7 untouched 20d"
     },
     {
       "kind": "branch",
@@ -6291,7 +6723,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 20
+      "age_days": 20,
+      "what_it_is": "research: hyperplan for 12-feature execution",
+      "what_it_does": "Touches research \u00b7 untouched 20d"
     },
     {
       "kind": "branch",
@@ -6319,7 +6753,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 20
+      "age_days": 20,
+      "what_it_is": "research: hyperplan for 12-feature execution",
+      "what_it_does": "Touches research \u00b7 untouched 20d"
     },
     {
       "kind": "branch",
@@ -6351,7 +6787,9 @@
       "checks_passed_count": 3,
       "checks_failed": [],
       "checks_pending": [],
-      "required_passed": false
+      "required_passed": false,
+      "what_it_is": "feat(#10): voice-rule CI + byline drift fix",
+      "what_it_does": "9 files \u00b7 +387/-4 lines \u00b7 PR is UNSTABLE"
     },
     {
       "kind": "branch",
@@ -6380,7 +6818,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Salvage auto-stash from 2026-04-28T23:09 on codex/pd-tube-tutorial",
+      "what_it_does": "Touches salvaged work \u00b7 done but off-direction"
     },
     {
       "kind": "branch",
@@ -6408,7 +6848,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 25
+      "age_days": 25,
+      "what_it_is": "skills: split port-daddy-agent-skill (public) + add port-daddy-internal-dev (private)",
+      "what_it_does": "Touches skill bundle \u00b7 7 files \u00b7 +1,052/-5 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -6440,7 +6882,9 @@
       "checks_passed_count": 11,
       "checks_failed": [],
       "checks_pending": [],
-      "required_passed": true
+      "required_passed": true,
+      "what_it_is": "skill(port-daddy-agent): pd-shim, roadmap pop, continuous coordination",
+      "what_it_does": "Touches skill bundle \u00b7 3 files \u00b7 +148/-0 lines \u00b7 PR is BEHIND"
     },
     {
       "kind": "branch",
@@ -6478,7 +6922,9 @@
         "unit-tests (macos-latest, 22)"
       ],
       "checks_pending": [],
-      "required_passed": false
+      "required_passed": false,
+      "what_it_is": "Cuckoo filter + pollution property test (A3)",
+      "what_it_does": "2 files \u00b7 +418/-0 lines \u00b7 PR is BEHIND"
     },
     {
       "kind": "branch",
@@ -6506,7 +6952,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "Delegation chain walker + replay-defense conformance",
+      "what_it_does": "Touches bug fix \u00b7 3 files \u00b7 +813/-12 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -6534,7 +6982,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "Whitepapers v2.6: A5/A6 + Monte Carlo viz + algorithm diagrams",
+      "what_it_does": "37 files \u00b7 +3,520/-99 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -6572,7 +7022,9 @@
         "unit-tests (macos-latest, 24)"
       ],
       "checks_pending": [],
-      "required_passed": false
+      "required_passed": false,
+      "what_it_is": "Magic-link recovery: lib + ProVerif runtime conformance",
+      "what_it_does": "4 files \u00b7 +379/-0 lines \u00b7 PR is BEHIND"
     },
     {
       "kind": "branch",
@@ -6606,7 +7058,9 @@
         "unit-tests (macos-latest, 20)"
       ],
       "checks_pending": [],
-      "required_passed": true
+      "required_passed": true,
+      "what_it_is": "Merkle binding EasyCrypt mechanization",
+      "what_it_does": "3 files \u00b7 +451/-67 lines \u00b7 PR is BEHIND"
     },
     {
       "kind": "branch",
@@ -6634,7 +7088,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 26
+      "age_days": 26,
+      "what_it_is": "Update whitepaper PDFs with v2.5 mechanization-status appendix",
+      "what_it_does": "3 files \u00b7 +55/-1 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -6662,7 +7118,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "ci(whitepaper): metadata drift check + tests + pricing copy fix",
+      "what_it_does": "Touches CI \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -6690,7 +7148,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "paper(pricing): add \u00a7threats, \u00a7bootstrap, \u00a7settlement subsections",
+      "what_it_does": "Touches whitepaper \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -6723,7 +7183,9 @@
       "checks_passed_count": 16,
       "checks_failed": [],
       "checks_pending": [],
-      "required_passed": true
+      "required_passed": true,
+      "what_it_is": "fix(proofs): make claim_signaling.tla actually run in TLC + Apalache, gate in CI",
+      "what_it_does": "Touches bug fix \u00b7 10 files \u00b7 +2,778/-0 lines \u00b7 overlaps with another live branch \u226580%"
     },
     {
       "kind": "branch",
@@ -6751,7 +7213,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 24
+      "age_days": 24,
+      "what_it_is": "agents+integrations: chart palette \u2192 design tokens (102 raw-color \u2192 0)",
+      "what_it_does": "4 files \u00b7 +118/-35 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -6779,7 +7243,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 24
+      "age_days": 24,
+      "what_it_is": "docs+tutorials: voice pass + primitive-bypass cleanup",
+      "what_it_does": "7 files \u00b7 +640/-616 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -6807,7 +7273,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 24
+      "age_days": 24,
+      "what_it_is": "blog+examples: voice pass on excerpts + chrome",
+      "what_it_does": "7 files \u00b7 +70/-72 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -6835,7 +7303,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 24
+      "age_days": 24,
+      "what_it_is": "storybook: primitive + Hero stories (partial PR-5)",
+      "what_it_does": "2 files \u00b7 +422/-0 lines \u00b7 merged; branch is cleanup candidate"
     },
     {
       "kind": "branch",
@@ -6863,7 +7333,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 26
+      "age_days": 26,
+      "what_it_is": "Whitepaper v2.0.1: typography + uncited reference cleanup",
+      "what_it_does": "5 files \u00b7 +257/-143 lines \u00b7 done but off-direction"
     },
     {
       "kind": "branch",
@@ -6891,7 +7363,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "whitepaper(anchor): add four-phases, verification-stack, revocation-gossip figures",
+      "what_it_does": "Touches whitepaper \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -6919,7 +7393,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 25
+      "age_days": 25,
+      "what_it_is": "docs: update install docs for signed-binary distribution (ADR-0028)",
+      "what_it_does": "untouched 25d"
     },
     {
       "kind": "branch",
@@ -6951,7 +7427,9 @@
       "checks_passed_count": 11,
       "checks_failed": [],
       "checks_pending": [],
-      "required_passed": true
+      "required_passed": true,
+      "what_it_is": "feat(github-app-fleet): scaffold Port Daddy Fleet GitHub App",
+      "what_it_does": "Touches bug fix \u00b7 21 files \u00b7 +1,590/-0 lines \u00b7 PR is BEHIND"
     },
     {
       "kind": "branch",
@@ -6979,7 +7457,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 63
+      "age_days": 63,
+      "what_it_is": "fix(website): sidebar highlights \u2014 exact match for items, startsWith for section auto-open (excluding /docs root)",
+      "what_it_does": "Touches bug fix \u00b7 untouched 63d"
     },
     {
       "kind": "branch",
@@ -7013,7 +7493,9 @@
         "Cloudflare Pages"
       ],
       "checks_pending": [],
-      "required_passed": false
+      "required_passed": false,
+      "what_it_is": "feat(spawner): add OpenAI, cli:claude-code, cli:codex backends",
+      "what_it_does": "20 files \u00b7 +1,449/-20 lines \u00b7 PR is BEHIND"
     },
     {
       "kind": "branch",
@@ -7041,7 +7523,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "Merge pull request #104 from curiositech/refactor/whitepaper-present-tense",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -7069,7 +7553,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 63
+      "age_days": 63,
+      "what_it_is": "fix(website): sidebar highlights \u2014 exact match for items, startsWith for section auto-open (excluding /docs root)",
+      "what_it_does": "Touches bug fix \u00b7 untouched 63d"
     },
     {
       "kind": "branch",
@@ -7105,7 +7591,9 @@
         "claude-review"
       ],
       "checks_pending": [],
-      "required_passed": false
+      "required_passed": false,
+      "what_it_is": "feat(backend-ui): surface CLI/subscription backend in FleetBar + dashboard + pd backend CLI",
+      "what_it_does": "Touches bug fix \u00b7 17 files \u00b7 +1,869/-38 lines \u00b7 overlaps with another live branch \u226580%"
     },
     {
       "kind": "branch",
@@ -7137,7 +7625,9 @@
       "checks_passed_count": 11,
       "checks_failed": [],
       "checks_pending": [],
-      "required_passed": true
+      "required_passed": true,
+      "what_it_is": "docs(whitepaper): patient expository page on how we prove game theory",
+      "what_it_does": "4 files \u00b7 +1,241/-3 lines \u00b7 PR is BEHIND"
     },
     {
       "kind": "branch",
@@ -7172,7 +7662,9 @@
         "claude-review"
       ],
       "checks_pending": [],
-      "required_passed": false
+      "required_passed": false,
+      "what_it_is": "feat(website): prominent CLI backend pitch \u2014 hero callout, /cli-backend page, landing tile",
+      "what_it_does": "11 files \u00b7 +576/-7 lines \u00b7 PR is BLOCKED"
     },
     {
       "kind": "branch",
@@ -7210,7 +7702,9 @@
         "unit-tests (ubuntu-latest, 20)"
       ],
       "checks_pending": [],
-      "required_passed": false
+      "required_passed": false,
+      "what_it_is": "feat(transcripts): record fleet ship conversations; surface in dashboard + CLI",
+      "what_it_does": "Touches WIP \u00b7 12 files \u00b7 +2,782/-5 lines \u00b7 PR is BLOCKED"
     },
     {
       "kind": "branch",
@@ -7239,7 +7733,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "paper(bonded): prove truthful claim-signaling is a Nash equilibrium",
+      "what_it_does": "Touches whitepaper \u00b7 overlaps with another live branch \u226580%"
     },
     {
       "kind": "branch",
@@ -7267,7 +7763,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "Merge pull request #104 from curiositech/refactor/whitepaper-present-tense",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -7296,7 +7794,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 0
+      "age_days": 0,
+      "what_it_is": "wip: preserve uncommitted edits from 2026-05-31 batch-merge re-triage",
+      "what_it_does": "Touches WIP \u00b7 overlaps with another live branch \u226580%"
     },
     {
       "kind": "branch",
@@ -7324,7 +7824,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 67
+      "age_days": 67,
+      "what_it_is": "feat(website): convert 6 landing components to neumorphic design system",
+      "what_it_does": "untouched 67d"
     },
     {
       "kind": "branch",
@@ -7352,7 +7854,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "feat(whitepaper): add limitations[], cartel takeaway, defense-in-depth framing across both papers",
+      "what_it_does": "Touches whitepaper \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -7380,7 +7884,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "cockpit: swap data source from markdown reader to roadmap_items (Phase 1) (#113)",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -7415,7 +7921,9 @@
         "claude-review"
       ],
       "checks_pending": [],
-      "required_passed": false
+      "required_passed": false,
+      "what_it_is": "fix(federated-harbor): correct marketing-skill ref + ground voice",
+      "what_it_does": "Touches bug fix \u00b7 48 files \u00b7 +5,694/-0 lines \u00b7 PR is BLOCKED"
     },
     {
       "kind": "branch",
@@ -7443,7 +7951,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "Fix Cloudflare Workers AI model route encoding (#120)",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -7471,7 +7981,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 68
+      "age_days": 68,
+      "what_it_is": "refactor: fleet uses pd spawn instead of raw claude -p \u2014 dogfood our own primitives",
+      "what_it_does": "Touches refactor \u00b7 untouched 68d"
     },
     {
       "kind": "branch",
@@ -7499,7 +8011,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "blog: rewrite bond-pricing-is-a-market under marketing-copy floor (#69)",
+      "what_it_does": "Touches blog post \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -7534,7 +8048,9 @@
         "claude-review"
       ],
       "checks_pending": [],
-      "required_passed": false
+      "required_passed": false,
+      "what_it_is": "feat(shipwright): register 5 retool ships + ADR-0032 unspider, cartographer, spider",
+      "what_it_does": "3 files \u00b7 +553/-14 lines \u00b7 PR is BLOCKED"
     },
     {
       "kind": "branch",
@@ -7562,7 +8078,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "Merge pull request #104 from curiositech/refactor/whitepaper-present-tense",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -7590,7 +8108,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "redteam(v2.5->v2.6): probe list for paper/wave3-bundle review round",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -7624,7 +8144,9 @@
         "Cloudflare Pages"
       ],
       "checks_pending": [],
-      "required_passed": false
+      "required_passed": false,
+      "what_it_is": "feat(splash): 90s anime title-card launch splash (PNG + TUI)",
+      "what_it_does": "10 files \u00b7 +364/-0 lines \u00b7 PR is BLOCKED"
     },
     {
       "kind": "branch",
@@ -7652,7 +8174,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 68
+      "age_days": 68,
+      "what_it_is": "fix(dashboard): salvage panel \u2014 project grouping, claim/dismiss actions, no emojis",
+      "what_it_does": "Touches bug fix \u00b7 untouched 68d"
     },
     {
       "kind": "branch",
@@ -7686,7 +8210,9 @@
         "Cloudflare Pages"
       ],
       "checks_pending": [],
-      "required_passed": false
+      "required_passed": false,
+      "what_it_is": "docs(readme): point Fleet Engine section at restart note + ADRs",
+      "what_it_does": "3 files \u00b7 +185/-0 lines \u00b7 PR is BLOCKED"
     },
     {
       "kind": "branch",
@@ -7714,7 +8240,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "chore(website): SSR-safety prep \u2014 defer browser APIs out of module scope (#107)",
+      "what_it_does": "Touches maintenance \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -7742,7 +8270,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 11
+      "age_days": 11,
+      "what_it_is": "feat(website): snap rendered HTML into dist via Playwright postbuild (#110)",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -7770,7 +8300,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 26
+      "age_days": 26,
+      "what_it_is": "test: keep mcp note URLs parity-scannable",
+      "what_it_does": "Touches tests \u00b7 untouched 26d"
     },
     {
       "kind": "branch",
@@ -7804,7 +8336,9 @@
         "Cloudflare Pages"
       ],
       "checks_pending": [],
-      "required_passed": false
+      "required_passed": false,
+      "what_it_is": "feat(fleet): 14 ship-avatar personae for bot identity",
+      "what_it_does": "Touches fleet \u00b7 44 files \u00b7 +473/-0 lines \u00b7 PR is BLOCKED"
     },
     {
       "kind": "branch",
@@ -7832,7 +8366,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "whitepaper(anchor): add four-phases, verification-stack, revocation-gossip figures",
+      "what_it_does": "Touches whitepaper \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -7860,7 +8396,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 70
+      "age_days": 70,
+      "what_it_is": "security: fix 4 LOW issues \u2014 watch shell, resolver privileges, pheromone SQL",
+      "what_it_does": "untouched 70d"
     },
     {
       "kind": "branch",
@@ -7888,7 +8426,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 70
+      "age_days": 70,
+      "what_it_is": "security: fix 2 CRITICAL RCE vulnerabilities \u2014 spawner command injection and orchestrator exec rules",
+      "what_it_does": "untouched 70d"
     },
     {
       "kind": "branch",
@@ -7920,7 +8460,9 @@
       "checks_passed_count": 11,
       "checks_failed": [],
       "checks_pending": [],
-      "required_passed": true
+      "required_passed": true,
+      "what_it_is": "feat(fleet): generalize trigger sources + output sinks beyond GitHub",
+      "what_it_does": "Touches fleet \u00b7 26 files \u00b7 +3,517/-0 lines \u00b7 PR is BEHIND"
     },
     {
       "kind": "branch",
@@ -7958,7 +8500,9 @@
         "unit-tests (ubuntu-latest, 20)"
       ],
       "checks_pending": [],
-      "required_passed": false
+      "required_passed": false,
+      "what_it_is": "feat(skills): add port-daddy-expository-writer",
+      "what_it_does": "Touches skill bundle \u00b7 14 files \u00b7 +1,516/-0 lines \u00b7 PR is BLOCKED"
     },
     {
       "kind": "branch",
@@ -7986,7 +8530,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 25
+      "age_days": 25,
+      "what_it_is": "skill: add install prologue for signed-binary distribution (ADR-0028)",
+      "what_it_does": "Touches skill bundle \u00b7 untouched 25d"
     },
     {
       "kind": "branch",
@@ -8014,7 +8560,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "whitepaper(anchor): add four-phases, verification-stack, revocation-gossip figures",
+      "what_it_does": "Touches whitepaper \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -8046,7 +8594,9 @@
       "checks_passed_count": 11,
       "checks_failed": [],
       "checks_pending": [],
-      "required_passed": true
+      "required_passed": true,
+      "what_it_is": "synthesis(v2.5\u2192v2.6): canonical dialogue + paper-edits list",
+      "what_it_does": "2 files \u00b7 +565/-0 lines \u00b7 PR is BEHIND"
     },
     {
       "kind": "branch",
@@ -8074,7 +8624,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 70
+      "age_days": 70,
+      "what_it_is": "security: fix 4 HIGH issues \u2014 DNS rebinding, path traversal, dryRun side effect, lock bypass",
+      "what_it_does": "untouched 70d"
     },
     {
       "kind": "branch",
@@ -8102,7 +8654,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 25
+      "age_days": 25,
+      "what_it_is": "feat(sdk): scaffold @port-daddy/client package (ADR-0028 step 9)",
+      "what_it_does": "untouched 25d"
     },
     {
       "kind": "branch",
@@ -8130,7 +8684,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 11
+      "age_days": 11,
+      "what_it_is": "feat(fleet): retool \u2014 5 new ships + GitHub-surface outputs (predecessor to #132)",
+      "what_it_does": "Touches fleet \u00b7 11 files \u00b7 +1,498/-616 lines \u00b7 done but off-direction"
     },
     {
       "kind": "branch",
@@ -8158,7 +8714,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 70
+      "age_days": 70,
+      "what_it_is": "security: fix 6 MEDIUM issues \u2014 SSRF gaps, info disclosure, shell injection, memory leak",
+      "what_it_does": "untouched 70d"
     },
     {
       "kind": "branch",
@@ -8186,7 +8744,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "Merge pull request #104 from curiositech/refactor/whitepaper-present-tense",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -8214,7 +8774,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 0
+      "age_days": 0,
+      "what_it_is": "wip: preserve uncommitted edits from 2026-05-31 batch-merge re-triage",
+      "what_it_does": "Touches WIP \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -8242,7 +8804,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "cockpit: swap data source from markdown reader to roadmap_items (Phase 1) (#113)",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -8270,7 +8834,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "feat(spawn): wire pd config set spawn.max_depth N (daemon-wide override)",
+      "what_it_does": "Touches spawn/sortie \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -8298,7 +8864,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 23
+      "age_days": 23,
+      "what_it_is": "skills: split port-daddy-agent-skill (public) + add port-daddy-internal-dev (private) (#28)",
+      "what_it_does": "Touches skill bundle \u00b7 untouched 23d"
     },
     {
       "kind": "branch",
@@ -8326,7 +8894,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 22
+      "age_days": 22,
+      "what_it_is": "cartographer: 2026-05-09 pass \u2014 harvest, sync, and coordinate truth",
+      "what_it_does": "untouched 22d"
     },
     {
       "kind": "branch",
@@ -8354,7 +8924,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "docs(adr): ADR-0039 portdaddy.dev account surface \u2014 receipts, security, version-skew dance (#167)",
+      "what_it_does": "Touches ADR \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -8382,7 +8954,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 63
+      "age_days": 63,
+      "what_it_is": "\"Claude Code Review workflow\"",
+      "what_it_does": "untouched 63d"
     },
     {
       "kind": "branch",
@@ -8410,7 +8984,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 31
+      "age_days": 31,
+      "what_it_is": "Add ADR-0026 Fleet AST + diagnostic taxonomy",
+      "what_it_does": "untouched 31d"
     },
     {
       "kind": "branch",
@@ -8438,7 +9014,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 11
+      "age_days": 11,
+      "what_it_is": "docs(adr): apply redteam round-1 to ADR-0035 dispatches (renumber from 0034)",
+      "what_it_does": "Touches ADR \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -8466,7 +9044,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 11
+      "age_days": 11,
+      "what_it_is": "docs(adr): draft ADR-0036 \u2014 pd-bosun minimalist daemon supervisor",
+      "what_it_does": "Touches ADR \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -8494,7 +9074,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "docs(adr): correct shim-mechanism description (ADR-0037)",
+      "what_it_does": "Touches ADR \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -8522,7 +9104,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 11
+      "age_days": 11,
+      "what_it_is": "docs(adr): draft ADR-0037 \u2014 harbormaster serialized merge ownership",
+      "what_it_does": "Touches ADR \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -8550,7 +9134,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "docs(adr): rate-limit claim:approach to block prune-storm DoS (ADR-0038)",
+      "what_it_does": "Touches ADR \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -8578,7 +9164,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 8
+      "age_days": 8,
+      "what_it_is": "adr: 0039 suggestibility layer + 0040 pd-encompassing shell",
+      "what_it_does": "Touches ADR \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -8606,7 +9194,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "blog: add Tufte sidenotes + 2 inline illustrations (property voice)",
+      "what_it_does": "Touches blog post \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -8634,7 +9224,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 20
+      "age_days": 20,
+      "what_it_is": "chore(deps): pin transitive glob to ^13 via npm overrides",
+      "what_it_does": "Touches maintenance \u00b7 untouched 20d"
     },
     {
       "kind": "branch",
@@ -8662,7 +9254,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "chore(release): bump CHANGELOG date to 2026-05-19",
+      "what_it_does": "Touches maintenance \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -8690,7 +9284,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "skill-hygiene: link /skill-audit from the docs reference index",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -8718,7 +9314,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 11
+      "age_days": 11,
+      "what_it_is": "skill-hygiene CI: snapshot regenerator on website prebuild + PR gate",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -8746,7 +9344,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "fix(theme): suppressHydrationWarning on theme wrapper div",
+      "what_it_does": "Touches bug fix \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -8774,7 +9374,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 17
+      "age_days": 17,
+      "what_it_is": "test: drop promotion-release-review test/script (promote-stable.sh is gone)",
+      "what_it_does": "Touches tests \u00b7 untouched 17d"
     },
     {
       "kind": "branch",
@@ -8802,7 +9404,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 17
+      "age_days": 17,
+      "what_it_is": "ci(release): add workflow_dispatch + bun install for manual re-runs",
+      "what_it_does": "Touches CI \u00b7 untouched 17d"
     },
     {
       "kind": "branch",
@@ -8830,7 +9434,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 21
+      "age_days": 21,
+      "what_it_is": "test(backend-readiness): align claude-cli expectations with new policy",
+      "what_it_does": "Touches tests \u00b7 untouched 21d"
     },
     {
       "kind": "branch",
@@ -8858,7 +9464,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 11
+      "age_days": 11,
+      "what_it_is": "ci(whitepaper): close PR #117 review findings \u2014 schema-level phrase ban, CI wiring, AST rewrite",
+      "what_it_does": "Touches CI \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -8886,7 +9494,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 66
+      "age_days": 66,
+      "what_it_is": "fix(website): fix all build deps \u2014 downgrade tailwind-merge, regenerate lockfile",
+      "what_it_does": "Touches bug fix \u00b7 untouched 66d"
     },
     {
       "kind": "branch",
@@ -8914,7 +9524,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Integrate ADR-0025 + Merkle lib + pd tube into skill, docs, CHANGELOG",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -8942,7 +9554,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 74
+      "age_days": 74,
+      "what_it_is": "docs: add live multi-agent coordination demo session log",
+      "what_it_does": "untouched 74d"
     },
     {
       "kind": "branch",
@@ -8970,7 +9584,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 64
+      "age_days": 64,
+      "what_it_is": "fix(website): restore verified Anchor Protocol claims after rebase",
+      "what_it_does": "Touches bug fix \u00b7 untouched 64d"
     },
     {
       "kind": "branch",
@@ -8998,7 +9614,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "Delegation chain walker + replay-defense conformance (#66)",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -9026,7 +9644,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 31
+      "age_days": 31,
+      "what_it_is": "Make agent telos a required contract",
+      "what_it_does": "untouched 31d"
     },
     {
       "kind": "branch",
@@ -9054,7 +9674,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Clean blog public role labels",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -9082,7 +9704,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Expand agent subpage content",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -9110,7 +9734,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Merge origin/main into codex/anthropic-homepage-framing",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -9139,7 +9765,9 @@
       ],
       "hitl": false,
       "archive_safe": false,
-      "age_days": 14
+      "age_days": 14,
+      "what_it_is": "feat(doctor): detect stale LaunchAgent plists + show resource-dir breakdown (#77)",
+      "what_it_does": "untouched 14d"
     },
     {
       "kind": "branch",
@@ -9167,7 +9795,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 0
+      "age_days": 0,
+      "what_it_is": "fix: harden embedded native core loading",
+      "what_it_does": "No diff content available"
     },
     {
       "kind": "branch",
@@ -9195,7 +9825,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 25
+      "age_days": 25,
+      "what_it_is": "Merge branch 'main' into codex/blob-store-phase-0",
+      "what_it_does": "untouched 25d"
     },
     {
       "kind": "branch",
@@ -9223,7 +9855,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Rewrite blog as technical longform",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -9251,7 +9885,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Fix homepage technical docs link",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -9279,7 +9915,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 31
+      "age_days": 31,
+      "what_it_is": "Refresh Cloudflare Workers AI model tiers",
+      "what_it_does": "untouched 31d"
     },
     {
       "kind": "branch",
@@ -9307,7 +9945,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 31
+      "age_days": 31,
+      "what_it_is": "Add encrypted backend secret onboarding",
+      "what_it_does": "untouched 31d"
     },
     {
       "kind": "branch",
@@ -9335,7 +9975,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Restore Coxswain coordination actor",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -9363,7 +10005,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Fix agent skill release gates",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -9391,7 +10035,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 33
+      "age_days": 33,
+      "what_it_is": "Expand Documentarian release surfaces",
+      "what_it_does": "untouched 33d"
     },
     {
       "kind": "branch",
@@ -9419,7 +10065,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 33
+      "age_days": 33,
+      "what_it_is": "Fix session file claims across context drift",
+      "what_it_does": "untouched 33d"
     },
     {
       "kind": "branch",
@@ -9447,7 +10095,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 31
+      "age_days": 31,
+      "what_it_is": "Fix pd launcher tsx resolution",
+      "what_it_does": "untouched 31d"
     },
     {
       "kind": "branch",
@@ -9475,7 +10125,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 33
+      "age_days": 33,
+      "what_it_is": "Persist Fleet conversation archive",
+      "what_it_does": "untouched 33d"
     },
     {
       "kind": "branch",
@@ -9503,7 +10155,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 31
+      "age_days": 31,
+      "what_it_is": "Wire fleet models CLI",
+      "what_it_does": "untouched 31d"
     },
     {
       "kind": "branch",
@@ -9531,7 +10185,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Respect public repo boundary for Claude guidance",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -9559,7 +10215,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Publish signed FleetBar download",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -9587,7 +10245,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 20
+      "age_days": 20,
+      "what_it_is": "fix(sessions): log resolved agent identity",
+      "what_it_does": "Touches bug fix \u00b7 untouched 20d"
     },
     {
       "kind": "branch",
@@ -9615,7 +10275,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 31
+      "age_days": 31,
+      "what_it_is": "Polish hiring-site mobile surfaces",
+      "what_it_does": "untouched 31d"
     },
     {
       "kind": "branch",
@@ -9643,7 +10305,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 31
+      "age_days": 31,
+      "what_it_is": "Polish homepage hero and agent quotes",
+      "what_it_does": "untouched 31d"
     },
     {
       "kind": "branch",
@@ -9671,7 +10335,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 31
+      "age_days": 31,
+      "what_it_is": "Feature homepage proof teasers above the fold",
+      "what_it_does": "untouched 31d"
     },
     {
       "kind": "branch",
@@ -9699,7 +10365,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 31
+      "age_days": 31,
+      "what_it_is": "Retune homepage for AI tooling engineers",
+      "what_it_does": "untouched 31d"
     },
     {
       "kind": "branch",
@@ -9727,7 +10395,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 31
+      "age_days": 31,
+      "what_it_is": "Dedupe homepage pd-tube teaser, drop \"eleven primitives\" copy",
+      "what_it_does": "untouched 31d"
     },
     {
       "kind": "branch",
@@ -9755,7 +10425,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 31
+      "age_days": 31,
+      "what_it_is": "Tighten homepage shared-state section layout",
+      "what_it_does": "untouched 31d"
     },
     {
       "kind": "branch",
@@ -9783,7 +10455,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 26
+      "age_days": 26,
+      "what_it_is": "hotfix: restore namespace import in lib/keychain.ts to unblock unit tests",
+      "what_it_does": "untouched 26d"
     },
     {
       "kind": "branch",
@@ -9811,7 +10485,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 31
+      "age_days": 31,
+      "what_it_is": "Tighten MCP skill layout density",
+      "what_it_does": "untouched 31d"
     },
     {
       "kind": "branch",
@@ -9839,7 +10515,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Add PD Tube and relay PKI proof surfaces",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -9867,7 +10545,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Update stash salvage absorption status",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -9895,7 +10575,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 31
+      "age_days": 31,
+      "what_it_is": "Add live-glory hero video",
+      "what_it_does": "untouched 31d"
     },
     {
       "kind": "branch",
@@ -9923,7 +10605,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 31
+      "age_days": 31,
+      "what_it_is": "Clarify MCP page coordination concepts",
+      "what_it_does": "untouched 31d"
     },
     {
       "kind": "branch",
@@ -9951,7 +10635,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 31
+      "age_days": 31,
+      "what_it_is": "Bump daemon release to 3.12.0",
+      "what_it_does": "untouched 31d"
     },
     {
       "kind": "branch",
@@ -9979,7 +10665,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 19
+      "age_days": 19,
+      "what_it_is": "ship notarized FleetBar preview artifact",
+      "what_it_does": "untouched 19d"
     },
     {
       "kind": "branch",
@@ -10007,7 +10695,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Fit OG card text without truncation",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -10035,7 +10725,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 31
+      "age_days": 31,
+      "what_it_is": "Harden claim-aware pd add staging",
+      "what_it_does": "untouched 31d"
     },
     {
       "kind": "branch",
@@ -10063,7 +10755,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 29
+      "age_days": 29,
+      "what_it_is": "pd tube: address PR #17 Copilot review",
+      "what_it_does": "untouched 29d"
     },
     {
       "kind": "branch",
@@ -10091,7 +10785,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 26
+      "age_days": 26,
+      "what_it_is": "Align PD Tube release truth",
+      "what_it_does": "untouched 26d"
     },
     {
       "kind": "branch",
@@ -10119,7 +10815,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Preserve root website tutorial docs slice",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -10147,7 +10845,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 31
+      "age_days": 31,
+      "what_it_is": "Land runtime tube telemetry fixes",
+      "what_it_does": "untouched 31d"
     },
     {
       "kind": "branch",
@@ -10175,7 +10875,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 15
+      "age_days": 15,
+      "what_it_is": "Add Rust desktop skill and runtime skill audit",
+      "what_it_does": "untouched 15d"
     },
     {
       "kind": "branch",
@@ -10203,7 +10905,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 25
+      "age_days": 25,
+      "what_it_is": "Add salvage next queue pull",
+      "what_it_does": "untouched 25d"
     },
     {
       "kind": "branch",
@@ -10231,7 +10935,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 31
+      "age_days": 31,
+      "what_it_is": "Fix spawn retry idempotency and quartermaster actor",
+      "what_it_does": "untouched 31d"
     },
     {
       "kind": "branch",
@@ -10259,7 +10965,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 20
+      "age_days": 20,
+      "what_it_is": "Merge origin/main into stable fleet guard",
+      "what_it_does": "untouched 20d"
     },
     {
       "kind": "branch",
@@ -10287,7 +10995,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stable promotion stash work",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -10315,7 +11025,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stash 01: On main: promotion-hold-port-daddy-agent-skill-mirrors-2026-04-29",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -10343,7 +11055,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stash 02: On main: promotion-hold-readable-id-wip-2026-04-29",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -10371,7 +11085,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stash 03: On main: promotion-blocking-cli-test-2026-04-29",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -10399,7 +11115,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stash 04: On main: promotion-blocking-sugar-test-2026-04-29",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -10427,7 +11145,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stash 05: On main: promotion-blocking-readable-session-test-2026-04-29",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -10455,7 +11175,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stash 06: On main: promotion-blocking-readable-id-tests-2026-04-29",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -10483,7 +11205,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stash 07: On main: promotion-blocking-source-2026-04-29",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -10511,7 +11235,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stash 08: On codex/pd-tube-tutorial: scratch PNGs before closing pd-tube branch",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -10539,7 +11265,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stash 09: On codex/pd-tube-tutorial: auto-stash other agents' WIP while committing HashScroll fix",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -10567,7 +11295,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stash 10: On codex/pd-tube-tutorial: pre-main-catchup active-session-wip",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -10595,7 +11325,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stash 11: On codex/pd-tube-tutorial: pre-main-catchup examples-page-wip",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -10623,7 +11355,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stash 12: On stable: salvage stable roadmap docs before promotion 2026-04-29",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -10651,7 +11385,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stash 13: On codex/pr-5-pki-ui-docs: pr5-tube-pki-docs-demo-wip-before-main-pull",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -10679,7 +11415,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stash 14: On main: pre-promote-1b.3-stash",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -10707,7 +11445,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stash 15: On main: pre-promote-track1b-stashed-info-routes",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -10735,7 +11475,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stash 16: On main: temporary-dirty-tree-before-pushing-verified-release",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -10763,7 +11505,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stash 17: On stable: stable-package-lock-before-3.9.0-promotion",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -10791,7 +11535,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stash 18: On stable: pre-promote stash 20260404",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -10819,7 +11565,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stash 19: generated media before rebase",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -10847,7 +11595,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Recover stash 20: more recordings before rebase",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -10875,7 +11625,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Harvest human-layer tutorial stash",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -10903,7 +11655,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Refresh Fleet UI on current main",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -10931,7 +11685,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 13
+      "age_days": 13,
+      "what_it_is": "Preserve TUI FleetBar design WIP",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -10959,7 +11715,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 27
+      "age_days": 27,
+      "what_it_is": "Merge remote-tracking branch 'origin/main' into codex/website-coordination-icon-polish",
+      "what_it_does": "untouched 27d"
     },
     {
       "kind": "branch",
@@ -10987,7 +11745,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Use FleetBar mark as website logo",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -11015,7 +11775,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Make Mac preview and hero GUI-first",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -11043,7 +11805,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 31
+      "age_days": 31,
+      "what_it_is": "Harden website terminal command surfaces",
+      "what_it_does": "untouched 31d"
     },
     {
       "kind": "branch",
@@ -11071,7 +11835,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 31
+      "age_days": 31,
+      "what_it_is": "Add website terminal highlighting and output contract",
+      "what_it_does": "untouched 31d"
     },
     {
       "kind": "branch",
@@ -11099,7 +11865,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 31
+      "age_days": 31,
+      "what_it_is": "Make project selection worktree-aware",
+      "what_it_does": "untouched 31d"
     },
     {
       "kind": "branch",
@@ -11127,7 +11895,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 33
+      "age_days": 33,
+      "what_it_is": "Add agentic social proof homepage section",
+      "what_it_does": "untouched 33d"
     },
     {
       "kind": "branch",
@@ -11155,7 +11925,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 33
+      "age_days": 33,
+      "what_it_is": "Expand Documentarian release surfaces",
+      "what_it_does": "untouched 33d"
     },
     {
       "kind": "branch",
@@ -11183,7 +11955,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 74
+      "age_days": 74,
+      "what_it_is": "docs: add live multi-agent coordination demo session log",
+      "what_it_does": "untouched 74d"
     },
     {
       "kind": "branch",
@@ -11211,7 +11985,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 68
+      "age_days": 68,
+      "what_it_is": "refactor: fleet uses pd spawn instead of raw claude -p \u2014 dogfood our own primitives",
+      "what_it_does": "Touches refactor \u00b7 untouched 68d"
     },
     {
       "kind": "branch",
@@ -11239,7 +12015,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Center Mac preview MCP surfaces",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -11267,7 +12045,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 68
+      "age_days": 68,
+      "what_it_is": "fix(dashboard): salvage panel \u2014 project grouping, claim/dismiss actions, no emojis",
+      "what_it_does": "Touches bug fix \u00b7 untouched 68d"
     },
     {
       "kind": "branch",
@@ -11295,7 +12075,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Add Tube Console and event registry surfaces",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -11323,7 +12105,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 64
+      "age_days": 64,
+      "what_it_is": "fix(website): restore verified Anchor Protocol claims after rebase",
+      "what_it_does": "Touches bug fix \u00b7 untouched 64d"
     },
     {
       "kind": "branch",
@@ -11351,7 +12135,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Snapshot dirty FCC control-plane build worktree",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -11379,7 +12165,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Add branded route OG cards",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -11407,7 +12195,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Snapshot dirty PR5 Tube PKI UI worktree",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -11435,7 +12225,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Snapshot dirty root recording rebase",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -11463,7 +12255,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Snapshot salvage autostash screenshots",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -11491,7 +12285,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Record exact MCP preview preservation",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -11519,7 +12315,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 25
+      "age_days": 25,
+      "what_it_is": "cost-tracker: add tier-shorthand aliases for claude-cli (opus/sonnet/haiku)",
+      "what_it_does": "untouched 25d"
     },
     {
       "kind": "branch",
@@ -11547,7 +12345,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "design(pheromones): vocabulary v1 \u2014 18-kind catalog + per-kind decay model",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -11575,7 +12375,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 17
+      "age_days": 17,
+      "what_it_is": "docs(adr): use <agent-id> placeholder for pd salvage claim",
+      "what_it_does": "Touches ADR \u00b7 untouched 17d"
     },
     {
       "kind": "branch",
@@ -11603,7 +12405,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "docs(design): BRAND.md as canonical palette + vitest contract pins to tokens.semantic.css",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -11631,7 +12435,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 11
+      "age_days": 11,
+      "what_it_is": "fixup: correct plist-regen prose (HIGH); promote to top-level section (MEDIUM); link followup (LOW)",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -11659,7 +12465,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "docs(concepts): reader's guide to the claim tree with 10-mode visualization gallery",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -11687,7 +12495,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 11
+      "age_days": 11,
+      "what_it_is": "fix(claim-tree-viz): empty-page crash + tooltip clipping + sunburst contrast",
+      "what_it_does": "Touches bug fix \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -11715,7 +12525,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 11
+      "age_days": 11,
+      "what_it_is": "docs(cookbook): fix doubled myrepo prefix in identity convention example",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -11743,7 +12555,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 16
+      "age_days": 16,
+      "what_it_is": "docs(releasing): fix brew tap name + publish.yml misattribution",
+      "what_it_does": "untouched 16d"
     },
     {
       "kind": "branch",
@@ -11771,7 +12585,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "docs(roadmap): ingest 24 hanging chads from session 2026-05-21",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -11799,7 +12615,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "docs(roadmap): also ingest FLEET-CSP-PROTOCOL.md gaps (operator pointer)",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -11827,7 +12645,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 10
+      "age_days": 10,
+      "what_it_is": "docs: correct two facts surfaced by adversarial review",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -11855,7 +12675,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "docs(roadmap): operator-direct accounts arc \u2014 A0/A1 + W0-W6 phases",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -11883,7 +12705,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 20
+      "age_days": 20,
+      "what_it_is": "feat(dist): add sign-and-notarize.mjs wrapper + entitlements plist",
+      "what_it_does": "untouched 20d"
     },
     {
       "kind": "branch",
@@ -11911,7 +12735,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 10
+      "age_days": 10,
+      "what_it_is": "feat(blog): Tufte right-gutter sidenote directive in renderer",
+      "what_it_does": "Touches blog post \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -11939,7 +12765,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 0
+      "age_days": 0,
+      "what_it_is": "fix(cli): classify attention permission tier",
+      "what_it_does": "Touches CLI, bug fix"
     },
     {
       "kind": "branch",
@@ -11967,7 +12795,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 19
+      "age_days": 19,
+      "what_it_is": "Merge branch 'main' into feat/dashboard-metrics-nav-link",
+      "what_it_does": "untouched 19d"
     },
     {
       "kind": "branch",
@@ -11995,7 +12825,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "feat(dispatch): HTTP routes for /dispatches over the queue",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -12023,7 +12855,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 17
+      "age_days": 17,
+      "what_it_is": "fix(doctor): scope plist regex to path-shaped <string> values + handle binary plists",
+      "what_it_does": "Touches bug fix \u00b7 untouched 17d"
     },
     {
       "kind": "branch",
@@ -12051,7 +12885,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "feat(fleetbar): port Backend section into Fleet Control Center (task #137)",
+      "what_it_does": "Touches FleetBar \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -12079,7 +12915,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "feat(whitepaper): The Federated Harbor \u2014 third paper in the series",
+      "what_it_does": "Touches whitepaper \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -12107,7 +12945,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "feat(operator): fleet-loop end-to-end smoke test + day-one runbook",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -12135,7 +12975,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 11
+      "age_days": 11,
+      "what_it_is": "feat(fleet): retool with runtime backend detection and tenderfoot ship",
+      "what_it_does": "Touches fleet \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -12163,7 +13005,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 18
+      "age_days": 18,
+      "what_it_is": "fix(fleet-ui): address Copilot review on #71",
+      "what_it_does": "Touches bug fix \u00b7 untouched 18d"
     },
     {
       "kind": "branch",
@@ -12191,7 +13035,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "fix(shim): relax --force-with-lease on feature branches; refuse only on protected",
+      "what_it_does": "Touches bug fix \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -12219,7 +13065,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "feat(github-app): Cloudflare Worker webhook receiver",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -12247,7 +13095,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "feat(harbormaster): implement canonical merge-owning actor body (ADR-0037)",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -12275,7 +13125,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "Merge branch 'main' into feat/ia-slice-1-reorder",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -12303,7 +13155,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 19
+      "age_days": 19,
+      "what_it_is": "Merge remote-tracking branch 'origin/main' into feat/metrics-prometheus-charts",
+      "what_it_does": "untouched 19d"
     },
     {
       "kind": "branch",
@@ -12331,7 +13185,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 11
+      "age_days": 11,
+      "what_it_is": "feat(nightshift): autonomous overnight feature-level dev -- first cut",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -12359,7 +13215,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 11
+      "age_days": 11,
+      "what_it_is": "feat(nightshift): circuit breakers + sandbox layers",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -12387,7 +13245,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "test: update tests that assumed ollama is always policy-blocked",
+      "what_it_does": "Touches tests \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -12415,7 +13275,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "Merge remote-tracking branch 'origin/main' into feat/pd-attention",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -12443,7 +13305,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 10
+      "age_days": 10,
+      "what_it_is": "fix(backup): wire pd backup / pd restore into manifest + completions",
+      "what_it_does": "Touches bug fix \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -12471,7 +13335,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 11
+      "age_days": 11,
+      "what_it_is": "feat(coordination): pd done refuses unpushed branches + requires PR url in result",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -12499,7 +13365,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 25
+      "age_days": 25,
+      "what_it_is": "Merge branch 'main' into feat/pd-feedback-cli-verb",
+      "what_it_does": "untouched 25d"
     },
     {
       "kind": "branch",
@@ -12527,7 +13395,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "feat(whois): WIP salvage \u2014 pd whois scaffolding + harbor capability hook",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -12555,7 +13425,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 20
+      "age_days": 20,
+      "what_it_is": "fix(cost-ledger): address review validation gaps",
+      "what_it_does": "Touches bug fix \u00b7 untouched 20d"
     },
     {
       "kind": "branch",
@@ -12583,7 +13455,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 20
+      "age_days": 20,
+      "what_it_is": "Merge branch 'main' into feat/pr-a-foundation-transcripts-cost-ledger",
+      "what_it_does": "untouched 20d"
     },
     {
       "kind": "branch",
@@ -12611,7 +13485,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 13
+      "age_days": 13,
+      "what_it_is": "Merge remote-tracking branch 'origin/main' into feat/roadmap-claim-session-link",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -12639,7 +13515,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 13
+      "age_days": 13,
+      "what_it_is": "Merge remote-tracking branch 'origin/main' into feat/roadmap-pop-atomic",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -12667,7 +13545,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "feat(popper): HTTP routes for /popper over the popper library",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -12695,7 +13575,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "feat(roadmap): schema expansion for Jira-forward + team-ready coordination (ADR-0036)",
+      "what_it_does": "Touches roadmap \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -12723,7 +13605,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 20
+      "age_days": 20,
+      "what_it_is": "Merge branch 'main' into feat/salvage-envelope",
+      "what_it_does": "untouched 20d"
     },
     {
       "kind": "branch",
@@ -12751,7 +13635,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 11
+      "age_days": 11,
+      "what_it_is": "ci(website): GitHub Actions workflow runs build:full + deploys snap to prod",
+      "what_it_does": "Touches CI \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -12779,7 +13665,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "docs(memory): document --json schema + add snapshot tests (closes #114 finding 5)",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -12807,7 +13695,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "Merge branch 'main' into feat/worktree-crowding-gate",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -12835,7 +13725,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Extend git shim to intercept stash/cherry-pick/rebase",
+      "what_it_does": "untouched 32d"
     },
     {
       "kind": "branch",
@@ -12863,7 +13755,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 34
+      "age_days": 34,
+      "what_it_is": "Document Merkle chain cross-language compatibility",
+      "what_it_does": "untouched 34d"
     },
     {
       "kind": "branch",
@@ -12891,7 +13785,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "whitepaper: add canonical three-layer architecture as Fig 1",
+      "what_it_does": "Touches whitepaper \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -12919,7 +13815,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 20
+      "age_days": 20,
+      "what_it_is": "ci: gate main on lint + unit-tests + add keychain regression test",
+      "what_it_does": "Touches CI \u00b7 untouched 20d"
     },
     {
       "kind": "branch",
@@ -12948,7 +13846,9 @@
       ],
       "hitl": false,
       "archive_safe": false,
-      "age_days": 14
+      "age_days": 14,
+      "what_it_is": "fix(daemon): in-process daemon entry for bun-compiled binary (v3.14.1)",
+      "what_it_does": "Touches daemon, bug fix \u00b7 untouched 14d"
     },
     {
       "kind": "branch",
@@ -12976,7 +13876,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 19
+      "age_days": 19,
+      "what_it_is": "bosun-heartbeat: self-stop on canonical-pid displacement",
+      "what_it_does": "untouched 19d"
     },
     {
       "kind": "branch",
@@ -13004,7 +13906,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 26
+      "age_days": 26,
+      "what_it_is": "ci: pass --allow-main-worktree to website-terminal-recordings session",
+      "what_it_does": "Touches CI \u00b7 untouched 26d"
     },
     {
       "kind": "branch",
@@ -13032,7 +13936,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "Merge branch 'main' into fix/claim-tree-ts-errors",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -13060,7 +13966,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "docs(operator): cloudflare 7000 root cause + remediation runbook",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -13088,7 +13996,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 10
+      "age_days": 10,
+      "what_it_is": "fix(deploy): hardcode --branch=main; wrangler-action doesn't expand env vars in command",
+      "what_it_does": "Touches bug fix \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -13116,7 +14026,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "fix(dashboard): allow Fleet Control Center to scroll content taller than the WebView",
+      "what_it_does": "Touches bug fix \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -13144,7 +14056,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "Merge remote-tracking branch 'origin/main' into fix/fleet-cron-to-event-driven",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -13172,7 +14086,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 17
+      "age_days": 17,
+      "what_it_is": "fix(guard): canonicalize paths via realpathSync before containment check",
+      "what_it_does": "Touches bug fix \u00b7 untouched 17d"
     },
     {
       "kind": "branch",
@@ -13200,7 +14116,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 15
+      "age_days": 15,
+      "what_it_is": "docs(adr): ADR-0030 talent phonebook, ADR-0031 spider surface-finder, ADR-0032 unspider contradiction-finder",
+      "what_it_does": "Touches ADR \u00b7 untouched 15d"
     },
     {
       "kind": "branch",
@@ -13228,7 +14146,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 26
+      "age_days": 26,
+      "what_it_is": "fix(routes): preserve body pid + add quartermaster actor expectations",
+      "what_it_does": "Touches bug fix \u00b7 untouched 26d"
     },
     {
       "kind": "branch",
@@ -13256,7 +14176,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 19
+      "age_days": 19,
+      "what_it_is": "server: refuse to start when a sibling daemon holds the canonical port",
+      "what_it_does": "untouched 19d"
     },
     {
       "kind": "branch",
@@ -13284,7 +14206,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 11
+      "age_days": 11,
+      "what_it_is": "Merge branch 'main' into fix/snap-preview-cleanup",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -13312,7 +14236,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 25
+      "age_days": 25,
+      "what_it_is": "fix(telemetry): allow claude-cli backend through fail-closed gate",
+      "what_it_does": "Touches bug fix \u00b7 untouched 25d"
     },
     {
       "kind": "branch",
@@ -13340,7 +14266,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "whitepaper: cap-attenuation subset geometry, anchor Fig 3 fit, worked-example pacing",
+      "what_it_does": "Touches whitepaper \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -13368,7 +14296,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 0
+      "age_days": 0,
+      "what_it_is": "fix(worktree): stop leaking the --allow-main-worktree bypass in refusals",
+      "what_it_does": "Touches bug fix"
     },
     {
       "kind": "branch",
@@ -13396,7 +14326,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "feat(fleetbar): Nightshift dispatch surface \u2014 propose, review, settle from FleetBar",
+      "what_it_does": "Touches FleetBar \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -13424,7 +14356,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "docs(adr): ADR-0039 portdaddy.dev account surface \u2014 receipts, security, version-skew dance (#167)",
+      "what_it_does": "Touches ADR \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -13452,7 +14386,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "whitehat(v2.5\u2192v2.6): defense list for paper/wave3-bundle review round",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -13480,7 +14416,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "feat(landscape): multi-agent comparison page positioning PD as coordination layer",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -13508,7 +14446,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "ci(whitepaper): metadata drift check + vitest coverage + auto-fixed metadata",
+      "what_it_does": "Touches CI \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -13536,7 +14476,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 27
+      "age_days": 27,
+      "what_it_is": "Runtime conformance: bridge ProVerif models to lib/ code",
+      "what_it_does": "untouched 27d"
     },
     {
       "kind": "branch",
@@ -13564,7 +14506,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 20
+      "age_days": 20,
+      "what_it_is": "Merge branch 'main' into refactor/actor-roster-drop-maritime-prefix",
+      "what_it_does": "untouched 20d"
     },
     {
       "kind": "branch",
@@ -13592,7 +14536,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "whitepaper: reframe daemon as correlating device; drop AI-economy opener",
+      "what_it_does": "Touches whitepaper \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -13620,7 +14566,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "whitepaper: inline appendix B/C figures into body; delete appendices",
+      "what_it_does": "Touches whitepaper \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -13648,7 +14596,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "whitepaper: strip version/history language; cold-open present-tense",
+      "what_it_does": "Touches whitepaper \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -13676,7 +14626,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 15
+      "age_days": 15,
+      "what_it_is": "research: setup-waves.sh symlinks node_modules per worktree",
+      "what_it_does": "Touches research \u00b7 untouched 15d"
     },
     {
       "kind": "branch",
@@ -13704,7 +14656,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 18
+      "age_days": 18,
+      "what_it_is": "feat(#10): voice-rule CI + byline drift fix",
+      "what_it_does": "untouched 18d"
     },
     {
       "kind": "branch",
@@ -13732,7 +14686,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 32
+      "age_days": 32,
+      "what_it_is": "Salvage auto-stash from 2026-04-28T23:09 on codex/pd-tube-tutorial",
+      "what_it_does": "Touches salvaged work \u00b7 untouched 32d"
     },
     {
       "kind": "branch",
@@ -13760,7 +14716,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "skill(port-daddy-agent): pd-shim, roadmap pop, continuous coordination",
+      "what_it_does": "Touches skill bundle \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -13788,7 +14746,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 18
+      "age_days": 18,
+      "what_it_is": "Add cuckoo filter + pollution-resistance property test (A3)",
+      "what_it_does": "untouched 18d"
     },
     {
       "kind": "branch",
@@ -13816,7 +14776,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "Merge remote-tracking branch 'origin/main' into swarm/econ-v2",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -13844,7 +14806,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 18
+      "age_days": 18,
+      "what_it_is": "Add magic-link recovery + ProVerif runtime conformance",
+      "what_it_does": "untouched 18d"
     },
     {
       "kind": "branch",
@@ -13872,7 +14836,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 18
+      "age_days": 18,
+      "what_it_is": "Discharge Merkle binding mechanization (EasyCrypt)",
+      "what_it_does": "untouched 18d"
     },
     {
       "kind": "branch",
@@ -13900,7 +14866,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 26
+      "age_days": 26,
+      "what_it_is": "Update whitepaper PDFs with v2.5 mechanization status appendix",
+      "what_it_does": "untouched 26d"
     },
     {
       "kind": "branch",
@@ -13928,7 +14896,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "ci(whitepaper): metadata drift check + tests + pricing copy fix",
+      "what_it_does": "Touches CI \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -13956,7 +14926,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "paper(pricing): add \u00a7threats, \u00a7bootstrap, \u00a7settlement subsections",
+      "what_it_does": "Touches whitepaper \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -13984,7 +14956,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 11
+      "age_days": 11,
+      "what_it_is": "fix(proofs): make claim_signaling.tla actually run in TLC and Apalache",
+      "what_it_does": "Touches bug fix \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -14012,7 +14986,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 20
+      "age_days": 20,
+      "what_it_is": "fix(docs): keep chart palette text tokenized",
+      "what_it_does": "Touches bug fix \u00b7 untouched 20d"
     },
     {
       "kind": "branch",
@@ -14040,7 +15016,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 19
+      "age_days": 19,
+      "what_it_is": "Merge branch 'main' into voice-design-pr3-docs",
+      "what_it_does": "untouched 19d"
     },
     {
       "kind": "branch",
@@ -14068,7 +15046,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 19
+      "age_days": 19,
+      "what_it_is": "Merge branch 'main' into voice-design-pr4-blog-examples",
+      "what_it_does": "untouched 19d"
     },
     {
       "kind": "branch",
@@ -14096,7 +15076,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 19
+      "age_days": 19,
+      "what_it_is": "Merge branch 'main' into voice-design-pr5-storybook-airisk",
+      "what_it_does": "untouched 19d"
     },
     {
       "kind": "branch",
@@ -14124,7 +15106,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 25
+      "age_days": 25,
+      "what_it_is": "whitepaper: color-block sections + cut vertical padding + tighten glossary",
+      "what_it_does": "Touches whitepaper \u00b7 untouched 25d"
     },
     {
       "kind": "branch",
@@ -14152,7 +15136,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 26
+      "age_days": 26,
+      "what_it_is": "Whitepaper v2.0.1: typography + uncited reference cleanup",
+      "what_it_does": "untouched 26d"
     },
     {
       "kind": "branch",
@@ -14180,7 +15166,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 26
+      "age_days": 26,
+      "what_it_is": "Merge remote-tracking branch 'origin/main' into whitepaper-v2-and-commentary",
+      "what_it_does": "untouched 26d"
     },
     {
       "kind": "branch",
@@ -14208,7 +15196,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "fix(github-app): sign App JWT via node:crypto with 60s iat back-date",
+      "what_it_does": "Touches bug fix \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -14236,7 +15226,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "feat(spawner): add OpenAI, cli:claude-code, cli:codex backends",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -14264,7 +15256,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "fix(fleetbar+manifest): Console\u2192Control Center, PLAY per-project, dashboard nav strip, completions parity",
+      "what_it_does": "Touches bug fix \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -14292,7 +15286,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 11
+      "age_days": 11,
+      "what_it_is": "docs(whitepaper): patient expository page on how we prove game theory",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -14320,7 +15316,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "feat(website): cli-backend pitch \u2014 hero callout, /cli-backend page, landing tile",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -14348,7 +15346,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "feat(transcripts): record every fleet ship's full conversation, surface in dashboard + CLI",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -14376,7 +15376,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "paper(bonded): prove truthful claim-signaling is a Nash equilibrium",
+      "what_it_does": "Touches whitepaper \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -14404,7 +15406,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 11
+      "age_days": 11,
+      "what_it_is": "proofs(v2.6): mechanize claim-signaling IC + threat-band defensibility",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -14432,7 +15436,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "feat(whitepaper): add limitations[], cartel takeaway, defense-in-depth framing across both papers",
+      "what_it_does": "Touches whitepaper \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -14460,7 +15466,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 34
+      "age_days": 34,
+      "what_it_is": "Register `pd tube` in completions and features manifest",
+      "what_it_does": "untouched 34d"
     },
     {
       "kind": "branch",
@@ -14488,7 +15496,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "fix(federated-harbor): correct marketing-skill ref + ground voice in user_voice_website.md",
+      "what_it_does": "Touches bug fix \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -14516,7 +15526,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "feat(shipwright): register 5 retool ships + ADR-0032 unSpider, cartographer, spider \u2014 archetype catalog 12 \u2192 20",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -14544,7 +15556,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "redteam(v2.5->v2.6): probe list for paper/wave3-bundle review round",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -14572,7 +15586,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "feat(splash): add 90s title-card launch splash (PNG + TUI)",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -14600,7 +15616,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "docs(readme): point Fleet Engine section at restart note + ADRs",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -14628,7 +15646,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "feat(fleet): add 14 ship-avatar personae for bot identity",
+      "what_it_does": "Touches fleet \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -14656,7 +15676,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 11
+      "age_days": 11,
+      "what_it_is": "feat(fleet): generalize trigger sources + output sinks beyond GitHub",
+      "what_it_does": "Touches fleet \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -14684,7 +15706,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 9
+      "age_days": 9,
+      "what_it_is": "feat(skills): add port-daddy-expository-writer",
+      "what_it_does": "Touches skill bundle \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -14712,7 +15736,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "synthesis(v2.5->v2.6): canonical dialogue + paper-edits list",
+      "what_it_does": "no PR yet"
     },
     {
       "kind": "branch",
@@ -14740,7 +15766,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 11
+      "age_days": 11,
+      "what_it_is": "feat(fleet): retool \u2014 5 new ships, GitHub-surface outputs, backend pins",
+      "what_it_does": "Touches fleet \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -14768,7 +15796,9 @@
       ],
       "hitl": true,
       "archive_safe": false,
-      "age_days": 12
+      "age_days": 12,
+      "what_it_is": "feat(spawn): wire pd config set spawn.max_depth N (daemon-wide override)",
+      "what_it_does": "Touches spawn/sortie \u00b7 no PR yet"
     },
     {
       "kind": "branch",
@@ -14796,7 +15826,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": 25
+      "age_days": 25,
+      "what_it_is": "orchestration: docs for the 2026-05-06 follow-on fanout",
+      "what_it_does": "untouched 25d"
     },
     {
       "kind": "detached_worktree",
@@ -14810,7 +15842,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": null
+      "age_days": null,
+      "what_it_is": "(detached)",
+      "what_it_does": "detached HEAD; safe to remove"
     },
     {
       "kind": "detached_worktree",
@@ -14824,7 +15858,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": null
+      "age_days": null,
+      "what_it_is": "(detached)",
+      "what_it_does": "detached HEAD; safe to remove"
     },
     {
       "kind": "detached_worktree",
@@ -14838,7 +15874,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": null
+      "age_days": null,
+      "what_it_is": "(detached)",
+      "what_it_does": "detached HEAD; safe to remove"
     },
     {
       "kind": "detached_worktree",
@@ -14852,7 +15890,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": null
+      "age_days": null,
+      "what_it_is": "(detached)",
+      "what_it_does": "detached HEAD; safe to remove"
     },
     {
       "kind": "detached_worktree",
@@ -14866,7 +15906,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": null
+      "age_days": null,
+      "what_it_is": "(detached)",
+      "what_it_does": "detached HEAD; safe to remove"
     },
     {
       "kind": "detached_worktree",
@@ -14880,7 +15922,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": null
+      "age_days": null,
+      "what_it_is": "(detached)",
+      "what_it_does": "detached HEAD; safe to remove"
     },
     {
       "kind": "detached_worktree",
@@ -14894,7 +15938,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": null
+      "age_days": null,
+      "what_it_is": "(detached)",
+      "what_it_does": "detached HEAD; safe to remove"
     },
     {
       "kind": "detached_worktree",
@@ -14908,7 +15954,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": null
+      "age_days": null,
+      "what_it_is": "(detached)",
+      "what_it_does": "detached HEAD; safe to remove"
     },
     {
       "kind": "detached_worktree",
@@ -14922,7 +15970,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": null
+      "age_days": null,
+      "what_it_is": "main",
+      "what_it_does": "detached HEAD; safe to remove"
     },
     {
       "kind": "detached_worktree",
@@ -14936,7 +15986,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": null
+      "age_days": null,
+      "what_it_is": "(detached)",
+      "what_it_does": "detached HEAD; safe to remove"
     },
     {
       "kind": "detached_worktree",
@@ -14950,7 +16002,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": null
+      "age_days": null,
+      "what_it_is": "(detached)",
+      "what_it_does": "detached HEAD; safe to remove"
     },
     {
       "kind": "detached_worktree",
@@ -14964,7 +16018,9 @@
       ],
       "hitl": false,
       "archive_safe": true,
-      "age_days": null
+      "age_days": null,
+      "what_it_is": "(detached)",
+      "what_it_does": "detached HEAD; safe to remove"
     }
   ]
 }
