@@ -192,9 +192,9 @@ function repoRootFromCommonDir(root: string, commonDir: string, isMain: boolean)
   return isMain ? root : null;
 }
 
-function buildWorktreeMetadata(roots: string[]): Map<string, ProjectWorktreeMetadata> {
+function buildWorktreeMetadata(roots: string[], fresh = false): Map<string, ProjectWorktreeMetadata> {
   const cacheKey = JSON.stringify([...new Set(roots.map(normalizeRoot))].sort());
-  if (worktreeMetadataCache && worktreeMetadataCache.key === cacheKey && worktreeMetadataCache.expiresAt > Date.now()) {
+  if (!fresh && worktreeMetadataCache && worktreeMetadataCache.key === cacheKey && worktreeMetadataCache.expiresAt > Date.now()) {
     return worktreeMetadataCache.metadata;
   }
 
@@ -555,7 +555,7 @@ export function createProjects(db: Database.Database) {
     }
 
     const projectEntries = [...known.entries()];
-    const worktreeByRoot = buildWorktreeMetadata(projectEntries.map(([root]) => root));
+    const worktreeByRoot = buildWorktreeMetadata(projectEntries.map(([root]) => root), fresh);
 
     const projects = projectEntries
       .map(([root, entry]) => {

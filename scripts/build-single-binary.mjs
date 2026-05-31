@@ -245,8 +245,12 @@ async function smokeSelfHostedDaemon(outfile) {
 
   try {
     const health = await waitForJson(`http://127.0.0.1:${port}/health`, child, stderrChunks);
+    const arbiter = await waitForJson(`http://127.0.0.1:${port}/arbiter/status`, child, stderrChunks);
     const samples = await waitForJson(`http://127.0.0.1:${port}/samples/manifest.json`, child, stderrChunks);
     const fleetHtml = await waitForText(`http://127.0.0.1:${port}/fleet-ui/index.html`, child, stderrChunks);
+    if (arbiter?.enforcerLoaded !== true || arbiter?.summary?.degradedRules !== 0) {
+      throw new Error('single binary daemon smoke failed: embedded native Arbiter enforcer was not loaded cleanly');
+    }
     if (!Number.isInteger(samples?.count) || samples.count < 1) {
       throw new Error('single binary daemon smoke failed: embedded sample manifest was missing files');
     }
@@ -256,6 +260,11 @@ async function smokeSelfHostedDaemon(outfile) {
     return {
       status: health?.status ?? 'unknown',
       pid: health?.pid ?? null,
+      arbiter: {
+        enforcerLoaded: arbiter.enforcerLoaded,
+        enforcedRules: arbiter.summary?.enforcedRules ?? null,
+        degradedRules: arbiter.summary?.degradedRules ?? null,
+      },
       samples: { count: samples.count },
       fleetUi: { indexHtmlBytes: Buffer.byteLength(fleetHtml) },
     };
@@ -272,10 +281,15 @@ mkdirSync(DIST_DIR, { recursive: true });
 
 const outfile = resolve(readArg('--outfile') || DEFAULT_OUTFILE);
 const target = readArg('--target');
+const canSmokeTarget = !target || (targetPlatform(target) === process.platform && targetArch(target) === process.arch);
 
 run(process.execPath, ['scripts/build-public-samples.mjs'], { stdio: 'inherit' });
 const embeddedNativeCore = writeEmbeddedNativeCoreModule(target);
 const embeddedAssets = writeEmbeddedAssetsModule();
+
+if (canSmokeTarget && embeddedNativeCore.status !== 'embedded') {
+  throw new Error(`Expected embedded native core for same-runner target ${target || 'host'}; got ${embeddedNativeCore.status}`);
+}
 
 const bunArgs = ['build', '--compile'];
 if (target) bunArgs.push(`--target=${target}`);
@@ -288,7 +302,7 @@ if (!existsSync(outfile)) {
 }
 
 let smoke = { status: 'skipped', reason: 'cross-target build' };
-if (!target) {
+if (canSmokeTarget) {
   const smokePrefix = join(tmpdir(), `pd-single-binary-smoke-${process.pid}`);
   const result = run(outfile, ['help'], {
     timeout: 15_000,
@@ -301,6 +315,7 @@ if (!target) {
   smoke = {
     status: 'ok',
     command: 'help',
+    target: target || null,
     stdout: result.stdout.trim(),
     daemon: await smokeSelfHostedDaemon(outfile),
   };

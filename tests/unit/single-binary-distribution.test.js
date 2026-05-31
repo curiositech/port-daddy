@@ -16,6 +16,8 @@ describe('single binary distribution path', () => {
     expect(script).toContain("run('bash', ['scripts/build-core.sh']");
     expect(script).toContain('dataBase64');
     expect(script).toContain('embeddedNativeCore');
+    expect(script).toContain('canSmokeTarget');
+    expect(script).toContain("Expected embedded native core for same-runner target");
     expect(existsSync(join(process.cwd(), 'bin', 'port-daddy-bundle.ts'))).toBe(true);
   });
 
@@ -67,6 +69,9 @@ describe('single binary distribution path', () => {
     expect(buildScript).toContain('embedded in the executable through a generated asset table');
     expect(buildScript).toContain('embeddedNativeCore');
     expect(buildScript).toContain('smokeSelfHostedDaemon');
+    expect(buildScript).toContain('target: target || null');
+    expect(buildScript).toContain('/arbiter/status');
+    expect(buildScript).toContain('embedded native Arbiter enforcer was not loaded cleanly');
   });
 
   test('release workflow uses the single-binary builder instead of compiling the CLI shim directly', () => {
