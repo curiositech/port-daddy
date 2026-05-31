@@ -129,6 +129,25 @@ message naming the gaps and link the follow-up issue. Lookout is the role
 that watches for release-surface drift; making the drift visible is your
 job, fixing it is theirs (or future-yours).
 
+## PR Finish Line Discipline
+
+For Port Daddy repo PRs, local validation is not the finish line. Before
+calling a branch ready, inspect and close the full PR surface:
+
+- Inline bot comments from Copilot, Claude review, Cloudflare Pages, CodeQL,
+  package/release jobs, or deploy previews count as review findings. Reply to
+  each actionable thread with fixed / deferred / contested-because.
+- Run a skeptical reviewer agent for non-trivial changes and require a
+  `SHIP / SHIP-AFTER-FIX / DO-NOT-SHIP` verdict. Fix high-confidence findings
+  as named fixup commits on the branch.
+- Treat GitHub CI, external deploy checks, release-package jobs, and Cloudflare
+  Pages as one CI/CD surface. If one is red, inspect the linked logs. Only call
+  it external after proving the branch is not the cause, and record that proof
+  in both the PR and a `pd note`.
+- Do not leave a PR with "CI green except..." as an unresolved aside. Either
+  make it green, file/assign the external blocker with evidence, or hand off the
+  exact next action to an active Port Daddy session.
+
 ## Distribution Mirror Sync
 
 The skill bundle is mirrored to several locations. Inside this repo the

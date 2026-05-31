@@ -136,11 +136,21 @@ flow is:
 4. **Comment on the PR** with what changed, the validation evidence
    (test counts, `tsc --noEmit` exit, focused jest output), and an explicit
    line for each reviewer finding marked done / deferred / contested-because.
-5. **Re-spawn the reviewer** (or a fresh one) if the change set is
+5. **Treat bot comments as real review findings.** Copilot, Claude review,
+   Cloudflare Pages, CodeQL, release, or other automation comments are not
+   background noise. Reply to every actionable bot thread with fixed /
+   deferred / contested-because, and push a fixup commit for every valid
+   high-confidence finding before asking a human to look.
+6. **Get the full CI/CD surface clean.** "CI is green" means the GitHub
+   matrix, review checks, deploy previews, release/package jobs, and external
+   statuses attached to the PR are green. If a red status is truly external,
+   inspect the linked logs, name the external owner/root cause in a PR
+   comment, and leave a `pd note`; otherwise fix the repo branch.
+7. **Re-spawn the reviewer** (or a fresh one) if the change set is
    non-trivial. Don't ship with a stale verdict.
-6. **`pd note` the result + `pd done`** before merge. The PD audit trail
+8. **`pd note` the result + `pd done`** before merge. The PD audit trail
    is part of the ship contract — a merge without it is not durable.
-7. **Merge in the right order.** When PRs stack (e.g. a doctor PR bases on
+9. **Merge in the right order.** When PRs stack (e.g. a doctor PR bases on
    a binary-daemon PR), merge the base first, rebase the dependent onto
    `main`, re-run CI, then merge.
 
