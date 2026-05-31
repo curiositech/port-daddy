@@ -32,6 +32,9 @@ proofs/**/states/
 # OG image scratch
 website-v2/.tmp-og/
 
+# Licensed evaluation fonts: install locally from Klim's test package.
+website-v2/public/fonts/soehne-trial/*.woff2
+
 # Environment
 .env
 .env.local

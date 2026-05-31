@@ -1,0 +1,817 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Port Daddy Page Direction Comps</title>
+  <link rel="icon" href="data:,">
+  <style>
+    @font-face {
+      font-family: "Radnika";
+      src: url("../../website-v2/public/fonts/radnika/Radnika-Regular.woff2") format("woff2");
+      font-style: normal;
+      font-weight: 400;
+      font-display: swap;
+    }
+
+    @font-face {
+      font-family: "Radnika";
+      src: url("../../website-v2/public/fonts/radnika/Radnika-Medium.woff2") format("woff2");
+      font-style: normal;
+      font-weight: 500;
+      font-display: swap;
+    }
+
+    @font-face {
+      font-family: "Radnika";
+      src: url("../../website-v2/public/fonts/radnika/Radnika-Bold.woff2") format("woff2");
+      font-style: normal;
+      font-weight: 700;
+      font-display: swap;
+    }
+
+    :root {
+      --paper: rgb(244 241 234);
+      --paper-strong: rgb(250 248 243);
+      --ink: rgb(15 15 14);
+      --muted: rgb(75 71 65);
+      --rule: rgb(34 33 30);
+      --hairline: rgb(180 175 164);
+      --blue: rgb(30 74 191);
+      --blue-soft: rgb(221 230 255);
+      --amber: rgb(180 83 9);
+      --amber-soft: rgb(252 235 189);
+      --green: rgb(59 125 75);
+      --code: rgb(17 20 28);
+      --code-text: rgb(235 238 246);
+      --code-muted: rgb(171 178 196);
+      --s1: 4px;
+      --s2: 8px;
+      --s3: 12px;
+      --s4: 16px;
+      --s5: 24px;
+      --s6: 32px;
+      --s7: 48px;
+      --s8: 64px;
+      --s9: 96px;
+      --font-ui: "Radnika", "Helvetica Neue", Helvetica, Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      --h1-public-size: clamp(3rem, 4.7vw, 5.6rem);
+      --h1-public-weight: 500;
+      --h1-public-line: 1.08;
+      --h1-panel-size: clamp(2rem, 3vw, 3.15rem);
+      --h1-panel-weight: 500;
+      --h1-panel-line: 1.12;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      font-family: var(--font-ui);
+      color: var(--ink);
+      background:
+        linear-gradient(90deg, rgb(233 230 222 / 0.52) 1px, transparent 1px),
+        linear-gradient(rgb(233 230 222 / 0.52) 1px, transparent 1px),
+        var(--paper);
+      background-size: 24px 24px;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+      font-optical-sizing: auto;
+    }
+
+    body {
+      margin: 0;
+    }
+
+    main {
+      width: min(1500px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: var(--s7) 0 var(--s9);
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .label,
+    .chip,
+    .nav,
+    .meta,
+    .table th,
+    .terminal__bar,
+    .stat__label {
+      font-size: 0.78rem;
+      line-height: 1.35;
+      letter-spacing: 0.075em;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    .intro {
+      border-top: 3px solid var(--rule);
+      border-bottom: 1px solid var(--rule);
+      padding: var(--s5) 0 var(--s7);
+      display: grid;
+      grid-template-columns: minmax(0, 0.58fr) minmax(300px, 0.42fr);
+      gap: var(--s7);
+      align-items: end;
+    }
+
+    .intro h1,
+    .page h2 {
+      margin: 0;
+      max-width: 16ch;
+      font-size: var(--h1-public-size);
+      line-height: var(--h1-public-line);
+      font-weight: var(--h1-public-weight);
+      letter-spacing: 0;
+      text-wrap: balance;
+    }
+
+    .intro p,
+    .page__dek,
+    .copy,
+    .table td,
+    .stat__body,
+    .caption {
+      color: var(--muted);
+      font-size: clamp(1rem, 1.15vw, 1.18rem);
+      line-height: 1.55;
+    }
+
+    .intro p {
+      margin: 0;
+      max-width: 48ch;
+    }
+
+    .toc {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      margin: var(--s6) 0 var(--s8);
+      border-top: 2px solid var(--rule);
+      border-bottom: 2px solid var(--rule);
+    }
+
+    .toc span {
+      padding: var(--s3) var(--s4);
+      border-right: 1px solid var(--hairline);
+    }
+
+    .toc span:last-child {
+      border-right: 0;
+    }
+
+    .page {
+      margin-top: var(--s8);
+      border-top: 3px solid var(--rule);
+      padding-top: var(--s5);
+    }
+
+    .page__header {
+      display: grid;
+      grid-template-columns: minmax(0, 0.65fr) minmax(280px, 0.35fr);
+      gap: var(--s7);
+      align-items: end;
+      margin-bottom: var(--s6);
+    }
+
+    .page__dek {
+      margin: 0;
+      max-width: 47ch;
+    }
+
+    .spread {
+      background: var(--paper-strong);
+      border-top: 1px solid var(--rule);
+      border-bottom: 1px solid var(--rule);
+      padding: var(--s5) 0;
+    }
+
+    .spread__inner {
+      display: grid;
+      grid-template-columns: minmax(0, 0.52fr) minmax(360px, 0.48fr);
+      gap: var(--s6);
+      align-items: start;
+      padding: 0 var(--s5);
+    }
+
+    .mini-nav {
+      display: flex;
+      gap: var(--s4);
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 2px solid var(--rule);
+      padding-bottom: var(--s3);
+      margin-bottom: var(--s6);
+    }
+
+    .nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--s4);
+      color: var(--muted);
+    }
+
+    .mark {
+      display: inline-grid;
+      place-items: center;
+      width: 52px;
+      height: 52px;
+      border: 3px solid var(--rule);
+      font-weight: 700;
+      font-size: 1.35rem;
+      color: var(--blue);
+    }
+
+    .hero-title {
+      margin: 0;
+      max-width: 11ch;
+      font-size: clamp(3rem, 7vw, 8rem);
+      line-height: 0.98;
+      font-weight: 500;
+      letter-spacing: 0;
+      text-wrap: balance;
+    }
+
+    .hero-copy {
+      max-width: 42ch;
+      margin: var(--s5) 0 0;
+      color: var(--muted);
+      font-size: clamp(1.05rem, 1.28vw, 1.35rem);
+      line-height: 1.55;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--s3);
+      margin-top: var(--s5);
+    }
+
+    .button {
+      border: 2px solid var(--rule);
+      background: var(--ink);
+      color: var(--paper-strong);
+      padding: var(--s3) var(--s4);
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .button--light {
+      background: transparent;
+      color: var(--ink);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      border-top: 2px solid var(--rule);
+      border-left: 2px solid var(--rule);
+    }
+
+    .stat {
+      min-height: 138px;
+      border-right: 2px solid var(--rule);
+      border-bottom: 2px solid var(--rule);
+      padding: var(--s4);
+      display: grid;
+      align-content: space-between;
+      gap: var(--s4);
+    }
+
+    .stat strong {
+      font-size: clamp(2.2rem, 4.5vw, 4.2rem);
+      line-height: 0.94;
+      font-weight: 500;
+      letter-spacing: 0;
+    }
+
+    .terminal {
+      background: var(--code);
+      color: var(--code-text);
+      border: 2px solid var(--rule);
+      font-family: var(--font-mono);
+    }
+
+    .terminal__bar {
+      display: flex;
+      gap: var(--s2);
+      align-items: center;
+      color: var(--code-muted);
+      border-bottom: 1px solid rgb(50 54 66);
+      padding: var(--s3) var(--s4);
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      display: inline-block;
+    }
+
+    .dot--red {
+      background: rgb(225 92 99);
+    }
+
+    .dot--amber {
+      background: rgb(225 198 83);
+    }
+
+    .dot--green {
+      background: rgb(112 190 128);
+      margin-right: var(--s2);
+    }
+
+    .terminal pre {
+      margin: 0;
+      padding: var(--s4);
+      overflow: auto;
+      font-size: 0.95rem;
+      line-height: 1.48;
+      tab-size: 2;
+    }
+
+    .prompt {
+      color: rgb(176 232 156);
+    }
+
+    .out {
+      color: rgb(204 210 226);
+    }
+
+    .ok {
+      color: rgb(142 205 155);
+    }
+
+    .warn {
+      color: rgb(240 197 115);
+    }
+
+    .matrix {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      border-top: 2px solid var(--rule);
+      border-left: 2px solid var(--rule);
+    }
+
+    .matrix > div {
+      min-height: 164px;
+      border-right: 2px solid var(--rule);
+      border-bottom: 2px solid var(--rule);
+      padding: var(--s4);
+      display: grid;
+      align-content: space-between;
+      gap: var(--s4);
+    }
+
+    .matrix h3,
+    .feature h3 {
+      margin: 0;
+      font-size: var(--h1-panel-size);
+      line-height: var(--h1-panel-line);
+      font-weight: var(--h1-panel-weight);
+      letter-spacing: 0;
+      text-wrap: balance;
+    }
+
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      border-top: 2px solid var(--rule);
+      border-bottom: 2px solid var(--rule);
+    }
+
+    .table th,
+    .table td {
+      text-align: left;
+      padding: var(--s3) var(--s2);
+      border-bottom: 1px solid var(--hairline);
+      vertical-align: top;
+    }
+
+    .table tr:last-child th,
+    .table tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .table code,
+    .inline-code {
+      font-family: var(--font-mono);
+      color: var(--blue);
+      background: rgb(232 229 220);
+      border: 1px solid var(--hairline);
+      padding: 0.08em 0.26em;
+      font-weight: 700;
+    }
+
+    .human-agent {
+      display: grid;
+      grid-template-columns: minmax(0, 0.48fr) minmax(0, 0.52fr);
+      gap: var(--s5);
+      align-items: stretch;
+    }
+
+    .lane {
+      border-top: 3px solid var(--rule);
+      padding-top: var(--s4);
+      display: grid;
+      gap: var(--s4);
+    }
+
+    .lane--human {
+      border-top-color: var(--blue);
+    }
+
+    .lane--agent {
+      border-top-color: var(--green);
+    }
+
+    .screen {
+      border: 2px solid var(--rule);
+      background: var(--paper);
+      min-height: 320px;
+      padding: var(--s4);
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: var(--s4);
+    }
+
+    .screen__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--hairline);
+      padding-bottom: var(--s3);
+    }
+
+    .flow {
+      display: grid;
+      gap: var(--s3);
+      align-content: center;
+    }
+
+    .flow__row {
+      display: grid;
+      grid-template-columns: 140px minmax(0, 1fr) 120px;
+      gap: var(--s3);
+      align-items: center;
+      border-bottom: 1px solid var(--hairline);
+      padding: var(--s2) 0;
+    }
+
+    .chip {
+      border: 1px solid var(--rule);
+      padding: var(--s1) var(--s2);
+      width: max-content;
+      background: var(--paper);
+    }
+
+    .chip--blue {
+      background: var(--blue);
+      color: var(--paper-strong);
+    }
+
+    .chip--amber {
+      background: var(--amber-soft);
+      color: var(--ink);
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: var(--s5);
+    }
+
+    .feature {
+      border-top: 2px solid var(--rule);
+      padding-top: var(--s4);
+      display: grid;
+      gap: var(--s4);
+    }
+
+    .caption {
+      margin: var(--s3) 0 0;
+    }
+
+    @media (max-width: 980px) {
+      main {
+        width: min(100% - 24px, 820px);
+      }
+
+      .intro,
+      .page__header,
+      .spread__inner,
+      .human-agent,
+      .feature-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .toc,
+      .matrix,
+      .stats {
+        grid-template-columns: 1fr;
+      }
+
+      .flow__row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="intro">
+      <div>
+        <div class="label">Port Daddy page direction / F plus E</div>
+        <h1>Four pages in the lighter system.</h1>
+      </div>
+      <p>
+        These are page-level comps using the new Radnika rule: H1s are Medium,
+        layout does the heavy lifting, amber stays semantic, and the human
+        control layer is always separate from the agent execution layer.
+      </p>
+    </section>
+
+    <nav class="toc" aria-label="Page comp list">
+      <span class="nav">01 Home</span>
+      <span class="nav">02 Docs</span>
+      <span class="nav">03 Tutorial</span>
+      <span class="nav">04 Feature Detail</span>
+    </nav>
+
+    <section class="page" id="home">
+      <header class="page__header">
+        <div>
+          <div class="label">01 / home page</div>
+          <h2>The marketing page stops shouting.</h2>
+        </div>
+        <p class="page__dek">
+          Use F for the operational claim. The hero sells by making the control
+          plane legible: live notes, ownership, channels, budget, and readiness.
+        </p>
+      </header>
+      <div class="spread">
+        <div class="spread__inner">
+          <div>
+            <div class="mini-nav">
+              <span class="mark">PD</span>
+              <span class="nav">Agents</span>
+              <span class="nav">Mac Preview</span>
+              <span class="nav">Docs</span>
+            </div>
+            <h3 class="hero-title">Agents do the work. The console keeps it accountable.</h3>
+            <p class="hero-copy">
+              Port Daddy gives coding agents a shared place to leave intent,
+              claim files, publish signals, and recover handoffs. The operator
+              sees the same system through FleetBar and the Fleet Console.
+            </p>
+            <div class="actions">
+              <a class="button" href="javascript:void 0">Download Mac Preview</a>
+              <a class="button button--light" href="javascript:void 0">Open Technical Docs</a>
+            </div>
+          </div>
+          <div class="stats" aria-label="Home page proof grid">
+            <div class="stat">
+              <span class="stat__label">Human surface</span>
+              <strong>Fleet Console</strong>
+              <span class="stat__body">Launch blockers, readiness, budget, and next actions.</span>
+            </div>
+            <div class="stat">
+              <span class="stat__label">Agent surface</span>
+              <strong>Claims</strong>
+              <span class="stat__body">Files and symbols are visible before an edit lands.</span>
+            </div>
+            <div class="stat">
+              <span class="stat__label">Shared memory</span>
+              <strong>Notes</strong>
+              <span class="stat__body">Session state survives context loss and branch drift.</span>
+            </div>
+            <div class="stat">
+              <span class="stat__label">Live signals</span>
+              <strong>Radio</strong>
+              <span class="stat__body">Channels carry handoffs without chat-only coordination.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" id="docs">
+      <header class="page__header">
+        <div>
+          <div class="label">02 / docs landing</div>
+          <h2>Docs become a control-plane map.</h2>
+        </div>
+        <p class="page__dek">
+          The docs page should be dense, searchable, and honest. Commands
+          always show expected output or observable state; conceptual pages
+          start from the operator problem, not internal primitives.
+        </p>
+      </header>
+      <div class="spread">
+        <div class="spread__inner">
+          <div>
+            <div class="label">Start Here</div>
+            <h3 class="hero-title">Find the surface before the command.</h3>
+            <p class="hero-copy">
+              Humans use FleetBar and the Fleet Console. Agents use CLI, SDK,
+              MCP, notes, claims, and channels. The docs should keep that split
+              visible on every page.
+            </p>
+            <table class="table" aria-label="Docs index">
+              <tbody>
+                <tr>
+                  <th scope="row">Human control</th>
+                  <td>FleetBar, Fleet Console, credentials, launch readiness, and feedback.</td>
+                </tr>
+                <tr>
+                  <th scope="row">Agent execution</th>
+                  <td>Session notes, file claims, locks, semantic identity, and channel traffic.</td>
+                </tr>
+                <tr>
+                  <th scope="row">Recovery</th>
+                  <td>Briefings, salvage queue, stale-session review, and handoff repair.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="terminal" aria-label="Command with expected output">
+            <div class="terminal__bar">
+              <span class="dot dot--red"></span>
+              <span class="dot dot--amber"></span>
+              <span class="dot dot--green"></span>
+              expected output
+            </div>
+            <pre><code><span class="prompt">$</span> pd status
+<span class="out">Daemon: reachable at 127.0.0.1:9876
+Fleet Console: reachable from FleetBar
+Active project: port-daddy
+Open sessions: 3
+Claims: 12 files, 4 symbol regions</span>
+
+<span class="prompt">$</span> pd briefing
+<span class="ok">Ready:</span><span class="out"> current branch, active claims, recent notes</span>
+<span class="warn">Watch:</span><span class="out"> website typography slice has unstaged report work</span></code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" id="tutorial">
+      <header class="page__header">
+        <div>
+          <div class="label">03 / tutorial page</div>
+          <h2>Tutorials teach a job, not a primitive.</h2>
+        </div>
+        <p class="page__dek">
+          Each tutorial should show the human layer in Fleet Console screenshots
+          and the agent layer in terminal output. The reader should know who does
+          what before seeing any command.
+        </p>
+      </header>
+      <div class="spread">
+        <div class="spread__inner human-agent">
+          <div class="lane lane--human">
+            <div class="label">Human layer / Fleet Console</div>
+            <h3 class="hero-title">Approve the run from the console.</h3>
+            <p class="copy">
+              The operator checks launch blockers, budget, provider readiness,
+              and open handoffs in the Fleet Console. They do not run CLI for
+              routine setup.
+            </p>
+            <div class="screen" aria-label="Light console comp">
+              <div class="screen__header">
+                <span class="label">Fleet Flow</span>
+                <span class="chip chip--amber">Needs review</span>
+              </div>
+              <div class="flow">
+                <div class="flow__row">
+                  <span class="chip chip--blue">Human gate</span>
+                  <span>Choose backend, confirm spend ceiling, assign work.</span>
+                  <span class="meta">Ready</span>
+                </div>
+                <div class="flow__row">
+                  <span class="chip">Handoff</span>
+                  <span>Attach task brief, relevant files, and acceptance proof.</span>
+                  <span class="meta">Queued</span>
+                </div>
+                <div class="flow__row">
+                  <span class="chip">Review</span>
+                  <span>Inspect changed files, screenshots, and test evidence.</span>
+                  <span class="meta">Open</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="lane lane--agent">
+            <div class="label">Agent layer / CLI and notes</div>
+            <h3 class="hero-title">Agents leave evidence while they work.</h3>
+            <p class="copy">
+              Agents claim files, write notes, publish handoffs, and report
+              validation. The terminal is proof for agents, not the operator UI.
+            </p>
+            <div class="terminal" aria-label="Agent execution output">
+              <div class="terminal__bar">
+                <span class="dot dot--red"></span>
+                <span class="dot dot--amber"></span>
+                <span class="dot dot--green"></span>
+                agent layer
+              </div>
+              <pre><code><span class="prompt">$</span> pd begin --identity port-daddy:tutorial-rewrite
+<span class="ok">Session opened:</span><span class="out"> port-daddy:tutorial-rewrite</span>
+<span class="out">Worktree: /Users/erichowens/coding/port-daddy</span>
+
+<span class="prompt">$</span> pd session files add website-v2/src/pages/tutorials/Inbox.tsx
+<span class="ok">Claim recorded:</span><span class="out"> Inbox.tsx</span>
+<span class="out">Visible in Fleet Console: Claims panel</span></code></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" id="feature">
+      <header class="page__header">
+        <div>
+          <div class="label">04 / feature detail</div>
+          <h2>Every bento opens into a proof page.</h2>
+        </div>
+        <p class="page__dek">
+          Home-page feature tiles should not dead-end. Each one needs a larger
+          page with screenshots, commands plus outputs, diagrams, links, and a
+          concrete selling argument.
+        </p>
+      </header>
+      <div class="spread">
+        <div class="spread__inner">
+          <div class="feature-grid">
+            <article class="feature">
+              <div class="label">FleetBar</div>
+              <h3>One native entrance for human decisions.</h3>
+              <p class="copy">
+                FleetBar surfaces readiness, credentials, launch blockers, and
+                active work without asking the operator to tail logs.
+              </p>
+              <a class="button button--light" href="javascript:void 0">See Mac Preview</a>
+            </article>
+            <article class="feature">
+              <div class="label">Fleet Control Center</div>
+              <h3>The dashboard for what agents touched.</h3>
+              <p class="copy">
+                Flow, Activity, Channels, Inbox, Sorties, and YAML show the
+                running system from the operator side.
+              </p>
+              <a class="button button--light" href="javascript:void 0">Open Dashboard Docs</a>
+            </article>
+            <article class="feature">
+              <div class="label">Shipwright</div>
+              <h3>Work gets assigned before agents improvise.</h3>
+              <p class="copy">
+                A roadmap slice becomes a bounded launch with ownership,
+                acceptance proof, and recoverable handoff state.
+              </p>
+              <a class="button button--light" href="javascript:void 0">Read Roadmap Flow</a>
+            </article>
+            <article class="feature">
+              <div class="label">Agent Radio</div>
+              <h3>Signals move through named project channels.</h3>
+              <p class="copy">
+                Agents publish state changes and handoffs where other agents
+                and the console can inspect them.
+              </p>
+              <a class="button button--light" href="javascript:void 0">Study Channels</a>
+            </article>
+          </div>
+          <div>
+            <div class="matrix" aria-label="Feature detail proof matrix">
+              <div>
+                <span class="label">Screenshot</span>
+                <h3>Console light and dark pairs.</h3>
+                <p class="copy">Real captures only. The page should never explain a UI surface it does not show.</p>
+              </div>
+              <div>
+                <span class="label">Command proof</span>
+                <h3>Invocation plus result.</h3>
+                <p class="copy">No naked <span class="inline-code">pd ...</span> blocks. Show output or the next visible state.</p>
+              </div>
+              <div>
+                <span class="label">Navigation</span>
+                <h3>Link onward.</h3>
+                <p class="copy">Every feature page should connect to docs, examples, tutorials, and the Mac preview.</p>
+              </div>
+            </div>
+            <p class="caption">
+              This is the page pattern I would apply beneath every home-page
+              bento: one claim, one human screenshot pair, one agent proof, one
+              path to act.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

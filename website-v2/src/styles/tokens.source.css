@@ -1,32 +1,24 @@
 @font-face {
-  font-family: "Radnika";
-  src: url("/fonts/radnika/Radnika-Regular.woff2") format("woff2");
+  font-family: "Test Söhne";
+  src: url("/fonts/soehne-trial/TestSohne-Buch.woff2") format("woff2");
   font-style: normal;
   font-weight: 400;
   font-display: swap;
 }
 
 @font-face {
-  font-family: "Radnika";
-  src: url("/fonts/radnika/Radnika-Medium.woff2") format("woff2");
+  font-family: "Test Söhne";
+  src: url("/fonts/soehne-trial/TestSohne-Kraftig.woff2") format("woff2");
   font-style: normal;
   font-weight: 500;
   font-display: swap;
 }
 
 @font-face {
-  font-family: "Radnika";
-  src: url("/fonts/radnika/Radnika-Bold.woff2") format("woff2");
+  font-family: "Test Söhne";
+  src: url("/fonts/soehne-trial/TestSohne-Halbfett.woff2") format("woff2");
   font-style: normal;
   font-weight: 700;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Radnika";
-  src: url("/fonts/radnika/Radnika-Black.woff2") format("woff2");
-  font-style: normal;
-  font-weight: 900;
   font-display: swap;
 }
 
@@ -67,10 +59,13 @@
   --text-4xl: 2.25rem;
   --text-5xl: 3rem;
 
-  --font-sans: "Radnika", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-display: "Radnika", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-mono:
-    "IBM Plex Mono", "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  --font-brand-sans: "Test Söhne", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-sans: var(--font-brand-sans);
+  --font-display: var(--font-brand-sans);
+  --font-mono: var(--font-brand-sans);
+
+  --type-body-variation: normal;
+  --type-display-variation: normal;
 
   --type-meta-size: 0.8125rem;
   --type-code-size: 0.8125rem;

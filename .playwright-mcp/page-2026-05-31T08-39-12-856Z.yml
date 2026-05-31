@@ -1,0 +1,44 @@
+- main [ref=e2]:
+  - generic [ref=e3]:
+    - heading "Söhne only, across the site." [level=1] [ref=e4]
+    - paragraph [ref=e5]:
+      - text: This board captures the live local site at
+      - code [ref=e6]: 127.0.0.1:5174
+      - text: . The token stack uses Test Söhne for sans/display and Test Söhne Mono for code. Heavy UI classes are capped at real 700 weight.
+  - region "Söhne-only page screenshots" [ref=e7]:
+    - figure "Home Open" [ref=e8]:
+      - generic [ref=e9]:
+        - generic [ref=e10]: Home
+        - link "Open" [ref=e11] [cursor=pointer]:
+          - /url: http://127.0.0.1:5174/
+      - img "Homepage in Söhne-only preview" [ref=e12]
+    - figure "Docs Open" [ref=e13]:
+      - generic [ref=e14]:
+        - generic [ref=e15]: Docs
+        - link "Open" [ref=e16] [cursor=pointer]:
+          - /url: http://127.0.0.1:5174/docs
+      - img "Docs overview in Söhne-only preview" [ref=e17]
+    - figure "Tutorials Open" [ref=e18]:
+      - generic [ref=e19]:
+        - generic [ref=e20]: Tutorials
+        - link "Open" [ref=e21] [cursor=pointer]:
+          - /url: http://127.0.0.1:5174/tutorials
+      - img "Tutorial index in Söhne-only preview" [ref=e22]
+    - figure "Examples Open" [ref=e23]:
+      - generic [ref=e24]:
+        - generic [ref=e25]: Examples
+        - link "Open" [ref=e26] [cursor=pointer]:
+          - /url: http://127.0.0.1:5174/examples
+      - img "Examples page in Söhne-only preview" [ref=e27]
+    - figure "Whitepaper Open" [ref=e28]:
+      - generic [ref=e29]:
+        - generic [ref=e30]: Whitepaper
+        - link "Open" [ref=e31] [cursor=pointer]:
+          - /url: http://127.0.0.1:5174/whitepaper
+      - img "Whitepaper page in Söhne-only preview" [ref=e32]
+    - figure "Tutorial Detail Open" [ref=e33]:
+      - generic [ref=e34]:
+        - generic [ref=e35]: Tutorial Detail
+        - link "Open" [ref=e36] [cursor=pointer]:
+          - /url: http://127.0.0.1:5174/tutorials/inbox
+      - img "Inbox tutorial in Söhne-only preview" [ref=e37]

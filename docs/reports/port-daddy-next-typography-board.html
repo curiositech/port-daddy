@@ -1,0 +1,834 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Port Daddy Next Typography Board</title>
+  <link rel="icon" href="data:,">
+  <style>
+    @font-face {
+      font-family: "Radnika";
+      src: url("../../website-v2/public/fonts/radnika/Radnika-Regular.woff2") format("woff2");
+      font-style: normal;
+      font-weight: 400;
+      font-display: swap;
+    }
+
+    @font-face {
+      font-family: "Radnika";
+      src: url("../../website-v2/public/fonts/radnika/Radnika-Medium.woff2") format("woff2");
+      font-style: normal;
+      font-weight: 500;
+      font-display: swap;
+    }
+
+    @font-face {
+      font-family: "Radnika";
+      src: url("../../website-v2/public/fonts/radnika/Radnika-Bold.woff2") format("woff2");
+      font-style: normal;
+      font-weight: 700;
+      font-display: swap;
+    }
+
+    :root {
+      --paper: rgb(244 241 234);
+      --paper-strong: rgb(250 248 243);
+      --paper-cool: rgb(238 239 237);
+      --ink: rgb(15 15 14);
+      --muted: rgb(74 70 64);
+      --faint: rgb(124 119 108);
+      --rule: rgb(31 30 27);
+      --hairline: rgb(179 174 162);
+      --blue: rgb(30 74 191);
+      --blue-soft: rgb(222 231 255);
+      --green: rgb(59 125 75);
+      --green-soft: rgb(220 236 224);
+      --amber: rgb(180 83 9);
+      --amber-soft: rgb(252 235 189);
+      --code: rgb(17 20 28);
+      --code-text: rgb(235 238 246);
+      --code-muted: rgb(173 180 198);
+      --s1: 4px;
+      --s2: 8px;
+      --s3: 12px;
+      --s4: 16px;
+      --s5: 24px;
+      --s6: 32px;
+      --s7: 48px;
+      --s8: 64px;
+      --s9: 96px;
+      --system-sans: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      --font-current: "Radnika", var(--system-sans);
+      --font-sohne: "Söhne", "Soehne", "Helvetica Neue", Helvetica, Arial, sans-serif;
+      --font-suisse: "Suisse Int'l", "SuisseIntl", Helvetica, Arial, sans-serif;
+      --font-graphik: "Graphik", "Avenir Next", Avenir, var(--system-sans);
+      --font-avenir: "Avenir Next", Avenir, var(--system-sans);
+      --step-caption: clamp(0.75rem, 0.72rem + 0.12vw, 0.8125rem);
+      --step-body: clamp(1rem, 0.95rem + 0.24vw, 1.125rem);
+      --step-ui: clamp(1.125rem, 1.05rem + 0.32vw, 1.28rem);
+      --step-panel: clamp(1.55rem, 1.22rem + 1.1vw, 2.35rem);
+      --step-section: clamp(2.4rem, 1.9rem + 2.2vw, 4rem);
+      --step-display: clamp(4.2rem, 3.1rem + 4.4vw, 7.4rem);
+      --tracking-body: 0;
+      --tracking-caption: 0.018em;
+      --tracking-label: 0.075em;
+      --tracking-display: 0;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      color: var(--ink);
+      background:
+        linear-gradient(90deg, rgb(233 230 222 / 0.48) 1px, transparent 1px),
+        linear-gradient(rgb(233 230 222 / 0.48) 1px, transparent 1px),
+        var(--paper);
+      background-size: 24px 24px;
+      font-family: var(--font-current);
+      font-size: 100%;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+      font-optical-sizing: auto;
+    }
+
+    body {
+      margin: 0;
+    }
+
+    main {
+      width: min(1540px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: var(--s7) 0 var(--s9);
+    }
+
+    .label,
+    .meta,
+    .tag,
+    th,
+    .terminal__bar,
+    .role {
+      font-size: var(--step-caption);
+      line-height: 1.35;
+      letter-spacing: var(--tracking-label);
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    .mast {
+      display: grid;
+      grid-template-columns: minmax(0, 0.62fr) minmax(320px, 0.38fr);
+      gap: var(--s7);
+      align-items: end;
+      border-top: 3px solid var(--rule);
+      border-bottom: 1px solid var(--rule);
+      padding: var(--s5) 0 var(--s7);
+    }
+
+    .mast h1 {
+      margin: 0;
+      max-width: 13ch;
+      font-size: var(--step-display);
+      line-height: 0.98;
+      font-weight: 500;
+      letter-spacing: var(--tracking-display);
+      text-wrap: balance;
+    }
+
+    .mast p,
+    .copy,
+    td,
+    .note,
+    .dek {
+      color: var(--muted);
+      font-size: var(--step-body);
+      line-height: 1.55;
+      letter-spacing: var(--tracking-body);
+      text-wrap: pretty;
+    }
+
+    .mast p {
+      margin: 0;
+      max-width: 48ch;
+    }
+
+    .section {
+      margin-top: var(--s8);
+      border-top: 3px solid var(--rule);
+      padding-top: var(--s5);
+    }
+
+    .section__header {
+      display: grid;
+      grid-template-columns: minmax(0, 0.58fr) minmax(320px, 0.42fr);
+      gap: var(--s7);
+      align-items: end;
+      margin-bottom: var(--s6);
+    }
+
+    .section h2 {
+      margin: 0;
+      max-width: 15ch;
+      font-size: var(--step-section);
+      line-height: 1.04;
+      font-weight: 500;
+      letter-spacing: 0;
+      text-wrap: balance;
+    }
+
+    .dek {
+      margin: 0;
+      max-width: 50ch;
+    }
+
+    .trial-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: var(--s5);
+    }
+
+    .trial {
+      --trial-font: var(--font-current);
+      background: var(--paper-strong);
+      border-top: 2px solid var(--rule);
+      border-bottom: 1px solid var(--rule);
+      padding: var(--s5);
+      display: grid;
+      grid-template-rows: auto auto 1fr auto;
+      gap: var(--s5);
+      font-family: var(--trial-font);
+    }
+
+    .trial--radnika {
+      --trial-font: var(--font-current);
+    }
+
+    .trial--sohne {
+      --trial-font: var(--font-sohne);
+    }
+
+    .trial--suisse {
+      --trial-font: var(--font-suisse);
+    }
+
+    .trial--graphik {
+      --trial-font: var(--font-graphik);
+    }
+
+    .trial--avenir {
+      --trial-font: var(--font-avenir);
+    }
+
+    .trial__top {
+      display: flex;
+      justify-content: space-between;
+      gap: var(--s4);
+      border-bottom: 1px solid var(--hairline);
+      padding-bottom: var(--s3);
+    }
+
+    .trial h3 {
+      margin: 0;
+      max-width: 11ch;
+      font-size: var(--step-display);
+      line-height: 0.98;
+      font-weight: 500;
+      letter-spacing: 0;
+      text-wrap: balance;
+    }
+
+    .trial__split {
+      display: grid;
+      grid-template-columns: minmax(0, 0.48fr) minmax(0, 0.52fr);
+      gap: var(--s5);
+      align-items: start;
+    }
+
+    .module {
+      border-top: 2px solid var(--rule);
+      padding-top: var(--s3);
+      display: grid;
+      gap: var(--s3);
+    }
+
+    .module h4 {
+      margin: 0;
+      max-width: 18ch;
+      font-size: var(--step-panel);
+      line-height: 1.12;
+      font-weight: 500;
+      letter-spacing: 0;
+      text-wrap: balance;
+    }
+
+    .proof-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      border-top: 2px solid var(--rule);
+      border-left: 2px solid var(--rule);
+    }
+
+    .proof-grid div {
+      min-height: 92px;
+      border-right: 2px solid var(--rule);
+      border-bottom: 2px solid var(--rule);
+      padding: var(--s3);
+      display: grid;
+      align-content: space-between;
+      gap: var(--s2);
+    }
+
+    .proof-grid strong {
+      font-size: clamp(1.45rem, 2.3vw, 2.6rem);
+      line-height: 0.98;
+      font-weight: 500;
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--s2);
+      align-items: center;
+    }
+
+    .tag {
+      border: 1px solid var(--rule);
+      background: var(--paper);
+      padding: var(--s1) var(--s2);
+      color: var(--ink);
+    }
+
+    .tag--blue {
+      background: var(--blue);
+      color: var(--paper-strong);
+    }
+
+    .tag--green {
+      background: var(--green-soft);
+    }
+
+    .tag--amber {
+      background: var(--amber-soft);
+      color: var(--ink);
+    }
+
+    .table-wrap {
+      border-top: 2px solid var(--rule);
+      border-bottom: 2px solid var(--rule);
+      background: var(--paper-strong);
+      overflow: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th,
+    td {
+      text-align: left;
+      vertical-align: top;
+      border-bottom: 1px solid var(--hairline);
+      padding: var(--s3) var(--s4);
+    }
+
+    tr:last-child th,
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    code,
+    .inline-code {
+      font-family: var(--font-mono);
+      color: var(--blue);
+      background: rgb(232 229 220);
+      border: 1px solid var(--hairline);
+      padding: 0.08em 0.28em;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums slashed-zero;
+    }
+
+    .terminal {
+      background: var(--code);
+      color: var(--code-text);
+      border: 2px solid var(--rule);
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums slashed-zero;
+    }
+
+    .terminal__bar {
+      color: var(--code-muted);
+      padding: var(--s3) var(--s4);
+      border-bottom: 1px solid rgb(50 54 66);
+    }
+
+    pre {
+      margin: 0;
+      overflow: auto;
+      padding: var(--s4);
+      font-size: 0.94rem;
+      line-height: 1.5;
+    }
+
+    .prompt {
+      color: rgb(176 232 156);
+    }
+
+    .out {
+      color: rgb(204 210 226);
+    }
+
+    .ok {
+      color: rgb(142 205 155);
+    }
+
+    .warn {
+      color: rgb(240 197 115);
+    }
+
+    .rules {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--s5);
+    }
+
+    .rule-card {
+      background: var(--paper-strong);
+      border-top: 2px solid var(--rule);
+      padding-top: var(--s4);
+      display: grid;
+      gap: var(--s3);
+    }
+
+    .rule-card h3 {
+      margin: 0;
+      font-size: var(--step-panel);
+      line-height: 1.12;
+      font-weight: 500;
+      text-wrap: balance;
+    }
+
+    .verdict {
+      color: var(--green);
+      font-weight: 700;
+    }
+
+    .caution {
+      color: var(--amber);
+      font-weight: 700;
+    }
+
+    @media (max-width: 980px) {
+      main {
+        width: min(100% - 24px, 840px);
+      }
+
+      .mast,
+      .section__header,
+      .trial-grid,
+      .trial__split,
+      .rules {
+        grid-template-columns: 1fr;
+      }
+
+      .proof-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="mast">
+      <div>
+        <div class="label">Port Daddy next typography board</div>
+        <h1>Stop picking H1s. Pick the system.</h1>
+      </div>
+      <p>
+        This board applies the deeper typography pass: smaller H1s, role-based
+        type tokens, tabular proof surfaces, optical behavior, and paid-face
+        procurement slots. Radnika renders from the repo. Söhne, Suisse Int'l,
+        and Graphik render only if trial or licensed files are installed.
+      </p>
+    </section>
+
+    <section class="section">
+      <header class="section__header">
+        <div>
+          <div class="label">01 / Font-system trials</div>
+          <h2>Same product story, four type directions.</h2>
+        </div>
+        <p class="dek">
+          These are not type specimens in cards. They are product surfaces:
+          homepage claim, proof grid, docs module, and terminal evidence. The
+          typeface is allowed to change; the Port Daddy structure stays fixed.
+        </p>
+      </header>
+
+      <div class="trial-grid">
+        <article class="trial trial--radnika">
+          <div class="trial__top">
+            <div>
+              <div class="label">A / Radnika disciplined</div>
+              <div class="meta">Installed and renderable</div>
+            </div>
+            <span class="tag tag--green">Control</span>
+          </div>
+          <h3>Agents do the work. The console keeps it accountable.</h3>
+          <div class="trial__split">
+            <div class="module">
+              <div class="role">Homepage role</div>
+              <h4>Good if we want practical, blunt, already-owned.</h4>
+              <p class="copy">
+                Radnika works when capped at Medium and supported by rules,
+                tables, screenshots, and proof. It still needs discipline to
+                avoid generic SaaS heaviness.
+              </p>
+            </div>
+            <div class="proof-grid">
+              <div><span class="role">Human</span><strong>Fleet Console</strong></div>
+              <div><span class="role">Agent</span><strong>Claims</strong></div>
+              <div><span class="role">Memory</span><strong>Notes</strong></div>
+              <div><span class="role">Signals</span><strong>Radio</strong></div>
+            </div>
+          </div>
+          <div class="tag-row">
+            <span class="tag tag--blue">ship now</span>
+            <span class="tag">no black cut</span>
+            <span class="tag">weight 500 default</span>
+          </div>
+        </article>
+
+        <article class="trial trial--sohne">
+          <div class="trial__top">
+            <div>
+              <div class="label">B / Söhne target</div>
+              <div class="meta">Procure trial or company license</div>
+            </div>
+            <span class="tag tag--blue">Primary bet</span>
+          </div>
+          <h3>Agents do the work. The console keeps it accountable.</h3>
+          <div class="trial__split">
+            <div class="module">
+              <div class="role">Homepage role</div>
+              <h4>Best bet for Swiss technical authority without cuteness.</h4>
+              <p class="copy">
+                This is the serious paid candidate: neo-grotesque, controlled,
+                sharp enough for an agent control plane, less blunt than the
+                current system.
+              </p>
+            </div>
+            <div class="terminal">
+              <div class="terminal__bar">Command proof / always with output</div>
+              <pre><code><span class="prompt">$</span> pd status
+<span class="out">Daemon: reachable
+Fleet Console: visible
+Open sessions: 3
+Claims: 12 files, 4 regions</span></code></pre>
+            </div>
+          </div>
+          <div class="tag-row">
+            <span class="tag tag--amber">needs license</span>
+            <span class="tag">test Söhne plus mono</span>
+            <span class="tag">likely winner</span>
+          </div>
+        </article>
+
+        <article class="trial trial--suisse">
+          <div class="trial__top">
+            <div>
+              <div class="label">C / Suisse Int'l target</div>
+              <div class="meta">Procure trial or company license</div>
+            </div>
+            <span class="tag">Canonical Swiss</span>
+          </div>
+          <h3>Agents do the work. The console keeps it accountable.</h3>
+          <div class="trial__split">
+            <div class="module">
+              <div class="role">Docs role</div>
+              <h4>Best if the website should feel colder and more manual-like.</h4>
+              <p class="copy">
+                Suisse is the strict option. It may suit docs, whitepapers, and
+                technical references, but can get too sterile for the homepage.
+              </p>
+            </div>
+            <div class="proof-grid">
+              <div><span class="role">Docs</span><strong>Surface first</strong></div>
+              <div><span class="role">Output</span><strong>Then command</strong></div>
+              <div><span class="role">Human</span><strong>Fleet Flow</strong></div>
+              <div><span class="role">Agent</span><strong>CLI proof</strong></div>
+            </div>
+          </div>
+          <div class="tag-row">
+            <span class="tag tag--amber">needs license</span>
+            <span class="tag">best for docs</span>
+            <span class="tag">watch coldness</span>
+          </div>
+        </article>
+
+        <article class="trial trial--graphik">
+          <div class="trial__top">
+            <div>
+              <div class="label">D / Graphik target</div>
+              <div class="meta">Procure trial or company license</div>
+            </div>
+            <span class="tag">Editorial product</span>
+          </div>
+          <h3>Agents do the work. The console keeps it accountable.</h3>
+          <div class="trial__split">
+            <div class="module">
+              <div class="role">Editorial role</div>
+              <h4>Best if the public site should read like a serious product publication.</h4>
+              <p class="copy">
+                Graphik is less austere than Suisse and less blunt than
+                Radnika. It may be strongest for blog, papers, and feature pages.
+              </p>
+            </div>
+            <table>
+              <tbody>
+                <tr><th>Use</th><td>Editorial landing, blog, whitepaper, longer product arguments.</td></tr>
+                <tr><th>Risk</th><td>Less uniquely Swiss unless layout is disciplined.</td></tr>
+                <tr><th>Rule</th><td>Keep H1 weight at 500 and let structure carry contrast.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="tag-row">
+            <span class="tag tag--amber">needs license</span>
+            <span class="tag">best for editorial</span>
+            <span class="tag">strong blog candidate</span>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <header class="section__header">
+        <div>
+          <div class="label">02 / Role-based contract</div>
+          <h2>The type system should be semantic, not page-specific.</h2>
+        </div>
+        <p class="dek">
+          The website needs stable typographic roles that survive page redesigns.
+          Page templates should consume roles like display, surface title, proof,
+          and ledger instead of inventing local sizes.
+        </p>
+      </header>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Role</th>
+              <th>Size</th>
+              <th>Weight</th>
+              <th>Behavior</th>
+              <th>Port Daddy use</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th>Display editorial</th>
+              <td><code>clamp(4.2rem, 3.1rem + 4.4vw, 7.4rem)</code></td>
+              <td>500</td>
+              <td><code>text-wrap: balance</code>, tracking zero, max 11 to 13 characters.</td>
+              <td>Home hero, paper hero, major feature opening.</td>
+            </tr>
+            <tr>
+              <th>Page title</th>
+              <td><code>clamp(2.4rem, 1.9rem + 2.2vw, 4rem)</code></td>
+              <td>500</td>
+              <td>Medium weight, generous line height, never poster-huge in docs.</td>
+              <td>Docs, tutorials, examples, whitepaper pages.</td>
+            </tr>
+            <tr>
+              <th>Surface title</th>
+              <td><code>clamp(1.55rem, 1.22rem + 1.1vw, 2.35rem)</code></td>
+              <td>500</td>
+              <td>Dense enough for dashboards, drawers, bento expansions.</td>
+              <td>FleetBar, Fleet Console, feature-detail modules.</td>
+            </tr>
+            <tr>
+              <th>Body reading</th>
+              <td><code>clamp(1rem, 0.95rem + 0.24vw, 1.125rem)</code></td>
+              <td>400</td>
+              <td><code>text-wrap: pretty</code>, line height 1.55, measure 45 to 65 characters.</td>
+              <td>Docs prose, tutorial explanation, blog body.</td>
+            </tr>
+            <tr>
+              <th>UI label</th>
+              <td><code>0.75rem to 0.8125rem</code></td>
+              <td>700</td>
+              <td>All caps allowed, tracking 0.075em, no novelty font.</td>
+              <td>Nav, status, captions, figure labels.</td>
+            </tr>
+            <tr>
+              <th>Code proof</th>
+              <td><code>0.94rem to 1rem</code></td>
+              <td>400</td>
+              <td>Tabular nums, slashed zero, output required after every command.</td>
+              <td>CLI examples, docs snippets, tutorial agent layer.</td>
+            </tr>
+            <tr>
+              <th>Numeric ledger</th>
+              <td>Depends on density</td>
+              <td>500</td>
+              <td><code>font-variant-numeric: tabular-nums slashed-zero</code>.</td>
+              <td>Budget, ports, sessions, claims, token cost, readiness counts.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section">
+      <header class="section__header">
+        <div>
+          <div class="label">03 / Better page mechanics</div>
+          <h2>Less poster. More proof architecture.</h2>
+        </div>
+        <p class="dek">
+          The core improvement is not a prettier H1. It is a page system where
+          evidence, human control, and agent execution are always visible in the
+          composition.
+        </p>
+      </header>
+      <div class="rules">
+        <article class="rule-card">
+          <div class="label">Hero rule</div>
+          <h3>Keep hero H1s smaller than the old comp.</h3>
+          <p class="copy">
+            Use scale for hierarchy, but cap it before it turns into a poster.
+            The supporting proof grid should share the first viewport.
+          </p>
+        </article>
+        <article class="rule-card">
+          <div class="label">Docs rule</div>
+          <h3>Surface before command.</h3>
+          <p class="copy">
+            Every docs page explains the human layer first, then the agent CLI
+            layer. Naked <span class="inline-code">pd ...</span> examples are invalid.
+          </p>
+        </article>
+        <article class="rule-card">
+          <div class="label">Tutorial rule</div>
+          <h3>Teach a real job.</h3>
+          <p class="copy">
+            A tutorial starts with the operator task, shows the Fleet Console,
+            then proves the agent behavior through output and recovery state.
+          </p>
+        </article>
+        <article class="rule-card">
+          <div class="label">Amber rule</div>
+          <h3>Amber is state, not decoration.</h3>
+          <p class="copy">
+            Amber means human review, caution, budget pressure, or readiness.
+            Never yellow headline words. Never yellow text on beige.
+          </p>
+        </article>
+        <article class="rule-card">
+          <div class="label">Mono rule</div>
+          <h3>Proof text is a product surface.</h3>
+          <p class="copy">
+            Code blocks need labels, expected output, numeric stability, and
+            enough density to avoid huge dead terminal panels.
+          </p>
+        </article>
+        <article class="rule-card">
+          <div class="label">Dark mode rule</div>
+          <h3>Do not bump weight in dark mode.</h3>
+          <p class="copy">
+            Prefer a grade axis when available. If not, use a tiny optical
+            adjustment and verify line wraps do not move.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <header class="section__header">
+        <div>
+          <div class="label">04 / Implementation contract</div>
+          <h2>Make the trial enforceable in code.</h2>
+        </div>
+        <p class="dek">
+          This is the shape I would put into the website once we pick the face:
+          one display family, one text family if needed, one mono, metric
+          overrides, semantic roles, and no arbitrary component typography.
+        </p>
+      </header>
+      <div class="terminal">
+        <div class="terminal__bar">CSS contract sketch</div>
+        <pre><code>:root {
+  --font-display: var(--font-brand-sans);
+  --font-body: var(--font-brand-sans);
+  --font-proof: var(--font-brand-mono);
+
+  --type-display-size: clamp(4.2rem, 3.1rem + 4.4vw, 7.4rem);
+  --type-display-weight: 500;
+  --type-display-line: 0.98;
+  --type-display-tracking: 0;
+
+  --type-page-size: clamp(2.4rem, 1.9rem + 2.2vw, 4rem);
+  --type-page-weight: 500;
+  --type-page-line: 1.04;
+
+  --type-surface-size: clamp(1.55rem, 1.22rem + 1.1vw, 2.35rem);
+  --type-surface-weight: 500;
+  --type-surface-line: 1.12;
+
+  --type-body-size: clamp(1rem, 0.95rem + 0.24vw, 1.125rem);
+  --type-body-line: 1.55;
+
+  --type-label-size: clamp(0.75rem, 0.72rem + 0.12vw, 0.8125rem);
+  --type-label-tracking: 0.075em;
+}
+
+.pd-display { text-wrap: balance; }
+.pd-body { text-wrap: pretty; }
+.pd-proof { font-variant-numeric: tabular-nums slashed-zero; }</code></pre>
+      </div>
+    </section>
+
+    <section class="section">
+      <header class="section__header">
+        <div>
+          <div class="label">05 / Recommendation</div>
+          <h2>Buy one trial, then compare real pages.</h2>
+        </div>
+        <p class="dek">
+          Do not decide from fallback renderings. The next real decision is:
+          install trial files for the paid candidates, rerun this exact board,
+          and compare page behavior, not alphabet samples.
+        </p>
+      </header>
+      <div class="table-wrap">
+        <table>
+          <tbody>
+            <tr>
+              <th>First trial</th>
+              <td><span class="verdict">Söhne</span> because it is the most likely to improve authority without making Port Daddy cold or fashionable.</td>
+            </tr>
+            <tr>
+              <th>Second trial</th>
+              <td><span class="caution">Suisse Int'l</span> if we want a more canonical Swiss manual/documentation system.</td>
+            </tr>
+            <tr>
+              <th>Third trial</th>
+              <td><span class="caution">Graphik</span> if the blog, papers, and product essays need a more editorial product-publication feel.</td>
+            </tr>
+            <tr>
+              <th>Fallback</th>
+              <td>Keep Radnika, but lock the role tokens and remove the Black cut from all public H1 usage.</td>
+            </tr>
+            <tr>
+              <th>Non-negotiable</th>
+              <td>No decorative headline amber, no naked command boxes, no local typography variants in tutorial/docs components.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

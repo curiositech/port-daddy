@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Port Daddy Söhne Trial Direction</title>
+  <link rel="icon" href="data:,">
+  <style>
+    @font-face {
+      font-family: "Test Söhne";
+      src: url("../../website-v2/public/fonts/soehne-trial/TestSohne-Buch.woff2") format("woff2");
+      font-style: normal;
+      font-weight: 400;
+      font-display: swap;
+    }
+
+    @font-face {
+      font-family: "Test Söhne";
+      src: url("../../website-v2/public/fonts/soehne-trial/TestSohne-Kraftig.woff2") format("woff2");
+      font-style: normal;
+      font-weight: 500;
+      font-display: swap;
+    }
+
+    @font-face {
+      font-family: "Test Söhne";
+      src: url("../../website-v2/public/fonts/soehne-trial/TestSohne-Halbfett.woff2") format("woff2");
+      font-style: normal;
+      font-weight: 700;
+      font-display: swap;
+    }
+
+    @font-face {
+      font-family: "Radnika";
+      src: url("../../website-v2/public/fonts/radnika/Radnika-Regular.woff2") format("woff2");
+      font-style: normal;
+      font-weight: 400;
+      font-display: swap;
+    }
+
+    @font-face {
+      font-family: "Radnika";
+      src: url("../../website-v2/public/fonts/radnika/Radnika-Medium.woff2") format("woff2");
+      font-style: normal;
+      font-weight: 500;
+      font-display: swap;
+    }
+
+    @font-face {
+      font-family: "Radnika";
+      src: url("../../website-v2/public/fonts/radnika/Radnika-Bold.woff2") format("woff2");
+      font-style: normal;
+      font-weight: 700;
+      font-display: swap;
+    }
+
+    :root {
+      --paper: rgb(244 241 234);
+      --paper-strong: rgb(250 248 243);
+      --ink: rgb(15 15 14);
+      --muted: rgb(74 70 64);
+      --rule: rgb(31 30 27);
+      --hairline: rgb(179 174 162);
+      --blue: rgb(30 74 191);
+      --blue-soft: rgb(223 231 255);
+      --green: rgb(59 125 75);
+      --amber: rgb(180 83 9);
+      --amber-soft: rgb(252 235 189);
+      --code: rgb(17 20 28);
+      --code-text: rgb(235 238 246);
+      --code-muted: rgb(173 180 198);
+      --s1: 4px;
+      --s2: 8px;
+      --s3: 12px;
+      --s4: 16px;
+      --s5: 24px;
+      --s6: 32px;
+      --s7: 48px;
+      --s8: 64px;
+      --s9: 96px;
+      --font-brand: "Test Söhne", "Radnika", "Helvetica Neue", Helvetica, Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      --type-display: clamp(3.7rem, 3rem + 3.2vw, 6.4rem);
+      --type-page: clamp(2.35rem, 1.9rem + 2vw, 3.8rem);
+      --type-surface: clamp(1.55rem, 1.22rem + 1vw, 2.25rem);
+      --type-body: clamp(1rem, 0.96rem + 0.22vw, 1.125rem);
+      --type-label: clamp(0.75rem, 0.72rem + 0.12vw, 0.8125rem);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      color: var(--ink);
+      background:
+        linear-gradient(90deg, rgb(233 230 222 / 0.48) 1px, transparent 1px),
+        linear-gradient(rgb(233 230 222 / 0.48) 1px, transparent 1px),
+        var(--paper);
+      background-size: 24px 24px;
+      font-family: var(--font-brand);
+      font-size: 100%;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+      font-optical-sizing: auto;
+    }
+
+    body {
+      margin: 0;
+    }
+
+    main {
+      width: min(1500px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: var(--s7) 0 var(--s9);
+    }
+
+    .label,
+    .meta,
+    .chip,
+    th,
+    .terminal__bar {
+      font-size: var(--type-label);
+      line-height: 1.35;
+      letter-spacing: 0.075em;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    .mast,
+    .section__header {
+      display: grid;
+      grid-template-columns: minmax(0, 0.6fr) minmax(320px, 0.4fr);
+      gap: var(--s7);
+      align-items: end;
+    }
+
+    .mast {
+      border-top: 3px solid var(--rule);
+      border-bottom: 1px solid var(--rule);
+      padding: var(--s5) 0 var(--s7);
+    }
+
+    h1,
+    h2,
+    h3,
+    h4,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      max-width: 13ch;
+      font-size: var(--type-display);
+      line-height: 0.98;
+      font-weight: 500;
+      letter-spacing: 0;
+      text-wrap: balance;
+    }
+
+    .copy,
+    .dek,
+    td,
+    .note {
+      color: var(--muted);
+      font-size: var(--type-body);
+      line-height: 1.55;
+      text-wrap: pretty;
+    }
+
+    .mast .copy {
+      max-width: 48ch;
+    }
+
+    .section {
+      margin-top: var(--s8);
+      border-top: 3px solid var(--rule);
+      padding-top: var(--s5);
+    }
+
+    h2 {
+      max-width: 15ch;
+      font-size: var(--type-page);
+      line-height: 1.04;
+      font-weight: 500;
+      text-wrap: balance;
+    }
+
+    .section__header {
+      margin-bottom: var(--s6);
+    }
+
+    .dek {
+      max-width: 50ch;
+    }
+
+    .spread {
+      background: var(--paper-strong);
+      border-top: 1px solid var(--rule);
+      border-bottom: 1px solid var(--rule);
+      padding: var(--s5);
+      display: grid;
+      grid-template-columns: minmax(0, 0.52fr) minmax(360px, 0.48fr);
+      gap: var(--s6);
+      align-items: start;
+    }
+
+    .hero-title {
+      max-width: 11ch;
+      font-size: var(--type-display);
+      line-height: 0.98;
+      font-weight: 500;
+      letter-spacing: 0;
+      text-wrap: balance;
+    }
+
+    .hero-copy {
+      max-width: 42ch;
+      margin-top: var(--s5);
+      color: var(--muted);
+      font-size: clamp(1.05rem, 1.18vw, 1.28rem);
+      line-height: 1.55;
+    }
+
+    .proof-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      border-top: 2px solid var(--rule);
+      border-left: 2px solid var(--rule);
+    }
+
+    .proof-grid div {
+      min-height: 132px;
+      border-right: 2px solid var(--rule);
+      border-bottom: 2px solid var(--rule);
+      padding: var(--s4);
+      display: grid;
+      align-content: space-between;
+      gap: var(--s3);
+    }
+
+    .proof-grid strong {
+      font-size: clamp(2rem, 3.5vw, 3.8rem);
+      line-height: 0.95;
+      font-weight: 500;
+    }
+
+    .terminal {
+      background: var(--code);
+      color: var(--code-text);
+      border: 2px solid var(--rule);
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums slashed-zero;
+    }
+
+    .terminal__bar {
+      color: var(--code-muted);
+      border-bottom: 1px solid rgb(50 54 66);
+      padding: var(--s3) var(--s4);
+    }
+
+    pre {
+      margin: 0;
+      overflow: auto;
+      padding: var(--s4);
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+
+    .prompt {
+      color: rgb(176 232 156);
+    }
+
+    .out {
+      color: rgb(204 210 226);
+    }
+
+    .ok {
+      color: rgb(142 205 155);
+    }
+
+    .warn {
+      color: rgb(240 197 115);
+    }
+
+    .lane-grid,
+    .rules {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: var(--s5);
+    }
+
+    .lane,
+    .rule {
+      border-top: 2px solid var(--rule);
+      padding-top: var(--s4);
+      display: grid;
+      gap: var(--s4);
+    }
+
+    .lane--human {
+      border-top-color: var(--blue);
+    }
+
+    .lane--agent {
+      border-top-color: var(--green);
+    }
+
+    h3,
+    h4 {
+      max-width: 18ch;
+      font-size: var(--type-surface);
+      line-height: 1.12;
+      font-weight: 500;
+      letter-spacing: 0;
+      text-wrap: balance;
+    }
+
+    .screen {
+      border: 2px solid var(--rule);
+      background: var(--paper);
+      padding: var(--s4);
+      display: grid;
+      gap: var(--s3);
+    }
+
+    .screen-row {
+      display: grid;
+      grid-template-columns: 140px minmax(0, 1fr) 110px;
+      gap: var(--s3);
+      align-items: center;
+      border-bottom: 1px solid var(--hairline);
+      padding: var(--s2) 0;
+    }
+
+    .screen-row:last-child {
+      border-bottom: 0;
+    }
+
+    .chip {
+      border: 1px solid var(--rule);
+      background: var(--paper);
+      padding: var(--s1) var(--s2);
+      width: max-content;
+    }
+
+    .chip--blue {
+      background: var(--blue);
+      color: var(--paper-strong);
+    }
+
+    .chip--amber {
+      background: var(--amber-soft);
+      color: var(--ink);
+    }
+
+    .table-wrap {
+      border-top: 2px solid var(--rule);
+      border-bottom: 2px solid var(--rule);
+      background: var(--paper-strong);
+      overflow: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th,
+    td {
+      text-align: left;
+      vertical-align: top;
+      border-bottom: 1px solid var(--hairline);
+      padding: var(--s3) var(--s4);
+    }
+
+    tr:last-child th,
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    code,
+    .inline-code {
+      font-family: var(--font-mono);
+      color: var(--blue);
+      background: rgb(232 229 220);
+      border: 1px solid var(--hairline);
+      padding: 0.08em 0.28em;
+      font-weight: 700;
+    }
+
+    pre code {
+      color: inherit;
+      background: transparent;
+      border: 0;
+      padding: 0;
+      font-weight: inherit;
+    }
+
+    @media (max-width: 980px) {
+      main {
+        width: min(100% - 24px, 840px);
+      }
+
+      .mast,
+      .section__header,
+      .spread,
+      .lane-grid,
+      .rules {
+        grid-template-columns: 1fr;
+      }
+
+      .proof-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .screen-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="mast">
+      <div>
+        <div class="label">Port Daddy Söhne trial direction</div>
+        <h1>Use Söhne as the working brand face.</h1>
+      </div>
+      <p class="copy">
+        This board drops the comparison exercise. The trial direction is Söhne:
+        Medium-weight headlines, denser proof structures, separate human and
+        agent layers, and no decorative amber. If the trial files are not
+        installed, this page falls back to Radnika while preserving the contract.
+      </p>
+    </section>
+
+    <section class="section">
+      <header class="section__header">
+        <div>
+          <div class="label">01 / home page</div>
+          <h2>The public story becomes less poster, more operating surface.</h2>
+        </div>
+        <p class="dek">
+          Söhne should make Port Daddy feel like a disciplined control plane:
+          sharp, modern, Swiss enough, and not cute. The first viewport should
+          show claim, proof, and human entry point at once.
+        </p>
+      </header>
+      <div class="spread">
+        <div>
+          <h3 class="hero-title">Agents do the work. The console keeps it accountable.</h3>
+          <p class="hero-copy">
+            Port Daddy gives coding agents a shared place to leave intent, claim
+            files, publish signals, and recover handoffs. Operators see launch
+            blockers, budgets, credentials, and next actions in FleetBar and the
+            Fleet Console.
+          </p>
+        </div>
+        <div class="proof-grid" aria-label="Homepage proof grid">
+          <div><span class="label">Human surface</span><strong>Fleet Console</strong></div>
+          <div><span class="label">Agent surface</span><strong>Claims</strong></div>
+          <div><span class="label">Shared memory</span><strong>Notes</strong></div>
+          <div><span class="label">Live signals</span><strong>Radio</strong></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <header class="section__header">
+        <div>
+          <div class="label">02 / docs and tutorials</div>
+          <h2>Teach the operator layer before the agent layer.</h2>
+        </div>
+        <p class="dek">
+          Söhne does not fix bad information architecture by itself. The docs
+          still need a strict pattern: human surface, agent command, expected
+          output, and the visible result in the control plane.
+        </p>
+      </header>
+      <div class="lane-grid">
+        <article class="lane lane--human">
+          <div class="label">Human layer / Fleet Console</div>
+          <h3>Approve the run from a visible control surface.</h3>
+          <p class="copy">
+            The operator reviews provider readiness, spend ceiling, launch
+            blockers, and open handoffs. They are not asked to run routine CLI.
+          </p>
+          <div class="screen" aria-label="Fleet Console comp">
+            <div class="screen-row">
+              <span class="chip chip--blue">Human gate</span>
+              <span>Choose backend, confirm spend ceiling, assign work.</span>
+              <span class="meta">Ready</span>
+            </div>
+            <div class="screen-row">
+              <span class="chip">Handoff</span>
+              <span>Attach task brief, relevant files, and acceptance proof.</span>
+              <span class="meta">Queued</span>
+            </div>
+            <div class="screen-row">
+              <span class="chip chip--amber">Review</span>
+              <span>Inspect changed files, screenshots, and validation.</span>
+              <span class="meta">Open</span>
+            </div>
+          </div>
+        </article>
+        <article class="lane lane--agent">
+          <div class="label">Agent layer / CLI proof</div>
+          <h3>Agents leave evidence while they work.</h3>
+          <p class="copy">
+            The terminal is an agent proof surface. It must show output and the
+            next visible state in Fleet Console.
+          </p>
+          <div class="terminal" aria-label="Command output">
+            <div class="terminal__bar">agent proof / command plus output</div>
+            <pre><code><span class="prompt">$</span> pd begin --identity port-daddy:tutorial-rewrite
+<span class="ok">Session opened:</span><span class="out"> port-daddy:tutorial-rewrite</span>
+<span class="out">Visible in Fleet Console: Sessions panel</span>
+
+<span class="prompt">$</span> pd session files add website-v2/src/pages/tutorials/Inbox.tsx
+<span class="ok">Claim recorded:</span><span class="out"> Inbox.tsx</span>
+<span class="out">Visible in Fleet Console: Claims panel</span></code></pre>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <header class="section__header">
+        <div>
+          <div class="label">03 / Söhne role contract</div>
+          <h2>The trial succeeds only if it becomes a typed system.</h2>
+        </div>
+        <p class="dek">
+          The production decision is not “buy Söhne and keep all the old local
+          font chaos.” The decision is a semantic type contract consumed by every
+          docs, tutorial, landing, blog, and feature component.
+        </p>
+      </header>
+      <div class="table-wrap">
+        <table>
+          <tbody>
+            <tr>
+              <th>Display</th>
+              <td><code>500</code>, balanced, max 11 to 13 characters. Use for homepage, feature, and paper openings.</td>
+            </tr>
+            <tr>
+              <th>Page title</th>
+              <td><code>500</code>, smaller than the poster comps. Use for docs, tutorials, examples, whitepaper pages.</td>
+            </tr>
+            <tr>
+              <th>Surface title</th>
+              <td><code>500</code>, compact. Use for dashboards, bento expansions, Fleet Console references.</td>
+            </tr>
+            <tr>
+              <th>Body</th>
+              <td><code>400</code>, line-height <code>1.55</code>, pretty wrapping, measure 45 to 65 characters.</td>
+            </tr>
+            <tr>
+              <th>Labels</th>
+              <td><code>700</code>, uppercase, tracked. No novelty second font.</td>
+            </tr>
+            <tr>
+              <th>Proof</th>
+              <td>Mono with tabular numbers, slashed zero, and expected output after every command.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section">
+      <header class="section__header">
+        <div>
+          <div class="label">04 / install boundary</div>
+          <h2>Trial now. Production only after license.</h2>
+        </div>
+        <p class="dek">
+          The repo is ready for Klim's official test files, but they are not
+          bundled here. Install the zip locally, review pages, then replace the
+          trial slot with licensed production webfonts before public deployment.
+        </p>
+      </header>
+      <div class="terminal">
+        <div class="terminal__bar">local trial install</div>
+        <pre><code><span class="prompt">$</span> bash scripts/install-soehne-trial.sh ~/Downloads/klim-test-fonts.zip
+<span class="ok">installed</span><span class="out"> TestSohne-Buch.woff2</span>
+<span class="ok">installed</span><span class="out"> TestSohne-Kraftig.woff2</span>
+<span class="ok">installed</span><span class="out"> TestSohne-Halbfett.woff2</span>
+<span class="out">Söhne trial fonts installed in website-v2/public/fonts/soehne-trial</span></code></pre>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Port Daddy Söhne-Only Site Preview</title>
+    <style>
+      @font-face {
+        font-family: "Test Söhne";
+        src: url("../../website-v2/public/fonts/soehne-trial/TestSohne-Buch.woff2") format("woff2");
+        font-weight: 400;
+      }
+
+      @font-face {
+        font-family: "Test Söhne";
+        src: url("../../website-v2/public/fonts/soehne-trial/TestSohne-Kraftig.woff2") format("woff2");
+        font-weight: 500;
+      }
+
+      @font-face {
+        font-family: "Test Söhne";
+        src: url("../../website-v2/public/fonts/soehne-trial/TestSohne-Halbfett.woff2") format("woff2");
+        font-weight: 700;
+      }
+
+      :root {
+        --paper: rgb(246 242 234);
+        --ink: rgb(18 18 17);
+        --muted: rgb(80 76 69);
+        --line: rgb(28 28 26);
+        --blue: rgb(28 72 188);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font-family: "Test Söhne", Helvetica, Arial, sans-serif;
+      }
+
+      main {
+        padding: 48px;
+      }
+
+      header {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(18rem, 28rem);
+        gap: 32px;
+        align-items: end;
+        border-bottom: 3px solid var(--line);
+        padding-bottom: 32px;
+        margin-bottom: 32px;
+      }
+
+      h1 {
+        margin: 0;
+        max-width: 11ch;
+        font-size: clamp(3rem, 8vw, 7rem);
+        line-height: 0.94;
+        font-weight: 700;
+        letter-spacing: 0;
+      }
+
+      p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 1.25rem;
+        line-height: 1.45;
+      }
+
+      code {
+        font-family: "Test Söhne", Helvetica, Arial, sans-serif;
+        font-weight: 700;
+        color: var(--blue);
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 32px;
+      }
+
+      figure {
+        margin: 0;
+        border: 3px solid var(--line);
+        background: var(--paper);
+      }
+
+      figcaption {
+        display: flex;
+        justify-content: space-between;
+        gap: 24px;
+        border-bottom: 3px solid var(--line);
+        padding: 14px 16px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      a {
+        color: var(--blue);
+        text-decoration: none;
+      }
+
+      img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+
+      @media (max-width: 900px) {
+        main {
+          padding: 24px;
+        }
+
+        header,
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Söhne only, across the site.</h1>
+        <p>
+          This board captures the live local site at <code>127.0.0.1:5174</code>.
+          The token stack uses Test Söhne for sans, display, code, terminals, and
+          UI labels. Heavy UI classes are capped at real 700 weight.
+        </p>
+      </header>
+
+      <section class="grid" aria-label="Söhne-only page screenshots">
+        <figure>
+          <figcaption><span>Home</span><a href="http://127.0.0.1:5174/">Open</a></figcaption>
+          <img src="soehne-preview/home.png" alt="Homepage in Söhne-only preview">
+        </figure>
+        <figure>
+          <figcaption><span>Docs</span><a href="http://127.0.0.1:5174/docs">Open</a></figcaption>
+          <img src="soehne-preview/docs.png" alt="Docs overview in Söhne-only preview">
+        </figure>
+        <figure>
+          <figcaption><span>Tutorials</span><a href="http://127.0.0.1:5174/tutorials">Open</a></figcaption>
+          <img src="soehne-preview/tutorials.png" alt="Tutorial index in Söhne-only preview">
+        </figure>
+        <figure>
+          <figcaption><span>Examples</span><a href="http://127.0.0.1:5174/examples">Open</a></figcaption>
+          <img src="soehne-preview/examples.png" alt="Examples page in Söhne-only preview">
+        </figure>
+        <figure>
+          <figcaption><span>Example Detail</span><a href="http://127.0.0.1:5174/examples/pd-tube-button-to-agent">Open</a></figcaption>
+          <img src="soehne-preview/example-pd-tube.png" alt="PD Tube example detail in Söhne-only preview">
+        </figure>
+        <figure>
+          <figcaption><span>Whitepaper</span><a href="http://127.0.0.1:5174/whitepaper">Open</a></figcaption>
+          <img src="soehne-preview/whitepaper.png" alt="Whitepaper page in Söhne-only preview">
+        </figure>
+        <figure>
+          <figcaption><span>Tutorial Detail</span><a href="http://127.0.0.1:5174/tutorials/inbox">Open</a></figcaption>
+          <img src="soehne-preview/tutorial-inbox.png" alt="Inbox tutorial in Söhne-only preview">
+        </figure>
+      </section>
+    </main>
+  </body>
+</html>

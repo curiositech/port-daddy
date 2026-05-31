@@ -1,0 +1,149 @@
+[
+  {
+    "name": "home",
+    "url": "http://127.0.0.1:5174/",
+    "families": [
+      "\"Test Söhne\", \"Helvetica Neue\", Helvetica, Arial, sans-serif"
+    ],
+    "weights": [
+      "400",
+      "500",
+      "600",
+      "700"
+    ],
+    "offenderCount": 0,
+    "heavyCount": 0,
+    "offenders": [],
+    "loadedFonts": [
+      "Test Söhne:400:loaded",
+      "Test Söhne:500:loaded",
+      "Test Söhne:700:loaded"
+    ]
+  },
+  {
+    "name": "docs",
+    "url": "http://127.0.0.1:5174/docs",
+    "families": [
+      "\"Test Söhne\", \"Helvetica Neue\", Helvetica, Arial, sans-serif"
+    ],
+    "weights": [
+      "400",
+      "500",
+      "600",
+      "700"
+    ],
+    "offenderCount": 0,
+    "heavyCount": 0,
+    "offenders": [],
+    "loadedFonts": [
+      "Test Söhne:400:loaded",
+      "Test Söhne:500:loaded",
+      "Test Söhne:700:loaded"
+    ]
+  },
+  {
+    "name": "tutorials",
+    "url": "http://127.0.0.1:5174/tutorials",
+    "families": [
+      "\"Test Söhne\", \"Helvetica Neue\", Helvetica, Arial, sans-serif"
+    ],
+    "weights": [
+      "400",
+      "500",
+      "600",
+      "700"
+    ],
+    "offenderCount": 0,
+    "heavyCount": 0,
+    "offenders": [],
+    "loadedFonts": [
+      "Test Söhne:400:loaded",
+      "Test Söhne:500:loaded",
+      "Test Söhne:700:loaded"
+    ]
+  },
+  {
+    "name": "examples",
+    "url": "http://127.0.0.1:5174/examples",
+    "families": [
+      "\"Test Söhne\", \"Helvetica Neue\", Helvetica, Arial, sans-serif"
+    ],
+    "weights": [
+      "400",
+      "500",
+      "600",
+      "700"
+    ],
+    "offenderCount": 0,
+    "heavyCount": 0,
+    "offenders": [],
+    "loadedFonts": [
+      "Test Söhne:400:loaded",
+      "Test Söhne:500:loaded",
+      "Test Söhne:700:loaded"
+    ]
+  },
+  {
+    "name": "example-pd-tube",
+    "url": "http://127.0.0.1:5174/examples/pd-tube-button-to-agent",
+    "families": [
+      "\"Test Söhne\", \"Helvetica Neue\", Helvetica, Arial, sans-serif"
+    ],
+    "weights": [
+      "400",
+      "500",
+      "600",
+      "700"
+    ],
+    "offenderCount": 0,
+    "heavyCount": 0,
+    "offenders": [],
+    "loadedFonts": [
+      "Test Söhne:400:loaded",
+      "Test Söhne:500:loaded",
+      "Test Söhne:700:loaded"
+    ]
+  },
+  {
+    "name": "whitepaper",
+    "url": "http://127.0.0.1:5174/whitepaper",
+    "families": [
+      "\"Test Söhne\", \"Helvetica Neue\", Helvetica, Arial, sans-serif"
+    ],
+    "weights": [
+      "400",
+      "500",
+      "600",
+      "700"
+    ],
+    "offenderCount": 0,
+    "heavyCount": 0,
+    "offenders": [],
+    "loadedFonts": [
+      "Test Söhne:400:loaded",
+      "Test Söhne:500:loaded",
+      "Test Söhne:700:loaded"
+    ]
+  },
+  {
+    "name": "tutorial-inbox",
+    "url": "http://127.0.0.1:5174/tutorials/inbox",
+    "families": [
+      "\"Test Söhne\", \"Helvetica Neue\", Helvetica, Arial, sans-serif"
+    ],
+    "weights": [
+      "400",
+      "500",
+      "600",
+      "700"
+    ],
+    "offenderCount": 0,
+    "heavyCount": 0,
+    "offenders": [],
+    "loadedFonts": [
+      "Test Söhne:400:loaded",
+      "Test Söhne:500:loaded",
+      "Test Söhne:700:loaded"
+    ]
+  }
+]

@@ -179,7 +179,7 @@ export function PanelTitle({
       data-slot="panel-title"
       id={id}
       className={cn(
-        'font-display font-black',
+        'font-display font-bold',
         caps ? 'uppercase' : 'normal-case',
         panelTitleSize[size],
         toneClass,
