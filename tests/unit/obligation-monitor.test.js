@@ -69,6 +69,25 @@ describe('checkOverdue', () => {
     expect(() => monitor.checkOverdue(undefined)).toThrow(/finite number/);
   });
 
+  test('emits at most once per breach across repeated sweeps (dedup marker)', () => {
+    const c = commitments.create({ ownerActorId: 'a', objectText: 'ship', scope: 'claim' });
+    monitor.checkOverdue(c.dueAt + 1_000);
+    monitor.checkOverdue(c.dueAt + 2_000);
+    monitor.checkOverdue(c.dueAt + 3_000);
+    const events = logged.filter((e) => e.type === OBLIGATION_OVERDUE);
+    expect(events).toHaveLength(1);
+  });
+
+  test('emit:false detects overdue without writing activity events (safe GET)', () => {
+    const c = commitments.create({ ownerActorId: 'a', objectText: 'ship', scope: 'claim' });
+    const result = monitor.checkOverdue(c.dueAt + 1_000, { emit: false });
+    expect(result.count).toBe(1);
+    expect(logged.filter((e) => e.type === OBLIGATION_OVERDUE)).toHaveLength(0);
+    // A subsequent emitting sweep still fires once (the marker was untouched).
+    monitor.checkOverdue(c.dueAt + 2_000, { emit: true });
+    expect(logged.filter((e) => e.type === OBLIGATION_OVERDUE)).toHaveLength(1);
+  });
+
   test('mixed: only the overdue-open subset is returned', () => {
     const overdue = commitments.create({ ownerActorId: 'a', objectText: 'overdue', scope: 'claim' });
     const future = commitments.create({ ownerActorId: 'a', objectText: 'future', scope: 'standing' });

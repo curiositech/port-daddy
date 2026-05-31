@@ -127,6 +127,11 @@ interface CommitmentRow {
 const STRATEGIES: CommitmentStrategy[] = ['single', 'open'];
 const SCOPES: CommitmentScope[] = ['claim', 'review', 'standing', 'default'];
 
+/** Default page size and hard ceiling for list() — a caller-supplied limit is
+ * clamped to MAX so an unbounded request cannot force a huge result set. */
+const DEFAULT_LIST_LIMIT = 1000;
+const MAX_LIST_LIMIT = 5000;
+
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
 
@@ -187,9 +192,17 @@ export function createCommitments(db: Database.Database, deps: CommitmentsDeps =
       state TEXT NOT NULL DEFAULT 'open',
       closed_by_oracle_ref TEXT,
       created_at INTEGER NOT NULL,
-      last_touched_at INTEGER NOT NULL
+      last_touched_at INTEGER NOT NULL,
+      overdue_emitted_at INTEGER
     )
   `);
+  // Migrate older tables (idempotent): add the breach-dedup marker if absent.
+  // The obligation monitor stamps this once per breach so a repeating sweep
+  // does not re-emit OBLIGATION_OVERDUE every cleanup interval.
+  const cols = db.prepare(`PRAGMA table_info(commitments)`).all() as Array<{ name: string }>;
+  if (!cols.some((c) => c.name === 'overdue_emitted_at')) {
+    db.exec(`ALTER TABLE commitments ADD COLUMN overdue_emitted_at INTEGER`);
+  }
   db.exec(`CREATE INDEX IF NOT EXISTS idx_commitments_owner ON commitments(owner_actor_id)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_commitments_state ON commitments(state)`);
   // Hot path for the obligation monitor: open commitments ordered by due_at.
@@ -309,7 +322,9 @@ export function createCommitments(db: Database.Database, deps: CommitmentsDeps =
   }
 
   function list(options: ListCommitmentsOptions = {}): Commitment[] {
-    const limit = options.limit && options.limit > 0 ? Math.floor(options.limit) : 1000;
+    const requested =
+      options.limit && options.limit > 0 ? Math.floor(options.limit) : DEFAULT_LIST_LIMIT;
+    const limit = Math.min(requested, MAX_LIST_LIMIT);
     const wantState = options.state && options.state !== 'all' ? options.state : undefined;
     let rows: CommitmentRow[];
     if (options.ownerActorId && wantState) {

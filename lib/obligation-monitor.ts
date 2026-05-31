@@ -30,7 +30,7 @@
  */
 
 import type Database from 'better-sqlite3';
-import type { Commitment } from './commitments.js';
+import type { Commitment, CommitmentScope, CommitmentStrategy } from './commitments.js';
 
 /** Activity event type emitted when an open commitment passes its deadline. */
 export const OBLIGATION_OVERDUE = 'obligation:overdue';
@@ -59,8 +59,19 @@ export interface OverdueCommitment {
   objectText: string;
   dueAt: number;
   overdueByMs: number;
-  scope: string;
-  commitmentStrategy: string;
+  scope: CommitmentScope;
+  commitmentStrategy: CommitmentStrategy;
+}
+
+export interface CheckOverdueOptions {
+  /**
+   * Whether to emit OBLIGATION_OVERDUE for newly-detected breaches. The daemon
+   * sweep passes `true` (default); side-effect-free callers (the GET
+   * /commitments/overdue endpoint, dashboards) pass `false` so polling cannot
+   * spam the activity log. Even when `true`, each breach is emitted at most
+   * ONCE (a per-row marker dedups repeated sweeps).
+   */
+  emit?: boolean;
 }
 
 export interface CheckOverdueResult {
@@ -77,8 +88,8 @@ interface OpenCommitmentRow {
   owner_actor_id: string;
   object_text: string;
   due_at: number;
-  scope: string;
-  commitment_strategy: string;
+  scope: CommitmentScope;
+  commitment_strategy: CommitmentStrategy;
 }
 
 export function createObligationMonitor(
@@ -94,6 +105,12 @@ export function createObligationMonitor(
      WHERE state = 'open' AND due_at < ?
      ORDER BY due_at ASC
   `);
+  // Stamp a breach as emitted exactly once. The guard (`overdue_emitted_at IS
+  // NULL`) makes the stamp idempotent across repeating sweeps, so a still-open
+  // overdue commitment does not re-emit OBLIGATION_OVERDUE every interval.
+  const markEmitted = db.prepare<[number, string]>(
+    `UPDATE commitments SET overdue_emitted_at = ? WHERE id = ? AND overdue_emitted_at IS NULL`,
+  );
 
   /**
    * Sweep for overdue commitments. Mirrors `resurrection.check`'s structure but
@@ -102,11 +119,15 @@ export function createObligationMonitor(
    * @param now The current time, supplied BY THE CALLER (Law 1). The daemon
    *   passes a monotonic-safe wall value and skips this entirely during the
    *   post-sleep grace period. Tests inject a fixed clock.
+   * @param options.emit Whether to emit OBLIGATION_OVERDUE for newly-detected
+   *   breaches. Defaults to true (daemon sweep). The HTTP GET endpoint passes
+   *   false so polling stays side-effect free.
    */
-  function checkOverdue(now: number): CheckOverdueResult {
+  function checkOverdue(now: number, options: CheckOverdueOptions = {}): CheckOverdueResult {
     if (typeof now !== 'number' || !Number.isFinite(now)) {
       throw new Error('obligationMonitor.checkOverdue: now must be a finite number (Law 1: caller supplies the clock)');
     }
+    const emit = options.emit !== false;
 
     const rows = selectOverdue.all(now);
     const overdue: OverdueCommitment[] = rows.map((row) => ({
@@ -119,10 +140,14 @@ export function createObligationMonitor(
       commitmentStrategy: row.commitment_strategy,
     }));
 
-    // Emit one OBLIGATION_OVERDUE per overdue commitment so downstream actors
-    // (future sanction ladder, dashboards) can react per-promise.
-    if (deps.activityLog) {
+    // Emit at most one OBLIGATION_OVERDUE per breach so downstream actors
+    // (future sanction ladder, dashboards) react per-promise without log bloat.
+    // `markEmitted` only stamps rows not previously emitted; we emit only when
+    // the stamp actually took, so repeated sweeps of the same breach are silent.
+    if (emit && deps.activityLog) {
       for (const c of overdue) {
+        const stamped = markEmitted.run(now, c.id);
+        if (stamped.changes === 0) continue; // already emitted for this breach
         deps.activityLog.log(OBLIGATION_OVERDUE, {
           agentId: c.ownerActorId,
           targetId: c.id,

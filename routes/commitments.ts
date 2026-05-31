@@ -127,7 +127,10 @@ export const commitmentsPlugin: FastifyPluginAsync<{ deps: CommitmentsDeps }> = 
     // Default to the daemon's wall clock; tests/tools may pin `now`.
     const nowParam = asPosInt(q.now);
     const now = nowParam ?? Date.now();
-    const result = obligationMonitor.checkOverdue(now);
+    // GET must be safe/idempotent: do NOT emit OBLIGATION_OVERDUE here. The
+    // daemon's periodic sweep owns emission (emit defaults true); a polling
+    // dashboard hitting this endpoint should never write activity events.
+    const result = obligationMonitor.checkOverdue(now, { emit: false });
     return result;
   });
 
