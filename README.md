@@ -626,6 +626,18 @@ curl http://localhost:9876/metrics/cost/recent?limit=20
 ### Note Encryption (Escrow Secrecy)
 Session notes are encrypted at rest with AES-256-GCM. Master key stored at `~/.port-daddy/master.key` (auto-generated on first boot). Per-session keys wrapped with the master key. Backward-compatible — existing plaintext notes remain readable. ProVerif-verified: attacker with database access cannot learn note content.
 
+### Managed Secrets (`pd secret`)
+Provider credentials (Anthropic, Gemini, Cloudflare, ngrok, Voyage, etc.) live in the OS keychain — encrypted at rest, fail-closed when keychain is unavailable. Only an explicit allow-list of keys is accepted; there is no pattern matching on key names.
+
+| Command | What it does |
+|---------|--------------|
+| `pd secret set <KEY> [--backend <b>]` | Store a value via a **hidden stdin prompt**. The value is never read from `argv`, so it does not leak into shell history or the process table. Pipe-friendly: `echo "$TOKEN" \| pd secret set KEY`. |
+| `pd secret list` | Table of `KEY`, `BACKEND`, `STORAGE`, `ENCRYPTED`, `SET?` — names and status only, never values. |
+| `pd secret reveal <KEY> [--copy]` | Print the value (with a one-line warning), or with `--copy` send it to `pbcopy` and auto-clear the clipboard after 45s without printing. |
+| `pd secret rm <KEY>` | Remove the value from the keychain. |
+
+HTTP surface (loopback daemon): `GET /secrets`, `POST /secrets`, `POST /secrets/:key/reveal`, `DELETE /secrets/:key`. The reveal route returns plaintext for the FleetBar Copy affordance and is loopback-only (per-route `preHandler` plus the global DNS-rebinding guard); it returns `404` when a key is allow-listed but unset.
+
 ### White Papers
 Two formal white papers are available at `/whitepaper` on the website:
 - **The Anchor Protocol** — Formally verified cryptographic identity for agent swarms (ProVerif + Kani/Rust)

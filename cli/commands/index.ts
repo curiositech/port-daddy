@@ -32,6 +32,7 @@ export * from './bench.js';
 export * from './demo.js';
 export * from './tuples.js';
 export * from './setup.js';
+export * from './secret.js';
 export * from './semantic.js';
 export * from './ideas.js';
 export * from './roadmap.js';
