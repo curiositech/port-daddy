@@ -84,6 +84,8 @@ import { createBudgetPause } from './lib/budget-pause.js';
 import { createQuorum } from './lib/quorum.js';
 import { createFeedback } from './lib/feedback.js';
 import { createRoadmapItems } from './lib/roadmap-items.js';
+import { createCommitments } from './lib/commitments.js';
+import { createObligationMonitor } from './lib/obligation-monitor.js';
 import { createRoadmapPromote } from './lib/roadmap-promote.js';
 import { createRoadmapPop } from './lib/roadmap-pop.js';
 import { launchFleetBarIfEnabled } from './lib/fleetbar-launcher.js';
@@ -369,6 +371,12 @@ const locks = createLocks(db);
 const health = createHealth(db, services as Parameters<typeof createHealth>[1]);
 const agents = createAgents(db, { semanticIndex });
 const activityLog = createActivityLog(db);
+// Durable commitments + obligation monitor (ADR-0041 first slice). The
+// obligation half of accountability: resurrection watches heartbeats, this
+// watches promises. The monitor is a PURE runtime check over SQLite (Law 4 —
+// no Arbiter/Rust FFI dependency, so it cannot silently degrade to a stub).
+const commitments = createCommitments(db);
+const obligationMonitor = createObligationMonitor(db, { activityLog });
 const webhooks = createWebhooks(db);
 const projects = createProjects(db);
 const noteEncryption = createNoteEncryption({ requireMasterKey: true });
@@ -672,6 +680,18 @@ function cleanupStale(): ReturnType<typeof services.cleanup> {
     if (orphanedSessions.count > 0) {
       logger.warn('orphaned_active_sessions_abandoned', orphanedSessions);
     }
+
+    // Obligation monitor — the dual of resurrection's heartbeat sweep, run in the
+    // SAME sleep-grace-gated block (Law 1: skip during post-sleep grace so a
+    // laptop wake does not mark every open promise overdue). The daemon supplies
+    // `now`; the commitment row never does. Emits OBLIGATION_OVERDUE per breach.
+    const overdueResult = obligationMonitor.checkOverdue(Date.now());
+    if (overdueResult.count > 0) {
+      logger.warn('obligations_overdue', {
+        count: overdueResult.count,
+        ids: overdueResult.overdue.map((c) => c.id),
+      });
+    }
   }
 
   activityLog.cleanup();
@@ -932,6 +952,7 @@ await registerAllRoutes(
     harbors, sorties, orchestrator, correlationEngine, spawner, tuples, blobs, fleetDaemon,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, counters, metricsRegistry,
     quorum, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,
+    commitments, obligationMonitor,
     bonds, budgetGuard, budgetPause,
     arbiter, bosunHeartbeat,
     VERSION, CODE_HASH, STARTED_AT, __dirname, repoRoot: REPO_ROOT,

@@ -60,6 +60,7 @@ import { quorumPlugin } from './quorum.js';
 import { resourcesPlugin } from './resources.js';
 import { feedbackPlugin } from './feedback.js';
 import { roadmapPlugin } from './roadmap.js';
+import { commitmentsPlugin } from './commitments.js';
 import { shipwrightPlugin } from './shipwright.js';
 import { usagePlugin } from './usage.js';
 import { testHooksPlugin } from './test-hooks.js';
@@ -207,6 +208,12 @@ export async function registerAllRoutes(
   // atomic feedback→item links.
   if ((deps as any).roadmapItems && (deps as any).roadmapPromote) {
     await fastify.register(roadmapPlugin, { deps } as any);
+  }
+
+  // Durable commitments + obligation monitor (ADR-0041 first slice). Mounts
+  // when both the commitments store and its monitor were constructed.
+  if ((deps as any).commitments && (deps as any).obligationMonitor) {
+    await fastify.register(commitmentsPlugin, { deps } as any);
   }
 
   // Shipwright — survey/propose/apply for fleet authoring.

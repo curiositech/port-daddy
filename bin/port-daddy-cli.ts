@@ -97,6 +97,8 @@ import {
   // Semantic graph + episodic memory
   handleGraph, handleIdeas,
   handleRoadmap,
+  // Durable commitments (ADR-0041)
+  handleCommit, handleObligations,
   handleQuorum,
   handleFeedback,
   // Consolidated read/write verbs + sitrep + pheromone (3.8.4)
@@ -1209,6 +1211,7 @@ const ALL_COMMANDS: string[] = [
   'harbor', 'harbors', 'demo', 'fleet', 'tuple', 'sortie', 'graph', 'memory', 'ideas',
   'quorum',
   'feedback',
+  'commit', 'obligations',
   'cockpit',
 ];
 
@@ -2755,6 +2758,15 @@ export async function main(): Promise<void> {
 
       case 'ideas':
         await handleIdeas(positional, options);
+        break;
+
+      // Durable commitments + obligation monitor (ADR-0041)
+      case 'commit':
+        await handleCommit(positional, options);
+        break;
+
+      case 'obligations':
+        await handleObligations(positional, options);
         break;
 
       case 'roadmap':
