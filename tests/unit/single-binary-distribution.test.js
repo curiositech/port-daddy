@@ -10,7 +10,10 @@ describe('single binary distribution path', () => {
     const script = readFileSync(join(process.cwd(), 'scripts', 'build-single-binary.mjs'), 'utf8');
     expect(script).toContain("bin/port-daddy-bundle.ts");
     expect(script).toContain('writeEmbeddedAssetsModule');
+    expect(script).toContain('writeEmbeddedNativeCoreModule');
+    expect(script).toContain("run('bash', ['scripts/build-core.sh']");
     expect(script).toContain('dataBase64');
+    expect(script).toContain('embeddedNativeCore');
     expect(existsSync(join(process.cwd(), 'bin', 'port-daddy-bundle.ts'))).toBe(true);
   });
 
@@ -18,6 +21,7 @@ describe('single binary distribution path', () => {
     const bundle = readFileSync(join(process.cwd(), 'bin', 'port-daddy-bundle.ts'), 'utf8');
 
     expect(bundle).toContain("process.env.PORT_DADDY_CAN_SELF_DAEMON = '1'");
+    expect(bundle).toContain('embedded-native-core.generated.js');
     expect(bundle).toContain("process.argv[2] === '__daemon'");
     expect(bundle).toContain("await import('../server.js')");
     expect(bundle).toContain('PORT_DADDY_SUPPRESS_CLI_MAIN');
@@ -57,6 +61,15 @@ describe('single binary distribution path', () => {
 
     expect(buildScript).toContain('self-hosted via hidden __daemon entrypoint');
     expect(buildScript).toContain('embedded in the executable through a generated asset table');
+    expect(buildScript).toContain('embeddedNativeCore');
     expect(buildScript).toContain('smokeSelfHostedDaemon');
+  });
+
+  test('release workflow uses the single-binary builder instead of compiling the CLI shim directly', () => {
+    const workflow = readFileSync(join(process.cwd(), '.github', 'workflows', 'release.yml'), 'utf8');
+
+    expect(workflow).toContain('node scripts/build-single-binary.mjs --target=${{ matrix.target }} --outfile=dist/pd');
+    expect(workflow).toContain('pd port-daddy-manifest.json');
+    expect(workflow).not.toContain('bin/port-daddy-cli.ts --outfile dist/pd');
   });
 });
