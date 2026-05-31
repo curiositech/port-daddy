@@ -44,6 +44,21 @@ describe('evaluateSessionWorktreePolicy', () => {
     expect(result.code).toBe('MAIN_WORKTREE_SESSION_FORBIDDEN');
   });
 
+  test('main-worktree refusal points to the fix without leaking the bypass flag', () => {
+    const result = evaluateSessionWorktreePolicy({
+      requireLinkedWorktree: true,
+      worktree: { ...linkedWorktree, isMain: true },
+    });
+
+    expect(result.code).toBe('MAIN_WORKTREE_SESSION_FORBIDDEN');
+    // The refusal must guide toward the correct action...
+    expect(result.hint).toContain('git worktree add');
+    // ...and must NOT advertise the escape hatch to the agent it just stopped.
+    // An advertised bypass turns the guardrail into a suggestion.
+    expect(result.hint).not.toMatch(/allow-main-worktree/i);
+    expect(result.error).not.toMatch(/allow-main-worktree/i);
+  });
+
   test('accepts an explicitly allowed main-worktree integration session', () => {
     const result = evaluateSessionWorktreePolicy({
       requireLinkedWorktree: true,

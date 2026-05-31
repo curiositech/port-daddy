@@ -191,10 +191,13 @@ export function createSugar(deps: SugarDeps) {
             `Refusing main-worktree session: another active session is already in this worktree (${worktreePolicy.worktree.root}). `
             + `Concurrent agents on the same main worktree corrupt each other via shared .git state.`,
           code: 'MAIN_WORKTREE_CROWDED',
+          // Do not name the `--allow-main-worktree` bypass in this agent-facing
+          // hint: the agent we just stopped would simply take that exit. The
+          // hint points only to the correct action; the flag stays in `--help`.
           hint:
             `Create a linked worktree and run pd begin there:\n`
             + `  git worktree add ~/coding/tmp/${(options.identity ?? options.name ?? 'work').replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 40) || 'work'} -b <branch>\n`
-            + `then cd into it before calling pd begin. --allow-main-worktree is only honored when no one else is on this main worktree.`,
+            + `then cd into it before calling pd begin.`,
           worktree: worktreePolicy.worktree,
         };
       }

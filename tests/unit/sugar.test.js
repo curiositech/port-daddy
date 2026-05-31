@@ -176,6 +176,9 @@ describe('sugar.begin', () => {
     expect(second.code).toBe('MAIN_WORKTREE_CROWDED');
     expect(second.error).toMatch(/other active session/);
     expect(second.hint).toContain('git worktree add');
+    // The refusal must not advertise the bypass flag to the blocked agent.
+    expect(second.hint).not.toMatch(/allow-main-worktree/i);
+    expect(second.error).not.toMatch(/allow-main-worktree/i);
   });
 
   test('bypassCrowdedGate=true skips the crowded check (env-sourced allow)', () => {
