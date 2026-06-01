@@ -73,3 +73,6 @@ fleet-live-app/build/
 v0-agentsd-main/
 agentsd_mocks/
 .aider.chat.history.md
+
+# Ephemeral scratch for scripts/smoke-compiled-daemon.sh
+.smoke-tmp/

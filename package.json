@@ -28,6 +28,7 @@
     "test:watch": "npm test -- --watch",
     "test:coverage": "npm test -- --coverage",
     "test:ci": "npm test",
+    "test:bun": "bun test tests/bun/",
     "typecheck": "tsc --noEmit",
     "boundary:public": "tsx scripts/check-public-repo-boundary.ts",
     "export:public": "tsx scripts/export-public-repo.ts",
