@@ -19,6 +19,17 @@ export interface DeprecatedBlogPost {
 
 export const blogPostMetas: BlogPostMeta[] = [
   {
+    id: 'pd-tube-multi-subscriber',
+    slug: 'pd-tube-multi-subscriber',
+    title: 'One Send, Every Listener: pd tube Goes Multi-Subscriber',
+    date: '2026-06-01',
+    author: 'Erich Owens',
+    excerpt: "I built a two-pane demo of pd tube — a human and a live agent talking over one channel. It worked. Then I added a third listener and the bug fell out of the sky: whichever terminal polled first swallowed the message and the rest saw an empty channel. A 'broadcast' channel was quietly behaving like a vending machine. Here's the shared-cursor race that caused it, the per-listener-cursor fix that turned it into real fan-out, and the regression test that documents the old bug on purpose. Shipped in v3.16.2.",
+    tags: ['pd tube', 'Coordination', 'Multi-Agent', 'Pub/Sub', 'Dogfooding'],
+    heroImage: '/img/generated/tube-multiplex/hero.png',
+    heroAlt: 'A flat blueprint illustration: one broadcast node on the left fans out over cobalt wires to four identical listener terminals on the right, each showing the same messages and each holding its own small bookmark card',
+  },
+  {
     id: 'pr-that-reviews-itself',
     slug: 'the-pr-that-reviews-itself',
     title: 'The PR That Reviews Itself',
