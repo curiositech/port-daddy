@@ -102,6 +102,16 @@ jobs:
         run: bash scripts/smoke-compiled-daemon.sh
         timeout-minutes: 3
 
+      - name: Build compiled CLI binary
+        run: npm run build:bin
+
+      - name: Smoke compiled CLI `pd secret set` stdin path
+        # Drives the compiled-bun CLI's stdin read end-to-end: a piped value must
+        # reach the daemon, and empty stdin must error loudly (never a silent
+        # no-op). Guards the bun-compiled isTTY/setRawMode prompt regression.
+        run: bash scripts/smoke-compiled-cli-secret.sh
+        timeout-minutes: 3
+
   lint:
     runs-on: ubuntu-latest
     steps:

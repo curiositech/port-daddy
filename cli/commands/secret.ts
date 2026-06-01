@@ -23,8 +23,10 @@
  */
 
 import { spawn } from 'node:child_process';
-import * as readline from 'node:readline';
+import { openSync, closeSync, createReadStream } from 'node:fs';
 import { platform } from 'node:os';
+import * as readline from 'node:readline';
+import * as tty from 'node:tty';
 
 import { CLIOptions, isJson, isQuiet } from '../types.js';
 import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
@@ -47,70 +49,105 @@ function readOption(options: CLIOptions, ...keys: string[]): string | undefined 
 }
 
 /**
- * Read a secret value from stdin without echoing it to the terminal.
- *
- * TTY path: put the terminal into raw mode, render a static prompt, and
- * accumulate keystrokes manually — nothing is echoed, so shoulder-surfers and
- * terminal scrollback see nothing. Enter submits; Ctrl-C / Ctrl-D abort.
- *
- * Non-TTY path (pipe/CI): read a single line from stdin so
- * `echo "$TOKEN" | pd secret set KEY` works without argv exposure.
+ * A duplex-ish stdin shape we actually use. `setRawMode` is optional on
+ * purpose: under the `bun build --compile` CLI binary it can be absent even on
+ * a real terminal (see `promptHiddenValue` doc), so every caller must guard it.
  */
-function promptHiddenValue(label: string): Promise<string | null> {
-  const input = process.stdin;
+type InputStream = NodeJS.ReadStream & {
+  isTTY?: boolean;
+  setRawMode?: (mode: boolean) => unknown;
+};
 
-  // Non-interactive: consume exactly one line from the pipe. Close the
-  // interface as soon as the first line arrives so a long-running producer
-  // (e.g. `yes "$TOKEN" | pd secret set KEY`) doesn't hang waiting for EOF.
-  if (!input.isTTY) {
-    return new Promise((resolve) => {
-      const rl = readline.createInterface({ input, terminal: false });
-      let firstLine: string | null = null;
-      let settled = false;
-      const finish = () => {
-        if (settled) return;
-        settled = true;
-        rl.close();
-        resolve(firstLine !== null ? firstLine.trim() : null);
-      };
-      rl.on('line', (line) => {
-        if (firstLine === null) {
-          firstLine = line;
-          finish();
-        }
-      });
-      // EOF before any line (empty pipe) → resolve null via the same path.
-      rl.on('close', finish);
+/**
+ * Read one line from a non-TTY stream without echoing, returning it trimmed.
+ * Resolves `null` on EOF-before-any-line (empty pipe). Pulled out as a pure-ish
+ * helper so the bun regression test can drive it with a synthetic stream and
+ * assert the pipe path persists a value AND that an empty pipe yields null
+ * (which the command turns into a loud error — never a silent success).
+ */
+export function readSecretFromStream(
+  input: NodeJS.ReadableStream,
+): Promise<string | null> {
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({ input, terminal: false });
+    let firstLine: string | null = null;
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      rl.close();
+      resolve(firstLine !== null ? firstLine.trim() : null);
+    };
+    rl.on('line', (line) => {
+      if (firstLine === null) {
+        firstLine = line;
+        finish();
+      }
     });
-  }
+    // EOF before any line (empty pipe) → resolve null via the same path.
+    rl.on('close', finish);
+  });
+}
+
+/**
+ * Raw-mode hidden read over an interactive TTY stream. Accumulates keystrokes
+ * with echo disabled. Enter submits; Ctrl-C aborts (null); Ctrl-D submits what
+ * was typed so far. Returns `null` if `setRawMode` is unavailable so the caller
+ * can fall back — we never block silently on a stream we can't put into raw
+ * mode. `write` is injected so the prompt/newline target is testable.
+ */
+function readSecretFromRawTTY(
+  input: InputStream,
+  label: string,
+  write: (s: string) => void,
+): Promise<string | null> | null {
+  if (typeof input.setRawMode !== 'function') return null;
 
   return new Promise((resolve) => {
-    process.stdout.write(`${label}: `);
-    input.setRawMode(true);
+    write(`${label}: `);
+    let rawModeOn = false;
+    try {
+      input.setRawMode(true);
+      rawModeOn = true;
+    } catch {
+      // Raw mode refused at runtime (some bun-compiled / exotic TTYs). Bail so
+      // the caller falls back to a line read instead of hanging unechoed.
+      resolve(null);
+      return;
+    }
     input.resume();
     input.setEncoding('utf8');
 
     let value = '';
+    const cleanup = () => {
+      try {
+        if (rawModeOn) input.setRawMode!(false);
+      } catch {
+        /* best effort */
+      }
+      input.pause();
+      input.removeListener('data', onData);
+    };
     const onData = (chunk: string) => {
       for (const ch of chunk) {
         const code = ch.charCodeAt(0);
         if (ch === '\r' || ch === '\n') {
           cleanup();
-          process.stdout.write('\n');
+          write('\n');
           resolve(value.trim() || null);
           return;
         }
         if (code === 3) {
           // Ctrl-C
           cleanup();
-          process.stdout.write('\n');
+          write('\n');
           resolve(null);
           return;
         }
         if (code === 4) {
           // Ctrl-D
           cleanup();
-          process.stdout.write('\n');
+          write('\n');
           resolve(value.trim() || null);
           return;
         }
@@ -123,13 +160,106 @@ function promptHiddenValue(label: string): Promise<string | null> {
       }
     };
 
-    const cleanup = () => {
-      input.setRawMode(false);
-      input.pause();
-      input.removeListener('data', onData);
-    };
-
     input.on('data', onData);
+  });
+}
+
+/**
+ * Read a secret value from the terminal without echoing it.
+ *
+ * ────────────────────────────────────────────────────────────────────────
+ *  BUG L2 — bun-compiled binary fell through to the non-TTY branch on a
+ *           real terminal, producing a silent (prompt-less) abort.
+ * ────────────────────────────────────────────────────────────────────────
+ * Under the Homebrew `pd` (a `bun build --compile` binary) `process.stdin.isTTY`
+ * can be `undefined`/`false` even in an interactive shell — bun doesn't always
+ * initialise stdin as a TTY stream the way node does (same class as
+ * nodejs/node#2160). The old code keyed solely off `process.stdin.isTTY`, so it
+ * took the pipe branch, hit immediate EOF, resolved `null`, and exited 1 with no
+ * prompt ever drawn. The operator saw "instant return, nothing stored."
+ *
+ * Fix: ask the *kernel* whether fd 0 is a terminal via `tty.isatty(0)` instead
+ * of trusting the stream flag, and guard `setRawMode` (absent/throwing under
+ * some bun builds). Resolution order:
+ *
+ *   1. fd 0 is NOT a tty (pipe/CI)  → read one line from stdin. Lets
+ *      `printf %s "$TOKEN" | pd secret set KEY` work with no argv exposure.
+ *   2. fd 0 IS a tty + raw mode OK  → hidden raw-mode keystroke read on stdin.
+ *   3. fd 0 IS a tty, raw mode NOT  → open /dev/tty and do a (visible-echo)
+ *      line read there, so an interactive user is still PROMPTED and can enter
+ *      a value rather than getting a silent no-op.
+ *
+ * In every branch an empty/aborted entry resolves `null`; the caller turns that
+ * into a loud non-zero error. The value is never sourced from argv and is never
+ * echoed on the raw-mode path.
+ */
+function promptHiddenValue(label: string): Promise<string | null> {
+  const input = process.stdin as InputStream;
+
+  // Kernel truth, not the (sometimes-wrong under bun-compiled) stream flag.
+  const stdinIsTTY = isStdinInteractive(input);
+
+  if (!stdinIsTTY) {
+    return readSecretFromStream(input);
+  }
+
+  const raw = readSecretFromRawTTY(input, label, (s) => process.stdout.write(s));
+  if (raw) return raw;
+
+  // Interactive terminal but raw mode unavailable. Don't silently bail — open
+  // the controlling terminal directly and prompt with a readline question.
+  // Echo is on here (no raw mode), an accepted tradeoff vs. a silent no-op.
+  return promptViaControllingTerminal(label);
+}
+
+/**
+ * True when fd 0 is a real terminal. Prefers the kernel-level `tty.isatty(0)`
+ * (correct under the bun-compiled binary, where `stream.isTTY` can be falsy on
+ * a real terminal) and falls back to the stream flag. `isatty` is injectable so
+ * the regression test can pin the precedence without a real tty.
+ *
+ * EXPORTED for the bun regression test: this predicate IS the fix. Pre-fix the
+ * code keyed solely off `input.isTTY`; this returns `true` for the
+ * "fd-is-a-tty but stream flag is falsy" shape that only the compiled bun
+ * binary produced — the exact case that fell through to the silent pipe branch.
+ */
+export function isStdinInteractive(
+  input: { isTTY?: boolean },
+  isatty: (fd: number) => boolean = tty.isatty,
+): boolean {
+  try {
+    if (isatty(0)) return true;
+  } catch {
+    /* isatty can throw on exotic fds; fall through to the flag */
+  }
+  return input.isTTY === true;
+}
+
+/**
+ * Last-resort interactive read: open the controlling terminal (/dev/tty) and
+ * prompt there. Used only when fd 0 is a TTY but raw mode is unavailable.
+ * Resolves `null` if /dev/tty cannot be opened (→ caller errors loudly).
+ */
+function promptViaControllingTerminal(label: string): Promise<string | null> {
+  let fd: number;
+  try {
+    fd = openSync('/dev/tty', 'r');
+  } catch {
+    return Promise.resolve(null);
+  }
+  return new Promise((resolve) => {
+    const ttyIn = createReadStream('', { fd, autoClose: false });
+    const rl = readline.createInterface({ input: ttyIn, output: process.stdout });
+    rl.question(`${label}: `, (answer) => {
+      rl.close();
+      ttyIn.destroy();
+      try {
+        closeSync(fd);
+      } catch {
+        /* best effort */
+      }
+      resolve(answer.trim() || null);
+    });
   });
 }
 
