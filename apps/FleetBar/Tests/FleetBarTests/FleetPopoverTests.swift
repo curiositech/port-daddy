@@ -133,7 +133,7 @@ final class FleetPopoverTests: XCTestCase {
             runtime: DaemonRuntimeResponse(state: "nominal", degraded: false),
             guardians: DaemonGuardiansResponse(
                 supervisor: nil,
-                bosun: DaemonBarnacleResponse(
+                bosun: DaemonBosunResponse(
                     enabled: true,
                     state: "idle",
                     reason: bosunReason,
@@ -144,8 +144,7 @@ final class FleetPopoverTests: XCTestCase {
                     lastFailureAt: nil,
                     lastResurrectedAt: nil,
                     failureCount: 0
-                ),
-                barnacle: nil
+                )
             ),
             history: DaemonHistoryResponse(
                 lastActivityAt: nil,

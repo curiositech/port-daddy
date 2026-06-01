@@ -101,7 +101,7 @@ import { registerAllRoutes } from './routes/index.js';
 
 // Shared utilities
 import { getSystemPorts, startSystemPortsRefresh } from './shared/port-utils.js';
-import { LOOPBACK_TCP_HOST } from './shared/daemon-discovery.js';
+import { LOOPBACK_TCP_HOST, DEFAULT_DAEMON_PORT } from './shared/daemon-discovery.js';
 import { calculateRuntimeCodeHash } from './shared/code-hash.js';
 import { snapshotRunningBinary, detectDrift, type BinaryDriftSnapshot } from './lib/binary-drift-detector.js';
 import { resolveDistributionRoot } from './shared/daemon-binary.js';
@@ -143,8 +143,8 @@ const configPath: string = join(__dirname, 'config.json');
 const config: PortDaddyServerConfig = existsSync(configPath)
   ? JSON.parse(readFileSync(configPath, 'utf8')) as PortDaddyServerConfig
   : {
-      service: { port: 9876, host: LOOPBACK_TCP_HOST },
-      ports: { range_start: 3100, range_end: 9999, reserved: [8080, 8000, 9876] },
+      service: { port: DEFAULT_DAEMON_PORT, host: LOOPBACK_TCP_HOST },
+      ports: { range_start: 3100, range_end: 9999, reserved: [8080, 8000, DEFAULT_DAEMON_PORT] },
       cleanup: { interval_ms: 300000 },
       logging: { level: 'info', file: 'port-daddy.log', error_file: 'port-daddy-error.log' },
       security: { rate_limit: { window_ms: 60000, max_requests: 1000 } }

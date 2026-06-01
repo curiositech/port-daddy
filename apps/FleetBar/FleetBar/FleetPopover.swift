@@ -235,7 +235,7 @@ struct FleetPopover: View {
 
     private func daemonReportSection(status: DaemonStatusResponse) -> some View {
         let runtimeColor: Color = status.runtime?.degraded == true ? Fleet.Color.warning : Fleet.Color.healthy
-        let bosun = status.guardians?.bosun ?? status.guardians?.barnacle
+        let bosun = status.guardians?.bosun
         let bosunColor: Color = {
             switch bosun?.state {
             case "healthy":

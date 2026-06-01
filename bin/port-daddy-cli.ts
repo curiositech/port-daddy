@@ -126,7 +126,7 @@ import {
 // Imported directly (not via index.js) so the tier subcommands take precedence
 // over the older semantic.ts export. See docs/adr/0035-three-tier-memory-vocabulary.md
 import { handleMemory } from '../cli/commands/memory.js';
-import { getDaemonTcpUrl, readDaemonPort, resolveDaemonTcpTarget } from '../shared/daemon-discovery.js';
+import { getDaemonTcpUrl, readDaemonPort, resolveDaemonTcpTarget, DEFAULT_DAEMON_PORT } from '../shared/daemon-discovery.js';
 import { calculateRuntimeCodeHash } from '../shared/code-hash.js';
 import { DEFAULT_SOCK as _DEFAULT_SOCK, DEFAULT_PORT_FILE as _DEFAULT_PORT_FILE } from '../shared/paths.js';
 import { shouldAutoRestartDaemonForFreshness, shouldCheckDaemonFreshness } from '../cli/utils/freshness.js';
@@ -2446,7 +2446,7 @@ export async function main(): Promise<void> {
           const devPort = parseInt(process.env.PORT_DADDY_PORT as string) || 9877;
 
           ui.info(`Starting isolated dev daemon from ${process.cwd()}`);
-          ui.info(`  Port: ${devPort} (stable stays on 9876)`);
+          ui.info(`  Port: ${devPort} (stable stays on ${DEFAULT_DAEMON_PORT})`);
           ui.info(`  DB: ${join(devDir, 'port-daddy.db')} (isolated)`);
 
           const child = devSpawnFn(devTsxPath, [devServerPath], {

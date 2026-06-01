@@ -362,7 +362,7 @@ struct FleetControlCenter: View {
             if runtimeState == "nominal" || status.status == "ok" { return Fleet.Color.healthy }
             return Fleet.Color.failure
         }()
-        let bosun = status.guardians?.bosun ?? status.guardians?.barnacle
+        let bosun = status.guardians?.bosun
         let daemon = status.daemon
         let buildVersion = daemon?.version ?? status.version
         let buildHash = daemon?.codeHash ?? "unknown"
