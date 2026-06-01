@@ -24,7 +24,9 @@ export default {
   // ephemeral daemon across files, and cross-project concurrency with the unit
   // pool was starving that daemon and producing suite-only flakes in `npm test`.
   maxWorkers: 1,
-  testPathIgnorePatterns: ['/node_modules/', '/tests/benchmark/', '/dist/'],
+  // /tests/bun/ holds `bun:test` specs that import `bun:sqlite` — they run
+  // under `npm run test:bun`, never under jest (jest can't load bun: modules).
+  testPathIgnorePatterns: ['/node_modules/', '/tests/benchmark/', '/tests/bun/', '/dist/'],
   collectCoverageFrom: [
     'server.{js,ts}',
     'install-daemon.{js,ts}',

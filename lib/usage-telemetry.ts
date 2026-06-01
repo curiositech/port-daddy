@@ -441,13 +441,29 @@ export function createUsageTelemetry(db: Database, build: UsageBuildMeta, opts: 
       turns, tool_calls, cost_usd, cost_currency, cost_is_estimate,
       context_json, metadata_json, version, code_hash, build_date, cwd, user_agent
     ) VALUES (
-      @timestamp, @surface, @kind, @name, @category, @agent_id, @agent_type, @agent_model,
-      @backend, @model, @project, @project_dir, @route, @method, @status, @duration_ms,
-      @work_scope, @input_tokens, @cached_input_tokens, @output_tokens, @total_tokens,
-      @turns, @tool_calls, @cost_usd, @cost_currency, @cost_is_estimate,
-      @context_json, @metadata_json, @version, @code_hash, @build_date, @cwd, @user_agent
+      ?, ?, ?, ?, ?, ?, ?, ?,
+      ?, ?, ?, ?, ?, ?, ?, ?,
+      ?, ?, ?, ?, ?,
+      ?, ?, ?, ?, ?,
+      ?, ?, ?, ?, ?, ?, ?
     )
   `);
+  // NOTE: positional `?` placeholders bound with an ordered array, NOT
+  // `@named` object binding. bun:sqlite (the `bun build --compile`
+  // daemon) does NOT accept better-sqlite3's bare-key `@named` object
+  // form — it silently binds NULL, producing "NOT NULL constraint
+  // failed" / "SQLITE_MISMATCH: datatype mismatch" that are invisible to
+  // the jest (better-sqlite3) suite. See lib/roadmap-items.ts and #193.
+  // `INSERT_COLUMNS` is the single source of truth for column order; the
+  // bound array (`INSERT_COLUMNS.map(c => row[c])`) is derived from it so
+  // the SQL and the binding cannot drift.
+  const INSERT_COLUMNS = [
+    'timestamp', 'surface', 'kind', 'name', 'category', 'agent_id', 'agent_type', 'agent_model',
+    'backend', 'model', 'project', 'project_dir', 'route', 'method', 'status', 'duration_ms',
+    'work_scope', 'input_tokens', 'cached_input_tokens', 'output_tokens', 'total_tokens',
+    'turns', 'tool_calls', 'cost_usd', 'cost_currency', 'cost_is_estimate',
+    'context_json', 'metadata_json', 'version', 'code_hash', 'build_date', 'cwd', 'user_agent',
+  ] as const;
 
   function record(input: UsageTelemetryRecordInput): { success: true; id: number } {
     const surface = normalizeSurface(input.surface);
@@ -500,7 +516,9 @@ export function createUsageTelemetry(db: Database, build: UsageBuildMeta, opts: 
       user_agent: nullableString(input.userAgent, 300),
     };
 
-    const info = insertStmt.run(row);
+    const info = insertStmt.run(
+      ...INSERT_COLUMNS.map((column) => (row as Record<string, unknown>)[column]),
+    );
     opts.counters?.bump(`usage.${surface}.${kind}`, {
       category,
       surface,
