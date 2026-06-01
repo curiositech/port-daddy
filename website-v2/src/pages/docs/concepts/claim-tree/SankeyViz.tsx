@@ -1,9 +1,4 @@
 import { useMemo, useState } from 'react'
-// d3-sankey doesn't ship types. @types/d3-sankey exists on DefinitelyTyped
-// but isn't installed here. Suppressing the implicit-any on the package
-// import + accepting `any` for the runtime values keeps tsc -b green
-// without forcing a devDep bump just to land an unrelated IA refactor.
-// @ts-expect-error — no @types/d3-sankey installed
 import { sankey, sankeyLinkHorizontal, sankeyLeft } from 'd3-sankey'
 import { SANKEY_FLOWS } from './data'
 

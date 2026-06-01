@@ -110,7 +110,7 @@ const TEMP_ROOT_PATTERNS = [
   /^\/private\/tmp(?:\/|$)/,
   /^\/var\/folders\/.*\/T(?:\/|$)/,
 ];
-const DISCOVERY_CACHE_TTL_MS = 15_000;
+const DISCOVERY_CACHE_TTL_MS = 60_000;
 // `/projects` is a hot operator route. Discovery must be opportunistic and
 // bounded so a broad root like the user's home directory cannot starve heartbeat.
 const DISCOVERY_TIME_BUDGET_MS = 750;
@@ -121,6 +121,14 @@ let discoveryCache:
       key: string;
       expiresAt: number;
       entries: Array<{ root: string; signals: string[] }>;
+    }
+  | null = null;
+
+let worktreeMetadataCache:
+  | {
+      key: string;
+      expiresAt: number;
+      metadata: Map<string, ProjectWorktreeMetadata>;
     }
   | null = null;
 
@@ -184,7 +192,12 @@ function repoRootFromCommonDir(root: string, commonDir: string, isMain: boolean)
   return isMain ? root : null;
 }
 
-function buildWorktreeMetadata(roots: string[]): Map<string, ProjectWorktreeMetadata> {
+function buildWorktreeMetadata(roots: string[], fresh = false): Map<string, ProjectWorktreeMetadata> {
+  const cacheKey = JSON.stringify([...new Set(roots.map(normalizeRoot))].sort());
+  if (!fresh && worktreeMetadataCache && worktreeMetadataCache.key === cacheKey && worktreeMetadataCache.expiresAt > Date.now()) {
+    return worktreeMetadataCache.metadata;
+  }
+
   const records: Array<{
     root: string;
     id: string;
@@ -240,6 +253,12 @@ function buildWorktreeMetadata(roots: string[]): Map<string, ProjectWorktreeMeta
       });
     }
   }
+
+  worktreeMetadataCache = {
+    key: cacheKey,
+    expiresAt: Date.now() + DISCOVERY_CACHE_TTL_MS,
+    metadata,
+  };
 
   return metadata;
 }
@@ -536,7 +555,7 @@ export function createProjects(db: Database.Database) {
     }
 
     const projectEntries = [...known.entries()];
-    const worktreeByRoot = buildWorktreeMetadata(projectEntries.map(([root]) => root));
+    const worktreeByRoot = buildWorktreeMetadata(projectEntries.map(([root]) => root), fresh);
 
     const projects = projectEntries
       .map(([root, entry]) => {

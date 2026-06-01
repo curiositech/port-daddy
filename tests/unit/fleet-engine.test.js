@@ -233,6 +233,56 @@ test('BUG 4: empty pd-fleet.yml throws instead of returning null or empty config
   expect(() => loadFleetConfig('/tmp/proj')).not.toThrow();
 });
 
+test('loadFleetConfig avoids git probes when YAML only uses project templates', () => {
+  mockExistsSync.mockImplementation(p => p.endsWith('pd-fleet.yml'));
+  mockReadFileSync.mockReturnValue(`
+name: fleet
+harbor: "{project}:fleet"
+agents:
+  - name: qa
+    backend: claude-cli
+    prompt: "run qa in {project_dir}"
+watchers: []
+channels: {}
+limits:
+  budget_usd_per_day: 5
+`);
+
+  const config = loadFleetConfig('/tmp/proj');
+
+  expect(config).not.toBeNull();
+  expect(config.harbor).toBe('fleet:fleet');
+  expect(config.agents[0].prompt).toBe('run qa in /tmp/proj');
+  expect(mockExecSync).not.toHaveBeenCalled();
+});
+
+test('loadFleetConfig still resolves branch and sha templates when requested', () => {
+  mockExistsSync.mockImplementation(p => p.endsWith('pd-fleet.yml'));
+  mockExecSync
+    .mockReturnValueOnce('feature-daemon\n')
+    .mockReturnValueOnce('abc1234\n')
+    .mockReturnValueOnce('feature-daemon\n')
+    .mockReturnValueOnce('abc1234\n');
+  mockReadFileSync.mockReturnValue(`
+name: fleet-{branch}
+agents:
+  - name: qa
+    backend: claude-cli
+    prompt: "run qa at {sha}"
+watchers: []
+channels: {}
+limits:
+  budget_usd_per_day: 5
+`);
+
+  const config = loadFleetConfig('/tmp/proj');
+
+  expect(config).not.toBeNull();
+  expect(config.name).toBe('fleet-feature-daemon');
+  expect(config.agents[0].prompt).toBe('run qa at abc1234');
+  expect(mockExecSync).toHaveBeenCalledTimes(4);
+});
+
 test('parses canonical fleet budget field as budgetUsdPerDay', () => {
   mockExistsSync.mockImplementation(p => p.endsWith('pd-fleet.yml'));
   mockExecSync.mockReturnValue('main');

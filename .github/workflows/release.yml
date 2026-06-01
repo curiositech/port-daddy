@@ -48,9 +48,8 @@ jobs:
 
       - name: Build binary
         run: |
-          bun build --compile --target=${{ matrix.target }} bin/port-daddy-cli.ts --outfile dist/pd
-          cd dist && tar -czf ${{ matrix.artifact }}.tar.gz pd
-          rm pd
+          node scripts/build-single-binary.mjs --target=${{ matrix.target }} --outfile=dist/pd
+          cd dist && tar -czf ${{ matrix.artifact }}.tar.gz pd port-daddy-manifest.json
 
       - name: Upload binary to release
         uses: softprops/action-gh-release@v2

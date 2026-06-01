@@ -113,6 +113,8 @@ _port_daddy() {
     spawn spawned sortie watch
     # App-Native Development Cockpit
     cockpit
+    # Managed provider secret store (keychain-backed)
+    secret secrets
     # Harbors (named permission namespaces)
     harbor harbors
     # Tuple space
@@ -125,6 +127,8 @@ _port_daddy() {
     quorum
     # Feedback (central agentic-feedback primitive)
     feedback
+    # Durable commitments + obligation monitor (ADR-0041)
+    commit obligations
     # System & Monitoring
     dashboard channels webhook webhooks metrics config health ports
     # Orchestration
@@ -1749,6 +1753,32 @@ _port_daddy() {
           _pd_opts '--dir --include-raw --json --quiet'
           ;;
         *) _pd_opts '' ;;
+      esac
+      ;;
+
+    # secret  <set|list|reveal|rm> [options]
+    secret|secrets)
+      local subcmd="${words[2]:-}"
+      case "$subcmd" in
+        set)
+          _pd_opts '--backend --json'
+          ;;
+        reveal|show)
+          _pd_opts '--copy --json'
+          ;;
+        list|ls)
+          _pd_opts '--json --quiet'
+          ;;
+        rm|remove|delete)
+          _pd_opts '--json'
+          ;;
+        *)
+          if [[ "$cur" == -* ]]; then
+            _pd_opts '--backend --copy --json --quiet'
+          else
+            COMPREPLY=( $(compgen -W "set list reveal rm" -- "$cur") )
+          fi
+          ;;
       esac
       ;;
 

@@ -188,6 +188,92 @@ export function saveManagedSecret(key: string, value: string): ManagedSecretSave
   return { key, storedAt: 'keychain', encryptedAtRest: true };
 }
 
+/**
+ * The full set of keys eligible for daemon-managed secret storage. This is
+ * the allow-list the `pd secret` CLI and the `/secrets` routes validate
+ * against — never accept a key that isn't here. Returned as a fresh array so
+ * callers can't mutate the frozen source.
+ *
+ * @example
+ *   if (!managedSecretKeys().includes(key)) reject(key);
+ */
+export function managedSecretKeys(): string[] {
+  return [...SENSITIVE_KEYS];
+}
+
+/**
+ * Whether a key is an allow-listed managed secret. Cheap membership check
+ * used by routes/CLI before any keychain operation.
+ */
+export function isManagedSecretKey(key: string): boolean {
+  return SENSITIVE_KEY_SET.has(key);
+}
+
+export interface ManagedSecretInfo {
+  key: string;
+  /** True iff a value is currently stored (cache or keychain). */
+  set: boolean;
+  storage: 'keychain' | 'env' | 'unavailable';
+  encryptedAtRest: boolean;
+}
+
+/**
+ * Describe every allow-listed key's storage status WITHOUT exposing values.
+ * This powers `GET /secrets` and `pd secret list`. The `storage` field
+ * reflects where a set value lives:
+ *   - 'keychain'    — encrypted at rest in the OS keychain (the managed path).
+ *   - 'env'         — present only in the in-process cache because snapshot
+ *                     scrubbed it from process.env but it was never written to
+ *                     the keychain (e.g. operator launched the daemon with the
+ *                     key already in env). Not encrypted at rest.
+ *   - 'unavailable' — not set, or keychain unsupported on this platform.
+ */
+export function listManagedSecrets(): ManagedSecretInfo[] {
+  const keychainAvailable = keychain.available();
+  return SENSITIVE_KEYS.map((key) => {
+    const inKeychain = keychainAvailable
+      && keychain.loadSecret(KEYCHAIN_SERVICE, keychainAccountFor(key)) !== null;
+    const inCache = cache.has(key);
+    if (inKeychain) {
+      return { key, set: true, storage: 'keychain' as const, encryptedAtRest: true };
+    }
+    if (inCache) {
+      // Cached but not in keychain → snapshotted from env, plaintext at rest.
+      return { key, set: true, storage: 'env' as const, encryptedAtRest: false };
+    }
+    return {
+      key,
+      set: false,
+      storage: keychainAvailable ? ('keychain' as const) : ('unavailable' as const),
+      encryptedAtRest: keychainAvailable,
+    };
+  });
+}
+
+/**
+ * Reveal a managed secret's value. SENSITIVE — only call from a guarded,
+ * loopback-only path (see routes/secrets.ts reveal handler). Returns
+ * undefined when the key is unknown or unset.
+ */
+export function revealManagedSecret(key: string): string | undefined {
+  if (!SENSITIVE_KEY_SET.has(key)) return undefined;
+  return getSecret(key);
+}
+
+/**
+ * Remove a managed secret from the OS keychain and the in-process cache.
+ * Returns true when an entry was present and removed. Idempotent: deleting an
+ * unset key returns false rather than throwing.
+ */
+export function deleteManagedSecret(key: string): boolean {
+  requireManagedSecretKey(key);
+  const hadCache = cache.delete(key);
+  const removed = keychain.available()
+    ? keychain.deleteSecret(KEYCHAIN_SERVICE, keychainAccountFor(key))
+    : false;
+  return hadCache || removed;
+}
+
 export function managedSecretStorageStatus(): ManagedSecretStorageStatus {
   const available = keychain.available();
   return {

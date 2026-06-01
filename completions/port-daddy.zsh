@@ -1749,6 +1749,16 @@ _pd_cmd_ideas() {
   esac
 }
 
+_pd_cmd_secret() {
+  _arguments \
+    '1:subcommand:(set list reveal rm)' \
+    '2:key:' \
+    '--backend[backend label for set]:backend:(claude gemini cloudflare codex ngrok voyage)' \
+    '--copy[reveal: copy to clipboard instead of printing]' \
+    '(-j --json)'{-j,--json}'[output JSON]' \
+    '(-q --quiet)'{-q,--quiet}'[machine-readable output]'
+}
+
 _pd_cmd_roadmap() {
   _arguments \
     '1:subcommand:(ack harvest promote render pop release claims)' \
@@ -1915,6 +1925,7 @@ _port_daddy() {
     'spawned:list active spawned agents'
     'sortie:launch and inspect tracked mission records'
     'cockpit:App-Native Development Cockpit — read roadmap into mission cards'
+    'secret:manage keychain-backed provider credentials (set/list/reveal/rm)'
     'watch:subscribe to a channel and run a script on each message'
     # Harbors (named permission namespaces)
     'harbor:create, enter, leave, show, or destroy a harbor'
@@ -1931,6 +1942,9 @@ _port_daddy() {
     'quorum:propose, vote, list, or inspect swarm proposals'
     # Feedback (central agentic-feedback primitive)
     'feedback:drop, list, show, or harvest structured agentic feedback'
+    # Durable commitments + obligation monitor (ADR-0041)
+    'commit:create a durable commitment (or close one against an oracle)'
+    'obligations:list commitments, or sweep for overdue ones with --overdue'
     # System & Monitoring
     'dashboard:open web dashboard in browser'
     'channels:list pub/sub channels'
@@ -2076,6 +2090,7 @@ _port_daddy() {
         memory)                 _pd_cmd_memory ;;
         ideas)                  _pd_cmd_ideas ;;
         roadmap)                _pd_cmd_roadmap ;;
+        secret|secrets)         _pd_cmd_secret ;;
         mcp)                _arguments '1:subcommand:(start install)' ;;
         version|help)       ;;
         *)                  ;;

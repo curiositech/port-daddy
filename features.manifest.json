@@ -1528,6 +1528,30 @@
       },
       "_note": "Read-side (Next Cuts/feedback/claims projection) routes live under the `cartographer` feature; this feature owns the structured roadmap_items write side"
     },
+    "commitments": {
+      "description": "Durable commitments + obligation monitor (ADR-0041): the obligation dual of resurrection. Resurrection watches whether an agent is ALIVE; commitments watch whether it KEPT ITS PROMISE. `due_at` is daemon-derived from the commitment scope (Law 1); `close` refuses without an external oracle ref (Law 2); the monitor is a pure runtime SQLite sweep with no Rust-FFI dependency so it cannot silently degrade (Law 4). `pd commit` creates an obligation, `pd obligations [--overdue]` lists/sweeps, `pd commit close <id> --oracle <ref>` closes against an oracle",
+      "module": "lib/commitments.ts",
+      "cli": [
+        "commit",
+        "obligations"
+      ],
+      "sdk": [],
+      "routes": [
+        "POST /commitments",
+        "GET /commitments",
+        "GET /commitments/overdue",
+        "POST /commitments/:param/close"
+      ],
+      "completions": [
+        "commit",
+        "obligations"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "ADR-0041 first slice. Out of scope (separate roadmap items / ADRs): graduated-sanction-ladder, accountability-ledger, and non-forgeable actor identity (ADR-0040). owner_actor_id is the self-asserted session/actor id until ADR-0040 lands"
+    },
     "quorum": {
       "description": "Tuple-backed propose/vote primitive for swarm decisions — agents propose roles, others vote, threshold-cross emits a `quorum:passed` tuple subscribers can react to",
       "cli": [
@@ -1692,6 +1716,27 @@
         "sdk": false
       },
       "_note": "CLI plus local daemon onboarding surface \u2014 orchestrates daemon install, MCP config, FleetBar install, and project init in one step. Daemon setup routes are loopback-only; mutating actions require a setup capability token from /setup/overview."
+    },
+    "secrets": {
+      "description": "Managed provider secret store \u2014 keychain-backed CRUD over allow-listed provider keys (generalizes /fleet/backend-secrets)",
+      "cli": [
+        "secret"
+      ],
+      "sdk": [],
+      "routes": [
+        "GET /secrets",
+        "POST /secrets",
+        "POST /secrets/:param/reveal",
+        "DELETE /secrets/:param"
+      ],
+      "completions": [
+        "secret"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      },
+      "_note": "Store is the macOS Keychain (encrypted at rest, fail-closed) via lib/keychain.ts. `pd secret set` reads the value from a hidden stdin prompt, never argv (audit finding L1). Reveal returns plaintext for the FleetBar Copy flow and is loopback-only on the daemon (preHandler) plus the global DNS-rebinding guard."
     }
   }
 }

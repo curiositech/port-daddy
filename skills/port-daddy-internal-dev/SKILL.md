@@ -129,6 +129,69 @@ message naming the gaps and link the follow-up issue. Lookout is the role
 that watches for release-surface drift; making the drift visible is your
 job, fixing it is theirs (or future-yours).
 
+## PR Finish Line Discipline
+
+For Port Daddy repo PRs, local validation is not the finish line. Before
+calling a branch ready, inspect and close the full PR surface:
+
+- Inline bot comments from Copilot, Claude review, Cloudflare Pages, CodeQL,
+  package/release jobs, or deploy previews count as review findings. Reply to
+  each actionable thread with fixed / deferred / contested-because.
+- Run a skeptical reviewer agent for non-trivial changes and require a
+  `SHIP / SHIP-AFTER-FIX / DO-NOT-SHIP` verdict. Fix high-confidence findings
+  as named fixup commits on the branch.
+- Treat GitHub CI, external deploy checks, release-package jobs, and Cloudflare
+  Pages as one CI/CD surface. If one is red, inspect the linked logs. Only call
+  it external after proving the branch is not the cause, and record that proof
+  in both the PR and a `pd note`.
+- Do not leave a PR with "CI green except..." as an unresolved aside. Either
+  make it green, file/assign the external blocker with evidence, or hand off the
+  exact next action to an active Port Daddy session.
+
+## PR Lifecycle (Create / Update / Land)
+
+The Finish Line Discipline above is the *review contract*; this is the
+*mechanical contract*. `AGENTS.md` (`## Pull Request Operating Procedure`)
+carries the canonical copy — this is the contributor-repo mirror.
+
+**Create.** Linked worktree off `origin/main` under `~/coding/tmp/wt-<slug>`
+(never the main checkout — it carries the operator's WIP) → `pd begin
+"<purpose>" --identity port-daddy:contrib:<slug>` → scope `pd note` → `pd
+session files add <files>` *before* editing → edit → `pd guard check
+--staged` → commit (no Claude co-author trailer) → `git push -u origin
+<branch>` → `gh pr create` → `pd done`.
+
+**Update** (review + CI). Pull bot comments with `gh api
+repos/curiositech/port-daddy/pulls/<n>/comments` and fix the real ones.
+Land every HIGH adversarial finding as a named fixup commit. Get `npx tsc
+--noEmit`, jest, `npm run parity`, and the build green. Rebase onto latest
+`origin/main`, resolve conflicts, push.
+
+**Land.** Merge in dependency order: base before dependent, and rebase the
+dependent after *each* merge — mergeability can flip MERGEABLE → CONFLICTING
+the moment the base lands. `gh pr merge <n> --squash --admin`. `--admin` is
+correct: it bypasses the BEHIND/up-to-date gate AND the Cloudflare Pages
+check. Cloudflare Pages is an **external gate** (Pages build pipeline, not
+repo CI) that always fails on PRs and is never a merge blocker.
+
+**Cleanup.** Delete a worktree only when its branch is merged AND `git -C
+<wt> status --porcelain` is clean. Never delete a worktree with uncommitted
+work; never reset or clobber the main checkout.
+
+### Shell gotchas (real and recurring)
+
+- **`git add -A` is refused by the pd-shim.** When you truly mean all (rare;
+  prefer explicit paths), use `PD_SHIM_OFF=1 git add` so the bypass is
+  deliberate.
+- **The `~/.port-daddy/bin/git` shim sets `core.pager=delta` → `bat`.** If
+  `bat` is absent, `git log` / `git show` / `git commit` emit `command not
+  found: bat` and can swallow output. Use `git -c core.pager=cat …` or
+  `GIT_PAGER=cat`.
+- **Inline `node -e` and heredocs get mangled by zsh.** Write a `.cjs` under
+  the repo's `.scratch/` (gitignored, resolves `node_modules`) and run it.
+- **Secrets go through `pd secret set`** (hidden stdin prompt) — never as an
+  argv argument.
+
 ## Distribution Mirror Sync
 
 The skill bundle is mirrored to several locations. Inside this repo the

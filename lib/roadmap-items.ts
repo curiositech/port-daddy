@@ -160,39 +160,44 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
   const selectBySlugStmt = db.prepare<[string, string], RoadmapItemRow>(
     `SELECT * FROM roadmap_items WHERE slug = ? AND harbor = ?`,
   );
+  // NOTE: All statements use positional `?` placeholders bound with ordered
+  // arrays, NOT `@named` object binding. `@named` object binding works under
+  // better-sqlite3 (dev/tsx) but SILENTLY BINDS NULL under bun:sqlite (the
+  // `bun build --compile` daemon — see lib/sqlite-runtime.ts), which produced
+  // "NOT NULL constraint failed" / "SQLITE_MISMATCH" failures invisible in
+  // dev. Positional `?` is portable across both engines. Keep column order in
+  // sync with the bound arrays below.
   const insertStmt = db.prepare(`
     INSERT INTO roadmap_items (
       id, slug, summary_md, status,
       promoted_from_feedback_id, promoted_by_agent_id, promoted_at,
       last_touched_at, dependencies_json, notes_json, harbor, created_at
-    ) VALUES (@id, @slug, @summaryMd, @status,
-      @promotedFromFeedbackId, @promotedByAgentId, @promotedAt,
-      @lastTouchedAt, @dependenciesJson, @notesJson, @harbor, @createdAt)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const updateStmt = db.prepare(`
     UPDATE roadmap_items SET
-      summary_md = @summaryMd,
-      status = @status,
-      promoted_from_feedback_id = @promotedFromFeedbackId,
-      promoted_by_agent_id = @promotedByAgentId,
-      promoted_at = @promotedAt,
-      last_touched_at = @lastTouchedAt,
-      dependencies_json = @dependenciesJson,
-      notes_json = @notesJson
-    WHERE id = @id
+      summary_md = ?,
+      status = ?,
+      promoted_from_feedback_id = ?,
+      promoted_by_agent_id = ?,
+      promoted_at = ?,
+      last_touched_at = ?,
+      dependencies_json = ?,
+      notes_json = ?
+    WHERE id = ?
   `);
   const updateStatusStmt = db.prepare(`
     UPDATE roadmap_items
-       SET status = @status, last_touched_at = @lastTouchedAt
-     WHERE id = @id
+       SET status = ?, last_touched_at = ?
+     WHERE id = ?
   `);
   const updateTouchStmt = db.prepare(`
-    UPDATE roadmap_items SET last_touched_at = @at WHERE id = @id
+    UPDATE roadmap_items SET last_touched_at = ? WHERE id = ?
   `);
   const insertStatusEventStmt = db.prepare(`
     INSERT INTO roadmap_item_status_events
       (item_id, slug, status, by_agent_id, at, harbor)
-    VALUES (@itemId, @slug, @status, @byAgentId, @at, @harbor)
+    VALUES (?, ?, ?, ?, ?, ?)
   `);
 
   function upsert(input: UpsertRoadmapItemInput): RoadmapItem {
@@ -235,25 +240,43 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
       harbor,
     };
 
-    const params = {
-      id: item.id,
-      slug: item.slug,
-      summaryMd: item.summaryMd,
-      status: item.status,
-      promotedFromFeedbackId: item.promotedFromFeedbackId,
-      promotedByAgentId: item.promotedByAgentId,
-      promotedAt: item.promotedAt,
-      lastTouchedAt: item.lastTouchedAt,
-      dependenciesJson: JSON.stringify(item.dependencies),
-      notesJson: JSON.stringify(item.notes),
-      harbor: item.harbor,
-      createdAt: existing ? existingRow!.created_at : at,
-    };
+    const dependenciesJson = JSON.stringify(item.dependencies);
+    const notesJson = JSON.stringify(item.notes);
+    const createdAt = existing ? existingRow!.created_at : at;
 
     if (existing) {
-      updateStmt.run(params);
+      // UPDATE column order: summary_md, status, promoted_from_feedback_id,
+      // promoted_by_agent_id, promoted_at, last_touched_at, dependencies_json,
+      // notes_json, then id in the WHERE clause.
+      updateStmt.run(
+        item.summaryMd,
+        item.status,
+        item.promotedFromFeedbackId,
+        item.promotedByAgentId,
+        item.promotedAt,
+        item.lastTouchedAt,
+        dependenciesJson,
+        notesJson,
+        item.id,
+      );
     } else {
-      insertStmt.run(params);
+      // INSERT column order: id, slug, summary_md, status,
+      // promoted_from_feedback_id, promoted_by_agent_id, promoted_at,
+      // last_touched_at, dependencies_json, notes_json, harbor, created_at.
+      insertStmt.run(
+        item.id,
+        item.slug,
+        item.summaryMd,
+        item.status,
+        item.promotedFromFeedbackId,
+        item.promotedByAgentId,
+        item.promotedAt,
+        item.lastTouchedAt,
+        dependenciesJson,
+        notesJson,
+        item.harbor,
+        createdAt,
+      );
     }
 
     // Emit the change-event tuple for subscribers. Notification only —
@@ -275,22 +298,26 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
 
   function list(options: ListRoadmapItemsOptions = {}): RoadmapItem[] {
     const limit = options.limit ?? 1000;
-    const params: Record<string, unknown> = { limit };
+    // Positional `?` params built in clause order: WHERE filters first, then
+    // the LIMIT. `@named` binding is unsafe under bun:sqlite (see insertStmt
+    // note), so this query also binds an ordered array.
     const where: string[] = [];
+    const args: unknown[] = [];
     if (options.harbor !== undefined) {
-      where.push('harbor = @harbor');
-      params.harbor = options.harbor;
+      where.push('harbor = ?');
+      args.push(options.harbor);
     }
     if (options.status && options.status !== 'all') {
-      where.push('status = @status');
-      params.status = options.status;
+      where.push('status = ?');
+      args.push(options.status);
     }
+    args.push(limit);
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
     const sql = `SELECT * FROM roadmap_items
       ${whereSql}
       ORDER BY ${STATUS_RANK_SQL} ASC, last_touched_at DESC
-      LIMIT @limit`;
-    const rows = db.prepare<typeof params, RoadmapItemRow>(sql).all(params);
+      LIMIT ?`;
+    const rows = db.prepare<unknown[], RoadmapItemRow>(sql).all(...args);
     return rows.map(rowToItem);
   }
 
@@ -312,15 +339,10 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
     }
     const at = now();
     const lastTouchedAt = Math.max(row.last_touched_at, at);
-    updateStatusStmt.run({ id: row.id, status, lastTouchedAt });
-    insertStatusEventStmt.run({
-      itemId: row.id,
-      slug: row.slug,
-      status,
-      byAgentId: input.by,
-      at,
-      harbor,
-    });
+    // updateStatusStmt order: status, last_touched_at, then id (WHERE).
+    updateStatusStmt.run(status, lastTouchedAt, row.id);
+    // insertStatusEventStmt order: item_id, slug, status, by_agent_id, at, harbor.
+    insertStatusEventStmt.run(row.id, row.slug, status, input.by, at, harbor);
     tuples.out(
       ['roadmap:status', input.slug, { status, by: input.by, at }],
       { harbor, writtenBy: input.by },
@@ -333,7 +355,8 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
     const row = selectBySlugStmt.get(slug, h);
     if (!row) return null;
     const at = now();
-    updateTouchStmt.run({ id: row.id, at });
+    // updateTouchStmt order: last_touched_at (= at), then id (WHERE).
+    updateTouchStmt.run(at, row.id);
     tuples.out(['roadmap:touched', slug, { at }], { harbor: h });
     return { ...rowToItem(row), lastTouchedAt: at };
   }
