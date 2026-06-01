@@ -26,8 +26,8 @@ import { spawn } from 'node:child_process';
 import { openSync, closeSync, createReadStream } from 'node:fs';
 import { platform } from 'node:os';
 import * as readline from 'node:readline';
-import * as tty from 'node:tty';
 
+import { isStdinInteractive } from '../utils/tty.js';
 import { CLIOptions, isJson, isQuiet } from '../types.js';
 import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
@@ -212,28 +212,10 @@ function promptHiddenValue(label: string): Promise<string | null> {
   return promptViaControllingTerminal(label);
 }
 
-/**
- * True when fd 0 is a real terminal. Prefers the kernel-level `tty.isatty(0)`
- * (correct under the bun-compiled binary, where `stream.isTTY` can be falsy on
- * a real terminal) and falls back to the stream flag. `isatty` is injectable so
- * the regression test can pin the precedence without a real tty.
- *
- * EXPORTED for the bun regression test: this predicate IS the fix. Pre-fix the
- * code keyed solely off `input.isTTY`; this returns `true` for the
- * "fd-is-a-tty but stream flag is falsy" shape that only the compiled bun
- * binary produced — the exact case that fell through to the silent pipe branch.
- */
-export function isStdinInteractive(
-  input: { isTTY?: boolean },
-  isatty: (fd: number) => boolean = tty.isatty,
-): boolean {
-  try {
-    if (isatty(0)) return true;
-  } catch {
-    /* isatty can throw on exotic fds; fall through to the flag */
-  }
-  return input.isTTY === true;
-}
+// `isStdinInteractive` is the canonical TTY predicate, now shared across every
+// command that reads stdin (secret/tube/feedback/tutorial). Re-exported here so
+// the bun regression test that imports it from this module keeps working.
+export { isStdinInteractive };
 
 /**
  * Last-resort interactive read: open the controlling terminal (/dev/tty) and

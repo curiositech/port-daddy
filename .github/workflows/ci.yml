@@ -112,6 +112,13 @@ jobs:
         run: bash scripts/smoke-compiled-cli-secret.sh
         timeout-minutes: 3
 
+      - name: Smoke compiled CLI `pd tube --send` stdin path
+        # Same bun-compiled isTTY class: a piped body must post to the channel,
+        # and an interactive (PTY) `--send` with no pipe must error FAST rather
+        # than hanging forever on stdin EOF. Guards the tube-hang regression.
+        run: bash scripts/smoke-compiled-cli-tube.sh
+        timeout-minutes: 3
+
   lint:
     runs-on: ubuntu-latest
     steps:
