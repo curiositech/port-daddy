@@ -30,6 +30,7 @@ const LandscapePage = lazy(() => import('@/pages/landscape'))
 const BlogPage = lazyNamed(() => import('@/pages/BlogPage'), 'BlogPage')
 const BlogPostPage = lazyNamed(() => import('@/pages/BlogPostPage'), 'BlogPostPage')
 const MacPreviewPage = lazyNamed(() => import('@/pages/MacPreviewPage'), 'MacPreviewPage')
+const PdTubePage = lazyNamed(() => import('@/pages/PdTubePage'), 'PdTubePage')
 const AgentsPage = lazyNamed(() => import('@/pages/AgentsPage'), 'AgentsPage')
 const IntegrationsPage = lazyNamed(() => import('@/pages/integrations/IntegrationsPage'), 'IntegrationsPage')
 const IntegrationPage = lazyNamed(() => import('@/pages/integrations/IntegrationPage'), 'IntegrationPage')
@@ -189,6 +190,7 @@ createRoot(document.getElementById('root')!).render(
             <Route element={<MainLayout />}>
               <Route path="/" element={<App />} />
               <Route path="/mac-preview" element={<MacPreviewPage />} />
+              <Route path="/pd-tube" element={<PdTubePage />} />
               <Route path="/examples" element={<ExamplesPage />} />
               <Route path="/examples/:slug" element={<ExampleDetailPage />} />
               <Route path="/mcp" element={<McpPage />} />

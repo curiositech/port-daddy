@@ -1,6 +1,7 @@
 import './App.css'
 import { Hero } from '@/components/landing/Hero'
 import { TubeShowcase } from '@/components/landing/TubeShowcase'
+import { TubeMultiplexSection } from '@/components/landing/TubeMultiplexSection'
 import { CoordinationEnforcementSection } from '@/components/landing/CoordinationEnforcementSection'
 import { AgentConversationSection } from '@/components/landing/AgentConversationSection'
 import { AgenticSocialProofSection } from '@/components/landing/AgenticSocialProofSection'
@@ -36,6 +37,7 @@ export default function App() {
         <CoordinationEnforcementSection />
         <AgentConversationSection />
         <TubeShowcase />
+        <TubeMultiplexSection />
         <AgenticSocialProofSection />
         <Features />
       </main>
