@@ -465,6 +465,10 @@ export async function handleTube(channel: string | undefined, options: CLIOption
       limit,
       disableHistory,
       selfSender,
+      // Per-listener cursor namespace so multiple listeners on one channel each
+      // receive every message (multi-subscriber). Distinct `--as` identities →
+      // independent cursors; the same identity still resumes across runs.
+      historyKey: selfSender ? `${physical}::${selfSender}` : physical,
     });
   }
 

@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **`pd tube` is now multi-subscriber (fan-out).** Multiple listeners on one channel each receive every message. Previously `pd tube CH --tail` keyed its resume cursor (`~/.port-daddy/tube-history-<channel>.json`) by **channel only**, so two listeners shared one cursor file and raced — whoever polled first advanced it and the others saw nothing (silent single-consumer). The cursor is now namespaced per listener identity (`listen()` gains a `historyKey`, set by the CLI to `channel::<sender>`): distinct `--as` identities keep independent cursors (true fan-out), while the same identity still resumes across invocations. Verified with three live `--tail` listeners all receiving one `--send`; covered by `tests/unit/tube.test.ts` (a multi-subscriber fan-out test + a single-consumer regression that documents the old behavior).
+
 ## [3.16.1] - 2026-06-01
 
 ### Fixed
