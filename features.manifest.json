@@ -1517,7 +1517,8 @@
         "POST /roadmap/items/:slug/status",
         "POST /roadmap/items/:slug/touch",
         "POST /roadmap/promote",
-        "POST /roadmap/render"
+        "POST /roadmap/render",
+        "POST /roadmap/import-markdown"
       ],
       "completions": [
         "roadmap"
@@ -1720,7 +1721,8 @@
     "secrets": {
       "description": "Managed provider secret store \u2014 keychain-backed CRUD over allow-listed provider keys (generalizes /fleet/backend-secrets)",
       "cli": [
-        "secret"
+        "secret",
+        "secrets"
       ],
       "sdk": [],
       "routes": [
@@ -1730,7 +1732,8 @@
         "DELETE /secrets/:param"
       ],
       "completions": [
-        "secret"
+        "secret",
+        "secrets"
       ],
       "docs": {
         "readme": true,
