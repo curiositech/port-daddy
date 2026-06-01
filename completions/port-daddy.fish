@@ -191,6 +191,7 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command cockpit; and __fish_seen_subcommand_from missions" -l project -x -d 'Project directory to read'
     complete -c $prog -n "__pd_using_command cockpit; and __fish_seen_subcommand_from missions" -l status -x -d 'Comma-separated status filter'
     complete -c $prog -n __pd_needs_command -a secret -d 'Manage keychain-backed provider credentials'
+    complete -c $prog -n __pd_needs_command -a secrets -d 'Manage keychain-backed provider credentials (alias)'
     complete -c $prog -n "__pd_using_command cockpit; and __fish_seen_subcommand_from missions" -l limit -x -d 'Cap returned missions'
     complete -c $prog -n "__pd_using_command cockpit; and __fish_seen_subcommand_from missions" -l json -d 'Emit raw intake envelope'
     complete -c $prog -n __pd_needs_command -a watch -d 'Subscribe to a channel and run a script on each message'

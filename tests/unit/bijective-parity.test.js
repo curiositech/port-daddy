@@ -327,6 +327,7 @@ describe('Test Group 3: API -> CLI Parity', () => {
     cartographer: ['roadmap'],
     roadmap: ['roadmap'],
     commitments: ['commit', 'obligations'],
+    secrets: ['secret', 'secrets'],
     quorum: ['quorum'],
     feedback: ['feedback'],
     bonds: ['bond'],

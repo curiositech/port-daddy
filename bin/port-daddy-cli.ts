@@ -1241,6 +1241,7 @@ const ALL_COMMANDS: string[] = [
   'quorum',
   'feedback',
   'commit', 'obligations',
+  'secret', 'secrets',
   'cockpit',
 ];
 

@@ -1926,6 +1926,7 @@ _port_daddy() {
     'sortie:launch and inspect tracked mission records'
     'cockpit:App-Native Development Cockpit — read roadmap into mission cards'
     'secret:manage keychain-backed provider credentials (set/list/reveal/rm)'
+    'secrets:alias for secret — manage keychain-backed provider credentials'
     'watch:subscribe to a channel and run a script on each message'
     # Harbors (named permission namespaces)
     'harbor:create, enter, leave, show, or destroy a harbor'

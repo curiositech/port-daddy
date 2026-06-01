@@ -251,6 +251,7 @@ const MCP_EXEMPT_FEATURES = new Set([
   'cartographer',   // Read-only roadmap projection; surfaced via `pd roadmap` CLI; MCP tool deferred until dashboards consume the endpoint
   'roadmap',        // Write side of tuple-backed roadmap_items DB-of-record; the `pd roadmap promote` CLI verb is the v1 entry point. MCP wrapper deferred until cartographer fleet agent calls it via tool-use directly rather than shell.
   'commitments',    // ADR-0041 first slice (durable commitments + obligation monitor). CLI verbs `pd commit` / `pd obligations` are the v1 entry points; auto-enrollment from claims and an MCP wrapper land with the sanction-ladder / accountability-ledger follow-on ADRs, not this slice.
+  'secrets',        // PR #197 managed provider credential store. CLI-only (`pd secret set/list/reveal/rm`); write + reveal routes are loopback-only (makeLoopbackGuard). Intentionally NO SDK/MCP surface — an agent must not be able to set or read managed provider API keys (e.g. poison ANTHROPIC_API_KEY to exfiltrate prompts). Follows the `setup` CLI-only precedent.
   'quorum',         // New propose/vote primitive; agents drive consensus via SDK calls in v1, MCP wrapper deferred to v4
   'shipwright',     // Survey + propose + apply for fleet authoring; CLI-driven workflow (long-running, interactive review). MCP wrapper deferred until the propose/apply step is non-interactive.
   'setup',          // Local machine onboarding can run installer commands; daemon routes require loopback + GUI capability token, not MCP exposure.
