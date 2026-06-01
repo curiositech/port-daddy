@@ -195,8 +195,13 @@ describe('public shell contracts', () => {
     expect(paperData).toContain('/whitepaper/anchor-protocol-whitepaper.pdf')
     expect(paperData).toContain('/whitepaper/agent-transactions-whitepaper.pdf')
     expect(cta).toContain('Read both papers')
-    expect(cta).toContain('Coordination feedback')
-    expect(cta).toContain('Dogfood restore')
+    // The "Coordination feedback" / "Dogfood restore" sub-panel was
+    // stripped intentionally per the 2026-05-20 IA audit — it was
+    // internal build-process commentary at the closing CTA, which is
+    // exactly when the reader should be converting, not reading about
+    // how the page was authored. Tests no longer assert that panel.
+    expect(cta).not.toContain('Coordination feedback')
+    expect(cta).not.toContain('Dogfood restore')
   })
 
   test('individual whitepaper pages explain value and embed PDFs inline', () => {

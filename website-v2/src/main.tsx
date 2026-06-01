@@ -70,6 +70,7 @@ const SessionsFeature = lazy(() => import('@/pages/docs/features/SessionsFeature
 const HarborsFeature = lazy(() => import('@/pages/docs/features/HarborsFeature'))
 const SalvageFeature = lazy(() => import('@/pages/docs/features/SalvageFeature'))
 const TimelineFeature = lazy(() => import('@/pages/docs/features/TimelineFeature'))
+const ClaimTreeConcept = lazy(() => import('@/pages/docs/concepts/ClaimTree'))
 const DnsFeature = lazy(() => import('@/pages/docs/features/DnsFeature'))
 const RemoteFeature = lazy(() => import('@/pages/docs/features/RemoteFeature'))
 const TunnelsFeature = lazy(() => import('@/pages/docs/features/TunnelsFeature'))
@@ -289,6 +290,7 @@ createRoot(document.getElementById('root')!).render(
               <Route path="features/avatars" element={<AvatarsFeature />} />
               <Route path="features/salvage" element={<SalvageFeature />} />
               <Route path="features/timeline" element={<TimelineFeature />} />
+              <Route path="concepts/claim-tree" element={<ClaimTreeConcept />} />
               <Route path="features/dns" element={<DnsFeature />} />
               <Route path="features/remote" element={<RemoteFeature />} />
               <Route path="features/sessions" element={<SessionsFeature />} />

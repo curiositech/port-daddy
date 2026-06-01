@@ -64,35 +64,92 @@ afterAll(() => {
   exit.mockRestore();
 });
 
+// ADR-0033: the roadmap_items SQL table is the source of truth. `pd roadmap`
+// reads from GET /roadmap/items, NOT by re-parsing markdown via
+// /cartographer/roadmap-progress (that was the markdown-as-DB bug).
+const itemsFixture = {
+  success: true,
+  count: 2,
+  items: [
+    {
+      id: 'r1',
+      slug: 'cartographer-roadmap-progress-screen',
+      summaryMd: 'Surface roadmap state in one glance.',
+      status: 'now',
+      promotedFromFeedbackId: null,
+      promotedByAgentId: 'agent-cartographer',
+      promotedAt: null,
+      lastTouchedAt: 1,
+      dependencies: [],
+      notes: [],
+      harbor: 'port-daddy:fleet',
+    },
+    {
+      id: 'r2',
+      slug: 'daemon-introspection-api',
+      summaryMd: 'Unified daemon health view.',
+      status: 'now',
+      promotedFromFeedbackId: null,
+      promotedByAgentId: null,
+      promotedAt: null,
+      lastTouchedAt: 2,
+      dependencies: [],
+      notes: [],
+      harbor: 'port-daddy:fleet',
+    },
+  ],
+};
+
 describe('pd roadmap', () => {
-  test('fetches the Cartographer endpoint for the selected repo root', async () => {
+  test('lists from the roadmap_items SQL table, not the markdown piles', async () => {
     pdFetch.mockResolvedValue({
       ok: true,
-      json: async () => fixture,
+      json: async () => itemsFixture,
     });
 
-    await handleRoadmap({ dir: '/Users/test/port-daddy', json: true });
+    await handleRoadmap({ json: true });
 
-    expect(pdFetch).toHaveBeenCalledWith(
-      'http://127.0.0.1:9876/cartographer/roadmap-progress?root=%2FUsers%2Ftest%2Fport-daddy',
-    );
-    expect(console.log).toHaveBeenCalledWith(expect.stringContaining('"nextCuts"'));
+    const url = pdFetch.mock.calls[0][0];
+    expect(url).toContain('/roadmap/items');
+    expect(url).not.toContain('/cartographer/roadmap-progress');
+    expect(console.log).toHaveBeenCalledWith(expect.stringContaining('cartographer-roadmap-progress-screen'));
   });
 
-  test('quiet output is section-prefixed for agent prompts', async () => {
+  test('quiet output prints one slug per line from the table', async () => {
     pdFetch.mockResolvedValue({
       ok: true,
-      json: async () => fixture,
+      json: async () => itemsFixture,
     });
 
-    await handleRoadmap({ dir: '/Users/test/port-daddy', quiet: true });
+    await handleRoadmap({ quiet: true });
 
     expect(console.log).toHaveBeenCalledWith([
-      'next:cartographer-roadmap-progress-screen',
-      'now:cartographer-roadmap-progress-screen',
-      'live:cartographer-live-body-salvage-friction',
-      'feedback:coordination-ticker-as-high-signal-feed',
+      'cartographer-roadmap-progress-screen',
+      'daemon-introspection-api',
     ].join('\n'));
+  });
+
+  test('import-markdown backfills the table from the curated piles', async () => {
+    pdFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        candidates: [{ slug: 'a', summaryMd: 'A', status: 'now', source: 'next-cut' }],
+        inserted: ['a'],
+        updated: [],
+        parsed: { nextCuts: 1, ideasNow: 0, dogfood: 0 },
+        missingFiles: [],
+        dryRun: false,
+      }),
+    });
+
+    await handleRoadmap(['import-markdown'], { dir: '/Users/test/port-daddy', json: true });
+
+    const url = pdFetch.mock.calls[0][0];
+    expect(url).toContain('/roadmap/import-markdown');
+    const opts = pdFetch.mock.calls[0][1];
+    expect(opts.method).toBe('POST');
+    expect(JSON.parse(opts.body)).toMatchObject({ rootDir: '/Users/test/port-daddy' });
   });
 
   test('ack harvests live feedback from the roadmap surface', async () => {

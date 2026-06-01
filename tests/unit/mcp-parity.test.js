@@ -250,11 +250,13 @@ const MCP_EXEMPT_FEATURES = new Set([
   'resource_governance', // Operator UI read model; MCP wrapper deferred until enforcement controls exist
   'cartographer',   // Read-only roadmap projection; surfaced via `pd roadmap` CLI; MCP tool deferred until dashboards consume the endpoint
   'roadmap',        // Write side of tuple-backed roadmap_items DB-of-record; the `pd roadmap promote` CLI verb is the v1 entry point. MCP wrapper deferred until cartographer fleet agent calls it via tool-use directly rather than shell.
+  'commitments',    // ADR-0041 first slice (durable commitments + obligation monitor). CLI verbs `pd commit` / `pd obligations` are the v1 entry points; auto-enrollment from claims and an MCP wrapper land with the sanction-ladder / accountability-ledger follow-on ADRs, not this slice.
   'quorum',         // New propose/vote primitive; agents drive consensus via SDK calls in v1, MCP wrapper deferred to v4
   'shipwright',     // Survey + propose + apply for fleet authoring; CLI-driven workflow (long-running, interactive review). MCP wrapper deferred until the propose/apply step is non-interactive.
   'setup',          // Local machine onboarding can run installer commands; daemon routes require loopback + GUI capability token, not MCP exposure.
   'usage',          // Local developer-pane telemetry ingestion; not a user-facing MCP tool.
   'blob',           // Phase 0 tube-as-coordination-substrate: content-addressed object storage; agents use the SDK or HTTP directly, MCP wrapper deferred to Phase 1+
+  'attention',      // Session-start convention surface; agents consume it via harness SessionStart hooks (Claude Code) or by running `pd attention` at the top of every session. An MCP tool would invert the dependency — the model would have to decide to call it mid-turn, which is exactly the polling problem this feature is supposed to remove. Deferred indefinitely.
 ]);
 
 // ============================================================================

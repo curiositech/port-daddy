@@ -176,6 +176,25 @@ pd notes --limit 20
 pd guard check --staged
 ```
 
+## PR Finish Line
+
+When you open or inherit a PR, you own the machine-visible finish line unless
+you explicitly hand it off in Port Daddy notes.
+
+- Read live PR comments, reviews, inline bot findings, and status checks before
+  declaring the branch ready.
+- Treat Copilot, Claude review, Cloudflare Pages, CodeQL, release, and package
+  comments as review findings. Reply to every actionable thread with fixed /
+  deferred / contested-because.
+- Run or spawn an adversarial reviewer for non-trivial changes. Ask for a
+  `SHIP / SHIP-AFTER-FIX / DO-NOT-SHIP` verdict and fix high-confidence
+  findings before merge.
+- "CI green" includes GitHub checks and attached external deploy/status checks.
+  If a red check is truly external, inspect the linked logs and document the
+  owner/root cause in both the PR and a `pd note`; otherwise fix the branch.
+- Before the final handoff, post the validation evidence on the PR, leave a
+  `pd note`, and `pd done` the session.
+
 ## Small Decision Table
 
 | Situation | Move |

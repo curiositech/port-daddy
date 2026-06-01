@@ -29,6 +29,7 @@ You are explicitly invited to fix errors, sharpen inefficient passages, and add 
 
 - On this computer, use Port Daddy for repo work by default, not only when a task already looks multi-agent.
 - Start recovery, debugging, and parallel-work sessions with Port Daddy before doing local archaeology:
+  - `pd attention` — **first command of every session.** Reads unread inbox + subscribed channels in one call, marks them seen. Without this, other agents can route messages, file conflicts, or coordination signals at your agent id and you will never see them. The Claude Code SessionStart hook in `.claude/settings.json` runs this automatically and pins the output into context; for other harnesses, run it manually.
   - `pd status`
   - `pd briefing`
   - `pd salvage` when crash residue or abandoned work might matter
@@ -135,11 +136,21 @@ flow is:
 4. **Comment on the PR** with what changed, the validation evidence
    (test counts, `tsc --noEmit` exit, focused jest output), and an explicit
    line for each reviewer finding marked done / deferred / contested-because.
-5. **Re-spawn the reviewer** (or a fresh one) if the change set is
+5. **Treat bot comments as real review findings.** Copilot, Claude review,
+   Cloudflare Pages, CodeQL, release, or other automation comments are not
+   background noise. Reply to every actionable bot thread with fixed /
+   deferred / contested-because, and push a fixup commit for every valid
+   high-confidence finding before asking a human to look.
+6. **Get the full CI/CD surface clean.** "CI is green" means the GitHub
+   matrix, review checks, deploy previews, release/package jobs, and external
+   statuses attached to the PR are green. If a red status is truly external,
+   inspect the linked logs, name the external owner/root cause in a PR
+   comment, and leave a `pd note`; otherwise fix the repo branch.
+7. **Re-spawn the reviewer** (or a fresh one) if the change set is
    non-trivial. Don't ship with a stale verdict.
-6. **`pd note` the result + `pd done`** before merge. The PD audit trail
+8. **`pd note` the result + `pd done`** before merge. The PD audit trail
    is part of the ship contract — a merge without it is not durable.
-7. **Merge in the right order.** When PRs stack (e.g. a doctor PR bases on
+9. **Merge in the right order.** When PRs stack (e.g. a doctor PR bases on
    a binary-daemon PR), merge the base first, rebase the dependent onto
    `main`, re-run CI, then merge.
 
@@ -151,6 +162,55 @@ you don't brief it on.
 For multi-PR ship campaigns, track the state in `TaskCreate` so the merge
 sequence is explicit. The user can interrupt at any boundary; the task
 list is the recovery surface.
+
+### Create / Update / Land mechanics
+
+The numbered flow above is the *review contract*. This subsection is the
+*mechanical contract* — the exact command sequence each phase resolves to.
+
+- **Create.** Branch in a linked Git worktree off `origin/main` under
+  `~/coding/tmp/wt-<slug>` (never the main checkout — the main checkout
+  carries the operator's WIP). Then `pd begin "<purpose>" --identity
+  port-daddy:<type>:<slug>` → a scope `pd note` → `pd session files add
+  <files>` *before* editing → edit → `pd guard check --staged` → commit
+  (no Claude co-author trailer) → `git push -u origin <branch>` → `gh pr
+  create` → `pd done`.
+- **Update** (review + CI). Pull bot review comments with `gh api
+  repos/curiositech/port-daddy/pulls/<n>/comments` and fix the real ones.
+  Address every HIGH adversarial-review finding as a named fixup commit.
+  Make `npx tsc --noEmit`, jest, `npm run parity`, and the build all
+  green. Rebase onto the latest `origin/main`, resolving conflicts. Push.
+- **Land.** Merge in dependency order: base PR before dependent PR, and
+  *rebase the dependent after each merge* — mergeability can flip from
+  MERGEABLE to CONFLICTING the instant the base lands. `gh pr merge <n>
+  --squash --admin`. **`--admin` is correct here** because it bypasses both
+  the BEHIND/up-to-date branch gate and the Cloudflare Pages check. The
+  Cloudflare Pages check is an **external gate** (it lives in the Pages
+  build pipeline, not the repo's CI) that always reports failure on PRs and
+  is *never* a merge blocker — see the `## Website And Public Content`
+  notes on the `port-daddy` Pages project.
+- **Cleanup.** Delete a worktree ONLY when its branch is merged AND `git -C
+  <wt> status --porcelain` is clean. Never delete a worktree that still has
+  uncommitted work. Never `git reset` or otherwise clobber the main
+  checkout — it carries WIP that is not yours.
+
+### Shell gotchas (real and recurring)
+
+These bite every contributor session; they are not theoretical.
+
+- **`git add -A` is refused by the pd-shim.** When you truly mean "stage
+  everything" (rare — prefer explicit paths), set `PD_SHIM_OFF=1 git add`
+  deliberately so the bypass is intentional and visible in the command.
+- **The `~/.port-daddy/bin/git` shim sets `core.pager=delta`, which falls
+  back to `bat`.** If `bat` is not installed, `git log` / `git show` /
+  `git commit` emit `command not found: bat` and can swallow output. Run
+  those through `git -c core.pager=cat …` or export `GIT_PAGER=cat`.
+- **Inline `node -e` and heredocs get mangled by zsh.** Write a `.cjs`
+  helper under the repo's `.scratch/` (gitignored, and it resolves
+  `node_modules` because it is inside the repo) and run that instead.
+- **Secrets go through `pd secret set`** (hidden stdin prompt). Never pass
+  a secret as an argv argument — it leaks into shell history and process
+  listings.
 
 ## Release
 
@@ -230,6 +290,15 @@ list is the recovery surface.
 - FleetBar popover is not just a launcher. It should surface recent per-agent summaries, last-active hints, and touched files that can be opened directly.
 - Successful launch flows must preserve the operator’s chosen backend/model in the draft UI. If the launch fails, surface the daemon’s real error inline instead of collapsing to a generic HTTP status.
 - Backend readiness must verify dependencies too, not only env/auth. Do not claim Claude SDK is ready unless `@anthropic-ai/sdk` is actually installed, and do not claim Gemini is ready unless `@google/generative-ai` exists.
+
+## Writing Technical Documents
+
+This applies to every technical document, design doc, tutorial, blog post, ADR, and reference page — not just the website.
+
+- **Cite-and-define on first use.** The *first* time a document uses an external technical term (e.g. *Goodhart's law*, *fail-closed*, *Sybil attack*, *liveness*, *closure*, *idempotent*), **bold the term, give a citation, and add a one-line gloss** (parenthetical is fine). The reader is a sharp engineer who may not share our exact background; a document should be legible without a glossary lookup.
+- **Cite the code for our own abstractions.** The *first* mention of a Port Daddy abstraction (e.g. *daemon*, *Arbiter*, *Coordination Guard*, *claim-tree*, *actor-soul*, *bonds*, *resurrection*) gets **bold + the source-file path relative to repo root + one sentence** on what it is. This forces every claim to be checked against real code and keeps docs honest as code moves.
+- **Why this rule exists.** It makes documents portable to readers outside the immediate context, and the act of citing the file is a built-in correctness check — a path that no longer exists is a caught lie. The exemplar is `docs/research/agent-accountability-proposal.md`.
+- Pick a Diátaxis mode and stay in it: tutorial (learning), how-to (task), explanation (understanding), or reference (lookup). Do not blend an explanation into a tutorial.
 
 ## Website And Public Content
 

@@ -107,17 +107,17 @@ export function createMessaging(db: Database.Database, options: CreateMessagingO
       ORDER BY created_at DESC
       LIMIT ?
     `),
-    getAfter: db.prepare<[string, number]>(`
+    getAfter: db.prepare<[string, number, number]>(`
       SELECT * FROM messages
       WHERE channel = ? AND id > ?
       ORDER BY created_at ASC
-      LIMIT 200
+      LIMIT ?
     `),
-    getAfterByPattern: db.prepare<[string, number]>(`
+    getAfterByPattern: db.prepare<[string, number, number]>(`
       SELECT * FROM messages
       WHERE channel LIKE ? ESCAPE '\\' AND id > ?
       ORDER BY created_at ASC
-      LIMIT 200
+      LIMIT ?
     `),
     getOne: db.prepare<[string]>(`
       SELECT * FROM messages
@@ -238,14 +238,14 @@ export function createMessaging(db: Database.Database, options: CreateMessagingO
       if (!sqlPattern) return { success: false, error: 'invalid channel pattern' };
 
       if (after !== null) {
-        messages = stmts.getAfterByPattern.all(sqlPattern, after) as MessageRow[];
+        messages = stmts.getAfterByPattern.all(sqlPattern, after, limit) as MessageRow[];
       } else {
         messages = stmts.getLatestByPattern.all(sqlPattern, limit) as MessageRow[];
         messages.reverse(); // Return in chronological order
       }
     } else {
       if (after !== null) {
-        messages = stmts.getAfter.all(trimmedChannel, after) as MessageRow[];
+        messages = stmts.getAfter.all(trimmedChannel, after, limit) as MessageRow[];
       } else {
         messages = stmts.getLatest.all(trimmedChannel, limit) as MessageRow[];
         messages.reverse(); // Return in chronological order
@@ -279,7 +279,8 @@ export function createMessaging(db: Database.Database, options: CreateMessagingO
       return { success: false, error: 'channel must be a non-empty string', code: 'VALIDATION_ERROR' };
     }
 
-    const messages = stmts.getAfter.all(trimmedChannel, afterId) as MessageRow[];
+    // poll only needs the next message; cap at 1 to avoid scanning beyond.
+    const messages = stmts.getAfter.all(trimmedChannel, afterId, 1) as MessageRow[];
 
     if (messages.length === 0) {
       return { success: true, channel: trimmedChannel, message: null, lastId: afterId };

@@ -27,6 +27,7 @@ import { changelogPlugin } from './changelog.js';
 import { tunnelPlugin } from './tunnel.js';
 import { dnsPlugin } from './dns.js';
 import { sugarPlugin } from './sugar.js';
+import { attentionPlugin } from './attention.js';
 import { launchPlugin } from './launch.js';
 import { spawnPlugin } from './spawn.js';
 import { harborsPlugin } from './harbors.js';
@@ -59,11 +60,13 @@ import { quorumPlugin } from './quorum.js';
 import { resourcesPlugin } from './resources.js';
 import { feedbackPlugin } from './feedback.js';
 import { roadmapPlugin } from './roadmap.js';
+import { commitmentsPlugin } from './commitments.js';
 import { shipwrightPlugin } from './shipwright.js';
 import { usagePlugin } from './usage.js';
 import { testHooksPlugin } from './test-hooks.js';
 import { cockpitPlugin } from './cockpit.js';
 import { setupPlugin } from './setup.js';
+import { secretsPlugin } from './secrets.js';
 
 type AnyDeps = Record<string, unknown>;
 
@@ -102,6 +105,7 @@ export async function registerAllRoutes(
   await fastify.register(tunnelPlugin, { deps } as any);
   await fastify.register(dnsPlugin, { deps } as any);
   await fastify.register(sugarPlugin, { deps } as any);
+  await fastify.register(attentionPlugin, { deps } as any);
   await fastify.register(launchPlugin, { deps } as any);
   await fastify.register(spawnPlugin, { deps } as any);
   await fastify.register(sortiesPlugin, { deps } as any);
@@ -184,6 +188,10 @@ export async function registerAllRoutes(
   // GUI-first local onboarding and setup actions.
   await fastify.register(setupPlugin, { deps } as any);
 
+  // Managed provider secret store — keychain-backed CRUD over the
+  // allow-listed keys. Reveal is loopback-guarded inside the plugin.
+  await fastify.register(secretsPlugin, { deps } as any);
+
   // Operator resource governance — observe/advisory mode before enforcement.
   await fastify.register(resourcesPlugin, { deps } as any);
 
@@ -205,6 +213,12 @@ export async function registerAllRoutes(
   // atomic feedback→item links.
   if ((deps as any).roadmapItems && (deps as any).roadmapPromote) {
     await fastify.register(roadmapPlugin, { deps } as any);
+  }
+
+  // Durable commitments + obligation monitor (ADR-0041 first slice). Mounts
+  // when both the commitments store and its monitor were constructed.
+  if ((deps as any).commitments && (deps as any).obligationMonitor) {
+    await fastify.register(commitmentsPlugin, { deps } as any);
   }
 
   // Shipwright — survey/propose/apply for fleet authoring.

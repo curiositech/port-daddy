@@ -26,6 +26,11 @@ import { assessBackendReadiness } from '../../lib/backend-readiness.js';
 import { resolveFleetChannel } from '../../lib/fleet-channels.js';
 import { ensureStarterFleetProject } from '../../lib/fleet-bootstrap.js';
 import { DEFAULT_IPC } from '../../shared/paths.js';
+import {
+  resolveFleetRunningState,
+  describeFleetRunningState,
+  type FleetRunningState,
+} from '../../lib/fleet-running-state.js';
 
 // ─── Load .env.local / .env for API keys ────────────────────────────────────
 // Searches: cwd, parent dir, home directory. Later files overwrite earlier ones,
@@ -121,17 +126,68 @@ async function getFleetPromptLineViaIpc(project: string, since?: number): Promis
   }
 }
 
-function isFleetRunning(): { running: boolean; pid: number | null; name: string | null } {
-  const stateFile = join(process.cwd(), '.portdaddy', 'fleet-state.json');
-  if (!existsSync(stateFile)) return { running: false, pid: null, name: null };
+/**
+ * Standalone-fork state reader for `resolveFleetRunningState`. Encapsulates
+ * the historic .portdaddy/fleet-state.json contract — alive PID = running.
+ * Also opportunistically cleans up the state file when its PID is dead, so
+ * stale state from a crashed standalone fleet doesn't persist forever.
+ */
+const STANDALONE_STATE_READER = {
+  readState(cwd: string): { pid: number; name?: string } | null {
+    const stateFile = join(cwd, '.portdaddy', 'fleet-state.json');
+    if (!existsSync(stateFile)) return null;
+    try {
+      const state = JSON.parse(readFileSync(stateFile, 'utf-8'));
+      return { pid: state.pid, name: state.name };
+    } catch {
+      return null;
+    }
+  },
+  isPidAlive(pid: number): boolean {
+    try {
+      process.kill(pid, 0); // throws if not running
+      return true;
+    } catch {
+      return false;
+    }
+  },
+};
+
+/**
+ * Fetch the daemon's per-project fleet status for `resolveFleetRunningState`.
+ * Returns null when the daemon is unreachable so the resolver falls back to
+ * the standalone-fork view; never throws.
+ */
+async function fetchDaemonFleetStatus(): Promise<Parameters<typeof resolveFleetRunningState>[0]['daemonFleetStatus']> {
   try {
-    const state = JSON.parse(readFileSync(stateFile, 'utf-8'));
-    process.kill(state.pid, 0); // throws if not running
-    return { running: true, pid: state.pid, name: state.name };
+    const res = await pdFetch('/fleet');
+    if (!res.ok) return null;
+    const body = await res.json() as any;
+    return body && typeof body === 'object' ? body : null;
   } catch {
-    try { unlinkSync(stateFile); } catch {}
-    return { running: false, pid: null, name: null };
+    return null;
   }
+}
+
+async function getFleetRunningState(): Promise<FleetRunningState> {
+  const daemonFleetStatus = await fetchDaemonFleetStatus();
+  const state = resolveFleetRunningState({
+    cwd: process.cwd(),
+    standalone: STANDALONE_STATE_READER,
+    daemonFleetStatus,
+  });
+  // Opportunistic cleanup of dead-PID state files. Kept here (not in the
+  // pure resolver) so the resolver stays side-effect-free.
+  if (!state.running) {
+    const stateFile = join(process.cwd(), '.portdaddy', 'fleet-state.json');
+    if (existsSync(stateFile)) {
+      const standaloneRecord = STANDALONE_STATE_READER.readState(process.cwd());
+      if (standaloneRecord && !STANDALONE_STATE_READER.isPidAlive(standaloneRecord.pid)) {
+        try { unlinkSync(stateFile); } catch {}
+      }
+    }
+  }
+  return state;
 }
 
 async function getFleetAgents(config: ReturnType<typeof loadFleetConfig>): Promise<Array<{ id: string; purpose: string; status: string }>> {
@@ -328,11 +384,17 @@ async function fleetUp(): Promise<void> {
     process.exit(1);
   }
 
-  const { running, pid } = isFleetRunning();
-  if (running) {
-    ui.warn(`Fleet already running (Dock Master PID ${pid})`);
-    ui.info('  Status: pd fleet status');
-    ui.info('  Stop:   pd fleet down');
+  const state = await getFleetRunningState();
+  if (state.running) {
+    if (state.source === 'daemon-supervised') {
+      ui.warn(`Fleet "${state.name}" already supervised by the daemon (${describeFleetRunningState(state)})`);
+      ui.info('  Status: pd fleet status');
+      ui.info('  Stop:   pd fleet down');
+    } else {
+      ui.warn(`Fleet already running (Dock Master PID ${state.pid})`);
+      ui.info('  Status: pd fleet status');
+      ui.info('  Stop:   pd fleet down');
+    }
     return;
   }
 
@@ -395,14 +457,32 @@ async function fleetUp(): Promise<void> {
   }
 }
 
-function fleetDown(): void {
-  const { running, pid } = isFleetRunning();
+async function fleetDown(): Promise<void> {
+  const state = await getFleetRunningState();
   const stateFile = join(process.cwd(), '.portdaddy', 'fleet-state.json');
 
-  if (running && pid) {
+  if (state.source === 'daemon-supervised') {
     try {
-      process.kill(pid, 'SIGTERM');
-    } catch {}
+      const res = await pdFetch('/fleet/stop', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectDir: process.cwd() }),
+      } as any);
+      if (res.ok) {
+        ui.success(`Fleet "${state.name}" stopped (daemon-supervised)`);
+        return;
+      }
+      const body = await res.json() as any;
+      ui.error(`Could not stop daemon-supervised fleet: ${body?.error ?? `HTTP ${res.status}`}`);
+      return;
+    } catch (err) {
+      ui.error(`Could not reach daemon to stop fleet: ${(err as Error).message}`);
+      return;
+    }
+  }
+
+  if (state.running && state.pid) {
+    try { process.kill(state.pid, 'SIGTERM'); } catch {}
     try { unlinkSync(stateFile); } catch {}
     ui.success('Fleet stopped');
   } else {
@@ -416,9 +496,9 @@ async function fleetStatus(): Promise<void> {
   console.log('');
   const defaults = getFleetRuntimeDefaults();
 
-  const { running, pid, name } = isFleetRunning();
-  if (running) {
-    ui.success(`Fleet "${name || 'unnamed'}": running (PID ${pid})`);
+  const state = await getFleetRunningState();
+  if (state.running) {
+    ui.success(`Fleet "${state.name || 'unnamed'}": ${describeFleetRunningState(state)}`);
   } else {
     // Check for pd-fleet.yml
     const config = loadFleetConfig(process.cwd());

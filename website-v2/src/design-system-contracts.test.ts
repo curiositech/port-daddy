@@ -323,4 +323,160 @@ describe('design system contracts', () => {
     expect(joined).toContain('post.heroImage')
     expect(joined).toContain('post.heroAlt')
   })
+
+  // ---------------------------------------------------------------
+  // BRAND.md must agree with tokens.semantic.css
+  // ---------------------------------------------------------------
+  // The 2026-05-22 fix: docs/design/BRAND.md is the canonical
+  // human-readable palette doc — what blog hero prompt engineers,
+  // OG-card generators, and outside designers read. The previous
+  // failure mode was prose snapshots drifting from the CSS by
+  // months while authors kept citing them. This test scans every
+  // `--token: #hex` row in BRAND.md's tables and asserts the value
+  // matches what tokens.semantic.css declares. If you change a
+  // brand color, change BOTH files in the same commit.
+  test('docs/design/BRAND.md hex values match tokens.semantic.css', () => {
+    const brand = read('../docs/design/BRAND.md')
+    const tokens = read('./styles/tokens.semantic.css')
+
+    // Light-theme block ends where the dark-theme block begins.
+    const lightThemeBlock = tokens.split(/\[data-theme='dark'\]/)[0]
+    const tokenLineRe = /(--[a-z0-9-]+)\s*:\s*(#[0-9a-fA-F]{3,8})\s*;/g
+
+    const tokenLightHex = new Map<string, string>()
+    for (const match of lightThemeBlock.matchAll(tokenLineRe)) {
+      tokenLightHex.set(match[1], match[2].toLowerCase())
+    }
+
+    const darkThemeMatch = tokens.match(/\[data-theme='dark'\]\s*\{([\s\S]*?)\n\}/)
+    const tokenDarkHex = new Map<string, string>()
+    if (darkThemeMatch) {
+      for (const match of darkThemeMatch[1].matchAll(tokenLineRe)) {
+        tokenDarkHex.set(match[1], match[2].toLowerCase())
+      }
+    }
+
+    // BRAND.md table rows: `| \`--token\` | \`#hex\` | ... |`
+    // First table = light, second = dark. Split on "### Dark theme".
+    const [lightSection, darkSection = ''] = brand.split(/^### Dark theme/m)
+    const tableRowRe = /\|\s*`(--[a-z0-9-]+)`\s*\|\s*`(#[0-9a-fA-F]{3,8})`\s*\|/g
+
+    const lightMismatches: string[] = []
+    for (const match of lightSection.matchAll(tableRowRe)) {
+      const [, token, hex] = match
+      const docHex = hex.toLowerCase()
+      const cssHex = tokenLightHex.get(token)
+      if (!cssHex) {
+        lightMismatches.push(`${token}: BRAND.md (${docHex}) missing from light theme in tokens.semantic.css`)
+      } else if (cssHex !== docHex) {
+        lightMismatches.push(`${token}: BRAND.md says ${docHex}, tokens.semantic.css light theme has ${cssHex}`)
+      }
+    }
+    expect(
+      lightMismatches.length === 0
+        ? 'ok'
+        : `Light theme drift between BRAND.md and tokens.semantic.css:\n  ${lightMismatches.join('\n  ')}`,
+    ).toBe('ok')
+
+    const darkMismatches: string[] = []
+    for (const match of darkSection.matchAll(tableRowRe)) {
+      const [, token, hex] = match
+      const docHex = hex.toLowerCase()
+      const cssHex = tokenDarkHex.get(token)
+      if (!cssHex) {
+        darkMismatches.push(`${token}: BRAND.md (${docHex}) missing from dark theme in tokens.semantic.css`)
+      } else if (cssHex !== docHex) {
+        darkMismatches.push(`${token}: BRAND.md says ${docHex}, tokens.semantic.css dark theme has ${cssHex}`)
+      }
+    }
+    expect(
+      darkMismatches.length === 0
+        ? 'ok'
+        : `Dark theme drift between BRAND.md and tokens.semantic.css:\n  ${darkMismatches.join('\n  ')}`,
+    ).toBe('ok')
+
+    // Sanity floor: at least 10 light-theme tokens documented.
+    // Catches an empty/truncated BRAND.md that would silently pass
+    // the no-mismatch check above.
+    const lightDocCount = Array.from(lightSection.matchAll(/\|\s*`--[a-z0-9-]+`\s*\|\s*`#/g)).length
+    expect(lightDocCount).toBeGreaterThanOrEqual(10)
+  })
+
+  // ---------------------------------------------------------------
+  // Spacing system contract — landing components
+  // ---------------------------------------------------------------
+  // The Gestalt audit (2026-05-21) found 13 distinct spacing values
+  // in use, breaking the ≤3-level mandate. Most usage already went
+  // through the --space-N tokens (--space-0..10 = 0/4/8/12/16/24/32/
+  // 48/64/96/128). The offenders were two off-scale slipups:
+  //   - Features.tsx:290           gap-5         (= 20px, not in scale)
+  //   - TerminalDemos.tsx:183      ml-[22px]     (arbitrary px)
+  // This test pins the landing components to the token scale so the
+  // next 20px-arbitrary regression fails CI before it ships.
+  //
+  // Allowed escapes:
+  //   - mt-[0.45em] and similar em-relative inline-bullet alignment
+  //     (these are font-relative, not px-rigid)
+  //   - 0px / 2px borders, which are border-width concerns not spacing
+  //   - The reduced-motion / scroll-snap utilities don't apply here
+  test('landing components only use --space-N tokens for px-level spacing', () => {
+    const landingDir = './components/landing'
+    const files = collectSourceFiles(landingDir)
+    // Only the components currently mounted by App.tsx — other
+    // landing modules in the directory may be dead/legacy code we
+    // haven't cleaned up. The contract applies to what ships.
+    const mounted = [
+      'Hero.tsx',
+      'TerminalDemos.tsx',
+      'CoordinationEnforcementSection.tsx',
+      'AgentConversationSection.tsx',
+      'TubeShowcase.tsx',
+      'AgenticSocialProofSection.tsx',
+      'Features.tsx',
+      'CTABanner.tsx',
+    ]
+    const live = files.filter((path) =>
+      mounted.some((name) => path.endsWith(name)),
+    )
+    expect(live.length).toBe(mounted.length)
+
+    // Tailwind numeric escape hatches that bypass the token scale.
+    // gap-5 = 20px (not in --space-N), p-5 = 20px, etc.
+    const tailwindEscape = /\b(?:gap|p|m|space-y|space-x)-(?:5|7|9|11|13|14|15|17|18|19|20|22|24)\b/
+    // Bare-px arbitrary values: gap-[20px], p-[14px], mt-[3px], etc.
+    // Excludes em-relative values which are intentional (line-up to
+    // baseline / x-height).
+    const barePxArbitrary = /\b(?:gap|p|py|px|pt|pb|pl|pr|m|my|mx|mt|mb|ml|mr|space-y|space-x)-\[\d+(?:\.\d+)?px\]/
+
+    // Strip JS/TS comments before matching — explanatory comments
+    // routinely quote old (forbidden) class names like `ml-[22px]`
+    // to document why they were changed, and those quotes are
+    // intentional. The contract is about live JSX, not prose.
+    const stripComments = (source: string) =>
+      source
+        // /* … */ block comments (including JSX {/* … */} which still
+        // contain the inner comment as text — the {/* and */} are JSX
+        // delimiters but the /* */ is a real JS comment; stripping
+        // the /* */ payload covers both forms cleanly)
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        // // line comments
+        .replace(/(^|[^:])\/\/[^\n]*/g, '$1')
+
+    for (const path of live) {
+      const source = stripComments(read(path))
+      const tailwindHits = source.match(new RegExp(tailwindEscape.source, 'g')) ?? []
+      expect(
+        tailwindHits.length === 0
+          ? 'ok'
+          : `${path} uses off-scale Tailwind spacing: ${tailwindHits.join(', ')}`,
+      ).toBe('ok')
+
+      const barePxHits = source.match(new RegExp(barePxArbitrary.source, 'g')) ?? []
+      expect(
+        barePxHits.length === 0
+          ? 'ok'
+          : `${path} uses bare-px spacing (use --space-N tokens): ${barePxHits.join(', ')}`,
+      ).toBe('ok')
+    }
+  })
 })

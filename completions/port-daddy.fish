@@ -97,7 +97,7 @@ set -l __pd_commands \
     'agent' 'agents' 'actor' 'actors' 'swarm' 'log' 'activity' \
     'session' 'sessions' 'note' 'notes' \
     'salvage' 'resurrection' 'changelog' 'dns' 'files' 'add' 'who-owns' 'integration' 'briefing' 'history' 'inbox' \
-    'begin' 'b' 'done' 'whoami' 'w' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'cockpit' 'watch' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' 'roadmap' 'quorum' 'feedback' \
+    'begin' 'b' 'done' 'whoami' 'w' 'attention' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'cockpit' 'secret' 'secrets' 'watch' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' 'roadmap' 'quorum' 'feedback' 'commit' 'obligations' \
     'say' 'look' 'sitrep' 'advise' 'preflight' 'compass' 'guard' 'snapshots' 'snapshot' 'shipwright' 'pheromone' 'ph' \
     'wallet' 'bond' \
     'up' 'down' \
@@ -176,6 +176,8 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a roadmap -d 'Show Cartographer-curated Next Cuts and dogfood feedback'
     complete -c $prog -n __pd_needs_command -a quorum -d 'Propose, vote, list, or inspect swarm proposals'
     complete -c $prog -n __pd_needs_command -a feedback -d 'Drop, list, show, or harvest structured agentic feedback'
+    complete -c $prog -n __pd_needs_command -a commit -d 'Create a durable commitment (or close one against an oracle)'
+    complete -c $prog -n __pd_needs_command -a obligations -d 'List commitments, or sweep for overdue ones with --overdue'
 
     # Agent Inbox
     complete -c $prog -n __pd_needs_command -a inbox -d 'Agent-to-agent direct messaging inbox'
@@ -188,6 +190,7 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command cockpit" -x -a 'missions' -d 'List mission cards parsed from the project roadmap'
     complete -c $prog -n "__pd_using_command cockpit; and __fish_seen_subcommand_from missions" -l project -x -d 'Project directory to read'
     complete -c $prog -n "__pd_using_command cockpit; and __fish_seen_subcommand_from missions" -l status -x -d 'Comma-separated status filter'
+    complete -c $prog -n __pd_needs_command -a secret -d 'Manage keychain-backed provider credentials'
     complete -c $prog -n "__pd_using_command cockpit; and __fish_seen_subcommand_from missions" -l limit -x -d 'Cap returned missions'
     complete -c $prog -n "__pd_using_command cockpit; and __fish_seen_subcommand_from missions" -l json -d 'Emit raw intake envelope'
     complete -c $prog -n __pd_needs_command -a watch -d 'Subscribe to a channel and run a script on each message'
@@ -385,6 +388,7 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a done -d 'End a work session (end + unregister)'
     complete -c $prog -n __pd_needs_command -a whoami -d 'Show current agent/session context'
     complete -c $prog -n __pd_needs_command -a w -d 'Show current context (alias for whoami)'
+    complete -c $prog -n __pd_needs_command -a attention -d 'Inbox + subscribed channels in one call (run first thing every session)'
     complete -c $prog -n __pd_needs_command -a with-lock -d 'Run a command while holding a lock'
     complete -c $prog -n __pd_needs_command -a n -d 'Add a quick note (alias for note)'
     complete -c $prog -n __pd_needs_command -a u -d 'Start all services (alias for up)'
@@ -780,6 +784,13 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command ideas; and __fish_seen_subcommand_from list search show" -l include-raw -d 'Include local .spark/.spider residue'
     complete -c $prog -n "__pd_using_command ideas" -s j -l json -d 'JSON output'
     complete -c $prog -n "__pd_using_command ideas" -s q -l quiet -d 'Suppress output'
+
+    # secret (alias: secrets) — match both names so `pd secrets ...` completes too.
+    complete -c $prog -n "__pd_using_command secret secrets; and not __fish_seen_subcommand_from set list ls reveal show rm remove delete" -a "set list reveal rm" -d 'secret subcommand'
+    complete -c $prog -n "__pd_using_command secret secrets; and __fish_seen_subcommand_from set" -l backend -x -a 'claude gemini cloudflare codex ngrok voyage' -d 'Backend label'
+    complete -c $prog -n "__pd_using_command secret secrets; and __fish_seen_subcommand_from reveal show" -l copy -d 'Copy to clipboard instead of printing'
+    complete -c $prog -n "__pd_using_command secret secrets; and __fish_seen_subcommand_from list ls" -l quiet -d 'Machine-readable KEY<TAB>set/unset output'
+    complete -c $prog -n "__pd_using_command secret secrets" -l json -d 'Output JSON'
 
     # roadmap
     complete -c $prog -n "__pd_using_command roadmap; and not __fish_seen_subcommand_from ack harvest promote render pop release claims" -a "ack harvest promote render pop release claims" -d 'roadmap subcommand'

@@ -52,6 +52,14 @@ This is the active execution ledger. If a task is in flight, it belongs here bef
   - Phase 4E/4F `pd self-test --adversarial` + Windows IPC hardening: design complete, zero commits (2026-03-31 → 2026-05-16, 46 days)
 - **Feedback harvest status**: 2026-05-14 Spark promotion complete — promoted 2 new Spark ideas from `.spark/ideas/` to execution wave on 2026-05-09 (`daemon-introspection-api`, `ideas-trove-queryable-surface`), 2 more on 2026-05-11 (`graph-based-merge-conflict-predictor`, `ambient-anomaly-signaling`), 5 on 2026-05-12 (`symbol-graph-visualization`, `incremental-symbol-index-refresh`, `operator-hint-engine`, `symbol-claim-isolation-validator`, `orchestrator-plugin-lifecycle`), 5 on 2026-05-13 (`daemon-fleet-auto-recovery`, `graph-integrity-auditor`, `agent-skills-quality-gates`, `cost-forecast-alert`, `ipc-queue-saturation-promotion`), 4 on 2026-05-13 extended promotion (`cost-gated-spawning`, `empirical-model-efficiency-routing`, `operator-decision-journal`, `sandboxed-adversarial-test-harness`), and 5 on 2026-05-14 (`tuple-store-query-api`, `governance-coordination-hub`, `phase-3-auto-remediation-executor`, `cost-aware-model-training-loop`, `unified-spawn-risk-synthesis`) plus `episodic-memory-query-surfaces` as the Phase 3B memory cut and `operator-manual-fleet-dispatch` as the Phase 3 dispatch workbench; 2 dogfood now-items already curated (`claim-preserving-git-safety`, `fleet-launchability-and-cadence`); live tuple-backed feedback projection is empty (`open: 0`, `harvested: 11`), while direct `pd feedback list --status open --json` still hits `EPERM` on `~/.port-daddy/daemon.sock`; raw `.spark/feedback/` tree not present. `skill-degradation-contagion-early-warning` is still backlog, the 2026-05-10 raw Spider exhaust remains present on disk, and the five lower-priority now-status trove entries still queued below the execution wave are `fleet-run-journal`, `salvage-root-cause-classifier`, `forensic-context-windows`, `tuple-driven-fleet`, and `capability-discovery-dns-harbor`.
 
+## Active Thread — Accounts Arc (Operator-Direct, 2026-05-23)
+
+Per ROADMAP.md § Operator-Direct: Accounts Arc. Cartographer should preserve this entry verbatim.
+
+**Currently in flight:** Phase A0 — `pd account create`. ~150 LOC, local-only Ed25519 keypair generation written to `~/.port-daddy/account.json`. Branch: `feat/account-create-and-roadmap`. ADR-0029 v0 step 1.
+
+**Next after A0 lands:** A1 (`pd account pair` + daemon-side pairing receipts), then W0 (portdaddy.dev OIDC sign-in + account page).
+
 ## Active Side Thread
 
 Public-site direction is now a hybrid preservation pass, not an `agentsd.ai` replacement:

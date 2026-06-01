@@ -78,6 +78,8 @@ import {
   handleDns, handleBriefing, handleIntegration,
   // Sugar commands
   handleBegin, handleDone, handleWhoami, handleWithLock,
+  // Attention (inbox + subscribed channels — see docs/RELEASING.md for hook wiring)
+  handleAttention,
   // Tutorial
   handleLearn,
   // File claims
@@ -95,6 +97,8 @@ import {
   // Semantic graph + episodic memory
   handleGraph, handleIdeas,
   handleRoadmap,
+  // Durable commitments (ADR-0041)
+  handleCommit, handleObligations,
   handleQuorum,
   handleFeedback,
   // Consolidated read/write verbs + sitrep + pheromone (3.8.4)
@@ -115,6 +119,8 @@ import {
   handleShipwright,
   // App-Native Development Cockpit
   handleCockpit,
+  // Managed provider secret store (keychain-backed)
+  handleSecret,
 } from '../cli/commands/index.js';
 // pd memory — Core/Recall/Archival vocabulary + episodic memory dispatcher.
 // Imported directly (not via index.js) so the tier subcommands take precedence
@@ -162,7 +168,8 @@ const TIER_2_COMMANDS: Set<string> = new Set([
   'channels', 'webhook', 'webhooks', 'tunnel', 'dns', 'inbox',
   'advise', 'preflight', 'compass', 'guard',
   'metrics', 'health', 'dashboard',
-  'bench', 'demo', 'tuple', 'sortie', 'roadmap'
+  'bench', 'demo', 'tuple', 'sortie', 'roadmap',
+  'secret', 'secrets'
 ]);
 
 /**
@@ -605,6 +612,7 @@ function buildHelp(): string {
     `  ${G}pd begin${Z} "purpose"       I'll set up your agent + session`,
     `  ${G}pd done${Z} "summary"        Finish up — I'll clean everything`,
     `  ${G}pd whoami${Z}                See your current context`,
+    `  ${G}pd attention${Z}             What other agents queued for you (run first thing!)`,
     '',
     `${A}Ports:${Z}`,
     `  ${G}pd claim${Z} <id>            I'll assign a port  ${D}(c)${Z}`,
@@ -630,9 +638,10 @@ function buildHelp(): string {
     `  ${G}pd memory tiers${Z}          Core/Recall/Archival mapping with live counts`,
     `  ${G}pd ideas search${Z} "text"   Search ideas, notes, tuples, and repo markdown`,
     `  ${G}pd roadmap${Z}               Show Cartographer's current roadmap projection`,
+    `  ${G}pd secret list${Z}           Manage keychain-backed provider credentials`,
     `  ${G}pd daemon list${Z}           Inspect named sidecar daemon profiles`,
     '',
-    `${D}pd help <topic> for details — topics: setup, sessions, locks, agents, actors, ports, messaging, dns, orchestration, sugar, semantic, advisor, guard, ideas, roadmap, daemon, tutorial${Z}`,
+    `${D}pd help <topic> for details — topics: setup, sessions, locks, agents, actors, ports, messaging, dns, orchestration, sugar, semantic, advisor, guard, ideas, roadmap, secret, daemon, tutorial${Z}`,
     `${D}Dashboard: ${PORT_DADDY_URL}  •  Tutorial: pd learn${Z}`,
   );
 
@@ -1144,6 +1153,31 @@ Examples:
   pd roadmap --dir /Users/you/coding/port-daddy --json
   pd roadmap ack 5a8e37de --as cartographer --into coordination-guard`,
 
+  secret: `Managed Secrets \u2014 keychain-backed provider credentials
+
+The store is the OS keychain (macOS Keychain), encrypted at rest and
+fail-closed. Only allow-listed provider keys are accepted. Values are never
+printed by set/list; reveal exists for the menu-bar Copy flow and is
+loopback-only on the daemon side.
+
+Commands:
+  secret set <KEY> [--backend <b>]   Store a value via a HIDDEN stdin prompt.
+                                     The value is NEVER read from argv (it would
+                                     leak to shell history + ps). Pipe-friendly:
+                                     echo "$TOKEN" | pd secret set KEY
+  secret list                        Table of KEY, BACKEND, STORAGE, ENCRYPTED,
+                                     SET? \u2014 names + status only, never values.
+  secret reveal <KEY> [--copy]       Print the value (with a warning), or with
+                                     --copy pipe to pbcopy (auto-clears in 45s)
+                                     and print nothing.
+  secret rm <KEY>                    Remove the value from the keychain.
+
+Examples:
+  pd secret set ANTHROPIC_API_KEY
+  pd secret list
+  pd secret reveal GEMINI_API_KEY --copy
+  pd secret rm CLOUDFLARE_API_TOKEN`,
+
   daemon: `Daemon Profiles \u2014 Named sidecar daemons beside the canonical daemon
 
 Commands:
@@ -1193,7 +1227,7 @@ const ALL_COMMANDS: string[] = [
   'agent', 'agents', 'actor', 'actors', 'swarm', 'inbox', 'log', 'activity',
   'wallet', 'bond',
   'session', 'sessions', 'note', 'notes', 'say',
-  'begin', 'done', 'whoami', 'with-lock', 'learn',
+  'begin', 'done', 'whoami', 'attention', 'with-lock', 'learn',
   'n', 'u', 'd',
   'dashboard', 'channels', 'webhook', 'webhooks', 'metrics', 'config', 'health', 'ports',
   'start', 'stop', 'restart', 'status', 'install', 'uninstall', 'dev', 'daemon', 'ci-gate',
@@ -1206,6 +1240,7 @@ const ALL_COMMANDS: string[] = [
   'harbor', 'harbors', 'demo', 'fleet', 'tuple', 'sortie', 'graph', 'memory', 'ideas',
   'quorum',
   'feedback',
+  'commit', 'obligations',
   'cockpit',
 ];
 
@@ -2640,6 +2675,12 @@ export async function main(): Promise<void> {
         await handleCockpit(positional, options);
         break;
 
+      // Managed provider secret store (keychain-backed)
+      case 'secret':
+      case 'secrets':
+        await handleSecret(positional, options);
+        break;
+
       case 'integration':
         await handleIntegration(positional[0], positional.slice(1), options);
         break;
@@ -2657,6 +2698,10 @@ export async function main(): Promise<void> {
       case 'w':
       case 'whoami':
         await handleWhoami(options);
+        break;
+
+      case 'attention':
+        await handleAttention(options);
         break;
 
       case 'with-lock':
@@ -2748,6 +2793,15 @@ export async function main(): Promise<void> {
 
       case 'ideas':
         await handleIdeas(positional, options);
+        break;
+
+      // Durable commitments + obligation monitor (ADR-0041)
+      case 'commit':
+        await handleCommit(positional, options);
+        break;
+
+      case 'obligations':
+        await handleObligations(positional, options);
         break;
 
       case 'roadmap':

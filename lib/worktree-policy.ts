@@ -68,12 +68,17 @@ export function evaluateSessionWorktreePolicy(input: SessionWorktreePolicyInput)
   }
 
   if (worktree.isMain && !allowMainWorktree) {
+    // Deliberately do NOT name the `--allow-main-worktree` escape hatch here.
+    // An agent that hits this wall will take whatever exit the error hands it,
+    // so advertising the bypass turns a guardrail into a suggestion and defeats
+    // the policy. The flag stays discoverable for humans in `pd begin --help`;
+    // the runtime refusal only points to the correct action.
     return {
       success: false,
       worktree,
       code: 'MAIN_WORKTREE_SESSION_FORBIDDEN',
-      error: 'Port Daddy sessions now refuse the main Git worktree by default.',
-      hint: 'Start the session in a linked worktree, or pass `--allow-main-worktree` only for explicit integration work.',
+      error: 'Port Daddy sessions refuse the main Git worktree by default.',
+      hint: 'Create a linked worktree with `git worktree add ../<name> -b <branch>` and run `pd begin` there.',
     };
   }
 

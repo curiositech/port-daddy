@@ -235,16 +235,18 @@ function resolveTemplates(text: string, vars: Record<string, string>): string {
   return text.replace(/\{(\w+)\}/g, (match, key) => vars[key] || match);
 }
 
-function getTemplateVars(projectDir: string, projectName?: string): Record<string, string> {
+function getTemplateVars(projectDir: string, projectName?: string, includeGitVars = true): Record<string, string> {
   const project = projectName || basename(projectDir);
   let branch = 'main';
   let sha = 'unknown';
 
-  try {
-    branch = execSync('git rev-parse --abbrev-ref HEAD', { cwd: projectDir, encoding: 'utf-8' }).trim();
-    sha = execSync('git rev-parse --short HEAD', { cwd: projectDir, encoding: 'utf-8' }).trim();
-  } catch {
-    // Not a git repo or git not available — defaults are fine
+  if (includeGitVars) {
+    try {
+      branch = execSync('git rev-parse --abbrev-ref HEAD', { cwd: projectDir, encoding: 'utf-8' }).trim();
+      sha = execSync('git rev-parse --short HEAD', { cwd: projectDir, encoding: 'utf-8' }).trim();
+    } catch {
+      // Not a git repo or git not available — defaults are fine
+    }
   }
 
   return {
@@ -387,6 +389,10 @@ function parseFallbacks(fallbacks: FleetYamlRuntimeTarget[] | undefined): FleetR
   return parsed.length > 0 ? parsed : undefined;
 }
 
+function needsGitTemplateVars(text: string): boolean {
+  return /\{(?:branch|sha)\}/.test(text);
+}
+
 function buildRuntimeAttempts(agent: Pick<FleetAgent, 'backend' | 'model' | 'modelTier' | 'fallbacks'>): ResolvedFleetAgentRuntime[] {
   const attempts = [resolveFleetAgentRuntime(agent)];
   for (const fallback of agent.fallbacks || []) {
@@ -439,13 +445,14 @@ export function loadFleetConfig(projectDir: string): FleetConfig | null {
 
   // Template resolution: parse name first with base vars, then re-resolve the
   // whole file with the fully-qualified fleet name so {project} etc. expand.
-  const baseVars = getTemplateVars(projectDir);
+  const includeGitVars = needsGitTemplateVars(raw);
+  const baseVars = getTemplateVars(projectDir, undefined, includeGitVars);
   const initialParsed = parseFleetYaml(raw);
   const initialFleet = initialParsed ? (initialParsed.fleet || initialParsed) : null;
   const rawFleetName = initialFleet && typeof initialFleet.name === 'string'
     ? resolveTemplates(initialFleet.name, baseVars).trim()
     : '';
-  const vars    = getTemplateVars(projectDir, rawFleetName || undefined);
+  const vars    = getTemplateVars(projectDir, rawFleetName || undefined, includeGitVars);
   const resolved = resolveTemplates(raw, vars);
 
   // Delegate YAML walking + FleetConfig projection to fleet-ast.ts.
