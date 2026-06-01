@@ -25,7 +25,7 @@ release + `brew upgrade`, not rebuild the repo.**
   (the brew `pd`). Binds **`127.0.0.1:9876`**. `KeepAlive=true` → **it resurrects ~20s after any
   `kill`.** Logs at `/opt/homebrew/var/log/port-daddy.log`.
 - **`:9876` is the well-known control port** — but it must be *resolved*, never hardcoded:
-  read `~/.port-daddy/daemon-port` (env `PORT_DADDY_URL` overrides). Hardcoding `9876` is a
+  read `~/.port-daddy/daemon.port` (env `PORT_DADDY_URL` overrides). Hardcoding `9876` is a
   standing defect with its own CI regiment (see the consolidation TODO).
 
 ## Supervisors & watchdogs (the multi-headed part)

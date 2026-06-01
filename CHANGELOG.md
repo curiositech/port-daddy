@@ -7,8 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.16.0] - 2026-06-01
+
 ### Added
+- **`pd secret` — keychain-backed secret store + CLI/routes** (#197). `pd secret set/list/reveal/rm` (value read from a hidden stdin prompt, never argv) over loopback-guarded `GET/POST/DELETE /secrets` + `POST /secrets/:key/reveal`. Provider secrets live encrypted-at-rest in the macOS Keychain (`lib/secret-env.ts`), fail-closed, never logged or echoed.
+- **Durable commitments + obligation monitor — `pd commit` / `pd obligations`** (#192, ADR-0041). Substrate-level accountability: a commitment object with daemon-derived deadlines and oracle-bound closure, plus an obligation-monitor sweep (the dual of resurrection — it watches kept promises, not just heartbeats).
+- **FleetBar Secrets pane** (#195). Menu-bar credential management — masked list, on-demand reveal, copy-to-clipboard with 45s auto-clear; accessible (Dynamic Type, VoiceOver, SF Symbols).
 - **`pd attention` — first-command-of-every-session aggregator.** Returns unread inbox messages + new messages on subscribed channels for the current agent in one call, with mark-read-on-fetch semantics (`--peek` skips). Stable JSON schema in `lib/attention.ts` so harness SessionStart hooks (and any other integrator) can pin the result into prompt context. `.claude/settings.json`'s SessionStart hook wires it automatically for Claude Code. Subscriptions are durable in a new SQLite table (`attention_subscriptions`) keyed on `(agent_id, channel)` with a per-subscription cursor that advances on non-peek reads. New routes: `GET /attention`, `POST /attention/subscribe`, `POST /attention/unsubscribe`, `GET /attention/subscriptions`. AGENTS.md § Port Daddy First updated to make `pd attention` doctrine. Closes roadmap item `pd-attention-mailbox-for-harness-agents` (HIGH).
+
+### Fixed
+- **bun:sqlite NULL-bind on `@named` params → `SQLITE_MISMATCH` / `NOT NULL`** (#193, #200). The compiled daemon uses `bun:sqlite`, which (unlike better-sqlite3 under jest) rejects bare-key `@named` object binds — `GET /roadmap/items` 500'd and a latent `usage-telemetry` insert would have too. Converted to positional `?`; added bun-level regression tests plus a CI job that boots the compiled daemon and smoke-tests routes, so this class can't ship green again.
+- **`pd roadmap` reads the `roadmap_items` SQL table, not markdown** (#191), with an idempotent markdown→table import that preserves existing entries. Ends the "markdown is the database" drift (ADR-0033).
+- **Daemon refusal hints no longer leak `--allow-main-worktree`** (#186). A guardrail that advertised its own bypass; both refusal paths now point only to the correct action.
+
+### Changed
+- **`:9876` regiment + daemon-toolchain consolidation** (#203). Single `DEFAULT_DAEMON_PORT` + `resolveDaemonUrl()` in `shared/daemon-discovery.ts`, real call sites migrated off hardcoded ports, and a CI test that fails on any new literal `9876`. `pd install` now refuses to create a second daemon launchd job when Homebrew already supervises one; dead Barnacle references purged (ADR-0021).
+- **Parity surfaces register `secret`/`secrets` + the roadmap import route** (#201).
+
+### Docs
+- **Canonical daemon/supervision topology map** (#202) — `docs/operations/daemon-and-supervision.md`: the two `pd` installs, every supervisor/watchdog, and the only correct redeploy path.
+- **Agent-accountability research + ADR-0040 (non-forgeable identity) / ADR-0041 (durable commitments) / ADR-0042 (team secret sharing)** (#188, #196), and a cite-and-define house style for all technical docs (#188, #198).
 
 ## [3.15.0] - 2026-05-20
 
