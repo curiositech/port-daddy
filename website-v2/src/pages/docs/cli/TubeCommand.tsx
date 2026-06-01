@@ -4,9 +4,9 @@ export default function TubeCommand() {
   return (
     <CommandPage
       command="pd tube"
-      description="The single command that turns any local UI, hook, or webhook into an event your running agent can answer in one shell call. Listen mode blocks once and returns; --reply auto-correlates to the most recent foreign event and continues listening."
-      version="3.13.0"
-      syntax="pd tube <channel> [--reply <body> | --reply-to=<id> | --reply=<id> --send | --send <body> | --raw | --json | --once | --tail | --wait-for=<seconds> | --no-history | --since=<id> | --limit=<N> | --sender <id>]"
+      description="The single command that turns any local UI, hook, or webhook into an event your running agent can answer in one shell call. Listen mode blocks once and returns; --reply auto-correlates to the most recent foreign event and continues listening. As of v3.16.2, multiple listeners on one channel each receive every message — the resume cursor is namespaced per listener identity (--as), so the channel is a fan-out, not a queue."
+      version="3.16.2"
+      syntax="pd tube <channel> [--reply <body> | --reply-to=<id> | --reply=<id> --send | --send <body> | --raw | --json | --once | --tail | --wait-for=<seconds> | --no-history | --since=<id> | --limit=<N> | --as <id> | --sender <id>]"
       usagePatterns={[
         'pd tube ui:clicks',
         'pd tube ui:clicks --reply "Deployed to staging."',
@@ -14,6 +14,8 @@ export default function TubeCommand() {
         'pd tube ui:clicks --send "shipping it"',
         'pd tube ui:clicks --json --once',
         'pd tube ui:clicks --tail',
+        'pd tube standup:demo --tail --as you',
+        'pd tube standup:demo --tail --as gardener-bot',
       ]}
       flags={[
         {
@@ -67,9 +69,14 @@ export default function TubeCommand() {
           description: 'Bypass the per-channel cursor file for fixtures, tests, and demos.',
         },
         {
+          flag: '--as <id>',
+          description:
+            'Set the listener identity. The resume cursor is namespaced per identity (`<channel>::<id>`), so distinct `--as` values on the same channel each receive every message — true multi-subscriber fan-out. The same identity resumes where it left off across runs. Alias of `--sender`.',
+        },
+        {
           flag: '--sender <id>',
           description:
-            'Override the synthesized listener identity (default `pd-tube/<cwd-basename>/<channel-slug>`).',
+            'Override the synthesized listener identity (default `pd-tube/<cwd-basename>/<channel-slug>`). Equivalent to `--as`; sets both the reply author and the per-listener cursor namespace.',
         },
       ]}
       examples={[
@@ -96,6 +103,13 @@ export default function TubeCommand() {
           description: 'Explicit-parent shape: post a reply to id=42 from stdin.',
           code: 'printf "roger that" | pd tube ui:clicks --reply-to=42 --sender codex',
           output: 'SUCCESS: tube: posted id=43 to ui:clicks',
+        },
+        {
+          description:
+            'Multi-subscriber fan-out: three listeners on distinct --as identities each receive every message. Run each listener in its own terminal, then send once from a fourth.',
+          code: 'pd tube standup:demo --tail --as you\npd tube standup:demo --tail --as claude-code\npd tube standup:demo --tail --as gardener-bot\npd tube standup:demo --send "Standup in 5. Post blockers."',
+          output:
+            'SUCCESS: tube: posted id=87 to standup:demo\n\n# id=87 prints in ALL THREE listener terminals.\n# Each identity keeps its own resume cursor (standup:demo::you,\n# standup:demo::claude-code, standup:demo::gardener-bot), so a listener\n# that reconnects resumes where it left off without stealing the others.',
         },
       ]}
       seeAlso={[

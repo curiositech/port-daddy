@@ -26,6 +26,7 @@ type NavItem = {
 
 const PRIMARY_NAV_ITEMS = [
   { label: "Agents", href: "/agents", end: true },
+  { label: "Tube", href: "/pd-tube", end: false },
   { label: "Skill + MCP", href: "/mcp", end: true },
   { label: "Mac Preview", href: "/mac-preview", end: false, badge: "New", featured: true },
   { label: "Docs", href: "/docs", end: false },
