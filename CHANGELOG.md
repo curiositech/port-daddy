@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.16.1] - 2026-06-01
+
 ### Fixed
 - **`pd secret set` silent no-op under the bun-compiled binary** (#205). The Homebrew `pd` ships as a `bun build --compile` binary, and in that runtime `process.stdin.isTTY` can be `undefined`/`false` on a real terminal (and `setRawMode` can be absent) — the same dev-runtime≠compiled-bun gap as the bun:sqlite bug. `cli/commands/secret.ts` keyed solely off `process.stdin.isTTY`, so an interactive `secret set` fell through to the pipe branch, hit immediate EOF, and aborted with no prompt ever drawn — the operator saw an instant return that stored nothing. Now TTY detection uses the kernel-level `tty.isatty(0)` as source of truth, `setRawMode` is guarded with a `/dev/tty` readline fallback, and the empty-value case always errors loudly (non-zero exit, "No value entered — aborted") rather than silently no-op'ing. The value is still never sourced from argv and never echoed. Covered by `tests/bun/secret-prompt.test.ts` (runs under `bun test`, where the bug lived) plus a new `scripts/smoke-compiled-cli-secret.sh` CI smoke that drives the compiled CLI's stdin path end-to-end.
 
