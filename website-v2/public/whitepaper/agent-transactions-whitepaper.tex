@@ -1307,7 +1307,7 @@ Merkle-Forest binding (\S\ref{sec:merkle-forest}) & EasyCrypt + fast-check & \Pa
 Pareto dominance (\S\ref{sec:youle:welfare}) & Monte Carlo, 36 configs $\times$ 2k trials & \Partial\ empirical; $\sigma_r{\le}0.1$, $n{=}3$ optimum & \texttt{simulation.mjs} \\
 Sybil A5 (\S\ref{sec:youle:a5}) & Monte Carlo over $K$ Sybils & \Partial\ coverage-bounded ceiling at $B_T$ & \texttt{simulation-sybil.mjs} \\
 Cartel folk-theorem A6 & Monte Carlo + closed form & \Partial\ $p_d^\star{\approx}0.10$ at $\delta{=}0.95$ & \texttt{simulation-cartel.mjs} \\
-Claim-signaling IC (\S\ref{sec:economic}) & TLA+ (TLC) + Z3 SMT & \Closed\ unique root $\delta^\star{\approx}0.2531$; IC invariant holds at $\delta = 0.26$ & \texttt{claim-signaling.tla}, \texttt{delta-threshold.z3} \\
+Claim-signaling IC (\S\ref{sec:economic}) & TLA+ (TLC) + Z3 SMT & \Closed\ unique root $\delta^\star{\approx}0.2531$; IC invariant holds at $\delta = 0.26$ & \texttt{claim\_signaling.tla}, \texttt{delta-threshold.z3} \\
 Threat-band defensibility (\S\ref{sec:pricing}) & Monte Carlo, $7{\times}3$ grid & \Closed\ matched bands absorb target class within $1.10\times$ upper bound & \texttt{threat-bands.mjs} \\
 \midrule
 Passkey pairing runtime & --- & \SpecOnly\ model exists; no runtime & \texttt{passkey-pair.pv} \\

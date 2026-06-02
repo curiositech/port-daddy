@@ -69,7 +69,7 @@ const GAME_PAYOFF_CHART = `flowchart TB
 // ────────────────────────────────────────────────────────────────────────────
 // Authored, runnable code samples. Z3 SMT script is verbatim from the shipped
 // artifact `proofs/economics/delta-threshold.z3`. TLA+ snippet is the
-// load-bearing fragment of `proofs/economics/claim-signaling.tla` (full file
+// load-bearing fragment of `proofs/economics/claim_signaling.tla` (full file
 // is ~250 lines including type annotations and comments).
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -90,8 +90,8 @@ const Z3_SMT_SAMPLE = `; delta-threshold.z3 — verify the discount-factor thres
 ; Expected: sat, with delta the unique real root in (0, 1).
 ; Numerically delta* ≈ 0.2531. Z3 returns in well under 100ms.`
 
-const TLA_CLAIM_SIGNALING_SAMPLE = `\\* claim-signaling.tla — repeated claim-signaling under graduated trigger.
-\\* Full artifact: proofs/economics/claim-signaling.tla
+const TLA_CLAIM_SIGNALING_SAMPLE = `\\* claim_signaling.tla — repeated claim-signaling under graduated trigger.
+\\* Full artifact: proofs/economics/claim_signaling.tla
 \\* Runs on every PR via .github/workflows/proofs.yml (TLC, JDK 17,
 \\* tla2tools v1.8.0). Apalache-compatible via @type annotations.
 
@@ -658,7 +658,7 @@ export default function HowWeProveGameTheoryPage() {
                     written in Scala on top of Microsoft&apos;s Z3 solver,
                     asks the SMT solver if a property-violating state exists
                     and lets the solver chase it.{' '}
-                    <code>claim-signaling.tla</code> carries{' '}
+                    <code>claim_signaling.tla</code> carries{' '}
                     <code>@type:</code> annotations so Apalache can typecheck
                     and discharge it without modification — and the bundled{' '}
                     <code>sweep-delta.sh</code> wrapper takes a{' '}
@@ -678,7 +678,7 @@ export default function HowWeProveGameTheoryPage() {
 
                   <p>
                     Below is the load-bearing fragment of{' '}
-                    <code>proofs/economics/claim-signaling.tla</code>, the
+                    <code>proofs/economics/claim_signaling.tla</code>, the
                     artifact that closes the game-theoretic side of the paper.
                     Full file is ~250 lines including the recommendation
                     machinery, graduated-trigger logic, and{' '}
@@ -694,7 +694,7 @@ export default function HowWeProveGameTheoryPage() {
                   <DocsCodeBlock
                     code={TLA_CLAIM_SIGNALING_SAMPLE}
                     language="text"
-                    label="proofs/economics/claim-signaling.tla — fragment"
+                    label="proofs/economics/claim_signaling.tla — fragment"
                   />
 
                   <p>
@@ -937,7 +937,7 @@ z3 cubic-root.smt2
                     <li>
                       <strong className="text-[var(--text-primary)]">TLA+ claim-signaling.</strong>
                       {' '}
-                      <code>proofs/economics/claim-signaling.tla</code>{' '}
+                      <code>proofs/economics/claim_signaling.tla</code>{' '}
                       + <code>.cfg</code> + <code>sweep-delta.sh</code>.
                       TLC verifies the IC invariant at &delta;&nbsp;=&nbsp;0.26;
                       the sweep wrapper exercises &delta;&nbsp;&isin;&nbsp;{`{0.20, …, 0.30}`}
