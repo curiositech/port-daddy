@@ -1015,6 +1015,40 @@
         "sdk": false
       }
     },
+    "popper": {
+      "description": "Autonomous roadmap-to-dispatch task puller — produces dispatch.state='proposed' rows from nightshift-eligible roadmap items. Operator override + FleetBar Nightshift surface via pd popper / HTTP.",
+      "cli": [
+        "popper"
+      ],
+      "sdk": [],
+      "routes": [
+        "GET /popper/status",
+        "GET /popper/next",
+        "POST /popper/pop",
+        "POST /popper/eligibility"
+      ],
+      "completions": [
+        "popper"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
+    "recovery": {
+      "description": "Magic-link account recovery — single-use token issue + atomic consume (single-use enforced at the DB layer per proofs/bonded/recovery/magic-link.pv). API-only surface consumed by out-of-band recovery flows.",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "POST /recovery/request",
+        "POST /recovery/consume"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
     "sorties": {
       "description": "Tracked mission records over spawned runs with durable ids, harbors, and event logs",
       "cli": [

@@ -1238,6 +1238,26 @@ _pd_cmd_cockpit() {
   esac
 }
 
+_pd_cmd_popper() {
+  local -a popper_subcmds
+  popper_subcmds=(
+    'status:counts + next candidate + pause flag'
+    'next:show what would pop next (dry-run)'
+    'pop:pop one item now (operator override)'
+    'enable:mark a roadmap item nightshift-eligible'
+    'disable:remove nightshift-eligible from a roadmap item'
+  )
+
+  if (( CURRENT == 2 )); then
+    _describe 'subcommand' popper_subcmds
+    return
+  fi
+
+  _arguments \
+    '--harbor[scope to a harbor]' \
+    '--json[emit raw JSON]'
+}
+
 _pd_cmd_sortie() {
   local -a sortie_subcmds
   sortie_subcmds=(
@@ -1925,6 +1945,7 @@ _port_daddy() {
     'spawned:list active spawned agents'
     'sortie:launch and inspect tracked mission records'
     'cockpit:App-Native Development Cockpit — read roadmap into mission cards'
+    'popper:autonomous roadmap-to-dispatch task puller (status/next/pop/enable/disable)'
     'secret:manage keychain-backed provider credentials (set/list/reveal/rm)'
     'secrets:alias for secret — manage keychain-backed provider credentials'
     'watch:subscribe to a channel and run a script on each message'
@@ -2074,6 +2095,7 @@ _port_daddy() {
         spawn)                  _pd_cmd_spawn ;;
         sortie)                 _pd_cmd_sortie ;;
         cockpit)                _pd_cmd_cockpit ;;
+        popper)                 _pd_cmd_popper ;;
         spawned)                _pd_cmd_spawned ;;
         watch)                  _pd_cmd_watch ;;
         harbor)                 _pd_cmd_harbor ;;

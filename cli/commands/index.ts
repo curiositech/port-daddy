@@ -53,3 +53,4 @@ export * from './add.js';
 export * from './snapshots.js';
 export * from './shipwright.js';
 export * from './cockpit.js';
+export * from './popper.js';

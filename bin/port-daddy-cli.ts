@@ -119,6 +119,8 @@ import {
   handleShipwright,
   // App-Native Development Cockpit
   handleCockpit,
+  // Roadmap popper — autonomous roadmap-to-dispatch task puller
+  handlePopper,
   // Managed provider secret store (keychain-backed)
   handleSecret,
 } from '../cli/commands/index.js';
@@ -1243,6 +1245,7 @@ const ALL_COMMANDS: string[] = [
   'commit', 'obligations',
   'secret', 'secrets',
   'cockpit',
+  'popper',
 ];
 
 /** Simple Levenshtein distance for short strings */
@@ -2681,6 +2684,11 @@ export async function main(): Promise<void> {
 
       case 'cockpit':
         await handleCockpit(positional, options);
+        break;
+
+      // Roadmap popper — autonomous roadmap-to-dispatch task puller
+      case 'popper':
+        await handlePopper(positional, options);
         break;
 
       // Managed provider secret store (keychain-backed)
