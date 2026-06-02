@@ -522,6 +522,21 @@ fleet:
 - **CLI mode** (`pd fleet up`): Manual, runs while your terminal session is open.
 - **Daemon mode** (automatic): The Port Daddy daemon scans known Port Daddy repos on boot and starts any discovered `pd-fleet.yml` fleets automatically. Known repos come from durable repo markers such as `pd-fleet.yml`, `.portdaddyrc`, or `.portdaddy/`, plus live runtime state. Survives terminal close, system sleep, and daemon restarts (via launchd `KeepAlive`). Editing `pd-fleet.yml` triggers a hot-reload automatically.
 
+**Adding a new ship.** Append an entry under `fleet.agents:` in
+`pd-fleet.yml`, give it an identity (`{project}:fleet:<name>`), a trigger
+(`schedule:` cron or `trigger: <channel>`), a backend (`backend: cloudflare`
+or `backend: claude-cli` etc.), and a prompt. Run `pd fleet validate` to check
+the topology, then hot-reload or `pd fleet up`. See ADR-0019
+(`docs/adr/0019-declarative-fleet-yaml.md`) for the canonical schema and
+ADR-0026 (`docs/adr/0026-fleet-ast-and-diagnostics.md`) for the typed AST.
+
+**Port Daddy's own fleet.** This repo ships a `pd-fleet.yml` that dogfoods
+the engine — `gardener`, `qa`, `test-hunter`, `documentarian`, and
+`cartographer` are armed by default; `simplifier`, `spark`, and `spider` are
+paused pending more soak time. See `docs/fleet/restart-2026-05-20.md` for the
+restart rationale + kill switch, and `docs/fleet/known-issues.md` for the
+current rough edges (CWD-anchored CLI state, no subset flag on `pd fleet up`).
+
 ```bash
 # CLI mode
 pd fleet init     # Create pd-fleet.yml + git post-commit hook (first-time setup)
