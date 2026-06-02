@@ -2660,6 +2660,8 @@ class PortDaddy {
     if (options.sessionId) body.sessionId = options.sessionId;
     if (note) body.note = note;
     if (options.status) body.status = options.status;
+    if (options.skipOriginCheck) body.skipOriginCheck = true;
+    if (options.skipOriginCheckReason) body.skipOriginCheckReason = options.skipOriginCheckReason;
 
     const ipcResult = await this._requestViaIpc<DoneSugarResponse>(IpcAction.DONE, body, {
       agentId: options.agentId || this.agentId,
@@ -3735,6 +3737,13 @@ interface DoneSugarOptions {
   agentId?: string;
   sessionId?: string;
   status?: string;
+  /**
+   * Operator escape hatch for the origin-push + PR-URL precondition.
+   * When true, pass `skipOriginCheckReason` as well — it is required
+   * server-side and gets stamped into the result note.
+   */
+  skipOriginCheck?: boolean;
+  skipOriginCheckReason?: string;
 }
 
 interface DoneSugarResponse {

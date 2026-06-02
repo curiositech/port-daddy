@@ -1079,7 +1079,16 @@ export function createSpawner(deps: SpawnerDeps = {}) {
 
     if (!wasKilled) {
       const doneNote = error ? `Failed: ${error.slice(0, 200)}` : `Completed: ${(output || '').slice(0, 200)}`;
-      await pdCoordinate('/sugar/done', { agentId, note: doneNote });
+      // Spawner-managed agents bypass the pd-done origin-push rule: they
+      // are ephemeral workflow agents whose lifetime is tied to a
+      // subprocess, not a feature branch. The override marker makes the
+      // bypass auditable in session notes.
+      await pdCoordinate('/sugar/done', {
+        agentId,
+        note: doneNote,
+        skipOriginCheck: true,
+        skipOriginCheckReason: 'spawner-managed agent — lifecycle is subprocess, not feature branch',
+      });
     }
 
     // Resolve bond. Clean exit → full refund; error → slash full bond with reason.
@@ -1186,7 +1195,13 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     }
 
     // PD coordination: done (fire-and-forget)
-    pdCoordinate('/sugar/done', { agentId, note: 'Killed by spawner' }).catch(() => {});
+    pdCoordinate('/sugar/done', {
+      agentId,
+      note: 'Killed by spawner',
+      status: 'abandoned',
+      skipOriginCheck: true,
+      skipOriginCheckReason: 'spawner-managed agent killed by operator',
+    }).catch(() => {});
   }
 
   return { spawn, list, kill };
