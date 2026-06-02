@@ -101,6 +101,8 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   snapshot: 'silent',
   cockpit: 'silent',
   shipwright: 'silent',
+  secret: 'silent',         // refined: `secret set` is notify, `secret rm` is destructive
+  popper: 'silent',         // refined: `popper pop` is approval, enable/disable are notify
   inbox: 'silent',
   integration: 'silent',
   wallet: 'silent',
@@ -130,6 +132,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   semantic: 'notify',
   watch: 'notify',
   attention: 'notify',      // default fetch marks inbox/channel items read for this agent
+  commit: 'notify',         // records a caller-scoped commitment/obligation; `commit close` finalizes one
 
   // ── approval: mutates another agent's state, no data loss ────────────────
   // Top-level entries; subcommand refinement may downgrade.
@@ -300,6 +303,27 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'session files claim': 'notify',
   'session files rm': 'notify',
   'session files release': 'notify',
+
+  // secret: list/reveal are read-only, set writes a credential, rm deletes it
+  'secret list': 'silent',
+  'secret ls': 'silent',
+  'secret reveal': 'silent',
+  'secret show': 'silent',
+  'secret set': 'notify',
+  'secret rm': 'destructive',
+  'secret remove': 'destructive',
+  'secret delete': 'destructive',
+
+  // popper: status/next are read-only/dry-run, pop fires a dispatch,
+  // enable/disable toggle a roadmap item's nightshift eligibility
+  'popper status': 'silent',
+  'popper next': 'silent',
+  'popper pop': 'approval',          // pops an item and spawns a dispatch
+  'popper enable': 'notify',
+  'popper disable': 'notify',
+
+  // commit: bare form records a commitment, close finalizes one
+  'commit close': 'notify',
 };
 
 /**
