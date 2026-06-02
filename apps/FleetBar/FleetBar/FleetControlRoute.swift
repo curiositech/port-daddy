@@ -3,6 +3,7 @@ import Foundation
 enum FleetControlSurface: String, CaseIterable, Identifiable {
     case flow
     case roadmap
+    case nightshift
     case agents
     case resources
     case activity
@@ -19,6 +20,7 @@ enum FleetControlSurface: String, CaseIterable, Identifiable {
         switch self {
         case .flow: return "Flow"
         case .roadmap: return "Roadmap"
+        case .nightshift: return "Nightshift"
         case .agents: return "Agents"
         case .resources: return "Resources"
         case .activity: return "Activity"
@@ -35,6 +37,7 @@ enum FleetControlSurface: String, CaseIterable, Identifiable {
         switch self {
         case .flow: return "point.3.connected.trianglepath.dotted"
         case .roadmap: return "map"
+        case .nightshift: return "moon.stars.fill"
         case .agents: return "person.3"
         case .resources: return "gauge"
         case .activity: return "waveform.path.ecg"
@@ -44,6 +47,16 @@ enum FleetControlSurface: String, CaseIterable, Identifiable {
         case .memory: return "square.stack.3d.up"
         case .shipwright: return "hammer"
         case .yaml: return "curlybraces"
+        }
+    }
+
+    /// Whether this surface is rendered by a native SwiftUI view instead of
+    /// embedded into the `/fleet-ui/` webview. New native surfaces (Nightshift,
+    /// future Backend) opt in here.
+    var isNative: Bool {
+        switch self {
+        case .nightshift: return true
+        default: return false
         }
     }
 }
