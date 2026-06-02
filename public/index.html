@@ -43,6 +43,15 @@
       --transition-fast: 0.15s ease;
       --transition-med: 0.25s ease;
     }
+    /* html/body height + overflow lets the embedded WKWebView (FleetBar's
+       Fleet Control Center) scroll content that's taller than the viewport.
+       Without these, .main's `display: flex` swallows overflow and the operator
+       sees content clipped at the bottom with no scroll affordance. */
+    html, body {
+      height: 100%;
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
     body {
       font-family: 'Inter', system-ui, sans-serif;
       background: var(--bg-dark);
@@ -167,6 +176,9 @@
       min-height: 100vh;
       display: flex;
       flex-direction: column;
+      /* allow nested panel content (cockpit cards, roadmap intake, etc.) to
+         scroll within .main rather than getting clipped by the WebView frame. */
+      overflow-y: auto;
     }
 
     /* ── Command Bar ── */
