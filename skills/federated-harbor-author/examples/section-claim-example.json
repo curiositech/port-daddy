@@ -1,0 +1,34 @@
+{
+  "section": "§fh-3",
+  "claim": "A capability token issued in harbor A is accepted by harbor B if and only if B's federation root attests to A's federation root at the token's epoch.",
+  "proof_sketch": "Token preimage binds (issuer-harbor, recipient-harbor, epoch, payload, nonce). The verifier at B recovers the epoch field, looks up A's federation root in B's sparse log of historical roots for that epoch, and checks the signature against the historical root rather than the current one. Acceptance is equivalent to A having had B's attestation at the token's epoch. Full proof in appendix A.3.",
+  "artifact": {
+    "path": "proofs/federated/tokens/cross-harbor-issuance.pv",
+    "kind": "proverif",
+    "status": "PENDING"
+  },
+  "falsification": "Theorem fails if the verifier checks against the current federation root rather than the historical one — adversary presents a token issued before B revoked A's attestation, and the post-revocation root still verifies. Counterexample requires (issuer, recipient, e, e') with e' > e, revocation event at e' < e_now.",
+  "hedge": {
+    "class": "scope",
+    "narrows": "Requires verifiers retain a sparse log of historical roots; storage O(log epoch + recent-window). Cite the storage-bound proof at [PLACEHOLDER-FEDLOG-§]."
+  },
+  "figure": {
+    "happy_path": "papers/federated-harbor/figures/fh-3-happy-path.tex",
+    "adversarial": "papers/federated-harbor/figures/fh-3-stale-root-attack.tex"
+  },
+  "sidenotes": 5,
+  "cross_paper": [
+    {
+      "source": "anchor §[ANCHOR-§-SIGS]",
+      "substitution": "[single-harbor token → cross-harbor token, signed-by-issuer → signed-by-issuer+epoch-bound-federation-root]"
+    },
+    {
+      "source": "anchor §[ANCHOR-§-CHAIN]",
+      "substitution": "[delegation chain → cross-harbor delegation chain, position-binding → position+epoch+harbor-binding]"
+    }
+  ],
+  "placeholders": [
+    "PLACEHOLDER-FEDLOG-§"
+  ],
+  "mechanization_pending_until": "v0.2"
+}

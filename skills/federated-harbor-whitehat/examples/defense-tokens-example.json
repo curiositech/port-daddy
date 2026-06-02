@@ -1,0 +1,42 @@
+{
+  "id": "fix:fh:tokens:§fh-3:0001",
+  "counters": "smell:fh:tokens:§fh-3:0001",
+  "class": "tokens",
+  "section": "§fh-3",
+  "persona": "fh-whitehat-tokens",
+  "mechanization": {
+    "artifact": "proofs/federated/tokens/cross-harbor-issuance.pv",
+    "tool": "proverif",
+    "status": "LANDED",
+    "result_line": "Query event(accepted_at_B(t, e_v)) ==> event(issued_at_A(t, e_i)) /\\ e_v == e_i is true.",
+    "queries": [
+      {"name": "forgery", "expected": "true", "actual": "true"},
+      {"name": "re-issuance-with-epoch-rewind", "expected": "false-by-design", "actual": "false"},
+      {"name": "splice", "expected": "false-by-design", "actual": "false"}
+    ]
+  },
+  "substitution": {
+    "source": "anchor §[ANCHOR-§-SIGS]",
+    "substitution": "[single-harbor token → cross-harbor token, signed-by-issuer → signed-by-issuer+epoch-bound-federation-root]"
+  },
+  "hedge": {
+    "class": "scope",
+    "narrows": "Verifiers must retain a sparse log of historical federation roots; storage cost O(log epoch + recent-window). See §fh-A.3 storage bound (pinned this round)."
+  },
+  "refuses": "unbound tokens (any token without an epoch field is rejected by the verifier).",
+  "prices": "retention of the historical federation root log (operators who keep deeper history charge more, or are paid more, depending on the federation pricing rule).",
+  "retreat": null,
+  "placeholder_pin": {
+    "name": "PLACEHOLDER-FEDLOG-§",
+    "value": "§fh-A.3",
+    "witness": "proofs/federated/tokens/historical-root-storage.smt2"
+  },
+  "preempt_analogy": {
+    "analog": "Macaroons attenuation",
+    "differentiator": "FH adds cross-harbor epoch-binding. Macaroons attenuate along a chain but do not bind epoch — re-presentation of a revoked Macaroon depends on out-of-band revocation. FH binds epoch into the preimage and pins the verifier to the historical root."
+  },
+  "bond": {
+    "amount": 5,
+    "currency": "pd-reputation"
+  }
+}
