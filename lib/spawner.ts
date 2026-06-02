@@ -20,6 +20,7 @@ import type { CostTracker } from './cost-tracker.js';
 import type { Counters } from './counters.js';
 import type { Bonds } from './bonds.js';
 import type { Harbors } from './harbors.js';
+import type { Transcripts, TranscriptOutput } from './transcripts.js';
 import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
 import { getSecret } from './secret-env.js';
 import { cloudflareAdapter, ollamaAdapter } from './llm-call.js';
@@ -99,6 +100,14 @@ export interface SpawnSpec {
   timeout?: number;    // ms, default 300000
   allowedTools?: string;  // for claude-cli backend: tool permission string
   maxTokens?: number;     // for claude/claude-cli backends
+  // Transcript provenance (fleet ships set these so the dashboard surfaces
+  // "ship X handled PR Y on trigger Z"). All optional; standard /spawn HTTP
+  // callers leave them unset and get generic spawn-driven transcripts.
+  ship?: string;        // logical ship name (code-reviewer, qa, ...)
+  trigger?: string;     // e.g. 'pull_request:opened' or 'manual'
+  prNumber?: number;
+  issueNumber?: number;
+  systemPrompt?: string; // additional system message stored in transcript
 }
 
 export interface SpawnResult {
@@ -153,6 +162,10 @@ interface SpawnerDeps {
   counters?: Counters;
   bonds?: Bonds;
   harbors?: Harbors;
+  /** Optional transcripts module. When wired, every spawn records its full
+   *  conversation (system prompt + task + assistant output + tool calls) to
+   *  the fleet_transcripts table. Surface for `pd transcripts ...` + UI. */
+  transcripts?: Transcripts;
   enforceTelemetryPolicy?: boolean;
   telemetryBypassApproval?: TelemetryBypassApproval;
   runnerOverrides?: Partial<Record<SpawnSpec['backend'], (spec: SpawnSpec, model: string) => Promise<BackendRunResult>>>;
@@ -755,10 +768,95 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     counters,
     bonds,
     harbors,
+    transcripts,
     enforceTelemetryPolicy = true,
     telemetryBypassApproval,
     runnerOverrides = {},
   } = deps;
+
+  // ── Transcript helpers ──────────────────────────────────────────────────
+  // All transcript ops are best-effort: record/finalize failures must never
+  // block a spawn (the operator's spawn must succeed even if the recorder
+  // is misbehaving). Wrap every call.
+
+  function txStart(spec: SpawnSpec, agentId: string, model: string, startedAt: number): string | null {
+    if (!transcripts) return null;
+    try {
+      const ship = spec.ship || `spawn:${spec.backend}`;
+      const trigger = spec.trigger || 'manual';
+      const projectName = getProjectName(spec.identity);
+      const id = transcripts.start({
+        ship,
+        spawned_agent_id: agentId,
+        trigger,
+        backend: spec.backend,
+        model,
+        started_at: startedAt,
+        pr_number: spec.prNumber ?? null,
+        issue_number: spec.issueNumber ?? null,
+        project: projectName ?? null,
+        identity: spec.identity ?? null,
+      });
+      // Always record the initial prompt(s) as system + user messages.
+      if (spec.systemPrompt) {
+        try {
+          transcripts.appendMessage(id, {
+            role: 'system',
+            content: spec.systemPrompt,
+            timestamp: startedAt,
+          });
+        } catch { /* swallow */ }
+      }
+      try {
+        transcripts.appendMessage(id, {
+          role: 'user',
+          content: spec.task,
+          timestamp: startedAt,
+        });
+      } catch { /* swallow */ }
+      return id;
+    } catch {
+      return null;
+    }
+  }
+
+  function txAssistant(transcriptId: string | null, content: string, ts: number): void {
+    if (!transcripts || !transcriptId) return;
+    try {
+      transcripts.appendMessage(transcriptId, {
+        role: 'assistant',
+        content,
+        timestamp: ts,
+      });
+    } catch { /* swallow */ }
+  }
+
+  function txOutput(transcriptId: string | null, output: TranscriptOutput): void {
+    if (!transcripts || !transcriptId) return;
+    try {
+      transcripts.appendOutput(transcriptId, output);
+    } catch { /* swallow */ }
+  }
+
+  function txFinalize(
+    transcriptId: string | null,
+    status: 'completed' | 'failed' | 'killed',
+    endedAt: number,
+    telemetry: SpawnTelemetry | null,
+    error: string | null,
+  ): void {
+    if (!transcripts || !transcriptId) return;
+    try {
+      transcripts.finalize(transcriptId, {
+        status,
+        ended_at: endedAt,
+        cost_usd: telemetry?.costUsd ?? null,
+        tokens_in: telemetry?.inputTokens ?? null,
+        tokens_out: telemetry?.outputTokens ?? null,
+        error,
+      });
+    } catch { /* swallow */ }
+  }
 
   // Default bond per spawn when caller doesn't specify one. Tunable via
   // SpawnSpec.bondUsd; a misbehaving agent slashes this, a clean exit refunds.
@@ -977,6 +1075,10 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     };
     agents.set(agentId, record);
 
+    // Open a transcript row immediately so the live-tail surface (UI/SSE)
+    // sees the run before its (potentially long) LLM call returns.
+    const transcriptId = txStart(spec, agentId, model, startedAt);
+
     // Transition bond: escrowed → running. The markRunning call is what
     // cost-tracker's budget-guard hook looks at — bond must be 'running'
     // before any charge can slash it.
@@ -1168,6 +1270,32 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       });
     }
 
+    // Record assistant message + finalize transcript. Order matters: we
+    // append the assistant reply BEFORE finalize so the 'end' SSE event
+    // carries the full conversation.
+    if (output && !wasKilled) {
+      txAssistant(transcriptId, output, completedAt);
+    }
+    if (error) {
+      // Record the error itself as a final assistant turn so operators see
+      // why the run failed without having to cross-reference status.
+      txAssistant(transcriptId, `[error] ${error}`, completedAt);
+    }
+    // Outputs: minimal default — caller-driven via spec is not yet a thing,
+    // so the spawner emits a 'message' output summarizing the result. Fleet
+    // ships can later call transcripts.appendOutput() directly to add
+    // pr-comment / draft-pr / commit artifacts.
+    if (!wasKilled && transcriptId) {
+      const summary = error
+        ? `failed: ${error.slice(0, 160)}`
+        : `${spec.backend} returned ${(output || '').length} chars`;
+      txOutput(transcriptId, {
+        type: error ? 'noop' : 'message',
+        summary,
+      });
+    }
+    txFinalize(transcriptId, status, completedAt, telemetry, error);
+
     // Resolve bond. Clean exit → full refund; error → slash full bond with reason.
     // Why slash on any error: an error means the spawn didn't do its job; the
     // commons pool absorbs the cost so the operator doesn't eat it silently.
@@ -1279,6 +1407,22 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       skipOriginCheck: true,
       skipOriginCheckReason: 'spawner-managed agent killed by operator',
     }).catch(() => {});
+
+    // Finalize any open transcript for this agent. We don't keep the
+    // transcriptId on the AgentRecord (to avoid a circular type dep on the
+    // public SpawnedAgent shape), so kill() finalizes by spawned_agent_id.
+    if (transcripts) {
+      try {
+        const open = transcripts.listTranscripts({ agentId, status: 'running', limit: 1 });
+        for (const tx of open) {
+          transcripts.finalize(tx.id, {
+            status: 'killed',
+            ended_at: Date.now(),
+            error: 'Killed by spawner',
+          });
+        }
+      } catch { /* swallow */ }
+    }
   }
 
   return { spawn, list, kill };
