@@ -24,6 +24,17 @@ import { parseExpires, tryParseJson, patternToSql } from './utils.js';
 const MAX_CHANNELS = 1000;               // Maximum unique channels with subscribers
 const MAX_SUBSCRIBERS_PER_CHANNEL = 100; // Maximum subscribers per channel
 
+/**
+ * Default time-to-live for messages published WITHOUT an explicit `expires`.
+ *
+ * Historically untagged messages were written with expires_at = NULL, i.e.
+ * permanent — so stray traffic (a misfired `pd tube --send`, a test against a
+ * live daemon) accreted in the registry forever. We now self-expire untagged
+ * messages after 7 days. Callers that genuinely need permanent retention must
+ * say so explicitly (expires: null / 'never' / 0); see publish().
+ */
+export const DEFAULT_MESSAGE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
 interface MessageRow {
   id: number;
   channel: string;
@@ -163,13 +174,24 @@ export function createMessaging(db: Database.Database, options: CreateMessagingO
     }
 
     const now = Date.now();
-    const { sender = null, expires = null } = options;
+    const { sender = null } = options;
+    const expires = options.expires;
     let { contentType } = options;
 
-    let expiresAt: number | null = null;
-    if (expires) {
+    // Expiry policy:
+    //   - expires omitted entirely        → DEFAULT_MESSAGE_TTL_MS (self-expire)
+    //   - expires explicitly null/'never'/0 → permanent retention (opt-in)
+    //   - expires a duration string/number → that TTL from now
+    let expiresAt: number | null;
+    if (expires === undefined) {
+      expiresAt = now + DEFAULT_MESSAGE_TTL_MS;
+    } else if (expires === null || expires === 0 || expires === 'never') {
+      expiresAt = null;
+    } else {
       const parsed = parseExpires(expires);
-      expiresAt = parsed !== null ? now + parsed : null;
+      // Unparseable expiry falls back to the default TTL rather than permanent,
+      // so a malformed value can never silently resurrect the old leak.
+      expiresAt = now + (parsed !== null ? parsed : DEFAULT_MESSAGE_TTL_MS);
     }
 
     let payloadStr: string;
