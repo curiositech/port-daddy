@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### CI / Build
+- **CI now hard-fails when the COMPILED CLI doesn't run.** The prior compiled-binary smokes set `PORT_DADDY_URL` explicitly and the single-binary smoke only exercised the `__daemon` entrypoint, so a compiled `pd` whose CLI path was dead (or that failed to bootstrap) shipped green. New `scripts/smoke-compiled-cli-runs.sh` boots the daemon from the compiled binary and drives the **bare** CLI via discovery (no URL override): `pd status` 3× must run and report a running daemon, `pd tube --send` must post, and a two-listener fan-out must deliver to both. Wired into the `compiled-daemon-smoke` CI job — a dead CLI now blocks the release.
+- **Pinned `bun-version` to `1.2.21`** (was unpinned `latest`) in `ci.yml` and `release.yml`, so the compiled binary is built against a deterministic bun across CI and releases instead of whatever `latest` resolves to at release time.
+
 ## [3.16.2] - 2026-06-01
 
 ### Added

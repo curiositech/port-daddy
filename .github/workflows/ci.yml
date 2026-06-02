@@ -90,7 +90,7 @@ jobs:
       - name: Use Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: 1.2.21
 
       - name: bun:sqlite regression tests (roadmap + usage-telemetry)
         run: npm run test:bun
@@ -117,6 +117,17 @@ jobs:
         # and an interactive (PTY) `--send` with no pipe must error FAST rather
         # than hanging forever on stdin EOF. Guards the tube-hang regression.
         run: bash scripts/smoke-compiled-cli-tube.sh
+        timeout-minutes: 3
+
+      - name: Smoke compiled CLI actually RUNS (bare status + tube, via discovery)
+        # THE gate that was missing: the prior compiled smokes set PORT_DADDY_URL
+        # and the single-binary smoke only ran `__daemon`, so a compiled CLI that
+        # couldn't bootstrap or whose CLI path was dead shipped GREEN. This boots
+        # the daemon from the compiled binary, then drives the BARE CLI the way an
+        # operator does (discovery, no URL override): `pd status` 3x must run and
+        # report a running daemon, `pd tube --send` must post, and a 2-listener
+        # fan-out must deliver to both. Fails the build if the compiled CLI is dead.
+        run: bash scripts/smoke-compiled-cli-runs.sh
         timeout-minutes: 3
 
   lint:
@@ -159,7 +170,7 @@ jobs:
       - name: Use Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: 1.2.21
 
       - name: Install recorder tools
         run: |
