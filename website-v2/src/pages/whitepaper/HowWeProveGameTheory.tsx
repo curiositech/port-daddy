@@ -42,8 +42,8 @@ const COMMITMENT_PROBLEM_CHART = `flowchart LR
 
 const TLA_PIPELINE_CHART = `flowchart TD
   Spec["Hand-written TLA+ spec<br/>(state machine + properties)"] --> Check{"Model<br/>checker"}
-  Check -->|"TLC: explicit-state<br/>(in use, 2026-Q1)"| Result1["Yes / No + counterexample trace"]
-  Check -->|"Apalache: symbolic SMT<br/>(planned, 2026-Q3)"| Result2["Yes / No + counterexample trace<br/>over larger state spaces"]
+  Check -->|"TLC: explicit-state<br/>(landed, runs on every PR)"| Result1["Yes / No + counterexample trace"]
+  Check -->|"Apalache: symbolic SMT<br/>(supported via @type annotations)"| Result2["Yes / No + counterexample trace<br/>over larger state spaces"]
   Result1 --> Read["Read the trace. Fix the model.<br/>Or trust the YES."]
   Result2 --> Read`
 
@@ -67,53 +67,54 @@ const GAME_PAYOFF_CHART = `flowchart TB
   DC -.->|"good outcome,<br/>but who agrees first?"| Problem`
 
 // ────────────────────────────────────────────────────────────────────────────
-// Authored, runnable code samples. Z3 SMT script is verbatim; the TLA+ snippet
-// is a near-complete sketch of the planned claim-signaling.tla artifact.
+// Authored, runnable code samples. Z3 SMT script is verbatim from the shipped
+// artifact `proofs/economics/delta-threshold.z3`. TLA+ snippet is the
+// load-bearing fragment of `proofs/economics/claim_signaling.tla` (full file
+// is ~250 lines including type annotations and comments).
 // ────────────────────────────────────────────────────────────────────────────
 
-const Z3_SMT_SAMPLE = `; cubic-root.smt2 — verify that the discount factor cutoff exists.
-; A toy stand-in for a future Proposition 7.1 in the bonded-commons paper.
+const Z3_SMT_SAMPLE = `; delta-threshold.z3 — verify the discount-factor threshold for
+; the graduated-trigger strategy of agent-transactions §sec:economic.
+; Full artifact: proofs/economics/delta-threshold.z3
 (set-logic QF_NRA)
-(declare-const d Real)
-(assert (and (> d 0) (< d 1)))
-(assert (= (+ (* 3 d d d) (* 3 d d) (* 3 d) -1) 0))
+(declare-const delta Real)
+(assert (>= delta 0))
+(assert (<= delta 1))
+(assert (= (+ (* 3 delta delta delta)
+              (* 3 delta delta)
+              (* 3 delta)
+              (- 1))
+           0))
 (check-sat)
 (get-model)
-; Expected: sat, with d ≈ 0.2541. Z3 returns in about 100ms.`
+; Expected: sat, with delta the unique real root in (0, 1).
+; Numerically delta* ≈ 0.2531. Z3 returns in well under 100ms.`
 
-const TLA_CLAIM_SIGNALING_SAMPLE = `\\* claim-signaling.tla [planned, v2.6]
-\\* A two-agent, two-action stage game over a shared file. The model
-\\* asks: under what discount factor delta is no one-shot deviation
-\\* profitable, given a publicly-known recommendation device?
+const TLA_CLAIM_SIGNALING_SAMPLE = `\\* claim_signaling.tla — repeated claim-signaling under graduated trigger.
+\\* Full artifact: proofs/economics/claim_signaling.tla
+\\* Runs on every PR via .github/workflows/proofs.yml (TLC, JDK 17,
+\\* tla2tools v1.8.0). Apalache-compatible via @type annotations.
 
-EXTENDS Naturals, Reals
-CONSTANTS Agents, Files
-VARIABLES turn, strategy, score
+EXTENDS Integers, FiniteSets, Sequences, TLC
 
-\\* Stage payoff: collision is (1,1); off-diagonal is (3,1) or (1,3);
-\\* both-defer is (0,0). The numbers are the same as Figure 2 of the
-\\* bonded-commons paper.
-Payoff(actA, actB) ==
-  CASE actA = "claim" /\\ actB = "claim" -> <<1, 1>>
-    [] actA = "claim" /\\ actB = "defer" -> <<3, 1>>
-    [] actA = "defer" /\\ actB = "claim" -> <<1, 3>>
-    [] OTHER                              -> <<0, 0>>
+CONSTANTS DeltaNum, DeltaDen, Horizon, PunishmentRounds
 
-\\* The daemon's correlating device. A publicly-known distribution
-\\* over recommended action profiles. (No agent is told the other's
-\\* recommendation — that is what makes this a *correlated* eq.)
-RecommendedProfile == \\* mu from the paper's Figure 2
-  IF turn = "A_priority" THEN <<"claim", "defer">>
-                         ELSE <<"defer", "claim">>
+\\* Stage-game payoffs calibrated so the IC cubic is exactly
+\\* 3 delta^3 + 3 delta^2 + 3 delta - 1 = 0 (gain g = 1, loss L = 3).
+PayoffFollowFollow == 3      \\* cooperative
+PayoffFollowClaim  == -2     \\* sucker
+PayoffClaimFollow  == 4      \\* defector
+PayoffClaimClaim   == 0      \\* mutual claim (punishment)
 
-\\* Safety: under fairness, no agent's accumulated payoff falls below
-\\* what it would receive by always following the daemon's hint.
-NoProfitableDeviation ==
-  \\A a \\in Agents, delta \\in {2/10, 25/100, 26/100, 28/100, 3/10}:
-    Follow(a, delta) >= Deviate(a, delta)
+\\* Invariant: at every reachable state where the deviator has actually
+\\* deviated, their accumulated discounted score does not exceed what
+\\* they would have under always-follow. Holds at delta >= delta*.
+NoUnilateralDeviationPositive ==
+  ( deviated /\\ deviatorId \\in Agents ) =>
+    actualScore[deviatorId] <= followScore[deviatorId]
 
-Spec == Init /\\ [][Next]_<<turn, strategy, score>>
-THEOREM Spec => []NoProfitableDeviation`
+Spec == Init /\\ [][Next]_vars
+THEOREM Spec => []NoUnilateralDeviationPositive`
 
 // ────────────────────────────────────────────────────────────────────────────
 // Small reusable bits.
@@ -279,6 +280,32 @@ export default function HowWeProveGameTheoryPage() {
                   </div>
                 </dl>
               </aside>
+            </div>
+
+            {/* CI-green callout: the artifacts behind this page actually run. */}
+            <div className="mt-[var(--space-6)] border-2 border-[var(--brand-primary)] bg-[var(--surface-raised)] p-[var(--space-5)]">
+              <div className="mb-[var(--space-3)] flex items-center gap-[var(--space-3)]">
+                <FileCode2 size={18} aria-hidden="true" className="text-[var(--brand-primary)]" />
+                <BracketLabel>These artifacts exist and run on every PR</BracketLabel>
+              </div>
+              <p className="m-0 text-[length:var(--text-base)] leading-[var(--leading-body)] text-[var(--text-primary)]">
+                Three mechanization artifacts back this page — a Z3 SMT
+                script, a TLA+ model, and a Monte Carlo simulation — and
+                they all run unattended on every pull request via{' '}
+                <a
+                  className="font-mono underline decoration-[var(--brand-primary)] decoration-2 underline-offset-4 hover:text-[var(--brand-primary)]"
+                  href="https://github.com/curiositech/port-daddy/blob/main/.github/workflows/proofs.yml"
+                >
+                  .github/workflows/proofs.yml
+                </a>
+                . If a check fails, the PR is red. Source paths cited
+                throughout this page resolve to real files in the
+                repo&apos;s{' '}
+                <code>proofs/economics/</code> and{' '}
+                <code>proofs/bonded/pareto/</code> directories. The
+                credibility loan this page used to take on
+                &ldquo;Apalache + Z3, planned&rdquo; is closed.
+              </p>
             </div>
           </PageContainer>
         </section>
@@ -622,7 +649,7 @@ export default function HowWeProveGameTheoryPage() {
                   </p>
 
                   <p>
-                    What is planned: an <strong>Apalache</strong> port of the
+                    There is also an <strong>Apalache</strong> path on the
                     same spec — the symbolic, SMT-backed TLA+ checker that
                     handles larger state spaces by trading explicit enumeration
                     for satisfiability queries. The two checkers eat the same{' '}
@@ -630,11 +657,13 @@ export default function HowWeProveGameTheoryPage() {
                     explore. TLC, written in Java, enumerates. Apalache,
                     written in Scala on top of Microsoft&apos;s Z3 solver,
                     asks the SMT solver if a property-violating state exists
-                    and lets the solver chase it. Apalache will get us a
-                    deeper bounded search and better parametric reasoning,
-                    which is exactly what the planned{' '}
-                    <code>claim-signaling.tla</code> needs in order to sweep
-                    over discount factors.
+                    and lets the solver chase it.{' '}
+                    <code>claim_signaling.tla</code> carries{' '}
+                    <code>@type:</code> annotations so Apalache can typecheck
+                    and discharge it without modification — and the bundled{' '}
+                    <code>sweep-delta.sh</code> wrapper takes a{' '}
+                    <code>TLA_CHECKER=apalache</code> env var to switch
+                    between the two for deeper parameter sweeps.
                   </p>
 
                   <Sidenote label="The trade">
@@ -648,19 +677,24 @@ export default function HowWeProveGameTheoryPage() {
                   </Sidenote>
 
                   <p>
-                    Below is the spec we are working toward for the
-                    game-theoretic side of the paper — a near-complete sketch
-                    of the planned <code>claim-signaling.tla</code> artifact.
-                    The numbers, including the cliff at &delta;&nbsp;&approx;&nbsp;0.254,
-                    will land alongside the v2.6 paper bundle. The shape is
-                    real; the precise constants are still being argued with
-                    by the review teams.
+                    Below is the load-bearing fragment of{' '}
+                    <code>proofs/economics/claim_signaling.tla</code>, the
+                    artifact that closes the game-theoretic side of the paper.
+                    Full file is ~250 lines including the recommendation
+                    machinery, graduated-trigger logic, and{' '}
+                    <code>@type:</code> annotations. The numbers — including
+                    the threshold at &delta;<sup>&star;</sup>&nbsp;&approx;&nbsp;0.2531 —
+                    are the ones the artifact actually checks. The cubic
+                    that produces &delta;<sup>&star;</sup> is independently
+                    discharged by{' '}
+                    <code>proofs/economics/delta-threshold.z3</code> (next
+                    section).
                   </p>
 
                   <DocsCodeBlock
                     code={TLA_CLAIM_SIGNALING_SAMPLE}
                     language="text"
-                    label="claim-signaling.tla [planned, v2.6]"
+                    label="proofs/economics/claim_signaling.tla — fragment"
                   />
 
                   <p>
@@ -745,35 +779,40 @@ export default function HowWeProveGameTheoryPage() {
                   </Sidenote>
 
                   <p>
-                    Imagine a future Proposition 7.1 (the bookkeeping is in
-                    flight) of the bonded-commons paper claims that, in the
-                    repeated game over the claim-signaling stage with payoffs
-                    as above, no profitable one-shot deviation exists for any
-                    discount factor &delta; above the root of the cubic{' '}
+                    Proposition 7.1 of the bonded-commons paper (Appendix A,
+                    Mechanization Status) claims that, in the repeated game
+                    over the claim-signaling stage with payoffs as above, no
+                    profitable one-shot deviation exists for any discount
+                    factor &delta; above the root of the cubic{' '}
                     <code>3&delta;&sup3; + 3&delta;&sup2; + 3&delta; − 1 = 0</code>.
-                    The root is approximately <code>0.2541</code>. We could
-                    derive it by hand — Cardano&apos;s formula, the
+                    The root is &delta;<sup>&star;</sup>&nbsp;&approx;&nbsp;0.2531. We
+                    could derive it by hand — Cardano&apos;s formula, the
                     discriminant, the depressed cubic, all the
                     seventeenth-century plumbing — and ask the reader to
-                    trust the algebra. We don&apos;t have to. Six lines of
-                    SMT-LIB, a hundred milliseconds, and the reader has the
-                    proof in their own terminal.
+                    trust the algebra. We don&apos;t have to. The bundled SMT
+                    script does the work in under a hundred milliseconds, on
+                    every PR.
                   </p>
 
                   <DocsCodeBlock
                     code={Z3_SMT_SAMPLE}
                     language="text"
-                    label="cubic-root.smt2 — try this yourself"
+                    label="proofs/economics/delta-threshold.z3 — try this yourself"
                   />
 
                   <p>
-                    The script declares a real variable <code>d</code>,
-                    constrains it to the open unit interval, asserts the
+                    The script declares a real variable <code>delta</code>,
+                    constrains it to the closed unit interval, asserts the
                     cubic, asks Z3 whether the conjunction is satisfiable,
-                    and asks for a witness if so. The expected answer is{' '}
-                    <code>sat</code> with <code>d</code> roughly{' '}
-                    <code>0.2541</code>. The script runs in about a tenth of
-                    a second on any modern laptop.
+                    and asks for a witness. The full artifact follows up
+                    with two more checks (push/pop): one that the witness
+                    lies in <code>[0.25, 0.26]</code>, and one for uniqueness
+                    of the root in <code>[0, 1]</code>. The expected output
+                    is the triple{' '}
+                    <code>sat — sat — unsat</code>; CI greps for that exact
+                    sequence and fails the build if anything else returns.
+                    The script runs in about a tenth of a second on any
+                    modern laptop.
                   </p>
 
                   <p>
@@ -880,23 +919,47 @@ z3 cubic-root.smt2
                 </div>
 
                 <div className="border-2 border-[var(--brand-primary)] bg-[var(--surface-base)] p-[var(--space-4)]">
-                  <BracketLabel>Planned for v2.6</BracketLabel>
+                  <BracketLabel>Landed in v2.6 — runs in CI</BracketLabel>
+                  <p className="mt-[var(--space-3)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
+                    These artifacts exist and run on every PR via{' '}
+                    <code>.github/workflows/proofs.yml</code>. If any check
+                    fails, the PR is red.
+                  </p>
                   <ul className="mt-[var(--space-3)] space-y-[var(--space-2)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
                     <li>
-                      <strong className="text-[var(--text-primary)]">Z3.</strong>
-                      {' '}Cubic-root discharge for the discount-factor
-                      threshold. Six lines of SMT-LIB.
+                      <strong className="text-[var(--text-primary)]">Z3 cubic discharge.</strong>
+                      {' '}
+                      <code>proofs/economics/delta-threshold.z3</code>.
+                      Proves existence, location in{' '}
+                      <code>[0.25, 0.26]</code>, and uniqueness of the
+                      threshold root in <code>(0, 1)</code>.
                     </li>
                     <li>
-                      <strong className="text-[var(--text-primary)]">Apalache.</strong>
-                      {' '}Symbolic re-checking of the coordination lifecycle
-                      at greater depth than TLC affords.
+                      <strong className="text-[var(--text-primary)]">TLA+ claim-signaling.</strong>
+                      {' '}
+                      <code>proofs/economics/claim_signaling.tla</code>{' '}
+                      + <code>.cfg</code> + <code>sweep-delta.sh</code>.
+                      TLC verifies the IC invariant at &delta;&nbsp;=&nbsp;0.26;
+                      the sweep wrapper exercises &delta;&nbsp;&isin;&nbsp;{`{0.20, …, 0.30}`}
+                      and asserts the empirical crossover matches the
+                      closed-form root.
                     </li>
                     <li>
-                      <strong className="text-[var(--text-primary)]">claim-signaling.tla.</strong>
-                      {' '}The dedicated artifact for the stage game above —
-                      parameter-sweep over discount factors, with{' '}
-                      <code>NoProfitableDeviation</code> as the property.
+                      <strong className="text-[var(--text-primary)]">Apalache parity.</strong>
+                      {' '}The TLA+ artifact carries{' '}
+                      <code>@type:</code> annotations so{' '}
+                      <code>apalache-mc check</code> works without
+                      modification. Run via{' '}
+                      <code>TLA_CHECKER=apalache ./sweep-delta.sh</code>{' '}
+                      for deeper bounded search.
+                    </li>
+                    <li>
+                      <strong className="text-[var(--text-primary)]">Threat-band defensibility.</strong>
+                      {' '}
+                      <code>proofs/bonded/pareto/threat-bands.mjs</code>.
+                      Monte Carlo over (threat_mix &times; bond_band);
+                      matched-band assertion enforces
+                      <code>extraction ≤ band_upper &times; 1.10</code>.
                     </li>
                   </ul>
                 </div>
@@ -1041,11 +1104,12 @@ z3 cubic-root.smt2
                   </div>
                   <ul className="space-y-[var(--space-3)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
                     <li>
-                      The exact <em>&delta;</em> threshold of{' '}
-                      <code>0.2541</code> is illustrative. The cubic{' '}
-                      <code>3&delta;&sup3; + 3&delta;&sup2; + 3&delta; − 1</code>{' '}
-                      is the shape we expect; the specific coefficients are
-                      still under review.
+                      The threshold &delta;<sup>&star;</sup>&nbsp;&approx;&nbsp;0.2531
+                      is the root of a specific cubic that comes out of a
+                      specific stage-game calibration (gain&nbsp;=&nbsp;1,
+                      punishment loss/round&nbsp;=&nbsp;3). Other calibrations
+                      give other thresholds; the artifact is honest about
+                      its calibration in the file header.
                     </li>
                     <li>
                       The price of anarchy is &ldquo;approximately
@@ -1054,10 +1118,11 @@ z3 cubic-root.smt2
                       which the paper explicitly does not close.
                     </li>
                     <li>
-                      Apalache results for{' '}
-                      <code>claim-signaling.tla</code> are described as
-                      planned, not landed. The lifecycle spec under TLC{' '}
-                      <em>is</em> landed.
+                      A Coq or Lean mechanization of the{' '}
+                      <em>strategic</em> repeated game with full incentive
+                      compatibility is still out of scope. What CI proves
+                      is the IC inequality at the calibrated parameter,
+                      not a meta-theorem over all such games.
                     </li>
                   </ul>
                 </div>
