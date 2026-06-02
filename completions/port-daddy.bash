@@ -111,6 +111,8 @@ _port_daddy() {
     inbox
     # AI Agent Spawner + Watch
     spawn spawned sortie watch
+    # Dispatch (renamed from nightshift per ADR-0035) + review + morning
+    dispatch nightshift review morning
     # App-Native Development Cockpit
     cockpit
     # Roadmap popper — autonomous roadmap-to-dispatch task puller

@@ -97,7 +97,7 @@ set -l __pd_commands \
     'agent' 'agents' 'actor' 'actors' 'swarm' 'log' 'activity' \
     'session' 'sessions' 'note' 'notes' \
     'salvage' 'resurrection' 'changelog' 'dns' 'files' 'add' 'who-owns' 'integration' 'briefing' 'history' 'inbox' \
-    'begin' 'b' 'done' 'whoami' 'w' 'attention' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'cockpit' 'popper' 'secret' 'secrets' 'watch' 'harbormaster' 'hm' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' 'roadmap' 'quorum' 'feedback' 'commit' 'obligations' \
+    'begin' 'b' 'done' 'whoami' 'w' 'attention' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'dispatch' 'nightshift' 'review' 'morning' 'cockpit' 'popper' 'secret' 'secrets' 'watch' 'harbormaster' 'hm' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' 'roadmap' 'quorum' 'feedback' 'commit' 'obligations' \
     'say' 'look' 'sitrep' 'advise' 'preflight' 'compass' 'guard' 'snapshots' 'snapshot' 'backup' 'restore' 'shipwright' 'pheromone' 'ph' \
     'wallet' 'bond' \
     'up' 'down' \
@@ -186,6 +186,28 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a spawn -d 'Launch an AI agent (Ollama/Claude/Gemini/Aider/custom)'
     complete -c $prog -n __pd_needs_command -a spawned -d 'List active spawned agents'
     complete -c $prog -n __pd_needs_command -a sortie -d 'Launch and inspect tracked mission records'
+    complete -c $prog -n __pd_needs_command -a dispatch -d 'Queue and run autonomous feature dev (ADR-0035; renames nightshift)'
+    complete -c $prog -n "__pd_using_command dispatch" -x -a 'propose queue list show run review cancel help' -d 'Dispatch subcommand'
+    complete -c $prog -n "__pd_using_command dispatch; and __fish_seen_subcommand_from run" -l really-run -d 'Actually spawn the autonomous agent (default is dry-run)'
+    complete -c $prog -n "__pd_using_command dispatch; and __fish_seen_subcommand_from run" -l next -d 'Pop and run the next proposed dispatch'
+    complete -c $prog -n "__pd_using_command dispatch" -l backend -x -a 'cli:claude-code cli:codex' -d 'Backend override'
+    complete -c $prog -n "__pd_using_command dispatch" -l base-branch -x -d 'Branch the worktree is carved from (default: main)'
+    complete -c $prog -n "__pd_using_command dispatch" -l merge-policy -x -a 'review never' -d 'Merge policy (auto requires PR #141)'
+    complete -c $prog -n "__pd_using_command dispatch" -l budget -x -d 'Per-dispatch USD ceiling'
+    complete -c $prog -n "__pd_using_command dispatch" -l timeout -x -d 'Per-dispatch timeout (seconds)'
+    complete -c $prog -n "__pd_using_command dispatch" -l tags -x -d 'Comma-separated tags'
+    complete -c $prog -n "__pd_using_command dispatch" -l to -x -d 'Target actor for dispatch'
+    complete -c $prog -n "__pd_using_command dispatch" -l reviewer -x -d 'Reviewer actor (default: operator)'
+    complete -c $prog -n "__pd_using_command dispatch" -l state -x -a 'proposed claimed in_progress produced review_pending accepted rejected settled failed salvage open terminal awaiting_review all' -d 'State filter'
+    complete -c $prog -n __pd_needs_command -a nightshift -d '(deprecated alias) Use pd dispatch'
+    complete -c $prog -n "__pd_using_command nightshift" -x -a 'propose queue list show run review cancel help' -d 'Nightshift subcommand (alias for dispatch)'
+    complete -c $prog -n __pd_needs_command -a review -d 'pd review <id> --accept|--reject: operator review contract'
+    complete -c $prog -n "__pd_using_command review" -l accept -d 'Accept the produced work'
+    complete -c $prog -n "__pd_using_command review" -l reject -x -d 'Reject with reason'
+    complete -c $prog -n "__pd_using_command review" -l retry -x -d '(not yet implemented; see ADR-0035)'
+    complete -c $prog -n __pd_needs_command -a morning -d 'Start-of-day summary of dispatch state machine'
+    complete -c $prog -n "__pd_using_command morning" -l since -x -d 'Lookback start (ISO or epoch ms)'
+    complete -c $prog -n "__pd_using_command morning" -l json -d 'JSON output'
     complete -c $prog -n __pd_needs_command -a cockpit -d 'App-Native Development Cockpit — read roadmap into mission cards'
     complete -c $prog -n "__pd_using_command cockpit" -x -a 'missions' -d 'List mission cards parsed from the project roadmap'
     complete -c $prog -n "__pd_using_command cockpit; and __fish_seen_subcommand_from missions" -l project -x -d 'Project directory to read'

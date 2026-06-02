@@ -1823,6 +1823,28 @@
         "sdk": false
       },
       "_note": "Store is the macOS Keychain (encrypted at rest, fail-closed) via lib/keychain.ts. `pd secret set` reads the value from a hidden stdin prompt, never argv (audit finding L1). Reveal returns plaintext for the FleetBar Copy flow and is loopback-only on the daemon (preHandler) plus the global DNS-rebinding guard."
+    },
+    "dispatch": {
+      "description": "Operator queue for autonomous feature dev: drop a sentence-shaped goal, daemon routes it to a worker, worker produces a PR, operator accepts/rejects via pd review. Renames pd nightshift (PR #143) onto ADR-0035's 8-state machine. Adds base_branch column for per-base-branch serialization (harbormaster/PR #141 will consume).",
+      "cli": [
+        "dispatch",
+        "nightshift",
+        "review",
+        "morning"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "dispatch",
+        "nightshift",
+        "review",
+        "morning"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "pd nightshift is preserved as a deprecation alias for one minor version. No HTTP routes yet -- follow-up PR after harbormaster (#141) and actor-model (#082) land."
     }
   }
 }
