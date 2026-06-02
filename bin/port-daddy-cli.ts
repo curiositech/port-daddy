@@ -1267,6 +1267,7 @@ const ALL_COMMANDS: string[] = [
   'popper',
   'harbormaster', 'hm',
   'dispatch', 'nightshift', 'review', 'morning',
+  'backend',
 ];
 
 /** Simple Levenshtein distance for short strings */
@@ -2846,6 +2847,13 @@ export async function main(): Promise<void> {
       case 'fleet': {
         const { handleFleet } = await import('../cli/commands/fleet.js');
         await handleFleet(positional, options);
+        break;
+      }
+
+      // Backend — surface CLI/SDK backend route, switch, and per-backend cost.
+      case 'backend': {
+        const { handleBackend } = await import('../cli/commands/backend.js');
+        await handleBackend(positional, options);
         break;
       }
 

@@ -37,15 +37,17 @@ struct FleetPopover: View {
     @ObservedObject var store: FleetStore
     @ObservedObject var costStore: CostStore
     @ObservedObject var secretsStore: SecretsStore
+    @ObservedObject var backendStore: BackendStore
     @StateObject private var budgetStore = BudgetPauseStore()
     @AppStorage("fleet.control.theme") private var selectedThemeRaw = "dark"
     @State private var appeared = false
     @State private var showingSettings = false
 
-    init(store: FleetStore, costStore: CostStore, secretsStore: SecretsStore = SecretsStore(autoStart: false)) {
+    init(store: FleetStore, costStore: CostStore, secretsStore: SecretsStore = SecretsStore(autoStart: false), backendStore: BackendStore = BackendStore()) {
         self.store = store
         self.costStore = costStore
         self.secretsStore = secretsStore
+        self.backendStore = backendStore
     }
 
     private var recentAgentHighlights: [RecentAgentHighlight] {
@@ -103,6 +105,10 @@ struct FleetPopover: View {
                 budgetPauseBanner
                 Divider().opacity(0.5)
             }
+            if store.isDaemonRunning {
+                BackendStatusRow(store: backendStore)
+                Divider().opacity(0.5)
+            }
             if let daemonStatus = store.daemonStatus, store.isDaemonRunning {
                 daemonReportSection(status: daemonStatus)
                 Divider().opacity(0.5)
@@ -118,6 +124,8 @@ struct FleetPopover: View {
                 Divider().opacity(0.5)
             }
             if showingSettings {
+                BackendPicker(store: backendStore)
+                Divider().opacity(0.5)
                 settingsPanel
                 Divider().opacity(0.5)
             }
@@ -478,12 +486,28 @@ struct FleetPopover: View {
                     .buttonStyle(.borderless)
                     .help("Reload configs")
 
+                    // PLAY/STOP is per-project. With one runnable project fire on it;
+                    // with multiple, open Fleet Control Center where the operator picks —
+                    // never silently launch all fleets everywhere.
                     Button {
                         Task {
                             if store.totalActive == 0 {
-                                await store.startFleet()
+                                let runnable = store.projects.filter { !$0.isRunning }
+                                if runnable.count == 1, let only = runnable.first {
+                                    await store.startFleet(projectDir: only.projectDir)
+                                } else if let focus = defaultConsoleProject,
+                                          let project = store.projects.first(where: { $0.id == focus && !$0.isRunning }) {
+                                    await store.startFleet(projectDir: project.projectDir)
+                                } else {
+                                    openControlPlane(.flow)
+                                }
                             } else {
-                                await store.stopFleet()
+                                if let focus = defaultConsoleProject,
+                                   let project = store.projects.first(where: { $0.id == focus && $0.isRunning }) {
+                                    await store.stopFleet(projectDir: project.projectDir)
+                                } else {
+                                    openControlPlane(.flow)
+                                }
                             }
                         }
                     } label: {
@@ -493,7 +517,7 @@ struct FleetPopover: View {
                             .contentTransition(.symbolEffect(.replace))
                     }
                     .buttonStyle(.borderless)
-                    .help(store.totalActive == 0 ? "Start fleet" : "Stop fleet")
+                    .help(store.totalActive == 0 ? "Start fleet (focused project only)" : "Stop fleet (focused project only)")
                 }
             }
         }
@@ -525,7 +549,7 @@ struct FleetPopover: View {
         return VStack(alignment: .leading, spacing: Fleet.Space.s) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Console")
+                    Text("Control Center")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                     Text("Shared project readiness, budgets, and control-plane truth")
@@ -785,12 +809,12 @@ struct FleetPopover: View {
             Button {
                 openControlPlane(.flow)
             } label: {
-                Label("Console", systemImage: "macwindow")
+                Label("Control Center", systemImage: "macwindow")
             }
             .buttonStyle(.borderless)
             .font(.caption2)
             .foregroundStyle(Fleet.Color.active)
-            .help("Open the fleet control plane")
+            .help("Open the Fleet Control Center")
 
             Button {
                 openSettings()
@@ -1435,6 +1459,9 @@ struct StatusCapsule: View {
         return store
     }(), costStore: {
         let store = CostStore()
+        return store
+    }(), backendStore: {
+        let store = BackendStore(autoStart: false)
         return store
     }())
     .frame(width: 380, height: 520)

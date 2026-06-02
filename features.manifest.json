@@ -1140,6 +1140,21 @@
         "sdk": false
       }
     },
+    "backend": {
+      "description": "CLI surface for the fleet backend catalog — list available backends with cost-model framing (subscription/metered/local/cli), switch the forced backend via PD_USE_CLI_BACKEND, and roll up spend per window. The CLI-tube backends (cli:claude-code, cli:codex) ride the operator's Claude Max or ChatGPT Pro subscription at $0 marginal cost. Read-only CLI surface — uses existing routes owned by the fleet + metrics features.",
+      "cli": [
+        "backend"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "backend"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
+    },
     "harbors": {
       "description": "Named permission namespaces for agent coordination \u2014 agents enter/leave harbors and declare capabilities",
       "cli": [

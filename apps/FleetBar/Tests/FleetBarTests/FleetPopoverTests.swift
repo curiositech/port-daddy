@@ -77,7 +77,11 @@ final class FleetPopoverTests: XCTestCase {
             )
         ]
 
-        let inspected = try FleetPopover(store: store, costStore: costStore).inspect()
+        let inspected = try FleetPopover(
+            store: store,
+            costStore: costStore,
+            backendStore: BackendStore(autoStart: false)
+        ).inspect()
 
         let quitButton = try inspected.find(button: "Quit")
         let quitPath = String(describing: quitButton.pathToRoot)
@@ -106,7 +110,11 @@ final class FleetPopoverTests: XCTestCase {
             )
         ]
 
-        let inspected = try FleetPopover(store: store, costStore: costStore).inspect()
+        let inspected = try FleetPopover(
+            store: store,
+            costStore: costStore,
+            backendStore: BackendStore(autoStart: false)
+        ).inspect()
 
         let costLabel = try inspected.find(text: "billing-demo")
         let costPath = String(describing: costLabel.pathToRoot)
@@ -168,7 +176,11 @@ final class FleetPopoverTests: XCTestCase {
             )
         )
 
-        let inspected = try FleetPopover(store: store, costStore: CostStore(autoStart: false)).inspect()
+        let inspected = try FleetPopover(
+            store: store,
+            costStore: CostStore(autoStart: false),
+            backendStore: BackendStore(autoStart: false)
+        ).inspect()
 
         let bosunStatus = try inspected.find(text: bosunReason)
         XCTAssertNil(try bosunStatus.lineLimit())
