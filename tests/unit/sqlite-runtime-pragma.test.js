@@ -1,5 +1,5 @@
 import { describe, expect, test } from '@jest/globals';
-import { executeBunPragma } from '../../lib/sqlite-runtime.js';
+import { executeBunPragma, translateBunOptions } from '../../lib/sqlite-runtime.js';
 
 describe('executeBunPragma — bun:sqlite shim routing', () => {
   // Why: better-sqlite3 .pragma() has three call shapes that have to
@@ -94,5 +94,43 @@ describe('executeBunPragma — bun:sqlite shim routing', () => {
     executeBunPragma(c.execSql, c.querySql, 'foreign_keys =');
     expect(c.execCalls).toEqual([]);
     expect(c.queryCalls).toEqual(['PRAGMA foreign_keys =;']);
+  });
+});
+
+describe('translateBunOptions — better-sqlite3 → bun:sqlite option bridge', () => {
+  // Why: bun:sqlite throws SQLITE_MISUSE when neither readonly nor readwrite
+  // flag can be derived. better-sqlite3's { readonly: false, fileMustExist }
+  // shape used to pass straight through and crash the shipped (bun) daemon
+  // while passing under jest (better-sqlite3). This function bridges them.
+
+  test('undefined / null pass through untouched', () => {
+    expect(translateBunOptions(undefined)).toBeUndefined();
+    expect(translateBunOptions(null)).toBeUndefined();
+  });
+
+  test('readonly: true maps to bun readonly', () => {
+    expect(translateBunOptions({ readonly: true })).toEqual({ readonly: true });
+  });
+
+  test('readonly: false + fileMustExist: true → readwrite, no create', () => {
+    expect(translateBunOptions({ readonly: false, fileMustExist: true })).toEqual({
+      readwrite: true,
+      create: false,
+    });
+  });
+
+  test('no options object (empty) defaults to readwrite + create', () => {
+    expect(translateBunOptions({})).toEqual({ readwrite: true, create: true });
+  });
+
+  test('readonly: false without fileMustExist allows creation', () => {
+    expect(translateBunOptions({ readonly: false })).toEqual({ readwrite: true, create: true });
+  });
+
+  test('unknown keys are preserved', () => {
+    expect(translateBunOptions({ readonly: true, custom: 42 })).toEqual({
+      readonly: true,
+      custom: 42,
+    });
   });
 });
