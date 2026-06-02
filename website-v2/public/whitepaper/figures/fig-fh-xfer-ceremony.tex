@@ -1,0 +1,78 @@
+% Cross-harbor capability transfer — four-message ceremony, sequence diagram.
+
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D4C5A9}
+\providecolor{hhebony}{HTML}{1E1B18}
+\providecolor{hhcinnabar}{HTML}{CC3D2E}
+\providecolor{hhbrass}{HTML}{B08D57}
+\providecolor{hhpatina}{HTML}{5C7A6A}
+\providecolor{hhpaper}{HTML}{FBF7EE}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\sffamily\small,
+  lane/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,
+               inner sep=4pt,minimum width=28mm,
+               font=\sffamily\bfseries\small,align=center},
+  msg/.style={->,>=Latex,thick,draw=hhebony},
+  threat/.style={draw=hhcinnabar,thick,fill=hhpaper,rounded corners=2pt,
+                 inner sep=3pt,font=\sffamily\scriptsize\itshape,
+                 text=hhcinnabar,align=left,text width=42mm},
+  defended/.style={draw=hhpatina,thick,fill=hhpaper,rounded corners=2pt,
+                   inner sep=3pt,font=\sffamily\scriptsize,
+                   text=hhpatina,align=left,text width=42mm},
+]
+
+% ─── Four lanes: Alice, Harbor A, Harbor B, Bob ───────────────────
+\node[lane] (LA) at (0,0) {Alice's agent\\\footnotesize (claim holder)};
+\node[lane,right=22mm of LA] (HA) {Harbor $A$\\\footnotesize (Alice's daemon)};
+\node[lane,right=22mm of HA] (HB) {Harbor $B$\\\footnotesize (Bob's daemon)};
+\node[lane,right=22mm of HB] (LB) {Bob's agent\\\footnotesize (verifier)};
+
+% lifelines
+\foreach \n in {LA,HA,HB,LB} {
+  \draw[dashed,gray] (\n.south) -- ($(\n.south)+(0,-85mm)$);
+}
+
+% ─── Message 1: Alice asks her harbor for an xfer card ─────────────
+\draw[msg] ($(LA.south)+(0,-6mm)$) -- node[above,font=\sffamily\scriptsize]{$\mathsf{xfer\_req}(C_A, B)$} ($(HA.south)+(0,-6mm)$);
+\node[font=\sffamily\scriptsize\itshape,right=2mm of HA,yshift=-7mm,text width=46mm,align=left]{\textbf{(1)} Alice presents her card $C_A$, names target harbor $B$, requests transferable form.};
+
+% ─── Message 2: Harbor A mints xfer envelope with attenuation ──────
+\draw[msg] ($(HA.south)+(0,-22mm)$) -- node[above,font=\sffamily\scriptsize]{$\mathsf{xfer\_offer}\langle C_A, \mathrm{att}, R_A^{(e)}\rangle$} ($(HB.south)+(0,-22mm)$);
+\node[font=\sffamily\scriptsize\itshape,right=2mm of HB,yshift=-23mm,text width=46mm,align=left]{\textbf{(2)} Harbor $A$ signs an envelope binding $C_A$, an attenuation predicate $\mathrm{att}$, and its current epoch root $R_A^{(e)}$.};
+
+% ─── Message 3: Harbor B counter-signs after attenuating ────────────
+\draw[msg] ($(HB.south)+(0,-40mm)$) -- node[above,font=\sffamily\scriptsize]{$\mathsf{xfer\_ack}\langle C_B', R_B^{(e)}\rangle$} ($(HA.south)+(0,-40mm)$);
+\node[font=\sffamily\scriptsize\itshape,left=2mm of HA,yshift=-41mm,text width=46mm,align=right]{\textbf{(3)} Harbor $B$ verifies $\mathit{sk}_A$ via witness log, applies its local attenuation, mints $C_B' = \mathrm{att}_B(\mathrm{att}_A(C_A))$ valid only at $B$.};
+
+% ─── Message 4: Card delivered to Bob's agent ───────────────────────
+\draw[msg] ($(HB.south)+(0,-58mm)$) -- node[above,font=\sffamily\scriptsize]{$\mathsf{xfer\_deliver}\langle C_B'\rangle$} ($(LB.south)+(0,-58mm)$);
+\node[font=\sffamily\scriptsize\itshape,right=2mm of LB,yshift=-59mm,text width=46mm,align=left]{\textbf{(4)} Bob's agent receives $C_B'$. Subsequent presentations at $B$ verify under $\mathit{sk}_B$ alone — no $A$-side lookup is needed at the hot path.};
+
+% ─── Forecloses / what could still go wrong (bottom annotation band) ─
+\node[threat,below=68mm of LA] (T) {%
+  \textbf{Threats foreclosed:}\\
+  $\bullet$ identity spoofing of $\mathit{sk}_A$ across the boundary;\\
+  $\bullet$ capability inflation across the transfer;\\
+  $\bullet$ replay at $B$ against a stale $R_A$.};
+\node[defended,right=4mm of T]{%
+  \textbf{Threats deferred to other primitives:}\\
+  $\bullet$ revocation latency \,$\to$\, \S\ref{sec:fh-revocation};\\
+  $\bullet$ settlement disputes \,$\to$\, \S\ref{sec:fh-settlement};\\
+  $\bullet$ unbonded harbor admission \,$\to$\, \S\ref{sec:fh-admission}.};
+
+\end{tikzpicture}%
+}
+\caption{The four-message cross-harbor capability transfer ceremony. The
+critical property is that no message after (3) needs to reach back to
+Harbor~$A$ in the hot path: $C_B'$ is verifiable under $\mathit{sk}_B$ alone,
+which is why federation does not turn every authorization into a synchronous
+inter-machine round trip. The epoch root $R_A^{(e)}$ bound into the envelope is
+the load-bearing primitive — a revocation issued by $A$ after epoch $e$
+invalidates $C_B'$ as soon as the new $R_A^{(e+1)}$ reaches the witness log
+that $B$ audits.}
+\label{fig:fh-xfer}
+\end{figure}

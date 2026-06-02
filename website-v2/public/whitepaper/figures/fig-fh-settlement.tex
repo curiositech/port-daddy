@@ -1,0 +1,76 @@
+% Cross-harbor settlement — bonded escrow, conditional atomic clear.
+
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D4C5A9}
+\providecolor{hhebony}{HTML}{1E1B18}
+\providecolor{hhcinnabar}{HTML}{CC3D2E}
+\providecolor{hhbrass}{HTML}{B08D57}
+\providecolor{hhpatina}{HTML}{5C7A6A}
+\providecolor{hhpaper}{HTML}{FBF7EE}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.92\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\sffamily\small,
+  party/.style={draw=hhebony,thick,rounded corners=3pt,fill=hhsand!50,
+                inner sep=5pt,minimum width=34mm,minimum height=18mm,
+                align=center,font=\sffamily\bfseries\small},
+  escrow/.style={draw=hhcinnabar,very thick,rounded corners=3pt,fill=hhpaper,
+                 inner sep=5pt,minimum width=38mm,minimum height=20mm,
+                 align=center,font=\sffamily\small},
+  stepbox/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,
+               inner sep=3pt,font=\sffamily\footnotesize,align=left,
+               text width=44mm},
+  edge/.style={->,>=Latex,thick,draw=hhebony},
+  refuseedge/.style={->,>=Latex,thick,draw=hhcinnabar,dashed},
+]
+
+% ─── Parties at top: Alice's principal (poster), Bob's principal (claimant) ─
+\node[party] (PA) at (0,0)
+  {Alice (principal)\\\footnotesize bond poster};
+\node[escrow,right=22mm of PA] (E)
+  {\textbf{Bonded Escrow}\\\footnotesize bonded; \emph{cannot redirect};\\\footnotesize fee $\phi$ capped};
+\node[party,right=22mm of E] (PB)
+  {Bob (principal)\\\footnotesize damage claimant};
+
+% ─── Step boxes below the line ──────────────────────────────────────
+\node[stepbox,below=14mm of PA.south,xshift=-2mm] (s1) {%
+  \textbf{1.} Alice's harbor mints work card for agent $\alpha$; agent operates at $B$. Bond $B_\alpha = \$B$ posted at $A$, locked in escrow.};
+\node[stepbox,below=14mm of E.south] (s2) {%
+  \textbf{2.} Damage detected at $B$ (acceptance criteria fail, or invariant violation). Bob's harbor signs claim $\mathsf{cl}_B = (R_B^{(e)}, \mathrm{evidence})$.};
+\node[stepbox,below=14mm of PB.south,xshift=2mm] (s3) {%
+  \textbf{3.} Escrow verifies inclusion of $\alpha$'s actions in $R_B^{(e)}$ and matches against acceptance preconditions signed at stepbox 1. \emph{Two outcomes only.}};
+
+% ─── Two outcome arrows ───────────────────────────────────────────
+\node[party,fill=hhpatina!30,below=24mm of s2.south] (Op) {%
+  \textbf{Clear:}\\\footnotesize $B$ paid out of bond,\\\footnotesize remainder refunded};
+\node[party,fill=hhcinnabar!22,below=24mm of s2.south,xshift=50mm] (Or) {%
+  \textbf{Refuse:}\\\footnotesize bond returned to $A$,\\\footnotesize escrow logs reason};
+\node[party,fill=hhcinnabar!22,below=24mm of s2.south,xshift=-50mm] (Of) {%
+  \textbf{Forbidden:}\\\footnotesize redirect, equivocate,\\\footnotesize delay past TTL};
+
+% ─── Flow edges ────────────────────────────────────────────────────
+\draw[edge] (PA.south) -- (s1.north);
+\draw[edge] (E.south) -- (s2.north);
+\draw[edge] (PB.south) -- (s3.north);
+\draw[edge] (s1.east) -- (s2.west);
+\draw[edge] (s2.east) -- (s3.west);
+\draw[edge] (s2.south) -- (Op.north);
+\draw[edge] (s2.south) -- (Or.north);
+\draw[refuseedge] (s2.south) -- (Of.north);
+\node[font=\sffamily\scriptsize\itshape,text=hhcinnabar,below=2pt of Of.south,text width=34mm,align=center]{ruled out structurally\\(Theorem~\ref{thm:fh-escrow-bound})};
+
+\end{tikzpicture}%
+}
+\caption{Cross-harbor settlement protocol. The escrow is a third party in
+the sense that neither $A$ nor $B$ alone can compel an outcome, but it is
+\emph{not} a trusted third party in the operational sense: the protocol
+restricts its decision space to two outcomes (clear or refuse) and prices its
+maximum extractable fee $\phi$ up front. Redirecting funds, equivocating
+about a clearing decision, or delaying past TTL are structurally forbidden by
+the property checks in Theorem~\ref{thm:fh-escrow-bound}. The escrow is a
+\emph{bounded} third party --- the bond it holds plus the cap on $\phi$ make
+its misbehavior bounded-loss rather than catastrophic.}
+\label{fig:fh-settlement}
+\end{figure}
