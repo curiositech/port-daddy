@@ -1,0 +1,33 @@
+{
+  "success": true,
+  "agents": [
+    {
+      "id": "spawned-052400be1a91",
+      "name": "cartographer",
+      "purpose": null,
+      "sessionId": "session-fleet-agent-cartographer-16ee308babcc",
+      "lastHeartbeat": 1778653241990,
+      "staleSince": 1778656761516,
+      "status": "pending",
+      "notes": [],
+      "identityProject": "port-daddy",
+      "identityStack": "fleet",
+      "identityContext": "cartographer"
+    },
+    {
+      "id": "spawned-b75f699446fa",
+      "name": "cartographer",
+      "purpose": null,
+      "sessionId": "session-fleet-agent-cartographer-7e25c91c21dd",
+      "lastHeartbeat": 1778650099093,
+      "staleSince": 1778656761517,
+      "status": "pending",
+      "notes": [],
+      "identityProject": "port-daddy",
+      "identityStack": "fleet",
+      "identityContext": "cartographer"
+    }
+  ],
+  "count": 2,
+  "filtered": false
+}
