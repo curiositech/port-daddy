@@ -1,6 +1,6 @@
 # Current Recovery Work
 
-Last updated: 2026-05-22 UTC (Cartographer plan-backlog ingestion follow-up to PR #166 — gap-fill pass over 4 long-form `docs/plans/` files: TUBE-as-coordination-substrate roadmap, phone-integration master plan, anchor protocol workstream backlog, worktree-swarms. New section "Plan-backlog ingestion 2026-05-22" enumerates ~60 still-open deliverables not covered by PR #166's hanging-chad sweep, organized into 4 clusters: TUBE (3 blockers + Phase 0 + Phases 1-8), PHONE (Tracks B3/C/D/E + PKI v1/v2), ANCHOR (AP-001..AP-022 in clusters A-F), WORKTREE-SWARMS (worktree-harbor binding, metadata decay daemon, swarm dashboard). Prior 2026-05-16 19:10 UTC pass: harvest/promotion — fresh 2026-05-16 Spark ideas curated; `orchestrator-decision-attribution` promoted to execution wave (#34); `symbol-staleness-merge-safety` marked EXTENDS: operator-hint-engine. Snapshot remains: `graph-based-merge-conflict-predictor`, `ambient-anomaly-signaling`, `symbol-graph-visualization`, `incremental-symbol-index-refresh`, `operator-hint-engine`, `symbol-claim-isolation-validator`, `orchestrator-plugin-lifecycle`, `daemon-fleet-auto-recovery`, `graph-integrity-auditor`, `agent-skills-quality-gates`, `cost-forecast-alert`, and `ipc-queue-saturation-promotion` in curated execution wave; 2026-05-13 extended promotion: `cost-gated-spawning`, `empirical-model-efficiency-routing`, `operator-decision-journal`, `sandboxed-adversarial-test-harness`; 2026-05-14 promotion: `tuple-store-query-api`, `governance-coordination-hub`, `phase-3-auto-remediation-executor`, `cost-aware-model-training-loop`, `unified-spawn-risk-synthesis`, plus `episodic-memory-query-surfaces` as Phase 3B memory cut and `operator-manual-fleet-dispatch` as Phase 3 dispatch workbench; 2026-05-10 Phase 4 resilience: `salvage-root-cause-classifier`; raw 2026-05-10 Spider exhaust (S41/S42/S43) still uncurated; fresh 2026-05-16 Spark/Spider exhaust mostly processed (orchestrator-decision-attribution curated, symbol-staleness marked extension); origin/main: 35 non-shared commits on release-prep / metrics / docs-polish; Phase 4A binary/doctor on feature branches, not promoted; prior: continuation `d017bc28`, verification `f0398b9a`, extended promotion `bbbd19be`, mapping `4e2a9f01`)
+Last updated: 2026-05-22 UTC (Cartographer plan-backlog ingestion follow-up to PR #166 — gap-fill pass over 4 long-form `docs/plans/` files: TUBE-as-coordination-substrate roadmap, phone-integration master plan, anchor protocol workstream backlog, worktree-swarms. New section "Plan-backlog ingestion 2026-05-22" enumerates ~60 still-open deliverables not covered by PR #166's hanging-chad sweep, organized into 4 clusters: TUBE (3 blockers + Phase 0 + Phases 1-8), PHONE (Tracks B3/C/D/E + PKI v1/v2), ANCHOR (AP-001..AP-022 in clusters A-F), WORKTREE-SWARMS (worktree-harbor binding, metadata decay daemon, swarm dashboard). PR #166 itself captured 24 hanging chads from the 2026-05-21 session under "Session backlog 2026-05-21": brew 3.15.0 bump, GitHub App receiver + registration, server.ts transcripts wiring, CLI-tube session/continue, FCC Backend Swift port, FleetBar build, Anchor paper Bonded upgrade, v2.6 dialogue-synthesis tex edits, Federated Harbor paper, TLA cherry-pick, Apalache CI cache, Wave C archive/SDK push/needs-review, worktree pruning, pre-push hook + destructive-log CLI under `pd guard`, `pd nightshift` removal, `merge_policy: auto` (blocked on harbormaster), dashboard panel-backend cleanup, MCP `pd backend` registration, `pd whois` (PR #122), and `pd attention` adoption. Prior 2026-05-16 19:10 UTC pass: harvest/promotion — fresh 2026-05-16 Spark ideas curated; `orchestrator-decision-attribution` promoted to execution wave (#34); `symbol-staleness-merge-safety` marked EXTENDS: operator-hint-engine. Snapshot remains: `graph-based-merge-conflict-predictor`, `ambient-anomaly-signaling`, `symbol-graph-visualization`, `incremental-symbol-index-refresh`, `operator-hint-engine`, `symbol-claim-isolation-validator`, `orchestrator-plugin-lifecycle`, `daemon-fleet-auto-recovery`, `graph-integrity-auditor`, `agent-skills-quality-gates`, `cost-forecast-alert`, and `ipc-queue-saturation-promotion` in curated execution wave; 2026-05-13 extended promotion: `cost-gated-spawning`, `empirical-model-efficiency-routing`, `operator-decision-journal`, `sandboxed-adversarial-test-harness`; 2026-05-14 promotion: `tuple-store-query-api`, `governance-coordination-hub`, `phase-3-auto-remediation-executor`, `cost-aware-model-training-loop`, `unified-spawn-risk-synthesis`, plus `episodic-memory-query-surfaces` as Phase 3B memory cut and `operator-manual-fleet-dispatch` as Phase 3 dispatch workbench; 2026-05-10 Phase 4 resilience: `salvage-root-cause-classifier`; raw 2026-05-10 Spider exhaust (S41/S42/S43) still uncurated; fresh 2026-05-16 Spark/Spider exhaust mostly processed (orchestrator-decision-attribution curated, symbol-staleness marked extension); origin/main: 35 non-shared commits on release-prep / metrics / docs-polish; Phase 4A binary/doctor on feature branches, not promoted; prior: continuation `d017bc28`, verification `f0398b9a`, extended promotion `bbbd19be`, mapping `4e2a9f01`)
 Owner: Cartographer maintenance pass + curated dogfood queue (2 now-status items: `claim-preserving-git-safety`, `fleet-launchability-and-cadence`); live tuple-backed feedback projection is empty (`open: 0`, `harvested: 11`); direct `pd feedback list --status open --json` still hits `EPERM` on `~/.port-daddy/daemon.sock`; there is no `.spark/feedback/` tree
 Authority: git log (1.3/day, 9 commits trailing 7d) > committed code > V4-UNIFIED-ROADMAP.md
 
@@ -1522,6 +1522,57 @@ Concrete invariants and primitives the protocol spec promises that aren't fully 
 - [ ] **Semantic channel routing via trie** — §9.3 future work. PR #122's `pd whois` scaffolding is the substrate; channel-subscribe-by-pattern (`port-daddy:fleet:qa:*`) isn't wired.
 
 Provenance: `docs/FLEET-CSP-PROTOCOL.md` v1.0 draft 2026-03-27. Section 7's enforcement table maps each invariant to its check strategy.
+
+## Session backlog 2026-05-21 (Cartographer ingestion)
+
+Twenty-four hanging chads from the 2026-05-21 major session, ingested so
+nothing falls on the floor. Each entry is the smallest thing that has to
+happen to close the chad; priority is HIGH / MEDIUM / LOW / BLOCKED with
+the originating PR or task ID stamped next to it.
+
+### Critical / time-sensitive
+
+- [ ] **brew formula bump to port-daddy 3.15.0** — HIGH — `curiositech/homebrew-tap` Formula. Operator's brewed daemon is 3.14.1; the Cloudflare fix shipped in 3.15.0. Needs version bump + checksum + bottle. Until this lands, operators who installed via brew keep running pre-fix code.
+- [ ] **GitHub App webhook receiver code** — HIGH — follow-up to PR #146. PR #146 shipped auth + post-as primitive but no webhook handler. App cannot react to events autonomously without it. Cloudflare Worker is the natural shape.
+- [ ] **App registration on github.com** — HIGH (BLOCKED on operator) — operator-action step. Without it the App doesn't exist. Pairs with the receiver above; receiver code can be written before registration but can't be tested end-to-end without it.
+- [ ] **server.ts transcripts wiring** — MEDIUM — three lines deferred from PR #140; blocked on `cockpit-phase-2-commit` session's stale claim. Mechanical once the claim is cleared.
+- [ ] **CLI-tube `--session-id` / `--continue` wiring** — MEDIUM — folded into PR #163 scope; already sent to the dispatch agent's inbox. Verify on landing; multi-turn dispatch (operator review → redo with prior context) does not work without it.
+- [ ] **FCC Backend section (Swift port from dashboard panel)** — MEDIUM — PR #138 stripped the dashboard nav; full FCC port deferred. Pairs with chad #21 (dead panel-backend cleanup once port lands).
+- [ ] **FleetBar Swift build verification** — LOW — needs Xcode build cycle. Raise to MEDIUM/HIGH only when someone is releasing FleetBar.
+
+### Whitepaper work parked
+
+- [ ] **Anchor paper Bonded-style upgrade** — MEDIUM — Task #100. Parked since session opener; agent originally dispatched then blocked on `pdflatex` permission.
+- [ ] **v2.6 dialogue-synthesis line-edits to `.tex`** — MEDIUM — PR #155 shipped the synthesis list; actual `.tex` edits unapplied.
+- [ ] **Federated Harbor actual paper** — LOW — proposal + bibliography exist; paper unwritten. Raise only when operator wants to ship it.
+
+### Cleanup chads
+
+- [ ] **TLA cherry-pick onto locked worktree** — LOW — PR #136 forked from a locked worktree; needs `7045fb15` cherry-picked onto its base.
+- [ ] **Apalache CI install caching** — LOW — PR #136 downloads 130MB per CI run. Could cache.
+- [ ] **Wave C archive of 9 superseded branches** — LOW — Task #141. `git branch -D` after operator confirms each.
+- [ ] **Wave C SDK scaffold push** — MEDIUM — Task #141. Worktree `worktree-agent-ae6d3cf7daa216197` holds the clean `@port-daddy/client` package. PUSH + open PR.
+- [ ] **Wave C 3 needs-review branches** — LOW (operator decision) — winget install claim / ProVerif maturity dispute / skill-prologue deletions.
+- [ ] **Worktree pruning** — LOW — 109 worktrees on this checkout; many `.claude/worktrees/agent-*` from the 2026-05-21 session should `git worktree remove` after their PRs land.
+
+### Substrate work
+
+- [ ] **`pd guard install` also installs pre-push hook** — LOW — PR #161 has installer at `scripts/install-pre-push-hook.sh`, but `pd guard install` doesn't call it yet.
+- [ ] **`pd guard destructive-log` CLI** — LOW — PR #161 logs bypass to `~/.port-daddy/destructive-ops.log`; no pretty-print CLI yet.
+- [ ] **`pd nightshift` deprecation banner removal** — LOW — PR #163 keeps the alias for one minor version. Remove after.
+- [ ] **`merge_policy: 'auto'` actual implementation** — BLOCKED on PR #141 (harbormaster ADR draft) — PR #163 refuses it pending harbormaster.
+- [ ] **Dashboard `panel-backend` dead-code cleanup** — LOW — PR #138 stripped the nav-item; the `panel-backend` div + `refreshBackend()` JS still live as dormant code in `public/index.html`. Clean up after the FCC port lands (pairs with critical chad #6).
+- [ ] **MCP tool registration for `pd backend`** — LOW — manifest+completions are green via `routes=[]` punt; if any MCP client needs to call `pd backend`, registration is missing.
+
+### Coordination doctrine
+
+- [ ] **`pd whois` (talent phonebook)** — MEDIUM — PR #122 draft. The router primitive that should run before every agent dispatch. Operator wants this normalized; pairs with the `pd-talent-phonebook` memory item.
+- [ ] **`pd attention` adoption verification** — MEDIUM — shipped already, but agents (including this one) aren't reliably running it at session start. Verify the `SessionStart` hook is firing in the Claude Code harness; if not, fix wiring.
+
+Owner: Cartographer (this ingestion); each chad's actual owner is whoever
+picks it up. Cross-reference: the GitHub App receiver, App registration,
+and 3.15.0 brew bump form a single delivery cluster — finishing only one
+of three leaves an inert system.
 
 ## Immediate Next Cuts
 
