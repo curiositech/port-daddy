@@ -119,7 +119,11 @@ export async function requireConfirmation(opts: ConfirmOptions): Promise<boolean
   }
 
   if (!canPrompt()) {
-    writeStderr('destructive: refusing in non-interactive mode. Re-run with --yes to proceed.\n');
+    // Guardrails never advertise their own bypass: the refusal names only the
+    // impact (already emitted above) and a generic refusal — never the override
+    // flag/env. An upstream agent takes whatever exit the error hands it; the
+    // `--yes` escape stays in `pd <cmd> --help` for a human operator only.
+    writeStderr('destructive: refusing in non-interactive mode.\n');
     return false;
   }
 
