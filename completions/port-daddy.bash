@@ -117,6 +117,8 @@ _port_daddy() {
     popper
     # Managed provider secret store (keychain-backed)
     secret secrets
+    # Harbormaster — canonical merge-owning actor body (ADR-0037)
+    harbormaster hm
     # Harbors (named permission namespaces)
     harbor harbors
     # Tuple space
@@ -1499,6 +1501,24 @@ _port_daddy() {
           ;;
         *)
           _pd_opts '--harbor --json'
+          ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
+    # harbormaster  start|stop|status|queue  [--foreground --json]
+    # -----------------------------------------------------------------------
+    harbormaster|hm)
+      local subcmd="${words[2]:-}"
+      case "$subcmd" in
+        '')
+          COMPREPLY=( $(compgen -W "start stop status queue help" -- "$cur") )
+          ;;
+        start)
+          _pd_opts '--foreground'
+          ;;
+        status|queue)
+          _pd_opts '--json'
           ;;
       esac
       ;;

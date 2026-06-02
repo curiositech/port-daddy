@@ -1261,6 +1261,7 @@ const ALL_COMMANDS: string[] = [
   'secret', 'secrets',
   'cockpit',
   'popper',
+  'harbormaster', 'hm',
 ];
 
 /** Simple Levenshtein distance for short strings */
@@ -2724,6 +2725,14 @@ export async function main(): Promise<void> {
       case 'secrets':
         await handleSecret(positional, options);
         break;
+
+      // Harbormaster — merge-owning actor body (ADR-0037)
+      case 'hm':
+      case 'harbormaster': {
+        const { handleHarbormaster } = await import('../cli/commands/harbormaster.js');
+        await handleHarbormaster(positional, options);
+        break;
+      }
 
       case 'integration':
         await handleIntegration(positional[0], positional.slice(1), options);

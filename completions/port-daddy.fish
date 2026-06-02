@@ -97,7 +97,7 @@ set -l __pd_commands \
     'agent' 'agents' 'actor' 'actors' 'swarm' 'log' 'activity' \
     'session' 'sessions' 'note' 'notes' \
     'salvage' 'resurrection' 'changelog' 'dns' 'files' 'add' 'who-owns' 'integration' 'briefing' 'history' 'inbox' \
-    'begin' 'b' 'done' 'whoami' 'w' 'attention' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'cockpit' 'popper' 'secret' 'secrets' 'watch' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' 'roadmap' 'quorum' 'feedback' 'commit' 'obligations' \
+    'begin' 'b' 'done' 'whoami' 'w' 'attention' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'cockpit' 'popper' 'secret' 'secrets' 'watch' 'harbormaster' 'hm' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' 'roadmap' 'quorum' 'feedback' 'commit' 'obligations' \
     'say' 'look' 'sitrep' 'advise' 'preflight' 'compass' 'guard' 'snapshots' 'snapshot' 'backup' 'restore' 'shipwright' 'pheromone' 'ph' \
     'wallet' 'bond' \
     'up' 'down' \
@@ -198,6 +198,14 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a secrets -d 'Manage keychain-backed provider credentials (alias)'
     complete -c $prog -n "__pd_using_command cockpit; and __fish_seen_subcommand_from missions" -l limit -x -d 'Cap returned missions'
     complete -c $prog -n "__pd_using_command cockpit; and __fish_seen_subcommand_from missions" -l json -d 'Emit raw intake envelope'
+    complete -c $prog -n __pd_needs_command -a harbormaster -d 'Harbormaster body — serialize merges of operator-accepted dispatches (ADR-0037)'
+    complete -c $prog -n __pd_needs_command -a hm -d 'Alias for harbormaster'
+    complete -c $prog -n "__pd_using_command harbormaster" -x -a 'start' -d 'Launch the harbormaster body'
+    complete -c $prog -n "__pd_using_command harbormaster" -x -a 'stop' -d 'Graceful SIGTERM'
+    complete -c $prog -n "__pd_using_command harbormaster" -x -a 'status' -d 'Queue + body status'
+    complete -c $prog -n "__pd_using_command harbormaster" -x -a 'queue' -d 'Pretty-print the merge queue'
+    complete -c $prog -n "__pd_using_command harbormaster; and __fish_seen_subcommand_from start" -l foreground -d 'Run attached (no detach)'
+    complete -c $prog -n "__pd_using_command harbormaster; and __fish_seen_subcommand_from status queue" -l json -d 'Emit JSON'
     complete -c $prog -n __pd_needs_command -a watch -d 'Subscribe to a channel and run a script on each message'
     complete -c $prog -n "__pd_using_command sortie" -x -a 'run' -d 'Launch a tracked sortie mission'
     complete -c $prog -n "__pd_using_command sortie" -x -a 'list' -d 'List recent sorties'

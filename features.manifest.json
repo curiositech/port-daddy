@@ -1049,6 +1049,23 @@
         "sdk": false
       }
     },
+    "harbormaster": {
+      "description": "Canonical merge-owning actor body (ADR-0037) — serializes merges of dispatched work, routes conflicts back as sub-dispatches, blocks on branch-protection / CI-red failures. Two-key safety: dispatch.state='accepted' AND merge_queue.state='queued'.",
+      "cli": [
+        "harbormaster",
+        "hm"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "harbormaster",
+        "hm"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
     "sorties": {
       "description": "Tracked mission records over spawned runs with durable ids, harbors, and event logs",
       "cli": [
