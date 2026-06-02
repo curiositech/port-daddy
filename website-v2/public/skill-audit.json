@@ -1,11 +1,9 @@
 {
-  "run_id": 0,
-  "generated_at": "2026-05-20T17:39:31+00:00",
   "auditor_version": "0.2.0",
   "summary": {
-    "total": 111,
+    "total": 116,
     "passing": 111,
-    "failing": 0
+    "failing": 5
   },
   "skills": [
     {
@@ -513,6 +511,87 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "federated-harbor-author",
+      "root": "skills/federated-harbor-author",
+      "ok": false,
+      "orphans": [
+        "agents/cross-paper-citation.md",
+        "agents/drafter.md",
+        "agents/voice-editor.md",
+        "examples/section-claim-example.json",
+        "references/topic-map.md",
+        "scripts/new-round.sh",
+        "scripts/probe-template.json",
+        "scripts/voice-check.sh"
+      ],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [
+        "agents",
+        "references",
+        "scripts"
+      ],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "federated-harbor-redteam",
+      "root": "skills/federated-harbor-redteam",
+      "ok": false,
+      "orphans": [
+        "agents/fh-proof-gap-auditor.md",
+        "agents/fh-redteam-econ.md",
+        "agents/fh-redteam-revocation.md",
+        "agents/fh-redteam-tokens.md",
+        "agents/fh-redteam-trust.md",
+        "examples/dialogue-fh-v0.1-to-v0.2.example.json",
+        "examples/probe-trust-example.json",
+        "references/topic-map.md",
+        "scripts/env.sh",
+        "scripts/new-round.sh",
+        "scripts/probe-template.json",
+        "scripts/verify-probe.sh"
+      ],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [
+        "agents",
+        "examples",
+        "references",
+        "scripts"
+      ],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "federated-harbor-whitehat",
+      "root": "skills/federated-harbor-whitehat",
+      "ok": false,
+      "orphans": [
+        "agents/fh-proof-completer.md",
+        "agents/fh-secops-lead.md",
+        "agents/fh-whitehat-econ.md",
+        "agents/fh-whitehat-revocation.md",
+        "agents/fh-whitehat-tokens.md",
+        "agents/fh-whitehat-trust.md",
+        "examples/defense-tokens-example.json",
+        "examples/dialogue-fh-v0.1-to-v0.2.example.json",
+        "references/mechanization-targets.md",
+        "references/topic-map.md",
+        "scripts/defense-template.json",
+        "scripts/env.sh",
+        "scripts/new-round.sh",
+        "scripts/run-fh-secops-lead.sh"
+      ],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [
+        "agents",
+        "examples",
+        "references",
+        "scripts"
+      ],
+      "missing_indexes_warning": []
+    },
+    {
       "name": "fipa-00023-agent-management",
       "root": "skills/fipa-00023-agent-management",
       "ok": true,
@@ -788,12 +867,54 @@
     {
       "name": "port-daddy-agent-skill",
       "root": "skills/port-daddy-agent-skill",
+      "ok": false,
+      "orphans": [],
+      "drift": [
+        {
+          "index": "diagrams/INDEX.md",
+          "ghost_entries": [
+            "05_promote-stable-timing.md"
+          ]
+        },
+        {
+          "index": "references/INDEX.md",
+          "missing_from_index": [
+            "git-discipline.md"
+          ]
+        }
+      ],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "port-daddy-expository-writer",
+      "root": "skills/port-daddy-expository-writer",
       "ok": true,
       "orphans": [],
       "drift": [],
       "broken_links": [],
       "missing_indexes_failure": [],
-      "missing_indexes_warning": []
+      "missing_indexes_warning": [
+        "agents",
+        "examples",
+        "references",
+        "scripts"
+      ]
+    },
+    {
+      "name": "port-daddy-internal-dev",
+      "root": "skills/port-daddy-internal-dev",
+      "ok": false,
+      "orphans": [
+        "examples/01-add-mcp-tool.md"
+      ],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
     },
     {
       "name": "port-daddy-marketing-copy",

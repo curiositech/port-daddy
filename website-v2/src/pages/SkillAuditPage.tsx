@@ -37,8 +37,10 @@ type SkillReport = {
 }
 
 type Snapshot = {
-  run_id: number
-  generated_at: string
+  // Optional in deterministic mode (when the snapshot is committed to git
+  // and we don't want metadata churn). Present in interactive/SQLite mode.
+  run_id?: number
+  generated_at?: string
   auditor_version: string
   summary: {
     total: number
@@ -163,7 +165,7 @@ export function SkillAuditPage() {
       <div className="min-h-screen bg-[var(--surface-base)]">
         <main id="main-content">
           <PageContainer width="wide">
-            <SurfacePanel elevation="quiet" padding="comfortable" className="mt-[var(--space-8)] border-2 border-rose-600/40">
+            <SurfacePanel elevation="quiet" padding="default" className="mt-[var(--space-8)] border-2 border-rose-600/40">
               <PanelTitle as="h1">Audit snapshot unavailable</PanelTitle>
               <PanelBody>Failed to load /skill-audit.json: {error}</PanelBody>
             </SurfacePanel>
@@ -194,10 +196,12 @@ export function SkillAuditPage() {
   const cohortLabel =
     filter === 'failing' ? 'Failing' : filter === 'warning' ? 'Passing with warnings' : 'All skills'
 
-  const formatted = new Date(generated_at).toLocaleString(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  })
+  const formatted = generated_at
+    ? new Date(generated_at).toLocaleString(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      })
+    : null
 
   return (
     <div className="min-h-screen bg-[var(--surface-base)] selection:bg-[var(--brand-primary)] selection:text-[var(--brand-primary-foreground)]">
@@ -224,9 +228,9 @@ export function SkillAuditPage() {
                 <SurfacePanel elevation="quiet" padding="compact" className="grid gap-[var(--space-2)]">
                   <p className="flex items-center gap-[var(--space-2)] font-mono text-[length:var(--text-xs)] uppercase tracking-[0.15em] opacity-70">
                     <RefreshCw size={14} />
-                    Run #{run_id}
+                    {run_id != null ? `Run #${run_id}` : 'Latest audit'}
                   </p>
-                  <p className="font-mono text-[length:var(--text-sm)]">{formatted}</p>
+                  {formatted && <p className="font-mono text-[length:var(--text-sm)]">{formatted}</p>}
                   <p className="font-mono text-[length:var(--text-xs)] opacity-70">
                     auditor v{auditor_version}
                   </p>
@@ -305,8 +309,8 @@ export function SkillAuditPage() {
             </div>
 
             {filter === 'failing' && failing.length === 0 && (
-              <SurfacePanel elevation="quiet" padding="comfortable" className="border-2 border-emerald-600/40">
-                <PanelTitle as="h3" size="md" className="flex items-center gap-[var(--space-2)] text-emerald-700 dark:text-emerald-300">
+              <SurfacePanel elevation="quiet" padding="default" className="border-2 border-emerald-600/40">
+                <PanelTitle as="h3" size="card" className="flex items-center gap-[var(--space-2)] text-emerald-700 dark:text-emerald-300">
                   <CheckCircle2 size={20} />
                   All {summary.total} skills pass.
                 </PanelTitle>
@@ -377,7 +381,7 @@ export function SkillAuditPage() {
             <SwissGrid>
               <SwissGridItem span="wide">
                 <PanelEyebrow>How this works</PanelEyebrow>
-                <PanelTitle as="h2" size="lg" className="mt-[var(--space-2)]">
+                <PanelTitle as="h2" size="section" className="mt-[var(--space-2)]">
                   Every commit is audited.
                 </PanelTitle>
                 <PanelBody className="mt-[var(--space-3)] max-w-[44rem]">

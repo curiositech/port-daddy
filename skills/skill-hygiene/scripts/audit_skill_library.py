@@ -228,11 +228,17 @@ def _relativise(skill_root: str, base: Path) -> str:
 
 
 def write_snapshot(snapshot_path: Path, run_id: int, summary: dict,
-                   audits: list[dict], base: Path) -> None:
+                   audits: list[dict], base: Path, deterministic: bool = False) -> None:
+    """Write the snapshot. In deterministic mode the run_id and generated_at
+    are omitted so commits don't churn on irrelevant metadata — the file only
+    diffs when the actual audit findings change.
+
+    Non-deterministic mode (the default) preserves run_id + generated_at for
+    consumers that care about trend over time (the SkillAuditPage shows the
+    run timestamp, for instance, when a real run from SQLite is available).
+    """
     snapshot_path.parent.mkdir(parents=True, exist_ok=True)
-    snapshot = {
-        "run_id": run_id,
-        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    snapshot: dict = {
         "auditor_version": AUDITOR_VERSION,
         "summary": summary,
         "skills": [
@@ -249,6 +255,9 @@ def write_snapshot(snapshot_path: Path, run_id: int, summary: dict,
             for a in audits
         ],
     }
+    if not deterministic:
+        snapshot["run_id"] = run_id
+        snapshot["generated_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
     snapshot_path.write_text(json.dumps(snapshot, indent=2), encoding="utf-8")
 
 
@@ -264,6 +273,10 @@ def main() -> int:
                         help="audit at most this many skills (0 = no limit)")
     parser.add_argument("--no-persist", action="store_true",
                         help="do not write to SQLite (snapshot still emitted if --snapshot given)")
+    parser.add_argument("--deterministic", action="store_true",
+                        help="omit run_id and generated_at from the snapshot so commits "
+                             "of the snapshot file don't churn on metadata. Recommended for "
+                             "any snapshot that gets checked in.")
     args = parser.parse_args()
 
     roots = [Path(r) for r in (args.roots or ["skills"])]
@@ -304,7 +317,11 @@ def main() -> int:
 
     if args.snapshot:
         snap_path = Path(args.snapshot).expanduser().resolve()
-        write_snapshot(snap_path, run_id or 0, summary, audits, base=Path.cwd().resolve())
+        write_snapshot(
+            snap_path, run_id or 0, summary, audits,
+            base=Path.cwd().resolve(),
+            deterministic=args.deterministic,
+        )
         print(f"Wrote snapshot to {snap_path}", file=sys.stderr)
 
     print(f"\nLibrary audit summary ({duration:.1f}s)")
