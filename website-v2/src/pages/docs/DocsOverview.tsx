@@ -47,6 +47,7 @@ export default function DocsOverview() {
     { title: 'MCP tools', href: '/docs/mcp' },
     { title: 'REST API', href: '/docs/api' },
     { title: 'Decisions', href: '/docs/decisions' },
+    { title: 'Skill audit', href: '/skill-audit' },
   ]
   const siteSurfaces = [
     { title: 'Mac Preview', href: '/mac-preview' },
