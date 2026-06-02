@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.17.0] - 2026-06-02
+
+This minor release consolidates a large backlog of user-visible capabilities that
+landed on `main` since 3.16.2 without an interim version — backup/restore, the
+`pd backend` provider switcher, the dispatch/nightshift/review pipeline,
+harbormaster, popper, transcripts, multi-subscriber tube fan-out, the fail-closed
+test/prod DB guard plus a default tube TTL, CLI permission tiers, and the GitHub
+App (Cloudflare Worker + Fleet App) — alongside an older unfolded backlog (Budget
+UX, Bonds escrow + budget-guard, `pd setup` one-command onboarding, cost tracking,
+observability routes, fleet config UI). The two accumulated `[Unreleased]` blocks
+in this file have been folded into this section; no entry was dropped.
+
+### Added
+- **`pd backup` / `pd restore` — durable daemon-state snapshots.** Capture and restore the SQLite-backed daemon state (sessions, claims, notes, tuples, roadmap, wallets/bonds) as a portable snapshot, so coordination state survives machine moves, schema migrations, and disaster recovery. Unblocks promoting markdown triage clusters into the DB.
+- **`pd backend` — provider/model switcher.** A single CLI surface to inspect and switch the active LLM backend (claude / claude-cli / ollama / gemini / cloudflare / custom) and model, resolving through the single `lib/llm-backend-resolver.ts` chokepoint rather than scattered `PD_*_BACKEND` env reads.
+- **`pd dispatch` + nightshift + review pipeline.** Operator-direct dispatch of background work, a nightshift batch runner for unattended off-hours execution, and a review stage that gates outputs before they land.
+- **`pd harbormaster` — fleet/port orchestration surface.** Operator command for marshalling daemons, harbors, and fleet lifecycle from one place.
+- **`pd popper` — surfaces the next actionable item.** Pops the highest-priority pending item (inbox / roadmap / obligation) for the current agent.
+- **`pd transcripts` — streamed sortie/agent transcript access.** Inspect captured agent run transcripts from the CLI.
+- **`pd tube` is now multi-subscriber (fan-out).** Multiple listeners on one channel each receive every message; the resume cursor is namespaced per listener identity (`listen()` gains a `historyKey`, set by the CLI to `channel::<sender>`) so distinct `--as` identities keep independent cursors (true fan-out) while the same identity still resumes across invocations. Verified with three live `--tail` listeners all receiving one `--send`; covered by `tests/unit/tube.test.ts`.
+- **CLI permission tiers.** Tiered command authorization so destructive/operator-only verbs are gated from routine read paths.
+- **GitHub App — Cloudflare Worker + Fleet App.** A GitHub App backed by a Cloudflare Worker plus a Fleet App, extending PD coordination onto GitHub-hosted fleet work.
+- **Budget UX (Track 1b.2).** Block-until-budget-set (spawner refuses any spawn for a project without `budget_usd_per_day`, pointing the operator at `pd wallet budget <project> --usd-per-day <N>`); pause-and-ask on budget breach (`lib/budget-pause.ts` interposes a 60s grace window, broadcasts on `budget:pending`, operator resolves with `raise`/`kill`/`grace`, max 2 extensions, expiry fires the backstop SIGTERM). New routes `POST /wallets/:project/budget`, `GET /budget/pending`, `GET /budget/pending/:agentId`, `POST /budget/pending/:agentId/resolve`; new CLI `pd wallet budget`, `pd wallet pending`, `pd wallet raise`; schema `project_wallets.budget_usd_per_day` (nullable REAL, idempotent ALTER); Bonds API `setBudget`/`getBudget`; README honesty paragraph (the wallet is a governance accounting unit, not money).
+- **Bonds + Budget-Guard wiring (Track 1b).** Daemon escrows money before every spawn (`lib/bonds.ts`) and SIGTERMs live spawns at 100% of daily budget (`lib/budget-guard.ts`) — advisory-only enforcement is gone. New routes `GET /bonds`, `GET /bonds/:id`, `POST /bonds/:id/slash`, `GET /wallets`, `GET /wallets/:project`, `POST /wallets/:project/top-up`, `GET /fleet/panic`, `POST /fleet/panic` (two-step), `POST /fleet/unpanic`. New CLI `pd wallet show|top-up|history`, `pd bond list|slash`, `pd fleet panic|unpanic`. New SDK methods `listBonds`, `getBond`, `slashBond`, `listWallets`, `getWallet`, `topUpWallet`, `getPanicStatus`, `armPanic`, `disarmPanic`. Panic is two-step (arm + confirm), broadcasts on `fleet:panic` / `fleet:unpanic`, and refunds running bonds rather than slashing them. Shell completions updated in bash/zsh/fish; integration coverage in `tests/integration/bonds-wiring.integration.test.js` and `tests/integration/fleet-panic.integration.test.js`.
+- **`pd setup` — one-command onboarding.** Single command installs daemon (launchd), configures MCP integration across 7 IDE platforms (Claude Code, Claude Desktop, Cursor, Windsurf, VS Code Copilot, Continue, Cline), installs FleetBar (macOS), and initializes the current project. Flags: `--no-daemon`, `--no-mcp`, `--no-fleetbar`, `--no-init`, `--no-fleet`, `--no-hook`, `--project <dir>`. Auto-detects project directories via git root and 15+ language markers.
+- **Cost Tracking System** (`lib/cost-tracker.ts`): per-spawn LLM cost recording with a model pricing table covering Claude Opus 4 / Sonnet 4.6 / Haiku 4.5, Gemini 2.0 Flash, GPT-4.1, and more. Exact cost from token counts (Claude SDK) or flat per-session estimates for opaque backends. Methods: `record()`, `total()`, `summary()`, `budgetStatus()`.
+- **Operational Counters** (`lib/counters.ts`): ODS-style time-bucketed metrics with in-memory batching (flushes to SQLite every 10s), minute + hour indexing, auto-cleanup of rows older than 30 days. Methods: `bump()`, `summary()`, `query()`.
+- **Observability Routes** (`routes/observability.ts`): golden signals (RED method) at `GET /metrics/golden`; cost endpoints `GET /metrics/cost`, `GET /metrics/cost/recent`, `GET /metrics/cost/budget/:project`; counter endpoints `GET /metrics/counters`, `GET /metrics/counters/top`.
+- **Fleet Config Management endpoints**: `GET /fleet/prompt` (one-line shell-prompt status), `GET /fleet/config/:project` (raw YAML + parsed config + topology validation), `PUT /fleet/config/:project` (write YAML, validate, reload fleet), `GET /fleet/models` (backend + model catalog, probes Ollama live with 60s cache).
+- **MCP Install expansion**: `pd mcp install` now supports 7 platforms (Claude Code, Claude Desktop, Cursor, Windsurf, VS Code Copilot, Continue, Cline) with IDE auto-detection.
+- **Path Centralization** (`shared/paths.ts`): all runtime files now live in `~/.port-daddy/` instead of `/tmp/` — survives `/tmp/` cleanup, eliminates symlink attacks, user-private permissions (0700). Exports `PD_HOME`, `DEFAULT_SOCK`, `DEFAULT_IPC`, `DEFAULT_PID_FILE`, `DEFAULT_PORT_FILE`, `UI_PREFS_FILE`; override via `PORT_DADDY_SOCK`, `PORT_DADDY_IPC`, `PORT_DADDY_PORT_FILE`.
+- **FleetBar Auto-Launcher** (`lib/fleetbar-launcher.ts`): daemon auto-launches the FleetBar menu bar app on startup (macOS only), passing `PORT_DADDY_PORT` / `PORT_DADDY_URL`, respecting the `launchFleetBarOnDaemonStart` UI preference.
+- **UI Preferences** (`lib/ui-preferences.ts`): persistent preference storage at `~/.port-daddy/ui-preferences.json`.
+- **Fleet Config UI**: React app (`fleet-config-ui/`) for visual fleet management — YAML editor, agent cards, activity panel, channel log, DM panel, flow graph, project picker, sortie panel. Communicates with the daemon via REST + SSE.
+- **FleetBar enhancements**: CostDashboard, CostStore, and FleetBarPreferences added to the SwiftUI menu bar app.
+- **Context-Aware Salvage**: agent registration with `--identity` / `--purpose` auto-checks for dead agents in the same project and returns a salvage notice; `pd salvage --project <name>` filters by project; dashboard shows the salvage queue grouped by project.
+- **CLI @clack/prompts makeover**: styled intro bars, spinners, log messages, boxed notes, and interactive prompts across all 58+ commands.
+- **`pd spawn` — AI agent launcher**: launch local or cloud AI agents (`ollama`, `claude`, `claude-cli`, `gemini`, `aider`, `custom`) with Port Daddy coordination auto-wired. All spawned agents auto-register, heartbeat, start sessions, and enter the salvage queue on crash. `pd spawn -- <task>`, `pd spawned`, `pd spawn kill <id>`; SDK `pd.spawn()`, `pd.listSpawned()`, `pd.killSpawned()`; API `POST /spawn`, `GET /spawn`, `DELETE /spawn/:id`.
+- **Fleet dogfooding**: all 8 fleet agents migrated from direct `claude -p` to `pd spawn --backend claude-cli`, gaining full PD coordination for free.
+- **OpenAPI 3.1 specification**: full API spec at `docs/openapi.yaml` (96 paths, 125 operations).
+- **Dashboard salvage panel upgrade**: groups dead agents by project, uses the primary `/salvage` routes, adds Claim/Dismiss action buttons per agent.
+- **`pd watch` — ambient agent kernel**: react to pub/sub messages without polling. `pd watch <channel> --exec <script>` runs a script per message (receives `PD_MESSAGE`, `PD_MESSAGE_CONTENT`, `PD_CHANNEL`, `PD_TIMESTAMP`), auto-reconnects on SSE disconnect.
+- **"Uncharted Waters" first-launch**: a compass rose ASCII banner with three offered commands when PD sees a new folder; `isNewFolder` / `uncharted_waters` fields added to `GET /launch-hints`.
+- **Research reports** (`research/`) and an interactive synthesis report (`research/synthesis.html`).
+- **Website docs overhaul**: Tutorial 06 (DNS Resolver) 129 → 398 lines; Tutorial 08 (Session Phases) 168 → 498 lines; `website/docs/api.html` full API reference (64 endpoints); `website/docs/index.html` docs home.
+
+### Changed
+- **Fail-closed test/prod DB guard + default tube TTL.** The daemon now refuses to run against a test database in a production context (and vice versa), failing closed rather than silently corrupting state, and `pd tube` channels carry a default TTL so stale channel state expires instead of accumulating.
+
 ### CI / Build
 - **CI now hard-fails when the COMPILED CLI doesn't run.** The prior compiled-binary smokes set `PORT_DADDY_URL` explicitly and the single-binary smoke only exercised the `__daemon` entrypoint, so a compiled `pd` whose CLI path was dead (or that failed to bootstrap) shipped green. New `scripts/smoke-compiled-cli-runs.sh` boots the daemon from the compiled binary and drives the **bare** CLI via discovery (no URL override): `pd status` 3× must run and report a running daemon, `pd tube --send` must post, and a two-listener fan-out must deliver to both. Wired into the `compiled-daemon-smoke` CI job — a dead CLI now blocks the release.
 - **Pinned `bun-version` to `1.2.21`** (was unpinned `latest`) in `ci.yml` and `release.yml`, so the compiled binary is built against a deterministic bun across CI and releases instead of whatever `latest` resolves to at release time.
@@ -232,66 +281,6 @@ The entries below shipped to `main` between 3.8.4 and 3.14.0 but were never assi
 - CLI unknown command tests: Updated to check both stdout and stderr (clack/prompts renders to stdout)
 - Manifest enforcement: Added arbiter routes to `features.manifest.json`
 - Missing `@clack/prompts` dependency added to package.json
-
-## [Unreleased]
-
-### Added — Budget UX (Track 1b.2)
-- **Block-until-budget-set**: spawner refuses any spawn for a project without `budget_usd_per_day` set. Error message points the operator at `pd wallet budget <project> --usd-per-day <N>`.
-- **Pause-and-ask on budget breach**: 100% of daily budget no longer cliff-SIGTERMs. `lib/budget-pause.ts` interposes a 60s grace window, broadcasts on `budget:pending`. Operator resolves with `raise` (credit wallet + optionally bump budget), `kill` (skip grace, fire SIGTERM now), or `grace` (extend; max 2 extensions). Expiry fires the backstop SIGTERM.
-- **New HTTP routes**: `POST /wallets/:project/budget`, `GET /budget/pending`, `GET /budget/pending/:agentId`, `POST /budget/pending/:agentId/resolve`.
-- **New CLI**: `pd wallet budget <project> --usd-per-day <N>`, `pd wallet pending`, `pd wallet raise --agent <id> --usd <N> [--new-budget-per-day <N>]`.
-- **Schema**: `project_wallets.budget_usd_per_day` (nullable REAL); idempotent ALTER on existing DBs.
-- **Bonds API**: `bonds.setBudget(project, usdPerDay | null)`, `bonds.getBudget(project)`.
-- **README**: new honesty paragraph — the wallet is a governance accounting unit, not money. Bonds are a coordination signal under `claude-cli`/`ollama` and a real cost gate under API-priced backends.
-
-### Added — Bonds + Budget-Guard Wiring (Track 1b)
-- Daemon escrows money before every spawn (`lib/bonds.ts`) and SIGTERMs live spawns at 100% of daily budget (`lib/budget-guard.ts`). Advisory-only enforcement is gone.
-- New HTTP routes: `GET /bonds`, `GET /bonds/:id`, `POST /bonds/:id/slash`, `GET /wallets`, `GET /wallets/:project`, `POST /wallets/:project/top-up`, `GET /fleet/panic`, `POST /fleet/panic` (two-step), `POST /fleet/unpanic`.
-- New CLI: `pd wallet show|top-up|history`, `pd bond list|slash`, `pd fleet panic|unpanic`.
-- New SDK methods on `PortDaddy`: `listBonds`, `getBond`, `slashBond`, `listWallets`, `getWallet`, `topUpWallet`, `getPanicStatus`, `armPanic`, `disarmPanic`.
-- Panic is two-step (arm + confirm), broadcasts on `fleet:panic` / `fleet:unpanic`, and refunds running bonds rather than slashing them (operator action, not misbehavior).
-- Shell completions updated in bash, zsh, and fish.
-- Integration coverage: `tests/integration/bonds-wiring.integration.test.js`, `tests/integration/fleet-panic.integration.test.js`.
-
-### Added
-- **`pd setup` — One-Command Onboarding**: Single command installs daemon (launchd), configures MCP integration across 7 IDE platforms (Claude Code, Claude Desktop, Cursor, Windsurf, VS Code Copilot, Continue, Cline), installs FleetBar (macOS), and initializes the current project. Flags: `--no-daemon`, `--no-mcp`, `--no-fleetbar`, `--no-init`, `--no-fleet`, `--no-hook`, `--project <dir>`. Auto-detects project directories via git root and 15+ language markers (package.json, Cargo.toml, go.mod, etc.).
-- **Cost Tracking System** (`lib/cost-tracker.ts`): Per-spawn LLM cost recording with model pricing table covering Claude Opus 4/Sonnet 4.6/Haiku 4.5, Gemini 2.0 Flash, GPT-4.1, and more. Exact cost from token counts (Claude SDK) or flat per-session estimates for opaque backends (claude-cli: $0.05, aider: $0.10). Methods: `record()`, `total()`, `summary()`, `budgetStatus()`.
-- **Operational Counters** (`lib/counters.ts`): ODS-style time-bucketed metrics with in-memory batching (flushes to SQLite every 10s). Minute + hour indexing. Auto-cleanup: rows older than 30 days pruned. Methods: `bump()`, `summary()`, `query()`.
-- **Observability Routes** (`routes/observability.ts`): Golden signals (RED method) at `GET /metrics/golden` — rate/min, error%, avg duration, cost/hr. Cost endpoints: `GET /metrics/cost` (by project + backend), `GET /metrics/cost/recent`, `GET /metrics/cost/budget/:project` (budget enforcement). Counter endpoints: `GET /metrics/counters`, `GET /metrics/counters/top` (top N dimension values).
-- **Fleet Config Management Endpoints**: `GET /fleet/prompt` (one-line status for shell prompts), `GET /fleet/config/:project` (raw YAML + parsed config + topology validation), `PUT /fleet/config/:project` (write YAML, validate, reload fleet), `GET /fleet/models` (backend + model catalog, probes Ollama live with 60s cache).
-- **MCP Install Expansion**: `pd mcp install` now supports 7 platforms: Claude Code (`~/.claude/settings.json`), Claude Desktop, Cursor (`~/.cursor/mcp.json`), Windsurf (`~/.windsurf/mcp.json`), VS Code Copilot (`~/.vscode/mcp.json`), Continue, and Cline. Auto-detects installed IDEs.
-- **Path Centralization** (`shared/paths.ts`): All runtime files now live in `~/.port-daddy/` instead of `/tmp/`. Survives `/tmp/` cleanup, eliminates symlink attacks, user-private permissions (0700). Exports: `PD_HOME`, `DEFAULT_SOCK`, `DEFAULT_IPC`, `DEFAULT_PID_FILE`, `DEFAULT_PORT_FILE`, `UI_PREFS_FILE`. Override via `PORT_DADDY_SOCK`, `PORT_DADDY_IPC`, `PORT_DADDY_PORT_FILE` env vars.
-- **FleetBar Auto-Launcher** (`lib/fleetbar-launcher.ts`): Daemon auto-launches FleetBar menu bar app on startup (macOS only). Searches `/Applications/FleetBar.app`, `~/Applications/FleetBar.app`, and build outputs. Passes `PORT_DADDY_PORT` and `PORT_DADDY_URL` to the FleetBar process. Respects `launchFleetBarOnDaemonStart` UI preference.
-- **UI Preferences** (`lib/ui-preferences.ts`): Persistent preference storage at `~/.port-daddy/ui-preferences.json`. Currently: `launchFleetBarOnDaemonStart` (boolean).
-- **Fleet Config UI**: React app (`fleet-config-ui/`) for visual fleet management — YAML editor, agent cards, activity panel, channel log, DM panel, flow graph, project picker, sortie (one-off agent spawn) panel. Communicates with daemon via REST + SSE subscriptions.
-- **FleetBar Enhancements**: CostDashboard (cost visualization in menu bar), CostStore (cost data store), FleetBarPreferences (user preferences UI) added to the SwiftUI menu bar app.
-- **Context-Aware Salvage**: Agent registration with `--identity` and `--purpose` now auto-checks for dead agents in the same project and returns a salvage notice. `pd salvage --project <name>` filters by project. Dashboard shows salvage queue grouped by project.
-- **CLI @clack/prompts makeover**: Replaced raw ANSI/readline output with `@clack/prompts` for styled intro bars, spinners, log messages (success/error/warn/info), boxed notes, and interactive prompts. New confident, AI-like voice across all 58+ commands.
-- **`pd spawn` — AI Agent Launcher**: Launch local or cloud AI agents with Port Daddy coordination auto-wired
-  - Backends: `ollama` (local daemon), `claude` (Anthropic SDK direct), `claude-cli` (full Claude Code CLI with tools), `gemini` (Google Generative AI), `aider` (subprocess, git-native), `custom` (shell command)
-  - `claude-cli` backend wraps `claude -p` as a subprocess — supports `--allowedTools`, `--cwd`, `--maxTokens` flags for full agentic capabilities
-  - All spawned agents auto-register, send heartbeats, start sessions, and enter salvage queue on crash
-  - CLI exits non-zero when agent fails; quiet mode (`-q`) prints raw output to stdout
-  - `pd spawn -- <task>`, `pd spawned`, `pd spawn kill <id>` CLI commands
-  - SDK: `pd.spawn()`, `pd.listSpawned()`, `pd.killSpawned()`
-  - API: `POST /spawn`, `GET /spawn`, `DELETE /spawn/:id`
-- **Fleet dogfooding**: All 8 fleet agents migrated from direct `claude -p` to `pd spawn --backend claude-cli`, gaining full PD coordination (registration, sessions, heartbeats, done signals) for free
-- **OpenAPI 3.1 specification**: Full API spec at `docs/openapi.yaml` — 96 paths, 125 operations, single source of truth for the HTTP API
-- **Dashboard salvage panel upgrade**: Groups dead agents by project, uses primary `/salvage` routes (not deprecated `/resurrection`), adds Claim/Dismiss action buttons per agent
-- **`pd watch` — Ambient Agent Kernel**: React to pub/sub messages without polling
-  - `pd watch <channel> --exec <script>` runs script on each message
-  - Script receives `PD_MESSAGE`, `PD_MESSAGE_CONTENT`, `PD_CHANNEL`, `PD_TIMESTAMP` env vars
-  - Auto-reconnects on SSE disconnect (2s backoff)
-  - Foundation for always-on agents triggered by channel events
-- **"Uncharted Waters" first-launch**: When Port Daddy sees a new folder for the first time, shows a compass rose ASCII banner with three offered commands (`pd scan`, `pd learn`, `pd mcp install`)
-  - `isNewFolder` / `uncharted_waters` fields added to `GET /launch-hints` response
-- **Research reports** (`research/`): Multi-agent patterns (MCP/A2A/ACP protocols, 10 archetypes, swarm patterns), local LLM cost analysis, docs audit
-- **Interactive synthesis report** (`research/synthesis.html`): Annotated findings with cost calculator, CSS pheromone trail animation, agent archetype cards
-- **Website docs overhaul**:
-  - Tutorial 06 (DNS Resolver): 129 → 398 lines — full walkthrough, SDK examples, troubleshooting
-  - Tutorial 08 (Session Phases): 168 → 498 lines — SVG phase diagram, decision table, integration signals workflow
-  - `website/docs/api.html`: New full API reference — 64 endpoints, request/response schemas, curl examples, vanilla JS search
-  - `website/docs/index.html`: Docs home with quick links and Concepts section (identities, salvage, agent coordination)
 
 ## [3.7.0] - 2026-03-04
 
