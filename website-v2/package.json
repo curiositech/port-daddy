@@ -82,6 +82,7 @@
     "playwright": "^1.58.2",
     "storybook": "^10.2.19",
     "tailwindcss": "^4.2.1",
+    "ts-morph": "^28.0.0",
     "tsx": "^4.21.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.48.0",

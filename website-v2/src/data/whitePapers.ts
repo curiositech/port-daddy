@@ -12,6 +12,86 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
+/**
+ * Forbidden version-history phrases. Per project rule: "speak only of the
+ * now. do not assume the reader read you before. do not anxiously wave to
+ * the future." These phrases are banned in body copy at the **type level**
+ * via the `NoForbidden` template literal type below.
+ *
+ * This replaces the prior runtime substring grep (which violated the
+ * user-level `NO KEYWORD-BASED NLP. EVER.` rule). The constraint here is
+ * narrow and structural — a closed list of literal strings that cannot
+ * appear inside specific string-typed prose fields — not an open-ended
+ * keyword classifier. If you find yourself adding fuzzy matches or
+ * synonym expansion to this union, you have wandered into the rule's
+ * territory and should reach for embeddings or a Haiku classifier instead.
+ *
+ * `Pre-print` is exempt: it is intentionally allowed inside the `status:`
+ * field, which is typed as plain `string` (see `WhitePaper.status`).
+ *
+ * **CANONICAL PATTERN.** Future keyword bans on data files should follow
+ * this approach (template literal type narrowing the field), not a runtime
+ * regex. The compile pass is the test.
+ */
+type ForbiddenPhrase =
+  | 'original draft'
+  | 'Version 2 closes'
+  | 'earlier draft'
+  | 'Version~2'
+  | 'pre-print' // allowed only inside the `status` field — see WhitePaper.status below
+
+/**
+ * Compile-time guard: if `S` contains any `ForbiddenPhrase` as a substring,
+ * the type resolves to an explicit error string that `tsc` reports as a
+ * type mismatch (the call site expected the literal back, got the error).
+ * Otherwise it resolves to `S` unchanged.
+ *
+ * Only operates on string literal types — that's the whole trick. The
+ * `defineWhitePapers` helper below threads literal types through so the
+ * checker sees the actual prose.
+ */
+type NoForbidden<S extends string> =
+  S extends `${string}${ForbiddenPhrase}${string}`
+    ? '❌ contains forbidden phrase (see ForbiddenPhrase in whitePapers.ts)'
+    : S
+
+/**
+ * Apply `NoForbidden` to every string leaf in a paper object. Walks
+ * properties shallowly, then descends into the known `Array<{...}>` fields
+ * (glossary, sections, takeaways) one level deeper. Stops at `status` so
+ * the status field can mention "Pre-print" / version language without
+ * tripping. Stops at `highlights` because its leaves are `LucideIcon`
+ * components, not prose.
+ *
+ * Why not a generic deep walk: a fully-recursive walk on `T extends object`
+ * collides with the `T & {...}` intersection used in `defineWhitePapers`,
+ * collapsing the parameter to `never`. Hand-rolling the descent for the
+ * known paper shape avoids that and stays explicit about which prose
+ * fields are policed.
+ */
+type ValidateString<S> = S extends string ? NoForbidden<S> : S
+
+// Each element of glossary/sections/takeaways gets its string fields validated.
+type ValidateNestedElement<E> = { readonly [K in keyof E]: ValidateString<E[K]> }
+
+// Walk a tuple type, preserving its shape, applying ValidateNestedElement
+// to each element. Preserving the tuple shape is necessary because the
+// outer `T & ValidatePaper<T>` intersection collapses to `never` if the
+// validated form widens `readonly [a, b, c]` to `readonly X[]`.
+type ValidateTuple<T> = {
+  readonly [I in keyof T]: ValidateNestedElement<T[I]>
+}
+
+type ValidatePaper<P> = {
+  readonly [K in keyof P]: K extends 'status'
+    ? P[K]
+    : K extends 'highlights'
+      ? P[K] // LucideIcon refs, no prose to police
+      : K extends 'glossary' | 'sections' | 'takeaways'
+        ? ValidateTuple<P[K]>
+        : ValidateString<P[K]>
+}
+
 export interface WhitePaper {
   id: string
   slug: string
@@ -26,6 +106,11 @@ export interface WhitePaper {
   date: string
   pages: number
   sizeKb: number
+  /**
+   * The only field permitted to contain version language ("Version 2.5",
+   * "Pre-print", etc). Typed as plain `string` so it is exempt from the
+   * `NoForbidden` template-literal-type check applied to all other prose.
+   */
   status: string
   order: string
   /** A one-paragraph welcome that defines the central idea in plain language. */
@@ -41,7 +126,69 @@ export interface WhitePaper {
   takeaways: Array<{ title: string; body: string }>
 }
 
-export const WHITE_PAPERS: WhitePaper[] = [
+/**
+ * A readonly mirror of `WhitePaper` used only as the inference constraint on
+ * `defineWhitePapers`. The runtime / consumer-facing type is still
+ * `WhitePaper`. We need this because:
+ *
+ *   - `const T` inference treats array literals as readonly tuples.
+ *   - `WhitePaper.glossary` etc. are `Array<...>` (mutable).
+ *   - If the constraint is mutable, TS widens the inferred `T[I]` properties
+ *     to `string`, and `NoForbidden<string>` is a no-op (it can only narrow
+ *     literal types). The forbidden-phrase check would silently pass.
+ *
+ * `DeepReadonly<WhitePaper>` keeps the inferred `T` literal-typed all the
+ * way down so the `ValidateField` walk sees the actual prose.
+ */
+type DeepReadonly<T> = T extends (...args: never[]) => unknown
+  ? T
+  : T extends readonly (infer U)[]
+    ? readonly DeepReadonly<U>[]
+    : T extends object
+      ? { readonly [K in keyof T]: DeepReadonly<T[K]> }
+      : T
+
+/**
+ * Helper that enforces `NoForbidden` at the type level on every string leaf
+ * (except `status`) of every paper. If any prose contains a forbidden
+ * phrase, the call site fails to type-check: the literal-typed argument
+ * does not assign to the `ValidateField`-narrowed intersection.
+ *
+ * The `const` modifier on the type parameter (TS 5.0+) preserves literal
+ * types through inference; the parameter is `T & {[I in keyof T]:
+ * ValidateField<T[I]>}` so the inferred `T` stays literal while the
+ * additional mapped-type intersection enforces the substring constraint.
+ *
+ * The runtime is a pure identity — all the work happens in `tsc`.
+ */
+/**
+ * The signature uses a two-stage pattern:
+ *   1. `const T extends readonly DeepReadonly<WhitePaper>[]` infers `T` as
+ *      a literal-typed readonly tuple of the actual papers. The
+ *      `DeepReadonly<WhitePaper>` constraint matches the readonly tuple
+ *      shape so inference doesn't widen string literals.
+ *   2. The parameter is the **intersection** `T & {[I in keyof T]:
+ *      ValidatePaper<T[I]>}`. The intersection is reflexive in T (the
+ *      argument is structurally T), and TS performs the assignability
+ *      check against the second member, where `ValidatePaper` substitutes
+ *      forbidden-phrase strings with the explicit error literal. Mismatch
+ *      collapses the intersected paper to `never` — the call site then
+ *      reports cascading "X is not assignable to never" errors. The error
+ *      message is noisier than ideal, but the constraint holds: a
+ *      forbidden phrase anywhere in body prose fails compilation.
+ *
+ *   Trade-off: a more "pointed" error message (`Type "..." is not
+ *   assignable to "❌ contains forbidden phrase"`) requires dropping the
+ *   intersection and using a `T extends X ? T : never` return-type trick,
+ *   which TS happily silently widens. The intersection survives that.
+ */
+function defineWhitePapers<const T extends readonly DeepReadonly<WhitePaper>[]>(
+  papers: T & { readonly [I in keyof T]: ValidatePaper<T[I]> },
+): WhitePaper[] {
+  return papers as unknown as WhitePaper[]
+}
+
+export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
   {
     id: 'anchor-protocol',
     slug: 'anchor-protocol',
@@ -57,8 +204,8 @@ export const WHITE_PAPERS: WhitePaper[] = [
     readerHref: '/whitepaper/anchor-protocol',
     overviewHref: '/whitepaper?paper=anchor-protocol',
     date: 'May 2026',
-    pages: 22,
-    sizeKb: 690,
+    pages: 23,
+    sizeKb: 805,
     status: 'Version 1.2',
     order: '01',
     primer:
@@ -367,7 +514,7 @@ export const WHITE_PAPERS: WhitePaper[] = [
       },
     ],
   },
-]
+])
 
 export const READING_ORDER = [
   {
