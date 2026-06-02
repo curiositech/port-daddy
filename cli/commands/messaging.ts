@@ -19,6 +19,7 @@ import {
   resolveTargetDir,
 } from '../utils/channel-resolution.js';
 import * as ui from '../utils/ui.js';
+import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
 
 function readOption(options: CLIOptions, ...keys: string[]): string | undefined {
   for (const key of keys) {
@@ -402,6 +403,12 @@ export async function handleChannels(subcommand: string | undefined, args: strin
       ui.error((error as Error).message);
       process.exit(1);
     }
+
+    const ok = await requireConfirmation({
+      summary: `Channels clear will delete all queued messages on "${resolvedChannel.physicalChannel}". Any subscriber not currently attached will not see them.`,
+      args: options as Record<string, unknown>,
+    });
+    if (!ok) process.exit(DESTRUCTIVE_EXIT_CODE);
 
     const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/msg/${encodeURIComponent(resolvedChannel.physicalChannel)}`, {
       method: 'DELETE'

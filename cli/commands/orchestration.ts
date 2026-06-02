@@ -19,6 +19,7 @@ import type { PortDaddyRcConfig } from '../../lib/config.js';
 
 import { createHash } from 'node:crypto';
 import * as ui from '../utils/ui.js';
+import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
 
 /**
  * Get a unique PID file path for the current project directory.
@@ -290,6 +291,12 @@ export async function handleDown(options: CLIOptions): Promise<void> {
     removePidFile(dir);
     process.exit(1);
   }
+
+  const ok = await requireConfirmation({
+    summary: `Down will SIGTERM the orchestrator (PID ${pid}) and stop every service it manages in ${dir}. Any unsaved in-process state is lost.`,
+    args: options as Record<string, unknown>,
+  });
+  if (!ok) process.exit(DESTRUCTIVE_EXIT_CODE);
 
   // Send SIGTERM to trigger graceful shutdown
   ui.warn(`Stopping port-daddy up (PID ${pid})...`);

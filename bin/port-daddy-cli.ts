@@ -139,6 +139,8 @@ import {
   attachCliSessionWorktreePolicy,
   resolveCliSessionWorktreePolicy,
 } from '../cli/utils/session-worktree-policy.js';
+import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../cli/utils/destructive-confirm.js';
+import { resolveTier, tierBadge, TIER_LEGEND, type Tier } from '../cli/permission-tiers.js';
 
 const __dirname: string = dirname(fileURLToPath(import.meta.url));
 const PORT_DADDY_URL: string = getDaemonTcpUrl(process.env.PORT_DADDY_URL);
@@ -610,40 +612,48 @@ function buildHelp(): string {
     lines.push('');
   }
 
+  // Tier badge formatter for help lines. Renders [silent]/[notify]/[approval]/[destructive]
+  // in muted gray so the verb stays scannable.
+  const tag = (tier: Tier): string => `${D}${tierBadge(tier)}${Z}`;
+
   lines.push(
     `${A}Get started:${Z}`,
-    `  ${G}pd setup${Z}                  Install daemon, MCP, FleetBar, init project`,
-    `  ${G}pd begin${Z} "purpose"       I'll set up your agent + session`,
-    `  ${G}pd done${Z} "summary"        Finish up — I'll clean everything`,
-    `  ${G}pd whoami${Z}                See your current context`,
-    `  ${G}pd attention${Z}             What other agents queued for you (run first thing!)`,
+    `  ${G}pd setup${Z}                  ${tag('notify')} Install daemon, MCP, FleetBar, init project`,
+    `  ${G}pd begin${Z} "purpose"       ${tag('notify')} I'll set up your agent + session`,
+    `  ${G}pd done${Z} "summary"        ${tag('notify')} Finish up — I'll clean everything`,
+    `  ${G}pd whoami${Z}                ${tag('silent')} See your current context`,
+    `  ${G}pd attention${Z}             ${tag('notify')} What other agents queued for you (run first thing!)`,
     '',
     `${A}Ports:${Z}`,
-    `  ${G}pd claim${Z} <id>            I'll assign a port  ${D}(c)${Z}`,
-    `  ${G}pd release${Z} <id>          Free it up  ${D}(r)${Z}`,
-    `  ${G}pd find${Z} [pattern]        What's running  ${D}(f, l, ps)${Z}`,
+    `  ${G}pd claim${Z} <id>            ${tag('notify')} I'll assign a port  ${D}(c)${Z}`,
+    `  ${G}pd release${Z} <id>          ${tag('notify')} Free it up  ${D}(r)${Z}  ${D}(--expired is destructive)${Z}`,
+    `  ${G}pd find${Z} [pattern]        ${tag('silent')} What's running  ${D}(f, l, ps)${Z}`,
     '',
     `${A}Sessions & notes:${Z}`,
-    `  ${G}pd session start${Z} "why"   Manual session start`,
-    `  ${G}pd note${Z} "message"        Leave a note`,
-    `  ${G}pd notes${Z}                 Review recent notes`,
-    `  ${G}pd feedback${Z} "message"    Drop structured feedback (auto-slug, agent from context)`,
+    `  ${G}pd session start${Z} "why"   ${tag('notify')} Manual session start`,
+    `  ${G}pd session abandon${Z}        ${tag('destructive')} End session as abandoned, release claims`,
+    `  ${G}pd note${Z} "message"        ${tag('notify')} Leave a note`,
+    `  ${G}pd notes${Z}                 ${tag('silent')} Review recent notes`,
+    `  ${G}pd feedback${Z} "message"    ${tag('notify')} Drop structured feedback (auto-slug, agent from context)`,
     '',
     `${A}Coordination:${Z}`,
-    `  ${G}pd lock${Z} <name>           Grab a distributed lock`,
-    `  ${G}pd agent${Z} "task"         One-shot autopilot delegation`,
-    `  ${G}pd agent register${Z}        Register as an agent`,
-    `  ${G}pd salvage${Z}               Pick up a dead agent's work`,
-    `  ${G}pd actors${Z}                Inspect durable actor roster`,
-    `  ${G}pd advise${Z}                Suggest coordination moves before editing`,
-    `  ${G}pd guard${Z}                 Enforce session + file-claim discipline`,
-    `  ${G}pd graph stats${Z}           Inspect semantic graph totals`,
-    `  ${G}pd memory episodes${Z}       Inspect episodic memory`,
-    `  ${G}pd memory tiers${Z}          Core/Recall/Archival mapping with live counts`,
-    `  ${G}pd ideas search${Z} "text"   Search ideas, notes, tuples, and repo markdown`,
-    `  ${G}pd roadmap${Z}               Show Cartographer's current roadmap projection`,
-    `  ${G}pd secret list${Z}           Manage keychain-backed provider credentials`,
-    `  ${G}pd daemon list${Z}           Inspect named sidecar daemon profiles`,
+    `  ${G}pd lock${Z} <name>           ${tag('notify')} Grab a distributed lock`,
+    `  ${G}pd agent${Z} "task"          ${tag('approval')} One-shot autopilot delegation`,
+    `  ${G}pd agent register${Z}        ${tag('notify')} Register as an agent`,
+    `  ${G}pd salvage${Z}               ${tag('silent')} List a dead agent's work  ${D}(claim/dismiss are destructive)${Z}`,
+    `  ${G}pd actors${Z}                ${tag('silent')} Inspect durable actor roster`,
+    `  ${G}pd advise${Z}                ${tag('silent')} Suggest coordination moves before editing`,
+    `  ${G}pd guard${Z}                 ${tag('silent')} Enforce session + file-claim discipline  ${D}(install/enable/disable destructive)${Z}`,
+    `  ${G}pd graph stats${Z}           ${tag('silent')} Inspect semantic graph totals`,
+    `  ${G}pd memory episodes${Z}       ${tag('silent')} Inspect episodic memory`,
+    `  ${G}pd memory tiers${Z}          ${tag('silent')} Core/Recall/Archival mapping with live counts`,
+    `  ${G}pd ideas search${Z} "text"   ${tag('silent')} Search ideas, notes, tuples, and repo markdown`,
+    `  ${G}pd roadmap${Z}               ${tag('silent')} Show Cartographer's current roadmap projection`,
+    `  ${G}pd secret list${Z}           ${tag('silent')} Manage keychain-backed provider credentials`,
+    `  ${G}pd daemon list${Z}           ${tag('silent')} Inspect named sidecar daemon profiles`,
+    '',
+    `${A}Permission tiers:${Z}`,
+    TIER_LEGEND,
     '',
     `${D}pd help <topic> for details — topics: setup, sessions, locks, agents, actors, ports, messaging, dns, orchestration, sugar, semantic, advisor, guard, ideas, roadmap, secret, daemon, tutorial${Z}`,
     `${D}Dashboard: ${PORT_DADDY_URL}  •  Tutorial: pd learn${Z}`,
@@ -2404,11 +2414,11 @@ export async function main(): Promise<void> {
         break;
 
       case 'stop':
-        await handleDaemon('stop');
+        await handleDaemon('stop', options);
         break;
 
       case 'restart':
-        await handleDaemon('restart');
+        await handleDaemon('restart', options);
         break;
 
       case 'daemon':
@@ -2420,11 +2430,11 @@ export async function main(): Promise<void> {
         break;
 
       case 'install':
-        await handleDaemon('install');
+        await handleDaemon('install', options);
         break;
 
       case 'uninstall':
-        await handleDaemon('uninstall');
+        await handleDaemon('uninstall', options);
         break;
 
       case 'dev': {
@@ -2520,6 +2530,11 @@ export async function main(): Promise<void> {
             ui.warn('No dev daemon running');
             process.exit(0);
           }
+          const okDev = await requireConfirmation({
+            summary: 'Dev stop will SIGTERM the isolated dev daemon. Its in-memory DB is preserved in the prefix dir but live connections drop.',
+            args: options as Record<string, unknown>,
+          });
+          if (!okDev) process.exit(DESTRUCTIVE_EXIT_CODE);
           try {
             const st = JSON.parse(devRead(devStateFile, 'utf-8'));
             process.kill(st.pid, 'SIGTERM');

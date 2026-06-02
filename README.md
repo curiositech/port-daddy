@@ -52,6 +52,7 @@ pd done "Auth complete"
 ## 🧭 Table of Contents
 - [Installation](#-installation)
 - [Quick Start](#-quick-start)
+- [CLI Permission Tiers](#-cli-permission-tiers)
 - [Multi-Agent Coordination](#-multi-agent-coordination)
 - [The Dashboard (HUD)](#-the-dashboard-hud)
 - [Configuration](#-configuration)
@@ -142,6 +143,59 @@ curl http://127.0.0.1:9876/status   # Full daemon report including recent activi
 ```
 
 `launchctl` is the canonical supervisor on macOS. Bosun is the optional non-agent watchdog; the daemon now writes a filesystem heartbeat for it, and the old Barnacle sidecar remains only as a deprecated compatibility implementation name during the V4 rollout.
+
+---
+
+## 🔐 CLI Permission Tiers
+
+Every `pd` command is classified by how much shared state it touches. The tier is rendered in `pd help` next to each verb, and destructive commands prompt for confirmation before doing anything irreversible. The authoritative registry lives in [`cli/permission-tiers.ts`](cli/permission-tiers.ts).
+
+| Tier | What it means | Examples |
+|---|---|---|
+| `silent` | Read-only. Safe to run anywhere. | `pd status`, `pd whoami`, `pd notes`, `pd briefing`, `pd salvage` (list form), `pd sessions`, `pd actors`, `pd find` |
+| `notify` | Mutates your own state. Reversible. | `pd note`, `pd begin`, `pd done`, `pd claim`, `pd lock`, `pd session start`, `pd session files add`, `pd agent register` |
+| `approval` | Affects other agents. No data loss. | `pd pub`, `pd spawn`, `pd up`, `pd agent inbox send`, `pd harbor create/enter` |
+| `destructive` | Releases someone else's resources or removes records. Prompts. | (see list below) |
+
+### Destructive commands
+
+Every entry below prints an impact-specific summary to stderr and prompts for confirmation. Pass `--yes` / `-y` or set `PORT_DADDY_YES=1` to bypass the prompt (the summary still goes to the audit log). In non-interactive mode (no TTY) without `--yes`, the command exits with code 130.
+
+- `pd salvage claim <id>` — takes another agent's session, file claims, and notes
+- `pd salvage complete <old> <new>` — finalizes inherited work; queue entry is removed
+- `pd salvage abandon <id>` — returns inherited work to the queue
+- `pd salvage dismiss <id>` — permanently removes an entry; context is unrecoverable
+- `pd session abandon` — marks active session abandoned; other agents may salvage
+- `pd session rm <id>` — deletes a session, its claims, and all attached notes
+- `pd release --expired` — releases stale port claims across all projects
+- `pd unlock --force` — breaks a lock held by another owner
+- `pd ports cleanup` — releases every stale port assignment
+- `pd projects rm <id>` — deregisters a project from the registry
+- `pd channels clear <name>` — deletes queued messages on a channel
+- `pd dns cleanup` — removes stale DNS records across all projects
+- `pd agent unregister` — removes an agent; its claims are released
+- `pd agent inbox clear` — deletes all messages in the inbox
+- `pd harbor destroy <name>` — tears down a harbor and evicts everyone in it
+- `pd spawn kill <id>` — terminates a running spawned agent mid-run
+- `pd fleet down` — SIGTERMs the running fleet
+- `pd fleet panic --reason "<text>"` — SIGTERMs every running fleet agent (also requires typing `YES`)
+- `pd guard install` — writes git hooks; merges existing ones
+- `pd guard install-shim` / `uninstall-shim` — alters how `git` behaves system-wide
+- `pd guard enable` / `disable` — changes enforcement mode for the whole worktree
+- `pd dev stop` — SIGTERMs the isolated dev daemon
+- `pd daemon stop` / `restart` / `uninstall` (and top-level `pd stop` / `restart` / `uninstall`)
+- `pd down` — SIGTERMs the orchestrator and stops every service it manages
+
+### Audit trail
+
+Confirmation decisions are emitted to stderr in a parseable form:
+
+```
+destructive: Salvage claim will transfer agent-99's session, file claims, and notes to you. The previous owner loses control of that work.
+destructive: confirmation bypassed via --yes / PORT_DADDY_YES
+```
+
+This applies whether you confirmed interactively, used `--yes`, or were refused in non-interactive mode. Pipe stderr into your shell logs (or a `pd note`) for a clean trail.
 
 ---
 

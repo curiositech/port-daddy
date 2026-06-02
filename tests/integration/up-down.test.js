@@ -285,7 +285,7 @@ describe('port-daddy up/down Integration', () => {
     const pid = parseInt(readFileSync(pidFile, 'utf-8').trim(), 10);
     expect(pid).toBeGreaterThan(0);
 
-    const downResult = spawnSync(TSX_PATH, [CLI_PATH, 'down', '--dir', tempDir], {
+    const downResult = spawnSync(TSX_PATH, [CLI_PATH, 'down', '--dir', tempDir, '--yes'], {
       encoding: 'utf-8',
       env: cliEnv()
     });

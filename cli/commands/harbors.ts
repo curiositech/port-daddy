@@ -12,6 +12,7 @@
 import { join } from 'path';
 import { getDaemonTcpUrl } from '../../shared/daemon-discovery.js';
 import { readCurrentContextFromPaths } from '../utils/current-context.js';
+import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
 
 const BASE_URL = getDaemonTcpUrl(process.env.PORT_DADDY_URL);
 
@@ -179,6 +180,12 @@ export async function handleHarborShow(args: string[], options: ParsedOptions): 
 export async function handleHarborDestroy(args: string[], options: ParsedOptions): Promise<void> {
   const name = args[0];
   if (!name) { console.error('Usage: pd harbor destroy <name>'); process.exit(1); }
+
+  const ok = await requireConfirmation({
+    summary: `Harbor destroy will tear down "${name}" and evict every agent currently entered. Capability grants and channel scopes attached to this harbor are removed.`,
+    args: options as Record<string, unknown>,
+  });
+  if (!ok) process.exit(DESTRUCTIVE_EXIT_CODE);
 
   const result = await api('DELETE', `/harbors/${encodeURIComponent(name)}`) as Record<string, unknown>;
   if (!result['success']) {
