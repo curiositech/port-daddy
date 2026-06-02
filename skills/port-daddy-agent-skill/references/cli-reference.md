@@ -143,11 +143,51 @@ pd graph edges
 pd memory episodes
 pd ideas list
 pd roadmap
+pd roadmap pop [--kind <k>] [--slug <s>] [--as <id>] [--begin]
+pd roadmap release <slug>
 pd feedback <command>
 pd pheromone <command>
 pd demo <name>
 pd who-owns <path>
 ```
+
+Backups (ADR-0037):
+
+```bash
+pd backup [--to URI] [--retention SPEC] [--no-prune]
+pd backup list  [--to URI]
+pd backup show <snapshot-id> [--to URI]
+pd backup prune [--to URI] [--retention SPEC]
+pd restore <snapshot-id> [--from URI] [--dest PATH] [--force]
+```
+
+### Roadmap pop (atomic claim → session linkage)
+
+`pd roadmap pop` is the canonical way an agent picks its next piece of
+work. It pops a single roadmap entry off the priority queue (precedence:
+live → next-cut → now → feedback), writes a row to `roadmap_claims`
+under a partial UNIQUE index keyed on `slug WHERE released_at IS NULL`
+(so two agents popping the same slug race-safely — one wins, the other
+sees the existing claim), and prints the suggested release verb:
+
+```text
+$ pd roadmap pop
+SUCCESS: Popped <slug> [live]
+  Claimed by: operator-cli
+  Summary:    <markdown summary>
+Next: pd roadmap release <slug>   # when done or abandoning
+```
+
+ADR-0033 documents the atomicity contract. ADR-0034 extends it so the
+claim row carries `session_id` + `agent_id`: `pd roadmap pop --begin`
+chains `pop` into `pd begin` automatically and links the resulting
+session + agent back onto the claim row via `linkClaim`. Pop without
+`--begin` still works; the link can be filled in later with
+`POST /cartographer/roadmap-claim-link`.
+
+When done, `pd roadmap release <slug>` (or letting the session end
+naturally if `--begin` was used) frees the slug so another agent can
+pop it again if it cycles back.
 
 ## Claim-Aware Git Staging
 
