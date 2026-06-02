@@ -6,7 +6,18 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { initDatabase, resolveDbPath, resolveDefaultDbRoot, isPortAvailable, CORE_SCHEMA_SQL } from '../../lib/db.js';
+import {
+  initDatabase,
+  resolveDbPath,
+  resolveDefaultDbRoot,
+  resolvePdHome,
+  resolveCanonicalDbPath,
+  legacyDbCandidates,
+  pickLegacyDbToAdopt,
+  isPortAvailable,
+  CORE_SCHEMA_SQL,
+  CANONICAL_DB_FILENAME,
+} from '../../lib/db.js';
 import { createServices } from '../../lib/services.js';
 import { createLocks } from '../../lib/locks.js';
 import { createSessions } from '../../lib/sessions.js';
@@ -38,16 +49,19 @@ describe('lib/db.ts', () => {
       }
     });
 
-    it('defaults to project root port-registry.db', () => {
-      const original = process.env.PORT_DADDY_DB;
-      delete process.env.PORT_DADDY_DB;
+    it('defaults to the canonical home port-registry.db when nothing else is set', () => {
+      // Drive the resolver with an explicit, empty-of-DB scratch home so it is
+      // deterministic and never touches the real machine's DBs.
+      const home = fs.mkdtempSync(path.join(os.tmpdir(), 'pd-canonical-'));
       try {
-        const result = resolveDbPath();
+        const env = { PORT_DADDY_HOME: home };
+        // Empty candidate list => no legacy adoption, deterministic regardless
+        // of what real DBs happen to exist on the test machine.
+        const result = resolveDbPath(undefined, env, []);
+        expect(result).toBe(path.join(home, 'port-registry.db'));
         expect(result).toMatch(/port-registry\.db$/);
       } finally {
-        if (original) {
-          process.env.PORT_DADDY_DB = original;
-        }
+        fs.rmSync(home, { recursive: true, force: true });
       }
     });
 
@@ -69,6 +83,132 @@ describe('lib/db.ts', () => {
       );
 
       expect(result).toBe('/srv/port-daddy');
+    });
+  });
+
+  describe('canonical home + DB path resolution', () => {
+    it('resolvePdHome honors PORT_DADDY_HOME first', () => {
+      expect(resolvePdHome({ PORT_DADDY_HOME: '/srv/pd', PORT_DADDY_PREFIX: '/dev/pd' }))
+        .toBe('/srv/pd');
+    });
+
+    it('resolvePdHome falls back to PORT_DADDY_PREFIX', () => {
+      expect(resolvePdHome({ PORT_DADDY_PREFIX: '/dev/pd' })).toBe('/dev/pd');
+    });
+
+    it('resolvePdHome defaults to ~/.port-daddy', () => {
+      expect(resolvePdHome({})).toBe(path.join(os.homedir(), '.port-daddy'));
+    });
+
+    it('canonical path uses the single canonical filename under home', () => {
+      expect(CANONICAL_DB_FILENAME).toBe('port-registry.db');
+      expect(resolveCanonicalDbPath({ PORT_DADDY_HOME: '/srv/pd' }))
+        .toBe('/srv/pd/port-registry.db');
+    });
+
+    it('legacyDbCandidates includes the dev-prefix port-daddy.db and brew var dir', () => {
+      const cands = legacyDbCandidates({ PORT_DADDY_PREFIX: '/dev/pd' });
+      expect(cands).toContain('/dev/pd/port-daddy.db');
+      expect(cands).toContain('/opt/homebrew/var/port-daddy/port-registry.db');
+    });
+  });
+
+  describe('resolveDbPath data-safety adoption', () => {
+    let scratch;
+    beforeEach(() => {
+      scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'pd-adopt-'));
+    });
+    afterEach(() => {
+      fs.rmSync(scratch, { recursive: true, force: true });
+    });
+
+    const writeDb = (p, bytes) => {
+      fs.mkdirSync(path.dirname(p), { recursive: true });
+      fs.writeFileSync(p, Buffer.alloc(bytes, 1));
+      return p;
+    };
+
+    it('explicit override wins over everything', () => {
+      const env = { PORT_DADDY_HOME: scratch, PORT_DADDY_DB: '/env/x.db' };
+      expect(resolveDbPath('/explicit/y.db', env)).toBe('/explicit/y.db');
+    });
+
+    it('PORT_DADDY_DB env wins over canonical + legacy', () => {
+      const home = path.join(scratch, 'home');
+      writeDb(path.join(home, 'port-registry.db'), 4096); // canonical present
+      const env = { PORT_DADDY_HOME: home, PORT_DADDY_DB: '/env/win.db' };
+      expect(resolveDbPath(undefined, env)).toBe('/env/win.db');
+    });
+
+    it('chooses the canonical path when it exists and is non-empty', () => {
+      const home = path.join(scratch, 'home');
+      const canonical = writeDb(path.join(home, 'port-registry.db'), 4096);
+      const legacy = writeDb(path.join(scratch, 'brew', 'port-registry.db'), 999999);
+      const env = { PORT_DADDY_HOME: home };
+      // Canonical present => used even though legacy is bigger.
+      expect(resolveDbPath(undefined, env, [legacy])).toBe(canonical);
+    });
+
+    it('ADOPTS a legacy DB when canonical is absent (no data loss)', () => {
+      const home = path.join(scratch, 'home'); // no canonical file created
+      const legacy = writeDb(path.join(scratch, 'brew', 'port-registry.db'), 999999);
+      const env = { PORT_DADDY_HOME: home };
+      expect(resolveDbPath(undefined, env, [legacy])).toBe(legacy);
+    });
+
+    it('ADOPTS the largest legacy DB (the live registry over a stale stub)', () => {
+      const home = path.join(scratch, 'home');
+      const small = writeDb(path.join(scratch, 'repo', 'port-registry.db'), 1024);
+      const big = writeDb(path.join(scratch, 'brew', 'port-registry.db'), 5_000_000);
+      const env = { PORT_DADDY_HOME: home };
+      expect(resolveDbPath(undefined, env, [small, big])).toBe(big);
+      expect(pickLegacyDbToAdopt(env, [small, big])).toBe(big);
+    });
+
+    it('treats a 0-byte canonical stub as absent and adopts legacy', () => {
+      const home = path.join(scratch, 'home');
+      writeDb(path.join(home, 'port-registry.db'), 0); // empty stub, like ~/.port-daddy was
+      const legacy = writeDb(path.join(scratch, 'brew', 'port-registry.db'), 999999);
+      const env = { PORT_DADDY_HOME: home };
+      expect(resolveDbPath(undefined, env, [legacy])).toBe(legacy);
+    });
+
+    it('adopts a dev-prefix legacy port-daddy.db when canonical absent', () => {
+      const prefix = path.join(scratch, 'prefix');
+      const legacy = writeDb(path.join(prefix, 'port-daddy.db'), 8192);
+      const env = { PORT_DADDY_PREFIX: prefix };
+      // The dev-prefix port-daddy.db must be among the env-derived candidates...
+      expect(legacyDbCandidates(env)).toContain(legacy);
+      // ...and adopted when it is the only candidate present on disk. (We scope
+      // to that one candidate so the test is deterministic regardless of any
+      // real DBs that happen to exist on the machine running the suite.)
+      expect(resolveDbPath(undefined, env, [legacy])).toBe(legacy);
+    });
+
+    it('no-op fresh install: canonical path when nothing exists anywhere', () => {
+      const home = path.join(scratch, 'fresh');
+      const env = { PORT_DADDY_HOME: home };
+      expect(resolveDbPath(undefined, env, [])).toBe(path.join(home, 'port-registry.db'));
+    });
+
+    it('daemon and CLI resolve to the SAME path given the same env (parity)', () => {
+      // Simulate the daemon (server.ts now calls resolveDbPath() with no manual
+      // prefix override) and the CLI (also resolveDbPath()) under identical env.
+      const home = path.join(scratch, 'home');
+      const canonical = writeDb(path.join(home, 'port-registry.db'), 4096);
+      const env = { PORT_DADDY_HOME: home };
+      const daemonPath = resolveDbPath(undefined, env);
+      const cliPath = resolveDbPath(undefined, env);
+      expect(daemonPath).toBe(cliPath);
+      expect(daemonPath).toBe(canonical);
+    });
+
+    it('prefix-mode daemon and CLI agree on canonical filename (no port-daddy.db split)', () => {
+      const prefix = path.join(scratch, 'devprefix');
+      // Fresh prefix, nothing on disk: both resolve <prefix>/port-registry.db.
+      const env = { PORT_DADDY_PREFIX: prefix };
+      const expected = path.join(prefix, 'port-registry.db');
+      expect(resolveDbPath(undefined, env, [])).toBe(expected);
     });
   });
 

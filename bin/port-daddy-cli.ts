@@ -2479,7 +2479,7 @@ export async function main(): Promise<void> {
 
           ui.info(`Starting isolated dev daemon from ${process.cwd()}`);
           ui.info(`  Port: ${devPort} (stable stays on ${DEFAULT_DAEMON_PORT})`);
-          ui.info(`  DB: ${join(devDir, 'port-daddy.db')} (isolated)`);
+          ui.info(`  DB: ${resolveDbPath(undefined, { ...process.env, PORT_DADDY_PREFIX: devDir })} (isolated)`);
 
           const child = devSpawnFn(devTsxPath, [devServerPath], {
             env: {

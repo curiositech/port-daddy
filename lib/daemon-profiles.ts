@@ -66,7 +66,9 @@ export function resolveDaemonProfile(rawName: string, opts: { homeDir?: string }
   return {
     name,
     runtimeDir,
-    dbPath: join(runtimeDir, 'port-daddy.db'),
+    // Canonical filename everywhere (was 'port-daddy.db' — that mismatched the
+    // 'port-registry.db' resolveDbPath() now derives from PORT_DADDY_PREFIX).
+    dbPath: join(runtimeDir, 'port-registry.db'),
     sockPath: join(runtimeDir, 'port-daddy.sock'),
     ipcPath: join(runtimeDir, 'port-daddy.ipc'),
     pidFile: join(runtimeDir, 'daemon.pid'),
@@ -145,6 +147,10 @@ export function buildDaemonProfileEnv(
     'PD_URL',
     'PORT_DADDY_URL',
     'PORT_DADDY_DB',
+    // Cleared so an inherited canonical PORT_DADDY_HOME (e.g. from the Homebrew
+    // launchd env) can't override the profile's isolated PORT_DADDY_PREFIX in
+    // resolveDbPath()/resolvePdHome().
+    'PORT_DADDY_HOME',
     'PORT_DADDY_SOCK',
     'PORT_DADDY_IPC',
     'PORT_DADDY_PID_FILE',

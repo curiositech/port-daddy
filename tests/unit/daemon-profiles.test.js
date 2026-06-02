@@ -33,7 +33,9 @@ describe('daemon profiles', () => {
 
     expect(getDaemonProfilesRoot(homeDir)).toBe(join(homeDir, 'instances'));
     expect(profile.runtimeDir).toBe(join(homeDir, 'instances', 'dev'));
-    expect(profile.dbPath).toBe(join(profile.runtimeDir, 'port-daddy.db'));
+    // Canonical DB filename everywhere (reconciled from the old 'port-daddy.db'
+    // so resolveDbPath() under PORT_DADDY_PREFIX matches this profile path).
+    expect(profile.dbPath).toBe(join(profile.runtimeDir, 'port-registry.db'));
     expect(profile.sockPath).toBe(join(profile.runtimeDir, 'port-daddy.sock'));
     expect(profile.ipcPath).toBe(join(profile.runtimeDir, 'port-daddy.ipc'));
     expect(profile.portFile).toBe(join(profile.runtimeDir, 'daemon.port'));
@@ -56,6 +58,7 @@ describe('daemon profiles', () => {
         PD_URL: 'http://old.example',
         PORT_DADDY_URL: 'http://old.example',
         PORT_DADDY_DB: '/old/db.sqlite',
+        PORT_DADDY_HOME: '/opt/homebrew/var/port-daddy',
         PORT_DADDY_SOCK: '/old/daemon.sock',
         PORT_DADDY_PORT_FILE: '/old/daemon.port',
         PORT_DADDY_PORT: '9999',
@@ -66,6 +69,8 @@ describe('daemon profiles', () => {
     expect(env.PD_URL).toBeUndefined();
     expect(env.PORT_DADDY_URL).toBeUndefined();
     expect(env.PORT_DADDY_DB).toBeUndefined();
+    // Cleared so an inherited canonical home can't override profile isolation.
+    expect(env.PORT_DADDY_HOME).toBeUndefined();
     expect(env.PORT_DADDY_SOCK).toBeUndefined();
     expect(env.PORT_DADDY_PORT_FILE).toBeUndefined();
     expect(env.PORT_DADDY_PROFILE).toBe('dogfood');

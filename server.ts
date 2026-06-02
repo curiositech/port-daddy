@@ -275,7 +275,11 @@ if (!isSilent && process.env.NODE_ENV !== 'production') {
 const PREFIX: string | undefined = process.env.PORT_DADDY_PREFIX;
 const IS_DEV_MODE: boolean = !!PREFIX;
 
-const DB_PATH: string = resolveDbPath(PREFIX ? join(PREFIX, 'port-daddy.db') : undefined);
+// DB path resolution is centralized in resolveDbPath(): explicit PORT_DADDY_DB →
+// canonical <PORT_DADDY_HOME|PORT_DADDY_PREFIX|~/.port-daddy>/port-registry.db →
+// adopt-legacy-if-present. We no longer hand-roll a PREFIX/port-daddy.db path
+// here (that produced the port-daddy.db vs port-registry.db split-brain).
+const DB_PATH: string = resolveDbPath();
 const PORT: number = parseInt(process.env.PORT_DADDY_PORT as string, 10) || (IS_DEV_MODE ? 9877 : config.service.port);
 import { DEFAULT_SOCK, DEFAULT_IPC, DEFAULT_PID_FILE, DEFAULT_PORT_FILE } from './shared/paths.js';
 const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || (PREFIX ? join(PREFIX, 'port-daddy.sock') : DEFAULT_SOCK);

@@ -12,13 +12,28 @@
  */
 
 import Database, { type DatabaseInstance } from './sqlite-runtime.js';
-import { chmodSync } from 'node:fs';
+import { chmodSync, existsSync, statSync } from 'node:fs';
 import { dirname, join, resolve as resolvePath, sep } from 'path';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { fileURLToPath } from 'url';
 import { resolveDistributionRoot } from '../shared/daemon-binary.js';
 
 const MODULE_DIR: string = dirname(fileURLToPath(import.meta.url));
+
+/**
+ * The ONE canonical SQLite filename, used everywhere. Historically the daemon
+ * (server.ts) wrote `port-daddy.db` under a dev prefix while everything else
+ * wrote `port-registry.db`, which produced split-brain databases. We reconcile
+ * on `port-registry.db` because that is the name of the live Homebrew registry
+ * and the one `pd backup` / `pd doctor` already key off.
+ */
+export const CANONICAL_DB_FILENAME = 'port-registry.db';
+
+/**
+ * Legacy filename a previous daemon build used under a dev prefix. Still
+ * adopted (read-in-place) if it is the only DB present, so no dev data is lost.
+ */
+const LEGACY_DB_FILENAME = 'port-daddy.db';
 
 export function resolveDefaultDbRoot(
   moduleDir: string = MODULE_DIR,
@@ -34,17 +49,134 @@ export function resolveDefaultDbRoot(
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Resolve the path to the SQLite database file.
+ * Resolve the Port Daddy "home" directory — the single canonical location for
+ * runtime state (the registry DB, sockets, backups, profiles).
+ *
  * Priority:
+ *   1. PORT_DADDY_HOME  (explicitly set by the Homebrew launchd plist; was
+ *      previously read by NO code, which is half the reason the DB diverged)
+ *   2. PORT_DADDY_PREFIX  (dev / isolated-profile prefix set by daemon profiles)
+ *   3. ~/.port-daddy  (the default home, matching lib/backup.ts scratch dir)
+ */
+export function resolvePdHome(env: NodeJS.ProcessEnv = process.env): string {
+  const home = env.PORT_DADDY_HOME?.trim();
+  if (home) return home;
+  const prefix = env.PORT_DADDY_PREFIX?.trim();
+  if (prefix) return prefix;
+  return join(homedir(), '.port-daddy');
+}
+
+/**
+ * The canonical DB path: `<pd-home>/port-registry.db`. This is the single
+ * location the daemon, CLI, and every direct-DB consumer agree on once an
+ * explicit PORT_DADDY_DB is not in play.
+ */
+export function resolveCanonicalDbPath(env: NodeJS.ProcessEnv = process.env): string {
+  return join(resolvePdHome(env), CANONICAL_DB_FILENAME);
+}
+
+/**
+ * Candidate legacy DB locations, in adoption-precedence order. Each is a place a
+ * prior Port Daddy build (or a stray cwd-relative CLI invocation) may have left
+ * a real database. If the canonical path is empty but one of these holds data,
+ * we ADOPT it (use it in place) rather than silently starting fresh — that is
+ * the difference between "noticed the divergence" and "lost the 758 MB live DB".
+ */
+export function legacyDbCandidates(env: NodeJS.ProcessEnv = process.env): string[] {
+  const candidates: string[] = [];
+  const home = resolvePdHome(env);
+
+  // Dev/profile prefix used `port-daddy.db` (old server.ts behaviour).
+  const prefix = env.PORT_DADDY_PREFIX?.trim();
+  if (prefix) candidates.push(join(prefix, LEGACY_DB_FILENAME));
+  // A legacy file under the resolved home, same alternate filename.
+  candidates.push(join(home, LEGACY_DB_FILENAME));
+
+  // The Homebrew var directory (the live 758 MB daemon DB lives here).
+  candidates.push(join('/opt/homebrew/var/port-daddy', CANONICAL_DB_FILENAME));
+  candidates.push(join('/usr/local/var/port-daddy', CANONICAL_DB_FILENAME));
+
+  // The repo / distribution root (old default — `<dist-root>/port-registry.db`).
+  candidates.push(join(resolveDefaultDbRoot(MODULE_DIR, env), CANONICAL_DB_FILENAME));
+
+  // De-dup while preserving order.
+  return [...new Set(candidates)];
+}
+
+/** A non-empty regular file (size > 0) we can safely treat as real data. */
+function isNonEmptyFile(path: string): boolean {
+  try {
+    const st = statSync(path);
+    return st.isFile() && st.size > 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Pick the legacy DB to adopt when the canonical path is empty. Precedence:
+ *   1. largest non-empty file (the live registry dwarfs stale stubs), then
+ *   2. most-recently-modified, then
+ *   3. earliest in `legacyDbCandidates` order (stable tiebreak).
+ * Returns null when no legacy file holds data.
+ */
+export function pickLegacyDbToAdopt(
+  env: NodeJS.ProcessEnv = process.env,
+  candidates: string[] = legacyDbCandidates(env),
+): string | null {
+  const present = candidates
+    .map((p, idx) => ({ path: p, idx }))
+    .filter((c) => isNonEmptyFile(c.path))
+    .map((c) => {
+      const st = statSync(c.path);
+      return { ...c, size: st.size, mtime: st.mtimeMs };
+    });
+  if (present.length === 0) return null;
+
+  present.sort((a, b) => {
+    if (b.size !== a.size) return b.size - a.size;
+    if (b.mtime !== a.mtime) return b.mtime - a.mtime;
+    return a.idx - b.idx;
+  });
+  return present[0].path;
+}
+
+/**
+ * Resolve the path to the SQLite database file.
+ *
+ * Priority (single source of truth for daemon AND CLI):
  *   1. Explicit override (parameter)
  *   2. PORT_DADDY_DB environment variable
- *   3. Default: <project-root>/port-registry.db
+ *   3. The canonical path (<pd-home>/port-registry.db) if it already exists
+ *   4. ADOPT a legacy DB (brew var dir, dev-prefix `port-daddy.db`, repo
+ *      default) when the canonical path does NOT yet exist but a legacy file
+ *      holds data — so an existing database is never abandoned
+ *   5. Otherwise the canonical path (fresh install — created on first open)
+ *
+ * Steps 3–5 are data-preserving: nothing is moved or copied here. The resolver
+ * only DETECTS-AND-USES an existing DB in place. A physical relocation, if ever
+ * desired, is a separate operator-driven `pd backup` + migrate step.
  */
-export function resolveDbPath(overridePath?: string): string {
+export function resolveDbPath(
+  overridePath?: string,
+  env: NodeJS.ProcessEnv = process.env,
+  candidates: string[] = legacyDbCandidates(env),
+): string {
   if (overridePath) return overridePath;
-  if (process.env.PORT_DADDY_DB) return process.env.PORT_DADDY_DB;
-  // lib/ is one level below the project root
-  return join(resolveDefaultDbRoot(), 'port-registry.db');
+  if (env.PORT_DADDY_DB) return env.PORT_DADDY_DB;
+
+  const canonical = resolveCanonicalDbPath(env);
+  if (isNonEmptyFile(canonical)) return canonical;
+
+  // Canonical is absent/empty — adopt an existing legacy DB rather than
+  // starting fresh and orphaning the operator's real data.
+  const legacy = pickLegacyDbToAdopt(env, candidates);
+  if (legacy && resolvePath(legacy) !== resolvePath(canonical)) {
+    return legacy;
+  }
+
+  // Fresh install (or canonical is the only/largest candidate): use canonical.
+  return canonical;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
