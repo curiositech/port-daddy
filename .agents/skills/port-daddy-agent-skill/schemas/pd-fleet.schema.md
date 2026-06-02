@@ -13,7 +13,7 @@ fleet:
   watchers: { ... }       # optional
   channels: { ... }       # optional, used by topology validator
   defaults:               # optional fallbacks for backend/model
-    backend: ollama
+    backend: cli:codex
     model: qwen2.5-coder:7b
 ```
 
@@ -124,7 +124,7 @@ fleet:
   agents:
     qa:
       trigger: git:committed
-      backend: ollama
+      backend: cli:codex
       model: qwen2.5-coder:7b
       identity: "{project}:fleet:qa"
       respawn: true

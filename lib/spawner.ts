@@ -23,6 +23,8 @@ import type { Harbors } from './harbors.js';
 import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
 import { getSecret } from './secret-env.js';
 import { cloudflareAdapter, ollamaAdapter } from './llm-call.js';
+import { openaiAdapter, DEFAULT_OPENAI_MODEL, DEFAULT_OPENAI_TIMEOUT_MS } from './spawner/backends/openai.js';
+import { spawnViaCliTube, type CliTubeTool } from './spawner/backends/cli-tube.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { deriveAgentDisplayName } from './agent-names.js';
 
@@ -82,7 +84,7 @@ function loadDotenvOnce(): Record<string, string> {
 // =============================================================================
 
 export interface SpawnSpec {
-  backend: 'ollama' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'codex' | 'aider' | 'custom';
+  backend: 'ollama' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'codex' | 'aider' | 'custom' | 'openai' | 'cli:claude-code' | 'cli:codex';
   name?: string;        // human-readable display name
   model?: string;
   modelTier?: 'low' | 'mid' | 'high';
@@ -437,6 +439,47 @@ async function runCloudflare(spec: SpawnSpec, model: string): Promise<BackendRun
   return adaptLLMResult(result);
 }
 
+async function runOpenAI(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
+  const result = await openaiAdapter({
+    prompt: spec.task,
+    model,
+    maxTokens: spec.maxTokens,
+    signal: spec.timeout ? AbortSignal.timeout(spec.timeout) : undefined,
+  });
+  return adaptLLMResult(result);
+}
+
+/**
+ * Drive a local CLI tool (`claude` for claude-code, `codex` for codex)
+ * through the cli-tube wrapper. Output and exit metadata flow back as a
+ * normal BackendRunResult so the spawner's cost tracker, bond, and
+ * coordination paths apply unchanged.
+ *
+ * Token counts are not available from the wrapped CLIs (they own their
+ * own auth + billing), so this backend returns no telemetry fields and
+ * relies on the operator's flat-rate subscription (Claude Max / ChatGPT
+ * Pro) for cost accounting at the wallet layer.
+ */
+async function runCliTube(
+  spec: SpawnSpec,
+  cli: CliTubeTool,
+  context?: BackendRunContext,
+): Promise<BackendRunResult> {
+  const result = await spawnViaCliTube({
+    cli,
+    prompt: spec.task,
+    timeoutMs: spec.timeout,
+    cwd: spec.workdir,
+    env: { ...spec.env },
+    model: spec.model,
+    onChild: context?.onChildProcess,
+  });
+  return {
+    output: result.output,
+    error: result.error,
+  };
+}
+
 /**
  * Convert the unified `LLMCompletionResult` shape (used by lib/llm-call.ts)
  * into the spawner's legacy `BackendRunResult` shape. The spawner's outer
@@ -625,6 +668,27 @@ function runCustom(spec: SpawnSpec, context?: BackendRunContext): Promise<Backen
   }));
 }
 
+/**
+ * `PD_USE_CLI_BACKEND` override. When set to `claude-code` or `codex`,
+ * every spawn — regardless of `spec.backend` — routes through the
+ * matching `cli:<tool>` backend. Empty / unset values disable the
+ * override.
+ *
+ * This is the operator-level "I'm a Claude Max subscriber, use my
+ * unmetered CLI for everything" knob. Documented in
+ * `docs/fleet/backend-costs.md`.
+ */
+function resolveCliBackendOverride(): SpawnSpec['backend'] | null {
+  const raw = (process.env.PD_USE_CLI_BACKEND || '').trim().toLowerCase();
+  if (!raw) return null;
+  if (raw === 'claude-code' || raw === 'claude') return 'cli:claude-code';
+  if (raw === 'codex') return 'cli:codex';
+  // Unrecognized value — fail-closed: leave the original backend in
+  // place rather than silently routing nowhere. The spawner's outer
+  // error surface will report unknown backends if the value is bad.
+  return null;
+}
+
 function runClaudeCli(spec: SpawnSpec, context?: BackendRunContext): Promise<BackendRunResult> {
   const args = ['-p', spec.task];
   if (spec.model) {
@@ -668,10 +732,15 @@ const DEFAULT_MODELS: Record<SpawnSpec['backend'], string> = {
   'claude-cli': 'claude-cli',  // claude CLI manages its own model
   gemini: 'gemini-2.0-flash-exp',
   cloudflare: '@cf/zai-org/glm-4.7-flash',
+  openai: DEFAULT_OPENAI_MODEL,
   codex: 'gpt-5.4-mini',
+  'cli:claude-code': 'claude-cli',  // local claude CLI manages its own model
+  'cli:codex': 'codex-cli',          // local codex CLI manages its own model
   aider: 'aider',   // aider manages its own model selection
   custom: 'custom',
 };
+// Mark default-timeout knobs referenced elsewhere
+void DEFAULT_OPENAI_TIMEOUT_MS;
 
 // =============================================================================
 // Module factory
@@ -981,17 +1050,25 @@ export function createSpawner(deps: SpawnerDeps = {}) {
             }
           },
         };
-        switch (spec.backend) {
+        // Global env override: PD_USE_CLI_BACKEND=claude-code|codex forces
+        // every spawn through the local CLI tube, regardless of yml config.
+        // This is the "I have Claude Max, use that for everything" knob.
+        const cliOverride = resolveCliBackendOverride();
+        const effectiveBackend = cliOverride ?? spec.backend;
+        switch (effectiveBackend) {
           case 'ollama':    result = await runOllama(spec, model); break;
           case 'claude':    result = await runClaude(spec, model); break;
           case 'gemini':    result = await runGemini(spec, model); break;
           case 'cloudflare': result = await runCloudflare(spec, model); break;
+          case 'openai':    result = await runOpenAI(spec, model); break;
           case 'codex':     result = await runCodexCli(spec, model, childContext); break;
           case 'claude-cli': result = await runClaudeCli(spec, childContext); break;
+          case 'cli:claude-code': result = await runCliTube(spec, 'claude-code', childContext); break;
+          case 'cli:codex':       result = await runCliTube(spec, 'codex', childContext); break;
           case 'aider':     result = await runAider(spec, model, childContext); break;
           case 'custom':    result = await runCustom(spec, childContext); break;
           default:
-            result = { output: '', error: `Unknown backend: ${String(spec.backend)}` };
+            result = { output: '', error: `Unknown backend: ${String(effectiveBackend)}` };
         }
       }
 
