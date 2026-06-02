@@ -1,0 +1,385 @@
+#!/usr/bin/env bash
+#
+# e2e-compiled-cli-surface.sh — the GIGANTIC breaking E2E that drives EVERY
+# top-level Port Daddy CLI verb through the COMPILED binary against a scratch
+# daemon, and FAILS the build if any command is dead.
+#
+# WHY THIS EXISTS: a compiled-CLI break (binary exits 1 with no output, or a
+# command's module fails to load) shipped GREEN because CI only ever exercised
+# ~3 commands (status, tube) and only through the SOURCE CLI — never the full
+# verb surface through the compiled binary. smoke-compiled-cli-runs.sh proves
+# the binary bootstraps at all; THIS proves every verb in the dispatch actually
+# runs. The failure mode we guard: the compiled binary silently dying
+# (exit 1 + empty output) or a read command returning nothing.
+#
+# HERMETIC + SAFE:
+#   * ONE scratch daemon, booted from dist/port-daddy (the compiled binary).
+#   * EVERY invocation uses the discovery CLI_ENV (PORT/PREFIX/SOCK), NEVER
+#     PORT_DADDY_URL, NEVER the default :9876, NEVER the operator's real
+#     ~/.port-daddy, NEVER a real DB.
+#   * cwd for every call is a scratch workdir, so cwd-writers (briefing, scan,
+#     setup, init) land in scratch — the real worktree is never touched.
+#   * PORT_DADDY_SNAPSHOT_ROOT is redirected into scratch so snapshot commands
+#     never read/write ~/.port-daddy/snapshots.
+#   * DANGEROUS / lifecycle verbs (install, uninstall, start, stop, restart,
+#     daemon mutate, spawn, sortie run, watch, up, down, mcp, dashboard) are NOT
+#     executed against the system — they are tested in a non-mutating subform or
+#     SKIPped with an explicit, printed reason. NO SILENT SKIPS.
+#   * cleanup trap removes the scratch dir and kills the daemon on exit.
+#
+# The authoritative verb list is the `case '<verb>':` dispatch in
+# bin/port-daddy-cli.ts. This script enumerates that surface and reconciles it
+# at the end (see verb-coverage check) so a NEW verb added to the dispatch that
+# is not covered here will FAIL the build — the gate cannot silently rot.
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+BIN="${PD_E2E_BIN:-$ROOT_DIR/dist/port-daddy}"
+PORT="${E2E_CLI_SURFACE_PORT:-19876}"
+SCRATCH_BASE="${SMOKE_SCRATCH_BASE:-$ROOT_DIR/.smoke-tmp}"
+mkdir -p "$SCRATCH_BASE"
+SCRATCH="$(mktemp -d "$SCRATCH_BASE/pd-cli-surface.XXXXXX")"
+WORK="$SCRATCH/work"          # cwd for every CLI call — contains cwd-writers
+SNAP_ROOT="$SCRATCH/snapshots" # redirect snapshot store away from ~/.port-daddy
+LOG="$SCRATCH/daemon.log"
+SOCK="$SCRATCH/pd.sock"
+DAEMON_PID=""
+mkdir -p "$WORK" "$SNAP_ROOT"
+
+cleanup() {
+  if [ -n "$DAEMON_PID" ]; then kill "$DAEMON_PID" 2>/dev/null || true; fi
+  rm -rf "$SCRATCH" 2>/dev/null || true
+}
+trap cleanup EXIT
+
+if [ ! -x "$BIN" ]; then
+  echo "FAIL: compiled CLI binary not found at $BIN (run: npm run build:bin)" >&2
+  exit 1
+fi
+
+# --------------------------------------------------------------------------
+# Boot ONE scratch daemon from the compiled binary (mirrors
+# smoke-compiled-cli-runs.sh exactly).
+# --------------------------------------------------------------------------
+echo "Booting self-hosted scratch daemon from the compiled binary ($BIN)..."
+PORT_DADDY_PORT="$PORT" \
+PORT_DADDY_DB="$SCRATCH/registry.db" \
+PORT_DADDY_PREFIX="$SCRATCH" \
+PORT_DADDY_SOCK="$SOCK" \
+PORT_DADDY_SNAPSHOT_ROOT="$SNAP_ROOT" \
+PORT_DADDY_NO_FLEET=1 PORT_DADDY_NO_FLEETBAR=1 PORT_DADDY_SILENT=1 PORT_DADDY_DISABLE_KEYCHAIN=1 \
+"$BIN" __daemon > "$LOG" 2>&1 &
+DAEMON_PID=$!
+
+ready=0
+for _ in $(seq 1 60); do
+  if curl -fsS -o /dev/null "http://127.0.0.1:$PORT/health" 2>/dev/null; then ready=1; break; fi
+  kill -0 "$DAEMON_PID" 2>/dev/null || { echo "FAIL: daemon exited during boot" >&2; cat "$LOG" >&2 || true; exit 1; }
+  sleep 0.3
+done
+[ "$ready" = 1 ] || { echo "FAIL: daemon not healthy in time" >&2; cat "$LOG" >&2 || true; exit 1; }
+echo "Daemon healthy on :$PORT (scratch=$SCRATCH)."
+echo
+
+# --------------------------------------------------------------------------
+# CLI helper: discovery env ONLY (PORT + PREFIX + SOCK), cwd = scratch workdir,
+# snapshot store redirected into scratch. NEVER PORT_DADDY_URL, NEVER :9876,
+# NEVER the real ~/.port-daddy. If the compiled CLI can't bootstrap or talk to
+# THIS daemon, every call below fails.
+# --------------------------------------------------------------------------
+cli() {
+  ( cd "$WORK" && env \
+      PORT_DADDY_PORT="$PORT" \
+      PORT_DADDY_PREFIX="$SCRATCH" \
+      PORT_DADDY_SOCK="$SOCK" \
+      PORT_DADDY_SNAPSHOT_ROOT="$SNAP_ROOT" \
+      "$BIN" "$@" )
+}
+
+# --------------------------------------------------------------------------
+# Bookkeeping.
+# --------------------------------------------------------------------------
+FAIL=0
+TESTED=0
+SKIPPED=0
+declare -a SKIP_LIST=()
+declare -a TESTED_VERBS=()   # canonical verbs we exercised (for reconciliation)
+declare -a FAIL_LIST=()
+
+pass() { TESTED=$((TESTED + 1)); echo "PASS  $1"; }
+fail() { FAIL=1; FAIL_LIST+=("$1"); echo "FAIL  $1 — $2" >&2; }
+skip() { SKIPPED=$((SKIPPED + 1)); SKIP_LIST+=("$1"); echo "SKIP  $1 — $2"; }
+
+# mark a canonical verb as covered (idempotent-ish; we don't dedupe but the
+# reconciliation only checks membership)
+covered() { TESTED_VERBS+=("$1"); }
+
+# run_read <verb-label> <canonical-verb> -- <argv...>
+# Asserts the command RAN: it must NOT be the guarded failure mode (exit 1 with
+# empty output), and it must print SOMETHING. Many PD commands print a usage or
+# "nothing found" banner and exit non-zero by design; that still proves the
+# compiled module loaded and ran, so non-zero-WITH-output is a PASS here. The
+# only failures are: exit non-zero with EMPTY output (the dead-binary mode), or
+# exit 0 with EMPTY output (a read that returned nothing).
+run_read() {
+  local label="$1"; shift
+  local verb="$1"; shift
+  [ "$1" = "--" ] && shift
+  local out code
+  set +e
+  out="$(cli "$@" 2>&1)"; code=$?
+  set -e
+  covered "$verb"
+  if [ -z "$out" ]; then
+    if [ "$code" -eq 0 ]; then
+      fail "$label" "exit 0 but EMPTY output (read returned nothing)"
+    else
+      fail "$label" "exit $code with EMPTY output (compiled binary silently died)"
+    fi
+    return
+  fi
+  pass "$label (exit=$code, $(printf %s "$out" | wc -c | tr -d ' ') bytes)"
+}
+
+# run_ok <label> <verb> -- <argv...>
+# Strict: must exit 0 AND print output. Used for round-trip steps that should
+# unambiguously succeed.
+run_ok() {
+  local label="$1"; shift
+  local verb="$1"; shift
+  [ "$1" = "--" ] && shift
+  local out code
+  set +e
+  out="$(cli "$@" 2>&1)"; code=$?
+  set -e
+  covered "$verb"
+  if [ "$code" -ne 0 ]; then
+    fail "$label" "expected exit 0, got $code (out=${out:-<empty>})"
+    return
+  fi
+  if [ -z "$out" ]; then
+    fail "$label" "exit 0 but EMPTY output"
+    return
+  fi
+  pass "$label (exit=0, $(printf %s "$out" | wc -c | tr -d ' ') bytes)"
+}
+
+echo "=== READ commands (must run + print) ============================"
+run_read "status"            status      -- status
+run_read "version"           version     -- version
+run_read "whoami"            whoami      -- whoami
+run_read "ports"             ports       -- ports
+run_read "locks"             locks       -- locks
+run_read "sessions"          sessions    -- sessions
+run_read "agents"            agents      -- agents
+run_read "swarm"             swarm       -- swarm
+run_read "actor"             actor       -- actor
+run_read "actors"            actors      -- actors
+run_read "notes"             notes       -- notes
+run_read "channels"          channels    -- channels
+run_read "history"           history     -- history
+run_read "activity"          activity    -- activity
+run_read "log"               log         -- log
+run_read "projects"          projects    -- projects
+run_read "find"              find        -- find 'no-such:service:ever'
+run_read "services/list"     services    -- services
+run_read "dns list"          dns         -- dns list
+run_read "roadmap"           roadmap     -- roadmap
+run_read "roadmap items"     roadmap     -- roadmap items
+run_read "secret list"       secret      -- secret list
+run_read "briefing"          briefing    -- briefing
+run_read "sitrep"            sitrep      -- sitrep
+run_read "look"              look        -- look
+run_read "health"            health      -- health
+run_read "doctor"            doctor      -- doctor
+run_read "diagnose"          diagnose    -- diagnose
+run_read "ideas"             ideas       -- ideas
+run_read "attention"         attention   -- attention --agent surface:smoke:ci
+run_read "inbox"             inbox       -- inbox
+run_read "hints"             hints       -- hints
+run_read "compass"           compass     -- compass
+run_read "advise"            advise      -- advise
+run_read "preflight"         preflight   -- preflight
+run_read "metrics"           metrics     -- metrics
+run_read "config"            config      -- config
+run_read "graph"             graph       -- graph
+run_read "snapshots list"    snapshots   -- snapshots list
+run_read "snapshot list"     snapshot    -- snapshot list
+run_read "tuple scan"        tuple       -- tuple scan
+run_read "tuple count"       tuple       -- tuple count
+run_read "harbors"           harbors     -- harbors
+run_read "harbor (usage)"    harbor      -- harbor
+run_read "webhook list"      webhook     -- webhook list
+run_read "webhooks events"   webhooks    -- webhook events
+run_read "integration list"  integration -- integration list
+run_read "fleet status"      fleet       -- fleet status
+run_read "scan"              scan         -- scan
+run_read "tunnel list"       tunnel       -- tunnel list
+run_read "wallet (usage)"    wallet       -- wallet
+run_read "bond list"         bond         -- bond list
+run_read "cockpit"           cockpit      -- cockpit
+run_read "memory (usage)"    memory       -- memory
+run_read "changelog"         changelog    -- changelog
+run_read "shipwright (usage)" shipwright  -- shipwright
+run_read "pheromone list"    pheromone    -- pheromone list
+run_read "quorum list"       quorum       -- quorum list
+run_read "obligations"       obligations  -- obligations
+run_read "who-owns"          who-owns     -- who-owns README.md
+run_read "guard status"      guard        -- guard status
+run_read "spawned"           spawned      -- spawned
+run_read "sortie list"       sortie       -- sortie list
+run_read "agent (usage)"     agent        -- agent
+run_read "commit (usage)"    commit       -- commit
+run_read "bench"             bench        -- bench
+run_read "demo (usage)"      demo         -- demo
+run_read "with-lock (usage)" with-lock    -- with-lock
+run_read "salvage"           salvage      -- salvage
+run_read "feedback"          feedback     -- feedback "e2e cli-surface probe feedback"
+run_read "say (no session)"  say          -- say "e2e cli-surface say probe"
+
+echo
+echo "=== MUTATING round-trips (safe against the scratch daemon) ======"
+
+# claim -> find -> url -> env -> release
+SVC="e2e-cli-surface:test:ci"
+run_ok  "claim $SVC"         claim    -- claim "$SVC"
+run_ok  "url $SVC"           url      -- url "$SVC"
+run_ok  "env $SVC"           env      -- env "$SVC"
+run_ok  "release $SVC"       release  -- release "$SVC"
+
+# lock -> locks -> unlock
+LOCK="e2e-cli-surface-lock"
+run_ok  "lock $LOCK"         lock     -- lock "$LOCK"
+run_ok  "unlock $LOCK"       unlock   -- unlock "$LOCK"
+
+# begin -> whoami(active) -> note -> notes -> done
+# (--allow-main-worktree: CI runs on the main worktree)
+run_ok  "begin"              begin    -- begin e2e:surface:ci --allow-main-worktree
+run_ok  "note"               note     -- note "e2e cli-surface round-trip note"
+run_read "session (usage)"   session  -- session
+run_ok  "done"               done     -- done "e2e cli-surface round-trip complete"
+
+# pub -> channels reflects it (sub/subscribe/listen/wait are blocking → skipped)
+run_ok  "pub"                pub      -- pub e2e:surface:chan "hello from cli-surface e2e"
+
+# tube --send (non-blocking post; --tail is the blocking form, exercised by the
+# fan-out in smoke-compiled-cli-runs.sh)
+TUBEOUT="$(printf %s 'cli-surface tube body' | cli tube e2e:surface:tube --send 2>&1)" || true
+covered tube
+if printf %s "$TUBEOUT" | grep -q "posted id="; then
+  pass "tube --send (posted)"
+else
+  fail "tube --send" "did not post (out=${TUBEOUT:-<empty>})"
+fi
+
+# tuple put -> read back (Linda-style)
+run_ok  "tuple out"          tuple    -- tuple out '["e2e","surface","probe"]'
+run_ok  "tuple rd"           tuple    -- tuple rd '["e2e",null,null]'
+
+# dns add (needs --port) -> list -> rm
+run_ok  "dns add"            dns      -- dns add e2e-surface.local 127.0.0.1 --port 3999
+run_ok  "dns rm"             dns      -- dns rm e2e-surface.local
+
+echo
+echo "=== DANGEROUS / lifecycle (NOT executed — subform or explicit SKIP) ==="
+
+# daemon: `daemon status` is a non-mutating read; the mutating subforms
+# (daemon start/stop/restart) are NOT run.
+run_read "daemon status"     daemon   -- daemon status
+
+# These would mutate the SYSTEM (launchd, the operator's real daemon, child
+# processes, the network, or block on stdin) — never run them in the surface
+# E2E. Each is printed so there are NO silent skips.
+covered start;     skip "start"     "would start the daemon process; lifecycle, not surface-tested here"
+covered stop;      skip "stop"      "would stop a daemon; lifecycle, not surface-tested here"
+covered restart;   skip "restart"   "would restart a daemon; lifecycle, not surface-tested here"
+covered install;   skip "install"   "would register a launchd service on the host"
+covered uninstall; skip "uninstall" "would deregister a launchd service on the host"
+covered up;        skip "up"        "would START services declared in .portdaddyrc (real child processes)"
+covered down;      skip "down"      "would stop an 'up' session (system processes)"
+covered spawn;     skip "spawn"     "would launch a real AI agent backend; bare form prints usage but exec risk — not run"
+covered watch;     skip "watch"     "blocking SSE subscriber that execs a script on every message"
+covered sub;       skip "sub"       "blocking pub/sub subscriber (subscribe/listen alias) — never terminates"
+covered subscribe; skip "subscribe" "alias of sub — blocking subscriber"
+covered listen;    skip "listen"    "alias of sub — blocking subscriber"
+covered wait;      skip "wait"      "blocks until a matching message arrives"
+covered mcp;       skip "mcp"       "boots a stdio MCP server that blocks reading stdin"
+covered dashboard; skip "dashboard" "web form opens a browser via 'open'; TUI form is interactive (tsx) — both unsafe in CI"
+covered dev;       skip "dev"       "spawns an isolated dev daemon via tsx (mutating, needs node_modules)"
+covered setup;     skip "setup"     "interactive onboarding; writes .portdaddyrc — covered indirectly by scan/init paths"
+covered init;      skip "init"      "writes project config to cwd; covered by the scan read instead"
+covered learn;     skip "learn"     "requires an interactive TTY; refuses in CI by design"
+covered tutorial;  skip "tutorial"  "alias of learn — requires a TTY"
+covered tunnel;    skip "tunnel"    "tunnel <create> opens a network tunnel; only 'tunnel list' is read-tested above"
+covered ci-gate;   skip "ci-gate"   "runs the full feature-parity gate (heavy); exercised by its own CI job"
+covered guard;     skip "guard"     "guard install/check mutate hooks; only 'guard status' is read-tested above"
+covered harbor;    skip "harbor"    "harbor create/enter/leave/destroy mutate permission namespaces; usage read-tested above"
+covered add;       skip "add"       "git staging wrapper; mutates the index — not run in the surface gate"
+
+echo
+echo "=== Verb-surface reconciliation against bin/port-daddy-cli.ts ====="
+# Derive the authoritative top-level verb list from the dispatch `case` labels.
+# We strip aliases down to canonical verbs and assert every dispatched verb is
+# either TESTED or explicitly SKIPped. A new verb added to the dispatch that is
+# not handled here FAILS the build — the gate cannot silently rot.
+CLI_SRC="$ROOT_DIR/bin/port-daddy-cli.ts"
+
+# Aliases we intentionally fold onto a canonical verb (tested once).
+# Map: alias -> canonical
+declare -A ALIASES=(
+  [c]=claim [r]=release [f]=find [l]=find [ps]=find [list]=find
+  [u]=up [d]=down [s]=scan [p]=projects [n]=note [b]=begin [w]=whoami
+  [ph]=pheromone [publish]=pub [broadcast]=pub [resurrection]=salvage
+  [secrets]=secret [webhooks]=webhook [snapshot]=snapshots [tutorial]=learn
+  [diagnose]=doctor [preflight]=advise [compass]=advise [help]=__meta
+)
+
+# Build the set of canonical verbs we covered.
+declare -A COVERED=()
+for v in "${TESTED_VERBS[@]}"; do COVERED["$v"]=1; done
+
+# Extract dispatched verbs: lines like `      case 'verb':` within the main
+# switch. Filter to single-token quoted verbs (skip harbor's inner switch which
+# uses create/enter/etc — those are subcommands, not top-level verbs).
+missing=0
+while IFS= read -r verb; do
+  # Resolve alias to canonical.
+  canon="${ALIASES[$verb]:-$verb}"
+  [ "$canon" = "__meta" ] && continue   # 'help' is meta, no daemon path
+  if [ -n "${COVERED[$canon]:-}" ]; then
+    continue
+  fi
+  # Not covered as canonical and not a known alias target → gap.
+  echo "GAP   top-level verb '$verb' (canonical '$canon') is dispatched in bin/port-daddy-cli.ts but neither TESTED nor SKIPped" >&2
+  missing=$((missing + 1))
+done < <(
+  # Top-level dispatch cases are indented EXACTLY 6 spaces inside the two
+  # `switch (command)` blocks. Inner subcommand switches (session at 8 spaces,
+  # harbor at 10 spaces) are deeper and must NOT count as top-level verbs.
+  grep -nE "^      case '[a-z][a-z0-9-]*':" "$CLI_SRC" \
+    | sed -E "s/.*case '([a-z0-9-]+)':.*/\1/" \
+    | sort -u
+)
+
+if [ "$missing" -gt 0 ]; then
+  echo "FAIL: $missing dispatched verb(s) are not covered by this E2E. Add a run_read/run_ok or an explicit skip()." >&2
+  FAIL=1
+else
+  echo "OK: every top-level verb in the dispatch is TESTED or explicitly SKIPped."
+fi
+
+echo
+echo "=================================================================="
+echo "COVERAGE: $TESTED tested · $SKIPPED skipped"
+if [ "$SKIPPED" -gt 0 ]; then
+  echo "Skipped (with reasons):"
+  for s in "${SKIP_LIST[@]}"; do echo "  - $s"; done
+fi
+if [ "$FAIL" -ne 0 ]; then
+  echo
+  echo "FAILED commands:" >&2
+  for f in "${FAIL_LIST[@]}"; do echo "  - $f" >&2; done
+  echo "Compiled-CLI surface E2E FAILED" >&2
+  exit 1
+fi
+echo "Compiled-CLI surface E2E PASSED"

@@ -130,6 +130,22 @@ jobs:
         run: bash scripts/smoke-compiled-cli-runs.sh
         timeout-minutes: 3
 
+      - name: E2E compiled CLI surface — EVERY verb through the compiled binary
+        # The gigantic breaking E2E. smoke-compiled-cli-runs.sh proves the
+        # binary bootstraps; THIS drives every top-level verb in the
+        # bin/port-daddy-cli.ts dispatch through the COMPILED binary against a
+        # single scratch daemon (discovery env, never :9876, never the real
+        # ~/.port-daddy). Read verbs must run + print; mutating verbs round-trip
+        # (claim→release, lock→unlock, begin→done, note, pub, tube, tuple, dns)
+        # and clean up; dangerous/lifecycle verbs (install, start, spawn, watch,
+        # mcp, dashboard, …) are run in a non-mutating subform or explicitly
+        # SKIPped with a printed reason. A new dispatch verb that is neither
+        # tested nor skipped FAILS the build (verb-surface reconciliation), so
+        # the gate cannot silently rot. Guards against the failure that shipped
+        # green: the compiled binary silently dying (exit 1, empty output).
+        run: bash scripts/e2e-compiled-cli-surface.sh
+        timeout-minutes: 6
+
   lint:
     runs-on: ubuntu-latest
     steps:
