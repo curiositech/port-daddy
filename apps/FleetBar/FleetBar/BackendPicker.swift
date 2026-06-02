@@ -95,9 +95,9 @@ struct BackendPicker: View {
     @State private var lastAction: String?
 
     // Persistence path mirrors cli/commands/backend.ts: ~/.port-daddy-cli-backend
-    private var persistPath: String {
-        ("~/.port-daddy-cli-backend" as NSString).expandingTildeInPath
-    }
+    // Concrete writes go through BackendCLIPersistence so the FCC Backend
+    // section can share the same path/format without duplicating logic.
+    private var persistPath: String { BackendCLIPersistence.path }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Fleet.Space.s) {
@@ -189,12 +189,11 @@ struct BackendPicker: View {
     }
 
     private func writePersistence(_ value: String) {
-        let payload = "\(value)\n"
-        try? payload.write(toFile: persistPath, atomically: true, encoding: .utf8)
+        BackendCLIPersistence.write(value)
     }
 
     private func clearPersistence() {
-        try? FileManager.default.removeItem(atPath: persistPath)
+        BackendCLIPersistence.clear()
     }
 }
 

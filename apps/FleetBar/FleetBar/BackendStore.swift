@@ -102,6 +102,38 @@ struct BackendCostMetricsResponse: Decodable {
     let byBackend: [BackendCostRow]?
 }
 
+/// Single rollup returned by BackendStore.fetchCost(since:) — used by the
+/// Fleet Control Center Backend section's window selector (Today / Week /
+/// Month). Doesn't mutate the BackendStore's published state because the
+/// menubar always pins to today; the FCC section uses its own window.
+struct BackendCostWindow {
+    let rows: [BackendCostRow]
+    let totalUsd: Double
+    let totalSpawns: Int
+
+    static let empty = BackendCostWindow(rows: [], totalUsd: 0, totalSpawns: 0)
+}
+
+/// Shared persistence for the `~/.port-daddy-cli-backend` file. Both the
+/// menubar BackendPicker and the Fleet Control Center Backend section
+/// call into this helper so the write path stays in one place — the
+/// daemon picks up this file on next restart, and `pd backend use` writes
+/// the same path from the CLI.
+enum BackendCLIPersistence {
+    static var path: String {
+        ("~/.port-daddy-cli-backend" as NSString).expandingTildeInPath
+    }
+
+    static func write(_ value: String) {
+        let payload = "\(value)\n"
+        try? payload.write(toFile: path, atomically: true, encoding: .utf8)
+    }
+
+    static func clear() {
+        try? FileManager.default.removeItem(atPath: path)
+    }
+}
+
 // MARK: - BackendStore
 //
 // Polls /fleet/models every 30s. Surfaces:
@@ -252,16 +284,32 @@ class BackendStore: ObservableObject {
     }
 
     private func fetchCostByBackend() async -> [BackendCostRow] {
-        guard let url = URL(string: "\(baseURL)/metrics/cost?since=86400") else { return [] }
+        let window = await fetchCost(since: 86400)
+        return window.rows
+    }
+
+    /// Stateless rollup fetch for arbitrary windows. The FCC Backend section
+    /// uses this to swap between Today / Week / Month without disturbing the
+    /// menubar's pinned-to-today truth.
+    func fetchCost(since secondsAgo: Int) async -> BackendCostWindow {
+        guard let url = URL(string: "\(baseURL)/metrics/cost?since=\(secondsAgo)") else {
+            return .empty
+        }
         do {
             let (data, response) = try await URLSession.shared.data(from: url)
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-                return []
+                return .empty
             }
             let decoded = try JSONDecoder().decode(BackendCostMetricsResponse.self, from: data)
-            return decoded.byBackend ?? []
+            let rows = decoded.byBackend ?? []
+            // CostTotals shape lives in CostStore.swift; the field names there
+            // are snake-case + camelCase tolerant. Roll up locally so this
+            // method doesn't depend on the wire field name.
+            let total = rows.reduce(0.0) { $0 + $1.amountUsd }
+            let spawns = rows.reduce(0) { $0 + $1.count }
+            return BackendCostWindow(rows: rows, totalUsd: total, totalSpawns: spawns)
         } catch {
-            return []
+            return .empty
         }
     }
 }
