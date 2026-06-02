@@ -36,10 +36,11 @@ struct FleetBarApp: App {
     @StateObject private var costStore = CostStore()
     @StateObject private var secretsStore = SecretsStore()
     @StateObject private var dispatchStore = DispatchStore()
+    @StateObject private var backendStore = BackendStore()
 
     var body: some Scene {
         MenuBarExtra {
-            FleetPopover(store: store, costStore: costStore, secretsStore: secretsStore)
+            FleetPopover(store: store, costStore: costStore, secretsStore: secretsStore, backendStore: backendStore)
                 .frame(width: 440, height: 760)
         } label: {
             FleetMenuBarLabel(icon: store.menuBarIcon, color: store.menuBarColor)
@@ -47,7 +48,7 @@ struct FleetBarApp: App {
         .menuBarExtraStyle(.window)
 
         WindowGroup("Fleet Control Center", id: Self.controlCenterWindowID) {
-            FleetControlCenter(store: store, costStore: costStore, dispatchStore: dispatchStore)
+            FleetControlCenter(store: store, costStore: costStore, dispatchStore: dispatchStore, backendStore: backendStore)
         }
         .defaultSize(width: 1360, height: 860)
 

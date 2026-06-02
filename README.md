@@ -120,6 +120,7 @@ pd up     # Starts all services in dependency order with color-coded logs
 - **pd guard**: Enforce agent coordination before commit — active session plus matching file claims for staged files.
 - **pd add**: Claim-aware `git add` — refuses to stage files held by another session.
 - **pd snapshots**: List/show/restore snapshots the daemon-side claim watcher captures when a claimed file's bytes change mid-claim.
+- **pd backup / pd restore**: Durable, WAL-consistent snapshots of the whole `port-registry.db` (gzipped, sha256-verified, integrity-checked) with GFS retention. `pd backup` takes one now; `pd backup list/show/prune` inspect and trim; `pd backup schedule install` (or `pd backup --install-schedule`) registers a daily launchd agent; `pd restore <id>` rolls the DB back reversibly. See ADR-0037.
 - **pd status / pd version**: View system **info** and metrics.
 
 ### Session Lifecycle

@@ -90,6 +90,10 @@ import {
   handleSpawn, handleSpawned, handleWatch, handleSortie,
   // Transcripts
   handleTranscripts,
+  // Dispatch (renamed from nightshift per ADR-0035) + morning summary +
+  // review (pd review --accept|--reject contract). `handleNightshift` is
+  // kept as a back-compat alias that delegates to `handleDispatch`.
+  handleDispatch, handleNightshift, handleReview, handleMorning,
   // Harbors
   handleHarborCreate, handleHarborEnter, handleHarborLeave, handleHarborShow, handleHarborDestroy, handleHarbors,
   // Demo
@@ -117,6 +121,9 @@ import {
   handleAdd,
   // Claim-watcher snapshot list/restore/prune
   handleSnapshots,
+  // Durable backups of port-registry.db (ADR-0037)
+  handleBackup,
+  handleRestore,
   // Shipwright — survey/propose/apply for fleet authoring
   handleShipwright,
   // App-Native Development Cockpit
@@ -1249,8 +1256,8 @@ const ALL_COMMANDS: string[] = [
   'advise', 'preflight', 'compass', 'guard',
   'salvage', 'resurrection', 'changelog', 'tunnel',
   'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
-  'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'shipwright',
-  'spawn', 'spawned', 'watch', 'transcripts',
+  'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'backup', 'restore', 'shipwright',
+  'spawn', 'spawned', 'watch', 'transcripts', 'transcript',
   'harbor', 'harbors', 'demo', 'fleet', 'tuple', 'sortie', 'graph', 'memory', 'ideas',
   'quorum',
   'feedback',
@@ -1258,6 +1265,9 @@ const ALL_COMMANDS: string[] = [
   'secret', 'secrets',
   'cockpit',
   'popper',
+  'harbormaster', 'hm',
+  'dispatch', 'nightshift', 'review', 'morning',
+  'backend',
 ];
 
 /** Simple Levenshtein distance for short strings */
@@ -2695,6 +2705,14 @@ export async function main(): Promise<void> {
         await handleSnapshots(positional, options);
         break;
 
+      case 'backup':
+        await handleBackup(positional, options);
+        break;
+
+      case 'restore':
+        await handleRestore(positional, options);
+        break;
+
       case 'shipwright':
         await handleShipwright(positional[0], options);
         break;
@@ -2713,6 +2731,14 @@ export async function main(): Promise<void> {
       case 'secrets':
         await handleSecret(positional, options);
         break;
+
+      // Harbormaster — merge-owning actor body (ADR-0037)
+      case 'hm':
+      case 'harbormaster': {
+        const { handleHarbormaster } = await import('../cli/commands/harbormaster.js');
+        await handleHarbormaster(positional, options);
+        break;
+      }
 
       case 'integration':
         await handleIntegration(positional[0], positional.slice(1), options);
@@ -2752,6 +2778,25 @@ export async function main(): Promise<void> {
 
       case 'sortie':
         await handleSortie(positional, options);
+        break;
+
+      // Dispatch -- autonomous feature dev queue (renamed from nightshift per
+      // ADR-0035). `nightshift` is an alias kept for one minor version.
+      case 'dispatch':
+        await handleDispatch(positional, options);
+        break;
+
+      case 'nightshift':
+        await handleNightshift(positional, options);
+        break;
+
+      // Review -- pd review <id> --accept|--reject contract (ADR-0035).
+      case 'review':
+        await handleReview(positional, options);
+        break;
+
+      case 'morning':
+        await handleMorning(positional, options);
         break;
 
       // Watch — ambient agent kernel (SSE subscriber)
@@ -2802,6 +2847,13 @@ export async function main(): Promise<void> {
       case 'fleet': {
         const { handleFleet } = await import('../cli/commands/fleet.js');
         await handleFleet(positional, options);
+        break;
+      }
+
+      // Backend — surface CLI/SDK backend route, switch, and per-backend cost.
+      case 'backend': {
+        const { handleBackend } = await import('../cli/commands/backend.js');
+        await handleBackend(positional, options);
         break;
       }
 
