@@ -151,6 +151,48 @@ The `agentsd.ai` public-site reset is now explicit repo work, not chat residue.
   - `tuple-namespace-hierarchies` extends `tuple-driven-fleet` instead of
     minting a duplicate family
 
+- 2026-05-19 substrate activation track opened:
+  - Comprehensive audit of the production substrate against
+    `~/port-daddy-stable/port-registry.db` (720MB, 44 tables). Findings doc at
+    `.scratch/note-abstraction-audit.md`. Headline: PD has been quietly more
+    complete than its surface suggests — pheromone module, semantic resolver
+    (`Xenova/all-MiniLM-L6-v2`, 8k events/wk), Tube performatives, bond /
+    budget, human-source feedback pipeline, harbor capability registry, Linda
+    tuple space all exist in `lib/`. The verbs and surfaces are missing.
+  - Three parallel research docs anchor the next sequencing
+    (`.scratch/pheromone-visualization-research.md`,
+    `.scratch/multiplayer-input-research.md`,
+    `.scratch/agent-coordination-research.md`). Two transcript-ingestion docs
+    (`transcript-recon.md`, `transcript-ingestion-design.md`) anchor the
+    chat-capture work.
+  - New ROADMAP.md § 8 "Substrate Activation — The Ambient Context Broker"
+    captures the unifying architectural picture, the three typing rules
+    (pheromones-for-graded-attention-never-facts; durable-edges-vs-ephemeral-
+    presence; color-one-dim-glyphs-for-kinds), the economic-honesty rule for
+    conscription, the "ride the busy rail" principle, and 11 cross-cutting
+    design decisions with leans.
+  - Phase 1 (~1 week, mostly mechanical) is the immediate next-step pile:
+    - `coordination-counter-coverage` — ~13 metric_counters keys for dark
+      coordination surfaces (tuples writes, messages, notes, claims, inbox,
+      locks, resurrection)
+    - `pd-whois-phonebook-surface` — surface the existing semantic resolver
+      as the expertise phonebook; `pd whois <query>` returns ranked actors
+    - `transcript-events-wiring` — wire the orphan `transcript_events` table
+      + daemon-side tailer for Claude / Codex JSONL transcripts; cost-ledger
+      already SELECTs from it
+    - `pheromone-vocabulary-v1` — lock the ~15-20 kind catalog with per-kind
+      half-life, decay-during-idle, and clear-events
+    - `pd-roadmap-pop-production-trigger` — `roadmap_claims` is self-init in
+      code but doesn't exist in production stable DB; ADR-0033 declares
+      SHIPPED but no production invocations
+    - `heartbeat-tmp-cleanup` — stale `.heartbeat.<pid>.tmp` zombies in
+      `~/.port-daddy/` from older liveness mechanism
+  - Resolved during audit: `roadmap_items` is acknowledged-new (per
+    operator: "calm your tits, it does need a migration tho"); `pheromones`
+    is module-real but table-less (storage = `metadata.pheromones` JSON on
+    services/projects/sessions rows); 6 other doctrine ghosts identified
+    (`signals`, `coordination_inconsistencies`, `briefing` table-less,
+    `dns_records` zero-row).
 - 2026-04-29 app-native development cockpit sketch:
   - New product sketch at `docs/shipwright/APP-NATIVE-DEVELOPMENT-COCKPIT.md`.
   - It ties roadmap intake, Idea Lab/Trove curation, Windags skill-grafted planning, Coordination Guard, multi-backend launches, worktree collapse, editor claim overlays, HITL decisions, Tube, and day-over-day progress logs into one Fleet Control Center cockpit.
