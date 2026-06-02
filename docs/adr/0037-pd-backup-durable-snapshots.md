@@ -81,10 +81,37 @@ Manifest shape:
 ### Online snapshot, not file copy
 
 The daemon is always-on. Naïve `cp port-registry.db` can capture a write
-mid-transaction. Use SQLite's online Backup API
-(`better-sqlite3.Database.backup(destPath)`): atomic page-level copy that
-runs concurrently with WAL writers, returns a consistent snapshot of the
-last committed state. Gzip + (optionally) encrypt the resulting file.
+mid-transaction and, worse, a WAL database splits committed state across the
+main `.db` file and the `-wal` sidecar — copying just the `.db` loses any
+committed pages still living in the WAL.
+
+The snapshot mechanism is **`VACUUM INTO '<scratch>'`**. This is plain SQL
+that runs identically on both runtimes the codebase supports — better-sqlite3
+(jest/dev) and **bun:sqlite (the shipped `bun build --compile` daemon)**.
+`VACUUM INTO` takes a read transaction over the live DB, folds in the WAL,
+and writes a fresh, fully-checkpointed, defragmented copy. It is SQLite's
+recommended online-backup primitive for WAL databases and does **not** depend
+on `better-sqlite3.Database.backup()` (Node-only) or `bun:sqlite.serialize()`
+(fragile on a live WAL DB, and the original bun path was never exercised —
+the classic "green-in-jest, broken-in-bun" trap). better-sqlite3's
+page-incremental `.backup()` remains available as an **opt-in fast path**
+(`createBackup({ fastBackup: true })`); it is not the default.
+
+Two integrity gates are mandatory, not advisory:
+
+1. **Post-snapshot:** `createBackup` runs `PRAGMA integrity_check` on the
+   staged snapshot file and *fails the backup* if it is not `ok`. A corrupt
+   backup is worse than none — it manufactures false confidence.
+2. **Post-restore:** `restoreBackup` re-checks the restored file and rolls
+   back to the `pre-restore-<ts>` copy if the check fails.
+
+Scratch files (the VACUUM-INTO target, the schema-version probe copy) are
+written under `$PORT_DADDY_PREFIX/.backup-scratch` or
+`~/.port-daddy/.backup-scratch` — **never `os.tmpdir()` / `/tmp`**, which
+macOS purges on a timer and on reboot. A backup that briefly stages in `/tmp`
+can vanish mid-flight. See `lib/backup.ts` `resolveScratchDir()`.
+
+Gzip + (optionally, PR-β) encrypt the resulting file.
 
 ### Backend interface
 
@@ -150,11 +177,39 @@ current DB to `port-registry.db.pre-restore-<timestamp>`, writes the
 restored bytes, runs `PRAGMA integrity_check`, and restarts the daemon. If
 integrity check fails, it rolls back.
 
-### Daemon integration (out of scope for this ADR)
+### Scheduled backups (implemented)
 
-`pd-fleet.yml` will get a `backup-keeper` agent on cron `0 3 * * *` that
-runs `pd backup` nightly. Documented in this ADR for completeness; not
-implemented until PR-α lands.
+A one-shot `pd backup` is only as durable as the operator's memory. The
+758 MB live coordination DB needs the snapshot on a timer. `lib/backup-schedule.ts`
+installs a per-user **launchd** agent (label `com.portdaddy.backup`) that runs
+`pd backup` once a day:
+
+```
+pd backup schedule install            # install + load the launchd agent
+pd backup --install-schedule          # flag form, identical effect
+pd backup schedule install --retention "daily=14,keep=5"   # bake retention
+pd backup schedule install --to file://~/backups           # bake backend
+pd backup schedule uninstall          # bootout + delete the plist
+pd backup schedule cron               # print a crontab line (Linux/non-launchd)
+```
+
+- The agent uses launchd `StartCalendarInterval` (default 03:17 local), which
+  — unlike a bare cron line — catches up a run missed while the machine was
+  asleep at the scheduled minute.
+- The plist is written to `~/Library/LaunchAgents/com.portdaddy.backup.plist`
+  and bootstrapped with `launchctl bootstrap gui/<uid>`.
+- It invokes the same `pd` binary the operator runs (resolved via `command -v pd`,
+  falling back to the launching binary), so Homebrew and dev checkouts each
+  schedule against their own binary.
+- Retention is the existing GFS default (`daily=7,weekly=4,monthly=12,keep=3`)
+  unless `--retention` was passed at install time; prune runs automatically
+  after each snapshot.
+- On Linux (no launchd), `schedule install` does not fail — it prints the
+  exact crontab line to paste into `crontab -e` (or a systemd timer).
+
+A future `pd-fleet.yml` `backup-keeper` agent can supersede this for fleet
+hosts; the launchd path is the zero-dependency default for the single-operator
+machine.
 
 ### Slice plan
 

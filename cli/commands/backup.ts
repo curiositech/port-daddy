@@ -8,7 +8,14 @@
  *   pd backup list [--to URI]                  # newest-first list
  *   pd backup show <snapshot-id> [--to URI]    # print full manifest
  *   pd backup prune [--to URI] [--retention SPEC]
+ *   pd backup schedule install [--retention SPEC] [--to URI]
+ *                                              # install a daily launchd agent
+ *   pd backup --install-schedule               # same, flag form
+ *   pd backup schedule uninstall               # remove the agent
+ *   pd backup schedule cron                    # print a crontab line (Linux)
  */
+
+import { execFileSync } from 'node:child_process';
 
 import { createFileBackend } from '../../lib/backup-backends/file.js';
 import type { BackupBackend } from '../../lib/backup-backends/types.js';
@@ -19,8 +26,28 @@ import {
   pruneBackups,
   showBackup,
 } from '../../lib/backup.js';
+import {
+  installSchedule,
+  uninstallSchedule,
+  cronLine,
+} from '../../lib/backup-schedule.js';
 import * as ui from '../utils/ui.js';
 import type { CLIOptions } from '../types.js';
+
+/**
+ * Resolve the absolute `pd` binary path for the scheduled agent to invoke.
+ * Prefer a `pd` on PATH (the Homebrew install operators actually run); fall
+ * back to the binary that launched this process.
+ */
+function resolvePdBinary(): string {
+  try {
+    const found = execFileSync('command', ['-v', 'pd'], { shell: '/bin/sh', encoding: 'utf8' }).trim();
+    if (found) return found;
+  } catch {
+    /* not on PATH */
+  }
+  return process.execPath;
+}
 
 function resolveBackend(options: CLIOptions): BackupBackend {
   const uri = typeof options.to === 'string' ? options.to : undefined;
@@ -125,15 +152,71 @@ async function runPrune(options: CLIOptions): Promise<void> {
   else ui.success(`Pruned ${deleted.length} snapshot(s): ${deleted.join(', ')}`);
 }
 
+function scheduleExtraArgs(options: CLIOptions): string[] {
+  // Bake a retention override into the scheduled invocation if the operator
+  // passed one at install time, so the daily run prunes with the same policy.
+  const extra: string[] = [];
+  if (typeof options.retention === 'string' && options.retention.trim()) {
+    extra.push('--retention', options.retention);
+  }
+  if (typeof options.to === 'string' && options.to.trim()) {
+    extra.push('--to', options.to);
+  }
+  return extra;
+}
+
+function runInstallSchedule(options: CLIOptions): void {
+  const pdBinary = resolvePdBinary();
+  const result = installSchedule({ pdBinary, extraArgs: scheduleExtraArgs(options) });
+  if (isJson(options)) {
+    console.log(JSON.stringify({ success: result.installed, ...result }, null, 2));
+    return;
+  }
+  if (result.installed) {
+    ui.success(result.message);
+    console.log(`  plist:   ${result.plistPath}`);
+    console.log(`  command: ${pdBinary} backup ${scheduleExtraArgs(options).join(' ')}`.trimEnd());
+    ui.info('Inspect with: launchctl print gui/$(id -u)/com.portdaddy.backup');
+  } else {
+    ui.warn(result.message);
+    if (result.cronLine) console.log(`  ${result.cronLine}`);
+  }
+}
+
+function runUninstallSchedule(options: CLIOptions): void {
+  const result = uninstallSchedule({ pdBinary: resolvePdBinary() });
+  if (isJson(options)) {
+    console.log(JSON.stringify({ success: true, ...result }, null, 2));
+    return;
+  }
+  if (result.removed) ui.success(result.message);
+  else ui.info(result.message);
+}
+
 export async function handleBackup(positional: string[], options: CLIOptions): Promise<void> {
   const sub = positional[0];
   const rest = positional.slice(1);
   try {
+    // Flag forms work on any subcommand: `pd backup --install-schedule`.
+    if (options['install-schedule']) {
+      runInstallSchedule(options);
+      return;
+    }
+    if (options['uninstall-schedule']) {
+      runUninstallSchedule(options);
+      return;
+    }
     switch (sub) {
       case undefined:
       case '':
       case 'run':
         await runBackup(options);
+        break;
+      case 'schedule':
+        if (rest[0] === 'uninstall' || rest[0] === 'remove') runUninstallSchedule(options);
+        else if (rest[0] === 'install' || rest[0] === undefined) runInstallSchedule(options);
+        else if (rest[0] === 'cron') console.log(cronLine({ pdBinary: resolvePdBinary(), extraArgs: scheduleExtraArgs(options) }));
+        else { ui.error(`Unknown: pd backup schedule ${rest[0]}`); process.exitCode = 1; }
         break;
       case 'list':
         await runList(options);
@@ -149,7 +232,7 @@ export async function handleBackup(positional: string[], options: CLIOptions): P
         break;
       default:
         ui.error(`Unknown subcommand: pd backup ${sub}`);
-        ui.info('Valid subcommands: (no args), list, show, prune');
+        ui.info('Valid subcommands: (no args), list, show, prune, schedule [install|uninstall|cron]');
         process.exitCode = 1;
     }
   } catch (err) {
