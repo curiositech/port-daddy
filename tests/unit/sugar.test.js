@@ -261,7 +261,12 @@ describe('sugar.begin', () => {
     });
     expect(first.success).toBe(true);
 
-    const ended = sugar.done({ sessionId: first.sessionId });
+    // PR #160 added a hard precondition for completed sessions: the result
+    // note must carry the Result/PR sentinel (and the branch must be on
+    // origin — satisfied here by setup()'s passing gitOriginChecker mock).
+    // This test exercises the main-worktree gate lifecycle, not the PR-URL
+    // contract, so we just supply a conformant note to clear the gate.
+    const ended = sugar.done({ sessionId: first.sessionId, note: VALID_RESULT_NOTE_WITH_PR });
     expect(ended.success).toBe(true);
 
     // After the first session ends a second solo agent should be able

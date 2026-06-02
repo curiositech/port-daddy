@@ -14,6 +14,7 @@
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import type { Database } from 'better-sqlite3';
+import type { PopperStatus, PoppedResult, RoadmapItemRow } from '../lib/roadmap-popper.js';
 
 interface PopperRouteDeps {
   deps: {
@@ -21,9 +22,9 @@ interface PopperRouteDeps {
     db: Database;
     /** The popper instance (factory output from lib/roadmap-popper.ts) */
     popper: {
-      popNext: (harbor?: string) => Promise<{ itemId: string; itemSlug: string; dispatchId: string } | null>;
-      nextCandidate: (harbor?: string) => unknown;
-      status: (harbor?: string) => unknown;
+      popNext: (harbor?: string) => Promise<PoppedResult | null>;
+      nextCandidate: (harbor?: string) => RoadmapItemRow | null;
+      status: (harbor?: string) => PopperStatus;
     };
   };
 }
@@ -55,10 +56,8 @@ const popperPlugin: FastifyPluginAsync<PopperRouteDeps> = async (fastify, { deps
     }
   });
 
-  fastify.post<{ Body: { slug: string; eligible: boolean; harbor?: string } }>(
-    '/popper/eligibility',
-    async (req, reply) => {
-      const body = req.body ?? ({} as { slug: string; eligible: boolean });
+  fastify.post('/popper/eligibility', async (req: FastifyRequest, reply: FastifyReply) => {
+      const body = (req.body ?? {}) as { slug?: string; eligible?: boolean; harbor?: string };
       if (!body.slug || typeof body.slug !== 'string') {
         return reply.code(400).send({ ok: false, error: "missing 'slug'" });
       }
@@ -78,8 +77,7 @@ const popperPlugin: FastifyPluginAsync<PopperRouteDeps> = async (fastify, { deps
         });
       }
       return reply.send({ ok: true, slug: body.slug, eligible: body.eligible });
-    },
-  );
+  });
 };
 
 export { popperPlugin };

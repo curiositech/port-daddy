@@ -88,6 +88,16 @@ function fingerprintHash(fp: number): number {
 export class CuckooFilter {
   readonly numBuckets: number;
   readonly maxKicks: number;
+  /**
+   * Hard size ceiling: the largest size whose resulting load-factor still
+   * sits at or below MAX_LOAD_FACTOR. We floor (not ceil/round) so the
+   * post-insert load-factor can never CROSS the ceiling — the previous
+   * `loadFactor >= MAX_LOAD_FACTOR` guard was an off-by-one because it
+   * tested the load factor BEFORE the insert, letting the size that
+   * triggered the next rejection land just above the ceiling (e.g.
+   * 244/256 = 0.953 on a B=4, 64-bucket filter).
+   */
+  readonly maxSize: number;
   private buckets: Uint8Array;
   private _size = 0;
   private _insertFailures = 0;
@@ -99,6 +109,7 @@ export class CuckooFilter {
     this.numBuckets = nextPow2(opts.numBuckets);
     this.maxKicks = opts.maxKicks ?? DEFAULT_MAX_KICKS;
     this.buckets = new Uint8Array(this.numBuckets * BUCKET_SIZE);
+    this.maxSize = Math.floor(this.numBuckets * BUCKET_SIZE * MAX_LOAD_FACTOR);
   }
 
   get capacity(): number {
@@ -170,7 +181,10 @@ export class CuckooFilter {
    * Hard-rejecting at 0.95 keeps false-positive rate inside the bound.
    */
   insert(key: string | Buffer): boolean {
-    if (this.loadFactor >= MAX_LOAD_FACTOR) {
+    // Reject BEFORE the insert if accepting would push size past the ceiling.
+    // Gating on `_size >= maxSize` (rather than `loadFactor >= MAX_LOAD_FACTOR`)
+    // guarantees the post-insert load-factor is always <= MAX_LOAD_FACTOR.
+    if (this._size >= this.maxSize) {
       this._insertFailures++;
       return false;
     }

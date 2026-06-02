@@ -337,6 +337,10 @@ describe('Test Group 3: API -> CLI Parity', () => {
     shipwright: ['shipwright'],
     setup: ['setup'],
     cockpit: ['cockpit'],
+    // popper: autonomous roadmap-to-dispatch task puller. routes/popper.ts is
+    // registered in routes/index.ts (popperPlugin), so it shows up as a route
+    // category; `pd popper <status|next|pop|enable|disable>` is its CLI surface.
+    popper: ['popper'],
   };
 
   // API-only routes that have no CLI equivalent (accessed via curl or SDK).

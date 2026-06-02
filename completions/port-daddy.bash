@@ -113,6 +113,8 @@ _port_daddy() {
     spawn spawned sortie watch
     # App-Native Development Cockpit
     cockpit
+    # Roadmap popper — autonomous roadmap-to-dispatch task puller
+    popper
     # Managed provider secret store (keychain-backed)
     secret secrets
     # Harbors (named permission namespaces)
@@ -1482,6 +1484,21 @@ _port_daddy() {
           ;;
         missions)
           _pd_opts '--project --status --limit --json'
+          ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
+    # popper  status|next|pop|enable|disable  [slug]
+    # -----------------------------------------------------------------------
+    popper)
+      local subcmd="${words[2]:-}"
+      case "$subcmd" in
+        '')
+          COMPREPLY=( $(compgen -W "status next pop enable disable" -- "$cur") )
+          ;;
+        *)
+          _pd_opts '--harbor --json'
           ;;
       esac
       ;;
