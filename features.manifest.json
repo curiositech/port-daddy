@@ -1848,7 +1848,10 @@
         "morning"
       ],
       "sdk": [],
-      "routes": [],
+      "routes": [
+        "POST /dispatches",
+        "GET /dispatches"
+      ],
       "completions": [
         "dispatch",
         "nightshift",
@@ -1859,7 +1862,34 @@
         "readme": false,
         "sdk": false
       },
-      "_note": "pd nightshift is preserved as a deprecation alias for one minor version. No HTTP routes yet -- follow-up PR after harbormaster (#141) and actor-model (#082) land."
+      "_note": "pd nightshift is preserved as a deprecation alias for one minor version. HTTP surface landed in PR #163 (routes/dispatches.ts): propose/list over the dispatch queue. routes/dispatches.ts also serves GET /dispatches/:id and POST /dispatches/:id/{accept,reject,cancel}; those use generic-typed fastify handlers (fastify.get<{Params}>) that the manifest route-parser does not extract, so they are intentionally omitted here to keep the manifest<->code bijection clean."
+    },
+    "transcripts": {
+      "description": "Fleet ship-run transcript records — operator-facing surface for inspecting what a spawned worker did, what it cost, and its produced outputs. Read views (list/show/cost/stream) plus a delete for pruning old runs.",
+      "cli": [
+        "transcripts",
+        "transcript"
+      ],
+      "sdk": [],
+      "routes": [
+        "GET /transcripts",
+        "GET /transcripts/cost",
+        "GET /transcripts/stream",
+        "GET /transcripts/:id",
+        "POST /transcripts",
+        "POST /transcripts/:id/messages",
+        "POST /transcripts/:id/outputs",
+        "DELETE /transcripts/:id"
+      ],
+      "completions": [
+        "transcripts",
+        "transcript"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "Surfaced by pd transcripts (singular alias: pd transcript). routes/transcripts.ts is the HTTP API the FleetBar/dashboard ship-run views read from."
     }
   }
 }

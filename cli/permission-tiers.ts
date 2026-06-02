@@ -112,6 +112,9 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   tunnel: 'silent',
   init: 'notify',
   setup: 'notify',
+  transcripts: 'silent',    // refined: `transcripts delete/rm` is destructive
+  transcript: 'silent',     // singular alias for the same read-only views
+  morning: 'silent',        // reads the overnight dispatch report; no mutation
 
   // ── notify: caller-scoped, reversible ────────────────────────────────────
   claim: 'notify',
@@ -133,6 +136,8 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   watch: 'notify',
   attention: 'notify',      // default fetch marks inbox/channel items read for this agent
   commit: 'notify',         // records a caller-scoped commitment/obligation; `commit close` finalizes one
+  backend: 'notify',        // sets the active CLI/subscription backend (caller config); status form is read-only
+  backup: 'notify',         // writes a durable snapshot of the registry DB; reversible, caller-scoped
 
   // ── approval: mutates another agent's state, no data loss ────────────────
   // Top-level entries; subcommand refinement may downgrade.
@@ -150,6 +155,11 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   agent: 'approval',        // refined: `agent unregister`, `agent inbox clear` are destructive
   mcp: 'approval',
   harbor: 'approval',       // refined: `harbor destroy` is destructive
+  harbormaster: 'approval', // start/stop the shared merge-owning actor; affects every agent's merges
+  hm: 'approval',           // alias for harbormaster
+  dispatch: 'approval',     // queues/runs autonomous dev work and spawns agents on shared state
+  nightshift: 'approval',   // kicks off autonomous overnight feature dev across the fleet
+  review: 'approval',       // approves/rejects produced dispatch work — gates others' merges
 
   // ── destructive: releases another's resources OR removes records ─────────
   salvage: 'destructive',           // refined: bare `salvage` list is silent; subcommands vary
@@ -164,6 +174,8 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   guard: 'silent',                  // refined: `guard install`, `guard enable/disable` are destructive
   dev: 'approval',                  // refined: `dev stop` is destructive
   daemon: 'silent',                 // refined: subcommands vary
+
+  restore: 'destructive',           // overwrites the live registry DB from a snapshot
 
   // unmapped fallback handlers
   message: 'approval',
@@ -324,6 +336,49 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
 
   // commit: bare form records a commitment, close finalizes one
   'commit close': 'notify',
+
+  // transcripts: list/show/cost/watch are read-only; delete/rm removes a run record
+  'transcripts list': 'silent',
+  'transcripts show': 'silent',
+  'transcripts cost': 'silent',
+  'transcripts watch': 'silent',
+  'transcripts delete': 'destructive',
+  'transcripts rm': 'destructive',
+  'transcript delete': 'destructive',
+  'transcript rm': 'destructive',
+
+  // harbormaster: status/queue are read-only; start/stop control the shared actor
+  'harbormaster status': 'silent',
+  'harbormaster queue': 'silent',
+  'harbormaster start': 'approval',
+  'harbormaster stop': 'destructive',  // stops the merge-owning actor for everyone
+  'hm status': 'silent',
+  'hm queue': 'silent',
+  'hm start': 'approval',
+  'hm stop': 'destructive',
+
+  // backend: status/list are read-only; clear/off reset caller config
+  'backend status': 'silent',
+  'backend list': 'silent',
+  'backend clear': 'notify',
+  'backend off': 'notify',
+
+  // backup: run writes a snapshot; schedule install/uninstall toggle the timer
+  'backup run': 'notify',
+  'backup schedule': 'notify',
+
+  // dispatch: status/list are read-only; cancel/reject affect queued work
+  'dispatch status': 'silent',
+  'dispatch list': 'silent',
+  'dispatch cancel': 'destructive',
+  'dispatch reject': 'approval',
+  'dispatch accept': 'approval',
+
+  // review: list/show read-only; accept/reject gate others' produced work
+  'review list': 'silent',
+  'review show': 'silent',
+  'review accept': 'approval',
+  'review reject': 'approval',
 };
 
 /**

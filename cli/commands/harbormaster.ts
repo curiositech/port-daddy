@@ -14,8 +14,8 @@ import { spawn } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync, unlinkSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
-import { resolveDbPath } from '../../lib/db.js';
-import Database, { type DatabaseInstance } from '../../lib/sqlite-runtime.js';
+import { initDatabase } from '../../lib/db.js';
+import { type DatabaseInstance } from '../../lib/sqlite-runtime.js';
 import {
   createHarbormaster,
   HARBORMASTER_ACTOR_ID,
@@ -264,7 +264,10 @@ async function cmdQueue(options: CLIOptions): Promise<void> {
 // ─── helpers ─────────────────────────────────────────────────────────────
 
 function openDb(): DatabaseInstance {
-  return new Database(resolveDbPath()) as DatabaseInstance;
+  // Route through the canonical chokepoint so assertNotProdInTest() runs and
+  // test traffic can never leak into the live registry (see lib/db.ts guard
+  // + tests/unit/no-direct-database-open.test.js).
+  return initDatabase();
 }
 
 function hasCol(db: DatabaseInstance, table: string, col: string): boolean {

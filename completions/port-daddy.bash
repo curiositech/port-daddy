@@ -111,6 +111,8 @@ _port_daddy() {
     inbox
     # AI Agent Spawner + Watch
     spawn spawned sortie watch
+    # Fleet ship-run transcripts
+    transcripts transcript
     # Dispatch (renamed from nightshift per ADR-0035) + review + morning
     dispatch nightshift review morning
     # App-Native Development Cockpit

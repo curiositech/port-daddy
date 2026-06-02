@@ -16,6 +16,16 @@
  *                              the registry, through the runtime adapter
  *   - cli/commands/diagnostics.ts — opens the registry READ-ONLY for an
  *                              integrity probe (`{ readonly: true }`)
+ *   - lib/backup.ts          — the durable-snapshot engine (ADR-0037). It must
+ *                              open (a) the live registry to run `VACUUM INTO`
+ *                              / `.backup()` — a read-transaction snapshot that
+ *                              NEVER writes rows to the source — and (b) a
+ *                              read-only probe over snapshot BYTES on a scratch
+ *                              path to read user_version. Both go through the
+ *                              sqlite-runtime adapter; neither is the registry
+ *                              connection the prod-in-test guard protects, and
+ *                              backup is a read-only-effect operation that
+ *                              cannot leak test traffic into prod.
  *
  * Test files are exempt: they use in-memory DBs (createTestDb / new
  * Database(':memory:')) and explicit scratch paths, which is the intended
@@ -38,6 +48,7 @@ const ALLOWED_FILES = new Set([
   'lib/db.ts',
   'lib/shipwright/skill-index.ts',
   'cli/commands/diagnostics.ts',
+  'lib/backup.ts',
 ]);
 
 // `new Database(` in any whitespace form.

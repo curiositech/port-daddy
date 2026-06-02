@@ -1981,6 +1981,9 @@ _port_daddy() {
     'secret:manage keychain-backed provider credentials (set/list/reveal/rm)'
     'secrets:alias for secret — manage keychain-backed provider credentials'
     'watch:subscribe to a channel and run a script on each message'
+    # Fleet ship-run transcripts
+    'transcripts:browse fleet ship-run transcripts (list/show/cost/delete)'
+    'transcript:alias for transcripts — view a single ship-run record'
     # Harbormaster — canonical merge-owning actor body (ADR-0037)
     'harbormaster:harbormaster body — start/stop/status/queue (ADR-0037)'
     'hm:alias for harbormaster'

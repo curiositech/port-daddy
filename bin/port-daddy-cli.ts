@@ -1257,7 +1257,7 @@ const ALL_COMMANDS: string[] = [
   'salvage', 'resurrection', 'changelog', 'tunnel',
   'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
   'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'backup', 'restore', 'shipwright',
-  'spawn', 'spawned', 'watch', 'transcripts',
+  'spawn', 'spawned', 'watch', 'transcripts', 'transcript',
   'harbor', 'harbors', 'demo', 'fleet', 'tuple', 'sortie', 'graph', 'memory', 'ideas',
   'quorum',
   'feedback',

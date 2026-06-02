@@ -341,6 +341,14 @@ describe('Test Group 3: API -> CLI Parity', () => {
     // registered in routes/index.ts (popperPlugin), so it shows up as a route
     // category; `pd popper <status|next|pop|enable|disable>` is its CLI surface.
     popper: ['popper'],
+    // transcripts: ship-run records surface. routes/transcripts.ts is the
+    // operator-facing read/delete API; `pd transcripts <list|show|cost|delete>`
+    // is its CLI surface.
+    transcripts: ['transcripts', 'transcript'],
+    // dispatches: HTTP surface over the dispatch queue (POST /dispatches +
+    // accept/reject/cancel). `pd dispatch` and the nightshift/review/morning
+    // commands drive it from the CLI.
+    dispatches: ['dispatch', 'nightshift', 'review', 'morning'],
   };
 
   // API-only routes that have no CLI equivalent (accessed via curl or SDK).
