@@ -106,9 +106,12 @@ describe('requireConfirmation: non-interactive refusal', () => {
       },
     });
     expect(result).toBe(false);
+    // Impact summary is emitted (audit trail) ...
     expect(stderr.joined()).toMatch(/will release 3 file claims from agent abc-123/);
     expect(stderr.joined()).toMatch(/refusing in non-interactive mode/);
-    expect(stderr.joined()).toMatch(/Re-run with --yes/);
+    // ... but the refusal NEVER advertises its own bypass (guardrails-never-name-
+    // their-override rule; CWE-1390). --yes stays in `pd <cmd> --help` for humans.
+    expect(stderr.joined()).not.toMatch(/--yes|-y\b|PORT_DADDY_YES/);
   });
 });
 
