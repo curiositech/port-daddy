@@ -17,6 +17,25 @@ import * as ui from '../utils/ui.js';
 import { promptConfirm } from '../utils/prompt.js';
 import { getDaemonTcpUrl } from '../../shared/daemon-discovery.js';
 
+/**
+ * Strip terminal control sequences from DB-sourced strings before printing to a
+ * TTY (CWE-150). Transcript fields (ship name, message content, tool names,
+ * output summaries/urls) originate from agent/external input via the daemon, so
+ * a malicious value could otherwise inject ANSI/OSC escapes — cursor moves,
+ * title/clipboard rewrites, fake prompts. We drop C0/C1 control chars (keeping
+ * TAB \t and LF \n, which the renderer handles) plus CSI/OSC escape sequences.
+ * (JSON.stringify'd tool args/results are already safe — it escapes control
+ * chars to \uXXXX — so only directly-interpolated strings need this.)
+ */
+export function clean(s: unknown): string {
+  if (s == null) return '';
+  return String(s)
+    .replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g, '') // OSC … BEL/ST
+    .replace(/\x1b[@-_][0-?]*[ -/]*[@-~]/g, '')        // CSI + other escape seqs
+    .replace(/\x1b./g, '')                              // stray ESC+char
+    .replace(/[\x00-\x08\x0b-\x1f\x7f]/g, '');          // C0 controls (keep \t,\n) + DEL
+}
+
 interface TranscriptListRow {
   id: string;
   ship: string;
@@ -132,7 +151,7 @@ export async function handleTranscriptsList(args: string[], options: CLIOptions)
 
   if (isQuiet(options)) {
     for (const r of rows) {
-      console.log(`${r.id}\t${r.ship}\t${r.status}\t${r.backend}\t${(r.cost_usd ?? 0).toFixed(4)}`);
+      console.log(`${clean(r.id)}\t${clean(r.ship)}\t${clean(r.status)}\t${clean(r.backend)}\t${(r.cost_usd ?? 0).toFixed(4)}`);
     }
     return;
   }
@@ -154,10 +173,10 @@ export async function handleTranscriptsList(args: string[], options: CLIOptions)
     const cost = r.cost_usd != null ? `$${r.cost_usd.toFixed(4)}` : '—';
     const pr = r.pr_number != null ? `#${r.pr_number}` : '—';
     console.error(
-      r.id.slice(0, 23).padEnd(24) +
-      r.ship.slice(0, 19).padEnd(20) +
-      r.status.padEnd(11) +
-      r.backend.slice(0, 11).padEnd(12) +
+      clean(r.id).slice(0, 23).padEnd(24) +
+      clean(r.ship).slice(0, 19).padEnd(20) +
+      clean(r.status).padEnd(11) +
+      clean(r.backend).slice(0, 11).padEnd(12) +
       pr.padEnd(8) +
       cost.padEnd(10) +
       age
@@ -209,12 +228,12 @@ export async function handleTranscriptsShow(args: string[], options: CLIOptions)
 
   const statusColor = tx.status === 'completed' ? green : tx.status === 'failed' ? red : tx.status === 'killed' ? yellow : cyan;
 
-  console.log(bold(`Transcript ${tx.id}`));
-  console.log(dim(`  Ship:      `) + tx.ship);
-  console.log(dim(`  Status:    `) + statusColor(tx.status));
-  console.log(dim(`  Trigger:   `) + tx.trigger);
-  console.log(dim(`  Backend:   `) + `${tx.backend} (${tx.model})`);
-  console.log(dim(`  Agent ID:  `) + tx.spawned_agent_id);
+  console.log(bold(`Transcript ${clean(tx.id)}`));
+  console.log(dim(`  Ship:      `) + clean(tx.ship));
+  console.log(dim(`  Status:    `) + statusColor(clean(tx.status)));
+  console.log(dim(`  Trigger:   `) + clean(tx.trigger));
+  console.log(dim(`  Backend:   `) + `${clean(tx.backend)} (${clean(tx.model)})`);
+  console.log(dim(`  Agent ID:  `) + clean(tx.spawned_agent_id));
   console.log(dim(`  Started:   `) + new Date(tx.started_at).toISOString());
   if (tx.ended_at) {
     const dur = relativeTime(tx.ended_at - tx.started_at);
@@ -225,7 +244,7 @@ export async function handleTranscriptsShow(args: string[], options: CLIOptions)
   if (tx.tokens_in != null || tx.tokens_out != null) {
     console.log(dim(`  Tokens:    `) + `in=${tx.tokens_in ?? 0}  out=${tx.tokens_out ?? 0}`);
   }
-  if (tx.error) console.log(dim(`  Error:     `) + red(tx.error));
+  if (tx.error) console.log(dim(`  Error:     `) + red(clean(tx.error)));
 
   console.log('');
   console.log(bold('── Conversation ──'));
@@ -240,13 +259,13 @@ export async function handleTranscriptsShow(args: string[], options: CLIOptions)
           : dim('tool');
     console.log('');
     console.log(`${ts} ${bold(label)}`);
-    // Indent body 2 spaces; preserve newlines.
-    for (const line of (m.content || '').split('\n')) {
+    // Indent body 2 spaces; preserve newlines. Sanitize DB-sourced content.
+    for (const line of clean(m.content || '').split('\n')) {
       console.log('  ' + line);
     }
     if (m.tool_calls && m.tool_calls.length > 0) {
       for (const tc of m.tool_calls) {
-        console.log(dim(`  ↳ tool: ${tc.name}`));
+        console.log(dim(`  ↳ tool: ${clean(tc.name)}`));
         try {
           const argsStr = JSON.stringify(tc.args, null, 2);
           for (const line of argsStr.split('\n')) console.log(dim('    ' + line));
@@ -266,8 +285,8 @@ export async function handleTranscriptsShow(args: string[], options: CLIOptions)
     console.log('');
     console.log(bold('── Outputs ──'));
     for (const o of tx.outputs) {
-      const url = o.url ? dim(`  ${o.url}`) : '';
-      console.log(`  ${yellow(`[${o.type}]`)} ${o.summary}${url}`);
+      const url = o.url ? dim(`  ${clean(o.url)}`) : '';
+      console.log(`  ${yellow(`[${clean(o.type)}]`)} ${clean(o.summary)}${url}`);
     }
   }
   console.log('');
@@ -362,14 +381,14 @@ function renderEvent(event: string, payload: Record<string, unknown>, options: C
       console.error(`[${ts}] connected to fleet:transcript-stream`);
       return;
     case 'start':
-      console.error(`[${ts}] START   ${payload.ship}/${payload.id}  ${payload.backend}  ${payload.trigger}`);
+      console.error(`[${ts}] START   ${clean(payload.ship)}/${clean(payload.id)}  ${clean(payload.backend)}  ${clean(payload.trigger)}`);
       return;
     case 'update':
-      console.error(`[${ts}] UPDATE  ${payload.ship}/${payload.id}  status=${payload.status}`);
+      console.error(`[${ts}] UPDATE  ${clean(payload.ship)}/${clean(payload.id)}  status=${clean(payload.status)}`);
       return;
     case 'end': {
       const cost = payload.cost_usd != null ? `$${(payload.cost_usd as number).toFixed(4)}` : '—';
-      console.error(`[${ts}] END     ${payload.ship}/${payload.id}  status=${payload.status}  cost=${cost}`);
+      console.error(`[${ts}] END     ${clean(payload.ship)}/${clean(payload.id)}  status=${clean(payload.status)}  cost=${cost}`);
       return;
     }
     default:
@@ -414,7 +433,7 @@ export async function handleTranscriptsCost(_args: string[], options: CLIOptions
 
   if (isQuiet(options)) {
     for (const s of rollup.by_ship) {
-      console.log(`${s.ship}\t${s.runs}\t${s.cost_usd.toFixed(6)}`);
+      console.log(`${clean(s.ship)}\t${s.runs}\t${s.cost_usd.toFixed(6)}`);
     }
     return;
   }
@@ -430,14 +449,14 @@ export async function handleTranscriptsCost(_args: string[], options: CLIOptions
   console.error('By ship:');
   console.error('  SHIP'.padEnd(28) + 'RUNS'.padEnd(8) + 'COST');
   for (const s of rollup.by_ship) {
-    console.error('  ' + s.ship.padEnd(26) + String(s.runs).padEnd(8) + `$${s.cost_usd.toFixed(6)}`);
+    console.error('  ' + clean(s.ship).padEnd(26) + String(s.runs).padEnd(8) + `$${s.cost_usd.toFixed(6)}`);
   }
   if (rollup.by_day && rollup.by_day.length > 0) {
     console.error('');
     console.error('By day:');
     console.error('  DAY'.padEnd(14) + 'SHIP'.padEnd(24) + 'RUNS'.padEnd(8) + 'COST');
     for (const d of rollup.by_day) {
-      console.error('  ' + d.bucket.padEnd(12) + d.ship.padEnd(24) + String(d.runs).padEnd(8) + `$${d.cost_usd.toFixed(6)}`);
+      console.error('  ' + clean(d.bucket).padEnd(12) + clean(d.ship).padEnd(24) + String(d.runs).padEnd(8) + `$${d.cost_usd.toFixed(6)}`);
     }
   }
   console.error('');
