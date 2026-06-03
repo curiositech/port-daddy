@@ -121,6 +121,7 @@ pd up     # Starts all services in dependency order with color-coded logs
 - **pd add**: Claim-aware `git add` — refuses to stage files held by another session.
 - **pd snapshots**: List/show/restore snapshots the daemon-side claim watcher captures when a claimed file's bytes change mid-claim.
 - **pd backup / pd restore**: Durable, WAL-consistent snapshots of the whole `port-registry.db` (gzipped, sha256-verified, integrity-checked) with GFS retention. `pd backup` takes one now; `pd backup list/show/prune` inspect and trim; `pd backup schedule install` (or `pd backup --install-schedule`) registers a daily launchd agent; `pd restore <id>` rolls the DB back reversibly. See ADR-0037.
+- **pd attest**: Honest self-report — runs the loud-fail invariant registry (daemon liveness, DB integrity/schema, crypto, brew-hash provenance, Cartographer up, …) and prints PASS/FAIL/SKIPPED/UNKNOWN per check. "All good" is conjunctive and scoped: green only when every checked critical+warn invariant passed, and the report always lists what it could NOT verify. Exits non-zero on any critical problem (CI/boot-gate friendly). See ADR-0045.
 - **pd status / pd version**: View system **info** and metrics.
 
 ### Session Lifecycle

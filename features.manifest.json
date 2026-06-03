@@ -968,6 +968,23 @@
         "get_launch_hints"
       ]
     },
+    "attest": {
+      "description": "Honest self-report + loud-fail invariants (ADR-0045) — pd attest / GET /attest",
+      "cli": [
+        "attest"
+      ],
+      "sdk": [],
+      "routes": [
+        "GET /attest"
+      ],
+      "completions": [
+        "attest"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
+    },
     "spawn": {
       "description": "Launch AI agents (Ollama, Claude, Gemini, Aider) with Port Daddy coordination",
       "cli": [

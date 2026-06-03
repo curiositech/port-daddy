@@ -315,6 +315,7 @@ describe('Test Group 3: API -> CLI Parity', () => {
     advisor: ['advise', 'preflight', 'compass'],
     launch: ['hints'],
     // arbiter and pheromone are API-only (no CLI commands) — excluded from parity check
+    attest: ['attest'],
     spawn: ['spawn', 'spawned'],
     fleet: ['fleet'],
     harbors: ['harbor', 'harbors'],
