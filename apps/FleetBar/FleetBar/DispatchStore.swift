@@ -225,7 +225,11 @@ final class DispatchStore: ObservableObject {
     @Published private(set) var dispatchRouteMissing = false
 
     private let baseURL: String
-    private var refreshTimer: Timer?
+    // `nonisolated(unsafe)` so the nonisolated `deinit` may invalidate the timer
+    // under Swift 6 strict concurrency (a non-Sendable `Timer?` is otherwise
+    // inaccessible from deinit). Mirrors CostStore/SecretsStore, which already
+    // compile clean on the Swift 6.2 toolchain CI uses.
+    private nonisolated(unsafe) var refreshTimer: Timer?
     private let session: URLSession
 
     init(autoStart: Bool = true, baseURL: String? = nil, session: URLSession = .shared) {
