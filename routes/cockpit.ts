@@ -12,8 +12,9 @@
  * to /sorties when they're ready.
  */
 
-import { basename } from 'node:path';
-import { readFileSync } from 'node:fs';
+import { basename, join, resolve, sep } from 'node:path';
+import { readFileSync, existsSync, readdirSync, statSync, appendFileSync, mkdirSync } from 'node:fs';
+import { homedir } from 'node:os';
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import { readMissions, MISSION_STATUSES, type MissionCard, type MissionIntake, type MissionStatus } from '../lib/cockpit-missions.js';
 import type { RoadmapItems } from '../lib/roadmap-items.js';
@@ -377,6 +378,189 @@ export const cockpitPlugin: FastifyPluginAsync<{ deps: CockpitDeps }> = async (f
       logger.error('cockpit_mission_detail_error', { error: (error as Error).message });
       reply.code(500);
       return { success: false, error: 'internal server error' };
+    }
+  });
+
+  // -----------------------------------------------------------------------
+  // Triage endpoints — surface gardener triage runs to the cockpit page.
+  //
+  // Data plane is file-backed for v1 to avoid a schema change while the
+  // 3.16 daemon-cleanup agent is in flight:
+  //   - Runs live in docs/recovery/<date>-gardener-triage/
+  //   - Decisions append to ~/.port-daddy/cockpit-triage-decisions.jsonl
+  //
+  // Promotion to a worktree_triage SQLite table is tracked separately
+  // (memory: triage-taxonomy-in-pd-db, gated on pd backup PR #157).
+  // -----------------------------------------------------------------------
+  const DECISIONS_DIR = join(homedir(), '.port-daddy');
+  const DECISIONS_FILE = join(DECISIONS_DIR, 'cockpit-triage-decisions.jsonl');
+
+  function listTriageRuns(projectDir: string): Array<{ id: string; date: string; path: string; itemCount?: number; hitlCount?: number; counts?: Record<string, number> }> {
+    const root = join(projectDir, 'docs', 'recovery');
+    if (!existsSync(root)) return [];
+    const runs: Array<{ id: string; date: string; path: string; itemCount?: number; hitlCount?: number; counts?: Record<string, number> }> = [];
+    for (const name of readdirSync(root)) {
+      if (!name.endsWith('-gardener-triage')) continue;
+      const runPath = join(root, name);
+      let stat;
+      try { stat = statSync(runPath); } catch { continue; }
+      if (!stat.isDirectory()) continue;
+      const dateMatch = /^(\d{4}-\d{2}-\d{2})/.exec(name);
+      const date = dateMatch ? dateMatch[1] : '';
+      // Try to read summary from raw/classified.json
+      let itemCount: number | undefined;
+      let hitlCount: number | undefined;
+      let counts: Record<string, number> | undefined;
+      try {
+        const classifiedPath = join(runPath, 'raw', 'classified.json');
+        if (existsSync(classifiedPath)) {
+          const data = JSON.parse(readFileSync(classifiedPath, 'utf8')) as { total?: number; hitl_count?: number; counts?: Record<string, number> };
+          itemCount = data.total;
+          hitlCount = data.hitl_count;
+          counts = data.counts;
+        }
+      } catch { /* skip metadata */ }
+      runs.push({ id: name, date, path: runPath, itemCount, hitlCount, counts });
+    }
+    runs.sort((a, b) => b.id.localeCompare(a.id)); // newest first
+    return runs;
+  }
+
+  function readTriageRun(projectDir: string, runId: string): { items: unknown[]; counts: Record<string, number>; total: number; hitl_count: number } | null {
+    // Allowlist: alphanumeric + `-` + `_`. Explicitly NO `.` (so `..` cannot slip in)
+    // and reject any `..` regardless. Containment is anchored to a HARDCODED root
+    // (docs/recovery/), never to a path that incorporates the untrusted runId.
+    if (!/^[a-zA-Z0-9\-_]+$/.test(runId) || runId.includes('..')) return null;
+    const trustedRoot = resolve(join(projectDir, 'docs', 'recovery'));
+    const classifiedPath = resolve(join(trustedRoot, runId, 'raw', 'classified.json'));
+    if (!classifiedPath.startsWith(trustedRoot + sep)) return null;
+    if (!existsSync(classifiedPath)) return null;
+    try {
+      return JSON.parse(readFileSync(classifiedPath, 'utf8')) as { items: unknown[]; counts: Record<string, number>; total: number; hitl_count: number };
+    } catch { return null; }
+  }
+
+  function readTriageDiff(projectDir: string, runId: string, safeName: string): string | null {
+    if (!/^[a-zA-Z0-9\-_]+$/.test(runId) || runId.includes('..')) return null;
+    if (!/^[a-zA-Z0-9\-_]+$/.test(safeName) || safeName.includes('..')) return null;
+    const trustedRoot = resolve(join(projectDir, 'docs', 'recovery'));
+    const diffPath = resolve(join(trustedRoot, runId, 'diffs', safeName + '.diff'));
+    if (!diffPath.startsWith(trustedRoot + sep)) return null;
+    if (!existsSync(diffPath)) return null;
+    try { return readFileSync(diffPath, 'utf8'); } catch { return null; }
+  }
+
+  function readDecisions(): Array<Record<string, unknown>> {
+    if (!existsSync(DECISIONS_FILE)) return [];
+    try {
+      const lines = readFileSync(DECISIONS_FILE, 'utf8').split('\n').filter(l => l.trim());
+      return lines.map(l => JSON.parse(l) as Record<string, unknown>);
+    } catch { return []; }
+  }
+
+  function appendDecision(entry: Record<string, unknown>) {
+    if (!existsSync(DECISIONS_DIR)) {
+      try { mkdirSync(DECISIONS_DIR, { recursive: true }); } catch { /* ignore */ }
+    }
+    const line = JSON.stringify({ ...entry, ts: Date.now() }) + '\n';
+    appendFileSync(DECISIONS_FILE, line);
+  }
+
+  fastify.get('/cockpit/triage/runs', async (request: FastifyRequest, reply: FastifyReply) => {
+    const q = (request.query as Record<string, unknown>) ?? {};
+    const projectDir = resolveProjectDir(q, repoRoot);
+    if (!projectDir) { reply.code(400); return { success: false, error: 'projectDir required' }; }
+    const v = validateProjectRoot(projectDir);
+    if (!v.ok) { reply.code(400); return { success: false, error: v.error }; }
+    try {
+      return { success: true, runs: listTriageRuns(projectDir) };
+    } catch (error) {
+      metrics.errors++;
+      logger.error('cockpit_triage_runs_error', { error: (error as Error).message });
+      reply.code(500);
+      return { success: false, error: 'internal server error' };
+    }
+  });
+
+  fastify.get('/cockpit/triage/items', async (request: FastifyRequest, reply: FastifyReply) => {
+    const q = (request.query as Record<string, unknown>) ?? {};
+    const projectDir = resolveProjectDir(q, repoRoot);
+    if (!projectDir) { reply.code(400); return { success: false, error: 'projectDir required' }; }
+    const v = validateProjectRoot(projectDir);
+    if (!v.ok) { reply.code(400); return { success: false, error: v.error }; }
+    const runId = typeof q.run === 'string' && q.run.trim() ? q.run : null;
+    if (!runId) {
+      const runs = listTriageRuns(projectDir);
+      if (runs.length === 0) { reply.code(404); return { success: false, error: 'no triage runs found in docs/recovery/' }; }
+      const data = readTriageRun(projectDir, runs[0].id);
+      if (!data) { reply.code(500); return { success: false, error: 'failed to read latest run' }; }
+      return { success: true, runId: runs[0].id, ...data };
+    }
+    const data = readTriageRun(projectDir, runId);
+    if (!data) { reply.code(404); return { success: false, error: `triage run '${runId}' not found` }; }
+    return { success: true, runId, ...data };
+  });
+
+  fastify.get<{ Params: { runId: string; safeName: string } }>(
+    '/cockpit/triage/diff/:runId/:safeName',
+    async (request, reply) => {
+      const q = (request.query as Record<string, unknown>) ?? {};
+      const projectDir = resolveProjectDir(q, repoRoot);
+      if (!projectDir) { reply.code(400); return { success: false, error: 'projectDir required' }; }
+      const v = validateProjectRoot(projectDir);
+      if (!v.ok) { reply.code(400); return { success: false, error: v.error }; }
+      const { runId, safeName } = request.params;
+      const content = readTriageDiff(projectDir, runId, safeName);
+      if (content == null) { reply.code(404); return { success: false, error: 'diff not found' }; }
+      reply.header('Content-Type', 'text/plain; charset=utf-8');
+      return content;
+    }
+  );
+
+  fastify.get('/cockpit/triage/decisions', async (request: FastifyRequest, reply: FastifyReply) => {
+    const q = (request.query as Record<string, unknown>) ?? {};
+    const runId = typeof q.run === 'string' ? q.run : undefined;
+    const all = readDecisions();
+    const filtered = runId ? all.filter(d => d.runId === runId) : all;
+    // Return latest decision per (runId, itemId)
+    const latest = new Map<string, Record<string, unknown>>();
+    for (const d of filtered) {
+      const key = `${d.runId}::${d.itemId}`;
+      latest.set(key, d);
+    }
+    return { success: true, decisions: Array.from(latest.values()) };
+  });
+
+  fastify.post('/cockpit/triage/decisions', async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as Record<string, unknown> | null;
+    if (!body || typeof body !== 'object') { reply.code(400); return { success: false, error: 'body must be a JSON object' }; }
+    const runId = typeof body.runId === 'string' ? body.runId : '';
+    const itemId = typeof body.itemId === 'string' ? body.itemId : '';
+    const decision = typeof body.decision === 'string' ? body.decision : '';
+    if (!runId || !itemId || !decision) { reply.code(400); return { success: false, error: 'runId, itemId, decision required' }; }
+    if (!['approved', 'rejected', 'modify', 'skip'].includes(decision)) {
+      reply.code(400); return { success: false, error: 'decision must be approved | rejected | modify | skip' };
+    }
+    const reason = typeof body.reason === 'string' ? body.reason : '';
+    if (decision === 'modify' && !reason) { reply.code(400); return { success: false, error: 'modify requires a reason' }; }
+    const entry = {
+      runId,
+      itemId,
+      decision,
+      reason,
+      cluster: typeof body.cluster === 'string' ? body.cluster : '',
+      branch: typeof body.branch === 'string' ? body.branch : '',
+      risk: typeof body.risk === 'string' ? body.risk : '',
+      author: typeof body.author === 'string' ? body.author : 'operator',
+    };
+    try {
+      appendDecision(entry);
+      return { success: true, entry };
+    } catch (error) {
+      metrics.errors++;
+      logger.error('cockpit_triage_decision_error', { error: (error as Error).message });
+      reply.code(500);
+      return { success: false, error: 'failed to persist decision' };
     }
   });
 
