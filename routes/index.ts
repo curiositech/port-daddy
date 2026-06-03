@@ -30,6 +30,7 @@ import { sugarPlugin } from './sugar.js';
 import { attentionPlugin } from './attention.js';
 import { launchPlugin } from './launch.js';
 import { spawnPlugin } from './spawn.js';
+import { attestPlugin } from './attest.js';
 import { transcriptsPlugin } from './transcripts.js';
 import { harborsPlugin } from './harbors.js';
 import { sortiesPlugin } from './sorties.js';
@@ -111,6 +112,7 @@ export async function registerAllRoutes(
   await fastify.register(attentionPlugin, { deps } as any);
   await fastify.register(launchPlugin, { deps } as any);
   await fastify.register(spawnPlugin, { deps } as any);
+  await fastify.register(attestPlugin, { deps } as any);
   await fastify.register(transcriptsPlugin, { deps } as any);
   await fastify.register(sortiesPlugin, { deps } as any);
   await fastify.register(harborsPlugin, { deps } as any);

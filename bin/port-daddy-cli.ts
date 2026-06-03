@@ -124,6 +124,8 @@ import {
   // Durable backups of port-registry.db (ADR-0037)
   handleBackup,
   handleRestore,
+  // Honest attestation / loud-fail invariants (ADR-0045)
+  handleAttest,
   // Shipwright — survey/propose/apply for fleet authoring
   handleShipwright,
   // App-Native Development Cockpit
@@ -1256,7 +1258,7 @@ const ALL_COMMANDS: string[] = [
   'advise', 'preflight', 'compass', 'guard',
   'salvage', 'resurrection', 'changelog', 'tunnel',
   'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
-  'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'backup', 'restore', 'shipwright',
+  'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'backup', 'restore', 'attest', 'shipwright',
   'spawn', 'spawned', 'watch', 'transcripts', 'transcript',
   'harbor', 'harbors', 'demo', 'fleet', 'tuple', 'sortie', 'graph', 'memory', 'ideas',
   'quorum',
@@ -2707,6 +2709,10 @@ export async function main(): Promise<void> {
 
       case 'backup':
         await handleBackup(positional, options);
+        break;
+
+      case 'attest':
+        await handleAttest(positional, options, PKG.version);
         break;
 
       case 'restore':
