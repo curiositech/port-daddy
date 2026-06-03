@@ -35,6 +35,7 @@ ADRs follow the [MADR format](https://adr.github.io/madr/) (Markdown Architectur
 | … | _(0025–0042 — index backfill tracked as `adr-0043-phase-5-retrofit-existing-adrs`)_ | | |
 | [0043](0043-adr-implementation-matrix.md) | ADRs Carry a Roadmap-Linked Implementation Matrix | Accepted | 2026-06 |
 | [0044](0044-shadow-db-path-consolidation.md) | Shadow-Mode DB Path Consolidation | Accepted | 2026-06 |
+| [0045](0045-loud-fail-invariants-and-honest-attestation.md) | Loud-Fail Invariants and Honest Attestation | Accepted | 2026-06 |
 
 ## How to Read These
 
