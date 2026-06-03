@@ -238,6 +238,12 @@ const productRoutes: SiteMetadata[] = [
     { ogSourceImage: OG_SOURCE_IMAGES.fleetbarInstall, ogSectionLabel: 'FleetBar' },
   ),
   metadata(
+    '/pd-tube',
+    'PD Tube',
+    'pd tube turns any local UI, hook, test runner, or webhook into an event your running agent answers in one shell call — and as of v3.16.2 a single channel fans out to many listeners, so distinct --as identities each receive every message.',
+    { ogSourceImage: OG_SOURCE_IMAGES.agentRuntime, ogSectionLabel: 'pd tube' },
+  ),
+  metadata(
     '/templates',
     'Agent Fleet Templates (deprecated)',
     'The top-level template library has moved under Agents. Use /agents/templates for current Port Daddy fleet templates and reusable agent patterns.',

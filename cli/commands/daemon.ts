@@ -30,6 +30,7 @@ import {
   type DaemonProfileState,
 } from '../../lib/daemon-profiles.js';
 import * as ui from '../utils/ui.js';
+import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
 
 // __dirname equivalent for ESM
 const __dirname = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
@@ -585,7 +586,7 @@ async function attemptDaemonStart(command: DaemonLaunchCommand): Promise<boolean
 /**
  * Handle `pd start|stop|restart|install|uninstall` command
  */
-export async function handleDaemon(action: string): Promise<void> {
+export async function handleDaemon(action: string, options: Record<string, unknown> = {}): Promise<void> {
   const libDir: string = join(__dirname, '..', '..');
   const tsxBin: string = join(libDir, 'node_modules', '.bin', 'tsx');
   const installScript: string = join(libDir, 'install-daemon.ts');
@@ -686,6 +687,12 @@ export async function handleDaemon(action: string): Promise<void> {
     }
 
     case 'stop': {
+      const okStop = await requireConfirmation({
+        summary: 'Daemon stop will SIGTERM the running Port Daddy daemon. Every active CLI/MCP/SDK connection drops; sessions remain in the DB but lose their live coordination heartbeat.',
+        args: options,
+      });
+      if (!okStop) process.exit(DESTRUCTIVE_EXIT_CODE);
+
       try {
         const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/health`);
         const data = await res.json();
@@ -710,9 +717,17 @@ export async function handleDaemon(action: string): Promise<void> {
     }
 
     case 'restart': {
-      await handleDaemon('stop');
+      const okRestart = await requireConfirmation({
+        summary: 'Daemon restart will stop the running daemon and start it again. All live SSE/socket connections drop and reconnect.',
+        args: options,
+      });
+      if (!okRestart) process.exit(DESTRUCTIVE_EXIT_CODE);
+
+      // Already confirmed at this layer — propagate as --yes to avoid a
+      // second prompt from the recursive 'stop' call.
+      await handleDaemon('stop', { ...options, yes: true });
       await new Promise<void>(r => setTimeout(r, 1000));
-      await handleDaemon('start');
+      await handleDaemon('start', options);
       break;
     }
 
@@ -728,6 +743,12 @@ export async function handleDaemon(action: string): Promise<void> {
     }
 
     case 'uninstall': {
+      const okUn = await requireConfirmation({
+        summary: 'Daemon uninstall will remove the launchd / brew-services daemon entry. Port Daddy will no longer auto-start on login until you run pd install again.',
+        args: options,
+      });
+      if (!okUn) process.exit(DESTRUCTIVE_EXIT_CODE);
+
       if (process.env.PORT_DADDY_CAN_SELF_DAEMON === '1') {
         const { runInstallDaemonCli } = await import('../../install-daemon.js');
         runInstallDaemonCli('uninstall');

@@ -21,6 +21,8 @@ Activate when encountering coordination complexity beyond simple sequential task
 
 ### Pattern Selection Tree
 
+See `diagrams/01_flowchart_control_flow_pattern_taxonomy_.md` for a visual rendering of this decision tree. The full pattern semantics are documented in `references/control-flow-pattern-taxonomy.md`.
+
 **IF** designing coordination structure:
 
 1. **Sequential dependency only?**
@@ -49,7 +51,7 @@ Activate when encountering coordination complexity beyond simple sequential task
 
 ### System Evaluation Decision Tree
 
-**IF** evaluating orchestration systems:
+**IF** evaluating orchestration systems (see `references/pattern-based-expressiveness-evaluation.md` for the evaluation framework; `diagrams/03_quadrantChart_system_expressiveness_vs._patt.md` for an expressiveness-vs-cost comparison chart):
 
 1. **Map required patterns** → List all coordination structures your domain needs
 2. **Test basic patterns** → Sequence, AND-split/join, XOR-split/join (if these fail, stop)
@@ -60,11 +62,13 @@ Activate when encountering coordination complexity beyond simple sequential task
 
 **Decision criteria:**
 - Natural implementation = supported
-- Workaround required = capability gap
+- Workaround required = capability gap (see `references/implementation-gaps-as-design-information.md`)
 - External code needed = wrong architecture
 - Race conditions appear = semantic mismatch
 
 ## Failure Modes
+
+See `diagrams/02_sequenceDiagram_pattern_interaction_failure_sc.md` for sequence diagrams of these failure scenarios.
 
 ### 1. OR-Split Confusion (Symptom: Wrong branches activate)
 **Detection**: OR-split activates all branches instead of runtime-determined subset, or requires manual branch selection
@@ -89,7 +93,7 @@ Activate when encountering coordination complexity beyond simple sequential task
 ### 5. Pattern Interaction Failures (Symptom: Unexpected behavior when patterns combine)
 **Detection**: Individual patterns work but combinations crash, undefined behavior at interaction boundaries
 **Root cause**: Ad-hoc pattern implementations without unified execution model
-**Fix**: Use systems with formal execution semantics (Petri nets, process algebras) or explicitly test all pattern combinations
+**Fix**: Use systems with formal execution semantics (Petri nets, process algebras) or explicitly test all pattern combinations. See `references/pattern-combinations-and-emergent-complexity.md` for analysis of non-composability.
 
 ## Worked Examples
 
@@ -182,4 +186,18 @@ Activate when encountering coordination complexity beyond simple sequential task
 - System monitoring → Use observability and monitoring skills
 - Security coordination → Use security architecture patterns
 
-**Boundary indicator**: If you're designing WHAT agents do (task logic), use domain skills. If you're designing HOW agents coordinate (control flow), use this skill.
+**Boundary indicator**: If you're designing WHAT agents do (task logic), use domain skills. If you're designing HOW agents coordinate (control flow), use this skill. See `references/coordination-as-first-class-problem.md` for a full treatment of why coordination deserves first-class engineering attention.
+
+## Bundled Assets
+
+### Diagrams
+
+Visual aids for pattern selection, failure diagnosis, and system expressiveness comparison.
+
+→ [`diagrams/INDEX.md`](diagrams/INDEX.md)
+
+### References
+
+Deep-dives on the pattern taxonomy, evaluation methodology, imperative vs. declarative tension, and systems evaluation beyond feature checklists.
+
+→ [`references/INDEX.md`](references/INDEX.md)

@@ -1,6 +1,7 @@
 // native fetch available in Node 18+
+import { resolveDaemonUrl } from '../shared/daemon-discovery.js';
 
-const BASE_URL = 'http://localhost:9876';
+const BASE_URL = resolveDaemonUrl();
 
 async function req(method: string, path: string, body?: any) {
   const options: RequestInit = {

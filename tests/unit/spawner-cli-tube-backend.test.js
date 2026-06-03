@@ -1,0 +1,257 @@
+/**
+ * CLI-tube backend unit tests.
+ *
+ * Mocks node:child_process.spawn to exercise:
+ *   - claude-code argv shape: `claude -p --output-format=text <prompt>`
+ *   - codex argv shape: `codex exec --skip-git-repo-check --full-auto ...`
+ *   - Tube publish: when a tubeClient is provided, the wrapper
+ *     publishes the result on the channel
+ *   - Auth failure mapping (stderr "unauthorized" → actionable error)
+ *   - ENOENT (binary not found) → next-step copy
+ *   - Tube channel naming: defaults to cli:<tool>:<short-uuid>
+ *   - tube: null suppresses publishing entirely
+ *
+ * No real CLI is invoked. Smoke tests against `claude` / `codex` live
+ * in tests/integration/spawner-cli-tube-smoke.test.js.
+ */
+
+import { jest } from '@jest/globals';
+import { EventEmitter } from 'node:events';
+import { Readable } from 'node:stream';
+
+const mockSpawn = jest.fn();
+
+jest.unstable_mockModule('node:child_process', () => ({
+  spawn: mockSpawn,
+}));
+
+const {
+  spawnViaCliTube,
+  buildArgs,
+  generateTubeChannel,
+  createCliTubeBackend,
+} = await import('../../lib/spawner/backends/cli-tube.js');
+
+// Helper: build a fake ChildProcess that we can drive from the test.
+function fakeChild({ stdout = '', stderr = '', exitCode = 0, error = null, delay = 0 } = {}) {
+  const ee = new EventEmitter();
+  ee.stdout = Readable.from([stdout]);
+  ee.stderr = Readable.from([stderr]);
+  ee.kill = jest.fn();
+  ee.pid = 4242;
+  setTimeout(() => {
+    if (error) {
+      ee.emit('error', error);
+    } else {
+      ee.emit('close', exitCode);
+    }
+  }, delay);
+  return ee;
+}
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  delete process.env.PD_CLI_CLAUDE_CODE_BIN;
+  delete process.env.PD_CLI_CODEX_BIN;
+});
+
+describe('buildArgs', () => {
+  test('claude-code uses -p + --output-format=text', () => {
+    const { args } = buildArgs('claude-code', 'hello');
+    expect(args[0]).toBe('-p');
+    expect(args).toContain('--output-format=text');
+    expect(args[args.length - 1]).toBe('hello');
+  });
+
+  test('claude-code includes --model when provided', () => {
+    const { args } = buildArgs('claude-code', 'hi', undefined, 'sonnet');
+    const idx = args.indexOf('--model');
+    expect(idx).toBeGreaterThan(-1);
+    expect(args[idx + 1]).toBe('sonnet');
+  });
+
+  test('codex uses exec + workspace-write sandbox', () => {
+    const { args } = buildArgs('codex', 'hello');
+    expect(args[0]).toBe('exec');
+    expect(args).toContain('--skip-git-repo-check');
+    expect(args).toContain('--full-auto');
+    expect(args).toContain('--sandbox');
+    expect(args[args.indexOf('--sandbox') + 1]).toBe('workspace-write');
+    expect(args).toContain('--json');
+  });
+
+  test('codex includes --output-last-message when outputPath provided', () => {
+    const { args } = buildArgs('codex', 'hi', '/tmp/fake.txt');
+    const idx = args.indexOf('--output-last-message');
+    expect(idx).toBeGreaterThan(-1);
+    expect(args[idx + 1]).toBe('/tmp/fake.txt');
+  });
+
+  test('throws on unknown tool', () => {
+    expect(() => buildArgs('bogus-tool', 'hi')).toThrow(/unknown cli tool/);
+  });
+});
+
+describe('generateTubeChannel', () => {
+  test('produces cli:<tool>:<short-uuid> format', () => {
+    const ch = generateTubeChannel('claude-code');
+    expect(ch).toMatch(/^cli:claude-code:[a-f0-9]{8}$/);
+  });
+
+  test('produces unique channels across calls', () => {
+    const a = generateTubeChannel('codex');
+    const b = generateTubeChannel('codex');
+    expect(a).not.toBe(b);
+  });
+});
+
+describe('spawnViaCliTube — claude-code happy path', () => {
+  test('invokes `claude` binary with the prompt', async () => {
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'Hello!', exitCode: 0 }));
+    const res = await spawnViaCliTube({ cli: 'claude-code', prompt: 'say hi' });
+    expect(mockSpawn).toHaveBeenCalledTimes(1);
+    const [binary, args] = mockSpawn.mock.calls[0];
+    expect(binary).toBe('claude');
+    expect(args).toContain('-p');
+    expect(args[args.length - 1]).toBe('say hi');
+    expect(res.output).toBe('Hello!');
+    expect(res.exitCode).toBe(0);
+    expect(res.error).toBeNull();
+  });
+
+  test('respects PD_CLI_CLAUDE_CODE_BIN env override', async () => {
+    process.env.PD_CLI_CLAUDE_CODE_BIN = '/custom/path/claude-beta';
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'ok', exitCode: 0 }));
+    await spawnViaCliTube({ cli: 'claude-code', prompt: 'hi' });
+    const [binary] = mockSpawn.mock.calls[0];
+    expect(binary).toBe('/custom/path/claude-beta');
+  });
+
+  test('returns the generated tube channel name', async () => {
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'hi', exitCode: 0 }));
+    const res = await spawnViaCliTube({ cli: 'claude-code', prompt: 'hi' });
+    expect(res.tube).toMatch(/^cli:claude-code:/);
+  });
+
+  test('tube: null suppresses channel naming', async () => {
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'hi', exitCode: 0 }));
+    const res = await spawnViaCliTube({ cli: 'claude-code', prompt: 'hi', tube: null });
+    expect(res.tube).toBeNull();
+  });
+});
+
+describe('spawnViaCliTube — tube publishing', () => {
+  test('publishes result via tubeClient when provided', async () => {
+    const publish = jest.fn(async () => ({ ok: true, id: 1 }));
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'Cool result', exitCode: 0 }));
+    const res = await spawnViaCliTube({
+      cli: 'claude-code',
+      prompt: 'hi',
+      tube: 'cli:test:abc',
+      tubeClient: { publish },
+      tubeSender: 'unit-test',
+    });
+    expect(publish).toHaveBeenCalledTimes(1);
+    const [channel, payload, opts] = publish.mock.calls[0];
+    expect(channel).toBe('cli:test:abc');
+    expect(payload.kind).toBe('cli-tube.result');
+    expect(payload.cli).toBe('claude-code');
+    expect(payload.ok).toBe(true);
+    expect(payload.output).toBe('Cool result');
+    expect(opts.sender).toBe('unit-test');
+    expect(res.output).toBe('Cool result');
+  });
+
+  test('does NOT publish when tube: null', async () => {
+    const publish = jest.fn();
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'hi', exitCode: 0 }));
+    await spawnViaCliTube({
+      cli: 'claude-code',
+      prompt: 'hi',
+      tube: null,
+      tubeClient: { publish },
+    });
+    expect(publish).not.toHaveBeenCalled();
+  });
+
+  test('swallows tube publish errors without failing the spawn', async () => {
+    const publish = jest.fn(async () => { throw new Error('tube offline'); });
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'hi', exitCode: 0 }));
+    const res = await spawnViaCliTube({
+      cli: 'claude-code',
+      prompt: 'hi',
+      tubeClient: { publish },
+    });
+    expect(res.output).toBe('hi');
+    expect(res.error).toBeNull();
+  });
+});
+
+describe('spawnViaCliTube — failure paths', () => {
+  test('ENOENT → "binary not found" error with auth hint', async () => {
+    mockSpawn.mockReturnValue(fakeChild({ error: Object.assign(new Error('spawn claude ENOENT'), { code: 'ENOENT' }) }));
+    const res = await spawnViaCliTube({ cli: 'claude-code', prompt: 'hi' });
+    expect(res.error).toContain('binary "claude" not found');
+    expect(res.error).toContain('claude setup-token');
+  });
+
+  test('auth failure in stderr surfaces actionable next-step', async () => {
+    mockSpawn.mockReturnValue(fakeChild({
+      stdout: '',
+      stderr: 'Error: not authenticated. Please log in.',
+      exitCode: 1,
+    }));
+    const res = await spawnViaCliTube({ cli: 'claude-code', prompt: 'hi' });
+    expect(res.error).toContain('authentication failed');
+    expect(res.error).toContain('claude setup-token');
+  });
+
+  test('non-auth non-zero exit reports the exit code', async () => {
+    mockSpawn.mockReturnValue(fakeChild({
+      stdout: '',
+      stderr: 'Something else broke',
+      exitCode: 2,
+    }));
+    const res = await spawnViaCliTube({ cli: 'claude-code', prompt: 'hi' });
+    expect(res.error).toContain('exited with code 2');
+    expect(res.error).toContain('Something else broke');
+  });
+
+  test('onChild callback receives the spawned child', async () => {
+    let captured;
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'hi', exitCode: 0 }));
+    await spawnViaCliTube({
+      cli: 'claude-code',
+      prompt: 'hi',
+      onChild: (c) => { captured = c; },
+    });
+    expect(captured).toBeDefined();
+    expect(captured.pid).toBe(4242);
+  });
+});
+
+describe('createCliTubeBackend', () => {
+  test('binds to a specific cli and passes through other options', async () => {
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'codex says hi', exitCode: 0 }));
+    const codex = createCliTubeBackend({ cli: 'codex' });
+    const res = await codex({ prompt: 'hello' });
+    const [binary, args] = mockSpawn.mock.calls[0];
+    expect(binary).toBe('codex');
+    expect(args[0]).toBe('exec');
+    expect(res.output).toBeTruthy();
+  });
+});
+
+describe('spawnViaCliTube — codex shape', () => {
+  test('uses --output-last-message and reads it on success', async () => {
+    mockSpawn.mockReturnValue(fakeChild({ stdout: '{"type":"log"}', exitCode: 0 }));
+    const res = await spawnViaCliTube({ cli: 'codex', prompt: 'do thing' });
+    const [binary, args] = mockSpawn.mock.calls[0];
+    expect(binary).toBe('codex');
+    expect(args).toContain('--output-last-message');
+    expect(res.exitCode).toBe(0);
+    // The file won't exist in this test (no real codex), so output
+    // falls back to stdout.
+    expect(typeof res.output).toBe('string');
+  });
+});

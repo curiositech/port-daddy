@@ -531,3 +531,9 @@ You have a well-designed agent labor mechanism when:
 - [ ] Revenue model identified and sustainable at target volume
 - [ ] An economist has reviewed the mechanism for arbitrage opportunities
 - [ ] Practical implementation path chosen (Stripe, crypto, or hybrid) with trade-offs documented
+
+---
+
+## Bundled Assets
+
+**Evaluations:** See `evals/evals.json` for test harnesses and expected outputs that validate mechanism designs against real scenarios. Use these prompts to verify your designs handle pricing decisions, settlement edge cases, incentive compatibility analysis, and failure modes in concrete contexts.

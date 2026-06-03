@@ -278,6 +278,7 @@ Synthesis is the human's responsibility (or the calling agent's), not a subagent
 
 | Script | Purpose |
 |--------|---------|
+| `scripts/_envelope.py` | Shared stdin/stdout envelope helpers imported by all other scripts |
 | `scripts/pki_decision.py` | Score ACME/OIDC/WoT against weighted criteria |
 | `scripts/verify_relay_handshake.py` | Verify a captured handshake against schema + sig |
 | `scripts/chain_verify.py` | Walk a per-publisher chain; detect breaks/forks |
@@ -306,6 +307,7 @@ Synthesis is the human's responsibility (or the calling agent's), not a subagent
 | `examples/chain-verification.md` | Detecting equivocation and forks in a Merkle chain |
 | `examples/attenuation-walkthrough.md` | Macaroons-style chain for a GH Actions publisher |
 | `examples/proverif-extension-example.md` | Extending an existing ProVerif file for the relay |
+| `examples/pd-tube-tutorial.md` | Hands-on walkthrough of `pd tube` — publish/read over Port Daddy message channels (local daemon; designed to compose with the relay) |
 
 ## OpenAPI
 
@@ -329,3 +331,16 @@ references_cited: [...]
 ```
 
 The synthesizer cross-tabulates verdicts. Any `ship_blocker: true` from `antagonist` requires explicit refutation in the ADR's Consequences section.
+
+---
+
+## Bundled Assets
+
+| Subdirectory | Index |
+|--------------|-------|
+| `agents/` | [`agents/INDEX.md`](agents/INDEX.md) — deliberation subagents |
+| `examples/` | [`examples/INDEX.md`](examples/INDEX.md) — worked examples and tutorials |
+| `references/` | [`references/INDEX.md`](references/INDEX.md) — design references and option analyses |
+| `schemas/` | [`schemas/INDEX.md`](schemas/INDEX.md) — JSON schemas for all wire types |
+| `scripts/` | [`scripts/INDEX.md`](scripts/INDEX.md) — executable scripts with selftest |
+| `templates/` | [`templates/INDEX.md`](templates/INDEX.md) — ADR templates and reference payloads |

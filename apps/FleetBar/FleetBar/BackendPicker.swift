@@ -1,0 +1,273 @@
+import SwiftUI
+
+// MARK: - BackendStatusRow
+//
+// Compact single-line indicator that lives near the top of the FleetBar
+// popover. The marketing value of the cli-tube backends only becomes real
+// when the operator can see "FREE — Claude Max" instead of "running."
+//
+// Renders nothing while the store hasn't loaded once, so the row doesn't
+// blink in for a frame on cold launch.
+
+struct BackendStatusRow: View {
+    @ObservedObject var store: BackendStore
+
+    var body: some View {
+        if !store.loadedOnce {
+            EmptyView()
+        } else if let headline = store.headlineBackend {
+            statusRow(headline)
+        } else {
+            noBackendRow
+        }
+    }
+
+    private func statusRow(_ entry: BackendEntry) -> some View {
+        HStack(alignment: .center, spacing: Fleet.Space.s) {
+            Image(systemName: entry.isFree ? "checkmark.seal.fill" : "bolt.horizontal.circle")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(entry.costKind.color)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Backend")
+                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(.tertiary)
+                    .textCase(.uppercase)
+                    .kerning(0.6)
+
+                Text(entry.name)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.primary)
+            }
+
+            Spacer(minLength: Fleet.Space.s)
+
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(entry.framing ?? "")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(entry.costKind.color)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+
+                Text(spendLabel)
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, Fleet.Space.l)
+        .padding(.vertical, Fleet.Space.m)
+        .background(Fleet.Chrome.panel)
+    }
+
+    private var noBackendRow: some View {
+        HStack(spacing: Fleet.Space.s) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 12))
+                .foregroundStyle(Fleet.Color.warning)
+            Text("No backend ready. Install `claude` or `codex` to ride your subscription.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer()
+        }
+        .padding(.horizontal, Fleet.Space.l)
+        .padding(.vertical, Fleet.Space.m)
+        .background(Fleet.Chrome.panel)
+    }
+
+    private var spendLabel: String {
+        if store.todaySpendIsAllFree {
+            return "$0 today · paid by your sub"
+        }
+        return store.todaySpendLabel
+    }
+}
+
+// MARK: - BackendPicker
+//
+// Full-section picker that lives in the FleetBar Settings panel.
+// Lists the catalog ranked by recommendation; each row is a button.
+// "Use Claude Max" / "Use ChatGPT Pro" rows write PD_USE_CLI_BACKEND to a
+// persistence file that survives across processes — the daemon picks it up
+// next restart, and `pd backend use` does the same thing from the CLI.
+
+struct BackendPicker: View {
+    @ObservedObject var store: BackendStore
+    @State private var lastAction: String?
+
+    // Persistence path mirrors cli/commands/backend.ts: ~/.port-daddy-cli-backend
+    // Concrete writes go through BackendCLIPersistence so the FCC Backend
+    // section can share the same path/format without duplicating logic.
+    private var persistPath: String { BackendCLIPersistence.path }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Fleet.Space.s) {
+            sectionHeader
+
+            if !store.loadedOnce {
+                ProgressView()
+                    .progressViewStyle(.linear)
+                    .padding(.vertical, Fleet.Space.s)
+            } else if store.backends.isEmpty {
+                Text("Daemon is not running or /fleet/models is unavailable.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(store.rankedForPicker) { entry in
+                    BackendPickerRow(
+                        entry: entry,
+                        isForced: store.forcedCliBackend == entry.id,
+                        onSelect: { select(entry) },
+                    )
+                }
+
+                clearRow
+            }
+
+            if let lastAction {
+                Text(lastAction)
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .padding(.top, Fleet.Space.xs)
+            }
+        }
+        .padding(.horizontal, Fleet.Space.l)
+        .padding(.vertical, Fleet.Space.m)
+        .background(Fleet.Chrome.panel)
+    }
+
+    private var sectionHeader: some View {
+        HStack(spacing: Fleet.Space.s) {
+            Image(systemName: "rectangle.stack.badge.person.crop")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+            Text("Backend")
+                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+                .kerning(0.6)
+            Spacer()
+            if let env = store.pdUseCliBackendEnv, !env.isEmpty {
+                Text("PD_USE_CLI_BACKEND=\(env)")
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(.tertiary)
+            }
+        }
+    }
+
+    private var clearRow: some View {
+        Button {
+            clearSelection()
+        } label: {
+            HStack {
+                Image(systemName: "arrow.uturn.backward.circle")
+                    .font(.system(size: 12))
+                Text("Disable forced backend — fall back to pd-fleet.yml")
+                    .font(.system(size: 12))
+                Spacer()
+            }
+            .padding(.horizontal, Fleet.Space.s)
+            .padding(.vertical, Fleet.Space.xs)
+            .foregroundStyle(.secondary)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func select(_ entry: BackendEntry) {
+        guard let envValue = entry.pdUseCliBackendValue else {
+            lastAction = "‘\(entry.name)’ isn’t a CLI-routable backend; cannot force via env."
+            return
+        }
+        writePersistence(envValue)
+        lastAction = "Wrote PD_USE_CLI_BACKEND=\(envValue) to ~/.port-daddy-cli-backend. Restart the daemon to apply."
+        Task { await store.refresh() }
+    }
+
+    private func clearSelection() {
+        clearPersistence()
+        lastAction = "Cleared ~/.port-daddy-cli-backend. Restart the daemon to apply."
+        Task { await store.refresh() }
+    }
+
+    private func writePersistence(_ value: String) {
+        BackendCLIPersistence.write(value)
+    }
+
+    private func clearPersistence() {
+        BackendCLIPersistence.clear()
+    }
+}
+
+// MARK: - BackendPickerRow
+
+struct BackendPickerRow: View {
+    let entry: BackendEntry
+    let isForced: Bool
+    let onSelect: () -> Void
+
+    var body: some View {
+        Button(action: onSelect) {
+            HStack(alignment: .top, spacing: Fleet.Space.s) {
+                statusDot
+
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(entry.name)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(.primary)
+                        if isForced {
+                            Text("ACTIVE")
+                                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                .padding(.horizontal, 4)
+                                .padding(.vertical, 1)
+                                .background(entry.costKind.color.opacity(0.18))
+                                .foregroundStyle(entry.costKind.color)
+                                .clipShape(RoundedRectangle(cornerRadius: 3))
+                        } else {
+                            Text(entry.costKind.badgeText)
+                                .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                                .foregroundStyle(entry.costKind.color)
+                                .textCase(.uppercase)
+                                .kerning(0.4)
+                        }
+                    }
+
+                    if let framing = entry.framing {
+                        Text(framing)
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
+
+                    if !entry.isReady, let nextStep = entry.readinessNextStep {
+                        Text(nextStep)
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundStyle(.tertiary)
+                            .lineLimit(2)
+                    }
+                }
+
+                Spacer()
+            }
+            .padding(.horizontal, Fleet.Space.s)
+            .padding(.vertical, Fleet.Space.s)
+            .background(rowBackground)
+            .clipShape(RoundedRectangle(cornerRadius: Fleet.Radius.small))
+        }
+        .buttonStyle(.plain)
+        .disabled(entry.pdUseCliBackendValue == nil)
+        .opacity(entry.pdUseCliBackendValue == nil ? 0.55 : 1.0)
+    }
+
+    private var statusDot: some View {
+        let color: Color = entry.isReady ? entry.costKind.color : Fleet.Color.dormant
+        return Circle()
+            .fill(color)
+            .frame(width: 8, height: 8)
+            .padding(.top, 4)
+    }
+
+    private var rowBackground: Color {
+        if isForced { return entry.costKind.color.opacity(0.08) }
+        return .clear
+    }
+}

@@ -101,7 +101,14 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
   // POST /sugar/done
   fastify.post('/sugar/done', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { agentId, sessionId, note, status } = request.body as any;
+      const {
+        agentId,
+        sessionId,
+        note,
+        status,
+        skipOriginCheck,
+        skipOriginCheckReason,
+      } = request.body as any;
 
       const VALID_DONE_STATUSES = new Set(['completed', 'abandoned']);
       if (status && !VALID_DONE_STATUSES.has(status)) {
@@ -113,14 +120,25 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         };
       }
 
-      const result = sugar.done({ agentId, sessionId, note, status });
+      const result = sugar.done({
+        agentId,
+        sessionId,
+        note,
+        status,
+        skipOriginCheck,
+        skipOriginCheckReason,
+      });
 
       if (!result.success) {
         const httpStatus = result.code === 'NO_ACTIVE_SESSION'
           ? 404
           : result.code === 'SESSION_OWNERSHIP_MISMATCH'
             ? 409
-            : 500;
+            : result.code === 'BRANCH_NOT_ON_ORIGIN'
+              || result.code === 'RESULT_NOTE_MISSING_SENTINEL'
+              || result.code === 'SKIP_ORIGIN_CHECK_REASON_REQUIRED'
+              ? 400
+              : 500;
         reply.code(httpStatus);
         return result;
       }

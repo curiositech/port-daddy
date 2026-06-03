@@ -20,9 +20,12 @@ import type { CostTracker } from './cost-tracker.js';
 import type { Counters } from './counters.js';
 import type { Bonds } from './bonds.js';
 import type { Harbors } from './harbors.js';
+import type { Transcripts, TranscriptOutput } from './transcripts.js';
 import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
 import { getSecret } from './secret-env.js';
 import { cloudflareAdapter, ollamaAdapter } from './llm-call.js';
+import { openaiAdapter, DEFAULT_OPENAI_MODEL, DEFAULT_OPENAI_TIMEOUT_MS } from './spawner/backends/openai.js';
+import { spawnViaCliTube, type CliTubeTool } from './spawner/backends/cli-tube.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { deriveAgentDisplayName } from './agent-names.js';
 
@@ -82,7 +85,7 @@ function loadDotenvOnce(): Record<string, string> {
 // =============================================================================
 
 export interface SpawnSpec {
-  backend: 'ollama' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'codex' | 'aider' | 'custom';
+  backend: 'ollama' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'codex' | 'aider' | 'custom' | 'openai' | 'cli:claude-code' | 'cli:codex';
   name?: string;        // human-readable display name
   model?: string;
   modelTier?: 'low' | 'mid' | 'high';
@@ -97,6 +100,14 @@ export interface SpawnSpec {
   timeout?: number;    // ms, default 300000
   allowedTools?: string;  // for claude-cli backend: tool permission string
   maxTokens?: number;     // for claude/claude-cli backends
+  // Transcript provenance (fleet ships set these so the dashboard surfaces
+  // "ship X handled PR Y on trigger Z"). All optional; standard /spawn HTTP
+  // callers leave them unset and get generic spawn-driven transcripts.
+  ship?: string;        // logical ship name (code-reviewer, qa, ...)
+  trigger?: string;     // e.g. 'pull_request:opened' or 'manual'
+  prNumber?: number;
+  issueNumber?: number;
+  systemPrompt?: string; // additional system message stored in transcript
 }
 
 export interface SpawnResult {
@@ -151,6 +162,10 @@ interface SpawnerDeps {
   counters?: Counters;
   bonds?: Bonds;
   harbors?: Harbors;
+  /** Optional transcripts module. When wired, every spawn records its full
+   *  conversation (system prompt + task + assistant output + tool calls) to
+   *  the fleet_transcripts table. Surface for `pd transcripts ...` + UI. */
+  transcripts?: Transcripts;
   enforceTelemetryPolicy?: boolean;
   telemetryBypassApproval?: TelemetryBypassApproval;
   runnerOverrides?: Partial<Record<SpawnSpec['backend'], (spec: SpawnSpec, model: string) => Promise<BackendRunResult>>>;
@@ -437,6 +452,47 @@ async function runCloudflare(spec: SpawnSpec, model: string): Promise<BackendRun
   return adaptLLMResult(result);
 }
 
+async function runOpenAI(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
+  const result = await openaiAdapter({
+    prompt: spec.task,
+    model,
+    maxTokens: spec.maxTokens,
+    signal: spec.timeout ? AbortSignal.timeout(spec.timeout) : undefined,
+  });
+  return adaptLLMResult(result);
+}
+
+/**
+ * Drive a local CLI tool (`claude` for claude-code, `codex` for codex)
+ * through the cli-tube wrapper. Output and exit metadata flow back as a
+ * normal BackendRunResult so the spawner's cost tracker, bond, and
+ * coordination paths apply unchanged.
+ *
+ * Token counts are not available from the wrapped CLIs (they own their
+ * own auth + billing), so this backend returns no telemetry fields and
+ * relies on the operator's flat-rate subscription (Claude Max / ChatGPT
+ * Pro) for cost accounting at the wallet layer.
+ */
+async function runCliTube(
+  spec: SpawnSpec,
+  cli: CliTubeTool,
+  context?: BackendRunContext,
+): Promise<BackendRunResult> {
+  const result = await spawnViaCliTube({
+    cli,
+    prompt: spec.task,
+    timeoutMs: spec.timeout,
+    cwd: spec.workdir,
+    env: { ...spec.env },
+    model: spec.model,
+    onChild: context?.onChildProcess,
+  });
+  return {
+    output: result.output,
+    error: result.error,
+  };
+}
+
 /**
  * Convert the unified `LLMCompletionResult` shape (used by lib/llm-call.ts)
  * into the spawner's legacy `BackendRunResult` shape. The spawner's outer
@@ -625,6 +681,27 @@ function runCustom(spec: SpawnSpec, context?: BackendRunContext): Promise<Backen
   }));
 }
 
+/**
+ * `PD_USE_CLI_BACKEND` override. When set to `claude-code` or `codex`,
+ * every spawn — regardless of `spec.backend` — routes through the
+ * matching `cli:<tool>` backend. Empty / unset values disable the
+ * override.
+ *
+ * This is the operator-level "I'm a Claude Max subscriber, use my
+ * unmetered CLI for everything" knob. Documented in
+ * `docs/fleet/backend-costs.md`.
+ */
+function resolveCliBackendOverride(): SpawnSpec['backend'] | null {
+  const raw = (process.env.PD_USE_CLI_BACKEND || '').trim().toLowerCase();
+  if (!raw) return null;
+  if (raw === 'claude-code' || raw === 'claude') return 'cli:claude-code';
+  if (raw === 'codex') return 'cli:codex';
+  // Unrecognized value — fail-closed: leave the original backend in
+  // place rather than silently routing nowhere. The spawner's outer
+  // error surface will report unknown backends if the value is bad.
+  return null;
+}
+
 function runClaudeCli(spec: SpawnSpec, context?: BackendRunContext): Promise<BackendRunResult> {
   const args = ['-p', spec.task];
   if (spec.model) {
@@ -668,10 +745,15 @@ const DEFAULT_MODELS: Record<SpawnSpec['backend'], string> = {
   'claude-cli': 'claude-cli',  // claude CLI manages its own model
   gemini: 'gemini-2.0-flash-exp',
   cloudflare: '@cf/zai-org/glm-4.7-flash',
+  openai: DEFAULT_OPENAI_MODEL,
   codex: 'gpt-5.4-mini',
+  'cli:claude-code': 'claude-cli',  // local claude CLI manages its own model
+  'cli:codex': 'codex-cli',          // local codex CLI manages its own model
   aider: 'aider',   // aider manages its own model selection
   custom: 'custom',
 };
+// Mark default-timeout knobs referenced elsewhere
+void DEFAULT_OPENAI_TIMEOUT_MS;
 
 // =============================================================================
 // Module factory
@@ -686,10 +768,95 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     counters,
     bonds,
     harbors,
+    transcripts,
     enforceTelemetryPolicy = true,
     telemetryBypassApproval,
     runnerOverrides = {},
   } = deps;
+
+  // ── Transcript helpers ──────────────────────────────────────────────────
+  // All transcript ops are best-effort: record/finalize failures must never
+  // block a spawn (the operator's spawn must succeed even if the recorder
+  // is misbehaving). Wrap every call.
+
+  function txStart(spec: SpawnSpec, agentId: string, model: string, startedAt: number): string | null {
+    if (!transcripts) return null;
+    try {
+      const ship = spec.ship || `spawn:${spec.backend}`;
+      const trigger = spec.trigger || 'manual';
+      const projectName = getProjectName(spec.identity);
+      const id = transcripts.start({
+        ship,
+        spawned_agent_id: agentId,
+        trigger,
+        backend: spec.backend,
+        model,
+        started_at: startedAt,
+        pr_number: spec.prNumber ?? null,
+        issue_number: spec.issueNumber ?? null,
+        project: projectName ?? null,
+        identity: spec.identity ?? null,
+      });
+      // Always record the initial prompt(s) as system + user messages.
+      if (spec.systemPrompt) {
+        try {
+          transcripts.appendMessage(id, {
+            role: 'system',
+            content: spec.systemPrompt,
+            timestamp: startedAt,
+          });
+        } catch { /* swallow */ }
+      }
+      try {
+        transcripts.appendMessage(id, {
+          role: 'user',
+          content: spec.task,
+          timestamp: startedAt,
+        });
+      } catch { /* swallow */ }
+      return id;
+    } catch {
+      return null;
+    }
+  }
+
+  function txAssistant(transcriptId: string | null, content: string, ts: number): void {
+    if (!transcripts || !transcriptId) return;
+    try {
+      transcripts.appendMessage(transcriptId, {
+        role: 'assistant',
+        content,
+        timestamp: ts,
+      });
+    } catch { /* swallow */ }
+  }
+
+  function txOutput(transcriptId: string | null, output: TranscriptOutput): void {
+    if (!transcripts || !transcriptId) return;
+    try {
+      transcripts.appendOutput(transcriptId, output);
+    } catch { /* swallow */ }
+  }
+
+  function txFinalize(
+    transcriptId: string | null,
+    status: 'completed' | 'failed' | 'killed',
+    endedAt: number,
+    telemetry: SpawnTelemetry | null,
+    error: string | null,
+  ): void {
+    if (!transcripts || !transcriptId) return;
+    try {
+      transcripts.finalize(transcriptId, {
+        status,
+        ended_at: endedAt,
+        cost_usd: telemetry?.costUsd ?? null,
+        tokens_in: telemetry?.inputTokens ?? null,
+        tokens_out: telemetry?.outputTokens ?? null,
+        error,
+      });
+    } catch { /* swallow */ }
+  }
 
   // Default bond per spawn when caller doesn't specify one. Tunable via
   // SpawnSpec.bondUsd; a misbehaving agent slashes this, a clean exit refunds.
@@ -908,6 +1075,10 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     };
     agents.set(agentId, record);
 
+    // Open a transcript row immediately so the live-tail surface (UI/SSE)
+    // sees the run before its (potentially long) LLM call returns.
+    const transcriptId = txStart(spec, agentId, model, startedAt);
+
     // Transition bond: escrowed → running. The markRunning call is what
     // cost-tracker's budget-guard hook looks at — bond must be 'running'
     // before any charge can slash it.
@@ -981,17 +1152,25 @@ export function createSpawner(deps: SpawnerDeps = {}) {
             }
           },
         };
-        switch (spec.backend) {
+        // Global env override: PD_USE_CLI_BACKEND=claude-code|codex forces
+        // every spawn through the local CLI tube, regardless of yml config.
+        // This is the "I have Claude Max, use that for everything" knob.
+        const cliOverride = resolveCliBackendOverride();
+        const effectiveBackend = cliOverride ?? spec.backend;
+        switch (effectiveBackend) {
           case 'ollama':    result = await runOllama(spec, model); break;
           case 'claude':    result = await runClaude(spec, model); break;
           case 'gemini':    result = await runGemini(spec, model); break;
           case 'cloudflare': result = await runCloudflare(spec, model); break;
+          case 'openai':    result = await runOpenAI(spec, model); break;
           case 'codex':     result = await runCodexCli(spec, model, childContext); break;
           case 'claude-cli': result = await runClaudeCli(spec, childContext); break;
+          case 'cli:claude-code': result = await runCliTube(spec, 'claude-code', childContext); break;
+          case 'cli:codex':       result = await runCliTube(spec, 'codex', childContext); break;
           case 'aider':     result = await runAider(spec, model, childContext); break;
           case 'custom':    result = await runCustom(spec, childContext); break;
           default:
-            result = { output: '', error: `Unknown backend: ${String(spec.backend)}` };
+            result = { output: '', error: `Unknown backend: ${String(effectiveBackend)}` };
         }
       }
 
@@ -1079,8 +1258,43 @@ export function createSpawner(deps: SpawnerDeps = {}) {
 
     if (!wasKilled) {
       const doneNote = error ? `Failed: ${error.slice(0, 200)}` : `Completed: ${(output || '').slice(0, 200)}`;
-      await pdCoordinate('/sugar/done', { agentId, note: doneNote });
+      // Spawner-managed agents bypass the pd-done origin-push rule: they
+      // are ephemeral workflow agents whose lifetime is tied to a
+      // subprocess, not a feature branch. The override marker makes the
+      // bypass auditable in session notes.
+      await pdCoordinate('/sugar/done', {
+        agentId,
+        note: doneNote,
+        skipOriginCheck: true,
+        skipOriginCheckReason: 'spawner-managed agent — lifecycle is subprocess, not feature branch',
+      });
     }
+
+    // Record assistant message + finalize transcript. Order matters: we
+    // append the assistant reply BEFORE finalize so the 'end' SSE event
+    // carries the full conversation.
+    if (output && !wasKilled) {
+      txAssistant(transcriptId, output, completedAt);
+    }
+    if (error) {
+      // Record the error itself as a final assistant turn so operators see
+      // why the run failed without having to cross-reference status.
+      txAssistant(transcriptId, `[error] ${error}`, completedAt);
+    }
+    // Outputs: minimal default — caller-driven via spec is not yet a thing,
+    // so the spawner emits a 'message' output summarizing the result. Fleet
+    // ships can later call transcripts.appendOutput() directly to add
+    // pr-comment / draft-pr / commit artifacts.
+    if (!wasKilled && transcriptId) {
+      const summary = error
+        ? `failed: ${error.slice(0, 160)}`
+        : `${spec.backend} returned ${(output || '').length} chars`;
+      txOutput(transcriptId, {
+        type: error ? 'noop' : 'message',
+        summary,
+      });
+    }
+    txFinalize(transcriptId, status, completedAt, telemetry, error);
 
     // Resolve bond. Clean exit → full refund; error → slash full bond with reason.
     // Why slash on any error: an error means the spawn didn't do its job; the
@@ -1186,7 +1400,29 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     }
 
     // PD coordination: done (fire-and-forget)
-    pdCoordinate('/sugar/done', { agentId, note: 'Killed by spawner' }).catch(() => {});
+    pdCoordinate('/sugar/done', {
+      agentId,
+      note: 'Killed by spawner',
+      status: 'abandoned',
+      skipOriginCheck: true,
+      skipOriginCheckReason: 'spawner-managed agent killed by operator',
+    }).catch(() => {});
+
+    // Finalize any open transcript for this agent. We don't keep the
+    // transcriptId on the AgentRecord (to avoid a circular type dep on the
+    // public SpawnedAgent shape), so kill() finalizes by spawned_agent_id.
+    if (transcripts) {
+      try {
+        const open = transcripts.listTranscripts({ agentId, status: 'running', limit: 1 });
+        for (const tx of open) {
+          transcripts.finalize(tx.id, {
+            status: 'killed',
+            ended_at: Date.now(),
+            error: 'Killed by spawner',
+          });
+        }
+      } catch { /* swallow */ }
+    }
   }
 
   return { spawn, list, kill };

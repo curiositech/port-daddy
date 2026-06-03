@@ -18,6 +18,7 @@ import type { PdFetchResponse } from '../utils/fetch.js';
 import { tableHeader, separator } from '../utils/output.js';
 import { CLIOptions, isQuiet, isJson } from '../types.js';
 import * as ui from '../utils/ui.js';
+import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
 
 interface DnsRecord {
   identity: string;
@@ -286,6 +287,12 @@ async function dnsLookup(hostname: string | undefined, options: CLIOptions): Pro
  * Cleanup stale DNS records
  */
 async function dnsCleanup(options: CLIOptions): Promise<void> {
+  const ok = await requireConfirmation({
+    summary: 'DNS cleanup will remove every stale record across all projects. Hostnames pointing at services that have since moved will stop resolving.',
+    args: options as Record<string, unknown>,
+  });
+  if (!ok) process.exit(DESTRUCTIVE_EXIT_CODE);
+
   const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/dns/cleanup`, {
     method: 'POST',
   });

@@ -106,15 +106,23 @@ _port_daddy() {
     # Briefing & History
     briefing history
     # Consolidated read/write (3.8.4)
-    say look sitrep pheromone ph advise preflight compass guard snapshots snapshot shipwright
+    say look sitrep pheromone ph advise preflight compass guard snapshots snapshot backup restore shipwright
     # Agent Inbox
     inbox
     # AI Agent Spawner + Watch
     spawn spawned sortie watch
+    # Fleet ship-run transcripts
+    transcripts transcript
+    # Dispatch (renamed from nightshift per ADR-0035) + review + morning
+    dispatch nightshift review morning
     # App-Native Development Cockpit
     cockpit
+    # Roadmap popper — autonomous roadmap-to-dispatch task puller
+    popper
     # Managed provider secret store (keychain-backed)
     secret secrets
+    # Harbormaster — canonical merge-owning actor body (ADR-0037)
+    harbormaster hm
     # Harbors (named permission namespaces)
     harbor harbors
     # Tuple space
@@ -134,7 +142,7 @@ _port_daddy() {
     # Orchestration
     up down
     # Benchmarking, Demos & Fleet
-    bench demo fleet
+    bench demo fleet backend
     # Project (+ alias)
     scan s projects p doctor diagnose hints
     # Project onboarding
@@ -1482,6 +1490,39 @@ _port_daddy() {
           ;;
         missions)
           _pd_opts '--project --status --limit --json'
+          ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
+    # popper  status|next|pop|enable|disable  [slug]
+    # -----------------------------------------------------------------------
+    popper)
+      local subcmd="${words[2]:-}"
+      case "$subcmd" in
+        '')
+          COMPREPLY=( $(compgen -W "status next pop enable disable" -- "$cur") )
+          ;;
+        *)
+          _pd_opts '--harbor --json'
+          ;;
+      esac
+      ;;
+
+    # -----------------------------------------------------------------------
+    # harbormaster  start|stop|status|queue  [--foreground --json]
+    # -----------------------------------------------------------------------
+    harbormaster|hm)
+      local subcmd="${words[2]:-}"
+      case "$subcmd" in
+        '')
+          COMPREPLY=( $(compgen -W "start stop status queue help" -- "$cur") )
+          ;;
+        start)
+          _pd_opts '--foreground'
+          ;;
+        status|queue)
+          _pd_opts '--json'
           ;;
       esac
       ;;

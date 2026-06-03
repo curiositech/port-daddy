@@ -40,6 +40,12 @@ const SYSTEM_TOOL_PATHS = ['/usr/local/bin', '/usr/bin', '/bin', '/usr/sbin', '/
 // macOS paths
 const PLIST_LABEL: string = 'com.portdaddy.daemon';
 const BOSUN_PLIST_LABEL: string = 'com.portdaddy.bosun';
+// The Homebrew `brew services` launchd job that already supervises the daemon
+// (KeepAlive=true). If this is loaded, our own com.portdaddy.daemon plist would
+// be a SECOND, competing supervisor for the same :daemon-port listener — that
+// duplicate is exactly what docs/operations/daemon-and-supervision.md flags as
+// the recurring failure mode. Detect it and refuse to create the duplicate.
+const BREW_DAEMON_LABEL: string = 'homebrew.mxcl.port-daddy';
 const LAUNCH_AGENTS: string = join(homedir(), 'Library', 'LaunchAgents');
 const PLIST_PATH: string = join(LAUNCH_AGENTS, `${PLIST_LABEL}.plist`);
 const BOSUN_PLIST_PATH: string = join(LAUNCH_AGENTS, `${BOSUN_PLIST_LABEL}.plist`);
@@ -89,6 +95,20 @@ function stopExistingCanonicalDaemon(): void {
       // Leave it if something still owns it.
     }
   }
+}
+
+/**
+ * Is the Homebrew-managed daemon supervisor (`homebrew.mxcl.port-daddy`)
+ * already loaded? If so, the daemon is already supervised with KeepAlive and we
+ * must NOT install a second `com.portdaddy.daemon` launchd job on top of it.
+ *
+ * Returns false on any non-darwin platform or if `launchctl` is unavailable.
+ */
+function brewDaemonServiceLoaded(): boolean {
+  if (PLATFORM !== 'darwin') return false;
+  const list: CommandResult = runCommand('launchctl', ['list']);
+  if (list.status !== 0 && !list.stdout) return false;
+  return list.stdout.includes(BREW_DAEMON_LABEL);
 }
 
 interface CommandResult {
@@ -255,8 +275,6 @@ function installMacOS(daemon: DaemonLaunchCommand): boolean {
     mkdirSync(LAUNCH_AGENTS, { recursive: true });
   }
 
-  stopExistingCanonicalDaemon();
-
   // Unload old service if present (handles label changes)
   const oldPlist: string = join(LAUNCH_AGENTS, 'com.erichowens.port-daddy.plist');
   if (existsSync(oldPlist)) {
@@ -264,6 +282,28 @@ function installMacOS(daemon: DaemonLaunchCommand): boolean {
     try { unlinkSync(oldPlist); } catch { /* ignore */ }
     console.log('  Removed legacy plist (com.erichowens.port-daddy)');
   }
+
+  // DEDUP GUARD: if Homebrew's `brew services` already supervises the daemon
+  // (homebrew.mxcl.port-daddy, KeepAlive=true), do NOT install a second
+  // launchd supervisor. Two KeepAlive jobs racing for the same listener is the
+  // recurring "two daemons fighting over :daemon-port" failure. Leave the brew
+  // service as the single supervisor; only ensure Bosun (a complementary,
+  // one-way heartbeat watcher) is present.
+  if (brewDaemonServiceLoaded()) {
+    console.log(`  Detected supervised daemon via Homebrew (${BREW_DAEMON_LABEL}).`);
+    console.log('  Skipping com.portdaddy.daemon launchd job to avoid a duplicate supervisor.');
+    console.log('  Your daemon is already supervised; manage it with: brew services restart port-daddy');
+    if (existsSync(PLIST_PATH)) {
+      runCommand('launchctl', ['unload', PLIST_PATH]);
+      try {
+        unlinkSync(PLIST_PATH);
+        console.log(`  Removed redundant ${PLIST_PATH}`);
+      } catch { /* leave it if something still owns it */ }
+    }
+    return installBosunMacOS();
+  }
+
+  stopExistingCanonicalDaemon();
 
   // Unload current if already installed
   if (existsSync(PLIST_PATH)) {

@@ -99,7 +99,7 @@ The atomicity composition theorem (Theorem 13.7): if each layer atomically imple
 - All higher layers inherit it
 - Replace implementations without re-proving upper layers
 
-This is why atomicity/linearizability is the right correctness condition for building composable systems. Weaker conditions (sequential consistency, eventual consistency) don't compose cleanly.
+This is why atomicity/linearizability is the right correctness condition for building composable systems. Weaker conditions (sequential consistency, eventual consistency) don't compose cleanly. See `references/reference-atomicity-and-consistency.md` for the full treatment.
 
 ---
 
@@ -209,6 +209,11 @@ Load these on demand based on what's needed:
 | `references/formal-proof-methods-for-distributed-systems.md` | Proving correctness; finding subtle bugs via formal reasoning; invariant-based arguments; simulation relations needed |
 | `references/synchronization-primitives-and-atomic-objects.md` | Shared-memory concurrency; compare-and-swap power hierarchy; wait-free vs. lock-free; building atomic objects from weaker primitives |
 | `references/algorithm-design-patterns-and-canonical-problems.md` | Need a known algorithm for a canonical problem (broadcast, election, snapshot); looking for a design pattern; connecting a new problem to a known one |
+| `references/reference-impossibility-results.md` | Need the full theoretical treatment of impossibility at Lynch's level of rigor — complete landscape of what cannot be built and why |
+| `references/reference-timing-and-partial-synchrony.md` | Need deep formal treatment of the three timing models; partial synchrony, GST, and real-time bounds on specific protocol guarantees |
+| `references/reference-formal-models-and-proof-methods.md` | Need the foundational I/O automata model and full formal proof machinery for reasoning about interleaved executions |
+| `references/reference-atomicity-and-consistency.md` | Building composable services from atomic objects; atomicity composition theorem in depth; what shared state can and cannot do |
+| `references/reference-algorithm-families-and-patterns.md` | Want the full taxonomy of algorithm families by problem class — why canonical solutions are minimal and their complexity signatures |
 
 ---
 
@@ -268,5 +273,9 @@ Choosing eventual consistency to escape CAP/FLP constraints without accounting f
 ✗ They argue informally that "the race condition can't happen in practice" rather than proving it can't happen via invariant.
 
 ---
+
+## Bundled Assets
+
+See [`references/INDEX.md`](references/INDEX.md) for the complete listing of all twelve reference documents with per-document loading triggers.
 
 *Load reference files from the table above when deeper treatment of a specific topic is needed.*

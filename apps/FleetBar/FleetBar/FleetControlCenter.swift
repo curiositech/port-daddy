@@ -3,6 +3,8 @@ import SwiftUI
 struct FleetControlCenter: View {
     @ObservedObject var store: FleetStore
     @ObservedObject var costStore: CostStore
+    @ObservedObject var dispatchStore: DispatchStore
+    @ObservedObject var backendStore: BackendStore
     @Environment(\.openURL) private var openURL
 
     @AppStorage(FleetControlRoute.surfaceKey) private var selectedSurfaceRaw = FleetControlSurface.flow.rawValue
@@ -362,7 +364,7 @@ struct FleetControlCenter: View {
             if runtimeState == "nominal" || status.status == "ok" { return Fleet.Color.healthy }
             return Fleet.Color.failure
         }()
-        let bosun = status.guardians?.bosun ?? status.guardians?.barnacle
+        let bosun = status.guardians?.bosun
         let daemon = status.daemon
         let buildVersion = daemon?.version ?? status.version
         let buildHash = daemon?.codeHash ?? "unknown"
@@ -552,7 +554,34 @@ struct FleetControlCenter: View {
         }
     }
 
+    @ViewBuilder
     private var content: some View {
+        if selectedSurface.isNative {
+            nativeSurfaceContent
+        } else {
+            embeddedSurfaceContent
+        }
+    }
+
+    @ViewBuilder
+    private var nativeSurfaceContent: some View {
+        switch selectedSurface {
+        case .nightshift:
+            FleetControlNightshiftSection(store: dispatchStore)
+        case .backend:
+            // Backend renders in-process so the operator sees the same
+            // BackendStore truth FleetBar's menubar uses, rather than riding
+            // the embedded /fleet-ui/ WebView.
+            FleetControlBackendSection(store: backendStore)
+                .padding(.horizontal, Fleet.Space.l)
+                .padding(.vertical, Fleet.Space.m)
+        default:
+            // Fallback should never trigger — every native case must be wired.
+            embeddedSurfaceContent
+        }
+    }
+
+    private var embeddedSurfaceContent: some View {
         ZStack {
             if store.isDaemonRunning, let embeddedControlPlaneURL {
                 FleetControlPlaneWebView(
@@ -826,6 +855,8 @@ struct FleetControlCenter: View {
     private func refreshAll() async {
         await store.refresh()
         await costStore.refresh()
+        await dispatchStore.refresh()
+        await backendStore.refresh()
         syncProjectSelection()
     }
 

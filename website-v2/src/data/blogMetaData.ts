@@ -19,6 +19,28 @@ export interface DeprecatedBlogPost {
 
 export const blogPostMetas: BlogPostMeta[] = [
   {
+    id: 'pd-tube-multi-subscriber',
+    slug: 'pd-tube-multi-subscriber',
+    title: 'One Send, Every Listener: pd tube Goes Multi-Subscriber',
+    date: '2026-06-01',
+    author: 'Erich Owens',
+    excerpt: "I built a two-pane demo of pd tube — a human and a live agent talking over one channel. It worked. Then I added a third listener and the bug fell out of the sky: whichever terminal polled first swallowed the message and the rest saw an empty channel. A 'broadcast' channel was quietly behaving like a vending machine. Here's the shared-cursor race that caused it, the per-listener-cursor fix that turned it into real fan-out, and the regression test that documents the old bug on purpose. Shipped in v3.16.2.",
+    tags: ['pd tube', 'Coordination', 'Multi-Agent', 'Pub/Sub', 'Dogfooding'],
+    heroImage: '/img/generated/tube-multiplex/hero.png',
+    heroAlt: 'A flat blueprint illustration: one broadcast node on the left fans out over cobalt wires to four identical listener terminals on the right, each showing the same messages and each holding its own small bookmark card',
+  },
+  {
+    id: 'attention-is-the-first-command',
+    slug: 'attention-is-the-first-command',
+    title: 'Attention Is The First Command',
+    date: '2026-05-22',
+    author: 'Erich Owens',
+    excerpt: 'Port Daddy has had a perfectly good mailbox for about a year. Inboxes, channels, tuples, a coordination-inconsistency stream where the fleet airs its complaints. Nobody was checking the mail. Each agent turn is a fresh process; nothing inside the turn polls. This is the verb that fixes it, the convention that makes the verb stick, the JSON schema that lets any harness adopt it — and the deliberate reason this is not an MCP tool.',
+    tags: ['Coordination', 'Adoption', 'Agent Harness', 'SessionStart', 'Convention'],
+    heroImage: '/img/generated/attention-first-command/hero.png',
+    heroAlt: 'A wood-paneled post office at dawn. A clerk slides letters into hundreds of pigeonholes labeled with agent names. Behind the counter, three closed doors are marked "Claude Code," "Gemini CLI," and "Codex CLI." Nobody is on the other side of the doors. The letters pile up.',
+  },
+  {
     id: 'pr-that-reviews-itself',
     slug: 'the-pr-that-reviews-itself',
     title: 'The PR That Reviews Itself',

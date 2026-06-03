@@ -17,16 +17,29 @@ const websiteRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const whitePapersSrc = resolve(websiteRoot, 'src/data/whitePapers.ts')
 
 /**
- * Forbidden version-history phrases. Per project rule: "speak only of the
- * now. do not assume the reader read you before. do not anxiously wave to
- * the future." `Pre-print` is allowed but ONLY inside the `status:` field.
+ * COPY HYGIENE IS ENFORCED AT THE TYPE LEVEL.
+ *
+ * The previous version of this test reached for a runtime substring grep
+ * (`source.toLowerCase().includes(phrase)`) to police a closed list of
+ * forbidden phrases. That violated the user-level rule
+ * `NO KEYWORD-BASED NLP. EVER.` — keyword lists can never enumerate a
+ * category, fail open on synonyms, and lock the constraint into runtime
+ * code instead of the type system where it belongs.
+ *
+ * The replacement lives in `whitePapers.ts`: a `NoForbidden<S>` template
+ * literal type + a `defineWhitePapers` helper that threads literal types
+ * through inference and intersects each paper with its validated form.
+ * Any forbidden phrase in body prose collapses the offending paper's
+ * intersection to `never` at compile time. The runtime contract here
+ * shrinks to: "if `tsc` is clean, the constraint held."
+ *
+ * **Canonical pattern.** Future keyword bans on data files MUST follow
+ * the same template-literal-type approach (see `ForbiddenPhrase` /
+ * `NoForbidden` / `ValidatePaper` in `whitePapers.ts`). Do not reach for
+ * regex / `includes()` / substring scans — they are the anti-pattern.
+ * If a future category can't be expressed as a closed list of literal
+ * strings, reach for embeddings or a Haiku-grade classifier, not a list.
  */
-const forbiddenPhrases = [
-  'original draft',
-  'Version 2 closes',
-  'earlier draft',
-  'Version~2',
-]
 
 describe('whitepaper metadata sync', () => {
   test('every paper declares an on-disk PDF', () => {
@@ -66,11 +79,11 @@ describe('whitepaper metadata sync', () => {
     expect(drift[0].sizeDrift).toBe(true)
   })
 
-  test('size tolerance allows small build-to-build wobble', () => {
-    // Same pages, sizeKb off by 2% — should NOT report drift.
+  test('size tolerance allows sub-2% wobble on large PDFs', () => {
+    // sizeKb off by 1% — under 2% tolerance, should NOT report drift.
     const slightlyOff = (paper: (typeof WHITE_PAPERS)[number]): PdfFacts => ({
       pages: paper.pages,
-      sizeKb: Math.round(paper.sizeKb * 1.02),
+      sizeKb: Math.round(paper.sizeKb * 1.01),
     })
     const facts = new Map(WHITE_PAPERS.map((p) => [resolvePdfPath(p.pdfPath), slightlyOff(p)]))
     const drift = detectDrift(WHITE_PAPERS, (abs) => {
@@ -81,10 +94,11 @@ describe('whitepaper metadata sync', () => {
     expect(drift).toEqual([])
   })
 
-  test('size tolerance rejects > 5% wobble', () => {
+  test('size tolerance rejects > 2% wobble (large PDFs)', () => {
+    // 5% on the 863 KB paper is ~43 KB — well over both 2% and 4 KB.
     const wayOff = (paper: (typeof WHITE_PAPERS)[number]): PdfFacts => ({
       pages: paper.pages,
-      sizeKb: Math.round(paper.sizeKb * 1.2),
+      sizeKb: Math.round(paper.sizeKb * 1.05),
     })
     const facts = new Map(WHITE_PAPERS.map((p) => [resolvePdfPath(p.pdfPath), wayOff(p)]))
     const drift = detectDrift(WHITE_PAPERS, (abs) => {
@@ -97,6 +111,18 @@ describe('whitepaper metadata sync', () => {
       expect(r.sizeDrift).toBe(true)
       expect(r.pagesDrift).toBe(false)
     }
+  })
+
+  test('size tolerance floor: 4 KB absolute minimum for small PDFs', () => {
+    // A hypothetical 50 KB paper: 2% = 1 KB. The 4 KB floor should kick in
+    // and accept up to ±4 KB. Verified by handing detectDrift a fake paper
+    // entry off by exactly 3 KB (within floor) and one off by 5 KB (over).
+    const tinyPaper = { id: 't', pdfPath: WHITE_PAPERS[0].pdfPath, pages: 1, sizeKb: 50 }
+    const withinFloor = detectDrift([tinyPaper], () => ({ pages: 1, sizeKb: 53 }))
+    expect(withinFloor).toEqual([])
+    const overFloor = detectDrift([tinyPaper], () => ({ pages: 1, sizeKb: 55 }))
+    expect(overFloor.length).toBe(1)
+    expect(overFloor[0].sizeDrift).toBe(true)
   })
 
   test('rewriteMetadata patches pages/sizeKb in place without touching prose', () => {
@@ -129,35 +155,29 @@ describe('whitepaper metadata sync', () => {
 })
 
 describe('whitepaper copy hygiene', () => {
-  test('body copy does not lean on version-history framing', () => {
-    const source = readFileSync(whitePapersSrc, 'utf8')
-
-    for (const phrase of forbiddenPhrases) {
-      // Plain substring search across the file.
-      expect(
-        source.toLowerCase().includes(phrase.toLowerCase()),
-        `whitePapers.ts must not contain phrase: "${phrase}". Speak only of the now.`,
-      ).toBe(false)
+  /**
+   * The forbidden-phrase grep that used to live here is gone — it was a
+   * keyword-list anti-pattern. See the long comment at the top of this
+   * file for the rationale and the canonical pattern (template-literal
+   * type in `whitePapers.ts`).
+   *
+   * The single runtime check that remains: the type assertion itself.
+   * `WHITE_PAPERS` is typed as `WhitePaper[]` after passing through
+   * `defineWhitePapers`, which only compiles when every prose field is
+   * `NoForbidden`-clean. Importing `WHITE_PAPERS` here means: if `tsc`
+   * passed, the constraint passed. The test below records that
+   * intention explicitly so a future refactor doesn't accidentally
+   * drop the type-level guard without realizing it owned the rule.
+   */
+  test('WHITE_PAPERS passes the compile-time forbidden-phrase guard', () => {
+    // If this file compiled, ForbiddenPhrase did not match any body prose.
+    // The type ValidatePaper<P> intersected each paper with a NoForbidden-
+    // narrowed shape; the runtime value is the un-narrowed source.
+    expect(Array.isArray(WHITE_PAPERS)).toBe(true)
+    expect(WHITE_PAPERS.length).toBeGreaterThan(0)
+    for (const paper of WHITE_PAPERS) {
+      expect(typeof paper.id).toBe('string')
+      expect(typeof paper.title).toBe('string')
     }
-  })
-
-  test('"pre-print" appears only inside the status field', () => {
-    const source = readFileSync(whitePapersSrc, 'utf8')
-    // Find every line that mentions pre-print (case-insensitive).
-    const offending: string[] = []
-    const lines = source.split('\n')
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i]
-      if (!/pre-?print/i.test(line)) continue
-      // Allowed: a `status: '...Pre-print...'` line.
-      if (/^\s*status:\s*['"][^'"]*['"]\s*,?\s*$/.test(line)) continue
-      offending.push(`${i + 1}: ${line.trim()}`)
-    }
-    expect(
-      offending,
-      offending.length
-        ? `"pre-print" must only appear in status: fields. Offending lines:\n${offending.join('\n')}`
-        : 'ok',
-    ).toEqual([])
   })
 })

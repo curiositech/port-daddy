@@ -11,15 +11,45 @@ import { createSessions } from '../../lib/sessions.js';
 import { createActivityLog } from '../../lib/activity.js';
 import { createSugar } from '../../lib/sugar.js';
 
-function setup() {
+/**
+ * Default-pass git-origin stub for unit tests.
+ *
+ * The real pd done now enforces "branch must be on origin" before
+ * marking a session completed. The pre-existing test corpus does not
+ * care about that — it was written before the rule existed and runs in
+ * an in-memory SQLite scratch environment that isn't a git worktree.
+ *
+ * Tests that DO want to exercise the gate (see "pd done origin rule"
+ * describe block below) construct their own checker stub via setup({
+ * gitOriginChecker: ... }).
+ */
+function passingChecker() {
+  return {
+    checkBranchOnOrigin: () => ({ ok: true, branch: 'feat/test', upstream: 'origin/feat/test', ahead: 0 }),
+  };
+}
+
+function setup(overrides = {}) {
   const db = createTestDb();
   const agents = createAgents(db);
   const sessions = createSessions(db);
   const activityLog = createActivityLog(db);
   sessions.setActivityLog(activityLog);
-  const sugar = createSugar({ agents, sessions, activityLog });
+  const sugar = createSugar({
+    agents,
+    sessions,
+    activityLog,
+    gitOriginChecker: overrides.gitOriginChecker || passingChecker(),
+  });
   return { db, agents, sessions, activityLog, sugar };
 }
+
+/**
+ * A complete result note that satisfies the new pd-done sentinel
+ * precondition (PR URL). Existing tests append this where they pass
+ * a final note so they don't trip the "missing sentinel" refusal.
+ */
+const VALID_RESULT_NOTE_WITH_PR = 'Result: shipped. PR opened: https://github.com/curiositech/port-daddy/pull/999';
 
 // =============================================================================
 // begin
@@ -231,7 +261,12 @@ describe('sugar.begin', () => {
     });
     expect(first.success).toBe(true);
 
-    const ended = sugar.done({ sessionId: first.sessionId });
+    // PR #160 added a hard precondition for completed sessions: the result
+    // note must carry the Result/PR sentinel (and the branch must be on
+    // origin — satisfied here by setup()'s passing gitOriginChecker mock).
+    // This test exercises the main-worktree gate lifecycle, not the PR-URL
+    // contract, so we just supply a conformant note to clear the gate.
+    const ended = sugar.done({ sessionId: first.sessionId, note: VALID_RESULT_NOTE_WITH_PR });
     expect(ended.success).toBe(true);
 
     // After the first session ends a second solo agent should be able
@@ -408,10 +443,12 @@ describe('sugar.done', () => {
     });
     expect(begin.success).toBe(true);
 
-    // Done
+    // Done — must include result-note sentinel (PR URL here) to satisfy
+    // the pd-done origin-push rule.
     const result = sugar.done({
       agentId: 'done-test',
       sessionId: begin.sessionId,
+      note: VALID_RESULT_NOTE_WITH_PR,
     });
 
     expect(result.success).toBe(true);
@@ -437,10 +474,11 @@ describe('sugar.done', () => {
       agentId: 'note-test',
     });
 
+    const finalNote = 'All tasks completed successfully. ' + VALID_RESULT_NOTE_WITH_PR;
     const result = sugar.done({
       agentId: 'note-test',
       sessionId: begin.sessionId,
-      note: 'All tasks completed successfully',
+      note: finalNote,
     });
 
     expect(result.success).toBe(true);
@@ -450,7 +488,7 @@ describe('sugar.done', () => {
     const notes = sessions.getNotes(begin.sessionId);
     const handoffNotes = notes.notes.filter(n => n.type === 'handoff');
     expect(handoffNotes.length).toBe(1);
-    expect(handoffNotes[0].content).toBe('All tasks completed successfully');
+    expect(handoffNotes[0].content).toBe(finalNote);
   });
 
   test('supports abandoned status', () => {
@@ -482,7 +520,7 @@ describe('sugar.done', () => {
       agentId: 'find-test',
     });
 
-    const result = sugar.done({ agentId: 'find-test' });
+    const result = sugar.done({ agentId: 'find-test', note: VALID_RESULT_NOTE_WITH_PR });
 
     expect(result.success).toBe(true);
     expect(result.sessionId).toBe(begin.sessionId);
@@ -512,7 +550,7 @@ describe('sugar.done', () => {
     const result = sugar.done({
       agentId: 'count-test',
       sessionId: begin.sessionId,
-      note: 'Final note',
+      note: 'Final note. ' + VALID_RESULT_NOTE_WITH_PR,
     });
 
     expect(result.success).toBe(true);
@@ -535,6 +573,204 @@ describe('sugar.done', () => {
     expect(result.success).toBe(false);
     expect(result.code).toBe('SESSION_OWNERSHIP_MISMATCH');
     expect(result.error).toContain('belongs to agent agent-a');
+  });
+});
+
+// =============================================================================
+// pd done — origin-push + result-note-sentinel rule (substrate fix 2026-05-20)
+//
+// Motivated by an incident where 9 worktree branches were orphaned because
+// agents wrote `pd done` without ever pushing their work. The rule:
+//   1. Branch must not be ahead of its upstream on origin.
+//   2. Result note must include one of: PR URL, "no-pr-yet:", or "not-applicable:".
+// Escape hatch: --skip-origin-check requires --reason.
+// =============================================================================
+
+describe('pd done origin rule', () => {
+  function aheadChecker(ahead = 3) {
+    return {
+      checkBranchOnOrigin: () => ({
+        ok: false,
+        code: 'BRANCH_AHEAD',
+        error: `Branch "feat/x" is ahead of origin/feat/x by ${ahead} commits.`,
+        hint: 'Push the branch first:\n    git push -u origin feat/x\n  Then re-run pd done.',
+        branch: 'feat/x',
+        upstream: 'origin/feat/x',
+        ahead,
+      }),
+    };
+  }
+  function noUpstreamChecker() {
+    return {
+      checkBranchOnOrigin: () => ({
+        ok: false,
+        code: 'NO_UPSTREAM',
+        error: 'Branch "feat/x" has no upstream — nothing has been pushed.',
+        hint: 'Push the branch and set its upstream:\n    git push -u origin feat/x\n  Then re-run pd done.',
+        branch: 'feat/x',
+        upstream: null,
+      }),
+    };
+  }
+  function spyingChecker() {
+    let calls = 0;
+    return {
+      calls: () => calls,
+      checkBranchOnOrigin: () => {
+        calls++;
+        return { ok: true, branch: 'feat/x', upstream: 'origin/feat/x', ahead: 0 };
+      },
+    };
+  }
+
+  test('refuses pd done when branch is ahead of origin (no push performed)', () => {
+    const { sugar, sessions } = setup({ gitOriginChecker: aheadChecker(3) });
+
+    const begin = sugar.begin({ purpose: 'Branch ahead case', agentId: 'ahead-agent' });
+
+    const result = sugar.done({
+      agentId: 'ahead-agent',
+      sessionId: begin.sessionId,
+      // Provide a valid sentinel so the FIRST refusal we hit is the
+      // origin-push check, not the note check.
+      note: VALID_RESULT_NOTE_WITH_PR,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.code).toBe('BRANCH_NOT_ON_ORIGIN');
+    expect(result.originCheckCode).toBe('BRANCH_AHEAD');
+    expect(result.ahead).toBe(3);
+    expect(result.branch).toBe('feat/x');
+    expect(result.upstream).toBe('origin/feat/x');
+    expect(result.error).toMatch(/ahead of origin\/feat\/x by 3 commits/);
+    expect(result.hint).toMatch(/git push -u origin feat\/x/);
+
+    // Session must remain ACTIVE — refusal is a hard precondition, not a
+    // soft warning. If pd done refused, no state changes.
+    const sessionInfo = sessions.get(begin.sessionId);
+    expect(sessionInfo.session.status).toBe('active');
+  });
+
+  test('refuses pd done when branch has no upstream', () => {
+    const { sugar } = setup({ gitOriginChecker: noUpstreamChecker() });
+
+    sugar.begin({ purpose: 'No upstream case', agentId: 'no-upstream-agent' });
+
+    const result = sugar.done({
+      agentId: 'no-upstream-agent',
+      note: VALID_RESULT_NOTE_WITH_PR,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.code).toBe('BRANCH_NOT_ON_ORIGIN');
+    expect(result.originCheckCode).toBe('NO_UPSTREAM');
+    expect(result.error).toMatch(/no upstream/);
+    expect(result.hint).toMatch(/git push -u origin/);
+  });
+
+  test('refuses pd done when result note lacks a sentinel', () => {
+    const checker = spyingChecker();
+    const { sugar, sessions } = setup({ gitOriginChecker: checker });
+
+    const begin = sugar.begin({ purpose: 'Missing sentinel case', agentId: 'no-sentinel-agent' });
+
+    // Note A: empty note (none provided)
+    const r1 = sugar.done({ agentId: 'no-sentinel-agent', sessionId: begin.sessionId });
+    expect(r1.success).toBe(false);
+    expect(r1.code).toBe('RESULT_NOTE_MISSING_SENTINEL');
+    expect(r1.error).toMatch(/PR URL/);
+    expect(r1.error).toMatch(/no-pr-yet/);
+    expect(r1.error).toMatch(/not-applicable/);
+
+    // Note B: a note with NO sentinel
+    const r2 = sugar.done({
+      agentId: 'no-sentinel-agent',
+      sessionId: begin.sessionId,
+      note: 'Work is done. Tests pass. Shipping later.',
+    });
+    expect(r2.success).toBe(false);
+    expect(r2.code).toBe('RESULT_NOTE_MISSING_SENTINEL');
+
+    // The cheap note check must fire BEFORE the git check, so the
+    // origin checker should not have been invoked yet.
+    expect(checker.calls()).toBe(0);
+
+    // Session must still be active.
+    const sessionInfo = sessions.get(begin.sessionId);
+    expect(sessionInfo.session.status).toBe('active');
+  });
+
+  test('succeeds with a valid PR URL note + clean origin', () => {
+    const { sugar, sessions } = setup({ gitOriginChecker: spyingChecker() });
+
+    const begin = sugar.begin({ purpose: 'Happy origin case', agentId: 'happy-agent' });
+
+    const result = sugar.done({
+      agentId: 'happy-agent',
+      sessionId: begin.sessionId,
+      note: 'Result: feature shipped. PR opened: https://github.com/curiositech/port-daddy/pull/143',
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.sessionStatus).toBe('completed');
+
+    // Each accepted sentinel form should also work.
+    const b2 = sugar.begin({ purpose: 'no-pr-yet case', agentId: 'no-pr-agent' });
+    const r2 = sugar.done({
+      agentId: 'no-pr-agent',
+      sessionId: b2.sessionId,
+      note: 'Result: paused. no-pr-yet: blocked on operator approval of design.',
+    });
+    expect(r2.success).toBe(true);
+
+    const b3 = sugar.begin({ purpose: 'not-applicable case', agentId: 'na-agent' });
+    const r3 = sugar.done({
+      agentId: 'na-agent',
+      sessionId: b3.sessionId,
+      note: 'Result: docs-only sync. not-applicable: documentation skill update, no PR needed.',
+    });
+    expect(r3.success).toBe(true);
+
+    // Session was completed.
+    const sessionInfo = sessions.get(begin.sessionId);
+    expect(sessionInfo.session.status).toBe('completed');
+  });
+
+  test('--skip-origin-check works only with a reason; stamps [OPERATOR-OVERRIDE]', () => {
+    const { sugar, sessions } = setup({ gitOriginChecker: aheadChecker(5) });
+
+    const begin = sugar.begin({ purpose: 'Override case', agentId: 'override-agent' });
+
+    // Without --reason: refusal.
+    const noReason = sugar.done({
+      agentId: 'override-agent',
+      sessionId: begin.sessionId,
+      skipOriginCheck: true,
+    });
+    expect(noReason.success).toBe(false);
+    expect(noReason.code).toBe('SKIP_ORIGIN_CHECK_REASON_REQUIRED');
+
+    // Still active after refusal.
+    expect(sessions.get(begin.sessionId).session.status).toBe('active');
+
+    // With --reason: success even though the (would-have-been) origin
+    // check would have refused (branch ahead by 5).
+    const ok = sugar.done({
+      agentId: 'override-agent',
+      sessionId: begin.sessionId,
+      skipOriginCheck: true,
+      skipOriginCheckReason: 'local experiment, not shipping',
+      note: 'tried thing X, did not work', // note WITHOUT a sentinel — override bypasses both gates
+    });
+    expect(ok.success).toBe(true);
+    expect(ok.sessionStatus).toBe('completed');
+
+    // The stored handoff note must carry the override stamp.
+    const notes = sessions.getNotes(begin.sessionId).notes;
+    const handoff = notes.find((n) => n.type === 'handoff');
+    expect(handoff).toBeTruthy();
+    expect(handoff.content).toMatch(/^\[OPERATOR-OVERRIDE skip-origin-check\] reason: local experiment, not shipping/);
+    expect(handoff.content).toContain('tried thing X');
   });
 });
 
@@ -690,7 +926,7 @@ describe('sugar lifecycle', () => {
     // 4. Done
     const done = sugar.done({
       agentId: 'lifecycle-test',
-      note: 'All done!',
+      note: 'All done! ' + VALID_RESULT_NOTE_WITH_PR,
     });
     expect(done.success).toBe(true);
     expect(done.notesCount).toBe(3); // 2 manual + 1 handoff
@@ -711,7 +947,7 @@ describe('sugar lifecycle', () => {
     expect(a1.sessionId).not.toBe(a2.sessionId);
 
     // Done agent 1
-    const d1 = sugar.done({ agentId: 'a1' });
+    const d1 = sugar.done({ agentId: 'a1', note: VALID_RESULT_NOTE_WITH_PR });
     expect(d1.success).toBe(true);
 
     // Agent 2 still active
@@ -719,7 +955,7 @@ describe('sugar lifecycle', () => {
     expect(who2.active).toBe(true);
 
     // Done agent 2
-    const d2 = sugar.done({ agentId: 'a2' });
+    const d2 = sugar.done({ agentId: 'a2', note: VALID_RESULT_NOTE_WITH_PR });
     expect(d2.success).toBe(true);
   });
 });

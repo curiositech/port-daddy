@@ -47,6 +47,8 @@ IF human involvement varies
 └─ MAINTAIN same conversational interface across modes
 ```
 
+See `references/dynamic-vs-static-conversation-topology.md` for when to predetermine interactions vs. adapt at runtime, and `references/control-through-natural-language-programming.md` for using system messages as control flow specifications.
+
 **Failure Recovery Strategy:**
 ```
 IF one-shot generation fails repeatedly
@@ -70,22 +72,22 @@ IF coordination breaks down
 **Monolithic Agent Syndrome**
 - *Symptom*: Single agent handling execution + validation + safety through complex prompts
 - *Detection*: Agent prompts exceed 500 tokens or contain multiple "Also, make sure to..." clauses
-- *Fix*: Decompose into specialized agents coordinating through conversation
+- *Fix*: Decompose into specialized agents coordinating through conversation (see `references/grounding-through-agent-specialization.md`)
 
 **Central Orchestrator Trap**
 - *Symptom*: Controller code that must understand every agent's internal capabilities
 - *Detection*: Orchestration logic contains agent-specific conditionals or capability mapping
-- *Fix*: Make agents conversable; let coordination emerge from message-passing patterns
+- *Fix*: Make agents conversable; let coordination emerge from message-passing patterns (see `references/conversation-as-coordination-mechanism.md`)
 
 **Human-as-Special-Case**
 - *Symptom*: Separate code paths for human vs autonomous operation modes
 - *Detection*: If/else branches checking for human participation before different execution flows
-- *Fix*: Treat humans as agents with configurable backends using same conversational interface
+- *Fix*: Treat humans as agents with configurable backends using same conversational interface (see `references/human-agency-as-configurable-backend.md`)
 
 **Brittle Control Flow**
 - *Symptom*: Hard-coded conversation sequences breaking when requirements change
 - *Detection*: Speaker order defined in code rather than conversation context or natural language rules
-- *Fix*: Use dynamic speaker selection or natural language control flow specifications
+- *Fix*: Use dynamic speaker selection or natural language control flow specifications (see `references/control-through-natural-language-programming.md` and `references/dynamic-vs-static-conversation-topology.md`)
 
 **Conversation History Blindness**
 - *Symptom*: Agents making decisions without sufficient conversation context
@@ -120,6 +122,8 @@ Key Decision Points Navigated:
 - Executor provided concrete feedback enabling iterative refinement  
 - Human stayed in loop without separate orchestration logic
 ```
+
+See `references/failure-recovery-through-conversation-iteration.md` for quantitative evidence on why multi-turn iteration outperforms one-shot generation.
 
 **Example 2: Dynamic Research Task**
 
@@ -160,7 +164,7 @@ Task completion requires all conditions verified:
 - [ ] Failure recovery: Error cases flow through conversation rather than breaking system
 - [ ] Human integration: Human participation uses same interface as AI agents
 - [ ] Message coherence: Each conversation turn advances toward task completion
-- [ ] Role separation: Computation (agent responses) distinct from control flow (speaker selection)
+- [ ] Role separation: Computation (agent responses) distinct from control flow (speaker selection) — see `references/computation-vs-control-separation.md`
 - [ ] Feedback loops: Validation/correction cycles built into conversation pattern
 - [ ] Scalability: Adding new agent capabilities doesn't require orchestration code changes
 - [ ] State management: Conversation history serves as complete system state
@@ -179,3 +183,8 @@ Task completion requires all conditions verified:
 - Conversation history would exceed token limits → Use `memory-management` skill for optimization
 - Integration with existing workflow engines → Use `system-integration` skill for adapter patterns
 - Performance optimization needed → Use `distributed-systems` skill for efficient coordination protocols
+
+## Bundled Assets
+
+- **Diagrams** — `diagrams/INDEX.md`: sequence, state, and mindmap diagrams for conversation flow, computation/control separation, and agent specialization architecture
+- **References** — `references/INDEX.md`: deep-dives on computation vs. control separation, natural language control flow, decentralized coordination, topology selection, failure recovery, agent specialization, and human-as-backend design

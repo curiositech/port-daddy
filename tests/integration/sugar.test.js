@@ -26,9 +26,24 @@ async function sugarBegin(body) {
 
 /**
  * Helper: POST /sugar/done
+ *
+ * NOTE: pd done now enforces "branch must be on origin + result note must
+ * have a PR-URL / no-pr-yet / not-applicable sentinel" (substrate fix
+ * 2026-05-20). The ephemeral test daemon runs against an in-memory DB
+ * and not necessarily a clean git worktree, so by default we bypass the
+ * rule via the documented escape hatch. Tests that intentionally
+ * exercise the precondition should pass `skipOriginCheck: false`
+ * explicitly. See lib/git-origin-check.ts.
  */
 async function sugarDone(body) {
-  return request('/sugar/done', { method: 'POST', body });
+  const finalBody = { ...body };
+  if (finalBody.skipOriginCheck === undefined) {
+    finalBody.skipOriginCheck = true;
+    finalBody.skipOriginCheckReason = 'integration-test default bypass';
+  } else if (finalBody.skipOriginCheck === false) {
+    delete finalBody.skipOriginCheck;
+  }
+  return request('/sugar/done', { method: 'POST', body: finalBody });
 }
 
 /**
@@ -259,7 +274,10 @@ describe('Sugar Integration Tests', () => {
       const notes = notesRes.data.notes || [];
       const handoffNotes = notes.filter(n => n.type === 'handoff');
       expect(handoffNotes.length).toBeGreaterThanOrEqual(1);
-      expect(handoffNotes.some(n => n.content === 'All done!')).toBe(true);
+      // Note: the integration-test sugarDone helper uses the
+      // [OPERATOR-OVERRIDE skip-origin-check] escape hatch by default so
+      // the daemon's note ends with the original text after the stamp.
+      expect(handoffNotes.some(n => typeof n.content === 'string' && n.content.includes('All done!'))).toBe(true);
     });
   });
 

@@ -90,7 +90,7 @@ jobs:
       - name: Use Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: 1.2.21
 
       - name: bun:sqlite regression tests (roadmap + usage-telemetry)
         run: npm run test:bun
@@ -101,6 +101,50 @@ jobs:
       - name: Boot compiled daemon and smoke hot routes
         run: bash scripts/smoke-compiled-daemon.sh
         timeout-minutes: 3
+
+      - name: Build compiled CLI binary
+        run: npm run build:bin
+
+      - name: Smoke compiled CLI `pd secret set` stdin path
+        # Drives the compiled-bun CLI's stdin read end-to-end: a piped value must
+        # reach the daemon, and empty stdin must error loudly (never a silent
+        # no-op). Guards the bun-compiled isTTY/setRawMode prompt regression.
+        run: bash scripts/smoke-compiled-cli-secret.sh
+        timeout-minutes: 3
+
+      - name: Smoke compiled CLI `pd tube --send` stdin path
+        # Same bun-compiled isTTY class: a piped body must post to the channel,
+        # and an interactive (PTY) `--send` with no pipe must error FAST rather
+        # than hanging forever on stdin EOF. Guards the tube-hang regression.
+        run: bash scripts/smoke-compiled-cli-tube.sh
+        timeout-minutes: 3
+
+      - name: Smoke compiled CLI actually RUNS (bare status + tube, via discovery)
+        # THE gate that was missing: the prior compiled smokes set PORT_DADDY_URL
+        # and the single-binary smoke only ran `__daemon`, so a compiled CLI that
+        # couldn't bootstrap or whose CLI path was dead shipped GREEN. This boots
+        # the daemon from the compiled binary, then drives the BARE CLI the way an
+        # operator does (discovery, no URL override): `pd status` 3x must run and
+        # report a running daemon, `pd tube --send` must post, and a 2-listener
+        # fan-out must deliver to both. Fails the build if the compiled CLI is dead.
+        run: bash scripts/smoke-compiled-cli-runs.sh
+        timeout-minutes: 3
+
+      - name: E2E compiled CLI surface — EVERY verb through the compiled binary
+        # The gigantic breaking E2E. smoke-compiled-cli-runs.sh proves the
+        # binary bootstraps; THIS drives every top-level verb in the
+        # bin/port-daddy-cli.ts dispatch through the COMPILED binary against a
+        # single scratch daemon (discovery env, never :9876, never the real
+        # ~/.port-daddy). Read verbs must run + print; mutating verbs round-trip
+        # (claim→release, lock→unlock, begin→done, note, pub, tube, tuple, dns)
+        # and clean up; dangerous/lifecycle verbs (install, start, spawn, watch,
+        # mcp, dashboard, …) are run in a non-mutating subform or explicitly
+        # SKIPped with a printed reason. A new dispatch verb that is neither
+        # tested nor skipped FAILS the build (verb-surface reconciliation), so
+        # the gate cannot silently rot. Guards against the failure that shipped
+        # green: the compiled binary silently dying (exit 1, empty output).
+        run: bash scripts/e2e-compiled-cli-surface.sh
+        timeout-minutes: 6
 
   lint:
     runs-on: ubuntu-latest
@@ -125,6 +169,38 @@ jobs:
           test -f .claude-plugin/plugin.json && echo "plugin.json exists" || exit 1
           node -e "JSON.parse(require('fs').readFileSync('.claude-plugin/plugin.json'))" && echo "plugin.json is valid JSON" || exit 1
 
+  skill-hygiene:
+    # Audit every skill bundle for drift on every PR. Fails the build if any
+    # bundle has orphaned docs, broken links, INDEX drift, or a missing INDEX
+    # hub. Uploads the snapshot JSON as a build artifact for inspection.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Python 3
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Auditor unit tests
+        run: python3 -m unittest discover -s skills/skill-hygiene/tests -p 'test_*.py' -v
+
+      - name: Audit every skill bundle
+        run: |
+          python3 skills/skill-hygiene/scripts/audit_skill_library.py \
+            --root skills \
+            --snapshot /tmp/skill-audit.json \
+            --no-persist \
+            --deterministic
+
+      - name: Upload audit snapshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: skill-audit-snapshot
+          path: /tmp/skill-audit.json
+          if-no-files-found: warn
+
   website-terminal-recordings:
     runs-on: ubuntu-latest
     steps:
@@ -142,7 +218,7 @@ jobs:
       - name: Use Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: 1.2.21
 
       - name: Install recorder tools
         run: |

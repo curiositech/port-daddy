@@ -83,7 +83,12 @@ const FORBIDDEN_BARNACLE_PATTERNS = [
   'createBarnacleWatcher',
   'BARNACLE_URL',
   'pd-barnacle',
-  'guardians\\.barnacle',
+  // Match both `guardians.barnacle` and the Swift optional-chain `guardians?.barnacle`.
+  // The `?` form previously slipped through and left dead compatibility fallbacks
+  // in the FleetBar app (purged 2026-06-01).
+  'guardians\\??\\.barnacle',
+  // The legacy decodable struct name. Bosun's response type is DaemonBosunResponse.
+  'DaemonBarnacleResponse',
 ];
 
 const INCLUDE_EXTS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.swift', '.rs']);

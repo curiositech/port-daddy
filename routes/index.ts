@@ -30,6 +30,7 @@ import { sugarPlugin } from './sugar.js';
 import { attentionPlugin } from './attention.js';
 import { launchPlugin } from './launch.js';
 import { spawnPlugin } from './spawn.js';
+import { transcriptsPlugin } from './transcripts.js';
 import { harborsPlugin } from './harbors.js';
 import { sortiesPlugin } from './sorties.js';
 import { orchestratorPlugin } from './orchestrator.js';
@@ -65,6 +66,8 @@ import { shipwrightPlugin } from './shipwright.js';
 import { usagePlugin } from './usage.js';
 import { testHooksPlugin } from './test-hooks.js';
 import { cockpitPlugin } from './cockpit.js';
+import { popperPlugin } from './popper.js';
+import { dispatchesPlugin } from './dispatches.js';
 import { setupPlugin } from './setup.js';
 import { secretsPlugin } from './secrets.js';
 
@@ -108,6 +111,7 @@ export async function registerAllRoutes(
   await fastify.register(attentionPlugin, { deps } as any);
   await fastify.register(launchPlugin, { deps } as any);
   await fastify.register(spawnPlugin, { deps } as any);
+  await fastify.register(transcriptsPlugin, { deps } as any);
   await fastify.register(sortiesPlugin, { deps } as any);
   await fastify.register(harborsPlugin, { deps } as any);
   await fastify.register(orchestratorPlugin, { deps } as any);
@@ -245,4 +249,16 @@ export async function registerAllRoutes(
   // App-Native Development Cockpit — read-only roadmap intake. Pure-function
   // markdown reader, no extra deps required.
   await fastify.register(cockpitPlugin, { deps } as any);
+
+  // Roadmap popper HTTP surface — operator's pd popper CLI + FleetBar
+  // Nightshift status banner. Conditional on deps.popper being supplied.
+  if ((deps as { popper?: unknown }).popper) {
+    await fastify.register(popperPlugin, { deps } as any);
+  }
+
+  // Dispatch queue HTTP surface — operator's POST /dispatches +
+  // accept/reject/cancel buttons. Requires `dispatchQueue` in deps.
+  if ((deps as { dispatchQueue?: unknown }).dispatchQueue) {
+    await fastify.register(dispatchesPlugin, { deps } as any);
+  }
 }

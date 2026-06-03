@@ -1,0 +1,134 @@
+/**
+ * Generic webhook trigger source — turns an arbitrary inbound HTTP POST
+ * into a FleetTriggerEvent. This is the escape hatch: anything not
+ * covered by the typed sources (Zapier, Tasker, n8n, a Raspberry Pi door
+ * sensor, your bank's transaction notifier) can dispatch into a fleet
+ * via this source.
+ *
+ * Spec syntax:
+ *   webhook:my-channel                     — listen on /webhooks/my-channel
+ *   webhook:my-channel(secret:HMAC_VAR)    — require X-PD-Webhook-Signature
+ *
+ * The daemon owns the HTTP receiver (routes/webhooks.ts when wired). This
+ * source registers a handler with that router and emits events as POSTs
+ * arrive. Until the receiver lands the registration is a stub that
+ * returns an empty handle — the operator can still parse the yml and
+ * the dry-run path validates the spec.
+ */
+
+import { timingSafeEqual, createHmac } from 'node:crypto';
+import type {
+  FleetTriggerEvent,
+  TriggerAvailability,
+  TriggerHandle,
+  TriggerSource,
+  TriggerSpec,
+} from '../types.js';
+
+interface WebhookPayload {
+  /** The channel slug from the spec ("my-channel"). */
+  channel: string;
+  /** Inbound HTTP headers (lowercased keys). */
+  headers: Record<string, string>;
+  /** Parsed body — JSON if Content-Type is application/json, else raw string. */
+  body: unknown;
+  /** Source IP (best-effort; behind a proxy this is the proxy's IP). */
+  sourceIp?: string;
+}
+
+export interface WebhookTriggerDeps {
+  /**
+   * The daemon's webhook router exposes a registration primitive. We
+   * inject it instead of importing so this module stays a leaf. The
+   * registration returns a deregister fn the source uses on stop().
+   *
+   * When the daemon hasn't wired the router yet, pass a no-op shim.
+   */
+  registerHandler: (
+    channel: string,
+    handler: (req: WebhookRequest) => Promise<WebhookResponse>,
+  ) => () => void;
+}
+
+export interface WebhookRequest {
+  headers: Record<string, string>;
+  body: unknown;
+  rawBody: Buffer;
+  ip?: string;
+}
+
+export interface WebhookResponse {
+  status: number;
+  body?: unknown;
+}
+
+export class WebhookTriggerSource implements TriggerSource {
+  readonly kind = 'webhook' as const;
+
+  constructor(private readonly deps: WebhookTriggerDeps) {}
+
+  async available(): Promise<TriggerAvailability> {
+    return { ready: true };
+  }
+
+  async start(spec: TriggerSpec, emit: (event: FleetTriggerEvent) => void): Promise<TriggerHandle> {
+    // The channel slug rides in `spec.type` (the part after `webhook:`).
+    const channel = spec.type;
+    if (!channel || channel === 'received') {
+      throw new Error('webhook trigger requires a channel slug: webhook:<channel>');
+    }
+
+    const secretEnvVar = spec.filters.secret ?? null;
+    const expectedSecret = secretEnvVar ? process.env[secretEnvVar] ?? null : null;
+
+    const deregister = this.deps.registerHandler(channel, async (req) => {
+      // If the spec asked for HMAC verification, enforce it.
+      if (expectedSecret) {
+        const signature = req.headers['x-pd-webhook-signature'] ?? '';
+        if (!verifyHmac(req.rawBody, expectedSecret, signature)) {
+          return { status: 401, body: { error: 'invalid signature' } };
+        }
+      }
+
+      const payload: WebhookPayload = {
+        channel,
+        headers: req.headers,
+        body: req.body,
+        sourceIp: req.ip,
+      };
+
+      const event: FleetTriggerEvent<WebhookPayload> = {
+        source: 'webhook',
+        type: channel,
+        timestamp: Date.now(),
+        payload,
+        metadata: {
+          correlation_id: req.headers['x-pd-correlation-id'] ?? `webhook:${channel}:${Date.now()}`,
+          sender: req.headers['x-pd-sender'] ?? req.ip,
+          consent_verified: Boolean(expectedSecret),
+        },
+      };
+      emit(event);
+      return { status: 200, body: { received: true } };
+    });
+
+    return {
+      async stop() {
+        deregister();
+      },
+    };
+  }
+}
+
+function verifyHmac(rawBody: Buffer, secret: string, signatureHeader: string): boolean {
+  if (!signatureHeader) return false;
+  // Header format: "sha256=<hex>"
+  const expected = createHmac('sha256', secret).update(rawBody).digest('hex');
+  const provided = signatureHeader.startsWith('sha256=') ? signatureHeader.slice(7) : signatureHeader;
+  if (expected.length !== provided.length) return false;
+  try {
+    return timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(provided, 'hex'));
+  } catch {
+    return false;
+  }
+}

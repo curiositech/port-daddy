@@ -1,13 +1,96 @@
 import {
   CheckCircle,
   Eye,
+  GitBranch,
   Handshake,
+  Layers,
   Lock,
+  Network,
   Scale,
   Shield,
   Terminal,
   type LucideIcon,
 } from 'lucide-react'
+
+/**
+ * Forbidden version-history phrases. Per project rule: "speak only of the
+ * now. do not assume the reader read you before. do not anxiously wave to
+ * the future." These phrases are banned in body copy at the **type level**
+ * via the `NoForbidden` template literal type below.
+ *
+ * This replaces the prior runtime substring grep (which violated the
+ * user-level `NO KEYWORD-BASED NLP. EVER.` rule). The constraint here is
+ * narrow and structural — a closed list of literal strings that cannot
+ * appear inside specific string-typed prose fields — not an open-ended
+ * keyword classifier. If you find yourself adding fuzzy matches or
+ * synonym expansion to this union, you have wandered into the rule's
+ * territory and should reach for embeddings or a Haiku classifier instead.
+ *
+ * `Pre-print` is exempt: it is intentionally allowed inside the `status:`
+ * field, which is typed as plain `string` (see `WhitePaper.status`).
+ *
+ * **CANONICAL PATTERN.** Future keyword bans on data files should follow
+ * this approach (template literal type narrowing the field), not a runtime
+ * regex. The compile pass is the test.
+ */
+type ForbiddenPhrase =
+  | 'original draft'
+  | 'Version 2 closes'
+  | 'earlier draft'
+  | 'Version~2'
+  | 'pre-print' // allowed only inside the `status` field — see WhitePaper.status below
+
+/**
+ * Compile-time guard: if `S` contains any `ForbiddenPhrase` as a substring,
+ * the type resolves to an explicit error string that `tsc` reports as a
+ * type mismatch (the call site expected the literal back, got the error).
+ * Otherwise it resolves to `S` unchanged.
+ *
+ * Only operates on string literal types — that's the whole trick. The
+ * `defineWhitePapers` helper below threads literal types through so the
+ * checker sees the actual prose.
+ */
+type NoForbidden<S extends string> =
+  S extends `${string}${ForbiddenPhrase}${string}`
+    ? '❌ contains forbidden phrase (see ForbiddenPhrase in whitePapers.ts)'
+    : S
+
+/**
+ * Apply `NoForbidden` to every string leaf in a paper object. Walks
+ * properties shallowly, then descends into the known `Array<{...}>` fields
+ * (glossary, sections, takeaways) one level deeper. Stops at `status` so
+ * the status field can mention "Pre-print" / version language without
+ * tripping. Stops at `highlights` because its leaves are `LucideIcon`
+ * components, not prose.
+ *
+ * Why not a generic deep walk: a fully-recursive walk on `T extends object`
+ * collides with the `T & {...}` intersection used in `defineWhitePapers`,
+ * collapsing the parameter to `never`. Hand-rolling the descent for the
+ * known paper shape avoids that and stays explicit about which prose
+ * fields are policed.
+ */
+type ValidateString<S> = S extends string ? NoForbidden<S> : S
+
+// Each element of glossary/sections/takeaways gets its string fields validated.
+type ValidateNestedElement<E> = { readonly [K in keyof E]: ValidateString<E[K]> }
+
+// Walk a tuple type, preserving its shape, applying ValidateNestedElement
+// to each element. Preserving the tuple shape is necessary because the
+// outer `T & ValidatePaper<T>` intersection collapses to `never` if the
+// validated form widens `readonly [a, b, c]` to `readonly X[]`.
+type ValidateTuple<T> = {
+  readonly [I in keyof T]: ValidateNestedElement<T[I]>
+}
+
+type ValidatePaper<P> = {
+  readonly [K in keyof P]: K extends 'status'
+    ? P[K]
+    : K extends 'highlights'
+      ? P[K] // LucideIcon refs, no prose to police
+      : K extends 'glossary' | 'sections' | 'takeaways'
+        ? ValidateTuple<P[K]>
+        : ValidateString<P[K]>
+}
 
 export interface WhitePaper {
   id: string
@@ -23,6 +106,11 @@ export interface WhitePaper {
   date: string
   pages: number
   sizeKb: number
+  /**
+   * The only field permitted to contain version language ("Version 2.5",
+   * "Pre-print", etc). Typed as plain `string` so it is exempt from the
+   * `NoForbidden` template-literal-type check applied to all other prose.
+   */
   status: string
   order: string
   /** A one-paragraph welcome that defines the central idea in plain language. */
@@ -38,7 +126,69 @@ export interface WhitePaper {
   takeaways: Array<{ title: string; body: string }>
 }
 
-export const WHITE_PAPERS: WhitePaper[] = [
+/**
+ * A readonly mirror of `WhitePaper` used only as the inference constraint on
+ * `defineWhitePapers`. The runtime / consumer-facing type is still
+ * `WhitePaper`. We need this because:
+ *
+ *   - `const T` inference treats array literals as readonly tuples.
+ *   - `WhitePaper.glossary` etc. are `Array<...>` (mutable).
+ *   - If the constraint is mutable, TS widens the inferred `T[I]` properties
+ *     to `string`, and `NoForbidden<string>` is a no-op (it can only narrow
+ *     literal types). The forbidden-phrase check would silently pass.
+ *
+ * `DeepReadonly<WhitePaper>` keeps the inferred `T` literal-typed all the
+ * way down so the `ValidateField` walk sees the actual prose.
+ */
+type DeepReadonly<T> = T extends (...args: never[]) => unknown
+  ? T
+  : T extends readonly (infer U)[]
+    ? readonly DeepReadonly<U>[]
+    : T extends object
+      ? { readonly [K in keyof T]: DeepReadonly<T[K]> }
+      : T
+
+/**
+ * Helper that enforces `NoForbidden` at the type level on every string leaf
+ * (except `status`) of every paper. If any prose contains a forbidden
+ * phrase, the call site fails to type-check: the literal-typed argument
+ * does not assign to the `ValidateField`-narrowed intersection.
+ *
+ * The `const` modifier on the type parameter (TS 5.0+) preserves literal
+ * types through inference; the parameter is `T & {[I in keyof T]:
+ * ValidateField<T[I]>}` so the inferred `T` stays literal while the
+ * additional mapped-type intersection enforces the substring constraint.
+ *
+ * The runtime is a pure identity — all the work happens in `tsc`.
+ */
+/**
+ * The signature uses a two-stage pattern:
+ *   1. `const T extends readonly DeepReadonly<WhitePaper>[]` infers `T` as
+ *      a literal-typed readonly tuple of the actual papers. The
+ *      `DeepReadonly<WhitePaper>` constraint matches the readonly tuple
+ *      shape so inference doesn't widen string literals.
+ *   2. The parameter is the **intersection** `T & {[I in keyof T]:
+ *      ValidatePaper<T[I]>}`. The intersection is reflexive in T (the
+ *      argument is structurally T), and TS performs the assignability
+ *      check against the second member, where `ValidatePaper` substitutes
+ *      forbidden-phrase strings with the explicit error literal. Mismatch
+ *      collapses the intersected paper to `never` — the call site then
+ *      reports cascading "X is not assignable to never" errors. The error
+ *      message is noisier than ideal, but the constraint holds: a
+ *      forbidden phrase anywhere in body prose fails compilation.
+ *
+ *   Trade-off: a more "pointed" error message (`Type "..." is not
+ *   assignable to "❌ contains forbidden phrase"`) requires dropping the
+ *   intersection and using a `T extends X ? T : never` return-type trick,
+ *   which TS happily silently widens. The intersection survives that.
+ */
+function defineWhitePapers<const T extends readonly DeepReadonly<WhitePaper>[]>(
+  papers: T & { readonly [I in keyof T]: ValidatePaper<T[I]> },
+): WhitePaper[] {
+  return papers as unknown as WhitePaper[]
+}
+
+export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
   {
     id: 'anchor-protocol',
     slug: 'anchor-protocol',
@@ -54,8 +204,8 @@ export const WHITE_PAPERS: WhitePaper[] = [
     readerHref: '/whitepaper/anchor-protocol',
     overviewHref: '/whitepaper?paper=anchor-protocol',
     date: 'May 2026',
-    pages: 22,
-    sizeKb: 690,
+    pages: 23,
+    sizeKb: 805,
     status: 'Version 1.2',
     order: '01',
     primer:
@@ -154,8 +304,8 @@ export const WHITE_PAPERS: WhitePaper[] = [
     readerHref: '/whitepaper/bonded-commons',
     overviewHref: '/whitepaper?paper=bonded-commons',
     date: 'May 2026',
-    pages: 37,
-    sizeKb: 863,
+    pages: 46,
+    sizeKb: 902,
     status: 'Version 2.5 (pre-print)',
     order: '02',
     primer:
@@ -249,7 +399,122 @@ export const WHITE_PAPERS: WhitePaper[] = [
       },
     ],
   },
-]
+  {
+    id: 'federated-harbor',
+    slug: 'federated-harbor',
+    title: 'The Federated Harbor',
+    subtitle:
+      'How two machines run by two different people share one project without one of them being put in charge of the other.',
+    thesis:
+      'Two daemons, two operators, one staging environment, four o\'clock demo. Inside each laptop the trust story is closed: tokens are signed, evidence is Merkle-chained, bonds are posted. Between the laptops it falls apart — Alice\'s capability card is gibberish to Bob\'s daemon and the bond she posted to cover a botched migration sits in the wrong harbor. This paper draws the federation boundary cleanly: a cross-machine capability transfer ceremony, a witness-logged revocation mesh with a named convergence bound, a settlement protocol whose escrow can refuse but cannot redirect, and an admission ceremony that is invitation-bounded rather than permissionless. Where we prove, we prove. Where we bound, we name the bound. Where we don\'t know, we say so.',
+    summary:
+      'A guided read of the Federated Harbor paper — why two trustworthy local daemons can still fail jointly, what four small primitives close the gap, and the honest list of open questions the paper does not answer.',
+    filename: 'federated-harbor-whitepaper',
+    pdfPath: '/whitepaper/federated-harbor-whitepaper.pdf',
+    readerHref: '/whitepaper/federated-harbor',
+    overviewHref: '/whitepaper?paper=federated-harbor',
+    date: 'May 2026',
+    pages: 27,
+    sizeKb: 710,
+    status: 'Version 0.9 (pre-print)',
+    order: '03',
+    primer:
+      'Picture the 4pm demo that motivated this paper. Alice runs the back end on her laptop, Bob runs the front end on his. Each operator has been doing the right things — capability tokens scoped tight, evidence trail kept honest, bond posted against the obvious risk. Inside either laptop the story is airtight. The demo still fails, and it fails in three predictable places: Alice\'s token is gibberish to Bob\'s daemon, Bob\'s revocation gossip never reaches Alice, and the bond Alice posted to cover the botched migration sits in her collateral pool while the migration lands in Bob\'s database. None of these is a bug in either machine. The bug is the assumption that one daemon\'s authority extends past its machine boundary. This paper is the federation surface that closes that assumption — without making either daemon sovereign over the other, without inventing a shared blockchain, and without pretending the open questions are smaller than they are.',
+    glossary: [
+      {
+        term: 'Harbor',
+        definition:
+          'One operator\'s machine running the Port Daddy daemon. Inside a harbor, the daemon is sovereign — it mints tokens, holds evidence, and enforces policy. Between harbors, no single daemon is in charge. The federation paper draws the line.',
+      },
+      {
+        term: 'Witness log',
+        definition:
+          'An append-only log to which each harbor publishes its current state root. Any third party can audit any harbor\'s view without trusting the publisher. Borrowed from Certificate Transparency, the system that watches the public web\'s TLS certificates.',
+      },
+      {
+        term: 'Capability transfer',
+        definition:
+          'The four-message ceremony by which a token issued at harbor A becomes a (more restricted) token usable at harbor B. Neither daemon trusts the other\'s signing key as a root; both agree only on what the witness log says.',
+      },
+      {
+        term: 'Bounded escrow',
+        definition:
+          'A third party that holds the bond during cross-harbor settlement. Its decision space is exactly two outcomes: pay out, or refuse and return. It cannot redirect funds, cannot equivocate, cannot extract more than a pre-agreed fee. Trusted, but not trustlessly trusted.',
+      },
+      {
+        term: 'Bonded sponsorship',
+        definition:
+          'How a new harbor joins the federation without prior reputation. An existing harbor posts a bond on the newcomer\'s behalf, forfeit if the newcomer misbehaves during probation. Federation-layer analogue of competitive insurance.',
+      },
+      {
+        term: 'Convergence bound',
+        definition:
+          'A named upper bound on how long a revocation takes to reach every federated harbor. The paper proves Δ(1 + ln m) where m is the federation size and Δ is the gossip period. The bound is the attacker\'s window, and the bond is sized to cover damage within it.',
+      },
+    ],
+    whatYouGet:
+      'You should leave able to (a) explain to a security reviewer why federating two trustworthy local daemons is harder than it looks, and which three things go wrong first; (b) sketch the cross-machine capability transfer on a whiteboard with the epoch-root binding in the right place; (c) name the threat band each protocol claim lives in — mechanized, bounded, or honestly open — and not confuse them. The paper has five named open questions and we treat that as a feature.',
+    forBuilders:
+      'If you are building infrastructure for two or more organizations to coordinate agent work across an administrative boundary, this paper gives you the four primitives: the transfer ceremony, the federated revocation mesh, the bounded settlement escrow, and the bonded-sponsor admission protocol. Each does exactly one job. Each is honest about what it does not do. The composition is the contribution.',
+    highlights: [
+      { icon: Network, label: 'Two harbors, no central authority' },
+      { icon: GitBranch, label: 'Witness-logged revocation gossip' },
+      { icon: Scale, label: 'Bounded escrow, atomic settlement' },
+      { icon: Layers, label: 'Layered defense, named threat bands' },
+    ],
+    sections: [
+      {
+        title: 'The two-machine problem',
+        content:
+          'Both daemons are internally consistent. Neither is a root of authority for the other. The bug is structural, not in either machine — and the rest of the paper is the cleanest set of fixes the author could find that does not introduce a blockchain.',
+      },
+      {
+        title: 'The four-element gestalt',
+        content:
+          'Two harbors, a shared witness log above, a settlement escrow below. Every protocol in the paper attaches to one of these four elements. The diagram is deliberately small.',
+      },
+      {
+        title: 'Capability transfer across the boundary',
+        content:
+          'A four-message ceremony that produces a card valid at the receiving harbor, signed under the receiving harbor\'s key, with the issuing harbor\'s current epoch root bound into the envelope. No hot-path lookup back to the issuer.',
+      },
+      {
+        title: 'Federated revocation with a named bound',
+        content:
+          'The cuckoo-filter gossip of the Anchor paper, extended to multi-administrative-domain settings. Expected propagation time across m federated harbors is Δ(1 + ln m). Cross-witness equivocation is detectable in O(log m) audit rounds.',
+      },
+      {
+        title: 'Cross-harbor settlement, structurally bounded',
+        content:
+          'A bond posted at A clears against damage measured at B through an escrow whose decision space is two outcomes. The escrow cannot redirect funds, cannot equivocate, cannot extract more than a pre-agreed fee. Theorem 6.1 in the paper.',
+      },
+      {
+        title: 'Admission without permissionlessness',
+        content:
+          'A new harbor joins under a bonded sponsor: an existing harbor underwrites the newcomer\'s probationary risk. The federation is invitation-bounded by design. Sybil attacks at the federation layer cost what honest admission costs.',
+      },
+      {
+        title: 'A worked example and an honest open frontier',
+        content:
+          'Two organizations, three machines, one real schema migration, a real failure, a real settlement. Then a final section that names five open questions the paper does not answer — including whether trustless settlement is even possible for non-fungible reputation-priced bonds.',
+      },
+    ],
+    takeaways: [
+      {
+        title: 'Sovereignty does not extend past the machine boundary, and that is fine',
+        body: 'Two daemons each fully in charge of their own machines is the right architecture for cross-organization work. The federation paper is the rules of engagement at the boundary — not a new sovereign, not a blockchain, not a hub-and-spoke service. Four small primitives, each doing one job.',
+      },
+      {
+        title: 'Bound the threat instead of trying to eliminate it',
+        body: 'The convergence bound on revocation gossip is the attacker\'s window. The structurally bounded escrow is the trusted third party\'s worst-case extraction. The paper is disciplined about pricing the bond against the named bound rather than promising a window of zero. Defense in depth, in the same posture as the prior two papers.',
+      },
+      {
+        title: 'Name the open questions, do not hide them',
+        body: 'Three of the most interesting questions in the paper — whether the correlated-equilibrium framing from Bonded survives the multi-principal extension, whether trustless settlement is possible for non-fungible bonds, whether cartels form more easily across federations than within one — are stated as open. They are not throwaway caveats. A federation paper with five named open questions is doing its job.',
+      },
+    ],
+  },
+])
 
 export const READING_ORDER = [
   {
@@ -264,8 +529,13 @@ export const READING_ORDER = [
   },
   {
     step: '03',
+    title: 'Then the federation layer',
+    body: 'Read the Federated Harbor last. The first two papers stay inside one machine. This one is the cross-machine sequel: two daemons, two operators, one shared project, and the rules of engagement at the boundary. The paper is honest that several of its most interesting questions are still open; that posture is the point.',
+  },
+  {
+    step: '04',
     title: 'Then go look at the actual software',
-    body: 'Both papers describe a daemon you can install and poke at. After you have read them, the rest of this site stops looking like marketing — sessions, file claims, locks, durable notes, and recovery from crashes are the moving parts the papers were arguing about. The papers describe the rules; the daemon enforces them.',
+    body: 'All three papers describe a daemon you can install and poke at. After you have read them, the rest of this site stops looking like marketing — sessions, file claims, locks, durable notes, recovery from crashes, and the cross-machine coordination surface in v4 are the moving parts the papers were arguing about. The papers describe the rules; the daemon enforces them.',
   },
 ] as const
 

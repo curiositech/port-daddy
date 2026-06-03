@@ -43,6 +43,15 @@
       --transition-fast: 0.15s ease;
       --transition-med: 0.25s ease;
     }
+    /* html/body height + overflow lets the embedded WKWebView (FleetBar's
+       Fleet Control Center) scroll content that's taller than the viewport.
+       Without these, .main's `display: flex` swallows overflow and the operator
+       sees content clipped at the bottom with no scroll affordance. */
+    html, body {
+      height: 100%;
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
     body {
       font-family: 'Inter', system-ui, sans-serif;
       background: var(--bg-dark);
@@ -167,6 +176,9 @@
       min-height: 100vh;
       display: flex;
       flex-direction: column;
+      /* allow nested panel content (cockpit cards, roadmap intake, etc.) to
+         scroll within .main rather than getting clipped by the WebView frame. */
+      overflow-y: auto;
     }
 
     /* ── Command Bar ── */
@@ -913,6 +925,11 @@
         <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-activity"/></svg></span>
         <span class="nav-label">Activity</span>
       </div>
+      <div class="nav-item" data-panel="transcripts" tabindex="0" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-list"/></svg></span>
+        <span class="nav-label">Fleet Transcripts</span>
+        <span class="nav-badge" id="badge-transcripts">0</span>
+      </div>
       <!--
         Metrics opens the standalone /metrics.html page (Prometheus + per-route
         histograms + charts dashboard). Rendered as an anchor rather than a
@@ -1086,6 +1103,37 @@
         <div id="activity-content"></div>
       </div>
 
+      <!--
+        Fleet Transcripts Panel — every spawn's full chat recorded to SQLite,
+        surfaced as a scrollable feed with expand-to-conversation. Backed by
+        /transcripts and /transcripts/stream (SSE).
+      -->
+      <div class="panel" id="panel-transcripts">
+        <div class="panel-header">
+          <div class="panel-title">Fleet Transcripts</div>
+          <div class="panel-actions">
+            <select id="transcripts-ship-filter" onchange="refreshTranscripts()">
+              <option value="">All ships</option>
+            </select>
+            <select id="transcripts-status-filter" onchange="refreshTranscripts()">
+              <option value="">All statuses</option>
+              <option value="running">Running</option>
+              <option value="completed">Completed</option>
+              <option value="failed">Failed</option>
+              <option value="killed">Killed</option>
+            </select>
+            <input type="text" id="transcripts-pr-filter" placeholder="PR #" style="width:70px" onchange="refreshTranscripts()" />
+            <button class="cmd-btn" onclick="refreshTranscripts()">Refresh</button>
+            <span id="transcripts-stream-status" class="kbd" title="SSE live tail">● Live</span>
+          </div>
+        </div>
+        <div class="card" id="transcripts-cost-card" style="margin-bottom:16px">
+          <div class="card-title">Today's fleet spend</div>
+          <div id="transcripts-cost-summary" style="font-size:14px;line-height:1.6">Loading cost rollup…</div>
+        </div>
+        <div id="transcripts-feed">Loading transcripts…</div>
+      </div>
+
       <!-- Budget Panel — Pending kills + wallets -->
       <div class="panel" id="panel-budget">
         <div class="panel-header">
@@ -1120,6 +1168,22 @@
           <div class="panel-actions"><button class="cmd-btn" onclick="refreshBriefing()">Refresh</button></div>
         </div>
         <div id="briefing-content"></div>
+      </div>
+
+      <!-- Backend Panel — fleet LLM route + cost framing -->
+      <div class="panel" id="panel-backend">
+        <div class="panel-header">
+          <div class="panel-title">Backend</div>
+          <div class="panel-actions">
+            <select id="backend-cost-window" onchange="refreshBackend()" title="Cost rollup window">
+              <option value="86400" selected>Today</option>
+              <option value="604800">This week</option>
+              <option value="2592000">This month</option>
+            </select>
+            <button class="cmd-btn" onclick="refreshBackend()">Refresh</button>
+          </div>
+        </div>
+        <div id="backend-content"></div>
       </div>
 
       <!-- Webhooks Panel -->
@@ -1239,7 +1303,7 @@
         overview: refreshDashboard, services: refreshServices, agents: refreshAgents,
         sessions: refreshSessions, locks: refreshLocks, channels: refreshChannels,
         activity: refreshActivity, roadmap: refreshRoadmap, salvage: refreshSalvage, briefing: refreshBriefing,
-        budget: refreshBudget,
+        budget: refreshBudget, transcripts: refreshTranscripts, backend: refreshBackend,
         webhooks: refreshWebhooks, projects: refreshProjects, changelog: refreshChangelog,
         config: refreshConfig
       };
@@ -1699,6 +1763,193 @@
       }).join('') + '</div>');
     }
 
+    /* ── Fleet Transcripts ── */
+    // Each row is one ship-run (spawn). Click expands the full conversation.
+    // Backed by /transcripts (list), /transcripts/:id (detail),
+    // /transcripts/cost (rollup), /transcripts/stream (SSE live tail).
+    //
+    // Security note: all dynamic content flows through escHtml() the same
+    // way every other panel in this dashboard does. setHtml() is the
+    // single innerHTML choke point used by the rest of the page.
+    var transcriptsExpanded = new Set();
+    var transcriptsStreamSource = null;
+    var transcriptsKnownShips = new Set();
+
+    function renderConversation(tx) {
+      if (!tx.messages || !tx.messages.length) {
+        return '<div class="empty-state">No messages recorded</div>';
+      }
+      return tx.messages.map(function(m) {
+        var roleClass = m.role === 'user' ? 'teal' :
+                        m.role === 'assistant' ? 'green' :
+                        m.role === 'system' ? 'yellow' : 'blue';
+        var ts = m.timestamp ? new Date(m.timestamp).toISOString().slice(11, 19) : '';
+        var body = '<pre style="white-space:pre-wrap;word-wrap:break-word;margin:4px 0 0 0;font-size:13px;line-height:1.5">' +
+                   escHtml(m.content || '') + '</pre>';
+        var toolCallsHtml = '';
+        if (m.tool_calls && m.tool_calls.length) {
+          toolCallsHtml = m.tool_calls.map(function(tc) {
+            var argsStr = '';
+            try { argsStr = JSON.stringify(tc.args, null, 2); } catch (e) { argsStr = '<unprintable>'; }
+            var resStr = '';
+            if (tc.result !== undefined) {
+              try { resStr = JSON.stringify(tc.result, null, 2); } catch (e) { resStr = '<unprintable>'; }
+            }
+            return '<details style="margin-left:12px;margin-top:6px;font-size:12px"><summary>&#8627; tool: ' +
+                   escHtml(tc.name) + '</summary>' +
+                   '<pre style="white-space:pre-wrap;margin:6px 0;opacity:0.85">' + escHtml(argsStr) + '</pre>' +
+                   (resStr ? '<div style="opacity:0.7">&#8658;</div><pre style="white-space:pre-wrap;margin:6px 0;opacity:0.75">' + escHtml(resStr) + '</pre>' : '') +
+                   '</details>';
+          }).join('');
+        }
+        return '<div style="margin:12px 0;padding:8px;border-left:3px solid var(--accent);background:rgba(255,255,255,0.02)">' +
+               '<div style="display:flex;align-items:baseline;gap:8px">' +
+               '<span class="activity-dot ' + roleClass + '"></span>' +
+               '<strong>' + escHtml(m.role) + '</strong>' +
+               '<span class="activity-time">' + escHtml(ts) + '</span>' +
+               '</div>' + body + toolCallsHtml + '</div>';
+      }).join('');
+    }
+
+    function renderTranscriptOutputs(tx) {
+      if (!tx.outputs || !tx.outputs.length) return '';
+      return '<div style="margin-top:8px"><strong>Outputs</strong>' +
+        '<ul style="margin:6px 0 0 0;padding-left:20px">' +
+        tx.outputs.map(function(o) {
+          var link = o.url ? ' &mdash; <a href="' + escHtml(o.url) + '" target="_blank" rel="noopener">link</a>' : '';
+          return '<li><code>[' + escHtml(o.type) + ']</code> ' + escHtml(o.summary) + link + '</li>';
+        }).join('') + '</ul></div>';
+    }
+
+    function renderTranscriptRow(t) {
+      var pr = t.pr_number != null ? 'PR #' + String(t.pr_number) : '&mdash;';
+      var cost = t.cost_usd != null ? '$' + Number(t.cost_usd).toFixed(4) : '&mdash;';
+      var status = t.status || 'running';
+      var statusColor = status === 'completed' ? 'green' :
+                        status === 'failed' ? 'red' :
+                        status === 'killed' ? 'yellow' : 'blue';
+      var age = fmtDate(t.started_at);
+      var dur = t.ended_at ? Math.round((t.ended_at - t.started_at) / 1000) + 's' : '&mdash;';
+      var expanded = transcriptsExpanded.has(t.id);
+      var idAttr = escHtml(t.id);
+      var header = '<div class="activity-item" style="cursor:pointer" data-transcript-id="' + idAttr + '">' +
+                   '<div class="activity-dot ' + statusColor + '"></div>' +
+                   '<div class="activity-text" style="flex:1">' +
+                   '<strong>' + escHtml(t.ship) + '</strong> ' +
+                   '<span class="kbd">' + escHtml(t.backend) + '</span> ' +
+                   escHtml(t.trigger) +
+                   ' &middot; ' + pr +
+                   ' &middot; ' + escHtml(status) +
+                   ' &middot; cost ' + cost +
+                   ' &middot; ran ' + dur +
+                   '</div>' +
+                   '<div class="activity-time">' + escHtml(age) + '</div>' +
+                   '</div>';
+      var body = '<div id="transcript-body-' + idAttr + '" style="display:' + (expanded ? 'block' : 'none') +
+                 ';padding:12px 16px 16px 16px;border-bottom:1px solid var(--border)">' +
+                 (expanded && t.__full ? renderConversation(t.__full) + renderTranscriptOutputs(t.__full)
+                                       : '<div class="empty-state">Loading conversation&hellip;</div>') +
+                 '</div>';
+      return '<div style="border-bottom:1px solid var(--border)">' + header + body + '</div>';
+    }
+
+    async function toggleTranscript(id) {
+      if (transcriptsExpanded.has(id)) {
+        transcriptsExpanded.delete(id);
+        var el = document.getElementById('transcript-body-' + id);
+        if (el) el.style.display = 'none';
+        return;
+      }
+      transcriptsExpanded.add(id);
+      var el = document.getElementById('transcript-body-' + id);
+      if (el) el.style.display = 'block';
+      var data = await apiFetch('/transcripts/' + encodeURIComponent(id));
+      if (data && data.transcript && el) {
+        el.innerHTML = renderConversation(data.transcript) + renderTranscriptOutputs(data.transcript);
+      }
+    }
+
+    // Delegated click handler — keeps row HTML free of inline onclicks
+    document.addEventListener('click', function(e) {
+      var node = e.target;
+      while (node && node !== document.body) {
+        if (node.dataset && node.dataset.transcriptId) {
+          toggleTranscript(node.dataset.transcriptId);
+          return;
+        }
+        node = node.parentNode;
+      }
+    });
+
+    function updateTranscriptShipFilter(rows) {
+      var sel = document.getElementById('transcripts-ship-filter');
+      if (!sel) return;
+      var current = sel.value;
+      rows.forEach(function(t) { if (t.ship) transcriptsKnownShips.add(t.ship); });
+      var all = Array.from(transcriptsKnownShips).sort();
+      var html = '<option value="">All ships</option>' +
+        all.map(function(s) { return '<option value="' + escHtml(s) + '"' + (s === current ? ' selected' : '') + '>' + escHtml(s) + '</option>'; }).join('');
+      sel.innerHTML = html;
+    }
+
+    async function refreshTranscripts() {
+      var ship = document.getElementById('transcripts-ship-filter').value;
+      var status = document.getElementById('transcripts-status-filter').value;
+      var pr = document.getElementById('transcripts-pr-filter').value;
+      var params = new URLSearchParams();
+      if (ship) params.set('ship', ship);
+      if (status) params.set('status', status);
+      if (pr && /^\d+$/.test(pr)) params.set('pr', pr);
+      params.set('limit', '50');
+      var data = await apiFetch('/transcripts?' + params.toString());
+      var rows = data ? (data.transcripts || []) : [];
+      updateTranscriptShipFilter(rows);
+      if (!rows.length) {
+        setHtml('transcripts-feed', '<div class="empty-state"><p>No transcripts yet. Spawn a fleet ship to start recording.</p></div>');
+      } else {
+        setHtml('transcripts-feed', rows.map(renderTranscriptRow).join(''));
+      }
+      updateBadge('transcripts', rows.length);
+      refreshTranscriptsCost();
+      ensureTranscriptStream();
+    }
+
+    async function refreshTranscriptsCost() {
+      var since = Date.now() - 24 * 60 * 60 * 1000;
+      var data = await apiFetch('/transcripts/cost?since=' + since);
+      var el = document.getElementById('transcripts-cost-summary');
+      if (!data || !el) return;
+      var byShipHtml = (data.by_ship || []).slice(0, 6).map(function(s) {
+        return '<span style="display:inline-block;margin-right:18px"><strong>' + escHtml(s.ship) + '</strong> ' +
+               '<span class="kbd">' + Number(s.runs) + ' runs</span> $' + Number(s.cost_usd).toFixed(4) + '</span>';
+      }).join('');
+      el.innerHTML = '<div><strong>$' + Number(data.total_cost_usd || 0).toFixed(4) +
+                    '</strong> across <strong>' + Number(data.total_runs || 0) + '</strong> runs &middot; ' +
+                    Number(data.total_tokens_in || 0) + ' tokens in &middot; ' + Number(data.total_tokens_out || 0) + ' tokens out</div>' +
+                    (byShipHtml ? '<div style="margin-top:6px">' + byShipHtml + '</div>' : '');
+    }
+
+    function ensureTranscriptStream() {
+      if (transcriptsStreamSource) return;
+      try {
+        transcriptsStreamSource = new EventSource(API + '/transcripts/stream');
+        var statusEl = document.getElementById('transcripts-stream-status');
+        transcriptsStreamSource.addEventListener('connected', function() {
+          if (statusEl) { statusEl.textContent = '● Live'; statusEl.style.color = 'var(--success, #2ecc71)'; }
+        });
+        var handleEvt = function() { refreshTranscripts(); };
+        transcriptsStreamSource.addEventListener('start', handleEvt);
+        transcriptsStreamSource.addEventListener('update', handleEvt);
+        transcriptsStreamSource.addEventListener('end', handleEvt);
+        transcriptsStreamSource.onerror = function() {
+          if (statusEl) { statusEl.textContent = '● Disconnected'; statusEl.style.color = 'var(--danger, #e74c3c)'; }
+          try { transcriptsStreamSource.close(); } catch (e) {}
+          transcriptsStreamSource = null;
+          setTimeout(ensureTranscriptStream, 5000);
+        };
+      } catch (e) { /* SSE unsupported */ }
+    }
+
     /* ── Salvage ── */
     // ── Budget Control: pending kills + wallets ───────────────────────────
     var budgetEventSource = null;
@@ -1975,6 +2226,181 @@
       setHtml('briefing-content', html);
     }
 
+    /* ── Backend (LLM route + cost framing) ──
+     *
+     * Surfaces GET /fleet/models + GET /metrics/cost?since=<window>.
+     * Highlights free-via-subscription backends (cli:claude-code / cli:codex)
+     * because those ride the operator's Claude Max / ChatGPT Pro subscription
+     * at $0 marginal cost — the whole pitch of PR #109.
+     */
+    function backendCostBadge(costModel) {
+      if (costModel === 'subscription') return '<span class="badge" style="background:var(--success);color:#0a0a0a;font-weight:700">FREE — subscription</span>';
+      if (costModel === 'local') return '<span class="badge" style="background:var(--success);color:#0a0a0a;font-weight:700">FREE — local</span>';
+      if (costModel === 'metered') return '<span class="badge" style="background:var(--warning);color:#0a0a0a">metered</span>';
+      if (costModel === 'cli') return '<span class="badge" style="background:var(--accent);color:#0a0a0a">cli</span>';
+      return '<span class="badge">—</span>';
+    }
+
+    function backendReadinessBadge(entry) {
+      if (entry.isForcedByEnv) return '<span class="badge" style="background:var(--accent);color:#0a0a0a;font-weight:700">ACTIVE</span>';
+      if (entry.available || entry.launchable) return '<span class="badge badge-active">ready</span>';
+      if (entry.readinessStatus === 'manual_check') return '<span class="badge" style="background:var(--brass);color:#0a0a0a">check</span>';
+      if (entry.readinessStatus === 'needs_setup') return '<span class="badge" style="background:var(--text-muted);color:#0a0a0a">setup</span>';
+      return '<span class="badge">unknown</span>';
+    }
+
+    async function refreshBackend() {
+      var windowSel = document.getElementById('backend-cost-window');
+      var sinceSecs = windowSel ? parseInt(windowSel.value, 10) || 86400 : 86400;
+      var windowLabel = ({ 86400: 'today', 604800: 'this week', 2592000: 'this month' })[sinceSecs] || (sinceSecs + 's');
+
+      var results = await Promise.all([
+        apiFetch('/fleet/models'),
+        apiFetch('/metrics/cost?since=' + sinceSecs)
+      ]);
+      var modelsData = results[0] || {};
+      var costData = results[1] || {};
+
+      var backends = (modelsData.backends || []).slice();
+      // Rank: forced first, then subscription, then ready, then by id
+      backends.sort(function(a, b) {
+        if ((a.isForcedByEnv ? 1 : 0) !== (b.isForcedByEnv ? 1 : 0)) return (b.isForcedByEnv ? 1 : 0) - (a.isForcedByEnv ? 1 : 0);
+        var aSub = (a.costModel === 'subscription') ? 1 : 0;
+        var bSub = (b.costModel === 'subscription') ? 1 : 0;
+        if (aSub !== bSub) return bSub - aSub;
+        var aReady = (a.available || a.launchable) ? 1 : 0;
+        var bReady = (b.available || b.launchable) ? 1 : 0;
+        if (aReady !== bReady) return bReady - aReady;
+        return (a.id || '').localeCompare(b.id || '');
+      });
+
+      var byBackend = (costData.byBackend || []).slice().sort(function(a, b) {
+        return (b.totalUsd || b.total_usd || 0) - (a.totalUsd || a.total_usd || 0);
+      });
+      var totalUsd = (costData.totals && (costData.totals.totalUsd || costData.totals.total_usd)) || 0;
+      var totalSpawns = (costData.totals && (costData.totals.spawnCount || costData.totals.spawn_count)) || 0;
+
+      // ── Headline ────────────────────────────────────────────────────────
+      var forced = modelsData.forcedCliBackend;
+      var headlineEntry = null;
+      if (forced) headlineEntry = backends.find(function(b) { return b.id === forced; });
+      if (!headlineEntry && byBackend[0]) {
+        var topSpend = byBackend[0];
+        headlineEntry = backends.find(function(b) { return b.id === topSpend.backend; });
+      }
+      if (!headlineEntry) headlineEntry = backends.find(function(b) { return (b.costModel === 'subscription') && (b.available || b.launchable); });
+      if (!headlineEntry) headlineEntry = backends.find(function(b) { return b.available || b.launchable; });
+
+      var allFreeToday = byBackend.length > 0 && byBackend.every(function(row) {
+        var entry = backends.find(function(b) { return b.id === row.backend; });
+        return entry && (entry.costModel === 'subscription' || entry.costModel === 'local');
+      });
+
+      var navBadge = document.getElementById('nav-backend-badge');
+      if (navBadge) {
+        if (headlineEntry && headlineEntry.costModel === 'subscription') {
+          navBadge.textContent = 'FREE';
+          navBadge.style.display = '';
+          navBadge.style.background = 'var(--success)';
+          navBadge.style.color = '#0a0a0a';
+        } else if (totalUsd > 0) {
+          navBadge.textContent = '$' + totalUsd.toFixed(2);
+          navBadge.style.display = '';
+          navBadge.style.background = 'var(--warning)';
+          navBadge.style.color = '#0a0a0a';
+        } else {
+          navBadge.style.display = 'none';
+        }
+      }
+
+      var html = '';
+
+      // Hero card
+      html += '<div class="card" style="margin-bottom:16px;background:linear-gradient(135deg, var(--bg-card), var(--bg-elevated));border:1px solid var(--accent-glow);">';
+      if (forced) {
+        html += '<div style="font-size:11px;color:var(--accent);font-weight:600;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Forced via PD_USE_CLI_BACKEND=' + escHtml(modelsData.pdUseCliBackend || forced) + '</div>';
+      }
+      if (headlineEntry) {
+        html += '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap;">';
+        html += '<div>';
+        html += '<div style="font-size:22px;font-weight:700;color:var(--text);margin-bottom:4px;">' + escHtml(headlineEntry.name) + '</div>';
+        if (headlineEntry.framing) {
+          html += '<div style="font-size:14px;color:var(--success);font-weight:600;">' + escHtml(headlineEntry.framing) + '</div>';
+        }
+        if (headlineEntry.tagline) {
+          html += '<div style="font-size:13px;color:var(--text-dim);margin-top:4px;font-style:italic;">' + escHtml(headlineEntry.tagline) + '</div>';
+        }
+        html += '</div>';
+        html += '<div style="text-align:right;">';
+        html += '<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;">Spend ' + escHtml(windowLabel) + '</div>';
+        if (allFreeToday && totalUsd < 0.005) {
+          html += '<div style="font-size:24px;font-weight:700;color:var(--success);font-family:monospace;">$0</div>';
+          html += '<div style="font-size:11px;color:var(--success);">paid by your subscription</div>';
+        } else {
+          html += '<div style="font-size:24px;font-weight:700;color:' + (totalUsd > 0 ? 'var(--brass)' : 'var(--text-muted)') + ';font-family:monospace;">$' + totalUsd.toFixed(4) + '</div>';
+          html += '<div style="font-size:11px;color:var(--text-muted);">' + totalSpawns + ' spawn' + (totalSpawns === 1 ? '' : 's') + '</div>';
+        }
+        html += '</div>';
+        html += '</div>';
+      } else {
+        html += '<div style="font-size:16px;color:var(--text-dim);">No backend ready. Install <code>claude</code> or <code>codex</code> to ride your $200/mo Claude Max or $20/mo ChatGPT Pro at $0 marginal cost.</div>';
+      }
+      html += '</div>';
+
+      // Backend picker (cards grid)
+      html += '<div class="card" style="margin-bottom:16px;">';
+      html += '<div class="card-title">Switch backend</div>';
+      html += '<div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">PD_USE_CLI_BACKEND forces every fleet spawn through a single CLI route, regardless of pd-fleet.yml. Subscription backends are recommended — they ride your existing Claude Max / ChatGPT Pro at $0 marginal cost.</div>';
+      html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;">';
+      backends.forEach(function(b) {
+        var canUse = !!b.pdUseCliBackendValue;
+        var borderColor = b.isForcedByEnv ? 'var(--accent)' : (b.costModel === 'subscription' && (b.available || b.launchable) ? 'var(--success)' : 'var(--border)');
+        var bg = b.isForcedByEnv ? 'var(--accent-glow)' : 'var(--bg-card)';
+        html += '<div style="background:' + bg + ';border:1px solid ' + borderColor + ';border-radius:8px;padding:12px;">';
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;">';
+        html += '<div style="font-weight:600;color:var(--text);">' + escHtml(b.name) + '</div>';
+        html += backendReadinessBadge(b);
+        html += '</div>';
+        html += '<div style="margin-bottom:8px;">' + backendCostBadge(b.costModel) + '</div>';
+        if (b.framing) html += '<div style="font-size:12px;color:var(--text-dim);margin-bottom:6px;">' + escHtml(b.framing) + '</div>';
+        if (b.tagline) html += '<div style="font-size:11px;color:var(--text-muted);font-style:italic;margin-bottom:8px;">' + escHtml(b.tagline) + '</div>';
+        if (canUse) {
+          var cmd = 'eval "$(pd backend use ' + b.pdUseCliBackendValue + ')"';
+          html += '<div style="font-family:monospace;font-size:11px;background:var(--bg-input);padding:6px 8px;border-radius:4px;color:var(--accent);overflow-x:auto;">' + escHtml(cmd) + '</div>';
+        } else if (!b.available && !b.launchable && b.readinessNextStep) {
+          html += '<div style="font-size:11px;color:var(--text-muted);">' + escHtml(b.readinessNextStep) + '</div>';
+        }
+        html += '</div>';
+      });
+      html += '</div>';
+
+      if (forced) {
+        html += '<div style="margin-top:12px;font-size:12px;color:var(--text-muted);">';
+        html += 'To stop forcing: <code style="background:var(--bg-input);padding:2px 6px;border-radius:3px;color:var(--accent);">eval "$(pd backend use none)"</code> then restart the daemon.';
+        html += '</div>';
+      }
+      html += '</div>';
+
+      // Spend by backend
+      html += '<div class="card">';
+      html += '<div class="card-title">Spend by backend — ' + escHtml(windowLabel) + '</div>';
+      if (byBackend.length === 0) {
+        html += '<div style="font-size:13px;color:var(--text-muted);">No spawns recorded in this window.</div>';
+      } else {
+        html += '<table><thead><tr><th>Backend</th><th>Cost model</th><th style="text-align:right;">Spend</th><th style="text-align:right;">Spawns</th><th>Framing</th></tr></thead><tbody>';
+        byBackend.forEach(function(row) {
+          var entry = backends.find(function(b) { return b.id === row.backend; }) || { costModel: 'unknown', framing: '—' };
+          var usd = (row.totalUsd || row.total_usd || 0).toFixed(4);
+          var spawns = row.spawnCount || row.spawn_count || 0;
+          html += '<tr><td class="mono">' + escHtml(row.backend) + '</td><td>' + backendCostBadge(entry.costModel) + '</td><td class="mono" style="text-align:right;">$' + usd + '</td><td class="mono" style="text-align:right;">' + spawns + '</td><td style="font-size:12px;color:var(--text-dim);">' + escHtml(entry.framing || '—') + '</td></tr>';
+        });
+        html += '</tbody></table>';
+      }
+      html += '</div>';
+
+      setHtml('backend-content', html);
+    }
+
     /* ── Webhooks ── */
     async function refreshWebhooks() {
       var data = await apiFetch('/webhooks');
@@ -2134,7 +2560,7 @@
     document.getElementById('command-input').addEventListener('keydown', function(e) {
       if (e.key === 'Enter') {
         var val = this.value.trim().toLowerCase();
-        var panels = ['dashboard','services','agents','sessions','locks','channels','activity','salvage','briefing','webhooks','projects','changelog','config'];
+        var panels = ['dashboard','services','agents','sessions','locks','channels','activity','transcripts','salvage','briefing','webhooks','projects','changelog','config'];
         var match = panels.find(function(p) { return p.indexOf(val) === 0; });
         if (match) { switchPanel(match); this.value = ''; this.blur(); }
       }
@@ -2157,7 +2583,8 @@
       await refreshAll();
       // Fire-and-forget background loads for panels that refreshAll doesn't cover
       var bgPanels = ['services', 'agents', 'sessions', 'locks', 'channels',
-                      'activity', 'salvage', 'webhooks', 'projects', 'changelog'];
+                      'activity', 'transcripts', 'salvage', 'webhooks', 'projects', 'changelog',
+                      'backend'];
       var currentHash = hash || 'overview';
       bgPanels.forEach(function(p) {
         if (p !== currentHash) {
@@ -2165,7 +2592,9 @@
             services: refreshServices, agents: refreshAgents, sessions: refreshSessions,
             locks: refreshLocks, channels: refreshChannels,
             activity: refreshActivity, roadmap: refreshRoadmap, salvage: refreshSalvage,
-            webhooks: refreshWebhooks, projects: refreshProjects, changelog: refreshChangelog
+            transcripts: refreshTranscripts,
+            webhooks: refreshWebhooks, projects: refreshProjects, changelog: refreshChangelog,
+            backend: refreshBackend
           };
           if (fn[p]) fn[p]();
         }

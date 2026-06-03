@@ -10,6 +10,7 @@
 \usepackage{listings}
 \usepackage{xcolor}
 \usepackage{booktabs}
+\usepackage{array}
 \usepackage{graphicx}
 \usepackage{fancyhdr}
 \usepackage{tikz}
@@ -106,6 +107,7 @@
 \newtheorem{definition}{Definition}[section]
 \newtheorem{theorem}{Theorem}[section]
 \newtheorem{lemma}{Lemma}[section]
+\newtheorem{proposition}{Proposition}[section]
 \newtheorem{property}{Property}[section]
 \newtheorem{corollary}{Corollary}[section]
 
@@ -150,7 +152,7 @@
 \vspace{1cm}
 
 \begin{abstract}\noindent
-There will be no AI economy without trust, and trust cannot be earned peer-to-peer at every transaction. This paper argues that multi-agent collaboration at scale requires a \textbf{commons authority}---a pre-transactional trust infrastructure that removes trust negotiation from the critical path of work. We present a three-layer architecture: \emph{structural prevention} via capability-attenuated tokens that physically bound agent scope, \emph{immutable attribution} via Merkle-chained evidence trails that make anonymous harm impossible, and \emph{economic alignment} via collateralized work contracts that pre-fund damage regardless of agent intent. We formalize these layers in the context of Port Daddy, a coordination daemon for local agent swarms, and show that the resulting system does not require agents to be trustworthy, to share values, or to fear punishment. It requires only that their principals post collateral proportional to the risk their agents impose on the commons. We ground the advisory (non-enforced) design of the resource claim system in Sen's Impossibility of a Paretian Liberal, showing that enforced allocation with private agent knowledge is provably suboptimal, and that the commons authority's role is to provide shared information, not to make allocation decisions. We further show how the commons authority can be equipped with a \emph{mutable-signal ledger} (\S\ref{sec:pheromones}) that supports revocation, renaming, and provenance-aware propagation of coordination hints without sacrificing attribution integrity. Finally, we describe a competitive-insurance pricing mechanism (\S\ref{sec:youle}, contributed by Youle) in which insurer agents bid to underwrite agent transactions, replacing static parameter selection with market-discovered bond prices.
+Two autonomous agents working on the same project corrupt each other's state, double-claim the same files, race for the same ports, and leave the operator to do recovery archaeology. The problem is not the agents---it is that they have no coordination substrate. This paper specifies one. We treat coordination as a \emph{correlated equilibrium} in the sense of Aumann~\cite{aumann1974subjectivity}: a daemon as correlating device sends private recommendations to each agent---which files to claim, which to defer, when to settle---and following the recommendation is each agent's best response given that others follow theirs. The substrate is built from three independently load-bearing layers---capability-attenuated tokens that physically bound scope, Merkle-chained evidence trails that make anonymous harm impossible, and collateralized work contracts that pre-fund damage regardless of intent---and the correlating-device reading is what makes the layers cohere. We formalize the construction in the context of Port Daddy, a coordination daemon for local agent swarms, and show that the resulting system does not require agents to be trustworthy, to share values, or to fear punishment. It requires only that their principals post collateral proportional to the risk their agents impose on the commons, and that the daemon's recommendation distribution be common knowledge. We ground the non-enforced design of the resource claim system in Sen's Impossibility of a Paretian Liberal, showing that enforced allocation with private agent knowledge is provably suboptimal: the daemon's job is to broadcast the conflict graph, not to adjudicate it. We further show how the same authority can be equipped with a \emph{mutable-signal ledger} (\S\ref{sec:pheromones}) that supports revocation, renaming, and provenance-aware propagation of coordination hints without sacrificing attribution integrity---revocations are themselves events in the chain. Finally, we describe a competitive-insurance pricing mechanism (\S\ref{sec:youle}, contributed by Youle) in which insurer agents bid to underwrite agent transactions, replacing static parameter selection with market-discovered bond prices; under the correlating-device reading, the same equilibrium structure governs agent obedience and insurer non-collusion, so the price of anarchy stays bounded at both layers. Hobbes had the right idea about sovereigns; he just lacked a way to deploy one on \texttt{localhost:9876}.
 \end{abstract}
 
 \vspace{0.5cm}
@@ -202,7 +204,7 @@ The paper builds in four layers; each layer carries a load-bearing theorem or em
 \section{Introduction: The Trust Problem}
 % ═══════════════════════════════════════════════════════════════════════════════
 
-The emerging landscape of multi-agent AI systems---agents that plan, delegate, execute, crash, and resume across shared codebases---faces a problem that no existing framework adequately addresses. Not a problem of orchestration (LangGraph, CrewAI, and AutoGen handle state graphs and role assignment competently), nor of tool access (the Model Context Protocol provides a universal standard for agent-tool integration). The problem is \textbf{trust}.
+Two autonomous coding agents share a repository. Agent~A is asked to refactor the authentication middleware. Agent~B, spawned ninety seconds later from a sibling worktree, is asked to add a rate-limiter to the same middleware. Neither knows the other exists. They both edit, both commit, both push; one of them gets a merge conflict it cannot interpret, retries with a hallucinated resolution, and corrupts the file. The operator returns from a coffee break to a working tree she does not recognize. This is not a hypothetical---it is the modal failure mode of every multi-agent setup we have inhabited. Existing frameworks do not address it: LangGraph, CrewAI, and AutoGen handle state graphs and role assignment competently; the Model Context Protocol standardizes agent-tool integration. None of them give Agent~A and Agent~B a way to know about each other. The problem is \textbf{trust}---specifically, trust as infrastructure rather than trust as per-transaction ceremony.
 
 When Agent~A delegates a subtask to Agent~B, it implicitly trusts that B will not corrupt the shared state, will not exceed the scope of the delegation, and will not silently fail in a way that poisons A's downstream work. When Agent~B accepts the delegation, it implicitly trusts that A's description of the task is accurate, that the resources A promised are available, and that A will still exist when B finishes. These implicit trust assumptions pervade every multi-agent interaction, and every one of them can be violated.
 
@@ -226,6 +228,7 @@ Peer-to-peer trust fails for agent systems in three specific ways:
 
 We present:
 \begin{enumerate}
+  \item A reading of the coordination daemon as a \textbf{correlating device} in the sense of Aumann~\cite{aumann1974subjectivity}: claim recommendations are private signals drawn from a common-knowledge distribution, and agent obedience is an equilibrium rather than an enforced policy (Section~\ref{sec:commons}, esp.\ \S\ref{sec:correlating-device}). This reframes what earlier drafts called ``advisory'' coordination: the daemon's recommendations are incentive-compatible because the equilibrium structure makes them so, not because a sword is in reserve.
   \item A \textbf{three-layer trust architecture} (structural, evidentiary, economic) that does not depend on agent morality, shared values, or threat of termination (Sections~\ref{sec:structural}--\ref{sec:economic}).
   \item A formal argument, grounded in Sen's Impossibility of a Paretian Liberal~\cite{sen1970impossibility}, for why \textbf{advisory resource claims} are superior to enforced locking in multi-agent systems with private information (Section~\ref{sec:sen}).
   \item A \textbf{TLA$^{+}$ specification} of the coordination lifecycle with crash recovery, verifying safety and liveness properties (Section~\ref{sec:tlaplus}).
@@ -246,10 +249,12 @@ The architecture sits at the intersection of four bodies of prior work, each of 
 
 \paragraph{Cryptoeconomic mechanism design.} Werbach~\cite{werbach2018blockchain}, Buterin~\cite{buterin2014ethereum}, and the broader DAO literature establish ``code is law'' as a posture toward enforcement. Our position is narrower and weaker on purpose: code is the \emph{record}, not the law. Allocation decisions remain with the agents (Sen, \S\ref{sec:sen}); the daemon supplies the evidence and the settlement. This deliberate weakening is what makes coercive enforcement avoidable while keeping accountability intact.
 
-\paragraph{What is novel.} The synthesis: bonded participation $+$ capability attenuation $+$ advisory (not enforced) coordination $+$ immutable attribution, packaged as localhost infrastructure rather than a global protocol. We are not aware of a prior system that does all four together at this scale; each component has precedent, but the composition produces guarantees (Pareto-superior coordination, attribution that survives identity disposal) that no individual component supplies.
+\paragraph{What is novel.} The synthesis: bonded participation $+$ capability attenuation $+$ advisory (not enforced) coordination $+$ immutable attribution, packaged as localhost infrastructure rather than a global protocol. We are not aware of a prior system that does all four together at this scale; each component has precedent, but the composition produces guarantees (Pareto-superior coordination, attribution that survives identity disposal) that no individual component supplies. Figure~\ref{fig:bonded-three-layer} shows the composition.
+
+\input{figures/fig-bonded-three-layer.tex}
 
 % ═══════════════════════════════════════════════════════════════════════════════
-\section{The Commons Authority}
+\section{The Commons Authority}\label{sec:commons}
 % ═══════════════════════════════════════════════════════════════════════════════
 
 \begin{definition}[Commons Authority]\label{def:commons}
@@ -269,6 +274,25 @@ The commons authority is a \emph{Hobbesian sovereign}, not an \emph{omniscient c
 \end{remark}
 
 In the Port Daddy implementation, the commons authority is a daemon running on \texttt{localhost:9876}, backed by SQLite. The simplicity of the implementation is deliberate: the authority's value comes from its \emph{guarantees}, not its complexity.
+
+\subsection{The Daemon as Correlating Device}\label{sec:correlating-device}
+
+The daemon's role admits a precise game-theoretic name. Aumann~\cite{aumann1974subjectivity} introduced the \emph{correlated equilibrium}: a randomized strategy profile in which a trusted third party draws a recommendation tuple $(r_1, \ldots, r_n)$ from a joint distribution $\mu$ over action profiles, privately reveals $r_i$ to player $i$, and each player's best response---given posterior beliefs about the other players' recommendations conditional on its own---is to play $r_i$. The construction is strictly more permissive than Nash: every Nash equilibrium is a correlated equilibrium where $\mu$ is a product of marginals, and the correlated set strictly contains it when $\mu$ has non-trivial correlation. The mechanism does not need a sword. The recommendations are obeyed because, given common knowledge of $\mu$ and each player's own draw, deviating is dominated.
+
+This is exactly the daemon's role. The commons authority observes the global claim graph---who wants which resource, who holds which capability, whose history shows what. On a contested file claim, the daemon does not adjudicate; it broadcasts a recommendation pair: \emph{Agent~$\alpha$, you may proceed on \texttt{auth.ts}; Agent~$\beta$, the surface is held, defer or coordinate.} The recommendations are drawn from a deterministic policy over the conflict graph (the pheromone-lineage primitive of \S\ref{sec:pheromones} furnishes the draw; the policy is public). Each agent receives only its own recommendation, but the distribution over recommendations and the dependence on the public conflict graph are common knowledge.
+
+\begin{property}[Daemon-as-Correlating-Device]\label{prop:correlating-device}
+Port Daddy's daemon implements a correlating device for the agent-coordination game. Specifically:
+\begin{enumerate}[nosep]
+  \item \textbf{Common-knowledge distribution.} The daemon's recommendation policy---advise-claim, defer, back-off, settle-now, halt-on-conflict---is public, deterministic given the conflict graph, and reproducible from the evidence trail of \S\ref{sec:attribution}. Agents do not need to trust the daemon's motives; they need only verify the policy and observe its inputs.
+  \item \textbf{Private signal per agent.} On a contested claim, each agent receives only its own recommendation. Other agents' recommendations are observed indirectly through the public conflict graph and the note trail, never read off the wire.
+  \item \textbf{Obedience as best response.} Given that the other agents obey, an agent that defies its own recommendation faces (a) the bond it posted against the harm class it just realized (\S\ref{sec:economic}), (b) the reputation discount that compounds across future settlements (\S\ref{sec:rep-discount}), and (c) the conflict-graph completeness guarantee of \S\ref{thm:advisory}, which makes the deviation visible to every counterparty. Conditional on the others' obedience, deviation is strictly dominated.
+\end{enumerate}
+\end{property}
+
+The reframe is what turns the paper's headline result from a description into a guarantee. Earlier drafts called the daemon ``advisory, not enforcing'' and stopped---leaving the reader to ask the obvious question: what stops the agents from ignoring the advice? The correlated-equilibrium reading answers: nothing stops them, and nothing needs to. The recommendation distribution and the bond structure jointly leave each agent's incentive constraint slack at obedience. Enforcement is the wrong frame; mechanism design is the right one. The detailed deviation analysis lives in Section~\ref{sec:economic}; the safety and liveness properties of the lifecycle are checked formally in Section~\ref{sec:tlaplus}.
+
+A consequence worth surfacing: the \emph{price of anarchy} of this game---worst-case ratio of social cost at any correlated equilibrium to the social optimum---is one to one in the limit where bonds cover full cleanup cost and reputation noise is bounded. The simulation evidence of \S\ref{sec:youle:welfare} supports this empirically for $\sigma_r \le 0.1$. The analytical bound under realistic reputation noise is open; we do not close it here.
 
 \subsection{Why Agents Consent}\label{sec:why-consent}
 
@@ -626,6 +650,85 @@ This is how performance bonds work in construction. This is how futures markets 
 The Float Plan does not make sabotage impossible. It makes sabotage \emph{expensive}. A principal willing to burn money to cause damage will burn the bond and cause the damage. The bond raises the price of defection; it does not eliminate it. The defense against existential threats to the commons is not internal governance but external boundary enforcement: who is allowed to post Float Plans at all. That decision is irreducibly political.
 \end{remark}
 
+\subsection{Truthful Claim Signaling as Nash Equilibrium}\label{sec:claim-signaling-ic}
+
+The bond machinery above prices \emph{outcomes}: an agent that destroys files pays for the destruction. The paper's headline claim, however, is upstream of outcomes---that truthful file-claim signaling (\S\ref{sec:attribution-survives}, \S\ref{sec:advisory}) is incentive-compatible in the first place. The cartel analysis of \S\ref{sec:youle:a6} works that argument out for insurer pricing. The corresponding argument for the claim signal itself has been carried on faith until now. This subsection closes that gap.
+
+\paragraph{Stage game.}
+Consider two agents $A$ and $B$ working on a shared project, deciding per round on each file whether to signal:
+\begin{description}[nosep]
+  \item[\textbf{T (Truthful).}] Claim files the agent intends to edit; do not claim files it will not edit.
+  \item[\textbf{F (False).}] Either claim files the agent does not intend to edit (to block a rival), or fail to claim files it does intend to edit (to avoid scrutiny). Either form of misrepresentation counts as $F$.
+\end{description}
+
+The stage-game payoffs, in expected-utility units calibrated to the cleanup cost $c$ of \S\ref{sec:cleanup-bound}, are:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}rcc@{}}
+\toprule
+ & $B$: T & $B$: F \\
+\midrule
+$A$: T & $(3,\,3)$ & $(1,\,4)$ \\
+$A$: F & $(4,\,1)$ & $(0,\,0)$ \\
+\bottomrule
+\end{tabular}
+\caption{One-shot file-claim signaling: a prisoner's dilemma. Mutual truth $(3,3)$ is Pareto-optimal, but $F$ strictly dominates $T$ for each player. The unique one-shot Nash equilibrium is $(F,F)$, which destroys the coordination signal.}
+\label{tab:claim-stage-game}
+\end{table}
+
+The stage game is a prisoner's dilemma: $F$ strictly dominates $T$ for each player, and $(F, F)$ is the unique one-shot Nash equilibrium. \emph{Truthful signaling is not a one-shot equilibrium}; advisory coordination cannot be sustained by stage-game rationality alone.
+
+\paragraph{Move to the repeated game.}
+What rescues truthful signaling is that the agents are not playing the stage game once. The substrate provides:
+\begin{itemize}[nosep]
+  \item \textbf{Observable history.} The Merkle-chained evidence trail of \S\ref{sec:attribution} and heartbeat record of \S\ref{sec:crash-recovery} make each player's prior moves visible to any third party who can verify a 700-byte inclusion proof. Past defection is not deniable.
+  \item \textbf{Persistent identity.} The Anchor Protocol's passkey-bound device pairing~\cite{owens2026anchor} ties an agent ID to a hardware-rooted credential. Sybil re-registration is bounded by the per-identity onboarding cost $C_{\mathrm{kyc}}$ of \S\ref{sec:youle:a5}, so an agent cannot trivially shed a reputation by re-incarnating.
+  \item \textbf{A discount factor $\delta$.} Principals value future interactions: a development project lives over weeks; insurer relationships compound; reputation discounts (\S\ref{sec:rep-discount}) accrue. For long-lived principals we take $\delta \approx 0.9$ as a working operating point, consistent with the discount used in \S\ref{sec:youle:a6}.
+\end{itemize}
+
+\paragraph{Strategy profile (graduated trigger).}
+Each agent plays the following strategy on each file:
+\begin{enumerate}[nosep]
+  \item Begin by playing $T$.
+  \item If the opponent's last observed action on the relevant surface was $T$, play $T$.
+  \item If the opponent's last observed action was $F$, play $F$ for three rounds (punishment phase), then return to $T$.
+  \item If the opponent deviates during the punishment phase, restart the three-round window.
+\end{enumerate}
+
+Graduated trigger, not grim trigger. The cartel analysis of \S\ref{sec:youle:a6} uses grim trigger because that gives the cleanest folk-theorem bound, and the analysis below uses grim trigger for the same reason where the calculation is short enough to be exact. The \emph{production} strategy is graduated for the reason given in \S\ref{sec:crash-recovery}: crashes and deliberate defection are operationally indistinguishable from any third-party observer's vantage. Permanent punishment for a transient infrastructure event would destroy cooperation faster than any saboteur could.
+
+\paragraph{Deviation analysis.}
+Suppose $A$ contemplates playing $F$ in some round when the strategy prescribes $T$. The one-shot gain from defection, paid in the deviation round, is $d - c = 4 - 3 = 1$. The cost is three subsequent rounds of mutual punishment at $(F,F)$ before the relationship resets, each paying $p = 0$ instead of the cooperative $c = 3$. Discounted at $\delta$:
+\[
+\text{PV of lost cooperative payoff} \;=\; (c - p) \cdot (\delta + \delta^2 + \delta^3) \;=\; 3 \cdot (\delta + \delta^2 + \delta^3).
+\]
+At a working discount factor $\delta = 0.9$, the bracketed sum is $0.9 + 0.81 + 0.729 = 2.439$, so the deviator's net payoff is $1 - 3 \cdot 2.439 = 1 - 7.317 = -6.317$, strictly negative. Deviation is strictly unprofitable.
+
+\paragraph{Critical $\delta$.}
+The general sustainability condition under a $k$-round graduated trigger with stage-game payoffs $(c, d, p) = (3, 4, 0)$ is
+\[
+\underbrace{d - c}_{\text{one-shot gain}} \;<\; \underbrace{(c - p) \cdot \frac{\delta(1 - \delta^k)}{1 - \delta}}_{\text{discounted punishment cost}}.
+\]
+Substituting $d - c = 1,\; c - p = 3$ and $k = 3$ gives $1 < 3\delta(1 + \delta + \delta^2)$, which solves numerically to $\delta > \delta^\star_{k=3} \approx 0.253$. Under grim trigger ($k \to \infty$) the bound is the closed-form $\delta > 1/4 = 0.25$, recovering the standard folk-theorem threshold. The graduated bound is therefore only marginally above grim---the three-round window adds barely $0.003$ to the threshold---which is the right result: graduated trigger pays almost nothing for the crash tolerance it buys.
+
+\begin{proposition}[Claim Signaling Incentive Compatibility]\label{prop:claim-signaling-ic}
+Under the observable-history regime of \S\ref{sec:attribution} and the Sybil-resistant identity regime of the Anchor Protocol~\cite{owens2026anchor}, truthful file-claim signaling is a Nash equilibrium of the repeated coordination game with stage-game payoffs as in Table~\ref{tab:claim-stage-game} for any discount factor $\delta > \delta^\star_{k=3} \approx 0.253$, when both players adopt the three-round graduated-trigger strategy described above. The bound is tight: for $\delta \leq \delta^\star_{k=3}$ at least one player has a strictly profitable one-shot deviation under the three-round trigger, and for $\delta \leq 1/4$ no trigger of finite or infinite duration sustains $(T,T)$.
+\end{proposition}
+
+\paragraph{What each condition buys, and what breaks when it is removed.}
+The proposition is conditional, and the conditions matter. Naming what each one is doing makes the dependency on the rest of the architecture explicit rather than implicit.
+\begin{itemize}[nosep]
+  \item \emph{Remove observable history (\S\ref{sec:attribution}).} The repeated game collapses to repeated one-shot play: with no public record of prior actions, no trigger can fire, and both players play $F$ in every round. This is why the Merkle forest of \S\ref{sec:merkle-forest} is load-bearing for the claim signal, not just for post-hoc audit.
+  \item \emph{Remove persistent identity (Anchor~\cite{owens2026anchor}).} An agent who can re-register after each defection effectively faces $\delta = 0$: future punishment falls on a discarded identity. Cooperation is impossible. The Anchor protocol is therefore a precondition of this proposition, not an unrelated artifact; the audit caught that this dependency had been implicit.
+  \item \emph{Drop $\delta$ below $\delta^\star_{k=3} \approx 0.253$.} The three-round graduated trigger is insufficient. Either lengthen the punishment window (each additional round buys further headroom, asymptoting to the grim-trigger bound of $1/4$) or accept that the equilibrium does not bind for very short-lived principals. The latter is the regime where one-shot defectors (\S\ref{sec:crash-recovery}, the first adversary) live; \S\ref{sec:economic} prices them out rather than relying on equilibrium discipline.
+  \item \emph{Drop $\delta$ below $1/4$.} No trigger of any duration sustains $(T, T)$. The repeated game has the same equilibrium structure as the stage game, and only the bond mechanism of this section, not the signal itself, deters defection.
+\end{itemize}
+
+The forward reference is direct. Section~\ref{sec:youle:a6} extends the same analytical pattern---stage game, repeated-game lift via observable history, deviation calculation, $\delta$ threshold---to the insurer pricing layer. The strategy profile, the deviation arithmetic, and the role of $\delta$ have identical form. The cartel result there and the claim-signaling result here are not two separate folk theorems; they are one folk theorem applied at two layers of the architecture.
+
+\paragraph{Mechanized claim-signaling.} The argument above is also checked by machine. Standard one-shot-deviation analysis yields the discount-factor threshold $\delta^\star$ as the unique real root in $(0,1)$ of $3\delta^3 + 3\delta^2 + 3\delta - 1 = 0$, numerically $\delta^\star \approx 0.2531$ (matching $\delta^\star_{k=3}$ above). The cubic, the existence-and-uniqueness of its root in $[0.25,\,0.26]$, and a TLA$^{+}$ model checking that no one-shot deviation produces positive discounted payoff at $\delta = 0.26$ are mechanized as \texttt{proofs/economics/delta-threshold.z3} and \texttt{proofs/economics/claim\_signaling.tla}. Both run unattended in CI (\S\ref{app:mech}, Table~\ref{tab:verification-status}).
+
 \subsection{Pricing the Bond}\label{sec:pricing}
 
 What is the right collateral for ``write access to \texttt{auth.ts} for 30 minutes''? The answer requires a pricing function $\pi: \mathcal{F} \rightarrow \mathbb{R}^{+}$ that maps Float Plans to bond amounts. An effective $\pi$ must satisfy:
@@ -670,6 +773,82 @@ Principals with a history of clean settlements have lower expected damage:
 \]
 to prevent trivialization. $\rho$ increases with clean settlements, decreases with breaches, decays over time. The functional form is left open.
 
+\subsubsection{Threat-Class Bond Sizing}\label{sec:pricing:threats}
+
+The closed-form bond $\pi(\mathcal{F}, p) = c(1 + \alpha s)(1 - \rho)$ is threat-agnostic: sloppy work, abandonment, and active sabotage all price off the same curve. That is wrong in both directions. A single curve calibrated to deter sabotage prices capable agents out of low-risk work; a single curve calibrated for accessibility underprices the rare adversary who actually intends harm. Real deployments need different multipliers for different threat classes, because the threats have different blast radii and different probabilities of recovery.
+
+Table~\ref{tab:threat-bonds} gives starting bands. These are not parameters, they are calibration targets: production deployments tune from observed failure modes in their own audit log.
+
+\begin{table}[H]
+\centering
+\caption{Threat-class bond sizing. Percentages are bond as a fraction of expected task value. Bands are starting points for calibration, not protocol constants.}
+\label{tab:threat-bonds}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{2.6cm}>{\raggedright\arraybackslash}p{4.2cm}>{\raggedright\arraybackslash}p{1.7cm}>{\raggedright\arraybackslash}p{4.8cm}@{}}
+\toprule
+\textbf{Threat} & \textbf{Description} & \textbf{Bond \%} & \textbf{Rationale} \\
+\midrule
+Careless work & Agent tries; output is sloppy, partial, or fails review. & 10--25\% & Loses some, not all. Bonds at this band incentivize care without freezing out capable agents from cheap tasks. \\
+Abandonment & Agent takes the task and ghosts before completion. & 25--50\% & Covers the cost of onboarding a replacement: scope-note ingestion, partial-diff review, salvage handoff (\S\ref{sec:attribution-survives}). \\
+Active sabotage & Agent intentionally damages shared state. & 100--200\% & Covers full reconstruction of polluted files plus the cleanup of downstream agents that consumed the bad state. Capital-inefficient above 100\%, but acceptable for critical files where reconstruction cost dwarfs the bond. \\
+Data exfiltration & Agent reads and leaks confidential context. & --- (\SpecOnly) & Bonds are an inadequate deterrent: leaked context is worth far more than any feasible bond. Rely on capability scoping (Anchor~\S3.3) and isolation domains (\S\ref{sec:isolation}). \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The exfiltration row is an explicit gap. It exists in the table to make the limitation legible: a bonded commons does not stop information theft, because the value of leaked secrets can vastly exceed any bond a principal will rationally post. Confidentiality is a structural problem, not an economic one, and the answer lives in Layer~1 (capability-attenuated tokens, isolation domains) rather than Layer~3. The economic alignment of this paper is correct about damage to \emph{shared state}; it makes no claim about damage from \emph{disclosure of state to outsiders}.
+
+The threat-class table also informs Phase~2 of the bootstrap path below: graduated access begins by admitting new principals only to the careless-work and abandonment bands, with the active-sabotage band gated on accumulated reputation.
+
+\subsubsection{Bootstrap Path}\label{sec:pricing:bootstrap}
+
+Competitive insurance (\S\ref{sec:youle}) is a thick-market mechanism. It needs insurers with capital, principals with reputation history, and enough transaction volume that bidders can statistically distinguish good risks from bad. A cold-start deployment has none of that. The Pareto-dominance result of \S\ref{sec:youle:welfare} is the end-state; Phases~1--2 below are the path to it, not optional preamble.
+
+\paragraph{Phase 1 --- Subsidized seeding (weeks 1--4).}
+The marketplace operator posts real tasks at above-market rates and invites a small cohort of $5$--$10$ known-capable principals from an existing network. Bonds are fixed at a flat rate per task class; pricing is not a parameter to optimize yet, because there is no data to optimize against. The goal is to produce the first row of the reputation table: clean settlements, breaches, recovery times, observed cleanup cost $c$. The operator is subsidizing the existence of an audit log.
+
+\emph{Transition metric.} Completion rate above $80\%$ sustained for $\geq 2$ consecutive weeks. Below this threshold the cohort is not yet generating usable risk signal, and Phase~2 pricing will overfit to noise.
+
+\paragraph{Phase 2 --- Complexity-proportional pricing with graduated access (months 2--6).}
+The closed-form bond $\pi(\mathcal{F}, p) = c(1 + \alpha s)(1 - \rho)$ activates, with $\alpha$ calibrated from Phase~1 cleanup data and $\rho$ initialized from the Phase~1 reputation table. New principals enter at a low-risk tier: only the careless-work and abandonment bands of Table~\ref{tab:threat-bonds} are available. Promotion to the sabotage-coverage tier gates on accumulated clean settlements, mirroring the A5 composite mechanism (\S\ref{sec:youle:a5}).
+
+Reputation bootstrapping is the hard problem of this phase. A principal with verifiable work history from another deployment should not start at zero, but the operator cannot verify external histories directly. The mechanism is an \emph{attestation import}: external audit trails signed under an Anchor-issued key (\S\ref{sec:attribution}) earn partial reputation credit, capped well below an equivalent in-system history. The credit is partial because cross-deployment reputation does not control for local cleanup cost, and capped because a fraudulent attestation issuer is a single point of failure.
+
+\emph{Transition metric.} New-principal $30$-day retention above $50\%$. Lower retention indicates either the gating is too strict (principals churn before they can earn reputation) or the bond bands are mispriced relative to observed task value. Either way, the system is not ready for competitive bidding on top of these parameters.
+
+\paragraph{Phase 3 --- Competitive insurance (month 6+).}
+The \S\ref{sec:youle} mechanism activates: insurer agents bid on underwriting transactions, static parameters retire as insurer volume grows, and listing fees enable the cartel-resistance regime of \S\ref{sec:youle:a6}. The operator's pricing parameters become fallbacks rather than the primary mechanism; they apply only when fewer than a threshold number of insurer bids arrive on a transaction.
+
+\emph{Transition metric.} Repeat-poster rate above $60\%$. The competitive-insurance equilibrium of \S\ref{sec:youle:welfare} assumes repeated interaction; without repeat posters the insurers cannot recover information costs and will not bid competitively.
+
+\medskip
+
+The Pareto-dominance result of \S\ref{sec:youle:welfare} is conditional on Phase~3 being reached and the listed metrics being met. Phases~1--2 are not bureaucratic preamble: they generate the data the competitive-insurance market needs to price at all. A deployment that skips them is running \S\ref{sec:youle} on uninformative priors, and the dominance claim does not hold.
+
+\subsubsection{Settlement and Dispute}\label{sec:pricing:settlement}
+
+The settlement protocol described so far is one-shot: the daemon's verification result (\S\ref{sec:tlaplus}) triggers slashing, attribution is recorded immutably (\S\ref{sec:attribution}), and the appeals window of \S\ref{sec:economic} allows challenge. That is most of what is needed, but it places the daemon in a position no single component should occupy: simultaneously the verifier, the judge, and the arbiter of evidence. Strong evidence does not make a single oracle correct. It makes a single oracle confidently wrong in the cases where its evidence is incomplete.
+
+The fix is to factor settlement across three oracles with different cost and gameability profiles, and to settle on majority agreement rather than unanimous appeal.
+
+\paragraph{Oracle 1 --- Automated.}
+Test-suite pass/fail, type checks, lints, coverage thresholds, and any deterministic CI signal already recorded on the session. Cheap to run, fast to return, and \emph{gameable}: a principal who knows the test surface can ship work that passes the checks while failing the intent. The daemon already produces this oracle as a side effect of normal operation; the change is to label it as one signal among three rather than the dispositive one.
+
+\paragraph{Oracle 2 --- Evidence-based.}
+A verifier (which may itself be a bonded agent) reviews the Merkle attribution chain (\S\ref{sec:attribution}) for the disputed transaction. The chain is append-only and cryptographically bound, so the oracle's hard problem is not authenticity of the evidence but interpretation: did the recorded actions match the Float Plan's scope, and do the diffs produced match the acceptance criteria? Medium cost, hard to game without colluding with the chain structure itself, which is the threat model of \S\ref{sec:youle:a5}.
+
+\paragraph{Oracle 3 --- Human audit.}
+A randomized sample of contested settlements, at a configurable rate (default $10\%$), is routed to a human auditor. Expensive, slow, and authoritative. The audit produces a labeled outcome that feeds back into reputation history and, critically, into calibrating Oracles 1 and 2: any disagreement between human audit and the cheaper oracles is a training signal for the gameable layers.
+
+\paragraph{Settlement rule.}
+\begin{itemize}[nosep]
+  \item \emph{3-of-3 agreement.} Settle immediately on the agreed outcome. The cheaper oracles carry most of the volume in steady state.
+  \item \emph{2-of-3 agreement.} Settle with the majority. Flag the dissenting trace for review; this is the primary signal for tuning the gameable oracle.
+  \item \emph{No majority (three different verdicts, or one settle / one slash / one abstain).} Escalate to full human arbitration. Bond held in escrow until the human verdict lands.
+\end{itemize}
+
+\paragraph{Composition with cartel resistance.}
+Oracle collusion is itself a collusion problem. If Oracles 1 and 2 are run by agents in the same cartel, a 2-of-3 majority can launder a sabotaged settlement past the human audit, modulo the audit sampling rate. The same insurer-collusion analysis applies (\S\ref{sec:youle:a6}) with the oracles in the role of bidders: the human-audit sampling rate $\sigma$ sets the detection probability $p_d^{\text{oracle}} = \sigma$ for the oracle layer, and the folk-theorem threshold becomes a calibration target on $\sigma$ in the same way it is a calibration target on bid-pattern detection elsewhere in the protocol. The default $10\%$ sample is a starting point; deployments where Oracles 1 and 2 are co-owned should raise it.
+
 \subsubsection{The Bonded Advisor}\label{sec:bonded-advisor}
 
 One direction for solving $\pi$ is to delegate its computation to a specialized agent, itself bonded on its advisory accuracy. We call this the \textbf{Bonded Advisor} pattern:
@@ -682,6 +861,15 @@ One direction for solving $\pi$ is to delegate its computation to a specialized 
 The pricer is priced. Convergence depends on (i) whether the advisor has access to sufficient prior-fleet audit data to pattern-match new projects, (ii) whether reputation history is long enough for discounting to be meaningful, and (iii) whether the population of advisors is large enough for competition to discipline outliers.
 
 \paragraph{$c$ as a project health metric.} A project whose observed $c$ is rising is fraying---breaches cost more to recover from, implying coordination is decaying. The authority can publish $c$ alongside the bond pool and raise required bonds automatically when $c$ crosses a threshold. Homeostatic feedback: risky spawns become expensive when the project needs them least.
+
+\paragraph{Threat-class bond bands and their defensibility.}\label{sec:pricing:threats}
+The pricing function $\pi$ resolves to one of three nominal bands, calibrated to the threat class the bond is defending against:
+\begin{itemize}[nosep]
+  \item \textbf{Careless} (accidental damage during honest attempts): $\pi \in [10\%,\,25\%]$ of the claim ceiling.
+  \item \textbf{Abandonment} (walk-away mid-task; cleanup dominates): $\pi \in [25\%,\,50\%]$ of the claim ceiling.
+  \item \textbf{Sabotage} (intentional destruction; can exceed face value): $\pi \in [100\%,\,200\%]$ of the claim ceiling.
+\end{itemize}
+A Monte Carlo sweep over the cross product of seven plausible threat-distribution mixes and the three bands quantifies defensibility: for every \emph{matched} (mix, band) pair---where the mix concentrates on the class the band is designed to defend against---observed extraction stays within $1.10\times$ the band's upper bound (10\% stochastic tolerance). Off-diagonal cells (e.g. a sabotage-heavy mix posted against the careless band) are surfaced as widening recommendations rather than silent failures. The simulation is mechanized as \texttt{proofs/bonded/pareto/threat-bands.mjs} and runs on every PR (\S\ref{app:mech}, Table~\ref{tab:verification-status}).
 
 \subsubsection{Competitive-Insurance Pricing Mechanism\protect\footnote{This subsection contributed by Thomas Youle (Indiana University, Business Economics \& Public Policy) based on conversations with the primary author in March--April 2026. The mechanism builds on classical competitive-insurance market literature~\cite{rothschildstiglitz1976,wilson1977insurance} adapted to the agent-transactions setting. The text here is a pre-print draft pending economist review of \S\ref{sec:youle:mechanism}--\S\ref{sec:youle:welfare}.}}\label{sec:youle}
 
@@ -702,7 +890,7 @@ To avoid the classic lemons problem, the mechanism requires:
 \end{itemize}
 
 \paragraph{Welfare properties (claim).}\label{sec:youle:welfare}
-\emph{Under full information and competitive entry, the market-discovered premium Pareto-dominates any authority-chosen static parameter.} The two regimes underwrite identical coverage $B_T = \mu(1+s)$; only the financing mechanism differs (Figure~\ref{fig:auction-inline}).
+\emph{Under full information and competitive entry, and under the conditions of a mature market with calibrated reputation history and sufficient insurer volume to support price discovery (see \S\ref{sec:pricing:bootstrap} for the bootstrap path to these conditions), the market-discovered premium Pareto-dominates any authority-chosen static parameter.} The two regimes underwrite identical coverage $B_T = \mu(1+s)$; only the financing mechanism differs (Figure~\ref{fig:auction-inline}).
 
 \input{figures/fig-auction-inline}
 
@@ -742,6 +930,8 @@ $B_{\mathrm{dep}}^{\star} \approx 316$ USD. \emph{Empirically the attack remains
 
 A5 considers a single-round attack: a Sybil identity bids low, wins, defaults. A6 generalizes to the \emph{repeated game}: a coalition of insurers maintains a price floor $q_{\mathrm{floor}} > q^*$ above the competitive equilibrium, splits the surplus, and uses grim-trigger punishment to deter unilateral deviation. The folk theorem says any individually rational outcome is sustainable in the limit of infinite repetition; the question for the protocol designer is how strong the daemon's \emph{detection} of cartel pricing has to be to break that sustainability at realistic discount factors.
 
+Grim trigger is used in the analysis below for analytical tractability---it gives the cleanest folk-theorem bound and the closed-form $p_d^\star$ threshold of Figure~\ref{fig:cartel-folk}. In production, the daemon uses a graduated trigger (the same three-round version applied to the claim-signaling game in Proposition~\ref{prop:claim-signaling-ic}), because crashes (\S\ref{sec:crash-recovery}) are operationally indistinguishable from deliberate defection from any third-party observer's vantage; permanent punishment for a transient infrastructure event would destroy cooperation faster than any saboteur could. The two layers share one folk theorem with two punishment regimes.
+
 Figure~\ref{fig:cartel-game-inline} shows the per-round decision node and the closed-form sustainability inequality.
 
 \input{figures/fig-cartel-game-inline}
@@ -754,6 +944,8 @@ A Monte Carlo sweep over the $(p_d, \delta)$ grid confirms the closed-form thres
   \caption{A6 --- Repeated-game cartel folk-theorem. Left: sustainability map over the $(p_d, \delta)$ grid; red cells are configurations where the grim-trigger cartel beats one-shot defection in expected PV (sustainable), white cells are where it does not (collapses). The thick black vertical bars mark the per-row threshold $p_d^\star$. Right: mean cartel lifespan (rounds until first detection) vs.\ $p_d$, one line per discount factor $\delta$. At the realistic $\delta = 0.95$, $p_d^\star \approx 0.10$: protocols must achieve $\ge 10\%$ per-round detection to break repeated-game cartels.}
   \label{fig:cartel-folk}
 \end{figure}
+
+This result extends to the agent layer: under the correlating-device interpretation of \S\ref{sec:correlating-device}, deviation incentives for agents and insurers are computed against the same per-round equilibrium structure, so the cartel folk-theorem threshold $p_d^\star$ bounds collusion at both layers.
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Coordination as Substrate: An Expressive-Act Taxonomy}\label{sec:taxonomy}
@@ -1115,6 +1307,8 @@ Merkle-Forest binding (\S\ref{sec:merkle-forest}) & EasyCrypt + fast-check & \Pa
 Pareto dominance (\S\ref{sec:youle:welfare}) & Monte Carlo, 36 configs $\times$ 2k trials & \Partial\ empirical; $\sigma_r{\le}0.1$, $n{=}3$ optimum & \texttt{simulation.mjs} \\
 Sybil A5 (\S\ref{sec:youle:a5}) & Monte Carlo over $K$ Sybils & \Partial\ coverage-bounded ceiling at $B_T$ & \texttt{simulation-sybil.mjs} \\
 Cartel folk-theorem A6 & Monte Carlo + closed form & \Partial\ $p_d^\star{\approx}0.10$ at $\delta{=}0.95$ & \texttt{simulation-cartel.mjs} \\
+Claim-signaling IC (\S\ref{sec:economic}) & TLA+ (TLC) + Z3 SMT & \Closed\ unique root $\delta^\star{\approx}0.2531$; IC invariant holds at $\delta = 0.26$ & \texttt{claim\_signaling.tla}, \texttt{delta-threshold.z3} \\
+Threat-band defensibility (\S\ref{sec:pricing}) & Monte Carlo, $7{\times}3$ grid & \Closed\ matched bands absorb target class within $1.10\times$ upper bound & \texttt{threat-bands.mjs} \\
 \midrule
 Passkey pairing runtime & --- & \SpecOnly\ model exists; no runtime & \texttt{passkey-pair.pv} \\
 Federated KMS Cloudflare Worker & --- & \SpecOnly\ model exists; no Worker yet & \texttt{federated.pv} \\
@@ -1224,6 +1418,12 @@ Amartya Sen.
 \newblock The Impossibility of a Paretian Liberal.
 \newblock \textit{Journal of Political Economy}, 78(1):152--157, 1970.
 \newblock \url{https://doi.org/10.1086/259614}
+
+\bibitem{aumann1974subjectivity}
+Robert~J. Aumann.
+\newblock Subjectivity and Correlation in Randomized Strategies.
+\newblock \textit{Journal of Mathematical Economics}, 1(1):67--96, 1974.
+\newblock \url{https://doi.org/10.1016/0304-4068(74)90037-8}
 
 \bibitem{garciamolina1987sagas}
 Hector Garcia-Molina and Kenneth Salem.

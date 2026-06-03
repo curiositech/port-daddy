@@ -20,3 +20,12 @@ Load only the file that matches the decision in front of you.
   symbol claims, salvage takeover, fleet roles).
 - `portdaddyrc-spec.md`: `.portdaddyrc` configuration schema and resolution
   order.
+- `actor-roster.md`: the canonical durable actors (cartographer, navigator,
+  lookout, dock-master, etc.) and what each owns. Read before sending an
+  actor message so you pick the right inbox.
+- `error-codes-and-recovery.md`: how to read `pd` error codes and the
+  recovery move that matches each. Read when a command fails and the human
+  message is ambiguous.
+- `session-lifecycle-state-machine.md`: the formal state machine for sessions
+  (active → paused → done → salvaged). Read when a session is in an
+  unexpected state or when integrating session events into another tool.

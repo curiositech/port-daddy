@@ -12,6 +12,7 @@
 import { CLIOptions, isJson, isQuiet } from '../types.js';
 import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
+import { isStdinInteractive } from '../utils/tty.js';
 import { loadFleetConfig } from '../../lib/fleet-engine.js';
 import { readCurrentContext } from '../utils/current-context.js';
 
@@ -22,7 +23,11 @@ const SUBCOMMANDS = new Set([
 
 function readSummaryFromStdin(): Promise<string> {
   return new Promise((resolve) => {
-    if (process.stdin.isTTY) {
+    // Interactive terminal → no piped body; return empty (caller errors loudly).
+    // Kernel-level check: `process.stdin.isTTY` is falsy under the bun-compiled
+    // binary on a real terminal, which used to mis-route an interactive run
+    // into reading stdin and blocking on EOF.
+    if (isStdinInteractive(process.stdin)) {
       resolve('');
       return;
     }
@@ -179,7 +184,7 @@ export async function handleFeedback(args: string[], options: CLIOptions): Promi
 
   // No-args, no-stdin → show summary instead of help (more useful default).
   // Help is still reachable via `pd feedback help` / `--help` / `-h`.
-  if (!sub && process.stdin.isTTY) {
+  if (!sub && isStdinInteractive(process.stdin)) {
     sub = 'summary';
     args = [sub];
   }
@@ -218,7 +223,7 @@ Project scoping:
   // piped from a non-TTY (CI/scripts). Skipped when args[0] is a known subcommand.
   if (!sub || !SUBCOMMANDS.has(sub)) {
     let summary = sub ?? '';
-    if (!summary && !process.stdin.isTTY) {
+    if (!summary && !isStdinInteractive(process.stdin)) {
       summary = await readSummaryFromStdin();
     }
     summary = summary.trim();

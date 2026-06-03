@@ -9,6 +9,7 @@ import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import { CLIOptions, isQuiet, isJson } from '../types.js';
 import { getDirectSessions } from '../utils/direct-db.js';
 import { canPrompt, promptText, promptSelect } from '../utils/prompt.js';
+import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
 import { readCurrentContext } from '../utils/current-context.js';
@@ -329,6 +330,15 @@ async function sessionStart(rest: string[], options: CLIOptions): Promise<void> 
 
 async function sessionEnd(rest: string[], options: CLIOptions, status: string): Promise<void> {
   const note = rest[0] || (options.note as string) || undefined;
+
+  if (status === 'abandoned') {
+    const ok = await requireConfirmation({
+      summary: 'Session abandon will mark your active session as abandoned and release every file claim it holds. Notes are preserved but other agents may take over the abandoned work via salvage.',
+      args: options as Record<string, unknown>,
+    });
+    if (!ok) process.exit(DESTRUCTIVE_EXIT_CODE);
+  }
+
   const pd = createSessionClient(options);
   const data: SessionEndResult = await pd.endSession(note, { status });
   const sessionId = data.id;
@@ -360,6 +370,12 @@ async function sessionRemove(rest: string[], options: CLIOptions): Promise<void>
     console.error('Usage: port-daddy session rm <id>');
     process.exit(1);
   }
+
+  const ok = await requireConfirmation({
+    summary: `Session rm will permanently delete ${sessionId}, its file claims, and all attached notes. The trail is unrecoverable.`,
+    args: options as Record<string, unknown>,
+  });
+  if (!ok) process.exit(DESTRUCTIVE_EXIT_CODE);
 
   const pd = createSessionClient(options);
   let data: SessionRemoveResult;

@@ -1,10 +1,14 @@
 /**
  * Hammer Script - Reproduction of Daemon Crash
+ *
+ * Run under tsx so the daemon-port resolver import resolves:
+ *   npx tsx scripts/reproduce_crash.js
  */
 import http from 'http';
+import { resolveDaemonUrl } from '../shared/daemon-discovery.js';
 
 const REQUESTS = 50;
-const URL = 'http://localhost:9876/status';
+const URL = `${resolveDaemonUrl()}/status`;
 
 async function hammer() {
   console.log(`🔨 Hammering ${URL} with ${REQUESTS} requests...`);

@@ -42,6 +42,8 @@ Problem type assessment:
     └── If cost optimization critical → Use web mode with smart routing
 ```
 
+See `references/execution-engines.md` for implementation details on each execution model (asyncio vs. multiprocess vs. Docker isolation).
+
 ### 2. DAG Architecture Pattern Selection
 
 ```
@@ -81,6 +83,8 @@ Task certainty assessment:
     └── If high uncertainty → Add PreMortem analysis
 ```
 
+See `references/progressive-revelation.md` for the full vague-node resolution machinery, including domain meta-skills and cross-wave context management.
+
 ### 4. Circuit Breaker Configuration
 
 ```
@@ -98,6 +102,8 @@ Risk assessment:
     ├── If model availability < 90% → Use tier fallback (Sonnet→Haiku)
     └── If cost drift > 30% of budget → Switch to cheaper model tier
 ```
+
+See `references/llm-routing.md` for provider-level routing, cost-reduction patterns, and the RouteLLM binary-routing model.
 
 ### 5. Mutation Trigger Conditions
 
@@ -127,12 +133,12 @@ Execution state analysis:
 ### 2. Over-Vague Node Paralysis
 **Detection**: >30% of nodes remain vague after 2 wave completions; planning time exceeds execution time
 **Symptoms**: "Analysis paralysis" in Wave 1; Decomposer creates vague nodes instead of commitments
-**Fix**: Force commitment threshold: If Pass 1 recognition < 0.6, escalate to human. Use domain meta-skills to add structure. Apply seed templates for common patterns.
+**Fix**: Force commitment threshold: If Pass 1 recognition < 0.6, escalate to human. Use domain meta-skills to add structure. Apply seed templates for common patterns. See `references/progressive-revelation.md` for the full resolution machinery.
 
 ### 3. Thompson Sampling Cold Start Bias
 **Detection**: New skills selected despite poor performance; selection algorithm ignores obvious quality signals
 **Symptoms**: Repeatedly selecting untested skills over proven ones; ignoring Haiku ranking confidence
-**Fix**: Implement warm-start Beta priors from skill signature similarity. Trust Haiku ranking at cold start (Alpha=5, Beta=1). Only apply Thompson perturbation after 10+ executions.
+**Fix**: Implement warm-start Beta priors from skill signature similarity. Trust Haiku ranking at cold start (Alpha=5, Beta=1). Only apply Thompson perturbation after 10+ executions. See `references/skill-lifecycle.md` for the full multi-evaluator architecture and ranking mechanics.
 
 ### 4. Meta-DAG Recursion Loops
 **Detection**: Mutator creates mutations that trigger more mutations; execution never stabilizes
@@ -281,6 +287,10 @@ Failure analysis:
 - [ ] Human escalation triggers defined for ladder exhaustion
 - [ ] Cost budgets and time limits configured per execution mode
 - [ ] Meta-DAG agents properly isolated (no self-modification paths)
+
+## Bundled Assets
+
+Load [`references/INDEX.md`](references/INDEX.md) to pick the right deep-dive for your task. Topics covered: execution engines, LLM routing, skill lifecycle, progressive revelation, SDK implementation, visualization research, observability, business model, and more.
 
 ## NOT-FOR BOUNDARIES
 

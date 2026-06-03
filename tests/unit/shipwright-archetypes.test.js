@@ -1,9 +1,10 @@
-// Shipwright Archetype Catalog — verifies the closed catalog (12 entries),
-// per-archetype rank predicates, and getArchetype lookup behavior.
+// Shipwright Archetype Catalog — verifies the closed catalog (20 entries
+// post-2026-05-20 retool), per-archetype rank predicates, getArchetype
+// lookup, and the canonical `ARCHETYPES` ordering (family → alphabetical).
 
 import { jest } from '@jest/globals';
 
-const { listArchetypes, getArchetype, rankArchetypes } = await import('../../lib/shipwright/archetypes.js');
+const { listArchetypes, getArchetype, rankArchetypes, ARCHETYPES, archetypeFamily } = await import('../../lib/shipwright/archetypes.js');
 
 const baseSignals = {
   hasTests: false,
@@ -26,8 +27,72 @@ const baseSignals = {
   perfHotPaths: false,
 };
 
-test('exactly 12 archetypes ship in the catalog', () => {
-  expect(listArchetypes()).toHaveLength(12);
+test('exactly 20 archetypes ship in the catalog (original 12 + 2026-05-20 retool 8)', () => {
+  expect(listArchetypes()).toHaveLength(20);
+});
+
+test('ARCHETYPES export contains every archetype and matches listArchetypes by id', () => {
+  const declarationIds = listArchetypes().map((a) => a.id).sort();
+  const canonicalIds = ARCHETYPES.map((a) => a.id).sort();
+  expect(canonicalIds).toEqual(declarationIds);
+  expect(ARCHETYPES).toHaveLength(20);
+});
+
+test('ARCHETYPES is ordered family-then-alphabetical (no family-back-step)', () => {
+  const familyRank = { generative: 0, critical: 1, maintenance: 2, observational: 3, cartographic: 4 };
+  for (let i = 1; i < ARCHETYPES.length; i++) {
+    const prev = ARCHETYPES[i - 1];
+    const curr = ARCHETYPES[i];
+    const prevRank = familyRank[archetypeFamily(prev)];
+    const currRank = familyRank[archetypeFamily(curr)];
+    expect(currRank).toBeGreaterThanOrEqual(prevRank);
+    if (prevRank === currRank) {
+      // Alphabetical within family.
+      expect(curr.id.localeCompare(prev.id)).toBeGreaterThanOrEqual(0);
+    }
+  }
+});
+
+test('the 2026-05-20 retool additions are all registered', () => {
+  const ids = listArchetypes().map((a) => a.id);
+  for (const newId of [
+    'cartographer',
+    'spider',
+    'unspider',
+    'code-reviewer',
+    'red-team',
+    'test-author',
+    'tautology-sniffer',
+    'tenderfoot',
+  ]) {
+    expect(ids).toContain(newId);
+  }
+});
+
+test('Spider/unSpider and test-author/tautology-sniffer and code-reviewer/red-team are pair-symmetric', () => {
+  // Pair declarations point at each other; missing back-pointer would
+  // mean the registry forgot to wire the symmetry.
+  const pairs = [
+    ['spider', 'unspider'],
+    ['test-author', 'tautology-sniffer'],
+    ['code-reviewer', 'red-team'],
+  ];
+  for (const [a, b] of pairs) {
+    expect(getArchetype(a).pairsWith).toBe(b);
+    expect(getArchetype(b).pairsWith).toBe(a);
+  }
+});
+
+test('Tenderfoot is observational and has no pair', () => {
+  const t = getArchetype('tenderfoot');
+  expect(t.family).toBe('observational');
+  expect(t.pairsWith).toBeNull();
+});
+
+test('Cartographer is cartographic and has no pair', () => {
+  const c = getArchetype('cartographer');
+  expect(c.family).toBe('cartographic');
+  expect(c.pairsWith).toBeNull();
 });
 
 test('every archetype has the required fields populated', () => {

@@ -10,6 +10,7 @@ import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
 import { resolveFleetAgentRuntime } from '../../lib/fleet-engine.js';
 import { autoIdentityFromPackageJson } from './services.js';
+import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
 
 const AGENT_ADMIN_SUBCOMMANDS = new Set(['register', 'heartbeat', 'unregister', 'inbox', 'help', 'run']);
 
@@ -368,6 +369,12 @@ export async function handleAgent(subcommand: string | undefined, args: string[]
     }
 
     case 'unregister': {
+      const ok = await requireConfirmation({
+        summary: `Unregister will remove agent ${agentId} from the registry. Any active claims it holds are released and another caller may pick up its work via salvage.`,
+        args: options as Record<string, unknown>,
+      });
+      if (!ok) process.exit(DESTRUCTIVE_EXIT_CODE);
+
       const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/agents/${encodeURIComponent(agentId)}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' }
@@ -485,6 +492,12 @@ export async function handleAgent(subcommand: string | undefined, args: string[]
         }
 
       } else if (inboxAction === 'clear') {
+        const ok = await requireConfirmation({
+          summary: `Inbox clear will delete every message addressed to ${agentId}. Senders will not be notified and content is not recoverable.`,
+          args: options as Record<string, unknown>,
+        });
+        if (!ok) process.exit(DESTRUCTIVE_EXIT_CODE);
+
         // Clear inbox
         const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/agents/${encodeURIComponent(agentId)}/inbox`, {
           method: 'DELETE'

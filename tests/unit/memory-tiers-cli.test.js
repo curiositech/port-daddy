@@ -28,7 +28,14 @@ function jsonResponse(body, ok = true, status = 200) {
 /**
  * Stub fetchers for each construct so collectRows() resolves to a known set
  * of counts. Order of mockResolvedValueOnce matches the order constructs are
- * iterated in TIER_TABLE.
+ * iterated in TIER_TABLE, and the number of mocks per construct matches the
+ * number of HTTP calls that construct's fetcher actually makes against the
+ * daemon. (archived-notes now makes TWO — total + recent — for the partition.)
+ *
+ * Wire shapes here mirror what the live daemon actually emits (see
+ * routes/resurrection.ts, routes/notes.ts, etc). Mocking the wrong shape was
+ * how PR #114's salvageable-sessions bug shipped green; this stub mirrors
+ * production.
  */
 function stubAllCounts(counts) {
   pdFetch.mockReset();
@@ -36,12 +43,25 @@ function stubAllCounts(counts) {
     const count = counts[construct];
     if (count === '__err__') {
       pdFetch.mockResolvedValueOnce(jsonResponse({ error: 'forced failure' }, false, 500));
-    } else if (construct === 'archived-notes' || construct === 'blobs') {
+      continue;
+    }
+    if (construct === 'archived-notes') {
+      // Partition: archived = total - recall. Mock total = archived + active-notes,
+      // then mock recent = active-notes, so subtraction yields the declared archived count.
+      const active = counts['active-notes'] ?? 0;
+      pdFetch.mockResolvedValueOnce(jsonResponse({ total: count + active }));
+      pdFetch.mockResolvedValueOnce(jsonResponse({ notes: new Array(active).fill({}) }));
+    } else if (construct === 'blobs') {
       pdFetch.mockResolvedValueOnce(jsonResponse({ total: count }));
-    } else if (construct === 'skill-index') {
+    } else if (construct === 'episodic-memory') {
       pdFetch.mockResolvedValueOnce(jsonResponse({ total: count }));
     } else if (construct === 'salvageable-sessions') {
-      pdFetch.mockResolvedValueOnce(jsonResponse({ pending: new Array(count).fill({}) }));
+      // Daemon shape: { success, agents: [...], count: N }.
+      pdFetch.mockResolvedValueOnce(jsonResponse({
+        success: true,
+        agents: new Array(count).fill({}),
+        count,
+      }));
     } else if (construct === 'active-sessions') {
       pdFetch.mockResolvedValueOnce(jsonResponse({ sessions: new Array(count).fill({}) }));
     } else if (construct === 'active-file-claims') {
@@ -97,14 +117,17 @@ describe('TIER_TABLE shape', () => {
     expect(new Set(names).size).toBe(names.length);
   });
 
-  test('covers the seven canonical constructs from ADR-0035', () => {
+  test('covers the canonical constructs from ADR-0035', () => {
     const expected = [
       'active-sessions',
       'active-file-claims',
       'active-notes',
       'archived-notes',
       'blobs',
-      'skill-index',
+      'episodic-memory',   // renamed from 'skill-index' — that row was the
+                           // episodic-memory total mislabeled. See PR #114
+                           // finding 2. A dedicated 'skill-index' construct
+                           // will be added when /skill-index/count lands.
       'salvageable-sessions',
     ];
     for (const e of expected) {
@@ -121,7 +144,7 @@ describe('pd memory tiers --json', () => {
       'active-notes': 12,
       'archived-notes': 8412,
       blobs: 142,
-      'skill-index': 891,
+      'episodic-memory': 891,
       'salvageable-sessions': 4,
     });
 
@@ -153,7 +176,7 @@ describe('pd memory tiers --json', () => {
       'active-notes': 5,
       'archived-notes': 100,
       blobs: 10,
-      'skill-index': 50,
+      'episodic-memory': 50,
       'salvageable-sessions': 2,
     });
 
@@ -198,7 +221,7 @@ describe('pd memory summary --json', () => {
       'active-notes': 12,
       'archived-notes': 8412,
       blobs: 142,
-      'skill-index': 891,
+      'episodic-memory': 891,
       'salvageable-sessions': 4,
     });
 
@@ -214,7 +237,7 @@ describe('pd memory summary --json', () => {
 
     const archival = out.tiers.find((t) => t.tier === 'Archival');
     expect(archival.count).toBe(8412 + 142 + 891);
-    expect(archival.constructs.sort()).toEqual(['archived-notes', 'blobs', 'skill-index']);
+    expect(archival.constructs.sort()).toEqual(['archived-notes', 'blobs', 'episodic-memory']);
 
     const recall = out.tiers.find((t) => t.tier === 'Recall');
     expect(recall.count).toBe(12);
@@ -232,7 +255,7 @@ describe('pd memory dispatcher', () => {
       'active-notes': 0,
       'archived-notes': 0,
       blobs: 0,
-      'skill-index': 0,
+      'episodic-memory': 0,
       'salvageable-sessions': 0,
     });
     await handleMemory(['tiers'], { json: true });
@@ -251,7 +274,99 @@ describe('pd memory dispatcher', () => {
     await expect(handleMemory(['nonsense'], {})).rejects.toThrow(/process\.exit/);
   });
 
-  test('no arg prints usage and exits', async () => {
-    await expect(handleMemory([], {})).rejects.toThrow(/process\.exit/);
+  test('no arg delegates to legacy episodic-memory handler (backward compat)', async () => {
+    // PR #114 review finding 4: `pd memory` (no args) historically defaulted
+    // to `episodes` and exited 0. The earlier dispatcher broke this. Now it
+    // delegates to handleEpisodicMemory; the call should reach pdFetch on the
+    // /memory/episodes endpoint, not bail to printUsage.
+    pdFetch.mockResolvedValueOnce(jsonResponse({ episodes: [], total: 0 }));
+    await handleMemory([], { json: true });
+    expect(pdFetch).toHaveBeenCalled();
+    const url = pdFetch.mock.calls[0][0];
+    expect(String(url)).toMatch(/\/memory\/episodes/);
+  });
+});
+
+// =============================================================================
+// JSON schema snapshots — closure for PR #114 finding 5.
+// =============================================================================
+describe('--json schema snapshots', () => {
+  const KEY_COUNTS = {
+    'active-sessions': 1,
+    'active-file-claims': 2,
+    'active-notes': 3,
+    'archived-notes': 4,
+    blobs: 5,
+    'episodic-memory': 6,
+    'salvageable-sessions': 7,
+  };
+
+  test('pd memory tiers --json shape is stable', async () => {
+    stubAllCounts(KEY_COUNTS);
+    await handleMemoryTiers({ json: true });
+    const out = lastJsonLog();
+    expect(Object.keys(out).sort()).toEqual(['rows']);
+    expect(Array.isArray(out.rows)).toBe(true);
+    for (const row of out.rows) {
+      // Top-level keys must be a subset of the documented schema; no extras.
+      const allowed = new Set(['construct', 'tier', 'eviction', 'access', 'count', 'countError']);
+      for (const k of Object.keys(row)) expect(allowed.has(k)).toBe(true);
+      expect(typeof row.construct).toBe('string');
+      expect(['Core', 'Recall', 'Archival', 'Recall→Archival']).toContain(row.tier);
+      expect(typeof row.eviction).toBe('string');
+      expect(typeof row.access).toBe('string');
+      expect((row.count === undefined) !== (row.countError === undefined)).toBe(true); // exactly one
+    }
+  });
+
+  test('pd memory tier <construct> --json shape is stable', async () => {
+    await handleMemoryTier('active-file-claims', { json: true });
+    const out = lastJsonLog();
+    expect(Object.keys(out).sort()).toEqual(['access', 'construct', 'eviction', 'tier']);
+    expect(out.construct).toBe('active-file-claims');
+    expect(out.tier).toBe('Core');
+  });
+
+  test('pd memory summary --json shape is stable', async () => {
+    stubAllCounts(KEY_COUNTS);
+    await handleMemorySummary({ json: true });
+    const out = lastJsonLog();
+    expect(Object.keys(out).sort()).toEqual(['tiers']);
+    expect(Array.isArray(out.tiers)).toBe(true);
+    for (const t of out.tiers) {
+      const allowed = new Set(['tier', 'count', 'constructs', 'errors']);
+      for (const k of Object.keys(t)) expect(allowed.has(k)).toBe(true);
+      expect(['Core', 'Recall', 'Archival', 'Recall→Archival']).toContain(t.tier);
+      expect(Array.isArray(t.constructs)).toBe(true);
+      expect(Array.isArray(t.errors)).toBe(true);
+    }
+  });
+});
+
+// =============================================================================
+// Recall/Archival partition invariant — explicit closure for PR #114 finding 3.
+// =============================================================================
+describe('Recall/Archival partition invariant', () => {
+  test('recall_count + archival_count = total_count over the same fixture', async () => {
+    // Pick deliberately non-round counts so a silent bug couldn't accidentally
+    // satisfy the invariant.
+    const active = 17;
+    const archived = 6391;
+    stubAllCounts({
+      'active-sessions': 0,
+      'active-file-claims': 0,
+      'active-notes': active,
+      'archived-notes': archived,
+      blobs: 0,
+      'episodic-memory': 0,
+      'salvageable-sessions': 0,
+    });
+    await handleMemoryTiers({ json: true });
+    const out = lastJsonLog();
+    const recallRow = out.rows.find((r) => r.construct === 'active-notes');
+    const archivalRow = out.rows.find((r) => r.construct === 'archived-notes');
+    expect(recallRow.count).toBe(active);
+    expect(archivalRow.count).toBe(archived);
+    expect(recallRow.count + archivalRow.count).toBe(active + archived);
   });
 });
