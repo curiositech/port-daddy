@@ -1,0 +1,231 @@
+/**
+ * Inbound GitHub Webhook Route
+ *
+ * Closes the receiver → daemon → fleet-dispatch loop. The Cloudflare Worker
+ * in `apps/github-app-receiver/` verifies the GitHub `X-Hub-Signature-256`
+ * HMAC, normalizes the payload into an envelope, and forwards it here. This
+ * route authenticates the forwarder, normalizes the event, and publishes it
+ * onto the daemon messaging bus so the fleet engine's channel subscriptions
+ * (lib/fleet-engine.ts) fire the ships a repo declares in its pd-fleet.yml.
+ *
+ * Channels published (UNSCOPED / global — subscribe with a `global:` prefix
+ * in pd-fleet.yml, e.g. `trigger: global:github:webhook:pull_request`):
+ *   - github:webhook:<event>                e.g. github:webhook:pull_request
+ *   - github:webhook:<event>:<action>       e.g. github:webhook:pull_request:opened
+ *   - github:<owner>/<repo>:<event>         e.g. github:curiositech/port-daddy:pull_request
+ *
+ * Per-project channel scoping (so only the installed repo's fleet fires) is a
+ * follow-up that needs a repo→projectDir registry — see the github-app README.
+ *
+ * Authentication (any configured method that passes wins):
+ *   - Bearer:  Authorization: Bearer <PD_GITHUB_FORWARD_TOKEN>  (receiver path)
+ *   - HMAC:    X-Hub-Signature-256 over the raw body, keyed by
+ *              PD_GITHUB_WEBHOOK_SECRET                          (direct GitHub path)
+ *   - Dev:     PD_GITHUB_WEBHOOK_ALLOW_UNAUTH=1 disables auth    (local only)
+ * If none are configured, every request is rejected with 401.
+ */
+
+import { createHmac, timingSafeEqual } from 'node:crypto';
+import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
+
+interface GithubWebhookRouteDeps {
+  logger: {
+    info(msg: string, meta?: Record<string, unknown>): void;
+    error(msg: string, meta?: Record<string, unknown>): void;
+  };
+  metrics: { errors: number; messages_published?: number };
+  messaging: {
+    publish(channel: string, payload: unknown, opts: { sender?: string; expires?: unknown }): Record<string, unknown>;
+  };
+}
+
+interface RawBodyRequest extends FastifyRequest {
+  rawBody?: string;
+}
+
+interface GithubRepository {
+  full_name?: string;
+  [key: string]: unknown;
+}
+
+interface GithubActor {
+  login?: string;
+  [key: string]: unknown;
+}
+
+/** Constant-time string compare that never throws on length mismatch. */
+function safeEqual(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return timingSafeEqual(bufA, bufB);
+}
+
+interface AuthResult {
+  ok: boolean;
+  reason?: string;
+}
+
+function authenticate(request: RawBodyRequest): AuthResult {
+  const forwardToken = process.env.PD_GITHUB_FORWARD_TOKEN?.trim();
+  const webhookSecret = process.env.PD_GITHUB_WEBHOOK_SECRET?.trim();
+  const allowUnauth = process.env.PD_GITHUB_WEBHOOK_ALLOW_UNAUTH === '1';
+
+  // Bearer token (receiver-forwarded path).
+  if (forwardToken) {
+    const header = request.headers['authorization'];
+    if (typeof header === 'string' && header.startsWith('Bearer ')) {
+      if (safeEqual(header.slice('Bearer '.length).trim(), forwardToken)) {
+        return { ok: true };
+      }
+    }
+  }
+
+  // HMAC signature (direct GitHub webhook path).
+  if (webhookSecret) {
+    const sig = request.headers['x-hub-signature-256'];
+    if (typeof sig === 'string' && sig.startsWith('sha256=')) {
+      const raw = request.rawBody ?? '';
+      const expected = 'sha256=' + createHmac('sha256', webhookSecret).update(raw).digest('hex');
+      if (safeEqual(sig, expected)) {
+        return { ok: true };
+      }
+    }
+  }
+
+  if (allowUnauth) return { ok: true };
+
+  if (!forwardToken && !webhookSecret) {
+    return { ok: false, reason: 'no webhook auth configured (set PD_GITHUB_FORWARD_TOKEN or PD_GITHUB_WEBHOOK_SECRET)' };
+  }
+  return { ok: false, reason: 'invalid webhook credentials' };
+}
+
+interface NormalizedWebhook {
+  event: string;
+  action: string | null;
+  delivery: string | null;
+  repository: GithubRepository | null;
+  sender: string | null;
+  installation_id: number | null;
+  payload: Record<string, unknown>;
+  received_at: string;
+}
+
+/**
+ * Accepts either the receiver envelope (event/action/repository at the top
+ * level, raw GitHub payload under `payload`) or a raw GitHub webhook (event in
+ * the `X-GitHub-Event` header, everything else in the body).
+ */
+function normalize(request: FastifyRequest): NormalizedWebhook | null {
+  const body = (request.body && typeof request.body === 'object' ? request.body : {}) as Record<string, unknown>;
+  const headerEvent = request.headers['x-github-event'];
+
+  const isEnvelope = typeof body.payload === 'object' && body.payload !== null;
+  const ghData = (isEnvelope ? body.payload : body) as Record<string, unknown>;
+
+  const event = (typeof headerEvent === 'string' && headerEvent)
+    || (typeof body.event === 'string' && body.event)
+    || null;
+  if (!event) return null;
+
+  const repository = (body.repository as GithubRepository | undefined)
+    ?? (ghData.repository as GithubRepository | undefined)
+    ?? null;
+  const senderObj = (body.sender as GithubActor | undefined) ?? (ghData.sender as GithubActor | undefined);
+  const action = (typeof body.action === 'string' && body.action)
+    || (typeof ghData.action === 'string' && ghData.action)
+    || null;
+  const delivery = (typeof body.delivery === 'string' && body.delivery)
+    || (typeof request.headers['x-github-delivery'] === 'string' && (request.headers['x-github-delivery'] as string))
+    || null;
+  const installation = (body.installation_id as number | undefined)
+    ?? ((ghData.installation as { id?: number } | undefined)?.id)
+    ?? null;
+
+  return {
+    event,
+    action,
+    delivery,
+    repository,
+    sender: senderObj?.login ?? null,
+    installation_id: typeof installation === 'number' ? installation : null,
+    payload: ghData,
+    received_at: new Date().toISOString(),
+  };
+}
+
+function channelsFor(hook: NormalizedWebhook): string[] {
+  const channels = [`github:webhook:${hook.event}`];
+  if (hook.action) channels.push(`github:webhook:${hook.event}:${hook.action}`);
+  const fullName = hook.repository?.full_name;
+  if (typeof fullName === 'string' && fullName) {
+    channels.push(`github:${fullName}:${hook.event}`);
+  }
+  return channels;
+}
+
+export const githubWebhookPlugin: FastifyPluginAsync<{ deps: GithubWebhookRouteDeps }> = async (fastify, opts) => {
+  const { logger, metrics, messaging } = opts.deps;
+
+  // Capture the raw body (encapsulated to this plugin) so HMAC verification
+  // can hash the exact bytes GitHub signed, while still exposing parsed JSON.
+  fastify.addContentTypeParser('application/json', { parseAs: 'string' }, (req: RawBodyRequest, body, done) => {
+    req.rawBody = typeof body === 'string' ? body : body.toString('utf8');
+    if (!req.rawBody) return done(null, {});
+    try {
+      done(null, JSON.parse(req.rawBody));
+    } catch (err) {
+      (err as Error & { statusCode?: number }).statusCode = 400;
+      done(err as Error, undefined);
+    }
+  });
+
+  // POST /webhooks/github - Inbound GitHub webhook (from receiver Worker or GitHub directly)
+  fastify.post('/webhooks/github', async (request: FastifyRequest, reply: FastifyReply) => {
+    const auth = authenticate(request as RawBodyRequest);
+    if (!auth.ok) {
+      reply.code(401);
+      return { error: auth.reason ?? 'unauthorized' };
+    }
+
+    let hook: NormalizedWebhook | null;
+    try {
+      hook = normalize(request);
+    } catch (error) {
+      metrics.errors++;
+      logger.error('github_webhook_normalize_failed', { error: (error as Error).message });
+      reply.code(400);
+      return { error: 'malformed webhook payload' };
+    }
+
+    if (!hook) {
+      reply.code(400);
+      return { error: 'could not determine GitHub event (set X-GitHub-Event header or envelope.event)' };
+    }
+
+    const channels = channelsFor(hook);
+    try {
+      for (const channel of channels) {
+        messaging.publish(channel, hook, { sender: hook.sender ?? undefined });
+        if (typeof metrics.messages_published === 'number') metrics.messages_published++;
+      }
+    } catch (error) {
+      metrics.errors++;
+      logger.error('github_webhook_publish_failed', { error: (error as Error).message, channels });
+      reply.code(500);
+      return { error: 'failed to publish webhook to fleet bus' };
+    }
+
+    logger.info('github_webhook_received', {
+      event: hook.event,
+      action: hook.action,
+      repository: hook.repository?.full_name,
+      delivery: hook.delivery,
+      channels,
+    });
+
+    reply.code(204);
+    return null;
+  });
+};
