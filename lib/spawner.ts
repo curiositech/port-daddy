@@ -128,7 +128,8 @@ export interface SpawnTelemetry {
   cachedInputTokens?: number;
   outputTokens: number;
   costUsd: number;
-  rateMode: 'exact';
+  /** 'exact' = backend-reported token counts; 'estimated' = best-guess (~chars/4). */
+  rateMode: 'exact' | 'estimated';
 }
 
 export interface SpawnedAgent {
@@ -343,6 +344,8 @@ interface BackendRunResult {
   inputTokens?: number;
   cachedInputTokens?: number;
   outputTokens?: number;
+  /** True when token counts are a best-guess estimate, not backend-reported. */
+  estimatedTelemetry?: boolean;
   childProcess?: ChildProcess | null;
 }
 
@@ -702,8 +705,50 @@ function resolveCliBackendOverride(): SpawnSpec['backend'] | null {
   return null;
 }
 
-function runClaudeCli(spec: SpawnSpec, context?: BackendRunContext): Promise<BackendRunResult> {
-  const args = ['-p', spec.task];
+/** Rough token estimate (~4 chars/token) — the labelled best-guess fallback. */
+function estimateTokensFromText(text: string): number {
+  return Math.max(1, Math.ceil((text || '').length / 4));
+}
+
+/**
+ * Parse `claude -p --output-format json` output. The CLI emits one JSON object
+ * carrying its OWN usage: `{ result, usage:{input_tokens,output_tokens,
+ * cache_read_input_tokens}, total_cost_usd }`. When that usage is present the
+ * telemetry is EXACT (the CLI counted it). When it's missing or the payload
+ * isn't JSON (older CLI), we fall back to a clearly-labelled estimate
+ * (`estimatedTelemetry: true`) rather than returning no counts — which is what
+ * previously fail-closed the launch.
+ */
+export function parseClaudeCliResult(raw: string, task: string): BackendRunResult {
+  try {
+    const obj = JSON.parse((raw || '').trim()) as {
+      result?: unknown; text?: unknown;
+      usage?: { input_tokens?: unknown; output_tokens?: unknown; cache_read_input_tokens?: unknown };
+    };
+    const output = typeof obj.result === 'string' ? obj.result
+      : typeof obj.text === 'string' ? obj.text : raw;
+    const inTok = obj.usage?.input_tokens;
+    const outTok = obj.usage?.output_tokens;
+    const cacheTok = obj.usage?.cache_read_input_tokens;
+    if (typeof inTok === 'number' && inTok > 0 && typeof outTok === 'number' && outTok > 0) {
+      return {
+        output, error: null,
+        inputTokens: inTok,
+        ...(typeof cacheTok === 'number' && cacheTok >= 0 ? { cachedInputTokens: cacheTok } : {}),
+        outputTokens: outTok,
+      };
+    }
+    return { output, error: null, inputTokens: estimateTokensFromText(task), outputTokens: estimateTokensFromText(output), estimatedTelemetry: true };
+  } catch {
+    return { output: raw, error: null, inputTokens: estimateTokensFromText(task), outputTokens: estimateTokensFromText(raw), estimatedTelemetry: true };
+  }
+}
+
+async function runClaudeCli(spec: SpawnSpec, context?: BackendRunContext): Promise<BackendRunResult> {
+  // `--output-format json` makes the CLI report its own exact usage, which we
+  // parse below. Without it the CLI prints plain prose and we get no token
+  // counts — the gap that previously fail-closed every claude-cli launch.
+  const args = ['-p', '--output-format', 'json', spec.task];
   if (spec.model) {
     args.push('--model', spec.model);
   }
@@ -724,7 +769,7 @@ function runClaudeCli(spec: SpawnSpec, context?: BackendRunContext): Promise<Bac
   const currentPath = process.env.PATH || '';
   const augmentedPath = currentPath.includes('.local/bin') ? currentPath : `${homeBin}:${currentPath}`;
 
-  return runChild({
+  const res = await runChild({
     cmd: 'claude',
     args,
     cwd: spec.workdir,
@@ -733,6 +778,8 @@ function runClaudeCli(spec: SpawnSpec, context?: BackendRunContext): Promise<Bac
     stdio: ['ignore', 'pipe', 'pipe'],
     onChild: context?.onChildProcess,
   });
+  if (res.error) return { output: res.output, error: res.error };
+  return parseClaudeCliResult(res.output, spec.task);
 }
 
 // =============================================================================
@@ -1224,7 +1271,11 @@ export function createSpawner(deps: SpawnerDeps = {}) {
                 ...(cachedInputTokens === undefined ? {} : { cachedInputTokens }),
                 outputTokens,
                 costUsd: recorded.costUsd,
-                rateMode: 'exact',
+                // Honest label: 'estimated' when token counts were a best-guess
+                // (backend didn't report usage), 'exact' when it did. The cost
+                // RATE is exact either way (gated above), so spend is priced at
+                // the real rate against guessed tokens — never silently 'exact'.
+                rateMode: result.estimatedTelemetry ? 'estimated' : 'exact',
               };
             }
           }

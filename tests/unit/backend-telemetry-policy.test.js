@@ -56,12 +56,12 @@ describe('backend telemetry policy', () => {
 
   test('blocks opaque backends until exact telemetry exists', () => {
     // Cloudflare is no longer opaque — `lib/cost-tracker.ts` ships exact
-    // rates for Workers AI models. Claude CLI still stays blocked because
-    // subprocess launches do not yet prove exact token counts end-to-end.
-    // Ollama is excluded here because it's no longer in the opaque-blocked
-    // class — the policy now allows it when the model has a known rate
-    // (see "allows Ollama when the model has an exact rate entry" below).
-    for (const backend of ['claude-cli', 'gemini', 'aider', 'custom']) {
+    // rates for Workers AI models. Ollama and claude-cli are excluded here too:
+    // ollama is allowed when the model has a known rate, and claude-cli now
+    // captures the CLI's own usage (`--output-format json`) with a labelled
+    // best-guess estimate fallback, so it is allowed when the model has a rate
+    // (see the claude-cli tests below).
+    for (const backend of ['gemini', 'aider', 'custom']) {
       const policy = assessBackendTelemetryPolicy(backend);
       expect(policy.launchAllowed).toBe(false);
       expect(policy.summary).toContain('blocked');
@@ -74,29 +74,29 @@ describe('backend telemetry policy', () => {
     expect(policy.effectiveModel).toBe('@cf/zai-org/glm-4.7-flash');
   });
 
-  test('blocks Claude CLI even when the model has an exact rate entry', () => {
+  // Claude CLI is no longer hard-blocked: runClaudeCli captures the CLI's own
+  // usage (exact) with a labelled estimate fallback. The launch is allowed when
+  // the model has a cost rate, and blocked only when it can't be priced.
+  test('allows Claude CLI when the model has a cost rate entry', () => {
     const policy = assessBackendTelemetryPolicy('claude-cli', 'claude-haiku-4-5-20251001');
-    expect(policy.launchAllowed).toBe(false);
+    expect(policy.launchAllowed).toBe(true);
     expect(policy.backend).toBe('claude-cli');
     expect(policy.effectiveModel).toBe('claude-haiku-4-5-20251001');
-    expect(policy.summary).toContain('blocked until exact token counts');
-    expect(policy.nextStep).toContain('subprocess telemetry is exact');
   });
 
-  test('blocks Claude CLI when none is supplied', () => {
+  test('allows Claude CLI with the default operator model when none is supplied', () => {
     const policy = assessBackendTelemetryPolicy('claude-cli');
-    expect(policy.launchAllowed).toBe(false);
+    expect(policy.launchAllowed).toBe(true);
     expect(policy.backend).toBe('claude-cli');
     expect(policy.effectiveModel).toBe('claude-haiku-4-5-20251001');
-    expect(policy.summary).toContain('exact nonzero cost');
   });
 
-  test('blocks Claude CLI before model-rate checks can imply readiness', () => {
+  test('still blocks Claude CLI for a model with no known cost rate', () => {
     const policy = assessBackendTelemetryPolicy('claude-cli', 'claude-mystery-model');
     expect(policy.launchAllowed).toBe(false);
     expect(policy.backend).toBe('claude-cli');
     expect(policy.effectiveModel).toBe('claude-mystery-model');
-    expect(policy.summary).toContain('blocked until exact token counts');
+    expect(policy.summary).toMatch(/no cost rate/i);
   });
 
   test('allows Ollama when the model has an exact rate entry', () => {

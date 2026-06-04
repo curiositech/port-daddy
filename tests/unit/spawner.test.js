@@ -1302,7 +1302,7 @@ describe('spawn — claude-cli backend', () => {
     expect(result.backend).toBe('claude-cli');
     expect(cpSpawn).toHaveBeenCalledWith(
       'claude',
-      ['-p', 'Write a hello world program'],
+      ['-p', '--output-format', 'json', 'Write a hello world program'],
       expect.objectContaining({
         timeout: 300000,
       })
@@ -1335,7 +1335,7 @@ describe('spawn — claude-cli backend', () => {
     });
 
     expect(cpSpawn.mock.calls[0][1]).toEqual([
-      '-p', 'Fix the bug',
+      '-p', '--output-format', 'json', 'Fix the bug',
       '--model', 'haiku',
     ]);
   });
@@ -1385,7 +1385,7 @@ describe('spawn — claude-cli backend', () => {
 
     const args = cpSpawn.mock.calls[0][1];
     expect(args).toEqual([
-      '-p', 'Do everything',
+      '-p', '--output-format', 'json', 'Do everything',
       '--model', 'sonnet',
       '--allowedTools', 'Read,Write',
     ]);
