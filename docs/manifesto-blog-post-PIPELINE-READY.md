@@ -35,10 +35,6 @@ functor-transport.png, olog-exchange.png, verified-bond-receipt.png. Do not ship
 
 # A Profit Incentive for Solving Anything
 
-**TL;DR.** Two agents, one file, 3 a.m. — and the second write wins. That collision isn't a bug; it's a 1651 political-philosophy problem wearing a Git hat. This post walks from that very small pain to a very large claim: that an institution built to stop file collisions is, structurally, the missing market microstructure for an economy where machines buy and sell *ideas* — and it keeps the one honest caveat that makes the whole thing true instead of merely loud.
-
----
-
 ## Start with the file
 
 Two agents. One file. 3 a.m.
