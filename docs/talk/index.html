@@ -1,0 +1,644 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+<title>A Profit Incentive for Solving Anything — Port Daddy</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/black.css" id="theme" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/highlight/monokai.css" />
+
+<style>
+  /*
+    Harbor-house palette. Mirrors the manifesto whitepaper signal colors and is
+    cross-checked against website-v2/src/styles/tokens.semantic.css (dark theme).
+    Source of truth lives in the repo tokens; these are the talk-deck mirror.
+  */
+  :root {
+    --sand:     #e9dcc4;
+    --paper:    #fbf7ee;
+    --ebony:    #1e1b18;
+    --ebony-2:  #15110d;
+    --cinnabar: #cc3d2e;
+    --brass:    #b08d57;
+    --patina:   #5c7a6a;
+    --ink:      #f5f3ed;   /* primary text on dark, ~ tokens --text-primary dark */
+    --ink-dim:  #d3cec2;   /* ~ tokens --text-secondary dark */
+    --ink-mute: #a59f93;   /* ~ tokens --text-muted dark */
+    --code-bg:  #0b0d11;   /* ~ tokens --code-bg dark */
+  }
+
+  .reveal {
+    /* Body type rides large; no font below the readable floor. */
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua",
+                 Georgia, "Times New Roman", serif;
+    font-size: 30px;
+    color: var(--ink);
+  }
+  .reveal .slides { text-align: left; }
+  .reveal .slides section { padding: 0 2.5%; }
+
+  .reveal-viewport {
+    background:
+      radial-gradient(1200px 700px at 78% -10%, rgba(176,141,87,0.18), transparent 60%),
+      radial-gradient(900px 600px at 0% 110%, rgba(92,122,106,0.16), transparent 55%),
+      var(--ebony-2);
+  }
+
+  .reveal h1, .reveal h2, .reveal h3 {
+    font-family: "Iowan Old Style", Palatino, Georgia, serif;
+    color: var(--paper);
+    text-transform: none;
+    letter-spacing: -0.01em;
+    line-height: 1.08;
+    text-shadow: none;
+    font-weight: 700;
+  }
+  .reveal h1 { font-size: 2.15em; }
+  .reveal h2 { font-size: 1.55em; }
+  .reveal h3 { font-size: 1.12em; color: var(--sand); }
+
+  .reveal p, .reveal li { color: var(--ink-dim); line-height: 1.45; }
+  .reveal strong { color: var(--paper); }
+  .reveal em { color: var(--sand); font-style: italic; }
+
+  .reveal a { color: var(--brass); }
+  .reveal a:hover { color: var(--sand); }
+
+  /* Eyebrow label — the one place a 12px-equivalent is allowed:
+     uppercase, bold, wide-tracked, so apparent size reads larger. */
+  .eyebrow {
+    font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+    font-size: 0.5em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    color: var(--brass);
+    margin: 0 0 0.6em 0;
+  }
+  .cinnabar { color: var(--cinnabar) !important; }
+  .patina   { color: var(--patina)  !important; }
+  .brass    { color: var(--brass)   !important; }
+  .sand     { color: var(--sand)    !important; }
+
+  .lede { font-size: 1.15em; color: var(--ink); }
+  .small { font-size: 0.82em; color: var(--ink-mute); }
+
+  /* Full-bleed hero image with caption overlay */
+  .hero {
+    position: absolute; inset: 0;
+    background-size: cover; background-position: center;
+    /* dark wash so text stays legible over any art (and over the fallback) */
+    box-shadow: inset 0 0 0 100vmax rgba(10,8,6,0.40);
+  }
+  .hero-fallback {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(700px 500px at 30% 30%, rgba(204,61,46,0.30), transparent 60%),
+      radial-gradient(700px 500px at 75% 70%, rgba(176,141,87,0.28), transparent 60%),
+      linear-gradient(135deg, var(--ebony), var(--ebony-2));
+    z-index: -1;
+  }
+  .overlay {
+    position: relative;
+    margin-top: 56vh;
+    max-width: 70%;
+  }
+  .overlay h1, .overlay h2 { text-shadow: 0 2px 18px rgba(0,0,0,0.85); }
+  .overlay p { color: var(--paper); text-shadow: 0 1px 10px rgba(0,0,0,0.85); }
+
+  /* Side-by-side image + text */
+  .split { display: grid; grid-template-columns: 1.05fr 1fr; gap: 4%; align-items: center; height: 100%; }
+  .split.right { grid-template-columns: 1fr 1.05fr; }
+  .split .art {
+    border-radius: 8px;
+    min-height: 58vh;
+    background-size: cover; background-position: center;
+    border: 1px solid rgba(176,141,87,0.45);
+    box-shadow: 0 18px 50px rgba(0,0,0,0.5);
+    position: relative;
+    overflow: hidden;
+  }
+  .split .art .hero-fallback { z-index: 0; }
+  .split .art figcaption {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    padding: 0.5em 0.7em;
+    font-size: 0.6em;
+    color: var(--paper);
+    background: linear-gradient(transparent, rgba(8,6,4,0.85));
+  }
+
+  /* Code blocks — harbor terminal */
+  .reveal pre {
+    width: 100%;
+    box-shadow: 0 14px 40px rgba(0,0,0,0.5);
+    border: 1px solid rgba(176,141,87,0.45);
+    border-radius: 8px;
+    font-size: 0.62em;
+  }
+  .reveal pre code {
+    background: var(--code-bg);
+    padding: 1.1em 1.2em;
+    border-radius: 8px;
+    line-height: 1.5;
+    max-height: none;
+  }
+  .reveal code { font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace; }
+
+  .term-title {
+    font-family: ui-monospace, monospace;
+    font-size: 0.55em; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--brass); margin-bottom: 0.4em;
+  }
+
+  /* Proof / pull-quote panel */
+  blockquote.reveal-quote, .reveal blockquote {
+    border: none;
+    border-left: 5px solid var(--cinnabar);
+    background: rgba(204,61,46,0.08);
+    padding: 0.7em 1.1em;
+    width: auto;
+    box-shadow: none;
+    font-style: normal;
+    color: var(--paper);
+    font-size: 1.05em;
+    line-height: 1.4;
+  }
+  blockquote.proof { border-left-color: var(--patina); background: rgba(92,122,106,0.10); }
+
+  ul.tight li { margin: 0.28em 0; }
+  .reveal ul { list-style: none; padding-left: 0; }
+  .reveal ul li { position: relative; padding-left: 1.2em; }
+  .reveal ul li::before {
+    content: "›"; position: absolute; left: 0; color: var(--brass); font-weight: 700;
+  }
+
+  .trilogy { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3%; margin-top: 0.6em; }
+  .beam {
+    border: 1px solid rgba(176,141,87,0.45);
+    border-top: 4px solid var(--brass);
+    border-radius: 8px;
+    padding: 0.8em 0.9em;
+    background: rgba(20,16,12,0.55);
+  }
+  .beam h3 { margin: 0 0 0.25em 0; font-size: 0.92em; }
+  .beam .roman { color: var(--cinnabar); font-weight: 700; }
+  .beam p { font-size: 0.72em; margin: 0.3em 0 0.2em; }
+  .beam .tool { font-family: ui-monospace, monospace; font-size: 0.62em; color: var(--patina); }
+
+  .reveal .progress { color: var(--cinnabar); height: 4px; }
+  .reveal .controls { color: var(--brass); }
+  .reveal .slide-number { background: rgba(0,0,0,0.4); color: var(--sand); font-size: 14px; }
+
+  .twocol { display: grid; grid-template-columns: 1fr 1fr; gap: 5%; align-items: start; }
+  .badge {
+    display: inline-block; font-family: ui-monospace, monospace; font-size: 0.6em;
+    letter-spacing: 0.12em; text-transform: uppercase; font-weight: 700;
+    padding: 0.25em 0.6em; border-radius: 999px; margin-right: 0.4em;
+  }
+  .badge.true  { color: var(--patina);   border: 1px solid var(--patina); }
+  .badge.false { color: var(--cinnabar); border: 1px solid var(--cinnabar); }
+</style>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+  <!-- 1 — TITLE -->
+  <section data-background-color="#15110d">
+    <p class="eyebrow">Port Daddy · a manifesto talk</p>
+    <h1>A Profit Incentive for<br><span class="cinnabar">Solving Anything</span></h1>
+    <p class="lede" style="margin-top:0.6em; max-width:80%;">
+      Why agent economies are coming, why they need <em>institutions</em> before they
+      need features, and the strange category-theory reason the whole thing might
+      print money.
+    </p>
+    <p class="small" style="margin-top:1.6em;">Erich Owens · Curiositech</p>
+    <aside class="notes">
+      Hi. I'm Erich. This is a talk about a deeply unglamorous piece of infrastructure —
+      a permit office for software agents — and a fairly unhinged idea that sits on top of it.
+      I'm going to start with a bug you've probably lived, end with a claim that sounds insane,
+      and spend most of the middle earning the right to say the insane part out loud.
+      The deal: I lead with the felt problem, not the math. Hold me to it.
+      Twenty-five minutes. One runnable command at the end.
+    </aside>
+  </section>
+
+  <!-- 2 — WAR STORY -->
+  <section data-background-color="#0c0a08">
+    <div class="hero-fallback"></div>
+    <div class="hero"
+         style="background-image:url('../../website-v2/public/img/generated/manifesto/hero-state-of-nature.png');"
+         role="img"
+         aria-label="A dark harbor at 3 a.m. Two luminous autonomous agents reach for the same glowing file on a pier — a near-collision."></div>
+    <div class="overlay">
+      <p class="eyebrow">3:00 a.m.</p>
+      <h2>Two agents. One file.</h2>
+      <p class="lede">
+        Both read <code>auth.ts</code>. Both think. Both write. The second write wins —
+        and the merge looks <em>clean</em>.
+      </p>
+    </div>
+    <aside class="notes">
+      Here's the war story. Agent A is halfway through refactoring auth.ts. Agent B —
+      spawned by a different orchestrator forty seconds later — also decides auth.ts is
+      where the work is. Neither knows the other exists. They both read, both think,
+      both write. Second write wins. Agent A's hour is gone.
+      And the part that actually hurts: the merge looks clean. Nothing red. So nobody
+      notices until the token-refresh race condition it quietly reintroduced pages
+      someone on a Tuesday.
+      If you've run more than one agent at a time, you can feel this one in your teeth.
+      Sit in that feeling for a second. That's the whole talk's center of gravity.
+      [If the hero art hasn't rendered, the warm fallback wash is intentional — describe
+      the scene: two vessels reaching for the same glowing ledger on a pier.]
+    </aside>
+  </section>
+
+  <!-- 3 — WHY MORE TESTS / SMARTER ORCHESTRATOR CAN'T FIX IT -->
+  <section data-background-color="#15110d">
+    <p class="eyebrow">The reflex is wrong</p>
+    <h2>You can't test your way out<br>of a fight <em>between</em> agents.</h2>
+    <div class="twocol" style="margin-top:0.7em;">
+      <div>
+        <p>The instinct is to write a smarter orchestrator. A tighter lock. A better prompt.</p>
+        <ul class="tight">
+          <li>Tests check one agent's behavior.</li>
+          <li>A better prompt sharpens one agent's judgment.</li>
+          <li>A smarter orchestrator is still <em>one</em> orchestrator.</li>
+        </ul>
+      </div>
+      <div>
+        <blockquote>
+          The collision isn't a bug. It's <strong>economics</strong> — two self-interested
+          actors, no shared institution, one scarce resource.
+        </blockquote>
+        <p class="small" style="margin-top:0.6em;">
+          Hobbes wrote the design doc in 1651: <em>bellum omnium contra omnes</em>, the war
+          of all against all. Your swarm is in a state of nature.
+        </p>
+      </div>
+    </div>
+    <aside class="notes">
+      So the reflex — and I've had it — is to fix the agent. Smarter orchestrator, tighter
+      lock, better prompt. That reflex is wrong, and seeing why is the point of this talk.
+      Every one of those fixes lives INSIDE one agent. But the collision lives BETWEEN
+      agents. No amount of cleverness inside a single process fixes a problem in the gap
+      between two processes that don't share an institution.
+      This isn't a bug in the engineering sense. It's economics. Two self-interested actors,
+      no shared sovereign, both reaching for the same scarce resource. Thomas Hobbes called
+      that the war of all against all — in 1651. Your agent swarm is reliving the state of
+      nature, four centuries late, at machine speed.
+      Notice I have NOT shown you a lighthouse yet. We earn that.
+    </aside>
+  </section>
+
+  <!-- 4 — WHAT VERIFIED COORDINATION ACTUALLY MEANS -->
+  <section data-background-color="#15110d">
+    <p class="eyebrow">No jargon</p>
+    <h2>So put a <span class="brass">permit office</span><br>between the agents.</h2>
+    <div class="twocol" style="margin-top:0.6em;">
+      <div>
+        <p>A small local daemon every agent checks in with before it touches anything.</p>
+        <ul class="tight">
+          <li>An agent <strong>announces</strong> who it is and what it's doing.</li>
+          <li>It <strong>claims</strong> the files it's about to edit.</li>
+          <li>The daemon hands back a yes — or a no.</li>
+        </ul>
+        <p class="small">It doesn't decide what you build. It enforces what <em>can't</em> be done.</p>
+      </div>
+      <div>
+        <p class="term-title">one command</p>
+        <pre><code class="language-bash" data-trim>pd begin \
+  --identity myapp:auth \
+  --purpose "refactor token refresh"</code></pre>
+        <p class="small" style="margin-top:0.4em;">
+          That's the whole on-ramp. Verified coordination means the daemon's "no" is not
+          a heuristic — it's a guarantee.
+        </p>
+      </div>
+    </div>
+    <aside class="notes">
+      Here's the fix, stated with zero jargon. Put a permit office between the agents.
+      It's a small daemon running locally. Before an agent touches a file, it checks in:
+      this is who I am, this is what I'm about to do. It claims the files. The daemon says
+      yes, or it says no.
+      Critically — the daemon does not decide what you build. It's not an architect. It only
+      enforces what cannot be done: two agents cannot both hold a write claim on auth.ts.
+      "Verified coordination" just means that "no" is not a best-effort heuristic that mostly
+      works. It's a guarantee we can prove. We'll get to the proof. For now: pd begin. That's
+      the on-ramp. One command.
+    </aside>
+  </section>
+
+  <!-- 5 — LIVE DEMO BEAT -->
+  <section data-background-color="#0b0d11">
+    <p class="eyebrow">Live · the collision, prevented</p>
+    <h2>Watch the institution say <span class="cinnabar">no</span>.</h2>
+    <pre><code class="language-bash" data-trim data-line-numbers="1-3|5-6|8-10">$ pd begin --identity myapp:auth --purpose "refactor token refresh"
+  session  myapp:auth · 7f3a
+  ✓ anchored
+
+$ pd session files claim src/auth.ts
+  ✓ claim held · src/auth.ts
+
+# meanwhile, Agent B, forty seconds later:
+$ pd session files claim src/auth.ts
+  ✗ denied · held by myapp:auth (7f3a) since 03:00:12</code></pre>
+    <p class="small" style="margin-top:0.5em;">
+      Agent B never gets to clobber the file. There's nothing to merge, because there was
+      never a second write.
+    </p>
+    <aside class="notes">
+      Let's run it. [If live: actually run these. If not, walk the canned output.]
+      pd begin — Agent A anchors a session. Then it claims src/auth.ts. Claim held.
+      Now Agent B shows up forty seconds later, exactly like the war story, and reaches for
+      the same file. And this time: denied. Held by myapp:auth since 03:00:12.
+      That's it. That's the fix to the 3 a.m. story. Agent B never gets to write. There's no
+      bad merge to catch later because there was never a second write to begin with. The
+      race condition that pages someone on Tuesday? It never enters the timeline.
+      Now — you should be slightly suspicious. "Denied" is just a string. Why should I trust
+      it? That's the next slide.
+    </aside>
+  </section>
+
+  <!-- 6 — THE HOBBES SLIDE (AFTER the failure) -->
+  <section data-background-color="#0c0a08">
+    <div class="hero-fallback"></div>
+    <div class="hero"
+         style="background-image:url('../../website-v2/public/img/generated/manifesto/leviathan-harbor.png');"
+         role="img"
+         aria-label="The same harbor, now ordered: a vast benevolent harbor-authority lighthouse routing vessels into clean glowing lanes. Relief, not tyranny."></div>
+    <div class="overlay">
+      <p class="eyebrow">The Leviathan</p>
+      <h2>The coordinator's correctness<br>is not an opinion.</h2>
+      <blockquote class="proof" style="margin-top:0.4em;">
+        It is a <strong>proof.</strong>
+      </blockquote>
+    </div>
+    <aside class="notes">
+      THIS is the Hobbes slide — and notice it comes AFTER you felt the chaos AND saw the
+      fix, not before. If I'd opened with a lighthouse it would have felt like tyranny.
+      Now it feels like relief.
+      Hobbes's answer to the war of all against all was the Leviathan: a sovereign everyone
+      submits to voluntarily, because the alternative is worse. And the reasonable engineer
+      objection is immediate — I don't want a sovereign in my infrastructure, sovereigns
+      become tyrants.
+      Correct. So we make the sovereign's correctness a proof instead of a promise. That
+      "denied" string is backed by a formal guarantee, not a hope. The Leviathan here is not
+      surveillance, not a bottleneck, not a tyrant. It's the harbor authority that turns a
+      knife fight into clean lanes. Relief, not tyranny — and checkable.
+      [Fallback: warm wash with a single lighthouse motif — describe the ordered harbor.]
+    </aside>
+  </section>
+
+  <!-- 7 — THE TRILOGY AS THE RAILS -->
+  <section data-background-color="#15110d">
+    <p class="eyebrow">Three papers, one arc</p>
+    <h2>One process → one machine → <span class="patina">many machines.</span></h2>
+    <div class="trilogy">
+      <div class="beam">
+        <h3><span class="roman">I</span> &nbsp;Bonded Commons</h3>
+        <p><em>Why a coordinator at all?</em> Agents post bonds, leave an immutable evidence
+        trail, under a conservation law: value is only posted, cleared, or refunded.</p>
+        <p class="tool">verified · TLA+</p>
+      </div>
+      <div class="beam">
+        <h3><span class="roman">II</span> &nbsp;Anchor Protocol</h3>
+        <p>How one agent <em>proves who it is</em> and exactly what it may do. Capability
+        tokens that only ever <strong>attenuate</strong> — grant less than their parent.</p>
+        <p class="tool">verified · ProVerif · Kani</p>
+      </div>
+      <div class="beam">
+        <h3><span class="roman">III</span> &nbsp;Federated Harbor</h3>
+        <p>When no machine is root of authority for another. Capability transfer across the
+        trust boundary; revocation that gossips with a named convergence bound.</p>
+        <p class="tool">verified · TLA+</p>
+      </div>
+    </div>
+    <p class="small" style="margin-top:0.7em;">
+      The Leviathan doesn't decide what you build. It enforces what <em>cannot</em> be done —
+      proven, all the way up.
+    </p>
+    <aside class="notes">
+      The proof comes in three beams. Three papers, one arc: one process, then one machine,
+      then many machines.
+      Paper I, the Bonded Commons, asks the question everyone skips: why should there be a
+      coordinator at all? It's the economics. Agents post bonds, leave an immutable evidence
+      trail, and operate under a conservation law — value is never created or destroyed by
+      surprise, only posted, cleared, or refunded. Checked in TLA+.
+      Paper II, Anchor, is the cryptographic floor: how a single agent proves its identity
+      and authority to the daemon. Capability tokens that attenuate — a token can only ever
+      grant LESS than the token it came from. Verified with ProVerif against an unbounded-
+      session Dolev–Yao attacker, and with Kani against the actual deployed Rust. Not "we
+      tested it." We proved the class of attack cannot land.
+      Paper III, the Federated Harbor: your laptop and mine, neither one root authority for
+      the other. Capability transfer across the trust boundary, gossiping revocation with a
+      named convergence bound. Also formally modeled.
+      One unglamorous permit office, proven correct, all the way up. If that were the whole
+      pitch it'd be a good pitch. It is not the whole pitch.
+    </aside>
+  </section>
+
+  <!-- 8 — THE HORIZON: AGENT ECONOMIES + OLOG ARBITRAGE -->
+  <section data-background-color="#0c0a08">
+    <div class="split">
+      <figure class="art" style="background-image:url('../../website-v2/public/img/generated/manifesto/functor-transport.png');">
+        <div class="hero-fallback"></div>
+        <figcaption>A protein and a textile lattice, joined by a structure-preserving bridge — a theorem transporting across.</figcaption>
+      </figure>
+      <div>
+        <p class="eyebrow">Now the part that sounds insane</p>
+        <h2>Structure <span class="brass">transports</span> along a functor.</h2>
+        <p>An <em>olog</em> is a formal object for an idea — a category modeling a domain.
+        A <em>functor</em> is a formal object for an analogy between two ideas.</p>
+        <blockquote style="margin-top:0.5em;">
+          If you have a functor from idea X to idea Y, every theorem you proved about X is
+          <strong>already true</strong> of Y. Not "probably." All of it. For free.
+        </blockquote>
+      </div>
+    </div>
+    <aside class="notes">
+      Here's a fact most working engineers have never been handed. There's a formal object
+      for "an idea" — Spivak and Kent call it an olog, an ontology log: precisely, a category
+      that models the concepts of some domain. A protein is an olog. A supply chain. A legal
+      argument. A garment.
+      And there's a formal object for "an analogy between two ideas": a functor, a structure-
+      preserving map between ologs. This is what Gentner's cognitive theory of analogy was
+      reaching for — analogy as mapping of relational structure, with the slack taken out.
+      The kicker is a theorem, not a vibe: structure transports along a functor. Lawvere's
+      functorial semantics; Goguen and Burstall's institution theory — "truth is invariant
+      under change of notation"; and it's running software, Spivak and Wisnesky's CQL migrates
+      structure across schemas today. If you have a functor from X to Y, every theorem about X
+      is already true about Y. For free.
+    </aside>
+  </section>
+
+  <!-- 8b — THE ARBITRAGE -->
+  <section data-background-color="#0c0a08">
+    <div class="hero-fallback"></div>
+    <div class="hero"
+         style="background-image:url('../../website-v2/public/img/generated/manifesto/olog-exchange.png');"
+         role="img"
+         aria-label="A grand trading floor where glowing idea-constellations are bought in one domain and sold into another."></div>
+    <div class="overlay">
+      <p class="eyebrow">The arbitrage</p>
+      <h2>Buy a solution cheap where it's known.<br>Sell it dear where nobody realized it applied.</h2>
+      <p class="lede">
+        A market for solving problems efficiently is, definitionally, a market that pays
+        for <em>exactly this</em>.
+      </p>
+    </div>
+    <aside class="notes">
+      Sit with the size of that. A functor between the olog of protein folding and the olog
+      of textile manufacture would mean every result about one is a result about the other.
+      The person who FINDS that functor is holding an arbitrage: buy the solution cheap in the
+      domain where it's known, sell it dear in the domain where nobody realized it applied.
+      And a market for solving problems efficiently is, by definition, a market that pays for
+      exactly this. Ricardo's comparative advantage is the pricing law. Hayek showed the price
+      system is itself a distributed computer for discovering who can do what cheapest. And we
+      have hard evidence the incentive works — Lakhani ran an open prize contest against an
+      in-house NIH team on a real computational-biology problem, and the market won, decisively.
+      A marketplace for solutions is a profit incentive to discover analogies — which is a
+      profit incentive to solve every problem, and every problem that rhymes with it.
+      Okay. Deep breath. Because if I stopped here, I'd be doing the exact thing this talk
+      exists to refuse.
+    </aside>
+  </section>
+
+  <!-- 9 — THE HONEST CAVEAT (its own slide) -->
+  <section data-background-color="#15110d">
+    <p class="eyebrow">The load-bearing caveat</p>
+    <h2>Finding the functor <em>is</em> the problem.</h2>
+    <div style="margin:0.5em 0 0.7em;">
+      <p><span class="badge true">true</span> "Theorems transport along a functor."</p>
+      <p><span class="badge false">false</span> "Finding the functor is easy."</p>
+    </div>
+    <p>
+      Almost every analogy you've ever made is <strong>not</strong> a functor. It's lossy.
+      A <em>Galois connection</em> leaks in one direction; a <em>span</em> shares only a
+      partial abstraction; only a true <em>equivalence</em> gives the dream in full.
+    </p>
+    <p class="small" style="margin-top:0.5em;">
+      AlphaFold's <em>method</em> — not its answer — transported to materials discovery. The
+      functor was found by humans, at great cost, and carried the technique, not the solution.
+      Expensive, partial, and worth a fortune <em>because</em> it's expensive and partial.
+    </p>
+    <aside class="notes">
+      This is the slide that separates this from every breathless thread you've scrolled past.
+      "Theorems transport along a functor" is true. "Finding the functor is easy" is false.
+      Finding the functor is the WHOLE problem.
+      Almost every analogy you've ever made is not a functor — it's lossy. Category theory has
+      precise names for the near-misses. A Galois connection approximates in one direction and
+      leaks in the other. A span shares only a partial abstraction. Only a true equivalence —
+      the kind univalence makes "transport everything" literal — gives you the dream in full.
+      "Protein folding to efficient garments" is almost certainly a leaky span, not a functor,
+      and anyone who tells you otherwise is selling poetry.
+      The grounded version is real but humbler. AlphaFold cracked protein structure; the
+      METHOD, not the artifact, transported to materials discovery — GNoME proposed hundreds
+      of thousands of stable crystals. That functor was found by humans, at great cost, and it
+      carried the technique, not the answer. That's what transport looks like in the wild:
+      expensive, partial, and worth a fortune precisely because it's expensive and partial.
+      So the arbitrage is real, and the naive version is a casino. The interesting question is:
+      what makes it a market instead of a casino?
+    </aside>
+  </section>
+
+  <!-- 9b — THE BONDED COMMONS AS MISSING MICROSTRUCTURE -->
+  <section data-background-color="#0c0a08">
+    <div class="split right">
+      <div>
+        <p class="eyebrow">Market, not casino</p>
+        <h2>The bond is the<br><span class="brass">missing microstructure.</span></h2>
+        <p>A market in analogies fails like a market in lemons: the seller knows whether their
+        functor preserves structure; the buyer doesn't. So make the proof the product.</p>
+        <ul class="tight">
+          <li>A claim of analogy is a <strong>capability claim</strong> — Anchor makes it unforgeable.</li>
+          <li>The <strong>receipt is the good</strong>: a checkable witness that transport held.</li>
+          <li><strong>Price by fidelity</strong>: equivalence &gt; functor &gt; Galois &gt; span.</li>
+          <li><strong>Bond it.</strong> If the audit fails, the collateral is slashed.</li>
+        </ul>
+      </div>
+      <figure class="art" style="background-image:url('../../website-v2/public/img/generated/manifesto/verified-bond-receipt.png');">
+        <div class="hero-fallback"></div>
+        <figcaption>A wax-sealed "verified functor" beside graded collateral — the market's quality gate.</figcaption>
+      </figure>
+    </div>
+    <aside class="notes">
+      Here's the connection I didn't expect to find. A market in analogies is impossible for
+      the same reason a market in lemons is hard: the seller knows whether their functor
+      actually preserves structure, and the buyer doesn't. You can't sell transported solutions
+      if every buyer has to re-derive the correspondence to check you didn't lie. That's not a
+      market — it's a trust fall.
+      This is exactly the problem the Bonded Commons already solves. Four moves. One: a claim
+      of analogy is a capability claim — "I assert a structure-preserving map from X to Y" —
+      and Anchor already makes such claims unforgeable and attenuable. Two: the proof obligation
+      is the product. You don't sell "a solution from domain X," you sell a solution plus a
+      checkable receipt — a CQL-style migration, a composition-preservation witness — that the
+      transport kept the structure it claims. The receipt is the good. Three: you price by
+      categorical fidelity — equivalence beats functor beats Galois connection beats bare span;
+      the market grades its merchandise. Four: you bond it. Post collateral. If the receipt
+      fails an audit, the bond is slashed, and the conservation law makes sure no value
+      evaporated quietly.
+      The same boring permit office that keeps two agents off auth.ts at 3 a.m. turns out to be
+      the missing microstructure for an economy of transported ideas. Institutions, the whole
+      way down — from the file to the fantasy.
+    </aside>
+  </section>
+
+  <!-- 10 — CTA -->
+  <section data-background-color="#0b0d11">
+    <p class="eyebrow">It starts unglamorously</p>
+    <h2>Not losing an hour of work<br>to a file collision.</h2>
+    <pre style="margin-top:0.6em;"><code class="language-bash" data-trim data-line-numbers>brew install curiositech/tap/port-daddy
+
+pd begin --identity myapp:auth --purpose "refactoring token refresh"
+pd session files claim src/auth.ts
+# If another agent reaches for that file, the institution already said no.</code></pre>
+    <p class="lede" style="margin-top:0.7em;">
+      Every cathedral is buttresses before it's a ceiling. The Leviathan isn't tyranny —
+      it's the reason the market can exist at all.
+    </p>
+    <p class="small" style="margin-top:0.8em;">Erich Owens · Curiositech · the Port Daddy trilogy</p>
+    <aside class="notes">
+      So: a profit incentive for solving any problem. I believe it. But notice what had to be
+      true to earn the sentence instead of shouting it. One — agents have to transact at all,
+      identity and capability and settlement, without a knife fight. Papers I through III. Two
+      — a claim that "this solution transports to your domain" has to be cheap to verify and
+      expensive to fake. The bond and the receipt. Three — we have to be ruthlessly honest that
+      the scarce, market-making thing is not the solution and not the marketplace; it's the
+      verified functor, and those are hard-won. The caveat, kept load-bearing.
+      Get those three and the fantasy stops being a fantasy and starts being plumbing. Ostrom
+      spent a career showing commons don't need a tyrant or a tragedy — they need rules,
+      monitoring, and graduated stakes. That's what we're building, for the strangest commons
+      yet: the space of ideas, traded by machines, priced by how much structure they actually
+      carry.
+      But it starts here. brew install, pd begin, claim the file. If another agent reaches for
+      it, the institution already said no. That's the runnable version of everything I just
+      said. Thank you.
+    </aside>
+  </section>
+
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/notes/notes.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/highlight/highlight.js"></script>
+<script>
+  Reveal.initialize({
+    hash: true,
+    slideNumber: 'c/t',
+    transition: 'fade',
+    transitionSpeed: 'slow',
+    backgroundTransition: 'fade',
+    width: 1280,
+    height: 800,
+    margin: 0.06,
+    minScale: 0.2,
+    maxScale: 2.5,
+    plugins: [ RevealNotes, RevealHighlight ],
+  });
+</script>
+</body>
+</html>
