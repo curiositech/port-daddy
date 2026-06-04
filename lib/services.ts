@@ -8,10 +8,9 @@ import type Database from 'better-sqlite3';
 import { parseIdentity, patternToSql } from './identity.js';
 import { parseExpires } from './utils.js';
 import type { SemanticIndex } from './semantic-index.js';
-import { DEFAULT_DAEMON_PORT } from '../shared/daemon-discovery.js';
 
 const DEFAULT_RANGE: [number, number] = [3100, 9999];
-const RESERVED_PORTS = new Set([8080, 8000, DEFAULT_DAEMON_PORT]);
+const RESERVED_PORTS = new Set([8080, 8000, 9876]);
 const MAX_SERVICES_PER_IDENTITY_PREFIX = 20;
 
 interface ServiceRow {

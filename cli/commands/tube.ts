@@ -28,7 +28,6 @@ import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import { CLIOptions, isJson, isQuiet } from '../types.js';
 import { resolveDeclaredChannel, formatResolvedChannel, type ChannelResolution } from '../utils/channel-resolution.js';
-import { isStdinInteractive } from '../utils/tty.js';
 import * as ui from '../utils/ui.js';
 import {
   createFileHistoryStore,
@@ -86,21 +85,12 @@ export function createDaemonTubeClient(physicalChannel: () => string): TubeClien
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Read process.stdin to EOF. Returns the trimmed body. Throws a hard error if
- * stdin is an interactive terminal — rather than hanging forever waiting on a
- * human who pasted the wrong flag.
- *
- * Interactivity is decided by the kernel-level `isStdinInteractive` (see
- * `cli/utils/tty.ts`), NOT the `stdin.isTTY` stream flag: under the
- * bun-compiled binary that flag is falsy on a real terminal, so the old check
- * let an interactive invocation fall through to `for await (...)` and HANG.
- * `interactive` is injectable so tests pin both branches deterministically.
+ * Read process.stdin to EOF. Returns the trimmed body. Throws if stdin is a
+ * TTY (interactive terminal) — we want a hard error rather than hanging
+ * waiting on a human who pasted the wrong flag.
  */
-export async function readStdinToEnd(
-  stdin: NodeJS.ReadableStream & { isTTY?: boolean } = process.stdin,
-  interactive: (s: { isTTY?: boolean }) => boolean = isStdinInteractive,
-): Promise<string> {
-  if (interactive(stdin)) {
+export async function readStdinToEnd(stdin: NodeJS.ReadableStream & { isTTY?: boolean }): Promise<string> {
+  if (stdin.isTTY) {
     throw new Error('tube: --send / --reply needs a body on stdin (pipe one in, e.g. `echo hi | pd tube ...`)');
   }
   const chunks: Buffer[] = [];
@@ -465,10 +455,6 @@ export async function handleTube(channel: string | undefined, options: CLIOption
       limit,
       disableHistory,
       selfSender,
-      // Per-listener cursor namespace so multiple listeners on one channel each
-      // receive every message (multi-subscriber). Distinct `--as` identities →
-      // independent cursors; the same identity still resumes across runs.
-      historyKey: selfSender ? `${physical}::${selfSender}` : physical,
     });
   }
 

@@ -48,28 +48,10 @@ const MODEL_RATES: Array<[string, ModelRate]> = [
   ['@cf/meta/llama-3.1-8b-instruct',          { input: 0.282, output: 0.827, label: 'Cloudflare Workers AI Llama 3.1 8B Instruct' }],
   ['@cf/meta/llama-3.3-70b-instruct-fp8-fast', { input: 0.293, output: 2.253, label: 'Cloudflare Workers AI Llama 3.3 70B FP8 Fast' }],
   ['@cf/meta/llama-3.1-70b-instruct-fp8-fast', { input: 0.293, output: 2.253, label: 'Cloudflare Workers AI Llama 3.1 70B FP8 Fast' }],
-  // OpenAI — GPT-5.4 / Codex (legacy project-specific names; keep first)
+  // OpenAI — GPT-5.4 / Codex
   ['gpt-5.4-mini',          { input:  0.75, cachedInput: 0.075, output:  4.50, label: 'GPT-5.4 mini' }],
   ['gpt-5.4',               { input:  2.50, cachedInput: 0.25,  output: 15.00, label: 'GPT-5.4' }],
   ['gpt-5.3-codex',         { input:  1.75, cachedInput: 0.175, output: 14.00, label: 'GPT-5.3 Codex' }],
-  // OpenAI — GPT-5 family (used by the OpenAI backend in lib/spawner/backends/openai.ts).
-  // Substring matching means more-specific keys must come first: `-nano` and
-  // `-mini` win over bare `gpt-5`. Same convention as the Claude rates above.
-  // Rates as of 2026-05; update when OpenAI publishes new pricing.
-  ['gpt-5-nano',            { input:  0.05, cachedInput: 0.005, output:  0.40, label: 'GPT-5 nano' }],
-  ['gpt-5-mini',            { input:  0.25, cachedInput: 0.025, output:  2.00, label: 'GPT-5 mini' }],
-  ['gpt-5',                 { input:  1.25, cachedInput: 0.125, output: 10.00, label: 'GPT-5' }],
-  // OpenAI — GPT-4.1 family
-  ['gpt-4.1-nano',          { input:  0.10, cachedInput: 0.025, output:  0.40, label: 'GPT-4.1 nano' }],
-  ['gpt-4.1-mini',          { input:  0.40, cachedInput: 0.10,  output:  1.60, label: 'GPT-4.1 mini' }],
-  ['gpt-4.1',               { input:  2.00, cachedInput: 0.50,  output:  8.00, label: 'GPT-4.1' }],
-  // OpenAI — GPT-4o family
-  ['gpt-4o-mini',           { input:  0.15, cachedInput: 0.075, output:  0.60, label: 'GPT-4o mini' }],
-  ['gpt-4o',                { input:  2.50, cachedInput: 1.25,  output: 10.00, label: 'GPT-4o' }],
-  // OpenAI — o-series reasoning
-  ['o4-mini',               { input:  1.10, cachedInput: 0.275, output:  4.40, label: 'OpenAI o4-mini' }],
-  ['o3',                    { input:  2.00, cachedInput: 0.50,  output:  8.00, label: 'OpenAI o3' }],
-  ['o1',                    { input: 15.00, cachedInput: 7.50,  output: 60.00, label: 'OpenAI o1' }],
   // Anthropic — Opus
   ['claude-opus-4',           { input: 15.00, output: 75.00, label: 'Claude Opus 4' }],
   // Anthropic — Sonnet
@@ -138,13 +120,6 @@ const SESSION_ESTIMATES_USD: Record<string, number> = {
   'gemini':     0.03,  // conservative floor for remote Gemini requests
   'aider':      0.10,  // aider makes multiple calls; typically 2-4 cycles
   'cloudflare': 0.05,  // remote inference via Cloudflare AI
-  'openai':     0.05,  // remote inference via OpenAI API (overridden by exact token rates)
-  // CLI-tube backends route through operator's flat-rate subscription
-  // (Claude Max / ChatGPT Pro). Marginal cost to PD's wallet is zero,
-  // but we record a tiny nonzero session estimate so cost dashboards
-  // count usage and a daily project budget can still rate-limit.
-  'cli:claude-code': 0.001,
-  'cli:codex':       0.001,
   'custom':     0.00,  // unknown — assume free
   'ollama':     0.00,  // local — free
 };
@@ -166,7 +141,7 @@ function estimateOpaqueSessionCost(backend: string, model: string): number {
 }
 
 function hasKnownPaidRemoteBackend(backend: string): boolean {
-  return ['claude', 'claude-cli', 'gemini', 'codex', 'aider', 'cloudflare', 'openai', 'cli:claude-code', 'cli:codex'].includes(backend);
+  return ['claude', 'claude-cli', 'gemini', 'codex', 'aider', 'cloudflare'].includes(backend);
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────

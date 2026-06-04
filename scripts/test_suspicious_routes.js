@@ -1,17 +1,11 @@
 /**
  * Deep Repo Script - Targeting suspicious routes
- *
- * Run under tsx so the daemon-port resolver import resolves:
- *   npx tsx scripts/test_suspicious_routes.js
  */
 import http from 'http';
-import { resolveDaemonUrl } from '../shared/daemon-discovery.js';
-
-const BASE_URL = resolveDaemonUrl();
 
 async function test(path) {
   return new Promise((resolve) => {
-    http.get(`${BASE_URL}${path}`, (res) => {
+    http.get(`http://localhost:9876${path}`, (res) => {
       console.log(`[${path}] Status: ${res.statusCode}`);
       res.on('data', () => {});
       res.on('end', resolve);
@@ -26,7 +20,7 @@ async function run() {
   await test('/status');
   await test('/activity/timeline');
   console.log('Testing /activity/subscribe (terminating quickly)...');
-  const req = http.get(`${BASE_URL}/activity/subscribe`, (res) => {
+  const req = http.get('http://localhost:9876/activity/subscribe', (res) => {
     console.log('[/activity/subscribe] Connected');
     res.on('data', () => {});
     setTimeout(() => {

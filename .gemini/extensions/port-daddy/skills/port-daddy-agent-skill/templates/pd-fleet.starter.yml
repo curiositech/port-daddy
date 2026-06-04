@@ -16,7 +16,7 @@ fleet:
     budget_usd_per_day: 5
 
   defaults:
-    backend: cli:claude-code
+    backend: claude-cli
     model: claude-sonnet-4-6
 
   agents:
@@ -42,7 +42,7 @@ fleet:
       identity: "{project}:fleet:cartographer"
       respawn: true
       max_respawns: 3
-      backend: cli:codex
+      backend: ollama
       model: qwen2.5-coder:7b
       prompt: |
         Read .spark/feedback/, docs/recovery/DOGFOOD-FEEDBACK.md, and recent

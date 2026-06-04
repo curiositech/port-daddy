@@ -1,0 +1,16 @@
++ RED='\033[0;31m'
++ YELLOW='\033[1;33m'
++ NC='\033[0m'
++ ERRORS=0
++ CRITICAL_FILES=(server.ts lib/services.ts lib/sessions.ts lib/agents.ts lib/locks.ts lib/messaging.ts lib/identity.ts lib/db.ts lib/client.ts lib/sugar.ts lib/config.ts lib/activity.ts lib/webhooks.ts lib/dns.ts lib/health.ts lib/harbors.ts lib/resurrection.ts lib/orchestrator.ts lib/detect.ts lib/scan.ts bin/port-daddy-cli.ts mcp/server.ts public/index.html package.json)
+++ git diff --cached --name-only --diff-filter=D
++ DELETED_FILES=
++ for f in $CRITICAL_FILES
++ echo ''
++ grep -qx server.ts
++ typeset -A MIN_LINES
++ MIN_LINES=(server.ts 300 lib/services.ts 200 lib/sessions.ts 400 lib/agents.ts 300 lib/locks.ts 150 lib/messaging.ts 150 lib/identity.ts 60 lib/db.ts 80 lib/client.ts 800 lib/sugar.ts 100 lib/config.ts 80 lib/activity.ts 150 lib/webhooks.ts 200 lib/dns.ts 150 lib/health.ts 100 lib/harbors.ts 100 lib/detect.ts 400 lib/scan.ts 100 lib/orchestrator.ts 150 bin/port-daddy-cli.ts 800 mcp/server.ts 800 public/index.html 500)
+++ git diff --cached --name-only --diff-filter=M
++ MODIFIED_FILES=
+.git/hooks/pre-commit: line 91: syntax error near unexpected token `threshold'
+.git/hooks/pre-commit: line 91: `for f threshold in ${(kv)MIN_LINES}; do'

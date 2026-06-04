@@ -234,7 +234,7 @@ A comparison is only as strong as the baseline it beats.
 ### Baseline Strength Tiers
 
 | Tier | Description | Example |
-|------|-------------|----------|
+|------|-------------|---------|
 | S: State-of-Art | Best known system for this task | Published coordination protocol with code |
 | A: Strong | Reasonable well-tuned alternative | Round-robin assignment with retry |
 | B: Naive | Simplest reasonable approach | Random assignment, no recovery |
@@ -480,9 +480,3 @@ Every write-up must contain these sections in order:
 | Wilcoxon signed-rank | 2 paired groups, non-normal | -- |
 | Kruskal-Wallis | 3+ groups, non-normal | -- |
 | Wilson interval | CI for proportions | Always prefer over Wald |
-
----
-
-## 17. Bundled Assets
-
-This skill includes worked evaluation cases in `evals/evals.json`. Load when you're designing experiments for multi-agent systems: the file contains prompt-and-rubric test cases that exercise the decision trees above. Each case includes expected behaviors (what a good experiment design must include), so you can validate your work before running trials.

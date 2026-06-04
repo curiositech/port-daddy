@@ -97,7 +97,6 @@ You are explicitly invited to fix errors, sharpen inefficient passages, and add 
 
 ## Canonical Runtime
 
-- **Full topology map: [`docs/operations/daemon-and-supervision.md`](docs/operations/daemon-and-supervision.md)** — the TWO `pd` installs (Homebrew runs the live daemon + is your default `pd`; the repo is dev-only), every supervisor/watchdog (`homebrew.mxcl.port-daddy`, `com.portdaddy.bosun`, the rival `com.bosun.daemon`), and the ONLY correct redeploy path. Read it before any daemon surgery — it exists because agents keep re-discovering this the hard way.
 - Do not assume the live daemon is running the current checkout.
 - Verify live truth with:
   - `port-daddy status`

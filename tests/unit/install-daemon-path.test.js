@@ -18,22 +18,4 @@ describe('daemon installer service PATH', () => {
     expect(source).not.toContain('<string>${SERVER_PATH}</string>');
     expect(source).toContain('PORT_DADDY_RESOURCE_DIR');
   });
-
-  test('detects the Homebrew daemon service and skips creating a duplicate launchd job', () => {
-    const source = readFileSync(join(process.cwd(), 'install-daemon.ts'), 'utf8');
-
-    // The brew services supervisor label is the dedup signal.
-    expect(source).toContain("'homebrew.mxcl.port-daddy'");
-    expect(source).toContain('function brewDaemonServiceLoaded');
-    // installMacOS must consult the detector and short-circuit the daemon plist
-    // write (Bosun install still proceeds).
-    expect(source).toContain('if (brewDaemonServiceLoaded())');
-    expect(source).toContain('Skipping com.portdaddy.daemon launchd job');
-    // The dedup branch must NOT write the daemon plist before returning. The
-    // only writeFileSync(PLIST_PATH, ...) call must live after the guard.
-    const guardIdx = source.indexOf('if (brewDaemonServiceLoaded())');
-    const writeIdx = source.indexOf('writeFileSync(PLIST_PATH, generatePlist(daemon))');
-    expect(guardIdx).toBeGreaterThan(-1);
-    expect(writeIdx).toBeGreaterThan(guardIdx);
-  });
 });

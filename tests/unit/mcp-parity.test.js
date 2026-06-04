@@ -258,10 +258,6 @@ const MCP_EXEMPT_FEATURES = new Set([
   'usage',          // Local developer-pane telemetry ingestion; not a user-facing MCP tool.
   'blob',           // Phase 0 tube-as-coordination-substrate: content-addressed object storage; agents use the SDK or HTTP directly, MCP wrapper deferred to Phase 1+
   'attention',      // Session-start convention surface; agents consume it via harness SessionStart hooks (Claude Code) or by running `pd attention` at the top of every session. An MCP tool would invert the dependency — the model would have to decide to call it mid-turn, which is exactly the polling problem this feature is supposed to remove. Deferred indefinitely.
-  'popper',         // PR #181 autonomous roadmap-to-dispatch task puller. Operator-driven: `pd popper status/next/pop/enable/disable` + the FleetBar Nightshift surface (HTTP). The popper runs daemon-side on a timer; an MCP tool would invert that (the model deciding to pop work mid-turn). CLI/HTTP-only, MCP wrapper deferred.
-  'recovery',       // PR #65 magic-link account recovery. API-only single-use token issue/consume consumed by out-of-band recovery flows (proofs/bonded/recovery/magic-link.pv). Intentionally NO MCP surface — an agent must not be able to mint or consume account-recovery tokens.
-  'dispatch',       // PR #163 operator queue for autonomous feature dev (ADR-0035). Operator-driven: `pd dispatch/nightshift/review/morning` + POST/GET /dispatches over the daemon queue. Workers are spawned by the daemon, not by an agent calling a tool mid-turn; accept/reject is a human/operator decision. CLI/HTTP-only, MCP wrapper deferred (same posture as popper).
-  'transcripts',    // Fleet ship-run records. Operator-facing read/delete surface (`pd transcripts`, routes/transcripts.ts) consumed by the FleetBar/dashboard ship-run views. Read-only telemetry browsing, not an agent-driving tool; MCP wrapper deferred.
 ]);
 
 // ============================================================================

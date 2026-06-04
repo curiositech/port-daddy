@@ -1,0 +1,2 @@
+/Users/erichowens/coding/port-daddy/.git/hooks/pre-commit: line 91: syntax error near unexpected token `threshold'
+/Users/erichowens/coding/port-daddy/.git/hooks/pre-commit: line 91: `for f threshold in ${(kv)MIN_LINES}; do'

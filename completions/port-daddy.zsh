@@ -1238,52 +1238,6 @@ _pd_cmd_cockpit() {
   esac
 }
 
-_pd_cmd_popper() {
-  local -a popper_subcmds
-  popper_subcmds=(
-    'status:counts + next candidate + pause flag'
-    'next:show what would pop next (dry-run)'
-    'pop:pop one item now (operator override)'
-    'enable:mark a roadmap item nightshift-eligible'
-    'disable:remove nightshift-eligible from a roadmap item'
-  )
-
-  if (( CURRENT == 2 )); then
-    _describe 'subcommand' popper_subcmds
-    return
-  fi
-
-  _arguments \
-    '--harbor[scope to a harbor]' \
-    '--json[emit raw JSON]'
-}
-
-_pd_cmd_harbormaster() {
-  local -a hm_subcmds
-  hm_subcmds=(
-    'start:launch the harbormaster body'
-    'stop:graceful SIGTERM to a running body'
-    'status:queue summary + body liveness'
-    'queue:pretty-print the merge queue'
-    'help:show usage'
-  )
-
-  if (( CURRENT == 2 )); then
-    _describe 'subcommand' hm_subcmds
-    return
-  fi
-
-  local subcmd="${words[2]}"
-  case "$subcmd" in
-    start)
-      _arguments '--foreground[run attached (no detach)]'
-      ;;
-    status|queue)
-      _arguments '--json[emit raw JSON]'
-      ;;
-  esac
-}
-
 _pd_cmd_sortie() {
   local -a sortie_subcmds
   sortie_subcmds=(
@@ -1961,9 +1915,6 @@ _port_daddy() {
     'guard:enforce Port Daddy session and file-claim discipline'
     'snapshots:list/show/restore/prune claim-watcher snapshots'
     'snapshot:alias for snapshots'
-    'backup:durable snapshots of port-registry.db (ADR-0037)'
-    'restore:restore a port-registry.db snapshot (ADR-0037)'
-    'attest:honest self-report — loud-fail invariants (ADR-0045)'
     'shipwright:survey + propose + apply for fleet authoring'
     'pheromone:stigmergic coordination (spray, files, show, ls)'
     'ph:alias for pheromone'
@@ -1973,21 +1924,10 @@ _port_daddy() {
     'spawn:launch an AI agent (Ollama/Claude/Gemini/Aider/custom)'
     'spawned:list active spawned agents'
     'sortie:launch and inspect tracked mission records'
-    'dispatch:queue and run autonomous feature dev (ADR-0035; renames nightshift)'
-    'nightshift:(deprecated alias) Use pd dispatch'
-    'review:operator accept/reject contract for produced dispatches'
-    'morning:start-of-day summary of dispatch state machine'
     'cockpit:App-Native Development Cockpit — read roadmap into mission cards'
-    'popper:autonomous roadmap-to-dispatch task puller (status/next/pop/enable/disable)'
     'secret:manage keychain-backed provider credentials (set/list/reveal/rm)'
     'secrets:alias for secret — manage keychain-backed provider credentials'
     'watch:subscribe to a channel and run a script on each message'
-    # Fleet ship-run transcripts
-    'transcripts:browse fleet ship-run transcripts (list/show/cost/delete)'
-    'transcript:alias for transcripts — view a single ship-run record'
-    # Harbormaster — canonical merge-owning actor body (ADR-0037)
-    'harbormaster:harbormaster body — start/stop/status/queue (ADR-0037)'
-    'hm:alias for harbormaster'
     # Harbors (named permission namespaces)
     'harbor:create, enter, leave, show, or destroy a harbor'
     'harbors:list all active harbors'
@@ -2022,7 +1962,6 @@ _port_daddy() {
     'bench:run performance benchmarks'
     'demo:interactive demos of Port Daddy features'
     'fleet:manage background agent fleet (gardener, QA, docs, research)'
-    'backend:list/use/cost — fleet backend route, framing, and spend'
     # Project (+ aliases)
     'scan:deep-scan project for frameworks and register with daemon'
     's:deep-scan project (alias for scan)'
@@ -2135,8 +2074,6 @@ _port_daddy() {
         spawn)                  _pd_cmd_spawn ;;
         sortie)                 _pd_cmd_sortie ;;
         cockpit)                _pd_cmd_cockpit ;;
-        popper)                 _pd_cmd_popper ;;
-        harbormaster|hm)        _pd_cmd_harbormaster ;;
         spawned)                _pd_cmd_spawned ;;
         watch)                  _pd_cmd_watch ;;
         harbor)                 _pd_cmd_harbor ;;

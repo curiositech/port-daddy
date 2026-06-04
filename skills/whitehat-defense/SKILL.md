@@ -44,8 +44,7 @@ coordinator.
 | `proof-completer` | proof-gap-auditor | `defense:proofs` | `proof:landed:*` |
 | `sec-eng-lead` | round coordination | `secops:lead` | `round:*`, `version:*` |
 
-Persona specifications live under `agents/`; see `agents/INDEX.md` for
-per-persona load triggers. Each spec names:
+Persona specifications live under `agents/`. Each spec names:
 - the attack classes the persona answers
 - the persona's tool kit (ProVerif, Tamarin, TLA+, Kani, EasyCrypt, Z3, AFL,
   Mesa, agent-based market sim, plus the project's existing test harness)
@@ -62,7 +61,6 @@ per-persona load triggers. Each spec names:
   changelog entry, drafts the blog post, and commits the new paper PDF.
 - Decides what is in scope for round N vs deferred to N+1.
 - Maintains the running threat model document.
-- Drive Gates A (open), B (seal), C (publish) with `scripts/run-secops-lead.sh`.
 
 ## Comms Protocol (summary)
 
@@ -89,23 +87,13 @@ See `references/comms-protocol.md` for the full spec.
 
 ## Reference manifest
 
-- `agents/` — six persona specs; see `agents/INDEX.md` for load triggers.
+- `agents/` — six persona specs.
 - `references/defense-patterns.md` — defense techniques by attack class.
 - `references/computational-tooling.md` — defender tool kit.
-- `references/defense-research-2025.md` — verified defense bibliography paired to the attack catalog.
 - `references/reading-list.md` — citations.
 - `references/comms-protocol.md` — symlink to the redteam comms spec
   (single source of truth across both fleets).
 - `scripts/run-whitehats.sh` — orchestrator; pd-spawns each persona with
   the right region claimed.
-- `scripts/run-secops-lead.sh` — drives sec-eng-lead through Gates A (open), B (seal), C (publish).
 - `scripts/defenses/` — concrete mitigation templates (proof skeletons,
   rate limit harnesses, market-simulator runners).
-
-## Bundled Assets
-
-| Directory | Index |
-|---|---|
-| `agents/` | [`agents/INDEX.md`](agents/INDEX.md) — per-persona specs for all six defensive roles |
-| `references/` | [`references/INDEX.md`](references/INDEX.md) — defense patterns, tooling, bibliography, comms protocol |
-| `scripts/` | [`scripts/INDEX.md`](scripts/INDEX.md) — round orchestration and gate-driving scripts |

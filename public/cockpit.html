@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<title>Cockpit — Port Daddy</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+/* ──────────────────────────────────────────────────────────────────────
+   Design system v1 — OKLCH semantic tokens
+   ──────────────────────────────────────────────────────────────────────
+   Why OKLCH: perceptually uniform lightness. A token at L=0.745 reads
+   "the same brightness" regardless of hue, which hex cannot promise.
+   Critical for dark mode where small lightness deltas drive contrast.
+   Sources of truth: the --hue-* + --l-step-* scales below.
+   Cluster / risk / decision colors derive from --hue-* + a fixed
+   chroma so the system is a single coherent palette, not a swatch zoo.
+   ────────────────────────────────────────────────────────────────────── */
+:root {
+  /* Hue anchors */
+  --hue-neutral: 270;
+  --hue-accent: 240;
+  --hue-success: 165;
+  --hue-warning: 85;
+  --hue-danger: 15;
+  --hue-modify: 60;
+  --hue-research: 320;
+  --hue-duplicate: 35;
+
+  /* Lightness scale — surface ladder, dark → light */
+  --bg-dark:      oklch(0.184 0.005 var(--hue-neutral));
+  --bg-sidebar:   oklch(0.205 0.005 var(--hue-neutral));
+  --bg-input:     oklch(0.220 0.008 var(--hue-neutral));
+  --bg-card:      oklch(0.245 0.007 var(--hue-neutral));
+  --bg-elevated:  oklch(0.290 0.009 var(--hue-neutral));
+
+  /* Text scale — meets WCAG AA (≥ 4.5:1) on --bg-card */
+  --text-label:   oklch(0.700 0.020 var(--hue-neutral));   /* eyebrow labels */
+  --text-muted:   oklch(0.800 0.015 var(--hue-neutral));   /* secondary prose */
+  --text-dim:     oklch(0.900 0.010 var(--hue-neutral));   /* body prose */
+  --text:         oklch(0.985 0.000 0);                    /* primary */
+
+  /* Accent */
+  --accent-dim:   oklch(0.660 0.125 var(--hue-accent));
+  --accent:       oklch(0.745 0.140 var(--hue-accent));
+  --accent-soft:  oklch(0.820 0.110 var(--hue-accent));
+  --accent-glow:  oklch(0.745 0.140 var(--hue-accent) / 0.16);
+
+  /* Semantic */
+  --success:      oklch(0.770 0.155 var(--hue-success));
+  --warning:      oklch(0.835 0.155 var(--hue-warning));
+  --danger:       oklch(0.700 0.180 var(--hue-danger));
+  --brass:        oklch(0.835 0.155 var(--hue-warning));
+
+  /* Borders */
+  --border:        oklch(0.310 0.008 var(--hue-neutral));
+  --border-strong: oklch(0.380 0.010 var(--hue-neutral));
+
+  /* Decision states — derived from semantic hues */
+  --c-approve:     var(--success);
+  --c-approve-bg:  oklch(0.770 0.155 var(--hue-success) / 0.18);
+  --c-reject:      var(--danger);
+  --c-reject-bg:   oklch(0.700 0.180 var(--hue-danger) / 0.18);
+  --c-modify:      oklch(0.835 0.160 var(--hue-modify));
+  --c-modify-bg:   oklch(0.835 0.160 var(--hue-modify) / 0.18);
+  --c-skip:        var(--text-muted);
+  --c-skip-bg:     oklch(0.700 0.020 var(--hue-neutral) / 0.16);
+
+  /* Cluster tones — same lightness band, hue varies */
+  --cluster-done-bg:       oklch(0.745 0.140 var(--hue-accent) / 0.20);
+  --cluster-done-fg:       oklch(0.820 0.110 var(--hue-accent));
+  --cluster-aligned-bg:    oklch(0.745 0.150 var(--hue-research) / 0.20);
+  --cluster-aligned-fg:    oklch(0.840 0.130 var(--hue-research));
+  --cluster-design-bg:     oklch(0.700 0.180 350 / 0.20);
+  --cluster-design-fg:     oklch(0.820 0.130 350);
+  --cluster-dup-bg:        oklch(0.770 0.180 var(--hue-duplicate) / 0.22);
+  --cluster-dup-fg:        oklch(0.840 0.150 var(--hue-duplicate));
+  --cluster-unaligned-bg:  oklch(0.700 0.180 var(--hue-danger) / 0.22);
+  --cluster-unaligned-fg:  oklch(0.820 0.150 var(--hue-danger));
+  --cluster-merged-bg:     oklch(0.770 0.155 var(--hue-success) / 0.20);
+  --cluster-merged-fg:     oklch(0.840 0.130 var(--hue-success));
+  --cluster-stale-bg:      var(--bg-elevated);
+  --cluster-stale-fg:      var(--text-muted);
+  --cluster-unknown-bg:    oklch(0.835 0.155 var(--hue-warning) / 0.22);
+  --cluster-unknown-fg:    oklch(0.880 0.130 var(--hue-warning));
+
+  --radius: 8px;
+  --radius-lg: 12px;
+  --shadow-lg: 0 24px 48px oklch(0 0 0 / 0.5);
+}
+html { -webkit-text-size-adjust: 100%; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  background: var(--bg-dark);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: var(--accent-soft); }
+.app {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  min-height: 100vh;
+}
+.sidebar {
+  background: linear-gradient(180deg, var(--bg-sidebar) 0%, rgba(12,26,46,0.95) 100%);
+  border-right: 1px solid var(--border);
+  padding: 20px 0;
+  position: sticky; top: 0; height: 100vh;
+  overflow-y: auto;
+}
+.sb-brand {
+  padding: 0 20px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 12px;
+}
+.sb-brand .logo {
+  width: 36px; height: 36px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-dim));
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; color: white;
+}
+.sb-brand .title { font-size: 15px; font-weight: 700; }
+.sb-brand .sub { font-size: 11px; color: var(--text-muted); font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; }
+.sb-section { padding: 16px 0 4px; }
+.sb-section-label {
+  padding: 0 20px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.tab {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 20px;
+  cursor: pointer;
+  color: var(--text-dim);
+  font-size: 14px;
+  font-weight: 500;
+  border-left: 3px solid transparent;
+  transition: background 0.12s, color 0.12s;
+}
+.tab:hover { background: rgba(88,181,255,0.06); color: var(--text); }
+.tab.active { background: rgba(88,181,255,0.10); color: var(--accent); border-left-color: var(--accent); font-weight: 600; }
+.tab .badge {
+  margin-left: auto;
+  background: var(--bg-elevated);
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  min-width: 24px;
+  text-align: center;
+}
+.tab.active .badge { background: var(--accent-glow); color: var(--accent); }
+
+.main { padding: 24px 32px; min-width: 0; }
+.topbar {
+  display: flex; align-items: center; gap: 16px;
+  margin-bottom: 24px;
+}
+.topbar h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
+.topbar .meta { color: var(--text-muted); font-size: 14px; }
+.topbar .spacer { flex: 1; }
+.btn {
+  appearance: none;
+  background: var(--bg-card);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.btn:hover { background: var(--bg-elevated); border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
+.btn.primary:hover { background: var(--accent-soft); border-color: var(--accent-soft); }
+
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* ---- Triage panel ---- */
+.triage-controls {
+  display: grid;
+  grid-template-columns: 280px 1fr auto auto;
+  gap: 12px;
+  margin-bottom: 16px;
+  align-items: center;
+}
+.triage-run-select {
+  appearance: none;
+  background: var(--bg-card);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  padding: 9px 12px;
+  border-radius: var(--radius);
+  font: inherit;
+  font-size: 14px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' fill='%239090A0'><path d='M0 2l4 4 4-4z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 8px;
+  padding-right: 30px;
+}
+.search-input {
+  background: var(--bg-card);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  padding: 9px 12px;
+  border-radius: var(--radius);
+  font: inherit;
+  font-size: 14px;
+}
+.search-input:focus { outline: none; border-color: var(--accent); }
+.progress-text { font-size: 14px; color: var(--text-dim); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+.cluster-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s, background 0.12s;
+}
+.chip:hover { border-color: var(--accent); color: var(--text); }
+.chip.active { background: var(--accent); color: white; border-color: var(--accent); }
+.chip .count { font-size: 12px; opacity: 0.85; }
+
+.toggles { display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+.toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px; color: var(--text-dim); }
+.toggle input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+
+.cards { display: grid; gap: 10px; }
+.empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+  background: var(--bg-card);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
+}
+.empty strong { color: var(--text); display: block; margin-bottom: 8px; font-size: 16px; }
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px 18px;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: start;
+  transition: border-color 0.12s, transform 0.12s;
+}
+.card:hover { border-color: var(--border-strong); }
+.card.decision-approved { border-left: 4px solid var(--c-approve); }
+.card.decision-rejected { border-left: 4px solid var(--c-reject); }
+.card.decision-modify { border-left: 4px solid var(--c-modify); }
+.card.decision-skip { border-left: 4px solid var(--c-skip); opacity: 0.65; }
+.card-meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 6px; }
+.cluster-badge {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  background: var(--bg-elevated);
+  color: var(--text-dim);
+}
+.cluster-DONE { background: var(--cluster-done-bg); color: var(--cluster-done-fg); }
+.cluster-ALIGNED_WIP { background: var(--cluster-aligned-bg); color: var(--cluster-aligned-fg); }
+.cluster-DESIGN_OR_RESEARCH_OR_PLANNING { background: var(--cluster-design-bg); color: var(--cluster-design-fg); }
+.cluster-DUPLICATIVE_CAN_HARVEST { background: var(--cluster-dup-bg); color: var(--cluster-dup-fg); }
+.cluster-UNALIGNED_DONE { background: var(--cluster-unaligned-bg); color: var(--cluster-unaligned-fg); }
+.cluster-UNALIGNED_WIP { background: var(--cluster-unaligned-bg); color: var(--cluster-unaligned-fg); }
+.cluster-STALE { background: var(--cluster-stale-bg); color: var(--cluster-stale-fg); }
+.cluster-MERGED_BRANCH_LIVES { background: var(--cluster-merged-bg); color: var(--cluster-merged-fg); }
+.cluster-MERGED_REMOTE_ONLY { background: var(--cluster-merged-bg); color: var(--cluster-merged-fg); }
+.cluster-ORPHAN_WORKTREE { background: var(--cluster-stale-bg); color: var(--cluster-stale-fg); }
+.cluster-UNKNOWN { background: var(--cluster-unknown-bg); color: var(--cluster-unknown-fg); }
+.pr-pill {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+}
+.pr-pill.draft { background: rgba(251,191,36,0.15); color: var(--brass); border-color: transparent; }
+.pr-pill.dirty { background: var(--c-reject-bg); color: var(--c-reject); border-color: transparent; }
+.hitl-flag { font-size: 11px; padding: 2px 7px; background: var(--c-modify-bg); color: var(--c-modify); font-weight: 700; border-radius: 4px; letter-spacing: 0.03em; text-transform: uppercase; }
+.card-risk { font-size: 11px; padding: 2px 7px; border-radius: 4px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+.risk-low { background: var(--cluster-merged-bg); color: var(--cluster-merged-fg); }
+.risk-medium { background: var(--cluster-unknown-bg); color: var(--cluster-unknown-fg); }
+.risk-high { background: var(--cluster-unaligned-bg); color: var(--cluster-unaligned-fg); }
+.age-pill { font-size: 12px; color: var(--text-muted); padding: 2px 9px; background: var(--bg-elevated); border-radius: 999px; font-variant-numeric: tabular-nums; }
+.what-is { font-size: 16px; font-weight: 600; color: var(--text); line-height: 1.35; margin: 6px 0 4px; word-break: break-word; }
+.what-does { font-size: 13px; color: var(--text-dim); line-height: 1.5; margin-bottom: 8px; }
+.branch-foot { display: flex; gap: 10px; align-items: center; font-size: 12px; color: var(--text-faint); flex-wrap: wrap; }
+.branch-name { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; color: var(--text-muted); word-break: break-all; }
+.wt-tag { font-size: 11px; padding: 2px 6px; background: var(--bg-elevated); border-radius: 4px; font-weight: 500; color: var(--text-dim); }
+.card-decision {
+  font-size: 12px;
+  padding: 4px 11px;
+  border-radius: 6px;
+  align-self: center;
+  font-weight: 600;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+.card-decision.unset { color: var(--text-faint); font-style: italic; font-weight: 400; }
+.card-decision.approved { background: var(--c-approve-bg); color: var(--c-approve); }
+.card-decision.rejected { background: var(--c-reject-bg); color: var(--c-reject); }
+.card-decision.modify { background: var(--c-modify-bg); color: var(--c-modify); }
+.card-decision.skip { background: var(--c-skip-bg); color: var(--c-skip); }
+
+/* Modal */
+.modal-backdrop {
+  position: fixed; inset: 0;
+  background: oklch(0 0 0 / 0.66);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: none; z-index: 100;
+  align-items: flex-start; justify-content: center;
+  padding: 40px 16px;
+  overflow-y: auto;
+}
+.modal-backdrop.open { display: flex; }
+.modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  width: 100%; max-width: 940px;
+  max-height: calc(100vh - 80px);
+  display: flex; flex-direction: column;
+}
+.modal-header {
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;
+}
+.modal-header h2 { font-size: 17px; font-weight: 700; }
+.modal-close {
+  background: none; border: none; cursor: pointer;
+  font-size: 22px; line-height: 1; color: var(--text-muted);
+  padding: 4px 10px; border-radius: 6px;
+}
+.modal-close:hover { background: var(--bg-elevated); color: var(--text); }
+.modal-body { padding: 18px 22px; overflow-y: auto; flex: 1; }
+/* Headline — title only, meta beneath, paragraph quote */
+.modal-headline { font-size: 19px; font-weight: 600; line-height: 1.35; color: var(--text); margin-bottom: 6px; }
+.modal-metaline { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+.modal-metaline a { color: var(--accent-soft); }
+.modal-paragraph {
+  font-size: 14px; line-height: 1.7; color: var(--text-dim);
+  margin-top: 14px; padding: 12px 16px;
+  background: var(--bg-input);
+  border-radius: 8px;
+  border-left: 3px solid var(--accent);
+}
+
+/* Bordered kv card — keys are the labels, no section header above */
+.kv {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-top: 18px;
+}
+.kv dt {
+  padding: 10px 14px;
+  color: var(--text-label);
+  font-weight: 600;
+  font-size: 13px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center;
+}
+.kv dd {
+  margin: 0;
+  padding: 10px 14px;
+  color: var(--text);
+  word-break: break-word;
+  border-bottom: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+}
+.kv dt:last-of-type, .kv dd:last-of-type { border-bottom: none; }
+.kv .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; word-break: break-all; color: var(--text-dim); }
+
+/* Adversarial signal chips */
+.adversarial-chip {
+  display: inline-flex; align-items: center;
+  padding: 3px 10px;
+  background: var(--accent-glow);
+  color: var(--accent-soft);
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  margin-right: 4px;
+}
+
+ul.reasons { margin: 0; padding-left: 22px; font-size: 14px; line-height: 1.65; color: var(--text-dim); }
+ul.reasons li { margin-bottom: 3px; }
+.diff-wrap { background: var(--bg-input); border: 1px solid var(--border); border-radius: 8px; max-height: 380px; overflow: auto; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; line-height: 1.55; }
+.diff-line { padding: 0 12px; white-space: pre; }
+.d-add { background: oklch(0.770 0.155 var(--hue-success) / 0.12); color: oklch(0.860 0.140 var(--hue-success)); }
+.d-del { background: oklch(0.700 0.180 var(--hue-danger) / 0.12); color: oklch(0.820 0.155 var(--hue-danger)); }
+.d-hunk { color: var(--accent); background: var(--bg-elevated); }
+.d-meta { color: var(--text-muted); }
+.modal-footer {
+  padding: 14px 22px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-elevated);
+  display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; align-items: center;
+}
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.action-btn {
+  appearance: none; border: 1px solid var(--border-strong);
+  padding: 9px 16px; border-radius: 8px;
+  font: inherit; font-size: 14px; font-weight: 600;
+  cursor: pointer; background: var(--bg-card); color: var(--text);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.action-btn:hover { transform: translateY(-1px); }
+.action-btn.approve { background: var(--c-approve-bg); color: var(--c-approve); border-color: transparent; }
+.action-btn.reject { background: var(--c-reject-bg); color: var(--c-reject); border-color: transparent; }
+.action-btn.modify { background: var(--c-modify-bg); color: var(--c-modify); border-color: transparent; }
+.action-btn.skip { background: var(--c-skip-bg); color: var(--c-skip); border-color: transparent; }
+.action-btn.active { outline: 2px solid currentColor; outline-offset: 2px; }
+.reason-textarea {
+  width: 100%; min-height: 60px; padding: 10px 12px;
+  border-radius: 8px; border: 1px solid var(--border-strong);
+  background: var(--bg-input); font: inherit; font-size: 14px;
+  color: var(--text); resize: vertical; margin-top: 10px;
+}
+.compare-link, .pr-link {
+  display: inline-flex; align-items: center;
+  padding: 7px 11px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px; color: var(--text);
+  margin-right: 8px; margin-bottom: 8px;
+}
+.compare-link:hover, .pr-link:hover { border-color: var(--accent); }
+
+/* Missions panel */
+.mission-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px 18px;
+  margin-bottom: 10px;
+}
+.mission-title { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.mission-status { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; background: var(--bg-elevated); color: var(--text-dim); font-family: ui-monospace, "SF Mono", Menlo, monospace; margin-right: 8px; }
+.mission-source { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; color: var(--text-muted); }
+
+.banner {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  padding: 14px 18px;
+  border-radius: var(--radius);
+  margin-bottom: 20px;
+  font-size: 14px;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+.banner strong { color: var(--accent); }
+.banner code { background: var(--bg-input); padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+
+@media (max-width: 900px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar { position: static; height: auto; }
+  .triage-controls { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="sb-brand">
+      <div class="logo">⚓</div>
+      <div>
+        <div class="title">Cockpit</div>
+        <div class="sub">Port Daddy</div>
+      </div>
+    </div>
+    <div class="sb-section">
+      <div class="sb-section-label">Panels</div>
+      <div class="tab active" data-panel="triage">
+        <span>Triage</span>
+        <span class="badge" id="triage-badge">—</span>
+      </div>
+      <div class="tab" data-panel="missions">
+        <span>Missions</span>
+        <span class="badge" id="missions-badge">—</span>
+      </div>
+    </div>
+    <div class="sb-section">
+      <div class="sb-section-label">External</div>
+      <a href="/" class="tab" style="text-decoration:none"><span>Dashboard</span></a>
+      <a href="/fleet-ui/" class="tab" style="text-decoration:none"><span>Fleet UI</span></a>
+      <a href="/metrics.html" class="tab" style="text-decoration:none"><span>Metrics</span></a>
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <!-- Triage panel -->
+    <section class="panel active" id="panel-triage">
+      <div class="topbar">
+        <h1>Triage</h1>
+        <span class="meta" id="triage-subtitle">—</span>
+        <div class="spacer"></div>
+        <button class="btn" id="triage-export">Export decisions</button>
+        <button class="btn" id="triage-refresh">Refresh</button>
+      </div>
+
+      <div class="banner">
+        <strong>HITL review.</strong> Approve, reject, modify-with-reason, or skip each artifact. Decisions persist to the daemon at <code>~/.port-daddy/cockpit-triage-decisions.jsonl</code>. Reload the page from anywhere — they survive.
+      </div>
+
+      <div class="triage-controls">
+        <select id="run-select" class="triage-run-select" aria-label="Triage run"></select>
+        <input id="search" class="search-input" type="text" placeholder="Search branch, title, reason…" autocomplete="off">
+        <label class="toggle"><input type="checkbox" id="hitl-only" checked> HITL only</label>
+        <label class="toggle"><input type="checkbox" id="high-risk-only"> High-risk only</label>
+      </div>
+
+      <div class="cluster-chips" id="cluster-chips"></div>
+
+      <div class="cards" id="cards"></div>
+    </section>
+
+    <!-- Missions panel -->
+    <section class="panel" id="panel-missions">
+      <div class="topbar">
+        <h1>Missions</h1>
+        <span class="meta" id="missions-meta">—</span>
+        <div class="spacer"></div>
+        <button class="btn" id="missions-refresh">Refresh</button>
+      </div>
+      <div class="banner">
+        <strong>Mission queue.</strong> Cards parsed from <code>docs/recovery/CURRENT-WORK.md</code> and joined live against active sessions, file claims, and the salvage queue. Click a card to draft a Sortie proposal.
+      </div>
+      <div id="missions-list"></div>
+    </section>
+
+  </main>
+</div>
+
+<div class="modal-backdrop" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-header">
+      <div>
+        <h2 id="m-title">—</h2>
+        <div id="m-subtitle" style="font-size:13px;color:var(--text-muted);margin-top:4px"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal()" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body" id="m-body"></div>
+    <div class="modal-footer">
+      <div class="actions">
+        <button class="action-btn approve" onclick="setDecision('approved')">✓ Approve</button>
+        <button class="action-btn reject" onclick="setDecision('rejected')">✗ Reject</button>
+        <button class="action-btn modify" onclick="setDecision('modify')">✏ Modify…</button>
+        <button class="action-btn skip" onclick="setDecision('skip')">⊘ Skip</button>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn" onclick="navItem(-1)">‹ Prev</button>
+        <button class="btn" onclick="navItem(1)">Next ›</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---- Project resolution ----
+// Daemon resolves projectDir from query string OR its configured repoRoot.
+// For convenience, allow ?projectDir=... in the URL too.
+function projectDirQS() {
+  const u = new URLSearchParams(location.search);
+  const p = u.get('projectDir') || u.get('project');
+  return p ? '&projectDir=' + encodeURIComponent(p) : '';
+}
+
+const PROJECT_QS = projectDirQS();
+let currentRun = null;
+let items = [];
+let counts = {};
+let hitlCount = 0;
+let decisions = {}; // by id -> { decision, reason, ts, ... }
+let filtered = [];
+let currentIdx = null;
+let activeCluster = '';
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+// Only http(s) URLs survive — blocks javascript:, data:, vbscript:, etc.
+// even if upstream data is compromised. Returns '#' as a safe no-op fallback.
+function safeUrl(u) {
+  if (!u) return '#';
+  try {
+    const url = new URL(String(u), location.href);
+    if (url.protocol === 'http:' || url.protocol === 'https:') return url.href;
+  } catch { /* fall through */ }
+  return '#';
+}
+
+function renderDiff(text) {
+  if (!text) return '<div class="diff-line d-meta">(no diff available)</div>';
+  return text.split('\n').map(line => {
+    let cls = 'diff-line';
+    if (line.startsWith('+++') || line.startsWith('---')) cls += ' d-meta';
+    else if (line.startsWith('@@')) cls += ' d-hunk';
+    else if (line.startsWith('+')) cls += ' d-add';
+    else if (line.startsWith('-')) cls += ' d-del';
+    return `<div class="${cls}">${esc(line) || '&nbsp;'}</div>`;
+  }).join('');
+}
+
+// ---- Panel switching ----
+document.querySelectorAll('.tab[data-panel]').forEach(t => {
+  t.addEventListener('click', () => {
+    const p = t.dataset.panel;
+    document.querySelectorAll('.tab[data-panel]').forEach(x => x.classList.toggle('active', x === t));
+    document.querySelectorAll('.panel').forEach(x => x.classList.toggle('active', x.id === `panel-${p}`));
+    if (p === 'missions' && !window._missionsLoaded) loadMissions();
+  });
+});
+
+// ---- Triage loading ----
+async function loadRuns() {
+  try {
+    const r = await fetch(`/cockpit/triage/runs?_=${Date.now()}${PROJECT_QS}`);
+    const data = await r.json();
+    if (!data.success) throw new Error(data.error);
+    const sel = document.getElementById('run-select');
+    sel.innerHTML = '';
+    if (!data.runs || data.runs.length === 0) {
+      sel.innerHTML = '<option>No runs found in docs/recovery/</option>';
+      document.getElementById('cards').innerHTML = '<div class="empty"><strong>No triage runs yet.</strong>Run the gardener to produce a triage report under <code>docs/recovery/&lt;date&gt;-gardener-triage/</code>.</div>';
+      return;
+    }
+    for (const run of data.runs) {
+      const opt = document.createElement('option');
+      opt.value = run.id;
+      opt.textContent = `${run.id}  (${run.itemCount ?? '?'} items, ${run.hitlCount ?? '?'} HITL)`;
+      sel.appendChild(opt);
+    }
+    currentRun = data.runs[0].id;
+    sel.value = currentRun;
+    await loadRunData(currentRun);
+  } catch (err) {
+    document.getElementById('cards').innerHTML = `<div class="empty"><strong>Failed to load runs.</strong>${esc(err.message)}</div>`;
+  }
+}
+
+async function loadRunData(runId) {
+  try {
+    const [itemsResp, decisionsResp] = await Promise.all([
+      fetch(`/cockpit/triage/items?run=${encodeURIComponent(runId)}${PROJECT_QS}&_=${Date.now()}`),
+      fetch(`/cockpit/triage/decisions?run=${encodeURIComponent(runId)}&_=${Date.now()}`),
+    ]);
+    const data = await itemsResp.json();
+    if (!data.success) throw new Error(data.error);
+    items = data.items || [];
+    counts = data.counts || {};
+    hitlCount = data.hitl_count || 0;
+    document.getElementById('triage-subtitle').textContent = `${runId} · ${items.length} artifacts · ${hitlCount} HITL`;
+    document.getElementById('triage-badge').textContent = String(hitlCount);
+    const decData = await decisionsResp.json();
+    decisions = {};
+    for (const d of (decData.decisions || [])) {
+      decisions[d.itemId] = d;
+    }
+    renderChips();
+    renderList();
+    updateProgress();
+  } catch (err) {
+    document.getElementById('cards').innerHTML = `<div class="empty"><strong>Failed to load run.</strong>${esc(err.message)}</div>`;
+  }
+}
+
+function renderChips() {
+  const order = ['DONE','ALIGNED_WIP','DESIGN_OR_RESEARCH_OR_PLANNING','DUPLICATIVE_CAN_HARVEST','UNALIGNED_DONE','UNALIGNED_WIP','UNKNOWN','STALE','ORPHAN_WORKTREE','MERGED_BRANCH_LIVES','MERGED_REMOTE_ONLY'];
+  const row = document.getElementById('cluster-chips');
+  let html = `<span class="chip ${activeCluster===''?'active':''}" data-cluster="">All <span class="count">${items.length}</span></span>`;
+  for (const c of order) {
+    if (!counts[c]) continue;
+    html += `<span class="chip ${activeCluster===c?'active':''}" data-cluster="${c}">${c} <span class="count">${counts[c]}</span></span>`;
+  }
+  row.innerHTML = html;
+  row.querySelectorAll('.chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      activeCluster = chip.dataset.cluster;
+      renderChips();
+      renderList();
+    });
+  });
+}
+
+function renderList() {
+  const q = document.getElementById('search').value.toLowerCase().trim();
+  const hitlOnly = document.getElementById('hitl-only').checked;
+  const highRiskOnly = document.getElementById('high-risk-only').checked;
+  filtered = items.filter(it => {
+    if (activeCluster && it.cluster !== activeCluster) return false;
+    if (hitlOnly && !it.hitl) return false;
+    if (highRiskOnly && it.risk_level !== 'high') return false;
+    if (q) {
+      const hay = [it.branch, it.pr_title, it.cluster, it.what_it_is, it.what_it_does, it.paragraph, it.risk_level, (it.adversarial||[]).join(' '), (it.reasons||[]).join(' '), it.last_subject].join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  const el = document.getElementById('cards');
+  if (filtered.length === 0) {
+    el.innerHTML = '<div class="empty"><strong>No items match.</strong>Adjust filters or clear search.</div>';
+    return;
+  }
+  el.innerHTML = filtered.map((it, fi) => renderCard(it, fi)).join('');
+}
+
+function renderCard(it, idx) {
+  const dec = decisions[it.id]?.decision || '';
+  const decClass = dec ? `decision-${dec}` : '';
+  const decText = dec ? `<span class="card-decision ${dec}">${dec === 'modify' ? 'modify' : dec}</span>` : '<span class="card-decision unset">undecided</span>';
+  const prPill = it.pr_number ? `<span class="pr-pill ${it.pr_is_draft?'draft':''} ${it.pr_merge_state==='DIRTY'?'dirty':''}">PR #${it.pr_number}${it.pr_merge_state ? ' · '+it.pr_merge_state : ''}</span>` : '';
+  const age = it.age_days != null ? `<span class="age-pill">${it.age_days}d</span>` : '';
+  const riskPill = it.risk_level ? `<span class="card-risk risk-${it.risk_level}">${it.risk_level}</span>` : '';
+  return `<div class="card ${decClass}" onclick="openModal(${idx})">
+    <div>
+      <div class="card-meta">
+        <span class="cluster-badge cluster-${it.cluster}">${it.cluster}</span>
+        ${prPill}
+        ${it.hitl ? '<span class="hitl-flag">HITL</span>' : ''}
+        ${riskPill}
+        ${age}
+      </div>
+      <div class="what-is">${esc(it.what_it_is || it.branch || '(?)')}</div>
+      <div class="what-does">${esc(it.what_it_does || '')}</div>
+      <div class="branch-foot">
+        <span class="branch-name">${esc(it.branch || '(detached)')}</span>
+        ${it.worktree_path ? '<span class="wt-tag">worktree</span>' : ''}
+      </div>
+    </div>
+    ${decText}
+  </div>`;
+}
+
+async function openModal(filteredIdx) {
+  currentIdx = filteredIdx;
+  const it = filtered[filteredIdx];
+  document.getElementById('m-title').innerHTML = `<span class="cluster-badge cluster-${it.cluster}">${it.cluster}</span> <span class="branch-name" style="margin-left:8px;font-size:14px">${esc(it.branch || '(detached)')}</span>`;
+  // Header subtitle carries author / age / commits / PR refs — the kv block handles structured facts
+  const sub = [];
+  if (it.last_author) sub.push(it.last_author);
+  if (it.age_days != null) sub.push(`${it.age_days}d`);
+  if (it.n_commits) sub.push(`${it.n_commits} commit${it.n_commits !== 1 ? 's' : ''}`);
+  if (it.pr_number) sub.push(`PR #${it.pr_number}${it.pr_state ? ' · ' + it.pr_state : ''}${it.pr_merge_state ? ' / ' + it.pr_merge_state : ''}${it.pr_is_draft ? ' draft' : ''}`);
+  document.getElementById('m-subtitle').textContent = sub.join(' · ');
+
+  let html = '';
+  // Title alone — meta facts live in the modal header subtitle, not duplicated here
+  html += '<div class="modal-headline">' + esc(it.what_it_is || it.branch || '(?)') + '</div>';
+  if (it.paragraph) html += '<div class="modal-paragraph">' + esc(it.paragraph) + '</div>';
+
+  // Bordered kv: signals + risk + tests + logging + adversarial
+  html += '<dl class="kv">';
+  if (it.risk_level) {
+    const reasons = (it.risk_reasons || []).join(', ');
+    html += `<dt>Risk</dt><dd><span class="card-risk risk-${it.risk_level}" style="margin-right:8px">${esc(it.risk_level)}</span>${esc(reasons)}</dd>`;
+  }
+  if (it.tests_desc) html += `<dt>Tests</dt><dd>${esc(it.tests_desc)}</dd>`;
+  if (it.logging_desc) html += `<dt>Logging</dt><dd>${esc(it.logging_desc)}</dd>`;
+  if (it.adversarial_desc) {
+    html += '<dt>Adversarial</dt><dd>';
+    if (it.adversarial && it.adversarial.length) {
+      html += it.adversarial.map(a => `<span class="adversarial-chip">${esc(a)}</span>`).join('');
+    } else {
+      html += esc(it.adversarial_desc);
+    }
+    html += '</dd>';
+  }
+  html += '</dl>';
+
+  if (it.pr_title && it.pr_title !== it.what_it_is) {
+    html += `<div style="margin-top:18px;font-size:14px;color:var(--text-dim)"><span style="color:var(--text-label)">PR title:</span> ${esc(it.pr_title)}</div>`;
+  }
+
+  // Bordered kv: metadata
+  html += '<dl class="kv">';
+  if (it.pr_files != null) html += `<dt>Changes</dt><dd>${esc(it.pr_files)} files · <span style="color:var(--success)">+${esc(it.pr_additions)}</span> / <span style="color:var(--danger)">-${esc(it.pr_deletions)}</span></dd>`;
+  if (it.last_subject) html += `<dt>Last commit</dt><dd>${esc(it.last_subject)}</dd>`;
+  if (it.branch) html += `<dt>Branch</dt><dd><span class="mono">${esc(it.branch)}</span></dd>`;
+  if (it.worktree_path) html += `<dt>Worktree</dt><dd><span class="mono">${esc(it.worktree_path)}</span></dd>`;
+  const refsParts = [];
+  if (it.has_local) refsParts.push('local');
+  if (it.has_remote) refsParts.push('remote');
+  if (refsParts.length) html += `<dt>Refs</dt><dd>${refsParts.join(' + ')}</dd>`;
+  if (it.checks_failed && it.checks_failed.length) html += `<dt>Checks failed</dt><dd style="color:var(--danger)">${it.checks_failed.map(esc).join(', ')}</dd>`;
+  if (it.checks_pending && it.checks_pending.length) html += `<dt>Checks pending</dt><dd>${it.checks_pending.map(esc).join(', ')}</dd>`;
+  if (it.confidence != null) html += `<dt>Confidence</dt><dd>${(((it.confidence || 0) * 100) | 0)}%</dd>`;
+  if ((it.reasons || []).length) html += `<dt>Signals</dt><dd>${(it.reasons || []).map(esc).join('; ')}</dd>`;
+  html += '</dl>';
+
+  // Diff section — fetch lazily
+  if (it.hitl && it.id) {
+    html += `<div class="modal-section"><h3>Diff vs origin/main</h3>
+      <div class="diff-wrap" id="diff-content"><div class="diff-line d-meta">loading…</div></div></div>`;
+  }
+
+  const existing = decisions[it.id];
+  html += '<div class="modal-section" id="decision-section"><h3>Decision</h3>';
+  if (existing) {
+    html += `<div style="font-size:14px;padding:10px 12px;background:var(--bg-input);border-radius:8px;">Current: <strong>${existing.decision}</strong> at ${new Date(existing.ts).toLocaleString()}${existing.reason ? `<br><em style="color:var(--text-muted)">${esc(existing.reason)}</em>` : ''}</div>`;
+  } else {
+    html += '<div style="font-size:14px;color:var(--text-muted)">No decision yet.</div>';
+  }
+  html += `<textarea class="reason-textarea" id="reason-input" placeholder="Optional reason (required for Modify)">${esc(existing?.reason || '')}</textarea>`;
+  html += '</div>';
+
+  document.getElementById('m-body').innerHTML = html;
+  document.querySelectorAll('.action-btn').forEach(b => b.classList.remove('active'));
+  if (existing) {
+    const map = { approved: 'approve', rejected: 'reject', modify: 'modify', skip: 'skip' };
+    document.querySelector(`.action-btn.${map[existing.decision]}`)?.classList.add('active');
+  }
+  document.getElementById('modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+
+  // Fetch diff lazily
+  if (it.hitl && it.id) {
+    try {
+      const r = await fetch(`/cockpit/triage/diff/${encodeURIComponent(currentRun)}/${encodeURIComponent(it.id)}${PROJECT_QS}`);
+      if (r.ok) {
+        const text = await r.text();
+        const el = document.getElementById('diff-content');
+        if (el) el.innerHTML = renderDiff(text);
+      } else {
+        const el = document.getElementById('diff-content');
+        if (el) el.innerHTML = '<div class="diff-line d-meta">(diff not available)</div>';
+      }
+    } catch (err) {
+      const el = document.getElementById('diff-content');
+      if (el) el.innerHTML = '<div class="diff-line d-meta">(fetch error: ' + esc(err.message) + ')</div>';
+    }
+  }
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+  document.body.style.overflow = '';
+  currentIdx = null;
+}
+
+async function setDecision(d) {
+  if (currentIdx == null) return;
+  const it = filtered[currentIdx];
+  const reason = document.getElementById('reason-input')?.value.trim() || '';
+  if (d === 'modify' && !reason) { alert('Modify requires a reason.'); return; }
+  const body = {
+    runId: currentRun,
+    itemId: it.id,
+    decision: d,
+    reason,
+    cluster: it.cluster,
+    branch: it.branch || '',
+    risk: it.risk_level || '',
+  };
+  try {
+    const r = await fetch('/cockpit/triage/decisions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await r.json();
+    if (!data.success) throw new Error(data.error || 'failed');
+    decisions[it.id] = data.entry;
+    renderList();
+    updateProgress();
+    navItem(1);
+  } catch (err) {
+    alert('Failed to save decision: ' + err.message);
+  }
+}
+
+function navItem(delta) {
+  if (filtered.length === 0) return;
+  if (currentIdx == null) { openModal(0); return; }
+  const next = currentIdx + delta;
+  if (next < 0 || next >= filtered.length) { closeModal(); return; }
+  openModal(next);
+}
+
+function updateProgress() {
+  let decidedHitl = 0;
+  let totalHitl = 0;
+  for (const it of items) {
+    if (!it.hitl) continue;
+    totalHitl++;
+    if (decisions[it.id]) decidedHitl++;
+  }
+  document.getElementById('triage-subtitle').textContent =
+    `${currentRun || ''} · ${items.length} artifacts · ${decidedHitl} / ${totalHitl} HITL reviewed`;
+}
+
+async function exportDecisions() {
+  try {
+    const r = await fetch(`/cockpit/triage/decisions?run=${encodeURIComponent(currentRun)}`);
+    const data = await r.json();
+    const blob = new Blob([JSON.stringify(data.decisions || [], null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `triage-decisions-${currentRun}.json`;
+    a.click();
+  } catch (err) {
+    alert('Export failed: ' + err.message);
+  }
+}
+
+// ---- Missions panel ----
+async function loadMissions() {
+  try {
+    const r = await fetch(`/cockpit/missions?_=${Date.now()}${PROJECT_QS}`);
+    const data = await r.json();
+    if (!data.success) throw new Error(data.error);
+    window._missionsLoaded = true;
+    const missions = data.intake?.missions || [];
+    document.getElementById('missions-badge').textContent = String(missions.length);
+    document.getElementById('missions-meta').textContent = `${missions.length} missions from ${data.intake?.source || 'roadmap'}`;
+    const el = document.getElementById('missions-list');
+    if (missions.length === 0) {
+      el.innerHTML = '<div class="empty"><strong>No missions parsed.</strong>Check <code>docs/recovery/CURRENT-WORK.md</code>.</div>';
+      return;
+    }
+    el.innerHTML = missions.map(m => `
+      <div class="mission-card">
+        <div class="mission-title">${esc(m.title)}</div>
+        <div style="margin:6px 0">
+          <span class="mission-status">${esc(m.status)}</span>
+          <span class="mission-source">${esc(m.source)}${esc(m.sourceAnchor)}</span>
+        </div>
+        ${m.summary ? `<div style="color:var(--text-dim);font-size:14px;line-height:1.55">${esc(m.summary).slice(0,400)}</div>` : ''}
+      </div>
+    `).join('');
+  } catch (err) {
+    document.getElementById('missions-list').innerHTML = `<div class="empty"><strong>Failed to load missions.</strong>${esc(err.message)}</div>`;
+  }
+}
+
+// ---- Wire up ----
+document.getElementById('run-select').addEventListener('change', e => {
+  currentRun = e.target.value;
+  loadRunData(currentRun);
+});
+document.getElementById('search').addEventListener('input', renderList);
+document.getElementById('hitl-only').addEventListener('change', renderList);
+document.getElementById('high-risk-only').addEventListener('change', renderList);
+document.getElementById('triage-refresh').addEventListener('click', () => loadRunData(currentRun));
+document.getElementById('missions-refresh').addEventListener('click', () => { window._missionsLoaded = false; loadMissions(); });
+document.getElementById('triage-export').addEventListener('click', exportDecisions);
+
+document.addEventListener('keydown', e => {
+  if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') {
+    if (e.key === 'Escape') document.activeElement.blur();
+    return;
+  }
+  const open = document.getElementById('modal').classList.contains('open');
+  if (e.key === 'Escape' && open) { closeModal(); return; }
+  if (e.key === '/') { e.preventDefault(); document.getElementById('search').focus(); return; }
+  if (open) {
+    if (e.key === 'a') { e.preventDefault(); setDecision('approved'); }
+    else if (e.key === 'r') { e.preventDefault(); setDecision('rejected'); }
+    else if (e.key === 'm') { e.preventDefault(); document.getElementById('reason-input')?.focus(); }
+    else if (e.key === 's') { e.preventDefault(); setDecision('skip'); }
+    else if (e.key === 'j' || e.key === 'ArrowDown') { e.preventDefault(); navItem(1); }
+    else if (e.key === 'k' || e.key === 'ArrowUp') { e.preventDefault(); navItem(-1); }
+  }
+});
+
+loadRuns();
+</script>
+</body>
+</html>

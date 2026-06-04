@@ -51,7 +51,7 @@ After path-wedge contraction, all cycles belong to exactly four classes:
 | **Diamond** | Unitary antichains | Resilient alternatives, robustness | **Yes** |
 | **Mixer** | Non-unitary antichain | Multi-source integration | **Yes** |
 
-In transitively-reduced DAGs, **only diamonds and mixers exist** — the fundamental organizing structures of hierarchies. See `diagrams/03_erDiagram_four-class_cycle_taxonomy_with.md` for a detailed ER view with functional attributes.
+In transitively-reduced DAGs, **only diamonds and mixers exist** — the fundamental organizing structures of hierarchies.
 
 ### 3. Transitive Reduction as Truth-Seeking
 
@@ -68,8 +68,6 @@ Purely topological metrics (node count, edge count, clustering) **cannot disting
 ## Decision Points
 
 ### Algorithm Selection Tree
-
-See `diagrams/01_flowchart_hierarchical_cycle_analysis_de.md` for a visual rendering of this decision tree.
 
 ```
 IF analyzing system behavior/comparison
@@ -210,15 +208,6 @@ System Y: 8 diamonds (scattered all layers), 12 mixers (business logic, height 3
 | `minimal-cycle-basis-as-mesoscopic-descriptor.md` | Characterizing overall system organization |
 | `failure-modes-hierarchical-analysis.md` | Diagnosing why standard graph metrics aren't working |
 | `when-does-dag-analysis-apply.md` | Determining if this framework fits your problem |
-
-Full trigger-indexed list: [references/INDEX.md](references/INDEX.md)
-
-## Bundled Assets
-
-| Directory | Index | Contents |
-|-----------|-------|----------|
-| `diagrams/` | [diagrams/INDEX.md](diagrams/INDEX.md) | Decision tree flowchart, cycle taxonomy mindmap, four-class cycle ER diagram |
-| `references/` | [references/INDEX.md](references/INDEX.md) | Eight deep-reference files on decomposition, cycle classification, TR, antichains, metadata, MCB, failure modes, and applicability |
 
 ## NOT-FOR Boundaries
 

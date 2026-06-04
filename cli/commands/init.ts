@@ -28,18 +28,6 @@ export async function handleInit(options: Record<string, unknown>): Promise<void
   const noMcp = !!options['no-mcp'];
   const noHook = !!options['no-hook'];
   const noSkill = !!options['no-skill'];
-  const noSplash = !!options['no-splash'] || !!options['quiet'] || !!options['json'];
-
-  // ─── 0. Splash (the silly-name-deserves-a-flourish moment) ─────────────────
-  if (!noSplash) {
-    try {
-      const { renderSplash } = await import('../../lib/splash.js');
-      console.log(renderSplash());
-    } catch {
-      // If splash module fails for any reason, fall through silently —
-      // never block onboarding for a decoration.
-    }
-  }
 
   console.log('');
   ui.info(`Initializing Port Daddy for ${cwd}`);

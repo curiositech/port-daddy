@@ -1,0 +1,1179 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>The Coordination Canon — what we are baking into Port Daddy and why</title>
+    <meta name="description" content="A plain-English walk through the multi-agent coordination ideas — old and new — that we are baking into Port Daddy's substrate, with the human story for each.">
+    <style>
+      :root {
+        color-scheme: light;
+        --paper: #f4efe6;
+        --paper-2: #fbf7ef;
+        --paper-3: #ffffff;
+        --ink: #121212;
+        /* darkened from #5c584f → #3a362e: WCAG AAA on --paper (≥7:1) */
+        --muted: #3a362e;
+        /* second-tier muted, AA-only, reserved for low-importance meta only */
+        --muted-2: #524d44;
+        --line: #1a1a1a;
+        --line-soft: rgba(26, 26, 26, 0.22);
+        --line-softer: rgba(26, 26, 26, 0.10);
+        --blue: #0057ff;
+        --blue-soft: #dce7ff;
+        --blue-line: #00248a; /* darker, AAA on paper */
+        --lime: #dfff00;
+        --amber: #f5b800;
+        --amber-soft: #ffe7a3;
+        --red: #962030; /* darker, AAA on paper */
+        --red-soft: #f7d9dd;
+        --green: #185f37; /* darker, AAA on paper */
+        --green-soft: #cfeadb;
+        --shadow: 8px 8px 0 var(--line);
+        --shadow-soft: 4px 4px 0 var(--line);
+        --radius: 10px;
+        --radius-sm: 6px;
+        --max: 1180px;
+      }
+
+      * { box-sizing: border-box; }
+
+      html {
+        font-family:
+          "Test Söhne", ui-sans-serif, system-ui, -apple-system,
+          BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-optical-sizing: auto;
+        scroll-behavior: smooth;
+        font-size: 17px; /* readable base */
+      }
+
+      body {
+        margin: 0;
+        /* dot-grid: dropped from 0.035 → 0.025 alpha so it doesn't fight muted text */
+        background:
+          radial-gradient(circle at 1px 1px, rgba(26, 26, 26, 0.085) 1px, transparent 0),
+          var(--paper);
+        background-size: 28px 28px;
+        color: var(--ink);
+        line-height: 1.6;
+      }
+
+      a { color: var(--blue-line); text-decoration: none; border-bottom: 1px solid currentColor; }
+      a:hover { background: var(--blue-soft); }
+
+      .wrap { width: min(100% - 32px, var(--max)); margin: 0 auto; }
+
+      /* ───── Top Bar ───── */
+      .topbar {
+        position: sticky; top: 0; z-index: 10;
+        border-bottom: 2px solid var(--line);
+        background: rgba(244, 239, 230, 0.94);
+        backdrop-filter: blur(12px);
+      }
+      .topbar-inner {
+        display: flex; min-height: 64px; align-items: center;
+        justify-content: space-between; gap: 1rem;
+      }
+      .brand { display: flex; align-items: center; gap: 0.75rem; font-weight: 700; }
+      .mark {
+        display: inline-grid; width: 36px; height: 36px; place-items: center;
+        border: 2px solid var(--line); background: var(--blue);
+        color: var(--paper-2);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.85rem; font-weight: 900;
+      }
+      .brand-text { font-size: 1rem; letter-spacing: -0.01em; }
+      .nav { display: flex; flex-wrap: wrap; gap: 0.4rem; font-size: 0.8rem; }
+      .nav a {
+        padding: 0.3rem 0.6rem; border: 1px solid var(--line);
+        background: var(--paper-2); border-radius: var(--radius-sm);
+      }
+      .nav a:hover { background: var(--blue); color: var(--paper-2); border-color: var(--line); }
+
+      /* ───── Hero ───── */
+      .hero { padding: 3rem 0 2.5rem; }
+      .eyebrow {
+        display: inline-block;
+        font-size: 0.8rem; font-weight: 700;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        padding: 0.3rem 0.6rem;
+        border: 2px solid var(--line); background: var(--lime);
+        border-radius: var(--radius-sm);
+      }
+      h1 {
+        font-size: clamp(2rem, 4vw, 3.4rem);
+        line-height: 1.05; letter-spacing: -0.025em;
+        margin: 1rem 0 1rem; max-width: 22ch; font-weight: 800;
+      }
+      .lede {
+        /* hero copy must read AAA; use full --ink, not muted */
+        font-size: 1.2rem; line-height: 1.55; color: var(--ink);
+        max-width: 62ch; margin-bottom: 1.4rem;
+      }
+      .meta-row {
+        display: flex; flex-wrap: wrap; gap: 0.6rem; font-size: 0.85rem;
+      }
+      .pill {
+        padding: 0.3rem 0.7rem; border: 2px solid var(--line);
+        border-radius: 999px; background: var(--paper-2);
+        font-weight: 600;
+      }
+      .pill.bake { background: var(--green-soft); }
+      .pill.partial { background: var(--amber-soft); }
+      .pill.reject { background: var(--red-soft); }
+      .pill.netnew { background: var(--blue-soft); }
+
+      /* ───── Sections ───── */
+      section { padding: 2rem 0 1rem; }
+      .section-head {
+        display: flex; align-items: baseline; gap: 1rem;
+        margin-bottom: 1.5rem; padding-bottom: 0.6rem;
+        border-bottom: 2px solid var(--line);
+      }
+      .section-num {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.8rem; font-weight: 700;
+        padding: 0.25rem 0.5rem; background: var(--ink); color: var(--paper-2);
+      }
+      h2 { font-size: 1.7rem; font-weight: 800; letter-spacing: -0.02em; margin: 0; }
+      .section-sub { color: var(--ink); font-size: 1rem; max-width: 70ch; opacity: 0.86; }
+
+      /* ───── TL;DR ───── */
+      .tldr {
+        background: var(--paper-2); border: 2px solid var(--line);
+        border-radius: var(--radius); padding: 1.5rem 1.75rem;
+        box-shadow: var(--shadow);
+        display: grid; gap: 0.9rem;
+      }
+      .tldr ol { margin: 0; padding-left: 1.3rem; }
+      .tldr li { margin-bottom: 0.6rem; font-size: 1.02rem; }
+      .tldr li::marker { font-weight: 800; color: var(--blue-line); }
+
+      /* ───── Paper cards ───── */
+      .grid {
+        display: grid; gap: 1.4rem;
+        grid-template-columns: repeat(auto-fill, minmax(min(420px, 100%), 1fr));
+      }
+      .card {
+        background: var(--paper-2); border: 2px solid var(--line);
+        border-radius: var(--radius); padding: 1.4rem 1.5rem 1.6rem;
+        box-shadow: var(--shadow-soft);
+        display: flex; flex-direction: column; gap: 0.9rem;
+      }
+      .card-head { display: flex; flex-direction: column; gap: 0.5rem; }
+      .card-year {
+        /* eyebrow exception: uppercase + weight 700 + letter-spacing 0.12em */
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.78rem; letter-spacing: 0.12em; color: var(--muted);
+        text-transform: uppercase; font-weight: 700;
+      }
+      .card h3 {
+        margin: 0; font-size: 1.35rem; letter-spacing: -0.015em;
+        line-height: 1.2; font-weight: 800;
+      }
+      .card-by {
+        font-size: 0.9rem; color: var(--ink); font-style: italic; opacity: 0.78;
+      }
+      .verdict {
+        /* eyebrow exception: uppercase + weight 800 + letter-spacing 0.12em */
+        align-self: flex-start;
+        font-size: 0.78rem; font-weight: 800;
+        text-transform: uppercase; letter-spacing: 0.12em;
+        padding: 0.3rem 0.65rem; border: 2px solid var(--line);
+        border-radius: var(--radius-sm);
+      }
+      .verdict.bake { background: var(--green-soft); }
+      .verdict.partial { background: var(--amber-soft); }
+      .verdict.reject { background: var(--red-soft); }
+      .verdict.reference { background: var(--blue-soft); }
+      .verdict.netnew { background: var(--lime); }
+
+      .card-body { display: grid; gap: 0.7rem; font-size: 1rem; }
+      .card-body p { margin: 0; }
+      .card-body strong { color: var(--ink); }
+      .label {
+        /* eyebrow exception: uppercase + weight 800 + letter-spacing 0.14em */
+        display: inline-block;
+        font-size: 0.78rem; font-weight: 800;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--blue-line);
+        margin-bottom: 0.2rem;
+      }
+      .label.legacy { color: var(--green); } /* now AAA */
+      .label.adds   { color: var(--blue-line); } /* now AAA */
+      .label.omits  { color: var(--red); } /* now AAA */
+      .label.bake   { color: var(--ink); }
+      .label.user   { color: var(--blue-line); }
+      .label.cool   { color: var(--green); }
+
+      kbd {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.92em;
+        padding: 0.05em 0.4em;
+        border: 1px solid var(--line-soft);
+        border-radius: 4px; background: var(--paper-3); color: var(--ink);
+      }
+
+      mark {
+        background: var(--lime); color: var(--ink);
+        padding: 0.02em 0.18em; border-radius: 3px;
+      }
+      mark.blue { background: var(--blue-soft); }
+      mark.amber { background: var(--amber-soft); }
+      mark.green { background: var(--green-soft); }
+
+      .keyword {
+        font-weight: 700;
+        background: linear-gradient(transparent 60%, var(--lime) 60%);
+        padding: 0 0.05em;
+      }
+
+      /* ───── Roadmap ───── */
+      .roadmap {
+        background: var(--paper-2); border: 2px solid var(--line);
+        border-radius: var(--radius); overflow: hidden;
+        box-shadow: var(--shadow-soft);
+      }
+      .roadmap table { width: 100%; border-collapse: collapse; }
+      .roadmap th, .roadmap td {
+        padding: 0.9rem 1rem; text-align: left;
+        border-bottom: 1px solid var(--line-soft);
+        font-size: 1rem; vertical-align: top; color: var(--ink);
+      }
+      .roadmap thead th {
+        background: var(--ink); color: var(--paper-2);
+        font-size: 0.78rem; letter-spacing: 0.1em; text-transform: uppercase;
+        border-bottom: 2px solid var(--line);
+      }
+      .roadmap td.num {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-weight: 800; font-size: 1rem;
+      }
+      .roadmap tbody tr:last-child td { border-bottom: 0; }
+      .roadmap tbody tr:hover { background: var(--blue-soft); }
+
+      /* ───── Layman Take ───── */
+      .layman {
+        /* tinted background reads as a documentary callout; solid 2px border */
+        background: #f9f4e7; border: 2px solid var(--line);
+        border-radius: var(--radius-sm);
+        padding: 1rem 1.15rem;
+        font-size: 1rem; line-height: 1.55;
+        color: var(--ink);
+      }
+      .layman::before {
+        content: "In plain English: ";
+        display: inline;
+        font-size: 0.78rem; font-weight: 800;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--blue-line); margin-right: 0.35em;
+      }
+
+      .nerdy {
+        background: var(--ink); color: var(--paper-2);
+        border-radius: var(--radius-sm);
+        padding: 1rem 1.15rem;
+        font-size: 0.98rem; line-height: 1.55;
+      }
+      .nerdy::before {
+        content: "Why it's cool: ";
+        display: inline;
+        font-size: 0.78rem; font-weight: 800;
+        letter-spacing: 0.14em; text-transform: uppercase;
+        color: var(--lime); margin-right: 0.35em;
+      }
+      /* in dark blocks, the lime-underline keyword treatment becomes a lime block */
+      .nerdy .keyword {
+        background: var(--lime); color: var(--ink);
+        padding: 0.05em 0.25em; border-radius: 3px;
+      }
+      .nerdy kbd {
+        background: #222; color: var(--paper-2);
+        border-color: #444;
+      }
+
+      /* ───── Closing ───── */
+      .closing {
+        background: var(--ink); color: var(--paper-2);
+        border-radius: var(--radius);
+        padding: 2rem 2rem 2.25rem; margin: 2rem 0 1rem;
+        box-shadow: var(--shadow);
+      }
+      .closing h2 { color: var(--paper-2); margin-bottom: 1rem; }
+      .closing p { font-size: 1.05rem; max-width: 65ch; }
+      .closing .keyword { color: var(--ink); }
+
+      footer {
+        font-size: 0.95rem; color: var(--ink);
+        padding: 2.5rem 0 3rem; border-top: 2px solid var(--line);
+        margin-top: 2rem;
+      }
+      footer p { margin: 0.45rem 0; }
+      footer a { color: var(--blue-line); }
+
+      /* ───── Glossary ───── */
+      .glossary {
+        background: var(--paper-2); border: 2px solid var(--line);
+        border-radius: var(--radius); padding: 1.5rem 1.75rem;
+      }
+      .glossary dl { margin: 0; display: grid; gap: 0.8rem; }
+      .glossary dt {
+        font-weight: 800; font-size: 1rem; color: var(--blue-line);
+      }
+      .glossary dd { margin: 0.2rem 0 0; font-size: 1rem; color: var(--ink); }
+
+      /* utility */
+      .stack-tight > * + * { margin-top: 0.4rem; }
+      .row-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.6rem; }
+      .tag {
+        /* body-tier label (not an eyebrow) — stay ≥14px */
+        font-size: 0.88rem; padding: 0.22rem 0.6rem;
+        border: 1.5px solid var(--line); border-radius: 999px;
+        background: var(--paper-3); color: var(--ink);
+        font-weight: 500;
+      }
+
+      @media (max-width: 720px) {
+        html { font-size: 16px; }
+        h1 { font-size: 2rem; }
+        .topbar-inner { flex-direction: column; align-items: flex-start; padding: 0.6rem 0; min-height: 0; }
+        .nav { font-size: 0.875rem; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="wrap topbar-inner">
+        <div class="brand">
+          <span class="mark">PD</span>
+          <span class="brand-text">Port Daddy <span style="color:var(--muted);font-weight:500">/ research</span></span>
+        </div>
+        <nav class="nav" aria-label="Sections">
+          <a href="#tldr">TL;DR</a>
+          <a href="#canon">Old Ideas</a>
+          <a href="#netnew">New Ideas</a>
+          <a href="#roadmap">Roadmap</a>
+          <a href="#proof">Proof</a>
+          <a href="#glossary">Glossary</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <section class="hero" aria-labelledby="title">
+        <span class="eyebrow">Synthesis · 2026-06-03</span>
+        <h1 id="title">The Coordination Canon — old and new — and what we're baking into Port Daddy.</h1>
+        <p class="lede">
+          For forty years, computer scientists have been quietly figuring out
+          how groups of independent agents can <span class="keyword">share work without stepping on each other</span>.
+          Almost none of that work has been ported onto today's LLM agents.
+          This page walks the canon — Cohen-Levesque, Ostrom, Smith, Decker-Lesser, the FIPA standards, the actor model — alongside the
+          newest 2024-2026 papers, and tells you, in plain English,
+          which ideas are worth wiring into Port Daddy's substrate and which are not.
+        </p>
+        <div class="meta-row" aria-label="Legend">
+          <span class="pill bake">BAKE</span>
+          <span class="pill partial">PARTIALLY BAKED</span>
+          <span class="pill" style="background:var(--blue-soft)">REFERENCE-ONLY</span>
+          <span class="pill reject">REJECT</span>
+          <span class="pill netnew">NET-NEW 2024–26</span>
+        </div>
+      </section>
+
+      <!-- ─── TL;DR ─── -->
+      <section id="tldr" aria-labelledby="tldr-title">
+        <div class="section-head">
+          <span class="section-num">00</span>
+          <div>
+            <h2 id="tldr-title">The five-bullet pitch.</h2>
+            <p class="section-sub">If you read nothing else, read this.</p>
+          </div>
+        </div>
+        <div class="tldr">
+          <ol>
+            <li><strong>Five classic ideas are already half-baked into Port Daddy.</strong>
+              Persistent goals, escrowed collateral, intention-as-filter, stigmergic pheromones, and runtime invariants are
+              <em>already</em> in the codebase. The work left is <span class="keyword">wiring them to gates</span>, not adding new theory.
+            </li>
+            <li><strong>The biggest still-unbaked old idea</strong> is the <mark>negotiability index</mark> from
+              Decker &amp; Lesser's GPGP work — let a broken promise cost <em>at least</em> a notification to the people who were counting on it.
+            </li>
+            <li><strong>The biggest worth-baking new idea</strong> is <mark class="blue">verifiable execution traces</mark>:
+              when an agent says "I ran the tests," it leaves a signed record that the test output actually said so.
+            </li>
+            <li><strong>We are saying NO</strong> to FIPA wire-format envelopes, full BDI plan libraries, Bayes-net belief layers, and CRDT shared state.
+              Each one fights a problem an LLM-on-SQLite substrate doesn't have.
+            </li>
+            <li><strong>Proof of "did this actually help?"</strong> is now a tractable thing to measure, because Port Daddy
+              already keeps receipts on every session, every spawn, every promise. The right metric isn't <em>task completion</em> — it's
+              <mark class="amber">hollow-compliance rate</mark>: how often a "done" promise wouldn't survive an honest re-audit.
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <!-- ─── Section 1: The Canon ─── -->
+      <section id="canon" aria-labelledby="canon-title">
+        <div class="section-head">
+          <span class="section-num">01</span>
+          <div>
+            <h2 id="canon-title">The Canon — ten old ideas, one verdict each.</h2>
+            <p class="section-sub">
+              These ideas were invented between 1973 and 2003, mostly to solve problems with software systems that long predate LLMs.
+              The surprise is how many are still load-bearing.
+            </p>
+          </div>
+        </div>
+
+        <div class="grid">
+
+          <!-- BDI -->
+          <article class="card">
+            <div class="card-head">
+              <span class="card-year">1987–1995 · BDI</span>
+              <h3>Belief, Desire, Intention</h3>
+              <span class="card-by">Bratman 1987; Rao &amp; Georgeff 1991, 1995</span>
+              <span class="verdict partial">Partially Baked</span>
+            </div>
+            <div class="card-body">
+              <p><span class="label legacy">Big idea</span>
+                An agent shouldn't re-think everything from scratch on every turn.
+                Separate <strong>beliefs</strong> (what's true), <strong>desires</strong> (what you want),
+                and <strong>intentions</strong> (what you've actually committed to do).
+                Once you've intended something, you stop second-guessing — which is what makes a busy agent stay coherent.</p>
+              <p><span class="label adds">Legacy</span>
+                BDI became the spine of every serious agent architecture for thirty years (AgentSpeak, Jason, JACK).
+                It is the reason "agent" means something more than "Python script."</p>
+              <p><span class="label omits">What it misses</span>
+                BDI was designed for agents that <em>can't</em> reason flexibly. LLMs <em>can</em>.
+                Bolting a 1990s plan-library on top of GPT-class deliberation is doing the same work twice.</p>
+              <div class="layman">
+                We keep the <em>vocabulary</em> — beliefs, desires, intentions — but throw out the old-school plan interpreter.
+                <kbd>lib/agent-telos.ts</kbd> is already the desire half;
+                <kbd>lib/commitments.ts</kbd> is already the intention half;
+                <kbd>lib/arbiter.ts</kbd> already filters new claims against held intentions.
+                The one thing left to wire is <em>pre-warning</em> the agent <span class="keyword">before</span> it tries to do something that would break a promise it already made.
+              </div>
+              <div class="nerdy">
+                Cohen &amp; Levesque's 1990 result — <em>"intention is choice with commitment"</em> — said a goal can only be dropped
+                when achieved, believed impossible, or unmotivated. That maps <span style="color:var(--lime)">one-to-one</span> onto the three drop-conditions
+                in <kbd style="background:#222;border-color:#444;color:var(--paper-2)">commitments.ts</kbd>.
+                We are running a 1990 modal-logic paper as a SQLite schema.
+              </div>
+            </div>
+          </article>
+
+          <!-- FIPA -->
+          <article class="card">
+            <div class="card-head">
+              <span class="card-year">2002 · FIPA</span>
+              <h3>Speech Acts &amp; Interaction Protocols</h3>
+              <span class="card-by">FIPA-00037, FIPA-00025</span>
+              <span class="verdict reference">Reference + selective bake</span>
+            </div>
+            <div class="card-body">
+              <p><span class="label legacy">Big idea</span>
+                Every message between two agents is a <em>speech act</em>: an <strong>inform</strong>, a <strong>request</strong>,
+                a <strong>propose</strong>, a <strong>refuse</strong>. And every recurring conversation pattern (Request, Query, Contract-Net, Subscribe)
+                deserves to be a named, reusable <em>protocol</em>.</p>
+              <p><span class="label adds">Legacy</span>
+                FIPA is the standard that JADE, Jason, and most enterprise agent platforms still implement.
+                It is the reason "agent middleware" was ever a category.</p>
+              <p><span class="label omits">What it misses</span>
+                FIPA assumed the parser on each end was a Prolog interpreter with zero semantic flexibility.
+                LLMs <em>are</em> that flexibility. Adding the speech-act envelope to every message is parse-and-route ceremony with no behavior change.</p>
+              <div class="layman">
+                We don't make every Port Daddy message wear a FIPA tag.
+                But we <em>do</em> stamp each channel with a <mark class="blue">protocol name</mark> — "this is a contract-net thread," "this is a subscribe thread."
+                That gives us one cheap, deterministic check: did the agent send the move the protocol says it should at this step?
+              </div>
+              <div class="nerdy">
+                Lightweight protocol tagging earns us "Six-Sigma agent" style discipline (Huang et al. 2026) for the price of one nullable column.
+              </div>
+            </div>
+          </article>
+
+          <!-- Contract Net -->
+          <article class="card">
+            <div class="card-head">
+              <span class="card-year">1980 · Contract Net</span>
+              <h3>Bid, Award, Report</h3>
+              <span class="card-by">Reid G. Smith, IEEE Trans. Computers</span>
+              <span class="verdict bake">Bake</span>
+            </div>
+            <div class="card-body">
+              <p><span class="label legacy">Big idea</span>
+                Don't let agents fight over work. The <strong>manager</strong> announces a task; <strong>contractors</strong> submit bids;
+                the manager <strong>awards</strong> a binding contract; the contractor <strong>reports</strong>.
+                The moment of <em>award</em> is when intent becomes obligation.</p>
+              <p><span class="label adds">Legacy</span>
+                Contract Net is the original distributed-task-allocation protocol. Every modern marketplace algorithm — Uber dispatch, ad auctions, distributed compute schedulers — has Contract Net DNA.</p>
+              <p><span class="label omits">What it misses</span>
+                Smith never said what the <em>bond</em> on a binding contract should be, or what should happen when the contractor flakes.</p>
+              <div class="layman">
+                Port Daddy's <kbd>pd roadmap pop</kbd> is already a one-sided Contract Net — whoever pops first gets the task.
+                We promote it to the full four-phase version: <span class="keyword">announce → bid → award → report</span>,
+                with the winning bid <em>escrowed as collateral</em>. The agent that bid the tightest believable plan with the most skin in the game gets the work, and is now actually on the hook.
+              </div>
+              <div class="nerdy">
+                Combining Contract Net (Smith 1980), persistent goals (Cohen-Levesque 1990), and collateral bonds (Ostrom 1990, then 2010s mechanism design)
+                gives you the substrate version of <em>"a job worth doing is worth signing for."</em>
+              </div>
+            </div>
+          </article>
+
+          <!-- GPGP -->
+          <article class="card">
+            <div class="card-head">
+              <span class="card-year">1995 · GPGP / TAEMS</span>
+              <h3>The Negotiability Index</h3>
+              <span class="card-by">Keith Decker &amp; Victor Lesser</span>
+              <span class="verdict bake">Bake</span>
+            </div>
+            <div class="card-body">
+              <p><span class="label legacy">Big idea</span>
+                A commitment isn't a binary "kept / broken" — it's a <em>social constraint</em> with a number attached:
+                how <strong>negotiable</strong> is it, and <strong>who else</strong> is depending on it?
+                Breaking a commitment is allowed, but only <em>with notification</em>, ranked by how much it will hurt.</p>
+              <p><span class="label adds">Legacy</span>
+                GPGP/TAEMS is the most underrated paper in the canon. It quietly invented the idea that
+                <span class="keyword">social cost is the cheapest form of enforcement</span>.</p>
+              <p><span class="label omits">What it misses</span>
+                Decker &amp; Lesser assumed the notification channel existed and worked. Port Daddy's inbox is exactly that channel — it just hasn't been wired to commitment-breakage yet.</p>
+              <div class="layman">
+                Right now, an agent can silently walk away from a claim it was holding. After this lands, walking away from a low-negotiability claim
+                requires <mark>DM'ing the dependents</mark> first and waiting either for acknowledgment or a 30-minute timeout.
+                You can still break the promise — but you have to pay the social cost of telling the people who were counting on you.
+              </div>
+              <div class="nerdy">
+                Two columns on the commitments table. ~30 lines of code. The cheapest possible piece of accountability theatre that is actually not theatre.
+              </div>
+            </div>
+          </article>
+
+          <!-- Belief Networks -->
+          <article class="card">
+            <div class="card-head">
+              <span class="card-year">1988 · Bayes Nets</span>
+              <h3>Belief Networks</h3>
+              <span class="card-by">Judea Pearl, <em>Probabilistic Reasoning…</em></span>
+              <span class="verdict reject">Reject</span>
+            </div>
+            <div class="card-body">
+              <p><span class="label legacy">Big idea</span>
+                Most beliefs are <em>uncertain</em>. Bayes nets give you a clean math for combining uncertain evidence into a probability of "this is true."</p>
+              <p><span class="label adds">Legacy</span>
+                Pearl won the Turing Award for this. Belief networks underpin almost every probabilistic reasoning system from medical diagnosis to spam filters.</p>
+              <p><span class="label omits">What it misses</span>
+                Bayes nets were the 1988 answer to <em>"the LLM doesn't exist yet."</em> The two places Port Daddy has uncertainty
+                (<span style="font-style:italic">are two agents working on the same thing? is this a real protocol violation?</span>)
+                are handled by an LLM with a confidence threshold, which is the right tool now.</p>
+              <div class="layman">
+                We <em>don't</em> bake Bayes nets. The substrate stays deterministic; the LLM does the uncertainty.
+                Adding Pearl on top is double-counting.
+              </div>
+              <div class="nerdy">
+                The <em>concept</em> — expected value = probability × utility — survives in how we score Contract Net bids.
+                It just doesn't need to be a graphical model.
+              </div>
+            </div>
+          </article>
+
+          <!-- Ostrom -->
+          <article class="card">
+            <div class="card-head">
+              <span class="card-year">1990 · Commons</span>
+              <h3>Ostrom's Eight Principles</h3>
+              <span class="card-by">Elinor Ostrom, <em>Governing the Commons</em></span>
+              <span class="verdict partial">Partially Baked</span>
+            </div>
+            <div class="card-body">
+              <p><span class="label legacy">Big idea</span>
+                A community can self-govern a shared resource — without privatizing it and without a central boss — if the rules satisfy eight design principles.
+                The most relevant for software: <strong>graduated sanctions</strong>, <strong>monitors accountable to the monitored</strong>, and <strong>cheap conflict resolution</strong>.</p>
+              <p><span class="label adds">Legacy</span>
+                Ostrom won the Nobel Prize in Economics for this. <em>"Monitoring without sanctions is failure"</em> is quoted verbatim in our <kbd>lib/bonds.ts</kbd>.</p>
+              <p><span class="label omits">What it misses</span>
+                The full 8 are a checklist, not a substrate. Several principles are philosophy, not code.</p>
+              <div class="layman">
+                Today, an agent that misbehaves either gets nothing or gets exiled — a single cliff.
+                We're finishing the <mark>graduated sanction ladder</mark>:
+                a polite warning, then a small slash on the bond, then reduced privileges, then exile — with a slow
+                <span class="keyword">decay</span> back to clean status if behavior improves. People who screw up once and learn shouldn't carry the scar forever.
+              </div>
+              <div class="nerdy">
+                The decay function (not a hard window) is the bit that resists Goodhart. Time alone shouldn't heal you — <em>good behavior over time</em> should.
+              </div>
+            </div>
+          </article>
+
+          <!-- Stigmergy -->
+          <article class="card">
+            <div class="card-head">
+              <span class="card-year">1959–2025 · Stigmergy</span>
+              <h3>Pheromone Coordination</h3>
+              <span class="card-by">Grassé 1959; Dorigo 1992; S-MADRL 2025</span>
+              <span class="verdict bake">Bake</span>
+            </div>
+            <div class="card-body">
+              <p><span class="label legacy">Big idea</span>
+                Ants don't talk to each other. They drop chemical traces on the ground, and the <em>shape of the environment</em> coordinates the colony.
+                Drop a marker; others sense it; everybody adjusts. No direct messaging required.</p>
+              <p><span class="label adds">Legacy</span>
+                Ant Colony Optimization is the algorithmic descendant. In 2025, <em>S-MADRL</em> brought stigmergy to LLM agents:
+                virtual pheromones for decentralized emergent coordination.</p>
+              <p><span class="label omits">What it misses</span>
+                Pure stigmergy is slow and indirect. It's an ambient signal, not a directive.</p>
+              <div class="layman">
+                <kbd>lib/pheromone.ts</kbd> already <em>fades</em> markers; nothing meaningful <em>drops</em> them yet.
+                We add a tiny vocabulary: <kbd>friction.recent</kbd>, <kbd>failure.cluster</kbd>, <kbd>attention.hotspot</kbd>.
+                When a commit gets reverted, the file gets a "this is hot, treat with care" marker. The next agent to look at that file
+                <em>sees</em> it in their briefing, not as a DM, but as <span class="keyword">here be dragons</span>.
+              </div>
+              <div class="nerdy">
+                Stigmergy is the only coordination channel that scales without congestion.
+                You don't need <em>N</em>-way DMs when the shape of the world tells you what's going on.
+              </div>
+            </div>
+          </article>
+
+          <!-- Actor / CSP -->
+          <article class="card">
+            <div class="card-head">
+              <span class="card-year">1973–1986 · Concurrency</span>
+              <h3>Actor Model &amp; CSP</h3>
+              <span class="card-by">Hewitt 1973, Agha 1986; Hoare 1978</span>
+              <span class="verdict reference">Reference Only</span>
+            </div>
+            <div class="card-body">
+              <p><span class="label legacy">Big idea</span>
+                Either don't share memory at all (<strong>actors</strong> talk only via async messages), or share memory only at strict synchronization points (<strong>CSP</strong> channels).
+                Both eliminate huge classes of concurrency bugs <em>by construction</em>.</p>
+              <p><span class="label adds">Legacy</span>
+                Erlang, Elixir, Akka, Go's goroutines, Rust's channels — every modern concurrency story descends from these two papers.</p>
+              <p><span class="label omits">What it misses</span>
+                They are <em>implementation guides</em>, not behavioral primitives.
+                They don't tell you what an agent should <em>do</em>, only how its messages should travel.</p>
+              <div class="layman">
+                Port Daddy already operates like an actor system — the daemon holds all state, agents are addressable inboxes, channels are pub/sub.
+                Importing the formal algebra would not change behavior.
+                We do <em>read</em> Hoare when designing new IPC, so we can catch deadlocks before they ship.
+              </div>
+              <div class="nerdy">
+                CSP's deadlock-by-construction theorems still earn their keep as a design-time sanity check for things like the relay-harbor mesh and the tube-spawner router.
+              </div>
+            </div>
+          </article>
+
+          <!-- Generative Agents -->
+          <article class="card">
+            <div class="card-head">
+              <span class="card-year">2023 · Generative Agents</span>
+              <h3>Memory + Reflection</h3>
+              <span class="card-by">Park, O'Brien, Cai, Morris, Liang &amp; Bernstein</span>
+              <span class="verdict partial">Partially Baked</span>
+            </div>
+            <div class="card-body">
+              <p><span class="label legacy">Big idea</span>
+                LLM agents that live for days or weeks need three memory tiers: a <strong>raw observation stream</strong>,
+                <strong>importance-weighted retrieval</strong>, and periodic <strong>reflection</strong> that synthesizes recent experience into higher-order beliefs.</p>
+              <p><span class="label adds">Legacy</span>
+                Park's "Smallville" paper is the moment LLM agents stopped being a stunt and started being a research field.
+                Every long-running agent system that came after — voice assistants, simulation NPCs, AutoGPT successors — copies this shape.</p>
+              <p><span class="label omits">What it misses</span>
+                The original framing is social simulation. Coding fleets aren't socializing — they're producing artifacts.</p>
+              <div class="layman">
+                The piece we steal is the <mark>periodic reflection</mark>.
+                Every few hours, the daemon picks each actor's most important unreflected experiences and asks a cheap LLM to write a one-paragraph "what I learned."
+                That paragraph becomes a higher-tier memory.
+                Agents have a chronic problem of <em>not pausing to reflect</em>; move it out of their hands and onto a daemon clock.
+              </div>
+              <div class="nerdy">
+                Same shape as <kbd>lib/obligation-monitor.ts</kbd> — a daemon-driven sweep — but watching <em>experience</em> instead of <em>promises</em>.
+              </div>
+            </div>
+          </article>
+
+          <!-- LLM-as-Judge -->
+          <article class="card">
+            <div class="card-head">
+              <span class="card-year">2023 · Judging</span>
+              <h3>LLM-as-a-Judge</h3>
+              <span class="card-by">Lianmin Zheng et al., NeurIPS 2023</span>
+              <span class="verdict bake">Already Baked</span>
+            </div>
+            <div class="card-body">
+              <p><span class="label legacy">Big idea</span>
+                Use one LLM to evaluate another's output. With careful prompting it agrees with humans about 80% of the time — cheap enough to be everywhere, accurate enough to be useful.</p>
+              <p><span class="label adds">Legacy</span>
+                Every modern AI eval harness (MT-Bench, Chatbot Arena, MMLU variants) uses some form of LLM-as-judge.</p>
+              <p><span class="label omits">What it misses</span>
+                Judges have <em>no skin in the game</em>. They produce a verdict and forget. They cannot catch their own systematic biases.</p>
+              <div class="layman">
+                <kbd>lib/coordination-judge.ts</kbd> already does this for the ambiguous-middle "should I intervene?" calls.
+                The missing piece is a <mark class="amber">sampled re-opener</mark>: take a random 5% of "this commitment is done" verdicts and re-run them with a second judge against the actual diff.
+                That's the only thing that catches hollow compliance.
+              </div>
+              <div class="nerdy">
+                Every monitor introduces a proxy. Every proxy can be gamed. The escape from Goodhart's Law is to <em>sample against</em> the proxy, not to add more proxies.
+              </div>
+            </div>
+          </article>
+
+        </div>
+      </section>
+
+      <!-- ─── Section 2: Net-New ─── -->
+      <section id="netnew" aria-labelledby="netnew-title">
+        <div class="section-head">
+          <span class="section-num">02</span>
+          <div>
+            <h2 id="netnew-title">The Newcomers — six ideas from 2024 to 2026.</h2>
+            <p class="section-sub">
+              The research that landed in the last eighteen months. Most of it didn't exist when we started Port Daddy. Some of it is gold.
+            </p>
+          </div>
+        </div>
+
+        <div class="grid">
+
+          <!-- Verifiable Execution -->
+          <article class="card">
+            <div class="card-head">
+              <span class="card-year">2025–26 · Verifiable Execution</span>
+              <h3>Cryptographically Attested Agent Actions</h3>
+              <span class="card-by">VET (Dec 2025); zkAgent (eprint 2026/199); AgenTEE (Apr 2026)</span>
+              <span class="verdict netnew">Net-New · Bake (lightweight)</span>
+            </div>
+            <div class="card-body">
+              <p><span class="label legacy">Big idea</span>
+                Every consequential thing an agent does leaves a <em>cryptographically attestable</em> trail. The three flavors:
+                <strong>trusted hardware</strong> (TEEs), <strong>succinct proofs</strong> (zero-knowledge SNARKs over the inference itself), and <strong>notarized TLS transcripts</strong>.</p>
+              <p><span class="label adds">What's new</span>
+                Phala Network, Marlin Oyster, Atoma Network and Flashbots have shipped TEE-attested inference in <em>production</em> over 2024–25.
+                zkAgent (Feb 2026) is the first end-to-end ZK proof of an entire LLM inference run.</p>
+              <p><span class="label omits">What's still hard</span>
+                Real zero-knowledge LLM proving is 10,000× to 100,000× slower than native inference. Not practical for anything latency-sensitive.</p>
+              <div class="layman">
+                We bake the <mark class="blue">cheapest sibling</mark>: when an agent says "I closed this promise because the tests passed," the daemon captures
+                the actual test output, hashes it, signs it with the agent's key, and appends it to an append-only ledger.
+                You can't fake the evidence after the fact, and the ledger becomes the receipts your fleet's reputation rests on.
+              </div>
+              <div class="nerdy">
+                We're not building zkLLM. We're building the <em>"please sign this delivery receipt"</em> step that brick-and-mortar logistics has had since the 1800s.
+                Surprisingly, the LLM-agent world has been operating without one.
+              </div>
+              <div class="row-tags">
+                <span class="tag">arXiv:2512.15892 · VET</span>
+                <span class="tag">eprint 2026/199 · zkAgent</span>
+                <span class="tag">arXiv:2604.18231 · AgenTEE</span>
+              </div>
+            </div>
+          </article>
+
+          <!-- Topology -->
+          <article class="card">
+            <div class="card-head">
+              <span class="card-year">2025 · Topology</span>
+              <h3>MultiAgentBench &amp; Silo-Bench</h3>
+              <span class="card-by">Zhu et al. (ACL 2025); Silo-Bench (2026)</span>
+              <span class="verdict netnew">Net-New · Bake (the harness)</span>
+            </div>
+            <div class="card-body">
+              <p><span class="label legacy">Big idea</span>
+                The <em>shape</em> of the conversation between agents matters more than the agents themselves.
+                MultiAgentBench is the first paper to run controlled ablations across star, chain, tree, mesh, and group-discussion topologies.</p>
+              <p><span class="label adds">What's new</span>
+                The headline result: a <mark>graph-mesh topology</mark> (everyone broadcasts to everyone, with selective subscriptions)
+                beats hierarchy and chain on task score, planning efficiency, <em>and</em> token cost.</p>
+              <p><span class="label omits">What's still hard</span>
+                Their benchmarks are synthetic. Real coding fleets may behave differently.</p>
+              <div class="layman">
+                We don't immediately enforce a topology. We do build the <span class="keyword">measurement harness</span>: a small test bench that
+                replays the same fleet task under different communication shapes, then publishes the numbers.
+                If graph-mesh wins on our actual workloads, we make it the default.
+              </div>
+              <div class="nerdy">
+                Building a benchmark before changing the architecture is the boring move that almost no one does. We will do it. The receipts will be in <kbd>docs/reports/</kbd>.
+              </div>
+            </div>
+          </article>
+
+          <!-- SAGE -->
+          <article class="card">
+            <div class="card-head">
+              <span class="card-year">2025 · Self-evolving Skills</span>
+              <h3>SAGE — Voyager With Reinforcement</h3>
+              <span class="card-by">Wang 2023 Voyager → SAGE (Dec 2025, rev. Mar 2026)</span>
+              <span class="verdict reference">Reference Only · for now</span>
+            </div>
+            <div class="card-body">
+              <p><span class="label legacy">Big idea</span>
+                Voyager (2023) was the first LLM agent to grow its own <em>skill library</em> from experience.
+                SAGE adds reinforcement learning on top: skills don't just get added on first success, they get <em>refined</em> through reward signal.</p>
+              <p><span class="label adds">What's new</span>
+                On AppWorld, SAGE gets +8.9% completion with 26% fewer steps and 59% fewer tokens.</p>
+              <p><span class="label omits">What's still hard</span>
+                RL needs a reward signal. Port Daddy's only reward right now is "the operator merged the PR" — way too sparse and slow.</p>
+              <div class="layman">
+                We don't bake this yet. We <em>do</em> start recording skill <span class="keyword">accept-rate</span> per use, so when we ever get denser feedback,
+                we have years of telemetry waiting to be compiled. The fix is a 1990s reputation system: skills that ship working code earn trust, skills that get reverted lose it.
+              </div>
+              <div class="nerdy">
+                The honest answer to "can we ship SAGE?" is: not until we ship the <em>reward source</em> first. Operator thumbs-up/down on commits is the natural fit.
+              </div>
+              <div class="row-tags">
+                <span class="tag">arXiv:2512.17102</span>
+              </div>
+            </div>
+          </article>
+
+          <!-- Token Budget -->
+          <article class="card">
+            <div class="card-head">
+              <span class="card-year">2025 · Budgets</span>
+              <h3>Single Agents Often Beat Multi-Agent Swarms</h3>
+              <span class="card-by">arXiv:2604.02460 (Nov 2025); CoRL (arXiv:2511.02755)</span>
+              <span class="verdict netnew">Net-New · Bake (a gate)</span>
+            </div>
+            <div class="card-body">
+              <p><span class="label legacy">Big idea</span>
+                When you give a single LLM agent the <em>same total thinking budget</em> as a multi-agent swarm, the single agent often wins.
+                Multi-agent overhead is real and largely unaccounted for.</p>
+              <p><span class="label adds">What's new</span>
+                CoRL formalizes a knob: trade off performance against cost in a single controllable parameter.</p>
+              <p><span class="label omits">What's still hard</span>
+                "Just spawn a sub-agent" is the default move and it is often the wrong one.</p>
+              <div class="layman">
+                We add a <mark>budget-aware spawn gate</mark>. Before any new agent gets spawned, the daemon checks:
+                would spending this budget on <em>more thinking by the parent</em> dominate spending it on a child?
+                If yes, refuse with a coaching note. The agent can override if it really means it.
+              </div>
+              <div class="nerdy">
+                This is the rarest kind of optimization: it improves quality <em>and</em> reduces cost.
+                The default-to-spawn instinct is a fleet's hidden tax.
+              </div>
+            </div>
+          </article>
+
+          <!-- Stigmergy 2.0 -->
+          <article class="card">
+            <div class="card-head">
+              <span class="card-year">2025 · S-MADRL</span>
+              <h3>Stigmergic Multi-Agent Deep RL</h3>
+              <span class="card-by">arXiv:2510.03592</span>
+              <span class="verdict netnew">Net-New · Composes with §1.7</span>
+            </div>
+            <div class="card-body">
+              <p><span class="label legacy">Big idea</span>
+                The 2025 reboot of stigmergy: train the pheromone <em>deposit</em> and <em>read</em> policies with reinforcement learning, then let coordination emerge without any explicit messaging.</p>
+              <p><span class="label adds">What's new</span>
+                Demonstrates emergent coordination in LLM-agent populations using virtual pheromones — no central scheduler.</p>
+              <p><span class="label omits">What's still hard</span>
+                RL again. We don't have the reward source yet.</p>
+              <div class="layman">
+                We take the <em>structural idea</em> (deposit + read), skip the RL training, and write a deterministic policy by hand:
+                "a reverted commit deposits <kbd>failure.cluster</kbd> on that file." Cheap, ships today, no learning needed.
+              </div>
+              <div class="nerdy">
+                Ant colonies don't use reinforcement learning. They use chemistry and time.
+                Our equivalent is SQLite and an evaporation cron.
+              </div>
+            </div>
+          </article>
+
+          <!-- Emergent Conventions -->
+          <article class="card">
+            <div class="card-head">
+              <span class="card-year">2025 · Conventions</span>
+              <h3>Emergent Social Conventions in LLM Populations</h3>
+              <span class="card-by">Ashery et al., <em>Science Advances</em> 11(20), eadu9368</span>
+              <span class="verdict reference">Reference + instrument</span>
+            </div>
+            <div class="card-body">
+              <p><span class="label legacy">Big idea</span>
+                Drop a population of LLM agents into a shared environment and let them interact pairwise. They <em>spontaneously develop shared conventions</em> —
+                a disorder-to-order transition, complete with <strong>symmetry breaking</strong> (the convention could've been anything; one of them just happens to win).
+                Robust up to N=200 agents and W=26 alternatives.</p>
+              <p><span class="label adds">What's new</span>
+                Published in Science Advances. This is the moment "emergent norms in AI" stopped being speculation and became a measurable physical phenomenon.</p>
+              <p><span class="label omits">What's still hard</span>
+                The convention they converge on can be <em>biased</em> in ways no individual agent intended. Collective bias is a real failure mode.</p>
+              <div class="layman">
+                We don't pre-impose coding conventions on the fleet. We <em>do</em> instrument:
+                a <kbd>convention-tracker</kbd> records what test framework, what error style, what commit-message format each agent is choosing,
+                and the operator sees divergence before it becomes a holy war.
+              </div>
+              <div class="nerdy">
+                Watch agents accidentally invent design patterns. Then decide if you like the one they chose.
+              </div>
+            </div>
+          </article>
+
+        </div>
+      </section>
+
+      <!-- ─── Section 3: Roadmap ─── -->
+      <section id="roadmap" aria-labelledby="roadmap-title">
+        <div class="section-head">
+          <span class="section-num">03</span>
+          <div>
+            <h2 id="roadmap-title">What we are actually shipping, in order.</h2>
+            <p class="section-sub">
+              The ten items below are ordered by leverage — how much coordination quality each unlocks per line of code added.
+            </p>
+          </div>
+        </div>
+
+        <div class="roadmap">
+          <table>
+            <thead>
+              <tr><th style="width:3.5rem">#</th><th>What lands</th><th>Where it lives</th><th>How we'll know it worked</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="num">01</td>
+                <td><strong>Graduated sanction ladder</strong> — warn → small slash → reduced privileges → exile, with decay back to clean.</td>
+                <td><kbd>lib/sanction-ladder.ts</kbd></td>
+                <td>≥70% of slashed actors earn back full bond ceiling within 7 days of good behavior.</td>
+              </tr>
+              <tr>
+                <td class="num">02</td>
+                <td><strong>Negotiability index</strong> on commitments — silent abandonment requires DM'ing dependents first.</td>
+                <td><kbd>lib/commitments.ts</kbd> + inbox</td>
+                <td>100% of low-negotiability abandonments fire a notification before they close.</td>
+              </tr>
+              <tr>
+                <td class="num">03</td>
+                <td><strong>Contract Net</strong> upgrade of <kbd>pd roadmap pop</kbd> — bid, award, escrow, report.</td>
+                <td><kbd>lib/contract-net.ts</kbd></td>
+                <td>Operator overrides ≤15% of awarded bids after 100 awards.</td>
+              </tr>
+              <tr>
+                <td class="num">04</td>
+                <td><strong>Topology benchmark</strong> — measure current spawn pattern against graph-mesh broadcast on a fixed task set.</td>
+                <td><kbd>tests/fleet/topology-bench/</kbd></td>
+                <td>Public delta numbers in a weekly report.</td>
+              </tr>
+              <tr>
+                <td class="num">05</td>
+                <td><strong>Oracle attestation ledger</strong> — every "done" promise signs the evidence that closed it.</td>
+                <td><kbd>lib/oracle-attestation.ts</kbd></td>
+                <td>≥90% of closed commitments have signed, ledgered evidence within 30 days of ship.</td>
+              </tr>
+              <tr>
+                <td class="num">06</td>
+                <td><strong>Reflection monitor</strong> — periodic Haiku-cost synthesis of each actor's recent experience.</td>
+                <td><kbd>lib/reflection-monitor.ts</kbd></td>
+                <td>≥30% of next-turn prompts retrieve a reflection-tier memory.</td>
+              </tr>
+              <tr>
+                <td class="num">07</td>
+                <td><strong>Budget-aware spawn gate</strong> — refuse spawns that wouldn't beat parent-extends.</td>
+                <td><kbd>lib/budget-spawn-gate.ts</kbd></td>
+                <td>≥80% of refusals are operator-confirmed as the right call.</td>
+              </tr>
+              <tr>
+                <td class="num">08</td>
+                <td><strong>Pheromone vocabulary</strong> — deposit hot/recent/failed markers, read them in briefings.</td>
+                <td><kbd>lib/pheromone-vocab.ts</kbd></td>
+                <td>≥20% revert-rate reduction on files with active <kbd>failure.cluster</kbd> markers.</td>
+              </tr>
+              <tr>
+                <td class="num">09</td>
+                <td><strong>Sampled adversarial re-opener</strong> — re-judge a random 5% of cleared commitments.</td>
+                <td><kbd>lib/sampled-auditor.ts</kbd></td>
+                <td>Catches ≥70% of synthetically injected "hollow done" cases.</td>
+              </tr>
+              <tr>
+                <td class="num">10</td>
+                <td><strong>Protocol-tagged messages</strong> — channels declare their FIPA-style protocol, judge checks adherence.</td>
+                <td><kbd>lib/messaging.ts</kbd> + judge</td>
+                <td>Deterministic check false-positive rate ≤5%.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ─── Section 4: Proof ─── -->
+      <section id="proof" aria-labelledby="proof-title">
+        <div class="section-head">
+          <span class="section-num">04</span>
+          <div>
+            <h2 id="proof-title">How we'll prove it actually helped.</h2>
+            <p class="section-sub">
+              The standard benchmark question — "did the task complete?" — is the wrong primary metric for Port Daddy. Here's the better one.
+            </p>
+          </div>
+        </div>
+
+        <div class="grid">
+          <article class="card">
+            <div class="card-head">
+              <h3>Hollow-compliance rate</h3>
+              <span class="verdict bake">Primary metric</span>
+            </div>
+            <div class="card-body">
+              <p>Of all the promises an agent marked "done," what fraction wouldn't have survived an honest re-audit of the evidence?
+                Lower is better.</p>
+              <p class="layman">
+                This is the metric that <span class="keyword">resists Goodhart's Law</span>, because it samples
+                <em>against</em> the proxy instead of measuring the proxy.
+              </p>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="card-head">
+              <h3>Negotiated-abandonment rate</h3>
+              <span class="verdict bake">Secondary</span>
+            </div>
+            <div class="card-body">
+              <p>Of all the commitments that got abandoned, what fraction were preceded by a notification to the dependents?
+                Higher is better.</p>
+              <p class="layman">
+                Cheapest possible signal that the social-cost mechanism is working as designed.
+              </p>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="card-head">
+              <h3>Operator-override rate</h3>
+              <span class="verdict partial">Calibration</span>
+            </div>
+            <div class="card-body">
+              <p>Of decisions the daemon made on its own — awards, refusals, judge calls — what fraction did the operator reverse?
+                Lower is better, but <em>not zero</em>.</p>
+              <p class="layman">
+                Zero overrides means the daemon isn't taking real risks. We want a daemon that occasionally bets and sometimes loses.
+              </p>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="card-head">
+              <h3>Topology-cost dominance</h3>
+              <span class="verdict bake">Bench</span>
+            </div>
+            <div class="card-body">
+              <p>On a fixed task set, what's the token cost and wall-clock to first acceptable result, compared across coordination topologies?</p>
+              <p class="layman">
+                Published weekly. If our defaults aren't winning, we change them.
+              </p>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="card-head">
+              <h3>Skill-library reputation drift</h3>
+              <span class="verdict partial">Per-skill</span>
+            </div>
+            <div class="card-body">
+              <p>Per skill, accept-rate × usage over time. Skills that consistently produce reverted work should be deprecated, not silently kept.</p>
+              <p class="layman">
+                Skills earn their place. Loud failures get retired.
+              </p>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="card-head">
+              <h3>Pheromone suppression efficacy</h3>
+              <span class="verdict bake">A/B</span>
+            </div>
+            <div class="card-body">
+              <p>On matched-pair files (similar revert history), does the presence of an active <kbd>failure.cluster</kbd> pheromone reduce future revert rate?</p>
+              <p class="layman">
+                Validates whether ambient signal actually changes behavior or just decorates.
+              </p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- ─── Section 5: Glossary ─── -->
+      <section id="glossary" aria-labelledby="glossary-title">
+        <div class="section-head">
+          <span class="section-num">05</span>
+          <div>
+            <h2 id="glossary-title">Glossary — terms used above.</h2>
+            <p class="section-sub">A quick reference. None of these require an AI background.</p>
+          </div>
+        </div>
+
+        <div class="glossary">
+          <dl>
+            <dt>BDI</dt>
+            <dd>Belief / Desire / Intention. A 1990s framework for designing agents whose mental states are first-class data structures.</dd>
+
+            <dt>Commitment</dt>
+            <dd>A promise an agent has made, with explicit conditions for when it can be dropped (achieved, impossible, or unmotivated).
+              In Port Daddy, it's a SQLite row that the daemon watches.</dd>
+
+            <dt>Contract Net</dt>
+            <dd>Distributed task-allocation protocol: announce → bid → award → report. The original distributed marketplace algorithm.</dd>
+
+            <dt>Goodhart's Law</dt>
+            <dd>"When a measure becomes a target, it ceases to be a good measure." Charles Goodhart, 1975. Every monitoring system has to design <em>against</em> this.</dd>
+
+            <dt>Negotiability index</dt>
+            <dd>A number between 0 and 1 saying how easily a commitment can be broken. Low means "this is load-bearing; tell people before you walk away."</dd>
+
+            <dt>Oracle</dt>
+            <dd>A trusted source of truth the agent cannot author. A passing test ID, a merged commit SHA, a satisfied invariant check. Used to close commitments honestly.</dd>
+
+            <dt>Pheromone</dt>
+            <dd>An ambient signal left in the environment that other agents can sense. Borrowed from ant colonies. In Port Daddy, it's a value in a metadata column that decays over time.</dd>
+
+            <dt>Stigmergy</dt>
+            <dd>Coordination through modifying the shared environment rather than messaging each other directly.</dd>
+
+            <dt>TEE</dt>
+            <dd>Trusted Execution Environment. Special hardware (Intel SGX, AMD SEV, Apple Secure Enclave) that can produce cryptographic proofs about what code ran inside it.</dd>
+
+            <dt>zkLLM / SNARK proof</dt>
+            <dd>A short cryptographic proof that an LLM inference ran honestly. Currently 10,000× to 100,000× slower than just running the LLM. Cool, not yet practical.</dd>
+
+            <dt>Runtime verification</dt>
+            <dd>Compiling a formal property (like "no two agents hold the same lock") into an online monitor that watches the live event stream. The Arbiter does this.</dd>
+
+            <dt>Ostrom's principles</dt>
+            <dd>Eight design rules Elinor Ostrom derived from centuries of successful shared-resource communities. Won her the Nobel in Economics. Applies word-for-word to agent fleets sharing a codebase.</dd>
+          </dl>
+        </div>
+      </section>
+
+      <!-- ─── Closing ─── -->
+      <div class="closing">
+        <h2>The honest ceiling.</h2>
+        <p>
+          Everything above proves what was <em>done</em>, not whether it was <em>right</em>.
+          A non-forgeable identity, a daemon-set clock, closure-against-oracle with signed evidence, graduated sanctions on collateral, and a sampled adversarial re-opener
+          is the strongest accountability substrate the literature describes — and it <em>still</em> doesn't prove the work was good.
+        </p>
+        <p style="margin-top:0.8rem">
+          We pair it with adversarial QA. We never sell the ledger as proof of quality.
+          <span class="keyword" style="background:linear-gradient(transparent 60%, var(--lime) 60%);color:#151515">Port Daddy is the building department, not the inspector general.</span>
+        </p>
+      </div>
+
+      <footer>
+        <p><strong>Document.</strong> /docs/reports/port-daddy-coordination-canon-explainer.html · synthesis 2026-06-03</p>
+        <p><strong>Companion text.</strong> Plain-text version returned inline in the originating chat session; full file body ready to commit at
+          <kbd>~/coding/tmp/pd-coord-research/docs/research/2026-06-03-coordination-bake-in.md</kbd>.</p>
+        <p><strong>Prior work in this repo.</strong>
+          <kbd>docs/research/agent-accountability-proposal.md</kbd> · <kbd>docs/research/agent-accountability-mechanisms.md</kbd> ·
+          <kbd>docs/adr/0039-suggestibility-layer.md</kbd> · <kbd>docs/adr/0041-durable-commitments-and-obligation-monitoring.md</kbd>.
+        </p>
+        <p><strong>Primary citations.</strong>
+          Bratman 1987; Rao &amp; Georgeff 1991/1995; Cohen &amp; Levesque 1990; Smith 1980; Decker &amp; Lesser 1995;
+          Ostrom 1990; Agha 1986; Hoare 1978; Pearl 1988; Park et al. 2023; Zheng et al. 2023;
+          Zhu et al. 2025 (ACL); Ashery et al. 2025 (Science Advances); Wang 2023 (Voyager);
+          VET arXiv:2512.15892; zkAgent eprint 2026/199; AgenTEE arXiv:2604.18231; CoRL arXiv:2511.02755; SAGE arXiv:2512.17102; S-MADRL arXiv:2510.03592.
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>

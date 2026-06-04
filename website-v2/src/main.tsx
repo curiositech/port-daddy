@@ -24,16 +24,12 @@ const ExamplesPage = lazyNamed(() => import('@/pages/ExamplesPage'), 'ExamplesPa
 const ExampleDetailPage = lazyNamed(() => import('@/pages/ExampleDetailPage'), 'ExampleDetailPage')
 const McpPage = lazy(() => import('@/pages/MCPPage'))
 const WhitepaperPage = lazy(() => import('@/pages/whitepaper'))
-const CliBackendPage = lazy(() => import('@/pages/cli-backend'))
 const WhitepaperDetailPage = lazy(() => import('@/pages/whitepaper/PaperDetailPage'))
 const WhitepaperRoundsPage = lazy(() => import('@/pages/whitepaper/RoundsPage'))
-const WhitepaperHowWeProvePage = lazy(() => import('@/pages/whitepaper/HowWeProveGameTheory'))
 const LandscapePage = lazy(() => import('@/pages/landscape'))
 const BlogPage = lazyNamed(() => import('@/pages/BlogPage'), 'BlogPage')
 const BlogPostPage = lazyNamed(() => import('@/pages/BlogPostPage'), 'BlogPostPage')
 const MacPreviewPage = lazyNamed(() => import('@/pages/MacPreviewPage'), 'MacPreviewPage')
-const PdTubePage = lazyNamed(() => import('@/pages/PdTubePage'), 'PdTubePage')
-const SkillAuditPage = lazyNamed(() => import('@/pages/SkillAuditPage'), 'SkillAuditPage')
 const AgentsPage = lazyNamed(() => import('@/pages/AgentsPage'), 'AgentsPage')
 const IntegrationsPage = lazyNamed(() => import('@/pages/integrations/IntegrationsPage'), 'IntegrationsPage')
 const IntegrationPage = lazyNamed(() => import('@/pages/integrations/IntegrationPage'), 'IntegrationPage')
@@ -193,8 +189,6 @@ createRoot(document.getElementById('root')!).render(
             <Route element={<MainLayout />}>
               <Route path="/" element={<App />} />
               <Route path="/mac-preview" element={<MacPreviewPage />} />
-              <Route path="/pd-tube" element={<PdTubePage />} />
-              <Route path="/skill-audit" element={<SkillAuditPage />} />
               <Route path="/examples" element={<ExamplesPage />} />
               <Route path="/examples/:slug" element={<ExampleDetailPage />} />
               <Route path="/mcp" element={<McpPage />} />
@@ -237,12 +231,9 @@ createRoot(document.getElementById('root')!).render(
 
               <Route path="/whitepaper" element={<WhitepaperPage />} />
               <Route path="/whitepaper/rounds" element={<WhitepaperRoundsPage />} />
-              <Route path="/whitepaper/how-we-prove-game-theory" element={<WhitepaperHowWeProvePage />} />
               <Route path="/whitepaper/:paperSlug" element={<WhitepaperDetailPage />} />
 
               <Route path="/landscape" element={<LandscapePage />} />
-
-              <Route path="/cli-backend" element={<CliBackendPage />} />
             </Route>
 
             <Route path="/docs" element={<DocsLayout />}>

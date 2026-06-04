@@ -5,28 +5,10 @@
  * Now also re-exports the @clack-based UI module for convenience.
  */
 
-import * as tty from 'node:tty';
-
-/** Kernel-level fd check — robust where stream.isTTY lies under bun-compile. */
-function fd2IsTTY(): boolean {
-  try {
-    return tty.isatty(2);
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Whether output is a terminal (not a pipe or redirect).
- *
- * Uses the kernel `tty.isatty(2)` in addition to the stream flag, because under
- * the `bun build --compile` binary `process.stderr.isTTY` can be falsy on a
- * real terminal (see `cli/utils/tty.ts`). A piped/redirected stderr (incl. CI)
- * still reports `false`, so this never turns colour/prompts on for non-TTYs.
- */
-export const IS_TTY: boolean =
+/** Whether stdout is a terminal (not a pipe or redirect) */
+export const IS_TTY: boolean = 
   (process.env.NO_COLOR === undefined || process.env.NO_COLOR === '') &&
-  ((process.stderr.isTTY ?? false) || fd2IsTTY() || !!process.env.FORCE_COLOR);
+  ((process.stderr.isTTY ?? false) || !!process.env.FORCE_COLOR);
 
 /** Print a Unicode separator line (only in TTY mode) */
 export function separator(width: number = 75): void {

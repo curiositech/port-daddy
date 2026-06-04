@@ -11,7 +11,6 @@ import { ANSI, flag, highlightChannel } from '../../lib/maritime.js';
 import * as ui from '../utils/ui.js';
 import { pdFetch, getDaemonUrl } from '../utils/fetch.js';
 import { canPrompt, promptText, promptIdentity, promptConfirm, promptSelect, printRoger } from '../utils/prompt.js';
-import { openControllingTerminalInput } from '../utils/tty.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 
 // Tutorial state — track what we create so we can clean up
@@ -59,20 +58,13 @@ function box(lines: string[], width = 63): void {
 async function pressEnter(): Promise<void> {
   if (!canPrompt()) return;
   const { createInterface } = await import('node:readline');
-  // Read from the controlling terminal (/dev/tty) when available. Under the
-  // bun-compiled binary `process.stdin` can hand back immediate EOF on a real
-  // terminal, which made `rl.question` resolve instantly and auto-skip every
-  // "Press Enter" — the tutorial blasted through. `/dev/tty` is robust there.
-  const ctty = openControllingTerminalInput();
-  const input = ctty?.stream ?? process.stdin;
-  const rl = createInterface({ input, output: process.stderr });
+  const rl = createInterface({ input: process.stdin, output: process.stderr });
   await new Promise<void>((resolve) => {
     rl.question(`\n  ${ANSI.dim}Press Enter to continue...${ANSI.reset}`, () => {
       rl.close();
       resolve();
     });
   });
-  ctty?.close();
   process.stderr.write('\n');
 }
 

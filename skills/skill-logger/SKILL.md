@@ -87,8 +87,6 @@ ELSE (unknown context):
    → Default to balanced scoring with conservative error handling
 ```
 
-For the detailed multi-dimensional scoring model with specific component weights and calculation formulas, see `references/scoring-rubric.md`.
-
 ## Failure Modes
 
 ### Token Inflation Anti-Pattern
@@ -217,9 +215,3 @@ Monitor for 48 hours:
 - Quality issues require skill redesign → Hand off to `skill-coach`
 - Patterns suggest new skill needed → Escalate to `agent-creator`
 - Performance problems are infrastructure-related → Route to `devops-automator`
-
-## Bundled Assets
-
-| File | When to load |
-|------|-------------|
-| `references/scoring-rubric.md` | You're implementing or reviewing a scoring formula and need to see the multi-dimensional components (Completion, Efficiency, User Satisfaction) with their percentage weights. |

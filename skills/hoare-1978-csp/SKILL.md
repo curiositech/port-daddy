@@ -35,8 +35,6 @@ IF coordination requirements unclear
   └── Draw communication graph before coding
 ```
 
-> See `references/process-topology-as-system-architecture.md` for Hoare's topology-first design thesis — why the communication graph *is* the architecture.
-
 ### 2. Communication Protocol Design
 ```
 IF request-response pattern needed
@@ -70,8 +68,6 @@ IF bidirectional communication needed
   └── Never have both processes waiting for same direction
 ```
 
-> See `references/failure-modes-in-concurrent-systems.md` for the full taxonomy of deadlock types and detection strategies.
-
 ### 4. Termination Design
 ```
 IF pipeline topology
@@ -86,8 +82,6 @@ IF long-running services
   THEN use external termination signals
   └── CSP suitable for bounded-lifetime tasks
 ```
-
-> See `references/termination-propagation-through-process-networks.md` for how termination propagates automatically through the communication topology.
 
 ## Failure Modes
 
@@ -218,8 +212,3 @@ CONSUMER = *[validator?clean(data) → process(data)
 - **Distributed systems:** Use `distributed-consensus` skill for cross-network coordination
 
 **CSP sweet spot:** Medium-grained coordination between independent processes with clear communication boundaries and well-defined protocols.
-
-## Bundled Assets
-
-- **[Diagrams →](diagrams/INDEX.md)** — Mermaid visualizations of process communication topology, synchronous rendezvous protocols, and guarded command state machines.
-- **[References →](references/INDEX.md)** — Deep dives into deadlock failure modes, guarded commands, nondeterminism/fairness, pattern matching for message discrimination, process topology as architecture, synchronous communication primitives, and termination propagation.

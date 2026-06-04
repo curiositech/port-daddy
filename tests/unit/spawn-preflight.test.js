@@ -68,7 +68,7 @@ describe('assessSpawnPreflight', () => {
     );
   });
 
-  test('returns budget status when identity, dailyBudgetUsd, and tracker are present', async () => {
+  test('returns budget status when identity, budget, and tracker are present', async () => {
     const budgetStatus = {
       project: 'port-daddy',
       budgetUsdPerDay: 0.75,
@@ -77,77 +77,20 @@ describe('assessSpawnPreflight', () => {
       percentUsed: 26.7,
       overBudget: false,
     };
-    const mockBudget = jest.fn(() => budgetStatus);
 
     const result = await assessSpawnPreflight({
       backend: 'claude-cli',
       identity: 'port-daddy:repo:cli',
       budgetUsd: 0.75,
-      dailyBudgetUsd: 0.75,
     }, {
       costTracker: {
-        budgetStatus: mockBudget,
+        budgetStatus: jest.fn(() => budgetStatus),
       },
     });
 
     expect(result.launchReady).toBe(true);
     expect(result.budget).toEqual(budgetStatus);
-    expect(mockBudget).toHaveBeenCalledWith('port-daddy', 0.75);
     expect(mockAssessBackendReadiness).toHaveBeenCalledWith('claude-cli', { model: 'sonnet' });
-  });
-
-  test('does NOT trigger the budget overage check when only per-call budgetUsd is set', async () => {
-    // Regression: previously the per-mission --budget was conflated with a
-    // daily project ceiling, so a $0.10 sortie would be "blocked" by $1.60
-    // of pre-existing project spend in the last 24h. The per-call cap is
-    // enforced inside the spawner during execution, not at preflight.
-    const mockBudget = jest.fn(() => ({
-      project: 'port-daddy',
-      budgetUsdPerDay: 0.10,
-      spentUsd: 1.60,
-      remainingUsd: 0,
-      percentUsed: 1600,
-      overBudget: true,
-    }));
-
-    const result = await assessSpawnPreflight({
-      backend: 'claude-cli',
-      identity: 'port-daddy:sortie:test:coordinator',
-      budgetUsd: 0.10,
-    }, {
-      costTracker: { budgetStatus: mockBudget },
-    });
-
-    expect(mockBudget).not.toHaveBeenCalled();
-    expect(result.budget).toBeNull();
-    expect(result.launchReady).toBe(true);
-    expect(result.blockedReasons).toEqual([]);
-  });
-
-  test('blocks when dailyBudgetUsd is set and the project is over the daily ceiling', async () => {
-    const mockBudget = jest.fn(() => ({
-      project: 'port-daddy',
-      budgetUsdPerDay: 5.00,
-      spentUsd: 6.42,
-      remainingUsd: 0,
-      percentUsed: 128.4,
-      overBudget: true,
-    }));
-
-    const result = await assessSpawnPreflight({
-      backend: 'claude-cli',
-      identity: 'port-daddy:fleet:cartographer',
-      budgetUsd: 0.25,
-      dailyBudgetUsd: 5.00,
-    }, {
-      costTracker: { budgetStatus: mockBudget },
-    });
-
-    expect(mockBudget).toHaveBeenCalledWith('port-daddy', 5.00);
-    expect(result.launchReady).toBe(false);
-    expect(result.blockedReasons).toContain(
-      'Budget exceeded for port-daddy ($6.42 / $5.00).'
-    );
   });
 
   test('surfaces the shared Claude default model in attempts when no model is provided', async () => {

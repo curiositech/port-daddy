@@ -192,34 +192,15 @@ export async function handleDone(
   if (note) body.note = note;
   if (options.status) body.status = options.status;
 
-  // pd done origin-rule escape hatch (substrate fix 2026-05-20).
-  // --skip-origin-check requires --reason "<reason>". The reason is
-  // stamped into the result note with a loud [OPERATOR-OVERRIDE] prefix.
-  const skipOriginCheck = options.skipOriginCheck === true || options['skip-origin-check'] === true;
-  const skipOriginCheckReason = (options.reason as string | undefined) || undefined;
-  if (skipOriginCheck) {
-    body.skipOriginCheck = true;
-    if (skipOriginCheckReason) body.skipOriginCheckReason = skipOriginCheckReason;
-  }
-
   const pd = new PortDaddy({ agentId: typeof body.agentId === 'string' ? body.agentId : undefined });
   const data = await pd.done(note, {
     agentId: typeof body.agentId === 'string' ? body.agentId : undefined,
     sessionId: typeof body.sessionId === 'string' ? body.sessionId : undefined,
     status: typeof body.status === 'string' ? body.status : undefined,
-    skipOriginCheck: skipOriginCheck ? true : undefined,
-    skipOriginCheckReason: skipOriginCheck ? skipOriginCheckReason : undefined,
   });
 
   if (!data?.success) {
-    // For the new precondition refusals, print the structured remediation
-    // hint on its own line so operators see the actionable next step.
     ui.error(data?.error || 'Failed to end session');
-    const hint = (data as unknown as { hint?: unknown } | null)?.hint;
-    if (typeof hint === 'string') {
-      // Indent each line for readability beneath the error header.
-      console.error(hint.split('\n').map((line) => (line.startsWith('  ') ? line : `  ${line}`)).join('\n'));
-    }
     process.exit(1);
   }
 

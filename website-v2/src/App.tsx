@@ -1,8 +1,6 @@
 import './App.css'
 import { Hero } from '@/components/landing/Hero'
-import { CliBackendValueProp } from '@/components/landing/CliBackendValueProp'
 import { TubeShowcase } from '@/components/landing/TubeShowcase'
-import { TubeMultiplexSection } from '@/components/landing/TubeMultiplexSection'
 import { CoordinationEnforcementSection } from '@/components/landing/CoordinationEnforcementSection'
 import { AgentConversationSection } from '@/components/landing/AgentConversationSection'
 import { AgenticSocialProofSection } from '@/components/landing/AgenticSocialProofSection'
@@ -34,12 +32,10 @@ export default function App() {
             7. Features        — catalog after the reader has context
         */}
         <Hero />
-        <CliBackendValueProp />
         <TerminalDemos />
         <CoordinationEnforcementSection />
         <AgentConversationSection />
         <TubeShowcase />
-        <TubeMultiplexSection />
         <AgenticSocialProofSection />
         <Features />
       </main>

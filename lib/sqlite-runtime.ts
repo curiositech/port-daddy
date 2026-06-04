@@ -92,41 +92,6 @@ export function executeBunPragma(
   return rows;
 }
 
-/**
- * Translate better-sqlite3 constructor options into bun:sqlite options.
- *
- * better-sqlite3 accepts `{ readonly?, fileMustExist?, ... }`. bun:sqlite
- * accepts `{ readonly?, readwrite?, create?, ... }` and — critically — throws
- * `SQLITE_MISUSE: flags must include SQLITE_OPEN_READONLY or
- * SQLITE_OPEN_READWRITE` if it cannot derive a read/write flag. Passing
- * better-sqlite3's `{ readonly: false, fileMustExist: true }` straight through
- * left bun:sqlite with neither flag set, so any caller that opened a DB
- * read-write with explicit options crashed under the shipped (bun) runtime
- * while passing under jest (better-sqlite3). This pure function bridges the
- * gap; exported so it can be unit-tested without a live Bun runtime.
- *
- *   - readonly: true            → { readonly: true }
- *   - readonly: false (or unset)→ { readwrite: true, create: !fileMustExist }
- *   - fileMustExist: true       → do NOT create a missing file (create: false)
- *   - fileMustExist: false/unset→ allow creation (create: true) for read-write
- *
- * Unknown keys are passed through untouched so future options still flow.
- */
-export function translateBunOptions(opts?: unknown): Record<string, unknown> | undefined {
-  if (opts === undefined || opts === null) return undefined;
-  if (typeof opts !== 'object') return opts as Record<string, unknown>;
-  const o = opts as Record<string, unknown>;
-  const { readonly, fileMustExist, ...rest } = o;
-  const out: Record<string, unknown> = { ...rest };
-  if (readonly === true) {
-    out.readonly = true;
-  } else {
-    out.readwrite = true;
-    out.create = fileMustExist === true ? false : true;
-  }
-  return out;
-}
-
 let DatabaseClass: DatabaseConstructor;
 
 if (isBun) {
@@ -141,13 +106,6 @@ if (isBun) {
     path: string,
     opts?: unknown
   ) => Record<string, unknown>) {
-    constructor(path: string, opts?: unknown) {
-      // Bridge better-sqlite3 option names to bun:sqlite's flag model so
-      // callers that open read-write with explicit options don't trip
-      // SQLITE_MISUSE under the shipped runtime.
-      super(path, translateBunOptions(opts));
-    }
-
     /**
      * better-sqlite3 .pragma() compatibility shim. Routing logic lives
      * in `executeBunPragma()` so it can be unit-tested without a live

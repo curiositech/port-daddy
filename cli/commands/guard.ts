@@ -6,7 +6,6 @@ import { pdFetch, PORT_DADDY_URL, type PdFetchResponse } from '../utils/fetch.js
 import { readCurrentContext } from '../utils/current-context.js';
 import { installGitShim, uninstallGitShim, SHIM_BIN_DIR } from '../utils/git-shim.js';
 import type { CLIOptions } from '../types.js';
-import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
 
 /**
  * Destructive git verbs intercepted by the optional `~/.port-daddy/bin/git`
@@ -643,13 +642,7 @@ async function runCheck(positional: string[], options: CLIOptions): Promise<Guar
   });
 }
 
-async function handleInstallShim(options: CLIOptions): Promise<void> {
-  const ok = await requireConfirmation({
-    summary: 'Guard install-shim will write ~/.port-daddy/bin/git that intercepts destructive git verbs (reset --hard, clean -f, stash push, cherry-pick, rebase). It alters how git behaves system-wide for your shell.',
-    args: options as Record<string, unknown>,
-  });
-  if (!ok) process.exit(DESTRUCTIVE_EXIT_CODE);
-
+function handleInstallShim(options: CLIOptions): void {
   const result = installGitShim();
   if (options.json || options.j) {
     console.log(JSON.stringify({ success: true, ...result }, null, 2));
@@ -664,13 +657,7 @@ async function handleInstallShim(options: CLIOptions): Promise<void> {
   ui.info('Disable temporarily with PD_SHIM_OFF=1 git ...');
 }
 
-async function handleUninstallShim(options: CLIOptions): Promise<void> {
-  const ok = await requireConfirmation({
-    summary: 'Guard uninstall-shim will remove ~/.port-daddy/bin/git. Destructive git verbs will no longer be intercepted; coordination relies on git hooks alone.',
-    args: options as Record<string, unknown>,
-  });
-  if (!ok) process.exit(DESTRUCTIVE_EXIT_CODE);
-
+function handleUninstallShim(options: CLIOptions): void {
   const result = uninstallGitShim();
   if (options.json || options.j) {
     console.log(JSON.stringify({ success: true, ...result }, null, 2));
@@ -710,17 +697,10 @@ function handleStatus(options: CLIOptions): void {
   console.log('  check now:    pd guard check --staged');
 }
 
-async function enableGuard(options: CLIOptions): Promise<void> {
+function enableGuard(options: CLIOptions): void {
   const cwd = resolve(typeof options.dir === 'string' ? options.dir : process.cwd());
   const requested = optionMode(options);
   const mode = requested === 'warn' || requested === 'enforce' ? requested : 'enforce';
-
-  const ok = await requireConfirmation({
-    summary: `Guard enable will set ${COORDINATION_GUARD_NAME} to ${mode} mode for this worktree. Other agents committing in this repo will be gated by the same policy.`,
-    args: options as Record<string, unknown>,
-  });
-  if (!ok) process.exit(DESTRUCTIVE_EXIT_CODE);
-
   const config = normalizeGuardConfig({
     ...readGuardConfig(cwd),
     enabled: true,
@@ -732,21 +712,14 @@ async function enableGuard(options: CLIOptions): Promise<void> {
   ui.success(`${COORDINATION_GUARD_NAME} enabled in ${mode} mode`);
 }
 
-async function disableGuard(options: CLIOptions): Promise<void> {
+function disableGuard(options: CLIOptions): void {
   const cwd = resolve(typeof options.dir === 'string' ? options.dir : process.cwd());
-
-  const ok = await requireConfirmation({
-    summary: `Guard disable will turn off ${COORDINATION_GUARD_NAME} enforcement in this worktree. Commits will no longer be gated by session/claim discipline.`,
-    args: options as Record<string, unknown>,
-  });
-  if (!ok) process.exit(DESTRUCTIVE_EXIT_CODE);
-
   const config = normalizeGuardConfig({ ...readGuardConfig(cwd), enabled: false });
   writeGuardConfig(config, cwd);
   ui.success(`${COORDINATION_GUARD_NAME} disabled`);
 }
 
-async function installGuard(options: CLIOptions): Promise<void> {
+function installGuard(options: CLIOptions): void {
   const cwd = resolve(typeof options.dir === 'string' ? options.dir : process.cwd());
   const root = gitRoot(cwd);
   if (!root) {
@@ -756,13 +729,6 @@ async function installGuard(options: CLIOptions): Promise<void> {
 
   const requestedMode = optionMode(options);
   const mode = requestedMode === 'warn' || requestedMode === 'enforce' ? requestedMode : 'enforce';
-
-  const ok = await requireConfirmation({
-    summary: `Guard install will write pre-commit and post-commit hooks into ${root}/.git/hooks. Any existing hooks will be merged. Mode: ${requestedMode === 'off' ? 'off (hooks-only)' : mode}.`,
-    args: options as Record<string, unknown>,
-  });
-  if (!ok) process.exit(DESTRUCTIVE_EXIT_CODE);
-
   if (requestedMode !== 'off') {
     const config = normalizeGuardConfig({ ...readGuardConfig(cwd), enabled: true, mode });
     writeGuardConfig(config, cwd);
@@ -817,22 +783,22 @@ export async function handleGuard(positional: string[], options: CLIOptions): Pr
       return;
     case 'enable':
     case 'on':
-      await enableGuard(options);
+      enableGuard(options);
       return;
     case 'disable':
     case 'off':
-      await disableGuard(options);
+      disableGuard(options);
       return;
     case 'install':
-      await installGuard(options);
+      installGuard(options);
       return;
     case 'install-shim':
     case 'shim-install':
-      await handleInstallShim(options);
+      handleInstallShim(options);
       return;
     case 'uninstall-shim':
     case 'shim-uninstall':
-      await handleUninstallShim(options);
+      handleUninstallShim(options);
       return;
     case 'check': {
       const result = await runCheck(rest, options);

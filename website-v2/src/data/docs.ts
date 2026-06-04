@@ -217,15 +217,15 @@ export const CLI_COMMANDS: CliCommand[] = [
     cmd: 'pd spawn',
     description: 'Launch an AI agent with Port Daddy coordination pre-wired. The agent auto-registers, sends heartbeats, writes notes, and gets salvaged if it crashes.',
     flags: [
-      '--backend <type>      AI backend: claude-cli | codex | cloudflare | claude | ollama | gemini | aider | custom. claude-cli and codex ride your Claude Max / ChatGPT Pro at $0 marginal.',
+      '--backend <type>      AI backend: ollama | cloudflare | claude | claude-cli | codex | gemini | aider | custom (only ready backends launch)',
       "--model <name>        Model to use (e.g. '@cf/qwen/qwen3-30b-a3b-fp8', claude-haiku-4-5)",
       '--identity <id>       Semantic identity for this agent',
       '--purpose <text>      What this agent should do',
       '--harbor <name>       Run agent inside a harbor (scoped permissions)',
       '-- <prompt>           Prompt to send (last argument)',
     ],
-    example: 'pd spawn --backend claude-cli \\\n  --identity myapp:reviewer \\\n  -- "Review src/auth/ for security vulnerabilities"',
-    output: '[pd] Spawned agent myapp:reviewer (session def456)\n[pd] Backend: claude-cli · ride: your Claude Max seat · marginal: $0.00\n[pd] Running...',
+    example: 'pd spawn --backend claude --model claude-haiku-4-5 \\\n  --identity myapp:reviewer \\\n  -- "Review src/auth/ for security vulnerabilities"',
+    output: '[pd] Spawned agent myapp:reviewer (session def456)\n[pd] Backend: claude · Model: claude-haiku-4-5\n[pd] Running...',
   },
   {
     group: 'Agents',

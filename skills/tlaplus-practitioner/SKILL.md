@@ -37,8 +37,6 @@ Is there shared mutable state accessed by multiple agents?
   NO --> You probably don't need TLA+. Use unit tests.
 ```
 
-See `evals/evals.json` for worked evaluation cases that map to each decision path.
-
 ## Section 1: Advisory Locks with TTL
 
 IF you have a lock with an owner, a TTL, and multiple agents competing THEN verify:
@@ -99,7 +97,7 @@ CONSTANTS
     DeadThreshold   \* e.g., 3
 
 VARIABLES
-    portOwner,      \* [Ports -> Agents \cup {""}}]
+    portOwner,      \* [Ports -> Agents \cup {""}]
     heartbeat,      \* [Agents -> 0..MaxTTL]
     agentStatus,    \* [Agents -> {"alive", "stale", "dead", "salvaged"}]
     salvageQueue,   \* SUBSET Agents
@@ -149,7 +147,7 @@ Reap(a) ==
     /\ clock - heartbeat[a] >= DeadThreshold
     /\ agentStatus' = [agentStatus EXCEPT ![a] = "dead"]
     /\ salvageQueue' = salvageQueue \cup {a}
-    /\ portOwner' = [p \in Ports |
+    /\ portOwner' = [p \in Ports |->
         IF portOwner[p] = a THEN "" ELSE portOwner[p]]
     /\ UNCHANGED <<heartbeat, clock>>
 
@@ -304,27 +302,12 @@ implementing the reaper.
 ## Safety vs Liveness Quick Reference
 
 | Type     | TLA+ Keyword | Meaning                          | Needs Fairness? |
-|----------|-------------|----------------------------------|------------|
+|----------|-------------|----------------------------------|-----------------|
 | Safety   | `INVARIANT` | Bad thing never happens          | No              |
 | Liveness | `PROPERTY`  | Good thing eventually happens    | Yes (WF/SF)     |
 
 IF safety only THEN use INVARIANTS, skip fairness. Simpler and faster.
 IF liveness THEN use `~>`, `<>`, or `[]<>` operators and declare fairness in Spec.
-
-## File Organization
-
-```
-specs/
-  BondedCommons.tla    # Specification
-  BondedCommons.cfg    # TLC config (constants, invariants, properties)
-  BondedCommons.md     # Human explanation + counterexample guide
-```
-
-Always keep `.tla` and `.cfg` together. The `.cfg` is not optional.
-
-## Bundled Assets
-
-- **`evals/evals.json`** — Evaluation cases mapping prompts to decision tree paths and expected outputs. Reference when validating your scope and expected outputs for each pattern.
 
 ## Quality Gates Checklist
 
@@ -336,3 +319,14 @@ Always keep `.tla` and `.cfg` together. The `.cfg` is not optional.
 - [ ] Liveness properties verified with declared fairness (if applicable)
 - [ ] .cfg committed alongside .tla
 - [ ] Constants documented with bound rationale
+
+## File Organization
+
+```
+specs/
+  BondedCommons.tla    # Specification
+  BondedCommons.cfg    # TLC config (constants, invariants, properties)
+  BondedCommons.md     # Human explanation + counterexample guide
+```
+
+Always keep `.tla` and `.cfg` together. The `.cfg` is not optional.

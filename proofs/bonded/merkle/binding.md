@@ -1,14 +1,8 @@
 # Merkle Forest Binding — Game-Based Spec
 
-**Status:** game definition + hand-stated EasyCrypt reduction with
-three remaining `admit.` lines. Full machine-check still deferred
-pending an installed EasyCrypt and discharge of the structural
-admits documented in `binding.ec`. See `binding.run.log` for the
-honest capture of the most recent `easycrypt -check` attempt.
+**Status:** game definition; mechanization deferred.
 **Implementation under spec:** `lib/merkle-tree.ts`.
 **Empirical verification:** `tests/unit/merkle-binding-property.test.js`.
-**Typed reduction skeleton:** `binding.ec` (BindToCR, LeafCollFinder,
-InternalCollFinder).
 
 This document fixes the precise property and reduction that any future
 EasyCrypt (or CryptoVerif, or Coq) mechanization must discharge. It is
@@ -112,41 +106,23 @@ what `AdvCR_SHA-256` already allows.
 
 ## 5. What is still deferred
 
-`binding.ec` now contains a typed reduction skeleton with two
-explicit reduction modules (`LeafCollFinder`, `InternalCollFinder`)
-and three theorem statements (`leaf_collision_bound`,
-`internal_collision_bound`, `binding_reduction`). Three `admit.`
-lines remain, each with an inline comment describing the routine
-plumbing it represents. To convert this into a fully machine-checked
-bound
+Full machine-checked mechanization of the bound
 
 ```
 Pr[ Bind^A = true ] ≤ AdvCR_H(B)
 ```
 
-still requires:
+in EasyCrypt requires:
 
-1. **Installed EasyCrypt.** The advertised binary path was missing
-   on the host that produced this branch (see `binding.run.log`),
-   so `easycrypt -check binding.ec` was not exercised. CI must gate
-   the proof on a green `-check` once EC is available.
-2. **The PROM (programmable random oracle model) library** to lift
-   `H` from an abstract operator to a lazy-sampled oracle and produce
-   a true cryptographic-reduction statement.
-3. **Recursive definitions** of `build_root`, `verify_proof`,
-   `acc_path`, `honest_path`, and `first_agree_idx` matching
-   `lib/merkle-tree.ts`, so the seven structural axioms in
-   `binding.ec` (`ax_verify_root`, `ax_honest_root`, `ax_path_lengths`,
-   `ax_acc_path_head`, `ax_honest_path_head`, `ax_acc_step`,
-   `ax_honest_step`) become lemmas.
-4. **Discharge of the three `admit.` lines** — routine `byequiv` /
-   `byphoare` plumbing, estimated ~120 lines of EasyCrypt for a
-   fluent author.
+1. The PROM (programmable random oracle model) library.
+2. A `Reduction` lemma showing the constructed B has the same running
+   time as A up to a small polynomial.
+3. Bounded recursion on the tree depth.
 
-(1)–(2) are formal-methods labour with no implementation impact;
-(3)–(4) are mechanical once (1)–(2) are in place. The work is
-deferred until a higher-assurance audit specifically requests
-machine-checked binding.
+This is several hundred lines of EasyCrypt and is pure
+formal-methods labour with no implementation impact. We defer it
+behind a `proofs/bonded/merkle/binding.ec` placeholder until a
+higher-assurance audit specifically requests machine-checked binding.
 
 The honest current claim, citable by the paper, is:
 
@@ -155,8 +131,5 @@ The honest current claim, citable by the paper, is:
 > random adversarial cases per property in
 > `tests/unit/merkle-binding-property.test.js`. The reduction to
 > SHA-256 collision resistance is sketched in
-> `proofs/bonded/merkle/binding.md` and stated as a typed EasyCrypt
-> reduction (with three admitted plumbing steps) in
-> `proofs/bonded/merkle/binding.ec`. Full machine-checked
-> mechanization, including PROM-based oracle modeling and discharge
-> of the structural admits, remains deferred.
+> `proofs/bonded/merkle/binding.md`. Full EasyCrypt mechanization is
+> deferred.

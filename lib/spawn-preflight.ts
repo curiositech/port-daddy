@@ -17,21 +17,7 @@ export interface SpawnPreflightInput {
   modelTier?: FleetModelTier;
   fallbacks?: FleetRuntimeTarget[];
   identity?: string | null;
-  /**
-   * Per-call spend ceiling. Required to be a positive number — the daemon
-   * refuses unmetered launches. This is NOT a daily project ceiling and is
-   * therefore not compared against accrued 24h project spend; the per-call
-   * cap is enforced inside the spawner during execution.
-   */
   budgetUsd?: number | null;
-  /**
-   * Optional daily project ceiling in USD. When provided, the preflight gates
-   * launches if the project's 24h accrued spend already exceeds this number.
-   * Sortie launches do not set this — daily ceilings come from project wallet
-   * / fleet config, not from a per-mission `--budget` flag. Fleet engine and
-   * project-wallet-aware callers may pass it.
-   */
-  dailyBudgetUsd?: number | null;
 }
 
 export interface SpawnPreflightAttempt {
@@ -148,19 +134,13 @@ export async function assessSpawnPreflight(
 
   const dedupedAttempts = dedupeAttempts(attempts);
   const projectName = inferProjectName(input.identity);
-  // The daily-ceiling overage check uses `dailyBudgetUsd`, not the per-call
-  // `budgetUsd`. Conflating the two caused project-spend-vs-per-mission-cap
-  // false blocks (see docs/operations/sortie-runbook.md "Budget exceeded for
-  // <project>"). Callers that want the overage gate must opt in by passing a
-  // configured daily ceiling explicitly; everyone else's per-call budget is
-  // enforced by the spawner during execution.
   const budget = (
     deps.costTracker
     && projectName
-    && typeof input.dailyBudgetUsd === 'number'
-    && Number.isFinite(input.dailyBudgetUsd)
+    && typeof input.budgetUsd === 'number'
+    && Number.isFinite(input.budgetUsd)
   )
-    ? deps.costTracker.budgetStatus(projectName, input.dailyBudgetUsd)
+    ? deps.costTracker.budgetStatus(projectName, input.budgetUsd)
     : null;
 
   const blockedReasons: string[] = [];

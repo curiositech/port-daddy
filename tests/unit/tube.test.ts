@@ -218,45 +218,6 @@ describe('lib/tube listen', () => {
     expect((getMessages as jest.Mock).mock.calls[0][1]).toEqual({ after: 3 });
   });
 
-  test('multi-subscriber: distinct historyKey → each listener gets its own cursor (fan-out)', async () => {
-    // Daemon returns the same message every poll (honoring `after` is irrelevant
-    // here — both listeners start with no cursor under their own key).
-    const messages = [
-      { id: 7, sender: 'sender', createdAt: 7, payload: { v: 1, kind: TUBE_ENVELOPE_KIND, body: 'broadcast' } },
-    ];
-    const getMessages = jest.fn(async () => ({ ok: true, messages })) as unknown as jest.Mock;
-    const client = makeClient({ getMessages });
-    const history = inMemoryHistoryStore();
-
-    // Two listeners on the SAME channel 'c' but DISTINCT identities. Each must
-    // receive the message — this is the multi-subscriber contract.
-    const alice = await listen('c', client, history, { historyKey: 'c::alice' });
-    const bob = await listen('c', client, history, { historyKey: 'c::bob' });
-
-    expect(alice.messages.map((m) => m.body)).toEqual(['broadcast']);
-    expect(bob.messages.map((m) => m.body)).toEqual(['broadcast']); // pre-fix: [] (shared cursor)
-    // Cursors are tracked per identity, not on the bare channel key.
-    expect(history.read('c::alice')).toBe(7);
-    expect(history.read('c::bob')).toBe(7);
-    expect(history.read('c')).toBeNull();
-  });
-
-  test('single-consumer regression: a SHARED channel cursor makes the 2nd listener miss it', async () => {
-    // Documents the old behavior the fix removes: without per-listener keys, two
-    // listeners share one channel cursor and race — the 2nd sees nothing.
-    const messages = [
-      { id: 7, sender: 'sender', createdAt: 7, payload: { v: 1, kind: TUBE_ENVELOPE_KIND, body: 'broadcast' } },
-    ];
-    const getMessages = jest.fn(async () => ({ ok: true, messages })) as unknown as jest.Mock;
-    const client = makeClient({ getMessages });
-    const history = inMemoryHistoryStore();
-
-    const first = await listen('c', client, history); // channel-keyed cursor → 7
-    const second = await listen('c', client, history); // same cursor → id 7 filtered out
-    expect(first.messages).toHaveLength(1);
-    expect(second.messages).toHaveLength(0);
-  });
-
   test('disableHistory leaves the cursor untouched', async () => {
     const getMessages = jest.fn(async () => ({
       ok: true,

@@ -31,7 +31,6 @@ import {
   describeFleetRunningState,
   type FleetRunningState,
 } from '../../lib/fleet-running-state.js';
-import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
 
 // ─── Load .env.local / .env for API keys ────────────────────────────────────
 // Searches: cwd, parent dir, home directory. Later files overwrite earlier ones,
@@ -458,17 +457,11 @@ async function fleetUp(): Promise<void> {
   }
 }
 
-async function fleetDown(options: CLIOptions = {}): Promise<void> {
+async function fleetDown(): Promise<void> {
   const state = await getFleetRunningState();
   const stateFile = join(process.cwd(), '.portdaddy', 'fleet-state.json');
 
   if (state.source === 'daemon-supervised') {
-    const ok = await requireConfirmation({
-      summary: `Fleet down will stop the daemon-supervised fleet${state.name ? ` "${state.name}"` : ''}. All scheduled and trigger-driven agents stop until you run pd fleet up again.`,
-      args: options as Record<string, unknown>,
-    });
-    if (!ok) process.exit(DESTRUCTIVE_EXIT_CODE);
-
     try {
       const res = await pdFetch('/fleet/stop', {
         method: 'POST',
@@ -488,20 +481,13 @@ async function fleetDown(options: CLIOptions = {}): Promise<void> {
     }
   }
 
-  if (!state.running || !state.pid) {
+  if (state.running && state.pid) {
+    try { process.kill(state.pid, 'SIGTERM'); } catch {}
+    try { unlinkSync(stateFile); } catch {}
+    ui.success('Fleet stopped');
+  } else {
     ui.info('No fleet running');
-    return;
   }
-
-  const ok = await requireConfirmation({
-    summary: `Fleet down will SIGTERM the running fleet${state.name ? ` "${state.name}"` : ''} (PID ${state.pid}). All scheduled and trigger-driven agents stop until you run pd fleet up again.`,
-    args: options as Record<string, unknown>,
-  });
-  if (!ok) process.exit(DESTRUCTIVE_EXIT_CODE);
-
-  try { process.kill(state.pid, 'SIGTERM'); } catch {}
-  try { unlinkSync(stateFile); } catch {}
-  ui.success('Fleet stopped');
 }
 
 async function fleetStatus(): Promise<void> {
@@ -847,18 +833,6 @@ async function fleetPanic(options: CLIOptions): Promise<void> {
     process.exit(1);
   }
 
-  // Audit-trail emission for the destructive-confirm tier registry. The
-  // verbatim "type YES" gate below is stronger than the standard helper, so
-  // we record the impact summary and bypass-detection here, then keep the
-  // existing stricter flow for the actual approval.
-  const audited = await requireConfirmation({
-    summary: `Fleet panic will SIGTERM every running fleet agent across all projects. Reason: ${reason}`,
-    args: { ...options, yes: true } as Record<string, unknown>,
-  });
-  // audited is always true (we forced yes:true above) — its real purpose is
-  // the stderr audit line. The actual gate is the "type YES" step below.
-  void audited;
-
   const firstRes = await pdFetch(`${PORT_DADDY_URL}/fleet/panic`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -880,12 +854,12 @@ async function fleetPanic(options: CLIOptions): Promise<void> {
     console.log('');
     if (!ui.canPrompt()) {
       ui.error('Non-interactive session: pass --yes to confirm panic.');
-      process.exit(DESTRUCTIVE_EXIT_CODE);
+      process.exit(1);
     }
     const typed = await ui.text({ label: 'Type YES to confirm (anything else cancels):', required: false });
     if ((typed || '').trim() !== 'YES') {
       ui.warn('Cancelled.');
-      process.exit(DESTRUCTIVE_EXIT_CODE);
+      process.exit(1);
     }
   }
 
@@ -1015,7 +989,7 @@ export async function handleFleet(positional: string[], _options: Record<string,
       break;
 
     case 'down':
-      await fleetDown(_options as CLIOptions);
+      fleetDown();
       break;
 
     case 'status':

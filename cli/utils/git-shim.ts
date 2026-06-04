@@ -23,27 +23,15 @@ import { homedir } from 'node:os';
 
 export const SHIM_BIN_DIR = join(homedir(), '.port-daddy', 'bin');
 export const SHIM_GIT_PATH = join(SHIM_BIN_DIR, 'git');
-export const SHIM_VERSION = '3';
+export const SHIM_VERSION = '2';
 
 export const GIT_SHIM_CONTENT = `#!/usr/bin/env bash
 # Port Daddy git shim v${SHIM_VERSION}
-# Intercepts destructive git verbs and consults the Port Daddy coordination
-# guard before letting the underlying git touch the working tree or the
-# public history.
-#
-# Working-tree destructive (v1+v2):
-#   reset --hard, checkout -- <path>, clean -fd, add -A,
-#   stash push/save, cherry-pick, rebase
-# Public-history destructive (v3 — NEW):
-#   push --force / -f / --force-with-lease   (any branch)
-#   push --mirror / --all / --prune          (mass remote ref deletion)
-#   push <remote> main|master|release/*      (direct push to protected)
-#   filter-branch, filter-repo               (history rewrite)
-#   update-ref refs/heads/main|master|release/*  (direct ref rewrite)
-#   branch -D main|master|release/*          (protected branch deletion)
-#
-# Audit: when PD_SHIM_OFF=1 is set, any refused-but-bypassed op is appended
-# to ~/.port-daddy/destructive-ops.log with timestamp + command.
+# Intercepts destructive git verbs (reset --hard, checkout -- ., clean -fd,
+# add -A, stash push/save, cherry-pick, rebase) and consults the Port Daddy
+# coordination guard before letting the underlying git touch the working
+# tree. stash-push is the verb that produced the auto-stash anti-pattern
+# documented in skills/port-daddy-agent-skill/references/cli-reference.md.
 #
 # Activate by prepending ~/.port-daddy/bin to PATH. Disable temporarily
 # with PD_SHIM_OFF=1.
@@ -73,14 +61,7 @@ if [ -z "$real_git" ]; then
 fi
 
 # Operator escape hatch — for emergency, recovery, or guard debugging.
-# Loud: appends to ~/.port-daddy/destructive-ops.log when bypassed.
 if [ "\${PD_SHIM_OFF:-}" = "1" ]; then
-  mkdir -p "\${HOME}/.port-daddy" 2>/dev/null || true
-  printf '%s\\tPD_SHIM_OFF=1\\tgit' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "\${HOME}/.port-daddy/destructive-ops.log" 2>/dev/null || true
-  for arg in "$@"; do
-    printf '\\t%s' "$arg" >> "\${HOME}/.port-daddy/destructive-ops.log" 2>/dev/null || true
-  done
-  printf '\\n' >> "\${HOME}/.port-daddy/destructive-ops.log" 2>/dev/null || true
   exec "$real_git" "$@"
 fi
 
@@ -149,102 +130,6 @@ case "\${1:-}" in
       esac
     done
     if [ -z "$flow_only" ]; then verb="rebase"; fi
-    ;;
-  push)
-    # v3: public-history destructive forms of push.
-    # --force / -f are refused on ANY branch (plain force-push is unsafe even
-    # on feature branches — silently overwrites concurrent work).
-    # --force-with-lease is refused only on protected branches (main/master/
-    # release/*); on feature branches it's the standard race-safe force.
-    # --mirror / --all / --prune can mass-delete remote branches.
-    # push <remote> main|master|release/* without force is also refused
-    # (operators should PR instead).
-
-    # First pass: classify the force/mass intent, and capture the remote ref.
-    saw_plain_force=""
-    saw_lease_force=""
-    saw_mass=""
-    for arg in "$@"; do
-      case "$arg" in
-        --force|-f)
-          saw_plain_force="1" ;;
-        --force-with-lease|--force-with-lease=*)
-          saw_lease_force="1" ;;
-        --mirror|--all|--prune)
-          saw_mass="1" ;;
-      esac
-    done
-
-    # Detect the remote ref: 'push <remote> <branch>' or 'push <remote> <local>:<remote-branch>'.
-    target=""
-    saw_remote=""
-    for arg in "$@"; do
-      case "$arg" in
-        --*|-*) continue ;;
-        push) continue ;;
-      esac
-      if [ -z "$saw_remote" ]; then
-        saw_remote="1"
-        continue
-      fi
-      target="$arg"
-      break
-    done
-    is_protected=""
-    if [ -n "$target" ]; then
-      remote_ref="\${target##*:}"
-      case "$remote_ref" in
-        main|master|refs/heads/main|refs/heads/master) is_protected="1" ;;
-        release/*|refs/heads/release/*) is_protected="1" ;;
-      esac
-    fi
-
-    # Verb resolution.
-    if [ -n "$saw_mass" ]; then
-      verb="push-mass"
-    elif [ -n "$saw_plain_force" ]; then
-      # plain --force / -f refused on any branch
-      verb="push-force"
-    elif [ -n "$saw_lease_force" ] && [ -n "$is_protected" ]; then
-      # --force-with-lease refused only on protected branches
-      verb="push-force-lease-protected"
-    elif [ -z "$saw_lease_force" ] && [ -n "$is_protected" ]; then
-      # direct (non-force) push to protected branch — refused (use a PR)
-      verb="push-protected"
-    fi
-    # --force-with-lease on a feature branch falls through cleanly.
-    ;;
-  filter-branch|filter-repo)
-    # History rewrite. Refused outright.
-    verb="history-rewrite"
-    ;;
-  update-ref)
-    # Direct ref rewrite. Refuse only on protected branches.
-    for arg in "$@"; do
-      case "$arg" in
-        refs/heads/main|refs/heads/master) verb="update-ref-protected"; break ;;
-        refs/heads/release/*) verb="update-ref-protected"; break ;;
-      esac
-    done
-    ;;
-  branch)
-    # branch -D / --delete --force on a protected branch.
-    saw_force_delete=""
-    target=""
-    for arg in "$@"; do
-      case "$arg" in
-        -D|--delete) saw_force_delete="1" ;;
-        -*) continue ;;
-        branch) continue ;;
-        *) if [ -n "$saw_force_delete" ] && [ -z "$target" ]; then target="$arg"; fi ;;
-      esac
-    done
-    if [ -n "$saw_force_delete" ] && [ -n "$target" ]; then
-      case "$target" in
-        main|master) verb="branch-delete-protected" ;;
-        release/*) verb="branch-delete-protected" ;;
-      esac
-    fi
     ;;
 esac
 

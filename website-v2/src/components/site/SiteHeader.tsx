@@ -26,14 +26,12 @@ type NavItem = {
 
 const PRIMARY_NAV_ITEMS = [
   { label: "Agents", href: "/agents", end: true },
-  { label: "Tube", href: "/pd-tube", end: false },
   { label: "Skill + MCP", href: "/mcp", end: true },
   { label: "Mac Preview", href: "/mac-preview", end: false, badge: "New", featured: true },
   { label: "Docs", href: "/docs", end: false },
 ] satisfies readonly NavItem[];
 
 const OVERFLOW_NAV_ITEMS = [
-  { label: "CLI Backend", href: "/cli-backend", end: true, badge: "$0" },
   { label: "Examples", href: "/examples", end: false },
   { label: "Tutorials", href: "/tutorials", end: false },
   { label: "Templates", href: "/agents/templates", end: true },

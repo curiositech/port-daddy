@@ -214,66 +214,6 @@ export async function assessBackendReadiness(
       }, telemetryPolicy);
     }
 
-    case 'openai': {
-      const apiKey = getSecret('OPENAI_API_KEY') || process.env.OPENAI_API_KEY;
-      if (apiKey) {
-        return applyTelemetryPolicy({
-          backend,
-          status: 'ready',
-          summary: 'OPENAI_API_KEY present',
-          ...setupForKeys(['OPENAI_API_KEY']),
-        }, telemetryPolicy);
-      }
-      return applyTelemetryPolicy({
-        backend,
-        status: 'needs_setup',
-        summary: 'OPENAI_API_KEY missing',
-        nextStep: 'Add OPENAI_API_KEY to ~/.port-daddy-env or your project .env file, then restart the daemon.',
-        ...setupForKeys(['OPENAI_API_KEY']),
-        setupCommand: 'printf \'\\nOPENAI_API_KEY=<paste-value>\\n\' >> ~/.port-daddy-env\npd restart',
-      }, telemetryPolicy);
-    }
-
-    case 'cli:claude-code': {
-      const bin = process.env.PD_CLI_CLAUDE_CODE_BIN || 'claude';
-      if (!commandExists(bin)) {
-        return applyTelemetryPolicy({
-          backend,
-          status: 'needs_setup',
-          summary: `Claude Code CLI binary "${bin}" not found`,
-          nextStep: 'Install Claude Code (https://claude.com/code) and run `claude setup-token` once to authenticate.',
-          setupCommand: 'brew install claude  # or: curl -fsSL https://claude.ai/install.sh | sh',
-        }, telemetryPolicy);
-      }
-      return applyTelemetryPolicy({
-        backend,
-        status: 'manual_check',
-        summary: 'Claude Code CLI binary found; auth cannot be verified non-interactively',
-        nextStep: 'Run `claude -p "hello"` once to confirm auth. PD_USE_CLI_BACKEND=claude-code forces all spawns through this CLI.',
-        setupCommand: 'claude -p "hello"',
-      }, telemetryPolicy);
-    }
-
-    case 'cli:codex': {
-      const bin = process.env.PD_CLI_CODEX_BIN || 'codex';
-      if (!commandExists(bin)) {
-        return applyTelemetryPolicy({
-          backend,
-          status: 'needs_setup',
-          summary: `Codex CLI binary "${bin}" not found`,
-          nextStep: 'Install the Codex CLI and authenticate before using this backend.',
-          setupCommand: 'codex --help',
-        }, telemetryPolicy);
-      }
-      return applyTelemetryPolicy({
-        backend,
-        status: 'manual_check',
-        summary: 'Codex CLI binary found; auth cannot be verified non-interactively',
-        nextStep: 'Run `codex exec "hello"` once to confirm auth. PD_USE_CLI_BACKEND=codex forces all spawns through this CLI.',
-        setupCommand: 'codex exec "hello"',
-      }, telemetryPolicy);
-    }
-
     case 'ollama': {
       if (await ollamaReachable()) {
         return applyTelemetryPolicy({

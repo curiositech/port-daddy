@@ -1032,57 +1032,6 @@
         "sdk": false
       }
     },
-    "popper": {
-      "description": "Autonomous roadmap-to-dispatch task puller — produces dispatch.state='proposed' rows from nightshift-eligible roadmap items. Operator override + FleetBar Nightshift surface via pd popper / HTTP.",
-      "cli": [
-        "popper"
-      ],
-      "sdk": [],
-      "routes": [
-        "GET /popper/status",
-        "GET /popper/next",
-        "POST /popper/pop",
-        "POST /popper/eligibility"
-      ],
-      "completions": [
-        "popper"
-      ],
-      "docs": {
-        "readme": false,
-        "sdk": false
-      }
-    },
-    "recovery": {
-      "description": "Magic-link account recovery — single-use token issue + atomic consume (single-use enforced at the DB layer per proofs/bonded/recovery/magic-link.pv). API-only surface consumed by out-of-band recovery flows.",
-      "cli": [],
-      "sdk": [],
-      "routes": [
-        "POST /recovery/request",
-        "POST /recovery/consume"
-      ],
-      "completions": [],
-      "docs": {
-        "readme": false,
-        "sdk": false
-      }
-    },
-    "harbormaster": {
-      "description": "Canonical merge-owning actor body (ADR-0037) — serializes merges of dispatched work, routes conflicts back as sub-dispatches, blocks on branch-protection / CI-red failures. Two-key safety: dispatch.state='accepted' AND merge_queue.state='queued'.",
-      "cli": [
-        "harbormaster",
-        "hm"
-      ],
-      "sdk": [],
-      "routes": [],
-      "completions": [
-        "harbormaster",
-        "hm"
-      ],
-      "docs": {
-        "readme": false,
-        "sdk": false
-      }
-    },
     "sorties": {
       "description": "Tracked mission records over spawned runs with durable ids, harbors, and event logs",
       "cli": [
@@ -1151,21 +1100,6 @@
       ],
       "completions": [
         "fleet"
-      ],
-      "docs": {
-        "readme": true,
-        "sdk": false
-      }
-    },
-    "backend": {
-      "description": "CLI surface for the fleet backend catalog — list available backends with cost-model framing (subscription/metered/local/cli), switch the forced backend via PD_USE_CLI_BACKEND, and roll up spend per window. The CLI-tube backends (cli:claude-code, cli:codex) ride the operator's Claude Max or ChatGPT Pro subscription at $0 marginal cost. Read-only CLI surface — uses existing routes owned by the fleet + metrics features.",
-      "cli": [
-        "backend"
-      ],
-      "sdk": [],
-      "routes": [],
-      "completions": [
-        "backend"
       ],
       "docs": {
         "readme": true,
@@ -1572,38 +1506,6 @@
         "sdk": false
       }
     },
-    "db_backup": {
-      "description": "Durable snapshots of port-registry.db with online-Backup-API atomicity, gzipped artifacts + sha256-verified manifests, and GFS retention. `pd backup` runs a snapshot; `pd backup list/show/prune` inspect and trim. URI-addressed backend interface (file:// in PR-α; s3:// and gcs:// in PR-γ). Encryption-at-rest lands in PR-β. See ADR-0037.",
-      "module": "lib/backup.ts",
-      "cli": [
-        "backup"
-      ],
-      "sdk": [],
-      "routes": [],
-      "completions": [
-        "backup"
-      ],
-      "docs": {
-        "readme": true,
-        "sdk": false
-      }
-    },
-    "db_restore": {
-      "description": "Restore a port-registry.db snapshot taken by `pd backup`. Live DB is renamed to `<dbPath>.pre-restore-<timestamp>` so the operation is reversible; `PRAGMA integrity_check` auto-rolls back on failure. See ADR-0037.",
-      "module": "lib/backup.ts",
-      "cli": [
-        "restore"
-      ],
-      "sdk": [],
-      "routes": [],
-      "completions": [
-        "restore"
-      ],
-      "docs": {
-        "readme": true,
-        "sdk": false
-      }
-    },
     "ideas": {
       "description": "Canonical ideation trove inspection and dedupe over docs/recovery/IDEAS-TROVE.md with optional local Spark/Spider residue",
       "cli": [
@@ -1855,58 +1757,6 @@
         "sdk": false
       },
       "_note": "Store is the macOS Keychain (encrypted at rest, fail-closed) via lib/keychain.ts. `pd secret set` reads the value from a hidden stdin prompt, never argv (audit finding L1). Reveal returns plaintext for the FleetBar Copy flow and is loopback-only on the daemon (preHandler) plus the global DNS-rebinding guard."
-    },
-    "dispatch": {
-      "description": "Operator queue for autonomous feature dev: drop a sentence-shaped goal, daemon routes it to a worker, worker produces a PR, operator accepts/rejects via pd review. Renames pd nightshift (PR #143) onto ADR-0035's 8-state machine. Adds base_branch column for per-base-branch serialization (harbormaster/PR #141 will consume).",
-      "cli": [
-        "dispatch",
-        "nightshift",
-        "review",
-        "morning"
-      ],
-      "sdk": [],
-      "routes": [
-        "POST /dispatches",
-        "GET /dispatches"
-      ],
-      "completions": [
-        "dispatch",
-        "nightshift",
-        "review",
-        "morning"
-      ],
-      "docs": {
-        "readme": false,
-        "sdk": false
-      },
-      "_note": "pd nightshift is preserved as a deprecation alias for one minor version. HTTP surface landed in PR #163 (routes/dispatches.ts): propose/list over the dispatch queue. routes/dispatches.ts also serves GET /dispatches/:id and POST /dispatches/:id/{accept,reject,cancel}; those use generic-typed fastify handlers (fastify.get<{Params}>) that the manifest route-parser does not extract, so they are intentionally omitted here to keep the manifest<->code bijection clean."
-    },
-    "transcripts": {
-      "description": "Fleet ship-run transcript records — operator-facing surface for inspecting what a spawned worker did, what it cost, and its produced outputs. Read views (list/show/cost/stream) plus a delete for pruning old runs.",
-      "cli": [
-        "transcripts",
-        "transcript"
-      ],
-      "sdk": [],
-      "routes": [
-        "GET /transcripts",
-        "GET /transcripts/cost",
-        "GET /transcripts/stream",
-        "GET /transcripts/:id",
-        "POST /transcripts",
-        "POST /transcripts/:id/messages",
-        "POST /transcripts/:id/outputs",
-        "DELETE /transcripts/:id"
-      ],
-      "completions": [
-        "transcripts",
-        "transcript"
-      ],
-      "docs": {
-        "readme": false,
-        "sdk": false
-      },
-      "_note": "Surfaced by pd transcripts (singular alias: pd transcript). routes/transcripts.ts is the HTTP API the FleetBar/dashboard ship-run views read from."
     }
   }
 }

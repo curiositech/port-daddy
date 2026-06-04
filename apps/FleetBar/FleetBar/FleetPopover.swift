@@ -37,17 +37,15 @@ struct FleetPopover: View {
     @ObservedObject var store: FleetStore
     @ObservedObject var costStore: CostStore
     @ObservedObject var secretsStore: SecretsStore
-    @ObservedObject var backendStore: BackendStore
     @StateObject private var budgetStore = BudgetPauseStore()
     @AppStorage("fleet.control.theme") private var selectedThemeRaw = "dark"
     @State private var appeared = false
     @State private var showingSettings = false
 
-    init(store: FleetStore, costStore: CostStore, secretsStore: SecretsStore = SecretsStore(autoStart: false), backendStore: BackendStore = BackendStore()) {
+    init(store: FleetStore, costStore: CostStore, secretsStore: SecretsStore = SecretsStore(autoStart: false)) {
         self.store = store
         self.costStore = costStore
         self.secretsStore = secretsStore
-        self.backendStore = backendStore
     }
 
     private var recentAgentHighlights: [RecentAgentHighlight] {
@@ -105,10 +103,6 @@ struct FleetPopover: View {
                 budgetPauseBanner
                 Divider().opacity(0.5)
             }
-            if store.isDaemonRunning {
-                BackendStatusRow(store: backendStore)
-                Divider().opacity(0.5)
-            }
             if let daemonStatus = store.daemonStatus, store.isDaemonRunning {
                 daemonReportSection(status: daemonStatus)
                 Divider().opacity(0.5)
@@ -124,8 +118,6 @@ struct FleetPopover: View {
                 Divider().opacity(0.5)
             }
             if showingSettings {
-                BackendPicker(store: backendStore)
-                Divider().opacity(0.5)
                 settingsPanel
                 Divider().opacity(0.5)
             }
@@ -243,7 +235,7 @@ struct FleetPopover: View {
 
     private func daemonReportSection(status: DaemonStatusResponse) -> some View {
         let runtimeColor: Color = status.runtime?.degraded == true ? Fleet.Color.warning : Fleet.Color.healthy
-        let bosun = status.guardians?.bosun
+        let bosun = status.guardians?.bosun ?? status.guardians?.barnacle
         let bosunColor: Color = {
             switch bosun?.state {
             case "healthy":
@@ -486,28 +478,12 @@ struct FleetPopover: View {
                     .buttonStyle(.borderless)
                     .help("Reload configs")
 
-                    // PLAY/STOP is per-project. With one runnable project fire on it;
-                    // with multiple, open Fleet Control Center where the operator picks —
-                    // never silently launch all fleets everywhere.
                     Button {
                         Task {
                             if store.totalActive == 0 {
-                                let runnable = store.projects.filter { !$0.isRunning }
-                                if runnable.count == 1, let only = runnable.first {
-                                    await store.startFleet(projectDir: only.projectDir)
-                                } else if let focus = defaultConsoleProject,
-                                          let project = store.projects.first(where: { $0.id == focus && !$0.isRunning }) {
-                                    await store.startFleet(projectDir: project.projectDir)
-                                } else {
-                                    openControlPlane(.flow)
-                                }
+                                await store.startFleet()
                             } else {
-                                if let focus = defaultConsoleProject,
-                                   let project = store.projects.first(where: { $0.id == focus && $0.isRunning }) {
-                                    await store.stopFleet(projectDir: project.projectDir)
-                                } else {
-                                    openControlPlane(.flow)
-                                }
+                                await store.stopFleet()
                             }
                         }
                     } label: {
@@ -517,7 +493,7 @@ struct FleetPopover: View {
                             .contentTransition(.symbolEffect(.replace))
                     }
                     .buttonStyle(.borderless)
-                    .help(store.totalActive == 0 ? "Start fleet (focused project only)" : "Stop fleet (focused project only)")
+                    .help(store.totalActive == 0 ? "Start fleet" : "Stop fleet")
                 }
             }
         }
@@ -549,7 +525,7 @@ struct FleetPopover: View {
         return VStack(alignment: .leading, spacing: Fleet.Space.s) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Control Center")
+                    Text("Console")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                     Text("Shared project readiness, budgets, and control-plane truth")
@@ -809,12 +785,12 @@ struct FleetPopover: View {
             Button {
                 openControlPlane(.flow)
             } label: {
-                Label("Control Center", systemImage: "macwindow")
+                Label("Console", systemImage: "macwindow")
             }
             .buttonStyle(.borderless)
             .font(.caption2)
             .foregroundStyle(Fleet.Color.active)
-            .help("Open the Fleet Control Center")
+            .help("Open the fleet control plane")
 
             Button {
                 openSettings()
@@ -1459,9 +1435,6 @@ struct StatusCapsule: View {
         return store
     }(), costStore: {
         let store = CostStore()
-        return store
-    }(), backendStore: {
-        let store = BackendStore(autoStart: false)
         return store
     }())
     .frame(width: 380, height: 520)

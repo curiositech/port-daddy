@@ -44,8 +44,6 @@ Agent A & B have semantic mismatch:
 │     └─ ESCALATE: coordination impossible at ontology level
 ```
 
-See `references/translation-hierarchy-as-coordination-strategy.md` for the six formal relationship levels (Identical → Equivalent → Extension → Strongly-Translatable → Weakly-Translatable → Approximately-Translatable) and their operational implications as coordination constraints.
-
 ### Explicit vs Implicit Ontology Choice
 
 ```
@@ -90,8 +88,6 @@ Proposed approach is "find ontology intersection"?
       └─ VERIFY: covers both systems' essential concepts
 ```
 
-See `references/bottom-up-integration-fallacy.md` for why intersection-based integration fails even when vocabularies appear to overlap.
-
 ## Failure Modes
 
 ### 1. Rubber Stamp Translation
@@ -122,7 +118,7 @@ See `references/bottom-up-integration-fallacy.md` for why intersection-based int
 **Symptoms**: Each agent implements its own translation logic, creating N² complexity and inconsistent translations
 **Detection Rule**: If translation code is duplicated across agents and produces different results for same inputs
 **Root Cause**: Treating ontology coordination as per-agent concern rather than system infrastructure
-**Fix**: Implement centralized Ontology Agent service; standardize on OKBC interlingua for meta-knowledge operations (see `references/ontology-agent-as-coordination-infrastructure.md`)
+**Fix**: Implement centralized Ontology Agent service; standardize on OKBC interlingua for meta-knowledge operations
 
 ## Worked Examples
 
@@ -202,13 +198,3 @@ See `references/bottom-up-integration-fallacy.md` for why intersection-based int
 - For API design and evolution: Use `api-design-patterns` skill
 
 This skill focuses specifically on **coordination between autonomous agents with different conceptual models**. It is not a general-purpose semantic technology or data integration solution.
-
-## Bundled Assets
-
-### Diagrams
-
-`diagrams/INDEX.md` — visual decision tree, coordination protocol sequence, and three-layer ontological model.
-
-### Reference Deep-Dives
-
-`references/INDEX.md` — detailed explorations of the translation hierarchy, bottom-up integration fallacy, OKBC interlingua, Ontology Agent architecture, and all five failure modes.

@@ -21,13 +21,10 @@ describe('Port Daddy skill authority', () => {
     // any agent on any project; the marketing-copy skill is a deliberate,
     // scoped second surface for website voice; the internal-dev skill is
     // the contributor-only manual for editing this repo (private, never
-    // published downstream); the expository-writer skill (added by PR #148)
-    // is a scoped surface for long-form expository docs/blog authoring.
-    // Adding any other port-daddy-* skill should fail this assertion until
-    // it's explicitly listed here.
+    // published downstream). Adding any other port-daddy-* skill should
+    // fail this assertion until it's explicitly listed here.
     expect(portDaddySkills).toEqual([
       'port-daddy-agent-skill',
-      'port-daddy-expository-writer',
       'port-daddy-internal-dev',
       'port-daddy-marketing-copy',
     ]);

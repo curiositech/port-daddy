@@ -10,7 +10,6 @@ import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import { CLIOptions, isQuiet, isJson } from '../types.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
-import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
 
 interface StaleAgent {
   id: string;
@@ -544,12 +543,6 @@ export async function handleSalvage(subcommand: string | undefined, args: string
         process.exit(1);
       }
 
-      const ok = await requireConfirmation({
-        summary: `Salvage claim will transfer agent ${agentId}'s session, file claims, and notes to you. The previous owner loses control of that work.`,
-        args: options as Record<string, unknown>,
-      });
-      if (!ok) process.exit(DESTRUCTIVE_EXIT_CODE);
-
       let data: Record<string, unknown>;
       try {
         data = await claimSalvageAgent(agentId, options);
@@ -589,12 +582,6 @@ export async function handleSalvage(subcommand: string | undefined, args: string
         process.exit(1);
       }
 
-      const ok = await requireConfirmation({
-        summary: `Salvage complete will mark ${oldAgentId}'s queue entry as finished by ${newAgentId}. The salvage entry is removed and cannot be re-pulled.`,
-        args: options as Record<string, unknown>,
-      });
-      if (!ok) process.exit(DESTRUCTIVE_EXIT_CODE);
-
       const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/salvage/complete/${encodeURIComponent(oldAgentId)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -622,12 +609,6 @@ export async function handleSalvage(subcommand: string | undefined, args: string
         process.exit(1);
       }
 
-      const ok = await requireConfirmation({
-        summary: `Salvage abandon will return ${agentId} to the queue and release any claim you had on its work. Another agent may pick it up.`,
-        args: options as Record<string, unknown>,
-      });
-      if (!ok) process.exit(DESTRUCTIVE_EXIT_CODE);
-
       const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/salvage/abandon/${encodeURIComponent(agentId)}`, {
         method: 'POST'
       });
@@ -652,12 +633,6 @@ export async function handleSalvage(subcommand: string | undefined, args: string
         console.error('Usage: pd salvage dismiss <agent-id>');
         process.exit(1);
       }
-
-      const ok = await requireConfirmation({
-        summary: `Salvage dismiss will permanently remove ${agentId} from the queue. Its purpose, notes, and session context will not be retrievable.`,
-        args: options as Record<string, unknown>,
-      });
-      if (!ok) process.exit(DESTRUCTIVE_EXIT_CODE);
 
       const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/salvage/${encodeURIComponent(agentId)}`, {
         method: 'DELETE'

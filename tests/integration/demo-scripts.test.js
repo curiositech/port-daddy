@@ -112,17 +112,9 @@ describe('Demo 2 — agents (pd begin / pd note / pd pub / pd salvage / pd lock 
   };
 
   afterAll(async () => {
-    // Best-effort cleanup — use the operator escape hatch so the
-    // pd-done origin rule does not block teardown of a leaked agent.
+    // Best-effort cleanup
     if (agentId) {
-      await request('/sugar/done', {
-        method: 'POST',
-        body: {
-          agentId,
-          skipOriginCheck: true,
-          skipOriginCheckReason: 'demo-script integration cleanup',
-        },
-      }).catch(() => {});
+      await request('/sugar/done', { method: 'POST', body: { agentId } }).catch(() => {});
       await request(`/agents/${encodeURIComponent(agentId)}`, { method: 'DELETE' }).catch(() => {});
     }
     await request(`/locks/${encodeURIComponent(LOCK_NAME)}`, { method: 'DELETE' }).catch(() => {});
@@ -192,15 +184,7 @@ describe('Demo 2 — agents (pd begin / pd note / pd pub / pd salvage / pd lock 
 
   test('pd done ends the session and unregisters the agent', () => {
     expect(agentId).not.toBeNull();
-    // The pd-done origin rule (substrate fix 2026-05-20) requires a
-    // pushed branch + result-note sentinel. The demo-scripts test runs
-    // against an ephemeral daemon without that real-repo context, so
-    // we use the documented operator escape hatch.
-    const { stdout, stderr, status } = runCli([
-      'done',
-      '--skip-origin-check',
-      '--reason', 'demo-script integration test',
-    ], cliOptions);
+    const { stdout, stderr, status } = runCli(['done'], cliOptions);
     expect(status).toBe(0);
     const combined = stdout + stderr;
     expect(combined).toMatch(/done|complete|ended|session|archived/i);

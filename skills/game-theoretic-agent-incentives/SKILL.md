@@ -421,7 +421,3 @@ A correlated equilibrium is valid ONLY when:
 **Correlated Equilibrium Existence:** For any Nash equilibrium, there exists a correlated equilibrium that is at least as good for all players. The daemon-as-correlator can never make things worse and usually makes them better.
 
 **Price of Anarchy Bound (Routing Games):** In congestion games (which model file claim competition), the price of anarchy is at most 5/2 for linear latency functions. This gives a concrete upper bound on how bad advisory claims can get in common settings.
-
-## Bundled Assets
-
-**Skill Evaluations:** See [`evals/evals.json`](evals/evals.json) for benchmark prompts and expected outputs used to validate this skill across typical game-theoretic agent coordination problems.

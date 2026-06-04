@@ -1,0 +1,10 @@
+{
+  "agentId": "agent-architect-suggestibility-spec",
+  "sessionId": "session-design-per-turn-suggestibility-briefing-format-f-a65e222ec5cd",
+  "agentName": "architect:suggestibility-briefing-spec",
+  "sessionName": "architect:suggestibility-briefing-spec",
+  "purpose": "Design per-turn suggestibility briefing format for ADR-0039",
+  "identity": "port-daddy:research:suggestibility-spec",
+  "startedAt": 1780515187109,
+  "contextSlot": null
+}

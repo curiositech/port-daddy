@@ -91,8 +91,6 @@ Does the workflow involve parallel independent sub-tasks?
   NO  → Consider nested composition for sequential-conditional sub-tasks.
 ```
 
-_See `diagrams/03_flowchart_decision_framework_for_protoco.md` for this decision tree as a visual flowchart covering agent complexity, interoperability requirements, and role assignment._
-
 ### Diagnosing Coordination Failures
 ```
 Are agents compliant with the protocol but still failing to coordinate?
@@ -148,7 +146,7 @@ Protocol is technically satisfied but coordination breaks downstream?
 ## Reference Table
 
 | File | Description | Load When |
-|------|-------------|----------|
+|------|-------------|-----------|
 | `references/interaction-protocols-as-coordination-primitives.md` | The foundational argument for treating conversation patterns as explicit, named, reusable design artifacts rather than emergent code behavior | Designing a new agent interaction; explaining *why* protocols matter to skeptics; arguing for protocol-first architecture |
 | `references/role-abstraction-in-multi-agent-coordination.md` | Why roles (not agent identities) are the right abstraction for coordination; how role-based design enables composability and extensibility | Routing decisions; designing for agent substitutability; debugging identity-based coupling problems |
 | `references/protocol-limits-and-the-interoperability-gap.md` | FIPA's honest enumeration of what protocols do NOT cover; the "interoperability gap" between compliance and robust coordination | Diagnosing failures in "compliant" systems; designing robustness layers; evaluating interoperability claims |
@@ -158,13 +156,6 @@ Protocol is technically satisfied but coordination breaks downstream?
 | `references/conversation-management-concurrency-and-state.md` | How agents track state across multiple simultaneous conversations; conversation IDs; concurrent dialogue management | Debugging state confusion in concurrent workflows; designing conversation tracking; multi-threaded agent coordination |
 | `references/protocol-compliance-versus-protocol-wisdom.md` | The gap between following protocol rules and coordinating well; when rule-following is insufficient; developing judgment about protocol purpose | Agents that are technically compliant but poorly coordinating; designing agents that exercise discretion; expert vs. novice agent behavior |
 | `references/modular-protocol-composition-system-architecture.md` | The three composition mechanisms (nested, interleaved, parameterized); building complex systems from simple protocol parts | Complex multi-stage workflows; task decomposition strategy; scaling agent systems without rewriting protocols |
-
----
-
-## Bundled Assets
-
-- **[diagrams/INDEX.md](diagrams/INDEX.md)** — Three visual models: FIPA request protocol message flows (sequence diagram), agent conversation state machines with conversation-ID state transitions (state diagram), and the protocol selection decision framework (flowchart).
-- **[references/INDEX.md](references/INDEX.md)** — Full reference library covering coordination primitives, role abstraction, the interoperability gap, parameterized protocols, AUML notation, modular composition, and the compliance-vs-wisdom distinction.
 
 ---
 

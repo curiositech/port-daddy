@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import { Link, Navigate, useParams } from 'react-router-dom'
-import { ArrowLeft, BookOpen, Cpu, Download, FileText } from 'lucide-react'
+import { ArrowLeft, BookOpen, Download, FileText } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
 import {
   BracketLabel,
@@ -244,26 +244,6 @@ export default function PaperDetailPage() {
                     Two AI review teams have argued with this draft for months. Each round of edits is on the record.
                   </span>
                 </Link>
-
-                {paper.id === 'agent-transactions' ? (
-                  <Link
-                    to="/whitepaper/how-we-prove-game-theory"
-                    className="grid gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-4)] text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-strong)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]"
-                  >
-                    <PanelEyebrow className="inline-flex items-center gap-[var(--space-2)]">
-                      <Cpu aria-hidden="true" size={12} />
-                      The game theory, patient walkthrough
-                    </PanelEyebrow>
-                    <span className="font-display text-[length:var(--type-panel-title-nav-size)] font-black leading-[var(--leading-nav)] tracking-[var(--tracking-display-nav)]">
-                      How we use — and prove — game theory
-                    </span>
-                    <span className="text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
-                      Correlated equilibrium from Aumann to a hundred-millisecond
-                      Z3 check you can run yourself. For readers who took game
-                      theory once in college and never saw the computational side.
-                    </span>
-                  </Link>
-                ) : null}
 
                 {siblingPapers.map((sibling) => (
                   <Link

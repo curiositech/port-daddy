@@ -49,13 +49,13 @@ export const TIER_TABLE: ReadonlyArray<Omit<TierRow, 'count' | 'countError'>> = 
   {
     construct: 'active-notes',
     tier: 'Recall',
-    eviction: 'TTL-bounded window (default 30d for tiers surface)',
+    eviction: 'display-layer TTL (compaction in flight)',
     access: 'pd notes, pd briefing',
   },
   {
     construct: 'archived-notes',
     tier: 'Archival',
-    eviction: 'never destroyed; strictly older than Recall TTL',
+    eviction: 'never destroyed; display-compactable',
     access: 'pd notes --since, semantic search',
   },
   {
@@ -65,10 +65,7 @@ export const TIER_TABLE: ReadonlyArray<Omit<TierRow, 'count' | 'countError'>> = 
     access: 'pd blob',
   },
   {
-    // TODO: when /skill-index/count lands on the daemon, add a dedicated
-    // `skill-index` construct here. Today's /memory/stats route emits the
-    // episodic-memory total; this row honestly names what it is.
-    construct: 'episodic-memory',
+    construct: 'skill-index',
     tier: 'Archival',
     eviction: 're-embed on edit',
     access: 'pd skill find',
@@ -93,33 +90,8 @@ interface CountFetcher {
  * never reach into the SQLite file directly — that's the substrate the
  * Wave 4 agents are editing.
  */
-/**
- * Parse a human duration string ("30d", "1h", "90m", "120s") into ms.
- * Defaults to the given fallback if input is empty or unparseable.
- */
-function parseDurationMs(input: string | undefined, fallbackMs: number): number {
-  if (!input) return fallbackMs;
-  const m = String(input).trim().match(/^(\d+)\s*([smhd])?$/i);
-  if (!m) return fallbackMs;
-  const n = Number(m[1]);
-  const unit = (m[2] || 's').toLowerCase();
-  const mult = unit === 'd' ? 86400000 : unit === 'h' ? 3600000 : unit === 'm' ? 60000 : 1000;
-  return n * mult;
-}
-
-/**
- * Recall TTL for the `pd memory tiers/summary` surface. Operator-configurable;
- * default 30d per ADR-0035. The briefing surface uses 1h (lib/briefing.ts).
- *
- * Invariant the partition enforces:
- *   recall_count (notes since now - TIERS_TTL) + archival_count (notes older) = total_count
- */
-function recallTiersWindowMs(): number {
-  return parseDurationMs(process.env.PD_MEMORY_RECALL_TIERS_TTL, 30 * 86400000);
-}
-
 function buildCountFetchers(): Record<string, CountFetcher> {
-  const recallWindowMs = recallTiersWindowMs();
+  const recallNotesWindowMs = 60 * 60 * 1000; // 1h
 
   return {
     'active-sessions': async () => {
@@ -140,8 +112,8 @@ function buildCountFetchers(): Record<string, CountFetcher> {
     },
 
     'active-notes': async () => {
-      const since = Date.now() - recallWindowMs;
-      const res: PdFetchResponse = await pdFetch(`/notes?since=${since}&limit=10000`);
+      const since = Date.now() - recallNotesWindowMs;
+      const res: PdFetchResponse = await pdFetch(`/notes?since=${since}&limit=1000`);
       const data: any = await res.json();
       if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
       const arr = Array.isArray(data) ? data : (data.notes || []);
@@ -149,25 +121,15 @@ function buildCountFetchers(): Record<string, CountFetcher> {
     },
 
     'archived-notes': async () => {
-      // Partition invariant: archival = total - recall. We compute total then
-      // subtract the recall slice, so `recall + archival = total` by construction.
-      // The previous implementation read all notes into "archived", which
-      // double-counted with active-notes — see PR #114 review finding 3.
-      const totalRes: PdFetchResponse = await pdFetch('/notes?limit=100000');
-      const totalData: any = await totalRes.json();
-      if (!totalRes.ok) throw new Error(totalData?.error || `HTTP ${totalRes.status}`);
-      const total = typeof totalData?.total === 'number'
-        ? totalData.total
-        : (Array.isArray(totalData) ? totalData : (totalData.notes || [])).length;
-
-      const since = Date.now() - recallWindowMs;
-      const recentRes: PdFetchResponse = await pdFetch(`/notes?since=${since}&limit=100000`);
-      const recentData: any = await recentRes.json();
-      if (!recentRes.ok) throw new Error(recentData?.error || `HTTP ${recentRes.status}`);
-      const recentArr = Array.isArray(recentData) ? recentData : (recentData.notes || []);
-      const recall = recentArr.length;
-
-      return Math.max(0, total - recall);
+      // Total notes minus the Recall window. We approximate with the same
+      // /notes endpoint with a high limit; if the daemon returns a separate
+      // `total`, prefer it.
+      const res: PdFetchResponse = await pdFetch('/notes?limit=10000');
+      const data: any = await res.json();
+      if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+      if (typeof data?.total === 'number') return data.total;
+      const arr = Array.isArray(data) ? data : (data.notes || []);
+      return arr.length;
     },
 
     blobs: async () => {
@@ -179,28 +141,20 @@ function buildCountFetchers(): Record<string, CountFetcher> {
       return arr.length;
     },
 
-    // TODO: when a dedicated /skill-index/count endpoint lands on the daemon,
-    // add a separate `skill-index` construct here. Until then the row below
-    // honestly names what /memory/stats actually emits — the episodic-memory
-    // total — rather than mislabeling it.
-    'episodic-memory': async () => {
+    'skill-index': async () => {
       const res: PdFetchResponse = await pdFetch('/memory/stats');
       const data: any = await res.json();
       if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+      // Episodic memory stats is the closest existing surface. If a dedicated
+      // skill-index count endpoint lands, swap it in here.
       return Number(data?.total ?? 0);
     },
 
     'salvageable-sessions': async () => {
-      // Daemon wire shape (see routes/resurrection.ts ResurrectionApi):
-      //   { success: true, agents: StaleAgent[], count: number, filtered?: boolean }
-      // Frame-of-reference rule: read what the daemon actually emits, not what we
-      // wished it emitted. Prefer the explicit `count` field; fall back to
-      // counting `agents` if `count` is absent (older daemon builds).
-      const res: PdFetchResponse = await pdFetch('/salvage/pending');
+      const res: PdFetchResponse = await pdFetch('/resurrection/pending');
       const data: any = await res.json();
       if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
-      if (typeof data?.count === 'number') return data.count;
-      const arr = Array.isArray(data) ? data : (data.agents || []);
+      const arr = Array.isArray(data) ? data : (data.pending || data.sessions || []);
       return arr.length;
     },
   };
@@ -392,17 +346,8 @@ const EPISODIC_SUBCOMMANDS = new Set(['episodes', 'stats']);
 export async function handleMemory(args: string[], options: CLIOptions): Promise<void> {
   const sub = args[0];
 
-  // Help / explicit usage request — same as before.
-  if (sub === 'help' || sub === '--help' || sub === '-h') {
+  if (!sub || sub === 'help' || sub === '--help' || sub === '-h') {
     printUsage();
-  }
-
-  // Backward-compat: `pd memory` (no args) historically defaulted to `episodes`
-  // and exited 0. The earlier dispatcher silently broke that. Preserve the
-  // legacy behavior; new tier subcommands are explicit-opt-in.
-  // (PR #114 review finding 4.)
-  if (!sub) {
-    return handleEpisodicMemory(args, options);
   }
 
   if (TIER_SUBCOMMANDS.has(sub)) {

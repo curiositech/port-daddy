@@ -344,7 +344,8 @@ struct DaemonRuntimeResponse: Decodable {
 
 struct DaemonGuardiansResponse: Decodable {
     let supervisor: DaemonSupervisorResponse?
-    let bosun: DaemonBosunResponse?
+    let bosun: DaemonBarnacleResponse?
+    let barnacle: DaemonBarnacleResponse?
 }
 
 struct DaemonSupervisorResponse: Decodable {
@@ -352,7 +353,7 @@ struct DaemonSupervisorResponse: Decodable {
     let summary: String
 }
 
-struct DaemonBosunResponse: Decodable {
+struct DaemonBarnacleResponse: Decodable {
     let enabled: Bool
     let state: String
     let reason: String?

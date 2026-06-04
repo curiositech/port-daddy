@@ -292,12 +292,8 @@ describe('CLI Integration Tests', () => {
         const unregister = await requestWithRetry(`/agents/${encodeURIComponent(agentId)}`, { method: 'DELETE' });
         expect(unregister.ok).toBe(true);
 
-        // pd-done origin rule (substrate fix 2026-05-20): bypass via the
-        // documented escape hatch for this integration test, which has no
-        // intent to push or open a PR.
         const result = runCliViaIpc(
-          ['done', 'Recovered after agent registry loss', '--json',
-           '--skip-origin-check', '--reason', 'cli ipc recovery integration test'],
+          ['done', 'Recovered after agent registry loss', '--json'],
           { env: { PORT_DADDY_CONTEXT_SLOT: slot } },
         );
         expect(result.success).toBe(true);
@@ -1003,10 +999,7 @@ describe('CLI Integration Tests', () => {
       const beginResult = runCli(['begin', '-P', 'Done flag test', '-q']);
       const agentId = beginResult.stdout.trim();
 
-      // pd-done origin rule (substrate fix 2026-05-20): bypass for this
-      // flag-shape test, which is about argument parsing, not the rule.
-      const result = runCli(['done', '--note', 'Finished via flag', '--agent', agentId, '--json',
-        '--skip-origin-check', '--reason', 'cli flag parsing test']);
+      const result = runCli(['done', '--note', 'Finished via flag', '--agent', agentId, '--json']);
       expect(result.success).toBe(true);
 
       const data = JSON.parse(result.stdout);
@@ -1018,9 +1011,7 @@ describe('CLI Integration Tests', () => {
       const beginResult = runCli(['begin', '-P', 'Done short flag test', '-q']);
       const agentId = beginResult.stdout.trim();
 
-      // pd-done origin rule bypass — see comment in --note test above.
-      const result = runCli(['done', '-n', 'Short flag note', '--agent', agentId, '--json',
-        '--skip-origin-check', '--reason', 'cli flag parsing test']);
+      const result = runCli(['done', '-n', 'Short flag note', '--agent', agentId, '--json']);
       expect(result.success).toBe(true);
 
       const data = JSON.parse(result.stdout);
@@ -1194,8 +1185,7 @@ describe('CLI Integration Tests', () => {
         const filePaths = (detailRes.data.files || []).map(file => file.filePath || file.file_path || file.path);
         expect(filePaths).toContain('README.md');
       } finally {
-        runCli(['done', '--session', beginData.sessionId,
-          '--skip-origin-check', '--reason', 'cross-repo cli test cleanup']);
+        runCli(['done', '--session', beginData.sessionId]);
         rmSync(otherRepo, { recursive: true, force: true });
       }
     });
@@ -1208,10 +1198,8 @@ describe('CLI Integration Tests', () => {
 
       const agentId = result.stdout.trim();
 
-      // Positional note on done — pd-done origin rule bypass for this
-      // positional-args parsing test.
-      const doneResult = runCli(['done', 'Positional note', '--agent', agentId, '--json',
-        '--skip-origin-check', '--reason', 'cli positional-args test']);
+      // Positional note on done
+      const doneResult = runCli(['done', 'Positional note', '--agent', agentId, '--json']);
       expect(doneResult.success).toBe(true);
 
       const data = JSON.parse(doneResult.stdout);

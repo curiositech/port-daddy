@@ -94,43 +94,6 @@ describe('Messaging Module', () => {
       expect(row.expires_at).toBeLessThanOrEqual(after + 5000 + 100);
     });
 
-    it('applies a default TTL when no expires is provided (no permanent leak)', () => {
-      const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
-      const before = Date.now();
-      messaging.publish('test-channel', 'untagged');
-      const after = Date.now();
-
-      const row = db.prepare('SELECT * FROM messages').get();
-      // Previously this was NULL (permanent); now it self-expires in ~7 days.
-      expect(row.expires_at).not.toBeNull();
-      expect(row.expires_at).toBeGreaterThanOrEqual(before + SEVEN_DAYS - 100);
-      expect(row.expires_at).toBeLessThanOrEqual(after + SEVEN_DAYS + 100);
-    });
-
-    it('honors explicit permanent retention via expires: null', () => {
-      messaging.publish('test-channel', 'keep-me', { expires: null });
-      const row = db.prepare('SELECT * FROM messages').get();
-      expect(row.expires_at).toBeNull();
-    });
-
-    it("honors explicit permanent retention via expires: 'never'", () => {
-      messaging.publish('test-channel', 'keep-me', { expires: 'never' });
-      const row = db.prepare('SELECT * FROM messages').get();
-      expect(row.expires_at).toBeNull();
-    });
-
-    it('falls back to the default TTL for an unparseable expires (never permanent)', () => {
-      const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
-      const before = Date.now();
-      messaging.publish('test-channel', 'garbage-expiry', { expires: 'not-a-duration' });
-      const after = Date.now();
-
-      const row = db.prepare('SELECT * FROM messages').get();
-      expect(row.expires_at).not.toBeNull();
-      expect(row.expires_at).toBeGreaterThanOrEqual(before + SEVEN_DAYS - 100);
-      expect(row.expires_at).toBeLessThanOrEqual(after + SEVEN_DAYS + 100);
-    });
-
     it('should reject empty channel name', () => {
       const result = messaging.publish('', 'msg');
 
@@ -1116,22 +1079,15 @@ describe('Messaging Module', () => {
 
     it('should reject invalid expiration formats gracefully', () => {
       // Invalid expires should not crash
-      const before = Date.now();
       const result = messaging.publish('test-channel', 'msg', {
         expires: 'invalid-format'
       });
-      const after = Date.now();
 
       expect(result.success).toBe(true);
 
-      // When parseExpires returns null, we fall back to the DEFAULT TTL rather
-      // than permanent retention — a malformed value must never silently
-      // resurrect the old permanent-message leak.
-      const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+      // When parseExpires returns null, expiresAt is set to null (no expiration)
       const row = db.prepare('SELECT expires_at FROM messages').get();
-      expect(row.expires_at).not.toBeNull();
-      expect(row.expires_at).toBeGreaterThanOrEqual(before + SEVEN_DAYS - 100);
-      expect(row.expires_at).toBeLessThanOrEqual(after + SEVEN_DAYS + 100);
+      expect(row.expires_at).toBeNull();
     });
 
     it('should handle getMessages with negative limit', () => {

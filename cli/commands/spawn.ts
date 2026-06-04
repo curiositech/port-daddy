@@ -15,7 +15,6 @@ import {
 import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
 import { autoIdentityFromPackageJson } from './services.js';
-import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
 
 function parseBudgetValue(value: unknown): number | undefined {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
@@ -41,12 +40,6 @@ export async function handleSpawn(
       console.error('Usage: pd spawn kill <agentId>');
       process.exit(1);
     }
-
-    const ok = await requireConfirmation({
-      summary: `Spawn kill will terminate ${agentId} mid-run. Any partial work, open transcripts, or in-flight tool calls are abandoned.`,
-      args: options as Record<string, unknown>,
-    });
-    if (!ok) process.exit(DESTRUCTIVE_EXIT_CODE);
 
     const res: PdFetchResponse = await pdFetch(`/spawn/${encodeURIComponent(agentId)}`, {
       method: 'DELETE',

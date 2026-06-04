@@ -409,10 +409,6 @@ You are done auditing a system against Ostrom's principles when:
 - [ ] Graduated sanctions include at least 3 distinct levels, not binary allow/deny
 - [ ] Nested enterprises evaluation examines at least 2 potential governance scopes
 
-## Bundled Assets
-
-- **evals/evals.json** — Test cases for auditing agent coordination systems against Ostrom's 8 principles. Use these evaluation scenarios to practice your audit methodology on realistic system architectures.
-
 ## Anti-Patterns
 
 ### The Benevolent Dictator

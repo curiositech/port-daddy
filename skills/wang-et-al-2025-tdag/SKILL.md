@@ -45,8 +45,6 @@ IS your task multi-step with >5 sequential dependencies?
             └─ YES → Fine-grained subtask metrics required
 ```
 
-For an empirical comparison of static planning versus dynamic decomposition on travel-planning benchmarks, see `references/dynamic-decomposition-vs-static-planning.md`.
-
 ### Failure Recovery Strategy Selection
 
 | Failure Type | Detection Signal | Recovery Strategy |
@@ -55,8 +53,6 @@ For an empirical comparison of static planning versus dynamic decomposition on t
 | LLM Capability Limit | Model explicitly states inability or produces nonsensical output | Retry with simplified subtask OR delegate to human |
 | External Info Misalignment | Correct tool used with wrong parameters | Regenerate subtask-specific tool documentation → Retry |
 | Invalid State Constraint | Execution proceeds but violates user requirements | Backtrack to last valid state → Add constraint validation |
-
-For the full empirical breakdown of CTF rates and the architectural patterns that contain error propagation, see `references/error-propagation-and-failure-containment.md`.
 
 ### Replanning Trigger Conditions
 
@@ -88,13 +84,13 @@ DO NOT replan IF:
 **Detection**: Agents frequently select wrong tools despite having correct capabilities
 **Symptom**: External Information Misalignment errors with messages like "used BookingAPI with FlightAPI parameters"
 **Root Cause**: Providing all 50+ tools to every agent creates cognitive load in option filtering
-**Fix**: Generate subtask-specific tool documentation containing only relevant 3-5 tools with enriched context. See `references/context-precision-vs-context-bloat.md` for the full analysis of why context precision outperforms context completeness.
+**Fix**: Generate subtask-specific tool documentation containing only relevant 3-5 tools with enriched context
 
 ### Binary Evaluation Blindness
 **Detection**: Two architectures show identical ~30% success rates but vastly different user satisfaction
 **Symptom**: Cannot distinguish between "accomplished nothing" vs "completed 8/10 subtasks" failures
 **Root Cause**: Pass/fail metrics hide incremental progress on complex tasks
-**Fix**: Implement subtask-level completion tracking alongside binary outcomes. See `references/fine-grained-evaluation-reveals-hidden-progress.md` for the empirical case showing how binary metrics mask a 20-percentage-point performance gap.
+**Fix**: Implement subtask-level completion tracking alongside binary outcomes
 
 ### Premature Skill Crystallization
 **Detection**: Agent executes cached "successful" approaches that fail in current context
@@ -106,7 +102,7 @@ DO NOT replan IF:
 **Detection**: System frequently hits "no suitable agent for this subtask" errors
 **Symptom**: Forcing subtasks into predefined agent roles creates capability gaps
 **Root Cause**: Pre-defining agent roles assumes complete knowledge of task space
-**Fix**: Generate agents with roles derived from current subtask requirements, not organizational chart. See `references/just-in-time-agent-generation.md` for the ablation study quantifying the cost of static agent rosters.
+**Fix**: Generate agents with roles derived from current subtask requirements, not organizational chart
 
 ---
 
@@ -218,8 +214,6 @@ Task decomposition is complete when:
 - [ ] **Error Category Classification**: Failures are categorized (CTF, LLM, EIM, ISC) to enable architectural improvement rather than just retry logic
 - [ ] **Context Validation**: All information provided to agents has been verified as relevant and current for their immediate decision-making needs
 
-Systems that run many tasks over time can improve subtask success by storing past solutions as reusable skills; see `references/skill-libraries-as-learned-institutional-memory.md` for the retrieval-based design (SentenceBERT embeddings, θ=0.7 threshold, top-k=2).
-
 ---
 
 ## NOT-FOR BOUNDARIES
@@ -239,9 +233,3 @@ Systems that run many tasks over time can improve subtask success by storing pas
 - For **real-time decision making**: Use `streaming-decision-systems` instead
 
 **TDAG is specifically for**: Complex, multi-step tasks with uncertain subtask dependencies where early commitment to plans creates cascading failure risks and where adaptability matters more than execution efficiency.
-
----
-
-## Bundled Assets
-
-Deep-dive references are indexed at [`references/INDEX.md`](references/INDEX.md).

@@ -117,8 +117,7 @@ describe('messaging CLI channel resolution', () => {
       }))
       .mockResolvedValueOnce(response(true, { success: true, deleted: 3 }));
 
-    // `channels clear` is destructive — bypass the confirmation prompt in tests.
-    await handleChannels('clear', ['tauri:desktop'], { yes: true });
+    await handleChannels('clear', ['tauri:desktop'], {});
 
     expect(mockPdFetch.mock.calls[1][0]).toBe(
       'http://localhost:9876/msg/br%3Arepo1234%3Aworka111%3Afeature-a-123abc%3Atauri%3Adesktop'

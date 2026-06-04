@@ -1,0 +1,43 @@
+design(suggestibility): per-turn briefing spec
+
+Drafts the 800-token ASCII briefing block injected at the top of every
+agent tool turn, plus a Mermaid alternative for rich runtimes.
+
+Composes pd attention (lib/attention.ts:170 compose()) + /sitrep
+(routes/sitrep.ts:76) + /pheromone/files (routes/pheromone.ts:72) +
+the actor roster (lib/actor-roster.ts:326 leaseState()) + /health into
+a single GET /briefing aggregator route. No parallel primitives.
+
+Per-runtime embedding: Claude Code UserPromptSubmit hook (extends the
+existing SessionStart hook at .claude/settings.json:47-57), Codex
+developer_instructions block via the pd shell wrapper, Gemini
+preRequestHooks or system_instruction prefix, one-off curl/SDK via
+subprocess.run("pd brief") in the system block. Fail-soft, never-stale
+contract: empty briefing beats stale briefing.
+
+Subscriptions extend the existing channel-only attention_subscriptions
+table (lib/attention.ts:104-114) with three additive kinds: glob,
+mailbox, mission. Backed by a new briefing_subscriptions table. No
+breaking changes; channel subs keep working.
+
+Pheromone vocab v1 (docs/design/pheromone-vocabulary-v1.md, 18 locked
+kinds) maps to the ASCII heat strip via always_visible glyphs +
+drives_color rows. Mermaid version uses node classes per strength
+bucket without exceeding the two-channel composition limit from the
+vocab doc section 3.
+
+Salvage filter is the suggestibility win: the daemon salvage queue is
+16-deep today, but the briefing surfaces only entries whose
+surfaceClaims overlap the current agent claim set. Turns a
+notification-spam problem into a coaching one.
+
+Open questions for operator review listed in section 11. Implementation
+phased B0/B1/B2 (section 10), each independently shippable. ADR-0039
+and ADR-0040 composition table in section 9.
+
+Design only. No code changes, no schema migrations, no new CLI verbs
+created in this PR. Citations include real line numbers verified
+against current main. Recovered original ADR-0039 and ADR-0040 from
+PR #184 commit 2e52d5b1 stashed under .scratch/ for citation (the ADR
+numbers were later reused for the accounts-surface and
+non-forgeable-actor ADRs).

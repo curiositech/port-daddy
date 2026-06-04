@@ -221,19 +221,12 @@ curl "$PD_URL/fleet/events"   # SSE stream`}
       {/* Backends */}
       <div className="space-y-3">
         <h2 className="text-lg font-semibold text-[var(--text-primary)]">Backends</h2>
-        <p className="text-sm text-[var(--text-secondary)]">
-          By default the fleet picks the cheapest backend it can find on your machine. If you
-          already pay for Claude Max or ChatGPT Pro, the local CLI wins — marginal cost is $0
-          per spawn. Cloudflare Workers AI and API-direct backends are the fallback rungs.{' '}
-          <Link to="/cli-backend" className="text-[var(--brand-primary)] underline">See the CLI-backend pitch.</Link>
-        </p>
         <div className="space-y-2">
           {[
-            { name: 'claude-cli', desc: 'Runs the local Claude Code CLI directly under your Claude Max / Pro login. First-class default if the binary is on PATH — marginal cost is $0 because the seat is already paid for.' },
-            { name: 'codex', desc: 'Runs OpenAI Codex through the local CLI under your ChatGPT Pro login. First-class default for Pro subscribers — same zero-marginal economics, same tiered low/mid/high ladder.' },
-            { name: 'cloudflare', desc: 'Runs Qwen3 30B (and others) on Cloudflare Workers AI. Honest cheap alternative when you do not have a subscription seat to ride.' },
-            { name: 'claude', desc: 'Runs Claude via the Anthropic SDK with ANTHROPIC_API_KEY. Use when you need a specific model the subscription does not expose, or per-call metered billing.' },
-            { name: 'ollama', desc: 'Runs a local Ollama model via HTTP. Best for fully offline / private fleets when latency on subscription CLIs is unacceptable.' },
+            { name: 'ollama', desc: 'Runs a local Ollama model via HTTP. Best default for cheap, always-on background fleet work.' },
+            { name: 'codex', desc: 'Runs OpenAI Codex models through the Port Daddy codex backend. Good for higher-signal code review and edit loops when you want a tiered low/mid/high ladder.' },
+            { name: 'claude-cli', desc: 'Runs the Claude CLI directly. Uses your local auth context. Best when you explicitly need the Claude CLI tool surface.' },
+            { name: 'claude', desc: 'Runs Claude via the Anthropic SDK. Needs ANTHROPIC_API_KEY.' },
             { name: 'gemini', desc: 'Runs Gemini via the Google SDK. Needs GOOGLE_API_KEY.' },
             { name: 'aider', desc: 'Runs Aider as the execution backend. Useful when you want Aider to manage the model conversation and file edits.' },
             { name: 'custom', desc: 'Runs the prompt as a shell command. The prompt field is the command to execute.' },

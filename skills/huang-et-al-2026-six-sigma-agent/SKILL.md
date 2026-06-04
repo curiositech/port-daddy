@@ -65,7 +65,7 @@ where p = per-step error rate, m = number of steps
 - **You cannot solve this by improving the model alone** — architectural solutions are required
 - This is why "just use GPT-5" is not a production strategy for complex workflows
 
-**Key insight**: The problem isn't that models are bad; it's that *multiplicative compound decay* dominates at scale, regardless of base accuracy. See `references/error-compounding-and-workflow-reliability.md` for formal proofs.
+**Key insight**: The problem isn't that models are bad; it's that *multiplicative compound decay* dominates at scale, regardless of base accuracy.
 
 ### 2. Consensus Voting: Exponential Reliability from Redundancy
 
@@ -86,7 +86,7 @@ where p = individual agent error rate, n = number of voters (odd)
 - Majority voting filters out individual errors statistically
 - More voters → exponentially lower probability all make the same mistake
 
-**Critical requirement**: Only works when tasks are truly atomic (see Mental Model #3). See `references/consensus-voting-exponential-reliability.md` for the full derivation.
+**Critical requirement**: Only works when tasks are truly atomic (see Mental Model #3).
 
 ### 3. Atomic Decomposition: The Foundation for Consensus
 
@@ -132,7 +132,7 @@ Task 3: "Compare this mean to 150000 and return 'above' or 'below'"
 - **No manual tuning**: Disagreement pattern is the objective indicator
 - **Maintains guarantees**: Each scaling step increases reliability exponentially
 
-**Practical insight**: Contested votes reveal genuinely ambiguous cases where additional verification is worthwhile — the system's "doubt" is information. See `references/dynamic-scaling-uncertainty-detection.md` for mechanism design details.
+**Practical insight**: Contested votes reveal genuinely ambiguous cases where additional verification is worthwhile — the system's "doubt" is information.
 
 ### 5. The Multi-Agent Paradox: Redundancy Beats Collaboration
 
@@ -165,7 +165,7 @@ Task 3: "Compare this mean to 150000 and return 'above' or 'below'"
 2. **Evaluate atomicity feasibility**:
    - Can workflow be decomposed to verifiable atomic actions?
    - If YES → consensus architecture applicable
-   - If NO → examine what's blocking decomposition (load `references/atomic-decomposition-consensus-effectiveness.md`)
+   - If NO → examine what's blocking decomposition (load `atomic-decomposition-consensus-effectiveness.md`)
 
 3. **Assess independence assumption**:
    - Will agents make truly independent errors?
@@ -208,7 +208,7 @@ Counterintuitive result: 5× cheap models often > 1× expensive model
   - Use when: Multi-step workflows, moderate stakes
   - Reliability: ~99.99% per-action (with 5% base error)
   - Cost: Often lower than single frontier call
-  - Load `references/cost-efficiency-through-model-diversity.md` for detailed economics
+  - Load `cost-efficiency-through-model-diversity.md` for detailed economics
 
 - **Hybrid approach**:
   - Cheap models for atomic actions with consensus
@@ -227,7 +227,7 @@ Counterintuitive result: 5× cheap models often > 1× expensive model
 2. **Consider architectural pivot**:
    - Instead of N agents with different roles (planner, executor, critic)...
    - Try N agents executing same atomic actions with consensus
-   - Load `references/multi-agent-coordination-failures.md` for detailed analysis
+   - Load `multi-agent-coordination-failures.md` for detailed analysis
 
 3. **If coordination is necessary**:
    - Keep collaborative agents for high-level orchestration
@@ -237,14 +237,14 @@ Counterintuitive result: 5× cheap models often > 1× expensive model
 ## Reference Files
 
 | File | Description | Load When... |
-|------|-------------|--------------|  
-| `references/error-compounding-and-workflow-reliability.md` | Mathematical foundations of exponential decay in multi-step workflows; formal proofs of why model improvement alone cannot achieve Six Sigma | Designing production workflows; justifying architectural investments; calculating reliability requirements |
-| `references/consensus-voting-exponential-reliability.md` | Core mathematical framework for consensus voting; proofs of O(p^⌈n/2⌉) reliability; analysis of error correlation constraints | Implementing consensus mechanisms; choosing redundancy levels; understanding independence requirements |
-| `references/atomic-decomposition-consensus-effectiveness.md` | Detailed criteria for task decomposition; formalization of atomicity properties; examples of good vs. bad decomposition | Breaking down complex tasks; troubleshooting why consensus isn't working; training agents to decompose effectively |
-| `references/dynamic-scaling-uncertainty-detection.md` | Mechanism design for adaptive redundancy; contested vote patterns as uncertainty signals; cost optimization strategies | Implementing dynamic scaling; balancing cost and reliability; handling variable-difficulty tasks |
-| `references/cost-efficiency-through-model-diversity.md` | Economic analysis of model selection; case studies showing when cheap consensus beats expensive single models; ROI calculations | Budget planning; model selection decisions; justifying consensus overhead to stakeholders |
-| `references/multi-agent-coordination-failures.md` | Empirical evidence that collaboration often fails; taxonomy of failure modes; comparison of collaboration vs. redundancy architectures | Diagnosing multi-agent system failures; deciding between collaborative vs. consensus architectures; understanding coordination overhead |
-| `references/task-verification-failure-prevention.md` | Architectural patterns for preventing verification failures; relationship between atomicity and verifiability; design principles for testable actions | Designing verification mechanisms; troubleshooting false positives/negatives; ensuring atomic actions are truly verifiable |
+|------|-------------|--------------|
+| `error-compounding-and-workflow-reliability.md` | Mathematical foundations of exponential decay in multi-step workflows; formal proofs of why model improvement alone cannot achieve Six Sigma | Designing production workflows; justifying architectural investments; calculating reliability requirements |
+| `consensus-voting-exponential-reliability.md` | Core mathematical framework for consensus voting; proofs of O(p^⌈n/2⌉) reliability; analysis of error correlation constraints | Implementing consensus mechanisms; choosing redundancy levels; understanding independence requirements |
+| `atomic-decomposition-consensus-effectiveness.md` | Detailed criteria for task decomposition; formalization of atomicity properties; examples of good vs. bad decomposition | Breaking down complex tasks; troubleshooting why consensus isn't working; training agents to decompose effectively |
+| `dynamic-scaling-uncertainty-detection.md` | Mechanism design for adaptive redundancy; contested vote patterns as uncertainty signals; cost optimization strategies | Implementing dynamic scaling; balancing cost and reliability; handling variable-difficulty tasks |
+| `cost-efficiency-through-model-diversity.md` | Economic analysis of model selection; case studies showing when cheap consensus beats expensive single models; ROI calculations | Budget planning; model selection decisions; justifying consensus overhead to stakeholders |
+| `multi-agent-coordination-failures.md` | Empirical evidence that collaboration often fails; taxonomy of failure modes; comparison of collaboration vs. redundancy architectures | Diagnosing multi-agent system failures; deciding between collaborative vs. consensus architectures; understanding coordination overhead |
+| `task-verification-failure-prevention.md` | Architectural patterns for preventing verification failures; relationship between atomicity and verifiability; design principles for testable actions | Designing verification mechanisms; troubleshooting false positives/negatives; ensuring atomic actions are truly verifiable |
 
 ## Anti-Patterns
 
@@ -364,16 +364,6 @@ This framework connects to:
 - **Economic Optimization**: Cost-quality trade-offs, ROI analysis
 - **Software Architecture**: Redundancy patterns, fault tolerance
 - **ML Systems Design**: Model selection, ensemble methods
-
-## Bundled Assets
-
-### Diagrams
-
-Architecture and execution flow diagrams for visualizing the decision logic, consensus protocol, and model selection trade-offs — see [`diagrams/INDEX.md`](diagrams/INDEX.md).
-
-### References
-
-Deep-dive files covering mathematical foundations, empirical evidence, and design patterns for each major component of the framework — see [`references/INDEX.md`](references/INDEX.md).
 
 ---
 

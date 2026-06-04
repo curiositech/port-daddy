@@ -118,65 +118,9 @@ knows what they staged. The rules only kick in when an *autonomous agent*
 is doing the staging, because autonomy without instrumentation is how
 foreign files end up in someone else's commit.
 
-## The pd-shim: destructive git verbs are guarded, not blocked
-
-When Port Daddy is installed, `~/.port-daddy/bin/git` is on PATH ahead of
-the real git binary. It is a transparent wrapper that intercepts the
-verbs most likely to cause cross-agent damage and consults the
-coordination guard before letting them through:
-
-| Verb              | Why it's guarded                                                   |
-|-------------------|--------------------------------------------------------------------|
-| `reset --hard`    | Stomps uncommitted work across the tree (yours and other agents'). |
-| `checkout -- .`   | Same blast radius as `reset --hard` for unstaged paths.            |
-| `clean -fd`       | Removes untracked files agents may be mid-authoring.               |
-| `add -A` / `add .`| Stages foreign files; the rule that produced this discipline.      |
-| `stash push/save` | Hides other agents' WIP under a name nobody else knows.            |
-| `cherry-pick`     | Replays commits that touch files outside your claim set.           |
-| `rebase`          | Same as cherry-pick, with branch-history rewrite as a bonus.       |
-
-The shim flow:
-
-```
-git rebase origin/main
-  → pd-shim calls `pd guard check --git-verb rebase --hook`
-  → guard inspects: file claims, dirty tree, foreign WIP, dead-session salvage
-  → guard says go        → real git runs
-  → guard says no        → shim prints the refusal + suggests `pd guard status`
-```
-
-A refusal is not a bug. **The right response to a shim refusal is to
-coordinate, not to bypass.** Read the refusal — it lists the specific
-files held by which other sessions. Then:
-
-1. **Salvage if the holders are dead.** `pd sessions --all-worktrees` and
-   inspect the note content (a "usage limit exceeded" note from days ago
-   is a corpse). `pd salvage --project <p>` cleans dead claims.
-2. **Wait if the holders are live.** Live sessions own their surface
-   until they release. Working *around* a live claim is the failure
-   mode this discipline exists to prevent.
-3. **Coordinate if the work is co-located.** `pd inbox send <agent>` the
-   claim holder, or post in the project channel. Resolve by file
-   partition, symbol partition, or merge order — never by force.
-
-`PD_SHIM_OFF=1 git <verb>` exists as an emergency escape (recovery,
-guard debugging, the rare integration commit the user explicitly
-sanctions). Using it without explicit user direction is the same class
-of mistake as `--no-verify` on commit hooks: it bypasses a safety the
-user installed deliberately. If the shim is wrong about your situation,
-fix the guard input (claim more files; release a stale claim; explain
-why with a `pd note`); do not disable the shim.
-
-If you ever catch yourself typing `PD_SHIM_OFF=1` reflexively, stop and
-read the refusal again. It is almost always pointing at a real
-coordination problem, not at itself.
-
 ## See also
 
 - `~/coding/windags-skills/docs/adr/0001-background-agent-git-discipline.md` — the full ADR with alternatives considered and migration notes.
 - `pd guard install --mode enforce` — install the staging-time enforcement hook.
-- `pd guard check --git-verb <verb>` — manually invoke the shim's guard
-  check; useful to see exactly what claims are blocking a destructive op
-  before you try to run it.
 - The `port-daddy-internal-dev` skill carries the matching contributor-side
   rules (release process, mirror sync, distribution).

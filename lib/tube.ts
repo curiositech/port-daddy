@@ -131,18 +131,6 @@ export interface ListenOptions {
    * `lastForeignEventId`.
    */
   selfSender?: string | null;
-  /**
-   * Cursor namespace for the on-disk resume history. Defaults to `channel`.
-   *
-   * MULTI-SUBSCRIBER: the resume cursor is per-`historyKey`, not per-channel.
-   * Two listeners on the SAME channel but with DISTINCT keys keep independent
-   * cursors, so each receives every message (true fan-out). Without this, two
-   * listeners share one channel-keyed cursor file and race — whoever polls
-   * first advances it and the other sees nothing. Callers key this by listener
-   * identity (e.g. `channel::selfSender`) so distinct identities multiplex and
-   * the same identity still resumes across invocations.
-   */
-  historyKey?: string;
 }
 
 export interface ListenResult {
@@ -374,12 +362,7 @@ export async function listen(
 ): Promise<ListenResult> {
   const limit = typeof opts.limit === 'number' && opts.limit > 0 ? opts.limit : 50;
 
-  // Per-listener cursor namespace (defaults to the channel). Keying by listener
-  // identity is what lets multiple listeners on one channel each receive every
-  // message instead of racing over a single shared channel-keyed cursor file.
-  const histKey = opts.historyKey ?? channel;
-
-  const existingMeta = !opts.disableHistory ? readHistory(history, histKey) : null;
+  const existingMeta = !opts.disableHistory ? readHistory(history, channel) : null;
 
   let cursor: number | null;
   if (typeof opts.since === 'number' && Number.isFinite(opts.since)) {
@@ -436,7 +419,7 @@ export async function listen(
   const advancedSeen = lastSeenId !== null && lastSeenId !== cursor;
   const advancedForeign = lastForeignEventId !== (existingMeta?.lastForeignEventId ?? null);
   if (!opts.disableHistory && (advancedSeen || advancedForeign)) {
-    writeHistory(history, histKey, {
+    writeHistory(history, channel, {
       lastSeenId: lastSeenId ?? cursor ?? 0,
       lastForeignEventId: lastForeignEventId ?? undefined,
       lastForeignSender: lastForeignSender ?? undefined,

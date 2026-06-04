@@ -1,0 +1,20 @@
+research: evolutionary agent coordination sandbox design
+
+Add docs/research/2026-06-03-evolutionary-agent-coordination-sandbox.md.
+
+Concrete generational sandbox spec: N=8 agents x M=20 generations x
+P={3,7,15} skill libraries, 7 trial families (dedup / merge-queue /
+salvage / flaky-test / api-design / free-rider / bonds-pressure), all-
+Sonnet baseline policy at ~400 USD per run, with budget grid for
+heterogeneous frontier and Cloudflare-Workers-AI fallback policies.
+
+Cites real PD primitives (lib/actor-roster.ts, lib/spawner.ts,
+lib/bonds.ts, lib/usage-telemetry.ts, lib/attention.ts,
+lib/fleet-engine.ts BUILTIN_MODEL_TIERS incl. cloudflare backend) and
+explicitly marks new surfaces as NEW: with justification. Covers
+adversarial coevolution, line-level skill attention, prompt-distillation
+heredity, and a four-axis Pareto eval.
+
+Companion to the in-flight hive-mind-realism-check and coordination-
+bake-in research notes; the realism check should be read first to
+calibrate expectations before committing budget to this design.

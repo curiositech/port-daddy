@@ -13,10 +13,8 @@
 
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-// Run under tsx so this resolver import resolves: npx tsx scripts/salvage-envelope.mjs
-import { resolveDaemonUrl } from '../shared/daemon-discovery.js';
 
-const DAEMON = process.env.PD_URL || resolveDaemonUrl();
+const DAEMON = process.env.PD_URL || 'http://localhost:9876';
 
 async function fetchJson(path) {
   const res = await fetch(`${DAEMON}${path}`);

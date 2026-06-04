@@ -88,12 +88,6 @@ import {
   handleHistory,
   // Spawn + Watch
   handleSpawn, handleSpawned, handleWatch, handleSortie,
-  // Transcripts
-  handleTranscripts,
-  // Dispatch (renamed from nightshift per ADR-0035) + morning summary +
-  // review (pd review --accept|--reject contract). `handleNightshift` is
-  // kept as a back-compat alias that delegates to `handleDispatch`.
-  handleDispatch, handleNightshift, handleReview, handleMorning,
   // Harbors
   handleHarborCreate, handleHarborEnter, handleHarborLeave, handleHarborShow, handleHarborDestroy, handleHarbors,
   // Demo
@@ -121,17 +115,10 @@ import {
   handleAdd,
   // Claim-watcher snapshot list/restore/prune
   handleSnapshots,
-  // Durable backups of port-registry.db (ADR-0037)
-  handleBackup,
-  handleRestore,
-  // Honest attestation / loud-fail invariants (ADR-0045)
-  handleAttest,
   // Shipwright — survey/propose/apply for fleet authoring
   handleShipwright,
   // App-Native Development Cockpit
   handleCockpit,
-  // Roadmap popper — autonomous roadmap-to-dispatch task puller
-  handlePopper,
   // Managed provider secret store (keychain-backed)
   handleSecret,
 } from '../cli/commands/index.js';
@@ -139,7 +126,7 @@ import {
 // Imported directly (not via index.js) so the tier subcommands take precedence
 // over the older semantic.ts export. See docs/adr/0035-three-tier-memory-vocabulary.md
 import { handleMemory } from '../cli/commands/memory.js';
-import { getDaemonTcpUrl, readDaemonPort, resolveDaemonTcpTarget, DEFAULT_DAEMON_PORT } from '../shared/daemon-discovery.js';
+import { getDaemonTcpUrl, readDaemonPort, resolveDaemonTcpTarget } from '../shared/daemon-discovery.js';
 import { calculateRuntimeCodeHash } from '../shared/code-hash.js';
 import { DEFAULT_SOCK as _DEFAULT_SOCK, DEFAULT_PORT_FILE as _DEFAULT_PORT_FILE } from '../shared/paths.js';
 import { shouldAutoRestartDaemonForFreshness, shouldCheckDaemonFreshness } from '../cli/utils/freshness.js';
@@ -148,8 +135,6 @@ import {
   attachCliSessionWorktreePolicy,
   resolveCliSessionWorktreePolicy,
 } from '../cli/utils/session-worktree-policy.js';
-import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../cli/utils/destructive-confirm.js';
-import { resolveTier, tierBadge, TIER_LEGEND, type Tier } from '../cli/permission-tiers.js';
 
 const __dirname: string = dirname(fileURLToPath(import.meta.url));
 const PORT_DADDY_URL: string = getDaemonTcpUrl(process.env.PORT_DADDY_URL);
@@ -411,7 +396,7 @@ function traceCategoryForCommand(command: string): string {
   if (['pub', 'publish', 'broadcast', 'sub', 'subscribe', 'listen', 'channels', 'tube'].includes(command)) return 'channels';
   if (['agent', 'agents', 'spawn', 'spawned'].includes(command)) return 'agents';
   if (['session', 'begin', 'done', 'whoami', 'note', 'notes', 'files', 'who-owns', 'advise'].includes(command)) return 'sessions';
-  if (['fleet', 'watch', 'sortie', 'transcripts'].includes(command)) return 'fleet';
+  if (['fleet', 'watch', 'sortie'].includes(command)) return 'fleet';
   if (['lock', 'unlock', 'locks', 'with-lock'].includes(command)) return 'locks';
   if (['claim', 'c', 'release', 'r', 'find', 'list', 'ps', 'services', 'url', 'env', 'ports'].includes(command)) return 'ports';
   if (['salvage'].includes(command)) return 'salvage';
@@ -621,48 +606,40 @@ function buildHelp(): string {
     lines.push('');
   }
 
-  // Tier badge formatter for help lines. Renders [silent]/[notify]/[approval]/[destructive]
-  // in muted gray so the verb stays scannable.
-  const tag = (tier: Tier): string => `${D}${tierBadge(tier)}${Z}`;
-
   lines.push(
     `${A}Get started:${Z}`,
-    `  ${G}pd setup${Z}                  ${tag('notify')} Install daemon, MCP, FleetBar, init project`,
-    `  ${G}pd begin${Z} "purpose"       ${tag('notify')} I'll set up your agent + session`,
-    `  ${G}pd done${Z} "summary"        ${tag('notify')} Finish up — I'll clean everything`,
-    `  ${G}pd whoami${Z}                ${tag('silent')} See your current context`,
-    `  ${G}pd attention${Z}             ${tag('notify')} What other agents queued for you (run first thing!)`,
+    `  ${G}pd setup${Z}                  Install daemon, MCP, FleetBar, init project`,
+    `  ${G}pd begin${Z} "purpose"       I'll set up your agent + session`,
+    `  ${G}pd done${Z} "summary"        Finish up — I'll clean everything`,
+    `  ${G}pd whoami${Z}                See your current context`,
+    `  ${G}pd attention${Z}             What other agents queued for you (run first thing!)`,
     '',
     `${A}Ports:${Z}`,
-    `  ${G}pd claim${Z} <id>            ${tag('notify')} I'll assign a port  ${D}(c)${Z}`,
-    `  ${G}pd release${Z} <id>          ${tag('notify')} Free it up  ${D}(r)${Z}  ${D}(--expired is destructive)${Z}`,
-    `  ${G}pd find${Z} [pattern]        ${tag('silent')} What's running  ${D}(f, l, ps)${Z}`,
+    `  ${G}pd claim${Z} <id>            I'll assign a port  ${D}(c)${Z}`,
+    `  ${G}pd release${Z} <id>          Free it up  ${D}(r)${Z}`,
+    `  ${G}pd find${Z} [pattern]        What's running  ${D}(f, l, ps)${Z}`,
     '',
     `${A}Sessions & notes:${Z}`,
-    `  ${G}pd session start${Z} "why"   ${tag('notify')} Manual session start`,
-    `  ${G}pd session abandon${Z}        ${tag('destructive')} End session as abandoned, release claims`,
-    `  ${G}pd note${Z} "message"        ${tag('notify')} Leave a note`,
-    `  ${G}pd notes${Z}                 ${tag('silent')} Review recent notes`,
-    `  ${G}pd feedback${Z} "message"    ${tag('notify')} Drop structured feedback (auto-slug, agent from context)`,
+    `  ${G}pd session start${Z} "why"   Manual session start`,
+    `  ${G}pd note${Z} "message"        Leave a note`,
+    `  ${G}pd notes${Z}                 Review recent notes`,
+    `  ${G}pd feedback${Z} "message"    Drop structured feedback (auto-slug, agent from context)`,
     '',
     `${A}Coordination:${Z}`,
-    `  ${G}pd lock${Z} <name>           ${tag('notify')} Grab a distributed lock`,
-    `  ${G}pd agent${Z} "task"          ${tag('approval')} One-shot autopilot delegation`,
-    `  ${G}pd agent register${Z}        ${tag('notify')} Register as an agent`,
-    `  ${G}pd salvage${Z}               ${tag('silent')} List a dead agent's work  ${D}(claim/dismiss are destructive)${Z}`,
-    `  ${G}pd actors${Z}                ${tag('silent')} Inspect durable actor roster`,
-    `  ${G}pd advise${Z}                ${tag('silent')} Suggest coordination moves before editing`,
-    `  ${G}pd guard${Z}                 ${tag('silent')} Enforce session + file-claim discipline  ${D}(install/enable/disable destructive)${Z}`,
-    `  ${G}pd graph stats${Z}           ${tag('silent')} Inspect semantic graph totals`,
-    `  ${G}pd memory episodes${Z}       ${tag('silent')} Inspect episodic memory`,
-    `  ${G}pd memory tiers${Z}          ${tag('silent')} Core/Recall/Archival mapping with live counts`,
-    `  ${G}pd ideas search${Z} "text"   ${tag('silent')} Search ideas, notes, tuples, and repo markdown`,
-    `  ${G}pd roadmap${Z}               ${tag('silent')} Show Cartographer's current roadmap projection`,
-    `  ${G}pd secret list${Z}           ${tag('silent')} Manage keychain-backed provider credentials`,
-    `  ${G}pd daemon list${Z}           ${tag('silent')} Inspect named sidecar daemon profiles`,
-    '',
-    `${A}Permission tiers:${Z}`,
-    TIER_LEGEND,
+    `  ${G}pd lock${Z} <name>           Grab a distributed lock`,
+    `  ${G}pd agent${Z} "task"         One-shot autopilot delegation`,
+    `  ${G}pd agent register${Z}        Register as an agent`,
+    `  ${G}pd salvage${Z}               Pick up a dead agent's work`,
+    `  ${G}pd actors${Z}                Inspect durable actor roster`,
+    `  ${G}pd advise${Z}                Suggest coordination moves before editing`,
+    `  ${G}pd guard${Z}                 Enforce session + file-claim discipline`,
+    `  ${G}pd graph stats${Z}           Inspect semantic graph totals`,
+    `  ${G}pd memory episodes${Z}       Inspect episodic memory`,
+    `  ${G}pd memory tiers${Z}          Core/Recall/Archival mapping with live counts`,
+    `  ${G}pd ideas search${Z} "text"   Search ideas, notes, tuples, and repo markdown`,
+    `  ${G}pd roadmap${Z}               Show Cartographer's current roadmap projection`,
+    `  ${G}pd secret list${Z}           Manage keychain-backed provider credentials`,
+    `  ${G}pd daemon list${Z}           Inspect named sidecar daemon profiles`,
     '',
     `${D}pd help <topic> for details — topics: setup, sessions, locks, agents, actors, ports, messaging, dns, orchestration, sugar, semantic, advisor, guard, ideas, roadmap, secret, daemon, tutorial${Z}`,
     `${D}Dashboard: ${PORT_DADDY_URL}  •  Tutorial: pd learn${Z}`,
@@ -1258,18 +1235,14 @@ const ALL_COMMANDS: string[] = [
   'advise', 'preflight', 'compass', 'guard',
   'salvage', 'resurrection', 'changelog', 'tunnel',
   'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
-  'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'backup', 'restore', 'attest', 'shipwright',
-  'spawn', 'spawned', 'watch', 'transcripts', 'transcript',
+  'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'shipwright',
+  'spawn', 'spawned', 'watch',
   'harbor', 'harbors', 'demo', 'fleet', 'tuple', 'sortie', 'graph', 'memory', 'ideas',
   'quorum',
   'feedback',
   'commit', 'obligations',
   'secret', 'secrets',
   'cockpit',
-  'popper',
-  'harbormaster', 'hm',
-  'dispatch', 'nightshift', 'review', 'morning',
-  'backend',
 ];
 
 /** Simple Levenshtein distance for short strings */
@@ -2127,13 +2100,6 @@ export async function main(): Promise<void> {
     process.exit(0);
   }
 
-  // Splash flag — 90s title-card flourish. Honors NO_COLOR + non-TTY for CI.
-  if (command === '--splash' || command === 'splash') {
-    const { renderSplash } = await import('../lib/splash.js');
-    console.log(renderSplash());
-    process.exit(0);
-  }
-
   const isQuiet: boolean = args.includes('--quiet') || args.includes('-q') || args.includes('--json') || args.includes('-j');
   
   if (shouldCheckDaemonFreshness(command as string, args)) {
@@ -2426,11 +2392,11 @@ export async function main(): Promise<void> {
         break;
 
       case 'stop':
-        await handleDaemon('stop', options);
+        await handleDaemon('stop');
         break;
 
       case 'restart':
-        await handleDaemon('restart', options);
+        await handleDaemon('restart');
         break;
 
       case 'daemon':
@@ -2442,11 +2408,11 @@ export async function main(): Promise<void> {
         break;
 
       case 'install':
-        await handleDaemon('install', options);
+        await handleDaemon('install');
         break;
 
       case 'uninstall':
-        await handleDaemon('uninstall', options);
+        await handleDaemon('uninstall');
         break;
 
       case 'dev': {
@@ -2480,7 +2446,7 @@ export async function main(): Promise<void> {
           const devPort = parseInt(process.env.PORT_DADDY_PORT as string) || 9877;
 
           ui.info(`Starting isolated dev daemon from ${process.cwd()}`);
-          ui.info(`  Port: ${devPort} (stable stays on ${DEFAULT_DAEMON_PORT})`);
+          ui.info(`  Port: ${devPort} (stable stays on 9876)`);
           ui.info(`  DB: ${join(devDir, 'port-daddy.db')} (isolated)`);
 
           const child = devSpawnFn(devTsxPath, [devServerPath], {
@@ -2542,11 +2508,6 @@ export async function main(): Promise<void> {
             ui.warn('No dev daemon running');
             process.exit(0);
           }
-          const okDev = await requireConfirmation({
-            summary: 'Dev stop will SIGTERM the isolated dev daemon. Its in-memory DB is preserved in the prefix dir but live connections drop.',
-            args: options as Record<string, unknown>,
-          });
-          if (!okDev) process.exit(DESTRUCTIVE_EXIT_CODE);
           try {
             const st = JSON.parse(devRead(devStateFile, 'utf-8'));
             process.kill(st.pid, 'SIGTERM');
@@ -2707,18 +2668,6 @@ export async function main(): Promise<void> {
         await handleSnapshots(positional, options);
         break;
 
-      case 'backup':
-        await handleBackup(positional, options);
-        break;
-
-      case 'attest':
-        await handleAttest(positional, options, PKG.version);
-        break;
-
-      case 'restore':
-        await handleRestore(positional, options);
-        break;
-
       case 'shipwright':
         await handleShipwright(positional[0], options);
         break;
@@ -2727,24 +2676,11 @@ export async function main(): Promise<void> {
         await handleCockpit(positional, options);
         break;
 
-      // Roadmap popper — autonomous roadmap-to-dispatch task puller
-      case 'popper':
-        await handlePopper(positional, options);
-        break;
-
       // Managed provider secret store (keychain-backed)
       case 'secret':
       case 'secrets':
         await handleSecret(positional, options);
         break;
-
-      // Harbormaster — merge-owning actor body (ADR-0037)
-      case 'hm':
-      case 'harbormaster': {
-        const { handleHarbormaster } = await import('../cli/commands/harbormaster.js');
-        await handleHarbormaster(positional, options);
-        break;
-      }
 
       case 'integration':
         await handleIntegration(positional[0], positional.slice(1), options);
@@ -2786,34 +2722,9 @@ export async function main(): Promise<void> {
         await handleSortie(positional, options);
         break;
 
-      // Dispatch -- autonomous feature dev queue (renamed from nightshift per
-      // ADR-0035). `nightshift` is an alias kept for one minor version.
-      case 'dispatch':
-        await handleDispatch(positional, options);
-        break;
-
-      case 'nightshift':
-        await handleNightshift(positional, options);
-        break;
-
-      // Review -- pd review <id> --accept|--reject contract (ADR-0035).
-      case 'review':
-        await handleReview(positional, options);
-        break;
-
-      case 'morning':
-        await handleMorning(positional, options);
-        break;
-
       // Watch — ambient agent kernel (SSE subscriber)
       case 'watch':
         await handleWatch(positional[0], options);
-        break;
-
-      // Fleet transcripts — chat-record viewer for every ship run
-      case 'transcripts':
-      case 'transcript':
-        await handleTranscripts(positional, options);
         break;
 
       // Harbors — named permission namespaces
@@ -2853,13 +2764,6 @@ export async function main(): Promise<void> {
       case 'fleet': {
         const { handleFleet } = await import('../cli/commands/fleet.js');
         await handleFleet(positional, options);
-        break;
-      }
-
-      // Backend — surface CLI/SDK backend route, switch, and per-backend cost.
-      case 'backend': {
-        const { handleBackend } = await import('../cli/commands/backend.js');
-        await handleBackend(positional, options);
         break;
       }
 

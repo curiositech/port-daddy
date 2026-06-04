@@ -1,0 +1,23 @@
+docs(design): attention pheromone viz + operator editor design — Part 1+2
+
+Two halves under one design doc:
+
+- Part 1: pheromone trail visualization (heat tree, line-level gutter,
+  time scrubber, cross-file trails, per-agent filter) sitting on top of
+  the existing lib/pheromone.ts substrate + lib/attention.ts aggregator.
+  Three next PRs scoped: ring-buffer + SSE, enriched /sniff/file, the
+  /attention static route.
+
+- Part 2: WYSIWYG markdown editor (Tauri shell + comrak + tree-sitter +
+  CodeMirror 6) whose only justifying feature is the pheromone sidecar
+  — per-paragraph heat ribbon, operator-pin spray, inline agent
+  marginalia, replay scrubber. Three editor PRs scoped, plus honest
+  pre-mortem on when forking Marktext or shipping a Helix overlay
+  would be the better move.
+
+Mock at docs/design/2026-06-03-pheromone-viz/mock.html — light + dark
+OKLCH tokens, 14px floor, 12px eyebrow exemption with letter-spacing
+>=0.1em + weight >=600 + uppercase on every sub-14px instance. No hex
+literals. No emojis as UI icons (CSS-mask Lucide-ish SVG).
+
+Traces to docs/design/pheromone-vocabulary-v1.md every kind name.

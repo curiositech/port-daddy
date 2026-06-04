@@ -32,11 +32,6 @@ ADRs follow the [MADR format](https://adr.github.io/madr/) (Markdown Architectur
 | [0022](0022-durable-actor-souls-and-body-leases.md) | Durable Actor Souls and Body Leases | Accepted | 2026-04 |
 | [0023](0023-cartographer-roadmap-actor.md) | Cartographer as Navigator Roadmap Actor | Accepted | 2026-04 |
 | [0024](0024-daemon-profiles.md) | Named Daemon Profiles | Accepted | 2026-04 |
-| … | _(0025–0042 — index backfill tracked as `adr-0043-phase-5-retrofit-existing-adrs`)_ | | |
-| [0043](0043-adr-implementation-matrix.md) | ADRs Carry a Roadmap-Linked Implementation Matrix | Accepted | 2026-06 |
-| [0044](0044-shadow-db-path-consolidation.md) | Shadow-Mode DB Path Consolidation | Accepted | 2026-06 |
-| [0045](0045-loud-fail-invariants-and-honest-attestation.md) | Loud-Fail Invariants and Honest Attestation | Accepted | 2026-06 |
-| [0046](0046-operator-tui.md) | The Operator TUI — Conversation Multiplexer | Accepted | 2026-06 |
 
 ## How to Read These
 
@@ -82,18 +77,6 @@ What was chosen and a one-sentence rationale.
 ## Rationale
 
 Detailed explanation of why this option was preferred.
-
-## Implementation Matrix
-
-<!-- ADR-0043: REQUIRED for any ADR implying buildable work. One row per phase.
-     The `Roadmap slug` is the stable join key into roadmap_items (ADR-0033);
-     `pd adr sync NNNN` upserts each phase at status `now` (high priority) and
-     `pd adr matrix NNNN` renders LIVE status from the table. Omit only for
-     pure-documentation ADRs with no work to track. -->
-
-| Phase | Roadmap slug | Status | Depends on | Description |
-|-------|--------------|--------|------------|-------------|
-| 0 | adr-NNNN-phase-0-short-name | now | — | What phase 0 delivers |
 
 ## Consequences
 

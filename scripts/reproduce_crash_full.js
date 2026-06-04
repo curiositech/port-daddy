@@ -1,13 +1,7 @@
 /**
  * Full-Sweep Reproduction - Repro of Daemon Crash across all routes
- *
- * Run under tsx so the daemon-port resolver import resolves:
- *   npx tsx scripts/reproduce_crash_full.js
  */
 import http from 'http';
-import { resolveDaemonUrl } from '../shared/daemon-discovery.js';
-
-const BASE_URL = resolveDaemonUrl();
 
 const ROUTES = [
   '/status',
@@ -24,7 +18,7 @@ async function sweep() {
   const promises = ROUTES.flatMap((path, i) => {
     return Array.from({ length: 10 }).map((_, j) => {
       return new Promise((resolve) => {
-        http.get(`${BASE_URL}${path}`, (res) => {
+        http.get(`http://localhost:9876${path}`, (res) => {
           console.log(`[${path}] Status: ${res.statusCode}`);
           res.on('data', () => {});
           res.on('end', resolve);
