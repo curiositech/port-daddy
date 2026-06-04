@@ -17,6 +17,8 @@ export interface AttestContext {
   expectedVersion?: string;
   /** Whether the running daemon is the install we expect (homebrew-vs-repo trap). */
   daemonPathExpected?: () => boolean | null;
+  /** Does the CLI emit output when captured (piped/non-TTY)? Silence = mute = failure. */
+  cliSelfSpeech?: () => Promise<{ speaks: boolean; reason: string; remediation?: string }>;
   // ── integrity ──
   dbIntegrityCheck?: () => string; // sqlite 'ok' or error text
   schemaTables?: () => string[];
@@ -88,6 +90,22 @@ export function createInvariants(): Invariant<AttestContext>[] {
         return ok
           ? { status: 'pass' }
           : { status: 'fail', detail: 'daemon is not the expected install', fix: 'stop stray daemons; run the homebrew install' };
+      },
+    },
+    {
+      // Silence is not success: a CLI that emits ZERO output when captured is a
+      // mute-tool liveness failure (the bun-stdio-in-sandbox trap). Detect it
+      // rather than infer it after an hour of confusion. See lib/cli-liveness.ts.
+      id: 'liveness.cli-self-speech',
+      class: 'liveness',
+      severity: 'critical',
+      title: 'CLI emits output when captured (not mute)',
+      async run(ctx) {
+        if (!ctx.cliSelfSpeech) return SKIP('no CLI self-speech probe wired');
+        const v = await ctx.cliSelfSpeech();
+        return v.speaks
+          ? { status: 'pass', detail: v.reason }
+          : { status: 'fail', detail: v.reason, fix: v.remediation ?? 'route around the mute CLI via daemon HTTP routes' };
       },
     },
 
