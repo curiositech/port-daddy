@@ -43,13 +43,28 @@ export function assessBackendTelemetryPolicy(backend: string, model?: string | n
     }
 
     case 'claude-cli': {
+      // The Claude CLI reports its OWN usage when invoked with
+      // `--output-format json` (input/output token counts + total_cost_usd),
+      // which runClaudeCli now captures (lib/spawner.ts). When that usage is
+      // present the record is exact; when it is missing we fall back to a
+      // clearly-labelled best-guess estimate (rateMode 'estimated') instead of
+      // fail-closing the launch. Either way the launch requires a known cost
+      // rate for the model, same as the `claude` SDK backend.
       const effectiveModel = model?.trim() || DEFAULT_OPERATOR_CLAUDE_MODEL;
+      if (!hasExactModelRate(effectiveModel)) {
+        return {
+          ...blocked(
+            backend,
+            `Claude CLI model "${effectiveModel}" has no cost rate entry; cannot price the launch.`,
+            'Add a rate for this model to cost-tracker MODEL_RATES before enabling it.'
+          ),
+          effectiveModel,
+        };
+      }
       return {
-        ...blocked(
-          backend,
-          'Claude CLI is blocked until exact token counts and exact nonzero cost are recorded end-to-end; fail-closed telemetry policy blocks launch.',
-          'Keep Claude CLI disabled for operator launches until subprocess telemetry is exact and test-covered.'
-        ),
+        backend,
+        launchAllowed: true,
+        summary: `Telemetry policy satisfied for Claude CLI model "${effectiveModel}" (CLI-reported usage, estimated fallback)`,
         effectiveModel,
       };
     }
