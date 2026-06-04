@@ -98,7 +98,7 @@ set -l __pd_commands \
     'session' 'sessions' 'note' 'notes' \
     'salvage' 'resurrection' 'changelog' 'dns' 'files' 'add' 'who-owns' 'integration' 'briefing' 'history' 'inbox' \
     'begin' 'b' 'done' 'whoami' 'w' 'attention' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'transcripts' 'transcript' 'dispatch' 'nightshift' 'review' 'morning' 'cockpit' 'popper' 'secret' 'secrets' 'watch' 'harbormaster' 'hm' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' 'roadmap' 'quorum' 'feedback' 'commit' 'obligations' \
-    'say' 'look' 'sitrep' 'advise' 'preflight' 'compass' 'guard' 'snapshots' 'snapshot' 'backup' 'restore' 'attest' 'shipwright' 'pheromone' 'ph' \
+    'say' 'look' 'sitrep' 'advise' 'preflight' 'compass' 'guard' 'snapshots' 'snapshot' 'backup' 'restore' 'attest' 'account' 'shipwright' 'pheromone' 'ph' \
     'wallet' 'bond' \
     'up' 'down' \
     'bench' 'demo' 'fleet' 'backend' \
@@ -278,6 +278,7 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a backup -d 'Durable snapshots of port-registry.db (ADR-0037)'
     complete -c $prog -n __pd_needs_command -a restore -d 'Restore a port-registry.db snapshot (ADR-0037)'
     complete -c $prog -n __pd_needs_command -a attest -d 'Honest self-report — loud-fail invariants (ADR-0045)'
+    complete -c $prog -n __pd_needs_command -a account -d 'User identity + device pairing (ADR-0029)'
     complete -c $prog -n __pd_needs_command -a shipwright -d 'Survey + propose + apply for fleet authoring'
     complete -c $prog -n __pd_needs_command -a pheromone -d 'Stigmergic coordination (spray, files, show, ls)'
     complete -c $prog -n __pd_needs_command -a ph -d 'Alias for pheromone'

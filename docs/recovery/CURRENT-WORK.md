@@ -56,9 +56,13 @@ This is the active execution ledger. If a task is in flight, it belongs here bef
 
 Per ROADMAP.md § Operator-Direct: Accounts Arc. Cartographer should preserve this entry verbatim.
 
-**Currently in flight:** Phase A0 — `pd account create`. ~150 LOC, local-only Ed25519 keypair generation written to `~/.port-daddy/account.json`. Branch: `feat/account-create-and-roadmap`. ADR-0029 v0 step 1.
+**Landed (2026-06-04, branch `claude/portdaddy-cross-device-dbqx2`):** Phases A0 **and** A1 shipped together as one coherent slice — `lib/account.ts` + `cli/commands/account.ts` + `tests/unit/account.test.ts` (all unit + parity + permission-tier suites green; `tsc --noEmit` clean; full CLI flow exercised end-to-end).
+- **A0** — `pd account create`: local-only account-owned Ed25519 identity. `accountId = base58btc(SHA-256(pubkey))`; public metadata in `~/.port-daddy/account.json`; **private seed in OS keychain with `~/.config/port-daddy/account.key` (0600) fallback, never in SQLite** (this refines the original "keypair written to account.json" sketch — the seed is deliberately NOT in the public json, per ADR-0029 key-custody).
+- **A1** — `pd account pair`: bilaterally-signed `PairingReceipt` (version 2). Account key + this device's daemon/device key both sign the same RFC 8785 (JCS) canonical bytes; `verifyPairingReceipt` checks both sigs + that the supplied device pubkey hashes to the receipt's `daemonFingerprint`. Plus `pd account status | list-devices | revoke-device`.
+- **Design note for the next agent:** the daemon co-signature is currently produced by a self-contained per-machine *device* key (`~/.port-daddy/device.json` + keychain `device-ed25519-seed`), created on first `pair`. This is the receipt's `daemonFingerprint` anchor. A follow-up should reconcile this with the existing harbor-tokens daemon Ed25519 key (`harbor-daemon-ed25519-v1`) so a machine has ONE daemon identity, not two — left as a deliberate, documented seam to keep this slice local/offline and avoid reaching into harbor-tokens internals.
+- Also closed a pre-existing dogfood gap: `pd attest` was unclassified in `cli/permission-tiers.ts` (ADR-0045 shipped without a tier) → now `silent`.
 
-**Next after A0 lands:** A1 (`pd account pair` + daemon-side pairing receipts), then W0 (portdaddy.dev OIDC sign-in + account page).
+**Next after A1:** W0 (portdaddy.dev OIDC sign-in + account page, ADR-0039) and the relay transport for cross-device sync (ADR-0027). Cross-device sync still needs a real second daemon/device + relay; today's pairing is provable but local. Reconcile device-vs-daemon identity (above) before remote pairing.
 
 ## Active Side Thread
 

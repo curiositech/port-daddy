@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`pd account` — first-class user identity + device pairing (ADR-0029, Phases A0 + A1).**
+  Port Daddy's identity stack gains a second layer above the per-machine daemon
+  key: an account-owned Ed25519 keypair that spans devices.
+  - `pd account create` mints the durable account identity (`accountId =
+    base58btc(SHA-256(pubkey))`); the private seed is held in the OS keychain
+    with a `~/.config/port-daddy/account.key` (0600) fallback, never in SQLite.
+  - `pd account pair` produces a **bilaterally-signed pairing receipt**: both the
+    account key and this device's daemon key sign the same RFC 8785 (JCS)
+    canonical JSON, so neither is the root authority alone.
+  - `pd account status` / `list-devices` / `revoke-device` inspect and manage the
+    account⇄daemon bindings; `list-devices` cryptographically verifies each
+    receipt it holds the device key for.
+  - All local and offline — the foundation the relay mesh (ADR-0027) and the
+    portdaddy.dev account surface (ADR-0039) build on. New `lib/account.ts`,
+    `cli/commands/account.ts`, and `tests/unit/account.test.ts`.
+- `pd attest` is now classified in the CLI permission tiers (`silent`), closing a
+  pre-existing coverage gap from ADR-0045.
+
 ## [3.17.0] - 2026-06-02
 
 This minor release consolidates a large backlog of user-visible capabilities that

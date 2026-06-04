@@ -126,6 +126,8 @@ import {
   handleRestore,
   // Honest attestation / loud-fail invariants (ADR-0045)
   handleAttest,
+  // First-class user identity + device pairing (ADR-0029 A0/A1)
+  handleAccount,
   // Shipwright — survey/propose/apply for fleet authoring
   handleShipwright,
   // App-Native Development Cockpit
@@ -660,6 +662,7 @@ function buildHelp(): string {
     `  ${G}pd roadmap${Z}               ${tag('silent')} Show Cartographer's current roadmap projection`,
     `  ${G}pd secret list${Z}           ${tag('silent')} Manage keychain-backed provider credentials`,
     `  ${G}pd daemon list${Z}           ${tag('silent')} Inspect named sidecar daemon profiles`,
+    `  ${G}pd account${Z}               ${tag('silent')} User identity + device pairing across machines  ${D}(create/pair notify, revoke destructive)${Z}`,
     '',
     `${A}Permission tiers:${Z}`,
     TIER_LEGEND,
@@ -1265,6 +1268,7 @@ const ALL_COMMANDS: string[] = [
   'feedback',
   'commit', 'obligations',
   'secret', 'secrets',
+  'account',
   'cockpit',
   'popper',
   'harbormaster', 'hm',
@@ -2713,6 +2717,10 @@ export async function main(): Promise<void> {
 
       case 'attest':
         await handleAttest(positional, options, PKG.version);
+        break;
+
+      case 'account':
+        await handleAccount(positional, options);
         break;
 
       case 'restore':

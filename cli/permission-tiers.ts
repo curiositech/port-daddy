@@ -99,9 +99,11 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   dns: 'silent',            // refined: `dns cleanup`, `dns register` are mutations
   snapshots: 'silent',
   snapshot: 'silent',
+  attest: 'silent',         // read-only honest self-report (ADR-0045)
   cockpit: 'silent',
   shipwright: 'silent',
   secret: 'silent',         // refined: `secret set` is notify, `secret rm` is destructive
+  account: 'silent',        // refined: create/pair are notify, revoke-device is destructive
   popper: 'silent',         // refined: `popper pop` is approval, enable/disable are notify
   inbox: 'silent',
   integration: 'silent',
@@ -315,6 +317,17 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'session files claim': 'notify',
   'session files rm': 'notify',
   'session files release': 'notify',
+
+  // account: status/list are read-only, create/pair write local identity,
+  // revoke-device tears down a binding others may rely on.
+  'account': 'silent',                  // default subcommand = status
+  'account status': 'silent',
+  'account list-devices': 'silent',
+  'account devices': 'silent',
+  'account create': 'notify',           // mints the account-owned Ed25519 identity
+  'account pair': 'notify',             // writes a bilaterally-signed pairing receipt
+  'account revoke-device': 'destructive', // revokes a device binding
+  'account revoke': 'destructive',
 
   // secret: list/reveal are read-only, set writes a credential, rm deletes it
   'secret list': 'silent',

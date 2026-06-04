@@ -55,6 +55,7 @@ export * from './snapshots.js';
 export * from './backup.js';
 export * from './restore.js';
 export * from './attest.js';
+export * from './account.js';
 export * from './shipwright.js';
 export * from './cockpit.js';
 export * from './popper.js';

@@ -1964,6 +1964,7 @@ _port_daddy() {
     'backup:durable snapshots of port-registry.db (ADR-0037)'
     'restore:restore a port-registry.db snapshot (ADR-0037)'
     'attest:honest self-report — loud-fail invariants (ADR-0045)'
+    'account:user identity + device pairing (ADR-0029)'
     'shipwright:survey + propose + apply for fleet authoring'
     'pheromone:stigmergic coordination (spray, files, show, ls)'
     'ph:alias for pheromone'
