@@ -28,7 +28,7 @@ interface SortieRouteDeps {
   };
 }
 
-const VALID_BACKENDS = new Set(['ollama', 'claude', 'claude-cli', 'gemini', 'cloudflare', 'codex', 'aider', 'custom']);
+const VALID_BACKENDS = new Set(['ollama', 'claude', 'claude-cli', 'gemini', 'cloudflare', 'codex', 'aider', 'custom', 'cli:claude-code', 'cli:codex']);
 
 function buildSortieTask(body: Record<string, unknown>): string {
   if (typeof body.task === 'string' && body.task.trim()) return body.task.trim();
