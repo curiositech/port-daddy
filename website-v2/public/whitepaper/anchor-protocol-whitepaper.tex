@@ -1076,4 +1076,17 @@ Q1 to false-with-trace---ProVerif exhibits the read$\to$write escalation---
 confirming the guard is load-bearing.
 \end{theorem}
 
+\paragraph{Multi-hop scope (honest boundary).} Theorem~\ref{thm:attn-sound} is
+single-hop (Daemon $\to A \to$ verifier). Multi-hop delegation has a sharper
+obligation: a verifier that checks the \emph{final} capability against the
+\emph{root} accepts a non-monotonic middle hop. \texttt{harbor\_card\_v6\_multihop\_attack.pv}
+mechanizes exactly this --- $A{:}\texttt{write} \to B{:}\texttt{read} \to
+C{:}\texttt{write}$ is accepted (ProVerif: escalation reachable). The fix,
+\texttt{harbor\_card\_v7\_multihop\_fixed.pv}, verifies each hop against its
+\emph{immediate parent} ($\mathrm{is\_subset}(\mathit{final},\mathit{mid}) \wedge
+\mathrm{is\_subset}(\mathit{mid},\mathit{root})$) and ProVerif proves the same
+chain rejected. The runtime delegation verifier --- and the cross-harbor
+recompute $\mathrm{att}_B \circ \mathrm{att}_A$ --- must be per-hop, never
+final-vs-root.
+
 \end{document}
