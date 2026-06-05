@@ -14,7 +14,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 
 const REPO_ROOT = join(import.meta.dirname, '..', '..');
@@ -24,6 +24,11 @@ const SAFE_SCRATCH_ROOT = join(process.env.HOME, 'coding', 'tmp');
 
 /** Run the smoke script with a contained scratch dir. */
 function runSmoke(extraArgs = [], opts = {}) {
+  // The "$HOME/coding/tmp" root is durable-by-policy (never /tmp), but it is
+  // NOT guaranteed to exist on a fresh CI runner -- mkdtempSync needs its
+  // parent to already exist, so create it (idempotent) before carving a
+  // unique scratch dir under it.
+  mkdirSync(SAFE_SCRATCH_ROOT, { recursive: true });
   const scratch = mkdtempSync(join(SAFE_SCRATCH_ROOT, 'fleet-loop-smoke-test-'));
   const result = spawnSync(
     'bash',
