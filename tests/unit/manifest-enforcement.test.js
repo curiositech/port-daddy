@@ -502,6 +502,7 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
 
     // Mapping from MCP tool name -> expected feature
     const toolFeatureMap = {
+      'attest': 'attest',
       'claim_port': 'claim',
       'release_port': 'release',
       'list_services': 'services',

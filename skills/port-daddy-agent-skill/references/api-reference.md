@@ -317,6 +317,22 @@ Health check. Returns status, version, uptime, active port count, fleet summary,
 `runtime` summarizes whether the daemon is nominal or degraded without claiming the process is dead.
 When a fleet mailbox is busy, individual agent rows can surface `status: "queued"` and `queueDepth` so repeated wakeups are visible as collapsed pending work instead of fresh spawns.
 
+### GET /attest
+Honest self-report (ADR-0045). Returns the daemon's loud-fail invariant
+attestations — each declared capability with its real runtime state (enforced /
+degraded / stubbed) rather than an aggregate "ok". Use it to verify the daemon is
+actually doing what it claims, not just that it is up.
+
+```json
+{
+  "version": "3.17.0",
+  "invariants": [
+    { "name": "CAP_ESCALATION", "state": "enforced", "engine": "runtime" }
+  ],
+  "honest": true
+}
+```
+
 ### GET /status
 Combined daemon report. Includes build identity, metrics, detailed fleet breakdown, guardian state, and recent daemon history.
 
