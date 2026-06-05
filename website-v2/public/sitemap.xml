@@ -13,6 +13,10 @@
     <loc>https://portdaddy.dev/blog</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/blog/attention-is-the-first-command</loc>
+    <lastmod>2026-05-22T00:00:00Z</lastmod>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/blog/backend-readiness-is-dependency-truth</loc>
     <lastmod>2026-04-26T00:00:00Z</lastmod>
   </url>
@@ -779,6 +783,9 @@
     <loc>https://portdaddy.dev/mac-preview</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/manifesto</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/mcp</loc>
   </url>
   <url>
@@ -858,5 +865,8 @@
   </url>
   <url>
     <loc>https://portdaddy.dev/whitepaper/bonded-commons</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/whitepaper/federated-harbor</loc>
   </url>
 </urlset>

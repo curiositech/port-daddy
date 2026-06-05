@@ -297,6 +297,12 @@ const productRoutes: SiteMetadata[] = [
     { section: 'blog' },
   ),
   metadata(
+    '/manifesto',
+    'Manifesto',
+    'Software learned to hire its own help. Why a fleet of agents needs a harbor-master before anything else, how legibility becomes the product, and the seven papers that work it out.',
+    { section: 'whitepaper' },
+  ),
+  metadata(
     '/whitepaper',
     'Whitepaper',
     'Read the technical whitepaper behind Port Daddy: local-first agent coordination, signed identity, capability boundaries, sessions, and recoverable work.',

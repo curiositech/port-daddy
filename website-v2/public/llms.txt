@@ -296,6 +296,7 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 ## Blog
 
 - [Blog - Port Daddy](https://portdaddy.dev/blog): Read Port Daddy engineering notes about local control planes, shared state, launch readiness, recovery maps, PD Tube, daemon provenance, and coordination policy.
+- [Attention Is The First Command - Port Daddy](https://portdaddy.dev/blog/attention-is-the-first-command): Port Daddy has had a perfectly good mailbox for about a year. Inboxes, channels, tuples, a coordination-inconsistency stream where the fleet airs its complaints. Nobody was checking the mail. Each agent turn is a fresh process; nothing inside the turn polls. This is the verb that fixes it, the convention that makes the verb stick, the JSON schema that lets any harness adopt it — and the deliberate reason this is not an MCP tool.
 - [Backend Readiness Is Dependency Truth - Port Daddy](https://portdaddy.dev/blog/backend-readiness-is-dependency-truth): "Ready" is not one bit; it is five, and they all have to line up. The credential exists. The package is installed. The CLI is logged in. The model is on the catalog. Telemetry will write a real number when the run finishes. Miss one, and the launch becomes a story you tell about why the bill arrived.
 - [Bond Pricing Is a Market, Not a Constant - Port Daddy](https://portdaddy.dev/blog/bond-pricing-is-a-market): Daily budgets are training wheels. They keep an agent from setting itself on fire, but they do not price what the fire would cost. The v2 paper points at the destination: cleanup as a lower bound, scope as a multiplier, reputation as a discount, and Thomas Youle's insurer-bidding market on top.
 - [The Control Plane Is the Product - Port Daddy](https://portdaddy.dev/blog/control-plane-is-the-product): The agents do beautiful work and then quietly clobber each other's files, spend money on the wrong API key, and answer to a daemon that has been serving stale code for three days. The fix is not more agents; it is one inspectable surface where identity, ownership, runtime, backend, cost, and recovery all agree before anyone presses go.
@@ -315,9 +316,11 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 
 ## White Papers
 
+- [Manifesto - Port Daddy](https://portdaddy.dev/manifesto): Software learned to hire its own help. Why a fleet of agents needs a harbor-master before anything else, how legibility becomes the product, and the seven papers that work it out.
 - [Whitepaper - Port Daddy](https://portdaddy.dev/whitepaper): Read the technical whitepaper behind Port Daddy: local-first agent coordination, signed identity, capability boundaries, sessions, and recoverable work.
 - [The Anchor Protocol - Port Daddy](https://portdaddy.dev/whitepaper/anchor-protocol): A guided read of the Anchor Protocol paper — what an "identity for a process" should even mean, how to mint one out of off-the-shelf cryptography, and why a problem that felt unsolvable in 2010 is now a long weekend's work.
 - [The Bonded Commons - Port Daddy](https://portdaddy.dev/whitepaper/bonded-commons): A guided read of the Bonded Commons paper: why mutual visibility beats locks once you have more than a handful of agents, what kind of refundable "deposit" makes that visibility honest instead of theatrical, and how a tiny insurance market beats any single human picking the deposit size by hand.
+- [The Federated Harbor - Port Daddy](https://portdaddy.dev/whitepaper/federated-harbor): A guided read of the Federated Harbor paper — why two trustworthy local daemons can still fail jointly, what four small primitives close the gap, and the honest list of open questions the paper does not answer.
 
 ## Repository
 

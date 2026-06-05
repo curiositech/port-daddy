@@ -31,6 +31,7 @@ const WhitepaperHowWeProvePage = lazy(() => import('@/pages/whitepaper/HowWeProv
 const LandscapePage = lazy(() => import('@/pages/landscape'))
 const BlogPage = lazyNamed(() => import('@/pages/BlogPage'), 'BlogPage')
 const BlogPostPage = lazyNamed(() => import('@/pages/BlogPostPage'), 'BlogPostPage')
+const ManifestoPage = lazyNamed(() => import('@/pages/ManifestoPage'), 'ManifestoPage')
 const MacPreviewPage = lazyNamed(() => import('@/pages/MacPreviewPage'), 'MacPreviewPage')
 const PdTubePage = lazyNamed(() => import('@/pages/PdTubePage'), 'PdTubePage')
 const SkillAuditPage = lazyNamed(() => import('@/pages/SkillAuditPage'), 'SkillAuditPage')
@@ -234,6 +235,8 @@ createRoot(document.getElementById('root')!).render(
 
               <Route path="/blog" element={<BlogPage />} />
               <Route path="/blog/:slug" element={<BlogPostPage />} />
+
+              <Route path="/manifesto" element={<ManifestoPage />} />
 
               <Route path="/whitepaper" element={<WhitepaperPage />} />
               <Route path="/whitepaper/rounds" element={<WhitepaperRoundsPage />} />
