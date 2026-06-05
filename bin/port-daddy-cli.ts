@@ -2253,6 +2253,18 @@ export async function main(): Promise<void> {
 
   const commandStartedAt = Date.now();
 
+  // `pd <command> --help` / `-h` short-circuits to that command's help instead
+  // of executing it. Without this, commands fall through to their handler and
+  // run real logic — e.g. `pd done --help` triggered the done precondition and
+  // printed "ERROR: pd done refused …", which also poisoned recorded terminal
+  // demos (website-terminal-recordings reviewer flags /ERROR:/). Falls back to
+  // the global help for commands without a dedicated topic.
+  if (options.help) {
+    const topicHelp = TOPIC_HELP[command as string];
+    console.log(topicHelp || buildHelp());
+    process.exit(0);
+  }
+
   try {
     switch (command) {
       // Service commands (single-letter aliases: c, r, f, l)

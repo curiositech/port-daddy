@@ -150,6 +150,10 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     description: 'Start/end sessions, manage agent registration (sugar commands)',
     tools: ['begin_session', 'end_session_full', 'whoami'],
   },
+  'trust': {
+    description: 'Honest self-report (ADR-0045): verify the daemon actually enforces what it claims before relying on it',
+    tools: ['attest'],
+  },
   'advisor': {
     description: 'Deterministic coordination preflight: context integrity, claims, symbols, salvage, channels, tuples, and locks',
     tools: ['coordination_preflight'],
@@ -337,6 +341,18 @@ const TOOLS = [
           description: 'Your agent ID (from begin_session response)',
         },
       },
+    },
+  },
+  {
+    name: 'attest',
+    description:
+      '[Trust] Honest self-report of the daemon (ADR-0045). Returns each declared ' +
+      'invariant with its REAL runtime state (enforced / degraded / stubbed) instead ' +
+      'of an aggregate "ok". Call this to verify the daemon is actually doing what it ' +
+      'claims before you rely on its coordination. Usage: attest()',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {},
     },
   },
   {
@@ -2603,6 +2619,11 @@ async function handleTool(
     case 'whoami': {
       const qs = args.agent_id ? `?agentId=${encodeURIComponent(args.agent_id as string)}` : '';
       res = await GET(`/sugar/whoami${qs}`);
+      break;
+    }
+
+    case 'attest': {
+      res = await GET('/attest');
       break;
     }
 

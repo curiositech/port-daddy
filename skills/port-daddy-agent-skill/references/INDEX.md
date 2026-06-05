@@ -29,3 +29,7 @@ Load only the file that matches the decision in front of you.
 - `session-lifecycle-state-machine.md`: the formal state machine for sessions
   (active → paused → done → salvaged). Read when a session is in an
   unexpected state or when integrating session events into another tool.
+- `git-discipline.md`: the load-bearing git rule set behind the SKILL.md
+  "Git Discipline" section — never destructive-git a live shared checkout,
+  worktree-per-agent, claim-aware staging. Read before any git mutation in a
+  multi-agent repo.

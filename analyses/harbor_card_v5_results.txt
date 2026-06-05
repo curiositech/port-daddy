@@ -1,0 +1,206 @@
+Process 0 (that is, the initial process):
+{1}new sk_a: skey;
+{2}let pk_a: pkey = pk(sk_a) in
+{3}out(c, pk_a);
+{4}new id_a: id;
+{5}new id_b: id;
+(
+    {6}!
+    {7}let a: id = id_a in
+    {8}let cap: capability = cap_read in
+    {9}let msg: bitstring = base_token(daemon_id,a,harbor_id,cap) in
+    {10}let s: bitstring = sign(msg,daemon_sk) in
+    {11}event IssuedRoot(a,harbor_id,cap);
+    {12}out(c, (msg,s))
+) | (
+    {13}!
+    {14}let a_1: id = id_a in
+    {15}let cap_1: capability = cap_write in
+    {16}let msg_1: bitstring = base_token(daemon_id,a_1,harbor_id,cap_1) in
+    {17}let s_1: bitstring = sign(msg_1,daemon_sk) in
+    {18}event IssuedRoot(a_1,harbor_id,cap_1);
+    {19}out(c, (msg_1,s_1))
+) | (
+    {20}!
+    {21}let a_2: id = id_a in
+    {22}let a_sk: skey = sk_a in
+    {23}let b: id = id_b in
+    {24}in(c, (msg_2: bitstring,s_2: bitstring));
+    {25}let base_token(=daemon_id,=a_2,=harbor_id,root_cap: capability) = msg_2 in
+    {26}if (check_sign(msg_2,pk(daemon_sk),s_2) = true) then
+    {27}if (is_subset(cap_read,root_cap) = true) then
+    {28}let d_msg: bitstring = delegate_token((msg_2,s_2),b,cap_read) in
+    {29}let d_s: bitstring = sign(d_msg,a_sk) in
+    {30}event Delegated(a_2,b,cap_read);
+    {31}out(c, (d_msg,d_s))
+) | (
+    {32}!
+    {33}let a_3: id = id_a in
+    {34}let a_sk_1: skey = sk_a in
+    {35}let b_1: id = id_b in
+    {36}in(c, (msg_3: bitstring,s_3: bitstring));
+    {37}let base_token(=daemon_id,=a_3,=harbor_id,root_cap_1: capability) = msg_3 in
+    {38}if (check_sign(msg_3,pk(daemon_sk),s_3) = true) then
+    {39}event EscalationAttempted(a_3,root_cap_1,cap_write);
+    {40}let d_msg_1: bitstring = delegate_token((msg_3,s_3),b_1,cap_write) in
+    {41}let d_s_1: bitstring = sign(d_msg_1,a_sk_1) in
+    {42}out(c, (d_msg_1,d_s_1))
+) | (
+    {43}!
+    {44}in(c, (d_msg_2: bitstring,d_s_2: bitstring));
+    {45}let delegate_token((base_msg: bitstring,base_s: bitstring),b_2: id,sub_cap: capability) = d_msg_2 in
+    {46}let base_token(=daemon_id,a_4: id,=harbor_id,root_cap_2: capability) = base_msg in
+    {47}if (check_sign(base_msg,pk(daemon_sk),base_s) = true) then
+    {48}if (check_sign(d_msg_2,pk_a,d_s_2) = true) then
+    {49}if (is_subset(sub_cap,root_cap_2) = true) then
+    {50}event Accepted(b_2,harbor_id,sub_cap,root_cap_2)
+)
+
+--  Process 1 (that is, process 0, with let moved downwards):
+{1}new sk_a: skey;
+{2}let pk_a: pkey = pk(sk_a) in
+{3}out(c, pk_a);
+{4}new id_a: id;
+{5}new id_b: id;
+(
+    {6}!
+    {8}let cap: capability = cap_read in
+    {7}let a: id = id_a in
+    {11}event IssuedRoot(a,harbor_id,cap);
+    {9}let msg: bitstring = base_token(daemon_id,a,harbor_id,cap) in
+    {10}let s: bitstring = sign(msg,daemon_sk) in
+    {12}out(c, (msg,s))
+) | (
+    {13}!
+    {15}let cap_1: capability = cap_write in
+    {14}let a_1: id = id_a in
+    {18}event IssuedRoot(a_1,harbor_id,cap_1);
+    {16}let msg_1: bitstring = base_token(daemon_id,a_1,harbor_id,cap_1) in
+    {17}let s_1: bitstring = sign(msg_1,daemon_sk) in
+    {19}out(c, (msg_1,s_1))
+) | (
+    {20}!
+    {24}in(c, (msg_2: bitstring,s_2: bitstring));
+    {21}let a_2: id = id_a in
+    {25}let base_token(=daemon_id,=a_2,=harbor_id,root_cap: capability) = msg_2 in
+    {26}if (check_sign(msg_2,pk(daemon_sk),s_2) = true) then
+    {27}if (is_subset(cap_read,root_cap) = true) then
+    {23}let b: id = id_b in
+    {30}event Delegated(a_2,b,cap_read);
+    {28}let d_msg: bitstring = delegate_token((msg_2,s_2),b,cap_read) in
+    {22}let a_sk: skey = sk_a in
+    {29}let d_s: bitstring = sign(d_msg,a_sk) in
+    {31}out(c, (d_msg,d_s))
+) | (
+    {32}!
+    {36}in(c, (msg_3: bitstring,s_3: bitstring));
+    {33}let a_3: id = id_a in
+    {37}let base_token(=daemon_id,=a_3,=harbor_id,root_cap_1: capability) = msg_3 in
+    {38}if (check_sign(msg_3,pk(daemon_sk),s_3) = true) then
+    {39}event EscalationAttempted(a_3,root_cap_1,cap_write);
+    {35}let b_1: id = id_b in
+    {40}let d_msg_1: bitstring = delegate_token((msg_3,s_3),b_1,cap_write) in
+    {34}let a_sk_1: skey = sk_a in
+    {41}let d_s_1: bitstring = sign(d_msg_1,a_sk_1) in
+    {42}out(c, (d_msg_1,d_s_1))
+) | (
+    {43}!
+    {44}in(c, (d_msg_2: bitstring,d_s_2: bitstring));
+    {45}let delegate_token((base_msg: bitstring,base_s: bitstring),b_2: id,sub_cap: capability) = d_msg_2 in
+    {46}let base_token(=daemon_id,a_4: id,=harbor_id,root_cap_2: capability) = base_msg in
+    {47}if (check_sign(base_msg,pk(daemon_sk),base_s) = true) then
+    {48}if (check_sign(d_msg_2,pk_a,d_s_2) = true) then
+    {49}if (is_subset(sub_cap,root_cap_2) = true) then
+    {50}event Accepted(b_2,harbor_id,sub_cap,root_cap_2)
+)
+
+-- Query not event(Accepted(b_3,harbor_id[],cap_write,cap_read)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query not event(Accepted(b_3,harbor_id[],cap_write,cap_read))
+RESULT not event(Accepted(b_3,harbor_id[],cap_write,cap_read)) is true.
+-- Query not event(EscalationAttempted(a_5,r,s_4)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query not event(EscalationAttempted(a_5,r,s_4))
+goal reachable: event(EscalationAttempted(id_a[],cap_read,cap_write))
+
+Derivation:
+
+1. The message (base_token(daemon_id[],id_a[],harbor_id[],cap_read),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_read),daemon_sk[])) may be sent to the attacker at output {12}.
+attacker((base_token(daemon_id[],id_a[],harbor_id[],cap_read),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_read),daemon_sk[]))).
+
+2. By 1, the attacker may know (base_token(daemon_id[],id_a[],harbor_id[],cap_read),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_read),daemon_sk[])).
+Using the function 2-proj-2-tuple the attacker may obtain sign(base_token(daemon_id[],id_a[],harbor_id[],cap_read),daemon_sk[]).
+attacker(sign(base_token(daemon_id[],id_a[],harbor_id[],cap_read),daemon_sk[])).
+
+3. Using the function cap_read the attacker may obtain cap_read.
+attacker(cap_read).
+
+4. The attacker initially knows harbor_id[].
+attacker(harbor_id[]).
+
+5. By 1, the attacker may know (base_token(daemon_id[],id_a[],harbor_id[],cap_read),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_read),daemon_sk[])).
+Using the function 1-proj-2-tuple the attacker may obtain base_token(daemon_id[],id_a[],harbor_id[],cap_read).
+attacker(base_token(daemon_id[],id_a[],harbor_id[],cap_read)).
+
+6. By 5, the attacker may know base_token(daemon_id[],id_a[],harbor_id[],cap_read).
+Using the function 2-proj-base_token the attacker may obtain id_a[].
+attacker(id_a[]).
+
+7. The attacker initially knows daemon_id[].
+attacker(daemon_id[]).
+
+8. By 7, the attacker may know daemon_id[].
+By 6, the attacker may know id_a[].
+By 4, the attacker may know harbor_id[].
+By 3, the attacker may know cap_read.
+Using the function base_token the attacker may obtain base_token(daemon_id[],id_a[],harbor_id[],cap_read).
+attacker(base_token(daemon_id[],id_a[],harbor_id[],cap_read)).
+
+9. By 8, the attacker may know base_token(daemon_id[],id_a[],harbor_id[],cap_read).
+By 2, the attacker may know sign(base_token(daemon_id[],id_a[],harbor_id[],cap_read),daemon_sk[]).
+Using the function 2-tuple the attacker may obtain (base_token(daemon_id[],id_a[],harbor_id[],cap_read),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_read),daemon_sk[])).
+attacker((base_token(daemon_id[],id_a[],harbor_id[],cap_read),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_read),daemon_sk[]))).
+
+10. The message (base_token(daemon_id[],id_a[],harbor_id[],cap_read),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_read),daemon_sk[])) that the attacker may have by 9 may be received at input {36}.
+So event EscalationAttempted(id_a[],cap_read,cap_write) may be executed at {39}.
+event(EscalationAttempted(id_a[],cap_read,cap_write)).
+
+11. By 10, event(EscalationAttempted(id_a[],cap_read,cap_write)).
+The goal is reached, represented in the following fact:
+event(EscalationAttempted(id_a[],cap_read,cap_write)).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+new sk_a: skey creating sk_a_1 at {1}
+
+out(c, ~M) with ~M = pk(sk_a_1) at {3}
+
+new id_a: id creating id_a_1 at {4}
+
+new id_b: id creating id_b_1 at {5}
+
+event IssuedRoot(id_a_1,harbor_id,cap_read) at {11} in copy a_5
+
+out(c, (base_token(~M_1,~M_2,~M_3,~M_4),~M_5)) with ~M_1 = daemon_id, ~M_2 = id_a_1, ~M_3 = harbor_id, ~M_4 = cap_read, ~M_5 = sign(base_token(daemon_id,id_a_1,harbor_id,cap_read),daemon_sk) at {12} in copy a_5
+
+in(c, (base_token(daemon_id,~M_2,harbor_id,cap_read),~M_5)) with ~M_2 = id_a_1, ~M_5 = sign(base_token(daemon_id,id_a_1,harbor_id,cap_read),daemon_sk) at {36} in copy a_6
+
+event EscalationAttempted(id_a_1,cap_read,cap_write) at {39} in copy a_6 (goal)
+
+The event EscalationAttempted(id_a_1,cap_read,cap_write) is executed at {39} in copy a_6.
+A trace has been found.
+RESULT not event(EscalationAttempted(a_5,r,s_4)) is false.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query not event(Accepted(b_3,harbor_id[],cap_write,cap_read)) is true.
+
+Query not event(EscalationAttempted(a_5,r,s_4)) is false.
+
+--------------------------------------------------------------
+

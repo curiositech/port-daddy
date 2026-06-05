@@ -1,0 +1,284 @@
+Process 0 (that is, the initial process):
+{1}new sk_a: skey;
+{2}let pk_a: pkey = pk(sk_a) in
+{3}out(c, pk_a);
+{4}new sk_b: skey;
+{5}let pk_b: pkey = pk(sk_b) in
+{6}out(c, pk_b);
+{7}new id_a: id;
+{8}new id_b: id;
+{9}new id_c: id;
+(
+    {10}!
+    {11}let a: id = id_a in
+    {12}let msg: bitstring = base_token(daemon_id,a,harbor_id,cap_write) in
+    {13}event IssuedRoot(a,cap_write);
+    {14}out(c, (msg,sign(msg,daemon_sk)))
+) | (
+    {15}!
+    {16}let a_1: id = id_a in
+    {17}let a_sk: skey = sk_a in
+    {18}let b: id = id_b in
+    {19}in(c, (msg_1: bitstring,s: bitstring));
+    {20}let base_token(=daemon_id,=a_1,=harbor_id,root_cap: capability) = msg_1 in
+    {21}if (check_sign(msg_1,pk(daemon_sk),s) = true) then
+    {22}if (is_subset(cap_read,root_cap) = true) then
+    {23}event HeldByB(cap_read);
+    {24}let d1: bitstring = delegate_token((msg_1,s),b,cap_read) in
+    {25}out(c, (d1,sign(d1,a_sk)))
+) | (
+    {26}!
+    {27}let b_1: id = id_b in
+    {28}let b_sk: skey = sk_b in
+    {29}let cc: id = id_c in
+    {30}in(c, (d1_1: bitstring,d1s: bitstring));
+    {31}let delegate_token(parent: bitstring,=b_1,my_cap: capability) = d1_1 in
+    {32}let d2: bitstring = delegate_token((d1_1,d1s),cc,cap_write) in
+    {33}out(c, (d2,sign(d2,b_sk)))
+) | (
+    {34}!
+    {35}in(c, (d2_1: bitstring,d2s: bitstring));
+    {36}let delegate_token((d1_2: bitstring,d1s_1: bitstring),cc_1: id,final_cap: capability) = d2_1 in
+    {37}let delegate_token((base: bitstring,bases: bitstring),b_2: id,mid_cap: capability) = d1_2 in
+    {38}let base_token(=daemon_id,a_2: id,=harbor_id,root_cap_1: capability) = base in
+    {39}if (check_sign(base,pk(daemon_sk),bases) = true) then
+    {40}if (check_sign(d1_2,pk_a,d1s_1) = true) then
+    {41}if (check_sign(d2_1,pk_b,d2s) = true) then
+    {42}if (is_subset(final_cap,root_cap_1) = true) then
+    {43}event Accepted(cc_1,harbor_id,final_cap)
+)
+
+--  Process 1 (that is, process 0, with let moved downwards):
+{1}new sk_a: skey;
+{2}let pk_a: pkey = pk(sk_a) in
+{3}out(c, pk_a);
+{4}new sk_b: skey;
+{5}let pk_b: pkey = pk(sk_b) in
+{6}out(c, pk_b);
+{7}new id_a: id;
+{8}new id_b: id;
+{9}new id_c: id;
+(
+    {10}!
+    {11}let a: id = id_a in
+    {13}event IssuedRoot(a,cap_write);
+    {12}let msg: bitstring = base_token(daemon_id,a,harbor_id,cap_write) in
+    {14}out(c, (msg,sign(msg,daemon_sk)))
+) | (
+    {15}!
+    {19}in(c, (msg_1: bitstring,s: bitstring));
+    {16}let a_1: id = id_a in
+    {20}let base_token(=daemon_id,=a_1,=harbor_id,root_cap: capability) = msg_1 in
+    {21}if (check_sign(msg_1,pk(daemon_sk),s) = true) then
+    {22}if (is_subset(cap_read,root_cap) = true) then
+    {23}event HeldByB(cap_read);
+    {18}let b: id = id_b in
+    {24}let d1: bitstring = delegate_token((msg_1,s),b,cap_read) in
+    {17}let a_sk: skey = sk_a in
+    {25}out(c, (d1,sign(d1,a_sk)))
+) | (
+    {26}!
+    {30}in(c, (d1_1: bitstring,d1s: bitstring));
+    {27}let b_1: id = id_b in
+    {31}let delegate_token(parent: bitstring,=b_1,my_cap: capability) = d1_1 in
+    {29}let cc: id = id_c in
+    {32}let d2: bitstring = delegate_token((d1_1,d1s),cc,cap_write) in
+    {28}let b_sk: skey = sk_b in
+    {33}out(c, (d2,sign(d2,b_sk)))
+) | (
+    {34}!
+    {35}in(c, (d2_1: bitstring,d2s: bitstring));
+    {36}let delegate_token((d1_2: bitstring,d1s_1: bitstring),cc_1: id,final_cap: capability) = d2_1 in
+    {37}let delegate_token((base: bitstring,bases: bitstring),b_2: id,mid_cap: capability) = d1_2 in
+    {38}let base_token(=daemon_id,a_2: id,=harbor_id,root_cap_1: capability) = base in
+    {39}if (check_sign(base,pk(daemon_sk),bases) = true) then
+    {40}if (check_sign(d1_2,pk_a,d1s_1) = true) then
+    {41}if (check_sign(d2_1,pk_b,d2s) = true) then
+    {42}if (is_subset(final_cap,root_cap_1) = true) then
+    {43}event Accepted(cc_1,harbor_id,final_cap)
+)
+
+-- Query not event(Accepted(cc_2,harbor_id[],cap_write)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query not event(Accepted(cc_2,harbor_id[],cap_write))
+goal reachable: event(Accepted(id_c[],harbor_id[],cap_write))
+
+Derivation:
+
+1. The message (base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])) may be sent to the attacker at output {14}.
+attacker((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[]))).
+
+2. By 1, the attacker may know (base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])).
+Using the function 2-proj-2-tuple the attacker may obtain sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[]).
+attacker(sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])).
+
+3. Using the function cap_write the attacker may obtain cap_write.
+attacker(cap_write).
+
+4. The attacker initially knows harbor_id[].
+attacker(harbor_id[]).
+
+5. By 1, the attacker may know (base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])).
+Using the function 1-proj-2-tuple the attacker may obtain base_token(daemon_id[],id_a[],harbor_id[],cap_write).
+attacker(base_token(daemon_id[],id_a[],harbor_id[],cap_write)).
+
+6. By 5, the attacker may know base_token(daemon_id[],id_a[],harbor_id[],cap_write).
+Using the function 2-proj-base_token the attacker may obtain id_a[].
+attacker(id_a[]).
+
+7. The attacker initially knows daemon_id[].
+attacker(daemon_id[]).
+
+8. By 7, the attacker may know daemon_id[].
+By 6, the attacker may know id_a[].
+By 4, the attacker may know harbor_id[].
+By 3, the attacker may know cap_write.
+Using the function base_token the attacker may obtain base_token(daemon_id[],id_a[],harbor_id[],cap_write).
+attacker(base_token(daemon_id[],id_a[],harbor_id[],cap_write)).
+
+9. By 8, the attacker may know base_token(daemon_id[],id_a[],harbor_id[],cap_write).
+By 2, the attacker may know sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[]).
+Using the function 2-tuple the attacker may obtain (base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])).
+attacker((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[]))).
+
+10. The message (base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])) that the attacker may have by 9 may be received at input {19}.
+So the message (delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sign(delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sk_a[])) may be sent to the attacker at output {25}.
+attacker((delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sign(delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sk_a[]))).
+
+11. By 10, the attacker may know (delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sign(delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sk_a[])).
+Using the function 2-proj-2-tuple the attacker may obtain sign(delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sk_a[]).
+attacker(sign(delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sk_a[])).
+
+12. Using the function cap_read the attacker may obtain cap_read.
+attacker(cap_read).
+
+13. By 10, the attacker may know (delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sign(delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sk_a[])).
+Using the function 1-proj-2-tuple the attacker may obtain delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read).
+attacker(delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read)).
+
+14. By 13, the attacker may know delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read).
+Using the function 2-proj-delegate_token the attacker may obtain id_b[].
+attacker(id_b[]).
+
+15. By 9, the attacker may know (base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])).
+By 14, the attacker may know id_b[].
+By 12, the attacker may know cap_read.
+Using the function delegate_token the attacker may obtain delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read).
+attacker(delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read)).
+
+16. By 15, the attacker may know delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read).
+By 11, the attacker may know sign(delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sk_a[]).
+Using the function 2-tuple the attacker may obtain (delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sign(delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sk_a[])).
+attacker((delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sign(delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sk_a[]))).
+
+17. The message (delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sign(delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sk_a[])) that the attacker may have by 16 may be received at input {30}.
+So the message (delegate_token((delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sign(delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sk_a[])),id_c[],cap_write),sign(delegate_token((delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sign(delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sk_a[])),id_c[],cap_write),sk_b[])) may be sent to the attacker at output {33}.
+attacker((delegate_token((delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sign(delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sk_a[])),id_c[],cap_write),sign(delegate_token((delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sign(delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sk_a[])),id_c[],cap_write),sk_b[]))).
+
+18. By 17, the attacker may know (delegate_token((delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sign(delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sk_a[])),id_c[],cap_write),sign(delegate_token((delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sign(delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sk_a[])),id_c[],cap_write),sk_b[])).
+Using the function 2-proj-2-tuple the attacker may obtain sign(delegate_token((delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sign(delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sk_a[])),id_c[],cap_write),sk_b[]).
+attacker(sign(delegate_token((delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sign(delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sk_a[])),id_c[],cap_write),sk_b[])).
+
+19. The attacker has some term d1s_2.
+attacker(d1s_2).
+
+20. The attacker has some term my_cap_1.
+attacker(my_cap_1).
+
+21. The attacker has some term parent_1.
+attacker(parent_1).
+
+22. By 21, the attacker may know parent_1.
+By 14, the attacker may know id_b[].
+By 20, the attacker may know my_cap_1.
+Using the function delegate_token the attacker may obtain delegate_token(parent_1,id_b[],my_cap_1).
+attacker(delegate_token(parent_1,id_b[],my_cap_1)).
+
+23. By 22, the attacker may know delegate_token(parent_1,id_b[],my_cap_1).
+By 19, the attacker may know d1s_2.
+Using the function 2-tuple the attacker may obtain (delegate_token(parent_1,id_b[],my_cap_1),d1s_2).
+attacker((delegate_token(parent_1,id_b[],my_cap_1),d1s_2)).
+
+24. The message (delegate_token(parent_1,id_b[],my_cap_1),d1s_2) that the attacker may have by 23 may be received at input {30}.
+So the message (delegate_token((delegate_token(parent_1,id_b[],my_cap_1),d1s_2),id_c[],cap_write),sign(delegate_token((delegate_token(parent_1,id_b[],my_cap_1),d1s_2),id_c[],cap_write),sk_b[])) may be sent to the attacker at output {33}.
+attacker((delegate_token((delegate_token(parent_1,id_b[],my_cap_1),d1s_2),id_c[],cap_write),sign(delegate_token((delegate_token(parent_1,id_b[],my_cap_1),d1s_2),id_c[],cap_write),sk_b[]))).
+
+25. By 24, the attacker may know (delegate_token((delegate_token(parent_1,id_b[],my_cap_1),d1s_2),id_c[],cap_write),sign(delegate_token((delegate_token(parent_1,id_b[],my_cap_1),d1s_2),id_c[],cap_write),sk_b[])).
+Using the function 1-proj-2-tuple the attacker may obtain delegate_token((delegate_token(parent_1,id_b[],my_cap_1),d1s_2),id_c[],cap_write).
+attacker(delegate_token((delegate_token(parent_1,id_b[],my_cap_1),d1s_2),id_c[],cap_write)).
+
+26. By 25, the attacker may know delegate_token((delegate_token(parent_1,id_b[],my_cap_1),d1s_2),id_c[],cap_write).
+Using the function 2-proj-delegate_token the attacker may obtain id_c[].
+attacker(id_c[]).
+
+27. By 16, the attacker may know (delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sign(delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sk_a[])).
+By 26, the attacker may know id_c[].
+By 3, the attacker may know cap_write.
+Using the function delegate_token the attacker may obtain delegate_token((delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sign(delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sk_a[])),id_c[],cap_write).
+attacker(delegate_token((delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sign(delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sk_a[])),id_c[],cap_write)).
+
+28. By 27, the attacker may know delegate_token((delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sign(delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sk_a[])),id_c[],cap_write).
+By 18, the attacker may know sign(delegate_token((delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sign(delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sk_a[])),id_c[],cap_write),sk_b[]).
+Using the function 2-tuple the attacker may obtain (delegate_token((delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sign(delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sk_a[])),id_c[],cap_write),sign(delegate_token((delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sign(delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sk_a[])),id_c[],cap_write),sk_b[])).
+attacker((delegate_token((delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sign(delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sk_a[])),id_c[],cap_write),sign(delegate_token((delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sign(delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sk_a[])),id_c[],cap_write),sk_b[]))).
+
+29. The message (delegate_token((delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sign(delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sk_a[])),id_c[],cap_write),sign(delegate_token((delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sign(delegate_token((base_token(daemon_id[],id_a[],harbor_id[],cap_write),sign(base_token(daemon_id[],id_a[],harbor_id[],cap_write),daemon_sk[])),id_b[],cap_read),sk_a[])),id_c[],cap_write),sk_b[])) that the attacker may have by 28 may be received at input {35}.
+So event Accepted(id_c[],harbor_id[],cap_write) may be executed at {43}.
+event(Accepted(id_c[],harbor_id[],cap_write)).
+
+30. By 29, event(Accepted(id_c[],harbor_id[],cap_write)).
+The goal is reached, represented in the following fact:
+event(Accepted(id_c[],harbor_id[],cap_write)).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+new sk_a: skey creating sk_a_1 at {1}
+
+out(c, ~M) with ~M = pk(sk_a_1) at {3}
+
+new sk_b: skey creating sk_b_1 at {4}
+
+out(c, ~M_1) with ~M_1 = pk(sk_b_1) at {6}
+
+new id_a: id creating id_a_1 at {7}
+
+new id_b: id creating id_b_1 at {8}
+
+new id_c: id creating id_c_1 at {9}
+
+event IssuedRoot(id_a_1,cap_write) at {13} in copy a_3
+
+out(c, (base_token(~M_2,~M_3,~M_4,~M_5),~M_6)) with ~M_2 = daemon_id, ~M_3 = id_a_1, ~M_4 = harbor_id, ~M_5 = cap_write, ~M_6 = sign(base_token(daemon_id,id_a_1,harbor_id,cap_write),daemon_sk) at {14} in copy a_3
+
+in(c, (base_token(daemon_id,~M_3,harbor_id,cap_write),~M_6)) with ~M_3 = id_a_1, ~M_6 = sign(base_token(daemon_id,id_a_1,harbor_id,cap_write),daemon_sk) at {19} in copy a_4
+
+event HeldByB(cap_read) at {23} in copy a_4
+
+out(c, (delegate_token((base_token(~M_7,~M_8,~M_9,~M_10),~M_11),~M_12,~M_13),~M_14)) with ~M_7 = daemon_id, ~M_8 = id_a_1, ~M_9 = harbor_id, ~M_10 = cap_write, ~M_11 = sign(base_token(daemon_id,id_a_1,harbor_id,cap_write),daemon_sk), ~M_12 = id_b_1, ~M_13 = cap_read, ~M_14 = sign(delegate_token((base_token(daemon_id,id_a_1,harbor_id,cap_write),sign(base_token(daemon_id,id_a_1,harbor_id,cap_write),daemon_sk)),id_b_1,cap_read),sk_a_1) at {25} in copy a_4
+
+in(c, (delegate_token(a_5,~M_12,a_6),a_7)) with ~M_12 = id_b_1 at {30} in copy a_8
+
+out(c, (delegate_token((delegate_token(~M_15,~M_16,~M_17),~M_18),~M_19,~M_20),~M_21)) with ~M_15 = a_5, ~M_16 = id_b_1, ~M_17 = a_6, ~M_18 = a_7, ~M_19 = id_c_1, ~M_20 = cap_write, ~M_21 = sign(delegate_token((delegate_token(a_5,id_b_1,a_6),a_7),id_c_1,cap_write),sk_b_1) at {33} in copy a_8
+
+in(c, (delegate_token((base_token(daemon_id,~M_3,harbor_id,cap_write),~M_6),~M_12,cap_read),~M_14)) with ~M_3 = id_a_1, ~M_6 = sign(base_token(daemon_id,id_a_1,harbor_id,cap_write),daemon_sk), ~M_12 = id_b_1, ~M_14 = sign(delegate_token((base_token(daemon_id,id_a_1,harbor_id,cap_write),sign(base_token(daemon_id,id_a_1,harbor_id,cap_write),daemon_sk)),id_b_1,cap_read),sk_a_1) at {30} in copy a_9
+
+out(c, (delegate_token((delegate_token((base_token(~M_22,~M_23,~M_24,~M_25),~M_26),~M_27,~M_28),~M_29),~M_30,~M_31),~M_32)) with ~M_22 = daemon_id, ~M_23 = id_a_1, ~M_24 = harbor_id, ~M_25 = cap_write, ~M_26 = sign(base_token(daemon_id,id_a_1,harbor_id,cap_write),daemon_sk), ~M_27 = id_b_1, ~M_28 = cap_read, ~M_29 = sign(delegate_token((base_token(daemon_id,id_a_1,harbor_id,cap_write),sign(base_token(daemon_id,id_a_1,harbor_id,cap_write),daemon_sk)),id_b_1,cap_read),sk_a_1), ~M_30 = id_c_1, ~M_31 = cap_write, ~M_32 = sign(delegate_token((delegate_token((base_token(daemon_id,id_a_1,harbor_id,cap_write),sign(base_token(daemon_id,id_a_1,harbor_id,cap_write),daemon_sk)),id_b_1,cap_read),sign(delegate_token((base_token(daemon_id,id_a_1,harbor_id,cap_write),sign(base_token(daemon_id,id_a_1,harbor_id,cap_write),daemon_sk)),id_b_1,cap_read),sk_a_1)),id_c_1,cap_write),sk_b_1) at {33} in copy a_9
+
+in(c, (delegate_token((delegate_token((base_token(daemon_id,~M_3,harbor_id,cap_write),~M_6),~M_12,cap_read),~M_14),~M_19,cap_write),~M_32)) with ~M_3 = id_a_1, ~M_6 = sign(base_token(daemon_id,id_a_1,harbor_id,cap_write),daemon_sk), ~M_12 = id_b_1, ~M_14 = sign(delegate_token((base_token(daemon_id,id_a_1,harbor_id,cap_write),sign(base_token(daemon_id,id_a_1,harbor_id,cap_write),daemon_sk)),id_b_1,cap_read),sk_a_1), ~M_19 = id_c_1, ~M_32 = sign(delegate_token((delegate_token((base_token(daemon_id,id_a_1,harbor_id,cap_write),sign(base_token(daemon_id,id_a_1,harbor_id,cap_write),daemon_sk)),id_b_1,cap_read),sign(delegate_token((base_token(daemon_id,id_a_1,harbor_id,cap_write),sign(base_token(daemon_id,id_a_1,harbor_id,cap_write),daemon_sk)),id_b_1,cap_read),sk_a_1)),id_c_1,cap_write),sk_b_1) at {35} in copy a_10
+
+event Accepted(id_c_1,harbor_id,cap_write) at {43} in copy a_10 (goal)
+
+The event Accepted(id_c_1,harbor_id,cap_write) is executed at {43} in copy a_10.
+A trace has been found.
+RESULT not event(Accepted(cc_2,harbor_id[],cap_write)) is false.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query not event(Accepted(cc_2,harbor_id[],cap_write)) is false.
+
+--------------------------------------------------------------
+

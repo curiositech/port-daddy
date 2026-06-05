@@ -35,6 +35,7 @@ export const ALL_TIERS: readonly Tier[] = ['silent', 'notify', 'approval', 'dest
 export const TIER_REGISTRY: Record<string, Tier> = {
   // ── silent: read-only ────────────────────────────────────────────────────
   status: 'silent',
+  attest: 'silent', // honest self-report (ADR-0045); read-only introspection
   version: 'silent',
   whoami: 'silent',
   w: 'silent',

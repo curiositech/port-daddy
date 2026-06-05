@@ -236,6 +236,21 @@ run_read "with-lock (usage)" with-lock    -- with-lock
 run_read "salvage"           salvage      -- salvage
 run_read "feedback"          feedback     -- feedback "e2e cli-surface probe feedback"
 run_read "say (no session)"  say          -- say "e2e cli-surface say probe"
+# Honest self-report + read-only digests/listings. attest may exit non-zero
+# when an invariant is RED (same shape as doctor/diagnose above) — run_read
+# treats non-zero-with-output as a PASS because it proves the module loaded.
+run_read "attest"            attest       -- attest
+run_read "backend list"      backend      -- backend list
+run_read "backup list"       backup       -- backup list
+run_read "restore (usage)"   restore      -- restore
+run_read "popper status"     popper       -- popper status
+run_read "morning"           morning      -- morning
+run_read "transcripts list"  transcripts  -- transcripts list
+run_read "transcript list"   transcript   -- transcript list
+run_read "harbormaster status" harbormaster -- harbormaster status
+run_read "hm status"         hm           -- hm status
+run_read "review (usage)"    review       -- review
+run_read "dispatch (usage)"  dispatch     -- dispatch
 
 echo
 echo "=== MUTATING round-trips (safe against the scratch daemon) ======"
@@ -257,7 +272,16 @@ run_ok  "unlock $LOCK"       unlock   -- unlock "$LOCK"
 run_ok  "begin"              begin    -- begin e2e:surface:ci --allow-main-worktree
 run_ok  "note"               note     -- note "e2e cli-surface round-trip note"
 run_read "session (usage)"   session  -- session
-run_ok  "done"               done     -- done "e2e cli-surface round-trip complete"
+# `pd done` now runs two ADR-0045 preconditions (lib/git-origin-check.ts):
+#   1. an honest result-note sentinel (PR URL / no-pr-yet: / not-applicable:)
+#   2. a git origin-push check on the cwd's repo.
+# This surface probe makes no PR, so the note declares not-applicable. The
+# origin check is bypassed with its documented escape hatch + reason: in CI the
+# checkout is in DETACHED HEAD (actions/checkout) and the scratch workdir sits
+# inside that repo, so the check would refuse with "Detached HEAD: cannot verify
+# origin push." That refusal is correct for real work but irrelevant to a
+# read-surface probe that never pushes anything.
+run_ok  "done"               done     -- done "Result: e2e cli-surface round-trip complete. not-applicable: CI surface probe, no code change." --skip-origin-check --reason "compiled-CLI surface E2E probe — no branch, no push (CI detached HEAD)"
 
 # pub -> channels reflects it (sub/subscribe/listen/wait are blocking → skipped)
 run_ok  "pub"                pub      -- pub e2e:surface:chan "hello from cli-surface e2e"
@@ -315,6 +339,7 @@ covered ci-gate;   skip "ci-gate"   "runs the full feature-parity gate (heavy); 
 covered guard;     skip "guard"     "guard install/check mutate hooks; only 'guard status' is read-tested above"
 covered harbor;    skip "harbor"    "harbor create/enter/leave/destroy mutate permission namespaces; usage read-tested above"
 covered add;       skip "add"       "git staging wrapper; mutates the index — not run in the surface gate"
+covered nightshift; skip "nightshift" "deprecated alias of 'dispatch' (ADR-0035); emits a deprecation banner then runs the dispatch queue — 'dispatch' usage is read-tested above"
 
 echo
 echo "=== Verb-surface reconciliation against bin/port-daddy-cli.ts ====="
