@@ -34,6 +34,8 @@ jest.unstable_mockModule('node:fs', () => ({
   chmodSync:     jest.fn(),
   mkdtempSync:   jest.fn(() => '/tmp/pd-spawner-auth-test'),
   rmSync:        jest.fn(),
+  // lib/coast-guard.ts (imported transitively via spawner) needs realpathSync.
+  realpathSync:  jest.fn((p) => p),
 }));
 
 // ---------------------------------------------------------------------------
@@ -98,6 +100,13 @@ function lastClaudeEnv() {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  // These tests assert the claude-cli env-stripping logic by finding the spawn
+  // call whose cmd === 'claude'. The Coast Guard (ADR-0050) wraps subprocess
+  // backends under `sandbox-exec` by default, which would nest 'claude' inside
+  // args. Disable it here to keep the assertions on the inner claude env direct;
+  // the broker scrub (which ALSO removes ANTHROPIC_API_KEY) is covered in
+  // coast-guard.test.js + spawner-coast-guard.test.js.
+  process.env.PD_COAST_GUARD_OFF = '1';
   mockExistsSync.mockImplementation((p) => String(p).endsWith('.env.local'));
   mockStatSync.mockReturnValue({ uid: process.getuid?.() ?? 99, mode: 0o100600 });
   mockReadFileSync.mockReturnValue(`ANTHROPIC_API_KEY=${DOTENV_API_KEY}\n`);
@@ -107,6 +116,10 @@ beforeEach(() => {
     json: async () => ({ success: true }),
     text: async () => 'OK',
   });
+});
+
+afterAll(() => {
+  delete process.env.PD_COAST_GUARD_OFF;
 });
 
 // ---------------------------------------------------------------------------

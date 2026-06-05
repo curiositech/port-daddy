@@ -77,6 +77,12 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
+  // These suites assert RAW backend command/arg construction (cmd === 'aider',
+  // 'claude', '/bin/sh', 'codex'). The Coast Guard (ADR-0050) now wraps every
+  // subprocess backend under `sandbox-exec` BY DEFAULT, which would change the
+  // observed cmd/args. We disable it here so these tests stay focused on
+  // dispatch; the default-on confinement is covered by spawner-coast-guard.test.js.
+  process.env.PD_COAST_GUARD_OFF = '1';
   delete process.env.CLOUDFLARE_ACCOUNT_ID;
   delete process.env.CLOUDFLARE_API_TOKEN;
   mockFetch = jest.fn().mockResolvedValue({
@@ -97,6 +103,7 @@ beforeEach(() => {
 
 afterAll(() => {
   global.fetch = originalFetch;
+  delete process.env.PD_COAST_GUARD_OFF;
   if (originalSpawnIsolationOff === undefined) delete process.env.PD_SPAWN_ISOLATION_OFF;
   else process.env.PD_SPAWN_ISOLATION_OFF = originalSpawnIsolationOff;
 });
