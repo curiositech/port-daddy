@@ -1,7 +1,7 @@
 # A Profit Incentive for Solving Anything
 
-*Software learned to hire its own help. Here is what happens next, why it needs a
-harbor before it needs anything else, and the seven papers that work it out.*
+*Software learned to hire its own help. Here is what happens next, why a harbor has
+to come first, and the seven papers that work it out.*
 
 ---
 
@@ -12,6 +12,11 @@ harbor before it needs anything else, and the seven papers that work it out.*
 For seventy years, a program did exactly what it was told and nothing more. You
 wrote the steps; it ran the steps. If you wanted it to do something new, you wrote
 new steps.
+
+<!-- sidenote: Agent -->
+A program you hand a *goal* instead of *steps*. It plans the steps itself and can
+act in the world — run code, move money, change files. The shift that makes
+everything in this document necessary.
 
 That changed. A new kind of program — an **agent** — can be handed a goal instead
 of steps. "Fix this bug." "Answer these emails." "Book the cheapest flight." It
@@ -51,6 +56,11 @@ a collision by improving one of the cars.
 > **The problem does not live inside any one helper. It lives in the space between
 > them — the space where no one is keeping track.**
 
+<!-- sidenote: Tragedy of the commons -->
+Garrett Hardin's 1968 name for a shared resource that everyone uses and no one
+tends, so it gets wrecked. Ostrom's answer was not a distant ruler or
+privatization, but *local rules and records* — exactly what a harbor-master keeps.
+
 This is old ground, just never walked by software. In 1651 Thomas Hobbes argued
 that people with no shared referee don't stay civil; they fall into what he called
 *bellum omnium contra omnes*, "the war of all against all," and rationally consent
@@ -86,6 +96,12 @@ Run ten agents and your real problem is not collision. It is that you go blind. 
 streams of activity, hundreds of changes, no way to know what happened without
 reading all of it — which defeats the point of having help.
 
+<!-- sidenote: Legibility -->
+James C. Scott's term for making a complex thing *readable* by whoever has to
+govern it — surveys, maps, standard names. Flatten too far and you destroy the
+local know-how (*mētis*) that made the place work. The product is the map; the
+failure is the over-flattening.
+
 So the second job of the harbor-master is **legibility**: making a complex thing
 *readable* by an authority who has to govern it. The political scientist James C.
 Scott traced how states made territory governable exactly this way — surveys,
@@ -113,6 +129,12 @@ morning.
 
 Here is the turn that makes this bigger than a tool for programmers.
 
+<!-- sidenote: Reputation -->
+A track record you cannot fake, built from durable memory of what an agent
+promised and delivered. Derek Parfit argued identity is just psychological
+continuity over time; by that test, a memory-bearing agent stops being
+disposable and becomes a *worker with a past*.
+
 To referee well, the harbor-master must *remember* — what each agent was doing,
 what it promised, what it delivered. Give an agent that memory and a track record,
 and what it *is* changes. The philosopher Derek Parfit argued that a person is not a
@@ -129,6 +151,12 @@ players with Elo or the web rates trust with algorithms like EigenTrust[^reputat
 — and you can do things impossible today: trust a helper you did not build, rent a
 brilliant one from someone who did, pay only for work checked and found good. A
 **profit incentive attached to anything an agent can do.**
+
+<!-- sidenote: Mechanism design -->
+The Nobel-winning study (Hurwicz, Maskin, Myerson, 2007) of rules whose *honest*
+outcome survives players acting in pure self-interest. It comes with hard limits —
+see "You cannot have all three," below — which we take seriously rather than
+waving at.
 
 Designing that market is its own science — **mechanism design**, the
 Nobel-winning study of rules that stay honest even when everyone games them,[^mech]
