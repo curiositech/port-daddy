@@ -1,0 +1,159 @@
+Process 0 (that is, the initial process):
+{1}new sub_sk: skey;
+{2}let sub_pk: pkey = pk(sub_sk) in
+{3}out(c, sub_pk);
+{4}new pub_sk: sskey;
+{5}let pub_pk: spkey = spk(pub_sk) in
+{6}out(c, pub_pk);
+(
+    {7}!
+    {8}let pub_sk_1: sskey = pub_sk in
+    {9}let ciphertext: bitstring = aenc(secretPayload,sub_pk) in
+    {10}let env: bitstring = envelope(chan,ciphertext) in
+    {11}event PubSent(spk(pub_sk_1),secretPayload);
+    {12}out(c, (env,sign(env,pub_sk_1)))
+) | (
+    {13}!
+    {14}let sub_sk_1: skey = sub_sk in
+    {15}in(c, (env_1: bitstring,sig: bitstring));
+    {16}let recovered: bitstring = checksign(env_1,pub_pk,sig) in
+    {17}let envelope(=chan,ciphertext_1: bitstring) = recovered in
+    {18}let m: bitstring = adec(ciphertext_1,sub_sk_1) in
+    {19}event SubAccepted(pub_pk,m)
+)
+
+--  Process 1 (that is, process 0, with let moved downwards):
+{1}new sub_sk: skey;
+{2}let sub_pk: pkey = pk(sub_sk) in
+{3}out(c, sub_pk);
+{4}new pub_sk: sskey;
+{5}let pub_pk: spkey = spk(pub_sk) in
+{6}out(c, pub_pk);
+(
+    {7}!
+    {8}let pub_sk_1: sskey = pub_sk in
+    {11}event PubSent(spk(pub_sk_1),secretPayload);
+    {9}let ciphertext: bitstring = aenc(secretPayload,sub_pk) in
+    {10}let env: bitstring = envelope(chan,ciphertext) in
+    {12}out(c, (env,sign(env,pub_sk_1)))
+) | (
+    {13}!
+    {15}in(c, (env_1: bitstring,sig: bitstring));
+    {16}let recovered: bitstring = checksign(env_1,pub_pk,sig) in
+    {17}let envelope(=chan,ciphertext_1: bitstring) = recovered in
+    {14}let sub_sk_1: skey = sub_sk in
+    {18}let m: bitstring = adec(ciphertext_1,sub_sk_1) in
+    {19}event SubAccepted(pub_pk,m)
+)
+
+-- Query not attacker(secretPayload[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query not attacker(secretPayload[])
+RESULT not attacker(secretPayload[]) is true.
+-- Query inj-event(SubAccepted(p,m_1)) ==> inj-event(PubSent(p,m_1)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query inj-event(SubAccepted(p,m_1)) ==> inj-event(PubSent(p,m_1))
+goal reachable: @sid ≠ @sid_1 && b-inj-event(PubSent(spk(pub_sk[]),secretPayload[]),@occ11_1) -> inj-event(SubAccepted(spk(pub_sk[]),secretPayload[]),@occ19_1) && inj-event(SubAccepted(spk(pub_sk[]),secretPayload[]),@occ19_2)
+Abbreviations:
+@occ19_1 = @occ19[sig = sign(envelope(chan[],aenc(secretPayload[],pk(sub_sk[]))),pub_sk[]),env_1 = envelope(chan[],aenc(secretPayload[],pk(sub_sk[]))),!1 = @sid]
+@occ19_2 = @occ19[sig = sign(envelope(chan[],aenc(secretPayload[],pk(sub_sk[]))),pub_sk[]),env_1 = envelope(chan[],aenc(secretPayload[],pk(sub_sk[]))),!1 = @sid_1]
+@occ11_1 = @occ11[!1 = @sid_2]
+
+Derivation:
+Abbreviations:
+@occ19_1 = @occ19[sig = sign(envelope(chan[],aenc(secretPayload[],pk(sub_sk[]))),pub_sk[]),env_1 = envelope(chan[],aenc(secretPayload[],pk(sub_sk[]))),!1 = @sid]
+@occ19_2 = @occ19[sig = sign(envelope(chan[],aenc(secretPayload[],pk(sub_sk[]))),pub_sk[]),env_1 = envelope(chan[],aenc(secretPayload[],pk(sub_sk[]))),!1 = @sid_1]
+@occ11_1 = @occ11[!1 = @sid_2]
+
+1. The event PubSent(spk(pub_sk[]),secretPayload[]) (with occurrence name @occ11_1) may be executed at {11}.
+So the message (envelope(chan[],aenc(secretPayload[],pk(sub_sk[]))),sign(envelope(chan[],aenc(secretPayload[],pk(sub_sk[]))),pub_sk[])) may be sent to the attacker at output {12}.
+attacker((envelope(chan[],aenc(secretPayload[],pk(sub_sk[]))),sign(envelope(chan[],aenc(secretPayload[],pk(sub_sk[]))),pub_sk[]))).
+
+2. By 1, the attacker may know (envelope(chan[],aenc(secretPayload[],pk(sub_sk[]))),sign(envelope(chan[],aenc(secretPayload[],pk(sub_sk[]))),pub_sk[])).
+Using the function 2-proj-2-tuple the attacker may obtain sign(envelope(chan[],aenc(secretPayload[],pk(sub_sk[]))),pub_sk[]).
+attacker(sign(envelope(chan[],aenc(secretPayload[],pk(sub_sk[]))),pub_sk[])).
+
+3. By 1, the attacker may know (envelope(chan[],aenc(secretPayload[],pk(sub_sk[]))),sign(envelope(chan[],aenc(secretPayload[],pk(sub_sk[]))),pub_sk[])).
+Using the function 1-proj-2-tuple the attacker may obtain envelope(chan[],aenc(secretPayload[],pk(sub_sk[]))).
+attacker(envelope(chan[],aenc(secretPayload[],pk(sub_sk[])))).
+
+4. By 3, the attacker may know envelope(chan[],aenc(secretPayload[],pk(sub_sk[]))).
+Using the function 2-proj-envelope the attacker may obtain aenc(secretPayload[],pk(sub_sk[])).
+attacker(aenc(secretPayload[],pk(sub_sk[]))).
+
+5. The attacker initially knows chan[].
+attacker(chan[]).
+
+6. By 5, the attacker may know chan[].
+By 4, the attacker may know aenc(secretPayload[],pk(sub_sk[])).
+Using the function envelope the attacker may obtain envelope(chan[],aenc(secretPayload[],pk(sub_sk[]))).
+attacker(envelope(chan[],aenc(secretPayload[],pk(sub_sk[])))).
+
+7. By 6, the attacker may know envelope(chan[],aenc(secretPayload[],pk(sub_sk[]))).
+By 2, the attacker may know sign(envelope(chan[],aenc(secretPayload[],pk(sub_sk[]))),pub_sk[]).
+Using the function 2-tuple the attacker may obtain (envelope(chan[],aenc(secretPayload[],pk(sub_sk[]))),sign(envelope(chan[],aenc(secretPayload[],pk(sub_sk[]))),pub_sk[])).
+attacker((envelope(chan[],aenc(secretPayload[],pk(sub_sk[]))),sign(envelope(chan[],aenc(secretPayload[],pk(sub_sk[]))),pub_sk[]))).
+
+8. The message (envelope(chan[],aenc(secretPayload[],pk(sub_sk[]))),sign(envelope(chan[],aenc(secretPayload[],pk(sub_sk[]))),pub_sk[])) that the attacker may have by 7 may be received at input {15}.
+So event SubAccepted(spk(pub_sk[]),secretPayload[]) may be executed at {19} in session @sid_1.
+inj-event(SubAccepted(spk(pub_sk[]),secretPayload[]),@occ19_2).
+
+9. By 8, inj-event(SubAccepted(spk(pub_sk[]),secretPayload[]),@occ19_2).
+The goal is reached, represented in the following fact:
+inj-event(SubAccepted(spk(pub_sk[]),secretPayload[]),@occ19_2).
+
+10. The message (envelope(chan[],aenc(secretPayload[],pk(sub_sk[]))),sign(envelope(chan[],aenc(secretPayload[],pk(sub_sk[]))),pub_sk[])) that the attacker may have by 7 may be received at input {15}.
+So event SubAccepted(spk(pub_sk[]),secretPayload[]) may be executed at {19} in session @sid.
+inj-event(SubAccepted(spk(pub_sk[]),secretPayload[]),@occ19_1).
+
+11. By 10, inj-event(SubAccepted(spk(pub_sk[]),secretPayload[]),@occ19_1).
+The goal is reached, represented in the following fact:
+inj-event(SubAccepted(spk(pub_sk[]),secretPayload[]),@occ19_1).
+
+12. By 11, inj-event(SubAccepted(spk(pub_sk[]),secretPayload[]),@occ19_1).
+By 9, inj-event(SubAccepted(spk(pub_sk[]),secretPayload[]),@occ19_2).
+We have @occ19_1 ≠ @occ19_2.
+The goals for injectivity are reached, combined in the following fact:
+inj-event(SubAccepted(spk(pub_sk[]),secretPayload[]),@occ19_1) && inj-event(SubAccepted(spk(pub_sk[]),secretPayload[]),@occ19_2).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+new sub_sk: skey creating sub_sk_2 at {1}
+
+out(c, ~M) with ~M = pk(sub_sk_2) at {3}
+
+new pub_sk: sskey creating pub_sk_2 at {4}
+
+out(c, ~M_1) with ~M_1 = spk(pub_sk_2) at {6}
+
+event PubSent(spk(pub_sk_2),secretPayload) at {11} in copy a
+
+out(c, (envelope(~M_2,~M_3),~M_4)) with ~M_2 = chan, ~M_3 = aenc(secretPayload,pk(sub_sk_2)), ~M_4 = sign(envelope(chan,aenc(secretPayload,pk(sub_sk_2))),pub_sk_2) at {12} in copy a
+
+in(c, (envelope(chan,~M_3),~M_4)) with ~M_3 = aenc(secretPayload,pk(sub_sk_2)), ~M_4 = sign(envelope(chan,aenc(secretPayload,pk(sub_sk_2))),pub_sk_2) at {15} in copy a_1
+
+event SubAccepted(spk(pub_sk_2),secretPayload) at {19} in copy a_1 (goal)
+
+in(c, (envelope(chan,~M_3),~M_4)) with ~M_3 = aenc(secretPayload,pk(sub_sk_2)), ~M_4 = sign(envelope(chan,aenc(secretPayload,pk(sub_sk_2))),pub_sk_2) at {15} in copy a_2
+
+event SubAccepted(spk(pub_sk_2),secretPayload) at {19} in copy a_2 (goal)
+
+The event SubAccepted(spk(pub_sk_2),secretPayload) is executed at {19} in copy a_1.
+The event SubAccepted(spk(pub_sk_2),secretPayload) is executed at {19} in copy a_2.
+A trace has been found.
+RESULT inj-event(SubAccepted(p,m_1)) ==> inj-event(PubSent(p,m_1)) is false.
+RESULT (but event(SubAccepted(p,m_1)) ==> event(PubSent(p,m_1)) is true.)
+
+--------------------------------------------------------------
+Verification summary:
+
+Query not attacker(secretPayload[]) is true.
+
+Query inj-event(SubAccepted(p,m_1)) ==> inj-event(PubSent(p,m_1)) is false.
+
+--------------------------------------------------------------
+

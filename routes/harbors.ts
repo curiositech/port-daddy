@@ -8,6 +8,9 @@
  * POST   /harbors/:name/enter      — agent enters harbor
  * POST   /harbors/:name/leave      — agent leaves harbor
  * GET    /harbors/:name/members    — list harbor members
+ * GET    /harbors/:name/envelope   — read the harbor's enforcement envelope
+ * PUT    /harbors/:name/envelope   — set the harbor's enforcement envelope
+ * POST   /harbors/:name/check      — dry-run: would <agent> be allowed <action>?
  * GET    /harbors/agent/:agentId   — list harbors an agent is in
  */
 
@@ -153,6 +156,57 @@ export const harborsPlugin: FastifyPluginAsync<{ deps: HarborsRouteDeps }> = asy
       return { success: true, members: harbor.members, count: harbor.members.length };
     } catch (err) {
       logger.error('harbor_members_error', { error: String(err) });
+      reply.code(500); return { error: 'internal error' };
+    }
+  });
+
+  // GET /harbors/:name/envelope — read the harbor's enforcement envelope
+  fastify.get('/harbors/:name/envelope', async (request, reply) => {
+    try {
+      const name = decodeURIComponent((request.params as any).name as string);
+      if (!harbors.get(name)) { reply.code(404); return { error: `harbor '${name}' not found` }; }
+      const envelope = harbors.getEnvelope(name);
+      // envelope === null means none is set, which enforces as deny-all.
+      return { success: true, name, envelope, enforced: envelope !== null };
+    } catch (err) {
+      logger.error('harbor_envelope_get_error', { error: String(err) });
+      reply.code(500); return { error: 'internal error' };
+    }
+  });
+
+  // PUT /harbors/:name/envelope — set (replace) the harbor's enforcement envelope
+  fastify.put('/harbors/:name/envelope', async (request, reply) => {
+    try {
+      const name = decodeURIComponent((request.params as any).name as string);
+      const body = request.body as any;
+      const envelope = body && typeof body === 'object' && body.envelope !== undefined ? body.envelope : body;
+      const result = harbors.setEnvelope(name, envelope);
+      if (!result.success) { reply.code(404); return { error: result.error }; }
+      logger.info('harbor_envelope_set', { name });
+      return { success: true, name, envelope: harbors.getEnvelope(name) };
+    } catch (err) {
+      logger.error('harbor_envelope_set_error', { error: String(err) });
+      reply.code(500); return { error: 'internal error' };
+    }
+  });
+
+  // POST /harbors/:name/check — dry-run a capability decision (shown-to-user UX).
+  // Body: { agentId, action: EnvelopeAction }. Always 200 with the verdict;
+  // the boundary names which permission edge governed the decision.
+  fastify.post('/harbors/:name/check', async (request, reply) => {
+    try {
+      const name = decodeURIComponent((request.params as any).name as string);
+      const { agentId, action } = request.body as any;
+      if (!agentId || typeof agentId !== 'string') {
+        reply.code(400); return { error: 'agentId required', code: 'VALIDATION_ERROR' };
+      }
+      if (!action || typeof action !== 'object' || typeof action.kind !== 'string') {
+        reply.code(400); return { error: 'action with a kind required', code: 'VALIDATION_ERROR' };
+      }
+      const verdict = harbors.assertWithinEnvelope(name, agentId, action);
+      return { success: true, name, agentId, action, verdict };
+    } catch (err) {
+      logger.error('harbor_check_error', { error: String(err) });
       reply.code(500); return { error: 'internal error' };
     }
   });

@@ -157,15 +157,13 @@ describe('getStatus()', () => {
     }));
 
     const capRule = status.ruleDetails.find((rule) => rule.name === 'CAP_ESCALATION');
-    if (status.enforcerLoaded) {
-      expect(capRule.coverage).toBe('enforced');
-      expect(status.degraded.find((reason) => reason.code === 'ffi_enforcer_unavailable')).toBeUndefined();
-    } else {
-      expect(capRule.coverage).toBe('degraded');
-      expect(status.degraded).toEqual(expect.arrayContaining([
-        expect.objectContaining({ code: 'ffi_enforcer_unavailable' }),
-      ]));
-    }
+    // CAP_ESCALATION is now enforced either way: by the Rust FFI enforcer when
+    // present, or by the pure-TS attenuation monitor (proven-equivalent to
+    // harbor_card_v5/v7) when the FFI enforcer is absent. The watchman never
+    // silently degrades. The ffi_enforcer_unavailable reason is retired.
+    expect(capRule.coverage).toBe('enforced');
+    expect(capRule.engine).toBe(status.enforcerLoaded ? 'ffi' : 'runtime');
+    expect(status.degraded.find((reason) => reason.code === 'ffi_enforcer_unavailable')).toBeUndefined();
 
     arbiter.stop();
   });
@@ -822,5 +820,45 @@ describe('resurrection event handling', () => {
       const arbiter = createArbiter({ ...buildDeps(), resurrection });
       arbiter.stop();
     }).not.toThrow();
+  });
+});
+
+// ─── CAP_ESCALATION runtime fallback (#160-adjacent; runtime-verification) ────
+describe('CAP_ESCALATION runtime monitor fallback', () => {
+  // The Rust FFI enforcer is absent in the test environment. Before this change
+  // CAP_ESCALATION reported `degraded` (advisory only). The pure-TS monitor now
+  // keeps it enforced.
+  test('reports enforced via the runtime engine when FFI enforcer is absent', () => {
+    const arbiter = createArbiter(buildDeps());
+    const status = arbiter.getStatus();
+    expect(status.enforcerLoaded).toBe(false); // no Rust binary in tests
+    const cap = status.ruleDetails.find((r) => r.name === 'CAP_ESCALATION');
+    expect(cap.coverage).toBe('enforced');
+    expect(cap.engine).toBe('runtime');
+    expect(cap.degradedReason).toBeNull();
+    // and the ffi_enforcer_unavailable degraded reason is no longer raised
+    expect(status.degraded.some((d) => d.code === 'ffi_enforcer_unavailable')).toBe(false);
+  });
+
+  test('checkCapAttenuation records a critical violation on a per-hop escalation', () => {
+    const arbiter = createArbiter(buildDeps());
+    // A:pub:* → B:pub:a (legit) → C:pub:* (escalation back to broad) — the
+    // harbor_card_v6 multi-hop attack; per-hop catches it at hop 2.
+    const chain = [['chan:pub:*'], ['chan:pub:a'], ['chan:pub:*']];
+    const v = arbiter.checkCapAttenuation(chain, 'agent-x');
+    expect(v).not.toBeNull();
+    expect(v.hop).toBe(2);
+    expect(arbiter.getViolationsCount()).toBe(1);
+    const recorded = arbiter.getViolations()[0];
+    expect(recorded.rule).toBe('CAP_ESCALATION');
+    expect(recorded.severity).toBe('critical');
+    expect(recorded.agentId).toBe('agent-x');
+  });
+
+  test('checkCapAttenuation passes a monotonically-narrowing chain with no violation', () => {
+    const arbiter = createArbiter(buildDeps());
+    const chain = [['chan:pub:a'], ['chan:pub:a/b'], ['chan:pub:a/b/c']];
+    expect(arbiter.checkCapAttenuation(chain)).toBeNull();
+    expect(arbiter.getViolationsCount()).toBe(0);
   });
 });
