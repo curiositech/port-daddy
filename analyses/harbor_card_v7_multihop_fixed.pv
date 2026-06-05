@@ -1,0 +1,96 @@
+(*
+ * Port Daddy: Harbor Card v7 — MULTI-HOP ATTENUATION, FIXED (white-hat answer)
+ * ===========================================================================
+ *
+ * Answers the red-team smell mechanized in harbor_card_v6_multihop_attack.pv:
+ * a verifier that checks the FINAL delegated capability against the ROOT
+ * capability accepts a non-monotonic middle hop (A:write → B:read → C:write).
+ *
+ * THE FIX: the verifier checks EACH hop against its IMMEDIATE PARENT, not the
+ * root. Composed attenuation: is_subset(final, mid) AND is_subset(mid, root).
+ * This is the Macaroon discipline — every caveat only restricts the one before
+ * it — and it is what the whitepaper's "att_B ∘ att_A recompute" must mean.
+ *
+ * EXPECTED RESULT: Q (no hop-2 escalation) is TRUE — the same A:write → B:read →
+ * C:write trace that v6 accepted is now rejected, because is_subset(cap_write,
+ * cap_read) fails at the B→C hop. Identical chain, identical adversary; the only
+ * change is per-hop verification.
+ *)
+
+type id.
+type skey.
+type pkey.
+type capability.
+
+free c: channel.
+
+fun pk(skey): pkey.
+fun sign(bitstring, skey): bitstring.
+reduc forall m: bitstring, k: skey; check_sign(m, pk(k), sign(m, k)) = true.
+
+const cap_read: capability.
+const cap_write: capability.
+
+fun is_subset(capability, capability): bool
+reduc
+    forall x: capability; is_subset(x, x) = true
+    otherwise is_subset(cap_read, cap_write) = true.
+
+fun base_token(id, id, id, capability): bitstring [data].
+fun delegate_token(bitstring, id, capability): bitstring [data].
+
+event IssuedRoot(id, capability).
+event HeldByB(capability).
+event Accepted(id, id, capability).
+
+free harbor_id: id.
+free daemon_id: id.
+free daemon_sk: skey [private].
+
+let Daemon(a: id) =
+    let msg = base_token(daemon_id, a, harbor_id, cap_write) in
+    event IssuedRoot(a, cap_write);
+    out(c, (msg, sign(msg, daemon_sk))).
+
+let AgentA(a: id, a_sk: skey, b: id) =
+    in(c, (msg: bitstring, s: bitstring));
+    let base_token(=daemon_id, =a, =harbor_id, root_cap: capability) = msg in
+    if check_sign(msg, pk(daemon_sk), s) = true then
+    if is_subset(cap_read, root_cap) = true then
+        event HeldByB(cap_read);
+        let d1 = delegate_token((msg, s), b, cap_read) in
+        out(c, (d1, sign(d1, a_sk))).
+
+(* Same malicious B as v6: re-delegates cap_write to C. *)
+let MaliciousB(b: id, b_sk: skey, cc: id) =
+    in(c, (d1: bitstring, d1s: bitstring));
+    let delegate_token(parent: bitstring, =b, my_cap: capability) = d1 in
+    let d2 = delegate_token((d1, d1s), cc, cap_write) in
+    out(c, (d2, sign(d2, b_sk))).
+
+(* FIXED verifier: per-hop attenuation. final <= mid AND mid <= root. *)
+let PerHopVerifier(a_pk: pkey, b_pk: pkey) =
+    in(c, (d2: bitstring, d2s: bitstring));
+    let delegate_token((d1: bitstring, d1s: bitstring), cc: id, final_cap: capability) = d2 in
+    let delegate_token((base: bitstring, bases: bitstring), b: id, mid_cap: capability) = d1 in
+    let base_token(=daemon_id, a: id, =harbor_id, root_cap: capability) = base in
+    if check_sign(base, pk(daemon_sk), bases) = true then
+    if check_sign(d1, a_pk, d1s) = true then
+    if check_sign(d2, b_pk, d2s) = true then
+    if is_subset(mid_cap, root_cap) = true then       (* hop 1: A->B attenuates root *)
+    if is_subset(final_cap, mid_cap) = true then      (* hop 2: B->C attenuates mid  *)
+        event Accepted(cc, harbor_id, final_cap).
+
+(* Same target as v6: C must NOT be accepted with cap_write. *)
+query cc: id; event(Accepted(cc, harbor_id, cap_write)) ==> false.
+
+process
+    new sk_a: skey; let pk_a = pk(sk_a) in out(c, pk_a);
+    new sk_b: skey; let pk_b = pk(sk_b) in out(c, pk_b);
+    new id_a: id; new id_b: id; new id_c: id;
+    (
+        (! Daemon(id_a))
+      | (! AgentA(id_a, sk_a, id_b))
+      | (! MaliciousB(id_b, sk_b, id_c))
+      | (! PerHopVerifier(pk_a, pk_b))
+    )

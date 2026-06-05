@@ -1,0 +1,115 @@
+Process 0 (that is, the initial process):
+{1}new sk_a: skey;
+{2}let pk_a: pkey = pk(sk_a) in
+{3}out(c, pk_a);
+{4}new sk_b: skey;
+{5}let pk_b: pkey = pk(sk_b) in
+{6}out(c, pk_b);
+{7}new id_a: id;
+{8}new id_b: id;
+{9}new id_c: id;
+(
+    {10}!
+    {11}let a: id = id_a in
+    {12}let msg: bitstring = base_token(daemon_id,a,harbor_id,cap_write) in
+    {13}event IssuedRoot(a,cap_write);
+    {14}out(c, (msg,sign(msg,daemon_sk)))
+) | (
+    {15}!
+    {16}let a_1: id = id_a in
+    {17}let a_sk: skey = sk_a in
+    {18}let b: id = id_b in
+    {19}in(c, (msg_1: bitstring,s: bitstring));
+    {20}let base_token(=daemon_id,=a_1,=harbor_id,root_cap: capability) = msg_1 in
+    {21}if (check_sign(msg_1,pk(daemon_sk),s) = true) then
+    {22}if (is_subset(cap_read,root_cap) = true) then
+    {23}event HeldByB(cap_read);
+    {24}let d1: bitstring = delegate_token((msg_1,s),b,cap_read) in
+    {25}out(c, (d1,sign(d1,a_sk)))
+) | (
+    {26}!
+    {27}let b_1: id = id_b in
+    {28}let b_sk: skey = sk_b in
+    {29}let cc: id = id_c in
+    {30}in(c, (d1_1: bitstring,d1s: bitstring));
+    {31}let delegate_token(parent: bitstring,=b_1,my_cap: capability) = d1_1 in
+    {32}let d2: bitstring = delegate_token((d1_1,d1s),cc,cap_write) in
+    {33}out(c, (d2,sign(d2,b_sk)))
+) | (
+    {34}!
+    {35}in(c, (d2_1: bitstring,d2s: bitstring));
+    {36}let delegate_token((d1_2: bitstring,d1s_1: bitstring),cc_1: id,final_cap: capability) = d2_1 in
+    {37}let delegate_token((base: bitstring,bases: bitstring),b_2: id,mid_cap: capability) = d1_2 in
+    {38}let base_token(=daemon_id,a_2: id,=harbor_id,root_cap_1: capability) = base in
+    {39}if (check_sign(base,pk(daemon_sk),bases) = true) then
+    {40}if (check_sign(d1_2,pk_a,d1s_1) = true) then
+    {41}if (check_sign(d2_1,pk_b,d2s) = true) then
+    {42}if (is_subset(mid_cap,root_cap_1) = true) then
+    {43}if (is_subset(final_cap,mid_cap) = true) then
+    {44}event Accepted(cc_1,harbor_id,final_cap)
+)
+
+--  Process 1 (that is, process 0, with let moved downwards):
+{1}new sk_a: skey;
+{2}let pk_a: pkey = pk(sk_a) in
+{3}out(c, pk_a);
+{4}new sk_b: skey;
+{5}let pk_b: pkey = pk(sk_b) in
+{6}out(c, pk_b);
+{7}new id_a: id;
+{8}new id_b: id;
+{9}new id_c: id;
+(
+    {10}!
+    {11}let a: id = id_a in
+    {13}event IssuedRoot(a,cap_write);
+    {12}let msg: bitstring = base_token(daemon_id,a,harbor_id,cap_write) in
+    {14}out(c, (msg,sign(msg,daemon_sk)))
+) | (
+    {15}!
+    {19}in(c, (msg_1: bitstring,s: bitstring));
+    {16}let a_1: id = id_a in
+    {20}let base_token(=daemon_id,=a_1,=harbor_id,root_cap: capability) = msg_1 in
+    {21}if (check_sign(msg_1,pk(daemon_sk),s) = true) then
+    {22}if (is_subset(cap_read,root_cap) = true) then
+    {23}event HeldByB(cap_read);
+    {18}let b: id = id_b in
+    {24}let d1: bitstring = delegate_token((msg_1,s),b,cap_read) in
+    {17}let a_sk: skey = sk_a in
+    {25}out(c, (d1,sign(d1,a_sk)))
+) | (
+    {26}!
+    {30}in(c, (d1_1: bitstring,d1s: bitstring));
+    {27}let b_1: id = id_b in
+    {31}let delegate_token(parent: bitstring,=b_1,my_cap: capability) = d1_1 in
+    {29}let cc: id = id_c in
+    {32}let d2: bitstring = delegate_token((d1_1,d1s),cc,cap_write) in
+    {28}let b_sk: skey = sk_b in
+    {33}out(c, (d2,sign(d2,b_sk)))
+) | (
+    {34}!
+    {35}in(c, (d2_1: bitstring,d2s: bitstring));
+    {36}let delegate_token((d1_2: bitstring,d1s_1: bitstring),cc_1: id,final_cap: capability) = d2_1 in
+    {37}let delegate_token((base: bitstring,bases: bitstring),b_2: id,mid_cap: capability) = d1_2 in
+    {38}let base_token(=daemon_id,a_2: id,=harbor_id,root_cap_1: capability) = base in
+    {39}if (check_sign(base,pk(daemon_sk),bases) = true) then
+    {40}if (check_sign(d1_2,pk_a,d1s_1) = true) then
+    {41}if (check_sign(d2_1,pk_b,d2s) = true) then
+    {42}if (is_subset(mid_cap,root_cap_1) = true) then
+    {43}if (is_subset(final_cap,mid_cap) = true) then
+    {44}event Accepted(cc_1,harbor_id,final_cap)
+)
+
+-- Query not event(Accepted(cc_2,harbor_id[],cap_write)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query not event(Accepted(cc_2,harbor_id[],cap_write))
+RESULT not event(Accepted(cc_2,harbor_id[],cap_write)) is true.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query not event(Accepted(cc_2,harbor_id[],cap_write)) is true.
+
+--------------------------------------------------------------
+
