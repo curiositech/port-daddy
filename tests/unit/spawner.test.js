@@ -34,25 +34,8 @@ jest.unstable_mockModule('node:child_process', () => ({
 // Import after mocking
 const { spawn: cpSpawn } = await import('node:child_process');
 const { createSpawner: createSpawnerBase } = await import('../../lib/spawner.js');
-
-// ---------------------------------------------------------------------------
-// Worktree-isolation guard: this file tests spawner MECHANICS (telemetry,
-// instrumentation, backends), not isolation — the guard is covered in
-// tests/unit/spawner-isolation-guard.test.js. CI checks the repo out into a
-// *main* checkout (/home/runner/work/...), which the guard correctly refuses
-// to spawn into; locally it passes only because we run from a feature-branch
-// worktree. Disable the guard for this file so the mechanics tests exercise
-// the spawn path regardless of where the harness checked the repo out.
-// ---------------------------------------------------------------------------
-let __priorIsolationOff;
-beforeAll(() => {
-  __priorIsolationOff = process.env.PD_SPAWN_ISOLATION_OFF;
-  process.env.PD_SPAWN_ISOLATION_OFF = '1';
-});
-afterAll(() => {
-  if (__priorIsolationOff === undefined) delete process.env.PD_SPAWN_ISOLATION_OFF;
-  else process.env.PD_SPAWN_ISOLATION_OFF = __priorIsolationOff;
-});
+// Note: the worktree-isolation guard is disabled suite-wide in tests/jest.env.js
+// (this file tests spawner mechanics, not isolation). See that file for why.
 
 // ---------------------------------------------------------------------------
 // Global fetch mock

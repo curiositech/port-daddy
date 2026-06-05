@@ -49,6 +49,17 @@ function createSpawner(deps = {}) {
   });
 }
 
+// This file tests the isolation guard itself, so it must run with the guard
+// LIVE — undo the suite-wide PD_SPAWN_ISOLATION_OFF bypass set in tests/jest.env.js.
+let __isoOffPrior;
+beforeAll(() => {
+  __isoOffPrior = process.env.PD_SPAWN_ISOLATION_OFF;
+  delete process.env.PD_SPAWN_ISOLATION_OFF;
+});
+afterAll(() => {
+  if (__isoOffPrior !== undefined) process.env.PD_SPAWN_ISOLATION_OFF = __isoOffPrior;
+});
+
 // --- fixtures: a main checkout, a worktree, a non-repo dir ------------------
 let root, mainCheckout, worktree, nonRepo, mainSubdir;
 
