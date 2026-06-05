@@ -110,7 +110,8 @@ Phases link to `roadmap_items` at horizon `now`. Cartographer owns reconciliatio
 | P2 | Persistence (`envelope` column, get/set) + membership-aware `assertWithinEnvelope` + tests | #188 | ✅ shipped (this PR) |
 | P3 | HTTP surface: `GET/PUT /harbors/:name/envelope`, dry-run `POST /harbors/:name/check` | #188 | ✅ shipped (this PR) |
 | P4 | First call-site adoption: spawner backend gate (fail-closed) + `PD_HARBOR_ENVELOPE` env propagation to the child | #188 | ✅ shipped (this PR) |
-| P4b | Remaining call sites: filesystem/tool gates at the actual fs syscall with `O_NOFOLLOW` (TOCTOU-safe) | #188 → #190 | ⏳ next |
+| P4b | Remaining call sites (RT-01): assert `filesystem`/`tools`/`skills`/`mcps`/`channels`/`budget` at the real surfaces (fs-claim, tool/MCP routing, channel publish, spend); fs gate uses `O_NOFOLLOW` (TOCTOU-safe). P4 enforces only `backend` today. | #188 → #190 | ⏳ next |
+| P4c | Daemon-mediated enforcement (RT-02): `PD_HARBOR_ENVELOPE` is an advisory *hint* the child may ignore — the boundary must live at the daemon's resource-granting surfaces, not the child env. | #190 | ⏳ next |
 | P5 | Surface the `boundary` to the operator at the crossing (permission-boundary UX) | #190 | ⏳ pending |
 | P6 | Bind the envelope into the Harbor Card; attenuate on cross-harbor send | #189 | ⏳ pending |
 
