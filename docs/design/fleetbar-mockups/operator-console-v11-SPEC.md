@@ -174,3 +174,36 @@ Operator rejected the earlier 3-font / low-contrast / "clowny" pass; this is the
 **Rules carried in:** contrast is the #1 complaint — verify both themes; never tiny
 fonts; one accent; status by meaning. (These become the GPUI theme constants in
 `core/pd-console`, mirrored in the ratatui fallback where the terminal allows.)
+
+---
+
+## 8. Cross-platform (open decision: is Windows day-one?)
+
+**The honest tension.** GPUI is **macOS-mature, Linux-landed, Windows-in-progress**
+(that is where Zed itself is). The "fast-AF-like-Warp" + Rust constraint points at
+GPUI; a *cross-platform-now* constraint points at Tauri — which is a webview, and
+was rejected. So **Rust + Warp-native + Windows-on-release is the hard corner**, and
+it is the operator's call:
+- **macOS-first (recommended for the proof):** build on GPUI now; Linux follows GPUI;
+  Windows lands as GPUI's Windows support matures. Lowest risk to the "feel."
+- **Windows day-one required:** then either accept GPUI-on-Windows risk (track Zed's
+  Windows progress) or fall back to a different substrate for Windows — at which point
+  re-litigate vs Tauri. Do NOT discover this late.
+
+**Discipline (applies whichever way), folded in now:**
+- **Daemon transport:** Windows has no Unix socket. The console's daemon client uses
+  the canonical discovery (PR #261) which already falls back to **TCP from the port
+  file** — clean carry-over. (Long-term: a Windows named-pipe transport is the parity
+  upgrade, optional.)
+- **Paths:** never hardcode; `dirs` crate (`config_dir`/`data_dir`/`cache_dir`). The
+  daemon's `~/.port-daddy/` becomes `%APPDATA%\port-daddy\` on Windows.
+- **Shortcuts:** ⌘ on macOS, Ctrl elsewhere; hints reflect the live platform.
+- **Window semantics:** close = hide (macOS) vs quit (Windows); global menu bar (mac)
+  vs in-window (win).
+- **Type:** General Sans/Plex Mono are *bundled* (Fontshare/libre) — no SF-Pro-vs-Segoe
+  divergence; one of the few wins of shipping our own fonts.
+- **DPI:** test 1x/1.25x/1.5x/2x; logical units + SVG glyphs (Windows fractional scaling
+  is the classic blur trap).
+- **Installers / CI:** DMG (mac), MSI+NSIS (win), AppImage/deb (linux); GitHub Actions
+  matrix builds every push (`macos-latest`/`macos-13`/`windows-latest`). Mirrors the
+  existing `core/pd-bosun` Rust release path.
