@@ -22,15 +22,15 @@
 % shared substrate
 \node[box,fill=hhsand!35] (sub) at (0,0)
   {\textbf{Shared substrate}\\candidate generation\\$+$ recency-decay
-   (Prop.~\ref{prop:decay})\\\textit{signals: claims, skill-index,}\\\textit{notes, episodic, presence}};
+   (Prop.~\ref{prop:decay})\\\textit{signals: claims, skills,}\\\textit{notes, episodes, presence}};
 
 % split
 \node[head,fill=hhpatina!15] (fit) at (5.6,2.0)
-  {\textbf{\texttt{whois} head} --- agent$\to$agent\\maximize \emph{fit}\\
-   $\mathrm{fit}=\sum_k w_k\,\mathrm{sig}_k$ (Eq.~\ref{eq:whois})\\
+  {\textbf{Discovery head} --- agent$\to$agent\\maximize \emph{fit}\\
+   $\mathrm{fit}=\sum_k w_k\,\mathrm{sig}_k$ (Eq.~\ref{eq:fit})\\
    \emph{``who is most capable?''}};
 \node[head,fill=hhcinnabar!12] (reg) at (5.6,-2.0)
-  {\textbf{Attention-Queue head} --- substrate$\to$operator\\maximize \emph{regret-if-ignored}\\
+  {\textbf{Attention-queue head} --- substrate$\to$operator\\maximize \emph{regret-if-ignored}\\
    $\mathrm{regret}=\text{stakes}\times v^{-1}\times\text{anomaly}$ (Eq.~\ref{eq:regret})\\
    \emph{``what is most dangerous?''}};
 
@@ -40,14 +40,13 @@
 \node[draw=hhcinnabar,thick,fill=hhpaper,rounded corners=2pt,inner sep=4pt,
       font=\sffamily\footnotesize,text width=40mm,align=left] at (11.6,0)
   {\textbf{Not one ranker.} The heads optimize \emph{different} objectives, not the
-   same objective with swapped weights. ``The same ranker'' is banned across the
-   volume (C11).};
+   same objective with swapped weights (Thm.~\ref{thm:split-ranker}).};
 \end{tikzpicture}%
 }
-\caption{The split ranker (Thm.~\ref{thm:split-ranker}). Discovery's \texttt{whois}
-and the operator's Attention Queue \emph{share} candidate generation and recency-decay
-(Prop.~\ref{prop:decay}) but apply distinct scoring heads: \texttt{whois} maximizes
-\emph{fit} (capability match, Eq.~\ref{eq:whois}); the Attention Queue maximizes
+\caption{The split ranker (Thm.~\ref{thm:split-ranker}). The discovery ranker and the
+operator's attention queue \emph{share} candidate generation and recency-decay
+(Prop.~\ref{prop:decay}) but apply distinct scoring heads: discovery maximizes
+\emph{fit} (capability match, Eq.~\ref{eq:fit}); the attention queue maximizes
 \emph{regret-if-ignored} (Eq.~\ref{eq:regret}). The operator wants the most dangerous
 item surfaced, the agent wants the most capable collaborator --- incompatible loss
 functions, so the elegant ``one ranker'' claim is false-as-stated and demoted to

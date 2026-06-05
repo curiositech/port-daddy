@@ -24,27 +24,27 @@
 \node[hub] (auth) at (0,0) {the\\authority\\(daemon)};
 
 \node[organ,fill=hhsand!30] (road) at (-5.4,3.0)
-  {\textbf{Roadmap-as-truth}\\\emph{accountable-to artifact}\\\textcolor{hhbrass}{\textsf{BUILT-WEAK}}};
+  {\textbf{Roadmap-as-truth}\\\emph{the artifact the}\\\emph{authority answers to}};
 \node[organ,fill=hhsand!30] (rev) at (0,3.6)
-  {\textbf{Adversarial review}\\\emph{conflict-free quality}\\\textcolor{darkblue}{\textsf{DESIGNED}}};
+  {\textbf{Adversarial review}\\\emph{conflict-free}\\\emph{quality organ}};
 \node[organ,fill=hhsand!30] (done) at (5.4,3.0)
-  {\textbf{Completionist \texttt{done}}\\\emph{verifier-gated commit}\\\textcolor{hhcinnabar}{\textsf{VISION}}};
+  {\textbf{Completionist completion}\\\emph{verifier-gated;}\\\emph{no asserted ``done''}};
 \node[organ,fill=hhsand!30] (land) at (-5.4,-3.0)
-  {\textbf{Thoughtful landing}\\\emph{merge order, conflict-aware}\\\textcolor{hhbrass}{\textsf{BUILT-WEAK}}};
+  {\textbf{Thoughtful landing}\\\emph{merge order,}\\\emph{conflict-aware}};
 \node[organ,fill=hhsand!30] (guard) at (0,-3.6)
-  {\textbf{Footgun guards}\\\emph{regiment / detect-\&-compensate}\\\textcolor{hhbrass}{\textsf{BUILT-WEAK}}};
+  {\textbf{Footgun guards}\\\emph{prevent (constraint) /}\\\emph{detect-\&-compensate}};
 \node[organ,fill=hhsand!30] (esc) at (5.4,-3.0)
-  {\textbf{HiTL escalation}\\\emph{typed prioritized interrupt}\\\textcolor{darkblue}{\textsf{DESIGNED}}};
+  {\textbf{Escalation to human}\\\emph{typed, prioritized}\\\emph{interrupt}};
 
 \draw[e] (auth)--(road); \draw[e] (auth)--(rev); \draw[e] (auth)--(done);
 \draw[e] (auth)--(land); \draw[e] (auth)--(guard); \draw[e] (auth)--(esc);
 \end{tikzpicture}%
 }
 \caption{The authority half (\S\ref{sec:authority-rules}): six organs by which the
-consented daemon \emph{rules}, each tagged with its honest label. The legibility
-read-surfaces (Figure~\ref{fig:read-surfaces}) make the swarm \emph{seeable}; these
-organs make the authority \emph{act} --- and, per the legible-sovereign rule
-(Prop.~\ref{prop:legible-sovereign}), each act is itself a named, zoomable event.
-Note the honest spread: more than half the authority half is \textsf{DESIGNED}--\textsf{VISION}.}
+consented daemon \emph{rules}. The legibility read-surfaces
+(Figure~\ref{fig:read-surfaces}) make the swarm \emph{seeable}; these organs make the
+authority \emph{act} --- and, per the legible-sovereign rule
+(Prop.~\ref{prop:legible-sovereign}), each act is itself a named, zoomable event. The
+engineering status of each organ is recorded in Appendix~\ref{app:honest}.}
 \label{fig:authority-organs}
 \end{figure}

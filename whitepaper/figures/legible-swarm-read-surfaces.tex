@@ -24,11 +24,11 @@
 ]
 \node[raw] (raw) at (0,0) {raw token\\trajectory\\(transcripts,\\diffs, events)};
 
-\node[prim] (br)  at (5.0,3.4) {\textbf{Briefing} \texttt{lib/briefing.ts}\\external note-taking\\\textcolor{hhpatina}{\textsf{BUILT}}};
-\node[prim] (at)  at (5.0,1.7) {\textbf{Attention} \texttt{lib/attention.ts}\\precision compaction\\\textcolor{hhpatina}{\textsf{BUILT}}};
-\node[prim] (ep)  at (5.0,0.0) {\textbf{Episodic} \texttt{episodic-memory.ts}\\recall$\to$precision\\\textcolor{hhpatina}{\textsf{BUILT}}};
-\node[prim] (ph)  at (5.0,-1.7){\textbf{Pheromone} \texttt{pheromone.ts}\\time-decay (forgetting)\\\textcolor{hhpatina}{\textsf{BUILT}}};
-\node[prim] (re)  at (5.0,-3.4){\textbf{Resurrection} \texttt{resurrection.ts}\\handoff summary\\\textcolor{hhbrass}{\textsf{BUILT-WEAK}}};
+\node[prim] (br)  at (5.0,3.4) {\textbf{Briefing}\\external note-taking\\(state on arrival)};
+\node[prim] (at)  at (5.0,1.7) {\textbf{Attention}\\precision compaction\\(what to look at now)};
+\node[prim] (ep)  at (5.0,0.0) {\textbf{Episodic memory}\\recall, then precision\\(what happened before)};
+\node[prim] (ph)  at (5.0,-1.7){\textbf{Pheromone}\\time-decay (forgetting)\\(the shared trace map)};
+\node[prim] (re)  at (5.0,-3.4){\textbf{Resurrection}\\handoff summary\\(notes, not checkpoints)};
 
 \node[rdr] (r1) at (10.0,3.4) {arriving agent};
 \node[rdr] (r2) at (10.0,1.7) {agent / operator queue};
@@ -41,11 +41,11 @@
 \draw[e] (ph)--(r4); \draw[e] (re)--(r5);
 \end{tikzpicture}%
 }
-\caption{The five built read-surfaces, each a token-compaction of the raw trajectory
-produced for a specific reader (\S\ref{sec:tokens-digest}). Viewed correctly, Port
-Daddy's coordination layer is a \emph{distributed compaction engine} --- and because
-each surface is a compaction, each is governed by the same cost-and-legibility
-economics, the same recency-decay (Prop.~\ref{prop:decay}), and the same one law
-(Def.~\ref{def:zoom}). Honest labels per row.}
+\caption{Five read-surfaces, each a token-compaction of the raw trajectory produced
+for a specific reader (\S\ref{sec:tokens-digest}). Viewed correctly, the swarm's
+coordination layer is a \emph{distributed compaction engine} --- and because each
+surface is a compaction, each is governed by the same cost-and-legibility economics,
+the same recency-decay (Prop.~\ref{prop:decay}), and the same one law
+(Def.~\ref{def:zoom}).}
 \label{fig:read-surfaces}
 \end{figure}
