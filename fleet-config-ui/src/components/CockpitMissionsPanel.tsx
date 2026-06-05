@@ -280,7 +280,7 @@ export default function CockpitMissionsPanel({ projectDir }: CockpitMissionsPane
         </div>
       )}
 
-      <div className="mt-3 flex flex-col gap-2">
+      <div className="mt-3 flex max-h-[60vh] flex-col gap-2 overflow-y-auto pr-1">
         {!loading && visible.length === 0 && !error && (
           <div
             className="rounded-md border border-dashed px-3 py-6 text-center text-sm"
