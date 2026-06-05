@@ -146,3 +146,31 @@ SSH-able fallback — but it is NOT the console. The console is the GPU Rust app
 
 Each step ships and is verified by a real screen capture of the running Rust app.
 No big-bang. Step 0–2 are the proof; everything else compounds on a fast spine.
+
+---
+
+## 7. Design system (locked 2026-06-05)
+
+Direction: **Editorial** — one sans, high contrast, one accent, no rainbow chips.
+Operator rejected the earlier 3-font / low-contrast / "clowny" pass; this is the fix.
+
+**Type** (both libre):
+- **General Sans** (Fontshare) — UI, manifest, headings, prose. Humanist-geometric;
+  characterful without being clowny. Honors the ≥14px floor.
+- **IBM Plex Mono** — code, diffs, the editor buffer, tabular voyage data.
+- (No third font. Serif considered — Sentient — but rejected for restraint.)
+
+**Palette** (warm-dark; light variant derives by inversion, both required):
+```
+--bg     #0e0d0b   (warm near-black)      --panel #16140f
+--ink    #f3eee3   (HIGH-contrast body)   --ink2  #d4ccbb   --muted #a89e88 (floor for real text)
+--line   rgba(241,236,225,.14)            --line2 rgba(241,236,225,.30)
+--accent #e0b15c   (one amber accent — the ONLY brand color used decoratively)
+```
+**Status** = monochrome chips + one semantic dot, never a rainbow:
+`engaged` amber dot · `gated` rose `#d98a82` · `resting` slate `#6c6557` · `landed` green `#86c98e` ·
+`conflicted` rose. Color carries *only* meaning, never decoration.
+
+**Rules carried in:** contrast is the #1 complaint — verify both themes; never tiny
+fonts; one accent; status by meaning. (These become the GPUI theme constants in
+`core/pd-console`, mirrored in the ratatui fallback where the terminal allows.)
