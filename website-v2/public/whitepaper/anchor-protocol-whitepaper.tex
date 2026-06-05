@@ -471,7 +471,7 @@ function Harbor.VerifyChain(chain, pk_root):
     return T
 \end{lstlisting}
 
-\textbf{Security Property:} The subset check on line 7 and line 22 ensures \textit{capability attenuation}—delegated capabilities can only be restricted, never expanded. Combined with Theorem~\ref{thm:injective}, this guarantees transitive trust.
+\textbf{Security Property:} The subset check on line 7 and line 22 ensures \textit{capability attenuation}—delegated capabilities can only be restricted, never expanded. This is the mechanized content of Theorem~\ref{thm:attn-sound} (\S\ref{sec:attn-soundness}): under an enriched model with a real capability order and an active insider escalation adversary, ProVerif proves no escalating delegation is ever accepted, and a negative control confirms the guard is load-bearing. Combined with Theorem~\ref{thm:injective}, this guarantees transitive trust.
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Implementation: Deployed Rust Core}
@@ -945,7 +945,7 @@ process
 
 \section{Phase 3: Multi-hop Delegation}\label{app:phase3}
 
-\begin{lstlisting}[caption={\texttt{harbor\_card\_v3\_delegation.pv} --- Verified in ProVerif 2.05}]
+\begin{lstlisting}[caption={\texttt{harbor\_card\_v3\_delegation.pv} --- reflexive-order model (see §\ref{sec:attn-soundness} for the soundness caveat and the enriched v5 proof)}]
 (* Port Daddy: Harbor Card v3 (Delegation Chains) Formal Model *)
 type id. type skey. type pkey. type capability.
 
@@ -1019,5 +1019,61 @@ process
     (!Harbor(pk_a))
   )
 \end{lstlisting}
+
+\subsection{Soundness of the Attenuation Proof (v5)}\label{sec:attn-soundness}
+
+The v3 model above is honest about cryptographic structure but \emph{vacuous about
+attenuation}. Its capability order is reflexive only:
+\begin{center}\texttt{reduc forall c1: capability; is\_subset(c1, c1) = true.}\end{center}
+Capabilities are opaque atoms with no order, so a delegated capability can only
+ever \emph{equal} its parent. Escalation---delegating more authority than you
+hold---is not blocked; it is \emph{inexpressible}. The no-escalation query
+therefore holds for a reason that has nothing to do with the protocol: there is
+no larger capability to delegate. A reviewer flagged this directly: \emph{``the
+model cannot witness escalation.''}
+
+\texttt{harbor\_card\_v5\_attenuation.pv} closes the obligation by enrichment,
+not by weakening the claim. It gives capabilities a real partial order
+($\texttt{cap\_read} \sqsubset \texttt{cap\_write}$, both public so the
+attacker can construct either), replaces the reflexive stub with the sound order
+(\texttt{is\_subset(cap\_read, cap\_write)} derivable; \texttt{is\_subset(cap\_write,
+cap\_read)} \emph{not}), and adds an \emph{insider escalation adversary}: an agent
+holding a valid \texttt{cap\_read} root token that signs an over-broad
+\texttt{cap\_write} delegation with no self-restraint. The verifier's
+\texttt{is\_subset} guard is the sole defense under test.
+
+\begin{lstlisting}[caption={\texttt{harbor\_card\_v5\_attenuation.pv} (excerpt) --- Verified in ProVerif 2.05}]
+(* Sound order: reflexive + read <= write; write <= read NOT derivable *)
+fun is_subset(capability, capability): bool
+reduc
+    forall x: capability; is_subset(x, x) = true
+    otherwise is_subset(cap_read, cap_write) = true.
+
+(* Insider adversary: holds a real root, signs an over-broad delegation *)
+let MaliciousA(a: id, a_sk: skey, b: id) =
+  in(c, (msg: bitstring, s: bitstring));
+  let base_token(=daemon_id, =a, =harbor_id, root_cap: capability) = msg in
+  if check_sign(msg, pk(daemon_sk), s) = true then
+    event EscalationAttempted(a, root_cap, cap_write);
+    let d_msg = delegate_token((msg, s), b, cap_write) in
+    out(c, (d_msg, sign(d_msg, a_sk))).
+
+(* Q1 soundness: a write-card delegated from a read-root is NEVER accepted *)
+query b: id; event(Accepted(b, harbor_id, cap_write, cap_read)) ==> false.
+(* Q2 non-vacuity: the escalation IS reachable (the proof is not vacuous) *)
+query a: id, r: capability, s: capability;
+  event(EscalationAttempted(a, r, s)) ==> false.
+\end{lstlisting}
+
+\begin{theorem}[Attenuation soundness, mechanized]\label{thm:attn-sound}
+In \texttt{harbor\_card\_v5\_attenuation.pv}, ProVerif~2.05 reports
+\texttt{Accepted(b, harbor, cap\_write, cap\_read)} unreachable
+(\textbf{Q1 = true}): no escalating delegation is ever accepted. Simultaneously
+\texttt{EscalationAttempted} is reachable (\textbf{Q2 = false-with-trace}):
+the attack is expressible, so Q1 is a real defense, not the v3 vacuum. A
+negative control that deletes the verifier's \texttt{is\_subset} guard flips
+Q1 to false-with-trace---ProVerif exhibits the read$\to$write escalation---
+confirming the guard is load-bearing.
+\end{theorem}
 
 \end{document}

@@ -1,0 +1,156 @@
+(*
+ * Port Daddy: Harbor Card v5 — Capability Attenuation Soundness
+ * =============================================================
+ *
+ * WHITE-HAT DEFENSE, round 1 — answering the red-team smell on
+ * harbor_card_v3_delegation.pv (and the identical model embedded in
+ * anchor-protocol-whitepaper.tex §"Offline Attenuation").
+ *
+ * THE SMELL (redteam-crypto / proof-gap-auditor):
+ *   v3 modelled the capability order as REFLEXIVE-ONLY:
+ *
+ *       reduc forall c1: capability; is_subset(c1, c1) = true.
+ *
+ *   Capabilities were opaque atoms with no order, so a delegated capability
+ *   could only ever EQUAL its parent. Escalation (delegating MORE than you
+ *   hold) was not blocked — it was INEXPRESSIBLE. The "no-escalation" query
+ *   therefore held VACUOUSLY. The whitepaper's claim that the subset check
+ *   "ensures capability attenuation — delegated capabilities can only be
+ *   restricted, never expanded" rested on a proof that never tested expansion.
+ *
+ * THE FIX (model enrichment, NOT claim downgrade):
+ *   1. Capabilities carry a real partial order: cap_read ⊏ cap_write
+ *      (read conveys strictly less authority than write). Both are PUBLIC
+ *      constants, so the Dolev–Yao attacker AND an explicitly escalating
+ *      insider can construct cap_write and attempt to delegate it.
+ *   2. is_subset is the SOUND order: reflexive, plus (read ≤ write). Crucially
+ *      is_subset(cap_write, cap_read) is NOT derivable — an escalating
+ *      delegation FAILS the verifier's guard instead of passing trivially.
+ *   3. An INSIDER ESCALATION ADVERSARY (MaliciousA) holds a valid cap_read
+ *      root token and signs an over-broad cap_write delegation, with NO
+ *      self-restraint. The Harbor verifier's is_subset guard is the last line
+ *      of defense; the queries test whether it holds.
+ *
+ * EXPECTED RESULTS (see harbor_card_v5_results.txt after a run):
+ *   Q1 (soundness)   : Accepted(_, harbor, cap_write, cap_read) ==> false
+ *                      → RESULT true   (escalation is never accepted)
+ *   Q2 (non-vacuity) : EscalationAttempted(_, _, _) ==> false
+ *                      → RESULT false WITH TRACE  (the model DOES exercise the
+ *                        escalation — the proof is not vacuous this time)
+ *)
+
+type id.
+type skey.
+type pkey.
+type capability.
+
+free c: channel.
+
+(*** Cryptographic primitives ***)
+fun pk(skey): pkey.
+fun sign(bitstring, skey): bitstring.
+reduc forall m: bitstring, k: skey; check_sign(m, pk(k), sign(m, k)) = true.
+
+(*** Capability lattice — the heart of the fix ***)
+(* Public, so attacker / insider can construct either and attempt escalation. *)
+const cap_read: capability.
+const cap_write: capability.
+
+(* SOUND partial order "x conveys no more authority than y":
+ *   reflexive  : is_subset(x, x)
+ *   read ≤ write: is_subset(cap_read, cap_write)
+ * is_subset(cap_write, cap_read) matches NEITHER clause → the destructor fails
+ * → the verifier guard `if is_subset(..) = true` is false → escalation blocked.
+ *)
+fun is_subset(capability, capability): bool
+reduc
+    forall x: capability; is_subset(x, x) = true
+    otherwise is_subset(cap_read, cap_write) = true.
+
+fun base_token(id, id, id, capability): bitstring [data].
+fun delegate_token(bitstring, id, capability): bitstring [data].
+
+(*** Events ***)
+event IssuedRoot(id, id, capability).
+event Delegated(id, id, capability).
+event Accepted(id, id, capability, capability).        (* b, harbor, sub_cap, root_cap *)
+event EscalationAttempted(id, capability, capability). (* insider, held_root, requested_sub *)
+
+free harbor_id: id.
+free daemon_id: id.
+free daemon_sk: skey [private].
+
+(* Daemon issues a root token (cap) to agent a. *)
+let Daemon(a: id, cap: capability) =
+    let msg = base_token(daemon_id, a, harbor_id, cap) in
+    let s = sign(msg, daemon_sk) in
+    event IssuedRoot(a, harbor_id, cap);
+    out(c, (msg, s)).
+
+(* Honest A: attenuates correctly — only ever delegates cap_read, and only when
+ * cap_read is within its root (always true: read ≤ read and read ≤ write). *)
+let HonestA(a: id, a_sk: skey, b: id) =
+    in(c, (msg: bitstring, s: bitstring));
+    let base_token(=daemon_id, =a, =harbor_id, root_cap: capability) = msg in
+    if check_sign(msg, pk(daemon_sk), s) = true then
+    if is_subset(cap_read, root_cap) = true then
+        let d_msg = delegate_token((msg, s), b, cap_read) in
+        let d_s = sign(d_msg, a_sk) in
+        event Delegated(a, b, cap_read);
+        out(c, (d_msg, d_s)).
+
+(* Insider escalation adversary: holds a valid root token, signs an over-broad
+ * cap_write delegation regardless of what its root conveys. No self-guard —
+ * the whole point is to attack the VERIFIER, not to behave. *)
+let MaliciousA(a: id, a_sk: skey, b: id) =
+    in(c, (msg: bitstring, s: bitstring));
+    let base_token(=daemon_id, =a, =harbor_id, root_cap: capability) = msg in
+    if check_sign(msg, pk(daemon_sk), s) = true then
+        event EscalationAttempted(a, root_cap, cap_write);
+        let d_msg = delegate_token((msg, s), b, cap_write) in
+        let d_s = sign(d_msg, a_sk) in
+        out(c, (d_msg, d_s)).
+
+(* Harbor verifier — the defense under test. Re-derives the root cap from the
+ * daemon-signed base token and enforces is_subset(sub_cap, root_cap). *)
+let Harbor(a_pk: pkey) =
+    in(c, (d_msg: bitstring, d_s: bitstring));
+    let delegate_token((base_msg: bitstring, base_s: bitstring), b: id, sub_cap: capability) = d_msg in
+    let base_token(=daemon_id, a: id, =harbor_id, root_cap: capability) = base_msg in
+    if check_sign(base_msg, pk(daemon_sk), base_s) = true then
+    if check_sign(d_msg, a_pk, d_s) = true then
+    if is_subset(sub_cap, root_cap) = true then
+        event Accepted(b, harbor_id, sub_cap, root_cap).
+
+(*** Queries ***)
+
+(* Q1 — SOUNDNESS: a cap_write card delegated from a cap_read root is NEVER
+ * accepted. If the guard were missing or unsound, ProVerif finds the trace. *)
+query b: id;
+    event(Accepted(b, harbor_id, cap_write, cap_read)) ==> false.
+
+(* Q2 — NON-VACUITY: the escalation IS attempted somewhere in the system.
+ * Expected RESULT: false WITH a trace (MaliciousA reaches the event). A `false`
+ * here is the DESIRED outcome — it proves the model can witness escalation, so
+ * Q1's `true` is a real defense, not the v3 vacuum. *)
+query a: id, r: capability, s: capability;
+    event(EscalationAttempted(a, r, s)) ==> false.
+
+(*** Main ***)
+process
+    new sk_a: skey;
+    let pk_a = pk(sk_a) in
+    out(c, pk_a);
+
+    new id_a: id;
+    new id_b: id;
+
+    (
+        (* The daemon may issue EITHER a read-root or a write-root to A, so both
+         * the escalation path (read root) and honest write-attenuation exist. *)
+        (! Daemon(id_a, cap_read))
+      | (! Daemon(id_a, cap_write))
+      | (! HonestA(id_a, sk_a, id_b))
+      | (! MaliciousA(id_a, sk_a, id_b))
+      | (! Harbor(pk_a))
+    )
