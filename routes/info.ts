@@ -13,6 +13,7 @@ import type { BosunHeartbeatStatus } from '../lib/bosun-heartbeat.js';
 import type { createFleetDaemon } from '../lib/fleet-daemon.js';
 import { formatUptime } from '../shared/port-utils.js';
 import { detectDrift } from '../lib/binary-drift-detector.js';
+import { assessRouteHealth, registeredFromSet, type RouteHealth } from '../lib/route-health.js';
 
 interface SystemPort {
   port: number;
@@ -103,12 +104,25 @@ interface InfoRouteDeps {
   bosunHeartbeat?: {
     getStatus(): BosunHeartbeatStatus;
   };
+  /**
+   * Registry of registered routes ("METHOD /url"), populated by a root-level
+   * onRoute hook in server.ts. When present, /health and /status verify the
+   * daemon's critical routes are actually mounted (#160). Optional so callers
+   * and tests that don't wire it keep prior behavior.
+   */
+  routeRegistry?: Set<string>;
 }
 
-function buildRuntimeSummary(deps: InfoRouteDeps) {
+function buildRuntimeSummary(deps: InfoRouteDeps, routeHealth?: RouteHealth | null) {
   const arbiterStatus = deps.arbiter?.getStatus();
   const fleetStatus = deps.fleetDaemon?.getStatus();
-  const degradedReasons = arbiterStatus?.degraded ?? [];
+  const arbiterReasons = arbiterStatus?.degraded ?? [];
+  // #160: a missing critical route is a degradation the probe must surface,
+  // not hide behind a clean arbiter. Fold route-health into the reasons.
+  const routeReasons = (routeHealth?.missing ?? []).map(
+    (r) => `route_missing:${r.method} ${r.url}`,
+  );
+  const degradedReasons = [...arbiterReasons, ...routeReasons];
 
   return {
     state: degradedReasons.length > 0 ? 'degraded' : 'nominal',
@@ -309,8 +323,17 @@ export const infoPlugin: FastifyPluginAsync<{ deps: InfoRouteDeps }> = async (fa
     const binaryDrift = deps.runningBinarySnapshot
       ? detectDrift({ runningSnapshot: deps.runningBinarySnapshot })
       : undefined;
+    // #160: verify the daemon's own critical routes are mounted before claiming
+    // health. Feature-detected: only when the route registry was wired.
+    const routeHealth = deps.routeRegistry
+      ? assessRouteHealth(registeredFromSet(deps.routeRegistry))
+      : null;
+    const runtime = buildRuntimeSummary(deps, routeHealth);
     return {
-      status: 'ok',
+      // #160: top-level liveness reflects whether the daemon can actually serve
+      // its route contract. Arbiter/rule degradation is surfaced separately in
+      // `runtime` (it does not mean the daemon is 404'ing its own endpoints).
+      status: routeHealth && !routeHealth.ok ? 'degraded' : 'ok',
       version: VERSION,
       uptime_seconds: Math.floor(process.uptime()),
       active_ports,
@@ -323,7 +346,8 @@ export const infoPlugin: FastifyPluginAsync<{ deps: InfoRouteDeps }> = async (fa
         launchableAgents: fleet.totalLaunchableAgents,
         skippedProjects: fleet.skipped.length,
       } : undefined,
-      runtime: buildRuntimeSummary(deps),
+      routes: routeHealth ?? undefined,
+      runtime,
       binaryDrift: binaryDrift ? {
         drifted: binaryDrift.drifted,
         runningHash: binaryDrift.runningHash,
@@ -342,8 +366,13 @@ export const infoPlugin: FastifyPluginAsync<{ deps: InfoRouteDeps }> = async (fa
     const uptime_seconds = Math.floor(process.uptime());
     const fleet = deps.fleetDaemon?.getStatus();
     const history = buildRecentHistory(deps);
+    const routeHealth = deps.routeRegistry
+      ? assessRouteHealth(registeredFromSet(deps.routeRegistry))
+      : null;
+    const runtime = buildRuntimeSummary(deps, routeHealth);
     return {
-      status: 'ok',
+      status: routeHealth && !routeHealth.ok ? 'degraded' : 'ok',
+      routes: routeHealth ?? undefined,
       version: VERSION,
       pid: process.pid,
       uptimeSeconds: uptime_seconds,
@@ -377,7 +406,7 @@ export const infoPlugin: FastifyPluginAsync<{ deps: InfoRouteDeps }> = async (fa
         launchableAgents: fleet.totalLaunchableAgents,
         skippedProjects: fleet.skipped,
       } : undefined,
-      runtime: buildRuntimeSummary(deps),
+      runtime,
       guardians: buildGuardianSummary(deps),
       history,
     };
