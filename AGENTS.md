@@ -101,7 +101,7 @@ You are explicitly invited to fix errors, sharpen inefficient passages, and add 
 - Do not assume the live daemon is running the current checkout.
 - Verify live truth with:
   - `port-daddy status`
-  - `launchctl print gui/501/com.portdaddy.daemon`
+  - `launchctl print gui/501/homebrew.mxcl.port-daddy` (the canonical supervisor; `com.portdaddy.daemon` was removed 2026-06-01)
   - `curl -sS "$(cat ~/.port-daddy/daemon.port 2>/dev/null | sed 's#^#http://localhost:#')/fleet"` or the daemon URL surfaced by `port-daddy status`
 - `port-daddy status` proves the Unix socket path works. It does not prove the TCP/browser path works. If the control plane or FleetBar is lying, verify both the socket client and the TCP URL from the port file.
 - If those disagree, trust the live process and launchd output, not docs or memory.
