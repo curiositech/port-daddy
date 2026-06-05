@@ -66,6 +66,7 @@ const SENSITIVE_KEYS: readonly string[] = Object.freeze([
   'OPENAI_API_KEY',
   'GEMINI_API_KEY',
   'GOOGLE_API_KEY',
+  'GROQ_API_KEY',
   'CLOUDFLARE_ACCOUNT_ID',
   'CLOUDFLARE_API_TOKEN',
   'CLOUDFLARE_API_KEY',

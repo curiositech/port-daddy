@@ -110,8 +110,8 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     name: 'Google Gemini',
     costModel: 'metered',
     framing: 'Metered API — pennies per spawn',
-    description: 'Google Gemini API via @google/generative-ai. Requires GEMINI_API_KEY.',
-    models: ['gemini-2.0-flash-exp', 'gemini-2.5-flash', 'gemini-2.5-pro'],
+    description: 'Google Gemini REST API (generateContent). Requires GEMINI_API_KEY. Default model: gemini-2.5-flash.',
+    models: ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro'],
   },
   {
     id: 'cloudflare',
@@ -135,6 +135,14 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     framing: 'Metered API — pennies per spawn',
     description: 'Direct OpenAI API. Requires OPENAI_API_KEY. Default model: gpt-5-mini.',
     models: ['gpt-5-nano', 'gpt-5-mini', 'gpt-5', 'gpt-4.1-mini', 'gpt-4o-mini', 'o4-mini'],
+  },
+  {
+    id: 'groq',
+    name: 'Groq (LPU)',
+    costModel: 'metered',
+    framing: 'Cheap metered — fast open-weight models on LPU hardware',
+    description: 'Groq OpenAI-compatible API. Requires GROQ_API_KEY. Default model: llama-3.3-70b-versatile.',
+    models: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b'],
   },
   {
     id: 'codex',

@@ -1247,21 +1247,64 @@ describe('spawn — claude backend', () => {
 });
 
 // =============================================================================
-// spawn — gemini backend (SDK not installed)
+// spawn — gemini backend (REST adapter — no SDK)
 // =============================================================================
 
 describe('spawn — gemini backend', () => {
-  test('returns error when @google/generative-ai is not installed', async () => {
-    const spawner = createSpawner();
+  const originalGeminiKey = process.env.GEMINI_API_KEY;
+  afterEach(() => {
+    if (originalGeminiKey === undefined) delete process.env.GEMINI_API_KEY;
+    else process.env.GEMINI_API_KEY = originalGeminiKey;
+  });
 
-    const result = await spawner.spawn({
-      backend: 'gemini',
-      task: 'test',
+  test('drives the REST generateContent endpoint and records exact telemetry', async () => {
+    process.env.GEMINI_API_KEY = 'test-gemini-key';
+    const costTracker = {
+      computeCost: jest.fn(() => ({ costUsd: 0.00155, isEstimate: false })),
+      record: jest.fn(() => ({ costUsd: 0.00155, isEstimate: false })),
+    };
+    const spawner = createSpawner({ enforceTelemetryPolicy: true, costTracker });
+
+    mockFetch.mockImplementation(async (url) => {
+      if (typeof url === 'string' && (url.includes('/agents') || url.includes('/sugar'))) {
+        return { ok: true, status: 200, json: async () => ({ success: true }), text: async () => 'OK' };
+      }
+      if (typeof url === 'string' && url.includes('generativelanguage.googleapis.com')) {
+        return {
+          ok: true, status: 200,
+          json: async () => ({
+            candidates: [{ content: { parts: [{ text: 'PONG' }] }, finishReason: 'STOP' }],
+            usageMetadata: { promptTokenCount: 7, candidatesTokenCount: 2, thoughtsTokenCount: 42 },
+          }),
+          text: async () => 'PONG',
+        };
+      }
+      return { ok: true, status: 200, json: async () => ({ success: true }), text: async () => 'OK' };
     });
 
-    // The dynamic import will fail because the SDK is not installed in tests
+    const result = await spawner.spawn({ backend: 'gemini', task: 'ping' });
+
+    expect(result.status).toBe('completed');
+    expect(result.output).toBe('PONG');
+    expect(result.model).toBe('gemini-2.5-flash');
+    expect(result.telemetry).toMatchObject({ rateMode: 'exact', inputTokens: 7, outputTokens: 44 });
+    // thoughtsTokenCount folded into output: 2 + 42 = 44.
+    expect(costTracker.record).toHaveBeenCalledWith(
+      expect.objectContaining({ backend: 'gemini', inputTokens: 7, outputTokens: 44 })
+    );
+  });
+
+  test('fails gracefully (not an SDK error) when no API key is present', async () => {
+    delete process.env.GEMINI_API_KEY;
+    const costTracker = {
+      computeCost: jest.fn(() => ({ costUsd: 0, isEstimate: false })),
+      record: jest.fn(() => ({ costUsd: 0, isEstimate: false })),
+    };
+    const spawner = createSpawner({ enforceTelemetryPolicy: true, costTracker });
+    const result = await spawner.spawn({ backend: 'gemini', task: 'test' });
     expect(result.status).toBe('failed');
-    expect(result.error).toBeTruthy();
+    expect(result.error).toContain('GEMINI_API_KEY');
+    expect(result.error).not.toContain('generative-ai');
   });
 });
 
