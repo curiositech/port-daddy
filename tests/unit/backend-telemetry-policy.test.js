@@ -56,12 +56,13 @@ describe('backend telemetry policy', () => {
 
   test('blocks opaque backends until exact telemetry exists', () => {
     // Cloudflare is no longer opaque — `lib/cost-tracker.ts` ships exact
-    // rates for Workers AI models. Ollama and claude-cli are excluded here too:
-    // ollama is allowed when the model has a known rate, and claude-cli now
-    // captures the CLI's own usage (`--output-format json`) with a labelled
-    // best-guess estimate fallback, so it is allowed when the model has a rate
-    // (see the claude-cli tests below).
-    for (const backend of ['gemini', 'aider', 'custom']) {
+    // rates for Workers AI models. Gemini moved off this list too: its REST
+    // adapter extracts exact usage (promptTokenCount + candidatesTokenCount +
+    // thoughtsTokenCount) and the 2.5 family has known rates, so it is allowed
+    // when the model has a rate (see the gemini tests below). Ollama and
+    // claude-cli are excluded for the same reason. `aider` and `custom` remain
+    // opaque: no per-token telemetry pipeline.
+    for (const backend of ['aider', 'custom']) {
       const policy = assessBackendTelemetryPolicy(backend);
       expect(policy.launchAllowed).toBe(false);
       expect(policy.summary).toContain('blocked');
@@ -72,6 +73,35 @@ describe('backend telemetry policy', () => {
     const policy = assessBackendTelemetryPolicy('cloudflare');
     expect(policy.launchAllowed).toBe(true);
     expect(policy.effectiveModel).toBe('@cf/zai-org/glm-4.7-flash');
+  });
+
+  test('allows Gemini with the default (gemini-2.5-flash) when none is supplied', () => {
+    const policy = assessBackendTelemetryPolicy('gemini');
+    expect(policy.launchAllowed).toBe(true);
+    expect(policy.backend).toBe('gemini');
+    expect(policy.effectiveModel).toBe('gemini-2.5-flash');
+  });
+
+  test('blocks Gemini for a model with no known rate', () => {
+    const policy = assessBackendTelemetryPolicy('gemini', 'gemini-9-imaginary');
+    expect(policy.launchAllowed).toBe(false);
+  });
+
+  test('allows Groq with the default (llama-3.3-70b-versatile) when none is supplied', () => {
+    const policy = assessBackendTelemetryPolicy('groq');
+    expect(policy.launchAllowed).toBe(true);
+    expect(policy.backend).toBe('groq');
+    expect(policy.effectiveModel).toBe('llama-3.3-70b-versatile');
+  });
+
+  test('allows Groq for the gpt-oss family', () => {
+    const policy = assessBackendTelemetryPolicy('groq', 'openai/gpt-oss-120b');
+    expect(policy.launchAllowed).toBe(true);
+  });
+
+  test('blocks Groq for a model with no known rate', () => {
+    const policy = assessBackendTelemetryPolicy('groq', 'mystery-model-9000');
+    expect(policy.launchAllowed).toBe(false);
   });
 
   // Claude CLI is no longer hard-blocked: runClaudeCli captures the CLI's own

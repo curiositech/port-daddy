@@ -79,16 +79,25 @@ export class GitHubTriggerSource implements TriggerSource {
 }
 
 /**
- * Stub: in the real wiring this hooks into the daemon's webhook router
- * (routes/webhooks.ts when it exists). For now it returns a no-op
- * unsubscribe so unit tests can construct the source without spinning
- * up the HTTP layer.
+ * NOTE: this `TriggerSource` is the (still-unwired) `buildTriggerRegistry`
+ * architecture — `buildTriggerRegistry` is not yet instantiated by the
+ * daemon. The LIVE GitHub dispatch path does NOT go through this class. It is:
  *
- * Operator setup required:
- *   1. Add a GitHub App or repo webhook pointing at
+ *   routes/github-webhook.ts  (POST /webhooks/github)
+ *        → messaging.publish('github:webhook:<event>', …)
+ *        → fleet engine `agent.trigger` channel subscription (lib/fleet-engine.ts)
+ *
+ * A ship subscribes by declaring `trigger: global:github:webhook:<event>` in
+ * its pd-fleet.yml. This stub stays a no-op until the registry path is wired
+ * (it would then subscribe to the same messaging channels via an injected
+ * messaging dep). It exists so unit tests can construct the source without an
+ * HTTP layer.
+ *
+ * Operator setup for the live path:
+ *   1. Point the receiver Worker's DAEMON_FORWARD_URL at
  *      https://<your-daemon>/webhooks/github
- *   2. Set PD_GITHUB_WEBHOOK_SECRET to the shared secret
- *   3. Subscribe to whichever events your fleet wants
+ *   2. Set PD_GITHUB_FORWARD_TOKEN (bearer) or PD_GITHUB_WEBHOOK_SECRET (HMAC)
+ *      on the daemon to authenticate the forward.
  */
 function subscribeToGitHubWebhookBus(
   _spec: TriggerSpec,

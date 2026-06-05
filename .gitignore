@@ -68,7 +68,6 @@ daemon-error.log
 STRATEGY_private_gitignore/
 apps/FleetBar/.build/
 **/build/
-fleet-live-app/build/
 .firecrawl/
 .windags/
 v0-agentsd-main/

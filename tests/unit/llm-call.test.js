@@ -7,7 +7,7 @@
  * Network is mocked via globalThis.fetch.
  */
 import { describe, expect, test, jest } from '@jest/globals';
-import { cloudflareAdapter, ollamaAdapter, createLLMClient } from '../../lib/llm-call.js';
+import { cloudflareAdapter, ollamaAdapter, geminiAdapter, createLLMClient } from '../../lib/llm-call.js';
 
 describe('cloudflareAdapter', () => {
   test('returns ok:false when CLOUDFLARE_ACCOUNT_ID is missing', async () => {
@@ -231,6 +231,76 @@ describe('ollamaAdapter', () => {
       const r = await ollamaAdapter({ prompt: 'p', model: 'm', env: {} });
       expect(r.ok).toBe(false);
       expect(r.error).toMatch(/no text response/);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+});
+
+describe('geminiAdapter', () => {
+  test('returns ok:false when GEMINI_API_KEY is missing', async () => {
+    const r = await geminiAdapter({ prompt: 'p', model: 'gemini-2.5-flash', env: {} });
+    expect(r.ok).toBe(false);
+    expect(r.error).toContain('GEMINI_API_KEY');
+  });
+
+  test('rejects a model id that would inject into the URL path', async () => {
+    const r = await geminiAdapter({ prompt: 'p', model: 'foo/bar', env: { GEMINI_API_KEY: 'k' } });
+    expect(r.ok).toBe(false);
+    expect(r.error).toContain('Invalid Gemini model id');
+  });
+
+  test('success path: extracts text + exact usage, folds thoughts into output', async () => {
+    const env = { GEMINI_API_KEY: 'k' };
+    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({
+        candidates: [{ content: { parts: [{ text: 'PONG' }] }, finishReason: 'STOP' }],
+        usageMetadata: { promptTokenCount: 7, candidatesTokenCount: 2, thoughtsTokenCount: 42 },
+      }), { status: 200 })
+    );
+    try {
+      const r = await geminiAdapter({ prompt: 'p', model: 'gemini-2.5-flash', maxTokens: 50, env });
+      expect(r.ok).toBe(true);
+      expect(r.text).toBe('PONG');
+      expect(r.inputTokens).toBe(7);
+      // thinking tokens (42) are billed as output, so 2 + 42 = 44.
+      expect(r.outputTokens).toBe(44);
+      const [url, opts] = fetchSpy.mock.calls[0];
+      expect(url).toBe('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent');
+      expect(opts.headers['x-goog-api-key']).toBe('k');
+      expect(JSON.parse(opts.body).generationConfig.maxOutputTokens).toBe(50);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  test('treats an empty completion as a failure, not zero-token success', async () => {
+    const env = { GEMINI_API_KEY: 'k' };
+    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({
+        candidates: [{ content: { parts: [] }, finishReason: 'SAFETY' }],
+        usageMetadata: { promptTokenCount: 7 },
+      }), { status: 200 })
+    );
+    try {
+      const r = await geminiAdapter({ prompt: 'p', model: 'gemini-2.5-flash', env });
+      expect(r.ok).toBe(false);
+      expect(r.error).toContain('no text response');
+      expect(r.error).toContain('SAFETY');
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  test('surfaces HTTP errors', async () => {
+    const env = { GEMINI_API_KEY: 'k' };
+    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('quota exceeded', { status: 429 })
+    );
+    try {
+      const r = await geminiAdapter({ prompt: 'p', model: 'gemini-2.5-flash', env });
+      expect(r.ok).toBe(false);
+      expect(r.error).toContain('Gemini HTTP 429');
     } finally {
       fetchSpy.mockRestore();
     }

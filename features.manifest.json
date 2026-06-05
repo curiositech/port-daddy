@@ -256,7 +256,11 @@
       "docs": {
         "readme": false,
         "sdk": false
-      }
+      },
+      "mcp": [
+        "roadmap_progress",
+        "roadmap_claims"
+      ]
     },
     "resource_governance": {
       "description": "Read-only resource governance overview for operator UI",
@@ -419,6 +423,7 @@
         "POST /webhooks",
         "GET /webhooks",
         "GET /webhooks/events",
+        "POST /webhooks/github",
         "GET /webhooks/:param",
         "PUT /webhooks/:param",
         "DELETE /webhooks/:param",
@@ -932,7 +937,7 @@
       }
     },
     "tutorial": {
-      "description": "Interactive tutorial \u2014 learn Port Daddy step by step",
+      "description": "Interactive tutorial — learn Port Daddy step by step",
       "cli": [
         "learn",
         "tutorial"
@@ -1127,7 +1132,7 @@
       }
     },
     "fleet": {
-      "description": "Always-on fleet management \u2014 daemon auto-starts fleet runners from pd-fleet.yml on boot; hot-reload on config change; resource limits (max_concurrent_spawns, max_spawns_per_hour); lifecycle events on fleet:events channel",
+      "description": "Always-on fleet management — daemon auto-starts fleet runners from pd-fleet.yml on boot; hot-reload on config change; resource limits (max_concurrent_spawns, max_spawns_per_hour); lifecycle events on fleet:events channel",
       "cli": [
         "fleet"
       ],
@@ -1176,7 +1181,7 @@
       }
     },
     "harbors": {
-      "description": "Named permission namespaces for agent coordination \u2014 agents enter/leave harbors and declare capabilities",
+      "description": "Named permission namespaces for agent coordination — agents enter/leave harbors and declare capabilities",
       "cli": [
         "harbor",
         "harbors"
@@ -1210,13 +1215,28 @@
       "docs": {
         "readme": true,
         "sdk": true
-      }
+      },
+      "mcp": [
+        "list_harbors",
+        "get_harbor",
+        "check_harbor_envelope"
+      ]
     },
     "bonds": {
       "description": "Bond escrow state machine — daemon escrows money before spawn, refunds on clean exit, slashes on violation. Enforcement half of the cost-tracker/bonds split.",
       "module": "lib/bonds.ts",
-      "cli": ["bond", "wallet"],
-      "sdk": ["listBonds", "getBond", "slashBond", "listWallets", "getWallet", "topUpWallet"],
+      "cli": [
+        "bond",
+        "wallet"
+      ],
+      "sdk": [
+        "listBonds",
+        "getBond",
+        "slashBond",
+        "listWallets",
+        "getWallet",
+        "topUpWallet"
+      ],
       "routes": [
         "GET /bonds",
         "GET /bonds/:id",
@@ -1226,8 +1246,14 @@
         "POST /wallets/:project/budget",
         "POST /wallets/:project/top-up"
       ],
-      "completions": ["bond", "wallet"],
-      "docs": { "readme": true, "sdk": false }
+      "completions": [
+        "bond",
+        "wallet"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
     },
     "budget_guard": {
       "description": "Pre-flight canSpawn() + mid-flight onCharge() kill-switch that SIGTERMs live spawns when daily budget is breached. Works in tandem with cost-tracker (observability) and bonds (enforcement).",
@@ -1240,20 +1266,30 @@
         "POST /budget/pending/:agentId/resolve"
       ],
       "completions": [],
-      "docs": { "readme": true, "sdk": false }
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
     },
     "panic": {
       "description": "Daemon-wide panic kill-switch. Two-step arm (POST without confirm → POST with confirm:true) SIGTERMs every running spawn and refunds their bonds (operator action, not misbehavior).",
       "module": "routes/panic.ts",
       "cli": [],
-      "sdk": ["getPanicStatus", "armPanic", "disarmPanic"],
+      "sdk": [
+        "getPanicStatus",
+        "armPanic",
+        "disarmPanic"
+      ],
       "routes": [
         "GET /fleet/panic",
         "POST /fleet/panic",
         "POST /fleet/unpanic"
       ],
       "completions": [],
-      "docs": { "readme": true, "sdk": false }
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
     },
     "bench": {
       "description": "Performance benchmarking CLI",
@@ -1286,7 +1322,7 @@
       }
     },
     "arbiter": {
-      "description": "Runtime invariant enforcement \u2014 the sovereign's sword",
+      "description": "Runtime invariant enforcement — the sovereign's sword",
       "cli": [],
       "sdk": [],
       "routes": [
@@ -1301,7 +1337,7 @@
       }
     },
     "pheromone": {
-      "description": "Stigmergic evaporation system \u2014 agents spray/sniff numeric signals on entities; signals decay over time",
+      "description": "Stigmergic evaporation system — agents spray/sniff numeric signals on entities; signals decay over time",
       "cli": [],
       "sdk": [],
       "routes": [
@@ -1314,7 +1350,12 @@
       "docs": {
         "readme": true,
         "sdk": false
-      }
+      },
+      "mcp": [
+        "spray_pheromone",
+        "read_pheromones",
+        "read_entity_pheromones"
+      ]
     },
     "merge_queue": {
       "description": "Ordered merge queue with conflict prediction and orchestrator plugins",
@@ -1338,7 +1379,7 @@
         "readme": false,
         "sdk": false
       },
-      "_note": "API-only \u2014 accessed via curl or SDK; no CLI commands yet"
+      "_note": "API-only — accessed via curl or SDK; no CLI commands yet"
     },
     "symbols": {
       "description": "AST-based symbol extraction, dependency tracking, and conflict prediction",
@@ -1357,10 +1398,15 @@
         "readme": false,
         "sdk": false
       },
-      "_note": "API-only \u2014 accessed via curl or SDK; no CLI commands yet"
+      "_note": "API-only — accessed via curl or SDK; no CLI commands yet",
+      "mcp": [
+        "find_symbols",
+        "symbol_stats",
+        "predict_conflicts"
+      ]
     },
     "tuples": {
-      "description": "Linda-style tuple space \u2014 shared coordination data structure for agent swarms with pattern matching and harbor scoping",
+      "description": "Linda-style tuple space — shared coordination data structure for agent swarms with pattern matching and harbor scoping",
       "cli": [
         "tuple"
       ],
@@ -1402,7 +1448,7 @@
         "readme": false,
         "sdk": false
       },
-      "_note": "API-only \u2014 Phase 0 substrate. CLI/SDK surfaces follow in Phase 1."
+      "_note": "API-only — Phase 0 substrate. CLI/SDK surfaces follow in Phase 1."
     },
     "graph": {
       "description": "Semantic graph edges and aggregate graph stats for merge queue and symbol-index relationships",
@@ -1455,7 +1501,11 @@
       "docs": {
         "readme": false,
         "sdk": false
-      }
+      },
+      "mcp": [
+        "semantic_search",
+        "semantic_resolve"
+      ]
     },
     "advisor": {
       "description": "Deterministic coordination advisor for preflight suggestions across sessions, claims, symbols, salvage, channels, tuples, and locks",
@@ -1648,7 +1698,12 @@
         "readme": false,
         "sdk": false
       },
-      "_note": "Read-side (Next Cuts/feedback/claims projection) routes live under the `cartographer` feature; this feature owns the structured roadmap_items write side"
+      "_note": "Read-side (Next Cuts/feedback/claims projection) routes live under the `cartographer` feature; this feature owns the structured roadmap_items write side",
+      "mcp": [
+        "roadmap_list",
+        "roadmap_get",
+        "roadmap_promote"
+      ]
     },
     "commitments": {
       "description": "Durable commitments + obligation monitor (ADR-0041): the obligation dual of resurrection. Resurrection watches whether an agent is ALIVE; commitments watch whether it KEPT ITS PROMISE. `due_at` is daemon-derived from the commitment scope (Law 1); `close` refuses without an external oracle ref (Law 2); the monitor is a pure runtime SQLite sweep with no Rust-FFI dependency so it cannot silently degrade (Law 4). `pd commit` creates an obligation, `pd obligations [--overdue]` lists/sweeps, `pd commit close <id> --oracle <ref>` closes against an oracle",
@@ -1672,7 +1727,12 @@
         "readme": false,
         "sdk": false
       },
-      "_note": "ADR-0041 first slice. Out of scope (separate roadmap items / ADRs): graduated-sanction-ladder, accountability-ledger, and non-forgeable actor identity (ADR-0040). owner_actor_id is the self-asserted session/actor id until ADR-0040 lands"
+      "_note": "ADR-0041 first slice. Out of scope (separate roadmap items / ADRs): graduated-sanction-ladder, accountability-ledger, and non-forgeable actor identity (ADR-0040). owner_actor_id is the self-asserted session/actor id until ADR-0040 lands",
+      "mcp": [
+        "commit",
+        "list_commitments",
+        "list_overdue_commitments"
+      ]
     },
     "quorum": {
       "description": "Tuple-backed propose/vote primitive for swarm decisions — agents propose roles, others vote, threshold-cross emits a `quorum:passed` tuple subscribers can react to",
@@ -1716,7 +1776,7 @@
       }
     },
     "cost_tracker": {
-      "description": "LLM cost recording per spawn \u2014 model pricing, project budgets, burn rate tracking",
+      "description": "LLM cost recording per spawn — model pricing, project budgets, burn rate tracking",
       "cli": [],
       "sdk": [],
       "routes": [],
@@ -1725,10 +1785,10 @@
         "readme": false,
         "sdk": false
       },
-      "_note": "Library-only \u2014 HTTP surface provided by observability routes module"
+      "_note": "Library-only — HTTP surface provided by observability routes module"
     },
     "counters": {
-      "description": "ODS-style time-bucketed operational metrics \u2014 in-memory batching with minute/hour rollups",
+      "description": "ODS-style time-bucketed operational metrics — in-memory batching with minute/hour rollups",
       "cli": [],
       "sdk": [],
       "routes": [],
@@ -1737,10 +1797,10 @@
         "readme": false,
         "sdk": false
       },
-      "_note": "Library-only \u2014 HTTP surface provided by observability routes module"
+      "_note": "Library-only — HTTP surface provided by observability routes module"
     },
     "observability": {
-      "description": "Golden signals (RED method) and aggregated metrics \u2014 rate, errors, duration, cost/hr",
+      "description": "Golden signals (RED method) and aggregated metrics — rate, errors, duration, cost/hr",
       "cli": [],
       "sdk": [],
       "routes": [
@@ -1756,7 +1816,7 @@
         "readme": true,
         "sdk": false
       },
-      "_note": "Composite feature \u2014 routes module wiring cost-tracker + counters together. API-only (no SDK methods or CLI commands)."
+      "_note": "Composite feature — routes module wiring cost-tracker + counters together. API-only (no SDK methods or CLI commands)."
     },
     "metricsprom": {
       "description": "Prometheus text exposition + per-route HTTP histograms with outlier ring buffer, skill freshness/distribution gauges, and time-aligned annotation feed (git commits, pd notes, session purposes). Powers the /metrics.html in-house dashboard and any external Prometheus scraper. Replaces the unbounded winston request-log firehose.",
@@ -1794,7 +1854,7 @@
       "_note": "API-only telemetry surface consumed by the Fleet Console developer pane."
     },
     "orchestrator_plugins": {
-      "description": "Hot-swappable merge orchestrator plugins \u2014 default FIFO, custom priority/scheduling",
+      "description": "Hot-swappable merge orchestrator plugins — default FIFO, custom priority/scheduling",
       "cli": [],
       "sdk": [],
       "routes": [],
@@ -1803,10 +1863,10 @@
         "readme": false,
         "sdk": false
       },
-      "_note": "Library-only \u2014 used internally by merge-queue; no HTTP surface yet"
+      "_note": "Library-only — used internally by merge-queue; no HTTP surface yet"
     },
     "init": {
-      "description": "Project onboarding \u2014 scan stack, create fleet, configure MCP, install git hook",
+      "description": "Project onboarding — scan stack, create fleet, configure MCP, install git hook",
       "cli": [
         "init"
       ],
@@ -1821,7 +1881,7 @@
       }
     },
     "setup": {
-      "description": "One-command onboarding \u2014 install daemon, configure MCP, install FleetBar, init project",
+      "description": "One-command onboarding — install daemon, configure MCP, install FleetBar, init project",
       "cli": [
         "setup"
       ],
@@ -1837,10 +1897,10 @@
         "readme": true,
         "sdk": false
       },
-      "_note": "CLI plus local daemon onboarding surface \u2014 orchestrates daemon install, MCP config, FleetBar install, and project init in one step. Daemon setup routes are loopback-only; mutating actions require a setup capability token from /setup/overview."
+      "_note": "CLI plus local daemon onboarding surface — orchestrates daemon install, MCP config, FleetBar install, and project init in one step. Daemon setup routes are loopback-only; mutating actions require a setup capability token from /setup/overview."
     },
     "secrets": {
-      "description": "Managed provider secret store \u2014 keychain-backed CRUD over allow-listed provider keys (generalizes /fleet/backend-secrets)",
+      "description": "Managed provider secret store — keychain-backed CRUD over allow-listed provider keys (generalizes /fleet/backend-secrets)",
       "cli": [
         "secret",
         "secrets"

@@ -7,21 +7,18 @@
 
 import http from 'node:http';
 import type { IncomingMessage, ClientRequest } from 'node:http';
-import { existsSync } from 'node:fs';
 
 import { DEFAULT_SOCK, DEFAULT_PORT_FILE } from '../../shared/paths.js';
-import { CANONICAL_TCP_PORT, LOOPBACK_TCP_HOST, getDaemonTcpUrl, readDaemonPort, resolveDaemonTcpTarget } from '../../shared/daemon-discovery.js';
+import { CANONICAL_TCP_PORT, LOOPBACK_TCP_HOST, getDaemonTcpUrl, readDaemonPort, resolveDaemonTarget } from '../../shared/daemon-discovery.js';
+import type { DaemonTarget } from '../../shared/daemon-discovery.js';
 const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || DEFAULT_SOCK;
 const PORT_FILE: string = process.env.PORT_DADDY_PORT_FILE || DEFAULT_PORT_FILE;
 const PORT_DADDY_URL: string = getDaemonTcpUrl(process.env.PORT_DADDY_URL);
 
 export { PORT_DADDY_URL, SOCK_PATH };
 
-export interface ConnectionTarget {
-  socketPath?: string;
-  host?: string;
-  port?: number;
-}
+/** @deprecated Use {@link DaemonTarget} from shared/daemon-discovery. Kept as a structural alias for back-compat importers. */
+export type ConnectionTarget = DaemonTarget;
 
 export interface PdFetchResponse {
   ok: boolean;
@@ -40,18 +37,14 @@ export interface FetchOptions {
 
 /**
  * Resolve connection target: Unix socket or TCP.
+ *
+ * Delegates to the ONE canonical resolver in shared/daemon-discovery. Before
+ * this delegation, this copy ignored PORT_DADDY_SOCK entirely and checked the
+ * URL before the socket — a different precedence than lib/request.ts. Now all
+ * Node clients agree.
  */
 export function resolveTarget(): ConnectionTarget {
-  // Explicit TCP URL overrides socket
-  if (process.env.PORT_DADDY_URL) {
-    return resolveDaemonTcpTarget(process.env.PORT_DADDY_URL);
-  }
-  // Use socket if it exists
-  if (existsSync(SOCK_PATH)) {
-    return { socketPath: SOCK_PATH };
-  }
-  // Fallback to TCP — read actual port from port file
-  return { host: LOOPBACK_TCP_HOST, port: readDaemonPort(PORT_FILE) };
+  return resolveDaemonTarget();
 }
 
 /**

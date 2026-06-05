@@ -54,22 +54,49 @@ GitHub App's source tree; both belong in the installed repo's own config.
 GitHub webhook
       │
       ▼
-App receiver (operator-hosted)
-      │
+App receiver (Cloudflare Worker) — verifies HMAC, normalizes to an envelope
+      │  POST <DAEMON_FORWARD_URL>  (Authorization: Bearer <token>)
       ▼
-Read installed repo's pd-fleet.yml via contents:read
-      │
+Daemon route  POST /webhooks/github  (routes/github-webhook.ts)
+      │  authenticates the forwarder, then publishes to the messaging bus:
+      │    github:webhook:<event>            (e.g. github:webhook:pull_request)
+      │    github:webhook:<event>:<action>   (e.g. …:pull_request:opened)
+      │    github:<owner>/<repo>:<event>
       ▼
-For each ship whose `trigger:` matches the event:
-      │
+Fleet engine (lib/fleet-engine.ts) — every agent whose `trigger:` resolves
+      │  to a published channel fires (messaging.subscribe)
       ▼
 postAs(shipMeta, operation)  ──►  GitHub API as port-daddy-fleet[bot]
                                   with **[pd-<ship>]** header
 ```
 
-`postAs` is the only entry point. Its signature accepts a `ShipMeta`
-value the caller has resolved (handle, role, optional mark) — there is no
-closed list of ships in the App code. See
+A ship subscribes to GitHub events by declaring an unscoped (`global:`)
+channel in its `pd-fleet.yml`:
+
+```yaml
+fleet:
+  agents:
+    reviewer:
+      trigger: global:github:webhook:pull_request   # any PR event
+      # trigger: global:github:webhook:pull_request:opened   # only "opened"
+      # trigger: global:github:curiositech/port-daddy:pull_request  # repo-keyed
+```
+
+The `global:` prefix is required: the fleet channel resolver project-scopes
+bare channel names, but the inbound route publishes the literal,
+unscoped channels above, so the trigger must opt out of scoping to match.
+
+> **Follow-up (not yet built):** routing is currently fan-out — every
+> project's fleet that subscribes to `global:github:webhook:pull_request`
+> fires on *every* installed repo's PR events. Per-project isolation (so
+> only the installed repo's fleet fires) needs a repo→projectDir registry
+> the daemon does not have yet. Until then, prefer the repo-keyed channel
+> (`global:github:<owner>/<repo>:<event>`) when a fleet should react to
+> exactly one repository.
+
+`postAs` is the only entry point for the output side. Its signature
+accepts a `ShipMeta` value the caller has resolved (handle, role, optional
+mark) — there is no closed list of ships in the App code. See
 [`lib/post-as.ts`](lib/post-as.ts) for the type.
 
 ---

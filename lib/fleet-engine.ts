@@ -269,7 +269,10 @@ export const BUILTIN_MODEL_TIERS: Partial<Record<string, Record<FleetModelTier, 
   },
   'claude-cli': { low: 'haiku', mid: 'sonnet', high: 'opus' },
   codex: { low: 'gpt-5.4-mini', mid: 'gpt-5.3-codex', high: 'gpt-5.4' },
-  gemini: { low: 'gemini-2.0-flash-exp', mid: 'gemini-2.5-flash', high: 'gemini-2.5-pro' },
+  // gemini-2.0-flash was shut down 2026-06-01; low tier uses 2.5-flash-lite.
+  gemini: { low: 'gemini-2.5-flash-lite', mid: 'gemini-2.5-flash', high: 'gemini-2.5-pro' },
+  openai: { low: 'gpt-5-nano', mid: 'gpt-5-mini', high: 'gpt-5' },
+  groq: { low: 'llama-3.1-8b-instant', mid: 'llama-3.3-70b-versatile', high: 'openai/gpt-oss-120b' },
   cloudflare: {
     low: '@cf/zai-org/glm-4.7-flash',
     mid: '@cf/openai/gpt-oss-120b',

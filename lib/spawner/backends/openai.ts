@@ -37,20 +37,37 @@ function isReasoningModel(model: string): boolean {
   return REASONING_MODEL_PREFIXES.some((p) => lc.startsWith(p));
 }
 
+/**
+ * Internal override for OpenAI-compatible providers (e.g. Groq) that
+ * reuse this adapter. When supplied, `apiKey` / `baseUrl` win over the
+ * OpenAI credential resolution — this avoids getSecret('OPENAI_API_KEY')
+ * shadowing the provider's own key. `missingKeyError` lets the caller
+ * surface a provider-specific "key not set" message.
+ */
+export interface OpenAICompatibleOverride {
+  apiKey?: string;
+  baseUrl?: string;
+  missingKeyError?: string;
+}
+
 export const openaiAdapter = async (
   req: LLMCompletionRequest,
+  override: OpenAICompatibleOverride = {},
 ): Promise<LLMCompletionResult> => {
   const e = req.env ?? process.env;
   const apiKey =
-    getSecret('OPENAI_API_KEY')
+    override.apiKey
+    || getSecret('OPENAI_API_KEY')
     || e.OPENAI_API_KEY
     || getSecret('OPENAI_KEY')
     || e.OPENAI_KEY;
-  const baseUrl = (e.OPENAI_BASE_URL || DEFAULT_BASE_URL).replace(/\/$/, '');
-  const organization = e.OPENAI_ORG_ID || e.OPENAI_ORGANIZATION;
+  const baseUrl = (override.baseUrl || e.OPENAI_BASE_URL || DEFAULT_BASE_URL).replace(/\/$/, '');
+  // An override caller (Groq) owns its own auth; never leak an OpenAI org
+  // header into a third-party endpoint when an explicit base URL is set.
+  const organization = override.baseUrl ? undefined : (e.OPENAI_ORG_ID || e.OPENAI_ORGANIZATION);
 
   if (!apiKey) {
-    return { ok: false, error: 'OPENAI_API_KEY is not set' };
+    return { ok: false, error: override.missingKeyError || 'OPENAI_API_KEY is not set' };
   }
 
   const headers: Record<string, string> = {

@@ -47,9 +47,14 @@ Three operator-relevant cost regimes exist now:
 | **CLI-backed (flat rate)** |  |           |                  |            |               |                                                           |                                             |
 | `cli:claude-code`  | flat     | ~0*       | ~0*              | ~0*        | 3–30s         | You have Claude Max ($200/mo); zero marginal $            | No active subscription; rate-limited        |
 | `cli:codex`        | flat     | ~0*       | ~0*              | ~0*        | 3–30s         | You have ChatGPT Pro; zero marginal $                     | No subscription; codex CLI not installed    |
-| **Gemini**         |          |           |                  |            |               |                                                           |                                             |
-| `gemini-2.0-flash` | low      | 0.075     | —                | 0.30       | 0.5–2s        | Cheap multimodal                                          | Code-quality matters                        |
-| `gemini-1.5-pro`   | high     | 1.25      | —                | 5.00       | 1–4s          | Long-context multimodal                                   | Vs. gpt-5 for reasoning                     |
+| **Gemini** (REST `generateContent`; thinking tokens billed as output) | |  |       |            |               |                                                           |                                             |
+| `gemini-2.5-flash-lite` | low | 0.10   | —                | 0.40       | 0.5–2s        | Cheapest current Gemini                                   | Hard reasoning                              |
+| `gemini-2.5-flash` | mid      | 0.30      | —                | 2.50       | 1–4s          | Default Gemini; multimodal + thinking                     | Ultra-cheap bulk ops                        |
+| `gemini-2.5-pro`   | high     | 1.25      | —                | 10.00      | 2–8s          | Long-context multimodal reasoning                         | Vs. gpt-5 for raw cost                       |
+| **Groq** (OpenAI-compatible; LPU, 500+ tok/s) |  |  |             |            |               |                                                           |                                             |
+| `llama-3.1-8b-instant` | low  | 0.05      | —                | 0.08       | <1s           | Fastest cheap completions                                 | Code-quality matters                        |
+| `llama-3.3-70b-versatile` | mid | 0.59  | —                | 0.79       | <1s           | Fast quality open-weight                                  | Need multimodal                             |
+| `openai/gpt-oss-120b` | high  | 0.15      | 0.075            | 0.60       | 1–2s          | Strong reasoning, very cheap, very fast                   | Need a closed frontier model                |
 
 \* Rate-limited by the operator's subscription. PD's wallet sees ~zero
 marginal cost. A 0.001 USD/spawn session estimate is still recorded so
@@ -139,7 +144,19 @@ export PD_USE_CLI_BACKEND=codex
 
 - **OpenAI**: `lib/spawner/backends/openai.ts` — reads `OPENAI_API_KEY`
   and `OPENAI_BASE_URL` (test/proxy/Azure friendly). Exact token
-  telemetry per response. Default model `gpt-5-mini`.
+  telemetry per response. Default model `gpt-5-mini`. Accepts an
+  optional `{ apiKey, baseUrl }` override so OpenAI-compatible providers
+  (Groq) can reuse it without env-var shadowing.
+- **Groq**: `lib/spawner/backends/groq.ts` — reuses the OpenAI adapter
+  with `apiKey=GROQ_API_KEY` + `baseUrl=https://api.groq.com/openai/v1`
+  (override `GROQ_API_BASE`). Exact token telemetry. Default model
+  `llama-3.3-70b-versatile`.
+- **Gemini**: `lib/llm-call.ts:geminiAdapter` — REST `generateContent`
+  (v1beta), `x-goog-api-key: GEMINI_API_KEY` (or `GOOGLE_API_KEY`). NO
+  SDK dependency. Exact telemetry from `usageMetadata`; 2.5 thinking
+  models' `thoughtsTokenCount` is folded into output (it is billed as
+  output). Default model `gemini-2.5-flash` (`gemini-2.0-flash` was shut
+  down 2026-06-01).
 - **CLI-tube**: `lib/spawner/backends/cli-tube.ts` — drives the local
   `claude` (claude-code) or `codex` CLI as a child process. Optional
   `tube` channel publishes the result for observers; suppress with
@@ -166,3 +183,32 @@ export PD_USE_CLI_BACKEND=codex
   their internal protocols; it invokes them non-interactively and
   captures stdout. If the vendor changes the CLI's flags, the wrapper
   needs an update.
+
+## Canonical key plumbing (how a backend's API key reaches the daemon)
+
+Every metered backend resolves its key through
+`lib/secret-env.ts:getSecret(KEY)`, which checks, in order:
+
+1. An in-process cache populated at daemon boot by `snapshotSensitiveEnv()`
+   (reads the key out of `process.env`, then scrubs it from the live env).
+2. The OS keychain (`pd secret set <KEY>` → `saveManagedSecret`).
+
+The daemon usually runs under **launchd**, whose environment is NOT your
+shell's — it does not see `~/.port-daddy-env` or a project `.env.local`
+unless those were present when the daemon was launched. Worse, a key that
+was present at an *earlier* boot stays cached even after you rotate it,
+so a stale token survives until the daemon restarts.
+
+**Canonical fix — use the keychain, not boot env:**
+
+```sh
+pd secret set CLOUDFLARE_API_TOKEN   # paste current token
+pd secret set GEMINI_API_KEY
+pd secret set GROQ_API_KEY
+```
+
+`pd secret set` writes to the keychain AND updates the running daemon's
+in-process cache (it goes through the `/secrets` route), so the new value
+takes effect immediately — no restart, and it cannot be shadowed by a
+stale boot-env value. Allow-listed keys live in
+`SENSITIVE_KEYS` (`lib/secret-env.ts`); `GROQ_API_KEY` is included.
