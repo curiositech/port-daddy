@@ -14,25 +14,9 @@
  */
 
 import http from 'node:http';
-import { existsSync } from 'node:fs';
 
-import { DEFAULT_SOCK } from '../shared/paths.js';
-import { getDaemonTcpUrl, resolveDaemonTcpTarget } from '../shared/daemon-discovery.js';
-
-/** Connection target -- either a Unix socket or a TCP host:port pair. */
-interface SocketTarget {
-  socketPath: string;
-  host?: undefined;
-  port?: undefined;
-}
-
-interface TcpTarget {
-  socketPath?: undefined;
-  host: string;
-  port: number;
-}
-
-type ConnectionTarget = SocketTarget | TcpTarget;
+import { getDaemonTcpUrl, resolveDaemonTarget } from '../shared/daemon-discovery.js';
+import type { DaemonTarget as ConnectionTarget } from '../shared/daemon-discovery.js';
 
 /** Options accepted by pdRequest */
 interface PdRequestOptions {
@@ -52,26 +36,13 @@ export interface PdResponse {
 }
 
 /**
- * Resolve connection target.
+ * Resolve connection target — delegates to the ONE canonical resolver in
+ * shared/daemon-discovery. (This used to be a hand-rolled copy; it was the
+ * reference for the canonical precedence, now deduplicated.)
  * Returns { socketPath } for Unix socket or { host, port } for TCP.
  */
 export function resolveTarget(): ConnectionTarget {
-  // Explicit socket path
-  if (process.env.PORT_DADDY_SOCK) {
-    return { socketPath: process.env.PORT_DADDY_SOCK };
-  }
-
-  // Explicit TCP URL
-  if (process.env.PORT_DADDY_URL) {
-    return resolveDaemonTcpTarget(process.env.PORT_DADDY_URL);
-  }
-
-  // Default: prefer socket if it exists, else TCP
-  if (existsSync(DEFAULT_SOCK)) {
-    return { socketPath: DEFAULT_SOCK };
-  }
-
-  return resolveDaemonTcpTarget();
+  return resolveDaemonTarget();
 }
 
 /**

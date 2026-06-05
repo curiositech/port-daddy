@@ -1,5 +1,5 @@
-import { readFileSync } from 'node:fs';
-import { DEFAULT_PORT_FILE } from './paths.js';
+import { readFileSync, existsSync } from 'node:fs';
+import { DEFAULT_PORT_FILE, DEFAULT_SOCK } from './paths.js';
 
 /**
  * The single source of truth for the canonical Port Daddy daemon port.
@@ -75,4 +75,42 @@ export function resolveDaemonTcpTarget(explicitUrl = process.env.PORT_DADDY_URL)
     host: url.hostname,
     port: Number.parseInt(url.port, 10) || DEFAULT_DAEMON_PORT,
   };
+}
+
+/** A daemon connection target: EITHER a Unix socket OR a loopback TCP host:port. */
+export interface SocketTarget {
+  socketPath: string;
+  host?: undefined;
+  port?: undefined;
+}
+export interface TcpTarget {
+  socketPath?: undefined;
+  host: string;
+  port: number;
+}
+export type DaemonTarget = SocketTarget | TcpTarget;
+
+/**
+ * THE one canonical socket-vs-TCP resolver. Every Node client (CLI `pdFetch`,
+ * SDK, `lib/request`) routes through this so there is a single place that
+ * decides how to reach the daemon.
+ *
+ * Precedence (do not reorder — pinned by tests/unit/daemon-target.test.js and
+ * the long-standing lib/request.test.js):
+ *   1. `PORT_DADDY_SOCK` env  → explicit Unix socket (wins even over a URL)
+ *   2. `PORT_DADDY_URL`  env  → explicit TCP URL
+ *   3. the daemon's socket file ({@link DEFAULT_SOCK}) exists → Unix socket
+ *   4. loopback TCP from the port file (or {@link DEFAULT_DAEMON_PORT})
+ *
+ * `env` and `fileExists` are injectable so callers/tests are deterministic
+ * regardless of whether a real socket file happens to exist on the box.
+ */
+export function resolveDaemonTarget(
+  env: NodeJS.ProcessEnv = process.env,
+  fileExists: (path: string) => boolean = existsSync,
+): DaemonTarget {
+  if (env.PORT_DADDY_SOCK) return { socketPath: env.PORT_DADDY_SOCK };
+  if (env.PORT_DADDY_URL) return resolveDaemonTcpTarget(env.PORT_DADDY_URL);
+  if (fileExists(DEFAULT_SOCK)) return { socketPath: DEFAULT_SOCK };
+  return resolveDaemonTcpTarget(env.PORT_DADDY_URL);
 }

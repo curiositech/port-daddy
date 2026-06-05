@@ -1,6 +1,0 @@
-.build/
-*.xcuserdata
-xcuserdata/
-DerivedData/
-*.xcworkspace/xcuserdata/
-project.xcworkspace/xcuserdata/
