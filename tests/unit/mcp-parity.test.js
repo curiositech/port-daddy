@@ -29,6 +29,35 @@ const TOOL_FEATURE_MAP = {
   // Trust / introspection
   'attest': 'attest',
 
+  // Harbors (permission namespaces) — #199 cop-out conversion
+  'list_harbors': 'harbors',
+  'get_harbor': 'harbors',
+  'check_harbor_envelope': 'harbors',
+
+  // Pheromone signals — #199
+  'spray_pheromone': 'pheromone',
+  'read_pheromones': 'pheromone',
+  'read_entity_pheromones': 'pheromone',
+
+  // Roadmap projection (cartographer) + items of record (roadmap) — #199
+  'roadmap_progress': 'cartographer',
+  'roadmap_claims': 'cartographer',
+  'roadmap_list': 'roadmap',
+  'roadmap_get': 'roadmap',
+  'roadmap_promote': 'roadmap',
+
+  // Commitments (ADR-0041) — #199
+  'commit': 'commitments',
+  'list_commitments': 'commitments',
+  'list_overdue_commitments': 'commitments',
+
+  // Knowledge: semantic search + symbol index — #199
+  'semantic_search': 'semantic',
+  'semantic_resolve': 'semantic',
+  'find_symbols': 'symbols',
+  'symbol_stats': 'symbols',
+  'predict_conflicts': 'symbols',
+
   // Port management
   'claim_port': 'claim',
   'release_port': 'release',
@@ -242,18 +271,12 @@ const MCP_EXEMPT_FEATURES = new Set([
   'diagnostics',    // CLI-only (doctor/diagnose/ci-gate)
   'endpoints',      // Sub-feature of services, managed via claim
   'spawn',          // CLI/SDK-only; agents use the SDK directly, not MCP
-  'harbors',        // CLI/SDK-only; v1 advisory namespaces, MCP tools deferred to v4
   'arbiter',        // Internal invariant enforcement; admin-only API, not user-facing MCP
-  'pheromone',      // Internal signal system; admin API for debugging, MCP deferred to v4
   'merge_queue',    // API-only merge queue; no CLI or MCP tools yet
-  'symbols',        // API-only symbol index; no CLI or MCP tools yet
-  'semantic',       // Internal review/search surface for embedding joins; operator API/UI only for now
   'observability',  // Internal metrics/golden signals; admin API, not user-facing MCP
   'metricsprom',    // Prometheus scrape + browser dashboard endpoints; consumed by Grafana/scrapers and the /metrics.html page, not by MCP-driving agents
   'resource_governance', // Operator UI read model; MCP wrapper deferred until enforcement controls exist
-  'cartographer',   // Read-only roadmap projection; surfaced via `pd roadmap` CLI; MCP tool deferred until dashboards consume the endpoint
-  'roadmap',        // Write side of tuple-backed roadmap_items DB-of-record; the `pd roadmap promote` CLI verb is the v1 entry point. MCP wrapper deferred until cartographer fleet agent calls it via tool-use directly rather than shell.
-  'commitments',    // ADR-0041 first slice (durable commitments + obligation monitor). CLI verbs `pd commit` / `pd obligations` are the v1 entry points; auto-enrollment from claims and an MCP wrapper land with the sanction-ladder / accountability-ledger follow-on ADRs, not this slice.
+  // CONVERTED to real MCP tools (#199): harbors, pheromone, symbols, semantic, cartographer, roadmap, commitments.
   'secrets',        // PR #197 managed provider credential store. CLI-only (`pd secret set/list/reveal/rm`); write + reveal routes are loopback-only (makeLoopbackGuard). Intentionally NO SDK/MCP surface — an agent must not be able to set or read managed provider API keys (e.g. poison ANTHROPIC_API_KEY to exfiltrate prompts). Follows the `setup` CLI-only precedent.
   'quorum',         // New propose/vote primitive; agents drive consensus via SDK calls in v1, MCP wrapper deferred to v4
   'shipwright',     // Survey + propose + apply for fleet authoring; CLI-driven workflow (long-running, interactive review). MCP wrapper deferred until the propose/apply step is non-interactive.
@@ -694,6 +717,7 @@ describe('MCP tiered tool loading', () => {
     'messaging', 'agents', 'actors', 'inbox', 'webhooks', 'integration', 'dns', 'briefing',
     'tunnels', 'projects', 'changelog', 'activity', 'system', 'tuples', 'sorties',
     'fleet-control', 'semantic', 'feedback', 'cockpit',
+    'harbors', 'signals', 'roadmap', 'commitments', 'knowledge',
   ];
 
   it('ESSENTIAL_TOOL_NAMES in server matches expected set', () => {
