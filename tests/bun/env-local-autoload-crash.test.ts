@@ -62,16 +62,27 @@ function withEnvLocalDir(contents: string, fn: (dir: string) => void): void {
 }
 
 describe('bun .env.local autoload crash — mute-pd ship guard', () => {
-  test('the hostile ${VAR:-$(...)} idiom crashes bun on autoload (the real bug)', () => {
+  test('the hostile ${VAR:-$(...)} idiom does NOT let bun speak on autoload (the real bug)', () => {
     withEnvLocalDir(HOSTILE_LINE, (dir) => {
       const r = spawnSync('bun', ['-e', 'console.log("spoke")'], {
         cwd: dir,
         encoding: 'utf8',
         env: realRuntimeEnv(), // NODE_ENV dropped → bun autoloads .env.local
+        // The failure mode is platform-dependent: on macOS bun 1.2.21 the hostile
+        // expansion SIGTRAPs instantly (exit 133); on Linux CI the same bun hangs
+        // on the malformed `$(...)` autoload instead of crashing fast. Without a
+        // spawn-level timeout the hang runs until bun:test's 5s global limit and
+        // fails the test. Cap it under that limit so a hang returns a killed
+        // result (status null + SIGTERM) — which still proves "bun did not speak".
+        timeout: 4000,
+        killSignal: 'SIGKILL',
       });
-      // bun crashes during dotenv autoload → mute (no "spoke") + dead by signal
-      // (status null) or nonzero exit. Either way: it did NOT speak.
-      expect(r.status === 0 && r.signal === null).toBe(false);
+      // bun never reaches our code during dotenv autoload → mute (no "spoke"),
+      // whether it crashed (signal/nonzero exit), or we killed a hung process
+      // (status null + a signal). The invariant we guard is simply: it did NOT
+      // cleanly speak.
+      const cleanlySpoke = r.status === 0 && r.signal === null;
+      expect(cleanlySpoke).toBe(false);
       expect(r.stdout ?? '').not.toContain('spoke');
     });
   });
@@ -82,6 +93,8 @@ describe('bun .env.local autoload crash — mute-pd ship guard', () => {
         cwd: dir,
         encoding: 'utf8',
         env: realRuntimeEnv(),
+        timeout: 4000,
+        killSignal: 'SIGKILL',
       });
       expect(r.status).toBe(0);
       expect(r.stdout ?? '').toContain('spoke');
@@ -123,6 +136,11 @@ describe('bun .env.local autoload crash — mute-pd ship guard', () => {
         // discovery-only env, never the real ~/.port-daddy; NODE_ENV dropped so
         // the binary autoloads .env.local exactly as an operator's pd would.
         env: realRuntimeEnv({ PORT_DADDY_PREFIX: dir }),
+        // Same platform-dependent failure mode as above: a mute binary may hang
+        // rather than exit on Linux. Cap it so a hang becomes a killed (mute)
+        // result, which the detector branch below then asserts is diagnosable.
+        timeout: 4000,
+        killSignal: 'SIGKILL',
       });
       const spoke = r.status === 0 && (r.stdout ?? '').trim().length > 0;
       if (spoke) {
