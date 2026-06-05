@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { extractDirectives } from './BlogPostPage'
+import { extractDirectives } from '@/lib/blogDirectives'
 
 // Sentinel characters the renderer uses to flag sidenote anchors after
 // markdown processing. Kept in sync with BlogPostPage.tsx.

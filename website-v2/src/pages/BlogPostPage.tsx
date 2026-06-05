@@ -11,6 +11,7 @@ import { Surface } from '@/components/ui/Surface'
 import { BlogComments } from '@/components/blog/BlogComments'
 import { Calendar, User, ArrowLeft } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
+import { extractDirectives, SIDENOTE_PATTERN } from '@/lib/blogDirectives'
 
 // ─── Directive system ─────────────────────────────────────────────────────
 // HTML comments in markdown declare how the NEXT block should render:
@@ -29,19 +30,6 @@ import { Footer } from '@/components/layout/Footer'
 // Unmarked code blocks default to CodeBlock. Mermaid blocks default to
 // figure with auto-caption unless overridden.
 
-interface Directive {
-  type: 'terminal' | 'syllogism' | 'code' | 'figure'
-  arg?: string  // filename for syllogism, caption for figure
-}
-
-// Sentinel inserted into prose blocks to flag them as sidenotes after
-// react-markdown has parsed them. Uses a rare unicode pair so it survives
-// markdown processing without being mistaken for content.
-const SIDENOTE_SENTINEL_OPEN = '⁂SN⁂'
-const SIDENOTE_SENTINEL_CLOSE = '⁂/SN⁂'
-// Non-greedy capture of everything between the open and close sentinel.
-const SIDENOTE_PATTERN = /^⁂SN⁂([\s\S]*?)⁂\/SN⁂\s*/
-
 interface MarkdownCodeElementProps {
   className?: string
   children?: ReactNode
@@ -57,179 +45,6 @@ function PostTag({ children }: { children: string }) {
       {children}
     </span>
   )
-}
-
-/**
- * Pre-scan markdown content and extract directive comments.
- *
- * Code-fence directives (terminal/syllogism/code/figure) attach to the next
- * code fence and are returned in the `directives` map (keyed by 0-based
- * code-block index). Sidenote directives attach to the next paragraph or
- * blockquote and are inlined into that block with a sentinel pair, which
- * the paragraph/blockquote component overrides detect and re-render as
- * gutter asides.
- *
- * Returns the markdown with all directive comments stripped and sidenotes
- * sentinel-wrapped, plus the code-block directive map.
- */
-export function extractDirectives(content: string): { cleaned: string; directives: Map<number, Directive> } {
-  const directives = new Map<number, Directive>()
-
-  // Locate every code fence opener/closer in source order so we can both
-  // index code-fence directives AND avoid attaching sidenote directives to
-  // code fences.
-  const fencePattern = /^```/gm
-  const fencePositions: number[] = []
-  let fm: RegExpExecArray | null
-  while ((fm = fencePattern.exec(content)) !== null) {
-    fencePositions.push(fm.index)
-  }
-
-  // Build [start, end] ranges spanning each code-fence block so we can
-  // skip past them when hunting for sidenote anchors.
-  const codeRanges: Array<[number, number]> = []
-  for (let i = 0; i + 1 < fencePositions.length; i += 2) {
-    const close = fencePositions[i + 1]
-    codeRanges.push([fencePositions[i], close + 3])
-  }
-  const isInsideCodeRange = (pos: number): boolean =>
-    codeRanges.some(([s, e]) => pos >= s && pos < e)
-
-  const codeDirectivePattern = /<!--\s*(terminal|syllogism|code|figure)(?::\s*(.+?))?\s*-->\s*\n/g
-  const sidenoteDirectivePattern = /<!--\s*sidenote(?::\s*(.+?))?\s*-->\s*\n/g
-
-  type Op = { start: number; end: number; replacement?: string }
-  const ops: Op[] = []
-
-  let cdm: RegExpExecArray | null
-  while ((cdm = codeDirectivePattern.exec(content)) !== null) {
-    const directiveEnd = cdm.index + cdm[0].length
-    const type = cdm[1] as Directive['type']
-    const arg = cdm[2]?.trim()
-
-    const nextFencePos = fencePositions.find(p => p >= directiveEnd)
-    if (nextFencePos !== undefined) {
-      const openingFenceIndex = fencePositions.indexOf(nextFencePos)
-      if (openingFenceIndex % 2 === 0) {
-        directives.set(openingFenceIndex / 2, { type, arg })
-      }
-    }
-    ops.push({ start: cdm.index, end: directiveEnd })
-  }
-
-  let sdm: RegExpExecArray | null
-  while ((sdm = sidenoteDirectivePattern.exec(content)) !== null) {
-    const directiveStart = sdm.index
-    const directiveEnd = directiveStart + sdm[0].length
-    const label = sdm[1]?.trim() ?? ''
-
-    const tail = content.slice(directiveEnd)
-    const lines = tail.split('\n')
-    let offsetInTail = 0
-    let anchorAbsStart: number | null = null
-    let anchorKind: 'paragraph' | 'blockquote' | null = null
-
-    for (const line of lines) {
-      const trimmed = line.trim()
-      const lineAbs = directiveEnd + offsetInTail
-      if (trimmed === '' || /^<!--.*-->$/.test(trimmed)) {
-        offsetInTail += line.length + 1
-        continue
-      }
-      if (trimmed.startsWith('```')) {
-        anchorAbsStart = null
-        break
-      }
-      if (trimmed.startsWith('>')) {
-        anchorKind = 'blockquote'
-        anchorAbsStart = lineAbs + (line.length - line.trimStart().length)
-      } else {
-        anchorKind = 'paragraph'
-        anchorAbsStart = lineAbs + (line.length - line.trimStart().length)
-      }
-      break
-    }
-
-    if (anchorAbsStart === null || anchorKind === null) {
-      ops.push({ start: directiveStart, end: directiveEnd })
-      continue
-    }
-    if (isInsideCodeRange(anchorAbsStart)) {
-      ops.push({ start: directiveStart, end: directiveEnd })
-      continue
-    }
-
-    const sentinel = `${SIDENOTE_SENTINEL_OPEN}${label}${SIDENOTE_SENTINEL_CLOSE}`
-    ops.push({ start: directiveStart, end: directiveEnd })
-
-    if (anchorKind === 'blockquote') {
-      // Strip the leading `>` markers from each contiguous line of the
-      // blockquote so it parses as a regular paragraph. This keeps the
-      // sidenote-tagged content out of <blockquote>...</blockquote>
-      // (which would otherwise paint a stray border-left next to our
-      // floated aside). We then inject the sentinel at the very start.
-      //
-      // A "blockquote line" is any line that begins with `>` after
-      // optional whitespace. Stop at the first non-blockquote line.
-      const tailStart = directiveEnd
-      const remaining = content.slice(tailStart)
-      const lines = remaining.split('\n')
-      // Find the index of the anchor line within `lines`.
-      // We know the anchor is at `anchorAbsStart`, but easier: find the
-      // first non-empty line that starts with `>`.
-      let firstBqLineIdx = -1
-      for (let idx = 0; idx < lines.length; idx += 1) {
-        const t = lines[idx].trim()
-        if (t === '' || /^<!--.*-->$/.test(t)) continue
-        if (t.startsWith('>')) { firstBqLineIdx = idx; break }
-        break
-      }
-      if (firstBqLineIdx === -1) {
-        // Shouldn't happen — we already detected anchorKind === 'blockquote'.
-        ops.push({ start: anchorAbsStart, end: anchorAbsStart, replacement: sentinel })
-      } else {
-        // Walk forward collecting contiguous blockquote lines, stripping
-        // the leading `>` (and one following space if present).
-        let cursor = tailStart
-        // advance cursor to start of firstBqLineIdx
-        for (let idx = 0; idx < firstBqLineIdx; idx += 1) cursor += lines[idx].length + 1
-        // Now cursor points at the first char of the blockquote line.
-        const blockReplacements: Op[] = []
-        for (let idx = firstBqLineIdx; idx < lines.length; idx += 1) {
-          const line = lines[idx]
-          const trimmed = line.trim()
-          if (!trimmed.startsWith('>')) break
-          // Compute leading-whitespace length, then count `>` and optional
-          // following space.
-          const leadingWs = line.length - line.trimStart().length
-          let cut = leadingWs + 1 // the `>`
-          if (line[leadingWs + 1] === ' ') cut += 1
-          const lineStart = cursor
-          blockReplacements.push({ start: lineStart, end: lineStart + cut, replacement: '' })
-          cursor += line.length + 1
-        }
-        // Inject the sentinel at the very first content character of the
-        // first blockquote line (i.e. AFTER its `> ` is stripped).
-        const firstReplacement = blockReplacements[0]
-        ops.push({ start: firstReplacement.end, end: firstReplacement.end, replacement: sentinel })
-        for (const r of blockReplacements) ops.push(r)
-      }
-    } else {
-      ops.push({ start: anchorAbsStart, end: anchorAbsStart, replacement: sentinel })
-    }
-  }
-
-  ops.sort((a, b) => b.start - a.start)
-  let cleaned = content
-  for (const op of ops) {
-    if (op.replacement !== undefined) {
-      cleaned = cleaned.slice(0, op.start) + op.replacement + cleaned.slice(op.end)
-    } else {
-      cleaned = cleaned.slice(0, op.start) + cleaned.slice(op.end)
-    }
-  }
-
-  return { cleaned, directives }
 }
 
 /**

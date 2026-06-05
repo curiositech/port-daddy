@@ -39,6 +39,7 @@ const OVERFLOW_NAV_ITEMS = [
   { label: "Templates", href: "/agents/templates", end: true },
   { label: "Landscape", href: "/landscape", end: false },
   { label: "Blog", href: "/blog", end: false },
+  { label: "Manifesto", href: "/manifesto", end: true },
   { label: "Papers", href: "/whitepaper", end: false },
 ] satisfies readonly NavItem[];
 
