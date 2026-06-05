@@ -1072,6 +1072,37 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         return blockedResult(`Spawn blocked: could not enter harbor '${harborName}' (${entered.error || 'unknown error'}).`);
       }
       enteredHarborName = harborName;
+
+      // ── P4 envelope enforcement (ADR-0047) ────────────────────────────────
+      // If the harbor has opted into a capability envelope, the spawn's backend
+      // must be admitted by it. No envelope set → no enforcement (the open
+      // default is preserved; enforcement is opt-in per call site). Fail-closed:
+      // a set-but-restrictive envelope blocks the spawn BEFORE the bond is
+      // escrowed and names the boundary it tripped (surfaced to the operator,
+      // #190). The boundary name is the only thing the deny message reveals —
+      // never an override (guardrails-never-advertise-bypass).
+      const harborEnvelope =
+        typeof harbors.getEnvelope === 'function' ? harbors.getEnvelope(harborName) : null;
+      if (harborEnvelope && typeof harbors.assertWithinEnvelope === 'function') {
+        const verdict = harbors.assertWithinEnvelope(harborName, agentId, {
+          kind: 'backend',
+          name: spec.backend,
+        });
+        if (!verdict.allowed) {
+          counters?.bump('spawn.blocked', dims);
+          try { harbors.leaveAll(agentId); } catch {}
+          enteredHarborName = null;
+          return blockedResult(`Spawn blocked by harbor envelope [${verdict.boundary}]: ${verdict.reason}`);
+        }
+        // Propagate the envelope to the child as a one-way parent→child config
+        // channel (env var). The agent reads PD_HARBOR_ENVELOPE to self-limit to
+        // the same boundary the daemon enforces, so it never has to guess scope.
+        spec.env = {
+          ...(spec.env || {}),
+          PD_HARBOR_NAME: harborName,
+          PD_HARBOR_ENVELOPE: JSON.stringify(harborEnvelope),
+        };
+      }
     }
 
     if (bonds && projectName && bondUsd > 0) {
