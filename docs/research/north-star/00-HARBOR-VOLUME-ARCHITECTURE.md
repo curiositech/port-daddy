@@ -348,7 +348,7 @@ add the teaching layer:
 - **Voice** — measured-academic but vivid: named metaphors in quotes (the "Ghost
   in the Harbor"), threat-vector / problem-first framing, a *Reading time: ~N min*
   note, companion-paper cross-refs, real citations with `\cite{}`. Never dry.
-- **Big diagrams** — ≥ 4 substantial TikZ figures per paper (not decorative):
+- **Big diagrams** — **≥ 10 substantial TikZ figures per paper** (not decorative):
   reuse/extend the `whitepaper/figures/` library (hh-* palette, `arrows.meta`,
   `positioning`, `fit`, `backgrounds`). Every paper opens with the **stack-map
   figure** (which rung, what it assumes, which papers it cites).
