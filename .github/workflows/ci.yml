@@ -119,7 +119,7 @@ jobs:
         run: bash scripts/smoke-compiled-cli-tube.sh
         timeout-minutes: 3
 
-      - name: Smoke compiled CLI actually RUNS (bare status + tube, via discovery)
+      - name: Smoke compiled CLI actually RUNS (bare status + tube + hostile .env.local cwd)
         # THE gate that was missing: the prior compiled smokes set PORT_DADDY_URL
         # and the single-binary smoke only ran `__daemon`, so a compiled CLI that
         # couldn't bootstrap or whose CLI path was dead shipped GREEN. This boots
@@ -127,6 +127,18 @@ jobs:
         # operator does (discovery, no URL override): `pd status` 3x must run and
         # report a running daemon, `pd tube --send` must post, and a 2-listener
         # fan-out must deliver to both. Fails the build if the compiled CLI is dead.
+        #
+        # NOW ALSO: the cwd-`.env.local` gate. The Homebrew `pd` is a
+        # `bun build --compile` binary; bun auto-loads `.env.local` from the cwd
+        # before our code runs, and a `KEY="${KEY:-$(...)}"` value segfaults bun
+        # (exit 133) during that autoload — so `pd` was TOTALLY MUTE from a repo
+        # containing such a file, yet shipped GREEN because every prior smoke ran
+        # from a CLEAN cwd. This step now runs the binary from a SAFE-`.env.local`
+        # cwd (must speak — hard gate) and a HOSTILE-`.env.local` cwd (must either
+        # speak, if bun is fixed, OR `pd doctor` must ship the named diagnostic so
+        # the muteness is loud, never silent). NODE_ENV is dropped for these runs
+        # because `NODE_ENV=test` makes bun skip `.env.local` autoload and would
+        # hide the crash. See scripts/smoke-compiled-cli-runs.sh step 4.
         run: bash scripts/smoke-compiled-cli-runs.sh
         timeout-minutes: 3
 

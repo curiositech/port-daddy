@@ -14,7 +14,7 @@ import { pdFetch, PORT_DADDY_URL, SOCK_PATH, getDaemonUrl } from '../utils/fetch
 import { CLIOptions, isJson } from '../types.js';
 import { separator, tableHeader } from '../utils/output.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
-import { diagnoseStartupBlockers, confirmFix } from '../utils/startup-doctor.js';
+import { diagnoseStartupBlockers, confirmFix, detectHostileEnvLocal } from '../utils/startup-doctor.js';
 import { CANONICAL_TCP_PORT } from '../../shared/daemon-discovery.js';
 import { calculateRuntimeCodeHash } from '../../shared/code-hash.js';
 import {
@@ -846,6 +846,39 @@ export async function handleDoctor(): Promise<void> {
       check(issue.issue, false, issue.detail,
         issue.fixable ? 'Auto-fixable (will prompt below)' : 'Manual intervention needed');
     }
+  }
+
+  // -------------------------------------------------------------------------
+  // 11b. Hostile `.env.local` in the current directory
+  // -------------------------------------------------------------------------
+  // The Homebrew `pd` is a `bun build --compile` binary, and bun auto-loads
+  // `.env.local` from the cwd before any of our code runs. A shell-idiom value
+  // that nests a command substitution inside a default-expansion —
+  // `KEY="${KEY:-$(...)}"` — segfaults bun 1.2.21 (exit 133) during that
+  // autoload, so `pd` is totally MUTE from that directory. This is exactly how
+  // a "mute pd" looked in the field: every fleet agent running `pd` from a repo
+  // with such an `.env.local` got silence. We detect the idiom textually
+  // (never executing the file) and tell the operator how to fix it — but we
+  // never auto-edit secrets without consent.
+  try {
+    const hostileEnv = detectHostileEnvLocal(process.cwd());
+    if (hostileEnv.length === 0) {
+      check('Shell-idiom .env.local', true, 'No bun-crashing .env.local in the current directory');
+    } else {
+      const first = hostileEnv[0];
+      check(
+        'Shell-idiom .env.local',
+        false,
+        `${first.path}:${first.lineNumber} uses a command-substitution inside a default-expansion ` +
+          `(\${VAR:-\$(...)}), which segfaults bun's dotenv autoload — the compiled pd will be MUTE from this directory`,
+        'Fix (any one): drop the ${VAR:-$(...)} wrapper — set the value as a plain literal or a bare ' +
+          '$(...) (both load fine); OR move keychain/command resolution into your shell rc (export it ' +
+          'before running pd) and remove it from .env.local. (Quoting does NOT help — single OR double ' +
+          'quotes still crash bun.) pd will not edit secrets for you.',
+      );
+    }
+  } catch (err: unknown) {
+    check('Shell-idiom .env.local', true, `Could not check (skipped): ${(err as Error).message}`);
   }
 
   // -------------------------------------------------------------------------
