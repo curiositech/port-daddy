@@ -352,6 +352,13 @@ add the teaching layer:
   reuse/extend the `whitepaper/figures/` library (hh-* palette, `arrows.meta`,
   `positioning`, `fit`, `backgrounds`). Every paper opens with the **stack-map
   figure** (which rung, what it assumes, which papers it cites).
+- **Figure typography (the clean bar — a defect if violated).** A figure is noisy
+  when it mixes font families and accent colors. The rule: **one typeface per
+  figure** (match the body's serif; do not drop into `\sffamily`), **one** accent
+  color (cinnabar) used *only* for the single "you are here / THIS PAPER" marker,
+  **state/status labels in muted black or gray** (never colored), color otherwise
+  reserved for **arrows**, and **no multi-colored or multi-weight bolds** in one
+  box. Restraint reads as authority; a rainbow of bolds reads as a ransom note.
 - **Reading guide** — the Reader's-Map table at the top (by reader type → the
   section + load-bearing artifact), plus an explicit reading order within the
   volume.
