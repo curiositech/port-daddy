@@ -28,7 +28,9 @@
     "fix:whitepaper-metadata": "tsx scripts/check-whitepaper-metadata.ts --fix",
     "test:figure-palette": "node scripts/check-figure-palette.mjs",
     "record:gifs": "bash scripts/record-site-terminal-gifs.sh --all && bash scripts/record-agent-terminal-gifs.sh --all",
-    "test:gifs": "node scripts/check-terminal-recordings.mjs"
+    "test:gifs": "node scripts/check-terminal-recordings.mjs && node scripts/snapshot-recordings.mjs",
+    "snapshot:check": "node scripts/snapshot-recordings.mjs",
+    "snapshot:update": "node scripts/snapshot-recordings.mjs --update"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",
