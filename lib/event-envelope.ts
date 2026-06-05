@@ -174,3 +174,148 @@ export function createReplayGuard() {
     },
   };
 }
+
+// ─── Structured error contract ──────────────────────────────────────────────
+//
+// agent-interchange-formats: "retry behavior is encoded structurally, not only
+// described in prose." A caller must NEVER read a message string to decide
+// whether to retry — it reads `retryable` and the bounded retry policy.
+
+/** Closed enum of error codes the retry contract is built on. */
+export const AGENT_ERROR_CODES = [
+  'RATE_LIMITED',   // transient; retry after a delay
+  'TIMEOUT',        // transient
+  'UNAVAILABLE',    // transient (dependency down)
+  'CONFLICT',       // transient (optimistic-concurrency retry)
+  'VALIDATION_ERROR', // permanent; the request is malformed
+  'NOT_FOUND',      // permanent
+  'UNAUTHORIZED',   // permanent (re-auth is a different flow)
+  'INTERNAL',       // ambiguous; non-retryable unless caller opts in
+] as const;
+
+export type AgentErrorCode = typeof AGENT_ERROR_CODES[number] | string;
+
+/** Codes that are retryable by default (transient failures). */
+const RETRYABLE_BY_DEFAULT = new Set(['RATE_LIMITED', 'TIMEOUT', 'UNAVAILABLE', 'CONFLICT']);
+
+export interface AgentError {
+  code: AgentErrorCode;
+  message: string;
+  /** Machine-grade: may this operation be retried? */
+  retryable: boolean;
+  /** Base delay before the first retry, ms. */
+  retryAfterMs?: number;
+  /** Hard cap on retry attempts. */
+  maxRetries?: number;
+  /** Optional typed detail payload (audit-safe; no secrets). */
+  details?: Record<string, unknown>;
+}
+
+/**
+ * Build a structured error. `retryable` is derived from the code unless given
+ * explicitly. Unknown codes default to NON-retryable (fail closed) — an
+ * unrecognized failure is not silently retried.
+ */
+export function makeError(fields: {
+  code: AgentErrorCode;
+  message: string;
+  retryable?: boolean;
+  retryAfterMs?: number;
+  maxRetries?: number;
+  details?: Record<string, unknown>;
+}): AgentError {
+  if (!isNonEmptyString(fields.code)) throw new Error('error.code required');
+  if (typeof fields.message !== 'string') throw new Error('error.message required (string)');
+  const retryable =
+    typeof fields.retryable === 'boolean'
+      ? fields.retryable
+      : RETRYABLE_BY_DEFAULT.has(fields.code);
+  const e: AgentError = { code: fields.code, message: fields.message, retryable };
+  if (fields.retryAfterMs !== undefined) e.retryAfterMs = fields.retryAfterMs;
+  if (fields.maxRetries !== undefined) e.maxRetries = fields.maxRetries;
+  if (fields.details !== undefined) e.details = fields.details;
+  return e;
+}
+
+export function isRetryable(e: AgentError): boolean {
+  return e.retryable === true;
+}
+
+/**
+ * Exponential backoff for retry `attempt` (1-based): base × 2^(attempt-1).
+ * Returns null when the error is non-retryable or attempts are exhausted
+ * (attempt > maxRetries) — the caller stops without prose-reading.
+ */
+export function nextRetryDelayMs(e: AgentError, attempt: number): number | null {
+  if (!e.retryable) return null;
+  const max = e.maxRetries ?? 0;
+  if (attempt < 1 || attempt > max) return null;
+  const base = e.retryAfterMs ?? 1000;
+  return base * 2 ** (attempt - 1);
+}
+
+// ─── Streaming contract ─────────────────────────────────────────────────────
+//
+// agent-interchange-formats: "streaming contracts specify ordering and
+// completion semantics." Every event carries a per-stream monotonic seq and a
+// terminal marker; reassembly is order-independent, gap-detecting, and
+// replay-idempotent.
+
+export interface StreamEvent {
+  streamId: string;
+  seq: number;
+  chunk: string;
+  /** true on the final event of the stream. */
+  done: boolean;
+}
+
+export interface StreamResult {
+  text: string;
+  complete: boolean;
+  error: string | null;
+}
+
+export function makeStreamEvent(fields: {
+  streamId: string;
+  seq: number;
+  chunk: string;
+  done?: boolean;
+}): StreamEvent {
+  if (!isNonEmptyString(fields.streamId)) throw new Error('streamEvent.streamId required');
+  if (typeof fields.seq !== 'number' || !Number.isInteger(fields.seq) || fields.seq < 0) {
+    throw new Error('streamEvent.seq must be a non-negative integer');
+  }
+  if (typeof fields.chunk !== 'string') throw new Error('streamEvent.chunk must be a string');
+  return { streamId: fields.streamId, seq: fields.seq, chunk: fields.chunk, done: fields.done === true };
+}
+
+/**
+ * Reassemble stream events deterministically:
+ *   - all events must share one streamId (no cross-stream mixing);
+ *   - ordered by seq (out-of-order input is fine);
+ *   - duplicate seq is idempotent (relay replay can't double a chunk);
+ *   - a missing seq is reported as a gap, not silently concatenated;
+ *   - `complete` iff a `done` event is present AND the sequence is gap-free
+ *     from 0 through the terminal seq.
+ */
+export function assembleStream(events: StreamEvent[]): StreamResult {
+  if (events.length === 0) return { text: '', complete: false, error: null };
+  const streamId = events[0].streamId;
+  if (events.some((e) => e.streamId !== streamId)) {
+    return { text: '', complete: false, error: `mixed streamId in event set (expected ${streamId})` };
+  }
+  // Dedup by seq (idempotent); last write wins for a given seq.
+  const bySeq = new Map<number, StreamEvent>();
+  for (const e of events) bySeq.get(e.seq) ?? bySeq.set(e.seq, e);
+  const seqs = [...bySeq.keys()].sort((a, b) => a - b);
+  const doneEvent = events.find((e) => e.done);
+  // Gap check: contiguous 0..max present.
+  const max = seqs[seqs.length - 1];
+  const missing: number[] = [];
+  for (let i = 0; i <= max; i++) if (!bySeq.has(i)) missing.push(i);
+  const text = seqs.map((s) => bySeq.get(s)!.chunk).join('');
+  if (missing.length > 0) {
+    return { text, complete: false, error: `gap: missing seq ${missing.join(',')}` };
+  }
+  return { text, complete: doneEvent !== undefined, error: null };
+}
