@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Inbound GitHub webhook route** (`POST /webhooks/github`, `routes/github-webhook.ts`)
+  closes the GitHub App dispatch loop: the receiver Worker forwards a verified
+  webhook, the daemon authenticates the forward (bearer `PD_GITHUB_FORWARD_TOKEN`
+  or HMAC `PD_GITHUB_WEBHOOK_SECRET`), and publishes it onto the messaging bus as
+  `github:webhook:<event>`, `github:webhook:<event>:<action>`, and
+  `github:<owner>/<repo>:<event>`. Fleet ships subscribe with
+  `trigger: global:github:webhook:<event>` in `pd-fleet.yml`. Per-project
+  routing isolation remains a documented follow-up (needs a repo→project
+  registry). 9 tests, including an end-to-end loop check over real messaging.
+
 ### Fixed
 - **Release gate: a mute compiled `pd` can no longer ship.** The Homebrew `pd`
   is a `bun build --compile` binary, and bun auto-loads `.env.local` from the

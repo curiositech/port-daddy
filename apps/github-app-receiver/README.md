@@ -5,9 +5,15 @@ Cloudflare Worker that receives webhook POSTs from a GitHub App, verifies the
 payload into a stable envelope, and forwards it to the operator's Port Daddy
 daemon.
 
-The daemon-side fleet engine subscribes to the resulting
-`github:webhook:<event>` tube channel and dispatches whichever ships are
-declared in the target repository's `pd-fleet.yml`.
+Point `DAEMON_FORWARD_URL` at the daemon's inbound route,
+`POST /webhooks/github` (routes/github-webhook.ts). That route authenticates
+the forward (the `FORWARD_AUTH_TOKEN` bearer below, checked against the
+daemon's `PD_GITHUB_FORWARD_TOKEN`), then publishes the event onto the
+messaging bus as `github:webhook:<event>`, `github:webhook:<event>:<action>`,
+and `github:<owner>/<repo>:<event>`. The fleet engine subscribes to those
+channels and dispatches whichever ships are declared in the target
+repository's `pd-fleet.yml` (see the fleet app README for the
+`trigger: global:github:webhook:<event>` convention).
 
 ## Response codes
 

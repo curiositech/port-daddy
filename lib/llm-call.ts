@@ -166,6 +166,92 @@ export const ollamaAdapter: LLMAdapter = async ({ prompt, model, maxTokens, sign
   }
 };
 
+/**
+ * Google Gemini adapter (REST `generateContent`).
+ *
+ * Uses the v1beta REST endpoint directly rather than the `@google/genai`
+ * SDK — same house style as the cloudflare/openai backends (zero added
+ * deps, exact usage extraction, fetch-only). The deprecated
+ * `@google/generative-ai` SDK is intentionally NOT used.
+ *
+ * Auth: `GEMINI_API_KEY` (or `GOOGLE_API_KEY`) from getSecret() first
+ * (encrypted keychain), then env. Sent as the `x-goog-api-key` header.
+ *
+ * Exact telemetry: the response's `usageMetadata` carries
+ * `promptTokenCount` and `candidatesTokenCount`. Gemini 2.5 models are
+ * thinking models that also report `thoughtsTokenCount` — those tokens
+ * are BILLED as output, so we fold them into outputTokens to keep cost
+ * recording honest.
+ */
+function geminiApiBase(env: NodeJS.ProcessEnv): string {
+  return (env.GEMINI_API_BASE || env.GOOGLE_GEMINI_API_BASE
+    || 'https://generativelanguage.googleapis.com/v1beta').replace(/\/$/, '');
+}
+
+export const geminiAdapter: LLMAdapter = async ({ prompt, model, maxTokens, signal, env }) => {
+  const e = env ?? process.env;
+  const apiKey = getSecret('GEMINI_API_KEY')
+    || e.GEMINI_API_KEY
+    || getSecret('GOOGLE_API_KEY')
+    || e.GOOGLE_API_KEY;
+  if (!apiKey) {
+    return { ok: false, error: 'GEMINI_API_KEY is not set. Run: pd secret set GEMINI_API_KEY' };
+  }
+
+  // Reject path-injection in the model id (it goes into the URL path).
+  const modelId = model.trim().replace(/^models\//, '');
+  if (!modelId || /[/?#]/.test(modelId)) {
+    return { ok: false, error: `Invalid Gemini model id: ${JSON.stringify(model)}` };
+  }
+
+  const body: Record<string, unknown> = {
+    contents: [{ parts: [{ text: prompt }] }],
+  };
+  if (typeof maxTokens === 'number' && maxTokens > 0) {
+    body.generationConfig = { maxOutputTokens: maxTokens };
+  }
+
+  try {
+    const res = await fetch(
+      `${geminiApiBase(e)}/models/${encodeURIComponent(modelId)}:generateContent`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+        body: JSON.stringify(body),
+        signal,
+      },
+    );
+    if (!res.ok) {
+      const txt = await res.text().catch(() => 'unknown error');
+      return { ok: false, error: `Gemini HTTP ${res.status}: ${txt}` };
+    }
+    const data = await res.json() as Record<string, any>;
+    if (data.error) {
+      return { ok: false, error: `Gemini API error: ${data.error.message || JSON.stringify(data.error)}` };
+    }
+    const candidate = data?.candidates?.[0];
+    const text = (candidate?.content?.parts ?? [])
+      .map((p: { text?: string }) => p?.text ?? '')
+      .join('');
+    if (!text) {
+      // A blocked / empty completion is a real failure, not zero-token success.
+      const finish = candidate?.finishReason ? ` (finishReason: ${candidate.finishReason})` : '';
+      return { ok: false, error: `Gemini returned no text response${finish}` };
+    }
+    const usage = data?.usageMetadata ?? {};
+    const inputTokens = normalizeTokenCount(usage.promptTokenCount);
+    // Thinking tokens are billed as output — fold them in so cost is exact.
+    const candidateTokens = normalizeTokenCount(usage.candidatesTokenCount) ?? 0;
+    const thoughtTokens = normalizeTokenCount(usage.thoughtsTokenCount) ?? 0;
+    const outputTokens = usage.candidatesTokenCount === undefined && usage.thoughtsTokenCount === undefined
+      ? undefined
+      : candidateTokens + thoughtTokens;
+    return { ok: true, text, inputTokens, outputTokens };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+};
+
 // ────── Reusable client wrapper ──────
 //
 // Cache + rate-limit + hard timeout + fallback-deny are concerns every

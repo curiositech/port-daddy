@@ -134,6 +134,8 @@ import {
   handlePopper,
   // Managed provider secret store (keychain-backed)
   handleSecret,
+  // Operator loop · SIGHT stage — raise the periscope (state + next cut)
+  handlePeriscope,
 } from '../cli/commands/index.js';
 // pd memory — Core/Recall/Archival vocabulary + episodic memory dispatcher.
 // Imported directly (not via index.js) so the tier subcommands take precedence
@@ -1270,6 +1272,7 @@ const ALL_COMMANDS: string[] = [
   'harbormaster', 'hm',
   'dispatch', 'nightshift', 'review', 'morning',
   'backend',
+  'periscope', 'sight', 'scope',
 ];
 
 /** Simple Levenshtein distance for short strings */
@@ -2673,6 +2676,14 @@ export async function main(): Promise<void> {
 
       case 'briefing':
         await handleBriefing(options);
+        break;
+
+      // Operator loop · SIGHT stage. `pd periscope` (aliases: sight, scope) —
+      // raise the periscope: what's the state, what's the next cut.
+      case 'periscope':
+      case 'sight':
+      case 'scope':
+        await handlePeriscope(options);
         break;
 
       case 'history':

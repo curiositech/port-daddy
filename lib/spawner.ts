@@ -23,8 +23,9 @@ import type { Harbors } from './harbors.js';
 import type { Transcripts, TranscriptOutput } from './transcripts.js';
 import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
 import { getSecret } from './secret-env.js';
-import { cloudflareAdapter, ollamaAdapter } from './llm-call.js';
+import { cloudflareAdapter, ollamaAdapter, geminiAdapter } from './llm-call.js';
 import { openaiAdapter, DEFAULT_OPENAI_MODEL, DEFAULT_OPENAI_TIMEOUT_MS } from './spawner/backends/openai.js';
+import { groqAdapter, DEFAULT_GROQ_MODEL } from './spawner/backends/groq.js';
 import { spawnViaCliTube, type CliTubeTool } from './spawner/backends/cli-tube.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { deriveAgentDisplayName } from './agent-names.js';
@@ -85,7 +86,7 @@ function loadDotenvOnce(): Record<string, string> {
 // =============================================================================
 
 export interface SpawnSpec {
-  backend: 'ollama' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'codex' | 'aider' | 'custom' | 'openai' | 'cli:claude-code' | 'cli:codex';
+  backend: 'ollama' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'codex' | 'aider' | 'custom' | 'openai' | 'groq' | 'cli:claude-code' | 'cli:codex';
   name?: string;        // human-readable display name
   model?: string;
   modelTier?: 'low' | 'mid' | 'high';
@@ -96,6 +97,10 @@ export interface SpawnSpec {
   harborName?: string; // optional override for bond-admission harbor
   files?: string[];    // for aider backend
   workdir?: string;
+  // Opt-in for agents that MUST run in a repo's main checkout (working-tree
+  // observers like the gardener, or genuinely read-only agents). When unset,
+  // the spawner refuses to launch into a main checkout — see assessSpawnIsolation.
+  allowSharedCheckout?: boolean;
   env?: Record<string, string>;
   timeout?: number;    // ms, default 300000
   allowedTools?: string;  // for claude-cli backend: tool permission string
@@ -418,31 +423,27 @@ async function runClaude(spec: SpawnSpec, model: string): Promise<BackendRunResu
 }
 
 async function runGemini(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
-  let GoogleGenerativeAI: unknown = null;
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-implied-eval
-    const m = await (new Function('s', 'return import(s)'))('@google/generative-ai') as { GoogleGenerativeAI: unknown };
-    GoogleGenerativeAI = m.GoogleGenerativeAI;
-  } catch {
-    return { output: '', error: '@google/generative-ai is not installed. Run: npm install @google/generative-ai' };
-  }
+  // REST-based: no SDK dep, and (critically) extracts exact usage tokens
+  // (promptTokenCount + candidatesTokenCount + thoughtsTokenCount) so the
+  // fail-closed telemetry policy can record an exact nonzero cost. The
+  // legacy @google/generative-ai SDK path returned no usage and is deprecated.
+  const result = await geminiAdapter({
+    prompt: spec.task,
+    model,
+    maxTokens: spec.maxTokens,
+    signal: spec.timeout ? AbortSignal.timeout(spec.timeout) : undefined,
+  });
+  return adaptLLMResult(result);
+}
 
-  try {
-    const genAI = new (GoogleGenerativeAI as new (apiKey: string) => {
-      getGenerativeModel(opts: { model: string }): {
-        generateContent(prompt: string): Promise<{
-          response: { text(): string };
-        }>;
-      };
-    })(getSecret('GEMINI_API_KEY') || '');
-
-    const geminiModel = genAI.getGenerativeModel({ model });
-    const result = await geminiModel.generateContent(spec.task);
-    const text = result.response.text();
-    return { output: text, error: null };
-  } catch (err) {
-    return { output: '', error: (err as Error).message };
-  }
+async function runGroq(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
+  const result = await groqAdapter({
+    prompt: spec.task,
+    model,
+    maxTokens: spec.maxTokens,
+    signal: spec.timeout ? AbortSignal.timeout(spec.timeout) : undefined,
+  });
+  return adaptLLMResult(result);
 }
 
 async function runCloudflare(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
@@ -790,9 +791,10 @@ const DEFAULT_MODELS: Record<SpawnSpec['backend'], string> = {
   ollama: 'llama3.1:8b',
   claude: 'claude-haiku-4-5-20251001',
   'claude-cli': 'claude-cli',  // claude CLI manages its own model
-  gemini: 'gemini-2.0-flash-exp',
+  gemini: 'gemini-2.5-flash',  // gemini-2.0-flash was shut down 2026-06-01
   cloudflare: '@cf/zai-org/glm-4.7-flash',
   openai: DEFAULT_OPENAI_MODEL,
+  groq: DEFAULT_GROQ_MODEL,
   codex: 'gpt-5.4-mini',
   'cli:claude-code': 'claude-cli',  // local claude CLI manages its own model
   'cli:codex': 'codex-cli',          // local codex CLI manages its own model
@@ -801,6 +803,71 @@ const DEFAULT_MODELS: Record<SpawnSpec['backend'], string> = {
 };
 // Mark default-timeout knobs referenced elsewhere
 void DEFAULT_OPENAI_TIMEOUT_MS;
+
+// =============================================================================
+// Worktree isolation guard (layer 2)
+// =============================================================================
+//
+// Parallel agents launched into the SAME repository main checkout overwrite
+// each other's files. On 2026-06-03 this deleted 403 files in the port-daddy
+// working tree. A git WORKTREE has `.git` as a FILE (a gitdir pointer); a main
+// checkout has `.git` as a DIRECTORY. That is the deterministic signal — we
+// never shell out to git. The harness PreToolUse hook is the layer-1 twin.
+
+const SPAWN_ISOLATION_BYPASS_ENV = 'PD_SPAWN_ISOLATION_OFF';
+
+/**
+ * Walk up from `startDir` to classify the nearest git checkout:
+ *  - 'main'     : `.git` is a directory  (a primary checkout — collision risk)
+ *  - 'worktree' : `.git` is a file        (a `git worktree add` checkout — safe)
+ *  - 'none'     : no `.git` ancestor      (not a repo — nothing to steamroll)
+ */
+export function detectGitCheckout(startDir: string): 'main' | 'worktree' | 'none' {
+  let dir = resolve(startDir);
+  for (;;) {
+    const gitPath = join(dir, '.git');
+    if (existsSync(gitPath)) {
+      try {
+        return statSync(gitPath).isDirectory() ? 'main' : 'worktree';
+      } catch {
+        return 'none';
+      }
+    }
+    const parent = dirname(dir);
+    if (parent === dir) return 'none';
+    dir = parent;
+  }
+}
+
+/**
+ * Decide whether a spawn must be refused for lack of worktree isolation.
+ * Pure and deterministic so it is fully unit-testable.
+ *
+ * Allowed without isolation: an explicit `allowSharedCheckout` opt-in (for
+ * working-tree observers like the gardener) or the operator escape hatch
+ * `PD_SPAWN_ISOLATION_OFF=1`. The escape hatch is intentionally NOT named in
+ * the reason string — a refusal must point only to the correct action
+ * (isolate in a worktree), never advertise its own bypass.
+ */
+export function assessSpawnIsolation(
+  spec: { workdir?: string; allowSharedCheckout?: boolean },
+  env: Record<string, string | undefined> = process.env,
+): { blocked: boolean; reason: string | null } {
+  if (spec.allowSharedCheckout === true) return { blocked: false, reason: null };
+  if (env[SPAWN_ISOLATION_BYPASS_ENV] === '1') return { blocked: false, reason: null };
+
+  const workdir = spec.workdir ? resolve(spec.workdir) : process.cwd();
+  if (detectGitCheckout(workdir) !== 'main') return { blocked: false, reason: null };
+
+  return {
+    blocked: true,
+    reason:
+      `Spawn blocked: workdir is a repository main checkout (${workdir}). ` +
+      `Parallel agents sharing one checkout overwrite each other's files — this ` +
+      `deleted 403 files on 2026-06-03. Run this agent in a dedicated git worktree ` +
+      `and point workdir at it: git worktree add ~/coding/tmp/<name> -b <branch>.`,
+  };
+}
 
 // =============================================================================
 // Module factory
@@ -988,6 +1055,14 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     if (running >= MAX_CONCURRENT_RUNNING) {
       counters?.bump('spawn.blocked', dims);
       return blockedResult(`Spawn blocked: ${running} agents already running (limit: ${MAX_CONCURRENT_RUNNING}). Wait for one to finish.`);
+    }
+
+    // Worktree isolation (layer 2): never launch a file-writing agent into a
+    // repository main checkout — parallel agents there steamroll each other.
+    const isolation = assessSpawnIsolation(spec);
+    if (isolation.blocked) {
+      counters?.bump('spawn.blocked', dims);
+      return blockedResult(isolation.reason as string);
     }
 
     if (!enforceTelemetryPolicy) {
@@ -1241,6 +1316,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
           case 'gemini':    result = await runGemini(spec, model); break;
           case 'cloudflare': result = await runCloudflare(spec, model); break;
           case 'openai':    result = await runOpenAI(spec, model); break;
+          case 'groq':      result = await runGroq(spec, model); break;
           case 'codex':     result = await runCodexCli(spec, model, childContext); break;
           case 'claude-cli': result = await runClaudeCli(spec, childContext); break;
           case 'cli:claude-code': result = await runCliTube(spec, 'claude-code', childContext); break;

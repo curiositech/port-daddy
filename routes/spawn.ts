@@ -22,7 +22,7 @@ interface SpawnRouteDeps {
   };
 }
 
-const VALID_BACKENDS = new Set(['ollama', 'claude', 'claude-cli', 'gemini', 'cloudflare', 'codex', 'aider', 'custom']);
+const VALID_BACKENDS = new Set(['ollama', 'claude', 'claude-cli', 'gemini', 'cloudflare', 'openai', 'groq', 'codex', 'aider', 'custom', 'cli:claude-code', 'cli:codex']);
 
 
 // ==========================================================================

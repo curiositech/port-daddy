@@ -23,6 +23,12 @@ jest.unstable_mockModule('../../shared/daemon-discovery.js', () => ({
   getDaemonTcpUrl: () => 'http://127.0.0.1:9876',
   readDaemonPort: mockReadDaemonPort,
   resolveDaemonTcpTarget: () => ({ host: '127.0.0.1', port: 9876 }),
+  // The one canonical resolver fetch.ts now delegates to. Honor the same
+  // existsSync flag these tests already use to choose socket vs TCP.
+  resolveDaemonTarget: () =>
+    mockExistsSync()
+      ? { socketPath: '/run/pd-test.sock' }
+      : { host: '127.0.0.1', port: mockReadDaemonPort() },
 }));
 
 const { pdFetch } = await import('../../cli/utils/fetch.js');
