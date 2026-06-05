@@ -10,12 +10,14 @@ import { GiscusComments } from '@/components/blog/GiscusComments'
 import { Footer } from '@/components/layout/Footer'
 import { extractDirectives, SIDENOTE_PATTERN } from '@/lib/blogDirectives'
 import {
+  cryptoPapers,
+  layerPapers,
   manifestoCaptions,
   manifestoContent,
   manifestoMeta,
-  sevenPapers,
   technologyPrimitives,
 } from '@/data/manifestoContent'
+import { findWhitePaperById } from '@/data/whitePapers'
 
 // Figures that should float so prose wraps around them, and the side they go on.
 const WRAP_FIGURES: Record<string, 'right' | 'left'> = {
@@ -288,10 +290,69 @@ function MathSection() {
   )
 }
 
-function PapersSection() {
-  const explain = sevenPapers.filter((p) => p.kind === 'explain')
-  const prove = sevenPapers.filter((p) => p.kind === 'prove')
+/** A shipped, proof-checked paper — surfaced in-line from its real data. */
+function ShippedPaperCard({ spec }: { spec: (typeof cryptoPapers)[number] }) {
+  const paper = spec.paperId ? findWhitePaperById(spec.paperId) : null
+  // Two real section titles convey what the paper actually argues.
+  const sectionTitles = paper?.sections.slice(0, 3).map((s) => s.title) ?? []
 
+  return (
+    <article className="flex flex-col gap-[var(--space-3)] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-5)]">
+      <div className="flex flex-wrap items-center gap-[var(--space-2)]">
+        <span className="inline-flex items-center gap-1 border border-[var(--border-default)] bg-[var(--surface-sunken)] px-2 py-0.5 font-mono text-[length:var(--type-meta-size)] uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)]">
+          <ShieldCheck size={12} aria-hidden="true" /> Checked by {spec.checker}
+        </span>
+        {paper && (
+          <span className="font-mono text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
+            {paper.pages} pp · {paper.status}
+          </span>
+        )}
+      </div>
+
+      <h3 className="font-display text-[length:var(--text-xl)] font-black text-[var(--text-primary)]">{spec.title}</h3>
+      <p className="text-[length:var(--text-base)] leading-relaxed text-[var(--text-secondary)]">
+        {paper?.thesis ?? spec.blurb}
+      </p>
+
+      {sectionTitles.length > 0 && (
+        <ul className="flex flex-col gap-[var(--space-1)]">
+          {sectionTitles.map((t) => (
+            <li
+              key={t}
+              className="flex items-start gap-[var(--space-2)] text-[length:var(--text-base)] text-[var(--text-secondary)]"
+            >
+              <span aria-hidden="true" className="mt-[0.55em] h-[6px] w-[6px] shrink-0 bg-[var(--brand-primary)]" />
+              {t}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="mt-auto flex flex-wrap items-center gap-[var(--space-3)] pt-[var(--space-2)]">
+        {paper && (
+          <Link
+            to={paper.readerHref}
+            className="inline-flex items-center gap-1 font-sans text-[length:var(--text-base)] font-bold uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)] underline-offset-4 hover:underline"
+          >
+            <BookOpen size={14} aria-hidden="true" /> Read it
+          </Link>
+        )}
+        {paper && (
+          <a
+            href={paper.pdfPath}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 font-sans text-[length:var(--text-base)] font-bold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)] underline-offset-4 hover:text-[var(--text-primary)] hover:underline"
+          >
+            PDF
+          </a>
+        )}
+      </div>
+    </article>
+  )
+}
+
+function PapersSection() {
   return (
     <section aria-labelledby="papers-heading" className="mx-auto mt-[var(--blog-section-break)] w-full max-w-[80ch]">
       <SectionEyebrow>The jewel</SectionEyebrow>
@@ -316,30 +377,31 @@ function PapersSection() {
         </figcaption>
       </figure>
 
-      <div className="mt-[var(--space-6)] flex items-center gap-2 text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
-        <BookOpen size={15} aria-hidden="true" /> Four explain
+      {/* Three crypto deep dives — shipped, real content surfaced in-line. */}
+      <div className="mt-[var(--blog-subsection-break)] flex items-center gap-2 text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--signal-charlie)]">
+        <Stamp size={15} aria-hidden="true" /> Three crypto deep dives · proof-checked
       </div>
-      <div className="mt-[var(--space-3)] grid gap-px border-2 border-[var(--border-strong)] bg-[var(--border-strong)] sm:grid-cols-2">
-        {explain.map((p, i) => (
-          <article key={p.title} className="flex flex-col gap-[var(--space-2)] bg-[var(--surface-raised)] p-[var(--space-5)]">
-            <span className="font-mono text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
-              {String(i + 1).padStart(2, '0')}
-            </span>
-            <h3 className="font-display text-[length:var(--text-lg)] font-black text-[var(--text-primary)]">{p.title}</h3>
-            <p className="text-[length:var(--text-base)] leading-relaxed text-[var(--text-secondary)]">{p.blurb}</p>
-          </article>
+      <div className="mt-[var(--space-3)] grid gap-[var(--space-4)] lg:grid-cols-3">
+        {cryptoPapers.map((p) => (
+          <ShippedPaperCard key={p.title} spec={p} />
         ))}
       </div>
 
-      <div className="mt-[var(--space-6)] flex items-center gap-2 text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--signal-charlie)]">
-        <Stamp size={15} aria-hidden="true" /> Three prove
+      {/* Four product-layer papers — the L0→L3 ladder, machine up to market. */}
+      <div className="mt-[var(--blog-subsection-break)] flex items-center gap-2 text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+        <BookOpen size={15} aria-hidden="true" /> Four product layers · L0 → L3
       </div>
-      <div className="mt-[var(--space-3)] grid gap-px border-2 border-[var(--border-strong)] bg-[var(--border-strong)] sm:grid-cols-3">
-        {prove.map((p) => (
+      <div className="mt-[var(--space-3)] grid gap-px border-2 border-[var(--border-strong)] bg-[var(--border-strong)] sm:grid-cols-2">
+        {layerPapers.map((p) => (
           <article key={p.title} className="flex flex-col gap-[var(--space-2)] bg-[var(--surface-raised)] p-[var(--space-5)]">
-            <span className="inline-flex w-fit items-center gap-1 border border-[var(--border-default)] bg-[var(--surface-sunken)] px-2 py-0.5 font-mono text-[length:var(--type-meta-size)] uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)]">
-              <ShieldCheck size={12} aria-hidden="true" /> {p.checker}
-            </span>
+            <div className="flex items-center justify-between">
+              <span className="border border-[var(--border-strong)] bg-[var(--surface-sunken)] px-2 py-0.5 font-mono text-[length:var(--type-meta-size)] font-bold uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+                {p.layer} · {p.layerName}
+              </span>
+              <span className="font-mono text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
+                for {p.forWhom}
+              </span>
+            </div>
             <h3 className="font-display text-[length:var(--text-lg)] font-black text-[var(--text-primary)]">{p.title}</h3>
             <p className="text-[length:var(--text-base)] leading-relaxed text-[var(--text-secondary)]">{p.blurb}</p>
           </article>

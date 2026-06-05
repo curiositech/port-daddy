@@ -118,51 +118,89 @@ export const technologyPrimitives: PrimitiveSpec[] = [
   },
 ]
 
-export interface PaperSpec {
+// ─── The seven papers ───────────────────────────────────────────────────────
+// The set, as the operator frames it: keep all seven; honor and differentiate.
+//   • FOUR ride the PRODUCT LAYERS — the L0→L3 stack, machine up to market.
+//   • THREE are CRYPTO DEEP DIVES — proof-checked, each underwriting a layer.
+// The three deep dives are shipped (real PDFs + reader pages in whitePapers.ts);
+// we surface their real content in-line. The four layer papers each declare the
+// rung they sit on so the page reads as one ladder, not a flat list.
+
+export interface LayerPaperSpec {
   title: string
+  /** Which product-layer rung this paper sits on. */
+  layer: 'L0' | 'L1' | 'L2' | 'L3'
+  /** The rung's one-word job, e.g. "Daemon", "Legibility". */
+  layerName: string
+  /** Who the rung is for — the machine, the agents, the operator, the market. */
+  forWhom: string
   blurb: string
-  kind: 'explain' | 'prove'
-  /** The checker, for the formal companions. */
-  checker?: string
 }
 
-export const sevenPapers: PaperSpec[] = [
-  {
-    title: 'The Legible Swarm',
-    kind: 'explain',
-    blurb: 'How a swarm becomes one picture you can zoom into — and why that, not raw speed, is the thing worth paying for.',
-  },
+export interface CryptoPaperSpec {
+  title: string
+  /** Slug into WHITE_PAPERS — drives the in-line card + links + real content. */
+  paperId: string
+  /** The proof-checker(s). */
+  checker: string
+  /** Which layer this proof underwrites. */
+  underwrites: 'L0' | 'L1' | 'L2' | 'L3'
+  blurb: string
+}
+
+/** Four papers, one per product layer — the L0→L3 ladder, machine up to market. */
+export const layerPapers: LayerPaperSpec[] = [
   {
     title: 'The Single-Writer Kernel',
-    kind: 'explain',
-    blurb: 'The small, stubborn program at the bottom that decides what is true: who holds what, who is alive, what happened.',
+    layer: 'L0',
+    layerName: 'Daemon',
+    forWhom: 'the machine',
+    blurb: 'The small, stubborn program at the bottom that decides what is true — who holds what, who is alive, what really happened — so nothing above it has to guess.',
   },
   {
-    title: 'From Spawn to Person',
-    kind: 'explain',
-    blurb: 'How memory turns a disposable process into a worker with a track record, and how to measure that record fairly.',
+    title: 'The Coordination Protocol',
+    layer: 'L1',
+    layerName: 'Agent OS',
+    forWhom: 'the agents',
+    blurb: 'The rules of the road: a typed conversation with commitments, delegation, and the Arbiter — how agents talk without colliding.',
+  },
+  {
+    title: 'The Legible Swarm',
+    layer: 'L2',
+    layerName: 'Legibility',
+    forWhom: 'the operator',
+    blurb: 'How a swarm becomes one picture you can zoom into — and why that, not raw speed, is the single-player product worth paying for today.',
   },
   {
     title: 'The Harbor Economy',
-    kind: 'explain',
-    blurb: 'The market reputation makes possible: renting trust between strangers, with money that cannot be quietly stolen in the exchange.',
+    layer: 'L3',
+    layerName: 'Market',
+    forWhom: 'the market between operators',
+    blurb: 'From spawn to person to a reputation worth trading: renting trust between strangers, with money that cannot be quietly stolen in the exchange.',
   },
+]
+
+/** Three crypto deep dives — shipped, proof-checked, surfaced in-line from real data. */
+export const cryptoPapers: CryptoPaperSpec[] = [
   {
     title: 'The Anchor Protocol',
-    kind: 'prove',
-    checker: 'ProVerif',
-    blurb: 'Proves an agent can prove who it is with no one to vouch for it.',
+    paperId: 'anchor-protocol',
+    checker: 'ProVerif + Kani',
+    underwrites: 'L0',
+    blurb: 'Proves an agent can prove who it is, and exactly what it may do, with no one to vouch for it.',
   },
   {
     title: 'The Bonded Commons',
-    kind: 'prove',
+    paperId: 'bonded-commons',
     checker: 'Kani',
-    blurb: 'Proves value cannot be conjured or vanished in a settlement.',
+    underwrites: 'L3',
+    blurb: 'Proves value cannot be conjured or vanished in a settlement — the bond ledger conserves.',
   },
   {
     title: 'The Federated Harbor',
-    kind: 'prove',
+    paperId: 'federated-harbor',
     checker: 'ProVerif',
+    underwrites: 'L3',
     blurb: 'Proves trust can cross between machines that do not trust each other, and a deposit held in the middle cannot be stolen.',
   },
 ]
