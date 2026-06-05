@@ -301,3 +301,64 @@ paper before attacking it**. Run across the model backends with keys present
 
 Workflow: each paper → steelman pass → per-field adversarial pass → editor
 stitch-check → revisions. Findings logged, not silently applied.
+
+---
+
+## 8. Before the papers: layer avatars (brainstorm → expand → debate → stitch)
+
+> **Operator correction (load-bearing):** *"My brief ideas weren't meant to be a
+> spanning tree — I wager you need brainstorming and expansion and debate on
+> these layers. Push each layer avatar to be completionist and consistent."*
+
+The five seed drafts are **inputs, not coverage.** Before any paper is written,
+each layer of the stack gets an **avatar** — an agent that owns that rung and is
+pushed on two axes:
+
+- **Completionist** — enumerate the *whole* space of the layer (primitives,
+  obligations, failure modes, open problems, prior art), surfacing what the seed
+  ideas missed. This is the L2 "completionist obligation" (ADR-0048) turned on the
+  writing itself.
+- **Consistent** — every claim must cohere with the adjacent layers (what it
+  assumes from below, what it provides above), the canon (ADR-0048/0047/0045), and
+  the shipped code's honest state (BUILT / BUILT-WEAK / DESIGNED / VISION).
+
+| Avatar | Rung | Draws on (fields for debate) | Seeds |
+|---|---|---|---|
+| **L0 — the Daemon** | machine | systems, reliability, local-first/CRDT, security | (code is the source) |
+| **L1 — the Protocol** | agents | multi-agent systems (Contract-Net, GPGP/TÆMS, BDI), deontic logic, distributed systems | ADR-0047 |
+| **L2 — the Leviathan** | operator | political theory (Hobbes/Scott), HCI/automation, information design | legibility-leviathan, tokens-compaction, discovery-guilds |
+| **L3 — the Market** | operators | mechanism design/game theory, crypto/security, category theory | identity-reputation, agent-economy-anchor, the trilogy |
+
+**The pipeline:** each avatar produces a **layer dossier** (complete idea-space +
+gaps + open problems + adjacency contract) → a per-field panel **steelmans then
+attacks** it → a **cross-layer stitch editor** reconciles vocabulary,
+dependencies, and the through-line across all four. *Then* the dossiers — not the
+raw seeds — are the source the papers are written from.
+
+---
+
+## 9. Pedagogic spec (every paper, non-negotiable)
+
+> *"Big beautiful diagrams, reading guides, exercises, and a pedagogic focus. Use
+> the voice of the existing."*
+
+Match `website-v2/public/whitepaper/anchor-protocol-whitepaper.tex` exactly, and
+add the teaching layer:
+
+- **Voice** — measured-academic but vivid: named metaphors in quotes (the "Ghost
+  in the Harbor"), threat-vector / problem-first framing, a *Reading time: ~N min*
+  note, companion-paper cross-refs, real citations with `\cite{}`. Never dry.
+- **Big diagrams** — ≥ 4 substantial TikZ figures per paper (not decorative):
+  reuse/extend the `whitepaper/figures/` library (hh-* palette, `arrows.meta`,
+  `positioning`, `fit`, `backgrounds`). Every paper opens with the **stack-map
+  figure** (which rung, what it assumes, which papers it cites).
+- **Reading guide** — the Reader's-Map table at the top (by reader type → the
+  section + load-bearing artifact), plus an explicit reading order within the
+  volume.
+- **Exercises** — an `Exercises` block per major section: a mix of *check-your-
+  understanding*, *trace-the-mechanism*, and *open-problem* prompts (the §2.5
+  open problems become starred exercises). Pedagogy, not padding.
+- **Pull-quotes + theorem/definition/lemma envs + honesty-label key** as in the
+  house style (§3).
+- **Callouts** — a `\keyidea{}` / `\pitfall{}` sidebar idiom (new commands in the
+  shared preamble) for the teaching beats.
