@@ -1,0 +1,74 @@
+% Figure 8 — the commitment lifecycle and the oracle-bound closure gate (Law 2).
+% A promise cannot transition open->done without a non-empty closed_by_oracle_ref
+% drawn from a FINITE oracle vocabulary. That finite set is the kernel's honesty
+% boundary: it can verify "the test you named passed", not "the refactor is good".
+
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D4C5A9}
+\providecolor{hhebony}{HTML}{1E1B18}
+\providecolor{hhink}{HTML}{2C2A26}
+\providecolor{hhcinnabar}{HTML}{CC3D2E}
+\providecolor{hhbrass}{HTML}{B08D57}
+\providecolor{hhpatina}{HTML}{5C7A6A}
+\providecolor{hhpaper}{HTML}{FBF7EE}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.97\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\sffamily\small,
+  st/.style={draw=hhebony,thick,rounded corners=10pt,fill=hhsand!40,
+             minimum width=24mm,minimum height=11mm,align=center,font=\sffamily\bfseries\footnotesize},
+  term/.style={draw=hhpatina,line width=1.2pt,fill=hhpatina!12,rounded corners=10pt,
+               minimum width=26mm,minimum height=11mm,align=center,font=\sffamily\bfseries\footnotesize},
+  gate/.style={draw=hhcinnabar,line width=1.4pt,fill=hhpaper,diamond,aspect=1.7,
+               inner sep=2pt,align=center,font=\sffamily\footnotesize},
+  oracle/.style={draw=hhbrass,thick,fill=hhpaper,rounded corners=2pt,
+                 minimum width=40mm,align=center,font=\sffamily\scriptsize,inner sep=3pt},
+  edge/.style={->,>=Latex,thick,hhebony,font=\sffamily\scriptsize},
+]
+
+\node[st] (open) at (0,0) {open};
+\node[gate,right=22mm of open] (g) {oracle?\\ (Law 2)};
+\node[term,right=22mm of g] (done) {done};
+\node[term,below=10mm of g] (aband) {abandoned};
+\node[term,below=10mm of done] (super) {superseded};
+
+\draw[edge] (open) -- node[above]{\texttt{close('done')}} (g);
+\draw[edge,hhpatina] (g) -- node[above,align=center]{\texttt{closed\_by}\\\texttt{\_oracle\_ref}\\ non-empty}node[below,text=hhpatina]{\checkmark} (done);
+\draw[edge,hhcinnabar] (g.south) -- node[right,text=hhcinnabar,align=left]{free-text only $\Rightarrow$\\ \textbf{REFUSED}} ([yshift=2mm]g.south|-aband.north) ;
+\draw[edge] (open.south) to[bend right=20] node[below,align=center]{drop\\(single/open-minded)} (aband.west);
+\draw[edge] (open.south) to[bend right=8] (super.west);
+
+% Law 1 callout on the deadline
+\node[draw=hhcinnabar,thick,fill=hhpaper,rounded corners=2pt,inner sep=4pt,
+      text width=52mm,align=left,font=\sffamily\scriptsize,above=8mm of open]
+  {{\bfseries\sffamily Law 1 (I5):} \texttt{due\_at} is derived by the daemon from a
+   scope policy --- the agent picks the \emph{work}, never the \emph{deadline}. Goodhart-resistance.};
+
+% The finite oracle vocabulary
+\node[oracle,below=18mm of done,xshift=-8mm] (orcl)
+  {{\bfseries\sffamily The oracle vocabulary (finite):}\\
+   $\bullet$ a released claim\quad $\bullet$ a merged SHA\\
+   $\bullet$ a passing test id\quad $\bullet$ a satisfied Arbiter sub-check};
+\draw[->,>=Latex,thick,hhbrass,dashed] (orcl.north) -- (g.south);
+
+\node[font=\sffamily\scriptsize\itshape,text=hhink,align=left,text width=70mm,below=2mm of orcl]
+  {This finite set is the kernel's \textbf{honesty boundary} (OP-5): it can mechanically
+   verify ``the test you named passed,'' \emph{not} ``the refactor is good.''};
+
+\end{tikzpicture}%
+}
+\caption{The commitment lifecycle with its oracle-bound closure gate. A
+commitment is a durable, \emph{violable} promise (Cohen \& Levesque's persistent
+goal): it may end \texttt{done}, \texttt{abandoned}, or \texttt{superseded}. The
+load-bearing gate is Law~2: a transition to \texttt{done} is \emph{refused}
+unless the agent supplies a non-empty \texttt{closed\_by\_oracle\_ref} drawn from
+a finite vocabulary --- a released claim, a merged SHA, a passing test id, or a
+satisfied Arbiter sub-check. Free-text notes cannot close a promise. That finite
+vocabulary is precisely the kernel's honesty boundary: it can verify ``the test
+you named passed,'' never ``the work is good'' (open problem OP-5). Law~1
+(daemon-derived deadlines) closes the complementary Goodhart hole --- the agent
+chooses the work, the daemon chooses when it is due.}
+\label{fig:swk-commitment-oracle}
+\end{figure}

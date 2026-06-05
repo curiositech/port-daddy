@@ -1,0 +1,1433 @@
+\documentclass[11pt,a4paper]{article}
+
+% ─── Packages ────────────────────────────────────────────────────────────────
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{fancyhdr}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc,shapes.geometric,shapes.symbols,decorations.pathmorphing,decorations.pathreplacing}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{enumitem}
+% Algorithms are formatted using lstlisting with custom pseudocode style
+
+% ─── Geometry ────────────────────────────────────────────────────────────────
+\geometry{margin=2.5cm}
+
+% ─── Colors ──────────────────────────────────────────────────────────────────
+\definecolor{codebg}{RGB}{248,248,248}
+\definecolor{codeframe}{RGB}{200,200,200}
+\definecolor{darkgreen}{RGB}{0,100,0}
+\definecolor{darkblue}{RGB}{0,50,100}
+\definecolor{accent}{RGB}{0,128,128}
+\definecolor{hhsand}{HTML}{E9DCC4}
+\definecolor{hhsanddeep}{HTML}{D4C5A9}
+\definecolor{hhebony}{HTML}{1E1B18}
+\definecolor{hhink}{HTML}{2C2A26}
+\definecolor{hhcinnabar}{HTML}{CC3D2E}
+\definecolor{hhbrass}{HTML}{B08D57}
+\definecolor{hhpatina}{HTML}{5C7A6A}
+\definecolor{hhpaper}{HTML}{FBF7EE}
+
+% Honest-label markers (ADR-0045 key, used inline in prose and tables).
+\newcommand{\Built}{{\textcolor{hhpatina}{\textbf{\textsf{BUILT}}}}}
+\newcommand{\BuiltWeak}{{\textcolor{hhbrass}{\textbf{\textsf{BUILT-WEAK}}}}}
+\newcommand{\Designed}{{\textcolor{darkblue}{\textbf{\textsf{DESIGNED}}}}}
+\newcommand{\Vision}{{\textcolor{hhcinnabar}{\textbf{\textsf{VISION}}}}}
+\newcommand{\NotGuar}{{\textcolor{hhcinnabar}{\textbf{\textsf{NOT GUARANTEED}}}}}
+
+% Verification-status markers for status tables.
+\newcommand{\Closed}{{\textcolor{hhpatina}{\textbf{\textsf{closed}}}}}
+\newcommand{\Partial}{{\textcolor{hhbrass}{\textbf{\textsf{partial}}}}}
+\newcommand{\Open}{{\textcolor{hhcinnabar}{\textbf{\textsf{open}}}}}
+
+% Pull-quote sidebar: large quote, left-edge accent stripe.
+\newcommand{\pullquote}[1]{%
+  \par\vspace{6pt}%
+  \noindent\begin{tikzpicture}
+    \node[draw=none,fill=hhsand!40,line width=0pt,
+          inner sep=10pt,text width=\dimexpr\textwidth-30pt\relax,
+          align=left] (q) {%
+      \sffamily\itshape\large #1%
+    };
+    \draw[hhcinnabar,line width=2.5pt] (q.north west) -- (q.south west);
+  \end{tikzpicture}\par\vspace{6pt}%
+}
+
+% Teaching callouts: \keyidea{} (patina, the load-bearing intuition) and
+% \pitfall{} (cinnabar, the over-claim / trap to avoid). New to the preamble,
+% per the pedagogic spec (ADR-0048 §9).
+\newcommand{\keyidea}[1]{%
+  \par\vspace{5pt}%
+  \noindent\begin{tikzpicture}
+    \node[draw=hhpatina,line width=1pt,fill=hhpatina!10,rounded corners=2pt,
+          inner sep=8pt,text width=\dimexpr\textwidth-24pt\relax,align=left] (k) {%
+      \small{\sffamily\bfseries\textcolor{hhpatina}{Key idea.}}\enspace #1%
+    };
+  \end{tikzpicture}\par\vspace{5pt}%
+}
+\newcommand{\pitfall}[1]{%
+  \par\vspace{5pt}%
+  \noindent\begin{tikzpicture}
+    \node[draw=hhcinnabar,line width=1pt,fill=hhcinnabar!7,rounded corners=2pt,
+          inner sep=8pt,text width=\dimexpr\textwidth-24pt\relax,align=left] (p) {%
+      \small{\sffamily\bfseries\textcolor{hhcinnabar}{Pitfall.}}\enspace #1%
+    };
+  \end{tikzpicture}\par\vspace{5pt}%
+}
+
+% Exercises block: a boxed list at the end of major sections.
+\newcommand{\exercises}[1]{%
+  \par\vspace{8pt}%
+  \noindent\begin{tikzpicture}
+    \node[draw=hhebony,line width=0.8pt,fill=hhpaper,rounded corners=2pt,
+          inner sep=9pt,text width=\dimexpr\textwidth-26pt\relax,align=left] (e) {%
+      {\sffamily\bfseries Exercises.}\par\vspace{3pt}#1%
+    };
+    \draw[hhbrass,line width=2pt] (e.north west) -- (e.north east);
+  \end{tikzpicture}\par\vspace{6pt}%
+}
+
+% ─── Listings Setup ──────────────────────────────────────────────────────────
+\lstdefinestyle{proverif}{
+  language=C,
+  backgroundcolor=\color{codebg},
+  frame=single,
+  rulecolor=\color{codeframe},
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{darkblue}\bfseries,
+  commentstyle=\color{darkgreen}\itshape,
+  stringstyle=\color{accent},
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  numbersep=8pt,
+  breaklines=true,
+  showstringspaces=false,
+  tabsize=2,
+  xleftmargin=15pt,
+  xrightmargin=5pt,
+  framexleftmargin=15pt,
+  captionpos=b
+}
+
+\lstdefinestyle{pseudocode}{
+  language=C,
+  backgroundcolor=\color{codebg},
+  frame=single,
+  rulecolor=\color{codeframe},
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{darkblue}\bfseries,
+  commentstyle=\color{darkgreen}\itshape,
+  stringstyle=\color{accent},
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  numbersep=8pt,
+  breaklines=true,
+  showstringspaces=false,
+  tabsize=2,
+  xleftmargin=15pt,
+  xrightmargin=5pt,
+  framexleftmargin=15pt,
+  captionpos=b,
+  morekeywords={function,return,if,then,else,for,while,do,begin,end,atomic,transaction,reject,commit,assert,raise}
+}
+
+\lstset{style=proverif}
+
+% ─── Theorem Environments ────────────────────────────────────────────────────
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[section]
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}{Lemma}[section]
+\newtheorem{property}{Property}[section]
+
+% ─── Header/Footer ───────────────────────────────────────────────────────────
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textit{The Single-Writer Kernel}}
+\fancyhead[R]{\small\thepage}
+\fancyfoot[C]{\small Port Daddy --- Harbor Volume, Paper 2 --- L0/L1 substrate}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% ─── Title ───────────────────────────────────────────────────────────────────
+\title{
+  \vspace{-1cm}
+  {\Large\textsc{Harbor Volume --- Paper 2 of 4}}\\[0.5cm]
+  \rule{\textwidth}{0.5pt}\\[0.3cm]
+  {\LARGE\textbf{The Single-Writer Kernel:}}\\[0.2cm]
+  {\Large A Local Transactional Reference Monitor\\for Agent Swarms}\\[0.3cm]
+  \rule{\textwidth}{0.5pt}
+}
+\author{
+  \textbf{Erich Owens}\\[0.2cm]
+  Curiositech LLC\\[0.2cm]
+  \texttt{engineering@portdaddy.dev}
+}
+\date{June 2026\\Version 1.0 (Harbor Volume)}
+
+% ─── Document ────────────────────────────────────────────────────────────────
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+\vspace{0.6cm}
+
+\begin{abstract}\noindent
+A swarm of coding agents sharing one machine collides over the same scarce
+things: ports, files, locks, and the truth about who did what. The instinct,
+trained on a decade of distributed-systems literature, is to reach for consensus
+--- replicate the state, run an agreement protocol. Port Daddy's kernel makes the
+opposite, and we argue correct, move: it collapses the entire problem onto a
+\textbf{single writer over a single local SQLite file in write-ahead-log mode},
+and lets the operating system's file lock serialize every mutation. There is one
+decider, so there is no agreement to reach.
+
+This paper presents that kernel (layer \textbf{L0} of the Harbor stack) and the
+\emph{built} half of the coordination substrate above it (layer \textbf{L1}:
+tube, pheromones, commitments, the cryptographic \texttt{auth-chain}, the
+Arbiter) as a \textbf{single-writer transactional reference monitor} in the
+Lampson--Anderson sense: a small, tamper-evident mediator of every
+security-relevant operation, realized locally. We state the kernel's invariants
+as theorems --- mutual exclusion, idempotence, the consistency model
+(serializable transactions, linearizable claim history), oracle-bound closure ---
+and we are deliberate about where the promises stop. In particular we
+\emph{split} durability by fault class: a returned-success write survives a
+\emph{process} crash but is \emph{not guaranteed} against power loss under the
+shipped pragma set; and we correct a widespread over-claim, showing that the
+Arbiter is a post-commit \emph{detector}, not a pre-commit regimenter, with real
+regimentation credited to the \texttt{PRIMARY KEY} constraint and the boot gate.
+The kernel is solid where it is local and provisional exactly where the economy
+(Paper~4) will need it to become cryptographic and continuous --- and we say so
+in the same words throughout.
+\end{abstract}
+
+\vspace{0.4cm}
+\noindent\textbf{Keywords:} reference monitor, single-writer transactions, SQLite
+WAL, durability by fault class, linearizability, deontic logic, commitments,
+stigmergy, local-first coordination, multi-agent systems
+
+\vspace{0.4cm}
+\noindent\textit{Reading time: approximately 45 minutes end-to-end; the Reader's
+Map (\S\ref{sec:readersmap}) routes you to the 15-minute and one-section paths.
+This is Paper~2 of the four-paper Harbor Volume. Paper~1, \emph{The Legible
+Swarm}, is the operator-facing wedge and the natural place to start; Paper~3,
+\emph{From Spawn to Person}, builds the identity-and-reputation bridge on top of
+this kernel; Paper~4, \emph{The Harbor Economy}, carries the cross-machine market
+--- including the ``Anchor Protocol proper'' (cross-harbor capability transfer),
+which despite the old name is L3 and lives there, not here. Any paper can be read
+first, but every other paper cites this one.}
+
+\tableofcontents
+\newpage
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{Where this paper sits, and what it promises}
+% ═════════════════════════════════════════════════════════════════════════════
+
+\input{figures/fig-swk-stack-map}
+
+Every paper in the Harbor Volume opens with the same map
+(Figure~\ref{fig:swk-stack-map}) so the volume reads as one thing rather than four
+overlapping drafts. The map is a ladder. Each rung serves a different
+\emph{whom}: the \textbf{machine} (L0, the kernel --- this paper's core), the
+\textbf{agents} (L1, the coordination protocol --- this paper owns its
+\emph{built} substrate), the \textbf{operator} (L2, legibility --- Paper~1), and
+the \textbf{market between operators} (L3, economy --- Paper~4). You climb the
+ladder in order, and you never buy a rung before you need it.
+
+This paper is the load-bearing floor. The other three cite it: Paper~1 reads the
+kernel's claims, bus, and Arbiter to render the swarm; Paper~3 leans the entire
+notion of a \emph{person} on the kernel's continuity organs; Paper~4's bond
+ledger is, mechanically, another set of tables under the same single writer, and
+its cross-harbor capability transfer rides the kernel's cryptographic
+\texttt{auth-chain}. If this floor is unsound, everything above it inherits the
+fault. So the discipline of this paper is to state each promise precisely and,
+where the promise has an edge, to draw the edge in ink.
+
+\subsection{The one-sentence thesis}
+
+\pullquote{Port Daddy's kernel is a single-writer transactional reference monitor
+over a local SQLite/WAL file --- the one process that mediates contended
+resources, and the one place where ``true'' is decided rather than asserted.}
+
+That is the whole claim, and it has two halves, which are the kernel's entire job;
+everything else is convenience.
+
+\begin{enumerate}[leftmargin=1.4em]
+  \item \textbf{Durability (with an edge):} a write that returned success is
+  durable across the death of any agent --- and, we will be careful, across the
+  death of the \emph{daemon process}, though \emph{not} unconditionally across
+  power loss.
+  \item \textbf{Mediation (with a correction):} a state the kernel \emph{regiments}
+  cannot come to exist; a state the kernel merely \emph{enforces} is detected and
+  compensated within a bounded window. These are different guarantees and we will
+  never conflate them.
+\end{enumerate}
+
+\subsection{Why ``reference monitor,'' and why \emph{not} consensus}
+
+The right mental model is the \textbf{reference monitor} of Anderson and
+Lampson~\cite{anderson1972,lampson1974}: a mediator that is \emph{always invoked}
+(complete mediation), \emph{tamper-evident}, and \emph{small enough to verify}.
+The kernel instantiates this not as an abstract security kernel but as a concrete
+local daemon over one SQLite file. Complete mediation is achieved \emph{by
+construction}: because every mutation routes through one writer holding one file
+lock, the operating system's serialization \emph{is} the mediation primitive ---
+Saltzer and Schroeder's ``economy of mechanism''~\cite{saltzer1975protection}
+done with one moving part instead of $N$ hand-rolled critical sections.
+
+\keyidea{The swarm \emph{looks} like a distributed-systems problem --- many
+agents, contention, failover --- so the trained reflex is Raft, Paxos, CRDTs. The
+kernel's defining move is to refuse that problem. One writer, one machine, one
+file: there is nothing to \emph{agree} on, so the consensus impossibility of
+Fischer, Lynch, and Paterson~\cite{flp1985} does not bite. It is sidestepped, not
+solved. Distribution is an L3 concern (Paper~4); pushing Raft down into L0 would
+be the wrong layer.}
+
+This is the single most important architectural decision a local-first
+coordination layer can make, and the field is littered with systems that got it
+wrong by manufacturing a consensus problem they did not have. We will state the
+formal payoff of the choice as a theorem in \S\ref{sec:invariants}: a single
+writer over WAL gives \emph{serializable} transactions, and one decider gives
+\emph{linearizable} external behavior for claims and locks --- the property that
+lets the protocol layer treat ``who holds this'' as ground truth without any
+agreement protocol at all.
+
+\subsection{An honest-label key, and why the labels are load-bearing}
+\label{sec:honestkey}
+
+This paper inherits the volume's honest-label discipline (ADR-0045). Every claim
+carries one of four labels --- and two refinements this paper introduces because
+a single label cannot honestly carry a claim that spans fault classes.
+
+\begin{table}[H]
+\centering
+\caption{The honest-label key, used in every paper of the volume. The last two
+rows are this paper's refinements (see \S\ref{sec:durability} and
+\S\ref{sec:enforcement}).}
+\label{tab:honestkey}
+\small
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{@{}p{34mm}p{128mm}@{}}
+\toprule
+\textbf{Label} & \textbf{Meaning} \\
+\midrule
+\Built & Shipped, exercised, and true under the production runtime. \\
+\BuiltWeak & Shipped but partial: works under a narrower condition than the prose might invite, or detects rather than prevents. \\
+\Designed & Specified (an ADR exists) but not in the shipped tree. \\
+\Vision & Named as a direction; no specification yet. \\
+\midrule
+\textbf{I1a / I1b} & Durability \emph{split by fault class}: I1a (process-crash) is \Built; I1b (power-loss) is \NotGuar{} under the shipped pragmas. A claim that conflates fault classes cannot carry one label. \\
+\textbf{regimented / enforced} & Prohibition split by interception point: \emph{regimented} = rejected pre-commit, truly unreachable (PK constraint / boot gate); \emph{enforced} = detected post-commit, halted/compensated within a bounded window (the Arbiter). ``Physically unreachable'' is reserved for the regimented set. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\pitfall{The labels are not decoration. The two most consequential corrections in
+this paper --- the durability split and the regimentation/detection split --- are
+exactly the places where a single optimistic label would let the kernel's
+foundational promise be read as stronger than the code delivers. When a pitch
+says ``the file survives every agent's death,'' a reader hears ``power-loss
+durable.'' It is not, by default. Saying so is the difference between a kernel
+paper and marketing.}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{Reader's Map}
+\label{sec:readersmap}
+% ═════════════════════════════════════════════════════════════════════════════
+
+\begin{table}[H]
+\centering
+\caption{Reader's Map. Find your row; read those sections first.}
+\label{tab:readers-map}
+\small
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{@{}p{40mm}p{62mm}p{56mm}@{}}
+\toprule
+\textbf{If you are\ldots} & \textbf{\ldots read first} & \textbf{\ldots load-bearing artifact} \\
+\midrule
+short on time (15 min) & \S1 (thesis + stack map), \S\ref{sec:durability} (durability split), \S\ref{sec:enforcement} (Arbiter correction) & Figs.~\ref{fig:swk-stack-map}, \ref{fig:swk-durability-faultclass}, \ref{fig:swk-reference-monitor} \\
+a systems engineer & \S\ref{sec:substrate}--\S\ref{sec:invariants} (substrate, single-writer, the theorems) & Thm.~\ref{thm:consistency}; Figs.~\ref{fig:swk-single-writer}, \ref{fig:swk-consistency-model} \\
+a security reviewer & \S\ref{sec:enforcement} (deontic split, Arbiter), \S\ref{sec:threatmodel} (threat model) & Figs.~\ref{fig:swk-reference-monitor}, \ref{fig:swk-deontic-split}; Table~\ref{tab:threat-model} \\
+a protocol/agent author & \S\ref{sec:resource} (claims), \S\ref{sec:comm} (the bus), \S\ref{sec:adjacency} (the API contract) & Figs.~\ref{fig:swk-claim-lifecycle}, \ref{fig:swk-comm-organ}; \S\ref{sec:adjacency} \\
+here for the economy & \S\ref{sec:continuity} (continuity organs), then jump to Paper~3/4 & Fig.~\ref{fig:swk-continuity-organs} (the C7 sentence) \\
+an instructor & every \textbf{Exercises} block; the open problems OP-1\,--\,OP-9 (\S\ref{sec:openproblems}) & the starred exercises \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent\textbf{Reading order within the volume.} Paper~1 (the wedge) is the
+gentlest on-ramp; this paper (the substrate) is the formal floor; Paper~3 (the
+person) and Paper~4 (the market) build upward. If you only read one paper to
+decide whether the foundation is sound, read this one.
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{The kernel as seven organs}
+\label{sec:organs}
+% ═════════════════════════════════════════════════════════════════════════════
+
+We organize the kernel into seven \emph{organs}, each a contract the daemon must
+hold for the stack above to be coherent (Figure~\ref{fig:swk-seven-organs}). The
+flat noun-list from the project's early notes --- ``ports, claims, sessions,
+tube, pheromones, commitments, Arbiter, memory'' --- is the symptom of treating
+the kernel as a database. It is not a database. It is a system of record plus a
+mediator, and naming the organs surfaces the connective tissue the noun-list
+hides.
+
+\input{figures/fig-swk-seven-organs}
+
+The \textbf{substrate organ} is the floor; the other six are, mechanically,
+tables \emph{with discipline} over the same file. We treat the substrate and the
+two organs that carry the paper's sharpest corrections (resource/exclusion and
+obligation/enforcement) in full, and the rest with the depth their novelty
+warrants.
+
+\exercises{%
+\textbf{(check)} Which of the seven organs would still be meaningful if the
+daemon ran over an in-memory database with no disk at all? Which become vacuous?\par
+\textbf{(trace)} Pick any one organ and name the single SQLite table that is its
+``home'' table. Then name one invariant that organ owes the layer above it.\par
+\textbf{(open, $\bigstar$)} The seven-organ decomposition is a \emph{choice}. Is
+there a more natural cut --- e.g.\ five organs, or nine? Argue for an alternative
+and show what it makes easier to reason about and what it hides.}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{The substrate organ: one writer, one file}
+\label{sec:substrate}
+% ═════════════════════════════════════════════════════════════════════════════
+
+The substrate is the bedrock everything else is just a table in. Its job is to
+make two promises --- durability and serialized mutation --- and to make them
+honestly. We cover the single-writer discipline here and durability in
+\S\ref{sec:durability}, because durability is where the most consequential
+correction lives.
+
+\subsection{The single-writer discipline}
+
+\input{figures/fig-swk-single-writer}
+
+The kernel's concurrency story (Figure~\ref{fig:swk-single-writer}) is: dozens of
+\texttt{pd} invocations and agents funnel through one writer --- the daemon, the
+sole holder of a read--write connection to the database file
+(\textbf{\texttt{lib/db.ts}}, the module that opens and configures the SQLite
+handle) --- and SQLite's operating-system file lock plus
+\texttt{busy\_timeout=5000} serialize all mutations. We must be precise about
+\emph{what} serializes writers, because there are two stories and only one is
+true at a time.
+
+\begin{definition}[Single-writer discipline]\label{def:single-writer}
+All state-mutating operations route through a single daemon process holding one
+SQLite write connection. Concurrency among the many clients (CLI invocations,
+agents over MCP or tube, fleet sorties) is resolved by the daemon's request
+queue; the SQLite file lock is the \emph{backstop} that preserves correctness if
+the discipline is ever violated by a second writer (for example a stray
+direct-CLI write), not the primary serialization mechanism.
+\end{definition}
+
+\keyidea{``Single-writer'' is an architectural \emph{discipline} (everything goes
+through the daemon), backstopped --- not replaced --- by SQLite's file lock. This
+distinction matters: SQLite permits multiple writer connections (it serializes
+them, it does not reject them), so the property holds because of where writes are
+routed, not because the database forbids a second writer. The same risk that
+motivates the kernel's binary-drift guards (a second \emph{copy} of the daemon
+running) is the risk that a second writer appears.}
+
+\subsection{The pragma set is the durability claim}
+
+The substrate's configuration is short and load-bearing. In WAL mode
+(\texttt{journal\_mode=WAL}) with \texttt{synchronous=NORMAL},
+\texttt{wal\_autocheckpoint=200}, \texttt{busy\_timeout=5000},
+\texttt{foreign\_keys=ON}, and a clean-shutdown \texttt{wal\_checkpoint(TRUNCATE)},
+the kernel inherits exactly the crash semantics that pragma set defines. The
+claim ``a write that returned success survives a crash'' reduces \emph{entirely}
+to what WAL with \texttt{synchronous=NORMAL} guarantees --- which is the subject
+of \S\ref{sec:durability}, and which is not what an unguarded reading assumes.
+
+\subsection{Schema by union, not by sequencer}
+
+There is no migration sequencer. Every module self-initializes its tables with
+\texttt{CREATE TABLE IF NOT EXISTS} plus lazy \texttt{ALTER TABLE} migrations; the
+schema is the \emph{union} of what each \texttt{createFoo(db)} factory declares,
+in whatever order modules load. This is elegant for greenfield --- any organ can
+create its own tables independently --- and a latent hazard for renames,
+backfills, and multi-column migrations, for which there is no down-migration and
+no version table (open problem OP-7, \S\ref{sec:openproblems}).
+
+\subsection{Path and ownership invariants}
+
+The database resolves to a single canonical path with \texttt{chmod 0o600}
+(the file historically carried the Ed25519 signing key in plaintext; that secret
+is mid-migration to the OS keychain via \textbf{\texttt{lib/keychain.ts}}, see
+\S\ref{sec:threatmodel}). A fail-closed guard, \texttt{assertNotProdInTest} ---
+the analogue of Rails' \texttt{ProtectedEnvironment} --- refuses to open the live
+registry from a test context. This is Saltzer--Schroeder fail-safe-defaults
+applied at the one place a test could corrupt production truth.
+
+\exercises{%
+\textbf{(check)} The schema-by-union design lets any module create its tables in
+any order. Give a concrete two-module example where a lazy \texttt{ALTER TABLE}
+rename would be unsafe under this design.\par
+\textbf{(trace)} Follow a single \texttt{pd claim} from CLI to disk. At how many
+points does the single-writer discipline (Def.~\ref{def:single-writer}) hold by
+\emph{routing} versus by the \emph{file lock}?\par
+\textbf{(open, $\bigstar$ OP-7)} Can idempotent self-init be extended to safe
+renames/backfills/down-migrations while preserving ``any module, any order''? Or
+is a version table unavoidable?}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{Durability, split by fault class}
+\label{sec:durability}
+% ═════════════════════════════════════════════════════════════════════════════
+
+This is the most important correction in the paper, so it gets its own section.
+The kernel's foundational promise --- ``a write that returned success survives''
+--- is true, but only for the fault class a careful reader expects and not for the
+one the pitch most invites.
+
+\input{figures/fig-swk-durability-faultclass}
+
+\subsection{Why one label is a lie here}
+
+Gray and Reuter~\cite{grayreuter1992} draw the canonical line between
+\emph{atomicity/consistency} (a transaction is all-or-nothing and never leaves the
+store corrupt) and \emph{durability} (the ``D'' in ACID: a committed transaction
+survives subsequent failures). Under SQLite WAL with \texttt{synchronous=NORMAL},
+the WAL is \emph{not} fsync'd on every commit --- it is synced at checkpoint. Per
+SQLite's own documentation, in WAL mode \texttt{NORMAL} ``commits might lose
+durability following a power loss or hard reset,'' though the database remains
+uncorrupted. So the honest statement splits in two.
+
+\begin{property}[Durability by fault class]\label{prop:durability}
+Let a write return success under the shipped pragma set.
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{I1a (process-crash durability).} If the \emph{daemon process}
+  dies (\texttt{kill -9}, a panic, an OOM), the write survives: the data is in the
+  operating system's page cache, which outlives the process. \Built.
+  \item \textbf{I1b (power-loss durability).} If the \emph{operating system}
+  crashes or power is lost \emph{before the next checkpoint}, the most recent
+  committed writes may roll back. \NotGuar{} under \texttt{synchronous=NORMAL}; it
+  would require \texttt{synchronous=FULL} or a checkpoint on the commit path.
+\end{itemize}
+\end{property}
+
+\pitfall{The in-code comment justifying the pragma choice
+(\texttt{db.ts:388}) reads ``NORMAL sync is safe in WAL mode --- WAL already
+guarantees crash safety.'' This is the standard misconception: it conflates
+crash-\emph{consistency} (true: the DB is never corrupt) with \emph{durability}
+(false for power loss). The comment does not merely under-document the trade; it
+\emph{contradicts} the Gray--Reuter citation the dossier rests I1 on. A kernel
+paper cannot ship the unqualified claim. We split it.}
+
+\subsection{Why the trade is defensible --- and where it stops being so}
+
+Trading power-loss durability for throughput is a reasonable default for a
+local-first developer tool: the failure (lose the last few hundred milliseconds of
+claims after a power cut) is benign and self-correcting --- agents re-claim,
+heartbeats resume. What is \emph{not} defensible is letting the pitch imply the
+stronger guarantee. The remedy for any caller who genuinely needs I1b ---
+say, a future bond-ledger write at L3 where lost money is not benign --- is to
+elevate that write path to \texttt{synchronous=FULL} or to force a checkpoint, and
+to pay the throughput cost knowingly. The kernel must expose that choice, not bury
+it.
+
+\subsection{A recovery story, not just a durability story}
+
+Durability is about what survives; recovery is about what happens next. On daemon
+restart with a dirty WAL, SQLite replays the log to a consistent state (I1a's
+mechanism). But the kernel-level questions are larger: who validates the audit
+chain on boot, and what becomes of a half-applied cross-organ operation
+(\S\ref{sec:atomicity}) after a crash? The hook exists --- \texttt{pd attest}'s
+``refuse-to-serve on CRITICAL fail'' (\S\ref{sec:attest}) --- but boot-time WAL
+recovery plus integrity check plus chain verification should be a named invariant,
+and today it is closer to \BuiltWeak{} than \Built.
+
+\exercises{%
+\textbf{(check)} Classify each fault as I1a-survivable or I1b-exposed:
+(a) \texttt{kill -9} of the daemon; (b) \texttt{sudo shutdown -r now}; (c) yanking
+the power cord; (d) an unhandled exception in a route handler.\par
+\textbf{(trace)} A claim commits at $t_0$; the next \texttt{wal\_autocheckpoint}
+fires at $t_0+\delta$. Draw the window during which a power loss reverts the claim,
+and state how \texttt{wal\_autocheckpoint=200} bounds $\delta$ in pages.\par
+\textbf{(open, $\bigstar$ P1\#5)} Design a per-write-path durability selector: how
+would the kernel let a bond-ledger write opt into I1b while keeping claim writes
+fast? What is the cleanest API that does not re-introduce the conflation?}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{The resource organ: claims, locks, and fair exclusion}
+\label{sec:resource}
+% ═════════════════════════════════════════════════════════════════════════════
+
+Ports are the namesake and the original sin. The resource organ
+(\textbf{\texttt{lib/services.ts}} for ports, \textbf{\texttt{lib/locks.ts}} for
+generic mutexes, the \texttt{session\_files} table for edit-surface claims) is the
+exclusion primitive every higher layer's ownership reduces to.
+
+\subsection{Claim granularity is richer than ``claims''}
+
+The early notes collapsed three primitives into one word. The kernel actually
+distinguishes \textbf{whole-file}, \textbf{line-range}, and \textbf{symbol-path}
+claims (the \texttt{session\_files} columns \texttt{file\_path},
+\texttt{start\_line}, \texttt{end\_line}, \texttt{symbol},
+\texttt{symbol\_path}). This is the substrate for the project's ``reserve regions,
+not whole files'' direction and for semantic-conflict prediction over a
+tree-sitter symbol index --- but at L0 it is just exclusion at three granularities.
+
+\subsection{The claim lifecycle as a finite-state machine}
+
+\input{figures/fig-swk-claim-lifecycle}
+
+Figure~\ref{fig:swk-claim-lifecycle} states the four properties L1 builds typed
+ownership on, as a state machine. We give the central one as a theorem.
+
+\begin{theorem}[Atomic mutual exclusion]\label{thm:exclusion}
+At most one holder exists per resource key (port $\mid$ file-region $\mid$ named
+lock) at any instant. The acquire path is a bare \texttt{INSERT} against a
+\texttt{PRIMARY KEY}; a concurrent acquirer's insert fails with
+\texttt{SQLITE\_CONSTRAINT}, and the loser is handed the current holder.
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+Acquire is a single atomic \texttt{INSERT} on the resource key, which is the
+table's primary key. SQLite guarantees at most one row per primary-key value;
+the second concurrent insert violates the constraint and is rejected atomically.
+Because the operation is a single statement, there is no interleaving window
+\emph{within} the insert. Re-claim by the current holder is an idempotent upsert
+(refresh \texttt{last\_seen}); release is idempotent (delete-if-exists). Expiry is
+swept lazily on the next read (\texttt{DELETE WHERE expires\_at < now}). The four
+behaviors are exactly properties I2--I4.\qed
+\end{proof}
+
+\pitfall{Theorem~\ref{thm:exclusion} is sound for the \emph{fresh-contention}
+case. There is a subtler hazard the dossier elided: the lock path runs
+\texttt{releaseExpired} (a \texttt{DELETE}) and \emph{then} \texttt{acquire} (the
+\texttt{INSERT}) as two separate statements, not one transaction
+(\texttt{lib/locks.ts}). On the single daemon connection this is serialized by the
+connection itself; \emph{across} connections (the scenario the single-writer prose
+sometimes invokes), the default \texttt{DEFERRED} transaction opens a window for
+\texttt{SQLITE\_BUSY} mid-sequence rather than clean serialization. The fix is
+\texttt{BEGIN IMMEDIATE} (or wrapping acquire in a transaction); it is
+\emph{absent} from that path today. So Theorem~\ref{thm:exclusion} holds because
+all writes route through the one daemon connection
+(Def.~\ref{def:single-writer}), \emph{not} because the expire-then-acquire
+sequence is itself atomic. State which story you mean; do not tell both.}
+
+\subsection{The missing state: fairness}
+
+The conspicuous gap in Figure~\ref{fig:swk-claim-lifecycle} is the absence of a
+\textsc{queued} state. Locks have a TTL but \emph{no} wait-list and \emph{no}
+fairness: acquisition is racy first-come, so a fast agent churning a hot file can
+starve a slow agent indefinitely. There is no priority, no FIFO wait-list, no
+anti-starvation guarantee. This is open problem OP-1, and it has teeth: adding
+bounded-wait may force a real scheduler into the kernel, which would push L0
+toward L1.
+
+\exercises{%
+\textbf{(check)} Why does releasing a lock you do not hold return success rather
+than an error? Which property (I2--I4) is this, and what would break if it raised?\par
+\textbf{(trace)} Two agents call \texttt{acquire} on the same fresh key at the
+same instant. Walk the \texttt{PRIMARY KEY} insert for both and show exactly where
+the loser learns the holder's identity.\par
+\textbf{(open, $\bigstar$ OP-1)} Can L0 add a bounded-wait fairness guarantee to
+claims/locks while keeping the single-writer, no-background-scheduler simplicity?
+Is a SQLite-backed FIFO wait-list with TTL'd reservations enough, or does fairness
+force a scheduler (and thus blur the L0/L1 boundary)?}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{The communication organ: the bus, stigmergy, and two delegation chains}
+\label{sec:comm}
+% ═════════════════════════════════════════════════════════════════════════════
+
+\input{figures/fig-swk-comm-organ}
+
+The communication organ (Figure~\ref{fig:swk-comm-organ}) is where L0 stops being
+a lockbox and becomes a substrate for conversation. It is \Built; the
+\emph{semantics} that ride on top of it (typed performatives, protocol FSMs) are
+Paper~1's L1 chapter. Three pieces matter here.
+
+\subsection{Tube: the carrier envelope}
+
+\textbf{Tube} (\textbf{\texttt{lib/tube.ts}}) is a durable, ordered,
+\emph{at-least-once} pub/sub bus over a \texttt{messages} table, with a versioned
+envelope (\texttt{\{ v:1, kind, body, inReplyTo \}}), a history cursor, and message
+TTL. The L1 typed performative (\texttt{performative}, \texttt{conversationId},
+\texttt{delegation-trace}, \texttt{reply-by}) is layered \emph{inside} this
+envelope --- the kernel ships the carrier, Paper~1 ships what it carries.
+
+\keyidea{At-least-once delivery means a \emph{healthy} bus routinely redelivers
+and reorders. This collides with the volume's loud-fail honesty discipline
+(ADR-0045): if ``every anomaly is loud,'' benign redelivery drowns the operator in
+false alarms. The volume's resolution (stitch C8, specified in Paper~1 and assumed
+here) is that benign transport non-determinism must be \emph{deduped silently};
+only genuine protocol-FSM violations surface loudly. That requires an idempotency
+key in the envelope --- currently absent --- and is the cheapest high-leverage L1
+fix. The kernel provides the bus; making every performative effect idempotent is
+L1's debt, flagged here so the reader does not mistake silent dedup for dishonesty.}
+
+\subsection{Pheromones: decay as a provided guarantee}
+
+\textbf{Pheromones} (\textbf{\texttt{lib/pheromone.ts}}) are stigmergic floats
+(Grass\'e~\cite{grasse1959}; the Linda tuple-space lineage of
+Gelernter~\cite{gelernter1985} is the sibling primitive in \texttt{lib/tuples.ts})
+stored in entity metadata, with per-kind exponential decay $w \cdot r^{\Delta t}$
+computed on a background evaporation tick \emph{and} at read time (so a reader sees
+the correct decayed value without waiting for the tick), pruning below a threshold
+of $0.01$. The decay is the structural defense against ``blackboard-rot'': stale
+coordination signals evaporate on their own. The calibration of the decay rate is
+genuinely open (OP-8): too slow and signals rot, too fast and they evaporate
+before they coordinate.
+
+\subsection{Two delegation chains, one dangerous name}
+
+The volume's most dangerous naming collision (stitch C4) lives in this organ.
+``Delegation chain'' names \emph{two different objects}:
+
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{\texttt{auth-chain}} --- the \emph{cryptographic} object
+  (\textbf{\texttt{lib/delegation-chain.ts}}, \Built, ProVerif-verified): an
+  Ed25519 hop-bound, attenuation-monotonic, anti-replay/anti-splice chain that
+  proves \emph{who authorized whom}. This is what Paper~4's cross-harbor capability
+  transfer rides.
+  \item \textbf{\texttt{delegation-trace}} --- the \emph{coordination} object
+  (\Designed, Paper~1): the task-lineage over which loop-detection and
+  upward-block run, preventing ping-pong.
+\end{itemize}
+
+These are distinct objects, and the relationship is that the
+\texttt{delegation-trace} is carried \emph{inside} the \texttt{auth-chain} ---
+loop-detection runs over a lineage whose authenticity the crypto chain guarantees.
+We never again write bare ``delegation chain.''
+
+\pitfall{The ``trace inside chain'' relationship is a slogan until the task-shape
+field is in the \emph{signed} payload at each hop --- and that collides with the
+project's no-keyword-NLP rule, because loop-detection needs a semantic
+task-shape equivalence (embeddings or a structural hash), which is not
+deterministically signable. This tension is a real open problem; we flag it (it is
+formalized in Paper~1 and as OP-2's cousin) rather than assert it solved.}
+
+\subsection{A second transport}
+
+The kernel ships \emph{two} transports, not one: HTTP-over-Unix-socket
+\emph{and} a binary IPC framing over a Unix domain socket
+(\textbf{\texttt{lib/ipc-*.ts}}) with peer-credential authentication and
+backpressure/draining --- the high-frequency path for tight-loop coordination. We
+note in \S\ref{sec:threatmodel} that the peer-credential check is a software
+handshake, not kernel-enforced \texttt{SO\_PEERCRED} (a real trust-boundary
+caveat).
+
+\exercises{%
+\textbf{(check)} Why does read-time pheromone decay make the system more honest
+than a background tick alone? Give a scenario where tick-only decay would report a
+stale signal as fresh.\par
+\textbf{(trace)} A \texttt{request} performative is sent over tube and redelivered
+once by the at-least-once bus. Trace what the operator should see under the C8
+resolution, and what an envelope idempotency key would change.\par
+\textbf{(open, $\bigstar$ OP-8)} What per-kind pheromone decay rate keeps
+stigmergic signals neither rotten nor prematurely evaporated? Frame this as an
+empirical-systems measurement, not a constant to guess.}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{The obligation \& enforcement organ: the sovereign's two arms}
+\label{sec:enforcement}
+% ═════════════════════════════════════════════════════════════════════════════
+
+This organ is the deontic core, and it is genuinely two distinct mechanisms
+(Jones \& Sergot~\cite{jonessergot1993}): \emph{prohibition} (the Arbiter) and
+\emph{obligation} (commitments). Getting the distinction right --- and being
+honest about how strong each arm actually is --- is the security heart of the
+paper.
+
+\input{figures/fig-swk-deontic-split}
+
+\subsection{The deontic split}
+
+\begin{definition}[The kernel's deontic theorem]\label{def:deontic}
+The kernel realizes three deontic modalities with three mechanisms:
+\emph{prohibition} is regimented (pre-commit) or enforced (post-commit, detected);
+\emph{obligation} is enforced by oracle-bound commitments; \emph{permission} is a
+recorded capability. L1's deontic binding (ADR-0047) is a direct lift of this
+split.
+\end{definition}
+
+We keep capability (\emph{ability} --- what the jail makes possible) distinct from
+permission (\emph{normative status} --- what the deontic layer allows), per stitch
+C9, so that ``able but forbidden'' stays expressible. The canonical example is the
+project's own \texttt{--allow-main-worktree} flag: it \emph{exists} (an agent is
+\emph{capable} of invoking it) but \emph{must not be used} (it is \emph{forbidden}).
+Collapsing capability into permission makes that state inexpressible, which is
+exactly the bug a guardrail-bypass discipline cannot afford.
+
+\subsection{The Arbiter is a detector, not a regimenter}
+\label{sec:arbiter-correction}
+
+\input{figures/fig-swk-reference-monitor}
+
+Here is the correction the whole volume must adopt (stitch C1). The most-repeated
+claim about the Arbiter --- that it ``makes forbidden coordination states
+physically unreachable'' --- is false as stated, and falsely inherited by all four
+papers. The code is decisive: \texttt{arbiter.ts:328} is
+\texttt{activityLog.subscribe((entry) => \{\ldots\})}. The Arbiter is a
+\emph{subscriber to an append-only event stream that has already committed}. By the
+time it observes a \texttt{security.violation}, the offending write is durable in
+the WAL. Even in strict mode, its strongest response is a \emph{compensating}
+``man-overboard'' salvage --- an undo, not a prevention.
+
+\begin{theorem}[Schneider bound on the Arbiter]\label{thm:schneider}
+A monitor that observes the activity log strictly after commit enforces no safety
+property; it can only detect and compensate. Therefore every Arbiter
+\emph{subscription} rule (\texttt{HEARTBEAT\_FRESHNESS}, \texttt{NOTE\_MONOTONICITY},
+\texttt{CAP\_ESCALATION}, \texttt{LOCK\_OWNER\_VALID}, \ldots) is, architecturally,
+detect-and-compensate --- not regimentation.
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+Schneider's theory of enforceable security policies via execution
+monitors~\cite{schneider2000} establishes that an execution monitor can enforce a
+property only by \emph{truncating the execution before the bad state is entered}.
+A monitor invoked strictly after the state transition has committed cannot
+truncate before it; the bad state already exists. Hence it can detect the
+violation and trigger a compensating transition, but it cannot have prevented the
+state. Subscription to a post-commit log places every subscribed rule in this
+regime. \qed
+\end{proof}
+
+\keyidea{The real, inline regimentation is credited to the right mechanism: the
+\texttt{PRIMARY KEY} constraint (double-claim, PID-squat-as-PK) and the
+fail-closed boot gate (prod-DB-in-test, \texttt{attest} refuse-to-serve). Those
+reject \emph{before} the commit line and are \emph{truly} unreachable. The Arbiter
+notices everything else \emph{afterward} and compensates. So: ``physically
+unreachable'' for the regimented set; ``detected within a bounded window, then
+halted/compensated'' for the rest. Crediting double-claim prevention to the
+Arbiter \emph{double-counts} --- the PK already did it; the Arbiter just logs it.}
+
+The Arbiter is honest about its own coverage, which is a genuine security
+property: \texttt{ArbiterStatus} reports each rule as \texttt{enforced},
+\texttt{degraded}, or \texttt{stubbed}, and one rule (\texttt{CAP\_ESCALATION}) is
+backed by a Rust FFI core. We note in \S\ref{sec:threatmodel} that the FFI
+enforcement and its temp-file materialization are the weakest-evidenced claim in
+the organ and carry a time-of-check/time-of-use surface.
+
+\subsection{Commitments: obligation with oracle-bound closure}
+
+\input{figures/fig-swk-commitment-oracle}
+
+Commitments (\textbf{\texttt{lib/commitments.ts}},
+\textbf{\texttt{lib/obligation-monitor.ts}}) are durable, \emph{violable} promises
+--- Cohen \& Levesque's ``intention as persistent goal''~\cite{cohenlevesque1990},
+with single-minded and open-minded drop strategies. Two of five hardening laws are
+shipped, and they are the load-bearing ones (Figure~\ref{fig:swk-commitment-oracle}).
+
+\begin{property}[Goodhart-resistance, Law 1]\label{prop:law1}
+A commitment's \texttt{due\_at} is derived by the daemon from a scope policy and is
+\emph{never} agent-supplied. The agent picks the work; the daemon picks the
+deadline. (Invariant I5.)
+\end{property}
+
+\begin{property}[Oracle-bound closure, Law 2]\label{prop:law2}
+\texttt{close('done')} is refused unless the agent supplies a non-empty
+\texttt{closed\_by\_oracle\_ref} drawn from a finite vocabulary: a released claim,
+a merged SHA, a passing test id, or a satisfied Arbiter sub-check. Free-text notes
+cannot close a commitment. (Invariant I6.)
+\end{property}
+
+\keyidea{That finite oracle vocabulary \emph{is} the kernel's honesty boundary. It
+can mechanically verify ``the test you named passed,'' never ``the refactor is
+good.'' Naming the oracle set is naming the limit of what L0 can verify --- and
+open problem OP-5 asks which real ``done'' conditions it fails to capture, and
+whether the set can be extended without re-opening the Goodhart hole that free-text
+closure would.}
+
+\exercises{%
+\textbf{(check)} For each Arbiter rule in Theorem~\ref{thm:schneider}, say whether
+it \emph{could in principle} be moved to a pre-commit hook (a \texttt{BEFORE
+INSERT} trigger). Which genuinely cannot, and why?
+(Hint: \texttt{HEARTBEAT\_FRESHNESS} and Chandra--Toueg~\cite{chandratoueg1996}.)\par
+\textbf{(trace)} An agent calls \texttt{close('done', oracle\_ref="")}. Walk the
+Law-2 gate and show exactly where and why the transition is refused.\par
+\textbf{(open, $\bigstar$ OP-2)} Formalize the regimentation-vs-enforcement
+boundary: which of the Arbiter's rules are truly regimentable (rejectable at
+insert) versus only enforceable (detectable after)? A clean theorem here is the
+deontic heart of the layer.\par
+\textbf{(open, $\bigstar$ OP-5)} Extend the Law-2 oracle vocabulary to capture a
+``done'' condition it currently misses, without re-admitting free text. State your
+new oracle and prove it is Goodhart-resistant.}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{The continuity organ: memory, checkpoint, and the foundation of the economy}
+\label{sec:continuity}
+% ═════════════════════════════════════════════════════════════════════════════
+
+The through-line of the whole volume --- memory $\to$ checkpoint $\to$ continuity
+$\to$ person $\to$ reputation $\to$ market --- \emph{bottoms out here}. If L0's
+continuity is weak, L3 is built on sand. This is the section Paper~3 and Paper~4
+lean on hardest, so it carries the volume's canonical statement of its own softest
+link.
+
+\input{figures/fig-swk-continuity-organs}
+
+\subsection{Three organs, one weak link}
+
+Figure~\ref{fig:swk-continuity-organs} names the three continuity organs and
+states the canonical C7 sentence verbatim. We repeat it in prose because the
+volume requires it identically in Papers~2 and 3:
+
+\pullquote{The economy rests on three continuity organs --- memory (\textsf{BUILT}),
+checkpoint (\textsf{BUILT-WEAK}: notes, not execution state), and the
+witnessed-outcome ledger (\textsf{DESIGNED}) --- and reputation keys on the third,
+which does not yet exist; the checkpoint organ is the weakest \emph{built} link,
+and ``resurrection with teeth'' (a real execution-state checkpoint) is the literal
+foundation of L3.}
+
+\textbf{Memory} (\textbf{\texttt{lib/sessions.ts}}, the largest module, plus
+\textbf{\texttt{lib/episodic-memory.ts}} and the activity log) is \Built, and the
+kernel even forbids amnesia: the Arbiter's \texttt{NOTE\_MONOTONICITY} rule
+guards that an active session's durable note count never regresses
+(detect-and-compensate, per Theorem~\ref{thm:schneider}, but real).
+
+\textbf{Checkpoint} (\textbf{\texttt{lib/resurrection.ts}}) is \BuiltWeak, and the
+weakness is precise: resurrection runs heartbeat-watchdog $\to$ stale/dead
+detection $\to$ resurrection queue $\to$ man-overboard salvage, and it \emph{passes
+notes}; it does not checkpoint execution state. ``Resurrection with teeth'' ---
+the gap between passing notes and restoring work --- is open problem OP-4, the most
+important unbuilt thing at L0 because it is the literal foundation of the economy.
+
+\textbf{The witnessed-outcome ledger}, the durable record of what an agent actually
+delivered, is the organ reputation keys on. It is \Designed{} only; Paper~3 builds
+it. OP-4 (here) and the outcome-ledger gap (Paper~3) are the \emph{same} finding
+viewed from two ends.
+
+\subsection{The activity log and tamper-evidence}
+
+The append-only activity log (\textbf{\texttt{lib/activity.ts}}) is the kernel's
+audit organ --- the stream the Arbiter subscribes to and the thing that makes
+``what actually happened'' answerable. Hash-chained tamper-evidence over it
+(\textbf{\texttt{lib/merkle-chain.ts}}, the Haber--Stornetta~\cite{haberstornetta1991}
+pattern that predates blockchain) exists but is re-scoped --- see
+\S\ref{sec:merkle}.
+
+\exercises{%
+\textbf{(check)} Why is ``resurrection passes notes'' fundamentally weaker than
+``resurrection restores work'' for an LLM agent that died mid-edit? Name one thing
+notes preserve and one thing they cannot.\par
+\textbf{(trace)} Follow \texttt{NOTE\_MONOTONICITY} from an agent appending a note
+to the Arbiter detecting a regression. At which point is the violation already
+durable (per Theorem~\ref{thm:schneider})?\par
+\textbf{(open, $\bigstar$ OP-4)} What is the minimal durable artifact that turns
+``resurrection passes notes'' into ``resurrection restores work''? Is it a
+content-addressed snapshot of \{working-tree diff $+$ open claims $+$ commitment
+set $+$ last-$N$ transcript turns\}? What is recoverable versus fundamentally lost
+when an LLM agent dies mid-thought?}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{The self-attestation organ: honest green}
+\label{sec:attest}
+% ═════════════════════════════════════════════════════════════════════════════
+
+ADR-0045 (loud-fail invariants and honest attestation) lives at L0, because the
+kernel is the one component that can honestly report its own integrity: it is
+always-on and owns the only writable truth. \textbf{\texttt{pd attest}}
+(\textbf{\texttt{lib/attest.ts}}, \textbf{\texttt{lib/attest-invariants.ts}})
+evaluates an invariant registry where each invariant returns
+\texttt{PASS}, \texttt{FAIL}, \texttt{SKIPPED(reason)}, or \texttt{UNKNOWN}. The
+report is \emph{scoped and conjunctive}: ``all good'' is printed only when every
+checked invariant passes, and the report always enumerates what was \emph{not}
+checkable.
+
+\begin{property}[Honest self-report, I10]\label{prop:attest}
+\texttt{pd attest} reports ``all good'' only if every checked CRITICAL invariant
+passed, and it always lists the unchecked set. There are three triggers: a boot
+regimentation gate (refuse-to-serve on CRITICAL fail), a CLI pre-flight (loud
+refusal naming the fix), and a continuous watchdog (a PASS$\to$FAIL transition
+emits a pheromone and a notification). \Built.
+\end{property}
+
+This is the ADR-0045 honest-label discipline turned on the kernel itself, and it
+is the right posture for a trusted computing base: when integrity is unknown, deny.
+The drift/liveness guards (\textbf{\texttt{lib/binary-drift-detector.ts}},
+\textbf{\texttt{lib/cli-liveness.ts}}, \textbf{\texttt{lib/git-origin-check.ts}})
+exist precisely because a second copy of the daemon \emph{can} run --- the homebrew
+install lagging the repo is a live, recurring hazard --- and the kernel must know
+which copy of itself is the real one.
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{The invariants, stated as theorems}
+\label{sec:invariants}
+% ═════════════════════════════════════════════════════════════════════════════
+
+A completionist treatment names the kernel's properties as provable claims, each
+with its mechanism and honest label. Table~\ref{tab:invariants} is the formal
+spine of the layer; the honest-label column is the ADR-0045 discipline turned on
+the theorems themselves.
+
+\renewcommand{\arraystretch}{1.2}
+\begin{table}[H]
+\centering
+\caption{The kernel invariants. I1 is split by fault class (I1a/I1b) per
+\S\ref{sec:durability}; I7--I9 carry the regimentation/detection correction per
+\S\ref{sec:enforcement}.}
+\label{tab:invariants}
+\small
+\begin{tabular}{@{}p{8mm}p{62mm}p{50mm}p{30mm}@{}}
+\toprule
+\textbf{\#} & \textbf{Invariant (theorem)} & \textbf{Mechanism} & \textbf{Honest label} \\
+\midrule
+I1a & Process-crash durability & WAL + OS page cache & \Built \\
+I1b & Power-loss durability & (needs \texttt{synchronous=FULL}) & \NotGuar \\
+I2 & Mutual exclusion (1 holder/key) & PK constraint + \texttt{busy\_timeout} & \Built \\
+I3 & Idempotence of re-claim/re-release & upsert / delete-if-exists & \Built \\
+I4 & Liveness reclamation (TTL sweep) & lazy expiry on read + ticks & \Built \\
+I5 & Goodhart-resistance (Law 1) & daemon-derived \texttt{due\_at} & \Built \\
+I6 & Oracle-bound closure (Law 2) & \texttt{closed\_by\_oracle\_ref} & \Built \\
+I7 & No-amnesia (note monotonicity) & Arbiter \texttt{NOTE\_MONOTONICITY} & \BuiltWeak{} (detected, not regimented) \\
+I8 & Forbidden-state handling & PK/boot (regimented) + Arbiter (detected) & \BuiltWeak{} (mostly detect-and-compensate) \\
+I9 & Tamper-evidence of the audit log & Merkle chain & \BuiltWeak{} (re-scoped L3, \S\ref{sec:merkle}) \\
+I10 & Honest self-report & \texttt{pd attest} scoped report & \Built \\
+I11 & Runtime parity (bun $\equiv$ better-sqlite3) & sqlite-runtime shim & \BuiltWeak{} (OP-3) \\
+I12 & Non-forgeable identity & ADR-0040 & \Designed{} (substrate present, gating absent) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{The consistency-model theorem}
+
+The dossier never said ``serializable'' or ``linearizable.'' It should have: those
+words are the formal payoff of the single-writer choice, and they are what make
+L1's typed ownership trustworthy.
+
+\input{figures/fig-swk-consistency-model}
+
+\begin{theorem}[Consistency model]\label{thm:consistency}
+Under one writer over a single SQLite database in WAL mode, every transaction is
+\textbf{serializable}. Because the daemon is the sole decider, the externally
+observable history of claim/lock operations is \textbf{linearizable}: each
+operation appears to take effect atomically at its commit (its linearization
+point), consistent with real-time order.
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+SQLite under a single writer provides serializable isolation: there is one stream
+of write transactions, totally ordered by commit, and readers see a consistent
+snapshot. For linearizability (Herlihy \& Wing~\cite{herlihywing1990}) we need a
+single point per operation, between its invocation and response, at which it
+appears to take effect, with these points consistent with real time. The commit of
+each claim/lock operation is exactly such a point: it is atomic
+(Theorem~\ref{thm:exclusion}), it lies between the client's request and the
+daemon's response, and because the sole daemon connection commits operations in a
+total order that respects the order in which it received them, the linearization
+order coincides with real time. Hence the observable claim/lock history is
+linearizable. \qed
+\end{proof}
+
+\keyidea{This is why the kernel needs no agreement protocol. Linearizability is the
+strongest single-object consistency guarantee, and the single-writer architecture
+gives it \emph{for free} --- not despite refusing consensus, but \emph{because} it
+refused consensus. One decider, one order, one truth.}
+
+\subsection{The dual-runtime hazard, and what would make I11 a theorem}
+
+\input{figures/fig-swk-dual-runtime}
+
+Invariant I11 (runtime parity) is the one place the formal spine is held together
+by a shim rather than a proof. Truth is \emph{computed} under \texttt{bun:sqlite}
+(the compiled single-binary daemon) but \emph{verified} under
+\texttt{better-sqlite3} (jest); a pragma/option shim
+(\textbf{\texttt{lib/sqlite-runtime.ts}}) bridges them
+(Figure~\ref{fig:swk-dual-runtime}). An invariant green under test can be a 500 in
+production if the bindings diverge in lock or pragma semantics --- the recurring
+``green-in-jest, 500-in-bun'' failure. CI must \emph{boot the bun daemon} and smoke
+its routes, not merely build it. Open problem OP-3 asks for the differential-test
+harness that would turn I11 from a hope into evidence.
+
+\exercises{%
+\textbf{(check)} Theorem~\ref{thm:consistency} gives linearizability ``for free.''
+What does ``free'' cost? (Hint: \texttt{busy\_timeout} and throughput under
+contention --- the single writer is also a scalability ceiling.)\par
+\textbf{(trace)} Construct a three-operation claim history and give its unique
+linearization. Then show why no second linearization is consistent with real
+time.\par
+\textbf{(open, $\bigstar$ OP-3)} Specify the minimal differential-test suite that
+would make I11 a theorem: what operation sequences, what observable-state
+assertions, run against both runtimes?}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{Cross-organ atomicity: a buildable defect, not a frontier}
+\label{sec:atomicity}
+% ═════════════════════════════════════════════════════════════════════════════
+
+``Claim this port \emph{and} open this session \emph{and} record this commitment''
+is three writes. Nothing at the kernel's API boundary wraps them in one SQLite
+transaction, so partial-failure semantics across organs are undefined. The dossier
+labeled this \Vision. That is wrong, and the correction matters because it changes
+the engineering posture from ``research'' to ``do it.''
+
+\keyidea{This is the Saga problem (Garcia-Molina \& Salem~\cite{garciamolina1987})
+--- but with a \emph{cheap local fix}. These are all local writes to one file;
+\texttt{db.transaction()} already exists in the codebase (it is used in
+\texttt{bonds.ts} and \texttt{symbol-index.ts}). Wrapping a multi-organ operation
+in one local transaction (or \texttt{BEGIN IMMEDIATE}) gives all-or-nothing for
+free. Calling it \Vision{} understates how cheap the correct answer is. It is a
+\textbf{buildable defect}, re-labeled here from \Vision{} to ``buildable now.''}
+
+The reason it is not yet built is simply that no one wrapped the multi-organ API
+endpoints; the primitive is present. This is the kind of finding the honest-label
+discipline exists to surface: a gap mis-labeled as a frontier hides a one-line fix
+behind the word ``VISION.''
+
+\exercises{%
+\textbf{(check)} Give a concrete partial-failure: port claimed, session opened,
+then the commitment write fails. What inconsistent state is left, and which agent
+sees it?\par
+\textbf{(open, $\bigstar$ C5)} Sketch the API change that wraps the three-organ
+``begin'' operation in one \texttt{db.transaction()}. What is the compensating
+action if you instead chose Sagas, and why is the transaction strictly simpler
+here?}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{Threat model and the limits of mediation}
+\label{sec:threatmodel}
+% ═════════════════════════════════════════════════════════════════════════════
+
+A kernel paper lives or dies on its threat model. The kernel deliberately shrinks
+its trusted computing base (one writer, one file), which is good security hygiene
+--- but the shrinking pushes several adversaries explicitly out of scope, and the
+honest move is to draw the boundary, not gesture at it.
+
+\renewcommand{\arraystretch}{1.25}
+\begin{table}[H]
+\centering
+\caption{The L0 threat model. The same-user adversary is \emph{out of scope} by
+design; several ``security'' organs only become load-bearing against the
+cross-machine adversary, which is L3 (Paper~4).}
+\label{tab:threat-model}
+\small
+\begin{tabular}{@{}p{40mm}p{52mm}p{60mm}@{}}
+\toprule
+\textbf{Adversary} & \textbf{In/out of scope} & \textbf{What defends (or does not)} \\
+\midrule
+Buggy cooperating agent & \textbf{in} & Claims, commitments, Arbiter detection, oracle-bound closure. The primary design target. \\
+Misbehaving agent (ignores advisory claims) & partial & \texttt{session\_files} claims are \emph{advisory coordination}, not OS-enforced isolation. A malicious agent can write the file anyway (no Landlock/unveil/Seatbelt). \\
+Same-user process (reads/edits the DB) & \textbf{out} & The DB is \texttt{0600}; the signing key is mid-migration to the OS keychain. Merkle tamper-evidence defends against \emph{nobody} under this exclusion (\S\ref{sec:merkle}). \\
+Different-uid process & \textbf{in (partial)} & \texttt{0600} perms; but IPC peer-cred is a software handshake, not \texttt{SO\_PEERCRED} --- a real authentication caveat. \\
+Cross-machine / cross-operator & \textbf{out (it is L3)} & Needs non-forgeable identity (ADR-0040, \Designed) and cross-operator attestation (Paper~4). \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Advisory claims are not sandboxing}
+
+The sharpest category error to avoid: \texttt{session\_files} claims are
+\emph{advisory coordination locks between cooperating agents}, not OS-enforced
+filesystem isolation. There is no seccomp-bpf, no \texttt{pledge}/\texttt{unveil},
+no macOS Seatbelt, no Landlock. A malicious agent ignores a claim row and writes
+the file. The kernel provides \emph{advisory} coordination; real OS sandboxing of
+agent processes is out of scope at L0 (it is the L1 ``jail,'' \Designed{} in
+Paper~1, and would need to be grounded in a real OS primitive). We say so plainly
+rather than let advisory claims be read as isolation.
+
+\subsection{Self-asserted identity bounds every other invariant}
+
+Today \texttt{owner\_actor\_id} is whatever the session claims (I12 is \Designed).
+This silently bounds the security weight of I7, I8, and I9: every rule that keys on
+identity (\texttt{LOCK\_OWNER\_VALID}, \texttt{CAP\_ESCALATION},
+\texttt{NOTE\_MONOTONICITY}, owner-scoped release) is unforgeable only up to
+impersonation. A malicious agent simply claims to be another actor. The Rust-FFI
+\texttt{CAP\_ESCALATION} enforcement is theater if the capability set it checks
+hangs off a forgeable identity. This dependency --- I12 gates the soundness of
+I7/I8/I9 --- is a hard precondition, stated here so the reader does not over-trust
+the enforcement organ.
+
+\subsection{Merkle tamper-evidence, re-scoped to L3 provisioning}
+\label{sec:merkle}
+
+The Merkle chain (I9) is built, but under the \emph{stated} threat model it defends
+against nobody: its only adversary is someone who can edit the audit log, which is
+exactly the same-user process the model excludes (OP-9). Tamper-evidence that
+nothing on the read path verifies is a data structure, not a control. We therefore
+re-scope I9 as \textbf{L3 provisioning}: it matters only against cross-machine sync
+or a non-same-user tamperer. Its load-bearing treatment moves to Paper~4; here it
+is a one-line pointer: \emph{provisioned at L0, activated at L3}.
+
+\exercises{%
+\textbf{(check)} The Merkle chain defends against nobody in scope. Name the
+\emph{out-of-scope} adversary it does defend against, and the layer (L0/L3) where
+that adversary becomes real.\par
+\textbf{(trace)} An agent forges \texttt{owner\_actor\_id} to release another
+agent's lock. Walk \texttt{LOCK\_OWNER\_VALID} and show exactly where I12's absence
+lets the forgery through.\par
+\textbf{(open, $\bigstar$ OP-9)} What is the minimal hardening that closes the
+same-machine adversary without a TPM dependency --- OS keychain for the signing
+key, sealed memory? Where does each stop?}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{Adjacency contract: what the kernel assumes and provides}
+\label{sec:adjacency}
+% ═════════════════════════════════════════════════════════════════════════════
+
+The kernel's coherence with the layers around it is a contract: what it assumes
+from the machine below, what it provides to the protocol above, and --- just as
+important --- what it explicitly does \emph{not} provide so higher layers do not
+over-assume.
+
+\subsection{What L0 assumes from the machine}
+\begin{itemize}[leftmargin=1.4em]
+  \item A POSIX filesystem with working advisory locking (\texttt{flock}/\texttt{fcntl}).
+  \textbf{This is a correctness precondition for I2}: networked filesystems break
+  advisory locks, and a broken lock lets two writers both win --- destroying mutual
+  exclusion, not just performance.
+  \item A local wall clock (\texttt{Date.now()}). Single-machine, so no shared-clock
+  assumption is needed --- but note that \texttt{Date.now()} is \emph{not monotonic}
+  (it steps on NTP adjustments), an intra-node hazard for every \texttt{expires\_at
+  < now} sweep that the Lamport~\cite{lamport1978} inter-node citation does not
+  cover.
+  \item Unix domain sockets with peer-credential auth (the IPC and HTTP transports).
+  \item An OS keychain for signing keys; \texttt{chmod} honored on the DB path.
+  \item A supervisor (launchd) to keep the daemon always-on and to resurrect
+  \emph{the daemon itself} --- L0 makes other things always-on but cannot make
+  \emph{itself} always-on; that is delegated downward.
+\end{itemize}
+
+\subsection{What L0 provides to L1 (the kernel API contract)}
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{Atomic, idempotent, TTL'd claims} (I2--I4) over ports, file-regions,
+  symbols, and named locks --- L1's typed ownership reduces to L0 claim release.
+  \item \textbf{A durable, versioned, history-cursored pub/sub bus} (tube) + tuple
+  space + decaying pheromones --- L1's performative envelope is carried \emph{in}
+  L0's tube envelope; the anti-blackboard-rot property is \emph{provided} by L0
+  decay.
+  \item \textbf{The deontic split as a primitive} (Def.~\ref{def:deontic}):
+  prohibition $\to$ Arbiter (detect/regiment), obligation $\to$ commitment, permission
+  $\to$ capability. L1 must not re-implement enforcement.
+  \item \textbf{Daemon-owned deadlines and oracle-bound closure} (I5, I6).
+  \item \textbf{An append-only audit log} (Merkle-provisioned) the protocol and the
+  operator read.
+  \item \textbf{Self-attestation} (I10) --- higher layers may \emph{assume the kernel
+  is honest about its own health}.
+  \item \textbf{The cryptographic \texttt{auth-chain}} --- L1's
+  \texttt{delegation-trace} rides inside it.
+  \item \textbf{Linearizable claim/lock semantics} (Theorem~\ref{thm:consistency})
+  --- the property that lets L1 treat ``who holds this'' as ground truth.
+\end{itemize}
+
+\subsection{The explicit non-provisions}
+\begin{itemize}[leftmargin=1.4em]
+  \item L0 does \emph{not} provide non-forgeable identity yet (I12, \Designed).
+  \item L0 does \emph{not} provide fair/queued exclusion (OP-1), cross-organ
+  transactional atomicity by default (\S\ref{sec:atomicity}), real
+  execution-checkpoint (OP-4), or any cross-machine guarantee (L3 --- different
+  theorems, a shared-clock and Byzantine-membership problem L0 deliberately never
+  touches).
+  \item L0 does \emph{not} decide \emph{what to do} (no orchestration). It enforces
+  what \emph{cannot} be done and records what \emph{did} happen --- the ``building
+  department, not architect'' model.
+\end{itemize}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{Open problems}
+\label{sec:openproblems}
+% ═════════════════════════════════════════════════════════════════════════════
+
+These nine open problems are the layer's research frontier; they appear as starred
+exercises throughout and are collected here. OP-4 is co-owned with Paper~3 (it owns
+the kernel mechanism; Paper~3 owns the personhood-and-reputation argument).
+
+\begin{description}[leftmargin=2.2em,style=nextline]
+\item[$\bigstar$ OP-1 --- Fair exclusion without a scheduler.] Add bounded-wait to
+claims/locks while keeping the single-writer, no-background-scheduler simplicity.
+Is a SQLite-backed FIFO wait-list with TTL'd reservations enough?
+\item[$\bigstar$ OP-2 --- Regimentation vs.\ enforcement boundary.] Formalize which
+Arbiter rules are truly regimentable (rejected at insert) versus only enforceable
+(detected after). The deontic heart of the layer (Theorem~\ref{thm:schneider}).
+\item[$\bigstar$ OP-3 --- Cross-runtime soundness as a proof obligation.] Prove,
+not test, that the bun:sqlite and better-sqlite3 paths are observationally
+equivalent for the invariant set (I11).
+\item[$\bigstar$ OP-4 --- Checkpoint with teeth.] The minimal durable artifact that
+turns ``resurrection passes notes'' into ``resurrection restores work.'' The
+literal foundation of the L3 economy.
+\item[$\bigstar$ OP-5 --- Oracle completeness.] Extend the finite Law-2 oracle set
+without re-admitting free-text (without re-opening the Goodhart hole).
+\item[$\bigstar$ OP-6 --- Tamper-evidence on the read path.] Where should Merkle
+verification gate? A sampling/checkpoint regime with a provable detection-probability
+bound (couples to \S\ref{sec:merkle}'s L3 re-scope).
+\item[$\bigstar$ OP-7 --- Schema evolution without a sequencer.] Safe
+renames/backfills/down-migrations preserving ``any module, any order.''
+\item[$\bigstar$ OP-8 --- Pheromone decay calibration.] The right per-kind decay so
+stigmergic signals neither rot nor evaporate before they coordinate.
+\item[$\bigstar$ OP-9 --- Same-machine adversary.] Minimal hardening (OS keychain,
+sealed memory) that closes the same-user process adversary without a TPM.
+\end{description}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{Conclusion: solid where local, provisional where it must grow}
+% ═════════════════════════════════════════════════════════════════════════════
+
+The kernel is a single-writer transactional reference monitor over a local
+SQLite/WAL file, and its two jobs --- durable record and mediated exclusion --- are
+real and, mostly, proven. It earns its strongest claims (mutual exclusion,
+serializable/linearizable consistency, oracle-bound closure) precisely by refusing
+the distributed-systems problem it superficially resembles: one writer, one file,
+one decider, no consensus.
+
+Where it stops, it stops honestly. Durability is split: process-crash durable
+(I1a), \emph{not} guaranteed against power loss (I1b). The Arbiter detects and
+compensates; it does not regiment, and we credit the real inline regimentation to
+the PK constraint and boot gate. Cross-organ atomicity is a buildable defect, not a
+frontier. Merkle tamper-evidence is re-scoped to L3 provisioning, where it actually
+defends someone. And the two genuinely soft spots --- non-forgeable identity (I12)
+and checkpoint-with-teeth (OP-4) --- are exactly the two things the economy
+(Paper~4) and the person (Paper~3) lean on hardest.
+
+\pullquote{The kernel is solid where it is local and provisional exactly where the
+economy will need it to be cryptographic and continuous. That is not a flaw to
+hide; it is the layer boundary, stated truthfully.}
+
+Every ``single-machine / one-writer / one-clock / self-asserted-identity''
+simplification that makes this layer clean is precisely the assumption a later
+layer must pay to relax. The Anchor Protocol \emph{proper} --- cross-harbor
+capability transfer over the \texttt{auth-chain} this kernel ships --- is where
+that payment begins, and it is Paper~4, not here. Build the harbor first. The
+cryptography earns its keep when the ships sail out to trade.
+
+% ═════════════════════════════════════════════════════════════════════════════
+\bibliographystyle{plain}
+\begin{thebibliography}{99}
+
+\bibitem{anderson1972}
+James P. Anderson.
+\newblock Computer Security Technology Planning Study.
+\newblock ESD-TR-73-51, U.S. Air Force Electronic Systems Division, 1972.
+\newblock (The origin of the \emph{reference monitor} concept.)
+
+\bibitem{lampson1974}
+Butler W. Lampson.
+\newblock Protection.
+\newblock \textit{ACM SIGOPS Operating Systems Review}, 8(1):18--24, 1974.
+
+\bibitem{saltzer1975protection}
+Jerome H. Saltzer and Michael D. Schroeder.
+\newblock The Protection of Information in Computer Systems.
+\newblock \textit{Proceedings of the IEEE}, 63(9):1278--1308, 1975.
+
+\bibitem{schneider2000}
+Fred B. Schneider.
+\newblock Enforceable Security Policies.
+\newblock \textit{ACM Transactions on Information and System Security}, 3(1):30--50, 2000.
+
+\bibitem{jonessergot1993}
+Andrew J. I. Jones and Marek Sergot.
+\newblock On the Characterisation of Law and Computer Systems: The Normative Systems Perspective.
+\newblock In \textit{Deontic Logic in Computer Science}, Wiley, 1993.
+
+\bibitem{grayreuter1992}
+Jim Gray and Andreas Reuter.
+\newblock \textit{Transaction Processing: Concepts and Techniques}.
+\newblock Morgan Kaufmann, 1992.
+\newblock (Atomicity/consistency vs.\ durability --- the ground for I1a/I1b.)
+
+\bibitem{mohan1992aries}
+C. Mohan, Don Haderle, Bruce Lindsay, Hamid Pirahesh, and Peter Schwarz.
+\newblock ARIES: A Transaction Recovery Method Supporting Fine-Granularity Locking and Partial Rollbacks Using Write-Ahead Logging.
+\newblock \textit{ACM Transactions on Database Systems}, 17(1):94--162, 1992.
+
+\bibitem{sqlitewal}
+D. Richard Hipp et al.
+\newblock SQLite Write-Ahead Logging.
+\newblock SQLite Documentation, 2010.
+\newblock \url{https://www.sqlite.org/wal.html}
+\newblock (\texttt{synchronous=NORMAL} ``commits might lose durability following a power loss.'')
+
+\bibitem{kleppmann2017}
+Martin Kleppmann.
+\newblock \textit{Designing Data-Intensive Applications}.
+\newblock O'Reilly, 2017.
+\newblock (Single-leader as the right default; consensus only when forced.)
+
+\bibitem{herlihywing1990}
+Maurice P. Herlihy and Jeannette M. Wing.
+\newblock Linearizability: A Correctness Condition for Concurrent Objects.
+\newblock \textit{ACM Transactions on Programming Languages and Systems}, 12(3):463--492, 1990.
+
+\bibitem{flp1985}
+Michael J. Fischer, Nancy A. Lynch, and Michael S. Paterson.
+\newblock Impossibility of Distributed Consensus with One Faulty Process.
+\newblock \textit{Journal of the ACM}, 32(2):374--382, 1985.
+
+\bibitem{chandratoueg1996}
+Tushar Deepak Chandra and Sam Toueg.
+\newblock Unreliable Failure Detectors for Reliable Distributed Systems.
+\newblock \textit{Journal of the ACM}, 43(2):225--267, 1996.
+
+\bibitem{lamport1978}
+Leslie Lamport.
+\newblock Time, Clocks, and the Ordering of Events in a Distributed System.
+\newblock \textit{Communications of the ACM}, 21(7):558--565, 1978.
+
+\bibitem{cohenlevesque1990}
+Philip R. Cohen and Hector J. Levesque.
+\newblock Intention Is Choice with Commitment.
+\newblock \textit{Artificial Intelligence}, 42(2--3):213--261, 1990.
+
+\bibitem{garciamolina1987}
+Hector Garcia-Molina and Kenneth Salem.
+\newblock Sagas.
+\newblock In \textit{ACM SIGMOD International Conference on Management of Data}, 1987.
+
+\bibitem{grasse1959}
+Pierre-Paul Grass\'e.
+\newblock La reconstruction du nid et les coordinations interindividuelles\ldots: la th\'eorie de la stigmergie.
+\newblock \textit{Insectes Sociaux}, 6(1):41--80, 1959.
+
+\bibitem{gelernter1985}
+David Gelernter.
+\newblock Generative Communication in Linda.
+\newblock \textit{ACM Transactions on Programming Languages and Systems}, 7(1):80--112, 1985.
+
+\bibitem{dorigo1999}
+Marco Dorigo and Gianni Di Caro.
+\newblock The Ant Colony Optimization Meta-Heuristic.
+\newblock In \textit{New Ideas in Optimization}, McGraw-Hill, 1999.
+
+\bibitem{merkle1987}
+Ralph C. Merkle.
+\newblock A Digital Signature Based on a Conventional Encryption Function.
+\newblock In \textit{Advances in Cryptology --- CRYPTO '87}, 1987.
+
+\bibitem{haberstornetta1991}
+Stuart Haber and W. Scott Stornetta.
+\newblock How to Time-Stamp a Digital Document.
+\newblock \textit{Journal of Cryptology}, 3(2):99--111, 1991.
+
+\bibitem{kephartchess2003}
+Jeffrey O. Kephart and David M. Chess.
+\newblock The Vision of Autonomic Computing.
+\newblock \textit{IEEE Computer}, 36(1):41--50, 2003.
+
+\bibitem{bernstein2012high}
+Daniel J. Bernstein, Niels Duif, Tanja Lange, Peter Schwabe, and Bo-Yin Yang.
+\newblock High-Speed High-Security Signatures.
+\newblock \textit{Journal of Cryptographic Engineering}, 2(2):77--89, 2012.
+\newblock (Ed25519 --- the \texttt{auth-chain} primitive.)
+
+\bibitem{blanchet2016modeling}
+Bruno Blanchet.
+\newblock Modeling and Verifying Security Protocols with the Applied Pi Calculus and ProVerif.
+\newblock \textit{Foundations and Trends in Privacy and Security}, 1(1-2):1--135, 2016.
+\newblock (The tool verifying the \texttt{auth-chain}; full treatment in Paper~4.)
+
+\bibitem{nygard2018}
+Michael T. Nygard.
+\newblock \textit{Release It! Design and Deploy Production-Ready Software}.
+\newblock 2nd ed., Pragmatic Bookshelf, 2018.
+\newblock (\texttt{busy\_timeout} as a missing bulkhead/timeout-budget under contention.)
+
+\end{thebibliography}
+
+\end{document}

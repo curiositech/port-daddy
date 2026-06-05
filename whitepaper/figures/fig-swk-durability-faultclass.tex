@@ -1,0 +1,78 @@
+% Figure 4 — durability by fault class (the I1a/I1b split). A returned-success
+% write under WAL + synchronous=NORMAL survives a PROCESS crash (OS buffer
+% persists) but is NOT guaranteed against OS crash / power loss until the next
+% checkpoint. Gray-Reuter's atomicity-vs-durability distinction made visible.
+
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D4C5A9}
+\providecolor{hhebony}{HTML}{1E1B18}
+\providecolor{hhink}{HTML}{2C2A26}
+\providecolor{hhcinnabar}{HTML}{CC3D2E}
+\providecolor{hhbrass}{HTML}{B08D57}
+\providecolor{hhpatina}{HTML}{5C7A6A}
+\providecolor{hhpaper}{HTML}{FBF7EE}
+
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\sffamily\small,
+  tier/.style={draw=hhebony,thick,rounded corners=2pt,minimum width=30mm,
+               minimum height=11mm,align=center,font=\sffamily\bfseries\footnotesize},
+  fault/.style={draw=hhebony,thick,rounded corners=2pt,fill=hhpaper,
+                minimum width=30mm,minimum height=13mm,align=center,
+                font=\sffamily\footnotesize},
+]
+
+% ─── The write's journey: app -> OS page cache -> WAL on disk -> checkpoint ─
+\node[tier,fill=hhsand!50] (app) at (0,0) {commit\\ returns SUCCESS};
+\node[tier,fill=hhsanddeep!45,right=10mm of app] (oscache) {OS page\\ cache};
+\node[tier,fill=hhsanddeep!45,right=10mm of oscache] (waldisk) {WAL file\\ (fsync at\\ checkpoint)};
+\node[tier,fill=hhpatina!22,right=10mm of waldisk] (maindb) {main DB\\ (checkpointed)};
+
+\draw[->,>=Latex,thick,hhebony] (app) -- (oscache);
+\draw[->,>=Latex,thick,hhebony] (oscache) -- node[above,font=\sffamily\scriptsize]{not fsync'd per-commit} (waldisk);
+\draw[->,>=Latex,thick,hhebony] (waldisk) -- node[above,font=\sffamily\scriptsize]{wal\_autocheckpoint=200} (maindb);
+
+% ─── I1a survives process crash ───────────────────────────────────────────
+\node[fault,fill=hhpatina!18,below=14mm of oscache] (i1a)
+  {\textbf{I1a --- process crash}\\ \texttt{kill -9} the daemon\\
+   {\color{hhpatina}\textbf{SURVIVES}}\\ {\scriptsize OS buffer persists}\\ {\scriptsize\textsf{BUILT}}};
+\draw[->,>=Latex,thick,hhpatina] (oscache.south) -- (i1a.north);
+
+% ─── I1b NOT guaranteed against OS crash / power loss ──────────────────────
+\node[fault,fill=hhcinnabar!12,below=14mm of waldisk] (i1b)
+  {\textbf{I1b --- OS crash / power loss}\\ before checkpoint\\
+   {\color{hhcinnabar}\textbf{NOT GUARANTEED}}\\ {\scriptsize last commits may roll back}\\
+   {\scriptsize\textsf{NOT GUARANTEED under NORMAL}}};
+\draw[->,>=Latex,thick,hhcinnabar] (waldisk.south) -- (i1b.north);
+
+% ─── The remedy ───────────────────────────────────────────────────────────
+\node[draw=hhbrass,thick,fill=hhpaper,rounded corners=2pt,inner sep=5pt,
+      text width=150mm,align=left,font=\sffamily\footnotesize,below=10mm of i1a,xshift=30mm] (fix)
+  {{\bfseries\sffamily The trade made, stated honestly:}\quad
+   \texttt{synchronous=NORMAL} fsyncs the WAL only at checkpoint, buying throughput at
+   the cost of \emph{power-loss} durability. The in-code comment
+   (\texttt{db.ts:388}) ``NORMAL is safe in WAL mode'' conflates
+   crash-\emph{consistency} (the DB is never corrupt --- true) with
+   \emph{durability} (committed work survives power loss --- false). The remedy for
+   I1b is \texttt{synchronous=FULL} or a checkpoint on the commit path; the kernel
+   does not pay that cost by default, and the pitch must not imply it does.};
+
+\node[font=\sffamily\footnotesize\itshape,text=hhink,align=center,above=2mm of app,xshift=45mm]
+  {Gray \& Reuter (1992): atomicity/consistency $\neq$ durability --- the ``D'' in ACID is a separate promise.};
+
+\end{tikzpicture}%
+}
+\caption{Durability by fault class --- the single most important correction to
+the kernel's foundational promise. The unqualified claim ``a write that returned
+success survives a crash'' is true for a \emph{process} crash (I1a: the OS page
+cache persists past the dying daemon) but \emph{not guaranteed} for an OS crash
+or power loss (I1b), because \texttt{synchronous=NORMAL} fsyncs the WAL only at
+checkpoint. This is exactly the Gray--Reuter atomicity-versus-durability
+distinction, and it is the one fault class a ``the file survives every agent's
+death'' pitch most invites the reader to over-assume. We split the invariant
+accordingly: I1a is \textsf{BUILT}; I1b is \textsf{NOT GUARANTEED} under the
+shipped pragma set.}
+\label{fig:swk-durability-faultclass}
+\end{figure}

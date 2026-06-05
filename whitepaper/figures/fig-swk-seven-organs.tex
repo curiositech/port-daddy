@@ -1,0 +1,76 @@
+% Figure 2 — the seven organs of the kernel, each a contract over the same
+% single-writer SQLite/WAL substrate. The substrate organ is the floor; the
+% other six are tables-with-discipline on top of it. Honest labels per organ.
+
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D4C5A9}
+\providecolor{hhebony}{HTML}{1E1B18}
+\providecolor{hhink}{HTML}{2C2A26}
+\providecolor{hhcinnabar}{HTML}{CC3D2E}
+\providecolor{hhbrass}{HTML}{B08D57}
+\providecolor{hhpatina}{HTML}{5C7A6A}
+\providecolor{hhpaper}{HTML}{FBF7EE}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.96\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\sffamily\small,
+  organ/.style={draw=hhebony,thick,rounded corners=3pt,fill=hhpaper,
+                minimum width=52mm,minimum height=20mm,align=left,
+                inner sep=5pt,text width=48mm},
+  sub/.style={draw=hhebony,thick,rounded corners=3pt,fill=hhsanddeep!45,
+              minimum width=168mm,minimum height=14mm,align=center,
+              inner sep=5pt,text width=160mm},
+]
+\newcommand{\modlbl}{\ttfamily\scriptsize\color{hhbrass}}
+
+% ─── Six organs in a 3x2 grid ─────────────────────────────────────────────
+\node[organ] (resource) at (0,0)
+  {{\bfseries Resource}\\ ports, file/region/symbol claims, named locks.\\
+   {\modlbl services.ts $\cdot$ locks.ts}\\ {\footnotesize\textsf{BUILT}}};
+\node[organ,right=4mm of resource] (identity)
+  {{\bfseries Identity}\\ semantic \texttt{project:stack:context}; agents/actors; heartbeat.\\
+   {\modlbl identity.ts $\cdot$ agents.ts}\\ {\footnotesize\textsf{BUILT} (self-asserted)}};
+\node[organ,right=4mm of identity] (comm)
+  {{\bfseries Communication}\\ tube pub/sub, tuple space, pheromones, IPC.\\
+   {\modlbl tube.ts $\cdot$ pheromone.ts}\\ {\footnotesize\textsf{BUILT}}};
+
+\node[organ,below=4mm of resource] (oblig)
+  {{\bfseries Obligation \& enforcement}\\ Arbiter (regiment/detect) + commitments (enforce).\\
+   {\modlbl arbiter.ts $\cdot$ commitments.ts}\\ {\footnotesize\textsf{BUILT}/\textsf{BUILT-WEAK}}};
+\node[organ,below=4mm of identity] (cont)
+  {{\bfseries Continuity}\\ sessions, notes, resurrection, episodic memory, audit log.\\
+   {\modlbl sessions.ts $\cdot$ resurrection.ts}\\ {\footnotesize\textsf{BUILT}/\textsf{BUILT-WEAK}}};
+\node[organ,below=4mm of comm] (attest)
+  {{\bfseries Self-attestation}\\ invariant registry, \texttt{pd attest}, drift/liveness guards.\\
+   {\modlbl attest.ts}\\ {\footnotesize\textsf{BUILT}}};
+
+% ─── The substrate floor ──────────────────────────────────────────────────
+\node[sub,below=6mm of cont] (substrate)
+  {{\bfseries\large Substrate organ --- the single-writer transactional floor}\\[2pt]
+   one SQLite file in \texttt{journal\_mode=WAL}, \texttt{synchronous=NORMAL},
+   \texttt{busy\_timeout=5000}, \texttt{foreign\_keys=ON}; dual runtime
+   (\texttt{better-sqlite3} for test, \texttt{bun:sqlite} for the binary).\\
+   {\modlbl db.ts $\cdot$ sqlite-runtime.ts}\quad {\footnotesize\textsf{BUILT} (durability split I1a/I1b --- see \S\ref{sec:invariants})}};
+
+% ─── Connect each organ to the substrate ──────────────────────────────────
+\foreach \o in {oblig,cont,attest} {
+  \draw[->,>=Latex,hhpatina,thick] (\o.south) -- ([yshift=2pt]\o.south|-substrate.north);
+}
+\draw[->,>=Latex,hhpatina,thick] (resource.south) -- ++(0,-3mm) -| ([xshift=-30mm]substrate.north);
+\draw[->,>=Latex,hhpatina,thick] (comm.south) -- ++(0,-3mm) -| ([xshift=30mm]substrate.north);
+
+\end{tikzpicture}%
+}
+\caption{The kernel as \emph{seven organs}, each a contract the daemon must hold
+for the stack above to be coherent. Six organs are, mechanically, just tables
+\emph{with discipline} over a single shared file --- the \textbf{substrate
+organ}, the single-writer transactional floor. The substrate's pragma set
+\emph{is} the kernel's durability claim; everything else is convenience built on
+top of it. Honest labels (\textsf{BUILT} $\cdot$ \textsf{BUILT-WEAK} $\cdot$
+\textsf{DESIGNED} $\cdot$ \textsf{VISION}) are per organ; note that the identity
+organ is BUILT but \emph{self-asserted}, the gap the Anchor Protocol proper
+(L3) eventually closes.}
+\label{fig:swk-seven-organs}
+\end{figure}

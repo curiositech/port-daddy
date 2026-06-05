@@ -1,0 +1,72 @@
+% Figure 11 — the dual-runtime soundness hazard (I11). The runtime under which
+% truth is COMPUTED (bun:sqlite, the compiled binary) is not the runtime under
+% which it is TESTED (better-sqlite3, jest). A shim bridges pragmas/options; the
+% differential-test gap is the recurring "green-in-jest, 500-in-bun" failure.
+
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D4C5A9}
+\providecolor{hhebony}{HTML}{1E1B18}
+\providecolor{hhink}{HTML}{2C2A26}
+\providecolor{hhcinnabar}{HTML}{CC3D2E}
+\providecolor{hhbrass}{HTML}{B08D57}
+\providecolor{hhpatina}{HTML}{5C7A6A}
+\providecolor{hhpaper}{HTML}{FBF7EE}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\sffamily\small,
+  api/.style={draw=hhebony,thick,rounded corners=3pt,fill=hhsand!45,
+              minimum width=60mm,minimum height=12mm,align=center,font=\sffamily\bfseries},
+  rt/.style={draw=hhebony,thick,rounded corners=2pt,minimum width=52mm,
+             minimum height=18mm,align=center,font=\sffamily\footnotesize},
+]
+
+\node[api] (iface) at (0,0) {\texttt{DatabaseInstance} API\\ {\footnotesize\normalfont (one interface, \texttt{sqlite-runtime.ts})}};
+
+\node[rt,fill=hhpatina!16,below left=14mm and -4mm of iface] (test)
+  {{\bfseries\sffamily TEST runtime}\\ \texttt{better-sqlite3}\\ {\footnotesize jest / dev / CI unit tests}\\ {\color{hhpatina}truth is \emph{verified} here}};
+\node[rt,fill=hhcinnabar!12,below right=14mm and -4mm of iface] (prod)
+  {{\bfseries\sffamily PROD runtime}\\ \texttt{bun:sqlite}\\ {\footnotesize the compiled single-binary daemon}\\ {\color{hhcinnabar}truth is \emph{computed} here}};
+
+\draw[->,>=Latex,thick,hhpatina] (iface.south) -- (test.north);
+\draw[->,>=Latex,thick,hhcinnabar] (iface.south) -- (prod.north);
+
+% The shim
+\node[draw=hhbrass,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
+      font=\sffamily\scriptsize,align=center,below=8mm of iface]
+  (shim) {pragma/option shim:\\ \texttt{executeBunPragma}, \texttt{translateBunOptions}};
+
+% The hazard
+\node[draw=hhcinnabar,line width=1.2pt,fill=hhpaper,rounded corners=2pt,inner sep=5pt,
+      text width=70mm,align=left,font=\sffamily\scriptsize,below=10mm of test]
+  {{\bfseries\sffamily The soundness hazard (I11):}\quad an invariant proved under
+   \texttt{better-sqlite3} can \emph{fail} under \texttt{bun:sqlite} if the two
+   bindings differ in lock or pragma semantics. This is the recurring
+   ``green-in-jest, 500-in-bun'' bug class. CI must \emph{boot the bun daemon} and
+   smoke its routes, not merely build it.};
+
+% OP-3
+\node[draw=hhpatina,thick,fill=hhpatina!8,rounded corners=2pt,inner sep=5pt,
+      text width=70mm,align=left,font=\sffamily\scriptsize,below=10mm of prod]
+  {{\bfseries\sffamily $\bigstar$ OP-3:}\quad can we \emph{prove} (not just test) the two paths
+   observationally equivalent for the invariant set? The minimal discharge is a
+   differential-test harness running identical operation sequences against both
+   runtimes and asserting identical observable state --- turning I11 from a hope
+   into evidence.};
+
+\end{tikzpicture}%
+}
+\caption{The dual-runtime substrate, a genuine kernel property the seeds treat as
+an implementation detail. One \texttt{DatabaseInstance} interface is satisfied by
+\emph{two} SQLite bindings: \texttt{better-sqlite3} under jest (where invariants
+are \emph{verified}) and \texttt{bun:sqlite} in the compiled daemon (where truth
+is actually \emph{computed}). A pragma/option shim bridges them, but the bridge is
+not a proof: an invariant green under test can be 500 in production if the
+bindings diverge in lock or pragma semantics --- the recurring
+``green-in-jest, 500-in-bun'' failure. Invariant I11 (runtime parity) is
+therefore \textsf{BUILT-WEAK}, and open problem OP-3 asks for the differential-test
+harness that would make it a theorem.}
+\label{fig:swk-dual-runtime}
+\end{figure}
