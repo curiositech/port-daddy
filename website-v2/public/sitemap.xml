@@ -780,10 +780,10 @@
     <loc>https://portdaddy.dev/integrations/windsurf</loc>
   </url>
   <url>
-    <loc>https://portdaddy.dev/mac-preview</loc>
+    <loc>https://portdaddy.dev/library</loc>
   </url>
   <url>
-    <loc>https://portdaddy.dev/manifesto</loc>
+    <loc>https://portdaddy.dev/mac-preview</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/mcp</loc>
@@ -868,5 +868,17 @@
   </url>
   <url>
     <loc>https://portdaddy.dev/whitepaper/federated-harbor</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/whitepaper/harbor-economy</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/whitepaper/legible-swarm</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/whitepaper/single-writer-kernel</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/whitepaper/spawn-to-person</loc>
   </url>
 </urlset>
