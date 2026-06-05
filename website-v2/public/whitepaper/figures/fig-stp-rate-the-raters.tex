@@ -12,32 +12,32 @@
 \centering
 \resizebox{0.9\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\small,
+  font=\small,
   lvl/.style={draw=hhebony,thick,rounded corners=2pt,inner sep=4pt,align=center,
               minimum width=42mm},
   arr/.style={->,>=Latex,thick,draw=hhink},
 ]
 % the recursion levels, incentive-to-corrupt shrinking upward
-\node[lvl,fill=hhsand!70,minimum width=64mm] (l0) at (0,0)
+\node[lvl,fill=hhsand!30,minimum width=64mm] (l0) at (0,0)
   {\textbf{agent} does work \quad incentive to cheat: \textbf{high}};
-\node[lvl,fill=hhsand!55,minimum width=54mm,above=8mm of l0] (l1)
+\node[lvl,fill=hhsand!30,minimum width=54mm,above=8mm of l0] (l1)
   {\textbf{judge} grades it (bonded) \quad smaller};
-\node[lvl,fill=hhsand!40,minimum width=44mm,above=8mm of l1] (l2)
+\node[lvl,fill=hhsand!30,minimum width=44mm,above=8mm of l1] (l2)
   {\textbf{re-auditor} (bonded) \quad smaller still};
-\node[lvl,fill=hhsand!25,minimum width=34mm,above=8mm of l2] (l3)
+\node[lvl,fill=hhsand!30,minimum width=34mm,above=8mm of l2] (l3)
   {\textbf{re-re-auditor} \quad $\to 0$};
-\node[font=\sffamily\itshape\footnotesize,above=4mm of l3] {\vdots\quad finite honest fixed point};
+\node[font=\itshape\footnotesize,above=4mm of l3] {\vdots\quad finite honest fixed point};
 
-\draw[arr,draw=hhpatina,thick] (l0) -- node[midway,right,font=\sffamily\scriptsize]
+\draw[arr,draw=hhink,thick] (l0) -- node[midway,right,font=\scriptsize]
   {rate} (l1);
-\draw[arr,draw=hhpatina,thick] (l1) -- node[midway,right,font=\sffamily\scriptsize]
+\draw[arr,draw=hhink,thick] (l1) -- node[midway,right,font=\scriptsize]
   {rate the rater} (l2);
-\draw[arr,draw=hhpatina,thick] (l2) -- node[midway,right,font=\sffamily\scriptsize]
+\draw[arr,draw=hhink,thick] (l2) -- node[midway,right,font=\scriptsize]
   {rate the raters' rater} (l3);
 
 % the conditions box
-\node[draw=hhcinnabar,thick,fill=hhcinnabar!7,rounded corners=3pt,inner sep=6pt,
-      right=14mm of l1,anchor=west,text width=64mm,align=left,font=\sffamily\footnotesize] (cond)
+\node[draw=hhcinnabar,thick,fill=hhsand!30,rounded corners=3pt,inner sep=6pt,
+      right=14mm of l1,anchor=west,text width=64mm,align=left,font=\footnotesize] (cond)
   {\textbf{Contractive iff} (Conj.~\ref{conj:contract}):\\[2pt]
    (i) re-audit sampled w.p.\ $\rho$;\\
    (ii) overturn slashes $B_J >$ max single bribe;\\

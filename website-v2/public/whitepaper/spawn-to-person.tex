@@ -24,9 +24,6 @@
 % ─── Colors (hh-* harbor palette, identical to the Anchor paper) ──────────────
 \definecolor{codebg}{RGB}{248,248,248}
 \definecolor{codeframe}{RGB}{200,200,200}
-\definecolor{darkgreen}{RGB}{0,100,0}
-\definecolor{darkblue}{RGB}{0,50,100}
-\definecolor{accent}{RGB}{0,128,128}
 \definecolor{hhsand}{HTML}{E9DCC4}
 \definecolor{hhsanddeep}{HTML}{D4C5A9}
 \definecolor{hhebony}{HTML}{1E1B18}
@@ -35,6 +32,7 @@
 \definecolor{hhbrass}{HTML}{B08D57}
 \definecolor{hhpatina}{HTML}{5C7A6A}
 \definecolor{hhpaper}{HTML}{FBF7EE}
+\definecolor{hhgray}{HTML}{6B6B6B}
 
 % ─── Research-maturity scale (one key in every paper header) ──────────────────
 % A neutral, self-defined four-point scale for the maturity of each claim:
@@ -42,62 +40,67 @@
 %   partial      — running code exists but does not yet meet its own contract
 %   specified    — a precise design exists, no shipping code
 %   proposed     — a research direction, not yet specified
-\newcommand{\BUILT}{{\textcolor{hhpatina}{\textbf{\textsf{implemented}}}}}
-\newcommand{\BUILTWEAK}{{\textcolor{hhbrass}{\textbf{\textsf{partial}}}}}
-\newcommand{\DESIGNED}{{\textcolor{darkblue}{\textbf{\textsf{specified}}}}}
-\newcommand{\VISION}{{\textcolor{hhcinnabar}{\textbf{\textsf{proposed}}}}}
+% Muted ink throughout; the four grades differ by WEIGHT and SMALL-CAPS /
+% italic, never by hue (house style: status by weight/small-caps, not a rainbow).
+\newcommand{\BUILT}{{\textcolor{hhink}{\textsc{\textbf{implemented}}}}}
+\newcommand{\BUILTWEAK}{{\textcolor{hhink}{\textsc{partial}}}}
+\newcommand{\DESIGNED}{{\textcolor{hhgray}{\textsc{specified}}}}
+\newcommand{\VISION}{{\textcolor{hhgray}{\textit{proposed}}}}
 
 % Verbatim-safe inline code for use INSIDE macro arguments (callouts, captions,
 % TikZ nodes) where \verb is illegal. Detokenizes so special chars survive.
 \newcommand{\code}[1]{{\ttfamily\detokenize{#1}}}
 
 % Verification-status markers (kept for the appendix status table).
-\newcommand{\Closed}{{\textcolor{hhpatina}{\textbf{\textsf{closed}}}}}
-\newcommand{\Partial}{{\textcolor{hhbrass}{\textbf{\textsf{partial}}}}}
-\newcommand{\Open}{{\textcolor{hhcinnabar}{\textbf{\textsf{open}}}}}
+\newcommand{\Closed}{{\textcolor{hhink}{\textsc{\textbf{closed}}}}}
+\newcommand{\Partial}{{\textcolor{hhink}{\textsc{partial}}}}
+\newcommand{\Open}{{\textcolor{hhgray}{\textit{open}}}}
 
 % Pull-quote sidebar: large quote, left-edge accent stripe.
 \newcommand{\pullquote}[1]{%
   \par\vspace{6pt}%
   \noindent\begin{tikzpicture}
-    \node[draw=none,fill=hhsand!40,line width=0pt,
+    \node[draw=none,fill=hhsand!22,line width=0pt,
           inner sep=10pt,text width=\dimexpr\textwidth-30pt\relax,
           align=left] (q) {%
-      \sffamily\itshape\large #1%
+      \itshape\large #1%
     };
     \draw[hhcinnabar,line width=2.5pt] (q.north west) -- (q.south west);
   \end{tikzpicture}\par\vspace{6pt}%
 }
 
-% ─── Teaching callouts (new shared idiom, per Harbor Volume pedagogic spec) ───
-% \keyidea{}: the load-bearing takeaway of a section, patina (sea-green) framed.
+% ─── Teaching callouts (shared idiom, per Harbor Volume pedagogic spec) ───
+% Quiet: thin left rule + subtle sand fill, small-caps muted-ink label.
+% \keyidea{}: the load-bearing takeaway of a section.
 \newcommand{\keyidea}[1]{%
   \par\vspace{6pt}%
   \noindent\begin{tikzpicture}
-    \node[draw=hhpatina,thick,fill=hhpatina!8,rounded corners=3pt,
+    \node[draw=none,fill=hhsand!18,rounded corners=2pt,
           inner sep=9pt,text width=\dimexpr\textwidth-26pt\relax,align=left] (k) {%
-      {\sffamily\bfseries\color{hhpatina} Key idea.}\enspace #1%
+      {\scshape\bfseries\color{hhgray} Key idea.}\enspace #1%
     };
+    \draw[hhgray!60,line width=1pt] (k.north west) -- (k.south west);
   \end{tikzpicture}\par\vspace{6pt}%
 }
-% \pitfall{}: the way the idea is misread or mis-sold, cinnabar (red) framed.
+% \pitfall{}: the way the idea is misread or mis-sold. Accent on the LABEL only.
 \newcommand{\pitfall}[1]{%
   \par\vspace{6pt}%
   \noindent\begin{tikzpicture}
-    \node[draw=hhcinnabar,thick,fill=hhcinnabar!7,rounded corners=3pt,
+    \node[draw=none,fill=hhsand!18,rounded corners=2pt,
           inner sep=9pt,text width=\dimexpr\textwidth-26pt\relax,align=left] (p) {%
-      {\sffamily\bfseries\color{hhcinnabar} Pitfall.}\enspace #1%
+      {\scshape\bfseries\color{hhcinnabar} Pitfall.}\enspace #1%
     };
+    \draw[hhgray!60,line width=1pt] (p.north west) -- (p.south west);
   \end{tikzpicture}\par\vspace{6pt}%
 }
-% \exercises{}: end-of-section exercise block, sand-framed.
+% \exercises{}: end-of-section exercise block, quiet sand-framed.
 \newenvironment{exercises}{%
   \par\vspace{8pt}\noindent
   \begin{tikzpicture}
-  \node[draw=hhbrass,thick,fill=hhsand!25,rounded corners=3pt,
+  \node[draw=hhgray!45,line width=0.4pt,fill=hhsand!12,rounded corners=2pt,
         inner sep=10pt,text width=\dimexpr\textwidth-26pt\relax,align=left]
         \bgroup\begin{minipage}{\dimexpr\textwidth-46pt\relax}
-  {\sffamily\bfseries\color{hhink}\large Exercises}\par\vspace{3pt}
+  {\scshape\bfseries\color{hhink}\large Exercises}\par\vspace{3pt}
   \small
 }{%
   \end{minipage}\egroup;
@@ -111,9 +114,9 @@
   frame=single,
   rulecolor=\color{codeframe},
   basicstyle=\ttfamily\small,
-  keywordstyle=\color{darkblue}\bfseries,
-  commentstyle=\color{darkgreen}\itshape,
-  stringstyle=\color{accent},
+  keywordstyle=\color{hhink}\bfseries,
+  commentstyle=\color{hhgray}\itshape,
+  stringstyle=\color{hhgray},
   numbers=left,
   numberstyle=\tiny\color{gray},
   numbersep=8pt,
@@ -142,11 +145,11 @@
 \newenvironment{protocol}[1][]{%
   \par\vspace{8pt}\refstepcounter{protocol}\noindent
   \begin{tikzpicture}
-  \node[draw=darkblue,thick,fill=darkblue!5,rounded corners=3pt,
+  \node[draw=hhgray!45,line width=0.4pt,fill=hhsand!12,rounded corners=2pt,
         inner sep=10pt,text width=\dimexpr\textwidth-26pt\relax,align=left]
         \bgroup\begin{minipage}{\dimexpr\textwidth-46pt\relax}
-  {\sffamily\bfseries\color{darkblue} Protocol~\theprotocol.}%
-  \ifx\\#1\\\else\ {\sffamily\bfseries #1}\fi\par\vspace{3pt}
+  {\scshape\bfseries\color{hhink} Protocol~\theprotocol.}%
+  \ifx\\#1\\\else\ {\bfseries #1}\fi\par\vspace{3pt}
   \small
 }{%
   \end{minipage}\egroup;
@@ -156,10 +159,11 @@
 % ─── Header/Footer ───────────────────────────────────────────────────────────
 \pagestyle{fancy}
 \fancyhf{}
-\fancyhead[L]{\small\textit{From Spawn to Person}}
-\fancyhead[R]{\small\thepage}
-\fancyfoot[C]{\small Harbor Volume, Paper 3 of 4 \quad\textbar\quad
-  Maturity: \BUILT~\textbar~\BUILTWEAK~\textbar~\DESIGNED~\textbar~\VISION}
+\fancyhead[L]{\small\itshape\color{hhgray} From Spawn to Person}
+\fancyhead[R]{\small\color{hhgray}\thepage}
+% Footer is quiet chrome: small, single muted ink, no colored maturity key.
+% The maturity scale lives in the appendix status table, not the running chrome.
+\fancyfoot[C]{\footnotesize\color{hhgray} The Harbor Volume \textperiodcentered\ Paper 3 of 4}
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0pt}
 
@@ -242,7 +246,7 @@ this one is the hinge.}
 \node[draw=hhebony,thick,fill=hhsand!30,rounded corners=2pt,
       inner sep=8pt,text width=\dimexpr\textwidth-22pt\relax,
       align=left] (cbox) {%
-  \small\textbf{\sffamily Where this paper sits.}\enspace This is the
+  \small{\scshape\bfseries Where this paper sits.}\enspace This is the
   \emph{bridge} of the volume. Papers~1--2 build a tool one developer runs alone:
   a daemon that makes a swarm legible and an agent that can prove who it is. This
   paper asks what has to be true before that legible agent's track record can be

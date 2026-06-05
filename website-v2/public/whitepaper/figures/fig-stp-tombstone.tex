@@ -12,28 +12,28 @@
 \centering
 \resizebox{0.95\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\small,
+  font=\small,
   row/.style={draw=hhebony,thick,rounded corners=1pt,inner sep=3pt,align=center,
-              minimum width=22mm,minimum height=10mm,font=\sffamily\footnotesize},
+              minimum width=22mm,minimum height=10mm,font=\footnotesize},
   arr/.style={->,>=Latex,thick,draw=hhink},
 ]
 % the append-only ledger
-\node[font=\sffamily\bfseries,anchor=west] at (-0.3,2.2)
+\node[font=\bfseries,anchor=west] at (-0.3,2.2)
   {Append-only outcome ledger (never mutate in place):};
-\node[row,fill=hhpatina!14] (e1) at (0,0.8) {outcome $o_1$\\{\scriptsize honest}};
-\node[row,fill=hhpatina!14,right=5mm of e1] (e2) {outcome $o_2$\\{\scriptsize honest}};
-\node[row,fill=hhcinnabar!12,right=5mm of e2] (e3) {outcome $o_3$\\{\scriptsize \textcolor{hhcinnabar}{fraudulent}}};
-\node[row,fill=hhpatina!14,right=5mm of e3] (e4) {outcome $o_4$\\{\scriptsize honest}};
-\node[row,fill=hhbrass!25,draw=hhcinnabar,right=5mm of e4] (t) {\textbf{tombstone}\\{\scriptsize nullifies $o_3$}};
+\node[row,fill=hhsand!30] (e1) at (0,0.8) {outcome $o_1$\\{\scriptsize honest}};
+\node[row,fill=hhsand!30,right=5mm of e1] (e2) {outcome $o_2$\\{\scriptsize honest}};
+\node[row,fill=hhsand!30,right=5mm of e2] (e3) {outcome $o_3$\\{\scriptsize \textcolor{hhcinnabar}{fraudulent}}};
+\node[row,fill=hhsand!30,right=5mm of e3] (e4) {outcome $o_4$\\{\scriptsize honest}};
+\node[row,fill=hhsand!30,draw=hhcinnabar,right=5mm of e4] (t) {\textbf{tombstone}\\{\scriptsize nullifies $o_3$}};
 \draw[arr] (e1)--(e2); \draw[arr] (e2)--(e3); \draw[arr] (e3)--(e4); \draw[arr] (e4)--(t);
 
 % tombstone points back at o3
 \draw[->,>=Latex,thick,draw=hhcinnabar,dashed] (t.north) to[bend left=30]
-  node[midway,above,font=\sffamily\scriptsize,text=hhcinnabar] {compensates (saga)} (e3.north);
+  node[midway,above,font=\scriptsize,text=hhink] {compensates (saga)} (e3.north);
 
 % propagation across harbors
-\node[draw=hhbrass,thick,fill=hhsand!30,rounded corners=2pt,below=12mm of e2,
-      anchor=north,text width=140mm,align=left,inner sep=5pt,font=\sffamily\footnotesize] (note)
+\node[draw=hhink,thick,fill=hhsand!30,rounded corners=2pt,below=12mm of e2,
+      anchor=north,text width=140mm,align=left,inner sep=5pt,font=\footnotesize] (note)
   {\textbf{Property.} Reputation is \emph{monotone in honest outcomes}
    ($o_1,o_2,o_4$ never silently erased) but \emph{individually revocable}: the
    fraudulent $o_3$ is nullified by an appended \textbf{tombstone}, which

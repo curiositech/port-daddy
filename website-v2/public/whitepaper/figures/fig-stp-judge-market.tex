@@ -12,18 +12,18 @@
 \centering
 \resizebox{0.95\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\small,
-  ent/.style={draw=hhebony,thick,fill=hhsand!50,rounded corners=2pt,inner sep=4pt,
+  font=\small,
+  ent/.style={draw=hhebony,thick,fill=hhsand!30,rounded corners=2pt,inner sep=4pt,
               align=center,minimum width=26mm,minimum height=11mm},
-  ledger/.style={draw=darkblue,thick,fill=darkblue!7,rounded corners=2pt,inner sep=4pt,
-                 align=center,font=\sffamily\footnotesize,minimum height=11mm},
+  ledger/.style={draw=hhink,thick,fill=hhsand!30,rounded corners=2pt,inner sep=4pt,
+                 align=center,font=\footnotesize,minimum height=11mm},
   arr/.style={->,>=Latex,thick,draw=hhink},
   slash/.style={->,>=Latex,thick,draw=hhcinnabar,dashed},
 ]
 % top row: work -> select -> judge -> bond
 \node[ent] (work) at (0,0) {graded\\\textbf{work}};
 \node[ent] (select) at (3.6,0) {select judge:\\\emph{conflict-free}\\\emph{influence-free}};
-\node[ent,fill=hhpatina!14,draw=hhpatina] (judge) at (7.4,0) {\textbf{neutral judge}\\{\scriptsize ``university /}\\{\scriptsize rating agency''}};
+\node[ent,fill=hhsand!30,draw=hhink] (judge) at (7.4,0) {\textbf{neutral judge}\\{\scriptsize ``university /}\\{\scriptsize rating agency''}};
 \node[ent] (bond) at (11.2,0) {judge posts\\\textbf{own bond}\\{\scriptsize + reputation}};
 \draw[arr] (work) -- (select);
 \draw[arr] (select) -- (judge);
@@ -31,16 +31,16 @@
 
 % bottom row: grade -> outcome ledger ; re-audit slashes the bond
 \node[ledger] (out) at (7.4,-2.6) {grade enters the\\\textbf{outcome ledger}};
-\node[ent,fill=hhcinnabar!8,draw=hhcinnabar] (reaudit) at (11.2,-2.6) {sampled\\\textbf{re-audit}};
-\draw[arr,draw=darkblue] (judge) -- (out);
-\draw[arr,draw=darkblue] (out) -- (reaudit);
+\node[ent,fill=hhsand!30,draw=hhcinnabar] (reaudit) at (11.2,-2.6) {sampled\\\textbf{re-audit}};
+\draw[arr,draw=hhink] (judge) -- (out);
+\draw[arr,draw=hhink] (out) -- (reaudit);
 \draw[slash] (reaudit) -- (bond);
-\node[font=\sffamily\scriptsize,text=hhcinnabar,anchor=west] at (11.5,-1.3) {overturn};
-\node[font=\sffamily\scriptsize,text=hhcinnabar,anchor=west] at (11.5,-1.65) {$\Rightarrow$ \textbf{slash}};
+\node[font=\scriptsize,text=hhink,anchor=west] at (11.5,-1.3) {overturn};
+\node[font=\scriptsize,text=hhink,anchor=west] at (11.5,-1.65) {$\Rightarrow$ \textbf{slash}};
 
 % note box
-\node[draw=hhbrass,thick,fill=hhsand!30,rounded corners=2pt,
-      text width=132mm,align=left,inner sep=5pt,font=\sffamily\footnotesize]
+\node[draw=hhink,thick,fill=hhsand!30,rounded corners=2pt,
+      text width=132mm,align=left,inner sep=5pt,font=\footnotesize]
       at (5.6,-4.7)
   {The judge is \textbf{hired through the same bonded ceremony the market uses for
    any task} (the judge-hiring ceremony, Protocol~\ref{proto:judge}). The harbor that

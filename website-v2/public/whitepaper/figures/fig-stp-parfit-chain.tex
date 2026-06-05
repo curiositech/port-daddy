@@ -12,10 +12,10 @@
 \centering
 \resizebox{0.95\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\small,
-  inc/.style={draw=hhebony,thick,fill=hhsand,rounded corners=2pt,
+  font=\small,
+  inc/.style={draw=hhebony,thick,fill=hhsand!30,rounded corners=2pt,
               minimum width=22mm,minimum height=11mm,align=center,inner sep=2pt},
-  conn/.style={->,>=Latex,thick,draw=hhpatina},
+  conn/.style={->,>=Latex,thick,draw=hhink},
   bad/.style={->,>=Latex,thick,draw=hhcinnabar,dashed},
 ]
 \node[inc] (b)  at (0,0)  {incarnation 1\\{\scriptsize the ``boy''}};
@@ -24,21 +24,21 @@
 
 % Direct memory connectedness (overlapping but NOT transitive)
 \draw[conn] (b.north east) to[bend left=20]
-  node[midway,above,font=\sffamily\scriptsize,text=hhpatina] {remembers} (o.north west);
+  node[midway,above,font=\scriptsize,text=hhink] {remembers} (o.north west);
 \draw[conn] (o.north east) to[bend left=20]
-  node[midway,above,font=\sffamily\scriptsize,text=hhpatina] {remembers} (g.north west);
+  node[midway,above,font=\scriptsize,text=hhink] {remembers} (g.north west);
 % The non-transitive gap (shallow arc just under the boxes; label centered in the
 % clear band so it never collides with the descending continuity arrows below).
 \draw[bad] (b.south) to[bend right=14] (g.south);
-\node[font=\sffamily\scriptsize\itshape,text=hhcinnabar] at (4,-1.95)
+\node[font=\scriptsize\itshape,text=hhink] at (4,-1.95)
   {does \emph{not} directly remember (Reid's objection)};
 
 % The Parfitian repair: an overlapping chain is transitive => continuous.
 % Placed lower so a clear horizontal band separates the dashed arc from the box;
 % the two continuity arrows drop straight from the outer boxes' bottom corners.
-\node[draw=hhpatina,very thick,fill=hhpatina!8,rounded corners=3pt,
+\node[draw=hhink,very thick,fill=hhsand!30,rounded corners=3pt,
       below=26mm of o,align=left,text width=110mm,inner sep=7pt,
-      font=\sffamily\footnotesize] (fix)
+      font=\footnotesize] (fix)
   {\textbf{Parfit's repair.} \emph{Connectedness} (direct memory link) is
    \textbf{not} transitive. \emph{Continuity} --- the overlapping \emph{chain} of
    links --- \textbf{is} transitive, and it is what survives. Reputation must

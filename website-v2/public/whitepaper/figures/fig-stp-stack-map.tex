@@ -12,24 +12,24 @@
 \centering
 \resizebox{0.97\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\small,
+  font=\small,
   rung/.style={draw=hhebony,thick,rounded corners=3pt,inner sep=6pt,
                minimum width=128mm,minimum height=14mm,align=left,text width=124mm},
-  paper/.style={draw=hhbrass,thick,fill=hhpaper,rounded corners=2pt,inner sep=4pt,
-                font=\sffamily\footnotesize,align=center,text width=22mm},
-  whom/.style={font=\sffamily\itshape\footnotesize,text=hhink,anchor=west},
+  paper/.style={draw=hhink,thick,fill=hhpaper,rounded corners=2pt,inner sep=4pt,
+                font=\footnotesize,align=center,text width=22mm},
+  whom/.style={font=\itshape\footnotesize,text=hhink,anchor=west},
 ]
 % The four rungs, L0 bottom -> L3 top
-\node[rung,fill=hhsanddeep!70] (l0) at (0,0)
+\node[rung,fill=hhsand!30] (l0) at (0,0)
   {\textbf{L0 --- Daemon (kernel).}\enspace always-on local SQLite truth:
-   ports, claims, sessions, tube, commitments, Arbiter, memory\hfill\textbf{\textsf{BUILT}}};
-\node[rung,fill=hhsanddeep!50,above=4mm of l0] (l1)
+   ports, claims, sessions, tube, commitments, Arbiter, memory\hfill\textbf{BUILT}}};
+\node[rung,fill=hhsand!30,above=4mm of l0] (l1)
   {\textbf{L1 --- Coordination protocol.}\enspace typed conversation, commitments,
-   delegation, Arbiter --- the rules of the road\hfill\textbf{\textsf{DESIGNED}}};
-\node[rung,fill=hhsand!70,above=4mm of l1] (l2)
+   delegation, Arbiter --- the rules of the road\hfill\textbf{DESIGNED}}};
+\node[rung,fill=hhsand!30,above=4mm of l1] (l2)
   {\textbf{L2 --- Legibility \& authority (the wedge).}\enspace digest-with-zoom,
    roadmap-as-truth, adversarial review, the console\hfill\textit{the wedge}};
-\node[rung,fill=hhsand!40,above=4mm of l2] (l3)
+\node[rung,fill=hhsand!30,above=4mm of l2] (l3)
   {\textbf{L3 --- Economy \& federation.}\enspace anchor, escrow, reputation,
    harbor federation, the labor/skill/agent market\hfill\textit{whitepaper'd}};
 
@@ -40,9 +40,9 @@
 \node[whom,right=2mm of l3.east] {operators (\textbf{the market})};
 
 % The bridge marker between L2 and L3
-\node[draw=hhcinnabar,very thick,fill=hhcinnabar!10,rounded corners=3pt,
+\node[draw=hhcinnabar,very thick,fill=hhsand!30,rounded corners=3pt,
       left=10mm of l2.west,anchor=east,align=center,text width=30mm,
-      font=\sffamily\bfseries\footnotesize] (bridge)
+      font=\bfseries\footnotesize] (bridge)
   {Paper 3\\\emph{From Spawn}\\\emph{to Person}\\[2pt]
    {\normalfont\itshape the bridge}};
 \draw[hhcinnabar,very thick,->,>=Latex,decorate,
@@ -51,7 +51,7 @@
 \draw[hhcinnabar,very thick,->,>=Latex] (l2.west) -- (bridge.east);
 
 % Through-line label down the right side
-\node[font=\sffamily\bfseries\footnotesize,text=hhpatina,anchor=west,align=left]
+\node[font=\bfseries\footnotesize,text=hhink,anchor=west,align=left]
    at ($(l3.east)+(40mm,-14mm)$)
   {\rotatebox{0}{memory $\to$ checkpoint $\to$ \emph{continuity}}\\
    \rotatebox{0}{$\to$ a \emph{person} $\to$ outcomes}\\

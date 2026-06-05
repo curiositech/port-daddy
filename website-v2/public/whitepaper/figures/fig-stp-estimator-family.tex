@@ -12,14 +12,14 @@
 \centering
 \resizebox{0.95\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\small,
-  sig/.style={draw=hhbrass,thick,fill=hhpaper,rounded corners=2pt,inner sep=4pt,
-              align=center,minimum width=34mm,font=\sffamily\bfseries\footnotesize},
-  est/.style={draw=hhebony,thick,fill=hhsand!50,rounded corners=2pt,inner sep=4pt,
-              align=center,minimum width=40mm,text width=38mm,font=\sffamily\footnotesize},
+  font=\small,
+  sig/.style={draw=hhink,thick,fill=hhpaper,rounded corners=2pt,inner sep=4pt,
+              align=center,minimum width=34mm,font=\bfseries\footnotesize},
+  est/.style={draw=hhebony,thick,fill=hhsand!30,rounded corners=2pt,inner sep=4pt,
+              align=center,minimum width=40mm,text width=38mm,font=\footnotesize},
   arr/.style={->,>=Latex,thick,draw=hhink},
 ]
-\node[font=\sffamily\bfseries,anchor=west] at (-0.3,3.3)
+\node[font=\bfseries,anchor=west] at (-0.3,3.3)
   {Choose the estimator by the \emph{signal type} (the wrong choice is a real error):};
 
 \node[sig] (s1) at (0,2) {pairwise / tournament\\``$A$ beat $B$''};
@@ -40,8 +40,8 @@
 \draw[arr] (s2) -- (e2);
 \draw[arr] (s3) -- (e3);
 
-\node[draw=hhpatina,thick,fill=hhpatina!8,rounded corners=2pt,below=8mm of e3,
-      anchor=north,text width=120mm,align=left,inner sep=5pt,font=\sffamily\footnotesize] (note)
+\node[draw=hhink,thick,fill=hhsand!30,rounded corners=2pt,below=8mm of e3,
+      anchor=north,text width=120mm,align=left,inner sep=5pt,font=\footnotesize] (note)
   {A SQLite harbor holds the \emph{whole} settled-outcome history, so it is in the
    \textbf{Bradley--Terry regime}, not the streaming-Elo regime. None of these is
    the hard part: the estimator is \emph{cheap and last}. The substrate beneath ---

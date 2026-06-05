@@ -12,22 +12,22 @@
 \centering
 \resizebox{0.92\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\small,
+  font=\small,
   axis/.style={draw=hhebony,thick,rounded corners=2pt,inner sep=4pt,align=center,
                minimum width=34mm,minimum height=14mm},
-  judge/.style={draw=hhpatina,thick,fill=hhpatina!10,rounded corners=2pt,inner sep=3pt,
-                align=center,font=\sffamily\footnotesize,minimum width=34mm},
+  judge/.style={draw=hhink,thick,fill=hhsand!30,rounded corners=2pt,inner sep=3pt,
+                align=center,font=\footnotesize,minimum width=34mm},
   arr/.style={->,>=Latex,thick,draw=hhink},
 ]
 % the witnessed outcome
-\node[draw=hhebony,thick,fill=hhsand,rounded corners=3pt,inner sep=5pt,
-      align=center,font=\sffamily\bfseries] (out) at (0,1.5)
+\node[draw=hhebony,thick,fill=hhsand!30,rounded corners=3pt,inner sep=5pt,
+      align=center,font=\bfseries] (out) at (0,1.5)
   {witnessed\\outcome};
 
 % three axes
-\node[axis,fill=hhsand!60,right=20mm of out,yshift=18mm] (acc) {\textbf{accuracy}\\{\scriptsize $q_{\text{acc}}$}};
-\node[axis,fill=hhsand!60,right=20mm of out] (aes) {\textbf{aesthetics}\\{\scriptsize $q_{\text{aes}}$}};
-\node[axis,fill=hhsand!60,right=20mm of out,yshift=-18mm] (eff) {\textbf{efficiency}\\{\scriptsize $q_{\text{eff}}$}};
+\node[axis,fill=hhsand!30,right=20mm of out,yshift=18mm] (acc) {\textbf{accuracy}\\{\scriptsize $q_{\text{acc}}$}};
+\node[axis,fill=hhsand!30,right=20mm of out] (aes) {\textbf{aesthetics}\\{\scriptsize $q_{\text{aes}}$}};
+\node[axis,fill=hhsand!30,right=20mm of out,yshift=-18mm] (eff) {\textbf{efficiency}\\{\scriptsize $q_{\text{eff}}$}};
 \draw[arr] (out.east) to[bend left=8] (acc.west);
 \draw[arr] (out.east) -- (aes.west);
 \draw[arr] (out.east) to[bend right=8] (eff.west);
@@ -36,20 +36,20 @@
 \node[judge,right=14mm of acc] (jacc) {test \textbf{oracle}\\{\scriptsize did it do the right thing?}};
 \node[judge,right=14mm of aes] (jaes) {senior \textbf{reviewer}\\{\scriptsize is the artifact good?}};
 \node[judge,right=14mm of eff] (jeff) {the \textbf{meter}\\{\scriptsize \texttt{cost-ledger.ts}}};
-\draw[arr,draw=hhpatina] (acc) -- (jacc);
-\draw[arr,draw=hhpatina] (aes) -- (jaes);
-\draw[arr,draw=hhpatina] (eff) -- (jeff);
+\draw[arr,draw=hhink] (acc) -- (jacc);
+\draw[arr,draw=hhink] (aes) -- (jaes);
+\draw[arr,draw=hhink] (eff) -- (jeff);
 
 % buyer weighting
-\node[draw=hhcinnabar,thick,fill=hhcinnabar!8,rounded corners=3pt,inner sep=5pt,
-      right=16mm of jaes,align=center,font=\sffamily\footnotesize,text width=30mm] (buyer)
+\node[draw=hhcinnabar,thick,fill=hhsand!30,rounded corners=3pt,inner sep=5pt,
+      right=16mm of jaes,align=center,font=\footnotesize,text width=30mm] (buyer)
   {\textbf{buyer} reads the \emph{vector} $\mathbf{q}$ and applies \emph{their own}
    weights $\mathbf{w}$ (``cheap vs.\ careful'')};
 \draw[arr,draw=hhcinnabar] (jacc.east) to[bend left=6] (buyer.west);
 \draw[arr,draw=hhcinnabar] (jaes.east) -- (buyer.west);
 \draw[arr,draw=hhcinnabar] (jeff.east) to[bend right=6] (buyer.west);
 
-\node[font=\sffamily\itshape\footnotesize,text=hhink,below=2mm of jeff,align=center,anchor=north]
+\node[font=\itshape\footnotesize,text=hhink,below=2mm of jeff,align=center,anchor=north]
   {\emph{different axis $\Rightarrow$ different competent judge.}\\
    Collapsing to one scalar re-creates the Goodhart target.};
 \end{tikzpicture}}

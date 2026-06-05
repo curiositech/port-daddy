@@ -12,35 +12,35 @@
 \centering
 \resizebox{0.95\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\small,
+  font=\small,
   box/.style={draw=hhebony,thick,rounded corners=2pt,inner sep=4pt,align=center,
               minimum height=10mm},
   bad/.style={->,>=Latex,thick,draw=hhcinnabar,dashed},
-  good/.style={->,>=Latex,thick,draw=hhpatina},
+  good/.style={->,>=Latex,thick,draw=hhink},
 ]
 % TOP — the attacks against self-asserted strings
-\node[font=\sffamily\bfseries,anchor=west] at (-0.3,3.2)
+\node[font=\bfseries,anchor=west] at (-0.3,3.2)
   {Self-asserted id (\texttt{project:stack:context}) --- both attacks are free:};
-\node[box,fill=hhsand] (bad1) at (0,1.8) {agent ``X''\\(bad record)};
-\node[box,fill=hhsand,right=18mm of bad1] (bad2) {agent ``X'\,'\\(fresh, clean)};
-\draw[bad] (bad1) -- node[midway,above,font=\sffamily\scriptsize,text=hhcinnabar]
+\node[box,fill=hhsand!30] (bad1) at (0,1.8) {agent ``X''\\(bad record)};
+\node[box,fill=hhsand!30,right=18mm of bad1] (bad2) {agent ``X'\,'\\(fresh, clean)};
+\draw[bad] (bad1) -- node[midway,above,font=\scriptsize,text=hhink]
   {respawn = \textbf{whitewash}} (bad2);
-\node[box,fill=hhsand,right=22mm of bad2] (syb)
+\node[box,fill=hhsand!30,right=22mm of bad2] (syb)
   {1000 $\times$ ``X$_i$''\\(forged quorum)};
-\draw[bad] (bad2) -- node[midway,above,font=\sffamily\scriptsize,text=hhcinnabar]
+\draw[bad] (bad2) -- node[midway,above,font=\scriptsize,text=hhink]
   {replicate = \textbf{Sybil}} (syb);
 
 % BOTTOM — the fix: daemon-minted non-forgeable id bound to credential + principal
-\node[font=\sffamily\bfseries,anchor=west] at (-0.3,-0.6)
+\node[font=\bfseries,anchor=west] at (-0.3,-0.6)
   {Daemon-minted, non-forgeable identity, bound to a principal:};
-\node[box,fill=hhpatina!14,draw=hhpatina,thick] (daemon) at (1.2,-2.3)
+\node[box,fill=hhsand!30,draw=hhink,thick] (daemon) at (1.2,-2.3)
   {daemon mints\\a non-forgeable id};
 \node[box,fill=hhpaper,right=14mm of daemon] (cred) {non-re-pickable\\credential (key)};
 \node[box,fill=hhpaper,right=12mm of cred] (princ) {principal\\(owns the fleet,\\posts bonds)};
 \draw[good] (daemon) -- (cred);
 \draw[good] (cred) -- (princ);
-\node[draw=hhbrass,thick,fill=hhsand!30,rounded corners=2pt,below=10mm of cred,
-      align=left,text width=120mm,inner sep=5pt,font=\sffamily\footnotesize] (note)
+\node[draw=hhink,thick,fill=hhsand!30,rounded corners=2pt,below=10mm of cred,
+      align=left,text width=120mm,inner sep=5pt,font=\footnotesize] (note)
   {\textbf{Newcomer policy = a shape, not a scalar.} A fresh id may have full
    \emph{work} ability but a reduced \emph{economic ceiling} until it earns a
    witnessed history (Friedman--Resnick). Identity churn then costs \emph{more}
