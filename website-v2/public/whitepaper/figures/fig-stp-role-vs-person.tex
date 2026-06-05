@@ -1,0 +1,66 @@
+% Fig 2 — role (org-chart, reputation-free) vs person (a thread plus continuity).
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D4C5A9}
+\providecolor{hhebony}{HTML}{1E1B18}
+\providecolor{hhink}{HTML}{2C2A26}
+\providecolor{hhcinnabar}{HTML}{CC3D2E}
+\providecolor{hhbrass}{HTML}{B08D57}
+\providecolor{hhpatina}{HTML}{5C7A6A}
+\providecolor{hhpaper}{HTML}{FBF7EE}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\sffamily\small,
+  role/.style={draw=hhebony,thick,fill=hhsand,rounded corners=2pt,
+               minimum width=26mm,minimum height=14mm,align=center,inner sep=3pt},
+  inst/.style={draw=hhpatina,thick,fill=hhpaper,circle,minimum size=9mm,inner sep=1pt,
+               font=\sffamily\footnotesize},
+  lbl/.style={font=\sffamily\bfseries,anchor=south},
+  arr/.style={->,>=Latex,thick,draw=hhink},
+]
+% LEFT: the org chart (roles)
+\node[lbl] at (1.4,4.4) {ROLE = \{obligation, capability, authority\}};
+\node[role] (nav) at (0,3) {navigator\\{\scriptsize plan \& route}};
+\node[role,below=4mm of nav] (cart) {cartographer\\{\scriptsize map the repo}};
+\node[role,below=4mm of cart] (look) {lookout\\{\scriptsize watch for risk}};
+\node[font=\sffamily\itshape\footnotesize,text=hhink,below=4mm of look,align=center]
+  (orgnote) {an org-chart entry\\any spawn can fill\\\textbf{(reputation-free)}};
+
+% RIGHT: the person (a continuity thread walking through role-instances)
+\node[lbl] at (9.2,4.4) {PERSON = a role instance \emph{+ continuity}};
+\node[inst] (i1) at (6.6,3) {$a$};
+\node[inst,right=14mm of i1] (i2) {$a$};
+\node[inst,right=14mm of i2] (i3) {$a$};
+\node[inst,right=14mm of i3] (i4) {$a$};
+\draw[arr,draw=hhpatina,very thick] (i1) -- (i2) -- (i3) -- (i4);
+\node[font=\sffamily\footnotesize,above=1mm of i1] {fills nav};
+\node[font=\sffamily\footnotesize,above=1mm of i2] {fills cart};
+\node[font=\sffamily\footnotesize,above=1mm of i3] {fills cart};
+\node[font=\sffamily\footnotesize,above=1mm of i4] {fills look};
+% witnessed outcomes accumulating along the thread
+\node[draw=hhbrass,fill=hhpaper,rounded corners=1pt,below=5mm of i1,
+      font=\sffamily\scriptsize] {+win};
+\node[draw=hhbrass,fill=hhpaper,rounded corners=1pt,below=5mm of i2,
+      font=\sffamily\scriptsize] {+win};
+\node[draw=hhcinnabar,fill=hhpaper,rounded corners=1pt,below=5mm of i3,
+      font=\sffamily\scriptsize,text=hhcinnabar] {--loss};
+\node[draw=hhbrass,fill=hhpaper,rounded corners=1pt,below=5mm of i4,
+      font=\sffamily\scriptsize] {+win};
+\node[font=\sffamily\itshape\footnotesize,text=hhpatina,below=12mm of i2,
+      align=center,anchor=north]
+  {one non-forgeable identity $a$, a \emph{witnessed history} accruing\\
+   along the thread --- \textbf{this} is what reputation attaches to};
+
+% The mapping arrow: a person fills roles over time
+\draw[arr,draw=hhbrass,dashed] (orgnote.east) to[bend right=10]
+  node[midway,above,font=\sffamily\scriptsize,text=hhbrass] {fills, over time} (i1.south west);
+\end{tikzpicture}}
+\caption{\textbf{Role vs.\ person.} A \emph{role} (left) is an org-chart entry ---
+obligations, capabilities, authority --- fillable by any spawn and carrying no
+history. A \emph{person} (right) is one non-forgeable identity walking through a
+sequence of role-instances, accumulating a witnessed outcome history. Reputation
+attaches to the thread, never to the role and never to the process.}
+\label{fig:role-person}
+\end{figure}

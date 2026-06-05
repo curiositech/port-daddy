@@ -1,0 +1,56 @@
+% Fig 9 — bandit assumptions vs reputation reality (the four breaks).
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D4C5A9}
+\providecolor{hhebony}{HTML}{1E1B18}
+\providecolor{hhink}{HTML}{2C2A26}
+\providecolor{hhcinnabar}{HTML}{CC3D2E}
+\providecolor{hhbrass}{HTML}{B08D57}
+\providecolor{hhpatina}{HTML}{5C7A6A}
+\providecolor{hhpaper}{HTML}{FBF7EE}
+
+\begin{figure}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.4}
+\begin{tabular}{@{}p{4.2cm} p{5.0cm} p{5.4cm}@{}}
+\toprule
+\textbf{Bandit assumes\ldots} & \textbf{\ldots but reputation is\ldots} & \textbf{The right tool instead} \\
+\midrule
+\textcolor{hhpatina}{\textbf{Stationary}} arm rewards &
+  \textcolor{hhcinnabar}{\textbf{non-stationary}}: models upgrade, skills version,
+  reputation bubbles build \& collapse (Liu--Skrzypacz) &
+  bounded-memory reputation dynamics; version-binding \\
+\textcolor{hhpatina}{\textbf{One scalar}} reward &
+  \textcolor{hhcinnabar}{\textbf{multi-dimensional}}: accuracy / aesthetics /
+  efficiency, in tension, buyer-weighted &
+  a quality \emph{vector} + buyer preference (ADR-0049) \\
+\textcolor{hhpatina}{\textbf{Non-strategic}} environment &
+  \textcolor{hhcinnabar}{\textbf{strategically adversarial}}: Goodhart,
+  wash-trading, whitewashing, collusion &
+  mechanism design (Nisan et al.), bonds \& slashing \\
+\textcolor{hhpatina}{\textbf{Observed}} reward signal &
+  \textcolor{hhcinnabar}{\textbf{produced by a capturable oracle}} with its own
+  incentives &
+  bond-and-slash judges; rate-the-raters ($\S$\ref{sec:oracle}) \\
+\bottomrule
+\end{tabular}
+
+\vspace{4pt}
+\centering
+\begin{tikzpicture}
+\node[draw=hhbrass,thick,fill=hhsand!30,rounded corners=2pt,inner sep=6pt,
+      text width=148mm,align=left,font=\sffamily\footnotesize] {%
+  \textbf{What survives the bandit framing:} cold-start \emph{exploration}.
+  TrueSkill's $\sigma$ and a UCB bonus are the same idea --- ``test the
+  under-measured arm.'' So \emph{one operator's private routing} (choosing which of
+  \emph{their own} agents to spawn next) is legitimately bandit-shaped. The error is
+  exporting that frame to the \emph{public substrate}, where all four breaks bite at
+  once.};
+\end{tikzpicture}
+\caption{\textbf{Why reputation is not a bandit problem.} A multi-armed bandit
+imports four assumptions --- stationarity, a scalar reward, a non-strategic
+environment, and an observed reward signal --- all false for a public reputation
+substrate. Exploration (one operator's private routing) is the one place the bandit
+framing legitimately survives.}
+\label{fig:not-bandit}
+\end{figure}
