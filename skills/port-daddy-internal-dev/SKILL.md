@@ -390,6 +390,8 @@ pd feedback "<contributor experience report>"   # bare form; auto slug + agent
 
 ### Example 1: Adding a new MCP tool
 
+> Full step-by-step walkthrough with the actual diffs: `examples/01-add-mcp-tool.md`.
+
 **Slice:** Add `pd_swarm_status` MCP tool that returns aggregate fleet health.
 
 1. Worktree: `git worktree add ../port-daddy-$(date +%s)-mcp-swarm-status origin/main && cd $_`.
