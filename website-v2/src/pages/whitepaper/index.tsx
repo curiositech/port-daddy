@@ -12,7 +12,6 @@ import {
 } from '@/components/site/primitives'
 import {
   findWhitePaperById,
-  formatPaperSize,
   paperPdfUrl,
   READING_ORDER,
   WHITE_PAPERS,
@@ -62,21 +61,25 @@ export default function WhitepaperPage() {
           <PageContainer width="wide">
             <div className="grid gap-[var(--space-7)] lg:grid-cols-[minmax(0,0.88fr)_minmax(22rem,0.42fr)] lg:items-start">
               <div className="space-y-[var(--space-6)]">
-                <PanelEyebrow>Two papers, one running argument</PanelEyebrow>
-                <PanelTitle as="h1" size="hero" className="max-w-[14ch]">
-                  How autonomous programs share a laptop without making a mess.
+                <PanelEyebrow>Seven papers, one volume — four explain, three prove</PanelEyebrow>
+                <PanelTitle as="h1" size="hero" className="max-w-[16ch]">
+                  The Harbor Library: how a swarm of agents becomes a market you can trust.
                 </PanelTitle>
                 <PanelBody size="default" className="max-w-[60ch] text-[length:var(--text-lg)]">
-                  The first paper is about how a program proves who it is
-                  to another program — local cryptography, smaller than you
-                  would think, more careful than it had to be. The second
-                  paper is the harder one: how several of those programs
-                  share a workspace without anyone being put in charge.
-                  (You will recognize this as the problem governments and
-                  apartment buildings have not entirely solved.) Each paper
-                  is readable on its own. Read together, they describe a
-                  small, working system for the otherwise-unfixable problem
-                  of "many programs, one machine."
+                  Seven co-equal chapters of one book. Four{' '}
+                  <strong className="font-black text-[var(--text-primary)]">explain</strong>{' '}
+                  the system, climbing a single ladder from the machine up to the
+                  market: legibility, the single-writer kernel, the bridge from
+                  spawn to person, and the harbor economy. Three{' '}
+                  <strong className="font-black text-[var(--text-primary)]">prove</strong>{' '}
+                  it — the chapters where the prose stops and the proof-checkers
+                  start. Each chapter names what it assumes, what it underwrites,
+                  and which proof discharges it, so the seven read as one library,
+                  not a pile. New here?{' '}
+                  <Link to="/library" className="font-black text-[var(--brand-primary)] underline underline-offset-4 hover:no-underline">
+                    Start with the guided Library
+                  </Link>
+                  .
                 </PanelBody>
 
                 <div className="grid gap-[var(--space-3)] border-y-2 border-[var(--border-strong)] py-[var(--space-4)] sm:grid-cols-3">
@@ -199,7 +202,7 @@ export default function WhitepaperPage() {
                             selected ? 'text-[var(--brand-primary-foreground)]' : 'text-[var(--brand-primary)]',
                           ].join(' ')}
                         >
-                          {candidate.order}
+                          {candidate.chapter}
                         </span>
                         <span className="min-w-0 space-y-[var(--space-2)]">
                           <span
@@ -224,7 +227,7 @@ export default function WhitepaperPage() {
                               selected ? 'text-[color:var(--brand-primary-foreground-subtle)]' : 'text-[var(--text-muted)]',
                             ].join(' ')}
                           >
-                            {candidate.date} / {candidate.pages} pages / {formatPaperSize(candidate.sizeKb)}
+                            {candidate.group === 'prove' ? 'Proves' : 'Explains'} / {candidate.layer} / {candidate.pages} pages
                           </span>
                         </span>
                       </button>
@@ -355,12 +358,16 @@ export default function WhitepaperPage() {
               <div className="space-y-[var(--space-4)]">
                 <PanelEyebrow>How to read these</PanelEyebrow>
                 <PanelTitle as="h2" size="section" className="max-w-[14ch]">
-                  Identity first. Coordination next. Software last.
+                  The wedge first. The kernel under it. Then the bridge, then the market.
                 </PanelTitle>
                 <PanelBody className="max-w-[44ch]">
-                  The papers build on each other. You can stop after the first one and have
-                  a useful mental model. Carrying through to the second is where the system
-                  starts paying for itself.
+                  Read the four that explain in ladder order — you can stop after the first
+                  and have a useful mental model. Reach for a proof chapter (V, VI, or VII)
+                  when you want the matching claim machine-checked. The{' '}
+                  <Link to="/library" className="font-black text-[var(--brand-primary)] underline underline-offset-4 hover:no-underline">
+                    Library guide
+                  </Link>{' '}
+                  lays out every cross-reference.
                 </PanelBody>
               </div>
 
