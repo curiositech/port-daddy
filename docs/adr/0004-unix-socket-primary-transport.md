@@ -4,6 +4,15 @@
 
 Accepted
 
+> **Update (2026-06-05):** The runtime file locations in this ADR are historical.
+> The socket, port file, and PID file moved out of `/tmp` (auto-purged, symlink-attack
+> prone) into the user-private `~/.port-daddy/` directory (`mode 0700`), defined in
+> `shared/paths.ts`: `daemon.sock` (HTTP), `daemon.ipc` (binary IPC), `daemon.port`,
+> `daemon.pid`. The socket-vs-TCP resolution described below is now centralized in the
+> single canonical resolver `resolveDaemonTarget()` in `shared/daemon-discovery.ts` —
+> every Node client delegates to it. The TCP port-fallback decision (9876 → 9886) still
+> holds. Read paths from `shared/paths.ts`, never the `/tmp/...` literals quoted here.
+
 ## Context
 
 Port Daddy is a daemon process (`server.ts`) that CLI invocations (`pd claim`, `pd note`, `pd session start`) communicate with to perform operations. There are two natural transport options for local inter-process communication: a TCP port or a Unix domain socket.

@@ -19,27 +19,10 @@ import http from 'node:http';
 import { existsSync } from 'node:fs';
 import type { PortDaddyClientOptions } from '../shared/types.js';
 import { CANONICAL_TCP_PORT, getDaemonTcpUrl } from '../shared/daemon-discovery.js';
+import type { DaemonTarget as ConnectionTarget } from '../shared/daemon-discovery.js';
 import { createIpcClient } from './ipc-client.js';
 import { IpcAction, Performative } from './ipc-types.js';
 import { DEFAULT_SOCK, DEFAULT_IPC } from '../shared/paths.js';
-
-// =============================================================================
-// Connection target types (internal)
-// =============================================================================
-
-interface SocketTarget {
-  socketPath: string;
-  host?: undefined;
-  port?: undefined;
-}
-
-interface TcpTarget {
-  socketPath?: undefined;
-  host: string;
-  port: number;
-}
-
-type ConnectionTarget = SocketTarget | TcpTarget;
 
 // =============================================================================
 // SDK option / result interfaces

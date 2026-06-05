@@ -73,7 +73,6 @@
     "apps/FleetBar/.build/",
     "docs/plans/",
     "docs/recovery/",
-    "fleet-live-app/",
     "website-v2/"
   ],
   "excludeRegexes": [

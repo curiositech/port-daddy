@@ -35,17 +35,20 @@ try {
 A coordinator splits work across multiple agents using pub/sub channels.
 
 ```bash
+# These examples use the default http://localhost:9876. The daemon can fall back
+# to another port if 9876 is taken — read ~/.port-daddy/daemon.port for the live
+# port, or just use the `pd` CLI, which discovers the daemon for you.
 # Coordinator publishes tasks
-curl -X POST localhost:9876/msg/tasks \
+curl -X POST http://localhost:9876/msg/tasks \
   -H 'Content-Type: application/json' \
   -d '{"payload":{"type":"test","suite":"unit","files":["a.test.js","b.test.js"]}}'
 
-curl -X POST localhost:9876/msg/tasks \
+curl -X POST http://localhost:9876/msg/tasks \
   -H 'Content-Type: application/json' \
   -d '{"payload":{"type":"test","suite":"integration","files":["api.test.js"]}}'
 
 # Workers poll for tasks
-curl "localhost:9876/msg/tasks/poll?timeout=30000"
+curl "http://localhost:9876/msg/tasks/poll?timeout=30000"
 ```
 
 ---
@@ -157,7 +160,7 @@ External systems react to Port Daddy events.
 
 ```bash
 # Register webhook for service events
-curl -X POST localhost:9876/webhooks \
+curl -X POST http://localhost:9876/webhooks \
   -H 'Content-Type: application/json' \
   -d '{
     "url": "http://localhost:8080/port-daddy-events",
