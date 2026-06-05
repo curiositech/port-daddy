@@ -255,6 +255,26 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     description: 'Agentic feedback primitive — drop structured findings about the project (or about Port Daddy itself); cartographer harvests them into the roadmap',
     tools: ['drop_feedback', 'list_feedback', 'feedback_summary'],
   },
+  'harbors': {
+    description: 'Named permission namespaces — list harbors, inspect membership/envelope, and dry-run a capability decision before you act',
+    tools: ['list_harbors', 'get_harbor', 'check_harbor_envelope'],
+  },
+  'signals': {
+    description: 'Pheromone trail — leave and read stigmergic signals on entities/files so the swarm coordinates without direct messaging',
+    tools: ['spray_pheromone', 'read_pheromones', 'read_entity_pheromones'],
+  },
+  'roadmap': {
+    description: 'Tuple-backed roadmap of record — read progress/claims (cartographer projection), list/get items, and promote feedback into a roadmap item',
+    tools: ['roadmap_progress', 'roadmap_claims', 'roadmap_list', 'roadmap_get', 'roadmap_promote'],
+  },
+  'commitments': {
+    description: 'Durable commitments + obligation monitor (ADR-0041) — make a commitment, list yours, and see what is overdue',
+    tools: ['commit', 'list_commitments', 'list_overdue_commitments'],
+  },
+  'knowledge': {
+    description: 'Semantic search + symbol index — search the embedding store, resolve identities, find symbols, and predict file/symbol conflicts before claiming',
+    tools: ['semantic_search', 'semantic_resolve', 'find_symbols', 'symbol_stats', 'predict_conflicts'],
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -355,6 +375,235 @@ const TOOLS = [
       properties: {},
     },
   },
+
+  // ── Harbors (permission namespaces) ──────────────────────────────────
+  {
+    name: 'list_harbors',
+    description:
+      '[Harbors] List all permission namespaces (harbors). Each harbor scopes what ' +
+      'capabilities an agent declares while operating in it. Usage: list_harbors()',
+    inputSchema: { type: 'object' as const, properties: {} },
+  },
+  {
+    name: 'get_harbor',
+    description:
+      '[Harbors] Inspect one harbor — its scope, declared capabilities, channels, and ' +
+      'current envelope. Pass the harbor name. Usage: get_harbor({ "name": "frontend" })',
+    inputSchema: {
+      type: 'object' as const,
+      properties: { name: { type: 'string', description: 'Harbor name' } },
+      required: ['name'],
+    },
+  },
+  {
+    name: 'check_harbor_envelope',
+    description:
+      "[Harbors] Dry-run a capability decision against a harbor's envelope BEFORE you act — " +
+      'returns the allow/deny verdict (shown-to-user UX, never mutates). ' +
+      'Usage: check_harbor_envelope({ "name": "frontend", "agent_id": "agent-1", "action": { "kind": "fs_write", "path": "src/app.tsx" } })',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        name: { type: 'string', description: 'Harbor name' },
+        agent_id: { type: 'string', description: 'Agent ID the decision is about' },
+        action: {
+          type: 'object',
+          description: 'EnvelopeAction with a required string `kind` (e.g. fs_write, channel_publish, tool_call, budget_spend)',
+        },
+      },
+      required: ['name', 'agent_id', 'action'],
+    },
+  },
+
+  // ── Pheromone signals (stigmergy) ────────────────────────────────────
+  {
+    name: 'spray_pheromone',
+    description:
+      '[Signals] Leave a stigmergic signal on an entity so other agents can sense it — ' +
+      'the coordinate-without-messaging primitive. Usage: spray_pheromone({table: "sessions", id: "sess-1", key: "needs_review", strength: 0.8})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        table: { type: 'string', description: 'Entity table the signal attaches to (e.g. sessions, files)' },
+        id: { type: 'string', description: 'Entity id' },
+        key: { type: 'string', description: 'Signal name' },
+        strength: { type: 'number', description: 'Signal strength 0..1 (optional)' },
+      },
+      required: ['table', 'id', 'key'],
+    },
+  },
+  {
+    name: 'read_pheromones',
+    description:
+      '[Signals] Read the current pheromone trail across the swarm. Usage: read_pheromones()',
+    inputSchema: { type: 'object' as const, properties: {} },
+  },
+  {
+    name: 'read_entity_pheromones',
+    description:
+      '[Signals] Read the signals on one specific entity. Usage: read_entity_pheromones({table: "sessions", id: "sess-1"})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        table: { type: 'string', description: 'Entity table' },
+        id: { type: 'string', description: 'Entity id' },
+      },
+      required: ['table', 'id'],
+    },
+  },
+
+  // ── Roadmap (cartographer projection + items of record) ──────────────
+  {
+    name: 'roadmap_progress',
+    description:
+      '[Roadmap] Cartographer projection of roadmap progress — phase/horizon rollups. Usage: roadmap_progress()',
+    inputSchema: { type: 'object' as const, properties: {} },
+  },
+  {
+    name: 'roadmap_claims',
+    description:
+      '[Roadmap] Which agents currently hold which roadmap items (atomic-claim ledger). Usage: roadmap_claims()',
+    inputSchema: { type: 'object' as const, properties: {} },
+  },
+  {
+    name: 'roadmap_list',
+    description:
+      '[Roadmap] List roadmap items of record, optionally filtered by status or harbor. ' +
+      'Usage: roadmap_list({status: "now"})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        status: { type: 'string', description: 'Filter by status (e.g. now, next, later, done)' },
+        harbor: { type: 'string', description: 'Filter by harbor' },
+      },
+    },
+  },
+  {
+    name: 'roadmap_get',
+    description:
+      '[Roadmap] Fetch one roadmap item by slug. Usage: roadmap_get({slug: "harbor-envelope"})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: { slug: { type: 'string', description: 'Roadmap item slug' } },
+      required: ['slug'],
+    },
+  },
+  {
+    name: 'roadmap_promote',
+    description:
+      '[Roadmap] Atomically promote a piece of feedback into a roadmap item of record. ' +
+      'Usage: roadmap_promote({slug: "fix-x", summaryMd: "...", feedbackId: "fb-1", promotedBy: "agent-1"})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        slug: { type: 'string', description: 'Slug for the new/updated roadmap item' },
+        summaryMd: { type: 'string', description: 'Markdown summary of the item' },
+        feedbackId: { type: 'string', description: 'Source feedback id being promoted (optional)' },
+        status: { type: 'string', description: 'Initial status (optional)' },
+        promotedBy: { type: 'string', description: 'Agent id doing the promotion (optional)' },
+      },
+      required: ['slug'],
+    },
+  },
+
+  // ── Commitments (ADR-0041 obligations) ───────────────────────────────
+  {
+    name: 'commit',
+    description:
+      '[Commitments] Make a durable commitment with success/impossibility/motivation checks ' +
+      'that the obligation monitor tracks. Usage: commit({ownerActorId: "agent-1", objectText: "Land PR #265 green", successCheck: "gh pr view 265 --json state == MERGED"})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        ownerActorId: { type: 'string', description: 'Actor id that owns the commitment' },
+        objectText: { type: 'string', description: 'What is being committed to' },
+        successCheck: { type: 'string', description: 'How success is verified (optional)' },
+        impossibleCheck: { type: 'string', description: 'Condition under which it becomes impossible (optional)' },
+        motivationCheck: { type: 'string', description: 'Why it matters (optional)' },
+        scope: { type: 'string', description: 'Commitment scope (optional)' },
+        commitmentStrategy: { type: 'string', description: 'Commitment strategy (optional)' },
+      },
+      required: ['ownerActorId', 'objectText'],
+    },
+  },
+  {
+    name: 'list_commitments',
+    description:
+      '[Commitments] List durable commitments and their current obligation state. Usage: list_commitments()',
+    inputSchema: { type: 'object' as const, properties: {} },
+  },
+  {
+    name: 'list_overdue_commitments',
+    description:
+      '[Commitments] List commitments whose obligations are overdue. Usage: list_overdue_commitments()',
+    inputSchema: { type: 'object' as const, properties: {} },
+  },
+
+  // ── Knowledge (semantic search + symbol index) ───────────────────────
+  {
+    name: 'semantic_search',
+    description:
+      '[Knowledge] Semantic search over the embedding store (tasks, notes, docs). ' +
+      'Usage: semantic_search({q: "css design tokens", limit: 5})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        q: { type: 'string', description: 'Natural-language query' },
+        limit: { type: 'number', description: 'Max results (optional)' },
+      },
+      required: ['q'],
+    },
+  },
+  {
+    name: 'semantic_resolve',
+    description:
+      '[Knowledge] Resolve a fuzzy identity/term against the semantic graph for a project. ' +
+      'Usage: semantic_resolve({q: "design-system CSS tasks", projectDir: "/path/to/repo"})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        q: { type: 'string', description: 'Term/identity to resolve' },
+        projectDir: { type: 'string', description: 'Project directory (optional)' },
+      },
+      required: ['q'],
+    },
+  },
+  {
+    name: 'find_symbols',
+    description:
+      '[Knowledge] Query the tree-sitter symbol index by name/type/file. ' +
+      'Usage: find_symbols({ "name": "createSugar", "exported": true })',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        name: { type: 'string', description: 'Symbol name (optional)' },
+        type: { type: 'string', description: 'Symbol type, e.g. function/class (optional)' },
+        file: { type: 'string', description: 'Restrict to a file (optional)' },
+        exported: { type: 'boolean', description: 'Only exported symbols (optional)' },
+      },
+    },
+  },
+  {
+    name: 'symbol_stats',
+    description:
+      '[Knowledge] Summary stats of the symbol index (files parsed, symbols, dependencies). Usage: symbol_stats()',
+    inputSchema: { type: 'object' as const, properties: {} },
+  },
+  {
+    name: 'predict_conflicts',
+    description:
+      '[Knowledge] Predict file/symbol conflicts before claiming, given a set of files or a directory. ' +
+      'Usage: predict_conflicts({files: ["lib/sugar.ts", "routes/sugar.ts"]})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        files: { type: 'array', items: { type: 'string' }, description: 'Files to check (provide files OR directory)' },
+        directory: { type: 'string', description: 'Directory to scan' },
+        glob: { type: 'string', description: 'Glob filter (optional)' },
+      },
+    },
+  },
+
   {
     name: 'coordination_preflight',
     description:
@@ -2624,6 +2873,151 @@ async function handleTool(
 
     case 'attest': {
       res = await GET('/attest');
+      break;
+    }
+
+    // ── Harbors ─────────────────────────────────────────────────────
+    case 'list_harbors': {
+      res = await GET('/harbors');
+      break;
+    }
+
+    case 'get_harbor': {
+      res = await GET(`/harbors/${encodeURIComponent(args.name as string)}`);
+      break;
+    }
+
+    case 'check_harbor_envelope': {
+      res = await POST(`/harbors/${encodeURIComponent(args.name as string)}/check`, {
+        agentId: args.agent_id,
+        action: args.action,
+      });
+      break;
+    }
+
+    // ── Pheromone signals ───────────────────────────────────────────
+    case 'spray_pheromone': {
+      const body: Record<string, unknown> = {
+        table: args.table,
+        id: args.id,
+        key: args.key,
+      };
+      if (args.strength !== undefined) body.strength = args.strength;
+      res = await POST('/pheromone/spray', body);
+      break;
+    }
+
+    case 'read_pheromones': {
+      res = await GET('/pheromone');
+      break;
+    }
+
+    case 'read_entity_pheromones': {
+      res = await GET(
+        `/pheromone/${encodeURIComponent(args.table as string)}/${encodeURIComponent(args.id as string)}`,
+      );
+      break;
+    }
+
+    // ── Roadmap (cartographer projection + items of record) ──────────
+    case 'roadmap_progress': {
+      res = await GET('/cartographer/roadmap-progress');
+      break;
+    }
+
+    case 'roadmap_claims': {
+      res = await GET('/cartographer/roadmap-claims');
+      break;
+    }
+
+    case 'roadmap_list': {
+      const params = new URLSearchParams();
+      if (args.status) params.set('status', args.status as string);
+      if (args.harbor) params.set('harbor', args.harbor as string);
+      const qs = params.toString() ? `?${params.toString()}` : '';
+      res = await GET(`/roadmap/items${qs}`);
+      break;
+    }
+
+    case 'roadmap_get': {
+      res = await GET(`/roadmap/items/${encodeURIComponent(args.slug as string)}`);
+      break;
+    }
+
+    case 'roadmap_promote': {
+      const body: Record<string, unknown> = { slug: args.slug };
+      if (args.summaryMd !== undefined) body.summaryMd = args.summaryMd;
+      if (args.feedbackId !== undefined) body.feedbackId = args.feedbackId;
+      if (args.status !== undefined) body.status = args.status;
+      if (args.promotedBy !== undefined) body.promotedBy = args.promotedBy;
+      res = await POST('/roadmap/promote', body);
+      break;
+    }
+
+    // ── Commitments (ADR-0041) ──────────────────────────────────────
+    case 'commit': {
+      const body: Record<string, unknown> = {
+        ownerActorId: args.ownerActorId,
+        objectText: args.objectText,
+      };
+      if (args.successCheck !== undefined) body.successCheck = args.successCheck;
+      if (args.impossibleCheck !== undefined) body.impossibleCheck = args.impossibleCheck;
+      if (args.motivationCheck !== undefined) body.motivationCheck = args.motivationCheck;
+      if (args.scope !== undefined) body.scope = args.scope;
+      if (args.commitmentStrategy !== undefined) body.commitmentStrategy = args.commitmentStrategy;
+      res = await POST('/commitments', body);
+      break;
+    }
+
+    case 'list_commitments': {
+      res = await GET('/commitments');
+      break;
+    }
+
+    case 'list_overdue_commitments': {
+      res = await GET('/commitments/overdue');
+      break;
+    }
+
+    // ── Knowledge (semantic search + symbol index) ──────────────────
+    case 'semantic_search': {
+      const params = new URLSearchParams();
+      params.set('q', args.q as string);
+      if (args.limit) params.set('limit', String(args.limit));
+      res = await GET(`/semantic/search?${params.toString()}`);
+      break;
+    }
+
+    case 'semantic_resolve': {
+      const params = new URLSearchParams();
+      params.set('q', args.q as string);
+      if (args.projectDir) params.set('projectDir', args.projectDir as string);
+      res = await GET(`/semantic/resolve?${params.toString()}`);
+      break;
+    }
+
+    case 'find_symbols': {
+      const params = new URLSearchParams();
+      if (args.name) params.set('name', args.name as string);
+      if (args.type) params.set('type', args.type as string);
+      if (args.file) params.set('file', args.file as string);
+      if (args.exported !== undefined) params.set('exported', String(args.exported));
+      const qs = params.toString() ? `?${params.toString()}` : '';
+      res = await GET(`/symbols${qs}`);
+      break;
+    }
+
+    case 'symbol_stats': {
+      res = await GET('/symbols/stats');
+      break;
+    }
+
+    case 'predict_conflicts': {
+      const body: Record<string, unknown> = {};
+      if (args.files !== undefined) body.files = args.files;
+      if (args.directory !== undefined) body.directory = args.directory;
+      if (args.glob !== undefined) body.glob = args.glob;
+      res = await POST('/conflicts/predict', body);
       break;
     }
 
