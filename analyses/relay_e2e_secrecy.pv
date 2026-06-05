@@ -1,0 +1,88 @@
+(*
+ * Port Daddy: Relay E2E Secrecy + Publisher Authentication
+ * ========================================================
+ *
+ * Closes the named ship-blocker from skills/pd-relay-zero-trust:
+ *   "'Formally Verified Relay' Without ProVerif Extension. Existing ProVerif
+ *    coverage is agent <-> daemon. Adding the relay moves the trust boundary."
+ *
+ * The relay (ADR-0027 §"PD Relay ... routes ciphertext + metadata; does not
+ * decrypt payloads or expand capabilities") is UNTRUSTED. We model it as the
+ * Dolev-Yao attacker: it controls the channel `c` end to end (adversary A2
+ * malicious relay + A3 network-on-path). The publisher and subscriber never
+ * trust it with plaintext.
+ *
+ * INVARIANTS UNDER TEST (threat-model.md):
+ *   I1  Relay never sees payload plaintext.
+ *       → query attacker(secretPayload)  must be FALSE (not derivable).
+ *   Authentication (relay cannot inject/forge events under a publisher):
+ *       → if a subscriber accepts payload m as from publisher P, then P really
+ *         published m. Injective agreement rules out relay replay/forgery.
+ *
+ * SCOPE (honest): this proves E2E payload confidentiality past a malicious
+ * relay and publisher-origin authentication. It does NOT yet cover relay
+ * EQUIVOCATION detection (per-publisher Merkle chains, I2) — that is the next
+ * relay ProVerif obligation and is named, not claimed.
+ *)
+
+type skey.   type pkey.    (* subscriber decryption keypair *)
+type sskey.  type spkey.   (* publisher signing keypair *)
+
+free c: channel.   (* the relay-controlled channel == the Dolev-Yao attacker *)
+
+(*** Crypto primitives ***)
+fun pk(skey): pkey.
+fun aenc(bitstring, pkey): bitstring.                              (* E2E payload encryption to subscriber *)
+reduc forall m: bitstring, k: skey; adec(aenc(m, pk(k)), k) = m.
+
+fun spk(sskey): spkey.
+fun sign(bitstring, sskey): bitstring.                            (* publisher signs the envelope *)
+reduc forall m: bitstring, k: sskey; checksign(m, spk(k), sign(m, k)) = m.
+
+(* Envelope wire format (ADR-0027): channel metadata is visible to the relay,
+ * payload is ciphertext only. *)
+fun envelope(bitstring, bitstring): bitstring [data].            (* (channel, ciphertext) *)
+
+(*** Events ***)
+event PubSent(spkey, bitstring).        (* publisher P sent payload m *)
+event SubAccepted(spkey, bitstring).    (* subscriber accepted payload m as from P *)
+
+(*** Secrecy target ***)
+free secretPayload: bitstring [private].
+free chan: bitstring.                   (* metadata: visible to the relay, not secret *)
+
+(*** Queries ***)
+(* I1: the malicious relay (= attacker) cannot learn the payload. *)
+query attacker(secretPayload).
+
+(* Authentication: every accepted payload was genuinely published by P
+ * (injective => no relay replay/forgery/injection). *)
+query p: spkey, m: bitstring;
+  inj-event(SubAccepted(p, m)) ==> inj-event(PubSent(p, m)).
+
+(*** Publisher: encrypts payload to the subscriber, signs the envelope, hands it
+ * to the relay. The relay sees envelope(chan, ciphertext) and the signature. *)
+let Publisher(pub_sk: sskey, sub_pk: pkey) =
+    let ciphertext = aenc(secretPayload, sub_pk) in
+    let env = envelope(chan, ciphertext) in
+    event PubSent(spk(pub_sk), secretPayload);
+    out(c, (env, sign(env, pub_sk))).
+
+(*** Subscriber: receives from the relay, checks the publisher signature
+ * (authorized origin), decrypts with its own private key. *)
+let Subscriber(sub_sk: skey, pub_pk: spkey) =
+    in(c, (env: bitstring, sig: bitstring));
+    let recovered = checksign(env, pub_pk, sig) in      (* authenticate origin (fails if forged) *)
+    let envelope(=chan, ciphertext: bitstring) = recovered in
+    let m = adec(ciphertext, sub_sk) in
+    event SubAccepted(pub_pk, m).
+
+(*** Main: publish the subscriber's public key and the publisher's verify key to
+ * the relay (public), keep the private keys secret. The attacker IS the relay. *)
+process
+    new sub_sk: skey;   let sub_pk = pk(sub_sk) in   out(c, sub_pk);
+    new pub_sk: sskey;  let pub_pk = spk(pub_sk) in  out(c, pub_pk);
+    (
+        (! Publisher(pub_sk, sub_pk))
+      | (! Subscriber(sub_sk, pub_pk))
+    )
