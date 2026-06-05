@@ -94,9 +94,11 @@ function llmsTxt() {
     '/templates',
     '/examples',
     '/blog',
+    '/library',
     '/whitepaper',
+    '/whitepaper/legible-swarm',
+    '/whitepaper/harbor-economy',
     '/whitepaper/anchor-protocol',
-    '/whitepaper/bonded-commons',
   ]
     .map((path) => indexableRoutes.find((route) => route.path === path))
     .filter(Boolean)

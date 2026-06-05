@@ -303,6 +303,12 @@ const productRoutes: SiteMetadata[] = [
     { section: 'whitepaper' },
   ),
   metadata(
+    '/library',
+    'The Harbor Library',
+    'The seven-paper Harbor Library, read as one volume: four chapters explain local-first agent coordination, identity, and the harbor economy; three prove it with machine-checked formal verification.',
+    { section: 'whitepaper' },
+  ),
+  metadata(
     '/whitepaper',
     'Whitepaper',
     'Read the technical whitepaper behind Port Daddy: local-first agent coordination, signed identity, capability boundaries, sessions, and recoverable work.',
