@@ -106,10 +106,11 @@ Phases link to `roadmap_items` at horizon `now`. Cartographer owns reconciliatio
 
 | Phase | Scope | Roadmap item | Status |
 |------|-------|--------------|--------|
-| P1 | Pure envelope model + fail-closed `assessEnvelope` + 25 tests | #188 | ✅ shipped (this PR) |
+| P1 | Pure envelope model + fail-closed `assessEnvelope` (+ symlink-bypass hardening) | #188 | ✅ shipped (this PR) |
 | P2 | Persistence (`envelope` column, get/set) + membership-aware `assertWithinEnvelope` + tests | #188 | ✅ shipped (this PR) |
 | P3 | HTTP surface: `GET/PUT /harbors/:name/envelope`, dry-run `POST /harbors/:name/check` | #188 | ✅ shipped (this PR) |
-| P4 | Adopt the check at real call sites (spawner pre-spawn; filesystem/tool gates) fail-closed | #188 → #190 | ⏳ next |
+| P4 | First call-site adoption: spawner backend gate (fail-closed) + `PD_HARBOR_ENVELOPE` env propagation to the child | #188 | ✅ shipped (this PR) |
+| P4b | Remaining call sites: filesystem/tool gates at the actual fs syscall with `O_NOFOLLOW` (TOCTOU-safe) | #188 → #190 | ⏳ next |
 | P5 | Surface the `boundary` to the operator at the crossing (permission-boundary UX) | #190 | ⏳ pending |
 | P6 | Bind the envelope into the Harbor Card; attenuate on cross-harbor send | #189 | ⏳ pending |
 
