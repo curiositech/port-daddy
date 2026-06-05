@@ -1,7 +1,7 @@
 % Figure 3 — the reference-monitor framing (Anderson 1972 / Lampson). Three
 % properties: always-invoked (complete mediation), tamper-evident, small-enough-
 % to-verify. The kernel satisfies mediation BY CONSTRUCTION (single SQLite file
-% lock). The honest twist (STITCH C1): the Arbiter is NOT on the request path --
+% lock). The honest twist: the policy monitor is NOT on the request path --
 % it is a post-commit log subscriber -- so it is a detector, not a regimenter.
 
 \providecolor{hhsand}{HTML}{E9DCC4}
@@ -21,21 +21,21 @@
   actor/.style={draw=hhebony,thick,rounded corners=2pt,fill=hhsand!40,
                 minimum width=22mm,minimum height=10mm,align=center},
   gate/.style={draw=hhcinnabar,line width=1.4pt,fill=hhpaper,
-               minimum width=20mm,minimum height=14mm,align=center,
+               minimum width=22mm,minimum height=14mm,align=center,
                font=\sffamily\bfseries\footnotesize},
   store/.style={draw=hhebony,thick,fill=hhsanddeep!50,cylinder,shape border rotate=90,
                 aspect=0.28,minimum width=26mm,minimum height=16mm,align=center},
   mon/.style={draw=hhpatina,line width=1.2pt,fill=hhpatina!12,rounded corners=2pt,
-              minimum width=30mm,minimum height=12mm,align=center,
+              minimum width=34mm,minimum height=12mm,align=center,
               font=\sffamily\footnotesize},
-  note/.style={font=\sffamily\footnotesize\itshape,align=center,text width=40mm},
+  note/.style={font=\sffamily\footnotesize\itshape,align=center,text width=44mm},
 ]
 
-% ─── Request path: agent -> PK/boot gate -> WAL -> activity log ────────────
+% ─── Request path: agent -> uniqueness/boot gate -> WAL -> activity log ─────
 \node[actor] (agent) at (0,0) {agent\\ request};
-\node[gate,right=14mm of agent] (pk) {PK\\ constraint\\ / boot gate};
-\node[store,right=14mm of pk] (wal) {SQLite\\ WAL\\ (committed)};
-\node[store,right=16mm of wal] (log) {activity\\ log\\ (append-only)};
+\node[gate,right=20mm of agent] (pk) {uniqueness\\ constraint\\ / boot gate};
+\node[store,right=18mm of pk] (wal) {SQLite\\ WAL\\ (committed)};
+\node[store,right=20mm of wal] (log) {operation\\ log\\ (append-only)};
 
 \draw[->,>=Latex,thick,hhebony] (agent) -- (pk);
 \draw[->,>=Latex,thick,hhebony] (pk) -- node[above,font=\sffamily\footnotesize]{admit} (wal);
@@ -43,49 +43,51 @@
 
 % reject edge
 \draw[->,>=Latex,thick,hhcinnabar] (pk.south) to[bend right=30]
-  node[below,font=\sffamily\footnotesize,text=hhcinnabar]{reject (double-claim, PID-squat)} ([yshift=-6mm]pk.south);
+  node[below,font=\sffamily\footnotesize,text=hhcinnabar]{reject (double-claim, identity squat)} ([yshift=-7mm]pk.south);
 
-% ─── Arbiter: subscriber DOWNSTREAM of commit ─────────────────────────────
-\node[mon,below=14mm of log] (arb) {Arbiter\\ \texttt{activityLog.subscribe()}};
+% ─── Policy monitor: subscriber DOWNSTREAM of commit ───────────────────────
+\node[mon,below=15mm of log] (arb) {policy monitor\\ (post-commit subscriber)};
 \draw[->,>=Latex,thick,hhpatina] (log.south) -- (arb.north)
   node[midway,right,font=\sffamily\footnotesize,text=hhpatina]{observes};
 \draw[->,>=Latex,thick,dashed,hhpatina] (arb.west) to[bend right=18]
-  node[below,font=\sffamily\footnotesize,text=hhpatina,align=center]{compensate\\(man-overboard)} (wal.south);
+  node[below,font=\sffamily\footnotesize,text=hhpatina,align=center]{compensate\\(undo / salvage)} (wal.south);
 
-% ─── The interception line ────────────────────────────────────────────────
+% ─── The interception line ─────────────────────────────────────────────────
 \draw[hhcinnabar,line width=1pt,dash pattern=on 3pt off 2pt]
-  ($(wal.east)!0.5!(log.west)$) ++(0,16mm) -- ++(0,-44mm);
-\node[note,text=hhcinnabar,anchor=south] at ($(wal.east)!0.5!(log.west)+(0,17mm)$)
+  ($(wal.east)!0.5!(log.west)$) ++(0,18mm) -- ++(0,-46mm);
+\node[note,text=hhcinnabar,anchor=south] at ($(wal.east)!0.5!(log.west)+(0,19mm)$)
   {\textbf{the commit line}};
 
-\node[note,anchor=north east,text=hhcinnabar] at (pk.north|-agent.north)
-  {\textbf{regimented:} pre-commit, truly unreachable};
-\node[note,anchor=north west,text=hhpatina] at (log.north east|-agent.north)
-  {\textbf{enforced:} post-commit, detected \& compensated within a bounded window};
+% ─── Labels placed ABOVE their regions, clear of the boxes (collision fix) ──
+\node[note,text=hhcinnabar,anchor=south] at ([yshift=16mm]pk.north)
+  {\textbf{regimented:}\\ pre-commit, truly unreachable};
+\node[note,text=hhpatina,anchor=south,text width=50mm] at ([yshift=16mm]log.north)
+  {\textbf{enforced:}\\ post-commit, detected \& compensated within a bounded window};
 
-% ─── The three reference-monitor properties (Anderson/Lampson) ────────────
+% ─── The three reference-monitor properties (Anderson/Lampson) ─────────────
 \node[draw=hhbrass,thick,fill=hhpaper,rounded corners=2pt,inner sep=5pt,
-      text width=150mm,align=left,font=\sffamily\footnotesize,below=20mm of arb,xshift=20mm] (props)
+      text width=150mm,align=left,font=\sffamily\footnotesize,below=22mm of arb,xshift=18mm] (props)
   {{\bfseries\sffamily Reference-monitor properties (Anderson 1972 / Lampson):}\quad
-   (1)~\emph{always invoked} (complete mediation) --- \textbf{satisfied for the PK/boot
-   gate} by the single SQLite file lock; \textbf{NOT} satisfied by the Arbiter, which
-   runs after commit.\quad (2)~\emph{tamper-evident} --- the Merkle-chained audit log
-   (re-scoped to L3, \S\ref{sec:merkle}).\quad (3)~\emph{small enough to verify} --- one
-   writer, one file, a deliberately shrunk TCB.};
+   (1)~\emph{always invoked} (complete mediation) --- \textbf{satisfied for the
+   uniqueness/boot gate} by the single SQLite file lock; \textbf{not} satisfied by the
+   policy monitor, which runs after commit.\quad (2)~\emph{tamper-evident} --- a
+   hash-chained audit log (re-scoped to the economy layer, \S\ref{sec:merkle}).\quad
+   (3)~\emph{small enough to verify} --- one writer, one file, a deliberately shrunk
+   trusted computing base.};
 
 \end{tikzpicture}%
 }
-\caption{The kernel as a reference monitor --- and the honest correction that the
-Harbor Volume's stitch report (C1) forces. Anderson's reference monitor must be
-\emph{always invoked on the request path}, \emph{before} the operation commits.
-The \textbf{PK constraint / boot gate} (cinnabar) meets this for double-claim,
-PID-squatting, and the prod-DB-in-test guard: it rejects \emph{before} the WAL
-write. The \textbf{Arbiter} (patina) does not: \texttt{arbiter.ts:328} is an
-\texttt{activityLog.subscribe(...)} callback that fires \emph{after} the event is
-already durable. By Schneider's theorem (\S\ref{sec:enforcement}) a monitor
-downstream of the commit line enforces no safety property --- it can only
-\emph{detect and compensate}. We therefore reserve ``physically unreachable'' for
-the regimented set and say ``detected within a bounded window, then
-halted/compensated'' everywhere else.}
+\caption{The kernel as a reference monitor --- and the honest correction it forces.
+Anderson's reference monitor must be \emph{always invoked on the request path},
+\emph{before} the operation commits. The \textbf{uniqueness constraint / boot gate}
+(cinnabar) meets this for double-claims, duplicate-identity squatting, and the
+serve-from-test-database guard: it rejects \emph{before} the WAL write. The
+\textbf{policy monitor} (patina) does not: it is a subscriber to the operation log
+that fires \emph{after} the event is already durable. By Schneider's
+theorem~\cite{schneider2000} (\S\ref{sec:enforcement}) a monitor downstream of the
+commit line enforces no safety property --- it can only \emph{detect and
+compensate}. We therefore reserve ``physically unreachable'' for the regimented set
+and say ``detected within a bounded window, then halted or compensated'' everywhere
+else.}
 \label{fig:swk-reference-monitor}
 \end{figure}

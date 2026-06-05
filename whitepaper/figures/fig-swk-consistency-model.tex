@@ -69,18 +69,19 @@
    claim/lock operations is \textbf{linearizable} --- each operation appears to take
    effect atomically at its commit (its \emph{linearization point}), consistent with
    real-time order. This is the formal payoff of the single-writer choice, and it is
-   what makes L1's typed ownership trustworthy without any agreement protocol.};
+   what makes the coordination layer's typed ownership trustworthy without any
+   agreement protocol.};
 
 \end{tikzpicture}%
 }
 \caption{The consistency-model theorem --- the formal property the single-writer
-choice buys, left implicit in the dossier and made explicit here. Because all
-mutations serialize through one writer over one WAL file, transactions are
-\textbf{serializable}; because that writer is the sole decider, the observable
-history of claims and locks is \textbf{linearizable}: every operation has a single
-linearization point at its commit, and the commit order coincides with real time.
-The trace shows A winning a port, B losing cleanly to the holder, A releasing, and
-C then winning --- one unambiguous order with no agreement protocol in sight. This
-linearizability is exactly what lets L1 treat ``who holds this'' as ground truth.}
+choice buys, made explicit here. Because all mutations serialize through one writer
+over one WAL file, transactions are \textbf{serializable}; because that writer is
+the sole decider, the observable history of claims and locks is
+\textbf{linearizable}: every operation has a single linearization point at its
+commit, and the commit order coincides with real time. The trace shows A winning a
+port, B losing cleanly to the holder, A releasing, and C then winning --- one
+unambiguous order with no agreement protocol in sight. This linearizability is
+exactly what lets the coordination layer treat ``who holds this'' as ground truth.}
 \label{fig:swk-consistency-model}
 \end{figure}

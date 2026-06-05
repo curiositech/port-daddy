@@ -22,57 +22,56 @@
   designed/.style={draw=hhcinnabar,line width=1.2pt,dash pattern=on 3pt off 2pt},
 ]
 
-% ─── The nested envelope: L0 tube envelope wraps L1 performative ───────────
+% ─── The nested envelope: bus envelope wraps the typed speech act ──────────
 \node[box,built,fill=hhsanddeep!30,text width=82mm,minimum height=46mm,anchor=north west] (l0env) at (0,0)
-  {{\bfseries\sffamily L0 tube envelope}\hfill{\footnotesize\textsf{BUILT} (\texttt{tube.ts})}\\[2pt]
-   \texttt{\{ v:1, kind, body, inReplyTo \}}\\
+  {{\bfseries\sffamily The bus envelope}\hfill{\footnotesize\textsf{implemented}}\\[2pt]
+   a version tag, a kind, a body, an in-reply-to pointer\\
    $\cdot$ durable, ordered, at-least-once\\
-   $\cdot$ channel pub/sub + history cursor\\
-   $\cdot$ message TTL/expiry};
+   $\cdot$ channel publish/subscribe + history cursor\\
+   $\cdot$ per-message time-to-live};
 \node[box,designed,fill=hhpaper,text width=72mm,anchor=north west] (l1perf) at (5mm,-18mm)
-  {{\bfseries\sffamily L1 performative (rides \emph{inside})}\hfill{\footnotesize\textsf{DESIGNED} (Paper 1)}\\[2pt]
-   \texttt{performative, conversationId,}\\ \texttt{delegation-trace, reply-by}};
+  {{\bfseries\sffamily Typed speech act (rides \emph{inside})}\hfill{\footnotesize\textsf{specified}}\\[2pt]
+   a performative, a conversation id,\\ a coordination lineage, a reply deadline};
 
-% ─── Pheromone decay panel ────────────────────────────────────────────────
+% ─── Stigmergic-marker decay panel ────────────────────────────────────────
 \node[box,built,fill=hhsand!30,text width=66mm,minimum height=46mm,anchor=north west] (pher) at (94mm,0)
-  {{\bfseries\sffamily Pheromones}\hfill{\footnotesize\textsf{BUILT} (\texttt{pheromone.ts})}\\[3pt]
-   stigmergic floats in entity metadata.\\[3pt]
+  {{\bfseries\sffamily Stigmergic markers}\hfill{\footnotesize\textsf{implemented}}\\[3pt]
+   numeric coordination signals in shared state.\\[3pt]
    \textbf{Per-kind exponential decay} $w \cdot r^{\,\Delta t}$\\
    $\cdot$ background evaporation tick\\
    $\cdot$ \emph{read-time} decay (accurate without waiting)\\
-   $\cdot$ prune below threshold $0.01$\\[3pt]
+   $\cdot$ prune below a small threshold\\[3pt]
    {\itshape The structural defense against blackboard-rot --- decay is provided, not bolted on.}};
 
-% ─── The two delegation objects (C4 nomenclature) ─────────────────────────
+% ─── The two delegation objects (nomenclature fix) ────────────────────────
 \node[box,built,fill=hhpatina!12,text width=78mm,anchor=north west] (authchain) at (0,-52mm)
-  {{\bfseries\sffamily \texttt{auth-chain}}\hfill{\footnotesize\textsf{BUILT}, ProVerif-verified}\\[2pt]
-   Ed25519 hop-bound, attenuation-monotonic, anti-replay/anti-splice.
-   \emph{Proves who authorized whom.} (\texttt{delegation-chain.ts}.)};
+  {{\bfseries\sffamily Authorization chain}\hfill{\footnotesize\textsf{implemented}, mechanically verified}\\[2pt]
+   a hop-bound, attenuation-monotonic, anti-replay/anti-splice chain of digital
+   signatures. \emph{Proves who authorized whom.}};
 \node[box,designed,fill=hhpaper,text width=78mm,anchor=north west] (deltrace) at (84mm,-52mm)
-  {{\bfseries\sffamily \texttt{delegation-trace}}\hfill{\footnotesize\textsf{DESIGNED} (Paper 1)}\\[2pt]
+  {{\bfseries\sffamily Coordination lineage}\hfill{\footnotesize\textsf{specified}}\\[2pt]
    the task-lineage over which loop-detection \& upward-block run.
-   \emph{Prevents ping-pong.} A \emph{different object} than the crypto chain.};
+   \emph{Prevents ping-pong.} A \emph{different object} than the cryptographic chain.};
 
 \draw[->,>=Latex,thick,hhink] (deltrace.north) to[bend right=14]
   node[above,font=\sffamily\scriptsize,align=center]{carried \emph{inside}}
   (authchain.north east);
 
 \node[font=\sffamily\scriptsize\itshape,text=hhcinnabar,align=center,below=2mm of authchain.south east,xshift=20mm]
-  {Never write bare ``delegation chain'' --- it is two objects (C4).};
+  {Never write bare ``delegation chain'' --- it is two objects.};
 
 \end{tikzpicture}%
 }
-\caption{The communication organ. The L0 \textbf{tube} envelope --- durable,
-ordered, at-least-once, history-cursored (\textsf{BUILT}) --- is the carrier
-\emph{into which} the L1 typed performative is layered; the kernel ships the
-envelope, Paper~1 ships the semantics that ride inside it. \textbf{Pheromones}
-implement stigmergic coordination with per-kind exponential decay computed both
-on a background tick and \emph{at read time}, so the anti-blackboard-rot property
-is provided by the substrate rather than left to discipline. Finally, the figure
-fixes the volume's most dangerous naming collision (C4): \texttt{auth-chain} is
-the cryptographic, ProVerif-verified Ed25519 chain that proves \emph{who
-authorized whom}; \texttt{delegation-trace} is the coordination object that
-prevents ping-pong --- a different thing entirely, carried \emph{inside} the
-auth-chain.}
+\caption{The communication organ. The \textbf{bus} envelope --- durable, ordered,
+at-least-once, history-cursored (\textsf{implemented}) --- is the carrier
+\emph{into which} the typed speech act is layered; the kernel ships the envelope,
+the coordination layer ships the semantics that ride inside it. \textbf{Stigmergic
+markers} implement coordination with per-kind exponential decay computed both on a
+background tick and \emph{at read time}, so the anti-blackboard-rot property is
+provided by the substrate rather than left to discipline. Finally, the figure fixes
+a dangerous naming collision: the \emph{authorization chain} is the cryptographic,
+mechanically verified chain of signatures that proves \emph{who authorized whom};
+the \emph{coordination lineage} is the coordination object that prevents ping-pong
+--- a different thing entirely, carried \emph{inside} the authorization chain.}
 \label{fig:swk-comm-organ}
 \end{figure}

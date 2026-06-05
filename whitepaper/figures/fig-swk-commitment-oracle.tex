@@ -34,23 +34,23 @@
 \node[term,below=10mm of g] (aband) {abandoned};
 \node[term,below=10mm of done] (super) {superseded};
 
-\draw[edge] (open) -- node[above]{\texttt{close('done')}} (g);
-\draw[edge,hhpatina] (g) -- node[above,align=center]{\texttt{closed\_by}\\\texttt{\_oracle\_ref}\\ non-empty}node[below,text=hhpatina]{\checkmark} (done);
-\draw[edge,hhcinnabar] (g.south) -- node[right,text=hhcinnabar,align=left]{free-text only $\Rightarrow$\\ \textbf{REFUSED}} ([yshift=2mm]g.south|-aband.north) ;
+\draw[edge] (open) -- node[above]{close as `done'} (g);
+\draw[edge,hhpatina] (g) -- node[above,align=center]{oracle reference\\ present \& holds now}node[below,text=hhpatina]{\checkmark} (done);
+\draw[edge,hhcinnabar] (g.south) -- node[right,text=hhcinnabar,align=left]{free text only $\Rightarrow$\\ \textbf{REFUSED}} ([yshift=2mm]g.south|-aband.north) ;
 \draw[edge] (open.south) to[bend right=20] node[below,align=center]{drop\\(single/open-minded)} (aband.west);
 \draw[edge] (open.south) to[bend right=8] (super.west);
 
 % Law 1 callout on the deadline
 \node[draw=hhcinnabar,thick,fill=hhpaper,rounded corners=2pt,inner sep=4pt,
       text width=52mm,align=left,font=\sffamily\scriptsize,above=8mm of open]
-  {{\bfseries\sffamily Law 1 (I5):} \texttt{due\_at} is derived by the daemon from a
+  {{\bfseries\sffamily Law 1 (I5):} the deadline is derived by the daemon from a
    scope policy --- the agent picks the \emph{work}, never the \emph{deadline}. Goodhart-resistance.};
 
 % The finite oracle vocabulary
 \node[oracle,below=18mm of done,xshift=-8mm] (orcl)
   {{\bfseries\sffamily The oracle vocabulary (finite):}\\
-   $\bullet$ a released claim\quad $\bullet$ a merged SHA\\
-   $\bullet$ a passing test id\quad $\bullet$ a satisfied Arbiter sub-check};
+   $\bullet$ a released claim\quad $\bullet$ a merged commit\\
+   $\bullet$ a passing test id\quad $\bullet$ a satisfied policy sub-check};
 \draw[->,>=Latex,thick,hhbrass,dashed] (orcl.north) -- (g.south);
 
 \node[font=\sffamily\scriptsize\itshape,text=hhink,align=left,text width=70mm,below=2mm of orcl]
@@ -59,15 +59,15 @@
 
 \end{tikzpicture}%
 }
-\caption{The commitment lifecycle with its oracle-bound closure gate. A
-commitment is a durable, \emph{violable} promise (Cohen \& Levesque's persistent
-goal): it may end \texttt{done}, \texttt{abandoned}, or \texttt{superseded}. The
-load-bearing gate is Law~2: a transition to \texttt{done} is \emph{refused}
-unless the agent supplies a non-empty \texttt{closed\_by\_oracle\_ref} drawn from
-a finite vocabulary --- a released claim, a merged SHA, a passing test id, or a
-satisfied Arbiter sub-check. Free-text notes cannot close a promise. That finite
-vocabulary is precisely the kernel's honesty boundary: it can verify ``the test
-you named passed,'' never ``the work is good'' (open problem OP-5). Law~1
+\caption{The commitment lifecycle with its oracle-bound closure gate. A commitment
+is a durable, \emph{violable} promise (Cohen \& Levesque's persistent goal): it may
+end \emph{done}, \emph{abandoned}, or \emph{superseded}. The load-bearing gate is
+Law~2: a transition to \emph{done} is \emph{refused} unless the agent supplies a
+reference drawn from a finite oracle vocabulary --- a released claim, a merged
+commit, a passing test identifier, or a satisfied policy sub-check --- that the
+daemon re-verifies at closure time. Free-text notes cannot close a promise. That
+finite vocabulary is precisely the kernel's honesty boundary: it can verify ``the
+test you named passed,'' never ``the work is good'' (open problem OP-5). Law~1
 (daemon-derived deadlines) closes the complementary Goodhart hole --- the agent
 chooses the work, the daemon chooses when it is due.}
 \label{fig:swk-commitment-oracle}

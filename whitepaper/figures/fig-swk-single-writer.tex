@@ -1,7 +1,7 @@
-% Figure 5 — the single-writer serialization. Many CLI processes + the daemon
-% funnel through one writer; SQLite's file lock + busy_timeout serialize all
+% Figure 5 — the single-writer serialization. Many client processes + the daemon
+% funnel through one writer; SQLite's file lock + a busy-wait serialize all
 % mutations. There is one decider, so there is no agreement to reach -- FLP is
-% sidestepped, not solved (STITCH C3: CP with a central coordinator).
+% sidestepped, not solved (CP with a central coordinator).
 
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhsanddeep}{HTML}{D4C5A9}
@@ -18,7 +18,7 @@
 \begin{tikzpicture}[
   font=\sffamily\small,
   cli/.style={draw=hhebony,thick,rounded corners=2pt,fill=hhsand!40,
-              minimum width=24mm,minimum height=9mm,align=center,font=\sffamily\footnotesize},
+              minimum width=28mm,minimum height=9mm,align=center,font=\sffamily\footnotesize},
   daemon/.style={draw=hhcinnabar,line width=1.4pt,fill=hhpaper,rounded corners=3pt,
                  minimum width=40mm,minimum height=20mm,align=center,font=\sffamily\bfseries},
   db/.style={draw=hhebony,thick,fill=hhsanddeep!50,cylinder,shape border rotate=90,
@@ -26,52 +26,53 @@
 ]
 
 % ─── Many clients on the left ─────────────────────────────────────────────
-\node[cli] (c1) at (0,2.4) {\texttt{pd} CLI};
-\node[cli] (c2) at (0,1.2) {\texttt{pd} CLI};
-\node[cli] (c3) at (0,0)   {agent (MCP)};
-\node[cli] (c4) at (0,-1.2){agent (tube)};
-\node[cli] (c5) at (0,-2.4){fleet sortie};
+\node[cli] (c1) at (0,2.4) {command line};
+\node[cli] (c2) at (0,1.2) {command line};
+\node[cli] (c3) at (0,0)   {agent (tool bridge)};
+\node[cli] (c4) at (0,-1.2){agent (binary IPC)};
+\node[cli] (c5) at (0,-2.4){background worker};
 
 % ─── The single daemon (sole write connection) ────────────────────────────
-\node[daemon] (d) at (52mm,0) {Daemon\\ (the SOLE\\ write connection)\\[2pt]
-  {\footnotesize\normalfont HTTP/IPC over Unix socket}};
+\node[daemon] (d) at (58mm,0) {Daemon\\ (the SOLE\\ write connection)\\[2pt]
+  {\footnotesize\normalfont two transports over Unix sockets}};
 
 \foreach \c in {c1,c2,c3,c4,c5} {
   \draw[->,>=Latex,hhebony] (\c.east) -- (d.west);
 }
 
-% ─── The single file ──────────────────────────────────────────────────────
-\node[db] (file) at (104mm,0) {one SQLite\\ file (WAL)};
-\draw[<->,>=Latex,line width=1.2pt,hhcinnabar] (d.east) --
-  node[above,font=\sffamily\footnotesize,text=hhcinnabar,align=center]{serialized by\\ file lock + \texttt{busy\_timeout}} (file.west);
+% ─── The single file, with a WIDE gap so the label clears the cylinder ──────
+\node[db] (file) at (120mm,0) {one SQLite\\ file (WAL)};
+\draw[<->,>=Latex,line width=1.2pt,hhcinnabar] (d.east) -- (file.west);
+\node[below=2.5mm,font=\sffamily\footnotesize,text=hhcinnabar,align=center]
+  at ($(d.east)!0.5!(file.west)$){serialized by the\\ file lock + a busy-wait};
 
 % ─── The annotation: one decider, no consensus ────────────────────────────
 \node[draw=hhpatina,thick,fill=hhpatina!10,rounded corners=2pt,inner sep=5pt,
-      text width=152mm,align=left,font=\sffamily\footnotesize,below=10mm of d,xshift=26mm]
+      text width=152mm,align=left,font=\sffamily\footnotesize,below=14mm of d,xshift=30mm]
   {{\bfseries\sffamily One decider $\Rightarrow$ no agreement to reach.}\quad
    The swarm \emph{looks} like it wants consensus (many agents, contention, failover).
    The kernel refuses to manufacture that problem: it collapses every mutation onto a
-   single writer over a single file. There is nothing to agree on, so FLP (Fischer
-   --Lynch--Paterson 1985) does not bite --- it is \emph{sidestepped}, not solved.
-   Within one harbor the system is \textbf{CP with a central coordinator}; the
-   distributed-termination canon (Dijkstra--Scholten, Chandy--Lamport, FLP) applies
-   only at the two edges where the daemon is \emph{not} the sole observer:
-   agent-partitioned-from-daemon, and cross-harbor (L3).};
+   single writer over a single file. There is nothing to agree on, so the consensus
+   impossibility of Fischer--Lynch--Paterson (1985) does not bite --- it is
+   \emph{sidestepped}, not solved. On one machine the system is \textbf{CP with a
+   central coordinator}; the distributed-systems canon (Dijkstra--Scholten,
+   Chandy--Lamport, FLP) applies only at the two edges where the daemon is \emph{not}
+   the sole observer: an agent partitioned from the daemon, and across machines.};
 
 % ─── The boundary marker ──────────────────────────────────────────────────
-\node[font=\sffamily\footnotesize\itshape,text=hhcinnabar,align=center,above=2mm of d]
-  {The instant a \emph{second} daemon shares this file, the assumption breaks --- and you are at L3.};
+\node[font=\sffamily\footnotesize\itshape,text=hhcinnabar,align=center,above=3mm of d]
+  {The instant a \emph{second} daemon shares this file, the assumption breaks --- and you are in the cross-machine regime.};
 
 \end{tikzpicture}%
 }
 \caption{The single-writer serialization, the cleanest thing about the layer.
-Dozens of CLI invocations and agents funnel through \emph{one} writer --- the
-daemon, the sole holder of a read--write connection --- and SQLite's OS-level
-file lock plus \texttt{busy\_timeout} serialize all mutations. Because there is
-exactly one decider, there is no agreement to reach: the consensus impossibility
-results that dominate distributed-systems design are \emph{deliberately not} L0
-problems. This is not a gap; it is the layer's defining discipline. The boundary
-is exact: the moment a second daemon touches the same truth, you have a
-distributed problem --- and that is L3, treated in Paper~4, not here.}
+Dozens of command-line invocations and agents funnel through \emph{one} writer ---
+the daemon, the sole holder of a read--write connection --- and SQLite's OS-level
+file lock plus a bounded busy-wait serialize all mutations. Because there is exactly
+one decider, there is no agreement to reach: the consensus impossibility results
+that dominate distributed-systems design are \emph{deliberately not} substrate-layer
+problems. This is not a gap; it is the layer's defining discipline. The boundary is
+exact: the moment a second daemon touches the same truth, you have a distributed
+problem --- and that belongs to the cross-machine economy layer, not here.}
 \label{fig:swk-single-writer}
 \end{figure}

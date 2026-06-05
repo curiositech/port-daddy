@@ -24,53 +24,49 @@
 \newcommand{\lbl}{\sffamily\bfseries\footnotesize}
 
 \node[organ,fill=hhpatina!16] (mem) at (0,0)
-  {{\lbl 1.\ Memory}\hfill{\footnotesize\color{hhpatina}\textsf{BUILT}}\\[3pt]
-   append-only session notes; episodic story-beats; the activity log.\\[3pt]
-   {\itshape NOTE\_MONOTONICITY: the kernel forbids amnesia --- an active session's note count never regresses.}\\[2pt]
-   {\ttfamily sessions.ts $\cdot$ episodic-memory.ts}};
+  {{\lbl 1.\ Memory}\hfill{\footnotesize\color{hhpatina}\textsf{implemented}}\\[3pt]
+   append-only session notes; episodic story-beats; the operation log.\\[3pt]
+   {\itshape A monitor rule forbids amnesia --- an active session's note count never regresses.}};
 
 \node[organ,fill=hhcinnabar!10,right=8mm of mem] (chk)
-  {{\lbl 2.\ Checkpoint}\hfill{\footnotesize\color{hhcinnabar}\textsf{BUILT-WEAK}}\\[3pt]
-   resurrection: heartbeat $\to$ stale/dead $\to$ queue $\to$ man-overboard.\\[3pt]
-   {\color{hhcinnabar}\itshape It \textbf{passes notes}, it does not checkpoint execution state. ``Teeth'' = OP-4, unbuilt.}\\[2pt]
-   {\ttfamily resurrection.ts}};
+  {{\lbl 2.\ Checkpoint}\hfill{\footnotesize\color{hhcinnabar}\textsf{partial}}\\[3pt]
+   recovery: heartbeat $\to$ stale/dead $\to$ queue $\to$ salvage handoff.\\[3pt]
+   {\color{hhcinnabar}\itshape It \textbf{passes notes}; it does not checkpoint execution state. ``Teeth'' = OP-4, unbuilt.}};
 
 \node[organ,fill=hhsand!30,right=8mm of chk] (ledger)
-  {{\lbl 3.\ Witnessed-outcome ledger}\hfill{\footnotesize\color{hhbrass}\textsf{DESIGNED}}\\[3pt]
+  {{\lbl 3.\ Witnessed-outcome ledger}\hfill{\footnotesize\color{hhbrass}\textsf{specified}}\\[3pt]
    the durable record of \emph{what an agent actually delivered}, oracle-bound.\\[3pt]
-   {\itshape Reputation keys on \textbf{this} organ --- and it does not yet exist (Paper 3).}\\[2pt]
-   {\ttfamily ---}};
+   {\itshape Reputation keys on \textbf{this} organ --- and it does not yet exist.}};
 
 \draw[link,hhpatina] (mem.east) -- (chk.west);
 \draw[link,hhcinnabar] (chk.east) -- (ledger.west);
 
 % The weakest-link marker over checkpoint
 \node[font=\sffamily\bfseries\footnotesize,text=hhcinnabar,above=2mm of chk]
-  {$\bigstar$ the weakest \emph{built} link};
+  {$\bigstar$ the weakest \emph{implemented} link};
 
-% The canonical C7 sentence
+% The canonical sentence
 \node[draw=hhbrass,thick,fill=hhpaper,rounded corners=2pt,inner sep=6pt,
       text width=168mm,align=left,font=\sffamily\footnotesize,below=8mm of chk.south]
-  {{\bfseries\sffamily The canonical sentence (stated identically in Papers 2 and 3):}\quad
-   The economy rests on three continuity organs --- memory (\textsf{BUILT}),
-   checkpoint (\textsf{BUILT-WEAK}: notes, not execution state), and the
-   witnessed-outcome ledger (\textsf{DESIGNED}) --- and reputation keys on the
-   third, which does not yet exist; the checkpoint organ is the weakest
-   \emph{built} link, and ``resurrection with teeth'' (a real execution-state
-   checkpoint, OP-4) is the literal foundation of L3.};
+  {{\bfseries\sffamily The canonical sentence the rest of the volume depends on:}\quad
+   The economy rests on three continuity organs --- memory (\textsf{implemented}),
+   checkpoint (\textsf{partial}: notes, not execution state), and a witnessed-outcome
+   ledger (\textsf{specified}) --- and reputation keys on the third, which does not
+   yet exist; the checkpoint organ is the weakest \emph{implemented} link, and a
+   checkpoint with teeth (a real execution-state snapshot, OP-4) is the literal
+   foundation of a cross-machine reputation economy.};
 
 \end{tikzpicture}%
 }
-\caption{The three continuity organs the entire economy stands on. The
-through-line of the volume --- memory $\to$ checkpoint $\to$ continuity $\to$
-person $\to$ reputation $\to$ market --- bottoms out \emph{here}, in the kernel.
-\textbf{Memory} is \textsf{BUILT} and the kernel even forbids amnesia (the
-Arbiter's \texttt{NOTE\_MONOTONICITY} rule). \textbf{Checkpoint} is
-\textsf{BUILT-WEAK}: resurrection passes the durable handoff \emph{notes} but does
-not capture execution state, so it is the weakest built link in the chain.
-\textbf{The witnessed-outcome ledger}, on which reputation actually keys, is
-\textsf{DESIGNED} only (Paper~3). This figure states the volume's canonical C7
-sentence, which appears identically in Papers~2 and 3 so the reader meets one
-``the foundation is soft here'' claim, not three.}
+\caption{The three continuity organs the entire economy stands on. The through-line
+of the volume --- memory $\to$ checkpoint $\to$ continuity $\to$ durable identity
+$\to$ reputation $\to$ market --- bottoms out \emph{here}, in the kernel.
+\textbf{Memory} is \textsf{implemented} and the kernel even forbids amnesia (a
+note-monotonicity rule). \textbf{Checkpoint} is \textsf{partial}: recovery passes
+the durable handoff \emph{notes} but does not capture execution state, so it is the
+weakest implemented link in the chain. \textbf{The witnessed-outcome ledger}, on
+which reputation actually keys, is \textsf{specified} only. This figure states the
+volume's canonical sentence so the reader meets one ``the foundation is soft here''
+claim, not three.}
 \label{fig:swk-continuity-organs}
 \end{figure}
