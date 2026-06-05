@@ -1,0 +1,88 @@
+% The three-sided market: three sides, one escrow, divergent identity objects.
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D4C5A9}
+\providecolor{hhebony}{HTML}{1E1B18}
+\providecolor{hhcinnabar}{HTML}{CC3D2E}
+\providecolor{hhbrass}{HTML}{B08D57}
+\providecolor{hhpatina}{HTML}{5C7A6A}
+\providecolor{hhpaper}{HTML}{FBF7EE}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.96\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\sffamily\small,
+  side/.style={draw=hhebony,thick,fill=hhsand!55,rounded corners=3pt,
+               inner sep=5pt,text width=42mm,align=center,minimum height=22mm},
+  escrow/.style={draw=hhebony,line width=1.4pt,fill=hhpatina!35,
+                 rounded corners=3pt,inner sep=6pt,text width=58mm,
+                 align=center,minimum height=26mm},
+  idobj/.style={draw=hhcinnabar,thick,fill=hhpaper,rounded corners=2pt,
+                inner sep=3pt,font=\sffamily\scriptsize,text width=42mm,
+                align=center,text=hhcinnabar},
+  flow/.style={->,>=Latex,thick,draw=hhebony},
+]
+
+% ─── The three sides across the top ────────────────────────────────────
+\node[side] (labor) at (-62mm,30mm)
+  {\textbf{Side 1 — Labor}\\\footnotesize operator-for-hire\\
+   \scriptsize margin $=$ bounty $-\,\Sigma$ slashed sub-bonds $-$ fee};
+\node[side] (capital) at (0,38mm)
+  {\textbf{Side 2 — Capital}\\\footnotesize agent / fleet as rentable asset\\
+   \scriptsize renter holds the runtime jail; owner bears reputation};
+\node[side] (ip) at (62mm,30mm)
+  {\textbf{Side 3 — IP}\\\footnotesize skill / tool licensed\\
+   \scriptsize metered $+$ clawback; paid only on green settlement};
+
+% ─── The single escrow at the centre ───────────────────────────────────
+\node[escrow] (esc) at (0,-6mm)
+  {\textbf{ONE FLOAT-PLAN ESCROW}\\[2pt]
+   \footnotesize daemon: \texttt{EXCLUSIVE} txn, sign $\{anchor,\,plan\_hash\}$\\[2pt]
+   \scriptsize\textbf{invariant:} $\text{wallet}+\text{escrow}+\text{commons}=\text{supply}$\\
+   \scriptsize\textbf{(BUILT: \texttt{lib/bonds.ts})}};
+
+% all three sides settle through the same object
+\draw[flow] (labor.south)   to[out=-90,in=150] (esc.west);
+\draw[flow] (capital.south) -- (esc.north);
+\draw[flow] (ip.south)      to[out=-90,in=30]  (esc.east);
+
+% ─── The oracle / settlement at the bottom ─────────────────────────────
+\node[draw=hhebony,thick,fill=hhsanddeep!55,rounded corners=2pt,inner sep=5pt,
+      text width=92mm,align=center,below=8mm of esc] (settle)
+  {\footnotesize $\mathsf{oracle}(\text{acceptance})\;\Rightarrow\;
+   \{\,\text{success}\mid\text{partial}\mid\text{sabotage}\mid\text{dispute}\,\}$};
+\draw[flow] (esc.south) -- (settle.north);
+
+% ─── The identity divergence band (the category-theory finding) ────────
+\node[idobj,above=2mm of labor]   {keys on the \textbf{principal}\\(human/org)};
+\node[idobj,above=2mm of capital] {keys on the \textbf{asset owner}};
+\node[idobj,above=2mm of ip]      {keys on the \textbf{content hash} (skill version)};
+
+\node[draw=hhcinnabar,thick,dashed,rounded corners=3pt,inner sep=3pt,
+      fit=(labor)(capital)(ip)] {};
+
+% ─── The honesty rider ─────────────────────────────────────────────────
+\node[draw=hhcinnabar,line width=1.2pt,fill=hhcinnabar!8,rounded corners=2pt,
+      inner sep=5pt,text width=120mm,align=center,below=4mm of settle,
+      font=\sffamily\bfseries\footnotesize]
+  {Three-sided \emph{by design}; two-sided until reputation ships
+   (ADR-0049 / ADR-0040b). Sides 2 and 3 exist \emph{iff} identity is durable.\\[2pt]
+   \normalfont\scriptsize Isomorphic at the conservation object (one escrow);
+   \emph{non}-isomorphic at the identity object (three different ``what reputation
+   keys on''). The shared structure is real only at conservation.};
+
+\end{tikzpicture}%
+}
+\caption{The three-sided market. Labor, capital (rented agents), and IP (licensed
+skills) are three distinct \emph{incentive constraints} --- not three UI tabs ---
+that all settle on a \emph{single} float-plan escrow, so conservation holds
+globally without a second ledger. This is the categorical heart of the design: the
+three sides are isomorphic at the conservation object (the escrow) and
+\textbf{non-isomorphic at the identity object} (each side keys reputation on a
+different entity, dashed red). Calling it ``one structure, three decorations''
+without that qualifier is the decorative-analogy failure the category-theory review
+flagged. The rider is mandatory: the market is three-sided by design and two-sided
+in shipped reality, because sides 2 and 3 presuppose a non-forgeable, durable
+identity (\S\ref{sec:keystone}).}
+\label{fig:he-three-sided}
+\end{figure}

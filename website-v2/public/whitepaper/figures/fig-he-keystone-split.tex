@@ -1,0 +1,77 @@
+% C2: the keystone split. ADR-0040 (identity-local) vs ADR-0040b (cross-operator).
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D4C5A9}
+\providecolor{hhebony}{HTML}{1E1B18}
+\providecolor{hhcinnabar}{HTML}{CC3D2E}
+\providecolor{hhbrass}{HTML}{B08D57}
+\providecolor{hhpatina}{HTML}{5C7A6A}
+\providecolor{hhpaper}{HTML}{FBF7EE}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\sffamily\small,
+  harbor/.style={draw=hhebony,thick,fill=hhsand!45,rounded corners=4pt,
+                 inner sep=6pt,minimum width=52mm,minimum height=34mm,align=center},
+  root/.style={draw=hhpatina,line width=1.4pt,fill=hhpatina!25,rounded corners=2pt,
+               inner sep=3pt,font=\sffamily\scriptsize\bfseries,align=center},
+  agent/.style={draw=hhebony,thick,fill=hhpaper,circle,inner sep=1pt,
+                minimum size=7mm,font=\sffamily\scriptsize},
+]
+
+% Harbor A
+\node[harbor,label={[font=\sffamily\bfseries\footnotesize]north:Harbor $A$ (Alice owns)}]
+  (HA) at (0,0) {};
+\node[root] (rA) at ($(HA.center)+(0,9mm)$) {trusted root\\(Alice's daemon)};
+\node[agent] (a1) at ($(HA.center)+(-12mm,-7mm)$) {$a_1$};
+\node[agent] (a2) at ($(HA.center)+(0,-7mm)$) {$a_2$};
+\node[agent] (a3) at ($(HA.center)+(12mm,-7mm)$) {$a_3$};
+\foreach \a in {a1,a2,a3} { \draw[->,>=Latex,hhpatina,thick] (rA) -- (\a); }
+\node[font=\sffamily\scriptsize\itshape,below=1mm of HA,text=hhpatina,text width=52mm,align=center]
+  {\textbf{ADR-0040} covers \emph{here}: non-forgeable id within one trusted daemon.};
+
+% Harbor B
+\node[harbor,label={[font=\sffamily\bfseries\footnotesize]north:Harbor $B$ (Bob owns)},
+  right=46mm of HA] (HB) {};
+\node[root] (rB) at ($(HB.center)+(0,9mm)$) {trusted root\\(Bob's daemon)};
+\node[agent] (b1) at ($(HB.center)+(-12mm,-7mm)$) {$b_1$};
+\node[agent] (b2) at ($(HB.center)+(0,-7mm)$) {$b_2$};
+\node[agent] (b3) at ($(HB.center)+(12mm,-7mm)$) {$b_3$};
+\foreach \b in {b1,b2,b3} { \draw[->,>=Latex,hhpatina,thick] (rB) -- (\b); }
+
+% the boundary nobody controls
+\node[draw=hhcinnabar,line width=1.6pt,fill=hhcinnabar!8,rounded corners=3pt,
+      inner sep=4pt,font=\sffamily\bfseries\scriptsize,text=hhcinnabar,
+      text width=34mm,align=center] (gap) at ($(HA.east)!0.5!(HB.west)+(0,4mm)$)
+  {\textbf{ADR-0040b}\\ \normalfont\scriptsize cross-operator attestation\\
+   (DESIGNED $\to$ VISION)\\ \emph{who vouches $b_i$'s keys map to a real distinct
+   principal?}};
+\draw[<->,>=Latex,line width=1.4pt,hhcinnabar] (HA.east) -- (HB.west);
+
+% the warning
+\node[draw=hhcinnabar,thick,fill=hhpaper,rounded corners=2pt,inner sep=5pt,
+      text width=150mm,align=center,below=14mm of HA,xshift=49mm,
+      font=\sffamily\footnotesize]
+  {\textbf{The keystone overreach (C2, BLOCKING).} ADR-0040's \emph{own} threat
+   model is \emph{intra-fleet, single trusted operator, explicitly ``not a PKI,''
+   explicitly no defense against a hostile operator}. Across the boundary, the
+   counterparty's daemon \emph{is} the adversary ADR-0040 declares out of scope.
+   The witness log gives \emph{log integrity}, not \emph{identity binding}.
+   Paper~4 declares \textbf{ADR-0040b} (cross-operator attestation) as the unbuilt
+   keystone and \emph{stops} calling the boundary one ``neither controls'' while
+   resting on a single trusted root.};
+
+\end{tikzpicture}%
+}
+\caption{The keystone split (C2). Papers 1--3 rest on \textbf{ADR-0040}: a
+non-forgeable actor identity \emph{within one trusted daemon} --- a single trusted
+root that vouches for every agent it mints. That is exactly what a single-operator
+harbor needs. But L3 is \emph{defined} by mutually-distrusting operators trading
+across a boundary neither controls, and ADR-0040 explicitly disclaims that threat
+model (intra-fleet, ``not a PKI,'' no hostile-operator defense). Binding
+\texttt{actor\_id} keys across harbors you do not own is a different, unsolved
+problem: \textbf{ADR-0040b}, cross-operator attestation. It is the highest-leverage
+unbuilt keystone, and it gates the entire market thesis.}
+\label{fig:he-keystone-split}
+\end{figure}
