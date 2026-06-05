@@ -14,8 +14,16 @@
  *   - github:webhook:<event>:<action>       e.g. github:webhook:pull_request:opened
  *   - github:<owner>/<repo>:<event>         e.g. github:curiositech/port-daddy:pull_request
  *
- * Per-project channel scoping (so only the installed repo's fleet fires) is a
- * follow-up that needs a repo→projectDir registry — see the github-app README.
+ * Per-project channel scoping (so ONLY the installed repo's fleet fires): when
+ * a `repoRegistry` dep is supplied, the route resolves the webhook's
+ * `owner/repo` to the project that claims it (lib/github-repo-registry.ts) and
+ * ADDITIONALLY publishes project-scoped channels:
+ *   - project:<slug>:<hash>:github:webhook:<event>
+ *   - project:<slug>:<hash>:github:webhook:<event>:<action>
+ * A ship in that project subscribes with a BARE trigger (the fleet channel
+ * resolver project-scopes it by default), so it fires only for its own repo.
+ * The global channels above stay published for backward compatibility, so
+ * existing `global:`-prefixed ships keep working.
  *
  * Authentication (any configured method that passes wins):
  *   - Bearer:  Authorization: Bearer <PD_GITHUB_FORWARD_TOKEN>  (receiver path)
@@ -28,6 +36,16 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 
+/**
+ * Minimal shape the route needs from lib/github-repo-registry.ts. Kept local
+ * (structural) so the route does not hard-depend on the registry module — the
+ * dep is optional, and when absent the route behaves exactly as before
+ * (global channels only).
+ */
+interface RepoRegistryLike {
+  resolve(repoFullName: string): { scope: string; projectDir: string } | null;
+}
+
 interface GithubWebhookRouteDeps {
   logger: {
     info(msg: string, meta?: Record<string, unknown>): void;
@@ -37,6 +55,13 @@ interface GithubWebhookRouteDeps {
   messaging: {
     publish(channel: string, payload: unknown, opts: { sender?: string; expires?: unknown }): Record<string, unknown>;
   };
+  /**
+   * Optional repo→project registry. When supplied, the route resolves the
+   * webhook's owner/repo to the owning project and publishes project-scoped
+   * channels in addition to the global ones, so only that project's fleet
+   * fires. When absent, only the global channels are published (legacy).
+   */
+  repoRegistry?: RepoRegistryLike;
 }
 
 interface RawBodyRequest extends FastifyRequest {
@@ -155,18 +180,42 @@ function normalize(request: FastifyRequest): NormalizedWebhook | null {
   };
 }
 
-function channelsFor(hook: NormalizedWebhook): string[] {
+interface RoutedChannels {
+  /** Channels actually published. */
+  channels: string[];
+  /** The project the repo resolved to, if any (for logging/diagnostics). */
+  routedProjectDir: string | null;
+}
+
+function channelsFor(hook: NormalizedWebhook, repoRegistry?: RepoRegistryLike): RoutedChannels {
   const channels = [`github:webhook:${hook.event}`];
   if (hook.action) channels.push(`github:webhook:${hook.event}:${hook.action}`);
   const fullName = hook.repository?.full_name;
   if (typeof fullName === 'string' && fullName) {
     channels.push(`github:${fullName}:${hook.event}`);
   }
-  return channels;
+
+  // Per-project routing: if the repo claims a project, ALSO publish
+  // project-scoped channels so only that project's fleet fires. A bare
+  // `trigger: github:webhook:<event>` in the project's pd-fleet.yml is
+  // project-scoped by the fleet channel resolver and matches these.
+  let routedProjectDir: string | null = null;
+  if (repoRegistry && typeof fullName === 'string' && fullName) {
+    const entry = repoRegistry.resolve(fullName);
+    if (entry) {
+      routedProjectDir = entry.projectDir;
+      channels.push(`${entry.scope}:github:webhook:${hook.event}`);
+      if (hook.action) {
+        channels.push(`${entry.scope}:github:webhook:${hook.event}:${hook.action}`);
+      }
+    }
+  }
+
+  return { channels, routedProjectDir };
 }
 
 export const githubWebhookPlugin: FastifyPluginAsync<{ deps: GithubWebhookRouteDeps }> = async (fastify, opts) => {
-  const { logger, metrics, messaging } = opts.deps;
+  const { logger, metrics, messaging, repoRegistry } = opts.deps;
 
   // Capture the raw body (encapsulated to this plugin) so HMAC verification
   // can hash the exact bytes GitHub signed, while still exposing parsed JSON.
@@ -204,7 +253,7 @@ export const githubWebhookPlugin: FastifyPluginAsync<{ deps: GithubWebhookRouteD
       return { error: 'could not determine GitHub event (set X-GitHub-Event header or envelope.event)' };
     }
 
-    const channels = channelsFor(hook);
+    const { channels, routedProjectDir } = channelsFor(hook, repoRegistry);
     try {
       for (const channel of channels) {
         messaging.publish(channel, hook, { sender: hook.sender ?? undefined });
@@ -223,6 +272,7 @@ export const githubWebhookPlugin: FastifyPluginAsync<{ deps: GithubWebhookRouteD
       repository: hook.repository?.full_name,
       delivery: hook.delivery,
       channels,
+      routed_project_dir: routedProjectDir,
     });
 
     reply.code(204);
