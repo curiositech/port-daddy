@@ -17,18 +17,18 @@
 \centering
 \resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\small,
-  actor/.style={draw=hhebony,thick,rounded corners=2pt,fill=hhsand!40,
+  font=\small,
+  actor/.style={draw=hhebony,thick,rounded corners=2pt,fill=hhsand!30,
                 minimum width=22mm,minimum height=10mm,align=center},
   gate/.style={draw=hhcinnabar,line width=1.4pt,fill=hhpaper,
                minimum width=22mm,minimum height=14mm,align=center,
-               font=\sffamily\bfseries\footnotesize},
-  store/.style={draw=hhebony,thick,fill=hhsanddeep!50,cylinder,shape border rotate=90,
+               font=\bfseries\footnotesize},
+  store/.style={draw=hhebony,thick,fill=hhsand!30,cylinder,shape border rotate=90,
                 aspect=0.28,minimum width=26mm,minimum height=16mm,align=center},
-  mon/.style={draw=hhpatina,line width=1.2pt,fill=hhpatina!12,rounded corners=2pt,
+  mon/.style={draw=hhink,line width=1.2pt,fill=hhsand!30,rounded corners=2pt,
               minimum width=34mm,minimum height=12mm,align=center,
-              font=\sffamily\footnotesize},
-  note/.style={font=\sffamily\footnotesize\itshape,align=center,text width=44mm},
+              font=\footnotesize},
+  note/.style={font=\footnotesize\itshape,align=center,text width=44mm},
 ]
 
 % ─── Request path: agent -> uniqueness/boot gate -> WAL -> activity log ─────
@@ -38,36 +38,36 @@
 \node[store,right=20mm of wal] (log) {operation\\ log\\ (append-only)};
 
 \draw[->,>=Latex,thick,hhebony] (agent) -- (pk);
-\draw[->,>=Latex,thick,hhebony] (pk) -- node[above,font=\sffamily\footnotesize]{admit} (wal);
-\draw[->,>=Latex,thick,hhebony] (wal) -- node[above,font=\sffamily\footnotesize]{emit event} (log);
+\draw[->,>=Latex,thick,hhebony] (pk) -- node[above,font=\footnotesize]{admit} (wal);
+\draw[->,>=Latex,thick,hhebony] (wal) -- node[above,font=\footnotesize]{emit event} (log);
 
 % reject edge
 \draw[->,>=Latex,thick,hhcinnabar] (pk.south) to[bend right=30]
-  node[below,font=\sffamily\footnotesize,text=hhcinnabar]{reject (double-claim, identity squat)} ([yshift=-7mm]pk.south);
+  node[below,font=\footnotesize,text=hhink]{reject (double-claim, identity squat)} ([yshift=-7mm]pk.south);
 
 % ─── Policy monitor: subscriber DOWNSTREAM of commit ───────────────────────
 \node[mon,below=15mm of log] (arb) {policy monitor\\ (post-commit subscriber)};
 \draw[->,>=Latex,thick,hhpatina] (log.south) -- (arb.north)
-  node[midway,right,font=\sffamily\footnotesize,text=hhpatina]{observes};
+  node[midway,right,font=\footnotesize,text=hhink]{observes};
 \draw[->,>=Latex,thick,dashed,hhpatina] (arb.west) to[bend right=18]
-  node[below,font=\sffamily\footnotesize,text=hhpatina,align=center]{compensate\\(undo / salvage)} (wal.south);
+  node[below,font=\footnotesize,text=hhink,align=center]{compensate\\(undo / salvage)} (wal.south);
 
 % ─── The interception line ─────────────────────────────────────────────────
 \draw[hhcinnabar,line width=1pt,dash pattern=on 3pt off 2pt]
   ($(wal.east)!0.5!(log.west)$) ++(0,18mm) -- ++(0,-46mm);
-\node[note,text=hhcinnabar,anchor=south] at ($(wal.east)!0.5!(log.west)+(0,19mm)$)
+\node[note,text=hhink,anchor=south] at ($(wal.east)!0.5!(log.west)+(0,19mm)$)
   {\textbf{the commit line}};
 
 % ─── Labels placed ABOVE their regions, clear of the boxes (collision fix) ──
-\node[note,text=hhcinnabar,anchor=south] at ([yshift=16mm]pk.north)
+\node[note,text=hhink,anchor=south] at ([yshift=16mm]pk.north)
   {\textbf{regimented:}\\ pre-commit, truly unreachable};
-\node[note,text=hhpatina,anchor=south,text width=50mm] at ([yshift=16mm]log.north)
+\node[note,text=hhink,anchor=south,text width=50mm] at ([yshift=16mm]log.north)
   {\textbf{enforced:}\\ post-commit, detected \& compensated within a bounded window};
 
 % ─── The three reference-monitor properties (Anderson/Lampson) ─────────────
-\node[draw=hhbrass,thick,fill=hhpaper,rounded corners=2pt,inner sep=5pt,
-      text width=150mm,align=left,font=\sffamily\footnotesize,below=22mm of arb,xshift=18mm] (props)
-  {{\bfseries\sffamily Reference-monitor properties (Anderson 1972 / Lampson):}\quad
+\node[draw=hhink,thick,fill=hhpaper,rounded corners=2pt,inner sep=5pt,
+      text width=150mm,align=left,font=\footnotesize,below=22mm of arb,xshift=18mm] (props)
+  {{\bfseries Reference-monitor properties (Anderson 1972 / Lampson):}\quad
    (1)~\emph{always invoked} (complete mediation) --- \textbf{satisfied for the
    uniqueness/boot gate} by the single SQLite file lock; \textbf{not} satisfied by the
    policy monitor, which runs after commit.\quad (2)~\emph{tamper-evident} --- a

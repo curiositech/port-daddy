@@ -16,19 +16,19 @@
 \centering
 \resizebox{0.95\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\small,
-  st/.style={draw=hhebony,thick,rounded corners=10pt,fill=hhsand!40,
-             minimum width=28mm,minimum height=12mm,align=center,font=\sffamily\bfseries\footnotesize},
+  font=\small,
+  st/.style={draw=hhebony,thick,rounded corners=10pt,fill=hhsand!30,
+             minimum width=28mm,minimum height=12mm,align=center,font=\bfseries\footnotesize},
   held/.style={draw=hhcinnabar,line width=1.4pt,fill=hhpaper,rounded corners=10pt,
-               minimum width=32mm,minimum height=14mm,align=center,font=\sffamily\bfseries\footnotesize},
-  edge/.style={->,>=Latex,thick,hhebony,font=\sffamily\scriptsize},
-  selfedge/.style={->,>=Latex,thick,hhpatina,font=\sffamily\scriptsize},
+               minimum width=32mm,minimum height=14mm,align=center,font=\bfseries\footnotesize},
+  edge/.style={->,>=Latex,thick,hhebony,font=\scriptsize},
+  selfedge/.style={->,>=Latex,thick,hhpatina,font=\scriptsize},
 ]
 
 % Wider horizontal spacing so transition labels never stack.
 \node[st] (free) at (0,0) {FREE};
 \node[held] (held) at (74mm,0) {HELD by $a$};
-\node[st,fill=hhsanddeep!45] (expired) at (148mm,0) {EXPIRED\\ (TTL passed)};
+\node[st,fill=hhsand!30] (expired) at (148mm,0) {EXPIRED\\ (TTL passed)};
 
 % acquire (atomic, exclusive) — label sits high above the upper arc
 \draw[edge] (free) to[bend left=22]
@@ -36,12 +36,12 @@
 
 % re-claim self-loop ABOVE held, with generous clearance and a high label
 \draw[selfedge] (held.north) to[out=115,in=65,looseness=7] (held.north);
-\node[align=center,font=\sffamily\scriptsize,above=11mm of held]
+\node[align=center,font=\scriptsize,above=11mm of held]
   {\textbf{re-claim} by $a$ (I3): idempotent, refresh last-seen};
 
 % concurrent-loser self-loop BELOW free, label clearly below
 \draw[selfedge,hhcinnabar] (free.south) to[out=-115,in=-65,looseness=7] (free.south);
-\node[align=center,font=\sffamily\scriptsize,text=hhcinnabar,below=10mm of free,text width=42mm]
+\node[align=center,font=\scriptsize,text=hhink,below=10mm of free,text width=42mm]
   {concurrent acquire $\to$ constraint violation; loser is handed the holder};
 
 % release (idempotent) — lower arc between FREE and HELD, label below it
@@ -53,12 +53,12 @@
 
 % lazy sweep back to FREE — long low arc well beneath the row
 \draw[edge,hhpatina] (expired) to[out=-90,in=-90,looseness=0.55]
-  node[pos=0.5,below=1pt,align=center,text=hhpatina]{\textbf{lazy sweep} on next read (I4): delete rows whose expiry has passed} (free);
+  node[pos=0.5,below=1pt,align=center,text=hhink]{\textbf{lazy sweep} on next read (I4): delete rows whose expiry has passed} (free);
 
 % OP-1 callout, set to the right so it never overlaps the FSM
-\node[draw=hhbrass,thick,fill=hhpaper,rounded corners=2pt,inner sep=4pt,
-      text width=72mm,align=left,font=\sffamily\scriptsize,below=30mm of held]
-  {{\bfseries\sffamily $\bigstar$ OP-1 (open problem):} there is \emph{no} wait-list and
+\node[draw=hhink,thick,fill=hhpaper,rounded corners=2pt,inner sep=4pt,
+      text width=72mm,align=left,font=\scriptsize,below=30mm of held]
+  {{\bfseries $\bigstar$ OP-1 (open problem):} there is \emph{no} wait-list and
    \emph{no} fairness. A fast agent that churns a hot file can starve a slow one
    indefinitely. The machine has no \textsc{queued} state; adding bounded-wait without
    a scheduler is open.};

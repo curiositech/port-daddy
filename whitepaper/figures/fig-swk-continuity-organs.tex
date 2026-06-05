@@ -16,19 +16,19 @@
 \centering
 \resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\small,
+  font=\small,
   organ/.style={draw=hhebony,thick,rounded corners=3pt,minimum width=50mm,
                 minimum height=34mm,align=left,inner sep=6pt,text width=46mm,anchor=north},
   link/.style={->,>=Latex,line width=1.4pt},
 ]
-\newcommand{\lbl}{\sffamily\bfseries\footnotesize}
+\newcommand{\lbl}{\bfseries\footnotesize}
 
-\node[organ,fill=hhpatina!16] (mem) at (0,0)
+\node[organ,fill=hhsand!30] (mem) at (0,0)
   {{\lbl 1.\ Memory}\hfill{\footnotesize\color{hhpatina}\textsf{implemented}}\\[3pt]
    append-only session notes; episodic story-beats; the operation log.\\[3pt]
    {\itshape A monitor rule forbids amnesia --- an active session's note count never regresses.}};
 
-\node[organ,fill=hhcinnabar!10,right=8mm of mem] (chk)
+\node[organ,fill=hhsand!30,right=8mm of mem] (chk)
   {{\lbl 2.\ Checkpoint}\hfill{\footnotesize\color{hhcinnabar}\textsf{partial}}\\[3pt]
    recovery: heartbeat $\to$ stale/dead $\to$ queue $\to$ salvage handoff.\\[3pt]
    {\color{hhcinnabar}\itshape It \textbf{passes notes}; it does not checkpoint execution state. ``Teeth'' = OP-4, unbuilt.}};
@@ -42,13 +42,13 @@
 \draw[link,hhcinnabar] (chk.east) -- (ledger.west);
 
 % The weakest-link marker over checkpoint
-\node[font=\sffamily\bfseries\footnotesize,text=hhcinnabar,above=2mm of chk]
+\node[font=\bfseries\footnotesize,text=hhink,above=2mm of chk]
   {$\bigstar$ the weakest \emph{implemented} link};
 
 % The canonical sentence
-\node[draw=hhbrass,thick,fill=hhpaper,rounded corners=2pt,inner sep=6pt,
-      text width=168mm,align=left,font=\sffamily\footnotesize,below=8mm of chk.south]
-  {{\bfseries\sffamily The canonical sentence the rest of the volume depends on:}\quad
+\node[draw=hhink,thick,fill=hhpaper,rounded corners=2pt,inner sep=6pt,
+      text width=168mm,align=left,font=\footnotesize,below=8mm of chk.south]
+  {{\bfseries The canonical sentence the rest of the volume depends on:}\quad
    The economy rests on three continuity organs --- memory (\textsf{implemented}),
    checkpoint (\textsf{partial}: notes, not execution state), and a witnessed-outcome
    ledger (\textsf{specified}) --- and reputation keys on the third, which does not

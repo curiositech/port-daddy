@@ -16,12 +16,12 @@
 \centering
 \resizebox{0.95\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\small,
-  cli/.style={draw=hhebony,thick,rounded corners=2pt,fill=hhsand!40,
-              minimum width=28mm,minimum height=9mm,align=center,font=\sffamily\footnotesize},
+  font=\small,
+  cli/.style={draw=hhebony,thick,rounded corners=2pt,fill=hhsand!30,
+              minimum width=28mm,minimum height=9mm,align=center,font=\footnotesize},
   daemon/.style={draw=hhcinnabar,line width=1.4pt,fill=hhpaper,rounded corners=3pt,
-                 minimum width=40mm,minimum height=20mm,align=center,font=\sffamily\bfseries},
-  db/.style={draw=hhebony,thick,fill=hhsanddeep!50,cylinder,shape border rotate=90,
+                 minimum width=40mm,minimum height=20mm,align=center,font=\bfseries},
+  db/.style={draw=hhebony,thick,fill=hhsand!30,cylinder,shape border rotate=90,
              aspect=0.3,minimum width=30mm,minimum height=18mm,align=center},
 ]
 
@@ -43,13 +43,13 @@
 % ─── The single file, with a WIDE gap so the label clears the cylinder ──────
 \node[db] (file) at (120mm,0) {one SQLite\\ file (WAL)};
 \draw[<->,>=Latex,line width=1.2pt,hhcinnabar] (d.east) -- (file.west);
-\node[below=2.5mm,font=\sffamily\footnotesize,text=hhcinnabar,align=center]
+\node[below=2.5mm,font=\footnotesize,text=hhink,align=center]
   at ($(d.east)!0.5!(file.west)$){serialized by the\\ file lock + a busy-wait};
 
 % ─── The annotation: one decider, no consensus ────────────────────────────
-\node[draw=hhpatina,thick,fill=hhpatina!10,rounded corners=2pt,inner sep=5pt,
-      text width=152mm,align=left,font=\sffamily\footnotesize,below=14mm of d,xshift=30mm]
-  {{\bfseries\sffamily One decider $\Rightarrow$ no agreement to reach.}\quad
+\node[draw=hhink,thick,fill=hhsand!30,rounded corners=2pt,inner sep=5pt,
+      text width=152mm,align=left,font=\footnotesize,below=14mm of d,xshift=30mm]
+  {{\bfseries One decider $\Rightarrow$ no agreement to reach.}\quad
    The swarm \emph{looks} like it wants consensus (many agents, contention, failover).
    The kernel refuses to manufacture that problem: it collapses every mutation onto a
    single writer over a single file. There is nothing to agree on, so the consensus
@@ -60,7 +60,7 @@
    the sole observer: an agent partitioned from the daemon, and across machines.};
 
 % ─── The boundary marker ──────────────────────────────────────────────────
-\node[font=\sffamily\footnotesize\itshape,text=hhcinnabar,align=center,above=3mm of d]
+\node[font=\footnotesize\itshape,text=hhink,align=center,above=3mm of d]
   {The instant a \emph{second} daemon shares this file, the assumption breaks --- and you are in the cross-machine regime.};
 
 \end{tikzpicture}%

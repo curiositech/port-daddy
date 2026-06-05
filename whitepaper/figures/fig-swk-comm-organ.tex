@@ -16,26 +16,26 @@
 \centering
 \resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\small,
+  font=\small,
   box/.style={draw=hhebony,thick,rounded corners=2pt,fill=hhpaper,inner sep=4pt,align=left},
-  built/.style={draw=hhpatina,line width=1.2pt},
+  built/.style={draw=hhink,line width=1.2pt},
   designed/.style={draw=hhcinnabar,line width=1.2pt,dash pattern=on 3pt off 2pt},
 ]
 
 % ─── The nested envelope: bus envelope wraps the typed speech act ──────────
-\node[box,built,fill=hhsanddeep!30,text width=82mm,minimum height=46mm,anchor=north west] (l0env) at (0,0)
-  {{\bfseries\sffamily The bus envelope}\hfill{\footnotesize\textsf{implemented}}\\[2pt]
+\node[box,built,fill=hhsand!30,text width=82mm,minimum height=46mm,anchor=north west] (l0env) at (0,0)
+  {{\bfseries The bus envelope}\hfill{\footnotesize\textsf{implemented}}\\[2pt]
    a version tag, a kind, a body, an in-reply-to pointer\\
    $\cdot$ durable, ordered, at-least-once\\
    $\cdot$ channel publish/subscribe + history cursor\\
    $\cdot$ per-message time-to-live};
 \node[box,designed,fill=hhpaper,text width=72mm,anchor=north west] (l1perf) at (5mm,-18mm)
-  {{\bfseries\sffamily Typed speech act (rides \emph{inside})}\hfill{\footnotesize\textsf{specified}}\\[2pt]
+  {{\bfseries Typed speech act (rides \emph{inside})}\hfill{\footnotesize\textsf{specified}}\\[2pt]
    a performative, a conversation id,\\ a coordination lineage, a reply deadline};
 
 % ─── Stigmergic-marker decay panel ────────────────────────────────────────
 \node[box,built,fill=hhsand!30,text width=66mm,minimum height=46mm,anchor=north west] (pher) at (94mm,0)
-  {{\bfseries\sffamily Stigmergic markers}\hfill{\footnotesize\textsf{implemented}}\\[3pt]
+  {{\bfseries Stigmergic markers}\hfill{\footnotesize\textsf{implemented}}\\[3pt]
    numeric coordination signals in shared state.\\[3pt]
    \textbf{Per-kind exponential decay} $w \cdot r^{\,\Delta t}$\\
    $\cdot$ background evaporation tick\\
@@ -44,20 +44,20 @@
    {\itshape The structural defense against blackboard-rot --- decay is provided, not bolted on.}};
 
 % ─── The two delegation objects (nomenclature fix) ────────────────────────
-\node[box,built,fill=hhpatina!12,text width=78mm,anchor=north west] (authchain) at (0,-52mm)
-  {{\bfseries\sffamily Authorization chain}\hfill{\footnotesize\textsf{implemented}, mechanically verified}\\[2pt]
+\node[box,built,fill=hhsand!30,text width=78mm,anchor=north west] (authchain) at (0,-52mm)
+  {{\bfseries Authorization chain}\hfill{\footnotesize\textsf{implemented}, mechanically verified}\\[2pt]
    a hop-bound, attenuation-monotonic, anti-replay/anti-splice chain of digital
    signatures. \emph{Proves who authorized whom.}};
 \node[box,designed,fill=hhpaper,text width=78mm,anchor=north west] (deltrace) at (84mm,-52mm)
-  {{\bfseries\sffamily Coordination lineage}\hfill{\footnotesize\textsf{specified}}\\[2pt]
+  {{\bfseries Coordination lineage}\hfill{\footnotesize\textsf{specified}}\\[2pt]
    the task-lineage over which loop-detection \& upward-block run.
    \emph{Prevents ping-pong.} A \emph{different object} than the cryptographic chain.};
 
 \draw[->,>=Latex,thick,hhink] (deltrace.north) to[bend right=14]
-  node[above,font=\sffamily\scriptsize,align=center]{carried \emph{inside}}
+  node[above,font=\scriptsize,align=center]{carried \emph{inside}}
   (authchain.north east);
 
-\node[font=\sffamily\scriptsize\itshape,text=hhcinnabar,align=center,below=2mm of authchain.south east,xshift=20mm]
+\node[font=\scriptsize\itshape,text=hhink,align=center,below=2mm of authchain.south east,xshift=20mm]
   {Never write bare ``delegation chain'' --- it is two objects.};
 
 \end{tikzpicture}%

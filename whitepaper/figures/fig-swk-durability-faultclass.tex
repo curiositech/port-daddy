@@ -16,44 +16,44 @@
 \centering
 \resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\small,
+  font=\small,
   tier/.style={draw=hhebony,thick,rounded corners=2pt,minimum width=30mm,
-               minimum height=12mm,align=center,font=\sffamily\bfseries\footnotesize},
+               minimum height=12mm,align=center,font=\bfseries\footnotesize},
   fault/.style={draw=hhebony,thick,rounded corners=2pt,fill=hhpaper,
                 minimum width=34mm,minimum height=13mm,align=center,
-                font=\sffamily\footnotesize},
+                font=\footnotesize},
 ]
 
 % ─── The write's journey, with WIDE gaps so arrow labels never touch boxes ──
-\node[tier,fill=hhsand!50] (app) at (0,0) {commit\\ returns SUCCESS};
-\node[tier,fill=hhsanddeep!45,right=26mm of app] (oscache) {OS page\\ cache};
-\node[tier,fill=hhsanddeep!45,right=30mm of oscache] (waldisk) {WAL file\\ (synced at\\ checkpoint)};
-\node[tier,fill=hhpatina!22,right=26mm of waldisk] (maindb) {main DB\\ (checkpointed)};
+\node[tier,fill=hhsand!30] (app) at (0,0) {commit\\ returns SUCCESS};
+\node[tier,fill=hhsand!30,right=26mm of app] (oscache) {OS page\\ cache};
+\node[tier,fill=hhsand!30,right=30mm of oscache] (waldisk) {WAL file\\ (synced at\\ checkpoint)};
+\node[tier,fill=hhsand!30,right=26mm of waldisk] (maindb) {main DB\\ (checkpointed)};
 
 \draw[->,>=Latex,thick,hhebony] (app) -- (oscache);
 % labels lifted above the arrows
 \draw[->,>=Latex,thick,hhebony] (oscache) -- (waldisk);
-\node[font=\sffamily\scriptsize,above=2.5mm] at ($(oscache.east)!0.5!(waldisk.west)$){not synced per commit};
+\node[font=\scriptsize,above=2.5mm] at ($(oscache.east)!0.5!(waldisk.west)$){not synced per commit};
 \draw[->,>=Latex,thick,hhebony] (waldisk) -- (maindb);
-\node[font=\sffamily\scriptsize,above=2.5mm] at ($(waldisk.east)!0.5!(maindb.west)$){at the checkpoint interval};
+\node[font=\scriptsize,above=2.5mm] at ($(waldisk.east)!0.5!(maindb.west)$){at the checkpoint interval};
 
 % ─── I1a survives process crash ───────────────────────────────────────────
-\node[fault,fill=hhpatina!18,below=16mm of oscache] (i1a)
+\node[fault,fill=hhsand!30,below=16mm of oscache] (i1a)
   {\textbf{I1a --- process crash}\\ a forced kill of the daemon\\
    {\color{hhpatina}\textbf{SURVIVES}}\\ {\scriptsize OS buffer persists}\\ {\scriptsize\textsf{implemented}}};
 \draw[->,>=Latex,thick,hhpatina] (oscache.south) -- (i1a.north);
 
 % ─── I1b NOT guaranteed against OS crash / power loss ──────────────────────
-\node[fault,fill=hhcinnabar!12,below=16mm of waldisk] (i1b)
+\node[fault,fill=hhsand!30,below=16mm of waldisk] (i1b)
   {\textbf{I1b --- OS crash / power loss}\\ before checkpoint\\
    {\color{hhcinnabar}\textbf{NOT GUARANTEED}}\\ {\scriptsize last commits may roll back}\\
    {\scriptsize\textsf{not guaranteed under normal sync}}};
 \draw[->,>=Latex,thick,hhcinnabar] (waldisk.south) -- (i1b.north);
 
 % ─── The remedy ───────────────────────────────────────────────────────────
-\node[draw=hhbrass,thick,fill=hhpaper,rounded corners=2pt,inner sep=5pt,
-      text width=150mm,align=left,font=\sffamily\footnotesize,below=12mm of i1a,xshift=34mm] (fix)
-  {{\bfseries\sffamily The trade made, stated honestly:}\quad
+\node[draw=hhink,thick,fill=hhpaper,rounded corners=2pt,inner sep=5pt,
+      text width=150mm,align=left,font=\footnotesize,below=12mm of i1a,xshift=34mm] (fix)
+  {{\bfseries The trade made, stated honestly:}\quad
    normal synchronization syncs the WAL only at checkpoints, buying throughput at the
    cost of \emph{power-loss} durability. The seductive belief that ``normal sync is
    safe in WAL mode'' conflates crash-\emph{consistency} (the database is never
@@ -62,7 +62,7 @@
    path; the kernel does not pay that cost by default, and the prose must not imply it
    does.};
 
-\node[font=\sffamily\footnotesize\itshape,text=hhink,align=center,above=3mm of app,xshift=48mm]
+\node[font=\footnotesize\itshape,text=hhink,align=center,above=3mm of app,xshift=48mm]
   {Gray \& Reuter (1992): atomicity/consistency $\neq$ durability --- the ``D'' in ACID is a separate promise.};
 
 \end{tikzpicture}%

@@ -25,9 +25,6 @@
 % ─── Colors ──────────────────────────────────────────────────────────────────
 \definecolor{codebg}{RGB}{248,248,248}
 \definecolor{codeframe}{RGB}{200,200,200}
-\definecolor{darkgreen}{RGB}{0,100,0}
-\definecolor{darkblue}{RGB}{0,50,100}
-\definecolor{accent}{RGB}{0,128,128}
 \definecolor{hhsand}{HTML}{E9DCC4}
 \definecolor{hhsanddeep}{HTML}{D4C5A9}
 \definecolor{hhebony}{HTML}{1E1B18}
@@ -36,6 +33,7 @@
 \definecolor{hhbrass}{HTML}{B08D57}
 \definecolor{hhpatina}{HTML}{5C7A6A}
 \definecolor{hhpaper}{HTML}{FBF7EE}
+\definecolor{hhgray}{HTML}{6B6B6B}
 
 % Research-maturity scale: a neutral four-point grade for how far each claim sits
 % from a verified, running artifact. Used inline in prose and tables.
@@ -44,61 +42,63 @@
 %                 or detects rather than prevents
 %   specified   : a concrete design exists, but no running artifact realizes it
 %   proposed    : named as a direction, with no design yet
-\newcommand{\Built}{{\textcolor{hhpatina}{\textbf{\textsf{implemented}}}}}
-\newcommand{\BuiltWeak}{{\textcolor{hhbrass}{\textbf{\textsf{partial}}}}}
-\newcommand{\Designed}{{\textcolor{darkblue}{\textbf{\textsf{specified}}}}}
-\newcommand{\Vision}{{\textcolor{hhcinnabar}{\textbf{\textsf{proposed}}}}}
-\newcommand{\NotGuar}{{\textcolor{hhcinnabar}{\textbf{\textsf{not guaranteed}}}}}
+% Muted ink throughout; the four grades differ by WEIGHT and SMALL-CAPS /
+% italic, never by hue (house style: status by weight/small-caps, not a rainbow).
+\newcommand{\Built}{{\textcolor{hhink}{\textsc{\textbf{implemented}}}}}
+\newcommand{\BuiltWeak}{{\textcolor{hhink}{\textsc{partial}}}}
+\newcommand{\Designed}{{\textcolor{hhgray}{\textsc{specified}}}}
+\newcommand{\Vision}{{\textcolor{hhgray}{\textit{proposed}}}}
+\newcommand{\NotGuar}{{\textcolor{hhink}{\textit{not guaranteed}}}}
 
 % Verification-status markers for status tables.
-\newcommand{\Closed}{{\textcolor{hhpatina}{\textbf{\textsf{closed}}}}}
-\newcommand{\Partial}{{\textcolor{hhbrass}{\textbf{\textsf{partial}}}}}
-\newcommand{\Open}{{\textcolor{hhcinnabar}{\textbf{\textsf{open}}}}}
+\newcommand{\Closed}{{\textcolor{hhink}{\textsc{\textbf{closed}}}}}
+\newcommand{\Partial}{{\textcolor{hhink}{\textsc{partial}}}}
+\newcommand{\Open}{{\textcolor{hhgray}{\textit{open}}}}
 
 % Pull-quote sidebar: large quote, left-edge accent stripe.
 \newcommand{\pullquote}[1]{%
   \par\vspace{6pt}%
   \noindent\begin{tikzpicture}
-    \node[draw=none,fill=hhsand!40,line width=0pt,
+    \node[draw=none,fill=hhsand!22,line width=0pt,
           inner sep=10pt,text width=\dimexpr\textwidth-30pt\relax,
           align=left] (q) {%
-      \sffamily\itshape\large #1%
+      \itshape\large #1%
     };
     \draw[hhcinnabar,line width=2.5pt] (q.north west) -- (q.south west);
   \end{tikzpicture}\par\vspace{6pt}%
 }
 
-% Teaching callouts: \keyidea{} (patina, the load-bearing intuition) and
-% \pitfall{} (cinnabar, the over-claim / trap to avoid). New to the preamble,
-% per the pedagogic spec (ADR-0048 §9).
+% Teaching callouts (pedagogic spec, ADR-0048 §9). Quiet: thin left rule +
+% subtle sand fill, small-caps muted-ink label. Pitfall accents its LABEL only.
 \newcommand{\keyidea}[1]{%
   \par\vspace{5pt}%
   \noindent\begin{tikzpicture}
-    \node[draw=hhpatina,line width=1pt,fill=hhpatina!10,rounded corners=2pt,
+    \node[draw=none,fill=hhsand!18,rounded corners=2pt,
           inner sep=8pt,text width=\dimexpr\textwidth-24pt\relax,align=left] (k) {%
-      \small{\sffamily\bfseries\textcolor{hhpatina}{Key idea.}}\enspace #1%
+      \small{\scshape\bfseries\textcolor{hhgray}{Key idea.}}\enspace #1%
     };
+    \draw[hhgray!60,line width=1pt] (k.north west) -- (k.south west);
   \end{tikzpicture}\par\vspace{5pt}%
 }
 \newcommand{\pitfall}[1]{%
   \par\vspace{5pt}%
   \noindent\begin{tikzpicture}
-    \node[draw=hhcinnabar,line width=1pt,fill=hhcinnabar!7,rounded corners=2pt,
+    \node[draw=none,fill=hhsand!18,rounded corners=2pt,
           inner sep=8pt,text width=\dimexpr\textwidth-24pt\relax,align=left] (p) {%
-      \small{\sffamily\bfseries\textcolor{hhcinnabar}{Pitfall.}}\enspace #1%
+      \small{\scshape\bfseries\textcolor{hhcinnabar}{Pitfall.}}\enspace #1%
     };
+    \draw[hhgray!60,line width=1pt] (p.north west) -- (p.south west);
   \end{tikzpicture}\par\vspace{5pt}%
 }
 
-% Exercises block: a boxed list at the end of major sections.
+% Exercises block: a quiet boxed list at the end of major sections.
 \newcommand{\exercises}[1]{%
   \par\vspace{8pt}%
   \noindent\begin{tikzpicture}
-    \node[draw=hhebony,line width=0.8pt,fill=hhpaper,rounded corners=2pt,
+    \node[draw=hhgray!45,line width=0.4pt,fill=hhsand!12,rounded corners=2pt,
           inner sep=9pt,text width=\dimexpr\textwidth-26pt\relax,align=left] (e) {%
-      {\sffamily\bfseries Exercises.}\par\vspace{3pt}#1%
+      {\scshape\bfseries\textcolor{hhink}{Exercises.}}\par\vspace{3pt}#1%
     };
-    \draw[hhbrass,line width=2pt] (e.north west) -- (e.north east);
   \end{tikzpicture}\par\vspace{6pt}%
 }
 
@@ -109,9 +109,9 @@
   frame=single,
   rulecolor=\color{codeframe},
   basicstyle=\ttfamily\small,
-  keywordstyle=\color{darkblue}\bfseries,
-  commentstyle=\color{darkgreen}\itshape,
-  stringstyle=\color{accent},
+  keywordstyle=\color{hhink}\bfseries,
+  commentstyle=\color{hhgray}\itshape,
+  stringstyle=\color{hhgray},
   numbers=left,
   numberstyle=\tiny\color{gray},
   numbersep=8pt,
@@ -130,9 +130,9 @@
   frame=single,
   rulecolor=\color{codeframe},
   basicstyle=\ttfamily\small,
-  keywordstyle=\color{darkblue}\bfseries,
-  commentstyle=\color{darkgreen}\itshape,
-  stringstyle=\color{accent},
+  keywordstyle=\color{hhink}\bfseries,
+  commentstyle=\color{hhgray}\itshape,
+  stringstyle=\color{hhgray},
   numbers=left,
   numberstyle=\tiny\color{gray},
   numbersep=8pt,
@@ -158,9 +158,9 @@
 % ─── Header/Footer ───────────────────────────────────────────────────────────
 \pagestyle{fancy}
 \fancyhf{}
-\fancyhead[L]{\small\textit{The Single-Writer Kernel}}
-\fancyhead[R]{\small\thepage}
-\fancyfoot[C]{\small Harbor Volume --- The Single-Writer Kernel --- the substrate layer}
+\fancyhead[L]{\small\itshape\color{hhgray} The Single-Writer Kernel}
+\fancyhead[R]{\small\color{hhgray}\thepage}
+\fancyfoot[C]{\footnotesize\color{hhgray} The Harbor Volume \textperiodcentered\ The Single-Writer Kernel \textperiodcentered\ the substrate layer}
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0pt}
 
@@ -1018,8 +1018,8 @@ Figure~\ref{fig:swk-continuity-organs} names the three continuity organs and sta
 the canonical sentence the rest of the volume depends on:
 
 \pullquote{The economy rests on three continuity organs --- memory
-(\textsf{implemented}), checkpoint (\textsf{partial}: notes, not execution state),
-and a witnessed-outcome ledger (\textsf{specified}) --- and reputation keys on the
+(\textsc{implemented}), checkpoint (\textsc{partial}: notes, not execution state),
+and a witnessed-outcome ledger (\textsc{specified}) --- and reputation keys on the
 third, which does not yet exist; the checkpoint organ is the weakest
 \emph{implemented} link, and a checkpoint with teeth (a real execution-state
 snapshot) is the literal foundation of the cross-machine economy.}

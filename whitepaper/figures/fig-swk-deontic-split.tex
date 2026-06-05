@@ -17,12 +17,12 @@
 \centering
 \resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\small,
+  font=\small,
   col/.style={draw=hhebony,thick,rounded corners=3pt,fill=hhpaper,
               minimum width=54mm,minimum height=58mm,align=left,
               inner sep=6pt,text width=50mm,anchor=north},
 ]
-\newcommand{\hdr}{\sffamily\bfseries}
+\newcommand{\hdr}{\bfseries}
 
 % ─── Prohibition ──────────────────────────────────────────────────────────
 \node[col,fill=hhsand!30] (prohib) at (0,0)
@@ -36,7 +36,7 @@
    \emph{The policy monitor, a log subscriber.}};
 
 % ─── Obligation ───────────────────────────────────────────────────────────
-\node[col,fill=hhsanddeep!35,right=5mm of prohib] (oblig)
+\node[col,fill=hhsand!30,right=5mm of prohib] (oblig)
   {{\hdr Obligation}\\ \textit{``you ought''}\\[4pt]
    \textbf{Enforced} by durable, \emph{violable} commitments
    (Cohen \& Levesque persistent goals):\\[4pt]
@@ -47,7 +47,7 @@
    State machine: open $\to$ done $\mid$ abandoned $\mid$ superseded.};
 
 % ─── Permission ───────────────────────────────────────────────────────────
-\node[col,fill=hhpatina!18,right=5mm of oblig] (perm)
+\node[col,fill=hhsand!30,right=5mm of oblig] (perm)
   {{\hdr Permission}\\ \textit{``you may''}\\[4pt]
    A recorded \textbf{capability} attached to an actor.\\[5pt]
    {\color{hhcinnabar}\textbf{The split that must not collapse:}}\\[3pt]
@@ -57,9 +57,9 @@
    that \emph{exists} (capable) but \emph{must not be used} (forbidden).};
 
 % ─── The unifying caption strip ───────────────────────────────────────────
-\node[draw=hhbrass,thick,fill=hhpaper,rounded corners=2pt,inner sep=5pt,
-      text width=168mm,align=center,font=\sffamily\footnotesize,below=5mm of oblig.south,xshift=0mm]
-  {\textbf{\sffamily The deontic split of the kernel (Jones \& Sergot 1993):}\quad
+\node[draw=hhink,thick,fill=hhpaper,rounded corners=2pt,inner sep=5pt,
+      text width=168mm,align=center,font=\footnotesize,below=5mm of oblig.south,xshift=0mm]
+  {\textbf{ The deontic split of the kernel (Jones \& Sergot 1993):}\quad
    \emph{prohibition} is regimented \emph{or} detected; \emph{obligation} is enforced
    by oracle-bound commitments; \emph{permission} is a recorded capability ---
    and the coordination layer's deontic binding is a direct lift of this split.};

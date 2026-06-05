@@ -16,41 +16,41 @@
 \centering
 \resizebox{0.95\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\small,
-  api/.style={draw=hhebony,thick,rounded corners=3pt,fill=hhsand!45,
-              minimum width=60mm,minimum height=12mm,align=center,font=\sffamily\bfseries},
+  font=\small,
+  api/.style={draw=hhebony,thick,rounded corners=3pt,fill=hhsand!30,
+              minimum width=60mm,minimum height=12mm,align=center,font=\bfseries},
   rt/.style={draw=hhebony,thick,rounded corners=2pt,minimum width=52mm,
-             minimum height=18mm,align=center,font=\sffamily\footnotesize},
+             minimum height=18mm,align=center,font=\footnotesize},
 ]
 
 \node[api] (iface) at (0,0) {one database interface\\ {\footnotesize\normalfont (a single abstraction over the bindings)}};
 
-\node[rt,fill=hhpatina!16,below left=14mm and -4mm of iface] (test)
-  {{\bfseries\sffamily test runtime}\\ test-suite SQLite bindings\\ {\footnotesize unit tests, development}\\ {\color{hhpatina}truth is \emph{verified} here}};
-\node[rt,fill=hhcinnabar!12,below right=14mm and -4mm of iface] (prod)
-  {{\bfseries\sffamily deployment runtime}\\ deployment SQLite bindings\\ {\footnotesize the compiled single-binary daemon}\\ {\color{hhcinnabar}truth is \emph{computed} here}};
+\node[rt,fill=hhsand!30,below left=14mm and -4mm of iface] (test)
+  {{\bfseries test runtime}\\ test-suite SQLite bindings\\ {\footnotesize unit tests, development}\\ {\color{hhpatina}truth is \emph{verified} here}};
+\node[rt,fill=hhsand!30,below right=14mm and -4mm of iface] (prod)
+  {{\bfseries deployment runtime}\\ deployment SQLite bindings\\ {\footnotesize the compiled single-binary daemon}\\ {\color{hhcinnabar}truth is \emph{computed} here}};
 
 \draw[->,>=Latex,thick,hhpatina] (iface.south) -- (test.north);
 \draw[->,>=Latex,thick,hhcinnabar] (iface.south) -- (prod.north);
 
 % The shim
-\node[draw=hhbrass,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
-      font=\sffamily\scriptsize,align=center,below=8mm of iface]
+\node[draw=hhink,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
+      font=\scriptsize,align=center,below=8mm of iface]
   (shim) {a runtime-shim layer\\ normalizes pragma/option differences};
 
 % The hazard
 \node[draw=hhcinnabar,line width=1.2pt,fill=hhpaper,rounded corners=2pt,inner sep=5pt,
-      text width=70mm,align=left,font=\sffamily\scriptsize,below=10mm of test]
-  {{\bfseries\sffamily The soundness hazard (I11):}\quad an invariant proved under the
+      text width=70mm,align=left,font=\scriptsize,below=10mm of test]
+  {{\bfseries The soundness hazard (I11):}\quad an invariant proved under the
    test bindings can \emph{fail} under the deployment bindings if the two differ in
    lock or pragma semantics. This is the recurring ``green in the test runtime,
    broken in deployment'' bug class. A CI pipeline must \emph{boot the deployment
    runtime} and exercise its endpoints, not merely build it.};
 
 % OP-3
-\node[draw=hhpatina,thick,fill=hhpatina!8,rounded corners=2pt,inner sep=5pt,
-      text width=70mm,align=left,font=\sffamily\scriptsize,below=10mm of prod]
-  {{\bfseries\sffamily $\bigstar$ OP-3:}\quad can we \emph{prove} (not just test) the two paths
+\node[draw=hhink,thick,fill=hhsand!30,rounded corners=2pt,inner sep=5pt,
+      text width=70mm,align=left,font=\scriptsize,below=10mm of prod]
+  {{\bfseries $\bigstar$ OP-3:}\quad can we \emph{prove} (not just test) the two paths
    observationally equivalent for the invariant set? The minimal discharge is a
    differential-test harness running identical operation sequences against both
    runtimes and asserting identical observable state --- turning I11 from a hope
