@@ -96,6 +96,10 @@ export interface SpawnSpec {
   harborName?: string; // optional override for bond-admission harbor
   files?: string[];    // for aider backend
   workdir?: string;
+  // Opt-in for agents that MUST run in a repo's main checkout (working-tree
+  // observers like the gardener, or genuinely read-only agents). When unset,
+  // the spawner refuses to launch into a main checkout — see assessSpawnIsolation.
+  allowSharedCheckout?: boolean;
   env?: Record<string, string>;
   timeout?: number;    // ms, default 300000
   allowedTools?: string;  // for claude-cli backend: tool permission string
@@ -756,6 +760,71 @@ const DEFAULT_MODELS: Record<SpawnSpec['backend'], string> = {
 void DEFAULT_OPENAI_TIMEOUT_MS;
 
 // =============================================================================
+// Worktree isolation guard (layer 2)
+// =============================================================================
+//
+// Parallel agents launched into the SAME repository main checkout overwrite
+// each other's files. On 2026-06-03 this deleted 403 files in the port-daddy
+// working tree. A git WORKTREE has `.git` as a FILE (a gitdir pointer); a main
+// checkout has `.git` as a DIRECTORY. That is the deterministic signal — we
+// never shell out to git. The harness PreToolUse hook is the layer-1 twin.
+
+const SPAWN_ISOLATION_BYPASS_ENV = 'PD_SPAWN_ISOLATION_OFF';
+
+/**
+ * Walk up from `startDir` to classify the nearest git checkout:
+ *  - 'main'     : `.git` is a directory  (a primary checkout — collision risk)
+ *  - 'worktree' : `.git` is a file        (a `git worktree add` checkout — safe)
+ *  - 'none'     : no `.git` ancestor      (not a repo — nothing to steamroll)
+ */
+export function detectGitCheckout(startDir: string): 'main' | 'worktree' | 'none' {
+  let dir = resolve(startDir);
+  for (;;) {
+    const gitPath = join(dir, '.git');
+    if (existsSync(gitPath)) {
+      try {
+        return statSync(gitPath).isDirectory() ? 'main' : 'worktree';
+      } catch {
+        return 'none';
+      }
+    }
+    const parent = dirname(dir);
+    if (parent === dir) return 'none';
+    dir = parent;
+  }
+}
+
+/**
+ * Decide whether a spawn must be refused for lack of worktree isolation.
+ * Pure and deterministic so it is fully unit-testable.
+ *
+ * Allowed without isolation: an explicit `allowSharedCheckout` opt-in (for
+ * working-tree observers like the gardener) or the operator escape hatch
+ * `PD_SPAWN_ISOLATION_OFF=1`. The escape hatch is intentionally NOT named in
+ * the reason string — a refusal must point only to the correct action
+ * (isolate in a worktree), never advertise its own bypass.
+ */
+export function assessSpawnIsolation(
+  spec: { workdir?: string; allowSharedCheckout?: boolean },
+  env: Record<string, string | undefined> = process.env,
+): { blocked: boolean; reason: string | null } {
+  if (spec.allowSharedCheckout === true) return { blocked: false, reason: null };
+  if (env[SPAWN_ISOLATION_BYPASS_ENV] === '1') return { blocked: false, reason: null };
+
+  const workdir = spec.workdir ? resolve(spec.workdir) : process.cwd();
+  if (detectGitCheckout(workdir) !== 'main') return { blocked: false, reason: null };
+
+  return {
+    blocked: true,
+    reason:
+      `Spawn blocked: workdir is a repository main checkout (${workdir}). ` +
+      `Parallel agents sharing one checkout overwrite each other's files — this ` +
+      `deleted 403 files on 2026-06-03. Run this agent in a dedicated git worktree ` +
+      `and point workdir at it: git worktree add ~/coding/tmp/<name> -b <branch>.`,
+  };
+}
+
+// =============================================================================
 // Module factory
 // =============================================================================
 
@@ -941,6 +1010,14 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     if (running >= MAX_CONCURRENT_RUNNING) {
       counters?.bump('spawn.blocked', dims);
       return blockedResult(`Spawn blocked: ${running} agents already running (limit: ${MAX_CONCURRENT_RUNNING}). Wait for one to finish.`);
+    }
+
+    // Worktree isolation (layer 2): never launch a file-writing agent into a
+    // repository main checkout — parallel agents there steamroll each other.
+    const isolation = assessSpawnIsolation(spec);
+    if (isolation.blocked) {
+      counters?.bump('spawn.blocked', dims);
+      return blockedResult(isolation.reason as string);
     }
 
     if (!enforceTelemetryPolicy) {
