@@ -1,0 +1,834 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Port Daddy — The Comms Ecology (motif study)</title>
+<!--
+  THE COMMS ECOLOGY — a living ecosystem of agent signals.
+  A motif study, NOT the locked design system. Canon tokens from operator-tui-v9.html.
+
+  The communication grammar, rendered as biology:
+    · agents   = FIREFLIES   — breathing bioluminescent drift over their worktree
+    · notes    = LEAVES      — detach from a note-card and flutter to the forest floor
+    · inbox    = LASERS       — a bright dash races agent→agent (the travel IS the signal)
+    · messages = SOUNDWAVES   — concentric ripples; ±35° cone for directed speech
+    · actions  = PHEROMONES   — soft expanding glow ring + persistent additive heat
+    · merges   = LIGHT-BURST  — ghost branch eases to main, pops, throws sparks
+
+  One <canvas> "biofield" over a DOM roster. DOM owns layout + hit-testing;
+  canvas owns the alive. Single rAF, dpr<=2, IntersectionObserver-paused,
+  reduced-motion never starts the loop. Sound default-off, opt-in, capped 0.18.
+-->
+<style>
+/* ── CANON TOKENS (subset, from operator-tui-v9.html / tokens.semantic.css) ── */
+:root, [data-theme='light']{
+  --surface-base:#f2eee6; --surface-raised:#f7f3eb; --surface-strong:#e9e2d5;
+  --surface-overlay:rgba(242,238,230,.97); --surface-sunken:#e0d9cb;
+  --text-primary:#121212; --text-secondary:#403b34; --text-muted:#47423a;
+  --brand-primary:#003fb8; --brand-primary-on-tint:#002d83;
+  --brand-accent:#004a42; --brand-accent-on-tint:#003d36;
+  --border-subtle:rgba(18,18,18,.16); --border-default:rgba(18,18,18,.42);
+  --status-success:#2d7a43; --status-warning:#a66f00; --status-error:#bf2f2f; --status-info:#0055ff;
+  --ph-hot:#a66f00; --ph-recent:#0055ff; --ph-cold:#6b6457; --ph-fail:#a51f1f;
+  --leaf-a:#5a7a3a; --leaf-b:#8a7a2a; --leaf-c:#a05a28;  /* note-leaf greens→browns */
+  --blend:multiply;
+}
+[data-theme='dark']{
+  --surface-base:#101216; --surface-raised:#181c22; --surface-strong:#222833;
+  --surface-overlay:rgba(16,18,22,.95); --surface-sunken:#0b0d11;
+  --text-primary:#f5f3ed; --text-secondary:#d3cec2; --text-muted:#b3ad9f;
+  --brand-primary:#7db4ff; --brand-primary-on-tint:#dbeaff;
+  --brand-accent:#8fd0a7; --brand-accent-on-tint:#bce8ca;
+  --border-subtle:rgba(245,243,237,.18); --border-default:rgba(245,243,237,.44);
+  --status-success:#66d28a; --status-warning:#f2be51; --status-error:#ff7d7d; --status-info:#7db4ff;
+  --ph-hot:#f2be51; --ph-recent:#7db4ff; --ph-cold:#8a8378; --ph-fail:#ff7d7d;
+  --leaf-a:#7fa455; --leaf-b:#c2a64a; --leaf-c:#d98a52;
+  --blend:screen;
+}
+:root{
+  --signal-kilo:var(--status-info);
+  --sp1:4px; --sp2:8px; --sp3:12px; --sp4:16px; --sp5:24px; --sp6:32px;
+  --bw:1px; --radius:6px; --radius-lg:12px;
+  --sans:'Geist',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'Geist Mono',ui-monospace,'SF Mono',Menlo,monospace;
+  --pixel:'Departure Mono','Geist Mono',ui-monospace,monospace;
+  --swoosh:cubic-bezier(.16,1,.3,1);
+  --snap:cubic-bezier(.34,1.56,.64,1);
+  --ease:cubic-bezier(.4,0,.2,1);
+  --float:cubic-bezier(.45,.05,.55,.95);
+  --dur-micro:140ms; --dur-quick:220ms; --dur-settle:340ms; --dur-flourish:480ms;
+}
+*{box-sizing:border-box;}
+html{font-size:16px;}
+body{margin:0; background:var(--surface-base); color:var(--text-primary);
+  font-family:var(--sans); font-size:.9375rem; line-height:1.5;
+  -webkit-font-smoothing:antialiased; overflow:hidden;}
+.mono{font-family:var(--mono); font-feature-settings:"tnum" 1,"zero" 1;}
+.eyebrow{font-family:var(--sans); font-size:.8125rem; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:var(--text-muted);}
+button{font:inherit; color:inherit; cursor:pointer; background:none; border:none;}
+:focus-visible{outline:2px solid var(--status-info); outline-offset:2px;}
+
+/* ── Shell ── */
+.app{position:fixed; inset:0; display:flex; flex-direction:column;}
+.mast{display:flex; align-items:center; gap:var(--sp4); padding:var(--sp3) var(--sp5);
+  border-bottom:var(--bw) solid var(--border-subtle); background:var(--surface-raised);
+  z-index:5; position:relative;}
+.mast .anchor{font-family:var(--pixel); color:var(--brand-primary); font-size:1.05rem;}
+.mast h1{font-size:1rem; font-weight:650; margin:0; letter-spacing:-.01em;}
+.mast .sub{color:var(--text-muted); font-size:.875rem;}
+.mast .spacer{flex:1;}
+.ctrl{display:flex; gap:var(--sp1); align-items:center;}
+.btn{border:var(--bw) solid var(--border-default); border-radius:var(--radius);
+  padding:6px 12px; font-size:.875rem; font-weight:550; color:var(--text-secondary);
+  background:var(--surface-base); transition:transform var(--dur-micro) var(--snap), background var(--dur-quick) var(--ease), border-color var(--dur-quick) var(--ease);}
+.btn:hover{transform:translateY(-2px); border-color:var(--brand-primary); color:var(--brand-primary);}
+.btn:active{transform:translateY(0) scale(.97);}
+.btn.on{background:var(--brand-primary); color:var(--surface-base); border-color:var(--brand-primary);}
+.btn .k{font-family:var(--pixel); font-size:.95em;}
+
+/* ── Stage: roster (DOM) + biofield (canvas) ── */
+.stage{flex:1; position:relative; min-height:0; overflow:hidden;}
+#biofield{position:absolute; inset:0; width:100%; height:100%;
+  pointer-events:none; mix-blend-mode:var(--blend); z-index:2;}
+.roster{position:absolute; inset:0; z-index:1; overflow:hidden;
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr));
+  grid-auto-rows:min-content; gap:var(--sp5);
+  padding:var(--sp6) var(--sp6) 120px; align-content:start;}
+
+/* Agent card = a worktree plot where a firefly lives */
+.agent{position:relative; border:var(--bw) solid var(--border-subtle);
+  border-radius:var(--radius-lg); background:var(--surface-raised);
+  padding:var(--sp4); min-height:152px; display:flex; flex-direction:column;
+  gap:var(--sp2); transition:transform var(--dur-quick) var(--snap), box-shadow var(--dur-quick) var(--ease), border-color var(--dur-quick) var(--ease);}
+.agent::before{content:""; position:absolute; inset:0; border-radius:var(--radius-lg);
+  box-shadow:inset 0 0 0 1px transparent; transition:box-shadow var(--dur-quick) var(--ease); pointer-events:none;}
+.agent:hover{transform:translateY(-3px); border-color:var(--brand-accent);
+  box-shadow:0 10px 30px -14px color-mix(in srgb,var(--brand-accent) 60%,transparent);}
+.agent.idle{opacity:.62;}
+/* every event also flips a DOM class so state is legible if frozen (reduced-motion) */
+.agent.flash-burst{border-color:var(--brand-primary);}
+.agent.flash-laser{box-shadow:0 0 0 2px var(--status-info) inset;}
+.agent .head{display:flex; align-items:center; gap:var(--sp2);}
+.agent .dot{width:11px; height:11px; border-radius:50%; flex:0 0 auto;
+  background:var(--c, var(--brand-accent)); box-shadow:0 0 0 3px color-mix(in srgb,var(--c, var(--brand-accent)) 22%,transparent);}
+.agent .name{font-family:var(--mono); font-weight:600; font-size:.9375rem; letter-spacing:-.01em;}
+.agent .wt{font-family:var(--mono); font-size:.8125rem; color:var(--text-muted); word-break:break-all;}
+.agent .task{font-size:.9375rem; color:var(--text-secondary); margin-top:2px; line-height:1.45;}
+.agent .meta{margin-top:auto; display:flex; gap:var(--sp3); flex-wrap:wrap; align-items:center;
+  font-size:.8125rem; color:var(--text-muted);}
+.agent .pill{display:inline-flex; align-items:center; gap:5px;
+  font-family:var(--mono); font-size:.8125rem;
+  padding:2px 8px; border-radius:99px; border:var(--bw) solid var(--border-subtle);}
+.agent .pill .pdot{width:7px; height:7px; border-radius:50%; background:var(--pc,var(--ph-recent));}
+.agent .anchor{position:absolute; opacity:0;} /* invisible — fireflies seek toward .head center */
+
+/* ── Forest floor: the notes gutter where leaves land ── */
+.floor{position:absolute; left:0; right:0; bottom:0; height:104px; z-index:3;
+  background:linear-gradient(0deg,
+    color-mix(in srgb,var(--surface-sunken) 92%,transparent) 0%,
+    color-mix(in srgb,var(--surface-sunken) 40%,transparent) 60%, transparent 100%);
+  border-top:var(--bw) solid var(--border-subtle);
+  display:flex; align-items:flex-end; gap:var(--sp3); padding:var(--sp3) var(--sp5);
+  overflow:hidden; pointer-events:none;}
+.floor .label{position:absolute; left:var(--sp5); top:8px; pointer-events:none;}
+.floor .pile{display:flex; align-items:flex-end; gap:6px; flex-wrap:wrap; max-width:100%;
+  pointer-events:auto; align-content:flex-end; max-height:74px; overflow:hidden;}
+.leaf-chip{font-family:var(--mono); font-size:.8125rem; color:var(--text-secondary);
+  background:var(--surface-raised); border:var(--bw) solid var(--border-subtle);
+  border-left:3px solid var(--lc,var(--leaf-a)); border-radius:4px;
+  padding:3px 9px; max-width:230px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  transform-origin:bottom center;}
+@media (prefers-reduced-motion:no-preference){
+  .leaf-chip{animation:leafLand 360ms var(--snap);}
+  @keyframes leafLand{0%{transform:translateY(-8px) scale(.86); opacity:0;}60%{transform:translateY(2px) scale(1.04);}100%{transform:translateY(0) scale(1); opacity:1;}}
+}
+
+/* ── Inspect HUD ── */
+.hud{position:absolute; top:0; right:0; bottom:0; width:min(420px, 86vw); z-index:6;
+  background:var(--surface-overlay); backdrop-filter:blur(18px) saturate(1.1);
+  border-left:var(--bw) solid var(--border-default);
+  transform:translateX(102%); transition:transform var(--dur-settle) var(--swoosh);
+  display:flex; flex-direction:column; padding:var(--sp5);}
+.hud.open{transform:translateX(0);}
+.hud .x{position:absolute; top:var(--sp4); right:var(--sp4); font-family:var(--pixel); font-size:1.2rem;}
+.hud h2{font-size:1.2rem; margin:0 0 2px; letter-spacing:-.01em;}
+.hud .hsub{font-family:var(--mono); font-size:.8125rem; color:var(--text-muted); margin-bottom:var(--sp4);}
+.hud .legendrow{display:flex; align-items:center; gap:var(--sp3); padding:var(--sp2) 0; border-bottom:var(--bw) dashed var(--border-subtle); font-size:.9375rem;}
+.hud .gly{flex:0 0 26px; height:26px; display:grid; place-items:center; font-family:var(--pixel); color:var(--gc); font-size:1.05rem;}
+.hud .ldesc b{color:var(--text-primary);} .hud .ldesc{color:var(--text-secondary);}
+.hud .ev{font-family:var(--mono); font-size:.8125rem; color:var(--text-muted); margin-top:var(--sp4); line-height:1.7; max-height:36vh; overflow:auto;}
+.hud .ev span{color:var(--brand-accent-on-tint, var(--brand-accent));}
+
+/* ── Conductor (event toolbar at base) ── */
+.conductor{position:absolute; left:50%; bottom:118px; transform:translateX(-50%); z-index:4;
+  display:flex; gap:var(--sp2); align-items:center;
+  background:var(--surface-overlay); backdrop-filter:blur(14px);
+  border:var(--bw) solid var(--border-subtle); border-radius:99px;
+  padding:7px 10px; box-shadow:0 14px 40px -18px rgba(0,0,0,.5);}
+.conductor .lab{font-size:.8125rem; color:var(--text-muted); padding:0 6px 0 4px; font-weight:600; letter-spacing:.02em;}
+.cbtn{border:var(--bw) solid transparent; border-radius:99px; padding:6px 12px;
+  font-size:.875rem; font-weight:600; color:var(--text-secondary);
+  display:inline-flex; align-items:center; gap:6px;
+  transition:transform var(--dur-micro) var(--snap), background var(--dur-quick) var(--ease), color var(--dur-quick) var(--ease);}
+.cbtn .sw{width:9px; height:9px; border-radius:50%; background:var(--sw,var(--brand-accent));}
+.cbtn:hover{transform:translateY(-2px); background:var(--surface-strong); color:var(--text-primary);}
+.cbtn:active{transform:scale(.95);}
+
+.hint{position:absolute; left:var(--sp5); bottom:118px; z-index:4; max-width:280px;
+  font-size:.8125rem; color:var(--text-muted); line-height:1.55;}
+.hint b{color:var(--text-secondary);}
+
+@media (prefers-reduced-motion:reduce){
+  .agent, .btn, .cbtn, .hud{transition:none;}
+  .leaf-chip{animation:none;}
+}
+@media (max-width:640px){
+  .roster{grid-template-columns:1fr; padding:var(--sp4) var(--sp4) 120px;}
+  .conductor{flex-wrap:wrap; max-width:94vw; justify-content:center; border-radius:var(--radius-lg);}
+  .hint{display:none;}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="mast">
+    <span class="anchor" aria-hidden="true">&#9784;</span>
+    <div>
+      <h1>The Comms Ecology</h1>
+      <div class="sub">notes fall as leaves · inboxes fire as lasers · messages ripple as soundwaves &middot; a motif study</div>
+    </div>
+    <span class="spacer"></span>
+    <div class="ctrl">
+      <button class="btn" id="soundBtn" aria-pressed="false" title="Sound is off by default; opt in">
+        <span class="k" aria-hidden="true">&#9834;</span> <span id="soundLbl">Sound off</span>
+      </button>
+      <button class="btn" id="themeBtn" title="Toggle theme">
+        <span class="k" aria-hidden="true">&#9728;</span> <span id="themeLbl">Light</span>
+      </button>
+    </div>
+  </header>
+
+  <div class="stage" id="stage">
+    <div class="roster" id="roster" aria-label="Fleet roster — each card is an agent's worktree plot"></div>
+    <canvas id="biofield" aria-hidden="true"></canvas>
+
+    <div class="floor" aria-label="Notes gutter — leaves that have fallen to the forest floor">
+      <span class="label eyebrow">Notes &middot; the forest floor</span>
+      <div class="pile" id="pile"></div>
+    </div>
+
+    <div class="conductor" role="toolbar" aria-label="Trigger ecology events">
+      <span class="lab">Stir the pond</span>
+      <button class="cbtn" data-ev="note"><span class="sw" style="--sw:var(--leaf-a)"></span>Drop note</button>
+      <button class="cbtn" data-ev="inbox"><span class="sw" style="--sw:var(--status-info)"></span>Send DM</button>
+      <button class="cbtn" data-ev="msg"><span class="sw" style="--sw:var(--signal-kilo)"></span>Broadcast</button>
+      <button class="cbtn" data-ev="pher"><span class="sw" style="--sw:var(--ph-hot)"></span>Edit file</button>
+      <button class="cbtn" data-ev="merge"><span class="sw" style="--sw:var(--brand-primary)"></span>Merge</button>
+    </div>
+
+    <div class="hint">
+      <b>Click any agent</b> to read the signal legend. Idle agents dim and drift slower.
+      The pond also stirs itself — events fire on their own rhythm.
+    </div>
+  </div>
+
+  <aside class="hud" id="hud" aria-hidden="true">
+    <button class="x" id="hudX" aria-label="Close">&#10005;</button>
+    <h2 id="hudName">—</h2>
+    <div class="hsub" id="hudWt">—</div>
+    <div class="legendrow"><span class="gly" style="--gc:var(--brand-accent)" aria-hidden="true">&#9737;</span><span class="ldesc"><b>Firefly</b> — this agent, breathing over its worktree. Out-of-phase bioluminescence; idle = dim &amp; slow.</span></div>
+    <div class="legendrow"><span class="gly" style="--gc:var(--leaf-a)" aria-hidden="true">&#9096;</span><span class="ldesc"><b>Leaf</b> — a <code>pd note</code>. Detaches, flutters, settles on the floor.</span></div>
+    <div class="legendrow"><span class="gly" style="--gc:var(--status-info)" aria-hidden="true">&#9472;</span><span class="ldesc"><b>Laser</b> — an inbox DM. A bright dash races sender&rarr;recipient.</span></div>
+    <div class="legendrow"><span class="gly" style="--gc:var(--signal-kilo)" aria-hidden="true">&#9711;</span><span class="ldesc"><b>Soundwave</b> — a broadcast. Concentric rings; a cone for directed speech.</span></div>
+    <div class="legendrow"><span class="gly" style="--gc:var(--ph-hot)" aria-hidden="true">&#9728;</span><span class="ldesc"><b>Pheromone</b> — a file edit. A glow ring + persistent heat that hot files accrue.</span></div>
+    <div class="legendrow"><span class="gly" style="--gc:var(--brand-primary)" aria-hidden="true">&#10022;</span><span class="ldesc"><b>Light-burst</b> — a merge into main. Ghost branch pops, throws sparks.</span></div>
+    <div class="ev" id="hudEv" aria-live="polite"></div>
+  </aside>
+</div>
+
+<script>
+"use strict";
+/* ─────────────────────────────────────────────────────────────────────────
+   GROUNDED DATA — real Port Daddy concepts: worktrees, agents/sessions,
+   pheromones, merges/PRs, roadmap_items, notes/inbox.
+   ───────────────────────────────────────────────────────────────────────── */
+const css = (v)=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const AGENTS = [
+  {id:'cartographer', wt:'wt/roadmap-matrix',      task:'Wiring ADR-0043 implementation matrix → roadmap_items', kind:'recent', idle:false},
+  {id:'gardener',     wt:'wt/triage-2026-06',      task:'Salvaging stranded worktrees; clustering PR triage',     kind:'hot',    idle:false},
+  {id:'tube-router',  wt:'wt/tube-spawner',        task:'Driving the fleet over pd tube (fail-closed)',           kind:'recent', idle:false},
+  {id:'qa-adversary', wt:'wt/regression-bun',      task:'Reproducing the bun:sqlite 500 under real runtime',      kind:'hot',    idle:false},
+  {id:'documentarian',wt:'wt/adr-0046-tui',        task:'ADR-0046 — Operator TUI is a conversation multiplexer',  kind:'cold',   idle:true},
+  {id:'spark',        wt:'wt/attest-invariants',   task:'pd attest — honest self-report + loud-fail invariants',  kind:'recent', idle:false},
+  {id:'dock-master',  wt:'wt/merge-queue',         task:'Ordering the merge queue; rebasing onto origin/main',    kind:'hot',    idle:false},
+  {id:'simplifier',   wt:'wt/llm-backend-resolve', task:'Collapsing parallel PD_*_BACKEND env reads',             kind:'cold',   idle:true},
+];
+const FILES = ['lib/tube-spawner-router.ts','routes/spawn.ts','lib/sugar.ts','cli/commands/attest.ts','docs/adr/0046.md','lib/merge-queue.ts','tests/setup-unit.js'];
+const NOTES = [
+  'Scope: lib/tube-spawner-router.ts. Fail-closed verified.',
+  'Result: 500 reproduced under bun:sqlite, fixed + CI smoke added.',
+  'Assumption: origin/main is canonical. Rebased clean.',
+  'roadmap_items FK now load-bearing for ADR-0043 phases.',
+  'Salvaged 637 dirty lines from a stranded main checkout.',
+  'pd attest emits honest self-report; invariants loud-fail.',
+  'Merge queue ordered; dock-master holds the next slot.',
+  'TUI is a conversation multiplexer, not a file browser.',
+];
+const PH_COLOR = {hot:'--ph-hot', recent:'--ph-recent', cold:'--ph-cold', fail:'--ph-fail'};
+const PH_LABEL = {hot:'editing', recent:'touched', cold:'abandoned', fail:'failed'};
+
+/* agent identity → stable hue (hash → 0..360), kept muted */
+function hashHue(s){ let h=0; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))>>>0; return h%360; }
+function agentColor(a){ return `oklch(0.62 0.13 ${hashHue(a.id)})`; }
+
+/* ── Build DOM roster ── */
+const roster = document.getElementById('roster');
+const cardById = {};
+AGENTS.forEach(a=>{
+  const col = agentColor(a);
+  const el = document.createElement('button');
+  el.className = 'agent' + (a.idle ? ' idle' : '');
+  el.style.setProperty('--c', col);
+  el.setAttribute('aria-label', `${a.id} — ${a.task}`);
+  el.innerHTML = `
+    <span class="anchor"></span>
+    <div class="head"><span class="dot"></span><span class="name">${a.id}</span></div>
+    <div class="wt">${a.wt}</div>
+    <div class="task">${a.task}</div>
+    <div class="meta">
+      <span class="pill"><span class="pdot" style="--pc:var(${PH_COLOR[a.kind]})"></span>${PH_LABEL[a.kind]}</span>
+      <span class="pill">${a.idle?'idle':'active'}</span>
+    </div>`;
+  el.addEventListener('click', ()=>openHud(a, col));
+  roster.appendChild(el);
+  cardById[a.id] = el;
+  a._color = col;
+});
+
+/* anchor = center of each card's .head (where its firefly seeks). Recomputed on resize. */
+function anchorOf(a){
+  const card = cardById[a.id];
+  const stage = document.getElementById('stage').getBoundingClientRect();
+  const h = card.querySelector('.head').getBoundingClientRect();
+  return { x: h.left - stage.left + Math.min(h.width, 60)/2, y: h.top - stage.top + h.height/2 };
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   THE BIOFIELD — one canvas, one rAF, pooled short-lived particles.
+   Pre-baked sprites (firefly glow, leaf) → loop only drawImage + transform.
+   ───────────────────────────────────────────────────────────────────────── */
+const canvas = document.getElementById('biofield');
+const ctx2d = canvas.getContext('2d');
+const stageEl = document.getElementById('stage');
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+let DPR = 1, W = 0, H = 0;
+
+function resize(){
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  const r = stageEl.getBoundingClientRect();
+  W = r.width; H = r.height;
+  canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR);
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  ctx2d.setTransform(DPR,0,0,DPR,0,0);
+  rebakeSprites();
+  fireflies.forEach((f,i)=>{ const an = anchorOf(AGENTS[i]); if(!f.seeded){ f.x=an.x; f.y=an.y; f.seeded=true; } f.target=an; });
+}
+
+/* Pre-baked offscreen sprites */
+let glowSprite, glowSpriteIdle;
+function makeGlow(color){
+  const R = 40, s = document.createElement('canvas'); s.width=s.height=R*2;
+  const c = s.getContext('2d');
+  const g = c.createRadialGradient(R,R,0, R,R,R);
+  g.addColorStop(0, color.replace('OPACITY','0.95'));
+  g.addColorStop(0.25, color.replace('OPACITY','0.55'));
+  g.addColorStop(1, color.replace('OPACITY','0'));
+  c.fillStyle = g; c.beginPath(); c.arc(R,R,R,0,Math.PI*2); c.fill();
+  return s;
+}
+function rebakeSprites(){
+  const accent = css('--brand-accent');
+  // build an rgba template so opacity can be swapped at stop-time
+  const rgba = hexToRgbaTpl(accent);
+  glowSprite = makeGlow(rgba);
+  glowSpriteIdle = makeGlow(rgba.replace('OPACITY','OPACITY')); // same; idle dims via globalAlpha
+}
+function hexToRgbaTpl(hex){
+  // accepts #rrggbb; returns "rgba(r,g,b,OPACITY)"
+  let h = hex.replace('#','');
+  if(h.length===3) h = h.split('').map(c=>c+c).join('');
+  const r=parseInt(h.slice(0,2),16), g=parseInt(h.slice(2,4),16), b=parseInt(h.slice(4,6),16);
+  return `rgba(${r},${g},${b},OPACITY)`;
+}
+
+/* Fireflies — one per agent. Boid-ish seek toward worktree anchor + layered-noise wander. */
+const fireflies = AGENTS.map((a,i)=>({
+  x:0, y:0, vx:0, vy:0, seed:Math.random()*1000, idle:a.idle,
+  color: a._color, target:{x:0,y:0}, seeded:false, trail:[]
+}));
+
+/* Particle pools (lasers, ripples, pheromone rings, bursts, sparks, canvas-leaves) */
+const lasers=[], ripples=[], pherRings=[], bursts=[], sparks=[], canvasLeaves=[];
+const MAX_PARTICLES = 200;
+
+/* Coarse heatmap: 1 cell per agent anchor, additive deposits, decay each frame */
+const heat = AGENTS.map(()=>0);
+
+let t0 = performance.now();
+let running = false, rafId = 0;
+
+function loop(now){
+  if(!running){ return; }
+  const t = (now - t0) / 1000;
+  ctx2d.clearRect(0,0,W,H);
+
+  /* 1 — heat blits (persistent pheromone accrual) under everything */
+  for(let i=0;i<AGENTS.length;i++){
+    heat[i] *= 0.985;
+    if(heat[i] > 0.01){
+      const an = anchorOf(AGENTS[i]);
+      const col = css(PH_COLOR[AGENTS[i].kind] ? '--ph-hot':'--ph-hot');
+      const rgba = hexToRgbaTpl(css('--ph-hot'));
+      const R = 22 + heat[i]*30;
+      const g = ctx2d.createRadialGradient(an.x,an.y,0, an.x,an.y,R);
+      g.addColorStop(0, rgba.replace('OPACITY', (0.16*Math.min(heat[i],1)).toFixed(3)));
+      g.addColorStop(1, rgba.replace('OPACITY','0'));
+      ctx2d.fillStyle = g; ctx2d.beginPath(); ctx2d.arc(an.x,an.y,R,0,Math.PI*2); ctx2d.fill();
+    }
+  }
+
+  /* 2 — pheromone rings (expanding glow on a file action) */
+  for(let i=pherRings.length-1;i>=0;i--){
+    const p = pherRings[i]; p.age += 1/60;
+    const k = p.age / p.life; if(k>=1){ pherRings.splice(i,1); continue; }
+    const e = swooshEase(k);
+    const r = e*32, a = 0.6*(1-k);
+    ctx2d.strokeStyle = withAlpha(p.color, a); ctx2d.lineWidth = 2*(1-k)+0.4;
+    ctx2d.beginPath(); ctx2d.arc(p.x,p.y, r, 0,Math.PI*2); ctx2d.stroke();
+  }
+
+  /* 3 — soundwave ripples (concentric; optional ±35° cone) */
+  for(let i=ripples.length-1;i>=0;i--){
+    const r = ripples[i]; r.age += 1/60;
+    const k = r.age / r.life; if(k>=1){ ripples.splice(i,1); continue; }
+    const e = swooshEase(k);
+    const rad = e*48, a = 0.5*(1-k), lw = 2*(1-k)+0.3;
+    ctx2d.strokeStyle = withAlpha(r.color, a); ctx2d.lineWidth = lw;
+    ctx2d.beginPath();
+    if(r.cone){ ctx2d.arc(r.x,r.y, rad, r.a0, r.a1); }
+    else { ctx2d.arc(r.x,r.y, rad, 0, Math.PI*2); }
+    ctx2d.stroke();
+  }
+
+  /* 4 — lasers (traveling bright dash sender→target) */
+  for(let i=lasers.length-1;i>=0;i--){
+    const L = lasers[i]; L.age += 1/60;
+    const k = L.age / L.life; if(k>=1){ lasers.splice(i,1); continue; }
+    const e = swooshEase(k);
+    // faint full-line afterglow
+    ctx2d.strokeStyle = withAlpha(L.color, 0.15*(1-k)); ctx2d.lineWidth = 1.5;
+    ctx2d.beginPath(); ctx2d.moveTo(L.x0,L.y0); ctx2d.lineTo(L.x1,L.y1); ctx2d.stroke();
+    // bright traveling segment
+    const hx = lerp(L.x0,L.x1,e), hy = lerp(L.y0,L.y1,e);
+    const tx = lerp(L.x0,L.x1,Math.max(0,e-0.16)), ty = lerp(L.y0,L.y1,Math.max(0,e-0.16));
+    ctx2d.strokeStyle = withAlpha(L.color, 0.9); ctx2d.lineWidth = 2;
+    ctx2d.beginPath(); ctx2d.moveTo(tx,ty); ctx2d.lineTo(hx,hy); ctx2d.stroke();
+    // endpoint micro-flash on arrival
+    if(e > 0.92){ ctx2d.fillStyle = withAlpha(L.color, (1-k)*0.9);
+      ctx2d.beginPath(); ctx2d.arc(L.x1,L.y1, 5*(1-k)+1.5, 0,Math.PI*2); ctx2d.fill(); }
+  }
+
+  /* 5 — merge bursts + sparks */
+  for(let i=bursts.length-1;i>=0;i--){
+    const b = bursts[i]; b.age += 1/60;
+    const k = b.age / b.life; if(k>=1){ bursts.splice(i,1); continue; }
+    if(b.phase==='travel'){
+      const e = swooshEase(k);
+      // quadratic bezier ghost → main
+      const mx = lerp(b.cx, (b.x0+b.x1)/2 + b.bow, e);
+      const px = quad(b.x0, b.cx, b.x1, e), py = quad(b.y0, b.cy, b.y1, e);
+      ctx2d.fillStyle = withAlpha(css('--brand-primary'), 0.85*(1-k*0.3));
+      ctx2d.beginPath(); ctx2d.arc(px,py, 4, 0,Math.PI*2); ctx2d.fill();
+      if(k>=1-1e-6 || b.age>=b.travelDur){
+        // transition to pop at main
+        b.phase='pop'; b.age=0; b.life=0.24; b.px=b.x1; b.py=b.y1;
+        spawnSparks(b.x1,b.y1);
+        // sweep the DOM main-ish card too (dock-master holds the queue)
+        flashCard('dock-master','flash-burst');
+        sfx.merge();
+      }
+    } else { // pop flash quad 0.2→2.4
+      const e = snapEase(k);
+      const s = lerp(0.2, 2.4, e), a = 1-k;
+      const R = 16*s;
+      const g = ctx2d.createRadialGradient(b.px,b.py,0, b.px,b.py,R);
+      g.addColorStop(0, withAlpha('#ffffff', a));
+      g.addColorStop(0.4, withAlpha(css('--brand-primary'), a*0.7));
+      g.addColorStop(1, withAlpha(css('--brand-primary'), 0));
+      ctx2d.fillStyle=g; ctx2d.beginPath(); ctx2d.arc(b.px,b.py,R,0,Math.PI*2); ctx2d.fill();
+    }
+  }
+  for(let i=sparks.length-1;i>=0;i--){
+    const s = sparks[i]; s.age += 1/60;
+    const k = s.age/s.life; if(k>=1){ sparks.splice(i,1); continue; }
+    s.vy += 0.05*60/60; s.vx *= 0.96; s.vy *= 0.96; s.x += s.vx; s.y += s.vy;
+    ctx2d.fillStyle = withAlpha(css('--brand-primary'), 1-k);
+    ctx2d.fillRect(s.x, s.y, 2, 2);
+  }
+
+  /* 6 — canvas falling leaves (note swarms; physics) */
+  for(let i=canvasLeaves.length-1;i>=0;i--){
+    const lf = canvasLeaves[i]; lf.age += 1/60;
+    lf.vy = Math.min(lf.vy + 0.12, 2.2);
+    lf.swayDecay *= 0.997;
+    lf.vx = Math.sin(t*2.2 + lf.seed) * (1.4*lf.swayDecay);
+    lf.rot = Math.sin(t*1.8 + lf.seed) * 18 * Math.PI/180;
+    // periodic tumble: fake edge-on via scaleX flip
+    lf.tumble = 0.35 + 0.65*Math.abs(Math.sin(t*1.5 + lf.seed));
+    lf.x += lf.vx; lf.y += lf.vy;
+    if(lf.y >= lf.floorY){ // land → settle as a DOM chip, remove canvas leaf
+      landLeaf(lf); canvasLeaves.splice(i,1); continue;
+    }
+    drawLeaf(lf);
+  }
+
+  /* 7 — fireflies on top (the alive) */
+  for(let i=0;i<fireflies.length;i++){
+    const f = fireflies[i];
+    // boid seek toward target (worktree anchor), capped force/speed
+    const dx = f.target.x - f.x, dy = f.target.y - f.y;
+    const d = Math.hypot(dx,dy) || 1;
+    const desiredX = (dx/d)*1.1, desiredY=(dy/d)*1.1;
+    let fx = (desiredX - f.vx)*0.02, fy = (desiredY - f.vy)*0.02;
+    // layered value-noise wander (cheaper than Perlin)
+    const wander = f.idle ? 0.45 : 1;
+    fx += (Math.sin(t*0.7 + f.seed)*0.4 + Math.sin(t*0.23 + f.seed*3)*0.9) * 0.02 * wander;
+    fy += (Math.cos(t*0.6 + f.seed*1.3)*0.4 + Math.cos(t*0.19 + f.seed*2)*0.9) * 0.02 * wander;
+    f.vx = clamp(f.vx + fx, -1.1, 1.1); f.vy = clamp(f.vy + fy, -1.1, 1.1);
+    f.x += f.vx * (f.idle?0.5:1); f.y += f.vy * (f.idle?0.5:1);
+
+    // bioluminescent breathe, out of phase
+    let a = 0.55 + 0.45*Math.sin(t*1.6 + f.seed);
+    if(f.idle) a *= 0.3;
+
+    // trail
+    f.trail.push({x:f.x,y:f.y}); if(f.trail.length>10) f.trail.shift();
+    for(let j=0;j<f.trail.length;j++){
+      const tp=f.trail[j], ta = (j/f.trail.length)*a*0.4;
+      ctx2d.fillStyle = withAlphaColorFn(f.color, ta);
+      ctx2d.beginPath(); ctx2d.arc(tp.x,tp.y, 1.6, 0,Math.PI*2); ctx2d.fill();
+    }
+    // glow sprite (pre-baked accent) tinted by identity via globalAlpha + colored core
+    const R = (f.idle?16:22);
+    ctx2d.globalAlpha = a*0.9;
+    ctx2d.drawImage(glowSprite, f.x-R, f.y-R, R*2, R*2);
+    ctx2d.globalAlpha = 1;
+    // identity-colored core
+    ctx2d.fillStyle = withAlphaColorFn(f.color, Math.min(1,a+0.2));
+    ctx2d.beginPath(); ctx2d.arc(f.x,f.y, f.idle?2.5:3.4, 0,Math.PI*2); ctx2d.fill();
+  }
+
+  /* breath bed modulation by activity */
+  sfx.tickBreath(activeCount());
+
+  rafId = requestAnimationFrame(loop);
+}
+
+/* helpers */
+function clamp(v,a,b){ return v<a?a:v>b?b:v; }
+function lerp(a,b,t){ return a+(b-a)*t; }
+function quad(a,b,c,t){ const it=1-t; return it*it*a + 2*it*t*b + t*t*c; }
+function swooshEase(t){ return 1 - Math.pow(1-t, 3); }           // approx cubic ease-out (swoosh)
+function snapEase(t){ const c1=1.70158, c3=c1+1; return 1+c3*Math.pow(t-1,3)+c1*Math.pow(t-1,2); }
+function withAlpha(hex, a){ // hex or already-rgba/oklch
+  if(hex.startsWith('oklch')) return hex.replace(')', ` / ${a.toFixed(3)})`);
+  const tpl = hexToRgbaTpl(hex); return tpl.replace('OPACITY', a.toFixed(3));
+}
+function withAlphaColorFn(col, a){ // col is oklch(...)
+  if(col.startsWith('oklch')) return col.replace(')', ` / ${a.toFixed(3)})`);
+  return withAlpha(col, a);
+}
+function activeCount(){ return AGENTS.filter(a=>!a.idle).length; }
+function cull(arr){ while(arr.length > MAX_PARTICLES) arr.shift(); }
+
+/* ── Event spawners ──────────────────────────────────────────────────────── */
+function pickAgent(exclude){
+  const pool = AGENTS.filter(a=>a.id!==exclude);
+  return pool[Math.floor(Math.random()*pool.length)];
+}
+function spawnPheromone(agent){
+  const an = anchorOf(agent);
+  const idx = AGENTS.indexOf(agent);
+  heat[idx] = Math.min(heat[idx] + 0.7, 1.4);
+  if(!running){ flashCard(agent.id,'flash-laser'); return; }
+  pherRings.push({x:an.x, y:an.y, age:0, life:0.7, color:css(PH_COLOR[agent.kind])});
+  cull(pherRings);
+  logEv(`pheromone · ${agent.id} edited ${FILES[Math.floor(Math.random()*FILES.length)]}`);
+  sfx.pher();
+}
+function spawnNote(agent){
+  const note = NOTES[Math.floor(Math.random()*NOTES.length)];
+  if(!running){ landLeaf({text:note, lc:pickLeafColor()}); logEv(`note · ${agent.id}`); return; }
+  const an = anchorOf(agent);
+  const leafColors = [css('--leaf-a'), css('--leaf-b'), css('--leaf-c')];
+  canvasLeaves.push({
+    x:an.x, y:an.y+10, vx:0, vy:0.4, rot:0, tumble:1, seed:Math.random()*100,
+    swayDecay:1, floorY: H-104+50+Math.random()*30,
+    color: leafColors[Math.floor(Math.random()*3)], text:note, age:0
+  });
+  cull(canvasLeaves);
+  logEv(`note · ${agent.id}: ${note.slice(0,34)}…`);
+  sfx.note();
+}
+function spawnInbox(from){
+  const to = pickAgent(from.id);
+  const a = anchorOf(from), b = anchorOf(to);
+  flashCard(to.id,'flash-laser');
+  if(!running){ logEv(`inbox · ${from.id} → ${to.id}`); return; }
+  lasers.push({x0:a.x,y0:a.y, x1:b.x,y1:b.y, age:0, life:0.36, color:css('--status-info')});
+  cull(lasers);
+  logEv(`inbox · ${from.id} → ${to.id}`);
+  sfx.inbox();
+}
+function spawnBroadcast(from, directed){
+  const a = anchorOf(from);
+  if(!running){ logEv(`broadcast · ${from.id}`); flashCard(from.id,'flash-laser'); return; }
+  let cone=false,a0=0,a1=0;
+  if(directed){
+    const to = pickAgent(from.id), b = anchorOf(to);
+    const ang = Math.atan2(b.y-a.y, b.x-a.x), spread = 35*Math.PI/180;
+    cone=true; a0=ang-spread; a1=ang+spread;
+  }
+  for(let i=0;i<3;i++){
+    setTimeout(()=>{ if(!running) return;
+      ripples.push({x:a.x,y:a.y, age:0, life:0.8, color:css('--signal-kilo'), cone, a0, a1});
+      cull(ripples);
+    }, i*120);
+  }
+  logEv(`broadcast · ${from.id}${directed?' (directed)':''}`);
+  sfx.msg();
+}
+function spawnMerge(from){
+  const a = anchorOf(from), b = anchorOf(AGENTS.find(x=>x.id==='dock-master'));
+  flashCard(from.id,'flash-burst');
+  if(!running){ flashCard('dock-master','flash-burst'); logEv(`merge · ${from.id} → main`); sfx.merge(); return; }
+  bursts.push({
+    phase:'travel', age:0, life:1, travelDur:0.28,
+    x0:a.x,y0:a.y, x1:b.x,y1:b.y,
+    cx:(a.x+b.x)/2, cy:(a.y+b.y)/2 - 60, bow:0
+  });
+  logEv(`merge · ${from.id} → main · sparks`);
+}
+function spawnSparks(x,y){
+  const n = 8 + Math.floor(Math.random()*5);
+  for(let i=0;i<n;i++){
+    const ang = Math.random()*Math.PI*2, sp = 1+Math.random()*2.5;
+    sparks.push({x,y, vx:Math.cos(ang)*sp, vy:Math.sin(ang)*sp - 1, age:0, life:0.4});
+  }
+  cull(sparks);
+}
+
+/* DOM leaf settle into pile */
+const pile = document.getElementById('pile');
+function pickLeafColor(){ return [css('--leaf-a'),css('--leaf-b'),css('--leaf-c')][Math.floor(Math.random()*3)]; }
+function landLeaf(lf){
+  const chip = document.createElement('span');
+  chip.className = 'leaf-chip';
+  chip.style.setProperty('--lc', lf.color || lf.lc || css('--leaf-a'));
+  chip.textContent = lf.text;
+  pile.appendChild(chip);
+  // keep the pile bounded — oldest leaves compost away
+  while(pile.children.length > 14) pile.removeChild(pile.firstChild);
+}
+
+/* DOM class flip — legible even when motion is frozen */
+function flashCard(id, cls){
+  const el = cardById[id]; if(!el) return;
+  el.classList.add(cls);
+  setTimeout(()=>el.classList.remove(cls), reduceMotion.matches ? 600 : 420);
+}
+
+/* draw a leaf sprite (small quad with vein) */
+function drawLeaf(lf){
+  ctx2d.save();
+  ctx2d.translate(lf.x, lf.y);
+  ctx2d.rotate(lf.rot);
+  ctx2d.scale(lf.tumble, 1);
+  ctx2d.fillStyle = withAlpha(lf.color, 0.92);
+  ctx2d.beginPath();
+  // simple leaf: two arcs
+  ctx2d.moveTo(0,-6); ctx2d.quadraticCurveTo(5,0, 0,6); ctx2d.quadraticCurveTo(-5,0, 0,-6);
+  ctx2d.fill();
+  ctx2d.strokeStyle = withAlpha(lf.color, 0.5); ctx2d.lineWidth=0.8;
+  ctx2d.beginPath(); ctx2d.moveTo(0,-6); ctx2d.lineTo(0,6); ctx2d.stroke();
+  ctx2d.restore();
+}
+
+/* ── HUD ── */
+const hud = document.getElementById('hud');
+const hudEv = document.getElementById('hudEv');
+let evLog = [];
+function logEv(s){
+  const ts = new Date().toLocaleTimeString([], {hour12:false});
+  evLog.unshift(`<span>${ts}</span>  ${s}`);
+  evLog = evLog.slice(0,40);
+  hudEv.innerHTML = evLog.join('<br>');
+}
+function openHud(a, col){
+  document.getElementById('hudName').textContent = a.id;
+  document.getElementById('hudWt').textContent = `${a.wt} · ${PH_LABEL[a.kind]} · ${a.idle?'idle':'active'}`;
+  hud.classList.add('open'); hud.setAttribute('aria-hidden','false');
+}
+document.getElementById('hudX').addEventListener('click', ()=>{ hud.classList.remove('open'); hud.setAttribute('aria-hidden','true'); });
+
+/* ── Conductor buttons ── */
+document.querySelectorAll('.cbtn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const ev = btn.dataset.ev;
+    const a = AGENTS[Math.floor(Math.random()*AGENTS.length)];
+    if(ev==='note') spawnNote(a);
+    else if(ev==='inbox') spawnInbox(a);
+    else if(ev==='msg') spawnBroadcast(a, Math.random()<0.5);
+    else if(ev==='pher') spawnPheromone(a);
+    else if(ev==='merge') spawnMerge(a);
+  });
+});
+
+/* ── Ambient self-stir: events fire on their own gentle rhythm ── */
+let ambientTimer = null;
+function ambientTick(){
+  const a = AGENTS.filter(x=>!x.idle)[Math.floor(Math.random()*activeCount())] || AGENTS[0];
+  const roll = Math.random();
+  if(roll < 0.34) spawnPheromone(a);
+  else if(roll < 0.56) spawnNote(a);
+  else if(roll < 0.76) spawnInbox(a);
+  else if(roll < 0.92) spawnBroadcast(a, Math.random()<0.4);
+  else spawnMerge(a);
+  ambientTimer = setTimeout(ambientTick, 1100 + Math.random()*1900);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   SOUND — WebAudio only, DEFAULT OFF. localStorage pd_sound. reduced-motion
+   forces muted. Master gain 0.18. Single ctx resumed on first gesture.
+   ───────────────────────────────────────────────────────────────────────── */
+const sfx = (function(){
+  let ctx=null, master=null, bedGain=null, bedFilter=null, lfo=null, lfoGain=null;
+  let on=false, lastCue={};
+  const enabled = ()=> on && !reduceMotion.matches && ctx;
+  function ensure(){
+    if(ctx) return;
+    const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return;
+    ctx = new AC();
+    master = ctx.createGain(); master.gain.value = 0.18; master.connect(ctx.destination);
+    // breath bed: 2 sines + brown-ish noise → lowpass → bedGain
+    bedFilter = ctx.createBiquadFilter(); bedFilter.type='lowpass'; bedFilter.frequency.value=300;
+    bedGain = ctx.createGain(); bedGain.gain.value = 0.0; bedFilter.connect(bedGain).connect(master);
+    [65.41, 98.0].forEach(f=>{ const o=ctx.createOscillator(); o.type='sine'; o.frequency.value=f; o.connect(bedFilter); o.start(); });
+    lfo = ctx.createOscillator(); lfo.type='sine'; lfo.frequency.value=0.1;
+    lfoGain = ctx.createGain(); lfoGain.gain.value=0.05;
+    lfo.connect(lfoGain).connect(bedGain.gain); lfo.start();
+  }
+  function blip(freq=440, dur=0.09, type='sine', peak=0.12){
+    if(!enabled()) return;
+    const now = ctx.currentTime;
+    const o=ctx.createOscillator(), g=ctx.createGain();
+    o.type=type; o.frequency.value=freq;
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.linearRampToValueAtTime(peak, now+0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, now+dur);
+    o.connect(g).connect(master); o.start(now); o.stop(now+dur+0.02);
+  }
+  function debounced(key, fn){ const n=performance.now(); if(n-(lastCue[key]||0)<80) return; lastCue[key]=n; fn(); }
+  return {
+    toggle(){
+      on=!on; ensure();
+      if(ctx && ctx.state==='suspended') ctx.resume();
+      try{ localStorage.setItem('pd_sound', on?'1':'0'); }catch(e){}
+      return on;
+    },
+    restore(){
+      let pref='0'; try{ pref=localStorage.getItem('pd_sound')||'0'; }catch(e){}
+      if(pref==='1' && !reduceMotion.matches){ on=true; }
+      return on;
+    },
+    isOn(){ return on; },
+    note(){ debounced('note', ()=>{ blip(180,0.07,'triangle',0.1); }); },
+    inbox(){ debounced('inbox', ()=>{ if(!enabled())return; const now=ctx.currentTime,o=ctx.createOscillator(),g=ctx.createGain(); o.type='sine'; o.frequency.setValueAtTime(400,now); o.frequency.exponentialRampToValueAtTime(900,now+0.14); g.gain.setValueAtTime(0.0001,now); g.gain.linearRampToValueAtTime(0.1,now+0.01); g.gain.exponentialRampToValueAtTime(0.0001,now+0.16); o.connect(g).connect(master); o.start(now); o.stop(now+0.18); }); },
+    msg(){ debounced('msg', ()=>{ blip(380+Math.random()*140,0.09,'sine',0.1); }); },
+    pher(){ debounced('pher', ()=>{ blip(140,0.2,'sine',0.05); }); },
+    merge(){ debounced('merge', ()=>{ [659.25,830.6,1318.5].forEach((f,i)=>setTimeout(()=>blip(f,0.6,'sine',0.09-i*0.02), i*0)); }); },
+    tickBreath(active){
+      if(!ctx||!on) return;
+      const now=ctx.currentTime;
+      const rate = 0.08 + (active/8)*0.07;       // 0.08..0.15 Hz
+      const cut  = 200 + (active/8)*700;         // 200..900 Hz
+      lfo.frequency.linearRampToValueAtTime(rate, now+4);
+      bedFilter.frequency.linearRampToValueAtTime(cut, now+4);
+    }
+  };
+})();
+
+/* ── Controls wiring ── */
+const soundBtn = document.getElementById('soundBtn'), soundLbl = document.getElementById('soundLbl');
+function reflectSound(){ const on=sfx.isOn(); soundBtn.classList.toggle('on',on); soundBtn.setAttribute('aria-pressed',on); soundLbl.textContent = on?'Sound on':'Sound off'; }
+soundBtn.addEventListener('click', ()=>{ sfx.toggle(); reflectSound(); });
+sfx.restore(); reflectSound();
+
+const themeBtn = document.getElementById('themeBtn'), themeLbl=document.getElementById('themeLbl');
+themeBtn.addEventListener('click', ()=>{
+  const cur = document.documentElement.getAttribute('data-theme');
+  const next = cur==='dark'?'light':'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  themeLbl.textContent = next==='dark'?'Dark':'Light';
+  rebakeSprites();
+});
+
+/* ── Lifecycle: start/stop loop, pause off-screen, honor reduced-motion ── */
+function start(){ if(running) return; if(reduceMotion.matches) return; running=true; t0=performance.now()-(t0?0:0); rafId=requestAnimationFrame(loop); }
+function stop(){ running=false; if(rafId) cancelAnimationFrame(rafId); }
+
+window.addEventListener('resize', ()=>{ resize(); });
+resize();
+
+/* IntersectionObserver: pause loop + ambient when stage scrolled off (it won't here, but honor the discipline) */
+const io = new IntersectionObserver((ents)=>{
+  ents.forEach(e=>{
+    if(e.isIntersecting && !reduceMotion.matches){ start(); if(!ambientTimer) ambientTimer=setTimeout(ambientTick, 900); }
+    else { stop(); if(ambientTimer){ clearTimeout(ambientTimer); ambientTimer=null; } }
+  });
+}, {threshold:0.01});
+io.observe(stageEl);
+
+/* reduced-motion path: never start the loop; render a single static frame of
+   firefly anchors so the ecosystem is legible frozen, and let ambient still
+   flip DOM classes / drop chips so signal still arrives. */
+function staticFrame(){
+  resize();
+  ctx2d.clearRect(0,0,W,H);
+  for(let i=0;i<fireflies.length;i++){
+    const an = anchorOf(AGENTS[i]); const f=fireflies[i];
+    ctx2d.fillStyle = withAlphaColorFn(f.color, f.idle?0.4:0.85);
+    ctx2d.beginPath(); ctx2d.arc(an.x,an.y, 4, 0,Math.PI*2); ctx2d.fill();
+  }
+}
+if(reduceMotion.matches){
+  staticFrame();
+  // signal still flows, just without motion: drop chips / flip classes on a slow tick
+  ambientTimer = setInterval(()=>{
+    const a = AGENTS[Math.floor(Math.random()*AGENTS.length)];
+    const roll = Math.random();
+    if(roll<0.4) spawnNote(a); else if(roll<0.7) spawnInbox(a); else spawnPheromone(a);
+    staticFrame();
+  }, 2400);
+}
+reduceMotion.addEventListener('change', ()=>{ location.reload(); });
+
+/* expose a tiny hook for headless verification */
+window.__ecology = { fireflies, lasers, ripples, pherRings, bursts, canvasLeaves,
+  spawn:{note:()=>spawnNote(AGENTS[0]), inbox:()=>spawnInbox(AGENTS[0]),
+         msg:()=>spawnBroadcast(AGENTS[0],true), pher:()=>spawnPheromone(AGENTS[1]),
+         merge:()=>spawnMerge(AGENTS[2])} };
+</script>
+</body>
+</html>
