@@ -37,7 +37,7 @@
       font=\sffamily\scriptsize\itshape,text=hhcinnabar,text width=44mm,
       align=center,above=8mm of grade] (capture)
   {\textbf{but the grade is produced by a capturable evaluator}\\
-   (L2 adversarial review / L3 ``neutral judge'')};
+   (an adversarial reviewer or a ``neutral judge'')};
 \draw[->,>=Latex,thick,hhcinnabar] (capture) -- (grade);
 \node[font=\sffamily\scriptsize\itshape,text=hhcinnabar,below=1mm of folk,
       text width=42mm,align=center]
@@ -47,7 +47,7 @@
 % the two fixes
 \node[fix,below=12mm of agent] (sp)
   {\textbf{Fix A:} prove the oracle \emph{strategy-proof} (machine-checkable
-   oracle: passing test id, merged SHA --- the agent cannot author it).};
+   oracle: passing test id, merged commit hash --- the agent cannot author it).};
 \node[fix,below=12mm of grade] (bond)
   {\textbf{Fix B:} \emph{bond-and-slash the judges}. A judge whose rating is
    later contradicted by re-audit is slashed.};

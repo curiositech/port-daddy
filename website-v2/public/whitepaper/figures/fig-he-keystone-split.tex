@@ -1,4 +1,4 @@
-% C2: the keystone split. ADR-0040 (identity-local) vs ADR-0040b (cross-operator).
+% The keystone split: local non-forgeable identity vs cross-operator attestation.
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhsanddeep}{HTML}{D4C5A9}
 \providecolor{hhebony}{HTML}{1E1B18}
@@ -29,7 +29,8 @@
 \node[agent] (a3) at ($(HA.center)+(12mm,-7mm)$) {$a_3$};
 \foreach \a in {a1,a2,a3} { \draw[->,>=Latex,hhpatina,thick] (rA) -- (\a); }
 \node[font=\sffamily\scriptsize\itshape,below=1mm of HA,text=hhpatina,text width=52mm,align=center]
-  {\textbf{ADR-0040} covers \emph{here}: non-forgeable id within one trusted daemon.};
+  {\textbf{Local non-forgeable identity} covers \emph{here}: an id no agent can edit
+   within one trusted daemon.};
 
 % Harbor B
 \node[harbor,label={[font=\sffamily\bfseries\footnotesize]north:Harbor $B$ (Bob owns)},
@@ -43,9 +44,9 @@
 % the boundary nobody controls
 \node[draw=hhcinnabar,line width=1.6pt,fill=hhcinnabar!8,rounded corners=3pt,
       inner sep=4pt,font=\sffamily\bfseries\scriptsize,text=hhcinnabar,
-      text width=34mm,align=center] (gap) at ($(HA.east)!0.5!(HB.west)+(0,4mm)$)
-  {\textbf{ADR-0040b}\\ \normalfont\scriptsize cross-operator attestation\\
-   (DESIGNED $\to$ VISION)\\ \emph{who vouches $b_i$'s keys map to a real distinct
+      text width=36mm,align=center] (gap) at ($(HA.east)!0.5!(HB.west)+(0,4mm)$)
+  {\textbf{cross-operator}\\\textbf{attestation}\\ \normalfont\scriptsize
+   (specified $\to$ proposed)\\ \emph{who vouches $b_i$'s keys map to a real distinct
    principal?}};
 \draw[<->,>=Latex,line width=1.4pt,hhcinnabar] (HA.east) -- (HB.west);
 
@@ -53,25 +54,26 @@
 \node[draw=hhcinnabar,thick,fill=hhpaper,rounded corners=2pt,inner sep=5pt,
       text width=150mm,align=center,below=14mm of HA,xshift=49mm,
       font=\sffamily\footnotesize]
-  {\textbf{The keystone overreach (C2, BLOCKING).} ADR-0040's \emph{own} threat
-   model is \emph{intra-fleet, single trusted operator, explicitly ``not a PKI,''
-   explicitly no defense against a hostile operator}. Across the boundary, the
-   counterparty's daemon \emph{is} the adversary ADR-0040 declares out of scope.
-   The witness log gives \emph{log integrity}, not \emph{identity binding}.
-   Paper~4 declares \textbf{ADR-0040b} (cross-operator attestation) as the unbuilt
-   keystone and \emph{stops} calling the boundary one ``neither controls'' while
-   resting on a single trusted root.};
+  {\textbf{The keystone overreach (blocking).} Local non-forgeable identity's
+   \emph{own} threat model is \emph{intra-fleet, single trusted operator, not a
+   cross-party PKI, no defense against a hostile operator}. Across the boundary, the
+   counterparty's daemon \emph{is} the adversary that threat model declares out of
+   scope. The witness log gives \emph{log integrity}, not \emph{identity binding}.
+   This paper names \textbf{cross-operator attestation} as the unbuilt keystone and
+   \emph{stops} calling the boundary one ``neither controls'' while resting on a
+   single trusted root.};
 
 \end{tikzpicture}%
 }
-\caption{The keystone split (C2). Papers 1--3 rest on \textbf{ADR-0040}: a
-non-forgeable actor identity \emph{within one trusted daemon} --- a single trusted
-root that vouches for every agent it mints. That is exactly what a single-operator
-harbor needs. But L3 is \emph{defined} by mutually-distrusting operators trading
-across a boundary neither controls, and ADR-0040 explicitly disclaims that threat
-model (intra-fleet, ``not a PKI,'' no hostile-operator defense). Binding
-\texttt{actor\_id} keys across harbors you do not own is a different, unsolved
-problem: \textbf{ADR-0040b}, cross-operator attestation. It is the highest-leverage
-unbuilt keystone, and it gates the entire market thesis.}
+\caption{The keystone split. Papers 1--3 rest on \textbf{local non-forgeable
+identity}: a per-agent identity no agent can edit \emph{within one trusted daemon}
+--- a single trusted root that vouches for every agent it mints. That is exactly
+what a single-operator harbor needs. But the market is \emph{defined} by
+mutually-distrusting operators trading across a boundary neither controls, and that
+primitive explicitly disclaims the relevant threat model (intra-fleet, not a
+cross-party PKI, no hostile-operator defense). Binding signing keys across harbors
+you do not own is a different, unsolved problem: \textbf{cross-operator
+attestation}. It is the highest-leverage unbuilt keystone, and it gates the entire
+market thesis.}
 \label{fig:he-keystone-split}
 \end{figure}

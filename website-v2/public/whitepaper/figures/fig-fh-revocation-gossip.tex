@@ -66,7 +66,7 @@
 
 \node[harbor] (C1) at (5,-8.0) {Harbor $C$};
 \node[filter,below=2pt of C1] {$c \notin F_C$};
-\node[font=\sffamily\scriptsize\itshape,below=2pt,text width=22mm,align=center] at (5,-9){still stale};
+\node[font=\sffamily\scriptsize\itshape,text width=22mm,align=center] at (5,-9.85){still stale};
 
 % ─── t=2Δ: C also has it; root inclusion proven ──────────────────
 \node[harbor,fill=hhcinnabar!22] (A2) at (10,-3) {Harbor $A$};
@@ -83,7 +83,7 @@
 \node[filterrev,below=2pt of B3] {$c \in F_B$};
 \node[harbor,fill=hhcinnabar!22] (C3) at (15,-8.0) {Harbor $C$};
 \node[filterrev,below=2pt of C3] {$c \in F_C$};
-\node[font=\sffamily\scriptsize\itshape,below=2pt,text width=22mm,align=center,text=hhpatina] at (15,-9){auditor confirms\\no equivocation};
+\node[font=\sffamily\scriptsize\itshape,text width=24mm,align=center,text=hhpatina] at (15,-9.95){auditor confirms\\no equivocation};
 
 % ─── Gossip arrows (pairwise) ────────────────────────────────────
 \draw[gossip] (A0.east) to[bend left=10] node[font=\sffamily\scriptsize\itshape,above,midway]{anti-entropy} (B1.west);
@@ -98,20 +98,20 @@
 % ─── Bottom band: convergence claim ───────────────────────────────
 \node[draw=hhebony,thick,fill=hhpaper,rounded corners=3pt,inner sep=5pt,
       minimum width=160mm,align=center,font=\sffamily\footnotesize,
-      below=4pt] at (7.5,-10.4) {%
+      below=4pt] at (7.5,-11.7) {%
   \textbf{Convergence bound (Theorem~\ref{thm:fh-conv}):}
   with $m$ federated harbors gossiping every $\Delta$, the expected time
   to global filter agreement on a new revocation is
   $\Delta \cdot (1 + \ln m)$, generalizing
-  the Anchor intra-mesh bound. The witness log is the cross-check: any
+  the single-harbor intra-mesh bound. The witness log is the cross-check: any
   harbor that publishes contradictory roots for the same epoch is
   detectable in expected $O(\log m)$ audit rounds.};
 
 \end{tikzpicture}%
 }
-\caption{Federated revocation propagation across three harbors. The cuckoo
-filter mechanism is unchanged from Anchor~\S\ref{sec:revocation} of the
-companion paper, but two new pieces are bolted on: (a) per-epoch roots
+\caption{Federated revocation propagation across three harbors. The
+membership-filter mechanism is the same one the companion paper proves for the
+single-harbor mesh, but two new pieces are bolted on: (a) per-epoch roots
 $R_X^{(e)}$ published to a shared witness log so a third party can audit any
 harbor's local view, and (b) cross-witness signatures so the auditor pattern
 generalizes Certificate Transparency~\cite{laurie2013ct}. The window between

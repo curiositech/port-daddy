@@ -38,7 +38,7 @@
 
 % ─── Message 1: Alice asks her harbor for an xfer card ─────────────
 \draw[msg] ($(LA.south)+(0,-6mm)$) -- node[above,font=\sffamily\scriptsize]{$\mathsf{xfer\_req}(C_A, B)$} ($(HA.south)+(0,-6mm)$);
-\node[font=\sffamily\scriptsize\itshape,right=2mm of HA,yshift=-7mm,text width=46mm,align=left]{\textbf{(1)} Alice presents her card $C_A$, names target harbor $B$, requests transferable form.};
+\node[font=\sffamily\scriptsize\itshape,right=2mm of HA,yshift=-12.5mm,text width=44mm,align=left]{\textbf{(1)} Alice presents her card $C_A$, names target harbor $B$, requests transferable form.};
 
 % ─── Message 2: Harbor A mints xfer envelope with attenuation ──────
 \draw[msg] ($(HA.south)+(0,-22mm)$) -- node[above,font=\sffamily\scriptsize]{$\mathsf{xfer\_offer}\langle C_A, \mathrm{att}, R_A^{(e)}\rangle$} ($(HB.south)+(0,-22mm)$);

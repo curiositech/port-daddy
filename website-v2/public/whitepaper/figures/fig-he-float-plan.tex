@@ -1,4 +1,4 @@
-% The float-plan / escrow ceremony: three-step ed25519 handshake.
+% The float-plan / escrow ceremony: three-step signed handshake.
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhsanddeep}{HTML}{D4C5A9}
 \providecolor{hhebony}{HTML}{1E1B18}
@@ -33,9 +33,9 @@
 % (1) requester signs FloatPlan
 \draw[msg] ($(R.south)+(0,-6mm)$) -- node[above,font=\sffamily\scriptsize]
   {$\mathsf{sign}_{R}(\mathit{FloatPlan})$} ($(D.south)+(0,-6mm)$);
-\node[note,right=2mm of D,yshift=-7mm]
+\node[note,right=8mm of W,yshift=-7mm,text width=46mm]
   {\textbf{(1)} $R$ signs a FloatPlan: task $+$ machine-checkable acceptance
-   criteria $+$ compute budget $+$ credit bounty (ADR-0014).};
+   criteria $+$ compute budget $+$ credit bounty.};
 
 % (2) daemon debits + escrows in EXCLUSIVE txn
 \node[draw=hhebony,thick,fill=hhsand!50,rounded corners=2pt,inner sep=3pt,
@@ -46,27 +46,28 @@
 
 % (3) daemon signs anchor + plan hash, proving funds locked
 \draw[msg] ($(D.south)+(0,-38mm)$) -- node[above,font=\sffamily\scriptsize]
-  {$\mathsf{sign}_{D}\{anchor\_id,\,plan\_hash\}$} ($(W.south)+(0,-38mm)$);
+  {$\mathsf{sign}_{D}\{\textit{anchor id},\,\textit{plan hash}\}$} ($(W.south)+(0,-38mm)$);
 \node[note,right=2mm of W,yshift=-39mm]
   {\textbf{(3)} The daemon proves to $W$ that funds are locked
    \emph{before any work runs}. This is ``no-spawn-without-bond.''};
 
 % the conservation invariant box
 \node[inv,below=46mm of R,xshift=2mm]
-  {\textbf{Invariant held at every step (BUILT):}\\
+  {\textbf{Invariant held at every step (implemented):}\\
    $\text{wallet}+\text{escrow}+\text{commons}=\text{supply}$.\\
-   Verified over 10k random traces\\
-   (\texttt{bonds-conservation-property.test.js}).};
+   Verified over 10k random operation traces\\
+   by a property test.};
 
 \end{tikzpicture}%
 }
 \caption{The float-plan escrow ceremony --- the atom every side of the market
-settles on. A three-step \texttt{ed25519} handshake: the requester signs a
-FloatPlan (task, machine-checkable acceptance criteria, budget, bounty); the
-daemon debits and escrows the value inside a single SQLite \texttt{EXCLUSIVE}
-transaction; the daemon then signs $\{anchor\_id,\,plan\_hash\}$, proving to the
-worker that funds are pinned before any work begins. The conservation invariant
-holds at every step and is the \emph{built} floor the whole economy stands on ---
-the one claim this paper can make at BUILT confidence.}
+settles on. A three-step signed handshake over a standard digital-signature scheme:
+the requester signs a FloatPlan (task, machine-checkable acceptance criteria,
+budget, bounty); the daemon debits and escrows the value inside one serialized
+database transaction; the daemon then signs $\{\textit{anchor id},\,\textit{plan
+hash}\}$, proving to the worker that funds are pinned before any work begins. The
+conservation invariant holds at every step and is the \emph{implemented} floor the
+whole economy stands on --- the one claim this paper can make at the highest
+maturity.}
 \label{fig:he-float-plan}
 \end{figure}
