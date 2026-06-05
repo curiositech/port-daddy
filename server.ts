@@ -943,10 +943,24 @@ app.get('/ping', async () => {
 // ROUTES (native Fastify plugins — Phase 3)
 // =============================================================================
 
+// #160: collect every registered route into a registry so /health and /status
+// can verify the daemon's critical routes are actually mounted (not 404). An
+// onRoute hook on the root instance fires for all descendant plugin routes.
+const routeRegistry = new Set<string>();
+app.addHook('onRoute', (routeOptions) => {
+  const methods = Array.isArray(routeOptions.method)
+    ? routeOptions.method
+    : [routeOptions.method];
+  for (const m of methods) {
+    routeRegistry.add(`${String(m).toUpperCase()} ${routeOptions.url}`);
+  }
+});
+
 await registerAllRoutes(
   app,
   {
     db, logger, metrics, config,
+    routeRegistry,
     services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar, attention,
     harbors, sorties, orchestrator, correlationEngine, spawner, tuples, blobs, fleetDaemon,
