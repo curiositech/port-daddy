@@ -1,0 +1,65 @@
+% Figure 6 — Signal Detection Theory view of the operator's forced-zoom decision.
+% Two overlapping distributions (safe vs dangerous actions); the criterion beta
+% slides; the asymmetric cost matrix pins where it should sit.
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhebony}{HTML}{1E1B18}
+\providecolor{hhink}{HTML}{2C2A26}
+\providecolor{hhcinnabar}{HTML}{CC3D2E}
+\providecolor{hhbrass}{HTML}{B08D57}
+\providecolor{hhpatina}{HTML}{5C7A6A}
+\providecolor{hhpaper}{HTML}{FBF7EE}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.9\textwidth}{!}{%
+\begin{tikzpicture}[font=\sffamily\small,
+  declare function={
+    safe(\x)   = 5*exp(-((\x-3)^2)/1.4);
+    danger(\x) = 5*exp(-((\x-6)^2)/1.4);
+  }]
+% axes
+\draw[->,thick] (0,0) -- (10.2,0) node[right,font=\sffamily\footnotesize]{evidence of danger (operator's read)};
+\draw[->,thick] (0,0) -- (0,5.8) node[above,font=\sffamily\footnotesize]{density};
+
+% distributions
+\draw[hhpatina,very thick,domain=0:9.5,samples=120,smooth] plot (\x,{safe(\x)});
+\draw[hhcinnabar,very thick,domain=0:9.5,samples=120,smooth] plot (\x,{danger(\x)});
+\node[text=hhpatina,font=\sffamily\bfseries\footnotesize] at (2.3,5.4) {safe actions};
+\node[text=hhcinnabar,font=\sffamily\bfseries\footnotesize] at (7.4,5.4) {dangerous actions};
+
+% criterion line beta
+\draw[hhbrass,very thick,dashed] (5.0,0) -- (5.0,5.3)
+   node[above,text=hhbrass,font=\sffamily\bfseries\footnotesize]{criterion $\beta$};
+\draw[->,thick,hhbrass] (5.3,4.6) -- (6.1,4.6) node[right,font=\sffamily\scriptsize,text=hhbrass]{strict};
+\draw[->,thick,hhbrass] (4.7,4.6) -- (3.9,4.6) node[left,font=\sffamily\scriptsize,text=hhbrass]{lax};
+
+% error regions
+\fill[hhcinnabar!25,domain=0:5,samples=80,smooth] plot (\x,{danger(\x)}) -- (5,0) -- (0,0) -- cycle;
+\fill[hhpatina!30,domain=5:9.5,samples=80,smooth] plot (\x,{safe(\x)}) -- (9.5,0) -- (5,0) -- cycle;
+\node[text=hhcinnabar,font=\sffamily\footnotesize,align=center] at (4.0,0.6) {MISS\\(waved through)};
+\node[text=hhpatina,font=\sffamily\footnotesize,align=center] at (6.4,0.6) {false alarm\\(zoomed safe diff)};
+
+% d-prime bracket
+\draw[<->,thick,hhink] (3,-0.6) -- (6,-0.6) node[midway,below,font=\sffamily\footnotesize]{$d'$ (operator sensitivity)};
+
+% cost matrix
+\node[draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,inner sep=5pt,
+      font=\sffamily\footnotesize,align=left,text width=44mm] at (12.6,3.2)
+  {\textbf{asymmetric cost}\\[2pt]
+   $C_{\text{miss}}\!\gg\!C_{\text{fa}}$\\[2pt]
+   a miss = irreversible damage;\\a false alarm = wasted seconds.\\[3pt]
+   $\Rightarrow$ set $\beta$ where \emph{expected cost} (Eq.~\ref{eq:sdt}) is minimal,
+   \emph{not} where throughput is maximal.};
+\end{tikzpicture}%
+}
+\caption{The operator's forced-zoom decision as Signal Detection Theory
+(Def.~\ref{def:sdt}, Eq.~\ref{eq:sdt}). Most actions are safe (left curve); a few
+are dangerous (right). The operator's read places each action somewhere on the
+evidence axis; the criterion $\beta$ decides zoom-or-wave. A lax $\beta$ minimizes
+attention-seconds but maximizes \emph{misses} --- the danger-optimizing degenerate
+the naive ``seconds-per-decision'' objective rewards. Because $C_{\text{miss}}\gg
+C_{\text{fa}}$, the optimal criterion sits well to the left of the throughput
+optimum: \emph{the miss-cost term is what forces the zoom}. Sensitivity $d'$ (curve
+separation) is improved by better legibility; $\beta$ is the policy knob $p(r,s,v)$.}
+\label{fig:sdt}
+\end{figure}

@@ -1,0 +1,77 @@
+% Figure 1 — the L0->L3 stack map. Where this paper sits, what it assumes,
+% which companion papers it cites. Opens every paper in the Harbor Volume.
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D4C5A9}
+\providecolor{hhebony}{HTML}{1E1B18}
+\providecolor{hhink}{HTML}{2C2A26}
+\providecolor{hhcinnabar}{HTML}{CC3D2E}
+\providecolor{hhbrass}{HTML}{B08D57}
+\providecolor{hhpatina}{HTML}{5C7A6A}
+\providecolor{hhpaper}{HTML}{FBF7EE}
+
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\sffamily\small,
+  layer/.style={draw=hhebony,thick,rounded corners=4pt,
+                minimum width=150mm,minimum height=20mm,
+                align=left,inner sep=8pt,text width=118mm},
+  whom/.style={draw=hhbrass,thick,fill=hhpaper,rounded corners=2pt,
+               inner sep=4pt,font=\sffamily\bfseries\footnotesize,text=hhbrass,
+               align=center,text width=24mm},
+  paper/.style={draw=hhcinnabar,thick,fill=hhcinnabar!12,rounded corners=2pt,
+                inner sep=3pt,font=\sffamily\bfseries\footnotesize,text=hhink,
+                align=center,text width=20mm},
+]
+
+% ─── The four layers, L3 on top, L0 at the bottom ─────────────────────────
+\node[layer,fill=hhsand!30] (l3) at (0,0)
+  {{\sffamily\bfseries\large L3 --- Economy \& Federation}\\[2pt]
+   \textit{anchor protocol, escrow, reputation market, harbor federation}\\[1pt]
+   {\footnotesize\textsc{state:} whitepaper'd \quad$\cdot$\quad cites $\downarrow$}};
+\node[layer,fill=hhsanddeep!45,below=7mm of l3] (l2)
+  {{\sffamily\bfseries\large L2 --- Legibility \& Authority \ \textcolor{hhcinnabar}{$\blacktriangleleft$ THIS PAPER (the wedge)}}\\[2pt]
+   \textit{digest-with-zoom, roadmap-as-truth, adversarial review, consent, the console}\\[1pt]
+   {\footnotesize\textsc{state:} read-surfaces \textbf{BUILT}; authority half \textbf{DESIGNED}--\textbf{VISION}}};
+\node[layer,fill=hhsand!30,below=7mm of l2] (l1)
+  {{\sffamily\bfseries\large L1 --- Coordination Protocol \ \textcolor{hhcinnabar}{$\blacktriangleleft$ directory substrate here}}\\[2pt]
+   \textit{typed performatives, commitments, delegation-trace, discovery (DF/AMS)}\\[1pt]
+   {\footnotesize\textsc{state:} substrate \textbf{BUILT}; semantics \textbf{DESIGNED} (ADR-0047)}};
+\node[layer,fill=hhbrass!22,below=7mm of l1] (l0)
+  {{\sffamily\bfseries\large L0 --- The Daemon (kernel)}\\[2pt]
+   \textit{single-writer SQLite/WAL: ports, claims, sessions, tube, Arbiter, memory}\\[1pt]
+   {\footnotesize\textsc{state:} \textbf{BUILT} --- the realm this paper computes digests over}};
+
+% whom column
+\node[whom,right=4mm of l3] {for the\\\textsc{market}};
+\node[whom,right=4mm of l2] {for the\\\textsc{operator}};
+\node[whom,right=4mm of l1] {for the\\\textsc{agents}};
+\node[whom,right=4mm of l0] {for the\\\textsc{machine}};
+
+% companion-paper column (left)
+\node[paper,left=4mm of l3] {Paper 4\\\emph{Harbor Economy}};
+\node[paper,left=4mm of l2] {\textbf{Paper 1}\\\emph{this}};
+\node[paper,left=4mm of l1] {Papers 1+2\\split L1};
+\node[paper,left=4mm of l0] {Paper 2\\\emph{Anchor /}\\\emph{the Kernel}};
+
+% ─── "assumes from below / provides above" spine arrows ───────────────────
+\draw[->,>=Latex,very thick,hhcinnabar] ([xshift=-2mm]l2.south west) ++(8mm,0)
+   -- node[left,font=\scriptsize\itshape,text=hhcinnabar,xshift=-1mm]{assumes} ++(0,-7mm);
+\draw[->,>=Latex,very thick,hhpatina] ([xshift=2mm]l2.south east) ++(-8mm,-7mm)
+   -- node[right,font=\scriptsize\itshape,text=hhpatina,xshift=1mm]{provides} ++(0,7mm);
+
+\end{tikzpicture}%
+}
+\caption{The Harbor Volume stack (ADR-0048). Each layer serves a different
+\emph{whom}; each paper announces which rung it owns. \textbf{Paper~1 (this paper)
+owns L2 --- the legibility \& authority ``wedge'' --- plus the L1 directory
+substrate} (the existence layer that a performative must address; per the
+cross-layer stitch resolution C11). It \emph{assumes} the single-writer kernel
+below (Paper~2, \emph{The Anchor Protocol / The Harbor Daemon}) and \emph{provides}
+the legible, checkpointed, outcome-bearing identity that the reputation bridge
+(Paper~3, \emph{From Spawn to Person}) and the market (Paper~4, \emph{The Harbor
+Economy}) consume. The volume is one ladder, climbed in order; you buy the next
+rung only when you need it.}
+\label{fig:stack-map}
+\end{figure}
