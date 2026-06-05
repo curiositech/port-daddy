@@ -1,0 +1,110 @@
+(*
+ * Port Daddy: Harbor Card v6 — MULTI-HOP ESCALATION (red-team probe)
+ * ==================================================================
+ *
+ * SMELL (redteam-crypto, round: post-v5):
+ *   harbor_card_v5_attenuation.pv proves attenuation soundness for ONE hop
+ *   (Daemon → A → Harbor). But anchor-protocol-whitepaper.tex §"Offline
+ *   Attenuation" claims Macaroon-style MULTI-HOP delegation: "Agent A spawns
+ *   Agent B ... Agent B spawns Agent C ..." A verifier that checks the final
+ *   delegated capability against the ROOT capability — the natural single-pass
+ *   implementation — misses a non-monotonic MIDDLE hop.
+ *
+ * PROBE:
+ *   target  : a 2-hop chain A → B → C verified by the naive (final ⊆ root) check
+ *   tool    : ProVerif 2.05
+ *   attack  : Daemon issues cap_write to A. A correctly attenuates to cap_read
+ *             for B (a legit restriction). MALICIOUS B re-delegates cap_write to
+ *             C — escalating back to an authority B never held. The naive
+ *             verifier checks is_subset(cap_write_final, cap_write_root) = true
+ *             and ACCEPTS.
+ *   expected: event(Accepted(c, harbor, cap_write)) is REACHABLE even though B
+ *             only ever held cap_read — escalation at hop 2.
+ *   impact  : a spawned sub-agent can re-grant itself authority its parent
+ *             attenuated away. The single-hop v5 proof says nothing about this.
+ *
+ * EXPECTED RESULT: Q (no hop-2 escalation) is FALSE, with a ProVerif trace.
+ * The white-hat answer (next round) is a per-hop verifier that checks each
+ * delegation against its IMMEDIATE PARENT, not the root.
+ *)
+
+type id.
+type skey.
+type pkey.
+type capability.
+
+free c: channel.
+
+fun pk(skey): pkey.
+fun sign(bitstring, skey): bitstring.
+reduc forall m: bitstring, k: skey; check_sign(m, pk(k), sign(m, k)) = true.
+
+const cap_read: capability.
+const cap_write: capability.
+
+fun is_subset(capability, capability): bool
+reduc
+    forall x: capability; is_subset(x, x) = true
+    otherwise is_subset(cap_read, cap_write) = true.
+
+fun base_token(id, id, id, capability): bitstring [data].
+fun delegate_token(bitstring, id, capability): bitstring [data].
+
+event IssuedRoot(id, capability).
+event HeldByB(capability).                 (* the capability B legitimately received *)
+event Accepted(id, id, capability).        (* c, harbor, final_cap *)
+
+free harbor_id: id.
+free daemon_id: id.
+free daemon_sk: skey [private].
+
+(* Daemon issues a cap_write root to A. *)
+let Daemon(a: id) =
+    let msg = base_token(daemon_id, a, harbor_id, cap_write) in
+    event IssuedRoot(a, cap_write);
+    out(c, (msg, sign(msg, daemon_sk))).
+
+(* Honest A: attenuates write -> read for B (a legitimate restriction). *)
+let AgentA(a: id, a_sk: skey, b: id) =
+    in(c, (msg: bitstring, s: bitstring));
+    let base_token(=daemon_id, =a, =harbor_id, root_cap: capability) = msg in
+    if check_sign(msg, pk(daemon_sk), s) = true then
+    if is_subset(cap_read, root_cap) = true then
+        event HeldByB(cap_read);
+        let d1 = delegate_token((msg, s), b, cap_read) in
+        out(c, (d1, sign(d1, a_sk))).
+
+(* Malicious B: holds cap_read from A, re-delegates cap_write to C (escalation). *)
+let MaliciousB(b: id, b_sk: skey, cc: id) =
+    in(c, (d1: bitstring, d1s: bitstring));
+    let delegate_token(parent: bitstring, =b, my_cap: capability) = d1 in
+    let d2 = delegate_token((d1, d1s), cc, cap_write) in
+    out(c, (d2, sign(d2, b_sk))).
+
+(* NAIVE verifier: unwraps the 2-hop chain and checks the FINAL cap against the
+ * ROOT cap only — never against the intermediate hop. This is the bug. *)
+let NaiveVerifier(a_pk: pkey, b_pk: pkey) =
+    in(c, (d2: bitstring, d2s: bitstring));
+    let delegate_token((d1: bitstring, d1s: bitstring), cc: id, final_cap: capability) = d2 in
+    let delegate_token((base: bitstring, bases: bitstring), b: id, mid_cap: capability) = d1 in
+    let base_token(=daemon_id, a: id, =harbor_id, root_cap: capability) = base in
+    if check_sign(base, pk(daemon_sk), bases) = true then
+    if check_sign(d1, a_pk, d1s) = true then
+    if check_sign(d2, b_pk, d2s) = true then
+    if is_subset(final_cap, root_cap) = true then   (* BUG: checks root, not parent *)
+        event Accepted(cc, harbor_id, final_cap).
+
+(* The attack target: C accepted with cap_write although B only ever HeldByB
+ * cap_read. If this is reachable, hop-2 escalation succeeds. *)
+query cc: id; event(Accepted(cc, harbor_id, cap_write)) ==> false.
+
+process
+    new sk_a: skey; let pk_a = pk(sk_a) in out(c, pk_a);
+    new sk_b: skey; let pk_b = pk(sk_b) in out(c, pk_b);
+    new id_a: id; new id_b: id; new id_c: id;
+    (
+        (! Daemon(id_a))
+      | (! AgentA(id_a, sk_a, id_b))
+      | (! MaliciousB(id_b, sk_b, id_c))
+      | (! NaiveVerifier(pk_a, pk_b))
+    )
