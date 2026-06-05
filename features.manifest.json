@@ -1198,6 +1198,9 @@
         "POST /harbors/:name/enter",
         "POST /harbors/:name/leave",
         "GET /harbors/:name/members",
+        "GET /harbors/:name/envelope",
+        "PUT /harbors/:name/envelope",
+        "POST /harbors/:name/check",
         "GET /harbors/agent/:agentId"
       ],
       "completions": [
