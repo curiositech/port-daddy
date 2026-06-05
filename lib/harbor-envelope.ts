@@ -29,7 +29,8 @@
  * UX).
  */
 
-import { resolve, relative, isAbsolute } from 'node:path';
+import { resolve, relative, isAbsolute, dirname, basename } from 'node:path';
+import { realpathSync } from 'node:fs';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -155,14 +156,48 @@ function admits(list: string[], name: string): boolean {
 }
 
 /**
- * Is `target` contained within `root`? Both are resolved to absolute form; a
- * target equal to or beneath the root is contained. Traversal that escapes the
- * root (`relative` starts with `..`) or that lands on a path-prefix sibling
- * (e.g. `/x/port-daddy-evil` vs root `/x/port-daddy`) is NOT contained.
+ * Resolve symlinks on the deepest *existing* ancestor of `p`, then re-append the
+ * not-yet-existing tail. Never throws. For a path whose ancestors don't exist
+ * (e.g. in CI), this degrades to a plain lexical `resolve`.
+ *
+ * This defeats the obvious symlink-bypass: a symlink that exists *inside* a root
+ * but points *outside* it resolves to its real (outside) location here, so the
+ * containment compare below sees the escape. Purely lexical resolution would
+ * not.
+ */
+function realResolveLenient(p: string): string {
+  const abs = resolve(p);
+  const tail: string[] = [];
+  let cur = abs;
+  for (;;) {
+    try {
+      const real = realpathSync(cur);
+      return tail.length ? resolve(real, ...tail) : real;
+    } catch {
+      const parent = dirname(cur);
+      if (parent === cur) return abs; // reached fs root unresolved → lexical
+      tail.unshift(basename(cur));
+      cur = parent;
+    }
+  }
+}
+
+/**
+ * Is `target` contained within `root`? Both are resolved to absolute form *with
+ * symlinks followed on existing ancestors*; a target equal to or beneath the
+ * root is contained. Traversal that escapes the root (`relative` starts with
+ * `..`), a path-prefix sibling (`/x/port-daddy-evil` vs root `/x/port-daddy`),
+ * or a symlink that points outside the root are all NOT contained.
+ *
+ * SECURITY NOTE: this is a policy check — necessary but NOT sufficient on its
+ * own. It is subject to TOCTOU (a path can be swapped for a symlink between this
+ * check and the actual open). The syscall-site enforcement must additionally use
+ * an `openat(..., O_NOFOLLOW)`-style guarded open when this envelope is wired to
+ * real filesystem operations (ADR-0047 P4+).
  */
 function isContained(root: string, target: string): boolean {
-  const absRoot = resolve(root);
-  const absTarget = resolve(target);
+  const absRoot = realResolveLenient(root);
+  const absTarget = realResolveLenient(target);
   if (absTarget === absRoot) return true;
   const rel = relative(absRoot, absTarget);
   return rel.length > 0 && !rel.startsWith('..') && !isAbsolute(rel);

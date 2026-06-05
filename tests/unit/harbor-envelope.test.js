@@ -14,6 +14,10 @@
  * can be shown to the operator (ADR-linked, gates #190).
  */
 
+import { mkdtempSync, mkdirSync, symlinkSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import {
   assessEnvelope,
   parseEnvelope,
@@ -114,6 +118,38 @@ describe('harbor-envelope: filesystem containment', () => {
 
   test('empty filesystem denies all paths', () => {
     expect(assessEnvelope(emptyEnvelope(), { kind: 'fs', op: 'read', path: '/anything' }).allowed).toBe(false);
+  });
+});
+
+describe('harbor-envelope: symlink escapes are denied (security regression)', () => {
+  // A symlink that lives INSIDE the root but points OUTSIDE it must not smuggle
+  // an out-of-bounds path past containment. Lexical resolution alone would miss
+  // this; realResolveLenient follows the link before the compare.
+  let base, root, outside, link, cleanup;
+  beforeAll(() => {
+    base = mkdtempSync(join(tmpdir(), 'pd-envelope-symlink-'));
+    root = join(base, 'harbor-root');
+    outside = join(base, 'outside');
+    mkdirSync(root);
+    mkdirSync(outside);
+    writeFileSync(join(outside, 'secret.txt'), 'classified');
+    link = join(root, 'escape'); // inside the root, but points outside it
+    symlinkSync(outside, link);
+    cleanup = () => rmSync(base, { recursive: true, force: true });
+  });
+  afterAll(() => cleanup && cleanup());
+
+  test('a path through an inside→outside symlink is NOT contained', () => {
+    const env = parseEnvelope({ filesystem: [root] });
+    const v = assessEnvelope(env, { kind: 'fs', op: 'read', path: join(link, 'secret.txt') });
+    expect(v.allowed).toBe(false);
+    expect(v.boundary).toBe('filesystem');
+  });
+
+  test('a genuinely-inside path is still allowed after symlink hardening', () => {
+    const env = parseEnvelope({ filesystem: [root] });
+    writeFileSync(join(root, 'ok.txt'), 'fine');
+    expect(assessEnvelope(env, { kind: 'fs', op: 'read', path: join(root, 'ok.txt') }).allowed).toBe(true);
   });
 });
 
