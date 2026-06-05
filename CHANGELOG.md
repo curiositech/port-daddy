@@ -18,6 +18,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   routing isolation remains a documented follow-up (needs a repo→project
   registry). 9 tests, including an end-to-end loop check over real messaging.
 
+### Fixed
+- **Release gate: a mute compiled `pd` can no longer ship.** The Homebrew `pd`
+  is a `bun build --compile` binary, and bun auto-loads `.env.local` from the
+  current working directory before any of our code runs. A shell-idiom value that
+  nests a command substitution inside a default-expansion —
+  `KEY="${KEY:-$(...)}"` — segfaults bun (exit 133) during that autoload, so `pd`
+  was **totally mute** (zero bytes, nonzero exit) from any directory containing
+  such a file. The CI compiled-CLI smoke ran from a clean cwd, so the mute binary
+  shipped green. `scripts/smoke-compiled-cli-runs.sh` now also drives the compiled
+  binary from a hostile-`.env.local` cwd (NODE_ENV dropped so bun actually
+  autoloads it) and fails the build unless the binary speaks **or** `pd doctor`
+  ships the named diagnostic — so the failure is loud, never silent.
+- **`pd doctor`: new `Shell-idiom .env.local` check.** Detects a
+  `${VAR:-$(...)}` value in the current directory's `.env.local` and warns that
+  bun's dotenv autoload will crash `pd` from there, with the fix (drop the
+  wrapper / move keychain resolution to the shell rc). It never edits secrets.
+- Regression test under the real failing runtime
+  (`tests/bun/env-local-autoload-crash.test.ts`, run by `bun test`/CI) proving
+  the crash, the detector, and the safe-vs-hostile idiom distinction.
+
 ## [3.17.0] - 2026-06-02
 
 This minor release consolidates a large backlog of user-visible capabilities that
