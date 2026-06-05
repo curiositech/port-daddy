@@ -3,13 +3,24 @@
 > **Purpose of this document.** Port Daddy's writing had drifted into *eight
 > disjoint papers* (a published trilogy + five North-Star drafts) that no
 > newcomer could thread together. This is the editorial spine that fixes that:
-> one coherent **volume** that climbs a single ladder (the L0→L3 stack from
-> **ADR-0048**), with **progressive-disclosure depth** so a reader can enter at a
-> one-page glance, a blog-length essay, or a full academic paper — and so
-> someone you are *showing Port Daddy to* can actually follow it.
+> one coherent **library of seven co-equal chapters** that climbs a single ladder
+> (the L0→L3 stack from **ADR-0048**), with **progressive-disclosure depth** so a
+> reader can enter at a one-page glance, a blog-length essay, or a full academic
+> paper — and so someone you are *showing Port Daddy to* can actually follow it.
 >
-> This is a **plan + the Tier-0 and Tier-1 drafts**. The four deep papers (Tier 2)
-> are produced from this spine as a unified LaTeX set.
+> **The pinned model: four papers *explain* the system, three *prove* it.** All
+> seven are co-equal cross-referenced chapters of one book — not a four-paper
+> volume with three subordinate companions. The four that explain (I The Legible
+> Swarm, II The Single-Writer Kernel, III From Spawn to Person, IV The Harbor
+> Economy) are pedagogic; the three that prove (V The Anchor Protocol, VI The
+> Bonded Commons, VII The Federated Harbor) are mechanized. Each chapter names
+> what it *assumes* from below, what it *underwrites* above, and which proof
+> chapter *proves* it. See `00-HARBOR-LIBRARY.md` for the cross-reference map and
+> `00-INTRODUCTION.md` for the rendered spine.
+>
+> This is a **plan + the Tier-0 and Tier-1 drafts**. The four explaining papers
+> are produced from this spine as a unified LaTeX set; the three proving papers
+> are the mechanized chapters they cross-reference.
 
 ---
 
@@ -58,11 +69,14 @@ product; over-flattening is the failure.
 
 ---
 
-## 2. The volume: 8 disjoint → 4 climbing papers
+## 2. The library: 8 disjoint → 7 co-equal climbing chapters
 
 The trilogy and the five North-Star drafts are **not holy** — they are raw
-material. They collapse into four papers, ordered by the ladder, front-loaded by
-*what you sell first* (the wedge), not by formal dependency.
+material. They collapse into **seven co-equal chapters**: four that *explain* the
+system (ordered by the ladder, front-loaded by *what you sell first* — the wedge —
+not by formal dependency) and three that *prove* it (the mechanized chapters the
+explaining four cross-reference). Nothing is subordinate; the proofs are chapters
+V–VII, not appendices.
 
 ```
                      READER ENTERS HERE
@@ -132,7 +146,7 @@ The North-Star index flagged real seams. Resolutions, to be applied uniformly:
 | 2 | reputation = "cheap and last" (P3) vs. "the moat" (P4) | State it once, cross-linked: **the score is cheap; the substrate it scores over (witnessed outcomes on a non-forgeable id) is the gate.** Both papers point at this sentence. |
 | 3 | "three-sided market" (headline) vs. "two-sided today" (honesty note) | Canonical: **"a three-sided market by design; two-sided until reputation ships (ADR-0049/0040)."** The third side *is* the tradeable-person terminus of Paper 3. |
 | 4 | ADR-0040 (non-forgeable identity) load-bearing but unbuilt | Name it once as **the highest-leverage unbuilt keystone**; every L3 claim that depends on it says so in one clause. |
-| 5 | "trilogy" (manifesto) vs. five North-Star papers | Retired. There is **one volume of four papers** + a manifesto front-matter. Update `docs/manifesto-why-agent-economies.md` to match. |
+| 5 | "trilogy" (manifesto) vs. five North-Star papers | The "trilogy" *framing* is retired; the three trilogy papers are **not** — they are chapters V–VII (the proofs), co-equal with the four that explain. There is **one library of seven cross-referenced chapters: four explain, three prove**, plus a manifesto front-matter. `docs/manifesto-why-agent-economies.md` already matches ("four explain the system; three more prove it"). |
 
 ---
 
@@ -278,8 +292,10 @@ pd begin --identity myapp:api --purpose "refactor auth"
 2. **Each paper opens** with the same stack-map figure (which rung, what it
    assumes, which papers it cites) so the volume reads as one thing.
 3. **Adversarial review by field, not just CS** — see §7.
-4. **Manifesto** (`docs/manifesto-why-agent-economies.md`) updated to front-matter
-   for the four-paper volume; retire the "trilogy" framing.
+4. **Manifesto** (`docs/manifesto-why-agent-economies.md`) is the front-matter for
+   the seven-chapter library — *four explain, three prove* — with the "trilogy"
+   framing dropped (the three proofs are chapters V–VII, co-equal, not a separate
+   trilogy).
 
 ---
 
@@ -327,7 +343,7 @@ pushed on two axes:
 | **L0 — the Daemon** | machine | systems, reliability, local-first/CRDT, security | (code is the source) |
 | **L1 — the Protocol** | agents | multi-agent systems (Contract-Net, GPGP/TÆMS, BDI), deontic logic, distributed systems | ADR-0047 |
 | **L2 — the Leviathan** | operator | political theory (Hobbes/Scott), HCI/automation, information design | legibility-leviathan, tokens-compaction, discovery-guilds |
-| **L3 — the Market** | operators | mechanism design/game theory, crypto/security, category theory | identity-reputation, agent-economy-anchor, the trilogy |
+| **L3 — the Market** | operators | mechanism design/game theory, crypto/security, category theory | identity-reputation, agent-economy-anchor, the three proof chapters (V Anchor Protocol, VI Bonded Commons, VII Federated Harbor) |
 
 **The pipeline:** each avatar produces a **layer dossier** (complete idea-space +
 gaps + open problems + adjacency contract) → a per-field panel **steelmans then

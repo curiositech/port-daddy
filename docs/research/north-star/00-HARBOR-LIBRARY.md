@@ -1,14 +1,16 @@
 # The Harbor Library
 
-Seven papers, two tiers, one argument. The **Volume** (four papers) *explains* the
-system to someone who has never heard of it — self-contained, pedagogic, no
-internal references. The **Companions** (the original three) *prove* it —
-mechanized, formally verified, the deep substrate the Volume cites. The Volume is
-the front door; the Companions are the vault.
+Seven co-equal chapters, one argument. **Four chapters *explain* the system** to
+someone who has never heard of it — self-contained, pedagogic. **Three chapters
+*prove* it** — mechanized, formally verified. They are chapters of one book, not a
+front-of-house volume with subordinate companions: each explaining chapter names
+which proving chapter discharges its load-bearing claim, and each proving chapter
+names the explaining claim it proves. Read the explaining four in ladder order for
+the argument; reach for the matching proof chapter when you want it machine-checked.
 
 ---
 
-## Tier 1 — The Volume (read these, in order)
+## The four that explain (read these, in order)
 
 A single ladder up the L0→L3 stack. You buy the next rung only when you need it.
 
@@ -26,42 +28,42 @@ bridge from the tool to the network; Paper IV is the network.
 
 ---
 
-## Tier 2 — The Companions (the formal proofs)
+## The three that prove (chapters V–VII)
 
-The original three. Where the Volume says "this is sound," these *are* the
-soundness — mechanized in **ProVerif** (symbolic protocol analysis), **Kani**
-(bounded model checking), and **TLA⁺**. Nothing here is thrown away; the Volume's
-self-contained body points here (from its appendices) for the machine-checked
-guarantees.
+These are chapters, not appendices. Where the explaining four say "this is sound,"
+these *are* the soundness — mechanized in **ProVerif** (symbolic protocol
+analysis), **Kani** (bounded model checking), and **TLA⁺**. Each one discharges a
+specific promise the explaining chapters make and points back to it.
 
-| Title | Proves | Methods | The Volume paper it backs |
-|-------|--------|---------|----------------------------|
-| **The Anchor Protocol** | A single agent proves identity + capability to the daemon with no trusted third party; capability attenuation is monotone; immune to algorithm-confusion, impersonation, timing side-channels. | ProVerif ×30, Kani ×30 | backs **II** (kernel identity) and **IV** (the cross-harbor transfer ceremony) |
-| **The Bonded Commons** | Why there should be a coordinator at all: the economics of bonding, evidence trails, and the conservation laws under which value cannot be created or destroyed in settlement. | ProVerif, TLA⁺ ×16 | backs **IV** (the bond ledger + conservation) |
-| **The Federated Harbor** | Multi-machine sovereignty: capability transfer across trust boundaries, revocation gossip with convergence bounds, and escrow that cannot steal. | ProVerif ×16, TLA⁺ ×11 | backs **IV** (federation) and **III** (cross-operator attestation, named as the open keystone) |
+| # | Title | Proves | Methods | The explaining chapter it proves |
+|---|-------|--------|---------|----------------------------------|
+| **V** | **The Anchor Protocol** | A single agent proves identity + capability to the daemon with no trusted third party; capability attenuation is monotone; immune to algorithm-confusion, impersonation, timing side-channels. | ProVerif ×30, Kani ×30 | proves **II** (kernel identity) and **IV** (the cross-harbor transfer ceremony) |
+| **VI** | **The Bonded Commons** | Why there should be a coordinator at all: the economics of bonding, evidence trails, and the conservation laws under which value cannot be created or destroyed in settlement. | ProVerif, TLA⁺ ×16 | proves **IV** (the bond ledger + conservation) |
+| **VII** | **The Federated Harbor** | Multi-machine sovereignty: capability transfer across trust boundaries, revocation gossip with convergence bounds, and escrow that cannot steal. | ProVerif ×16, TLA⁺ ×11 | proves **IV** (federation) and **III** (cross-operator attestation, named as the open keystone) |
 
 ---
 
 ## How to point someone at it
 
 - **"What is this?"** → the one-pager (`00-HARBOR-VOLUME-ARCHITECTURE.md`, Tier 0).
-- **"Tell me the whole story."** → the overview essay (Tier 1 of the architecture doc), then **Paper I**.
-- **"Convince the skeptic."** → Papers I→IV in order.
-- **"Prove it to the cryptographer / the economist."** → the matching Companion.
+- **"Tell me the whole story."** → the introduction (`00-INTRODUCTION.md`), then **Chapter I**.
+- **"Convince the skeptic."** → Chapters I→IV in order.
+- **"Prove it to the cryptographer / the economist."** → the matching proof chapter (V / VI / VII).
 
-The Volume and the Companions share the same house design, the same honest-status
-discipline (the Volume on a neutral maturity scale in-body, the precise
-implementation mapping in each paper's appendix), and the same named cast in their
-worked scenarios — so the seven read as one library, not a pile.
+All seven chapters share the same house design, the same honest-status discipline
+(a neutral maturity scale in-body, the precise implementation mapping in each
+chapter's appendix), and the same named cast in their worked scenarios — so the
+seven read as one library, not a pile.
 
 ---
 
 ### Naming note (what changed and why)
 
-- The Volume's **Paper II** is titled *The Single-Writer Kernel*, not *The Anchor
-  Protocol* — because the **Anchor Protocol proper** is the *cross-harbor
-  capability-transfer ceremony* (an L3 concern), which lives in **Paper IV** and is
-  proved in the **Anchor Protocol Companion**. Calling the kernel paper "Anchor"
-  conflated the kernel with the ceremony; the split fixes it.
-- The trilogy framing ("Paper I/II/III of a trilogy") is retired. There is **one
-  Library**: a four-paper **Volume** + three formal **Companions**.
+- **Chapter II** is titled *The Single-Writer Kernel*, not *The Anchor Protocol* —
+  because the **Anchor Protocol proper** is the *cross-harbor capability-transfer
+  ceremony* (an L3 concern), which lives in **Chapter IV** and is proved in the
+  **Anchor Protocol** chapter (V). Calling the kernel chapter "Anchor" conflated
+  the kernel with the ceremony; the split fixes it.
+- The "trilogy" framing is retired, but the three papers it named are not demoted:
+  they are **chapters V–VII**, co-equal with the four that explain. There is **one
+  library of seven cross-referenced chapters — four explain, three prove.**
