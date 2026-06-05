@@ -34,6 +34,8 @@ jest.unstable_mockModule('node:child_process', () => ({
 // Import after mocking
 const { spawn: cpSpawn } = await import('node:child_process');
 const { createSpawner: createSpawnerBase } = await import('../../lib/spawner.js');
+// Note: the worktree-isolation guard is disabled suite-wide in tests/jest.env.js
+// (this file tests spawner mechanics, not isolation). See that file for why.
 
 // ---------------------------------------------------------------------------
 // Global fetch mock
