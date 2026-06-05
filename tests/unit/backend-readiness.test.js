@@ -140,11 +140,12 @@ describe('backend readiness', () => {
       status: 'needs_setup',
     });
     // The combined summary has the binary-probe detail AND the claude-cli
-    // telemetry-policy detail. After the latest policy revision claude-cli is
-    // fail-closed regardless of model (subprocess telemetry can't prove exact
-    // token counts), so the policy summary appends to the readiness summary.
+    // telemetry-policy detail. Per the estimate-fallback revision
+    // (lib/backend-telemetry-policy.ts `claude-cli` case), claude-cli is
+    // fail-closed only when the model has no cost-rate entry — and the policy
+    // summary names that precise reason rather than the generic default phrase.
     expect(readiness.summary).toContain('Claude CLI binary not found');
-    expect(readiness.summary).toContain('blocked until exact token counts');
+    expect(readiness.summary).toContain('has no cost rate entry');
     expect(readiness.setupCommand).toBe('claude');
   });
 

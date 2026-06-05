@@ -26,6 +26,9 @@ const ROOT = join(import.meta.dirname, '..', '..');
  * add it here too. This is part of the parity enforcement contract.
  */
 const TOOL_FEATURE_MAP = {
+  // Trust / introspection
+  'attest': 'attest',
+
   // Port management
   'claim_port': 'claim',
   'release_port': 'release',
@@ -687,7 +690,7 @@ describe('MCP tiered tool loading', () => {
   ];
 
   const CATEGORY_NAMES = [
-    'magic', 'session-lifecycle', 'advisor', 'ports', 'sessions', 'notes', 'locks',
+    'magic', 'session-lifecycle', 'trust', 'advisor', 'ports', 'sessions', 'notes', 'locks',
     'messaging', 'agents', 'actors', 'inbox', 'webhooks', 'integration', 'dns', 'briefing',
     'tunnels', 'projects', 'changelog', 'activity', 'system', 'tuples', 'sorties',
     'fleet-control', 'semantic', 'feedback', 'cockpit',
