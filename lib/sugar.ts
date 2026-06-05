@@ -8,6 +8,10 @@
 
 import { randomBytes } from 'crypto';
 import { parseIdentity } from './identity.js';
+import { classifySessionLiveness, decideBeginResume } from './session-liveness.js';
+
+/** How recent an agent heartbeat counts as "a live process is driving this session right now". */
+const SESSION_DRIVING_TTL_MS = 180_000;
 import { buildHumanReadableId, cleanAgentDisplayName, deriveAgentDisplayName } from './agent-names.js';
 import {
   evaluateSessionWorktreePolicy,
@@ -37,6 +41,7 @@ interface SessionsModule {
   list(options?: Record<string, unknown>): Record<string, unknown>;
   get(id: string): Record<string, unknown>;
   getNotes(id?: string | null, options?: Record<string, unknown>): Record<string, unknown>;
+  claimFiles(sessionId: string, filePaths: string[], options?: Record<string, unknown>): Record<string, unknown>;
 }
 
 interface ActivityLogModule {
@@ -167,6 +172,98 @@ export function createSugar(deps: SugarDeps) {
         hint: worktreePolicy.hint,
         worktree: worktreePolicy.worktree,
       };
+    }
+
+    // Idempotent resume. A re-begin for the SAME identity in the SAME worktree
+    // must RESUME the existing active session, not fork a parallel one. Forking
+    // was the dual-session bug: the first session held the file claims, the
+    // second could not re-claim, and the Coordination Guard then rejected the
+    // commit. This mirrors the repo's claim/release idempotency discipline.
+    // Opt out with an explicit `agentId` or `force: true`.
+    const resumeParsed = identity ? parseIdentity(identity) : null;
+    const resumeProject = resumeParsed && resumeParsed.valid ? resumeParsed.project : null;
+    if (!options.agentId && !force && resumeProject) {
+      // Scope to the current worktree. When the policy resolved a worktree use
+      // its id; otherwise let list() auto-detect via getWorktreeId() (same
+      // default sessions.start() uses), so create + lookup agree.
+      const listOpts: Record<string, unknown> = { status: 'active', allWorktrees: false, limit: 50 };
+      if (worktreePolicy.worktree) listOpts.worktreeId = worktreePolicy.worktree.id;
+      const active = sessions.list(listOpts);
+      const activeRows: Array<Record<string, unknown>> =
+        active && typeof active === 'object' && Array.isArray((active as { sessions?: unknown[] }).sessions)
+          ? ((active as { sessions: Array<Record<string, unknown>> }).sessions)
+          : [];
+      // Match on the EXACT full identity, not just the project: two identities
+      // that share a project but differ by stack/context (demo:test:alpha vs
+      // demo:test:beta) must NOT collapse. identityProject is a cheap pre-filter;
+      // the agent's full identity is the real key.
+      let match: Record<string, unknown> | undefined;
+      let matchAgent: { identity?: unknown; timeSinceHeartbeat?: unknown } | undefined;
+      for (const s of activeRows) {
+        if (!s || s.identityProject !== resumeProject || typeof s.agentId !== 'string') continue;
+        const agentResult = agents.get(s.agentId) as { agent?: { identity?: unknown; timeSinceHeartbeat?: unknown } };
+        if (agentResult && agentResult.agent && agentResult.agent.identity === identity) {
+          match = s;
+          matchAgent = agentResult.agent;
+          break;
+        }
+      }
+      if (match && typeof match.id === 'string' && typeof match.agentId === 'string') {
+        // A session is a DURABLE WORK CONTEXT: resume it whether a process is
+        // actively driving it (active) or it's been parked since you closed your
+        // laptop (dormant). Only a `done` session forks a fresh one. See
+        // lib/session-liveness.ts.
+        const nowMs = Date.now();
+        const sinceBeat = typeof matchAgent?.timeSinceHeartbeat === 'number' ? matchAgent.timeSinceHeartbeat : null;
+        const liveness = classifySessionLiveness({
+          status: typeof match.status === 'string' ? match.status : 'active',
+          attachedAgentId: match.agentId,
+          lastHeartbeatMs: sinceBeat == null ? null : nowMs - sinceBeat,
+          nowMs,
+          liveTtlMs: SESSION_DRIVING_TTL_MS,
+        });
+        const decision = decideBeginResume(liveness);
+        if (decision.action === 'resume') {
+        const resumedSessionId: string = match.id;
+        const resumedAgentId: string = match.agentId;
+        const displayName =
+          (typeof match.agentName === 'string' && match.agentName)
+          || (typeof match.name === 'string' && match.name)
+          || identity
+          || 'Port Daddy Agent';
+        const resumed: Record<string, unknown> = {
+          success: true,
+          resumed: true,
+          agentId: resumedAgentId,
+          sessionId: resumedSessionId,
+          agentName: displayName,
+          sessionName: displayName,
+          name: displayName,
+          identity: identity || null,
+          purpose: purpose.trim(),
+          agentRegistered: false,
+          sessionStarted: false,
+        };
+        if (worktreePolicy.worktree) resumed.worktree = worktreePolicy.worktree;
+        if (files && files.length > 0) {
+          const claim = sessions.claimFiles(resumedSessionId, files, { agentId: resumedAgentId }) as Record<string, unknown>;
+          if (claim && typeof claim === 'object') {
+            if ('claimed' in claim) resumed.fileClaims = claim.claimed;
+            if (Array.isArray(claim.conflicts) && claim.conflicts.length > 0) resumed.fileConflicts = claim.conflicts;
+          }
+        }
+        if (decision.warn === 'driven-elsewhere') {
+          resumed.warn = 'Another live process is already driving this session; attaching anyway (worktree isolation is the real guard).';
+        }
+        activityLog.log('sugar_begin', {
+          agentId: resumedAgentId,
+          details: 'sugar_begin_resumed',
+          metadata: { sessionId: resumedSessionId, identity: identity || null },
+        });
+        return resumed;
+        }
+        // decision.action === 'create' falls through to start a fresh session.
+      }
     }
 
     // Crowded-main-worktree gate. `--allow-main-worktree` survives only
