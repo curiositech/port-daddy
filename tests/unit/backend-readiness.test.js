@@ -88,7 +88,7 @@ describe('backend readiness', () => {
     expect(readiness.setupCommand).toContain('ANTHROPIC_API_KEY=<paste-value>');
   });
 
-  test('blocks Gemini backend behind the telemetry policy', async () => {
+  test('reports Gemini needs_setup when no API key is present (REST adapter, no SDK required)', async () => {
     const readiness = await assessBackendReadiness('gemini');
 
     expect(mockGetSecret).toHaveBeenNthCalledWith(1, 'GEMINI_API_KEY');
@@ -98,10 +98,32 @@ describe('backend readiness', () => {
       status: 'needs_setup',
     });
     expect(readiness.summary).toContain('Gemini API key missing');
-    expect(readiness.summary).toContain('blocked until exact token counts');
+    // No SDK requirement anymore — the REST adapter needs no package.
+    expect(readiness.summary).not.toContain('generative-ai');
     expect(readiness.credentialKeys).toEqual(['GEMINI_API_KEY']);
     expect(readiness.credentialAlternates).toEqual(['GOOGLE_API_KEY']);
-    expect(readiness.nextStep).toContain('~/.port-daddy-env');
+    expect(readiness.nextStep).toContain('GEMINI_API_KEY');
+  });
+
+  test('reports Gemini ready when GEMINI_API_KEY is present (telemetry policy allows the default model)', async () => {
+    secretValues.set('GEMINI_API_KEY', 'g-key');
+    const readiness = await assessBackendReadiness('gemini');
+    expect(readiness).toMatchObject({ backend: 'gemini', status: 'ready' });
+    expect(readiness.summary).toContain('Gemini API key present');
+  });
+
+  test('reports Groq ready when GROQ_API_KEY is present', async () => {
+    secretValues.set('GROQ_API_KEY', 'gsk');
+    const readiness = await assessBackendReadiness('groq');
+    expect(readiness).toMatchObject({ backend: 'groq', status: 'ready' });
+    expect(readiness.summary).toContain('GROQ_API_KEY present');
+  });
+
+  test('reports Groq needs_setup when GROQ_API_KEY is missing', async () => {
+    const readiness = await assessBackendReadiness('groq');
+    expect(readiness).toMatchObject({ backend: 'groq', status: 'needs_setup' });
+    expect(readiness.summary).toContain('GROQ_API_KEY missing');
+    expect(readiness.nextStep).toContain('GROQ_API_KEY');
   });
 
   test('marks Cloudflare backend ready when credentials are present (telemetry policy allows it)', async () => {

@@ -3869,7 +3869,7 @@ interface ChangelogIdentitiesResponse {
 // =============================================================================
 
 interface SpawnSpec {
-  backend: 'ollama' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'codex' | 'aider' | 'custom';
+  backend: 'ollama' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'openai' | 'groq' | 'codex' | 'aider' | 'custom' | 'cli:claude-code' | 'cli:codex';
   name?: string;
   model?: string;
   modelTier?: 'low' | 'mid' | 'high';

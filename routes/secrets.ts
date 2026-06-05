@@ -233,6 +233,7 @@ function backendForKey(key: string): string {
   if (key === 'ANTHROPIC_API_KEY') return 'claude';
   if (key === 'OPENAI_API_KEY') return 'codex';
   if (key === 'GEMINI_API_KEY' || key === 'GOOGLE_API_KEY') return 'gemini';
+  if (key === 'GROQ_API_KEY') return 'groq';
   if (key.startsWith('CLOUDFLARE_') || key.startsWith('CF_')) return 'cloudflare';
   if (key === 'NGROK_AUTHTOKEN') return 'ngrok';
   if (key === 'VOYAGE_API_KEY') return 'voyage';

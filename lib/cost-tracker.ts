@@ -90,8 +90,20 @@ const MODEL_RATES: Array<[string, ModelRate]> = [
   ['opus',                    { input: 15.00, output: 75.00, label: 'Claude Opus (claude-cli tier shorthand)' }],
   ['sonnet',                  { input:  3.00, output: 15.00, label: 'Claude Sonnet (claude-cli tier shorthand)' }],
   ['haiku',                   { input:  0.80, output:  4.00, label: 'Claude Haiku (claude-cli tier shorthand)' }],
-  // Gemini
-  ['gemini-2.0-flash',        { input:  0.075, output: 0.30, label: 'Gemini 2.0 Flash' }],
+  // Groq (OpenAI-compatible; open-weight models on LPU hardware).
+  // Rates as of 2026-06 — https://groq.com/pricing. More-specific IDs first.
+  ['llama-3.3-70b-versatile',   { input: 0.59, output: 0.79, label: 'Groq Llama 3.3 70B Versatile' }],
+  ['llama-3.1-8b-instant',      { input: 0.05, output: 0.08, label: 'Groq Llama 3.1 8B Instant' }],
+  ['openai/gpt-oss-120b',       { input: 0.15, cachedInput: 0.075, output: 0.60, label: 'Groq GPT-OSS 120B' }],
+  ['openai/gpt-oss-20b',        { input: 0.10, cachedInput: 0.05,  output: 0.50, label: 'Groq GPT-OSS 20B' }],
+  ['moonshotai/kimi-k2',        { input: 1.00, output: 3.00, label: 'Groq Kimi K2' }],
+  // Gemini — 2.5 family (current). Thinking-model output tokens (incl.
+  // thoughtsTokenCount) are billed at the output rate; geminiAdapter folds
+  // them into outputTokens. More-specific keys before less-specific.
+  ['gemini-2.5-flash-lite',   { input:  0.10, output: 0.40, label: 'Gemini 2.5 Flash-Lite' }],
+  ['gemini-2.5-flash',        { input:  0.30, output: 2.50, label: 'Gemini 2.5 Flash' }],
+  ['gemini-2.5-pro',          { input:  1.25, output: 10.00, label: 'Gemini 2.5 Pro (≤200K context)' }],
+  // Gemini — legacy (1.5 family retained for explicit older configs).
   ['gemini-1.5-pro',          { input:  1.25, output:  5.00, label: 'Gemini 1.5 Pro' }],
   ['gemini-1.5-flash',        { input:  0.075, output: 0.30, label: 'Gemini 1.5 Flash' }],
 ];
@@ -139,6 +151,7 @@ const SESSION_ESTIMATES_USD: Record<string, number> = {
   'aider':      0.10,  // aider makes multiple calls; typically 2-4 cycles
   'cloudflare': 0.05,  // remote inference via Cloudflare AI
   'openai':     0.05,  // remote inference via OpenAI API (overridden by exact token rates)
+  'groq':       0.02,  // remote inference via Groq LPU (overridden by exact token rates)
   // CLI-tube backends route through operator's flat-rate subscription
   // (Claude Max / ChatGPT Pro). Marginal cost to PD's wallet is zero,
   // but we record a tiny nonzero session estimate so cost dashboards
@@ -166,7 +179,7 @@ function estimateOpaqueSessionCost(backend: string, model: string): number {
 }
 
 function hasKnownPaidRemoteBackend(backend: string): boolean {
-  return ['claude', 'claude-cli', 'gemini', 'codex', 'aider', 'cloudflare', 'openai', 'cli:claude-code', 'cli:codex'].includes(backend);
+  return ['claude', 'claude-cli', 'gemini', 'codex', 'aider', 'cloudflare', 'openai', 'groq', 'cli:claude-code', 'cli:codex'].includes(backend);
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────

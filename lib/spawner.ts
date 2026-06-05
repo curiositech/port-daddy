@@ -23,8 +23,9 @@ import type { Harbors } from './harbors.js';
 import type { Transcripts, TranscriptOutput } from './transcripts.js';
 import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
 import { getSecret } from './secret-env.js';
-import { cloudflareAdapter, ollamaAdapter } from './llm-call.js';
+import { cloudflareAdapter, ollamaAdapter, geminiAdapter } from './llm-call.js';
 import { openaiAdapter, DEFAULT_OPENAI_MODEL, DEFAULT_OPENAI_TIMEOUT_MS } from './spawner/backends/openai.js';
+import { groqAdapter, DEFAULT_GROQ_MODEL } from './spawner/backends/groq.js';
 import { spawnViaCliTube, type CliTubeTool } from './spawner/backends/cli-tube.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { deriveAgentDisplayName } from './agent-names.js';
@@ -85,7 +86,7 @@ function loadDotenvOnce(): Record<string, string> {
 // =============================================================================
 
 export interface SpawnSpec {
-  backend: 'ollama' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'codex' | 'aider' | 'custom' | 'openai' | 'cli:claude-code' | 'cli:codex';
+  backend: 'ollama' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'codex' | 'aider' | 'custom' | 'openai' | 'groq' | 'cli:claude-code' | 'cli:codex';
   name?: string;        // human-readable display name
   model?: string;
   modelTier?: 'low' | 'mid' | 'high';
@@ -422,31 +423,27 @@ async function runClaude(spec: SpawnSpec, model: string): Promise<BackendRunResu
 }
 
 async function runGemini(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
-  let GoogleGenerativeAI: unknown = null;
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-implied-eval
-    const m = await (new Function('s', 'return import(s)'))('@google/generative-ai') as { GoogleGenerativeAI: unknown };
-    GoogleGenerativeAI = m.GoogleGenerativeAI;
-  } catch {
-    return { output: '', error: '@google/generative-ai is not installed. Run: npm install @google/generative-ai' };
-  }
+  // REST-based: no SDK dep, and (critically) extracts exact usage tokens
+  // (promptTokenCount + candidatesTokenCount + thoughtsTokenCount) so the
+  // fail-closed telemetry policy can record an exact nonzero cost. The
+  // legacy @google/generative-ai SDK path returned no usage and is deprecated.
+  const result = await geminiAdapter({
+    prompt: spec.task,
+    model,
+    maxTokens: spec.maxTokens,
+    signal: spec.timeout ? AbortSignal.timeout(spec.timeout) : undefined,
+  });
+  return adaptLLMResult(result);
+}
 
-  try {
-    const genAI = new (GoogleGenerativeAI as new (apiKey: string) => {
-      getGenerativeModel(opts: { model: string }): {
-        generateContent(prompt: string): Promise<{
-          response: { text(): string };
-        }>;
-      };
-    })(getSecret('GEMINI_API_KEY') || '');
-
-    const geminiModel = genAI.getGenerativeModel({ model });
-    const result = await geminiModel.generateContent(spec.task);
-    const text = result.response.text();
-    return { output: text, error: null };
-  } catch (err) {
-    return { output: '', error: (err as Error).message };
-  }
+async function runGroq(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
+  const result = await groqAdapter({
+    prompt: spec.task,
+    model,
+    maxTokens: spec.maxTokens,
+    signal: spec.timeout ? AbortSignal.timeout(spec.timeout) : undefined,
+  });
+  return adaptLLMResult(result);
 }
 
 async function runCloudflare(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
@@ -794,9 +791,10 @@ const DEFAULT_MODELS: Record<SpawnSpec['backend'], string> = {
   ollama: 'llama3.1:8b',
   claude: 'claude-haiku-4-5-20251001',
   'claude-cli': 'claude-cli',  // claude CLI manages its own model
-  gemini: 'gemini-2.0-flash-exp',
+  gemini: 'gemini-2.5-flash',  // gemini-2.0-flash was shut down 2026-06-01
   cloudflare: '@cf/zai-org/glm-4.7-flash',
   openai: DEFAULT_OPENAI_MODEL,
+  groq: DEFAULT_GROQ_MODEL,
   codex: 'gpt-5.4-mini',
   'cli:claude-code': 'claude-cli',  // local claude CLI manages its own model
   'cli:codex': 'codex-cli',          // local codex CLI manages its own model
@@ -1318,6 +1316,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
           case 'gemini':    result = await runGemini(spec, model); break;
           case 'cloudflare': result = await runCloudflare(spec, model); break;
           case 'openai':    result = await runOpenAI(spec, model); break;
+          case 'groq':      result = await runGroq(spec, model); break;
           case 'codex':     result = await runCodexCli(spec, model, childContext); break;
           case 'claude-cli': result = await runClaudeCli(spec, childContext); break;
           case 'cli:claude-code': result = await runCliTube(spec, 'claude-code', childContext); break;
